@@ -9,7 +9,9 @@ export default async function About() {
       <Image
         src={image}
         alt="Profile picture"
-        className="float-none m-auto mb-8 block w-[min(80%,400px)] rounded-full shadow-[0px_5px_20px_2px_rgba(0,0,0,0.2)] md:float-left md:m-8 md:ml-0 md:w-[35vw] md:max-w-[500px]"
+        width={400}
+        height={400}
+        className="float-none m-auto mb-8 block w-[min(80%,400px)] rounded-full shadow-[0px_5px_20px_2px_rgba(0,0,0,0.2)] md:float-left md:m-8 md:ml-0 md:mt-0 md:w-[35vw] md:max-w-[300px]"
       />
       <p
         className="min-h-[300px] hyphens-auto text-justify text-lg [&>a:hover]:underline"
