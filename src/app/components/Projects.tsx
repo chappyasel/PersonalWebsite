@@ -68,7 +68,7 @@ function ProjectItem({ project }: { project: Project }) {
     <Link
       href={project.link}
       target="_blank"
-      className="group relative h-[300px] w-full rounded-3xl shadow-[0px_5px_20px_2px_rgba(0,0,0,0.2)] transition-all duration-300 ease-in-out hover:scale-[1.03] hover:shadow-[0px_5px_30px_0px_rgba(0,0,0,0.14)] md:h-[40vw] md:max-h-[350px] md:min-h-[250px]"
+      className="group relative h-[300px] w-full rounded-3xl overflow-hidden shadow-[0px_5px_20px_2px_rgba(0,0,0,0.2)] transition-all duration-300 ease-in-out hover:scale-[1.03] hover:shadow-[0px_5px_30px_0px_rgba(0,0,0,0.14)] md:h-[40vw] md:max-h-[350px] md:min-h-[250px]"
     >
       <Image
         src={`/images/projects/${project.image ?? "default.jpg"}`}
