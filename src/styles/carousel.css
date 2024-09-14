@@ -17,9 +17,9 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 150px;
+  width: 130px;
   height: 200px;
-  margin: -150px 0 0 -75px; /* Half of height and width to center */
+  margin: -140px 0 0 -75px; /* Half of height and width to center */
   text-align: center;
   transition: transform 1s;
 }

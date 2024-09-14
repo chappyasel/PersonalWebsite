@@ -86,7 +86,7 @@ export default async function AboutMe() {
             curriculum vitae
           </Link>
         </div>
-        <p className="text-sm italic text-body/60">
+        <p className="text-center text-sm italic text-body/60">
           (My website is ugly right now, I know. I&apos;ll get around to it when
           I can! 😅)
         </p>
