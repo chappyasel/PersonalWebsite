@@ -57,6 +57,7 @@ const PROJECTS: Project[] = [
 export default async function Projects() {
   return (
     <section className="flex w-full flex-wrap items-center justify-around gap-4">
+      <h1 className="w-full text-5xl font-bold">👨‍💻 Projects</h1>
       {PROJECTS.map((project, _) => (
         <ProjectItem key={project.name} project={project} />
       ))}
@@ -69,21 +70,21 @@ function ProjectItem({ project }: { project: Project }) {
     <Link
       href={project.link}
       target="_blank"
-      className="group relative h-[300px] w-full overflow-hidden rounded-3xl shadow-[0px_5px_20px_2px_rgba(0,0,0,0.2)] backdrop-blur-lg transition-all duration-300 ease-in-out hover:scale-[1.03] hover:shadow-[0px_5px_30px_0px_rgba(0,0,0,0.14)] md:h-[40vw] md:max-h-[350px] md:min-h-[250px]"
+      className="group relative h-[300px] w-full overflow-hidden rounded-3xl shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] backdrop-blur-lg transition-all duration-300 ease-in-out hover:scale-[1.03] hover:shadow-[0px_5px_30px_0px_rgba(0,0,0,0.14)] md:h-[40vw] md:max-h-[350px] md:min-h-[250px]"
     >
       {(project.image && (
         <Image
           src={`/images/projects/${project.image}`}
           alt={project.name}
-          layout="fill"
-          objectFit="cover"
+          width={1000}
+          height={1000}
         />
       )) ?? (
         <div className="flex h-full w-full items-center justify-center">
           <ImageIcon className="size-28 text-gray-200" />
         </div>
       )}
-      <div className="absolute right-3 top-3 rounded-xl bg-cell/20 text-xl backdrop-blur-lg">
+      <div className="absolute right-3 top-3 rounded-xl bg-cell/80 text-xl backdrop-blur-lg">
         <h3 className="px-[20px] py-[10px] font-bold">{project.name}</h3>
       </div>
     </Link>

@@ -13,7 +13,7 @@ export default async function AboutMe() {
         alt="Profile picture"
         width={400}
         height={400}
-        className="float-none m-auto mb-8 block w-[min(80%,400px)] rounded-full shadow-[0px_5px_20px_2px_rgba(0,0,0,0.2)] md:float-left md:m-8 md:ml-0 md:mt-0 md:w-[35vw] md:max-w-[300px]"
+        className="float-none m-auto mb-8 block w-[min(80%,400px)] rounded-full shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] md:float-left md:m-8 md:ml-0 md:mt-0 md:w-[35vw] md:max-w-[300px]"
       />
       <p className="min-h-[300px] hyphens-auto text-justify text-lg leading-6 [&>a:hover]:underline">
         Hi, I&apos;m Chappy Asel 👋
@@ -86,6 +86,10 @@ export default async function AboutMe() {
             curriculum vitae
           </Link>
         </div>
+        <p className="text-sm italic text-body/60">
+          (My website is ugly right now, I know. I&apos;ll get around to it when
+          I can! 😅)
+        </p>
       </div>
     </div>
   );

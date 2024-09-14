@@ -3,7 +3,6 @@ import {
   Github,
   Instagram,
   Linkedin,
-  Mail,
   RssIcon,
   Twitter,
 } from "lucide-react";
