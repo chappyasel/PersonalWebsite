@@ -30,9 +30,9 @@ const GRAYSCALE = [
   ["#606060", "#404040", "#606060"],
 ];
 
-const ON_ALPHA = 0.5;
+const ON_ALPHA = 0.2;
 const ON_COLORS = COLOR;
-const OFF_ALPHA = 0.2;
+const OFF_ALPHA = 0.01;
 const OFF_COLORS = GRAYSCALE;
 
 const LETTER_RELATIVE_SIZE = 40;

@@ -1,20 +1,19 @@
+import Link from "next/link";
 import React from "react";
 
-import GameOfLife from "./components/GameOfLife";
 import AboutMe from "./components/About";
-import ContactInfo from "./components/Contact";
+import GameOfLife from "./components/GameOfLife";
 import Projects from "./components/Projects";
 import ResumeLinks from "./components/Resume";
-import Link from "next/link";
 
 export default async function HomePage() {
   return (
     <>
       <GameOfLife />
-      <main className="relative scroll-smooth p-4 py-28 m-auto flex max-w-screen-md flex-col items-center justify-center overflow-visible bg-transparent text-body gap-20">
+      <main className="relative m-auto flex max-w-screen-md flex-col items-center justify-center gap-20 overflow-visible scroll-smooth bg-transparent p-4 py-28 text-body">
         <AboutMe />
         <Link
-          className="m-auto w-full rounded-2xl bg-cell/20 backdrop-blur-lg shadow-[0px_5px_15px_2px_rgba(0,0,0,0.2)] transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-[0px_5px_20px_0px_rgba(0,0,0,0.14)]"
+          className="m-auto w-full rounded-2xl bg-cell/20 shadow-[0px_5px_15px_2px_rgba(0,0,0,0.2)] backdrop-blur-lg transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-[0px_5px_20px_0px_rgba(0,0,0,0.14)]"
           href="https://books.chappyasel.com"
           target="_blank"
         >
@@ -24,7 +23,6 @@ export default async function HomePage() {
         </Link>
         <Projects />
         <ResumeLinks />
-        <ContactInfo />
       </main>
     </>
   );
