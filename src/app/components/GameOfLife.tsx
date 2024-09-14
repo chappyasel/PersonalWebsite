@@ -10,15 +10,8 @@ const RULE = COOL_RULES[Math.floor(Math.random() * COOL_RULES.length)]!;
 const GAME_OF_LIFE_START = 0.25;
 const FPS = 6;
 const DEFAULT_SIZE = 18;
-const MIN_NUM_ROWS_COLS = 81;
+const MIN_NUM_ROWS_COLS = 101;
 
-const FONT = "Cofactory, monospace";
-
-const LETTERS = [
-  ["X", "X", "X"],
-  ["X", "X", "X"],
-  ["X", "X", "X"],
-];
 const COLOR = [
   ["#ff0000", "#ff00ff", "#8000ff"],
   ["#ff8000", "#ffffff", "#0000ff"],
@@ -32,14 +25,15 @@ const GRAYSCALE = [
 
 const ON_ALPHA = 0.2;
 const ON_COLORS = COLOR;
-const OFF_ALPHA = 0.01;
+const OFF_ALPHA = 0.0;
 const OFF_COLORS = GRAYSCALE;
 
-const LETTER_RELATIVE_SIZE = 40;
-const LETTER_RELATIVE_SPACING = 12;
+const LETTER_RELATIVE_SIZE = 30;
+const LETTER_RELATIVE_SPACING = 0;
 
 export default function GameOfLife() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drawIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const NUM_ROWS = Math.max(
@@ -58,7 +52,6 @@ export default function GameOfLife() {
     let gridScale = 1;
     let gridSize = LETTER_RELATIVE_SIZE * gridScale;
     let gridSpacing = LETTER_RELATIVE_SPACING * gridScale;
-    let font = "bold " + (gridSize - gridSpacing) + "px " + FONT;
     let offsetX = 0;
     let offsetY = 0;
     const matrix: number[][] = initializeMatrix();
@@ -75,7 +68,6 @@ export default function GameOfLife() {
 
       gridSize = LETTER_RELATIVE_SIZE * gridScale;
       gridSpacing = LETTER_RELATIVE_SPACING * gridScale;
-      font = "bold " + (gridSize - gridSpacing) + "px " + FONT;
 
       offsetX = (canvas.width - gridSize * NUM_COLS) / 2;
       offsetY = canvas.height - gridSize * (NUM_ROWS - 1);
@@ -89,15 +81,24 @@ export default function GameOfLife() {
           const x = c * gridSize + offsetX;
           const y = r * gridSize + offsetY;
 
-          ctx.font = font;
           if (matrix[r]![c] === 1) {
-            ctx.fillStyle = ON_COLORS[r % 3]![c % 3]!;
             ctx.globalAlpha = ON_ALPHA;
+            ctx.fillStyle = ON_COLORS[r % 3]![c % 3]!;
+            const circleRadius = (gridSize - gridSpacing) / 6;
+            for (let i = 0; i < 3; i++) {
+              for (let j = 0; j < 3; j++) {
+                const circleX = x + (i * 2 + 1) * circleRadius;
+                const circleY = y + (j * 2 + 1) * circleRadius;
+                ctx.beginPath();
+                ctx.arc(circleX, circleY, circleRadius * 0.8, 0, 2 * Math.PI);
+                ctx.fill();
+              }
+            }
           } else {
-            ctx.fillStyle = OFF_COLORS[r % 3]![c % 3]!;
             ctx.globalAlpha = OFF_ALPHA;
+            ctx.fillStyle = OFF_COLORS[r % 3]![c % 3]!;
+            ctx.fillRect(x, y, gridSize - gridSpacing, gridSize - gridSpacing);
           }
-          ctx.fillText(LETTERS[r % 3]![c % 3]!, x, y);
         }
       }
       updateMatrix();
@@ -160,13 +161,6 @@ export default function GameOfLife() {
       }
     }
 
-    viewportResized();
-    window.addEventListener("resize", () => {
-      viewportResized();
-    });
-
-    setInterval(draw, 1000 / FPS);
-
     function initializeMatrix(): number[][] {
       const matrix: number[][] = Array.from({ length: NUM_ROWS }, () =>
         Array.from({ length: NUM_COLS }, () => 0),
@@ -174,6 +168,22 @@ export default function GameOfLife() {
       matrix[NUM_ROWS - 1]![Math.floor(NUM_COLS / 2)] = 1;
       return matrix;
     }
+
+    viewportResized();
+    window.addEventListener("resize", viewportResized);
+
+    // Clear any existing interval before setting a new one
+    if (drawIntervalRef.current) {
+      clearInterval(drawIntervalRef.current);
+    }
+    drawIntervalRef.current = setInterval(draw, 1000 / FPS);
+
+    return () => {
+      window.removeEventListener("resize", viewportResized);
+      if (drawIntervalRef.current) {
+        clearInterval(drawIntervalRef.current);
+      }
+    };
   }, []);
 
   return (

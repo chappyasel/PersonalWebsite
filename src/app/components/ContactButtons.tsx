@@ -33,11 +33,6 @@ const CONTACTS: Contact[] = [
     icon: <RssIcon />,
   },
   {
-    name: "Email",
-    link: "mailto:chappyasel@gmail.com",
-    icon: <Mail />,
-  },
-  {
     name: "Instagram",
     link: "https://www.instagram.com/chappyasel/",
     icon: <Instagram />,
@@ -56,7 +51,7 @@ const CONTACTS: Contact[] = [
 
 export default async function ContactButtons() {
   return (
-    <section className="-mb-3 mt-3 flex w-full flex-wrap items-center justify-center gap-4">
+    <section className="flex w-full flex-wrap items-center justify-center gap-4">
       {CONTACTS.map((contact, _) => (
         <ContactButton key={contact.name} contact={contact} />
       ))}
@@ -67,7 +62,7 @@ export default async function ContactButtons() {
 function ContactButton({ contact }: { contact: Contact }) {
   return (
     <Link
-      className="flex h-8 w-8 items-center justify-center text-body/80 transition-all duration-300 ease-in-out hover:text-body"
+      className="flex h-8 w-8 items-center justify-center transition-all duration-300 ease-in-out hover:text-body"
       href={contact.link}
       target="_blank"
       title={contact.name}
