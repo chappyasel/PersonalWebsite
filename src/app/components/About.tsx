@@ -16,7 +16,7 @@ export default async function AboutMe() {
         className="float-none m-auto mb-8 block w-[min(80%,400px)] rounded-full shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] md:float-left md:m-8 md:ml-0 md:mt-0 md:w-[35vw] md:max-w-[300px]"
       />
       <p className="min-h-[300px] hyphens-auto text-justify text-lg leading-6 [&>a:hover]:underline">
-        Hi, I&apos;m Chappy Asel 👋
+        <span className="font-bold">Hi, I&apos;m Chappy Asel! 👋</span>
         <br />
         <br />
         I&apos;m a serial entrepreneur with an expansive technical and
@@ -26,32 +26,47 @@ export default async function AboutMe() {
           GenAI Collective
         </Link>
         , a community of founders, funders, and thought leaders built around our
-        shared curiosity for AI. I&apos;ve also worked at Apple on AR/VR, AI/ML,
-        and Meta. I&apos;ve founded and developed multiple top-rated mobile
-        applications. founded and developed multiple top-rated mobile
+        shared curiosity for AI. Previously, I co-founded{" "}
+        <Link href="https://cofactory.ai" target="_blank">
+          Cofactory
+        </Link>
+        . I&apos;ve also worked at Apple on AR/VR, AI/ML, and Meta. I&apos;ve
+        founded and developed multiple top-rated mobile applications.
         applications.
         <br />
         <br />
-        I&apos;m passionate about advancing technology, embracing the leading
-        edge, and connecting with like-minded individuals. I&apos;m an
-        exothermic leader and avid networker. I&apos;m a systems-oriented
-        problem solver with a growth mindset and an insatiable appetite for
-        learning. I&apos;m a bookworm and world traveler.
+        I&apos;m extremely passionate about advancing technology, embracing the
+        leading edge, and connecting with like-minded individuals. I consider
+        myself an exothermic leader and an avid networker. I&apos;m a
+        systems-oriented problem solver with a growth mindset and an insatiable
+        appetite for learning!
         <br />
         <br />
-        I&apos;m a competitive natural bodybuilder competing in the INBF/WNBF.
-        I&apos;m a former lead fitness instructor at F45 coaching weekly HIIT
-        classes with 20+ participants.
-        <br />
-        <br />
-        For more details on each project, feel free to click on each of their
-        respective links below. If you have any further questions regarding my
-        past work experience or credentials please feel free to read through my{" "}
-        <Link href="https://www.linkedin.com/in/chappyasel/" target="_blank">
-          LinkedIn
+        Beyond my passion for technology and entrepreneurship, I&apos;m a{" "}
+        <Link href="https://www.instagram.com/boyswithgains/" target="_blank">
+          competitive natural bodybuilder
         </Link>{" "}
-        or via the email listed at the top of my resume.
+        competing in the INBF/WNBF. I also love{" "}
+        <Link href="https://books.chappyasel.com" target="_blank">
+          reading
+        </Link>
+        , writing, and traveling the world!
+        <br />
+        <br />
+        My personal mission statement:
       </p>
+      <blockquote className="mt-2 border-l-4 border-body/20 pl-3 text-lg italic leading-6 text-body/80">
+        To be a loving, trustworthy, and inspiring leader committed to creating
+        an environment of passion. To put the best interests of myself and the
+        ones I love above all else. To be respected and well-regarded amongst
+        all who know me. To be a rational, agentic, T-shaped, systems thinker
+        committed to lifelong learning and growth with relentless ambition. To
+        always keep the long-term goal in mind while also enjoying the journey.
+        To value the experiential over the material and high peaks over
+        sustained happiness. To strive for superior physical, mental, and social
+        health. To have a long-lasting positive impact on society by creating
+        and empowering others to self-actualize. To make a dent in the universe.
+      </blockquote>
       <div className="flex translate-y-3 flex-col items-center gap-1 text-body/80">
         <ContactButtons />
         <p className="flex flex-row gap-2">

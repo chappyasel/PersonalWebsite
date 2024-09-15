@@ -74,6 +74,7 @@ function ProjectItem({ project }: { project: Project }) {
     >
       {(project.image && (
         <Image
+          className="size-full object-cover"
           src={`/images/projects/${project.image}`}
           alt={project.name}
           width={1000}

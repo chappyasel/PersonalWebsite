@@ -33,6 +33,7 @@ function BlogPostItem({ post }: { post: BlogPost }) {
     >
       {(post.thumbnail && (
         <Image
+          className="size-full object-cover"
           src={post.thumbnail}
           alt={post.title}
           width={1000}
@@ -43,7 +44,7 @@ function BlogPostItem({ post }: { post: BlogPost }) {
           <ImageIcon className="size-28 text-gray-200" />
         </div>
       )}
-      <div className="absolute right-3 top-3 rounded-xl bg-cell/80 text-xl backdrop-blur-lg">
+      <div className="absolute right-3 top-3 max-w-[calc(100%-24px)] rounded-xl bg-cell/80 text-xl backdrop-blur-lg">
         <h3 className="px-[20px] py-[10px] font-bold">{post.title}</h3>
       </div>
     </Link>

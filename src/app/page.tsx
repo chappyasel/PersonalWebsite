@@ -5,6 +5,7 @@ import BlogPosts from "./components/BlogPosts";
 import BookNotes from "./components/BookNotes";
 import GameOfLife from "./components/GameOfLife";
 import Projects from "./components/Projects";
+import Quotes from "./components/Quotes";
 
 export default async function HomePage() {
   return (
@@ -15,6 +16,7 @@ export default async function HomePage() {
         <BookNotes />
         <BlogPosts />
         <Projects />
+        <Quotes />
       </main>
     </>
   );
