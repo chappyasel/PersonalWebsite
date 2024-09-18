@@ -6,43 +6,44 @@ import {
   RssIcon,
   Twitter,
 } from "lucide-react";
-import Link from "next/link";
 import React from "react";
 
-type Contact = {
-  name: string;
-  link: string;
-  icon: React.ReactNode;
-};
+import { type Contact, ContactButton } from "./ContactButton";
 
 const CONTACTS: Contact[] = [
   {
-    name: "LinkedIn",
+    title: "LinkedIn",
+    username: "/in/chappyasel",
     link: "https://www.linkedin.com/in/chappyasel/",
     icon: <Linkedin />,
   },
   {
-    name: "Twitter",
+    title: "Twitter",
+    username: "@chappyasel",
     link: "https://twitter.com/chappyasel",
     icon: <Twitter />,
   },
   {
-    name: "Medium",
+    title: "Medium",
+    username: "@chappyasel",
     link: "https://medium.com/@chappyasel",
     icon: <RssIcon />,
   },
   {
-    name: "Instagram",
+    title: "Instagram",
+    username: "@chappyasel",
     link: "https://www.instagram.com/chappyasel/",
     icon: <Instagram />,
   },
   {
-    name: "Github",
+    title: "Github",
+    username: "chappyasel",
     link: "https://github.com/chappyasel",
     icon: <Github />,
   },
   {
-    name: "Facebook",
+    title: "Facebook",
+    username: "chappy.asel",
     link: "https://www.facebook.com/chappy.asel",
     icon: <Facebook />,
   },
@@ -51,22 +52,9 @@ const CONTACTS: Contact[] = [
 export default async function ContactButtons() {
   return (
     <section className="flex w-full flex-wrap items-center justify-center gap-4">
-      {CONTACTS.map((contact, _) => (
-        <ContactButton key={contact.name} contact={contact} />
+      {CONTACTS.map((contact) => (
+        <ContactButton key={contact.title} contact={contact} />
       ))}
     </section>
-  );
-}
-
-function ContactButton({ contact }: { contact: Contact }) {
-  return (
-    <Link
-      className="flex h-8 w-8 items-center justify-center transition-all duration-300 ease-in-out hover:text-body"
-      href={contact.link}
-      target="_blank"
-      title={contact.name}
-    >
-      {contact.icon}
-    </Link>
   );
 }

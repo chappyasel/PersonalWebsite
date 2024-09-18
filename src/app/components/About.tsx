@@ -7,7 +7,7 @@ import ContactButtons from "./ContactButtons";
 
 export default async function AboutMe() {
   return (
-    <div className="w-full gap-2 rounded-3xl bg-cell/20 p-8 shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] backdrop-blur-lg">
+    <div className="mt-28 w-full gap-2 rounded-3xl bg-cell/20 p-8 shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] backdrop-blur-lg">
       <Image
         src={image}
         alt="Profile picture"
