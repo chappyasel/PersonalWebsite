@@ -1,0 +1,52 @@
+{
+  "projects": [
+    {
+      "name": "Weightlifting App",
+      "link": "https://apps.apple.com/us/app/id1266077653",
+      "image": "weightlifting.jpg",
+      "languages": ["Swift", "SwiftUI", "Objective C"],
+      "description": "A gamified iOS app to tracks and analyze user workouts complete with intelligent feedback, online leaderboards. Contains multiple heuristic algorithms to gamify user progress via achievements and milestones."
+    },
+    {
+      "name": "Homework App (Acquired)",
+      "link": "https://apps.apple.com/us/app/id1097438761",
+      "image": "homework.jpg",
+      "languages": ["Objective C"],
+      "description": "An iOS app I built back in high school for organizing and keeping track of my homework assignments. Ended up becoming the #1 homework app on the App Store and got acquired by Haystack AI!"
+    },
+    {
+      "name": "Liar's Dice",
+      "link": "/liarsdice",
+      "languages": ["React", "TypeScript"],
+      "description": "Liar's Dice is a dice game that combines luck and skill as one must weigh probabilities with the game theory involved in predicting the decisions of other intellegent actors. I developed a simple tool to assist in deriving probabilities for each hand to aid in decision-making. This is exposed both as a simple React webpage as well as an API accessible by posting a POST request /api/v1/liarsdice/play."
+    },
+    {
+      "name": "Web Experiments",
+      "link": "https://github.com/chappyasel/WebExperiments_Backend",
+      "image": "web-exp.jpg",
+      "languages": ["React", "TypeScript"],
+      "description": "Web Experiments backend is a monorepo for my AWS EB-hosted online portfolio website along with Node / Express / PHP / MySQL backends for various other personal projects including Weightlifting App and ESPN Fantasy Football stats."
+    },
+    {
+      "name": "Fantasy Basketball",
+      "link": "https://github.com/chappyasel/FantasyBasketball_iOS",
+      "image": "fantasy.jpg",
+      "languages": ["Objective C"],
+      "description": "This app accesses basketball player data from a variety of online sources including espn.com, rotoworld.com, nba.com, and more for the purpose of tracking and evaluating NBA player performance. This app has almost all of the features of the official ESPN fantasy app and also includes additinal player discoery / insight features such as advanced player news and metrics."
+    },
+    {
+      "name": "Weightlifting App ML",
+      "link": "https://github.com/chappyasel/WeightliftingAppML_Python",
+      "image": "weightlifting-ml.jpg",
+      "languages": ["Python", "Keras"],
+      "description": "A series of programs written in Python using Weightling App data to train a Keras deep learning model for the purpose of workout type prediction based on the exercises performed."
+    },
+    {
+      "name": "Rotoworld ML",
+      "link": "https://github.com/chappyasel/RotoworldML_Python",
+      "image": "rotoworld-ml.jpg",
+      "languages": ["Python", "Keras"],
+      "description": "A series of programs written in Python using the Rotoworld mobile API to train a Keras deep learning model for the purpose of evaluating NBA players based on tokenized news articles."
+    }
+  ]
+}

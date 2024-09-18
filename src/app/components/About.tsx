@@ -67,7 +67,7 @@ export default async function AboutMe() {
         health. To have a long-lasting positive impact on society by creating
         and empowering others to self-actualize. To make a dent in the universe.
       </blockquote>
-      <div className="flex translate-y-3 flex-col items-center gap-1 text-body/80">
+      <div className="flex flex-col items-center gap-1 pt-6 text-body/80">
         <ContactButtons />
         <p className="flex flex-row gap-2">
           <Link

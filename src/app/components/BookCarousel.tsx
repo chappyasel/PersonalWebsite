@@ -95,7 +95,7 @@ export default function BookCarousel() {
               alt={book.title}
               width={150}
               height={200}
-              className="bookImage"
+              className="bookImage transition-all duration-300 ease-in-out hover:scale-110"
             />
           </div>
         ))}

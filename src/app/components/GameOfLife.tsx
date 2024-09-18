@@ -189,7 +189,7 @@ export default function GameOfLife() {
   return (
     <canvas
       ref={canvasRef}
-      className="pixelated fixed block size-full bg-white"
+      className="pixelated fixed block size-full bg-background"
     />
   );
 }
