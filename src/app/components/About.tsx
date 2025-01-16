@@ -16,7 +16,7 @@ export default async function AboutMe() {
         className="float-none m-auto mb-8 block w-[min(80%,400px)] rounded-full shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] md:float-left md:m-8 md:ml-0 md:mt-0 md:w-[35vw] md:max-w-[300px]"
       />
       <p className="min-h-[300px] hyphens-auto text-justify text-lg leading-6 [&>a:hover]:underline">
-        <span className="font-bold">Hi, I&apos;m Chappy Asel! 👋</span>
+        <span className="font-bold">Hi, I&apos;m Chappy! 👋</span>
         <br />
         <br />
         I&apos;m a serial entrepreneur with an expansive technical and
@@ -32,7 +32,6 @@ export default async function AboutMe() {
         </Link>
         . I&apos;ve also worked at Apple on AR/VR, AI/ML, and Meta. I&apos;ve
         founded and developed multiple top-rated mobile applications.
-        applications.
         <br />
         <br />
         I&apos;m extremely passionate about advancing technology, embracing the
@@ -55,7 +54,7 @@ export default async function AboutMe() {
         <br />
         My personal mission statement:
       </p>
-      <blockquote className="mt-2 border-l-4 border-body/20 pl-3 text-lg italic leading-6 text-body/80">
+      <blockquote className="mt-2 border-l-2 border-body/20 pl-3 text-lg italic leading-6 text-body/80">
         To be a loving, trustworthy, and inspiring leader committed to creating
         an environment of passion. To put the best interests of myself and the
         ones I love above all else. To be respected and well-regarded amongst

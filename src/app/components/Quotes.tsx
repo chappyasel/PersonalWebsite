@@ -15,6 +15,12 @@ const Quotes: React.FC = () => {
         losing your enthusiasm.&rdquo;
         <footer className="mt-2 text-body/60">~ Winston Churchill</footer>
       </blockquote>
+      <blockquote className="mx-auto max-w-2xl text-center">
+        &ldquo;History will be kind to me, for I intend to write it.&rdquo;
+        <footer className="mt-2 text-body/60">
+          ~ Winston Churchill (whoops, twice haha)
+        </footer>
+      </blockquote>
     </section>
   );
 };
