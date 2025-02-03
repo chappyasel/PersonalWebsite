@@ -1,6 +1,6 @@
 import { type Metadata } from "next";
 
-import { CSPostHogProvider } from "~/lib/providers";
+import { CSPostHogProvider, ObserverProvider } from "~/lib/providers";
 import { TRPCReactProvider } from "~/trpc/react";
 
 import "~/styles/globals.css";
@@ -18,7 +18,9 @@ export default function RootLayout({
     <html lang="en">
       <CSPostHogProvider>
         <TRPCReactProvider>
-          <body>{children}</body>
+          <ObserverProvider>
+            <body>{children}</body>
+          </ObserverProvider>
         </TRPCReactProvider>
       </CSPostHogProvider>
     </html>

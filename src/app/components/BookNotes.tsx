@@ -9,7 +9,7 @@ export default function BookNotes() {
         📚 Book Notes
       </h1>
       <Link
-        className="h-[300px] w-full rounded-2xl bg-cell/20 shadow-[0px_5px_15px_2px_rgba(0,0,0,0.1)] backdrop-blur-lg transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-[0px_5px_20px_0px_rgba(0,0,0,0.14)]"
+        className="intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000 h-[300px] w-full rounded-2xl bg-cell/20 shadow-[0px_5px_15px_2px_rgba(0,0,0,0.1)] backdrop-blur-lg transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-[0px_5px_20px_0px_rgba(0,0,0,0.14)]"
         href="https://books.chappyasel.com"
         target="_blank"
       >

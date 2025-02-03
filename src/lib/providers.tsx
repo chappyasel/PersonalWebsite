@@ -2,6 +2,8 @@
 
 import posthog from "posthog-js";
 import { PostHogProvider } from "posthog-js/react";
+import { useEffect } from "react";
+import { Observer } from "tailwindcss-intersect";
 
 import { env } from "~/env";
 
@@ -13,4 +15,12 @@ if (typeof window !== "undefined") {
 }
 export function CSPostHogProvider({ children }: { children: React.ReactNode }) {
   return <PostHogProvider client={posthog}>{children}</PostHogProvider>;
+}
+
+export function ObserverProvider({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    Observer.start();
+  }, []);
+
+  return <>{children}</>;
 }

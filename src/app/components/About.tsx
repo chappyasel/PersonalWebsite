@@ -7,17 +7,21 @@ import ContactButtons from "./ContactButtons";
 
 export default async function AboutMe() {
   return (
-    <div className="mt-28 w-full gap-2 rounded-3xl bg-cell/20 p-8 shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] backdrop-blur-lg">
+    <div className="intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000 mt-28 w-full gap-2 rounded-3xl bg-cell/20 p-8 shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] backdrop-blur-lg">
       <Image
         src={image}
         alt="Profile picture"
         width={400}
         height={400}
-        className="float-none m-auto mb-8 block w-[min(80%,400px)] rounded-full shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] md:float-left md:m-8 md:ml-0 md:mt-0 md:w-[35vw] md:max-w-[300px]"
+        className="motion-scale-in-90 float-none m-auto mb-8 block w-[min(80%,400px)] rounded-full shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] md:float-left md:m-8 md:ml-0 md:mt-0 md:w-[35vw] md:max-w-[300px]"
       />
+      <div className="flex flex-row gap-1">
+        <p className="text-lg font-bold leading-6">Hi, I&apos;m Chappy!</p>
+        <p className="motion-rotate-in-45 motion-delay-200 motion-scale-in-50 motion-opacity-in-0 motion-ease-spring-bounciest text-lg font-bold leading-6">
+          👋
+        </p>
+      </div>
       <p className="min-h-[300px] hyphens-auto text-justify text-lg leading-6 [&>a:hover]:underline">
-        <span className="font-bold">Hi, I&apos;m Chappy! 👋</span>
-        <br />
         <br />
         I&apos;m a serial entrepreneur with an expansive technical and
         operational background built across 10+ years of experience. I&apos;m

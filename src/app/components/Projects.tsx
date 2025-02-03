@@ -32,7 +32,7 @@ function ProjectItem({ project }: { project: Project }) {
     <Link
       href={project.link}
       target="_blank"
-      className="group relative flex w-full flex-col overflow-hidden rounded-3xl p-4 shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] backdrop-blur-lg transition-all duration-300 ease-in-out hover:scale-[1.03] hover:shadow-[0px_5px_30px_0px_rgba(0,0,0,0.14)] sm:flex-row"
+      className="intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000 group relative flex w-full flex-col overflow-hidden rounded-3xl p-4 shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] backdrop-blur-lg transition-all duration-300 ease-in-out hover:scale-[1.03] hover:shadow-[0px_5px_30px_0px_rgba(0,0,0,0.14)] sm:flex-row"
     >
       <div className="h-full sm:h-auto sm:basis-1/3">
         {project.image ? (
