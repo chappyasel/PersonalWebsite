@@ -1,5 +1,6 @@
 import { type Metadata } from "next";
 
+import { CSPostHogProvider } from "~/lib/providers";
 import { TRPCReactProvider } from "~/trpc/react";
 
 import "~/styles/globals.css";
@@ -15,9 +16,11 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body>
-        <TRPCReactProvider>{children}</TRPCReactProvider>
-      </body>
+      <CSPostHogProvider>
+        <TRPCReactProvider>
+          <body>{children}</body>
+        </TRPCReactProvider>
+      </CSPostHogProvider>
     </html>
   );
 }
