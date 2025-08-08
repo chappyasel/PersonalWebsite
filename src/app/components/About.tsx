@@ -7,72 +7,84 @@ import ContactButtons from "./ContactButtons";
 
 export default async function AboutMe() {
   return (
-    <div className="intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000 mt-28 w-full gap-2 rounded-3xl bg-cell/20 p-8 shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] backdrop-blur-lg">
+    <div className="mt-28 w-full gap-2 rounded-3xl bg-cell/20 p-8 leading-5 shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] backdrop-blur-lg intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000">
       <Image
         src={image}
         alt="Profile picture"
         width={400}
         height={400}
-        className="motion-scale-in-90 float-none m-auto mb-8 block w-[min(80%,400px)] rounded-full shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] md:float-left md:m-8 md:ml-0 md:mt-0 md:w-[35vw] md:max-w-[300px]"
+        className="float-none m-auto mb-8 block w-[min(80%,400px)] rounded-full shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] motion-scale-in-90 md:float-left md:m-8 md:ml-0 md:mt-0 md:w-[35vw] md:max-w-[300px]"
       />
       <div className="flex flex-row gap-1">
-        <p className="text-lg font-bold leading-6">Hi, I&apos;m Chappy!</p>
-        <p className="motion-rotate-in-45 motion-delay-200 motion-scale-in-50 motion-opacity-in-0 motion-ease-spring-bounciest text-lg font-bold leading-6">
+        <p className="font-bold">Hi, I&apos;m Chappy!</p>
+        <p className="font-bold motion-scale-in-50 motion-rotate-in-45 motion-opacity-in-0 motion-delay-200 motion-ease-spring-bounciest">
           👋
         </p>
       </div>
-      <p className="min-h-[300px] hyphens-auto text-justify text-lg leading-6 [&>a:hover]:underline">
+      <p className="min-h-[300px] hyphens-auto text-justify [&>a:hover]:underline">
         <br />
-        I&apos;m a serial entrepreneur with an expansive technical and
-        operational background built across 10+ years of experience. I&apos;m
-        one of the co-founders of the{" "}
-        <Link href="https://genaicollective.ai" target="_blank">
-          GenAI Collective
+        I&apos;ve always been a builder at heart. My journey started at age 12
+        when I fell in love with coding. I spent my teen years building dozens
+        of apps, and with a mix of a builder&apos;s obsession and some
+        incredible luck, an app I made in high school became the #1 homework app
+        in the world before being acquired while I was in college.
+        <br />
+        <br />
+        That drive to build on a bigger scale led me straight to my dream job at{" "}
+        <Link href="https://www.apple.com" target="_blank">
+          Apple
         </Link>
-        , a community of founders, funders, and thought leaders built around our
-        shared curiosity for AI. Previously, I co-founded{" "}
-        <Link href="https://cofactory.ai" target="_blank">
-          Cofactory
+        , working on the top-secret teams that launched the Vision Pro and the
+        early prototypes of what would become Apple Intelligence. It was
+        exhilarating; it felt like I was at the center of the universe.
+        <br />
+        <br />
+        But at the same time, my builder&apos;s mindset was colliding with a
+        philosopher&apos;s questions. My research into the technological
+        singularity during college left me obsessed with a critical problem: the
+        ever-widening gap between the speed of technology and society&apos;s
+        ability to adapt.
+        <br />
+        <br />
+        When ChatGPT launched, it felt like the timeline was collapsing. This
+        forced a choice: continue the traditional venture-backed startup dream
+        or go all-in on the mission that truly consumed me. I chose the mission.
+        I started with a few texts to friends, which turned into a small weekly
+        meetup we called{" "}
+        <Link href="https://aicollective.com" target="_blank">
+          The AI Collective
         </Link>
-        . I&apos;ve also worked at Apple on AR/VR, AI/ML, and Meta. I&apos;ve
-        founded and developed multiple top-rated mobile applications.
+        .
         <br />
         <br />
-        I&apos;m extremely passionate about advancing technology, embracing the
-        leading edge, and connecting with like-minded individuals. I consider
-        myself an exothermic leader and an avid networker. I&apos;m a
-        systems-oriented problem solver with a growth mindset and an insatiable
-        appetite for learning!
+        And wow, has it been a rocket ship ever since! That small gathering has
+        blossomed into a global, non-profit, grassroots movement of pioneers on
+        the frontier of AI. We&apos;re building the social infrastructure for
+        humanity&apos;s most important conversation, because we believe the
+        future is too important to be built in isolation.
         <br />
         <br />
-        Beyond my passion for technology and entrepreneurship, I&apos;m a{" "}
+        When I&apos;m not obsessing over this mission, you can usually find me
+        in one of three places: in the gym, practicing the intense discipline of{" "}
         <Link href="https://www.instagram.com/boyswithgains/" target="_blank">
-          competitive natural bodybuilder
+          competitive natural bodybuilding
         </Link>{" "}
-        competing in the INBF/WNBF. I also love{" "}
+        (it&apos;s my secret to staying grounded); with my head{" "}
+        <em>(metaphorically)</em> in an{" "}
         <Link href="https://books.chappyasel.com" target="_blank">
-          reading
-        </Link>
-        , writing, and traveling the world!
+          audiobook
+        </Link>{" "}
+        (I&apos;m a bibliomaniac who reads 50-100 a year); or on a plane to a
+        new corner of the world (I&apos;ve explored over 25 countries so far)!
         <br />
         <br />
-        My personal mission statement:
+        Ultimately, I&apos;m an optimist who believes we have a rare opportunity
+        to shape a future of trust, openness, and human flourishing. Thanks for
+        stopping by to learn a little more about my journey! 😄
       </p>
-      <blockquote className="mt-2 border-l-2 border-body/20 pl-3 text-lg italic leading-6 text-body/80">
-        To be a loving, trustworthy, and inspiring leader committed to creating
-        an environment of passion. To put the best interests of myself and the
-        ones I love above all else. To be respected and well-regarded amongst
-        all who know me. To be a rational, agentic, T-shaped, systems thinker
-        committed to lifelong learning and growth with relentless ambition. To
-        always keep the long-term goal in mind while also enjoying the journey.
-        To value the experiential over the material and high peaks over
-        sustained happiness. To strive for superior physical, mental, and social
-        health. To have a long-lasting positive impact on society by creating
-        and empowering others to self-actualize. To make a dent in the universe.
-      </blockquote>
-      <div className="flex flex-col items-center gap-1 pt-6 text-body/80">
+      <div className="flex flex-col items-center gap-1 pt-8 text-body/80">
         <ContactButtons />
-        <p className="flex flex-row gap-2">
+        {/* <p className="flex flex-row gap-2">
           <Link
             href="mailto:chappyasel@gmail.com"
             className="line-clamp-1 transition-all duration-300 ease-in-out hover:text-body hover:underline"
@@ -81,13 +93,13 @@ export default async function AboutMe() {
           </Link>
           {" • "}
           <Link
-            href="mailto:chappy@genaicollective.ai"
+            href="mailto:chappy@aicollective.com"
             className="line-clamp-1 transition-all duration-300 ease-in-out hover:text-body hover:underline"
           >
-            chappy [at] genaicollective.ai
+            chappy [at] aicollective.com
           </Link>
-        </p>
-        <div className="flex flex-row gap-2">
+        </p> */}
+        {/* <div className="flex flex-row gap-2">
           <Link
             href="/documents/Gabriel 'Chappy' Asel CV.pdf"
             target="_blank"
@@ -103,11 +115,7 @@ export default async function AboutMe() {
           >
             curriculum vitae
           </Link>
-        </div>
-        <p className="text-center text-sm italic text-body/60">
-          (My website is ugly right now, I know. I&apos;ll get around to it when
-          I can! 😅)
-        </p>
+        </div> */}
       </div>
     </div>
   );

@@ -1,0 +1,55 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(open:*)",
+      "Bash(find:*)",
+      "Bash(npx:*)",
+      "Bash(yarn:*)",
+      "!Bash(yarn:db:*)",
+      "Bash(grep:*)",
+      "Bash(echo:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(yarn run:*)",
+      "Bash(sed:*)",
+      "Bash(mv:*)",
+      "Bash(rm:*)",
+      "Bash(ls:*)",
+      "Bash(pkill:*)",
+      "Bash(rg:*)",
+      "Bash(curl:*)",
+      "Bash(mkdir:*)",
+      "WebFetch(domain:karuppusamy.com)",
+      "Bash(cp:*)",
+      "Bash(timeout 30 yarn test:*)",
+      "Bash(gtimeout:*)",
+      "Bash(TEST_USER_EMAIL=\"chappy@aicollective.com\" yarn test)",
+      "Bash(TEST_USER_EMAIL=\"chappy@aicollective.com\" yarn test:perf)",
+      "Bash(git restore:*)",
+      "Bash(TEST_USER_EMAIL=\"chappy@aicollective.com\" yarn test tests/dashboard-performance.test.ts)",
+      "Bash(TEST_USER_EMAIL=\"chappy@aicollective.com\" timeout 60s yarn test tests/dashboard-performance.test.ts -- --reporter=verbose --run)",
+      "Bash(TEST_USER_EMAIL=\"chappy@aicollective.com\" yarn test tests/dashboard-performance.test.ts -- -t \"Dashboard with \"\"all\"\" filter\" --run)",
+      "Bash(git checkout:*)",
+      "mcp__linear__list_issues",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs",
+      "mcp__linear__update_issue",
+      "mcp__supabase__execute_sql",
+      "mcp__sequential-thinking__sequentialthinking",
+      "mcp__linear__list_my_issues",
+      "WebFetch(domain:docs.lu.ma)",
+      "mcp__linear__get_issue",
+      "Bash(yarn typecheck)",
+      "Bash(npm run scripts:migrate-chapter-applications:*)",
+      "mcp__supabase__list_projects"
+    ],
+    "deny": [],
+    "additionalDirectories": [
+      "/Users/chappyasel/Desktop/Repos/AIC/platform/"
+    ]
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "postgres-db",
+    "context7"
+  ]
+}

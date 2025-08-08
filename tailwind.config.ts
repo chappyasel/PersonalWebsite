@@ -6,13 +6,14 @@ export default {
   theme: {
     extend: {
       fontFamily: {
+        serif: ["Georgia", ...fontFamily.serif],
         sans: ["SF Pro Display", ...fontFamily.sans],
       },
       colors: {
-        background: "rgb(250, 240, 230)",
-        title: "rgb(120, 110, 100)",
-        body: "rgb(120, 110, 100)",
-        cell: "rgb(250, 240, 230)",
+        background: "rgb(245, 245, 245)",
+        title: "rgb(115, 115, 115)",
+        body: "rgb(115, 115, 115)",
+        cell: "rgb(245, 245, 245)",
       },
     },
   },
