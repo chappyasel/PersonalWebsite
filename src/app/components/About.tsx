@@ -1,3 +1,4 @@
+import { BookOpenTextIcon } from "@phosphor-icons/react/dist/ssr";
 import Image from "next/image";
 import Link from "next/link";
 import image from "public/images/about/profile.jpg";
@@ -83,6 +84,14 @@ export default async function AboutMe() {
         stopping by to learn a little more about my journey! 😄
       </p>
       <div className="flex flex-col items-center gap-1 pt-8 text-body/80">
+        <Link
+          href="https://chappyasel.notion.site/manual"
+          target="_blank"
+          className="-mt-4 mb-4 flex items-center gap-2 rounded-xl border-2 border-transparent px-4 py-2 text-sm font-medium transition-all duration-300 ease-in-out hover:scale-105 hover:border-body/20 hover:text-body hover:shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)]"
+        >
+          <BookOpenTextIcon size={20} weight="duotone" />
+          <span>Personal Operating Manual</span>
+        </Link>
         <ContactButtons />
         {/* <p className="flex flex-row gap-2">
           <Link
