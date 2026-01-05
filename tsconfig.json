@@ -38,7 +38,7 @@
     "**/*.cjs",
     "**/*.js",
     ".next/types/**/*.ts",
-    "src/lib/providers.tsz"
+    "src/lib/providers.tsx"
   ],
   "exclude": ["node_modules"]
 }

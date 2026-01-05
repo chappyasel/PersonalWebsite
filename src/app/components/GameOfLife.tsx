@@ -4,7 +4,6 @@ import { useEffect, useRef } from "react";
 
 // https://plato.stanford.edu/entries/cellular-automata/supplement.html
 const COOL_RULES = [22, 30, 45, 73, 86, 105, 150];
-const RULE = COOL_RULES[Math.floor(Math.random() * COOL_RULES.length)]!;
 
 // When to switch from cellular automata (1D) to game of life (2D)
 const GAME_OF_LIFE_START = 0.25;
@@ -46,6 +45,8 @@ export default function GameOfLife() {
     );
     const GOL_START = Math.floor(NUM_ROWS * GAME_OF_LIFE_START);
 
+    // Select rule on client-side only to avoid hydration mismatch
+    const RULE = COOL_RULES[Math.floor(Math.random() * COOL_RULES.length)]!;
     const kernel = new Array(8).fill(0).map((_, i) => (RULE >> i) & 1);
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext("2d")!;

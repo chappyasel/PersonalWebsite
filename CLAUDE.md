@@ -7,38 +7,33 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Development
 
 ```bash
-npm run dev          # Start Next.js development server
-npm run build        # Build for production
-npm run start        # Start production server
-npm run lint         # Run ESLint
+yarn dev              # Start development server (http://localhost:3000)
+yarn build            # Build the application for production
+yarn fix              # Run ESLint with auto-fix (includes Prettier formatting)
+yarn lint             # Run Next.js linter
 ```
 
 ### Database Management
 
 ```bash
-npm run db:generate  # Generate Drizzle migrations after schema changes
-npm run db:migrate   # Apply pending migrations to database
-npm run db:push      # Push schema changes directly (dev only)
-npm run db:studio    # Open Drizzle Studio GUI at localhost:4983
-```
-
-### Content Generation
-
-```bash
-npm run generate:blog-posts  # Fetch latest blog posts from Medium RSS
+./start-database.sh   # Start local PostgreSQL in Docker
+yarn db:generate      # Generate Drizzle migrations from schema changes
+yarn db:migrate:dev   # Run migrations on local database
+yarn db:migrate:prod  # Run migrations on production database
 ```
 
 ## Architecture
 
 ### Tech Stack
 
-- **Next.js 14** with App Router and TypeScript
+- **Next.js 14** with App Router and TypeScript, shadcn/ui
 - **tRPC v11** for type-safe APIs with React Query
 - **Drizzle ORM** with PostgreSQL
 - **NextAuth.js** for authentication
 - **Tailwind CSS** with custom warm color palette
 - **Framer Motion** for animations
 - **PostHog** for analytics
+- **State**: React Query (via tRPC) for server state
 
 ### Project Structure
 
@@ -56,20 +51,15 @@ npm run generate:blog-posts  # Fetch latest blog posts from Medium RSS
 
 ### Key Patterns
 
-- **Path Aliases**: Use `~/*` for src imports, `~~/*` for public assets
-- **Database Prefix**: All tables use `personal-website_` prefix
-- **Type Safety**: End-to-end types from database through tRPC to frontend
-- **Static Data**: Projects and initial blog posts stored in `/public/data/`
-
-### Environment Variables
-
-Required for development:
-
-- `DATABASE_URL` - PostgreSQL connection string
-- `NEXTAUTH_SECRET` - Authentication secret
-- `NEXTAUTH_URL` - Base URL for auth callbacks
-- `NEXT_PUBLIC_POSTHOG_KEY` - PostHog project key
-- `NEXT_PUBLIC_POSTHOG_HOST` - PostHog host URL
+- **Path Aliases**: Use `~/*` for src imports (e.g., `~/server/db`), `~~/*` for public assets (configured in tsconfig.json)
+- **Type Safety**: End-to-end types from database through tRPC to frontend using SuperJSON transformer
+- **Static Data**: Projects and blog posts stored in `/public/data/` JSON files
+- **tRPC Setup**: Uses v11 RC with React Query integration, batch streaming, and development timing middleware
+- **API Routes**: All new API endpoints MUST be created as tRPC routers in `/src/server/api/routers/`
+  - Do NOT create new REST endpoints in `/src/app/api/` (except webhooks or third-party integrations)
+  - Use `publicProcedure` for unauthenticated endpoints, `protectedProcedure` for authenticated
+  - Use `.query()` for GET-like operations (cacheable), `.mutation()` for POST/PUT/DELETE
+  - Register new routers in `/src/server/api/root.ts`
 
 ### Database Schema
 
@@ -81,11 +71,18 @@ Uses Drizzle ORM with PostgreSQL. Main tables:
 Schema changes workflow:
 
 1. Edit `src/server/db/schema.ts`
-2. Run `npm run db:generate` to create migration
-3. Run `npm run db:migrate` to apply to database
+2. Run `yarn db:generate` to create migration
+3. Run `yarn db:migrate:dev` to apply to local database
 
 ### Styling
 
-- Custom warm color palette: background `rgb(250, 240, 230)`, text `rgb(120, 110, 100)`
-- Tailwind utilities with motion and intersect plugins
-- SF Pro Display (Geist font) as primary typeface
+- Neutral color palette: background `rgb(245, 245, 245)`, text/title `rgb(115, 115, 115)`
+- Tailwind utilities with `tailwindcss-motion` and `tailwindcss-intersect` plugins
+- SF Pro Display font (via Geist package) for sans-serif, Georgia for serif
+- Body text uses serif font (font-serif class)
+
+## Development Philosophy
+
+- Worry minimally about backwards compatibility since this is a web app for our internal team
+- Remember to get IDE diagnostics if available to test for linter errors in your implementation
+- IMPORTANT: Never run `yarn dev` or `yarn build` unless explicitly requested by the user

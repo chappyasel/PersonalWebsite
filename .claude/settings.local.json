@@ -40,7 +40,20 @@
       "mcp__linear__get_issue",
       "Bash(yarn typecheck)",
       "Bash(npm run scripts:migrate-chapter-applications:*)",
-      "mcp__supabase__list_projects"
+      "mcp__supabase__list_projects",
+      "mcp__Notion__notion-fetch",
+      "mcp__Notion__notion-search",
+      "WebFetch(domain:books.chappyasel.com)",
+      "Bash(tree:*)",
+      "mcp__context7__query-docs",
+      "Bash(cat:*)",
+      "Bash(openssl rand:*)",
+      "Bash(if [ -f .env ])",
+      "Bash(then echo \"exists\")",
+      "Bash(else echo \"not found\")",
+      "Bash(fi)",
+      "Bash(psql:*)",
+      "mcp__postgres__query"
     ],
     "deny": [],
     "additionalDirectories": [

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "Notion": {
+      "type": "sse",
+      "url": "https://mcp.notion.com/sse"
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"]
+    }
+  }
+}
