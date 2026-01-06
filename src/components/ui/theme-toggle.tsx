@@ -1,6 +1,11 @@
 "use client";
 
-import { MoonIcon, MoonStarsIcon, SunIcon, SunDimIcon } from "@phosphor-icons/react";
+import {
+  MoonIcon,
+  MoonStarsIcon,
+  SunDimIcon,
+  SunIcon,
+} from "@phosphor-icons/react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
@@ -13,9 +18,7 @@ export function ThemeToggle() {
   }, []);
 
   if (!mounted) {
-    return (
-      <div className="h-[34px] w-[46px] rounded-md bg-transparent" />
-    );
+    return <div className="h-[34px] w-[46px] rounded-md bg-transparent" />;
   }
 
   const cycleTheme = () => {
@@ -55,7 +58,7 @@ export function ThemeToggle() {
     <button
       onClick={cycleTheme}
       aria-label={`${getLabel()}. Click to cycle theme.`}
-      className="rounded-md bg-transparent px-3 py-1.5 text-sm text-muted-foreground transition-all hover:bg-secondary/80 hover:text-foreground"
+      className="flex size-10 items-center justify-center rounded-md bg-transparent text-sm text-muted-foreground transition-all hover:bg-secondary/80 hover:text-foreground"
     >
       {getIcon()}
     </button>

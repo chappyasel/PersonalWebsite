@@ -2,12 +2,11 @@
 
 import { searchParamsParsers } from "../lib/searchParams";
 import { AnimatePresence, motion } from "framer-motion";
-import { useQueryState, useQueryStates } from "nuqs";
+import { useQueryStates } from "nuqs";
 
 import { api } from "~/trpc/react";
 
 import { BookCard } from "./BookCard";
-import { BookModal } from "./BookModal";
 import { BooksGridSkeleton } from "./BooksGridSkeleton";
 import { EmptyState } from "./EmptyState";
 
@@ -19,7 +18,6 @@ const sizeWidths = {
 } as const;
 
 export function BooksGrid() {
-  const [bookId, setBookId] = useQueryState("book");
   const [params, setParams] = useQueryStates(searchParamsParsers);
 
   // Parse sort parameter
@@ -244,13 +242,6 @@ export function BooksGrid() {
           </div>
         ))}
       </div>
-
-      {/* Global Modal controlled by URL */}
-      <BookModal
-        bookId={bookId}
-        isOpen={!!bookId}
-        onClose={() => void setBookId(null)}
-      />
     </>
   );
 }

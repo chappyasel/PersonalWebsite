@@ -18,7 +18,7 @@ export function BookSize() {
     <button
       onClick={cycleSize}
       aria-label={`Book size: ${size}. Click to cycle size.`}
-      className="hidden rounded-md bg-transparent px-3 py-1.5 text-sm font-medium text-muted-foreground transition-all hover:bg-secondary/80 hover:text-foreground sm:block"
+      className="flex size-10 items-center justify-center rounded-md bg-transparent text-sm font-medium text-muted-foreground transition-all hover:bg-secondary/80 hover:text-foreground sm:block"
     >
       {size}
     </button>

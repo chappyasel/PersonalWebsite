@@ -17,8 +17,8 @@ export function FilterDrawer() {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="outline" className="flex-1 sm:hidden">
-          <SlidersHorizontal className="mr-2 h-4 w-4" />
+        <Button variant="outline" className="flex-1 bg-background/90 sm:hidden">
+          <SlidersHorizontal className="mr-1.5 h-4 w-4" />
           Filters
         </Button>
       </SheetTrigger>

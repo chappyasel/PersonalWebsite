@@ -36,7 +36,7 @@ export default function BooksPage() {
             </span>
             <span>Chappy&apos;s Book Notes</span>
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex translate-x-3 items-center gap-0">
             <ThemeToggle />
             <BookSize />
           </div>

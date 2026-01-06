@@ -54,11 +54,15 @@
       "Bash(fi)",
       "Bash(psql:*)",
       "mcp__postgres__query",
-      "Bash(xargs ls:*)"
+      "Bash(xargs ls:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)"
     ],
     "deny": [],
     "additionalDirectories": [
-      "/Users/chappyasel/Desktop/Repos/AIC/platform/"
+      "/Users/chappyasel/Desktop/Repos/AIC/platform/",
+      "/Users/chappyasel/Desktop/Repos/AIC/website/"
     ]
   },
   "enableAllProjectMcpServers": true,

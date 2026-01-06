@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { cn } from "~/lib/util";
+
 import { BookSearch } from "./BookSearch";
 import { BookSort } from "./BookSort";
 import { FilterDrawer } from "./FilterDrawer";
@@ -20,7 +22,11 @@ export function BooksControls() {
 
   return (
     <div
-      className={`sticky top-4 z-10 -ml-4 flex w-[calc(100%+32px)] -translate-y-2 flex-col gap-4 rounded-2xl bg-background/80 p-4 backdrop-blur-md transition-shadow duration-500 md:flex-row md:items-center md:justify-between ${isScrolled ? "shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)]" : ""}`}
+      className={cn(
+        "sticky top-4 z-20 -ml-4 flex w-[calc(100%+32px)] -translate-y-2 flex-col gap-4 rounded-2xl bg-background/80 p-4 backdrop-blur-md transition-all duration-500 md:flex-row md:items-center md:justify-between",
+        isScrolled &&
+          "shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] dark:bg-stone-900/80",
+      )}
     >
       {/* Search - full width on mobile, flex-1 on desktop */}
       <div className="flex-1">

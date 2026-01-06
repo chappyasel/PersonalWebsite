@@ -39,7 +39,7 @@ export function BookSort() {
 
   return (
     <Select value={currentSort} onValueChange={(value) => void setSort(value)}>
-      <SelectTrigger className="w-auto rounded-md bg-white/90">
+      <SelectTrigger className="w-auto rounded-md bg-background/90">
         <div className="flex items-center pr-2">{getSortIcon(currentSort)}</div>
       </SelectTrigger>
       <SelectContent>

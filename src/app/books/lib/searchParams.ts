@@ -19,7 +19,4 @@ export const searchParamsParsers = {
 
   // Size
   size: parseAsString.withDefault("M"),
-
-  // Modal (existing)
-  book: parseAsString,
 };
