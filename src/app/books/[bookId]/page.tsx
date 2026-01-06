@@ -1,7 +1,11 @@
 import { type Metadata } from "next";
+import dynamic from "next/dynamic";
 
 import { getBookForOG } from "~/lib/books/ogDataAccess";
-import { BookPage } from "./BookPage";
+
+const BookPage = dynamic(() => import("./BookPage").then((mod) => ({ default: mod.BookPage })), {
+  ssr: false,
+});
 
 type PageProps = {
   params: { bookId: string };

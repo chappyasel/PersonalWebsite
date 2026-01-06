@@ -2,7 +2,6 @@
 
 import { BookDetailContent } from "../components/BookDetailContent";
 import { useBookPreview } from "../contexts/BookPreviewContext";
-import { CaretLeftIcon } from "@phosphor-icons/react/dist/ssr";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRef, useState } from "react";
@@ -55,21 +54,8 @@ export function BookPage({ bookId }: BookPageProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        {/* Back Button Header */}
-        <div className="flex flex-shrink-0 items-center gap-4 p-6">
-          <div className="mx-auto w-full max-w-3xl">
-            <Link
-              href="/books"
-              className="flex items-center gap-2 text-sm text-foreground transition-colors hover:text-muted-foreground"
-            >
-              <CaretLeftIcon size={20} weight="bold" />
-              <span>Back to Books</span>
-            </Link>
-          </div>
-        </div>
-
         {/* Content Container */}
-        <div className="flex flex-1 flex-col overflow-hidden bg-background">
+        <div className="flex h-full flex-col overflow-hidden bg-background">
           {/* Loading State */}
           {isLoading && (
             <div className="flex min-h-[400px] items-center justify-center p-8">
