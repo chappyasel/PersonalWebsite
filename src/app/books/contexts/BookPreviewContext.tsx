@@ -32,7 +32,12 @@ export function BookPreviewProvider({ children }: { children: ReactNode }) {
 export function useBookPreview() {
   const context = useContext(BookPreviewContext);
   if (!context) {
-    throw new Error("useBookPreview must be used within BookPreviewProvider");
+    // Return a default value instead of throwing - this handles edge cases during hydration
+    return {
+      selectedBook: null,
+      selectedSize: null,
+      setSelectedBook: () => {},
+    };
   }
   return context;
 }

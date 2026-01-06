@@ -50,20 +50,22 @@ export function BookPage({ bookId }: BookPageProps) {
   return (
     <div className="fixed inset-0 bg-background">
       <motion.div
-        className="mx-auto flex h-full max-w-3xl flex-col"
+        className="flex h-full flex-col"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
         {/* Back Button Header */}
         <div className="flex flex-shrink-0 items-center gap-4 p-6">
-          <Link
-            href="/books"
-            className="flex items-center gap-2 text-sm text-foreground transition-colors hover:text-muted-foreground"
-          >
-            <CaretLeftIcon size={20} weight="bold" />
-            <span>Back to Books</span>
-          </Link>
+          <div className="mx-auto w-full max-w-3xl">
+            <Link
+              href="/books"
+              className="flex items-center gap-2 text-sm text-foreground transition-colors hover:text-muted-foreground"
+            >
+              <CaretLeftIcon size={20} weight="bold" />
+              <span>Back to Books</span>
+            </Link>
+          </div>
         </div>
 
         {/* Content Container */}

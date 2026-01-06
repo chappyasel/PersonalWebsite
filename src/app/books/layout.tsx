@@ -23,22 +23,22 @@ export default function BooksLayout({
 }) {
   return (
     <html lang="en" className={`${GeistSans.variable}`}>
-      <CSPostHogProvider>
-        <TRPCReactProvider>
-          <NuqsAdapter>
-            <ObserverProvider>
-              <BookPreviewProvider>
-                <body className="bg-background font-serif text-muted-foreground">
+      <body className="bg-background font-serif text-muted-foreground">
+        <CSPostHogProvider>
+          <TRPCReactProvider>
+            <NuqsAdapter>
+              <ObserverProvider>
+                <BookPreviewProvider>
                   <main className="m-auto max-w-screen-2xl p-6 md:p-8">
                     {children}
                     {modal}
                   </main>
-                </body>
-              </BookPreviewProvider>
-            </ObserverProvider>
-          </NuqsAdapter>
-        </TRPCReactProvider>
-      </CSPostHogProvider>
+                </BookPreviewProvider>
+              </ObserverProvider>
+            </NuqsAdapter>
+          </TRPCReactProvider>
+        </CSPostHogProvider>
+      </body>
     </html>
   );
 }

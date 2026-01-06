@@ -1,10 +1,9 @@
 "use client";
 
 import {
-  ArrowSquareOut,
-  NotionLogoIcon,
-  ShareNetwork,
-  Star,
+  ArrowSquareOutIcon,
+  LinkIcon,
+  StarIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import Image from "next/image";
@@ -19,11 +18,11 @@ import { Button } from "~/components/ui/button";
 
 import { TagBadge } from "./TagBadge";
 
-// Animation configuration constants matching BooksGrid.tsx
+// Animation configuration - overdamped to prevent oscillation
 const SPRING_CONFIG = {
   type: "spring" as const,
-  stiffness: 300,
-  damping: 30,
+  stiffness: 200,
+  damping: 50,
 };
 
 type BookDetailContentProps = {
@@ -65,55 +64,74 @@ export function BookDetailContent({
     return () => mediaQuery.removeEventListener("change", handler);
   }, []);
 
-  // Unified responsive transforms
+  // Cover sizing
   const coverWidth = useTransform(
     smoothProgress,
     [0, 1],
-    isLargeScreen ? [128, 36] : [96, 32],
+    isLargeScreen ? ["154px", "43.2px"] : ["115.2px", "38.4px"],
   );
   const coverHeight = useTransform(
     smoothProgress,
     [0, 1],
-    isLargeScreen ? [192, 52] : [128, 48],
+    isLargeScreen ? ["230.4px", "62.4px"] : ["153.6px", "57.6px"],
   );
+
+  // Header padding
+  const headerPadding = useTransform(
+    smoothProgress,
+    [0, 1],
+    isLargeScreen ? ["24px", "16px"] : ["16px", "16px"],
+  );
+
+  // Text sizing
   const titleFontSize = useTransform(
     smoothProgress,
     [0, 1],
-    isLargeScreen ? [36, 14] : [24, 14],
+    isLargeScreen ? ["36px", "24px"] : ["24px", "24px"],
   );
   const authorFontSize = useTransform(
     smoothProgress,
     [0, 1],
-    isLargeScreen ? [20, 12] : [16, 12],
+    isLargeScreen ? ["20px", "16px"] : ["16px", "16px"],
   );
   const headerGap = useTransform(
     smoothProgress,
     [0, 1],
-    isLargeScreen ? [24, 12] : [12, 16],
+    isLargeScreen ? ["24px", "12px"] : ["24px", "12px"],
   );
-  const verticalPadding = useTransform(
+  const titleAuthorGap = useTransform(smoothProgress, [0, 1], ["0px", "2px"]);
+
+  // Progressive metadata collapse - opacity fades for each section
+  const ratingOpacity = useTransform(smoothProgress, [0.6, 0.8], [1, 0]);
+  const datesOpacity = useTransform(smoothProgress, [0.4, 0.6], [1, 0]);
+  const tagsOpacity = useTransform(smoothProgress, [0.2, 0.4], [1, 0]);
+  const actionsOpacity = useTransform(smoothProgress, [0, 0.2], [1, 0]);
+
+  // Metadata positioning
+  const metadataTop = useTransform(
     smoothProgress,
-    [0, 1],
-    isLargeScreen ? [24, 8] : [24, 8],
+    [0, 0.5],
+    isLargeScreen ? ["70px", "60px"] : ["60px", "35px"],
   );
-  const titleAuthorGap = useTransform(smoothProgress, [0, 1], [8, 2]);
-  const metadataOpacity = useTransform(smoothProgress, [0, 0.3], [1, 0]);
-  const headerBorderBottom = useTransform(
-    smoothProgress,
-    [0, 1],
-    ["0px solid transparent", "1px solid rgba(115, 115, 115, 0.1)"],
-  );
+
+  // Fixed metadata width based on initial state (progress 0)
+  // Container width (max-w-3xl = 768px) - padding (lg:px-10 = 80px, px-6 = 48px) - initial cover width - initial gap
+  const metadataWidth = isLargeScreen
+    ? "calc(min(100vw, 768px) - 80px - 154px - 24px)"
+    : "calc(100vw - 48px - 115.2px - 24px)";
+
+  const borderOpacity = useTransform(smoothProgress, [0.8, 1], [0, 0.1]);
   const headerBoxShadow = useTransform(
     smoothProgress,
-    [0, 1],
-    ["none", "0 1px 2px 0 rgba(0, 0, 0, 0.05)"],
+    [0.8, 1],
+    ["0 1px 20px 0 rgba(0, 0, 0, 0)", "0 1px 20px 0 rgba(0, 0, 0, 0.1)"],
   );
 
   // Track scroll for sticky headers
   useEffect(() => {
     const handleScroll = () => {
       if (contentRef?.current) {
-        const progress = Math.min(contentRef.current.scrollTop / 100, 1);
+        const progress = Math.min(contentRef.current.scrollTop / 50, 1);
         scrollProgress.set(progress);
       }
     };
@@ -134,60 +152,53 @@ export function BookDetailContent({
       <motion.div
         layout
         initial={false}
-        className="sticky top-0 z-20 bg-background/95 px-6 backdrop-blur-sm lg:px-10 lg:pt-10"
+        className="sticky top-0 z-20 bg-background/80 backdrop-blur-md"
         style={{
-          paddingTop: verticalPadding,
-          paddingBottom: verticalPadding,
-          borderBottom: headerBorderBottom,
+          paddingTop: headerPadding,
+          paddingBottom: headerPadding,
+          borderBottomWidth: "1px",
+          borderBottomStyle: "solid",
+          borderBottomColor: `rgba(115, 115, 115, ${borderOpacity.get()})`,
           boxShadow: headerBoxShadow,
         }}
       >
         {/* Main Row: Cover + Title/Author + Metadata */}
         <motion.div
           layout
-          className="flex flex-row items-start"
+          className="mx-auto flex w-full max-w-3xl flex-row items-start px-6 lg:px-10"
           style={{ gap: headerGap }}
         >
           {/* Cover Image */}
-          <motion.div layout className="flex-shrink-0">
+          <motion.div
+            layout
+            className="flex-shrink-0"
+            style={{ width: coverWidth, height: coverHeight }}
+          >
             {coverUrl ? (
               <motion.div layoutId={`book-cover-${bookId}`}>
-                <motion.div
-                  layout
-                  style={{
-                    width: coverWidth,
-                    height: coverHeight,
-                  }}
-                  className="overflow-hidden"
-                >
-                  <Image
-                    src={coverUrl}
-                    alt={`${book.title} cover`}
-                    className="h-full w-full rounded-lg object-cover shadow-md lg:shadow-[0px_8px_30px_rgba(0,0,0,0.15)]"
-                    width={1000}
-                    height={1500}
-                    priority
-                  />
-                </motion.div>
+                <Image
+                  src={coverUrl}
+                  alt={`${book.title} cover`}
+                  className="h-full w-full rounded-lg object-cover shadow-md lg:shadow-[0px_8px_30px_rgba(0,0,0,0.15)]"
+                  width={1000}
+                  height={1500}
+                  priority
+                />
               </motion.div>
             ) : (
-              <motion.div
-                layout
-                style={{
-                  width: coverWidth,
-                  height: coverHeight,
-                }}
-                className="flex items-center justify-center rounded-lg bg-muted p-2 text-center shadow-md"
-              >
+              <div className="flex h-full w-full items-center justify-center rounded-lg bg-muted p-2 text-center shadow-md">
                 <p className="text-xs font-bold text-foreground">
                   {book.title}
                 </p>
-              </motion.div>
+              </div>
             )}
           </motion.div>
 
           {/* Title/Author + Metadata Column */}
-          <motion.div layout className="min-w-0 flex-1 overflow-hidden">
+          <motion.div
+            layout
+            className="relative min-w-0 flex-1 overflow-visible pr-6"
+          >
             {/* Title & Author */}
             <motion.h2
               layout="position"
@@ -195,34 +206,9 @@ export function BookDetailContent({
                 fontSize: titleFontSize,
                 marginBottom: titleAuthorGap,
               }}
-              className="font-bold leading-tight text-foreground"
+              className="line-clamp-2 font-bold leading-tight text-foreground"
             >
-              <motion.span
-                style={{
-                  display: useTransform(
-                    smoothProgress,
-                    [0.5, 1],
-                    ["inline" as const, "block" as const],
-                  ),
-                  overflow: useTransform(
-                    smoothProgress,
-                    [0.5, 1],
-                    ["visible" as const, "hidden" as const],
-                  ),
-                  textOverflow: useTransform(
-                    smoothProgress,
-                    [0.5, 1],
-                    ["clip" as const, "ellipsis" as const],
-                  ),
-                  whiteSpace: useTransform(
-                    smoothProgress,
-                    [0.5, 1],
-                    ["normal" as const, "nowrap" as const],
-                  ),
-                }}
-              >
-                {book.title}
-              </motion.span>
+              {book.title}
             </motion.h2>
 
             <motion.p
@@ -230,43 +216,24 @@ export function BookDetailContent({
               style={{
                 fontSize: authorFontSize,
               }}
-              className="text-muted-foreground"
+              className="line-clamp-1 text-muted-foreground"
             >
-              <motion.span
-                style={{
-                  display: useTransform(
-                    smoothProgress,
-                    [0.5, 1],
-                    ["inline" as const, "block" as const],
-                  ),
-                  overflow: useTransform(
-                    smoothProgress,
-                    [0.5, 1],
-                    ["visible" as const, "hidden" as const],
-                  ),
-                  textOverflow: useTransform(
-                    smoothProgress,
-                    [0.5, 1],
-                    ["clip" as const, "ellipsis" as const],
-                  ),
-                  whiteSpace: useTransform(
-                    smoothProgress,
-                    [0.5, 1],
-                    ["normal" as const, "nowrap" as const],
-                  ),
-                }}
-              >
-                {book.author}
-              </motion.span>
+              {book.author}
             </motion.p>
 
-            {/* Metadata Section - Below Author, Fades out on scroll */}
-            <motion.div layout style={{ opacity: metadataOpacity }}>
+            {/* Metadata Section - Absolutely positioned */}
+            <motion.div
+              className="absolute left-0"
+              style={{ top: metadataTop, width: metadataWidth }}
+            >
               {/* Rating */}
               {book.rating && (
-                <div className="mb-3 mt-3 flex gap-1">
+                <motion.div
+                  className="mb-2 mt-3 flex gap-1"
+                  style={{ opacity: ratingOpacity }}
+                >
                   {Array.from({ length: 5 }).map((_, i) => (
-                    <Star
+                    <StarIcon
                       key={i}
                       size={20}
                       weight="fill"
@@ -275,11 +242,14 @@ export function BookDetailContent({
                       }
                     />
                   ))}
-                </div>
+                </motion.div>
               )}
 
               {/* Dates */}
-              <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground/70">
+              <motion.div
+                className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted-foreground/70"
+                style={{ opacity: datesOpacity }}
+              >
                 {book.publicationYear && (
                   <div>
                     <span className="font-medium">Published:</span>{" "}
@@ -306,45 +276,51 @@ export function BookDetailContent({
                     })}
                   </div>
                 )}
-              </div>
+              </motion.div>
 
               {/* Tags */}
               {book.tags.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-2">
+                <motion.div
+                  className="mt-3 flex flex-wrap gap-2"
+                  style={{ opacity: tagsOpacity }}
+                >
                   {book.tags.map((tag) => (
                     <TagBadge key={tag} tag={tag} />
                   ))}
-                </div>
+                </motion.div>
               )}
 
               {/* Actions */}
-              <div className="mt-4 flex flex-wrap items-center gap-2">
+              <motion.div
+                className="-ml-3 mt-2 flex flex-wrap items-center gap-0"
+                style={{ opacity: actionsOpacity }}
+              >
                 <Button variant="ghost" size="sm" asChild>
                   <a
                     href={book.notionUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    <ArrowSquareOut size={12} weight="bold" />
+                    <ArrowSquareOutIcon size={12} weight="bold" />
                     View in Notion
                   </a>
                 </Button>
 
                 <Button variant="ghost" size="sm" onClick={onShare}>
-                  <ShareNetwork size={12} weight="bold" />
-                  {copied ? "Copied!" : "Share"}
+                  <LinkIcon size={12} weight="bold" />
+                  {copied ? "Copied!" : "Copy link"}
                 </Button>
-              </div>
+              </motion.div>
             </motion.div>
           </motion.div>
         </motion.div>
       </motion.div>
 
       {/* Main content */}
-      <div className="p-6 lg:p-10">
+      <div className="mx-auto w-full max-w-3xl p-6 lg:p-10">
         {/* Notes section */}
         {book.hasNotes ? (
-          <div className="border-t border-muted-foreground/10 pt-8 lg:pt-10">
+          <div className="pb-[min(25vh,300px)] pt-8 lg:pt-10">
             {isLoadingNotes ? (
               <div className="flex items-center justify-center py-8">
                 <div className="flex flex-col items-center gap-3">
