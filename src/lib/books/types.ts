@@ -20,7 +20,6 @@ export type BookWithNotes = Book & {
 export type BookFilters = {
   tags: string[];
   minRating: number | null; // 4+ means 4
-  yearFinished: number | null;
   hasNotes: boolean | null; // true = notes only, null = all
   searchQuery: string;
 };

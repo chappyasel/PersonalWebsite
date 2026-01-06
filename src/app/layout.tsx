@@ -1,6 +1,10 @@
 import { type Metadata } from "next";
 
-import { CSPostHogProvider, ObserverProvider } from "~/lib/providers";
+import {
+  CSPostHogProvider,
+  ObserverProvider,
+  ThemeProvider,
+} from "~/lib/providers";
 import { TRPCReactProvider } from "~/trpc/react";
 
 import "~/styles/globals.css";
@@ -15,11 +19,13 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <CSPostHogProvider>
         <TRPCReactProvider>
           <ObserverProvider>
-            <body>{children}</body>
+            <ThemeProvider>
+              <body>{children}</body>
+            </ThemeProvider>
           </ObserverProvider>
         </TRPCReactProvider>
       </CSPostHogProvider>

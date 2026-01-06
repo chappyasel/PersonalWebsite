@@ -11,6 +11,13 @@ import { BookModal } from "./BookModal";
 import { BooksGridSkeleton } from "./BooksGridSkeleton";
 import { EmptyState } from "./EmptyState";
 
+// Size to preferred width mapping
+const sizeWidths = {
+  S: "110px",
+  M: "170px",
+  L: "260px",
+} as const;
+
 export function BooksGrid() {
   const [bookId, setBookId] = useQueryState("book");
   const [params, setParams] = useQueryStates(searchParamsParsers);
@@ -20,35 +27,112 @@ export function BooksGrid() {
     "-",
   ) as ["finished" | "title" | "rating", "asc" | "desc"];
 
-  // Fetch books with filters from URL
-  const { data: books, isLoading } = api.books.getAll.useQuery({
-    tags: params.tags.length > 0 ? params.tags : undefined,
-    minRating: params.minRating ?? undefined,
-    yearFinished: params.year ?? undefined,
-    hasNotes: params.hasNotes ?? undefined,
-    searchQuery: params.search || undefined,
-    sortField,
-    sortOrder,
-  });
+  // Get preferred width based on size
+  const preferredWidth =
+    sizeWidths[(params.size as keyof typeof sizeWidths) ?? "M"] ?? sizeWidths.M;
+
+  // Fetch ALL books once (no filters, no pagination)
+  const { data: allBooks, isLoading } = api.books.getAll.useQuery(
+    {
+      // No filters - get everything
+      sortField: "finished",
+      sortOrder: "desc",
+      limit: 500, // Get all books
+    },
+    {
+      // Never refetch - we loaded everything once
+      staleTime: Infinity,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+    },
+  );
 
   const handleClearFilters = () => {
     void setParams({
       tags: [],
       minRating: null,
-      year: null,
       hasNotes: null,
       search: "",
     });
   };
 
+  // Only show loading skeleton on initial load (when we have no data yet)
   if (isLoading) {
-    return <BooksGridSkeleton />;
+    return <BooksGridSkeleton size={(params.size as "S" | "M" | "L") ?? "M"} />;
   }
 
-  if (!books || books.length === 0) {
+  if (!allBooks || allBooks.length === 0) {
+    return (
+      <EmptyState type="no-books" onClearFilters={handleClearFilters} />
+    );
+  }
+
+  // Client-side filtering
+  let filteredBooks = allBooks;
+
+  // Filter by tags
+  if (params.tags.length > 0) {
+    filteredBooks = filteredBooks.filter((book) =>
+      params.tags.some((tag) => book.tags.includes(tag)),
+    );
+  }
+
+  // Filter by minimum rating
+  if (params.minRating) {
+    filteredBooks = filteredBooks.filter(
+      (book) => book.rating && book.rating >= params.minRating!,
+    );
+  }
+
+  // Filter by has notes
+  if (params.hasNotes !== null && params.hasNotes !== undefined) {
+    filteredBooks = filteredBooks.filter(
+      (book) => book.hasNotes === params.hasNotes,
+    );
+  }
+
+  // Filter by search query
+  if (params.search) {
+    const searchLower = params.search.toLowerCase();
+    filteredBooks = filteredBooks.filter(
+      (book) =>
+        book.title.toLowerCase().includes(searchLower) ||
+        book.author.toLowerCase().includes(searchLower),
+    );
+  }
+
+  // Client-side sorting
+  const books = [...filteredBooks].sort((a, b) => {
+    let aValue: string | number | null;
+    let bValue: string | number | null;
+
+    if (sortField === "finished") {
+      aValue = a.finished ?? "";
+      bValue = b.finished ?? "";
+    } else if (sortField === "rating") {
+      aValue = a.rating ?? 0;
+      bValue = b.rating ?? 0;
+    } else {
+      aValue = a.title;
+      bValue = b.title;
+    }
+
+    // Compare values
+    let comparison = 0;
+    if (typeof aValue === "string" && typeof bValue === "string") {
+      comparison = aValue.localeCompare(bValue);
+    } else {
+      comparison = (aValue as number) - (bValue as number);
+    }
+
+    return sortOrder === "desc" ? -comparison : comparison;
+  });
+
+  // Check if filters resulted in no books
+  if (books.length === 0) {
     const hasFilters =
       params.tags.length > 0 ||
-      (params.minRating ?? params.year ?? params.hasNotes ?? params.search);
+      (params.minRating ?? params.hasNotes ?? params.search);
 
     return (
       <EmptyState
@@ -71,8 +155,13 @@ export function BooksGrid() {
         // Group by rating
         groupKey = `${book.rating} ${book.rating === 1 ? "star" : "stars"}`;
       } else if (sortField === "title") {
-        // Group by first letter
-        groupKey = book.title[0]?.toUpperCase() ?? "?";
+        // Group by first letter, combine non-letters into "#"
+        const firstChar = book.title[0]?.toUpperCase();
+        if (firstChar && /[A-Z]/.test(firstChar)) {
+          groupKey = firstChar;
+        } else {
+          groupKey = "#";
+        }
       } else {
         groupKey = "Other";
       }
@@ -101,7 +190,9 @@ export function BooksGrid() {
       const ratingB = parseInt(b);
       return sortOrder === "desc" ? ratingB - ratingA : ratingA - ratingB;
     } else {
-      // Sort alphabetically
+      // Sort alphabetically, "#" always first
+      if (a === "#") return -1;
+      if (b === "#") return 1;
       return sortOrder === "asc" ? a.localeCompare(b) : b.localeCompare(a);
     }
   });
@@ -112,12 +203,21 @@ export function BooksGrid() {
         {groupKeys.map((groupKey) => (
           <div key={groupKey} className="flex flex-col gap-4">
             {/* Section Header */}
-            <h2 className="text-2xl font-bold text-title">{groupKey}</h2>
+            <h2 className="text-2xl font-bold text-foreground">
+              {groupKey}
+              <span className="text-sm text-foreground/70">
+                {" "}
+                ({groupedBooks[groupKey]!.length})
+              </span>
+            </h2>
 
             {/* Books Grid */}
             <motion.div
               layout
-              className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-12"
+              className="grid gap-4"
+              style={{
+                gridTemplateColumns: `repeat(auto-fill, minmax(min(${preferredWidth}, calc((100% - 1rem) / 2)), 1fr))`,
+              }}
             >
               <AnimatePresence mode="popLayout">
                 {groupedBooks[groupKey]!.map((book) => (
@@ -127,9 +227,16 @@ export function BooksGrid() {
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ duration: 0.2 }}
+                    transition={{
+                      layout: { type: "spring", stiffness: 300, damping: 30 },
+                      opacity: { duration: 0.2 },
+                      scale: { duration: 0.2 },
+                    }}
                   >
-                    <BookCard book={book} />
+                    <BookCard
+                      book={book}
+                      size={(params.size as "S" | "M" | "L") ?? "M"}
+                    />
                   </motion.div>
                 ))}
               </AnimatePresence>

@@ -45,6 +45,7 @@
     "lucide-react": "^0.562.0",
     "next": "^14.2.4",
     "next-auth": "^4.24.7",
+    "next-themes": "^0.4.6",
     "notion-to-md": "^3.1.9",
     "nuqs": "^2.8.6",
     "p-queue": "^9.0.1",

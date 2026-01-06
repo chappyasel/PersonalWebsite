@@ -1,9 +1,9 @@
-import { type Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
+import { type Metadata } from "next";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
-import { TRPCReactProvider } from "~/trpc/react";
 import { CSPostHogProvider, ObserverProvider } from "~/lib/providers";
+import { TRPCReactProvider } from "~/trpc/react";
 
 import "~/styles/globals.css";
 
@@ -22,8 +22,8 @@ export default function BooksLayout({
         <TRPCReactProvider>
           <NuqsAdapter>
             <ObserverProvider>
-              <body className="bg-background text-body font-serif">
-                <main className="m-auto max-w-screen-2xl p-4 md:p-8">
+              <body className="bg-background font-serif text-muted-foreground">
+                <main className="m-auto max-w-screen-2xl p-6 md:p-8">
                   {children}
                 </main>
               </body>

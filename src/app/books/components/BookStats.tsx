@@ -30,7 +30,7 @@ export function BookStats() {
     <div className="flex flex-col gap-4">
       {/* Mobile toggle */}
       <div className="flex items-center justify-between md:hidden">
-        <h2 className="text-lg font-semibold text-title">
+        <h2 className="text-lg font-semibold text-foreground">
           Reading Stats
         </h2>
         <Button
@@ -62,12 +62,12 @@ export function BookStats() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="flex flex-col gap-2 rounded-2xl bg-cell/20 p-6 shadow-md"
+            className="flex flex-col gap-2 rounded-2xl bg-muted/20 p-6 shadow-md"
           >
-            <span className="text-4xl font-bold text-title">
+            <span className="text-4xl font-bold text-foreground">
               {stats.totalBooks}
             </span>
-            <span className="text-sm text-body">Total Books</span>
+            <span className="text-sm text-muted-foreground">Total Books</span>
           </motion.div>
 
           {/* Books This Year */}
@@ -75,12 +75,12 @@ export function BookStats() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="flex flex-col gap-2 rounded-2xl bg-cell/20 p-6 shadow-md"
+            className="flex flex-col gap-2 rounded-2xl bg-muted/20 p-6 shadow-md"
           >
-            <span className="text-4xl font-bold text-title">
+            <span className="text-4xl font-bold text-foreground">
               {booksThisYear}
             </span>
-            <span className="text-sm text-body">Books in {currentYear}</span>
+            <span className="text-sm text-muted-foreground">Books in {currentYear}</span>
           </motion.div>
 
           {/* Average Rating */}
@@ -88,15 +88,15 @@ export function BookStats() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="flex flex-col gap-2 rounded-2xl bg-cell/20 p-6 shadow-md"
+            className="flex flex-col gap-2 rounded-2xl bg-muted/20 p-6 shadow-md"
           >
             <div className="flex items-center gap-2">
-              <span className="text-4xl font-bold text-title">
+              <span className="text-4xl font-bold text-foreground">
                 {avgRating}
               </span>
               <span className="text-2xl">⭐</span>
             </div>
-            <span className="text-sm text-body">Average Rating</span>
+            <span className="text-sm text-muted-foreground">Average Rating</span>
           </motion.div>
 
           {/* Top Categories */}
@@ -104,7 +104,7 @@ export function BookStats() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="flex flex-col gap-2 rounded-2xl bg-cell/20 p-6 shadow-md"
+            className="flex flex-col gap-2 rounded-2xl bg-muted/20 p-6 shadow-md"
           >
             <div className="flex flex-col gap-2">
               {topCategories.map((category) => {
@@ -122,14 +122,14 @@ export function BookStats() {
                     >
                       {category.name}
                     </Badge>
-                    <span className="text-xs font-semibold text-body">
+                    <span className="text-xs font-semibold text-muted-foreground">
                       {category.count}
                     </span>
                   </div>
                 );
               })}
             </div>
-            <span className="text-sm text-body">Top Categories</span>
+            <span className="text-sm text-muted-foreground">Top Categories</span>
           </motion.div>
         </div>
       </motion.div>

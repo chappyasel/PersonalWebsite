@@ -1,6 +1,61 @@
 /**
  * Maps book tags to consistent badge colors using soft pastel backgrounds
  */
+import type { Icon } from "@phosphor-icons/react/dist/lib/types";
+import {
+  AlienIcon,
+  BinocularsIcon,
+  BookIcon,
+  BookOpenIcon,
+  BookmarksIcon,
+  BrainIcon,
+  BriefcaseIcon,
+  BuildingsIcon,
+  CalendarIcon,
+  ChartBarIcon,
+  ChartLineUpIcon,
+  ChatCircleIcon,
+  CheckCircleIcon,
+  CircuitryIcon,
+  ClockCounterClockwiseIcon,
+  ClockIcon,
+  CompassIcon,
+  CrownIcon,
+  CurrencyDollarIcon,
+  EyeIcon,
+  FlaskIcon,
+  GavelIcon,
+  GearIcon,
+  GlobeHemisphereWestIcon,
+  GlobeIcon,
+  HandshakeIcon,
+  HardDrivesIcon,
+  HeartIcon,
+  HourglassIcon,
+  IdentificationCardIcon,
+  LightbulbIcon,
+  LightningIcon,
+  MicroscopeIcon,
+  MonitorIcon,
+  NewspaperIcon,
+  PlanetIcon,
+  PlantIcon,
+  RepeatIcon,
+  RocketLaunchIcon,
+  ScrollIcon,
+  SmileyIcon,
+  SparkleIcon,
+  StethoscopeIcon,
+  StorefrontIcon,
+  SunIcon,
+  TreeIcon,
+  TrendDownIcon,
+  TrendUpIcon,
+  UserIcon,
+  UsersIcon,
+  UsersThreeIcon,
+  WrenchIcon,
+} from "@phosphor-icons/react/dist/ssr";
 
 type BadgeColors = {
   bg: string;
@@ -98,6 +153,61 @@ const tagConfig: Record<
   "Science Fiction": { hue: 15 },
 };
 
+// Tag to icon mapping
+const tagIconMap: Record<string, Icon> = {
+  // Business (6)
+  "Business Strategy": CompassIcon,
+  "Business Operations": GearIcon,
+  Entrepreneurship: RocketLaunchIcon,
+  Innovation: LightbulbIcon,
+  Leadership: CrownIcon,
+  Management: BriefcaseIcon,
+
+  // Technology (4)
+  "Information Technology": HardDrivesIcon,
+  "Emerging Technology": CircuitryIcon,
+  AI: SparkleIcon,
+  Futurism: BinocularsIcon,
+
+  // Science (4)
+  "Pure Science": FlaskIcon,
+  "Applied Science": WrenchIcon,
+  "Stats & data": ChartLineUpIcon,
+  "Physical Health": HeartIcon,
+
+  // Social Sciences (5)
+  Sociology: UsersThreeIcon,
+  Politics: GavelIcon,
+  Macroeconomics: GlobeHemisphereWestIcon,
+  Microeconomics: StorefrontIcon,
+  "Contemporary Issues": NewspaperIcon,
+
+  // Psychology (3)
+  "Clinical Psychology": StethoscopeIcon,
+  "Cognitive Psychology": BrainIcon,
+  "Habits & Biases": RepeatIcon,
+
+  // Personal Development (3)
+  "Personal Growth": PlantIcon,
+  Productivity: CheckCircleIcon,
+  "Personal Finance": CurrencyDollarIcon,
+
+  // Philosophy (3)
+  Interpersonal: HandshakeIcon,
+  Philosophy: ScrollIcon,
+  "Happiness & Success": SunIcon,
+
+  // History (3)
+  "History (Pre-WWII)": HourglassIcon,
+  "History (Post-WWII)": ClockCounterClockwiseIcon,
+  Biographies: IdentificationCardIcon,
+
+  // Literature (3)
+  "Classical Literature": BookmarksIcon,
+  "Contemporary Literature": BookIcon,
+  "Science Fiction": AlienIcon,
+};
+
 // Default tag order (curated)
 export const defaultTagOrder = [
   "Business Strategy",
@@ -150,4 +260,11 @@ export function getTagColor(tag: string): BadgeColors {
     config.saturationAdjust,
     config.lightnessAdjust,
   );
+}
+
+/**
+ * Gets the icon component for a given tag
+ */
+export function getTagIcon(tag: string): Icon {
+  return tagIconMap[tag] ?? BookIcon;
 }

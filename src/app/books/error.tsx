@@ -16,10 +16,10 @@ export default function BooksError({
 
   return (
     <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4">
-      <h1 className="text-3xl font-bold text-title">
+      <h1 className="text-3xl font-bold text-foreground">
         Something went wrong
       </h1>
-      <p className="text-body">
+      <p className="text-muted-foreground">
         {error.message || "Failed to load books. Please try again."}
       </p>
       <div className="mt-4 flex gap-4">
@@ -31,13 +31,13 @@ export default function BooksError({
         </button>
         <Link
           href="https://chappyasel.com"
-          className="rounded-lg border border-title px-4 py-2 text-title transition-colors hover:bg-cell"
+          className="rounded-lg border border-title px-4 py-2 text-foreground transition-colors hover:bg-muted"
         >
           Back to main site
         </Link>
       </div>
       {error.digest && (
-        <p className="mt-4 text-sm text-body/50">Error ID: {error.digest}</p>
+        <p className="mt-4 text-sm text-muted-foreground/50">Error ID: {error.digest}</p>
       )}
     </div>
   );

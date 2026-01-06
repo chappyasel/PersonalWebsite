@@ -53,7 +53,8 @@
       "Bash(else echo \"not found\")",
       "Bash(fi)",
       "Bash(psql:*)",
-      "mcp__postgres__query"
+      "mcp__postgres__query",
+      "Bash(xargs ls:*)"
     ],
     "deny": [],
     "additionalDirectories": [

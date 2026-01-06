@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Search, X } from "lucide-react";
 import { useQueryState } from "nuqs";
+import { useEffect, useState } from "react";
 
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -27,13 +27,13 @@ export function BookSearch() {
 
   return (
     <div className="relative flex-1">
-      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-body/40" />
+      <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/40" />
       <Input
         type="text"
         placeholder="Search books by title or author..."
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
-        className="rounded-2xl pl-10 pr-10 shadow-sm"
+        className="rounded-md bg-white/90 pl-8 pr-8 shadow-sm"
       />
       {inputValue && (
         <Button

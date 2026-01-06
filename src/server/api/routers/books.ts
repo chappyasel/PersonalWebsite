@@ -21,7 +21,6 @@ export const booksRouter = createTRPCRouter({
         // Filters
         tags: z.array(z.string()).optional(),
         minRating: z.number().min(1).max(5).optional(),
-        yearFinished: z.number().optional(),
         hasNotes: z.boolean().optional(),
         searchQuery: z.string().optional(),
 
@@ -43,12 +42,6 @@ export const booksRouter = createTRPCRouter({
 
       if (input.minRating) {
         conditions.push(gte(books.rating, input.minRating));
-      }
-
-      if (input.yearFinished) {
-        conditions.push(
-          sql`EXTRACT(YEAR FROM ${books.finished}) = ${input.yearFinished}`,
-        );
       }
 
       if (input.hasNotes !== undefined) {

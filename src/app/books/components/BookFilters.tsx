@@ -1,9 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { searchParamsParsers } from "../lib/searchParams";
+import {
+  HashIcon,
+  ListIcon,
+  NotebookIcon,
+  SortAscendingIcon,
+  StarIcon,
+  TagIcon,
+  XIcon,
+} from "@phosphor-icons/react/dist/ssr";
+import { motion } from "framer-motion";
 import { useQueryStates } from "nuqs";
+import { useState } from "react";
 
-import { Badge } from "~/components/ui/badge";
+import { defaultTagOrder } from "~/lib/books/tagColors";
+import { api } from "~/trpc/react";
+
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import {
@@ -11,28 +24,20 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "~/components/ui/select";
 import { Separator } from "~/components/ui/separator";
 import { Switch } from "~/components/ui/switch";
-import { defaultTagOrder, getTagColor } from "~/lib/books/tagColors";
-import { api } from "~/trpc/react";
 
-import { searchParamsParsers } from "../lib/searchParams";
+import { TagBadge } from "./TagBadge";
 
 type TagSortMode = "default" | "count" | "alphabetical";
 
 export function BookFilters() {
   const [filters, setFilters] = useQueryStates(searchParamsParsers);
   const [tagSortMode, setTagSortMode] = useState<TagSortMode>("default");
+  const [hoveredRating, setHoveredRating] = useState<number | null>(null);
   const { data: tags } = api.books.getTags.useQuery();
   const { data: stats } = api.books.getStats.useQuery();
-
-  const years = stats?.booksPerYear
-    ? Object.keys(stats.booksPerYear)
-        .map(Number)
-        .sort((a, b) => b - a)
-    : [];
 
   // Sort tags based on selected mode
   const sortedTags = (() => {
@@ -61,7 +66,6 @@ export function BookFilters() {
     void setFilters({
       tags: [],
       minRating: null,
-      year: null,
       hasNotes: null,
     });
   };
@@ -74,14 +78,27 @@ export function BookFilters() {
     void setFilters({ tags: newTags });
   };
 
+  const hasActiveFilters =
+    filters.tags.length > 0 ||
+    filters.minRating !== null ||
+    filters.hasNotes !== null;
+
   return (
-    <div className="flex flex-col gap-6 rounded-3xl bg-cell/20 p-6">
+    <div className="flex flex-col gap-4 rounded-3xl bg-muted/20 py-2">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-title">Filters</h3>
-        <Button variant="ghost" size="sm" onClick={handleClearAll}>
-          Clear all
-        </Button>
+      <div className="flex items-end justify-between">
+        <h3 className="text-lg font-bold text-foreground">Filters</h3>
+        {hasActiveFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleClearAll}
+            className="flex h-7 items-center gap-1.5"
+          >
+            <XIcon className="!size-3" weight="bold" />
+            Clear
+          </Button>
+        )}
       </div>
 
       <Separator />
@@ -89,33 +106,64 @@ export function BookFilters() {
       {/* Tags */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <label className="text-sm font-semibold text-title">Tags</label>
+          <label className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            <TagIcon className="h-4 w-4" weight="bold" />
+            Tags
+          </label>
           <Select
             value={tagSortMode}
             onValueChange={(value) => setTagSortMode(value as TagSortMode)}
           >
-            <SelectTrigger className="h-7 w-[100px] text-xs rounded-lg">
-              <SelectValue />
+            <SelectTrigger className="hover: h-7 w-fit border-0 px-2 text-foreground/70 shadow-none transition-colors duration-200 hover:bg-accent hover:text-accent-foreground focus:ring-0">
+              {tagSortMode === "default" && (
+                <ListIcon className="mr-0.5 h-4 w-4" />
+              )}
+              {tagSortMode === "count" && (
+                <HashIcon className="mr-0.5 h-4 w-4" />
+              )}
+              {tagSortMode === "alphabetical" && (
+                <SortAscendingIcon className="mr-0.5 h-4 w-4" />
+              )}
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="w-auto">
               <SelectItem value="default" className="text-xs">
-                Custom
+                <div className="flex items-center gap-1.5">
+                  <ListIcon className="h-4 w-4" />
+                  <span>Custom</span>
+                </div>
               </SelectItem>
               <SelectItem value="count" className="text-xs">
-                By Count
+                <div className="flex items-center gap-1.5">
+                  <HashIcon className="h-4 w-4" />
+                  <span>By Count</span>
+                </div>
               </SelectItem>
               <SelectItem value="alphabetical" className="text-xs">
-                A-Z
+                <div className="flex items-center gap-1.5">
+                  <SortAscendingIcon className="h-4 w-4" />
+                  <span>A-Z</span>
+                </div>
               </SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="flex flex-col gap-2">
           {sortedTags.map((tag) => {
-            const colors = getTagColor(tag);
             const count = stats?.categoryBreakdown[tag] ?? 0;
             return (
-              <div key={tag} className="flex items-center space-x-2">
+              <motion.div
+                key={tag}
+                layout
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{
+                  layout: { type: "spring", stiffness: 300, damping: 30 },
+                  opacity: { duration: 0.2 },
+                  x: { duration: 0.2 },
+                }}
+                className="flex items-center space-x-2"
+              >
                 <Checkbox
                   id={`tag-${tag}`}
                   checked={filters.tags.includes(tag)}
@@ -123,22 +171,16 @@ export function BookFilters() {
                 />
                 <label
                   htmlFor={`tag-${tag}`}
-                  className="flex flex-1 cursor-pointer items-center gap-2"
+                  className="flex flex-1 cursor-pointer items-center gap-1"
                 >
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] px-1.5 py-0"
-                    style={{
-                      backgroundColor: colors.bg,
-                      color: colors.fg,
-                      borderColor: colors.border,
-                    }}
-                  >
-                    {tag}
-                  </Badge>
-                  <span className="text-xs text-title/60">({count})</span>
+                  <TagBadge tag={tag} />
+                  {count > 0 && (
+                    <span className="text-[10px] text-foreground/70">
+                      ({count})
+                    </span>
+                  )}
                 </label>
-              </div>
+              </motion.div>
             );
           })}
         </div>
@@ -146,71 +188,13 @@ export function BookFilters() {
 
       <Separator />
 
-      {/* Rating */}
-      <div className="flex flex-col gap-3">
-        <label className="text-sm font-semibold text-title">
-          Rating
-        </label>
-        <div className="flex gap-2">
-          <Button
-            variant={!filters.minRating ? "default" : "outline"}
-            size="sm"
-            onClick={() => void setFilters({ minRating: null })}
-            className="flex-1"
-          >
-            All
-          </Button>
-          <Button
-            variant={filters.minRating === 4 ? "default" : "outline"}
-            size="sm"
-            onClick={() => void setFilters({ minRating: 4 })}
-            className="flex-1"
-          >
-            4+ ⭐
-          </Button>
-          <Button
-            variant={filters.minRating === 5 ? "default" : "outline"}
-            size="sm"
-            onClick={() => void setFilters({ minRating: 5 })}
-            className="flex-1"
-          >
-            5 ⭐
-          </Button>
-        </div>
-      </div>
-
-      <Separator />
-
-      {/* Year */}
-      <div className="flex flex-col gap-3">
-        <label className="text-sm font-semibold text-title">
-          Year Finished
-        </label>
-        <Select
-          value={filters.year?.toString() ?? "all"}
-          onValueChange={(value) =>
-            void setFilters({ year: value === "all" ? null : parseInt(value) })
-          }
-        >
-          <SelectTrigger className="rounded-xl">
-            <SelectValue placeholder="All years" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All years</SelectItem>
-            {years.map((year) => (
-              <SelectItem key={year} value={year.toString()}>
-                {year}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <Separator />
-
       {/* Has Notes */}
-      <div className="flex items-center justify-between">
-        <label htmlFor="has-notes" className="text-sm font-semibold text-title">
+      <div className="flex items-center justify-between pr-2">
+        <label
+          htmlFor="has-notes"
+          className="flex items-center gap-1.5 text-sm font-semibold text-foreground"
+        >
+          <NotebookIcon className="h-4 w-4" weight="bold" />
           Has Notes
         </label>
         <Switch
@@ -220,6 +204,70 @@ export function BookFilters() {
             void setFilters({ hasNotes: checked ? true : null })
           }
         />
+      </div>
+
+      <Separator />
+
+      {/* Rating */}
+      <div className="flex flex-row gap-3">
+        <div className="flex items-center justify-between">
+          <label className="line-clamp-1 flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            <StarIcon className="h-4 w-4 shrink-0" weight="bold" />
+            Min Rating
+          </label>
+        </div>
+        <div
+          className="flex items-center gap-[2px]"
+          onMouseLeave={() => setHoveredRating(null)}
+        >
+          {Array.from({ length: 5 }).map((_, i) => {
+            const rating = i + 1;
+            const isFilled =
+              filters.minRating !== null && rating <= filters.minRating;
+            const isHovered = hoveredRating !== null && rating <= hoveredRating;
+            const isHighlighted = isFilled || isHovered;
+            return (
+              <motion.button
+                key={rating}
+                type="button"
+                onClick={() =>
+                  void setFilters({
+                    minRating: filters.minRating === rating ? null : rating,
+                  })
+                }
+                onMouseEnter={() => setHoveredRating(rating)}
+                className="cursor-pointer"
+                aria-label={`Minimum rating ${rating} stars`}
+                whileHover={{ scale: 1.2 }}
+                whileTap={{ scale: 0.9 }}
+                transition={{ type: "spring", stiffness: 400, damping: 17 }}
+              >
+                <motion.div
+                  animate={{
+                    scale: isHighlighted ? 1.1 : 1,
+                    rotate: isHighlighted ? [0, -10, 10, -10, 0] : 0,
+                  }}
+                  transition={{
+                    scale: { type: "spring", stiffness: 300, damping: 20 },
+                    rotate: isHighlighted
+                      ? { duration: 0.5, ease: "easeInOut" }
+                      : { duration: 0 },
+                  }}
+                >
+                  <StarIcon
+                    size={20}
+                    weight={isHighlighted ? "fill" : "duotone"}
+                    className={
+                      isHighlighted
+                        ? "text-yellow-400"
+                        : "text-muted-foreground/30"
+                    }
+                  />
+                </motion.div>
+              </motion.button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

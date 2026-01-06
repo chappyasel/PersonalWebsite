@@ -1,59 +1,76 @@
 "use client";
 
-import { useQueryState } from "nuqs";
 import {
-  Clock,
-  ClockCounterClockwise,
-  SortAscending,
-  SortDescending,
-  Star,
+  ClockCounterClockwiseIcon,
+  ClockIcon,
+  SortAscendingIcon,
+  SortDescendingIcon,
+  StarIcon,
 } from "@phosphor-icons/react/dist/ssr";
+import { useQueryState } from "nuqs";
 
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "~/components/ui/select";
 
 export function BookSort() {
   const [sort, setSort] = useQueryState("sort");
+  const currentSort = sort ?? "finished-desc";
+
+  const getSortIcon = (sortValue: string) => {
+    switch (sortValue) {
+      case "finished-desc":
+        return <ClockIcon className="h-4 w-4" />;
+      case "finished-asc":
+        return <ClockCounterClockwiseIcon className="h-4 w-4" />;
+      case "title-asc":
+        return <SortAscendingIcon className="h-4 w-4" />;
+      case "title-desc":
+        return <SortDescendingIcon className="h-4 w-4" />;
+      case "rating-desc":
+        return <StarIcon className="h-4 w-4" />;
+      default:
+        return <ClockIcon className="h-4 w-4" />;
+    }
+  };
 
   return (
-    <Select value={sort ?? "finished-desc"} onValueChange={(value) => void setSort(value)}>
-      <SelectTrigger className="w-[200px] rounded-xl">
-        <SelectValue placeholder="Sort by..." />
+    <Select value={currentSort} onValueChange={(value) => void setSort(value)}>
+      <SelectTrigger className="w-auto rounded-md bg-white/90">
+        <div className="flex items-center pr-2">{getSortIcon(currentSort)}</div>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="finished-desc">
           <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            <span>Recently Finished</span>
+            <ClockIcon className="h-4 w-4" />
+            <span>Recent</span>
           </div>
         </SelectItem>
         <SelectItem value="finished-asc">
           <div className="flex items-center gap-2">
-            <ClockCounterClockwise className="h-4 w-4" />
-            <span>Oldest First</span>
+            <ClockCounterClockwiseIcon className="h-4 w-4" />
+            <span>Oldest</span>
           </div>
         </SelectItem>
         <SelectItem value="title-asc">
           <div className="flex items-center gap-2">
-            <SortAscending className="h-4 w-4" />
+            <SortAscendingIcon className="h-4 w-4" />
             <span>Title A-Z</span>
           </div>
         </SelectItem>
         <SelectItem value="title-desc">
           <div className="flex items-center gap-2">
-            <SortDescending className="h-4 w-4" />
+            <SortDescendingIcon className="h-4 w-4" />
             <span>Title Z-A</span>
           </div>
         </SelectItem>
         <SelectItem value="rating-desc">
           <div className="flex items-center gap-2">
-            <Star className="h-4 w-4" weight="fill" />
-            <span>Highest Rated</span>
+            <StarIcon className="h-4 w-4" />
+            <span>Rating</span>
           </div>
         </SelectItem>
       </SelectContent>

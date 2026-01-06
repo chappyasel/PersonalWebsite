@@ -17,16 +17,16 @@ export function FilterDrawer() {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="outline" className="lg:hidden">
+        <Button variant="outline" className="flex-1 sm:hidden">
           <SlidersHorizontal className="mr-2 h-4 w-4" />
           Filters
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-80 overflow-y-auto">
-        <SheetHeader>
+      <SheetContent side="left" className="w-auto overflow-y-auto">
+        <SheetHeader className="sr-only">
           <SheetTitle>Filters</SheetTitle>
         </SheetHeader>
-        <div className="mt-6">
+        <div className="mt-4">
           <BookFilters />
         </div>
       </SheetContent>

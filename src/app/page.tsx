@@ -11,7 +11,7 @@ export default async function HomePage() {
   return (
     <>
       <GameOfLife />
-      <main className="relative m-auto flex max-w-screen-md flex-col items-center justify-center gap-20 overflow-visible scroll-smooth bg-transparent p-4 pb-28 font-serif text-body">
+      <main className="relative m-auto flex max-w-screen-md flex-col items-center justify-center gap-20 overflow-visible scroll-smooth bg-transparent p-4 pb-28 font-serif text-muted-foreground">
         <AboutMe />
         <BookNotes />
         <BlogPosts />

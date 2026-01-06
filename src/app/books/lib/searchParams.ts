@@ -9,7 +9,6 @@ export const searchParamsParsers = {
   // Filters
   tags: parseAsArrayOf(parseAsString).withDefault([]),
   minRating: parseAsInteger,
-  year: parseAsInteger,
   hasNotes: parseAsBoolean,
 
   // Search
@@ -17,6 +16,9 @@ export const searchParamsParsers = {
 
   // Sort
   sort: parseAsString.withDefault("finished-desc"),
+
+  // Size
+  size: parseAsString.withDefault("M"),
 
   // Modal (existing)
   book: parseAsString,

@@ -18,7 +18,7 @@ const BLOG_POSTS: BlogPost[] = data.items;
 export default async function BlogPosts() {
   return (
     <section className="flex w-full flex-wrap items-center justify-around gap-4">
-      <h1 className="w-full text-5xl font-bold text-title [text-shadow:_0_0_20px_rgba(255,255,255,1)]">
+      <h1 className="w-full text-5xl font-bold text-foreground [text-shadow:_0_0_20px_rgba(255,255,255,1)] dark:[text-shadow:_0_0_20px_rgba(0,0,0,0.8)]">
         ✍️ Musings
       </h1>
       {BLOG_POSTS.map((post, _) => (
