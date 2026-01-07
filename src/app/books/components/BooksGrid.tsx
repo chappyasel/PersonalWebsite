@@ -60,9 +60,7 @@ export function BooksGrid() {
   }
 
   if (!allBooks || allBooks.length === 0) {
-    return (
-      <EmptyState type="no-books" onClearFilters={handleClearFilters} />
-    );
+    return <EmptyState type="no-books" onClearFilters={handleClearFilters} />;
   }
 
   // Client-side filtering
@@ -164,9 +162,7 @@ export function BooksGrid() {
         groupKey = "Other";
       }
 
-      if (!acc[groupKey]) {
-        acc[groupKey] = [];
-      }
+      acc[groupKey] ??= [];
       acc[groupKey]!.push(book);
       return acc;
     },

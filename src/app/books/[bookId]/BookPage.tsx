@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRef, useState } from "react";
 
+import { Spinner } from "~/components/ui/spinner";
 import { api } from "~/trpc/react";
 
 type BookPageProps = {
@@ -41,7 +42,7 @@ export function BookPage({ bookId }: BookPageProps) {
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
+    } catch {
       console.error("Failed to copy");
     }
   };
@@ -60,7 +61,7 @@ export function BookPage({ bookId }: BookPageProps) {
           {isLoading && (
             <div className="flex min-h-[400px] items-center justify-center p-8">
               <div className="flex flex-col items-center gap-3">
-                <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted-foreground/20 border-t-title"></div>
+                <Spinner className="size-8" />
                 <p className="text-sm text-muted-foreground">Loading...</p>
               </div>
             </div>

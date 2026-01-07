@@ -84,7 +84,7 @@ export function BookFilters() {
     filters.hasNotes !== null;
 
   return (
-    <div className="flex flex-col gap-4 rounded-3xl bg-muted/20 py-2">
+    <div className="flex flex-col gap-5 rounded-3xl bg-muted/20 py-2">
       {/* Header */}
       <div className="flex items-end justify-between">
         <h3 className="text-lg font-bold text-foreground">Filters</h3>

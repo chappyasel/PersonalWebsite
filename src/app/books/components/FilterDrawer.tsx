@@ -26,7 +26,7 @@ export function FilterDrawer() {
         <SheetHeader className="sr-only">
           <SheetTitle>Filters</SheetTitle>
         </SheetHeader>
-        <div className="mt-4">
+        <div className="py-6">
           <BookFilters />
         </div>
       </SheetContent>

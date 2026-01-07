@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { type ReactNode, createContext, useContext, useState } from "react";
+
 import type { Book } from "~/lib/books/types";
 
 type BookPreviewContextType = {
@@ -15,7 +16,9 @@ const BookPreviewContext = createContext<BookPreviewContextType | undefined>(
 
 export function BookPreviewProvider({ children }: { children: ReactNode }) {
   const [selectedBook, setSelectedBookState] = useState<Book | null>(null);
-  const [selectedSize, setSelectedSize] = useState<"S" | "M" | "L" | null>(null);
+  const [selectedSize, setSelectedSize] = useState<"S" | "M" | "L" | null>(
+    null,
+  );
 
   const setSelectedBook = (book: Book | null, size?: "S" | "M" | "L") => {
     setSelectedBookState(book);
@@ -23,7 +26,9 @@ export function BookPreviewProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <BookPreviewContext.Provider value={{ selectedBook, selectedSize, setSelectedBook }}>
+    <BookPreviewContext.Provider
+      value={{ selectedBook, selectedSize, setSelectedBook }}
+    >
       {children}
     </BookPreviewContext.Provider>
   );
@@ -36,7 +41,10 @@ export function useBookPreview() {
     return {
       selectedBook: null,
       selectedSize: null,
-      setSelectedBook: () => {},
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      setSelectedBook: () => {
+        // Empty function for default context value during hydration
+      },
     };
   }
   return context;

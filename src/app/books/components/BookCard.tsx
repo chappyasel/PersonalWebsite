@@ -191,14 +191,16 @@ export function BookCard({ book, size = "M" }: BookCardProps) {
 
         {/* Overlay with title/author on hover */}
         <div
-          className={`absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/70 to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100 ${styles.overlayPadding}`}
+          className={`absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-stone-900/80 via-stone-900/60 via-30% to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100 ${styles.overlayPadding}`}
         >
           <h3
-            className={`line-clamp-3 font-bold text-white ${styles.overlayTitle}`}
+            className={`line-clamp-3 font-bold leading-tight text-white shadow-[0px_5px_10px_rgba(0,0,0,0.6)] ${styles.overlayTitle}`}
           >
             {book.title}
           </h3>
-          <p className={`line-clamp-1 text-white/80 ${styles.overlayAuthor}`}>
+          <p
+            className={`line-clamp-1 pt-0.5 text-white/80 shadow-[0px_5px_10px_rgba(0,0,0,0.6)] ${styles.overlayAuthor}`}
+          >
             {book.author}
           </p>
           {book.rating && (

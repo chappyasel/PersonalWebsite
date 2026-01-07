@@ -1,21 +1,18 @@
 import { type Metadata } from "next";
-import dynamic from "next/dynamic";
 
 import { getBookForOG } from "~/lib/books/ogDataAccess";
-
-const BookPage = dynamic(() => import("./BookPage").then((mod) => ({ default: mod.BookPage })), {
-  ssr: false,
-});
+import { BookPage } from "./BookPage";
 
 type PageProps = {
-  params: { bookId: string };
+  params: Promise<{ bookId: string }>;
 };
 
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
+  const { bookId } = await params;
   try {
-    const book = await getBookForOG(params.bookId);
+    const book = await getBookForOG(bookId);
 
     return {
       title: `${book.title} - Book Notes`,
@@ -25,7 +22,7 @@ export async function generateMetadata({
         description: `${book.author} • Book Notes by Chappy Asel`,
         images: [
           {
-            url: `/books/${params.bookId}/opengraph-image`,
+            url: `/books/${bookId}/opengraph-image`,
             width: 1200,
             height: 630,
             alt: `${book.title} cover and details`,
@@ -37,7 +34,7 @@ export async function generateMetadata({
         card: "summary_large_image",
         title: book.title,
         description: book.author,
-        images: [`/books/${params.bookId}/opengraph-image`],
+        images: [`/books/${bookId}/opengraph-image`],
       },
     };
   } catch {
@@ -49,5 +46,6 @@ export async function generateMetadata({
 }
 
 export default async function Page({ params }: PageProps) {
-  return <BookPage bookId={params.bookId} />;
+  const { bookId } = await params;
+  return <BookPage bookId={bookId} />;
 }

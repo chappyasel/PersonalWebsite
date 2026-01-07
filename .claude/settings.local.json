@@ -57,7 +57,10 @@
       "Bash(xargs ls:*)",
       "Bash(head:*)",
       "Bash(tail:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "WebSearch",
+      "WebFetch(domain:phosphoricons.com)",
+      "Bash(xargs cat:*)"
     ],
     "deny": [],
     "additionalDirectories": [

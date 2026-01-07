@@ -2,7 +2,7 @@
 
 import { CaretLeftIcon } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { BookFilters } from "./components/BookFilters";
 import { BookSize } from "./components/BookSize";
@@ -12,6 +12,39 @@ import { ThemeToggle } from "~/components/ui/theme-toggle";
 
 export default function BooksPage() {
   const [isHovered, setIsHovered] = useState(false);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const [stickyTop, setStickyTop] = useState(32);
+
+  useEffect(() => {
+    const calculateStickyTop = () => {
+      if (sidebarRef.current) {
+        const sidebarHeight = sidebarRef.current.offsetHeight;
+        const viewportHeight = window.innerHeight;
+        const topOffset = 32;
+        const bottomOffset = 32;
+
+        if (sidebarHeight + topOffset + bottomOffset > viewportHeight) {
+          setStickyTop(viewportHeight - sidebarHeight - bottomOffset);
+        } else {
+          setStickyTop(topOffset);
+        }
+      }
+    };
+
+    calculateStickyTop();
+    window.addEventListener("resize", calculateStickyTop);
+
+    // Watch for sidebar content changes (e.g., when tags load)
+    const resizeObserver = new ResizeObserver(calculateStickyTop);
+    if (sidebarRef.current) {
+      resizeObserver.observe(sidebarRef.current);
+    }
+
+    return () => {
+      window.removeEventListener("resize", calculateStickyTop);
+      resizeObserver.disconnect();
+    };
+  }, []);
 
   return (
     <div className="flex flex-col gap-8">
@@ -46,7 +79,11 @@ export default function BooksPage() {
       {/* Desktop: Sidebar + Main */}
       <div className="flex gap-8 2xl:gap-16">
         {/* Desktop Filters Sidebar */}
-        <aside className="hidden w-auto shrink-0 sm:block">
+        <aside
+          ref={sidebarRef}
+          className="hidden w-auto shrink-0 self-start sm:sticky sm:block"
+          style={{ top: stickyTop }}
+        >
           <BookFilters />
         </aside>
 

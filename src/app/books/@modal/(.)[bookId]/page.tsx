@@ -1,11 +1,13 @@
 "use client";
 
+import { use } from "react";
 import { Modal } from "./Modal";
 
 type PageProps = {
-  params: { bookId: string };
+  params: Promise<{ bookId: string }>;
 };
 
 export default function BookModalPage({ params }: PageProps) {
-  return <Modal bookId={params.bookId} />;
+  const { bookId } = use(params);
+  return <Modal bookId={bookId} />;
 }

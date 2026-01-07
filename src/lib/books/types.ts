@@ -30,11 +30,7 @@ export type BookSort = {
 };
 
 export type BookStats = {
-  totalBooks: number;
-  booksPerYear: Record<number, number>; // { 2024: 70, 2023: 65, ... }
-  avgRating: number;
   categoryBreakdown: Record<string, number>; // tag counts
-  booksWithNotes: number;
 };
 
 export type BookCoverCache = {

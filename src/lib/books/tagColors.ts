@@ -6,53 +6,35 @@ import {
   AlienIcon,
   BinocularsIcon,
   BookIcon,
-  BookOpenIcon,
   BookmarksIcon,
   BrainIcon,
   BriefcaseIcon,
-  BuildingsIcon,
-  CalendarIcon,
-  ChartBarIcon,
   ChartLineUpIcon,
-  ChatCircleIcon,
   CheckCircleIcon,
   CircuitryIcon,
   ClockCounterClockwiseIcon,
-  ClockIcon,
   CompassIcon,
   CrownIcon,
   CurrencyDollarIcon,
-  EyeIcon,
   FlaskIcon,
   GavelIcon,
   GearIcon,
   GlobeHemisphereWestIcon,
-  GlobeIcon,
   HandshakeIcon,
   HardDrivesIcon,
   HeartIcon,
   HourglassIcon,
   IdentificationCardIcon,
   LightbulbIcon,
-  LightningIcon,
-  MicroscopeIcon,
-  MonitorIcon,
   NewspaperIcon,
-  PlanetIcon,
   PlantIcon,
   RepeatIcon,
   RocketLaunchIcon,
   ScrollIcon,
-  SmileyIcon,
   SparkleIcon,
   StethoscopeIcon,
   StorefrontIcon,
   SunIcon,
-  TreeIcon,
-  TrendDownIcon,
-  TrendUpIcon,
-  UserIcon,
-  UsersIcon,
   UsersThreeIcon,
   WrenchIcon,
 } from "@phosphor-icons/react/dist/ssr";
@@ -97,24 +79,39 @@ const tagConfig: Record<
   { hue: number; saturationAdjust?: number; lightnessAdjust?: number }
 > = {
   // Business - Soft green
-  "Business Strategy": { hue: 150 },
-  "Business Operations": { hue: 150 },
-  Entrepreneurship: { hue: 150 },
-  Innovation: { hue: 150 },
-  Leadership: { hue: 150 },
-  Management: { hue: 150 },
+  "Business Strategy": { hue: 120 },
+  "Business Operations": { hue: 120 },
+  Entrepreneurship: { hue: 120 },
+  Innovation: { hue: 120 },
+  Leadership: { hue: 120 },
+  Management: { hue: 120 },
 
   // Technology - Soft blue
-  "Information Technology": { hue: 210 },
-  "Emerging Technology": { hue: 210 },
-  AI: { hue: 210 },
-  Futurism: { hue: 210 },
+  "Information Technology": { hue: 165 },
+  "Emerging Technology": { hue: 165 },
+  AI: { hue: 165 },
+  Futurism: { hue: 165 },
 
   // Science - Soft purple
-  "Pure Science": { hue: 270 },
-  "Applied Science": { hue: 270 },
-  "Stats & data": { hue: 270 },
-  "Physical Health": { hue: 270 },
+  "Pure Science": { hue: 210 },
+  "Applied Science": { hue: 210 },
+  "Stats & data": { hue: 210 },
+  "Physical Health": { hue: 210 },
+
+  // Psychology - Soft yellow/cream
+  "Clinical Psychology": { hue: 255 },
+  "Cognitive Psychology": { hue: 255 },
+  "Habits & Biases": { hue: 255 },
+
+  // Personal Development - Very light gray/white
+  "Personal Growth": { hue: 300 },
+  Productivity: { hue: 300 },
+  "Personal Finance": { hue: 300 },
+
+  // Philosophy & Interpersonal - Soft pink
+  Interpersonal: { hue: 345 },
+  Philosophy: { hue: 345 },
+  "Happiness & Success": { hue: 345 },
 
   // Social Sciences - Soft tan/beige
   Sociology: { hue: 30 },
@@ -123,34 +120,19 @@ const tagConfig: Record<
   Microeconomics: { hue: 30 },
   "Contemporary Issues": { hue: 30 },
 
-  // Psychology - Soft yellow/cream
-  "Clinical Psychology": { hue: 45 },
-  "Cognitive Psychology": { hue: 45 },
-  "Habits & Biases": { hue: 45 },
-
-  // Personal Development - Very light gray/white
-  "Personal Growth": { hue: 0, saturationAdjust: 0 },
-  Productivity: { hue: 0, saturationAdjust: 0 },
-  "Personal Finance": { hue: 0, saturationAdjust: 0 },
-
-  // Philosophy & Interpersonal - Soft pink
-  Interpersonal: { hue: 330 },
-  Philosophy: { hue: 330 },
-  "Happiness & Success": { hue: 330 },
-
   // History - Darker gray
-  "History (Pre-WWII)": { hue: 0, saturationAdjust: 0, lightnessAdjust: 80 },
-  "History (Post-WWII)": { hue: 0, saturationAdjust: 0, lightnessAdjust: 80 },
-  Biographies: { hue: 0, saturationAdjust: 0, lightnessAdjust: 80 },
+  "History (Pre-WWII)": { hue: 0, saturationAdjust: 0 },
+  "History (Post-WWII)": { hue: 0, saturationAdjust: 0 },
+  Biographies: { hue: 0, saturationAdjust: 0 },
 
   // Literature - Light pink/peach
   "Classical Literature": {
-    hue: 15,
+    hue: 60,
   },
   "Contemporary Literature": {
-    hue: 15,
+    hue: 60,
   },
-  "Science Fiction": { hue: 15 },
+  "Science Fiction": { hue: 60 },
 };
 
 // Tag to icon mapping
@@ -224,20 +206,20 @@ export const defaultTagOrder = [
   "Applied Science",
   "Stats & data",
   "Physical Health",
-  "Sociology",
-  "Politics",
-  "Macroeconomics",
-  "Microeconomics",
-  "Contemporary Issues",
   "Clinical Psychology",
   "Cognitive Psychology",
   "Habits & Biases",
   "Personal Growth",
   "Productivity",
-  "Personal Finance",
   "Interpersonal",
   "Philosophy",
   "Happiness & Success",
+  "Sociology",
+  "Politics",
+  "Macroeconomics",
+  "Microeconomics",
+  "Contemporary Issues",
+  "Personal Finance",
   "History (Pre-WWII)",
   "History (Post-WWII)",
   "Biographies",

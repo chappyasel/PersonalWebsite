@@ -9,6 +9,8 @@ import { useEffect, useRef, useState } from "react";
 
 import { api } from "~/trpc/react";
 
+import { Spinner } from "~/components/ui/spinner";
+
 type ModalProps = {
   bookId: string;
 };
@@ -64,7 +66,7 @@ export function Modal({ bookId }: ModalProps) {
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
+    } catch {
       console.error("Failed to copy");
     }
   };
@@ -100,7 +102,9 @@ export function Modal({ bookId }: ModalProps) {
                 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className={`relative overflow-hidden rounded-2xl bg-background shadow-[0px_10px_50px_10px_rgba(0,0,0,0.3)] ${book?.hasNotes ? 'h-[max(85vh,min(1000px,calc(100vh-32px)))]' : 'max-h-[85vh]'}`}>
+                <div
+                  className={`relative overflow-hidden rounded-2xl bg-background shadow-[0px_10px_50px_10px_rgba(0,0,0,0.1)] ${book?.hasNotes ? "h-[max(85vh,min(1000px,calc(100vh-32px)))]" : "max-h-[85vh]"}`}
+                >
                   {/* Close button */}
                   <button
                     onClick={handleClose}
@@ -141,9 +145,9 @@ export function Modal({ bookId }: ModalProps) {
                   ) : (
                     <div className="flex h-full items-center justify-center p-8">
                       <div className="flex flex-col items-center gap-3">
-                        <div className="h-8 w-8 animate-spin rounded-full border-4 border-muted-foreground/20 border-t-title"></div>
+                        <Spinner className="size-8" />
                         <p className="text-sm text-muted-foreground">
-                          Loading...
+                          Loading book details...
                         </p>
                       </div>
                     </div>

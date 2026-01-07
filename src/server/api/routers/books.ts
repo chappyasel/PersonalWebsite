@@ -120,6 +120,9 @@ export const booksRouter = createTRPCRouter({
         throw new Error("Book not found");
       }
 
+      // simulate a delay
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       const result: BookWithNotes = {
         id: book.id,
         title: book.title,
@@ -143,40 +146,6 @@ export const booksRouter = createTRPCRouter({
    * Get book statistics
    */
   getStats: publicProcedure.query(async () => {
-    // Total books count
-    const totalBooksResult = await db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(books)
-      .where(sql`${books.finished} IS NOT NULL`);
-
-    const totalBooks = Number(totalBooksResult[0]?.count ?? 0);
-
-    // Books per year
-    const booksPerYearResult = await db
-      .select({
-        year: sql<number>`EXTRACT(YEAR FROM ${books.finished})`,
-        count: sql<number>`COUNT(*)`,
-      })
-      .from(books)
-      .where(sql`${books.finished} IS NOT NULL`)
-      .groupBy(sql`EXTRACT(YEAR FROM ${books.finished})`)
-      .orderBy(desc(sql`EXTRACT(YEAR FROM ${books.finished})`));
-
-    const booksPerYear: Record<number, number> = {};
-    booksPerYearResult.forEach((row) => {
-      booksPerYear[row.year] = Number(row.count);
-    });
-
-    // Average rating
-    const avgRatingResult = await db
-      .select({
-        avg: sql<number>`AVG(${books.rating})`,
-      })
-      .from(books)
-      .where(sql`${books.rating} IS NOT NULL`);
-
-    const avgRating = Number(avgRatingResult[0]?.avg ?? 0);
-
     // Category breakdown
     const categoryBreakdownResult = await db
       .select({
@@ -192,20 +161,8 @@ export const booksRouter = createTRPCRouter({
       categoryBreakdown[row.tag] = Number(row.count);
     });
 
-    // Books with notes count
-    const booksWithNotesResult = await db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(books)
-      .where(eq(books.hasNotes, true));
-
-    const booksWithNotes = Number(booksWithNotesResult[0]?.count ?? 0);
-
     const stats: BookStats = {
-      totalBooks,
-      booksPerYear,
-      avgRating,
       categoryBreakdown,
-      booksWithNotes,
     };
 
     return stats;

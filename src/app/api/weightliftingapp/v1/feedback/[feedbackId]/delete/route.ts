@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     });
     // TODO: implement
     return NextResponse.json({ feedbackID });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 },
