@@ -1,5 +1,6 @@
 export type Book = {
-  id: string;
+  id: string; // Human-readable slug
+  notionId: string; // Original Notion page ID
   title: string;
   author: string;
   publicationYear: number | null;

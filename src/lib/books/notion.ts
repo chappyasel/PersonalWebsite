@@ -125,13 +125,16 @@ export async function fetchBookDetails(bookId: string): Promise<BookWithNotes> {
 }
 
 /**
- * Transform a Notion page to a Book type
+ * Transform a Notion page to a Book type.
+ * Note: The `id` field is initially set to the Notion page ID.
+ * It will be replaced with a human-readable slug during sync.
  */
 function transformNotionPageToBook(page: PageObjectResponse): Book {
   const props = page.properties;
 
   return {
-    id: page.id,
+    id: page.id, // Temporary: will be replaced with slug during sync
+    notionId: page.id, // Permanent: Notion page ID for reference
     title: extractTitle(props.Title),
     author: extractRichText(props.Author),
     publicationYear:

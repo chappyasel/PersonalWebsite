@@ -159,6 +159,26 @@ export function arrayBufferToDataUri(
 }
 
 /**
+ * Convert image buffer to PNG format using sharp
+ * This ensures consistent format for OG images
+ * @param buffer - The image buffer (any format)
+ * @returns PNG data URI or null if conversion fails
+ */
+export async function convertToPngDataUri(
+  buffer: ArrayBuffer,
+): Promise<string | null> {
+  try {
+    const nodeBuffer = Buffer.from(buffer);
+    const pngBuffer = await sharp(nodeBuffer).png().toBuffer();
+    const base64 = pngBuffer.toString("base64");
+    return `data:image/png;base64,${base64}`;
+  } catch (error) {
+    console.error("Error converting image to PNG:", error);
+    return null;
+  }
+}
+
+/**
  * Determine if a title is long and needs size adjustment
  * Updated for larger font sizes (roughly 2x original)
  * @param title - The book title

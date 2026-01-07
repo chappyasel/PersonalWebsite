@@ -7,6 +7,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { getBookShareUrl } from "~/lib/books/paths";
+import { useSubdomain } from "~/lib/books/subdomainContext";
 import { api } from "~/trpc/react";
 
 import { Spinner } from "~/components/ui/spinner";
@@ -21,6 +23,7 @@ export function Modal({ bookId }: ModalProps) {
   const [isOpen, setIsOpen] = useState(true);
   const contentRef = useRef<HTMLDivElement>(null);
   const { selectedBook } = useBookPreview();
+  const { isSubdomain } = useSubdomain();
 
   // Fetch full book data (with notes)
   const {
@@ -61,7 +64,7 @@ export function Modal({ bookId }: ModalProps) {
 
   // Handle share button click
   const handleShare = async () => {
-    const shareUrl = `${window.location.origin}/books/${bookId}`;
+    const shareUrl = getBookShareUrl(bookId, isSubdomain);
     try {
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);

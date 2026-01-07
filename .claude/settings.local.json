@@ -38,7 +38,6 @@
       "mcp__linear__list_my_issues",
       "WebFetch(domain:docs.lu.ma)",
       "mcp__linear__get_issue",
-      "Bash(yarn typecheck)",
       "Bash(npm run scripts:migrate-chapter-applications:*)",
       "mcp__supabase__list_projects",
       "mcp__Notion__notion-fetch",
@@ -69,8 +68,5 @@
     ]
   },
   "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": [
-    "postgres-db",
-    "context7"
-  ]
+  "enabledMcpjsonServers": ["postgres-db", "context7"]
 }

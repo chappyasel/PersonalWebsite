@@ -1,6 +1,8 @@
 import { type Metadata } from "next";
+import { redirect } from "next/navigation";
 
-import { getBookForOG } from "~/lib/books/ogDataAccess";
+import { isNotionId } from "~/lib/books/slugify";
+import { getBookForOG, getSlugByNotionId } from "~/lib/books/ogDataAccess";
 import { BookPage } from "./BookPage";
 
 type PageProps = {
@@ -47,5 +49,15 @@ export async function generateMetadata({
 
 export default async function Page({ params }: PageProps) {
   const { bookId } = await params;
+
+  // If the bookId looks like a Notion UUID, try to redirect to the slug-based URL
+  if (isNotionId(bookId)) {
+    const slug = await getSlugByNotionId(bookId);
+    if (slug) {
+      redirect(`/books/${slug}`);
+    }
+    // If not found by notionId, continue to show BookPage (will error naturally)
+  }
+
   return <BookPage bookId={bookId} />;
 }

@@ -1,10 +1,9 @@
 "use client";
 
-import { CaretRightIcon, PlayIcon } from "@phosphor-icons/react";
+import { PlayIcon } from "@phosphor-icons/react";
 import {
   ArrowSquareOutIcon,
   CalendarIcon,
-  CaretDownIcon,
   LinkIcon,
   StarIcon,
   XIcon,
@@ -21,6 +20,8 @@ import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
 
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
+import { getBooksPath } from "~/lib/books/paths";
+import { useSubdomain } from "~/lib/books/subdomainContext";
 import type { Book } from "~/lib/books/types";
 import { cn } from "~/lib/util";
 
@@ -51,9 +52,10 @@ function processDetailsBlocks(markdown: string): string {
   // Match details blocks with their content
   const detailsRegex = /<details>(.*?)<\/details>/gs;
 
-  return markdown.replace(detailsRegex, (match, content) => {
+  return markdown.replace(detailsRegex, (match: string, content: string) => {
     // Extract summary and remaining content
-    const summaryMatch = content.match(/<summary>(.*?)<\/summary>(.*)/s);
+    const summaryRegex = /<summary>(.*?)<\/summary>(.*)/s;
+    const summaryMatch = summaryRegex.exec(content);
 
     if (!summaryMatch) {
       return match; // Return original if format is unexpected
@@ -89,6 +91,7 @@ export function BookDetailContent({
   isModal = false,
 }: BookDetailContentProps) {
   const coverUrl = enhanceCoverUrl(book.coverUrl);
+  const { isSubdomain } = useSubdomain();
 
   // Scroll-driven animation setup
   const scrollProgress = useMotionValue(0);
@@ -241,7 +244,7 @@ export function BookDetailContent({
                 <Tooltip delayDuration={200}>
                   <TooltipTrigger asChild>
                     <Link
-                      href="/books"
+                      href={getBooksPath(isSubdomain)}
                       className="flex size-10 items-center justify-center rounded-full bg-muted shadow-sm backdrop-blur-sm transition-all duration-200 ease-in-out hover:bg-primary/20"
                       aria-label="Return to all book notes"
                     >

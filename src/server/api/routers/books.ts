@@ -84,6 +84,7 @@ export const booksRouter = createTRPCRouter({
       return filteredResults.map(
         (book): Book => ({
           id: book.id,
+          notionId: book.notionId,
           title: book.title,
           author: book.author,
           publicationYear: book.publicationYear ?? null,
@@ -125,6 +126,7 @@ export const booksRouter = createTRPCRouter({
 
       const result: BookWithNotes = {
         id: book.id,
+        notionId: book.notionId,
         title: book.title,
         author: book.author,
         publicationYear: book.publicationYear ?? null,
@@ -140,6 +142,25 @@ export const booksRouter = createTRPCRouter({
       };
 
       return result;
+    }),
+
+  /**
+   * Get book by Notion ID (for redirect support from old URLs)
+   * Returns just the slug if found, null if not
+   */
+  getSlugByNotionId: publicProcedure
+    .input(
+      z.object({
+        notionId: z.string().min(1),
+      }),
+    )
+    .query(async ({ input }) => {
+      const book = await db.query.books.findFirst({
+        where: eq(books.notionId, input.notionId),
+        columns: { id: true },
+      });
+
+      return book?.id ?? null;
     }),
 
   /**

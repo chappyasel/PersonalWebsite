@@ -15,6 +15,8 @@ import { useSearchParams } from "next/navigation";
 import { useRef } from "react";
 
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
+import { getBookPath } from "~/lib/books/paths";
+import { useSubdomain } from "~/lib/books/subdomainContext";
 import type { Book } from "~/lib/books/types";
 
 import { Badge } from "~/components/ui/badge";
@@ -90,6 +92,7 @@ export function BookCard({ book, size = "M" }: BookCardProps) {
   const { setSelectedBook } = useBookPreview();
   const cardRef = useRef<HTMLAnchorElement>(null);
   const searchParams = useSearchParams();
+  const { isSubdomain } = useSubdomain();
 
   // Motion values for 3D tilt effect
   const rotateX = useSpring(useMotionValue(0), springValues);
@@ -99,7 +102,7 @@ export function BookCard({ book, size = "M" }: BookCardProps) {
   const rotateAmplitude = tiltAmplitude[size]; // Degrees of rotation
 
   // Preserve current query params when navigating to book detail
-  const bookUrl = `/books/${book.id}${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+  const bookUrl = getBookPath(book.id, isSubdomain, searchParams.toString());
 
   const handleClick = () => {
     setSelectedBook(book, size);

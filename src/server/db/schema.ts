@@ -126,7 +126,8 @@ export const verificationTokens = pgTable(
 export const books = pgTable(
   "books",
   {
-    id: varchar("id", { length: 255 }).primaryKey(), // Notion page ID
+    id: varchar("id", { length: 255 }).primaryKey(), // Human-readable slug
+    notionId: varchar("notion_id", { length: 255 }).notNull(), // Original Notion page ID
     title: varchar("title", { length: 512 }).notNull(),
     author: varchar("author", { length: 512 }).notNull(),
     publicationYear: integer("publication_year"),
@@ -152,6 +153,7 @@ export const books = pgTable(
     ),
   },
   (table) => ({
+    notionIdIdx: uniqueIndex("book_notion_id_idx").on(table.notionId),
     finishedIdx: index("book_finished_idx").on(table.finished),
     ratingIdx: index("book_rating_idx").on(table.rating),
     lastEditedIdx: index("book_last_edited_idx").on(table.lastEditedTime),
