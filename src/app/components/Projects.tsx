@@ -17,7 +17,7 @@ const PROJECTS: Project[] = data.projects;
 export default async function Projects() {
   return (
     <section className="flex w-full flex-wrap items-center justify-around gap-4">
-      <h1 className="w-full text-5xl font-bold text-title [text-shadow:_0_0_20px_rgba(255,255,255,1)]">
+      <h1 className="w-full text-5xl font-bold text-foreground [text-shadow:_0_0_20px_rgba(255,255,255,1)] dark:[text-shadow:_0_0_20px_rgba(0,0,0,0.8)]">
         👨‍💻 Projects
       </h1>
       {PROJECTS.map((project, _) => (
@@ -32,7 +32,7 @@ function ProjectItem({ project }: { project: Project }) {
     <Link
       href={project.link}
       target="_blank"
-      className="intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000 group relative flex w-full flex-col overflow-hidden rounded-3xl p-4 shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] backdrop-blur-lg transition-all duration-300 ease-in-out hover:scale-[1.03] hover:shadow-[0px_5px_30px_0px_rgba(0,0,0,0.14)] sm:flex-row"
+      className="group relative flex w-full flex-col overflow-hidden rounded-3xl p-4 shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] backdrop-blur-lg transition-all duration-300 ease-in-out hover:scale-[1.03] hover:shadow-[0px_5px_30px_0px_rgba(0,0,0,0.14)] intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000 sm:flex-row"
     >
       <div className="h-full sm:h-auto sm:basis-1/3">
         {project.image ? (
@@ -45,7 +45,7 @@ function ProjectItem({ project }: { project: Project }) {
           />
         ) : (
           <div className="flex size-full items-center justify-center rounded-xl bg-background/20 shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)]">
-            <ImageIcon className="size-28 text-body opacity-20" />
+            <ImageIcon className="size-28 text-muted-foreground opacity-20" />
           </div>
         )}
       </div>
@@ -56,7 +56,7 @@ function ProjectItem({ project }: { project: Project }) {
           {project.languages.map((language) => (
             <span
               key={language}
-              className="rounded-full border-2 border-body px-2 py-[1px] text-sm font-semibold"
+              className="rounded-full border-2 border-muted-foreground/40 px-2.5 py-0.5 text-sm font-semibold"
             >
               {language}
             </span>

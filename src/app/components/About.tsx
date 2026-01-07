@@ -4,11 +4,16 @@ import Link from "next/link";
 import image from "public/images/about/profile.jpg";
 import React from "react";
 
+import { ThemeToggle } from "~/components/ui/theme-toggle";
+
 import ContactButtons from "./ContactButtons";
 
 export default async function AboutMe() {
   return (
-    <div className="mt-28 w-full gap-2 rounded-3xl bg-cell/20 p-8 leading-5 shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] backdrop-blur-lg intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000">
+    <div className="relative mt-28 w-full gap-2 rounded-3xl bg-muted/20 p-8 leading-5 shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] backdrop-blur-lg intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000">
+      <div className="absolute right-4 top-4 opacity-70">
+        <ThemeToggle />
+      </div>
       <Image
         src={image}
         alt="Profile picture"
@@ -83,11 +88,11 @@ export default async function AboutMe() {
         to shape a future of trust, openness, and human flourishing. Thanks for
         stopping by to learn a little more about my journey! 😄
       </p>
-      <div className="flex flex-col items-center gap-1 pt-8 text-body/80">
+      <div className="flex flex-col items-center gap-1 pt-8 text-muted-foreground/80">
         <Link
           href="https://chappyasel.notion.site/manual"
           target="_blank"
-          className="-mt-4 mb-4 flex items-center gap-2 rounded-xl border-2 border-transparent px-4 py-2 text-sm font-medium transition-all duration-300 ease-in-out hover:scale-105 hover:border-body/20 hover:text-body hover:shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)]"
+          className="-mt-4 mb-4 flex items-center gap-2 rounded-xl border-2 border-transparent px-4 py-2 text-sm font-medium transition-all duration-300 ease-in-out hover:scale-105 hover:border-muted-foreground/20 hover:text-muted-foreground hover:shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)]"
         >
           <BookOpenTextIcon size={20} weight="duotone" />
           <span>Personal Operating Manual</span>
@@ -96,14 +101,14 @@ export default async function AboutMe() {
         {/* <p className="flex flex-row gap-2">
           <Link
             href="mailto:chappyasel@gmail.com"
-            className="line-clamp-1 transition-all duration-300 ease-in-out hover:text-body hover:underline"
+            className="line-clamp-1 transition-all duration-300 ease-in-out hover:text-muted-foreground hover:underline"
           >
             chappyasel [at] gmail.com
           </Link>
           {" • "}
           <Link
             href="mailto:chappy@aicollective.com"
-            className="line-clamp-1 transition-all duration-300 ease-in-out hover:text-body hover:underline"
+            className="line-clamp-1 transition-all duration-300 ease-in-out hover:text-muted-foreground hover:underline"
           >
             chappy [at] aicollective.com
           </Link>
@@ -112,7 +117,7 @@ export default async function AboutMe() {
           <Link
             href="/documents/Gabriel 'Chappy' Asel CV.pdf"
             target="_blank"
-            className="transition-all duration-300 ease-in-out hover:text-body hover:underline"
+            className="transition-all duration-300 ease-in-out hover:text-muted-foreground hover:underline"
           >
             resume
           </Link>
@@ -120,7 +125,7 @@ export default async function AboutMe() {
           <Link
             href="/documents/Gabriel 'Chappy' Asel CV.pdf"
             target="_blank"
-            className="transition-all duration-300 ease-in-out hover:text-body hover:underline"
+            className="transition-all duration-300 ease-in-out hover:text-muted-foreground hover:underline"
           >
             curriculum vitae
           </Link>

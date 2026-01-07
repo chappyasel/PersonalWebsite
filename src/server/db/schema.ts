@@ -1,26 +1,20 @@
 import { relations, sql } from "drizzle-orm";
 import {
+  boolean,
   index,
   integer,
-  pgTableCreator,
+  pgTable,
   primaryKey,
   serial,
   text,
   timestamp,
+  uniqueIndex,
   varchar,
 } from "drizzle-orm/pg-core";
 import { type AdapterAccount } from "next-auth/adapters";
 
-/**
- * This is an example of how to use the multi-project schema feature of Drizzle ORM. Use the same
- * database instance for multiple projects.
- *
- * @see https://orm.drizzle.team/docs/goodies#multi-project-schema
- */
-export const createTable = pgTableCreator((name) => `personal-website_${name}`);
-
-export const posts = createTable(
-  "post",
+export const posts = pgTable(
+  "posts",
   {
     id: serial("id").primaryKey(),
     name: varchar("name", { length: 256 }),
@@ -40,7 +34,7 @@ export const posts = createTable(
   }),
 );
 
-export const users = createTable("user", {
+export const users = pgTable("users", {
   id: varchar("id", { length: 255 })
     .notNull()
     .primaryKey()
@@ -58,8 +52,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   accounts: many(accounts),
 }));
 
-export const accounts = createTable(
-  "account",
+export const accounts = pgTable(
+  "accounts",
   {
     userId: varchar("user_id", { length: 255 })
       .notNull()
@@ -91,8 +85,8 @@ export const accountsRelations = relations(accounts, ({ one }) => ({
   user: one(users, { fields: [accounts.userId], references: [users.id] }),
 }));
 
-export const sessions = createTable(
-  "session",
+export const sessions = pgTable(
+  "sessions",
   {
     sessionToken: varchar("session_token", { length: 255 })
       .notNull()
@@ -114,8 +108,8 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
   user: one(users, { fields: [sessions.userId], references: [users.id] }),
 }));
 
-export const verificationTokens = createTable(
-  "verification_token",
+export const verificationTokens = pgTable(
+  "verification_tokens",
   {
     identifier: varchar("identifier", { length: 255 }).notNull(),
     token: varchar("token", { length: 255 }).notNull(),
@@ -128,3 +122,86 @@ export const verificationTokens = createTable(
     compoundKey: primaryKey({ columns: [vt.identifier, vt.token] }),
   }),
 );
+
+export const books = pgTable(
+  "books",
+  {
+    id: varchar("id", { length: 255 }).primaryKey(), // Human-readable slug
+    notionId: varchar("notion_id", { length: 255 }).notNull(), // Original Notion page ID
+    title: varchar("title", { length: 512 }).notNull(),
+    author: varchar("author", { length: 512 }).notNull(),
+    publicationYear: integer("publication_year"),
+    started: timestamp("started", { mode: "date", withTimezone: true }),
+    finished: timestamp("finished", { mode: "date", withTimezone: true }),
+    rating: integer("rating"), // 1-5
+    hasNotes: boolean("has_notes").default(false).notNull(),
+    hasSummary: boolean("has_summary").default(false).notNull(),
+    coverUrl: text("cover_url"),
+    notionUrl: text("notion_url").notNull(),
+    notes: text("notes"), // Full markdown content
+    lastEditedTime: timestamp("last_edited_time", {
+      withTimezone: true,
+    }).notNull(),
+    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).$onUpdate(
+      () => new Date(),
+    ),
+  },
+  (table) => ({
+    notionIdIdx: uniqueIndex("book_notion_id_idx").on(table.notionId),
+    finishedIdx: index("book_finished_idx").on(table.finished),
+    ratingIdx: index("book_rating_idx").on(table.rating),
+    lastEditedIdx: index("book_last_edited_idx").on(table.lastEditedTime),
+    titleIdx: index("book_title_idx").on(table.title),
+  }),
+);
+
+export const bookTags = pgTable(
+  "book_tags",
+  {
+    id: serial("id").primaryKey(),
+    bookId: varchar("book_id", { length: 255 })
+      .notNull()
+      .references(() => books.id, { onDelete: "cascade" }),
+    tagName: varchar("tag_name", { length: 256 }).notNull(),
+  },
+  (table) => ({
+    uniqueBookTag: uniqueIndex("unique_book_tag_idx").on(
+      table.bookId,
+      table.tagName,
+    ),
+    tagNameIdx: index("tag_name_idx").on(table.tagName),
+    bookIdIdx: index("book_tag_book_id_idx").on(table.bookId),
+  }),
+);
+
+export const syncMetadata = pgTable("sync_metadata", {
+  id: serial("id").primaryKey(),
+  syncStartedAt: timestamp("sync_started_at", { withTimezone: true })
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+  syncCompletedAt: timestamp("sync_completed_at", { withTimezone: true }),
+  status: varchar("status", { length: 50 }).notNull(), // 'in_progress' | 'success' | 'failed'
+  totalBooksInNotion: integer("total_books_in_notion"),
+  booksAdded: integer("books_added").default(0).notNull(),
+  booksUpdated: integer("books_updated").default(0).notNull(),
+  booksUnchanged: integer("books_unchanged").default(0).notNull(),
+  fullContentFetched: integer("full_content_fetched").default(0).notNull(),
+  fullContentSkipped: integer("full_content_skipped").default(0).notNull(),
+  errors: text("errors"), // JSON array
+  errorCount: integer("error_count").default(0).notNull(),
+  triggeredBy: varchar("triggered_by", { length: 50 }).notNull(), // 'cron' | 'manual'
+});
+
+export const booksRelations = relations(books, ({ many }) => ({
+  tags: many(bookTags),
+}));
+
+export const bookTagsRelations = relations(bookTags, ({ one }) => ({
+  book: one(books, { fields: [bookTags.bookId], references: [books.id] }),
+}));

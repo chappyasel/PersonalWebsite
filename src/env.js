@@ -22,7 +22,10 @@ export const env = createEnv({
       // VERCEL_URL doesn't include `https` so it cant be validated as a URL
       process.env.VERCEL ? z.string() : z.string().url(),
     ),
-    BOOKS_ROOT_DOMAIN: z.string(),
+    NOTION_API_KEY: z.string(),
+    NOTION_BOOKS_DATABASE_ID: z.string(),
+    GOOGLE_BOOKS_API_KEY: z.string().optional(),
+    CRON_SECRET: z.string(),
   },
 
   /**
@@ -46,7 +49,10 @@ export const env = createEnv({
     NEXTAUTH_URL: process.env.NEXTAUTH_URL,
     NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
     NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-    BOOKS_ROOT_DOMAIN: process.env.BOOKS_ROOT_DOMAIN,
+    NOTION_API_KEY: process.env.NOTION_API_KEY,
+    NOTION_BOOKS_DATABASE_ID: process.env.NOTION_BOOKS_DATABASE_ID,
+    GOOGLE_BOOKS_API_KEY: process.env.GOOGLE_BOOKS_API_KEY,
+    CRON_SECRET: process.env.CRON_SECRET,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

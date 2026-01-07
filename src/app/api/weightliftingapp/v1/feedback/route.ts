@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     const parsedBody = feedbackSchema.parse(body);
 
     return NextResponse.json(parsedBody);
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 },

@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
     const parsedBody = feedbackSchema.parse(body);
     // TODO: implement
     return NextResponse.json({ items: parsedBody.feedback_id });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 },

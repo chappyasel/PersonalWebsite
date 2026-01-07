@@ -2,6 +2,7 @@
 
 import posthog from "posthog-js";
 import { PostHogProvider } from "posthog-js/react";
+import { ThemeProvider as NextThemesProvider } from "next-themes";
 import { useEffect } from "react";
 import { Observer } from "tailwindcss-intersect";
 
@@ -23,4 +24,17 @@ export function ObserverProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return <>{children}</>;
+}
+
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <NextThemesProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange={false}
+    >
+      {children}
+    </NextThemesProvider>
+  );
 }
