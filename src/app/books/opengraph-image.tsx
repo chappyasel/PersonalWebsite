@@ -20,22 +20,35 @@ export const size = {
 };
 export const contentType = "image/png";
 
+type BookForOG = {
+  id: string;
+  title: string;
+  coverUrl: string | null;
+};
+
 export default async function Image() {
   try {
     // Fetch books data
-    const books = await getAllBooksForOG();
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+    const booksResult = await getAllBooksForOG();
+    const books: BookForOG[] = Array.isArray(booksResult)
+      ? (booksResult as BookForOG[])
+      : [];
 
     // Select first 28 books (14 for top row, 14 for bottom row) for edge overflow
-    const selectedBooks = books.slice(0, 28);
+    const selectedBooks: BookForOG[] = books.slice(0, 28);
 
     // If we don't have 28 books, repeat available books to fill both rows
     while (selectedBooks.length < 28 && books.length > 0) {
-      selectedBooks.push(books[selectedBooks.length % books.length]);
+      const bookToAdd = books[selectedBooks.length % books.length];
+      if (bookToAdd) {
+        selectedBooks.push(bookToAdd);
+      }
     }
 
     // Fetch all cover images in parallel with 3s timeout
     const coverPromises = selectedBooks.map((book) =>
-      fetchExternalImage(book.coverUrl, 3000),
+      fetchExternalImage(book.coverUrl ?? null, 3000),
     );
     const coverResults = await Promise.allSettled(coverPromises);
 
@@ -47,9 +60,13 @@ export default async function Image() {
           return pngDataUri;
         }
       }
-      return generateFallbackCoverSvg(selectedBooks[idx]!.title);
+      const book = selectedBooks[idx];
+      if (book) {
+        return generateFallbackCoverSvg(book.title);
+      }
+      return generateFallbackCoverSvg("");
     });
-    const coverDataUris = await Promise.all(coverDataUrisPromises);
+    const coverDataUris: string[] = await Promise.all(coverDataUrisPromises);
 
     // Split covers into top and bottom rows
     const topRowCovers = coverDataUris.slice(0, 14);

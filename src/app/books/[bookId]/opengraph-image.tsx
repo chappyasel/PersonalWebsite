@@ -133,9 +133,9 @@ export default async function Image({
             <div
               style={{
                 display: "flex",
-                width: "280px",
-                height: "420px",
-                borderRadius: "20px",
+                width: "300px",
+                height: "450px",
+                borderRadius: "30px",
                 overflow: "hidden",
                 boxShadow: "0px 12px 48px rgba(0, 0, 0, 0.5)",
                 flexShrink: 0,
@@ -145,8 +145,8 @@ export default async function Image({
               <img
                 src={coverImageSrc}
                 alt={book.title}
-                width="280"
-                height="420"
+                width="300"
+                height="450"
                 style={{
                   objectFit: "cover",
                 }}
