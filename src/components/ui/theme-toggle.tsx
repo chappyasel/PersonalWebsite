@@ -4,6 +4,13 @@ import { MoonIcon, SunIcon } from "@phosphor-icons/react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "~/components/ui/tooltip";
+
 export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -23,16 +30,25 @@ export function ThemeToggle() {
   const isDark = resolvedTheme === "dark";
 
   return (
-    <button
-      onClick={toggleTheme}
-      aria-label={`${isDark ? "Dark" : "Light"} mode. Click to toggle.`}
-      className="flex size-10 items-center justify-center rounded-md bg-transparent text-sm text-muted-foreground transition-all hover:bg-secondary/80 hover:text-foreground"
-    >
-      {isDark ? (
-        <MoonIcon className="h-4 w-4" weight="bold" />
-      ) : (
-        <SunIcon className="h-4 w-4" weight="bold" />
-      )}
-    </button>
+    <TooltipProvider>
+      <Tooltip delayDuration={200}>
+        <TooltipTrigger asChild>
+          <button
+            onClick={toggleTheme}
+            aria-label={`${isDark ? "Dark" : "Light"} mode. Click to toggle.`}
+            className="flex size-10 items-center justify-center rounded-md bg-transparent text-sm text-muted-foreground transition-all hover:bg-secondary/80 hover:text-foreground"
+          >
+            {isDark ? (
+              <MoonIcon className="h-4 w-4" weight="bold" />
+            ) : (
+              <SunIcon className="h-4 w-4" weight="bold" />
+            )}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Switch to {isDark ? "light" : "dark"} mode</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }

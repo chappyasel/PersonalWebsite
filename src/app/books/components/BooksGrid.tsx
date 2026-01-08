@@ -290,7 +290,7 @@ export function BooksGrid({
 
       {/* Books Grid with AnimatePresence preserved */}
       <motion.div
-        layout={!isZoomOut}
+        {...(!isZoomOut && { layout: true })}
         className={cn("grid gap-4", isZoomOut && "gap-2")}
         style={{
           gridTemplateColumns: `repeat(auto-fill, minmax(min(${preferredWidth}, calc((100% - 1rem) / 2)), 1fr))`,
@@ -300,7 +300,7 @@ export function BooksGrid({
           {section.books.map((book) => (
             <motion.div
               key={book.id}
-              layout={!isZoomOut}
+              {...(!isZoomOut && { layout: true })}
               // Conditional initial: skip animation during scroll/zoom, animate on filter/sort
               initial={
                 isScrolling || isZoomOut

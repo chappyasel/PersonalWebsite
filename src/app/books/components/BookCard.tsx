@@ -178,7 +178,8 @@ export const BookCard = memo(function BookCard({
     }
 
     // Define hit zone size based on card size (generous tap target)
-    const zoneSize = size === "S" ? 32 : size === "M" ? 40 : 48;
+    // XS has no copy button (hideOverlays), so disable the zone entirely
+    const zoneSize = size === "XS" ? 0 : size === "S" ? 32 : size === "M" ? 40 : 48;
 
     const isInRightEdge = clientX > rect.right - zoneSize;
     const isInTopEdge = clientY < rect.top + zoneSize;

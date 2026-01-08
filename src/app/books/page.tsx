@@ -1,6 +1,7 @@
 "use client";
 
-import { CaretLeftIcon } from "@phosphor-icons/react/dist/ssr";
+import { HouseLineIcon } from "@phosphor-icons/react/dist/ssr";
+import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -81,15 +82,33 @@ export default function BooksPage() {
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
           >
-            <span className="transition-all">
-              {isHovered ? (
-                <CaretLeftIcon
-                  className="h-6 w-6 md:h-8 md:w-9"
-                  weight="bold"
-                />
-              ) : (
-                "📚"
-              )}
+            <span className="relative inline-flex h-6 w-6 items-center justify-center md:h-8 md:w-9">
+              <AnimatePresence mode="wait" initial={false}>
+                {isHovered ? (
+                  <motion.div
+                    key="house-icon"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <HouseLineIcon
+                      className="h-6 w-6 md:h-8 md:w-9"
+                      weight="bold"
+                    />
+                  </motion.div>
+                ) : (
+                  <motion.span
+                    key="book-emoji"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    📚
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </span>
             <span className="line-clamp-1">Chappy&apos;s Book Notes</span>
           </Link>
