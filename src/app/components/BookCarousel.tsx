@@ -32,7 +32,7 @@ export default function BookCarousel() {
               {Array.from({ length: 20 }).map((_, i) => (
                 <div
                   key={i}
-                  className="animate-shimmer h-[134px] w-[89px] flex-shrink-0 rounded-lg bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200px_100%]"
+                  className="h-[134px] w-[89px] flex-shrink-0 animate-shimmer rounded-lg bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200px_100%]"
                 />
               ))}
             </div>
@@ -134,7 +134,7 @@ function BookCover({ book }: { book: Book }) {
   const coverUrl = enhanceCoverUrl(book.coverUrl);
 
   return (
-    <div className="relative h-[134px] w-[89px] flex-shrink-0 overflow-hidden rounded-lg shadow-[0_4px_8px_rgba(0,0,0,0.2)] transition-all duration-300 dark:shadow-[0_4px_12px_rgba(0,0,0,0.4)]">
+    <div className="relative h-[134px] w-[89px] flex-shrink-0 overflow-hidden rounded-lg shadow-[0_4px_8px_rgba(0,0,0,0.2)] transition-all duration-300 hover:scale-105 hover:shadow-[0_4px_12px_rgba(0,0,0,0.4)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.4)]">
       <div className="aspect-[2/3] h-full w-full">
         {coverUrl ? (
           <Image

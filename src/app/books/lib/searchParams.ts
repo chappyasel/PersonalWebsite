@@ -10,6 +10,7 @@ export const searchParamsParsers = {
   tags: parseAsArrayOf(parseAsString).withDefault([]),
   minRating: parseAsInteger,
   hasNotes: parseAsBoolean,
+  hasSummary: parseAsBoolean,
 
   // Search
   search: parseAsString.withDefault(""),

@@ -7,7 +7,6 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 
 import { getBooksPath, getBookShareUrl } from "~/lib/books/paths";
-import { useSubdomain } from "~/lib/books/subdomainContext";
 import { Spinner } from "~/components/ui/spinner";
 import { api } from "~/trpc/react";
 
@@ -19,7 +18,6 @@ export function BookPage({ bookId }: BookPageProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
   const { selectedBook } = useBookPreview();
-  const { isSubdomain } = useSubdomain();
 
   // Fetch full book data (with notes)
   const {
@@ -40,7 +38,7 @@ export function BookPage({ bookId }: BookPageProps) {
 
   // Handle share button click
   const handleShare = async () => {
-    const shareUrl = getBookShareUrl(bookId, isSubdomain);
+    const shareUrl = getBookShareUrl(bookId);
     try {
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
@@ -77,7 +75,7 @@ export function BookPage({ bookId }: BookPageProps) {
                 Failed to load book details
               </p>
               <Link
-                href={getBooksPath(isSubdomain)}
+                href={getBooksPath()}
                 className="rounded-lg bg-title px-6 py-2 text-background transition-colors hover:bg-body"
               >
                 Back to Books

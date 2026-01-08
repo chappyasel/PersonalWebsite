@@ -8,7 +8,7 @@ import {
   useMotionValue,
   useSpring,
 } from "framer-motion";
-import { FileText } from "lucide-react";
+import { BookOpen, FileText } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -16,7 +16,7 @@ import { useRef } from "react";
 
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import { getBookPath } from "~/lib/books/paths";
-import { useSubdomain } from "~/lib/books/subdomainContext";
+import { isCurrentlyReading } from "~/lib/books/types";
 import type { Book } from "~/lib/books/types";
 
 import { Badge } from "~/components/ui/badge";
@@ -92,7 +92,6 @@ export function BookCard({ book, size = "M" }: BookCardProps) {
   const { setSelectedBook } = useBookPreview();
   const cardRef = useRef<HTMLAnchorElement>(null);
   const searchParams = useSearchParams();
-  const { isSubdomain } = useSubdomain();
 
   // Motion values for 3D tilt effect
   const rotateX = useSpring(useMotionValue(0), springValues);
@@ -102,7 +101,7 @@ export function BookCard({ book, size = "M" }: BookCardProps) {
   const rotateAmplitude = tiltAmplitude[size]; // Degrees of rotation
 
   // Preserve current query params when navigating to book detail
-  const bookUrl = getBookPath(book.id, isSubdomain, searchParams.toString());
+  const bookUrl = getBookPath(book.id, searchParams.toString());
 
   const handleClick = () => {
     setSelectedBook(book, size);
@@ -181,15 +180,26 @@ export function BookCard({ book, size = "M" }: BookCardProps) {
           )}
         </div>
 
-        {/* No Notes Badge */}
-        {!book.hasNotes && (
+        {/* Currently Reading Badge (takes priority over No Notes) */}
+        {isCurrentlyReading(book) ? (
           <Badge
             variant="secondary"
-            className={`absolute gap-1 bg-red-50/90 text-red-600/80 shadow-md dark:bg-red-950/90 dark:text-red-400/90 ${styles.badgeSpacing}`}
+            className={`absolute gap-1 bg-blue-50/90 text-blue-600/80 shadow-md dark:bg-blue-950/90 dark:text-blue-400/90 ${styles.badgeSpacing}`}
           >
-            <FileText className={styles.badgeIcon} />
-            <span className={styles.badgeText}>No Notes</span>
+            <BookOpen className={styles.badgeIcon} />
+            <span className={styles.badgeText}>Reading</span>
           </Badge>
+        ) : (
+          /* No Notes Badge */
+          !book.hasNotes && (
+            <Badge
+              variant="secondary"
+              className={`absolute gap-1 bg-red-50/90 text-red-600/80 shadow-md dark:bg-red-950/90 dark:text-red-400/90 ${styles.badgeSpacing}`}
+            >
+              <FileText className={styles.badgeIcon} />
+              <span className={styles.badgeText}>No Notes</span>
+            </Badge>
+          )
         )}
 
         {/* Overlay with title/author on hover */}

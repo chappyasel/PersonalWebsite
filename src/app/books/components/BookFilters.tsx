@@ -8,6 +8,7 @@ import {
   SortAscendingIcon,
   StarIcon,
   TagIcon,
+  TextAlignLeftIcon,
   XIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import { motion } from "framer-motion";
@@ -67,6 +68,7 @@ export function BookFilters() {
       tags: [],
       minRating: null,
       hasNotes: null,
+      hasSummary: null,
     });
   };
 
@@ -81,7 +83,8 @@ export function BookFilters() {
   const hasActiveFilters =
     filters.tags.length > 0 ||
     filters.minRating !== null ||
-    filters.hasNotes !== null;
+    filters.hasNotes !== null ||
+    filters.hasSummary !== null;
 
   return (
     <div className="flex flex-col gap-5 rounded-3xl bg-muted/20 py-2">
@@ -202,6 +205,24 @@ export function BookFilters() {
           checked={filters.hasNotes ?? false}
           onCheckedChange={(checked) =>
             void setFilters({ hasNotes: checked ? true : null })
+          }
+        />
+      </div>
+
+      {/* Is Summarized */}
+      <div className="flex items-center justify-between pr-2">
+        <label
+          htmlFor="is-summarized"
+          className="flex items-center gap-1.5 text-sm font-semibold text-foreground"
+        >
+          <TextAlignLeftIcon className="h-4 w-4" weight="bold" />
+          Is Summarized
+        </label>
+        <Switch
+          id="is-summarized"
+          checked={filters.hasSummary ?? false}
+          onCheckedChange={(checked) =>
+            void setFilters({ hasSummary: checked ? true : null })
           }
         />
       </div>

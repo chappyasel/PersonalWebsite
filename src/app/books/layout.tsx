@@ -3,7 +3,6 @@ import { type Metadata } from "next";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
 import { CSPostHogProvider, ObserverProvider } from "~/lib/providers";
-import { SubdomainProvider } from "~/lib/books/subdomainContext";
 import { TRPCReactProvider } from "~/trpc/react";
 import { BookPreviewProvider } from "./contexts/BookPreviewContext";
 
@@ -29,14 +28,12 @@ export default function BooksLayout({
           <TRPCReactProvider>
             <NuqsAdapter>
               <ObserverProvider>
-                <SubdomainProvider>
-                  <BookPreviewProvider>
-                    <main className="m-auto max-w-screen-2xl p-6 md:p-8">
-                      {children}
-                      {modal}
-                    </main>
-                  </BookPreviewProvider>
-                </SubdomainProvider>
+                <BookPreviewProvider>
+                  <main className="m-auto max-w-screen-2xl p-6 md:p-8">
+                    {children}
+                    {modal}
+                  </main>
+                </BookPreviewProvider>
               </ObserverProvider>
             </NuqsAdapter>
           </TRPCReactProvider>
