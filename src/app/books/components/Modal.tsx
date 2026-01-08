@@ -37,6 +37,8 @@ export function Modal() {
   const isLoadingNotes = isLoadingFull && !fullBook;
 
   const handleClose = () => {
+    // Blur active element to prevent focus ring on book card
+    (document.activeElement as HTMLElement)?.blur();
     closeModal();
     // Navigate back to remove the bookId from URL
     window.history.back();
@@ -89,7 +91,7 @@ export function Modal() {
         <>
           {/* Backdrop */}
           <motion.div
-            className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm dark:bg-stone-500/20"
+            className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm dark:bg-black/60"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -109,14 +111,14 @@ export function Modal() {
                 {/* Animated placeholder - morphs from book cover */}
                 <motion.div
                   layoutId={`book-cover-${bookId}`}
-                  className={`absolute inset-0 rounded-2xl bg-background shadow-[0px_10px_50px_10px_rgba(0,0,0,0.1)] ${book?.hasNotes ? "h-[max(85vh,min(1000px,calc(100vh-32px)))]" : "max-h-[85vh]"}`}
+                  className={`absolute inset-0 rounded-2xl bg-background shadow-[0px_10px_50px_10px_rgba(0,0,0,0.1)] dark:bg-muted ${book?.hasNotes ? "h-[max(85vh,min(1000px,calc(100vh-32px)))]" : "max-h-[85vh]"}`}
                   transition={{
                     layout: { type: "spring", stiffness: 300, damping: 30 },
                   }}
                 />
                 {/* Actual content - fades in on top */}
                 <motion.div
-                  className={`relative overflow-hidden rounded-2xl bg-background ${book?.hasNotes ? "h-[max(85vh,min(1000px,calc(100vh-32px)))]" : "max-h-[85vh]"}`}
+                  className={`relative overflow-hidden rounded-2xl bg-background dark:bg-muted ${book?.hasNotes ? "h-[max(85vh,min(1000px,calc(100vh-32px)))]" : "max-h-[85vh]"}`}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}

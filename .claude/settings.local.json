@@ -65,7 +65,13 @@
       "Bash(set +a)",
       "Bash(cursor-ide-diagnostics)",
       "Bash(claude ide diagnostics:*)",
-      "Bash(git diff:*)"
+      "Bash(git diff:*)",
+      "mcp__posthog__event-definitions-list",
+      "mcp__posthog__dashboards-get-all",
+      "mcp__posthog__dashboard-create",
+      "mcp__posthog__query-run",
+      "mcp__posthog__insight-create-from-query",
+      "mcp__posthog__add-insight-to-dashboard"
     ],
     "deny": [],
     "additionalDirectories": [

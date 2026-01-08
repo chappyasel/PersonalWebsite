@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.VERCEL_URL
       ? `https://${process.env.VERCEL_URL}`
-      : process.env.NEXTAUTH_URL ?? "http://localhost:3000"
+      : (process.env.NEXTAUTH_URL ?? "http://localhost:3000"),
   ),
   title: "Chappy Asel",
   description: "Chappy Asel",
@@ -25,7 +25,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body>
+      <body className="font-serif">
         <CSPostHogProvider>
           <TRPCReactProvider>
             <ObserverProvider>

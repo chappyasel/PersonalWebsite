@@ -10,8 +10,8 @@ import {
   useSpring,
 } from "framer-motion";
 import { BookOpen, FileText } from "lucide-react";
-import Image from "next/image";
 import { useSearchParams } from "next/navigation";
+import { usePostHog } from "posthog-js/react";
 import { memo, useRef, useState } from "react";
 
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
@@ -104,6 +104,7 @@ export const BookCard = memo(function BookCard({
   const { openModal } = useModalActions();
   const cardRef = useRef<HTMLButtonElement>(null);
   const searchParams = useSearchParams();
+  const posthog = usePostHog();
   const utils = api.useUtils();
   const [copied, setCopied] = useState(false);
 
@@ -119,6 +120,10 @@ export const BookCard = memo(function BookCard({
 
   const handleCopyLink = (e: React.MouseEvent) => {
     e.stopPropagation();
+    posthog.capture("book_link_copied", {
+      book_id: book.id,
+      book_title: book.title,
+    });
     const fullUrl = `${window.location.origin}${getBookPath(book.id)}`;
     void navigator.clipboard.writeText(fullUrl);
     setCopied(true);
@@ -126,6 +131,8 @@ export const BookCard = memo(function BookCard({
   };
 
   const handleClick = () => {
+    // Remove focus to prevent Safari focus ring
+    cardRef.current?.blur();
     // Open modal instantly via state
     openModal(book, size);
     // Update URL without triggering Next.js navigation
@@ -166,9 +173,9 @@ export const BookCard = memo(function BookCard({
       onMouseMove={handleMouseMove}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className="group relative block cursor-pointer text-left outline-none [perspective:1000px] hover:z-10 intersect:motion-scale-in-90 intersect:motion-opacity-in-50"
+      className={`group relative block w-full cursor-pointer text-left outline-none ring-0 [perspective:1000px] hover:z-10 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 intersect:motion-scale-in-90 intersect:motion-opacity-in-50 ${sizeRadius[size]}`}
       aria-label={`View details for ${book.title} by ${book.author}`}
-      style={{ transformStyle: "preserve-3d" }}
+      style={{ transformStyle: "preserve-3d", outline: "none" }}
     >
       <motion.div
         className="[transform-style:preserve-3d]"
@@ -187,18 +194,17 @@ export const BookCard = memo(function BookCard({
           {/* Cover Image (aspect ratio 2:3) */}
           <motion.div
             layoutId={`book-cover-${book.id}`}
-            className="aspect-[2/3] w-full overflow-hidden bg-muted/20"
+            className="relative aspect-[2/3] w-full overflow-hidden bg-gradient-to-b from-stone-500/20 to-stone-700/20"
             transition={{
               layout: { type: "spring", stiffness: 300, damping: 30 },
             }}
           >
             {coverUrl ? (
-              <Image
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
                 src={coverUrl}
                 alt={`${book.title} cover`}
-                className="min-h-full min-w-full object-cover"
-                width={400}
-                height={600}
+                className="h-full w-full object-cover"
               />
             ) : (
               <div className="flex h-full w-full flex-col items-center justify-center p-4 text-center">
@@ -208,10 +214,17 @@ export const BookCard = memo(function BookCard({
                   {book.title}
                 </p>
                 <p
-                  className={`mt-2 line-clamp-2 text-muted-foreground ${styles.placeholderAuthor}`}
+                  className={`mt-1 line-clamp-2 text-muted-foreground ${styles.placeholderAuthor}`}
                 >
                   {book.author}
                 </p>
+                {book.publicationYear && (
+                  <p
+                    className={`mt-px text-muted-foreground/70 ${styles.placeholderAuthor}`}
+                  >
+                    {book.publicationYear}
+                  </p>
+                )}
               </div>
             )}
           </motion.div>
@@ -240,14 +253,14 @@ export const BookCard = memo(function BookCard({
 
           {/* Overlay with title/author on hover */}
           <div
-            className={`absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-stone-900/80 via-stone-900/60 via-30% to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100 ${styles.overlayPadding}`}
+            className={`absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-stone-900/80 via-stone-900/60 via-30% to-transparent to-60% opacity-0 transition-opacity duration-500 group-hover:opacity-100 ${styles.overlayPadding}`}
           >
             {/* Copy link button */}
             <button
               type="button"
               onClick={handleCopyLink}
               className={cn(
-                `absolute rounded-full bg-stone-900/30 text-white backdrop-blur-sm transition-all duration-300 hover:bg-stone-900/50 active:scale-95 ${styles.copyButton}`,
+                `absolute rounded-full bg-stone-900/30 text-white transition-all duration-300 hover:bg-stone-900/50 focus:outline-none focus-visible:outline-none active:scale-95 ${styles.copyButton}`,
                 copied && "bg-green-500/60 hover:bg-green-500/80",
               )}
               aria-label="Copy link to book"
@@ -259,12 +272,12 @@ export const BookCard = memo(function BookCard({
               )}
             </button>
             <h3
-              className={`line-clamp-3 font-bold leading-tight text-white shadow-[0px_5px_10px_rgba(0,0,0,0.6)] ${styles.overlayTitle}`}
+              className={`line-clamp-3 font-bold leading-tight text-white drop-shadow-md ${styles.overlayTitle}`}
             >
               {book.title}
             </h3>
             <p
-              className={`line-clamp-1 pt-0.5 text-white/80 shadow-[0px_5px_10px_rgba(0,0,0,0.6)] ${styles.overlayAuthor}`}
+              className={`line-clamp-1 pt-0.5 text-white/80 drop-shadow-md ${styles.overlayAuthor}`}
             >
               {book.author}
             </p>

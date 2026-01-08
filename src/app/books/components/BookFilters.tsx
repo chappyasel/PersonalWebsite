@@ -11,9 +11,9 @@ import {
   TextAlignLeftIcon,
   XIcon,
 } from "@phosphor-icons/react/dist/ssr";
+import { useIsRestoring } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { useQueryStates } from "nuqs";
-import { useIsRestoring } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 import { defaultTagOrder } from "~/lib/books/tagColors";
@@ -98,7 +98,7 @@ export function BookFilters() {
     filters.hasSummary !== null;
 
   return (
-    <div className="flex flex-col gap-5 rounded-3xl bg-muted/20 py-2">
+    <div className="flex flex-col gap-5 rounded-3xl py-2">
       {/* Header */}
       <div className="flex items-end justify-between">
         <h3 className="text-lg font-bold text-foreground">Filters</h3>
@@ -162,55 +162,56 @@ export function BookFilters() {
           </Select>
         </div>
         <div className="flex flex-col gap-2">
-          {showTags && sortedTags.map((tag) => {
-            const count = stats?.categoryBreakdown[tag] ?? 0;
-            const content = (
-              <>
-                <Checkbox
-                  id={`tag-${tag}`}
-                  checked={filters.tags.includes(tag)}
-                  onCheckedChange={() => handleTagToggle(tag)}
-                />
-                <label
-                  htmlFor={`tag-${tag}`}
-                  className="flex flex-1 cursor-pointer items-center gap-1"
-                >
-                  <TagBadge tag={tag} />
-                  {count > 0 && (
-                    <span className="text-[10px] text-foreground/70">
-                      ({count})
-                    </span>
-                  )}
-                </label>
-              </>
-            );
-
-            // Use regular div until hydrated to prevent mismatch
-            if (!hasMounted) {
-              return (
-                <div key={tag} className="flex items-center space-x-2">
-                  {content}
-                </div>
+          {showTags &&
+            sortedTags.map((tag) => {
+              const count = stats?.categoryBreakdown[tag] ?? 0;
+              const content = (
+                <>
+                  <Checkbox
+                    id={`tag-${tag}`}
+                    checked={filters.tags.includes(tag)}
+                    onCheckedChange={() => handleTagToggle(tag)}
+                  />
+                  <label
+                    htmlFor={`tag-${tag}`}
+                    className="flex flex-1 cursor-pointer items-center gap-1"
+                  >
+                    <TagBadge tag={tag} />
+                    {count > 0 && (
+                      <span className="text-[10px] text-foreground/70">
+                        ({count})
+                      </span>
+                    )}
+                  </label>
+                </>
               );
-            }
 
-            return (
-              <motion.div
-                key={tag}
-                layout
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{
-                  layout: { type: "spring", stiffness: 300, damping: 30 },
-                  opacity: { duration: 0.2 },
-                  x: { duration: 0.2 },
-                }}
-                className="flex items-center space-x-2"
-              >
-                {content}
-              </motion.div>
-            );
-          })}
+              // Use regular div until hydrated to prevent mismatch
+              if (!hasMounted) {
+                return (
+                  <div key={tag} className="flex items-center space-x-2">
+                    {content}
+                  </div>
+                );
+              }
+
+              return (
+                <motion.div
+                  key={tag}
+                  layout
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{
+                    layout: { type: "spring", stiffness: 300, damping: 30 },
+                    opacity: { duration: 0.2 },
+                    x: { duration: 0.2 },
+                  }}
+                  className="flex items-center space-x-2"
+                >
+                  {content}
+                </motion.div>
+              );
+            })}
         </div>
       </div>
 
