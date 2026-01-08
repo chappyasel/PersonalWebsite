@@ -1,22 +1,24 @@
 /**
  * Georgia Pro font loading for book OG images
- * Fonts are loaded via import.meta.url for build-time compatibility
+ * Fonts are loaded from file system for build-time compatibility
  */
+import { readFile } from "fs/promises";
+import { join } from "path";
 
-// Font URLs
-const georgiaBoldUrl = new URL("./fonts/GeorgiaPro-Bold.ttf", import.meta.url);
-const georgiaRegularUrl = new URL(
-  "./fonts/GeorgiaPro-Regular.ttf",
-  import.meta.url,
-);
-
-// Font loaders
 export async function loadGeorgiaProBold(): Promise<ArrayBuffer> {
-  const response = await fetch(georgiaBoldUrl);
-  return response.arrayBuffer();
+  const fontPath = join(
+    process.cwd(),
+    "src/app/books/[bookId]/fonts/GeorgiaPro-Bold.ttf",
+  );
+  const buffer = await readFile(fontPath);
+  return new Uint8Array(buffer).buffer;
 }
 
 export async function loadGeorgiaProRegular(): Promise<ArrayBuffer> {
-  const response = await fetch(georgiaRegularUrl);
-  return response.arrayBuffer();
+  const fontPath = join(
+    process.cwd(),
+    "src/app/books/[bookId]/fonts/GeorgiaPro-Regular.ttf",
+  );
+  const buffer = await readFile(fontPath);
+  return new Uint8Array(buffer).buffer;
 }

@@ -327,23 +327,13 @@ export default async function Image({
           >
             <p
               style={{
-                fontSize: "48px",
+                fontSize: "72px",
                 fontWeight: 700,
                 color: "rgb(115, 115, 115)",
                 margin: 0,
               }}
             >
-              📚 Book Notes
-            </p>
-            <p
-              style={{
-                fontSize: "24px",
-                color: "rgb(115, 115, 115)",
-                margin: 0,
-                opacity: 0.7,
-              }}
-            >
-              Chappy Asel
+              Book Notes ~ Chappy Asel
             </p>
           </div>
         </div>
