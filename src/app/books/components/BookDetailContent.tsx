@@ -13,8 +13,8 @@ import {
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import { type RefObject, useEffect, useRef, useState } from "react";
 import { usePostHog } from "posthog-js/react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 import ReactMarkdown, {
   type Components,
   defaultUrlTransform,
@@ -39,6 +39,12 @@ import {
 } from "~/components/ui/tooltip";
 
 import { TagBadge } from "./TagBadge";
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -375,7 +381,10 @@ export function BookDetailContent({
     >
       {/* Unified Sticky Header */}
       <motion.div
-        className="sticky top-0 z-20 bg-background/80 backdrop-blur-md dark:bg-muted/80"
+        className={cn(
+          "sticky top-0 z-20 bg-background/80 backdrop-blur-md",
+          isModal && "dark:bg-muted/80",
+        )}
         style={{
           paddingTop: headerPadding,
           paddingBottom: "16px",
