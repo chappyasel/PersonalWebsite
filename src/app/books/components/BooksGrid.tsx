@@ -4,6 +4,8 @@ import { searchParamsParsers } from "../lib/searchParams";
 import { AnimatePresence, motion } from "framer-motion";
 import { useQueryStates } from "nuqs";
 
+import { useIsRestoring } from "@tanstack/react-query";
+
 import { api } from "~/trpc/react";
 
 import { BookCard } from "./BookCard";
@@ -19,6 +21,7 @@ const sizeWidths = {
 
 export function BooksGrid() {
   const [params, setParams] = useQueryStates(searchParamsParsers);
+  const isRestoring = useIsRestoring();
 
   // Parse sort parameter
   const [sortField, sortOrder] = (params.sort ?? "finished-desc").split(
@@ -55,8 +58,9 @@ export function BooksGrid() {
     });
   };
 
-  // Only show loading skeleton on initial load (when we have no data yet)
-  if (isLoading) {
+  // Only show loading skeleton when restoring cache or loading without any data
+  // Once we have cached data, show it immediately (background refetch won't show skeleton)
+  if (isRestoring || (isLoading && !allBooks)) {
     return <BooksGridSkeleton size={(params.size as "S" | "M" | "L") ?? "M"} />;
   }
 
@@ -138,7 +142,10 @@ export function BooksGrid() {
   if (books.length === 0) {
     const hasFilters =
       params.tags.length > 0 ||
-      (params.minRating ?? params.hasNotes ?? params.hasSummary ?? params.search);
+      (params.minRating ??
+        params.hasNotes ??
+        params.hasSummary ??
+        params.search) !== null;
 
     return (
       <EmptyState

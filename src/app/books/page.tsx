@@ -52,7 +52,11 @@ export default function BooksPage() {
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <Link
-            href="https://chappyasel.com"
+            href={
+              process.env.NODE_ENV === "production"
+                ? "https://chappyasel.com"
+                : "http://localhost:3000"
+            }
             className="group inline-flex items-center gap-2 text-2xl font-bold text-foreground transition-opacity hover:opacity-80 md:text-4xl"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}

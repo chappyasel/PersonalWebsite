@@ -1,10 +1,7 @@
 "use client";
 
-import { BookDetailContent } from "../../components/BookDetailContent";
-import { useBookPreview } from "../../contexts/BookPreviewContext";
-import { XIcon } from "@phosphor-icons/react/dist/ssr";
+import { useModalActions, useModalState } from "../contexts/BookPreviewContext";
 import { AnimatePresence, motion } from "framer-motion";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { getBookShareUrl } from "~/lib/books/paths";
@@ -12,16 +9,15 @@ import { api } from "~/trpc/react";
 
 import { Spinner } from "~/components/ui/spinner";
 
-type ModalProps = {
-  bookId: string;
-};
+import { BookDetailContent } from "./BookDetailContent";
 
-export function Modal({ bookId }: ModalProps) {
-  const router = useRouter();
+export function Modal() {
+  const { selectedBook, selectedBookId, isModalOpen } = useModalState();
+  const { closeModal } = useModalActions();
   const [copied, setCopied] = useState(false);
-  const [isOpen, setIsOpen] = useState(true);
   const contentRef = useRef<HTMLDivElement>(null);
-  const { selectedBook } = useBookPreview();
+
+  const bookId = selectedBookId ?? "";
 
   // Fetch full book data (with notes)
   const {
@@ -31,37 +27,52 @@ export function Modal({ bookId }: ModalProps) {
   } = api.books.getById.useQuery(
     { bookId },
     {
+      enabled: !!bookId && isModalOpen,
       staleTime: Infinity,
     },
   );
 
   // Use preview data immediately, fall back to fetched data
-  const book = selectedBook?.id === bookId ? selectedBook : fullBook;
+  const book = selectedBook ?? fullBook;
   const isLoadingNotes = isLoadingFull && !fullBook;
 
   const handleClose = () => {
-    setIsOpen(false);
+    closeModal();
+    // Navigate back to remove the bookId from URL
+    window.history.back();
   };
 
   // Prevent background scroll when modal is open
   useEffect(() => {
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, []);
+    if (isModalOpen) {
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+      };
+    }
+  }, [isModalOpen]);
 
-  // Close on ESC key
+  // Close on ESC key (but not if photo viewer is open)
   useEffect(() => {
+    if (!isModalOpen) return;
+
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") handleClose();
+      if (e.key === "Escape") {
+        // Check if photo viewer is open (react-photo-view adds this class to body)
+        const photoViewOpen = document.querySelector(".PhotoView-Portal");
+        if (!photoViewOpen) {
+          handleClose();
+        }
+      }
     };
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModalOpen]);
 
   // Handle share button click
   const handleShare = async () => {
+    if (!bookId) return;
     const shareUrl = getBookShareUrl(bookId);
     try {
       await navigator.clipboard.writeText(shareUrl);
@@ -73,12 +84,12 @@ export function Modal({ bookId }: ModalProps) {
   };
 
   return (
-    <AnimatePresence onExitComplete={() => router.back()}>
-      {isOpen && (
+    <AnimatePresence>
+      {isModalOpen && bookId && (
         <>
           {/* Backdrop */}
           <motion.div
-            className="fixed inset-0 z-50 bg-stone-500/20 backdrop-blur-sm"
+            className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm dark:bg-stone-500/20"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -91,34 +102,26 @@ export function Modal({ bookId }: ModalProps) {
             onClick={handleClose}
           >
             <div className="flex min-h-full items-center justify-center p-4">
-              <motion.div
-                className="relative w-full max-w-3xl"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{
-                  type: "spring",
-                  damping: 25,
-                  stiffness: 300,
-                }}
+              <div
+                className="relative w-full max-w-4xl"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div
-                  className={`relative overflow-hidden rounded-2xl bg-background shadow-[0px_10px_50px_10px_rgba(0,0,0,0.1)] ${book?.hasNotes ? "h-[max(85vh,min(1000px,calc(100vh-32px)))]" : "max-h-[85vh]"}`}
+                {/* Animated placeholder - morphs from book cover */}
+                <motion.div
+                  layoutId={`book-cover-${bookId}`}
+                  className={`absolute inset-0 rounded-2xl bg-background shadow-[0px_10px_50px_10px_rgba(0,0,0,0.1)] ${book?.hasNotes ? "h-[max(85vh,min(1000px,calc(100vh-32px)))]" : "max-h-[85vh]"}`}
+                  transition={{
+                    layout: { type: "spring", stiffness: 300, damping: 30 },
+                  }}
+                />
+                {/* Actual content - fades in on top */}
+                <motion.div
+                  className={`relative overflow-hidden rounded-2xl bg-background ${book?.hasNotes ? "h-[max(85vh,min(1000px,calc(100vh-32px)))]" : "max-h-[85vh]"}`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.15, delay: 0.1 }}
                 >
-                  {/* Close button */}
-                  <button
-                    onClick={handleClose}
-                    className="absolute right-4 top-4 z-30 rounded-full bg-background/80 p-2 backdrop-blur-sm transition-all hover:bg-accent md:right-6 md:top-6"
-                    aria-label="Close modal"
-                  >
-                    <XIcon
-                      size={20}
-                      weight="bold"
-                      className="text-foreground"
-                    />
-                  </button>
-
                   {/* Content */}
                   {error ? (
                     <div className="flex h-full flex-col items-center justify-center gap-4 p-8">
@@ -127,7 +130,7 @@ export function Modal({ bookId }: ModalProps) {
                       </p>
                       <button
                         onClick={handleClose}
-                        className="rounded-lg bg-title px-6 py-2 text-background transition-colors hover:bg-body"
+                        className="bg-title hover:bg-body rounded-lg px-6 py-2 text-background transition-colors"
                       >
                         Close
                       </button>
@@ -142,6 +145,7 @@ export function Modal({ bookId }: ModalProps) {
                       copied={copied}
                       bookId={bookId}
                       isModal={true}
+                      onClose={handleClose}
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center p-8">
@@ -153,8 +157,8 @@ export function Modal({ bookId }: ModalProps) {
                       </div>
                     </div>
                   )}
-                </div>
-              </motion.div>
+                </motion.div>
+              </div>
             </div>
           </div>
         </>

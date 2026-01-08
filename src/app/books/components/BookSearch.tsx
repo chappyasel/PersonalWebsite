@@ -2,7 +2,7 @@
 
 import { Search, X } from "lucide-react";
 import { useQueryState } from "nuqs";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -10,6 +10,7 @@ import { Input } from "~/components/ui/input";
 export function BookSearch() {
   const [search, setSearch] = useQueryState("search");
   const [inputValue, setInputValue] = useState(search ?? "");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Debounce search input (300ms)
   useEffect(() => {
@@ -25,10 +26,40 @@ export function BookSearch() {
     setInputValue(search ?? "");
   }, [search]);
 
+  // Focus search input when user starts typing anywhere on the page
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is already typing in an input, textarea, or select
+      const target = e.target as HTMLElement;
+      const tagName = target.tagName.toLowerCase();
+      if (
+        tagName === "input" ||
+        tagName === "textarea" ||
+        tagName === "select" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      // Ignore modifier keys and special keys
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key.length !== 1) return; // Only single printable characters
+
+      // Prevent default behavior and focus search input
+      e.preventDefault();
+      inputRef.current?.focus();
+      setInputValue((prev) => prev + e.key);
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   return (
     <div className="relative flex-1">
       <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/40" />
       <Input
+        ref={inputRef}
         type="text"
         placeholder="Search books by title or author..."
         value={inputValue}

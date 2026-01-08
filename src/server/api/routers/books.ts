@@ -135,9 +135,6 @@ export const booksRouter = createTRPCRouter({
         throw new Error("Book not found");
       }
 
-      // simulate a delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
       const result: BookWithNotes = {
         id: book.id,
         notionId: book.notionId,

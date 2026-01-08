@@ -6,7 +6,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "~/server/db";
 import { books } from "~/server/db/schema";
-import type { Book } from "./types";
+import type { Book, BookWithNotes } from "./types";
 
 /**
  * Fetch a book by ID for OG image generation
@@ -43,6 +43,46 @@ export async function getBookForOG(bookId: string): Promise<Book> {
     hasSummary: book.hasSummary,
     coverUrl: book.coverUrl,
     notionUrl: book.notionUrl,
+  };
+}
+
+/**
+ * Fetch a book by ID with full notes for server-side rendering
+ * This is used by the book detail page to pre-fetch data
+ *
+ * @param bookId - The book's slug ID
+ * @returns The book with tags and notes, or null if not found
+ */
+export async function getBookWithNotes(
+  bookId: string,
+): Promise<BookWithNotes | null> {
+  const book = await db.query.books.findFirst({
+    where: eq(books.id, bookId),
+    with: {
+      tags: true,
+    },
+  });
+
+  if (!book) {
+    return null;
+  }
+
+  // Transform database result to BookWithNotes type
+  return {
+    id: book.id,
+    notionId: book.notionId,
+    title: book.title,
+    author: book.author,
+    publicationYear: book.publicationYear,
+    started: book.started?.toISOString() ?? null,
+    finished: book.finished?.toISOString() ?? null,
+    rating: book.rating,
+    tags: book.tags.map((t) => t.tagName),
+    hasNotes: book.hasNotes,
+    hasSummary: book.hasSummary,
+    coverUrl: book.coverUrl,
+    notionUrl: book.notionUrl,
+    notes: book.notes ?? "",
   };
 }
 

@@ -13,7 +13,8 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import { motion } from "framer-motion";
 import { useQueryStates } from "nuqs";
-import { useState } from "react";
+import { useIsRestoring } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 
 import { defaultTagOrder } from "~/lib/books/tagColors";
 import { api } from "~/trpc/react";
@@ -37,8 +38,18 @@ export function BookFilters() {
   const [filters, setFilters] = useQueryStates(searchParamsParsers);
   const [tagSortMode, setTagSortMode] = useState<TagSortMode>("default");
   const [hoveredRating, setHoveredRating] = useState<number | null>(null);
+  const [hasMounted, setHasMounted] = useState(false);
+  const isRestoring = useIsRestoring();
   const { data: tags } = api.books.getTags.useQuery();
   const { data: stats } = api.books.getStats.useQuery();
+
+  // Don't render tags section while cache is being restored
+  const showTags = !isRestoring && tags && tags.length > 0;
+
+  // Only enable animations after hydration to prevent mismatch
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
 
   // Sort tags based on selected mode
   const sortedTags = (() => {
@@ -151,22 +162,10 @@ export function BookFilters() {
           </Select>
         </div>
         <div className="flex flex-col gap-2">
-          {sortedTags.map((tag) => {
+          {showTags && sortedTags.map((tag) => {
             const count = stats?.categoryBreakdown[tag] ?? 0;
-            return (
-              <motion.div
-                key={tag}
-                layout
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{
-                  layout: { type: "spring", stiffness: 300, damping: 30 },
-                  opacity: { duration: 0.2 },
-                  x: { duration: 0.2 },
-                }}
-                className="flex items-center space-x-2"
-              >
+            const content = (
+              <>
                 <Checkbox
                   id={`tag-${tag}`}
                   checked={filters.tags.includes(tag)}
@@ -183,6 +182,32 @@ export function BookFilters() {
                     </span>
                   )}
                 </label>
+              </>
+            );
+
+            // Use regular div until hydrated to prevent mismatch
+            if (!hasMounted) {
+              return (
+                <div key={tag} className="flex items-center space-x-2">
+                  {content}
+                </div>
+              );
+            }
+
+            return (
+              <motion.div
+                key={tag}
+                layout
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{
+                  layout: { type: "spring", stiffness: 300, damping: 30 },
+                  opacity: { duration: 0.2 },
+                  x: { duration: 0.2 },
+                }}
+                className="flex items-center space-x-2"
+              >
+                {content}
               </motion.div>
             );
           })}

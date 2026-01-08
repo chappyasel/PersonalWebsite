@@ -62,7 +62,10 @@
       "Bash(xargs cat:*)",
       "Bash(set -a)",
       "Bash(source:*)",
-      "Bash(set +a)"
+      "Bash(set +a)",
+      "Bash(cursor-ide-diagnostics)",
+      "Bash(claude ide diagnostics:*)",
+      "Bash(git diff:*)"
     ],
     "deny": [],
     "additionalDirectories": [
