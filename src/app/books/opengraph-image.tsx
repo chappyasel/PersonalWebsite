@@ -73,7 +73,7 @@ export default async function Image() {
     const bottomRowCovers = coverDataUris.slice(14, 28);
 
     // Load fonts
-    const fontBold = loadGeorgiaProBold();
+    const fontBold = await loadGeorgiaProBold();
 
     return new ImageResponse(
       (

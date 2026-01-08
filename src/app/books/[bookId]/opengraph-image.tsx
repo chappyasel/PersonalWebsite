@@ -73,8 +73,10 @@ export default async function Image({
       : book.title;
 
     // Load fonts
-    const fontBold = loadGeorgiaProBold();
-    const fontRegular = loadGeorgiaProRegular();
+    const [fontBold, fontRegular] = await Promise.all([
+      loadGeorgiaProBold(),
+      loadGeorgiaProRegular(),
+    ]);
 
     return new ImageResponse(
       (
@@ -91,7 +93,10 @@ export default async function Image({
           <div
             style={{
               position: "absolute",
-              inset: 0,
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
               display: "flex",
             }}
           >
@@ -112,8 +117,12 @@ export default async function Image({
           {/* Dynamic Overlay */}
           <div
             style={{
+              display: "flex",
               position: "absolute",
-              inset: 0,
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
               backgroundColor: overlayColor,
             }}
           />
@@ -137,7 +146,7 @@ export default async function Image({
                 height: "450px",
                 borderRadius: "30px",
                 overflow: "hidden",
-                boxShadow: "0px 12px 48px rgba(0, 0, 0, 0.5)",
+                boxShadow: "0px 12px 48px rgba(0, 0, 0, 0.3)",
                 flexShrink: 0,
               }}
             >

@@ -1,20 +1,31 @@
 /**
  * Georgia Pro font loading for book OG images
+ * Fonts are loaded from /public/fonts/ via fetch for Vercel compatibility
  */
-import { readFileSync } from "fs";
-import { join } from "path";
 
-// Font file paths relative to project root
-const FONTS_DIR = join(process.cwd(), "src/app/books/[bookId]/fonts");
+// Cache for loaded fonts
+let georgiaProBoldCache: ArrayBuffer | null = null;
+let georgiaProRegularCache: ArrayBuffer | null = null;
 
-export function loadGeorgiaProBold(): ArrayBuffer {
-  const fontPath = join(FONTS_DIR, "GeorgiaPro-Bold.ttf");
-  const buffer = readFileSync(fontPath);
-  return new Uint8Array(buffer).buffer;
+function getBaseUrl(): string {
+  if (process.env.NODE_ENV === "production") {
+    return "https://chappyasel.com";
+  }
+  return "http://localhost:3000";
 }
 
-export function loadGeorgiaProRegular(): ArrayBuffer {
-  const fontPath = join(FONTS_DIR, "GeorgiaPro-Regular.ttf");
-  const buffer = readFileSync(fontPath);
-  return new Uint8Array(buffer).buffer;
+export async function loadGeorgiaProBold(): Promise<ArrayBuffer> {
+  if (georgiaProBoldCache) return Promise.resolve(georgiaProBoldCache);
+
+  const response = await fetch(`${getBaseUrl()}/fonts/GeorgiaPro-Bold.ttf`);
+  georgiaProBoldCache = await response.arrayBuffer();
+  return georgiaProBoldCache;
+}
+
+export async function loadGeorgiaProRegular(): Promise<ArrayBuffer> {
+  if (georgiaProRegularCache) return Promise.resolve(georgiaProRegularCache);
+
+  const response = await fetch(`${getBaseUrl()}/fonts/GeorgiaPro-Regular.ttf`);
+  georgiaProRegularCache = await response.arrayBuffer();
+  return georgiaProRegularCache;
 }
