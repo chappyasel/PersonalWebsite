@@ -188,10 +188,10 @@ export function getTitleStyle(title: string): {
   fontSize: number;
   shouldTruncate: boolean;
 } {
-  if (title.length > 80) {
-    return { fontSize: 70, shouldTruncate: true };
-  } else if (title.length > 50) {
-    return { fontSize: 82, shouldTruncate: false };
+  if (title.length > 30) {
+    return { fontSize: 62, shouldTruncate: true };
+  } else if (title.length > 15) {
+    return { fontSize: 80, shouldTruncate: false };
   }
   return { fontSize: 96, shouldTruncate: false };
 }
@@ -264,7 +264,7 @@ export function getTextColorAndOverlay(luminance: number): {
   return {
     textColor: isLight ? "rgb(0, 0, 0)" : "rgb(255, 255, 255)",
     overlayColor: isLight
-      ? "rgba(255, 255, 255, 0.7)" // Light overlay for light images
-      : "rgba(0, 0, 0, 0.7)", // Dark overlay for dark images
+      ? "rgba(255, 255, 255, 0.4)" // Light overlay for light images
+      : "rgba(0, 0, 0, 0.4)", // Dark overlay for dark images
   };
 }
