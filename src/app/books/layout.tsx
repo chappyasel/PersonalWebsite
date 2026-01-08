@@ -12,12 +12,12 @@ export const metadata: Metadata = {
       : "http://books.localhost:3000",
   ),
   title: "Book Notes ~ Chappy Asel",
-  description: "My reading collection with notes and ratings",
+  description: "My reading collection with notes and reviews",
   keywords: ["book notes", "book reviews", "reading list", "Chappy Asel"],
   authors: [{ name: "Chappy Asel", url: "https://chappyasel.com" }],
   openGraph: {
     title: "Book Notes ~ Chappy Asel",
-    description: "My reading collection with notes and ratings",
+    description: "My reading collection with notes and reviews",
     url: "/",
     siteName: "Chappy's Book Notes",
     locale: "en_US",
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     site: "@chappyasel",
     creator: "@chappyasel",
     title: "Book Notes ~ Chappy Asel",
-    description: "My reading collection with notes and ratings",
+    description: "My reading collection with notes and reviews",
   },
   alternates: {
     canonical: "/",

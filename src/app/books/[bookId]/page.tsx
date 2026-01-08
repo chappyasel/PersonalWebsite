@@ -1,13 +1,14 @@
 import { type Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
-import { isNotionId } from "~/lib/books/slugify";
 import {
   getBookForOG,
   getBookWithNotes,
   getSlugByNotionId,
 } from "~/lib/books/ogDataAccess";
+import { isNotionId } from "~/lib/books/slugify";
 import { db } from "~/server/db";
+
 import { BookPage } from "./BookPage";
 
 // Revalidate every 24 hours
@@ -36,12 +37,12 @@ export async function generateMetadata({
     const book = await getBookForOG(bookId);
 
     return {
-      title: `${book.title} - Book Notes`,
-      description: `${book.author} • Read and reviewed by Chappy Asel`,
+      title: `${book.title} ~ Book Notes`,
+      description: `${book.author} ~ Read and reviewed by Chappy Asel`,
       keywords: [book.title, book.author, ...book.tags, "book notes"],
       openGraph: {
         title: book.title,
-        description: `${book.author} • Book Notes by Chappy Asel`,
+        description: `${book.author} ~ Book Notes by Chappy Asel`,
         images: [
           {
             url: `/${bookId}/opengraph-image`,
