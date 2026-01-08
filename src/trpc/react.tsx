@@ -1,6 +1,8 @@
 "use client";
 
-import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
+import { type QueryClient } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { loggerLink, unstable_httpBatchStreamLink } from "@trpc/client";
 import { createTRPCReact } from "@trpc/react-query";
 import { type inferRouterInputs, type inferRouterOutputs } from "@trpc/server";
@@ -22,6 +24,18 @@ const getQueryClient = () => {
 };
 
 export const api = createTRPCReact<AppRouter>();
+
+// Create persister for localStorage (client-side only)
+// Must use SuperJSON to match our React Query serialization
+const persister =
+  typeof window !== "undefined"
+    ? createSyncStoragePersister({
+        storage: window.localStorage,
+        key: "BOOKS_CACHE",
+        serialize: SuperJSON.stringify,
+        deserialize: SuperJSON.parse,
+      })
+    : undefined;
 
 /**
  * Inference helper for inputs.
@@ -61,12 +75,40 @@ export function TRPCReactProvider(props: { children: React.ReactNode }) {
     }),
   );
 
+  // Persistence options - cache books queries except individual book details
+  const persistOptions = persister
+    ? {
+        persister,
+        maxAge: 1000 * 60 * 60 * 24, // 24 hours
+        buster: "v1", // Change to invalidate old caches
+        dehydrateOptions: {
+          shouldDehydrateQuery: (query: {
+            queryKey: unknown;
+            state: { status: string };
+          }) => {
+            // Persist all books queries EXCEPT getById (which has large markdown notes)
+            const queryKey = query.queryKey as unknown[];
+            return (
+              query.state.status === "success" &&
+              Array.isArray(queryKey) &&
+              Array.isArray(queryKey[0]) &&
+              queryKey[0][0] === "books" &&
+              queryKey[0][1] !== "getById"
+            );
+          },
+        },
+      }
+    : undefined;
+
   return (
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={persistOptions ?? { persister: undefined as never }}
+    >
       <api.Provider client={trpcClient} queryClient={queryClient}>
         {props.children}
       </api.Provider>
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   );
 }
 

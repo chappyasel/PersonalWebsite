@@ -100,3 +100,25 @@
     background-position: 200px 0;
   }
 }
+
+/* React Photo View customizations */
+.PhotoView-Slider__ArrowLeft svg,
+.PhotoView-Slider__ArrowRight svg {
+  border-radius: 9999px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.5);
+  transition:
+    transform 0.2s ease-out,
+    background 0.2s ease-out;
+}
+
+.PhotoView-Slider__ArrowLeft:hover svg,
+.PhotoView-Slider__ArrowRight:hover svg {
+  background: rgba(0, 0, 0, 0.7);
+  transform: scale(1.1);
+}
+
+.PhotoView-Slider__ArrowLeft:active svg,
+.PhotoView-Slider__ArrowRight:active svg {
+  transform: scale(0.95);
+}

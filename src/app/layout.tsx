@@ -25,15 +25,15 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <CSPostHogProvider>
-        <TRPCReactProvider>
-          <ObserverProvider>
-            <ThemeProvider>
-              <body>{children}</body>
-            </ThemeProvider>
-          </ObserverProvider>
-        </TRPCReactProvider>
-      </CSPostHogProvider>
+      <body>
+        <CSPostHogProvider>
+          <TRPCReactProvider>
+            <ObserverProvider>
+              <ThemeProvider>{children}</ThemeProvider>
+            </ObserverProvider>
+          </TRPCReactProvider>
+        </CSPostHogProvider>
+      </body>
     </html>
   );
 }

@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 
 import BookCarousel from "./BookCarousel";
@@ -9,8 +11,12 @@ export default function BookNotes() {
         📚 Book Notes
       </h1>
       <Link
-        className="h-[450px] w-full rounded-2xl bg-muted/20 shadow-[0px_5px_15px_2px_rgba(0,0,0,0.1)] backdrop-blur-lg transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-[0px_5px_20px_0px_rgba(0,0,0,0.14)] intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000"
-        href="/books"
+        className="h-[450px] w-full rounded-2xl bg-muted/40 shadow-[0px_5px_15px_2px_rgba(0,0,0,0.1)] backdrop-blur-lg transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-[0px_5px_20px_0px_rgba(0,0,0,0.14)] intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000"
+        href={
+          process.env.NODE_ENV === "production"
+            ? "https://books.chappyasel.com"
+            : "http://books.localhost:3000"
+        }
       >
         <BookCarousel />
       </Link>

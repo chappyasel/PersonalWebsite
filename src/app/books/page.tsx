@@ -8,14 +8,12 @@ import { BookFilters } from "./components/BookFilters";
 import { BookSize } from "./components/BookSize";
 import { BooksControls } from "./components/BooksControls";
 import { BooksGrid } from "./components/BooksGrid";
-import { useSubdomain } from "~/lib/books/subdomainContext";
 import { ThemeToggle } from "~/components/ui/theme-toggle";
 
 export default function BooksPage() {
   const [isHovered, setIsHovered] = useState(false);
   const sidebarRef = useRef<HTMLElement>(null);
   const [stickyTop, setStickyTop] = useState(32);
-  const { isSubdomain } = useSubdomain();
 
   useEffect(() => {
     const calculateStickyTop = () => {
@@ -53,31 +51,28 @@ export default function BooksPage() {
       {/* Header */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          {!isSubdomain ? (
-            <Link
-              href="/"
-              className="group inline-flex items-center gap-2 text-2xl font-bold text-foreground transition-opacity hover:opacity-80 md:text-4xl"
-              onMouseEnter={() => setIsHovered(true)}
-              onMouseLeave={() => setIsHovered(false)}
-            >
-              <span className="transition-all">
-                {isHovered ? (
-                  <CaretLeftIcon
-                    className="h-6 w-6 md:h-8 md:w-8"
-                    weight="bold"
-                  />
-                ) : (
-                  "📚"
-                )}
-              </span>
-              <span>Chappy&apos;s Book Notes</span>
-            </Link>
-          ) : (
-            <h1 className="inline-flex items-center gap-2 text-2xl font-bold text-foreground md:text-4xl">
-              <span>📚</span>
-              <span>Chappy&apos;s Book Notes</span>
-            </h1>
-          )}
+          <Link
+            href={
+              process.env.NODE_ENV === "production"
+                ? "https://chappyasel.com"
+                : "http://localhost:3000"
+            }
+            className="group inline-flex items-center gap-2 text-2xl font-bold text-foreground transition-opacity hover:opacity-80 md:text-4xl"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+          >
+            <span className="transition-all">
+              {isHovered ? (
+                <CaretLeftIcon
+                  className="h-6 w-6 md:h-8 md:w-9"
+                  weight="bold"
+                />
+              ) : (
+                "📚"
+              )}
+            </span>
+            <span className="line-clamp-1">Chappy&apos;s Book Notes</span>
+          </Link>
           <div className="flex translate-x-3 items-center gap-0">
             <ThemeToggle />
             <BookSize />

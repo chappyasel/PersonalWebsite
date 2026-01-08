@@ -10,7 +10,7 @@ import ContactButtons from "./ContactButtons";
 
 export default async function AboutMe() {
   return (
-    <div className="relative mt-28 w-full gap-2 rounded-3xl bg-muted/20 p-8 leading-5 shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] backdrop-blur-lg intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000">
+    <div className="relative mt-28 w-full gap-2 rounded-3xl bg-muted/40 p-8 leading-5 shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] backdrop-blur-lg intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000">
       <div className="absolute right-4 top-4 opacity-70">
         <ThemeToggle />
       </div>

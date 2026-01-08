@@ -1,8 +1,10 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { PlayIcon } from "@phosphor-icons/react";
 import {
   ArrowSquareOutIcon,
+  ArrowsOutSimpleIcon,
   CalendarIcon,
   LinkIcon,
   StarIcon,
@@ -16,12 +18,13 @@ import ReactMarkdown, {
   type Components,
   defaultUrlTransform,
 } from "react-markdown";
+import { PhotoProvider, PhotoView } from "react-photo-view";
+import "react-photo-view/dist/react-photo-view.css";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
 
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
-import { getBooksPath } from "~/lib/books/paths";
-import { useSubdomain } from "~/lib/books/subdomainContext";
+import { getBookPath, getBooksPath } from "~/lib/books/paths";
 import type { Book } from "~/lib/books/types";
 import { cn } from "~/lib/util";
 
@@ -35,6 +38,64 @@ import {
 } from "~/components/ui/tooltip";
 
 import { TagBadge } from "./TagBadge";
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
 
 // Animation configuration - overdamped to prevent oscillation
 const SPRING_CONFIG = {
@@ -69,6 +130,62 @@ function processDetailsBlocks(markdown: string): string {
   });
 }
 
+/**
+ * Get ordinal suffix for a number (1st, 2nd, 3rd, 4th, etc.)
+ */
+function getOrdinalSuffix(n: number): string {
+  const s = ["th", "st", "nd", "rd"] as const;
+  const v = n % 100;
+  return s[(v - 20) % 10] ?? s[v] ?? "th";
+}
+
+/**
+ * Format read dates into a unified display string
+ * Same month: "March 12th - 18th '25" (full month name, always spaces)
+ * Different months: "Mar 12th - Apr 3rd '25" (short month names)
+ */
+function formatReadDates(
+  started: string | null,
+  finished: string | null,
+): string | null {
+  if (!started || !finished) return null;
+
+  const startDate = new Date(started);
+  const endDate = new Date(finished);
+
+  const startMonthShort = startDate.toLocaleDateString("en-US", {
+    month: "short",
+  });
+  const endMonthShort = endDate.toLocaleDateString("en-US", { month: "short" });
+  const startDay = startDate.getDate();
+  const endDay = endDate.getDate();
+  const year = endDate.toLocaleDateString("en-US", { year: "2-digit" });
+
+  if (startMonthShort === endMonthShort) {
+    // Same month: use full month name "March 12th - 18th '25"
+    const fullMonth = startDate.toLocaleDateString("en-US", { month: "long" });
+    return `${fullMonth} ${startDay}${getOrdinalSuffix(startDay)} - ${endDay}${getOrdinalSuffix(endDay)} '${year}`;
+  } else {
+    // Different months: use short names "Mar 12th - Apr 3rd '25"
+    return `${startMonthShort} ${startDay}${getOrdinalSuffix(startDay)} - ${endMonthShort} ${endDay}${getOrdinalSuffix(endDay)} '${year}`;
+  }
+}
+
+/**
+ * Calculate reading duration in days
+ */
+function getReadingDays(
+  started: string | null,
+  finished: string | null,
+): number | null {
+  if (!started || !finished) return null;
+
+  const startDate = new Date(started);
+  const endDate = new Date(finished);
+  const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+}
+
 type BookDetailContentProps = {
   book: Book & { notes?: string };
   fullBook?: Book & { notes?: string };
@@ -78,6 +195,7 @@ type BookDetailContentProps = {
   copied: boolean;
   bookId: string;
   isModal?: boolean;
+  onClose?: () => void;
 };
 
 export function BookDetailContent({
@@ -89,9 +207,9 @@ export function BookDetailContent({
   copied,
   bookId,
   isModal = false,
+  onClose,
 }: BookDetailContentProps) {
   const coverUrl = enhanceCoverUrl(book.coverUrl);
-  const { isSubdomain } = useSubdomain();
 
   // Scroll-driven animation setup
   const scrollProgress = useMotionValue(0);
@@ -101,7 +219,7 @@ export function BookDetailContent({
   const [isLargeScreen, setIsLargeScreen] = useState(false);
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia("(min-width: 724px)");
+    const mediaQuery = window.matchMedia("(min-width: 768px)");
     setIsLargeScreen(mediaQuery.matches);
 
     const handler = (e: MediaQueryListEvent) => setIsLargeScreen(e.matches);
@@ -190,11 +308,6 @@ export function BookDetailContent({
     isLargeScreen ? [1, 0] : [1, 1],
   );
 
-  // Metadata width for desktop header - container width - padding - cover width - gap
-  const metadataWidth = isLargeScreen
-    ? "calc(min(100vw, 768px) - 80px - 194px - 24px)"
-    : "calc(100vw - 48px - 194px - 24px)";
-
   const borderOpacity = useTransform(
     smoothProgress,
     [0.1, 0.3],
@@ -224,8 +337,6 @@ export function BookDetailContent({
     >
       {/* Unified Sticky Header */}
       <motion.div
-        layout
-        initial={false}
         className="sticky top-0 z-20 bg-background/80 backdrop-blur-md"
         style={{
           paddingTop: headerPadding,
@@ -237,43 +348,71 @@ export function BookDetailContent({
       >
         {/* Container for content with max-w-3xl */}
         <div className="relative mx-auto w-full max-w-3xl">
-          {/* Back to Books button - only shown when not in modal */}
-          {!isModal && (
-            <div className="absolute right-6 top-0.5 z-10 lg:right-10 lg:top-[10px]">
+          {/* Action buttons - expand (modal only) and close */}
+          <div className="absolute right-6 top-0.5 z-10 flex items-center gap-2 xs:right-14 sm:top-2 lg:top-[10px]">
+            {isModal && (
               <TooltipProvider>
                 <Tooltip delayDuration={200}>
                   <TooltipTrigger asChild>
+                    {/* Use <a> instead of Link to force hard navigation out of intercepted route */}
+                    <a
+                      href={getBookPath(bookId)}
+                      className="flex size-10 items-center justify-center rounded-full bg-muted shadow-sm backdrop-blur-sm transition-all duration-200 ease-in-out hover:bg-primary/20"
+                      aria-label="Open full page"
+                    >
+                      <ArrowsOutSimpleIcon
+                        size={20}
+                        weight="bold"
+                        className="text-primary"
+                      />
+                    </a>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Open full page</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+            <TooltipProvider>
+              <Tooltip delayDuration={200}>
+                <TooltipTrigger asChild>
+                  {isModal && onClose ? (
+                    <button
+                      onClick={onClose}
+                      className="flex size-10 items-center justify-center rounded-full bg-muted shadow-sm backdrop-blur-sm transition-all duration-200 ease-in-out hover:bg-primary/20"
+                      aria-label="Close"
+                    >
+                      <XIcon size={20} weight="bold" className="text-primary" />
+                    </button>
+                  ) : (
                     <Link
-                      href={getBooksPath(isSubdomain)}
+                      href={getBooksPath()}
                       className="flex size-10 items-center justify-center rounded-full bg-muted shadow-sm backdrop-blur-sm transition-all duration-200 ease-in-out hover:bg-primary/20"
                       aria-label="Return to all book notes"
                     >
                       <XIcon size={20} weight="bold" className="text-primary" />
                     </Link>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Return to all book notes</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          )}
+                  )}
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{isModal ? "Close" : "Return to all book notes"}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
 
           {/* Main Row: Cover + Title/Author (Compact) */}
           <motion.div
-            layout
-            className="flex w-full flex-row items-start px-6 lg:px-10"
+            className="flex w-full flex-row items-start px-6 xs:px-14"
             style={{ gap: headerGap }}
           >
             {/* Cover Image */}
             <motion.div
-              layout
               className="aspect-[2/3] flex-shrink-0"
               style={{ height: coverHeight }}
             >
               {coverUrl ? (
                 <motion.div
-                  layoutId={`book-cover-${bookId}`}
                   style={{
                     borderRadius: coverBorderRadius,
                     boxShadow: coverBoxShadow,
@@ -302,14 +441,12 @@ export function BookDetailContent({
             {isLargeScreen ? (
               /* Desktop: Animated title/author with metadata */
               <motion.div
-                layout
                 initial={{ opacity: 1 }}
                 animate={{ opacity: 1 }}
-                className="relative min-w-0 flex-1 overflow-visible pr-6"
+                className="relative min-w-0 flex-1 overflow-visible pr-12"
               >
                 <div className="relative">
                   <motion.h2
-                    layout="position"
                     initial={{ opacity: 1 }}
                     animate={{ opacity: 1 }}
                     style={{
@@ -320,13 +457,15 @@ export function BookDetailContent({
                       WebkitBoxOrient: "vertical",
                       overflow: "hidden",
                     }}
-                    className="font-bold leading-[1.125] text-foreground"
+                    className={cn(
+                      "font-bold leading-[1.125] text-foreground",
+                      isModal && "mr-12",
+                    )}
                   >
                     {book.title}
                   </motion.h2>
 
                   <motion.p
-                    layout="position"
                     initial={{ opacity: 1 }}
                     animate={{ opacity: 1 }}
                     style={{
@@ -340,7 +479,9 @@ export function BookDetailContent({
                   {/* Metadata - Desktop only */}
                   <motion.div
                     className="absolute left-0 top-full pt-2"
-                    style={{ width: metadataWidth }}
+                    style={{
+                      width: "calc(min(100vw, 768px) - 80px - 194px - 70px)",
+                    }}
                   >
                     {book.rating && (
                       <motion.div
@@ -377,42 +518,49 @@ export function BookDetailContent({
                           </span>
                         </div>
                       )}
-                      {book.started && (
+                      {book.started && book.finished ? (
+                        <TooltipProvider>
+                          <Tooltip delayDuration={200}>
+                            <TooltipTrigger asChild>
+                              <div className="flex cursor-default items-center gap-1">
+                                <div className="flex items-center gap-1 font-medium">
+                                  <CalendarIcon size={12} weight="bold" />
+                                  <span>Read:</span>
+                                </div>
+                                <span className="font-bold">
+                                  {formatReadDates(book.started, book.finished)}
+                                </span>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>
+                                {getReadingDays(book.started, book.finished)}{" "}
+                                days
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ) : book.started ? (
                         <div className="flex items-center gap-1">
                           <div className="flex items-center gap-1 font-medium">
                             <CalendarIcon size={12} weight="bold" />
                             <span>Started:</span>
                           </div>
                           <span className="font-bold">
-                            {new Date(book.started).toLocaleDateString(
-                              "en-US",
-                              {
-                                month: "short",
-                                day: "numeric",
-                                year: "numeric",
-                              },
-                            )}
+                            {(() => {
+                              const d = new Date(book.started);
+                              const month = d.toLocaleDateString("en-US", {
+                                month: "long",
+                              });
+                              const day = d.getDate();
+                              const year = d.toLocaleDateString("en-US", {
+                                year: "2-digit",
+                              });
+                              return `${month} ${day}${getOrdinalSuffix(day)} '${year}`;
+                            })()}
                           </span>
                         </div>
-                      )}
-                      {book.finished && (
-                        <div className="flex items-center gap-1">
-                          <div className="flex items-center gap-1 font-medium">
-                            <CalendarIcon size={12} weight="bold" />
-                            <span>Finished:</span>
-                          </div>
-                          <span className="font-bold">
-                            {new Date(book.finished).toLocaleDateString(
-                              "en-US",
-                              {
-                                month: "short",
-                                day: "numeric",
-                                year: "numeric",
-                              },
-                            )}
-                          </span>
-                        </div>
-                      )}
+                      ) : null}
                     </motion.div>
 
                     {book.tags.length > 0 && (
@@ -452,7 +600,7 @@ export function BookDetailContent({
             ) : (
               /* Mobile: Simple compact title/author that fades in */
               <motion.div
-                className="flex min-w-0 flex-1 flex-col gap-0 pr-8"
+                className="flex min-w-0 flex-1 flex-col gap-0 pr-24"
                 style={{ opacity: compactHeaderOpacity }}
               >
                 <motion.h2
@@ -477,7 +625,7 @@ export function BookDetailContent({
       {!isLargeScreen && (
         <motion.div
           style={{ opacity: fullMetadataOpacity }}
-          className="mx-auto w-full max-w-3xl px-6 pb-6 pt-2"
+          className="mx-auto w-full max-w-3xl px-6 pb-6 pt-2 xs:px-14"
         >
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-0.5">
@@ -519,36 +667,48 @@ export function BookDetailContent({
                     <span className="font-bold">{book.publicationYear}</span>
                   </div>
                 )}
-                {book.started && (
+                {book.started && book.finished ? (
+                  <TooltipProvider>
+                    <Tooltip delayDuration={200}>
+                      <TooltipTrigger asChild>
+                        <div className="flex cursor-default items-center gap-1">
+                          <div className="flex items-center gap-1 font-medium">
+                            <CalendarIcon size={12} weight="bold" />
+                            <span>Read:</span>
+                          </div>
+                          <span className="font-bold">
+                            {formatReadDates(book.started, book.finished)}
+                          </span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>
+                          {getReadingDays(book.started, book.finished)} days
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : book.started ? (
                   <div className="flex items-center gap-1">
                     <div className="flex items-center gap-1 font-medium">
                       <CalendarIcon size={12} weight="bold" />
                       <span>Started:</span>
                     </div>
                     <span className="font-bold">
-                      {new Date(book.started).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
+                      {(() => {
+                        const d = new Date(book.started);
+                        const month = d.toLocaleDateString("en-US", {
+                          month: "long",
+                        });
+                        const day = d.getDate();
+                        const year = d.toLocaleDateString("en-US", {
+                          year: "2-digit",
+                        });
+                        return `${month} ${day}${getOrdinalSuffix(day)} '${year}`;
+                      })()}
                     </span>
                   </div>
-                )}
-                {book.finished && (
-                  <div className="flex items-center gap-1">
-                    <div className="flex items-center gap-1 font-medium">
-                      <CalendarIcon size={12} weight="bold" />
-                      <span>Finished:</span>
-                    </div>
-                    <span className="font-bold">
-                      {new Date(book.finished).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
-                    </span>
-                  </div>
-                )}
+                ) : null}
               </div>
             )}
 
@@ -586,7 +746,7 @@ export function BookDetailContent({
       {/* Main content */}
       <div
         className={cn(
-          "mx-auto w-full max-w-3xl p-6 pt-0 lg:p-10 lg:pt-6",
+          "mx-auto w-full max-w-3xl px-6 pt-0 xs:px-14 md:pt-6",
           !book.hasNotes && "lg:pb-0",
         )}
       >
@@ -605,54 +765,110 @@ export function BookDetailContent({
             ) : fullBook?.notes ? (
               <div
                 className={cn(
-                  "prose prose-sm prose-neutral max-w-none leading-relaxed text-foreground",
+                  "prose prose-sm prose-neutral max-w-none leading-[1.75] text-foreground",
                   "prose-headings:mb-0 prose-headings:font-bold prose-headings:text-foreground prose-h1:translate-y-3 prose-h1:py-3 prose-h1:text-2xl prose-h2:translate-y-[-8px] prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs",
                   "prose-p:translate-y-2 prose-p:text-foreground prose-a:text-foreground prose-a:underline hover:prose-a:text-foreground prose-strong:font-bold prose-strong:text-foreground",
                   "prose-ol:my-0 prose-ol:list-decimal prose-ul:my-0 prose-ul:list-disc prose-li:my-px prose-li:text-foreground",
-                  "prose-blockquote:relative prose-blockquote:border-l-0 prose-blockquote:before:absolute prose-blockquote:before:left-0 prose-blockquote:before:top-[-2px] prose-blockquote:before:h-[calc(100%+2px)] prose-blockquote:before:w-1 prose-blockquote:before:rounded-full prose-blockquote:before:bg-neutral-300 prose-blockquote:before:content-['']",
+                  "prose-blockquote:border-l-0",
                   "prose-img:max-h-[600px] prose-img:max-w-[400px] prose-img:rounded-lg prose-img:shadow-md",
                 )}
               >
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  rehypePlugins={[rehypeRaw]}
-                  urlTransform={(url) => {
-                    // Allow data URLs (base64 images from Notion)
-                    if (url.startsWith("data:")) {
-                      return url;
+                <PhotoProvider>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    rehypePlugins={[rehypeRaw]}
+                    urlTransform={(url) => {
+                      // Allow data URLs (base64 images from Notion)
+                      if (url.startsWith("data:")) {
+                        return url;
+                      }
+                      // Allow Notion S3 image URLs
+                      if (url.includes("prod-files-secure.s3")) {
+                        return url;
+                      }
+                      // Use default transform for security on other URLs
+                      return defaultUrlTransform(url);
+                    }}
+                    components={
+                      {
+                        img: ({ src, alt, ...props }) => {
+                          if (!src) return null;
+                          return (
+                            <PhotoView src={src as string}>
+                              <img
+                                src={src}
+                                alt={alt ?? ""}
+                                className="cursor-zoom-in"
+                                {...props}
+                              />
+                            </PhotoView>
+                          );
+                        },
+                        details: ({ children, ...props }) => (
+                          <details
+                            {...props}
+                            className="group my-1.5 pl-[26px]"
+                          >
+                            {children}
+                          </details>
+                        ),
+                        summary: ({ children, ...props }) => {
+                          // Process inline markdown (bold/italic) in summary text
+                          const processInlineMarkdown = (
+                            node: React.ReactNode,
+                          ): React.ReactNode => {
+                            if (typeof node === "string") {
+                              const parts = node.split(
+                                /(\*\*[^*]+\*\*|\*[^*]+\*)/g,
+                              );
+                              return parts.map((part, i) => {
+                                if (
+                                  part.startsWith("**") &&
+                                  part.endsWith("**")
+                                ) {
+                                  return (
+                                    <strong key={i}>{part.slice(2, -2)}</strong>
+                                  );
+                                }
+                                if (
+                                  part.startsWith("*") &&
+                                  part.endsWith("*")
+                                ) {
+                                  return <em key={i}>{part.slice(1, -1)}</em>;
+                                }
+                                return part;
+                              });
+                            }
+                            if (Array.isArray(node)) {
+                              return node.map((child: React.ReactNode, i) => (
+                                <span key={i}>
+                                  {processInlineMarkdown(child)}
+                                </span>
+                              ));
+                            }
+                            return node;
+                          };
+
+                          return (
+                            <summary
+                              {...props}
+                              className="-ml-5 flex cursor-pointer list-none items-center gap-2.5 text-foreground [&::-webkit-details-marker]:hidden"
+                            >
+                              <PlayIcon
+                                size={12}
+                                weight="fill"
+                                className="shrink-0 transition-transform duration-200 group-open:rotate-90"
+                              />
+                              {processInlineMarkdown(children)}
+                            </summary>
+                          );
+                        },
+                      } as Components
                     }
-                    // Allow Notion S3 image URLs
-                    if (url.includes("prod-files-secure.s3")) {
-                      return url;
-                    }
-                    // Use default transform for security on other URLs
-                    return defaultUrlTransform(url);
-                  }}
-                  components={
-                    {
-                      details: ({ children, ...props }) => (
-                        <details {...props} className="group my-1.5 pl-[26px]">
-                          {children}
-                        </details>
-                      ),
-                      summary: ({ children, ...props }) => (
-                        <summary
-                          {...props}
-                          className="-ml-5 flex cursor-pointer select-none list-none items-center gap-2.5 text-foreground [&::-webkit-details-marker]:hidden"
-                        >
-                          <PlayIcon
-                            size={12}
-                            weight="fill"
-                            className="shrink-0 transition-transform duration-200 group-open:rotate-90"
-                          />
-                          {children}
-                        </summary>
-                      ),
-                    } as Components
-                  }
-                >
-                  {processDetailsBlocks(fullBook.notes)}
-                </ReactMarkdown>
+                  >
+                    {processDetailsBlocks(fullBook.notes)}
+                  </ReactMarkdown>
+                </PhotoProvider>
               </div>
             ) : (
               <p className="py-8 text-center text-muted-foreground/70">

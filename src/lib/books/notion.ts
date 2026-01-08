@@ -46,10 +46,16 @@ export async function fetchBooksFromNotion(): Promise<Book[]> {
         const response = await notion.dataSources.query({
           data_source_id: dataSourceId,
           filter: {
-            property: "Finished",
-            date: {
-              is_not_empty: true,
-            },
+            or: [
+              {
+                property: "Finished",
+                date: { is_not_empty: true },
+              },
+              {
+                property: "Started",
+                date: { is_not_empty: true },
+              },
+            ],
           },
           sorts: [
             {

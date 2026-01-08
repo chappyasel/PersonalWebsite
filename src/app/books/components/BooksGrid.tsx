@@ -4,6 +4,8 @@ import { searchParamsParsers } from "../lib/searchParams";
 import { AnimatePresence, motion } from "framer-motion";
 import { useQueryStates } from "nuqs";
 
+import { useIsRestoring } from "@tanstack/react-query";
+
 import { api } from "~/trpc/react";
 
 import { BookCard } from "./BookCard";
@@ -19,6 +21,7 @@ const sizeWidths = {
 
 export function BooksGrid() {
   const [params, setParams] = useQueryStates(searchParamsParsers);
+  const isRestoring = useIsRestoring();
 
   // Parse sort parameter
   const [sortField, sortOrder] = (params.sort ?? "finished-desc").split(
@@ -50,12 +53,14 @@ export function BooksGrid() {
       tags: [],
       minRating: null,
       hasNotes: null,
+      hasSummary: null,
       search: "",
     });
   };
 
-  // Only show loading skeleton on initial load (when we have no data yet)
-  if (isLoading) {
+  // Only show loading skeleton when restoring cache or loading without any data
+  // Once we have cached data, show it immediately (background refetch won't show skeleton)
+  if (isRestoring || (isLoading && !allBooks)) {
     return <BooksGridSkeleton size={(params.size as "S" | "M" | "L") ?? "M"} />;
   }
 
@@ -87,6 +92,13 @@ export function BooksGrid() {
     );
   }
 
+  // Filter by has summary
+  if (params.hasSummary !== null && params.hasSummary !== undefined) {
+    filteredBooks = filteredBooks.filter(
+      (book) => book.hasSummary === params.hasSummary,
+    );
+  }
+
   // Filter by search query
   if (params.search) {
     const searchLower = params.search.toLowerCase();
@@ -103,8 +115,10 @@ export function BooksGrid() {
     let bValue: string | number | null;
 
     if (sortField === "finished") {
-      aValue = a.finished ?? "";
-      bValue = b.finished ?? "";
+      // Treat null finished (currently reading) as today
+      const today = new Date().toISOString();
+      aValue = a.finished ?? today;
+      bValue = b.finished ?? today;
     } else if (sortField === "rating") {
       aValue = a.rating ?? 0;
       bValue = b.rating ?? 0;
@@ -128,7 +142,10 @@ export function BooksGrid() {
   if (books.length === 0) {
     const hasFilters =
       params.tags.length > 0 ||
-      (params.minRating ?? params.hasNotes ?? params.search);
+      (params.minRating ??
+        params.hasNotes ??
+        params.hasSummary ??
+        params.search) !== null;
 
     return (
       <EmptyState
@@ -143,9 +160,10 @@ export function BooksGrid() {
     (acc, book) => {
       let groupKey: string;
 
-      if (sortField === "finished" && book.finished) {
-        // Group by year
-        const year = new Date(book.finished).getFullYear();
+      if (sortField === "finished") {
+        // Group by year - currently reading books go in current year
+        const date = book.finished ? new Date(book.finished) : new Date();
+        const year = date.getFullYear();
         groupKey = year.toString();
       } else if (sortField === "rating" && book.rating) {
         // Group by rating
@@ -172,7 +190,7 @@ export function BooksGrid() {
   // Get sorted group keys
   const groupKeys = Object.keys(groupedBooks).sort((a, b) => {
     if (sortField === "finished") {
-      // Sort years numerically descending
+      // Sort years numerically
       return sortOrder === "desc"
         ? Number(b) - Number(a)
         : Number(a) - Number(b);

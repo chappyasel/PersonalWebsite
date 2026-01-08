@@ -1,6 +1,6 @@
 "use client";
 
-import { useBookPreview } from "../contexts/BookPreviewContext";
+import { useModalActions } from "../contexts/BookPreviewContext";
 import { StarIcon } from "@phosphor-icons/react/dist/ssr";
 import {
   type SpringOptions,
@@ -8,16 +8,16 @@ import {
   useMotionValue,
   useSpring,
 } from "framer-motion";
-import { FileText } from "lucide-react";
+import { BookOpen, FileText } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useRef } from "react";
+import { memo, useRef } from "react";
 
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import { getBookPath } from "~/lib/books/paths";
-import { useSubdomain } from "~/lib/books/subdomainContext";
+import { isCurrentlyReading } from "~/lib/books/types";
 import type { Book } from "~/lib/books/types";
+import { api } from "~/trpc/react";
 
 import { Badge } from "~/components/ui/badge";
 
@@ -69,9 +69,9 @@ const sizeStyles = {
 } as const;
 
 const springValues: SpringOptions = {
-  damping: 30,
-  stiffness: 100,
-  mass: 2,
+  damping: 25,
+  stiffness: 120,
+  mass: 1,
 };
 
 const hoverScale = {
@@ -86,13 +86,13 @@ const tiltAmplitude = {
   L: 10, // Less tilt for large books
 } as const;
 
-export function BookCard({ book, size = "M" }: BookCardProps) {
+export const BookCard = memo(function BookCard({ book, size = "M" }: BookCardProps) {
   const coverUrl = enhanceCoverUrl(book.coverUrl);
   const styles = sizeStyles[size];
-  const { setSelectedBook } = useBookPreview();
-  const cardRef = useRef<HTMLAnchorElement>(null);
+  const { openModal } = useModalActions();
+  const cardRef = useRef<HTMLButtonElement>(null);
   const searchParams = useSearchParams();
-  const { isSubdomain } = useSubdomain();
+  const utils = api.useUtils();
 
   // Motion values for 3D tilt effect
   const rotateX = useSpring(useMotionValue(0), springValues);
@@ -102,13 +102,16 @@ export function BookCard({ book, size = "M" }: BookCardProps) {
   const rotateAmplitude = tiltAmplitude[size]; // Degrees of rotation
 
   // Preserve current query params when navigating to book detail
-  const bookUrl = getBookPath(book.id, isSubdomain, searchParams.toString());
+  const bookUrl = getBookPath(book.id, searchParams.toString());
 
   const handleClick = () => {
-    setSelectedBook(book, size);
+    // Open modal instantly via state
+    openModal(book, size);
+    // Update URL without triggering Next.js navigation
+    window.history.pushState(null, "", bookUrl);
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLAnchorElement>) => {
+  const handleMouseMove = (e: React.MouseEvent<HTMLButtonElement>) => {
     if (!cardRef.current) return;
 
     const rect = cardRef.current.getBoundingClientRect();
@@ -124,6 +127,8 @@ export function BookCard({ book, size = "M" }: BookCardProps) {
 
   const handleMouseEnter = () => {
     scale.set(hoverScale[size]);
+    // Prefetch book data with notes on hover for faster modal load
+    void utils.books.getById.prefetch({ bookId: book.id });
   };
 
   const handleMouseLeave = () => {
@@ -133,15 +138,14 @@ export function BookCard({ book, size = "M" }: BookCardProps) {
   };
 
   return (
-    <Link
+    <button
       ref={cardRef}
-      href={bookUrl}
+      type="button"
       onClick={handleClick}
       onMouseMove={handleMouseMove}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      scroll={false}
-      className="group relative block cursor-pointer [perspective:1000px] hover:z-10 intersect:motion-scale-in-90 intersect:motion-opacity-in-50"
+      className="group relative block cursor-pointer text-left outline-none [perspective:1000px] hover:z-10 intersect:motion-scale-in-90 intersect:motion-opacity-in-50"
       aria-label={`View details for ${book.title} by ${book.author}`}
       style={{ transformStyle: "preserve-3d" }}
     >
@@ -156,14 +160,18 @@ export function BookCard({ book, size = "M" }: BookCardProps) {
         }}
       >
         {/* Cover Image (aspect ratio 2:3) */}
-        <div className="aspect-[2/3] w-full overflow-hidden bg-muted/20">
+        <motion.div
+          layoutId={`book-cover-${book.id}`}
+          className="aspect-[2/3] w-full overflow-hidden bg-muted/20"
+          transition={{ layout: { type: "spring", stiffness: 300, damping: 30 } }}
+        >
           {coverUrl ? (
             <Image
               src={coverUrl}
               alt={`${book.title} cover`}
-              className="h-full w-full object-cover"
-              width={1000}
-              height={1500}
+              className="min-h-full min-w-full object-cover"
+              width={400}
+              height={600}
             />
           ) : (
             <div className="flex h-full w-full flex-col items-center justify-center p-4 text-center">
@@ -179,17 +187,28 @@ export function BookCard({ book, size = "M" }: BookCardProps) {
               </p>
             </div>
           )}
-        </div>
+        </motion.div>
 
-        {/* No Notes Badge */}
-        {!book.hasNotes && (
+        {/* Currently Reading Badge (takes priority over No Notes) */}
+        {isCurrentlyReading(book) ? (
           <Badge
             variant="secondary"
-            className={`absolute gap-1 bg-red-50/90 text-red-600/80 shadow-md dark:bg-red-950/90 dark:text-red-400/90 ${styles.badgeSpacing}`}
+            className={`absolute gap-1 bg-blue-50/90 text-blue-600/80 shadow-md dark:bg-blue-950/90 dark:text-blue-400/90 ${styles.badgeSpacing}`}
           >
-            <FileText className={styles.badgeIcon} />
-            <span className={styles.badgeText}>No Notes</span>
+            <BookOpen className={styles.badgeIcon} />
+            <span className={styles.badgeText}>Reading</span>
           </Badge>
+        ) : (
+          /* No Notes Badge */
+          !book.hasNotes && (
+            <Badge
+              variant="secondary"
+              className={`absolute gap-1 bg-red-50/90 text-red-600/80 shadow-md dark:bg-red-950/90 dark:text-red-400/90 ${styles.badgeSpacing}`}
+            >
+              <FileText className={styles.badgeIcon} />
+              <span className={styles.badgeText}>No Notes</span>
+            </Badge>
+          )
         )}
 
         {/* Overlay with title/author on hover */}
@@ -219,6 +238,6 @@ export function BookCard({ book, size = "M" }: BookCardProps) {
           )}
         </div>
       </motion.div>
-    </Link>
+    </button>
   );
-}
+});

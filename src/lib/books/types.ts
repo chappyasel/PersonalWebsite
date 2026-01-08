@@ -42,3 +42,12 @@ export type BookCoverCache = {
   source: "notion" | "google-books";
   fetchedAt: Date;
 };
+
+/**
+ * Check if a book is currently being read (has started but not finished)
+ */
+export function isCurrentlyReading(
+  book: Pick<Book, "started" | "finished">,
+): boolean {
+  return book.started !== null && book.finished === null;
+}

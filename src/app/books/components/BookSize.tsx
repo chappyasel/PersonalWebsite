@@ -2,6 +2,13 @@
 
 import { useQueryState } from "nuqs";
 
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "~/components/ui/tooltip";
+
 const sizes = ["S", "M", "L"] as const;
 
 export function BookSize() {
@@ -15,12 +22,21 @@ export function BookSize() {
   };
 
   return (
-    <button
-      onClick={cycleSize}
-      aria-label={`Book size: ${size}. Click to cycle size.`}
-      className="flex size-10 items-center justify-center rounded-md bg-transparent text-sm font-medium text-muted-foreground transition-all hover:bg-secondary/80 hover:text-foreground sm:block"
-    >
-      {size}
-    </button>
+    <TooltipProvider>
+      <Tooltip delayDuration={200}>
+        <TooltipTrigger asChild>
+          <button
+            onClick={cycleSize}
+            aria-label={`Book size: ${size}. Click to cycle size.`}
+            className="hidden size-10 items-center justify-center rounded-md bg-transparent text-sm font-medium text-muted-foreground transition-all hover:bg-secondary/80 hover:text-foreground md:flex"
+          >
+            {size}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>Change book size</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }

@@ -1,9 +1,28 @@
 import { type Metadata } from "next";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { isNotionId } from "~/lib/books/slugify";
-import { getBookForOG, getSlugByNotionId } from "~/lib/books/ogDataAccess";
+import {
+  getBookForOG,
+  getBookWithNotes,
+  getSlugByNotionId,
+} from "~/lib/books/ogDataAccess";
+import { db } from "~/server/db";
 import { BookPage } from "./BookPage";
+
+// Revalidate every 24 hours
+export const revalidate = 86400;
+
+// Allow pages not in generateStaticParams to be generated on-demand
+export const dynamicParams = true;
+
+// Pre-render all book pages at build time
+export async function generateStaticParams() {
+  const books = await db.query.books.findMany({
+    columns: { id: true },
+  });
+  return books.map((book) => ({ bookId: book.id }));
+}
 
 type PageProps = {
   params: Promise<{ bookId: string }>;
@@ -19,12 +38,13 @@ export async function generateMetadata({
     return {
       title: `${book.title} - Book Notes`,
       description: `${book.author} • Read and reviewed by Chappy Asel`,
+      keywords: [book.title, book.author, ...book.tags, "book notes"],
       openGraph: {
         title: book.title,
         description: `${book.author} • Book Notes by Chappy Asel`,
         images: [
           {
-            url: `/books/${bookId}/opengraph-image`,
+            url: `/${bookId}/opengraph-image`,
             width: 1200,
             height: 630,
             alt: `${book.title} cover and details`,
@@ -36,7 +56,10 @@ export async function generateMetadata({
         card: "summary_large_image",
         title: book.title,
         description: book.author,
-        images: [`/books/${bookId}/opengraph-image`],
+        images: [`/${bookId}/opengraph-image`],
+      },
+      alternates: {
+        canonical: `/${bookId}`,
       },
     };
   } catch {
@@ -56,8 +79,15 @@ export default async function Page({ params }: PageProps) {
     if (slug) {
       redirect(`/books/${slug}`);
     }
-    // If not found by notionId, continue to show BookPage (will error naturally)
+    // If not found by notionId, continue to fetch and show BookPage
   }
 
-  return <BookPage bookId={bookId} />;
+  // Fetch book data server-side
+  const book = await getBookWithNotes(bookId);
+
+  if (!book) {
+    notFound();
+  }
+
+  return <BookPage bookId={bookId} book={book} />;
 }

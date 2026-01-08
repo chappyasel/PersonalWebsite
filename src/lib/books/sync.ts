@@ -1,8 +1,11 @@
+import { Client } from "@notionhq/client";
 import { eq } from "drizzle-orm";
 
+import { env } from "~/env";
 import { db } from "~/server/db";
 import { bookTags, books, syncMetadata } from "~/server/db/schema";
 
+import { fetchBookCover } from "./coverFetcher";
 import { generateAllBookIds } from "./slugify";
 import {
   fetchBookDetails,
@@ -253,6 +256,21 @@ async function upsertBooksToDatabase(
       columns: { id: true },
     });
 
+    // For NEW books without covers, try to fetch one
+    if (!existing && !book.coverUrl) {
+      console.log(`  📚 Fetching cover for new book: ${book.title}`);
+      try {
+        const fetchedCover = await fetchBookCover(book.title, book.author);
+        if (fetchedCover) {
+          book.coverUrl = fetchedCover;
+          // Update Notion with the cover
+          await updateNotionCover(book.notionId, fetchedCover);
+        }
+      } catch (error) {
+        console.error(`  ✗ Failed to fetch cover for ${book.title}:`, error);
+      }
+    }
+
     if (existing && existing.id !== book.id) {
       // Slug changed - delete old record (cascade will handle tags)
       await db.delete(books).where(eq(books.notionId, book.notionId));
@@ -371,5 +389,29 @@ async function completeSyncRecord(
         errorCount: 1,
       })
       .where(eq(syncMetadata.id, syncId));
+  }
+}
+
+/**
+ * Update book cover in Notion
+ */
+async function updateNotionCover(
+  pageId: string,
+  coverUrl: string,
+): Promise<void> {
+  const notion = new Client({ auth: env.NOTION_API_KEY });
+  try {
+    await notion.pages.update({
+      page_id: pageId,
+      properties: {
+        Cover: {
+          type: "url",
+          url: coverUrl,
+        },
+      },
+    });
+    console.log(`  ✓ Updated Notion cover for page ${pageId.slice(0, 8)}...`);
+  } catch (error) {
+    console.error(`  ✗ Failed to update Notion cover for ${pageId}:`, error);
   }
 }

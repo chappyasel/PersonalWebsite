@@ -37,8 +37,10 @@ export const booksRouter = createTRPCRouter({
       // Build where conditions
       const conditions = [];
 
-      // Only books with finished date
-      conditions.push(sql`${books.finished} IS NOT NULL`);
+      // Include finished books OR currently reading books (started but not finished)
+      conditions.push(
+        sql`(${books.finished} IS NOT NULL OR (${books.started} IS NOT NULL AND ${books.finished} IS NULL))`,
+      );
 
       if (input.minRating) {
         conditions.push(gte(books.rating, input.minRating));
@@ -58,16 +60,28 @@ export const booksRouter = createTRPCRouter({
         );
       }
 
+      // Build order by - for finished date sorting, treat NULL finished (currently reading) as today
+      let orderBy;
+      if (input.sortField === "finished") {
+        // Currently reading books (NULL finished) are treated as "today" for sorting purposes
+        orderBy =
+          input.sortOrder === "desc"
+            ? desc(sql`COALESCE(${books.finished}, NOW())`)
+            : asc(sql`COALESCE(${books.finished}, NOW())`);
+      } else {
+        orderBy =
+          input.sortOrder === "desc"
+            ? desc(books[input.sortField])
+            : asc(books[input.sortField]);
+      }
+
       // Execute query with tags joined
       const results = await db.query.books.findMany({
         where: and(...conditions),
         with: {
           tags: true,
         },
-        orderBy:
-          input.sortOrder === "desc"
-            ? desc(books[input.sortField])
-            : asc(books[input.sortField]),
+        orderBy,
         limit: input.limit,
         offset: input.offset,
       });
@@ -120,9 +134,6 @@ export const booksRouter = createTRPCRouter({
       if (!book) {
         throw new Error("Book not found");
       }
-
-      // simulate a delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       const result: BookWithNotes = {
         id: book.id,

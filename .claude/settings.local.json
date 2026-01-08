@@ -59,7 +59,13 @@
       "Bash(wc:*)",
       "WebSearch",
       "WebFetch(domain:phosphoricons.com)",
-      "Bash(xargs cat:*)"
+      "Bash(xargs cat:*)",
+      "Bash(set -a)",
+      "Bash(source:*)",
+      "Bash(set +a)",
+      "Bash(cursor-ide-diagnostics)",
+      "Bash(claude ide diagnostics:*)",
+      "Bash(git diff:*)"
     ],
     "deny": [],
     "additionalDirectories": [
@@ -68,5 +74,8 @@
     ]
   },
   "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": ["postgres-db", "context7"]
+  "enabledMcpjsonServers": [
+    "postgres-db",
+    "context7"
+  ]
 }
