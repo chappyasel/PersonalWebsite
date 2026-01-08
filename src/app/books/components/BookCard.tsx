@@ -179,7 +179,8 @@ export const BookCard = memo(function BookCard({
 
     // Define hit zone size based on card size (generous tap target)
     // XS has no copy button (hideOverlays), so disable the zone entirely
-    const zoneSize = size === "XS" ? 0 : size === "S" ? 32 : size === "M" ? 40 : 48;
+    const zoneSize =
+      size === "XS" ? 0 : size === "S" ? 32 : size === "M" ? 40 : 48;
 
     const isInRightEdge = clientX > rect.right - zoneSize;
     const isInTopEdge = clientY < rect.top + zoneSize;
@@ -297,7 +298,9 @@ export const BookCard = memo(function BookCard({
               <img
                 src={coverUrl}
                 alt={`${book.title} cover`}
-                className="h-full w-full object-cover"
+                className="h-full w-full select-none object-cover"
+                draggable="false"
+                onDragStart={(e) => e.preventDefault()}
               />
             ) : (
               <div className="flex h-full w-full flex-col items-center justify-center p-4 text-center">
