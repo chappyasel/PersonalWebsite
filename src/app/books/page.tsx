@@ -2,18 +2,31 @@
 
 import { CaretLeftIcon } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import { cn } from "~/lib/util";
 
 import { BookFilters } from "./components/BookFilters";
 import { BookSize } from "./components/BookSize";
 import { BooksControls } from "./components/BooksControls";
 import { BooksGrid } from "./components/BooksGrid";
+import { ZoomOutButton } from "./components/ZoomOutButton";
 import { ThemeToggle } from "~/components/ui/theme-toggle";
 
 export default function BooksPage() {
   const [isHovered, setIsHovered] = useState(false);
   const sidebarRef = useRef<HTMLElement>(null);
   const [stickyTop, setStickyTop] = useState(32);
+  const [zoomOutWidth, setZoomOutWidth] = useState<number | null>(null);
+  const [bookCount, setBookCount] = useState(0);
+
+  const handleZoomToggle = useCallback((width: number | null) => {
+    setZoomOutWidth(width);
+  }, []);
+
+  const handleBookCountChange = useCallback((count: number) => {
+    setBookCount(count);
+  }, []);
 
   useEffect(() => {
     const calculateStickyTop = () => {
@@ -46,8 +59,15 @@ export default function BooksPage() {
     };
   }, []);
 
+  const isZoomOut = zoomOutWidth !== null;
+
   return (
-    <div className="flex flex-col gap-8">
+    <div
+      className={cn(
+        "m-auto flex flex-col gap-8",
+        !isZoomOut && "max-w-screen-2xl",
+      )}
+    >
       {/* Header */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
@@ -76,25 +96,35 @@ export default function BooksPage() {
           <div className="flex translate-x-3 items-center gap-0">
             <ThemeToggle />
             <BookSize />
+            <ZoomOutButton
+              totalBooks={bookCount}
+              isActive={isZoomOut}
+              onToggle={handleZoomToggle}
+            />
           </div>
         </div>
       </div>
 
       {/* Desktop: Sidebar + Main */}
       <div className="flex gap-8 2xl:gap-16">
-        {/* Desktop Filters Sidebar */}
-        <aside
-          ref={sidebarRef}
-          className="hidden w-auto shrink-0 self-start sm:sticky sm:block"
-          style={{ top: stickyTop }}
-        >
-          <BookFilters />
-        </aside>
+        {/* Desktop Filters Sidebar - hidden in zoom-out mode */}
+        {!isZoomOut && (
+          <aside
+            ref={sidebarRef}
+            className="hidden w-auto shrink-0 self-start sm:sticky sm:block"
+            style={{ top: stickyTop }}
+          >
+            <BookFilters />
+          </aside>
+        )}
 
         {/* Main Content */}
         <main className="flex flex-1 flex-col gap-6">
-          <BooksControls />
-          <BooksGrid />
+          <BooksControls isZoomOut={isZoomOut} />
+          <BooksGrid
+            zoomOutWidth={zoomOutWidth}
+            onBookCountChange={handleBookCountChange}
+          />
         </main>
       </div>
     </div>

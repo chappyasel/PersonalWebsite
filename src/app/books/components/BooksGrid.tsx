@@ -1,18 +1,18 @@
 "use client";
 
 import { searchParamsParsers } from "../lib/searchParams";
+import { useIsRestoring } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useQueryStates } from "nuqs";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Virtuoso } from "react-virtuoso";
-
-import { useIsRestoring } from "@tanstack/react-query";
 
 import { api } from "~/trpc/react";
 
 import { BookCard } from "./BookCard";
 import { BooksGridSkeleton } from "./BooksGridSkeleton";
 import { EmptyState } from "./EmptyState";
+import { cn } from "@/src/lib/util";
 
 // Size to preferred width mapping
 const sizeWidths = {
@@ -21,7 +21,15 @@ const sizeWidths = {
   L: "260px",
 } as const;
 
-export function BooksGrid() {
+type BooksGridProps = {
+  zoomOutWidth?: number | null;
+  onBookCountChange?: (count: number) => void;
+};
+
+export function BooksGrid({
+  zoomOutWidth,
+  onBookCountChange,
+}: BooksGridProps = {}) {
   const [params, setParams] = useQueryStates(searchParamsParsers);
   const isRestoring = useIsRestoring();
 
@@ -49,9 +57,17 @@ export function BooksGrid() {
     "-",
   ) as ["finished" | "title" | "rating", "asc" | "desc"];
 
-  // Get preferred width based on size
-  const preferredWidth =
-    sizeWidths[(params.size as keyof typeof sizeWidths) ?? "M"] ?? sizeWidths.M;
+  // Get preferred width based on size or zoom-out width
+  const isZoomOut = zoomOutWidth != null && zoomOutWidth > 0;
+  const preferredWidth = isZoomOut
+    ? `${zoomOutWidth}px`
+    : (sizeWidths[(params.size as keyof typeof sizeWidths) ?? "M"] ??
+      sizeWidths.M);
+
+  // Determine effective size for BookCard styling
+  const effectiveSize: "XS" | "S" | "M" | "L" = isZoomOut
+    ? "XS"
+    : ((params.size as "S" | "M" | "L") ?? "M");
 
   // Fetch ALL books once (no filters, no pagination)
   const { data: allBooks, isLoading } = api.books.getAll.useQuery(
@@ -62,10 +78,7 @@ export function BooksGrid() {
       limit: 500, // Get all books
     },
     {
-      // Never refetch - we loaded everything once
-      staleTime: Infinity,
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
+      staleTime: 5 * 60 * 1000, // 5 minutes
     },
   );
 
@@ -79,85 +92,112 @@ export function BooksGrid() {
     });
   };
 
+  // Client-side filtering and sorting (memoized to allow useEffect before early returns)
+  const books = useMemo(() => {
+    if (!allBooks || allBooks.length === 0) return [];
+
+    // In zoom-out mode, skip filtering (show all books)
+    let filteredBooks = allBooks;
+
+    if (!isZoomOut) {
+      // Filter by tags
+      if (params.tags.length > 0) {
+        filteredBooks = filteredBooks.filter((book) =>
+          params.tags.some((tag) => book.tags.includes(tag)),
+        );
+      }
+
+      // Filter by minimum rating
+      if (params.minRating) {
+        filteredBooks = filteredBooks.filter(
+          (book) => book.rating && book.rating >= params.minRating!,
+        );
+      }
+
+      // Filter by has notes
+      if (params.hasNotes !== null && params.hasNotes !== undefined) {
+        filteredBooks = filteredBooks.filter(
+          (book) => book.hasNotes === params.hasNotes,
+        );
+      }
+
+      // Filter by has summary
+      if (params.hasSummary !== null && params.hasSummary !== undefined) {
+        filteredBooks = filteredBooks.filter(
+          (book) => book.hasSummary === params.hasSummary,
+        );
+      }
+
+      // Filter by search query
+      if (params.search) {
+        const searchLower = params.search.toLowerCase();
+        filteredBooks = filteredBooks.filter(
+          (book) =>
+            book.title.toLowerCase().includes(searchLower) ||
+            book.author.toLowerCase().includes(searchLower),
+        );
+      }
+    }
+
+    // Client-side sorting (still applies in zoom-out mode)
+    return [...filteredBooks].sort((a, b) => {
+      let aValue: string | number | null;
+      let bValue: string | number | null;
+
+      if (sortField === "finished") {
+        // Treat null finished (currently reading) as today
+        const today = new Date().toISOString();
+        aValue = a.finished ?? today;
+        bValue = b.finished ?? today;
+      } else if (sortField === "rating") {
+        aValue = a.rating ?? 0;
+        bValue = b.rating ?? 0;
+      } else {
+        aValue = a.title;
+        bValue = b.title;
+      }
+
+      // Compare values
+      let comparison = 0;
+      if (typeof aValue === "string" && typeof bValue === "string") {
+        comparison = aValue.localeCompare(bValue);
+      } else {
+        comparison = (aValue as number) - (bValue as number);
+      }
+
+      return sortOrder === "desc" ? -comparison : comparison;
+    });
+  }, [
+    allBooks,
+    isZoomOut,
+    params.tags,
+    params.minRating,
+    params.hasNotes,
+    params.hasSummary,
+    params.search,
+    sortField,
+    sortOrder,
+  ]);
+
+  // Report total book count to parent (for zoom-out button calculation)
+  // We use allBooks.length since zoom-out mode shows ALL books regardless of filters
+  useEffect(() => {
+    onBookCountChange?.(allBooks?.length ?? 0);
+  }, [allBooks?.length, onBookCountChange]);
+
   // Only show loading skeleton when restoring cache or loading without any data
   // Once we have cached data, show it immediately (background refetch won't show skeleton)
   if (isRestoring || (isLoading && !allBooks)) {
-    return <BooksGridSkeleton size={(params.size as "S" | "M" | "L") ?? "M"} />;
+    return (
+      <BooksGridSkeleton
+        size={isZoomOut ? "S" : ((params.size as "S" | "M" | "L") ?? "M")}
+      />
+    );
   }
 
   if (!allBooks || allBooks.length === 0) {
     return <EmptyState type="no-books" onClearFilters={handleClearFilters} />;
   }
-
-  // Client-side filtering
-  let filteredBooks = allBooks;
-
-  // Filter by tags
-  if (params.tags.length > 0) {
-    filteredBooks = filteredBooks.filter((book) =>
-      params.tags.some((tag) => book.tags.includes(tag)),
-    );
-  }
-
-  // Filter by minimum rating
-  if (params.minRating) {
-    filteredBooks = filteredBooks.filter(
-      (book) => book.rating && book.rating >= params.minRating!,
-    );
-  }
-
-  // Filter by has notes
-  if (params.hasNotes !== null && params.hasNotes !== undefined) {
-    filteredBooks = filteredBooks.filter(
-      (book) => book.hasNotes === params.hasNotes,
-    );
-  }
-
-  // Filter by has summary
-  if (params.hasSummary !== null && params.hasSummary !== undefined) {
-    filteredBooks = filteredBooks.filter(
-      (book) => book.hasSummary === params.hasSummary,
-    );
-  }
-
-  // Filter by search query
-  if (params.search) {
-    const searchLower = params.search.toLowerCase();
-    filteredBooks = filteredBooks.filter(
-      (book) =>
-        book.title.toLowerCase().includes(searchLower) ||
-        book.author.toLowerCase().includes(searchLower),
-    );
-  }
-
-  // Client-side sorting
-  const books = [...filteredBooks].sort((a, b) => {
-    let aValue: string | number | null;
-    let bValue: string | number | null;
-
-    if (sortField === "finished") {
-      // Treat null finished (currently reading) as today
-      const today = new Date().toISOString();
-      aValue = a.finished ?? today;
-      bValue = b.finished ?? today;
-    } else if (sortField === "rating") {
-      aValue = a.rating ?? 0;
-      bValue = b.rating ?? 0;
-    } else {
-      aValue = a.title;
-      bValue = b.title;
-    }
-
-    // Compare values
-    let comparison = 0;
-    if (typeof aValue === "string" && typeof bValue === "string") {
-      comparison = aValue.localeCompare(bValue);
-    } else {
-      comparison = (aValue as number) - (bValue as number);
-    }
-
-    return sortOrder === "desc" ? -comparison : comparison;
-  });
 
   // Check if filters resulted in no books
   if (books.length === 0) {
@@ -236,61 +276,67 @@ export function BooksGrid() {
     books: groupedBooks[key]!,
   }));
 
+  // Shared section renderer
+  const renderSection = (section: (typeof sections)[number]) => (
+    <div key={section.key} className="flex flex-col gap-4 pb-8">
+      {/* Section Header */}
+      <h2 className="text-2xl font-bold text-foreground">
+        {section.key}
+        <span className="text-sm text-foreground/70">
+          {" "}
+          ({section.books.length})
+        </span>
+      </h2>
+
+      {/* Books Grid with AnimatePresence preserved */}
+      <motion.div
+        layout={!isZoomOut}
+        className={cn("grid gap-4", isZoomOut && "gap-2")}
+        style={{
+          gridTemplateColumns: `repeat(auto-fill, minmax(min(${preferredWidth}, calc((100% - 1rem) / 2)), 1fr))`,
+        }}
+      >
+        <AnimatePresence mode="popLayout">
+          {section.books.map((book) => (
+            <motion.div
+              key={book.id}
+              layout={!isZoomOut}
+              // Conditional initial: skip animation during scroll/zoom, animate on filter/sort
+              initial={
+                isScrolling || isZoomOut
+                  ? { opacity: 1, scale: 1, y: 0 } // Match animate = no animation
+                  : { opacity: 0, scale: 0.9, y: -10 } // Animate on data change
+              }
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.85, y: 20 }}
+              transition={{
+                layout: { type: "spring", stiffness: 300, damping: 30 },
+                opacity: { duration: 0.15 },
+                scale: { duration: 0.15 },
+                y: { duration: 0.15 },
+              }}
+            >
+              <BookCard book={book} size={effectiveSize} />
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </motion.div>
+    </div>
+  );
+
+  // In zoom-out mode, render all sections without virtualization
+  if (isZoomOut) {
+    return <div className="flex flex-col">{sections.map(renderSection)}</div>;
+  }
+
+  // Normal mode with virtualization
   return (
     <Virtuoso
       useWindowScroll
       data={sections}
       isScrolling={setIsScrolling}
       overscan={200} // Buffer pixels above/below viewport
-      itemContent={(index, section) => (
-        <div key={section.key} className="flex flex-col gap-4 pb-8">
-          {/* Section Header */}
-          <h2 className="text-2xl font-bold text-foreground">
-            {section.key}
-            <span className="text-sm text-foreground/70">
-              {" "}
-              ({section.books.length})
-            </span>
-          </h2>
-
-          {/* Books Grid with AnimatePresence preserved */}
-          <motion.div
-            layout
-            className="grid gap-4"
-            style={{
-              gridTemplateColumns: `repeat(auto-fill, minmax(min(${preferredWidth}, calc((100% - 1rem) / 2)), 1fr))`,
-            }}
-          >
-            <AnimatePresence mode="popLayout">
-              {section.books.map((book) => (
-                <motion.div
-                  key={book.id}
-                  layout
-                  // Conditional initial: skip animation during scroll, animate on filter/sort
-                  initial={
-                    isScrolling
-                      ? { opacity: 1, scale: 1, y: 0 } // Match animate = no animation
-                      : { opacity: 0, scale: 0.9, y: -10 } // Animate on data change
-                  }
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.85, y: 20 }}
-                  transition={{
-                    layout: { type: "spring", stiffness: 300, damping: 30 },
-                    opacity: { duration: 0.15 },
-                    scale: { duration: 0.15 },
-                    y: { duration: 0.15 },
-                  }}
-                >
-                  <BookCard
-                    book={book}
-                    size={(params.size as "S" | "M" | "L") ?? "M"}
-                  />
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </motion.div>
-        </div>
-      )}
+      itemContent={(_, section) => renderSection(section)}
     />
   );
 }

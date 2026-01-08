@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, X } from "lucide-react";
+import { MagnifyingGlassIcon, XIcon } from "@phosphor-icons/react";
 import { useQueryState } from "nuqs";
 import { useEffect, useRef, useState } from "react";
 
@@ -57,7 +57,7 @@ export function BookSearch() {
 
   return (
     <div className="relative flex-1">
-      <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/40" />
+      <MagnifyingGlassIcon className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/40" />
       <Input
         ref={inputRef}
         type="text"
@@ -73,7 +73,7 @@ export function BookSearch() {
           onClick={() => setInputValue("")}
           className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 p-0"
         >
-          <X className="h-4 w-4" />
+          <XIcon className="h-4 w-4" />
         </Button>
       )}
     </div>

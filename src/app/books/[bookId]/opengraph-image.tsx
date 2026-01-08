@@ -311,7 +311,7 @@ export default async function Image({
             display: "flex",
             width: "100%",
             height: "100%",
-            backgroundColor: "rgb(245, 245, 245)",
+            backgroundColor: "hsl(60, 9%, 98%)",
             alignItems: "center",
             justifyContent: "center",
             fontFamily: "system-ui, -apple-system, sans-serif",
@@ -329,7 +329,7 @@ export default async function Image({
               style={{
                 fontSize: "72px",
                 fontWeight: 700,
-                color: "rgb(115, 115, 115)",
+                color: "hsl(25, 5%, 38%)",
                 margin: 0,
               }}
             >

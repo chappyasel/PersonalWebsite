@@ -1,6 +1,6 @@
 "use client";
 
-import { SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontalIcon } from "@phosphor-icons/react";
 
 import { Button } from "~/components/ui/button";
 import {
@@ -18,7 +18,7 @@ export function FilterDrawer() {
     <Sheet>
       <SheetTrigger asChild>
         <Button variant="outline" className="flex-1 bg-background/90 sm:hidden">
-          <SlidersHorizontal className="mr-1.5 h-4 w-4" />
+          <SlidersHorizontalIcon className="mr-1.5 h-4 w-4" />
           Filters
         </Button>
       </SheetTrigger>

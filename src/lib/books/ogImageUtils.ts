@@ -262,9 +262,9 @@ export function getTextColorAndOverlay(luminance: number): {
   const isLight = luminance > 0.5;
 
   return {
-    textColor: isLight ? "rgb(0, 0, 0)" : "rgb(255, 255, 255)",
+    textColor: isLight ? "hsl(25, 5%, 38%)" : "hsl(24, 6%, 83%)",
     overlayColor: isLight
-      ? "rgba(255, 255, 255, 0.4)" // Light overlay for light images
-      : "rgba(0, 0, 0, 0.4)", // Dark overlay for dark images
+      ? "rgba(249, 246, 239, 0.4)" // Light overlay for light images from --background
+      : "rgba(41, 37, 36, 0.6)", // Darker stone overlay (~stone-900, >50% opacity)
   };
 }

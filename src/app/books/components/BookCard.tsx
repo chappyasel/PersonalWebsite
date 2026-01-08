@@ -2,6 +2,7 @@
 
 import { useModalActions } from "../contexts/BookPreviewContext";
 import { LinkIcon } from "@phosphor-icons/react";
+import { BookOpenIcon, FileTextIcon } from "@phosphor-icons/react";
 import { CheckIcon, StarIcon } from "@phosphor-icons/react/dist/ssr";
 import {
   type SpringOptions,
@@ -9,7 +10,6 @@ import {
   useMotionValue,
   useSpring,
 } from "framer-motion";
-import { BookOpen, FileText } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { usePostHog } from "posthog-js/react";
 import { memo, useEffect, useRef, useState } from "react";
@@ -26,16 +26,32 @@ import { cn } from "@/src/lib/util";
 
 type BookCardProps = {
   book: Book;
-  size?: "S" | "M" | "L";
+  size?: "XS" | "S" | "M" | "L";
 };
 
 const sizeRadius = {
+  XS: "rounded-md",
   S: "rounded-lg",
   M: "rounded-xl",
   L: "rounded-2xl",
 } as const;
 
 const sizeStyles = {
+  XS: {
+    placeholderTitle: "text-[8px]",
+    placeholderAuthor: "text-[7px]",
+    badgeText: "hidden",
+    badgeIcon: "h-2 w-2",
+    overlayTitle: "hidden",
+    overlayAuthor: "hidden",
+    star: "hidden",
+    badgeSpacing: "top-1 left-1",
+    overlayPadding: "p-1",
+    copyButton: "top-1 right-1 p-0.5",
+    copyIcon: "size-2.5",
+    floatZ: 5, // px - parallax float height for 3D effect
+    hideOverlays: true, // Special flag to hide all overlays
+  },
   S: {
     placeholderTitle: "text-xs",
     placeholderAuthor: "text-[10px]",
@@ -48,6 +64,8 @@ const sizeStyles = {
     overlayPadding: "p-3",
     copyButton: "top-1.5 right-1.5 p-1",
     copyIcon: "size-3.5",
+    floatZ: 10, // px - parallax float height for 3D effect
+    hideOverlays: false,
   },
   M: {
     placeholderTitle: "text-sm",
@@ -61,19 +79,23 @@ const sizeStyles = {
     overlayPadding: "p-4",
     copyButton: "top-2 right-2 p-1.5",
     copyIcon: "size-5",
+    floatZ: 20, // px - parallax float height for 3D effect
+    hideOverlays: false,
   },
   L: {
     placeholderTitle: "text-base",
-    placeholderAuthor: "text-sm",
+    placeholderAuthor: "text-lg",
     badgeText: "text-sm",
     badgeIcon: "h-3.5 w-3.5",
-    overlayTitle: "text-base",
+    overlayTitle: "text-lg",
     overlayAuthor: "text-sm",
     star: "!size-5",
     badgeSpacing: "top-3 left-3",
-    overlayPadding: "p-5",
+    overlayPadding: "p-8",
     copyButton: "top-3 right-3 p-2",
     copyIcon: "size-6",
+    floatZ: 30, // px - parallax float height for 3D effect
+    hideOverlays: false,
   },
 } as const;
 
@@ -84,12 +106,14 @@ const springValues: SpringOptions = {
 };
 
 const hoverScale = {
+  XS: 1.2, // Largest scale for extra small books
   S: 1.15, // Larger scale for small books
   M: 1.1, // Medium scale
   L: 1.05, // Smaller scale for large books
 } as const;
 
 const tiltAmplitude = {
+  XS: 0, // No tilt for XS (too small)
   S: 20, // More tilt for small books
   M: 15, // Medium tilt
   L: 10, // Less tilt for large books
@@ -107,13 +131,12 @@ export const BookCard = memo(function BookCard({
   const posthog = usePostHog();
   const utils = api.useUtils();
   const [copied, setCopied] = useState(false);
+  const [isHoveringCopyZone, setIsHoveringCopyZone] = useState(false);
 
   // Detect touch device to skip 3D transforms (reduces GPU load on mobile)
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   useEffect(() => {
-    setIsTouchDevice(
-      "ontouchstart" in window || navigator.maxTouchPoints > 0,
-    );
+    setIsTouchDevice("ontouchstart" in window || navigator.maxTouchPoints > 0);
   }, []);
 
   // Motion values for 3D tilt effect (only used on non-touch devices)
@@ -126,8 +149,7 @@ export const BookCard = memo(function BookCard({
   // Preserve current query params when navigating to book detail
   const bookUrl = getBookPath(book.id, searchParams.toString());
 
-  const handleCopyLink = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleCopyLink = () => {
     posthog.capture("book_link_copied", {
       book_id: book.id,
       book_title: book.title,
@@ -138,16 +160,51 @@ export const BookCard = memo(function BookCard({
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const handleClick = () => {
+  // Check if click is in the top-right corner (copy button zone)
+  const isInCopyZone = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!cardRef.current) return false;
+    const rect = cardRef.current.getBoundingClientRect();
+
+    // Get click/touch position
+    let clientX: number, clientY: number;
+    if ("touches" in e && e.touches.length > 0 && e.touches[0]) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else if ("clientX" in e) {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    } else {
+      return false;
+    }
+
+    // Define hit zone size based on card size (generous tap target)
+    const zoneSize = size === "S" ? 32 : size === "M" ? 40 : 48;
+
+    const isInRightEdge = clientX > rect.right - zoneSize;
+    const isInTopEdge = clientY < rect.top + zoneSize;
+
+    return isInRightEdge && isInTopEdge;
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    // Check if click is in the copy button zone
+    if (isInCopyZone(e)) {
+      handleCopyLink();
+      return;
+    }
+
     // Remove focus to prevent Safari focus ring
     cardRef.current?.blur();
-    // Open modal instantly via state
-    openModal(book, size);
+    // Open modal instantly via state (XS maps to S for modal)
+    openModal(book, size === "XS" ? "S" : size);
     // Update URL without triggering Next.js navigation
     window.history.pushState(null, "", bookUrl);
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLButtonElement>) => {
+    // Track if mouse is in copy zone for hover state
+    setIsHoveringCopyZone(isInCopyZone(e));
+
     // Skip 3D tilt calculations on touch devices (reduces GPU load)
     if (isTouchDevice || !cardRef.current) return;
 
@@ -172,6 +229,7 @@ export const BookCard = memo(function BookCard({
   };
 
   const handleMouseLeave = () => {
+    setIsHoveringCopyZone(false);
     // Skip animation reset on touch devices
     if (isTouchDevice) return;
     scale.set(1);
@@ -201,7 +259,10 @@ export const BookCard = memo(function BookCard({
       }}
     >
       <motion.div
-        className={!isTouchDevice ? "[transform-style:preserve-3d]" : undefined}
+        className={cn(
+          "relative",
+          !isTouchDevice && "[transform-style:preserve-3d]",
+        )}
         style={
           isTouchDevice
             ? undefined
@@ -215,8 +276,12 @@ export const BookCard = memo(function BookCard({
         }
         whileTap={{ scale: 0.95 }}
       >
+        {/* Cover container with shadow and rounded corners */}
         <div
-          className={`relative overflow-hidden ${sizeRadius[size]} shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] transition-shadow duration-300 hover:shadow-[0px_5px_30px_0px_rgba(0,0,0,0.14)] focus:outline-none`}
+          className={cn(
+            `relative overflow-hidden shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] transition-shadow duration-300 hover:shadow-[0px_5px_30px_0px_rgba(0,0,0,0.14)] focus:outline-none`,
+            sizeRadius[size],
+          )}
         >
           {/* Cover Image (aspect ratio 2:3) */}
           <motion.div
@@ -255,72 +320,117 @@ export const BookCard = memo(function BookCard({
               </div>
             )}
           </motion.div>
+        </div>
 
-          {/* Currently Reading Badge (takes priority over No Notes) */}
-          {isCurrentlyReading(book) ? (
-            <Badge
-              variant="secondary"
-              className={`absolute gap-1 bg-blue-50/90 text-blue-600/80 shadow-md dark:bg-blue-950/90 dark:text-blue-400/90 ${styles.badgeSpacing}`}
-            >
-              <BookOpen className={styles.badgeIcon} />
-              <span className={styles.badgeText}>Reading</span>
-            </Badge>
-          ) : (
-            /* No Notes Badge */
-            !book.hasNotes && (
+        {/* Floating elements - outside overflow-hidden for parallax effect */}
+        {/* Hide all overlays for XS size */}
+        {!styles.hideOverlays && (
+          <>
+            {/* Currently Reading Badge (takes priority over No Notes) */}
+            {isCurrentlyReading(book) ? (
               <Badge
                 variant="secondary"
-                className={`absolute gap-1 bg-red-50/90 text-red-600/80 shadow-md dark:bg-red-950/90 dark:text-red-400/90 ${styles.badgeSpacing}`}
+                className={cn(
+                  `absolute gap-1 bg-blue-50/90 text-blue-600/80 shadow-md dark:bg-blue-950/90 dark:text-blue-400/90`,
+                  styles.badgeSpacing,
+                  sizeRadius[size],
+                )}
+                style={
+                  isTouchDevice
+                    ? undefined
+                    : { transform: `translateZ(${styles.floatZ}px)` }
+                }
               >
-                <FileText className={styles.badgeIcon} />
-                <span className={styles.badgeText}>No Notes</span>
+                <BookOpenIcon className={styles.badgeIcon} />
+                <span className={styles.badgeText}>Reading</span>
               </Badge>
-            )
-          )}
+            ) : (
+              /* No Notes Badge */
+              !book.hasNotes && (
+                <Badge
+                  variant="secondary"
+                  className={cn(
+                    `absolute gap-1 bg-red-50/90 text-red-600/80 shadow-md dark:bg-red-950/90 dark:text-red-400/90`,
+                    styles.badgeSpacing,
+                    sizeRadius[size],
+                  )}
+                  style={
+                    isTouchDevice
+                      ? undefined
+                      : { transform: `translateZ(${styles.floatZ}px)` }
+                  }
+                >
+                  <FileTextIcon className={styles.badgeIcon} />
+                  <span className={styles.badgeText}>No Notes</span>
+                </Badge>
+              )
+            )}
 
-          {/* Overlay with title/author on hover */}
-          <div
-            className={`absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-stone-900/80 via-stone-900/60 via-30% to-transparent to-60% opacity-0 transition-opacity duration-500 group-hover:opacity-100 ${styles.overlayPadding}`}
-          >
-            {/* Copy link button */}
-            <button
-              type="button"
-              onClick={handleCopyLink}
+            {/* Gradient overlay - does not float */}
+            <div
               className={cn(
-                `absolute rounded-full bg-stone-900/30 text-white transition-all duration-300 hover:bg-stone-900/50 focus:outline-none focus-visible:outline-none active:scale-95 ${styles.copyButton}`,
-                copied && "bg-green-500/60 hover:bg-green-500/80",
+                `pointer-events-none absolute inset-0 bg-gradient-to-t from-stone-900/80 via-stone-900/60 via-30% to-transparent to-60% opacity-0 transition-opacity duration-500 group-hover:opacity-100`,
+                sizeRadius[size],
               )}
-              aria-label="Copy link to book"
+            />
+
+            {/* Text overlay - floats above */}
+            <div
+              className={cn(
+                `pointer-events-none absolute inset-0 flex flex-col justify-end opacity-0 transition-opacity duration-500 group-hover:opacity-100`,
+                styles.overlayPadding,
+                sizeRadius[size],
+              )}
+              style={
+                isTouchDevice
+                  ? undefined
+                  : { transform: `translateZ(${styles.floatZ * 1.5}px)` }
+              }
+            >
+              <h3
+                className={`line-clamp-3 font-bold leading-tight text-white drop-shadow-md ${styles.overlayTitle}`}
+              >
+                {book.title}
+              </h3>
+              <p
+                className={`line-clamp-1 pt-0.5 text-white/80 drop-shadow-md ${styles.overlayAuthor}`}
+              >
+                {book.author}
+              </p>
+              {book.rating && (
+                <div className="mt-1 flex gap-0.5">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <StarIcon
+                      key={i}
+                      weight={i < book.rating! ? "fill" : "duotone"}
+                      className={`${styles.star} ${i < book.rating! ? "text-yellow-400" : "text-white/30"}`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Copy link icon - visual indicator, clicks detected via position */}
+            <div
+              className={cn(
+                `pointer-events-none absolute rounded-full bg-stone-900/30 text-white opacity-0 transition-all duration-200 group-hover:opacity-100 ${styles.copyButton}`,
+                copied && "bg-green-500/60",
+                isHoveringCopyZone && !copied && "scale-110 bg-stone-900/50",
+              )}
+              style={
+                isTouchDevice
+                  ? undefined
+                  : { transform: `translateZ(${styles.floatZ * 0.5}px)` }
+              }
             >
               {copied ? (
                 <CheckIcon className={styles.copyIcon} weight="bold" />
               ) : (
                 <LinkIcon className={styles.copyIcon} weight="bold" />
               )}
-            </button>
-            <h3
-              className={`line-clamp-3 font-bold leading-tight text-white drop-shadow-md ${styles.overlayTitle}`}
-            >
-              {book.title}
-            </h3>
-            <p
-              className={`line-clamp-1 pt-0.5 text-white/80 drop-shadow-md ${styles.overlayAuthor}`}
-            >
-              {book.author}
-            </p>
-            {book.rating && (
-              <div className="mt-1 flex gap-0.5">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <StarIcon
-                    key={i}
-                    weight={i < book.rating! ? "fill" : "duotone"}
-                    className={`${styles.star} ${i < book.rating! ? "text-yellow-400" : "text-white/30"}`}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+            </div>
+          </>
+        )}
       </motion.div>
     </button>
   );

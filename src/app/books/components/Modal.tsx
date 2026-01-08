@@ -15,6 +15,7 @@ export function Modal() {
   const { selectedBook, selectedBookId, isModalOpen } = useModalState();
   const { closeModal } = useModalActions();
   const [copied, setCopied] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
   const bookId = selectedBookId ?? "";
@@ -37,12 +38,22 @@ export function Modal() {
   const isLoadingNotes = isLoadingFull && !fullBook;
 
   const handleClose = () => {
+    // Prevent double-close during exit animation
+    if (isClosing) return;
+    setIsClosing(true);
     // Blur active element to prevent focus ring on book card
     (document.activeElement as HTMLElement)?.blur();
     closeModal();
     // Navigate back to remove the bookId from URL
     window.history.back();
   };
+
+  // Reset isClosing when modal reopens
+  useEffect(() => {
+    if (isModalOpen) {
+      setIsClosing(false);
+    }
+  }, [isModalOpen]);
 
   // Prevent background scroll when modal is open
   useEffect(() => {

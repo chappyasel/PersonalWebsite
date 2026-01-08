@@ -47,7 +47,7 @@ export default function BooksLayout({
     <div className="min-h-screen bg-background font-serif text-foreground">
       <NuqsAdapter>
         <BookPreviewProvider>
-          <main className="m-auto max-w-screen-2xl p-6 md:p-8">
+          <main className="p-6 md:p-8">
             {children}
             {modal}
           </main>

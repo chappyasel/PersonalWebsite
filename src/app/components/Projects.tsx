@@ -1,4 +1,4 @@
-import { ImageIcon } from "lucide-react";
+import { ImageIcon } from "@phosphor-icons/react/dist/ssr";
 import Image from "next/image";
 import Link from "next/link";
 import data from "public/data/projects.json";
@@ -45,7 +45,10 @@ function ProjectItem({ project }: { project: Project }) {
           />
         ) : (
           <div className="flex size-full items-center justify-center rounded-xl bg-background/20 shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)]">
-            <ImageIcon className="size-28 text-muted-foreground opacity-20" />
+            <ImageIcon
+              className="size-28 text-muted-foreground opacity-20"
+              weight="duotone"
+            />
           </div>
         )}
       </div>
