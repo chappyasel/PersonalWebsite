@@ -3,6 +3,8 @@
 import { searchParamsParsers } from "../lib/searchParams";
 import { AnimatePresence, motion } from "framer-motion";
 import { useQueryStates } from "nuqs";
+import { useEffect, useRef, useState } from "react";
+import { Virtuoso } from "react-virtuoso";
 
 import { useIsRestoring } from "@tanstack/react-query";
 
@@ -22,6 +24,25 @@ const sizeWidths = {
 export function BooksGrid() {
   const [params, setParams] = useQueryStates(searchParamsParsers);
   const isRestoring = useIsRestoring();
+
+  // Track scrolling state for conditional animations
+  // When scrolling, skip enter animations (items appear instantly)
+  // When filter/sort changes, animate items in
+  const [isScrolling, setIsScrolling] = useState(false);
+  const dataVersionRef = useRef(0);
+
+  // Reset scroll flag when filters/sort change (data change = should animate)
+  useEffect(() => {
+    dataVersionRef.current++;
+    setIsScrolling(false);
+  }, [
+    params.tags,
+    params.minRating,
+    params.hasNotes,
+    params.hasSummary,
+    params.search,
+    params.sort,
+  ]);
 
   // Parse sort parameter
   const [sortField, sortOrder] = (params.sort ?? "finished-desc").split(
@@ -209,53 +230,67 @@ export function BooksGrid() {
     }
   });
 
-  return (
-    <>
-      <div className="flex flex-col gap-8">
-        {groupKeys.map((groupKey) => (
-          <div key={groupKey} className="flex flex-col gap-4">
-            {/* Section Header */}
-            <h2 className="text-2xl font-bold text-foreground">
-              {groupKey}
-              <span className="text-sm text-foreground/70">
-                {" "}
-                ({groupedBooks[groupKey]!.length})
-              </span>
-            </h2>
+  // Create sections array for virtualization
+  const sections = groupKeys.map((key) => ({
+    key,
+    books: groupedBooks[key]!,
+  }));
 
-            {/* Books Grid */}
-            <motion.div
-              layout
-              className="grid gap-4"
-              style={{
-                gridTemplateColumns: `repeat(auto-fill, minmax(min(${preferredWidth}, calc((100% - 1rem) / 2)), 1fr))`,
-              }}
-            >
-              <AnimatePresence mode="popLayout">
-                {groupedBooks[groupKey]!.map((book) => (
-                  <motion.div
-                    key={book.id}
-                    layout
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{
-                      layout: { type: "spring", stiffness: 300, damping: 30 },
-                      opacity: { duration: 0.2 },
-                      scale: { duration: 0.2 },
-                    }}
-                  >
-                    <BookCard
-                      book={book}
-                      size={(params.size as "S" | "M" | "L") ?? "M"}
-                    />
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </motion.div>
-          </div>
-        ))}
-      </div>
-    </>
+  return (
+    <Virtuoso
+      useWindowScroll
+      data={sections}
+      isScrolling={setIsScrolling}
+      overscan={200} // Buffer pixels above/below viewport
+      itemContent={(index, section) => (
+        <div key={section.key} className="flex flex-col gap-4 pb-8">
+          {/* Section Header */}
+          <h2 className="text-2xl font-bold text-foreground">
+            {section.key}
+            <span className="text-sm text-foreground/70">
+              {" "}
+              ({section.books.length})
+            </span>
+          </h2>
+
+          {/* Books Grid with AnimatePresence preserved */}
+          <motion.div
+            layout
+            className="grid gap-4"
+            style={{
+              gridTemplateColumns: `repeat(auto-fill, minmax(min(${preferredWidth}, calc((100% - 1rem) / 2)), 1fr))`,
+            }}
+          >
+            <AnimatePresence mode="popLayout">
+              {section.books.map((book) => (
+                <motion.div
+                  key={book.id}
+                  layout
+                  // Conditional initial: skip animation during scroll, animate on filter/sort
+                  initial={
+                    isScrolling
+                      ? { opacity: 1, scale: 1, y: 0 } // Match animate = no animation
+                      : { opacity: 0, scale: 0.9, y: -10 } // Animate on data change
+                  }
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.85, y: 20 }}
+                  transition={{
+                    layout: { type: "spring", stiffness: 300, damping: 30 },
+                    opacity: { duration: 0.15 },
+                    scale: { duration: 0.15 },
+                    y: { duration: 0.15 },
+                  }}
+                >
+                  <BookCard
+                    book={book}
+                    size={(params.size as "S" | "M" | "L") ?? "M"}
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </motion.div>
+        </div>
+      )}
+    />
   );
 }

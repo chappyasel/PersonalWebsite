@@ -12,7 +12,7 @@ import {
 import { BookOpen, FileText } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { usePostHog } from "posthog-js/react";
-import { memo, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import { getBookPath } from "~/lib/books/paths";
@@ -108,7 +108,15 @@ export const BookCard = memo(function BookCard({
   const utils = api.useUtils();
   const [copied, setCopied] = useState(false);
 
-  // Motion values for 3D tilt effect
+  // Detect touch device to skip 3D transforms (reduces GPU load on mobile)
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+  useEffect(() => {
+    setIsTouchDevice(
+      "ontouchstart" in window || navigator.maxTouchPoints > 0,
+    );
+  }, []);
+
+  // Motion values for 3D tilt effect (only used on non-touch devices)
   const rotateX = useSpring(useMotionValue(0), springValues);
   const rotateY = useSpring(useMotionValue(0), springValues);
   const scale = useSpring(1, springValues);
@@ -140,7 +148,8 @@ export const BookCard = memo(function BookCard({
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLButtonElement>) => {
-    if (!cardRef.current) return;
+    // Skip 3D tilt calculations on touch devices (reduces GPU load)
+    if (isTouchDevice || !cardRef.current) return;
 
     const rect = cardRef.current.getBoundingClientRect();
     const offsetX = e.clientX - rect.left - rect.width / 2;
@@ -154,12 +163,17 @@ export const BookCard = memo(function BookCard({
   };
 
   const handleMouseEnter = () => {
-    scale.set(hoverScale[size]);
+    // Skip scale animation on touch devices
+    if (!isTouchDevice) {
+      scale.set(hoverScale[size]);
+    }
     // Prefetch book data with notes on hover for faster modal load
     void utils.books.getById.prefetch({ bookId: book.id });
   };
 
   const handleMouseLeave = () => {
+    // Skip animation reset on touch devices
+    if (isTouchDevice) return;
     scale.set(1);
     rotateX.set(0);
     rotateY.set(0);
@@ -173,19 +187,32 @@ export const BookCard = memo(function BookCard({
       onMouseMove={handleMouseMove}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`group relative block w-full cursor-pointer text-left outline-none ring-0 [perspective:1000px] hover:z-10 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 intersect:motion-scale-in-90 intersect:motion-opacity-in-50 ${sizeRadius[size]}`}
+      className={cn(
+        `group relative block w-full cursor-pointer text-left outline-none ring-0 hover:z-10 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 intersect:motion-scale-in-90 intersect:motion-opacity-in-50`,
+        sizeRadius[size],
+        // Only enable 3D perspective on non-touch devices
+        !isTouchDevice && "[perspective:1000px]",
+      )}
       aria-label={`View details for ${book.title} by ${book.author}`}
-      style={{ transformStyle: "preserve-3d", outline: "none" }}
+      style={{
+        // Only enable 3D transform style on non-touch devices
+        transformStyle: isTouchDevice ? undefined : "preserve-3d",
+        outline: "none",
+      }}
     >
       <motion.div
-        className="[transform-style:preserve-3d]"
-        style={{
-          rotateX,
-          rotateY,
-          scale,
-          willChange: "transform",
-          transform: "translateZ(0)",
-        }}
+        className={!isTouchDevice ? "[transform-style:preserve-3d]" : undefined}
+        style={
+          isTouchDevice
+            ? undefined
+            : {
+                rotateX,
+                rotateY,
+                scale,
+                willChange: "transform",
+                transform: "translateZ(0)",
+              }
+        }
         whileTap={{ scale: 0.95 }}
       >
         <div
