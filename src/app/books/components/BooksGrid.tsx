@@ -59,7 +59,7 @@ export function BooksGrid({
   // Parse sort parameter
   const [sortField, sortOrder] = (params.sort ?? "finished-desc").split(
     "-",
-  ) as ["finished" | "title" | "rating", "asc" | "desc"];
+  ) as ["finished" | "title" | "rating" | "publicationYear", "asc" | "desc"];
 
   // Get preferred width based on size or zoom-out width
   const isZoomOut = zoomOutWidth != null && zoomOutWidth > 0;
@@ -156,6 +156,11 @@ export function BooksGrid({
       } else if (sortField === "rating") {
         aValue = a.rating ?? 0;
         bValue = b.rating ?? 0;
+      } else if (sortField === "publicationYear") {
+        // Null publication years sort to the end
+        const nullValue = sortOrder === "desc" ? -Infinity : Infinity;
+        aValue = a.publicationYear ?? nullValue;
+        bValue = b.publicationYear ?? nullValue;
       } else {
         aValue = a.title;
         bValue = b.title;
@@ -270,6 +275,9 @@ export function BooksGrid({
       } else if (sortField === "rating" && book.rating) {
         // Group by rating
         groupKey = `${book.rating} ${book.rating === 1 ? "star" : "stars"}`;
+      } else if (sortField === "publicationYear") {
+        // Group by publication year
+        groupKey = book.publicationYear?.toString() ?? "Unknown";
       } else if (sortField === "title") {
         // Group by first letter, combine non-letters into "#"
         const firstChar = book.title[0]?.toUpperCase();
@@ -303,6 +311,13 @@ export function BooksGrid({
       const ratingA = parseInt(a);
       const ratingB = parseInt(b);
       return sortOrder === "desc" ? ratingB - ratingA : ratingA - ratingB;
+    } else if (sortField === "publicationYear") {
+      // Sort years numerically, "Unknown" always last
+      if (a === "Unknown") return 1;
+      if (b === "Unknown") return -1;
+      return sortOrder === "desc"
+        ? Number(b) - Number(a)
+        : Number(a) - Number(b);
     } else {
       // Sort alphabetically, "#" always first
       if (a === "#") return -1;

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  CalendarIcon,
   ClockCounterClockwiseIcon,
   ClockIcon,
   SortAscendingIcon,
@@ -32,6 +33,9 @@ export function BookSort() {
         return <SortDescendingIcon className="h-4 w-4" />;
       case "rating-desc":
         return <StarIcon className="h-4 w-4" />;
+      case "publicationYear-desc":
+      case "publicationYear-asc":
+        return <CalendarIcon className="h-4 w-4" />;
       default:
         return <ClockIcon className="h-4 w-4" />;
     }
@@ -71,6 +75,18 @@ export function BookSort() {
           <div className="flex items-center gap-2">
             <StarIcon className="h-4 w-4" />
             <span>Rating</span>
+          </div>
+        </SelectItem>
+        <SelectItem value="publicationYear-desc">
+          <div className="flex items-center gap-2">
+            <CalendarIcon className="h-4 w-4" />
+            <span>Newest Published</span>
+          </div>
+        </SelectItem>
+        <SelectItem value="publicationYear-asc">
+          <div className="flex items-center gap-2">
+            <CalendarIcon className="h-4 w-4" />
+            <span>Oldest Published</span>
           </div>
         </SelectItem>
       </SelectContent>

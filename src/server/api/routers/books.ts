@@ -25,7 +25,9 @@ export const booksRouter = createTRPCRouter({
         searchQuery: z.string().optional(),
 
         // Sorting
-        sortField: z.enum(["finished", "title", "rating"]).default("finished"),
+        sortField: z
+          .enum(["finished", "title", "rating", "publicationYear"])
+          .default("finished"),
         sortOrder: z.enum(["asc", "desc"]).default("desc"),
 
         // Pagination
@@ -68,6 +70,13 @@ export const booksRouter = createTRPCRouter({
           input.sortOrder === "desc"
             ? desc(sql`COALESCE(${books.finished}, NOW())`)
             : asc(sql`COALESCE(${books.finished}, NOW())`);
+      } else if (input.sortField === "publicationYear") {
+        // NULL publication years sort to the end (use extreme values)
+        const nullValue = input.sortOrder === "desc" ? -999999 : 999999;
+        orderBy =
+          input.sortOrder === "desc"
+            ? desc(sql`COALESCE(${books.publicationYear}, ${nullValue})`)
+            : asc(sql`COALESCE(${books.publicationYear}, ${nullValue})`);
       } else {
         orderBy =
           input.sortOrder === "desc"
