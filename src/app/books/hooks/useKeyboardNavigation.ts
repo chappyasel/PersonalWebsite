@@ -1,32 +1,25 @@
 "use client";
 
+import { useModalActions, useModalState } from "../contexts/BookPreviewContext";
 import { useSearchParams } from "next/navigation";
-import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { getBookPath, getBookShareUrl } from "~/lib/books/paths";
 import type { Book } from "~/lib/books/types";
 
-import {
-  useModalActions,
-  useModalState,
-} from "../contexts/BookPreviewContext";
-
 interface UseKeyboardNavigationOptions {
   books: Book[];
-  gridContainerRef: RefObject<HTMLDivElement | null>;
   isZoomOut: boolean;
-  onScrollToIndex?: (index: number) => void;
 }
 
 export function useKeyboardNavigation({
   books,
-  gridContainerRef,
   isZoomOut,
-  onScrollToIndex,
 }: UseKeyboardNavigationOptions) {
   const { isModalOpen, keyboardFocusedIndex, keyboardFocusedBookId } =
     useModalState();
-  const { setKeyboardFocus, clearKeyboardFocus, openModal, closeModal } = useModalActions();
+  const { setKeyboardFocus, clearKeyboardFocus, openModal, closeModal } =
+    useModalActions();
   const searchParams = useSearchParams();
 
   // Track the last focused book ID to restore after modal close
@@ -35,86 +28,210 @@ export function useKeyboardNavigation({
   // Track whether to show the visual focus indicator (only after keyboard use)
   const [showFocusIndicator, setShowFocusIndicator] = useState(false);
 
-  // Hover handler - updates selection but hides indicator
-  const setHoveredBookId = useCallback((bookId: string | null) => {
-    if (bookId) {
-      const index = books.findIndex((b) => b.id === bookId);
-      if (index !== -1) {
-        setKeyboardFocus(index, bookId);
-        setShowFocusIndicator(false); // Hide indicator on hover
+  // Track mouse movement to distinguish real hover from scroll-induced mouseenter
+  const lastMousePosRef = useRef<{ x: number; y: number } | null>(null);
+  const isMouseMovingRef = useRef(false);
+  const mouseMovementTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  // Global mouse move listener to detect actual mouse movement
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const lastPos = lastMousePosRef.current;
+      // Consider it "moving" if position changed by more than 2px (accounts for sub-pixel rendering)
+      if (
+        lastPos &&
+        (Math.abs(e.clientX - lastPos.x) > 2 ||
+          Math.abs(e.clientY - lastPos.y) > 2)
+      ) {
+        isMouseMovingRef.current = true;
+
+        // Reset the "moving" flag after a short delay of no movement
+        if (mouseMovementTimeoutRef.current) {
+          clearTimeout(mouseMovementTimeoutRef.current);
+        }
+        mouseMovementTimeoutRef.current = setTimeout(() => {
+          isMouseMovingRef.current = false;
+        }, 100);
       }
-    }
-  }, [books, setKeyboardFocus]);
+      lastMousePosRef.current = { x: e.clientX, y: e.clientY };
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      if (mouseMovementTimeoutRef.current) {
+        clearTimeout(mouseMovementTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Hover handler - updates selection but hides indicator
+  // Only responds to real mouse movement, not scroll-induced mouseenter
+  const setHoveredBookId = useCallback(
+    (bookId: string | null) => {
+      // Ignore hover events that weren't caused by actual mouse movement
+      if (!isMouseMovingRef.current) {
+        return;
+      }
+
+      if (bookId) {
+        const index = books.findIndex((b) => b.id === bookId);
+        if (index !== -1) {
+          setKeyboardFocus(index, bookId);
+          setShowFocusIndicator(false); // Hide indicator on hover
+        }
+      }
+    },
+    [books, setKeyboardFocus],
+  );
 
   // Track copy trigger for visual feedback (increments on each Cmd+C)
   const [copyTrigger, setCopyTrigger] = useState(0);
 
-  // Calculate the number of columns in the grid based on container width
-  const computeColumnCount = useCallback(() => {
-    const container = gridContainerRef.current;
-    if (!container) return 1;
+  // Find the book element that is visually above or below the current one
+  // This handles cross-section navigation by using actual DOM positions
+  const findVerticallyAdjacentBook = useCallback(
+    (direction: "up" | "down"): { index: number; bookId: string } | null => {
+      if (!keyboardFocusedBookId) return null;
 
-    // The container ref IS on the grid element, so use it directly
-    const style = getComputedStyle(container);
-    const columns = style.gridTemplateColumns.split(" ").filter(Boolean).length;
-    return Math.max(1, columns);
-  }, [gridContainerRef]);
+      // Get current focused element
+      const currentElement = document.querySelector(
+        `[data-book-id="${keyboardFocusedBookId}"]`,
+      );
+      if (!currentElement || !(currentElement instanceof HTMLElement))
+        return null;
+
+      const currentRect = currentElement.getBoundingClientRect();
+      const currentCenterX = currentRect.left + currentRect.width / 2;
+      const currentCenterY = currentRect.top + currentRect.height / 2;
+
+      // Get all book elements
+      const allBookElements = document.querySelectorAll("[data-book-id]");
+
+      let bestCandidate: {
+        bookId: string;
+        verticalDistance: number;
+        horizontalDistance: number;
+      } | null = null;
+
+      allBookElements.forEach((element) => {
+        const bookId = element.getAttribute("data-book-id");
+        if (!bookId || bookId === keyboardFocusedBookId) return;
+
+        const rect = element.getBoundingClientRect();
+        const centerY = rect.top + rect.height / 2;
+        const centerX = rect.left + rect.width / 2;
+
+        // Check direction: element must be meaningfully above/below
+        // Use a threshold to account for elements in the same row
+        const rowThreshold = currentRect.height * 0.5;
+
+        const isAbove = centerY < currentCenterY - rowThreshold;
+        const isBelow = centerY > currentCenterY + rowThreshold;
+
+        if (direction === "up" && !isAbove) return;
+        if (direction === "down" && !isBelow) return;
+
+        const verticalDistance = Math.abs(centerY - currentCenterY);
+        const horizontalDistance = Math.abs(centerX - currentCenterX);
+
+        // Prefer candidates that are:
+        // 1. In the same column (minimal horizontal distance)
+        // 2. Closest vertically (immediate neighbor)
+        if (!bestCandidate) {
+          bestCandidate = { bookId, verticalDistance, horizontalDistance };
+        } else {
+          // Column alignment tolerance (60% of book width)
+          const columnTolerance = currentRect.width * 0.6;
+
+          const currentIsAligned =
+            bestCandidate.horizontalDistance < columnTolerance;
+          const candidateIsAligned = horizontalDistance < columnTolerance;
+
+          // Prefer aligned candidates over non-aligned
+          if (candidateIsAligned && !currentIsAligned) {
+            bestCandidate = { bookId, verticalDistance, horizontalDistance };
+          } else if (candidateIsAligned === currentIsAligned) {
+            // Both aligned or both not aligned: prefer closer vertically
+            // If same vertical distance, prefer closer horizontally
+            if (
+              verticalDistance < bestCandidate.verticalDistance ||
+              (verticalDistance === bestCandidate.verticalDistance &&
+                horizontalDistance < bestCandidate.horizontalDistance)
+            ) {
+              bestCandidate = { bookId, verticalDistance, horizontalDistance };
+            }
+          }
+        }
+      });
+
+      if (!bestCandidate) return null;
+
+      // Find the index in the books array
+      // TypeScript needs explicit type narrowing after the null check
+      const candidate: {
+        bookId: string;
+        verticalDistance: number;
+        horizontalDistance: number;
+      } = bestCandidate;
+      const index = books.findIndex((b) => b.id === candidate.bookId);
+      if (index === -1) return null;
+
+      return { index, bookId: candidate.bookId };
+    },
+    [books, keyboardFocusedBookId],
+  );
 
   // Navigate to a new index based on direction
   const navigate = useCallback(
     (direction: "up" | "down" | "left" | "right") => {
       if (books.length === 0) return;
 
-      const columnCount = computeColumnCount();
-
       // Use current keyboard focus, or start from beginning
       const currentIndex = keyboardFocusedIndex ?? -1;
 
       let newIndex: number;
+      let newBookId: string | undefined;
 
-      switch (direction) {
-        case "left":
+      // For vertical navigation, use DOM-based position querying
+      // This properly handles navigation across section boundaries
+      if (direction === "up" || direction === "down") {
+        if (currentIndex === -1) {
+          // No current focus: start at first book for down, last for up
+          newIndex = direction === "down" ? 0 : books.length - 1;
+          newBookId = books[newIndex]?.id;
+        } else {
+          const adjacent = findVerticallyAdjacentBook(direction);
+          if (adjacent) {
+            newIndex = adjacent.index;
+            newBookId = adjacent.bookId;
+          } else {
+            // No adjacent book found, stay at current position
+            return;
+          }
+        }
+      } else {
+        // Horizontal navigation: use flat index (left/right within visual order)
+        if (direction === "left") {
           newIndex = currentIndex <= 0 ? 0 : currentIndex - 1;
-          break;
-        case "right":
+        } else {
           newIndex =
             currentIndex >= books.length - 1
               ? books.length - 1
               : currentIndex + 1;
-          break;
-        case "up":
-          if (currentIndex === -1) {
-            newIndex = 0;
-          } else if (currentIndex < columnCount) {
-            newIndex = currentIndex;
-          } else {
-            newIndex = currentIndex - columnCount;
-          }
-          break;
-        case "down":
-          if (currentIndex === -1) {
-            newIndex = 0;
-          } else {
-            newIndex = Math.min(books.length - 1, currentIndex + columnCount);
-          }
-          break;
+        }
+        newBookId = books[newIndex]?.id;
       }
 
-      const book = books[newIndex];
-      if (book) {
-        setKeyboardFocus(newIndex, book.id);
+      if (newBookId) {
+        setKeyboardFocus(newIndex, newBookId);
         setShowFocusIndicator(true); // Show indicator on keyboard navigation
-        lastFocusedBookIdRef.current = book.id;
-        onScrollToIndex?.(newIndex);
+        lastFocusedBookIdRef.current = newBookId;
       }
     },
-    [
-      books,
-      keyboardFocusedIndex,
-      computeColumnCount,
-      setKeyboardFocus,
-      onScrollToIndex,
-    ],
+    [books, keyboardFocusedIndex, findVerticallyAdjacentBook, setKeyboardFocus],
   );
 
   // Open the focused book or the first book
@@ -139,7 +256,11 @@ export function useKeyboardNavigation({
       // Open the modal
       openModal(book, "M");
       // Update URL without navigation (preserve query params)
-      window.history.pushState(null, "", getBookPath(book.id, searchParams.toString()));
+      window.history.pushState(
+        null,
+        "",
+        getBookPath(book.id, searchParams.toString()),
+      );
     }
   }, [books, keyboardFocusedIndex, setKeyboardFocus, openModal, searchParams]);
 

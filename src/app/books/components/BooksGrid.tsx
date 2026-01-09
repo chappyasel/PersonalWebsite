@@ -1,15 +1,14 @@
 "use client";
 
+import { useKeyboardNavigation } from "../hooks/useKeyboardNavigation";
 import { searchParamsParsers } from "../lib/searchParams";
 import { useIsRestoring } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useQueryStates } from "nuqs";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 
 import { api } from "~/trpc/react";
-
-import { useKeyboardNavigation } from "../hooks/useKeyboardNavigation";
 
 import { BookCard } from "./BookCard";
 import { BooksGridSkeleton } from "./BooksGridSkeleton";
@@ -41,8 +40,7 @@ export function BooksGrid({
   const [isScrolling, setIsScrolling] = useState(false);
   const dataVersionRef = useRef(0);
 
-  // Refs for keyboard navigation
-  const gridContainerRef = useRef<HTMLDivElement>(null);
+  // Ref for virtuoso scroll control
   const virtuosoRef = useRef<VirtuosoHandle>(null);
 
   // Reset scroll flag when filters/sort change (data change = should animate)
@@ -191,84 +189,14 @@ export function BooksGrid({
     onBookCountChange?.(allBooks?.length ?? 0);
   }, [allBooks?.length, onBookCountChange]);
 
-  // Keyboard navigation - scroll to focused book's section
-  const handleScrollToIndex = useCallback(
-    (bookIndex: number) => {
-      if (!virtuosoRef.current || isZoomOut) return;
-
-      // Find which section contains this book by walking through sections
-      // We need to rebuild sections here since they're created after early returns
-      let runningCount = 0;
-      let targetSectionIndex = 0;
-
-      // Get sorted group keys (same logic as below)
-      const tempGroupedBooks = books.reduce(
-        (acc, book) => {
-          let groupKey: string;
-          if (sortField === "finished") {
-            const date = book.finished ? new Date(book.finished) : new Date();
-            groupKey = date.getFullYear().toString();
-          } else if (sortField === "rating" && book.rating) {
-            groupKey = `${book.rating} ${book.rating === 1 ? "star" : "stars"}`;
-          } else if (sortField === "title") {
-            const firstChar = book.title[0]?.toUpperCase();
-            groupKey =
-              firstChar && /[A-Z]/.test(firstChar) ? firstChar : "#";
-          } else {
-            groupKey = "Other";
-          }
-          acc[groupKey] ??= [];
-          acc[groupKey]!.push(book);
-          return acc;
-        },
-        {} as Record<string, typeof books>,
-      );
-
-      const tempGroupKeys = Object.keys(tempGroupedBooks).sort((a, b) => {
-        if (sortField === "finished") {
-          return sortOrder === "desc"
-            ? Number(b) - Number(a)
-            : Number(a) - Number(b);
-        } else if (sortField === "rating") {
-          if (a === "Other") return 1;
-          if (b === "Other") return -1;
-          const ratingA = parseInt(a);
-          const ratingB = parseInt(b);
-          return sortOrder === "desc" ? ratingB - ratingA : ratingA - ratingB;
-        } else {
-          if (a === "#") return -1;
-          if (b === "#") return 1;
-          return sortOrder === "asc" ? a.localeCompare(b) : b.localeCompare(a);
-        }
-      });
-
-      for (let i = 0; i < tempGroupKeys.length; i++) {
-        const sectionBooks = tempGroupedBooks[tempGroupKeys[i]!]!;
-        if (bookIndex < runningCount + sectionBooks.length) {
-          targetSectionIndex = i;
-          break;
-        }
-        runningCount += sectionBooks.length;
-      }
-
-      virtuosoRef.current.scrollToIndex({
-        index: targetSectionIndex,
-        align: "start",
-        behavior: "smooth",
-      });
-    },
-    [books, sortField, sortOrder, isZoomOut],
-  );
-
   // Initialize keyboard navigation
-  const { focusedBookId, showFocusIndicator, copyTrigger, setHoveredBookId } = useKeyboardNavigation({
-    books,
-    gridContainerRef,
-    isZoomOut,
-    onScrollToIndex: handleScrollToIndex,
-  });
+  const { focusedBookId, showFocusIndicator, copyTrigger, setHoveredBookId } =
+    useKeyboardNavigation({
+      books,
+      isZoomOut,
+    });
 
-  // Scroll focused book into view (uses CSS scroll-margin-top on BookCard)
+  // Scroll focused book into view with padding buffer
   useEffect(() => {
     if (!focusedBookId || isZoomOut) return;
 
@@ -277,8 +205,25 @@ export function BooksGrid({
     );
     if (!focusedElement) return;
 
-    // scrollIntoView with 'nearest' only scrolls if element is not visible
-    focusedElement.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    const rect = focusedElement.getBoundingClientRect();
+    const padding = 150; // Buffer space at top and bottom
+
+    // Check if element is above visible area (with padding)
+    if (rect.top < padding) {
+      const scrollAmount = rect.top - padding;
+      // Only scroll if we can actually scroll up (not already at top)
+      if (window.scrollY > 0 && scrollAmount < -30) {
+        window.scrollBy({ top: scrollAmount, behavior: "smooth" });
+      }
+    }
+    // Check if element is below visible area (with padding)
+    else if (rect.bottom > window.innerHeight - padding) {
+      const scrollAmount = rect.bottom - window.innerHeight + padding;
+      // Only scroll if it's a meaningful amount
+      if (scrollAmount > 30) {
+        window.scrollBy({ top: scrollAmount, behavior: "smooth" });
+      }
+    }
   }, [focusedBookId, isZoomOut]);
 
   // Only show loading skeleton when restoring cache or loading without any data
@@ -386,7 +331,7 @@ export function BooksGrid({
 
       {/* Books Grid with AnimatePresence preserved */}
       <motion.div
-        ref={gridContainerRef}
+        data-books-grid
         {...(!isZoomOut && { layout: true })}
         className={cn("grid gap-4", isZoomOut && "gap-2")}
         style={{
@@ -418,9 +363,11 @@ export function BooksGrid({
                 <BookCard
                   book={book}
                   size={effectiveSize}
-                  isKeyboardFocused={isFocused && showFocusIndicator}
-                  keyboardCopyTrigger={isFocused && showFocusIndicator ? copyTrigger : 0}
-                  onHover={setHoveredBookId}
+                  isKeyboardFocused={Boolean(isFocused && showFocusIndicator)}
+                  keyboardCopyTrigger={
+                    isFocused && showFocusIndicator ? copyTrigger : 0
+                  }
+                  onHover={setHoveredBookId as (bookId: string | null) => void}
                 />
               </motion.div>
             );

@@ -65,6 +65,11 @@ export function BookSearch() {
         placeholder="Search books by title or author..."
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            inputRef.current?.blur();
+          }
+        }}
         className="rounded-md bg-background/90 pl-8 pr-8 shadow-sm"
       />
       {inputValue && (

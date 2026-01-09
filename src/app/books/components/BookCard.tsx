@@ -146,21 +146,26 @@ export const BookCard = memo(function BookCard({
     setIsTouchDevice("ontouchstart" in window || navigator.maxTouchPoints > 0);
   }, []);
 
-  // Track previous copy trigger to detect changes
-  const prevCopyTriggerRef = useRef(keyboardCopyTrigger);
+  // Track copy trigger at focus start to detect new copies vs focus changes
+  const focusStartTriggerRef = useRef<number>(0);
+
+  // Record trigger value when becoming focused
   useEffect(() => {
-    // Skip if trigger hasn't changed or is initial (0)
-    if (
-      keyboardCopyTrigger === prevCopyTriggerRef.current ||
-      keyboardCopyTrigger === 0
-    ) {
-      return;
+    if (isKeyboardFocused) {
+      focusStartTriggerRef.current = keyboardCopyTrigger;
     }
-    prevCopyTriggerRef.current = keyboardCopyTrigger;
-    // Trigger the copy animation (URL already copied by keyboard handler)
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  }, [keyboardCopyTrigger]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isKeyboardFocused]); // Intentionally exclude keyboardCopyTrigger
+
+  // Only animate if trigger increased SINCE we became focused
+  useEffect(() => {
+    if (!isKeyboardFocused || keyboardCopyTrigger === 0) return;
+    if (keyboardCopyTrigger > focusStartTriggerRef.current) {
+      focusStartTriggerRef.current = keyboardCopyTrigger;
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }
+  }, [keyboardCopyTrigger, isKeyboardFocused]);
 
   // Motion values for 3D tilt effect (only used on non-touch devices)
   const rotateX = useSpring(useMotionValue(0), springValues);
@@ -274,7 +279,7 @@ export const BookCard = memo(function BookCard({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       className={cn(
-        `group relative block w-full cursor-pointer scroll-pt-36 text-left outline-none ring-0 hover:z-20 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 intersect:motion-scale-in-90 intersect:motion-opacity-in-50`,
+        `group relative block w-full cursor-pointer text-left outline-none ring-0 hover:z-20 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 intersect:motion-scale-in-90 intersect:motion-opacity-in-50`,
         sizeRadius[size],
         // Only enable 3D perspective on non-touch devices
         !isTouchDevice && "[perspective:1000px]",
