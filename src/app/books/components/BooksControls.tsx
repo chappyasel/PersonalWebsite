@@ -36,7 +36,7 @@ export function BooksControls({ isZoomOut = false }: BooksControlsProps) {
   return (
     <div
       className={cn(
-        "sticky top-4 z-20 -ml-2 flex w-[calc(100%+16px)] -translate-y-2 flex-col gap-2 rounded-[14px] bg-background/80 p-2 backdrop-blur-md transition-all duration-300 sm:flex-row md:items-center md:justify-between",
+        "sticky top-4 z-30 -ml-2 flex w-[calc(100%+16px)] -translate-y-2 flex-col gap-2 rounded-[14px] bg-background/80 p-2 backdrop-blur-md transition-all duration-300 sm:flex-row md:items-center md:justify-between",
         isScrolled &&
           "shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] hover:scale-[102%] hover:shadow-[0px_8px_25px_3px_rgba(0,0,0,0.15)] dark:bg-stone-900/60",
       )}

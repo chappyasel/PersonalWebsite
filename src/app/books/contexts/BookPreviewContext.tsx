@@ -19,6 +19,8 @@ type ModalActionsContextType = {
   openModalById: (bookId: string) => void;
   closeModal: () => void;
   setSelectedBook: (book: Book | null, size?: "S" | "M" | "L") => void;
+  setKeyboardFocus: (index: number | null, bookId: string | null) => void;
+  clearKeyboardFocus: () => void;
 };
 
 // State context - changes when modal opens/closes
@@ -27,6 +29,8 @@ type ModalStateContextType = {
   selectedBookId: string | null;
   selectedSize: "S" | "M" | "L" | null;
   isModalOpen: boolean;
+  keyboardFocusedIndex: number | null;
+  keyboardFocusedBookId: string | null;
 };
 
 const ModalActionsContext = createContext<ModalActionsContextType | undefined>(
@@ -44,6 +48,12 @@ export function BookPreviewProvider({ children }: { children: ReactNode }) {
     null,
   );
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [keyboardFocusedIndex, setKeyboardFocusedIndex] = useState<
+    number | null
+  >(null);
+  const [keyboardFocusedBookId, setKeyboardFocusedBookId] = useState<
+    string | null
+  >(null);
 
   const setSelectedBook = useCallback(
     (book: Book | null, size?: "S" | "M" | "L") => {
@@ -70,6 +80,19 @@ export function BookPreviewProvider({ children }: { children: ReactNode }) {
     setIsModalOpen(false);
   }, []);
 
+  const setKeyboardFocus = useCallback(
+    (index: number | null, bookId: string | null) => {
+      setKeyboardFocusedIndex(index);
+      setKeyboardFocusedBookId(bookId);
+    },
+    [],
+  );
+
+  const clearKeyboardFocus = useCallback(() => {
+    setKeyboardFocusedIndex(null);
+    setKeyboardFocusedBookId(null);
+  }, []);
+
   // Handle browser back/forward navigation
   useEffect(() => {
     const handlePopState = () => {
@@ -91,8 +114,17 @@ export function BookPreviewProvider({ children }: { children: ReactNode }) {
       openModalById,
       closeModal,
       setSelectedBook,
+      setKeyboardFocus,
+      clearKeyboardFocus,
     }),
-    [openModal, openModalById, closeModal, setSelectedBook],
+    [
+      openModal,
+      openModalById,
+      closeModal,
+      setSelectedBook,
+      setKeyboardFocus,
+      clearKeyboardFocus,
+    ],
   );
 
   // State value - changes when modal state changes
@@ -102,8 +134,17 @@ export function BookPreviewProvider({ children }: { children: ReactNode }) {
       selectedBookId,
       selectedSize,
       isModalOpen,
+      keyboardFocusedIndex,
+      keyboardFocusedBookId,
     }),
-    [selectedBook, selectedBookId, selectedSize, isModalOpen],
+    [
+      selectedBook,
+      selectedBookId,
+      selectedSize,
+      isModalOpen,
+      keyboardFocusedIndex,
+      keyboardFocusedBookId,
+    ],
   );
 
   return (
@@ -126,6 +167,8 @@ export function useModalActions(): ModalActionsContextType {
       openModalById: (_bookId) => undefined,
       closeModal: () => undefined,
       setSelectedBook: (_book, _size) => undefined,
+      setKeyboardFocus: (_index, _bookId) => undefined,
+      clearKeyboardFocus: () => undefined,
     };
   }
   return context;
@@ -140,6 +183,8 @@ export function useModalState(): ModalStateContextType {
       selectedBookId: null,
       selectedSize: null,
       isModalOpen: false,
+      keyboardFocusedIndex: null,
+      keyboardFocusedBookId: null,
     };
   }
   return context;

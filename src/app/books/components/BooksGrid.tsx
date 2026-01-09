@@ -4,10 +4,12 @@ import { searchParamsParsers } from "../lib/searchParams";
 import { useIsRestoring } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useQueryStates } from "nuqs";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Virtuoso } from "react-virtuoso";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 
 import { api } from "~/trpc/react";
+
+import { useKeyboardNavigation } from "../hooks/useKeyboardNavigation";
 
 import { BookCard } from "./BookCard";
 import { BooksGridSkeleton } from "./BooksGridSkeleton";
@@ -38,6 +40,10 @@ export function BooksGrid({
   // When filter/sort changes, animate items in
   const [isScrolling, setIsScrolling] = useState(false);
   const dataVersionRef = useRef(0);
+
+  // Refs for keyboard navigation
+  const gridContainerRef = useRef<HTMLDivElement>(null);
+  const virtuosoRef = useRef<VirtuosoHandle>(null);
 
   // Reset scroll flag when filters/sort change (data change = should animate)
   useEffect(() => {
@@ -185,6 +191,96 @@ export function BooksGrid({
     onBookCountChange?.(allBooks?.length ?? 0);
   }, [allBooks?.length, onBookCountChange]);
 
+  // Keyboard navigation - scroll to focused book's section
+  const handleScrollToIndex = useCallback(
+    (bookIndex: number) => {
+      if (!virtuosoRef.current || isZoomOut) return;
+
+      // Find which section contains this book by walking through sections
+      // We need to rebuild sections here since they're created after early returns
+      let runningCount = 0;
+      let targetSectionIndex = 0;
+
+      // Get sorted group keys (same logic as below)
+      const tempGroupedBooks = books.reduce(
+        (acc, book) => {
+          let groupKey: string;
+          if (sortField === "finished") {
+            const date = book.finished ? new Date(book.finished) : new Date();
+            groupKey = date.getFullYear().toString();
+          } else if (sortField === "rating" && book.rating) {
+            groupKey = `${book.rating} ${book.rating === 1 ? "star" : "stars"}`;
+          } else if (sortField === "title") {
+            const firstChar = book.title[0]?.toUpperCase();
+            groupKey =
+              firstChar && /[A-Z]/.test(firstChar) ? firstChar : "#";
+          } else {
+            groupKey = "Other";
+          }
+          acc[groupKey] ??= [];
+          acc[groupKey]!.push(book);
+          return acc;
+        },
+        {} as Record<string, typeof books>,
+      );
+
+      const tempGroupKeys = Object.keys(tempGroupedBooks).sort((a, b) => {
+        if (sortField === "finished") {
+          return sortOrder === "desc"
+            ? Number(b) - Number(a)
+            : Number(a) - Number(b);
+        } else if (sortField === "rating") {
+          if (a === "Other") return 1;
+          if (b === "Other") return -1;
+          const ratingA = parseInt(a);
+          const ratingB = parseInt(b);
+          return sortOrder === "desc" ? ratingB - ratingA : ratingA - ratingB;
+        } else {
+          if (a === "#") return -1;
+          if (b === "#") return 1;
+          return sortOrder === "asc" ? a.localeCompare(b) : b.localeCompare(a);
+        }
+      });
+
+      for (let i = 0; i < tempGroupKeys.length; i++) {
+        const sectionBooks = tempGroupedBooks[tempGroupKeys[i]!]!;
+        if (bookIndex < runningCount + sectionBooks.length) {
+          targetSectionIndex = i;
+          break;
+        }
+        runningCount += sectionBooks.length;
+      }
+
+      virtuosoRef.current.scrollToIndex({
+        index: targetSectionIndex,
+        align: "start",
+        behavior: "smooth",
+      });
+    },
+    [books, sortField, sortOrder, isZoomOut],
+  );
+
+  // Initialize keyboard navigation
+  const { focusedBookId, showFocusIndicator, copyTrigger, setHoveredBookId } = useKeyboardNavigation({
+    books,
+    gridContainerRef,
+    isZoomOut,
+    onScrollToIndex: handleScrollToIndex,
+  });
+
+  // Scroll focused book into view (uses CSS scroll-margin-top on BookCard)
+  useEffect(() => {
+    if (!focusedBookId || isZoomOut) return;
+
+    const focusedElement = document.querySelector(
+      `[data-book-id="${focusedBookId}"]`,
+    );
+    if (!focusedElement) return;
+
+    // scrollIntoView with 'nearest' only scrolls if element is not visible
+    focusedElement.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [focusedBookId, isZoomOut]);
+
   // Only show loading skeleton when restoring cache or loading without any data
   // Once we have cached data, show it immediately (background refetch won't show skeleton)
   if (isRestoring || (isLoading && !allBooks)) {
@@ -290,6 +386,7 @@ export function BooksGrid({
 
       {/* Books Grid with AnimatePresence preserved */}
       <motion.div
+        ref={gridContainerRef}
         {...(!isZoomOut && { layout: true })}
         className={cn("grid gap-4", isZoomOut && "gap-2")}
         style={{
@@ -297,28 +394,37 @@ export function BooksGrid({
         }}
       >
         <AnimatePresence mode="popLayout">
-          {section.books.map((book) => (
-            <motion.div
-              key={book.id}
-              {...(!isZoomOut && { layout: true })}
-              // Conditional initial: skip animation during scroll/zoom, animate on filter/sort
-              initial={
-                isScrolling || isZoomOut
-                  ? { opacity: 1, scale: 1, y: 0 } // Match animate = no animation
-                  : { opacity: 0, scale: 0.9, y: -10 } // Animate on data change
-              }
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.85, y: 20 }}
-              transition={{
-                layout: { type: "spring", stiffness: 300, damping: 30 },
-                opacity: { duration: 0.15 },
-                scale: { duration: 0.15 },
-                y: { duration: 0.15 },
-              }}
-            >
-              <BookCard book={book} size={effectiveSize} />
-            </motion.div>
-          ))}
+          {section.books.map((book) => {
+            const isFocused = book.id === focusedBookId;
+            return (
+              <motion.div
+                key={book.id}
+                {...(!isZoomOut && { layout: true })}
+                // Conditional initial: skip animation during scroll/zoom, animate on filter/sort
+                initial={
+                  isScrolling || isZoomOut
+                    ? { opacity: 1, scale: 1, y: 0 } // Match animate = no animation
+                    : { opacity: 0, scale: 0.9, y: -10 } // Animate on data change
+                }
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.85, y: 20 }}
+                transition={{
+                  layout: { type: "spring", stiffness: 300, damping: 30 },
+                  opacity: { duration: 0.15 },
+                  scale: { duration: 0.15 },
+                  y: { duration: 0.15 },
+                }}
+              >
+                <BookCard
+                  book={book}
+                  size={effectiveSize}
+                  isKeyboardFocused={isFocused && showFocusIndicator}
+                  keyboardCopyTrigger={isFocused && showFocusIndicator ? copyTrigger : 0}
+                  onHover={setHoveredBookId}
+                />
+              </motion.div>
+            );
+          })}
         </AnimatePresence>
       </motion.div>
     </div>
@@ -332,6 +438,7 @@ export function BooksGrid({
   // Normal mode with virtualization
   return (
     <Virtuoso
+      ref={virtuosoRef}
       useWindowScroll
       data={sections}
       isScrolling={setIsScrolling}

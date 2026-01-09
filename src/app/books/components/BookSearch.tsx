@@ -44,6 +44,7 @@ export function BookSearch() {
       // Ignore modifier keys and special keys
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key.length !== 1) return; // Only single printable characters
+      if (e.key === " ") return; // Space is used for modal toggle, not search
 
       // Prevent default behavior and focus search input
       e.preventDefault();
