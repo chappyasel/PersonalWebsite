@@ -44,6 +44,7 @@ export function BookSearch() {
       // Ignore modifier keys and special keys
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key.length !== 1) return; // Only single printable characters
+      if (e.key === " ") return; // Space is used for modal toggle, not search
 
       // Prevent default behavior and focus search input
       e.preventDefault();
@@ -64,6 +65,11 @@ export function BookSearch() {
         placeholder="Search books by title or author..."
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            inputRef.current?.blur();
+          }
+        }}
         className="rounded-md bg-background/90 pl-8 pr-8 shadow-sm"
       />
       {inputValue && (

@@ -1,11 +1,12 @@
 "use client";
 
+import { useKeyboardNavigation } from "../hooks/useKeyboardNavigation";
 import { searchParamsParsers } from "../lib/searchParams";
 import { useIsRestoring } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useQueryStates } from "nuqs";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Virtuoso } from "react-virtuoso";
+import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 
 import { api } from "~/trpc/react";
 
@@ -38,6 +39,9 @@ export function BooksGrid({
   // When filter/sort changes, animate items in
   const [isScrolling, setIsScrolling] = useState(false);
   const dataVersionRef = useRef(0);
+
+  // Ref for virtuoso scroll control
+  const virtuosoRef = useRef<VirtuosoHandle>(null);
 
   // Reset scroll flag when filters/sort change (data change = should animate)
   useEffect(() => {
@@ -185,6 +189,43 @@ export function BooksGrid({
     onBookCountChange?.(allBooks?.length ?? 0);
   }, [allBooks?.length, onBookCountChange]);
 
+  // Initialize keyboard navigation
+  const { focusedBookId, showFocusIndicator, copyTrigger, setHoveredBookId } =
+    useKeyboardNavigation({
+      books,
+      isZoomOut,
+    });
+
+  // Scroll focused book into view with padding buffer
+  useEffect(() => {
+    if (!focusedBookId || isZoomOut) return;
+
+    const focusedElement = document.querySelector(
+      `[data-book-id="${focusedBookId}"]`,
+    );
+    if (!focusedElement) return;
+
+    const rect = focusedElement.getBoundingClientRect();
+    const padding = 150; // Buffer space at top and bottom
+
+    // Check if element is above visible area (with padding)
+    if (rect.top < padding) {
+      const scrollAmount = rect.top - padding;
+      // Only scroll if we can actually scroll up (not already at top)
+      if (window.scrollY > 0 && scrollAmount < -30) {
+        window.scrollBy({ top: scrollAmount, behavior: "smooth" });
+      }
+    }
+    // Check if element is below visible area (with padding)
+    else if (rect.bottom > window.innerHeight - padding) {
+      const scrollAmount = rect.bottom - window.innerHeight + padding;
+      // Only scroll if it's a meaningful amount
+      if (scrollAmount > 30) {
+        window.scrollBy({ top: scrollAmount, behavior: "smooth" });
+      }
+    }
+  }, [focusedBookId, isZoomOut]);
+
   // Only show loading skeleton when restoring cache or loading without any data
   // Once we have cached data, show it immediately (background refetch won't show skeleton)
   if (isRestoring || (isLoading && !allBooks)) {
@@ -290,6 +331,7 @@ export function BooksGrid({
 
       {/* Books Grid with AnimatePresence preserved */}
       <motion.div
+        data-books-grid
         {...(!isZoomOut && { layout: true })}
         className={cn("grid gap-4", isZoomOut && "gap-2")}
         style={{
@@ -297,28 +339,39 @@ export function BooksGrid({
         }}
       >
         <AnimatePresence mode="popLayout">
-          {section.books.map((book) => (
-            <motion.div
-              key={book.id}
-              {...(!isZoomOut && { layout: true })}
-              // Conditional initial: skip animation during scroll/zoom, animate on filter/sort
-              initial={
-                isScrolling || isZoomOut
-                  ? { opacity: 1, scale: 1, y: 0 } // Match animate = no animation
-                  : { opacity: 0, scale: 0.9, y: -10 } // Animate on data change
-              }
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.85, y: 20 }}
-              transition={{
-                layout: { type: "spring", stiffness: 300, damping: 30 },
-                opacity: { duration: 0.15 },
-                scale: { duration: 0.15 },
-                y: { duration: 0.15 },
-              }}
-            >
-              <BookCard book={book} size={effectiveSize} />
-            </motion.div>
-          ))}
+          {section.books.map((book) => {
+            const isFocused = book.id === focusedBookId;
+            return (
+              <motion.div
+                key={book.id}
+                {...(!isZoomOut && { layout: true })}
+                // Conditional initial: skip animation during scroll/zoom, animate on filter/sort
+                initial={
+                  isScrolling || isZoomOut
+                    ? { opacity: 1, scale: 1, y: 0 } // Match animate = no animation
+                    : { opacity: 0, scale: 0.9, y: -10 } // Animate on data change
+                }
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.85, y: 20 }}
+                transition={{
+                  layout: { type: "spring", stiffness: 300, damping: 30 },
+                  opacity: { duration: 0.15 },
+                  scale: { duration: 0.15 },
+                  y: { duration: 0.15 },
+                }}
+              >
+                <BookCard
+                  book={book}
+                  size={effectiveSize}
+                  isKeyboardFocused={Boolean(isFocused && showFocusIndicator)}
+                  keyboardCopyTrigger={
+                    isFocused && showFocusIndicator ? copyTrigger : 0
+                  }
+                  onHover={setHoveredBookId as (bookId: string | null) => void}
+                />
+              </motion.div>
+            );
+          })}
         </AnimatePresence>
       </motion.div>
     </div>
@@ -332,6 +385,7 @@ export function BooksGrid({
   // Normal mode with virtualization
   return (
     <Virtuoso
+      ref={virtuosoRef}
       useWindowScroll
       data={sections}
       isScrolling={setIsScrolling}

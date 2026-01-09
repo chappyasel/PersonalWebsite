@@ -4,7 +4,7 @@ import { useModalActions, useModalState } from "../contexts/BookPreviewContext";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 
-import { getBookShareUrl } from "~/lib/books/paths";
+import { getBookPath, getBookShareUrl } from "~/lib/books/paths";
 import { api } from "~/trpc/react";
 
 import { Spinner } from "~/components/ui/spinner";
@@ -65,23 +65,26 @@ export function Modal() {
     }
   }, [isModalOpen]);
 
-  // Close on ESC key (but not if photo viewer is open)
+  // Handle keyboard shortcuts (ESC to close, Enter for full page)
   useEffect(() => {
     if (!isModalOpen) return;
 
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        // Check if photo viewer is open (react-photo-view adds this class to body)
-        const photoViewOpen = document.querySelector(".PhotoView-Portal");
-        if (!photoViewOpen) {
-          handleClose();
-        }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if photo viewer is open (react-photo-view adds this class to body)
+      const photoViewOpen = document.querySelector(".PhotoView-Portal");
+
+      if (e.key === "Escape" && !photoViewOpen) {
+        handleClose();
+      } else if (e.key === "Enter" && !photoViewOpen && bookId) {
+        // Navigate to full page view
+        e.preventDefault();
+        window.location.href = getBookPath(bookId);
       }
     };
-    window.addEventListener("keydown", handleEsc);
-    return () => window.removeEventListener("keydown", handleEsc);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isModalOpen]);
+  }, [isModalOpen, bookId]);
 
   // Handle share button click
   const handleShare = async () => {

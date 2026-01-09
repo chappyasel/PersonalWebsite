@@ -27,6 +27,9 @@ import { cn } from "@/src/lib/util";
 type BookCardProps = {
   book: Book;
   size?: "XS" | "S" | "M" | "L";
+  isKeyboardFocused?: boolean;
+  keyboardCopyTrigger?: number;
+  onHover?: (bookId: string | null) => void;
 };
 
 const sizeRadius = {
@@ -122,10 +125,14 @@ const tiltAmplitude = {
 export const BookCard = memo(function BookCard({
   book,
   size = "M",
+  isKeyboardFocused = false,
+  keyboardCopyTrigger = 0,
+  onHover,
 }: BookCardProps) {
   const coverUrl = enhanceCoverUrl(book.coverUrl);
   const styles = sizeStyles[size];
-  const { openModal } = useModalActions();
+  const actions = useModalActions();
+  const { openModal } = actions;
   const cardRef = useRef<HTMLButtonElement>(null);
   const searchParams = useSearchParams();
   const posthog = usePostHog();
@@ -138,6 +145,27 @@ export const BookCard = memo(function BookCard({
   useEffect(() => {
     setIsTouchDevice("ontouchstart" in window || navigator.maxTouchPoints > 0);
   }, []);
+
+  // Track copy trigger at focus start to detect new copies vs focus changes
+  const focusStartTriggerRef = useRef<number>(0);
+
+  // Record trigger value when becoming focused
+  useEffect(() => {
+    if (isKeyboardFocused) {
+      focusStartTriggerRef.current = keyboardCopyTrigger;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isKeyboardFocused]); // Intentionally exclude keyboardCopyTrigger
+
+  // Only animate if trigger increased SINCE we became focused
+  useEffect(() => {
+    if (!isKeyboardFocused || keyboardCopyTrigger === 0) return;
+    if (keyboardCopyTrigger > focusStartTriggerRef.current) {
+      focusStartTriggerRef.current = keyboardCopyTrigger;
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }
+  }, [keyboardCopyTrigger, isKeyboardFocused]);
 
   // Motion values for 3D tilt effect (only used on non-touch devices)
   const rotateX = useSpring(useMotionValue(0), springValues);
@@ -222,6 +250,8 @@ export const BookCard = memo(function BookCard({
   };
 
   const handleMouseEnter = () => {
+    // Track hover for keyboard navigation starting position
+    onHover?.(book.id);
     // Skip scale animation on touch devices
     if (!isTouchDevice) {
       scale.set(hoverScale[size]);
@@ -231,6 +261,7 @@ export const BookCard = memo(function BookCard({
   };
 
   const handleMouseLeave = () => {
+    onHover?.(null);
     setIsHoveringCopyZone(false);
     // Skip animation reset on touch devices
     if (isTouchDevice) return;
@@ -248,12 +279,15 @@ export const BookCard = memo(function BookCard({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       className={cn(
-        `group relative block w-full cursor-pointer text-left outline-none ring-0 hover:z-10 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 intersect:motion-scale-in-90 intersect:motion-opacity-in-50`,
+        `group relative block w-full cursor-pointer text-left outline-none ring-0 hover:z-20 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 intersect:motion-scale-in-90 intersect:motion-opacity-in-50`,
         sizeRadius[size],
         // Only enable 3D perspective on non-touch devices
         !isTouchDevice && "[perspective:1000px]",
+        // Keyboard focus - just z-index, ring is on inner element
+        isKeyboardFocused && "z-10",
       )}
       aria-label={`View details for ${book.title} by ${book.author}`}
+      data-book-id={book.id}
       style={{
         // Only enable 3D transform style on non-touch devices
         transformStyle: isTouchDevice ? undefined : "preserve-3d",
@@ -283,6 +317,9 @@ export const BookCard = memo(function BookCard({
           className={cn(
             `relative overflow-hidden shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] transition-shadow duration-300 hover:shadow-[0px_5px_30px_0px_rgba(0,0,0,0.14)] focus:outline-none`,
             sizeRadius[size],
+            // Keyboard focus indicator - on inner element so it lifts with 3D transform
+            isKeyboardFocused &&
+              "ring-2 ring-primary ring-offset-2 ring-offset-background",
           )}
         >
           {/* Cover Image (aspect ratio 2:3) */}
@@ -373,17 +410,19 @@ export const BookCard = memo(function BookCard({
             {/* Gradient overlay - does not float */}
             <div
               className={cn(
-                `pointer-events-none absolute inset-0 bg-gradient-to-t from-stone-900/80 via-stone-900/60 via-30% to-transparent to-60% opacity-0 transition-opacity duration-500 group-hover:opacity-100`,
+                `pointer-events-none absolute inset-0 bg-gradient-to-t from-stone-900/80 via-stone-900/60 via-30% to-transparent to-60% transition-opacity duration-500 group-hover:opacity-100`,
                 sizeRadius[size],
+                isKeyboardFocused ? "opacity-100" : "opacity-0",
               )}
             />
 
             {/* Text overlay - floats above */}
             <div
               className={cn(
-                `pointer-events-none absolute inset-0 flex flex-col justify-end opacity-0 transition-opacity duration-500 group-hover:opacity-100`,
+                `pointer-events-none absolute inset-0 flex flex-col justify-end transition-opacity duration-500 group-hover:opacity-100`,
                 styles.overlayPadding,
                 sizeRadius[size],
+                isKeyboardFocused ? "opacity-100" : "opacity-0",
               )}
               style={
                 isTouchDevice
@@ -417,9 +456,10 @@ export const BookCard = memo(function BookCard({
             {/* Copy link icon - visual indicator, clicks detected via position */}
             <div
               className={cn(
-                `pointer-events-none absolute rounded-full bg-stone-900/30 text-white opacity-0 transition-all duration-200 group-hover:opacity-100 ${styles.copyButton}`,
+                `pointer-events-none absolute rounded-full bg-stone-900/30 text-white transition-all duration-200 group-hover:opacity-100 ${styles.copyButton}`,
                 copied && "bg-green-500/60",
                 isHoveringCopyZone && !copied && "scale-110 bg-stone-900/50",
+                isKeyboardFocused ? "opacity-100" : "opacity-0",
               )}
               style={
                 isTouchDevice

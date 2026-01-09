@@ -2,7 +2,8 @@
 
 import { BookDetailContent } from "../components/BookDetailContent";
 import { motion } from "framer-motion";
-import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 import { getBookShareUrl } from "~/lib/books/paths";
 import type { BookWithNotes } from "~/lib/books/types";
@@ -15,6 +16,19 @@ type BookPageProps = {
 export function BookPage({ bookId, book }: BookPageProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
+  const router = useRouter();
+
+  // Handle Escape key to navigate back to books grid
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        router.push("/books");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [router]);
 
   // Handle share button click
   const handleShare = async () => {
