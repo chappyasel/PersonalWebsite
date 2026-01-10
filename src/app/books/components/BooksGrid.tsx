@@ -201,9 +201,9 @@ export function BooksGrid({
       isZoomOut,
     });
 
-  // Scroll focused book into view with padding buffer
+  // Scroll focused book into view with padding buffer (keyboard navigation only)
   useEffect(() => {
-    if (!focusedBookId || isZoomOut) return;
+    if (!focusedBookId || isZoomOut || !showFocusIndicator) return;
 
     const focusedElement = document.querySelector(
       `[data-book-id="${focusedBookId}"]`,
@@ -229,7 +229,7 @@ export function BooksGrid({
         window.scrollBy({ top: scrollAmount, behavior: "smooth" });
       }
     }
-  }, [focusedBookId, isZoomOut]);
+  }, [focusedBookId, isZoomOut, showFocusIndicator]);
 
   // Only show loading skeleton when restoring cache or loading without any data
   // Once we have cached data, show it immediately (background refetch won't show skeleton)
