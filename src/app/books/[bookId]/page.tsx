@@ -62,6 +62,9 @@ export async function generateMetadata({
       alternates: {
         canonical: `/${bookId}`,
       },
+      icons: {
+        icon: `/${bookId}/icon`,
+      },
     };
   } catch {
     return {

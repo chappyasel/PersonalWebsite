@@ -33,7 +33,6 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/",
   },
-  icons: [{ rel: "icon", url: "/favicon.ico" }],
 };
 
 export default function BooksLayout({

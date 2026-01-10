@@ -298,14 +298,30 @@ export function useKeyboardNavigation({
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       const tagName = target.tagName.toLowerCase();
-
-      // Don't handle if user is in input/textarea/select
-      if (
+      const isInInput =
         tagName === "input" ||
         tagName === "textarea" ||
         tagName === "select" ||
-        target.isContentEditable
-      ) {
+        target.isContentEditable;
+
+      // Cmd+C or Ctrl+C to copy URL (works even in search bar)
+      if ((e.metaKey || e.ctrlKey) && e.key === "c") {
+        // Only handle if nothing is selected
+        if (!window.getSelection()?.toString()) {
+          // Copy focused book URL, or first book if none focused
+          const bookIdToCopy = keyboardFocusedBookId ?? books[0]?.id;
+          if (bookIdToCopy) {
+            e.preventDefault();
+            const shareUrl = getBookShareUrl(bookIdToCopy);
+            void navigator.clipboard.writeText(shareUrl);
+            setCopyTrigger((prev) => prev + 1);
+          }
+        }
+        return;
+      }
+
+      // Don't handle other keys if user is in input/textarea/select
+      if (isInInput) {
         return;
       }
 
@@ -343,14 +359,6 @@ export function useKeyboardNavigation({
         e.preventDefault();
         openFocusedBook();
       }
-      // Cmd+C or Ctrl+C to copy URL
-      else if ((e.metaKey || e.ctrlKey) && e.key === "c") {
-        // Only handle if there's a keyboard-focused book and nothing is selected
-        if (keyboardFocusedBookId && !window.getSelection()?.toString()) {
-          e.preventDefault();
-          copyFocusedBookUrl();
-        }
-      }
       // Escape to clear selection
       else if (e.key === "Escape" && keyboardFocusedBookId) {
         e.preventDefault();
@@ -363,7 +371,7 @@ export function useKeyboardNavigation({
   }, [
     isZoomOut,
     isModalOpen,
-    books.length,
+    books,
     navigate,
     openFocusedBook,
     closeModal,

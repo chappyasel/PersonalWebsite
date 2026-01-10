@@ -41,7 +41,23 @@ export function BookSearch() {
         return;
       }
 
-      // Ignore modifier keys and special keys
+      // Handle Backspace: focus and delete last character
+      if (e.key === "Backspace") {
+        e.preventDefault();
+        inputRef.current?.focus();
+        setInputValue((prev) => prev.slice(0, -1));
+        return;
+      }
+
+      // Handle Cmd+A: focus and select all
+      if ((e.metaKey || e.ctrlKey) && e.key === "a") {
+        e.preventDefault();
+        inputRef.current?.focus();
+        inputRef.current?.select();
+        return;
+      }
+
+      // Ignore other modifier keys and special keys
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key.length !== 1) return; // Only single printable characters
       if (e.key === " ") return; // Space is used for modal toggle, not search
