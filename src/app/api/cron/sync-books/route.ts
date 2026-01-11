@@ -4,6 +4,8 @@ import { syncBooksFromNotion } from "~/lib/books/sync";
 
 import { env } from "~/env";
 
+export const maxDuration = 180;
+
 /**
  * Verifies the authorization header matches the CRON_SECRET
  */

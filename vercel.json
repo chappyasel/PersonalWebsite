@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "src/app/api/cron/sync-books/route.ts": {
+      "maxDuration": 180
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/sync-books",
