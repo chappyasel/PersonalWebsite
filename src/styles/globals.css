@@ -32,6 +32,8 @@
     --badge-bg-saturation: 82%;
     --badge-bg-lightness: 87%;
     --badge-fg-lightness: 28%;
+    --prob-bg-lightness: 88%;
+    --prob-text-lightness: 25%;
   }
   .dark {
     --background: 24 10% 6%;
@@ -61,6 +63,8 @@
     --badge-bg-saturation: 82%;
     --badge-bg-lightness: 20%;
     --badge-fg-lightness: 87%;
+    --prob-bg-lightness: 22%;
+    --prob-text-lightness: 80%;
   }
 }
 

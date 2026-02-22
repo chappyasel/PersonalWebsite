@@ -10,6 +10,13 @@ export interface Input {
 export interface Output {
   input: Input;
   targets: DiceTarget[];
+  bestBid: BestBid | null;
+}
+
+export interface BestBid {
+  faceValue: number;
+  quantity: number;
+  probability: number;
 }
 
 export interface DiceTarget {
@@ -31,6 +38,7 @@ export function play(input: Input): Output {
   const numUnknownDice = totalDice - myDiceCount;
 
   const targets: DiceTarget[] = [];
+  let bestBid: BestBid | null = null;
 
   for (let diceNumber = 1; diceNumber <= 6; diceNumber++) {
     const includeOnes = countOnes && diceNumber !== 1;
@@ -57,6 +65,21 @@ export function play(input: Input): Output {
           probability: currentProbability,
           spotOnProbability: prob,
         });
+
+        // Track best bid: highest quantity with >= 50% probability
+        if (
+          currentProbability >= 0.5 &&
+          (!bestBid ||
+            target > bestBid.quantity ||
+            (target === bestBid.quantity &&
+              currentProbability > bestBid.probability))
+        ) {
+          bestBid = {
+            faceValue: diceNumber,
+            quantity: target,
+            probability: currentProbability,
+          };
+        }
       }
 
       currentProbability -= prob;
@@ -69,7 +92,7 @@ export function play(input: Input): Output {
     });
   }
 
-  return { input, targets };
+  return { input, targets, bestBid };
 }
 
 function probability(
