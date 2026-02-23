@@ -2,7 +2,7 @@
 
 import posthog from "posthog-js";
 import { PostHogProvider } from "posthog-js/react";
-import { ThemeProvider as NextThemesProvider } from "next-themes";
+import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes";
 import { useEffect } from "react";
 import { Observer } from "tailwindcss-intersect";
 
@@ -26,6 +26,23 @@ export function ObserverProvider({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function ThemeKeyboardShortcut() {
+  const { resolvedTheme, setTheme } = useTheme();
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.metaKey && e.altKey && (e.key.toLowerCase() === "l" || e.code === "KeyL")) {
+        e.preventDefault();
+        setTheme(resolvedTheme === "dark" ? "light" : "dark");
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [resolvedTheme, setTheme]);
+
+  return null;
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   return (
     <NextThemesProvider
@@ -34,6 +51,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       enableSystem
       disableTransitionOnChange={false}
     >
+      <ThemeKeyboardShortcut />
       {children}
     </NextThemesProvider>
   );

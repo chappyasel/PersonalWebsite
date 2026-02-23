@@ -336,10 +336,9 @@ export function BooksGrid({
   const renderSection = (section: (typeof sections)[number]) => (
     <div key={section.key} className="flex flex-col gap-4 pb-8">
       {/* Section Header */}
-      <h2 className="text-2xl font-bold text-foreground">
+      <h2 className="text-2xl font-semibold text-foreground">
         {section.key}
-        <span className="text-sm text-foreground/70">
-          {" "}
+        <span className="ml-1 inline-block -translate-y-0.5 text-sm text-foreground/70">
           ({section.books.length})
         </span>
       </h2>

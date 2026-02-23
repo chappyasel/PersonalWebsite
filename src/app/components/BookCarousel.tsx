@@ -1,7 +1,12 @@
 "use client";
 
-import Image from "next/image";
-import React from "react";
+import {
+  motion,
+  useMotionValue,
+  useSpring,
+  type MotionStyle,
+} from "framer-motion";
+import React, { useRef } from "react";
 
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import type { Book } from "~/lib/books/types";
@@ -25,10 +30,15 @@ export default function BookCarousel() {
         className="flex size-full flex-col justify-center gap-3 overflow-hidden py-3"
         aria-hidden="true"
         role="presentation"
+        style={{
+          mask: "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
+          WebkitMask:
+            "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
+        }}
       >
         {[1, 2, 3].map((row) => (
           <div key={row} className="w-full overflow-hidden">
-            <div className="flex w-fit gap-4">
+            <div className="flex w-fit gap-3">
               {Array.from({ length: 20 }).map((_, i) => (
                 <div
                   key={i}
@@ -42,21 +52,32 @@ export default function BookCarousel() {
     );
   }
 
-  // Error state
-  if (error) {
-    console.error("Failed to load books:", error);
+  // Error or empty state — show static placeholder grid instead of text
+  if (error || !books || books.length === 0) {
+    if (error) console.error("Failed to load books:", error);
     return (
-      <div className="flex size-full items-center justify-center">
-        <p className="text-muted-foreground">Unable to load book covers</p>
-      </div>
-    );
-  }
-
-  // Empty state
-  if (!books || books.length === 0) {
-    return (
-      <div className="flex size-full items-center justify-center">
-        <p className="text-muted-foreground">No books to display yet</p>
+      <div
+        className="flex size-full flex-col justify-center gap-3 overflow-hidden py-3"
+        aria-hidden="true"
+        role="presentation"
+        style={{
+          mask: "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
+          WebkitMask:
+            "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
+        }}
+      >
+        {[1, 2, 3].map((row) => (
+          <div key={row} className="w-full overflow-hidden">
+            <div className="flex w-fit gap-3">
+              {Array.from({ length: 20 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-[134px] w-[89px] flex-shrink-0 rounded-lg bg-muted"
+                />
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
@@ -89,10 +110,17 @@ export default function BookCarousel() {
   const [row1Books, row2Books, row3Books] = distributeBooks(books);
 
   return (
-    <div
+    <motion.div
       className="flex size-full flex-col justify-center gap-3 overflow-hidden py-3"
       aria-hidden="true"
       role="presentation"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+      style={{
+        mask: "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
+        WebkitMask: "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
+      }}
     >
       {/* Row 1 - Scroll Left */}
       <MarqueeRow books={row1Books!} direction="left" />
@@ -102,7 +130,7 @@ export default function BookCarousel() {
 
       {/* Row 3 - Scroll Left */}
       <MarqueeRow books={row3Books!} direction="left" />
-    </div>
+    </motion.div>
   );
 }
 
@@ -130,31 +158,71 @@ function MarqueeRow({
   );
 }
 
+const ROTATE_AMPLITUDE = 12;
+const SPRING_CONFIG = { stiffness: 200, damping: 20, mass: 0.5 };
+
 function BookCover({ book }: { book: Book }) {
   const coverUrl = enhanceCoverUrl(book.coverUrl);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const rawRotateX = useMotionValue(0);
+  const rawRotateY = useMotionValue(0);
+  const rotateX = useSpring(rawRotateX, SPRING_CONFIG);
+  const rotateY = useSpring(rawRotateY, SPRING_CONFIG);
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const offsetX = e.clientX - rect.left - rect.width / 2;
+    const offsetY = e.clientY - rect.top - rect.height / 2;
+    rawRotateX.set((offsetY / (rect.height / 2)) * -ROTATE_AMPLITUDE);
+    rawRotateY.set((offsetX / (rect.width / 2)) * ROTATE_AMPLITUDE);
+  };
+
+  const handleMouseLeave = () => {
+    rawRotateX.set(0);
+    rawRotateY.set(0);
+  };
+
+  const motionStyle: MotionStyle = {
+    rotateX,
+    rotateY,
+    willChange: "transform",
+    transform: "translateZ(0)",
+  };
 
   return (
-    <div className="relative h-[134px] w-[89px] flex-shrink-0 overflow-hidden rounded-lg shadow-[0_4px_8px_rgba(0,0,0,0.2)] transition-all duration-300 hover:scale-105 hover:shadow-[0_4px_12px_rgba(0,0,0,0.4)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.4)]">
-      <div className="aspect-[2/3] h-full w-full">
-        {coverUrl ? (
-          <Image
-            src={coverUrl}
-            alt={`${book.title} cover`}
-            fill
-            sizes="89px"
-            className="object-cover"
-          />
-        ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-muted to-muted-foreground/10 p-2 text-center">
-            <p className="line-clamp-3 text-[10px] font-semibold leading-tight text-foreground">
-              {book.title}
-            </p>
-            <p className="mt-1 line-clamp-2 text-[8px] leading-tight text-muted-foreground">
-              {book.author}
-            </p>
-          </div>
-        )}
-      </div>
+    <div
+      ref={cardRef}
+      className="relative h-[134px] w-[89px] flex-shrink-0 [perspective:800px]"
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{ transformStyle: "preserve-3d" }}
+    >
+      <motion.div
+        className="h-full w-full overflow-hidden rounded-lg shadow-[0_4px_8px_rgba(0,0,0,0.2)] transition-shadow duration-300 hover:shadow-[0_4px_12px_rgba(0,0,0,0.4)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.4)] [transform-style:preserve-3d]"
+        style={motionStyle}
+      >
+        <div className="aspect-[2/3] h-full w-full">
+          {coverUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={coverUrl}
+              alt={`${book.title} cover`}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-muted to-muted-foreground/10 p-2 text-center">
+              <p className="line-clamp-3 text-[10px] font-semibold leading-tight text-foreground">
+                {book.title}
+              </p>
+              <p className="mt-1 line-clamp-2 text-[8px] leading-tight text-muted-foreground">
+                {book.author}
+              </p>
+            </div>
+          )}
+        </div>
+      </motion.div>
     </div>
   );
 }

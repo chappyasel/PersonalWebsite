@@ -1,5 +1,8 @@
-import { type Metadata } from "next";
+import { type Metadata, type Viewport } from "next";
+import { Literata } from "next/font/google";
 
+import { georgiaPro } from "~/fonts";
+import { FontProvider } from "~/lib/font-provider";
 import {
   CSPostHogProvider,
   ObserverProvider,
@@ -8,6 +11,14 @@ import {
 import { TRPCReactProvider } from "~/trpc/react";
 
 import "~/styles/globals.css";
+
+const literata = Literata({
+  subsets: ["latin"],
+  variable: "--font-literata",
+  display: "swap",
+});
+
+export const viewport: Viewport = {};
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -24,12 +35,19 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${literata.variable} ${georgiaPro.variable}`}
+
+    >
       <body className="font-serif">
         <CSPostHogProvider>
           <TRPCReactProvider>
             <ObserverProvider>
-              <ThemeProvider>{children}</ThemeProvider>
+              <ThemeProvider>
+                <FontProvider>{children}</FontProvider>
+              </ThemeProvider>
             </ObserverProvider>
           </TRPCReactProvider>
         </CSPostHogProvider>

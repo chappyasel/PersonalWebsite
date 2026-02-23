@@ -16,7 +16,7 @@ export default function BooksError({
 
   return (
     <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4">
-      <h1 className="text-3xl font-bold text-foreground">
+      <h1 className="text-3xl font-semibold text-foreground">
         Something went wrong
       </h1>
       <p className="text-muted-foreground">

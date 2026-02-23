@@ -342,7 +342,7 @@ export const BookCard = memo(function BookCard({
             ) : (
               <div className="flex h-full w-full flex-col items-center justify-center p-4 text-center">
                 <p
-                  className={`line-clamp-3 font-bold text-foreground ${styles.placeholderTitle}`}
+                  className={`line-clamp-3 font-semibold text-foreground ${styles.placeholderTitle}`}
                 >
                   {book.title}
                 </p>
@@ -431,7 +431,7 @@ export const BookCard = memo(function BookCard({
               }
             >
               <h3
-                className={`line-clamp-3 font-bold leading-tight text-white drop-shadow-md ${styles.overlayTitle}`}
+                className={`line-clamp-3 font-semibold leading-tight text-white drop-shadow-md ${styles.overlayTitle}`}
               >
                 {book.title}
               </h3>

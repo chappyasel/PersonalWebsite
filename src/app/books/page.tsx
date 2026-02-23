@@ -1,6 +1,6 @@
 "use client";
 
-import { HouseLineIcon } from "@phosphor-icons/react/dist/ssr";
+import { BooksIcon, HouseLineIcon } from "@phosphor-icons/react/dist/ssr";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -12,6 +12,7 @@ import { BookSize } from "./components/BookSize";
 import { BooksControls } from "./components/BooksControls";
 import { BooksGrid } from "./components/BooksGrid";
 import { ZoomOutButton } from "./components/ZoomOutButton";
+import { FontToggle } from "~/components/ui/font-toggle";
 import { ThemeToggle } from "~/components/ui/theme-toggle";
 
 export default function BooksPage() {
@@ -78,7 +79,7 @@ export default function BooksPage() {
                 ? "https://chappyasel.com"
                 : "http://localhost:3000"
             }
-            className="group inline-flex items-center gap-2 text-2xl font-bold text-foreground transition-opacity hover:opacity-80 md:text-4xl"
+            className="group inline-flex items-center gap-2 text-2xl font-semibold text-foreground transition-opacity hover:opacity-80 md:text-4xl"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
           >
@@ -98,15 +99,18 @@ export default function BooksPage() {
                     />
                   </motion.div>
                 ) : (
-                  <motion.span
-                    key="book-emoji"
+                  <motion.div
+                    key="book-icon"
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.8 }}
                     transition={{ duration: 0.2 }}
                   >
-                    📚
-                  </motion.span>
+                    <BooksIcon
+                      className="h-6 w-6 md:h-8 md:w-9"
+                      weight="duotone"
+                    />
+                  </motion.div>
                 )}
               </AnimatePresence>
             </span>
@@ -114,6 +118,7 @@ export default function BooksPage() {
           </Link>
           <div className="flex translate-x-3 items-center gap-0">
             <ThemeToggle />
+            <FontToggle />
             <BookSize />
             <ZoomOutButton
               totalBooks={bookCount}

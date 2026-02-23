@@ -11,7 +11,6 @@ import {
   XIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
-import Image from "next/image";
 import Link from "next/link";
 import { usePostHog } from "posthog-js/react";
 import { type RefObject, useEffect, useRef, useState } from "react";
@@ -39,6 +38,12 @@ import {
 } from "~/components/ui/tooltip";
 
 import { TagBadge } from "./TagBadge";
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
+
+/* eslint-disable @next/next/no-img-element */
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -466,18 +471,15 @@ export function BookDetailContent({
                   }}
                   className="h-full w-full overflow-hidden"
                 >
-                  <Image
+                  <img
                     src={coverUrl}
                     alt={`${book.title} cover`}
                     className="h-full w-full object-cover"
-                    width={1000}
-                    height={1500}
-                    priority
                   />
                 </motion.div>
               ) : (
                 <div className="flex h-full w-full items-center justify-center rounded-lg bg-muted p-2 text-center shadow-md">
-                  <p className="text-xs font-bold text-foreground">
+                  <p className="text-xs font-semibold text-foreground">
                     {book.title}
                   </p>
                 </div>
@@ -505,7 +507,7 @@ export function BookDetailContent({
                       overflow: "hidden",
                     }}
                     className={cn(
-                      "font-bold leading-[1.125] text-foreground",
+                      "font-semibold leading-[1.125] text-foreground",
                       isModal && "mr-12",
                     )}
                   >
@@ -560,7 +562,7 @@ export function BookDetailContent({
                             <CalendarIcon size={12} weight="bold" />
                             <span>Published:</span>
                           </div>
-                          <span className="font-bold">
+                          <span className="font-semibold">
                             {book.publicationYear}
                           </span>
                         </div>
@@ -574,7 +576,7 @@ export function BookDetailContent({
                                   <CalendarIcon size={12} weight="bold" />
                                   <span>Read:</span>
                                 </div>
-                                <span className="font-bold">
+                                <span className="font-semibold">
                                   {formatReadDates(book.started, book.finished)}
                                 </span>
                               </div>
@@ -593,7 +595,7 @@ export function BookDetailContent({
                             <CalendarIcon size={12} weight="bold" />
                             <span>Started:</span>
                           </div>
-                          <span className="font-bold">
+                          <span className="font-semibold">
                             {(() => {
                               const d = new Date(book.started);
                               const month = d.toLocaleDateString("en-US", {
@@ -653,7 +655,7 @@ export function BookDetailContent({
               >
                 <motion.h2
                   style={{ fontSize: titleFontSize }}
-                  className="line-clamp-1 font-bold leading-tight text-foreground"
+                  className="line-clamp-1 font-semibold leading-tight text-foreground"
                 >
                   {book.title}
                 </motion.h2>
@@ -678,7 +680,7 @@ export function BookDetailContent({
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-0.5">
               {/* Title */}
-              <h2 className="text-2xl font-bold leading-tight text-foreground">
+              <h2 className="text-2xl font-semibold leading-tight text-foreground">
                 {book.title}
               </h2>
 
@@ -712,7 +714,7 @@ export function BookDetailContent({
                       <CalendarIcon size={12} weight="bold" />
                       <span>Published:</span>
                     </div>
-                    <span className="font-bold">{book.publicationYear}</span>
+                    <span className="font-semibold">{book.publicationYear}</span>
                   </div>
                 )}
                 {book.started && book.finished ? (
@@ -724,7 +726,7 @@ export function BookDetailContent({
                             <CalendarIcon size={12} weight="bold" />
                             <span>Read:</span>
                           </div>
-                          <span className="font-bold">
+                          <span className="font-semibold">
                             {formatReadDates(book.started, book.finished)}
                           </span>
                         </div>
@@ -742,7 +744,7 @@ export function BookDetailContent({
                       <CalendarIcon size={12} weight="bold" />
                       <span>Started:</span>
                     </div>
-                    <span className="font-bold">
+                    <span className="font-semibold">
                       {(() => {
                         const d = new Date(book.started);
                         const month = d.toLocaleDateString("en-US", {
@@ -814,9 +816,9 @@ export function BookDetailContent({
             ) : fullBook?.notes ? (
               <div
                 className={cn(
-                  "prose prose-sm prose-neutral max-w-none leading-[1.75] text-foreground",
-                  "prose-headings:mb-0 prose-headings:font-bold prose-headings:text-foreground prose-h1:translate-y-3 prose-h1:py-3 prose-h1:text-2xl prose-h2:translate-y-[-8px] prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs",
-                  "prose-p:translate-y-2 prose-p:text-foreground prose-a:text-foreground prose-a:underline hover:prose-a:text-foreground prose-strong:font-bold prose-strong:text-foreground",
+                  "prose prose-base prose-neutral max-w-none leading-[1.85] text-foreground",
+                  "prose-headings:mb-0 prose-headings:font-semibold prose-headings:text-foreground prose-h1:translate-y-3 prose-h1:py-3 prose-h1:text-2xl prose-h2:translate-y-[-8px] prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs",
+                  "prose-p:translate-y-2 prose-p:text-foreground prose-a:text-foreground prose-a:underline hover:prose-a:text-foreground prose-strong:font-semibold prose-strong:text-foreground",
                   "prose-ol:my-0 prose-ol:list-decimal prose-ul:my-0 prose-ul:list-disc prose-li:my-px prose-li:text-foreground",
                   "prose-blockquote:border-l-0",
                   "prose-img:max-h-[600px] prose-img:max-w-[400px] prose-img:rounded-lg prose-img:shadow-md",

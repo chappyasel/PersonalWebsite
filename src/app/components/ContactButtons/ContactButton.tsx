@@ -31,7 +31,7 @@ export function ContactButton({ contact }: { contact: Contact }) {
       <AnimatePresence>
         {isHovered && (
           <motion.div
-            className="pointer-events-none absolute -left-12 z-10 flex flex-row items-center gap-2 overflow-clip truncate rounded-xl bg-muted px-3 py-1 shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)]"
+            className="pointer-events-none absolute -left-12 z-10 flex flex-row items-center gap-2 overflow-clip truncate rounded-lg bg-muted px-3 py-1 shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)]"
             initial={{ opacity: 0, scale: 0.4, x: 43, width: 0 }}
             animate={{ opacity: 1, scale: 1, x: 43, width: "auto" }}
             exit={{ opacity: 0, scale: 0.4, x: 43, width: 0 }}
@@ -39,7 +39,7 @@ export function ContactButton({ contact }: { contact: Contact }) {
           >
             <div className="flex flex-shrink-0 opacity-0">{contact.icon}</div>
             <div className="flex flex-col">
-              <span className="text-sm font-bold">{contact.title}</span>
+              <span className="text-sm font-semibold">{contact.title}</span>
               <span className="-mt-1 text-xs">{contact.username}</span>
             </div>
           </motion.div>

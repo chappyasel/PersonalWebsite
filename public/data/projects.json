@@ -17,6 +17,7 @@
     {
       "name": "Liar's Dice",
       "link": "/liarsdice",
+      "image": "liars-dice.png",
       "languages": ["React", "TypeScript"],
       "description": "Liar's Dice is a dice game that combines luck and skill as one must weigh probabilities with the game theory involved in predicting the decisions of other intellegent actors. I developed a simple tool to assist in deriving probabilities for each hand to aid in decision-making. This is exposed both as a simple React webpage as well as an API accessible by posting a POST request /api/v1/liarsdice/play."
     },

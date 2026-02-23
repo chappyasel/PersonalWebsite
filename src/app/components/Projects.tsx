@@ -1,8 +1,9 @@
-import { ImageIcon } from "@phosphor-icons/react/dist/ssr";
-import Image from "next/image";
+import { CodeIcon, ImageIcon } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import data from "public/data/projects.json";
 import React from "react";
+
+import TiltCard from "./TiltCard";
 
 type Project = {
   name: string;
@@ -17,8 +18,9 @@ const PROJECTS: Project[] = data.projects;
 export default async function Projects() {
   return (
     <section className="flex w-full flex-wrap items-center justify-around gap-4">
-      <h1 className="w-full text-5xl font-bold text-foreground [text-shadow:_0_0_20px_rgba(255,255,255,1)] dark:[text-shadow:_0_0_20px_rgba(0,0,0,0.8)]">
-        👨‍💻 Projects
+      <h1 className="flex w-full items-center gap-2 md:gap-3 text-2xl md:text-3xl font-semibold text-foreground [text-shadow:_0_0_20px_rgba(255,255,255,1)] dark:[text-shadow:_0_0_20px_rgba(0,0,0,0.8)]">
+        <CodeIcon weight="regular" className="size-7 md:size-8 shrink-0" />
+        Projects
       </h1>
       {PROJECTS.map((project, _) => (
         <ProjectItem key={project.name} project={project} />
@@ -29,43 +31,52 @@ export default async function Projects() {
 
 function ProjectItem({ project }: { project: Project }) {
   return (
-    <Link
-      href={project.link}
-      target="_blank"
-      className="group relative flex w-full flex-col overflow-hidden rounded-3xl bg-muted/40 p-4 shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] backdrop-blur-lg transition-all duration-300 ease-in-out hover:scale-[1.03] hover:shadow-[0px_5px_30px_0px_rgba(0,0,0,0.14)] intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000 sm:flex-row"
-    >
-      <div className="h-full sm:h-auto sm:basis-1/3">
-        {project.image ? (
-          <Image
-            className="size-full rounded-xl object-cover shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)]"
-            src={`/images/projects/${project.image}`}
-            alt={project.name}
-            width={1000}
-            height={1000}
-          />
-        ) : (
-          <div className="flex size-full items-center justify-center rounded-xl bg-background/20 shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)]">
-            <ImageIcon
-              className="size-28 text-muted-foreground opacity-20"
-              weight="duotone"
+    <TiltCard className="w-full intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000">
+      <Link
+        href={project.link}
+        target="_blank"
+        className="group relative flex w-full flex-col px-4 pt-4 pb-3 sm:px-7 sm:py-5 [transform-style:preserve-3d] sm:flex-row"
+      >
+        {/* Background layer — sits flat so backdrop-blur doesn't flatten 3D */}
+        <div className="absolute inset-0 rounded-2xl border border-foreground/[0.06] bg-muted/40 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-lg transition-shadow duration-300 ease-in-out group-hover:shadow-[0px_4px_20px_0px_rgba(0,0,0,0.1)]" />
+        <div
+          className="relative h-full sm:h-auto sm:basis-1/3"
+          style={{ transform: "translateZ(30px)" }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {project.image ? (
+            <img
+              className="size-full rounded-xl object-cover shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)]"
+              src={`/images/projects/${project.image}`}
+              alt={project.name}
             />
-          </div>
-        )}
-      </div>
-      <div className="flex basis-2/3 flex-col justify-start pt-4 sm:pl-6 sm:pt-0">
-        <h3 className="text-2xl font-bold">{project.name}</h3>
-        <p className="mt-1 line-clamp-4">{project.description}</p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {project.languages.map((language) => (
-            <span
-              key={language}
-              className="rounded-full border-2 border-muted-foreground/40 px-2.5 py-0.5 text-sm font-semibold"
-            >
-              {language}
-            </span>
-          ))}
+          ) : (
+            <div className="flex size-full items-center justify-center rounded-xl bg-background/20 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)]">
+              <ImageIcon
+                className="size-28 text-muted-foreground opacity-20"
+                weight="duotone"
+              />
+            </div>
+          )}
         </div>
-      </div>
-    </Link>
+        <div
+          className="relative flex basis-2/3 flex-col justify-start pt-4 sm:pl-6 sm:pt-0"
+          style={{ transform: "translateZ(20px)" }}
+        >
+          <h3 className="text-lg md:text-xl font-semibold">{project.name}</h3>
+          <p className="mt-1 text-sm line-clamp-4">{project.description}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {project.languages.map((language) => (
+              <span
+                key={language}
+                className="rounded-full border border-foreground/[0.06] bg-muted/40 px-2.5 py-0.5 text-sm font-semibold backdrop-blur-lg"
+              >
+                {language}
+              </span>
+            ))}
+          </div>
+        </div>
+      </Link>
+    </TiltCard>
   );
 }

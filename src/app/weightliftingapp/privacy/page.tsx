@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function WeightliftingAppPrivacyPage() {
   return (
     <main className="m-3 mx-auto max-w-xl font-sans">
-      <h1 className="text-2xl font-bold">Privacy Policy</h1>
+      <h1 className="text-2xl font-semibold">Privacy Policy</h1>
       <p>
         Weightlifting App built the Weightlifting App app as a Free app. This
         SERVICE is provided by Weightlifting App at no cost and is intended for

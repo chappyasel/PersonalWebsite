@@ -46,7 +46,7 @@ export function ThemeToggle() {
           </button>
         </TooltipTrigger>
         <TooltipContent>
-          <p>Switch to {isDark ? "light" : "dark"} mode</p>
+          <p>Switch to {isDark ? "light" : "dark"} mode (⌘⌥L)</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

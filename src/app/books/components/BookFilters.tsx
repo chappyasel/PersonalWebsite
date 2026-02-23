@@ -101,7 +101,7 @@ export function BookFilters() {
     <div className="flex flex-col gap-5 rounded-3xl py-2">
       {/* Header */}
       <div className="flex items-end justify-between">
-        <h3 className="text-lg font-bold text-foreground">Filters</h3>
+        <h3 className="text-lg font-semibold text-foreground">Filters</h3>
         {hasActiveFilters && (
           <Button
             variant="ghost"

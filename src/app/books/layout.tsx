@@ -1,6 +1,7 @@
 import { type Metadata } from "next";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
+import { BooksLayoutWrapper } from "./components/BooksLayoutWrapper";
 import { Modal } from "./components/Modal";
 
 import { BookPreviewProvider } from "./contexts/BookPreviewContext";
@@ -43,7 +44,7 @@ export default function BooksLayout({
   modal: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-background font-serif text-foreground">
+    <BooksLayoutWrapper>
       <NuqsAdapter>
         <BookPreviewProvider>
           <main className="p-6 md:p-8">
@@ -53,6 +54,6 @@ export default function BooksLayout({
           <Modal />
         </BookPreviewProvider>
       </NuqsAdapter>
-    </div>
+    </BooksLayoutWrapper>
   );
 }

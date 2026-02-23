@@ -1,0 +1,1970 @@
+{
+  "lastUpdated": "2026-01-31T21:54:00.000Z",
+  "hero": {
+    "intro": [
+      "My career has always been about building to tackle bigger and bigger challenges.",
+      "After teaching myself to code at 12, I started with technical problems – building chart-topping consumer apps at first, then the Vision Pro and Apple Intelligence at Apple.",
+      "But my college research into the technological singularity revealed my real mission: how we upgrade our society and institutions as progress accelerates.",
+      "Now, as a philosopher-builder, I'm tackling that by leading The AI Collective – a global non-profit movement of pioneers on the frontier of AI, building the social infrastructure for our shared future."
+    ],
+    "missionStatement": "To be a loving, trustworthy, and inspiring leader committed to creating an environment of passion. To put the best interests of myself and the ones I love above all else. To be respected and well-regarded amongst all who know me. To be a rational, agentic, T-shaped, systems thinker committed to lifelong learning and growth with relentless ambition. To always keep the long-term in mind while also smelling the roses. To value the experiential over the material and high peaks over sustained happiness. To strive for superior physical, mental, and social health. To have a long-lasting positive impact on society by creating and empowering others to self-actualize. To make a dent in the universe.",
+    "goldenRule": "My trust in you is directly proportional to your agency in decisions, your accountability in results, and your candor in communication.",
+    "quickLinks": [
+      {
+        "label": "chappyasel.com",
+        "url": "https://www.chappyasel.com/"
+      },
+      {
+        "label": "linkedin.com/in/chappyasel",
+        "url": "https://www.linkedin.com/in/chappyasel/"
+      },
+      {
+        "label": "x.com/chappyasel",
+        "url": "https://x.com/chappyasel"
+      },
+      {
+        "label": "instagram.com/chappyasel",
+        "url": "https://www.instagram.com/chappyasel/"
+      },
+      {
+        "label": "github.com/chappyasel",
+        "url": "https://github.com/chappyasel"
+      },
+      {
+        "label": "medium.com/@chappyasel",
+        "url": "https://medium.com/@chappyasel"
+      }
+    ]
+  },
+  "personality": {
+    "mbti": "ENTJ-A",
+    "bigFive": [
+      {
+        "trait": "Openness",
+        "score": 95,
+        "max": 120
+      },
+      {
+        "trait": "Conscientiousness",
+        "score": 114,
+        "max": 120
+      },
+      {
+        "trait": "Extraversion",
+        "score": 109,
+        "max": 120
+      },
+      {
+        "trait": "Agreeableness",
+        "score": 61,
+        "max": 120
+      },
+      {
+        "trait": "Neuroticism",
+        "score": 39,
+        "max": 120
+      }
+    ],
+    "cliftonStrengths": [
+      {
+        "rank": 1,
+        "name": "Achiever",
+        "domain": "Executing",
+        "description": "Driven by a constant need for accomplishment"
+      },
+      {
+        "rank": 2,
+        "name": "Learner",
+        "domain": "Strategic Thinking",
+        "description": "Energized by the journey from ignorance to competence"
+      },
+      {
+        "rank": 3,
+        "name": "Activator",
+        "domain": "Influencing",
+        "description": "Turns thoughts into action immediately"
+      },
+      {
+        "rank": 4,
+        "name": "Strategic",
+        "domain": "Strategic Thinking",
+        "description": "Creates alternative ways to proceed"
+      },
+      {
+        "rank": 5,
+        "name": "Command",
+        "domain": "Influencing",
+        "description": "Takes charge and makes decisions with presence"
+      },
+      {
+        "rank": 6,
+        "name": "Futuristic",
+        "domain": "Strategic Thinking",
+        "description": "Inspired by what the future could be"
+      },
+      {
+        "rank": 7,
+        "name": "Competition",
+        "domain": "Influencing",
+        "description": "Measures progress against others' performance"
+      },
+      {
+        "rank": 8,
+        "name": "Focus",
+        "domain": "Executing",
+        "description": "Sets a direction, follows through, and makes corrections"
+      },
+      {
+        "rank": 9,
+        "name": "Significance",
+        "domain": "Influencing",
+        "description": "Wants to make a big impact on the world"
+      },
+      {
+        "rank": 10,
+        "name": "Maximizer",
+        "domain": "Influencing",
+        "description": "Focuses on strengths to stimulate excellence"
+      }
+    ]
+  },
+  "sections": [
+    {
+      "id": "personality-strengths-blind-spots",
+      "title": "Personality, Strengths & Blind Spots",
+      "icon": "🧬",
+      "blocks": [
+        {
+          "type": "heading",
+          "level": 3,
+          "content": [
+            {
+              "text": "5. My Personality Profile",
+              "bold": true
+            }
+          ]
+        },
+        {
+          "type": "bulleted_list",
+          "items": [
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "Myers-Briggs:",
+                    "bold": true
+                  },
+                  {
+                    "text": " ENTJ-A (\"The Commander\")"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "Big Five / OCEAN:",
+                    "bold": true
+                  },
+                  {
+                    "text": " Very high Conscientiousness (114) & Extraversion (109); very low Agreeableness (61) & Neuroticism (39). As in, top 1-5% most extreme for all four."
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "type": "toggle",
+          "title": [
+            {
+              "text": "Gallup CliftonStrengths",
+              "bold": true,
+              "link": "https://www.gallup.com/cliftonstrengths/en/252137/home.aspx"
+            },
+            {
+              "text": ":",
+              "bold": true
+            },
+            {
+              "text": " My dominant themes are in the Influencing and Executing domains."
+            }
+          ],
+          "children": [
+            {
+              "type": "image",
+              "src": "/images/manual/2f9c5ab0-d88d-8094-ba03-d33cc6ee12e0.png",
+              "alt": "Image"
+            },
+            {
+              "type": "numbered_list",
+              "items": [
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "Achiever",
+                        "bold": true,
+                        "link": "https://www.gallup.com/cliftonstrengths/en/252134/achiever-theme.aspx"
+                      },
+                      {
+                        "text": ": I work hard and possess a great deal of stamina. I take immense satisfaction in being busy and productive. I love to complete tasks, and my accomplishments fulfill me. I have a strong inner drive — an innate source of intensity, energy and power that motivates me to work hard to get things done."
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "Arranger",
+                        "bold": true,
+                        "link": "https://www.gallup.com/cliftonstrengths/en/252161/arranger-theme.aspx"
+                      },
+                      {
+                        "text": ": I can organize, but also have a flexibility that complements this ability. I like to determine how all of the pieces and resources can be arranged for maximum productivity. I have a natural ability to coordinate people and resources for maximum effectiveness. My creative flexibility in complex situations leads to greater efficiency."
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "Learner",
+                        "bold": true,
+                        "link": "https://www.gallup.com/cliftonstrengths/en/252293/learner-theme.aspx"
+                      },
+                      {
+                        "text": ": I have a great desire to learn and want to continuously improve. The process of learning, rather than the outcome, excites me. I provide your teammates with a logical perspective on things. "
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "Competition",
+                        "bold": true,
+                        "link": "https://www.gallup.com/cliftonstrengths/en/252191/competition-theme.aspx"
+                      },
+                      {
+                        "text": ": I measure my progress against the performance of others. I strive to win first place and revel in contests. I motivate yourself and others to a higher standard of performance. I can raise a group’s achievement level by creating a culture of winning and aspiring to be the best."
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "Significance",
+                        "bold": true,
+                        "link": "https://www.gallup.com/cliftonstrengths/en/252341/significance-theme.aspx"
+                      },
+                      {
+                        "text": ": I want to make a big impact. I am independent and prioritize projects based on how much influence they will have on your organization or people around me. I want to do important work and are determined to make a difference. I want others to respect me for my significant contribution and willingness to work hard to achieve success."
+                      }
+                    ]
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "bulleted_list",
+          "items": [
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "BIS-11",
+                    "bold": true,
+                    "link": "https://psytests.org/trait/bis11en.html"
+                  },
+                  {
+                    "text": ": Very low impulsiveness (41)."
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "In practice, this means:",
+                    "bold": true
+                  }
+                ]
+              },
+              {
+                "type": "bulleted_list",
+                "items": [
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "I am a mission-oriented, systems-builder energized by ambitious goals and rational debate. I thrive on turning chaos into order and driving a team toward a clear, world-changing objective."
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "My (very) high disagreeableness is a feature of my commitment to the mission. I believe that intellectual honesty and rigorous debate are the fastest path to the best ideas."
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "content": [
+            {
+              "text": "6. My Strengths",
+              "bold": true
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "My Gallup profile shows my talents are concentrated in "
+            },
+            {
+              "text": "Influencing",
+              "link": "https://www.gallup.com/cliftonstrengths/en/252089/influencing-domain.aspx"
+            },
+            {
+              "text": " and "
+            },
+            {
+              "text": "Executing",
+              "link": "https://www.gallup.com/cliftonstrengths/en/252086/executing-domain.aspx"
+            },
+            {
+              "text": ". You should leverage me accordingly."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "My Gallup profile concentrates in "
+            },
+            {
+              "text": "Influencing",
+              "link": "https://www.gallup.com/cliftonstrengths/en/252089/influencing-domain.aspx"
+            },
+            {
+              "text": " and "
+            },
+            {
+              "text": "Executing",
+              "link": "https://www.gallup.com/cliftonstrengths/en/252086/executing-domain.aspx"
+            },
+            {
+              "text": " — but my impact comes from how these combine with my drive for "
+            },
+            {
+              "text": "Significance",
+              "link": "https://www.gallup.com/cliftonstrengths/en/252341/significance-theme.aspx"
+            },
+            {
+              "text": ". Leverage me accordingly."
+            }
+          ]
+        },
+        {
+          "type": "toggle",
+          "title": [
+            {
+              "text": "Influencing ~ \"the catalyst\"",
+              "bold": true
+            }
+          ],
+          "children": [
+            {
+              "type": "bulleted_list",
+              "items": [
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "First-principles",
+                        "bold": true
+                      },
+                      {
+                        "text": ": I love rigorous, first-principles debate. I build cases methodically and am effective at rallying alignment behind a mission."
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "Inspiring action",
+                        "bold": true
+                      },
+                      {
+                        "text": ": I articulate compelling visions that energize teams and partners."
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "Taking charge",
+                        "bold": true
+                      },
+                      {
+                        "text": ": I love stepping into chaos, making tough calls, and creating clarity where there is none. I thrive under pressure."
+                      }
+                    ]
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "toggle",
+          "title": [
+            {
+              "text": "Executing ~ \"the architect\"",
+              "bold": true
+            }
+          ],
+          "children": [
+            {
+              "type": "bulleted_list",
+              "items": [
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "Making things happen",
+                        "bold": true
+                      },
+                      {
+                        "text": ": My instinct is to turn ideas into action. I have a deep-seated need to see tangible progress every day."
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "Organizing complexity",
+                        "bold": true
+                      },
+                      {
+                        "text": ": I break down large, complex challenges into elegant systems and processes. This is where my obsession with systems-building lives."
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "Raising the bar",
+                        "bold": true
+                      },
+                      {
+                        "text": ": I create cultures of winning – measuring progress, celebrating milestones, and pushing the team toward a higher standard."
+                      }
+                    ]
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "toggle",
+          "title": [
+            {
+              "text": "Strategic thinking ~ \"the philosopher\"",
+              "bold": true
+            }
+          ],
+          "children": [
+            {
+              "type": "bulleted_list",
+              "items": [
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "Learning & synthesizing",
+                        "bold": true
+                      },
+                      {
+                        "text": ": I am a relentless learner, constantly pulling ideas from disparate fields to find integrative insights."
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "Seeing the future",
+                        "bold": true
+                      },
+                      {
+                        "text": ": I often live 1-3 years ahead, anticipating challenges and opportunities before they arrive."
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "Holding paradoxes",
+                        "bold": true
+                      },
+                      {
+                        "text": ": I often hold two opposing ideas in tension and still act decisively. Integrative thinking is a core skill."
+                      }
+                    ]
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "toggle",
+          "title": [
+            {
+              "text": "Relationship-building ~ \"the connector\"",
+              "bold": true
+            }
+          ],
+          "children": [
+            {
+              "type": "bulleted_list",
+              "items": [
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "Superconnector",
+                        "bold": true
+                      },
+                      {
+                        "text": ": I love mapping social graphs and making catalytic introductions that create value for all involved."
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "Culture creator",
+                        "bold": true
+                      },
+                      {
+                        "text": ": I design rituals, spaces, and shared experiences that compound trust and belonging over time."
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "Coalition builder",
+                        "bold": true
+                      },
+                      {
+                        "text": ": I align talent, capital, and culture behind one mission – and create co-ownership so wins feel shared."
+                      }
+                    ]
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "content": [
+            {
+              "text": "7. My Blind Spots (Where I Need Your Help)",
+              "bold": true
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "I cannot see my own blind spots. I am counting on you to be part of my feedback loop. My commitment: if you name it, I will own it."
+            }
+          ]
+        },
+        {
+          "type": "toggle",
+          "title": [
+            {
+              "text": "Control creep: ",
+              "bold": true
+            },
+            {
+              "text": "My default is to do it myself, especially on things I used to own. This makes me a bottleneck."
+            }
+          ],
+          "children": [
+            {
+              "type": "bulleted_list",
+              "items": [
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "Help me: Proactively own your domain. If I'm creeping into your weeds, say: "
+                      },
+                      {
+                        "text": "\"Chappy, I've got this. Let me come back with a finished product.\"",
+                        "italic": true
+                      },
+                      {
+                        "text": " I’ll recognize it as gift, not a challenge."
+                      }
+                    ]
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "toggle",
+          "title": [
+            {
+              "text": "Intensity: ",
+              "bold": true
+            },
+            {
+              "text": "My energy and ambition can feel overwhelming. Not everyone operates at 3am-wake-up, vision-quest intensity – and I can inadvertently make others feel they're not keeping up."
+            }
+          ],
+          "children": [
+            {
+              "type": "bulleted_list",
+              "items": [
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "Help me: Tell me if my pace is unsustainable for you. High performance AND psychological safety aren't opposites."
+                      }
+                    ]
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "toggle",
+          "title": [
+            {
+              "text": "Impatience:",
+              "bold": true
+            },
+            {
+              "text": " I have a high internal clock. When things feel slow, I push for shortcuts that skip necessary deliberation."
+            }
+          ],
+          "children": [
+            {
+              "type": "bulleted_list",
+              "items": [
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "Help me: Make the case for slowing down. Say: "
+                      },
+                      {
+                        "text": "\"I think we need one more day to de-risk this. Here's why.\"",
+                        "italic": true
+                      }
+                    ]
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "toggle",
+          "title": [
+            {
+              "text": "Over-structured:",
+              "bold": true
+            },
+            {
+              "text": " I love systems and process. But sometimes situations call for fluidity, improvisation, or just vibing – and I can be too rigid when looseness would serve better."
+            }
+          ],
+          "children": [
+            {
+              "type": "bulleted_list",
+              "items": [
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "Help me: "
+                      },
+                      {
+                        "text": "\"This one doesn't need a framework – let's just riff.\"",
+                        "italic": true
+                      }
+                    ]
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "toggle",
+          "title": [
+            {
+              "text": "Over-scheduled (120%):",
+              "bold": true
+            },
+            {
+              "text": " I tend to pack my todo list beyond capacity, leaving no slack for serendipity, spontaneous connection, or the unexpected opportunities that often matter most."
+            }
+          ],
+          "children": [
+            {
+              "type": "bulleted_list",
+              "items": [
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "Help me: If you see something worth my time, push for it."
+                      }
+                    ]
+                  }
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "how-we-collaborate",
+      "title": "How We Collaborate",
+      "icon": "🤝",
+      "blocks": [
+        {
+          "type": "heading",
+          "level": 3,
+          "content": [
+            {
+              "text": "8. My Time & Availability",
+              "bold": true
+            }
+          ]
+        },
+        {
+          "type": "bulleted_list",
+          "items": [
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "Working hours: ",
+                    "bold": true
+                  },
+                  {
+                    "text": "I am effectively always working (usually 80-100 h/w 😅), but my core, most responsive hours are "
+                  },
+                  {
+                    "text": "9am - 7pm PT",
+                    "bold": true
+                  },
+                  {
+                    "text": ". You can expect me to be highly engaged during this window. ("
+                  },
+                  {
+                    "text": "Curious? Check out ",
+                    "italic": true
+                  },
+                  {
+                    "text": "Chappy’s Core Daily Routine",
+                    "italic": true,
+                    "link": "https://www.notion.so/151c5ab0d88d80f3a0efcf2e04f18a56"
+                  },
+                  {
+                    "text": ")",
+                    "italic": true
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "Weekends: ",
+                    "bold": true
+                  },
+                  {
+                    "text": "My mornings before 9am, as well as Tuesday and Thursday afternoons, are my protected deep work blocks (eg. coding, writing, researching, strategy). I will be slow to respond during these blocks. I work intensely on weekends, but I cherish this time for uninterrupted, creative deep work. Please respect this by avoiding non-urgent requests."
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "content": [
+            {
+              "text": "9. Meetings",
+              "bold": true
+            }
+          ]
+        },
+        {
+          "type": "bulleted_list",
+          "items": [
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "Philosophy: ",
+                    "bold": true
+                  },
+                  {
+                    "text": "I believe meetings are for two things: 1) high-bandwidth debate to solve a hard problem, and 2) efficient, team-wide status updates and alignment."
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "Expectations:",
+                    "bold": true
+                  }
+                ]
+              },
+              {
+                "type": "bulleted_list",
+                "items": [
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Come on time & prepared:",
+                          "bold": true
+                        },
+                        {
+                          "text": " I expect the meeting leader to arrive on time and with a clear, written agenda."
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Active participation:",
+                          "bold": true
+                        },
+                        {
+                          "text": " I expect everyone on the call to be engaged and to contribute. The meeting leader is responsible for creating and facilitating these conditions."
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "Pre-reads:",
+                          "bold": true
+                        },
+                        {
+                          "text": " A pre-read the night before is a gift to everyone in the meeting. It's by no means required, but it is always appreciated and allows us to use our synchronous time for the highest-value discussions."
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              }
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "communication",
+      "title": "Communication",
+      "icon": "📣",
+      "blocks": [
+        {
+          "type": "callout",
+          "icon": "📌",
+          "color": "red_background",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "text": "Note on my response time:",
+                  "bold": true,
+                  "italic": true
+                },
+                {
+                  "text": " I am juggling a very high volume of open lines (often 100+ at a time). While I will see your message, it may occasionally take me ",
+                  "italic": true
+                },
+                {
+                  "text": "3-7 days",
+                  "bold": true,
+                  "italic": true
+                },
+                {
+                  "text": " to respond to non-urgent pings. Please do not take this personally; it is a function of my system for managing focus. If you need a faster response, read on!",
+                  "italic": true
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "content": [
+            {
+              "text": "10. My Communication Principles",
+              "bold": true
+            }
+          ]
+        },
+        {
+          "type": "bulleted_list",
+          "items": [
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "Async-first: ",
+                    "bold": true
+                  },
+                  {
+                    "text": "I believe the best work happens in long, uninterrupted blocks of focus. For any complex topic, my strong preference is to start with a written, well-structured document (like a Notion or Google Doc). This allows me to engage with your ideas deeply on my own schedule and it forces clarity of thought for everyone involved."
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "High signal-to-noise ratio: ",
+                    "bold": true
+                  },
+                  {
+                    "text": "Be concise. Use bullet points. Get to the point quickly and put your recommendation or key question at the very top. I trust you've done the deep thinking; you don't need to show all your work in the initial message. Minimal ChatGPT fluff please!"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "Context is your responsibility: ",
+                    "bold": true
+                  },
+                  {
+                    "text": "Before you ask for my input, ask yourself: "
+                  },
+                  {
+                    "text": "\"Does Chappy have all the context he needs to make a decision on this in under two minutes?\"",
+                    "italic": true
+                  },
+                  {
+                    "text": " If no, provide the necessary background links or a one-sentence summary. Reducing friction for me is the fastest way to get a response."
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "Default to transparency: ",
+                    "bold": true
+                  },
+                  {
+                    "text": "Whenever possible, our communications should happen in shared, public channels within the team.",
+                    "color": "yellow_background"
+                  },
+                  {
+                    "text": " This reduces redundant conversations, creates a shared context, and allows others to learn and contribute."
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "content": [
+            {
+              "text": "11. The Right Channel for the Job",
+              "bold": true
+            }
+          ]
+        },
+        {
+          "type": "bulleted_list",
+          "items": [
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "For non-urgent, day-to-day comms & FYIs: ",
+                    "bold": true
+                  },
+                  {
+                    "text": "Use the appropriate public Slack channel. If you need my specific input, "
+                  },
+                  {
+                    "text": "you must @ me or I will likely miss it",
+                    "color": "yellow_background"
+                  },
+                  {
+                    "text": ". I am in over 100 channels and rely on mentions to filter what's important."
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "To get my input on a document: ",
+                    "bold": true
+                  },
+                  {
+                    "text": "Share a Notion or Google Doc with me and "
+                  },
+                  {
+                    "text": "@ me in a specific channel",
+                    "color": "yellow_background"
+                  },
+                  {
+                    "text": " with a clear question and your recommendation. This ensures it hits my radar."
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "To pitch me a new, big idea: ",
+                    "bold": true
+                  },
+                  {
+                    "text": "Write a concise, one-page document outlining: 1) the problem, 2) the proposed solution, and 3) a concrete first step. Share this with me via Slack."
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "For an urgent, time-sensitive issue (≤ 3 hours): ",
+                    "bold": true
+                  },
+                  {
+                    "text": "Send me a text message prefixed with \"URGENT:\"",
+                    "color": "red_background"
+                  },
+                  {
+                    "text": ". This will get my immediate attention. My phone # is included in my email signature and on my Slack profile."
+                  }
+                ]
+              }
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "feedback",
+      "title": "Feedback",
+      "icon": "💬",
+      "blocks": [
+        {
+          "type": "heading",
+          "level": 3,
+          "content": [
+            {
+              "text": "12. How to Give Me Feedback",
+              "bold": true
+            }
+          ]
+        },
+        {
+          "type": "bulleted_list",
+          "items": [
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "I am running a thousand miles an hour and have multiple blind spots. I consider it a core part of your job to help me see them. Your honest perspective is a gift that helps me, and the entire mission, get better."
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "type": "toggle",
+          "title": [
+            {
+              "text": "The method:",
+              "bold": true
+            },
+            {
+              "text": " (a "
+            },
+            {
+              "text": "https://books.chappyasel.com/crucial-conversations",
+              "link": "https://books.chappyasel.com/crucial-conversations"
+            },
+            {
+              "text": " framework)"
+            }
+          ],
+          "children": [
+            {
+              "type": "bulleted_list",
+              "items": [
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "Ask for permission:",
+                        "bold": true
+                      },
+                      {
+                        "text": " Because I am constantly context-switching, the most effective way to give me feedback is to first get my attention. A simple Slack message like, "
+                      },
+                      {
+                        "text": "\"Hey Chappy, do you have 10 minutes for some feedback on X later today?\"",
+                        "italic": true
+                      },
+                      {
+                        "text": " is the perfect way to start. This allows me to switch into the right mental frame to actually hear you."
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "Lead with the facts:",
+                        "bold": true
+                      },
+                      {
+                        "text": " Start with a neutral, specific observation. (eg. "
+                      },
+                      {
+                        "text": "\"In the leadership sync yesterday, when we discussed the budget, I noticed we moved to a decision without hearing from the broader team.\"",
+                        "italic": true
+                      },
+                      {
+                        "text": ")"
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "Share Your story:",
+                        "bold": true
+                      },
+                      {
+                        "text": " Explain the impact this had on you or the project. (eg. "
+                      },
+                      {
+                        "text": "\"The story I told myself was that we are prioritizing speed over rigor in our financial planning, which makes me concerned about future risks.\"",
+                        "italic": true
+                      },
+                      {
+                        "text": ")"
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "End with a question:",
+                        "bold": true
+                      },
+                      {
+                        "text": " Open the door for a real conversation. (eg. "
+                      },
+                      {
+                        "text": "\"I was hoping you could help me understand your thinking there?\"",
+                        "italic": true
+                      },
+                      {
+                        "text": ")"
+                      }
+                    ]
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "bulleted_list",
+          "items": [
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "The golden rule:",
+                    "bold": true
+                  },
+                  {
+                    "text": " I deeply value feedback that is well-reasoned, specific, and delivered with the clear intent of improving our mission. You will "
+                  },
+                  {
+                    "text": "always",
+                    "italic": true
+                  },
+                  {
+                    "text": " be rewarded for courage and candor, and using the method above will ensure your feedback lands with maximum impact."
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "content": [
+            {
+              "text": "13. How I Give Feedback",
+              "bold": true
+            }
+          ]
+        },
+        {
+          "type": "bulleted_list",
+          "items": [
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "My philosophy:",
+                    "bold": true
+                  },
+                  {
+                    "text": " (from "
+                  },
+                  {
+                    "text": "https://books.chappyasel.com/radical-candor",
+                    "link": "https://books.chappyasel.com/radical-candor"
+                  },
+                  {
+                    "text": ")"
+                  }
+                ]
+              },
+              {
+                "type": "bulleted_list",
+                "items": [
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "My goal is always to care personally while challenging directly. My feedback is never personal; it is an investment in your growth because I believe in your potential and I want you, and the team, to succeed at the highest level."
+                        }
+                      ]
+                    }
+                  ]
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "How I recognize great work",
+                    "bold": true
+                  }
+                ]
+              },
+              {
+                "type": "bulleted_list",
+                "items": [
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "I believe that recognition is a critical part of a high-performance culture. My goal is to ensure you feel seen and valued for your contributions."
+                        }
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "text": "How I show it:"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "bulleted_list",
+                      "items": [
+                        [
+                          {
+                            "type": "paragraph",
+                            "content": [
+                              {
+                                "text": "Succinct public praise:",
+                                "bold": true
+                              },
+                              {
+                                "text": " I frequently give public praise for specific, excellent work, especially in our Slack channels or team meetings. My style is often succinct and direct, but it is a sincere acknowledgment of a job well done."
+                              }
+                            ]
+                          }
+                        ],
+                        [
+                          {
+                            "type": "paragraph",
+                            "content": [
+                              {
+                                "text": "Trust and autonomy:",
+                                "bold": true
+                              },
+                              {
+                                "text": " The single greatest way I show my respect for your work is by giving you more of it. When you consistently deliver with excellence, I will respond by giving you more ownership, more freedom, and bigger, more interesting problems to solve."
+                              }
+                            ]
+                          }
+                        ],
+                        [
+                          {
+                            "type": "paragraph",
+                            "content": [
+                              {
+                                "text": "Advocacy:",
+                                "bold": true
+                              },
+                              {
+                                "text": " I will champion you and your work in the rooms you are not in. I will use my network and my platform to create opportunities for you and to ensure your contributions are recognized by the people who matter."
+                              }
+                            ]
+                          }
+                        ]
+                      ]
+                    }
+                  ]
+                ]
+              }
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hobbies",
+      "title": "Hobbies",
+      "icon": "💪",
+      "blocks": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "I have two hobbies and I take both of them "
+            },
+            {
+              "text": "very",
+              "italic": true
+            },
+            {
+              "text": " seriously!"
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "content": [
+            {
+              "text": "Bodybuilding (Natural)",
+              "bold": true
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "Outside of tech, I live a second life as a natural bodybuilder! I’ve trained with intent and intensity for 8+ years and occasionally compete in the INBF/WNBF natural federations. I track every set, iterate my programming, and measure what matters – I even built my own app to systematize progress! One reason I love lifting is the objective daily affirmation: I walk in, hit a PR, and know definitely that I’m the best I’ve ever been!"
+            }
+          ]
+        },
+        {
+          "type": "bulleted_list",
+          "items": [
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": ":weightlifting-app:",
+                    "bold": true
+                  },
+                  {
+                    "text": " ",
+                    "bold": true
+                  },
+                  {
+                    "text": "Weightlifting App",
+                    "bold": true,
+                    "link": "https://apps.apple.com/us/app/weightlifting-app/id1266077653"
+                  },
+                  {
+                    "text": ": my app for tracking and analyzing workouts"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "“From Nerd to Bodybuilder” (article)",
+                    "bold": true,
+                    "link": "https://medium.com/@chappyasel/from-nerd-to-bodybuilder-b9b13bb2d245"
+                  },
+                  {
+                    "text": ": the story linking my tech mindset to lifting"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "@boyswithgains (fitness Instagram)",
+                    "bold": true,
+                    "link": "https://www.instagram.com/boyswithgains/"
+                  },
+                  {
+                    "text": ": progress logs, training clips, show prep, etc."
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "type": "image",
+          "src": "/images/manual/258c5ab0-d88d-80de-9867-e225f4cbbc0c.png",
+          "alt": "Image"
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "content": [
+            {
+              "text": "Reading"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "I am a bibliomaniac. I read 50-100 books a year, and much of my personal and professional philosophy is a synthesis of frameworks from thinkers I deeply respect. If you want to understand the \"why\" behind how I operate, these books are the source material!"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "Read my full compendium of book notes here: "
+            },
+            {
+              "text": "https://books.chappyasel.com/",
+              "link": "https://books.chappyasel.com/"
+            }
+          ]
+        },
+        {
+          "type": "toggle",
+          "title": [
+            {
+              "text": "A few fun reading lists…",
+              "bold": true,
+              "italic": true,
+              "color": "red_background"
+            }
+          ],
+          "children": [
+            {
+              "type": "heading",
+              "level": 3,
+              "content": [
+                {
+                  "text": "On Personal Growth & Effectiveness",
+                  "bold": true
+                }
+              ]
+            },
+            {
+              "type": "bulleted_list",
+              "items": [
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "https://books.chappyasel.com/7-habits-of-highly-effective-people",
+                        "link": "https://books.chappyasel.com/7-habits-of-highly-effective-people"
+                      },
+                      {
+                        "text": ": The bible and foundational operating system for a principled and effective life."
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "https://books.chappyasel.com/thinking-fast-and-slow",
+                        "link": "https://books.chappyasel.com/thinking-fast-and-slow"
+                      },
+                      {
+                        "text": ": The essential guide to understanding our own cognitive biases and making better, more rational decisions."
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "https://books.chappyasel.com/atomic-habits",
+                        "link": "https://books.chappyasel.com/atomic-habits"
+                      },
+                      {
+                        "text": ": The tactical operating system for building the small, consistent habits that lead to remarkable results."
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "https://books.chappyasel.com/plays-well-with-others",
+                        "link": "https://books.chappyasel.com/plays-well-with-others"
+                      },
+                      {
+                        "text": ": How to build and maintain the strong personal and professional relationships that are the foundation of a happy and impactful life."
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "https://books.chappyasel.com/range",
+                        "link": "https://books.chappyasel.com/range"
+                      },
+                      {
+                        "text": ": The intellectual justification for my \"paradoxical passions\" and my belief in the power of being a T-shaped, cross-disciplinary thinker."
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "https://books.chappyasel.com/barking-up-the-wrong-tree",
+                        "link": "https://books.chappyasel.com/barking-up-the-wrong-tree"
+                      },
+                      {
+                        "text": ": A data-driven guide (my favorite) to what actually leads to a successful and meaningful life, challenging many common assumptions."
+                      }
+                    ]
+                  }
+                ]
+              ]
+            },
+            {
+              "type": "heading",
+              "level": 3,
+              "content": [
+                {
+                  "text": "Community & Events"
+                }
+              ]
+            },
+            {
+              "type": "bulleted_list",
+              "items": [
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "https://books.chappyasel.com/bowling-alone",
+                        "link": "https://books.chappyasel.com/bowling-alone"
+                      },
+                      {
+                        "text": ": The definitive diagnosis of the problem we are trying to solve: the collapse of community and social capital in the modern world. This is the \"why\" behind our in-person focus."
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "https://books.chappyasel.com/the-art-of-community",
+                        "link": "https://books.chappyasel.com/the-art-of-community"
+                      },
+                      {
+                        "text": ": Provides the core principles for building a community with a strong identity, clear boundaries, and meaningful rituals."
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "https://books.chappyasel.com/community",
+                        "link": "https://books.chappyasel.com/community"
+                      },
+                      {
+                        "text": ": A powerful philosophical argument that the key to a thriving society is structuring belonging and citizen-led action, which is the heart of the AIC's grassroots model."
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "https://books.chappyasel.com/the-art-of-gathering",
+                        "link": "https://books.chappyasel.com/the-art-of-gathering"
+                      },
+                      {
+                        "text": ": Our tactical bible for event design. It's why we obsess over having a clear purpose for every single event we host, from a small dinner to a large festival."
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "https://books.chappyasel.com/the-2-hour-cocktail-party",
+                        "link": "https://books.chappyasel.com/the-2-hour-cocktail-party"
+                      },
+                      {
+                        "text": ": A masterclass in simple, repeatable, and high-energy event formats. It's the \"how-to\" guide for much of what our chapters do."
+                      }
+                    ]
+                  }
+                ]
+              ]
+            },
+            {
+              "type": "heading",
+              "level": 3,
+              "content": [
+                {
+                  "text": "On Building High-Performance Teams",
+                  "bold": true
+                }
+              ]
+            },
+            {
+              "type": "bulleted_list",
+              "items": [
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "https://books.chappyasel.com/the-culture-code",
+                        "link": "https://books.chappyasel.com/the-culture-code"
+                      },
+                      {
+                        "text": ": My primary playbook for architecting a culture of psychological safety, shared vulnerability, and purpose. All of the leaders around me have also read this book."
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "https://books.chappyasel.com/radical-candor",
+                        "link": "https://books.chappyasel.com/radical-candor"
+                      },
+                      {
+                        "text": ": The non-negotiable framework for how we give feedback. It's about caring personally while challenging directly."
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "https://books.chappyasel.com/thanks-for-the-feedback",
+                        "link": "https://books.chappyasel.com/thanks-for-the-feedback"
+                      },
+                      {
+                        "text": ": The user manual for how to receive feedback – even when it's poorly delivered – as a gift for personal growth."
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "https://books.chappyasel.com/crucial-conversations",
+                        "link": "https://books.chappyasel.com/crucial-conversations"
+                      },
+                      {
+                        "text": ": The tactical guide for navigating the high-stakes, emotionally charged conversations that are inevitable when doing ambitious work."
+                      }
+                    ]
+                  }
+                ]
+              ]
+            },
+            {
+              "type": "heading",
+              "level": 3,
+              "content": [
+                {
+                  "text": "On Building a World-Changing Mission",
+                  "bold": true
+                }
+              ]
+            },
+            {
+              "type": "bulleted_list",
+              "items": [
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "https://books.chappyasel.com/life-3-0",
+                        "link": "https://books.chappyasel.com/life-3-0"
+                      },
+                      {
+                        "text": " & "
+                      },
+                      {
+                        "text": "https://books.chappyasel.com/the-singularity-is-near",
+                        "link": "https://books.chappyasel.com/the-singularity-is-near"
+                      },
+                      {
+                        "text": ": These are the foundational texts that ignited my obsession and defined the core mission of The AI Collective."
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "https://books.chappyasel.com/zero-to-one",
+                        "link": "https://books.chappyasel.com/zero-to-one"
+                      },
+                      {
+                        "text": ": The definitive guide to thinking from first principles and building something truly new in the world."
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "https://books.chappyasel.com/start-with-why",
+                        "link": "https://books.chappyasel.com/start-with-why"
+                      },
+                      {
+                        "text": ": The core of how I think about inspiring a movement – it's not about what we do, but "
+                      },
+                      {
+                        "text": "why",
+                        "italic": true
+                      },
+                      {
+                        "text": " we do it. "
+                      }
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "text": "https://books.chappyasel.com/the-infinite-game",
+                        "link": "https://books.chappyasel.com/the-infinite-game"
+                      },
+                      {
+                        "text": ": This book shapes our long-term strategy. We are building a resilient organization with a just cause, designed to last for generations."
+                      }
+                    ]
+                  }
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "type": "image",
+          "src": "/images/manual/258c5ab0-d88d-80c1-b236-fdddba13236d.png",
+          "alt": "Image"
+        }
+      ]
+    }
+  ]
+}

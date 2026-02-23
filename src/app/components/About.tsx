@@ -1,4 +1,6 @@
-import { BookOpenTextIcon } from "@phosphor-icons/react/dist/ssr";
+import {
+  HandWavingIcon,
+} from "@phosphor-icons/react/dist/ssr";
 import Image from "next/image";
 import Link from "next/link";
 import image from "public/images/about/profile.jpg";
@@ -10,7 +12,7 @@ import ContactButtons from "./ContactButtons";
 
 export default async function AboutMe() {
   return (
-    <div className="relative mt-28 w-full gap-2 rounded-3xl bg-muted/40 p-8 leading-5 shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] backdrop-blur-lg intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000">
+    <div className="relative mt-6 w-full md:mt-28 gap-2 rounded-2xl border border-foreground/[0.06] bg-muted/40 p-8 leading-5 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-lg intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000">
       <div className="absolute right-4 top-4 opacity-70">
         <ThemeToggle />
       </div>
@@ -19,13 +21,15 @@ export default async function AboutMe() {
         alt="Profile picture"
         width={400}
         height={400}
-        className="float-none m-auto mb-8 block w-[min(80%,400px)] rounded-full shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] motion-scale-in-90 md:float-left md:m-8 md:ml-0 md:mt-0 md:w-[35vw] md:max-w-[300px]"
+        className="float-none m-auto mb-8 block w-[min(80%,400px)] rounded-full shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] motion-scale-in-90 md:float-left md:m-8 md:ml-0 md:mt-0 md:w-[35vw] md:max-w-[300px]"
       />
       <div className="flex flex-row gap-1">
-        <p className="font-bold">Hi, I&apos;m Chappy!</p>
-        <p className="font-bold motion-scale-in-50 motion-rotate-in-45 motion-opacity-in-0 motion-delay-200 motion-ease-spring-bounciest">
-          👋
-        </p>
+        <p className="font-semibold">Hi, I&apos;m Chappy!</p>
+        <HandWavingIcon
+          size={20}
+          weight="duotone"
+          className="motion-scale-in-50 motion-rotate-in-45 motion-opacity-in-0 motion-delay-200 motion-ease-spring-bounciest"
+        />
       </div>
       <p className="min-h-[300px] hyphens-auto text-justify [&>a:hover]:underline">
         <br />
@@ -86,18 +90,10 @@ export default async function AboutMe() {
         <br />
         Ultimately, I&apos;m an optimist who believes we have a rare opportunity
         to shape a future of trust, openness, and human flourishing. Thanks for
-        stopping by to learn a little more about my journey! 😄
+        stopping by to learn a little more about my journey!
       </p>
       <div className="flex flex-col items-center gap-1 pt-8 text-muted-foreground/80">
-        <Link
-          href="https://chappyasel.notion.site/manual"
-          target="_blank"
-          className="-mt-4 mb-4 flex items-center gap-2 rounded-xl border-2 border-transparent px-4 py-2 text-sm font-medium transition-all duration-300 ease-in-out hover:scale-105 hover:border-muted-foreground/20 hover:text-muted-foreground hover:shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)]"
-        >
-          <BookOpenTextIcon size={20} weight="duotone" />
-          <span>Personal Operating Manual</span>
-        </Link>
-        <ContactButtons />
+<ContactButtons />
         {/* <p className="flex flex-row gap-2">
           <Link
             href="mailto:chappyasel@gmail.com"

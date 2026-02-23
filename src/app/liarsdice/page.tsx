@@ -35,7 +35,7 @@ export default function LiarsDicePage() {
     <main className="m-auto flex max-w-xl flex-col items-center gap-4 p-4 font-sans">
       {/* Header */}
       <div className="flex w-full items-center justify-between">
-        <h1 className="text-xl font-bold text-foreground">
+        <h1 className="text-xl font-semibold text-foreground">
           Liar&apos;s Dice Calculator
         </h1>
         <TooltipProvider>
