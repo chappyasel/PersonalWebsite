@@ -32,6 +32,11 @@ export default {
   			literata: [
   				'var(--font-literata)',
                     ...fontFamily.serif
+                ],
+  			rounded: [
+  				'ui-rounded',
+  				'SF Pro Rounded',
+                    ...fontFamily.sans
                 ]
   		},
   		colors: {

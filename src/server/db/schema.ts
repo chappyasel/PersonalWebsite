@@ -1,8 +1,10 @@
 import { relations, sql } from "drizzle-orm";
 import {
   boolean,
+  doublePrecision,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   serial,
@@ -204,4 +206,128 @@ export const booksRelations = relations(books, ({ many }) => ({
 
 export const bookTagsRelations = relations(bookTags, ({ one }) => ({
   book: one(books, { fields: [bookTags.bookId], references: [books.id] }),
+}));
+
+// ── Weightlifting tables ──────────────────────────────────────────────
+
+export const wlExerciseTypes = pgTable(
+  "wl_exercise_types",
+  {
+    id: serial("id").primaryKey(),
+    name: varchar("name", { length: 255 }).notNull(),
+    category: varchar("category", { length: 255 }).notNull(),
+    style: varchar("style", { length: 255 }).notNull(),
+    iterations: jsonb("iterations").$type<string[]>().default([]).notNull(),
+    favorite: boolean("favorite").default(false).notNull(),
+    hidden: boolean("hidden").default(false).notNull(),
+  },
+  (table) => ({
+    nameIdx: uniqueIndex("wl_exercise_type_name_idx").on(table.name),
+    categoryIdx: index("wl_exercise_type_category_idx").on(table.category),
+  }),
+);
+
+export const wlWorkouts = pgTable(
+  "wl_workouts",
+  {
+    id: serial("id").primaryKey(),
+    uuid: varchar("uuid", { length: 255 }).notNull(),
+    name: varchar("name", { length: 255 }).notNull(),
+    date: timestamp("date", { withTimezone: true }).notNull(),
+    dateModified: boolean("date_modified").default(false).notNull(),
+    durationSeconds: integer("duration_seconds").notNull(),
+    supersets: text("supersets")
+      .array()
+      .default(sql`'{}'::text[]`)
+      .notNull(),
+  },
+  (table) => ({
+    uuidIdx: uniqueIndex("wl_workout_uuid_idx").on(table.uuid),
+    dateIdx: index("wl_workout_date_idx").on(table.date),
+  }),
+);
+
+export const wlExercises = pgTable(
+  "wl_exercises",
+  {
+    id: serial("id").primaryKey(),
+    workoutId: integer("workout_id")
+      .notNull()
+      .references(() => wlWorkouts.id, { onDelete: "cascade" }),
+    exerciseOrder: integer("exercise_order").notNull(),
+    name: varchar("name", { length: 255 }).notNull(),
+    category: varchar("category", { length: 255 }).notNull(),
+    style: varchar("style", { length: 255 }).notNull(),
+    iteration: varchar("iteration", { length: 255 }),
+  },
+  (table) => ({
+    workoutOrderIdx: uniqueIndex("wl_exercise_workout_order_idx").on(
+      table.workoutId,
+      table.exerciseOrder,
+    ),
+    workoutIdIdx: index("wl_exercise_workout_id_idx").on(table.workoutId),
+    nameIdx: index("wl_exercise_name_idx").on(table.name),
+  }),
+);
+
+export const wlSets = pgTable(
+  "wl_sets",
+  {
+    id: serial("id").primaryKey(),
+    exerciseId: integer("exercise_id")
+      .notNull()
+      .references(() => wlExercises.id, { onDelete: "cascade" }),
+    setOrder: integer("set_order").notNull(),
+    reps: integer("reps"),
+    weight: doublePrecision("weight"),
+    volume: doublePrecision("volume"),
+    oneRM: doublePrecision("one_rm"),
+    durationSeconds: doublePrecision("duration_seconds"),
+    distance: doublePrecision("distance"),
+    calories: doublePrecision("calories"),
+    custom: text("custom"),
+  },
+  (table) => ({
+    exerciseIdIdx: index("wl_set_exercise_id_idx").on(table.exerciseId),
+  }),
+);
+
+export const wlSyncMetadata = pgTable("wl_sync_metadata", {
+  id: serial("id").primaryKey(),
+  syncStartedAt: timestamp("sync_started_at", { withTimezone: true })
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+  syncCompletedAt: timestamp("sync_completed_at", { withTimezone: true }),
+  status: varchar("status", { length: 50 }).notNull(),
+  fileHash: varchar("file_hash", { length: 64 }),
+  totalWorkouts: integer("total_workouts"),
+  totalExercises: integer("total_exercises"),
+  totalSets: integer("total_sets"),
+  totalExerciseTypes: integer("total_exercise_types"),
+  errors: text("errors"),
+  triggeredBy: varchar("triggered_by", { length: 50 }).notNull(),
+});
+
+// ── Weightlifting relations ───────────────────────────────────────────
+
+export const wlWorkoutsRelations = relations(wlWorkouts, ({ many }) => ({
+  exercises: many(wlExercises),
+}));
+
+export const wlExercisesRelations = relations(
+  wlExercises,
+  ({ one, many }) => ({
+    workout: one(wlWorkouts, {
+      fields: [wlExercises.workoutId],
+      references: [wlWorkouts.id],
+    }),
+    sets: many(wlSets),
+  }),
+);
+
+export const wlSetsRelations = relations(wlSets, ({ one }) => ({
+  exercise: one(wlExercises, {
+    fields: [wlSets.exerciseId],
+    references: [wlExercises.id],
+  }),
 }));

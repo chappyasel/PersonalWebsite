@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.1.0",
+    "@aws-sdk/client-s3": "^3.995.0",
     "@notionhq/client": "^5.6.0",
     "@phosphor-icons/react": "^2.1.10",
     "@radix-ui/react-accordion": "^1.2.12",

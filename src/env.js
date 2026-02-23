@@ -26,6 +26,9 @@ export const env = createEnv({
     NOTION_BOOKS_DATABASE_ID: z.string(),
     GOOGLE_BOOKS_API_KEY: z.string().optional(),
     CRON_SECRET: z.string(),
+    AWS_REGION: z.string().default("us-east-1"),
+    AWS_BUCKET_NAME: z.string(),
+    AWS_KEY_NAME: z.string(),
   },
 
   /**
@@ -53,6 +56,9 @@ export const env = createEnv({
     NOTION_BOOKS_DATABASE_ID: process.env.NOTION_BOOKS_DATABASE_ID,
     GOOGLE_BOOKS_API_KEY: process.env.GOOGLE_BOOKS_API_KEY,
     CRON_SECRET: process.env.CRON_SECRET,
+    AWS_REGION: process.env.AWS_REGION,
+    AWS_BUCKET_NAME: process.env.AWS_BUCKET_NAME,
+    AWS_KEY_NAME: process.env.AWS_KEY_NAME,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
