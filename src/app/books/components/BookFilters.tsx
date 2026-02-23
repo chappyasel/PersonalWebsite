@@ -57,18 +57,17 @@ export function BookFilters() {
     switch (tagSortMode) {
       case "default":
         // Use curated order, append any missing tags at the end
-        return [
-          ...defaultTagOrder.filter((t) => tags.includes(t)),
-          ...tags.filter((t) => !defaultTagOrder.includes(t)).sort(),
-        ];
+        return defaultTagOrder.filter((t) => tags.includes(t));
       case "count":
-        return [...tags].sort(
-          (a, b) =>
-            (stats?.categoryBreakdown[b] ?? 0) -
-            (stats?.categoryBreakdown[a] ?? 0),
-        );
+        return tags
+          .filter((t) => defaultTagOrder.includes(t))
+          .sort(
+            (a, b) =>
+              (stats?.categoryBreakdown[b] ?? 0) -
+              (stats?.categoryBreakdown[a] ?? 0),
+          );
       case "alphabetical":
-        return [...tags].sort();
+        return tags.filter((t) => defaultTagOrder.includes(t)).sort();
       default:
         return tags;
     }
