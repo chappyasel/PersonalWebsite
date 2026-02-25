@@ -33,64 +33,76 @@ export default async function AboutMe() {
       </div>
       <p className="min-h-[300px] hyphens-auto text-justify [&>a:hover]:underline">
         <br />
-        I&apos;ve always been a builder at heart. My journey started at age 12
-        when I fell in love with coding. I spent my teen years building dozens
-        of apps, and with a mix of a builder&apos;s obsession and some
-        incredible luck, an app I made in high school became the #1 homework app
-        in the world before being acquired while I was in college.
+        I taught myself to code at 12 and got completely hooked. I spent much
+        of my teens cranking out iOS apps, and with a lot of obsession and some
+        incredible luck, one I built in high school became the #1 homework
+        planner in the world and got acquired while I was still in college.
         <br />
         <br />
-        That drive to build on a bigger scale led me straight to my dream job at{" "}
+        That drive to build at a bigger scale led me to my dream job at{" "}
         <Link href="https://www.apple.com" target="_blank">
           Apple
         </Link>
-        , working on the top-secret teams that launched the Vision Pro and the
-        early prototypes of what would become Apple Intelligence. It was
-        exhilarating; it felt like I was at the center of the universe.
+        , where I worked on the top-secret teams that launched the Vision Pro
+        and the early prototypes of Apple Intelligence &ndash; presenting
+        multimodal AI agent demos to execs right below Tim Cook.
         <br />
         <br />
-        But at the same time, my builder&apos;s mindset was colliding with a
-        philosopher&apos;s questions. My research into the technological
-        singularity during college left me obsessed with a critical problem: the
-        ever-widening gap between the speed of technology and society&apos;s
-        ability to adapt.
+        But here&apos;s what changed everything. My senior year of college, I
+        wrote my final paper on the technological singularity &ndash; right when
+        GPT-3 had just dropped. That research rewired my brain. It helped me
+        realize four things: that AGI is probably the most significant
+        advancement in the history of the universe. That my technical skills
+        weren&apos;t durable &ndash; AI would be better at coding than me within
+        the decade, and what actually matters is EQ and relationships. That
+        society isn&apos;t remotely ready, and we as technologists have a
+        responsibility to be stewards of that transition. And that AI itself is
+        both the threat and the tool we need to solve it. All of that pointed me
+        in one direction: community.
         <br />
         <br />
-        When ChatGPT launched, it felt like the timeline was collapsing. This
-        forced a choice: continue the traditional venture-backed startup dream
-        or go all-in on the mission that truly consumed me. I chose the mission.
-        I started with a few texts to friends, which turned into a small weekly
-        meetup we called{" "}
+        When ChatGPT launched, I started building again &ndash; this time a
+        weekly meetup with friends we called{" "}
         <Link href="https://aicollective.com" target="_blank">
           The AI Collective
         </Link>
-        .
+        . I also left Apple to co-found Cofactory with a couple of brilliant
+        Stanford PhDs, a venture-backed AI startup (we were Mercor and
+        Cognition&apos;s first customers &ndash; both now multibillion-dollar
+        companies). But the Collective was where the real conversations were
+        happening &ndash; not just about what to build, but about what all of
+        this means. I chose the mission.
         <br />
         <br />
-        And wow, has it been a rocket ship ever since! That small gathering has
-        blossomed into a global, non-profit, grassroots movement of pioneers on
-        the frontier of AI. We&apos;re building the social infrastructure for
-        humanity&apos;s most important conversation, because we believe the
-        future is too important to be built in isolation.
+        The first nine months were brutal &ndash; texting dozens of people a
+        day, flying to three cities in a week, no salary, trying to convince
+        people to open chapters. It felt like building a house of cards. Then we
+        hit an inflection point with our global launch, and suddenly the
+        flywheel had its own momentum.
         <br />
         <br />
-        When I&apos;m not obsessing over this mission, you can usually find me
-        in one of three places: in the gym, practicing the intense discipline of{" "}
-        <Link href="https://www.instagram.com/boyswithgains/" target="_blank">
-          competitive natural bodybuilding
+        Today,{" "}
+        <Link href="https://aicollective.com" target="_blank">
+          The AI Collective
         </Link>{" "}
-        (it&apos;s my secret to staying grounded); with my head{" "}
-        <em>(metaphorically)</em> in an{" "}
+        is 200,000+ members strong with 400+ volunteers running 150+ chapters
+        across 50+ countries &ndash; a non-profit building the social
+        infrastructure for AGI. Because in-person conversation is the only place
+        to actually wrestle with the complexity of what&apos;s coming. And I
+        think we&apos;re less than 1% of the way there.
+        <br />
+        <br />
+        Outside of this, I&apos;m a competitive natural bodybuilder (INBF/WNBF)
+        &mdash; the discipline keeps me grounded and it&apos;s become a whole
+        second identity at this point. I also read 50-100 books a year (
         <Link href="https://books.chappyasel.com" target="_blank">
-          audiobook
-        </Link>{" "}
-        (I&apos;m a bibliomaniac who reads 50-100 a year); or on a plane to a
-        new corner of the world (I&apos;ve explored over 25 countries so far)!
+          books.chappyasel.com
+        </Link>
+        ).
         <br />
         <br />
-        Ultimately, I&apos;m an optimist who believes we have a rare opportunity
-        to shape a future of trust, openness, and human flourishing. Thanks for
-        stopping by to learn a little more about my journey!
+        If you&apos;re wrestling with the same questions, I&apos;d love to meet
+        you. That&apos;s literally why we built this!
       </p>
       <div className="flex flex-col items-center gap-1 pt-8 text-muted-foreground/80">
 <ContactButtons />
