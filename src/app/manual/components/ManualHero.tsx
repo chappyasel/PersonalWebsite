@@ -61,14 +61,13 @@ export default function ManualHero({
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground/50">
             My 30-Second Introduction
           </h3>
-          <ul className="space-y-2">
+          <div className="space-y-2">
             {hero.intro.map((line, i) => (
-              <li key={i} className="flex gap-3 leading-relaxed">
-                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/30" />
-                <span>{line}</span>
-              </li>
+              <p key={i} className="leading-relaxed">
+                {line}
+              </p>
             ))}
-          </ul>
+          </div>
         </div>
       )}
 
