@@ -39,7 +39,7 @@ export default function ManualHero({
         </p>
         <div className="flex items-center gap-3 text-xs text-muted-foreground/70">
           <Link
-            href="/"
+            href="https://chappyasel.com"
             className="flex items-center gap-1.5 transition-colors hover:text-muted-foreground"
           >
             <ArrowLeftIcon size={12} weight="bold" />
