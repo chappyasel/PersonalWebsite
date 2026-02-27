@@ -1,0 +1,64 @@
+"use client";
+
+import { Skeleton } from "~/components/ui/skeleton";
+import { api } from "~/trpc/react";
+import { categoryColor } from "../lib/utils";
+
+export function PersonalRecords() {
+  const { data: records, isLoading } =
+    api.weightlifting.getPersonalRecords.useQuery();
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-10 rounded" />
+        ))}
+      </div>
+    );
+  }
+
+  if (!records || records.length === 0) {
+    return <p className="text-sm text-neutral-500">No records found.</p>;
+  }
+
+  const sorted = [...records].sort((a, b) => b.bestOneRM - a.bestOneRM).slice(0, 20);
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-neutral-200 text-left text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
+            <th className="pb-2 pr-4 font-medium">Exercise</th>
+            <th className="pb-2 pr-4 text-right font-medium">Est. 1RM</th>
+            <th className="pb-2 text-right font-medium">Best Set</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((record) => (
+            <tr
+              key={record.exerciseName}
+              className="border-b border-neutral-100 dark:border-neutral-700/50"
+            >
+              <td className="py-2 pr-4 text-neutral-800 dark:text-neutral-100">
+                <span className="flex items-center gap-2">
+                  <span
+                    className="h-2.5 w-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: categoryColor(record.category) }}
+                  />
+                  {record.exerciseName}
+                </span>
+              </td>
+              <td className="py-2 pr-4 text-right tabular-nums text-neutral-600 dark:text-neutral-300">
+                {Math.round(record.bestOneRM)} lbs
+              </td>
+              <td className="py-2 text-right tabular-nums text-neutral-600 dark:text-neutral-300">
+                {record.reps}x{record.weight}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}

@@ -155,6 +155,96 @@ export const weightliftingRouter = createTRPCRouter({
       }));
     }),
 
+  /** Per-workout best 1RM per exercise for strength progression chart */
+  getStrengthProgression: publicProcedure
+    .input(
+      z.object({
+        exercises: z.array(z.string()).min(1).max(20),
+      }),
+    )
+    .query(async ({ input }) => {
+      const rows = await db.execute<{
+        date: string;
+        exercise: string;
+        best_one_rm: number;
+      }>(sql`
+        SELECT
+          TO_CHAR(w.date, 'YYYY-MM-DD') AS date,
+          CASE
+            WHEN e.iteration IS NOT NULL AND e.iteration != ''
+            THEN e.iteration || ' ' || e.name
+            ELSE e.name
+          END AS exercise,
+          MAX(s.one_rm) AS best_one_rm
+        FROM wl_sets s
+        INNER JOIN wl_exercises e ON s.exercise_id = e.id
+        INNER JOIN wl_workouts w ON e.workout_id = w.id
+        WHERE s.one_rm IS NOT NULL
+          AND s.one_rm > 0
+          AND e.style = 'reps_weight'
+          AND (CASE
+            WHEN e.iteration IS NOT NULL AND e.iteration != ''
+            THEN e.iteration || ' ' || e.name
+            ELSE e.name
+          END) IN (${sql.join(
+            input.exercises.map((ex) => sql`${ex}`),
+            sql`, `,
+          )})
+        GROUP BY date, exercise
+        ORDER BY date
+      `);
+
+      return rows.map((r) => ({
+        date: r.date,
+        exercise: r.exercise,
+        bestOneRM: Number(r.best_one_rm),
+      }));
+    }),
+
+  /** Top exercises with meaningful 1RM data for exercise selector */
+  getTopExercises: publicProcedure
+    .input(
+      z.object({
+        minSets: z.number().min(1).default(10),
+      }),
+    )
+    .query(async ({ input }) => {
+      const rows = await db.execute<{
+        display_name: string;
+        name: string;
+        category: string;
+        set_count: number;
+        best_one_rm: number;
+      }>(sql`
+        SELECT
+          CASE
+            WHEN e.iteration IS NOT NULL AND e.iteration != ''
+            THEN e.iteration || ' ' || e.name
+            ELSE e.name
+          END AS display_name,
+          e.name,
+          e.category,
+          COUNT(s.id) AS set_count,
+          MAX(s.one_rm) AS best_one_rm
+        FROM wl_sets s
+        INNER JOIN wl_exercises e ON s.exercise_id = e.id
+        WHERE s.one_rm IS NOT NULL
+          AND s.one_rm > 0
+          AND e.style = 'reps_weight'
+        GROUP BY display_name, e.name, e.category
+        HAVING COUNT(s.id) >= ${input.minSets}
+        ORDER BY best_one_rm DESC
+      `);
+
+      return rows.map((r) => ({
+        displayName: r.display_name,
+        name: r.name,
+        category: r.category,
+        setCount: Number(r.set_count),
+        bestOneRM: Number(r.best_one_rm),
+      }));
+    }),
+
   /** Manual sync trigger */
   triggerSync: protectedProcedure.mutation(async () => {
     const result = await syncWeightlifting("manual");
