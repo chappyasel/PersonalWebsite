@@ -11,6 +11,7 @@ import Link from "next/link";
 
 import { Skeleton } from "~/components/ui/skeleton";
 import { defaultTagOrder } from "~/lib/books/tagColors";
+import { devSubdomainUrl } from "~/lib/util";
 import { api } from "~/trpc/react";
 
 import BookCarousel from "./BookCarousel";
@@ -74,7 +75,7 @@ export default function BookNotes() {
   const bookHref =
     process.env.NODE_ENV === "production"
       ? "https://books.chappyasel.com"
-      : "http://books.localhost:3000";
+      : devSubdomainUrl("books");
 
   return (
     <section className="flex w-full flex-col items-center justify-around gap-4">

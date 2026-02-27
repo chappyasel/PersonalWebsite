@@ -1,10 +1,11 @@
 import { type Metadata } from "next";
+import { devSubdomainUrl } from "~/lib/util";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NODE_ENV === "production"
       ? "https://manual.chappyasel.com"
-      : "http://manual.localhost:3000",
+      : devSubdomainUrl("manual"),
   ),
   title: "Personal Operating Manual ~ Chappy Asel",
   description:

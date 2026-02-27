@@ -1,6 +1,7 @@
 "use client";
 
 import { CalculatorIcon, DiceOneIcon, HouseLineIcon } from "@phosphor-icons/react";
+import { devBaseUrl } from "~/lib/util";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { useQueryStates } from "nuqs";
@@ -88,7 +89,7 @@ function LiarsDiceContent() {
           href={
             process.env.NODE_ENV === "production"
               ? "https://chappyasel.com"
-              : "http://localhost:3000"
+              : devBaseUrl()
           }
           className="group inline-flex items-center gap-2 text-xl font-semibold text-foreground transition-opacity hover:opacity-80"
           onMouseEnter={() => setIsHovered(true)}

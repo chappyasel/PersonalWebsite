@@ -31,7 +31,6 @@ export function PersonalRecords() {
           <tr className="border-b border-neutral-200 text-left text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
             <th className="pb-2 pr-4 font-medium">Exercise</th>
             <th className="pb-2 pr-4 text-right font-medium">Est. 1RM</th>
-            <th className="pb-2 text-right font-medium">Best Set</th>
           </tr>
         </thead>
         <tbody>
@@ -40,20 +39,25 @@ export function PersonalRecords() {
               key={record.exerciseName}
               className="border-b border-neutral-100 dark:border-neutral-700/50"
             >
-              <td className="py-2 pr-4 text-neutral-800 dark:text-neutral-100">
-                <span className="flex items-center gap-2">
+              <td className="py-2 pr-4">
+                <span className="flex items-center gap-2 text-neutral-800 dark:text-neutral-100">
                   <span
                     className="h-2.5 w-2.5 shrink-0 rounded-full"
                     style={{ backgroundColor: categoryColor(record.category) }}
                   />
                   {record.exerciseName}
                 </span>
+                <span className="ml-[18px] text-xs text-neutral-400 dark:text-neutral-500">
+                  {record.instanceCount} instance{record.instanceCount !== 1 ? "s" : ""}
+                </span>
               </td>
-              <td className="py-2 pr-4 text-right tabular-nums text-neutral-600 dark:text-neutral-300">
-                {Math.round(record.bestOneRM)} lbs
-              </td>
-              <td className="py-2 text-right tabular-nums text-neutral-600 dark:text-neutral-300">
-                {record.reps}x{record.weight}
+              <td className="py-2 pr-4 text-right tabular-nums">
+                <div className="text-neutral-600 dark:text-neutral-300">
+                  {Math.round(record.bestOneRM)} lbs
+                </div>
+                <div className="text-xs text-neutral-400 dark:text-neutral-500">
+                  {record.reps}x{record.weight}
+                </div>
               </td>
             </tr>
           ))}

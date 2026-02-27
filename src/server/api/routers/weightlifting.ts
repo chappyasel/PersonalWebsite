@@ -98,13 +98,17 @@ export const weightliftingRouter = createTRPCRouter({
       best_one_rm: number;
       best_reps: number;
       best_weight: number;
+      instance_count: number;
     }>(sql`
       SELECT DISTINCT ON (e.name)
         e.name AS exercise_name,
         e.category,
         s.one_rm AS best_one_rm,
         s.reps AS best_reps,
-        s.weight AS best_weight
+        s.weight AS best_weight,
+        (SELECT COUNT(DISTINCT e2.id)
+         FROM wl_exercises e2
+         WHERE e2.name = e.name) AS instance_count
       FROM wl_sets s
       INNER JOIN wl_exercises e ON s.exercise_id = e.id
       WHERE s.one_rm IS NOT NULL AND s.one_rm > 0
@@ -117,6 +121,7 @@ export const weightliftingRouter = createTRPCRouter({
       bestOneRM: Number(r.best_one_rm),
       reps: Number(r.best_reps),
       weight: Number(r.best_weight),
+      instanceCount: Number(r.instance_count),
     }));
   }),
 

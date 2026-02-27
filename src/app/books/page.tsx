@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { cn } from "~/lib/util";
+import { cn, devBaseUrl } from "~/lib/util";
 
 import { BookFilters } from "./components/BookFilters";
 import { BookSize } from "./components/BookSize";
@@ -77,7 +77,7 @@ export default function BooksPage() {
             href={
               process.env.NODE_ENV === "production"
                 ? "https://chappyasel.com"
-                : "http://localhost:3000"
+                : devBaseUrl()
             }
             className="group inline-flex items-center gap-2 text-2xl font-semibold text-foreground transition-opacity hover:opacity-80 md:text-4xl"
             onMouseEnter={() => setIsHovered(true)}

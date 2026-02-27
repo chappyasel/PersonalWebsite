@@ -1,10 +1,11 @@
 import { type Metadata } from "next";
+import { devSubdomainUrl } from "~/lib/util";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NODE_ENV === "production"
       ? "https://weightlifting.chappyasel.com"
-      : "http://weightlifting.localhost:3000",
+      : devSubdomainUrl("weightlifting"),
   ),
   title: "Weightlifting ~ Chappy Asel",
   description: "Workout stats, personal records, and training log",

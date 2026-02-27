@@ -5,12 +5,13 @@ import { BooksLayoutWrapper } from "./components/BooksLayoutWrapper";
 import { Modal } from "./components/Modal";
 
 import { BookPreviewProvider } from "./contexts/BookPreviewContext";
+import { devSubdomainUrl } from "~/lib/util";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NODE_ENV === "production"
       ? "https://books.chappyasel.com"
-      : "http://books.localhost:3000",
+      : devSubdomainUrl("books"),
   ),
   title: "Book Notes ~ Chappy Asel",
   description: "My reading collection with notes and reviews",

@@ -2,12 +2,19 @@
   "functions": {
     "src/app/api/cron/sync-books/route.ts": {
       "maxDuration": 180
+    },
+    "src/app/api/cron/sync-weightlifting/route.ts": {
+      "maxDuration": 180
     }
   },
   "crons": [
     {
       "path": "/api/cron/sync-books",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/sync-weightlifting",
+      "schedule": "0 9 */3 * *"
     }
   ]
 }

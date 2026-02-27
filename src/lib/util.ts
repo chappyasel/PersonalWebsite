@@ -5,6 +5,21 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+function getDevPort() {
+  if (typeof window !== "undefined") return window.location.port || "3000";
+  return process.env.PORT ?? "3000";
+}
+
+/** Local dev base URL for the root domain (e.g. http://localhost:3001) */
+export function devBaseUrl() {
+  return `http://localhost:${getDevPort()}`;
+}
+
+/** Local dev base URL for a subdomain (e.g. http://books.localhost:3001) */
+export function devSubdomainUrl(subdomain: string) {
+  return `http://${subdomain}.localhost:${getDevPort()}`;
+}
+
 export function getTimeAgo(pubDate: string) {
   const now = new Date();
   const postDate = new Date(pubDate);

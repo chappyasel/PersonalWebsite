@@ -6,6 +6,7 @@ import { useMemo } from "react";
 import { Area, AreaChart, ResponsiveContainer, YAxis } from "recharts";
 
 import { Skeleton } from "~/components/ui/skeleton";
+import { devSubdomainUrl } from "~/lib/util";
 import { api } from "~/trpc/react";
 
 import TiltCard from "./TiltCard";
@@ -90,7 +91,7 @@ export default function Weightlifting() {
           href={
             process.env.NODE_ENV === "production"
               ? "https://weightlifting.chappyasel.com"
-              : "http://weightlifting.localhost:3000"
+              : devSubdomainUrl("weightlifting")
           }
         >
           {/* Aggregate chart */}

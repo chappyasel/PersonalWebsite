@@ -494,7 +494,7 @@ export function StrengthProgressionChart() {
       const config: ChartConfig = {
         total: {
           label: "Total 1RM",
-          color: "hsl(var(--chart-1))",
+          color: "#3b82f6",
         },
         prCount: {
           label: "PRs this month",
