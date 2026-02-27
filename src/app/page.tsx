@@ -8,6 +8,7 @@ import BookNotes from "./components/BookNotes";
 import PersonalManual from "./components/PersonalManual";
 import Projects from "./components/Projects";
 import Quotes from "./components/Quotes";
+import Weightlifting from "./components/Weightlifting";
 
 export default async function HomePage() {
   return (
@@ -16,6 +17,7 @@ export default async function HomePage() {
         <AboutMe />
         <PersonalManual />
         <BookNotes />
+        <Weightlifting />
         <BlogPosts />
         <Projects />
         <Quotes />

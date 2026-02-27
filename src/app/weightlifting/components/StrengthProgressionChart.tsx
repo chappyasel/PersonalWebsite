@@ -1,6 +1,7 @@
 "use client";
 
-import { PlusIcon, XIcon } from "@phosphor-icons/react/dist/ssr";
+import { CaretDownIcon, PlusIcon, XIcon } from "@phosphor-icons/react/dist/ssr";
+import { AnimatePresence, motion } from "framer-motion";
 import { useMemo, useRef, useState } from "react";
 import {
   Bar,
@@ -280,7 +281,9 @@ export function StrengthProgressionChart() {
   const [selectedExercises, setSelectedExercises] =
     useState<string[]>(DEFAULT_EXERCISES);
   const [timeRange, setTimeRange] = useState(0); // months, 0 = all
-  const [chartMode, setChartMode] = useState<ChartMode>("aggregate");
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+  const [chartMode, setChartMode] = useState<ChartMode>(isMobile ? "pr" : "aggregate");
+  const [pillsExpanded, setPillsExpanded] = useState(!isMobile);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [search, setSearch] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -708,8 +711,20 @@ export function StrengthProgressionChart() {
 
         <div className="h-4 w-px bg-neutral-200 dark:bg-neutral-700" />
 
-        {/* Exercise toggle pills */}
-        <div className="flex flex-wrap gap-1.5">
+        {/* Exercises toggle button (mobile) */}
+        <button
+          onClick={() => setPillsExpanded(!pillsExpanded)}
+          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-neutral-500 transition-colors hover:text-neutral-700 md:hidden dark:text-neutral-400 dark:hover:text-neutral-200"
+        >
+          {selectedExercises.length} exercises
+          <CaretDownIcon
+            className={`h-3 w-3 transition-transform ${pillsExpanded ? "rotate-180" : ""}`}
+            weight="bold"
+          />
+        </button>
+
+        {/* Exercise toggle pills - always visible on desktop */}
+        <div className="hidden flex-wrap gap-1.5 md:flex">
           {selectedExercises.map((exercise) => {
             const exerciseInfo = topExercises?.find(
               (e) => e.displayName === exercise,
@@ -802,6 +817,44 @@ export function StrengthProgressionChart() {
           </div>
         </div>
       </div>
+
+      {/* Exercise toggle pills - mobile animated */}
+      <AnimatePresence initial={false}>
+        {pillsExpanded && (
+          <motion.div
+            className="flex flex-wrap gap-1.5 md:hidden"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeInOut" }}
+            style={{ overflow: "hidden" }}
+          >
+            {selectedExercises.map((exercise) => {
+              const exerciseInfo = topExercises?.find(
+                (e) => e.displayName === exercise,
+              );
+              return (
+                <button
+                  key={exercise}
+                  onClick={() => toggleExercise(exercise)}
+                  className="group flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-xs font-medium text-neutral-700 transition-colors hover:border-neutral-300 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:border-neutral-500"
+                >
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{
+                      backgroundColor: categoryColor(
+                        exerciseInfo?.category ?? "Other",
+                      ),
+                    }}
+                  />
+                  {shortenName(exercise)}
+                  <XIcon className="h-3 w-3 text-neutral-400 transition-colors group-hover:text-neutral-600 dark:group-hover:text-neutral-200" />
+                </button>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Aggregate stats bar */}
       {chartMode === "aggregate" && trendline && (

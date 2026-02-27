@@ -36,7 +36,7 @@ export default function BookCarousel() {
             "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
         }}
       >
-        {[1, 2, 3].map((row) => (
+        {[1, 2].map((row) => (
           <div key={row} className="w-full overflow-hidden">
             <div className="flex w-fit gap-3">
               {Array.from({ length: 20 }).map((_, i) => (
@@ -66,7 +66,7 @@ export default function BookCarousel() {
             "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
         }}
       >
-        {[1, 2, 3].map((row) => (
+        {[1, 2].map((row) => (
           <div key={row} className="w-full overflow-hidden">
             <div className="flex w-fit gap-3">
               {Array.from({ length: 20 }).map((_, i) => (
@@ -82,19 +82,16 @@ export default function BookCarousel() {
     );
   }
 
-  // Distribute books across three rows
+  // Distribute books across two rows
   const distributeBooks = (allBooks: Book[], booksPerRow = 20) => {
-    const rows: Book[][] = [[], [], []];
+    const rows: Book[][] = [[], []];
 
-    if (allBooks.length >= booksPerRow * 3) {
-      // We have enough books, split evenly
+    if (allBooks.length >= booksPerRow * 2) {
       rows[0] = allBooks.slice(0, booksPerRow);
       rows[1] = allBooks.slice(booksPerRow, booksPerRow * 2);
-      rows[2] = allBooks.slice(booksPerRow * 2, booksPerRow * 3);
     } else {
-      // Cycle through available books to fill rows
       let bookIndex = 0;
-      for (let row = 0; row < 3; row++) {
+      for (let row = 0; row < 2; row++) {
         for (let i = 0; i < booksPerRow; i++) {
           if (rows[row]) {
             rows[row]!.push(allBooks[bookIndex % allBooks.length]!);
@@ -107,7 +104,7 @@ export default function BookCarousel() {
     return rows;
   };
 
-  const [row1Books, row2Books, row3Books] = distributeBooks(books);
+  const [row1Books, row2Books] = distributeBooks(books);
 
   return (
     <motion.div
@@ -127,9 +124,6 @@ export default function BookCarousel() {
 
       {/* Row 2 - Scroll Right */}
       <MarqueeRow books={row2Books!} direction="right" />
-
-      {/* Row 3 - Scroll Left */}
-      <MarqueeRow books={row3Books!} direction="left" />
     </motion.div>
   );
 }
