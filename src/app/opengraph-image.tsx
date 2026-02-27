@@ -36,20 +36,21 @@ export default async function Image() {
       <div
         style={{
           display: "flex",
+          flexDirection: "column",
           width: "100%",
           height: "100%",
           backgroundColor: "#f5f5f5",
           alignItems: "center",
           justifyContent: "center",
-          gap: "48px",
+          gap: "32px",
           fontFamily: '"Georgia Pro"',
         }}
       >
         {/* Profile Image */}
         <img
           src={profileSrc}
-          width={240}
-          height={240}
+          width={340}
+          height={340}
           style={{
             borderRadius: "50%",
             objectFit: "cover",
