@@ -1,4 +1,5 @@
 import { type Metadata } from "next";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 
 export const metadata: Metadata = {
   title: "Liar's Dice Calculator ~ Chappy Asel",
@@ -30,5 +31,5 @@ export default function LiarsDiceLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return <NuqsAdapter>{children}</NuqsAdapter>;
 }

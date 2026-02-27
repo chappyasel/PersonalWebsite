@@ -2,9 +2,9 @@ export function expectedValue(total: number): string {
   const val = (total / 3).toFixed(0);
   switch (total % 3) {
     case 1:
-      return `over ${val}`;
+      return `o${val}`;
     case 2:
-      return `under ${val}`;
+      return `u${val}`;
     default:
       return `${val}`;
   }

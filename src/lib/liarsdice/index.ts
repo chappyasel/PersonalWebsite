@@ -4,6 +4,7 @@ export interface Input {
   myDice: number[];
   totalDice: number;
   countOnes: boolean;
+  currentBid?: number;
   minProbability?: number;
 }
 
@@ -32,7 +33,7 @@ export interface DiceScenario {
 }
 
 export function play(input: Input): Output {
-  const { myDice, totalDice, countOnes, minProbability = 0.01 } = input;
+  const { myDice, totalDice, countOnes, currentBid, minProbability = 0.01 } = input;
 
   const myDiceCount = myDice.reduce((acc, val) => acc + val, 0);
   const numUnknownDice = totalDice - myDiceCount;
@@ -66,9 +67,10 @@ export function play(input: Input): Output {
           spotOnProbability: prob,
         });
 
-        // Track best bid: highest quantity with >= 50% probability
+        // Track best bid: highest quantity with >= 50% probability (above current bid if set)
         if (
           currentProbability >= 0.5 &&
+          (!currentBid || target > currentBid) &&
           (!bestBid ||
             target > bestBid.quantity ||
             (target === bestBid.quantity &&

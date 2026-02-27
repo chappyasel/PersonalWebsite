@@ -66,6 +66,20 @@ export default function InputForm({ onChange, input }: Props) {
     [setTotalDice],
   );
 
+  const currentBid = input.currentBid;
+
+  const setCurrentBid = useCallback(
+    (val: number | undefined) => {
+      if (val === undefined || val < 1) {
+        onChange({ ...input, currentBid: undefined });
+      } else {
+        const clamped = Math.min(val, input.totalDice);
+        onChange({ ...input, currentBid: clamped });
+      }
+    },
+    [input, onChange],
+  );
+
   const diceValues: number[] = useMemo(() => {
     const vals: number[] = [];
     for (let i = 0; i < 6; i++) {
@@ -89,8 +103,8 @@ export default function InputForm({ onChange, input }: Props) {
               onChange={handleDiceInput}
               inputMode="numeric"
               pattern="[1-6]*"
-              placeholder="e.g. 213166"
-              className="font-mono text-[16px]"
+              placeholder="e.g. 11234"
+              className="h-8 font-mono text-[16px]"
             />
             <div className="flex shrink-0 items-center -space-x-0.5">
               {Array.from({ length: 5 }, (_, i) => {
@@ -112,40 +126,79 @@ export default function InputForm({ onChange, input }: Props) {
 
         </div>
 
-        {/* Total Dice Stepper */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-foreground">
-            Total dice in play
-          </label>
-          <div className="flex items-center gap-1.5">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setTotalDice(input.totalDice - 1)}
-              disabled={input.totalDice <= minTotal}
-              className="h-8 w-8 shrink-0"
-            >
-              <MinusIcon className="h-3.5 w-3.5" weight="bold" />
-            </Button>
-            <Input
-              value={input.totalDice}
-              onChange={handleTotalInput}
-              inputMode="numeric"
-              pattern="[0-9]*"
-              className="h-8 w-14 text-center text-[16px] font-semibold"
-            />
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setTotalDice(input.totalDice + 1)}
-              disabled={input.totalDice >= maxTotal}
-              className="h-8 w-8 shrink-0"
-            >
-              <PlusIcon className="h-3.5 w-3.5" weight="bold" />
-            </Button>
-            <span className="text-xs text-muted-foreground">
-              EV {expectedValue(input.totalDice)}
-            </span>
+        {/* Total Dice & Current Bid */}
+        <div className="flex items-end justify-between">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-foreground">
+              Total dice in play
+            </label>
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setTotalDice(input.totalDice - 1)}
+                disabled={input.totalDice <= minTotal}
+                className="h-8 w-8 shrink-0"
+              >
+                <MinusIcon className="h-3.5 w-3.5" weight="bold" />
+              </Button>
+              <Input
+                value={input.totalDice}
+                onChange={handleTotalInput}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                className="h-8 w-12 text-center text-[16px] font-semibold"
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setTotalDice(input.totalDice + 1)}
+                disabled={input.totalDice >= maxTotal}
+                className="h-8 w-8 shrink-0"
+              >
+                <PlusIcon className="h-3.5 w-3.5" weight="bold" />
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                EV {expectedValue(input.totalDice)}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-foreground">
+              Current bid
+            </label>
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setCurrentBid(currentBid === 1 ? undefined : (currentBid ?? 1) - 1)}
+                disabled={currentBid === undefined}
+                className="h-8 w-8 shrink-0"
+              >
+                <MinusIcon className="h-3.5 w-3.5" weight="bold" />
+              </Button>
+              <Input
+                value={currentBid ?? ""}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  setCurrentBid(isNaN(val) ? undefined : val);
+                }}
+                inputMode="numeric"
+                pattern="[0-9]*"
+                placeholder="—"
+                className="h-8 w-12 text-center text-[16px] font-semibold"
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setCurrentBid((currentBid ?? 0) + 1)}
+                disabled={currentBid !== undefined && currentBid >= input.totalDice}
+                className="h-8 w-8 shrink-0"
+              >
+                <PlusIcon className="h-3.5 w-3.5" weight="bold" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>

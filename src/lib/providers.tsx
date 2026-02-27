@@ -26,6 +26,52 @@ export function ObserverProvider({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function getThemeCookieDomain(): string | undefined {
+  const hostname = window.location.hostname;
+  // For *.chappyasel.com subdomains, set cookie on .chappyasel.com
+  if (hostname.endsWith(".chappyasel.com") || hostname === "chappyasel.com") {
+    return ".chappyasel.com";
+  }
+  // For *.localhost subdomains in dev, set cookie on localhost
+  if (hostname.endsWith(".localhost") || hostname === "localhost") {
+    return "localhost";
+  }
+  return undefined;
+}
+
+function getThemeFromCookie(): string | null {
+  const match = /(?:^|; )theme=([^;]*)/.exec(document.cookie);
+  return match ? decodeURIComponent(match[1]!) : null;
+}
+
+function setThemeCookie(theme: string) {
+  const domain = getThemeCookieDomain();
+  const domainPart = domain ? `; domain=${domain}` : "";
+  document.cookie = `theme=${encodeURIComponent(theme)}; path=/${domainPart}; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+}
+
+function ThemeCookieSync() {
+  const { theme, setTheme } = useTheme();
+
+  // On mount, sync from cookie → next-themes if cookie has a value
+  useEffect(() => {
+    const cookieTheme = getThemeFromCookie();
+    if (cookieTheme && cookieTheme !== theme) {
+      setTheme(cookieTheme);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Whenever theme changes, sync to cookie
+  useEffect(() => {
+    if (theme) {
+      setThemeCookie(theme);
+    }
+  }, [theme]);
+
+  return null;
+}
+
 function ThemeKeyboardShortcut() {
   const { resolvedTheme, setTheme } = useTheme();
 
@@ -51,6 +97,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       enableSystem
       disableTransitionOnChange={false}
     >
+      <ThemeCookieSync />
       <ThemeKeyboardShortcut />
       {children}
     </NextThemesProvider>

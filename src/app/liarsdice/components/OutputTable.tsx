@@ -1,6 +1,6 @@
 "use client";
 
-import { CaretDownIcon, CaretRightIcon } from "@phosphor-icons/react";
+import { CaretDownIcon, CaretRightIcon, EyeIcon, EyeSlashIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "framer-motion";
 import React, { useMemo, useState } from "react";
 
@@ -11,17 +11,20 @@ import DiceFace from "./DiceFace";
 
 export interface Props {
   output: Output;
+  currentBid?: number;
 }
 
 function probColor(p: number): React.CSSProperties {
-  const hue = p * 120;
+  // Curve so yellow (hue 60) lands at ~30% probability
+  const hue = p <= 0.3 ? (p / 0.3) * 60 : 60 + ((p - 0.3) / 0.7) * 60;
   return {
-    backgroundColor: `hsl(${hue} 70% var(--prob-bg-lightness))`,
-    color: `hsl(${hue} 50% var(--prob-text-lightness))`,
+    backgroundColor: `hsl(${hue} 85% var(--prob-bg-lightness))`,
+    color: `hsl(${hue} 70% var(--prob-text-lightness))`,
   };
 }
 
-export default function OutputTable({ output }: Props) {
+export default function OutputTable({ output, currentBid }: Props) {
+  const [showAll, setShowAll] = useState(false);
   const defaultExpanded = useMemo(() => {
     const set = new Set<number>();
     for (const t of output.targets) {
@@ -53,22 +56,41 @@ export default function OutputTable({ output }: Props) {
   return (
     <div className="flex w-full flex-col gap-3">
       {bestBid && (
-        <div className="rounded-lg border bg-card p-3 text-center">
-          <span className="text-sm text-muted-foreground">Best bid: </span>
-          <span className="font-semibold">
-            {bestBid.quantity}{" "}
-            {numberToString(bestBid.faceValue - 1).toLowerCase()}
-          </span>
-          <span className="text-sm text-muted-foreground">
-            {" "}
-            ({(bestBid.probability * 100).toFixed(0)}%)
-          </span>
+        <div className="flex items-center rounded-lg border bg-card p-3">
+          <div className="flex-1 text-center">
+            <span className="text-sm text-muted-foreground">Best bid: </span>
+            <span className="font-semibold">
+              {bestBid.quantity}{" "}
+              {numberToString(bestBid.faceValue - 1).toLowerCase()}
+            </span>
+            <span className="text-sm text-muted-foreground">
+              {" "}
+              ({(bestBid.probability * 100).toFixed(0)}%)
+            </span>
+          </div>
+          {currentBid !== undefined && (
+            <button
+              onClick={() => setShowAll((v) => !v)}
+              className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary/80 hover:text-foreground"
+              aria-label={showAll ? "Hide bids at or below current bid" : "Show all bids"}
+            >
+              {showAll ? (
+                <EyeIcon className="h-4 w-4" weight="bold" />
+              ) : (
+                <EyeSlashIcon className="h-4 w-4" weight="bold" />
+              )}
+            </button>
+          )}
         </div>
       )}
 
       {output.targets.map((target) => {
         const isExpanded = expanded.has(target.diceNumber);
-        const best = target.scenarios.find((s) => s.probability >= 0.5);
+        const filteredScenarios =
+          currentBid !== undefined && !showAll
+            ? target.scenarios.filter((s) => s.numMatches > currentBid)
+            : target.scenarios;
+        const best = filteredScenarios.find((s) => s.probability >= 0.5);
         const bestSummary = best
           ? `best: ${best.numMatches} at ${(best.probability * 100).toFixed(0)}%`
           : "";
@@ -108,7 +130,7 @@ export default function OutputTable({ output }: Props) {
             </button>
 
             <AnimatePresence initial={false}>
-              {isExpanded && target.scenarios.length > 0 && (
+              {isExpanded && filteredScenarios.length > 0 && (
                 <motion.div
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}
@@ -116,52 +138,65 @@ export default function OutputTable({ output }: Props) {
                   transition={{ duration: 0.2, ease: "easeInOut" }}
                   className="overflow-hidden"
                 >
-                  <table className="mt-1 w-full border-collapse text-sm">
-                    <thead>
-                      <tr className="bg-muted">
-                        <th className="rounded-tl-md border border-border p-1.5 text-left font-medium">
-                          #
-                        </th>
-                        <th className="border border-border p-1.5 text-left font-medium">
-                          Probability
-                        </th>
-                        <th className="rounded-tr-md border border-border p-1.5 text-left font-medium">
-                          Spot On
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {target.scenarios.map((scenario, index) => {
-                        const pct = (scenario.probability * 100).toFixed(1);
-                        const spotOn = (
-                          scenario.spotOnProbability * 100
-                        ).toFixed(1);
-                        return (
-                          <tr key={index}>
-                            <td className="border border-border p-1.5 font-medium">
-                              {scenario.numMatches}
-                            </td>
-                            <td
-                              className="border border-border p-1.5 font-medium tabular-nums"
-                              style={probColor(scenario.probability)}
-                            >
-                              {pct}%
-                            </td>
-                            <td
-                              className="border border-border p-1.5 tabular-nums"
-                              style={probColor(scenario.spotOnProbability)}
-                            >
-                              {spotOn}%
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                  <div className="mt-1 overflow-hidden rounded-lg border border-border">
+                    <table className="w-full table-fixed border-collapse text-sm">
+                      <thead>
+                        <tr className="bg-muted">
+                          <th className="w-14 border-b border-r border-border p-1.5 text-left font-medium">
+                            #
+                          </th>
+                          <th className="border-b border-r border-border p-1.5 text-left font-medium">
+                            Probability
+                          </th>
+                          <th className="border-b border-border p-1.5 text-left font-medium">
+                            Spot On
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredScenarios.map((scenario, index) => {
+                          const pct = (scenario.probability * 100).toFixed(1);
+                          const spotOn = (
+                            scenario.spotOnProbability * 100
+                          ).toFixed(1);
+                          const isLast =
+                            index === filteredScenarios.length - 1;
+                          const isBestBid =
+                            bestBid !== null &&
+                            target.diceNumber === bestBid.faceValue &&
+                            scenario.numMatches === bestBid.quantity;
+                          const isBelowBid =
+                            currentBid !== undefined &&
+                            scenario.numMatches <= currentBid;
+                          return (
+                            <tr key={scenario.numMatches}>
+                              <td
+                                className={`${isLast ? "" : "border-b"} border-r border-border p-1.5 font-semibold ${isBestBid ? "bg-foreground text-background" : isBelowBid ? "text-muted-foreground/40" : ""}`}
+                              >
+                                {scenario.numMatches}
+                              </td>
+                              <td
+                                className={`${isLast ? "" : "border-b"} border-r border-border p-1.5 font-medium tabular-nums`}
+                                style={probColor(scenario.probability)}
+                              >
+                                {pct}%
+                              </td>
+                              <td
+                                className={`${isLast ? "" : "border-b"} border-border p-1.5 tabular-nums`}
+                                style={probColor(scenario.spotOnProbability)}
+                              >
+                                {spotOn}%
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </motion.div>
               )}
 
-              {isExpanded && target.scenarios.length === 0 && (
+              {isExpanded && filteredScenarios.length === 0 && (
                 <motion.p
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}
