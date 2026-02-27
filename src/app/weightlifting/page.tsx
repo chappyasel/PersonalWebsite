@@ -1,19 +1,75 @@
 "use client";
 
-import { HouseLineIcon } from "@phosphor-icons/react/dist/ssr";
+import {
+  CalendarDotsIcon,
+  CaretDownIcon,
+  ChartLineUpIcon,
+  HouseLineIcon,
+  TrophyIcon,
+} from "@phosphor-icons/react/dist/ssr";
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 
 import { StatsCards } from "./components/StatsCards";
 import { YearCalendar } from "./components/YearCalendar";
-import { StrengthProgressionChart } from "./components/StrengthProgressionChart";
+import {
+  DEFAULT_EXERCISES,
+  StrengthProgressionChart,
+} from "./components/StrengthProgressionChart";
 import { PersonalRecords } from "./components/PersonalRecords";
 import { devBaseUrl } from "~/lib/util";
 
+function CollapsibleSection({
+  icon,
+  title,
+  defaultOpen = true,
+  children,
+}: {
+  icon: ReactNode;
+  title: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <section>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="mb-4 flex w-full items-center gap-2 font-rounded text-lg font-medium text-neutral-700 transition-opacity hover:opacity-80 dark:text-neutral-200"
+      >
+        {icon}
+        <span>{title}</span>
+        <CaretDownIcon
+          className={`ml-auto h-4 w-4 text-neutral-400 transition-transform dark:text-neutral-500 ${isOpen ? "rotate-180" : ""}`}
+          weight="bold"
+        />
+      </button>
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
+            style={{ overflow: "hidden" }}
+          >
+            <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-800">
+              {children}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </section>
+  );
+}
+
 export default function WeightliftingPage() {
   const [isHovered, setIsHovered] = useState(false);
+  const [selectedExercises, setSelectedExercises] =
+    useState<string[]>(DEFAULT_EXERCISES);
 
   return (
     <div className="mx-auto max-w-4xl space-y-10 font-sans">
@@ -74,32 +130,32 @@ export default function WeightliftingPage() {
         <StatsCards />
       </section>
 
-      {/* Year Calendar */}
-      <section>
-        <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-800">
-          <YearCalendar />
-        </div>
-      </section>
-
       {/* Strength Progression */}
-      <section>
-        <h2 className="mb-4 font-rounded text-lg font-medium text-neutral-700 dark:text-neutral-200">
-          Strength Progression
-        </h2>
-        <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-800">
-          <StrengthProgressionChart />
-        </div>
-      </section>
+      <CollapsibleSection
+        icon={<ChartLineUpIcon className="h-5 w-5" weight="bold" />}
+        title="Strength Progression"
+      >
+        <StrengthProgressionChart
+          selectedExercises={selectedExercises}
+          setSelectedExercises={setSelectedExercises}
+        />
+      </CollapsibleSection>
 
-      {/* Personal Records */}
-      <section>
-        <h2 className="mb-4 font-rounded text-lg font-medium text-neutral-700 dark:text-neutral-200">
-          All-time PRs
-        </h2>
-        <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-800">
-          <PersonalRecords />
-        </div>
-      </section>
+      {/* Featured Lifts PRs */}
+      <CollapsibleSection
+        icon={<TrophyIcon className="h-5 w-5" weight="bold" />}
+        title="Featured Lifts"
+      >
+        <PersonalRecords selectedExercises={selectedExercises} />
+      </CollapsibleSection>
+
+      {/* All Workouts Calendar */}
+      <CollapsibleSection
+        icon={<CalendarDotsIcon className="h-5 w-5" weight="bold" />}
+        title="All Workouts"
+      >
+        <YearCalendar />
+      </CollapsibleSection>
     </div>
   );
 }

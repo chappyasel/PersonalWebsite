@@ -93,30 +93,35 @@ export const weightliftingRouter = createTRPCRouter({
   /** Best estimated 1RM per exercise, with the reps×weight that produced it */
   getPersonalRecords: publicProcedure.query(async () => {
     const rows = await db.execute<{
-      exercise_name: string;
+      display_name: string;
       category: string;
       best_one_rm: number;
       best_reps: number;
       best_weight: number;
       instance_count: number;
     }>(sql`
-      SELECT DISTINCT ON (e.name)
-        e.name AS exercise_name,
+      SELECT DISTINCT ON (display_name)
+        CASE
+          WHEN e.iteration IS NOT NULL AND e.iteration != ''
+          THEN e.iteration || ' ' || e.name
+          ELSE e.name
+        END AS display_name,
         e.category,
         s.one_rm AS best_one_rm,
         s.reps AS best_reps,
         s.weight AS best_weight,
         (SELECT COUNT(DISTINCT e2.id)
          FROM wl_exercises e2
-         WHERE e2.name = e.name) AS instance_count
+         WHERE e2.name = e.name
+           AND COALESCE(e2.iteration, '') = COALESCE(e.iteration, '')) AS instance_count
       FROM wl_sets s
       INNER JOIN wl_exercises e ON s.exercise_id = e.id
       WHERE s.one_rm IS NOT NULL AND s.one_rm > 0
-      ORDER BY e.name, s.one_rm DESC
+      ORDER BY display_name, s.one_rm DESC
     `);
 
     return rows.map((r) => ({
-      exerciseName: r.exercise_name,
+      exerciseName: r.display_name,
       category: r.category,
       bestOneRM: Number(r.best_one_rm),
       reps: Number(r.best_reps),

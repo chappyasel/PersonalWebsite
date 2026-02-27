@@ -4,7 +4,11 @@ import { Skeleton } from "~/components/ui/skeleton";
 import { api } from "~/trpc/react";
 import { categoryColor } from "../lib/utils";
 
-export function PersonalRecords() {
+interface PersonalRecordsProps {
+  selectedExercises: string[];
+}
+
+export function PersonalRecords({ selectedExercises }: PersonalRecordsProps) {
   const { data: records, isLoading } =
     api.weightlifting.getPersonalRecords.useQuery();
 
@@ -22,10 +26,13 @@ export function PersonalRecords() {
     return <p className="text-sm text-neutral-500">No records found.</p>;
   }
 
-  const sorted = [...records].sort((a, b) => b.bestOneRM - a.bestOneRM).slice(0, 20);
+  const filtered = records.filter((r) =>
+    selectedExercises.includes(r.exerciseName),
+  );
+  const sorted = [...filtered].sort((a, b) => b.bestOneRM - a.bestOneRM);
 
   return (
-    <div className="overflow-x-auto">
+    <div className="-mb-4 overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-neutral-200 text-left text-neutral-500 dark:border-neutral-700 dark:text-neutral-400">
@@ -37,7 +44,7 @@ export function PersonalRecords() {
           {sorted.map((record) => (
             <tr
               key={record.exerciseName}
-              className="border-b border-neutral-100 dark:border-neutral-700/50"
+              className="border-b border-neutral-100 last:border-b-0 dark:border-neutral-700/50"
             >
               <td className="py-2 pr-4">
                 <span className="flex items-center gap-2 text-neutral-800 dark:text-neutral-100">

@@ -24,7 +24,7 @@ import {
 import { api } from "~/trpc/react";
 import { categoryColor } from "../lib/utils";
 
-const DEFAULT_EXERCISES = [
+export const DEFAULT_EXERCISES = [
   "Flat Barbell Bench Press",
   "Incline Barbell Bench Press",
   "Close-grip Bench Press",
@@ -277,9 +277,15 @@ function AggregateTooltip({
   );
 }
 
-export function StrengthProgressionChart() {
-  const [selectedExercises, setSelectedExercises] =
-    useState<string[]>(DEFAULT_EXERCISES);
+interface StrengthProgressionChartProps {
+  selectedExercises: string[];
+  setSelectedExercises: React.Dispatch<React.SetStateAction<string[]>>;
+}
+
+export function StrengthProgressionChart({
+  selectedExercises,
+  setSelectedExercises,
+}: StrengthProgressionChartProps) {
   const [timeRange, setTimeRange] = useState(0); // months, 0 = all
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
   const [chartMode, setChartMode] = useState<ChartMode>(isMobile ? "pr" : "aggregate");
