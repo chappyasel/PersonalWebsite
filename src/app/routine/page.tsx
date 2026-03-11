@@ -47,13 +47,29 @@ export default async function RoutinePage() {
     bookLookup[b.id] = { title: b.title, coverUrl: b.coverUrl };
   }
 
+  // Separate supp-stacks rant (merged into supplement section) from other rants
+  const suppStacksRant = data.rants.find((r) => r.id === "supp-stacks");
+  const otherRants = data.rants.filter((r) => r.id !== "supp-stacks");
+
+  // Short labels for TOC
+  const rantLabels: Record<string, string> = {
+    "sinusoidal-vs-square-wave-alertness": "Alertness",
+    caffeine: "Caffeine",
+    "sleep-duration": "Sleep",
+    "getting-back-on-track": "Recovery",
+  };
+
   // Build TOC items
   const tocItems = [
     { id: "why-early", label: "Why So Early?", icon: "⏰" },
     { id: "morning", label: "Morning", icon: "🌅" },
     { id: "evening", label: "Evening", icon: "🌆" },
-    { id: "supplements", label: "Supplements", icon: "💊" },
-    ...data.rants.map((r) => ({ id: r.id, label: r.title, icon: r.icon })),
+    { id: "supp-stacks", label: "Supp Stacks", icon: "💊" },
+    ...otherRants.map((r) => ({
+      id: r.id,
+      label: rantLabels[r.id] ?? r.title,
+      icon: r.icon,
+    })),
   ];
 
   return (
@@ -95,17 +111,19 @@ export default async function RoutinePage() {
                 bookLookup={bookLookup}
               />
 
-              {/* Supplement Cards */}
+              {/* Supp Stacks (merged rant + cards) */}
               {(data.supplements.am.length > 0 ||
                 data.supplements.pm.length > 0) && (
                 <SupplementCardsSection
                   am={data.supplements.am}
                   pm={data.supplements.pm}
+                  contextBlocks={suppStacksRant?.blocks}
+                  bookLookup={bookLookup}
                 />
               )}
 
-              {/* Related Rants */}
-              {data.rants.map((section) => (
+              {/* Related Rants (excluding supp-stacks) */}
+              {otherRants.map((section) => (
                 <RoutineSection
                   key={section.id}
                   section={section}

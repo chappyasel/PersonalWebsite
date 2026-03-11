@@ -5,6 +5,7 @@ import { GrainientBackground } from "~/components/ui/grainient-background";
 import AboutMe from "./components/About";
 import BlogPosts from "./components/BlogPosts";
 import BookNotes from "./components/BookNotes";
+import DailyRoutine from "./components/DailyRoutine";
 import PersonalManual from "./components/PersonalManual";
 import Projects from "./components/Projects";
 import Quotes from "./components/Quotes";
@@ -18,6 +19,7 @@ export default async function HomePage() {
         <PersonalManual />
         <BookNotes />
         <Weightlifting />
+        <DailyRoutine />
         <BlogPosts />
         <Projects />
         <Quotes />
