@@ -1,3 +1,8 @@
+import type { BookLookup, NotionBlock, RichText } from "~/components/notion/types";
+
+// Re-export for convenience
+export type { NotionBlock as ManualBlock, RichText, BookLookup };
+
 export type ManualData = {
   lastUpdated: string;
   hero: {
@@ -14,33 +19,8 @@ export type ManualSection = {
   id: string;
   title: string;
   icon: string;
-  blocks: ManualBlock[];
+  blocks: NotionBlock[];
 };
-
-export type ManualBlock =
-  | { type: "paragraph"; content: RichText[] }
-  | { type: "heading"; level: 2 | 3; content: RichText[] }
-  | { type: "callout"; icon: string; color: string; content: ManualBlock[] }
-  | { type: "toggle"; title: RichText[]; children: ManualBlock[] }
-  | { type: "bulleted_list"; items: ManualBlock[][] }
-  | { type: "numbered_list"; items: ManualBlock[][] }
-  | { type: "image"; src: string; alt: string }
-  | { type: "divider" }
-  | { type: "quote"; content: RichText[] };
-
-export type RichText = {
-  text: string;
-  bold?: boolean;
-  italic?: boolean;
-  code?: boolean;
-  color?: string;
-  link?: string;
-};
-
-export type BookLookup = Record<
-  string,
-  { title: string; coverUrl: string | null }
->;
 
 export type PersonalityData = {
   mbti: string;

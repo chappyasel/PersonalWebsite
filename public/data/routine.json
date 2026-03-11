@@ -1,0 +1,2010 @@
+{
+  "lastUpdated": "2026-03-11T14:57:00.000Z",
+  "intro": "Given my infamously early wakeup time and disciplined schedule, a lot of people have been asking for my morning routine and the rationale behind it these past couple of years!",
+  "whyEarly": [
+    {
+      "type": "toggle",
+      "title": [
+        {
+          "text": "Origin story:",
+          "italic": true
+        }
+      ],
+      "children": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "Growing up, I was very definitively a night owl. It wasn’t until cutting for my bodybuilding competition when my hormones got thrown out of whack that I started naturally (uncontrollably) waking up at 4am, 3am, and sometimes even 2am wired 😅. Ever since mid-2022, I made the transition and haven’t looked back!"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "text": "Why wake up extremely early? The benefits are near-endless but here are a few of my favorites:"
+        }
+      ]
+    },
+    {
+      "type": "bulleted_list",
+      "items": [
+        [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "text": "It’s easy, actually",
+                "bold": true
+              }
+            ]
+          },
+          {
+            "type": "bulleted_list",
+            "items": [
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "It’s really not that hard to wake up early. Fundamentally, I’m still sleeping the same amount as anyone else would, I’m just shifting my schedule earlier. Commit to it for a couple of weeks and watch your circadian rhythm naturally shift!"
+                    }
+                  ]
+                }
+              ]
+            ]
+          }
+        ],
+        [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "text": "I get 3+ hours completely to myself",
+                "bold": true
+              }
+            ]
+          },
+          {
+            "type": "bulleted_list",
+            "items": [
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "That means you’re fully in control of your schedule and no-one can disturb you!"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "I try to allocate as much of this time as I can to “eating the frog” – working on the day’s biggest and most important project "
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Once the meetings + comms bombardment starts, my plate gets filled up will small yet urgent tasks which can easily engulf the rest of my day"
+                    }
+                  ]
+                }
+              ]
+            ]
+          }
+        ],
+        [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "text": "I can’t miss a workout",
+                "bold": true
+              }
+            ]
+          },
+          {
+            "type": "bulleted_list",
+            "items": [
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "When I work out this early in the morning before all meeting, it’s nearly impossible to make an excuse to miss it (not that working out too little is ever an issue 😅)"
+                    }
+                  ]
+                }
+              ]
+            ]
+          }
+        ],
+        [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "text": "I only have to shower once",
+                "bold": true
+              }
+            ]
+          },
+          {
+            "type": "bulleted_list",
+            "items": [
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "There are naturally two points where I have to shower daily: once after my workout and once before my meetings. Why not line the two up?!"
+                    }
+                  ]
+                }
+              ]
+            ]
+          }
+        ],
+        [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "text": "I have enough time",
+                "bold": true
+              }
+            ]
+          },
+          {
+            "type": "bulleted_list",
+            "items": [
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "This gives me enough time to work out early in the morning, shower, and get going"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "My benchmark is at least 4 hours between waking and first meeting. That’s the minimum I can fit my full morning routine into and not feel too rushed"
+                    }
+                  ]
+                }
+              ]
+            ]
+          }
+        ],
+        [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "text": "I naturally out-work everyone",
+                "bold": true
+              }
+            ]
+          },
+          {
+            "type": "bulleted_list",
+            "items": [
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "By starting work before 4am every morning, most people’s 9-5 becomes my 12-hour work day. The inertia naturally becomes that I out-work everyone!"
+                    }
+                  ]
+                }
+              ]
+            ]
+          }
+        ]
+      ]
+    }
+  ],
+  "timeline": {
+    "am": [
+      {
+        "time": "3:45am",
+        "title": "Wake Up",
+        "blocks": [
+          {
+            "type": "bulleted_list",
+            "items": [
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Alarm goes off (Apple Watch) and smart lights turn on (dimmed)"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Immediately after waking, stand up to get blood flowing"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Head to the bathroom to weigh in. Record daily weight on spreadsheet"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Put on workout clothes, which were laid out the night before"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Hop back into bed to increase body temperature"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Turn on "
+                    },
+                    {
+                      "text": "light therapy lamp",
+                      "link": "https://www.amazon.com/Verilux-HappyLight-Adjustable-Brightness-Countdown/dp/B07TBCFL6B?sr=8-5"
+                    },
+                    {
+                      "text": " to imitate sunrise"
+                    }
+                  ]
+                },
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "I find that 30+ mins of this significantly improves my morning alertness"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Review todo lists and (optionally) read a few morning emails and texts to prime for the day"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "🦞 OpenClaw sends a brief at 4am with agenda for the day, complete with background research on every meeting and task for the day. Social media posts + interactions are drafted. "
+                    }
+                  ]
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "time": "4:30am",
+        "title": "Pre-Workout",
+        "blocks": [
+          {
+            "type": "bulleted_list",
+            "items": [
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Try to wait 30m+ after waking before drinking pre-workout (with two Alpha GPC pills)"
+                    }
+                  ]
+                },
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "See "
+                          },
+                          {
+                            "text": "☕ Caffeine",
+                            "link": "#caffeine"
+                          },
+                          {
+                            "text": " "
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Ideally, I wait 60-90 mins before starting to ingest caffeine. This helps to reduce mid-afternoon drowsiness immensely. Though it’s a delicate balance between that and being lethargic in the morning or even falling back asleep accidentally."
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "“Eat the frog” – jump straight into the highest-priority project of the day before other urgent matters get in the way"
+                    }
+                  ]
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "time": "5:30am",
+        "title": "Move To Desk",
+        "blocks": [
+          {
+            "type": "bulleted_list",
+            "items": [
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "After 1.5 hours, body temperature is high enough to move to desk"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Make",
+                      "link": "https://news.utexas.edu/2014/05/16/mcraven-urges-graduates-to-find-courage-to-change-the-world/"
+                    },
+                    {
+                      "text": " my bed",
+                      "link": "https://news.utexas.edu/2014/05/16/mcraven-urges-graduates-to-find-courage-to-change-the-world/"
+                    },
+                    {
+                      "text": ". Every single day without exception. This is the first big ☑️ which sets up a highly productive day full of ☑️s!"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "After finishing first ~300mg of caffeine, top up with another 400mg or so and drink that over the next ~30 mins. Also mixed in is 15-20g creatine, 15g beta alanine, 10-30g HydroPrime glycerol. "
+                    }
+                  ]
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "time": "6:00am",
+        "title": "Lift",
+        "blocks": [
+          {
+            "type": "bulleted_list",
+            "items": [
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "BUZZING! Head to the gym to get an hour-long lift in!"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Refill blender bottle with water, electrolytes (Mio), lemon juice, and a tiny bit more caffeine as a home-brewed, low-calorie substitute for Gatorade!"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "I use "
+                    },
+                    {
+                      "text": "Weightlifting App",
+                      "link": "https://apps.apple.com/us/app/weightlifting-app/id1266077653"
+                    },
+                    {
+                      "text": " – an app I built myself that’s about as analytics-heavy as a lifting app can get! Check it out 💪"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Music 🎶: want to get HYPE? Listen to a mix in my "
+                    },
+                    {
+                      "text": "RAGE",
+                      "link": "https://soundcloud.com/chappya12/sets/extra-good"
+                    },
+                    {
+                      "text": " or "
+                    },
+                    {
+                      "text": "HARDcore",
+                      "link": "https://soundcloud.com/chappyasel/sets/hardstyle?si=206cad284bd745eabd9e99fcf3036f00&utm_source=clipboard&utm_medium=text&utm_campaign=social_sharing"
+                    },
+                    {
+                      "text": " Soundcloud playlists!"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Why do I lift in the morning?"
+                    }
+                  ]
+                },
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "I can consume as much caffeine as I want! As opposed to working out in the afternoon where I have to be weary about consuming too much caffeine and not being able to sleep at night."
+                          }
+                        ]
+                      },
+                      {
+                        "type": "bulleted_list",
+                        "items": [
+                          [
+                            {
+                              "type": "paragraph",
+                              "content": [
+                                {
+                                  "text": "Caffeine consumed while fasting and shortly after waking hits like no other!"
+                                }
+                              ]
+                            }
+                          ]
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "The morning endorphins release sets up the rest of the day perfectly"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "I have to shower before my morning meetings. If I don’t work out then as well, that means I have to shower twice a day. Instead, I can stack the two together and save myself a bunch of time!"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "I usually have the gym all to myself which means I can use whatever equipment I want! Packed gyms are no fun"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "time": "7:15am",
+        "title": "Work",
+        "blocks": [
+          {
+            "type": "bulleted_list",
+            "items": [
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Return to work! This is some of my most productive time of the day as I have endorphins flowing and dawn is just starting to break. People still aren’t generally awake so I still have this time to myself!"
+                    }
+                  ]
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "time": "7:45am",
+        "title": "Shower",
+        "blocks": [
+          {
+            "type": "bulleted_list",
+            "items": [
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Head to shower before the sweat soaks in too much 😅"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Shampoo + facial cleanser at the same time → conditioner + body wash at the same time, leave each on for 1 min"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Blow dry hair, deodorant, Eau de Perfume, trim beard, shave, brush teeth, chapstick, facial moisturizer, facial caffeine solution, body moisturizer, sunscreen, hair product"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "↑ Great time to listen to an audiobook! Also easy to stop morning routine and take notes"
+                    }
+                  ]
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "time": "8:30am",
+        "title": "“Breakfast”",
+        "blocks": [
+          {
+            "type": "bulleted_list",
+            "items": [
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Take morning stack! See "
+                    },
+                    {
+                      "text": "💊 Supp Stacks",
+                      "link": "#supp-stacks"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Prepare a protein shake with water base, 1 scoop "
+                    },
+                    {
+                      "text": "whey isolate",
+                      "link": "https://www.amazon.com/dp/B01HOPJ5JU?amp=&amp="
+                    },
+                    {
+                      "text": " (30g protein), 1/2 scoop "
+                    },
+                    {
+                      "text": "collagen peptides",
+                      "link": "https://www.amazon.com/BulkSupplements-com-Collagen-Peptides-Powder-Supplements/dp/B015YG2N2C?sr=8-7"
+                    },
+                    {
+                      "text": ", 1/2 scoop "
+                    },
+                    {
+                      "text": "PB2 Crunchy",
+                      "link": "https://www.amazon.com/PB2-Crunchy-Powdered-Peanut-Butter/dp/B08HFS7WCR?rdc=1&sr=8-1"
+                    },
+                    {
+                      "text": ", and a scoop of "
+                    },
+                    {
+                      "text": "greens powder",
+                      "link": "https://www.amazon.com/Amazing-Grass-Green-Superfood-servings/dp/B00112ILZM?sr=8-7"
+                    },
+                    {
+                      "text": " (~300 cals)"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Down both while either 1) watching the sun continue to rise and listening to a podcast or 2) at my desk working if I have meetings coming up"
+                    }
+                  ]
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "time": "8:45am",
+        "title": "PM Prep",
+        "blocks": [
+          {
+            "type": "bulleted_list",
+            "items": [
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Set up everything for a perfect PM!"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Clean blender bottles and fill with hot water to avoid having to dish wash"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Refill 2 pre-workout blender bottles with 1) 400mg Gorilla Mode pre-workout, 2) 10-15g creatine, 3) 10g beta alanine and place on bedside stand (along with two Alpha GPC pills)"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Lay out "
+                    },
+                    {
+                      "text": "micropore mouth tape",
+                      "link": "https://www.amazon.com/gp/product/B0CT65RJ4N"
+                    },
+                    {
+                      "text": " and "
+                    },
+                    {
+                      "text": "nasal strip",
+                      "link": "https://www.amazon.com/gp/product/B07FHM225F"
+                    },
+                    {
+                      "text": " on bedside stand"
+                    }
+                  ]
+                },
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "See "
+                          },
+                          {
+                            "text": "https://books.chappyasel.com/breath",
+                            "link": "https://books.chappyasel.com/breath"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Lay out tomorrow’s workout outfit next to bed"
+                    }
+                  ]
+                },
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Why? To absolutely minimize friction for tomorrow!"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    ],
+    "pm": [
+      {
+        "time": "7:00pm",
+        "title": "Sunset",
+        "blocks": [
+          {
+            "type": "bulleted_list",
+            "items": [
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Smart lights automatically dim and yellow to match sunset. This creates an environment that encourages the release of melatonin, prepping the body for sleep"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "This is also shortly after dinner, so I start feeling a little more drowsy as digestion kicks in"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "I generally switch to less cognitively demanding tasks around now, eg. responding to texts and emails"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "🦞 OpenClaw sends a daily recap at 7pm with summaries of the day’s meetings, complete with aggregated next steps and drafts for followup emails / texts."
+                    }
+                  ]
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "time": "8:30pm",
+        "title": "Wind Down",
+        "blocks": [
+          {
+            "type": "bulleted_list",
+            "items": [
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Take night stack ~45m before sleep"
+                    }
+                  ]
+                },
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "See "
+                          },
+                          {
+                            "text": "💊 Supp Stacks",
+                            "link": "#supp-stacks"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Also take 3mg melatonin"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "bulleted_list",
+                        "items": [
+                          [
+                            {
+                              "type": "paragraph",
+                              "content": [
+                                {
+                                  "text": "I went back and forth on whether or not to include melatonin in my routine since adverse effects include 1) making it more difficult to sleep without supplementing 2) potentially messing with other hormone production, but decided that the improved control of alertness and schedule was worth it."
+                                }
+                              ]
+                            }
+                          ]
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Smart lights automatically adjust to 30% brightness 45m before sleep"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Sometime in the next 45m, perform sleep routine:"
+                    }
+                  ]
+                },
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Brush teeth, go to the bathroom"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Fill 40oz Hydroflask with iced water and Mio zero-calorie flavoring"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Adjust smart lights to 10% brightness (sleep scene)"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Spray a nice scent on the bed and around the room ("
+                          },
+                          {
+                            "text": "Febreze Air Ocean",
+                            "link": "https://www.amazon.com/Febreze-Freshener-Spray-Ocean-Eliminator/dp/B08R4S15X4?sr=1-4"
+                          },
+                          {
+                            "text": ")"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Boxers, no PJs"
+                          }
+                        ]
+                      }
+                    ],
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "AirPods for listening to an audiobook (too often I cave and watch YouTube instead 🥲)"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      {
+        "time": "9:15pm",
+        "title": "Sleep",
+        "blocks": [
+          {
+            "type": "bulleted_list",
+            "items": [
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Switch to a background podcast (eg. Lex Fridman)"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Put on a comfy "
+                    },
+                    {
+                      "text": "sleep mask",
+                      "link": "https://www.amazon.com/Contoured-Sleeping-Blindfold-Concave-Meditation/dp/B07KC5DWCC?sr=8-3"
+                    },
+                    {
+                      "text": " for complete darkness"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Put on "
+                    },
+                    {
+                      "text": "micropore mouth tape",
+                      "link": "https://www.amazon.com/gp/product/B0CT65RJ4N"
+                    },
+                    {
+                      "text": " and "
+                    },
+                    {
+                      "text": "nasal strip",
+                      "link": "https://www.amazon.com/gp/product/B07FHM225F"
+                    },
+                    {
+                      "text": " to encourage healthy nasal breathing"
+                    }
+                  ]
+                },
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "See "
+                          },
+                          {
+                            "text": "https://books.chappyasel.com/breath",
+                            "link": "https://books.chappyasel.com/breath"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "Ensure alarm is set for the proper wakeup time / sleep duration (depending on priority)"
+                    }
+                  ]
+                },
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Varies (5h-7.5h, avg. 6.25h) depending on weight‼️"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                },
+                {
+                  "type": "toggle",
+                  "title": [
+                    {
+                      "text": "What ChatGPT says about ↑"
+                    }
+                  ],
+                  "children": [
+                    {
+                      "type": "toggle",
+                      "title": [
+                        {
+                          "text": "Prompt:"
+                        }
+                      ],
+                      "children": [
+                        {
+                          "type": "quote",
+                          "content": [
+                            {
+                              "text": "Why does the amount of sleep I need change depending on how much I weigh / whether I'm actively gaining or losing weight / the season? I'm a bodybuilder who bulks and cuts 20+ pounds per year, peaking in Jan (when I need the most sleep at 7+ hours) and at my lowest in the summer (when I only need like 5.5h)"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "quote",
+                      "content": [
+                        {
+                          "text": "Your changing sleep needs are influenced by a combination of physiological, metabolic, and environmental factors related to your bodybuilding routines and seasonal rhythms. Here’s why:"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "See "
+                          },
+                          {
+                            "text": "💤 Sleep Duration",
+                            "link": "#sleep-duration"
+                          },
+                          {
+                            "text": " "
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ]
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "supplements": {
+    "am": [
+      {
+        "name": "Alpha GPC",
+        "link": "https://www.amazon.com/dp/B076XNXLR2?psc=1&ref=ppx_yo2ov_dt_b_product_details",
+        "costPerDay": "$0.42",
+        "dosage": "600mg",
+        "benefits": "Cognitive function"
+      },
+      {
+        "name": "Greens Blend",
+        "link": "https://www.amazon.com/Amazing-Grass-Green-Superfood-servings/dp/B00112ILZM?sr=8-7",
+        "costPerDay": "$0.67",
+        "dosage": "",
+        "benefits": "Completeness, gut microbiome"
+      },
+      {
+        "name": "Multivitamin",
+        "link": "https://www.amazon.com/Vitafusion-Gummy-Vitamins-Count-Packaging/dp/B007L0DONW?pd_rd_w=atIyi&content-id=amzn1.sym.deffa092-2e99-4e9f-b814-0d71c40b24af&pf_rd_p=deffa092-2e99-4e9f-b814-0d71c40b24af&pf_rd_r=5CNF2ARFXWDTXJ33JMG6&pd_rd_wg=SuFOR&pd_rd_r=a311e446-a69b-4a61-998b-e060317539c3&pd_rd_i=B007L0DONW&psc=1&ref_=pd_bap_d_grid_rp_0_1_t",
+        "costPerDay": "$0.18",
+        "dosage": "",
+        "benefits": "Completeness"
+      },
+      {
+        "name": "Vitamin D",
+        "link": "https://www.amazon.com/Vitafusion-Extra-Strength-Vitamin-Vitamins/dp/B00OGYSLDE/ref=sr_1_4?keywords=vitamin%20d3%20gummies&qid=1673587469&s=hpc&sprefix=vitamin%20d3%20gumm%2Chpc%2C223&sr=1-4",
+        "costPerDay": "$0.20",
+        "dosage": "50 mcg",
+        "benefits": "Mood, testosterone"
+      },
+      {
+        "name": "Fish Oil",
+        "link": "https://www.amazon.com/dp/B0046XC528?psc=1&ref=ppx_yo2ov_dt_b_product_details",
+        "costPerDay": "$0.13",
+        "dosage": "2000mg",
+        "benefits": "Cholesterol"
+      },
+      {
+        "name": "Beta Carotene",
+        "link": "https://www.amazon.com/Swanson-Beta-Carotene-Vitamin-Antioxidant-Softgels/dp/B00068SB2K?sr=8-6",
+        "costPerDay": "$0.05",
+        "dosage": "625 mcg",
+        "benefits": "Skin and eye health"
+      },
+      {
+        "name": "Maca",
+        "link": "https://www.amazon.com/dp/B07SSVB3JX?psc=1&ref=ppx_yo2ov_dt_b_product_details",
+        "costPerDay": "$0.15",
+        "dosage": "3200mg",
+        "benefits": "Testosterone, libido"
+      },
+      {
+        "name": "Fadogia Agrestis",
+        "link": "https://www.amazon.com/dp/B09GSWML11?psc=1&ref=ppx_yo2ov_dt_b_product_details",
+        "costPerDay": "$0.33",
+        "dosage": "600mg",
+        "benefits": "Testosterone, libido"
+      },
+      {
+        "name": "Tongkat Ali",
+        "link": "https://www.amazon.com/dp/B07TTDFXFV?psc=1&ref=ppx_yo2ov_dt_b_product_details",
+        "costPerDay": "$0.42",
+        "dosage": "1000mg",
+        "benefits": "Testosterone, libido"
+      }
+    ],
+    "pm": [
+      {
+        "name": "L-Theanine",
+        "link": "https://www.amazon.com/dp/B01B3RWQNM?psc=1&ref=ppx_yo2ov_dt_b_product_details",
+        "costPerDay": "$0.10",
+        "dosage": "200mg",
+        "benefits": "Sleep quality"
+      },
+      {
+        "name": "Magnesium",
+        "link": "https://www.amazon.com/dp/B006P536E6?psc=1&ref=ppx_yo2ov_dt_b_product_details",
+        "costPerDay": "$0.94",
+        "dosage": "144mg",
+        "benefits": "Cognitive function"
+      },
+      {
+        "name": "Apigenin",
+        "link": "https://www.amazon.com/dp/B09LFFGQXM?psc=1&ref=ppx_yo2ov_dt_b_product_details",
+        "costPerDay": "$0.22",
+        "dosage": "100mg",
+        "benefits": "Sedative"
+      },
+      {
+        "name": "Glycine",
+        "link": "https://www.amazon.com/dp/B0016BX8O2?psc=1&ref=ppx_yo2ov_dt_b_product_details",
+        "costPerDay": "$0.49",
+        "dosage": "1500mg",
+        "benefits": "Sleep quality"
+      },
+      {
+        "name": "GABA",
+        "link": "https://www.amazon.com/dp/B006L7TD0O?psc=1&ref=ppx_yo2ov_dt_b_product_details",
+        "costPerDay": "$0.65",
+        "dosage": "200mg",
+        "benefits": "Sedative, sleep quality"
+      },
+      {
+        "name": "Ashwagandha",
+        "link": "https://www.amazon.com/gp/product/B073DN2YG9/ref=ppx_yo_dt_b_asin_title_o04_s00?ie=UTF8&psc=1",
+        "costPerDay": "$0.12",
+        "dosage": "600mg",
+        "benefits": "Sleep quality, testosterone"
+      },
+      {
+        "name": "Myo-Inositol",
+        "link": "https://www.amazon.com/dp/B08T6SS2SN?psc=1&ref=ppx_yo2ov_dt_b_product_details",
+        "costPerDay": "$0.06",
+        "dosage": "500mg",
+        "benefits": "Sleep quality"
+      }
+    ]
+  },
+  "rants": [
+    {
+      "id": "sinusoidal-vs-square-wave-alertness",
+      "title": "Sinusoidal vs Square-wave Alertness",
+      "icon": "📈",
+      "blocks": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "Taken from "
+            },
+            {
+              "text": "Why We Sleep",
+              "link": "https://www.notion.so/1a8f4bfb2323462c82aa9c9fffb12186"
+            },
+            {
+              "text": ", here’s how alertness naturally varies throughout the day:"
+            }
+          ]
+        },
+        {
+          "type": "image",
+          "src": "/images/routine/17ac5ab0-d88d-808b-86f7-f9e0b30c93c6.jpeg",
+          "alt": "Image"
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "Given this, you could argue that alertness follows a sawtooth pattern throughout the day. However, I think most people actually experience a sinusoidal pattern of alertness. "
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "Finally, most people would probably tell you they desire a square-wave pattern of alertness if it were reasonably achievable.  "
+            }
+          ]
+        },
+        {
+          "type": "image",
+          "src": "/images/routine/17ac5ab0-d88d-80a0-9ae1-df54de6939f8.svg",
+          "alt": "Image"
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "Here’s my best attempt at doing so!"
+            }
+          ]
+        },
+        {
+          "type": "bulleted_list",
+          "items": [
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "AM",
+                    "bold": true
+                  },
+                  {
+                    "text": ": Get the blood flowing, caffeine + ⍺-GPC, and artificial sun exposure ASAP"
+                  }
+                ]
+              }
+            ],
+            [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "text": "PM",
+                    "bold": true
+                  },
+                  {
+                    "text": ": Sleep stack + melatonin (and a whole routine in general) to prime the body for sleep"
+                  }
+                ]
+              }
+            ]
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "Make this your #1 priority!"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "caffeine",
+      "title": "Caffeine",
+      "icon": "☕",
+      "blocks": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "Despite popular opinion, caffeine is actually a "
+            },
+            {
+              "text": "very safe drug",
+              "link": "https://examine.com/supplements/caffeine/?show_conditions=true"
+            },
+            {
+              "text": " with tons of benefits and very few risks. As such, I’ve grown much more liberal with my intake of caffeine over the past few years."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "The biggest “"
+            },
+            {
+              "text": "risk”",
+              "italic": true
+            },
+            {
+              "text": " of caffeine is"
+            },
+            {
+              "text": " ",
+              "italic": true
+            },
+            {
+              "text": "reduced sleep quality. This is definitely something I want to minimize. Analyzing my own average caffeine consumption throughout the day (see the sawtooth graph below), I go to sleep on approximately 110mg of caffeine. Obviously not ideal but 🤷‍♂️ . ("
+            },
+            {
+              "text": "source",
+              "link": "https://www.gkbrk.com/wiki/caffeine-halflife/"
+            },
+            {
+              "text": ")"
+            }
+          ]
+        },
+        {
+          "type": "image",
+          "src": "/images/routine/151c5ab0-d88d-8070-b619-ec55068c1b1c.png",
+          "alt": "Image"
+        }
+      ]
+    },
+    {
+      "id": "supp-stacks",
+      "title": "Supp Stacks",
+      "icon": "💊",
+      "blocks": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "I take a bunch of supplements every morning and evening to improve various aspects of my life. "
+            }
+          ]
+        },
+        {
+          "type": "quote",
+          "content": [
+            {
+              "text": "Because I also eat a "
+            },
+            {
+              "text": "highly",
+              "bold": true,
+              "italic": true
+            },
+            {
+              "text": " restrictive diet, I take Athletic Greens and a daily men’s multivitamin. The efficacy of both of these are mixed so I view these more as insurance policies than anything."
+            }
+          ]
+        },
+        {
+          "type": "quote",
+          "content": [
+            {
+              "text": "Examine.com",
+              "link": "http://examine.com/"
+            },
+            {
+              "text": " is my favorite site for determining the efficacy of various supplements! This is how I originally decided upon my stack ~3 years ago."
+            }
+          ]
+        },
+        {
+          "type": "image",
+          "src": "/images/routine/17ac5ab0-d88d-8054-889d-e66122844e83.png",
+          "alt": "Image"
+        },
+        {
+          "type": "table",
+          "headers": [
+            "Time",
+            "Name",
+            "$/Day",
+            "Dosage",
+            "Benefits"
+          ],
+          "rows": [
+            {
+              "Time": {
+                "text": "AM"
+              },
+              "Name": {
+                "text": "Alpha GPC",
+                "link": "https://www.amazon.com/dp/B076XNXLR2?psc=1&ref=ppx_yo2ov_dt_b_product_details"
+              },
+              "$/Day": {
+                "text": "$0.42"
+              },
+              "Dosage": {
+                "text": "600mg"
+              },
+              "Benefits": {
+                "text": "Cognitive function"
+              }
+            },
+            {
+              "Time": {
+                "text": "AM"
+              },
+              "Name": {
+                "text": "Greens Blend",
+                "link": "https://www.amazon.com/Amazing-Grass-Green-Superfood-servings/dp/B00112ILZM?sr=8-7"
+              },
+              "$/Day": {
+                "text": "$0.67"
+              },
+              "Dosage": {
+                "text": ""
+              },
+              "Benefits": {
+                "text": "Completeness, gut microbiome"
+              }
+            },
+            {
+              "Time": {
+                "text": "AM"
+              },
+              "Name": {
+                "text": "Multivitamin",
+                "link": "https://www.amazon.com/Vitafusion-Gummy-Vitamins-Count-Packaging/dp/B007L0DONW?pd_rd_w=atIyi&content-id=amzn1.sym.deffa092-2e99-4e9f-b814-0d71c40b24af&pf_rd_p=deffa092-2e99-4e9f-b814-0d71c40b24af&pf_rd_r=5CNF2ARFXWDTXJ33JMG6&pd_rd_wg=SuFOR&pd_rd_r=a311e446-a69b-4a61-998b-e060317539c3&pd_rd_i=B007L0DONW&psc=1&ref_=pd_bap_d_grid_rp_0_1_t"
+              },
+              "$/Day": {
+                "text": "$0.18"
+              },
+              "Dosage": {
+                "text": ""
+              },
+              "Benefits": {
+                "text": "Completeness"
+              }
+            },
+            {
+              "Time": {
+                "text": "AM"
+              },
+              "Name": {
+                "text": "Vitamin D",
+                "link": "https://www.amazon.com/Vitafusion-Extra-Strength-Vitamin-Vitamins/dp/B00OGYSLDE/ref=sr_1_4?keywords=vitamin%20d3%20gummies&qid=1673587469&s=hpc&sprefix=vitamin%20d3%20gumm%2Chpc%2C223&sr=1-4"
+              },
+              "$/Day": {
+                "text": "$0.20"
+              },
+              "Dosage": {
+                "text": "50 mcg"
+              },
+              "Benefits": {
+                "text": "Mood, testosterone"
+              }
+            },
+            {
+              "Time": {
+                "text": "AM"
+              },
+              "Name": {
+                "text": "Fish Oil",
+                "link": "https://www.amazon.com/dp/B0046XC528?psc=1&ref=ppx_yo2ov_dt_b_product_details"
+              },
+              "$/Day": {
+                "text": "$0.13"
+              },
+              "Dosage": {
+                "text": "2000mg"
+              },
+              "Benefits": {
+                "text": "Cholesterol"
+              }
+            },
+            {
+              "Time": {
+                "text": "AM"
+              },
+              "Name": {
+                "text": "Beta Carotene",
+                "link": "https://www.amazon.com/Swanson-Beta-Carotene-Vitamin-Antioxidant-Softgels/dp/B00068SB2K?sr=8-6"
+              },
+              "$/Day": {
+                "text": "$0.05"
+              },
+              "Dosage": {
+                "text": "625 mcg"
+              },
+              "Benefits": {
+                "text": "Skin and eye health"
+              }
+            },
+            {
+              "Time": {
+                "text": "AM"
+              },
+              "Name": {
+                "text": "Maca",
+                "link": "https://www.amazon.com/dp/B07SSVB3JX?psc=1&ref=ppx_yo2ov_dt_b_product_details"
+              },
+              "$/Day": {
+                "text": "$0.15"
+              },
+              "Dosage": {
+                "text": "3200mg"
+              },
+              "Benefits": {
+                "text": "Testosterone, libido"
+              }
+            },
+            {
+              "Time": {
+                "text": "AM"
+              },
+              "Name": {
+                "text": "Fadogia Agrestis",
+                "link": "https://www.amazon.com/dp/B09GSWML11?psc=1&ref=ppx_yo2ov_dt_b_product_details"
+              },
+              "$/Day": {
+                "text": "$0.33"
+              },
+              "Dosage": {
+                "text": "600mg"
+              },
+              "Benefits": {
+                "text": "Testosterone, libido"
+              }
+            },
+            {
+              "Time": {
+                "text": "AM"
+              },
+              "Name": {
+                "text": "Tongkat Ali",
+                "link": "https://www.amazon.com/dp/B07TTDFXFV?psc=1&ref=ppx_yo2ov_dt_b_product_details"
+              },
+              "$/Day": {
+                "text": "$0.42"
+              },
+              "Dosage": {
+                "text": "1000mg"
+              },
+              "Benefits": {
+                "text": "Testosterone, libido"
+              }
+            }
+          ]
+        },
+        {
+          "type": "table",
+          "headers": [
+            "Time",
+            "Name",
+            "$/Day",
+            "Dosage",
+            "Benefits"
+          ],
+          "rows": [
+            {
+              "Time": {
+                "text": "PM"
+              },
+              "Name": {
+                "text": "L-Theanine",
+                "link": "https://www.amazon.com/dp/B01B3RWQNM?psc=1&ref=ppx_yo2ov_dt_b_product_details"
+              },
+              "$/Day": {
+                "text": "$0.10"
+              },
+              "Dosage": {
+                "text": "200mg"
+              },
+              "Benefits": {
+                "text": "Sleep quality"
+              }
+            },
+            {
+              "Time": {
+                "text": "PM"
+              },
+              "Name": {
+                "text": "Magnesium",
+                "link": "https://www.amazon.com/dp/B006P536E6?psc=1&ref=ppx_yo2ov_dt_b_product_details"
+              },
+              "$/Day": {
+                "text": "$0.94"
+              },
+              "Dosage": {
+                "text": "144mg"
+              },
+              "Benefits": {
+                "text": "Cognitive function"
+              }
+            },
+            {
+              "Time": {
+                "text": "PM"
+              },
+              "Name": {
+                "text": "Apigenin",
+                "link": "https://www.amazon.com/dp/B09LFFGQXM?psc=1&ref=ppx_yo2ov_dt_b_product_details"
+              },
+              "$/Day": {
+                "text": "$0.22"
+              },
+              "Dosage": {
+                "text": "100mg"
+              },
+              "Benefits": {
+                "text": "Sedative"
+              }
+            },
+            {
+              "Time": {
+                "text": "PM"
+              },
+              "Name": {
+                "text": "Glycine",
+                "link": "https://www.amazon.com/dp/B0016BX8O2?psc=1&ref=ppx_yo2ov_dt_b_product_details"
+              },
+              "$/Day": {
+                "text": "$0.49"
+              },
+              "Dosage": {
+                "text": "1500mg"
+              },
+              "Benefits": {
+                "text": "Sleep quality"
+              }
+            },
+            {
+              "Time": {
+                "text": "PM"
+              },
+              "Name": {
+                "text": "GABA",
+                "link": "https://www.amazon.com/dp/B006L7TD0O?psc=1&ref=ppx_yo2ov_dt_b_product_details"
+              },
+              "$/Day": {
+                "text": "$0.65"
+              },
+              "Dosage": {
+                "text": "200mg"
+              },
+              "Benefits": {
+                "text": "Sedative, sleep quality"
+              }
+            },
+            {
+              "Time": {
+                "text": "PM"
+              },
+              "Name": {
+                "text": "Ashwagandha",
+                "link": "https://www.amazon.com/gp/product/B073DN2YG9/ref=ppx_yo_dt_b_asin_title_o04_s00?ie=UTF8&psc=1"
+              },
+              "$/Day": {
+                "text": "$0.12"
+              },
+              "Dosage": {
+                "text": "600mg"
+              },
+              "Benefits": {
+                "text": "Sleep quality, testosterone"
+              }
+            },
+            {
+              "Time": {
+                "text": "PM"
+              },
+              "Name": {
+                "text": "Myo-Inositol",
+                "link": "https://www.amazon.com/dp/B08T6SS2SN?psc=1&ref=ppx_yo2ov_dt_b_product_details"
+              },
+              "$/Day": {
+                "text": "$0.06"
+              },
+              "Dosage": {
+                "text": "500mg"
+              },
+              "Benefits": {
+                "text": "Sleep quality"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sleep-duration",
+      "title": "Sleep Duration",
+      "icon": "💤",
+      "blocks": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "Contrarian opinion: I think most people actually get "
+            },
+            {
+              "text": "too much",
+              "italic": true
+            },
+            {
+              "text": " sleep!"
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "Yes, I’ve read "
+            },
+            {
+              "text": "Why We Sleep",
+              "link": "https://www.notion.so/1a8f4bfb2323462c82aa9c9fffb12186"
+            },
+            {
+              "text": " which makes a statistically rigorous argument for 8+ hours daily. However, studies also show that anywhere between 6-8 hours works. In fact, all cause mortality with 8 hours is actually "
+            },
+            {
+              "text": "higher",
+              "italic": true
+            },
+            {
+              "text": " than with 5 hours: (caveat: correlation vs causation)"
+            }
+          ]
+        },
+        {
+          "type": "image",
+          "src": "/images/routine/17ac5ab0-d88d-80a3-8f55-fee0874432ac.jpeg",
+          "alt": "Image"
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "When I oversleep, I often feel "
+            },
+            {
+              "text": "more",
+              "italic": true
+            },
+            {
+              "text": " lethargic the following day yet have trouble going to sleep at the end of the night."
+            }
+          ]
+        },
+        {
+          "type": "callout",
+          "icon": "‼️",
+          "color": "purple_background",
+          "content": [
+            {
+              "type": "paragraph",
+              "content": [
+                {
+                  "text": "I’ve found the right amount of sleep for me varies from anywhere between 5 hours and 7.5 hours (avg. 6.25h) per night depending on weight, exercise, season, etc.!"
+                }
+              ]
+            },
+            {
+              "type": "toggle",
+              "title": [
+                {
+                  "text": "What ChatGPT says about this ↑"
+                }
+              ],
+              "children": [
+                {
+                  "type": "toggle",
+                  "title": [
+                    {
+                      "text": "Prompt:"
+                    }
+                  ],
+                  "children": [
+                    {
+                      "type": "quote",
+                      "content": [
+                        {
+                          "text": "Why does the amount of sleep I need change depending on how much I weigh / whether I'm actively gaining or losing weight / the season? I'm a bodybuilder who bulks and cuts 20+ pounds per year, peaking in Jan (when I need the most sleep at 7+ hours) and at my lowest in the summer (when I only need like 5.5h)"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "quote",
+                  "content": [
+                    {
+                      "text": "Your changing sleep needs are influenced by a combination of physiological, metabolic, and environmental factors related to your bodybuilding routines and seasonal rhythms. Here’s why:"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "getting-back-on-track",
+      "title": "Getting Back On Track",
+      "icon": "🔄",
+      "blocks": [
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "After travel, an outstanding weekend, or something else that kicks me off my normal routine, I’ve developed a simple strategy to get back on track."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "My top priority is always to get back to a good sleep schedule. In fact, I’ve even done 12-hour schedule flips (US ↔ India) without any jet lag whatsoever."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "How? Using supplements to modulate alertness: caffeine as an extender, the sleep stack with melatonin as a light switch."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "content": [
+            {
+              "text": "Take the time to learn how your body reacts to both and how you can then use them as tools to get back on track after disruption!"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

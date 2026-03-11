@@ -5,17 +5,17 @@ import { useState } from "react";
 
 import { CaretRightIcon } from "@phosphor-icons/react";
 
-import type { BookLookup, ManualBlock, RichText } from "../types";
-import ManualBlockRenderer from "./ManualBlockRenderer";
+import type { BookLookup, NotionBlock, RichText } from "~/components/notion/types";
+import NotionBlockRenderer from "./NotionBlockRenderer";
 import RichTextRenderer from "./RichTextRenderer";
 
-export default function ManualToggle({
+export default function NotionToggle({
   title,
   blocks,
   bookLookup,
 }: {
   title: RichText[];
-  blocks: ManualBlock[];
+  blocks: NotionBlock[];
   bookLookup?: BookLookup;
 }) {
   const [open, setOpen] = useState(false);
@@ -46,7 +46,7 @@ export default function ManualToggle({
           >
             <div className="space-y-2 pb-2 pl-6 pt-1">
               {blocks.map((block, i) => (
-                <ManualBlockRenderer key={i} block={block} bookLookup={bookLookup} />
+                <NotionBlockRenderer key={i} block={block} bookLookup={bookLookup} />
               ))}
             </div>
           </motion.div>

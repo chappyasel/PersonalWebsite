@@ -1,7 +1,7 @@
 import React from "react";
 
-import type { BookLookup, ManualBlock } from "../types";
-import ManualBlockRenderer from "./ManualBlockRenderer";
+import type { BookLookup, NotionBlock } from "~/components/notion/types";
+import NotionBlockRenderer from "./NotionBlockRenderer";
 
 const calloutColorMap: Record<string, { border: string; bg: string }> = {
   blue: {
@@ -74,7 +74,7 @@ const calloutColorMap: Record<string, { border: string; bg: string }> = {
   },
 };
 
-export default function ManualCallout({
+export default function NotionCallout({
   icon,
   color,
   content,
@@ -82,7 +82,7 @@ export default function ManualCallout({
 }: {
   icon: string;
   color: string;
-  content: ManualBlock[];
+  content: NotionBlock[];
   bookLookup?: BookLookup;
 }) {
   const colors = calloutColorMap[color] ?? calloutColorMap.default!;
@@ -94,7 +94,7 @@ export default function ManualCallout({
       <span className="mt-0.5 text-lg leading-none">{icon}</span>
       <div className="flex-1 space-y-2">
         {content.map((block, i) => (
-          <ManualBlockRenderer key={i} block={block} bookLookup={bookLookup} />
+          <NotionBlockRenderer key={i} block={block} bookLookup={bookLookup} />
         ))}
       </div>
     </div>

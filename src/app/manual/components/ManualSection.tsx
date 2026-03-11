@@ -4,8 +4,9 @@ import { CheckCircleIcon, LinkIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
 
+import { NotionBlockRenderer } from "~/components/notion";
+
 import type { BookLookup, ManualSection as ManualSectionType } from "../types";
-import ManualBlockRenderer from "./ManualBlockRenderer";
 
 export default function ManualSection({
   section,
@@ -61,7 +62,7 @@ export default function ManualSection({
       </div>
       <div className="space-y-3 px-4 pt-2 text-muted-foreground">
         {section.blocks.map((block, i) => (
-          <ManualBlockRenderer key={i} block={block} bookLookup={bookLookup} />
+          <NotionBlockRenderer key={i} block={block} bookLookup={bookLookup} />
         ))}
       </div>
     </section>

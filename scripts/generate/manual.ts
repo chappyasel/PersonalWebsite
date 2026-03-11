@@ -1,12 +1,19 @@
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
-import { createWriteStream, existsSync, mkdirSync, writeFileSync } from "fs";
-import http from "http";
-import https from "https";
+import { mkdirSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 
 import { Client } from "@notionhq/client";
+
+import {
+  extractEmojiAndTitle,
+  rewriteNotionPageLinks,
+  richTextToPlain,
+  slugify,
+  transformBlocks,
+  walkBlocks,
+} from "./notion-helpers.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -15,285 +22,11 @@ const PAGE_ID = "253c5ab0d88d80888643c64e7dbe5d0c";
 const OUTPUT_PATH = join(__dirname, "../../public/data/manual.json");
 const OUTPUT_DIR = join(__dirname, "../../public/data");
 const IMAGES_DIR = join(__dirname, "../../public/images/manual");
+const IMAGE_PATH_PREFIX = "/images/manual/";
 
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 
-// ─── Rich Text Helpers ───
-
-function transformRichText(rt: any[]): any[] {
-  return (rt ?? []).map((r) => {
-    const out: any = { text: r.plain_text };
-    if (r.annotations?.bold) out.bold = true;
-    if (r.annotations?.italic) out.italic = true;
-    if (r.annotations?.code) out.code = true;
-    if (r.annotations?.color && r.annotations.color !== "default")
-      out.color = r.annotations.color;
-    if (r.href) out.link = cleanUrl(r.href);
-    return out;
-  });
-}
-
-function richTextToPlain(rt: any[]): string {
-  return (rt ?? []).map((r) => r.plain_text).join("");
-}
-
-// ─── Image Downloading ───
-
-function downloadFile(url: string, dest: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const mod = url.startsWith("https") ? https : http;
-    mod
-      .get(url, { headers: { "User-Agent": "ManualExport/1.0" } }, (res) => {
-        if (res.statusCode === 301 || res.statusCode === 302) {
-          downloadFile(res.headers.location!, dest)
-            .then(resolve)
-            .catch(reject);
-          return;
-        }
-        if (res.statusCode !== 200) {
-          reject(new Error(`HTTP ${res.statusCode} for ${url}`));
-          return;
-        }
-        const stream = createWriteStream(dest);
-        res.pipe(stream);
-        stream.on("finish", () => {
-          stream.close();
-          resolve();
-        });
-        stream.on("error", reject);
-      })
-      .on("error", reject);
-  });
-}
-
-function cleanUrl(url: string): string {
-  // Unwrap Google redirect URLs
-  if (url.includes("google.com/url")) {
-    try {
-      const u = new URL(url);
-      const target = u.searchParams.get("q") ?? u.searchParams.get("url");
-      if (target) return target;
-    } catch {}
-  }
-  return url;
-}
-
-function getImageExtension(url: string): string {
-  try {
-    const u = new URL(url);
-    const ext = u.pathname.split(".").pop()?.split("?")[0]?.toLowerCase();
-    if (ext && ["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext))
-      return ext;
-  } catch {}
-  return "png";
-}
-
-// ─── Block Walking ───
-
-async function fetchChildren(blockId: string): Promise<any[]> {
-  const blocks: any[] = [];
-  let cursor: string | undefined;
-  do {
-    const res = await notion.blocks.children.list({
-      block_id: blockId,
-      start_cursor: cursor,
-      page_size: 100,
-    });
-    blocks.push(...res.results);
-    cursor = res.has_more ? (res.next_cursor ?? undefined) : undefined;
-  } while (cursor);
-  return blocks;
-}
-
-async function walkBlocks(blockId: string): Promise<any[]> {
-  const blocks = await fetchChildren(blockId);
-  for (const block of blocks) {
-    if (block.has_children) {
-      block._children = await walkBlocks(block.id);
-    }
-  }
-  return blocks;
-}
-
-// ─── Block Transformation ───
-
-async function transformBlock(block: any): Promise<any | null> {
-  const type = block.type;
-
-  switch (type) {
-    case "paragraph": {
-      const content = transformRichText(block.paragraph.rich_text);
-      if (content.length === 0) return null;
-      return { type: "paragraph", content };
-    }
-
-    case "heading_1":
-      return {
-        type: "heading",
-        level: 2,
-        content: transformRichText(block.heading_1.rich_text),
-        _raw_text: richTextToPlain(block.heading_1.rich_text),
-        _has_children: block.has_children,
-        _children: block._children,
-      };
-
-    case "heading_2":
-      return {
-        type: "heading",
-        level: 2,
-        content: transformRichText(block.heading_2.rich_text),
-      };
-
-    case "heading_3":
-      return {
-        type: "heading",
-        level: 3,
-        content: transformRichText(block.heading_3.rich_text),
-      };
-
-    case "callout": {
-      const children = block._children
-        ? await transformBlocks(block._children)
-        : [];
-      const calloutText = transformRichText(block.callout.rich_text);
-      const content =
-        calloutText.length > 0
-          ? [{ type: "paragraph", content: calloutText }, ...children]
-          : children;
-      return {
-        type: "callout",
-        icon: block.callout.icon?.emoji ?? "💡",
-        color: block.callout.color ?? "default",
-        content,
-      };
-    }
-
-    case "toggle": {
-      const children = block._children
-        ? await transformBlocks(block._children)
-        : [];
-      return {
-        type: "toggle",
-        title: transformRichText(block.toggle.rich_text),
-        children,
-      };
-    }
-
-    case "bulleted_list_item": {
-      const content = transformRichText(block.bulleted_list_item.rich_text);
-      const children = block._children
-        ? await transformBlocks(block._children)
-        : [];
-      return { type: "_bulleted_list_item", content, children };
-    }
-
-    case "numbered_list_item": {
-      const content = transformRichText(block.numbered_list_item.rich_text);
-      const children = block._children
-        ? await transformBlocks(block._children)
-        : [];
-      return { type: "_numbered_list_item", content, children };
-    }
-
-    case "image": {
-      const imgData = block.image;
-      const url = imgData.file?.url ?? imgData.external?.url ?? "";
-      if (!url) return null;
-
-      const ext = getImageExtension(url);
-      const filename = `${block.id}.${ext}`;
-      const localPath = `/images/manual/${filename}`;
-      const destPath = join(IMAGES_DIR, filename);
-
-      if (!existsSync(destPath)) {
-        try {
-          await downloadFile(url, destPath);
-          console.log(`  Downloaded image: ${filename}`);
-        } catch (err) {
-          console.warn(
-            `  Failed to download image ${block.id}:`,
-            err.message,
-          );
-          return null;
-        }
-      }
-
-      const caption = richTextToPlain(imgData.caption ?? []);
-      return { type: "image", src: localPath, alt: caption || "Image" };
-    }
-
-    case "divider":
-      return { type: "divider" };
-
-    case "quote":
-      return {
-        type: "quote",
-        content: transformRichText(block.quote.rich_text),
-      };
-
-    default:
-      // Skip unsupported block types silently
-      return null;
-  }
-}
-
-async function transformBlocks(blocks: any[]): Promise<any[]> {
-  const result: any[] = [];
-
-  for (const block of blocks) {
-    const transformed = await transformBlock(block);
-    if (!transformed) continue;
-
-    if (transformed.type === "_bulleted_list_item") {
-      const last = result[result.length - 1];
-      const itemBlocks = [
-        { type: "paragraph", content: transformed.content },
-        ...transformed.children,
-      ];
-      if (last && last.type === "bulleted_list") {
-        last.items.push(itemBlocks);
-      } else {
-        result.push({ type: "bulleted_list", items: [itemBlocks] });
-      }
-    } else if (transformed.type === "_numbered_list_item") {
-      const last = result[result.length - 1];
-      const itemBlocks = [
-        { type: "paragraph", content: transformed.content },
-        ...transformed.children,
-      ];
-      if (last && last.type === "numbered_list") {
-        last.items.push(itemBlocks);
-      } else {
-        result.push({ type: "numbered_list", items: [itemBlocks] });
-      }
-    } else {
-      result.push(transformed);
-    }
-  }
-
-  return result;
-}
-
 // ─── Section Extraction ───
-
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
-
-function extractEmojiAndTitle(text: string): { icon: string; title: string } {
-  // Match leading emoji (various Unicode ranges)
-  const emojiMatch = text.match(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F?)\s*/u);
-  if (emojiMatch) {
-    return {
-      icon: emojiMatch[1],
-      title: text.slice(emojiMatch[0].length).trim(),
-    };
-  }
-  return { icon: "📌", title: text.trim() };
-}
 
 /**
  * The page structure:
@@ -335,7 +68,11 @@ async function processPage(rawBlocks: any[]): Promise<{
       if (block.has_children && block._children) {
         // This is a section with children
         inHero = false;
-        const sectionBlocks = await transformBlocks(block._children);
+        const sectionBlocks = await transformBlocks(
+          block._children,
+          IMAGES_DIR,
+          IMAGE_PATH_PREFIX,
+        );
 
         const section = {
           id: slugify(title),
@@ -362,7 +99,11 @@ async function processPage(rawBlocks: any[]): Promise<{
   }
 
   // Transform hero blocks
-  const heroTransformed = await transformBlocks(heroRawBlocks);
+  const heroTransformed = await transformBlocks(
+    heroRawBlocks,
+    IMAGES_DIR,
+    IMAGE_PATH_PREFIX,
+  );
   const hero = extractHeroData(heroTransformed);
 
   return { hero, sections, personality };
@@ -601,7 +342,7 @@ async function main() {
 
   // 2. Recursively fetch all blocks
   console.log("Fetching blocks...");
-  const rawBlocks = await walkBlocks(PAGE_ID);
+  const rawBlocks = await walkBlocks(PAGE_ID, notion);
   console.log(`Fetched ${rawBlocks.length} top-level blocks`);
 
   // 3. Process into structured data
@@ -616,8 +357,11 @@ async function main() {
     console.log(`  ${s.icon} ${s.title} (${s.blocks.length} blocks)`);
   }
 
-  // 4. Assemble & write
-  const output = { lastUpdated, hero, personality, sections };
+  // 4. Rewrite Notion page links to public URLs
+  const rewrittenSections = rewriteNotionPageLinks(sections);
+
+  // 5. Assemble & write
+  const output = { lastUpdated, hero, personality, sections: rewrittenSections };
   mkdirSync(OUTPUT_DIR, { recursive: true });
   writeFileSync(OUTPUT_PATH, JSON.stringify(output, null, 2));
   console.log(`\nWritten to ${OUTPUT_PATH}`);

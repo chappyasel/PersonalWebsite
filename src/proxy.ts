@@ -45,6 +45,27 @@ export async function proxy(req: NextRequest) {
     return response;
   }
 
+  // routine.chappyasel.com → /routine/*
+  const isRoutineSubdomain =
+    hostname.startsWith("routine.localhost") ||
+    hostname.endsWith("routine.chappyasel.com");
+
+  if (isRoutineSubdomain) {
+    const url = req.nextUrl.clone();
+
+    if (url.pathname.startsWith("/routine")) {
+      const newPath = url.pathname.replace(/^\/routine/, "") || "/";
+      url.pathname = newPath;
+      return NextResponse.redirect(url);
+    }
+
+    url.pathname = `/routine${url.pathname === "/" ? "" : url.pathname}`;
+
+    const response = NextResponse.rewrite(url);
+    response.headers.set("x-routine-subdomain", "true");
+    return response;
+  }
+
   // weightlifting.chappyasel.com → /weightlifting/*
   const isWeightliftingSubdomain =
     hostname.startsWith("weightlifting.localhost") ||

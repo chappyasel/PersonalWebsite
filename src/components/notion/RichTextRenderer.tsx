@@ -9,7 +9,7 @@ import {
   TooltipTrigger,
 } from "~/components/ui/tooltip";
 
-import type { BookLookup, RichText } from "../types";
+import type { BookLookup, RichText } from "~/components/notion/types";
 
 const customEmojiMap: Record<string, { src: string; alt: string }> = {
   ":weightlifting-app:": {

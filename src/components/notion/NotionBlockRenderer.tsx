@@ -1,16 +1,17 @@
 import Image from "next/image";
+import Link from "next/link";
 import React from "react";
 
-import type { BookLookup, ManualBlock } from "../types";
-import ManualCallout from "./ManualCallout";
-import ManualToggle from "./ManualToggle";
+import type { BookLookup, NotionBlock } from "~/components/notion/types";
+import NotionCallout from "./NotionCallout";
+import NotionToggle from "./NotionToggle";
 import RichTextRenderer from "./RichTextRenderer";
 
 function ListItem({
   item,
   bookLookup,
 }: {
-  item: ManualBlock[];
+  item: NotionBlock[];
   bookLookup?: BookLookup;
 }) {
   const first = item[0];
@@ -23,12 +24,12 @@ function ListItem({
           <RichTextRenderer content={first.content} bookLookup={bookLookup} />
         </span>
       ) : first ? (
-        <ManualBlockRenderer block={first} bookLookup={bookLookup} />
+        <NotionBlockRenderer block={first} bookLookup={bookLookup} />
       ) : null}
       {rest.length > 0 && (
         <div className="mt-1 space-y-1">
           {rest.map((b, j) => (
-            <ManualBlockRenderer key={j} block={b} bookLookup={bookLookup} />
+            <NotionBlockRenderer key={j} block={b} bookLookup={bookLookup} />
           ))}
         </div>
       )}
@@ -36,11 +37,11 @@ function ListItem({
   );
 }
 
-export default function ManualBlockRenderer({
+export default function NotionBlockRenderer({
   block,
   bookLookup,
 }: {
-  block: ManualBlock;
+  block: NotionBlock;
   bookLookup?: BookLookup;
 }) {
   switch (block.type) {
@@ -67,7 +68,7 @@ export default function ManualBlockRenderer({
 
     case "callout":
       return (
-        <ManualCallout
+        <NotionCallout
           icon={block.icon}
           color={block.color}
           content={block.content}
@@ -77,7 +78,7 @@ export default function ManualBlockRenderer({
 
     case "toggle":
       return (
-        <ManualToggle
+        <NotionToggle
           title={block.title}
           blocks={block.children}
           bookLookup={bookLookup}
@@ -123,6 +124,51 @@ export default function ManualBlockRenderer({
         <blockquote className="border-l-2 border-muted-foreground/20 pl-4 italic text-muted-foreground/80">
           <RichTextRenderer content={block.content} bookLookup={bookLookup} />
         </blockquote>
+      );
+
+    case "table":
+      return (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-muted-foreground/10">
+                {block.headers.map((header, i) => (
+                  <th
+                    key={i}
+                    className="pb-2 pr-4 text-left font-semibold text-foreground/70 last:pr-0"
+                  >
+                    {header}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {block.rows.map((row, i) => (
+                <tr key={i} className="border-b border-muted-foreground/5 last:border-0">
+                  {block.headers.map((header, j) => {
+                    const cell = row[header];
+                    return (
+                      <td key={j} className="py-2 pr-4 last:pr-0">
+                        {cell?.link ? (
+                          <Link
+                            href={cell.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline decoration-muted-foreground/30 underline-offset-2 transition-colors hover:decoration-muted-foreground/60"
+                          >
+                            {cell.text}
+                          </Link>
+                        ) : (
+                          cell?.text ?? ""
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       );
 
     default:
