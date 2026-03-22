@@ -88,7 +88,7 @@ export default function OutputTable({ output, currentBid }: Props) {
         const isExpanded = expanded.has(target.diceNumber);
         const filteredScenarios =
           currentBid !== undefined && !showAll
-            ? target.scenarios.filter((s) => s.numMatches > currentBid)
+            ? target.scenarios.filter((s) => s.numMatches >= currentBid)
             : target.scenarios;
         const best = filteredScenarios.find((s) => s.probability >= 0.5);
         const bestSummary = best
