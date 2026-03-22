@@ -60,10 +60,15 @@ export default function InputForm({ onChange, input }: Props) {
 
   const handleTotalInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const val = parseInt(e.target.value, 10);
+      const raw = e.target.value.trim();
+      if (raw === "") {
+        setTotalDice(minTotal);
+        return;
+      }
+      const val = parseInt(raw, 10);
       if (!isNaN(val)) setTotalDice(val);
     },
-    [setTotalDice],
+    [setTotalDice, minTotal],
   );
 
   const currentBid = input.currentBid;
