@@ -1,6 +1,4 @@
-import {
-  HandWavingIcon,
-} from "@phosphor-icons/react/dist/ssr";
+import { HandWavingIcon } from "@phosphor-icons/react/dist/ssr";
 import Image from "next/image";
 import Link from "next/link";
 import image from "public/images/about/profile.jpg";
@@ -12,7 +10,7 @@ import ContactButtons from "./ContactButtons";
 
 export default async function AboutMe() {
   return (
-    <div className="relative mt-6 w-full md:mt-28 gap-2 rounded-2xl border border-foreground/[0.06] bg-muted/40 p-8 leading-5 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-lg intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000">
+    <div className="relative mt-6 w-full gap-2 rounded-2xl border border-foreground/[0.06] bg-muted/40 p-8 leading-5 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-lg intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000 md:mt-28">
       <div className="absolute right-4 top-4 opacity-70">
         <ThemeToggle />
       </div>
@@ -33,8 +31,8 @@ export default async function AboutMe() {
       </div>
       <p className="min-h-[300px] hyphens-auto text-justify [&>a:hover]:underline">
         <br />
-        I taught myself to code at 12 and got completely hooked. I spent much
-        of my teens cranking out iOS apps, and with a lot of obsession and some
+        I taught myself to code at 12 and got completely hooked. I spent much of
+        my teens cranking out iOS apps, and with a lot of obsession and some
         incredible luck, one I built in high school became the #1 homework
         planner in the world and got acquired while I was still in college.
         <br />
@@ -87,9 +85,10 @@ export default async function AboutMe() {
         </Link>{" "}
         is 200,000+ members strong with 400+ volunteers running 150+ chapters
         across 50+ countries &ndash; a non-profit building the social
-        infrastructure for AGI. Because in-person conversation is the only place
-        to actually wrestle with the complexity of what&apos;s coming. And I
-        think we&apos;re less than 1% of the way there.
+        infrastructure for AGI. After leading it for over three years, I&apos;ve
+        since shifted my focus to what&apos;s next: I&apos;m now building
+        collective intelligence infrastructure for AI agents – the technical
+        counterpart to what AIC does for people.
         <br />
         <br />
         Outside of this, I&apos;m a competitive natural bodybuilder (INBF/WNBF)
@@ -101,11 +100,10 @@ export default async function AboutMe() {
         ).
         <br />
         <br />
-        If you&apos;re wrestling with the same questions, I&apos;d love to meet
-        you. That&apos;s literally why we built this!
+        If you&apos;re building in this space, I&apos;d love to meet you.
       </p>
       <div className="flex flex-col items-center gap-1 pt-8 text-muted-foreground/80">
-<ContactButtons />
+        <ContactButtons />
         {/* <p className="flex flex-row gap-2">
           <Link
             href="mailto:chappyasel@gmail.com"
