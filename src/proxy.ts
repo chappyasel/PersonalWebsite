@@ -1,6 +1,18 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 export async function proxy(req: NextRequest) {
+  // Protect /dad/* sub-routes with cookie check
+  const { pathname } = req.nextUrl;
+  if (
+    pathname.startsWith("/dad/") &&
+    !pathname.startsWith("/dad/api")
+  ) {
+    const token = req.cookies.get("dad-access")?.value;
+    if (!token) {
+      return NextResponse.redirect(new URL("/dad", req.url));
+    }
+  }
+
   const hostname = req.headers.get("host") ?? req.nextUrl.hostname;
 
   // books.chappyasel.com → /books/*

@@ -1,5 +1,6 @@
 import { postRouter } from "~/server/api/routers/post";
 import { booksRouter } from "~/server/api/routers/books";
+import { dadRouter } from "~/server/api/routers/dad";
 import { liarsdiceRouter } from "~/server/api/routers/liarsdice";
 import { weightliftingRouter } from "~/server/api/routers/weightlifting";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
@@ -12,6 +13,7 @@ import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 export const appRouter = createTRPCRouter({
   post: postRouter,
   books: booksRouter,
+  dad: dadRouter,
   liarsdice: liarsdiceRouter,
   weightlifting: weightliftingRouter,
 });
