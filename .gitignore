@@ -47,3 +47,6 @@ yarn-error.log*
 
 # claude local settings
 .claude/settings.local.json
+
+# dad journal content (fetched from GCS at build time)
+/content/dad/
