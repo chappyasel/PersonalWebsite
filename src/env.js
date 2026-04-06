@@ -29,6 +29,8 @@ export const env = createEnv({
     AWS_REGION: z.string().default("us-east-1"),
     AWS_BUCKET_NAME: z.string(),
     AWS_KEY_NAME: z.string(),
+    YOUTUBE_API_KEY: z.string(),
+    DAD_CONTENT_PASSWORD: z.string(),
   },
 
   /**
@@ -59,6 +61,8 @@ export const env = createEnv({
     AWS_REGION: process.env.AWS_REGION,
     AWS_BUCKET_NAME: process.env.AWS_BUCKET_NAME,
     AWS_KEY_NAME: process.env.AWS_KEY_NAME,
+    YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY,
+    DAD_CONTENT_PASSWORD: process.env.DAD_CONTENT_PASSWORD,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

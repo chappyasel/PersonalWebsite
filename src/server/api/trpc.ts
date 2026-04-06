@@ -130,3 +130,30 @@ export const protectedProcedure = t.procedure
       },
     });
   });
+
+/**
+ * Cookie-protected procedure
+ *
+ * For routes that require a content-access cookie (e.g. dad-access, youtube-access).
+ * Determines which cookie to check based on the tRPC router path prefix.
+ */
+export const cookieProtectedProcedure = t.procedure
+  .use(timingMiddleware)
+  .use(({ ctx, next, path }) => {
+    const cookieName = path.startsWith("dad.")
+      ? "dad-access"
+      : path.startsWith("youtube.")
+        ? "youtube-access"
+        : null;
+
+    if (!cookieName) {
+      throw new TRPCError({ code: "FORBIDDEN" });
+    }
+
+    const cookieHeader = ctx.headers.get("cookie") ?? "";
+    if (!cookieHeader.includes(`${cookieName}=`)) {
+      throw new TRPCError({ code: "UNAUTHORIZED" });
+    }
+
+    return next();
+  });

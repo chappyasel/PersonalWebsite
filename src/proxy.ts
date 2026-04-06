@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 export async function proxy(req: NextRequest) {
-  // Protect /dad/* sub-routes with cookie check
+  // Protect /dad/* and /youtube/* sub-routes with cookie check
   const { pathname } = req.nextUrl;
   if (
     pathname.startsWith("/dad/") &&
@@ -10,6 +10,15 @@ export async function proxy(req: NextRequest) {
     const token = req.cookies.get("dad-access")?.value;
     if (!token) {
       return NextResponse.redirect(new URL("/dad", req.url));
+    }
+  }
+  if (
+    pathname.startsWith("/youtube/") &&
+    !pathname.startsWith("/youtube/api")
+  ) {
+    const token = req.cookies.get("youtube-access")?.value;
+    if (!token) {
+      return NextResponse.redirect(new URL("/youtube", req.url));
     }
   }
 

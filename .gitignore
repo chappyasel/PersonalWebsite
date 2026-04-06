@@ -50,3 +50,6 @@ yarn-error.log*
 
 # dad journal content (fetched from GCS at build time)
 /content/dad/
+
+# youtube takeout data
+/data/youtube/

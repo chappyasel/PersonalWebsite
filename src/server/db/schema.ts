@@ -331,3 +331,37 @@ export const wlSetsRelations = relations(wlSets, ({ one }) => ({
     references: [wlExercises.id],
   }),
 }));
+
+// ── YouTube watch history tables ────────────────────────────────────
+
+export const ytWatchHistory = pgTable(
+  "yt_watch_history",
+  {
+    id: serial("id").primaryKey(),
+    videoId: varchar("video_id", { length: 20 }).notNull(),
+    title: varchar("title", { length: 1024 }),
+    channelName: varchar("channel_name", { length: 512 }),
+    channelUrl: text("channel_url"),
+    watchedAt: timestamp("watched_at", { withTimezone: true }).notNull(),
+    durationSeconds: integer("duration_seconds"),
+  },
+  (table) => ({
+    videoIdIdx: index("yt_video_id_idx").on(table.videoId),
+    watchedAtIdx: index("yt_watched_at_idx").on(table.watchedAt),
+    channelNameIdx: index("yt_channel_name_idx").on(table.channelName),
+  }),
+);
+
+export const ytSyncMetadata = pgTable("yt_sync_metadata", {
+  id: serial("id").primaryKey(),
+  syncStartedAt: timestamp("sync_started_at", { withTimezone: true })
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+  syncCompletedAt: timestamp("sync_completed_at", { withTimezone: true }),
+  status: varchar("status", { length: 50 }).notNull(),
+  totalVideos: integer("total_videos"),
+  enrichedVideos: integer("enriched_videos"),
+  deletedVideos: integer("deleted_videos"),
+  errors: text("errors"),
+  triggeredBy: varchar("triggered_by", { length: 50 }).notNull(),
+});
