@@ -6,7 +6,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "~/server/db";
 import { books } from "~/server/db/schema";
-import type { Book, BookWithNotes } from "./types";
+import type { BaseBook } from "./types";
 
 /**
  * Fetch a book by ID for OG image generation
@@ -16,7 +16,7 @@ import type { Book, BookWithNotes } from "./types";
  * @returns The book with tags
  * @throws Error if book not found
  */
-export async function getBookForOG(bookId: string): Promise<Book> {
+export async function getBookForOG(bookId: string): Promise<BaseBook> {
   const book = await db.query.books.findFirst({
     where: eq(books.id, bookId),
     with: {
@@ -55,7 +55,7 @@ export async function getBookForOG(bookId: string): Promise<Book> {
  */
 export async function getBookWithNotes(
   bookId: string,
-): Promise<BookWithNotes | null> {
+): Promise<(BaseBook & { notes: string }) | null> {
   const book = await db.query.books.findFirst({
     where: eq(books.id, bookId),
     with: {

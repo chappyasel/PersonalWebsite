@@ -4,6 +4,7 @@
 import { PlayIcon } from "@phosphor-icons/react";
 import {
   ArrowSquareOutIcon,
+  ArrowsClockwiseIcon,
   ArrowsOutSimpleIcon,
   CalendarIcon,
   LinkIcon,
@@ -25,7 +26,7 @@ import remarkGfm from "remark-gfm";
 
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import { getBookPath, getBooksPath } from "~/lib/books/paths";
-import type { Book } from "~/lib/books/types";
+import type { BaseBook, Book } from "~/lib/books/types";
 import { cn } from "~/lib/util";
 
 import { Button } from "~/components/ui/button";
@@ -204,9 +205,11 @@ function getReadingDays(
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 }
 
+type BookDetailBook = BaseBook & Partial<Pick<Book, "readNumber" | "totalReads" | "otherReadings">> & { notes?: string };
+
 type BookDetailContentProps = {
-  book: Book & { notes?: string };
-  fullBook?: Book & { notes?: string };
+  book: BookDetailBook;
+  fullBook?: BookDetailBook;
   isLoadingNotes: boolean;
   contentRef?: RefObject<HTMLDivElement | null>;
   onShare: () => void;
@@ -553,7 +556,7 @@ export function BookDetailContent({
                     )}
 
                     <motion.div
-                      className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground"
+                      className="mt-3 flex flex-col gap-1 text-sm text-muted-foreground"
                       style={{ opacity: datesOpacity }}
                     >
                       {book.publicationYear && (
@@ -567,7 +570,55 @@ export function BookDetailContent({
                           </span>
                         </div>
                       )}
-                      {book.started && book.finished ? (
+                      {(book.totalReads ?? 1) > 1 ? (
+                        /* Multiple readings */
+                        (book.otherReadings ?? []).map((reading, i) => (
+                          <TooltipProvider key={i}>
+                            <Tooltip delayDuration={200}>
+                              <TooltipTrigger asChild>
+                                <div className="flex cursor-default items-center gap-1">
+                                  <div className="flex items-center gap-1 font-medium">
+                                    {i > 0 ? (
+                                      <ArrowsClockwiseIcon size={12} weight="bold" />
+                                    ) : (
+                                      <CalendarIcon size={12} weight="bold" />
+                                    )}
+                                    <span>
+                                      {i === 0
+                                        ? "Read:"
+                                        : i === 1
+                                          ? "2nd Read:"
+                                          : i === 2
+                                            ? "3rd Read:"
+                                            : `${i + 1}th Read:`}
+                                    </span>
+                                  </div>
+                                  <span className="font-semibold">
+                                    {reading.started && reading.finished
+                                      ? formatReadDates(reading.started, reading.finished)
+                                      : reading.started
+                                        ? (() => {
+                                            const d = new Date(reading.started);
+                                            const month = d.toLocaleDateString("en-US", { month: "long" });
+                                            const day = d.getDate();
+                                            const year = d.toLocaleDateString("en-US", { year: "2-digit" });
+                                            return `${month} ${day}${getOrdinalSuffix(day)} '${year}`;
+                                          })()
+                                        : "Unknown"}
+                                  </span>
+                                </div>
+                              </TooltipTrigger>
+                              {reading.started && reading.finished && (
+                                <TooltipContent>
+                                  <p>
+                                    {getReadingDays(reading.started, reading.finished)} days
+                                  </p>
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </TooltipProvider>
+                        ))
+                      ) : book.started && book.finished ? (
                         <TooltipProvider>
                           <Tooltip delayDuration={200}>
                             <TooltipTrigger asChild>
@@ -707,7 +758,7 @@ export function BookDetailContent({
 
             {/* Dates */}
             {(book.publicationYear ?? book.started ?? book.finished) && (
-              <div className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground">
+              <div className="flex flex-col gap-1 text-sm text-muted-foreground">
                 {book.publicationYear && (
                   <div className="flex items-center gap-1">
                     <div className="flex items-center gap-1 font-medium">
@@ -717,7 +768,55 @@ export function BookDetailContent({
                     <span className="font-semibold">{book.publicationYear}</span>
                   </div>
                 )}
-                {book.started && book.finished ? (
+                {(book.totalReads ?? 1) > 1 ? (
+                  /* Multiple readings */
+                  (book.otherReadings ?? []).map((reading, i) => (
+                    <TooltipProvider key={i}>
+                      <Tooltip delayDuration={200}>
+                        <TooltipTrigger asChild>
+                          <div className="flex cursor-default items-center gap-1">
+                            <div className="flex items-center gap-1 font-medium">
+                              {i > 0 ? (
+                                <ArrowsClockwiseIcon size={12} weight="bold" />
+                              ) : (
+                                <CalendarIcon size={12} weight="bold" />
+                              )}
+                              <span>
+                                {i === 0
+                                  ? "Read:"
+                                  : i === 1
+                                    ? "2nd Read:"
+                                    : i === 2
+                                      ? "3rd Read:"
+                                      : `${i + 1}th Read:`}
+                              </span>
+                            </div>
+                            <span className="font-semibold">
+                              {reading.started && reading.finished
+                                ? formatReadDates(reading.started, reading.finished)
+                                : reading.started
+                                  ? (() => {
+                                      const d = new Date(reading.started);
+                                      const month = d.toLocaleDateString("en-US", { month: "long" });
+                                      const day = d.getDate();
+                                      const year = d.toLocaleDateString("en-US", { year: "2-digit" });
+                                      return `${month} ${day}${getOrdinalSuffix(day)} '${year}`;
+                                    })()
+                                  : "Unknown"}
+                            </span>
+                          </div>
+                        </TooltipTrigger>
+                        {reading.started && reading.finished && (
+                          <TooltipContent>
+                            <p>
+                              {getReadingDays(reading.started, reading.finished)} days
+                            </p>
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </TooltipProvider>
+                  ))
+                ) : book.started && book.finished ? (
                   <TooltipProvider>
                     <Tooltip delayDuration={200}>
                       <TooltipTrigger asChild>

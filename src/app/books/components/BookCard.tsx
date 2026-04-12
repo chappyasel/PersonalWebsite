@@ -2,7 +2,7 @@
 
 import { useModalActions } from "../contexts/BookPreviewContext";
 import { LinkIcon } from "@phosphor-icons/react";
-import { BookOpenIcon, FileTextIcon } from "@phosphor-icons/react";
+import { ArrowsClockwiseIcon, BookOpenIcon, FileTextIcon } from "@phosphor-icons/react";
 import { CheckIcon, StarIcon } from "@phosphor-icons/react/dist/ssr";
 import {
   type SpringOptions,
@@ -367,45 +367,61 @@ export const BookCard = memo(function BookCard({
         {/* Hide all overlays for XS size */}
         {!styles.hideOverlays && (
           <>
-            {/* Currently Reading Badge (takes priority over No Notes) */}
-            {isCurrentlyReading(book) ? (
-              <Badge
-                variant="secondary"
-                className={cn(
-                  `absolute gap-1 bg-blue-50/90 text-blue-600/80 shadow-md dark:bg-blue-950/90 dark:text-blue-400/90`,
-                  styles.badgeSpacing,
-                  sizeRadius[size],
-                )}
-                style={
-                  isTouchDevice
-                    ? undefined
-                    : { transform: `translateZ(${styles.floatZ}px)` }
-                }
-              >
-                <BookOpenIcon className={styles.badgeIcon} />
-                <span className={styles.badgeText}>Reading</span>
-              </Badge>
-            ) : (
-              /* No Notes Badge */
-              !book.hasNotes && (
+            {/* Badges container - stacked vertically */}
+            <div
+              className={cn(
+                "absolute flex flex-col gap-1",
+                styles.badgeSpacing,
+              )}
+              style={
+                isTouchDevice
+                  ? undefined
+                  : { transform: `translateZ(${styles.floatZ}px)` }
+              }
+            >
+              {isCurrentlyReading(book) && (
                 <Badge
                   variant="secondary"
                   className={cn(
-                    `absolute gap-1 bg-red-50/90 text-red-600/80 shadow-md dark:bg-red-950/90 dark:text-red-400/90`,
-                    styles.badgeSpacing,
+                    `gap-1 bg-blue-50/90 text-blue-600/80 shadow-md dark:bg-blue-950/90 dark:text-blue-400/90`,
                     sizeRadius[size],
                   )}
-                  style={
-                    isTouchDevice
-                      ? undefined
-                      : { transform: `translateZ(${styles.floatZ}px)` }
-                  }
+                >
+                  <BookOpenIcon className={styles.badgeIcon} />
+                  <span className={styles.badgeText}>Reading</span>
+                </Badge>
+              )}
+              {book.readNumber > 1 && (
+                <Badge
+                  variant="secondary"
+                  className={cn(
+                    `gap-1 bg-purple-50/90 text-purple-600/80 shadow-md dark:bg-purple-950/90 dark:text-purple-400/90`,
+                    sizeRadius[size],
+                  )}
+                >
+                  <ArrowsClockwiseIcon className={styles.badgeIcon} />
+                  <span className={styles.badgeText}>
+                    {book.readNumber === 2
+                      ? "2nd Read"
+                      : book.readNumber === 3
+                        ? "3rd Read"
+                        : `${book.readNumber}th Read`}
+                  </span>
+                </Badge>
+              )}
+              {!isCurrentlyReading(book) && book.readNumber <= 1 && !book.hasNotes && (
+                <Badge
+                  variant="secondary"
+                  className={cn(
+                    `gap-1 bg-red-50/90 text-red-600/80 shadow-md dark:bg-red-950/90 dark:text-red-400/90`,
+                    sizeRadius[size],
+                  )}
                 >
                   <FileTextIcon className={styles.badgeIcon} />
                   <span className={styles.badgeText}>No Notes</span>
                 </Badge>
-              )
-            )}
+              )}
+            </div>
 
             {/* Gradient overlay - does not float */}
             <div

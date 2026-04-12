@@ -1,4 +1,11 @@
-export type Book = {
+export type BookReading = {
+  started: string | null;
+  finished: string | null;
+  rating: number | null;
+};
+
+/** Raw book data from Notion/DB (before re-read computation) */
+export type BaseBook = {
   id: string; // Human-readable slug
   notionId: string; // Original Notion page ID
   title: string;
@@ -12,6 +19,13 @@ export type Book = {
   hasSummary: boolean;
   coverUrl: string | null;
   notionUrl: string;
+};
+
+/** Book with computed re-read data (returned from API) */
+export type Book = BaseBook & {
+  readNumber: number; // Which read this is (1 = first, 2 = re-read, etc.)
+  totalReads: number; // Total times this book has been read
+  otherReadings: BookReading[]; // All readings of this book (for detail page)
 };
 
 export type BookWithNotes = Book & {

@@ -2,6 +2,7 @@
 
 import { searchParamsParsers } from "../lib/searchParams";
 import {
+  ArrowsClockwiseIcon,
   HashIcon,
   ListIcon,
   NotebookIcon,
@@ -79,6 +80,7 @@ export function BookFilters() {
       minRating: null,
       hasNotes: null,
       hasSummary: null,
+      isReread: null,
     });
   };
 
@@ -94,7 +96,8 @@ export function BookFilters() {
     filters.tags.length > 0 ||
     filters.minRating !== null ||
     filters.hasNotes !== null ||
-    filters.hasSummary !== null;
+    filters.hasSummary !== null ||
+    filters.isReread !== null;
 
   return (
     <div className="flex flex-col gap-5 rounded-3xl py-2">
@@ -248,6 +251,24 @@ export function BookFilters() {
           checked={filters.hasSummary ?? false}
           onCheckedChange={(checked) =>
             void setFilters({ hasSummary: checked ? true : null })
+          }
+        />
+      </div>
+
+      {/* Re-reads */}
+      <div className="flex items-center justify-between pr-2">
+        <label
+          htmlFor="is-reread"
+          className="flex items-center gap-1.5 text-sm font-semibold text-foreground"
+        >
+          <ArrowsClockwiseIcon className="h-4 w-4" weight="bold" />
+          Re-reads
+        </label>
+        <Switch
+          id="is-reread"
+          checked={filters.isReread ?? false}
+          onCheckedChange={(checked) =>
+            void setFilters({ isReread: checked ? true : null })
           }
         />
       </div>

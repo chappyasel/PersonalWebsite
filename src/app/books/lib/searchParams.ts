@@ -11,6 +11,7 @@ export const searchParamsParsers = {
   minRating: parseAsInteger,
   hasNotes: parseAsBoolean,
   hasSummary: parseAsBoolean,
+  isReread: parseAsBoolean,
 
   // Search
   search: parseAsString.withDefault(""),

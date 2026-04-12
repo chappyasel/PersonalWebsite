@@ -12,7 +12,7 @@ import {
   fetchBooksFromNotion,
 } from "./notion";
 import { fetchWithBackoff } from "./rateLimiter";
-import type { Book, BookWithNotes } from "./types";
+import type { BaseBook } from "./types";
 
 export type SyncResult = {
   totalBooksInNotion: number;
@@ -34,7 +34,7 @@ export type SyncError = {
 type BookContentResult =
   | {
       success: true;
-      book: BookWithNotes & { lastEditedTime: string };
+      book: BaseBook & { notes: string } & { lastEditedTime: string };
     }
   | {
       success: false;
@@ -67,6 +67,7 @@ export async function syncBooksFromNotion(
         title: b.title,
         author: b.author || null,
         publicationYear: b.publicationYear,
+        finished: b.finished,
       })),
     );
 
@@ -142,16 +143,16 @@ export async function syncBooksFromNotion(
  * Uses notionId for lookup since that's the stable identifier from Notion.
  */
 function categorizeBooks(
-  notionBooks: Array<Book & { lastEditedTime?: string }>,
+  notionBooks: Array<BaseBook & { lastEditedTime?: string }>,
   dbBooksMap: Map<string, Date>, // Map<notionId, lastEditedTime>
 ): {
-  newBooks: Array<Book & { lastEditedTime: string }>;
-  updatedBooks: Array<Book & { lastEditedTime: string }>;
-  unchangedBooks: Array<Book & { lastEditedTime: string }>;
+  newBooks: Array<BaseBook & { lastEditedTime: string }>;
+  updatedBooks: Array<BaseBook & { lastEditedTime: string }>;
+  unchangedBooks: Array<BaseBook & { lastEditedTime: string }>;
 } {
-  const newBooks: Array<Book & { lastEditedTime: string }> = [];
-  const updatedBooks: Array<Book & { lastEditedTime: string }> = [];
-  const unchangedBooks: Array<Book & { lastEditedTime: string }> = [];
+  const newBooks: Array<BaseBook & { lastEditedTime: string }> = [];
+  const updatedBooks: Array<BaseBook & { lastEditedTime: string }> = [];
+  const unchangedBooks: Array<BaseBook & { lastEditedTime: string }> = [];
 
   for (const book of notionBooks) {
     const lastEditedTime = book.lastEditedTime ?? new Date().toISOString();
@@ -183,7 +184,7 @@ function categorizeBooks(
  * Uses notionId to fetch from Notion API, preserves slug ID for database.
  */
 async function fetchBooksContentWithRateLimit(
-  booksToFetch: Array<Book & { lastEditedTime: string }>,
+  booksToFetch: Array<BaseBook & { lastEditedTime: string }>,
 ): Promise<BookContentResult[]> {
   console.log(
     `Fetching full content for ${booksToFetch.length} books in parallel (concurrency: 20)...`,
@@ -241,7 +242,7 @@ async function fetchBooksContentWithRateLimit(
  */
 async function upsertBooksToDatabase(
   contentResults: BookContentResult[],
-  unchangedBooks: Array<Book & { lastEditedTime: string }>,
+  unchangedBooks: Array<BaseBook & { lastEditedTime: string }>,
 ): Promise<void> {
   // Process successful content fetches
   for (const result of contentResults) {

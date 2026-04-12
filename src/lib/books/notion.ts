@@ -1,7 +1,7 @@
 import { Client, type PageObjectResponse } from "@notionhq/client";
 import { NotionToMarkdown } from "notion-to-md";
 
-import type { Book, BookWithNotes } from "./types";
+import type { BaseBook } from "./types";
 import { env } from "~/env";
 
 const notion = new Client({
@@ -18,7 +18,7 @@ const n2m = new NotionToMarkdown({
 /**
  * Fetch all books from the Notion database
  */
-export async function fetchBooksFromNotion(): Promise<Book[]> {
+export async function fetchBooksFromNotion(): Promise<BaseBook[]> {
   try {
     // First, retrieve the database to get its associated data source ID
     const database = await notion.databases.retrieve({
@@ -102,7 +102,7 @@ export async function fetchBooksFromNotion(): Promise<Book[]> {
 /**
  * Fetch a single book with full notes content
  */
-export async function fetchBookDetails(bookId: string): Promise<BookWithNotes> {
+export async function fetchBookDetails(bookId: string): Promise<BaseBook & { notes: string }> {
   try {
     // Fetch the page
     const page = await notion.pages.retrieve({ page_id: bookId });
@@ -135,7 +135,7 @@ export async function fetchBookDetails(bookId: string): Promise<BookWithNotes> {
  * Note: The `id` field is initially set to the Notion page ID.
  * It will be replaced with a human-readable slug during sync.
  */
-function transformNotionPageToBook(page: PageObjectResponse): Book {
+function transformNotionPageToBook(page: PageObjectResponse): BaseBook {
   const props = page.properties;
 
   return {

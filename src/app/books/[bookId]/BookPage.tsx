@@ -6,11 +6,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { getBookShareUrl } from "~/lib/books/paths";
-import type { BookWithNotes } from "~/lib/books/types";
+import type { BaseBook } from "~/lib/books/types";
 
 type BookPageProps = {
   bookId: string;
-  book: BookWithNotes;
+  book: BaseBook & { notes: string };
 };
 
 export function BookPage({ bookId, book }: BookPageProps) {

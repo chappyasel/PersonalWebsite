@@ -2,7 +2,12 @@ import { and, asc, desc, eq, gte, ilike, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { syncBooksFromNotion } from "~/lib/books/sync";
-import type { Book, BookStats, BookWithNotes } from "~/lib/books/types";
+import type {
+  Book,
+  BookReading,
+  BookStats,
+  BookWithNotes,
+} from "~/lib/books/types";
 import {
   createTRPCRouter,
   protectedProcedure,
@@ -104,7 +109,7 @@ export const booksRouter = createTRPCRouter({
       }
 
       // Transform to Book type
-      return filteredResults.map(
+      const transformed = filteredResults.map(
         (book): Book => ({
           id: book.id,
           notionId: book.notionId,
@@ -119,8 +124,41 @@ export const booksRouter = createTRPCRouter({
           hasSummary: book.hasSummary,
           coverUrl: book.coverUrl,
           notionUrl: book.notionUrl,
+          readNumber: 1,
+          totalReads: 1,
+          otherReadings: [],
         }),
       );
+
+      // Compute re-read data: group by normalized title+author
+      const readGroups = new Map<string, Book[]>();
+      for (const book of transformed) {
+        const key = `${book.title.toLowerCase()}|||${book.author.toLowerCase()}`;
+        const group = readGroups.get(key) ?? [];
+        group.push(book);
+        readGroups.set(key, group);
+      }
+      for (const group of readGroups.values()) {
+        if (group.length <= 1) continue;
+        // Sort chronologically by finished date (earliest first)
+        group.sort((a, b) => {
+          const aDate = a.finished ?? "9999";
+          const bDate = b.finished ?? "9999";
+          return aDate.localeCompare(bDate);
+        });
+        const allReadings: BookReading[] = group.map((b) => ({
+          started: b.started,
+          finished: b.finished,
+          rating: b.rating,
+        }));
+        for (let i = 0; i < group.length; i++) {
+          group[i]!.readNumber = i + 1;
+          group[i]!.totalReads = group.length;
+          group[i]!.otherReadings = allReadings;
+        }
+      }
+
+      return transformed;
     }),
 
   /**
@@ -144,6 +182,35 @@ export const booksRouter = createTRPCRouter({
         throw new Error("Book not found");
       }
 
+      // Find other readings of the same book (case-insensitive title+author match,
+      // consistent with the getAll grouping which uses toLowerCase())
+      const otherReads = await db.query.books.findMany({
+        where: and(
+          sql`LOWER(${books.title}) = LOWER(${book.title})`,
+          sql`LOWER(${books.author}) = LOWER(${book.author})`,
+        ),
+        columns: {
+          started: true,
+          finished: true,
+          rating: true,
+        },
+        orderBy: asc(sql`COALESCE(${books.finished}, NOW())`),
+      });
+
+      const allReadings: BookReading[] = otherReads.map((r) => ({
+        started: r.started?.toISOString() ?? null,
+        finished: r.finished?.toISOString() ?? null,
+        rating: r.rating ?? null,
+      }));
+
+      // Determine this book's read number
+      const readNumber =
+        allReadings.findIndex(
+          (r) =>
+            r.started === (book.started?.toISOString() ?? null) &&
+            r.finished === (book.finished?.toISOString() ?? null),
+        ) + 1 || 1;
+
       const result: BookWithNotes = {
         id: book.id,
         notionId: book.notionId,
@@ -159,6 +226,9 @@ export const booksRouter = createTRPCRouter({
         coverUrl: book.coverUrl,
         notionUrl: book.notionUrl,
         notes: book.notes ?? "",
+        readNumber,
+        totalReads: allReadings.length,
+        otherReadings: allReadings,
       };
 
       return result;

@@ -52,6 +52,7 @@ export function BooksGrid({
     params.minRating,
     params.hasNotes,
     params.hasSummary,
+    params.isReread,
     params.search,
     params.sort,
   ]);
@@ -92,6 +93,7 @@ export function BooksGrid({
       minRating: null,
       hasNotes: null,
       hasSummary: null,
+      isReread: null,
       search: "",
     });
   };
@@ -129,6 +131,13 @@ export function BooksGrid({
       if (params.hasSummary !== null && params.hasSummary !== undefined) {
         filteredBooks = filteredBooks.filter(
           (book) => book.hasSummary === params.hasSummary,
+        );
+      }
+
+      // Filter by re-reads
+      if (params.isReread !== null && params.isReread !== undefined) {
+        filteredBooks = filteredBooks.filter(
+          (book) => book.totalReads > 1,
         );
       }
 
@@ -183,6 +192,7 @@ export function BooksGrid({
     params.minRating,
     params.hasNotes,
     params.hasSummary,
+    params.isReread,
     params.search,
     sortField,
     sortOrder,
@@ -252,6 +262,7 @@ export function BooksGrid({
       (params.minRating ??
         params.hasNotes ??
         params.hasSummary ??
+        params.isReread ??
         params.search) !== null;
 
     return (
