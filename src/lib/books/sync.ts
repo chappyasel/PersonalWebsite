@@ -239,19 +239,28 @@ async function fetchBooksContentWithRateLimit(
 /**
  * Upsert books to database.
  * Uses notionId as the conflict key since slugs (id) may change.
+ *
+ * IMPORTANT: Slug assignments can shuffle when a book's finished date changes
+ * (the most recent read claims the clean slug). We must migrate ALL changed
+ * slugs before upserting content to prevent one book's new slug from
+ * overwriting another book that currently holds that slug.
  */
 async function upsertBooksToDatabase(
   contentResults: BookContentResult[],
   unchangedBooks: Array<BaseBook & { lastEditedTime: string }>,
 ): Promise<void> {
+  // PRE-STEP: Migrate all changed slugs before any content upserts.
+  // This prevents the case where an updated book's new slug collides with
+  // an unchanged book's current slug, silently overwriting it.
+  await migrateChangedSlugs(contentResults, unchangedBooks);
+
   // Process successful content fetches
   for (const result of contentResults) {
     if (!result.success) continue;
 
     const book = result.book;
 
-    // First, check if this book exists with a different slug
-    // If so, we need to delete the old record first (due to PK constraint)
+    // Check if this is a truly new book (not previously in DB)
     const existing = await db.query.books.findFirst({
       where: eq(books.notionId, book.notionId),
       columns: { id: true },
@@ -272,12 +281,8 @@ async function upsertBooksToDatabase(
       }
     }
 
-    if (existing && existing.id !== book.id) {
-      // Slug changed - delete old record (cascade will handle tags)
-      await db.delete(books).where(eq(books.notionId, book.notionId));
-    }
-
     // Upsert book (use id as conflict target since it's the PK)
+    // After migrateChangedSlugs, any slug conflicts have been resolved
     await db
       .insert(books)
       .values({
@@ -331,11 +336,133 @@ async function upsertBooksToDatabase(
   }
 
   // Update lastSyncedAt for unchanged books (use notionId for lookup)
+  // Slug migration for these books was already handled by migrateChangedSlugs
   for (const book of unchangedBooks) {
     await db
       .update(books)
       .set({ lastSyncedAt: new Date() })
       .where(eq(books.notionId, book.notionId));
+  }
+}
+
+/**
+ * Migrate slugs that have changed for ALL books (including unchanged ones)
+ * before any content upserts.
+ *
+ * When a re-read's finished date changes, generateAllBookIds may reassign
+ * which book gets the "clean" slug. Without this step, an updated book's
+ * new slug can collide with an unchanged book's current slug, causing the
+ * unchanged book to be silently overwritten via onConflictDoUpdate.
+ *
+ * Strategy: delete all records with stale slugs first (to free the slug
+ * namespace and handle swaps), then re-insert unchanged books with their
+ * new slugs. Updated/new books will be re-inserted by the normal upsert.
+ */
+async function migrateChangedSlugs(
+  contentResults: BookContentResult[],
+  unchangedBooks: Array<BaseBook & { lastEditedTime: string }>,
+): Promise<void> {
+  // Build map of notionId → newSlug for ALL books in this sync
+  const newSlugMap = new Map<string, string>();
+  for (const result of contentResults) {
+    if (result.success) {
+      newSlugMap.set(result.book.notionId, result.book.id);
+    }
+  }
+  for (const book of unchangedBooks) {
+    newSlugMap.set(book.notionId, book.id);
+  }
+
+  // Fetch current slugs from DB
+  const existingBooks = await db.query.books.findMany({
+    columns: { id: true, notionId: true },
+  });
+
+  // Find books whose slugs need to change
+  const slugChanges: { notionId: string; oldSlug: string; newSlug: string }[] =
+    [];
+  for (const existing of existingBooks) {
+    const newSlug = newSlugMap.get(existing.notionId);
+    if (newSlug && newSlug !== existing.id) {
+      slugChanges.push({
+        notionId: existing.notionId,
+        oldSlug: existing.id,
+        newSlug,
+      });
+    }
+  }
+
+  if (slugChanges.length === 0) return;
+
+  console.log(`Migrating ${slugChanges.length} changed slug(s)...`);
+
+  // Identify which changed-slug books are "unchanged" (need content preserved)
+  const unchangedNotionIds = new Set(unchangedBooks.map((b) => b.notionId));
+  const preservedData = new Map<
+    string,
+    {
+      id: string;
+      notionId: string;
+      title: string;
+      author: string;
+      publicationYear: number | null;
+      started: Date | null;
+      finished: Date | null;
+      rating: number | null;
+      hasNotes: boolean;
+      hasSummary: boolean;
+      coverUrl: string | null;
+      notionUrl: string;
+      notes: string | null;
+      lastEditedTime: Date;
+      lastSyncedAt: Date;
+      createdAt: Date;
+      updatedAt: Date | null;
+      tags: { id: number; bookId: string; tagName: string }[];
+    }
+  >();
+
+  // Fetch full data for unchanged books before deleting
+  for (const change of slugChanges) {
+    if (unchangedNotionIds.has(change.notionId)) {
+      const fullBook = await db.query.books.findFirst({
+        where: eq(books.notionId, change.notionId),
+        with: { tags: true },
+      });
+      if (fullBook) {
+        preservedData.set(change.notionId, fullBook);
+      }
+    }
+  }
+
+  // Phase 1: Delete ALL records with changed slugs (frees slug namespace,
+  // handles swaps where A→B and B→A). Cascade deletes tags.
+  for (const change of slugChanges) {
+    console.log(`  Slug migration: ${change.oldSlug} → ${change.newSlug}`);
+    await db.delete(books).where(eq(books.notionId, change.notionId));
+  }
+
+  // Phase 2: Re-insert unchanged books with their new slugs (preserving content).
+  // Updated/new books will be re-inserted by the normal upsert loop.
+  for (const [notionId, fullBook] of preservedData) {
+    const newSlug = slugChanges.find((c) => c.notionId === notionId)!.newSlug;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { tags: tagsData, id: _oldId, ...bookData } = fullBook;
+
+    await db.insert(books).values({
+      ...bookData,
+      id: newSlug,
+      lastSyncedAt: new Date(),
+    });
+
+    if (tagsData.length > 0) {
+      await db.insert(bookTags).values(
+        tagsData.map((tag) => ({
+          bookId: newSlug,
+          tagName: tag.tagName,
+        })),
+      );
+    }
   }
 }
 

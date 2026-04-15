@@ -1,0 +1,1 @@
+ALTER TABLE "yt_watch_history" ADD COLUMN "llm_quality_score" double precision;

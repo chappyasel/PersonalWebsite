@@ -344,11 +344,23 @@ export const ytWatchHistory = pgTable(
     channelUrl: text("channel_url"),
     watchedAt: timestamp("watched_at", { withTimezone: true }).notNull(),
     durationSeconds: integer("duration_seconds"),
+    // Video metadata from YouTube API
+    categoryId: integer("category_id"),
+    topicCategories: text("topic_categories"), // JSON array of Wikipedia URLs
+    tags: text("tags"), // JSON array of creator-assigned tags
+    viewCount: doublePrecision("view_count"),
+    likeCount: doublePrecision("like_count"),
+    hasCaptions: boolean("has_captions"),
+    definition: varchar("definition", { length: 4 }), // "hd" or "sd"
+    llmQualityScore: doublePrecision("llm_quality_score"), // 0.0-1.0 from LLM classification
+    llmModel: varchar("llm_model", { length: 64 }), // e.g. "openai/gpt-5.4"
+    llmPromptVersion: varchar("llm_prompt_version", { length: 16 }), // e.g. "v2"
   },
   (table) => ({
     videoIdIdx: index("yt_video_id_idx").on(table.videoId),
     watchedAtIdx: index("yt_watched_at_idx").on(table.watchedAt),
     channelNameIdx: index("yt_channel_name_idx").on(table.channelName),
+    categoryIdx: index("yt_category_id_idx").on(table.categoryId),
   }),
 );
 

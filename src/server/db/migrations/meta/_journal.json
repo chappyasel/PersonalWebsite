@@ -29,6 +29,34 @@
       "when": 1775394829705,
       "tag": "0003_colorful_northstar",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1776187540626,
+      "tag": "0004_tricky_clea",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1776187831327,
+      "tag": "0005_glorious_living_lightning",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1776276395091,
+      "tag": "0006_strange_gargoyle",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1776280362232,
+      "tag": "0007_abandoned_doorman",
+      "breakpoints": true
     }
   ]
 }

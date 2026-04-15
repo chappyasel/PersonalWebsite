@@ -3,6 +3,7 @@
 import {
   CalendarDotsIcon,
   CaretDownIcon,
+  ChartBarIcon,
   ChartLineUpIcon,
   HouseLineIcon,
   ListBulletsIcon,
@@ -15,6 +16,7 @@ import { type ReactNode, useState } from "react";
 import { StatsCards } from "./StatsCards";
 import { WatchTimeChart } from "./WatchTimeChart";
 import { TopChannels } from "./TopChannels";
+import { CategoryBreakdown } from "./CategoryBreakdown";
 import { YearCalendar } from "./YearCalendar";
 import { devBaseUrl } from "~/lib/util";
 
@@ -22,19 +24,27 @@ function CollapsibleSection({
   icon,
   title,
   defaultOpen = true,
+  lazy = false,
   children,
 }: {
   icon: ReactNode;
   title: string;
   defaultOpen?: boolean;
+  lazy?: boolean;
   children: ReactNode;
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+  const [hasOpened, setHasOpened] = useState(defaultOpen);
+
+  const handleToggle = () => {
+    if (!isOpen && !hasOpened) setHasOpened(true);
+    setIsOpen(!isOpen);
+  };
 
   return (
     <section>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggle}
         className="mb-4 flex w-full items-center gap-2 font-rounded text-lg font-medium text-neutral-700 transition-opacity hover:opacity-80 dark:text-neutral-200"
       >
         {icon}
@@ -54,7 +64,7 @@ function CollapsibleSection({
             style={{ overflow: "hidden" }}
           >
             <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-800">
-              {children}
+              {!lazy || hasOpened ? children : null}
             </div>
           </motion.div>
         )}
@@ -138,10 +148,20 @@ export function YouTubeDashboard() {
         <TopChannels />
       </CollapsibleSection>
 
+      {/* Category Breakdown */}
+      <CollapsibleSection
+        icon={<ChartBarIcon className="h-5 w-5" weight="bold" />}
+        title="Category Breakdown"
+      >
+        <CategoryBreakdown />
+      </CollapsibleSection>
+
       {/* Calendar Heatmap */}
       <CollapsibleSection
         icon={<CalendarDotsIcon className="h-5 w-5" weight="bold" />}
         title="Daily Activity"
+        defaultOpen={false}
+        lazy
       >
         <YearCalendar />
       </CollapsibleSection>

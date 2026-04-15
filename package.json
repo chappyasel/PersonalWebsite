@@ -26,6 +26,7 @@
     "add-book-covers:dry-run": "npx tsx ./scripts/add-book-covers.ts --dry-run"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.53",
     "@auth/drizzle-adapter": "^1.1.0",
     "@aws-sdk/client-s3": "^3.995.0",
     "@notionhq/client": "^5.6.0",
@@ -45,6 +46,7 @@
     "@trpc/client": "^11.0.0-rc.446",
     "@trpc/react-query": "^11.0.0-rc.446",
     "@trpc/server": "^11.0.0-rc.446",
+    "ai": "^6.0.162",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.30.10",
@@ -74,7 +76,7 @@
     "superjson": "^2.2.1",
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",
-    "zod": "^3.23.3"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@resvg/resvg-js": "^2.6.2",

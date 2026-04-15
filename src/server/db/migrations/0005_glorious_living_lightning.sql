@@ -1,0 +1,2 @@
+ALTER TABLE "yt_watch_history" ALTER COLUMN "view_count" SET DATA TYPE double precision;--> statement-breakpoint
+ALTER TABLE "yt_watch_history" ALTER COLUMN "like_count" SET DATA TYPE double precision;

@@ -1,6 +1,6 @@
 import * as fs from "fs";
 
-import { eq } from "drizzle-orm";
+import { eq, isNull, sql } from "drizzle-orm";
 
 import { env } from "~/env";
 import { db } from "~/server/db";
@@ -19,13 +19,43 @@ type TakeoutEntry = {
   products?: string[];
 };
 
+type YouTubeApiItem = {
+  id: string;
+  snippet?: {
+    categoryId?: string;
+    tags?: string[];
+  };
+  contentDetails?: {
+    duration: string;
+    caption?: string; // "true" | "false"
+    definition?: string; // "hd" | "sd"
+  };
+  statistics?: {
+    viewCount?: string;
+    likeCount?: string;
+  };
+  topicDetails?: {
+    topicCategories?: string[];
+  };
+};
+
 type YouTubeApiResponse = {
-  items: {
-    id: string;
-    contentDetails: {
-      duration: string; // ISO 8601 e.g. "PT1H2M10S"
-    };
-  }[];
+  items: YouTubeApiItem[];
+};
+
+/** All metadata we cache per video ID */
+type VideoMeta = {
+  durationSeconds: number;
+  categoryId: number | null;
+  topicCategories: string | null; // JSON stringified array
+  tags: string | null; // JSON stringified array
+  viewCount: number | null;
+  likeCount: number | null;
+  hasCaptions: boolean | null;
+  definition: string | null;
+  llmQualityScore: number | null;
+  llmModel: string | null;
+  llmPromptVersion: string | null;
 };
 
 export type YtSyncResult = {
@@ -62,12 +92,12 @@ function extractVideoId(url: string): string | null {
   return null;
 }
 
-/** Fetch durations for a batch of video IDs from YouTube Data API v3 */
-async function fetchDurations(
+/** Fetch full metadata for a batch of video IDs from YouTube Data API v3 */
+async function fetchVideoMeta(
   videoIds: string[],
-): Promise<Map<string, number>> {
-  const map = new Map<string, number>();
-  const url = `${YOUTUBE_API_URL}?part=contentDetails&id=${videoIds.join(",")}&key=${env.YOUTUBE_API_KEY}`;
+): Promise<Map<string, VideoMeta>> {
+  const map = new Map<string, VideoMeta>();
+  const url = `${YOUTUBE_API_URL}?part=contentDetails,snippet,statistics,topicDetails&id=${videoIds.join(",")}&key=${env.YOUTUBE_API_KEY}`;
 
   const resp = await fetch(url);
   if (!resp.ok) {
@@ -77,15 +107,42 @@ async function fetchDurations(
 
   const data = (await resp.json()) as YouTubeApiResponse;
   for (const item of data.items) {
-    const secs = parseDuration(item.contentDetails.duration);
-    map.set(item.id, Math.min(secs, MAX_DURATION_SECONDS));
+    const secs = item.contentDetails
+      ? Math.min(parseDuration(item.contentDetails.duration), MAX_DURATION_SECONDS)
+      : 0;
+
+    map.set(item.id, {
+      durationSeconds: secs,
+      categoryId: item.snippet?.categoryId
+        ? parseInt(item.snippet.categoryId, 10)
+        : null,
+      topicCategories: item.topicDetails?.topicCategories
+        ? JSON.stringify(item.topicDetails.topicCategories)
+        : null,
+      tags: item.snippet?.tags ? JSON.stringify(item.snippet.tags) : null,
+      viewCount: item.statistics?.viewCount
+        ? parseInt(item.statistics.viewCount, 10)
+        : null,
+      likeCount: item.statistics?.likeCount
+        ? parseInt(item.statistics.likeCount, 10)
+        : null,
+      hasCaptions: item.contentDetails?.caption === "true"
+        ? true
+        : item.contentDetails?.caption === "false"
+          ? false
+          : null,
+      definition: item.contentDetails?.definition ?? null,
+      llmQualityScore: null,
+      llmModel: null,
+      llmPromptVersion: null,
+    });
   }
   return map;
 }
 
 /**
  * Main sync — reads Google Takeout watch-history.json, enriches with
- * YouTube API durations, and replaces all yt_watch_history rows.
+ * YouTube API metadata, and replaces all yt_watch_history rows.
  */
 export async function syncYouTube(
   triggeredBy: "cron" | "manual",
@@ -134,46 +191,100 @@ export async function syncYouTube(
       `Parsed ${parsed.length} videos, ${deletedCount} deleted/unavailable`,
     );
 
-    // 3. Collect unique video IDs and fetch durations in batches
+    // 3. Load cached metadata from existing DB rows before we delete them
     const uniqueIds = [...new Set(parsed.map((p) => p.videoId))];
-    const durationMap = new Map<string, number>();
-    let enrichedCount = 0;
+    const metaMap = new Map<string, VideoMeta>();
+
+    const existingRows = await db
+      .select({
+        videoId: ytWatchHistory.videoId,
+        durationSeconds: ytWatchHistory.durationSeconds,
+        categoryId: ytWatchHistory.categoryId,
+        topicCategories: ytWatchHistory.topicCategories,
+        tags: ytWatchHistory.tags,
+        viewCount: ytWatchHistory.viewCount,
+        likeCount: ytWatchHistory.likeCount,
+        hasCaptions: ytWatchHistory.hasCaptions,
+        definition: ytWatchHistory.definition,
+        llmQualityScore: ytWatchHistory.llmQualityScore,
+        llmModel: ytWatchHistory.llmModel,
+        llmPromptVersion: ytWatchHistory.llmPromptVersion,
+      })
+      .from(ytWatchHistory);
+
+    for (const row of existingRows) {
+      // Only cache if we have the full metadata (categoryId as sentinel)
+      if (row.durationSeconds != null && row.categoryId != null) {
+        metaMap.set(row.videoId, {
+          durationSeconds: row.durationSeconds,
+          categoryId: row.categoryId,
+          topicCategories: row.topicCategories,
+          tags: row.tags,
+          viewCount: row.viewCount,
+          likeCount: row.likeCount,
+          hasCaptions: row.hasCaptions,
+          definition: row.definition,
+          llmQualityScore: row.llmQualityScore,
+          llmModel: row.llmModel,
+          llmPromptVersion: row.llmPromptVersion,
+        });
+      }
+    }
+
+    const uncachedIds = uniqueIds.filter((id) => !metaMap.has(id));
+    let enrichedCount = metaMap.size;
 
     console.log(
-      `Fetching durations for ${uniqueIds.length} unique videos in batches of ${BATCH_SIZE}...`,
+      `${metaMap.size} cached, ${uncachedIds.length} to fetch from API...`,
     );
 
-    for (let i = 0; i < uniqueIds.length; i += BATCH_SIZE) {
-      const batch = uniqueIds.slice(i, i + BATCH_SIZE);
-      const batchDurations = await fetchDurations(batch);
+    // Fetch metadata only for uncached videos
+    for (let i = 0; i < uncachedIds.length; i += BATCH_SIZE) {
+      const batch = uncachedIds.slice(i, i + BATCH_SIZE);
+      const batchMeta = await fetchVideoMeta(batch);
 
-      for (const [id, dur] of batchDurations) {
-        durationMap.set(id, dur);
+      for (const [id, meta] of batchMeta) {
+        metaMap.set(id, meta);
         enrichedCount++;
       }
 
       if ((i / BATCH_SIZE) % 20 === 0) {
         console.log(
-          `  Progress: ${Math.min(i + BATCH_SIZE, uniqueIds.length)}/${uniqueIds.length} videos`,
+          `  Progress: ${Math.min(i + BATCH_SIZE, uncachedIds.length)}/${uncachedIds.length} videos`,
         );
       }
     }
 
-    console.log(`Enriched ${enrichedCount}/${uniqueIds.length} videos`);
+    console.log(
+      `Enriched ${enrichedCount}/${uniqueIds.length} videos (${uncachedIds.length} new API calls)`,
+    );
 
     // 4. Full replace — truncate and reinsert
     // eslint-disable-next-line drizzle/enforce-delete-with-where
     await db.delete(ytWatchHistory);
 
     const DB_BATCH = 500;
-    const rows = parsed.map((p) => ({
-      videoId: p.videoId,
-      title: p.title,
-      channelName: p.channelName,
-      channelUrl: p.channelUrl,
-      watchedAt: p.watchedAt,
-      durationSeconds: durationMap.get(p.videoId) ?? null,
-    }));
+    const rows = parsed.map((p) => {
+      const meta = metaMap.get(p.videoId);
+      return {
+        videoId: p.videoId,
+        title: p.title,
+        channelName: p.channelName,
+        channelUrl: p.channelUrl,
+        watchedAt: p.watchedAt,
+        durationSeconds: meta?.durationSeconds ?? null,
+        categoryId: meta?.categoryId ?? null,
+        topicCategories: meta?.topicCategories ?? null,
+        tags: meta?.tags ?? null,
+        viewCount: meta?.viewCount ?? null,
+        likeCount: meta?.likeCount ?? null,
+        hasCaptions: meta?.hasCaptions ?? null,
+        definition: meta?.definition ?? null,
+        llmQualityScore: meta?.llmQualityScore ?? null,
+        llmModel: meta?.llmModel ?? null,
+        llmPromptVersion: meta?.llmPromptVersion ?? null,
+      };
+    });
 
     for (let i = 0; i < rows.length; i += DB_BATCH) {
       const batch = rows.slice(i, i + DB_BATCH);
