@@ -361,6 +361,8 @@ export const ytWatchHistory = pgTable(
     watchedAtIdx: index("yt_watched_at_idx").on(table.watchedAt),
     channelNameIdx: index("yt_channel_name_idx").on(table.channelName),
     categoryIdx: index("yt_category_id_idx").on(table.categoryId),
+    // Each (video_id, watched_at) is a single watch event — sync upserts on this.
+    watchEventUq: uniqueIndex("yt_watch_event_uq").on(table.videoId, table.watchedAt),
   }),
 );
 

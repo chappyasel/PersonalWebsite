@@ -57,6 +57,13 @@
       "when": 1776280362232,
       "tag": "0007_abandoned_doorman",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1779215226226,
+      "tag": "0008_right_wonder_man",
+      "breakpoints": true
     }
   ]
 }

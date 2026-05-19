@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS "yt_watch_event_uq" ON "yt_watch_history" ("video_id","watched_at");

@@ -23,7 +23,11 @@
     "generate:manual": "npx tsx ./scripts/generate/manual.ts",
     "generate:routine": "npx tsx ./scripts/generate/routine.ts",
     "add-book-covers": "npx tsx ./scripts/add-book-covers.ts",
-    "add-book-covers:dry-run": "npx tsx ./scripts/add-book-covers.ts --dry-run"
+    "add-book-covers:dry-run": "npx tsx ./scripts/add-book-covers.ts --dry-run",
+    "takeout:login": "npx tsx ./scripts/takeout/login.ts",
+    "takeout:drive-auth": "npx tsx ./scripts/takeout/drive-auth.ts",
+    "takeout:request": "npx tsx ./scripts/takeout/request.ts",
+    "takeout:refresh": "npx tsx ./scripts/takeout/refresh.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.53",
@@ -93,6 +97,8 @@
     "eslint": "^8",
     "eslint-config-next": "15",
     "eslint-plugin-drizzle": "^0.2.3",
+    "googleapis": "^171.4.0",
+    "playwright": "^1.59.1",
     "postcss": "^8.4.39",
     "prettier": "^3.3.2",
     "prettier-plugin-tailwindcss": "^0.6.5",
