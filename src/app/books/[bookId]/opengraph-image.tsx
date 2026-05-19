@@ -17,6 +17,11 @@ import { loadGeorgiaProBold, loadGeorgiaProRegular } from "./fonts";
 // Use nodejs runtime for database access
 export const runtime = "nodejs";
 
+// Cache generated OG images at the edge (matches page ISR window).
+// Without this, every crawler hit cold-generates (~2.5s) and Twitter/X
+// times out, leaving a "no image" state cached on their side.
+export const revalidate = 86400;
+
 // OG image size
 export const alt = "Book cover and details";
 export const size = {
