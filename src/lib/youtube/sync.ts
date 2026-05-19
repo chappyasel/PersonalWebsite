@@ -259,10 +259,10 @@ export async function syncYouTube(
       `Enriched ${enrichedCount}/${uniqueIds.length} videos (${uncachedIds.length} new API calls)`,
     );
 
-    // 4. Full replace — truncate and reinsert
-    // eslint-disable-next-line drizzle/enforce-delete-with-where
-    await db.delete(ytWatchHistory);
-
+    // 4. Additive upsert — never destroy existing rows. Unique key is
+    // (video_id, watched_at), enforced by yt_watch_event_uq index. If a row
+    // with that pair exists, update its metadata to refresh enrichment;
+    // otherwise insert.
     const DB_BATCH = 500;
     const rows = parsed.map((p) => {
       const meta = metaMap.get(p.videoId);
@@ -288,10 +288,28 @@ export async function syncYouTube(
 
     for (let i = 0; i < rows.length; i += DB_BATCH) {
       const batch = rows.slice(i, i + DB_BATCH);
-      await db.insert(ytWatchHistory).values(batch);
+      await db
+        .insert(ytWatchHistory)
+        .values(batch)
+        .onConflictDoUpdate({
+          target: [ytWatchHistory.videoId, ytWatchHistory.watchedAt],
+          set: {
+            title: sql`excluded.title`,
+            channelName: sql`excluded.channel_name`,
+            channelUrl: sql`excluded.channel_url`,
+            durationSeconds: sql`excluded.duration_seconds`,
+            categoryId: sql`excluded.category_id`,
+            topicCategories: sql`excluded.topic_categories`,
+            tags: sql`excluded.tags`,
+            viewCount: sql`excluded.view_count`,
+            likeCount: sql`excluded.like_count`,
+            hasCaptions: sql`excluded.has_captions`,
+            definition: sql`excluded.definition`,
+          },
+        });
     }
 
-    console.log(`Inserted ${rows.length} watch history entries`);
+    console.log(`Upserted ${rows.length} watch history entries`);
 
     const result: YtSyncResult = {
       totalVideos: parsed.length,
