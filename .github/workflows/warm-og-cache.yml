@@ -1,0 +1,60 @@
+name: Warm book OG image cache
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: read
+
+jobs:
+  warm:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for Vercel production deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 60); do
+            state=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/status" --jq '.state // "pending"')
+            echo "[$i] Vercel status: $state"
+            case "$state" in
+              success) exit 0 ;;
+              failure|error)
+                gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/status" --jq '.statuses[] | "\(.context): \(.description)"'
+                exit 1 ;;
+            esac
+            sleep 20
+          done
+          echo "Timed out waiting for Vercel"
+          exit 1
+
+      - name: Fetch book slugs from production
+        run: |
+          set -euo pipefail
+          # books.getAll is a public tRPC query — call with default input
+          input='%7B%220%22%3A%7B%22json%22%3A%7B%7D%7D%7D'
+          curl --fail-with-body -sSL \
+            "https://chappyasel.com/api/trpc/books.getAll?batch=1&input=$input" \
+            -o /tmp/books.json
+          jq -r '.[0].result.data.json[].id' /tmp/books.json > /tmp/slugs.txt
+          echo "Found $(wc -l < /tmp/slugs.txt) books"
+
+      - name: Warm OG images (8 in parallel)
+        run: |
+          set -uo pipefail
+          xargs -P 8 -I {} curl -sS \
+            "https://books.chappyasel.com/{}/opengraph-image" \
+            -A "OG-Warmer/1.0 (+https://github.com/${{ github.repository }})" \
+            -o /dev/null \
+            -w "%{http_code} %{time_total}s {}\n" \
+            < /tmp/slugs.txt | tee /tmp/warm-results.txt
+          fails=$(awk '$1 != 200 {print}' /tmp/warm-results.txt)
+          if [ -n "$fails" ]; then
+            echo "::warning::Some OG images failed to warm:"
+            echo "$fails"
+          fi
+          echo "Warmed $(wc -l < /tmp/warm-results.txt) URLs"
