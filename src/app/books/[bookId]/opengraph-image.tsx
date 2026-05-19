@@ -11,16 +11,27 @@ import {
   getTitleStyle,
   truncateTitle,
 } from "~/lib/books/ogImageUtils";
+import { db } from "~/server/db";
 
 import { loadGeorgiaProBold, loadGeorgiaProRegular } from "./fonts";
 
 // Use nodejs runtime for database access
 export const runtime = "nodejs";
 
-// Cache generated OG images at the edge (matches page ISR window).
-// Without this, every crawler hit cold-generates (~2.5s) and Twitter/X
-// times out, leaving a "no image" state cached on their side.
+// Pre-render every book's OG image at build time (mirrors page.tsx).
+// In Next.js 16 routes are dynamic by default — without this the image
+// cold-generates (~2.5s) on every crawler hit and Twitter/X times out,
+// leaving a "no image" state cached on their side.
+export const dynamic = "force-static";
+export const dynamicParams = true;
 export const revalidate = 86400;
+
+export async function generateStaticParams() {
+  const allBooks = await db.query.books.findMany({
+    columns: { id: true },
+  });
+  return allBooks.map((book) => ({ bookId: book.id }));
+}
 
 // OG image size
 export const alt = "Book cover and details";
