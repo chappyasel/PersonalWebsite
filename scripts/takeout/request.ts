@@ -5,7 +5,12 @@
  * Run with: npx tsx scripts/takeout/request.ts
  *   --debug    Take screenshots at each step to ~/.local/share/youtube-takeout/debug/.
  *
- * Exits 0 on submitted, 1 on auth failure, 2 on UI failure.
+ * Exits 0 only after confirming the export actually queued (an "Export in
+ * progress" card on /manage), 1 on an auth/reauth gate, 2 on a UI failure or
+ * an unconfirmed submission. The confirmation guards against Google's headless
+ * reauth gate silently swallowing the "Create export" click — a false-positive
+ * that previously left the downstream state machine waiting forever for an
+ * export that was never queued.
  */
 
 import * as fs from "fs";
@@ -25,6 +30,48 @@ async function snap(page: Page, label: string) {
   const fname = `${Date.now()}-${label}.png`;
   await page.screenshot({ path: path.join(DEBUG_DIR, fname), fullPage: true });
   console.log(`[debug] snap: ${fname}`);
+}
+
+const AUTH_GATE_RE = /accounts\.google\.com|\/signin|\/challenge|ServiceLogin|rejected|verify it.?s you/i;
+
+type VerifyResult = "ok" | "auth" | "notfound";
+
+/**
+ * Confirm the "Create export" click actually queued an export. Google's reauth
+ * gate can silently block submission in headless contexts, so a click alone is
+ * not proof. The /manage summary page shows an "Export in progress" card while
+ * Google builds the archive — that card is the only reliable signal.
+ */
+async function verifyExportQueued(page: Page): Promise<VerifyResult> {
+  if (AUTH_GATE_RE.test(page.url())) return "auth";
+
+  // Land on the summary page where in-progress exports are listed.
+  try {
+    await page.goto("https://takeout.google.com/manage", {
+      waitUntil: "domcontentloaded",
+    });
+    await page.waitForTimeout(2500);
+  } catch {
+    /* fall through to content checks */
+  }
+
+  if (AUTH_GATE_RE.test(page.url())) return "auth";
+  const pwVisible = await page
+    .locator("input[type=password]")
+    .first()
+    .isVisible()
+    .catch(() => false);
+  if (pwVisible) return "auth";
+
+  const inProgress = page
+    .getByText(/Export in progress|creating a copy of data/i)
+    .first();
+  try {
+    await inProgress.waitFor({ state: "visible", timeout: 8000 });
+    return "ok";
+  } catch {
+    return "notfound";
+  }
 }
 
 async function main() {
@@ -137,17 +184,36 @@ async function main() {
   const createBtn = page.getByRole("button", { name: /Create export/i }).first();
   await createBtn.click();
 
-  await page.waitForURL(/exports|progress/, { timeout: 30_000 }).catch(() => {});
+  await page.waitForURL(/exports|progress|manage/, { timeout: 30_000 }).catch(() => undefined);
   await page.waitForTimeout(2000);
   await snap(page, "10-submitted");
-  console.log(`[request] Submitted (URL now: ${page.url()})`);
+  console.log(`[request] Clicked Create export (URL now: ${page.url()})`);
 
+  // Verify the export actually queued — the click alone is not proof.
+  const verdict = await verifyExportQueued(page);
+  await snap(page, "11-after-verify");
+
+  if (verdict === "ok") {
+    console.log("[request] Verified: export is in progress.");
+    await close();
+    process.exit(0);
+  }
+  if (verdict === "auth") {
+    console.error(
+      "[request] Reauth/passkey gate hit — export was NOT queued. Re-run `yarn takeout:login` to refresh the Google session.",
+    );
+    await close();
+    process.exit(1);
+  }
+  console.error(
+    "[request] Could not confirm export queued (no 'Export in progress' card on /manage). Treating as failure so the state machine doesn't wait on a phantom export.",
+  );
   await close();
-  process.exit(0);
+  process.exit(2);
 }
 
 main().catch(async (err) => {
   console.error("Request failed:", err);
-  await close().catch(() => {});
+  await close().catch(() => undefined);
   process.exit(2);
 });
