@@ -24,6 +24,28 @@ function timeRangeWhere(range: z.infer<typeof timeRangeSchema>) {
   return sql`${ytWatchHistory.watchedAt} >= NOW() - INTERVAL '${sql.raw(String(days))} days'`;
 }
 
+/** Enumerate period-start keys (YYYY-MM-DD, UTC) from start to end inclusive,
+ *  stepping by the group size — used to fill zero-watch gaps in time series so
+ *  days with no watching graph as 0 rather than being skipped. */
+function enumeratePeriods(
+  start: string,
+  end: string,
+  groupBy: "day" | "week" | "month" | "quarter",
+): string[] {
+  const out: string[] = [];
+  const d = new Date(start + "T00:00:00Z");
+  const endDate = new Date(end + "T00:00:00Z");
+  let guard = 0;
+  while (d <= endDate && guard++ < 20000) {
+    out.push(d.toISOString().slice(0, 10));
+    if (groupBy === "day") d.setUTCDate(d.getUTCDate() + 1);
+    else if (groupBy === "week") d.setUTCDate(d.getUTCDate() + 7);
+    else if (groupBy === "month") d.setUTCMonth(d.getUTCMonth() + 1);
+    else d.setUTCMonth(d.getUTCMonth() + 3);
+  }
+  return out;
+}
+
 /** SQL CASE for computing weighted productive seconds from categoryId */
 /** Heuristic weight from YouTube category (fallback when no LLM score) */
 const heuristicWeightCase = sql`CASE ${ytWatchHistory.categoryId} ${sql.join(
@@ -158,39 +180,59 @@ export const youtubeRouter = createTRPCRouter({
         .groupBy(sql`${truncExpr}`)
         .orderBy(sql`${truncExpr}`);
 
-      return rows.map((r) => {
-        const totalHours =
-          Number(r.totalSeconds) / 3600 / PLAYBACK_SPEED;
-        const periodStart = new Date(r.period + "T00:00:00Z");
-        let daysInPeriod: number;
-        if (input.groupBy === "day") {
-          daysInPeriod = 1;
-        } else if (input.groupBy === "week") {
-          daysInPeriod = 7;
-        } else if (input.groupBy === "month") {
-          daysInPeriod = new Date(
+      if (rows.length === 0) return [];
+
+      const daysIn = (period: string): number => {
+        const periodStart = new Date(period + "T00:00:00Z");
+        if (input.groupBy === "day") return 1;
+        if (input.groupBy === "week") return 7;
+        if (input.groupBy === "month") {
+          return new Date(
             periodStart.getUTCFullYear(),
             periodStart.getUTCMonth() + 1,
             0,
           ).getDate();
-        } else {
-          const qEnd = new Date(
-            periodStart.getUTCFullYear(),
-            periodStart.getUTCMonth() + 3,
-            0,
-          );
-          daysInPeriod =
-            Math.round(
-              (qEnd.getTime() - periodStart.getTime()) / 86400000,
-            ) + 1;
         }
-        const productivityPct =
+        const qEnd = new Date(
+          periodStart.getUTCFullYear(),
+          periodStart.getUTCMonth() + 3,
+          0,
+        );
+        return (
+          Math.round((qEnd.getTime() - periodStart.getTime()) / 86400000) + 1
+        );
+      };
+
+      // Zero-fill every period between the first and last watched period so
+      // empty stretches graph as 0 instead of the line jumping across them.
+      // Quality % is left null on no-watch days (it's undefined when nothing
+      // was watched) and the line connects across those gaps.
+      const byPeriod = new Map(rows.map((r) => [r.period, r]));
+      const periods = enumeratePeriods(
+        rows[0]!.period,
+        rows[rows.length - 1]!.period,
+        input.groupBy,
+      );
+
+      return periods.map((period) => {
+        const r = byPeriod.get(period);
+        if (!r) {
+          return {
+            period,
+            avgHoursPerDay: 0,
+            totalHours: 0,
+            videoCount: 0,
+            productivityPct: null as number | null,
+          };
+        }
+        const totalHours = Number(r.totalSeconds) / 3600 / PLAYBACK_SPEED;
+        const productivityPct: number | null =
           Number(r.totalSeconds) > 0
             ? (Number(r.productiveSeconds) / Number(r.totalSeconds)) * 100
-            : 0;
+            : null;
         return {
-          period: r.period,
-          avgHoursPerDay: totalHours / daysInPeriod,
+          period,
+          avgHoursPerDay: totalHours / daysIn(period),
           totalHours,
           videoCount: Number(r.videoCount),
           productivityPct,
