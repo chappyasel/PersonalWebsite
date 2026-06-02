@@ -63,6 +63,25 @@ function sma(values: number[], window: number): number[] {
   });
 }
 
+/** Null-aware centered SMA — skips nulls (no-watch days) in each window so the
+ * quality average isn't dragged down by days with nothing watched. */
+function smaNullable(
+  values: (number | null)[],
+  window: number,
+): (number | null)[] {
+  const halfBefore = Math.floor((window - 1) / 2);
+  const halfAfter = Math.floor(window / 2);
+  return values.map((_, i) => {
+    const start = Math.max(0, i - halfBefore);
+    const end = Math.min(values.length, i + halfAfter + 1);
+    const slice = values
+      .slice(start, end)
+      .filter((v): v is number => v != null);
+    if (slice.length === 0) return null;
+    return slice.reduce((a, b) => a + b, 0) / slice.length;
+  });
+}
+
 function formatPeriod(dateStr: string, groupBy: GroupBy) {
   const d = new Date(dateStr + "T00:00:00Z");
   if (groupBy === "quarter") {
@@ -115,7 +134,7 @@ export function WatchTimeChart() {
       )
     : null;
   const pctSmoothed = smoothing
-    ? sma(
+    ? smaNullable(
         data.map((d) => d.productivityPct),
         smoothingWindow,
       )
@@ -220,6 +239,7 @@ export function WatchTimeChart() {
             content={
               <ChartTooltipContent
                 formatter={(value, name) => {
+                  if (value == null) return null;
                   let label: string;
                   let formatted: string;
                   let color: string;
@@ -268,16 +288,17 @@ export function WatchTimeChart() {
               ifOverflow="extendDomain"
             />
           )}
-          {activeIndex !== null && chartData[activeIndex] && (
-            <ReferenceLine
-              yAxisId="right"
-              y={chartData[activeIndex].productivityPct}
-              stroke="hsl(217 91% 60%)"
-              strokeDasharray="2 3"
-              strokeOpacity={0.5}
-              ifOverflow="extendDomain"
-            />
-          )}
+          {activeIndex !== null &&
+            chartData[activeIndex]?.productivityPct != null && (
+              <ReferenceLine
+                yAxisId="right"
+                y={chartData[activeIndex].productivityPct}
+                stroke="hsl(217 91% 60%)"
+                strokeDasharray="2 3"
+                strokeOpacity={0.5}
+                ifOverflow="extendDomain"
+              />
+            )}
           {smoothing &&
             activeIndex !== null &&
             chartData[activeIndex]?.avgHoursPerDaySmoothed !== undefined && (
@@ -292,7 +313,7 @@ export function WatchTimeChart() {
             )}
           {smoothing &&
             activeIndex !== null &&
-            chartData[activeIndex]?.productivityPctSmoothed !== undefined && (
+            chartData[activeIndex]?.productivityPctSmoothed != null && (
               <ReferenceLine
                 yAxisId="right"
                 y={chartData[activeIndex].productivityPctSmoothed}
@@ -318,6 +339,7 @@ export function WatchTimeChart() {
             stroke="hsl(217 91% 60%)"
             strokeWidth={1.5}
             dot={false}
+            connectNulls
             isAnimationActive={false}
           />
           {smoothing && (
@@ -339,6 +361,7 @@ export function WatchTimeChart() {
               stroke="hsl(217 91% 35%)"
               strokeWidth={3}
               dot={false}
+              connectNulls
               isAnimationActive={false}
             />
           )}
