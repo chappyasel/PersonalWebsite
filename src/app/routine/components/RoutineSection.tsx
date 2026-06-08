@@ -9,6 +9,7 @@ import { NotionBlockRenderer } from "~/components/notion";
 import type { BookLookup } from "~/components/notion/types";
 
 import type { RoutineSection as RoutineSectionType } from "../types";
+import { AnchorLink, useHashTarget } from "./sectionLink";
 
 export default function RoutineSection({
   section,
@@ -20,23 +21,34 @@ export default function RoutineSection({
   defaultOpen?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  useHashTarget(section.id, setOpen);
 
   return (
     <section id={section.id} className="scroll-mt-24">
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setOpen((v) => !v);
+          }
+        }}
+        className="group/sec flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"
       >
         <span className="text-2xl">{section.icon}</span>
-        <h2 className="flex-1 text-xl font-semibold tracking-tight text-foreground">
+        <h2 className="text-xl font-semibold tracking-tight text-foreground">
           {section.title}
         </h2>
+        <AnchorLink id={section.id} />
         <CaretRightIcon
           size={16}
           weight="bold"
-          className={`shrink-0 text-muted-foreground/40 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
+          className={`ml-auto shrink-0 text-muted-foreground/40 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
         />
-      </button>
+      </div>
       <AnimatePresence initial={false}>
         {open && (
           <motion.div

@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "2026-03-11T14:57:00.000Z",
+  "lastUpdated": "2026-06-08T03:14:00.000Z",
   "intro": "Given my infamously early wakeup time and disciplined schedule, a lot of people have been asking for my morning routine and the rationale behind it these past couple of years!",
   "whyEarly": [
     {
@@ -317,7 +317,7 @@
                   "type": "paragraph",
                   "content": [
                     {
-                      "text": "Review todo lists and (optionally) read a few morning emails and texts to prime for the day"
+                      "text": "🦞 OpenClaw sends a brief at 4am with agenda for the day, complete with background research on every meeting and task for the day. Social media posts + interactions are drafted. "
                     }
                   ]
                 }
@@ -327,7 +327,14 @@
                   "type": "paragraph",
                   "content": [
                     {
-                      "text": "🦞 OpenClaw sends a brief at 4am with agenda for the day, complete with background research on every meeting and task for the day. Social media posts + interactions are drafted. "
+                      "text": "Review my quarterly + weekly goals and ✅ daily todo list ("
+                    },
+                    {
+                      "text": "Sunsama",
+                      "link": "https://www.sunsama.com/"
+                    },
+                    {
+                      "text": ") and read a few morning emails and texts to prime for the day"
                     }
                   ]
                 }
@@ -364,7 +371,7 @@
                           },
                           {
                             "text": "☕ Caffeine",
-                            "link": "#caffeine"
+                            "link": "https://app.notion.com/p/151c5ab0d88d80f3a0efcf2e04f18a56#151c5ab0d88d80a693c5c86b9ab57e41"
                           },
                           {
                             "text": " "
@@ -678,7 +685,7 @@
                     },
                     {
                       "text": "💊 Supp Stacks",
-                      "link": "#supp-stacks"
+                      "link": "https://app.notion.com/p/151c5ab0d88d80f3a0efcf2e04f18a56#151c5ab0d88d808a8e27d0e762cbada8"
                     }
                   ]
                 }
@@ -868,7 +875,7 @@
                   "type": "paragraph",
                   "content": [
                     {
-                      "text": "This is also shortly after dinner, so I start feeling a little more drowsy as digestion kicks in"
+                      "text": "This is also shortly after dinner (if I’m eating dinner that day), so I start feeling a little more drowsy as digestion kicks in"
                     }
                   ]
                 }
@@ -878,7 +885,7 @@
                   "type": "paragraph",
                   "content": [
                     {
-                      "text": "I generally switch to less cognitively demanding tasks around now, eg. responding to texts and emails"
+                      "text": "I generally switch to less cognitively demanding tasks around now, eg. responding to texts and emails or personal / reflective tasks"
                     }
                   ]
                 }
@@ -909,6 +916,16 @@
                   "type": "paragraph",
                   "content": [
                     {
+                      "text": "Review my day: ✅ daily todo list, score the day (-2, -1, 0, +1, or +2 with note) mentally walk through tomorrow"
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
                       "text": "Take night stack ~45m before sleep"
                     }
                   ]
@@ -925,33 +942,8 @@
                           },
                           {
                             "text": "💊 Supp Stacks",
-                            "link": "#supp-stacks"
+                            "link": "https://app.notion.com/p/151c5ab0d88d80f3a0efcf2e04f18a56#151c5ab0d88d808a8e27d0e762cbada8"
                           }
-                        ]
-                      }
-                    ],
-                    [
-                      {
-                        "type": "paragraph",
-                        "content": [
-                          {
-                            "text": "Also take 3mg melatonin"
-                          }
-                        ]
-                      },
-                      {
-                        "type": "bulleted_list",
-                        "items": [
-                          [
-                            {
-                              "type": "paragraph",
-                              "content": [
-                                {
-                                  "text": "I went back and forth on whether or not to include melatonin in my routine since adverse effects include 1) making it more difficult to sleep without supplementing 2) potentially messing with other hormone production, but decided that the improved control of alertness and schedule was worth it."
-                                }
-                              ]
-                            }
-                          ]
                         ]
                       }
                     ]
@@ -995,7 +987,7 @@
                         "type": "paragraph",
                         "content": [
                           {
-                            "text": "Fill 40oz Hydroflask with iced water and Mio zero-calorie flavoring"
+                            "text": "Fill 40oz Hydroflask with iced water, Mio zero-cal flavoring, and lemon juice"
                           }
                         ]
                       }
@@ -1042,7 +1034,7 @@
                         "type": "paragraph",
                         "content": [
                           {
-                            "text": "AirPods for listening to an audiobook (too often I cave and watch YouTube instead 🥲)"
+                            "text": "AirPods for listening to an audiobook"
                           }
                         ]
                       }
@@ -1061,16 +1053,6 @@
           {
             "type": "bulleted_list",
             "items": [
-              [
-                {
-                  "type": "paragraph",
-                  "content": [
-                    {
-                      "text": "Switch to a background podcast (eg. Lex Fridman)"
-                    }
-                  ]
-                }
-              ],
               [
                 {
                   "type": "paragraph",
@@ -1136,6 +1118,31 @@
                   "type": "paragraph",
                   "content": [
                     {
+                      "text": "Switch to a background podcast (eg. Lex Fridman)"
+                    }
+                  ]
+                },
+                {
+                  "type": "bulleted_list",
+                  "items": [
+                    [
+                      {
+                        "type": "paragraph",
+                        "content": [
+                          {
+                            "text": "Yes, I fall asleep wearing them 😅"
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              ],
+              [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
                       "text": "Ensure alarm is set for the proper wakeup time / sleep duration (depending on priority)"
                     }
                   ]
@@ -1148,62 +1155,11 @@
                         "type": "paragraph",
                         "content": [
                           {
-                            "text": "Varies (5h-7.5h, avg. 6.25h) depending on weight‼️"
-                          }
-                        ]
-                      }
-                    ]
-                  ]
-                },
-                {
-                  "type": "toggle",
-                  "title": [
-                    {
-                      "text": "What ChatGPT says about ↑"
-                    }
-                  ],
-                  "children": [
-                    {
-                      "type": "toggle",
-                      "title": [
-                        {
-                          "text": "Prompt:"
-                        }
-                      ],
-                      "children": [
-                        {
-                          "type": "quote",
-                          "content": [
-                            {
-                              "text": "Why does the amount of sleep I need change depending on how much I weigh / whether I'm actively gaining or losing weight / the season? I'm a bodybuilder who bulks and cuts 20+ pounds per year, peaking in Jan (when I need the most sleep at 7+ hours) and at my lowest in the summer (when I only need like 5.5h)"
-                            }
-                          ]
-                        }
-                      ]
-                    },
-                    {
-                      "type": "quote",
-                      "content": [
-                        {
-                          "text": "Your changing sleep needs are influenced by a combination of physiological, metabolic, and environmental factors related to your bodybuilding routines and seasonal rhythms. Here’s why:"
-                        }
-                      ]
-                    }
-                  ]
-                },
-                {
-                  "type": "bulleted_list",
-                  "items": [
-                    [
-                      {
-                        "type": "paragraph",
-                        "content": [
-                          {
-                            "text": "See "
+                            "text": "Varies (5h-7.5h, avg. 6.25h) depending on weight. See "
                           },
                           {
                             "text": "💤 Sleep Duration",
-                            "link": "#sleep-duration"
+                            "link": "https://app.notion.com/p/151c5ab0d88d80f3a0efcf2e04f18a56#17ac5ab0d88d806badf0cc6528875515"
                           },
                           {
                             "text": " "
@@ -1223,32 +1179,25 @@
   "supplements": {
     "am": [
       {
-        "name": "Alpha GPC",
-        "link": "https://www.amazon.com/dp/B076XNXLR2?psc=1&ref=ppx_yo2ov_dt_b_product_details",
+        "name": "Creatine",
+        "link": "https://www.amazon.com/dp/B00E9M4XFI?amp=&amp=",
         "costPerDay": "$0.42",
-        "dosage": "600mg",
+        "dosage": "10-15g",
         "benefits": "Cognitive function"
       },
       {
-        "name": "Greens Blend",
-        "link": "https://www.amazon.com/Amazing-Grass-Green-Superfood-servings/dp/B00112ILZM?sr=8-7",
-        "costPerDay": "$0.67",
-        "dosage": "",
-        "benefits": "Completeness, gut microbiome"
-      },
-      {
-        "name": "Multivitamin",
-        "link": "https://www.amazon.com/Vitafusion-Gummy-Vitamins-Count-Packaging/dp/B007L0DONW?pd_rd_w=atIyi&content-id=amzn1.sym.deffa092-2e99-4e9f-b814-0d71c40b24af&pf_rd_p=deffa092-2e99-4e9f-b814-0d71c40b24af&pf_rd_r=5CNF2ARFXWDTXJ33JMG6&pd_rd_wg=SuFOR&pd_rd_r=a311e446-a69b-4a61-998b-e060317539c3&pd_rd_i=B007L0DONW&psc=1&ref_=pd_bap_d_grid_rp_0_1_t",
-        "costPerDay": "$0.18",
-        "dosage": "",
-        "benefits": "Completeness"
+        "name": "Collagen Peptides",
+        "link": "https://www.amazon.com/dp/B015YG2N2C?amp=&amp=",
+        "costPerDay": "$0.74",
+        "dosage": "20g",
+        "benefits": "Tendon & skin health"
       },
       {
         "name": "Vitamin D",
-        "link": "https://www.amazon.com/Vitafusion-Extra-Strength-Vitamin-Vitamins/dp/B00OGYSLDE/ref=sr_1_4?keywords=vitamin%20d3%20gummies&qid=1673587469&s=hpc&sprefix=vitamin%20d3%20gumm%2Chpc%2C223&sr=1-4",
-        "costPerDay": "$0.20",
-        "dosage": "50 mcg",
-        "benefits": "Mood, testosterone"
+        "link": "https://www.amazon.com/dp/B0032BH76O?amp=",
+        "costPerDay": "$0.05",
+        "dosage": "5000 IU",
+        "benefits": "Mood"
       },
       {
         "name": "Fish Oil",
@@ -1258,11 +1207,18 @@
         "benefits": "Cholesterol"
       },
       {
-        "name": "Beta Carotene",
-        "link": "https://www.amazon.com/Swanson-Beta-Carotene-Vitamin-Antioxidant-Softgels/dp/B00068SB2K?sr=8-6",
-        "costPerDay": "$0.05",
-        "dosage": "625 mcg",
-        "benefits": "Skin and eye health"
+        "name": "Multivitamin",
+        "link": "https://www.amazon.com/Vitafusion-Gummy-Vitamins-Count-Packaging/dp/B007L0DONW?pd_rd_w=atIyi&content-id=amzn1.sym.deffa092-2e99-4e9f-b814-0d71c40b24af&pf_rd_p=deffa092-2e99-4e9f-b814-0d71c40b24af&pf_rd_r=5CNF2ARFXWDTXJ33JMG6&pd_rd_wg=SuFOR&pd_rd_r=a311e446-a69b-4a61-998b-e060317539c3&pd_rd_i=B007L0DONW&psc=1&ref_=pd_bap_d_grid_rp_0_1_t",
+        "costPerDay": "$0.18",
+        "dosage": "2 gummies",
+        "benefits": "Completeness"
+      },
+      {
+        "name": "Greens Blend",
+        "link": "https://www.amazon.com/Amazing-Grass-Green-Superfood-servings/dp/B00112ILZM?sr=8-7",
+        "costPerDay": "$0.33",
+        "dosage": "1/2 scoop",
+        "benefits": "Completeness, gut microbiome"
       },
       {
         "name": "Maca",
@@ -1272,6 +1228,20 @@
         "benefits": "Testosterone, libido"
       },
       {
+        "name": "Tongkat Ali",
+        "link": "https://www.amazon.com/dp/B07TTDFXFV?psc=1&ref=ppx_yo2ov_dt_b_product_details",
+        "costPerDay": "$0.42",
+        "dosage": "1000mg",
+        "benefits": "Testosterone, libido"
+      },
+      {
+        "name": "Beta-Carotene",
+        "link": "https://www.amazon.com/Swanson-Beta-Carotene-Vitamin-Antioxidant-Softgels/dp/B00068SB2K?sr=8-6",
+        "costPerDay": "$0.05",
+        "dosage": "625 mcg",
+        "benefits": "Skin and eye health"
+      },
+      {
         "name": "Fadogia Agrestis",
         "link": "https://www.amazon.com/dp/B09GSWML11?psc=1&ref=ppx_yo2ov_dt_b_product_details",
         "costPerDay": "$0.33",
@@ -1279,14 +1249,35 @@
         "benefits": "Testosterone, libido"
       },
       {
-        "name": "Tongkat Ali",
-        "link": "https://www.amazon.com/dp/B07TTDFXFV?psc=1&ref=ppx_yo2ov_dt_b_product_details",
+        "name": "Alpha GPC",
+        "link": "https://www.amazon.com/dp/B076XNXLR2?psc=1&ref=ppx_yo2ov_dt_b_product_details",
         "costPerDay": "$0.42",
-        "dosage": "1000mg",
-        "benefits": "Testosterone, libido"
+        "dosage": "600mg",
+        "benefits": "Cognitive function"
+      },
+      {
+        "name": "Psyllium Husk",
+        "link": "https://www.amazon.com/NOW-Supplements-Psyllium-Powder-24-Ounce/dp/B002RWUNYM?rdc=1&sr=8-9",
+        "costPerDay": "$0.27",
+        "dosage": "3-10g",
+        "benefits": "Heart health"
       }
     ],
     "pm": [
+      {
+        "name": "Magnesium",
+        "link": "https://www.amazon.com/dp/B0CFS267GP?amp=",
+        "costPerDay": "$1.82",
+        "dosage": "144mg x2",
+        "benefits": "Cognitive function"
+      },
+      {
+        "name": "Glycine",
+        "link": "https://www.amazon.com/dp/B0016BX8O2?psc=1&ref=ppx_yo2ov_dt_b_product_details",
+        "costPerDay": "$1.17",
+        "dosage": "1500mg x2",
+        "benefits": "Sleep quality"
+      },
       {
         "name": "L-Theanine",
         "link": "https://www.amazon.com/dp/B01B3RWQNM?psc=1&ref=ppx_yo2ov_dt_b_product_details",
@@ -1295,32 +1286,11 @@
         "benefits": "Sleep quality"
       },
       {
-        "name": "Magnesium",
-        "link": "https://www.amazon.com/dp/B006P536E6?psc=1&ref=ppx_yo2ov_dt_b_product_details",
-        "costPerDay": "$0.94",
-        "dosage": "144mg",
-        "benefits": "Cognitive function"
-      },
-      {
-        "name": "Apigenin",
-        "link": "https://www.amazon.com/dp/B09LFFGQXM?psc=1&ref=ppx_yo2ov_dt_b_product_details",
-        "costPerDay": "$0.22",
-        "dosage": "100mg",
-        "benefits": "Sedative"
-      },
-      {
-        "name": "Glycine",
-        "link": "https://www.amazon.com/dp/B0016BX8O2?psc=1&ref=ppx_yo2ov_dt_b_product_details",
-        "costPerDay": "$0.49",
-        "dosage": "1500mg",
-        "benefits": "Sleep quality"
-      },
-      {
-        "name": "GABA",
-        "link": "https://www.amazon.com/dp/B006L7TD0O?psc=1&ref=ppx_yo2ov_dt_b_product_details",
-        "costPerDay": "$0.65",
-        "dosage": "200mg",
-        "benefits": "Sedative, sleep quality"
+        "name": "Melatonin",
+        "link": "https://www.amazon.com/dp/B0149LAJTW?amp=&amp=",
+        "costPerDay": "$0.07",
+        "dosage": "3mg",
+        "benefits": "Circadian timing"
       },
       {
         "name": "Ashwagandha",
@@ -1334,6 +1304,20 @@
         "link": "https://www.amazon.com/dp/B08T6SS2SN?psc=1&ref=ppx_yo2ov_dt_b_product_details",
         "costPerDay": "$0.06",
         "dosage": "500mg",
+        "benefits": "Sleep quality"
+      },
+      {
+        "name": "Apigenin",
+        "link": "https://www.amazon.com/dp/B09LFFGQXM?psc=1&ref=ppx_yo2ov_dt_b_product_details",
+        "costPerDay": "$0.22",
+        "dosage": "100mg",
+        "benefits": "Sedative"
+      },
+      {
+        "name": "Tart Cherry Extract",
+        "link": "https://www.amazon.com/Nutricost-Cherry-Extract-3000mg-Capsules/dp/B07TD6KJS3?sr=8-6",
+        "costPerDay": "$0.06",
+        "dosage": "300mg",
         "benefits": "Sleep quality"
       }
     ]
@@ -1352,7 +1336,7 @@
             },
             {
               "text": "Why We Sleep",
-              "link": "https://www.notion.so/1a8f4bfb2323462c82aa9c9fffb12186"
+              "link": "https://app.notion.com/p/1a8f4bfb2323462c82aa9c9fffb12186"
             },
             {
               "text": ", here’s how alertness naturally varies throughout the day:"
@@ -1509,6 +1493,18 @@
           "type": "quote",
           "content": [
             {
+              "text": "Examine.com",
+              "link": "http://examine.com/"
+            },
+            {
+              "text": " is my favorite site for determining the efficacy of various supplements! This is how I originally curated my stacks in 2022."
+            }
+          ]
+        },
+        {
+          "type": "quote",
+          "content": [
+            {
               "text": "Because I also eat a "
             },
             {
@@ -1517,19 +1513,7 @@
               "italic": true
             },
             {
-              "text": " restrictive diet, I take Athletic Greens and a daily men’s multivitamin. The efficacy of both of these are mixed so I view these more as insurance policies than anything."
-            }
-          ]
-        },
-        {
-          "type": "quote",
-          "content": [
-            {
-              "text": "Examine.com",
-              "link": "http://examine.com/"
-            },
-            {
-              "text": " is my favorite site for determining the efficacy of various supplements! This is how I originally decided upon my stack ~3 years ago."
+              "text": " restrictive diet, I take a greens blend (eg. Athletic Greens) and a daily men’s multivitamin. The efficacy of both of these are mixed so I view these more as insurance policies than anything."
             }
           ]
         },
@@ -1553,14 +1537,14 @@
                 "text": "AM"
               },
               "Name": {
-                "text": "Alpha GPC",
-                "link": "https://www.amazon.com/dp/B076XNXLR2?psc=1&ref=ppx_yo2ov_dt_b_product_details"
+                "text": "Creatine",
+                "link": "https://www.amazon.com/dp/B00E9M4XFI?amp=&amp="
               },
               "$/Day": {
                 "text": "$0.42"
               },
               "Dosage": {
-                "text": "600mg"
+                "text": "10-15g"
               },
               "Benefits": {
                 "text": "Cognitive function"
@@ -1571,35 +1555,17 @@
                 "text": "AM"
               },
               "Name": {
-                "text": "Greens Blend",
-                "link": "https://www.amazon.com/Amazing-Grass-Green-Superfood-servings/dp/B00112ILZM?sr=8-7"
+                "text": "Collagen Peptides",
+                "link": "https://www.amazon.com/dp/B015YG2N2C?amp=&amp="
               },
               "$/Day": {
-                "text": "$0.67"
+                "text": "$0.74"
               },
               "Dosage": {
-                "text": ""
+                "text": "20g"
               },
               "Benefits": {
-                "text": "Completeness, gut microbiome"
-              }
-            },
-            {
-              "Time": {
-                "text": "AM"
-              },
-              "Name": {
-                "text": "Multivitamin",
-                "link": "https://www.amazon.com/Vitafusion-Gummy-Vitamins-Count-Packaging/dp/B007L0DONW?pd_rd_w=atIyi&content-id=amzn1.sym.deffa092-2e99-4e9f-b814-0d71c40b24af&pf_rd_p=deffa092-2e99-4e9f-b814-0d71c40b24af&pf_rd_r=5CNF2ARFXWDTXJ33JMG6&pd_rd_wg=SuFOR&pd_rd_r=a311e446-a69b-4a61-998b-e060317539c3&pd_rd_i=B007L0DONW&psc=1&ref_=pd_bap_d_grid_rp_0_1_t"
-              },
-              "$/Day": {
-                "text": "$0.18"
-              },
-              "Dosage": {
-                "text": ""
-              },
-              "Benefits": {
-                "text": "Completeness"
+                "text": "Tendon & skin health"
               }
             },
             {
@@ -1608,16 +1574,16 @@
               },
               "Name": {
                 "text": "Vitamin D",
-                "link": "https://www.amazon.com/Vitafusion-Extra-Strength-Vitamin-Vitamins/dp/B00OGYSLDE/ref=sr_1_4?keywords=vitamin%20d3%20gummies&qid=1673587469&s=hpc&sprefix=vitamin%20d3%20gumm%2Chpc%2C223&sr=1-4"
+                "link": "https://www.amazon.com/dp/B0032BH76O?amp="
               },
               "$/Day": {
-                "text": "$0.20"
+                "text": "$0.05"
               },
               "Dosage": {
-                "text": "50 mcg"
+                "text": "5000 IU"
               },
               "Benefits": {
-                "text": "Mood, testosterone"
+                "text": "Mood"
               }
             },
             {
@@ -1643,17 +1609,35 @@
                 "text": "AM"
               },
               "Name": {
-                "text": "Beta Carotene",
-                "link": "https://www.amazon.com/Swanson-Beta-Carotene-Vitamin-Antioxidant-Softgels/dp/B00068SB2K?sr=8-6"
+                "text": "Multivitamin",
+                "link": "https://www.amazon.com/Vitafusion-Gummy-Vitamins-Count-Packaging/dp/B007L0DONW?pd_rd_w=atIyi&content-id=amzn1.sym.deffa092-2e99-4e9f-b814-0d71c40b24af&pf_rd_p=deffa092-2e99-4e9f-b814-0d71c40b24af&pf_rd_r=5CNF2ARFXWDTXJ33JMG6&pd_rd_wg=SuFOR&pd_rd_r=a311e446-a69b-4a61-998b-e060317539c3&pd_rd_i=B007L0DONW&psc=1&ref_=pd_bap_d_grid_rp_0_1_t"
               },
               "$/Day": {
-                "text": "$0.05"
+                "text": "$0.18"
               },
               "Dosage": {
-                "text": "625 mcg"
+                "text": "2 gummies"
               },
               "Benefits": {
-                "text": "Skin and eye health"
+                "text": "Completeness"
+              }
+            },
+            {
+              "Time": {
+                "text": "AM"
+              },
+              "Name": {
+                "text": "Greens Blend",
+                "link": "https://www.amazon.com/Amazing-Grass-Green-Superfood-servings/dp/B00112ILZM?sr=8-7"
+              },
+              "$/Day": {
+                "text": "$0.33"
+              },
+              "Dosage": {
+                "text": "1/2 scoop"
+              },
+              "Benefits": {
+                "text": "Completeness, gut microbiome"
               }
             },
             {
@@ -1679,6 +1663,42 @@
                 "text": "AM"
               },
               "Name": {
+                "text": "Tongkat Ali",
+                "link": "https://www.amazon.com/dp/B07TTDFXFV?psc=1&ref=ppx_yo2ov_dt_b_product_details"
+              },
+              "$/Day": {
+                "text": "$0.42"
+              },
+              "Dosage": {
+                "text": "1000mg"
+              },
+              "Benefits": {
+                "text": "Testosterone, libido"
+              }
+            },
+            {
+              "Time": {
+                "text": "AM"
+              },
+              "Name": {
+                "text": "Beta-Carotene",
+                "link": "https://www.amazon.com/Swanson-Beta-Carotene-Vitamin-Antioxidant-Softgels/dp/B00068SB2K?sr=8-6"
+              },
+              "$/Day": {
+                "text": "$0.05"
+              },
+              "Dosage": {
+                "text": "625 mcg"
+              },
+              "Benefits": {
+                "text": "Skin and eye health"
+              }
+            },
+            {
+              "Time": {
+                "text": "AM"
+              },
+              "Name": {
                 "text": "Fadogia Agrestis",
                 "link": "https://www.amazon.com/dp/B09GSWML11?psc=1&ref=ppx_yo2ov_dt_b_product_details"
               },
@@ -1694,20 +1714,38 @@
             },
             {
               "Time": {
-                "text": "AM"
+                "text": "Late AM"
               },
               "Name": {
-                "text": "Tongkat Ali",
-                "link": "https://www.amazon.com/dp/B07TTDFXFV?psc=1&ref=ppx_yo2ov_dt_b_product_details"
+                "text": "Alpha GPC",
+                "link": "https://www.amazon.com/dp/B076XNXLR2?psc=1&ref=ppx_yo2ov_dt_b_product_details"
               },
               "$/Day": {
                 "text": "$0.42"
               },
               "Dosage": {
-                "text": "1000mg"
+                "text": "600mg"
               },
               "Benefits": {
-                "text": "Testosterone, libido"
+                "text": "Cognitive function"
+              }
+            },
+            {
+              "Time": {
+                "text": "Late AM"
+              },
+              "Name": {
+                "text": "Psyllium Husk",
+                "link": "https://www.amazon.com/NOW-Supplements-Psyllium-Powder-24-Ounce/dp/B002RWUNYM?rdc=1&sr=8-9"
+              },
+              "$/Day": {
+                "text": "$0.27"
+              },
+              "Dosage": {
+                "text": "3-10g"
+              },
+              "Benefits": {
+                "text": "Heart health"
               }
             }
           ]
@@ -1722,6 +1760,42 @@
             "Benefits"
           ],
           "rows": [
+            {
+              "Time": {
+                "text": "PM"
+              },
+              "Name": {
+                "text": "Magnesium",
+                "link": "https://www.amazon.com/dp/B0CFS267GP?amp="
+              },
+              "$/Day": {
+                "text": "$1.82"
+              },
+              "Dosage": {
+                "text": "144mg x2"
+              },
+              "Benefits": {
+                "text": "Cognitive function"
+              }
+            },
+            {
+              "Time": {
+                "text": "PM"
+              },
+              "Name": {
+                "text": "Glycine",
+                "link": "https://www.amazon.com/dp/B0016BX8O2?psc=1&ref=ppx_yo2ov_dt_b_product_details"
+              },
+              "$/Day": {
+                "text": "$1.17"
+              },
+              "Dosage": {
+                "text": "1500mg x2"
+              },
+              "Benefits": {
+                "text": "Sleep quality"
+              }
+            },
             {
               "Time": {
                 "text": "PM"
@@ -1745,71 +1819,17 @@
                 "text": "PM"
               },
               "Name": {
-                "text": "Magnesium",
-                "link": "https://www.amazon.com/dp/B006P536E6?psc=1&ref=ppx_yo2ov_dt_b_product_details"
+                "text": "Melatonin",
+                "link": "https://www.amazon.com/dp/B0149LAJTW?amp=&amp="
               },
               "$/Day": {
-                "text": "$0.94"
+                "text": "$0.07"
               },
               "Dosage": {
-                "text": "144mg"
+                "text": "3mg"
               },
               "Benefits": {
-                "text": "Cognitive function"
-              }
-            },
-            {
-              "Time": {
-                "text": "PM"
-              },
-              "Name": {
-                "text": "Apigenin",
-                "link": "https://www.amazon.com/dp/B09LFFGQXM?psc=1&ref=ppx_yo2ov_dt_b_product_details"
-              },
-              "$/Day": {
-                "text": "$0.22"
-              },
-              "Dosage": {
-                "text": "100mg"
-              },
-              "Benefits": {
-                "text": "Sedative"
-              }
-            },
-            {
-              "Time": {
-                "text": "PM"
-              },
-              "Name": {
-                "text": "Glycine",
-                "link": "https://www.amazon.com/dp/B0016BX8O2?psc=1&ref=ppx_yo2ov_dt_b_product_details"
-              },
-              "$/Day": {
-                "text": "$0.49"
-              },
-              "Dosage": {
-                "text": "1500mg"
-              },
-              "Benefits": {
-                "text": "Sleep quality"
-              }
-            },
-            {
-              "Time": {
-                "text": "PM"
-              },
-              "Name": {
-                "text": "GABA",
-                "link": "https://www.amazon.com/dp/B006L7TD0O?psc=1&ref=ppx_yo2ov_dt_b_product_details"
-              },
-              "$/Day": {
-                "text": "$0.65"
-              },
-              "Dosage": {
-                "text": "200mg"
-              },
-              "Benefits": {
-                "text": "Sedative, sleep quality"
+                "text": "Circadian timing"
               }
             },
             {
@@ -1847,6 +1867,42 @@
               "Benefits": {
                 "text": "Sleep quality"
               }
+            },
+            {
+              "Time": {
+                "text": "PM"
+              },
+              "Name": {
+                "text": "Apigenin",
+                "link": "https://www.amazon.com/dp/B09LFFGQXM?psc=1&ref=ppx_yo2ov_dt_b_product_details"
+              },
+              "$/Day": {
+                "text": "$0.22"
+              },
+              "Dosage": {
+                "text": "100mg"
+              },
+              "Benefits": {
+                "text": "Sedative"
+              }
+            },
+            {
+              "Time": {
+                "text": "PM"
+              },
+              "Name": {
+                "text": "Tart Cherry Extract",
+                "link": "https://www.amazon.com/Nutricost-Cherry-Extract-3000mg-Capsules/dp/B07TD6KJS3?sr=8-6"
+              },
+              "$/Day": {
+                "text": "$0.06"
+              },
+              "Dosage": {
+                "text": "300mg"
+              },
+              "Benefits": {
+                "text": "Sleep quality"
+              }
             }
           ]
         }
@@ -1880,7 +1936,7 @@
             },
             {
               "text": "Why We Sleep",
-              "link": "https://www.notion.so/1a8f4bfb2323462c82aa9c9fffb12186"
+              "link": "https://app.notion.com/p/1a8f4bfb2323462c82aa9c9fffb12186"
             },
             {
               "text": " which makes a statistically rigorous argument for 8+ hours daily. However, studies also show that anywhere between 6-8 hours works. In fact, all cause mortality with 8 hours is actually "

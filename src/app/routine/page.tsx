@@ -8,6 +8,7 @@ import RoutineHero from "./components/RoutineHero";
 import RoutineSection from "./components/RoutineSection";
 import RoutineTimeline from "./components/RoutineTimeline";
 import { RoutineTOCMobile, RoutineTOCSidebar } from "./components/RoutineTOC";
+import { HashScrollSpacer } from "./components/sectionLink";
 import SupplementCardsSection from "./components/SupplementCards";
 import type { BookLookup, RoutineData } from "./types";
 
@@ -130,6 +131,8 @@ export default async function RoutinePage() {
                   bookLookup={bookLookup}
                 />
               ))}
+
+              <HashScrollSpacer />
             </div>
           </div>
         </div>

@@ -6,6 +6,7 @@ import {
 } from "@phosphor-icons/react";
 
 import type { BookLookup, TimelineEntry as TimelineEntryType } from "../types";
+import { AnchorLink, useHashTarget } from "./sectionLink";
 import TimelineEntry from "./TimelineEntry";
 
 function TimelineSection({
@@ -23,14 +24,18 @@ function TimelineSection({
   accentColor: "amber" | "indigo";
   lineColor: string;
 }) {
+  const id = label.toLowerCase().replace(/\s+/g, "-");
+  useHashTarget(id);
+
   return (
-    <div id={label.toLowerCase().replace(/\s+/g, "-")}>
+    <div id={id} className="scroll-mt-24">
       {/* Section header */}
-      <div className="mb-6 flex items-center gap-3 px-4">
+      <div className="group/sec mb-6 flex items-center gap-3 px-4">
         {icon}
         <h2 className="text-xl font-semibold tracking-tight text-foreground">
           {label}
         </h2>
+        <AnchorLink id={id} />
       </div>
 
       {/* Timeline */}

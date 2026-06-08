@@ -14,6 +14,7 @@ import { NotionBlockRenderer } from "~/components/notion";
 import type { BookLookup, NotionBlock } from "~/components/notion/types";
 
 import type { Supplement } from "../types";
+import { AnchorLink, useHashTarget } from "./sectionLink";
 
 function SupplementCard({
   supplement,
@@ -147,6 +148,7 @@ export default function SupplementCardsSection({
   bookLookup?: BookLookup;
 }) {
   const [open, setOpen] = useState(false);
+  useHashTarget("supp-stacks", setOpen);
 
   // Filter out table blocks from context (already rendered as cards)
   const explanatoryBlocks = (contextBlocks ?? []).filter(
@@ -155,20 +157,30 @@ export default function SupplementCardsSection({
 
   return (
     <section id="supp-stacks" className="scroll-mt-24">
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setOpen((v) => !v);
+          }
+        }}
+        className="group/sec flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"
       >
         <span className="text-2xl">💊</span>
-        <h2 className="flex-1 text-xl font-semibold tracking-tight text-foreground">
+        <h2 className="text-xl font-semibold tracking-tight text-foreground">
           Supp Stacks
         </h2>
+        <AnchorLink id="supp-stacks" />
         <CaretRightIcon
           size={16}
           weight="bold"
-          className={`shrink-0 text-muted-foreground/40 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
+          className={`ml-auto shrink-0 text-muted-foreground/40 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
         />
-      </button>
+      </div>
       <AnimatePresence initial={false}>
         {open && (
           <motion.div
