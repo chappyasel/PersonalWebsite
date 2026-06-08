@@ -8,6 +8,11 @@ export type RefreshState = {
   last_ingested_at: string | null;
   last_error: string | null;
   consecutive_failures: number;
+  /** Set when a headed approval window has been launched and is awaiting a tap.
+   *  Suppresses re-launching a duplicate window on the next cron tick. */
+  approval_pending_since?: string | null;
+  /** Throttle for the staleness watchdog alert (at most once per window). */
+  last_stale_alert_at?: string | null;
 };
 
 const STATE_DIR = path.join(

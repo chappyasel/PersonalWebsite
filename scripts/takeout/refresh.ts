@@ -1,32 +1,46 @@
 /**
  * Top-level state machine for the YouTube Takeout auto-refresh.
  * Idempotent — safe to run on a cron tick. Exits 0 always; the agent reads
- * stdout to decide whether to post a summary.
+ * stdout (one JSON event per line) to decide whether to post a summary.
  *
  * Behaviour by current state:
- *   idle      — if last_ingested_at is missing or older than MIN_AGE_DAYS AND
- *               today is in the request window, run request.ts → mark requested.
- *   requested — try download.ts. If it succeeds, run syncYouTube + classify
- *               (shell out to the existing scripts) → mark idle, update
- *               last_ingested_at. If download.ts says "not ready yet", do
- *               nothing. If requested_at is > GIVE_UP_DAYS old, give up.
+ *   idle      — if last_ingested_at is older than MIN_AGE_DAYS AND today is a
+ *               request day, try the HEADLESS request (request.ts):
+ *                 • exit 0  → mark `requested` (fully automatic, no human).
+ *                 • exit 4  → Google demanded a passkey step-up. Launch the
+ *                             headed approval window (approve.ts) for a one-tap
+ *                             human approval and emit `request_needs_passkey`.
+ *                 • exit 1  → session expired → emit `requested_auth_failure`.
+ *   requested — try download.ts (Drive API). On success run sync + classify →
+ *               mark idle. "Not ready" → wait. Stuck > GIVE_UP_DAYS → give up.
+ *
+ * A staleness watchdog runs on every tick regardless of state: if the data is
+ * older than STALE_ALERT_DAYS it emits `data_stale` (throttled to once/24h) so
+ * silent drift can't go unnoticed.
  *
  * Run with: npx tsx scripts/takeout/refresh.ts
  */
 
-import { execSync, spawnSync } from "child_process";
+import { execSync, spawnSync, spawn } from "child_process";
 import * as path from "path";
 import { readState, writeState } from "./state";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../..");
 
-const MIN_AGE_DAYS = 6;        // request a new export at most once per ~week
+const MIN_AGE_DAYS = 5;        // request a new export at most ~weekly
 const GIVE_UP_DAYS = 5;        // abandon a stuck request after this long
-const REQUEST_DAYS = new Set([0, 6]); // 0=Sun, 6=Sat — only request on weekends
+const REQUEST_DAYS = new Set([0, 6]); // 0=Sun, 6=Sat — request on the weekend (Saturday anchor)
+const STALE_ALERT_DAYS = 9;    // loud watchdog alert if the data is older than this
+const APPROVAL_PENDING_MIN = 25; // don't relaunch a headed approval within this window
 
-function daysAgo(iso: string | null): number {
+function daysAgo(iso: string | null | undefined): number {
   if (!iso) return Infinity;
   return (Date.now() - new Date(iso).getTime()) / 86_400_000;
+}
+
+function minutesAgo(iso: string | null | undefined): number {
+  if (!iso) return Infinity;
+  return (Date.now() - new Date(iso).getTime()) / 60_000;
 }
 
 function runScript(rel: string, args: string[] = []): { code: number; out: string } {
@@ -39,6 +53,16 @@ function runScript(rel: string, args: string[] = []): { code: number; out: strin
   return { code: res.status ?? 1, out };
 }
 
+/** Open the headed one-tap approval window, detached so it outlives this tick. */
+function launchApprovalDetached() {
+  const child = spawn("npx", ["tsx", "scripts/takeout/approve.ts", "--timeout", "20"], {
+    cwd: REPO_ROOT,
+    detached: true,
+    stdio: "ignore",
+  });
+  child.unref();
+}
+
 function emit(event: string, data: Record<string, unknown> = {}) {
   console.log(JSON.stringify({ event, ...data }));
 }
@@ -47,42 +71,74 @@ async function main() {
   const state = readState();
   emit("state_loaded", { state });
 
+  // ── Staleness watchdog (independent of the state machine) ──
+  const ingestAge = daysAgo(state.last_ingested_at);
+  if (ingestAge > STALE_ALERT_DAYS && daysAgo(state.last_stale_alert_at) > 1) {
+    state.last_stale_alert_at = new Date().toISOString();
+    writeState(state);
+    emit("data_stale", { age_days: Math.round(ingestAge) });
+  }
+
   if (state.state === "idle") {
     const ageDays = daysAgo(state.last_ingested_at);
     const today = new Date().getDay();
-    if (ageDays >= MIN_AGE_DAYS && REQUEST_DAYS.has(today)) {
-      emit("requesting_export", { last_ingest_age_days: Math.round(ageDays) });
-      const { code, out } = runScript("scripts/takeout/request.ts");
-      if (code === 0) {
-        writeState({
-          ...state,
-          state: "requested",
-          requested_at: new Date().toISOString(),
-          last_error: null,
-          consecutive_failures: 0,
-        });
-        emit("requested_ok");
-      } else if (code === 1) {
-        writeState({
-          ...state,
-          last_error: "google_auth_expired",
-          consecutive_failures: state.consecutive_failures + 1,
-        });
-        emit("requested_auth_failure", { tail: out.slice(-500) });
-      } else {
-        writeState({
-          ...state,
-          last_error: `request_failed_${code}`,
-          consecutive_failures: state.consecutive_failures + 1,
-        });
-        emit("requested_failed", { code, tail: out.slice(-500) });
-      }
-    } else {
+
+    if (!(ageDays >= MIN_AGE_DAYS && REQUEST_DAYS.has(today))) {
       emit("idle_no_action", {
         last_ingest_age_days: Math.round(ageDays),
         weekday: today,
         reason: ageDays < MIN_AGE_DAYS ? "too_recent" : "not_request_window",
       });
+      return;
+    }
+
+    // A headed approval window may already be open from an earlier tick — don't
+    // stack a second one.
+    if (minutesAgo(state.approval_pending_since) < APPROVAL_PENDING_MIN) {
+      emit("approval_in_progress", {
+        pending_min: Math.round(minutesAgo(state.approval_pending_since)),
+      });
+      return;
+    }
+
+    // Try the fully-automatic headless request first.
+    emit("requesting_export", { last_ingest_age_days: Math.round(ageDays) });
+    const { code, out } = runScript("scripts/takeout/request.ts");
+
+    if (code === 0) {
+      writeState({
+        ...state,
+        state: "requested",
+        requested_at: new Date().toISOString(),
+        last_error: null,
+        consecutive_failures: 0,
+        approval_pending_since: null,
+      });
+      emit("requested_ok");
+    } else if (code === 4) {
+      // Passkey step-up: headless can't clear it. Open the headed one-tap
+      // approval window and flag it so the next tick doesn't open a second.
+      launchApprovalDetached();
+      writeState({
+        ...state,
+        last_error: "passkey_step_up",
+        approval_pending_since: new Date().toISOString(),
+      });
+      emit("request_needs_passkey");
+    } else if (code === 1) {
+      writeState({
+        ...state,
+        last_error: "google_auth_expired",
+        consecutive_failures: state.consecutive_failures + 1,
+      });
+      emit("requested_auth_failure", { tail: out.slice(-500) });
+    } else {
+      writeState({
+        ...state,
+        last_error: `request_failed_${code}`,
+        consecutive_failures: state.consecutive_failures + 1,
+      });
+      emit("requested_failed", { code, tail: out.slice(-500) });
     }
     return;
   }
@@ -171,6 +227,8 @@ async function main() {
     last_ingested_at: new Date().toISOString(),
     last_error: null,
     consecutive_failures: 0,
+    approval_pending_since: null,
+    last_stale_alert_at: null,
   });
   emit("refresh_complete");
 }

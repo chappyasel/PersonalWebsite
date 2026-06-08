@@ -27,6 +27,7 @@
     "takeout:login": "npx tsx ./scripts/takeout/login.ts",
     "takeout:drive-auth": "npx tsx ./scripts/takeout/drive-auth.ts",
     "takeout:request": "npx tsx ./scripts/takeout/request.ts",
+    "takeout:approve": "npx tsx ./scripts/takeout/approve.ts",
     "takeout:refresh": "npx tsx ./scripts/takeout/refresh.ts"
   },
   "dependencies": {
