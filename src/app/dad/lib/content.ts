@@ -14,6 +14,17 @@ export function readMarkdownFile(relativePath: string) {
   return { frontmatter, content };
 }
 
+// Same as readMarkdownFile but returns null instead of throwing when the file
+// is missing or unreadable. Use on dynamically-rendered (on-demand) routes so
+// an unknown slug yields a 404 rather than a 500.
+export function readMarkdownFileSafe(relativePath: string) {
+  try {
+    return readMarkdownFile(relativePath);
+  } catch {
+    return null;
+  }
+}
+
 export function getInsightSlugs(): string[] {
   const dir = path.join(CONTENT_ROOT, "Insights");
   return fs

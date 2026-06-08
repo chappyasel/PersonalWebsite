@@ -1,11 +1,10 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 
-import { getInsightSlugs, readMarkdownFile } from "~/app/dad/lib/content";
+import { readMarkdownFileSafe } from "~/app/dad/lib/content";
 import { MarkdownRenderer } from "~/app/dad/components/MarkdownRenderer";
 
-export function generateStaticParams() {
-  return getInsightSlugs().map((slug) => ({ slug }));
-}
+const SAFE_SEGMENT = /^[a-zA-Z0-9_-]+$/;
 
 export default async function InsightPage({
   params,
@@ -13,7 +12,11 @@ export default async function InsightPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const { frontmatter, content } = readMarkdownFile(`Insights/${slug}.md`);
+  if (!SAFE_SEGMENT.test(slug)) notFound();
+
+  const entry = readMarkdownFileSafe(`Insights/${slug}.md`);
+  if (!entry) notFound();
+  const { frontmatter, content } = entry;
   const title = (frontmatter.title as string) ?? slug;
 
   return (

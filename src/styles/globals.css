@@ -132,3 +132,15 @@
 .PhotoView-Slider__ArrowRight:active svg {
   transform: scale(0.95);
 }
+
+/*
+ * Deep-link expand, zero JS: when a collapsible routine section is the URL
+ * fragment target (e.g. /routine#supp-stacks), the browser expands it at first
+ * paint. No hydration wait — works on the server-rendered HTML directly.
+ */
+.routine-collapsible:target [data-routine-collapse] {
+  grid-template-rows: 1fr;
+}
+.routine-collapsible:target [data-routine-caret] {
+  transform: rotate(90deg);
+}

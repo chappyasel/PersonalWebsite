@@ -1,6 +1,6 @@
 "use client";
 
-import { AnimatePresence, motion, useInView } from "framer-motion";
+import { motion, useInView } from "framer-motion";
 import Link from "next/link";
 import { useRef, useState } from "react";
 
@@ -14,7 +14,7 @@ import { NotionBlockRenderer } from "~/components/notion";
 import type { BookLookup, NotionBlock } from "~/components/notion/types";
 
 import type { Supplement } from "../types";
-import { AnchorLink, useHashTarget } from "./sectionLink";
+import { AnchorLink, releaseHash, useHashTarget } from "./sectionLink";
 
 function SupplementCard({
   supplement,
@@ -150,22 +150,27 @@ export default function SupplementCardsSection({
   const [open, setOpen] = useState(false);
   useHashTarget("supp-stacks", setOpen);
 
+  const toggle = () => {
+    releaseHash(); // drop the deep-link target so :target stops forcing open
+    setOpen((v) => !v);
+  };
+
   // Filter out table blocks from context (already rendered as cards)
   const explanatoryBlocks = (contextBlocks ?? []).filter(
     (b) => b.type !== "table",
   );
 
   return (
-    <section id="supp-stacks" className="scroll-mt-24">
+    <section id="supp-stacks" className="routine-collapsible scroll-mt-24">
       <div
         role="button"
         tabIndex={0}
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
-            setOpen((v) => !v);
+            toggle();
           }
         }}
         className="group/sec flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"
@@ -176,59 +181,58 @@ export default function SupplementCardsSection({
         </h2>
         <AnchorLink id="supp-stacks" />
         <CaretRightIcon
+          data-routine-caret
           size={16}
           weight="bold"
           className={`ml-auto shrink-0 text-muted-foreground/40 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
         />
       </div>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: "easeInOut" }}
-            className="overflow-hidden"
-          >
-            <div className="space-y-6 px-4 pb-4 pt-2">
-              {/* Explanatory content from the rant */}
-              {explanatoryBlocks.length > 0 && (
-                <div className="space-y-3 text-muted-foreground">
-                  {explanatoryBlocks.map((block, i) => (
-                    <NotionBlockRenderer
-                      key={i}
-                      block={block}
-                      bookLookup={bookLookup}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {/* Supplement cards */}
-              <div className="space-y-8">
-                <SupplementSubSection
-                  label="Morning Stack"
-                  icon={<SunIcon size={16} weight="bold" className="text-amber-500" />}
-                  supplements={am}
-                  accentColor="amber"
-                />
-                <SupplementSubSection
-                  label="Evening Stack"
-                  icon={
-                    <MoonStarsIcon
-                      size={16}
-                      weight="bold"
-                      className="text-indigo-400"
-                    />
-                  }
-                  supplements={pm}
-                  accentColor="indigo"
-                />
+      <div
+        data-routine-collapse
+        data-open={open}
+        className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-300 ease-in-out data-[open=true]:grid-rows-[1fr]"
+      >
+        <div className="overflow-hidden">
+          <div className="space-y-6 px-4 pb-4 pt-2">
+            {/* Explanatory content from the rant */}
+            {explanatoryBlocks.length > 0 && (
+              <div className="space-y-3 text-muted-foreground">
+                {explanatoryBlocks.map((block, i) => (
+                  <NotionBlockRenderer
+                    key={i}
+                    block={block}
+                    bookLookup={bookLookup}
+                  />
+                ))}
               </div>
+            )}
+
+            {/* Supplement cards */}
+            <div className="space-y-8">
+              <SupplementSubSection
+                label="Morning Stack"
+                icon={
+                  <SunIcon size={16} weight="bold" className="text-amber-500" />
+                }
+                supplements={am}
+                accentColor="amber"
+              />
+              <SupplementSubSection
+                label="Evening Stack"
+                icon={
+                  <MoonStarsIcon
+                    size={16}
+                    weight="bold"
+                    className="text-indigo-400"
+                  />
+                }
+                supplements={pm}
+                accentColor="indigo"
+              />
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+        </div>
+      </div>
     </section>
   );
 }

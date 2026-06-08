@@ -1,25 +1,14 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 
 import {
   getAdjacentEntries,
-  getJournalEntries,
-  getJournalYears,
-  readMarkdownFile,
+  readMarkdownFileSafe,
 } from "~/app/dad/lib/content";
 import { EntryHeader } from "~/app/dad/components/EntryHeader";
 import { MarkdownRenderer } from "~/app/dad/components/MarkdownRenderer";
 
-export function generateStaticParams() {
-  const years = getJournalYears();
-  const params: { year: string; slug: string }[] = [];
-  for (const year of years) {
-    const entries = getJournalEntries(year);
-    for (const slug of entries) {
-      params.push({ year, slug });
-    }
-  }
-  return params;
-}
+const SAFE_SEGMENT = /^[a-zA-Z0-9_-]+$/;
 
 export default async function JournalEntryPage({
   params,
@@ -27,9 +16,11 @@ export default async function JournalEntryPage({
   params: Promise<{ year: string; slug: string }>;
 }) {
   const { year, slug } = await params;
-  const { frontmatter, content } = readMarkdownFile(
-    `Journal/${year}/${slug}.md`,
-  );
+  if (!SAFE_SEGMENT.test(year) || !SAFE_SEGMENT.test(slug)) notFound();
+
+  const entry = readMarkdownFileSafe(`Journal/${year}/${slug}.md`);
+  if (!entry) notFound();
+  const { frontmatter, content } = entry;
   const { prev, next } = getAdjacentEntries(year, slug);
 
   return (

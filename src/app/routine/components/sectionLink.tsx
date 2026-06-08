@@ -39,6 +39,20 @@ export function useHashTarget(id: string, setOpen?: (open: boolean) => void) {
 }
 
 /**
+ * Strip the URL fragment without triggering a navigation or scroll. Called when
+ * a section is manually toggled so the CSS `:target` rule stops forcing it open.
+ */
+export function releaseHash() {
+  if (typeof window !== "undefined" && window.location.hash) {
+    window.history.replaceState(
+      null,
+      "",
+      window.location.pathname + window.location.search,
+    );
+  }
+}
+
+/**
  * Trailing spacer that only takes up height when the page is loaded with (or
  * navigated to) a hash. Gives near-bottom sections enough room below to scroll
  * their header to the top, without adding blank space during normal browsing.

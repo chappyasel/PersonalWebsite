@@ -1,17 +1,9 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
 
 import { getInsightSlugs, readMarkdownFile } from "./lib/content";
-import { PasswordGate } from "./components/PasswordGate";
 
 export default async function DadPage() {
-  const cookieStore = await cookies();
-  const hasAccess = cookieStore.get("dad-access")?.value;
-
-  if (!hasAccess) {
-    return <PasswordGate />;
-  }
-
+  // Access is enforced server-side in the dad layout.
   // Build the insight list with titles from frontmatter
   const slugs = getInsightSlugs().filter((s) => s !== "00-life-story" && s !== "bio-updates-draft");
   const insights = slugs.map((slug) => {
