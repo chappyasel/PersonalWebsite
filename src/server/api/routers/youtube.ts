@@ -14,16 +14,22 @@ import { db } from "~/server/db";
 import { ytSyncMetadata, ytWatchHistory } from "~/server/db/schema";
 
 /** Average playback speed — divides raw duration to estimate actual watch time */
-const PLAYBACK_SPEED = 2.1;
+const PLAYBACK_SPEED = 2.2;
 
 /** Viewer's local timezone. Day/week/month buckets are computed in this zone,
  *  not UTC — evening viewing (e.g. after 5pm Pacific) crosses UTC midnight and
  *  would otherwise spill onto the next calendar day, inflating it. */
 const DISPLAY_TIME_ZONE = "America/Los_Angeles";
 
-/** `watched_at` (a timestamptz, an absolute instant) rendered as local
- *  wall-clock time, so calendar bucketing aligns to the viewer's days. */
-const localWatchedAt = sql`(${ytWatchHistory.watchedAt} AT TIME ZONE ${DISPLAY_TIME_ZONE})`;
+/** A "watch day" runs 4am→4am local, so a late-night session (e.g. 1am) counts
+ *  toward the day it started rather than rolling onto the next calendar date. */
+const DAY_BOUNDARY_HOUR = 4;
+
+/** `watched_at` (a timestamptz, an absolute instant) rendered in the local
+ *  "watch day" frame: local wall-clock time minus the 4am boundary, so
+ *  DATE_TRUNC('day', …) yields the watch-day start date. Used for all calendar
+ *  bucketing. */
+const watchDayLocal = sql`((${ytWatchHistory.watchedAt} AT TIME ZONE ${DISPLAY_TIME_ZONE}) - INTERVAL '${sql.raw(String(DAY_BOUNDARY_HOUR))} hours')`;
 
 const timeRangeSchema = z.enum(["30d", "90d", "1y", "3y", "all"]).default("all");
 
@@ -168,12 +174,12 @@ export const youtubeRouter = createTRPCRouter({
     .query(async ({ input }) => {
       const truncExpr =
         input.groupBy === "day"
-          ? sql`DATE_TRUNC('day', ${localWatchedAt})`
+          ? sql`DATE_TRUNC('day', ${watchDayLocal})`
           : input.groupBy === "week"
-            ? sql`DATE_TRUNC('week', ${localWatchedAt})`
+            ? sql`DATE_TRUNC('week', ${watchDayLocal})`
             : input.groupBy === "month"
-              ? sql`DATE_TRUNC('month', ${localWatchedAt})`
-              : sql`DATE_TRUNC('quarter', ${localWatchedAt})`;
+              ? sql`DATE_TRUNC('month', ${watchDayLocal})`
+              : sql`DATE_TRUNC('quarter', ${watchDayLocal})`;
 
       const rows = await db
         .select({
@@ -306,12 +312,12 @@ export const youtubeRouter = createTRPCRouter({
     .query(async ({ input }) => {
       const truncExpr =
         input.groupBy === "day"
-          ? sql`DATE_TRUNC('day', ${localWatchedAt})`
+          ? sql`DATE_TRUNC('day', ${watchDayLocal})`
           : input.groupBy === "week"
-            ? sql`DATE_TRUNC('week', ${localWatchedAt})`
+            ? sql`DATE_TRUNC('week', ${watchDayLocal})`
             : input.groupBy === "month"
-              ? sql`DATE_TRUNC('month', ${localWatchedAt})`
-              : sql`DATE_TRUNC('quarter', ${localWatchedAt})`;
+              ? sql`DATE_TRUNC('month', ${watchDayLocal})`
+              : sql`DATE_TRUNC('quarter', ${watchDayLocal})`;
 
       const rows = await db
         .select({
@@ -414,7 +420,7 @@ export const youtubeRouter = createTRPCRouter({
     .query(async ({ input }) => {
       const rows = await db
         .select({
-          date: sql<string>`TO_CHAR(${localWatchedAt}, 'YYYY-MM-DD')`.as(
+          date: sql<string>`TO_CHAR(${watchDayLocal}, 'YYYY-MM-DD')`.as(
             "day",
           ),
           totalSeconds: sql<number>`COALESCE(SUM(${ytWatchHistory.durationSeconds}), 0)`,
@@ -422,13 +428,13 @@ export const youtubeRouter = createTRPCRouter({
         })
         .from(ytWatchHistory)
         .where(
-          sql`EXTRACT(YEAR FROM ${localWatchedAt}) = ${input.year}`,
+          sql`EXTRACT(YEAR FROM ${watchDayLocal}) = ${input.year}`,
         )
         .groupBy(
-          sql`TO_CHAR(${localWatchedAt}, 'YYYY-MM-DD')`,
+          sql`TO_CHAR(${watchDayLocal}, 'YYYY-MM-DD')`,
         )
         .orderBy(
-          sql`TO_CHAR(${localWatchedAt}, 'YYYY-MM-DD')`,
+          sql`TO_CHAR(${watchDayLocal}, 'YYYY-MM-DD')`,
         );
 
       return rows.map((r) => ({
