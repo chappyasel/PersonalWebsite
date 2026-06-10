@@ -1,7 +1,6 @@
 import { type Metadata, type Viewport } from "next";
 import { Literata } from "next/font/google";
 
-import { georgiaPro } from "~/fonts";
 import { FontProvider } from "~/lib/font-provider";
 import {
   CSPostHogProvider,
@@ -10,6 +9,7 @@ import {
 } from "~/lib/providers";
 import { TRPCReactProvider } from "~/trpc/react";
 
+import { georgiaPro } from "~/fonts";
 import "~/styles/globals.css";
 
 const literata = Literata({
@@ -24,10 +24,12 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.VERCEL_URL
       ? `https://${process.env.VERCEL_URL}`
-      : (process.env.NEXTAUTH_URL ?? `http://localhost:${process.env.PORT ?? 3000}`),
+      : (process.env.NEXTAUTH_URL ??
+        `http://localhost:${process.env.PORT ?? 3000}`),
   ),
   title: "Chappy Asel",
-  description: "Chappy Asel",
+  description:
+    "Chappy Asel builds tools, communities, and systems around AI, relationships, books, and human agency.",
   icons: [{ rel: "icon", url: "/favicon.ico" }],
 };
 
@@ -39,7 +41,6 @@ export default function RootLayout({
       lang="en"
       suppressHydrationWarning
       className={`${literata.variable} ${georgiaPro.variable}`}
-
     >
       <body className="font-serif">
         <CSPostHogProvider>

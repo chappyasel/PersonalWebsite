@@ -83,12 +83,12 @@ export default async function AboutMe() {
         <Link href="https://aicollective.com" target="_blank">
           The AI Collective
         </Link>{" "}
-        is 200,000+ members strong with 400+ volunteers running 150+ chapters
+        is 250,000+ members strong with 600+ volunteers running 200+ chapters
         across 50+ countries &ndash; a non-profit building the social
         infrastructure for AGI. After leading it for over three years, I&apos;ve
-        since shifted my focus to what&apos;s next: I&apos;m now building
-        collective intelligence infrastructure for AI agents – the technical
-        counterpart to what AIC does for people.
+        since shifted my focus to what&apos;s next: tools for relationship
+        intelligence in a world where trust, taste, judgment, and the ability to
+        mobilize the right people matter more than ever.
         <br />
         <br />
         Outside of this, I&apos;m a competitive natural bodybuilder (INBF/WNBF)
@@ -100,7 +100,8 @@ export default async function AboutMe() {
         ).
         <br />
         <br />
-        If you&apos;re building in this space, I&apos;d love to meet you.
+        The future will be shaped by people building with taste, trust, and
+        agency at the center. Onwards and Upwards!
       </p>
       <div className="flex flex-col items-center gap-1 pt-8 text-muted-foreground/80">
         <ContactButtons />
