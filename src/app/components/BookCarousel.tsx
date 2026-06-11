@@ -12,6 +12,13 @@ import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import type { Book } from "~/lib/books/types";
 import { api } from "~/trpc/react";
 
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "~/components/ui/tooltip";
+
 export default function BookCarousel() {
   const {
     data: books,
@@ -107,24 +114,27 @@ export default function BookCarousel() {
   const [row1Books, row2Books] = distributeBooks(books);
 
   return (
-    <motion.div
-      className="flex size-full flex-col justify-center gap-3 overflow-hidden py-3"
-      aria-hidden="true"
-      role="presentation"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
-      style={{
-        mask: "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
-        WebkitMask: "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
-      }}
-    >
-      {/* Row 1 - Scroll Left */}
-      <MarqueeRow books={row1Books!} direction="left" />
+    <TooltipProvider delayDuration={150}>
+      <motion.div
+        className="flex size-full flex-col justify-center gap-3 overflow-hidden py-3"
+        aria-hidden="true"
+        role="presentation"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        style={{
+          mask: "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
+          WebkitMask:
+            "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
+        }}
+      >
+        {/* Row 1 - Scroll Left */}
+        <MarqueeRow books={row1Books!} direction="left" />
 
-      {/* Row 2 - Scroll Right */}
-      <MarqueeRow books={row2Books!} direction="right" />
-    </motion.div>
+        {/* Row 2 - Scroll Right */}
+        <MarqueeRow books={row2Books!} direction="right" />
+      </motion.div>
+    </TooltipProvider>
   );
 }
 
@@ -186,37 +196,49 @@ function BookCover({ book }: { book: Book }) {
   };
 
   return (
-    <div
-      ref={cardRef}
-      className="relative h-[134px] w-[89px] flex-shrink-0 [perspective:800px]"
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      style={{ transformStyle: "preserve-3d" }}
-    >
-      <motion.div
-        className="h-full w-full overflow-hidden rounded-lg shadow-[0_4px_8px_rgba(0,0,0,0.2)] transition-shadow duration-300 hover:shadow-[0_4px_12px_rgba(0,0,0,0.4)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.4)] [transform-style:preserve-3d]"
-        style={motionStyle}
-      >
-        <div className="aspect-[2/3] h-full w-full">
-          {coverUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={coverUrl}
-              alt={`${book.title} cover`}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-muted to-muted-foreground/10 p-2 text-center">
-              <p className="line-clamp-3 text-[10px] font-semibold leading-tight text-foreground">
-                {book.title}
-              </p>
-              <p className="mt-1 line-clamp-2 text-[8px] leading-tight text-muted-foreground">
-                {book.author}
-              </p>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div
+          ref={cardRef}
+          className="relative h-[134px] w-[89px] flex-shrink-0 [perspective:800px]"
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+          style={{ transformStyle: "preserve-3d" }}
+        >
+          <motion.div
+            className="h-full w-full overflow-hidden rounded-lg shadow-[0_4px_8px_rgba(0,0,0,0.2)] transition-shadow duration-300 hover:shadow-[0_4px_12px_rgba(0,0,0,0.4)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.4)] [transform-style:preserve-3d]"
+            style={motionStyle}
+          >
+            <div className="aspect-[2/3] h-full w-full">
+              {coverUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={coverUrl}
+                  alt={`${book.title} cover`}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-muted to-muted-foreground/10 p-2 text-center">
+                  <p className="line-clamp-3 text-[10px] font-semibold leading-tight text-foreground">
+                    {book.title}
+                  </p>
+                  <p className="mt-1 line-clamp-2 text-[8px] leading-tight text-muted-foreground">
+                    {book.author}
+                  </p>
+                </div>
+              )}
             </div>
-          )}
+          </motion.div>
         </div>
-      </motion.div>
-    </div>
+      </TooltipTrigger>
+      <TooltipContent side="top" sideOffset={8} className="max-w-56">
+        <div className="flex flex-col gap-0.5">
+          <p className="line-clamp-2 font-semibold leading-snug">
+            {book.title}
+          </p>
+          <p className="line-clamp-1 text-muted-foreground">{book.author}</p>
+        </div>
+      </TooltipContent>
+    </Tooltip>
   );
 }

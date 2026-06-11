@@ -14,6 +14,12 @@ import { devSubdomainUrl } from "~/lib/util";
 import { api } from "~/trpc/react";
 
 import { Skeleton } from "~/components/ui/skeleton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "~/components/ui/tooltip";
 
 import TiltCard from "./TiltCard";
 
@@ -119,11 +125,10 @@ function useActivityCells() {
         categories: day?.categories ?? {},
         volume: day?.volume ?? 0,
         intensity,
-        title: day
-          ? `${formatShortDate(key)} · ${formatVolume(day.volume)} lbs · ${categoryLabel(
-              day.categories,
-            )}`
-          : `${formatShortDate(key)} · Rest`,
+        tooltipHeading: formatShortDate(key),
+        tooltipDetail: day
+          ? `${formatVolume(day.volume)} lbs · ${categoryLabel(day.categories)}`
+          : "Rest",
         blockIndex: Math.floor(week / MOSAIC_COLUMNS),
         gridColumn: (week % MOSAIC_COLUMNS) + 1,
         gridRow: dayOfWeek + 1,
@@ -194,37 +199,57 @@ function ActivityMosaic() {
         {isLoading ? (
           <ActivityMosaicSkeleton />
         ) : (
-          <div className="grid h-full grid-rows-2 gap-3">
-            {cells.map((block, blockIndex) => (
-              <div
-                key={blockIndex}
-                className="grid h-full gap-1"
-                style={{
-                  gridTemplateColumns: `repeat(${MOSAIC_COLUMNS}, minmax(0, 1fr))`,
-                  gridTemplateRows: `repeat(${MOSAIC_ROWS}, minmax(0, 1fr))`,
-                }}
-              >
-                {block.map((cell) => (
-                  <div
-                    key={cell.key}
-                    title={cell.title}
-                    className={`size-full rounded-[3px] ${
-                      cell.volume > 0
-                        ? "transition-transform duration-200 hover:scale-125"
-                        : ""
-                    }`}
-                    style={{
-                      background: categoryBackground(cell.categories),
-                      opacity:
-                        cell.volume > 0 ? 0.25 + cell.intensity * 0.75 : 0.08,
-                      gridColumn: cell.gridColumn,
-                      gridRow: cell.gridRow,
-                    }}
-                  />
-                ))}
-              </div>
-            ))}
-          </div>
+          <TooltipProvider delayDuration={150}>
+            <div className="grid h-full grid-rows-2 gap-3">
+              {cells.map((block, blockIndex) => (
+                <div
+                  key={blockIndex}
+                  className="grid h-full gap-1"
+                  style={{
+                    gridTemplateColumns: `repeat(${MOSAIC_COLUMNS}, minmax(0, 1fr))`,
+                    gridTemplateRows: `repeat(${MOSAIC_ROWS}, minmax(0, 1fr))`,
+                  }}
+                >
+                  {block.map((cell) => (
+                    <Tooltip key={cell.key}>
+                      <TooltipTrigger asChild>
+                        <div
+                          className={`size-full rounded-[3px] ${
+                            cell.volume > 0
+                              ? "transition-transform duration-200 hover:scale-125"
+                              : ""
+                          }`}
+                          style={{
+                            background: categoryBackground(cell.categories),
+                            opacity:
+                              cell.volume > 0
+                                ? 0.25 + cell.intensity * 0.75
+                                : 0.08,
+                            gridColumn: cell.gridColumn,
+                            gridRow: cell.gridRow,
+                          }}
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent
+                        side="top"
+                        sideOffset={8}
+                        className="max-w-56"
+                      >
+                        <div className="flex flex-col gap-0.5">
+                          <p className="font-semibold leading-none">
+                            {cell.tooltipHeading}
+                          </p>
+                          <p className="text-muted-foreground">
+                            {cell.tooltipDetail}
+                          </p>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </TooltipProvider>
         )}
       </div>
     </div>
