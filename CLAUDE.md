@@ -85,4 +85,4 @@ Schema changes workflow:
 
 - Worry minimally about backwards compatibility since this is a web app for our internal team
 - Remember to get IDE diagnostics if available to test for linter errors in your implementation
-- IMPORTANT: Never run `yarn dev` or `yarn build` unless explicitly requested by the user
+- You may run `yarn dev` to reproduce bugs or verify changes. Prefer running it in the background and stopping the server when finished. Avoid `yarn build` unless explicitly requested (it's slow).
