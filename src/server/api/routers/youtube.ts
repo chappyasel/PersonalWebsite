@@ -28,8 +28,17 @@ const DAY_BOUNDARY_HOUR = 4;
 /** `watched_at` (a timestamptz, an absolute instant) rendered in the local
  *  "watch day" frame: local wall-clock time minus the 4am boundary, so
  *  DATE_TRUNC('day', …) yields the watch-day start date. Used for all calendar
- *  bucketing. */
-const watchDayLocal = sql`((${ytWatchHistory.watchedAt} AT TIME ZONE ${DISPLAY_TIME_ZONE}) - INTERVAL '${sql.raw(String(DAY_BOUNDARY_HOUR))} hours')`;
+ *  bucketing.
+ *
+ *  The timezone is inlined as a raw literal (not a bound parameter) on purpose:
+ *  this fragment is reused in SELECT, WHERE, GROUP BY and ORDER BY, and Drizzle
+ *  re-numbers a bound `${DISPLAY_TIME_ZONE}` parameter at each embed ($1, $2,
+ *  …). Postgres then treats `watched_at AT TIME ZONE $1` and `… $2` as distinct
+ *  expressions, so GROUP BY no longer matches SELECT and the query fails with
+ *  "column watched_at must appear in the GROUP BY clause". A raw literal keeps
+ *  the expression textually identical everywhere. Safe because the value is a
+ *  hardcoded constant, never user input. */
+const watchDayLocal = sql`((${ytWatchHistory.watchedAt} AT TIME ZONE ${sql.raw(`'${DISPLAY_TIME_ZONE}'`)}) - INTERVAL '${sql.raw(String(DAY_BOUNDARY_HOUR))} hours')`;
 
 const timeRangeSchema = z.enum(["30d", "90d", "1y", "3y", "all"]).default("all");
 
