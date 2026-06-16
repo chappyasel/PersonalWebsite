@@ -21,12 +21,6 @@ import type { Book } from "~/lib/books/types";
 import { api } from "~/trpc/react";
 
 import { Badge } from "~/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "~/components/ui/tooltip";
 
 import { cn } from "@/src/lib/util";
 
@@ -277,100 +271,97 @@ export const BookCard = memo(function BookCard({
   };
 
   return (
-    <TooltipProvider delayDuration={150}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            ref={cardRef}
-            type="button"
-            onClick={handleClick}
-            onMouseMove={handleMouseMove}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-            className={cn(
-              `group relative block w-full cursor-pointer text-left outline-none ring-0 hover:z-20 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 intersect:motion-scale-in-90 intersect:motion-opacity-in-50`,
-              sizeRadius[size],
-              // Only enable 3D perspective on non-touch devices
-              !isTouchDevice && "[perspective:1000px]",
-              // Keyboard focus - just z-index, ring is on inner element
-              isKeyboardFocused && "z-10",
-            )}
-            aria-label={`View details for ${book.title} by ${book.author}`}
-            data-book-id={book.id}
-            style={{
-              // Only enable 3D transform style on non-touch devices
-              transformStyle: isTouchDevice ? undefined : "preserve-3d",
-              outline: "none",
+    <button
+      ref={cardRef}
+      type="button"
+      onClick={handleClick}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      className={cn(
+        `group relative block w-full cursor-pointer text-left outline-none ring-0 hover:z-20 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 intersect:motion-scale-in-90 intersect:motion-opacity-in-50`,
+        sizeRadius[size],
+        // Only enable 3D perspective on non-touch devices
+        !isTouchDevice && "[perspective:1000px]",
+        // Keyboard focus - just z-index, ring is on inner element
+        isKeyboardFocused && "z-10",
+      )}
+      aria-label={`View details for ${book.title} by ${book.author}`}
+      data-book-id={book.id}
+      style={{
+        // Only enable 3D transform style on non-touch devices
+        transformStyle: isTouchDevice ? undefined : "preserve-3d",
+        outline: "none",
+      }}
+    >
+      <motion.div
+        className={cn(
+          "relative",
+          !isTouchDevice && "[transform-style:preserve-3d]",
+        )}
+        style={
+          isTouchDevice
+            ? undefined
+            : {
+                rotateX,
+                rotateY,
+                scale,
+                willChange: "transform",
+                transform: "translateZ(0)",
+              }
+        }
+        whileTap={{ scale: 0.95 }}
+      >
+        {/* Cover container with shadow and rounded corners */}
+        <div
+          className={cn(
+            `relative overflow-hidden shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] transition-shadow duration-300 hover:shadow-[0px_5px_30px_0px_rgba(0,0,0,0.14)] focus:outline-none`,
+            sizeRadius[size],
+            // Keyboard focus indicator - on inner element so it lifts with 3D transform
+            isKeyboardFocused &&
+              "ring-2 ring-primary ring-offset-2 ring-offset-background",
+          )}
+        >
+          {/* Cover Image (aspect ratio 2:3) */}
+          <motion.div
+            layoutId={`book-cover-${book.id}`}
+            className="relative aspect-[2/3] w-full overflow-hidden bg-gradient-to-b from-stone-500/20 to-stone-700/20"
+            transition={{
+              layout: { type: "spring", stiffness: 300, damping: 30 },
             }}
           >
-            <motion.div
-              className={cn(
-                "relative",
-                !isTouchDevice && "[transform-style:preserve-3d]",
-              )}
-              style={
-                isTouchDevice
-                  ? undefined
-                  : {
-                      rotateX,
-                      rotateY,
-                      scale,
-                      willChange: "transform",
-                      transform: "translateZ(0)",
-                    }
-              }
-              whileTap={{ scale: 0.95 }}
-            >
-              {/* Cover container with shadow and rounded corners */}
-              <div
-                className={cn(
-                  `relative overflow-hidden shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)] transition-shadow duration-300 hover:shadow-[0px_5px_30px_0px_rgba(0,0,0,0.14)] focus:outline-none`,
-                  sizeRadius[size],
-                  // Keyboard focus indicator - on inner element so it lifts with 3D transform
-                  isKeyboardFocused &&
-                    "ring-2 ring-primary ring-offset-2 ring-offset-background",
-                )}
-              >
-                {/* Cover Image (aspect ratio 2:3) */}
-                <motion.div
-                  layoutId={`book-cover-${book.id}`}
-                  className="relative aspect-[2/3] w-full overflow-hidden bg-gradient-to-b from-stone-500/20 to-stone-700/20"
-                  transition={{
-                    layout: { type: "spring", stiffness: 300, damping: 30 },
-                  }}
+            {coverUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={coverUrl}
+                alt={`${book.title} cover`}
+                className="h-full w-full select-none object-cover"
+                draggable="false"
+                onDragStart={(e) => e.preventDefault()}
+              />
+            ) : (
+              <div className="flex h-full w-full flex-col items-center justify-center p-4 text-center">
+                <p
+                  className={`line-clamp-3 font-semibold text-foreground ${styles.placeholderTitle}`}
                 >
-                  {coverUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={coverUrl}
-                      alt={`${book.title} cover`}
-                      className="h-full w-full select-none object-cover"
-                      draggable="false"
-                      onDragStart={(e) => e.preventDefault()}
-                    />
-                  ) : (
-                    <div className="flex h-full w-full flex-col items-center justify-center p-4 text-center">
-                      <p
-                        className={`line-clamp-3 font-semibold text-foreground ${styles.placeholderTitle}`}
-                      >
-                        {book.title}
-                      </p>
-                      <p
-                        className={`mt-1 line-clamp-2 text-muted-foreground ${styles.placeholderAuthor}`}
-                      >
-                        {book.author}
-                      </p>
-                      {book.publicationYear && (
-                        <p
-                          className={`mt-px text-muted-foreground/70 ${styles.placeholderAuthor}`}
-                        >
-                          {book.publicationYear}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </motion.div>
+                  {book.title}
+                </p>
+                <p
+                  className={`mt-1 line-clamp-2 text-muted-foreground ${styles.placeholderAuthor}`}
+                >
+                  {book.author}
+                </p>
+                {book.publicationYear && (
+                  <p
+                    className={`mt-px text-muted-foreground/70 ${styles.placeholderAuthor}`}
+                  >
+                    {book.publicationYear}
+                  </p>
+                )}
               </div>
+            )}
+          </motion.div>
+        </div>
 
         {/* Floating elements - outside overflow-hidden for parallax effect */}
         {/* Hide all overlays for XS size */}
@@ -500,20 +491,7 @@ export const BookCard = memo(function BookCard({
             </div>
           </>
         )}
-            </motion.div>
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="top" sideOffset={8} className="max-w-56">
-          <div className="flex flex-col gap-0.5">
-            <p className="line-clamp-2 font-semibold leading-snug">
-              {book.title}
-            </p>
-            <p className="line-clamp-1 text-muted-foreground">
-              {book.author}
-            </p>
-          </div>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+      </motion.div>
+    </button>
   );
 });
