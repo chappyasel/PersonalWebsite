@@ -134,11 +134,9 @@ export function BooksGrid({
         );
       }
 
-      // Filter by re-reads
+      // Filter by re-reads (show only the re-read events, not the first read)
       if (params.isReread !== null && params.isReread !== undefined) {
-        filteredBooks = filteredBooks.filter(
-          (book) => book.totalReads > 1,
-        );
+        filteredBooks = filteredBooks.filter((book) => book.readNumber > 1);
       }
 
       // Filter by search query
