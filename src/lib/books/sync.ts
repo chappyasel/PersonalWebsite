@@ -19,10 +19,18 @@ export type SyncResult = {
   booksAdded: number;
   booksUpdated: number;
   booksUnchanged: number;
+  booksDeleted: number;
   fullContentFetched: number;
   fullContentSkipped: number;
   errors: SyncError[];
 };
+
+/**
+ * Max books to delete in a single sync. If more than this are missing from
+ * Notion, assume something is wrong (e.g. truncated API response) and skip
+ * deletion entirely rather than wiping the table.
+ */
+const DELETION_GUARD_LIMIT = 3;
 
 export type SyncError = {
   bookId: string;
@@ -86,6 +94,11 @@ export async function syncBooksFromNotion(
     );
     console.log(`Found ${dbBooks.length} books in database`);
 
+    // STEP 3.5: Delete books that no longer exist in Notion
+    const notionIdSet = new Set(notionBooks.map((b) => b.notionId));
+    const { deleted: booksDeleted, guardError } =
+      await deleteBooksRemovedFromNotion(notionIdSet, dbBooks);
+
     // STEP 4: Categorize books (new, updated, unchanged)
     const { newBooks, updatedBooks, unchangedBooks } = categorizeBooks(
       notionBooksWithSlugs,
@@ -115,11 +128,16 @@ export async function syncBooksFromNotion(
         timestamp: new Date(),
       }));
 
+    if (guardError) {
+      errors.push(guardError);
+    }
+
     const result: SyncResult = {
       totalBooksInNotion: notionBooks.length,
       booksAdded: newBooks.length,
       booksUpdated: updatedBooks.length,
       booksUnchanged: unchangedBooks.length,
+      booksDeleted,
       fullContentFetched: contentFetchResults.filter((r) => r.success).length,
       fullContentSkipped: unchangedBooks.length,
       errors,
@@ -136,6 +154,48 @@ export async function syncBooksFromNotion(
     });
     throw error;
   }
+}
+
+/**
+ * Delete books from the database that no longer exist in Notion (deleted or
+ * no longer matching the sync filter). Tags are removed via cascade.
+ *
+ * Bails out without deleting anything if more than DELETION_GUARD_LIMIT books
+ * would be removed — a large gap almost certainly means a bad Notion response
+ * rather than a real mass-deletion.
+ */
+async function deleteBooksRemovedFromNotion(
+  notionIds: Set<string>,
+  dbBooks: Array<{ id: string; notionId: string }>,
+): Promise<{ deleted: number; guardError: SyncError | null }> {
+  const staleBooks = dbBooks.filter((b) => !notionIds.has(b.notionId));
+
+  if (staleBooks.length === 0) {
+    return { deleted: 0, guardError: null };
+  }
+
+  if (staleBooks.length > DELETION_GUARD_LIMIT) {
+    const slugs = staleBooks.map((b) => b.id).join(", ");
+    const message = `Deletion guard tripped: ${staleBooks.length} books missing from Notion (limit ${DELETION_GUARD_LIMIT}). Skipping deletion of: ${slugs}`;
+    console.warn(message);
+
+    return {
+      deleted: 0,
+      guardError: {
+        bookId: "deletion-guard",
+        bookTitle: `${staleBooks.length} books missing from Notion`,
+        error: message,
+        timestamp: new Date(),
+      },
+    };
+  }
+
+  for (const book of staleBooks) {
+    console.log(`Deleting book removed from Notion: ${book.id}`);
+    await db.delete(books).where(eq(books.notionId, book.notionId));
+  }
+
+  return { deleted: staleBooks.length, guardError: null };
 }
 
 /**
@@ -501,6 +561,7 @@ async function completeSyncRecord(
         booksAdded: data.booksAdded,
         booksUpdated: data.booksUpdated,
         booksUnchanged: data.booksUnchanged,
+        booksDeleted: data.booksDeleted,
         fullContentFetched: data.fullContentFetched,
         fullContentSkipped: data.fullContentSkipped,
         errors: JSON.stringify(data.errors),

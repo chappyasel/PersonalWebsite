@@ -193,6 +193,7 @@ export const syncMetadata = pgTable("sync_metadata", {
   booksAdded: integer("books_added").default(0).notNull(),
   booksUpdated: integer("books_updated").default(0).notNull(),
   booksUnchanged: integer("books_unchanged").default(0).notNull(),
+  booksDeleted: integer("books_deleted").default(0).notNull(),
   fullContentFetched: integer("full_content_fetched").default(0).notNull(),
   fullContentSkipped: integer("full_content_skipped").default(0).notNull(),
   errors: text("errors"), // JSON array

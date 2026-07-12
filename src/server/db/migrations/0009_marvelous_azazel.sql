@@ -1,0 +1,1 @@
+ALTER TABLE "sync_metadata" ADD COLUMN "books_deleted" integer DEFAULT 0 NOT NULL;
