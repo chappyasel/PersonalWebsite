@@ -15,11 +15,34 @@ export async function getContext(options?: {
   headless?: boolean;
 }): Promise<BrowserContext> {
   if (_context) return _context;
-  _context = await chromium.launchPersistentContext(PROFILE_DIR, {
-    headless: options?.headless ?? true,
-    viewport: { width: 1440, height: 960 },
-    acceptDownloads: true,
-  });
+  const launch = () =>
+    chromium.launchPersistentContext(PROFILE_DIR, {
+      headless: options?.headless ?? true,
+      viewport: { width: 1440, height: 960 },
+      acceptDownloads: true,
+    });
+  try {
+    _context = await launch();
+  } catch (err) {
+    // Playwright throws "Executable doesn't exist …" when its Chromium build is
+    // missing — e.g. after a version bump or a wiped ~/Library/Caches/ms-playwright.
+    // Install the matching browser once and retry so a missing binary self-heals
+    // instead of failing the cron. Any other launch error is re-thrown as-is.
+    const msg = String((err as Error)?.message ?? err);
+    if (!/Executable doesn't exist|Please run the following|playwright install/i.test(msg)) {
+      throw err;
+    }
+    console.error(
+      "[takeout] Playwright browser missing — running `playwright install chromium`…",
+    );
+    const r = spawnSync("npx", ["playwright", "install", "chromium"], {
+      stdio: "inherit",
+    });
+    if (r.status !== 0) {
+      throw new Error(`playwright install chromium failed (exit ${r.status ?? "?"})`);
+    }
+    _context = await launch();
+  }
   return _context;
 }
 
