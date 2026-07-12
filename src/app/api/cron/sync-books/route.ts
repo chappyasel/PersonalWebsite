@@ -24,8 +24,10 @@ async function handleSync(source: "cron" | "manual") {
 
   // Purge cached book pages when anything changed so additions, edits, and
   // deletions show up immediately instead of after the 24h ISR window.
+  // Manual syncs always revalidate: they're a human asking for fresh state,
+  // and the ISR cache persists across deployments on Vercel.
   const changes = result.booksAdded + result.booksUpdated + result.booksDeleted;
-  if (changes > 0) {
+  if (changes > 0 || source === "manual") {
     console.log(`${changes} book(s) changed — revalidating /books pages`);
     revalidatePath("/books", "layout");
   }
