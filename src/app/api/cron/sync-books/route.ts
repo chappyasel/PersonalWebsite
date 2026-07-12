@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { type NextRequest, NextResponse } from "next/server";
 
 import { syncBooksFromNotion } from "~/lib/books/sync";
@@ -20,6 +21,14 @@ function verifyAuth(request: NextRequest): boolean {
 async function handleSync(source: "cron" | "manual") {
   console.log(`${source} triggered: syncing books from Notion...`);
   const result = await syncBooksFromNotion(source);
+
+  // Purge cached book pages when anything changed so additions, edits, and
+  // deletions show up immediately instead of after the 24h ISR window.
+  const changes = result.booksAdded + result.booksUpdated + result.booksDeleted;
+  if (changes > 0) {
+    console.log(`${changes} book(s) changed — revalidating /books pages`);
+    revalidatePath("/books", "layout");
+  }
 
   return NextResponse.json({
     success: true,
