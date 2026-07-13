@@ -2,7 +2,8 @@
 
 import { formatSingleReadDate } from "../lib/format";
 import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
-import { useMemo, useRef, useState } from "react";
+import { motion } from "framer-motion";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bar, BarChart, Rectangle, XAxis, YAxis } from "recharts";
 
 import type { ReadingAnalytics } from "~/lib/books/types";
@@ -670,10 +671,15 @@ type ReadingStatsPopoverProps = {
   align?: "start" | "center" | "end";
 };
 
+/** Exit-animation duration — Radix stays mounted while the card fades out */
+const CLOSE_ANIMATION_MS = 150;
+
 /**
  * Wraps a trigger (year section header or toolbar button): opens on hover
  * (mouse) with a grace period, and on tap/click for touch devices via the
- * regular Popover trigger.
+ * regular Popover trigger. Every close path (hover-leave, tap outside, Esc,
+ * page scroll) routes through requestClose so the card animates out instead
+ * of unmounting instantly (mirrors the Select component's closing dance).
  */
 export function ReadingStatsPopover({
   scope,
@@ -682,25 +688,54 @@ export function ReadingStatsPopover({
   align = "start",
 }: ReadingStatsPopoverProps) {
   const [open, setOpen] = useState(false);
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isClosing, setIsClosing] = useState(false);
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const cancelClose = () => {
-    if (closeTimer.current) {
-      clearTimeout(closeTimer.current);
-      closeTimer.current = null;
+  const cancelHoverClose = () => {
+    if (hoverTimer.current) {
+      clearTimeout(hoverTimer.current);
+      hoverTimer.current = null;
     }
   };
   const openNow = () => {
-    cancelClose();
+    cancelHoverClose();
+    if (closingTimer.current) {
+      clearTimeout(closingTimer.current);
+      closingTimer.current = null;
+    }
+    setIsClosing(false);
     setOpen(true);
   };
+  const requestClose = () => {
+    if (closingTimer.current) return; // already closing
+    setIsClosing(true);
+    closingTimer.current = setTimeout(() => {
+      closingTimer.current = null;
+      setIsClosing(false);
+      setOpen(false);
+    }, CLOSE_ANIMATION_MS);
+  };
   const scheduleClose = () => {
-    cancelClose();
-    closeTimer.current = setTimeout(() => setOpen(false), 150);
+    cancelHoverClose();
+    hoverTimer.current = setTimeout(requestClose, 150);
   };
 
+  // Hide on page scroll (animated out via requestClose)
+  const requestCloseRef = useRef(requestClose);
+  requestCloseRef.current = requestClose;
+  useEffect(() => {
+    if (!open) return;
+    const onScroll = () => requestCloseRef.current();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [open]);
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(next) => (next ? openNow() : requestClose())}
+    >
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -723,16 +758,32 @@ export function ReadingStatsPopover({
         align={align}
         sideOffset={8}
         collisionPadding={12}
-        className="w-[26rem] max-w-[calc(100vw-1.5rem)]"
+        // Chrome lives on the inner motion.div so the whole card can fade
+        // out; zIndex 20 keeps it beneath the sticky controls bar (z-30)
+        className="w-[26rem] max-w-[calc(100vw-1.5rem)] border-0 bg-transparent p-0 shadow-none"
+        style={{ zIndex: 20 }}
         onOpenAutoFocus={(e) => e.preventDefault()}
         onPointerEnter={(e) => {
-          if (e.pointerType === "mouse") cancelClose();
+          if (e.pointerType === "mouse") cancelHoverClose();
         }}
         onPointerLeave={(e) => {
           if (e.pointerType === "mouse") scheduleClose();
         }}
       >
-        <ReadingStats initialScope={scope} />
+        <motion.div
+          animate={
+            isClosing
+              ? { opacity: 0, scale: 0.95, y: -6 }
+              : { opacity: 1, scale: 1, y: 0 }
+          }
+          transition={{
+            duration: CLOSE_ANIMATION_MS / 1000,
+            ease: [0.4, 0, 0.2, 1],
+          }}
+          className="rounded-xl border border-foreground/[0.06] bg-popover p-4 text-popover-foreground shadow-[0px_4px_15px_0px_rgba(0,0,0,0.1)]"
+        >
+          <ReadingStats initialScope={scope} />
+        </motion.div>
       </PopoverContent>
     </Popover>
   );
