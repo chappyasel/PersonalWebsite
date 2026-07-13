@@ -691,6 +691,9 @@ export function ReadingStatsPopover({
   const [isClosing, setIsClosing] = useState(false);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Scroll-close only applies to tap/click opens — a hover-opened popover
+  // closes via mouse-leave, and closing it mid-read on scroll is jarring
+  const openedByHover = useRef(false);
 
   const cancelHoverClose = () => {
     if (hoverTimer.current) {
@@ -698,12 +701,13 @@ export function ReadingStatsPopover({
       hoverTimer.current = null;
     }
   };
-  const openNow = () => {
+  const openNow = (viaHover: boolean) => {
     cancelHoverClose();
     if (closingTimer.current) {
       clearTimeout(closingTimer.current);
       closingTimer.current = null;
     }
+    openedByHover.current = viaHover;
     setIsClosing(false);
     setOpen(true);
   };
@@ -721,12 +725,14 @@ export function ReadingStatsPopover({
     hoverTimer.current = setTimeout(requestClose, 150);
   };
 
-  // Hide on page scroll (animated out via requestClose)
+  // Hide on page scroll (animated), but only for tap/click-opened popovers
   const requestCloseRef = useRef(requestClose);
   requestCloseRef.current = requestClose;
   useEffect(() => {
     if (!open) return;
-    const onScroll = () => requestCloseRef.current();
+    const onScroll = () => {
+      if (!openedByHover.current) requestCloseRef.current();
+    };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, [open]);
@@ -734,7 +740,7 @@ export function ReadingStatsPopover({
   return (
     <Popover
       open={open}
-      onOpenChange={(next) => (next ? openNow() : requestClose())}
+      onOpenChange={(next) => (next ? openNow(false) : requestClose())}
     >
       <PopoverTrigger asChild>
         <button
@@ -744,7 +750,7 @@ export function ReadingStatsPopover({
             "cursor-pointer decoration-foreground/30 decoration-dotted underline-offset-8 outline-none hover:underline focus-visible:underline"
           }
           onPointerEnter={(e) => {
-            if (e.pointerType === "mouse") openNow();
+            if (e.pointerType === "mouse") openNow(true);
           }}
           onPointerLeave={(e) => {
             if (e.pointerType === "mouse") scheduleClose();
@@ -758,10 +764,8 @@ export function ReadingStatsPopover({
         align={align}
         sideOffset={8}
         collisionPadding={12}
-        // Chrome lives on the inner motion.div so the whole card can fade
-        // out; zIndex 20 keeps it beneath the sticky controls bar (z-30)
+        // Chrome lives on the inner motion.div so the whole card can fade out
         className="w-[26rem] max-w-[calc(100vw-1.5rem)] border-0 bg-transparent p-0 shadow-none"
-        style={{ zIndex: 20 }}
         onOpenAutoFocus={(e) => e.preventDefault()}
         onPointerEnter={(e) => {
           if (e.pointerType === "mouse") cancelHoverClose();
