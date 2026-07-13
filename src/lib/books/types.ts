@@ -14,10 +14,13 @@ export type BaseBook = {
   started: string | null; // ISO date string
   finished: string | null; // ISO date string
   rating: number | null; // 1-5
+  audioLengthMin: number | null; // Raw Audible runtime in minutes
+  pageCount: number | null;
   tags: string[]; // From multi_select (34 options)
   hasNotes: boolean;
   hasSummary: boolean;
   coverUrl: string | null;
+  audibleUrl: string | null;
   notionUrl: string;
 };
 
@@ -46,6 +49,25 @@ export type BookSort = {
 
 export type BookStats = {
   categoryBreakdown: Record<string, number>; // tag counts
+};
+
+export type ReadingAnalyticsBucket = {
+  period: string; // ISO week start "YYYY-MM-DD" (Monday), month "YYYY-MM", or year "YYYY"
+  wallClockHours: number;
+  contentHours: number;
+  books: number; // Count of books finished in this bucket
+};
+
+export type ReadingAnalytics = {
+  weekly: ReadingAnalyticsBucket[];
+  monthly: ReadingAnalyticsBucket[];
+  yearly: ReadingAnalyticsBucket[];
+  totals: {
+    books: number;
+    wallClockHours: number;
+    contentHours: number;
+  };
+  excludedCount: number; // Finished books with neither audio length nor page count
 };
 
 export type BookCoverCache = {

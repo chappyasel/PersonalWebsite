@@ -38,10 +38,13 @@ export async function getBookForOG(bookId: string): Promise<BaseBook> {
     started: book.started?.toISOString() ?? null,
     finished: book.finished?.toISOString() ?? null,
     rating: book.rating,
+    audioLengthMin: book.audioLengthMin,
+    pageCount: book.pageCount,
     tags: book.tags.map((t) => t.tagName),
     hasNotes: book.hasNotes,
     hasSummary: book.hasSummary,
     coverUrl: book.coverUrl,
+    audibleUrl: book.audibleUrl,
     notionUrl: book.notionUrl,
   };
 }
@@ -77,10 +80,13 @@ export async function getBookWithNotes(
     started: book.started?.toISOString() ?? null,
     finished: book.finished?.toISOString() ?? null,
     rating: book.rating,
+    audioLengthMin: book.audioLengthMin,
+    pageCount: book.pageCount,
     tags: book.tags.map((t) => t.tagName),
     hasNotes: book.hasNotes,
     hasSummary: book.hasSummary,
     coverUrl: book.coverUrl,
+    audibleUrl: book.audibleUrl,
     notionUrl: book.notionUrl,
     notes: book.notes ?? "",
   };

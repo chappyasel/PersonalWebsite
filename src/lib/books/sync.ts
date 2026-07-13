@@ -6,6 +6,13 @@ import { db } from "~/server/db";
 import { bookTags, books, syncMetadata } from "~/server/db/schema";
 
 import { fetchBookCover } from "./coverFetcher";
+import {
+  audibleUrlFromAsin,
+  estimatePagesFromAudio,
+  fetchAudibleLength,
+  fetchPageCount,
+  minutesToHourDotMinutes,
+} from "./lengthFetcher";
 import { generateAllBookIds } from "./slugify";
 import {
   fetchBookDetails,
@@ -341,6 +348,66 @@ async function upsertBooksToDatabase(
       }
     }
 
+    // Enrich length data for ANY book passing through (new or updated) whose
+    // Notion values are blank — this is what makes "clear the cell in Notion
+    // to re-fetch" work. Manual Notion edits always win; a miss stays blank.
+    const fetchedLengths: {
+      audioLengthMin?: number;
+      pageCount?: number;
+      audibleUrl?: string;
+    } = {};
+
+    if (book.audioLengthMin == null) {
+      try {
+        const audible = await fetchAudibleLength(book.title, book.author);
+        if (audible) {
+          console.log(
+            `  🎧 Audible match for "${book.title}": ${audible.matchedTitle} (${audible.runtimeMin} min)`,
+          );
+          book.audioLengthMin = audible.runtimeMin;
+          book.audibleUrl = audibleUrlFromAsin(audible.asin);
+          fetchedLengths.audioLengthMin = audible.runtimeMin;
+          fetchedLengths.audibleUrl = book.audibleUrl;
+        }
+      } catch (error) {
+        console.error(
+          `  ✗ Failed to fetch audio length for ${book.title}:`,
+          error,
+        );
+      }
+    }
+
+    if (book.pageCount == null) {
+      try {
+        const pages = await fetchPageCount(book.title, book.author);
+        if (pages) {
+          console.log(
+            `  📖 Page count for "${book.title}": ${pages.pageCount} (${pages.matchedTitle})`,
+          );
+          book.pageCount = pages.pageCount;
+          fetchedLengths.pageCount = pages.pageCount;
+        } else if (book.audioLengthMin != null) {
+          // No source has pages but runtime is known — estimate from the
+          // catalog's empirical narration pace
+          const estimated = estimatePagesFromAudio(book.audioLengthMin);
+          console.log(
+            `  📖 Estimated page count for "${book.title}": ${estimated} (from ${book.audioLengthMin} min audio)`,
+          );
+          book.pageCount = estimated;
+          fetchedLengths.pageCount = estimated;
+        }
+      } catch (error) {
+        console.error(
+          `  ✗ Failed to fetch page count for ${book.title}:`,
+          error,
+        );
+      }
+    }
+
+    if (Object.keys(fetchedLengths).length > 0) {
+      await updateNotionLengths(book.notionId, fetchedLengths);
+    }
+
     // Upsert book (use id as conflict target since it's the PK)
     // After migrateChangedSlugs, any slug conflicts have been resolved
     await db
@@ -354,9 +421,12 @@ async function upsertBooksToDatabase(
         started: book.started ? new Date(book.started) : null,
         finished: book.finished ? new Date(book.finished) : null,
         rating: book.rating,
+        audioLengthMin: book.audioLengthMin,
+        pageCount: book.pageCount,
         hasNotes: book.hasNotes,
         hasSummary: book.hasSummary,
         coverUrl: book.coverUrl,
+        audibleUrl: book.audibleUrl,
         notionUrl: book.notionUrl,
         notes: book.notes ?? null,
         lastEditedTime: new Date(book.lastEditedTime),
@@ -372,9 +442,12 @@ async function upsertBooksToDatabase(
           started: book.started ? new Date(book.started) : null,
           finished: book.finished ? new Date(book.finished) : null,
           rating: book.rating,
+          audioLengthMin: book.audioLengthMin,
+          pageCount: book.pageCount,
           hasNotes: book.hasNotes,
           hasSummary: book.hasSummary,
           coverUrl: book.coverUrl,
+          audibleUrl: book.audibleUrl,
           notionUrl: book.notionUrl,
           notes: book.notes ?? null,
           lastEditedTime: new Date(book.lastEditedTime),
@@ -469,9 +542,12 @@ async function migrateChangedSlugs(
       started: Date | null;
       finished: Date | null;
       rating: number | null;
+      audioLengthMin: number | null;
+      pageCount: number | null;
       hasNotes: boolean;
       hasSummary: boolean;
       coverUrl: string | null;
+      audibleUrl: string | null;
       notionUrl: string;
       notes: string | null;
       lastEditedTime: Date;
@@ -578,6 +654,50 @@ async function completeSyncRecord(
         errorCount: 1,
       })
       .where(eq(syncMetadata.id, syncId));
+  }
+}
+
+/**
+ * Update book length properties in Notion. Writes only the properties that
+ * were actually fetched so manual values are never touched.
+ */
+async function updateNotionLengths(
+  pageId: string,
+  values: {
+    audioLengthMin?: number;
+    pageCount?: number;
+    audibleUrl?: string;
+  },
+): Promise<void> {
+  const notion = new Client({ auth: env.NOTION_API_KEY });
+
+  const properties: Record<
+    string,
+    { type: "number"; number: number } | { type: "url"; url: string }
+  > = {};
+  if (values.audioLengthMin !== undefined) {
+    properties["Audio Length"] = {
+      type: "number",
+      number: minutesToHourDotMinutes(values.audioLengthMin),
+    };
+  }
+  if (values.pageCount !== undefined) {
+    properties.Pages = { type: "number", number: values.pageCount };
+  }
+  if (values.audibleUrl !== undefined) {
+    properties.Audible = { type: "url", url: values.audibleUrl };
+  }
+
+  try {
+    await notion.pages.update({
+      page_id: pageId,
+      properties,
+    });
+    console.log(
+      `  ✓ Updated Notion lengths for page ${pageId.slice(0, 8)}...`,
+    );
+  } catch (error) {
+    console.error(`  ✗ Failed to update Notion lengths for ${pageId}:`, error);
   }
 }
 

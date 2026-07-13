@@ -24,6 +24,8 @@
     "generate:routine": "npx tsx ./scripts/generate/routine.ts",
     "add-book-covers": "npx tsx ./scripts/add-book-covers.ts",
     "add-book-covers:dry-run": "npx tsx ./scripts/add-book-covers.ts --dry-run",
+    "add-book-lengths": "npx tsx ./scripts/add-book-lengths.ts",
+    "add-book-lengths:dry-run": "npx tsx ./scripts/add-book-lengths.ts --dry-run",
     "takeout:login": "npx tsx ./scripts/takeout/login.ts",
     "takeout:drive-auth": "npx tsx ./scripts/takeout/drive-auth.ts",
     "takeout:request": "npx tsx ./scripts/takeout/request.ts",

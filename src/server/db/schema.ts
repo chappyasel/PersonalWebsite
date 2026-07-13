@@ -136,9 +136,12 @@ export const books = pgTable(
     started: timestamp("started", { mode: "date", withTimezone: true }),
     finished: timestamp("finished", { mode: "date", withTimezone: true }),
     rating: integer("rating"), // 1-5
+    audioLengthMin: integer("audio_length_min"), // Raw Audible runtime in minutes
+    pageCount: integer("page_count"),
     hasNotes: boolean("has_notes").default(false).notNull(),
     hasSummary: boolean("has_summary").default(false).notNull(),
     coverUrl: text("cover_url"),
+    audibleUrl: text("audible_url"), // https://www.audible.com/pd/{asin}
     notionUrl: text("notion_url").notNull(),
     notes: text("notes"), // Full markdown content
     lastEditedTime: timestamp("last_edited_time", {

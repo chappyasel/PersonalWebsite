@@ -1,6 +1,7 @@
 import { Client, type PageObjectResponse } from "@notionhq/client";
 import { NotionToMarkdown } from "notion-to-md";
 
+import { hourDotMinutesToMinutes } from "./lengthFetcher";
 import type { BaseBook } from "./types";
 import { env } from "~/env";
 
@@ -159,6 +160,17 @@ function transformNotionPageToBook(page: PageObjectResponse): BaseBook {
       props.Rating && "number" in props.Rating
         ? (props.Rating.number ?? null)
         : null,
+    // Notion's Audio Length is H.MM (12.32 = 12h 32m); DB stores raw minutes
+    audioLengthMin:
+      props["Audio Length"] &&
+      "number" in props["Audio Length"] &&
+      props["Audio Length"].number != null
+        ? hourDotMinutesToMinutes(props["Audio Length"].number)
+        : null,
+    pageCount:
+      props.Pages && "number" in props.Pages
+        ? (props.Pages.number ?? null)
+        : null,
     tags:
       props.Tags && "multi_select" in props.Tags && props.Tags.multi_select
         ? props.Tags.multi_select.map((tag: { name: string }) => tag.name)
@@ -173,6 +185,10 @@ function transformNotionPageToBook(page: PageObjectResponse): BaseBook {
         : false,
     coverUrl:
       props.Cover && "url" in props.Cover ? (props.Cover.url ?? null) : null,
+    audibleUrl:
+      props.Audible && "url" in props.Audible
+        ? (props.Audible.url ?? null)
+        : null,
     notionUrl: "url" in page ? page.url : "",
   };
 }

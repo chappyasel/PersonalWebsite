@@ -1,6 +1,7 @@
-import { and, asc, desc, eq, gte, ilike, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, isNotNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
+import { computeReadingAnalytics } from "~/lib/books/analytics";
 import { syncBooksFromNotion } from "~/lib/books/sync";
 import type {
   Book,
@@ -119,10 +120,13 @@ export const booksRouter = createTRPCRouter({
           started: book.started?.toISOString() ?? null,
           finished: book.finished?.toISOString() ?? null,
           rating: book.rating ?? null,
+          audioLengthMin: book.audioLengthMin ?? null,
+          pageCount: book.pageCount ?? null,
           tags: book.tags.map((t) => t.tagName),
           hasNotes: book.hasNotes,
           hasSummary: book.hasSummary,
           coverUrl: book.coverUrl,
+          audibleUrl: book.audibleUrl,
           notionUrl: book.notionUrl,
           readNumber: 1,
           totalReads: 1,
@@ -220,10 +224,13 @@ export const booksRouter = createTRPCRouter({
         started: book.started?.toISOString() ?? null,
         finished: book.finished?.toISOString() ?? null,
         rating: book.rating ?? null,
+        audioLengthMin: book.audioLengthMin ?? null,
+        pageCount: book.pageCount ?? null,
         tags: book.tags.map((t) => t.tagName),
         hasNotes: book.hasNotes,
         hasSummary: book.hasSummary,
         coverUrl: book.coverUrl,
+        audibleUrl: book.audibleUrl,
         notionUrl: book.notionUrl,
         notes: book.notes ?? "",
         readNumber,
@@ -277,6 +284,23 @@ export const booksRouter = createTRPCRouter({
     };
 
     return stats;
+  }),
+
+  /**
+   * Get estimated reading-time analytics (weekly/monthly/yearly buckets)
+   */
+  getReadingAnalytics: publicProcedure.query(async () => {
+    const rows = await db.query.books.findMany({
+      where: isNotNull(books.finished),
+      columns: {
+        started: true,
+        finished: true,
+        audioLengthMin: true,
+        pageCount: true,
+      },
+    });
+
+    return computeReadingAnalytics(rows);
   }),
 
   /**
