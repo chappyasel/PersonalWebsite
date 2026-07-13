@@ -374,7 +374,7 @@ export function BooksGrid({
     <div key={section.key} className="flex flex-col gap-4 pb-8">
       {/* Section Header — year headers get a stats popover */}
       <h2 className="text-2xl font-semibold text-foreground">
-        {sortField === "finished" && !isZoomOut ? (
+        {sortField === "finished" ? (
           <ReadingStatsPopover scope={section.key}>
             {section.key}
           </ReadingStatsPopover>

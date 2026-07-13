@@ -73,6 +73,25 @@ const MONTH_LABELS = [
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
+/** Toggle choices persist across popover opens (and reloads) */
+function readStoredChoice<T extends string>(
+  key: string,
+  valid: readonly T[],
+  fallback: T,
+): T {
+  if (typeof window === "undefined") return fallback;
+  const stored = window.localStorage.getItem(`books-stats-${key}`);
+  return valid.includes(stored as T) ? (stored as T) : fallback;
+}
+
+function storeChoice(key: string, value: string) {
+  try {
+    window.localStorage.setItem(`books-stats-${key}`, value);
+  } catch {
+    // Storage unavailable (private mode) — persistence is best-effort
+  }
+}
+
 function monthPeriod(year: string, monthIndex: number): string {
   return `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
 }
@@ -106,7 +125,7 @@ function formatAxisTick(value: number): string {
 function computePagesDelta(
   analytics: ReadingAnalytics,
   year: string,
-): { pct: number; label: string } | null {
+): { pct: number; label: string; prevYear: string } | null {
   const yearNum = Number(year);
   const prevYear = String(yearNum - 1);
 
@@ -139,7 +158,7 @@ function computePagesDelta(
   }
 
   if (previous <= 0 || current <= 0) return null;
-  return { pct: ((current - previous) / previous) * 100, label };
+  return { pct: ((current - previous) / previous) * 100, label, prevYear };
 }
 
 /** Days elapsed in a period so far — full length for past periods */
@@ -152,10 +171,132 @@ function effectiveDaysInYear(year: string, now: Date): number {
   return Math.round((Date.UTC(yearNum + 1, 0, 1) - yearStart) / MS_PER_DAY);
 }
 
+/** Sequential opacity steps for daily wall-clock hours (single-hue ramp) */
+function hoursToOpacity(hours: number): number {
+  if (hours <= 0) return 0;
+  if (hours < 0.5) return 0.25;
+  if (hours < 1) return 0.45;
+  if (hours < 2) return 0.65;
+  if (hours < 3) return 0.82;
+  return 1;
+}
+
+const CELL_PX = 5;
+const CELL_GAP_PX = 2;
+
+/** GitHub-style daily reading heatmap strip for one year (Monday rows) */
+function YearHeatmap({ year }: { year: string }) {
+  const { data: daily } = api.books.getDailyReading.useQuery(
+    { year: Number(year) },
+    { staleTime: 5 * 60 * 1000 },
+  );
+
+  const grid = useMemo(() => {
+    const yearNum = Number(year);
+    const yearStart = Date.UTC(yearNum, 0, 1);
+    const daysInYear = Math.round(
+      (Date.UTC(yearNum + 1, 0, 1) - yearStart) / MS_PER_DAY,
+    );
+    const startOffset = (new Date(yearStart).getUTCDay() + 6) % 7; // Monday = 0
+    const totalCells = Math.ceil((startOffset + daysInYear) / 7) * 7;
+    const todayMs = Date.now();
+
+    const dayMap = new Map(daily?.map((d) => [d.date, d]) ?? []);
+
+    const cells = Array.from({ length: totalCells }, (_, i) => {
+      const dayIndex = i - startOffset;
+      if (dayIndex < 0 || dayIndex >= daysInYear) return null; // pad cell
+      const dayMs = yearStart + dayIndex * MS_PER_DAY;
+      if (dayMs > todayMs) return null; // future day
+      const date = new Date(dayMs).toISOString().slice(0, 10);
+      const entry = dayMap.get(date);
+      return {
+        date,
+        hours: entry?.wallClockHours ?? 0,
+        finishes: entry?.finishes ?? 0,
+      };
+    });
+
+    // Column index of each month's first day, for the label row
+    const monthCols = MONTH_LABELS.map((label, m) => {
+      const firstDay = Math.round(
+        (Date.UTC(yearNum, m, 1) - yearStart) / MS_PER_DAY,
+      );
+      return { label, col: Math.floor((startOffset + firstDay) / 7) };
+    });
+
+    return { cells, monthCols, weeks: totalCells / 7 };
+  }, [daily, year]);
+
+  return (
+    <div>
+      <div className="relative mb-0.5 h-3">
+        {grid.monthCols.map(({ label, col }) => (
+          <span
+            key={label}
+            className="absolute top-0 text-[8px] text-muted-foreground"
+            style={{ left: col * (CELL_PX + CELL_GAP_PX) }}
+          >
+            {label}
+          </span>
+        ))}
+      </div>
+      <div
+        className="grid grid-flow-col grid-rows-7"
+        style={{
+          gap: CELL_GAP_PX,
+          width: grid.weeks * (CELL_PX + CELL_GAP_PX) - CELL_GAP_PX,
+        }}
+      >
+        {grid.cells.map((cell, i) =>
+          cell === null ? (
+            <div key={i} style={{ width: CELL_PX, height: CELL_PX }} />
+          ) : (
+            <div
+              key={i}
+              className="rounded-[1px]"
+              style={{
+                width: CELL_PX,
+                height: CELL_PX,
+                backgroundColor:
+                  cell.hours > 0
+                    ? `hsl(var(--foreground) / ${hoursToOpacity(cell.hours)})`
+                    : "hsl(var(--foreground) / 0.07)",
+              }}
+              title={
+                cell.hours > 0
+                  ? `${cell.date}: ${cell.hours.toFixed(1)}h${
+                      cell.finishes > 0
+                        ? ` · finished ${cell.finishes} book${cell.finishes > 1 ? "s" : ""}`
+                        : ""
+                    }`
+                  : cell.date
+              }
+            />
+          ),
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ReadingStats({ initialScope }: { initialScope: Scope }) {
   const [scope, setScope] = useState<Scope>(initialScope);
-  const [metric, setMetric] = useState<Metric>("pages");
-  const [mode, setMode] = useState<Mode>("total");
+  const [metric, setMetric] = useState<Metric>(() =>
+    readStoredChoice("metric", ["pages", "hours", "books"], "pages"),
+  );
+  const [mode, setMode] = useState<Mode>(() =>
+    readStoredChoice("mode", ["total", "week", "day"], "total"),
+  );
+
+  const updateMetric = (m: Metric) => {
+    setMetric(m);
+    storeChoice("metric", m);
+  };
+  const updateMode = (m: Mode) => {
+    setMode(m);
+    storeChoice("mode", m);
+  };
 
   const { data: analytics } = api.books.getReadingAnalytics.useQuery(
     undefined,
@@ -192,6 +333,7 @@ function ReadingStats({ initialScope }: { initialScope: Scope }) {
         days: points.reduce((sum, p) => sum + p.days, 0),
         points,
         delta: null,
+        pace: null,
       };
     }
 
@@ -218,6 +360,20 @@ function ReadingStats({ initialScope }: { initialScope: Scope }) {
       };
     });
 
+    // Linear pace projection for the in-progress year
+    const yearNum = Number(scope);
+    const totalDaysInYear = Math.round(
+      (Date.UTC(yearNum + 1, 0, 1) - Date.UTC(yearNum, 0, 1)) / MS_PER_DAY,
+    );
+    const yearFraction = effectiveDaysInYear(scope, now) / totalDaysInYear;
+    const pace =
+      isCurrentYear && yearFraction < 1 && yearBucket
+        ? {
+            books: Math.round(yearBucket.books / yearFraction),
+            pages: Math.round(yearBucket.pages / yearFraction / 100) * 100,
+          }
+        : null;
+
     return {
       years,
       books: yearBucket?.books ?? 0,
@@ -226,6 +382,7 @@ function ReadingStats({ initialScope }: { initialScope: Scope }) {
       days: effectiveDaysInYear(scope, now),
       points,
       delta: computePagesDelta(analytics, scope),
+      pace,
     };
   }, [analytics, scope]);
 
@@ -312,16 +469,19 @@ function ReadingStats({ initialScope }: { initialScope: Scope }) {
           </button>
         </div>
         {stats.delta && (
-          <span
-            className={
+          <button
+            type="button"
+            onClick={() => setScope(stats.delta!.prevYear)}
+            className={`rounded px-1 text-xs font-medium transition-colors hover:bg-muted ${
               stats.delta.pct >= 0
-                ? "text-xs font-medium text-green-600 dark:text-green-400"
-                : "text-xs font-medium text-red-600 dark:text-red-400"
-            }
+                ? "text-green-600 dark:text-green-400"
+                : "text-red-600 dark:text-red-400"
+            }`}
+            aria-label={`View ${stats.delta.prevYear}`}
           >
             {stats.delta.pct >= 0 ? "▲" : "▼"}{" "}
             {Math.abs(stats.delta.pct).toFixed(0)}% pages {stats.delta.label}
-          </span>
+          </button>
         )}
       </div>
 
@@ -343,13 +503,20 @@ function ReadingStats({ initialScope }: { initialScope: Scope }) {
         })}
       </div>
 
+      {stats.pace && (
+        <p className="-mt-1 text-center text-xs text-muted-foreground">
+          On pace for ~{stats.pace.books} books · ~
+          {stats.pace.pages.toLocaleString()} pages
+        </p>
+      )}
+
       <div className="flex items-center justify-between">
         <div className="flex gap-1">
           {(["total", "week", "day"] as const).map((m) => (
             <button
               key={m}
               type="button"
-              onClick={() => setMode(m)}
+              onClick={() => updateMode(m)}
               className={`rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors ${
                 mode === m
                   ? "bg-foreground/90 text-background"
@@ -365,7 +532,7 @@ function ReadingStats({ initialScope }: { initialScope: Scope }) {
             <button
               key={m}
               type="button"
-              onClick={() => setMetric(m)}
+              onClick={() => updateMetric(m)}
               className={`rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors ${
                 metric === m
                   ? "bg-foreground/90 text-background"
@@ -474,6 +641,8 @@ function ReadingStats({ initialScope }: { initialScope: Scope }) {
           />
         </BarChart>
       </ChartContainer>
+
+      {scope !== "all" && <YearHeatmap year={scope} />}
     </div>
   );
 }

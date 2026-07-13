@@ -167,9 +167,14 @@ function transformNotionPageToBook(page: PageObjectResponse): BaseBook {
       props["Audio Length"].number != null
         ? hourDotMinutesToMinutes(props["Audio Length"].number)
         : null,
+    // Implausibly small page counts (bad source data) are treated as missing
+    // so they don't corrupt analytics; enrichment can refill them
     pageCount:
-      props.Pages && "number" in props.Pages
-        ? (props.Pages.number ?? null)
+      props.Pages &&
+      "number" in props.Pages &&
+      props.Pages.number != null &&
+      props.Pages.number >= 20
+        ? props.Pages.number
         : null,
     tags:
       props.Tags && "multi_select" in props.Tags && props.Tags.multi_select

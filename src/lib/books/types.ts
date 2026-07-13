@@ -78,6 +78,12 @@ export type ReadingAnalytics = {
   excludedCount: number; // Finished books with neither audio length nor page count
 };
 
+export type DailyReadingDay = {
+  date: string; // "YYYY-MM-DD" (UTC day)
+  wallClockHours: number;
+  finishes: number; // Books finished on this day
+};
+
 export type BookCoverCache = {
   id: number;
   title: string;

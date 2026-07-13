@@ -5,7 +5,11 @@
  * reusable by future UI.
  */
 
-import type { ReadingAnalytics, ReadingAnalyticsBucket } from "./types";
+import type {
+  DailyReadingDay,
+  ReadingAnalytics,
+  ReadingAnalyticsBucket,
+} from "./types";
 
 /** Audiobook playback speed — wall-clock hours = runtime / LISTENING_SPEED */
 export const LISTENING_SPEED = 2.0;
@@ -165,4 +169,65 @@ export function computeReadingAnalytics(
     },
     excludedCount,
   };
+}
+
+/**
+ * Per-day wall-clock reading hours for one year (heatmap data). Same spread
+ * model as computeReadingAnalytics: hours distributed evenly across
+ * started → finished, clipped to the requested year. Days with no reading
+ * are omitted.
+ */
+export function computeDailyReading(
+  rows: AnalyticsRow[],
+  year: number,
+): DailyReadingDay[] {
+  const days = new Map<string, DailyReadingDay>();
+  const yearStart = Date.UTC(year, 0, 1);
+  const yearEnd = Date.UTC(year + 1, 0, 1); // exclusive
+
+  for (const row of rows) {
+    if (!row.finished) continue;
+
+    const contentHours =
+      row.audioLengthMin != null
+        ? row.audioLengthMin / 60
+        : row.pageCount != null
+          ? row.pageCount / PAGES_PER_HOUR
+          : null;
+    if (contentHours == null) continue;
+
+    const wallClockHours =
+      row.audioLengthMin != null
+        ? contentHours / LISTENING_SPEED
+        : contentHours;
+
+    const finishDay = utcDay(row.finished);
+    const startDay =
+      row.started && utcDay(row.started) <= finishDay
+        ? utcDay(row.started)
+        : finishDay;
+
+    if (finishDay < yearStart || startDay >= yearEnd) continue;
+
+    const spanDays = Math.round((finishDay - startDay) / MS_PER_DAY) + 1;
+    const perDay = wallClockHours / spanDays;
+
+    const from = Math.max(startDay, yearStart);
+    const to = Math.min(finishDay, yearEnd - MS_PER_DAY);
+    for (let day = from; day <= to; day += MS_PER_DAY) {
+      const key = new Date(day).toISOString().slice(0, 10);
+      const bucket = days.get(key) ?? {
+        date: key,
+        wallClockHours: 0,
+        finishes: 0,
+      };
+      bucket.wallClockHours += perDay;
+      bucket.finishes += day === finishDay ? 1 : 0;
+      days.set(key, bucket);
+    }
+  }
+
+  return [...days.values()]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((d) => ({ ...d, wallClockHours: round(d.wallClockHours) }));
 }

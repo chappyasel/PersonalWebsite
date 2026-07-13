@@ -136,9 +136,10 @@ export const BookCard = memo(function BookCard({
 }: BookCardProps) {
   const coverUrl = enhanceCoverUrl(book.coverUrl);
   const styles = sizeStyles[size];
-  const readDates =
-    formatReadDates(book.started, book.finished) ??
-    (book.finished ? formatSingleReadDate(book.finished) : null);
+  const readDates = isCurrentlyReading(book)
+    ? `Reading since ${formatSingleReadDate(book.started!)}`
+    : (formatReadDates(book.started, book.finished) ??
+      (book.finished ? formatSingleReadDate(book.finished) : null));
   const length = formatLength(book.audioLengthMin, book.pageCount);
   const actions = useModalActions();
   const { openModal } = actions;

@@ -30,7 +30,8 @@
     "takeout:drive-auth": "npx tsx ./scripts/takeout/drive-auth.ts",
     "takeout:request": "npx tsx ./scripts/takeout/request.ts",
     "takeout:approve": "npx tsx ./scripts/takeout/approve.ts",
-    "takeout:refresh": "npx tsx ./scripts/takeout/refresh.ts"
+    "takeout:refresh": "npx tsx ./scripts/takeout/refresh.ts",
+    "test": "vitest run"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.53",
@@ -111,7 +112,8 @@
     "tailwindcss-intersect": "^2.1.0",
     "tailwindcss-motion": "^1.0.1",
     "tsx": "^4.19.1",
-    "typescript": "^5.5.3"
+    "typescript": "^5.5.3",
+    "vitest": "^4.1.10"
   },
   "ct3aMetadata": {
     "initVersion": "7.36.2"

@@ -1,7 +1,10 @@
 import { and, asc, desc, eq, gte, ilike, isNotNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import { computeReadingAnalytics } from "~/lib/books/analytics";
+import {
+  computeDailyReading,
+  computeReadingAnalytics,
+} from "~/lib/books/analytics";
 import { syncBooksFromNotion } from "~/lib/books/sync";
 import type {
   Book,
@@ -323,6 +326,26 @@ export const booksRouter = createTRPCRouter({
 
     return computeReadingAnalytics(rows);
   }),
+
+  /**
+   * Per-day reading hours for one year (heatmap). Kept separate from
+   * getReadingAnalytics to avoid shipping ~4k daily buckets in one payload.
+   */
+  getDailyReading: publicProcedure
+    .input(z.object({ year: z.number().int().min(2000).max(2100) }))
+    .query(async ({ input }) => {
+      const rows = await db.query.books.findMany({
+        where: isNotNull(books.finished),
+        columns: {
+          started: true,
+          finished: true,
+          audioLengthMin: true,
+          pageCount: true,
+        },
+      });
+
+      return computeDailyReading(rows, input.year);
+    }),
 
   /**
    * Get all unique tags
