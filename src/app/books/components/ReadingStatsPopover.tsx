@@ -716,7 +716,9 @@ export function ReadingStatsPopover({
     setIsClosing(true);
     closingTimer.current = setTimeout(() => {
       closingTimer.current = null;
-      setIsClosing(false);
+      // isClosing intentionally stays true through unmount — resetting it
+      // here makes the card fade back in for a frame while Radix runs its
+      // own exit, reading as a double fade. openNow resets it on reopen.
       setOpen(false);
     }, CLOSE_ANIMATION_MS);
   };
