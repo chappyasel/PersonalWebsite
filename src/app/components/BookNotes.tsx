@@ -2,15 +2,14 @@
 
 import {
   BookOpenIcon,
+  BookOpenTextIcon,
   BooksIcon,
   CalendarBlankIcon,
   ClockIcon,
-  TagIcon,
 } from "@phosphor-icons/react";
 import Link from "next/link";
 
 import { Skeleton } from "~/components/ui/skeleton";
-import { defaultTagOrder } from "~/lib/books/tagColors";
 import { devSubdomainUrl } from "~/lib/util";
 import { api } from "~/trpc/react";
 
@@ -25,7 +24,13 @@ function useBookStats() {
   });
 
   if (!books || books.length === 0)
-    return { total: null, perYear: null, avgDays: null, isLoading };
+    return {
+      total: null,
+      perYear: null,
+      avgDays: null,
+      pagesPerDay: null,
+      isLoading,
+    };
 
   const total = books.length;
   const finishedDates = books
@@ -34,12 +39,21 @@ function useBookStats() {
     .sort();
 
   let perYear: number | null = null;
+  let pagesPerDay: number | null = null;
   if (finishedDates.length >= 2) {
     const earliest = new Date(finishedDates[0]!);
     const latest = new Date(finishedDates[finishedDates.length - 1]!);
     const years =
       (latest.getTime() - earliest.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
     if (years > 0) perYear = finishedDates.length / years;
+
+    // Total estimated pages of finished books over the first→last finish span
+    const totalPages = books
+      .filter((b) => b.finished)
+      .reduce((sum, b) => sum + (b.pageCount ?? 0), 0);
+    const days =
+      (latest.getTime() - earliest.getTime()) / (1000 * 60 * 60 * 24);
+    if (days > 0 && totalPages > 0) pagesPerDay = totalPages / days;
   }
 
   const durations = books
@@ -55,7 +69,7 @@ function useBookStats() {
       ? durations.reduce((s, d) => s + d, 0) / durations.length
       : null;
 
-  return { total, perYear, avgDays, isLoading };
+  return { total, perYear, avgDays, pagesPerDay, isLoading };
 }
 
 function StatValue({ value, loading }: { value: string | null; loading: boolean }) {
@@ -70,7 +84,7 @@ function StatValue({ value, loading }: { value: string | null; loading: boolean 
 }
 
 export default function BookNotes() {
-  const { total, perYear, avgDays, isLoading } = useBookStats();
+  const { total, perYear, avgDays, pagesPerDay, isLoading } = useBookStats();
 
   const bookHref =
     process.env.NODE_ENV === "production"
@@ -119,10 +133,13 @@ export default function BookNotes() {
                 </span>
               </div>
               <div className="hidden flex-col items-center gap-0.5 sm:flex">
-                <StatValue value={defaultTagOrder.length.toString()} loading={isLoading} />
+                <StatValue
+                  value={pagesPerDay !== null ? pagesPerDay.toFixed(1) : null}
+                  loading={isLoading}
+                />
                 <span className="flex items-center gap-1 text-xs text-muted-foreground sm:text-sm">
-                  <TagIcon className="size-3.5 sm:size-4" weight="bold" />
-                  Categories
+                  <BookOpenTextIcon className="size-3.5 sm:size-4" weight="bold" />
+                  Pages / Day
                 </span>
               </div>
             </div>

@@ -1,14 +1,22 @@
 "use client";
 
+import { searchParamsParsers } from "../lib/searchParams";
 import {
+  DEFAULT_SORT_ORDER,
+  type SortField,
+  resolveSort,
+} from "../lib/sort";
+import {
+  BookOpenTextIcon,
   CalendarIcon,
-  ClockCounterClockwiseIcon,
   ClockIcon,
+  HeadphonesIcon,
   SortAscendingIcon,
   SortDescendingIcon,
   StarIcon,
+  TextAaIcon,
 } from "@phosphor-icons/react/dist/ssr";
-import { useQueryState } from "nuqs";
+import { useQueryStates } from "nuqs";
 
 import {
   Select,
@@ -17,79 +25,78 @@ import {
   SelectTrigger,
 } from "~/components/ui/select";
 
-export function BookSort() {
-  const [sort, setSort] = useQueryState("sort");
-  const currentSort = sort ?? "finished-desc";
+const SORT_OPTIONS: {
+  field: SortField;
+  label: string;
+  icon: typeof ClockIcon;
+}[] = [
+  { field: "finished", label: "Read Date", icon: ClockIcon },
+  { field: "title", label: "Title", icon: TextAaIcon },
+  { field: "rating", label: "Rating", icon: StarIcon },
+  { field: "publicationYear", label: "Published", icon: CalendarIcon },
+  { field: "runtime", label: "Runtime", icon: HeadphonesIcon },
+  { field: "pageCount", label: "Pages", icon: BookOpenTextIcon },
+];
 
-  const getSortIcon = (sortValue: string) => {
-    switch (sortValue) {
-      case "finished-desc":
-        return <ClockIcon className="h-4 w-4" />;
-      case "finished-asc":
-        return <ClockCounterClockwiseIcon className="h-4 w-4" />;
-      case "title-asc":
-        return <SortAscendingIcon className="h-4 w-4" />;
-      case "title-desc":
-        return <SortDescendingIcon className="h-4 w-4" />;
-      case "rating-desc":
-        return <StarIcon className="h-4 w-4" />;
-      case "publicationYear-desc":
-      case "publicationYear-asc":
-        return <CalendarIcon className="h-4 w-4" />;
-      default:
-        return <ClockIcon className="h-4 w-4" />;
-    }
+export function BookSort() {
+  const [params, setParams] = useQueryStates({
+    sort: searchParamsParsers.sort,
+    order: searchParamsParsers.order,
+  });
+  const [field, order] = resolveSort(params.sort, params.order);
+
+  const currentOption =
+    SORT_OPTIONS.find((o) => o.field === field) ?? SORT_OPTIONS[0]!;
+  const FieldIcon = currentOption.icon;
+
+  const handleFieldChange = (value: string) => {
+    const next = SORT_OPTIONS.find((o) => o.field === value);
+    // Selecting a field applies its natural default direction
+    if (next) void setParams({ sort: next.field, order: null });
+  };
+
+  const handleOrderToggle = () => {
+    const nextOrder = order === "desc" ? "asc" : "desc";
+    // Writing `sort` too migrates legacy combined values; omit `order` when
+    // it matches the field default to keep URLs clean
+    void setParams({
+      sort: field,
+      order: nextOrder === DEFAULT_SORT_ORDER[field] ? null : nextOrder,
+    });
   };
 
   return (
-    <Select value={currentSort} onValueChange={(value) => void setSort(value)}>
-      <SelectTrigger className="w-auto rounded-md bg-background/90">
-        <div className="flex items-center pr-2">{getSortIcon(currentSort)}</div>
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="finished-desc">
-          <div className="flex items-center gap-2">
-            <ClockIcon className="h-4 w-4" />
-            <span>Recent</span>
+    <div className="flex gap-2">
+      <Select value={field} onValueChange={handleFieldChange}>
+        <SelectTrigger className="w-auto rounded-md bg-background/90">
+          <div className="flex items-center pr-2">
+            <FieldIcon className="h-4 w-4" />
           </div>
-        </SelectItem>
-        <SelectItem value="finished-asc">
-          <div className="flex items-center gap-2">
-            <ClockCounterClockwiseIcon className="h-4 w-4" />
-            <span>Oldest</span>
-          </div>
-        </SelectItem>
-        <SelectItem value="title-asc">
-          <div className="flex items-center gap-2">
-            <SortAscendingIcon className="h-4 w-4" />
-            <span>Title A-Z</span>
-          </div>
-        </SelectItem>
-        <SelectItem value="title-desc">
-          <div className="flex items-center gap-2">
-            <SortDescendingIcon className="h-4 w-4" />
-            <span>Title Z-A</span>
-          </div>
-        </SelectItem>
-        <SelectItem value="rating-desc">
-          <div className="flex items-center gap-2">
-            <StarIcon className="h-4 w-4" />
-            <span>Rating</span>
-          </div>
-        </SelectItem>
-        <SelectItem value="publicationYear-desc">
-          <div className="flex items-center gap-2">
-            <CalendarIcon className="h-4 w-4" />
-            <span>Newest Published</span>
-          </div>
-        </SelectItem>
-        <SelectItem value="publicationYear-asc">
-          <div className="flex items-center gap-2">
-            <CalendarIcon className="h-4 w-4" />
-            <span>Oldest Published</span>
-          </div>
-        </SelectItem>
-      </SelectContent>
-    </Select>
+        </SelectTrigger>
+        <SelectContent>
+          {SORT_OPTIONS.map(({ field: optionField, label, icon: Icon }) => (
+            <SelectItem key={optionField} value={optionField}>
+              <div className="flex items-center gap-2">
+                <Icon className="h-4 w-4" />
+                <span>{label}</span>
+              </div>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <button
+        type="button"
+        onClick={handleOrderToggle}
+        aria-label={order === "desc" ? "Sort ascending" : "Sort descending"}
+        title={order === "desc" ? "Descending" : "Ascending"}
+        className="flex h-9 items-center justify-center rounded-md border border-input bg-background/90 px-3 shadow-sm transition-all duration-200 ease-in-out hover:bg-accent focus:outline-none focus:ring-1 focus:ring-ring"
+      >
+        {order === "desc" ? (
+          <SortDescendingIcon className="h-4 w-4" />
+        ) : (
+          <SortAscendingIcon className="h-4 w-4" />
+        )}
+      </button>
+    </div>
   );
 }

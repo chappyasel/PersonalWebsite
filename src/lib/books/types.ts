@@ -43,7 +43,13 @@ export type BookFilters = {
 };
 
 export type BookSort = {
-  field: "finished" | "title";
+  field:
+    | "finished"
+    | "title"
+    | "rating"
+    | "publicationYear"
+    | "runtime"
+    | "pageCount";
   order: "asc" | "desc";
 };
 
@@ -55,6 +61,7 @@ export type ReadingAnalyticsBucket = {
   period: string; // ISO week start "YYYY-MM-DD" (Monday), month "YYYY-MM", or year "YYYY"
   wallClockHours: number;
   contentHours: number;
+  pages: number; // Estimated pages (~10% margin), spread across reading span
   books: number; // Count of books finished in this bucket
 };
 
@@ -66,6 +73,7 @@ export type ReadingAnalytics = {
     books: number;
     wallClockHours: number;
     contentHours: number;
+    pages: number;
   };
   excludedCount: number; // Finished books with neither audio length nor page count
 };

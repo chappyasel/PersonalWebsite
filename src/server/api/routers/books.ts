@@ -32,7 +32,14 @@ export const booksRouter = createTRPCRouter({
 
         // Sorting
         sortField: z
-          .enum(["finished", "title", "rating", "publicationYear"])
+          .enum([
+            "finished",
+            "title",
+            "rating",
+            "publicationYear",
+            "runtime",
+            "pageCount",
+          ])
           .default("finished"),
         sortOrder: z.enum(["asc", "desc"]).default("desc"),
 
@@ -83,6 +90,20 @@ export const booksRouter = createTRPCRouter({
           input.sortOrder === "desc"
             ? desc(sql`COALESCE(${books.publicationYear}, ${nullValue})`)
             : asc(sql`COALESCE(${books.publicationYear}, ${nullValue})`);
+      } else if (input.sortField === "runtime") {
+        // NULL runtimes sort to the end (use extreme values)
+        const nullValue = input.sortOrder === "desc" ? -999999 : 999999;
+        orderBy =
+          input.sortOrder === "desc"
+            ? desc(sql`COALESCE(${books.audioLengthMin}, ${nullValue})`)
+            : asc(sql`COALESCE(${books.audioLengthMin}, ${nullValue})`);
+      } else if (input.sortField === "pageCount") {
+        // NULL page counts sort to the end (use extreme values)
+        const nullValue = input.sortOrder === "desc" ? -999999 : 999999;
+        orderBy =
+          input.sortOrder === "desc"
+            ? desc(sql`COALESCE(${books.pageCount}, ${nullValue})`)
+            : asc(sql`COALESCE(${books.pageCount}, ${nullValue})`);
       } else {
         orderBy =
           input.sortOrder === "desc"

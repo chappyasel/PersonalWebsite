@@ -1,7 +1,15 @@
 "use client";
 
 import { useKeyboardNavigation } from "../hooks/useKeyboardNavigation";
+import {
+  PAGE_BUCKET_LABELS,
+  RUNTIME_BUCKET_LABELS,
+  compareBucketLabels,
+  getPageBucket,
+  getRuntimeBucket,
+} from "../lib/format";
 import { searchParamsParsers } from "../lib/searchParams";
+import { resolveSort } from "../lib/sort";
 import { useIsRestoring } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { useQueryStates } from "nuqs";
@@ -13,6 +21,7 @@ import { api } from "~/trpc/react";
 import { BookCard } from "./BookCard";
 import { BooksGridSkeleton } from "./BooksGridSkeleton";
 import { EmptyState } from "./EmptyState";
+import { ReadingStatsPopover } from "./ReadingStatsPopover";
 import { cn } from "@/src/lib/util";
 
 // Size to preferred width mapping
@@ -55,12 +64,11 @@ export function BooksGrid({
     params.isReread,
     params.search,
     params.sort,
+    params.order,
   ]);
 
-  // Parse sort parameter
-  const [sortField, sortOrder] = (params.sort ?? "finished-desc").split(
-    "-",
-  ) as ["finished" | "title" | "rating" | "publicationYear", "asc" | "desc"];
+  // Parse sort parameters (handles legacy combined "field-order" links)
+  const [sortField, sortOrder] = resolveSort(params.sort, params.order);
 
   // Get preferred width based on size or zoom-out width
   const isZoomOut = zoomOutWidth != null && zoomOutWidth > 0;
@@ -168,6 +176,16 @@ export function BooksGrid({
         const nullValue = sortOrder === "desc" ? -Infinity : Infinity;
         aValue = a.publicationYear ?? nullValue;
         bValue = b.publicationYear ?? nullValue;
+      } else if (sortField === "runtime") {
+        // Null runtimes sort to the end
+        const nullValue = sortOrder === "desc" ? -Infinity : Infinity;
+        aValue = a.audioLengthMin ?? nullValue;
+        bValue = b.audioLengthMin ?? nullValue;
+      } else if (sortField === "pageCount") {
+        // Null page counts sort to the end
+        const nullValue = sortOrder === "desc" ? -Infinity : Infinity;
+        aValue = a.pageCount ?? nullValue;
+        bValue = b.pageCount ?? nullValue;
       } else {
         aValue = a.title;
         bValue = b.title;
@@ -287,6 +305,12 @@ export function BooksGrid({
       } else if (sortField === "publicationYear") {
         // Group by publication year
         groupKey = book.publicationYear?.toString() ?? "Unknown";
+      } else if (sortField === "runtime") {
+        // Group by runtime bucket
+        groupKey = getRuntimeBucket(book.audioLengthMin);
+      } else if (sortField === "pageCount") {
+        // Group by page count bucket
+        groupKey = getPageBucket(book.pageCount);
       } else if (sortField === "title") {
         // Group by first letter, combine non-letters into "#"
         const firstChar = book.title[0]?.toUpperCase();
@@ -327,6 +351,10 @@ export function BooksGrid({
       return sortOrder === "desc"
         ? Number(b) - Number(a)
         : Number(a) - Number(b);
+    } else if (sortField === "runtime") {
+      return compareBucketLabels(RUNTIME_BUCKET_LABELS, a, b, sortOrder);
+    } else if (sortField === "pageCount") {
+      return compareBucketLabels(PAGE_BUCKET_LABELS, a, b, sortOrder);
     } else {
       // Sort alphabetically, "#" always first
       if (a === "#") return -1;
@@ -344,9 +372,15 @@ export function BooksGrid({
   // Shared section renderer
   const renderSection = (section: (typeof sections)[number]) => (
     <div key={section.key} className="flex flex-col gap-4 pb-8">
-      {/* Section Header */}
+      {/* Section Header — year headers get a stats popover */}
       <h2 className="text-2xl font-semibold text-foreground">
-        {section.key}
+        {sortField === "finished" && !isZoomOut ? (
+          <ReadingStatsPopover scope={section.key}>
+            {section.key}
+          </ReadingStatsPopover>
+        ) : (
+          section.key
+        )}
         <span className="ml-1 inline-block -translate-y-0.5 text-sm text-foreground/70">
           ({section.books.length})
         </span>

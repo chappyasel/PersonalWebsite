@@ -1,6 +1,11 @@
 "use client";
 
 import { useModalActions } from "../contexts/BookPreviewContext";
+import {
+  formatLength,
+  formatReadDates,
+  formatSingleReadDate,
+} from "../lib/format";
 import { LinkIcon } from "@phosphor-icons/react";
 import { ArrowsClockwiseIcon, BookOpenIcon, FileTextIcon } from "@phosphor-icons/react";
 import { CheckIcon, StarIcon } from "@phosphor-icons/react/dist/ssr";
@@ -131,6 +136,10 @@ export const BookCard = memo(function BookCard({
 }: BookCardProps) {
   const coverUrl = enhanceCoverUrl(book.coverUrl);
   const styles = sizeStyles[size];
+  const readDates =
+    formatReadDates(book.started, book.finished) ??
+    (book.finished ? formatSingleReadDate(book.finished) : null);
+  const length = formatLength(book.audioLengthMin, book.pageCount);
   const actions = useModalActions();
   const { openModal } = actions;
   const cardRef = useRef<HTMLButtonElement>(null);
@@ -370,7 +379,7 @@ export const BookCard = memo(function BookCard({
             {/* Badges container - stacked vertically */}
             <div
               className={cn(
-                "absolute flex flex-col gap-1",
+                "absolute flex flex-col items-start gap-1",
                 styles.badgeSpacing,
               )}
               style={
@@ -455,7 +464,22 @@ export const BookCard = memo(function BookCard({
                 className={`line-clamp-1 pt-0.5 text-white/80 drop-shadow-md ${styles.overlayAuthor}`}
               >
                 {book.author}
+                {book.publicationYear ? ` (${book.publicationYear})` : ""}
               </p>
+              {readDates && (
+                <p
+                  className={`line-clamp-1 pt-0.5 text-white/60 drop-shadow-md ${styles.overlayAuthor}`}
+                >
+                  {readDates}
+                </p>
+              )}
+              {length && (
+                <p
+                  className={`line-clamp-1 text-white/60 drop-shadow-md ${styles.overlayAuthor}`}
+                >
+                  {length}
+                </p>
+              )}
               {book.rating && (
                 <div className="mt-1 flex gap-0.5">
                   {Array.from({ length: 5 }).map((_, i) => (

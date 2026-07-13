@@ -72,7 +72,7 @@ export function computeReadingAnalytics(
   const monthly = new Map<string, ReadingAnalyticsBucket>();
   const yearly = new Map<string, ReadingAnalyticsBucket>();
 
-  const totals = { books: 0, wallClockHours: 0, contentHours: 0 };
+  const totals = { books: 0, wallClockHours: 0, contentHours: 0, pages: 0 };
   let excludedCount = 0;
 
   const accumulate = (
@@ -80,16 +80,19 @@ export function computeReadingAnalytics(
     period: string,
     wallClockHours: number,
     contentHours: number,
+    pages: number,
     finishes: number,
   ) => {
     const bucket = buckets.get(period) ?? {
       period,
       wallClockHours: 0,
       contentHours: 0,
+      pages: 0,
       books: 0,
     };
     bucket.wallClockHours += wallClockHours;
     bucket.contentHours += contentHours;
+    bucket.pages += pages;
     bucket.books += finishes;
     buckets.set(period, bucket);
   };
@@ -114,6 +117,8 @@ export function computeReadingAnalytics(
         ? contentHours / LISTENING_SPEED
         : contentHours;
 
+    const pages = row.pageCount ?? 0;
+
     const finishDay = utcDay(row.finished);
     const startDay =
       row.started && utcDay(row.started) <= finishDay
@@ -123,17 +128,19 @@ export function computeReadingAnalytics(
     const spanDays = Math.round((finishDay - startDay) / MS_PER_DAY) + 1;
     const wallClockPerDay = wallClockHours / spanDays;
     const contentPerDay = contentHours / spanDays;
+    const pagesPerDay = pages / spanDays;
 
     for (let day = startDay; day <= finishDay; day += MS_PER_DAY) {
       const finishes = day === finishDay ? 1 : 0;
-      accumulate(weekly, weekKey(day), wallClockPerDay, contentPerDay, finishes);
-      accumulate(monthly, monthKey(day), wallClockPerDay, contentPerDay, finishes);
-      accumulate(yearly, yearKey(day), wallClockPerDay, contentPerDay, finishes);
+      accumulate(weekly, weekKey(day), wallClockPerDay, contentPerDay, pagesPerDay, finishes);
+      accumulate(monthly, monthKey(day), wallClockPerDay, contentPerDay, pagesPerDay, finishes);
+      accumulate(yearly, yearKey(day), wallClockPerDay, contentPerDay, pagesPerDay, finishes);
     }
 
     totals.books++;
     totals.wallClockHours += wallClockHours;
     totals.contentHours += contentHours;
+    totals.pages += pages;
   }
 
   const toSortedBuckets = (buckets: Map<string, ReadingAnalyticsBucket>) =>
@@ -143,6 +150,7 @@ export function computeReadingAnalytics(
         ...b,
         wallClockHours: round(b.wallClockHours),
         contentHours: round(b.contentHours),
+        pages: Math.round(b.pages),
       }));
 
   return {
@@ -153,6 +161,7 @@ export function computeReadingAnalytics(
       books: totals.books,
       wallClockHours: round(totals.wallClockHours),
       contentHours: round(totals.contentHours),
+      pages: Math.round(totals.pages),
     },
     excludedCount,
   };

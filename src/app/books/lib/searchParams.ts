@@ -16,8 +16,10 @@ export const searchParamsParsers = {
   // Search
   search: parseAsString.withDefault(""),
 
-  // Sort
-  sort: parseAsString.withDefault("finished-desc"),
+  // Sort — `sort` is the field, `order` the direction (absent = field default).
+  // Legacy combined values ("finished-desc") are still accepted by resolveSort.
+  sort: parseAsString.withDefault("finished"),
+  order: parseAsString,
 
   // Size
   size: parseAsString.withDefault("M"),

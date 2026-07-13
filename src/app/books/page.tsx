@@ -1,6 +1,10 @@
 "use client";
 
-import { BooksIcon, HouseLineIcon } from "@phosphor-icons/react/dist/ssr";
+import {
+  BooksIcon,
+  ChartBarIcon,
+  HouseLineIcon,
+} from "@phosphor-icons/react/dist/ssr";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -11,6 +15,7 @@ import { BookFilters } from "./components/BookFilters";
 import { BookSize } from "./components/BookSize";
 import { BooksControls } from "./components/BooksControls";
 import { BooksGrid } from "./components/BooksGrid";
+import { ReadingStatsPopover } from "./components/ReadingStatsPopover";
 import { ZoomOutButton } from "./components/ZoomOutButton";
 import { FontToggle } from "~/components/ui/font-toggle";
 import { ThemeToggle } from "~/components/ui/theme-toggle";
@@ -114,9 +119,19 @@ export default function BooksPage() {
                 )}
               </AnimatePresence>
             </span>
-            <span className="line-clamp-1">Chappy&apos;s Book Notes</span>
+            <span className="line-clamp-1">
+              Chappy&apos;s<span className="hidden sm:inline"> Book</span>{" "}
+              Notes
+            </span>
           </Link>
           <div className="flex translate-x-3 items-center gap-0">
+            <ReadingStatsPopover
+              scope="all"
+              align="end"
+              triggerClassName="flex size-10 items-center justify-center rounded-md bg-transparent text-muted-foreground transition-all hover:bg-secondary/80 hover:text-foreground"
+            >
+              <ChartBarIcon className="size-4" weight="bold" />
+            </ReadingStatsPopover>
             <ThemeToggle />
             <FontToggle />
             <BookSize />

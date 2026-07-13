@@ -7,6 +7,7 @@ import {
   ArrowsClockwiseIcon,
   ArrowsOutSimpleIcon,
   CalendarIcon,
+  HeadphonesIcon,
   LinkIcon,
   StarIcon,
   XIcon,
@@ -38,6 +39,11 @@ import {
   TooltipTrigger,
 } from "~/components/ui/tooltip";
 
+import {
+  formatLength,
+  formatReadDates,
+  getOrdinalSuffix,
+} from "../lib/format";
 import { TagBadge } from "./TagBadge";
 
 /* eslint-disable @next/next/no-img-element */
@@ -150,47 +156,6 @@ function processDetailsBlocks(markdown: string): string {
 }
 
 /**
- * Get ordinal suffix for a number (1st, 2nd, 3rd, 4th, etc.)
- */
-function getOrdinalSuffix(n: number): string {
-  const s = ["th", "st", "nd", "rd"] as const;
-  const v = n % 100;
-  return s[(v - 20) % 10] ?? s[v] ?? "th";
-}
-
-/**
- * Format read dates into a unified display string
- * Same month: "March 12th - 18th '25" (full month name, always spaces)
- * Different months: "Mar 12th - Apr 3rd '25" (short month names)
- */
-function formatReadDates(
-  started: string | null,
-  finished: string | null,
-): string | null {
-  if (!started || !finished) return null;
-
-  const startDate = new Date(started);
-  const endDate = new Date(finished);
-
-  const startMonthShort = startDate.toLocaleDateString("en-US", {
-    month: "short",
-  });
-  const endMonthShort = endDate.toLocaleDateString("en-US", { month: "short" });
-  const startDay = startDate.getDate();
-  const endDay = endDate.getDate();
-  const year = endDate.toLocaleDateString("en-US", { year: "2-digit" });
-
-  if (startMonthShort === endMonthShort) {
-    // Same month: use full month name "March 12th - 18th '25"
-    const fullMonth = startDate.toLocaleDateString("en-US", { month: "long" });
-    return `${fullMonth} ${startDay}${getOrdinalSuffix(startDay)} - ${endDay}${getOrdinalSuffix(endDay)} '${year}`;
-  } else {
-    // Different months: use short names "Mar 12th - Apr 3rd '25"
-    return `${startMonthShort} ${startDay}${getOrdinalSuffix(startDay)} - ${endMonthShort} ${endDay}${getOrdinalSuffix(endDay)} '${year}`;
-  }
-}
-
-/**
  * Calculate reading duration in days
  */
 function getReadingDays(
@@ -250,6 +215,13 @@ export function BookDetailContent({
 
   const handleNotionClick = () => {
     posthog.capture("book_notion_opened", {
+      book_id: book.id,
+      book_title: book.title,
+    });
+  };
+
+  const handleAudibleClick = () => {
+    posthog.capture("book_audible_opened", {
       book_id: book.id,
       book_title: book.title,
     });
@@ -570,6 +542,18 @@ export function BookDetailContent({
                           </span>
                         </div>
                       )}
+                      {(book.audioLengthMin != null ||
+                        book.pageCount != null) && (
+                        <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1 font-medium">
+                            <HeadphonesIcon size={12} weight="bold" />
+                            <span>Length:</span>
+                          </div>
+                          <span className="font-semibold">
+                            {formatLength(book.audioLengthMin, book.pageCount)}
+                          </span>
+                        </div>
+                      )}
                       {(book.totalReads ?? 1) > 1 ? (
                         /* Multiple readings */
                         (book.otherReadings ?? []).map((reading, i) => (
@@ -690,6 +674,20 @@ export function BookDetailContent({
                         </a>
                       </Button>
 
+                      {book.audibleUrl && (
+                        <Button variant="ghost" size="sm" asChild>
+                          <a
+                            href={book.audibleUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={handleAudibleClick}
+                          >
+                            <HeadphonesIcon size={12} weight="bold" />
+                            Listen on Audible
+                          </a>
+                        </Button>
+                      )}
+
                       <Button variant="ghost" size="sm" onClick={handleShare}>
                         <LinkIcon size={12} weight="bold" />
                         {copied ? "Copied!" : "Copy link"}
@@ -757,7 +755,11 @@ export function BookDetailContent({
             )}
 
             {/* Dates */}
-            {(book.publicationYear ?? book.started ?? book.finished) && (
+            {(book.publicationYear ??
+              book.started ??
+              book.finished ??
+              book.audioLengthMin ??
+              book.pageCount) != null && (
               <div className="flex flex-col gap-1 text-sm text-muted-foreground">
                 {book.publicationYear && (
                   <div className="flex items-center gap-1">
@@ -766,6 +768,17 @@ export function BookDetailContent({
                       <span>Published:</span>
                     </div>
                     <span className="font-semibold">{book.publicationYear}</span>
+                  </div>
+                )}
+                {(book.audioLengthMin != null || book.pageCount != null) && (
+                  <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 font-medium">
+                      <HeadphonesIcon size={12} weight="bold" />
+                      <span>Length:</span>
+                    </div>
+                    <span className="font-semibold">
+                      {formatLength(book.audioLengthMin, book.pageCount)}
+                    </span>
                   </div>
                 )}
                 {(book.totalReads ?? 1) > 1 ? (
@@ -883,6 +896,20 @@ export function BookDetailContent({
                   View in Notion
                 </a>
               </Button>
+
+              {book.audibleUrl && (
+                <Button variant="ghost" size="sm" asChild>
+                  <a
+                    href={book.audibleUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={handleAudibleClick}
+                  >
+                    <HeadphonesIcon size={12} weight="bold" />
+                    Listen on Audible
+                  </a>
+                </Button>
+              )}
 
               <Button variant="ghost" size="sm" onClick={handleShare}>
                 <LinkIcon size={12} weight="bold" />
