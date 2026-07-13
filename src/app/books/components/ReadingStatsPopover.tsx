@@ -1,5 +1,6 @@
 "use client";
 
+import { formatSingleReadDate } from "../lib/format";
 import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
 import { useMemo, useRef, useState } from "react";
 import { Bar, BarChart, Rectangle, XAxis, YAxis } from "recharts";
@@ -19,6 +20,12 @@ import {
   PopoverTrigger,
 } from "~/components/ui/popover";
 import { Skeleton } from "~/components/ui/skeleton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "~/components/ui/tooltip";
 
 const chartConfig = {
   value: {
@@ -181,7 +188,6 @@ function hoursToOpacity(hours: number): number {
   return 1;
 }
 
-const CELL_PX = 5;
 const CELL_GAP_PX = 2;
 
 /** GitHub-style daily reading heatmap strip for one year (Monday rows) */
@@ -235,47 +241,56 @@ function YearHeatmap({ year }: { year: string }) {
           <span
             key={label}
             className="absolute top-0 text-[8px] text-muted-foreground"
-            style={{ left: col * (CELL_PX + CELL_GAP_PX) }}
+            style={{ left: `${(col / grid.weeks) * 100}%` }}
           >
             {label}
           </span>
         ))}
       </div>
-      <div
-        className="grid grid-flow-col grid-rows-7"
-        style={{
-          gap: CELL_GAP_PX,
-          width: grid.weeks * (CELL_PX + CELL_GAP_PX) - CELL_GAP_PX,
-        }}
-      >
-        {grid.cells.map((cell, i) =>
-          cell === null ? (
-            <div key={i} style={{ width: CELL_PX, height: CELL_PX }} />
-          ) : (
-            <div
-              key={i}
-              className="rounded-[1px]"
-              style={{
-                width: CELL_PX,
-                height: CELL_PX,
-                backgroundColor:
-                  cell.hours > 0
-                    ? `hsl(var(--foreground) / ${hoursToOpacity(cell.hours)})`
-                    : "hsl(var(--foreground) / 0.07)",
-              }}
-              title={
-                cell.hours > 0
-                  ? `${cell.date}: ${cell.hours.toFixed(1)}h${
-                      cell.finishes > 0
-                        ? ` · finished ${cell.finishes} book${cell.finishes > 1 ? "s" : ""}`
-                        : ""
-                    }`
-                  : cell.date
-              }
-            />
-          ),
-        )}
-      </div>
+      {/* Fluid cells: column tracks split the container width so the strip
+          never overflows narrow popovers */}
+      <TooltipProvider delayDuration={150} skipDelayDuration={100}>
+        <div
+          className="grid w-full grid-flow-col"
+          style={{
+            gridTemplateRows: "repeat(7, auto)",
+            gridAutoColumns: "1fr",
+            gap: CELL_GAP_PX,
+          }}
+        >
+          {grid.cells.map((cell, i) =>
+            cell === null ? (
+              <div key={i} className="aspect-square w-full" />
+            ) : (
+              <Tooltip key={i}>
+                <TooltipTrigger asChild>
+                  <div
+                    className="aspect-square w-full rounded-[1px]"
+                    style={{
+                      backgroundColor:
+                        cell.hours > 0
+                          ? `hsl(var(--foreground) / ${hoursToOpacity(cell.hours)})`
+                          : "hsl(var(--foreground) / 0.07)",
+                    }}
+                  />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    {/* Noon anchor keeps the UTC day from shifting in local time */}
+                    {formatSingleReadDate(`${cell.date}T12:00:00`)}
+                    {cell.hours > 0 &&
+                      `: ${cell.hours.toFixed(1)}h${
+                        cell.finishes > 0
+                          ? ` · finished ${cell.finishes} book${cell.finishes > 1 ? "s" : ""}`
+                          : ""
+                      }`}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            ),
+          )}
+        </div>
+      </TooltipProvider>
     </div>
   );
 }

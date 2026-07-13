@@ -24,6 +24,12 @@ import {
   SelectItem,
   SelectTrigger,
 } from "~/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "~/components/ui/tooltip";
 
 const SORT_OPTIONS: {
   field: SortField;
@@ -84,19 +90,29 @@ export function BookSort() {
           ))}
         </SelectContent>
       </Select>
-      <button
-        type="button"
-        onClick={handleOrderToggle}
-        aria-label={order === "desc" ? "Sort ascending" : "Sort descending"}
-        title={order === "desc" ? "Descending" : "Ascending"}
-        className="flex h-9 items-center justify-center rounded-md border border-input bg-background/90 px-3 shadow-sm transition-all duration-200 ease-in-out hover:bg-accent focus:outline-none focus:ring-1 focus:ring-ring"
-      >
-        {order === "desc" ? (
-          <SortDescendingIcon className="h-4 w-4" />
-        ) : (
-          <SortAscendingIcon className="h-4 w-4" />
-        )}
-      </button>
+      <TooltipProvider>
+        <Tooltip delayDuration={200}>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={handleOrderToggle}
+              aria-label={
+                order === "desc" ? "Sort ascending" : "Sort descending"
+              }
+              className="flex h-9 items-center justify-center rounded-md border border-input bg-background/90 px-3 shadow-sm transition-all duration-200 ease-in-out hover:bg-accent focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              {order === "desc" ? (
+                <SortDescendingIcon className="h-4 w-4" />
+              ) : (
+                <SortAscendingIcon className="h-4 w-4" />
+              )}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{order === "desc" ? "Descending" : "Ascending"}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </div>
   );
 }
