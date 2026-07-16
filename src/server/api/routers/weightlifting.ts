@@ -396,10 +396,18 @@ export const weightliftingRouter = createTRPCRouter({
     return result;
   }),
 
-  /** Last sync status */
+  /** Last sync status: most recent attempt + most recent success */
   getSyncStatus: publicProcedure.query(async () => {
-    return db.query.wlSyncMetadata.findFirst({
+    const latest = await db.query.wlSyncMetadata.findFirst({
       orderBy: desc(wlSyncMetadata.syncStartedAt),
     });
+    const lastSuccess =
+      latest?.status === "success"
+        ? latest
+        : await db.query.wlSyncMetadata.findFirst({
+            where: eq(wlSyncMetadata.status, "success"),
+            orderBy: desc(wlSyncMetadata.syncStartedAt),
+          });
+    return { latest: latest ?? null, lastSuccess: lastSuccess ?? null };
   }),
 });

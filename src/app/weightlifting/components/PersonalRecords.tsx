@@ -3,14 +3,19 @@
 import { Skeleton } from "~/components/ui/skeleton";
 import { api } from "~/trpc/react";
 import { categoryColor } from "../lib/utils";
+import { QueryErrorFallback } from "./QueryErrorFallback";
 
 interface PersonalRecordsProps {
   selectedExercises: string[];
 }
 
 export function PersonalRecords({ selectedExercises }: PersonalRecordsProps) {
-  const { data: records, isLoading } =
-    api.weightlifting.getPersonalRecords.useQuery();
+  const {
+    data: records,
+    isLoading,
+    isError,
+    refetch,
+  } = api.weightlifting.getPersonalRecords.useQuery();
 
   if (isLoading) {
     return (
@@ -19,6 +24,15 @@ export function PersonalRecords({ selectedExercises }: PersonalRecordsProps) {
           <Skeleton key={i} className="h-10 rounded" />
         ))}
       </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <QueryErrorFallback
+        label="personal records"
+        onRetry={() => void refetch()}
+      />
     );
   }
 

@@ -11,9 +11,15 @@ import type { Icon } from "@phosphor-icons/react";
 import { Skeleton } from "~/components/ui/skeleton";
 import { api } from "~/trpc/react";
 import { formatVolume } from "../lib/utils";
+import { QueryErrorFallback } from "./QueryErrorFallback";
 
 export function StatsCards() {
-  const { data: stats, isLoading } = api.weightlifting.getStats.useQuery();
+  const {
+    data: stats,
+    isLoading,
+    isError,
+    refetch,
+  } = api.weightlifting.getStats.useQuery();
 
   if (isLoading) {
     return (
@@ -23,6 +29,10 @@ export function StatsCards() {
         ))}
       </div>
     );
+  }
+
+  if (isError) {
+    return <QueryErrorFallback label="stats" onRetry={() => void refetch()} />;
   }
 
   if (!stats) return null;

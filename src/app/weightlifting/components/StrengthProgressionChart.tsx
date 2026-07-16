@@ -22,7 +22,9 @@ import {
   type ChartConfig,
 } from "~/components/ui/chart";
 import { api } from "~/trpc/react";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import { categoryColor } from "../lib/utils";
+import { QueryErrorFallback } from "./QueryErrorFallback";
 
 export const DEFAULT_EXERCISES = [
   "Flat Barbell Bench Press",
@@ -287,21 +289,33 @@ export function StrengthProgressionChart({
   setSelectedExercises,
 }: StrengthProgressionChartProps) {
   const [timeRange, setTimeRange] = useState(0); // months, 0 = all
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
-  const [chartMode, setChartMode] = useState<ChartMode>(isMobile ? "pr" : "aggregate");
-  const [pillsExpanded, setPillsExpanded] = useState(!isMobile);
+  // undefined on the server / first client render → desktop defaults,
+  // then reactive to viewport changes
+  const isMobile = useMediaQuery("(max-width: 767px)");
+  const [modeOverride, setModeOverride] = useState<ChartMode | null>(null);
+  const chartMode = modeOverride ?? (isMobile ? "pr" : "aggregate");
+  const [pillsOverride, setPillsOverride] = useState<boolean | null>(null);
+  const pillsExpanded = pillsOverride ?? !(isMobile ?? false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [search, setSearch] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const { data: topExercises, isLoading: loadingExercises } =
-    api.weightlifting.getTopExercises.useQuery({ minSets: 10 });
+  const {
+    data: topExercises,
+    isLoading: loadingExercises,
+    isError: errorExercises,
+    refetch: refetchExercises,
+  } = api.weightlifting.getTopExercises.useQuery({ minSets: 10 });
 
-  const { data: progressionData, isLoading: loadingProgression } =
-    api.weightlifting.getStrengthProgression.useQuery(
-      { exercises: selectedExercises },
-      { enabled: selectedExercises.length > 0 },
-    );
+  const {
+    data: progressionData,
+    isLoading: loadingProgression,
+    isError: errorProgression,
+    refetch: refetchProgression,
+  } = api.weightlifting.getStrengthProgression.useQuery(
+    { exercises: selectedExercises },
+    { enabled: selectedExercises.length > 0 },
+  );
 
   // Build chart data based on mode
   const { chartData, chartConfig, dataKeys, trendline } = useMemo(() => {
@@ -500,7 +514,7 @@ export function StrengthProgressionChart({
       const config: ChartConfig = {
         total: {
           label: "Total 1RM",
-          color: "#3b82f6",
+          theme: { light: "#3b82f6", dark: "#60a5fa" },
         },
         prCount: {
           label: "PRs this month",
@@ -508,7 +522,11 @@ export function StrengthProgressionChart({
         },
         trendTotal: {
           label: "Trendline",
-          color: "#ef4444",
+          theme: { light: "#ef4444", dark: "#f87171" },
+        },
+        target: {
+          label: "Target",
+          theme: { light: "#22c55e", dark: "#4ade80" },
         },
       };
 
@@ -664,6 +682,18 @@ export function StrengthProgressionChart({
 
   const isLoading = loadingExercises || loadingProgression;
 
+  if (errorExercises || errorProgression) {
+    return (
+      <QueryErrorFallback
+        label="strength progression"
+        onRetry={() => {
+          if (errorExercises) void refetchExercises();
+          if (errorProgression) void refetchProgression();
+        }}
+      />
+    );
+  }
+
   if (isLoading && selectedExercises.length > 0) {
     return (
       <div className="space-y-3">
@@ -703,7 +733,7 @@ export function StrengthProgressionChart({
           {CHART_MODES.map((mode) => (
             <button
               key={mode.value}
-              onClick={() => setChartMode(mode.value)}
+              onClick={() => setModeOverride(mode.value)}
               className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                 chartMode === mode.value
                   ? "bg-neutral-800 text-white dark:bg-neutral-200 dark:text-neutral-900"
@@ -719,7 +749,7 @@ export function StrengthProgressionChart({
 
         {/* Exercises toggle button (mobile) */}
         <button
-          onClick={() => setPillsExpanded(!pillsExpanded)}
+          onClick={() => setPillsOverride(!pillsExpanded)}
           className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-neutral-500 transition-colors hover:text-neutral-700 md:hidden dark:text-neutral-400 dark:hover:text-neutral-200"
         >
           {selectedExercises.length} exercises
@@ -1046,7 +1076,7 @@ export function StrengthProgressionChart({
                 type="monotone"
                 dataKey="trendTotal"
                 name="Trendline"
-                stroke="#ef4444"
+                stroke="var(--color-trendTotal)"
                 strokeWidth={2}
                 strokeDasharray="6 3"
                 dot={false}
@@ -1059,13 +1089,13 @@ export function StrengthProgressionChart({
               <ReferenceLine
                 yAxisId="left"
                 y={Math.round(trendline.params.a)}
-                stroke="#22c55e"
+                stroke="var(--color-target)"
                 strokeDasharray="6 3"
                 strokeWidth={1.5}
                 label={{
                   value: `${Math.round(trendline.params.a).toLocaleString()} lbs`,
                   position: "right",
-                  fill: "#22c55e",
+                  fill: "var(--color-target)",
                   fontSize: 10,
                 }}
               />
@@ -1079,13 +1109,13 @@ export function StrengthProgressionChart({
                   x={jp._ts}
                   y={jp.total}
                   r={5}
-                  fill="#ef4444"
-                  stroke="#ef4444"
+                  fill="var(--color-trendTotal)"
+                  stroke="var(--color-trendTotal)"
 
                   label={{
                     value: jp.total.toLocaleString(),
                     position: "top",
-                    fill: "#ef4444",
+                    fill: "var(--color-trendTotal)",
                     fontSize: 9,
                     offset: 8,
                   }}
@@ -1098,12 +1128,12 @@ export function StrengthProgressionChart({
                 x={trendline.targetPoint._ts}
                 y={trendline.targetPoint.total}
                 r={6}
-                fill="#22c55e"
-                stroke="#22c55e"
+                fill="var(--color-target)"
+                stroke="var(--color-target)"
                 label={{
                   value: `${trendline.targetPoint.total.toLocaleString()} lbs`,
                   position: "top",
-                  fill: "#22c55e",
+                  fill: "var(--color-target)",
                   fontSize: 10,
                   offset: 10,
                 }}
@@ -1116,7 +1146,7 @@ export function StrengthProgressionChart({
                 type="monotone"
                 dataKey={key}
                 name={key}
-                stroke={chartConfig[key]?.color}
+                stroke={chartConfig[key]?.color ?? `var(--color-${key})`}
                 strokeWidth={2}
                 dot={false}
                 connectNulls

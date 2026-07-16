@@ -10,9 +10,10 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useId, useState } from "react";
 
 import { StatsCards } from "./components/StatsCards";
+import { SyncStatusIndicator } from "./components/SyncStatusIndicator";
 import { YearCalendar } from "./components/YearCalendar";
 import {
   DEFAULT_EXERCISES,
@@ -33,11 +34,14 @@ function CollapsibleSection({
   children: ReactNode;
 }) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+  const contentId = useId();
 
   return (
     <section>
       <button
         onClick={() => setIsOpen(!isOpen)}
+        aria-expanded={isOpen}
+        aria-controls={contentId}
         className="mb-4 flex w-full items-center gap-2 font-rounded text-lg font-medium text-neutral-700 transition-opacity hover:opacity-80 dark:text-neutral-200"
       >
         {icon}
@@ -50,6 +54,7 @@ function CollapsibleSection({
       <AnimatePresence initial={false}>
         {isOpen && (
           <motion.div
+            id={contentId}
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
@@ -123,6 +128,7 @@ export default function WeightliftingPage() {
             Chappy&apos;s Weightlifting
           </span>
         </Link>
+        <SyncStatusIndicator />
       </div>
 
       {/* Stats */}

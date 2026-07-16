@@ -10,11 +10,16 @@ import { useState } from "react";
 import { Skeleton } from "~/components/ui/skeleton";
 import { api } from "~/trpc/react";
 import { categoryColor } from "../lib/utils";
+import { QueryErrorFallback } from "./QueryErrorFallback";
 import { WorkoutDetailModal } from "./WorkoutDetailModal";
 
 const MONTH_NAMES = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+const MONTH_NAMES_FULL = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
 ];
 const DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -49,13 +54,34 @@ function DayCell({
     : [];
   const total = sorted.reduce((sum, [, n]) => sum + n, 0);
 
+  // e.g. "March 5: Chest 4, Triceps 2" — category names are the non-color cue
+  const ariaLabel = hasWorkout
+    ? `${MONTH_NAMES_FULL[parseInt(dateStr.slice(5, 7)) - 1]} ${day}: ${sorted
+        .map(([cat, n]) => `${cat} ${n}`)
+        .join(", ")}`
+    : undefined;
+
   return (
     <motion.div
       layoutId={hasWorkout ? `day-${dateStr}` : undefined}
+      role={hasWorkout ? "button" : undefined}
+      tabIndex={hasWorkout ? 0 : undefined}
+      aria-label={ariaLabel}
       className={`flex h-8 flex-col items-center justify-center ${
         !isCurrentMonth ? "opacity-0" : ""
-      } ${hasWorkout ? "cursor-pointer rounded-md transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-700" : ""}`}
+      } ${hasWorkout ? "cursor-pointer rounded-md transition-colors hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 dark:hover:bg-neutral-700 dark:focus-visible:ring-neutral-500" : ""}`}
       onClick={hasWorkout ? () => onDayClick(dateStr) : undefined}
+      onKeyDown={
+        hasWorkout
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onDayClick(dateStr);
+              }
+            }
+          : undefined
+      }
+      onFocus={handleMouseEnter}
       onMouseEnter={handleMouseEnter}
     >
       <span
@@ -153,8 +179,12 @@ export function YearCalendar() {
   const [year, setYear] = useState(currentYear);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  const { data: calendarData, isLoading } =
-    api.weightlifting.getCalendarData.useQuery({ year });
+  const {
+    data: calendarData,
+    isLoading,
+    isError,
+    refetch,
+  } = api.weightlifting.getCalendarData.useQuery({ year });
 
   const minYear = stats?.earliestWorkout
     ? new Date(stats.earliestWorkout).getFullYear()
@@ -189,7 +219,12 @@ export function YearCalendar() {
         </button>
       </div>
 
-      {isLoading ? (
+      {isError ? (
+        <QueryErrorFallback
+          label="workout calendar"
+          onRetry={() => void refetch()}
+        />
+      ) : isLoading ? (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
           {Array.from({ length: 12 }).map((_, i) => (
             <Skeleton key={i} className="h-44 rounded-lg" />
