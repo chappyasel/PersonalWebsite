@@ -1,16 +1,8 @@
 "use client";
 
-import { formatSingleReadDate } from "../lib/format";
 import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { Bar, BarChart, Rectangle, XAxis, YAxis } from "recharts";
-
-import {
-  computeYearOverYearDelta,
-  effectiveDaysInYear,
-  monthPeriod,
-} from "~/lib/stats/yoy";
-import { api } from "~/trpc/react";
 
 import {
   ChartContainer,
@@ -21,6 +13,8 @@ import {
 import { Skeleton } from "~/components/ui/skeleton";
 import { StatsPopover } from "~/components/ui/stats-popover";
 import { YearHeatmap } from "~/components/ui/year-heatmap";
+import { computeYearOverYearDelta, effectiveDaysInYear } from "~/lib/stats/yoy";
+import { api } from "~/trpc/react";
 
 const chartConfig = {
   value: {
@@ -31,19 +25,19 @@ const chartConfig = {
 
 /** "all" for lifetime stats (chart = one bar per year), or a "YYYY" year */
 type Scope = "all" | (string & {});
-type Metric = "pages" | "hours" | "books";
+type Metric = "volume" | "hours" | "workouts";
 type Mode = "total" | "week" | "day";
 
 const METRIC_LABELS: Record<Metric, string> = {
-  pages: "Pages",
+  volume: "Volume",
   hours: "Hours",
-  books: "Books",
+  workouts: "Workouts",
 };
 
 const STAT_LABELS: Record<Metric, string> = {
-  pages: "Pages",
-  hours: "Listened",
-  books: "Books",
+  volume: "Volume",
+  hours: "Hours",
+  workouts: "Workouts",
 };
 
 const MODE_LABELS: Record<Mode, string> = {
@@ -82,13 +76,13 @@ function readStoredChoice<T extends string>(
   fallback: T,
 ): T {
   if (typeof window === "undefined") return fallback;
-  const stored = window.localStorage.getItem(`books-stats-${key}`);
+  const stored = window.localStorage.getItem(`weightlifting-stats-${key}`);
   return valid.includes(stored as T) ? (stored as T) : fallback;
 }
 
 function storeChoice(key: string, value: string) {
   try {
-    window.localStorage.setItem(`books-stats-${key}`, value);
+    window.localStorage.setItem(`weightlifting-stats-${key}`, value);
   } catch {
     // Storage unavailable (private mode) — persistence is best-effort
   }
@@ -101,32 +95,48 @@ function formatNumber(value: number): string {
   return value.toFixed(2);
 }
 
+/** Compact volume: 56.2M, 120k, 850 */
+function formatVolume(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${Math.round(value / 1_000)}k`;
+  return formatNumber(value);
+}
+
 function formatMetricValue(metric: Metric, mode: Mode, value: number): string {
-  const formatted =
-    mode === "total" && metric !== "hours"
-      ? Math.round(value).toLocaleString()
-      : formatNumber(value);
-  return metric === "hours" ? `${formatted}h` : formatted;
+  if (metric === "volume") return formatVolume(value);
+  if (metric === "hours") return `${formatNumber(value)}h`;
+  return mode === "total"
+    ? Math.round(value).toLocaleString()
+    : formatNumber(value);
 }
 
 function formatAxisTick(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
   return String(value);
 }
 
-/** Sequential opacity steps for daily wall-clock hours (single-hue ramp) */
-function hoursToOpacity(hours: number): number {
-  if (hours <= 0) return 0;
-  if (hours < 0.5) return 0.25;
-  if (hours < 1) return 0.45;
-  if (hours < 2) return 0.65;
-  if (hours < 3) return 0.82;
+/** Sequential opacity steps for daily training volume (single-hue ramp) */
+function volumeToOpacity(volume: number): number {
+  if (volume < 5_000) return 0.25; // includes cardio-only days
+  if (volume < 10_000) return 0.45;
+  if (volume < 17_500) return 0.65;
+  if (volume < 25_000) return 0.82;
   return 1;
 }
 
-/** Daily reading heatmap for one year — data + ramp stay books-specific */
-function ReadingHeatmap({ year }: { year: string }) {
-  const { data: daily } = api.books.getDailyReading.useQuery(
+/** Noon anchor keeps the UTC day from shifting in local time */
+function formatHeatmapDate(date: string): string {
+  return new Date(`${date}T12:00:00`).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+/** Daily training heatmap for one year — data + ramp stay training-specific */
+function TrainingHeatmap({ year }: { year: string }) {
+  const { data: daily } = api.weightlifting.getDailyTraining.useQuery(
     { year: Number(year) },
     { staleTime: 5 * 60 * 1000 },
   );
@@ -135,19 +145,13 @@ function ReadingHeatmap({ year }: { year: string }) {
     <YearHeatmap
       year={year}
       days={daily}
-      getOpacity={(entry) =>
-        entry.wallClockHours > 0 ? hoursToOpacity(entry.wallClockHours) : 0.07
-      }
+      getOpacity={(entry) => volumeToOpacity(entry.volume)}
       renderTooltip={(date, entry) => (
         <p>
-          {/* Noon anchor keeps the UTC day from shifting in local time */}
-          {formatSingleReadDate(`${date}T12:00:00`)}
+          {formatHeatmapDate(date)}
           {entry &&
-            entry.wallClockHours > 0 &&
-            `: ${entry.wallClockHours.toFixed(1)}h${
-              entry.finishes > 0
-                ? ` · finished ${entry.finishes} book${entry.finishes > 1 ? "s" : ""}`
-                : ""
+            `: ${entry.volume.toLocaleString()} lbs · ${entry.workouts} workout${
+              entry.workouts > 1 ? "s" : ""
             }`}
         </p>
       )}
@@ -155,10 +159,10 @@ function ReadingHeatmap({ year }: { year: string }) {
   );
 }
 
-function ReadingStats({ initialScope }: { initialScope: Scope }) {
+function TrainingStats({ initialScope }: { initialScope: Scope }) {
   const [scope, setScope] = useState<Scope>(initialScope);
   const [metric, setMetric] = useState<Metric>(() =>
-    readStoredChoice("metric", ["pages", "hours", "books"], "pages"),
+    readStoredChoice("metric", ["volume", "hours", "workouts"], "volume"),
   );
   const [mode, setMode] = useState<Mode>(() =>
     readStoredChoice("mode", ["total", "week", "day"], "total"),
@@ -173,7 +177,7 @@ function ReadingStats({ initialScope }: { initialScope: Scope }) {
     storeChoice("mode", m);
   };
 
-  const { data: analytics } = api.books.getReadingAnalytics.useQuery(
+  const { data: analytics } = api.weightlifting.getTrainingAnalytics.useQuery(
     undefined,
     { staleTime: 5 * 60 * 1000 },
   );
@@ -193,18 +197,18 @@ function ReadingStats({ initialScope }: { initialScope: Scope }) {
         const elapsedDays = effectiveDaysInYear(bucket.period, now);
         return {
           label: bucket.period,
-          pages: bucket.pages,
-          hours: Math.round(bucket.wallClockHours * 10) / 10,
-          books: bucket.books,
+          volume: bucket.volume,
+          hours: Math.round(bucket.hours * 10) / 10,
+          workouts: bucket.workouts,
           days: elapsedDays,
           fraction: elapsedDays / totalDays,
         };
       });
       return {
         years,
-        books: analytics.totals.books,
-        pages: analytics.totals.pages,
-        hours: analytics.totals.wallClockHours,
+        workouts: analytics.totals.workouts,
+        volume: analytics.totals.volume,
+        hours: analytics.totals.hours,
         days: points.reduce((sum, p) => sum + p.days, 0),
         points,
         delta: null,
@@ -216,7 +220,7 @@ function ReadingStats({ initialScope }: { initialScope: Scope }) {
     const yearBucket = analytics.yearly.find((b) => b.period === scope);
     const points = MONTH_LABELS.map((month, i) => {
       const bucket = analytics.monthly.find(
-        (b) => b.period === monthPeriod(scope, i),
+        (b) => b.period === `${scope}-${String(i + 1).padStart(2, "0")}`,
       );
       // Per-week rates divide by elapsed days for the in-progress month so a
       // month that just started isn't shown as artificially slow
@@ -227,9 +231,9 @@ function ReadingStats({ initialScope }: { initialScope: Scope }) {
       const effectiveDays = isCurrentMonth ? now.getUTCDate() : daysInMonth;
       return {
         label: month,
-        pages: bucket?.pages ?? 0,
-        hours: bucket ? Math.round(bucket.wallClockHours * 10) / 10 : 0,
-        books: bucket?.books ?? 0,
+        volume: bucket?.volume ?? 0,
+        hours: bucket ? Math.round(bucket.hours * 10) / 10 : 0,
+        workouts: bucket?.workouts ?? 0,
         days: Math.max(effectiveDays, 1),
         fraction: Math.max(effectiveDays, 1) / daysInMonth,
       };
@@ -244,19 +248,20 @@ function ReadingStats({ initialScope }: { initialScope: Scope }) {
     const pace =
       isCurrentYear && yearFraction < 1 && yearBucket
         ? {
-            books: Math.round(yearBucket.books / yearFraction),
-            pages: Math.round(yearBucket.pages / yearFraction / 100) * 100,
+            workouts: Math.round(yearBucket.workouts / yearFraction),
+            volume:
+              Math.round(yearBucket.volume / yearFraction / 100_000) * 100_000,
           }
         : null;
 
     return {
       years,
-      books: yearBucket?.books ?? 0,
-      pages: yearBucket?.pages ?? 0,
-      hours: yearBucket?.wallClockHours ?? 0,
+      workouts: yearBucket?.workouts ?? 0,
+      volume: yearBucket?.volume ?? 0,
+      hours: yearBucket?.hours ?? 0,
       days: effectiveDaysInYear(scope, now),
       points,
-      delta: computeYearOverYearDelta(analytics, scope, (b) => b.pages),
+      delta: computeYearOverYearDelta(analytics, scope, (b) => b.volume),
       pace,
     };
   }, [analytics, scope]);
@@ -355,13 +360,13 @@ function ReadingStats({ initialScope }: { initialScope: Scope }) {
             aria-label={`View ${stats.delta.prevYear}`}
           >
             {stats.delta.pct >= 0 ? "▲" : "▼"}{" "}
-            {Math.abs(stats.delta.pct).toFixed(0)}% pages {stats.delta.label}
+            {Math.abs(stats.delta.pct).toFixed(0)}% volume {stats.delta.label}
           </button>
         )}
       </div>
 
       <div className="flex justify-around gap-2">
-        {(["books", "pages", "hours"] as const).map((m) => {
+        {(["workouts", "volume", "hours"] as const).map((m) => {
           const divisor =
             mode === "total" ? 1 : mode === "week" ? stats.days / 7 : stats.days;
           return (
@@ -380,8 +385,8 @@ function ReadingStats({ initialScope }: { initialScope: Scope }) {
 
       {stats.pace && (
         <p className="-mt-1 text-center text-xs text-muted-foreground">
-          On pace for ~{stats.pace.books} books · ~
-          {stats.pace.pages.toLocaleString()} pages
+          On pace for ~{stats.pace.workouts} workouts · ~
+          {(stats.pace.volume / 1_000_000).toFixed(1)}M lbs
         </p>
       )}
 
@@ -403,7 +408,7 @@ function ReadingStats({ initialScope }: { initialScope: Scope }) {
           ))}
         </div>
         <div className="flex gap-1">
-          {(["pages", "hours", "books"] as const).map((m) => (
+          {(["volume", "hours", "workouts"] as const).map((m) => (
             <button
               key={m}
               type="button"
@@ -517,12 +522,12 @@ function ReadingStats({ initialScope }: { initialScope: Scope }) {
         </BarChart>
       </ChartContainer>
 
-      {scope !== "all" && <ReadingHeatmap year={scope} />}
+      {scope !== "all" && <TrainingHeatmap year={scope} />}
     </div>
   );
 }
 
-type ReadingStatsPopoverProps = {
+type TrainingStatsPopoverProps = {
   scope: Scope;
   children: React.ReactNode;
   /** Fully replaces the default dotted-underline trigger styling */
@@ -530,15 +535,15 @@ type ReadingStatsPopoverProps = {
   align?: "start" | "center" | "end";
 };
 
-export function ReadingStatsPopover({
+export function TrainingStatsPopover({
   scope,
   children,
   triggerClassName,
   align = "start",
-}: ReadingStatsPopoverProps) {
+}: TrainingStatsPopoverProps) {
   return (
     <StatsPopover
-      content={<ReadingStats initialScope={scope} />}
+      content={<TrainingStats initialScope={scope} />}
       triggerClassName={triggerClassName}
       align={align}
     >

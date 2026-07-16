@@ -3,6 +3,7 @@
 import {
   CalendarDotsIcon,
   CaretDownIcon,
+  ChartBarIcon,
   ChartLineUpIcon,
   HouseLineIcon,
   TrophyIcon,
@@ -19,6 +20,7 @@ import { PersonalRecords } from "./PersonalRecords";
 import { StatsCards } from "./StatsCards";
 import { StrengthProgressionChart } from "./StrengthProgressionChart";
 import { SyncStatusIndicator } from "./SyncStatusIndicator";
+import { TrainingStatsPopover } from "./TrainingStatsPopover";
 import { YearCalendar } from "./YearCalendar";
 
 function CollapsibleSection({
@@ -129,7 +131,16 @@ export function WeightliftingDashboard() {
             Chappy&apos;s Weightlifting
           </span>
         </Link>
-        <SyncStatusIndicator />
+        <div className="flex items-center gap-3">
+          <SyncStatusIndicator />
+          <TrainingStatsPopover
+            scope="all"
+            align="end"
+            triggerClassName="flex size-9 items-center justify-center rounded-lg text-neutral-500 transition-colors hover:bg-neutral-200/60 hover:text-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-700/60 dark:hover:text-neutral-200"
+          >
+            <ChartBarIcon className="size-4" weight="bold" />
+          </TrainingStatsPopover>
+        </div>
       </div>
 
       {/* Stats */}

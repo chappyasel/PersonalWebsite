@@ -3,6 +3,10 @@ import { revalidateTag, unstable_cache } from "next/cache";
 import { z } from "zod";
 
 import {
+  computeDailyTraining,
+  computeTrainingAnalytics,
+} from "~/lib/weightlifting/analytics";
+import {
   WEIGHTLIFTING_ACTIVITY_TAG,
   WEIGHTLIFTING_REVALIDATE,
   WEIGHTLIFTING_TAG,
@@ -345,6 +349,40 @@ const getCachedTopExercises = unstable_cache(
   { revalidate: WEIGHTLIFTING_REVALIDATE, tags: [WEIGHTLIFTING_TAG] },
 );
 
+// One row per workout with volume/set aggregates. Cached as ISO strings
+// (unstable_cache JSON-serializes, so Dates would flap between types);
+// consumers convert with `new Date()` after retrieval.
+const getCachedTrainingRows = unstable_cache(
+  async () => {
+    const rows = await db.execute<{
+      date: string;
+      duration_seconds: number;
+      volume: number | string;
+      sets: number | string;
+    }>(sql`
+      SELECT
+        TO_CHAR(w.date AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS date,
+        w.duration_seconds,
+        COALESCE(SUM(s.volume), 0) AS volume,
+        COUNT(s.id) AS sets
+      FROM wl_workouts w
+      LEFT JOIN wl_exercises e ON e.workout_id = w.id
+      LEFT JOIN wl_sets s ON s.exercise_id = e.id
+      GROUP BY w.id
+      ORDER BY w.date
+    `);
+
+    return rows.map((r) => ({
+      date: r.date,
+      durationSeconds: Number(r.duration_seconds),
+      volume: Number(r.volume),
+      sets: Number(r.sets),
+    }));
+  },
+  ["weightlifting-training-rows"],
+  { revalidate: WEIGHTLIFTING_REVALIDATE, tags: [WEIGHTLIFTING_TAG] },
+);
+
 export const weightliftingRouter = createTRPCRouter({
   /** Paginated workout list with date range filter */
   getWorkouts: publicProcedure
@@ -433,6 +471,25 @@ export const weightliftingRouter = createTRPCRouter({
     )
     .query(async ({ input }) => {
       return getCachedTopExercises(input.minSets);
+    }),
+
+  /** Weekly/monthly/yearly training buckets + lifetime totals */
+  getTrainingAnalytics: publicProcedure.query(async () => {
+    const rows = await getCachedTrainingRows();
+    return computeTrainingAnalytics(
+      rows.map((r) => ({ ...r, date: new Date(r.date) })),
+    );
+  }),
+
+  /** Per-day training volume for one year (stats popover heatmap) */
+  getDailyTraining: publicProcedure
+    .input(z.object({ year: z.number().int().min(2000).max(2100) }))
+    .query(async ({ input }) => {
+      const rows = await getCachedTrainingRows();
+      return computeDailyTraining(
+        rows.map((r) => ({ ...r, date: new Date(r.date) })),
+        input.year,
+      );
     }),
 
   /** Manual sync trigger */
