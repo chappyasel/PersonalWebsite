@@ -5,11 +5,13 @@ import {
   CaretRightIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import { motion } from "framer-motion";
+import { useQueryState } from "nuqs";
 import { useState } from "react";
 
 import { Skeleton } from "~/components/ui/skeleton";
 import { api } from "~/trpc/react";
-import { categoryColor } from "../lib/utils";
+import { wlSearchParams } from "../lib/searchParams";
+import { categoryColor, QUERY_STALE_TIME } from "../lib/utils";
 import { QueryErrorFallback } from "./QueryErrorFallback";
 import { WorkoutDetailModal } from "./WorkoutDetailModal";
 
@@ -174,9 +176,12 @@ function MonthMiniCalendar({
 }
 
 export function YearCalendar() {
-  const { data: stats } = api.weightlifting.getStats.useQuery();
+  const { data: stats } = api.weightlifting.getStats.useQuery(undefined, {
+    staleTime: QUERY_STALE_TIME,
+  });
   const currentYear = new Date().getFullYear();
-  const [year, setYear] = useState(currentYear);
+  const [year, setYear] = useQueryState("year", wlSearchParams.year);
+  // Stays local: layoutId animation source + no history spam
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const {
@@ -184,7 +189,10 @@ export function YearCalendar() {
     isLoading,
     isError,
     refetch,
-  } = api.weightlifting.getCalendarData.useQuery({ year });
+  } = api.weightlifting.getCalendarData.useQuery(
+    { year },
+    { staleTime: QUERY_STALE_TIME },
+  );
 
   const minYear = stats?.earliestWorkout
     ? new Date(stats.earliestWorkout).getFullYear()

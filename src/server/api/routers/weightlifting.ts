@@ -2,6 +2,11 @@ import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { revalidateTag, unstable_cache } from "next/cache";
 import { z } from "zod";
 
+import {
+  WEIGHTLIFTING_ACTIVITY_TAG,
+  WEIGHTLIFTING_REVALIDATE,
+  WEIGHTLIFTING_TAG,
+} from "~/lib/weightlifting/cache";
 import { syncWeightlifting } from "~/lib/weightlifting/sync";
 import {
   createTRPCRouter,
@@ -15,8 +20,6 @@ import {
   wlSyncMetadata,
   wlWorkouts,
 } from "~/server/db/schema";
-
-const WEIGHTLIFTING_ACTIVITY_TAG = "weightlifting-activity";
 
 const getCachedActivityMosaic = unstable_cache(
   async (months: number) => {
@@ -133,9 +136,213 @@ const getCachedActivityMosaic = unstable_cache(
   },
   ["weightlifting-activity-mosaic"],
   {
-    revalidate: 60 * 60 * 6,
-    tags: [WEIGHTLIFTING_ACTIVITY_TAG],
+    revalidate: WEIGHTLIFTING_REVALIDATE,
+    tags: [WEIGHTLIFTING_TAG, WEIGHTLIFTING_ACTIVITY_TAG],
   },
+);
+
+const getCachedStats = unstable_cache(
+  async () => {
+    const [workoutCount] = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(wlWorkouts);
+
+    const [setCount] = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(wlSets);
+
+    const [totalVolume] = await db
+      .select({ total: sql<number>`COALESCE(SUM(volume), 0)` })
+      .from(wlSets);
+
+    const [totalDuration] = await db
+      .select({
+        total: sql<number>`COALESCE(SUM(${wlWorkouts.durationSeconds}), 0)`,
+      })
+      .from(wlWorkouts);
+
+    // TO_CHAR so cache hits (JSON) and misses return the same string type
+    const [earliest] = await db
+      .select({
+        earliest: sql<
+          string | null
+        >`TO_CHAR(MIN(${wlWorkouts.date}), 'YYYY-MM-DD')`,
+      })
+      .from(wlWorkouts);
+
+    return {
+      totalWorkouts: Number(workoutCount?.count ?? 0),
+      totalSets: Number(setCount?.count ?? 0),
+      totalVolume: Number(totalVolume?.total ?? 0),
+      totalDurationSeconds: Number(totalDuration?.total ?? 0),
+      earliestWorkout: earliest?.earliest ?? null,
+    };
+  },
+  ["wl-stats"],
+  { revalidate: WEIGHTLIFTING_REVALIDATE, tags: [WEIGHTLIFTING_TAG] },
+);
+
+const getCachedPersonalRecords = unstable_cache(
+  async () => {
+    const rows = await db.execute<{
+      display_name: string;
+      category: string;
+      best_one_rm: number;
+      best_reps: number;
+      best_weight: number;
+      instance_count: number;
+    }>(sql`
+      SELECT DISTINCT ON (display_name)
+        CASE
+          WHEN e.iteration IS NOT NULL AND e.iteration != ''
+          THEN e.iteration || ' ' || e.name
+          ELSE e.name
+        END AS display_name,
+        e.category,
+        s.one_rm AS best_one_rm,
+        s.reps AS best_reps,
+        s.weight AS best_weight,
+        (SELECT COUNT(DISTINCT e2.id)
+         FROM wl_exercises e2
+         WHERE e2.name = e.name
+           AND COALESCE(e2.iteration, '') = COALESCE(e.iteration, '')) AS instance_count
+      FROM wl_sets s
+      INNER JOIN wl_exercises e ON s.exercise_id = e.id
+      WHERE s.one_rm IS NOT NULL AND s.one_rm > 0
+      ORDER BY display_name, s.one_rm DESC
+    `);
+
+    return rows.map((r) => ({
+      exerciseName: r.display_name,
+      category: r.category,
+      bestOneRM: Number(r.best_one_rm),
+      reps: Number(r.best_reps),
+      weight: Number(r.best_weight),
+      instanceCount: Number(r.instance_count),
+    }));
+  },
+  ["wl-personal-records"],
+  { revalidate: WEIGHTLIFTING_REVALIDATE, tags: [WEIGHTLIFTING_TAG] },
+);
+
+const getCachedCalendarData = unstable_cache(
+  async (year: number) => {
+    const startDate = new Date(`${year}-01-01T00:00:00Z`);
+    const endDate = new Date(`${year + 1}-01-01T00:00:00Z`);
+
+    const rows = await db
+      .select({
+        date: sql<string>`DATE(${wlWorkouts.date})`.as("day"),
+        category: wlExercises.category,
+        count: sql<number>`COUNT(DISTINCT ${wlExercises.id})`,
+      })
+      .from(wlExercises)
+      .innerJoin(wlWorkouts, eq(wlExercises.workoutId, wlWorkouts.id))
+      .where(
+        and(gte(wlWorkouts.date, startDate), lte(wlWorkouts.date, endDate)),
+      )
+      .groupBy(sql`DATE(${wlWorkouts.date})`, wlExercises.category)
+      .orderBy(sql`DATE(${wlWorkouts.date})`);
+
+    // Group by date
+    const dayMap: Record<string, Record<string, number>> = {};
+    for (const row of rows) {
+      const d = row.date;
+      dayMap[d] ??= {};
+      dayMap[d][row.category] = Number(row.count);
+    }
+
+    return Object.entries(dayMap).map(([date, categories]) => ({
+      date,
+      categories,
+    }));
+  },
+  ["wl-calendar"],
+  { revalidate: WEIGHTLIFTING_REVALIDATE, tags: [WEIGHTLIFTING_TAG] },
+);
+
+const getCachedStrengthProgression = unstable_cache(
+  async (exercises: string[]) => {
+    const rows = await db.execute<{
+      date: string;
+      exercise: string;
+      best_one_rm: number;
+    }>(sql`
+      SELECT
+        TO_CHAR(w.date, 'YYYY-MM-DD') AS date,
+        CASE
+          WHEN e.iteration IS NOT NULL AND e.iteration != ''
+          THEN e.iteration || ' ' || e.name
+          ELSE e.name
+        END AS exercise,
+        MAX(s.one_rm) AS best_one_rm
+      FROM wl_sets s
+      INNER JOIN wl_exercises e ON s.exercise_id = e.id
+      INNER JOIN wl_workouts w ON e.workout_id = w.id
+      WHERE s.one_rm IS NOT NULL
+        AND s.one_rm > 0
+        AND e.style = 'reps_weight'
+        AND (CASE
+          WHEN e.iteration IS NOT NULL AND e.iteration != ''
+          THEN e.iteration || ' ' || e.name
+          ELSE e.name
+        END) IN (${sql.join(
+          exercises.map((ex) => sql`${ex}`),
+          sql`, `,
+        )})
+      GROUP BY date, exercise
+      ORDER BY date
+    `);
+
+    return rows.map((r) => ({
+      date: r.date,
+      exercise: r.exercise,
+      bestOneRM: Number(r.best_one_rm),
+    }));
+  },
+  ["wl-strength-progression"],
+  { revalidate: WEIGHTLIFTING_REVALIDATE, tags: [WEIGHTLIFTING_TAG] },
+);
+
+const getCachedTopExercises = unstable_cache(
+  async (minSets: number) => {
+    const rows = await db.execute<{
+      display_name: string;
+      name: string;
+      category: string;
+      set_count: number;
+      best_one_rm: number;
+    }>(sql`
+      SELECT
+        CASE
+          WHEN e.iteration IS NOT NULL AND e.iteration != ''
+          THEN e.iteration || ' ' || e.name
+          ELSE e.name
+        END AS display_name,
+        e.name,
+        e.category,
+        COUNT(s.id) AS set_count,
+        MAX(s.one_rm) AS best_one_rm
+      FROM wl_sets s
+      INNER JOIN wl_exercises e ON s.exercise_id = e.id
+      WHERE s.one_rm IS NOT NULL
+        AND s.one_rm > 0
+        AND e.style = 'reps_weight'
+      GROUP BY display_name, e.name, e.category
+      HAVING COUNT(s.id) >= ${minSets}
+      ORDER BY best_one_rm DESC
+    `);
+
+    return rows.map((r) => ({
+      displayName: r.display_name,
+      name: r.name,
+      category: r.category,
+      setCount: Number(r.set_count),
+      bestOneRM: Number(r.best_one_rm),
+    }));
+  },
+  ["wl-top-exercises"],
+  { revalidate: WEIGHTLIFTING_REVALIDATE, tags: [WEIGHTLIFTING_TAG] },
 );
 
 export const weightliftingRouter = createTRPCRouter({
@@ -180,112 +387,19 @@ export const weightliftingRouter = createTRPCRouter({
 
   /** Aggregate stats */
   getStats: publicProcedure.query(async () => {
-    const [workoutCount] = await db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(wlWorkouts);
-
-    const [setCount] = await db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(wlSets);
-
-    const [totalVolume] = await db
-      .select({ total: sql<number>`COALESCE(SUM(volume), 0)` })
-      .from(wlSets);
-
-    const [totalDuration] = await db
-      .select({
-        total: sql<number>`COALESCE(SUM(${wlWorkouts.durationSeconds}), 0)`,
-      })
-      .from(wlWorkouts);
-
-    const [earliest] = await db
-      .select({
-        earliest: sql<string>`MIN(${wlWorkouts.date})`,
-      })
-      .from(wlWorkouts);
-
-    return {
-      totalWorkouts: Number(workoutCount?.count ?? 0),
-      totalSets: Number(setCount?.count ?? 0),
-      totalVolume: Number(totalVolume?.total ?? 0),
-      totalDurationSeconds: Number(totalDuration?.total ?? 0),
-      earliestWorkout: earliest?.earliest ?? null,
-    };
+    return getCachedStats();
   }),
 
   /** Best estimated 1RM per exercise, with the reps×weight that produced it */
   getPersonalRecords: publicProcedure.query(async () => {
-    const rows = await db.execute<{
-      display_name: string;
-      category: string;
-      best_one_rm: number;
-      best_reps: number;
-      best_weight: number;
-      instance_count: number;
-    }>(sql`
-      SELECT DISTINCT ON (display_name)
-        CASE
-          WHEN e.iteration IS NOT NULL AND e.iteration != ''
-          THEN e.iteration || ' ' || e.name
-          ELSE e.name
-        END AS display_name,
-        e.category,
-        s.one_rm AS best_one_rm,
-        s.reps AS best_reps,
-        s.weight AS best_weight,
-        (SELECT COUNT(DISTINCT e2.id)
-         FROM wl_exercises e2
-         WHERE e2.name = e.name
-           AND COALESCE(e2.iteration, '') = COALESCE(e.iteration, '')) AS instance_count
-      FROM wl_sets s
-      INNER JOIN wl_exercises e ON s.exercise_id = e.id
-      WHERE s.one_rm IS NOT NULL AND s.one_rm > 0
-      ORDER BY display_name, s.one_rm DESC
-    `);
-
-    return rows.map((r) => ({
-      exerciseName: r.display_name,
-      category: r.category,
-      bestOneRM: Number(r.best_one_rm),
-      reps: Number(r.best_reps),
-      weight: Number(r.best_weight),
-      instanceCount: Number(r.instance_count),
-    }));
+    return getCachedPersonalRecords();
   }),
 
   /** Calendar heatmap data: categories per day for a given year */
   getCalendarData: publicProcedure
     .input(z.object({ year: z.number() }))
     .query(async ({ input }) => {
-      const startDate = new Date(`${input.year}-01-01T00:00:00Z`);
-      const endDate = new Date(`${input.year + 1}-01-01T00:00:00Z`);
-
-      const rows = await db
-        .select({
-          date: sql<string>`DATE(${wlWorkouts.date})`.as("day"),
-          category: wlExercises.category,
-          count: sql<number>`COUNT(DISTINCT ${wlExercises.id})`,
-        })
-        .from(wlExercises)
-        .innerJoin(wlWorkouts, eq(wlExercises.workoutId, wlWorkouts.id))
-        .where(
-          and(gte(wlWorkouts.date, startDate), lte(wlWorkouts.date, endDate)),
-        )
-        .groupBy(sql`DATE(${wlWorkouts.date})`, wlExercises.category)
-        .orderBy(sql`DATE(${wlWorkouts.date})`);
-
-      // Group by date
-      const dayMap: Record<string, Record<string, number>> = {};
-      for (const row of rows) {
-        const d = row.date;
-        dayMap[d] ??= {};
-        dayMap[d][row.category] = Number(row.count);
-      }
-
-      return Object.entries(dayMap).map(([date, categories]) => ({
-        date,
-        categories,
-      }));
+      return getCachedCalendarData(input.year);
     }),
 
   /** Lightweight rolling activity mosaic for the homepage */
@@ -307,42 +421,7 @@ export const weightliftingRouter = createTRPCRouter({
       }),
     )
     .query(async ({ input }) => {
-      const rows = await db.execute<{
-        date: string;
-        exercise: string;
-        best_one_rm: number;
-      }>(sql`
-        SELECT
-          TO_CHAR(w.date, 'YYYY-MM-DD') AS date,
-          CASE
-            WHEN e.iteration IS NOT NULL AND e.iteration != ''
-            THEN e.iteration || ' ' || e.name
-            ELSE e.name
-          END AS exercise,
-          MAX(s.one_rm) AS best_one_rm
-        FROM wl_sets s
-        INNER JOIN wl_exercises e ON s.exercise_id = e.id
-        INNER JOIN wl_workouts w ON e.workout_id = w.id
-        WHERE s.one_rm IS NOT NULL
-          AND s.one_rm > 0
-          AND e.style = 'reps_weight'
-          AND (CASE
-            WHEN e.iteration IS NOT NULL AND e.iteration != ''
-            THEN e.iteration || ' ' || e.name
-            ELSE e.name
-          END) IN (${sql.join(
-            input.exercises.map((ex) => sql`${ex}`),
-            sql`, `,
-          )})
-        GROUP BY date, exercise
-        ORDER BY date
-      `);
-
-      return rows.map((r) => ({
-        date: r.date,
-        exercise: r.exercise,
-        bestOneRM: Number(r.best_one_rm),
-      }));
+      return getCachedStrengthProgression(input.exercises);
     }),
 
   /** Top exercises with meaningful 1RM data for exercise selector */
@@ -353,45 +432,13 @@ export const weightliftingRouter = createTRPCRouter({
       }),
     )
     .query(async ({ input }) => {
-      const rows = await db.execute<{
-        display_name: string;
-        name: string;
-        category: string;
-        set_count: number;
-        best_one_rm: number;
-      }>(sql`
-        SELECT
-          CASE
-            WHEN e.iteration IS NOT NULL AND e.iteration != ''
-            THEN e.iteration || ' ' || e.name
-            ELSE e.name
-          END AS display_name,
-          e.name,
-          e.category,
-          COUNT(s.id) AS set_count,
-          MAX(s.one_rm) AS best_one_rm
-        FROM wl_sets s
-        INNER JOIN wl_exercises e ON s.exercise_id = e.id
-        WHERE s.one_rm IS NOT NULL
-          AND s.one_rm > 0
-          AND e.style = 'reps_weight'
-        GROUP BY display_name, e.name, e.category
-        HAVING COUNT(s.id) >= ${input.minSets}
-        ORDER BY best_one_rm DESC
-      `);
-
-      return rows.map((r) => ({
-        displayName: r.display_name,
-        name: r.name,
-        category: r.category,
-        setCount: Number(r.set_count),
-        bestOneRM: Number(r.best_one_rm),
-      }));
+      return getCachedTopExercises(input.minSets);
     }),
 
   /** Manual sync trigger */
   triggerSync: protectedProcedure.mutation(async () => {
     const result = await syncWeightlifting("manual");
+    revalidateTag(WEIGHTLIFTING_TAG, "max");
     revalidateTag(WEIGHTLIFTING_ACTIVITY_TAG, "max");
     return result;
   }),

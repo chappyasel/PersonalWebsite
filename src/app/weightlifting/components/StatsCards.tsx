@@ -10,7 +10,7 @@ import type { Icon } from "@phosphor-icons/react";
 
 import { Skeleton } from "~/components/ui/skeleton";
 import { api } from "~/trpc/react";
-import { formatVolume } from "../lib/utils";
+import { formatVolume, QUERY_STALE_TIME } from "../lib/utils";
 import { QueryErrorFallback } from "./QueryErrorFallback";
 
 export function StatsCards() {
@@ -19,7 +19,9 @@ export function StatsCards() {
     isLoading,
     isError,
     refetch,
-  } = api.weightlifting.getStats.useQuery();
+  } = api.weightlifting.getStats.useQuery(undefined, {
+    staleTime: QUERY_STALE_TIME,
+  });
 
   if (isLoading) {
     return (

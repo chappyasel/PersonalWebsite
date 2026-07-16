@@ -2,7 +2,7 @@
 
 import { Skeleton } from "~/components/ui/skeleton";
 import { api } from "~/trpc/react";
-import { categoryColor } from "../lib/utils";
+import { categoryColor, QUERY_STALE_TIME } from "../lib/utils";
 import { QueryErrorFallback } from "./QueryErrorFallback";
 
 interface PersonalRecordsProps {
@@ -15,7 +15,9 @@ export function PersonalRecords({ selectedExercises }: PersonalRecordsProps) {
     isLoading,
     isError,
     refetch,
-  } = api.weightlifting.getPersonalRecords.useQuery();
+  } = api.weightlifting.getPersonalRecords.useQuery(undefined, {
+    staleTime: QUERY_STALE_TIME,
+  });
 
   if (isLoading) {
     return (

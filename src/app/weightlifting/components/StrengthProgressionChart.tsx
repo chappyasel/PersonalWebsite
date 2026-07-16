@@ -2,6 +2,7 @@
 
 import { CaretDownIcon, PlusIcon, XIcon } from "@phosphor-icons/react/dist/ssr";
 import { AnimatePresence, motion } from "framer-motion";
+import { useQueryStates } from "nuqs";
 import { useMemo, useRef, useState } from "react";
 import {
   Bar,
@@ -23,24 +24,9 @@ import {
 } from "~/components/ui/chart";
 import { api } from "~/trpc/react";
 import { useMediaQuery } from "../hooks/useMediaQuery";
-import { categoryColor } from "../lib/utils";
+import { type ChartMode, wlSearchParams } from "../lib/searchParams";
+import { categoryColor, QUERY_STALE_TIME } from "../lib/utils";
 import { QueryErrorFallback } from "./QueryErrorFallback";
-
-export const DEFAULT_EXERCISES = [
-  "Flat Barbell Bench Press",
-  "Incline Barbell Bench Press",
-  "Close-grip Bench Press",
-  "70 Degree Incline Press",
-  "Barbell Overhead Press",
-  "Back Squats",
-  "Sumo Deadlifts",
-  "Conventional Deadlifts",
-  "Normal Lat Pulldowns",
-  "Incline bench Bent Rows",
-  "Barbell Conventional Curls",
-  "Barbell Preacher Curls",
-  "One-arm Overhead Extensions",
-];
 
 const TIME_RANGES = [
   { label: "All", months: 0 },
@@ -49,8 +35,6 @@ const TIME_RANGES = [
   { label: "1Y", months: 12 },
   { label: "6M", months: 6 },
 ] as const;
-
-type ChartMode = "all" | "pr" | "aggregate";
 
 const CHART_MODES = [
   { label: "All", value: "all" as ChartMode },
@@ -288,12 +272,14 @@ export function StrengthProgressionChart({
   selectedExercises,
   setSelectedExercises,
 }: StrengthProgressionChartProps) {
-  const [timeRange, setTimeRange] = useState(0); // months, 0 = all
+  // mode: null = device auto; range: months, 0 = all
+  const [{ mode: urlMode, range: timeRange }, setChartParams] = useQueryStates(
+    { mode: wlSearchParams.mode, range: wlSearchParams.range },
+  );
   // undefined on the server / first client render → desktop defaults,
   // then reactive to viewport changes
   const isMobile = useMediaQuery("(max-width: 767px)");
-  const [modeOverride, setModeOverride] = useState<ChartMode | null>(null);
-  const chartMode = modeOverride ?? (isMobile ? "pr" : "aggregate");
+  const chartMode = urlMode ?? (isMobile ? "pr" : "aggregate");
   const [pillsOverride, setPillsOverride] = useState<boolean | null>(null);
   const pillsExpanded = pillsOverride ?? !(isMobile ?? false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -305,7 +291,10 @@ export function StrengthProgressionChart({
     isLoading: loadingExercises,
     isError: errorExercises,
     refetch: refetchExercises,
-  } = api.weightlifting.getTopExercises.useQuery({ minSets: 10 });
+  } = api.weightlifting.getTopExercises.useQuery(
+    { minSets: 10 },
+    { staleTime: QUERY_STALE_TIME },
+  );
 
   const {
     data: progressionData,
@@ -314,7 +303,10 @@ export function StrengthProgressionChart({
     refetch: refetchProgression,
   } = api.weightlifting.getStrengthProgression.useQuery(
     { exercises: selectedExercises },
-    { enabled: selectedExercises.length > 0 },
+    {
+      enabled: selectedExercises.length > 0 && selectedExercises.length <= 20,
+      staleTime: QUERY_STALE_TIME,
+    },
   );
 
   // Build chart data based on mode
@@ -716,7 +708,7 @@ export function StrengthProgressionChart({
           {TIME_RANGES.map((range) => (
             <button
               key={range.label}
-              onClick={() => setTimeRange(range.months)}
+              onClick={() => void setChartParams({ range: range.months })}
               className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                 timeRange === range.months
                   ? "bg-neutral-800 text-white dark:bg-neutral-200 dark:text-neutral-900"
@@ -733,7 +725,7 @@ export function StrengthProgressionChart({
           {CHART_MODES.map((mode) => (
             <button
               key={mode.value}
-              onClick={() => setModeOverride(mode.value)}
+              onClick={() => void setChartParams({ mode: mode.value })}
               className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                 chartMode === mode.value
                   ? "bg-neutral-800 text-white dark:bg-neutral-200 dark:text-neutral-900"

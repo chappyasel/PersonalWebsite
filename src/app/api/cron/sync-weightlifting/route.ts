@@ -1,5 +1,10 @@
+import { revalidateTag } from "next/cache";
 import { type NextRequest, NextResponse } from "next/server";
 
+import {
+  WEIGHTLIFTING_ACTIVITY_TAG,
+  WEIGHTLIFTING_TAG,
+} from "~/lib/weightlifting/cache";
 import { syncWeightlifting } from "~/lib/weightlifting/sync";
 
 import { env } from "~/env";
@@ -14,6 +19,15 @@ function verifyAuth(request: NextRequest): boolean {
 async function handleSync(source: "cron" | "manual") {
   console.log(`${source} triggered: syncing weightlifting data...`);
   const result = await syncWeightlifting(source);
+
+  // Purge cached queries when data changed so the dashboard and homepage
+  // mosaic refresh immediately. Manual syncs always revalidate: they're a
+  // human asking for fresh state.
+  if (!result.skipped || source === "manual") {
+    console.log("Data changed — revalidating weightlifting caches");
+    revalidateTag(WEIGHTLIFTING_TAG, "max");
+    revalidateTag(WEIGHTLIFTING_ACTIVITY_TAG, "max");
+  }
 
   return NextResponse.json({
     success: true,

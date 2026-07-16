@@ -1,3 +1,6 @@
+/** Keep server-prefetched data fresh past the first window focus */
+export const QUERY_STALE_TIME = 30 * 60 * 1000; // 30 minutes
+
 // ── Category colors from WeightliftingApp ────────────────────────────
 
 export const CATEGORY_COLORS: Record<string, string> = {

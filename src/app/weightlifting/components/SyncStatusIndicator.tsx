@@ -7,10 +7,12 @@ import {
   TooltipTrigger,
 } from "~/components/ui/tooltip";
 import { api } from "~/trpc/react";
-import { formatRelativeTime } from "../lib/utils";
+import { formatRelativeTime, QUERY_STALE_TIME } from "../lib/utils";
 
 export function SyncStatusIndicator() {
-  const { data } = api.weightlifting.getSyncStatus.useQuery();
+  const { data } = api.weightlifting.getSyncStatus.useQuery(undefined, {
+    staleTime: QUERY_STALE_TIME,
+  });
 
   if (!data?.lastSuccess?.syncCompletedAt) return null;
 

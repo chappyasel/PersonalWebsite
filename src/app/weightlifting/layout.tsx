@@ -1,4 +1,6 @@
 import { type Metadata } from "next";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
+
 import { devSubdomainUrl } from "~/lib/util";
 
 export const metadata: Metadata = {
@@ -36,5 +38,9 @@ export default function WeightliftingLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <main className="p-6 md:p-8">{children}</main>;
+  return (
+    <NuqsAdapter>
+      <main className="p-6 md:p-8">{children}</main>
+    </NuqsAdapter>
+  );
 }
