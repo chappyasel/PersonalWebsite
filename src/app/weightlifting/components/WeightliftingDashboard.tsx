@@ -82,7 +82,8 @@ export function WeightliftingDashboard() {
   return (
     <div className="mx-auto max-w-4xl space-y-10 font-sans">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between">
+        <div className="flex flex-col gap-1">
         <Link
           href={
             process.env.NODE_ENV === "production"
@@ -131,16 +132,18 @@ export function WeightliftingDashboard() {
             Chappy&apos;s Weightlifting
           </span>
         </Link>
-        <div className="flex items-center gap-3">
-          <SyncStatusIndicator />
-          <TrainingStatsPopover
-            scope="all"
-            align="end"
-            triggerClassName="flex size-9 items-center justify-center rounded-lg text-neutral-500 transition-colors hover:bg-neutral-200/60 hover:text-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-700/60 dark:hover:text-neutral-200"
-          >
-            <ChartBarIcon className="size-4" weight="bold" />
-          </TrainingStatsPopover>
+          {/* Align with the title text (icon width + gap) */}
+          <div className="pl-9 md:pl-11">
+            <SyncStatusIndicator />
+          </div>
         </div>
+        <TrainingStatsPopover
+          scope="all"
+          align="end"
+          triggerClassName="flex size-9 items-center justify-center rounded-lg text-neutral-500 transition-colors hover:bg-neutral-200/60 hover:text-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-700/60 dark:hover:text-neutral-200"
+        >
+          <ChartBarIcon className="size-4" weight="bold" />
+        </TrainingStatsPopover>
       </div>
 
       {/* Stats */}

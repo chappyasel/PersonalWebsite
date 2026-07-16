@@ -11,6 +11,7 @@ import {
   WEIGHTLIFTING_REVALIDATE,
   WEIGHTLIFTING_TAG,
 } from "~/lib/weightlifting/cache";
+import { getWldLastModified } from "~/lib/weightlifting/s3";
 import { syncWeightlifting } from "~/lib/weightlifting/sync";
 import {
   createTRPCRouter,
@@ -349,6 +350,22 @@ const getCachedTopExercises = unstable_cache(
   { revalidate: WEIGHTLIFTING_REVALIDATE, tags: [WEIGHTLIFTING_TAG] },
 );
 
+// When the phone last uploaded its backup (S3 HeadObject). Cached so page
+// loads don't hit S3; refreshes on sync revalidation or the 6h TTL, so a
+// fresh upload shows here even before the next cron ingests it.
+const getCachedPhoneSyncedAt = unstable_cache(
+  async () => {
+    try {
+      return await getWldLastModified();
+    } catch (error) {
+      console.error("Failed to read wld LastModified:", error);
+      return null; // an S3 hiccup shouldn't break the status endpoint
+    }
+  },
+  ["wl-file-last-modified"],
+  { revalidate: WEIGHTLIFTING_REVALIDATE, tags: [WEIGHTLIFTING_TAG] },
+);
+
 // One row per workout with volume/set aggregates. Cached as ISO strings
 // (unstable_cache JSON-serializes, so Dates would flap between types);
 // consumers convert with `new Date()` after retrieval.
@@ -512,6 +529,35 @@ export const weightliftingRouter = createTRPCRouter({
             where: eq(wlSyncMetadata.status, "success"),
             orderBy: desc(wlSyncMetadata.syncStartedAt),
           });
-    return { latest: latest ?? null, lastSuccess: lastSuccess ?? null };
+    // When the current data actually arrived: the phone uploads ~weekly, so
+    // most cron syncs are hash-skip no-ops. The first successful sync with
+    // the current file hash is the moment new data landed.
+    const dataReceived = lastSuccess?.fileHash
+      ? await db.query.wlSyncMetadata.findFirst({
+          where: and(
+            eq(wlSyncMetadata.status, "success"),
+            eq(wlSyncMetadata.fileHash, lastSuccess.fileHash),
+          ),
+          orderBy: asc(wlSyncMetadata.syncStartedAt),
+        })
+      : null;
+    // Data freshness as the user experiences it: the newest workout in the
+    // data (the file can arrive days after the last workout it contains).
+    // ISO-formatted in SQL so new Date() parses it in every browser.
+    const [latestWorkout] = await db
+      .select({
+        latest: sql<
+          string | null
+        >`TO_CHAR(MAX(${wlWorkouts.date}) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`,
+      })
+      .from(wlWorkouts);
+    return {
+      latest: latest ?? null,
+      lastSuccess: lastSuccess ?? null,
+      dataReceivedAt:
+        dataReceived?.syncCompletedAt ?? lastSuccess?.syncCompletedAt ?? null,
+      latestWorkoutAt: latestWorkout?.latest ?? null,
+      phoneSyncedAt: await getCachedPhoneSyncedAt(),
+    };
   }),
 });

@@ -1,8 +1,29 @@
-import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  GetObjectCommand,
+  HeadObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 
 import { env } from "~/env";
 
 import type { WldFile } from "./types";
+
+/**
+ * When the phone last uploaded its backup — the S3 object's LastModified.
+ * Returned as an ISO string so it survives JSON-serializing caches.
+ */
+export async function getWldLastModified(): Promise<string | null> {
+  const s3 = new S3Client({ region: env.AWS_REGION });
+
+  const response = await s3.send(
+    new HeadObjectCommand({
+      Bucket: env.AWS_BUCKET_NAME,
+      Key: env.AWS_KEY_NAME,
+    }),
+  );
+
+  return response.LastModified?.toISOString() ?? null;
+}
 
 /**
  * Download the .wld backup file from S3 using IAM credentials from env vars

@@ -4,12 +4,15 @@ export default function WeightliftingLoading() {
   return (
     <div className="mx-auto max-w-4xl space-y-10 font-sans">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-7 w-7 rounded-lg md:h-9 md:w-9" />
-          <Skeleton className="h-7 w-64 md:h-9" />
+      <div className="flex items-start justify-between">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-7 w-7 rounded-lg md:h-9 md:w-9" />
+            <Skeleton className="h-7 w-64 md:h-9" />
+          </div>
+          <Skeleton className="ml-9 h-4 w-24 md:ml-11" />
         </div>
-        <Skeleton className="h-4 w-24" />
+        <Skeleton className="size-9 rounded-lg" />
       </div>
 
       {/* Stats cards */}

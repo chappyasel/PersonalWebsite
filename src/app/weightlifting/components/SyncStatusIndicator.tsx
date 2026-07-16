@@ -14,9 +14,12 @@ export function SyncStatusIndicator() {
     staleTime: QUERY_STALE_TIME,
   });
 
-  if (!data?.lastSuccess?.syncCompletedAt) return null;
+  // Prefer the phone's upload time (the actual sync); fall back to when
+  // the server ingested the data if S3 metadata is unavailable
+  const syncedAt = data?.phoneSyncedAt ?? data?.dataReceivedAt;
+  if (!data || !syncedAt) return null;
 
-  const { latest, lastSuccess } = data;
+  const { latest, lastSuccess, dataReceivedAt, latestWorkoutAt } = data;
   const failed = latest?.status === "failed";
 
   return (
@@ -27,25 +30,37 @@ export function SyncStatusIndicator() {
             {failed && (
               <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
             )}
-            Synced {formatRelativeTime(lastSuccess.syncCompletedAt!)}
+            Synced {formatRelativeTime(syncedAt)}
           </span>
         </TooltipTrigger>
-        <TooltipContent side="bottom" align="end" className="font-sans">
+        <TooltipContent side="bottom" align="start" className="font-sans">
           <div className="space-y-0.5">
             <p>
-              {new Date(lastSuccess.syncCompletedAt!).toLocaleString("en-US", {
+              Phone synced{" "}
+              {new Date(syncedAt).toLocaleString("en-US", {
                 month: "short",
                 day: "numeric",
                 year: "numeric",
                 hour: "numeric",
                 minute: "2-digit",
-              })}{" "}
-              · {lastSuccess.triggeredBy}
+              })}
             </p>
-            <p className="text-muted-foreground">
-              {lastSuccess.totalWorkouts?.toLocaleString()} workouts ·{" "}
-              {lastSuccess.totalSets?.toLocaleString()} sets
-            </p>
+            {latestWorkoutAt && (
+              <p className="text-muted-foreground">
+                Last workout{" "}
+                {new Date(latestWorkoutAt).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </p>
+            )}
+            {dataReceivedAt && (
+              <p className="text-muted-foreground">
+                Ingested {formatRelativeTime(dataReceivedAt)} ·{" "}
+                {lastSuccess?.triggeredBy}
+              </p>
+            )}
             {failed && (
               <p className="text-amber-600 dark:text-amber-500">
                 Last sync attempt failed
