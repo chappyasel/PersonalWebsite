@@ -3,7 +3,7 @@
  * Cannot use tRPC in edge runtime, so we use direct database queries
  */
 
-import { eq } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { db } from "~/server/db";
 import { books } from "~/server/db/schema";
 import type { BaseBook } from "./types";
@@ -90,6 +90,24 @@ export async function getBookWithNotes(
     notionUrl: book.notionUrl,
     notes: book.notes ?? "",
   };
+}
+
+/**
+ * Return the number of books represented on the main bookshelf.
+ * This mirrors the inclusion rules used by the books.getAll query.
+ */
+export async function getBookshelfBookCount(): Promise<number> {
+  const [result] = await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(books)
+    .where(
+      or(
+        isNotNull(books.finished),
+        and(isNotNull(books.started), isNull(books.finished)),
+      ),
+    );
+
+  return Number(result?.count ?? 0);
 }
 
 /**

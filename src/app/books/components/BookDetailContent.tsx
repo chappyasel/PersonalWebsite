@@ -3,9 +3,11 @@
 
 import { PlayIcon } from "@phosphor-icons/react";
 import {
+  ArrowLeftIcon,
   ArrowSquareOutIcon,
   ArrowsClockwiseIcon,
   ArrowsOutSimpleIcon,
+  BooksIcon,
   CalendarIcon,
   HeadphonesIcon,
   LinkIcon,
@@ -180,6 +182,7 @@ type BookDetailContentProps = {
   onShare: () => void;
   copied: boolean;
   bookId: string;
+  bookshelfBookCount?: number;
   isModal?: boolean;
   onClose?: () => void;
 };
@@ -192,6 +195,7 @@ export function BookDetailContent({
   onShare,
   copied,
   bookId,
+  bookshelfBookCount,
   isModal = false,
   onClose,
 }: BookDetailContentProps) {
@@ -274,7 +278,19 @@ export function BookDetailContent({
   const headerPadding = useTransform(
     smoothProgress,
     [0, 1],
-    isLargeScreen ? ["40px", "16px"] : ["24px", "16px"],
+    isLargeScreen
+      ? ["40px", isModal ? "16px" : "12px"]
+      : ["24px", isModal ? "16px" : "12px"],
+  );
+  const headerBottomPadding = useTransform(
+    smoothProgress,
+    [0, 1],
+    isModal ? ["16px", "16px"] : ["16px", "10px"],
+  );
+  const breadcrumbMarginBottom = useTransform(
+    smoothProgress,
+    [0, 1],
+    ["20px", "10px"],
   );
 
   // Text sizing
@@ -367,7 +383,7 @@ export function BookDetailContent({
         )}
         style={{
           paddingTop: headerPadding,
-          paddingBottom: "16px",
+          paddingBottom: headerBottomPadding,
           borderBottomWidth: "1px",
           borderBottomStyle: "solid",
           borderBottomColor: borderOpacity,
@@ -375,9 +391,42 @@ export function BookDetailContent({
       >
         {/* Container for content with max-w-3xl */}
         <div className="relative mx-auto w-full max-w-3xl">
-          {/* Action buttons - expand (modal only) and close */}
-          <div className="absolute right-6 top-0.5 z-10 flex items-center gap-2 xs:right-14 sm:top-2 lg:top-[10px]">
-            {isModal && (
+          {/* Standalone-page breadcrumb */}
+          {!isModal && (
+            <motion.nav
+              aria-label="Breadcrumb"
+              className="px-6 text-sm text-muted-foreground xs:px-14"
+              style={{ marginBottom: breadcrumbMarginBottom }}
+            >
+              <ol className="flex min-w-0 items-center gap-2">
+                <li className="shrink-0">
+                  <Link
+                    href={getBooksPath()}
+                    className="inline-flex items-center gap-1.5 font-medium transition-colors hover:text-foreground"
+                  >
+                    <ArrowLeftIcon size={16} weight="bold" />
+                    <span>Chappy&apos;s Book Notes</span>
+                  </Link>
+                </li>
+                <li aria-hidden="true" className="text-border">
+                  /
+                </li>
+                <li className="shrink-0 tabular-nums">
+                  <Link
+                    href={getBooksPath()}
+                    className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground"
+                  >
+                    <BooksIcon size={16} weight="duotone" />
+                    {bookshelfBookCount?.toLocaleString() ?? "All"} books
+                  </Link>
+                </li>
+              </ol>
+            </motion.nav>
+          )}
+
+          {/* Modal-only action buttons */}
+          {isModal && (
+            <div className="absolute right-6 top-0.5 z-10 flex items-center gap-2 xs:right-14 sm:top-2 lg:top-[10px]">
               <TooltipProvider>
                 <Tooltip delayDuration={200}>
                   <TooltipTrigger asChild>
@@ -399,34 +448,26 @@ export function BookDetailContent({
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-            )}
-            <TooltipProvider>
-              <Tooltip delayDuration={200}>
-                <TooltipTrigger asChild>
-                  {isModal && onClose ? (
-                    <button
-                      onClick={onClose}
-                      className="flex size-10 items-center justify-center rounded-full bg-muted shadow-sm backdrop-blur-sm transition-all duration-200 ease-in-out hover:bg-primary/20"
-                      aria-label="Close"
-                    >
-                      <XIcon size={20} weight="bold" className="text-primary" />
-                    </button>
-                  ) : (
-                    <Link
-                      href={getBooksPath()}
-                      className="flex size-10 items-center justify-center rounded-full bg-muted shadow-sm backdrop-blur-sm transition-all duration-200 ease-in-out hover:bg-primary/20"
-                      aria-label="Return to all book notes"
-                    >
-                      <XIcon size={20} weight="bold" className="text-primary" />
-                    </Link>
-                  )}
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{isModal ? "Close" : "Return to all book notes"}</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
+              {onClose && (
+                <TooltipProvider>
+                  <Tooltip delayDuration={200}>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={onClose}
+                        className="flex size-10 items-center justify-center rounded-full bg-muted shadow-sm backdrop-blur-sm transition-all duration-200 ease-in-out hover:bg-primary/20"
+                        aria-label="Close"
+                      >
+                        <XIcon size={20} weight="bold" className="text-primary" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Close</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+          )}
 
           {/* Main Row: Cover + Title/Author (Compact) */}
           <motion.div

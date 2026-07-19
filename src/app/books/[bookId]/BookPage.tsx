@@ -11,9 +11,14 @@ import type { BaseBook } from "~/lib/books/types";
 type BookPageProps = {
   bookId: string;
   book: BaseBook & { notes: string };
+  bookshelfBookCount: number;
 };
 
-export function BookPage({ bookId, book }: BookPageProps) {
+export function BookPage({
+  bookId,
+  book,
+  bookshelfBookCount,
+}: BookPageProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
   const router = useRouter();
@@ -60,6 +65,7 @@ export function BookPage({ bookId, book }: BookPageProps) {
             onShare={handleShare}
             copied={copied}
             bookId={bookId}
+            bookshelfBookCount={bookshelfBookCount}
           />
         </div>
       </motion.div>

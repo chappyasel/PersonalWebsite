@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 
 import {
   getBookForOG,
+  getBookshelfBookCount,
   getBookWithNotes,
   getSlugByNotionId,
 } from "~/lib/books/ogDataAccess";
@@ -86,12 +87,21 @@ export default async function Page({ params }: PageProps) {
     // If not found by notionId, continue to fetch and show BookPage
   }
 
-  // Fetch book data server-side
-  const book = await getBookWithNotes(bookId);
+  // Fetch the book and bookshelf size together for the standalone breadcrumb.
+  const [book, bookshelfBookCount] = await Promise.all([
+    getBookWithNotes(bookId),
+    getBookshelfBookCount(),
+  ]);
 
   if (!book) {
     notFound();
   }
 
-  return <BookPage bookId={bookId} book={book} />;
+  return (
+    <BookPage
+      bookId={bookId}
+      book={book}
+      bookshelfBookCount={bookshelfBookCount}
+    />
+  );
 }
