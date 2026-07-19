@@ -75,9 +75,11 @@ async function main() {
     process.exit(3);
   }
 
-  // Pick fresh files (createdTime ≥ requested_at − 1h). Each export delivers
-  // multiple zips — the YouTube history one matches "-3-" in the name pattern
-  // (e.g. takeout-20260519T144721Z-3-001.zip). Prefer those; fall back to any.
+  // Pick fresh files (createdTime ≥ requested_at − 1h). Google has changed the
+  // service archive number over time (-3- in June 2026, -2- in July 2026), so
+  // do not depend on the filename to identify the YouTube zip. Download fresh
+  // candidates newest-first and keep the one that actually contains
+  // watch-history.json.
   const marginMs = 60 * 60_000;
   const cutoff = new Date(requestedAt.getTime() - marginMs);
   const fresh = files.filter((f) => f.createdTime && new Date(f.createdTime) >= cutoff);
@@ -88,44 +90,49 @@ async function main() {
     process.exit(3);
   }
 
-  // Prefer the "-3-" variant (YouTube data); fall back to any fresh zip.
-  const ytZips = fresh.filter((f) => /-3-\d+\.zip$/i.test(f.name ?? ""));
-  const pick = ytZips[0] ?? fresh[0]!;
-  console.log(
-    `Found: ${pick.name} (${pick.size} bytes, created ${pick.createdTime}, id=${pick.id})`,
-  );
+  let zipPath: string | null = null;
+  let extractDir: string | null = null;
 
-  // Download
-  const zipPath = path.join(DOWNLOAD_DIR, pick.name ?? `takeout-${Date.now()}.zip`);
-  const stream = await drive.files.get(
-    { fileId: pick.id!, alt: "media" },
-    { responseType: "stream" },
-  );
-  await new Promise<void>((resolve, reject) => {
-    const out = fs.createWriteStream(zipPath);
-    stream.data.on("error", reject);
-    out.on("error", reject);
-    out.on("close", resolve);
-    stream.data.pipe(out);
-  });
-  console.log(`Downloaded → ${zipPath} (${fs.statSync(zipPath).size} bytes)`);
+  for (const candidate of fresh) {
+    console.log(
+      `Checking: ${candidate.name} (${candidate.size} bytes, created ${candidate.createdTime}, id=${candidate.id})`,
+    );
 
-  // Extract watch-history.json from any path inside the zip.
-  const extractDir = path.join(DOWNLOAD_DIR, `extract-${Date.now()}`);
-  fs.mkdirSync(extractDir, { recursive: true });
-  try {
-    execSync(`unzip -j -o "${zipPath}" "*/watch-history.json" -d "${extractDir}"`, {
-      stdio: "inherit",
+    const candidateZipPath = path.join(
+      DOWNLOAD_DIR,
+      candidate.name ?? `takeout-${Date.now()}.zip`,
+    );
+    const stream = await drive.files.get(
+      { fileId: candidate.id!, alt: "media" },
+      { responseType: "stream" },
+    );
+    await new Promise<void>((resolve, reject) => {
+      const out = fs.createWriteStream(candidateZipPath);
+      stream.data.on("error", reject);
+      out.on("error", reject);
+      out.on("close", resolve);
+      stream.data.pipe(out);
     });
-  } catch (err) {
-    console.error("unzip failed:", err instanceof Error ? err.message : String(err));
-    console.error("Zip contents:");
+    console.log(`Downloaded → ${candidateZipPath} (${fs.statSync(candidateZipPath).size} bytes)`);
+
+    const candidateExtractDir = path.join(DOWNLOAD_DIR, `extract-${Date.now()}`);
+    fs.mkdirSync(candidateExtractDir, { recursive: true });
     try {
-      execSync(`unzip -l "${zipPath}" | head -50`, { stdio: "inherit" });
+      execSync(`unzip -j -o "${candidateZipPath}" "*/watch-history.json" -d "${candidateExtractDir}"`, {
+        stdio: "inherit",
+      });
+      zipPath = candidateZipPath;
+      extractDir = candidateExtractDir;
+      break;
     } catch {
-      /* ignore */
+      fs.rmSync(candidateExtractDir, { recursive: true, force: true });
+      console.log("No watch-history.json in this zip; trying next fresh Takeout zip.");
     }
-    process.exit(2);
+  }
+
+  if (!zipPath || !extractDir) {
+    console.error("No fresh Takeout zip contained watch-history.json.");
+    process.exit(3);
   }
 
   const extracted = path.join(extractDir, "watch-history.json");

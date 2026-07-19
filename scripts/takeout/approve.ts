@@ -70,8 +70,10 @@ function notifyMac(title: string, message: string) {
   }
 }
 
-/** Definitive success signal: a fresh YouTube ("-3-") Takeout zip in Drive,
- *  created at/after this run started (minus a small margin). */
+/** Definitive success signal: a fresh Takeout zip in Drive, created at/after
+ *  this run started (minus a small margin). The export form selects only
+ *  YouTube, but Google's archive number is not stable: June 2026 produced
+ *  "-3-" zips and July 2026 produced "-2-" zips. */
 async function freshYouTubeZipInDrive(sinceMs: number): Promise<boolean> {
   try {
     const drive = getDrive();
@@ -84,7 +86,7 @@ async function freshYouTubeZipInDrive(sinceMs: number): Promise<boolean> {
     const cutoff = new Date(sinceMs - 5 * 60_000);
     return (resp.data.files ?? []).some(
       (f) =>
-        /-3-\d+\.zip$/i.test(f.name ?? "") &&
+        /takeout-\d{8}T\d{6}Z(?:-\d+)?-\d+\.zip$/i.test(f.name ?? "") &&
         !!f.createdTime &&
         new Date(f.createdTime) >= cutoff,
     );
