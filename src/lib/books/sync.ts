@@ -5,13 +5,8 @@ import { db } from "~/server/db";
 import { bookTags, books, syncMetadata } from "~/server/db/schema";
 
 import { fetchBookCover } from "./coverFetcher";
+import { isCoverImageUrl, shouldRepairCover } from "./coverValidation";
 import {
-  isCoverImageUrl,
-  shouldFetchBookContent,
-  shouldRepairCover,
-} from "./coverValidation";
-import {
-  audibleUrlFromAsin,
   estimatePagesFromAudio,
   fetchAudibleLength,
   fetchPageCount,
@@ -20,6 +15,11 @@ import {
 import { fetchBookDetails, fetchBooksFromNotion } from "./notion";
 import { fetchWithBackoff } from "./rateLimiter";
 import { generateAllBookIds } from "./slugify";
+import {
+  mergeAudibleMetadata,
+  shouldFetchBookContent,
+  shouldLookupAudibleMetadata,
+} from "./syncPlanning";
 import type { BaseBook } from "./types";
 import { env } from "~/env";
 
@@ -235,10 +235,8 @@ function categorizeBooks(
       newBooks.push(bookWithTime);
     } else {
       const notionEditedTime = new Date(lastEditedTime);
-      if (
-        shouldFetchBookContent(notionEditedTime, dbLastEdited, book.coverUrl)
-      ) {
-        // Book was edited or has a non-image cover that needs repair.
+      if (shouldFetchBookContent(notionEditedTime, dbLastEdited, book)) {
+        // Book was edited or has incomplete metadata that needs repair.
         updatedBooks.push(bookWithTime);
       } else {
         // Book is unchanged
@@ -363,17 +361,20 @@ async function upsertBooksToDatabase(
       audibleUrl?: string;
     } = {};
 
-    if (book.audioLengthMin == null) {
+    if (shouldLookupAudibleMetadata(book.audioLengthMin, book.audibleUrl)) {
       try {
         const audible = await fetchAudibleLength(book.title, book.author);
         if (audible) {
           console.log(
             `  🎧 Audible match for "${book.title}": ${audible.matchedTitle} (${audible.runtimeMin} min)`,
           );
-          book.audioLengthMin = audible.runtimeMin;
-          book.audibleUrl = audibleUrlFromAsin(audible.asin);
-          fetchedLengths.audioLengthMin = audible.runtimeMin;
-          fetchedLengths.audibleUrl = book.audibleUrl;
+          const metadata = mergeAudibleMetadata(book.audioLengthMin, audible);
+          book.audioLengthMin = metadata.audioLengthMin;
+          book.audibleUrl = metadata.audibleUrl;
+          if (metadata.fetchedAudioLengthMin !== undefined) {
+            fetchedLengths.audioLengthMin = metadata.fetchedAudioLengthMin;
+          }
+          fetchedLengths.audibleUrl = metadata.audibleUrl;
         }
       } catch (error) {
         console.error(

@@ -39,18 +39,6 @@ export function shouldRepairCover(coverUrl: string | null): boolean {
 }
 
 /**
- * Decide whether a known book must re-enter the full-content/upsert path.
- * Invalid covers count as updates even when Notion's edit timestamp is equal.
- */
-export function shouldFetchBookContent(
-  notionEditedAt: Date,
-  dbEditedAt: Date,
-  coverUrl: string | null,
-): boolean {
-  return notionEditedAt > dbEditedAt || shouldRepairCover(coverUrl);
-}
-
-/**
  * Verify that a remote cover URL resolves to an image without downloading the
  * full file. Some image hosts reject HEAD, so retry with a one-byte ranged GET.
  */

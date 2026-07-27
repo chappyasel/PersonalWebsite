@@ -1,10 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  isCoverImageUrl,
-  shouldFetchBookContent,
-  shouldRepairCover,
-} from "./coverValidation";
+import { isCoverImageUrl, shouldRepairCover } from "./coverValidation";
 
 describe("book cover validation", () => {
   it("marks an Amazon product page for repair", () => {
@@ -13,25 +9,6 @@ describe("book cover validation", () => {
         "https://www.amazon.com/Right-Many-Ideas-Yours-Succeed/dp/0062958232",
       ),
     ).toBe(true);
-  });
-
-  it("reprocesses an unchanged book when its cover is a product page", () => {
-    const editedAt = new Date("2026-07-26T23:43:00.000Z");
-
-    expect(
-      shouldFetchBookContent(
-        editedAt,
-        editedAt,
-        "https://www.amazon.com/Right-Many-Ideas-Yours-Succeed/dp/0062958232",
-      ),
-    ).toBe(true);
-    expect(
-      shouldFetchBookContent(
-        editedAt,
-        editedAt,
-        "https://m.media-amazon.com/images/I/71Sal58LoYL.jpg",
-      ),
-    ).toBe(false);
   });
 
   it("keeps supported direct-image URLs out of the repair path", () => {
