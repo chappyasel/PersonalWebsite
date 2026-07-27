@@ -1,6 +1,8 @@
 /**
- * Book cover fetcher using Google Books API and Open Library API
+ * Book cover fetcher using Amazon print editions, Google Books, and Open
+ * Library. Callers only invoke this for new books whose Notion cover is blank.
  */
+import { fetchAmazonPrintCover } from "./amazonCoverFetcher";
 
 type GoogleBooksResponse = {
   items?: Array<{
@@ -112,7 +114,14 @@ export async function fetchBookCover(
 ): Promise<string | null> {
   console.log(`Searching for cover: "${title}" by ${author}`);
 
-  // Try Google Books first
+  // Prefer a validated, high-resolution Amazon print-book cover.
+  const amazonCover = await fetchAmazonPrintCover(title, author);
+  if (amazonCover) {
+    console.log(`✓ Found print cover on Amazon`);
+    return amazonCover;
+  }
+
+  // Fall back to Google Books.
   const googleCover = await fetchFromGoogleBooks(title, author);
   if (googleCover) {
     console.log(`✓ Found cover on Google Books`);

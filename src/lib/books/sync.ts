@@ -1,11 +1,15 @@
 import { Client } from "@notionhq/client";
 import { eq } from "drizzle-orm";
 
-import { env } from "~/env";
 import { db } from "~/server/db";
 import { bookTags, books, syncMetadata } from "~/server/db/schema";
 
 import { fetchBookCover } from "./coverFetcher";
+import {
+  isCoverImageUrl,
+  shouldFetchBookContent,
+  shouldRepairCover,
+} from "./coverValidation";
 import {
   audibleUrlFromAsin,
   estimatePagesFromAudio,
@@ -13,13 +17,11 @@ import {
   fetchPageCount,
   minutesToHourDotMinutes,
 } from "./lengthFetcher";
-import { generateAllBookIds } from "./slugify";
-import {
-  fetchBookDetails,
-  fetchBooksFromNotion,
-} from "./notion";
+import { fetchBookDetails, fetchBooksFromNotion } from "./notion";
 import { fetchWithBackoff } from "./rateLimiter";
+import { generateAllBookIds } from "./slugify";
 import type { BaseBook } from "./types";
+import { env } from "~/env";
 
 export type SyncResult = {
   totalBooksInNotion: number;
@@ -233,8 +235,10 @@ function categorizeBooks(
       newBooks.push(bookWithTime);
     } else {
       const notionEditedTime = new Date(lastEditedTime);
-      if (notionEditedTime > dbLastEdited) {
-        // Book has been edited since last sync
+      if (
+        shouldFetchBookContent(notionEditedTime, dbLastEdited, book.coverUrl)
+      ) {
+        // Book was edited or has a non-image cover that needs repair.
         updatedBooks.push(bookWithTime);
       } else {
         // Book is unchanged
@@ -327,21 +331,23 @@ async function upsertBooksToDatabase(
 
     const book = result.book;
 
-    // Check if this is a truly new book (not previously in DB)
-    const existing = await db.query.books.findFirst({
-      where: eq(books.notionId, book.notionId),
-      columns: { id: true },
-    });
-
-    // For NEW books without covers, try to fetch one
-    if (!existing && !book.coverUrl) {
-      console.log(`  📚 Fetching cover for new book: ${book.title}`);
+    // Validate covers from Notion before sending them to an <img>. This also
+    // repairs existing books whose Cover property contains a product page.
+    const originalCoverUrl = book.coverUrl;
+    const hasValidCover = originalCoverUrl
+      ? await isCoverImageUrl(originalCoverUrl)
+      : false;
+    if (!hasValidCover) {
+      console.log(`  📚 Fetching cover for book: ${book.title}`);
       try {
         const fetchedCover = await fetchBookCover(book.title, book.author);
         if (fetchedCover) {
           book.coverUrl = fetchedCover;
-          // Update Notion with the cover
           await updateNotionCover(book.notionId, fetchedCover);
+        } else if (shouldRepairCover(originalCoverUrl)) {
+          // Prefer the UI's title placeholder over a permanently broken image.
+          book.coverUrl = null;
+          await updateNotionCover(book.notionId, null);
         }
       } catch (error) {
         console.error(`  ✗ Failed to fetch cover for ${book.title}:`, error);
@@ -693,9 +699,7 @@ async function updateNotionLengths(
       page_id: pageId,
       properties,
     });
-    console.log(
-      `  ✓ Updated Notion lengths for page ${pageId.slice(0, 8)}...`,
-    );
+    console.log(`  ✓ Updated Notion lengths for page ${pageId.slice(0, 8)}...`);
   } catch (error) {
     console.error(`  ✗ Failed to update Notion lengths for ${pageId}:`, error);
   }
@@ -706,7 +710,7 @@ async function updateNotionLengths(
  */
 async function updateNotionCover(
   pageId: string,
-  coverUrl: string,
+  coverUrl: string | null,
 ): Promise<void> {
   const notion = new Client({ auth: env.NOTION_API_KEY });
   try {
@@ -719,7 +723,9 @@ async function updateNotionCover(
         },
       },
     });
-    console.log(`  ✓ Updated Notion cover for page ${pageId.slice(0, 8)}...`);
+    console.log(
+      `  ✓ ${coverUrl ? "Updated" : "Cleared invalid"} Notion cover for page ${pageId.slice(0, 8)}...`,
+    );
   } catch (error) {
     console.error(`  ✗ Failed to update Notion cover for ${pageId}:`, error);
   }
