@@ -1,6 +1,36 @@
 /**
  * Format raw minutes as "12h 32m", omitting hours when 0 ("45m")
  */
+const BOOK_DATE_TIME_ZONE = "America/Los_Angeles";
+
+function getBookDateParts(date: Date): {
+  monthLong: string;
+  monthShort: string;
+  day: number;
+  yearShort: string;
+} {
+  return {
+    monthLong: date.toLocaleDateString("en-US", {
+      month: "long",
+      timeZone: BOOK_DATE_TIME_ZONE,
+    }),
+    monthShort: date.toLocaleDateString("en-US", {
+      month: "short",
+      timeZone: BOOK_DATE_TIME_ZONE,
+    }),
+    day: Number(
+      date.toLocaleDateString("en-US", {
+        day: "numeric",
+        timeZone: BOOK_DATE_TIME_ZONE,
+      }),
+    ),
+    yearShort: date.toLocaleDateString("en-US", {
+      year: "2-digit",
+      timeZone: BOOK_DATE_TIME_ZONE,
+    }),
+  };
+}
+
 export function formatRuntime(minutes: number): string {
   const h = Math.floor(minutes / 60);
   const m = Math.round(minutes % 60);
@@ -35,11 +65,8 @@ export function getOrdinalSuffix(n: number): string {
  * Format a single date as "March 18th '25"
  */
 export function formatSingleReadDate(date: string): string {
-  const d = new Date(date);
-  const month = d.toLocaleDateString("en-US", { month: "long" });
-  const day = d.getDate();
-  const year = d.toLocaleDateString("en-US", { year: "2-digit" });
-  return `${month} ${day}${getOrdinalSuffix(day)} '${year}`;
+  const { monthLong, day, yearShort } = getBookDateParts(new Date(date));
+  return `${monthLong} ${day}${getOrdinalSuffix(day)} '${yearShort}`;
 }
 
 /**
@@ -56,21 +83,15 @@ export function formatReadDates(
   const startDate = new Date(started);
   const endDate = new Date(finished);
 
-  const startMonthShort = startDate.toLocaleDateString("en-US", {
-    month: "short",
-  });
-  const endMonthShort = endDate.toLocaleDateString("en-US", { month: "short" });
-  const startDay = startDate.getDate();
-  const endDay = endDate.getDate();
-  const year = endDate.toLocaleDateString("en-US", { year: "2-digit" });
+  const start = getBookDateParts(startDate);
+  const end = getBookDateParts(endDate);
 
-  if (startMonthShort === endMonthShort) {
+  if (start.monthShort === end.monthShort) {
     // Same month: use full month name "March 12th - 18th '25"
-    const fullMonth = startDate.toLocaleDateString("en-US", { month: "long" });
-    return `${fullMonth} ${startDay}${getOrdinalSuffix(startDay)} - ${endDay}${getOrdinalSuffix(endDay)} '${year}`;
+    return `${start.monthLong} ${start.day}${getOrdinalSuffix(start.day)} - ${end.day}${getOrdinalSuffix(end.day)} '${end.yearShort}`;
   } else {
     // Different months: use short names "Mar 12th - Apr 3rd '25"
-    return `${startMonthShort} ${startDay}${getOrdinalSuffix(startDay)} - ${endMonthShort} ${endDay}${getOrdinalSuffix(endDay)} '${year}`;
+    return `${start.monthShort} ${start.day}${getOrdinalSuffix(start.day)} - ${end.monthShort} ${end.day}${getOrdinalSuffix(end.day)} '${end.yearShort}`;
   }
 }
 
