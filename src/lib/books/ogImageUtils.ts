@@ -257,14 +257,16 @@ export function calculateLuminance(r: number, g: number, b: number): number {
 export function getTextColorAndOverlay(luminance: number): {
   textColor: string;
   overlayColor: string;
+  usesDarkText: boolean;
 } {
   // Threshold: 0.5 is medium gray
   const isLight = luminance > 0.5;
 
   return {
-    textColor: isLight ? "hsl(25, 5%, 38%)" : "hsl(24, 6%, 83%)",
+    textColor: isLight ? "rgba(0, 0, 0, 0.9)" : "rgba(255, 255, 255, 0.9)",
     overlayColor: isLight
       ? "rgba(249, 246, 239, 0.4)" // Light overlay for light images from --background
       : "rgba(41, 37, 36, 0.6)", // Darker stone overlay (~stone-900, >50% opacity)
+    usesDarkText: isLight,
   };
 }
