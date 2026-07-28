@@ -14,10 +14,25 @@ import {
   StarIcon,
   XIcon,
 } from "@phosphor-icons/react/dist/ssr";
-import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import {
+  motion,
+  useMotionValue,
+  useReducedMotion,
+  useSpring,
+  useTransform,
+} from "framer-motion";
 import Link from "next/link";
 import { usePostHog } from "posthog-js/react";
-import { type RefObject, useEffect, useRef, useState } from "react";
+import {
+  Children,
+  type ComponentPropsWithoutRef,
+  type RefObject,
+  isValidElement,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import ReactMarkdown, {
   type Components,
   defaultUrlTransform,
@@ -46,6 +61,7 @@ import {
   formatReadDates,
   getOrdinalSuffix,
 } from "../lib/format";
+import { InlineMarkdown } from "./InlineMarkdown";
 import { TagBadge } from "./TagBadge";
 
 /* eslint-disable @next/next/no-img-element */
@@ -155,6 +171,106 @@ function processDetailsBlocks(markdown: string): string {
     // Return formatted with newlines so markdown inside gets processed
     return `\n<details>\n<summary>${summaryText}</summary>\n\n${detailsContent}\n\n</details>\n`;
   });
+}
+
+type MarkdownSummaryProps = ComponentPropsWithoutRef<"summary"> & {
+  node?: unknown;
+};
+
+function BookNoteSummary({
+  children,
+  node: _node,
+  className,
+  ...props
+}: MarkdownSummaryProps) {
+  return (
+    <span
+      {...props}
+      className={cn(
+        "-ml-5 flex cursor-pointer items-start gap-2.5 text-foreground",
+        className,
+      )}
+    >
+      <PlayIcon
+        size={12}
+        weight="fill"
+        className="mt-[0.55em] shrink-0 transition-transform duration-200 group-data-[expanded=true]:rotate-90"
+      />
+      <span className="min-w-0 flex-1">
+        {Children.map(children, (child) =>
+          typeof child === "string" ? (
+            <InlineMarkdown source={child} />
+          ) : (
+            child
+          ),
+        )}
+      </span>
+    </span>
+  );
+}
+
+type AnimatedDetailsProps = ComponentPropsWithoutRef<"details">;
+
+function AnimatedDetails({
+  children,
+  className,
+  open = false,
+  ...props
+}: AnimatedDetailsProps) {
+  const [isOpen, setIsOpen] = useState(open);
+  const contentId = useId();
+  const prefersReducedMotion = useReducedMotion();
+  const childArray = Children.toArray(children);
+  const summary = childArray.find(
+    (child) => isValidElement(child) && child.type === BookNoteSummary,
+  );
+  const divProps = props as unknown as ComponentPropsWithoutRef<"div">;
+
+  if (!summary) {
+    return (
+      <div {...divProps} className={className}>
+        {children}
+      </div>
+    );
+  }
+
+  const content = childArray.filter((child) => child !== summary);
+
+  return (
+    <div
+      {...divProps}
+      className={cn("group my-1.5 pl-[26px]", className)}
+      data-expanded={isOpen}
+    >
+      <button
+        type="button"
+        aria-controls={contentId}
+        aria-expanded={isOpen}
+        className="block w-full appearance-none rounded-sm border-0 bg-transparent p-0 text-left [font:inherit] [line-height:inherit] focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        onClick={() => setIsOpen((current) => !current)}
+      >
+        {summary}
+      </button>
+      <motion.div
+        id={contentId}
+        aria-hidden={!isOpen}
+        inert={!isOpen}
+        initial={false}
+        animate={{
+          height: isOpen ? "auto" : 0,
+          opacity: isOpen ? 1 : 0,
+        }}
+        transition={
+          prefersReducedMotion
+            ? { duration: 0 }
+            : { duration: 0.24, ease: [0.22, 1, 0.36, 1] }
+        }
+        className="overflow-hidden"
+      >
+        {content}
+      </motion.div>
+    </div>
+  );
 }
 
 /**
@@ -987,7 +1103,6 @@ export function BookDetailContent({
                   "prose-headings:mb-0 prose-headings:font-semibold prose-headings:text-foreground prose-h1:translate-y-3 prose-h1:py-3 prose-h1:text-2xl prose-h2:translate-y-[-8px] prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs",
                   "prose-p:translate-y-2 prose-p:text-foreground prose-a:text-foreground prose-a:underline hover:prose-a:text-foreground prose-strong:font-semibold prose-strong:text-foreground",
                   "prose-ol:my-0 prose-ol:list-decimal prose-ul:my-0 prose-ul:list-disc prose-li:my-px prose-li:text-foreground",
-                  "prose-blockquote:border-l-0",
                   "prose-img:max-h-[600px] prose-img:max-w-[400px] prose-img:rounded-lg prose-img:shadow-md",
                 )}
               >
@@ -1022,65 +1137,26 @@ export function BookDetailContent({
                             </PhotoView>
                           );
                         },
-                        details: ({ children, ...props }) => (
-                          <details
+                        details: ({ node: _node, ...props }) => (
+                          <AnimatedDetails {...props} />
+                        ),
+                        blockquote: ({
+                          children,
+                          node: _node,
+                          className,
+                          ...props
+                        }) => (
+                          <blockquote
                             {...props}
-                            className="group my-1.5 pl-[26px]"
+                            className={cn(
+                              "book-notes-quote my-4 border-l-2 border-foreground/15 py-1 pl-5 font-normal italic text-foreground/75",
+                              className,
+                            )}
                           >
                             {children}
-                          </details>
+                          </blockquote>
                         ),
-                        summary: ({ children, ...props }) => {
-                          // Process inline markdown (bold/italic) in summary text
-                          const processInlineMarkdown = (
-                            node: React.ReactNode,
-                          ): React.ReactNode => {
-                            if (typeof node === "string") {
-                              const parts = node.split(
-                                /(\*\*[^*]+\*\*|\*[^*]+\*)/g,
-                              );
-                              return parts.map((part, i) => {
-                                if (
-                                  part.startsWith("**") &&
-                                  part.endsWith("**")
-                                ) {
-                                  return (
-                                    <strong key={i}>{part.slice(2, -2)}</strong>
-                                  );
-                                }
-                                if (
-                                  part.startsWith("*") &&
-                                  part.endsWith("*")
-                                ) {
-                                  return <em key={i}>{part.slice(1, -1)}</em>;
-                                }
-                                return part;
-                              });
-                            }
-                            if (Array.isArray(node)) {
-                              return node.map((child: React.ReactNode, i) => (
-                                <span key={i}>
-                                  {processInlineMarkdown(child)}
-                                </span>
-                              ));
-                            }
-                            return node;
-                          };
-
-                          return (
-                            <summary
-                              {...props}
-                              className="-ml-5 flex cursor-pointer list-none items-center gap-2.5 text-foreground [&::-webkit-details-marker]:hidden"
-                            >
-                              <PlayIcon
-                                size={12}
-                                weight="fill"
-                                className="shrink-0 transition-transform duration-200 group-open:rotate-90"
-                              />
-                              {processInlineMarkdown(children)}
-                            </summary>
-                          );
-                        },
+                        summary: BookNoteSummary,
                       } as Components
                     }
                   >

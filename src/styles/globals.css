@@ -144,3 +144,22 @@
 .routine-collapsible:target [data-routine-caret] {
   transform: rotate(90deg);
 }
+
+/*
+ * Book-note quotes often already include quotation marks in their source.
+ * Suppress Typography's generated pair so the punctuation is not duplicated.
+ */
+.prose .book-notes-quote p:first-of-type::before,
+.prose .book-notes-quote p:last-of-type::after {
+  content: none;
+}
+
+.prose .book-notes-quote > p {
+  color: inherit;
+  margin-block: 0;
+  transform: none;
+}
+
+.prose .book-notes-quote > p + p {
+  margin-top: 0.75em;
+}

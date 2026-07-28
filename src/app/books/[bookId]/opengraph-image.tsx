@@ -99,8 +99,10 @@ export default async function Image({
         : null,
     ].filter((item): item is string => item !== null);
     const readDate = book.finished
-      ? (formatReadDates(book.started, book.finished) ??
-        formatSingleReadDate(book.finished))
+      ? `Read ${
+          formatReadDates(book.started, book.finished) ??
+          formatSingleReadDate(book.finished)
+        }`
       : book.started
         ? `Started ${formatSingleReadDate(book.started)}`
         : null;
