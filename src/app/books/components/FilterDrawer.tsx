@@ -2,6 +2,7 @@
 
 import { SlidersHorizontalIcon } from "@phosphor-icons/react";
 
+import type { BookStats } from "~/lib/books/types";
 import { Button } from "~/components/ui/button";
 import {
   Sheet,
@@ -13,7 +14,13 @@ import {
 
 import { BookFilters } from "./BookFilters";
 
-export function FilterDrawer() {
+export function FilterDrawer({
+  initialTags,
+  initialStats,
+}: {
+  initialTags: string[];
+  initialStats: BookStats;
+}) {
   return (
     <Sheet>
       <SheetTrigger asChild>
@@ -27,7 +34,7 @@ export function FilterDrawer() {
           <SheetTitle>Filters</SheetTitle>
         </SheetHeader>
         <div className="py-6">
-          <BookFilters />
+          <BookFilters initialTags={initialTags} initialStats={initialStats} />
         </div>
       </SheetContent>
     </Sheet>

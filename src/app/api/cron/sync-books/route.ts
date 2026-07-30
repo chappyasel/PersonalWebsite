@@ -1,7 +1,8 @@
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { type NextRequest, NextResponse } from "next/server";
 
 import { syncBooksFromNotion } from "~/lib/books/sync";
+import { BOOKS_DATA_TAG } from "~/server/queries/books";
 
 import { env } from "~/env";
 
@@ -29,7 +30,9 @@ async function handleSync(source: "cron" | "manual") {
   const changes = result.booksAdded + result.booksUpdated + result.booksDeleted;
   if (changes > 0 || source === "manual") {
     console.log(`${changes} book(s) changed — revalidating /books pages`);
+    revalidateTag(BOOKS_DATA_TAG, "max");
     revalidatePath("/books", "layout");
+    revalidatePath("/");
   }
 
   return NextResponse.json({

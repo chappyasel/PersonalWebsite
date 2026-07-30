@@ -18,6 +18,7 @@ import { useQueryStates } from "nuqs";
 import { useEffect, useState } from "react";
 
 import { defaultTagOrder } from "~/lib/books/tagColors";
+import type { BookStats } from "~/lib/books/types";
 import { api } from "~/trpc/react";
 
 import { Button } from "~/components/ui/button";
@@ -35,17 +36,29 @@ import { TagBadge } from "./TagBadge";
 
 type TagSortMode = "default" | "count" | "alphabetical";
 
-export function BookFilters() {
+export function BookFilters({
+  initialTags,
+  initialStats,
+}: {
+  initialTags: string[];
+  initialStats: BookStats;
+}) {
   const [filters, setFilters] = useQueryStates(searchParamsParsers);
   const [tagSortMode, setTagSortMode] = useState<TagSortMode>("default");
   const [hoveredRating, setHoveredRating] = useState<number | null>(null);
   const [hasMounted, setHasMounted] = useState(false);
   const isRestoring = useIsRestoring();
-  const { data: tags } = api.books.getTags.useQuery();
-  const { data: stats } = api.books.getStats.useQuery();
+  const { data: tags } = api.books.getTags.useQuery(undefined, {
+    initialData: initialTags,
+    staleTime: 5 * 60 * 1000,
+  });
+  const { data: stats } = api.books.getStats.useQuery(undefined, {
+    initialData: initialStats,
+    staleTime: 5 * 60 * 1000,
+  });
 
   // Don't render tags section while cache is being restored
-  const showTags = !isRestoring && tags && tags.length > 0;
+  const showTags = (!isRestoring || initialTags.length > 0) && tags.length > 0;
 
   // Only enable animations after hydration to prevent mismatch
   useEffect(() => {
@@ -130,7 +143,10 @@ export function BookFilters() {
             value={tagSortMode}
             onValueChange={(value) => setTagSortMode(value as TagSortMode)}
           >
-            <SelectTrigger className="hover: h-7 w-fit border-0 px-2 text-foreground/70 shadow-none transition-colors duration-200 hover:bg-accent hover:text-accent-foreground focus:ring-0">
+            <SelectTrigger
+              aria-label="Tag ordering"
+              className="hover: h-7 w-fit border-0 px-2 text-foreground/70 shadow-none transition-colors duration-200 hover:bg-accent hover:text-accent-foreground focus:ring-0"
+            >
               {tagSortMode === "default" && (
                 <ListIcon className="mr-0.5 h-4 w-4" />
               )}
@@ -145,7 +161,7 @@ export function BookFilters() {
               <SelectItem value="default" className="text-xs">
                 <div className="flex items-center gap-1.5">
                   <ListIcon className="h-4 w-4" />
-                  <span>Custom</span>
+                  <span>Natural</span>
                 </div>
               </SelectItem>
               <SelectItem value="count" className="text-xs">

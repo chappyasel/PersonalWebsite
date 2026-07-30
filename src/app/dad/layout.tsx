@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 
 import { GrainientBackground } from "~/components/ui/grainient-background";
+import { TRPCReactProvider } from "~/trpc/react";
 import { PasswordGate } from "./components/PasswordGate";
 import { PageTransition } from "./components/PageTransition";
 
@@ -21,14 +22,16 @@ export default async function DadLayout({
   const hasAccess = (await cookies()).get("dad-access")?.value;
 
   return (
-    <GrainientBackground className="min-h-screen">
-      <main className="mx-auto max-w-[680px] px-6 pb-28 font-serif sm:px-8">
-        {hasAccess ? (
-          <PageTransition>{children}</PageTransition>
-        ) : (
-          <PasswordGate />
-        )}
-      </main>
-    </GrainientBackground>
+    <TRPCReactProvider>
+      <GrainientBackground className="min-h-screen">
+        <main className="mx-auto max-w-[680px] px-6 pb-28 font-serif sm:px-8">
+          {hasAccess ? (
+            <PageTransition>{children}</PageTransition>
+          ) : (
+            <PasswordGate />
+          )}
+        </main>
+      </GrainientBackground>
+    </TRPCReactProvider>
   );
 }

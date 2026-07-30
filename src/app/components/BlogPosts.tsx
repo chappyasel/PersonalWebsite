@@ -1,4 +1,5 @@
 import { PenNibIcon } from "@phosphor-icons/react/dist/ssr";
+import Image from "next/image";
 import Link from "next/link";
 import data from "public/data/blog-posts.json";
 import React from "react";
@@ -12,6 +13,8 @@ type BlogPost = {
   pubDate: string;
   link: string;
   thumbnail: string;
+  thumbnailWidth: number;
+  thumbnailHeight: number;
   description: string;
 };
 
@@ -45,11 +48,13 @@ function BlogPostItem({ post }: { post: BlogPost }) {
           className="relative h-full sm:h-auto sm:basis-1/3"
           style={{ transform: "translateZ(30px)" }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            className="size-full rounded-xl object-cover shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)]"
+          <Image
+            className="h-auto w-full rounded-xl bg-muted object-cover shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] sm:h-full"
             src={post.thumbnail}
             alt={post.title}
+            width={post.thumbnailWidth}
+            height={post.thumbnailHeight}
+            sizes="(max-width: 640px) calc(100vw - 3rem), 240px"
           />
         </div>
 

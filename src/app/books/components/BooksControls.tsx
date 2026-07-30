@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import type { BookStats } from "~/lib/books/types";
 import { cn } from "~/lib/util";
 
 import { BookSearch } from "./BookSearch";
@@ -10,9 +11,15 @@ import { FilterDrawer } from "./FilterDrawer";
 
 type BooksControlsProps = {
   isZoomOut?: boolean;
+  initialTags: string[];
+  initialStats: BookStats;
 };
 
-export function BooksControls({ isZoomOut = false }: BooksControlsProps) {
+export function BooksControls({
+  isZoomOut = false,
+  initialTags,
+  initialStats,
+}: BooksControlsProps) {
   const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
@@ -48,7 +55,7 @@ export function BooksControls({ isZoomOut = false }: BooksControlsProps) {
 
       {/* Filter (mobile only) + Sort */}
       <div className="flex gap-2">
-        <FilterDrawer />
+        <FilterDrawer initialTags={initialTags} initialStats={initialStats} />
         <BookSort />
       </div>
     </div>

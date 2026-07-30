@@ -87,7 +87,7 @@ export function WeightliftingDashboard() {
         <Link
           href={
             process.env.NODE_ENV === "production"
-              ? "https://chappyasel.com"
+              ? "https://www.chappyasel.com"
               : devBaseUrl()
           }
           className="group inline-flex items-center gap-2 text-2xl font-semibold text-foreground transition-opacity hover:opacity-80 md:text-4xl"

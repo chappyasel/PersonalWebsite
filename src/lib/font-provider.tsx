@@ -23,19 +23,29 @@ const DEFAULT_FONT: FontOption = "georgia";
 const VALID_FONTS: FontOption[] = ["georgia", "system", "literata"];
 
 export function FontProvider({ children }: { children: React.ReactNode }) {
-  const [font, setFontState] = useState<FontOption>(DEFAULT_FONT);
+  const [font, setFontState] = useState<FontOption>(() => {
+    if (typeof document === "undefined") return DEFAULT_FONT;
+    const prepaintFont = document.documentElement.dataset.font as
+      | FontOption
+      | undefined;
+    return prepaintFont && VALID_FONTS.includes(prepaintFont)
+      ? prepaintFont
+      : DEFAULT_FONT;
+  });
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem(FONT_STORAGE_KEY) as FontOption | null;
     if (stored && VALID_FONTS.includes(stored)) {
       setFontState(stored);
+      document.documentElement.dataset.font = stored;
     }
     setMounted(true);
   }, []);
 
   const setFont = useCallback((newFont: FontOption) => {
     setFontState(newFont);
+    document.documentElement.dataset.font = newFont;
     localStorage.setItem(FONT_STORAGE_KEY, newFont);
   }, []);
 

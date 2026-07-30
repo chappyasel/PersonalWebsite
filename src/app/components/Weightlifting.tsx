@@ -11,9 +11,11 @@ import Link from "next/link";
 import { useMemo } from "react";
 
 import { devSubdomainUrl } from "~/lib/util";
-import { api } from "~/trpc/react";
+import type {
+  ActivityMosaicData,
+  WeightliftingStatsData,
+} from "~/server/queries/weightlifting";
 
-import { Skeleton } from "~/components/ui/skeleton";
 import {
   Tooltip,
   TooltipContent,
@@ -93,17 +95,9 @@ function categoryBackground(categories: Record<string, number>) {
   return `linear-gradient(to right, ${stops.join(", ")})`;
 }
 
-function useActivityCells() {
-  const { data, isLoading } = api.weightlifting.getActivityMosaic.useQuery(
-    { months: 12 },
-    {
-      gcTime: 1000 * 60 * 60 * 24,
-      staleTime: 1000 * 60 * 60 * 6,
-    },
-  );
-
+function useActivityCells(data: ActivityMosaicData) {
   const cells = useMemo(() => {
-    if (!data?.endDate) return [];
+    if (!data.endDate) return [];
 
     const dayMap = new Map(data.days.map((day) => [day.date, day]));
     const startDate = addDays(parseLocalDate(data.endDate), -363);
@@ -147,7 +141,7 @@ function useActivityCells() {
     data?.endDate ??
     null;
 
-  return { cells, summary: data, displayStartDate, displayEndDate, isLoading };
+  return { cells, displayStartDate, displayEndDate };
 }
 
 const MOSAIC_COLUMNS = 26;
@@ -155,32 +149,8 @@ const MOSAIC_ROWS = 7;
 const MOSAIC_BLOCKS = 2;
 const MOSAIC_DAYS = MOSAIC_COLUMNS * MOSAIC_ROWS * MOSAIC_BLOCKS;
 
-function ActivityMosaicSkeleton() {
-  return (
-    <div className="grid h-full grid-rows-2 gap-3">
-      {Array.from({ length: MOSAIC_BLOCKS }).map((_, blockIndex) => (
-        <div
-          key={blockIndex}
-          className="grid h-full gap-1"
-          style={{
-            gridTemplateColumns: `repeat(${MOSAIC_COLUMNS}, minmax(0, 1fr))`,
-            gridTemplateRows: `repeat(${MOSAIC_ROWS}, minmax(0, 1fr))`,
-          }}
-        >
-          {Array.from({ length: MOSAIC_COLUMNS * MOSAIC_ROWS }).map(
-            (_, index) => (
-              <Skeleton key={index} className="size-full rounded-[3px]" />
-            ),
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function ActivityMosaic() {
-  const { cells, displayStartDate, displayEndDate, isLoading } =
-    useActivityCells();
+function ActivityMosaic({ data }: { data: ActivityMosaicData }) {
+  const { cells, displayStartDate, displayEndDate } = useActivityCells(data);
 
   return (
     <div className="px-4 pt-5 sm:px-6 sm:pt-6">
@@ -196,75 +166,74 @@ function ActivityMosaic() {
       </div>
 
       <div className="h-[190px] rounded-lg border border-foreground/[0.06] bg-background/20 p-3 sm:h-[210px]">
-        {isLoading ? (
-          <ActivityMosaicSkeleton />
-        ) : (
-          <TooltipProvider delayDuration={150}>
-            <div className="grid h-full grid-rows-2 gap-3">
-              {cells.map((block, blockIndex) => (
-                <div
-                  key={blockIndex}
-                  className="grid h-full gap-1"
-                  style={{
-                    gridTemplateColumns: `repeat(${MOSAIC_COLUMNS}, minmax(0, 1fr))`,
-                    gridTemplateRows: `repeat(${MOSAIC_ROWS}, minmax(0, 1fr))`,
-                  }}
-                >
-                  {block.map((cell) => (
-                    <Tooltip key={cell.key}>
-                      <TooltipTrigger asChild>
-                        <div
-                          className={`size-full rounded-[3px] ${
+        <TooltipProvider delayDuration={150}>
+          <div className="grid h-full grid-rows-2 gap-3">
+            {cells.map((block, blockIndex) => (
+              <div
+                key={blockIndex}
+                className="grid h-full gap-1"
+                style={{
+                  gridTemplateColumns: `repeat(${MOSAIC_COLUMNS}, minmax(0, 1fr))`,
+                  gridTemplateRows: `repeat(${MOSAIC_ROWS}, minmax(0, 1fr))`,
+                }}
+              >
+                {block.map((cell) => (
+                  <Tooltip key={cell.key}>
+                    <TooltipTrigger asChild>
+                      <div
+                        className={`size-full rounded-[3px] ${
+                          cell.volume > 0
+                            ? "transition-transform duration-200 hover:scale-125"
+                            : ""
+                        }`}
+                        style={{
+                          background: categoryBackground(cell.categories),
+                          opacity:
                             cell.volume > 0
-                              ? "transition-transform duration-200 hover:scale-125"
-                              : ""
-                          }`}
-                          style={{
-                            background: categoryBackground(cell.categories),
-                            opacity:
-                              cell.volume > 0
-                                ? 0.25 + cell.intensity * 0.75
-                                : 0.08,
-                            gridColumn: cell.gridColumn,
-                            gridRow: cell.gridRow,
-                          }}
-                        />
-                      </TooltipTrigger>
-                      <TooltipContent
-                        side="top"
-                        sideOffset={8}
-                        className="max-w-56"
-                      >
-                        <div className="flex flex-col gap-0.5">
-                          <p className="font-semibold leading-none">
-                            {cell.tooltipHeading}
-                          </p>
-                          <p className="text-muted-foreground">
-                            {cell.tooltipDetail}
-                          </p>
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </TooltipProvider>
-        )}
+                              ? 0.25 + cell.intensity * 0.75
+                              : 0.08,
+                          gridColumn: cell.gridColumn,
+                          gridRow: cell.gridRow,
+                        }}
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      sideOffset={8}
+                      className="max-w-56"
+                    >
+                      <div className="flex flex-col gap-0.5">
+                        <p className="font-semibold leading-none">
+                          {cell.tooltipHeading}
+                        </p>
+                        <p className="text-muted-foreground">
+                          {cell.tooltipDetail}
+                        </p>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+              </div>
+            ))}
+          </div>
+        </TooltipProvider>
       </div>
     </div>
   );
 }
 
-export default function Weightlifting() {
-  const { data: stats, isLoading: statsLoading } =
-    api.weightlifting.getStats.useQuery(undefined, {
-      gcTime: 1000 * 60 * 60 * 24,
-      staleTime: 1000 * 60 * 60,
-    });
-
+export default function Weightlifting({
+  activity,
+  stats,
+}: {
+  activity: ActivityMosaicData;
+  stats: WeightliftingStatsData;
+}) {
   return (
-    <section className="flex w-full flex-col items-center justify-around gap-4">
+    <section
+      data-homepage-lifting
+      className="flex w-full flex-col items-center justify-around gap-4"
+    >
       <h1 className="flex w-full items-center gap-2 text-2xl font-semibold text-foreground [text-shadow:_0_0_20px_rgba(255,255,255,1)] dark:[text-shadow:_0_0_20px_rgba(0,0,0,0.8)] md:gap-3 md:text-3xl">
         <BarbellIcon weight="duotone" className="size-7 shrink-0 md:size-8" />
         Weightlifting
@@ -281,32 +250,24 @@ export default function Weightlifting() {
               : devSubdomainUrl("weightlifting")
           }
         >
-          <ActivityMosaic />
+          <ActivityMosaic data={activity} />
 
           <div className="flex flex-col items-center px-8 pb-5 pt-3">
             <div className="mb-3 h-px w-2/3 bg-gradient-to-r from-transparent via-foreground/10 to-transparent" />
             <div className="flex w-full justify-around gap-1">
               <div className="flex flex-col items-center gap-0.5">
-                {statsLoading || !stats ? (
-                  <Skeleton className="h-8 w-14 rounded sm:h-9" />
-                ) : (
-                  <span className="text-2xl font-semibold text-foreground sm:text-3xl">
-                    {stats.totalWorkouts.toLocaleString()}
-                  </span>
-                )}
+                <span className="text-2xl font-semibold text-foreground sm:text-3xl">
+                  {stats.totalWorkouts.toLocaleString()}
+                </span>
                 <span className="flex items-center gap-1 text-xs text-muted-foreground sm:text-sm">
                   <HashIcon className="size-3.5 sm:size-4" weight="bold" />
                   Workouts
                 </span>
               </div>
               <div className="hidden flex-col items-center gap-0.5 sm:flex">
-                {statsLoading || !stats ? (
-                  <Skeleton className="h-8 w-16 rounded sm:h-9" />
-                ) : (
-                  <span className="text-2xl font-semibold text-foreground sm:text-3xl">
-                    {stats.totalSets.toLocaleString()}
-                  </span>
-                )}
+                <span className="text-2xl font-semibold text-foreground sm:text-3xl">
+                  {stats.totalSets.toLocaleString()}
+                </span>
                 <span className="flex items-center gap-1 text-xs text-muted-foreground sm:text-sm">
                   <SquaresFourIcon
                     className="size-3.5 sm:size-4"
@@ -316,26 +277,18 @@ export default function Weightlifting() {
                 </span>
               </div>
               <div className="hidden flex-col items-center gap-0.5 sm:flex">
-                {statsLoading || !stats ? (
-                  <Skeleton className="h-8 w-16 rounded sm:h-9" />
-                ) : (
-                  <span className="text-2xl font-semibold text-foreground sm:text-3xl">
-                    {`${(stats.totalDurationSeconds / 86400).toFixed(1)}d`}
-                  </span>
-                )}
+                <span className="text-2xl font-semibold text-foreground sm:text-3xl">
+                  {`${(stats.totalDurationSeconds / 86400).toFixed(1)}d`}
+                </span>
                 <span className="flex items-center gap-1 text-xs text-muted-foreground sm:text-sm">
                   <ClockIcon className="size-3.5 sm:size-4" weight="bold" />
                   Duration
                 </span>
               </div>
               <div className="flex flex-col items-center gap-0.5">
-                {statsLoading || !stats ? (
-                  <Skeleton className="h-8 w-20 rounded sm:h-9" />
-                ) : (
-                  <span className="text-2xl font-semibold text-foreground sm:text-3xl">
-                    {`${formatVolume(stats.totalVolume)} lbs`}
-                  </span>
-                )}
+                <span className="text-2xl font-semibold text-foreground sm:text-3xl">
+                  {`${formatVolume(stats.totalVolume)} lbs`}
+                </span>
                 <span className="flex items-center gap-1 text-xs text-muted-foreground sm:text-sm">
                   <BarbellIcon className="size-3.5 sm:size-4" weight="bold" />
                   Volume

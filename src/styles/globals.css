@@ -2,8 +2,80 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: "Georgia Pro";
+  src: url("/fonts/v1/GeorgiaPro-Light.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 300;
+  font-display: block;
+}
+@font-face {
+  font-family: "Georgia Pro";
+  src: url("/fonts/v1/GeorgiaPro-LightItalic.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 300;
+  font-display: block;
+}
+@font-face {
+  font-family: "Georgia Pro";
+  src: url("/fonts/v1/GeorgiaPro-Regular.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+}
+@font-face {
+  font-family: "Georgia Pro";
+  src: url("/fonts/v1/GeorgiaPro-Italic.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 400;
+  font-display: block;
+}
+@font-face {
+  font-family: "Georgia Pro";
+  src: url("/fonts/v1/GeorgiaPro-SemiBold.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 600;
+  font-display: block;
+}
+@font-face {
+  font-family: "Georgia Pro";
+  src: url("/fonts/v1/GeorgiaPro-SemiBoldItalic.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 600;
+  font-display: block;
+}
+@font-face {
+  font-family: "Georgia Pro";
+  src: url("/fonts/v1/GeorgiaPro-Bold.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 700;
+  font-display: block;
+}
+@font-face {
+  font-family: "Georgia Pro";
+  src: url("/fonts/v1/GeorgiaPro-BoldItalic.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 700;
+  font-display: block;
+}
+@font-face {
+  font-family: "Georgia Pro";
+  src: url("/fonts/v1/GeorgiaPro-Black.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 900;
+  font-display: block;
+}
+@font-face {
+  font-family: "Georgia Pro";
+  src: url("/fonts/v1/GeorgiaPro-BlackItalic.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 900;
+  font-display: block;
+}
+
 @layer base {
   :root {
+    --font-selected: "Georgia Pro";
     --background: 60 9% 98%;
     --foreground: 25 5% 38%;
     --card: 60 9% 98%;
@@ -34,6 +106,9 @@
     --badge-fg-lightness: 28%;
     --prob-bg-lightness: 88%;
     --prob-text-lightness: 25%;
+    --grainient-color-1: #faf5f0;
+    --grainient-color-2: #c4a882;
+    --grainient-color-3: #a68b6b;
   }
   .dark {
     --background: 24 10% 6%;
@@ -65,6 +140,9 @@
     --badge-fg-lightness: 87%;
     --prob-bg-lightness: 22%;
     --prob-text-lightness: 80%;
+    --grainient-color-1: #1c1714;
+    --grainient-color-2: #6b5744;
+    --grainient-color-3: #8b7355;
   }
 }
 
@@ -74,6 +152,7 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-selected), Georgia, serif;
   }
   /* Remove default focus outlines - components handle their own focus styles */
   button:focus,
@@ -81,6 +160,20 @@
     outline: none;
     -webkit-tap-highlight-color: transparent;
   }
+}
+
+html[data-font="georgia"] {
+  --font-selected: "Georgia Pro";
+}
+
+html[data-font="system"] {
+  --font-selected:
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+html[data-font="literata"] {
+  --font-selected: var(--font-literata);
 }
 
 /* Book marquee animations */

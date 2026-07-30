@@ -1,5 +1,13 @@
 import { CodeIcon, ImageIcon } from "@phosphor-icons/react/dist/ssr";
+import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
+import fantasyImage from "public/images/projects/fantasy.jpg";
+import homeworkImage from "public/images/projects/homework.jpg";
+import liarsDiceImage from "public/images/projects/liars-dice.png";
+import rotoworldImage from "public/images/projects/rotoworld-ml.jpg";
+import webExperimentsImage from "public/images/projects/web-exp.jpg";
+import weightliftingMlImage from "public/images/projects/weightlifting-ml.jpg";
+import weightliftingImage from "public/images/projects/weightlifting.jpg";
 import data from "public/data/projects.json";
 import React from "react";
 
@@ -14,6 +22,15 @@ type Project = {
 };
 
 const PROJECTS: Project[] = data.projects;
+const PROJECT_IMAGES: Record<string, StaticImageData> = {
+  "fantasy.jpg": fantasyImage,
+  "homework.jpg": homeworkImage,
+  "liars-dice.png": liarsDiceImage,
+  "rotoworld-ml.jpg": rotoworldImage,
+  "web-exp.jpg": webExperimentsImage,
+  "weightlifting-ml.jpg": weightliftingMlImage,
+  "weightlifting.jpg": weightliftingImage,
+};
 
 export default async function Projects() {
   return (
@@ -30,6 +47,8 @@ export default async function Projects() {
 }
 
 function ProjectItem({ project }: { project: Project }) {
+  const image = project.image ? PROJECT_IMAGES[project.image] : undefined;
+
   return (
     <TiltCard className="w-full intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000">
       <Link
@@ -43,12 +62,13 @@ function ProjectItem({ project }: { project: Project }) {
           className="relative h-full sm:h-auto sm:basis-1/3"
           style={{ transform: "translateZ(30px)" }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          {project.image ? (
-            <img
-              className="size-full rounded-xl object-cover shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)]"
-              src={`/images/projects/${project.image}`}
+          {image ? (
+            <Image
+              className="h-auto w-full rounded-xl object-cover shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] sm:h-full"
+              src={image}
               alt={project.name}
+              sizes="(max-width: 640px) calc(100vw - 3rem), 240px"
+              placeholder="blur"
             />
           ) : (
             <div className="flex size-full items-center justify-center rounded-xl bg-background/20 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)]">

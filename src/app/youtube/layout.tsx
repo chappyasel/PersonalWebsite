@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { TRPCReactProvider } from "~/trpc/react";
 
 export const metadata: Metadata = {
   title: "YouTube Watch History",
@@ -10,5 +11,9 @@ export default function YouTubeLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <main className="px-6 py-12">{children}</main>;
+  return (
+    <TRPCReactProvider>
+      <main className="px-6 py-12">{children}</main>
+    </TRPCReactProvider>
+  );
 }

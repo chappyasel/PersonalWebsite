@@ -19,6 +19,8 @@
     "fix:last": "eslint --fix $(git diff --name-only HEAD | grep -E '\\.(js|jsx|ts|tsx)$' | head -n 1)",
     "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
     "start": "next start",
+    "check:budgets": "node scripts/check-route-budgets.mjs",
+    "test:performance": "playwright test",
     "generate:blog-posts": "npx tsx ./scripts/generate/blog-posts.ts",
     "generate:manual": "npx tsx ./scripts/generate/manual.ts",
     "generate:routine": "npx tsx ./scripts/generate/routine.ts",
@@ -31,7 +33,7 @@
     "takeout:request": "npx tsx ./scripts/takeout/request.ts",
     "takeout:approve": "npx tsx ./scripts/takeout/approve.ts",
     "takeout:refresh": "npx tsx ./scripts/takeout/refresh.ts",
-    "test": "vitest run"
+    "test": "vitest run --exclude 'tests/e2e/**'"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.53",
@@ -88,6 +90,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "1.60.0",
     "@resvg/resvg-js": "^2.6.2",
     "@tailwindcss/typography": "^0.5.19",
     "@trivago/prettier-plugin-sort-imports": "^4.3.0",

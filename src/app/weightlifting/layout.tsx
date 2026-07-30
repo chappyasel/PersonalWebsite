@@ -2,6 +2,7 @@ import { type Metadata } from "next";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
 import { devSubdomainUrl } from "~/lib/util";
+import { TRPCReactProvider } from "~/trpc/react";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -39,8 +40,10 @@ export default function WeightliftingLayout({
   children: React.ReactNode;
 }) {
   return (
-    <NuqsAdapter>
-      <main className="p-6 md:p-8">{children}</main>
-    </NuqsAdapter>
+    <TRPCReactProvider>
+      <NuqsAdapter>
+        <main className="p-6 md:p-8">{children}</main>
+      </NuqsAdapter>
+    </TRPCReactProvider>
   );
 }

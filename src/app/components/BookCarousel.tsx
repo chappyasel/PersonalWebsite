@@ -6,11 +6,11 @@ import {
   useSpring,
   type MotionStyle,
 } from "framer-motion";
+import Image from "next/image";
 import React, { useRef } from "react";
 
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
-import type { Book } from "~/lib/books/types";
-import { api } from "~/trpc/react";
+import type { HomepageBookCover } from "~/lib/books/types";
 
 import {
   Tooltip,
@@ -19,49 +19,13 @@ import {
   TooltipTrigger,
 } from "~/components/ui/tooltip";
 
-export default function BookCarousel() {
-  const {
-    data: books,
-    isLoading,
-    error,
-  } = api.books.getAll.useQuery({
-    sortField: "finished",
-    sortOrder: "desc",
-    limit: 60,
-  });
-
-  // Loading state
-  if (isLoading) {
-    return (
-      <div
-        className="flex size-full flex-col justify-center gap-3 overflow-hidden py-3"
-        aria-hidden="true"
-        role="presentation"
-        style={{
-          mask: "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
-          WebkitMask:
-            "linear-gradient(to right, transparent, black 8%, black 92%, transparent)",
-        }}
-      >
-        {[1, 2].map((row) => (
-          <div key={row} className="w-full overflow-hidden">
-            <div className="flex w-fit gap-3">
-              {Array.from({ length: 20 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-[134px] w-[89px] flex-shrink-0 animate-shimmer rounded-lg bg-gradient-to-r from-muted via-muted-foreground/10 to-muted bg-[length:200px_100%]"
-                />
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
+export default function BookCarousel({
+  books,
+}: {
+  books: HomepageBookCover[];
+}) {
   // Error or empty state — show static placeholder grid instead of text
-  if (error || !books || books.length === 0) {
-    if (error) console.error("Failed to load books:", error);
+  if (books.length === 0) {
     return (
       <div
         className="flex size-full flex-col justify-center gap-3 overflow-hidden py-3"
@@ -90,8 +54,11 @@ export default function BookCarousel() {
   }
 
   // Distribute books across two rows
-  const distributeBooks = (allBooks: Book[], booksPerRow = 20) => {
-    const rows: Book[][] = [[], []];
+  const distributeBooks = (
+    allBooks: HomepageBookCover[],
+    booksPerRow = 20,
+  ) => {
+    const rows: HomepageBookCover[][] = [[], []];
 
     if (allBooks.length >= booksPerRow * 2) {
       rows[0] = allBooks.slice(0, booksPerRow);
@@ -116,6 +83,7 @@ export default function BookCarousel() {
   return (
     <TooltipProvider delayDuration={150}>
       <motion.div
+        data-homepage-carousel
         className="flex size-full flex-col justify-center gap-3 overflow-hidden py-3"
         aria-hidden="true"
         role="presentation"
@@ -142,7 +110,7 @@ function MarqueeRow({
   books,
   direction,
 }: {
-  books: Book[];
+  books: HomepageBookCover[];
   direction: "left" | "right";
 }) {
   const animationClass =
@@ -165,7 +133,7 @@ function MarqueeRow({
 const ROTATE_AMPLITUDE = 12;
 const SPRING_CONFIG = { stiffness: 200, damping: 20, mass: 0.5 };
 
-function BookCover({ book }: { book: Book }) {
+function BookCover({ book }: { book: HomepageBookCover }) {
   const coverUrl = enhanceCoverUrl(book.coverUrl);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -209,13 +177,14 @@ function BookCover({ book }: { book: Book }) {
             className="h-full w-full overflow-hidden rounded-lg shadow-[0_4px_8px_rgba(0,0,0,0.2)] transition-shadow duration-300 hover:shadow-[0_4px_12px_rgba(0,0,0,0.4)] dark:shadow-[0_4px_12px_rgba(0,0,0,0.4)] [transform-style:preserve-3d]"
             style={motionStyle}
           >
-            <div className="aspect-[2/3] h-full w-full">
+            <div className="relative aspect-[2/3] h-full w-full">
               {coverUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <Image
                   src={coverUrl}
                   alt={`${book.title} cover`}
-                  className="h-full w-full object-cover"
+                  fill
+                  sizes="89px"
+                  className="object-cover"
                 />
               ) : (
                 <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-muted to-muted-foreground/10 p-2 text-center">

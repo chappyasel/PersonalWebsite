@@ -23,15 +23,21 @@ export function BooksGridSkeleton({ size = "M" }: BooksGridSkeletonProps) {
   const radius = sizeRadius[size];
 
   return (
-    <div
-      className="grid gap-4"
-      style={{
-        gridTemplateColumns: `repeat(auto-fill, minmax(min(${preferredWidth}, calc((100% - 1rem) / 2)), 1fr))`,
-      }}
-    >
-      {Array.from({ length: 20 }).map((_, i) => (
-        <Skeleton key={i} className={`aspect-[2/3] w-full ${radius}`} />
-      ))}
+    <div className="flex flex-col gap-4 pb-8" aria-hidden="true">
+      <div className="flex h-8 items-center gap-2">
+        <Skeleton className="h-7 w-16 rounded-md" />
+        <Skeleton className="h-4 w-7 rounded" />
+      </div>
+      <div
+        className="grid gap-4"
+        style={{
+          gridTemplateColumns: `repeat(auto-fill, minmax(min(${preferredWidth}, calc((100% - 1rem) / 2)), 1fr))`,
+        }}
+      >
+        {Array.from({ length: 20 }).map((_, i) => (
+          <Skeleton key={i} className={`aspect-[2/3] w-full ${radius}`} />
+        ))}
+      </div>
     </div>
   );
 }

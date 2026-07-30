@@ -221,18 +221,41 @@ const Grainient = ({
     setSize();
 
     let raf = 0;
+    let running = false;
+    let intersecting = false;
     const t0 = performance.now();
     const loop = (/** @type {number} */ t) => {
+      if (!intersecting || document.hidden) {
+        running = false;
+        return;
+      }
       program.uniforms.iTime.value = (t - t0) * 0.001;
       renderer.render({ scene: mesh });
       raf = requestAnimationFrame(loop);
     };
-    raf = requestAnimationFrame(loop);
+    const updateAnimation = () => {
+      if (intersecting && !document.hidden && !running) {
+        running = true;
+        raf = requestAnimationFrame(loop);
+      } else if ((!intersecting || document.hidden) && running) {
+        cancelAnimationFrame(raf);
+        running = false;
+      }
+    };
+    const visibilityObserver = new IntersectionObserver(([entry]) => {
+      intersecting = Boolean(entry?.isIntersecting);
+      updateAnimation();
+    });
+    const handleVisibilityChange = () => updateAnimation();
+    visibilityObserver.observe(container);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       cancelAnimationFrame(raf);
       clearTimeout(resizeTimeout);
       ro.disconnect();
+      visibilityObserver.disconnect();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       try {
         container.removeChild(canvas);
       } catch {

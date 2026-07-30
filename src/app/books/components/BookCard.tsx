@@ -15,10 +15,11 @@ import {
   useMotionValue,
   useSpring,
 } from "framer-motion";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { usePostHog } from "posthog-js/react";
 import { memo, useEffect, useRef, useState } from "react";
 
+import { capture } from "~/lib/analytics";
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import { getBookPath } from "~/lib/books/paths";
 import { isCurrentlyReading } from "~/lib/books/types";
@@ -42,6 +43,13 @@ const sizeRadius = {
   S: "rounded-lg",
   M: "rounded-xl",
   L: "rounded-2xl",
+} as const;
+
+const coverSizes = {
+  XS: "(max-width: 640px) 12vw, 64px",
+  S: "(max-width: 640px) calc(50vw - 2rem), 110px",
+  M: "(max-width: 640px) calc(50vw - 2rem), 170px",
+  L: "(max-width: 640px) calc(50vw - 2rem), 260px",
 } as const;
 
 const sizeStyles = {
@@ -145,7 +153,6 @@ export const BookCard = memo(function BookCard({
   const { openModal } = actions;
   const cardRef = useRef<HTMLButtonElement>(null);
   const searchParams = useSearchParams();
-  const posthog = usePostHog();
   const utils = api.useUtils();
   const [copied, setCopied] = useState(false);
   const [isHoveringCopyZone, setIsHoveringCopyZone] = useState(false);
@@ -188,7 +195,7 @@ export const BookCard = memo(function BookCard({
   const bookUrl = getBookPath(book.id, searchParams.toString());
 
   const handleCopyLink = () => {
-    posthog.capture("book_link_copied", {
+    capture("book_link_copied", {
       book_id: book.id,
       book_title: book.title,
     });
@@ -341,10 +348,11 @@ export const BookCard = memo(function BookCard({
             }}
           >
             {coverUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <Image
                 src={coverUrl}
                 alt={`${book.title} cover`}
+                fill
+                sizes={coverSizes[size]}
                 className="h-full w-full select-none object-cover"
                 draggable="false"
                 onDragStart={(e) => e.preventDefault()}

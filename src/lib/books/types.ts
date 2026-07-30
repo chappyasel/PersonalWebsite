@@ -57,6 +57,18 @@ export type BookStats = {
   categoryBreakdown: Record<string, number>; // tag counts
 };
 
+export type HomepageBookCover = Pick<
+  Book,
+  "id" | "title" | "author" | "coverUrl"
+>;
+
+export type HomepageBookStats = {
+  total: number;
+  perYear: number | null;
+  avgDays: number | null;
+  pagesPerDay: number | null;
+};
+
 export type ReadingAnalyticsBucket = {
   period: string; // ISO week start "YYYY-MM-DD" (Monday), month "YYYY-MM", or year "YYYY"
   wallClockHours: number;

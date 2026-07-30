@@ -1,18 +1,26 @@
-export default function BooksLoading() {
-  const preferredWidth = "170px";
+import { BooksGridSkeleton } from "./components/BooksGridSkeleton";
+import { BOOKS_SIDEBAR_WIDTH_CLASS } from "./components/booksShell";
+import { cn } from "~/lib/util";
 
+export default function BooksLoading() {
   return (
-    <div className="flex flex-col gap-8">
+    <div className="m-auto flex max-w-screen-2xl flex-col gap-8">
       {/* Header */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 animate-pulse rounded-lg bg-muted" />
-            <div className="h-9 w-56 animate-pulse rounded-lg bg-muted md:w-72" />
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <div className="size-6 shrink-0 animate-pulse rounded-md bg-muted md:size-8" />
+            <div className="h-7 w-full max-w-52 animate-pulse rounded-md bg-muted md:h-9 md:max-w-72" />
           </div>
-          <div className="flex items-center gap-2">
-            <div className="h-9 w-9 animate-pulse rounded-lg bg-muted" />
-            <div className="h-9 w-9 animate-pulse rounded-lg bg-muted" />
+          <div className="flex shrink-0 translate-x-3 items-center">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div
+                key={index}
+                className="size-10 animate-pulse rounded-md bg-muted/70"
+              />
+            ))}
+            <div className="hidden size-10 animate-pulse rounded-md bg-muted/70 md:block" />
+            <div className="hidden size-10 animate-pulse rounded-md bg-muted/70 2xl:block" />
           </div>
         </div>
       </div>
@@ -20,8 +28,13 @@ export default function BooksLoading() {
       {/* Desktop: Sidebar + Main */}
       <div className="flex gap-8 2xl:gap-16">
         {/* Desktop Filters Sidebar */}
-        <aside className="hidden w-48 shrink-0 sm:block">
-          <div className="flex flex-col gap-5 rounded-3xl bg-muted/20 py-2">
+        <aside
+          className={cn(
+            "hidden shrink-0 sm:block",
+            BOOKS_SIDEBAR_WIDTH_CLASS,
+          )}
+        >
+          <div className="flex flex-col gap-5 rounded-3xl py-2">
             {/* Filters Header */}
             <div className="h-6 w-16 animate-pulse rounded bg-muted" />
             <div className="h-px w-full bg-muted" />
@@ -30,7 +43,7 @@ export default function BooksLoading() {
             <div className="flex flex-col gap-3">
               <div className="h-5 w-12 animate-pulse rounded bg-muted" />
               <div className="flex flex-col gap-2">
-                {Array.from({ length: 8 }).map((_, i) => (
+                {Array.from({ length: 10 }).map((_, i) => (
                   <div key={i} className="flex items-center gap-2">
                     <div className="h-4 w-4 animate-pulse rounded bg-muted" />
                     <div
@@ -74,28 +87,16 @@ export default function BooksLoading() {
         {/* Main Content */}
         <main className="flex flex-1 flex-col gap-6">
           {/* Controls Bar */}
-          <div className="-ml-4 flex w-[calc(100%+32px)] flex-col gap-4 rounded-2xl bg-background/80 p-4 md:flex-row md:items-center md:justify-between">
-            <div className="h-10 flex-1 animate-pulse rounded-lg bg-muted" />
-            <div className="flex gap-4">
-              <div className="h-10 w-10 animate-pulse rounded-lg bg-muted sm:hidden" />
-              <div className="h-10 w-32 animate-pulse rounded-lg bg-muted" />
+          <div className="-ml-2 flex w-[calc(100%+16px)] -translate-y-2 flex-col gap-2 rounded-[14px] bg-background/80 p-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="h-9 flex-1 animate-pulse rounded-md bg-muted" />
+            <div className="flex gap-2">
+              <div className="h-9 flex-1 animate-pulse rounded-md bg-muted sm:hidden" />
+              <div className="h-9 w-11 animate-pulse rounded-md bg-muted" />
+              <div className="h-9 w-10 animate-pulse rounded-md bg-muted" />
             </div>
           </div>
 
-          {/* Grid */}
-          <div
-            className="grid gap-4"
-            style={{
-              gridTemplateColumns: `repeat(auto-fill, minmax(min(${preferredWidth}, calc((100% - 1rem) / 2)), 1fr))`,
-            }}
-          >
-            {Array.from({ length: 20 }).map((_, i) => (
-              <div
-                key={i}
-                className="aspect-[2/3] animate-pulse rounded-xl bg-muted shadow-[0px_5px_20px_2px_rgba(0,0,0,0.1)]"
-              />
-            ))}
-          </div>
+          <BooksGridSkeleton size="M" />
         </main>
       </div>
     </div>

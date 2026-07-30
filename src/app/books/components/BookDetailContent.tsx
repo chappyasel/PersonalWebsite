@@ -22,7 +22,6 @@ import {
   useTransform,
 } from "framer-motion";
 import Link from "next/link";
-import { usePostHog } from "posthog-js/react";
 import {
   Children,
   type ComponentPropsWithoutRef,
@@ -42,6 +41,7 @@ import "react-photo-view/dist/react-photo-view.css";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
 
+import { capture } from "~/lib/analytics";
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import { getBookPath, getBooksPath } from "~/lib/books/paths";
 import type { BaseBook, Book } from "~/lib/books/types";
@@ -316,13 +316,12 @@ export function BookDetailContent({
   onClose,
 }: BookDetailContentProps) {
   const coverUrl = enhanceCoverUrl(book.coverUrl);
-  const posthog = usePostHog();
   const hasTrackedView = useRef(false);
 
   // Track book view on mount (only once per component instance)
   useEffect(() => {
     if (!hasTrackedView.current) {
-      posthog.capture("book_viewed", {
+      capture("book_viewed", {
         book_id: book.id,
         book_title: book.title,
         author: book.author,
@@ -331,24 +330,24 @@ export function BookDetailContent({
       });
       hasTrackedView.current = true;
     }
-  }, [posthog, book.id, book.title, book.author, book.rating, book.tags]);
+  }, [book.id, book.title, book.author, book.rating, book.tags]);
 
   const handleNotionClick = () => {
-    posthog.capture("book_notion_opened", {
+    capture("book_notion_opened", {
       book_id: book.id,
       book_title: book.title,
     });
   };
 
   const handleAudibleClick = () => {
-    posthog.capture("book_audible_opened", {
+    capture("book_audible_opened", {
       book_id: book.id,
       book_title: book.title,
     });
   };
 
   const handleShare = () => {
-    posthog.capture("book_link_copied", {
+    capture("book_link_copied", {
       book_id: book.id,
       book_title: book.title,
     });

@@ -2,10 +2,11 @@ import { type Metadata } from "next";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
 import { BooksLayoutWrapper } from "./components/BooksLayoutWrapper";
-import { Modal } from "./components/Modal";
+import { ModalHost } from "./components/ModalHost";
 
 import { BookPreviewProvider } from "./contexts/BookPreviewContext";
 import { devSubdomainUrl } from "~/lib/util";
+import { BooksTRPCProvider } from "~/trpc/books-provider";
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -45,16 +46,18 @@ export default function BooksLayout({
   modal: React.ReactNode;
 }) {
   return (
-    <BooksLayoutWrapper>
-      <NuqsAdapter>
-        <BookPreviewProvider>
-          <main className="p-6 md:p-8">
-            {children}
-            {modal}
-          </main>
-          <Modal />
-        </BookPreviewProvider>
-      </NuqsAdapter>
-    </BooksLayoutWrapper>
+    <BooksTRPCProvider>
+      <BooksLayoutWrapper>
+        <NuqsAdapter>
+          <BookPreviewProvider>
+            <main className="p-6 md:p-8">
+              {children}
+              {modal}
+            </main>
+            <ModalHost />
+          </BookPreviewProvider>
+        </NuqsAdapter>
+      </BooksLayoutWrapper>
+    </BooksTRPCProvider>
   );
 }

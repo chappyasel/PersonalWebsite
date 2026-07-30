@@ -19,6 +19,7 @@ export default async function AboutMe() {
         alt="Profile picture"
         width={400}
         height={400}
+        preload
         className="float-none m-auto mb-8 block w-[min(80%,400px)] rounded-full shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] motion-scale-in-90 md:float-left md:m-8 md:ml-0 md:mt-0 md:w-[35vw] md:max-w-[300px]"
       />
       <div className="flex flex-row gap-1">

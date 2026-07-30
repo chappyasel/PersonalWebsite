@@ -16,6 +16,7 @@ import { useQueryStates } from "nuqs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 
+import type { Book } from "~/lib/books/types";
 import { api } from "~/trpc/react";
 
 import { BookCard } from "./BookCard";
@@ -32,14 +33,16 @@ const sizeWidths = {
 } as const;
 
 type BooksGridProps = {
+  initialBooks: Book[];
   zoomOutWidth?: number | null;
   onBookCountChange?: (count: number) => void;
 };
 
 export function BooksGrid({
+  initialBooks,
   zoomOutWidth,
   onBookCountChange,
-}: BooksGridProps = {}) {
+}: BooksGridProps) {
   const [params, setParams] = useQueryStates(searchParamsParsers);
   const isRestoring = useIsRestoring();
 
@@ -92,6 +95,7 @@ export function BooksGrid({
     },
     {
       staleTime: 5 * 60 * 1000, // 5 minutes
+      initialData: initialBooks,
     },
   );
 
@@ -259,7 +263,7 @@ export function BooksGrid({
 
   // Only show loading skeleton when restoring cache or loading without any data
   // Once we have cached data, show it immediately (background refetch won't show skeleton)
-  if (isRestoring || (isLoading && !allBooks)) {
+  if ((isRestoring || isLoading) && !allBooks) {
     return (
       <BooksGridSkeleton
         size={isZoomOut ? "S" : ((params.size as "S" | "M" | "L") ?? "M")}
@@ -447,6 +451,7 @@ export function BooksGrid({
       data={sections}
       isScrolling={setIsScrolling}
       overscan={200} // Buffer pixels above/below viewport
+      initialItemCount={1}
       itemContent={(_, section) => renderSection(section)}
     />
   );

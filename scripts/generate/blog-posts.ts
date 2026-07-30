@@ -4,6 +4,7 @@ import { mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
+import sharp from "sharp";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -66,16 +67,40 @@ function stripHtml(html: string): string {
 async function fetchBlogPosts() {
   const response = await fetch(RSS_URL);
   const data = (await response.json()) as { items: unknown[] };
-  const items = data.items.map((item) => ({
-    title: item.title as string,
-    pubDate: item.pubDate as string,
-    link: item.link as string,
-    guid: item.guid as string,
-    author: item.author as string, // Ensure author is included
-    thumbnail:
-      (item.description as string).match(/<img[^>]+src="([^">]+)"/)?.[1] ?? "",
-    description: stripHtml(item.description as string).slice(0, 1000),
-  }));
+  const items = await Promise.all(
+    data.items.map(async (item) => {
+      const thumbnail =
+        (item.description as string).match(/<img[^>]+src="([^">]+)"/)?.[1] ??
+        "";
+      let thumbnailWidth = 1024;
+      let thumbnailHeight = 512;
+
+      if (thumbnail) {
+        try {
+          const imageResponse = await fetch(thumbnail);
+          const metadata = await sharp(
+            Buffer.from(await imageResponse.arrayBuffer()),
+          ).metadata();
+          thumbnailWidth = metadata.width ?? thumbnailWidth;
+          thumbnailHeight = metadata.height ?? thumbnailHeight;
+        } catch {
+          // Keep a stable fallback ratio if Medium's CDN is unavailable.
+        }
+      }
+
+      return {
+        title: item.title as string,
+        pubDate: item.pubDate as string,
+        link: item.link as string,
+        guid: item.guid as string,
+        author: item.author as string,
+        thumbnail,
+        thumbnailWidth,
+        thumbnailHeight,
+        description: stripHtml(item.description as string).slice(0, 1000),
+      };
+    }),
+  );
 
   mkdirSync(OUTPUT_DIR, { recursive: true });
   writeFileSync(OUTPUT_PATH, JSON.stringify({ items }, null, 2));

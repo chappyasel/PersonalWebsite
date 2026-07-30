@@ -2,21 +2,28 @@ import { type Metadata, type Viewport } from "next";
 import { Literata } from "next/font/google";
 
 import { FontProvider } from "~/lib/font-provider";
-import {
-  CSPostHogProvider,
-  ObserverProvider,
-  ThemeProvider,
-} from "~/lib/providers";
-import { TRPCReactProvider } from "~/trpc/react";
+import { ObserverProvider, ThemeProvider } from "~/lib/providers";
 
-import { georgiaPro } from "~/fonts";
 import "~/styles/globals.css";
 
 const literata = Literata({
   subsets: ["latin"],
   variable: "--font-literata",
   display: "swap",
+  preload: false,
 });
+
+const fontPreferenceScript = `
+try {
+  var font = localStorage.getItem("font-preference");
+  document.documentElement.dataset.font =
+    font === "system" || font === "literata" || font === "georgia"
+      ? font
+      : "georgia";
+} catch (_) {
+  document.documentElement.dataset.font = "georgia";
+}
+`;
 
 export const viewport: Viewport = {};
 
@@ -40,18 +47,32 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${literata.variable} ${georgiaPro.variable}`}
+      className={literata.variable}
+      data-font="georgia"
     >
-      <body className="font-serif">
-        <CSPostHogProvider>
-          <TRPCReactProvider>
-            <ObserverProvider>
-              <ThemeProvider>
-                <FontProvider>{children}</FontProvider>
-              </ThemeProvider>
-            </ObserverProvider>
-          </TRPCReactProvider>
-        </CSPostHogProvider>
+      <head>
+        <link
+          rel="preload"
+          href="/fonts/v1/GeorgiaPro-Regular.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+        <link
+          rel="preload"
+          href="/fonts/v1/GeorgiaPro-SemiBold.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
+        />
+        <script dangerouslySetInnerHTML={{ __html: fontPreferenceScript }} />
+      </head>
+      <body>
+        <ObserverProvider>
+          <ThemeProvider>
+            <FontProvider>{children}</FontProvider>
+          </ThemeProvider>
+        </ObserverProvider>
       </body>
     </html>
   );

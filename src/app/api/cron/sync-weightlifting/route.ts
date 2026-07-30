@@ -1,4 +1,4 @@
-import { revalidateTag } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { type NextRequest, NextResponse } from "next/server";
 
 import {
@@ -27,6 +27,7 @@ async function handleSync(source: "cron" | "manual") {
     console.log("Data changed — revalidating weightlifting caches");
     revalidateTag(WEIGHTLIFTING_TAG, "max");
     revalidateTag(WEIGHTLIFTING_ACTIVITY_TAG, "max");
+    revalidatePath("/");
   }
 
   return NextResponse.json({

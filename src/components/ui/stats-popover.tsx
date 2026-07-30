@@ -21,6 +21,7 @@ type StatsPopoverProps = {
   side?: "top" | "right" | "bottom" | "left";
   sideOffset?: number;
   contentClassName?: string;
+  triggerAriaLabel?: string;
 };
 
 /** Exit-animation duration — Radix stays mounted while the card fades out */
@@ -41,6 +42,7 @@ export function StatsPopover({
   side = "bottom",
   sideOffset = 8,
   contentClassName,
+  triggerAriaLabel,
 }: StatsPopoverProps) {
   const [open, setOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -102,6 +104,7 @@ export function StatsPopover({
       <PopoverTrigger asChild>
         <button
           type="button"
+          aria-label={triggerAriaLabel}
           className={
             triggerClassName ??
             "cursor-pointer decoration-foreground/30 decoration-dotted underline-offset-8 outline-none hover:underline focus-visible:underline"

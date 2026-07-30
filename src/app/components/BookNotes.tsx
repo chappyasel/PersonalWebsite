@@ -1,81 +1,22 @@
-"use client";
-
 import {
   BookOpenIcon,
   BookOpenTextIcon,
   BooksIcon,
   CalendarBlankIcon,
   ClockIcon,
-} from "@phosphor-icons/react";
+} from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 
-import { Skeleton } from "~/components/ui/skeleton";
+import type {
+  HomepageBookCover,
+  HomepageBookStats,
+} from "~/lib/books/types";
 import { devSubdomainUrl } from "~/lib/util";
-import { api } from "~/trpc/react";
 
-import BookCarousel from "./BookCarousel";
+import { DeferredBookCarousel } from "./DeferredBookCarousel";
 import TiltCard from "./TiltCard";
 
-function useBookStats() {
-  const { data: books, isLoading } = api.books.getAll.useQuery({
-    sortField: "finished",
-    sortOrder: "desc",
-    limit: 500,
-  });
-
-  if (!books || books.length === 0)
-    return {
-      total: null,
-      perYear: null,
-      avgDays: null,
-      pagesPerDay: null,
-      isLoading,
-    };
-
-  const total = books.length;
-  const finishedDates = books
-    .map((b) => b.finished)
-    .filter((d): d is string => d !== null)
-    .sort();
-
-  let perYear: number | null = null;
-  let pagesPerDay: number | null = null;
-  if (finishedDates.length >= 2) {
-    const earliest = new Date(finishedDates[0]!);
-    const latest = new Date(finishedDates[finishedDates.length - 1]!);
-    const years =
-      (latest.getTime() - earliest.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
-    if (years > 0) perYear = finishedDates.length / years;
-
-    // Total estimated pages of finished books over the first→last finish span
-    const totalPages = books
-      .filter((b) => b.finished)
-      .reduce((sum, b) => sum + (b.pageCount ?? 0), 0);
-    const days =
-      (latest.getTime() - earliest.getTime()) / (1000 * 60 * 60 * 24);
-    if (days > 0 && totalPages > 0) pagesPerDay = totalPages / days;
-  }
-
-  const durations = books
-    .filter((b) => b.started && b.finished)
-    .map((b) => {
-      const start = new Date(b.started!).getTime();
-      const end = new Date(b.finished!).getTime();
-      return (end - start) / (1000 * 60 * 60 * 24);
-    })
-    .filter((d) => d > 0);
-  const avgDays =
-    durations.length > 0
-      ? durations.reduce((s, d) => s + d, 0) / durations.length
-      : null;
-
-  return { total, perYear, avgDays, pagesPerDay, isLoading };
-}
-
-function StatValue({ value, loading }: { value: string | null; loading: boolean }) {
-  if (loading || value === null) {
-    return <Skeleton className="h-8 w-14 rounded bg-foreground/10 sm:h-9" />;
-  }
+function StatValue({ value }: { value: string }) {
   return (
     <span className="text-2xl font-semibold text-foreground sm:text-3xl">
       {value}
@@ -83,9 +24,13 @@ function StatValue({ value, loading }: { value: string | null; loading: boolean 
   );
 }
 
-export default function BookNotes() {
-  const { total, perYear, avgDays, pagesPerDay, isLoading } = useBookStats();
-
+export default function BookNotes({
+  books,
+  stats,
+}: {
+  books: HomepageBookCover[];
+  stats: HomepageBookStats;
+}) {
   const bookHref =
     process.env.NODE_ENV === "production"
       ? "https://books.chappyasel.com"
@@ -106,27 +51,27 @@ export default function BookNotes() {
           href={bookHref}
         >
           <div className="h-[320px]">
-            <BookCarousel />
+            <DeferredBookCarousel books={books} />
           </div>
           <div className="flex flex-col items-center px-8 pb-5 pt-3">
             <div className="mb-3 h-px w-2/3 bg-gradient-to-r from-transparent via-foreground/10 to-transparent" />
             <div className="flex w-full justify-around gap-1">
               <div className="flex flex-col items-center gap-0.5">
-                <StatValue value={total?.toString() ?? null} loading={isLoading} />
+                <StatValue value={stats.total.toString()} />
                 <span className="flex items-center gap-1 text-xs text-muted-foreground sm:text-sm">
                   <BookOpenIcon className="size-3.5 sm:size-4" weight="bold" />
                   Books
                 </span>
               </div>
               <div className="hidden flex-col items-center gap-0.5 sm:flex">
-                <StatValue value={perYear !== null ? perYear.toFixed(1) : null} loading={isLoading} />
+                <StatValue value={stats.perYear?.toFixed(1) ?? "—"} />
                 <span className="flex items-center gap-1 text-xs text-muted-foreground sm:text-sm">
                   <CalendarBlankIcon className="size-3.5 sm:size-4" weight="bold" />
                   Per Year
                 </span>
               </div>
               <div className="flex flex-col items-center gap-0.5">
-                <StatValue value={avgDays !== null ? `${avgDays.toFixed(1)}d` : null} loading={isLoading} />
+                <StatValue value={stats.avgDays ? `${stats.avgDays.toFixed(1)}d` : "—"} />
                 <span className="flex items-center gap-1 text-xs text-muted-foreground sm:text-sm">
                   <ClockIcon className="size-3.5 sm:size-4" weight="bold" />
                   Avg Read
@@ -134,8 +79,7 @@ export default function BookNotes() {
               </div>
               <div className="hidden flex-col items-center gap-0.5 sm:flex">
                 <StatValue
-                  value={pagesPerDay !== null ? pagesPerDay.toFixed(1) : null}
-                  loading={isLoading}
+                  value={stats.pagesPerDay?.toFixed(1) ?? "—"}
                 />
                 <span className="flex items-center gap-1 text-xs text-muted-foreground sm:text-sm">
                   <BookOpenTextIcon className="size-3.5 sm:size-4" weight="bold" />
