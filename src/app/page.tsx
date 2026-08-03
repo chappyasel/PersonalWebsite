@@ -11,10 +11,10 @@ import AboutMe from "./components/About";
 import BlogPosts from "./components/BlogPosts";
 import BookNotes from "./components/BookNotes";
 import DailyRoutine from "./components/DailyRoutine";
-import FeaturedLinkedInPosts from "./components/FeaturedLinkedInPosts";
 import PersonalManual from "./components/PersonalManual";
 import Projects from "./components/Projects";
 import Quotes from "./components/Quotes";
+import Talks from "./components/Talks";
 import { DeferredWeightlifting } from "./components/DeferredWeightlifting";
 import { GrainientBackground } from "~/components/ui/grainient-background";
 
@@ -42,7 +42,7 @@ export default async function HomePage() {
         <DeferredWeightlifting activity={activity} stats={liftingStats} />
         <PersonalManual />
         <DailyRoutine />
-        <FeaturedLinkedInPosts />
+        <Talks />
         <BlogPosts />
         <Projects />
         <Quotes />

@@ -1,0 +1,43 @@
+{
+  "talks": [
+    {
+      "videoId": "hwp74Ofkk34",
+      "title": "Why AI Agents May Be Crypto's First Real Users",
+      "venue": "Consensus 2026 · Miami",
+      "date": "2026-05-07",
+      "duration": "24 min",
+      "url": "https://www.youtube.com/watch?v=hwp74Ofkk34",
+      "thumbnail": "/images/speaking/hwp74Ofkk34.jpg",
+      "excerpt": "AI agents are starting to make decisions, use tools, and act on behalf of people and businesses. So what happens when they need to transact?",
+      "featured": true
+    },
+    {
+      "videoId": "5Pl0nqh7ZLU",
+      "title": "What Really Is The AI Collective?",
+      "venue": "Humans in AI Week · SF",
+      "date": "2026-06-04",
+      "duration": "20 min",
+      "url": "https://www.youtube.com/watch?v=5Pl0nqh7ZLU",
+      "thumbnail": "/images/speaking/5Pl0nqh7ZLU.jpg",
+      "excerpt": "The story behind the Collective — from a San Francisco living room meetup to a global community — and the trust gap opening up between how fast technology moves and how fast people adapt."
+    },
+    {
+      "videoId": "MjrG_Q27O3U",
+      "title": "Principles for Living in the Age of Acceleration",
+      "venue": "tjSTAR Symposium",
+      "date": "2025-05-21",
+      "duration": "31 min",
+      "url": "https://www.youtube.com/watch?v=MjrG_Q27O3U",
+      "thumbnail": "/images/speaking/MjrG_Q27O3U.jpg",
+      "excerpt": "The keynote at Thomas Jefferson High School for Science and Technology — on thriving in a world of accelerating change, and what holds steady as AI reshapes everything."
+    }
+  ],
+  "mentions": [
+    {
+      "outlet": "CoinDesk",
+      "title": "AI agents could solve crypto's user problem",
+      "date": "2026-05-08",
+      "url": "https://www.coindesk.com/markets/2026/05/08/ai-agents-could-solve-crypto-s-user-problem"
+    }
+  ]
+}
