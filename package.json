@@ -33,6 +33,10 @@
     "takeout:request": "npx tsx ./scripts/takeout/request.ts",
     "takeout:approve": "npx tsx ./scripts/takeout/approve.ts",
     "takeout:refresh": "npx tsx ./scripts/takeout/refresh.ts",
+    "youtube:backfill-metadata": "npx tsx ./scripts/backfill-youtube-metadata.ts",
+    "youtube:backfill-channels": "npx tsx ./scripts/backfill-youtube-channels.ts",
+    "youtube:score": "npx tsx ./scripts/score-youtube.ts",
+    "youtube:evaluate-scores": "npx tsx ./scripts/evaluate-youtube-scores.ts",
     "test": "vitest run --exclude 'tests/e2e/**'"
   },
   "dependencies": {

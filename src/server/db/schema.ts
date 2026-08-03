@@ -1,6 +1,7 @@
 import { relations, sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   doublePrecision,
   index,
   integer,
@@ -318,16 +319,13 @@ export const wlWorkoutsRelations = relations(wlWorkouts, ({ many }) => ({
   exercises: many(wlExercises),
 }));
 
-export const wlExercisesRelations = relations(
-  wlExercises,
-  ({ one, many }) => ({
-    workout: one(wlWorkouts, {
-      fields: [wlExercises.workoutId],
-      references: [wlWorkouts.id],
-    }),
-    sets: many(wlSets),
+export const wlExercisesRelations = relations(wlExercises, ({ one, many }) => ({
+  workout: one(wlWorkouts, {
+    fields: [wlExercises.workoutId],
+    references: [wlWorkouts.id],
   }),
-);
+  sets: many(wlSets),
+}));
 
 export const wlSetsRelations = relations(wlSets, ({ one }) => ({
   exercise: one(wlExercises, {
@@ -352,6 +350,11 @@ export const ytWatchHistory = pgTable(
     categoryId: integer("category_id"),
     topicCategories: text("topic_categories"), // JSON array of Wikipedia URLs
     tags: text("tags"), // JSON array of creator-assigned tags
+    description: text("description"),
+    thumbnailUrl: text("thumbnail_url"),
+    youtubeMetadataFetchedAt: timestamp("youtube_metadata_fetched_at", {
+      withTimezone: true,
+    }),
     viewCount: doublePrecision("view_count"),
     likeCount: doublePrecision("like_count"),
     hasCaptions: boolean("has_captions"),
@@ -366,7 +369,10 @@ export const ytWatchHistory = pgTable(
     channelNameIdx: index("yt_channel_name_idx").on(table.channelName),
     categoryIdx: index("yt_category_id_idx").on(table.categoryId),
     // Each (video_id, watched_at) is a single watch event — sync upserts on this.
-    watchEventUq: uniqueIndex("yt_watch_event_uq").on(table.videoId, table.watchedAt),
+    watchEventUq: uniqueIndex("yt_watch_event_uq").on(
+      table.videoId,
+      table.watchedAt,
+    ),
   }),
 );
 
@@ -383,3 +389,192 @@ export const ytSyncMetadata = pgTable("yt_sync_metadata", {
   errors: text("errors"),
   triggeredBy: varchar("triggered_by", { length: 50 }).notNull(),
 });
+
+// ── Normalized YouTube information-diet entities ───────────────────
+
+export const ytChannels = pgTable(
+  "yt_channels",
+  {
+    id: serial("id").primaryKey(),
+    youtubeChannelId: varchar("youtube_channel_id", { length: 32 }),
+    name: varchar("name", { length: 512 }).notNull(),
+    url: text("url"),
+    thumbnailUrl: text("thumbnail_url"),
+    metadataFetchedAt: timestamp("metadata_fetched_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => ({
+    youtubeIdUq: uniqueIndex("yt_channels_youtube_id_uq").on(
+      table.youtubeChannelId,
+    ),
+    nameIdx: index("yt_channels_name_idx").on(table.name),
+  }),
+);
+
+export const ytVideos = pgTable(
+  "yt_videos",
+  {
+    videoId: varchar("video_id", { length: 20 }).primaryKey(),
+    channelId: integer("channel_id").references(() => ytChannels.id),
+    title: varchar("title", { length: 1024 }),
+    description: text("description"),
+    thumbnailUrl: text("thumbnail_url"),
+    durationSeconds: integer("duration_seconds"),
+    categoryId: integer("category_id"),
+    topicCategories: text("topic_categories"),
+    tags: text("tags"),
+    viewCount: doublePrecision("view_count"),
+    likeCount: doublePrecision("like_count"),
+    hasCaptions: boolean("has_captions"),
+    definition: varchar("definition", { length: 4 }),
+    metadataFetchedAt: timestamp("metadata_fetched_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => ({
+    channelIdx: index("yt_videos_channel_idx").on(table.channelId),
+  }),
+);
+
+export const ytWatchEvents = pgTable(
+  "yt_watch_events",
+  {
+    id: serial("id").primaryKey(),
+    videoId: varchar("video_id", { length: 20 })
+      .notNull()
+      .references(() => ytVideos.videoId),
+    watchedAt: timestamp("watched_at", { withTimezone: true }).notNull(),
+  },
+  (table) => ({
+    videoIdx: index("yt_watch_events_video_idx").on(table.videoId),
+    watchedAtIdx: index("yt_watch_events_watched_at_idx").on(table.watchedAt),
+    eventUq: uniqueIndex("yt_watch_events_event_uq").on(
+      table.videoId,
+      table.watchedAt,
+    ),
+  }),
+);
+
+export const ytClassifierRuns = pgTable(
+  "yt_classifier_runs",
+  {
+    id: serial("id").primaryKey(),
+    dimension: varchar("dimension", { length: 32 }).notNull(),
+    status: varchar("status", { length: 24 }).notNull().default("draft"),
+    model: varchar("model", { length: 128 }).notNull(),
+    promptVersion: varchar("prompt_version", { length: 32 }).notNull(),
+    formulaVersion: varchar("formula_version", { length: 32 }).notNull(),
+    inputVersion: varchar("input_version", { length: 32 }).notNull(),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    costUsd: doublePrecision("cost_usd").notNull().default(0),
+    startedAt: timestamp("started_at", { withTimezone: true })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    activatedAt: timestamp("activated_at", { withTimezone: true }),
+  },
+  (table) => ({
+    dimensionStatusIdx: index("yt_classifier_runs_dimension_status_idx").on(
+      table.dimension,
+      table.status,
+    ),
+    dimensionCheck: check(
+      "yt_classifier_runs_dimension_check",
+      sql`${table.dimension} IN ('learning_value', 'positivity')`,
+    ),
+  }),
+);
+
+export const ytClassifications = pgTable(
+  "yt_classifications",
+  {
+    id: serial("id").primaryKey(),
+    runId: integer("run_id")
+      .notNull()
+      .references(() => ytClassifierRuns.id),
+    videoId: varchar("video_id", { length: 20 })
+      .notNull()
+      .references(() => ytVideos.videoId),
+    status: varchar("status", { length: 16 }).notNull(),
+    score: integer("score"),
+    components: jsonb("components").$type<Record<string, number>>(),
+    confidence: integer("confidence"),
+    evidence: varchar("evidence", { length: 16 }),
+    inputFingerprint: varchar("input_fingerprint", { length: 64 }),
+    scoredAt: timestamp("scored_at", { withTimezone: true })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => ({
+    runVideoUq: uniqueIndex("yt_classifications_run_video_uq").on(
+      table.runId,
+      table.videoId,
+    ),
+    videoIdx: index("yt_classifications_video_idx").on(table.videoId),
+    scoreCheck: check(
+      "yt_classifications_score_check",
+      sql`${table.score} IS NULL OR (${table.score} >= 0 AND ${table.score} <= 10)`,
+    ),
+  }),
+);
+
+export const ytManualOverrides = pgTable(
+  "yt_manual_overrides",
+  {
+    id: serial("id").primaryKey(),
+    videoId: varchar("video_id", { length: 20 })
+      .notNull()
+      .references(() => ytVideos.videoId),
+    dimension: varchar("dimension", { length: 32 }).notNull(),
+    score: integer("score").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => ({
+    videoDimensionUq: uniqueIndex("yt_manual_overrides_video_dimension_uq").on(
+      table.videoId,
+      table.dimension,
+    ),
+    dimensionCheck: check(
+      "yt_manual_overrides_dimension_check",
+      sql`${table.dimension} IN ('learning_value', 'positivity')`,
+    ),
+    scoreCheck: check(
+      "yt_manual_overrides_score_check",
+      sql`${table.score} >= 0 AND ${table.score} <= 10`,
+    ),
+  }),
+);
+
+export const ytCalibrationMembers = pgTable(
+  "yt_calibration_members",
+  {
+    videoId: varchar("video_id", { length: 20 })
+      .primaryKey()
+      .references(() => ytVideos.videoId),
+    position: integer("position").notNull(),
+    selectedAt: timestamp("selected_at", { withTimezone: true })
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  },
+  (table) => ({
+    positionUq: uniqueIndex("yt_calibration_members_position_uq").on(
+      table.position,
+    ),
+  }),
+);

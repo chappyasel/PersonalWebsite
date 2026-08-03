@@ -1,117 +1,110 @@
 "use client";
 
-import {
-  ChartLineUpIcon,
-  ClockIcon,
-  GaugeIcon,
-  MonitorPlayIcon,
-} from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
+import {
+  ClockIcon,
+  MonitorPlayIcon,
+  SmileyIcon,
+  StudentIcon,
+} from "@phosphor-icons/react/dist/ssr";
+
+import { scoreTextClass } from "~/lib/youtube/dashboard";
+import { api } from "~/trpc/react";
 
 import { Skeleton } from "~/components/ui/skeleton";
-import { api } from "~/trpc/react";
+
+function scoreDetail(
+  delta: number | null | undefined,
+  coverage: number | null | undefined,
+): string {
+  const change =
+    delta == null
+      ? ""
+      : `${delta >= 0 ? "↑" : "↓"} ${Math.abs(delta).toFixed(1)}`;
+  const covered =
+    coverage == null ? "" : `${Math.round(coverage * 100)}% coverage`;
+  return [change, covered].filter(Boolean).join(" · ");
+}
 
 export function StatsCards() {
   const { data: stats, isLoading: statsLoading } =
     api.youtube.getStats.useQuery();
-  const { data: quality, isLoading: qualityLoading } =
-    api.youtube.getQualityScore.useQuery();
-
-  const isLoading = statsLoading || qualityLoading;
-
-  if (isLoading) {
+  const { data: diet, isLoading: dietLoading } =
+    api.youtube.getInformationDietSummary.useQuery();
+  if (statsLoading || dietLoading) {
     return (
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-24 rounded-xl" />
+        {Array.from({ length: 4 }).map((_, index) => (
+          <Skeleton key={index} className="h-24 rounded-xl" />
         ))}
       </div>
     );
   }
-
   if (!stats) return null;
-
-  const totalHours = Math.round(stats.totalDurationSeconds / 3600);
-  const totalDays = (stats.totalDurationSeconds / 86400).toFixed(1);
-
-  type CardDef = {
+  type Card = {
     label: string;
     value: string;
     sub?: string;
-    subColor?: string;
     icon: Icon;
-    className?: string;
+    score?: number | null;
   };
-
-  const cards: CardDef[] = [
+  const exposureSeconds = stats.totalEstimatedExposureSeconds;
+  const cards: Card[] = [
     {
-      label: "Videos Watched",
+      label: "Watch Events",
       value: stats.totalVideos.toLocaleString(),
       icon: MonitorPlayIcon,
     },
     {
-      label: "Watch Time",
-      value: `${totalHours.toLocaleString()} hrs`,
-      sub: `${totalDays} days`,
+      label: "Estimated Watch Time",
+      value: `${Math.round(exposureSeconds / 3600).toLocaleString()} hrs`,
+      sub: `${(exposureSeconds / 86400).toFixed(1)} days`,
       icon: ClockIcon,
     },
     {
-      label: "Avg Daily",
+      label: "Learning Value",
       value:
-        stats.earliestWatch && stats.latestWatch
-          ? (() => {
-              const days = Math.max(
-                1,
-                Math.round(
-                  (new Date(stats.latestWatch).getTime() -
-                    new Date(stats.earliestWatch).getTime()) /
-                    86400000,
-                ),
-              );
-              const avgHrs = stats.totalDurationSeconds / 3600 / days;
-              return `${avgHrs.toFixed(1)} hrs`;
-            })()
-          : "—",
-      sub: stats.earliestWatch
-        ? `since ${new Date(stats.earliestWatch).getFullYear()}`
-        : undefined,
-      icon: ChartLineUpIcon,
+        diet?.current.learningValue == null
+          ? "—"
+          : diet.current.learningValue.toFixed(1),
+      sub: scoreDetail(diet?.learningDelta, diet?.current.learningCoverage),
+      icon: StudentIcon,
+      score: diet?.current.learningValue ?? null,
     },
     {
-      label: "Quality Score",
-      value: quality ? `${quality.currentPct.toFixed(0)}%` : "—",
-      sub: quality
-        ? quality.deltaPct >= 0
-          ? `↑ ${quality.deltaPct.toFixed(1)}%`
-          : `↓ ${Math.abs(quality.deltaPct).toFixed(1)}%`
-        : undefined,
-      subColor: quality
-        ? quality.deltaPct >= 0
-          ? "text-green-500"
-          : "text-red-500"
-        : undefined,
-      icon: GaugeIcon,
+      label: "Positivity",
+      value:
+        diet?.current.positivity == null
+          ? "—"
+          : diet.current.positivity.toFixed(1),
+      sub: scoreDetail(diet?.positivityDelta, diet?.current.positivityCoverage),
+      icon: SmileyIcon,
+      score: diet?.current.positivity ?? null,
     },
   ];
-
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
       {cards.map((card) => (
         <div
           key={card.label}
-          className={`rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-800 ${card.className ?? ""}`}
+          className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-800"
         >
           <p className="flex items-center gap-1.5 text-sm text-neutral-500 dark:text-neutral-400">
             <card.icon className="h-4 w-4" weight="bold" />
             {card.label}
           </p>
-          <p className="mt-1 font-rounded text-xl font-semibold text-neutral-800 dark:text-neutral-100">
+          <p
+            className={
+              "mt-1 font-rounded text-xl font-semibold " +
+              (card.score === undefined
+                ? "text-neutral-800 dark:text-neutral-100"
+                : scoreTextClass(card.score))
+            }
+          >
             {card.value}
           </p>
           {card.sub && (
-            <p
-              className={`text-xs ${card.subColor ?? "text-neutral-400 dark:text-neutral-500"}`}
-            >
+            <p className="text-xs text-neutral-400 dark:text-neutral-500">
               {card.sub}
             </p>
           )}

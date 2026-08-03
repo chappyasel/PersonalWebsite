@@ -1,14 +1,17 @@
+import { eq, sql } from "drizzle-orm";
 import * as fs from "fs";
 
-import { eq, isNull, sql } from "drizzle-orm";
-
-import { env } from "~/env";
+import {
+  type YouTubeVideoMetadata,
+  fetchYouTubeVideoMetadata,
+  preferCanonicalMetadata,
+} from "~/lib/youtube/metadata";
 import { db } from "~/server/db";
 import { ytSyncMetadata, ytWatchHistory } from "~/server/db/schema";
 
-const YOUTUBE_API_URL = "https://www.googleapis.com/youtube/v3/videos";
+import { env } from "~/env";
+
 const BATCH_SIZE = 50;
-const MAX_DURATION_SECONDS = 5400; // Cap at 90 min to exclude livestreams
 
 type TakeoutEntry = {
   header?: string;
@@ -19,40 +22,9 @@ type TakeoutEntry = {
   products?: string[];
 };
 
-type YouTubeApiItem = {
-  id: string;
-  snippet?: {
-    categoryId?: string;
-    tags?: string[];
-  };
-  contentDetails?: {
-    duration: string;
-    caption?: string; // "true" | "false"
-    definition?: string; // "hd" | "sd"
-  };
-  statistics?: {
-    viewCount?: string;
-    likeCount?: string;
-  };
-  topicDetails?: {
-    topicCategories?: string[];
-  };
-};
-
-type YouTubeApiResponse = {
-  items: YouTubeApiItem[];
-};
-
 /** All metadata we cache per video ID */
-type VideoMeta = {
-  durationSeconds: number;
-  categoryId: number | null;
-  topicCategories: string | null; // JSON stringified array
-  tags: string | null; // JSON stringified array
-  viewCount: number | null;
-  likeCount: number | null;
-  hasCaptions: boolean | null;
-  definition: string | null;
+type VideoMeta = YouTubeVideoMetadata & {
+  youtubeMetadataFetchedAt: Date | null;
   llmQualityScore: number | null;
   llmModel: string | null;
   llmPromptVersion: string | null;
@@ -64,80 +36,11 @@ export type YtSyncResult = {
   deletedVideos: number;
 };
 
-/** Parse ISO 8601 duration (PT1H2M10S) to seconds */
-function parseDuration(iso: string): number {
-  const time = iso.replace("P", "").replace("T", "");
-  let hours = 0,
-    minutes = 0,
-    seconds = 0;
-  let num = "";
-  for (const ch of time) {
-    if (ch >= "0" && ch <= "9") {
-      num += ch;
-    } else {
-      const val = parseInt(num, 10) || 0;
-      if (ch === "H") hours = val;
-      else if (ch === "M") minutes = val;
-      else if (ch === "S") seconds = val;
-      num = "";
-    }
-  }
-  return hours * 3600 + minutes * 60 + seconds;
-}
-
 /** Extract video ID from YouTube URL */
 function extractVideoId(url: string): string | null {
   const id = url.split("v=")[1]?.split("&")[0];
   if (id?.length === 11) return id;
   return null;
-}
-
-/** Fetch full metadata for a batch of video IDs from YouTube Data API v3 */
-async function fetchVideoMeta(
-  videoIds: string[],
-): Promise<Map<string, VideoMeta>> {
-  const map = new Map<string, VideoMeta>();
-  const url = `${YOUTUBE_API_URL}?part=contentDetails,snippet,statistics,topicDetails&id=${videoIds.join(",")}&key=${env.YOUTUBE_API_KEY}`;
-
-  const resp = await fetch(url);
-  if (!resp.ok) {
-    console.error(`YouTube API error: ${resp.status} ${resp.statusText}`);
-    return map;
-  }
-
-  const data = (await resp.json()) as YouTubeApiResponse;
-  for (const item of data.items) {
-    const secs = item.contentDetails
-      ? Math.min(parseDuration(item.contentDetails.duration), MAX_DURATION_SECONDS)
-      : 0;
-
-    map.set(item.id, {
-      durationSeconds: secs,
-      categoryId: item.snippet?.categoryId
-        ? parseInt(item.snippet.categoryId, 10)
-        : null,
-      topicCategories: item.topicDetails?.topicCategories
-        ? JSON.stringify(item.topicDetails.topicCategories)
-        : null,
-      tags: item.snippet?.tags ? JSON.stringify(item.snippet.tags) : null,
-      viewCount: item.statistics?.viewCount
-        ? parseInt(item.statistics.viewCount, 10)
-        : null,
-      likeCount: item.statistics?.likeCount
-        ? parseInt(item.statistics.likeCount, 10)
-        : null,
-      hasCaptions: item.contentDetails?.caption === "true"
-        ? true
-        : item.contentDetails?.caption === "false"
-          ? false
-          : null,
-      definition: item.contentDetails?.definition ?? null,
-      llmQualityScore: null,
-      llmModel: null,
-      llmPromptVersion: null,
-    });
-  }
-  return map;
 }
 
 /**
@@ -198,6 +101,11 @@ export async function syncYouTube(
     const existingRows = await db
       .select({
         videoId: ytWatchHistory.videoId,
+        title: ytWatchHistory.title,
+        channelName: ytWatchHistory.channelName,
+        description: ytWatchHistory.description,
+        thumbnailUrl: ytWatchHistory.thumbnailUrl,
+        youtubeMetadataFetchedAt: ytWatchHistory.youtubeMetadataFetchedAt,
         durationSeconds: ytWatchHistory.durationSeconds,
         categoryId: ytWatchHistory.categoryId,
         topicCategories: ytWatchHistory.topicCategories,
@@ -213,9 +121,19 @@ export async function syncYouTube(
       .from(ytWatchHistory);
 
     for (const row of existingRows) {
-      // Only cache if we have the full metadata (categoryId as sentinel)
-      if (row.durationSeconds != null && row.categoryId != null) {
+      // A fetch timestamp is the sentinel for the richer metadata version.
+      if (
+        row.durationSeconds != null &&
+        row.categoryId != null &&
+        row.youtubeMetadataFetchedAt != null
+      ) {
         metaMap.set(row.videoId, {
+          youtubeChannelId: null,
+          title: row.title,
+          channelName: row.channelName,
+          description: row.description,
+          thumbnailUrl: row.thumbnailUrl,
+          youtubeMetadataFetchedAt: row.youtubeMetadataFetchedAt,
           durationSeconds: row.durationSeconds,
           categoryId: row.categoryId,
           topicCategories: row.topicCategories,
@@ -241,10 +159,20 @@ export async function syncYouTube(
     // Fetch metadata only for uncached videos
     for (let i = 0; i < uncachedIds.length; i += BATCH_SIZE) {
       const batch = uncachedIds.slice(i, i + BATCH_SIZE);
-      const batchMeta = await fetchVideoMeta(batch);
+      const fetchedAt = new Date();
+      const batchMeta = await fetchYouTubeVideoMetadata(
+        batch,
+        env.YOUTUBE_API_KEY,
+      );
 
       for (const [id, meta] of batchMeta) {
-        metaMap.set(id, meta);
+        metaMap.set(id, {
+          ...meta,
+          youtubeMetadataFetchedAt: fetchedAt,
+          llmQualityScore: null,
+          llmModel: null,
+          llmPromptVersion: null,
+        });
         enrichedCount++;
       }
 
@@ -256,7 +184,7 @@ export async function syncYouTube(
     }
 
     console.log(
-      `Enriched ${enrichedCount}/${uniqueIds.length} videos (${uncachedIds.length} new API calls)`,
+      `Enriched ${enrichedCount}/${uniqueIds.length} videos (${Math.ceil(uncachedIds.length / BATCH_SIZE)} API batches)`,
     );
 
     // 4. Additive upsert — never destroy existing rows. Unique key is
@@ -268,10 +196,14 @@ export async function syncYouTube(
       const meta = metaMap.get(p.videoId);
       return {
         videoId: p.videoId,
-        title: p.title,
-        channelName: p.channelName,
+        youtubeChannelId: meta?.youtubeChannelId ?? null,
+        title: preferCanonicalMetadata(p.title, meta?.title),
+        channelName: preferCanonicalMetadata(p.channelName, meta?.channelName),
         channelUrl: p.channelUrl,
         watchedAt: p.watchedAt,
+        description: meta?.description ?? null,
+        thumbnailUrl: meta?.thumbnailUrl ?? null,
+        youtubeMetadataFetchedAt: meta?.youtubeMetadataFetchedAt ?? null,
         durationSeconds: meta?.durationSeconds ?? null,
         categoryId: meta?.categoryId ?? null,
         topicCategories: meta?.topicCategories ?? null,
@@ -297,6 +229,9 @@ export async function syncYouTube(
             title: sql`excluded.title`,
             channelName: sql`excluded.channel_name`,
             channelUrl: sql`excluded.channel_url`,
+            description: sql`excluded.description`,
+            thumbnailUrl: sql`excluded.thumbnail_url`,
+            youtubeMetadataFetchedAt: sql`excluded.youtube_metadata_fetched_at`,
             durationSeconds: sql`excluded.duration_seconds`,
             categoryId: sql`excluded.category_id`,
             topicCategories: sql`excluded.topic_categories`,
@@ -307,6 +242,125 @@ export async function syncYouTube(
             definition: sql`excluded.definition`,
           },
         });
+    }
+
+    // Keep the normalized entities current while the legacy history table
+    // remains available for side-by-side score comparison.
+    for (let i = 0; i < rows.length; i += DB_BATCH) {
+      const batch = rows.slice(i, i + DB_BATCH);
+      const normalized = batch.map((row) => ({
+        video_id: row.videoId,
+        youtube_channel_id: row.youtubeChannelId,
+        channel_name: row.channelName,
+        channel_url: row.channelUrl,
+        watched_at: row.watchedAt.toISOString(),
+        title: row.title,
+        description: row.description,
+        thumbnail_url: row.thumbnailUrl,
+        duration_seconds: row.durationSeconds,
+        category_id: row.categoryId,
+        topic_categories: row.topicCategories,
+        tags: row.tags,
+        view_count: row.viewCount,
+        like_count: row.likeCount,
+        has_captions: row.hasCaptions,
+        definition: row.definition,
+        metadata_fetched_at:
+          row.youtubeMetadataFetchedAt?.toISOString() ?? null,
+      }));
+      await db.execute(sql`
+        WITH incoming AS (
+          SELECT * FROM jsonb_to_recordset(
+            (${JSON.stringify(normalized)}::jsonb #>> '{}')::jsonb
+          ) AS x(
+            video_id text, youtube_channel_id text, channel_name text,
+            channel_url text, watched_at timestamptz, title text,
+            description text, thumbnail_url text, duration_seconds integer,
+            category_id integer, topic_categories text, tags text,
+            view_count double precision, like_count double precision,
+            has_captions boolean, definition text,
+            metadata_fetched_at timestamptz
+          )
+        ), identified_channels AS (
+          INSERT INTO yt_channels (
+            youtube_channel_id, name, url, metadata_fetched_at, updated_at
+          )
+          SELECT DISTINCT ON (youtube_channel_id)
+            youtube_channel_id,
+            COALESCE(channel_name, 'Unknown'),
+            COALESCE(
+              channel_url,
+              'https://www.youtube.com/channel/' || youtube_channel_id
+            ),
+            metadata_fetched_at,
+            NOW()
+          FROM incoming
+          WHERE youtube_channel_id IS NOT NULL
+          ORDER BY youtube_channel_id, watched_at DESC
+          ON CONFLICT (youtube_channel_id) DO UPDATE SET
+            name = EXCLUDED.name,
+            url = EXCLUDED.url,
+            metadata_fetched_at = COALESCE(
+              EXCLUDED.metadata_fetched_at,
+              yt_channels.metadata_fetched_at
+            ),
+            updated_at = NOW()
+          RETURNING id, youtube_channel_id
+        ), upserted_videos AS (
+          INSERT INTO yt_videos (
+            video_id, channel_id, title, description, thumbnail_url,
+            duration_seconds, category_id, topic_categories, tags, view_count,
+            like_count, has_captions, definition, metadata_fetched_at, updated_at
+          )
+          SELECT DISTINCT ON (incoming.video_id)
+            incoming.video_id,
+            channel.id,
+            incoming.title,
+            incoming.description,
+            incoming.thumbnail_url,
+            incoming.duration_seconds,
+            incoming.category_id,
+            incoming.topic_categories,
+            incoming.tags,
+            incoming.view_count,
+            incoming.like_count,
+            incoming.has_captions,
+            incoming.definition,
+            incoming.metadata_fetched_at,
+            NOW()
+          FROM incoming
+          LEFT JOIN LATERAL (
+            SELECT possible.id
+            FROM (
+              SELECT id, youtube_channel_id FROM identified_channels
+              UNION ALL
+              SELECT id, youtube_channel_id FROM yt_channels
+            ) possible
+            WHERE possible.youtube_channel_id = incoming.youtube_channel_id
+            LIMIT 1
+          ) channel ON TRUE
+          ORDER BY incoming.video_id, incoming.watched_at DESC
+          ON CONFLICT (video_id) DO UPDATE SET
+            channel_id = COALESCE(EXCLUDED.channel_id, yt_videos.channel_id),
+            title = COALESCE(EXCLUDED.title, yt_videos.title),
+            description = COALESCE(EXCLUDED.description, yt_videos.description),
+            thumbnail_url = COALESCE(EXCLUDED.thumbnail_url, yt_videos.thumbnail_url),
+            duration_seconds = COALESCE(EXCLUDED.duration_seconds, yt_videos.duration_seconds),
+            category_id = COALESCE(EXCLUDED.category_id, yt_videos.category_id),
+            topic_categories = COALESCE(EXCLUDED.topic_categories, yt_videos.topic_categories),
+            tags = COALESCE(EXCLUDED.tags, yt_videos.tags),
+            view_count = COALESCE(EXCLUDED.view_count, yt_videos.view_count),
+            like_count = COALESCE(EXCLUDED.like_count, yt_videos.like_count),
+            has_captions = COALESCE(EXCLUDED.has_captions, yt_videos.has_captions),
+            definition = COALESCE(EXCLUDED.definition, yt_videos.definition),
+            metadata_fetched_at = COALESCE(EXCLUDED.metadata_fetched_at, yt_videos.metadata_fetched_at),
+            updated_at = NOW()
+          RETURNING video_id
+        )
+        INSERT INTO yt_watch_events (video_id, watched_at)
+        SELECT video_id, watched_at FROM incoming
+        ON CONFLICT (video_id, watched_at) DO NOTHING
+      `);
     }
 
     console.log(`Upserted ${rows.length} watch history entries`);

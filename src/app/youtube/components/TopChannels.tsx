@@ -1,137 +1,141 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 
-import { Skeleton } from "~/components/ui/skeleton";
+import { scoreTextClass } from "~/lib/youtube/dashboard";
 import { api } from "~/trpc/react";
-import { TimeRangeToggle, type TimeRange } from "./TimeRangeToggle";
 
-function qualityBarColor(score: number): string {
-  if (score >= 0.5) return "bg-green-500/15 dark:bg-green-400/15";
-  if (score >= 0.15) return "bg-yellow-500/15 dark:bg-yellow-400/15";
-  return "bg-red-500/10 dark:bg-red-400/10";
-}
+import { Skeleton } from "~/components/ui/skeleton";
 
-function qualityColor(score: number): string {
-  if (score >= 0.5) return "text-green-600 dark:text-green-400";
-  if (score >= 0.15) return "text-yellow-600 dark:text-yellow-400";
-  return "text-red-500 dark:text-red-400";
-}
+import { type TimeRange, TimeRangeToggle } from "./TimeRangeToggle";
 
-function qualityBgColor(score: number): string {
-  if (score >= 0.5) return "bg-green-500";
-  if (score >= 0.15) return "bg-yellow-500";
-  return "bg-red-500";
-}
-
-/** Mini inline range bar: shows mean with min-max whiskers on a 0-1 scale */
-function QualityRange({
-  mean,
-  min,
-  max,
-  stddev,
-}: {
-  mean: number;
-  min: number;
-  max: number;
-  stddev: number;
-}) {
-  const width = 48; // px
-
+function InitialAvatar({ name }: { name: string }) {
   return (
-    <div className="flex items-center gap-1.5">
-      <span
-        className={`text-[10px] font-semibold tabular-nums ${qualityColor(mean)}`}
-      >
-        {mean.toFixed(2)}
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-200 text-xs font-semibold text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300">
+      {name.slice(0, 1).toUpperCase()}
+    </span>
+  );
+}
+
+function ChannelAvatar({
+  name,
+  thumbnailUrl,
+}: {
+  name: string;
+  thumbnailUrl: string | null;
+}) {
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+  return (
+    <span className="relative h-8 w-8 shrink-0">
+      <span className="absolute inset-0">
+        <InitialAvatar name={name} />
       </span>
-      <div
-        className="relative h-2 rounded-full bg-neutral-100 dark:bg-neutral-700"
-        style={{ width }}
-        title={`Mean: ${mean.toFixed(2)}, Std: ${stddev.toFixed(2)}, Range: ${min.toFixed(2)}–${max.toFixed(2)}`}
-      >
-        {/* Min-max range whisker */}
-        {max > min && (
-          <div
-            className="absolute top-0.5 h-1 rounded-full bg-neutral-300 dark:bg-neutral-500"
-            style={{
-              left: `${min * 100}%`,
-              width: `${(max - min) * 100}%`,
-            }}
-          />
-        )}
-        {/* Mean dot */}
-        <div
-          className={`absolute top-0 h-2 w-2 rounded-full ${qualityBgColor(mean)}`}
-          style={{
-            left: `${mean * 100}%`,
-            transform: "translateX(-50%)",
-          }}
+      {thumbnailUrl && !failed && (
+        <Image
+          src={thumbnailUrl}
+          alt=""
+          width={32}
+          height={32}
+          className={
+            "absolute inset-0 h-8 w-8 rounded-full object-cover transition-opacity duration-200 " +
+            (loaded ? "opacity-100" : "opacity-0")
+          }
+          onLoad={() => setLoaded(true)}
+          onError={() => setFailed(true)}
+          unoptimized
         />
-      </div>
-    </div>
+      )}
+    </span>
+  );
+}
+
+function Score({
+  label,
+  value,
+  coverage,
+}: {
+  label: string;
+  value: number | null;
+  coverage: number | null;
+}) {
+  return (
+    <span
+      title={`${label}: ${value?.toFixed(1) ?? "Unscored"}${coverage == null ? "" : ` (${Math.round(coverage * 100)}% coverage)`}`}
+      className={"w-9 text-right text-xs tabular-nums " + scoreTextClass(value)}
+    >
+      {value?.toFixed(1) ?? "—"}
+    </span>
   );
 }
 
 export function TopChannels() {
   const [timeRange, setTimeRange] = useState<TimeRange>("all");
   const [expanded, setExpanded] = useState(false);
-
-  const { data, isLoading } = api.youtube.getTopChannels.useQuery({
+  const { data, isLoading } = api.youtube.getInformationDietChannels.useQuery({
     limit: expanded ? 50 : 10,
     timeRange,
   });
-
   if (isLoading) {
     return (
       <div className="space-y-2">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <Skeleton key={i} className="h-8 rounded-md" />
+        {Array.from({ length: 8 }).map((_, index) => (
+          <Skeleton key={index} className="h-10 rounded-md" />
         ))}
       </div>
     );
   }
-
-  if (!data || data.length === 0) {
+  if (!data?.length)
     return (
       <p className="py-8 text-center text-sm text-neutral-400">
         No channel data yet
       </p>
     );
-  }
-
-  const maxHours = data[0]?.totalHours ?? 1;
-
+  const maxHours = data[0]?.estimatedExposureHours ?? 1;
   return (
     <div>
       <div className="mb-3">
         <TimeRangeToggle value={timeRange} onChange={setTimeRange} />
       </div>
+      <div className="mb-1 flex justify-end gap-2 px-2 text-[10px] uppercase tracking-wide text-neutral-400">
+        <span className="w-9 text-right">Learn</span>
+        <span className="w-9 text-right">Pos</span>
+        <span className="w-14 text-right">Time</span>
+      </div>
       <div className="space-y-1.5">
-        {data.map((ch, i) => (
-          <div key={ch.channelName} className="flex items-center gap-3">
-            <span className="w-5 text-right text-xs tabular-nums text-neutral-400 dark:text-neutral-500">
-              {i + 1}
+        {data.map((channel, index) => (
+          <div key={channel.channelId} className="flex items-center gap-2">
+            <span className="w-5 text-right text-xs tabular-nums text-neutral-400">
+              {index + 1}
             </span>
-            <div className="relative flex-1">
+            <ChannelAvatar
+              name={channel.channelName}
+              thumbnailUrl={channel.thumbnailUrl}
+            />
+            <div className="relative min-w-0 flex-1 overflow-hidden rounded-md">
               <div
-                className={`absolute inset-y-0 left-0 rounded-md ${qualityBarColor(ch.qualityMean)}`}
-                style={{ width: `${(ch.totalHours / maxHours) * 100}%` }}
+                className="absolute inset-y-0 left-0 bg-neutral-500/20 dark:bg-neutral-300/15"
+                style={{
+                  width: `${(channel.estimatedExposureHours / maxHours) * 100}%`,
+                }}
               />
-              <div className="relative flex items-center px-2 py-1.5">
+              <div className="relative flex items-center gap-2 px-2 py-2">
                 <span className="min-w-0 flex-1 truncate text-sm font-medium text-neutral-700 dark:text-neutral-200">
-                  {ch.channelName}
+                  {channel.channelName}
                 </span>
-                <span className="flex shrink-0 items-center gap-2">
-                  <QualityRange
-                    mean={ch.qualityMean}
-                    min={ch.qualityMin}
-                    max={ch.qualityMax}
-                    stddev={ch.qualityStddev}
-                  />
-                  <span className="w-[52px] text-right text-xs tabular-nums text-neutral-500 dark:text-neutral-400">
-                    {ch.totalHours.toFixed(1)}h
-                  </span>
+                <Score
+                  label="Learning Value"
+                  value={channel.learningValue}
+                  coverage={channel.learningCoverage}
+                />
+                <Score
+                  label="Positivity"
+                  value={channel.positivity}
+                  coverage={channel.positivityCoverage}
+                />
+                <span className="w-14 text-right text-xs tabular-nums text-neutral-500">
+                  {channel.estimatedExposureHours.toFixed(1)}h
                 </span>
               </div>
             </div>
@@ -139,8 +143,8 @@ export function TopChannels() {
         ))}
       </div>
       <button
-        onClick={() => setExpanded(!expanded)}
-        className="mt-3 w-full rounded-md py-1.5 text-xs font-medium text-neutral-500 transition-colors hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-700"
+        onClick={() => setExpanded((value) => !value)}
+        className="mt-3 w-full rounded-md py-1.5 text-xs font-medium text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-700"
       >
         {expanded ? "Show less" : "Show more"}
       </button>
