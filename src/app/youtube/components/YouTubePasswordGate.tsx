@@ -1,13 +1,12 @@
 "use client";
 
+import { setYoutubeAccessCookie } from "../actions";
 import { YoutubeLogo } from "@phosphor-icons/react/dist/ssr";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { api } from "~/trpc/react";
-
-import { setYoutubeAccessCookie } from "../actions";
 
 export function YouTubePasswordGate() {
   const router = useRouter();
@@ -17,8 +16,8 @@ export function YouTubePasswordGate() {
   const verify = api.youtube.verifyPassword.useMutation({
     onSuccess: async (data) => {
       if (data.valid) {
-        await setYoutubeAccessCookie();
-        router.refresh();
+        const saved = await setYoutubeAccessCookie(password);
+        if (saved) router.refresh();
       } else {
         setError("Incorrect password");
         setPassword("");

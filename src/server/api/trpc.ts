@@ -10,8 +10,11 @@ import { TRPCError, initTRPC } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
 
+import { isValidYoutubeAccessToken } from "~/lib/youtube/access";
 import { auth } from "~/server/auth";
 import { db } from "~/server/db";
+
+import { env } from "~/env";
 
 /**
  * 1. CONTEXT
@@ -151,7 +154,16 @@ export const cookieProtectedProcedure = t.procedure
     }
 
     const cookieHeader = ctx.headers.get("cookie") ?? "";
-    if (!cookieHeader.includes(`${cookieName}=`)) {
+    const cookieValue = cookieHeader
+      .split(";")
+      .map((part) => part.trim())
+      .find((part) => part.startsWith(`${cookieName}=`))
+      ?.slice(cookieName.length + 1);
+    const valid =
+      cookieName === "youtube-access"
+        ? isValidYoutubeAccessToken(cookieValue, env.DAD_CONTENT_PASSWORD)
+        : Boolean(cookieValue);
+    if (!valid) {
       throw new TRPCError({ code: "UNAUTHORIZED" });
     }
 

@@ -1,17 +1,24 @@
+import { TRPCError } from "@trpc/server";
 import { desc, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import { env } from "~/env";
 import { CATEGORY_VALUES } from "~/lib/youtube/categories";
 import { syncYouTube } from "~/lib/youtube/sync";
 import {
-  createTRPCRouter,
   cookieProtectedProcedure,
+  createTRPCRouter,
   protectedProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
 import { db } from "~/server/db";
-import { ytSyncMetadata, ytWatchHistory } from "~/server/db/schema";
+import {
+  ytCalibrationMembers,
+  ytManualOverrides,
+  ytSyncMetadata,
+  ytWatchHistory,
+} from "~/server/db/schema";
+
+import { env } from "~/env";
 
 /** Average playback speed — divides raw duration to estimate actual watch time */
 const PLAYBACK_SPEED = 2.2;
@@ -40,11 +47,14 @@ const DAY_BOUNDARY_HOUR = 4;
  *  hardcoded constant, never user input. */
 const watchDayLocal = sql`((${ytWatchHistory.watchedAt} AT TIME ZONE ${sql.raw(`'${DISPLAY_TIME_ZONE}'`)}) - INTERVAL '${sql.raw(String(DAY_BOUNDARY_HOUR))} hours')`;
 
-const timeRangeSchema = z.enum(["30d", "90d", "1y", "3y", "all"]).default("all");
+const timeRangeSchema = z
+  .enum(["30d", "90d", "1y", "3y", "all"])
+  .default("all");
 
 function timeRangeWhere(range: z.infer<typeof timeRangeSchema>) {
   if (range === "all") return sql`TRUE`;
-  const days = range === "30d" ? 30 : range === "90d" ? 90 : range === "1y" ? 365 : 1095;
+  const days =
+    range === "30d" ? 30 : range === "90d" ? 90 : range === "1y" ? 365 : 1095;
   return sql`${ytWatchHistory.watchedAt} >= NOW() - INTERVAL '${sql.raw(String(days))} days'`;
 }
 
@@ -82,12 +92,25 @@ const heuristicWeightCase = sql`CASE ${ytWatchHistory.categoryId} ${sql.join(
 /** Quality score: prefer LLM score, fall back to heuristic */
 const qualityScoreExpr = sql`COALESCE(${ytWatchHistory.llmQualityScore}, ${heuristicWeightCase})`;
 
-/** Quality tier: prefer LLM-based tiers, fall back to category-based */
-const qualityTierExpr = sql`CASE
-  WHEN COALESCE(${ytWatchHistory.llmQualityScore}, ${heuristicWeightCase}) >= 0.5 THEN 'high'
-  WHEN COALESCE(${ytWatchHistory.llmQualityScore}, ${heuristicWeightCase}) >= 0.15 THEN 'medium'
-  ELSE 'low'
-END`;
+function dbNullableString(value: unknown): string | null {
+  if (value == null) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "bigint") {
+    return value.toString();
+  }
+  if (value instanceof Date) return value.toISOString();
+  return null;
+}
+
+function dbString(value: unknown, fallback = ""): string {
+  return dbNullableString(value) ?? fallback;
+}
+
+function assertDevelopmentOnly(): void {
+  if (process.env.NODE_ENV === "production") {
+    throw new TRPCError({ code: "NOT_FOUND" });
+  }
+}
 
 export const youtubeRouter = createTRPCRouter({
   /** Verify content password */
@@ -98,6 +121,576 @@ export const youtubeRouter = createTRPCRouter({
       return { valid };
     }),
 
+  /** Canonical 30-day information-diet scores and independent coverage. */
+  getInformationDietSummary: cookieProtectedProcedure.query(async () => {
+    const rows = await db.execute(sql`
+      WITH active_runs AS (
+        SELECT
+          MAX(id) FILTER (WHERE dimension = 'learning_value') AS learning_run_id,
+          MAX(id) FILTER (WHERE dimension = 'positivity') AS positivity_run_id
+        FROM yt_classifier_runs
+        WHERE status = 'active'
+      ), scored_events AS (
+        SELECT
+          CASE WHEN event.watched_at >= NOW() - INTERVAL '30 days'
+            THEN 'current' ELSE 'prior' END AS period,
+          GREATEST(COALESCE(video.duration_seconds, 0), 0)::double precision / ${PLAYBACK_SPEED} AS exposure,
+          COALESCE(learning_override.score, learning.score) AS learning_score,
+          COALESCE(positivity_override.score, positivity.score) AS positivity_score
+        FROM yt_watch_events event
+        JOIN yt_videos video ON video.video_id = event.video_id
+        CROSS JOIN active_runs
+        LEFT JOIN yt_classifications learning
+          ON learning.video_id = video.video_id
+          AND learning.run_id = active_runs.learning_run_id
+          AND learning.status = 'scored'
+        LEFT JOIN yt_classifications positivity
+          ON positivity.video_id = video.video_id
+          AND positivity.run_id = active_runs.positivity_run_id
+          AND positivity.status = 'scored'
+        LEFT JOIN yt_manual_overrides learning_override
+          ON learning_override.video_id = video.video_id
+          AND learning_override.dimension = 'learning_value'
+        LEFT JOIN yt_manual_overrides positivity_override
+          ON positivity_override.video_id = video.video_id
+          AND positivity_override.dimension = 'positivity'
+        WHERE event.watched_at >= NOW() - INTERVAL '60 days'
+      )
+      SELECT
+        period,
+        SUM(exposure) AS exposure_seconds,
+        SUM(exposure * learning_score) FILTER (WHERE learning_score IS NOT NULL)
+          / NULLIF(SUM(exposure) FILTER (WHERE learning_score IS NOT NULL), 0) AS learning_value,
+        SUM(exposure) FILTER (WHERE learning_score IS NOT NULL)
+          / NULLIF(SUM(exposure), 0) AS learning_coverage,
+        SUM(exposure * positivity_score) FILTER (WHERE positivity_score IS NOT NULL)
+          / NULLIF(SUM(exposure) FILTER (WHERE positivity_score IS NOT NULL), 0) AS positivity,
+        SUM(exposure) FILTER (WHERE positivity_score IS NOT NULL)
+          / NULLIF(SUM(exposure), 0) AS positivity_coverage
+      FROM scored_events
+      GROUP BY period
+    `);
+    const result = {
+      current: {
+        exposureSeconds: 0,
+        learningValue: null as number | null,
+        learningCoverage: null as number | null,
+        positivity: null as number | null,
+        positivityCoverage: null as number | null,
+      },
+      prior: {
+        exposureSeconds: 0,
+        learningValue: null as number | null,
+        learningCoverage: null as number | null,
+        positivity: null as number | null,
+        positivityCoverage: null as number | null,
+      },
+    };
+    for (const row of rows) {
+      const key = String(row.period) === "current" ? "current" : "prior";
+      result[key] = {
+        exposureSeconds: Number(row.exposure_seconds ?? 0),
+        learningValue:
+          row.learning_value === null ? null : Number(row.learning_value),
+        learningCoverage:
+          row.learning_coverage === null ? null : Number(row.learning_coverage),
+        positivity: row.positivity === null ? null : Number(row.positivity),
+        positivityCoverage:
+          row.positivity_coverage === null
+            ? null
+            : Number(row.positivity_coverage),
+      };
+    }
+    return {
+      ...result,
+      learningDelta:
+        result.current.learningValue !== null &&
+        result.prior.learningValue !== null
+          ? result.current.learningValue - result.prior.learningValue
+          : null,
+      positivityDelta:
+        result.current.positivity !== null && result.prior.positivity !== null
+          ? result.current.positivity - result.prior.positivity
+          : null,
+    };
+  }),
+
+  /** Watch-time-first trend with independent Learning Value and Positivity. */
+  getInformationDietTrend: cookieProtectedProcedure
+    .input(
+      z.object({
+        groupBy: z.enum(["day", "week", "month", "quarter"]).default("week"),
+        timeRange: timeRangeSchema,
+      }),
+    )
+    .query(async ({ input }) => {
+      const period =
+        input.groupBy === "day"
+          ? "day"
+          : input.groupBy === "week"
+            ? "week"
+            : input.groupBy === "month"
+              ? "month"
+              : "quarter";
+      const where =
+        input.timeRange === "all"
+          ? sql`TRUE`
+          : sql`event.watched_at >= NOW() - INTERVAL '${sql.raw(
+              String(
+                input.timeRange === "30d"
+                  ? 30
+                  : input.timeRange === "90d"
+                    ? 90
+                    : input.timeRange === "1y"
+                      ? 365
+                      : 1095,
+              ),
+            )} days'`;
+      const rows = await db.execute(sql`
+        WITH active_runs AS (
+          SELECT
+            MAX(id) FILTER (WHERE dimension = 'learning_value') AS learning_run_id,
+            MAX(id) FILTER (WHERE dimension = 'positivity') AS positivity_run_id
+          FROM yt_classifier_runs WHERE status = 'active'
+        ), scored_events AS (
+          SELECT
+            DATE_TRUNC(${sql.raw(`'${period}'`)},
+              ((event.watched_at AT TIME ZONE 'America/Los_Angeles') - INTERVAL '4 hours')
+            ) AS period,
+            GREATEST(COALESCE(video.duration_seconds, 0), 0)::double precision / ${PLAYBACK_SPEED} AS exposure,
+            COALESCE(learning_override.score, learning.score) AS learning_score,
+            COALESCE(positivity_override.score, positivity.score) AS positivity_score
+          FROM yt_watch_events event
+          JOIN yt_videos video ON video.video_id = event.video_id
+          CROSS JOIN active_runs
+          LEFT JOIN yt_classifications learning
+            ON learning.video_id = video.video_id
+            AND learning.run_id = active_runs.learning_run_id
+            AND learning.status = 'scored'
+          LEFT JOIN yt_classifications positivity
+            ON positivity.video_id = video.video_id
+            AND positivity.run_id = active_runs.positivity_run_id
+            AND positivity.status = 'scored'
+          LEFT JOIN yt_manual_overrides learning_override
+            ON learning_override.video_id = video.video_id
+            AND learning_override.dimension = 'learning_value'
+          LEFT JOIN yt_manual_overrides positivity_override
+            ON positivity_override.video_id = video.video_id
+            AND positivity_override.dimension = 'positivity'
+          WHERE ${where}
+        )
+        SELECT
+          TO_CHAR(period, 'YYYY-MM-DD') AS period,
+          SUM(exposure) / 3600 AS estimated_exposure_hours,
+          COUNT(*) AS video_count,
+          SUM(exposure * learning_score) FILTER (WHERE learning_score IS NOT NULL)
+            / NULLIF(SUM(exposure) FILTER (WHERE learning_score IS NOT NULL), 0) AS learning_value,
+          SUM(exposure) FILTER (WHERE learning_score IS NOT NULL)
+            / NULLIF(SUM(exposure), 0) AS learning_coverage,
+          SUM(exposure * positivity_score) FILTER (WHERE positivity_score IS NOT NULL)
+            / NULLIF(SUM(exposure) FILTER (WHERE positivity_score IS NOT NULL), 0) AS positivity,
+          SUM(exposure) FILTER (WHERE positivity_score IS NOT NULL)
+            / NULLIF(SUM(exposure), 0) AS positivity_coverage
+        FROM scored_events
+        GROUP BY period
+        ORDER BY period
+      `);
+      const trend = rows.map((row) => ({
+        period: String(row.period),
+        estimatedExposureHours: Number(row.estimated_exposure_hours),
+        videoCount: Number(row.video_count),
+        learningValue:
+          row.learning_value === null ? null : Number(row.learning_value),
+        learningCoverage:
+          row.learning_coverage === null ? null : Number(row.learning_coverage),
+        positivity: row.positivity === null ? null : Number(row.positivity),
+        positivityCoverage:
+          row.positivity_coverage === null
+            ? null
+            : Number(row.positivity_coverage),
+      }));
+
+      if (trend.length === 0) return [];
+
+      const byPeriod = new Map(trend.map((row) => [row.period, row]));
+      return enumeratePeriods(
+        trend[0]!.period,
+        trend[trend.length - 1]!.period,
+        input.groupBy,
+      ).map(
+        (period) =>
+          byPeriod.get(period) ?? {
+            period,
+            estimatedExposureHours: 0,
+            videoCount: 0,
+            learningValue: null,
+            learningCoverage: null,
+            positivity: null,
+            positivityCoverage: null,
+          },
+      );
+    }),
+
+  /** Exposure-weighted channel aggregates, shared by the list and matrix. */
+  getInformationDietChannels: cookieProtectedProcedure
+    .input(
+      z.object({
+        limit: z.number().int().min(1).max(500).default(100),
+        timeRange: timeRangeSchema,
+      }),
+    )
+    .query(async ({ input }) => {
+      const where =
+        input.timeRange === "all"
+          ? sql`TRUE`
+          : sql`event.watched_at >= NOW() - INTERVAL '${sql.raw(
+              String(
+                input.timeRange === "30d"
+                  ? 30
+                  : input.timeRange === "90d"
+                    ? 90
+                    : input.timeRange === "1y"
+                      ? 365
+                      : 1095,
+              ),
+            )} days'`;
+      const rows = await db.execute(sql`
+        WITH active_runs AS (
+          SELECT
+            MAX(id) FILTER (WHERE dimension = 'learning_value') AS learning_run_id,
+            MAX(id) FILTER (WHERE dimension = 'positivity') AS positivity_run_id
+          FROM yt_classifier_runs WHERE status = 'active'
+        ), channel_events AS (
+          SELECT
+            channel.id AS channel_id,
+            COALESCE(channel.name, 'Unknown') AS channel_name,
+            channel.thumbnail_url,
+            video.video_id,
+            GREATEST(COALESCE(video.duration_seconds, 0), 0)::double precision / ${PLAYBACK_SPEED} AS exposure,
+            COALESCE(learning_override.score, learning.score) AS learning_score,
+            COALESCE(positivity_override.score, positivity.score) AS positivity_score
+          FROM yt_watch_events event
+          JOIN yt_videos video ON video.video_id = event.video_id
+          LEFT JOIN yt_channels channel ON channel.id = video.channel_id
+          CROSS JOIN active_runs
+          LEFT JOIN yt_classifications learning
+            ON learning.video_id = video.video_id
+            AND learning.run_id = active_runs.learning_run_id
+            AND learning.status = 'scored'
+          LEFT JOIN yt_classifications positivity
+            ON positivity.video_id = video.video_id
+            AND positivity.run_id = active_runs.positivity_run_id
+            AND positivity.status = 'scored'
+          LEFT JOIN yt_manual_overrides learning_override
+            ON learning_override.video_id = video.video_id
+            AND learning_override.dimension = 'learning_value'
+          LEFT JOIN yt_manual_overrides positivity_override
+            ON positivity_override.video_id = video.video_id
+            AND positivity_override.dimension = 'positivity'
+          WHERE ${where}
+        )
+        SELECT
+          channel_id,
+          channel_name,
+          thumbnail_url,
+          SUM(exposure) / 3600 AS estimated_exposure_hours,
+          COUNT(*) AS watch_events,
+          COUNT(DISTINCT video_id) AS distinct_videos,
+          SUM(exposure * learning_score) FILTER (WHERE learning_score IS NOT NULL)
+            / NULLIF(SUM(exposure) FILTER (WHERE learning_score IS NOT NULL), 0) AS learning_value,
+          SUM(exposure) FILTER (WHERE learning_score IS NOT NULL)
+            / NULLIF(SUM(exposure), 0) AS learning_coverage,
+          SUM(exposure * positivity_score) FILTER (WHERE positivity_score IS NOT NULL)
+            / NULLIF(SUM(exposure) FILTER (WHERE positivity_score IS NOT NULL), 0) AS positivity,
+          SUM(exposure) FILTER (WHERE positivity_score IS NOT NULL)
+            / NULLIF(SUM(exposure), 0) AS positivity_coverage
+        FROM channel_events
+        GROUP BY channel_id, channel_name, thumbnail_url
+        ORDER BY estimated_exposure_hours DESC
+        LIMIT ${input.limit}
+      `);
+      return rows.map((row) => ({
+        channelId:
+          row.channel_id === null
+            ? `unknown:${dbString(row.channel_name, "Unknown")}`
+            : dbString(row.channel_id),
+        channelName: dbString(row.channel_name, "Unknown"),
+        thumbnailUrl: dbNullableString(row.thumbnail_url),
+        estimatedExposureHours: Number(row.estimated_exposure_hours),
+        watchEvents: Number(row.watch_events),
+        distinctVideos: Number(row.distinct_videos),
+        learningValue:
+          row.learning_value === null ? null : Number(row.learning_value),
+        learningCoverage:
+          row.learning_coverage === null ? null : Number(row.learning_coverage),
+        positivity: row.positivity === null ? null : Number(row.positivity),
+        positivityCoverage:
+          row.positivity_coverage === null
+            ? null
+            : Number(row.positivity_coverage),
+      }));
+    }),
+
+  getChannelVideos: cookieProtectedProcedure
+    .input(
+      z.object({
+        channelId: z.number().int().positive(),
+        limit: z.number().int().min(1).max(100).default(30),
+      }),
+    )
+    .query(async ({ input }) => {
+      const rows = await db.execute(sql`
+        WITH active_runs AS (
+          SELECT
+            MAX(id) FILTER (WHERE dimension = 'learning_value') AS learning_run_id,
+            MAX(id) FILTER (WHERE dimension = 'positivity') AS positivity_run_id
+          FROM yt_classifier_runs WHERE status = 'active'
+        )
+        SELECT
+          video.video_id,
+          video.title,
+          video.thumbnail_url,
+          MAX(event.watched_at) AS watched_at,
+          COALESCE(learning_override.score, learning.score) AS learning_value,
+          COALESCE(positivity_override.score, positivity.score) AS positivity
+        FROM yt_videos video
+        JOIN yt_watch_events event ON event.video_id = video.video_id
+        CROSS JOIN active_runs
+        LEFT JOIN yt_classifications learning
+          ON learning.video_id = video.video_id
+          AND learning.run_id = active_runs.learning_run_id
+          AND learning.status = 'scored'
+        LEFT JOIN yt_classifications positivity
+          ON positivity.video_id = video.video_id
+          AND positivity.run_id = active_runs.positivity_run_id
+          AND positivity.status = 'scored'
+        LEFT JOIN yt_manual_overrides learning_override
+          ON learning_override.video_id = video.video_id
+          AND learning_override.dimension = 'learning_value'
+        LEFT JOIN yt_manual_overrides positivity_override
+          ON positivity_override.video_id = video.video_id
+          AND positivity_override.dimension = 'positivity'
+        WHERE video.channel_id = ${input.channelId}
+        GROUP BY
+          video.video_id, video.title, video.thumbnail_url,
+          learning_override.score, learning.score,
+          positivity_override.score, positivity.score
+        ORDER BY watched_at DESC
+        LIMIT ${input.limit}
+      `);
+      return rows.map((row) => ({
+        videoId: dbString(row.video_id),
+        title: dbString(row.title, "Unavailable video"),
+        thumbnailUrl: dbNullableString(row.thumbnail_url),
+        watchedAt: dbString(row.watched_at),
+        learningValue:
+          row.learning_value === null ? null : Number(row.learning_value),
+        positivity: row.positivity === null ? null : Number(row.positivity),
+      }));
+    }),
+
+  getCalibrationVideos: cookieProtectedProcedure.query(async () => {
+    assertDevelopmentOnly();
+    const rows = await db.execute(sql`
+      WITH current_members AS (
+        SELECT *
+        FROM yt_calibration_members
+        ORDER BY position DESC
+        LIMIT 20
+      )
+      SELECT
+        member.position,
+        video.video_id,
+        video.title,
+        video.thumbnail_url,
+        channel.name AS channel_name,
+        MAX(event.watched_at) AS watched_at,
+        learning_override.score AS learning_override,
+        learning_override.updated_at AS learning_override_at,
+        positivity_override.score AS positivity_override,
+        positivity_override.updated_at AS positivity_override_at,
+        learning.score AS learning_guess,
+        learning.run_completed_at AS learning_run_at,
+        positivity.score AS positivity_guess,
+        positivity.run_completed_at AS positivity_run_at
+      FROM current_members member
+      JOIN yt_videos video ON video.video_id = member.video_id
+      LEFT JOIN yt_channels channel ON channel.id = video.channel_id
+      LEFT JOIN yt_watch_events event ON event.video_id = video.video_id
+      LEFT JOIN yt_manual_overrides learning_override
+        ON learning_override.video_id = video.video_id
+        AND learning_override.dimension = 'learning_value'
+      LEFT JOIN yt_manual_overrides positivity_override
+        ON positivity_override.video_id = video.video_id
+        AND positivity_override.dimension = 'positivity'
+      LEFT JOIN LATERAL (
+        SELECT classification.score, run.completed_at AS run_completed_at
+        FROM yt_classifications classification
+        JOIN yt_classifier_runs run ON run.id = classification.run_id
+        WHERE classification.video_id = video.video_id
+          AND run.dimension = 'learning_value'
+          AND run.status IN ('complete', 'active')
+        ORDER BY run.completed_at DESC NULLS LAST, run.id DESC
+        LIMIT 1
+      ) learning ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT classification.score, run.completed_at AS run_completed_at
+        FROM yt_classifications classification
+        JOIN yt_classifier_runs run ON run.id = classification.run_id
+        WHERE classification.video_id = video.video_id
+          AND run.dimension = 'positivity'
+          AND run.status IN ('complete', 'active')
+        ORDER BY run.completed_at DESC NULLS LAST, run.id DESC
+        LIMIT 1
+      ) positivity ON TRUE
+      GROUP BY
+        member.position, video.video_id, video.title, video.thumbnail_url,
+        channel.name, learning_override.score, learning_override.updated_at,
+        positivity_override.score, positivity_override.updated_at,
+        learning.score, learning.run_completed_at,
+        positivity.score, positivity.run_completed_at
+      ORDER BY member.position
+    `);
+    return rows.map((row) => {
+      const valueForRound = (
+        override: unknown,
+        overrideAt: unknown,
+        guess: unknown,
+        runAt: unknown,
+      ) => {
+        if (override == null) return guess;
+        if (guess == null || runAt == null) return override;
+        const overrideTime = new Date(dbString(overrideAt)).getTime();
+        const runTime = new Date(dbString(runAt)).getTime();
+        return overrideTime >= runTime ? override : guess;
+      };
+      const learningValue = valueForRound(
+        row.learning_override,
+        row.learning_override_at,
+        row.learning_guess,
+        row.learning_run_at,
+      );
+      const positivity = valueForRound(
+        row.positivity_override,
+        row.positivity_override_at,
+        row.positivity_guess,
+        row.positivity_run_at,
+      );
+      return {
+        position: Number(row.position),
+        videoId: dbString(row.video_id),
+        title: dbString(row.title, "Unavailable video"),
+        thumbnailUrl: dbNullableString(row.thumbnail_url),
+        channelName: dbString(row.channel_name, "Unknown"),
+        watchedAt: dbString(row.watched_at),
+        learningValue: learningValue == null ? null : Number(learningValue),
+        positivity: positivity == null ? null : Number(positivity),
+        learningEdited: row.learning_override !== null,
+        positivityEdited: row.positivity_override !== null,
+      };
+    });
+  }),
+
+  saveCalibrationScore: cookieProtectedProcedure
+    .input(
+      z.object({
+        videoId: z.string().min(1).max(20),
+        dimension: z.enum(["learning_value", "positivity"]),
+        score: z.number().int().min(0).max(10),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      assertDevelopmentOnly();
+      await db.transaction(async (tx) => {
+        await tx
+          .insert(ytManualOverrides)
+          .values(input)
+          .onConflictDoUpdate({
+            target: [ytManualOverrides.videoId, ytManualOverrides.dimension],
+            set: { score: input.score, updatedAt: new Date() },
+          });
+        const overrides = await tx.execute(sql`
+          SELECT COUNT(DISTINCT dimension) AS count
+          FROM yt_manual_overrides
+          WHERE video_id = ${input.videoId}
+        `);
+        if (Number(overrides[0]?.count ?? 0) === 2) {
+          await tx
+            .update(ytCalibrationMembers)
+            .set({ reviewedAt: new Date() })
+            .where(sql`${ytCalibrationMembers.videoId} = ${input.videoId}`);
+        }
+      });
+      return { saved: true };
+    }),
+
+  saveCalibrationScores: cookieProtectedProcedure
+    .input(
+      z.object({
+        scores: z
+          .array(
+            z.object({
+              videoId: z.string().min(1).max(20),
+              learningValue: z.number().int().min(0).max(10).nullable(),
+              positivity: z.number().int().min(0).max(10).nullable(),
+            }),
+          )
+          .min(1)
+          .max(200),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      assertDevelopmentOnly();
+      const overrides = input.scores.flatMap((score) => {
+        const values: Array<{
+          videoId: string;
+          dimension: "learning_value" | "positivity";
+          score: number;
+        }> = [];
+        if (score.learningValue !== null) {
+          values.push({
+            videoId: score.videoId,
+            dimension: "learning_value",
+            score: score.learningValue,
+          });
+        }
+        if (score.positivity !== null) {
+          values.push({
+            videoId: score.videoId,
+            dimension: "positivity",
+            score: score.positivity,
+          });
+        }
+        return values;
+      });
+      await db.transaction(async (tx) => {
+        if (overrides.length > 0) {
+          await tx
+            .insert(ytManualOverrides)
+            .values(overrides)
+            .onConflictDoUpdate({
+              target: [ytManualOverrides.videoId, ytManualOverrides.dimension],
+              set: { score: sql`excluded.score`, updatedAt: new Date() },
+            });
+        }
+        const reviewed = input.scores.filter(
+          (score) => score.learningValue !== null && score.positivity !== null,
+        );
+        if (reviewed.length > 0) {
+          await tx
+            .update(ytCalibrationMembers)
+            .set({ reviewedAt: new Date() })
+            .where(
+              sql`${ytCalibrationMembers.videoId} IN (${sql.join(
+                reviewed.map((score) => sql`${score.videoId}`),
+                sql`, `,
+              )})`,
+            );
+        }
+      });
+      return { saved: input.scores.length };
+    }),
+
   /** Quality score: productivity % for last 30d vs prior 30d */
   getQualityScore: cookieProtectedProcedure.query(async () => {
     const rows = await db
@@ -106,15 +699,11 @@ export const youtubeRouter = createTRPCRouter({
           sql<string>`CASE WHEN ${ytWatchHistory.watchedAt} >= NOW() - INTERVAL '30 days' THEN 'current' ELSE 'prior' END`.as(
             "period",
           ),
-        totalSeconds:
-          sql<number>`COALESCE(SUM(${ytWatchHistory.durationSeconds}), 0)`,
-        productiveSeconds:
-          sql<number>`COALESCE(SUM(${ytWatchHistory.durationSeconds} * ${qualityScoreExpr}), 0)`,
+        totalSeconds: sql<number>`COALESCE(SUM(${ytWatchHistory.durationSeconds}), 0)`,
+        productiveSeconds: sql<number>`COALESCE(SUM(${ytWatchHistory.durationSeconds} * ${qualityScoreExpr}), 0)`,
       })
       .from(ytWatchHistory)
-      .where(
-        sql`${ytWatchHistory.watchedAt} >= NOW() - INTERVAL '60 days'`,
-      )
+      .where(sql`${ytWatchHistory.watchedAt} >= NOW() - INTERVAL '60 days'`)
       .groupBy(
         sql`CASE WHEN ${ytWatchHistory.watchedAt} >= NOW() - INTERVAL '30 days' THEN 'current' ELSE 'prior' END`,
       );
@@ -139,36 +728,25 @@ export const youtubeRouter = createTRPCRouter({
 
   /** Aggregate stats */
   getStats: cookieProtectedProcedure.query(async () => {
-    const [videoCount] = await db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(ytWatchHistory);
-
-    const [totalDuration] = await db
-      .select({
-        total: sql<number>`COALESCE(SUM(${ytWatchHistory.durationSeconds}), 0)`,
-      })
-      .from(ytWatchHistory);
-
-    const [dateRange] = await db
-      .select({
-        earliest: sql<string>`MIN(${ytWatchHistory.watchedAt})`,
-        latest: sql<string>`MAX(${ytWatchHistory.watchedAt})`,
-      })
-      .from(ytWatchHistory);
-
-    const [uniqueChannels] = await db
-      .select({
-        count: sql<number>`COUNT(DISTINCT ${ytWatchHistory.channelName})`,
-      })
-      .from(ytWatchHistory);
-
+    const rows = await db.execute(sql`
+      SELECT
+        COUNT(*) AS event_count,
+        COALESCE(SUM(GREATEST(COALESCE(video.duration_seconds, 0), 0)), 0)::double precision
+          / ${PLAYBACK_SPEED} AS exposure_seconds,
+        MIN(event.watched_at) AS earliest,
+        MAX(event.watched_at) AS latest,
+        COUNT(DISTINCT video.channel_id) AS channel_count
+      FROM yt_watch_events event
+      JOIN yt_videos video ON video.video_id = event.video_id
+    `);
+    const row = rows[0];
     return {
-      totalVideos: Number(videoCount?.count ?? 0),
-      totalDurationSeconds:
-        Number(totalDuration?.total ?? 0) / PLAYBACK_SPEED,
-      earliestWatch: dateRange?.earliest ?? null,
-      latestWatch: dateRange?.latest ?? null,
-      uniqueChannels: Number(uniqueChannels?.count ?? 0),
+      totalVideos: Number(row?.event_count ?? 0),
+      totalDurationSeconds: Number(row?.exposure_seconds ?? 0),
+      totalEstimatedExposureSeconds: Number(row?.exposure_seconds ?? 0),
+      earliestWatch: dbNullableString(row?.earliest),
+      latestWatch: dbNullableString(row?.latest),
+      uniqueChannels: Number(row?.channel_count ?? 0),
     };
   }),
 
@@ -192,9 +770,7 @@ export const youtubeRouter = createTRPCRouter({
 
       const rows = await db
         .select({
-          period: sql<string>`TO_CHAR(${truncExpr}, 'YYYY-MM-DD')`.as(
-            "period",
-          ),
+          period: sql<string>`TO_CHAR(${truncExpr}, 'YYYY-MM-DD')`.as("period"),
           totalSeconds: sql<number>`COALESCE(SUM(${ytWatchHistory.durationSeconds}), 0)`,
           productiveSeconds: sql<number>`COALESCE(SUM(${ytWatchHistory.durationSeconds} * ${qualityScoreExpr}), 0)`,
           videoCount: sql<number>`COUNT(*)`,
@@ -290,9 +866,7 @@ export const youtubeRouter = createTRPCRouter({
         .from(ytWatchHistory)
         .where(timeRangeWhere(input.timeRange))
         .groupBy(ytWatchHistory.channelName)
-        .orderBy(
-          sql`COALESCE(SUM(${ytWatchHistory.durationSeconds}), 0) DESC`,
-        )
+        .orderBy(sql`COALESCE(SUM(${ytWatchHistory.durationSeconds}), 0) DESC`)
         .limit(input.limit);
 
       return rows.map((r) => ({
@@ -328,23 +902,6 @@ export const youtubeRouter = createTRPCRouter({
               ? sql`DATE_TRUNC('month', ${watchDayLocal})`
               : sql`DATE_TRUNC('quarter', ${watchDayLocal})`;
 
-      const rows = await db
-        .select({
-          period: sql<string>`TO_CHAR(${truncExpr}, 'YYYY-MM-DD')`.as(
-            "period",
-          ),
-          totalSeconds: sql<number>`COALESCE(SUM(${ytWatchHistory.durationSeconds}), 0)`,
-          videoCount: sql<number>`COUNT(*)`,
-        })
-        .from(ytWatchHistory)
-        .where(timeRangeWhere(input.timeRange))
-        .groupBy(sql`${truncExpr}`, ytWatchHistory.llmQualityScore, ytWatchHistory.categoryId)
-        .orderBy(sql`${truncExpr}`);
-
-      // We need the per-row score to bucket into sub-tiers.
-      // Since we GROUP BY llmQualityScore + categoryId, each row has a unique score.
-      // Reconstruct the score from the group key by re-querying with score included.
-      // Actually — since we group by llmQualityScore, we can just select it directly.
       const rowsWithScore = await db
         .select({
           period: sql<string>`TO_CHAR(${truncExpr}, 'YYYY-MM-DD')`.as("period"),
@@ -353,16 +910,20 @@ export const youtubeRouter = createTRPCRouter({
         })
         .from(ytWatchHistory)
         .where(timeRangeWhere(input.timeRange))
-        .groupBy(sql`${truncExpr}`, ytWatchHistory.llmQualityScore, ytWatchHistory.categoryId)
+        .groupBy(
+          sql`${truncExpr}`,
+          ytWatchHistory.llmQualityScore,
+          ytWatchHistory.categoryId,
+        )
         .orderBy(sql`${truncExpr}`);
 
       type SubTiers = {
         deepLearning: number; // 0.75-1.0
-        education: number;    // 0.50-0.75
-        growth: number;       // 0.35-0.50
+        education: number; // 0.50-0.75
+        growth: number; // 0.35-0.50
         informational: number; // 0.15-0.35
-        lowValue: number;     // 0.05-0.15
-        brainRot: number;     // 0.00-0.05
+        lowValue: number; // 0.05-0.15
+        brainRot: number; // 0.00-0.05
       };
 
       const periodMap = new Map<string, SubTiers>();
@@ -370,15 +931,19 @@ export const youtubeRouter = createTRPCRouter({
       for (const r of rowsWithScore) {
         if (!periodMap.has(r.period)) {
           periodMap.set(r.period, {
-            deepLearning: 0, education: 0, growth: 0,
-            informational: 0, lowValue: 0, brainRot: 0,
+            deepLearning: 0,
+            education: 0,
+            growth: 0,
+            informational: 0,
+            lowValue: 0,
+            brainRot: 0,
           });
         }
         const entry = periodMap.get(r.period)!;
         const hrs = Number(r.totalSeconds) / 3600 / PLAYBACK_SPEED;
         const score = Number(r.score);
         if (score >= 0.75) entry.deepLearning += hrs;
-        else if (score >= 0.50) entry.education += hrs;
+        else if (score >= 0.5) entry.education += hrs;
         else if (score >= 0.35) entry.growth += hrs;
         else if (score >= 0.15) entry.informational += hrs;
         else if (score >= 0.05) entry.lowValue += hrs;
@@ -405,11 +970,15 @@ export const youtubeRouter = createTRPCRouter({
             0,
           );
           daysInPeriod =
-            Math.round(
-              (qEnd.getTime() - periodStart.getTime()) / 86400000,
-            ) + 1;
+            Math.round((qEnd.getTime() - periodStart.getTime()) / 86400000) + 1;
         }
-        const total = d.deepLearning + d.education + d.growth + d.informational + d.lowValue + d.brainRot;
+        const total =
+          d.deepLearning +
+          d.education +
+          d.growth +
+          d.informational +
+          d.lowValue +
+          d.brainRot;
         return {
           period,
           deepLearning: d.deepLearning / daysInPeriod,
@@ -429,22 +998,14 @@ export const youtubeRouter = createTRPCRouter({
     .query(async ({ input }) => {
       const rows = await db
         .select({
-          date: sql<string>`TO_CHAR(${watchDayLocal}, 'YYYY-MM-DD')`.as(
-            "day",
-          ),
+          date: sql<string>`TO_CHAR(${watchDayLocal}, 'YYYY-MM-DD')`.as("day"),
           totalSeconds: sql<number>`COALESCE(SUM(${ytWatchHistory.durationSeconds}), 0)`,
           videoCount: sql<number>`COUNT(*)`,
         })
         .from(ytWatchHistory)
-        .where(
-          sql`EXTRACT(YEAR FROM ${watchDayLocal}) = ${input.year}`,
-        )
-        .groupBy(
-          sql`TO_CHAR(${watchDayLocal}, 'YYYY-MM-DD')`,
-        )
-        .orderBy(
-          sql`TO_CHAR(${watchDayLocal}, 'YYYY-MM-DD')`,
-        );
+        .where(sql`EXTRACT(YEAR FROM ${watchDayLocal}) = ${input.year}`)
+        .groupBy(sql`TO_CHAR(${watchDayLocal}, 'YYYY-MM-DD')`)
+        .orderBy(sql`TO_CHAR(${watchDayLocal}, 'YYYY-MM-DD')`);
 
       return rows.map((r) => ({
         date: r.date,

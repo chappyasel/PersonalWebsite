@@ -2,6 +2,12 @@ import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import NextAuth, { type DefaultSession } from "next-auth";
 
 import { db } from "~/server/db";
+import {
+  accounts,
+  sessions,
+  users,
+  verificationTokens,
+} from "~/server/db/schema";
 
 /**
  * Module augmentation for `next-auth` types. Allows us to add custom properties to the `session`
@@ -34,7 +40,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   },
-  adapter: DrizzleAdapter(db),
+  adapter: DrizzleAdapter(db, {
+    usersTable: users,
+    accountsTable: accounts,
+    sessionsTable: sessions,
+    verificationTokensTable: verificationTokens,
+    // The adapter bundles a newer Drizzle type identity than the app. The
+    // table shapes are runtime-compatible, but their private type metadata
+    // is not assignable across those package copies.
+  } as never),
   providers: [
     /**
      * ...add more providers here.

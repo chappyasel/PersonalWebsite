@@ -13,12 +13,13 @@ import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { type ReactNode, useState } from "react";
 
-import { StatsCards } from "./StatsCards";
-import { WatchTimeChart } from "./WatchTimeChart";
-import { TopChannels } from "./TopChannels";
-import { CategoryBreakdown } from "./CategoryBreakdown";
-import { YearCalendar } from "./YearCalendar";
 import { devBaseUrl } from "~/lib/util";
+
+import { LearningPositivityMatrix } from "./LearningPositivityMatrix";
+import { StatsCards } from "./StatsCards";
+import { TopChannels } from "./TopChannels";
+import { WatchTimeChart } from "./WatchTimeChart";
+import { YearCalendar } from "./YearCalendar";
 
 function CollapsibleSection({
   icon,
@@ -148,12 +149,12 @@ export function YouTubeDashboard() {
         <TopChannels />
       </CollapsibleSection>
 
-      {/* Category Breakdown */}
+      {/* Learning × Positivity */}
       <CollapsibleSection
         icon={<ChartBarIcon className="h-5 w-5" weight="bold" />}
-        title="Category Breakdown"
+        title="Learning × Positivity"
       >
-        <CategoryBreakdown />
+        <LearningPositivityMatrix />
       </CollapsibleSection>
 
       {/* Calendar Heatmap */}
