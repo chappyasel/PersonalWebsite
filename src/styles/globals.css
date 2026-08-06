@@ -77,24 +77,28 @@
   :root {
     --font-selected: "Georgia Pro";
     --background: 60 9% 98%;
-    --foreground: 25 5% 38%;
+    /* 7.5:1 on --background (WCAG AAA). This is a long-form reading site, so
+       body copy targets AAA rather than the 4.5:1 AA floor. */
+    --foreground: 25 6% 32%;
     --card: 60 9% 98%;
-    --card-foreground: 25 5% 38%;
+    --card-foreground: 25 6% 32%;
     --popover: 60 9% 98%;
-    --popover-foreground: 25 5% 38%;
-    --primary: 25 5% 38%;
+    --popover-foreground: 25 6% 32%;
+    --primary: 25 6% 32%;
     --primary-foreground: 60 9% 98%;
     --secondary: 60 5% 96%;
-    --secondary-foreground: 25 5% 38%;
+    --secondary-foreground: 25 6% 32%;
     --muted: 60 5% 96%;
-    --muted-foreground: 24 5% 42%;
+    /* 6.4:1 — reads as clearly secondary next to --foreground while still
+       clearing AA with margin for the small text it is mostly used on. */
+    --muted-foreground: 24 6% 36%;
     --accent: 60 5% 96%;
-    --accent-foreground: 25 5% 38%;
+    --accent-foreground: 25 6% 32%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 60 9% 98%;
     --border: 20 6% 88%;
     --input: 20 6% 88%;
-    --ring: 25 5% 38%;
+    --ring: 25 6% 32%;
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;

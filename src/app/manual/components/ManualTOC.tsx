@@ -48,7 +48,7 @@ export function ManualTOCSidebar({
   return (
     <nav className="sticky top-12 hidden h-fit w-0 overflow-visible lg:block">
       <div className="mr-8 w-48 -translate-x-full space-y-1">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/40">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Sections
         </p>
         {sections.map((section) => (
@@ -68,7 +68,7 @@ export function ManualTOCSidebar({
               className={`relative flex items-center gap-2 ${
                 activeId === section.id
                   ? "font-medium text-foreground"
-                  : "text-muted-foreground/70"
+                  : "text-muted-foreground"
               }`}
             >
               <span className="text-base">{section.icon}</span>
@@ -98,7 +98,7 @@ export function ManualTOCMobile({
             className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
               activeId === section.id
                 ? "bg-foreground/10 text-foreground"
-                : "text-muted-foreground/60 hover:text-muted-foreground"
+                : "text-muted-foreground hover:text-muted-foreground"
             }`}
           >
             <span>{section.icon}</span>

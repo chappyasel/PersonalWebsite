@@ -46,10 +46,10 @@ export function YouTubePasswordGate() {
           className="mx-auto mb-6 h-10 w-10 text-red-600"
           weight="fill"
         />
-        <h1 className="mb-2 font-rounded text-2xl font-semibold text-foreground/90">
+        <h1 className="mb-2 font-rounded text-2xl font-semibold text-foreground">
           YouTube Watch History
         </h1>
-        <p className="mb-8 text-sm text-muted-foreground/70">
+        <p className="mb-8 text-sm text-muted-foreground">
           This content is password-protected.
         </p>
 
@@ -60,7 +60,7 @@ export function YouTubePasswordGate() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
             autoFocus
-            className="w-full rounded-lg border border-neutral-200 bg-transparent px-4 py-3 text-center text-foreground placeholder:text-muted-foreground/50 focus:border-neutral-400 focus:outline-none focus:ring-0 dark:border-neutral-700 dark:focus:border-neutral-500"
+            className="w-full rounded-lg border border-neutral-200 bg-transparent px-4 py-3 text-center text-foreground placeholder:text-muted-foreground focus:border-neutral-400 focus:outline-none focus:ring-0 dark:border-neutral-700 dark:focus:border-neutral-500"
           />
 
           {error && (
@@ -72,7 +72,7 @@ export function YouTubePasswordGate() {
           <button
             type="submit"
             disabled={verify.isPending || !password}
-            className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground/60 transition-colors hover:text-foreground disabled:opacity-50"
+            className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
           >
             {verify.isPending ? "Checking..." : "Enter"}
           </button>

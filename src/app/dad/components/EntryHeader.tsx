@@ -56,7 +56,7 @@ export function EntryHeader({
   return (
     <header className="mb-8 text-center">
       {title && (
-        <h1 className="mb-4 font-serif text-3xl font-light italic leading-snug tracking-wide text-foreground/90 sm:text-4xl">
+        <h1 className="mb-4 font-serif text-3xl font-light italic leading-snug tracking-wide text-foreground sm:text-4xl">
           {title}
         </h1>
       )}
@@ -65,12 +65,12 @@ export function EntryHeader({
       {(date ?? age !== undefined ?? phase) && (
         <div className="mb-6 text-center">
           {date && (
-            <time className="font-serif text-sm italic text-muted-foreground/60">
+            <time className="font-serif text-sm italic text-muted-foreground">
               {formatDate(date)}
             </time>
           )}
           {(age !== undefined || phase) && (
-            <p className="mt-0.5 font-serif text-xs text-muted-foreground/40">
+            <p className="mt-0.5 font-serif text-xs text-muted-foreground">
               {age !== undefined && `Age ${age}`}
               {age !== undefined && phase && " · "}
               {phase && formatPhase(phase)}
@@ -82,7 +82,7 @@ export function EntryHeader({
       {/* Summary as centered epigraph */}
       {summary && (
         <blockquote className="mb-8 text-center">
-          <p className="font-serif text-base italic leading-relaxed text-muted-foreground/70">
+          <p className="font-serif text-base italic leading-relaxed text-muted-foreground">
             &ldquo;{summary}&rdquo;
           </p>
         </blockquote>
@@ -90,7 +90,7 @@ export function EntryHeader({
 
       {/* People and locations as quiet annotation */}
       {(people?.length ?? 0) + (locations?.length ?? 0) > 0 && (
-        <p className="mb-3 text-xs italic text-muted-foreground/50">
+        <p className="mb-3 text-xs italic text-muted-foreground">
           {people?.join(", ")}
           {(people?.length ?? 0) > 0 && (locations?.length ?? 0) > 0 && " · "}
           {locations?.map((loc) => `@${loc}`).join(", ")}
@@ -99,14 +99,14 @@ export function EntryHeader({
 
       {/* Themes — no borders, no backgrounds */}
       {themes && themes.length > 0 && (
-        <p className="mb-3 text-[11px] uppercase tracking-widest text-muted-foreground/35">
+        <p className="mb-3 text-[11px] uppercase tracking-widest text-muted-foreground">
           {themes.join("  ·  ")}
         </p>
       )}
 
       {/* Moods */}
       {dad_mood && dad_mood.length > 0 && (
-        <p className="mb-3 text-xs italic text-muted-foreground/40">
+        <p className="mb-3 text-xs italic text-muted-foreground">
           Written in {dad_mood.map(formatMood).join(", ")}
         </p>
       )}

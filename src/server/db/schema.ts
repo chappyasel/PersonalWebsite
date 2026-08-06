@@ -141,6 +141,7 @@ export const books = pgTable(
     pageCount: integer("page_count"),
     hasNotes: boolean("has_notes").default(false).notNull(),
     hasSummary: boolean("has_summary").default(false).notNull(),
+    isAutomated: boolean("is_automated").default(false).notNull(),
     coverUrl: text("cover_url"),
     audibleUrl: text("audible_url"), // https://www.audible.com/pd/{asin}
     notionUrl: text("notion_url").notNull(),

@@ -98,6 +98,7 @@ export const booksRouter = createTRPCRouter({
         tags: book.tags.map((t) => t.tagName),
         hasNotes: book.hasNotes,
         hasSummary: book.hasSummary,
+        isAutomated: book.isAutomated,
         coverUrl: book.coverUrl,
         audibleUrl: book.audibleUrl,
         notionUrl: book.notionUrl,

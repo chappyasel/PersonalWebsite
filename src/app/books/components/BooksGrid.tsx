@@ -385,7 +385,7 @@ export function BooksGrid({
         ) : (
           section.key
         )}
-        <span className="ml-1 inline-block -translate-y-0.5 text-sm text-foreground/70">
+        <span className="ml-1 inline-block -translate-y-0.5 text-sm text-muted-foreground">
           ({section.books.length})
         </span>
       </h2>

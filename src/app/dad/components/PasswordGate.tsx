@@ -42,13 +42,13 @@ export function PasswordGate() {
         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
         className="w-full max-w-sm text-center"
       >
-        <p className="mb-6 text-center text-xs tracking-widest text-muted-foreground/25">
+        <p className="mb-6 text-center text-xs tracking-widest text-muted-foreground">
           ✦
         </p>
-        <h1 className="mb-2 text-3xl font-light italic tracking-wide text-foreground/90">
+        <h1 className="mb-2 text-3xl font-light italic tracking-wide text-foreground">
           Dad&apos;s Journal
         </h1>
-        <p className="mb-8 text-sm italic text-muted-foreground/70">
+        <p className="mb-8 text-sm italic text-muted-foreground">
           A father&apos;s record of a son&apos;s first twenty-five years.
         </p>
 
@@ -59,7 +59,7 @@ export function PasswordGate() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
             autoFocus
-            className="w-full rounded-none border-0 border-b border-muted-foreground/25 bg-transparent px-0 py-3 text-center font-serif text-foreground placeholder:text-muted-foreground/50 focus:border-muted-foreground/50 focus:outline-none focus:ring-0"
+            className="w-full rounded-none border-0 border-b border-muted-foreground/25 bg-transparent px-0 py-3 text-center font-serif text-foreground placeholder:text-muted-foreground focus:border-muted-foreground/50 focus:outline-none focus:ring-0"
           />
 
           {error && (
@@ -71,7 +71,7 @@ export function PasswordGate() {
           <button
             type="submit"
             disabled={verify.isPending || !password}
-            className="font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground/60 transition-colors hover:text-foreground disabled:opacity-50"
+            className="font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
           >
             {verify.isPending ? "Checking..." : "Enter"}
           </button>

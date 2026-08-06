@@ -121,6 +121,7 @@ async function migrateBookIds() {
         rating: oldBook.rating,
         hasNotes: oldBook.hasNotes,
         hasSummary: oldBook.hasSummary,
+        isAutomated: oldBook.isAutomated,
         coverUrl: oldBook.coverUrl,
         notionUrl: oldBook.notionUrl,
         notes: oldBook.notes,

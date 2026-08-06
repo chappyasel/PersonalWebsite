@@ -432,6 +432,7 @@ async function upsertBooksToDatabase(
         pageCount: book.pageCount,
         hasNotes: book.hasNotes,
         hasSummary: book.hasSummary,
+        isAutomated: book.isAutomated,
         coverUrl: book.coverUrl,
         audibleUrl: book.audibleUrl,
         notionUrl: book.notionUrl,
@@ -453,6 +454,7 @@ async function upsertBooksToDatabase(
           pageCount: book.pageCount,
           hasNotes: book.hasNotes,
           hasSummary: book.hasSummary,
+          isAutomated: book.isAutomated,
           coverUrl: book.coverUrl,
           audibleUrl: book.audibleUrl,
           notionUrl: book.notionUrl,
@@ -553,6 +555,7 @@ async function migrateChangedSlugs(
       pageCount: number | null;
       hasNotes: boolean;
       hasSummary: boolean;
+      isAutomated: boolean;
       coverUrl: string | null;
       audibleUrl: string | null;
       notionUrl: string;

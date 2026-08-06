@@ -371,7 +371,7 @@ export const BookCard = memo(function BookCard({
                 </p>
                 {book.publicationYear && (
                   <p
-                    className={`mt-px text-muted-foreground/70 ${styles.placeholderAuthor}`}
+                    className={`mt-px text-muted-foreground ${styles.placeholderAuthor}`}
                   >
                     {book.publicationYear}
                   </p>

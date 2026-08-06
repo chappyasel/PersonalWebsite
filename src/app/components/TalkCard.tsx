@@ -93,7 +93,7 @@ export default function TalkCard({ talk }: { talk: Talk }) {
           className="relative flex flex-1 flex-col pt-4"
           style={{ transform: "translateZ(20px)" }}
         >
-          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-muted-foreground/80">
+          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-muted-foreground">
             <span>{talk.venue}</span>
             <span aria-hidden>·</span>
             <span>{formatMonthYear(talk.date)}</span>
@@ -117,7 +117,7 @@ export default function TalkCard({ talk }: { talk: Talk }) {
             {talk.excerpt}
           </p>
 
-          <div className="mt-auto flex flex-wrap items-center gap-3 pt-4 text-sm font-semibold text-muted-foreground/75">
+          <div className="mt-auto flex flex-wrap items-center gap-3 pt-4 text-sm font-semibold text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <ClockIcon weight="bold" className="size-4" />
               {talk.duration}

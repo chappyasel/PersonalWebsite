@@ -49,7 +49,7 @@ function SupplementCard({
           {supplement.name}
         </h4>
         {supplement.costPerDay && (
-          <span className="shrink-0 text-xs text-muted-foreground/60">
+          <span className="shrink-0 text-xs text-muted-foreground">
             {supplement.costPerDay}/day
           </span>
         )}
@@ -113,11 +113,11 @@ function SupplementSubSection({
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           {icon}
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/60">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             {label}
           </h3>
         </div>
-        <span className="text-xs text-muted-foreground/50">
+        <span className="text-xs text-muted-foreground">
           ${totalCost.toFixed(2)}/day total
         </span>
       </div>

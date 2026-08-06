@@ -10,7 +10,7 @@ export default function PrefacePage() {
     <div className="py-8">
       <Link
         href="/dad"
-        className="group mb-12 inline-flex items-center gap-2 font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground/40 transition-colors hover:text-muted-foreground/70"
+        className="group mb-12 inline-flex items-center gap-2 font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:text-foreground"
       >
         <span className="transition-transform group-hover:-translate-x-0.5">
           ←
@@ -18,7 +18,7 @@ export default function PrefacePage() {
         Back
       </Link>
 
-      <p className="mb-4 text-center font-serif text-[10px] uppercase tracking-[0.25em] text-muted-foreground/35">
+      <p className="mb-4 text-center font-serif text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
         Foreword
       </p>
 

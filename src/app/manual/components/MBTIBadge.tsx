@@ -36,7 +36,7 @@ export default function MBTIBadge({ mbti }: { mbti: string }) {
 
   return (
     <div ref={ref} className="flex flex-col items-center gap-3">
-      <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/50">
+      <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
         Myers-Briggs
       </h3>
       <div className="flex items-baseline gap-0.5">

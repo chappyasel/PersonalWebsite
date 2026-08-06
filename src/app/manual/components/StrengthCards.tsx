@@ -60,7 +60,7 @@ export default function StrengthCards({
 
   return (
     <div ref={ref} className="space-y-4">
-      <h3 className="text-center text-sm font-semibold uppercase tracking-wider text-muted-foreground/50">
+      <h3 className="text-center text-sm font-semibold uppercase tracking-wider text-muted-foreground">
         CliftonStrengths Top 10
       </h3>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

@@ -55,13 +55,13 @@ export default function NotionBlockRenderer({
     case "heading":
       if (block.level === 2) {
         return (
-          <h2 className="mt-6 text-lg font-semibold text-foreground/80 first:mt-0">
+          <h2 className="mt-6 text-lg font-semibold text-foreground first:mt-0">
             <RichTextRenderer content={block.content} bookLookup={bookLookup} />
           </h2>
         );
       }
       return (
-        <h3 className="mt-4 text-base font-semibold text-foreground/70 first:mt-0">
+        <h3 className="mt-4 text-base font-semibold text-foreground first:mt-0">
           <RichTextRenderer content={block.content} bookLookup={bookLookup} />
         </h3>
       );
@@ -121,7 +121,7 @@ export default function NotionBlockRenderer({
 
     case "quote":
       return (
-        <blockquote className="border-l-2 border-muted-foreground/20 pl-4 italic text-muted-foreground/80">
+        <blockquote className="border-l-2 border-muted-foreground/20 pl-4 italic text-muted-foreground">
           <RichTextRenderer content={block.content} bookLookup={bookLookup} />
         </blockquote>
       );
@@ -135,7 +135,7 @@ export default function NotionBlockRenderer({
                 {block.headers.map((header, i) => (
                   <th
                     key={i}
-                    className="pb-2 pr-4 text-left font-semibold text-foreground/70 last:pr-0"
+                    className="pb-2 pr-4 text-left font-semibold text-foreground last:pr-0"
                   >
                     {header}
                   </th>

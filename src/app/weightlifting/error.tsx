@@ -37,7 +37,7 @@ export default function WeightliftingError({
         </Link>
       </div>
       {error.digest && (
-        <p className="mt-4 text-sm text-muted-foreground/50">
+        <p className="mt-4 text-sm text-muted-foreground">
           Error ID: {error.digest}
         </p>
       )}

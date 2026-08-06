@@ -37,7 +37,7 @@ export default function ManualHero({
         <p className="text-sm text-muted-foreground">
           A guide to how I work, communicate, and collaborate
         </p>
-        <div className="flex items-center gap-3 text-xs text-muted-foreground/70">
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
           <Link
             href="https://www.chappyasel.com"
             className="flex items-center gap-1.5 transition-colors hover:text-muted-foreground"
@@ -58,7 +58,7 @@ export default function ManualHero({
 
       {hero.intro.length > 0 && (
         <div className="rounded-2xl border border-foreground/[0.06] bg-muted/40 p-6 shadow-sm">
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground/50">
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             My 30-Second Introduction
           </h3>
           <div className="space-y-2">
@@ -73,7 +73,7 @@ export default function ManualHero({
 
       {hero.missionStatement && (
         <div className="rounded-2xl border border-foreground/[0.06] bg-muted/40 p-6 shadow-sm">
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground/50">
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             My Personal Mission Statement
           </h3>
           <p className="leading-relaxed italic">{hero.missionStatement}</p>
@@ -82,7 +82,7 @@ export default function ManualHero({
 
       {hero.goldenRule && (
         <div className="rounded-2xl border border-foreground/[0.06] bg-muted/40 p-6 shadow-sm">
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground/50">
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             The Golden Rule of Working With Me
           </h3>
           <p className="leading-relaxed">{hero.goldenRule}</p>

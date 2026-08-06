@@ -18,17 +18,17 @@ export default async function DadPage() {
     <div className="mx-auto max-w-2xl py-12 sm:py-20">
       {/* Frontispiece */}
       <div className="mb-20 text-center">
-        <p className="mb-4 text-[10px] uppercase tracking-[0.3em] text-muted-foreground/40">
+        <p className="mb-4 text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
           Reflections on a Young Life
         </p>
         <h1 className="mb-2 text-5xl font-light italic tracking-wide text-foreground sm:text-6xl">
           Dad&apos;s Journal
         </h1>
         <div className="mx-auto my-5 w-12 border-t border-muted-foreground/20" />
-        <p className="text-xl font-light text-foreground/80">
+        <p className="text-xl font-light text-foreground">
           Gabriel Chapman Asel
         </p>
-        <p className="mt-1 text-sm text-muted-foreground/60">
+        <p className="mt-1 text-sm text-muted-foreground">
           April 1999 &ndash; December 2024
         </p>
       </div>
@@ -37,17 +37,17 @@ export default async function DadPage() {
       <div className="space-y-16">
         {/* Life Story */}
         <section>
-          <h2 className="mb-6 text-[10px] uppercase tracking-[0.25em] text-muted-foreground/40">
+          <h2 className="mb-6 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
             I. Life Story
           </h2>
           <Link
             href="/dad/life-story"
             className="group flex items-baseline justify-between border-b border-muted-foreground/10 py-3 transition-colors hover:border-muted-foreground/20"
           >
-            <span className="font-serif text-lg font-light text-foreground/90 transition-transform duration-200 group-hover:translate-x-1">
+            <span className="font-serif text-lg font-light text-foreground transition-transform duration-200 group-hover:translate-x-1">
               Life Story
             </span>
-            <span className="font-serif text-xs text-muted-foreground/40 group-hover:text-muted-foreground/60">
+            <span className="font-serif text-xs text-muted-foreground group-hover:text-foreground">
               A narrative weaving the journal into a coming-of-age story
             </span>
           </Link>
@@ -61,7 +61,7 @@ export default async function DadPage() {
 
         {/* Insights */}
         <section>
-          <h2 className="mb-6 text-[10px] uppercase tracking-[0.25em] text-muted-foreground/40">
+          <h2 className="mb-6 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
             II. Insights
           </h2>
           <div>
@@ -71,7 +71,7 @@ export default async function DadPage() {
                 href={`/dad/insights/${slug}`}
                 className="group flex items-baseline justify-between border-b border-muted-foreground/10 py-3 transition-colors hover:border-muted-foreground/20"
               >
-                <span className="font-serif text-lg font-light text-foreground/90 transition-transform duration-200 group-hover:translate-x-1">
+                <span className="font-serif text-lg font-light text-foreground transition-transform duration-200 group-hover:translate-x-1">
                   {title}
                 </span>
               </Link>
@@ -87,13 +87,13 @@ export default async function DadPage() {
 
         {/* Journal */}
         <section>
-          <h2 className="mb-6 text-[10px] uppercase tracking-[0.25em] text-muted-foreground/40">
+          <h2 className="mb-6 text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
             III. The Journal
           </h2>
           <div>
             <Link
               href="/dad/journal/preface"
-              className="group mb-2 block text-sm italic text-muted-foreground/60 transition-colors hover:text-muted-foreground/80"
+              className="group mb-2 block text-sm italic text-muted-foreground transition-colors hover:text-foreground"
             >
               Dad&apos;s Opening Letter
             </Link>
@@ -101,16 +101,16 @@ export default async function DadPage() {
               href="/dad/journal"
               className="group flex items-baseline justify-between border-b border-muted-foreground/10 py-3 transition-colors hover:border-muted-foreground/20"
             >
-              <span className="font-serif text-lg font-light text-foreground/90 transition-transform duration-200 group-hover:translate-x-1">
+              <span className="font-serif text-lg font-light text-foreground transition-transform duration-200 group-hover:translate-x-1">
                 Journal Index
               </span>
-              <span className="font-serif text-xs text-muted-foreground/40 group-hover:text-muted-foreground/60">
+              <span className="font-serif text-xs text-muted-foreground group-hover:text-foreground">
                 311 entries spanning 25 years
               </span>
             </Link>
             <Link
               href="/dad/journal/epilogue"
-              className="group mt-2 block text-sm italic text-muted-foreground/60 transition-colors hover:text-muted-foreground/80"
+              className="group mt-2 block text-sm italic text-muted-foreground transition-colors hover:text-foreground"
             >
               Dad&apos;s Closing Reflection
             </Link>

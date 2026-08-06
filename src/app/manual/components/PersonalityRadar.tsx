@@ -43,7 +43,7 @@ export default function PersonalityRadar({
 
   return (
     <div className="flex flex-col items-center gap-4">
-      <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/50">
+      <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
         Big Five Personality
       </h3>
       <svg

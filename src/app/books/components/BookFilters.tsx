@@ -196,7 +196,7 @@ export function BookFilters({
                   >
                     <TagBadge tag={tag} />
                     {count > 0 && (
-                      <span className="text-[10px] text-foreground/70">
+                      <span className="text-[10px] text-muted-foreground">
                         ({count})
                       </span>
                     )}

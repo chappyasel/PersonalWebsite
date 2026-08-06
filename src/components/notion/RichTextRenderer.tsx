@@ -18,16 +18,22 @@ const customEmojiMap: Record<string, { src: string; alt: string }> = {
   },
 };
 
+/**
+ * Notion's background colors render as a low-opacity wash of the actual hue
+ * rather than a solid pastel fill. A 100-level pastel at 60% reads as a
+ * highlighter block sitting on top of the page; a 500-level hue at ~14% tints
+ * the same words without breaking the column of text.
+ */
 const notionColorMap: Record<string, string> = {
-  yellow_background: "bg-amber-100/60 dark:bg-amber-900/20",
-  blue_background: "bg-blue-100/60 dark:bg-blue-900/20",
-  green_background: "bg-emerald-100/60 dark:bg-emerald-900/20",
-  pink_background: "bg-pink-100/60 dark:bg-pink-900/20",
-  purple_background: "bg-purple-100/60 dark:bg-purple-900/20",
-  red_background: "bg-red-100/60 dark:bg-red-900/20",
-  orange_background: "bg-orange-100/60 dark:bg-orange-900/20",
-  gray_background: "bg-gray-100/60 dark:bg-gray-800/20",
-  brown_background: "bg-amber-200/40 dark:bg-amber-900/20",
+  yellow_background: "bg-amber-500/14 dark:bg-amber-400/14",
+  blue_background: "bg-blue-500/14 dark:bg-blue-400/14",
+  green_background: "bg-emerald-500/14 dark:bg-emerald-400/14",
+  pink_background: "bg-pink-500/14 dark:bg-pink-400/14",
+  purple_background: "bg-purple-500/14 dark:bg-purple-400/14",
+  red_background: "bg-red-500/14 dark:bg-red-400/14",
+  orange_background: "bg-orange-500/14 dark:bg-orange-400/14",
+  gray_background: "bg-muted",
+  brown_background: "bg-amber-700/14 dark:bg-amber-600/14",
   yellow: "text-amber-600 dark:text-amber-400",
   blue: "text-blue-600 dark:text-blue-400",
   green: "text-emerald-600 dark:text-emerald-400",
@@ -186,7 +192,7 @@ export default function RichTextRenderer({
           if (cls) {
             el = (
               <span
-                className={`${cls} ${rt.color.includes("background") ? "rounded px-1" : ""}`}
+                className={`${cls} ${rt.color.includes("background") ? "rounded-[3px] px-0.5" : ""}`}
               >
                 {el}
               </span>

@@ -188,6 +188,12 @@ function transformNotionPageToBook(page: PageObjectResponse): BaseBook {
       props["Summarized?"] && "checkbox" in props["Summarized?"]
         ? (props["Summarized?"].checkbox ?? false)
         : false,
+    // Notion "Automated?" — the summary/key takeaways were drafted by an AI
+    // pass over Chappy's handwritten notes and haven't been reviewed yet.
+    isAutomated:
+      props["Automated?"] && "checkbox" in props["Automated?"]
+        ? (props["Automated?"].checkbox ?? false)
+        : false,
     coverUrl:
       props.Cover && "url" in props.Cover ? (props.Cover.url ?? null) : null,
     audibleUrl:

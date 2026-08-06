@@ -19,6 +19,7 @@ export type BaseBook = {
   tags: string[]; // From multi_select (34 options)
   hasNotes: boolean;
   hasSummary: boolean;
+  isAutomated: boolean;
   coverUrl: string | null;
   audibleUrl: string | null;
   notionUrl: string;

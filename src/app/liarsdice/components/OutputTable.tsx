@@ -171,7 +171,7 @@ export default function OutputTable({ output, currentBid }: Props) {
                           return (
                             <tr key={scenario.numMatches}>
                               <td
-                                className={`${isLast ? "" : "border-b"} border-r border-border p-1.5 font-semibold ${isBestBid ? "bg-foreground text-background" : isBelowBid ? "text-muted-foreground/40" : ""}`}
+                                className={`${isLast ? "" : "border-b"} border-r border-border p-1.5 font-semibold ${isBestBid ? "bg-foreground text-background" : isBelowBid ? "text-muted-foreground" : ""}`}
                               >
                                 {scenario.numMatches}
                               </td>

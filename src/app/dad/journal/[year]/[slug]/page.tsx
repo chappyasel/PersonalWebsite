@@ -27,7 +27,7 @@ export default async function JournalEntryPage({
     <div className="py-8">
       <Link
         href="/dad/journal"
-        className="group mb-12 inline-flex items-center gap-2 font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground/40 transition-colors hover:text-muted-foreground/70"
+        className="group mb-12 inline-flex items-center gap-2 font-serif text-xs uppercase tracking-[0.2em] text-muted-foreground transition-colors hover:text-foreground"
       >
         <span className="transition-transform group-hover:-translate-x-0.5">
           ←
@@ -45,10 +45,10 @@ export default async function JournalEntryPage({
             href={`/dad/journal/${prev.year}/${prev.slug}`}
             className="group max-w-[45%]"
           >
-            <p className="mb-1 font-serif text-[10px] uppercase tracking-[0.2em] text-muted-foreground/40">
+            <p className="mb-1 font-serif text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
               Previous
             </p>
-            <p className="font-serif text-base font-light italic text-foreground/70 transition-colors group-hover:text-foreground">
+            <p className="font-serif text-base font-light italic text-foreground transition-colors group-hover:text-foreground">
               {prev.title}
             </p>
           </Link>
@@ -58,10 +58,10 @@ export default async function JournalEntryPage({
             href={`/dad/journal/${next.year}/${next.slug}`}
             className="group ml-auto max-w-[45%] text-right"
           >
-            <p className="mb-1 font-serif text-[10px] uppercase tracking-[0.2em] text-muted-foreground/40">
+            <p className="mb-1 font-serif text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
               Next
             </p>
-            <p className="font-serif text-base font-light italic text-foreground/70 transition-colors group-hover:text-foreground">
+            <p className="font-serif text-base font-light italic text-foreground transition-colors group-hover:text-foreground">
               {next.title}
             </p>
           </Link>

@@ -74,7 +74,7 @@ export function BookSearch() {
 
   return (
     <div className="relative flex-1">
-      <MagnifyingGlassIcon className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/40" />
+      <MagnifyingGlassIcon className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/70" />
       <Input
         ref={inputRef}
         type="text"

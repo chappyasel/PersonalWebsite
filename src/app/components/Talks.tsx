@@ -36,8 +36,8 @@ export default async function Talks() {
       </div>
 
       {MENTIONS.length > 0 && (
-        <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 px-1 pt-1 text-sm text-muted-foreground/75">
-          <span className="font-semibold text-muted-foreground/60">
+        <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 px-1 pt-1 text-sm text-muted-foreground">
+          <span className="font-semibold text-muted-foreground">
             Elsewhere
           </span>
           {MENTIONS.map((mention, index) => (
@@ -52,7 +52,7 @@ export default async function Talks() {
                 target="_blank"
                 className="group flex items-center gap-1.5 transition-colors duration-300 hover:text-foreground"
               >
-                <span className="font-semibold text-foreground/80 transition-colors duration-300 group-hover:text-foreground">
+                <span className="font-semibold text-foreground transition-colors duration-300 group-hover:text-foreground">
                   {mention.outlet}
                 </span>
                 <span className="opacity-80">{mention.title}</span>

@@ -44,6 +44,7 @@ import remarkGfm from "remark-gfm";
 import { capture } from "~/lib/analytics";
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import { getBookPath, getBooksPath } from "~/lib/books/paths";
+import { selectBookNotice } from "~/lib/books/notices";
 import type { BaseBook, Book } from "~/lib/books/types";
 import { cn } from "~/lib/util";
 
@@ -61,6 +62,7 @@ import {
   formatReadDates,
   getOrdinalSuffix,
 } from "../lib/format";
+import { AutomatedNotice, ReadingNowNotice } from "./BookNotices";
 import { InlineMarkdown } from "./InlineMarkdown";
 import { TagBadge } from "./TagBadge";
 
@@ -317,6 +319,8 @@ export function BookDetailContent({
 }: BookDetailContentProps) {
   const coverUrl = enhanceCoverUrl(book.coverUrl);
   const hasTrackedView = useRef(false);
+
+  const notice = selectBookNotice(book);
 
   // Track book view on mount (only once per component instance)
   useEffect(() => {
@@ -1083,6 +1087,13 @@ export function BookDetailContent({
           !book.hasNotes && "lg:pb-0",
         )}
       >
+        {/*
+         * Sits outside the notes branch: an unfinished book is worth flagging
+         * whether or not any notes have made it onto the page yet, and it does
+         * not have to wait on the notes fetch.
+         */}
+        {notice === "reading" && <ReadingNowNotice />}
+
         {/* Notes section */}
         {book.hasNotes ? (
           <div className="pb-[min(25vh,300px)]">
@@ -1096,9 +1107,11 @@ export function BookDetailContent({
                 </div>
               </div>
             ) : fullBook?.notes ? (
-              <div
-                className={cn(
-                  "prose prose-base prose-neutral max-w-none leading-[1.85] text-foreground",
+              <>
+                {notice === "automated" && <AutomatedNotice />}
+                <div
+                  className={cn(
+                    "prose prose-base prose-neutral max-w-none leading-[1.85] text-foreground",
                   "prose-headings:mb-0 prose-headings:font-semibold prose-headings:text-foreground prose-h1:translate-y-3 prose-h1:py-3 prose-h1:text-2xl prose-h2:translate-y-[-8px] prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs",
                   "prose-p:translate-y-2 prose-p:text-foreground prose-a:text-foreground prose-a:underline hover:prose-a:text-foreground prose-strong:font-semibold prose-strong:text-foreground",
                   "prose-ol:my-0 prose-ol:list-decimal prose-ul:my-0 prose-ul:list-disc prose-li:my-px prose-li:text-foreground",
@@ -1148,7 +1161,7 @@ export function BookDetailContent({
                           <blockquote
                             {...props}
                             className={cn(
-                              "book-notes-quote my-4 border-l-2 border-foreground/15 py-1 pl-5 font-normal italic text-foreground/75",
+                              "book-notes-quote my-4 border-l-2 border-foreground/15 py-1 pl-5 font-normal italic text-muted-foreground",
                               className,
                             )}
                           >
@@ -1162,9 +1175,10 @@ export function BookDetailContent({
                     {processDetailsBlocks(fullBook.notes)}
                   </ReactMarkdown>
                 </PhotoProvider>
-              </div>
+                </div>
+              </>
             ) : (
-              <p className="py-8 text-center text-muted-foreground/70">
+              <p className="py-8 text-center text-muted-foreground">
                 This book has notes. View them in{" "}
                 <a
                   href={book.notionUrl}
@@ -1180,7 +1194,7 @@ export function BookDetailContent({
           </div>
         ) : !isModal ? (
           <div className="border-t border-muted-foreground/10 pt-8 lg:pt-10">
-            <p className="py-8 text-center text-sm text-muted-foreground/70">
+            <p className="py-8 text-center text-sm text-muted-foreground">
               No notes for this book.
             </p>
           </div>

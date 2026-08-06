@@ -43,7 +43,7 @@ export default function DailyRoutine() {
                   >
                     {time}
                   </span>
-                  <span className="text-xs font-medium text-muted-foreground/70">
+                  <span className="text-xs font-medium text-muted-foreground">
                     {label}
                   </span>
                 </div>

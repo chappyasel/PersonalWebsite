@@ -4,6 +4,8 @@ import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes";
 import { useEffect } from "react";
 import { Observer } from "tailwindcss-intersect";
 
+import { THEME_COLOR, THEME_STORAGE_KEY, nextTheme } from "~/lib/theme";
+
 export function ObserverProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     Observer.start();
@@ -39,7 +41,10 @@ function setThemeCookie(theme: string) {
 function ThemeCookieSync() {
   const { theme, setTheme } = useTheme();
 
-  // On mount, sync from cookie → next-themes if cookie has a value
+  // On mount, sync from cookie → next-themes if cookie has a value.
+  // The pre-hydration script in the root layout already mirrored the cookie
+  // into localStorage so first paint is correct; this keeps React state in
+  // step for the rest of the session.
   useEffect(() => {
     const cookieTheme = getThemeFromCookie();
     if (cookieTheme && cookieTheme !== theme) {
@@ -58,19 +63,53 @@ function ThemeCookieSync() {
   return null;
 }
 
+/**
+ * Keeps <meta name="theme-color"> in step with the *resolved* theme.
+ *
+ * Static `media="(prefers-color-scheme: …)"` meta tags are not enough on their
+ * own: they follow the OS, so a visitor who has explicitly picked Light while
+ * their phone is in Dark would get mismatched browser chrome. Driving a single
+ * tag from resolvedTheme covers both the system and the manual-override case.
+ */
+function ThemeColorSync() {
+  const { resolvedTheme } = useTheme();
+
+  useEffect(() => {
+    if (!resolvedTheme) return;
+    let meta = document.querySelector<HTMLMetaElement>(
+      'meta[name="theme-color"]',
+    );
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.name = "theme-color";
+      document.head.appendChild(meta);
+    }
+    meta.content =
+      resolvedTheme === "dark" ? THEME_COLOR.dark : THEME_COLOR.light;
+  }, [resolvedTheme]);
+
+  return null;
+}
+
 function ThemeKeyboardShortcut() {
-  const { resolvedTheme, setTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.metaKey && e.altKey && (e.key.toLowerCase() === "l" || e.code === "KeyL")) {
+      if (
+        e.metaKey &&
+        e.altKey &&
+        (e.key.toLowerCase() === "l" || e.code === "KeyL")
+      ) {
         e.preventDefault();
-        setTheme(resolvedTheme === "dark" ? "light" : "dark");
+        // Same System → Light → Dark cycle as the toggle button, so the
+        // shortcut can also get you *back* to following the OS.
+        setTheme(nextTheme(theme));
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [resolvedTheme, setTheme]);
+  }, [theme, setTheme]);
 
   return null;
 }
@@ -79,11 +118,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   return (
     <NextThemesProvider
       attribute="class"
+      storageKey={THEME_STORAGE_KEY}
       defaultTheme="system"
       enableSystem
       disableTransitionOnChange={false}
     >
       <ThemeCookieSync />
+      <ThemeColorSync />
       <ThemeKeyboardShortcut />
       {children}
     </NextThemesProvider>

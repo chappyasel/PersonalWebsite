@@ -159,7 +159,7 @@ function ActivityMosaic({ data }: { data: ActivityMosaicData }) {
           <p className="mt-1 text-lg font-semibold text-foreground">
             Recent Activity
           </p>
-          <p className="mt-0.5 text-xs font-medium text-muted-foreground/70">
+          <p className="mt-0.5 text-xs font-medium text-muted-foreground">
             {formatRange(displayStartDate, displayEndDate)}
           </p>
         </div>

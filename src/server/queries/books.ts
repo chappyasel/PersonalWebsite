@@ -119,6 +119,7 @@ export async function getBooks(input: BookCollectionInput): Promise<Book[]> {
       tags: book.tags.map((item) => item.tagName),
       hasNotes: book.hasNotes,
       hasSummary: book.hasSummary,
+      isAutomated: book.isAutomated,
       coverUrl: book.coverUrl,
       audibleUrl: book.audibleUrl,
       notionUrl: book.notionUrl,

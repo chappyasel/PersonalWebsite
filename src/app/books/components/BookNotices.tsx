@@ -1,0 +1,132 @@
+"use client";
+
+import {
+  BookOpenIcon,
+  CaretRightIcon,
+  SparkleIcon,
+} from "@phosphor-icons/react/dist/ssr";
+import { motion, useReducedMotion } from "framer-motion";
+import { type ReactNode, useId, useState } from "react";
+
+import { cn } from "~/lib/util";
+
+/** Shared shell so every book notice reads as the same kind of object. */
+function BookNotice({
+  icon,
+  children,
+  className,
+}: {
+  icon: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <aside
+      className={cn(
+        "my-6 rounded-lg border border-border bg-muted/60 px-4 py-3.5 text-sm",
+        className,
+      )}
+    >
+      <p className="flex items-start gap-2.5 text-foreground">
+        <span className="mt-[0.15em] shrink-0 text-muted-foreground">
+          {icon}
+        </span>
+        <span>{children}</span>
+      </p>
+    </aside>
+  );
+}
+
+/**
+ * Shown on books whose Notion "Automated?" box is checked: the summary and key
+ * takeaways on the page came out of an AI pass over Chappy's handwritten notes
+ * and have not been reviewed by him yet.
+ *
+ * Callers must also require `hasSummary` — "Automated?" only records that a
+ * book is in the AI pipeline, so on its own it can be true before any summary
+ * exists, and this copy claims one is present.
+ */
+export function AutomatedNotice() {
+  const [isOpen, setIsOpen] = useState(false);
+  const contentId = useId();
+  const prefersReducedMotion = useReducedMotion();
+
+  return (
+    <aside className="my-6 rounded-lg border border-border bg-muted/60 px-4 py-3.5 text-sm">
+      <p className="flex items-start gap-2.5 text-foreground">
+        <SparkleIcon
+          size={18}
+          weight="thin"
+          className="mt-[0.15em] shrink-0 text-muted-foreground"
+        />
+        <span>
+          <strong className="font-semibold">
+            The summary and key takeaways below are auto-generated.
+          </strong>{" "}
+          I ran an AI pass based strictly on my handwritten notes for this book.
+          I haven&apos;t done my own pass over them yet.
+        </span>
+      </p>
+
+      <button
+        type="button"
+        aria-controls={contentId}
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((current) => !current)}
+        className="mt-2 flex items-center gap-1.5 rounded-sm pl-[26px] text-left text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      >
+        <CaretRightIcon
+          size={12}
+          weight="regular"
+          className={`shrink-0 transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}
+        />
+        <span>How I read and take notes</span>
+      </button>
+
+      <motion.div
+        id={contentId}
+        aria-hidden={!isOpen}
+        inert={!isOpen}
+        initial={false}
+        animate={{ height: isOpen ? "auto" : 0, opacity: isOpen ? 1 : 0 }}
+        transition={
+          prefersReducedMotion
+            ? { duration: 0 }
+            : { duration: 0.24, ease: [0.22, 1, 0.36, 1] }
+        }
+        className="overflow-hidden"
+      >
+        <div className="space-y-3 pl-[26px] pt-3 text-muted-foreground">
+          <p>
+            I read a book once and take handwritten notes as I go, then leave
+            them alone. Weeks or months later I come back and write the key
+            points and summary from those notes.
+          </p>
+          <p>
+            The delay is on purpose. Having to rebuild a book out of my own
+            notes does far more for my recall than a second read-through would.
+          </p>
+          <p>
+            This one has only gotten as far as the AI pass. I&apos;ll come back
+            and redo the takeaways and summary myself soon!
+          </p>
+        </div>
+      </motion.div>
+    </aside>
+  );
+}
+
+/**
+ * Shown while a book is started but not finished. Takes precedence over
+ * AutomatedNotice: whatever is on the page is mid-flight either way, and the
+ * summary does not get written until the book is done.
+ */
+export function ReadingNowNotice() {
+  return (
+    <BookNotice icon={<BookOpenIcon size={18} weight="thin" />}>
+      <strong className="font-semibold">Still reading this one!</strong>{" "}
+      Whatever notes are here are partial. The key points and summary come after
+      I finish!
+    </BookNotice>
+  );
+}

@@ -31,7 +31,7 @@ export default function RoutineHero({
           <ThemeToggle />
         </div>
         <p className="text-sm text-muted-foreground">{intro}</p>
-        <div className="flex items-center gap-3 text-xs text-muted-foreground/70">
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
           <Link
             href="https://www.chappyasel.com"
             className="flex items-center gap-1.5 transition-colors hover:text-muted-foreground"

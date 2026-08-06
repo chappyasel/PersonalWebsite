@@ -104,7 +104,7 @@ export default async function AboutMe() {
         The future will be shaped by people building with taste, trust, and
         agency at the center. Onwards and Upwards!
       </p>
-      <div className="flex flex-col items-center gap-1 pt-8 text-muted-foreground/80">
+      <div className="flex flex-col items-center gap-1 pt-8 text-muted-foreground">
         <ContactButtons />
         {/* <p className="flex flex-row gap-2">
           <Link

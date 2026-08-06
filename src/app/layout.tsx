@@ -3,6 +3,7 @@ import { Literata } from "next/font/google";
 
 import { FontProvider } from "~/lib/font-provider";
 import { ObserverProvider, ThemeProvider } from "~/lib/providers";
+import { THEME_COLOR, THEME_STORAGE_KEY } from "~/lib/theme";
 
 import "~/styles/globals.css";
 
@@ -25,7 +26,44 @@ try {
 }
 `;
 
-export const viewport: Viewport = {};
+/**
+ * Runs before next-themes' own inline script (that one is rendered inside
+ * <body>), and does two things it can't:
+ *
+ * 1. Mirrors the cross-subdomain `theme` cookie into localStorage, which is the
+ *    only place next-themes looks. Without this, landing on books.chappyasel.com
+ *    with a preference set on chappyasel.com paints the wrong theme for a frame
+ *    and only corrects after hydration.
+ * 2. Emits <meta name="theme-color"> so mobile browser chrome matches on the
+ *    very first paint. ThemeColorSync keeps it current after that.
+ */
+const themeBootstrapScript = `
+try {
+  var m = /(?:^|; )theme=([^;]*)/.exec(document.cookie);
+  var c = m ? decodeURIComponent(m[1]) : null;
+  if (c === "light" || c === "dark" || c === "system") {
+    if (c !== localStorage.getItem("${THEME_STORAGE_KEY}")) {
+      localStorage.setItem("${THEME_STORAGE_KEY}", c);
+    }
+  }
+  var t = localStorage.getItem("${THEME_STORAGE_KEY}") || "system";
+  var dark =
+    t === "dark" ||
+    (t === "system" &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches);
+  var meta = document.createElement("meta");
+  meta.name = "theme-color";
+  meta.content = dark ? "${THEME_COLOR.dark}" : "${THEME_COLOR.light}";
+  document.head.appendChild(meta);
+} catch (_) {}
+`;
+
+// theme-color is set by themeBootstrapScript / ThemeColorSync instead of being
+// declared here, so that it can follow an explicit override rather than only
+// prefers-color-scheme.
+export const viewport: Viewport = {
+  colorScheme: "light dark",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(
@@ -66,6 +104,7 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
         <script dangerouslySetInnerHTML={{ __html: fontPreferenceScript }} />
+        <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
       </head>
       <body>
         <ObserverProvider>
