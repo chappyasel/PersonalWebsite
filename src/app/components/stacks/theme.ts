@@ -68,8 +68,12 @@ export const PALETTES = {
 
 export type Palette = (typeof PALETTES)["light" | "dark"];
 
+// feTurbulence emits 4-channel noise with a random alpha; the feColorMatrix
+// copies one channel to RGB and forces alpha to 1 so the grain is mono and
+// opaque — without it the overlay's effective opacity halves and the noise
+// reads as color confetti.
 export const GRAIN_URI =
-  "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")";
+  "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='1' stitchTiles='stitch'/%3E%3CfeColorMatrix values='1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")";
 
 /** Route remote cover art through the Next image optimizer at a fixed width. */
 export function proxied(url: string, w: 48 | 256 | 384 = 384): string {

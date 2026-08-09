@@ -34,6 +34,7 @@ const SKY_FRAGMENT = `
   uniform float uDark;     // 0 light theme … 1 dark theme (damped crossfade)
   uniform float uDawn;     // scroll offset 0…1 — the traverse advances the morning
   uniform float uTime;
+  uniform float uFrame;    // frame counter mod 64 — scrolls the IGN dither
   uniform float uSimplify; // degrade rung: 1 = two bands, no city/stars/ember
   uniform vec3 zenithL;  uniform vec3 zenithD;
   uniform vec3 horizonL; uniform vec3 horizonD;
@@ -43,8 +44,19 @@ const SKY_FRAGMENT = `
   uniform vec3 windowL;  uniform vec3 windowD;
   varying vec3 vLocal;
 
-  float hash1(float n) { return fract(sin(n) * 43758.5453123); }
-  float hash2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }
+  // Hoskins hash-without-sine — fract(sin(x)*43758) bands or degenerates on
+  // some mobile GPU drivers.
+  float hash1(float n) {
+    n = fract(n * 0.1031);
+    n *= n + 33.33;
+    n *= n + n;
+    return fract(n);
+  }
+  float hash2(vec2 p) {
+    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+  }
 
   void main() {
     vec3 dir = normalize(vLocal);
@@ -71,12 +83,16 @@ const SKY_FRAGMENT = `
       // travel pans toward it. Dark: grows from nothing (3:45 is fully dark)
       // to a first ember. Light: an always-warm glow that climbs as uDawn
       // rises, plus a whisper of horizon warmth everywhere.
-      float azFall = exp(-pow((a + 1.15) / mix(0.42, 0.28, uDark), 2.0));
+      // pow() with a negative base is undefined in GLSL ES — square explicitly.
+      float qa = (a + 1.15) / mix(0.42, 0.28, uDark);
+      float azFall = exp(-(qa * qa));
       float emberElev = mix(0.030 + 0.10 * uDawn, 0.020, uDark);
       float emberW = mix(0.055, 0.020 + 0.015 * uDawn, uDark);
       float emberAmp = mix(0.38 + 0.12 * uDawn, 0.30 * uDawn, uDark);
-      float ember = exp(-pow((e - emberElev) / emberW, 2.0)) * emberAmp * azFall;
-      ember += (1.0 - uDark) * 0.10 * exp(-pow((e - 0.02) / 0.04, 2.0));
+      float qe = (e - emberElev) / emberW;
+      float ember = exp(-(qe * qe)) * emberAmp * azFall;
+      float qg = (e - 0.02) / 0.04;
+      ember += (1.0 - uDark) * 0.10 * exp(-(qg * qg));
       col += emberC * ember;
 
       // Stars, dark only — hashed cells in azimuth/elevation space with
@@ -132,8 +148,13 @@ const SKY_FRAGMENT = `
     gl_FragColor = vec4(col, 1.0);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
-    float n = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
-    gl_FragColor.rgb += (n - 0.5) / 255.0;
+    // Temporal IGN (Jimenez scroll folded into the fract) with the amplitude
+    // shaped to the midtones — pure dither in the deep end, film grain where
+    // the eye can actually resolve it.
+    float n = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)) + uFrame * 0.4076492));
+    float lum = dot(gl_FragColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+    float amp = 2.0 / 255.0 + (5.0 / 255.0) * (1.0 - abs(lum * 2.0 - 1.0));
+    gl_FragColor.rgb += (n - 0.5) * amp;
   }
 `;
 
@@ -150,6 +171,7 @@ function SkyDome({ dark, simplify }: { dark: boolean; simplify: boolean }) {
         uDark: { value: dark ? 1 : 0 },
         uDawn: { value: 0 },
         uTime: { value: 0 },
+        uFrame: { value: 0 },
         uSimplify: { value: 0 },
         zenithL: { value: c(L.skyTop) },
         zenithD: { value: c(D.skyTop) },
@@ -181,6 +203,7 @@ function SkyDome({ dark, simplify }: { dark: boolean; simplify: boolean }) {
     );
     u.uDawn!.value = progressRef.current;
     u.uTime!.value = clock.elapsedTime;
+    u.uFrame!.value = ((u.uFrame!.value as number) + 1) % 64;
     u.uSimplify!.value = simplify ? 1 : 0;
   });
   // renderOrder 1: draw after opaque geometry so early-Z rejects the covered
@@ -265,8 +288,8 @@ function Dust({ palette, count = 380 }: { palette: Palette; count?: number }) {
 }
 
 // Warm key light following the camera laterally so every unit reads the same.
-// It no longer casts — ground shadows are baked once by AccumulativeShadows
-// (Scene.tsx), retiring the per-frame 2048² shadow pass.
+// It doesn't cast — grounding comes from the analytic ground pools
+// (GroundPool.tsx), so there is no per-frame shadow pass at all.
 function KeyLight({ dark }: { dark: boolean }) {
   const lightRef = useRef<THREE.DirectionalLight>(null);
   const scene = useThree((s) => s.scene);

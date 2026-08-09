@@ -61,9 +61,6 @@ export type StacksData = {
   shelfBooks: Book[];
   bookStats: HomepageBookStats;
   reading: { title: string; coverUrl: string | null } | null;
-  lastLift: { date: string; volume: number } | null;
-  totalWorkouts: number;
-  totalVolume: number;
   talks: StacksTalk[];
   projects: StacksProject[];
   blogPosts: StacksBlogPost[];
@@ -84,38 +81,3 @@ export type StacksSlots = {
   quotes: ReactNode;
 };
 
-export function unitCaption(slug: UnitSlug, data: StacksData): string {
-  switch (slug) {
-    case "about":
-      return "about";
-    case "books":
-      return `the library — ${data.bookStats.total} books${
-        data.bookStats.perYear
-          ? `, ${Math.round(data.bookStats.perYear)} a year`
-          : ""
-      }`;
-    case "training":
-      return `training — ${data.totalWorkouts.toLocaleString()} workouts`;
-    case "talks":
-      return "talks";
-    case "projects":
-      return "projects — built since age 12";
-    case "blog":
-      return "musings";
-    case "systems":
-      return "systems — up at 3:45am";
-  }
-}
-
-export function formatVolume(lbs: number): string {
-  if (lbs >= 1_000_000) return `${(lbs / 1_000_000).toFixed(1)}M`;
-  if (lbs >= 1_000) return `${(lbs / 1_000).toFixed(0)}K`;
-  return lbs.toLocaleString();
-}
-
-export function formatShortDate(isoDate: string): string {
-  return new Date(`${isoDate}T00:00:00`).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
-}

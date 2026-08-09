@@ -42,7 +42,6 @@ export default async function HomePage() {
     coverUrl: book.coverUrl,
   }));
   const readingBook = allBooks.find((book) => book.started && !book.finished);
-  const lastLiftDay = activity.days.at(-1);
 
   const data: StacksData = {
     covers: bookCovers,
@@ -51,11 +50,6 @@ export default async function HomePage() {
     reading: readingBook
       ? { title: readingBook.title, coverUrl: readingBook.coverUrl }
       : null,
-    lastLift: lastLiftDay
-      ? { date: lastLiftDay.date, volume: lastLiftDay.volume }
-      : null,
-    totalWorkouts: liftingStats.totalWorkouts,
-    totalVolume: liftingStats.totalVolume,
     talks: speakingData.talks.map((talk) => ({
       videoId: talk.videoId,
       title: talk.title,

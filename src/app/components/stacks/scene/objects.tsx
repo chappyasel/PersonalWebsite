@@ -133,7 +133,14 @@ export function NotebookLean({
                   }
                 : undefined
             }
-            onPointerOut={key ? () => setHovered(null) : undefined}
+            onPointerOut={
+              key
+                ? () => {
+                    if (useStacks.getState().hovered === `notebook:${key}`)
+                      setHovered(null);
+                  }
+                : undefined
+            }
             onClick={
               key && onNotebookClick
                 ? (e) => {

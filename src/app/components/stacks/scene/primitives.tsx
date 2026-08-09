@@ -145,12 +145,18 @@ export function BookRowMesh({
                 <DreiImage
                   url={proxied(item.url, coverWidth)}
                   scale={[0.34, 0.5]}
+                  position={[0, 0, -0.002]}
                   toneMapped={false}
                   onPointerOver={(e) => {
                     e.stopPropagation();
                     setHovered(`book:${item.key}`);
                   }}
-                  onPointerOut={() => setHovered(null)}
+                  onPointerOut={() => {
+                    // over(B) can land before out(A) — only clear our own hover
+                    // or the late out event would drop B's lift mid-animation.
+                    if (useStacks.getState().hovered === `book:${item.key}`)
+                      setHovered(null);
+                  }}
                   onClick={
                     onCoverClick
                       ? (e) => {
@@ -411,7 +417,10 @@ export function FrameRow({
                     e.stopPropagation();
                     setHovered(`frame:${key}`);
                   }}
-                  onPointerOut={() => setHovered(null)}
+                  onPointerOut={() => {
+                    if (useStacks.getState().hovered === `frame:${key}`)
+                      setHovered(null);
+                  }}
                   onClick={
                     onFrameClick
                       ? (e) => {

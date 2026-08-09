@@ -65,7 +65,7 @@ export default function StacksHome({
           }`}
         >
           <StacksCanvas data={data} onReady={() => setWorldReady(true)} />
-          <ChromeLayer data={data} />
+          <ChromeLayer />
           <PlacardLayer data={data} slots={slots} />
           <UnitRail />
           <ScrollBridges />
