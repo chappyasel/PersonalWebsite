@@ -1,12 +1,13 @@
 "use client";
 
-// Scene graph: atmosphere + camera rig + the seven shelf units + the invisible
-// shadow catcher that grounds them.
+// Scene graph: atmosphere + camera rig + the seven shelf units + the baked
+// ground shadows that ground them.
 import { type ComponentType } from "react";
 
 import { UNITS, type StacksData, type UnitSlug } from "../data";
 import { type Palette } from "../theme";
 import CameraRig from "./CameraRig";
+import GroundPool from "./GroundPool";
 import SceneEnvironment from "./SceneEnvironment";
 import UnitAbout from "./units/UnitAbout";
 import UnitBlog from "./units/UnitBlog";
@@ -16,7 +17,7 @@ import UnitSystems from "./units/UnitSystems";
 import UnitTalks from "./units/UnitTalks";
 import UnitTraining from "./units/UnitTraining";
 import { type UnitProps } from "./units/types";
-import { MID_X, unitPose } from "./worldLayout";
+import { unitPose } from "./worldLayout";
 
 const UNIT_COMPONENTS: Record<UnitSlug, ComponentType<UnitProps>> = {
   about: UnitAbout,
@@ -55,7 +56,6 @@ export default function Scene({
         palette={palette}
         dark={dark}
         dustOff={dustOff}
-        shadowsOff={shadowsOff}
         skySimplify={skySimplify}
       />
       <CameraRig />
@@ -71,23 +71,18 @@ export default function Scene({
               onOpenBook={onOpenBook}
               onOpenUrl={onOpenUrl}
             />
+            {/* Soft analytic ground pool — replaces the per-frame 2048²
+                directional shadow map (the scene is static; only the camera
+                moves). */}
+            {!shadowsOff && (
+              <GroundPool
+                color={palette.shadow}
+                opacity={dark ? 0.5 : 0.34}
+              />
+            )}
           </group>
         );
       })}
-      {!shadowsOff && (
-        <mesh
-          receiveShadow
-          rotation-x={-Math.PI / 2}
-          position={[MID_X, -1.12, -0.3]}
-        >
-          <planeGeometry args={[MID_X * 2 + 20, 18]} />
-          <shadowMaterial
-            transparent
-            opacity={dark ? 0.32 : 0.22}
-            color={palette.shadow}
-          />
-        </mesh>
-      )}
     </>
   );
 }

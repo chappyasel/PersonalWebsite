@@ -264,9 +264,10 @@ function Dust({ palette, count = 380 }: { palette: Palette; count?: number }) {
   );
 }
 
-// Warm key light casting onto the invisible catcher plane. Follows the camera
-// laterally so the tight (high-resolution) shadow frustum covers all 7 units.
-function KeyLight({ dark, castShadows }: { dark: boolean; castShadows: boolean }) {
+// Warm key light following the camera laterally so every unit reads the same.
+// It no longer casts — ground shadows are baked once by AccumulativeShadows
+// (Scene.tsx), retiring the per-frame 2048² shadow pass.
+function KeyLight({ dark }: { dark: boolean }) {
   const lightRef = useRef<THREE.DirectionalLight>(null);
   const scene = useThree((s) => s.scene);
   useEffect(() => {
@@ -287,18 +288,9 @@ function KeyLight({ dark, castShadows }: { dark: boolean; castShadows: boolean }
   return (
     <directionalLight
       ref={lightRef}
-      castShadow={castShadows}
       position={[4, 6.5, 6]}
       intensity={dark ? 1.15 : 1.35}
       color={dark ? "#e8b57e" : "#ffe9cb"}
-      shadow-mapSize={[2048, 2048]}
-      shadow-bias={-0.0004}
-      shadow-camera-left={-10}
-      shadow-camera-right={10}
-      shadow-camera-top={6}
-      shadow-camera-bottom={-6}
-      shadow-camera-near={1}
-      shadow-camera-far={25}
     />
   );
 }
@@ -307,13 +299,11 @@ export default function SceneEnvironment({
   palette,
   dark,
   dustOff,
-  shadowsOff,
   skySimplify,
 }: {
   palette: Palette;
   dark: boolean;
   dustOff?: boolean;
-  shadowsOff?: boolean;
   skySimplify?: boolean;
 }) {
   return (
@@ -326,7 +316,7 @@ export default function SceneEnvironment({
         groundColor={dark ? "#2a1c10" : "#b08c66"}
         intensity={dark ? 0.95 : 1.05}
       />
-      <KeyLight dark={dark} castShadows={!shadowsOff} />
+      <KeyLight dark={dark} />
       {!dustOff && <Dust palette={palette} />}
     </>
   );

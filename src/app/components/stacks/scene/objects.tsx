@@ -1,7 +1,8 @@
 "use client";
 
 // New scene props for the About, Blog, and Systems units.
-import { Image as DreiImage } from "@react-three/drei";
+// Box props use RoundedBox for edge highlights (see primitives.tsx).
+import { Image as DreiImage, RoundedBox } from "@react-three/drei";
 import React, { useMemo } from "react";
 import * as THREE from "three";
 
@@ -20,10 +21,15 @@ export function PortraitFrame({
 }) {
   return (
     <group position={[0, 0.62, -0.08]} rotation={[-0.06, 0.06, 0]}>
-      <mesh castShadow position={[0, 0, -0.024]}>
-        <boxGeometry args={[1.02, 1.24, 0.04]} />
+      <RoundedBox
+        castShadow
+        args={[1.02, 1.24, 0.04]}
+        radius={0.012}
+        smoothness={4}
+        position={[0, 0, -0.024]}
+      >
         <meshStandardMaterial color={palette.frame} roughness={0.6} />
-      </mesh>
+      </RoundedBox>
       <mesh position={[0, 0, -0.002]}>
         <planeGeometry args={[0.94, 1.16]} />
         <meshStandardMaterial color={palette.pages} roughness={0.9} />
@@ -42,18 +48,20 @@ export function CardStack({ palette }: { palette: Palette }) {
   return (
     <group>
       {[0, 1, 2, 3].map((i) => (
-        <mesh
+        <RoundedBox
           key={i}
           castShadow
+          args={[0.3, 0.01, 0.18]}
+          radius={0.004}
+          smoothness={4}
           position={[i * 0.006, 0.04 + i * 0.011, i * 0.004]}
           rotation={[0, rand(i, 41) * 0.5 - 0.25, 0]}
         >
-          <boxGeometry args={[0.3, 0.01, 0.18]} />
           <meshStandardMaterial
             color={i === 3 ? palette.paper : palette.pages}
             roughness={0.9}
           />
-        </mesh>
+        </RoundedBox>
       ))}
     </group>
   );
@@ -105,9 +113,12 @@ export function NotebookLean({
         const isHover = key && hovered === `notebook:${key}`;
         const x = i * 0.105 - (count * 0.105) / 2;
         return (
-          <mesh
+          <RoundedBox
             key={i}
             castShadow
+            args={[0.062, 0.52, 0.34]}
+            radius={0.008}
+            smoothness={4}
             position={[
               x + (i === count - 1 ? 0.015 : 0),
               0.29 + (isHover ? 0.04 : 0),
@@ -132,12 +143,11 @@ export function NotebookLean({
                 : undefined
             }
           >
-            <boxGeometry args={[0.062, 0.52, 0.34]} />
             <meshStandardMaterial
               color={colors[i % colors.length]}
               roughness={0.6 + rand(i, 52) * 0.3}
             />
-          </mesh>
+          </RoundedBox>
         );
       })}
     </group>
@@ -148,25 +158,25 @@ export function NotebookLean({
 export function OpenNotebook({ palette }: { palette: Palette }) {
   return (
     <group rotation={[0, -0.35, 0]}>
-      <mesh castShadow position={[0, 0.045, 0]}>
-        <boxGeometry args={[0.62, 0.015, 0.42]} />
+      <RoundedBox castShadow args={[0.62, 0.015, 0.42]} radius={0.004} smoothness={4} position={[0, 0.045, 0]}>
         <meshStandardMaterial color={palette.strap} roughness={0.7} />
-      </mesh>
+      </RoundedBox>
       {[-1, 1].map((side) => (
-        <mesh
+        <RoundedBox
           key={side}
           castShadow
+          args={[0.3, 0.03, 0.4]}
+          radius={0.004}
+          smoothness={4}
           position={[side * 0.15, 0.075, 0]}
           rotation={[0, 0, side * -0.09]}
         >
-          <boxGeometry args={[0.3, 0.03, 0.4]} />
           <meshStandardMaterial color={palette.paper} roughness={0.95} />
-        </mesh>
+        </RoundedBox>
       ))}
-      <mesh position={[0, 0.095, 0]}>
-        <boxGeometry args={[0.02, 0.024, 0.4]} />
+      <RoundedBox args={[0.02, 0.024, 0.4]} radius={0.004} smoothness={4} position={[0, 0.095, 0]}>
         <meshStandardMaterial color={palette.strap} roughness={0.8} />
-      </mesh>
+      </RoundedBox>
     </group>
   );
 }
@@ -176,15 +186,17 @@ export function PaperStack({ palette }: { palette: Palette }) {
   return (
     <group>
       {[0, 1, 2].map((i) => (
-        <mesh
+        <RoundedBox
           key={i}
           castShadow
+          args={[0.42, 0.016, 0.3]}
+          radius={0.004}
+          smoothness={4}
           position={[i * 0.008, 0.02 + i * 0.017, i * -0.006]}
           rotation={[0, rand(i, 61) * 0.3 - 0.15, 0]}
         >
-          <boxGeometry args={[0.42, 0.016, 0.3]} />
           <meshStandardMaterial color={palette.paper} roughness={0.95} />
-        </mesh>
+        </RoundedBox>
       ))}
       <mesh
         castShadow
@@ -207,10 +219,9 @@ export function PaperStack({ palette }: { palette: Palette }) {
 export function Binder({ palette }: { palette: Palette }) {
   return (
     <group rotation={[0, -0.3, 0]}>
-      <mesh castShadow position={[0, 0.31, 0]}>
-        <boxGeometry args={[0.16, 0.58, 0.42]} />
+      <RoundedBox castShadow args={[0.16, 0.58, 0.42]} radius={0.012} smoothness={4} position={[0, 0.31, 0]}>
         <meshStandardMaterial color={palette.spines[6]} roughness={0.55} />
-      </mesh>
+      </RoundedBox>
       {/* pages block inset on the open (right) side */}
       <mesh position={[0.081, 0.31, -0.02]} rotation={[0, Math.PI / 2, 0]}>
         <planeGeometry args={[0.36, 0.52]} />
@@ -344,13 +355,12 @@ export function QuoteCards({ palette }: { palette: Palette }) {
           position={[i * 0.21, 0.19 + Math.abs(i) * -0.012, i * 0.03]}
           rotation={[-0.14, 0, i * 0.12]}
         >
-          <mesh castShadow>
-            <boxGeometry args={[0.3, 0.36, 0.008]} />
+          <RoundedBox castShadow args={[0.3, 0.36, 0.008]} radius={0.003} smoothness={4}>
             <meshStandardMaterial
               color={i === 0 ? palette.paper : palette.pages}
               roughness={0.95}
             />
-          </mesh>
+          </RoundedBox>
         </group>
       ))}
     </group>

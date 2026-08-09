@@ -49,6 +49,7 @@ function installDevHooks() {
         dpr: glRef?.getPixelRatio() ?? null,
         textures: glRef?.info.memory.textures ?? null,
         geometries: glRef?.info.memory.geometries ?? null,
+        calls: glRef?.info.render.calls ?? null,
       };
     },
   };

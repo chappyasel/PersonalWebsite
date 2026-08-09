@@ -2,7 +2,9 @@
 
 // Shelf-world primitives ported from the approved prototype: shelf units,
 // packed book rows, piles, lamp + glow, frames, and training props.
-import { Image as DreiImage } from "@react-three/drei";
+// Box props use RoundedBox — edge highlights are the cheapest "crafted vs
+// primitive" signal; perfect 90° corners are the strongest primitive tell.
+import { Image as DreiImage, RoundedBox } from "@react-three/drei";
 import React, { useMemo } from "react";
 import * as THREE from "three";
 
@@ -83,37 +85,43 @@ export function BookRowMesh({
     <group>
       {items.map((item, i) =>
         item.kind === "spine" ? (
-          <mesh
+          <RoundedBox
             key={i}
             castShadow
+            args={[item.w, item.h, 0.3]}
+            radius={0.012}
+            smoothness={4}
             position={[item.x, item.h / 2 + 0.035, 0]}
             rotation={[0, 0, rand(i, salt + 5) * 0.04 - 0.02]}
           >
-            <boxGeometry args={[item.w, item.h, 0.3]} />
             <meshStandardMaterial
               color={item.color}
               roughness={0.55 + rand(i, salt + 6) * 0.35}
             />
-          </mesh>
+          </RoundedBox>
         ) : !textured ? (
           <group
             key={item.key}
             position={[item.x, 0.295, 0.06]}
             rotation={[0, (i % 2 === 0 ? 1 : -1) * 0.05, 0]}
           >
-            <mesh castShadow>
-              <boxGeometry args={[0.36, 0.52, 0.048]} />
+            <RoundedBox castShadow args={[0.36, 0.52, 0.048]} radius={0.008} smoothness={4}>
               <meshStandardMaterial color={palette.cover} roughness={0.7} />
-            </mesh>
+            </RoundedBox>
           </group>
         ) : (
           <CoverBoundary
             key={item.key}
             fallback={
-              <mesh castShadow position={[item.x, 0.285, 0.06]}>
-                <boxGeometry args={[0.34, 0.5, 0.045]} />
+              <RoundedBox
+                castShadow
+                args={[0.34, 0.5, 0.045]}
+                radius={0.008}
+                smoothness={4}
+                position={[item.x, 0.285, 0.06]}
+              >
                 <meshStandardMaterial color="#9c8567" roughness={0.8} />
-              </mesh>
+              </RoundedBox>
             }
           >
             <group
@@ -124,10 +132,15 @@ export function BookRowMesh({
               ]}
               rotation={[0, (i % 2 === 0 ? 1 : -1) * 0.05, 0]}
             >
-              <mesh castShadow position={[0, 0, -0.027]}>
-                <boxGeometry args={[0.36, 0.52, 0.048]} />
+              <RoundedBox
+                castShadow
+                args={[0.36, 0.52, 0.048]}
+                radius={0.008}
+                smoothness={4}
+                position={[0, 0, -0.027]}
+              >
                 <meshStandardMaterial color={palette.cover} roughness={0.7} />
-              </mesh>
+              </RoundedBox>
               <React.Suspense fallback={null}>
                 <DreiImage
                   url={proxied(item.url, coverWidth)}
@@ -169,24 +182,31 @@ export function ShelfUnit({
 }) {
   return (
     <group>
-      <mesh castShadow receiveShadow>
-        <boxGeometry args={[width, 0.07, 0.85]} />
+      <RoundedBox castShadow receiveShadow args={[width, 0.07, 0.85]} radius={0.012} smoothness={4}>
         <meshStandardMaterial color={palette.wood} roughness={0.75} />
-      </mesh>
+      </RoundedBox>
       {[-1, 1].map((side) => (
-        <mesh
+        <RoundedBox
           key={side}
           castShadow
+          args={[0.05, 0.72, 0.05]}
+          radius={0.012}
+          smoothness={4}
           position={[side * (width / 2 - 0.25), -0.36, -0.32]}
         >
-          <boxGeometry args={[0.05, 0.72, 0.05]} />
           <meshStandardMaterial color={palette.strap} roughness={0.7} />
-        </mesh>
+        </RoundedBox>
       ))}
-      <mesh castShadow receiveShadow position={[0, -0.72, -0.08]}>
-        <boxGeometry args={[width * 0.72, 0.055, 0.6]} />
+      <RoundedBox
+        castShadow
+        receiveShadow
+        args={[width * 0.72, 0.055, 0.6]}
+        radius={0.012}
+        smoothness={4}
+        position={[0, -0.72, -0.08]}
+      >
         <meshStandardMaterial color={palette.wood} roughness={0.75} />
-      </mesh>
+      </RoundedBox>
       <group>{children}</group>
       <group position={[0, -0.72, 0]}>{lower}</group>
     </group>
@@ -202,14 +222,12 @@ export function BookPile({ palette, x = 0 }: { palette: Palette; x?: number }) {
           position={[i * 0.02, 0.065 + i * 0.085, 0]}
           rotation={[0, rand(i, 9) * 0.4 - 0.2, 0]}
         >
-          <mesh castShadow>
-            <boxGeometry args={[0.46, 0.06, 0.32]} />
+          <RoundedBox castShadow args={[0.46, 0.06, 0.32]} radius={0.008} smoothness={4}>
             <meshStandardMaterial color={color} roughness={0.8} />
-          </mesh>
-          <mesh position={[0.014, -0.012, 0.014]}>
-            <boxGeometry args={[0.44, 0.036, 0.31]} />
+          </RoundedBox>
+          <RoundedBox args={[0.44, 0.036, 0.31]} radius={0.008} smoothness={4} position={[0.014, -0.012, 0.014]}>
             <meshStandardMaterial color={palette.pages} roughness={0.9} />
-          </mesh>
+          </RoundedBox>
         </group>
       ))}
     </group>
@@ -370,10 +388,15 @@ export function FrameRow({
             position={[x, lifted ? 0.34 : 0.3, -0.06]}
             rotation={[-0.1, (1 - i) * 0.05, 0]}
           >
-            <mesh castShadow position={[0, 0, -0.02]}>
-              <boxGeometry args={[0.9, 0.55, 0.035]} />
+            <RoundedBox
+              castShadow
+              args={[0.9, 0.55, 0.035]}
+              radius={0.008}
+              smoothness={4}
+              position={[0, 0, -0.02]}
+            >
               <meshStandardMaterial color={palette.frame} roughness={0.6} />
-            </mesh>
+            </RoundedBox>
             {textured ? (
               <React.Suspense fallback={null}>
                 <DreiImage
