@@ -16,6 +16,8 @@ export default function CameraRig() {
   const scroll = useScroll();
   const look = useRef(new THREE.Vector3(0, -0.05, -0.2));
   const prevActive = useRef(0);
+  // 0→1 while the mobile panel is open: dolly toward the unit, kill the bob.
+  const lean = useRef(0);
   const size = useThree((s) => s.size);
   const camera = useThree((s) => s.camera);
   const pose = useMemo(
@@ -86,13 +88,19 @@ export default function CameraRig() {
     progressRef.current = offset;
     const targetX = offset * TRAVEL_X;
     const t = clock.elapsedTime;
+    const busy = useStacks.getState().panelState !== "closed";
+    lean.current += ((busy ? 1 : 0) - lean.current) * 0.08;
+    const calm = 1 - lean.current;
     camera.position.x = targetX;
+    camera.position.z = pose.z - 0.6 * lean.current;
     camera.position.y +=
-      (pose.y + pointer.y * 0.08 + Math.sin(t * 0.4) * 0.03 -
+      (pose.y + (pointer.y * 0.08 + Math.sin(t * 0.4) * 0.03) * calm -
         camera.position.y) *
       0.05;
-    look.current.x += (targetX + pointer.x * 0.45 - look.current.x) * 0.045;
-    look.current.y += (pointer.y * 0.12 - 0.08 - look.current.y) * 0.05;
+    look.current.x +=
+      (targetX + pointer.x * 0.45 * calm - look.current.x) * 0.045;
+    look.current.y +=
+      ((pointer.y * 0.12 - 0.08) * calm - 0.08 * lean.current - look.current.y) * 0.05;
     camera.lookAt(look.current);
 
     const active = Math.min(

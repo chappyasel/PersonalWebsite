@@ -13,7 +13,7 @@
 import { useEffect, useRef } from "react";
 
 import { UNIT_COUNT, unitIndexFromHash, UNITS } from "../data";
-import { useStacks } from "../store";
+import { panelBusy, useStacks } from "../store";
 
 function wheelDeltaPx(e: WheelEvent, axisDelta: number): number {
   if (e.deltaMode === 1) return axisDelta * 33; // lines
@@ -46,6 +46,7 @@ export default function ScrollBridges() {
       if (state.activeUnit === mirrored) return;
       mirrored = state.activeUnit;
       if (state.modalOpen) return; // the modal owns the URL while open
+      if (state.panelState !== "closed") return; // panel owns it too
       const slug = UNITS[mirrored]?.slug;
       window.history.replaceState(
         null,
@@ -59,6 +60,13 @@ export default function ScrollBridges() {
     const onPopState = () => {
       const state = useStacks.getState();
       if (state.modalOpen) return;
+      // Browser back while the mobile panel is up closes the panel — the
+      // pushed entry belongs to it — and never travels.
+      if (state.panelState === "open" || state.panelState === "opening") {
+        state.setPanelState("closing");
+        return;
+      }
+      if (state.panelState === "closing") return; // our own history.back()
       const target = unitIndexFromHash(window.location.hash) ?? 0;
       mirrored = target; // suppress the replaceState echo for this travel
       state.travelTo?.(target);
@@ -76,7 +84,7 @@ export default function ScrollBridges() {
     if (!scrollEl) return;
 
     const onWheel = (e: WheelEvent) => {
-      if (useStacks.getState().modalOpen) return;
+      if (useStacks.getState().modalOpen || panelBusy()) return;
       const target = e.target as HTMLElement | null;
       if (target?.closest("[data-stacks-scrollable]")) return;
       if (e.ctrlKey) {
@@ -117,7 +125,7 @@ export default function ScrollBridges() {
       velocity = 0;
     };
     const onTouchMove = (e: TouchEvent) => {
-      if (useStacks.getState().modalOpen) return;
+      if (useStacks.getState().modalOpen || panelBusy()) return;
       const t = e.touches[0];
       if (!t) return;
       const dx = t.clientX - startX;
@@ -149,7 +157,7 @@ export default function ScrollBridges() {
 
     const onKey = (e: KeyboardEvent) => {
       const state = useStacks.getState();
-      if (state.modalOpen) return;
+      if (state.modalOpen || state.panelState !== "closed") return;
       const target = e.target as HTMLElement | null;
       if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
       if (e.key === "ArrowRight" || e.key === "PageDown") {

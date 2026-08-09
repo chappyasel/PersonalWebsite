@@ -154,6 +154,10 @@ export function BookRowMesh({
                   onClick={
                     onCoverClick
                       ? (e) => {
+                          // r3f fires onClick even after a swipe that starts
+                          // and ends on a mesh — delta gates only
+                          // onPointerMissed upstream.
+                          if ((e.delta ?? 0) > 6) return;
                           e.stopPropagation();
                           onCoverClick(item.key);
                         }
@@ -411,6 +415,7 @@ export function FrameRow({
                   onClick={
                     onFrameClick
                       ? (e) => {
+                          if ((e.delta ?? 0) > 6) return; // swipe, not a tap
                           e.stopPropagation();
                           onFrameClick(key);
                         }

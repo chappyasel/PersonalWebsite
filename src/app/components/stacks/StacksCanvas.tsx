@@ -40,12 +40,13 @@ function installDevHooks() {
       devOpenBook?.(id);
     },
     state() {
-      const { activeUnit, mode, modalOpen } = useStacks.getState();
+      const { activeUnit, mode, modalOpen, panelState } = useStacks.getState();
       return {
         offset: progressRef.current,
         activeUnit,
         mode,
         modalOpen,
+        panelState,
         dpr: glRef?.getPixelRatio() ?? null,
         textures: glRef?.info.memory.textures ?? null,
         geometries: glRef?.info.memory.geometries ?? null,
@@ -74,6 +75,9 @@ export default function StacksCanvas({
   const { resolvedTheme } = useTheme();
   const dark = resolvedTheme === "dark";
   const palette = PALETTES[dark ? "dark" : "light"];
+  // Travel freezes while the mobile panel or the book modal owns the screen.
+  const panelState = useStacks((s) => s.panelState);
+  const modalOpen = useStacks((s) => s.modalOpen);
   const isTouch = useMemo(
     () =>
       typeof window !== "undefined" &&
@@ -128,6 +132,7 @@ export default function StacksCanvas({
           pages={UNIT_COUNT}
           damping={0.2}
           maxSpeed={1.2}
+          enabled={panelState === "closed" && !modalOpen}
           style={{ scrollbarWidth: "none", touchAction: "pan-x" }}
         >
           <Scene

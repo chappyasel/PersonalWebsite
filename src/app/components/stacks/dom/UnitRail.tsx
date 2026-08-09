@@ -28,8 +28,8 @@ export default function UnitRail() {
   }, []);
 
   const go = (index: number) => {
-    const { travelTo } = useStacks.getState();
-    if (!travelTo) return;
+    const { travelTo, panelState, modalOpen } = useStacks.getState();
+    if (!travelTo || panelState !== "closed" || modalOpen) return;
     const slug = UNITS[index]!.slug;
     window.history.pushState(
       null,

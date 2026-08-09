@@ -1,24 +1,29 @@
 "use client";
 
 // Museum placards — the dense DOM content for each unit, screen-fixed as a
-// sibling of the canvas (never <Html transform>). One framed panel per unit,
-// docked right on desktop and as a bottom sheet on mobile, crossfaded by
-// activeUnit. Panel bodies lazy-mount on first activation and stay mounted.
+// sibling of the canvas (never <Html transform>). Desktop: one framed panel
+// per unit docked right, crossfaded by activeUnit. Mobile: a 44px peek chip
+// pinned bottom-center that morphs (layoutId) into a full-screen panel —
+// Model B; the world stays unobstructed by default. Panel bodies lazy-mount
+// on first activation and stay mounted.
 import {
   BookOpenIcon,
   BookOpenTextIcon,
   BooksIcon,
   CalendarBlankIcon,
+  CaretUpIcon,
   ClockIcon,
+  XIcon,
 } from "@phosphor-icons/react";
+import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ThemeToggle } from "~/components/ui/theme-toggle";
 import { devSubdomainUrl } from "~/lib/util";
 
 import { UNITS, type StacksData, type StacksSlots } from "../data";
-import { useStacks } from "../store";
+import { closeStacksPanel, openStacksPanel, useStacks } from "../store";
 
 function Panel({
   active,
@@ -35,7 +40,7 @@ function Panel({
     <div
       aria-hidden={!active}
       data-stacks-scrollable
-      className={`absolute inset-x-0 bottom-0 max-h-[40dvh] overflow-y-auto overscroll-contain rounded-2xl border border-foreground/[0.06] bg-background/80 p-5 shadow-[0px_4px_24px_2px_rgba(0,0,0,0.10)] backdrop-blur-xl transition-opacity duration-300 md:inset-x-auto md:bottom-auto md:right-0 md:top-1/2 md:max-h-[78dvh] md:w-full md:-translate-y-1/2 md:p-6 ${
+      className={`absolute right-0 top-1/2 max-h-[78dvh] w-full -translate-y-1/2 overflow-y-auto overscroll-contain rounded-2xl border border-foreground/[0.06] bg-background/80 p-6 shadow-[0px_4px_24px_2px_rgba(0,0,0,0.10)] backdrop-blur-xl transition-opacity duration-300 ${
         active ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
       }`}
     >
@@ -116,6 +121,167 @@ function BooksPlacard({ data }: { data: StacksData }) {
   );
 }
 
+/** Mobile Model B: peek chip ↔ full-screen panel, morphing via layoutId.
+ * Close paths: X, swipe-down when the content is scrolled to top, browser
+ * back — all funnel through history.back() → popstate → "closing". */
+function MobilePanel({
+  bodies,
+}: {
+  bodies: Record<(typeof UNITS)[number]["slug"], React.ReactNode>;
+}) {
+  const activeUnit = useStacks((s) => s.activeUnit);
+  const modalOpen = useStacks((s) => s.modalOpen);
+  const panelState = useStacks((s) => s.panelState);
+  const setPanelState = useStacks((s) => s.setPanelState);
+  const unit = UNITS[activeUnit]!;
+  const open = panelState === "opening" || panelState === "open";
+
+  // Pull-down-to-dismiss, armed only while the content sits at scrollTop 0.
+  // Hand-rolled touch handling (native, non-passive) — framer's dragListener
+  // sets touch-action:none on the panel and kills the inner scroll.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel || !open) return;
+    let startY = 0;
+    let pulling = false;
+    let pull = 0;
+    const onTouchStart = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (!t) return;
+      startY = t.clientY;
+      pulling = false;
+      pull = 0;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (!t) return;
+      const dy = t.clientY - startY;
+      const atTop = (scrollRef.current?.scrollTop ?? 0) <= 0;
+      if (!pulling && dy > 6 && atTop) pulling = true;
+      if (!pulling) return;
+      e.preventDefault();
+      pull = Math.max(0, dy);
+      panel.style.transform = `translateY(${pull * 0.4}px)`;
+    };
+    const onTouchEnd = () => {
+      if (!pulling) return;
+      panel.style.transition = "transform 200ms ease-out";
+      panel.style.transform = "";
+      setTimeout(() => {
+        panel.style.transition = "";
+      }, 220);
+      if (pull > 120) closeStacksPanel();
+      pulling = false;
+    };
+    panel.addEventListener("touchstart", onTouchStart, { passive: true });
+    panel.addEventListener("touchmove", onTouchMove, { passive: false });
+    panel.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      panel.removeEventListener("touchstart", onTouchStart);
+      panel.removeEventListener("touchmove", onTouchMove);
+      panel.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [open]);
+
+  // Widening past the md breakpoint with the panel up strands the frozen
+  // travel state — fold the panel immediately.
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const onChange = () => {
+      if (mq.matches && useStacks.getState().panelState !== "closed") {
+        useStacks.getState().setPanelState("closed");
+      }
+    };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  return (
+    <div className="md:hidden">
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            key="dim"
+            className="fixed inset-0 z-30 bg-background/40"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence
+        onExitComplete={() => {
+          if (useStacks.getState().panelState === "closing") {
+            setPanelState("closed");
+          }
+        }}
+      >
+        {open ? (
+          <motion.div
+            key="panel"
+            ref={panelRef}
+            data-stacks-panel
+            layoutId="stacks-panel"
+            style={{ borderRadius: 0 }}
+            onLayoutAnimationComplete={() => {
+              if (useStacks.getState().panelState === "opening") {
+                setPanelState("open");
+              }
+            }}
+            className="pointer-events-auto fixed inset-0 z-40 flex flex-col bg-background/95 backdrop-blur-xl"
+          >
+            <div className="flex items-center justify-between pb-1 pl-5 pr-2 pt-3">
+              <h2 className="font-serif text-lg font-semibold text-foreground">
+                {unit.label}
+              </h2>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={closeStacksPanel}
+                className="flex size-11 items-center justify-center text-muted-foreground"
+              >
+                <XIcon className="size-5" weight="bold" />
+              </button>
+            </div>
+            <div
+              ref={scrollRef}
+              data-stacks-scrollable
+              className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-10 font-serif text-muted-foreground"
+            >
+              {bodies[unit.slug]}
+            </div>
+          </motion.div>
+        ) : (
+          !modalOpen && (
+            <motion.button
+              key="chip"
+              type="button"
+              data-stacks-chip
+              layoutId="stacks-panel"
+              style={{ borderRadius: 22 }}
+              onClick={openStacksPanel}
+              className="pointer-events-auto fixed inset-x-0 bottom-3 z-40 mx-auto flex h-11 w-fit max-w-[80vw] items-center gap-2 border border-foreground/[0.06] bg-background/85 px-4 font-serif text-sm text-foreground shadow-[0px_4px_24px_2px_rgba(0,0,0,0.10)] backdrop-blur"
+            >
+              <motion.span
+                key={unit.slug}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="truncate"
+              >
+                {unit.label}
+              </motion.span>
+              <CaretUpIcon className="size-3.5 shrink-0" weight="bold" />
+            </motion.button>
+          )
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export default function PlacardLayer({
   data,
   slots,
@@ -155,12 +321,7 @@ export default function PlacardLayer({
   };
 
   return (
-    <div
-      className={`absolute inset-x-3 bottom-3 top-auto z-20 font-serif text-muted-foreground transition-opacity duration-200 md:inset-x-auto md:bottom-0 md:right-4 md:top-0 md:w-[24rem] lg:right-8 xl:w-[26rem] ${
-        modalOpen ? "pointer-events-none opacity-0" : ""
-      }`}
-      style={{ pointerEvents: "none" }}
-    >
+    <div className="font-serif text-muted-foreground">
       <style>{`
         .placard-sections section { margin-top: 0; }
         .placard-sections h1 { font-size: 1.25rem; line-height: 1.75rem; }
@@ -171,11 +332,21 @@ export default function PlacardLayer({
         .placard-sections .sm\\:text-3xl { font-size: 1.125rem; line-height: 1.5rem; }
         .placard-sections .text-lg { font-size: 1rem; line-height: 1.4rem; }
       `}</style>
-      {UNITS.map((unit, i) => (
-        <Panel key={unit.slug} active={i === activeUnit && !modalOpen}>
-          {bodies[unit.slug]}
-        </Panel>
-      ))}
+      {/* Desktop: resident right dock, crossfaded by activeUnit. */}
+      <div
+        className={`absolute bottom-0 right-4 top-0 z-20 hidden w-[24rem] transition-opacity duration-200 md:block lg:right-8 xl:w-[26rem] ${
+          modalOpen ? "pointer-events-none opacity-0" : ""
+        }`}
+        style={{ pointerEvents: "none" }}
+      >
+        {UNITS.map((unit, i) => (
+          <Panel key={unit.slug} active={i === activeUnit && !modalOpen}>
+            {bodies[unit.slug]}
+          </Panel>
+        ))}
+      </div>
+      {/* Mobile: peek chip → full-screen panel. */}
+      <MobilePanel bodies={bodies} />
     </div>
   );
 }

@@ -15,11 +15,16 @@ export const progressRef = { current: 0 };
 
 export type StacksMode = "flat" | "world";
 
+/** Mobile full-screen panel gesture state machine (Model B). Travel and all
+ * input bridges freeze whenever this is not "closed". */
+export type PanelState = "closed" | "opening" | "open" | "closing";
+
 type StacksState = {
   mode: StacksMode;
   activeUnit: number;
   scrollEl: HTMLDivElement | null;
   modalOpen: boolean;
+  panelState: PanelState;
   pendingBook: Book | null;
   hovered: string | null;
   /** Instant (undamped) jump to a unit — registered by CameraRig while the
@@ -34,6 +39,7 @@ type StacksState = {
   setActiveUnit: (activeUnit: number) => void;
   setScrollEl: (scrollEl: HTMLDivElement | null) => void;
   setModalOpen: (modalOpen: boolean) => void;
+  setPanelState: (panelState: PanelState) => void;
   setPendingBook: (pendingBook: Book | null) => void;
   setHovered: (hovered: string | null) => void;
   setJumpTo: (jumpTo: ((unit: number) => void) | null) => void;
@@ -45,6 +51,7 @@ export const useStacks = create<StacksState>((set) => ({
   activeUnit: 0,
   scrollEl: null,
   modalOpen: false,
+  panelState: "closed",
   pendingBook: null,
   hovered: null,
   jumpTo: null,
@@ -53,8 +60,31 @@ export const useStacks = create<StacksState>((set) => ({
   setActiveUnit: (activeUnit) => set({ activeUnit }),
   setScrollEl: (scrollEl) => set({ scrollEl }),
   setModalOpen: (modalOpen) => set({ modalOpen }),
+  setPanelState: (panelState) => set({ panelState }),
   setPendingBook: (pendingBook) => set({ pendingBook }),
   setHovered: (hovered) => set({ hovered }),
   setJumpTo: (jumpTo) => set({ jumpTo }),
   setTravelTo: (travelTo) => set({ travelTo }),
 }));
+
+/** True while the mobile panel owns the viewport — travel must freeze. */
+export function panelBusy(): boolean {
+  return useStacks.getState().panelState !== "closed";
+}
+
+/** Open the mobile panel — pushes a history entry so browser back closes it
+ * (mirrors the book modal's pushState-then-open pattern). */
+export function openStacksPanel() {
+  const s = useStacks.getState();
+  if (s.panelState !== "closed" || s.modalOpen) return;
+  window.history.pushState({ stacksPanel: true }, "", window.location.href);
+  s.setPanelState("opening");
+}
+
+/** Close via history.back(); the popstate handler flips the state machine. */
+export function closeStacksPanel() {
+  const s = useStacks.getState();
+  if (s.panelState !== "open" && s.panelState !== "opening") return;
+  s.setPanelState("closing");
+  window.history.back();
+}

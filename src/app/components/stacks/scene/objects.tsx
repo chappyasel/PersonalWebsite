@@ -137,6 +137,7 @@ export function NotebookLean({
             onClick={
               key && onNotebookClick
                 ? (e) => {
+                    if ((e.delta ?? 0) > 6) return; // swipe, not a tap
                     e.stopPropagation();
                     onNotebookClick(key);
                   }
