@@ -56,7 +56,7 @@ export function CardStack({ palette }: { palette: Palette }) {
           args={[0.3, 0.01, 0.18]}
           radius={0.004}
           smoothness={4}
-          position={[i * 0.006, 0.04 + i * 0.011, i * 0.004]}
+          position={[i * 0.006, 0.005 + i * 0.011, i * 0.004]}
           rotation={[0, rand(i, 41) * 0.5 - 0.25, 0]}
         >
           <meshStandardMaterial
@@ -71,7 +71,7 @@ export function CardStack({ palette }: { palette: Palette }) {
 
 export function Mug({ palette }: { palette: Palette }) {
   return (
-    <group position={[0, 0.1, 0]}>
+    <group position={[0, 0.065, 0]}>
       <mesh castShadow>
         <cylinderGeometry args={[0.07, 0.062, 0.13, 24]} />
         <meshStandardMaterial color={palette.plate} roughness={0.45} />
@@ -151,18 +151,19 @@ export function NotebookLean({
             />
           </RoundedBox>
         );
-        // Only clickable spines pay for a useFrame slot.
+        // Only clickable spines pay for a useFrame slot. 0.257 = lean-
+        // compensated contact, sunk ~radius/2 to bury the bevel rim.
         return key ? (
           <Lift
             key={i}
             hoverKey={`notebook:${key}`}
-            base={[x, 0.29, 0]}
+            base={[x, 0.257, 0]}
             offset={[0, 0.04, 0.02]}
           >
             {spine}
           </Lift>
         ) : (
-          <group key={i} position={[x, 0.29, 0]}>
+          <group key={i} position={[x, 0.257, 0]}>
             {spine}
           </group>
         );
@@ -175,7 +176,7 @@ export function NotebookLean({
 export function OpenNotebook({ palette }: { palette: Palette }) {
   return (
     <group rotation={[0, -0.35, 0]}>
-      <RoundedBox castShadow args={[0.62, 0.015, 0.42]} radius={0.004} smoothness={4} position={[0, 0.045, 0]}>
+      <RoundedBox castShadow args={[0.62, 0.015, 0.42]} radius={0.004} smoothness={4} position={[0, 0.0075, 0]}>
         <meshStandardMaterial color={palette.strap} roughness={0.7} />
       </RoundedBox>
       {[-1, 1].map((side) => (
@@ -185,13 +186,13 @@ export function OpenNotebook({ palette }: { palette: Palette }) {
           args={[0.3, 0.03, 0.4]}
           radius={0.004}
           smoothness={4}
-          position={[side * 0.15, 0.075, 0]}
+          position={[side * 0.15, 0.0375, 0]}
           rotation={[0, 0, side * -0.09]}
         >
           <meshStandardMaterial color={palette.paper} roughness={0.95} />
         </RoundedBox>
       ))}
-      <RoundedBox args={[0.02, 0.024, 0.4]} radius={0.004} smoothness={4} position={[0, 0.095, 0]}>
+      <RoundedBox args={[0.02, 0.024, 0.4]} radius={0.004} smoothness={4} position={[0, 0.0575, 0]}>
         <meshStandardMaterial color={palette.strap} roughness={0.8} />
       </RoundedBox>
     </group>
@@ -209,7 +210,7 @@ export function PaperStack({ palette }: { palette: Palette }) {
           args={[0.42, 0.016, 0.3]}
           radius={0.004}
           smoothness={4}
-          position={[i * 0.008, 0.02 + i * 0.017, i * -0.006]}
+          position={[i * 0.008, 0.008 + i * 0.017, i * -0.006]}
           rotation={[0, rand(i, 61) * 0.3 - 0.15, 0]}
         >
           <meshStandardMaterial color={palette.paper} roughness={0.95} />
@@ -217,7 +218,7 @@ export function PaperStack({ palette }: { palette: Palette }) {
       ))}
       <mesh
         castShadow
-        position={[0.12, 0.075, 0.1]}
+        position={[0.12, 0.062, 0.1]}
         rotation={[0, 0.9, Math.PI / 2]}
       >
         <cylinderGeometry args={[0.012, 0.012, 0.3, 12]} />
@@ -236,16 +237,16 @@ export function PaperStack({ palette }: { palette: Palette }) {
 export function Binder({ palette }: { palette: Palette }) {
   return (
     <group rotation={[0, -0.3, 0]}>
-      <RoundedBox castShadow args={[0.16, 0.58, 0.42]} radius={0.012} smoothness={4} position={[0, 0.31, 0]}>
+      <RoundedBox castShadow args={[0.16, 0.58, 0.42]} radius={0.012} smoothness={4} position={[0, 0.286, 0]}>
         <meshStandardMaterial color={palette.spines[6]} roughness={0.55} />
       </RoundedBox>
       {/* pages block inset on the open (right) side */}
-      <mesh position={[0.081, 0.31, -0.02]} rotation={[0, Math.PI / 2, 0]}>
+      <mesh position={[0.081, 0.286, -0.02]} rotation={[0, Math.PI / 2, 0]}>
         <planeGeometry args={[0.36, 0.52]} />
         <meshStandardMaterial color={palette.pages} roughness={0.95} />
       </mesh>
       {[-0.16, 0, 0.16].map((y) => (
-        <mesh key={y} position={[0.084, 0.31 + y, -0.02]}>
+        <mesh key={y} position={[0.084, 0.286 + y, -0.02]}>
           <torusGeometry args={[0.032, 0.007, 10, 24]} />
           <meshStandardMaterial
             color={palette.metal}
@@ -255,7 +256,7 @@ export function Binder({ palette }: { palette: Palette }) {
         </mesh>
       ))}
       {/* spine label */}
-      <mesh position={[0, 0.4, 0.211]}>
+      <mesh position={[0, 0.376, 0.211]}>
         <planeGeometry args={[0.11, 0.16]} />
         <meshStandardMaterial color={palette.paper} roughness={0.95} />
       </mesh>
@@ -369,7 +370,9 @@ export function QuoteCards({ palette }: { palette: Palette }) {
       {[-1, 0, 1].map((i) => (
         <group
           key={i}
-          position={[i * 0.21, 0.19 + Math.abs(i) * -0.012, i * 0.03]}
+          // The outer cards' roll drops their low corner — the |i| term must
+          // lift them to keep that corner on the wood (the old sign sank it).
+          position={[i * 0.21, 0.1788 + Math.abs(i) * 0.0165, i * 0.03]}
           rotation={[-0.14, 0, i * 0.12]}
         >
           <RoundedBox castShadow args={[0.3, 0.36, 0.008]} radius={0.003} smoothness={4}>

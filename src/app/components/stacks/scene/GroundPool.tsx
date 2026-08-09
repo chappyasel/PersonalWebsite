@@ -1,16 +1,17 @@
 "use client";
 
-// Analytic soft ground pool — an elliptical radial-gradient CanvasTexture on
-// a ground plane (the GlowSprite pattern), one shared texture for all units.
-// Replaces the per-frame 2048² directional shadow map: the scene is static,
-// so a painted pool grounds each unit with zero render-to-texture and no
-// GPU-dependent bake behavior. Offset opposite the warm key light.
+// Analytic soft shadows — elliptical radial-gradient CanvasTexture quads
+// (the GlowSprite pattern), one shared texture for everything. Replaces the
+// per-frame 2048² directional shadow map: the scene is static, so painted
+// pools ground each unit with zero render-to-texture and no GPU-dependent
+// bake behavior. GroundPool is the unit's floor shadow; ContactPool is the
+// small per-prop pool that seats props on the shelf wood.
 import { useMemo } from "react";
 import * as THREE from "three";
 
 let sharedTexture: THREE.CanvasTexture | null = null;
 
-function poolTexture(): THREE.CanvasTexture {
+export function poolTexture(): THREE.CanvasTexture {
   if (sharedTexture) return sharedTexture;
   const size = 256;
   const canvas = document.createElement("canvas");
@@ -29,6 +30,9 @@ function poolTexture(): THREE.CanvasTexture {
   return sharedTexture;
 }
 
+// Offset −0.55 in x opposite the key light (light sits at +4x, +6.5y) and
+// z-tightened to the plank footprint — the old 0.33 front overhang read as
+// a puddle the bookcase hovered over, not a shadow it casts.
 export default function GroundPool({
   color,
   opacity,
@@ -40,8 +44,41 @@ export default function GroundPool({
   return (
     <mesh
       rotation-x={-Math.PI / 2}
-      position={[-0.2, -1.115, -0.12]}
-      scale={[3.9, 1.75, 1]}
+      position={[-0.55, -1.115, -0.12]}
+      scale={[3.4, 1.15, 1]}
+    >
+      <planeGeometry args={[1, 1]} />
+      <meshBasicMaterial
+        map={texture}
+        color={color}
+        transparent
+        opacity={opacity}
+        depthWrite={false}
+        fog={false}
+      />
+    </mesh>
+  );
+}
+
+/** Small contact pool under a prop — place inside a shelf content group
+ * (local y=0 is the wood) at ~1.6× the prop's footprint. */
+export function ContactPool({
+  color,
+  size,
+  position = [0, 0, 0],
+  opacity = 0.3,
+}: {
+  color: string;
+  size: [number, number];
+  position?: [number, number, number];
+  opacity?: number;
+}) {
+  const texture = useMemo(() => poolTexture(), []);
+  return (
+    <mesh
+      rotation-x={-Math.PI / 2}
+      position={[position[0], position[1] + 0.001, position[2]]}
+      scale={[size[0], size[1], 1]}
     >
       <planeGeometry args={[1, 1]} />
       <meshBasicMaterial

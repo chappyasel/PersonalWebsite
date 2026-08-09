@@ -3,6 +3,7 @@
 // The library — packed cover/spine rows on both shelves plus a floor pile.
 import { useMemo } from "react";
 
+import { ContactPool } from "../GroundPool";
 import { BookPile, BookRowMesh, packRow, ShelfUnit } from "../primitives";
 import { useUnitLod } from "../useUnitLod";
 import { type UnitProps } from "./types";
@@ -47,6 +48,8 @@ export default function UnitBooks({
             />
           </group>
           <BookPile palette={palette} x={-0.85} />
+          <ContactPool color={palette.shadow} size={[2.0, 0.46]} position={[0.35, 0, 0.03]} />
+          <ContactPool color={palette.shadow} size={[0.78, 0.52]} position={[-0.83, 0, 0.01]} />
         </group>
       }
     >
@@ -58,6 +61,7 @@ export default function UnitBooks({
         coverWidth={coverWidth}
         onCoverClick={onOpenBook}
       />
+      <ContactPool color={palette.shadow} size={[3.0, 0.5]} position={[0, 0, 0.03]} />
     </ShelfUnit>
   );
 }

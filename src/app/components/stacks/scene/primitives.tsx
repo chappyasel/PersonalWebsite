@@ -92,7 +92,7 @@ export function BookRowMesh({
             args={[item.w, item.h, 0.3]}
             radius={0.012}
             smoothness={4}
-            position={[item.x, item.h / 2 + 0.035, 0]}
+            position={[item.x, item.h / 2, 0]}
             rotation={[0, 0, rand(i, salt + 5) * 0.04 - 0.02]}
           >
             <meshStandardMaterial
@@ -103,7 +103,7 @@ export function BookRowMesh({
         ) : !textured ? (
           <group
             key={item.key}
-            position={[item.x, 0.295, 0.06]}
+            position={[item.x, 0.26, 0.06]}
             rotation={[0, (i % 2 === 0 ? 1 : -1) * 0.05, 0]}
           >
             <RoundedBox castShadow args={[0.36, 0.52, 0.048]} radius={0.008} smoothness={4}>
@@ -119,7 +119,7 @@ export function BookRowMesh({
                 args={[0.34, 0.5, 0.045]}
                 radius={0.008}
                 smoothness={4}
-                position={[item.x, 0.285, 0.06]}
+                position={[item.x, 0.25, 0.06]}
               >
                 <meshStandardMaterial color="#9c8567" roughness={0.8} />
               </RoundedBox>
@@ -127,7 +127,7 @@ export function BookRowMesh({
           >
             <Lift
               hoverKey={`book:${item.key}`}
-              base={[item.x, 0.295, 0.06]}
+              base={[item.x, 0.26, 0.06]}
               offset={[0, 0.05, 0.06]}
             >
               <group rotation={[0, (i % 2 === 0 ? 1 : -1) * 0.05, 0]}>
@@ -181,6 +181,11 @@ export function BookRowMesh({
   );
 }
 
+/** The two shelf surfaces in unit-local y. Both content groups sit AT the
+ * wood, so every prop's local y=0 IS its contact plane — the two competing
+ * offset conventions that made half the props float are gone. */
+export const SHELF = { top: 0.035, lower: -0.6925 } as const;
+
 export function ShelfUnit({
   children,
   lower,
@@ -197,17 +202,28 @@ export function ShelfUnit({
       <RoundedBox castShadow receiveShadow args={[width, 0.07, 0.85]} radius={0.012} smoothness={4}>
         <meshStandardMaterial color={palette.wood} roughness={0.75} />
       </RoundedBox>
+      {/* Straps run all the way to the ground pool plane (−1.115) with a
+          small plinth foot — the bookcase stands instead of hovering. */}
       {[-1, 1].map((side) => (
-        <RoundedBox
-          key={side}
-          castShadow
-          args={[0.05, 0.72, 0.05]}
-          radius={0.012}
-          smoothness={4}
-          position={[side * (width / 2 - 0.25), -0.36, -0.32]}
-        >
-          <meshStandardMaterial color={palette.strap} roughness={0.7} />
-        </RoundedBox>
+        <group key={side} position={[side * (width / 2 - 0.25), 0, -0.32]}>
+          <RoundedBox
+            castShadow
+            args={[0.05, 1.115, 0.05]}
+            radius={0.012}
+            smoothness={4}
+            position={[0, -0.5575, 0]}
+          >
+            <meshStandardMaterial color={palette.strap} roughness={0.7} />
+          </RoundedBox>
+          <RoundedBox
+            args={[0.09, 0.05, 0.09]}
+            radius={0.008}
+            smoothness={4}
+            position={[0, -1.09, 0]}
+          >
+            <meshStandardMaterial color={palette.strap} roughness={0.7} />
+          </RoundedBox>
+        </group>
       ))}
       <RoundedBox
         castShadow
@@ -219,8 +235,8 @@ export function ShelfUnit({
       >
         <meshStandardMaterial color={palette.wood} roughness={0.75} />
       </RoundedBox>
-      <group>{children}</group>
-      <group position={[0, -0.72, 0]}>{lower}</group>
+      <group position={[0, SHELF.top, 0]}>{children}</group>
+      <group position={[0, SHELF.lower, 0]}>{lower}</group>
     </group>
   );
 }
@@ -231,7 +247,8 @@ export function BookPile({ palette, x = 0 }: { palette: Palette; x?: number }) {
       {palette.pile.map((color, i) => (
         <group
           key={color}
-          position={[i * 0.02, 0.065 + i * 0.085, 0]}
+          // 0.026 = half height 0.03 sunk by ~radius/2 to bury the bevel rim.
+          position={[i * 0.02, 0.026 + i * 0.085, 0]}
           rotation={[0, rand(i, 9) * 0.4 - 0.2, 0]}
         >
           <RoundedBox castShadow args={[0.46, 0.06, 0.32]} radius={0.008} smoothness={4}>
@@ -280,11 +297,11 @@ export function GlowSprite({ opacity }: { opacity: number }) {
 export function Lamp({ palette }: { palette: Palette }) {
   return (
     <group>
-      <mesh castShadow position={[0, 0.095, 0]}>
+      <mesh castShadow position={[0, 0.06, 0]}>
         <cylinderGeometry args={[0.03, 0.09, 0.12, 24]} />
         <meshStandardMaterial color={palette.strap} roughness={0.7} />
       </mesh>
-      <mesh position={[0, 0.235, 0]}>
+      <mesh position={[0, 0.2, 0]}>
         <sphereGeometry args={[0.08, 24, 24]} />
         <meshStandardMaterial
           color="#ffe0b0"
@@ -293,11 +310,11 @@ export function Lamp({ palette }: { palette: Palette }) {
           toneMapped={false}
         />
       </mesh>
-      <group position={[0, 0.24, 0.05]}>
+      <group position={[0, 0.205, 0.05]}>
         <GlowSprite opacity={palette.glowOpacity} />
       </group>
       <pointLight
-        position={[0, 0.3, 0.35]}
+        position={[0, 0.265, 0.35]}
         color="#ffbe73"
         intensity={1.6}
         distance={3.2}
@@ -317,7 +334,8 @@ export function Plates({ palette }: { palette: Palette }) {
       ].map((plate, i) => (
         <group
           key={i}
-          position={[plate.x, plate.r + 0.035, -0.1]}
+          // +0.0013 compensates the 0.08 tilt so the rim kisses the wood.
+          position={[plate.x, plate.r + 0.0013, -0.1]}
           rotation={[Math.PI / 2 - 0.08, 0, plate.yaw]}
         >
           <mesh castShadow>
@@ -346,7 +364,7 @@ export function Plates({ palette }: { palette: Palette }) {
 
 export function Dumbbell({ palette }: { palette: Palette }) {
   return (
-    <group rotation={[0, 0.5, 0]} position={[0, 0.09, 0]}>
+    <group rotation={[0, 0.5, 0]} position={[0, 0.095, 0]}>
       <mesh castShadow rotation={[0, 0, Math.PI / 2]}>
         <cylinderGeometry args={[0.03, 0.03, 0.52, 20]} />
         <meshStandardMaterial
@@ -396,7 +414,7 @@ export function FrameRow({
           <Lift
             key={key}
             hoverKey={`frame:${key}`}
-            base={[x, 0.3, -0.06]}
+            base={[x, 0.2796, -0.06]}
             offset={[0, 0.04, 0.03]}
           >
             <group rotation={[-0.1, (1 - i) * 0.05, 0]}>
