@@ -4,6 +4,7 @@ import type { Palette } from "../../theme";
 export type UnitProps = {
   data: StacksData;
   palette: Palette;
+  dark: boolean;
   index: number;
   coverWidth: 256 | 384;
   onOpenBook?: (bookId: string) => void;

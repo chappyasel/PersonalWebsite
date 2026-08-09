@@ -294,27 +294,16 @@ export function GlowSprite({ opacity }: { opacity: number }) {
   );
 }
 
-export function Lamp({ palette }: { palette: Palette }) {
+/** Bulb glow + warm light for the GLB desk lamp — sits at the lamp's head
+ * so the room still reads as lit by the lamp, not the model. */
+export function LampGlow({ palette }: { palette: Palette }) {
   return (
     <group>
-      <mesh castShadow position={[0, 0.06, 0]}>
-        <cylinderGeometry args={[0.03, 0.09, 0.12, 24]} />
-        <meshStandardMaterial color={palette.strap} roughness={0.7} />
-      </mesh>
-      <mesh position={[0, 0.2, 0]}>
-        <sphereGeometry args={[0.08, 24, 24]} />
-        <meshStandardMaterial
-          color="#ffe0b0"
-          emissive="#ffb75e"
-          emissiveIntensity={2.4}
-          toneMapped={false}
-        />
-      </mesh>
-      <group position={[0, 0.205, 0.05]}>
+      <group position={[0, 0.36, 0.1]}>
         <GlowSprite opacity={palette.glowOpacity} />
       </group>
       <pointLight
-        position={[0, 0.265, 0.35]}
+        position={[0, 0.35, 0.35]}
         color="#ffbe73"
         intensity={1.6}
         distance={3.2}
@@ -357,36 +346,6 @@ export function Plates({ palette }: { palette: Palette }) {
             />
           </mesh>
         </group>
-      ))}
-    </group>
-  );
-}
-
-export function Dumbbell({ palette }: { palette: Palette }) {
-  return (
-    <group rotation={[0, 0.5, 0]} position={[0, 0.095, 0]}>
-      <mesh castShadow rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.03, 0.03, 0.52, 20]} />
-        <meshStandardMaterial
-          color={palette.metal}
-          roughness={0.4}
-          metalness={0.5}
-        />
-      </mesh>
-      {[-0.19, 0.19].map((x) => (
-        <mesh
-          key={x}
-          castShadow
-          position={[x, 0, 0]}
-          rotation={[0, 0, Math.PI / 2]}
-        >
-          <cylinderGeometry args={[0.095, 0.095, 0.11, 24]} />
-          <meshStandardMaterial
-            color={palette.plate}
-            roughness={0.45}
-            metalness={0.5}
-          />
-        </mesh>
       ))}
     </group>
   );

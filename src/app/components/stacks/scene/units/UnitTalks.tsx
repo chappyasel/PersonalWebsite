@@ -1,17 +1,19 @@
 "use client";
 
 // Featured talks — framed stills warmed by the reading lamp.
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 
 import { proxied } from "../../theme";
 import { ContactPool } from "../GroundPool";
-import { FrameRow, Lamp, ShelfUnit } from "../primitives";
+import ModelProp from "../ModelProp";
+import { FrameRow, LampGlow, ShelfUnit } from "../primitives";
 import { useUnitLod } from "../useUnitLod";
 import { type UnitProps } from "./types";
 
 export default function UnitTalks({
   data,
   palette,
+  dark,
   index,
   coverWidth,
   onOpenUrl,
@@ -31,7 +33,10 @@ export default function UnitTalks({
       lower={
         <group>
           <group position={[0.55, 0, 0]}>
-            <Lamp palette={palette} />
+            <React.Suspense fallback={null}>
+              <ModelProp url="/models/desk-lamp.glb" dark={dark} rotation={[0, -0.5, 0]} />
+            </React.Suspense>
+            <LampGlow palette={palette} />
           </group>
           <ContactPool color={palette.shadow} size={[0.5, 0.5]} position={[0.55, 0, 0]} />
         </group>

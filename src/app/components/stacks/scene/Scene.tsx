@@ -2,7 +2,7 @@
 
 // Scene graph: atmosphere + camera rig + the seven shelf units + the baked
 // ground shadows that ground them.
-import { type ComponentType } from "react";
+import { type ComponentType, useEffect } from "react";
 import { type ThreeEvent } from "@react-three/fiber";
 
 import { UNITS, type StacksData, type UnitSlug } from "../data";
@@ -10,6 +10,7 @@ import { openStacksPanel, useStacks } from "../store";
 import { type Palette } from "../theme";
 import CameraRig from "./CameraRig";
 import GroundPool from "./GroundPool";
+import { preloadModels } from "./ModelProp";
 import SceneEnvironment from "./SceneEnvironment";
 import UnitAbout from "./units/UnitAbout";
 import UnitBlog from "./units/UnitBlog";
@@ -75,6 +76,11 @@ export default function Scene({
   onOpenBook?: (bookId: string) => void;
   onOpenUrl?: (url: string) => void;
 }) {
+  // Prefetch the full GLB prop set once the world has committed — props pop
+  // in together instead of gating the first paint or trickling per-unit.
+  useEffect(() => {
+    preloadModels();
+  }, []);
   return (
     <>
       <SceneEnvironment
@@ -91,6 +97,7 @@ export default function Scene({
             <Unit
               data={data}
               palette={palette}
+              dark={dark}
               index={i}
               coverWidth={coverWidth}
               onOpenBook={onOpenBook}

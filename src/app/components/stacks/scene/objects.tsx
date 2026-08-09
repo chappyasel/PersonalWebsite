@@ -69,21 +69,6 @@ export function CardStack({ palette }: { palette: Palette }) {
   );
 }
 
-export function Mug({ palette }: { palette: Palette }) {
-  return (
-    <group position={[0, 0.065, 0]}>
-      <mesh castShadow>
-        <cylinderGeometry args={[0.07, 0.062, 0.13, 24]} />
-        <meshStandardMaterial color={palette.plate} roughness={0.45} />
-      </mesh>
-      <mesh position={[0.085, 0.01, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[0.038, 0.011, 10, 20]} />
-        <meshStandardMaterial color={palette.plate} roughness={0.45} />
-      </mesh>
-    </group>
-  );
-}
-
 /** Row of leaning notebook spines; the front few are clickable blog posts. */
 export function NotebookLean({
   palette,
@@ -172,33 +157,6 @@ export function NotebookLean({
   );
 }
 
-/** Open notebook lying flat — two angled page halves over a cover. */
-export function OpenNotebook({ palette }: { palette: Palette }) {
-  return (
-    <group rotation={[0, -0.35, 0]}>
-      <RoundedBox castShadow args={[0.62, 0.015, 0.42]} radius={0.004} smoothness={4} position={[0, 0.0075, 0]}>
-        <meshStandardMaterial color={palette.strap} roughness={0.7} />
-      </RoundedBox>
-      {[-1, 1].map((side) => (
-        <RoundedBox
-          key={side}
-          castShadow
-          args={[0.3, 0.03, 0.4]}
-          radius={0.004}
-          smoothness={4}
-          position={[side * 0.15, 0.0375, 0]}
-          rotation={[0, 0, side * -0.09]}
-        >
-          <meshStandardMaterial color={palette.paper} roughness={0.95} />
-        </RoundedBox>
-      ))}
-      <RoundedBox args={[0.02, 0.024, 0.4]} radius={0.004} smoothness={4} position={[0, 0.0575, 0]}>
-        <meshStandardMaterial color={palette.strap} roughness={0.8} />
-      </RoundedBox>
-    </group>
-  );
-}
-
 /** Paper stack + pen for the Blog lower shelf. */
 export function PaperStack({ palette }: { palette: Palette }) {
   return (
@@ -264,8 +222,9 @@ export function Binder({ palette }: { palette: Palette }) {
   );
 }
 
-/** Analog alarm clock with hands frozen at 3:45 — the wake-up time. */
-export function AlarmClock({ palette }: { palette: Palette }) {
+/** The 3:45 canvas clock face — the wake-up time — overlaid on the GLB
+ * alarm clock's dial (the painted dial sits behind it on the atlas). */
+export function ClockFace({ radius = 0.082 }: { radius?: number }) {
   const faceTexture = useMemo(() => {
     const size = 256;
     const canvas = document.createElement("canvas");
@@ -315,51 +274,10 @@ export function AlarmClock({ palette }: { palette: Palette }) {
   }, []);
 
   return (
-    <group>
-      <mesh
-        castShadow
-        position={[0, 0.19, -0.02]}
-        rotation={[Math.PI / 2, 0, 0]}
-      >
-        <cylinderGeometry args={[0.15, 0.15, 0.07, 32]} />
-        <meshStandardMaterial
-          color={palette.plate}
-          roughness={0.4}
-          metalness={0.5}
-        />
-      </mesh>
-      <group position={[0, 0.19, 0.016]}>
-        <mesh>
-          <circleGeometry args={[0.132, 32]} />
-          <meshStandardMaterial map={faceTexture} roughness={0.8} />
-        </mesh>
-      </group>
-      {[-0.06, 0.06].map((x) => (
-        <mesh key={x} castShadow position={[x * 1.2, 0.315, -0.02]}>
-          <sphereGeometry args={[0.028, 16, 16]} />
-          <meshStandardMaterial
-            color={palette.metal}
-            roughness={0.35}
-            metalness={0.6}
-          />
-        </mesh>
-      ))}
-      {[-0.08, 0.08].map((x) => (
-        <mesh
-          key={x}
-          castShadow
-          position={[x, 0.045, 0.02]}
-          rotation={[0, 0, x > 0 ? -0.5 : 0.5]}
-        >
-          <cylinderGeometry args={[0.012, 0.012, 0.09, 10]} />
-          <meshStandardMaterial
-            color={palette.metal}
-            roughness={0.35}
-            metalness={0.6}
-          />
-        </mesh>
-      ))}
-    </group>
+    <mesh>
+      <circleGeometry args={[radius, 32]} />
+      <meshStandardMaterial map={faceTexture} roughness={0.8} />
+    </mesh>
   );
 }
 
