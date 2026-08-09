@@ -7,48 +7,182 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
-import { type Palette, rand } from "../theme";
+import { PALETTES, type Palette, rand } from "../theme";
+import { progressRef } from "../store";
 import { MID_X, TRAVEL_X } from "./worldLayout";
 
-// Vertical mix from horizon to zenith; fog handles the distance falloff.
-// The dome opts out of scene fog, so its shader must run the same
-// tonemapping + colorspace encode as every lit material — without those
-// includes the authored palette hexes never reach the screen.
-function SkyDome({ palette }: { palette: Palette }) {
+// Chappy's morning, painted truthfully. Dark theme is 3:45am San Francisco —
+// fully dark, cold indigo, the city mostly asleep; light theme is just after
+// first light. One ShaderMaterial for both: `uDark` crossfades the palettes
+// (damped, no recompile), `uDawn` advances the morning with the traverse
+// (scroll-tied and reversible), and an analytic skyline — hashed roofline,
+// sparse windows, Sutro Tower's tripod, one downtown spike — sits low on the
+// horizon with its own haze term (the dome opts out of scene fog).
+//
+// The dome must also run the same tonemapping + colorspace encode as every
+// lit material — without those includes the authored hexes never reach the
+// screen. IGN dither in output space breaks up gradient banding.
+const SKY_VERTEX = `
+  varying vec3 vLocal;
+  void main() {
+    vLocal = position;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const SKY_FRAGMENT = `
+  uniform float uDark;     // 0 light theme … 1 dark theme (damped crossfade)
+  uniform float uDawn;     // scroll offset 0…1 — the traverse advances the morning
+  uniform float uTime;
+  uniform float uSimplify; // degrade rung: 1 = two bands, no city/stars/ember
+  uniform vec3 zenithL;  uniform vec3 zenithD;
+  uniform vec3 horizonL; uniform vec3 horizonD;
+  uniform vec3 shadowL;  uniform vec3 shadowD;
+  uniform vec3 emberL;   uniform vec3 emberD;
+  uniform vec3 cityL;    uniform vec3 cityD;
+  uniform vec3 windowL;  uniform vec3 windowD;
+  varying vec3 vLocal;
+
+  float hash1(float n) { return fract(sin(n) * 43758.5453123); }
+  float hash2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123); }
+
+  void main() {
+    vec3 dir = normalize(vLocal);
+    float e = dir.y;               // elevation: 0 at the horizon ring
+    float a = atan(dir.z, dir.x);  // azimuth: traverse pans ~[-2.3, -0.9]
+
+    vec3 zenithC  = mix(zenithL, zenithD, uDark);
+    vec3 horizonC = mix(horizonL, horizonD, uDark);
+    vec3 shadowC  = mix(shadowL, shadowD, uDark);
+    vec3 emberC   = mix(emberL, emberD, uDark);
+    vec3 cityC    = mix(cityL, cityD, uDark);
+    vec3 windowC  = mix(windowL, windowD, uDark);
+
+    // Three-band, non-monotonic: shadow band AT the horizon, the brighter
+    // slate band above it (the inversion that reads "sky", not "gradient"),
+    // then the fall to zenith. Below the horizon the void deepens — hard in
+    // the dark theme so the floor grounds, gently in light.
+    vec3 col = mix(shadowC, horizonC, smoothstep(0.0, 0.16, e));
+    col = mix(col, zenithC, smoothstep(0.08, 0.45, e));
+    col = mix(col, shadowC * mix(0.88, 0.45, uDark), smoothstep(0.02, 0.30, -e));
+
+    if (uSimplify < 0.5) {
+      // Ember / low sun, azimuth-anchored near the end of the traverse so
+      // travel pans toward it. Dark: grows from nothing (3:45 is fully dark)
+      // to a first ember. Light: an always-warm glow that climbs as uDawn
+      // rises, plus a whisper of horizon warmth everywhere.
+      float azFall = exp(-pow((a + 1.15) / mix(0.42, 0.28, uDark), 2.0));
+      float emberElev = mix(0.030 + 0.10 * uDawn, 0.020, uDark);
+      float emberW = mix(0.055, 0.020 + 0.015 * uDawn, uDark);
+      float emberAmp = mix(0.38 + 0.12 * uDawn, 0.30 * uDawn, uDark);
+      float ember = exp(-pow((e - emberElev) / emberW, 2.0)) * emberAmp * azFall;
+      ember += (1.0 - uDark) * 0.10 * exp(-pow((e - 0.02) / 0.04, 2.0));
+      col += emberC * ember;
+
+      // Stars, dark only — hashed cells in azimuth/elevation space with
+      // per-star phase and rate, horizon extinction, thinned by the dawn.
+      float starGate = uDark * (1.0 - 0.35 * uDawn) * smoothstep(0.03, 0.22, e);
+      if (starGate > 0.001) {
+        vec2 sc = vec2(a * 34.0, e * 34.0);
+        vec2 cell = floor(sc);
+        float present = step(hash2(cell), 0.22);
+        vec2 pos = vec2(hash2(cell + 17.0), hash2(cell + 43.0)) * 0.7 + 0.15;
+        float d = length(fract(sc) - pos);
+        float core = smoothstep(0.10, 0.02, d);
+        float tw = 0.75 + 0.25 * sin(uTime * (0.6 + hash2(cell + 71.0) * 1.6) + hash2(cell + 5.0) * 6.28);
+        float bright = 0.35 + 0.65 * hash2(cell + 29.0);
+        col += vec3(0.82, 0.88, 1.0) * present * core * tw * bright * starGate;
+      }
+
+      // City silhouette: hashed roofline kept low on the horizon.
+      float colId = floor(a * 64.0);
+      float roof = 0.012 + hash1(colId) * 0.045;
+      float city = 1.0 - smoothstep(roof - 0.0015, roof + 0.0015, e);
+      // Sutro Tower — two legs to a waist, then three prongs.
+      float sutro = 0.0;
+      float dA = a + 1.65;
+      if (abs(dA) < 0.05 && e < 0.095) {
+        float legSpread = mix(0.011, 0.0035, clamp(e / 0.05, 0.0, 1.0));
+        float legs = step(abs(abs(dA) - legSpread), 0.0016) * step(e, 0.055);
+        float prongs = (step(abs(dA), 0.0014) + step(abs(abs(dA) - 0.0075), 0.0013)) * step(0.03, e) * step(e, 0.088);
+        float waist = step(abs(e - 0.052), 0.0016) * step(abs(dA), 0.009);
+        sutro = clamp(legs + prongs + waist, 0.0, 1.0);
+      }
+      // One downtown spike — thin tapering triangle.
+      float spike = step(abs(a + 2.2), 0.012 * (1.0 - e / 0.075)) * step(-0.01, e);
+      city = clamp(city + sutro + spike, 0.0, 1.0) * smoothstep(-0.10, -0.02, e);
+
+      // Sparse warm window glints — the city is mostly asleep. Light theme
+      // winks them out as the morning advances; dark wakes a few more.
+      vec2 wc = vec2(a * 420.0, e * 300.0);
+      vec2 wf = fract(wc);
+      float inBox = step(abs(wf.x - 0.5), 0.22) * step(abs(wf.y - 0.45), 0.28);
+      float lit = step(hash2(floor(wc)), 0.05 * mix(1.0 - 0.7 * uDawn, 1.0 + 0.6 * uDawn, uDark)) * inBox;
+      float winMask = lit * city * step(0.004, e) * step(e, roof - 0.005) * (1.0 - sutro);
+
+      // The silhouette dissolves toward the horizon band near the horizon
+      // line — its own aerial haze; rooftops catch a kiss of the ember.
+      float hazeAmt = (1.0 - smoothstep(0.0, 0.055, e)) * mix(0.75, 0.35, uDark);
+      vec3 cityCol = mix(cityC, horizonC, hazeAmt);
+      cityCol += emberC * ember * 0.25;
+      cityCol = mix(cityCol, windowC, winMask * mix(0.45, 0.70, uDark));
+      col = mix(col, cityCol, city);
+    }
+
+    gl_FragColor = vec4(col, 1.0);
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+    float n = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+    gl_FragColor.rgb += (n - 0.5) / 255.0;
+  }
+`;
+
+function SkyDome({ dark, simplify }: { dark: boolean; simplify: boolean }) {
   const material = useMemo(() => {
+    const c = (hex: string) => new THREE.Color(hex);
+    const L = PALETTES.light;
+    const D = PALETTES.dark;
     return new THREE.ShaderMaterial({
       side: THREE.BackSide,
       depthWrite: false,
       fog: false,
       uniforms: {
-        top: { value: new THREE.Color(palette.skyTop) },
-        horizon: { value: new THREE.Color(palette.skyHorizon) },
+        uDark: { value: dark ? 1 : 0 },
+        uDawn: { value: 0 },
+        uTime: { value: 0 },
+        uSimplify: { value: 0 },
+        zenithL: { value: c(L.skyTop) },
+        zenithD: { value: c(D.skyTop) },
+        horizonL: { value: c(L.skyHorizon) },
+        horizonD: { value: c(D.skyHorizon) },
+        shadowL: { value: c(L.skyShadow) },
+        shadowD: { value: c(D.skyShadow) },
+        emberL: { value: c(L.skyEmber) },
+        emberD: { value: c(D.skyEmber) },
+        cityL: { value: c(L.skyline) },
+        cityD: { value: c(D.skyline) },
+        windowL: { value: c(L.skyWindow) },
+        windowD: { value: c(D.skyWindow) },
       },
-      vertexShader: `
-        varying vec3 vWorld;
-        void main() {
-          vWorld = (modelMatrix * vec4(position, 1.0)).xyz;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        uniform vec3 top;
-        uniform vec3 horizon;
-        varying vec3 vWorld;
-        void main() {
-          float h = clamp((vWorld.y + 3.0) / 10.0, 0.0, 1.0);
-          vec3 col = mix(horizon, top, smoothstep(0.0, 1.0, h));
-          gl_FragColor = vec4(col, 1.0);
-          #include <tonemapping_fragment>
-          #include <colorspace_fragment>
-          // Interleaved gradient noise in output space breaks up banding on
-          // the long vertical gradient (visible on wide dark skies).
-          float n = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
-          gl_FragColor.rgb += (n - 0.5) / 255.0;
-        }
-      `,
+      vertexShader: SKY_VERTEX,
+      fragmentShader: SKY_FRAGMENT,
     });
-  }, [palette]);
+    // The material lives for the mount — theme flips crossfade via uDark.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => () => material.dispose(), [material]);
+  useFrame(({ clock }, delta) => {
+    const u = material.uniforms;
+    u.uDark!.value = THREE.MathUtils.damp(
+      u.uDark!.value as number,
+      dark ? 1 : 0,
+      3.5,
+      delta,
+    );
+    u.uDawn!.value = progressRef.current;
+    u.uTime!.value = clock.elapsedTime;
+    u.uSimplify!.value = simplify ? 1 : 0;
+  });
   // renderOrder 1: draw after opaque geometry so early-Z rejects the covered
   // sky fragments (its depth-sort position otherwise changes during traverse).
   return (
@@ -122,7 +256,7 @@ function Dust({ palette, count = 380 }: { palette: Palette; count?: number }) {
         size={0.032}
         color={palette.dust}
         transparent
-        opacity={0.45}
+        opacity={palette.dustOpacity}
         depthWrite={false}
         sizeAttenuation
       />
@@ -174,16 +308,18 @@ export default function SceneEnvironment({
   dark,
   dustOff,
   shadowsOff,
+  skySimplify,
 }: {
   palette: Palette;
   dark: boolean;
   dustOff?: boolean;
   shadowsOff?: boolean;
+  skySimplify?: boolean;
 }) {
   return (
     <>
       <fog attach="fog" args={[palette.fog, 8, 24]} />
-      <SkyDome palette={palette} />
+      <SkyDome dark={dark} simplify={!!skySimplify} />
       <RoomEnvironment key={dark ? "env-d" : "env-l"} dark={dark} />
       <hemisphereLight
         color={dark ? "#a8825c" : "#fff2df"}

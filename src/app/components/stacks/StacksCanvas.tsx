@@ -136,6 +136,7 @@ export default function StacksCanvas({
             coverWidth={isTouch ? 256 : 384}
             dustOff={degrade >= 2}
             shadowsOff={degrade >= 3}
+            skySimplify={degrade >= 2}
             onOpenBook={onOpenBook}
             onOpenUrl={onOpenUrl}
           />

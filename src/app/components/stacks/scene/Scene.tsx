@@ -35,6 +35,7 @@ export default function Scene({
   coverWidth,
   dustOff,
   shadowsOff,
+  skySimplify,
   onOpenBook,
   onOpenUrl,
 }: {
@@ -44,6 +45,7 @@ export default function Scene({
   coverWidth: 256 | 384;
   dustOff?: boolean;
   shadowsOff?: boolean;
+  skySimplify?: boolean;
   onOpenBook?: (bookId: string) => void;
   onOpenUrl?: (url: string) => void;
 }) {
@@ -54,6 +56,7 @@ export default function Scene({
         dark={dark}
         dustOff={dustOff}
         shadowsOff={shadowsOff}
+        skySimplify={skySimplify}
       />
       <CameraRig />
       {UNITS.map((unit, i) => {
