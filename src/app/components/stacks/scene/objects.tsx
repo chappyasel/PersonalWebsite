@@ -2,12 +2,14 @@
 
 // New scene props for the About, Blog, and Systems units.
 // Box props use RoundedBox for edge highlights (see primitives.tsx).
-import { Image as DreiImage, RoundedBox } from "@react-three/drei";
+import { RoundedBox } from "@react-three/drei";
 import React, { useMemo } from "react";
 import * as THREE from "three";
 
 import { type Palette, rand } from "../theme";
 import { useStacks } from "../store";
+import Lift from "./Lift";
+import LitImage from "./LitImage";
 
 /** Framed standing portrait — the identity anchor of the About unit. */
 export function PortraitFrame({
@@ -36,7 +38,7 @@ export function PortraitFrame({
       </mesh>
       {textured && (
         <React.Suspense fallback={null}>
-          <DreiImage url={src} scale={[0.86, 1.08]} toneMapped={false} />
+          <LitImage url={src} width={0.86} height={1.08} roughness={0.5} />
         </React.Suspense>
       )}
     </group>
@@ -94,7 +96,6 @@ export function NotebookLean({
   clickKeys?: string[];
   onNotebookClick?: (key: string) => void;
 }) {
-  const hovered = useStacks((s) => s.hovered);
   const setHovered = useStacks((s) => s.setHovered);
   // Two cool accents among warm neutrals, like the shelf spines.
   const colors = [
@@ -110,20 +111,13 @@ export function NotebookLean({
       {Array.from({ length: count }, (_, i) => {
         const key = clickKeys[i];
         const lean = i === count - 1 ? -0.2 : rand(i, 51) * 0.06 - 0.03;
-        const isHover = key && hovered === `notebook:${key}`;
-        const x = i * 0.105 - (count * 0.105) / 2;
-        return (
+        const x = i * 0.105 - (count * 0.105) / 2 + (i === count - 1 ? 0.015 : 0);
+        const spine = (
           <RoundedBox
-            key={i}
             castShadow
             args={[0.062, 0.52, 0.34]}
             radius={0.008}
             smoothness={4}
-            position={[
-              x + (i === count - 1 ? 0.015 : 0),
-              0.29 + (isHover ? 0.04 : 0),
-              0,
-            ]}
             rotation={[0, 0, lean]}
             onPointerOver={
               key
@@ -156,6 +150,21 @@ export function NotebookLean({
               roughness={0.6 + rand(i, 52) * 0.3}
             />
           </RoundedBox>
+        );
+        // Only clickable spines pay for a useFrame slot.
+        return key ? (
+          <Lift
+            key={i}
+            hoverKey={`notebook:${key}`}
+            base={[x, 0.29, 0]}
+            offset={[0, 0.04, 0.02]}
+          >
+            {spine}
+          </Lift>
+        ) : (
+          <group key={i} position={[x, 0.29, 0]}>
+            {spine}
+          </group>
         );
       })}
     </group>

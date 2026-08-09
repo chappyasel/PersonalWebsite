@@ -4,12 +4,14 @@
 // packed book rows, piles, lamp + glow, frames, and training props.
 // Box props use RoundedBox — edge highlights are the cheapest "crafted vs
 // primitive" signal; perfect 90° corners are the strongest primitive tell.
-import { Image as DreiImage, RoundedBox } from "@react-three/drei";
+import { RoundedBox } from "@react-three/drei";
 import React, { useMemo } from "react";
 import * as THREE from "three";
 
 import { type Palette, proxied, rand } from "../theme";
 import { useStacks } from "../store";
+import Lift from "./Lift";
+import LitImage from "./LitImage";
 
 export type RowItem =
   | { kind: "spine"; x: number; w: number; h: number; color: string }
@@ -79,7 +81,6 @@ export function BookRowMesh({
   coverWidth?: 256 | 384;
   onCoverClick?: (key: string) => void;
 }) {
-  const hovered = useStacks((s) => s.hovered);
   const setHovered = useStacks((s) => s.setHovered);
   return (
     <group>
@@ -124,54 +125,55 @@ export function BookRowMesh({
               </RoundedBox>
             }
           >
-            <group
-              position={[
-                item.x,
-                0.295,
-                hovered === `book:${item.key}` ? 0.16 : 0.06,
-              ]}
-              rotation={[0, (i % 2 === 0 ? 1 : -1) * 0.05, 0]}
+            <Lift
+              hoverKey={`book:${item.key}`}
+              base={[item.x, 0.295, 0.06]}
+              offset={[0, 0.05, 0.06]}
             >
-              <RoundedBox
-                castShadow
-                args={[0.36, 0.52, 0.048]}
-                radius={0.008}
-                smoothness={4}
-                position={[0, 0, -0.027]}
-              >
-                <meshStandardMaterial color={palette.cover} roughness={0.7} />
-              </RoundedBox>
-              <React.Suspense fallback={null}>
-                <DreiImage
-                  url={proxied(item.url, coverWidth)}
-                  scale={[0.34, 0.5]}
-                  position={[0, 0, -0.002]}
-                  toneMapped={false}
-                  onPointerOver={(e) => {
-                    e.stopPropagation();
-                    setHovered(`book:${item.key}`);
-                  }}
-                  onPointerOut={() => {
-                    // over(B) can land before out(A) — only clear our own hover
-                    // or the late out event would drop B's lift mid-animation.
-                    if (useStacks.getState().hovered === `book:${item.key}`)
-                      setHovered(null);
-                  }}
-                  onClick={
-                    onCoverClick
-                      ? (e) => {
-                          // r3f fires onClick even after a swipe that starts
-                          // and ends on a mesh — delta gates only
-                          // onPointerMissed upstream.
-                          if ((e.delta ?? 0) > 6) return;
-                          e.stopPropagation();
-                          onCoverClick(item.key);
-                        }
-                      : undefined
-                  }
-                />
-              </React.Suspense>
-            </group>
+              <group rotation={[0, (i % 2 === 0 ? 1 : -1) * 0.05, 0]}>
+                <RoundedBox
+                  castShadow
+                  args={[0.36, 0.52, 0.048]}
+                  radius={0.008}
+                  smoothness={4}
+                  position={[0, 0, -0.027]}
+                >
+                  <meshStandardMaterial color={palette.cover} roughness={0.7} />
+                </RoundedBox>
+                <React.Suspense fallback={null}>
+                  <LitImage
+                    url={proxied(item.url, coverWidth)}
+                    width={0.34}
+                    height={0.5}
+                    radius={0.012}
+                    roughness={0.6}
+                    position={[0, 0, -0.002]}
+                    onPointerOver={(e) => {
+                      e.stopPropagation();
+                      setHovered(`book:${item.key}`);
+                    }}
+                    onPointerOut={() => {
+                      // over(B) can land before out(A) — only clear our own
+                      // hover or the late out would drop B's lift mid-anim.
+                      if (useStacks.getState().hovered === `book:${item.key}`)
+                        setHovered(null);
+                    }}
+                    onClick={
+                      onCoverClick
+                        ? (e) => {
+                            // r3f fires onClick even after a swipe that starts
+                            // and ends on a mesh — delta gates only
+                            // onPointerMissed upstream.
+                            if ((e.delta ?? 0) > 6) return;
+                            e.stopPropagation();
+                            onCoverClick(item.key);
+                          }
+                        : undefined
+                    }
+                  />
+                </React.Suspense>
+              </group>
+            </Lift>
           </CoverBoundary>
         ),
       )}
@@ -385,60 +387,63 @@ export function FrameRow({
   textured?: boolean;
   onFrameClick?: (key: string) => void;
 }) {
-  const hovered = useStacks((s) => s.hovered);
   const setHovered = useStacks((s) => s.setHovered);
   return (
     <group>
       {frames.map(({ src, key }, i) => {
         const x = (i - (frames.length - 1) / 2) * (width / frames.length);
-        const lifted = hovered === `frame:${key}`;
         return (
-          <group
+          <Lift
             key={key}
-            position={[x, lifted ? 0.34 : 0.3, -0.06]}
-            rotation={[-0.1, (1 - i) * 0.05, 0]}
+            hoverKey={`frame:${key}`}
+            base={[x, 0.3, -0.06]}
+            offset={[0, 0.04, 0.03]}
           >
-            <RoundedBox
-              castShadow
-              args={[0.9, 0.55, 0.035]}
-              radius={0.008}
-              smoothness={4}
-              position={[0, 0, -0.02]}
-            >
-              <meshStandardMaterial color={palette.frame} roughness={0.6} />
-            </RoundedBox>
-            {textured ? (
-              <React.Suspense fallback={null}>
-                <DreiImage
-                  url={src}
-                  scale={[0.82, 0.47]}
-                  toneMapped={false}
-                  onPointerOver={(e) => {
-                    e.stopPropagation();
-                    setHovered(`frame:${key}`);
-                  }}
-                  onPointerOut={() => {
-                    if (useStacks.getState().hovered === `frame:${key}`)
-                      setHovered(null);
-                  }}
-                  onClick={
-                    onFrameClick
-                      ? (e) => {
-                          if ((e.delta ?? 0) > 6) return; // swipe, not a tap
-                          e.stopPropagation();
-                          onFrameClick(key);
-                        }
-                      : undefined
-                  }
-                />
-              </React.Suspense>
-            ) : (
-              <mesh position={[0, 0, 0.001]}>
-                <planeGeometry args={[0.82, 0.47]} />
-                <meshStandardMaterial color={palette.cover} roughness={0.85} />
-              </mesh>
-            )}
-          </group>
+            <group rotation={[-0.1, (1 - i) * 0.05, 0]}>
+              <RoundedBox
+                castShadow
+                args={[0.9, 0.55, 0.035]}
+                radius={0.008}
+                smoothness={4}
+                position={[0, 0, -0.02]}
+              >
+                <meshStandardMaterial color={palette.frame} roughness={0.6} />
+              </RoundedBox>
+              {textured ? (
+                <React.Suspense fallback={null}>
+                  <LitImage
+                    url={src}
+                    width={0.82}
+                    height={0.47}
+                    roughness={0.5}
+                    position={[0, 0, -0.001]}
+                    onPointerOver={(e) => {
+                      e.stopPropagation();
+                      setHovered(`frame:${key}`);
+                    }}
+                    onPointerOut={() => {
+                      if (useStacks.getState().hovered === `frame:${key}`)
+                        setHovered(null);
+                    }}
+                    onClick={
+                      onFrameClick
+                        ? (e) => {
+                            if ((e.delta ?? 0) > 6) return; // swipe, not a tap
+                            e.stopPropagation();
+                            onFrameClick(key);
+                          }
+                        : undefined
+                    }
+                  />
+                </React.Suspense>
+              ) : (
+                <mesh position={[0, 0, 0.001]}>
+                  <planeGeometry args={[0.82, 0.47]} />
+                  <meshStandardMaterial color={palette.cover} roughness={0.85} />
+                </mesh>
+              )}
+            </group>
+          </Lift>
         );
       })}
     </group>
