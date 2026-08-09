@@ -8,29 +8,22 @@ import { ThemeToggle } from "~/components/ui/theme-toggle";
 
 import ContactButtons from "./ContactButtons";
 
-export default async function AboutMe() {
+function Greeting() {
   return (
-    <div className="relative mt-6 w-full gap-2 rounded-2xl border border-foreground/[0.06] bg-muted/40 p-8 leading-5 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-lg intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000 md:mt-28">
-      <div className="absolute right-4 top-4 opacity-70">
-        <ThemeToggle />
-      </div>
-      <Image
-        src={image}
-        alt="Profile picture"
-        width={400}
-        height={400}
-        preload
-        className="float-none m-auto mb-8 block w-[min(80%,400px)] rounded-full shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] motion-scale-in-90 md:float-left md:m-8 md:ml-0 md:mt-0 md:w-[35vw] md:max-w-[300px]"
+    <div className="flex flex-row gap-1">
+      <p className="font-semibold">Hi, I&apos;m Chappy!</p>
+      <HandWavingIcon
+        size={20}
+        weight="duotone"
+        className="motion-scale-in-50 motion-rotate-in-45 motion-opacity-in-0 motion-delay-200 motion-ease-spring-bounciest"
       />
-      <div className="flex flex-row gap-1">
-        <p className="font-semibold">Hi, I&apos;m Chappy!</p>
-        <HandWavingIcon
-          size={20}
-          weight="duotone"
-          className="motion-scale-in-50 motion-rotate-in-45 motion-opacity-in-0 motion-delay-200 motion-ease-spring-bounciest"
-        />
-      </div>
-      <p className="min-h-[300px] hyphens-auto text-justify [&>a:hover]:underline">
+    </div>
+  );
+}
+
+function Bio({ className }: { className: string }) {
+  return (
+    <p className={className}>
         <br />
         I taught myself to code at 12 and got completely hooked. I spent much of
         my teens cranking out iOS apps, and with a lot of obsession and some
@@ -104,6 +97,36 @@ export default async function AboutMe() {
         The future will be shaped by people building with taste, trust, and
         agency at the center. Onwards and Upwards!
       </p>
+  );
+}
+
+/** Greeting + bio without the card shell or photo — placard content for the
+ * Stacks About unit (the photo lives in-scene as a framed portrait). */
+export function AboutIntro() {
+  return (
+    <>
+      <Greeting />
+      <Bio className="hyphens-auto [&>a:hover]:underline" />
+    </>
+  );
+}
+
+export default async function AboutMe() {
+  return (
+    <div className="relative mt-6 w-full gap-2 rounded-2xl border border-foreground/[0.06] bg-muted/40 p-8 leading-5 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-lg intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000 md:mt-28">
+      <div className="absolute right-4 top-4 opacity-70">
+        <ThemeToggle />
+      </div>
+      <Image
+        src={image}
+        alt="Profile picture"
+        width={400}
+        height={400}
+        preload
+        className="float-none m-auto mb-8 block w-[min(80%,400px)] rounded-full shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] motion-scale-in-90 md:float-left md:m-8 md:ml-0 md:mt-0 md:w-[35vw] md:max-w-[300px]"
+      />
+      <Greeting />
+      <Bio className="min-h-[300px] hyphens-auto text-justify [&>a:hover]:underline" />
       <div className="flex flex-col items-center gap-1 pt-8 text-muted-foreground">
         <ContactButtons />
         {/* <p className="flex flex-row gap-2">

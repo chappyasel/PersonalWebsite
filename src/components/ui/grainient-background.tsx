@@ -42,6 +42,14 @@ export function GrainientBackground({
       "(prefers-reduced-motion: reduce)",
     );
     if (reducedMotion.matches) return;
+    // Without WebGL, ogl's Renderer throws during construction and takes the
+    // whole tree down — keep the static gradient instead.
+    try {
+      const probe = document.createElement("canvas");
+      if (!probe.getContext("webgl2") && !probe.getContext("webgl")) return;
+    } catch {
+      return;
+    }
 
     let cancelled = false;
     let idleId: number | undefined;

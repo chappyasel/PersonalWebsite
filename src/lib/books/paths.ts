@@ -21,6 +21,10 @@ export function getBooksPath(): string {
  * Generate the share URL for a book
  * @param bookId - The book ID
  * @returns The full share URL
+ *
+ * Book pages only resolve on the books subdomain, so when the modal is
+ * embedded elsewhere (e.g. the chappyasel.com home page) the host is
+ * prefixed with `books.`; on books.* hosts the URL is unchanged.
  */
 export function getBookShareUrl(bookId: string): string {
   const hostname =
@@ -33,5 +37,8 @@ export function getBookShareUrl(bookId: string): string {
     typeof window !== "undefined" && window.location.port
       ? `:${window.location.port}`
       : "";
-  return `${protocol}//${hostname}${port}/${bookId}`;
+  const host = hostname.startsWith("books.")
+    ? hostname
+    : `books.${hostname.replace(/^www\./, "")}`;
+  return `${protocol}//${host}${port}/${bookId}`;
 }
