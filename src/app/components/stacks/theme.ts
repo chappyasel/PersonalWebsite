@@ -2,11 +2,14 @@
 // deterministic pseudo-random used to keep shelf packing stable across renders.
 // Shared by scene (WebGL) and DOM layers; keep this module dependency-free.
 
+// Sky/fog hexes are authored against the CORRECTED shader pipeline (the dome
+// tonemaps + encodes like every lit material). Fog must sit on the sky's
+// eye-level horizon band or a value seam appears where far geometry meets sky.
 export const PALETTES = {
   light: {
-    skyTop: "#f7f0e5",
-    skyHorizon: "#f2dcc0",
-    fog: "#f0e2cd",
+    skyTop: "#dfe9f2",
+    skyHorizon: "#f0e4d2",
+    fog: "#ece5d9",
     wood: "#b3906a",
     woodDark: "#967553",
     strap: "#8f7150",
@@ -28,9 +31,9 @@ export const PALETTES = {
     glowOpacity: 0.22,
   },
   dark: {
-    skyTop: "#161008",
-    skyHorizon: "#6b4426",
-    fog: "#46301c",
+    skyTop: "#101623",
+    skyHorizon: "#3a4457",
+    fog: "#313a4c",
     wood: "#5c4832",
     woodDark: "#453521",
     strap: "#3b2e1f",
