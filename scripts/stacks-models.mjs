@@ -69,17 +69,15 @@ const MANIFEST = [
   { name: "armchair", id: "myd1WSucAz", url: "https://static.poly.pizza/2584a961-1b06-4fb7-ba7d-1074b52ca908.glb", strip: true, unit: "about floor", author: "CreativeTrio", license: "CC0 1.0" },
   // ---- v4 round 2: CC0 own-texture (palette remap per theme)
   { name: "sansevieria", id: "BDwimVUool", url: "https://static.poly.pizza/f972935d-4083-474a-aa51-af7ceec71797.glb", recolor: true, unit: "systems", author: "Isa Lousberg", license: "CC0 1.0" },
-  // Mic carries plain named materials (Black/Metal/Glow/LightGrey), no
-  // texture — it themes at runtime via the "tinted" variant like the club.
-  { name: "mic", id: "yqbacXdPsg", url: "https://static.poly.pizza/b6976679-945a-4914-8857-093a0c6ecb18.glb", noAo: true, unit: "talks", author: "iPoly3D", license: "CC0 1.0" },
   // ---- v4 round 2: CC-BY (credited in LICENSES.json + About placard).
   // All three carry plain materials (no textures) — themed at runtime via
   // the "tinted" variant: barbell Iron1Barbell1/Steel1Barbell1, kettlebell
   // phong1SG, plate PorcelainPlate1 (a porcelain disc that reads as a
-  // bumper plate once tinted and leaned).
+  // bumper plate once tinted and leaned). v4.1: the plate/mic were owner-
+  // killed at browse (dinnerware read / out-of-place) — procedural bumpers
+  // and a framed photo replaced them.
   { name: "barbell", id: "AX5jGlJZlk", url: "https://static.poly.pizza/4915af72-c243-407c-960c-272a4ce73d97.glb", noAo: true, unit: "training", author: "Zsky", license: "CC-BY 3.0" },
   { name: "kettlebell", id: "08Gs4e3L1N8", url: "https://static.poly.pizza/9044238c-c3ef-47ae-a8e1-5a140cb64e78.glb", unit: "training", author: "Poly by Google", license: "CC-BY 3.0" },
-  { name: "plate", id: "jyj7EfIiB1", url: "https://static.poly.pizza/2b245534-0036-4a09-89cd-cbdb3dcd8d84.glb", unit: "training", author: "Zsky", license: "CC-BY 3.0" },
 ];
 
 function parseGlb(buf) {

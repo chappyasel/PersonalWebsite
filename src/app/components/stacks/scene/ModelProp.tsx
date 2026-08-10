@@ -38,10 +38,8 @@ export const MODEL_URLS = [
   "/models/ladder.glb",
   "/models/armchair.glb",
   "/models/sansevieria.glb",
-  "/models/mic.glb",
   "/models/barbell.glb",
   "/models/kettlebell.glb",
-  "/models/plate.glb",
 ];
 
 /** Themed textures for `recolor`-variant props (own UVs, palette-remapped

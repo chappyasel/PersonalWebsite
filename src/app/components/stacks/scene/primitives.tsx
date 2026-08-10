@@ -600,16 +600,25 @@ export function GlowSprite({
 
 /** Bulb glow + warm light for the GLB desk lamp — sits at the lamp's head
  * so the room still reads as lit by the lamp, not the model. The emissive
- * bulb disc is what makes the lamp read ON in the light theme, where the
- * additive sprite nearly vanishes against the bright sky (audit §3-About). */
-export function LampGlow({ palette }: { palette: Palette }) {
+ * bulb is what makes the lamp read ON in the light theme, where the
+ * additive sprite nearly vanishes against the bright sky (audit §3-About).
+ * `yaw` MUST match the lamp model's y-rotation: the bulb sits on the shade
+ * axis, and an unrotated offset pokes through the cone wall as a flat
+ * white disc (owner's "this light is broken" screenshot). */
+export function LampGlow({
+  palette,
+  yaw = 0,
+}: {
+  palette: Palette;
+  yaw?: number;
+}) {
   return (
-    <group>
+    <group rotation={[0, yaw, 0]}>
       <group position={[0, 0.36, 0.1]}>
         <GlowSprite opacity={palette.glowOpacity} eased />
       </group>
-      <mesh position={[0, 0.33, 0.16]}>
-        <sphereGeometry args={[0.032, 12, 12]} />
+      <mesh position={[0, 0.322, 0.1]}>
+        <sphereGeometry args={[0.023, 12, 12]} />
         <meshStandardMaterial
           color="#f6e2b8"
           emissive="#ffbe73"
@@ -628,38 +637,61 @@ export function LampGlow({ palette }: { palette: Palette }) {
   );
 }
 
-export function Plates({ palette }: { palette: Palette }) {
+// Extruded disc with a REAL through-bore — the one feature no proxy mesh
+// delivered (v3's cylinders read as "chocolate donuts", the v4 CC-BY dish
+// read as dinnerware, per the owner). Real bumper ratio: 450mm disc,
+// 50mm bore → hole r ≈ 0.112 × disc r.
+const plateGeometryCache = new Map<string, THREE.ExtrudeGeometry>();
+function plateGeometry(r: number, depth: number): THREE.ExtrudeGeometry {
+  const key = `${r}|${depth}`;
+  const hit = plateGeometryCache.get(key);
+  if (hit) return hit;
+  const shape = new THREE.Shape();
+  shape.absarc(0, 0, r, 0, Math.PI * 2, false);
+  const bore = new THREE.Path();
+  bore.absarc(0, 0, r * 0.112, 0, Math.PI * 2, true);
+  shape.holes.push(bore);
+  const geo = new THREE.ExtrudeGeometry(shape, {
+    depth,
+    bevelEnabled: true,
+    bevelThickness: 0.008,
+    bevelSize: 0.008,
+    bevelSegments: 2,
+    curveSegments: 40,
+  });
+  geo.center();
+  plateGeometryCache.set(key, geo);
+  return geo;
+}
+
+/** Two rubber bumper plates leaning against the shelf back, steel hub
+ * rings around the bore. Disc face lies in the extrude's xy plane, so
+ * standing them up is the default orientation plus a lean. */
+export function BumperPlates({ palette }: { palette: Palette }) {
   return (
     <group>
       {[
-        { r: 0.22, x: 0, yaw: 0.5 },
-        { r: 0.175, x: 0.36, yaw: 0.42 },
-        { r: 0.135, x: 0.63, yaw: 0.34 },
-      ].map((plate, i) => (
+        { r: 0.185, t: 0.052, x: 0, lean: 0.13, yaw: 0.14, color: "#8a4a30" },
+        { r: 0.15, t: 0.046, x: 0.31, lean: 0.18, yaw: -0.1, color: "#33302b" },
+      ].map((p, i) => (
         <group
           key={i}
-          // +0.0013 compensates the 0.08 tilt so the rim kisses the wood.
-          position={[plate.x, plate.r + 0.0013, -0.1]}
-          rotation={[Math.PI / 2 - 0.08, 0, plate.yaw]}
+          position={[p.x, (p.r + 0.008) * Math.cos(p.lean), 0]}
+          rotation={[-p.lean, p.yaw, 0]}
         >
-          <mesh castShadow>
-            <cylinderGeometry args={[plate.r, plate.r, 0.045, 40]} />
-            <meshStandardMaterial
-              color={palette.plate}
-              roughness={0.4}
-              metalness={0.45}
-            />
+          <mesh castShadow geometry={plateGeometry(p.r, p.t)}>
+            <meshStandardMaterial color={p.color} roughness={0.62} />
           </mesh>
-          <mesh>
-            <cylinderGeometry
-              args={[plate.r * 0.28, plate.r * 0.28, 0.06, 24]}
-            />
-            <meshStandardMaterial
-              color={palette.hub}
-              roughness={0.5}
-              metalness={0.5}
-            />
-          </mesh>
+          {[-1, 1].map((side) => (
+            <mesh key={side} position={[0, 0, side * (p.t / 2)]}>
+              <torusGeometry args={[p.r * 0.112 + 0.011, 0.007, 10, 28]} />
+              <meshStandardMaterial
+                color="#8a8f94"
+                metalness={0.55}
+                roughness={0.35}
+              />
+            </mesh>
+          ))}
         </group>
       ))}
     </group>

@@ -29,12 +29,12 @@ import { ToneMappingMode } from "postprocessing";
 import { useMemo } from "react";
 
 export default function Effects({ dark }: { dark: boolean }) {
-  // Prototype-only miniature look — a strong stylistic commitment, judged
-  // by the owner at browse (?tiltshift), never shipped on by default.
+  // Owner-approved at browse (2026-08-09): the miniature look SHIPS.
+  // ?notiltshift keeps an escape hatch for A/B.
   const tiltShift = useMemo(
     () =>
-      typeof window !== "undefined" &&
-      window.location.search.includes("tiltshift"),
+      typeof window === "undefined" ||
+      !window.location.search.includes("notiltshift"),
     [],
   );
   return (

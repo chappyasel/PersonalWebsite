@@ -26,6 +26,7 @@ const MANIFEST = [
   { src: "2019/8 MVY/Bros Lifeguard/19_RandiBaird_ASEL_0044.jpg", out: "bros.jpg", note: "About polaroid", crop: "square" },
   { src: "2021/9 Europe/2 Budapest/IMG_5223-2.jpg", out: "postcard-budapest.jpg", note: "postcard by the globe" },
   { src: "2026/8 Stanford/7.jpg", out: "portrait-alt.jpg", note: "portrait A/B (staged, unwired)" },
+  { src: "2026/8 Stanford/2.jpg", out: "talk-stanford.jpg", note: "Talks lower shelf frame (replaced the mic)" },
 ];
 
 const { default: sharp } = await import("sharp");

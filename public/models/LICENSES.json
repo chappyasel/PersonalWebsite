@@ -126,13 +126,6 @@
       "source": "https://poly.pizza/m/BDwimVUool"
     },
     {
-      "file": "mic.glb",
-      "title": "mic",
-      "author": "iPoly3D",
-      "license": "CC0 1.0",
-      "source": "https://poly.pizza/m/yqbacXdPsg"
-    },
-    {
       "file": "barbell.glb",
       "title": "barbell",
       "author": "Zsky",
@@ -145,13 +138,6 @@
       "author": "Poly by Google",
       "license": "CC-BY 3.0",
       "source": "https://poly.pizza/m/08Gs4e3L1N8"
-    },
-    {
-      "file": "plate.glb",
-      "title": "plate",
-      "author": "Zsky",
-      "license": "CC-BY 3.0",
-      "source": "https://poly.pizza/m/jyj7EfIiB1"
     }
   ]
 }

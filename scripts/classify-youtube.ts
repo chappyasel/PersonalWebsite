@@ -165,6 +165,9 @@ async function classifyBatch(
 }
 
 async function main() {
+  // Classification is an explicit write workflow; local agent sessions default
+  // to read-only unless the connection opts in.
+  await db.execute(sql`SET default_transaction_read_only = off`);
   console.log("Fetching unclassified videos...");
   const rows = await db
     .select({

@@ -32,7 +32,7 @@ export default function UnitAbout({
             <React.Suspense fallback={null}>
               <ModelProp url="/models/desk-lamp.glb" dark={dark} rotation={[0, 0.55, 0]} />
             </React.Suspense>
-            <LampGlow palette={palette} />
+            <LampGlow palette={palette} yaw={0.55} />
           </group>
           <BookPile palette={palette} x={0.55} salt={9} />
           {/* Mug lives lower-right so the globe gets the visible top-shelf
@@ -87,8 +87,10 @@ export default function UnitAbout({
       </group>
       </ShelfUnit>
       {/* Reading armchair on the ground at the LEFT flank, angled toward
-          the unit — the room reads inhabited before a single word is read. */}
-      <group position={[-1.92, -1.115, 0.1]} rotation={[0, 0.55, 0]}>
+          the unit — the room reads inhabited before a single word is read.
+          x −2.08 keeps its armrest CLEAR of the full-width lower plank
+          (ends at −1.6; the v4.0 spot ran the arm through it). */}
+      <group position={[-2.08, -1.115, 0.12]} rotation={[0, 0.55, 0]}>
         <React.Suspense fallback={null}>
           <ModelProp url="/models/armchair.glb" dark={dark} scale={1.1} />
         </React.Suspense>
@@ -96,7 +98,7 @@ export default function UnitAbout({
       <FootPool
         color={palette.shadow}
         size={[0.62, 0.48]}
-        position={[-1.92, -1.115, 0.1]}
+        position={[-2.08, -1.115, 0.12]}
       />
     </group>
   );
