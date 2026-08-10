@@ -33,6 +33,14 @@ type StacksState = {
    * freeze while a prop is in hand, or dragging one sideways scrolls the
    * whole room out from under it. */
   dragging: string | null;
+  /** True while the visitor is sitting in the About reading chair. The module
+   * `scene/seated.ts` is the source of truth — the camera and the sky read it
+   * every frame and must never go through React — and SitChair mirrors it
+   * here so the DOM side (placard, rail, any "press Escape" affordance) can
+   * react to it at all. Never write this directly: call requestSeat /
+   * leaveSeat and let the mirror follow. */
+  seated: boolean;
+  setSeated: (seated: boolean) => void;
   /** True while the desktop EffectComposer owns the frame — scene blending
    * happens in linear HDR (dust/pools re-tune) and the DOM vignette yields
    * to the composer's. */
@@ -67,6 +75,8 @@ export const useStacks = create<StacksState>((set) => ({
   pendingBook: null,
   hovered: null,
   dragging: null,
+  seated: false,
+  setSeated: (seated) => set({ seated }),
   postfx: false,
   setPostfx: (postfx) => set({ postfx }),
   jumpTo: null,
