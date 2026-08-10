@@ -6,6 +6,7 @@
 // pointer-events-none; interactive layers manage their own events.
 import { ThemeToggle } from "~/components/ui/theme-toggle";
 
+import { useStacks } from "../store";
 import { GRAIN_URI } from "../theme";
 
 export function GrainReveal({
@@ -28,6 +29,9 @@ export function GrainReveal({
 }
 
 export default function ChromeLayer() {
+  // The composer's Vignette owns edge darkening while active — stacking the
+  // DOM bottom fade on top double-darkens the floor (audit §2.1).
+  const postfx = useStacks((s) => s.postfx);
   return (
     <>
       <style>{`
@@ -73,7 +77,9 @@ export default function ChromeLayer() {
           style={{ backgroundImage: GRAIN_URI }}
         />
       </div>
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[6] h-[12dvh] bg-gradient-to-t from-background/90 to-transparent" />
+      {!postfx && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[6] h-[12dvh] bg-gradient-to-t from-background/90 to-transparent" />
+      )}
       <div className="pointer-events-none absolute left-5 top-4 z-20 md:left-7 md:top-5">
         <GrainReveal index={0}>
           <p className="font-serif text-base tracking-tight text-foreground/85 md:text-lg">

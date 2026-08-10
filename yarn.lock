@@ -2262,6 +2262,14 @@
     use-sync-external-store "^1.4.0"
     zustand "^5.0.3"
 
+"@react-three/postprocessing@3.0.5":
+  version "3.0.5"
+  resolved "https://registry.yarnpkg.com/@react-three/postprocessing/-/postprocessing-3.0.5.tgz#307ab7106f2692d875241ea8349ca506392372ba"
+  integrity sha512-rqxoH8cjq51w5yZ7Re3WNPVVDdSsuVwEYA+Nl90/nFLv0MIxYGjMkqhc6akp5+VLNwZD2aqOd8KcwuZW7NeUKQ==
+  dependencies:
+    maath "^0.10.8"
+    n8ao "^2.0.0"
+
 "@resvg/resvg-js-android-arm-eabi@2.6.2":
   version "2.6.2"
   resolved "https://registry.yarnpkg.com/@resvg/resvg-js-android-arm-eabi/-/resvg-js-android-arm-eabi-2.6.2.tgz#e761e0b688127db64879f455178c92468a9aeabe"
@@ -7092,6 +7100,11 @@ mz@^2.7.0:
     object-assign "^4.0.1"
     thenify-all "^1.0.0"
 
+n8ao@^2.0.0:
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/n8ao/-/n8ao-2.0.0.tgz#24392f70fceb1b739b8a860100d66b943af22b16"
+  integrity sha512-7oajUGXk10jJIcjGxOgjRY2X/gy5wiLOY4eOiAfFJ51ljN6Djmsg+j8HMOip+SpqV7OkwzF9VCkDRLluxVlySA==
+
 nanoid@^3.3.12:
   version "3.3.16"
   resolved "https://registry.yarnpkg.com/nanoid/-/nanoid-3.3.16.tgz#a04d8ec4b1f10009d2d533947aefe4293737816c"
@@ -7582,6 +7595,11 @@ posthog-js@^1.215.1:
     fflate "^0.4.8"
     preact "^10.19.3"
     web-vitals "^4.2.0"
+
+postprocessing@6.39.4:
+  version "6.39.4"
+  resolved "https://registry.yarnpkg.com/postprocessing/-/postprocessing-6.39.4.tgz#3614fb845a406c2043ddf275aa2653fb6c513806"
+  integrity sha512-oAS/PjAbc/xT3OzjUrGsorJ4J064XwhVD2t0OwKLP/E8QwDMUJ0oOv6ZI1SYMtLchv4g0ySEx+JcLy92+48vlA==
 
 potpack@^1.0.1:
   version "1.0.2"
@@ -8643,15 +8661,15 @@ three-stdlib@^2.35.6:
     fflate "^0.6.9"
     potpack "^1.0.1"
 
+three@0.185.1:
+  version "0.185.1"
+  resolved "https://registry.yarnpkg.com/three/-/three-0.185.1.tgz#63e9e241a17b101e211965121a017b4b4d8054ae"
+  integrity sha512-5aojFCXKwnjBRZvUnt3WFfEcvUJgkN5LlijRFN95hMy8WVkG4I0QNcJE+OuWvuJ0bOdStrbfXn0pkd6/QyiAlg==
+
 three@^0.170.0:
   version "0.170.0"
   resolved "https://registry.yarnpkg.com/three/-/three-0.170.0.tgz#6087f97aab79e9e9312f9c89fcef6808642dfbb7"
   integrity sha512-FQK+LEpYc0fBD+J8g6oSEyyNzjp+Q7Ks1C568WWaoMRLW+TkNNWmenWeGgJjV105Gd+p/2ql1ZcjYvNiPZBhuQ==
-
-three@^0.185.1:
-  version "0.185.1"
-  resolved "https://registry.yarnpkg.com/three/-/three-0.185.1.tgz#63e9e241a17b101e211965121a017b4b4d8054ae"
-  integrity sha512-5aojFCXKwnjBRZvUnt3WFfEcvUJgkN5LlijRFN95hMy8WVkG4I0QNcJE+OuWvuJ0bOdStrbfXn0pkd6/QyiAlg==
 
 timers-ext@^0.1.7:
   version "0.1.8"

@@ -27,8 +27,13 @@ type StacksState = {
   panelState: PanelState;
   pendingBook: Book | null;
   hovered: string | null;
+  /** True while the desktop EffectComposer owns the frame — scene blending
+   * happens in linear HDR (dust/pools re-tune) and the DOM vignette yields
+   * to the composer's. */
+  postfx: boolean;
   /** Instant (undamped) jump to a unit — registered by CameraRig while the
    * canvas is mounted. Deep-links and the dev hooks use it. */
+  setPostfx: (postfx: boolean) => void;
   jumpTo: ((unit: number) => void) | null;
   /** Damped travel to a unit. Sets drei's internal damp target directly
    * instead of relying on the scroll event — Next's patched pushState forces
@@ -54,6 +59,8 @@ export const useStacks = create<StacksState>((set) => ({
   panelState: "closed",
   pendingBook: null,
   hovered: null,
+  postfx: false,
+  setPostfx: (postfx) => set({ postfx }),
   jumpTo: null,
   travelTo: null,
   setMode: (mode) => set({ mode }),

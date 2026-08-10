@@ -6,6 +6,7 @@
 import { PerformanceMonitor, ScrollControls } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
 import { useTheme } from "next-themes";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type * as THREE from "three";
 
@@ -14,6 +15,11 @@ import Scene from "./scene/Scene";
 import { CAMERA } from "./scene/worldLayout";
 import { progressRef, useStacks } from "./store";
 import { PALETTES } from "./theme";
+
+// Desktop-only composer chain — dynamic so touch devices never download a
+// single postfx byte. Mount/unmount ONLY (never enabled={false}: a mounted-
+// disabled composer pins the renderer to NoToneMapping = blown frame).
+const Effects = dynamic(() => import("./scene/Effects"), { ssr: false });
 
 let glRef: THREE.WebGLRenderer | null = null;
 let devOpenBook: ((id: string) => void) | null = null;
@@ -89,6 +95,19 @@ export default function StacksCanvas({
   // Never steps back up — flip-flopping reads worse than a stable floor.
   const [degrade, setDegrade] = useState(0);
 
+  // Composer path: desktop only, and unmounted at the SAME rung that drops
+  // dpr (N8AO × adaptive-dpr is a known-bad pair). ?nopostfx forces the
+  // off-path for A/B shots and the ladder's correctness check.
+  const postfx =
+    !isTouch &&
+    degrade === 0 &&
+    !(typeof window !== "undefined" &&
+      window.location.search.includes("nopostfx"));
+  const setPostfx = useStacks((s) => s.setPostfx);
+  useEffect(() => {
+    setPostfx(postfx);
+  }, [postfx, setPostfx]);
+
   const onOpenBook = useCallback(
     (id: string) => {
       const book = data.shelfBooks.find((b) => b.id === id);
@@ -113,7 +132,9 @@ export default function StacksCanvas({
         shadows="soft"
         camera={{ position: [0, CAMERA.y, CAMERA.z], fov: CAMERA.fov }}
         dpr={degrade >= 1 ? 1 : isTouch ? [1, 1.25] : [1, 1.5]}
-        gl={{ antialias: true }}
+        // Desktop runs SMAA in the composer — MSAA underneath is dead
+        // weight. Touch keeps MSAA (no composer there, ever).
+        gl={{ antialias: isTouch }}
         onCreated={({ gl }) => {
           gl.toneMappingExposure = dark ? 1.25 : 1.12;
           glRef = gl;
@@ -124,6 +145,7 @@ export default function StacksCanvas({
         }}
       >
         <Exposure dark={dark} />
+        {postfx && <Effects dark={dark} />}
         <PerformanceMonitor
           onDecline={() => setDegrade((d) => Math.min(3, d + 1))}
         />

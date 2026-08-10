@@ -8,7 +8,7 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { PALETTES, type Palette, rand } from "../theme";
-import { progressRef } from "../store";
+import { progressRef, useStacks } from "../store";
 import { poolTexture } from "./GroundPool";
 import { MID_X, TRAVEL_X } from "./worldLayout";
 
@@ -44,6 +44,8 @@ const SKY_FRAGMENT = `
   uniform float uTime;
   uniform float uFrame;    // frame counter mod 64 — scrolls the IGN dither
   uniform float uSimplify; // degrade rung: 1 = two bands, no city/stars/ember
+  uniform float uPost;     // 1 = composer owns the frame: skip the IGN dither
+                           // (it would grain linear HDR; Noise runs in-chain)
   uniform vec3 zenithL;  uniform vec3 zenithD;
   uniform vec3 horizonL; uniform vec3 horizonD;
   uniform vec3 shadowL;  uniform vec3 shadowD;
@@ -314,11 +316,15 @@ const SKY_FRAGMENT = `
     #include <colorspace_fragment>
     // Temporal IGN (Jimenez scroll folded into the fract) with the amplitude
     // shaped to the midtones — pure dither in the deep end, film grain where
-    // the eye can actually resolve it.
-    float n = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)) + uFrame * 0.4076492));
-    float lum = dot(gl_FragColor.rgb, vec3(0.2126, 0.7152, 0.0722));
-    float amp = 2.0 / 255.0 + (5.0 / 255.0) * (1.0 - abs(lum * 2.0 - 1.0));
-    gl_FragColor.rgb += (n - 0.5) * amp;
+    // the eye can actually resolve it. Skipped under the composer (both
+    // includes above no-op there and dithering linear HDR reads as grain in
+    // the wrong space — the chain's Noise effect takes over).
+    if (uPost < 0.5) {
+      float n = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)) + uFrame * 0.4076492));
+      float lum = dot(gl_FragColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+      float amp = 2.0 / 255.0 + (5.0 / 255.0) * (1.0 - abs(lum * 2.0 - 1.0));
+      gl_FragColor.rgb += (n - 0.5) * amp;
+    }
   }
 `;
 
@@ -337,6 +343,7 @@ function SkyDome({ dark, simplify }: { dark: boolean; simplify: boolean }) {
         uTime: { value: 0 },
         uFrame: { value: 0 },
         uSimplify: { value: 0 },
+        uPost: { value: 0 },
         zenithL: { value: c(L.skyTop) },
         zenithD: { value: c(D.skyTop) },
         horizonL: { value: c(L.skyHorizon) },
@@ -369,6 +376,7 @@ function SkyDome({ dark, simplify }: { dark: boolean; simplify: boolean }) {
     u.uTime!.value = clock.elapsedTime;
     u.uFrame!.value = ((u.uFrame!.value as number) + 1) % 64;
     u.uSimplify!.value = simplify ? 1 : 0;
+    u.uPost!.value = useStacks.getState().postfx ? 1 : 0;
   });
   // renderOrder 1: draw after opaque geometry so early-Z rejects the covered
   // sky fragments (its depth-sort position otherwise changes during traverse).
@@ -419,6 +427,9 @@ function RoomEnvironment({ dark }: { dark: boolean }) {
 
 function Dust({ palette, count = 380 }: { palette: Palette; count?: number }) {
   const ref = useRef<THREE.Points>(null);
+  // Additive blending lands in linear HDR under the composer — the motes
+  // read ~a third weaker there (audit §2.1 item 4).
+  const postfx = useStacks((s) => s.postfx);
   const positions = useMemo(() => {
     const arr = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
@@ -446,7 +457,7 @@ function Dust({ palette, count = 380 }: { palette: Palette; count?: number }) {
         size={0.04}
         color={palette.dust}
         transparent
-        opacity={palette.dustOpacity}
+        opacity={palette.dustOpacity * (postfx ? 1.35 : 1)}
         depthWrite={false}
         sizeAttenuation
       />

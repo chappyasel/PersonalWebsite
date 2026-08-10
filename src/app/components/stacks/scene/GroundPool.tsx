@@ -13,7 +13,15 @@
 import { useMemo } from "react";
 import * as THREE from "three";
 
+import { useStacks } from "../store";
+
 let sharedTexture: THREE.CanvasTexture | null = null;
+
+/** Transparent darkening quads/sprites blend in linear HDR under the
+ * composer and read noticeably heavier — ease them there. */
+function usePostfxFade(): number {
+  return useStacks((s) => s.postfx) ? 0.8 : 1;
+}
 
 export function poolTexture(): THREE.CanvasTexture {
   if (sharedTexture) return sharedTexture;
@@ -46,6 +54,7 @@ function PoolQuad({
   scale: [number, number];
 }) {
   const texture = useMemo(() => poolTexture(), []);
+  const fade = usePostfxFade();
   return (
     <mesh
       rotation-x={-Math.PI / 2}
@@ -57,7 +66,7 @@ function PoolQuad({
         map={texture}
         color={color}
         transparent
-        opacity={opacity}
+        opacity={opacity * fade}
         depthWrite={false}
         fog={false}
       />
@@ -143,13 +152,14 @@ export function ContactShade({
   opacity?: number;
 }) {
   const texture = useMemo(() => poolTexture(), []);
+  const fade = usePostfxFade();
   return (
     <sprite position={position} scale={[width, height ?? width * 0.32, 1]}>
       <spriteMaterial
         map={texture}
         color={color}
         transparent
-        opacity={opacity}
+        opacity={opacity * fade}
         depthWrite={false}
         fog={false}
       />

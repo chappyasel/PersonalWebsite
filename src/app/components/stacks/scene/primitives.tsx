@@ -546,7 +546,7 @@ export function Bookend({
 }
 
 export function GlowSprite({
-  opacity,
+  opacity: baseOpacity,
   eased = false,
 }: {
   opacity: number;
@@ -555,6 +555,11 @@ export function GlowSprite({
   eased?: boolean;
 }) {
   const ref = useRef<THREE.Sprite>(null);
+  // Additive glow COMPOUNDS in the composer's linear HDR target (pre-
+  // tonemap values ride the ACES shoulder) — halve it there or the lamp
+  // reads as an orange searchlight.
+  const postfx = useStacks((s) => s.postfx);
+  const opacity = baseOpacity * (postfx ? 0.45 : 1);
   const texture = useMemo(() => {
     const size = 128;
     const canvas = document.createElement("canvas");
