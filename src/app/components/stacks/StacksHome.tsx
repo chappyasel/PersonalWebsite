@@ -24,7 +24,13 @@ import PlacardLayer from "./dom/PlacardLayer";
 import UnitRail from "./dom/UnitRail";
 import FlatHome from "./FlatHome";
 import ScrollBridges from "./input/ScrollBridges";
-import { getLoadProgress, setLoadProgress, setWorldPhase } from "./loading";
+import {
+  getLoadProgress,
+  isWarmBoot,
+  rememberWarmBoot,
+  setLoadProgress,
+  setWorldPhase,
+} from "./loading";
 import StacksBookModal from "./modal/StacksBookModal";
 import { useStacks } from "./store";
 
@@ -41,6 +47,11 @@ const STREAM_GRACE_MS = 900;
 /** Enough of the assets that unit 0 is dressed. Waiting for all of them means
  * waiting on units the visitor cannot see yet. */
 const REVEAL_PROGRESS = 0.85;
+
+/** navigator.connection is still not in the DOM lib. */
+type NavigatorWithConnection = Navigator & {
+  connection?: { saveData?: boolean };
+};
 
 /** A chunk that fails to load throws during render, which would blank the
  * page. Catch it and fall back to the document — that IS the fallback. */
@@ -88,6 +99,16 @@ export default function StacksHome({
       setWorldPhase(null);
       return;
     }
+    // Save-Data, checked here as well as in the pre-paint script. The script
+    // used to be the only place, which meant it never actually held: it can
+    // decline to set the attribute, but this effect then set it anyway and
+    // mounted the world a moment later. A visitor who asked their browser to
+    // conserve got the document for half a second and a megabyte of room
+    // after it.
+    if ((navigator as NavigatorWithConnection).connection?.saveData) {
+      setWorldPhase(null);
+      return;
+    }
     try {
       const probe = document.createElement("canvas");
       const gl = probe.getContext("webgl2") ?? probe.getContext("webgl");
@@ -102,7 +123,10 @@ export default function StacksHome({
     // Agrees with the pre-paint script, and also covers the case where the
     // script never ran (a bfcache restore, an extension stripping inline
     // scripts) — the boot screen still comes up rather than the document.
-    setWorldPhase("pending");
+    // A warm phase is carried through rather than overwritten: writing
+    // "pending" here would slam the loading animation on screen at hydration,
+    // which is precisely the thing the warm path exists to avoid.
+    setWorldPhase(isWarmBoot() ? "warm" : "pending");
     setMode("world");
   }, [setMode]);
 
@@ -119,6 +143,15 @@ export default function StacksHome({
   // Hold the boot screen until the room is worth looking at: the first frame
   // has painted AND most of the assets are in — or the grace expires and the
   // remainder streams in on screen.
+  //
+  // A warm boot deliberately does NOT get a shorter grace, which is the first
+  // thing you reach for. Measured: on a load with the assets already local,
+  // REVEAL_PROGRESS is crossed about 130ms after the first frame, so the
+  // reveal is already firing on the progress arm and the grace is never
+  // reached. Every run where it WAS reached had progress stalled around 0.25
+  // — the room genuinely a quarter built. Cutting the grace would only ever
+  // fire in that case, i.e. it would trade the wait for holes on precisely
+  // the visit where the visitor knows what the room is supposed to look like.
   const readyAt = useRef(0);
   useEffect(() => {
     if (!worldReady || revealed) return;
@@ -140,6 +173,10 @@ export default function StacksHome({
   useEffect(() => {
     if (!revealed) return;
     setWorldPhase("ready");
+    // The world got here. Record it, with how long it took: that is what the
+    // next load's pre-paint script reads to decide whether to hold the
+    // loading animation back, and for how long.
+    rememberWarmBoot(performance.now());
     // The shelf finishes filling as it fades. Reveal is allowed to happen on
     // the streaming grace rather than on 100% of the assets, and a loader
     // that dissolves half-full reads as giving up rather than as finishing.

@@ -21,6 +21,13 @@ import Projects from "./components/Projects";
 import Quotes from "./components/Quotes";
 import Talks from "./components/Talks";
 import { type StacksData } from "./components/stacks/data";
+import {
+  WARM_GRACE_MAX_MS,
+  WARM_GRACE_MIN_MS,
+  WARM_GRACE_SLACK,
+  WARM_KEY,
+  WARM_TTL_MS,
+} from "./components/stacks/loading";
 import StacksHome from "./components/stacks/StacksHome";
 
 export const revalidate = 86400;
@@ -45,9 +52,17 @@ const SCENE_TALK_STILLS: Record<number, string> = {
 // answer is cached for the tab so repeat navigations skip the context
 // creation entirely.
 //
+// Second decision, second store. The viability probe is per-tab because it
+// answers "can this browser run it". The WARM record is per-profile because
+// it answers "is the chunk already on this disk" — and the HTTP cache that
+// makes a reload fast is shared across tabs. Warm only changes how the wait
+// is PRESENTED (see globals.css); it never overrides reduced-motion or
+// Save-Data, both of which are settled before it is read.
+//
 // The timeout is the safety net for the case this whole mechanism creates: if
 // the JS bundle never boots, the flat page is hidden behind a loading screen
-// that nothing will ever retire. Twenty seconds and the document comes back.
+// that nothing will ever retire. Twenty seconds and the document comes back —
+// from either phase.
 const WORLD_BOOT_SCRIPT = `
 try {
   var ok = sessionStorage.getItem("stacks-world");
@@ -61,10 +76,20 @@ try {
     sessionStorage.setItem("stacks-world", ok);
   }
   if (ok === "1") {
-    document.documentElement.dataset.world = "pending";
+    var el = document.documentElement, warm = null;
+    try {
+      var rec = JSON.parse(localStorage.getItem(${JSON.stringify(WARM_KEY)}) || "null");
+      var age = rec ? Date.now() - rec.t : Infinity;
+      if (age >= 0 && age < ${WARM_TTL_MS}) warm = rec.d;
+    } catch (_) {}
+    if (warm !== null) {
+      el.style.setProperty("--stacks-warm-grace", Math.min(${WARM_GRACE_MAX_MS},
+        Math.max(${WARM_GRACE_MIN_MS}, (warm || 0) * ${WARM_GRACE_SLACK})) + "ms");
+    }
+    el.dataset.world = warm === null ? "pending" : "warm";
     setTimeout(function () {
-      if (document.documentElement.dataset.world === "pending")
-        delete document.documentElement.dataset.world;
+      var w = el.dataset.world;
+      if (w === "pending" || w === "warm") delete el.dataset.world;
     }, 20000);
   }
 } catch (_) {}

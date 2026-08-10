@@ -274,12 +274,48 @@ html[data-font="literata"] {
 html[data-world] .stacks-flat {
   visibility: hidden;
 }
-html:not([data-world="pending"]) .stacks-boot {
+html:not([data-world="pending"]):not([data-world="warm"]) .stacks-boot {
   opacity: 0;
   pointer-events: none;
 }
 html[data-world="ready"] .stacks-boot {
   visibility: hidden;
+}
+
+/*
+ * Warm boot: this visitor has had the world on screen recently, so the chunk
+ * and the assets are almost certainly still in their HTTP cache and the room
+ * is close. Playing the whole shelf-building animation for a load that beats
+ * it is ceremony — you watch a progress indicator narrate a wait that isn't
+ * happening.
+ *
+ * So the boot screen starts invisible and only fades in if the prediction was
+ * wrong. It is NOT hidden: a warm flag plus an evicted cache (or a plane, or
+ * a hotel wifi) is a real combination, and hiding the loader there would put
+ * a blank background up for twenty seconds with nothing to say for itself.
+ *
+ * The grace has to be CSS, not React. On a throttled connection React is not
+ * hydrated for the first several seconds of the load — the exact window this
+ * governs — so a JS-driven timer would be asleep for all of it. The delay
+ * runs from the boot screen's first paint, which is what the visitor's own
+ * clock started on too.
+ *
+ * The value comes from the last measured reveal, plus 30% headroom, clamped
+ * to 250–900ms (page.tsx writes it; see WARM_GRACE_* in loading.ts). "A bit
+ * longer than it took last time" is the only honest answer to "how long is it
+ * reasonable to say nothing for", and the 900ms ceiling is the point where
+ * quiet stops reading as speed — past about a second an unexplained blank
+ * screen reads as a broken page. The 400ms fallback covers a record with no
+ * duration in it.
+ */
+html[data-world="warm"] .stacks-boot {
+  opacity: 0;
+  animation: stacks-boot-late 220ms ease var(--stacks-warm-grace, 400ms) forwards;
+}
+@keyframes stacks-boot-late {
+  to {
+    opacity: 1;
+  }
 }
 
 .stacks-boot {
