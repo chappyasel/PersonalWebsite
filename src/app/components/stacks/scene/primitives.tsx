@@ -602,9 +602,11 @@ export function GlowSprite({
  * so the room still reads as lit by the lamp, not the model. The emissive
  * bulb is what makes the lamp read ON in the light theme, where the
  * additive sprite nearly vanishes against the bright sky (audit §3-About).
- * `yaw` MUST match the lamp model's y-rotation: the bulb sits on the shade
- * axis, and an unrotated offset pokes through the cone wall as a flat
- * white disc (owner's "this light is broken" screenshot). */
+ * `yaw` MUST match the lamp model's y-rotation, and the bulb sits at the
+ * MEASURED shade mouth: PCA over the GLB's shade cluster puts the wide
+ * opening at local [0, 0.378, −0.037] opening UP-BACK (axis [0,.56,−.83]).
+ * Every hand-placed +z offset landed on the cone's solid wall and poked
+ * through as a flat disc (two owner "light is broken" screenshots). */
 export function LampGlow({
   palette,
   yaw = 0,
@@ -614,10 +616,13 @@ export function LampGlow({
 }) {
   return (
     <group rotation={[0, yaw, 0]}>
-      <group position={[0, 0.36, 0.1]}>
+      <group position={[0, 0.38, -0.04]}>
         <GlowSprite opacity={palette.glowOpacity} eased />
       </group>
-      <mesh position={[0, 0.322, 0.1]}>
+      {/* Centered on the rim plane: half the dome peeks over the cup edge
+          — an exposed bulb tip, visible from the camera without touching
+          the cone wall. */}
+      <mesh position={[0, 0.378, -0.037]}>
         <sphereGeometry args={[0.023, 12, 12]} />
         <meshStandardMaterial
           color="#f6e2b8"
