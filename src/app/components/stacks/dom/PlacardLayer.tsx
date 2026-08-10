@@ -17,7 +17,7 @@ import {
 } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { devSubdomainUrl } from "~/lib/util";
 import licenses from "~~/models/LICENSES.json";
@@ -74,8 +74,15 @@ function useScrollEdges(
  * shared sections mark theirs with a `backdrop-blur-*` utility; PlacardCard
  * below joins them by carrying the same class. */
 const PLATE_SELECTOR = '[class*="backdrop-blur"]';
+/** The things in a placard that actually do something. A card only gets
+ * hover feedback when it resolves to one of these — a surface that isn't a
+ * door shouldn't act like one. */
+const HIT_SELECTOR = 'a[href], button, [role="button"]';
 /** How far the content dissolves at each edge of the scroll viewport. */
 const FADE_PX = 34;
+/** How far outside the scroll viewport a plate keeps its blur, so one never
+ * has to appear on the same frame it becomes visible. */
+const CULL_MARGIN = 120;
 
 type Plate = {
   top: number;
@@ -108,7 +115,13 @@ type Plate = {
  * `clip-path` also kills backdrop-filter (same matrix).
  *
  * Measuring rather than duplicating the subtree keeps one copy of the DOM,
- * so the lifting heatmap and the deferred sections don't mount twice. */
+ * so the lifting heatmap and the deferred sections don't mount twice.
+ *
+ * The split is also why hover feedback lives here rather than in CSS on the
+ * card: a card and its glass are one object drawn in two places, so anything
+ * that moves one has to move the other on the same frame. This component
+ * owns that pairing — it marks the clickable card and mirrors the pointer
+ * state onto the plate behind it. */
 function BlurPlates({
   scrollRef,
   mounted,
@@ -118,18 +131,77 @@ function BlurPlates({
 }) {
   const layerRef = useRef<HTMLDivElement>(null);
   const [plates, setPlates] = useState<Plate[]>([]);
+  /** Parallel to `plates`: the clickable element each plate sits behind, or
+   * null for a card that is only a surface. */
+  const hitsRef = useRef<(Element | null)[]>([]);
+  const pointerRef = useRef<{
+    hover: Element | null;
+    focus: Element | null;
+    press: Element | null;
+  }>({ hover: null, focus: null, press: null });
+  /** Plate geometry and the scroller's height, mirrored out of state so the
+   * scroll handler can decide what is on screen with arithmetic alone — it
+   * must never read layout, which is the whole reason scrolling is cheap. */
+  const geomRef = useRef<{ plates: Plate[]; viewport: number }>({
+    plates: [],
+    viewport: 0,
+  });
+
+  /** Push the pointer state onto the plates as data-attributes. Written
+   * straight to the DOM rather than through React state on purpose: the card
+   * lifts from CSS `:hover` the instant the event fires, and a render round
+   * trip would start the plate's identical transition a frame or two later —
+   * the two layers have to leave together or the glass visibly peels off the
+   * text it is backing. */
+  const paint = useCallback(() => {
+    const layer = layerRef.current;
+    if (!layer) return;
+    const { hover, focus, press } = pointerRef.current;
+    Array.from(layer.children).forEach((el, i) => {
+      const hit = hitsRef.current[i] ?? null;
+      const set = (name: string, on: boolean) =>
+        on ? el.setAttribute(name, "") : el.removeAttribute(name);
+      set("data-hover", !!hit && hit === hover);
+      set("data-focus", !!hit && hit === focus);
+      set("data-press", !!hit && hit === press);
+    });
+  }, []);
+  // A re-measure can add plates; repaint once they exist so a card the
+  // pointer is already resting on doesn't come back unlit.
+  useEffect(paint, [plates, paint]);
 
   useEffect(() => {
     const el = scrollRef.current;
     if (!el || !mounted) return;
     let raf = 0;
+    let tagged = new Set<Element>();
     const observed = new WeakSet<Element>();
     const ro = new ResizeObserver(() => schedule());
 
     const measure = () => {
       raf = 0;
+      // A lifted card's rect INCLUDES its hover transform, so measuring now
+      // would bake the lift into the plate's resting position and leave the
+      // glass sitting high once the pointer moves on. Nothing can change
+      // geometry while you hold the pointer still that won't still be true a
+      // frame later, so wait it out. The bail happens before any layout read.
+      if (pointerRef.current.hover ?? pointerRef.current.press) {
+        raf = requestAnimationFrame(measure);
+        return;
+      }
       const all = Array.from(el.querySelectorAll<HTMLElement>(PLATE_SELECTOR));
       const base = el.getBoundingClientRect();
+      // Plate geometry is only valid while the placard is painted at its
+      // layout size. Under an ancestor transform every card's rect is scaled
+      // but the plate layer it feeds is not, so the error grows with distance
+      // down the list — the far end of a long panel ends up a whole card out
+      // of register. ResizeObserver cannot catch this (it reports layout
+      // boxes, which a transform does not touch), so check it here and wait
+      // for the transform to settle instead.
+      if (el.clientWidth && Math.abs(base.width / el.clientWidth - 1) > 0.002) {
+        raf = requestAnimationFrame(measure);
+        return;
+      }
       const rects = new Map(all.map((c) => [c, c.getBoundingClientRect()]));
       // Only outermost surfaces — a plate per language pill or play badge
       // would frost the frosting. The test is GEOMETRIC, not DOM ancestry:
@@ -159,6 +231,23 @@ function BlurPlates({
           ro.observe(c);
         }
       }
+      // Resolve each card to the thing you can actually click and mark it,
+      // so the CSS below can lift exactly those and nothing else. Marking is
+      // a class write, which this file's MutationObserver deliberately does
+      // not watch (childList/subtree only), so it can't feed back into a
+      // re-measure loop.
+      const hits = cards.map((c) => c.closest(HIT_SELECTOR));
+      const nextTagged = new Set<Element>();
+      for (const h of hits) {
+        if (!h) continue;
+        h.classList.add("placard-hit");
+        nextTagged.add(h);
+      }
+      for (const old of tagged) {
+        if (!nextTagged.has(old)) old.classList.remove("placard-hit");
+      }
+      tagged = nextTagged;
+      hitsRef.current = hits;
       const next: Plate[] = cards.map((c) => {
         const r = rects.get(c)!;
         return {
@@ -181,19 +270,110 @@ function BlurPlates({
           ? prev
           : next,
       );
+      geomRef.current = { plates: next, viewport: base.height };
+      // Covers the bail-out branch above, where the geometry is unchanged so
+      // no render (and no effect) follows to repaint the plates.
+      paint();
+      cull();
     };
     const schedule = () => {
       if (!raf) raf = requestAnimationFrame(measure);
+    };
+    /** Only the plates you can actually see carry a backdrop-filter.
+     *
+     * Every plate is its own backdrop root, so a long placard asks the
+     * compositor to snapshot and blur the scene N times a frame — on Musings
+     * that is nine 80px blurs, of which four or five are scrolled out of
+     * sight. Clipping them via `overflow: hidden` does not reliably stop
+     * that work; dropping the filter does.
+     *
+     * Deliberately arithmetic-only, off cached geometry: this runs on the
+     * scroll event, where a single `clientHeight` read would reintroduce the
+     * forced layout the whole two-layer split exists to avoid. */
+    const cull = () => {
+      const layer = layerRef.current;
+      if (!layer) return;
+      const { plates: geom, viewport } = geomRef.current;
+      if (!viewport) return;
+      const top = el.scrollTop;
+      const kids = layer.children;
+      for (let i = 0; i < kids.length; i++) {
+        const g = geom[i];
+        if (!g) continue;
+        const on =
+          g.top < top + viewport + CULL_MARGIN &&
+          g.top + g.height > top - CULL_MARGIN;
+        const node = kids[i]!;
+        if (on === !node.hasAttribute("data-off")) continue;
+        if (on) node.removeAttribute("data-off");
+        else node.setAttribute("data-off", "");
+      }
     };
     // Scroll only moves the layer — one transform, no re-measure, no React.
     const sync = () => {
       if (layerRef.current)
         layerRef.current.style.transform = `translateY(${-el.scrollTop}px)`;
+      cull();
+    };
+
+    // Map an event back to the plate it belongs to. `closest` alone isn't
+    // enough: a link can sit inside a card, and it's the card's plate that
+    // should answer, so keep walking outward until one of the measured hits
+    // matches.
+    const findHit = (node: EventTarget | null) => {
+      let hit = node instanceof Element ? node.closest(HIT_SELECTOR) : null;
+      while (hit) {
+        if (hitsRef.current.includes(hit)) return hit;
+        hit = hit.parentElement?.closest(HIT_SELECTOR) ?? null;
+      }
+      return null;
+    };
+    // One delegated `pointerover` rather than a listener per card: it fires
+    // on every boundary the pointer crosses, so moving from a card into the
+    // gap between cards resolves to null and clears the state for free.
+    const onOver = (e: PointerEvent) => {
+      if (e.pointerType === "touch") return; // no sticky hover after a tap
+      pointerRef.current.hover = findHit(e.target);
+      paint();
+    };
+    const onLeave = () => {
+      pointerRef.current.hover = null;
+      paint();
+    };
+    const onDown = (e: PointerEvent) => {
+      pointerRef.current.press = findHit(e.target);
+      paint();
+    };
+    const onUp = () => {
+      if (!pointerRef.current.press) return;
+      pointerRef.current.press = null;
+      paint();
+    };
+    // Keyboard gets the same acknowledgement as the pointer — `:focus-visible`
+    // on the target is what keeps it from firing on a mouse click too.
+    const onFocusIn = (e: FocusEvent) => {
+      const target = e.target;
+      const visible =
+        target instanceof Element && target.matches(":focus-visible");
+      pointerRef.current.focus = visible ? findHit(target) : null;
+      paint();
+    };
+    const onFocusOut = () => {
+      pointerRef.current.focus = null;
+      paint();
     };
 
     schedule();
     sync();
     el.addEventListener("scroll", sync, { passive: true });
+    el.addEventListener("pointerover", onOver);
+    el.addEventListener("pointerleave", onLeave);
+    el.addEventListener("pointerdown", onDown);
+    el.addEventListener("focusin", onFocusIn);
+    el.addEventListener("focusout", onFocusOut);
+    // Released outside the placard still counts as released.
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
     ro.observe(el);
     // Section bodies mount lazily and the lifting heatmap arrives async, so
     // watch the subtree rather than just the scroller's own box.
@@ -206,24 +386,43 @@ function BlurPlates({
     // size changes are already covered by the ResizeObserver above.
     const mo = new MutationObserver(schedule);
     mo.observe(el, { childList: true, subtree: true });
+    // A webfont swap reflows every card without touching the DOM and without
+    // necessarily resizing the boxes the ResizeObserver is watching, and the
+    // site's serif loads with font-display: block — so the first measurement
+    // can easily land on fallback metrics. One extra pass when the real faces
+    // are in costs nothing and closes the last gap where plates could be
+    // measured against a layout that no longer exists.
+    let alive = true;
+    void document.fonts?.ready.then(() => {
+      if (alive) schedule();
+    });
     return () => {
+      alive = false;
       if (raf) cancelAnimationFrame(raf);
       el.removeEventListener("scroll", sync);
+      el.removeEventListener("pointerover", onOver);
+      el.removeEventListener("pointerleave", onLeave);
+      el.removeEventListener("pointerdown", onDown);
+      el.removeEventListener("focusin", onFocusIn);
+      el.removeEventListener("focusout", onFocusOut);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      for (const old of tagged) old.classList.remove("placard-hit");
       ro.disconnect();
       mo.disconnect();
     };
-  }, [scrollRef, mounted]);
+  }, [scrollRef, mounted, paint]);
 
   return (
     <div
       aria-hidden
       className="pointer-events-none absolute inset-0 overflow-hidden"
     >
-      <div ref={layerRef} className="absolute inset-0">
+      <div ref={layerRef} className="placard-plates absolute inset-0">
         {plates.map((p, i) => (
           <div
             key={i}
-            className="absolute border border-foreground/[0.06] bg-background/[0.86] shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-[24px]"
+            className="placard-plate"
             style={{
               top: p.top,
               left: p.left,
@@ -659,6 +858,103 @@ export default function PlacardLayer({
            affordance instead. */
         .stacks-scroll { scrollbar-width: none; -ms-overflow-style: none; }
         .stacks-scroll::-webkit-scrollbar { width: 0; height: 0; display: none; }
+        /* ── The glass ────────────────────────────────────────────────
+           One place to tune the frosting, and the four values are a set —
+           changing one without re-measuring the others will cost legibility.
+
+           The fill used to do all the work at 0.86, which is why the placard
+           read as a slab parked on the room instead of a window into it.
+           Most of it is now blur: a wide radius carries the room's colour
+           through while destroying the detail that competes with text, and
+           it also makes the surface stable — one dark shelf edge behind the
+           glass gets averaged with everything around it instead of punching
+           a low-contrast hole under a line of type.
+
+           saturate() is what keeps the colour it picks up warm; a blur that
+           wide averages a scene toward grey on its own.
+
+           brightness() is the legibility lever, and the reason the fill can
+           drop this far. It pushes the backdrop AWAY from the text luminance
+           — up on light, down on dark — which buys contrast without buying
+           opacity. It is kept gentle on purpose: measured on the real scene,
+           1.6 on light clipped 42% of the glass to flat white, which costs
+           more scene colour than the extra transparency wins back. At 1.25
+           nothing clips and the glass carries ~2.5× the chroma it did before.
+
+           Measured against the real scene, this set holds body copy above
+           the 4.5:1 AA floor in both themes — no worse than the near-opaque
+           version it replaces — at 0.20 less fill and 3.3× the blur. */
+        .placard-plates {
+          --plate-alpha: 0.70;
+          --plate-blur: 80px;
+          --plate-sat: 2;
+          --plate-bright: 1.25;
+        }
+        /* Dark can afford to be thinner: light text on a dark room starts
+           around 9:1, so the fill is doing far less legibility work there
+           than it is on light. */
+        .dark .placard-plates {
+          --plate-alpha: 0.5;
+          --plate-bright: 0.78;
+        }
+        /* The lift belongs to both layers — they are one card in two pieces
+           and must travel exactly the same distance. */
+        .placard-plates, .placard-scroll { --plate-lift: -3px; }
+        .placard-plate {
+          position: absolute;
+          border: 1px solid hsl(var(--foreground) / 0.06);
+          background-color: hsl(var(--background) / var(--plate-alpha));
+          box-shadow: 0px 4px 15px 1px rgba(0, 0, 0, 0.07);
+          backdrop-filter: blur(var(--plate-blur)) saturate(var(--plate-sat)) brightness(var(--plate-bright));
+          -webkit-backdrop-filter: blur(var(--plate-blur)) saturate(var(--plate-sat)) brightness(var(--plate-bright));
+        }
+        /* Scrolled out of sight: stop paying for a blur nobody can see. Set
+           from the scroll handler by arithmetic — see cull(). */
+        .placard-plate[data-off] {
+          visibility: hidden;
+          backdrop-filter: none;
+          -webkit-backdrop-filter: none;
+        }
+        /* Hover / keyboard focus: the glass catches a little more light and
+           its edge firms up. Deliberately NOT an opacity change on anything
+           in this subtree — opacity below 1 makes a backdrop root and the
+           blur would die the moment you pointed at it. */
+        .placard-plate[data-hover],
+        .placard-plate[data-focus] {
+          background-color: hsl(var(--background) / calc(var(--plate-alpha) + 0.07));
+          border-color: hsl(var(--foreground) / 0.15);
+          box-shadow: 0px 10px 26px 0px rgba(0, 0, 0, 0.13);
+        }
+        /* Pressed: settles back toward the page, shadow tightens. */
+        .placard-plate[data-press] {
+          box-shadow: 0px 3px 10px 0px rgba(0, 0, 0, 0.10);
+        }
+        @media (prefers-reduced-motion: no-preference) {
+          .placard-plate,
+          .placard-scroll .placard-hit {
+            transition:
+              transform 0.34s var(--stacks-ease, cubic-bezier(0.16, 1, 0.3, 1)),
+              background-color 0.34s var(--stacks-ease, ease-out),
+              border-color 0.34s var(--stacks-ease, ease-out),
+              box-shadow 0.34s var(--stacks-ease, ease-out);
+          }
+          .placard-plate[data-hover],
+          .placard-plate[data-focus],
+          .placard-scroll .placard-hit:hover,
+          .placard-scroll .placard-hit:focus-visible {
+            transform: translateY(var(--plate-lift, -3px));
+          }
+          .placard-plate[data-press],
+          .placard-scroll .placard-hit:active {
+            transform: translateY(-1px);
+          }
+        }
+        /* Keyboard only — the plate's lit edge is the mouse acknowledgement,
+           but a focus ring has to be unmistakable. */
+        .placard-scroll .placard-hit:focus-visible {
+          outline: 2px solid hsl(var(--foreground) / 0.45);
+          outline-offset: 3px;
+        }
         .placard-sections section { margin-top: 0; }
         .placard-sections h1 { font-size: 1.25rem; line-height: 1.75rem; }
         .placard-sections h1 svg { width: 1.5rem; height: 1.5rem; }
@@ -677,6 +973,17 @@ export default function PlacardLayer({
           background-color: transparent !important;
           backdrop-filter: none !important;
           -webkit-backdrop-filter: none !important;
+        }
+        /* Desktop: hand the whole surface to the plate. The frame kept its
+           border and shadow before, which drew both twice at the same rect —
+           subtly heavier than intended, and it left hover with two edges to
+           brighten instead of one. Transparent rather than removed so the
+           border box (and every layout that depends on it) is untouched. */
+        @media (min-width: 768px) {
+          .placard-scroll [class*="backdrop-blur"] {
+            border-color: transparent !important;
+            box-shadow: none !important;
+          }
         }
         /* Mobile has no plate layer — the sheet itself is the single blurred
            surface, which is what "one blur, not blur on blur" means there —
@@ -702,6 +1009,11 @@ export default function PlacardLayer({
           animation: none !important;
           filter: none !important;
           opacity: 1 !important;
+        }
+        /* The transform kill spares the clickable card — that transform is
+           now the hover lift, and a blanket "none" is exactly what silently
+           swallowed the last one. */
+        .placard-scroll [class*="intersect:motion-"]:not(.placard-hit) {
           transform: none !important;
         }
         /* Kill TiltCard's hover tilt in here too. Its frosted surface is a
@@ -710,9 +1022,16 @@ export default function PlacardLayer({
            mouse move — so the card would peel away from its own backing.
            The tilt was a flat-page effect anyway; over a real 3D room a
            faked one is redundant, and this is the honest way to drop it
-           rather than leaving the two layers silently out of register. */
-        .placard-scroll [class*="preserve-3d"] {
+           rather than leaving the two layers silently out of register.
+
+           The clickable card is exempt from the transform half: several of
+           those Links carry a preserve-3d class of their own, so a blanket
+           kill here would eat the hover lift too. Their tilt lives on the
+           TiltCard wrapper above them, which is still flattened. */
+        .placard-scroll [class*="preserve-3d"]:not(.placard-hit) {
           transform: none !important;
+        }
+        .placard-scroll [class*="preserve-3d"] {
           perspective: none !important;
         }
       `}</style>
