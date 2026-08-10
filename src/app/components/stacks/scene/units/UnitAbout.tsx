@@ -262,7 +262,7 @@ export default function UnitAbout({
               url="/models/monstera.glb"
               dark={dark}
               variant="recolor"
-              scale={0.47}
+              scale={0.55}
             />
           </React.Suspense>
         </group>

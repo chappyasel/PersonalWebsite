@@ -80,7 +80,7 @@ export default function UnitBlog({
               <ModelProp
                 url="/models/lamp-table.glb"
                 dark={dark}
-                scale={1.66}
+                scale={1.9}
               />
             </React.Suspense>
             <pointLight
@@ -163,7 +163,7 @@ export default function UnitBlog({
               url="/models/cactus.glb"
               dark={dark}
               variant="recolor"
-              scale={0.26}
+              scale={0.36}
             />
           </React.Suspense>
         </group>

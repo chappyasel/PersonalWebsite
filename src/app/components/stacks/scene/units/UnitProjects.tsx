@@ -37,7 +37,7 @@ export default function UnitProjects({
       toneSeed={index}
       lower={
         <group>
-          <BookPile palette={palette} x={0.3} salt={47} linkUnit={index} />
+          <BookPile palette={palette} x={0.18} salt={47} linkUnit={index} />
           {/* Pothos out at the plank end, where its vines can hang past the
               edge instead of lying on the wood — that overhang is the whole
               reason to own one. Everything else on this shelf is flat and
@@ -137,11 +137,19 @@ export default function UnitProjects({
               d = z at yaw 0, so its camera sits at −Z looking toward +Z —
               the opposite side from this scene's camera. Every yaw it
               reports is therefore π out. The front already faces the viewer
-              at 0; the 0.34 only turns it off-square. */}
+              at 0; the 0.34 only turns it off-square.
+              Scale 7.0, not the 5.0 the model report suggested. That number
+              came off a shelf conversion of ~1.2 units/metre averaged over
+              props that are THEMSELVES undersized; the books settle it — a
+              BookPile book is 0.46 × 0.06 × 0.32, which against a trade
+              hardcover reads 1.92 / 2.00 / 2.00, so shelf scale is 2.0. At
+              5.0 a compact Macintosh stood 0.6× the width of the hardcovers
+              beside it when the real machine is 1.5× wider than one. The
+              pile moved to 0.18 to open the window. */}
           <PropLink
             unitIndex={index}
             hoverKey="link:projects:mac"
-            base={[0.58, 0, -0.06]}
+            base={[0.64, 0, -0.14]}
             href="https://github.com/chappyasel"
           >
             <React.Suspense fallback={null}>
@@ -154,14 +162,14 @@ export default function UnitProjects({
                   M_plastic_bone_shad: palette.metal,
                 }}
                 rotation={[0, -0.34, 0]}
-                scale={5.0}
+                scale={7.0}
               />
             </React.Suspense>
           </PropLink>
           <ContactShade
             color={palette.shadow}
             width={0.3}
-            position={[0.58, 0.02, -0.03]}
+            position={[0.64, 0.02, -0.11]}
           />
           {/* Lying flat, so it rises off the wood rather than toward the
               viewer — the standing lift would slide it across the shelf. */}

@@ -27,6 +27,7 @@
 //    its place twice over: a second lamp silhouette was wanted anyway.
 import { RoundedBox } from "@react-three/drei";
 import React, { useMemo } from "react";
+import * as THREE from "three";
 
 import { proxied } from "../../theme";
 import { EggLamp } from "../eggs";
@@ -35,10 +36,29 @@ import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
 import { Polaroid } from "../objects";
 import { DeskFrame, deskFrameHeight, PhotoMount } from "../photos";
-import { FrameRow, ShelfUnit } from "../primitives";
+import { FrameRow, GlowSprite, ShelfUnit } from "../primitives";
 import { ConferenceBadge, TentCard } from "../speaking";
 import { useUnitLod } from "../useUnitLod";
 import { type UnitProps } from "./types";
+
+/** Floor lamp, measured from lamp-floor.glb by material island rather than
+ * eyeballed: the `lamp` shade runs y 0.6815…0.8600 with a 0.0878 mouth at the
+ * bottom and a 0.0623 opening at the top; `metal` is the pole and base, y
+ * 0…0.7607. Everything the light rig needs is those numbers times the scale,
+ * so resizing the lamp cannot tear the rig off the shade — which is exactly
+ * the trap the desk lamp is still sitting in, its MOUTH constants being
+ * unscaled model space in a sibling of the ModelProp.
+ *
+ * 1.95 rather than the 1.44 that made it metrically right against the floor
+ * conversion: the owner's read was "too small", and he is right, because the
+ * bookcase it stands beside is itself at about half the scale of the books it
+ * holds. Matching the furniture wins here — the lamp's job is to look like it
+ * belongs in this room, not in a correctly-measured different one. */
+const LAMP_S = 1.95;
+const SHADE_BOTTOM_Y = 0.6815 * LAMP_S;
+const SHADE_TOP_Y = 0.86 * LAMP_S;
+const SHADE_BOTTOM_R = 0.0878 * LAMP_S;
+const SHADE_TOP_R = 0.0623 * LAMP_S;
 
 export default function UnitTalks({
   data,
@@ -140,7 +160,7 @@ export default function UnitTalks({
                 only object in the unit that is residue rather than record —
                 everything else here is a picture OF a talk. Under the lamp's
                 pool, in the gap the lamp left on its right. */}
-            <group position={[0.31, 0, 0.1]} rotation={[0, -0.35, 0]}>
+            <group position={[0.38, 0, 0.12]} rotation={[0, -0.35, 0]}>
               <ConferenceBadge
                 palette={palette}
                 venue="CONSENSUS"
@@ -165,7 +185,7 @@ export default function UnitTalks({
             thumbnails, and one small object standing in front of it is the
             cheapest way to break that. */}
         <group position={[-1.0, 0, 0.3]} rotation={[0, 0.24, 0]}>
-          <TentCard palette={palette} width={0.19} height={0.105} />
+          <TentCard palette={palette} />
         </group>
         {/* The one Talks photograph the repo processed and never placed. It
             earns a seventh image on three counts: it is the only WIDE
@@ -200,21 +220,96 @@ export default function UnitTalks({
             dark={dark}
             variant="tinted"
             tints={{ metal: palette.metal }}
-            scale={1.44}
+            scale={LAMP_S}
           />
         </React.Suspense>
-        {/* A bare shade in a dark room reads as switched off. One weak point
-            under the shade, short-range so it lights its own corner and
-            nothing else — the desk lamp on the shelf above keeps ownership
-            of the unit's key light. */}
-        <pointLight
-          position={[0, 1.16, 0]}
-          intensity={dark ? 0.5 : 0.22}
-          distance={1.5}
+        {/* Light has to LEAVE a shade, out of both ends, or the lamp is a
+            painted cone on a stick — which is exactly what shipped first and
+            what the owner called out. Measured rather than guessed: parsing
+            the GLB by material puts the shade's `lamp` island at y 0.6815 to
+            0.8600, a truncated cone with a 0.0878 mouth at the bottom and a
+            0.0623 opening at the top. Everything below is those two numbers
+            times the scale, so the rig cannot drift if the lamp is resized.
+            Same recipe as LampGlow, which is the one that survived four
+            rebuilds: emissive discs ON the measured openings, pushed past
+            Bloom's 0.95 threshold so the composer grows the falloff, and
+            REAL lights for the pools. Never fake light with geometry. */}
+        <mesh position={[0, SHADE_BOTTOM_Y, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <circleGeometry args={[SHADE_BOTTOM_R * 0.94, 24]} />
+          <meshStandardMaterial
+            color="#fff1d6"
+            emissive="#ffc98a"
+            emissiveIntensity={dark ? 3.2 : 1.6}
+            roughness={0.4}
+            side={THREE.DoubleSide}
+            toneMapped={false}
+          />
+        </mesh>
+        <mesh position={[0, SHADE_TOP_Y, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <circleGeometry args={[SHADE_TOP_R * 0.94, 24]} />
+          <meshStandardMaterial
+            color="#fff1d6"
+            emissive="#ffc98a"
+            emissiveIntensity={dark ? 2.4 : 1.2}
+            roughness={0.4}
+            side={THREE.DoubleSide}
+            toneMapped={false}
+          />
+        </mesh>
+        {/* The camera sits at y 0.25 and the shade's mouth lands at 0.214,
+            so a disc on that opening is within four centimetres of exactly
+            edge-on and contributes nothing — the same grazing-angle geometry
+            that made the old ContactPools invisible and the badge read as a
+            smear. What you actually SEE of a floor lamp from eye level is
+            the air below the mouth and the air above the top opening, so
+            those get camera-facing glows, sized to the shade and no wider:
+            a glow wider than the object making it is weather, not light. */}
+        <group position={[0, SHADE_BOTTOM_Y - 0.13, 0]}>
+          <GlowSprite opacity={palette.glowOpacity * 0.9} eased scale={0.62} />
+        </group>
+        <group position={[0, SHADE_TOP_Y + 0.1, 0]}>
+          <GlowSprite opacity={palette.glowOpacity * 0.55} eased scale={0.4} />
+        </group>
+        {/* And a real spot down the mouth, so anything that does pass under
+            it is genuinely lit rather than merely near a glow. */}
+        <spotLight
+          position={[0, SHADE_BOTTOM_Y - 0.01, 0]}
+          color="#ffbe73"
+          intensity={dark ? 6.5 : 2.6}
+          angle={0.85}
+          penumbra={0.9}
+          distance={2.6}
           decay={2}
-          color="#ffcf9a"
         />
-        <FootPool color={palette.shadow} size={[0.34, 0.24]} opacity={0.26} />
+        {/* Up out of the top opening — a drum shade throws as much light at
+            the ceiling as at the floor, and without it the top of the lamp
+            is a dark rim above a lit cone. */}
+        <pointLight
+          position={[0, SHADE_TOP_Y + 0.05, 0]}
+          color="#ffcf96"
+          intensity={dark ? 0.9 : 0.4}
+          distance={1.4}
+          decay={2}
+        />
+        {/* The shade's own interior, so the cone glows rather than the lamp
+            reading as a torch on a stick. */}
+        <pointLight
+          position={[0, (SHADE_BOTTOM_Y + SHADE_TOP_Y) / 2, 0]}
+          color="#ffcf96"
+          intensity={0.3}
+          distance={0.5}
+          decay={2}
+        />
+        {/* Both pools, in this order: the warm one is the light landing on
+            the ground, the dark one is the lamp's own foot occluding it. A
+            lit lamp with only a shadow under it reads as switched off. */}
+        <FootPool color="#ffbe73" size={[0.8, 0.52]} opacity={dark ? 0.26 : 0.12} />
+        <FootPool
+          color={palette.shadow}
+          size={[0.34, 0.24]}
+          opacity={0.3}
+          position={[0, 0.002, 0]}
+        />
       </group>
     </>
   );

@@ -50,8 +50,8 @@ function printedTexture(
 export function TentCard({
   palette,
   name = "CHAPPY ASEL",
-  width = 0.17,
-  height = 0.095,
+  width = 0.28,
+  height = 0.17,
 }: {
   palette: Palette;
   name?: string;
@@ -173,11 +173,11 @@ export function ConferenceBadge({
     const points: THREE.Vector3[] = [];
     for (let i = 0; i <= 34; i++) {
       const t = (i / 34) * Math.PI * 4;
-      const r = 0.052 - t * 0.0026;
+      const r = 0.11 - t * 0.0055;
       points.push(
         new THREE.Vector3(
-          Math.cos(t) * r * 1.25 - 0.045,
-          0.004 + Math.sin(t * 1.7) * 0.0016,
+          Math.cos(t) * r * 1.25 - 0.095,
+          0.009 + Math.sin(t * 1.7) * 0.0034,
           Math.sin(t) * r,
         ),
       );
@@ -185,7 +185,7 @@ export function ConferenceBadge({
     return new THREE.TubeGeometry(
       new THREE.CatmullRomCurve3(points),
       52,
-      0.0055,
+      0.012,
       6,
       false,
     );
@@ -198,7 +198,7 @@ export function ConferenceBadge({
   // that made the old ContactPools invisible. Anything meant to be READ in
   // this room has to face the viewer.
   const lean = 0.34;
-  const h = 0.128;
+  const h = 0.27;
   return (
     <group>
       <group
@@ -206,13 +206,13 @@ export function ConferenceBadge({
         rotation={[lean, 0, 0.06]}
       >
         <mesh position={[0, 0, 0.0012]}>
-          <boxGeometry args={[0.09, h, 0.0022]} />
+          <boxGeometry args={[0.19, h, 0.004]} />
           <meshStandardMaterial map={face} roughness={0.82} />
         </mesh>
         {/* Card stock behind the print, so the badge is not a floating decal
             when the traverse swings it past edge-on. */}
         <mesh>
-          <boxGeometry args={[0.093, h + 0.003, 0.0032]} />
+          <boxGeometry args={[0.196, h + 0.006, 0.006]} />
           <meshStandardMaterial color={palette.paper} roughness={0.9} />
         </mesh>
       </group>
