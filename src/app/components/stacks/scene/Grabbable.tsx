@@ -142,6 +142,9 @@ export default function Grabbable({
       // starts a carry, and a second pointer's release ends someone else's.
       if (!e.isPrimary || e.button !== 0) return;
       const store = useStacks.getState();
+      // `isPrimary` is per pointer TYPE, so a primary pen and a primary mouse
+      // are both primary at once. One prop in hand at a time, always.
+      if (store.dragging) return;
       if (store.hovered !== hoverKey) return;
       if (store.activeUnit !== unitIndex) return;
       pointerId.current = e.pointerId;
@@ -166,6 +169,18 @@ export default function Grabbable({
     const onUp = (e: PointerEvent) => {
       if (e.pointerId === pointerId.current) release();
     };
+    // Freezing the scroll element is not enough on its own: drei's
+    // ScrollControls attaches its own wheel handler that does
+    // `el.scrollLeft += e.deltaY / 2`, and a PROGRAMMATIC scroll still works
+    // under overflow:hidden. So a trackpad flick mid-carry would slide the
+    // room out from under the prop. Capture-phase on window runs before the
+    // element's own listener, so stopping it there is what actually holds.
+    const onWheel = (e: WheelEvent) => {
+      if (phase.current !== "held") return;
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    window.addEventListener("wheel", onWheel, { capture: true, passive: false });
     window.addEventListener("pointerdown", onDown);
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
@@ -175,6 +190,7 @@ export default function Grabbable({
     window.addEventListener("pointercancel", onUp);
     window.addEventListener("blur", release);
     return () => {
+      window.removeEventListener("wheel", onWheel, { capture: true });
       window.removeEventListener("pointerdown", onDown);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);

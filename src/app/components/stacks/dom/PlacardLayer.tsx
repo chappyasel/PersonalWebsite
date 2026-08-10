@@ -23,6 +23,7 @@ import { devSubdomainUrl } from "~/lib/util";
 import licenses from "~~/models/LICENSES.json";
 
 import { UNITS, type StacksData, type StacksSlots } from "../data";
+import { PHOTO_SOURCES } from "../scene/photos";
 import { closeStacksPanel, openStacksPanel, useStacks } from "../store";
 
 /** Which edges of a scroll container have content past them. Mirrors the
@@ -114,16 +115,44 @@ function BlurPlates({
     const el = scrollRef.current;
     if (!el || !mounted) return;
     let raf = 0;
+    const observed = new WeakSet<Element>();
+    const ro = new ResizeObserver(() => schedule());
 
     const measure = () => {
       raf = 0;
       const all = Array.from(el.querySelectorAll<HTMLElement>(PLATE_SELECTOR));
-      // Only outermost surfaces: Projects nests blurred language pills
-      // inside its cards, and a plate per pill would frost the frosting.
-      const cards = all.filter((c) => !all.some((o) => o !== c && o.contains(c)));
       const base = el.getBoundingClientRect();
+      const rects = new Map(all.map((c) => [c, c.getBoundingClientRect()]));
+      // Only outermost surfaces — a plate per language pill or play badge
+      // would frost the frosting. The test is GEOMETRIC, not DOM ancestry:
+      // several cards draw their surface as an `absolute inset-0` SIBLING of
+      // their content, so the pill is not a descendant of the marker that
+      // covers it and a `contains` filter let both through.
+      const cards = all.filter((c) => {
+        const r = rects.get(c)!;
+        return !all.some((o) => {
+          if (o === c) return false;
+          const q = rects.get(o)!;
+          return (
+            q.left <= r.left + 1 &&
+            q.top <= r.top + 1 &&
+            q.right >= r.right - 1 &&
+            q.bottom >= r.bottom - 1 &&
+            q.width * q.height > r.width * r.height
+          );
+        });
+      });
+      // Cards resize without mutating: a font swap, an image decoding, a
+      // descendant-only reflow. Observing each measured card is what catches
+      // those; the scroller's own box never changes.
+      for (const c of cards) {
+        if (!observed.has(c)) {
+          observed.add(c);
+          ro.observe(c);
+        }
+      }
       const next: Plate[] = cards.map((c) => {
-        const r = c.getBoundingClientRect();
+        const r = rects.get(c)!;
         return {
           top: r.top - base.top + el.scrollTop,
           left: r.left - base.left,
@@ -157,7 +186,6 @@ function BlurPlates({
     schedule();
     sync();
     el.addEventListener("scroll", sync, { passive: true });
-    const ro = new ResizeObserver(schedule);
     ro.observe(el);
     // Section bodies mount lazily and the lifting heatmap arrives async, so
     // watch the subtree rather than just the scroller's own box.
@@ -560,6 +588,22 @@ export default function PlacardLayer({
         <div className="flex flex-col items-center gap-2 pt-4">
           {slots.contact}
         </div>
+        {/* The four photographs in the room that link to their source post
+            do it as raycast targets, and a canvas has no focus order and no
+            accessible name — so those URLs exist nowhere a keyboard or a
+            screen reader can reach them. This mirrors them into the DOM
+            without putting anything on the glass. */}
+        <nav aria-label="Photo sources" className="sr-only">
+          <ul>
+            {PHOTO_SOURCES.map((p) => (
+              <li key={p.href}>
+                <a href={p.href} target="_blank" rel="noopener noreferrer">
+                  {p.label} — source post
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
         {/* CC-BY attribution for the gym set. It lives in the markup rather
             than on the glass — the visible line was clutter in a room that
             has no other captions. The roster is generated into
@@ -645,6 +689,17 @@ export default function PlacardLayer({
           filter: none !important;
           opacity: 1 !important;
           transform: none !important;
+        }
+        /* Kill TiltCard's hover tilt in here too. Its frosted surface is a
+           plate rendered behind the scroller, and the plate cannot follow a
+           per-frame 3D transform without re-measuring every card on every
+           mouse move — so the card would peel away from its own backing.
+           The tilt was a flat-page effect anyway; over a real 3D room a
+           faked one is redundant, and this is the honest way to drop it
+           rather than leaving the two layers silently out of register. */
+        .placard-scroll [class*="preserve-3d"] {
+          transform: none !important;
+          perspective: none !important;
         }
       `}</style>
       {/* Desktop: resident right dock, crossfaded by activeUnit. Wider now

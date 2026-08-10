@@ -24,6 +24,21 @@ import LitImage from "./LitImage";
 
 const FRAME_BORDER = 0.024;
 
+/** The photographs whose source post is known for certain — the tweet ID is
+ * verbatim in the archive filename, so these four are traced, not inferred.
+ *
+ * Declared here rather than only at the call sites because the scene is
+ * mouse-only: a WebGL canvas has no focus order and no accessible name, so
+ * a link that exists only as a raycast target is unreachable by keyboard and
+ * invisible to a screen reader. PlacardLayer mirrors this list into the DOM
+ * as an sr-only nav. Import it; never retype a URL, or the two drift. */
+export const PHOTO_SOURCES: { href: string; label: string }[] = [
+  { href: "https://x.com/i/status/1742265325423337870", label: "Under the bar, mid-set" },
+  { href: "https://x.com/i/status/1778892048747417620", label: "At the whiteboard" },
+  { href: "https://x.com/i/status/1798370655718744491", label: "Hosting, mic in hand" },
+  { href: "https://x.com/i/status/1835742939928240302", label: "Reading NOISE" },
+];
+
 /** A print rises about a centimetre and comes a little way toward you —
  * enough to catch the lamp, small enough that crossing a shelf of them
  * doesn't set the room twitching. */
