@@ -25,6 +25,48 @@ import licenses from "~~/models/LICENSES.json";
 import { UNITS, type StacksData, type StacksSlots } from "../data";
 import { closeStacksPanel, openStacksPanel, useStacks } from "../store";
 
+/** Edge fades for a scroll container, mirroring the pattern used across the
+ * AIC platform: the mask only cuts an edge that actually has content past
+ * it, so a short placard has no phantom fade and a long one tells you it
+ * continues. The mask sits on the padding box, so it stays put while the
+ * content moves under it. */
+function useScrollFade(ref: React.RefObject<HTMLDivElement | null>) {
+  const [edges, setEdges] = useState({ top: false, bottom: false });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => {
+      const { scrollTop, scrollHeight, clientHeight } = el;
+      const top = scrollTop > 4;
+      const bottom = scrollTop + clientHeight < scrollHeight - 4;
+      setEdges((prev) =>
+        prev.top === top && prev.bottom === bottom ? prev : { top, bottom },
+      );
+    };
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    for (const child of Array.from(el.children)) ro.observe(child);
+    return () => {
+      el.removeEventListener("scroll", update);
+      ro.disconnect();
+    };
+  }, [ref]);
+  if (!edges.top && !edges.bottom) return undefined;
+  const mask = `linear-gradient(to bottom, ${
+    edges.top ? "transparent 0, black 32px" : "black 0"
+  }, ${edges.bottom ? "black calc(100% - 32px), transparent 100%" : "black 100%"})`;
+  return { maskImage: mask, WebkitMaskImage: mask };
+}
+
+/** Desktop placard. No container: the owner's call at browse was that a
+ * blurred panel holding blurred cards is a box on a box, so the panel
+ * chrome is gone and the content sits on the scene, with the section cards
+ * flattened alongside it (see the .placard-sections rules below). What's
+ * left to read as a surface is the innermost data field — the lifting
+ * heatmap — which needs one to be legible as a plot. Losing the container
+ * is also what buys the extra width. */
 function Panel({
   active,
   children,
@@ -33,16 +75,20 @@ function Panel({
   children: React.ReactNode;
 }) {
   const [mounted, setMounted] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const fade = useScrollFade(scrollRef);
   useEffect(() => {
     if (active) setMounted(true);
   }, [active]);
   return (
     <div
+      ref={scrollRef}
       aria-hidden={!active}
       data-stacks-scrollable
+      style={fade}
       // Fade-out-then-in: the entering placard waits for the leaving one —
       // simultaneous crossfade rendered as text-over-text mush (audit §2.5).
-      className={`absolute right-0 top-1/2 max-h-[78dvh] w-full -translate-y-1/2 overflow-y-auto overscroll-contain rounded-2xl border border-foreground/[0.06] bg-background/80 p-6 shadow-[0px_4px_24px_2px_rgba(0,0,0,0.10)] backdrop-blur-xl transition-opacity duration-200 ${
+      className={`stacks-scroll absolute right-0 top-1/2 max-h-[80dvh] w-full -translate-y-1/2 overflow-y-auto overscroll-contain py-2 pl-1 pr-3 transition-opacity duration-200 ${
         active
           ? "pointer-events-auto opacity-100 delay-200"
           : "pointer-events-none opacity-0 delay-0"
@@ -145,6 +191,11 @@ function MobilePanel({
   // sets touch-action:none on the panel and kills the inner scroll.
   const scrollRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  // Mobile keeps its sheet — full-screen over the world, an opaque surface
+  // is what makes the text readable there — but it loses the inner cards
+  // and gains the same edge fade, so the two form factors read as one
+  // design rather than two.
+  const fade = useScrollFade(scrollRef);
   useEffect(() => {
     const panel = panelRef.current;
     if (!panel || !open) return;
@@ -253,7 +304,8 @@ function MobilePanel({
             <div
               ref={scrollRef}
               data-stacks-scrollable
-              className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-10 font-serif text-muted-foreground"
+              style={fade}
+              className="stacks-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-10 font-serif text-muted-foreground"
             >
               {bodies[unit.slug]}
             </div>
@@ -329,6 +381,11 @@ export default function PlacardLayer({
   return (
     <div className="font-serif text-muted-foreground">
       <style>{`
+        /* No scrollbar gutter: with the panel gone the track would draw a
+           grey rule straight down the scene. The edge fade is the scroll
+           affordance instead. */
+        .stacks-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+        .stacks-scroll::-webkit-scrollbar { width: 0; height: 0; display: none; }
         .placard-sections section { margin-top: 0; }
         .placard-sections h1 { font-size: 1.25rem; line-height: 1.75rem; }
         .placard-sections h1 svg { width: 1.5rem; height: 1.5rem; }
@@ -337,10 +394,47 @@ export default function PlacardLayer({
         .placard-sections .text-2xl { font-size: 1.125rem; line-height: 1.5rem; }
         .placard-sections .sm\\:text-3xl { font-size: 1.125rem; line-height: 1.5rem; }
         .placard-sections .text-lg { font-size: 1rem; line-height: 1.4rem; }
+        /* Flatten the card surfaces. Every shared section draws its card as
+           one absolutely-positioned decoration layer behind its content, so
+           hiding that layer removes the box and leaves the content — no fork
+           of the components the flat home page still uses. Attribute
+           substring matching sidesteps Tailwind's escaped bracket classes. */
+        .placard-sections [class*="inset-0"][class*="backdrop-blur"] { display: none; }
+        /* Some sections draw the card on the element itself rather than as a
+           layer behind it (Weightlifting's is the anchor). Same treatment,
+           minus the display:none — that element holds the content. */
+        .placard-sections [class*="backdrop-blur"] {
+          background: transparent !important;
+          border-color: transparent !important;
+          box-shadow: none !important;
+          backdrop-filter: none !important;
+          -webkit-backdrop-filter: none !important;
+        }
+        /* Those cards carried the padding; without a surface it becomes a
+           left indent that no longer lines up with anything. */
+        .placard-sections .p-5, .placard-sections .p-6 { padding: 0; }
+        .placard-sections .sm\\:p-6 { padding: 0; }
+        /* Thumbnails keep their corners but lose the drop shadow that only
+           read as depth against a card. */
+        .placard-sections img { box-shadow: none; }
       `}</style>
-      {/* Desktop: resident right dock, crossfaded by activeUnit. */}
+      {/* The reading side gets hazier, not boxed. Killing the panel left the
+          text sitting on open sky — fine at night, illegible against the
+          light theme's near-white morning, and it collided with whatever
+          prop happened to be under it. This is a horizon-to-horizon wash
+          with no edge of its own: no border, no radius, faded out well
+          before the content starts, so it reads as depth in the room rather
+          than as the container we just removed. */}
       <div
-        className={`absolute bottom-0 right-4 top-0 z-20 hidden w-[24rem] transition-opacity duration-200 md:block lg:right-8 xl:w-[26rem] ${
+        className={`pointer-events-none absolute inset-y-0 right-0 z-10 hidden w-[46rem] bg-gradient-to-l from-background/92 via-background/72 to-transparent transition-opacity duration-200 md:block ${
+          modalOpen ? "opacity-0" : ""
+        }`}
+      />
+      {/* Desktop: resident right dock, crossfaded by activeUnit. Wider now
+          that no container has to look comfortable at that width — the
+          scene keeps the left, the reading column takes the right. */}
+      <div
+        className={`absolute bottom-0 right-5 top-0 z-20 hidden w-[27rem] transition-opacity duration-200 md:block lg:right-8 xl:w-[31rem] ${
           modalOpen ? "pointer-events-none opacity-0" : ""
         }`}
         style={{ pointerEvents: "none" }}
