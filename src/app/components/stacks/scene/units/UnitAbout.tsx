@@ -135,7 +135,7 @@ export default function UnitAbout({
           position={[0, 0.02, 0.02]}
         />
       </group>
-      <group position={[0.30, 0, 0.05]}>
+      <group position={[0.25, 0, 0]}>
         <CardStack palette={palette} />
         <ContactShade
           color={palette.shadow}
@@ -148,7 +148,7 @@ export default function UnitAbout({
       <PhotoMount
         unitIndex={index}
         id="beach-sunset"
-        position={[0.46, 0.1425, 0.1]}
+        position={[0.45, 0.1425, 0.1]}
         rotation={[-0.17, 0.1, -0.04]}
       >
         <Polaroid
@@ -175,39 +175,57 @@ export default function UnitAbout({
           notice it the second time you look, which is the right speed for
           something sitting on a shelf. The spin wrapper sits AT the globe's
           slot so the turn is about its own stand, not the unit. */}
-      <group position={[0.82, 0, -0.1]}>
+      {/* 0.82 → 0.70. At 0.82 the globe spanned 0.671…0.969 and the idle
+          drift that was just added to it played behind the desktop placard.
+          The panel takes a fixed 528px off the right while the camera holds
+          the world at 239 px/unit, so the visible edge is
+          (viewportWidth/2 − 528) / 239: measured against the running app,
+          1280 → +0.47, 1440 → +0.80, 1600 → +1.14. 0.70 lands the globe at
+          0.592…0.847, whole from 1440 up.
+          It is NOT whole at 1280, and on this shelf it cannot be: the
+          portrait alone runs −1.06…−0.04, which leaves about 0.51 of usable
+          plank inside +0.47 for the cards, two polaroids, two postcards and
+          the globe. Something would have to leave the shelf. Flagged rather
+          than fudged.
+          The postcards are CHILDREN of this group rather than siblings at
+          absolute coordinates. They lean on the stand, so that relationship
+          is structural: move the globe and they come with it, and nobody has
+          to remember to move three things. Offsets are their old absolute
+          positions minus the group's. */}
+      <group position={[0.7, 0, -0.12]}>
         <SpinProp unitIndex={index} hoverKey="egg:globe" idleRate={0.06}>
           <React.Suspense fallback={null}>
             <ModelProp url="/models/globe.glb" dark={dark} rotation={[0, -0.7, 0]} scale={1.5} />
           </React.Suspense>
         </SpinProp>
+        {/* Budapest Parliament + Delicate Arch (the Instagram curation
+            round's top travel frame). Outside SpinProp, never inside — a
+            postcard that revolves with the globe is a fairground ride. */}
+        <PhotoMount
+          unitIndex={index}
+          id="postcard-budapest"
+          position={[-0.15, 0.0735, 0.14]}
+          rotation={[-0.2, 0.05, 0.05]}
+        >
+          <PostcardPrint
+            src="/images/stacks/postcard-budapest.jpg"
+            palette={palette}
+            textured={textured}
+          />
+        </PhotoMount>
+        <PhotoMount
+          unitIndex={index}
+          id="postcard-arches"
+          position={[-0.02, 0.0735, 0.23]}
+          rotation={[-0.18, 0.3, -0.05]}
+        >
+          <PostcardPrint
+            src="/images/stacks/postcard-arches.jpg"
+            palette={palette}
+            textured={textured}
+          />
+        </PhotoMount>
       </group>
-      {/* Postcard pair leaning on the globe stand — Budapest Parliament +
-          Delicate Arch (the Instagram curation round's top travel frame). */}
-      <PhotoMount
-        unitIndex={index}
-        id="postcard-budapest"
-        position={[0.67, 0.0735, 0.04]}
-        rotation={[-0.2, 0.05, 0.05]}
-      >
-        <PostcardPrint
-          src="/images/stacks/postcard-budapest.jpg"
-          palette={palette}
-          textured={textured}
-        />
-      </PhotoMount>
-      <PhotoMount
-        unitIndex={index}
-        id="postcard-arches"
-        position={[0.8, 0.0735, 0.13]}
-        rotation={[-0.18, 0.3, -0.05]}
-      >
-        <PostcardPrint
-          src="/images/stacks/postcard-arches.jpg"
-          palette={palette}
-          textured={textured}
-        />
-      </PhotoMount>
       </ShelfUnit>
       {/* Reading chair on the ground at the LEFT flank, angled toward
           the unit — the room reads inhabited before a single word is read.

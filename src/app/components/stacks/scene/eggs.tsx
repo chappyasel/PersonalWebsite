@@ -86,11 +86,27 @@ export function EggLamp({
   palette,
   dark,
   yaw,
+  scale = 1.49,
 }: {
   unitIndex: number;
   palette: Palette;
   dark: boolean;
   yaw: number;
+  /** Model AND rig together — never scale the ModelProp alone.
+   *
+   * desk-lamp.glb is 0.4163 tall, which at the room's shelf scale (~2.0 world
+   * units per metre, from the books) is a 0.21 m lamp: half of the real
+   * thing. The reason it stayed that way is that LampGlow's constants —
+   * MOUTH [0, 0.3989, 0.0107], MOUTH_R, AXIS and every offset derived from
+   * them — are measured in UNSCALED model space and the rig is a SIBLING of
+   * the ModelProp, so scaling the model alone tears the light off the shade.
+   * Scaling the shared parent moves both together and keeps the mouth
+   * registered to the hole it was measured from.
+   * 1.49, not the 1.92 a 0.40 m lamp wants: both lamps sit on a LOWER shelf
+   * and the plank above is 0.6575 away. 1.49 lands 0.620, which also matches
+   * the table lamp on Musings (0.3249 x 1.9 = 0.617) — the two silhouettes
+   * differ, their heights should not. */
+  scale?: number;
 }) {
   const target = useRef(1);
   const lit = useRef(1);
@@ -135,7 +151,10 @@ export function EggLamp({
     });
   });
   return (
-    <group>
+    // The scale lives HERE, on the shared parent, so the model and the light
+    // rig move as one object. Scaling the ModelProp alone would leave
+    // LampGlow's measured mouth behind at the old size.
+    <group scale={scale}>
       <EggTrigger
         unitIndex={unitIndex}
         hoverKey={`egg:lamp:${unitIndex}`}
@@ -155,7 +174,10 @@ export function EggLamp({
           must not become a giant invisible click target. yaw keeps the
           cone rig pointed out the shade's real opening. */}
       <group ref={glow}>
-        <LampGlow palette={palette} yaw={yaw} litRef={lit} />
+        {/* A parent scale moves the lights but does NOT touch their `distance`
+            — that is a world-space property, not a transform — so the reach
+            has to be scaled by hand or a bigger lamp lights a smaller pool. */}
+        <LampGlow palette={palette} yaw={yaw} litRef={lit} reach={scale} />
       </group>
     </group>
   );

@@ -182,13 +182,17 @@ export default function UnitBlog({
         lift={[0, 0.025, 0.02]}
       >
         <React.Suspense fallback={null}>
+          {/* yaw −0.35 → −0.252, handed down by the shelf solve below rather
+              than chosen. The book is the widest thing here — 0.71 of plank
+              once yawed — so its angle is a depth budget, not a flourish:
+              every degree it turns costs the corkboard behind it clearance. */}
           <ModelProp
             url="/models/open-book.glb"
             dark={dark}
             variant="tinted"
             tints={{ Beige: palette.pages, DarkRed: palette.spines[3] }}
             position={[0.85, 0, 0.08]}
-            rotation={[0, -0.35, 0]}
+            rotation={[0, -0.252, 0]}
             scale={0.7}
           />
         </React.Suspense>
@@ -201,15 +205,16 @@ export default function UnitBlog({
           It also had to move. At [0.55, 0.22] the cup was not beside the open
           book, it was INSIDE it: measured surface gap 0.0012 at y 0.073, i.e.
           the cup's body and the raised page occupied the same space, which
-          the old scale merely hid. [0.40, 0, −0.10] is the roomiest seat left
-          on this shelf — 0.050 clear of the book, 0.048 of the headphones,
-          by dense surface sampling rather than bounding boxes (the AABB of a
-          yawed open book is most of the plank and says nothing useful).
+          the old scale merely hid.
+          [0.41, 0, −0.09] comes out of the whole-shelf solve, and it is kept
+          FORWARD of the corkboard's base on purpose: an earlier solve tucked
+          the cup under the leaning board, which is geometrically valid and
+          visually useless for a prop whose whole job is to sit there steaming.
           Steam origin follows the rim (0.049 × 2.4). */}
       <SteamCup
         unitIndex={index}
         hoverKey="egg:tea"
-        steamAt={[0.4, 0.122, -0.1]}
+        steamAt={[0.41, 0.122, -0.09]}
         dark={dark}
         always
       >
@@ -217,7 +222,7 @@ export default function UnitBlog({
           <ModelProp
             url="/models/cup-tea.glb"
             dark={dark}
-            position={[0.4, 0, -0.1]}
+            position={[0.41, 0, -0.09]}
             rotation={[0, 0.6, 0]}
             scale={2.4}
           />
@@ -231,7 +236,7 @@ export default function UnitBlog({
       <Grabbable
         unitIndex={index}
         hoverKey="grab:headphones"
-        base={[0.12, 0, 0.14]}
+        base={[0.11, 0, 0.14]}
         shadeColor={palette.shadow}
         shadeWidth={0.48}
       >
@@ -247,13 +252,32 @@ export default function UnitBlog({
           on the window — and moves ±0.49 more as the camera pans with the
           pointer — so the board spanned 0.67…1.37 and was more than half
           behind the panel on a 1440 window and essentially gone at 1280. Its
-          largest v4 addition never arrived on screen. At 0.62 it spans
-          0.27…0.97, inside the safe band on every desktop size and still
-          fully inside the mobile frame. z −0.18 keeps it BEHIND the tea and
-          the open book, which is a gain in itself: nothing in this unit
-          overlapped anything, which is part of why it read as a row of
-          separated items rather than as a shelf. */}
-      <group position={[0.62, 0, -0.18]} rotation={[-0.28, 0.35, 0.02]}>
+          largest v4 addition never arrived on screen.
+          0.62 was not enough either, for two reasons. It landed inside both
+          the tea cup and the open book — an overlap a screenshot cannot show
+          you, because interpenetration and layering look identical from one
+          camera. And +0.85 is not the safe line at every window: the panel
+          takes a FIXED 528px off the right, while the camera's vertical fov
+          holds the world at a constant 239 px/unit, so the threshold is
+          (viewportWidth/2 − 528) / 239 and a wider window is BETTER, not
+          worse. Measured against the running app: 1280 → +0.47, 1440 → +0.80,
+          1600 → +1.14. 0.14 puts the board at −0.185…0.468, which is the
+          rightmost x that arrives whole on a 1280 laptop — the narrowest
+          window this is likely to be read on, and the one where the board was
+          most invisible.
+          z stays −0.18 and is NOT free: the board leans back 0.28 rad, and a
+          leaning board has to lean on something. At its old x 1.02 its top
+          corner reached the vertical strap at |x| 1.315; inside +0.85 there
+          is no strap to reach, so the rear of the plank is the only thing
+          left. −0.18 sends the top to z −0.435, about a centimetre past the
+          back edge — which is what leaning against the back means, and is
+          invisible from a camera in front.
+          The board still overlaps the tea and the book in SCREEN space, which
+          is the gain: nothing in this unit overlapped anything, which is part
+          of why it read as a row of separated items rather than as a shelf.
+          It just no longer overlaps them in space — 0.052 and 0.081 of real
+          surface clearance, by dense sampling. */}
+      <group position={[0.14, 0, -0.18]} rotation={[-0.28, 0.35, 0.02]}>
         <React.Suspense fallback={null}>
           <ModelProp url="/models/corkboard.glb" dark={dark} scale={0.9} />
         </React.Suspense>
@@ -296,7 +320,7 @@ export default function UnitBlog({
       <ContactShade
         color={palette.shadow}
         width={0.6}
-        position={[0.6, 0.03, -0.07]}
+        position={[0.12, 0.03, -0.07]}
       />
     </ShelfUnit>
   );

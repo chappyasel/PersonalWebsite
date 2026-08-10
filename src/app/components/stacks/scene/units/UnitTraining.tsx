@@ -36,11 +36,16 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
             >
               <React.Suspense fallback={null}>
                 {/* ×1.15 over v3 and darkened toward iron — it sat shelf-toned
-                    and undersized next to the basketball (audit §3-Training). */}
+                    and undersized next to the basketball (audit §3-Training).
+                    Slid left to −0.15 to open the only gap on this shelf that
+                    the basketball can legally sit in: the full-size bar's
+                    plate stack starts at |x| 0.634, and a 0.432 ball needs
+                    0.432 of clear floor between the dumbbell and that stack. */}
                 <ModelProp
                   url="/models/dumbbell.glb"
                   dark={dark}
                   atlasOverride={{ tint: "#8d857c", roughness: 0.55 }}
+                  position={[-0.15, 0, -0.05]}
                   rotation={[0, 0.5, 0]}
                   scale={1.27}
                 />
@@ -50,7 +55,14 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
             <BounceProp unitIndex={index} hoverKey="egg:basketball">
               <React.Suspense fallback={null}>
                 {/* Worn-leather tint mutes the stock arcade orange; normals
-                    weld-smoothed at load (it shipped faceted). */}
+                    weld-smoothed at load (it shipped faceted).
+                    Re-seated at [0.38, 0, 0]. Two separate errors were fixed:
+                    y was 0.046 on a model whose bbox already bottoms at 0, so
+                    the ball hovered 2.3 cm off the wood; and z 0.2 with a
+                    0.216 radius hung 0.196 of it past the plank's front lip
+                    (0.22) — nine tenths of the ball was over thin air, held
+                    up by 2 cm of plank. x 0.38 is the one slot left between
+                    the dumbbell and the barbell's plate stack. */}
                 <ModelProp
                   url="/models/basketball.glb"
                   dark={dark}
@@ -58,7 +70,7 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
                   tintAll="#b39072"
                   roughness={0.78}
                   smoothNormals
-                  position={[0.52, 0.046, 0.2]}
+                  position={[0.38, 0, -0.02]}
                   rotation={[0, 1.2, 0]}
                   scale={0.39}
                 />
@@ -71,7 +83,29 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
               lift={[0, 0.018, 0.015]}
             >
               <React.Suspense fallback={null}>
-                {/* Zsky barbell (CC-BY, credited) lying along the shelf back. */}
+                {/* Zsky barbell (CC-BY, credited) lying along the shelf back.
+                    The GLB is a true Olympic bar — 3.2454 long with 0.6585
+                    plates, the real 2.2 m / 0.45 m ratio to three decimals —
+                    so its scale is set by what the shelf can physically take,
+                    not by taste. At 0.55 the plate was 0.362: SMALLER than
+                    the basketball beside it, when a bumper plate is nearly
+                    twice a basketball. That inversion is what read as "the
+                    barbell looks too small".
+                    0.73 is the largest scale the shelf actually allows. The
+                    binding limit is not the 0.6575 gap and not the strap at
+                    |x| 1.315 — it is the plate STACK: the model carries four
+                    plates a side spanning |x| 0.868..1.556 per unit of scale,
+                    and past 0.73 the outer plate pushes the gym photo off the
+                    end of the plank.
+                    z −0.30, not the −0.08 that would centre the disc on the
+                    plank. The BAR is a rod at y 0.240 running the full width,
+                    and a 0.431 basketball centred at y 0.216 is impaled by it
+                    at any z within 0.26 — there is no seat on this shelf for
+                    a ball under a full-width bar. Pushing the iron to the
+                    back buys that clearance; the cost is 0.16 of each plate
+                    arcing past the plank's back edge, in the air, which is
+                    what a 0.48 plate on a 0.6-deep shelf actually does. The
+                    contact point stays on the wood at z −0.30. */}
                 <ModelProp
                   url="/models/barbell.glb"
                   dark={dark}
@@ -81,9 +115,9 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
                     Steel1Barbell1: "#8a8f94",
                   }}
                   roughness={0.45}
-                  position={[0, 0, -0.19]}
+                  position={[0, 0, -0.3]}
                   rotation={[0, 0.02, 0]}
-                  scale={0.55}
+                  scale={0.73}
                 />
               </React.Suspense>
             </PropLink>
@@ -103,10 +137,16 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
                 textured={textured}
               />
             </PhotoMount>
+            {/* z −0.02 → 0.03. The frame stays where it was in x; it is the
+                barbell that moved back, and its outer plate now shares this
+                frame's x span. The plate's front face reaches z −0.060, and
+                the frame's own back corner (0.03 less its 0.018 offset, 0.015
+                half-depth and the 0.027 the −0.1 tilt throws back) sits at
+                −0.04 — clear by 0.02. */}
             <PhotoMount
               unitIndex={index}
               id="gym-mirror"
-              position={[-1.12, 0.272, -0.02]}
+              position={[-1.12, 0.272, 0.03]}
               rotation={[-0.1, 0.16, 0]}
             >
               <RoundedBox
@@ -140,9 +180,9 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
           <BumperPlates linkUnit={index} />
           <ContactShade
             color={palette.shadow}
-            width={0.9}
+            width={1.0}
             height={0.22}
-            position={[0.15, 0.04, 0.12]}
+            position={[0.19, 0.04, 0.12]}
           />
         </group>
         <PropLink

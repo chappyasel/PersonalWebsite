@@ -84,7 +84,12 @@ export default function UnitTalks({
         toneSeed={index}
         lower={
           <group>
-            <group position={[0.55, 0, 0]}>
+            {/* 0.55 → 0.62. The lamp is now scaled to 1.49 (it was rendering
+                at half the size of a real one), and at 0.55 its wider base
+                closed to 0.020 of the badge. Moving the lamp rather than the
+                badge, because the lamp is what grew. 0.62 spans 0.503…0.700,
+                still well inside the +0.85 safe band. */}
+            <group position={[0.62, 0, 0]}>
               {/* Egg: the lamp clicks off and back on. */}
               <EggLamp
                 unitIndex={index}

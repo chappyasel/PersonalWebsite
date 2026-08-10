@@ -746,10 +746,17 @@ export function LampGlow({
   palette,
   yaw = 0,
   litRef,
+  reach = 1,
 }: {
   palette: Palette;
   yaw?: number;
   litRef?: { current: number };
+  /** The parent group's uniform scale. Every position in this rig is in
+   * model space and rides that scale for free, but a light's `distance` is a
+   * world-space falloff radius that no transform touches — so it is the one
+   * number that has to be multiplied here. Intensities are deliberately left
+   * alone: the lamp got bigger, not brighter. */
+  reach?: number;
 }) {
   const spotRef = useRef<THREE.SpotLight>(null);
   const targetRef = useRef<THREE.Object3D>(null);
@@ -803,7 +810,7 @@ export function LampGlow({
         intensity={7.5}
         angle={0.66}
         penumbra={0.85}
-        distance={3.6}
+        distance={3.6 * reach}
         decay={2}
       />
       <object3D
@@ -824,7 +831,7 @@ export function LampGlow({
         ]}
         color="#ffcf96"
         intensity={0.22}
-        distance={0.42}
+        distance={0.42 * reach}
         decay={2}
       />
       {/* Ambient kiss on the neighbouring props — the spot is a cone, so
@@ -838,7 +845,7 @@ export function LampGlow({
         ]}
         color="#ffbe73"
         intensity={0.85}
-        distance={1.9}
+        distance={1.9 * reach}
         decay={2}
       />
     </group>
@@ -880,30 +887,51 @@ function plateGeometry(r: number, depth: number): THREE.ExtrudeGeometry {
 export function BumperPlates({ linkUnit }: { linkUnit?: number }) {
   const plates = (
     <group>
+      {/* Radii are matched to the barbell's own plates rather than chosen:
+          barbell.glb at its shelf-limited 0.73 puts a plate at 0.240 radius,
+          so a loose plate on the shelf above has to be the same disc or the
+          unit shows two different bumper plates in one glance. The pair keeps
+          its old thickness:diameter ratio, so they grew as solids, not as
+          discs. `z` stands the smaller plate in FRONT of the big one — at
+          these radii they overlap in x by design (that is what leaning plates
+          do), and without the depth offset they would occupy the same slab
+          and interpenetrate. */}
       {[
-        { r: 0.185, t: 0.052, x: 0, lean: 0.13, yaw: 0.14, color: "#8a4a30" },
-        { r: 0.15, t: 0.046, x: 0.31, lean: 0.18, yaw: -0.1, color: "#33302b" },
-      ].map((p, i) => (
-        <group
-          key={i}
-          position={[p.x, (p.r + 0.008) * Math.cos(p.lean), 0]}
-          rotation={[-p.lean, p.yaw, 0]}
-        >
-          <mesh castShadow geometry={plateGeometry(p.r, p.t)}>
-            <meshStandardMaterial color={p.color} roughness={0.62} />
-          </mesh>
-          {[-1, 1].map((side) => (
-            <mesh key={side} position={[0, 0, side * (p.t / 2)]}>
-              <torusGeometry args={[p.r * 0.112 + 0.011, 0.007, 10, 28]} />
-              <meshStandardMaterial
-                color="#8a8f94"
-                metalness={0.55}
-                roughness={0.35}
-              />
+        { r: 0.24, t: 0.0675, x: 0, z: 0, lean: 0.13, yaw: 0.14, color: "#8a4a30" },
+        { r: 0.195, t: 0.06, x: 0.4, z: 0.09, lean: 0.18, yaw: -0.1, color: "#33302b" },
+      ].map((p, i) => {
+        // Contact for a leaning DISC, not a leaning plate-shaped box. The
+        // solid is a cylinder of radius R about its face normal n, so its
+        // reach below centre is H·|n.y| + R·√(1−n.y²) — the old
+        // R·cos(lean) dropped the half-thickness term and buried the rim by
+        // ~0.6cm, which the thicker v4.8 plates would have taken to 0.7.
+        // Euler XYZ applies yaw before lean, so n.y = cos(yaw)·sin(lean).
+        const R = p.r + 0.008; // bevelSize grows the silhouette
+        const H = p.t / 2 + 0.008; // bevelThickness, both faces
+        const ny = Math.cos(p.yaw) * Math.sin(p.lean);
+        const contact = H * Math.abs(ny) + R * Math.sqrt(1 - ny * ny);
+        return (
+          <group
+            key={i}
+            position={[p.x, contact, p.z]}
+            rotation={[-p.lean, p.yaw, 0]}
+          >
+            <mesh castShadow geometry={plateGeometry(p.r, p.t)}>
+              <meshStandardMaterial color={p.color} roughness={0.62} />
             </mesh>
-          ))}
-        </group>
-      ))}
+            {[-1, 1].map((side) => (
+              <mesh key={side} position={[0, 0, side * (p.t / 2)]}>
+                <torusGeometry args={[p.r * 0.112 + 0.0156, 0.01, 10, 28]} />
+                <meshStandardMaterial
+                  color="#8a8f94"
+                  metalness={0.55}
+                  roughness={0.35}
+                />
+              </mesh>
+            ))}
+          </group>
+        );
+      })}
     </group>
   );
   if (linkUnit === undefined) return plates;
