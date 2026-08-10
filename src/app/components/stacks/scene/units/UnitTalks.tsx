@@ -37,6 +37,24 @@ export default function UnitTalks({
             </React.Suspense>
             <LampGlow palette={palette} />
           </group>
+          {/* Retro desk mic fills the 550px dead zone left of the lamp
+              (audit §3-Talks) — the podcast half of the talks story. */}
+          <React.Suspense fallback={null}>
+            <ModelProp
+              url="/models/mic.glb"
+              dark={dark}
+              variant="tinted"
+              tints={{
+                Black: palette.hub,
+                Metal: palette.metal,
+                LightGrey: "#8d857c",
+              }}
+              roughness={0.45}
+              position={[-0.5, 0, 0.05]}
+              rotation={[0, 0.4, 0]}
+              scale={0.38}
+            />
+          </React.Suspense>
         </group>
       }
     >

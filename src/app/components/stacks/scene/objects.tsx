@@ -45,8 +45,28 @@ export function PortraitFrame({
   );
 }
 
-/** Small stack of calling cards. */
+/** Small stack of calling cards — white-edged, printed top card (v3's
+ * pages-toned boxes read as offcut lumber, audit §3-About). */
 export function CardStack({ palette }: { palette: Palette }) {
+  const printTexture = useMemo(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 256;
+    canvas.height = 154;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#f8f2e4";
+    ctx.fillRect(0, 0, 256, 154);
+    ctx.fillStyle = "#4a3f30";
+    ctx.font = "600 26px Georgia, serif";
+    ctx.textAlign = "center";
+    ctx.fillText("CHAPPY ASEL", 128, 72);
+    ctx.fillRect(78, 88, 100, 2);
+    ctx.font = "18px Georgia, serif";
+    ctx.fillStyle = "#75634e";
+    ctx.fillText("chappyasel.com", 128, 116);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.anisotropy = 4;
+    return texture;
+  }, []);
   return (
     <group>
       {[0, 1, 2, 3].map((i) => (
@@ -59,12 +79,68 @@ export function CardStack({ palette }: { palette: Palette }) {
           position={[i * 0.006, 0.005 + i * 0.011, i * 0.004]}
           rotation={[0, rand(i, 41) * 0.5 - 0.25, 0]}
         >
+          <meshStandardMaterial color={palette.paper} roughness={0.85} />
+        </RoundedBox>
+      ))}
+      <mesh
+        position={[0.018, 0.0441, 0.012]}
+        rotation={[-Math.PI / 2, 0, -(rand(3, 41) * 0.5 - 0.25)]}
+      >
+        <planeGeometry args={[0.284, 0.166]} />
+        <meshStandardMaterial map={printTexture} roughness={0.85} />
+      </mesh>
+    </group>
+  );
+}
+
+/** Paper inbox tray with fanned sheets — replaces the blank quote-card
+ * trifold, the audit's worst single element (§3-Systems). */
+export function InboxTray({ palette }: { palette: Palette }) {
+  return (
+    <group rotation={[0, -0.18, 0]}>
+      <RoundedBox castShadow args={[0.38, 0.016, 0.28]} radius={0.004} smoothness={4} position={[0, 0.008, 0]}>
+        <meshStandardMaterial color={palette.strap} roughness={0.6} />
+      </RoundedBox>
+      {[-1, 1].map((side) => (
+        <RoundedBox
+          key={side}
+          castShadow
+          args={[0.014, 0.075, 0.28]}
+          radius={0.004}
+          smoothness={4}
+          position={[side * 0.183, 0.045, 0]}
+        >
+          <meshStandardMaterial color={palette.strap} roughness={0.6} />
+        </RoundedBox>
+      ))}
+      <RoundedBox castShadow args={[0.38, 0.075, 0.014]} radius={0.004} smoothness={4} position={[0, 0.045, -0.133]}>
+        <meshStandardMaterial color={palette.strap} roughness={0.6} />
+      </RoundedBox>
+      {/* fanned sheets inside, one riding up the back wall */}
+      {[0, 1, 2, 3].map((i) => (
+        <RoundedBox
+          key={i}
+          args={[0.3, 0.0045, 0.21]}
+          radius={0.002}
+          smoothness={2}
+          position={[rand(i, 83) * 0.02 - 0.01, 0.02 + i * 0.006, rand(i, 84) * 0.02 - 0.01]}
+          rotation={[0, rand(i, 85) * 0.16 - 0.08, 0]}
+        >
           <meshStandardMaterial
-            color={i === 3 ? palette.paper : palette.pages}
-            roughness={0.9}
+            color={i % 2 === 0 ? palette.paper : palette.pages}
+            roughness={0.95}
           />
         </RoundedBox>
       ))}
+      <RoundedBox
+        args={[0.28, 0.004, 0.2]}
+        radius={0.002}
+        smoothness={2}
+        position={[0, 0.085, -0.085]}
+        rotation={[-0.62, 0, 0.03]}
+      >
+        <meshStandardMaterial color={palette.paper} roughness={0.95} />
+      </RoundedBox>
     </group>
   );
 }
@@ -190,38 +266,6 @@ export function PaperStack({ palette }: { palette: Palette }) {
   );
 }
 
-/** Ring binder standing spine-out, label on the spine, ring glints at the
- * pages edge. */
-export function Binder({ palette }: { palette: Palette }) {
-  return (
-    <group rotation={[0, -0.3, 0]}>
-      <RoundedBox castShadow args={[0.16, 0.58, 0.42]} radius={0.012} smoothness={4} position={[0, 0.286, 0]}>
-        <meshStandardMaterial color={palette.spines[6]} roughness={0.55} />
-      </RoundedBox>
-      {/* pages block inset on the open (right) side */}
-      <mesh position={[0.081, 0.286, -0.02]} rotation={[0, Math.PI / 2, 0]}>
-        <planeGeometry args={[0.36, 0.52]} />
-        <meshStandardMaterial color={palette.pages} roughness={0.95} />
-      </mesh>
-      {[-0.16, 0, 0.16].map((y) => (
-        <mesh key={y} position={[0.084, 0.286 + y, -0.02]}>
-          <torusGeometry args={[0.032, 0.007, 10, 24]} />
-          <meshStandardMaterial
-            color={palette.metal}
-            roughness={0.35}
-            metalness={0.6}
-          />
-        </mesh>
-      ))}
-      {/* spine label */}
-      <mesh position={[0, 0.376, 0.211]}>
-        <planeGeometry args={[0.11, 0.16]} />
-        <meshStandardMaterial color={palette.paper} roughness={0.95} />
-      </mesh>
-    </group>
-  );
-}
-
 /** The 3:45 canvas clock face — the wake-up time — overlaid on the GLB
  * alarm clock's dial (the painted dial sits behind it on the atlas). */
 export function ClockFace({ radius = 0.082 }: { radius?: number }) {
@@ -281,26 +325,3 @@ export function ClockFace({ radius = 0.082 }: { radius?: number }) {
   );
 }
 
-/** Three quote cards fanned against the shelf back. */
-export function QuoteCards({ palette }: { palette: Palette }) {
-  return (
-    <group>
-      {[-1, 0, 1].map((i) => (
-        <group
-          key={i}
-          // The outer cards' roll drops their low corner — the |i| term must
-          // lift them to keep that corner on the wood (the old sign sank it).
-          position={[i * 0.21, 0.1788 + Math.abs(i) * 0.0165, i * 0.03]}
-          rotation={[-0.14, 0, i * 0.12]}
-        >
-          <RoundedBox castShadow args={[0.3, 0.36, 0.008]} radius={0.003} smoothness={4}>
-            <meshStandardMaterial
-              color={i === 0 ? palette.paper : palette.pages}
-              roughness={0.95}
-            />
-          </RoundedBox>
-        </group>
-      ))}
-    </group>
-  );
-}

@@ -1,0 +1,157 @@
+{
+  "generated": "scripts/stacks-models.mjs",
+  "note": "All models CC0 except the CC-BY set below, credited in the About placard.",
+  "attributionRequired": [
+    "Zsky",
+    "Poly by Google"
+  ],
+  "models": [
+    {
+      "file": "desk-lamp.glb",
+      "title": "desk-lamp",
+      "author": "CreativeTrio",
+      "license": "CC0 1.0",
+      "source": "https://poly.pizza/m/SF3cZuqW3s"
+    },
+    {
+      "file": "mug.glb",
+      "title": "mug",
+      "author": "CreativeTrio",
+      "license": "CC0 1.0",
+      "source": "https://poly.pizza/m/4jSgnM5WWk"
+    },
+    {
+      "file": "alarm-clock.glb",
+      "title": "alarm-clock",
+      "author": "CreativeTrio",
+      "license": "CC0 1.0",
+      "source": "https://poly.pizza/m/y5f363OS9C"
+    },
+    {
+      "file": "headphones.glb",
+      "title": "headphones",
+      "author": "CreativeTrio",
+      "license": "CC0 1.0",
+      "source": "https://poly.pizza/m/PSsWSIAYIL"
+    },
+    {
+      "file": "dumbbell.glb",
+      "title": "dumbbell",
+      "author": "CreativeTrio",
+      "license": "CC0 1.0",
+      "source": "https://poly.pizza/m/PW9q10xh5g"
+    },
+    {
+      "file": "globe.glb",
+      "title": "globe",
+      "author": "CreativeTrio",
+      "license": "CC0 1.0",
+      "source": "https://poly.pizza/m/Y4Dof9b2p5"
+    },
+    {
+      "file": "trophy.glb",
+      "title": "trophy",
+      "author": "CreativeTrio",
+      "license": "CC0 1.0",
+      "source": "https://poly.pizza/m/fLy8KmmD1t"
+    },
+    {
+      "file": "open-book.glb",
+      "title": "open-book",
+      "author": "Quaternius",
+      "license": "CC0 1.0",
+      "source": "https://poly.pizza/m/JEDMpG0UIR"
+    },
+    {
+      "file": "golf-club.glb",
+      "title": "golf-club",
+      "author": "Pichuliru",
+      "license": "CC0 1.0",
+      "source": "https://poly.pizza/m/26nMm9C7Bw"
+    },
+    {
+      "file": "basketball.glb",
+      "title": "basketball",
+      "author": "Armory_3D",
+      "license": "CC0 1.0",
+      "source": "https://poly.pizza/m/i3LLacyQP4"
+    },
+    {
+      "file": "ct-books.glb",
+      "title": "ct-books",
+      "author": "CreativeTrio",
+      "license": "CC0 1.0",
+      "source": "https://poly.pizza/m/dxt7dETAy9"
+    },
+    {
+      "file": "cup-tea.glb",
+      "title": "cup-tea",
+      "author": "CreativeTrio",
+      "license": "CC0 1.0",
+      "source": "https://poly.pizza/m/6QBscrL7D3"
+    },
+    {
+      "file": "corkboard.glb",
+      "title": "corkboard",
+      "author": "CreativeTrio",
+      "license": "CC0 1.0",
+      "source": "https://poly.pizza/m/U8yQZ9l0HZ"
+    },
+    {
+      "file": "grandfather-clock.glb",
+      "title": "grandfather-clock",
+      "author": "CreativeTrio",
+      "license": "CC0 1.0",
+      "source": "https://poly.pizza/m/09YKIkFZnA"
+    },
+    {
+      "file": "ladder.glb",
+      "title": "ladder",
+      "author": "CreativeTrio",
+      "license": "CC0 1.0",
+      "source": "https://poly.pizza/m/p1RR8Ls9EH"
+    },
+    {
+      "file": "armchair.glb",
+      "title": "armchair",
+      "author": "CreativeTrio",
+      "license": "CC0 1.0",
+      "source": "https://poly.pizza/m/myd1WSucAz"
+    },
+    {
+      "file": "sansevieria.glb",
+      "title": "sansevieria",
+      "author": "Isa Lousberg",
+      "license": "CC0 1.0",
+      "source": "https://poly.pizza/m/BDwimVUool"
+    },
+    {
+      "file": "mic.glb",
+      "title": "mic",
+      "author": "iPoly3D",
+      "license": "CC0 1.0",
+      "source": "https://poly.pizza/m/yqbacXdPsg"
+    },
+    {
+      "file": "barbell.glb",
+      "title": "barbell",
+      "author": "Zsky",
+      "license": "CC-BY 3.0",
+      "source": "https://poly.pizza/m/AX5jGlJZlk"
+    },
+    {
+      "file": "kettlebell.glb",
+      "title": "kettlebell",
+      "author": "Poly by Google",
+      "license": "CC-BY 3.0",
+      "source": "https://poly.pizza/m/08Gs4e3L1N8"
+    },
+    {
+      "file": "plate.glb",
+      "title": "plate",
+      "author": "Zsky",
+      "license": "CC-BY 3.0",
+      "source": "https://poly.pizza/m/jyj7EfIiB1"
+    }
+  ]
+}

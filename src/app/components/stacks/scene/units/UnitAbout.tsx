@@ -5,7 +5,7 @@
 import React from "react";
 
 import { proxied } from "../../theme";
-import { ContactShade } from "../GroundPool";
+import { ContactShade, FootPool } from "../GroundPool";
 import ModelProp from "../ModelProp";
 import { CardStack, PortraitFrame } from "../objects";
 import { BookPile, LampGlow, ShelfUnit } from "../primitives";
@@ -22,9 +22,10 @@ export default function UnitAbout({
 }: UnitProps) {
   const textured = useUnitLod(index);
   return (
-    <ShelfUnit
-      palette={palette}
-      lower={
+    <group>
+      <ShelfUnit
+        palette={palette}
+        lower={
         <group>
           <group position={[-0.65, 0, 0]}>
             <React.Suspense fallback={null}>
@@ -59,6 +60,19 @@ export default function UnitAbout({
       <React.Suspense fallback={null}>
         <ModelProp url="/models/globe.glb" dark={dark} position={[0.95, 0, -0.1]} rotation={[0, -0.7, 0]} scale={1.5} />
       </React.Suspense>
-    </ShelfUnit>
+      </ShelfUnit>
+      {/* Reading armchair on the ground at the LEFT flank, angled toward
+          the unit — the room reads inhabited before a single word is read. */}
+      <group position={[-1.92, -1.115, 0.1]} rotation={[0, 0.55, 0]}>
+        <React.Suspense fallback={null}>
+          <ModelProp url="/models/armchair.glb" dark={dark} scale={1.1} />
+        </React.Suspense>
+      </group>
+      <FootPool
+        color={palette.shadow}
+        size={[0.62, 0.48]}
+        position={[-1.92, -1.115, 0.1]}
+      />
+    </group>
   );
 }

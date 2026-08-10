@@ -58,9 +58,31 @@ export default function UnitBlog({ data, palette, dark, onOpenUrl }: UnitProps) 
           scale={0.7}
         />
       </React.Suspense>
+      {/* Cup of tea beside the open book — mid-thought, mid-sip. */}
+      <React.Suspense fallback={null}>
+        <ModelProp
+          url="/models/cup-tea.glb"
+          dark={dark}
+          position={[0.55, 0, 0.22]}
+          rotation={[0, 0.6, 0]}
+          scale={2.0}
+        />
+      </React.Suspense>
       <React.Suspense fallback={null}>
         <ModelProp url="/models/headphones.glb" dark={dark} position={[0.12, 0, 0.14]} rotation={[0, 0.5, 0]} scale={2.0} />
       </React.Suspense>
+      {/* Corkboard leaning back-right, top corner on the strap — fills the
+          empty right third (audit §3-Musings); photo pins arrive in P3. */}
+      <group position={[1.02, 0, -0.16]} rotation={[-0.28, 0.35, 0.02]}>
+        <React.Suspense fallback={null}>
+          <ModelProp url="/models/corkboard.glb" dark={dark} scale={0.9} />
+        </React.Suspense>
+      </group>
+      <ContactShade
+        color={palette.shadow}
+        width={0.6}
+        position={[1.0, 0.03, -0.05]}
+      />
     </ShelfUnit>
   );
 }

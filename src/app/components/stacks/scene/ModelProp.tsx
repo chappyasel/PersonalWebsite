@@ -16,13 +16,13 @@
 import { useGLTF, useTexture } from "@react-three/drei";
 import { useMemo } from "react";
 import * as THREE from "three";
+import { mergeVertices } from "three-stdlib";
 
 export const ATLAS_URLS = ["/models/atlas-light.png", "/models/atlas-dark.png"];
 
 export const MODEL_URLS = [
   "/models/desk-lamp.glb",
   "/models/mug.glb",
-  "/models/potted-plant.glb",
   "/models/alarm-clock.glb",
   "/models/headphones.glb",
   "/models/dumbbell.glb",
@@ -31,6 +31,24 @@ export const MODEL_URLS = [
   "/models/open-book.glb",
   "/models/golf-club.glb",
   "/models/basketball.glb",
+  "/models/ct-books.glb",
+  "/models/cup-tea.glb",
+  "/models/corkboard.glb",
+  "/models/grandfather-clock.glb",
+  "/models/ladder.glb",
+  "/models/armchair.glb",
+  "/models/sansevieria.glb",
+  "/models/mic.glb",
+  "/models/barbell.glb",
+  "/models/kettlebell.glb",
+  "/models/plate.glb",
+];
+
+/** Themed textures for `recolor`-variant props (own UVs, palette-remapped
+ * per theme by the pipeline — same swap mechanism as the shared atlas). */
+export const RECOLOR_URLS = [
+  "/models/sansevieria-light.png",
+  "/models/sansevieria-dark.png",
 ];
 
 // One shared material per themed atlas texture (drei caches the texture by
@@ -61,13 +79,14 @@ export default function ModelProp({
   tintAll,
   roughness = 0.7,
   atlasOverride,
+  smoothNormals,
   position,
   rotation,
   scale,
 }: {
   url: string;
   dark: boolean;
-  variant?: "atlas" | "tinted";
+  variant?: "atlas" | "tinted" | "recolor";
   /** tinted only: material name → hex color remap. */
   tints?: Record<string, string>;
   /** tinted only: multiply every material (and its texture) by this color. */
@@ -77,15 +96,29 @@ export default function ModelProp({
    * the trophy's metal exception, the dumbbell's iron darkening. Without
    * this every atlas prop shares one material, so never mutate that one. */
   atlasOverride?: { tint?: string; metalness?: number; roughness?: number };
+  /** Weld + regenerate normals at load — the basketball ships faceted and
+   * the node pipeline can't round-trip its embedded texture (GLTFExporter
+   * needs a DOM to re-encode images). Position+uv-equal vertices merge;
+   * normals regenerate smooth. */
+  smoothNormals?: boolean;
   position?: [number, number, number];
   rotation?: [number, number, number];
   scale?: number;
 }) {
   const { scene } = useGLTF(url, false);
-  const atlases = useTexture(ATLAS_URLS);
+  // recolor props theme through their own per-model texture pair; atlas
+  // props share the CreativeTrio atlas pair. Same hook, same material cache.
+  const texUrls = useMemo(
+    () =>
+      variant === "recolor"
+        ? [url.replace(/\.glb$/, "-light.png"), url.replace(/\.glb$/, "-dark.png")]
+        : ATLAS_URLS,
+    [variant, url],
+  );
+  const atlases = useTexture(texUrls);
   const object = useMemo(() => {
     const clone = scene.clone(true);
-    if (variant === "atlas") {
+    if (variant === "atlas" || variant === "recolor") {
       let mat = atlasMaterial(atlases[dark ? 1 : 0]!);
       if (atlasOverride) {
         mat = mat.clone();
@@ -111,8 +144,18 @@ export default function ModelProp({
         o.material = mat;
       });
     }
+    if (smoothNormals) {
+      clone.traverse((o) => {
+        if (!(o instanceof THREE.Mesh)) return;
+        const geo = o.geometry as THREE.BufferGeometry;
+        geo.deleteAttribute("normal");
+        const welded = mergeVertices(geo);
+        welded.computeVertexNormals();
+        o.geometry = welded;
+      });
+    }
     return clone;
-  }, [scene, atlases, dark, variant, tints, tintAll, roughness, atlasOverride]);
+  }, [scene, atlases, dark, variant, tints, tintAll, roughness, atlasOverride, smoothNormals]);
   return (
     <primitive
       object={object}
@@ -123,10 +166,11 @@ export default function ModelProp({
   );
 }
 
-/** Fire-and-forget prefetch of the full prop set (~140KB incl. atlases) —
- * called once after the world mounts so props pop in together instead of
- * trickling per-unit. */
+/** Fire-and-forget prefetch of the full prop set (~300KB incl. atlases and
+ * recolor textures) — called once after the world mounts so props pop in
+ * together instead of trickling per-unit. */
 export function preloadModels() {
   for (const url of MODEL_URLS) useGLTF.preload(url, false);
   useTexture.preload(ATLAS_URLS);
+  useTexture.preload(RECOLOR_URLS);
 }

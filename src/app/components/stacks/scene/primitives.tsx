@@ -17,6 +17,8 @@ import LitImage from "./LitImage";
 
 export type RowItem =
   | { kind: "spine"; x: number; w: number; h: number; color: string }
+  | { kind: "flat"; x: number; n: number; colors: string[] }
+  | { kind: "lean"; x: number; w: number; h: number; color: string }
   | { kind: "cover"; x: number; url: string; key: string };
 
 export function packRow(
@@ -29,6 +31,7 @@ export function packRow(
   let x = -width / 2 + 0.1;
   let coverIdx = 0;
   let i = 0;
+  let flatUsed = false;
   while (x < width / 2 - 0.25) {
     const roll = rand(i, salt);
     if (roll > 0.7 && coverIdx < covers.length) {
@@ -38,6 +41,22 @@ export function packRow(
       coverIdx++;
     } else if (roll < 0.04) {
       x += 0.06 + rand(i, salt + 1) * 0.08;
+    } else if (!flatUsed && roll >= 0.04 && roll < 0.1) {
+      // One horizontal stack lying on the row — real shelves are never all
+      // vertical (audit §3-Books).
+      const n = 2 + Math.round(rand(i, salt + 6));
+      items.push({
+        kind: "flat",
+        x: x + 0.17,
+        n,
+        colors: Array.from(
+          { length: n },
+          (_, j) =>
+            palette.spines[Math.floor(rand(i + j, salt + 7) * palette.spines.length)]!,
+        ),
+      });
+      x += 0.34 + 0.03;
+      flatUsed = true;
     } else {
       const w = 0.055 + rand(i, salt + 2) * 0.075;
       const h = 0.4 + rand(i, salt + 3) * 0.2;
@@ -48,7 +67,48 @@ export function packRow(
     }
     i++;
   }
+  // One spine leaning against the row's end — the packed block otherwise
+  // terminates in a dead vertical edge.
+  items.push({
+    kind: "lean",
+    x: x + 0.05,
+    w: 0.06,
+    h: 0.4 + rand(i, salt + 3) * 0.1,
+    color: palette.spines[Math.floor(rand(i, salt + 4) * palette.spines.length)]!,
+  });
   return items;
+}
+
+// Ridge bands + occasional title dashes for the widest spines, drawn on a
+// transparent overlay so the spine keeps its material color. Cached by
+// variant — the canvas count stays O(variants), not O(spines).
+const spineDetailCache = new Map<string, THREE.CanvasTexture>();
+function spineDetailTexture(ink: string, variant: number): THREE.CanvasTexture {
+  const key = `${ink}|${variant}`;
+  const hit = spineDetailCache.get(key);
+  if (hit) return hit;
+  const canvas = document.createElement("canvas");
+  canvas.width = 64;
+  canvas.height = 256;
+  const ctx = canvas.getContext("2d")!;
+  ctx.fillStyle = "rgba(0,0,0,0.18)";
+  for (const y of [18, 30, 218, 230]) ctx.fillRect(6, y, 52, 5);
+  if (variant % 2 === 0) {
+    // Title marks — unreadable-by-design dashes where a title would sit.
+    ctx.fillStyle = ink;
+    ctx.globalAlpha = 0.6;
+    let y = 68;
+    for (let j = 0; j < 3 + (variant % 3); j++) {
+      const h = 14 + rand(j, variant) * 22;
+      ctx.fillRect(26, y, 11, h);
+      y += h + 12;
+      if (y > 190) break;
+    }
+    ctx.globalAlpha = 1;
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  spineDetailCache.set(key, texture);
+  return texture;
 }
 
 /** Swallows texture-load failures for a single cover so one broken URL
@@ -88,19 +148,67 @@ export function BookRowMesh({
     <group>
       {items.map((item, i) =>
         item.kind === "spine" ? (
+          <group
+            key={i}
+            position={[item.x, item.h / 2, 0]}
+            rotation={[0, 0, rand(i, salt + 5) * 0.04 - 0.02]}
+          >
+            <RoundedBox
+              castShadow
+              args={[item.w, item.h, 0.3]}
+              radius={0.012}
+              smoothness={4}
+            >
+              <meshStandardMaterial
+                color={item.color}
+                roughness={0.55 + rand(i, salt + 6) * 0.35}
+              />
+            </RoundedBox>
+            {item.w >= 0.09 && (
+              <mesh position={[0, 0, 0.151]}>
+                <planeGeometry args={[item.w * 0.9, item.h * 0.94]} />
+                <meshStandardMaterial
+                  map={spineDetailTexture(palette.ink, Math.floor(rand(i, salt + 8) * 6))}
+                  transparent
+                  depthWrite={false}
+                  roughness={0.7}
+                />
+              </mesh>
+            )}
+          </group>
+        ) : item.kind === "flat" ? (
+          <group key={i} position={[item.x, 0, 0]}>
+            {item.colors.map((color, j) => (
+              <RoundedBox
+                key={j}
+                castShadow
+                args={[0.32, 0.052, 0.24]}
+                radius={0.008}
+                smoothness={4}
+                position={[j * 0.012, 0.024 + j * 0.054, 0]}
+                rotation={[0, rand(i + j, salt + 9) * 0.16 - 0.08, 0]}
+              >
+                <meshStandardMaterial color={color} roughness={0.7} />
+              </RoundedBox>
+            ))}
+          </group>
+        ) : item.kind === "lean" ? (
+          // Contact: rotZ drops one bottom corner — lift by the exact
+          // h/2·cos + w/2·sin so the corner stays on the wood.
           <RoundedBox
             key={i}
             castShadow
             args={[item.w, item.h, 0.3]}
             radius={0.012}
             smoothness={4}
-            position={[item.x, item.h / 2, 0]}
-            rotation={[0, 0, rand(i, salt + 5) * 0.04 - 0.02]}
+            position={[
+              item.x,
+              (item.h / 2) * Math.cos(0.17) + (item.w / 2) * Math.sin(0.17),
+              0,
+            ]}
+            rotation={[0, 0, 0.17]}
           >
-            <meshStandardMaterial
-              color={item.color}
-              roughness={0.55 + rand(i, salt + 6) * 0.35}
-            />
+            <meshStandardMaterial color={item.color} roughness={0.65} />
           </RoundedBox>
         ) : !textured ? (
           <group
@@ -293,6 +401,39 @@ export function BookPile({
           </RoundedBox>
         </group>
       ))}
+    </group>
+  );
+}
+
+/** L-steel bookend — vertical plate + base tongue that slips under the end
+ * books. `flip` mirrors it for the far end of a row. */
+export function Bookend({
+  palette,
+  flip = false,
+}: {
+  palette: Palette;
+  flip?: boolean;
+}) {
+  const s = flip ? -1 : 1;
+  return (
+    <group>
+      <RoundedBox
+        castShadow
+        args={[0.012, 0.21, 0.13]}
+        radius={0.003}
+        smoothness={2}
+        position={[0, 0.105, 0]}
+      >
+        <meshStandardMaterial color={palette.metal} metalness={0.4} roughness={0.35} />
+      </RoundedBox>
+      <RoundedBox
+        args={[0.09, 0.008, 0.13]}
+        radius={0.003}
+        smoothness={2}
+        position={[s * 0.048, 0.004, 0]}
+      >
+        <meshStandardMaterial color={palette.metal} metalness={0.4} roughness={0.35} />
+      </RoundedBox>
     </group>
   );
 }
