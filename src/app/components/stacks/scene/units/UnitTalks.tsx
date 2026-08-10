@@ -7,6 +7,7 @@ import React, { useMemo } from "react";
 import { proxied } from "../../theme";
 import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
+import { Polaroid } from "../objects";
 import { FrameRow, LampGlow, ShelfUnit } from "../primitives";
 import { useUnitLod } from "../useUnitLod";
 import { type UnitProps } from "./types";
@@ -39,6 +40,17 @@ export default function UnitTalks({
               <ModelProp url="/models/desk-lamp.glb" dark={dark} rotation={[0, -0.5, 0]} />
             </React.Suspense>
             <LampGlow palette={palette} yaw={-0.5} />
+          </group>
+          {/* GenAI Summit open — him on the mic in the organizer vest
+              (curator's top talks pick), an instant print leaning at the
+              shelf's far left. */}
+          <group position={[-1.05, 0.1555, 0.05]} rotation={[-0.15, 0.1, -0.05]}>
+            <Polaroid
+              src="/images/stacks/talk-summit.jpg"
+              palette={palette}
+              size={0.26}
+              textured={textured}
+            />
           </group>
           {/* Framed Stanford panel shot fills the dead zone left of the
               lamp — the stand mic read "stupid and out of place" (owner, at

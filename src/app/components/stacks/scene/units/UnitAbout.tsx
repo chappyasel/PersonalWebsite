@@ -77,10 +77,18 @@ export default function UnitAbout({
       <React.Suspense fallback={null}>
         <ModelProp url="/models/globe.glb" dark={dark} position={[0.95, 0, -0.1]} rotation={[0, -0.7, 0]} scale={1.5} />
       </React.Suspense>
-      {/* Budapest postcard leaning on the globe stand. */}
+      {/* Postcard pair leaning on the globe stand — Budapest Parliament +
+          Delicate Arch (the Instagram curation round's top travel frame). */}
       <group position={[0.8, 0.0735, 0.04]} rotation={[-0.2, 0.05, 0.05]}>
         <PostcardPrint
           src="/images/stacks/postcard-budapest.jpg"
+          palette={palette}
+          textured={textured}
+        />
+      </group>
+      <group position={[0.93, 0.0735, 0.13]} rotation={[-0.18, 0.3, -0.05]}>
+        <PostcardPrint
+          src="/images/stacks/postcard-arches.jpg"
           palette={palette}
           textured={textured}
         />

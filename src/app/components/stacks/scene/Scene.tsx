@@ -94,11 +94,19 @@ export default function Scene({
           .map((b) => proxied(b.coverUrl!, coverWidth)),
         ...data.talks.map((talk) => proxied(talk.still, coverWidth)),
         ...data.projects.map((p) => proxied(p.image, coverWidth)),
-        // P3 photo props load raw — already pipeline-capped at 768px/q72.
+        // Photo props load raw — already pipeline-capped per placement.
         "/images/stacks/gym-mirror.jpg",
         "/images/stacks/beach-sunset.jpg",
         "/images/stacks/bros.jpg",
         "/images/stacks/postcard-budapest.jpg",
+        "/images/stacks/postcard-arches.jpg",
+        "/images/stacks/talk-stanford.jpg",
+        "/images/stacks/talk-summit.jpg",
+        "/images/stacks/pin-dunes.jpg",
+        "/images/stacks/pin-trail.jpg",
+        "/images/stacks/pin-creek.jpg",
+        "/images/stacks/musings-walk.jpg",
+        "/images/stacks/golf-flag.jpg",
       ];
       for (const url of urls) useTexture.preload(url);
     }, 2500);

@@ -10,6 +10,7 @@ import React from "react";
 import { ContactShade, FootPool } from "../GroundPool";
 import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
+import { Polaroid } from "../objects";
 import { BookPile, BumperPlates, ShelfUnit } from "../primitives";
 import { useUnitLod } from "../useUnitLod";
 import { type UnitProps } from "./types";
@@ -96,7 +97,7 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
             shelf back — the CC-BY porcelain proxy read as dinnerware
             (owner-killed at browse). */}
         <group position={[-0.95, 0, -0.08]}>
-          <BumperPlates palette={palette} />
+          <BumperPlates />
           <ContactShade
             color={palette.shadow}
             width={0.9}
@@ -118,6 +119,16 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
         </React.Suspense>
         <group position={[0.75, 0, 0]}>
           <BookPile palette={palette} salt={31} />
+        </group>
+        {/* Chappaquiddick pin-flag print — the golf half of the training
+            story, leaning between kettlebell and pile. */}
+        <group position={[0.32, 0.1305, 0.12]} rotation={[-0.16, -0.08, 0.06]}>
+          <Polaroid
+            src="/images/stacks/golf-flag.jpg"
+            palette={palette}
+            size={0.215}
+            textured={textured}
+          />
         </group>
       </ShelfUnit>
       {/* Golf club leaning against the unit's LEFT side (the right hides

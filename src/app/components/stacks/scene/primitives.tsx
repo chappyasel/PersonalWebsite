@@ -666,8 +666,9 @@ function plateGeometry(r: number, depth: number): THREE.ExtrudeGeometry {
 
 /** Two rubber bumper plates leaning against the shelf back, steel hub
  * rings around the bore. Disc face lies in the extrude's xy plane, so
- * standing them up is the default orientation plus a lean. */
-export function BumperPlates({ palette }: { palette: Palette }) {
+ * standing them up is the default orientation plus a lean. Rubber keeps
+ * its albedo across themes, so the colors are constants, not palette. */
+export function BumperPlates() {
   return (
     <group>
       {[

@@ -5,7 +5,10 @@
 // paper stack + pen cup below.
 import React, { useMemo } from "react";
 
+import { RoundedBox } from "@react-three/drei";
+
 import { ContactShade } from "../GroundPool";
+import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
 import { NotebookLean, PaperStack, Polaroid } from "../objects";
 import { ShelfUnit } from "../primitives";
@@ -41,6 +44,30 @@ export default function UnitBlog({
           <React.Suspense fallback={null}>
             <ModelProp url="/models/mug.glb" dark={dark} position={[-0.55, 0, 0]} rotation={[0, 0.9, 0]} />
           </React.Suspense>
+          {/* Joshua Tree solo walk — the contemplative register of the
+              unit, framed small on the empty lower-left. */}
+          <group position={[-1.0, 0.152, 0]} rotation={[-0.1, 0.14, 0]}>
+            <RoundedBox
+              castShadow
+              args={[0.4, 0.3, 0.025]}
+              radius={0.006}
+              smoothness={4}
+              position={[0, 0, -0.015]}
+            >
+              <meshStandardMaterial color={palette.frame} roughness={0.6} />
+            </RoundedBox>
+            {textured && (
+              <React.Suspense fallback={null}>
+                <LitImage
+                  url="/images/stacks/musings-walk.jpg"
+                  width={0.35}
+                  height={0.26}
+                  roughness={0.5}
+                  position={[0, 0, -0.001]}
+                />
+              </React.Suspense>
+            )}
+          </group>
         </group>
       }
     >
@@ -82,15 +109,17 @@ export default function UnitBlog({
         <ModelProp url="/models/headphones.glb" dark={dark} position={[0.12, 0, 0.14]} rotation={[0, 0.5, 0]} scale={2.0} />
       </React.Suspense>
       {/* Corkboard leaning back-right, top corner on the strap — fills the
-          empty right third (audit §3-Musings), with two pinned instant
-          prints reusing the About pair. */}
+          empty right third (audit §3-Musings). Three pinned instant prints
+          from the Instagram curation round (fresh content — the earlier
+          two duplicated the About pair). */}
       <group position={[1.02, 0, -0.16]} rotation={[-0.28, 0.35, 0.02]}>
         <React.Suspense fallback={null}>
           <ModelProp url="/models/corkboard.glb" dark={dark} scale={0.9} />
         </React.Suspense>
         {[
-          { src: "/images/stacks/beach-sunset.jpg", x: -0.14, y: 0.21, roll: -0.08 },
-          { src: "/images/stacks/bros.jpg", x: 0.12, y: 0.26, roll: 0.1 },
+          { src: "/images/stacks/pin-dunes.jpg", x: -0.17, y: 0.22, roll: -0.08 },
+          { src: "/images/stacks/pin-trail.jpg", x: 0.11, y: 0.28, roll: 0.1 },
+          { src: "/images/stacks/pin-creek.jpg", x: -0.02, y: 0.09, roll: 0.04 },
         ].map((pin) => (
           <group
             key={pin.src}
