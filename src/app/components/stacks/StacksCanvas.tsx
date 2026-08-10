@@ -17,6 +17,7 @@ import type * as THREE from "three";
 import { UNIT_COUNT, type StacksData } from "./data";
 import { setLoadProgress } from "./loading";
 import Scene from "./scene/Scene";
+import { getSeatAmount, isSeated } from "./scene/seated";
 import { CAMERA } from "./scene/worldLayout";
 import { progressRef, useStacks } from "./store";
 import { PALETTES } from "./theme";
@@ -28,6 +29,7 @@ const Effects = dynamic(() => import("./scene/Effects"), { ssr: false });
 
 let glRef: THREE.WebGLRenderer | null = null;
 let sceneRef: THREE.Scene | null = null;
+let cameraRef: THREE.Camera | null = null;
 let devOpenBook: ((id: string) => void) | null = null;
 
 declare global {
@@ -87,6 +89,41 @@ function installDevHooks() {
         mode,
         modalOpen,
         panelState,
+        // The seat is a THREE-way handshake (SitChair writes it, CameraRig
+        // eases it, SceneEnvironment reads it) that deliberately bypasses
+        // React, so without these two the only evidence a click seated you is
+        // the frame looking different — and the frame ALSO looks different
+        // when the click missed and you merely nudged the pointer parallax.
+        // `seated` is the intent; `seatAmount` is what the camera actually
+        // did with it. They disagree exactly when the rig drops the seat, so
+        // reporting both is what makes that failure legible.
+        seated: isSeated(),
+        seatAmount: Number(getSeatAmount().toFixed(4)),
+        // Where the camera is and which way it faces. `yaw` is the compass
+        // bearing of the view direction, so the 180° turn into the seat is one
+        // number rather than a quaternion to eyeball, and pointer parallax is
+        // checkable by sampling it at two pointer positions — which is the only
+        // honest way to test that panning goes the RIGHT way, since a
+        // screenshot cannot tell you which direction a view swung.
+        camera: (() => {
+          const c = cameraRef;
+          if (!c) return null;
+          // The view direction is the NEGATED third column of the world
+          // matrix. Taken from the matrix rather than `getWorldDirection`
+          // because `three` is imported type-only in this file — there is no
+          // Vector3 constructor here to hand it, and adding a runtime three
+          // import to a dev hook would pull it into the bundle.
+          const e = c.matrixWorld.elements;
+          const dx = -(e[8] ?? 0);
+          const dz = -(e[10] ?? 0);
+          return {
+            pos: [c.position.x, c.position.y, c.position.z].map((v) =>
+              Number(v.toFixed(4)),
+            ),
+            yaw: Number(((Math.atan2(dx, -dz) * 180) / Math.PI).toFixed(2)),
+            fov: Number(((c as { fov?: number }).fov ?? 0).toFixed(2)),
+          };
+        })(),
         // Hover and carry are scene-internal (they deliberately never
         // re-render React), so the harness has no other way to observe
         // which prop the pointer owns or whether one is in hand.
@@ -193,10 +230,11 @@ export default function StacksCanvas({
         // Desktop runs SMAA in the composer — MSAA underneath is dead
         // weight. Touch keeps MSAA (no composer there, ever).
         gl={{ antialias: isTouch }}
-        onCreated={({ gl, scene }) => {
+        onCreated={({ gl, scene, camera }) => {
           gl.toneMappingExposure = dark ? 1.25 : 1.12;
           glRef = gl;
           sceneRef = scene;
+          cameraRef = camera;
           installDevHooks();
           if (onLost) {
             gl.domElement.addEventListener("webglcontextlost", () => onLost(), {
