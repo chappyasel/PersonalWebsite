@@ -549,12 +549,16 @@ export function GlowSprite({
   opacity: baseOpacity,
   eased = false,
   scale = 1.6,
+  factorRef,
 }: {
   opacity: number;
   /** Damp opacity by lateral camera distance — an additive sprite over the
    * bright light-theme sky blows out to pure white mid-travel. */
   eased?: boolean;
   scale?: number;
+  /** Per-frame 0..1 multiplier read imperatively (the lamp-toggle egg) —
+   * never route it through React state. */
+  factorRef?: { current: number };
 }) {
   const ref = useRef<THREE.Sprite>(null);
   // Additive glow COMPOUNDS in the composer's linear HDR target (pre-
@@ -582,10 +586,14 @@ export function GlowSprite({
   const world = useMemo(() => new THREE.Vector3(), []);
   useFrame(({ camera }) => {
     const sprite = ref.current;
-    if (!sprite || !eased) return;
-    sprite.getWorldPosition(world);
-    const focus = Math.max(0, 1 - Math.abs(camera.position.x - world.x) / 4.4);
-    sprite.material.opacity = opacity * (0.3 + 0.7 * focus);
+    if (!sprite || (!eased && !factorRef)) return;
+    let value = opacity;
+    if (eased) {
+      sprite.getWorldPosition(world);
+      const focus = Math.max(0, 1 - Math.abs(camera.position.x - world.x) / 4.4);
+      value *= 0.3 + 0.7 * focus;
+    }
+    sprite.material.opacity = value * (factorRef?.current ?? 1);
   });
   return (
     <sprite ref={ref} scale={[scale, scale, 1]}>
@@ -627,13 +635,19 @@ function coneGlowTexture(): THREE.CanvasTexture {
  * that axis, not a sphere (owner: "they should have a cone emission"):
  * SpotLight carries the pool, an emissive disc seals the opening, a faint
  * gradient cone fakes the beam, and only a weak point remains for the
- * ambient kiss on nearby props. `yaw` must match the lamp model. */
+ * ambient kiss on nearby props. `yaw` must match the lamp model. `litRef`
+ * (the lamp-toggle egg's damped 0..1 factor) only threads through to the
+ * self-animating GlowSprite — lights, emissives, and the beam cone are
+ * dimmed generically by the egg's traverse, so this rig owns no toggle
+ * logic. */
 export function LampGlow({
   palette,
   yaw = 0,
+  litRef,
 }: {
   palette: Palette;
   yaw?: number;
+  litRef?: { current: number };
 }) {
   const spotRef = useRef<THREE.SpotLight>(null);
   const targetRef = useRef<THREE.Object3D>(null);
@@ -644,7 +658,12 @@ export function LampGlow({
   return (
     <group rotation={[0, yaw, 0]}>
       <group position={[0, 0.28, 0.12]}>
-        <GlowSprite opacity={palette.glowOpacity} eased scale={1.0} />
+        <GlowSprite
+          opacity={palette.glowOpacity}
+          eased
+          scale={1.0}
+          factorRef={litRef}
+        />
       </group>
       {/* Emissive disc ON the opening plane (normal = cup axis). Flush
           geometry can never silhouette past the shade from any angle. */}

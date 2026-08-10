@@ -7,6 +7,7 @@ import React, { useMemo } from "react";
 
 import { RoundedBox } from "@react-three/drei";
 
+import { SteamCup } from "../eggs";
 import { ContactShade } from "../GroundPool";
 import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
@@ -95,16 +96,24 @@ export default function UnitBlog({
           scale={0.7}
         />
       </React.Suspense>
-      {/* Cup of tea beside the open book — mid-thought, mid-sip. */}
-      <React.Suspense fallback={null}>
-        <ModelProp
-          url="/models/cup-tea.glb"
-          dark={dark}
-          position={[0.55, 0, 0.22]}
-          rotation={[0, 0.6, 0]}
-          scale={2.0}
-        />
-      </React.Suspense>
+      {/* Cup of tea beside the open book — mid-thought, mid-sip.
+          Egg: click and a few faint steam wisps rise off the surface. */}
+      <SteamCup
+        unitIndex={index}
+        hoverKey="egg:tea"
+        steamAt={[0.55, 0.105, 0.22]}
+        dark={dark}
+      >
+        <React.Suspense fallback={null}>
+          <ModelProp
+            url="/models/cup-tea.glb"
+            dark={dark}
+            position={[0.55, 0, 0.22]}
+            rotation={[0, 0.6, 0]}
+            scale={2.0}
+          />
+        </React.Suspense>
+      </SteamCup>
       <React.Suspense fallback={null}>
         <ModelProp url="/models/headphones.glb" dark={dark} position={[0.12, 0, 0.14]} rotation={[0, 0.5, 0]} scale={2.0} />
       </React.Suspense>

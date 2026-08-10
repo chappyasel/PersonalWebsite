@@ -3,13 +3,14 @@
 // Systems — CT Books as the operating manual, the alarm clock (live canvas
 // face over the GLB dial), and a paper inbox tray; book pile + sansevieria
 // below; the grandfather clock stands on the floor at the unit's left
-// flank. Both clocks show the visitor's local time (owner call at browse;
-// the 3:45 wake-up story lives in the click easter egg).
+// flank, ticking the same live time. The 3:45 wake-up story lives in the
+// click easter egg (EggClock).
 import React from "react";
 
+import { EggClock } from "../eggs";
 import { ContactShade, FootPool } from "../GroundPool";
 import ModelProp from "../ModelProp";
-import { ClockFace, InboxTray } from "../objects";
+import { InboxTray } from "../objects";
 import { BookPile, ShelfUnit } from "../primitives";
 import { type UnitProps } from "./types";
 
@@ -63,17 +64,23 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
           />
         </group>
         <group position={[-0.15, 0, 0.08]}>
-          <React.Suspense fallback={null}>
-            <ModelProp url="/models/alarm-clock.glb" dark={dark} scale={1.6} />
-          </React.Suspense>
-          {/* Live face registered to the GLB's measured dial: the front disc
-              sits at local z 0.024, center y 0.0828, r 0.0614 — ×1.6 scale
-              puts the canvas at y 0.1325, z 0.040 (1.6mm proud of the paint,
-              behind the bezel rim), r ≈ 0.95× the dial so the painted ticks
-              never peek out around it. */}
-          <group position={[0, 0.1325, 0.0404]}>
-            <ClockFace radius={0.0933} />
-          </group>
+          {/* Canvas face registered to the GLB's measured dial: the front
+              disc sits at local z 0.024, center y 0.0828, r 0.0614 — ×1.6
+              scale puts the canvas at y 0.1325, z 0.040 (1.6mm proud of the
+              paint, behind the bezel rim), r ≈ 0.95× the dial so the painted
+              ticks never peek out around it.
+              Egg: click and the hands wind to 3:45 — the wake time — hold,
+              then wind on around to the visitor's live time. */}
+          <EggClock
+            unitIndex={index}
+            hoverKey="egg:clock:alarm"
+            facePosition={[0, 0.1325, 0.0404]}
+            faceRadius={0.0933}
+          >
+            <React.Suspense fallback={null}>
+              <ModelProp url="/models/alarm-clock.glb" dark={dark} scale={1.6} />
+            </React.Suspense>
+          </EggClock>
         </group>
         <group position={[0.85, 0, 0]}>
           <InboxTray palette={palette} />
@@ -88,12 +95,17 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
           prop that shifts the unit's grammar from "shelf" toward "room".
           Dial measured at local (0, 1.150, 0.072) r 0.0711 → ×1.15 scale. */}
       <group position={[-1.95, -1.115, -0.15]} rotation={[0, 0.15, 0]}>
-        <React.Suspense fallback={null}>
-          <ModelProp url="/models/grandfather-clock.glb" dark={dark} scale={1.15} />
-        </React.Suspense>
-        <group position={[0, 1.3225, 0.0838]}>
-          <ClockFace radius={0.0777} />
-        </group>
+        {/* Same wind-to-3:45 egg as the alarm clock. */}
+        <EggClock
+          unitIndex={index}
+          hoverKey="egg:clock:floor"
+          facePosition={[0, 1.3225, 0.0838]}
+          faceRadius={0.0777}
+        >
+          <React.Suspense fallback={null}>
+            <ModelProp url="/models/grandfather-clock.glb" dark={dark} scale={1.15} />
+          </React.Suspense>
+        </EggClock>
       </group>
       <FootPool
         color={palette.shadow}

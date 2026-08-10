@@ -3,7 +3,8 @@
 // New scene props for the About, Blog, and Systems units.
 // Box props use RoundedBox for edge highlights (see primitives.tsx).
 import { RoundedBox } from "@react-three/drei";
-import React, { useEffect, useMemo } from "react";
+import { useFrame } from "@react-three/fiber";
+import React, { useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { type Palette, rand } from "../theme";
@@ -339,21 +340,58 @@ export function PaperStack({ palette }: { palette: Palette }) {
   );
 }
 
+/** 3:45 in clockwise turns — the owner's wake-up time, the egg's
+ * destination (the clocks otherwise show the visitor's live time). */
+export const CLOCK_BASE = { h: 3.75 / 12, m: 45 / 60 } as const;
+
+/** Egg sweep state. The trigger only stamps `start` (performance.now ms);
+ * ClockFace lazily fills the from-angles and per-leg clockwise deltas so
+ * all sweep math lives in one place. */
+export type ClockSweep = {
+  start: number;
+  fromH?: number;
+  fromM?: number;
+  d1H?: number;
+  d1M?: number;
+  d2H?: number;
+  d2M?: number;
+};
+
+const SWEEP_S = 1.1;
+const HOLD_S = 3;
+const smooth = (p: number) => p * p * (3 - 2 * p);
+const turn = (v: number) => ((v % 1) + 1) % 1;
+const liveTurns = () => {
+  const now = new Date();
+  return {
+    h: ((now.getHours() % 12) + now.getMinutes() / 60) / 12,
+    m: (now.getMinutes() + now.getSeconds() / 60) / 60,
+  };
+};
+
 /** Canvas clock face overlaid on the GLB dials (the painted dial sits
- * behind it on the atlas). Shows the VISITOR'S live local time — owner
- * call at browse ("show the correct time instead of 3:45"); the 3:45
- * wake-up story moved into the click easter egg. Redraws on the minute. */
-export function ClockFace({ radius = 0.082 }: { radius?: number }) {
-  const { texture, draw } = useMemo(() => {
+ * behind it on the atlas). At rest it shows the VISITOR'S live local time,
+ * refreshed every 30s. `sweepRef` drives the clock egg: the hands wind
+ * clockwise to 3:45 — the owner's wake time — hold ~3s, then wind on
+ * around to the live time again. The canvas redraws per frame ONLY while
+ * a hand is actually moving (idle and hold frames redraw nothing). */
+export function ClockFace({
+  radius = 0.082,
+  sweepRef,
+}: {
+  radius?: number;
+  sweepRef?: { current: ClockSweep | null };
+}) {
+  const face = useMemo(() => {
     const size = 256;
     const canvas = document.createElement("canvas");
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext("2d")!;
     const c = size / 2;
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.anisotropy = 4;
-    const draw = (hours: number, minutes: number) => {
+    // Hand angles in clockwise turns (0 = 12 o'clock); canvas y grows down,
+    // so the same cos/sin pair the base face used stays correct.
+    const draw = (hourTurns: number, minuteTurns: number) => {
       ctx.clearRect(0, 0, size, size);
       ctx.fillStyle = "#f6efdf";
       ctx.beginPath();
@@ -371,14 +409,13 @@ export function ClockFace({ radius = 0.082 }: { radius?: number }) {
       }
       ctx.strokeStyle = "#443a2d";
       ctx.lineCap = "round";
-      const hour =
-        (((hours % 12) + minutes / 60) / 12) * Math.PI * 2 - Math.PI / 2;
+      const hour = hourTurns * Math.PI * 2 - Math.PI / 2;
       ctx.lineWidth = 12;
       ctx.beginPath();
       ctx.moveTo(c, c);
       ctx.lineTo(c + Math.cos(hour) * c * 0.45, c + Math.sin(hour) * c * 0.45);
       ctx.stroke();
-      const minute = (minutes / 60) * Math.PI * 2 - Math.PI / 2;
+      const minute = minuteTurns * Math.PI * 2 - Math.PI / 2;
       ctx.lineWidth = 8;
       ctx.beginPath();
       ctx.moveTo(c, c);
@@ -391,25 +428,72 @@ export function ClockFace({ radius = 0.082 }: { radius?: number }) {
       ctx.beginPath();
       ctx.arc(c, c, 10, 0, Math.PI * 2);
       ctx.fill();
-      texture.needsUpdate = true;
     };
-    return { texture, draw };
+    const live = liveTurns();
+    draw(live.h, live.m);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.anisotropy = 4;
+    return { draw, texture, mounted: { h: live.h, m: live.m } };
   }, []);
-
-  useEffect(() => {
-    const tick = () => {
-      const now = new Date();
-      draw(now.getHours(), now.getMinutes());
-    };
-    tick();
-    const id = setInterval(tick, 30_000);
-    return () => clearInterval(id);
-  }, [draw]);
+  const last = useRef(face.mounted);
+  const lastLiveDraw = useRef(performance.now());
+  useFrame(() => {
+    const s = sweepRef?.current;
+    let h: number;
+    let m: number;
+    if (!s) {
+      // Live mode — a half-minute tick keeps the face honest without
+      // uploading a texture per frame.
+      if (performance.now() - lastLiveDraw.current < 30_000) return;
+      lastLiveDraw.current = performance.now();
+      ({ h, m } = liveTurns());
+    } else {
+      const t = (performance.now() - s.start) / 1000;
+      if (s.fromH === undefined || s.fromM === undefined) {
+        // Leg 1 anchors: live time at trigger → clockwise to 3:45.
+        const from = liveTurns();
+        s.fromH = from.h;
+        s.fromM = from.m;
+        s.d1H = turn(CLOCK_BASE.h - from.h);
+        s.d1M = turn(CLOCK_BASE.m - from.m);
+      }
+      const fromH = s.fromH;
+      const fromM = s.fromM;
+      const d1H = s.d1H!;
+      const d1M = s.d1M!;
+      if (t < SWEEP_S) {
+        const p = smooth(t / SWEEP_S);
+        h = fromH + d1H * p;
+        m = fromM + d1M * p;
+      } else if (t < SWEEP_S + HOLD_S) {
+        h = fromH + d1H;
+        m = fromM + d1M;
+      } else if (t < SWEEP_S + HOLD_S + SWEEP_S) {
+        if (s.d2H === undefined || s.d2M === undefined) {
+          // Leg 2: wind on clockwise from 3:45 to the (current) live time.
+          const back = liveTurns();
+          s.d2H = turn(back.h - CLOCK_BASE.h);
+          s.d2M = turn(back.m - CLOCK_BASE.m);
+        }
+        const p = smooth((t - SWEEP_S - HOLD_S) / SWEEP_S);
+        h = fromH + d1H + s.d2H * p;
+        m = fromM + d1M + s.d2M * p;
+      } else {
+        sweepRef.current = null; // lands exactly on live time
+        lastLiveDraw.current = performance.now();
+        ({ h, m } = liveTurns());
+      }
+    }
+    if (h === last.current.h && m === last.current.m) return;
+    last.current = { h, m };
+    face.draw(h, m);
+    face.texture.needsUpdate = true;
+  });
 
   return (
     <mesh>
       <circleGeometry args={[radius, 32]} />
-      <meshStandardMaterial map={texture} roughness={0.8} />
+      <meshStandardMaterial map={face.texture} roughness={0.8} />
     </mesh>
   );
 }

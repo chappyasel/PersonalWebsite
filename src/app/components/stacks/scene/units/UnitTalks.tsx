@@ -5,10 +5,10 @@ import { RoundedBox } from "@react-three/drei";
 import React, { useMemo } from "react";
 
 import { proxied } from "../../theme";
+import { EggLamp } from "../eggs";
 import LitImage from "../LitImage";
-import ModelProp from "../ModelProp";
 import { Polaroid } from "../objects";
-import { FrameRow, LampGlow, ShelfUnit } from "../primitives";
+import { FrameRow, ShelfUnit } from "../primitives";
 import { useUnitLod } from "../useUnitLod";
 import { type UnitProps } from "./types";
 
@@ -36,10 +36,8 @@ export default function UnitTalks({
       lower={
         <group>
           <group position={[0.55, 0, 0]}>
-            <React.Suspense fallback={null}>
-              <ModelProp url="/models/desk-lamp.glb" dark={dark} rotation={[0, -0.5, 0]} />
-            </React.Suspense>
-            <LampGlow palette={palette} yaw={-0.5} />
+            {/* Egg: the lamp clicks off and back on. */}
+            <EggLamp unitIndex={index} palette={palette} dark={dark} yaw={-0.5} />
           </group>
           {/* GenAI Summit open — him on the mic in the organizer vest
               (curator's top talks pick), an instant print leaning at the

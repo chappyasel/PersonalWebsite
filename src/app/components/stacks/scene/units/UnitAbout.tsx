@@ -5,10 +5,11 @@
 import React from "react";
 
 import { proxied } from "../../theme";
+import { EggLamp, SpinProp } from "../eggs";
 import { ContactShade, FootPool } from "../GroundPool";
 import ModelProp from "../ModelProp";
 import { CardStack, Polaroid, PortraitFrame, PostcardPrint } from "../objects";
-import { BookPile, LampGlow, ShelfUnit } from "../primitives";
+import { BookPile, ShelfUnit } from "../primitives";
 import { useUnitLod } from "../useUnitLod";
 import { type UnitProps } from "./types";
 
@@ -29,10 +30,8 @@ export default function UnitAbout({
         lower={
         <group>
           <group position={[-0.65, 0, 0]}>
-            <React.Suspense fallback={null}>
-              <ModelProp url="/models/desk-lamp.glb" dark={dark} rotation={[0, 0.55, 0]} />
-            </React.Suspense>
-            <LampGlow palette={palette} yaw={0.55} />
+            {/* Egg: the lamp clicks off and back on. */}
+            <EggLamp unitIndex={index} palette={palette} dark={dark} yaw={0.55} />
           </group>
           <BookPile palette={palette} x={0.55} salt={9} />
           {/* Mug lives lower-right so the globe gets the visible top-shelf
@@ -74,9 +73,15 @@ export default function UnitAbout({
           textured={textured}
         />
       </group>
-      <React.Suspense fallback={null}>
-        <ModelProp url="/models/globe.glb" dark={dark} position={[0.95, 0, -0.1]} rotation={[0, -0.7, 0]} scale={1.5} />
-      </React.Suspense>
+      {/* Egg: one slow damped revolution per click. The spin wrapper sits AT
+          the globe's slot so the turn is about its own stand, not the unit. */}
+      <group position={[0.95, 0, -0.1]}>
+        <SpinProp unitIndex={index} hoverKey="egg:globe">
+          <React.Suspense fallback={null}>
+            <ModelProp url="/models/globe.glb" dark={dark} rotation={[0, -0.7, 0]} scale={1.5} />
+          </React.Suspense>
+        </SpinProp>
+      </group>
       {/* Postcard pair leaning on the globe stand — Budapest Parliament +
           Delicate Arch (the Instagram curation round's top travel frame). */}
       <group position={[0.8, 0.0735, 0.04]} rotation={[-0.2, 0.05, 0.05]}>

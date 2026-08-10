@@ -7,6 +7,7 @@
 import { RoundedBox } from "@react-three/drei";
 import React from "react";
 
+import { BounceProp, RollBall } from "../eggs";
 import { ContactShade, FootPool } from "../GroundPool";
 import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
@@ -35,21 +36,24 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
                 scale={1.27}
               />
             </React.Suspense>
-            <React.Suspense fallback={null}>
-              {/* Worn-leather tint mutes the stock arcade orange; normals
-                  weld-smoothed at load (it shipped faceted). */}
-              <ModelProp
-                url="/models/basketball.glb"
-                dark={dark}
-                variant="tinted"
-                tintAll="#b39072"
-                roughness={0.78}
-                smoothNormals
-                position={[0.52, 0.046, 0.2]}
-                rotation={[0, 1.2, 0]}
-                scale={0.39}
-              />
-            </React.Suspense>
+            {/* Egg: one soft bounce per click, landing exactly back. */}
+            <BounceProp unitIndex={index} hoverKey="egg:basketball">
+              <React.Suspense fallback={null}>
+                {/* Worn-leather tint mutes the stock arcade orange; normals
+                    weld-smoothed at load (it shipped faceted). */}
+                <ModelProp
+                  url="/models/basketball.glb"
+                  dark={dark}
+                  variant="tinted"
+                  tintAll="#b39072"
+                  roughness={0.78}
+                  smoothNormals
+                  position={[0.52, 0.046, 0.2]}
+                  rotation={[0, 1.2, 0]}
+                  scale={0.39}
+                />
+              </React.Suspense>
+            </BounceProp>
             <React.Suspense fallback={null}>
               {/* Zsky barbell (CC-BY, credited) lying along the shelf back. */}
               <ModelProp
@@ -154,13 +158,16 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
         </React.Suspense>
       </group>
       {/* Procedural golf ball at the club head — it only reads as golf in
-          the club's company, which is exactly the company it keeps. */}
-      <mesh position={[-1.78, -1.07, 0.06]}>
-        <sphereGeometry args={[0.045, 16, 16]} />
-        <meshStandardMaterial color={palette.pages} roughness={0.55} />
-      </mesh>
+          the club's company, which is exactly the company it keeps.
+          Egg: click and it rolls a few cm, settles, rolls back next click
+          (RollBall carries its own FootPool so the shadow rides along). */}
+      <RollBall
+        unitIndex={index}
+        hoverKey="egg:golf"
+        palette={palette}
+        position={[-1.78, -1.115, 0.06]}
+      />
       <FootPool color={palette.shadow} size={[0.42, 0.3]} position={[-1.99, -1.115, -0.06]} />
-      <FootPool color={palette.shadow} size={[0.14, 0.12]} position={[-1.78, -1.115, 0.06]} />
     </group>
   );
 }
