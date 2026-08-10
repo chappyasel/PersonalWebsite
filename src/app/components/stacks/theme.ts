@@ -9,44 +9,58 @@
 // paper props, sky deepened a step, skyline given real presence, frame rail
 // contrast restored); dark collapses ALBEDO (spine/pile/cover chroma widened
 // so rust/olive/terracotta survive the warm key).
+//
+// v5 sky retune. The whole visible sky lives in elevation 0…0.20 — the dome's
+// zenith hex barely reaches the frame — so the on-screen colour is decided by
+// skyHorizon and skyShadow, not skyTop. The old light triplet was authored
+// bright (all three near sRGB 210+), where ACES flattens chroma roughly 3:1:
+// #e3dcc9 printed [221,219,212] and #d4d7d3 printed [216,217,215], i.e. one
+// undifferentiated grey-beige wall. The light hexes are now authored a step
+// DEEPER, which is where ACES still carries colour, so the frame gets a real
+// vertical arc: cool dawn blue overhead → the bright warm band → a dusty haze
+// layer at eye level. Dark keeps its luminance envelope and buys richness in
+// chroma instead. Effects.tsx rebuilds the rest of the chroma post-ACES;
+// touch devices have no composer, so these hexes must read on their own.
 export const PALETTES = {
   light: {
-    skyTop: "#d3e0ec",
-    skyHorizon: "#e3dcc9",
-    skyShadow: "#d4d7d3",
-    skyEmber: "#ffd9a0",
-    skyline: "#a7b1bf",
+    skyTop: "#93a9c8",
+    skyHorizon: "#d8c3a6",
+    // Cooler than skyHorizon on purpose: the sun band has to be the warmest
+    // thing in the frame, and this band covers most of the lower screen.
+    skyShadow: "#beb2a8",
+    skyEmber: "#ffcf92",
+    skyline: "#94a3b6",
     skyWindow: "#ffca8a",
-    fog: "#ded8c8",
+    fog: "#c9bcac",
     wood: "#a5845f",
-    woodDark: "#8a6b4c",
-    strap: "#826645",
+    woodDark: "#8a6746",
+    strap: "#836441",
     frame: "#e6d9c0",
     cover: "#dccdb4",
     pages: "#f4ecdb",
-    plate: "#6b5a47",
-    hub: "#443a2d",
+    plate: "#6d5943",
+    hub: "#463a29",
     metal: "#7d6a52",
     paper: "#f6efdf",
-    ink: "#6e5d49",
+    ink: "#6f5c45",
     spines: [
       "#a5764c", "#8d7355", "#c2a377", "#9c4f38", "#6e5d49",
       "#b8926a", "#84573f", "#5c5648", "#6e7f95", "#a4917a",
     ],
     pile: ["#8a5a3c", "#5c5648", "#9c6b4f"],
-    shadow: "#5a4326",
+    shadow: "#5c4324",
     dust: "#c9a97e",
     dustOpacity: 0.3,
     glowOpacity: 0.22,
   },
   dark: {
-    skyTop: "#101623",
-    skyHorizon: "#3a4457",
-    skyShadow: "#1a2230",
-    skyEmber: "#d97b41",
-    skyline: "#131a26",
+    skyTop: "#1e2842",
+    skyHorizon: "#3a4762",
+    skyShadow: "#1b2233",
+    skyEmber: "#e07c3e",
+    skyline: "#141b2b",
     skyWindow: "#ffbe73",
-    fog: "#28303f",
+    fog: "#253045",
     wood: "#5c4832",
     woodDark: "#453521",
     strap: "#3b2e1f",
@@ -63,7 +77,7 @@ export const PALETTES = {
       "#7a6650", "#6d3f28", "#42506e", "#75604a", "#57493a",
     ],
     pile: ["#8a4a30", "#59602f", "#9c7857"],
-    shadow: "#0e0a06",
+    shadow: "#0b0a10",
     dust: "#ffcf9e",
     dustOpacity: 0.45,
     glowOpacity: 0.55,

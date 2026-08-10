@@ -24,9 +24,86 @@ import {
   TiltShift2,
   ToneMapping,
   Vignette,
+  useDispose,
 } from "@react-three/postprocessing";
-import { ToneMappingMode } from "postprocessing";
+import { useFrame } from "@react-three/fiber";
+import { BlendFunction, Effect, ToneMappingMode } from "postprocessing";
 import { useMemo } from "react";
+import { MathUtils, Uniform } from "three";
+
+// The print grade — the last thing between ACES and the screen, and the
+// reason the room reads as one photograph rather than 37 correctly-lit
+// materials. Three jobs, in the order a colourist would do them:
+//
+//  1. A filmic S about mid grey. One smoothstep is a toe and a shoulder at
+//     once, so highlights roll off instead of clipping flat.
+//  2. Split tone. The toe takes the AMBIENT hue and the highlights take the
+//     KEY, which is just what the scene already is: dawn bounce over a low
+//     sun in light; the cold indigo 3:45 sky over a tungsten desk lamp in
+//     dark. The toe is shaped to peak in the low-mids and return to zero at
+//     true black, so the deep end tints without milking, and to zero above
+//     mid, so the sky is left alone.
+//  3. Chroma rebuild. ACES desaturates hardest in the upper mids — measured
+//     on this scene it flattens the sky's chroma about 3:1, which is why the
+//     light sky printed as neutral grey at every hex we tried. This puts
+//     that chroma back where it was taken and nowhere else: band-limited so
+//     near-whites stay white and cover art keeps its ACES ceiling.
+//
+// It runs AFTER ToneMapping (a print grade belongs in display-referred
+// space) but the composer's buffers are linear until the final encode, so
+// the shader steps into an approximate display space and back out. It merges
+// into the existing Vignette/ToneMapping/Noise EffectPass — no extra pass.
+const GRADE_FRAGMENT = `
+  uniform float uDark; // 0 light … 1 dark, damped in lockstep with the sky
+
+  float lumc(const in vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+
+  void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
+    vec3 d = pow(max(inputColor.rgb, 0.0), vec3(0.4545454545));
+
+    d = mix(d, d * d * (3.0 - 2.0 * d), mix(0.13, 0.10, uDark));
+
+    float l = lumc(d);
+    float toe = 8.0 * l * max(0.0, 1.0 - 2.0 * l);
+    vec3 toeHue = mix(vec3(1.00, 0.82, 0.60), vec3(0.50, 0.66, 1.00), uDark);
+    d += toeHue * toe * mix(0.030, 0.032, uDark);
+
+    l = lumc(d);
+    vec3 keyHue = mix(vec3(1.012, 1.000, 0.978), vec3(1.016, 0.998, 0.968), uDark);
+    d *= mix(vec3(1.0), keyHue, smoothstep(0.40, 0.95, l));
+
+    l = lumc(d);
+    float band = smoothstep(0.30, 0.70, l) * (1.0 - smoothstep(0.84, 1.00, l));
+    float sat = 1.05 + mix(0.22, 0.16, uDark) * band;
+    d = max(vec3(0.0), vec3(l) + (d - vec3(l)) * sat);
+
+    outputColor = vec4(pow(d, vec3(2.2)), inputColor.a);
+  }
+`;
+
+class GradeEffect extends Effect {
+  constructor(dark: number) {
+    super("GradeEffect", GRADE_FRAGMENT, {
+      // SRC returns the shader's own output verbatim — a grade replaces the
+      // frame, it does not composite over it.
+      blendFunction: BlendFunction.SRC,
+      uniforms: new Map([["uDark", new Uniform(dark)]]),
+    });
+  }
+}
+
+function Grade({ dark }: { dark: boolean }) {
+  // Seeded from the mounted theme so a dark first paint never ramps up from
+  // the light grade; after that uDark damps at the sky dome's rate, so the
+  // grade and the sky cross the theme flip together.
+  const effect = useMemo(() => new GradeEffect(dark ? 1 : 0), []); // eslint-disable-line react-hooks/exhaustive-deps
+  useDispose(effect);
+  useFrame((_, delta) => {
+    const u = effect.uniforms.get("uDark")!;
+    u.value = MathUtils.damp(u.value as number, dark ? 1 : 0, 3.5, delta);
+  });
+  return <primitive object={effect} dispose={null} />;
+}
 
 export default function Effects({ dark }: { dark: boolean }) {
   // Owner-approved at browse (2026-08-09): the miniature look SHIPS.
@@ -35,6 +112,12 @@ export default function Effects({ dark }: { dark: boolean }) {
     () =>
       typeof window === "undefined" ||
       !window.location.search.includes("notiltshift"),
+    [],
+  );
+  const graded = useMemo(
+    () =>
+      typeof window === "undefined" ||
+      !window.location.search.includes("nograde"),
     [],
   );
   return (
@@ -53,6 +136,7 @@ export default function Effects({ dark }: { dark: boolean }) {
           corners read as grime against it. */}
       <Vignette eskil={false} offset={0.28} darkness={dark ? 0.5 : 0.3} />
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+      {graded && <Grade dark={dark} />}
       <Noise premultiply opacity={dark ? 0.22 : 0.07} />
       <SMAA />
     </EffectComposer>

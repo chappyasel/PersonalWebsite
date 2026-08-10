@@ -73,6 +73,18 @@ const SKY_FRAGMENT = `
     float m = max(1.0 - q * q, 0.0);
     return m * m;
   }
+  // Bilinear value noise on the hash — two octaves are enough for the very
+  // low-frequency air the bands need.
+  float vnoise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float a0 = hash2(i);
+    float b0 = hash2(i + vec2(1.0, 0.0));
+    float c0 = hash2(i + vec2(0.0, 1.0));
+    float d0 = hash2(i + vec2(1.0, 1.0));
+    return mix(mix(a0, b0, f.x), mix(c0, d0, f.x), f.y);
+  }
 
   void main() {
     vec3 dir = normalize(vLocal);
@@ -90,9 +102,23 @@ const SKY_FRAGMENT = `
     // slate band above it (the inversion that reads "sky", not "gradient"),
     // then the fall to zenith. Below the horizon the void deepens — hard in
     // the dark theme so the floor grounds, gently in light.
+    //
+    // v5: the zenith ramp was 0.08→0.45, but the frame only reaches e ≈ 0.20,
+    // so the zenith hex never got past a quarter weight and the whole visible
+    // sky was one flat horizon band. 0.045→0.30 lands the cool cap inside the
+    // frame and gives the sky a vertical arc to read.
     vec3 col = mix(shadowC, horizonC, smoothstep(0.0, 0.16, e));
-    col = mix(col, zenithC, smoothstep(0.08, 0.45, e));
+    col = mix(col, zenithC, smoothstep(0.045, 0.30, e));
     col = mix(col, shadowC * mix(0.88, 0.45, uDark), smoothstep(0.02, 0.30, -e));
+
+    // Air. Two octaves of very low-frequency drift over the band mix — a real
+    // sky is never a clean interpolation, and the ±3% this adds is also what
+    // keeps the shallow gradient from posterising into bands. Placed before
+    // the ember/city so nothing structural shimmers; the drift rate is slow
+    // enough (~3 min per cell) to read as weather, not animation.
+    float hz = 0.65 * vnoise(vec2(a * 1.7, e * 5.5) + uTime * 0.0035)
+             + 0.35 * vnoise(vec2(a * 4.1, e * 12.0) + 11.0 - uTime * 0.0025);
+    col *= 1.0 + (hz - 0.5) * 0.06 * (1.0 - uSimplify);
 
     // Ember / low sun, azimuth-anchored near the end of the traverse so
     // travel pans toward it. Dark: grows from nothing (3:45 is fully dark)
@@ -104,15 +130,23 @@ const SKY_FRAGMENT = `
     float azFall = exp(-(qa * qa));
     float emberElev = mix(0.030 + 0.10 * uDawn, 0.020, uDark);
     float emberW = mix(0.055, 0.020 + 0.015 * uDawn, uDark);
-    // Light dawn growth 0.38+0.12→0.34+0.20 (v4): the morning has to
-    // VISIBLY arrive over the traverse — the flat curve read as a static
-    // backdrop and starved the harness's dawn-delta gate.
-    float emberAmp = mix(0.34 + 0.20 * uDawn, 0.30 * uDawn, uDark);
+    // Light dawn growth 0.38+0.12→0.34+0.20 (v4)→0.26+0.36 (v5): the morning
+    // has to VISIBLY arrive over the traverse — the flat curve read as a
+    // static backdrop and starved the harness's dawn-delta gate. v5 needed
+    // the extra travel because the retuned sky is warm at rest, so a glow
+    // that only grows a little no longer separates from its own backdrop.
+    float emberAmp = mix(0.26 + 0.36 * uDawn, 0.30 * uDawn, uDark);
     float qe = (e - emberElev) / emberW;
     float ember = exp(-(qe * qe)) * emberAmp * azFall;
     float qg = (e - 0.02) / 0.04;
     ember += (1.0 - uDark) * 0.10 * exp(-(qg * qg));
     col += emberC * ember;
+    // Light theme only: the morning sky already sits on the ACES shoulder, so
+    // adding energy there buys brightness and almost no colour — the glow
+    // washed out instead of warming. The dawn therefore also TINTS, pulling
+    // blue out of the band it lights, which is what a long scattering path
+    // actually does to the sky around a low sun.
+    col *= mix(vec3(1.0), vec3(1.05, 0.99, 0.72), min(ember, 1.0) * (1.0 - uDark));
 
     // Stars, dark only — hashed cells in azimuth/elevation space with
     // per-star phase and rate, horizon extinction, thinned by the dawn.
@@ -405,9 +439,12 @@ function RoomEnvironment({ dark }: { dark: boolean }) {
         scale={10}
         target={[0, 0, 0]}
       />
+      {/* The cool fill IS the sky reflected — it tracks the v5 zenith hexes
+          (#93a9c8 light, #1e2842 dark) so glass and metal report the same
+          sky the dome is painting. */}
       <Lightformer
         form="rect"
-        color={dark ? "#42506b" : "#6e7f95"}
+        color={dark ? "#414f70" : "#7a8ba4"}
         intensity={dark ? 1.3 : 0.7}
         position={[-5, 2, 1]}
         scale={8}
