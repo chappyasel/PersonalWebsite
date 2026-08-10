@@ -62,6 +62,7 @@ type CannonModule = {
   Body: typeof CANNON.Body;
   Vec3: typeof CANNON.Vec3;
   Box: typeof CANNON.Box;
+  Sphere: typeof CANNON.Sphere;
   Plane: typeof CANNON.Plane;
 };
 
@@ -123,6 +124,139 @@ const TUMBLE = 0.9;
 const MIN_EXTENT = 0.008;
 const MAX_EXTENT = 2.5;
 
+/** Scene mass units per real kilogram, so a call site can declare what a prop
+ * WEIGHS instead of trusting a uniform density to guess it.
+ *
+ * Derived from the one body that was tuned by hand: the mug's hull is
+ * 0.268 × 0.418 × 0.270 = 0.0302 unit³, which at DENSITY 90 masses 2.72, and
+ * the thing on the shelf is a ceramic desk caddy of about 0.4 kg. 2.72 / 0.4
+ * = 6.8. Everything declared in kg therefore lands in the same load band the
+ * contact defaults were tuned against, which is the only reason the number
+ * exists — see the DENSITY note above for what happens outside that band.
+ *
+ * This matters most for the balls, where uniform density is not merely
+ * imprecise, it is inverted. A basketball is a bag of air and a golf ball is
+ * solid: 0.62 kg against 0.046 kg is a ratio of 13.5, while their volumes are
+ * a ratio of 110. Massed by volume the golf ball comes out at 1/110th of the
+ * basketball and cannot move it at all; massed in kg it shoves it about a
+ * centimetre, which is what a golf ball hitting a basketball does. */
+export const SCENE_MASS_PER_KG = 6.8;
+
+/** A shape hint from the call site. "auto" measures: a prop whose AABB is
+ * near-cubic is a ball, and a ball simulated as a box is the whole complaint —
+ * boxes do not roll, they topple onto a face and stop. */
+export type HullShape = "auto" | "sphere" | "box";
+
+/** How square an AABB has to be before "auto" calls it a ball. A basketball
+ * measures 0.216 × 0.215 × 0.214 and a golf ball is a sphereGeometry, so both
+ * are inside 1%; the mug is 0.268 × 0.418 × 0.270 (1.56) and the paper stack
+ * is flatter still, so nothing on these shelves is anywhere near the line. */
+const SPHERICITY = 1.18;
+
+/** A sphere gets its own damping pair, and counter-intuitively a HEAVIER one
+ * than the box it replaces (0.5 / 0.6). The reason is that the two hulls are
+ * braked by different things. A box slides, so contact friction does almost
+ * all the work — measured against this world's own contact material, a box
+ * pushed at 1.2 u/s travels 0.004 units, which is the owner's complaint
+ * exactly: a basketball flicked along the shelf does not move. A ball rolling
+ * without slipping dissipates nothing at the contact at all, so damping is
+ * the ONLY brake it has and has to carry the whole load.
+ *
+ * Swept against the real solver at 1/60 with the real masses. 0.8 / 0.9 puts
+ * a firm 1.2 u/s flick 0.62 units along the plank, asleep in 2.0 s, and a
+ * gentle 0.4 u/s nudge 0.20 units, asleep in 1.5 s — a fifth of the shelf for
+ * a hard push, which is a ball on wood rather than a ball on ice. At 0.16 /
+ * 0.3 the same flick ran 2.54 units and a golf ball took 12 s to sleep.
+ *
+ * HARD CEILING: angular damping must stay UNDER 1. cannon integrates it as
+ * pow(1 - angularDamping, dt), so 1.0 pins the spin to zero and anything above
+ * it raises a negative base to a fractional power and yields NaN — the body
+ * then reports enormous travel and never sleeps, which reads as a tuning
+ * result and is actually a corrupted integrator. Every value at or above 1.0
+ * in the sweep was that, not a slower ball. */
+const BALL_LINEAR_DAMPING = 0.8;
+const BALL_ANGULAR_DAMPING = 0.9;
+
+/** cannon's sleep test compares |v|² + |ω|² against sleepSpeedLimit², and a
+ * ball rolling without slipping has ω = v/r. On a 0.045-radius golf ball a
+ * crawl of 0.05 u/s is 1.1 rad/s of spin, twenty times the box threshold, so a
+ * ball on the box numbers NEVER sleeps and rewrites its transform forever.
+ * Scaling the limit by 1/r puts both terms under the bar at the same speed. */
+function ballSleepLimit(radius: number) {
+  return 0.05 * (1 + 1 / Math.max(radius, 0.02));
+}
+
+/** Which plank a body stands on. It decides where the ground is, where the
+ * edges are, and whether there is a plank overhead to stop a throw. Derived
+ * from the parent group's y when the call site does not say (ShelfUnit mounts
+ * its two shelves at SHELF.top 0.035 and SHELF.lower −0.6925), but a prop
+ * standing on the ground bay has no such parent and has to declare it. */
+export type ShelfPlane = "top" | "lower" | "floor";
+
+/** Under-plank clearance on the lower shelf: top plank underside (−0.035)
+ * minus the lower plank surface (−0.6925). Measured off ShelfUnit's own
+ * RoundedBox args in primitives.tsx, not typed in by hand. */
+const LOWER_HEADROOM = 0.6575;
+
+/** Static-collider budget. The neighbour pass walks INTO groups now (see
+ * collectStatics), so a shelf that used to yield three boxes can yield
+ * thirty; cannon's default broadphase is O(n²) on AABB pairs, and 48 statics
+ * is ~2300 overlap tests per step (tens of microseconds) while 200 would not
+ * be. Depth is capped for the same reason — a packed book row is fourteen
+ * meshes and none of them is a collider anyone will ever notice. */
+const MAX_STATICS = 48;
+/** Deep enough to reach a GLB's own meshes. The wrappers between a shelf and
+ * its geometry are not decorative — PropLink, Lift, Suspense's group,
+ * ModelProp's group and the glTF scene node are five levels before the first
+ * mesh, and a cap of 4 stopped one short: the barbell came out as a single
+ * 2.37 × 0.48 slab, an invisible wall where the visible object is a 3 cm rod
+ * with a plate stack at each end. The real guards on cost are MAX_STATICS and
+ * SPLIT_EXTENT, which stop the descent on width, not on nesting. */
+const MAX_SPLIT_DEPTH = 8;
+
+/** Boxes closer than this get unioned back together after a split.
+ *
+ * Splitting is right for a layout group and wrong for a STACK. The Musings
+ * paper stack is three sheets 16 mm apart, and one collider per sheet builds a
+ * staircase with 1 mm treads: the mug set down on it wedges between two of
+ * them, fights both contacts, and never reaches sleep — measured, it sat
+ * SLEEPY for 3.6 s where the single box had it SLEEPING in 1.0 s, which means
+ * a prop at rest rewriting its transform forever. 2 cm is also below anything
+ * a ball could roll into, so nothing is lost by closing the gap. */
+const MERGE_GAP = 0.02;
+
+/** …but ONLY inside a subtree this size or under.
+ *
+ * Merging is undoing an over-split, so it must not reach across props. Run
+ * unscoped it does exactly that: measured on Musings, the paper stack's
+ * sheets and the table lamp's mesh parts overlap in x once each is measured
+ * on its own, and a blind proximity merge fused them into one 0.89-wide,
+ * 0.65-tall slab spanning the middle of the shelf. The mug thrown at it
+ * climbed on top and slept at y 0.784, standing on an invisible wall in the
+ * 5 cm of air between two props.
+ *
+ * The line: a subtree under this bound is one OBJECT that got split into its
+ * own parts (the paper stack 0.62, the table lamp 0.65) and should come back
+ * together; anything over it is either a layout group (Training's wrapper,
+ * 2.9 across) or a prop big enough that per-mesh hulls beat its AABB (the
+ * barbell, 2.37 — bar plus a plate stack at each end, rather than one slab at
+ * plate diameter spanning the whole shelf). Nothing measured lands between
+ * 0.65 and 2.37, so the exact value is not load-bearing. */
+const MERGE_UNION_MAX = 0.9;
+
+/** Any single prop on these shelves fits inside this. A box wider than it is
+ * a LAYOUT group — a unit file wrapping several props for positioning — and
+ * wrapping one collider around the lot is what let props clip each other. */
+const SPLIT_EXTENT = 0.55;
+
+/** How far a body may get from the plank before it is treated as escaped
+ * rather than thrown. Generous: the walls are at |x| 1.57 and the whole point
+ * of them is that this should never fire. */
+const ESCAPE_X = 2.4;
+const ESCAPE_Z = 1.6;
+const ESCAPE_Y_DOWN = -1.4;
+const ESCAPE_Y_UP = 3;
+
 export type Phase = "rest" | "held" | "settling" | "sim";
 
 /** The shared object between a Grabbable and its body. Grabbable owns the
@@ -134,6 +268,14 @@ export type ShelfHandle = {
   /** Authored pose, refreshed each frame from the component's props. */
   base: THREE.Vector3;
   spin: number;
+  /** Hull to build. Defaults to "auto", which measures the AABB. */
+  shape?: HullShape;
+  /** What the prop weighs, in real kilograms. Overrides the uniform-density
+   * guess, which is wrong by two orders of magnitude on anything hollow. */
+  massKg?: number;
+  /** Which plank this prop stands on. Defaults to a read of the parent
+   * group's y, which is right for anything mounted through ShelfUnit. */
+  plane?: ShelfPlane;
   /** Shared ref, not a copy: the world flips it to "sim" the moment a body
    * it owns is knocked awake by someone else's throw, and the owning
    * Grabbable stops authoring that prop's transform on the next frame. */
@@ -188,7 +330,10 @@ const sizeScratch = new THREE.Vector3();
  * things standing on these shelves carry a ContactShade billboard as a child.
  * A 0.55-wide shade sprite next to a 0.42-wide paper stack grew the stack's
  * box by 6 cm on the near side — an invisible bumper the mug bounced off. */
-function boxIn(obj: THREE.Object3D, invFrame: THREE.Matrix4): THREE.Box3 | null {
+function rawBoxIn(
+  obj: THREE.Object3D,
+  invFrame: THREE.Matrix4,
+): THREE.Box3 | null {
   obj.updateWorldMatrix(true, true);
   const out = new THREE.Box3();
   obj.traverse((child) => {
@@ -203,7 +348,17 @@ function boxIn(obj: THREE.Object3D, invFrame: THREE.Matrix4): THREE.Box3 | null 
     boxScratch.applyMatrix4(matScratch);
     out.union(boxScratch);
   });
-  if (out.isEmpty()) return null;
+  return out.isEmpty() ? null : out;
+}
+
+/** The same box, gated to the size a PROP can be. Used for the dynamic hull,
+ * where a measurement outside this range means the model has not streamed in
+ * or the caller handed us the wrong group, and authored motion is the honest
+ * fallback. The neighbour pass deliberately does NOT use this gate — see
+ * collectStatics. */
+function boxIn(obj: THREE.Object3D, invFrame: THREE.Matrix4): THREE.Box3 | null {
+  const out = rawBoxIn(obj, invFrame);
+  if (!out) return null;
   out.getSize(sizeScratch);
   const min = Math.min(sizeScratch.x, sizeScratch.y, sizeScratch.z);
   const max = Math.max(sizeScratch.x, sizeScratch.y, sizeScratch.z);
@@ -217,6 +372,33 @@ function boxIn(obj: THREE.Object3D, invFrame: THREE.Matrix4): THREE.Box3 | null 
 function localBox(obj: THREE.Object3D): THREE.Box3 | null {
   obj.updateWorldMatrix(true, true);
   return boxIn(obj, invScratch.copy(obj.matrixWorld).invert());
+}
+
+/** Union any boxes that touch, in place, until nothing else can merge.
+ *
+ * The counterpart to collectStatics: descending finds every prop, and this
+ * puts back together the ones that were never separate objects to begin with —
+ * a stack of sheets, the two halves of a lamp, the plate and the collar of a
+ * barbell. A collider set with a 1 mm gap in it is worse than a coarse one,
+ * because a resting body wedges in the gap and fights both faces forever.
+ *
+ * O(n²) per merge round over at most MAX_STATICS boxes, run once when the
+ * world is built. */
+function mergeTouching(boxes: THREE.Box3[], from = 0) {
+  const pad = new THREE.Vector3(MERGE_GAP, MERGE_GAP, MERGE_GAP);
+  for (let merged = true; merged; ) {
+    merged = false;
+    outer: for (let i = from; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        boxScratch.copy(boxes[i]!).expandByVector(pad);
+        if (!boxScratch.intersectsBox(boxes[j]!)) continue;
+        boxes[i]!.union(boxes[j]!);
+        boxes.splice(j, 1);
+        merged = true;
+        break outer;
+      }
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -253,7 +435,14 @@ export class ShelfWorld {
   private readonly C: CannonModule;
   private readonly world: CANNON.World;
   private readonly parent: THREE.Object3D;
+  /** Which plank this world models — decides the edge walls and whether
+   * there is a lid. Set in the constructor, read by report(). */
+  readonly plane: ShelfPlane;
   readonly handles: ShelfHandle[] = [];
+  /** Sphere bodies, by body id. cannon has no per-body "is a ball" flag and
+   * `instanceof` on the shape means reaching for the class on every read;
+   * the radius is what release() and the sleep threshold both want anyway. */
+  private readonly balls = new Map<number, number>();
   /** clock.elapsedTime of the last step — every Grabbable on the shelf calls
    * tick(), only the first one in a frame does the work. */
   private stamp = -1;
@@ -302,12 +491,17 @@ export class ShelfWorld {
 
     // …and invisible half-spaces at the plank's own edges, so nothing slides
     // out over open air instead. Footprints from ShelfUnit in primitives.tsx:
-    // top plank 3.2 × 0.85 centred at z 0, lower plank 3.2 × 0.6 at z −0.08.
-    // The two shelves sit 0.73 apart, so the sign of y is enough to tell them
-    // apart without importing the layout.
-    const lower = parent.position.y < -0.3;
-    const zNear = lower ? 0.19 : 0.39;
-    const zFar = lower ? -0.35 : -0.39;
+    // top plank 3.2 × 0.85 centred at z 0, lower plank 3.2 × 0.6 at z −0.08,
+    // ground bay the full 0.85 again. The two shelves sit 0.73 apart, so the
+    // parent group's own y names the plank without importing the layout —
+    // unless a handle says otherwise, which is how a prop standing on the
+    // GROUND (whose parent is the unit root, at y 0, and which would
+    // otherwise be read as a top shelf) gets the right box.
+    const declared = handles.find((h) => h.plane)?.plane;
+    this.plane =
+      declared ?? (parent.position.y < -0.3 ? "lower" : "top");
+    const zNear = this.plane === "lower" ? 0.19 : 0.39;
+    const zFar = this.plane === "lower" ? -0.35 : -0.39;
     for (const [pos, euler] of [
       [new C.Vec3(-1.57, 0, 0), new C.Vec3(0, Math.PI / 2, 0)],
       [new C.Vec3(1.57, 0, 0), new C.Vec3(0, -Math.PI / 2, 0)],
@@ -318,6 +512,18 @@ export class ShelfWorld {
       wall.position.copy(pos);
       wall.quaternion.setFromEuler(euler.x, euler.y, euler.z);
       this.world.addBody(wall);
+    }
+
+    // The plank overhead, on the one shelf that has one. Without it a ball
+    // thrown up from the lower shelf sails through 5 cm of solid wood and
+    // lands on the shelf above, which is a worse read than any clipping this
+    // pass fixes. The top shelf gets no lid on purpose: there is no plank
+    // above it, and a prop thrown off it is caught by the walls and gravity.
+    if (this.plane === "lower") {
+      const lid = new C.Body({ type: C.Body.STATIC, shape: new C.Plane() });
+      lid.position.set(0, LOWER_HEADROOM, 0);
+      lid.quaternion.setFromEuler(Math.PI / 2, 0, 0); // normal −Y
+      this.world.addBody(lid);
     }
 
     for (const handle of handles) this.adopt(handle);
@@ -334,24 +540,59 @@ export class ShelfWorld {
     if (!box) return; // model still streaming in — authored motion covers it
     const centre = box.getCenter(new THREE.Vector3());
     box.getSize(sizeScratch).multiplyScalar(0.5);
-    sizeScratch.x *= HULL_SHRINK;
-    sizeScratch.z *= HULL_SHRINK;
-    const volume = sizeScratch.x * sizeScratch.y * sizeScratch.z * 8;
-    // The body's origin is its centre of mass, so the hull hangs off it at an
-    // offset rather than the other way round.
+    const halfX = sizeScratch.x * HULL_SHRINK;
+    const halfY = sizeScratch.y;
+    const halfZ = sizeScratch.z * HULL_SHRINK;
+    const volume = halfX * halfY * halfZ * 8;
+
+    // Ball or box. A ball measured as a box is the owner's complaint stated
+    // precisely: a box on a plank has four stable faces and rolls onto one of
+    // them, so a basketball flicked along the shelf slides, tips and stops
+    // dead square. It does not matter how good the contacts are.
+    const span = [halfX, halfY, halfZ];
+    const round =
+      handle.shape === "sphere" ||
+      (handle.shape !== "box" &&
+        Math.max(...span) / Math.max(Math.min(...span), 1e-6) < SPHERICITY);
+    // The INSCRIBED radius, not the circumscribed one: a ball that pokes out
+    // of its own silhouette hovers visibly above the wood, and this is a
+    // scene with no shadows to hide it.
+    const radius = Math.min(halfX, halfY, halfZ);
+
+    // A ball's centre of mass is its centre. COM_FRACTION exists because the
+    // shelf props are bottom-heavy silhouettes (a cup with scissors in it, a
+    // base with a shade); applying it to a sphere would put the mass 15% of
+    // the radius below the middle, which is a weeble, not a ball.
     const com = centre.clone();
-    com.y = box.min.y + (box.max.y - box.min.y) * COM_FRACTION;
+    if (!round) com.y = box.min.y + (box.max.y - box.min.y) * COM_FRACTION;
+
     const body = new C.Body({
-      mass: Math.max(0.08, volume * DENSITY),
+      // Declared weight wins. Uniform density is a reasonable guess for a
+      // solid object and an inverted one for anything hollow — see
+      // SCENE_MASS_PER_KG.
+      mass:
+        handle.massKg !== undefined
+          ? Math.max(0.05, handle.massKg * SCENE_MASS_PER_KG)
+          : Math.max(0.08, volume * DENSITY),
       // Wood eats energy. Without this a knocked prop skates for a second
-      // and a half, which looks like ice rather than a shelf.
-      linearDamping: 0.5,
-      angularDamping: 0.6,
+      // and a half, which looks like ice rather than a shelf. A ball is the
+      // one thing on the shelf that is SUPPOSED to keep going, so it gets
+      // rolling resistance instead of skid resistance.
+      linearDamping: round ? BALL_LINEAR_DAMPING : 0.5,
+      angularDamping: round ? BALL_ANGULAR_DAMPING : 0.6,
     });
-    body.addShape(
-      new C.Box(new C.Vec3(sizeScratch.x, sizeScratch.y, sizeScratch.z)),
-      new C.Vec3(0, centre.y - com.y, 0),
-    );
+    if (round) {
+      body.addShape(
+        new C.Sphere(radius),
+        new C.Vec3(0, centre.y - com.y, 0),
+      );
+      this.balls.set(body.id, radius);
+    } else {
+      body.addShape(
+        new C.Box(new C.Vec3(halfX, halfY, halfZ)),
+        new C.Vec3(0, centre.y - com.y, 0),
+      );
+    }
     body.allowSleep = true;
     // Two thresholds pulling opposite ways. Too high and a prop toppling onto
     // another one falls asleep MID-FALL and freezes at an angle; too low and
@@ -360,7 +601,7 @@ export class ShelfWorld {
     // the rest phase are careful not to do. 0.05 u/s over 0.45s is under 2 cm
     // of drift — narrower than the contact shade — and both the set-down and
     // the thrown-into-a-neighbour cases reach SLEEPING within ~1.5s.
-    body.sleepSpeedLimit = 0.05;
+    body.sleepSpeedLimit = round ? ballSleepLimit(radius) : 0.05;
     body.sleepTimeLimit = 0.45;
     handle.body = body;
     handle.com = com;
@@ -390,10 +631,11 @@ export class ShelfWorld {
       // passing over, permanently.
       if (box) occupied.push(box.translate(handle.base));
     }
-    for (const child of this.parent.children) {
-      if (dynamic.has(child) || !child.visible) continue;
-      const box = boxIn(child, inv);
-      if (!box) continue;
+    const boxes: THREE.Box3[] = [];
+    for (const child of this.parent.children)
+      this.collectStatics(child, inv, dynamic, boxes, 0);
+
+    for (const box of boxes) {
       // Never wrap a grabbable's rest pose in a static wall — a body born
       // inside geometry is ejected across the room on the first step.
       if (occupied.some((taken) => taken.intersectsBox(box))) continue;
@@ -416,6 +658,62 @@ export class ShelfWorld {
       body.position.set(centre.x, centre.y, centre.z);
       this.world.addBody(body);
     }
+  }
+
+  /** Walk a shelf child down to one box per PROP rather than one per group.
+   *
+   * This is the clipping bug, and it is not a solver problem. The old pass
+   * looked only at the shelf group's DIRECT children and dropped any whose
+   * union AABB was bigger than MAX_EXTENT. That is not a rare case, it is the
+   * common one: unit files wrap several props in a single layout `<group>`
+   * for positioning. On Training that wrapper holds the dumbbell, the
+   * basketball, a 2.37-wide barbell and two framed photographs — about 2.9
+   * units across, over the cap — so the entire shelf silently had NO
+   * colliders and everything on it passed through everything else. Where the
+   * union did squeak under the cap it was worse than nothing: one box bridged
+   * the gap between two props and became an invisible wall in the air
+   * between them.
+   *
+   * The rule: a box wider than any single prop can be (SPLIT_EXTENT) is a
+   * layout group, so descend. A leaf that is genuinely that big — the barbell
+   * — splits into its own meshes, which is a better hull than its AABB was
+   * anyway: bar, and a plate stack at each end, instead of one slab spanning
+   * the whole shelf at plate diameter.
+   *
+   * Deliberately NOT boxIn(): its MIN_EXTENT gate rejects anything with one
+   * thin axis, which is every photograph and every sheet of paper on these
+   * shelves. A ball should hit a picture frame. */
+  private collectStatics(
+    obj: THREE.Object3D,
+    inv: THREE.Matrix4,
+    dynamic: Set<THREE.Object3D>,
+    out: THREE.Box3[],
+    depth: number,
+  ) {
+    if (out.length >= MAX_STATICS) return;
+    if (!obj.visible || dynamic.has(obj)) return;
+    const box = rawBoxIn(obj, inv);
+    if (!box) return;
+    box.getSize(sizeScratch);
+    const max = Math.max(sizeScratch.x, sizeScratch.y, sizeScratch.z);
+    if (max < MIN_EXTENT) return; // a sliver, or a helper with no geometry
+    if (max > SPLIT_EXTENT && depth < MAX_SPLIT_DEPTH && obj.children.length) {
+      const before = out.length;
+      for (const child of obj.children)
+        this.collectStatics(child, inv, dynamic, out, depth + 1);
+      // Only accept the split if it produced something. A single oversized
+      // MESH has no children to descend into and falls through to the cap
+      // below, which is the honest outcome: too big to be a prop.
+      if (out.length > before) {
+        // …and if what was split is still one object rather than a layout,
+        // put its parts back together. Scoped to the boxes THIS subtree
+        // produced, which is what keeps a merge from reaching across props.
+        if (max <= MERGE_UNION_MAX) mergeTouching(out, before);
+        return;
+      }
+    }
+    if (max > MAX_EXTENT) return;
+    out.push(box);
   }
 
   /** A Grabbable that unmounted takes its body with it — otherwise the world
@@ -526,13 +824,28 @@ export class ShelfWorld {
     body.allowSleep = true;
     body.wakeUp();
     body.velocity.set(clamp(velocity.x), clamp(velocity.y), clamp(velocity.z));
-    // Tumble about the axis across the direction of travel, plus the yaw the
-    // authored settle used to apply on its own.
-    body.angularVelocity.set(
-      clamp(velocity.z) * TUMBLE,
-      clamp(velocity.x) * handle.spin,
-      -clamp(velocity.x) * TUMBLE,
-    );
+    const radius = this.balls.get(body.id);
+    if (radius !== undefined) {
+      // A ball leaves the hand ROLLING, at the no-slip rate ω = v/r, about
+      // the axis across the direction of travel. TUMBLE's "legible fraction"
+      // exists so a thrown mug does not blur; a ball that spins slower than
+      // it travels is a ball skidding on ice, and the eye reads that
+      // immediately. Friction would eventually spin it up to this anyway —
+      // handing it over at release just skips the skid.
+      body.angularVelocity.set(
+        clamp(velocity.z) / radius,
+        0,
+        -clamp(velocity.x) / radius,
+      );
+    } else {
+      // Tumble about the axis across the direction of travel, plus the yaw
+      // the authored settle used to apply on its own.
+      body.angularVelocity.set(
+        clamp(velocity.z) * TUMBLE,
+        clamp(velocity.x) * handle.spin,
+        -clamp(velocity.x) * TUMBLE,
+      );
+    }
     handle.parked = false;
     handle.phase.current = "sim";
     return true;
@@ -620,6 +933,18 @@ export class ShelfWorld {
       const body = handle.body;
       if (!body) continue;
       if (handle.phase.current === "sim") {
+        // A body that has left the shelf entirely comes home rather than
+        // falling forever. The walls and the ground make this all but
+        // unreachable, but "all but" is doing real work: a tab that was
+        // backgrounded mid-throw, or a release inside geometry that standUp
+        // could not resolve, can hand the solver a step big enough to tunnel,
+        // and a prop the visitor can never see again is worse than one that
+        // clipped. Parking is the same ending travel already gives it.
+        if (this.escaped(body)) {
+          this.park(handle);
+          handle.phase.current = "rest";
+          continue;
+        }
         this.pull(handle);
         continue;
       }
@@ -639,6 +964,17 @@ export class ShelfWorld {
       // authoritative, so snap it back.
       this.push(handle, 0);
     }
+  }
+
+  private escaped(body: CANNON.Body) {
+    const p = body.position;
+    return (
+      Math.abs(p.x) > ESCAPE_X ||
+      Math.abs(p.z) > ESCAPE_Z ||
+      p.y < ESCAPE_Y_DOWN ||
+      p.y > ESCAPE_Y_UP ||
+      !Number.isFinite(p.x + p.y + p.z)
+    );
   }
 
   /** Record every prop-versus-neighbour pair the solver resolved this step,
@@ -678,6 +1014,7 @@ export class ShelfWorld {
     }
     return {
       bodies: this.world.bodies.length,
+      plane: this.plane,
       neighbours: boxes,
       contacts: this.contacts,
       props: this.handles.map((handle) => ({
@@ -687,6 +1024,11 @@ export class ShelfWorld {
         body: handle.body
           ? {
               type: handle.body.type,
+              // "Is it a ball" is the question this pass exists to answer,
+              // and a trajectory cannot answer it — a box on a flat plank
+              // slides in a straight line too.
+              shape: this.balls.has(handle.body.id) ? "sphere" : "box",
+              radius: this.balls.get(handle.body.id) ?? null,
               asleep: handle.body.sleepState === this.C.Body.SLEEPING,
               position: handle.body.position.toArray(),
               velocity: handle.body.velocity.toArray(),

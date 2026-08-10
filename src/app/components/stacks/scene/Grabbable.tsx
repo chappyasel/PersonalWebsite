@@ -45,7 +45,13 @@ import * as THREE from "three";
 
 import { useStacks } from "../store";
 import { poolTexture } from "./GroundPool";
-import type { Phase, ShelfHandle, ShelfWorld } from "./physics";
+import type {
+  HullShape,
+  Phase,
+  ShelfHandle,
+  ShelfPlane,
+  ShelfWorld,
+} from "./physics";
 
 /** Damping for the spring home — matches Lift's LAMBDA so a released prop
  * settles at the same rate the shelf's hover affordance moves. */
@@ -157,6 +163,9 @@ export default function Grabbable({
   shadeWidth = 0.5,
   shadeColor,
   spin = 0.9,
+  shape,
+  massKg,
+  standsOn,
   children,
 }: {
   /** Only the active unit answers — off-screen props let the click fall
@@ -168,8 +177,23 @@ export default function Grabbable({
   base: [number, number, number];
   shadeWidth?: number;
   shadeColor: string;
-  /** How much horizontal throw becomes yaw on the way down. */
+  /** How much horizontal throw becomes yaw on the way down. Ignored for a
+   * ball, which rolls at ω = v/r instead. */
   spin?: number;
+  /** Collision hull. Leave unset and the AABB decides: near-cubic is a ball.
+   * Pass it explicitly when the model's box lies — a squat prop that is not
+   * round, or a round one whose bbox carries a stand. */
+  shape?: HullShape;
+  /** What the prop weighs, in real kilograms. Without it mass comes off a
+   * uniform density, which is fine for solid props and badly wrong for
+   * hollow ones: a basketball massed by volume outweighs a golf ball 110 to
+   * 1 instead of 13 to 1, and the golf ball cannot budge it. */
+  massKg?: number;
+  /** Which plank the prop stands on. Only needed for a prop whose parent
+   * group is not one of ShelfUnit's two shelves — anything on the ground
+   * bay, whose parent sits at y 0 and would otherwise be read as a top
+   * shelf, putting the floor 1.1 units too high. */
+  standsOn?: ShelfPlane;
   children: React.ReactNode;
 }) {
   const group = useRef<THREE.Group>(null);
@@ -220,6 +244,9 @@ export default function Grabbable({
       group: g,
       base: new THREE.Vector3(base[0], base[1], base[2]),
       spin,
+      shape,
+      massKg,
+      plane: standsOn,
       phase,
     };
     handle.current = entry;
