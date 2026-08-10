@@ -83,6 +83,9 @@ const FADE_PX = 34;
 /** How far outside the scroll viewport a plate keeps its blur, so one never
  * has to appear on the same frame it becomes visible. */
 const CULL_MARGIN = 120;
+/** How long a measurement will wait for a hovered card to settle before
+ * giving up and measuring anyway (see measure()). */
+const MAX_DEFER_FRAMES = 30;
 
 type Plate = {
   top: number;
@@ -174,21 +177,39 @@ function BlurPlates({
     const el = scrollRef.current;
     if (!el || !mounted) return;
     let raf = 0;
+    let deferred = 0;
     let tagged = new Set<Element>();
     const observed = new WeakSet<Element>();
     const ro = new ResizeObserver(() => schedule());
 
     const measure = () => {
       raf = 0;
+      // Pointer state can outlive the elements it points at — a hot update or
+      // any re-render that replaces a card leaves these refs holding detached
+      // nodes, and nothing fires a pointer event to clear them because the
+      // pointer never moved. Drop those first; otherwise the deferral below
+      // waits on a card that no longer exists and the plates freeze at the old
+      // layout forever.
+      const ptr = pointerRef.current;
+      if (ptr.hover && !ptr.hover.isConnected) ptr.hover = null;
+      if (ptr.press && !ptr.press.isConnected) ptr.press = null;
+      if (ptr.focus && !ptr.focus.isConnected) ptr.focus = null;
       // A lifted card's rect INCLUDES its hover transform, so measuring now
       // would bake the lift into the plate's resting position and leave the
       // glass sitting high once the pointer moves on. Nothing can change
       // geometry while you hold the pointer still that won't still be true a
       // frame later, so wait it out. The bail happens before any layout read.
-      if (pointerRef.current.hover ?? pointerRef.current.press) {
+      //
+      // Capped, because "wait for the pointer to leave" is not a promise the
+      // user has to keep: resting on a card while the content behind it
+      // changes must not strand the plates. Past the cap, a 3px error is the
+      // better failure.
+      if ((ptr.hover ?? ptr.press) && deferred < MAX_DEFER_FRAMES) {
+        deferred++;
         raf = requestAnimationFrame(measure);
         return;
       }
+      deferred = 0;
       const all = Array.from(el.querySelectorAll<HTMLElement>(PLATE_SELECTOR));
       const base = el.getBoundingClientRect();
       // Plate geometry is only valid while the placard is painted at its
@@ -499,7 +520,17 @@ function Panel({
         // bridge and the scroll-isolation gate both look up the ACTIVE
         // scroller by this attribute pair.
         aria-hidden={!active}
-        className="stacks-scroll placard-scroll relative h-full overflow-y-auto overscroll-contain py-[12vh] pl-1 pr-3"
+        // Absolute padding, not the 12vh this used to be. Viewport-relative
+        // padding on a scroller is dead scroll range that grows with the
+        // window: at 952px tall, 12vh is 114px at each end — 24% of a
+        // viewport height of empty scrolling, and 30% on Projects, which
+        // also carries a heading above its first card. You reach the bottom
+        // and the last card stops well short of the edge, which is exactly
+        // what the owner reported as "weird overscroll behavior". It never
+        // showed at 1440x900 because it is height-relative, not
+        // width-relative. 64px stays comfortably clear of FADE_PX (34) so
+        // content never begins inside its own fade.
+        className="stacks-scroll placard-scroll relative h-full overflow-y-auto overscroll-contain py-16 pl-1 pr-3"
         style={{ maskImage: mask, WebkitMaskImage: mask }}
       >
         {/* Short placards stay optically centred — the panel is full-height
