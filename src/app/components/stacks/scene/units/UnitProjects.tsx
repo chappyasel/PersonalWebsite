@@ -5,7 +5,6 @@
 import React, { useMemo } from "react";
 
 import { proxied } from "../../theme";
-import { ContactPool } from "../GroundPool";
 import ModelProp from "../ModelProp";
 import { BookPile, FrameRow, ShelfUnit } from "../primitives";
 import { useUnitLod } from "../useUnitLod";
@@ -33,23 +32,20 @@ export default function UnitProjects({
       palette={palette}
       lower={
         <group>
-          <BookPile palette={palette} x={0.3} />
+          <BookPile palette={palette} x={0.3} salt={47} />
           <React.Suspense fallback={null}>
             <ModelProp url="/models/trophy.glb" dark={dark} position={[-0.6, 0, 0]} rotation={[0, 0.3, 0]} scale={1.2} />
           </React.Suspense>
-          <ContactPool color={palette.shadow} size={[0.78, 0.52]} position={[0.32, 0, 0.01]} />
-          <ContactPool color={palette.shadow} size={[0.34, 0.26]} position={[-0.6, 0, 0]} />
         </group>
       }
     >
       <FrameRow
         frames={frames}
-        width={3.0}
+        width={2.6}
         palette={palette}
         textured={textured}
         onFrameClick={onOpenUrl}
       />
-      <ContactPool color={palette.shadow} size={[3.0, 0.5]} position={[0, 0, -0.05]} />
     </ShelfUnit>
   );
 }

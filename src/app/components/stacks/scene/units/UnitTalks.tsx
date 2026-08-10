@@ -4,7 +4,6 @@
 import React, { useMemo } from "react";
 
 import { proxied } from "../../theme";
-import { ContactPool } from "../GroundPool";
 import ModelProp from "../ModelProp";
 import { FrameRow, LampGlow, ShelfUnit } from "../primitives";
 import { useUnitLod } from "../useUnitLod";
@@ -38,18 +37,16 @@ export default function UnitTalks({
             </React.Suspense>
             <LampGlow palette={palette} />
           </group>
-          <ContactPool color={palette.shadow} size={[0.5, 0.5]} position={[0.55, 0, 0]} />
         </group>
       }
     >
       <FrameRow
         frames={frames}
-        width={3.0}
+        width={2.6}
         palette={palette}
         textured={textured}
         onFrameClick={onOpenUrl}
       />
-      <ContactPool color={palette.shadow} size={[3.0, 0.5]} position={[0, 0, -0.05]} />
     </ShelfUnit>
   );
 }

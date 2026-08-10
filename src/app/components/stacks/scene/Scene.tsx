@@ -3,16 +3,17 @@
 // Scene graph: atmosphere + camera rig + the seven shelf units + the baked
 // ground shadows that ground them.
 import { type ComponentType, useEffect } from "react";
+import { useTexture } from "@react-three/drei";
 import { type ThreeEvent } from "@react-three/fiber";
 
 import { UNITS, type StacksData, type UnitSlug } from "../data";
 import { openStacksPanel, useStacks } from "../store";
-import { type Palette } from "../theme";
+import { type Palette, proxied } from "../theme";
 import CameraRig from "./CameraRig";
 import GroundPool from "./GroundPool";
 import { preloadModels } from "./ModelProp";
 import SceneEnvironment from "./SceneEnvironment";
-import UnitAbout from "./units/UnitAbout";
+import UnitAbout, { PORTRAIT_SRC } from "./units/UnitAbout";
 import UnitBlog from "./units/UnitBlog";
 import UnitBooks from "./units/UnitBooks";
 import UnitProjects from "./units/UnitProjects";
@@ -81,6 +82,23 @@ export default function Scene({
   useEffect(() => {
     preloadModels();
   }, []);
+  // Warm every unit's image textures a beat after first paint. The sticky
+  // LOD latch (useUnitLod) then mounts pre-decoded textures instead of
+  // fetching mid-travel — the two halves of the §1.3 blank-slab fix.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const urls = [
+        proxied(PORTRAIT_SRC, coverWidth),
+        ...data.shelfBooks
+          .filter((b) => b.coverUrl)
+          .map((b) => proxied(b.coverUrl!, coverWidth)),
+        ...data.talks.map((talk) => proxied(talk.still, coverWidth)),
+        ...data.projects.map((p) => proxied(p.image, coverWidth)),
+      ];
+      for (const url of urls) useTexture.preload(url);
+    }, 2500);
+    return () => clearTimeout(t);
+  }, [data, coverWidth]);
   return (
     <>
       <SceneEnvironment
@@ -109,7 +127,7 @@ export default function Scene({
             {!shadowsOff && (
               <GroundPool
                 color={palette.shadow}
-                opacity={dark ? 0.5 : 0.34}
+                opacity={dark ? 0.55 : 0.4}
               />
             )}
             {/* Invisible raycast plane BEHIND the interactive props (covers

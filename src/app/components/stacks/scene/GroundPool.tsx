@@ -3,9 +3,13 @@
 // Analytic soft shadows — elliptical radial-gradient CanvasTexture quads
 // (the GlowSprite pattern), one shared texture for everything. Replaces the
 // per-frame 2048² directional shadow map: the scene is static, so painted
-// pools ground each unit with zero render-to-texture and no GPU-dependent
-// bake behavior. GroundPool is the unit's floor shadow; ContactPool is the
-// small per-prop pool that seats props on the shelf wood.
+// pools ground each unit with zero render-to-texture.
+//
+// v4 grounding model (audit §1.1): horizontal quads are only legible on the
+// GROUND, where the camera sees them at a usable angle — shelf-level pools
+// project to ~zero screen area at the ~2° grazing view and were deleted.
+// Shelf props ground via camera-facing ContactShade sprites here plus baked
+// vertex AO in the models (P2/P4).
 import { useMemo } from "react";
 import * as THREE from "three";
 
@@ -30,22 +34,23 @@ export function poolTexture(): THREE.CanvasTexture {
   return sharedTexture;
 }
 
-// Offset −0.55 in x opposite the key light (light sits at +4x, +6.5y) and
-// z-tightened to the plank footprint — the old 0.33 front overhang read as
-// a puddle the bookcase hovered over, not a shadow it casts.
-export default function GroundPool({
+function PoolQuad({
   color,
   opacity,
+  position,
+  scale,
 }: {
   color: string;
   opacity: number;
+  position: [number, number, number];
+  scale: [number, number];
 }) {
   const texture = useMemo(() => poolTexture(), []);
   return (
     <mesh
       rotation-x={-Math.PI / 2}
-      position={[-0.55, -1.115, -0.12]}
-      scale={[3.4, 1.15, 1]}
+      position={position}
+      scale={[scale[0], scale[1], 1]}
     >
       <planeGeometry args={[1, 1]} />
       <meshBasicMaterial
@@ -60,9 +65,46 @@ export default function GroundPool({
   );
 }
 
-/** Small contact pool under a prop — place inside a shelf content group
- * (local y=0 is the wood) at ~1.6× the prop's footprint. */
-export function ContactPool({
+// Two tight ellipses at the actual strap feet plus one faint smear under the
+// lower plank's overhang — shadow where the structure meets the ground, not
+// a puddle offset to one side (the old single ellipse at x −0.55 missed the
+// right foot entirely). Feet sit 1mm above the smear so the overlap never
+// z-fights.
+export default function GroundPool({
+  color,
+  opacity,
+  width = 3.2,
+}: {
+  color: string;
+  opacity: number;
+  width?: number;
+}) {
+  const footX = width / 2 - 0.25;
+  return (
+    <group>
+      {[-footX, footX].map((x) => (
+        <PoolQuad
+          key={x}
+          color={color}
+          opacity={opacity}
+          position={[x, -1.114, -0.32]}
+          scale={[0.5, 0.38]}
+        />
+      ))}
+      <PoolQuad
+        color={color}
+        opacity={opacity * 0.4}
+        position={[0, -1.115, -0.08]}
+        scale={[width + 0.2, 0.8]}
+      />
+    </group>
+  );
+}
+
+/** Small ground ellipse under a floor-standing prop's foot (golf club,
+ * ladder, clock, armchair …). Floor quads read correctly — the camera sees
+ * the ground at a usable angle, unlike the shelves. */
+export function FootPool({
   color,
   size,
   position = [0, 0, 0],
@@ -73,15 +115,37 @@ export function ContactPool({
   position?: [number, number, number];
   opacity?: number;
 }) {
+  return (
+    <PoolQuad
+      color={color}
+      opacity={opacity}
+      position={[position[0], position[1] + 0.001, position[2]]}
+      scale={size}
+    />
+  );
+}
+
+/** Camera-facing dark sprite hugging a shelf prop's base — the grazing-angle
+ * replacement for the old horizontal contact pools. A billboard never
+ * projects to zero area, so the base darkening survives every camera pose.
+ * Keep opacity low (~0.12); it reads as ambient occlusion, not shadow. */
+export function ContactShade({
+  color,
+  width,
+  height,
+  position = [0, 0, 0],
+  opacity = 0.12,
+}: {
+  color: string;
+  width: number;
+  height?: number;
+  position?: [number, number, number];
+  opacity?: number;
+}) {
   const texture = useMemo(() => poolTexture(), []);
   return (
-    <mesh
-      rotation-x={-Math.PI / 2}
-      position={[position[0], position[1] + 0.001, position[2]]}
-      scale={[size[0], size[1], 1]}
-    >
-      <planeGeometry args={[1, 1]} />
-      <meshBasicMaterial
+    <sprite position={position} scale={[width, height ?? width * 0.32, 1]}>
+      <spriteMaterial
         map={texture}
         color={color}
         transparent
@@ -89,6 +153,6 @@ export function ContactPool({
         depthWrite={false}
         fog={false}
       />
-    </mesh>
+    </sprite>
   );
 }

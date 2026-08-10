@@ -9,6 +9,7 @@ import * as THREE from "three";
 
 import { PALETTES, type Palette, rand } from "../theme";
 import { progressRef } from "../store";
+import { poolTexture } from "./GroundPool";
 import { MID_X, TRAVEL_X } from "./worldLayout";
 
 // Chappy's morning, painted truthfully. Dark theme is 3:45am San Francisco —
@@ -433,8 +434,11 @@ function Dust({ palette, count = 380 }: { palette: Palette; count?: number }) {
       <bufferGeometry key={count}>
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
       </bufferGeometry>
+      {/* Soft radial sprite map — untextured Points rasterize as 1-2px hard
+          white squares against dark wood (audit §1.7). */}
       <pointsMaterial
-        size={0.032}
+        map={poolTexture()}
+        size={0.04}
         color={palette.dust}
         transparent
         opacity={palette.dustOpacity}

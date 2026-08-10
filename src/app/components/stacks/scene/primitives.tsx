@@ -10,6 +10,7 @@ import * as THREE from "three";
 
 import { type Palette, proxied, rand } from "../theme";
 import { useStacks } from "../store";
+import { ContactShade } from "./GroundPool";
 import Lift from "./Lift";
 import LitImage from "./LitImage";
 
@@ -202,13 +203,16 @@ export function ShelfUnit({
       <RoundedBox castShadow receiveShadow args={[width, 0.07, 0.85]} radius={0.012} smoothness={4}>
         <meshStandardMaterial color={palette.wood} roughness={0.75} />
       </RoundedBox>
-      {/* Straps run all the way to the ground pool plane (−1.115) with a
-          small plinth foot — the bookcase stands instead of hovering. */}
+      {/* Straps run all the way to the ground plane (−1.115) with a small
+          plinth foot — the bookcase stands instead of hovering. 0.07² so the
+          straps are never thinner than the plank they carry, plus a cleat
+          block under each lower-plank end: the joinery that makes the plank
+          read as CARRIED (v3's 0.72-width plank touched nothing). */}
       {[-1, 1].map((side) => (
         <group key={side} position={[side * (width / 2 - 0.25), 0, -0.32]}>
           <RoundedBox
             castShadow
-            args={[0.05, 1.115, 0.05]}
+            args={[0.07, 1.115, 0.07]}
             radius={0.012}
             smoothness={4}
             position={[0, -0.5575, 0]}
@@ -216,10 +220,18 @@ export function ShelfUnit({
             <meshStandardMaterial color={palette.strap} roughness={0.7} />
           </RoundedBox>
           <RoundedBox
-            args={[0.09, 0.05, 0.09]}
+            args={[0.12, 0.05, 0.12]}
             radius={0.008}
             smoothness={4}
             position={[0, -1.09, 0]}
+          >
+            <meshStandardMaterial color={palette.strap} roughness={0.7} />
+          </RoundedBox>
+          <RoundedBox
+            args={[0.1, 0.06, 0.1]}
+            radius={0.008}
+            smoothness={4}
+            position={[0, -0.7775, 0]}
           >
             <meshStandardMaterial color={palette.strap} roughness={0.7} />
           </RoundedBox>
@@ -228,7 +240,7 @@ export function ShelfUnit({
       <RoundedBox
         castShadow
         receiveShadow
-        args={[width * 0.72, 0.055, 0.6]}
+        args={[width, 0.055, 0.6]}
         radius={0.012}
         smoothness={4}
         position={[0, -0.72, -0.08]}
@@ -241,20 +253,41 @@ export function ShelfUnit({
   );
 }
 
-export function BookPile({ palette, x = 0 }: { palette: Palette; x?: number }) {
+/** Three stacked books. `salt` varies rotation AND color order per unit so
+ * the same pile never repeats across units (v3 reused it verbatim). Spacing
+ * 0.066 = 0.06 book + 0.006 kiss; the page block sits INSIDE the covers
+ * (centered, 0.044 of 0.06) peeking out only at fore-edge and front —
+ * correct book anatomy (v3's block hung below the cover). */
+export function BookPile({
+  palette,
+  x = 0,
+  salt = 9,
+}: {
+  palette: Palette;
+  x?: number;
+  salt?: number;
+}) {
   return (
     <group position={[x, 0, 0]}>
-      {palette.pile.map((color, i) => (
+      <ContactShade
+        color={palette.shadow}
+        width={0.62}
+        position={[0.02, 0.03, 0.02]}
+      />
+      {palette.pile.map((_, i) => (
         <group
-          key={color}
+          key={i}
           // 0.026 = half height 0.03 sunk by ~radius/2 to bury the bevel rim.
-          position={[i * 0.02, 0.026 + i * 0.085, 0]}
-          rotation={[0, rand(i, 9) * 0.4 - 0.2, 0]}
+          position={[i * 0.02, 0.026 + i * 0.066, 0]}
+          rotation={[0, rand(i, salt) * 0.5 - 0.25, 0]}
         >
           <RoundedBox castShadow args={[0.46, 0.06, 0.32]} radius={0.008} smoothness={4}>
-            <meshStandardMaterial color={color} roughness={0.8} />
+            <meshStandardMaterial
+              color={palette.pile[(i + salt) % palette.pile.length]}
+              roughness={0.8}
+            />
           </RoundedBox>
-          <RoundedBox args={[0.44, 0.036, 0.31]} radius={0.008} smoothness={4} position={[0.014, -0.012, 0.014]}>
+          <RoundedBox args={[0.44, 0.044, 0.31]} radius={0.008} smoothness={4} position={[0.014, 0, 0.014]}>
             <meshStandardMaterial color={palette.pages} roughness={0.9} />
           </RoundedBox>
         </group>
@@ -368,18 +401,27 @@ export function FrameRow({
   return (
     <group>
       {frames.map(({ src, key }, i) => {
-        const x = (i - (frames.length - 1) / 2) * (width / frames.length);
+        // Frames at 0.76 wide on 2.6-row slots leave ~0.1 air between them;
+        // per-frame yaw/roll jitter + a z-stagger kill the edge-to-edge
+        // "thumbnail band" read. The roll drops one bottom corner, so the
+        // base lifts by halfWidth·|roll| to keep that corner on the wood.
+        const roll = (rand(i, 71) - 0.5) * 0.08;
+        const yaw = (1 - i) * 0.05 + (rand(i, 73) - 0.5) * 0.12;
+        const x =
+          (i - (frames.length - 1) / 2) * (width / frames.length) +
+          (rand(i, 74) - 0.5) * 0.05;
+        const z = i % 2 === 0 ? -0.075 : -0.04;
         return (
           <Lift
             key={key}
             hoverKey={`frame:${key}`}
-            base={[x, 0.2796, -0.06]}
+            base={[x, 0.2445 + Math.abs(roll) * 0.4, z]}
             offset={[0, 0.04, 0.03]}
           >
-            <group rotation={[-0.1, (1 - i) * 0.05, 0]}>
+            <group rotation={[-0.1, yaw, roll]}>
               <RoundedBox
                 castShadow
-                args={[0.9, 0.55, 0.035]}
+                args={[0.76, 0.48, 0.035]}
                 radius={0.008}
                 smoothness={4}
                 position={[0, 0, -0.02]}
@@ -390,8 +432,8 @@ export function FrameRow({
                 <React.Suspense fallback={null}>
                   <LitImage
                     url={src}
-                    width={0.82}
-                    height={0.47}
+                    width={0.68}
+                    height={0.4}
                     roughness={0.5}
                     position={[0, 0, -0.001]}
                     onPointerOver={(e) => {
@@ -415,7 +457,7 @@ export function FrameRow({
                 </React.Suspense>
               ) : (
                 <mesh position={[0, 0, 0.001]}>
-                  <planeGeometry args={[0.82, 0.47]} />
+                  <planeGeometry args={[0.68, 0.4]} />
                   <meshStandardMaterial color={palette.cover} roughness={0.85} />
                 </mesh>
               )}

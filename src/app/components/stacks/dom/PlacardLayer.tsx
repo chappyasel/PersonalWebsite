@@ -19,7 +19,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
-import { ThemeToggle } from "~/components/ui/theme-toggle";
 import { devSubdomainUrl } from "~/lib/util";
 
 import { UNITS, type StacksData, type StacksSlots } from "../data";
@@ -40,8 +39,12 @@ function Panel({
     <div
       aria-hidden={!active}
       data-stacks-scrollable
-      className={`absolute right-0 top-1/2 max-h-[78dvh] w-full -translate-y-1/2 overflow-y-auto overscroll-contain rounded-2xl border border-foreground/[0.06] bg-background/80 p-6 shadow-[0px_4px_24px_2px_rgba(0,0,0,0.10)] backdrop-blur-xl transition-opacity duration-300 ${
-        active ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
+      // Fade-out-then-in: the entering placard waits for the leaving one —
+      // simultaneous crossfade rendered as text-over-text mush (audit §2.5).
+      className={`absolute right-0 top-1/2 max-h-[78dvh] w-full -translate-y-1/2 overflow-y-auto overscroll-contain rounded-2xl border border-foreground/[0.06] bg-background/80 p-6 shadow-[0px_4px_24px_2px_rgba(0,0,0,0.10)] backdrop-blur-xl transition-opacity duration-200 ${
+        active
+          ? "pointer-events-auto opacity-100 delay-200"
+          : "pointer-events-none opacity-0 delay-0"
       }`}
     >
       {mounted ? children : null}
@@ -300,9 +303,6 @@ export default function PlacardLayer({
         </div>
         <div className="flex flex-col items-center gap-2 pt-4">
           {slots.contact}
-          <div className="opacity-70">
-            <ThemeToggle />
-          </div>
         </div>
       </div>
     ),

@@ -5,14 +5,14 @@
 import React from "react";
 
 import { proxied } from "../../theme";
-import { ContactPool } from "../GroundPool";
+import { ContactShade } from "../GroundPool";
 import ModelProp from "../ModelProp";
 import { CardStack, PortraitFrame } from "../objects";
 import { BookPile, LampGlow, ShelfUnit } from "../primitives";
 import { useUnitLod } from "../useUnitLod";
 import { type UnitProps } from "./types";
 
-const PORTRAIT_SRC = "/images/about/profile.jpg";
+export const PORTRAIT_SRC = "/images/about/profile.jpg";
 
 export default function UnitAbout({
   palette,
@@ -32,15 +32,12 @@ export default function UnitAbout({
             </React.Suspense>
             <LampGlow palette={palette} />
           </group>
-          <BookPile palette={palette} x={0.55} />
+          <BookPile palette={palette} x={0.55} salt={9} />
           {/* Mug lives lower-right so the globe gets the visible top-shelf
               slot (x > ~1.1 hides behind the desktop placard). */}
           <React.Suspense fallback={null}>
             <ModelProp url="/models/mug.glb" dark={dark} position={[1.0, 0, 0.05]} rotation={[0, -0.4, 0]} />
           </React.Suspense>
-          <ContactPool color={palette.shadow} size={[0.5, 0.5]} position={[-0.65, 0, 0]} />
-          <ContactPool color={palette.shadow} size={[0.78, 0.52]} position={[0.57, 0, 0.01]} />
-          <ContactPool color={palette.shadow} size={[0.26, 0.26]} position={[1.0, 0, 0.05]} />
         </group>
       }
     >
@@ -53,13 +50,15 @@ export default function UnitAbout({
       </group>
       <group position={[0.45, 0, 0.05]}>
         <CardStack palette={palette} />
+        <ContactShade
+          color={palette.shadow}
+          width={0.42}
+          position={[0, 0.02, 0.02]}
+        />
       </group>
       <React.Suspense fallback={null}>
         <ModelProp url="/models/globe.glb" dark={dark} position={[0.95, 0, -0.1]} rotation={[0, -0.7, 0]} scale={1.5} />
       </React.Suspense>
-      <ContactPool color={palette.shadow} size={[1.3, 0.42]} position={[-0.55, 0, -0.08]} />
-      <ContactPool color={palette.shadow} size={[0.5, 0.32]} position={[0.45, 0, 0.05]} />
-      <ContactPool color={palette.shadow} size={[0.44, 0.38]} position={[0.95, 0, -0.1]} />
     </ShelfUnit>
   );
 }

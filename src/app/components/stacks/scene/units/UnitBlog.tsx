@@ -4,7 +4,7 @@
 // real open book mid-thought, headphones; paper stack + pen cup below.
 import React, { useMemo } from "react";
 
-import { ContactPool } from "../GroundPool";
+import { ContactShade } from "../GroundPool";
 import ModelProp from "../ModelProp";
 import { NotebookLean, PaperStack } from "../objects";
 import { ShelfUnit } from "../primitives";
@@ -22,12 +22,15 @@ export default function UnitBlog({ data, palette, dark, onOpenUrl }: UnitProps) 
         <group>
           <group position={[0.25, 0, 0]}>
             <PaperStack palette={palette} />
+            <ContactShade
+              color={palette.shadow}
+              width={0.55}
+              position={[0, 0.02, 0.02]}
+            />
           </group>
           <React.Suspense fallback={null}>
             <ModelProp url="/models/mug.glb" dark={dark} position={[-0.55, 0, 0]} rotation={[0, 0.9, 0]} />
           </React.Suspense>
-          <ContactPool color={palette.shadow} size={[0.7, 0.48]} position={[0.27, 0, 0.02]} />
-          <ContactPool color={palette.shadow} size={[0.26, 0.26]} position={[-0.55, 0, 0]} />
         </group>
       }
     >
@@ -36,6 +39,12 @@ export default function UnitBlog({ data, palette, dark, onOpenUrl }: UnitProps) 
           palette={palette}
           clickKeys={clickKeys}
           onNotebookClick={onOpenUrl}
+        />
+        <ContactShade
+          color={palette.shadow}
+          width={0.8}
+          height={0.18}
+          position={[0, 0.03, 0.1]}
         />
       </group>
       <React.Suspense fallback={null}>
@@ -52,9 +61,6 @@ export default function UnitBlog({ data, palette, dark, onOpenUrl }: UnitProps) 
       <React.Suspense fallback={null}>
         <ModelProp url="/models/headphones.glb" dark={dark} position={[0.12, 0, 0.14]} rotation={[0, 0.5, 0]} scale={2.0} />
       </React.Suspense>
-      <ContactPool color={palette.shadow} size={[0.95, 0.44]} position={[-0.7, 0, 0]} />
-      <ContactPool color={palette.shadow} size={[0.75, 0.62]} position={[0.85, 0, 0.08]} />
-      <ContactPool color={palette.shadow} size={[0.42, 0.3]} position={[0.12, 0, 0.14]} />
     </ShelfUnit>
   );
 }
