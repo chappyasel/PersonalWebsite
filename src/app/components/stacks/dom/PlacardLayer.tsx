@@ -2,20 +2,22 @@
 
 // Museum placards — the dense DOM content for each unit, screen-fixed as a
 // sibling of the canvas (never <Html transform>). Desktop: one framed panel
-// per unit docked right, crossfaded by activeUnit. Mobile: a 44px peek chip
-// pinned bottom-center that morphs (layoutId) into a full-screen panel —
-// Model B; the world stays unobstructed by default. Panel bodies lazy-mount
-// on first activation and stay mounted.
+// per unit docked right, crossfaded by activeUnit. Mobile: a bottom sheet
+// with three detents — peek (the default, filling the floor void under the
+// bookcase), expanded (full height), and dismissed (a chip, the world with
+// nothing on it). Panel bodies lazy-mount on first activation and stay
+// mounted.
 import {
   BookOpenIcon,
   BookOpenTextIcon,
   BooksIcon,
   CalendarBlankIcon,
+  CaretDownIcon,
   CaretUpIcon,
   ClockIcon,
   XIcon,
 } from "@phosphor-icons/react";
-import { AnimatePresence, motion } from "framer-motion";
+import { animate, AnimatePresence, motion, useMotionValue } from "framer-motion";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -24,6 +26,7 @@ import licenses from "~~/models/LICENSES.json";
 
 import { UNITS, type StacksData, type StacksSlots } from "../data";
 import { PHOTO_SOURCES } from "../photoSources";
+import { cameraForAspect } from "../scene/worldLayout";
 import { closeStacksPanel, openStacksPanel, useStacks } from "../store";
 
 /** Which edges of a scroll container have content past them. Mirrors the
@@ -524,15 +527,25 @@ function Panel({
         aria-hidden={!active}
         // Absolute padding, not the 12vh this used to be. Viewport-relative
         // padding on a scroller is dead scroll range that grows with the
-        // window: at 952px tall, 12vh is 114px at each end — 24% of a
+        // window: at 952px tall, 12vh was 114px at each end — 24% of a
         // viewport height of empty scrolling, and 30% on Projects, which
-        // also carries a heading above its first card. You reach the bottom
-        // and the last card stops well short of the edge, which is exactly
-        // what the owner reported as "weird overscroll behavior". It never
-        // showed at 1440x900 because it is height-relative, not
-        // width-relative. 64px stays comfortably clear of FADE_PX (34) so
-        // content never begins inside its own fade.
-        className="stacks-scroll placard-scroll relative h-full overflow-y-auto overscroll-contain py-16 pl-1 pr-3"
+        // also carries a heading above its first card. It never showed at
+        // 1440x900 because it is height-relative, not width-relative.
+        //
+        // 64px was still too much. Padding lands in scrollHeight, so it is
+        // scroll range containing nothing: measured 128px of empty travel on
+        // EVERY scrollable unit, which is 31% of the total range on Systems
+        // at a 683px-tall window. The floor is FADE_PX (34) — content that
+        // begins any closer starts inside its own dissolve — so 40px is the
+        // smallest honest value, and it halves the dead range.
+        //
+        // `overscroll-none`, not `-contain`: contain stops scroll CHAINING to
+        // the page but leaves the macOS elastic bounce intact, so hitting the
+        // end of a section rubber-banded the whole column against that empty
+        // padding. Chaining is already handled a layer up — ScrollBridges'
+        // wheel listener bails on any target inside [data-stacks-scrollable] —
+        // so nothing here depends on contain's chaining behaviour.
+        className="stacks-scroll placard-scroll relative h-full overflow-y-auto overscroll-none py-10 pl-1 pr-3"
         style={{ maskImage: mask, WebkitMaskImage: mask }}
       >
         {/* Short placards stay optically centred — the panel is full-height
@@ -635,9 +648,171 @@ function BooksPlacard({ data }: { data: StacksData }) {
   );
 }
 
-/** Mobile Model B: peek chip ↔ full-screen panel, morphing via layoutId.
- * Close paths: X, swipe-down when the content is scrolled to top, browser
- * back — all funnel through history.back() → popstate → "closing". */
+/* ── Where the room stops, and therefore where the sheet starts ──────────
+ *
+ * Portrait frames the room badly. The camera is built around a landscape
+ * unit, so on a 390x844 phone the bookcase finishes about two thirds of the
+ * way down and the rest is bare floor — the owner's "it's hard to see the
+ * bottom part", which is really "there is nothing down there". That void is
+ * what the peek sheet fills, so the peek height is not a taste number. It is
+ * the void, measured.
+ *
+ * The projection below is exact rather than eyeballed. CameraRig parks the
+ * camera at (unitX, pose.y, pose.z) and aims it at (unitX, LOOK.y, LOOK.z),
+ * so camera and target share a vertical plane and the angle between the view
+ * axis and the ray to any point on that plane is simply the difference of two
+ * pitches. A perspective camera then maps an angle theta off its axis to
+ * tan(theta) / tan(halfFov) of a half-viewport.
+ *
+ * `pose` comes from cameraForAspect, which is the same function the rig uses,
+ * so this follows the camera instead of assuming portrait — a landscape phone
+ * (still under the md breakpoint, so still on the sheet) gets the wide pose's
+ * much smaller void and lands on the floor clamp below.
+ */
+
+/** The resting look target. CameraRig damps look.y toward -0.08 with the
+ * pointer centred, and its z is fixed. */
+const LOOK = { y: -0.08, z: -0.2 };
+/** Where the bookcase stops. Its straps run down to the ground plane at
+ * y -1.115 and stand on a plinth foot there, and the strap group sits at
+ * z -0.32 (scene/primitives.tsx, the Shelf frame). The NEAR depth is the one
+ * to measure against: the odd units are pushed back to z -0.55, which only
+ * lifts their feet higher up the frame, so clearing the near ones clears
+ * every unit rather than most of them. */
+const FOOT = { y: -1.115, z: -0.32 };
+/** A sheet shorter than this is not worth showing — it would hold a title and
+ * a clipped line. Below it the sheet covers a little shelf instead, which is
+ * the better trade. */
+const PEEK_MIN_PX = 160;
+/** And it never takes more than this much of the screen whatever the
+ * arithmetic says, because the room is the point of the page. */
+const PEEK_MAX_FRACTION = 0.45;
+/** Header height: the grabber block (16) plus the title row (h-11). Used to
+ * work out whether the peek window actually has content past its bottom
+ * edge, so a short placard gets no phantom fade. */
+const SHEET_HEADER_PX = 60;
+
+/** Height of the empty floor below the bookcase, in px — the peek height. */
+function peekHeightFor(width: number, height: number): number {
+  const pose = cameraForAspect(width / height);
+  const pitch = Math.atan2(pose.y - LOOK.y, pose.z - LOOK.z);
+  const toFoot = Math.atan2(pose.y - FOOT.y, pose.z - FOOT.z);
+  const halfFov = ((pose.fov / 2) * Math.PI) / 180;
+  // Fraction of the viewport height, from the top, where the feet land:
+  // 66.8% at 390x844, against ~570px measured off a screenshot versus 563px
+  // predicted — the difference is the camera's slow vertical bob (±0.03).
+  const foot = 0.5 + (Math.tan(toFoot - pitch) / Math.tan(halfFov)) * 0.5;
+  return Math.round(
+    Math.min(
+      Math.max(height * (1 - foot), PEEK_MIN_PX),
+      height * PEEK_MAX_FRACTION,
+    ),
+  );
+}
+
+/** Viewport height and the peek height derived from it, re-measured on
+ * resize and orientation change. Measured rather than declared in `dvh`
+ * because the sheet has to agree with the CANVAS, and the canvas takes its
+ * height from the same `fixed inset-0` box this reads. */
+function useSheetMetrics() {
+  const [metrics, setMetrics] = useState<{
+    vw: number;
+    vh: number;
+    peek: number;
+  } | null>(null);
+  useEffect(() => {
+    const update = () => {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      // Width matters as much as height: cameraForAspect switches poses at
+      // 0.75, and the two poses put the bookcase's feet in very different
+      // places.
+      setMetrics((prev) =>
+        prev?.vw === vw && prev.vh === vh
+          ? prev
+          : { vw, vh, peek: peekHeightFor(vw, vh) },
+      );
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+    };
+  }, []);
+  return metrics;
+}
+
+/** How far a touch has to travel before it is a drag rather than a tap. */
+const DRAG_ARM_PX = 6;
+/** Travel that commits the sheet to the next detent in that direction. */
+const DRAG_STEP_PX = 72;
+/** px/ms that commits regardless of distance. 0.6 is 600 px/s, about the
+ * slowest thing that still reads as a flick rather than a placement. */
+const FLING = 0.6;
+/** The harder fling that skips a detent — expanded straight out to the chip.
+ * Measured before assuming: an unhurried 180px pull down the sheet runs at
+ * ~1.8 px/ms, so the first cut's 1.6 sent an ordinary collapse all the way to
+ * dismissed. A skip has to be an obvious throw, and it also has to travel far
+ * enough to mean it, hence the distance floor as well. */
+const FLING_SKIP = 2.6;
+const FLING_SKIP_MIN_PX = 120;
+/** Minimum gap between velocity samples, and the pause after which the last
+ * one is stale. */
+const VELOCITY_SAMPLE_MS = 6;
+const VELOCITY_STALE_MS = 100;
+const SHEET_SPRING = {
+  type: "spring" as const,
+  stiffness: 420,
+  damping: 42,
+  mass: 0.9,
+};
+
+/** Mobile bottom sheet with three detents.
+ *
+ *   PEEK       resting default. The sheet sits in the floor void under the
+ *              bookcase, showing the unit title and the first slice of its
+ *              placard, and the room above it stays fully live.
+ *   EXPANDED   full height, scrollable.
+ *   DISMISSED  off-screen, leaving the chip — the way to get the sheet
+ *              entirely out of the room.
+ *
+ * Only EXPANDED is a store state. Peek and dismissed both map to the store's
+ * `panelState: "closed"`, and that is deliberate rather than a shortcut:
+ * `panelBusy()` freezes travel and every input bridge, and peek must not
+ * freeze anything. The sheet is resting in space the room was not using, so
+ * swiping the world above it still travels. `dismissed` is therefore local
+ * state, and the store keeps meaning exactly what it meant before — "the
+ * panel owns the viewport".
+ *
+ * The sheet is always full-height and always mounted; the three detents are
+ * three values of a translateY. That is what lets one continuous drag run
+ * from expanded to dismissed, and it keeps the text from reflowing on every
+ * frame of the transition the way an animated height would.
+ *
+ * WHICH GESTURE WINS. Three vertical drags compete on a phone:
+ *
+ *   1. ScrollBridges re-maps a vertical swipe into lateral world travel. It
+ *      listens on drei's scroll container, which is NOT an ancestor of this
+ *      sheet, so a touch that starts on the sheet never reaches it — the two
+ *      are separated by geometry, not by a guard. Above the sheet the swipe
+ *      travels; on the sheet it does not. That is also why peek has to leave
+ *      panelState alone: the freeze is what would break travel above.
+ *   2. The inner scroller. In PEEK it is `overflow: hidden`, so there is
+ *      nothing in the sheet that could want a vertical drag and the sheet
+ *      takes all of them: up expands, down dismisses. In EXPANDED the
+ *      scroller wins, with one exception.
+ *   3. That exception is the pull-down, which is the gesture this file
+ *      already had: a downward drag that BEGINS with the content at
+ *      scrollTop 0. It used to dismiss; it now collapses to peek, and only a
+ *      long pull or a hard fling carries through to dismissed. Arming on
+ *      scrollTop at touchstart rather than during the move is what keeps it
+ *      from stealing the tail of a flick that scrolled up to the top.
+ *
+ * Close paths: the chevron, the X, a downward drag, and browser back — the
+ * ones that leave EXPANDED all funnel through history.back() → popstate →
+ * "closing", so the pushed history entry is always consumed. */
 function MobilePanel({
   bodies,
 }: {
@@ -646,63 +821,92 @@ function MobilePanel({
   const activeUnit = useStacks((s) => s.activeUnit);
   const modalOpen = useStacks((s) => s.modalOpen);
   const panelState = useStacks((s) => s.panelState);
-  const setPanelState = useStacks((s) => s.setPanelState);
   const unit = UNITS[activeUnit]!;
-  const open = panelState === "opening" || panelState === "open";
+  const expanded = panelState === "opening" || panelState === "open";
+  const [dismissed, setDismissed] = useState(false);
+  const metrics = useSheetMetrics();
 
-  // Pull-down-to-dismiss, armed only while the content sits at scrollTop 0.
-  // Hand-rolled touch handling (native, non-passive) — framer's dragListener
-  // sets touch-action:none on the panel and kills the inner scroll.
   const scrollRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  // Mobile keeps its sheet — full-screen over the world, an opaque surface
-  // is what makes the text readable there — but it loses the inner cards
-  // and gains the same edge fade, so the two form factors read as one
+  // Mobile keeps its sheet — an opaque surface is what makes the text
+  // readable over a rendered room — but it loses the inner cards and gains
+  // the same edge fade as desktop, so the two form factors read as one
   // design rather than two.
-  const edges = useScrollEdges(scrollRef, open);
+  const edges = useScrollEdges(scrollRef, expanded);
+
+  // One scroller serves seven placards and all three detents, so its
+  // scrollTop outlives both the document in it and the pose it was set in.
+  // Reset it whenever what is being read changes identity:
+  //
+  //  • A UNIT change swaps the body for a different document, where the old
+  //    offset points at nothing in particular. It also clamps silently —
+  //    travelling from Musings (3310px of content) to Systems (1078px) left
+  //    the reader 295px down a placard they never opened.
+  //  • Leaving EXPANDED, because showing the title and the opening lines is
+  //    the whole job of peek. Collapsing at scrollTop 485 put the middle of a
+  //    paragraph in the peek window with no heading above it.
+  //
+  // The cost is that re-expanding starts at the top rather than where you
+  // left off, and that is the deliberate half of the trade: peek is a window
+  // onto this same scroller, so it cannot both hold your place and be a
+  // preview of the opening. Peek being readable at a glance wins — it is the
+  // state the visitor is in by default.
   useEffect(() => {
-    const panel = panelRef.current;
-    if (!panel || !open) return;
-    let startY = 0;
-    let pulling = false;
-    let pull = 0;
-    const onTouchStart = (e: TouchEvent) => {
-      const t = e.touches[0];
-      if (!t) return;
-      startY = t.clientY;
-      pulling = false;
-      pull = 0;
-    };
-    const onTouchMove = (e: TouchEvent) => {
-      const t = e.touches[0];
-      if (!t) return;
-      const dy = t.clientY - startY;
-      const atTop = (scrollRef.current?.scrollTop ?? 0) <= 0;
-      if (!pulling && dy > 6 && atTop) pulling = true;
-      if (!pulling) return;
-      e.preventDefault();
-      pull = Math.max(0, dy);
-      panel.style.transform = `translateY(${pull * 0.4}px)`;
-    };
-    const onTouchEnd = () => {
-      if (!pulling) return;
-      panel.style.transition = "transform 200ms ease-out";
-      panel.style.transform = "";
-      setTimeout(() => {
-        panel.style.transition = "";
-      }, 220);
-      if (pull > 120) closeStacksPanel();
-      pulling = false;
-    };
-    panel.addEventListener("touchstart", onTouchStart, { passive: true });
-    panel.addEventListener("touchmove", onTouchMove, { passive: false });
-    panel.addEventListener("touchend", onTouchEnd, { passive: true });
-    return () => {
-      panel.removeEventListener("touchstart", onTouchStart);
-      panel.removeEventListener("touchmove", onTouchMove);
-      panel.removeEventListener("touchend", onTouchEnd);
-    };
-  }, [open]);
+    const el = scrollRef.current;
+    if (el) el.scrollTop = 0;
+  }, [expanded, unit.slug]);
+
+  // The one number the whole sheet is positioned by: 0 is expanded, and the
+  // sheet is full height, so the peek and dismissed detents are just further
+  // down the same axis.
+  const vh = metrics?.vh ?? 0;
+  const peek = metrics?.peek ?? 0;
+  // Starts off the bottom of the screen, so the sheet's first move is to rise
+  // into peek with the room rather than to drop out of a full-screen pose it
+  // was never in.
+  const y = useMotionValue(
+    typeof window === "undefined" ? 0 : window.innerHeight,
+  );
+  // A book modal takes the viewport, so the sheet gets out of its way rather
+  // than sitting behind it at z-40.
+  const hidden = dismissed || modalOpen;
+  const restY = expanded && !modalOpen ? 0 : hidden ? vh : vh - peek;
+  const restRef = useRef(restY);
+  restRef.current = restY;
+  const settle = useCallback(() => {
+    animate(y, restRef.current, SHEET_SPRING);
+  }, [y]);
+  useEffect(() => {
+    // Before the viewport is measured every detent is zero, which is the
+    // expanded pose — animating to it would flash a full-screen sheet.
+    if (metrics) settle();
+  }, [metrics, restY, settle]);
+
+  // Opening from anywhere lands on expanded, so a unit tapped in the room
+  // while the sheet was dismissed comes back to peek when it closes rather
+  // than vanishing again.
+  useEffect(() => {
+    if (expanded) setDismissed(false);
+  }, [expanded]);
+
+  // "opening" and "closing" are the intervals where the sheet is between
+  // detents, and they used to be resolved by framer — onLayoutAnimationComplete
+  // promoted "opening", AnimatePresence's onExitComplete settled "closing".
+  // Neither fires now: the sheet no longer morphs out of the chip and no
+  // longer unmounts to collapse. So the transitional states are resolved on
+  // the clock instead, at roughly the spring's settling time. Doing it here
+  // rather than off the animation's finished promise keeps it deterministic —
+  // a promise that a resize or a second gesture interrupts would strand
+  // panelState mid-transition, and travel is frozen the whole time it is.
+  useEffect(() => {
+    if (panelState !== "opening" && panelState !== "closing") return;
+    const settled = panelState === "opening" ? "open" : "closed";
+    const timeout = setTimeout(() => {
+      const s = useStacks.getState();
+      if (s.panelState === panelState) s.setPanelState(settled);
+    }, 280);
+    return () => clearTimeout(timeout);
+  }, [panelState]);
 
   // Widening past the md breakpoint with the panel up strands the frozen
   // travel state — fold the panel immediately.
@@ -717,6 +921,220 @@ function MobilePanel({
     return () => mq.removeEventListener("change", onChange);
   }, []);
 
+  // Each of these can refuse — openStacksPanel bails while a modal is up or
+  // while a previous close is still unwinding, closeStacksPanel bails unless
+  // the sheet is actually expanded. A refusal leaves `restY` where it was, so
+  // nothing would re-run the settle effect and a half-finished drag would be
+  // left stranded mid-screen. Spring it back by hand in exactly that case.
+  const expand = useCallback(() => {
+    setDismissed(false);
+    const before = useStacks.getState().panelState;
+    openStacksPanel();
+    if (useStacks.getState().panelState === before) settle();
+  }, [settle]);
+  const collapse = useCallback(() => {
+    setDismissed(false);
+    closeStacksPanel();
+    if (useStacks.getState().panelState === "closed") settle();
+  }, [settle]);
+  const dismiss = useCallback(() => {
+    setDismissed(true);
+    closeStacksPanel(); // no-op unless we are leaving expanded
+  }, []);
+
+  // The sheet header names the unit. The desktop dock never did, so nothing
+  // caught that four of the seven bodies open with a heading of their own
+  // saying exactly the same thing — Book Notes, Featured Talks, Projects and
+  // Musings each printed their title twice, one line apart. The other three
+  // must not be touched: Training opens on "Weightlifting" and Systems on
+  // "Personal Operating Manual", which are real sub-titles, and About has no
+  // heading at all.
+  //
+  // Hence a text match rather than "hide the first heading". Marking the node
+  // and hiding it from CSS also leaves the body's own markup alone, which
+  // matters because these headings come from the shared site sections that
+  // the desktop panel still renders in full.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const label = unit.label.trim().toLowerCase();
+    const apply = () => {
+      for (const h of el.querySelectorAll("h1, h2")) {
+        h.toggleAttribute(
+          "data-dup-title",
+          (h.textContent ?? "").trim().toLowerCase() === label,
+        );
+      }
+    };
+    apply();
+    // Bodies lazy-mount, so the heading is usually absent on the first pass.
+    // Attributes are deliberately NOT watched: this writes one, and watching
+    // them would feed the observer its own output.
+    const mo = new MutationObserver(apply);
+    mo.observe(el, { childList: true, subtree: true });
+    return () => mo.disconnect();
+  }, [unit.label]);
+
+  // Only fade the peek window's bottom edge if the placard actually
+  // continues past it — the same rule the scroll edges follow, and the
+  // reason a two-line placard would get no phantom dissolve.
+  const [peekOverflows, setPeekOverflows] = useState(true);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !peek) return;
+    // Two elements in here are the full height of the scroller no matter what
+    // is in them, and measuring either gives a number that can never be less
+    // than the viewport it is being compared against:
+    //   • the SCROLLER, because scrollHeight is floored at client height;
+    //   • the BODY wrapper, because `min-h-full` is what centres a short
+    //     placard when the sheet is expanded.
+    // Both have been that bug already. So descend past the wrapper and
+    // measure the real content, falling back to the scroller's own children
+    // if the wrapper is not there.
+    const contentOf = () => {
+      const body = el.querySelector(".placard-body") ?? el;
+      const kids = Array.from(body.children);
+      if (!kids.length) return 0;
+      // The content's own EXTENT, top to bottom — deliberately not measured
+      // from the scroller's origin. Once the sheet is expanded the wrapper
+      // centres a short placard, which would fold half the leading whitespace
+      // into a from-the-origin measurement and flip this answer purely
+      // because the sheet opened.
+      let top = Infinity;
+      let bottom = -Infinity;
+      for (const k of kids) {
+        const r = k.getBoundingClientRect();
+        top = Math.min(top, r.top);
+        bottom = Math.max(bottom, r.bottom);
+      }
+      return bottom - top;
+    };
+    const update = () =>
+      setPeekOverflows(contentOf() > peek - SHEET_HEADER_PX + 4);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    const body = el.querySelector(".placard-body") ?? el;
+    for (const child of Array.from(body.children)) ro.observe(child);
+    // Bodies lazy-mount and the lifting heatmap arrives async, so the
+    // children present now are not the ones that decide this.
+    const mo = new MutationObserver(update);
+    mo.observe(el, { childList: true, subtree: true });
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+    };
+  }, [peek, unit.slug]);
+
+  // The drag. Hand-rolled and non-passive rather than framer's drag: framer
+  // sets touch-action:none on the element it drags, which kills the inner
+  // scroll outright.
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel || !metrics) return;
+    let startY = 0;
+    let lastY = 0;
+    // Velocity is sampled on its own clock rather than per move. Two touchmoves
+    // can land in the same millisecond — a coalesced burst, or anything
+    // dispatching them synchronously — and dividing by a sub-millisecond dt
+    // turns a 24px step into hundreds of px/ms, which read as a throw and sent
+    // an ordinary collapse straight out to the chip.
+    let sampleY = 0;
+    let sampleT = 0;
+    let velocity = 0; // px/ms, positive downward
+    let base = 0;
+    let owned: boolean | null = null; // null until the drag arms
+    let fromScroller = false;
+
+    const onTouchStart = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (!t) return;
+      y.stop();
+      startY = lastY = sampleY = t.clientY;
+      sampleT = e.timeStamp || performance.now();
+      velocity = 0;
+      owned = null;
+      base = y.get();
+      // Resolved once, at the start: whether the scroller is at its top is a
+      // property of the gesture's origin, not of the frame it is asked in.
+      const target = e.target;
+      fromScroller =
+        target instanceof Element &&
+        !!target.closest("[data-stacks-scrollable]") &&
+        (scrollRef.current?.scrollTop ?? 0) <= 0;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (!t) return;
+      const dy = t.clientY - startY;
+      if (owned === null) {
+        if (Math.abs(dy) < DRAG_ARM_PX) return;
+        // Peek has no scroller to compete with; expanded hands everything to
+        // the scroller except a pull-down that began at the top.
+        const inScroller =
+          e.target instanceof Element &&
+          !!e.target.closest("[data-stacks-scrollable]");
+        owned = !expanded || !inScroller || (dy > 0 && fromScroller);
+      }
+      if (!owned) return;
+      e.preventDefault();
+      const now = e.timeStamp || performance.now();
+      // 6ms is under one frame at 120Hz, so a real touch stream still samples
+      // on every move while a same-tick burst samples on none of them.
+      if (now - sampleT >= VELOCITY_SAMPLE_MS) {
+        velocity = (t.clientY - sampleY) / (now - sampleT);
+        sampleY = t.clientY;
+        sampleT = now;
+      }
+      lastY = t.clientY;
+      const next = base + dy;
+      // Above full height there is nothing left to reveal, so resist.
+      y.set(next < 0 ? next * 0.25 : next);
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      if (!owned) {
+        owned = null;
+        return;
+      }
+      owned = null;
+      // A finger that came to rest before lifting placed the sheet, it did not
+      // throw it — so the velocity from before the pause must not carry.
+      const end = e.timeStamp || performance.now();
+      if (end - sampleT > VELOCITY_STALE_MS) velocity = 0;
+      const dy = lastY - startY;
+      const committed = Math.abs(dy) > DRAG_STEP_PX || Math.abs(velocity) > FLING;
+      if (!committed) {
+        settle(); // stayed put; spring back to where it was
+        return;
+      }
+      if (dy < 0) {
+        // Nothing above peek to go to, either because the sheet is already
+        // full height or because the placard fits in the peek window and the
+        // chevron is hidden for the same reason.
+        if (expanded || !peekOverflows) settle();
+        else expand();
+        return;
+      }
+      // Downward. From expanded a long pull or a hard throw skips peek and
+      // goes straight out, which is what a flick off a full sheet means.
+      const skip =
+        dy > metrics.vh * 0.45 ||
+        (velocity > FLING_SKIP && dy > FLING_SKIP_MIN_PX);
+      if (expanded && !skip) collapse();
+      else dismiss();
+    };
+    panel.addEventListener("touchstart", onTouchStart, { passive: true });
+    panel.addEventListener("touchmove", onTouchMove, { passive: false });
+    panel.addEventListener("touchend", onTouchEnd, { passive: true });
+    panel.addEventListener("touchcancel", onTouchEnd, { passive: true });
+    return () => {
+      panel.removeEventListener("touchstart", onTouchStart);
+      panel.removeEventListener("touchmove", onTouchMove);
+      panel.removeEventListener("touchend", onTouchEnd);
+      panel.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, [metrics, expanded, peekOverflows, y, settle, expand, collapse, dismiss]);
+
   const sheetMask = `linear-gradient(to bottom, ${
     edges.top ? `transparent 0, black ${FADE_PX}px` : "black 0"
   }, ${
@@ -725,10 +1143,15 @@ function MobilePanel({
       : "black 100%"
   })`;
 
+  // One frame of nothing rather than one frame of a full-screen sheet: the
+  // detents are derived from a measured viewport, and before that measurement
+  // every one of them is zero.
+  if (!metrics) return null;
+
   return (
     <div className="md:hidden">
       <AnimatePresence>
-        {open && (
+        {expanded && (
           <motion.div
             key="dim"
             className="fixed inset-0 z-30 bg-background/40"
@@ -739,76 +1162,142 @@ function MobilePanel({
           />
         )}
       </AnimatePresence>
-      <AnimatePresence
-        onExitComplete={() => {
-          if (useStacks.getState().panelState === "closing") {
-            setPanelState("closed");
-          }
+      <motion.div
+        ref={panelRef}
+        data-stacks-panel
+        data-sheet={expanded ? "expanded" : hidden ? "dismissed" : "peek"}
+        style={{ y }}
+        // Square at full height, a sheet edge everywhere else — rounded
+        // corners at the very top of the screen would frame two slivers of
+        // room above a panel that is meant to have replaced it.
+        animate={{
+          borderTopLeftRadius: expanded ? 0 : 16,
+          borderTopRightRadius: expanded ? 0 : 16,
         }}
+        transition={SHEET_SPRING}
+        // Never unmounted, only translated — see the header comment. Off the
+        // bottom it must also be out of the tab order and out of the way of
+        // taps on the room, which `inert` and pointer-events do between them.
+        inert={hidden}
+        className={`fixed inset-0 z-40 flex flex-col border-t border-foreground/[0.07] bg-background/95 shadow-[0px_-6px_28px_2px_rgba(0,0,0,0.13)] backdrop-blur-xl ${
+          hidden ? "pointer-events-none" : "pointer-events-auto"
+        }`}
       >
-        {open ? (
-          <motion.div
-            key="panel"
-            ref={panelRef}
-            data-stacks-panel
-            layoutId="stacks-panel"
-            style={{ borderRadius: 0 }}
-            onLayoutAnimationComplete={() => {
-              if (useStacks.getState().panelState === "opening") {
-                setPanelState("open");
-              }
-            }}
-            className="pointer-events-auto fixed inset-0 z-40 flex flex-col bg-background/95 backdrop-blur-xl"
-          >
-            <div className="flex items-center justify-between pb-1 pl-5 pr-2 pt-3">
-              <h2 className="font-serif text-lg font-semibold text-foreground">
-                {unit.label}
-              </h2>
+        {/* The grabber is the whole discoverability story for the drag, and
+            it is why the sheet does not need a caption explaining itself. */}
+        <div className="flex h-4 items-start justify-center pt-2">
+          <div aria-hidden className="h-1 w-9 rounded-full bg-foreground/20" />
+        </div>
+        <div className="flex h-11 items-center justify-between pl-5 pr-1">
+          <h2 className="font-serif text-lg font-semibold text-foreground">
+            {unit.label}
+          </h2>
+          <div className="flex items-center">
+            {/* No chevron on a placard that is already fully visible. Book
+                Notes is 180px of content in a 220px peek window: offering to
+                expand it promised more and delivered a card stranded in five
+                sixths of an empty screen. `peekOverflows` is the same signal
+                that decides the fade, which is the point — the affordance and
+                the "there is more below" hint now cannot disagree. */}
+            {(peekOverflows || expanded) && (
               <button
                 type="button"
-                aria-label="Close"
-                onClick={closeStacksPanel}
+                aria-label={expanded ? "Collapse" : "Expand"}
+                aria-expanded={expanded}
+                onClick={expanded ? collapse : expand}
                 className="flex size-11 items-center justify-center text-muted-foreground"
               >
-                <XIcon className="size-5" weight="bold" />
+                {expanded ? (
+                  <CaretDownIcon className="size-5" weight="bold" />
+                ) : (
+                  <CaretUpIcon className="size-5" weight="bold" />
+                )}
               </button>
-            </div>
-            {/* Mobile takes the same masked-scroller dissolve as desktop. It
-                needs no plate layer: the sheet behind is the one blurred
-                surface, so nothing inside it is asking for a backdrop. */}
-            <div className="relative min-h-0 flex-1">
-              <div
-                ref={scrollRef}
-                data-stacks-scrollable
-                className="stacks-scroll placard-scroll h-full overflow-y-auto overscroll-contain px-5 py-6 font-serif text-muted-foreground"
-                style={{ maskImage: sheetMask, WebkitMaskImage: sheetMask }}
-              >
-                {bodies[unit.slug]}
-              </div>
-            </div>
-          </motion.div>
-        ) : (
-          !modalOpen && (
-            <motion.button
-              key="chip"
+            )}
+            <button
               type="button"
-              data-stacks-chip
-              layoutId="stacks-panel"
-              style={{ borderRadius: 22 }}
-              onClick={openStacksPanel}
-              className="pointer-events-auto fixed inset-x-0 bottom-3 z-40 mx-auto flex h-11 w-fit max-w-[80vw] items-center gap-2 border border-foreground/[0.06] bg-background/85 px-4 font-serif text-sm text-foreground shadow-[0px_4px_24px_2px_rgba(0,0,0,0.10)] backdrop-blur"
+              aria-label="Close"
+              onClick={dismiss}
+              className="flex size-11 items-center justify-center text-muted-foreground"
             >
-              <motion.span
-                key={unit.slug}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="truncate"
-              >
-                {unit.label}
-              </motion.span>
-              <CaretUpIcon className="size-3.5 shrink-0" weight="bold" />
-            </motion.button>
-          )
+              <XIcon className="size-5" weight="bold" />
+            </button>
+          </div>
+        </div>
+        {/* Mobile takes the same masked-scroller dissolve as desktop. It
+            needs no plate layer: the sheet behind is the one blurred
+            surface, so nothing inside it is asking for a backdrop. */}
+        <div className="relative min-h-0 flex-1">
+          <div
+            ref={scrollRef}
+            // Only tagged while it can actually scroll. The attribute is what
+            // ScrollBridges' wheel handler bails on, and leaving it on an
+            // `overflow: hidden` element would deaden a third of the screen
+            // to the wheel on a narrow desktop window for no reason.
+            data-stacks-scrollable={expanded ? "" : undefined}
+            // `overscroll-none` for the same reason as the desktop scroller:
+            // contain leaves the elastic bounce in place. It matters more
+            // here, because the pull-down arms at scrollTop 0 and a native
+            // rubber-band at the top edge competes for the same drag.
+            className={`stacks-scroll placard-scroll h-full overscroll-none px-5 pb-6 pt-3 font-serif text-muted-foreground ${
+              expanded ? "overflow-y-auto" : "overflow-hidden"
+            }`}
+            style={
+              expanded
+                ? { maskImage: sheetMask, WebkitMaskImage: sheetMask }
+                : undefined
+            }
+          >
+            {/* Short placards sit centred once the sheet is at full height,
+                which is the same thing the desktop dock does and for the same
+                reason. Book Notes is 236px of content: pinned to the top of an
+                844px sheet it left five sixths of the screen empty and read as
+                a panel that had failed to load. Centred it reads as a short
+                section, which is what it is.
+
+                Only while EXPANDED. Peek must stay top-aligned — showing the
+                title and the opening lines is its entire job — and on a tall
+                placard `justify-center` is a no-op either way, since the
+                content already exceeds the container. */}
+            <div
+              className={`placard-body flex min-h-full flex-col ${
+                expanded ? "justify-center" : "justify-start"
+              }`}
+            >
+              {bodies[unit.slug]}
+            </div>
+          </div>
+          {/* The peek window's own bottom edge. It cannot be a mask on the
+              scroller — the scroller runs on past the fold, and a mask is one
+              of the three things that would kill the sheet's backdrop-filter
+              anyway — so it is a sibling gradient sitting exactly on the
+              fold. Placed in sheet coordinates: `peek` down from the sheet's
+              top IS the bottom of the screen while peeking. */}
+          <motion.div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bg-gradient-to-t from-background to-transparent"
+            style={{ top: peek - SHEET_HEADER_PX - FADE_PX, height: FADE_PX }}
+            animate={{ opacity: expanded || !peekOverflows ? 0 : 1 }}
+            transition={{ duration: 0.18 }}
+          />
+        </div>
+      </motion.div>
+      <AnimatePresence>
+        {hidden && !modalOpen && (
+          <motion.button
+            key="chip"
+            type="button"
+            data-stacks-chip
+            onClick={() => setDismissed(false)}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 12 }}
+            transition={{ duration: 0.2 }}
+            className="pointer-events-auto fixed inset-x-0 bottom-3 z-40 mx-auto flex h-11 w-fit max-w-[80vw] items-center gap-2 rounded-[22px] border border-foreground/[0.06] bg-background/85 px-4 font-serif text-sm text-foreground shadow-[0px_4px_24px_2px_rgba(0,0,0,0.10)] backdrop-blur"
+          >
+            <span className="truncate">{unit.label}</span>
+            <CaretUpIcon className="size-3.5 shrink-0" weight="bold" />
+          </motion.button>
         )}
       </AnimatePresence>
     </div>
@@ -1025,6 +1514,23 @@ export default function PlacardLayer({
           .placard-scroll [class*="backdrop-blur"] {
             background-color: hsl(var(--muted) / 0.45) !important;
           }
+          /* The sheet runs to the physical bottom of the screen, so the last
+             line of a fully expanded placard would otherwise sit under the
+             home indicator. Only the sheet's scroller — the desktop dock has
+             no edge to clear. */
+          [data-stacks-panel] .placard-scroll {
+            padding-bottom: max(1.5rem, calc(env(safe-area-inset-bottom) + 0.75rem));
+          }
+          /* Only at full height does the sheet reach the notch. At peek its
+             top edge is two thirds of the way down the screen, and reserving
+             a status bar there would just be a gap above the title. */
+          [data-stacks-panel][data-sheet="expanded"] {
+            padding-top: env(safe-area-inset-top);
+          }
+          /* A body heading that only repeats the sheet's own title. Marked
+             from JS by text match — see the effect in MobilePanel. */
+          [data-stacks-panel] [data-dup-title] { display: none; }
+          [data-stacks-panel] { transition: padding-top 0.2s ease-out; }
         }
         /* Kill the scroll-reveal inside the placard. tailwindcss-intersect's
            variant is &:not([no-intersect]), so these styles apply BY DEFAULT

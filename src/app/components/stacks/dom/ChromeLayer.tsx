@@ -92,7 +92,14 @@ export default function ChromeLayer() {
           mobile panel (z-40) still covers it while open. No island: over a
           rendered scene a floating panel is one more thing to look at, so
           the control is just the glyph until you reach for it (owner call
-          at browse) — the round hover/press wash is the whole affordance. */}
+          at browse) — the round hover/press wash is the whole affordance.
+
+          This button owns the top-right corner outright on mobile: it is a
+          40px box at top-3, so it occupies 12–52px down from the top edge,
+          and the name opposite it owns the left of the same strip. Nothing
+          else may be placed there. The unit dots used to be, at right-4 top-4,
+          and the seventh one sat under this glyph on a 390px phone; they now
+          take their own centred row below 56px (see UnitRail). */}
       <div className="pointer-events-auto absolute right-4 top-3 z-30 md:right-6 md:top-4">
         <GrainReveal index={2}>
           <ThemeToggle className="!rounded-full hover:!bg-foreground/[0.09] active:!bg-foreground/[0.14]" />
