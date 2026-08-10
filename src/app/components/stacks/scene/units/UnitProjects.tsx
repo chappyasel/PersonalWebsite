@@ -139,10 +139,16 @@ export default function UnitProjects({
               reports is therefore π out. The front already faces the viewer
               at 0; the 0.34 only turns it off-square.
               Scale 7.0, not the 5.0 the model report suggested. That number
-              came off a shelf conversion of ~1.2 units/metre averaged over
-              props that are THEMSELVES undersized; the books settle it — a
-              BookPile book is 0.46 × 0.06 × 0.32, which against a trade
-              hardcover reads 1.92 / 2.00 / 2.00, so shelf scale is 2.0. At
+              came off a shelf conversion averaged over props that are
+              THEMSELVES undersized (globe, desk lamp, sansevieria). The books
+              settle it, on eight axes across three primitives: packRow's
+              spines are w 0.055…0.13, h 0.4…0.6, depth 0.3; a BookPile book
+              is 0.46 × 0.06 × 0.32; a BookRowMesh cover is 0.36 × 0.52 ×
+              0.048. Against a real hardcover every one of those clusters at
+              ~2.0 units/metre, and that is the shelf scale. (The BOOKCASE is
+              a separate matter — ground to top plank is 1.115 units, about
+              0.96 u/m, so the furniture is at roughly half the scale of the
+              things standing on it. Two scales for two different things.) At
               5.0 a compact Macintosh stood 0.6× the width of the hardcovers
               beside it when the real machine is 1.5× wider than one. The
               pile moved to 0.18 to open the window. */}

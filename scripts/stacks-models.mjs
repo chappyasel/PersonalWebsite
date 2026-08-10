@@ -64,7 +64,11 @@ const MANIFEST = [
   { name: "trophy", id: "fLy8KmmD1t", url: "https://static.poly.pizza/b56b0827-c9f6-46e6-9a5d-160225686ee7.glb", strip: true, unit: "projects", author: "CreativeTrio", license: "CC0 1.0" },
   { name: "open-book", id: "JEDMpG0UIR", url: "https://static.poly.pizza/64810c3b-57be-44be-aaba-926b56a0cebc.glb", noAo: true, unit: "blog", author: "Quaternius", license: "CC0 1.0" },
   // noAo below: thin members / dark tints where baked AO never reads —
-  // their bytes matter more than their crevices (320KB budget).
+  // their bytes matter more than their crevices. /public/models is a soft
+  // ~420 KB ceiling (398 KB as of round 4) — it is lazy-loaded after first
+  // paint, so it sits OUTSIDE the 180 KB initial-route budget that
+  // scripts/check-route-budgets.mjs asserts. Nothing fails the build on it;
+  // the per-prop and total KB this script prints are the only guard.
   { name: "golf-club", id: "26nMm9C7Bw", url: "https://static.poly.pizza/940b6e7e-09ab-414a-8243-fc63a3faa9fd.glb", noAo: true, unit: "training", author: "Pichuliru", license: "CC0 1.0" },
   { name: "basketball", id: "i3LLacyQP4", url: "https://static.poly.pizza/d4a3995f-5823-4d31-b4ed-a27a0700e896.glb", keepNodes: ["Sphere"], fixMime: true, noAo: true, unit: "training", author: "Armory_3D", license: "CC0 1.0" },
   // ---- v4 round 2: CC0 atlas-shared drop-ins
@@ -95,6 +99,31 @@ const MANIFEST = [
   // and a framed photo replaced them.
   { name: "barbell", id: "AX5jGlJZlk", url: "https://static.poly.pizza/4915af72-c243-407c-960c-272a4ce73d97.glb", noAo: true, unit: "training", author: "Zsky", license: "CC-BY 3.0" },
   { name: "kettlebell", id: "08Gs4e3L1N8", url: "https://static.poly.pizza/9044238c-c3ef-47ae-a8e1-5a140cb64e78.glb", unit: "training", author: "Poly by Google", license: "CC-BY 3.0" },
+  // ---- v4 round 4: the owner's named asks (Eames / Mac / +2 lamps / +2 plants).
+  // eames-chair is the honest near-miss: poly.pizza has NO Eames lounge (no
+  // plywood shells, no ottoman, no star base). This is the site's top
+  // mid-century-modern chair — upholstered one-piece shell on splayed
+  // tapered wood dowel legs. Plain materials, so the runtime "tinted"
+  // variant drives it: Cloth1MinimalistModernChair1 (upholstery) and
+  // WoodMinimalistModernChair1 (legs). Zsky is already a credited CC-BY
+  // author (barbell), so it adds no new name to the About placard.
+  { name: "eames-chair", id: "ufzwKuyJuD", url: "https://static.poly.pizza/f7f1e03b-fbad-4d21-a418-80f50e0dbe4e.glb", unit: "about floor", author: "Zsky", license: "CC-BY 3.0" },
+  // The Mac ships as a desk scene (keyboard/keys/mouse/mousepad); keyboard
+  // _keys alone is 272 of its 556 tris and none of it reads at 25px. Keep
+  // only the compact-Mac body plus the two Happy-Mac screen quads — face and
+  // face_shadow have to be named explicitly because keepNodes prunes any
+  // child that is not itself matched. M_screen_blue / M_screen_whitetext are
+  // the screen materials a tinted variant must leave alone or the Mac stops
+  // reading as switched on.
+  { name: "mac", id: "goeJLARWbs", url: "https://static.poly.pizza/3e43bb1d-0715-4b84-849a-3ae813a6ffed.glb", keepNodes: ["monitor_and_body", "face", "face_shadow"], unit: "projects (github link)", author: "Charlie", license: "CC-BY 3.0" },
+  { name: "lamp-table", id: "1nKtMmYxLT", url: "https://static.poly.pizza/cc9fbab2-f93f-4dfc-947b-b91f10a7b6bb.glb", strip: true, unit: "books+blog", author: "CreativeTrio", license: "CC0 1.0" },
+  { name: "lamp-floor", id: "8LiDIfXVLi", url: "https://static.poly.pizza/98dd45a1-0682-4d44-83d1-32fa2a4fca5b.glb", noAo: true, unit: "floor", author: "Kenney", license: "CC0 1.0" },
+  // Two more species, same tiny-treats atlas as pothos/sansevieria (verified
+  // byte-identical by the hash check below). Medium monstera not large: the
+  // large one is 5.9k tris for the same silhouette. Both noAo + 0.02 for the
+  // reasons in the round-3 note above.
+  { name: "monstera", id: "mhLLD0UJ5n", url: "https://static.poly.pizza/25c47ae4-e64f-42cc-8ef7-9f7a69907c92.glb", recolor: true, noAo: true, simplify: 0.02, unit: "about", author: "Isa Lousberg", license: "CC0 1.0" },
+  { name: "cactus", id: "ktF2FMl1eT", url: "https://static.poly.pizza/241caab1-030a-4879-8a37-982b7e5d2f49.glb", recolor: true, noAo: true, simplify: 0.02, unit: "systems", author: "Isa Lousberg", license: "CC0 1.0" },
 ];
 
 function parseGlb(buf) {
