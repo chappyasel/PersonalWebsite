@@ -42,8 +42,42 @@
 // of that the contact plane is found by SUPPORT POLYGON — the lowest height
 // whose horizontal slab is wide enough to actually rest on. Four splayed chair
 // legs qualify; a single vine tip does not. Neither test needs an axis.
+// pothos's island-exact pot base is **0.2182**. An earlier dense-ring estimate
+// of 0.211 is what shipped; the difference is 0.0036 world at scale 0.5, so it
+// is a correct-in-passing, not a commit of its own.
+//
+// A support does NOT have to enclose area, and this is the easy thing to
+// break: the barbell rests on two plates and the headphones on two earcups,
+// contacts whose hull is a LINE enclosing nothing. An area-only rule rejected
+// both and wanted to lift the barbell 0.27 into the air. Hence the second
+// test — a contact spanning a third of the silhouette is real support however
+// thin it is. If you tighten either threshold to fix some other prop, re-run
+// `--all` and check barbell, headphones and pothos together: the first two
+// must read SITS ON 0 and pothos must still read OVERHANG.
 //
 // ---------------------------------------------------------------------------
+// SCALE — the room has TWO legitimate conversions. Do not average them.
+//   shelf props   ~2.00 world units per metre
+//   furniture     ~0.96 world units per metre  (the bookcase itself: ground to
+//                 top plank is 1.115 units)
+// So the objects standing on the shelves are drawn at roughly twice the scale
+// of the shelving holding them. That is a real, pre-existing property of the
+// room and the owner's call, not a bug to reconcile.
+//   scale = real_metres * unitsPerMetre / glbHeight
+// The 2.00 is measured off the book primitives, which are the only props whose
+// real-world size is unambiguous — packRow spines (w 0.055…0.130, h 0.4…0.6,
+// depth 0.3), BookPile's book (0.46 x 0.06 x 0.32) and BookRowMesh's cover
+// (0.36 x 0.52 x 0.048). Against a 0.03 x 0.235 x 0.16 m hardcover that is
+// eight independent axes across three primitives, and they cluster hard at 2.
+// Two ways this has already been got wrong, both worth avoiding:
+//   - Deriving it from PROP scales instead. Sampling the globe (1.20), desk
+//     lamp (1.30) and sansevieria (0.90) yields ~1.2, but all three are
+//     undersized props — averaging outliers just reproduces the outlier.
+//   - Reading a book dimension out of prose rather than the source. "0.22
+//     tall" is the hardcover's height in METRES; it is not any world-unit
+//     dimension of any book in this codebase, and mistaking it for one halves
+//     the answer.
+//
 // FACING — two signals, because neither works alone: an enclosed form backs
 // its mass onto the rear (read the crown), an appliance carries its detail on
 // the face (read triangle density). Validated against the two props whose
@@ -221,7 +255,7 @@ function contactPlane(isles, min, max) {
   // Candidate planes are the heights at which islands BOTTOM OUT, not evenly
   // spaced slabs. A plain slab sweep mixes islands and lets three unrelated
   // leaves in one band fake a footprint — that is what put the pothos's
-  // contact at 0.045 instead of its pot at 0.218. Islands that bottom out
+  // contact at 0.045 instead of its pot at 0.2182. Islands that bottom out
   // together are then hulled TOGETHER, which is what the chair needs: each
   // of its four splayed legs is a separate island whose single foot encloses
   // nothing, but the four feet share a plane and span the whole seat.
