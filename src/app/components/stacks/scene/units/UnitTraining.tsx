@@ -20,6 +20,7 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
     <group>
       <ShelfUnit
         palette={palette}
+        toneSeed={index}
         lower={
           <group>
             <React.Suspense fallback={null}>

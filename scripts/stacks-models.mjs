@@ -55,27 +55,29 @@ const MANIFEST = [
   { name: "dumbbell", id: "PW9q10xh5g", url: "https://static.poly.pizza/a9b5fb20-6ecb-4f20-996f-88743f2519da.glb", strip: true, unit: "training", author: "CreativeTrio", license: "CC0 1.0" },
   { name: "globe", id: "Y4Dof9b2p5", url: "https://static.poly.pizza/002557d4-03f3-4201-a86c-f66e0af82182.glb", strip: true, unit: "about", author: "CreativeTrio", license: "CC0 1.0" },
   { name: "trophy", id: "fLy8KmmD1t", url: "https://static.poly.pizza/b56b0827-c9f6-46e6-9a5d-160225686ee7.glb", strip: true, unit: "projects", author: "CreativeTrio", license: "CC0 1.0" },
-  { name: "open-book", id: "JEDMpG0UIR", url: "https://static.poly.pizza/64810c3b-57be-44be-aaba-926b56a0cebc.glb", unit: "blog", author: "Quaternius", license: "CC0 1.0" },
-  { name: "golf-club", id: "26nMm9C7Bw", url: "https://static.poly.pizza/940b6e7e-09ab-414a-8243-fc63a3faa9fd.glb", unit: "training", author: "Pichuliru", license: "CC0 1.0" },
+  { name: "open-book", id: "JEDMpG0UIR", url: "https://static.poly.pizza/64810c3b-57be-44be-aaba-926b56a0cebc.glb", noAo: true, unit: "blog", author: "Quaternius", license: "CC0 1.0" },
+  // noAo below: thin members / dark tints where baked AO never reads —
+  // their bytes matter more than their crevices (320KB budget).
+  { name: "golf-club", id: "26nMm9C7Bw", url: "https://static.poly.pizza/940b6e7e-09ab-414a-8243-fc63a3faa9fd.glb", noAo: true, unit: "training", author: "Pichuliru", license: "CC0 1.0" },
   { name: "basketball", id: "i3LLacyQP4", url: "https://static.poly.pizza/d4a3995f-5823-4d31-b4ed-a27a0700e896.glb", keepNodes: ["Sphere"], fixMime: true, noAo: true, unit: "training", author: "Armory_3D", license: "CC0 1.0" },
   // ---- v4 round 2: CC0 atlas-shared drop-ins
   { name: "ct-books", id: "dxt7dETAy9", url: "https://static.poly.pizza/dfbb9f38-a5de-41d7-bcbf-0a0929f3c53d.glb", strip: true, unit: "systems", author: "CreativeTrio", license: "CC0 1.0" },
   { name: "cup-tea", id: "6QBscrL7D3", url: "https://static.poly.pizza/10923bae-556b-4540-8b37-2edaaa78083d.glb", strip: true, unit: "blog", author: "CreativeTrio", license: "CC0 1.0" },
-  { name: "corkboard", id: "U8yQZ9l0HZ", url: "https://static.poly.pizza/09cf2ec1-8b2c-4543-b773-962fba13aac5.glb", strip: true, unit: "blog", author: "CreativeTrio", license: "CC0 1.0" },
+  { name: "corkboard", id: "U8yQZ9l0HZ", url: "https://static.poly.pizza/09cf2ec1-8b2c-4543-b773-962fba13aac5.glb", strip: true, noAo: true, unit: "blog", author: "CreativeTrio", license: "CC0 1.0" },
   { name: "grandfather-clock", id: "09YKIkFZnA", url: "https://static.poly.pizza/88145813-946f-4490-abe5-e3938775991a.glb", strip: true, unit: "systems floor", author: "CreativeTrio", license: "CC0 1.0" },
-  { name: "ladder", id: "p1RR8Ls9EH", url: "https://static.poly.pizza/b103cfda-4dea-47b9-a0c6-439eed17d9ee.glb", strip: true, unit: "books floor", author: "CreativeTrio", license: "CC0 1.0" },
+  { name: "ladder", id: "p1RR8Ls9EH", url: "https://static.poly.pizza/b103cfda-4dea-47b9-a0c6-439eed17d9ee.glb", strip: true, noAo: true, unit: "books floor", author: "CreativeTrio", license: "CC0 1.0" },
   { name: "armchair", id: "myd1WSucAz", url: "https://static.poly.pizza/2584a961-1b06-4fb7-ba7d-1074b52ca908.glb", strip: true, unit: "about floor", author: "CreativeTrio", license: "CC0 1.0" },
   // ---- v4 round 2: CC0 own-texture (palette remap per theme)
   { name: "sansevieria", id: "BDwimVUool", url: "https://static.poly.pizza/f972935d-4083-474a-aa51-af7ceec71797.glb", recolor: true, unit: "systems", author: "Isa Lousberg", license: "CC0 1.0" },
   // Mic carries plain named materials (Black/Metal/Glow/LightGrey), no
   // texture — it themes at runtime via the "tinted" variant like the club.
-  { name: "mic", id: "yqbacXdPsg", url: "https://static.poly.pizza/b6976679-945a-4914-8857-093a0c6ecb18.glb", unit: "talks", author: "iPoly3D", license: "CC0 1.0" },
+  { name: "mic", id: "yqbacXdPsg", url: "https://static.poly.pizza/b6976679-945a-4914-8857-093a0c6ecb18.glb", noAo: true, unit: "talks", author: "iPoly3D", license: "CC0 1.0" },
   // ---- v4 round 2: CC-BY (credited in LICENSES.json + About placard).
   // All three carry plain materials (no textures) — themed at runtime via
   // the "tinted" variant: barbell Iron1Barbell1/Steel1Barbell1, kettlebell
   // phong1SG, plate PorcelainPlate1 (a porcelain disc that reads as a
   // bumper plate once tinted and leaned).
-  { name: "barbell", id: "AX5jGlJZlk", url: "https://static.poly.pizza/4915af72-c243-407c-960c-272a4ce73d97.glb", unit: "training", author: "Zsky", license: "CC-BY 3.0" },
+  { name: "barbell", id: "AX5jGlJZlk", url: "https://static.poly.pizza/4915af72-c243-407c-960c-272a4ce73d97.glb", noAo: true, unit: "training", author: "Zsky", license: "CC-BY 3.0" },
   { name: "kettlebell", id: "08Gs4e3L1N8", url: "https://static.poly.pizza/9044238c-c3ef-47ae-a8e1-5a140cb64e78.glb", unit: "training", author: "Poly by Google", license: "CC-BY 3.0" },
   { name: "plate", id: "jyj7EfIiB1", url: "https://static.poly.pizza/2b245534-0036-4a09-89cd-cbdb3dcd8d84.glb", unit: "training", author: "Zsky", license: "CC-BY 3.0" },
 ];
@@ -325,7 +327,9 @@ async function aoBake(preFile, aoFile) {
         const hit = raycaster.intersectObjects(meshes, false);
         if (hit.length) hits++;
       }
-      const ao = 1 - 0.55 * (hits / DIRS.length);
+      // Quantize to 16 levels — meshopt compresses the repeated bytes far
+      // better and 1/16 steps are invisible under the 0.55 strength cap.
+      const ao = Math.round((1 - 0.55 * (hits / DIRS.length)) * 15) / 15;
       colors[i * 3] = ao;
       colors[i * 3 + 1] = ao;
       colors[i * 3 + 2] = ao;

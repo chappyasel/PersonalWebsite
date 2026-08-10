@@ -40,6 +40,7 @@ export default function UnitBooks({
     <group>
       <ShelfUnit
         palette={palette}
+        toneSeed={index}
         lower={
           <group>
             <group position={[0.35, 0, 0]}>

@@ -25,6 +25,7 @@ export default function UnitAbout({
     <group>
       <ShelfUnit
         palette={palette}
+        toneSeed={index}
         lower={
         <group>
           <group position={[-0.65, 0, 0]}>

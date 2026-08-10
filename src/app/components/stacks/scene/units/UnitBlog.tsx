@@ -27,6 +27,7 @@ export default function UnitBlog({
   return (
     <ShelfUnit
       palette={palette}
+      toneSeed={index}
       lower={
         <group>
           <group position={[0.25, 0, 0]}>

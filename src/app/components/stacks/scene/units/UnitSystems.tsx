@@ -12,11 +12,12 @@ import { ClockFace, InboxTray } from "../objects";
 import { BookPile, ShelfUnit } from "../primitives";
 import { type UnitProps } from "./types";
 
-export default function UnitSystems({ palette, dark }: UnitProps) {
+export default function UnitSystems({ palette, dark, index }: UnitProps) {
   return (
     <group>
       <ShelfUnit
         palette={palette}
+        toneSeed={index}
         lower={
           <group>
             <BookPile palette={palette} x={0.3} salt={58} />

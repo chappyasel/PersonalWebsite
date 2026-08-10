@@ -65,6 +65,10 @@ function atlasMaterial(tex: THREE.Texture): THREE.MeshStandardMaterial {
       map: tex,
       metalness: 0,
       roughness: 0.7,
+      // COLOR_0 carries the pipeline's baked vertex AO (--ao). Meshes
+      // without it get a white fill in ModelProp — an unbound color
+      // attribute would render black.
+      vertexColors: true,
     });
     atlasMaterials.set(tex.uuid, mat);
   }
@@ -129,7 +133,16 @@ export default function ModelProp({
           mat.roughness = atlasOverride.roughness;
       }
       clone.traverse((o) => {
-        if (o instanceof THREE.Mesh) o.material = mat;
+        if (!(o instanceof THREE.Mesh)) return;
+        const geo = o.geometry as THREE.BufferGeometry;
+        const pos = geo.attributes.position;
+        if (!geo.attributes.color && pos) {
+          geo.setAttribute(
+            "color",
+            new THREE.BufferAttribute(new Float32Array(3 * pos.count).fill(1), 3),
+          );
+        }
+        o.material = mat;
       });
     } else {
       clone.traverse((o) => {

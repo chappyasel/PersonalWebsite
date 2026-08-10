@@ -296,22 +296,117 @@ export function BookRowMesh({
  * offset conventions that made half the props float are gone. */
 export const SHELF = { top: 0.035, lower: -0.6925 } as const;
 
+// Palette-locked tiling wood grain — long streaks + rare knots drawn over
+// the theme's wood hex, doubling as a subtle roughness map (its green
+// channel carries the streak variation). Cached per hex × orientation;
+// theme flips just switch cache entries.
+const woodTextureCache = new Map<string, THREE.CanvasTexture>();
+function woodGrainTexture(hex: string, vertical: boolean): THREE.CanvasTexture {
+  const key = `${hex}|${vertical ? "v" : "h"}`;
+  const hit = woodTextureCache.get(key);
+  if (hit) return hit;
+  const size = 256;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d")!;
+  ctx.fillStyle = hex;
+  ctx.fillRect(0, 0, size, size);
+  for (let i = 0; i < 42; i++) {
+    const y = rand(i, 301) * size;
+    const dark = rand(i, 302) > 0.45;
+    ctx.strokeStyle = dark
+      ? `rgba(0, 0, 0, ${0.04 + rand(i, 303) * 0.07})`
+      : `rgba(255, 240, 210, ${0.03 + rand(i, 304) * 0.05})`;
+    ctx.lineWidth = 0.8 + rand(i, 305) * 1.4;
+    ctx.beginPath();
+    ctx.moveTo(-8, y);
+    for (let x = 0; x <= size + 16; x += 16) {
+      ctx.lineTo(x, y + Math.sin(x * 0.02 + i * 3.7) * 2.4 + rand(i + x, 306) * 1.6 - 0.8);
+    }
+    ctx.stroke();
+  }
+  for (let k = 0; k < 3; k++) {
+    const cx = rand(k, 307) * size;
+    const cy = rand(k, 308) * size;
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.10)";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 5 + rand(k, 309) * 7, 2.2 + rand(k, 310) * 2.4, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  if (vertical) {
+    texture.rotation = Math.PI / 2;
+    texture.center.set(0.5, 0.5);
+  }
+  texture.anisotropy = 4;
+  woodTextureCache.set(key, texture);
+  return texture;
+}
+
+/** Plank/strap material with grain + per-unit tone jitter. The map carries
+ * the palette hex, so `color` is just the ±4% scalar. */
+function WoodMaterial({
+  hex,
+  tone = 1,
+  vertical = false,
+  repeat,
+  roughness = 0.72,
+}: {
+  hex: string;
+  tone?: number;
+  vertical?: boolean;
+  repeat: [number, number];
+  roughness?: number;
+}) {
+  const { map, color } = useMemo(() => {
+    const base = woodGrainTexture(hex, vertical);
+    const map = base.clone();
+    map.needsUpdate = true;
+    map.repeat.set(repeat[0], repeat[1]);
+    return { map, color: new THREE.Color(tone, tone, tone) };
+  }, [hex, vertical, repeat[0], repeat[1], tone]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <meshStandardMaterial
+      map={map}
+      roughnessMap={map}
+      color={color}
+      roughness={roughness}
+    />
+  );
+}
+
 export function ShelfUnit({
   children,
   lower,
   palette,
   width = 3.2,
+  toneSeed,
 }: {
   children?: React.ReactNode;
   lower?: React.ReactNode;
   palette: Palette;
   width?: number;
+  /** Unit index — seeds a ±4% wood tone jitter so seven identical units
+   * read as seven planks of the same lumber order, not one copy-paste. */
+  toneSeed?: number;
 }) {
+  const tone = toneSeed === undefined ? 1 : 0.96 + rand(toneSeed, 77) * 0.08;
   return (
     <group>
       <RoundedBox castShadow receiveShadow args={[width, 0.07, 0.85]} radius={0.012} smoothness={4}>
-        <meshStandardMaterial color={palette.wood} roughness={0.75} />
+        <WoodMaterial hex={palette.wood} tone={tone} repeat={[2.4, 1]} />
       </RoundedBox>
+      {/* end-grain darkening at the plank ends */}
+      {[-1, 1].map((side) => (
+        <mesh key={side} position={[side * (width / 2 - 0.006), 0, 0]}>
+          <boxGeometry args={[0.013, 0.072, 0.86]} />
+          <meshStandardMaterial color={palette.woodDark} roughness={0.85} />
+        </mesh>
+      ))}
       {/* Straps run all the way to the ground plane (−1.115) with a small
           plinth foot — the bookcase stands instead of hovering. 0.07² so the
           straps are never thinner than the plank they carry, plus a cleat
@@ -326,7 +421,13 @@ export function ShelfUnit({
             smoothness={4}
             position={[0, -0.5575, 0]}
           >
-            <meshStandardMaterial color={palette.strap} roughness={0.7} />
+            <WoodMaterial
+              hex={palette.strap}
+              tone={tone}
+              vertical
+              repeat={[0.4, 3]}
+              roughness={0.68}
+            />
           </RoundedBox>
           <RoundedBox
             args={[0.12, 0.05, 0.12]}
@@ -354,8 +455,14 @@ export function ShelfUnit({
         smoothness={4}
         position={[0, -0.72, -0.08]}
       >
-        <meshStandardMaterial color={palette.wood} roughness={0.75} />
+        <WoodMaterial hex={palette.wood} tone={tone} repeat={[2.4, 0.8]} />
       </RoundedBox>
+      {[-1, 1].map((side) => (
+        <mesh key={side} position={[side * (width / 2 - 0.006), -0.72, -0.08]}>
+          <boxGeometry args={[0.013, 0.057, 0.61]} />
+          <meshStandardMaterial color={palette.woodDark} roughness={0.85} />
+        </mesh>
+      ))}
       <group position={[0, SHELF.top, 0]}>{children}</group>
       <group position={[0, SHELF.lower, 0]}>{lower}</group>
     </group>

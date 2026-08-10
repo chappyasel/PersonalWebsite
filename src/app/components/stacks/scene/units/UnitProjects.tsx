@@ -30,6 +30,7 @@ export default function UnitProjects({
   return (
     <ShelfUnit
       palette={palette}
+      toneSeed={index}
       lower={
         <group>
           <BookPile palette={palette} x={0.3} salt={47} />
