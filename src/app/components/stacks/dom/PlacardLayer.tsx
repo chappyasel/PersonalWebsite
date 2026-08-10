@@ -25,12 +25,10 @@ import licenses from "~~/models/LICENSES.json";
 import { UNITS, type StacksData, type StacksSlots } from "../data";
 import { closeStacksPanel, openStacksPanel, useStacks } from "../store";
 
-/** Edge fades for a scroll container, mirroring the pattern used across the
- * AIC platform: the mask only cuts an edge that actually has content past
- * it, so a short placard has no phantom fade and a long one tells you it
- * continues. The mask sits on the padding box, so it stays put while the
- * content moves under it. */
-function useScrollFade(ref: React.RefObject<HTMLDivElement | null>) {
+/** Which edges of a scroll container have content past them. Mirrors the
+ * AIC platform's pattern of only fading an edge that actually continues, so
+ * a short placard gets no phantom fade. */
+function useScrollEdges(ref: React.RefObject<HTMLDivElement | null>) {
   const [edges, setEdges] = useState({ top: false, bottom: false });
   useEffect(() => {
     const el = ref.current;
@@ -53,20 +51,41 @@ function useScrollFade(ref: React.RefObject<HTMLDivElement | null>) {
       ro.disconnect();
     };
   }, [ref]);
-  if (!edges.top && !edges.bottom) return undefined;
-  const mask = `linear-gradient(to bottom, ${
-    edges.top ? "transparent 0, black 32px" : "black 0"
-  }, ${edges.bottom ? "black calc(100% - 32px), transparent 100%" : "black 100%"})`;
-  return { maskImage: mask, WebkitMaskImage: mask };
+  return edges;
 }
 
-/** Desktop placard. No container: the owner's call at browse was that a
- * blurred panel holding blurred cards is a box on a box, so the panel
- * chrome is gone and the content sits on the scene, with the section cards
- * flattened alongside it (see the .placard-sections rules below). What's
- * left to read as a surface is the innermost data field — the lifting
- * heatmap — which needs one to be legible as a plot. Losing the container
- * is also what buys the extra width. */
+/** A gradient-opacity fade at the scrolling edge.
+ *
+ * It has to be a SIBLING of the scroll container, never a mask on it: a
+ * mask (like filter, or opacity < 1) makes its element a backdrop root, and
+ * then every `backdrop-filter` inside has nothing left to sample — the
+ * cards render translucent but unblurred, which is the bug the first cut
+ * shipped. So the fade paints in the page colour over the content instead
+ * of masking it out. */
+function ScrollFade({ side }: { side: "top" | "bottom" }) {
+  return (
+    <div
+      aria-hidden
+      className={`pointer-events-none absolute inset-x-0 z-10 h-14 ${
+        side === "top"
+          ? "top-0 bg-gradient-to-b from-background/90 via-background/45 to-transparent"
+          : "bottom-0 bg-gradient-to-t from-background/90 via-background/45 to-transparent"
+      }`}
+    />
+  );
+}
+
+/** Desktop placard. The containing panel is gone — a blurred panel holding
+ * blurred cards was a box on a box (owner at browse) — so each content
+ * block keeps its own single blurred surface and the headers sit directly
+ * on the scene. Losing the container is also what buys the extra width.
+ *
+ * The wrapper deliberately carries NOTHING that would create a backdrop
+ * root (no mask, no filter, and opacity only while crossfading), because
+ * any of those would silently disable `backdrop-filter` on every card
+ * inside it — translucent, unblurred, which is exactly the bug the first
+ * cut shipped. The edge fades are siblings of the scroller for the same
+ * reason. */
 function Panel({
   active,
   children,
@@ -76,25 +95,46 @@ function Panel({
 }) {
   const [mounted, setMounted] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const fade = useScrollFade(scrollRef);
+  const edges = useScrollEdges(scrollRef);
   useEffect(() => {
     if (active) setMounted(true);
   }, [active]);
   return (
     <div
-      ref={scrollRef}
       aria-hidden={!active}
-      data-stacks-scrollable
-      style={fade}
       // Fade-out-then-in: the entering placard waits for the leaving one —
       // simultaneous crossfade rendered as text-over-text mush (audit §2.5).
-      className={`stacks-scroll absolute right-0 top-1/2 max-h-[80dvh] w-full -translate-y-1/2 overflow-y-auto overscroll-contain py-2 pl-1 pr-3 transition-opacity duration-200 ${
+      className={`absolute right-0 top-1/2 max-h-[80dvh] w-full -translate-y-1/2 transition-opacity duration-200 ${
         active
           ? "pointer-events-auto opacity-100 delay-200"
           : "pointer-events-none opacity-0 delay-0"
       }`}
     >
-      {mounted ? children : null}
+      <div
+        ref={scrollRef}
+        data-stacks-scrollable
+        // aria-hidden is duplicated from the wrapper on purpose: the input
+        // bridge and the scroll-isolation gate both look up the ACTIVE
+        // scroller by this attribute pair.
+        aria-hidden={!active}
+        className="stacks-scroll max-h-[80dvh] overflow-y-auto overscroll-contain py-2 pl-1 pr-3"
+      >
+        {mounted ? children : null}
+      </div>
+      {edges.top && <ScrollFade side="top" />}
+      {edges.bottom && <ScrollFade side="bottom" />}
+    </div>
+  );
+}
+
+/** One blurred surface for a content block, matching the card the shared
+ * sections draw for themselves. About and Books build their bodies here
+ * rather than reusing a site section, so they'd otherwise be the only
+ * placards with no surface at all. */
+function PlacardCard({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-foreground/[0.06] bg-background/[0.82] p-5 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-[24px]">
+      {children}
     </div>
   );
 }
@@ -195,7 +235,7 @@ function MobilePanel({
   // is what makes the text readable there — but it loses the inner cards
   // and gains the same edge fade, so the two form factors read as one
   // design rather than two.
-  const fade = useScrollFade(scrollRef);
+  const edges = useScrollEdges(scrollRef);
   useEffect(() => {
     const panel = panelRef.current;
     if (!panel || !open) return;
@@ -301,13 +341,16 @@ function MobilePanel({
                 <XIcon className="size-5" weight="bold" />
               </button>
             </div>
-            <div
-              ref={scrollRef}
-              data-stacks-scrollable
-              style={fade}
-              className="stacks-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-10 font-serif text-muted-foreground"
-            >
-              {bodies[unit.slug]}
+            <div className="relative min-h-0 flex-1">
+              <div
+                ref={scrollRef}
+                data-stacks-scrollable
+                className="stacks-scroll h-full overflow-y-auto overscroll-contain px-5 pb-10 font-serif text-muted-foreground"
+              >
+                {bodies[unit.slug]}
+              </div>
+              {edges.top && <ScrollFade side="top" />}
+              {edges.bottom && <ScrollFade side="bottom" />}
             </div>
           </motion.div>
         ) : (
@@ -350,7 +393,7 @@ export default function PlacardLayer({
 
   const bodies: Record<(typeof UNITS)[number]["slug"], React.ReactNode> = {
     about: (
-      <div className="flex flex-col gap-2">
+      <PlacardCard>
         <div className="flex items-start justify-between">
           <div className="text-sm leading-6">{slots.aboutIntro}</div>
         </div>
@@ -362,9 +405,13 @@ export default function PlacardLayer({
             3D props: {licenses.attributionRequired.join(", ")} · CC-BY
           </p>
         </div>
-      </div>
+      </PlacardCard>
     ),
-    books: <BooksPlacard data={data} />,
+    books: (
+      <PlacardCard>
+        <BooksPlacard data={data} />
+      </PlacardCard>
+    ),
     training: <div className="placard-sections">{slots.training}</div>,
     talks: <div className="placard-sections">{slots.talks}</div>,
     projects: <div className="placard-sections">{slots.projects}</div>,
@@ -394,42 +441,18 @@ export default function PlacardLayer({
         .placard-sections .text-2xl { font-size: 1.125rem; line-height: 1.5rem; }
         .placard-sections .sm\\:text-3xl { font-size: 1.125rem; line-height: 1.5rem; }
         .placard-sections .text-lg { font-size: 1rem; line-height: 1.4rem; }
-        /* Flatten the card surfaces. Every shared section draws its card as
-           one absolutely-positioned decoration layer behind its content, so
-           hiding that layer removes the box and leaves the content — no fork
-           of the components the flat home page still uses. Attribute
-           substring matching sidesteps Tailwind's escaped bracket classes. */
-        .placard-sections [class*="inset-0"][class*="backdrop-blur"] { display: none; }
-        /* Some sections draw the card on the element itself rather than as a
-           layer behind it (Weightlifting's is the anchor). Same treatment,
-           minus the display:none — that element holds the content. */
+        /* The section cards KEEP their own blur — one blurred surface per
+           content block is the design. What was wrong was stacking them
+           inside a second blurred panel, and that panel is what's gone.
+           They do get deeper here than on the flat page, though: those
+           values were tuned against a quiet page background, and over a lit
+           3D room a 40%-muted wash left the text fighting the scene. */
         .placard-sections [class*="backdrop-blur"] {
-          background: transparent !important;
-          border-color: transparent !important;
-          box-shadow: none !important;
-          backdrop-filter: none !important;
-          -webkit-backdrop-filter: none !important;
+          background-color: hsl(var(--background) / 0.82) !important;
+          backdrop-filter: blur(24px) !important;
+          -webkit-backdrop-filter: blur(24px) !important;
         }
-        /* Those cards carried the padding; without a surface it becomes a
-           left indent that no longer lines up with anything. */
-        .placard-sections .p-5, .placard-sections .p-6 { padding: 0; }
-        .placard-sections .sm\\:p-6 { padding: 0; }
-        /* Thumbnails keep their corners but lose the drop shadow that only
-           read as depth against a card. */
-        .placard-sections img { box-shadow: none; }
       `}</style>
-      {/* The reading side gets hazier, not boxed. Killing the panel left the
-          text sitting on open sky — fine at night, illegible against the
-          light theme's near-white morning, and it collided with whatever
-          prop happened to be under it. This is a horizon-to-horizon wash
-          with no edge of its own: no border, no radius, faded out well
-          before the content starts, so it reads as depth in the room rather
-          than as the container we just removed. */}
-      <div
-        className={`pointer-events-none absolute inset-y-0 right-0 z-10 hidden w-[46rem] bg-gradient-to-l from-background/92 via-background/72 to-transparent transition-opacity duration-200 md:block ${
-          modalOpen ? "opacity-0" : ""
-        }`}
-      />
       {/* Desktop: resident right dock, crossfaded by activeUnit. Wider now
           that no container has to look comfortable at that width — the
           scene keeps the left, the reading column takes the right. */}
