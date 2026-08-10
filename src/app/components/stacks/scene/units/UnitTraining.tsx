@@ -18,7 +18,15 @@ export default function UnitTraining({ palette, dark }: UnitProps) {
         lower={
           <group>
             <React.Suspense fallback={null}>
-              <ModelProp url="/models/dumbbell.glb" dark={dark} rotation={[0, 0.5, 0]} scale={1.1} />
+              {/* ×1.15 over v3 and darkened toward iron — it sat shelf-toned
+                  and undersized next to the basketball (audit §3-Training). */}
+              <ModelProp
+                url="/models/dumbbell.glb"
+                dark={dark}
+                atlasOverride={{ tint: "#8d857c", roughness: 0.55 }}
+                rotation={[0, 0.5, 0]}
+                scale={1.27}
+              />
             </React.Suspense>
             <React.Suspense fallback={null}>
               {/* Worn-leather tint mutes the stock arcade orange. */}

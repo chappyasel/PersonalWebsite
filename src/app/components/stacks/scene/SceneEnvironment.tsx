@@ -102,7 +102,10 @@ const SKY_FRAGMENT = `
     float azFall = exp(-(qa * qa));
     float emberElev = mix(0.030 + 0.10 * uDawn, 0.020, uDark);
     float emberW = mix(0.055, 0.020 + 0.015 * uDawn, uDark);
-    float emberAmp = mix(0.38 + 0.12 * uDawn, 0.30 * uDawn, uDark);
+    // Light dawn growth 0.38+0.12→0.34+0.20 (v4): the morning has to
+    // VISIBLY arrive over the traverse — the flat curve read as a static
+    // backdrop and starved the harness's dawn-delta gate.
+    float emberAmp = mix(0.34 + 0.20 * uDawn, 0.30 * uDawn, uDark);
     float qe = (e - emberElev) / emberW;
     float ember = exp(-(qe * qe)) * emberAmp * azFall;
     float qg = (e - 0.02) / 0.04;
@@ -237,7 +240,9 @@ const SKY_FRAGMENT = `
 
     // The silhouette dissolves toward the horizon band near the horizon
     // line — its own aerial haze; rooftops catch a kiss of the ember.
-    float hazeAmt = (1.0 - smoothstep(0.0, 0.055, e)) * mix(0.75, 0.35, uDark);
+    // Light haze eased 0.75→0.60 (v4): the light skyline was a ghost doing
+    // zero compositional work (audit §2.3).
+    float hazeAmt = (1.0 - smoothstep(0.0, 0.055, e)) * mix(0.60, 0.35, uDark);
     vec3 hillCol = mix(cityC, horizonC, clamp(hazeAmt + mix(0.26, 0.35, uDark), 0.0, 1.0));
     hillCol += emberC * 0.55 * emberAmp * smoothstep(-2.16, -1.95, a);
     vec3 cityCol = mix(cityC, horizonC, hazeAmt);
@@ -475,7 +480,9 @@ function KeyLight({ dark }: { dark: boolean }) {
       ref={lightRef}
       position={[4, 6.5, 6]}
       intensity={dark ? 1.15 : 1.35}
-      color={dark ? "#e8b57e" : "#ffe9cb"}
+      // Dark key slightly desaturated (was #e8b57e) — the heavier orange
+      // multiplied every albedo toward the same brown (audit §2.3).
+      color={dark ? "#e3bd94" : "#ffe9cb"}
     />
   );
 }

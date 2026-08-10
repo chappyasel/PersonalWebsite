@@ -60,6 +60,7 @@ export default function ModelProp({
   tints,
   tintAll,
   roughness = 0.7,
+  atlasOverride,
   position,
   rotation,
   scale,
@@ -72,6 +73,10 @@ export default function ModelProp({
   /** tinted only: multiply every material (and its texture) by this color. */
   tintAll?: string;
   roughness?: number;
+  /** atlas only: clone the shared atlas material for THIS prop and adjust —
+   * the trophy's metal exception, the dumbbell's iron darkening. Without
+   * this every atlas prop shares one material, so never mutate that one. */
+  atlasOverride?: { tint?: string; metalness?: number; roughness?: number };
   position?: [number, number, number];
   rotation?: [number, number, number];
   scale?: number;
@@ -81,7 +86,15 @@ export default function ModelProp({
   const object = useMemo(() => {
     const clone = scene.clone(true);
     if (variant === "atlas") {
-      const mat = atlasMaterial(atlases[dark ? 1 : 0]!);
+      let mat = atlasMaterial(atlases[dark ? 1 : 0]!);
+      if (atlasOverride) {
+        mat = mat.clone();
+        if (atlasOverride.tint) mat.color.set(atlasOverride.tint);
+        if (atlasOverride.metalness !== undefined)
+          mat.metalness = atlasOverride.metalness;
+        if (atlasOverride.roughness !== undefined)
+          mat.roughness = atlasOverride.roughness;
+      }
       clone.traverse((o) => {
         if (o instanceof THREE.Mesh) o.material = mat;
       });
@@ -99,7 +112,7 @@ export default function ModelProp({
       });
     }
     return clone;
-  }, [scene, atlases, dark, variant, tints, tintAll, roughness]);
+  }, [scene, atlases, dark, variant, tints, tintAll, roughness, atlasOverride]);
   return (
     <primitive
       object={object}

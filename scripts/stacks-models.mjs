@@ -158,9 +158,13 @@ async function buildModels() {
 // atlas, authored against src/app/components/stacks/theme.ts) ----
 const DOMINANT = ["462720", "a24444", "cf6d34", "242227", "8f0951", "67ea66", "e7c451", "3ab7d9", "e7e7e7", "8b8b8b", "c3a391", "3b3b3b", "315e94", "3e3f57", "141414", "ff7797", "75af6d", "c54747", "b27757"];
 const ROLES = ["dk-brown", "brick", "orange", "charcoal", "magenta", "lime", "gold", "cyan", "white", "grey", "tan", "dk-grey", "blue", "slate", "black", "pink", "green", "red", "lt-brown"];
+// v4 role retune (audit §3-About/Systems): green/lime/cyan/blue now DIVERGE
+// — v3 mapped them to near-identical warm greys, which flattened the globe
+// to a checkerboard and the plant to dead khaki. Land/leaf roles get real
+// (muted) greens, ocean roles real slate-blues; warm hexes track theme.ts.
 const THEMES = {
-  dark: { "dk-brown": "#453521", brick: "#7a4a2f", orange: "#9c6b4f", charcoal: "#241d14", magenta: "#63412f", lime: "#5c5b3a", gold: "#8a7358", cyan: "#3f4a5c", white: "#c9bda4", grey: "#75634e", tan: "#b3a68f", "dk-grey": "#3b2e1f", blue: "#3f4a5c", slate: "#54483b", black: "#241d14", pink: "#7a5a3e", green: "#5c5b3a", red: "#8a4a30", "lt-brown": "#5c4832" },
-  light: { "dk-brown": "#8f7150", brick: "#9c4f38", orange: "#a5764c", charcoal: "#443a2d", magenta: "#84573f", lime: "#5c5648", gold: "#c2a377", cyan: "#6e7f95", white: "#f4ecdb", grey: "#a4917a", tan: "#dccdb4", "dk-grey": "#6e5d49", blue: "#6e7f95", slate: "#5c5648", black: "#443a2d", pink: "#b8926a", green: "#5c5648", red: "#9c4f38", "lt-brown": "#b3906a" },
+  dark: { "dk-brown": "#453521", brick: "#8f4a2c", orange: "#a86c46", charcoal: "#241d14", magenta: "#6d3f28", lime: "#6d7c42", gold: "#94795a", cyan: "#3c5a72", white: "#c9bda4", grey: "#7a6650", tan: "#b3a68f", "dk-grey": "#3b2e1f", blue: "#334d68", slate: "#57493a", black: "#241d14", pink: "#8a5f48", green: "#5a6a38", red: "#8a4a30", "lt-brown": "#5c4832" },
+  light: { "dk-brown": "#826645", brick: "#9c4f38", orange: "#a5764c", charcoal: "#443a2d", magenta: "#84573f", lime: "#7a8f56", gold: "#c2a377", cyan: "#5c7f9c", white: "#f4ecdb", grey: "#a4917a", tan: "#dccdb4", "dk-grey": "#6e5d49", blue: "#4c6d90", slate: "#5c5648", black: "#443a2d", pink: "#b8926a", green: "#5f7a48", red: "#9c4f38", "lt-brown": "#a5845f" },
 };
 
 async function buildAtlases(mix) {

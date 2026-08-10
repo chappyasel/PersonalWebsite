@@ -50,12 +50,35 @@ function roundedRectGeometry(w: number, h: number, r: number) {
   return geo;
 }
 
+/** Multiply the decoded image toward the room's lamp warmth on a canvas —
+ * photographic content otherwise injects teal/magenta and reads as a backlit
+ * monitor in a warm room (audit §2.4). Runs once per texture (useTexture
+ * caches by URL); strength ~0.08 keeps identity.  */
+function warmGrade(tex: THREE.Texture, grade: number) {
+  const img = tex.image as HTMLImageElement | undefined;
+  if (!img?.width || tex.userData.graded) return;
+  const canvas = document.createElement("canvas");
+  canvas.width = img.width;
+  canvas.height = img.height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  ctx.drawImage(img, 0, 0);
+  ctx.globalCompositeOperation = "multiply";
+  ctx.globalAlpha = grade;
+  ctx.fillStyle = "#ffce96";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  tex.image = canvas;
+  tex.userData.graded = true;
+  tex.needsUpdate = true;
+}
+
 export default function LitImage({
   url,
   width,
   height,
   radius = 0,
   roughness = 0.6,
+  grade = 0.08,
   position,
   onPointerOver,
   onPointerOut,
@@ -66,6 +89,8 @@ export default function LitImage({
   height: number;
   radius?: number;
   roughness?: number;
+  /** Warm-grade strength (0 disables). */
+  grade?: number;
   position?: [number, number, number];
   onPointerOver?: (e: ThreeEvent<PointerEvent>) => void;
   onPointerOut?: (e: ThreeEvent<PointerEvent>) => void;
@@ -77,10 +102,11 @@ export default function LitImage({
   // repeat/offset is safe only while each URL renders on exactly one mesh
   // (true today; clone here if a URL is ever reused).
   useMemo(() => {
+    if (grade > 0) warmGrade(tex, grade);
     tex.anisotropy = maxAnisotropy;
     fitCover(tex, width, height);
     tex.needsUpdate = true;
-  }, [tex, maxAnisotropy, width, height]);
+  }, [tex, maxAnisotropy, width, height, grade]);
   const geometry = useMemo(
     () =>
       radius > 0

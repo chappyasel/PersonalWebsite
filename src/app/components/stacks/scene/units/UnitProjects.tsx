@@ -34,7 +34,16 @@ export default function UnitProjects({
         <group>
           <BookPile palette={palette} x={0.3} salt={47} />
           <React.Suspense fallback={null}>
-            <ModelProp url="/models/trophy.glb" dark={dark} position={[-0.6, 0, 0]} rotation={[0, 0.3, 0]} scale={1.2} />
+            {/* Metal exception: the shared atlas material is metalness 0, so
+                the trophy read as terracotta (audit §3-Projects). */}
+            <ModelProp
+              url="/models/trophy.glb"
+              dark={dark}
+              atlasOverride={{ metalness: 0.35, roughness: 0.35 }}
+              position={[-0.6, 0, 0]}
+              rotation={[0, 0.3, 0]}
+              scale={1.2}
+            />
           </React.Suspense>
         </group>
       }

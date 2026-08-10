@@ -5,7 +5,8 @@
 // Box props use RoundedBox — edge highlights are the cheapest "crafted vs
 // primitive" signal; perfect 90° corners are the strongest primitive tell.
 import { RoundedBox } from "@react-three/drei";
-import React, { useMemo } from "react";
+import { useFrame } from "@react-three/fiber";
+import React, { useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { type Palette, proxied, rand } from "../theme";
@@ -296,7 +297,16 @@ export function BookPile({
   );
 }
 
-export function GlowSprite({ opacity }: { opacity: number }) {
+export function GlowSprite({
+  opacity,
+  eased = false,
+}: {
+  opacity: number;
+  /** Damp opacity by lateral camera distance — an additive sprite over the
+   * bright light-theme sky blows out to pure white mid-travel. */
+  eased?: boolean;
+}) {
+  const ref = useRef<THREE.Sprite>(null);
   const texture = useMemo(() => {
     const size = 128;
     const canvas = document.createElement("canvas");
@@ -314,8 +324,16 @@ export function GlowSprite({ opacity }: { opacity: number }) {
     ctx.fillRect(0, 0, size, size);
     return new THREE.CanvasTexture(canvas);
   }, []);
+  const world = useMemo(() => new THREE.Vector3(), []);
+  useFrame(({ camera }) => {
+    const sprite = ref.current;
+    if (!sprite || !eased) return;
+    sprite.getWorldPosition(world);
+    const focus = Math.max(0, 1 - Math.abs(camera.position.x - world.x) / 4.4);
+    sprite.material.opacity = opacity * (0.3 + 0.7 * focus);
+  });
   return (
-    <sprite scale={[1.6, 1.6, 1]}>
+    <sprite ref={ref} scale={[1.6, 1.6, 1]}>
       <spriteMaterial
         map={texture}
         transparent
@@ -328,13 +346,24 @@ export function GlowSprite({ opacity }: { opacity: number }) {
 }
 
 /** Bulb glow + warm light for the GLB desk lamp — sits at the lamp's head
- * so the room still reads as lit by the lamp, not the model. */
+ * so the room still reads as lit by the lamp, not the model. The emissive
+ * bulb disc is what makes the lamp read ON in the light theme, where the
+ * additive sprite nearly vanishes against the bright sky (audit §3-About). */
 export function LampGlow({ palette }: { palette: Palette }) {
   return (
     <group>
       <group position={[0, 0.36, 0.1]}>
-        <GlowSprite opacity={palette.glowOpacity} />
+        <GlowSprite opacity={palette.glowOpacity} eased />
       </group>
+      <mesh position={[0, 0.33, 0.16]}>
+        <sphereGeometry args={[0.032, 12, 12]} />
+        <meshStandardMaterial
+          color="#f6e2b8"
+          emissive="#ffbe73"
+          emissiveIntensity={2.4}
+          roughness={0.4}
+        />
+      </mesh>
       <pointLight
         position={[0, 0.35, 0.35]}
         color="#ffbe73"

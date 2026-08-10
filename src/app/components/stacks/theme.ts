@@ -5,19 +5,23 @@
 // Sky/fog hexes are authored against the CORRECTED shader pipeline (the dome
 // tonemaps + encodes like every lit material). Fog must sit on the sky's
 // eye-level horizon band or a value seam appears where far geometry meets sky.
+// v4 theme repair (audit §2.3): light collapses VALUE (wood −8% against
+// paper props, sky deepened a step, skyline given real presence, frame rail
+// contrast restored); dark collapses ALBEDO (spine/pile/cover chroma widened
+// so rust/olive/terracotta survive the warm key).
 export const PALETTES = {
   light: {
-    skyTop: "#dfe9f2",
-    skyHorizon: "#ebe6da",
-    skyShadow: "#dee0de",
+    skyTop: "#d3e0ec",
+    skyHorizon: "#e3dcc9",
+    skyShadow: "#d4d7d3",
     skyEmber: "#ffd9a0",
-    skyline: "#b8c0ca",
+    skyline: "#a7b1bf",
     skyWindow: "#ffca8a",
-    fog: "#e4e2d9",
-    wood: "#b3906a",
-    woodDark: "#967553",
-    strap: "#8f7150",
-    frame: "#f4ebdc",
+    fog: "#ded8c8",
+    wood: "#a5845f",
+    woodDark: "#8a6b4c",
+    strap: "#826645",
+    frame: "#e6d9c0",
     cover: "#dccdb4",
     pages: "#f4ecdb",
     plate: "#6b5a47",
@@ -47,7 +51,7 @@ export const PALETTES = {
     woodDark: "#453521",
     strap: "#3b2e1f",
     frame: "#2e261c",
-    cover: "#2c241b",
+    cover: "#3a2f21",
     pages: "#b3a68f",
     plate: "#57493a",
     hub: "#241d14",
@@ -55,10 +59,10 @@ export const PALETTES = {
     paper: "#c9bda4",
     ink: "#3b2e1f",
     spines: [
-      "#7a4a2f", "#8a7358", "#5c5b3a", "#9c6b4f", "#4e4234",
-      "#75634e", "#63412f", "#3f4a5c", "#6d5a44", "#54483b",
+      "#8f4a2c", "#94795a", "#5f6134", "#a86c46", "#463a2b",
+      "#7a6650", "#6d3f28", "#42506e", "#75604a", "#57493a",
     ],
-    pile: ["#7a5a3e", "#4e4234", "#8a7358"],
+    pile: ["#8a4a30", "#59602f", "#9c7857"],
     shadow: "#0e0a06",
     dust: "#ffcf9e",
     dustOpacity: 0.45,
