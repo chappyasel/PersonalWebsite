@@ -83,9 +83,22 @@ const FADE_PX = 34;
 /** How far outside the scroll viewport a plate keeps its blur, so one never
  * has to appear on the same frame it becomes visible. */
 const CULL_MARGIN = 120;
-/** How long a measurement will wait for a hovered card to settle before
- * giving up and measuring anyway (see measure()). */
-const MAX_DEFER_FRAMES = 30;
+
+/** The translation a card is currently carrying, in px. Only the hover lift
+ * ever puts one there, but reading the computed matrix rather than assuming
+ * the token means a measurement taken mid-transition subtracts the exact
+ * amount that frame is showing. */
+function liftOf(hit: Element | null): [number, number] {
+  if (!hit) return [0, 0];
+  const t = getComputedStyle(hit).transform;
+  if (!t || t === "none") return [0, 0];
+  try {
+    const m = new DOMMatrixReadOnly(t);
+    return [m.e, m.f];
+  } catch {
+    return [0, 0];
+  }
+}
 
 type Plate = {
   top: number;
@@ -177,7 +190,6 @@ function BlurPlates({
     const el = scrollRef.current;
     if (!el || !mounted) return;
     let raf = 0;
-    let deferred = 0;
     let tagged = new Set<Element>();
     const observed = new WeakSet<Element>();
     const ro = new ResizeObserver(() => schedule());
@@ -187,29 +199,11 @@ function BlurPlates({
       // Pointer state can outlive the elements it points at — a hot update or
       // any re-render that replaces a card leaves these refs holding detached
       // nodes, and nothing fires a pointer event to clear them because the
-      // pointer never moved. Drop those first; otherwise the deferral below
-      // waits on a card that no longer exists and the plates freeze at the old
-      // layout forever.
+      // pointer never moved.
       const ptr = pointerRef.current;
       if (ptr.hover && !ptr.hover.isConnected) ptr.hover = null;
       if (ptr.press && !ptr.press.isConnected) ptr.press = null;
       if (ptr.focus && !ptr.focus.isConnected) ptr.focus = null;
-      // A lifted card's rect INCLUDES its hover transform, so measuring now
-      // would bake the lift into the plate's resting position and leave the
-      // glass sitting high once the pointer moves on. Nothing can change
-      // geometry while you hold the pointer still that won't still be true a
-      // frame later, so wait it out. The bail happens before any layout read.
-      //
-      // Capped, because "wait for the pointer to leave" is not a promise the
-      // user has to keep: resting on a card while the content behind it
-      // changes must not strand the plates. Past the cap, a 3px error is the
-      // better failure.
-      if ((ptr.hover ?? ptr.press) && deferred < MAX_DEFER_FRAMES) {
-        deferred++;
-        raf = requestAnimationFrame(measure);
-        return;
-      }
-      deferred = 0;
       const all = Array.from(el.querySelectorAll<HTMLElement>(PLATE_SELECTOR));
       const base = el.getBoundingClientRect();
       // Plate geometry is only valid while the placard is painted at its
@@ -269,11 +263,19 @@ function BlurPlates({
       }
       tagged = nextTagged;
       hitsRef.current = hits;
-      const next: Plate[] = cards.map((c) => {
+      const next: Plate[] = cards.map((c, i) => {
         const r = rects.get(c)!;
+        // Subtract the hover lift. A lifted card's rect includes its own
+        // transform, so recording it verbatim would store a RAISED resting
+        // position — and since the plate re-applies the same lift itself via
+        // [data-hover], the two would then compound and the glass would sit
+        // permanently high once the pointer left. Read off the live matrix
+        // rather than the -3px token so a measurement landing mid-transition
+        // gets the fractional value it actually has.
+        const [liftX, liftY] = liftOf(hits[i] ?? null);
         return {
-          top: r.top - base.top + el.scrollTop,
-          left: r.left - base.left,
+          top: r.top - base.top + el.scrollTop - liftY,
+          left: r.left - base.left - liftX,
           width: r.width,
           height: r.height,
           radius: getComputedStyle(c).borderRadius,
