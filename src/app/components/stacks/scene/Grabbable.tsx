@@ -177,7 +177,17 @@ export default function Grabbable({
     // element's own listener, so stopping it there is what actually holds.
     const onWheel = (e: WheelEvent) => {
       if (phase.current !== "held") return;
+      // The placard is a real scroll container sitting over the scene, and
+      // carrying a prop is no reason to freeze someone's reading. Only
+      // swallow the wheel when it isn't headed there.
+      const t = e.target;
+      if (t instanceof Element && t.closest("[data-stacks-scrollable]")) return;
       e.preventDefault();
+      // Capture-phase on window, so stopping here keeps the event from ever
+      // descending to the scroll element where drei's own wheel handler
+      // lives. It does NOT stop sibling window listeners, though, which is
+      // why ScrollBridges checks `dragging` itself rather than relying on
+      // this — two listeners on the same node have no ordering guarantee.
       e.stopPropagation();
     };
     window.addEventListener("wheel", onWheel, { capture: true, passive: false });

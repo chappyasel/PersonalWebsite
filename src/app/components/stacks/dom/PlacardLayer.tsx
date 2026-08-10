@@ -23,17 +23,25 @@ import { devSubdomainUrl } from "~/lib/util";
 import licenses from "~~/models/LICENSES.json";
 
 import { UNITS, type StacksData, type StacksSlots } from "../data";
-import { PHOTO_SOURCES } from "../scene/photos";
+import { PHOTO_SOURCES } from "../photoSources";
 import { closeStacksPanel, openStacksPanel, useStacks } from "../store";
 
 /** Which edges of a scroll container have content past them. Mirrors the
  * AIC platform's pattern of only fading an edge that actually continues, so
  * a short placard gets no phantom fade. */
-function useScrollEdges(ref: React.RefObject<HTMLDivElement | null>) {
+function useScrollEdges(
+  ref: React.RefObject<HTMLDivElement | null>,
+  /** Re-attach when the scroller comes into existence. The mobile sheet is
+   * inside an AnimatePresence, so its scroller is absent on the first render
+   * of the component that owns this hook — and with only the (stable) ref in
+   * the dep list the effect ran once against null and never again, so the
+   * mobile fades never appeared at all. */
+  attached = true,
+) {
   const [edges, setEdges] = useState({ top: false, bottom: false });
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || !attached) return;
     const update = () => {
       const { scrollTop, scrollHeight, clientHeight } = el;
       const top = scrollTop > 4;
@@ -58,7 +66,7 @@ function useScrollEdges(ref: React.RefObject<HTMLDivElement | null>) {
       ro.disconnect();
       mo.disconnect();
     };
-  }, [ref]);
+  }, [ref, attached]);
   return edges;
 }
 
@@ -250,7 +258,7 @@ function Panel({
 }) {
   const [mounted, setMounted] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const edges = useScrollEdges(scrollRef);
+  const edges = useScrollEdges(scrollRef, mounted);
   useEffect(() => {
     if (active) setMounted(true);
   }, [active]);
@@ -267,6 +275,12 @@ function Panel({
   return (
     <div
       aria-hidden={!active}
+      // aria-hidden alone is a trap: the six inactive placards stay in the
+      // tab order, so keyboard focus walks into content that is invisible
+      // AND announced as hidden. `inert` is what actually removes a subtree
+      // from focus and the a11y tree. It matters more now that the About
+      // placard carries permanently sr-only photo-source links.
+      inert={!active}
       // Fade-out-then-in: the entering placard waits for the leaving one —
       // simultaneous crossfade rendered as text-over-text mush (audit §2.5).
       // Full viewport height on purpose: the plates behind clip instead of
@@ -413,7 +427,7 @@ function MobilePanel({
   // is what makes the text readable there — but it loses the inner cards
   // and gains the same edge fade, so the two form factors read as one
   // design rather than two.
-  const edges = useScrollEdges(scrollRef);
+  const edges = useScrollEdges(scrollRef, open);
   useEffect(() => {
     const panel = panelRef.current;
     if (!panel || !open) return;

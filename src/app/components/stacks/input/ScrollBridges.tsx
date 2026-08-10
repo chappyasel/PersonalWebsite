@@ -87,6 +87,12 @@ export default function ScrollBridges() {
       if (useStacks.getState().modalOpen || panelBusy()) return;
       const target = e.target as HTMLElement | null;
       if (target?.closest("[data-stacks-scrollable]")) return;
+      // A prop in hand freezes travel. Checked here rather than left to
+      // Grabbable's own capture-phase swallow: both listeners sit on window,
+      // and stopPropagation does not stop a sibling listener on the same
+      // node — only registration order would decide it, and that is not
+      // something to depend on.
+      if (useStacks.getState().dragging) return;
       if (e.ctrlKey) {
         // Trackpad pinch — don't zoom the page and don't travel.
         e.preventDefault();
