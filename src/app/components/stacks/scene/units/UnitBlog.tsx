@@ -1,16 +1,25 @@
 "use client";
 
 // Musings — leaning notebook spines (front three are the latest posts), a
-// real open book mid-thought, headphones; paper stack + pen cup below.
+// real open book mid-thought, headphones, tea, and a pinned corkboard;
+// paper stack + pen cup below.
 import React, { useMemo } from "react";
 
 import { ContactShade } from "../GroundPool";
 import ModelProp from "../ModelProp";
-import { NotebookLean, PaperStack } from "../objects";
+import { NotebookLean, PaperStack, Polaroid } from "../objects";
 import { ShelfUnit } from "../primitives";
+import { useUnitLod } from "../useUnitLod";
 import { type UnitProps } from "./types";
 
-export default function UnitBlog({ data, palette, dark, onOpenUrl }: UnitProps) {
+export default function UnitBlog({
+  data,
+  palette,
+  dark,
+  index,
+  onOpenUrl,
+}: UnitProps) {
+  const textured = useUnitLod(index);
   const clickKeys = useMemo(
     () => data.blogPosts.map((post) => post.link),
     [data.blogPosts],
@@ -72,11 +81,37 @@ export default function UnitBlog({ data, palette, dark, onOpenUrl }: UnitProps) 
         <ModelProp url="/models/headphones.glb" dark={dark} position={[0.12, 0, 0.14]} rotation={[0, 0.5, 0]} scale={2.0} />
       </React.Suspense>
       {/* Corkboard leaning back-right, top corner on the strap — fills the
-          empty right third (audit §3-Musings); photo pins arrive in P3. */}
+          empty right third (audit §3-Musings), with two pinned instant
+          prints reusing the About pair. */}
       <group position={[1.02, 0, -0.16]} rotation={[-0.28, 0.35, 0.02]}>
         <React.Suspense fallback={null}>
           <ModelProp url="/models/corkboard.glb" dark={dark} scale={0.9} />
         </React.Suspense>
+        {[
+          { src: "/images/stacks/beach-sunset.jpg", x: -0.14, y: 0.21, roll: -0.08 },
+          { src: "/images/stacks/bros.jpg", x: 0.12, y: 0.26, roll: 0.1 },
+        ].map((pin) => (
+          <group
+            key={pin.src}
+            position={[pin.x, pin.y, 0.022]}
+            rotation={[0, 0, pin.roll]}
+          >
+            <Polaroid
+              src={pin.src}
+              palette={palette}
+              size={0.11}
+              textured={textured}
+            />
+            <mesh position={[0, 0.075, 0.008]}>
+              <sphereGeometry args={[0.008, 10, 10]} />
+              <meshStandardMaterial
+                color={palette.hub}
+                metalness={0.4}
+                roughness={0.4}
+              />
+            </mesh>
+          </group>
+        ))}
       </group>
       <ContactShade
         color={palette.shadow}

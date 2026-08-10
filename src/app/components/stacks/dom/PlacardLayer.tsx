@@ -20,6 +20,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { devSubdomainUrl } from "~/lib/util";
+import licenses from "~~/models/LICENSES.json";
 
 import { UNITS, type StacksData, type StacksSlots } from "../data";
 import { closeStacksPanel, openStacksPanel, useStacks } from "../store";
@@ -303,6 +304,11 @@ export default function PlacardLayer({
         </div>
         <div className="flex flex-col items-center gap-2 pt-4">
           {slots.contact}
+          {/* CC-BY obligation for the gym set — roster generated into
+              public/models/LICENSES.json by scripts/stacks-models.mjs. */}
+          <p className="pt-2 text-center text-xs text-muted-foreground/60">
+            3D props: {licenses.attributionRequired.join(", ")} · CC-BY
+          </p>
         </div>
       </div>
     ),

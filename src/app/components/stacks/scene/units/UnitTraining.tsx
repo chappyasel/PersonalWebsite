@@ -4,14 +4,18 @@
 // kettlebell, a loaded barbell lying along the lower shelf behind the
 // dumbbell and basketball, and a golf club leaning against the unit's side
 // (the only prop tall enough to demand the floor).
+import { RoundedBox } from "@react-three/drei";
 import React from "react";
 
 import { ContactShade, FootPool } from "../GroundPool";
+import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
 import { BookPile, ShelfUnit } from "../primitives";
+import { useUnitLod } from "../useUnitLod";
 import { type UnitProps } from "./types";
 
-export default function UnitTraining({ palette, dark }: UnitProps) {
+export default function UnitTraining({ palette, dark, index }: UnitProps) {
+  const textured = useUnitLod(index);
   return (
     <group>
       <ShelfUnit
@@ -60,6 +64,30 @@ export default function UnitTraining({ palette, dark }: UnitProps) {
                 scale={0.55}
               />
             </React.Suspense>
+            {/* Framed gym photo fills the bare lower-left (audit §2.5) —
+                the SF Gyms mirror shot, the one that survives 300px. */}
+            <group position={[-1.12, 0.272, -0.02]} rotation={[-0.1, 0.16, 0]}>
+              <RoundedBox
+                castShadow
+                args={[0.42, 0.54, 0.03]}
+                radius={0.008}
+                smoothness={4}
+                position={[0, 0, -0.018]}
+              >
+                <meshStandardMaterial color={palette.frame} roughness={0.6} />
+              </RoundedBox>
+              {textured && (
+                <React.Suspense fallback={null}>
+                  <LitImage
+                    url="/images/stacks/gym-mirror.jpg"
+                    width={0.36}
+                    height={0.48}
+                    roughness={0.5}
+                    position={[0, 0, -0.001]}
+                  />
+                </React.Suspense>
+              )}
+            </group>
           </group>
         }
       >

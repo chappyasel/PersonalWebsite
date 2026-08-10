@@ -94,6 +94,11 @@ export default function Scene({
           .map((b) => proxied(b.coverUrl!, coverWidth)),
         ...data.talks.map((talk) => proxied(talk.still, coverWidth)),
         ...data.projects.map((p) => proxied(p.image, coverWidth)),
+        // P3 photo props load raw — already pipeline-capped at 768px/q72.
+        "/images/stacks/gym-mirror.jpg",
+        "/images/stacks/beach-sunset.jpg",
+        "/images/stacks/bros.jpg",
+        "/images/stacks/postcard-budapest.jpg",
       ];
       for (const url of urls) useTexture.preload(url);
     }, 2500);

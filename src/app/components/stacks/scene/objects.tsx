@@ -11,7 +11,9 @@ import { useStacks } from "../store";
 import Lift from "./Lift";
 import LitImage from "./LitImage";
 
-/** Framed standing portrait — the identity anchor of the About unit. */
+/** Framed standing portrait — the identity anchor of the About unit.
+ * Zoom/focus re-crops toward the face; the source square otherwise leads
+ * with a blurry foreground hand (audit §3-About). */
 export function PortraitFrame({
   src,
   palette,
@@ -38,7 +40,78 @@ export function PortraitFrame({
       </mesh>
       {textured && (
         <React.Suspense fallback={null}>
-          <LitImage url={src} width={0.86} height={1.08} roughness={0.5} />
+          <LitImage
+            url={src}
+            width={0.86}
+            height={1.08}
+            roughness={0.5}
+            zoom={1.35}
+            focus={[0.52, 0.3]}
+          />
+        </React.Suspense>
+      )}
+    </group>
+  );
+}
+
+/** Instant-print photo: white border, square image high in the frame. Used
+ * leaning on shelves and pinned to the corkboard. */
+export function Polaroid({
+  src,
+  palette,
+  size = 0.24,
+  textured = true,
+}: {
+  src: string;
+  palette: Palette;
+  size?: number;
+  textured?: boolean;
+}) {
+  const h = size * 1.21;
+  return (
+    <group>
+      <RoundedBox castShadow args={[size, h, 0.008]} radius={0.003} smoothness={2}>
+        <meshStandardMaterial color={palette.paper} roughness={0.85} />
+      </RoundedBox>
+      {textured && (
+        <React.Suspense fallback={null}>
+          <LitImage
+            url={src}
+            width={size * 0.88}
+            height={size * 0.88}
+            roughness={0.55}
+            position={[0, h * 0.062, 0.0045]}
+          />
+        </React.Suspense>
+      )}
+    </group>
+  );
+}
+
+/** Small leaning print — the Budapest postcard by the globe. */
+export function PostcardPrint({
+  src,
+  palette,
+  textured = true,
+}: {
+  src: string;
+  palette: Palette;
+  textured?: boolean;
+}) {
+  return (
+    <group>
+      <RoundedBox castShadow args={[0.21, 0.15, 0.005]} radius={0.002} smoothness={2}>
+        <meshStandardMaterial color={palette.paper} roughness={0.9} />
+      </RoundedBox>
+      {textured && (
+        <React.Suspense fallback={null}>
+          <LitImage
+            url={src}
+            width={0.195}
+            height={0.135}
+            roughness={0.6}
+            position={[0, 0, 0.003]}
+          />
         </React.Suspense>
       )}
     </group>

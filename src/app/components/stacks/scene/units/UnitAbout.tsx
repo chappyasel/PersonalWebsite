@@ -7,7 +7,7 @@ import React from "react";
 import { proxied } from "../../theme";
 import { ContactShade, FootPool } from "../GroundPool";
 import ModelProp from "../ModelProp";
-import { CardStack, PortraitFrame } from "../objects";
+import { CardStack, Polaroid, PortraitFrame, PostcardPrint } from "../objects";
 import { BookPile, LampGlow, ShelfUnit } from "../primitives";
 import { useUnitLod } from "../useUnitLod";
 import { type UnitProps } from "./types";
@@ -57,9 +57,33 @@ export default function UnitAbout({
           position={[0, 0.02, 0.02]}
         />
       </group>
+      {/* Polaroid pair leaning by the cards — the beach at sunset and the
+          four brothers (audit §5 ★ picks). Contact = (h/2)·cos(lean). */}
+      <group position={[0.6, 0.1425, 0.1]} rotation={[-0.17, 0.1, -0.04]}>
+        <Polaroid
+          src="/images/stacks/beach-sunset.jpg"
+          palette={palette}
+          textured={textured}
+        />
+      </group>
+      <group position={[0.79, 0.1425, 0.17]} rotation={[-0.15, 0.16, 0.06]}>
+        <Polaroid
+          src="/images/stacks/bros.jpg"
+          palette={palette}
+          textured={textured}
+        />
+      </group>
       <React.Suspense fallback={null}>
         <ModelProp url="/models/globe.glb" dark={dark} position={[0.95, 0, -0.1]} rotation={[0, -0.7, 0]} scale={1.5} />
       </React.Suspense>
+      {/* Budapest postcard leaning on the globe stand. */}
+      <group position={[0.8, 0.0735, 0.04]} rotation={[-0.2, 0.05, 0.05]}>
+        <PostcardPrint
+          src="/images/stacks/postcard-budapest.jpg"
+          palette={palette}
+          textured={textured}
+        />
+      </group>
       </ShelfUnit>
       {/* Reading armchair on the ground at the LEFT flank, angled toward
           the unit — the room reads inhabited before a single word is read. */}

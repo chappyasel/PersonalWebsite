@@ -11,20 +11,33 @@ import { useThree, type ThreeEvent } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 
-function fitCover(tex: THREE.Texture, w: number, h: number) {
+/** object-fit: cover with an optional zoom and focal point. `focus` is
+ * CSS-object-position-like: [x from left, y from TOP], each 0..1. */
+function fitCover(
+  tex: THREE.Texture,
+  w: number,
+  h: number,
+  zoom = 1,
+  focus: [number, number] = [0.5, 0.5],
+) {
   const img = tex.image as { width?: number; height?: number } | undefined;
   if (!img?.width || !img.height) return;
   const texAspect = img.width / img.height;
   const target = w / h;
   tex.wrapS = THREE.ClampToEdgeWrapping;
   tex.wrapT = THREE.ClampToEdgeWrapping;
-  if (texAspect > target) {
-    tex.repeat.set(target / texAspect, 1);
-    tex.offset.set((1 - target / texAspect) / 2, 0);
-  } else {
-    tex.repeat.set(1, texAspect / target);
-    tex.offset.set(0, (1 - texAspect / target) / 2);
-  }
+  let rx = 1;
+  let ry = 1;
+  if (texAspect > target) rx = target / texAspect;
+  else ry = texAspect / target;
+  rx /= zoom;
+  ry /= zoom;
+  const clamp = (v: number, max: number) => Math.min(Math.max(v, 0), max);
+  tex.repeat.set(rx, ry);
+  tex.offset.set(
+    clamp(focus[0] - rx / 2, 1 - rx),
+    clamp(1 - focus[1] - ry / 2, 1 - ry),
+  );
 }
 
 /** ShapeGeometry writes raw plane coords into uv — normalize to [0,1]. */
@@ -79,6 +92,8 @@ export default function LitImage({
   radius = 0,
   roughness = 0.6,
   grade = 0.08,
+  zoom = 1,
+  focus,
   position,
   onPointerOver,
   onPointerOut,
@@ -91,6 +106,9 @@ export default function LitImage({
   roughness?: number;
   /** Warm-grade strength (0 disables). */
   grade?: number;
+  /** Crop zoom (1 = cover fit) + focal point [x from left, y from top]. */
+  zoom?: number;
+  focus?: [number, number];
   position?: [number, number, number];
   onPointerOver?: (e: ThreeEvent<PointerEvent>) => void;
   onPointerOut?: (e: ThreeEvent<PointerEvent>) => void;
@@ -101,12 +119,14 @@ export default function LitImage({
   // useTexture caches by URL — the instance is shared, so mutating
   // repeat/offset is safe only while each URL renders on exactly one mesh
   // (true today; clone here if a URL is ever reused).
+  const fx = focus?.[0] ?? 0.5;
+  const fy = focus?.[1] ?? 0.5;
   useMemo(() => {
     if (grade > 0) warmGrade(tex, grade);
     tex.anisotropy = maxAnisotropy;
-    fitCover(tex, width, height);
+    fitCover(tex, width, height, zoom, [fx, fy]);
     tex.needsUpdate = true;
-  }, [tex, maxAnisotropy, width, height, grade]);
+  }, [tex, maxAnisotropy, width, height, grade, zoom, fx, fy]);
   const geometry = useMemo(
     () =>
       radius > 0

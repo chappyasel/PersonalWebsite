@@ -148,8 +148,21 @@ export default function ModelProp({
       clone.traverse((o) => {
         if (!(o instanceof THREE.Mesh)) return;
         const geo = o.geometry as THREE.BufferGeometry;
-        geo.deleteAttribute("normal");
-        const welded = mergeVertices(geo);
+        // Meshopt-decoded geometry is INTERLEAVED — mergeVertices silently
+        // degenerates it to a zero bbox. De-interleave (dropping normals)
+        // into plain attributes first, then weld + regenerate.
+        const flat = new THREE.BufferGeometry();
+        for (const [name, attr] of Object.entries(geo.attributes)) {
+          if (name === "normal") continue;
+          const a = attr as THREE.BufferAttribute;
+          const arr = new Float32Array(a.count * a.itemSize);
+          for (let i = 0; i < a.count; i++)
+            for (let c = 0; c < a.itemSize; c++)
+              arr[i * a.itemSize + c] = a.getComponent(i, c);
+          flat.setAttribute(name, new THREE.BufferAttribute(arr, a.itemSize));
+        }
+        if (geo.index) flat.setIndex(geo.index.clone());
+        const welded = mergeVertices(flat);
         welded.computeVertexNormals();
         o.geometry = welded;
       });

@@ -26,7 +26,17 @@ import StacksHome from "./components/stacks/StacksHome";
 export const revalidate = 86400;
 
 // The three projects that get framed screenshots in the 3D Projects unit.
-const SCENE_PROJECT_IMAGES = ["homework.jpg", "weightlifting.jpg", "fantasy.jpg"];
+// liars-dice replaced fantasy in v4 — the fantasy image is a GitHub file
+// listing, illegible at frame scale (audit §3-Projects).
+const SCENE_PROJECT_IMAGES = ["homework.jpg", "weightlifting.jpg", "liars-dice.png"];
+
+// Scene-only still overrides for the Talks frames (JSON data untouched):
+// frame 2's source thumbnail is a photo of a projected slide — a document,
+// not a moment (audit §2.4). The Consensus pro shot replaces it on the
+// shelf; the placard/modal keep the talk's own thumbnail.
+const SCENE_TALK_STILLS: Record<number, string> = {
+  1: "/images/stacks/talk-consensus.jpg",
+};
 
 export default async function HomePage() {
   const [allBooks, activity, liftingStats] = await Promise.all([
@@ -50,12 +60,12 @@ export default async function HomePage() {
     reading: readingBook
       ? { title: readingBook.title, coverUrl: readingBook.coverUrl }
       : null,
-    talks: speakingData.talks.map((talk) => ({
+    talks: speakingData.talks.map((talk, i) => ({
       videoId: talk.videoId,
       title: talk.title,
       venue: talk.venue,
       url: talk.url,
-      still: talk.thumbnail,
+      still: SCENE_TALK_STILLS[i] ?? talk.thumbnail,
     })),
     projects: SCENE_PROJECT_IMAGES.flatMap((image) => {
       const project = projectsData.projects.find((p) => p.image === image);
