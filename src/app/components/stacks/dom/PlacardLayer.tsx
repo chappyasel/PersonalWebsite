@@ -161,13 +161,15 @@ function BlurPlates({
     ro.observe(el);
     // Section bodies mount lazily and the lifting heatmap arrives async, so
     // watch the subtree rather than just the scroller's own box.
+    //
+    // Deliberately NOT watching `style`: TiltCard writes an inline transform
+    // on every mouse move, so a style filter fired a full re-measure — a
+    // selector scan plus getBoundingClientRect and getComputedStyle per card
+    // — on every frame the pointer was over the placard. Structure changes
+    // are what move plates; a hover tilt is not a structure change, and pure
+    // size changes are already covered by the ResizeObserver above.
     const mo = new MutationObserver(schedule);
-    mo.observe(el, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ["class", "style"],
-    });
+    mo.observe(el, { childList: true, subtree: true });
     return () => {
       if (raf) cancelAnimationFrame(raf);
       el.removeEventListener("scroll", sync);

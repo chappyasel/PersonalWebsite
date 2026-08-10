@@ -114,13 +114,20 @@ export default function Scene({
   }, [data, coverWidth]);
   return (
     <>
+      {/* CameraRig FIRST. r3f runs useFrame callbacks in registration order,
+          which is mount order, so anything reading camera.position must
+          mount after the rig that writes it. With the environment first, the
+          sky dome tracked the camera one frame late — at radius 34 that is
+          nearly a degree of parallax during fast travel, i.e. sky jitter.
+          Every other camera-reading effect (hover lift easing, carried
+          props) was a frame stale for the same reason. */}
+      <CameraRig />
       <SceneEnvironment
         palette={palette}
         dark={dark}
         dustOff={dustOff}
         skySimplify={skySimplify}
       />
-      <CameraRig />
       {UNITS.map((unit, i) => {
         const Unit = UNIT_COMPONENTS[unit.slug];
         return (

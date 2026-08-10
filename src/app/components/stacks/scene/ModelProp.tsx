@@ -16,7 +16,7 @@
 // Every material is forced to metalness 0 / roughness ~0.7 — CreativeTrio
 // ships 0.4/0.272, which reads as tinted chrome under our environment map.
 import { useGLTF, useTexture } from "@react-three/drei";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { mergeVertices } from "three-stdlib";
 
@@ -74,6 +74,8 @@ function atlasMaterial(tex: THREE.Texture): THREE.MeshStandardMaterial {
       // attribute would render black.
       vertexColors: true,
     });
+    // Cached and reused by every atlas prop — never disposable.
+    mat.userData.shared = true;
     atlasMaterials.set(tex.uuid, mat);
   }
   return mat;
@@ -123,6 +125,10 @@ export default function ModelProp({
       let mat = atlasMaterial(atlases[dark ? 1 : 0]!);
       if (atlasOverride) {
         mat = mat.clone();
+        // Material.clone() deep-copies userData, so the clone would inherit
+        // the shared tag and be skipped by disposal forever. It is this
+        // prop's own material; it must be freed with this prop.
+        mat.userData.shared = false;
         if (atlasOverride.tint) mat.color.set(atlasOverride.tint);
         if (atlasOverride.metalness !== undefined)
           mat.metalness = atlasOverride.metalness;
@@ -174,11 +180,44 @@ export default function ModelProp({
         if (geo.index) flat.setIndex(geo.index.clone());
         const welded = mergeVertices(flat);
         welded.computeVertexNormals();
+        welded.userData.owned = true;
         o.geometry = welded;
       });
     }
     return clone;
   }, [scene, atlases, dark, variant, tints, tintAll, roughness, atlasOverride, smoothNormals]);
+
+  // Release what this memo allocated. `tints` and `atlasOverride` are inline
+  // object literals at every call site, so their identity changes on ANY
+  // parent re-render — a theme flip, a panel opening, the degrade ladder
+  // stepping — and the memo rebuilds. Without this, each rebuild stranded a
+  // fresh material per tinted mesh (and a welded geometry per smoothNormals
+  // mesh) on the GPU, and nothing ever freed them.
+  //
+  // Only clones are disposed. The shared atlas material is cached by texture
+  // uuid and reused across every atlas prop in the scene; disposing that
+  // would blank them all, so it is tagged and skipped.
+  useEffect(() => {
+    const stale = object;
+    return () => {
+      stale.traverse((o) => {
+        if (!(o instanceof THREE.Mesh)) return;
+        const mesh = o as THREE.Mesh<
+          THREE.BufferGeometry,
+          THREE.Material | THREE.Material[]
+        >;
+        const mats = Array.isArray(mesh.material)
+          ? mesh.material
+          : [mesh.material];
+        for (const m of mats) {
+          const shared = (m.userData as { shared?: boolean }).shared === true;
+          if (!shared) m.dispose();
+        }
+        const owned = (mesh.geometry.userData as { owned?: boolean }).owned;
+        if (owned === true) mesh.geometry.dispose();
+      });
+    };
+  }, [object]);
   return (
     <primitive
       object={object}

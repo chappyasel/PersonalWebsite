@@ -515,8 +515,11 @@ function SkyDome({ dark, simplify }: { dark: boolean; simplify: boolean }) {
     u.uFrame!.value = ((u.uFrame!.value as number) + 1) % 64;
     u.uSimplify!.value = simplify ? 1 : 0;
     u.uPost!.value = useStacks.getState().postfx ? 1 : 0;
-    // The sky is at infinity, so it must not parallax against the room.
-    if (domeRef.current) domeRef.current.position.x = camera.position.x;
+    // The sky is at infinity, so it must not parallax against the room — in
+    // ANY axis. Copying only x left the dome fixed in y and z while the
+    // camera bobs (CameraRig's idle sine plus pointer parallax) and dollies
+    // back when a panel opens, so the horizon crept against the shelves.
+    if (domeRef.current) domeRef.current.position.copy(camera.position);
   });
   // renderOrder 1: draw after opaque geometry so early-Z rejects the covered
   // sky fragments (its depth-sort position otherwise changes during traverse).

@@ -79,7 +79,24 @@ export default function Grabbable({
   const world = useMemo(() => new THREE.Vector3(), []);
   const raycaster = useThree((s) => s.raycaster);
   const camera = useThree((s) => s.camera);
-  const pointer = useThree((s) => s.pointer);
+  const gl = useThree((s) => s.gl);
+  const pointerId = useRef<number | null>(null);
+  /** Normalised device coords of the carrying pointer. Tracked from the
+   * window rather than read off r3f's own pointer state: r3f only updates
+   * that while the pointer is over the element it is connected to, so the
+   * moment you dragged a prop across the DOM placard the prop froze in mid
+   * air until the cursor came back. */
+  const ndc = useMemo(() => new THREE.Vector2(), []);
+  const track = useCallback(
+    (e: PointerEvent) => {
+      const r = gl.domElement.getBoundingClientRect();
+      ndc.set(
+        ((e.clientX - r.left) / r.width) * 2 - 1,
+        -((e.clientY - r.top) / r.height) * 2 + 1,
+      );
+    },
+    [gl, ndc],
+  );
 
   // Grab and release ride WINDOW pointer events keyed off the hover slot,
   // not r3f's per-object onPointerDown. Measured, not preferred: with the
@@ -94,6 +111,7 @@ export default function Grabbable({
   // lags the cursor — cannot strand the drag. That also removes the need for
   // setPointerCapture entirely.
   const release = useCallback(() => {
+    pointerId.current = null;
     if (phase.current !== "held") return;
     phase.current = "settling";
     const store = useStacks.getState();
@@ -111,39 +129,60 @@ export default function Grabbable({
   }, []);
 
   useEffect(() => {
-    const onDown = () => {
+    const onDown = (e: PointerEvent) => {
+      // Touch is excluded, and not as a shortcut. `touch-action` is latched
+      // by the browser when a gesture BEGINS, so setting it in pointerdown is
+      // already too late: the pan is eligible, the browser claims the gesture
+      // and fires pointercancel, and the grab dies half a frame after it
+      // starts. On this scene a horizontal touch drag is also literally the
+      // travel gesture, so the two cannot coexist without a long-press arming
+      // step. Travel wins on touch; carrying props is a pointer affordance.
+      if (e.pointerType === "touch") return;
+      // Primary button of the primary pointer only — otherwise a right-click
+      // starts a carry, and a second pointer's release ends someone else's.
+      if (!e.isPrimary || e.button !== 0) return;
       const store = useStacks.getState();
       if (store.hovered !== hoverKey) return;
       if (store.activeUnit !== unitIndex) return;
+      pointerId.current = e.pointerId;
       phase.current = "held";
       velocity.set(0, 0, 0);
+      track(e);
       store.setDragging(hoverKey);
       // drei's ScrollControls `enabled` flag only short-circuits its own
-      // handler — the DOM element keeps scrolling natively, and when the flag
-      // flips back the effect re-runs, swallows one event and resyncs from
-      // el.scrollLeft, teleporting the camera. Freezing the element itself is
-      // the only thing that actually prevents that.
+      // handler — the DOM element keeps scrolling natively. Freezing the
+      // element is what actually stops travel; overflow hidden also means no
+      // scroll event ever fires, so drei has nothing to resync from and the
+      // camera cannot teleport when the drag ends.
       const el = store.scrollEl;
       if (el) {
         el.style.touchAction = "none";
         el.style.overflowX = "hidden";
       }
     };
+    const onMove = (e: PointerEvent) => {
+      if (phase.current === "held" && e.pointerId === pointerId.current) track(e);
+    };
+    const onUp = (e: PointerEvent) => {
+      if (e.pointerId === pointerId.current) release();
+    };
     window.addEventListener("pointerdown", onDown);
-    window.addEventListener("pointerup", release);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
     // A cancelled gesture (context menu, tab switch, the browser reclaiming
     // the pointer) must not leave the prop welded to a cursor that is no
     // longer pressed, with the scroll element still frozen.
-    window.addEventListener("pointercancel", release);
+    window.addEventListener("pointercancel", onUp);
     window.addEventListener("blur", release);
     return () => {
       window.removeEventListener("pointerdown", onDown);
-      window.removeEventListener("pointerup", release);
-      window.removeEventListener("pointercancel", release);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
       window.removeEventListener("blur", release);
       release();
     };
-  }, [hoverKey, unitIndex, release, velocity]);
+  }, [hoverKey, unitIndex, release, track, velocity]);
 
   useFrame((_, rawDelta) => {
     const g = group.current;
@@ -160,11 +199,11 @@ export default function Grabbable({
       camera.getWorldDirection(plane.normal).negate();
       g.getWorldPosition(world);
       plane.setFromNormalAndCoplanarPoint(plane.normal, world);
-      // Re-cast explicitly. r3f only refreshes the shared raycaster during
-      // its own event pass, so between pointer moves the ray is stale — and
-      // this camera never stops moving (a slow bob plus pointer parallax),
-      // which would leave the prop drifting under a still cursor.
-      raycaster.setFromCamera(pointer, camera);
+      // Re-cast every frame from the tracked NDC. r3f only refreshes the
+      // shared raycaster during its own event pass, and this camera never
+      // stops moving (a slow bob plus pointer parallax), so a stale ray
+      // leaves the prop drifting under a stationary cursor.
+      raycaster.setFromCamera(ndc, camera);
       if (raycaster.ray.intersectPlane(plane, hit)) {
         g.parent?.worldToLocal(hit);
         hit.y = Math.max(hit.y, base[1]); // never below the wood

@@ -90,10 +90,6 @@ export default function StacksCanvas({
   // Travel freezes while the mobile panel or the book modal owns the screen.
   const panelState = useStacks((s) => s.panelState);
   const modalOpen = useStacks((s) => s.modalOpen);
-  // Subscribed rather than read imperatively: ScrollControls needs a real
-  // re-render to see `enabled` change, and a drag starts at most once per
-  // gesture, so the cost is nil.
-  const dragging = useStacks((s) => s.dragging !== null);
   const isTouch = useMemo(
     () =>
       typeof window !== "undefined" &&
@@ -164,12 +160,16 @@ export default function StacksCanvas({
           pages={UNIT_COUNT}
           damping={0.2}
           maxSpeed={1.2}
-          // Carrying a prop freezes travel: without this, dragging one
-          // sideways scrolls the room out from under it. Note this flag is
-          // necessary but NOT sufficient — drei only short-circuits its own
-          // handler, so Grabbable also freezes the scroll element's
-          // touchAction/overflowX for the duration of the drag.
-          enabled={panelState === "closed" && !modalOpen && !dragging}
+          // Carrying a prop freezes travel too, but NOT through this flag.
+          // drei only short-circuits its own handler here, so the element
+          // keeps scrolling natively anyway; Grabbable sets overflowX hidden
+          // instead, which means no scroll event fires at all. Routing it
+          // through `enabled` as well would cost a full re-render of the
+          // scene on every grab — and because ModelProp's memo depends on
+          // caller-inline `tints`/`atlasOverride` literals, each of those
+          // re-renders clones a fresh material per tinted mesh and strands
+          // the old one on the GPU.
+          enabled={panelState === "closed" && !modalOpen}
           style={{ scrollbarWidth: "none", touchAction: "pan-x" }}
         >
           <Scene
