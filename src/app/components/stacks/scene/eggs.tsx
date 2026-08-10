@@ -14,7 +14,7 @@ import * as THREE from "three";
 import { type Palette } from "../theme";
 import { useStacks } from "../store";
 import { FootPool } from "./GroundPool";
-import ModelProp from "./ModelProp";
+import ModelProp, { SPIN_NODE } from "./ModelProp";
 import { ClockFace, type ClockSweep } from "./objects";
 import { LampGlow } from "./primitives";
 
@@ -31,6 +31,15 @@ function reducedMotion(): boolean {
  * re-render — so this is cheap enough to call per prop per frame. */
 function nearActive(unitIndex: number): boolean {
   return Math.abs(useStacks.getState().activeUnit - unitIndex) <= 1;
+}
+
+/** Is `node` still attached under `root`? A prop rebuilt by ModelProp's memo
+ * (a theme flip clones a fresh scene) leaves any cached child orphaned. */
+function isDescendantOf(node: THREE.Object3D, root: THREE.Object3D): boolean {
+  for (let o: THREE.Object3D | null = node; o; o = o.parent) {
+    if (o === root) return true;
+  }
+  return false;
 }
 
 /** Click/hover shell shared by every egg. Fires only on the active unit —
@@ -189,7 +198,14 @@ export function EggLamp({
  * A globe turning once every couple of minutes is slow enough that you
  * notice it the second time you look, which is the right speed for a
  * thing sitting on a shelf. Wrap this at the prop's own position — the
- * spin is about the wrapper's origin. */
+ * spin is about the wrapper's origin.
+ *
+ * If the wrapped prop isolated a part under SPIN_NODE (ModelProp's
+ * `spinPart`), that node is turned INSTEAD of the wrapper — the globe's ball
+ * revolves inside its stand and meridian ring rather than the whole thing
+ * rotating like a turntable. Everything else is unchanged: same damping, same
+ * click-adds-a-lap, same idle drift, same reduced-motion and near-active
+ * gates. Only the node being written to differs. */
 export function SpinProp({
   unitIndex,
   hoverKey,
@@ -204,10 +220,31 @@ export function SpinProp({
 }) {
   const ref = useRef<THREE.Group>(null);
   const target = useRef(0);
+  const spinNode = useRef<THREE.Object3D | null>(null);
+  const written = useRef<THREE.Object3D | null>(null);
   const still = useMemo(() => reducedMotion(), []);
   useFrame((_, delta) => {
-    const g = ref.current;
-    if (!g) return;
+    const root = ref.current;
+    if (!root) return;
+    // The prop mounts behind Suspense and is rebuilt whenever ModelProp's memo
+    // re-runs (a theme flip clones a fresh scene), so a cached node can go
+    // stale. Re-resolve only when the cache is empty or detached; the subtree
+    // is a handful of nodes and this never runs on a steady frame.
+    let node = spinNode.current;
+    if (!node || !isDescendantOf(node, root)) {
+      node = root.getObjectByName(SPIN_NODE) ?? null;
+      spinNode.current = node;
+    }
+    // No isolated part — turn the whole prop, which is what every other
+    // SpinProp caller wants.
+    const g = node ?? root;
+    // Hand the angle over cleanly when the isolated part appears. The prop
+    // loads behind Suspense, so the first frames turn the WRAPPER; without
+    // this the wrapper keeps that residual rotation forever and the stand
+    // sits permanently askew while the ball turns inside it.
+    const previous = written.current;
+    if (previous && previous !== g) previous.rotation.y = 0;
+    written.current = g;
     // Advance the target rather than the rotation, so a click's extra lap
     // rides on top of the drift instead of fighting it — and don't advance
     // it at all off-screen, or coming back would spin up the difference in

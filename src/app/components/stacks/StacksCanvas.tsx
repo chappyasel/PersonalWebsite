@@ -27,6 +27,7 @@ import { PALETTES } from "./theme";
 const Effects = dynamic(() => import("./scene/Effects"), { ssr: false });
 
 let glRef: THREE.WebGLRenderer | null = null;
+let sceneRef: THREE.Scene | null = null;
 let devOpenBook: ((id: string) => void) | null = null;
 
 declare global {
@@ -35,6 +36,7 @@ declare global {
       scrollTo: (unit: number, opts?: { instant?: boolean }) => void;
       openBook: (id: string) => void;
       state: () => Record<string, unknown>;
+      node: (name: string) => Record<string, unknown> | null;
     };
   }
 }
@@ -49,6 +51,32 @@ function installDevHooks() {
     },
     openBook(id) {
       devOpenBook?.(id);
+    },
+    // Read one named object's transform out of the scene graph.
+    //
+    // Exists because pixels cannot answer questions about WHICH object moved.
+    // Verifying that the globe's ball turns inside its stand, rather than the
+    // whole assembly turning, is impossible from screenshots: the camera
+    // carries a permanent idle bob plus pointer parallax, so over a few
+    // seconds every region of the frame reports motion — measured 9.07 on the
+    // ball, 6.07 on the stand beside it, 5.51 on a postcard and 2.30 on empty
+    // sky. All "moving", none conclusive. A transform is conclusive.
+    node(name) {
+      const scene = glRef ? sceneRef : null;
+      if (!scene) return null;
+      let hit: THREE.Object3D | null = null;
+      scene.traverse((o) => {
+        if (!hit && o.name === name) hit = o;
+      });
+      if (!hit) return null;
+      const o: THREE.Object3D = hit;
+      return {
+        rotation: [o.rotation.x, o.rotation.y, o.rotation.z],
+        position: [o.position.x, o.position.y, o.position.z],
+        parentRotation: o.parent
+          ? [o.parent.rotation.x, o.parent.rotation.y, o.parent.rotation.z]
+          : null,
+      };
     },
     state() {
       const { activeUnit, mode, modalOpen, panelState, hovered, dragging } =
@@ -165,9 +193,10 @@ export default function StacksCanvas({
         // Desktop runs SMAA in the composer — MSAA underneath is dead
         // weight. Touch keeps MSAA (no composer there, ever).
         gl={{ antialias: isTouch }}
-        onCreated={({ gl }) => {
+        onCreated={({ gl, scene }) => {
           gl.toneMappingExposure = dark ? 1.25 : 1.12;
           glRef = gl;
+          sceneRef = scene;
           installDevHooks();
           if (onLost) {
             gl.domElement.addEventListener("webglcontextlost", () => onLost(), {

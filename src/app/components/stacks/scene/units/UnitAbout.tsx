@@ -195,7 +195,10 @@ export default function UnitAbout({
       <group position={[0.7, 0, -0.12]}>
         <SpinProp unitIndex={index} hoverKey="egg:globe" idleRate={0.06}>
           <React.Suspense fallback={null}>
-            <ModelProp url="/models/globe.glb" dark={dark} rotation={[0, -0.7, 0]} scale={1.5} />
+            {/* spinPart isolates the ball so SpinProp turns it inside the
+                stand and meridian ring rather than revolving the whole prop
+                like a turntable. */}
+            <ModelProp url="/models/globe.glb" dark={dark} rotation={[0, -0.7, 0]} scale={1.5} spinPart="sphere" />
           </React.Suspense>
         </SpinProp>
         {/* Budapest Parliament + Delicate Arch (the Instagram curation
