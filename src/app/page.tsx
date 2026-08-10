@@ -105,7 +105,11 @@ export default async function HomePage() {
         ? [{ name: project.name, link: project.link, image: `/images/projects/${image}` }]
         : [];
     }),
-    blogPosts: blogData.items.slice(0, 3).map((post) => ({
+    // Six, because NotebookLean stands six spines on the Musings shelf and
+    // maps a click key to each. At three, half the row was blank slabs that
+    // fell through to a generic "open the blog" link — the one unit whose
+    // whole subject is his writing was showing none of it.
+    blogPosts: blogData.items.slice(0, 6).map((post) => ({
       title: post.title,
       link: post.link,
       pubDate: post.pubDate,

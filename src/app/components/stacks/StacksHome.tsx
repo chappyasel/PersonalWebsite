@@ -52,7 +52,12 @@ class CanvasBoundary extends Component<
   static getDerivedStateFromError() {
     return { failed: true };
   }
-  componentDidCatch() {
+  componentDidCatch(error: Error) {
+    // Never swallow it. A boundary that silently demotes to the flat page
+    // turns any scene-level throw into "the world just doesn't load", which
+    // is indistinguishable from a slow network and cost a teammate an
+    // afternoon of chasing the wrong thing.
+    console.error("[stacks] world failed to mount, falling back:", error);
     this.props.onError();
   }
   render() {
