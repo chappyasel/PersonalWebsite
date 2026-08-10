@@ -25,6 +25,14 @@ function reducedMotion(): boolean {
   );
 }
 
+/** Ambient motion runs on the unit you are looking at and its immediate
+ * neighbours, and nowhere else. Seven units' worth of idling props is work
+ * nobody can see, and `getState` is a plain read — no subscription, no
+ * re-render — so this is cheap enough to call per prop per frame. */
+function nearActive(unitIndex: number): boolean {
+  return Math.abs(useStacks.getState().activeUnit - unitIndex) <= 1;
+}
+
 /** Click/hover shell shared by every egg. Fires only on the active unit —
  * on any other unit the handlers return WITHOUT stopPropagation, so the
  * event continues to the unit's invisible tap plane and travel still works.
@@ -153,22 +161,38 @@ export function EggLamp({
   );
 }
 
-/** One slow damped revolution per click (the globe). Wrap this at the
- * prop's own position — the spin is about the wrapper's origin. */
+/** One slow damped revolution per click (the globe), over a continuous idle
+ * drift. The drift is what makes the room read as running rather than
+ * paused: everything else in the scene only moves because you moved it.
+ * A globe turning once every couple of minutes is slow enough that you
+ * notice it the second time you look, which is the right speed for a
+ * thing sitting on a shelf. Wrap this at the prop's own position — the
+ * spin is about the wrapper's origin. */
 export function SpinProp({
   unitIndex,
   hoverKey,
+  idleRate = 0,
   children,
 }: {
   unitIndex: number;
   hoverKey: string;
+  /** Radians per second of unprompted rotation. */
+  idleRate?: number;
   children: React.ReactNode;
 }) {
   const ref = useRef<THREE.Group>(null);
   const target = useRef(0);
+  const still = useMemo(() => reducedMotion(), []);
   useFrame((_, delta) => {
     const g = ref.current;
-    if (!g || g.rotation.y === target.current) return;
+    if (!g) return;
+    // Advance the target rather than the rotation, so a click's extra lap
+    // rides on top of the drift instead of fighting it — and don't advance
+    // it at all off-screen, or coming back would spin up the difference in
+    // one lurch.
+    if (idleRate && !still && nearActive(unitIndex)) {
+      target.current += idleRate * Math.min(delta, 1 / 30);
+    } else if (g.rotation.y === target.current) return;
     const next = THREE.MathUtils.damp(g.rotation.y, target.current, 1.4, delta);
     g.rotation.y =
       Math.abs(next - target.current) < 1e-3 ? target.current : next;
@@ -233,6 +257,93 @@ export function BounceProp({
   );
 }
 
+/** The one thing on these shelves that was always going to move on its own
+ * and didn't. ClockFace redraws its canvas twice a minute — correct for
+ * hour and minute hands, and the reason both clocks read as stopped.
+ *
+ * A second hand can't live in that texture: it would mean a 256px redraw and
+ * a GPU upload every frame. So it is geometry, rotated in place, and it beats
+ * once a second rather than sweeping — a deadbeat tick with a hair of
+ * overshoot is what a clock in a quiet room actually does, and it is far
+ * easier to catch out of the corner of your eye than a smooth crawl. */
+function SecondHand({ radius }: { radius: number }) {
+  const ref = useRef<THREE.Group>(null);
+  const still = useMemo(() => reducedMotion(), []);
+  useFrame((_, delta) => {
+    const g = ref.current;
+    if (!g) return;
+    const s = still
+      ? new Date().getSeconds()
+      : Math.floor((Date.now() / 1000) % 60);
+    const target = -(s / 60) * Math.PI * 2;
+    if (still) {
+      g.rotation.z = target;
+      return;
+    }
+    // Shortest way round, so 59 → 0 ticks forward instead of unwinding a
+    // whole minute backwards.
+    let d = target - g.rotation.z;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    g.rotation.z = THREE.MathUtils.damp(
+      g.rotation.z,
+      g.rotation.z + d,
+      26,
+      delta,
+    );
+  });
+  return (
+    <group ref={ref} position={[0, 0, 0.0016]}>
+      {/* Offset by half its length so the hand pivots at the dial centre,
+          with a short counterweight past it — the detail that stops it
+          reading as a spinning stick. */}
+      <mesh position={[0, radius * 0.31, 0]}>
+        <boxGeometry args={[radius * 0.045, radius * 0.86, 0.0012]} />
+        <meshStandardMaterial color="#9c3a2c" roughness={0.5} />
+      </mesh>
+      <mesh position={[0, -radius * 0.12, 0]}>
+        <boxGeometry args={[radius * 0.06, radius * 0.24, 0.0012]} />
+        <meshStandardMaterial color="#9c3a2c" roughness={0.5} />
+      </mesh>
+    </group>
+  );
+}
+
+/** A draught in the room. Plants are the only props with anything flexible
+ * about them, so they are the ones that can carry it — a degree and a half
+ * of lean, each on its own phase and rate so the shelf never breathes in
+ * unison. Pivots at the group origin, which by the scene's convention is
+ * where the pot meets the wood. */
+export function Sway({
+  unitIndex,
+  amount = 0.026,
+  rate = 0.42,
+  phase = 0,
+  children,
+}: {
+  unitIndex: number;
+  /** Peak lean in radians. */
+  amount?: number;
+  /** Radians per second of the driving sine. */
+  rate?: number;
+  phase?: number;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<THREE.Group>(null);
+  const still = useMemo(() => reducedMotion(), []);
+  useFrame(({ clock }) => {
+    const g = ref.current;
+    if (!g || still || !nearActive(unitIndex)) return;
+    const t = clock.elapsedTime * rate + phase;
+    // Two incommensurate rates on each axis, so the path is a slow wander
+    // rather than a metronome. The x term is the smaller of the two — a
+    // plant nodding toward the viewer reads as a bug.
+    g.rotation.z = amount * (0.72 * Math.sin(t) + 0.28 * Math.sin(t * 1.71));
+    g.rotation.x = amount * 0.45 * Math.sin(t * 0.83 + 1.1);
+  });
+  return <group ref={ref}>{children}</group>;
+}
+
 /** Clock egg. The clocks show the VISITOR'S live local time at rest; a
  * click winds the hands clockwise to 3:45 — the owner's wake time — holds
  * a beat, then winds on around to the live time again. That contrast is
@@ -264,6 +375,7 @@ export function EggClock({
       {children}
       <group position={facePosition}>
         <ClockFace radius={faceRadius} sweepRef={sweep} />
+        <SecondHand radius={faceRadius} />
       </group>
     </EggTrigger>
   );
@@ -311,6 +423,7 @@ export function SteamCup({
   hoverKey,
   steamAt,
   dark,
+  always = false,
   children,
 }: {
   unitIndex: number;
@@ -318,12 +431,44 @@ export function SteamCup({
   /** Wisp origin (the cup mouth) in the same space as `children`. */
   steamAt: [number, number, number];
   dark: boolean;
+  /** Steam without being asked. A hot drink that only steams when clicked
+   * is a button; one that always steams is a hot drink. The click survives
+   * as a stronger puff, so the egg is still there to find. */
+  always?: boolean;
   children: React.ReactNode;
 }) {
   const started = useRef(0);
   const sprites = useRef<(THREE.Sprite | null)[]>([]);
   const texture = useMemo(getSteamTexture, []);
+  const still = useMemo(() => reducedMotion(), []);
   useFrame(() => {
+    // Ambient mode runs off the wall clock with each wisp on its own phase,
+    // so the three of them stagger forever instead of marching in step.
+    if (always && !still && nearActive(unitIndex)) {
+      const now = performance.now() / 1000;
+      const boost = started.current
+        ? Math.max(0, 1 - (performance.now() - started.current) / 1600)
+        : 0;
+      const fade = dark && useStacks.getState().postfx ? 0.5 : 1;
+      const peak = (dark ? 0.22 : 0.28) * (1 + boost);
+      const sizeMul = (dark ? 1 : 1.7) * (1 + boost * 0.35);
+      for (let i = 0; i < WISPS.length; i++) {
+        const sprite = sprites.current[i];
+        const w = WISPS[i]!;
+        if (!sprite) continue;
+        const p = ((now + w.delay * 2.2) / STEAM_LIFE) % 1;
+        sprite.visible = true;
+        sprite.position.set(
+          w.x + Math.sin(p * 5 + w.phase) * 0.016 * p,
+          0.015 + p * 0.24,
+          0,
+        );
+        const s = (0.05 + p * 0.08) * sizeMul;
+        sprite.scale.set(s, s * 1.35, 1);
+        sprite.material.opacity = peak * Math.sin(Math.PI * p) * fade;
+      }
+      return;
+    }
     if (!started.current) return;
     const t = (performance.now() - started.current) / 1000;
     // Additive sprites compound in the composer's linear HDR target — halve
@@ -363,7 +508,10 @@ export function SteamCup({
         unitIndex={unitIndex}
         hoverKey={hoverKey}
         onTrigger={() => {
-          if (reducedMotion() || started.current) return;
+          if (still) return;
+          // In ambient mode the stamp is a boost rather than a start, so a
+          // second click while the first is still decaying just refreshes it.
+          if (!always && started.current) return;
           started.current = performance.now();
         }}
       >
