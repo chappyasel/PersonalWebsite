@@ -23,7 +23,11 @@ const FLAT_ORDER = [
 
 export default function FlatHome({ slots }: { slots: StacksSlots }) {
   return (
-    <GrainientBackground>
+    // `stacks-flat` is the hook the pre-paint boot script hides this behind
+    // while the world loads. It stays in the DOM either way — it is the
+    // crawlable copy of this page, and the fallback if the world never
+    // arrives.
+    <GrainientBackground className="stacks-flat">
       <main className="relative m-auto flex max-w-screen-md flex-col items-center justify-center gap-20 overflow-visible scroll-smooth bg-transparent p-4 pb-28 font-serif text-muted-foreground">
         {FLAT_ORDER.map((name) => (
           <Fragment key={name}>{slots[name]}</Fragment>

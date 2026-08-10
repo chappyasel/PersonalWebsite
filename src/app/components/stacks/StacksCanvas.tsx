@@ -3,7 +3,11 @@
 // The WebGL entry point — the only module that pulls @react-three/* into the
 // bundle (loaded via dynamic import from StacksHome). Canvas config carries
 // the approved prototype look; ScrollControls owns the real scroll container.
-import { PerformanceMonitor, ScrollControls } from "@react-three/drei";
+import {
+  PerformanceMonitor,
+  ScrollControls,
+  useProgress,
+} from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
 import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
@@ -11,6 +15,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type * as THREE from "three";
 
 import { UNIT_COUNT, type StacksData } from "./data";
+import { setLoadProgress } from "./loading";
 import Scene from "./scene/Scene";
 import { CAMERA } from "./scene/worldLayout";
 import { progressRef, useStacks } from "./store";
@@ -68,6 +73,19 @@ function installDevHooks() {
   };
 }
 
+/** Republishes three's DefaultLoadingManager progress to the boot screen,
+ * which cannot subscribe to it directly: drei lives in this chunk and the
+ * boot screen ships in the initial entry. Renders null and sits outside the
+ * Canvas — `useProgress` is a plain store, not a scene hook, and putting it
+ * in the tree would re-render the scene on every asset. */
+function LoadReporter() {
+  const progress = useProgress((s) => s.progress);
+  useEffect(() => {
+    setLoadProgress(progress / 100);
+  }, [progress]);
+  return null;
+}
+
 // Keeps tone-mapping exposure in sync when the theme flips after mount.
 function Exposure({ dark }: { dark: boolean }) {
   const gl = useThree((s) => s.gl);
@@ -80,9 +98,14 @@ function Exposure({ dark }: { dark: boolean }) {
 export default function StacksCanvas({
   data,
   onReady,
+  onLost,
 }: {
   data: StacksData;
   onReady: () => void;
+  /** The context went away after a successful start (driver reset, GPU
+   * process crash, too many live contexts). A dead viewport is worse than
+   * the document, so this hands the page back. */
+  onLost?: () => void;
 }) {
   const { resolvedTheme } = useTheme();
   const dark = resolvedTheme === "dark";
@@ -134,6 +157,7 @@ export default function StacksCanvas({
 
   return (
     <div className="absolute inset-0">
+      <LoadReporter />
       <Canvas
         shadows="soft"
         camera={{ position: [0, CAMERA.y, CAMERA.z], fov: CAMERA.fov }}
@@ -145,8 +169,13 @@ export default function StacksCanvas({
           gl.toneMappingExposure = dark ? 1.25 : 1.12;
           glRef = gl;
           installDevHooks();
+          if (onLost) {
+            gl.domElement.addEventListener("webglcontextlost", () => onLost(), {
+              once: true,
+            });
+          }
           // Signal readiness only after a frame has actually been painted so
-          // the flat→world crossfade never reveals a blank canvas.
+          // the boot→world crossfade never reveals a blank canvas.
           requestAnimationFrame(() => requestAnimationFrame(onReady));
         }}
       >

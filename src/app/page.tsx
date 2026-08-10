@@ -38,6 +38,38 @@ const SCENE_TALK_STILLS: Record<number, string> = {
   1: "/images/stacks/talk-consensus.jpg",
 };
 
+// Probes exactly what StacksHome's own effect probes, so the two can never
+// disagree about whether the world is viable. Save-Data is honoured here and
+// nowhere else: a visitor who has asked their browser to conserve should get
+// the document, not a megabyte of room. Costs about a millisecond, and the
+// answer is cached for the tab so repeat navigations skip the context
+// creation entirely.
+//
+// The timeout is the safety net for the case this whole mechanism creates: if
+// the JS bundle never boots, the flat page is hidden behind a loading screen
+// that nothing will ever retire. Twenty seconds and the document comes back.
+const WORLD_BOOT_SCRIPT = `
+try {
+  var ok = sessionStorage.getItem("stacks-world");
+  if (ok === null) {
+    ok = "0";
+    if (!matchMedia("(prefers-reduced-motion: reduce)").matches &&
+        !(navigator.connection && navigator.connection.saveData)) {
+      var c = document.createElement("canvas");
+      if (c.getContext("webgl2") || c.getContext("webgl")) ok = "1";
+    }
+    sessionStorage.setItem("stacks-world", ok);
+  }
+  if (ok === "1") {
+    document.documentElement.dataset.world = "pending";
+    setTimeout(function () {
+      if (document.documentElement.dataset.world === "pending")
+        delete document.documentElement.dataset.world;
+    }, 20000);
+  }
+} catch (_) {}
+`;
+
 export default async function HomePage() {
   const [allBooks, activity, liftingStats] = await Promise.all([
     getDefaultBooks(),
@@ -94,5 +126,18 @@ export default async function HomePage() {
     quotes: <Quotes />,
   };
 
-  return <StacksHome data={data} slots={slots} />;
+  return (
+    <>
+      {/* Runs during HTML parse, ahead of the flat document below it, so the
+          decision is made BEFORE the first paint. React can't do this: it
+          renders flat on the server and on the first client render (on
+          purpose — anything else is a hydration mismatch), so by the time an
+          effect could switch modes the vertical homepage is already on
+          screen and being read. The attribute is all this script owns; CSS in
+          globals.css does the rest, and React takes the attribute over from
+          `pending` the moment it is alive. */}
+      <script dangerouslySetInnerHTML={{ __html: WORLD_BOOT_SCRIPT }} />
+      <StacksHome data={data} slots={slots} />
+    </>
+  );
 }

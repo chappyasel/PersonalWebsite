@@ -260,3 +260,152 @@ html[data-font="literata"] {
 .prose .book-notes-quote > p + p {
   margin-top: 0.75em;
 }
+
+/*
+ * Boot handshake for The Stacks.
+ *
+ * A pre-paint script in the homepage (see page.tsx) sets data-world="pending"
+ * on <html> when the browser can actually run the world. Everything below
+ * happens in CSS during the first paint, before React exists — which is the
+ * only way to avoid painting the flat document and then taking it away. React
+ * flips the attribute to "ready" once the room is on screen, and clears it
+ * entirely if the world turns out not to be viable after all.
+ */
+html[data-world] .stacks-flat {
+  visibility: hidden;
+}
+html:not([data-world="pending"]) .stacks-boot {
+  opacity: 0;
+  pointer-events: none;
+}
+html[data-world="ready"] .stacks-boot {
+  visibility: hidden;
+}
+
+.stacks-boot {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: hsl(var(--background));
+  transition:
+    opacity 420ms ease,
+    visibility 0s linear 420ms;
+}
+
+.stacks-boot-shelf {
+  width: 190px;
+}
+
+.stacks-boot-spines {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 4px;
+  height: 56px;
+}
+
+/* Spines rise onto the shelf as their slot fills. Transform and opacity only
+   — this paints while the main thread is busy parsing the WebGL chunk, and
+   anything that triggers layout there stutters visibly. */
+.stacks-boot-spines span {
+  display: block;
+  border-radius: 1px 1px 0 0;
+  opacity: 0;
+  transform: translateY(9px);
+  transition:
+    opacity 340ms ease,
+    transform 340ms cubic-bezier(0.22, 0.9, 0.3, 1);
+  background: hsl(var(--muted-foreground) / 0.5);
+}
+.stacks-boot-spines span[data-tone="1"] {
+  background: hsl(24 24% 46% / 0.62);
+}
+.stacks-boot-spines span[data-tone="2"] {
+  background: hsl(96 12% 40% / 0.62);
+}
+.stacks-boot-spines span[data-tone="3"] {
+  background: hsl(9 34% 46% / 0.6);
+}
+/*
+ * The pre-hydration estimate. Nothing can report real progress while the
+ * WebGL chunk is still downloading, and on a throttled connection React is
+ * not alive for the first ten seconds of that wait — so the first four spines
+ * arrive on a CSS schedule instead. The delays are solved from the same curve
+ * BootScreen's ESTIMATE_CEILING caps (0.55 * (1 - e^(-t/4.5s)), a spine at
+ * each (i + 0.35)/7), so when the real numbers arrive the shelf is already
+ * where they would have put it and nothing jumps. Spines five through seven
+ * have no schedule: they are only ever earned.
+ */
+.stacks-boot-spines span:nth-child(-n + 4) {
+  animation: stacks-boot-arrive 340ms cubic-bezier(0.22, 0.9, 0.3, 1) forwards;
+}
+.stacks-boot-spines span:nth-child(1) {
+  animation-delay: 0.4s;
+}
+.stacks-boot-spines span:nth-child(2) {
+  animation-delay: 1.9s;
+}
+.stacks-boot-spines span:nth-child(3) {
+  animation-delay: 4.2s;
+}
+.stacks-boot-spines span:nth-child(4) {
+  animation-delay: 9.2s;
+}
+
+.stacks-boot-spines span[data-in] {
+  animation: none;
+  opacity: 1;
+  transform: none;
+}
+
+@keyframes stacks-boot-arrive {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.stacks-boot-plank {
+  position: relative;
+  height: 4px;
+  margin-top: 3px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: hsl(28 22% 42% / 0.55);
+}
+/* The still-working signal. The spines hold position between assets, so
+   without this a slow download is indistinguishable from a dead one. */
+.stacks-boot-plank::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    hsl(38 46% 72% / 0.75) 50%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: stacks-boot-sweep 2.1s ease-in-out infinite;
+}
+
+@keyframes stacks-boot-sweep {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stacks-boot-plank::after {
+    animation: none;
+    opacity: 0;
+  }
+  .stacks-boot-spines span,
+  .stacks-boot-spines span:nth-child(-n + 4) {
+    animation: none;
+    transition: none;
+  }
+}
