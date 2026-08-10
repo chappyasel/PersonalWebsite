@@ -3,23 +3,33 @@
 // Pick a prop up and move it. Lift.tsx's louder sibling: where Lift eases a
 // few millimetres under the pointer, this hands the object over to you.
 //
-// There is no physics engine here and that is a deliberate, costed call.
-// Rapier is ~830KB gzip against a 180KB homepage budget — 4.6× the whole
-// page for an interaction most visitors never trigger, and the first grab
-// would stall on the download with the prop Suspense-blanked. cannon-es is
-// ~50KB and still cannot pay for itself, because the thing a real solver
-// buys you is prop-vs-prop collision, and this scene has nothing to collide
-// with: every prop stands alone on open wood.
+// Two motion paths, and which one you get is decided at the moment you press:
 //
-// So the motion is authored rather than simulated, in three phases:
-//   held      — follow the pointer on a camera-facing plane, with a damped
-//               lag and a tilt into the direction of travel, so the object
-//               reads as CARRIED rather than teleported to the cursor;
-//   settling  — ballistic fall to the wood, one damped bounce, spin bleeding
-//               off with the horizontal velocity;
-//   rest      — spring back to the authored pose. Props always come home;
-//               a shelf the visitor can permanently rearrange is a shelf
-//               that is wrong for the next visitor.
+//   SIMULATED — a real solver (cannon-es, ~73KB gzip) that the homepage does
+//   not download. The bytes live behind `import("./physics")` and are
+//   prefetched on the FIRST HOVER of a grabbable prop, which is the earliest
+//   honest signal that someone is thinking about touching something. Desktop
+//   only, and never on a machine the degrade ladder has already stepped down.
+//   Here the shelf answers back: the prop collides with its neighbours, tips,
+//   tumbles, and STAYS where it lands.
+//
+//   AUTHORED — the 0-KB fallback, and what every visitor gets on the very
+//   first grab if the module has not landed yet. Blocking the grab on a
+//   network round trip, or Suspense-blanking the prop while it arrives, is a
+//   worse failure than a slightly less physical drop. Three phases: held
+//   (follow the pointer on a camera-facing plane with a damped lag and a tilt
+//   into the direction of travel, so the object reads as CARRIED rather than
+//   teleported), settling (ballistic fall, one damped bounce, spin bleeding
+//   off with the horizontal velocity), rest (spring back to the authored
+//   pose).
+//
+// Both paths end at the same rule, which has been narrowed rather than
+// dropped: props come home when TRAVEL LEAVES THE UNIT. A shelf the visitor
+// can permanently rearrange is a shelf that is wrong for the next visitor —
+// but "permanently" was doing the work in that sentence, not "rearrange".
+// Knocking the mug over and having it stay knocked over for as long as you
+// are standing in front of it is the entire point of being able to pick it
+// up. Walk to another unit and every prop is back on its mark.
 //
 // The grounding matters more than the motion. This scene casts no shadows at
 // all — there is no shadow-casting light in it, every `castShadow` flag is
@@ -35,18 +45,110 @@ import * as THREE from "three";
 
 import { useStacks } from "../store";
 import { poolTexture } from "./GroundPool";
-
-type Phase = "rest" | "held" | "settling";
+import type { Phase, ShelfHandle, ShelfWorld } from "./physics";
 
 /** Damping for the spring home — matches Lift's LAMBDA so a released prop
  * settles at the same rate the shelf's hover affordance moves. */
 const HOME_LAMBDA = 6;
 /** Deliberately under real gravity: a prop dropped 20cm at 9.81 lands in
- * under a fifth of a second, which reads as a glitch rather than a drop. */
+ * under a fifth of a second, which reads as a glitch rather than a drop.
+ * physics.ts carries the same number so both paths fall alike. */
 const GRAVITY = 3.4;
 /** Matches ContactShade's default so a grabbable prop grounds exactly like
  * its neighbours until the moment it is picked up. */
 const SHADE_OPACITY = 0.12;
+
+// --- the lazily-loaded solver -----------------------------------------------
+//
+// Module scope, not component state: the download is shared by every prop on
+// the page and must not re-render anything when it lands. `physics` stays
+// null until the chunk has actually parsed, and every read of it is a
+// synchronous "is it here yet" — nothing ever awaits it inside a gesture.
+
+/** The seam, written out: the only two things this file asks of the solver
+ * chunk, so the chunk itself stays reachable ONLY through the dynamic import
+ * below. */
+type PhysicsModule = {
+  warm: () => Promise<boolean>;
+  worldFor: (
+    parent: THREE.Object3D,
+    handles: Iterable<ShelfHandle>,
+  ) => ShelfWorld | null;
+};
+
+let physics: PhysicsModule | null = null;
+let fetching = false;
+
+/** Every mounted Grabbable, so a world can be built from the props actually
+ * standing on a plank rather than from a list some unit file has to keep in
+ * sync by hand. */
+const registry = new Set<ShelfHandle>();
+
+/** Desktop, and only while the scene is running at full quality.
+ *
+ * The touch exclusion is the same one that keeps touch from carrying at all
+ * (see onDown). The quality gate rides the store's `postfx` flag, which is
+ * exactly the signal Effects.tsx mounts on: false on touch, and false the
+ * moment the degrade ladder takes its first step. A machine that cannot hold
+ * a composer does not also get a solver. (It also means `?nopostfx` turns
+ * physics off, which is the correct behaviour for an A/B flag that means
+ * "show me the cheap path".) */
+function physicsAllowed(): boolean {
+  if (typeof window === "undefined") return false;
+  if (window.matchMedia("(pointer: coarse)").matches) return false;
+  return useStacks.getState().postfx;
+}
+
+/** Fire-and-forget. Called from hover, so the download overlaps the visitor
+ * deciding whether to grab; if they beat it, the first drag runs authored and
+ * every drag after it is simulated. */
+function prefetchPhysics() {
+  if (physics || fetching || !physicsAllowed()) return;
+  fetching = true;
+  void import("./physics")
+    .then(async (mod) => {
+      if (!(await mod.warm())) return;
+      physics = mod;
+    })
+    .catch(() => {
+      // A solver that failed to download is not an error the visitor should
+      // ever learn about — authored motion covers every drag.
+    });
+}
+
+if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
+  // The harness cannot see any of this from the DOM: carrying deliberately
+  // re-renders nothing, and "did it collide or did it spring back" is a
+  // question about world positions, not pixels.
+  window.__grab = {
+    physics: () => physics !== null,
+    props: () =>
+      [...registry].map((handle) => ({
+        key: handle.key,
+        unit: handle.unitIndex,
+        phase: handle.phase.current,
+        simulated: !!handle.body,
+        base: handle.base.toArray(),
+        position: handle.group.position.toArray(),
+        quaternion: handle.group.quaternion.toArray(),
+      })),
+    /** The shelf world a given prop stands in, statics included — the only
+     * way to check that the derived neighbour boxes match the scene. */
+    world: (key: string) =>
+      [...registry].find((handle) => handle.key === key)?.world?.report() ??
+      null,
+  };
+}
+
+declare global {
+  interface Window {
+    __grab?: {
+      physics: () => boolean;
+      props: () => unknown[];
+      world: (key: string) => unknown;
+    };
+  }
+}
 
 export default function Grabbable({
   unitIndex,
@@ -74,6 +176,7 @@ export default function Grabbable({
   const shade = useRef<THREE.Sprite>(null);
   const phase = useRef<Phase>("rest");
   const velocity = useMemo(() => new THREE.Vector3(), []);
+  const step = useMemo(() => new THREE.Vector3(), []);
   const plane = useMemo(() => new THREE.Plane(), []);
   const hit = useMemo(() => new THREE.Vector3(), []);
   const world = useMemo(() => new THREE.Vector3(), []);
@@ -81,6 +184,12 @@ export default function Grabbable({
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
   const pointerId = useRef<number | null>(null);
+  /** The shared record this prop's rigid body hangs off. Null until mount,
+   * and bodyless until a world has been built around it. */
+  const handle = useRef<ShelfHandle | null>(null);
+  /** Did THIS gesture get a body? Decided once, at pointerdown: a module
+   * that lands mid-drag must not change the rules under the visitor's hand. */
+  const simulated = useRef(false);
   /** Normalised device coords of the carrying pointer. Tracked from the
    * window rather than read off r3f's own pointer state: r3f only updates
    * that while the pointer is over the element it is connected to, so the
@@ -98,6 +207,31 @@ export default function Grabbable({
     [gl, ndc],
   );
 
+  // Register with the scene-wide set once, on mount. Mount-only on purpose:
+  // the handle is the identity a rigid body is attached to, so re-creating it
+  // when a caller passes a fresh `base` array literal would orphan the body
+  // mid-carry. The mutable fields are refreshed every frame instead.
+  useEffect(() => {
+    const g = group.current;
+    if (!g) return;
+    const entry: ShelfHandle = {
+      key: hoverKey,
+      unitIndex,
+      group: g,
+      base: new THREE.Vector3(base[0], base[1], base[2]),
+      spin,
+      phase,
+    };
+    handle.current = entry;
+    registry.add(entry);
+    return () => {
+      registry.delete(entry);
+      entry.world?.drop(entry);
+      handle.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Grab and release ride WINDOW pointer events keyed off the hover slot,
   // not r3f's per-object onPointerDown. Measured, not preferred: with the
   // scene connected to ScrollControls' scroll element, `onPointerOver` on
@@ -113,7 +247,14 @@ export default function Grabbable({
   const release = useCallback(() => {
     pointerId.current = null;
     if (phase.current !== "held") return;
-    phase.current = "settling";
+    const entry = handle.current;
+    // Hand the throw to the solver if this gesture had one. The velocity is
+    // the prop's ACTUAL movement, not the gap to the cursor — using the gap
+    // made it a spring constant rather than a speed, and everything left the
+    // hand at the same 1.9 u/s no matter how gently you were moving.
+    if (!(simulated.current && entry?.world?.release(entry, velocity)))
+      phase.current = "settling";
+    simulated.current = false;
     const store = useStacks.getState();
     store.setDragging(null);
     // Restore the scroll element by hand. drei's ScrollControls `enabled`
@@ -126,7 +267,7 @@ export default function Grabbable({
       el.style.touchAction = "pan-x";
       el.style.overflowX = "auto";
     }
-  }, []);
+  }, [velocity]);
 
   useEffect(() => {
     const onDown = (e: PointerEvent) => {
@@ -151,6 +292,16 @@ export default function Grabbable({
       phase.current = "held";
       velocity.set(0, 0, 0);
       track(e);
+      // Build (or join) this plank's world while the prop is still standing
+      // exactly on its mark — the collision boxes are measured here, and a
+      // prop measured mid-carry would be measured tilted.
+      const entry = handle.current;
+      const parent = group.current?.parent;
+      simulated.current = false;
+      if (physics && entry && parent) {
+        const shelf = physics.worldFor(parent, registry);
+        if (shelf) simulated.current = shelf.grab(entry);
+      }
       store.setDragging(hoverKey);
       // drei's ScrollControls `enabled` flag only short-circuits its own
       // handler — the DOM element keeps scrolling natively. Freezing the
@@ -210,12 +361,24 @@ export default function Grabbable({
     };
   }, [hoverKey, unitIndex, release, track, velocity]);
 
-  useFrame((_, rawDelta) => {
+  useFrame((state, rawDelta) => {
     const g = group.current;
     if (!g) return;
     // A backgrounded tab hands back one enormous delta; integrating it would
     // fling the prop to infinity on return.
     const delta = Math.min(rawDelta, 1 / 30);
+    const entry = handle.current;
+    if (entry) entry.base.set(base[0], base[1], base[2]);
+    const shelf: ShelfWorld | null = entry?.world ?? null;
+
+    // Travel ends the rearrangement. Not a timer, not the release — the prop
+    // stays exactly where you knocked it for as long as you are standing in
+    // front of it, and is back on its mark before the next visitor arrives.
+    if (
+      phase.current === "sim" &&
+      useStacks.getState().activeUnit !== unitIndex
+    )
+      phase.current = "rest";
 
     if (phase.current === "held") {
       // Drag plane: camera-facing, through the prop's current position, so
@@ -233,16 +396,24 @@ export default function Grabbable({
       if (raycaster.ray.intersectPlane(plane, hit)) {
         g.parent?.worldToLocal(hit);
         hit.y = Math.max(hit.y, base[1]); // never below the wood
-        // Throw velocity is the prop's ACTUAL movement this frame, not the
-        // gap to the cursor. Using the gap made it a spring constant rather
-        // than a speed — a cursor 10cm away produced ~1.9 u/s no matter how
-        // slowly you were moving, and the prop shot off the shelf on release.
+        // Throw velocity is the prop's ACTUAL movement, not the gap to the
+        // cursor. Using the gap made it a spring constant rather than a
+        // speed — a cursor 10cm away produced ~1.9 u/s no matter how slowly
+        // you were moving, and the prop shot off the shelf on release.
+        //
+        // Smoothed over ~3 frames, though, because ONE frame's movement over
+        // ONE frame's delta is a lottery: a 2 ms hitch mid-drag divides a
+        // normal step by a tenth of a normal delta and hands the solver a
+        // 4 u/s fling the visitor never performed.
         world.copy(g.position);
         g.position.lerp(hit, 1 - Math.exp(-22 * delta));
-        velocity.subVectors(g.position, world).divideScalar(delta);
+        step.subVectors(g.position, world).divideScalar(delta);
+        velocity.lerp(step, 1 - Math.exp(-26 * delta));
       }
       g.rotation.z = THREE.MathUtils.damp(g.rotation.z, -velocity.x * 0.05, 8, delta);
       g.rotation.x = THREE.MathUtils.damp(g.rotation.x, velocity.z * 0.05, 8, delta);
+    } else if (phase.current === "sim") {
+      // The solver owns this transform; the shelf's tick below writes it.
     } else if (phase.current === "settling") {
       velocity.y -= GRAVITY * delta;
       g.position.addScaledVector(velocity, delta);
@@ -271,6 +442,9 @@ export default function Grabbable({
         // not keep writing its own transform every frame.
         p.set(base[0], base[1], base[2]);
         g.rotation.set(0, 0, 0);
+        // Home again: hand the body back to the solver, asleep and on its
+        // mark, ready to be knocked by the next thing thrown at it.
+        if (entry && shelf && !entry.parked) shelf.park(entry);
       } else {
         p.x = THREE.MathUtils.damp(p.x, base[0], HOME_LAMBDA, delta);
         p.y = THREE.MathUtils.damp(p.y, base[1], HOME_LAMBDA, delta);
@@ -280,6 +454,15 @@ export default function Grabbable({
         g.rotation.z = THREE.MathUtils.damp(g.rotation.z, 0, HOME_LAMBDA, delta);
       }
     }
+
+    // Step the shelf. Every prop standing on the plank calls this and the
+    // world serves only the first one each frame, so who gets there is
+    // whichever useFrame r3f registered first — except while something is in
+    // hand, where the carrier claims the slot. The kinematic body has to be
+    // pushed from the pose computed above, in this frame, or a throw lands
+    // its contact one frame late.
+    if (shelf && (phase.current === "held" || !shelf.carrying()))
+      shelf.tick(delta, state.clock.elapsedTime);
 
     // The shade stays on the wood under wherever the prop actually is, and
     // spreads and thins with height — the only cue in a shadowless scene
@@ -317,6 +500,10 @@ export default function Grabbable({
           if (useStacks.getState().activeUnit !== unitIndex) return;
           e.stopPropagation();
           useStacks.getState().setHovered(hoverKey);
+          // The one honest moment to start the download: a pointer resting on
+          // something you can pick up, several hundred milliseconds before the
+          // press. Idempotent, and a no-op on touch or a degraded machine.
+          prefetchPhysics();
         }}
         onPointerOut={() => {
           if (useStacks.getState().hovered === hoverKey)
