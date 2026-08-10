@@ -9,6 +9,7 @@ import { EggLamp, SpinProp } from "../eggs";
 import { ContactShade, FootPool } from "../GroundPool";
 import ModelProp from "../ModelProp";
 import { CardStack, Polaroid, PortraitFrame, PostcardPrint } from "../objects";
+import { DeskFrame, deskFrameHeight } from "../photos";
 import { BookPile, ShelfUnit } from "../primitives";
 import { useUnitLod } from "../useUnitLod";
 import { type UnitProps } from "./types";
@@ -33,12 +34,33 @@ export default function UnitAbout({
             {/* Egg: the lamp clicks off and back on. */}
             <EggLamp unitIndex={index} palette={palette} dark={dark} yaw={0.55} />
           </group>
-          <BookPile palette={palette} x={0.55} salt={9} />
+          <BookPile palette={palette} x={0.5} salt={9} linkUnit={index} />
           {/* Mug lives lower-right so the globe gets the visible top-shelf
               slot (x > ~1.1 hides behind the desktop placard). */}
           <React.Suspense fallback={null}>
-            <ModelProp url="/models/mug.glb" dark={dark} position={[1.0, 0, 0.05]} rotation={[0, -0.4, 0]} />
+            <ModelProp url="/models/mug.glb" dark={dark} position={[0.86, 0, 0.05]} rotation={[0, -0.4, 0]} />
           </React.Suspense>
+          {/* The four brothers, and the whole family at Christmas — the left
+              flank of this shelf was empty in every screenshot he sent. */}
+          <group position={[-1.06, 0.1425, 0.06]} rotation={[-0.16, 0.22, 0.03]}>
+            <Polaroid
+              src="/images/stacks/about-brothers.jpg"
+              palette={palette}
+              textured={textured}
+            />
+          </group>
+          <group
+            position={[-0.14, deskFrameHeight(0.2) / 2, 0.04]}
+            rotation={[-0.12, -0.18, 0]}
+          >
+            <DeskFrame
+              src="/images/stacks/about-holidays.jpg"
+              palette={palette}
+              textured={textured}
+              width={0.27}
+              height={0.2}
+            />
+          </group>
         </group>
       }
     >
@@ -49,7 +71,7 @@ export default function UnitAbout({
           textured={textured}
         />
       </group>
-      <group position={[0.45, 0, 0.05]}>
+      <group position={[0.30, 0, 0.05]}>
         <CardStack palette={palette} />
         <ContactShade
           color={palette.shadow}
@@ -59,14 +81,14 @@ export default function UnitAbout({
       </group>
       {/* Polaroid pair leaning by the cards — the beach at sunset and the
           four brothers (audit §5 ★ picks). Contact = (h/2)·cos(lean). */}
-      <group position={[0.6, 0.1425, 0.1]} rotation={[-0.17, 0.1, -0.04]}>
+      <group position={[0.46, 0.1425, 0.1]} rotation={[-0.17, 0.1, -0.04]}>
         <Polaroid
           src="/images/stacks/beach-sunset.jpg"
           palette={palette}
           textured={textured}
         />
       </group>
-      <group position={[0.79, 0.1425, 0.17]} rotation={[-0.15, 0.16, 0.06]}>
+      <group position={[0.63, 0.1425, 0.17]} rotation={[-0.15, 0.16, 0.06]}>
         <Polaroid
           src="/images/stacks/bros.jpg"
           palette={palette}
@@ -75,7 +97,7 @@ export default function UnitAbout({
       </group>
       {/* Egg: one slow damped revolution per click. The spin wrapper sits AT
           the globe's slot so the turn is about its own stand, not the unit. */}
-      <group position={[0.95, 0, -0.1]}>
+      <group position={[0.82, 0, -0.1]}>
         <SpinProp unitIndex={index} hoverKey="egg:globe">
           <React.Suspense fallback={null}>
             <ModelProp url="/models/globe.glb" dark={dark} rotation={[0, -0.7, 0]} scale={1.5} />
@@ -84,14 +106,14 @@ export default function UnitAbout({
       </group>
       {/* Postcard pair leaning on the globe stand — Budapest Parliament +
           Delicate Arch (the Instagram curation round's top travel frame). */}
-      <group position={[0.8, 0.0735, 0.04]} rotation={[-0.2, 0.05, 0.05]}>
+      <group position={[0.67, 0.0735, 0.04]} rotation={[-0.2, 0.05, 0.05]}>
         <PostcardPrint
           src="/images/stacks/postcard-budapest.jpg"
           palette={palette}
           textured={textured}
         />
       </group>
-      <group position={[0.93, 0.0735, 0.13]} rotation={[-0.18, 0.3, -0.05]}>
+      <group position={[0.80, 0.0735, 0.13]} rotation={[-0.18, 0.3, -0.05]}>
         <PostcardPrint
           src="/images/stacks/postcard-arches.jpg"
           palette={palette}

@@ -2,11 +2,15 @@
 
 // The library — packed cover/spine rows on both shelves plus a floor pile,
 // bookends holding the loose row ends, and a library ladder leaning on the
-// unit's left flank.
+// unit's left flank. The featured covers open their own notes; every other
+// book on the unit — spine, flat stack, leaner, pile — opens the library
+// itself (`linkUnit`).
 import React, { useMemo } from "react";
 
 import { FootPool } from "../GroundPool";
 import ModelProp from "../ModelProp";
+import { Polaroid } from "../objects";
+import { DeskFrame, deskFrameHeight } from "../photos";
 import { Bookend, BookPile, BookRowMesh, packRow, ShelfUnit } from "../primitives";
 import { useUnitLod } from "../useUnitLod";
 import { type UnitProps } from "./types";
@@ -51,13 +55,48 @@ export default function UnitBooks({
                 textured={textured}
                 coverWidth={coverWidth}
                 onCoverClick={onOpenBook}
+                linkUnit={index}
               />
               {/* L-steel pair holds the short row's loose start. */}
               <group position={[-1.0, 0, 0]}>
                 <Bookend palette={palette} />
               </group>
             </group>
-            <BookPile palette={palette} x={-0.85} salt={23} />
+            <BookPile palette={palette} x={-0.85} salt={23} linkUnit={index} />
+            {/* Both rows are packed edge to edge, so the photographs prop
+                against the books at the shelf's front lip (z 0.22 clears the
+                0.3-deep spines) — which is where you'd actually stand a
+                picture on a full bookshelf. NOISE in his own hand in front
+                of his own shelf is the anchor; it earns the frame. */}
+            <group
+              position={[-0.22, deskFrameHeight(0.21) / 2, 0.22]}
+              rotation={[-0.05, 0.14, 0]}
+            >
+              <DeskFrame
+                src="/images/stacks/books-noise.jpg"
+                palette={palette}
+                textured={textured}
+                width={0.28}
+                height={0.21}
+              />
+            </group>
+            <group position={[0.2, 0.1425, 0.24]} rotation={[-0.14, -0.1, 0.03]}>
+              <Polaroid
+                src="/images/stacks/books-quiet.jpg"
+                palette={palette}
+                textured={textured}
+              />
+            </group>
+            {/* Left of the floor pile, clear of both packed rows — in front
+                of the TOP row it covered a featured cover, which is the one
+                thing the shelf can't afford. */}
+            <group position={[-1.16, 0.1425, 0.12]} rotation={[-0.16, 0.24, -0.05]}>
+              <Polaroid
+                src="/images/stacks/books-goldenhour.jpg"
+                palette={palette}
+                textured={textured}
+              />
+            </group>
           </group>
         }
       >
@@ -70,6 +109,7 @@ export default function UnitBooks({
             textured={textured}
             coverWidth={coverWidth}
             onCoverClick={onOpenBook}
+            linkUnit={index}
           />
           <group position={[-1.48, 0, 0]}>
             <Bookend palette={palette} />

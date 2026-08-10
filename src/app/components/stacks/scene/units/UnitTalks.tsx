@@ -42,11 +42,20 @@ export default function UnitTalks({
           {/* GenAI Summit open — him on the mic in the organizer vest
               (curator's top talks pick), an instant print leaning at the
               shelf's far left. */}
-          <group position={[-1.05, 0.1555, 0.05]} rotation={[-0.15, 0.1, -0.05]}>
+          <group position={[-1.12, 0.1555, 0.05]} rotation={[-0.15, 0.1, -0.05]}>
             <Polaroid
               src="/images/stacks/talk-summit.jpg"
               palette={palette}
               size={0.26}
+              textured={textured}
+            />
+          </group>
+          {/* Mic in hand, arm up, GenAI Collective banners behind — him
+              HOSTING, a different register from the polished stage shoot. */}
+          <group position={[0.06, 0.1425, 0.14]} rotation={[-0.15, -0.14, 0.04]}>
+            <Polaroid
+              src="/images/stacks/talk-mic.jpg"
+              palette={palette}
               textured={textured}
             />
           </group>

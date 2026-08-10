@@ -13,6 +13,7 @@ import { type Palette, proxied, rand } from "../theme";
 import { useStacks } from "../store";
 import { ContactShade } from "./GroundPool";
 import Lift from "./Lift";
+import PropLink from "./links";
 import LitImage from "./LitImage";
 
 export type RowItem =
@@ -126,6 +127,40 @@ export class CoverBoundary extends React.Component<
   }
 }
 
+/** A scenery book in a packed row: a plain positioned group, or — when the
+ * row knows its unit — a door into the library with the standard hover lift.
+ * The five featured covers keep their own modal; everything else on the
+ * shelf is the rest of the library, so it opens the library. */
+function ShelfBook({
+  linkUnit,
+  hoverKey,
+  base,
+  lift,
+  children,
+}: {
+  linkUnit?: number;
+  hoverKey: string;
+  base: [number, number, number];
+  lift: [number, number, number];
+  children: React.ReactNode;
+}) {
+  if (linkUnit === undefined) return <group position={base}>{children}</group>;
+  return (
+    <PropLink
+      unitIndex={linkUnit}
+      to="books"
+      hoverKey={hoverKey}
+      base={base}
+      lift={lift}
+    >
+      {children}
+    </PropLink>
+  );
+}
+
+const SPINE_LIFT: [number, number, number] = [0, 0.035, 0.02];
+const FLAT_LIFT: [number, number, number] = [0, 0.025, 0.025];
+
 export function BookRowMesh({
   items,
   palette,
@@ -133,6 +168,7 @@ export function BookRowMesh({
   textured = true,
   coverWidth = 384,
   onCoverClick,
+  linkUnit,
 }: {
   items: RowItem[];
   palette: Palette;
@@ -142,42 +178,55 @@ export function BookRowMesh({
   textured?: boolean;
   coverWidth?: 256 | 384;
   onCoverClick?: (key: string) => void;
+  /** Unit index — set it and every non-cover book in the row becomes a door
+   * into the library (gated on that unit being the active one). */
+  linkUnit?: number;
 }) {
   const setHovered = useStacks((s) => s.setHovered);
   return (
     <group>
       {items.map((item, i) =>
         item.kind === "spine" ? (
-          <group
+          <ShelfBook
             key={i}
-            position={[item.x, item.h / 2, 0]}
-            rotation={[0, 0, rand(i, salt + 5) * 0.04 - 0.02]}
+            linkUnit={linkUnit}
+            hoverKey={`link:row:${linkUnit}:${salt}:${i}`}
+            base={[item.x, item.h / 2, 0]}
+            lift={SPINE_LIFT}
           >
-            <RoundedBox
-              castShadow
-              args={[item.w, item.h, 0.3]}
-              radius={0.012}
-              smoothness={4}
-            >
-              <meshStandardMaterial
-                color={item.color}
-                roughness={0.55 + rand(i, salt + 6) * 0.35}
-              />
-            </RoundedBox>
-            {item.w >= 0.09 && (
-              <mesh position={[0, 0, 0.151]}>
-                <planeGeometry args={[item.w * 0.9, item.h * 0.94]} />
+            <group rotation={[0, 0, rand(i, salt + 5) * 0.04 - 0.02]}>
+              <RoundedBox
+                castShadow
+                args={[item.w, item.h, 0.3]}
+                radius={0.012}
+                smoothness={4}
+              >
                 <meshStandardMaterial
-                  map={spineDetailTexture(palette.ink, Math.floor(rand(i, salt + 8) * 6))}
-                  transparent
-                  depthWrite={false}
-                  roughness={0.7}
+                  color={item.color}
+                  roughness={0.55 + rand(i, salt + 6) * 0.35}
                 />
-              </mesh>
-            )}
-          </group>
+              </RoundedBox>
+              {item.w >= 0.09 && (
+                <mesh position={[0, 0, 0.151]}>
+                  <planeGeometry args={[item.w * 0.9, item.h * 0.94]} />
+                  <meshStandardMaterial
+                    map={spineDetailTexture(palette.ink, Math.floor(rand(i, salt + 8) * 6))}
+                    transparent
+                    depthWrite={false}
+                    roughness={0.7}
+                  />
+                </mesh>
+              )}
+            </group>
+          </ShelfBook>
         ) : item.kind === "flat" ? (
-          <group key={i} position={[item.x, 0, 0]}>
+          <ShelfBook
+            key={i}
+            linkUnit={linkUnit}
+            hoverKey={`link:row:${linkUnit}:${salt}:${i}`}
+            base={[item.x, 0, 0]}
+            lift={FLAT_LIFT}
+          >
             {item.colors.map((color, j) => (
               <RoundedBox
                 key={j}
@@ -191,25 +240,31 @@ export function BookRowMesh({
                 <meshStandardMaterial color={color} roughness={0.7} />
               </RoundedBox>
             ))}
-          </group>
+          </ShelfBook>
         ) : item.kind === "lean" ? (
           // Contact: rotZ drops one bottom corner — lift by the exact
           // h/2·cos + w/2·sin so the corner stays on the wood.
-          <RoundedBox
+          <ShelfBook
             key={i}
-            castShadow
-            args={[item.w, item.h, 0.3]}
-            radius={0.012}
-            smoothness={4}
-            position={[
+            linkUnit={linkUnit}
+            hoverKey={`link:row:${linkUnit}:${salt}:${i}`}
+            base={[
               item.x,
               (item.h / 2) * Math.cos(0.17) + (item.w / 2) * Math.sin(0.17),
               0,
             ]}
-            rotation={[0, 0, 0.17]}
+            lift={SPINE_LIFT}
           >
-            <meshStandardMaterial color={item.color} roughness={0.65} />
-          </RoundedBox>
+            <RoundedBox
+              castShadow
+              args={[item.w, item.h, 0.3]}
+              radius={0.012}
+              smoothness={4}
+              rotation={[0, 0, 0.17]}
+            >
+              <meshStandardMaterial color={item.color} roughness={0.65} />
+            </RoundedBox>
+          </ShelfBook>
         ) : !textured ? (
           <group
             key={item.key}
@@ -478,11 +533,33 @@ export function BookPile({
   palette,
   x = 0,
   salt = 9,
+  linkUnit,
 }: {
   palette: Palette;
   x?: number;
   salt?: number;
+  /** Unit index — set it and the stack (never its contact shade, which stays
+   * planted on the wood) becomes a door into the library. */
+  linkUnit?: number;
 }) {
+  const stack = palette.pile.map((_, i) => (
+    <group
+      key={i}
+      // 0.026 = half height 0.03 sunk by ~radius/2 to bury the bevel rim.
+      position={[i * 0.02, 0.026 + i * 0.066, 0]}
+      rotation={[0, rand(i, salt) * 0.5 - 0.25, 0]}
+    >
+      <RoundedBox castShadow args={[0.46, 0.06, 0.32]} radius={0.008} smoothness={4}>
+        <meshStandardMaterial
+          color={palette.pile[(i + salt) % palette.pile.length]}
+          roughness={0.8}
+        />
+      </RoundedBox>
+      <RoundedBox args={[0.44, 0.044, 0.31]} radius={0.008} smoothness={4} position={[0.014, 0, 0.014]}>
+        <meshStandardMaterial color={palette.pages} roughness={0.9} />
+      </RoundedBox>
+    </group>
+  ));
   return (
     <group position={[x, 0, 0]}>
       <ContactShade
@@ -490,24 +567,18 @@ export function BookPile({
         width={0.62}
         position={[0.02, 0.03, 0.02]}
       />
-      {palette.pile.map((_, i) => (
-        <group
-          key={i}
-          // 0.026 = half height 0.03 sunk by ~radius/2 to bury the bevel rim.
-          position={[i * 0.02, 0.026 + i * 0.066, 0]}
-          rotation={[0, rand(i, salt) * 0.5 - 0.25, 0]}
+      {linkUnit === undefined ? (
+        stack
+      ) : (
+        <PropLink
+          unitIndex={linkUnit}
+          to="books"
+          hoverKey={`link:pile:${linkUnit}:${salt}`}
+          lift={[0, 0.028, 0.025]}
         >
-          <RoundedBox castShadow args={[0.46, 0.06, 0.32]} radius={0.008} smoothness={4}>
-            <meshStandardMaterial
-              color={palette.pile[(i + salt) % palette.pile.length]}
-              roughness={0.8}
-            />
-          </RoundedBox>
-          <RoundedBox args={[0.44, 0.044, 0.31]} radius={0.008} smoothness={4} position={[0.014, 0, 0.014]}>
-            <meshStandardMaterial color={palette.pages} roughness={0.9} />
-          </RoundedBox>
-        </group>
-      ))}
+          {stack}
+        </PropLink>
+      )}
     </group>
   );
 }
@@ -748,9 +819,10 @@ function plateGeometry(r: number, depth: number): THREE.ExtrudeGeometry {
 /** Two rubber bumper plates leaning against the shelf back, steel hub
  * rings around the bore. Disc face lies in the extrude's xy plane, so
  * standing them up is the default orientation plus a lean. Rubber keeps
- * its albedo across themes, so the colors are constants, not palette. */
-export function BumperPlates() {
-  return (
+ * its albedo across themes, so the colors are constants, not palette.
+ * `linkUnit` turns the pair into a door to the weightlifting log. */
+export function BumperPlates({ linkUnit }: { linkUnit?: number }) {
+  const plates = (
     <group>
       {[
         { r: 0.185, t: 0.052, x: 0, lean: 0.13, yaw: 0.14, color: "#8a4a30" },
@@ -777,6 +849,18 @@ export function BumperPlates() {
         </group>
       ))}
     </group>
+  );
+  if (linkUnit === undefined) return plates;
+  return (
+    <PropLink
+      unitIndex={linkUnit}
+      to="weightlifting"
+      hoverKey={`link:plates:${linkUnit}`}
+      // Iron doesn't leap — the smallest lift in the scene.
+      lift={[0, 0.018, 0.015]}
+    >
+      {plates}
+    </PropLink>
   );
 }
 

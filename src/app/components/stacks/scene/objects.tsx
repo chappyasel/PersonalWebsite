@@ -10,6 +10,7 @@ import * as THREE from "three";
 import { type Palette, rand } from "../theme";
 import { useStacks } from "../store";
 import Lift from "./Lift";
+import PropLink from "./links";
 import LitImage from "./LitImage";
 
 /** Framed standing portrait — the identity anchor of the About unit.
@@ -219,17 +220,22 @@ export function InboxTray({ palette }: { palette: Palette }) {
   );
 }
 
-/** Row of leaning notebook spines; the front few are clickable blog posts. */
+/** Row of leaning notebook spines; the front few are clickable blog posts,
+ * and — with `linkUnit` — the rest open the writing itself. */
 export function NotebookLean({
   palette,
   count = 6,
   clickKeys = [],
   onNotebookClick,
+  linkUnit,
 }: {
   palette: Palette;
   count?: number;
   clickKeys?: string[];
   onNotebookClick?: (key: string) => void;
+  /** Unit index — the spines that aren't a specific post become doors to the
+   * blog as a whole (gated on that unit being the active one). */
+  linkUnit?: number;
 }) {
   const setHovered = useStacks((s) => s.setHovered);
   // Two cool accents among warm neutrals, like the shelf spines.
@@ -288,42 +294,75 @@ export function NotebookLean({
         );
         // Only clickable spines pay for a useFrame slot. 0.257 = lean-
         // compensated contact, sunk ~radius/2 to bury the bevel rim.
-        return key ? (
-          <Lift
-            key={i}
-            hoverKey={`notebook:${key}`}
-            base={[x, 0.257, 0]}
-            offset={[0, 0.04, 0.02]}
-          >
-            {spine}
-          </Lift>
-        ) : (
+        if (key) {
+          return (
+            <Lift
+              key={i}
+              hoverKey={`notebook:${key}`}
+              base={[x, 0.257, 0]}
+              offset={[0, 0.04, 0.02]}
+            >
+              {spine}
+            </Lift>
+          );
+        }
+        return linkUnit === undefined ? (
           <group key={i} position={[x, 0.257, 0]}>
             {spine}
           </group>
+        ) : (
+          <PropLink
+            key={i}
+            unitIndex={linkUnit}
+            to="blog"
+            hoverKey={`link:notebook:${linkUnit}:${i}`}
+            base={[x, 0.257, 0]}
+            lift={[0, 0.04, 0.02]}
+          >
+            {spine}
+          </PropLink>
         );
       })}
     </group>
   );
 }
 
-/** Paper stack + pen for the Blog lower shelf. */
-export function PaperStack({ palette }: { palette: Palette }) {
+/** Paper stack + pen for the Blog lower shelf. `linkUnit` makes the sheets
+ * (the pen stays put) a door to the writing. */
+export function PaperStack({
+  palette,
+  linkUnit,
+}: {
+  palette: Palette;
+  linkUnit?: number;
+}) {
+  const sheets = [0, 1, 2].map((i) => (
+    <RoundedBox
+      key={i}
+      castShadow
+      args={[0.42, 0.016, 0.3]}
+      radius={0.004}
+      smoothness={4}
+      position={[i * 0.008, 0.008 + i * 0.017, i * -0.006]}
+      rotation={[0, rand(i, 61) * 0.3 - 0.15, 0]}
+    >
+      <meshStandardMaterial color={palette.paper} roughness={0.95} />
+    </RoundedBox>
+  ));
   return (
     <group>
-      {[0, 1, 2].map((i) => (
-        <RoundedBox
-          key={i}
-          castShadow
-          args={[0.42, 0.016, 0.3]}
-          radius={0.004}
-          smoothness={4}
-          position={[i * 0.008, 0.008 + i * 0.017, i * -0.006]}
-          rotation={[0, rand(i, 61) * 0.3 - 0.15, 0]}
+      {linkUnit === undefined ? (
+        sheets
+      ) : (
+        <PropLink
+          unitIndex={linkUnit}
+          to="blog"
+          hoverKey={`link:paper:${linkUnit}`}
+          lift={[0, 0.022, 0.02]}
         >
-          <meshStandardMaterial color={palette.paper} roughness={0.95} />
-        </RoundedBox>
-      ))}
+          {sheets}
+        </PropLink>
+      )}
       <mesh
         castShadow
         position={[0.12, 0.062, 0.1]}

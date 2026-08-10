@@ -9,6 +9,7 @@ import { RoundedBox } from "@react-three/drei";
 
 import { SteamCup } from "../eggs";
 import { ContactShade } from "../GroundPool";
+import PropLink from "../links";
 import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
 import { NotebookLean, PaperStack, Polaroid } from "../objects";
@@ -35,7 +36,7 @@ export default function UnitBlog({
       lower={
         <group>
           <group position={[0.25, 0, 0]}>
-            <PaperStack palette={palette} />
+            <PaperStack palette={palette} linkUnit={index} />
             <ContactShade
               color={palette.shadow}
               width={0.55}
@@ -77,6 +78,7 @@ export default function UnitBlog({
           palette={palette}
           clickKeys={clickKeys}
           onNotebookClick={onOpenUrl}
+          linkUnit={index}
         />
         <ContactShade
           color={palette.shadow}
@@ -85,17 +87,26 @@ export default function UnitBlog({
           position={[0, 0.03, 0.1]}
         />
       </group>
-      <React.Suspense fallback={null}>
-        <ModelProp
-          url="/models/open-book.glb"
-          dark={dark}
-          variant="tinted"
-          tints={{ Beige: palette.pages, DarkRed: palette.spines[3] }}
-          position={[0.85, 0, 0.08]}
-          rotation={[0, -0.35, 0]}
-          scale={0.7}
-        />
-      </React.Suspense>
+      {/* A book is a book, wherever it's lying — the open one opens the
+          library, same as every spine and pile in the world. */}
+      <PropLink
+        unitIndex={index}
+        to="books"
+        hoverKey="link:openbook"
+        lift={[0, 0.025, 0.02]}
+      >
+        <React.Suspense fallback={null}>
+          <ModelProp
+            url="/models/open-book.glb"
+            dark={dark}
+            variant="tinted"
+            tints={{ Beige: palette.pages, DarkRed: palette.spines[3] }}
+            position={[0.85, 0, 0.08]}
+            rotation={[0, -0.35, 0]}
+            scale={0.7}
+          />
+        </React.Suspense>
+      </PropLink>
       {/* Cup of tea beside the open book — mid-thought, mid-sip.
           Egg: click and a few faint steam wisps rise off the surface. */}
       <SteamCup
@@ -129,6 +140,9 @@ export default function UnitBlog({
           { src: "/images/stacks/pin-dunes.jpg", x: -0.17, y: 0.22, roll: -0.08 },
           { src: "/images/stacks/pin-trail.jpg", x: 0.11, y: 0.28, roll: 0.1 },
           { src: "/images/stacks/pin-creek.jpg", x: -0.02, y: 0.09, roll: 0.04 },
+          // Fourth pin: alone on an empty shore, walking away — the quietest
+          // frame in the archive, and the board had room low-right.
+          { src: "/images/stacks/musings-shore.jpg", x: 0.15, y: 0.07, roll: -0.06 },
         ].map((pin) => (
           <group
             key={pin.src}

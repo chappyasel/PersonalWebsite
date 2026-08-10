@@ -3,15 +3,18 @@
 // Training — real bumper plates leaning against the shelf back with a
 // kettlebell, a loaded barbell lying along the lower shelf behind the
 // dumbbell and basketball, and a golf club leaning against the unit's side
-// (the only prop tall enough to demand the floor).
+// (the only prop tall enough to demand the floor). Every piece of iron —
+// plates, kettlebell, barbell, dumbbell — opens the training log.
 import { RoundedBox } from "@react-three/drei";
 import React from "react";
 
 import { BounceProp, RollBall } from "../eggs";
 import { ContactShade, FootPool } from "../GroundPool";
+import PropLink from "../links";
 import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
 import { Polaroid } from "../objects";
+import { DeskFrame, deskFrameHeight } from "../photos";
 import { BookPile, BumperPlates, ShelfUnit } from "../primitives";
 import { useUnitLod } from "../useUnitLod";
 import { type UnitProps } from "./types";
@@ -25,17 +28,24 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
         toneSeed={index}
         lower={
           <group>
-            <React.Suspense fallback={null}>
-              {/* ×1.15 over v3 and darkened toward iron — it sat shelf-toned
-                  and undersized next to the basketball (audit §3-Training). */}
-              <ModelProp
-                url="/models/dumbbell.glb"
-                dark={dark}
-                atlasOverride={{ tint: "#8d857c", roughness: 0.55 }}
-                rotation={[0, 0.5, 0]}
-                scale={1.27}
-              />
-            </React.Suspense>
+            <PropLink
+              unitIndex={index}
+              to="weightlifting"
+              hoverKey="link:dumbbell"
+              lift={[0, 0.018, 0.015]}
+            >
+              <React.Suspense fallback={null}>
+                {/* ×1.15 over v3 and darkened toward iron — it sat shelf-toned
+                    and undersized next to the basketball (audit §3-Training). */}
+                <ModelProp
+                  url="/models/dumbbell.glb"
+                  dark={dark}
+                  atlasOverride={{ tint: "#8d857c", roughness: 0.55 }}
+                  rotation={[0, 0.5, 0]}
+                  scale={1.27}
+                />
+              </React.Suspense>
+            </PropLink>
             {/* Egg: one soft bounce per click, landing exactly back. */}
             <BounceProp unitIndex={index} hoverKey="egg:basketball">
               <React.Suspense fallback={null}>
@@ -54,24 +64,40 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
                 />
               </React.Suspense>
             </BounceProp>
-            <React.Suspense fallback={null}>
-              {/* Zsky barbell (CC-BY, credited) lying along the shelf back. */}
-              <ModelProp
-                url="/models/barbell.glb"
-                dark={dark}
-                variant="tinted"
-                tints={{
-                  Iron1Barbell1: palette.hub,
-                  Steel1Barbell1: "#8a8f94",
-                }}
-                roughness={0.45}
-                position={[0, 0, -0.19]}
-                rotation={[0, 0.02, 0]}
-                scale={0.55}
-              />
-            </React.Suspense>
+            <PropLink
+              unitIndex={index}
+              to="weightlifting"
+              hoverKey="link:barbell"
+              lift={[0, 0.018, 0.015]}
+            >
+              <React.Suspense fallback={null}>
+                {/* Zsky barbell (CC-BY, credited) lying along the shelf back. */}
+                <ModelProp
+                  url="/models/barbell.glb"
+                  dark={dark}
+                  variant="tinted"
+                  tints={{
+                    Iron1Barbell1: palette.hub,
+                    Steel1Barbell1: "#8a8f94",
+                  }}
+                  roughness={0.45}
+                  position={[0, 0, -0.19]}
+                  rotation={[0, 0.02, 0]}
+                  scale={0.55}
+                />
+              </React.Suspense>
+            </PropLink>
             {/* Framed gym photo fills the bare lower-left (audit §2.5) —
                 the SF Gyms mirror shot, the one that survives 300px. */}
+            {/* Tough Mudder, under the wire and grinning — effort without
+                the posing register he rules out. */}
+            <group position={[-0.42, 0.1425, 0.16]} rotation={[-0.14, -0.22, -0.04]}>
+              <Polaroid
+                src="/images/stacks/training-mud.jpg"
+                palette={palette}
+                textured={textured}
+              />
+            </group>
             <group position={[-1.12, 0.272, -0.02]} rotation={[-0.1, 0.16, 0]}>
               <RoundedBox
                 castShadow
@@ -101,7 +127,7 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
             shelf back — the CC-BY porcelain proxy read as dinnerware
             (owner-killed at browse). */}
         <group position={[-0.95, 0, -0.08]}>
-          <BumperPlates />
+          <BumperPlates linkUnit={index} />
           <ContactShade
             color={palette.shadow}
             width={0.9}
@@ -109,20 +135,27 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
             position={[0.15, 0.04, 0.12]}
           />
         </group>
-        <React.Suspense fallback={null}>
-          <ModelProp
-            url="/models/kettlebell.glb"
-            dark={dark}
-            variant="tinted"
-            tints={{ phong1SG: palette.hub }}
-            roughness={0.5}
-            position={[-0.15, 0, 0.1]}
-            rotation={[0, -0.5, 0]}
-            scale={1.1}
-          />
-        </React.Suspense>
+        <PropLink
+          unitIndex={index}
+          to="weightlifting"
+          hoverKey="link:kettlebell"
+          lift={[0, 0.018, 0.015]}
+        >
+          <React.Suspense fallback={null}>
+            <ModelProp
+              url="/models/kettlebell.glb"
+              dark={dark}
+              variant="tinted"
+              tints={{ phong1SG: palette.hub }}
+              roughness={0.5}
+              position={[-0.15, 0, 0.1]}
+              rotation={[0, -0.5, 0]}
+              scale={1.1}
+            />
+          </React.Suspense>
+        </PropLink>
         <group position={[0.75, 0, 0]}>
-          <BookPile palette={palette} salt={31} />
+          <BookPile palette={palette} salt={31} linkUnit={index} />
         </group>
         {/* Chappaquiddick pin-flag print — the golf half of the training
             story, leaning between kettlebell and pile. */}
@@ -132,6 +165,22 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
             palette={palette}
             size={0.215}
             textured={textured}
+          />
+        </group>
+        {/* Racked and folded over the bar after a heavy set. The v4 audit
+            concluded no mid-lift still existed in any archive and only a
+            video frame-grab could supply one; it was in the Twitter export.
+            Framed, because it's the one that earns it. */}
+        <group
+          position={[-0.45, deskFrameHeight(0.23) / 2, 0.12]}
+          rotation={[-0.09, 0.2, 0.02]}
+        >
+          <DeskFrame
+            src="/images/stacks/training-squat.jpg"
+            palette={palette}
+            textured={textured}
+            width={0.24}
+            height={0.23}
           />
         </group>
       </ShelfUnit>

@@ -9,12 +9,16 @@ import React from "react";
 
 import { EggClock } from "../eggs";
 import { ContactShade, FootPool } from "../GroundPool";
+import PropLink from "../links";
 import ModelProp from "../ModelProp";
-import { InboxTray } from "../objects";
+import { InboxTray, Polaroid } from "../objects";
+import { DeskFrame, deskFrameHeight } from "../photos";
 import { BookPile, ShelfUnit } from "../primitives";
+import { useUnitLod } from "../useUnitLod";
 import { type UnitProps } from "./types";
 
 export default function UnitSystems({ palette, dark, index }: UnitProps) {
+  const textured = useUnitLod(index);
   return (
     <group>
       <ShelfUnit
@@ -22,7 +26,28 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
         toneSeed={index}
         lower={
           <group>
-            <BookPile palette={palette} x={0.3} salt={58} />
+            <BookPile palette={palette} x={0.3} salt={58} linkUnit={index} />
+            {/* First light on a ridge, and the redwoods — "get outside" as
+                a practice. They fill the bare left half of this shelf. */}
+            <group
+              position={[-1.05, deskFrameHeight(0.2) / 2, 0.05]}
+              rotation={[-0.11, 0.26, -0.02]}
+            >
+              <DeskFrame
+                src="/images/stacks/systems-ridge.jpg"
+                palette={palette}
+                textured={textured}
+                width={0.28}
+                height={0.2}
+              />
+            </group>
+            <group position={[-0.2, 0.1425, 0.14]} rotation={[-0.16, -0.2, 0.05]}>
+              <Polaroid
+                src="/images/stacks/systems-redwoods.jpg"
+                palette={palette}
+                textured={textured}
+              />
+            </group>
             <group position={[-0.55, 0, 0]}>
               <React.Suspense fallback={null}>
                 <ModelProp
@@ -49,14 +74,22 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
         }
       >
         <group position={[-1.0, 0, 0]}>
-          <React.Suspense fallback={null}>
-            <ModelProp
-              url="/models/ct-books.glb"
-              dark={dark}
-              rotation={[0, 0.25, 0]}
-              scale={2.2}
-            />
-          </React.Suspense>
+          {/* The operating manual, standing where the manual lives. */}
+          <PropLink
+            unitIndex={index}
+            to="manual"
+            hoverKey="link:ctbooks"
+            lift={[0, 0.028, 0.02]}
+          >
+            <React.Suspense fallback={null}>
+              <ModelProp
+                url="/models/ct-books.glb"
+                dark={dark}
+                rotation={[0, 0.25, 0]}
+                scale={2.2}
+              />
+            </React.Suspense>
+          </PropLink>
           <ContactShade
             color={palette.shadow}
             width={0.52}
@@ -81,6 +114,16 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
               <ModelProp url="/models/alarm-clock.glb" dark={dark} scale={1.6} />
             </React.Suspense>
           </EggClock>
+        </group>
+        {/* Sunrise over the water, beside the clock whose egg winds to 3:45.
+            The unit is about getting up before everyone else; this is what
+            that actually looks like. */}
+        <group position={[0.28, 0.1425, 0.1]} rotation={[-0.15, -0.16, 0.03]}>
+          <Polaroid
+            src="/images/stacks/systems-sunrise.jpg"
+            palette={palette}
+            textured={textured}
+          />
         </group>
         <group position={[0.85, 0, 0]}>
           <InboxTray palette={palette} />
