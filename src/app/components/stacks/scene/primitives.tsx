@@ -545,6 +545,36 @@ export function Bookend({
   );
 }
 
+// Bulb halo. The old two-stop gradient ended its ramp with a hard slope
+// change at the disc edge, and a slope change in a shallow gradient is a
+// Mach band — at lamp scale that printed as a visible circle in the sky,
+// which is what the owner saw and called "this line in the background".
+// These stops trace a gaussian and arrive at the rim with a near-zero
+// derivative, so the halo has no edge to find.
+let glowTextureCache: THREE.CanvasTexture | null = null;
+function glowTexture(): THREE.CanvasTexture {
+  if (glowTextureCache) return glowTextureCache;
+  const size = 128;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d")!;
+  const grad = ctx.createRadialGradient(
+    size / 2, size / 2, 0,
+    size / 2, size / 2, size / 2,
+  );
+  for (const [stop, a] of [
+    [0, 1], [0.12, 0.82], [0.24, 0.56], [0.36, 0.34],
+    [0.5, 0.17], [0.64, 0.072], [0.78, 0.024], [0.9, 0.005], [1, 0],
+  ] as const) {
+    grad.addColorStop(stop, `rgba(255, 186, 112, ${a})`);
+  }
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  glowTextureCache = new THREE.CanvasTexture(canvas);
+  return glowTextureCache;
+}
+
 export function GlowSprite({
   opacity: baseOpacity,
   eased = false,
@@ -566,23 +596,7 @@ export function GlowSprite({
   // reads as an orange searchlight.
   const postfx = useStacks((s) => s.postfx);
   const opacity = baseOpacity * (postfx ? 0.45 : 1);
-  const texture = useMemo(() => {
-    const size = 128;
-    const canvas = document.createElement("canvas");
-    canvas.width = size;
-    canvas.height = size;
-    const ctx = canvas.getContext("2d")!;
-    const grad = ctx.createRadialGradient(
-      size / 2, size / 2, 0,
-      size / 2, size / 2, size / 2,
-    );
-    grad.addColorStop(0, "rgba(255, 190, 115, 1)");
-    grad.addColorStop(0.4, "rgba(255, 170, 90, 0.35)");
-    grad.addColorStop(1, "rgba(255, 160, 80, 0)");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, size, size);
-    return new THREE.CanvasTexture(canvas);
-  }, []);
+  const texture = useMemo(() => glowTexture(), []);
   const world = useMemo(() => new THREE.Vector3(), []);
   useFrame(({ camera }) => {
     const sprite = ref.current;
@@ -608,38 +622,25 @@ export function GlowSprite({
   );
 }
 
-// Vertical alpha falloff for the fake light cone — tip bright, base gone.
-let coneTextureCache: THREE.CanvasTexture | null = null;
-function coneGlowTexture(): THREE.CanvasTexture {
-  if (coneTextureCache) return coneTextureCache;
-  const canvas = document.createElement("canvas");
-  canvas.width = 8;
-  canvas.height = 128;
-  const ctx = canvas.getContext("2d")!;
-  // CanvasTexture flipY: v=0 (cone BASE) samples the canvas bottom — the
-  // bright stop must sit at the TOP of the canvas to land at the apex.
-  const grad = ctx.createLinearGradient(0, 0, 0, 128);
-  grad.addColorStop(0, "rgba(255, 205, 140, 0.9)");
-  grad.addColorStop(1, "rgba(255, 205, 140, 0)");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 8, 128);
-  coneTextureCache = new THREE.CanvasTexture(canvas);
-  return coneTextureCache;
-}
-
-/** The lamp's light, built around the cup's REAL opening. Geometry truth
- * (owner screenshot + corrected measurement — the first PCA pass picked
- * the closed top because stem vertices poisoned the rim radius): the shade
- * is wide at its closed top and OPENS at the narrow bottom-front end,
- * local [0, 0.295, 0.086], axis [0, −0.56, 0.83]. Emission is a CONE down
- * that axis, not a sphere (owner: "they should have a cone emission"):
- * SpotLight carries the pool, an emissive disc seals the opening, a faint
- * gradient cone fakes the beam, and only a weak point remains for the
- * ambient kiss on nearby props. `yaw` must match the lamp model. `litRef`
- * (the lamp-toggle egg's damped 0..1 factor) only threads through to the
- * self-animating GlowSprite — lights, emissives, and the beam cone are
- * dimmed generically by the egg's traverse, so this rig owns no toggle
- * logic. */
+/** The lamp's light. Geometry truth: the shade is wide at its closed top
+ * and OPENS at the narrow bottom-front end, local [0, 0.295, 0.086], axis
+ * [0, −0.56, 0.83]; `yaw` must match the lamp model.
+ *
+ * v4.4 rebuild. Three previous versions failed the same way — they FAKED
+ * light with geometry (a bulb sphere, then a gradient beam cone, under a
+ * one-world-unit additive haze sprite). Every fake reads as a decal the
+ * moment the camera moves off-axis, and the haze was so wide it doubled as
+ * weather. So: nothing here draws light except things that are actually
+ * light. A SpotLight down the cup axis makes the pool, a small emissive
+ * disc seals the mouth so the source itself is visibly hot, a shade-mouth
+ * halo the size of the shade covers the no-composer path, and two weak
+ * points warm the cup interior and the props beside it. On desktop the
+ * halo you actually see is Bloom's, earned by the disc sitting above the
+ * threshold — which is what makes it behave like light instead of a sticker.
+ *
+ * `litRef` (the lamp-toggle egg's damped 0..1 factor) only threads to the
+ * self-animating GlowSprite; lights and emissives are dimmed generically by
+ * the egg's traverse, so this rig owns no toggle logic. */
 export function LampGlow({
   palette,
   yaw = 0,
@@ -657,62 +658,60 @@ export function LampGlow({
   }, []);
   return (
     <group rotation={[0, yaw, 0]}>
-      <group position={[0, 0.28, 0.12]}>
+      {/* Halo, sized to the shade (0.3) rather than to the bay (1.0) — a
+          glow wider than the object making it is fog, not light. */}
+      <group position={[0, 0.29, 0.1]}>
         <GlowSprite
           opacity={palette.glowOpacity}
           eased
-          scale={1.0}
+          scale={0.36}
           factorRef={litRef}
         />
       </group>
       {/* Emissive disc ON the opening plane (normal = cup axis). Flush
-          geometry can never silhouette past the shade from any angle. */}
+          geometry can never silhouette past the shade from any angle, and
+          it clears Bloom's 0.95 threshold, so the composer grows the soft
+          falloff for us. */}
       <mesh position={[0, 0.292, 0.09]} rotation={[0.595, 0, 0]}>
-        <circleGeometry args={[0.04, 24]} />
+        <circleGeometry args={[0.042, 24]} />
         <meshStandardMaterial
-          color="#f6e2b8"
-          emissive="#ffbe73"
-          emissiveIntensity={2.6}
+          color="#fff1d6"
+          emissive="#ffc98a"
+          emissiveIntensity={3.4}
           roughness={0.4}
+          toneMapped={false}
         />
       </mesh>
-      {/* Faint beam — gradient-alpha open cone from the mouth down the
-          axis; additive, so it dissolves into whatever it lights. Apex
-          (+y in cone space) must point BACK along the beam: R_x(−0.978)
-          sends +y to [0, .56, −.83] = −beamDir. */}
-      <mesh
-        position={[0, 0.295 - 0.31 * 0.56, 0.086 + 0.31 * 0.83]}
-        rotation={[-0.978, 0, 0]}
-      >
-        <coneGeometry args={[0.26, 0.62, 20, 1, true]} />
-        <meshBasicMaterial
-          map={coneGlowTexture()}
-          transparent
-          opacity={palette.glowOpacity * 0.14}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-          side={THREE.DoubleSide}
-          fog={false}
-        />
-      </mesh>
-      {/* The pool: a spot down the cup axis — light leaves the OPENING,
-          it doesn't radiate from the shade's center of mass. */}
+      {/* The pool: a spot down the cup axis — light leaves the OPENING, it
+          doesn't radiate from the shade's centre of mass. */}
       <spotLight
         ref={spotRef}
         position={[0, 0.295, 0.086]}
         color="#ffbe73"
-        intensity={3.2}
-        angle={0.62}
-        penumbra={0.65}
-        distance={3.4}
+        intensity={7.5}
+        angle={0.66}
+        penumbra={0.85}
+        distance={3.6}
         decay={2}
       />
       <object3D ref={targetRef} position={[0, -0.27, 0.92]} />
+      {/* Inside the cup, 3cm back up the axis: the shade's own interior has
+          to glow or the lamp reads as a torch someone left on a stick. */}
       <pointLight
-        position={[0, 0.3, 0.2]}
+        position={[0, 0.312, 0.061]}
+        color="#ffcf96"
+        intensity={0.22}
+        distance={0.42}
+        decay={2}
+      />
+      {/* Ambient kiss on the neighbouring props — the spot is a cone, so
+          without this the books a foot away sit in the dark next to a lit
+          lamp, which is the one thing a real desk lamp never does. */}
+      <pointLight
+        position={[0, 0.29, 0.18]}
         color="#ffbe73"
-        intensity={0.5}
-        distance={1.4}
+        intensity={0.85}
+        distance={1.9}
         decay={2}
       />
     </group>

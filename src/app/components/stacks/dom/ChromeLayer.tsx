@@ -87,14 +87,15 @@ export default function ChromeLayer() {
           </p>
         </GrainReveal>
       </div>
-      {/* Theme toggle island — fixed top-right chrome, not buried in the
-          About placard (audit §1.6). z-30 clears the placard dock (z-20);
-          the mobile panel (z-40) still covers it while open. */}
+      {/* Theme toggle — fixed top-right chrome, not buried in the About
+          placard (audit §1.6). z-30 clears the placard dock (z-20); the
+          mobile panel (z-40) still covers it while open. No island: over a
+          rendered scene a floating panel is one more thing to look at, so
+          the control is just the glyph until you reach for it (owner call
+          at browse) — the round hover/press wash is the whole affordance. */}
       <div className="pointer-events-auto absolute right-4 top-3 z-30 md:right-6 md:top-4">
         <GrainReveal index={2}>
-          <div className="rounded-full border border-foreground/[0.06] bg-background/70 p-0.5 shadow-[0px_2px_12px_1px_rgba(0,0,0,0.08)] backdrop-blur">
-            <ThemeToggle />
-          </div>
+          <ThemeToggle className="!rounded-full hover:!bg-foreground/[0.09] active:!bg-foreground/[0.14]" />
         </GrainReveal>
       </div>
     </>

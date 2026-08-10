@@ -9,6 +9,7 @@ import {
   nextTheme,
   normalizeTheme,
 } from "~/lib/theme";
+import { cn } from "~/lib/utils";
 
 import {
   Tooltip,
@@ -24,7 +25,7 @@ import {
  * noticeable on phones at sunset) silently stops working after a single tap.
  * "System" has to stay reachable for that to keep working.
  */
-export function ThemeToggle() {
+export function ThemeToggle({ className }: { className?: string }) {
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -58,7 +59,10 @@ export function ThemeToggle() {
           <button
             onClick={() => setTheme(next)}
             aria-label={`Theme: ${description}. Click to switch to ${THEME_LABEL[next]}.`}
-            className="flex size-10 items-center justify-center rounded-md bg-transparent text-sm text-muted-foreground transition-all hover:bg-secondary/80 hover:text-foreground"
+            className={cn(
+              "flex size-10 items-center justify-center rounded-md bg-transparent text-sm text-muted-foreground transition-all hover:bg-secondary/80 hover:text-foreground",
+              className,
+            )}
           >
             <Icon className="h-4 w-4" weight="bold" />
           </button>
