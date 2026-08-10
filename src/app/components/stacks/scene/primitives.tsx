@@ -6,7 +6,7 @@
 // primitive" signal; perfect 90° corners are the strongest primitive tell.
 import { RoundedBox } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import React, { useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { type Palette, proxied, rand } from "../theme";
@@ -548,11 +548,13 @@ export function Bookend({
 export function GlowSprite({
   opacity: baseOpacity,
   eased = false,
+  scale = 1.6,
 }: {
   opacity: number;
   /** Damp opacity by lateral camera distance — an additive sprite over the
    * bright light-theme sky blows out to pure white mid-travel. */
   eased?: boolean;
+  scale?: number;
 }) {
   const ref = useRef<THREE.Sprite>(null);
   // Additive glow COMPOUNDS in the composer's linear HDR target (pre-
@@ -586,7 +588,7 @@ export function GlowSprite({
     sprite.material.opacity = opacity * (0.3 + 0.7 * focus);
   });
   return (
-    <sprite ref={ref} scale={[1.6, 1.6, 1]}>
+    <sprite ref={ref} scale={[scale, scale, 1]}>
       <spriteMaterial
         map={texture}
         transparent
@@ -598,15 +600,34 @@ export function GlowSprite({
   );
 }
 
-/** Bulb glow + warm light for the GLB desk lamp — sits at the lamp's head
- * so the room still reads as lit by the lamp, not the model. The emissive
- * bulb is what makes the lamp read ON in the light theme, where the
- * additive sprite nearly vanishes against the bright sky (audit §3-About).
- * `yaw` MUST match the lamp model's y-rotation, and the bulb sits at the
- * MEASURED shade mouth: PCA over the GLB's shade cluster puts the wide
- * opening at local [0, 0.378, −0.037] opening UP-BACK (axis [0,.56,−.83]).
- * Every hand-placed +z offset landed on the cone's solid wall and poked
- * through as a flat disc (two owner "light is broken" screenshots). */
+// Vertical alpha falloff for the fake light cone — tip bright, base gone.
+let coneTextureCache: THREE.CanvasTexture | null = null;
+function coneGlowTexture(): THREE.CanvasTexture {
+  if (coneTextureCache) return coneTextureCache;
+  const canvas = document.createElement("canvas");
+  canvas.width = 8;
+  canvas.height = 128;
+  const ctx = canvas.getContext("2d")!;
+  // CanvasTexture flipY: v=0 (cone BASE) samples the canvas bottom — the
+  // bright stop must sit at the TOP of the canvas to land at the apex.
+  const grad = ctx.createLinearGradient(0, 0, 0, 128);
+  grad.addColorStop(0, "rgba(255, 205, 140, 0.9)");
+  grad.addColorStop(1, "rgba(255, 205, 140, 0)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 8, 128);
+  coneTextureCache = new THREE.CanvasTexture(canvas);
+  return coneTextureCache;
+}
+
+/** The lamp's light, built around the cup's REAL opening. Geometry truth
+ * (owner screenshot + corrected measurement — the first PCA pass picked
+ * the closed top because stem vertices poisoned the rim radius): the shade
+ * is wide at its closed top and OPENS at the narrow bottom-front end,
+ * local [0, 0.295, 0.086], axis [0, −0.56, 0.83]. Emission is a CONE down
+ * that axis, not a sphere (owner: "they should have a cone emission"):
+ * SpotLight carries the pool, an emissive disc seals the opening, a faint
+ * gradient cone fakes the beam, and only a weak point remains for the
+ * ambient kiss on nearby props. `yaw` must match the lamp model. */
 export function LampGlow({
   palette,
   yaw = 0,
@@ -614,28 +635,65 @@ export function LampGlow({
   palette: Palette;
   yaw?: number;
 }) {
+  const spotRef = useRef<THREE.SpotLight>(null);
+  const targetRef = useRef<THREE.Object3D>(null);
+  useEffect(() => {
+    if (spotRef.current && targetRef.current)
+      spotRef.current.target = targetRef.current;
+  }, []);
   return (
     <group rotation={[0, yaw, 0]}>
-      <group position={[0, 0.38, -0.04]}>
-        <GlowSprite opacity={palette.glowOpacity} eased />
+      <group position={[0, 0.28, 0.12]}>
+        <GlowSprite opacity={palette.glowOpacity} eased scale={1.0} />
       </group>
-      {/* Centered on the rim plane: half the dome peeks over the cup edge
-          — an exposed bulb tip, visible from the camera without touching
-          the cone wall. */}
-      <mesh position={[0, 0.378, -0.037]}>
-        <sphereGeometry args={[0.023, 12, 12]} />
+      {/* Emissive disc ON the opening plane (normal = cup axis). Flush
+          geometry can never silhouette past the shade from any angle. */}
+      <mesh position={[0, 0.292, 0.09]} rotation={[0.595, 0, 0]}>
+        <circleGeometry args={[0.04, 24]} />
         <meshStandardMaterial
           color="#f6e2b8"
           emissive="#ffbe73"
-          emissiveIntensity={2.4}
+          emissiveIntensity={2.6}
           roughness={0.4}
         />
       </mesh>
-      <pointLight
-        position={[0, 0.35, 0.35]}
+      {/* Faint beam — gradient-alpha open cone from the mouth down the
+          axis; additive, so it dissolves into whatever it lights. Apex
+          (+y in cone space) must point BACK along the beam: R_x(−0.978)
+          sends +y to [0, .56, −.83] = −beamDir. */}
+      <mesh
+        position={[0, 0.295 - 0.31 * 0.56, 0.086 + 0.31 * 0.83]}
+        rotation={[-0.978, 0, 0]}
+      >
+        <coneGeometry args={[0.26, 0.62, 20, 1, true]} />
+        <meshBasicMaterial
+          map={coneGlowTexture()}
+          transparent
+          opacity={palette.glowOpacity * 0.14}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          side={THREE.DoubleSide}
+          fog={false}
+        />
+      </mesh>
+      {/* The pool: a spot down the cup axis — light leaves the OPENING,
+          it doesn't radiate from the shade's center of mass. */}
+      <spotLight
+        ref={spotRef}
+        position={[0, 0.295, 0.086]}
         color="#ffbe73"
-        intensity={1.6}
-        distance={3.2}
+        intensity={3.2}
+        angle={0.62}
+        penumbra={0.65}
+        distance={3.4}
+        decay={2}
+      />
+      <object3D ref={targetRef} position={[0, -0.27, 0.92]} />
+      <pointLight
+        position={[0, 0.3, 0.2]}
+        color="#ffbe73"
+        intensity={0.5}
+        distance={1.4}
         decay={2}
       />
     </group>

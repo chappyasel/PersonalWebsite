@@ -1,9 +1,10 @@
 "use client";
 
-// Systems — CT Books as the operating manual, the real 3:45 alarm clock
-// (canvas face over the GLB dial), and a paper inbox tray; book pile +
-// sansevieria below; the grandfather clock stands on the floor at the
-// unit's left flank, also reading 3:45.
+// Systems — CT Books as the operating manual, the alarm clock (live canvas
+// face over the GLB dial), and a paper inbox tray; book pile + sansevieria
+// below; the grandfather clock stands on the floor at the unit's left
+// flank. Both clocks show the visitor's local time (owner call at browse;
+// the 3:45 wake-up story lives in the click easter egg).
 import React from "react";
 
 import { ContactShade, FootPool } from "../GroundPool";
@@ -65,7 +66,7 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
           <React.Suspense fallback={null}>
             <ModelProp url="/models/alarm-clock.glb" dark={dark} scale={1.6} />
           </React.Suspense>
-          {/* 3:45 face registered to the GLB's measured dial: the front disc
+          {/* Live face registered to the GLB's measured dial: the front disc
               sits at local z 0.024, center y 0.0828, r 0.0614 — ×1.6 scale
               puts the canvas at y 0.1325, z 0.040 (1.6mm proud of the paint,
               behind the bezel rim), r ≈ 0.95× the dial so the painted ticks

@@ -3,7 +3,7 @@
 // New scene props for the About, Blog, and Systems units.
 // Box props use RoundedBox for edge highlights (see primitives.tsx).
 import { RoundedBox } from "@react-three/drei";
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import * as THREE from "three";
 
 import { type Palette, rand } from "../theme";
@@ -339,61 +339,77 @@ export function PaperStack({ palette }: { palette: Palette }) {
   );
 }
 
-/** The 3:45 canvas clock face — the wake-up time — overlaid on the GLB
- * alarm clock's dial (the painted dial sits behind it on the atlas). */
+/** Canvas clock face overlaid on the GLB dials (the painted dial sits
+ * behind it on the atlas). Shows the VISITOR'S live local time — owner
+ * call at browse ("show the correct time instead of 3:45"); the 3:45
+ * wake-up story moved into the click easter egg. Redraws on the minute. */
 export function ClockFace({ radius = 0.082 }: { radius?: number }) {
-  const faceTexture = useMemo(() => {
+  const { texture, draw } = useMemo(() => {
     const size = 256;
     const canvas = document.createElement("canvas");
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext("2d")!;
     const c = size / 2;
-    ctx.fillStyle = "#f6efdf";
-    ctx.beginPath();
-    ctx.arc(c, c, c, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = "#6e5d49";
-    ctx.lineWidth = 6;
-    for (let i = 0; i < 12; i++) {
-      const a = (i / 12) * Math.PI * 2;
-      const r0 = i % 3 === 0 ? 0.78 : 0.86;
-      ctx.beginPath();
-      ctx.moveTo(c + Math.cos(a) * c * r0, c + Math.sin(a) * c * r0);
-      ctx.lineTo(c + Math.cos(a) * c * 0.92, c + Math.sin(a) * c * 0.92);
-      ctx.stroke();
-    }
-    // 3:45 — minute hand at 9, hour hand between 3 and 4.
-    ctx.strokeStyle = "#443a2d";
-    ctx.lineCap = "round";
-    const hour = ((3.75 / 12) * Math.PI * 2) - Math.PI / 2;
-    ctx.lineWidth = 12;
-    ctx.beginPath();
-    ctx.moveTo(c, c);
-    ctx.lineTo(c + Math.cos(hour) * c * 0.45, c + Math.sin(hour) * c * 0.45);
-    ctx.stroke();
-    const minute = ((45 / 60) * Math.PI * 2) - Math.PI / 2;
-    ctx.lineWidth = 8;
-    ctx.beginPath();
-    ctx.moveTo(c, c);
-    ctx.lineTo(
-      c + Math.cos(minute) * c * 0.68,
-      c + Math.sin(minute) * c * 0.68,
-    );
-    ctx.stroke();
-    ctx.fillStyle = "#443a2d";
-    ctx.beginPath();
-    ctx.arc(c, c, 10, 0, Math.PI * 2);
-    ctx.fill();
     const texture = new THREE.CanvasTexture(canvas);
     texture.anisotropy = 4;
-    return texture;
+    const draw = (hours: number, minutes: number) => {
+      ctx.clearRect(0, 0, size, size);
+      ctx.fillStyle = "#f6efdf";
+      ctx.beginPath();
+      ctx.arc(c, c, c, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#6e5d49";
+      ctx.lineWidth = 6;
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        const r0 = i % 3 === 0 ? 0.78 : 0.86;
+        ctx.beginPath();
+        ctx.moveTo(c + Math.cos(a) * c * r0, c + Math.sin(a) * c * r0);
+        ctx.lineTo(c + Math.cos(a) * c * 0.92, c + Math.sin(a) * c * 0.92);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = "#443a2d";
+      ctx.lineCap = "round";
+      const hour =
+        (((hours % 12) + minutes / 60) / 12) * Math.PI * 2 - Math.PI / 2;
+      ctx.lineWidth = 12;
+      ctx.beginPath();
+      ctx.moveTo(c, c);
+      ctx.lineTo(c + Math.cos(hour) * c * 0.45, c + Math.sin(hour) * c * 0.45);
+      ctx.stroke();
+      const minute = (minutes / 60) * Math.PI * 2 - Math.PI / 2;
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.moveTo(c, c);
+      ctx.lineTo(
+        c + Math.cos(minute) * c * 0.68,
+        c + Math.sin(minute) * c * 0.68,
+      );
+      ctx.stroke();
+      ctx.fillStyle = "#443a2d";
+      ctx.beginPath();
+      ctx.arc(c, c, 10, 0, Math.PI * 2);
+      ctx.fill();
+      texture.needsUpdate = true;
+    };
+    return { texture, draw };
   }, []);
+
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date();
+      draw(now.getHours(), now.getMinutes());
+    };
+    tick();
+    const id = setInterval(tick, 30_000);
+    return () => clearInterval(id);
+  }, [draw]);
 
   return (
     <mesh>
       <circleGeometry args={[radius, 32]} />
-      <meshStandardMaterial map={faceTexture} roughness={0.8} />
+      <meshStandardMaterial map={texture} roughness={0.8} />
     </mesh>
   );
 }
