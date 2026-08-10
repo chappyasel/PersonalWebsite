@@ -291,6 +291,80 @@ const SKY_FRAGMENT = `
       sutro = clamp(legs + prongs + waist, 0.0, 1.0);
     }
 
+    // ---- Golden Gate Bridge, northwest at a = -2.04. Derived, not eyeballed.
+    // This scene's own compass puts Sutro west (-2.20) and Telegraph Hill
+    // north (-1.90), and the Golden Gate is northwest of every vantage the
+    // rest of the skyline implies. The drawn elevations say what that vantage
+    // is: Transamerica at 0.082 for 260 m solves to 3.2 km, Sutro at 0.125 for
+    // 552 m ASL to 4.4 km, so the viewer stands 3-5 km south of downtown.
+    // From the Mission, Potrero Hill and Bernal Heights the bridge's true
+    // bearing falls 55%, 56% and 46% of the way along the Sutro-to-Telegraph
+    // arc, i.e. a = -2.033, -2.033 and -2.061. The mean is -2.04, and -2.04 is
+    // also the saddle between hillA (-2.16) and hillB (-1.98), where the drawn
+    // ridge dips to 0.034 — so the span shows through the notch rather than
+    // climbing a flank. Nearest neighbour is Sutro, 0.055 rad off the near
+    // tower: nothing collides.
+    //
+    // The WIDTH is honest; the HEIGHT and the waterline are not, and that is
+    // the whole of the cheat. Seen obliquely — the only way San Francisco ever
+    // sees it — the 1,280 m main span subtends 0.063 to 0.105 rad from those
+    // three vantages, and it is drawn at 0.110. But 227 m of tower at 8.5 km
+    // subtends only 0.015 to 0.027, and the ridge here stands at 0.034: at
+    // true height the bridge is under the hill and never visible at all. So
+    // the towers are drawn ~2x, at 0.048 above their own waterline, and the
+    // waterline itself is lifted from the horizon to e = 0.024 so the span
+    // clears the notch. The Bay Bridge is drawn to legibility the same way
+    // rather than to survey. Kept subordinate on purpose: 0.072 against
+    // Transamerica's 0.082, so it still reads as farther off and lower than
+    // downtown.
+    //
+    // What the oblique view buys is a drawable object. Broadside the span is
+    // 5.6x the tower height and would run from Sutro to Telegraph Hill; end-on
+    // from the south it is 2.3x, which is what is drawn. The north tower is 9%
+    // shorter than the south because it stands 11% farther off.
+    float ggb = 0.0;
+    float ggbTower = 0.0;
+    float ggbDeck = 0.0;
+    float ggbDeckY = 0.0;
+    float gx = (a + 2.04) / 0.055;
+    if (abs(gx) < 1.10 && e > 0.024 && e < 0.078) {
+      // The roadway crests at midspan, and the main cable is a PARABOLA
+      // between the tower tops that comes down to touch the deck at the
+      // centre — which is what the real cable does, and the same idiom the
+      // Bay Bridge span already uses. The linear term tilts the curve
+      // because the far tower is lower.
+      float deckY = 0.0380 + 0.0022 * (1.0 - gx * gx);
+      float cableY = deckY + 0.0308 * gx * gx - 0.00325 * gx;
+      float towerTop = mix(0.0720, 0.0655, step(0.0, gx));
+      // Art Deco setbacks. A stepped tower is the one detail that makes this
+      // the Golden Gate and not a generic suspension bridge, so the taper is
+      // four discrete stages rather than the smooth ramp Salesforce uses.
+      float tt = clamp((e - deckY) / (towerTop - deckY), 0.0, 1.0);
+      float hw = 0.0027 - 0.00042 * min(floor(tt * 4.0), 3.0);
+      float dTw = abs(abs(gx) - 1.0) * 0.055;
+      float tower = step(dTw, hw) * step(0.0245, e) * step(e, towerTop);
+      float cable = step(abs(e - cableY), 0.0011) * step(abs(gx), 1.0);
+      ggbDeck = step(abs(e - deckY), 0.0010) * step(abs(gx), 1.06);
+      // Suspender ropes. Only legible near the towers — which is exactly the
+      // stretch of span the ridge is not covering.
+      float sus = 0.0;
+      if (uSimplify < 0.5) {
+        sus = step(abs(fract(gx * 9.0) - 0.5), 0.055)
+            * step(deckY, e) * step(e, cableY) * step(abs(gx), 0.98);
+      }
+      ggbTower = tower;
+      ggbDeckY = deckY;
+      ggb = clamp(tower + cable + ggbDeck + sus, 0.0, 1.0);
+    }
+    // An 8 km bridge stands BEHIND the ridge and the rooftops, but structures
+    // composites after the hills — so without this the span would paint over
+    // the hill it is standing behind, which is the same class of mistake that
+    // made the ridge itself read as a bar hanging in the sky.
+    float ggbVis = (1.0 - hillMask) * (1.0 - city);
+    ggb *= ggbVis;
+    ggbTower *= ggbVis;
+    ggbDeck *= ggbVis;
+
     // Coit Tower on Telegraph Hill — slender shaft, gently flared arcade.
     // Silhouette only (nightly floodlighting is unverified).
     float coit = 0.0;
@@ -362,7 +436,7 @@ const SKY_FRAGMENT = `
     }
 
     float ground = smoothstep(-0.10, -0.02, e);
-    float structures = clamp(city + sutro + coit + trans + sales + bridge, 0.0, 1.0) * ground;
+    float structures = clamp(city + sutro + coit + trans + sales + bridge + ggb, 0.0, 1.0) * ground;
     hillMask *= ground;
 
     // Sparse warm window glints — the city is mostly asleep. Scrolling
@@ -413,6 +487,21 @@ const SKY_FRAGMENT = `
     // The crown catches the first ember before anything else in the city —
     // tallest, east-facing glass. Salesforce Tower announces the dawn.
     cityCol += emberC * smoothstep(0.55, 1.0, crownT) * ember * 2.5 * sales;
+    // International Orange, hazed. In the light theme the paint reads as
+    // itself, a warm line drawing inside the Karl the mist block already lays
+    // over the west (~23% of it at this azimuth) — which is how the Golden
+    // Gate actually looks from the city after dawn. At 3:45 it is a silhouette
+    // like everything else and its lights do the work.
+    //
+    // So the distance haze is asymmetric: heavy in the dark, where the bridge
+    // should recede behind its own lights, and light in the light, where
+    // stacking a distance haze ON TOP of the Karl is exactly how the light
+    // skyline became "a ghost doing zero compositional work" (audit §2.3).
+    // International Orange has to read by being DARKER than a sky sitting on
+    // the ACES shoulder, not warmer than it — the same lesson as the clouds.
+    vec3 ggbCol = mix(cityC, vec3(0.72, 0.235, 0.125), mix(0.74, 0.14, uDark));
+    ggbCol = mix(ggbCol, skyBase, min(hazeAmt + mix(0.10, 0.28, uDark), 0.92));
+    cityCol = mix(cityCol, ggbCol, ggb);
     cityCol = mix(cityCol, windowC, winMask * mix(0.45, 0.70, uDark));
 
     col = mix(col, hillCol, hillMask);
@@ -466,6 +555,46 @@ const SKY_FRAGMENT = `
           col += avRed * smoothstep(0.0016, 0.0005, dP)
                * (0.20 + 0.42 * sutFlash) * night;
         }
+      }
+
+      // Golden Gate Bridge, overnight. Three sources, all documented:
+      //   - 128 roadway lamp posts, high-pressure sodium 250 W behind amber
+      //     acrylic lenses (low-pressure sodium 90 W until 1972; DOE's 2012
+      //     GATEWAY study found no LED that fits the historic housings, so it
+      //     is still sodium). A working highway, so it is lit all night, and
+      //     it is STEADY — deliberately not sequenced, which is what keeps it
+      //     from reading as a second Bay Lights half a sky away.
+      //   - Tower floodlighting since 22 June 1987 (the 50th anniversary):
+      //     12 x 400 W HPS per tower at sidewalk level, aimed UP. It was lit
+      //     so the throw dies with height and the towers "disappear into the
+      //     evening darkness", so this is a wash that FADES upward, not a
+      //     floodlit tower — the opposite of what Sutro gets, which is nothing
+      //     at all.
+      //   - One 360-degree flashing red aircraft beacon at the very top of
+      //     each tower (installed 1980, two 750 W lamps each), pulsing in
+      //     unison per FAA AC 70/7460-1L §5.2 — the same rule Sutro's flashers
+      //     follow, on its own ~26/min clock so the two skylines do not blink
+      //     together.
+      // Left out on purpose: the eight 116 W lights on each main cable, and
+      // the midspan navigation lights, which at this range are under a pixel.
+      // Amplitudes are LOW on purpose. This is one continuous 350 px line, not
+      // the Bay Lights' isolated dots, so it accumulates far more bloom per
+      // unit brightness — at the Bay Lights' own 0.85 it rendered as a blown
+      // white bar. The beading is individual lamp posts, not sequencing.
+      // Guarded on azimuth like Sutro's lamp loop: the two beacons alone are
+      // two length() calls and two smoothsteps, and this is a fullscreen dome
+      // pass, so paying for them on every fragment of the sky costs ~4% of the
+      // frame for nothing.
+      if (abs(gx) < 1.12 && e > 0.020 && e < 0.080) {
+        vec3 hps = vec3(1.00, 0.62, 0.24);
+        col += hps * ggbDeck * (0.68 + 0.32 * sin(gx * 116.0)) * 0.17 * night;
+        col += hps * ggbTower * exp(-max(e - ggbDeckY, 0.0) * 95.0) * 0.25 * night;
+        float ggbFlash = step(fract(uTime * 0.4333), 0.13);
+        float dGa = length(vec2((gx + 1.0) * 0.055, e - 0.0720));
+        float dGb = length(vec2((gx - 1.0) * 0.055, e - 0.0655));
+        col += avRed * (smoothstep(0.0026, 0.0009, dGa)
+                      + smoothstep(0.0026, 0.0009, dGb))
+             * (0.18 + 0.48 * ggbFlash) * ggbVis * night;
       }
 
       // Day for Night (Jim Campbell): 11,136 LEDs across the top SIX floors
