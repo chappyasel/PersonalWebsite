@@ -54,23 +54,33 @@ function useScrollEdges(ref: React.RefObject<HTMLDivElement | null>) {
   return edges;
 }
 
-/** A gradient-opacity fade at the scrolling edge.
+/** Scroll-edge fades. Neither may be a mask on the scroller itself: a mask
+ * (like filter, or opacity < 1) makes its element a backdrop root, and then
+ * every card inside renders translucent but unblurred.
  *
- * It has to be a SIBLING of the scroll container, never a mask on it: a
- * mask (like filter, or opacity < 1) makes its element a backdrop root, and
- * then every `backdrop-filter` inside has nothing left to sample — the
- * cards render translucent but unblurred, which is the bug the first cut
- * shipped. So the fade paints in the page colour over the content instead
- * of masking it out. */
+ * The two edges landed on different treatments because they sit on
+ * different things. The BOTTOM paints the page colour, which is the
+ * gradient-opacity dissolve asked for and reads as haze over the empty
+ * floor below the shelf. The same paint at the TOP put a black bar across
+ * the section header, so that edge instead blurs its own backdrop behind a
+ * gradient mask: over the sky it is invisible (blurring a smooth gradient
+ * changes nothing) and over text it dissolves the line. Its mask is on
+ * itself, not on an ancestor of any card, so the cards keep their blur. */
 function ScrollFade({ side }: { side: "top" | "bottom" }) {
+  if (side === "bottom") {
+    return (
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-14 bg-gradient-to-t from-background/85 via-background/40 to-transparent"
+      />
+    );
+  }
+  const mask = "linear-gradient(to bottom, black 10%, transparent 100%)";
   return (
     <div
       aria-hidden
-      className={`pointer-events-none absolute inset-x-0 z-10 h-14 ${
-        side === "top"
-          ? "top-0 bg-gradient-to-b from-background/90 via-background/45 to-transparent"
-          : "bottom-0 bg-gradient-to-t from-background/90 via-background/45 to-transparent"
-      }`}
+      className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 backdrop-blur-lg"
+      style={{ maskImage: mask, WebkitMaskImage: mask }}
     />
   );
 }
@@ -451,6 +461,23 @@ export default function PlacardLayer({
           background-color: hsl(var(--background) / 0.82) !important;
           backdrop-filter: blur(24px) !important;
           -webkit-backdrop-filter: blur(24px) !important;
+        }
+        /* Why some cards blurred and others didn't. The shared sections wrap
+           their content in scroll-reveal containers, and those settle at
+           filter: blur(0.00006px) / opacity: 0.999993 — visually nothing,
+           but each is enough to make the wrapper a BACKDROP ROOT, which
+           leaves the card's backdrop-filter with an empty backdrop to
+           sample. Book Notes has no reveal wrapper, which is exactly why it
+           was the one that blurred. The reveal is a page-scroll effect with
+           no meaning inside a placard, so it's neutralised here; !important
+           beats the animation's fill state. */
+        .placard-sections [class*="perspective:"],
+        .placard-sections [class*="preserve-3d"] {
+          filter: none !important;
+          opacity: 1 !important;
+          perspective: none !important;
+          transform-style: flat !important;
+          will-change: auto !important;
         }
       `}</style>
       {/* Desktop: resident right dock, crossfaded by activeUnit. Wider now
