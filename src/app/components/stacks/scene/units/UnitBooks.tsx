@@ -10,7 +10,7 @@ import React, { useMemo } from "react";
 import { FootPool } from "../GroundPool";
 import ModelProp from "../ModelProp";
 import { Polaroid } from "../objects";
-import { DeskFrame, deskFrameHeight } from "../photos";
+import { DeskFrame, deskFrameHeight, PhotoMount } from "../photos";
 import { Bookend, BookPile, BookRowMesh, packRow, ShelfUnit } from "../primitives";
 import { useUnitLod } from "../useUnitLod";
 import { type UnitProps } from "./types";
@@ -67,10 +67,15 @@ export default function UnitBooks({
                 against the books at the shelf's front lip (z 0.22 clears the
                 0.3-deep spines) — which is where you'd actually stand a
                 picture on a full bookshelf. NOISE in his own hand in front
-                of his own shelf is the anchor; it earns the frame. */}
-            <group
+                of his own shelf is the anchor; it earns the frame — and it
+                links, since the tweet id survived verbatim in the archived
+                filename. */}
+            <PhotoMount
+              unitIndex={index}
+              id="books-noise"
               position={[-0.22, deskFrameHeight(0.21) / 2, 0.22]}
               rotation={[-0.05, 0.14, 0]}
+              href="https://x.com/i/status/1835742939928240302"
             >
               <DeskFrame
                 src="/images/stacks/books-noise.jpg"
@@ -79,24 +84,34 @@ export default function UnitBooks({
                 width={0.28}
                 height={0.21}
               />
-            </group>
-            <group position={[0.2, 0.1425, 0.24]} rotation={[-0.14, -0.1, 0.03]}>
+            </PhotoMount>
+            <PhotoMount
+              unitIndex={index}
+              id="books-quiet"
+              position={[0.2, 0.1425, 0.24]}
+              rotation={[-0.14, -0.1, 0.03]}
+            >
               <Polaroid
                 src="/images/stacks/books-quiet.jpg"
                 palette={palette}
                 textured={textured}
               />
-            </group>
+            </PhotoMount>
             {/* Left of the floor pile, clear of both packed rows — in front
                 of the TOP row it covered a featured cover, which is the one
                 thing the shelf can't afford. */}
-            <group position={[-1.16, 0.1425, 0.12]} rotation={[-0.16, 0.24, -0.05]}>
+            <PhotoMount
+              unitIndex={index}
+              id="books-goldenhour"
+              position={[-1.16, 0.1425, 0.12]}
+              rotation={[-0.16, 0.24, -0.05]}
+            >
               <Polaroid
                 src="/images/stacks/books-goldenhour.jpg"
                 palette={palette}
                 textured={textured}
               />
-            </group>
+            </PhotoMount>
           </group>
         }
       >

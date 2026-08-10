@@ -46,42 +46,157 @@ function useScrollEdges(ref: React.RefObject<HTMLDivElement | null>) {
     const ro = new ResizeObserver(update);
     ro.observe(el);
     for (const child of Array.from(el.children)) ro.observe(child);
+    // Panel bodies lazy-mount on first activation and the lifting heatmap
+    // arrives async, so the children present at mount are not the children
+    // that decide whether this thing scrolls. Without the subtree watch the
+    // fade never appears on exactly the long placards that need it.
+    const mo = new MutationObserver(update);
+    mo.observe(el, { childList: true, subtree: true });
     return () => {
       el.removeEventListener("scroll", update);
       ro.disconnect();
+      mo.disconnect();
     };
   }, [ref]);
   return edges;
 }
 
-/** Scroll-edge fades. Neither may be a mask on the scroller itself: a mask
- * (like filter, or opacity < 1) makes its element a backdrop root, and then
- * every card inside renders translucent but unblurred.
+/** Every element in the placard that wants to be a frosted surface. The
+ * shared sections mark theirs with a `backdrop-blur-*` utility; PlacardCard
+ * below joins them by carrying the same class. */
+const PLATE_SELECTOR = '[class*="backdrop-blur"]';
+/** How far the content dissolves at each edge of the scroll viewport. */
+const FADE_PX = 34;
+
+type Plate = {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+  radius: string;
+};
+
+/** The frosted plates, rendered BEHIND the scroller.
  *
- * The two edges landed on different treatments because they sit on
- * different things. The BOTTOM paints the page colour, which is the
- * gradient-opacity dissolve asked for and reads as haze over the empty
- * floor below the shelf. The same paint at the TOP put a black bar across
- * the section header, so that edge instead blurs its own backdrop behind a
- * gradient mask: over the sky it is invisible (blurring a smooth gradient
- * changes nothing) and over text it dissolves the line. Its mask is on
- * itself, not on an ancestor of any card, so the cards keep their blur. */
-function ScrollFade({ side }: { side: "top" | "bottom" }) {
-  if (side === "bottom") {
-    return (
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-14 bg-gradient-to-t from-background/85 via-background/40 to-transparent"
-      />
-    );
-  }
-  const mask = "linear-gradient(to bottom, black 10%, transparent 100%)";
+ * A card cannot both blur the scene behind it and fade out at a scroll edge.
+ * That is measured, not assumed (scratchpad `bd-matrix`): a `mask-image` or
+ * `opacity < 1` anywhere in a card's ancestry — or on the card itself —
+ * makes a backdrop root, and the card's `backdrop-filter` then samples an
+ * empty backdrop and renders translucent but perfectly sharp. Three earlier
+ * attempts died on exactly that, each time looking like a CSS typo rather
+ * than a spec rule.
+ *
+ * So the two jobs are split across two sibling layers sharing one geometry:
+ *
+ *   • the SCROLLER carries the gradient mask and the readable content, with
+ *     its cards' own fill and backdrop-filter stripped (they cannot work);
+ *   • THIS layer sits behind it, outside the mask, and paints one frosted
+ *     plate per card, mirroring that card's rect and riding its scrollTop.
+ *
+ * The plates clip rather than fade — nothing can do both — which is why the
+ * placard now spans the full viewport height: the clip edge lands off-screen
+ * where there is nothing to see. `overflow: hidden` is the clip because
+ * `clip-path` also kills backdrop-filter (same matrix).
+ *
+ * Measuring rather than duplicating the subtree keeps one copy of the DOM,
+ * so the lifting heatmap and the deferred sections don't mount twice. */
+function BlurPlates({
+  scrollRef,
+  mounted,
+}: {
+  scrollRef: React.RefObject<HTMLDivElement | null>;
+  mounted: boolean;
+}) {
+  const layerRef = useRef<HTMLDivElement>(null);
+  const [plates, setPlates] = useState<Plate[]>([]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !mounted) return;
+    let raf = 0;
+
+    const measure = () => {
+      raf = 0;
+      const all = Array.from(el.querySelectorAll<HTMLElement>(PLATE_SELECTOR));
+      // Only outermost surfaces: Projects nests blurred language pills
+      // inside its cards, and a plate per pill would frost the frosting.
+      const cards = all.filter((c) => !all.some((o) => o !== c && o.contains(c)));
+      const base = el.getBoundingClientRect();
+      const next: Plate[] = cards.map((c) => {
+        const r = c.getBoundingClientRect();
+        return {
+          top: r.top - base.top + el.scrollTop,
+          left: r.left - base.left,
+          width: r.width,
+          height: r.height,
+          radius: getComputedStyle(c).borderRadius,
+        };
+      });
+      setPlates((prev) =>
+        prev.length === next.length &&
+        prev.every(
+          (p, i) =>
+            Math.abs(p.top - next[i]!.top) < 0.5 &&
+            Math.abs(p.left - next[i]!.left) < 0.5 &&
+            Math.abs(p.width - next[i]!.width) < 0.5 &&
+            Math.abs(p.height - next[i]!.height) < 0.5,
+        )
+          ? prev
+          : next,
+      );
+    };
+    const schedule = () => {
+      if (!raf) raf = requestAnimationFrame(measure);
+    };
+    // Scroll only moves the layer — one transform, no re-measure, no React.
+    const sync = () => {
+      if (layerRef.current)
+        layerRef.current.style.transform = `translateY(${-el.scrollTop}px)`;
+    };
+
+    schedule();
+    sync();
+    el.addEventListener("scroll", sync, { passive: true });
+    const ro = new ResizeObserver(schedule);
+    ro.observe(el);
+    // Section bodies mount lazily and the lifting heatmap arrives async, so
+    // watch the subtree rather than just the scroller's own box.
+    const mo = new MutationObserver(schedule);
+    mo.observe(el, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["class", "style"],
+    });
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      el.removeEventListener("scroll", sync);
+      ro.disconnect();
+      mo.disconnect();
+    };
+  }, [scrollRef, mounted]);
+
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute inset-x-0 top-0 z-10 h-16 backdrop-blur-lg"
-      style={{ maskImage: mask, WebkitMaskImage: mask }}
-    />
+      className="pointer-events-none absolute inset-0 overflow-hidden"
+    >
+      <div ref={layerRef} className="absolute inset-0">
+        {plates.map((p, i) => (
+          <div
+            key={i}
+            className="absolute border border-foreground/[0.06] bg-background/[0.86] shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-[24px]"
+            style={{
+              top: p.top,
+              left: p.left,
+              width: p.width,
+              height: p.height,
+              borderRadius: p.radius,
+            }}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -109,17 +224,31 @@ function Panel({
   useEffect(() => {
     if (active) setMounted(true);
   }, [active]);
+  // Only fade an edge that actually continues, so a short placard gets no
+  // phantom dissolve — the AIC platform's rule, and the reason both edges
+  // live in ONE gradient with four conditional stops rather than two masks.
+  const mask = `linear-gradient(to bottom, ${
+    edges.top ? `transparent 0, black ${FADE_PX}px` : "black 0"
+  }, ${
+    edges.bottom
+      ? `black calc(100% - ${FADE_PX}px), transparent 100%`
+      : "black 100%"
+  })`;
   return (
     <div
       aria-hidden={!active}
       // Fade-out-then-in: the entering placard waits for the leaving one —
       // simultaneous crossfade rendered as text-over-text mush (audit §2.5).
-      className={`absolute right-0 top-1/2 max-h-[80dvh] w-full -translate-y-1/2 transition-opacity duration-200 ${
+      // Full viewport height on purpose: the plates behind clip instead of
+      // fading, so the clip has to happen off-screen. The vertical padding
+      // is what keeps content off the very edges of the glass.
+      className={`absolute inset-y-0 right-0 w-full transition-opacity duration-200 ${
         active
           ? "pointer-events-auto opacity-100 delay-200"
           : "pointer-events-none opacity-0 delay-0"
       }`}
     >
+      <BlurPlates scrollRef={scrollRef} mounted={mounted} />
       <div
         ref={scrollRef}
         data-stacks-scrollable
@@ -127,23 +256,32 @@ function Panel({
         // bridge and the scroll-isolation gate both look up the ACTIVE
         // scroller by this attribute pair.
         aria-hidden={!active}
-        className="stacks-scroll max-h-[80dvh] overflow-y-auto overscroll-contain py-2 pl-1 pr-3"
+        className="stacks-scroll placard-scroll relative h-full overflow-y-auto overscroll-contain py-[12vh] pl-1 pr-3"
+        style={{ maskImage: mask, WebkitMaskImage: mask }}
       >
-        {mounted ? children : null}
+        {/* Short placards stay optically centred — the panel is full-height
+            only so the plate layer's clip lands off-screen, and letting a
+            two-line card sit pinned to the top of the glass would make the
+            column look top-heavy on every unit that isn't Systems. */}
+        <div className="flex min-h-full flex-col justify-center">
+          {mounted ? children : null}
+        </div>
       </div>
-      {edges.top && <ScrollFade side="top" />}
-      {edges.bottom && <ScrollFade side="bottom" />}
     </div>
   );
 }
 
-/** One blurred surface for a content block, matching the card the shared
- * sections draw for themselves. About and Books build their bodies here
- * rather than reusing a site section, so they'd otherwise be the only
- * placards with no surface at all. */
+/** One surface for a content block, matching the card the shared sections
+ * draw for themselves. About and Books build their bodies here rather than
+ * reusing a site section, so they'd otherwise be the only placards with no
+ * surface at all.
+ *
+ * It keeps the `backdrop-blur` utility even though the CSS below strips it:
+ * that class is the marker BlurPlates looks for, and the border-radius here
+ * is what the plate copies. */
 function PlacardCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-foreground/[0.06] bg-background/[0.82] p-5 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-[24px]">
+    <div className="rounded-xl border border-foreground/[0.06] p-5 backdrop-blur-[24px]">
       {children}
     </div>
   );
@@ -303,6 +441,14 @@ function MobilePanel({
     return () => mq.removeEventListener("change", onChange);
   }, []);
 
+  const sheetMask = `linear-gradient(to bottom, ${
+    edges.top ? `transparent 0, black ${FADE_PX}px` : "black 0"
+  }, ${
+    edges.bottom
+      ? `black calc(100% - ${FADE_PX}px), transparent 100%`
+      : "black 100%"
+  })`;
+
   return (
     <div className="md:hidden">
       <AnimatePresence>
@@ -351,16 +497,18 @@ function MobilePanel({
                 <XIcon className="size-5" weight="bold" />
               </button>
             </div>
+            {/* Mobile takes the same masked-scroller dissolve as desktop. It
+                needs no plate layer: the sheet behind is the one blurred
+                surface, so nothing inside it is asking for a backdrop. */}
             <div className="relative min-h-0 flex-1">
               <div
                 ref={scrollRef}
                 data-stacks-scrollable
-                className="stacks-scroll h-full overflow-y-auto overscroll-contain px-5 pb-10 font-serif text-muted-foreground"
+                className="stacks-scroll placard-scroll h-full overflow-y-auto overscroll-contain px-5 py-6 font-serif text-muted-foreground"
+                style={{ maskImage: sheetMask, WebkitMaskImage: sheetMask }}
               >
                 {bodies[unit.slug]}
               </div>
-              {edges.top && <ScrollFade side="top" />}
-              {edges.bottom && <ScrollFade side="bottom" />}
             </div>
           </motion.div>
         ) : (
@@ -409,12 +557,20 @@ export default function PlacardLayer({
         </div>
         <div className="flex flex-col items-center gap-2 pt-4">
           {slots.contact}
-          {/* CC-BY obligation for the gym set — roster generated into
-              public/models/LICENSES.json by scripts/stacks-models.mjs. */}
-          <p className="pt-2 text-center text-xs text-muted-foreground/60">
-            3D props: {licenses.attributionRequired.join(", ")} · CC-BY
-          </p>
         </div>
+        {/* CC-BY attribution for the gym set. It lives in the markup rather
+            than on the glass — the visible line was clutter in a room that
+            has no other captions. The roster is generated into
+            public/models/LICENSES.json by scripts/stacks-models.mjs, and
+            that file ships and is served, so the credit stays discoverable
+            both here and at /models/LICENSES.json. */}
+        <div
+          aria-hidden
+          className="hidden"
+          dangerouslySetInnerHTML={{
+            __html: `<!-- 3D props: ${licenses.attributionRequired.join(", ")} · CC-BY. Full roster: /models/LICENSES.json -->`,
+          }}
+        />
       </PlacardCard>
     ),
     books: (
@@ -451,33 +607,42 @@ export default function PlacardLayer({
         .placard-sections .text-2xl { font-size: 1.125rem; line-height: 1.5rem; }
         .placard-sections .sm\\:text-3xl { font-size: 1.125rem; line-height: 1.5rem; }
         .placard-sections .text-lg { font-size: 1rem; line-height: 1.4rem; }
-        /* The section cards KEEP their own blur — one blurred surface per
-           content block is the design. What was wrong was stacking them
-           inside a second blurred panel, and that panel is what's gone.
-           They do get deeper here than on the flat page, though: those
-           values were tuned against a quiet page background, and over a lit
-           3D room a 40%-muted wash left the text fighting the scene. */
-        .placard-sections [class*="backdrop-blur"] {
-          background-color: hsl(var(--background) / 0.82) !important;
-          backdrop-filter: blur(24px) !important;
-          -webkit-backdrop-filter: blur(24px) !important;
+        /* The cards are now empty frames. Their frosted surface is a plate
+           rendered BEHIND the scroller (see BlurPlates) because the scroller
+           carries the scroll-fade mask, and a mask kills backdrop-filter on
+           everything inside it. So strip the fill and the dead blur and let
+           the plate show through; the border stays, since the plate doesn't
+           draw one and mobile has no plates at all. */
+        .placard-scroll [class*="backdrop-blur"] {
+          background-color: transparent !important;
+          backdrop-filter: none !important;
+          -webkit-backdrop-filter: none !important;
         }
-        /* Why some cards blurred and others didn't. The shared sections wrap
-           their content in scroll-reveal containers, and those settle at
-           filter: blur(0.00006px) / opacity: 0.999993 — visually nothing,
-           but each is enough to make the wrapper a BACKDROP ROOT, which
-           leaves the card's backdrop-filter with an empty backdrop to
-           sample. Book Notes has no reveal wrapper, which is exactly why it
-           was the one that blurred. The reveal is a page-scroll effect with
-           no meaning inside a placard, so it's neutralised here; !important
-           beats the animation's fill state. */
-        .placard-sections [class*="perspective:"],
-        .placard-sections [class*="preserve-3d"] {
+        /* Mobile has no plate layer — the sheet itself is the single blurred
+           surface, which is what "one blur, not blur on blur" means there —
+           so the cards just need a quiet fill of their own back. */
+        @media (max-width: 767px) {
+          .placard-scroll [class*="backdrop-blur"] {
+            background-color: hsl(var(--muted) / 0.45) !important;
+          }
+        }
+        /* Kill the scroll-reveal inside the placard. tailwindcss-intersect's
+           variant is &:not([no-intersect]), so these styles apply BY DEFAULT
+           and the observer only ever removes them — and it does one
+           querySelectorAll at boot, which can never see a placard body,
+           because those lazy-mount on first activation. So the reveal ran
+           every time, forever. Worse, motion-blur-in-sm settles on
+           filter: blur(0) grayscale(0), which is NOT filter: none, and that
+           made every wrapper a permanent backdrop root — the real reason
+           half the cards never blurred. Kill the animation itself rather
+           than chasing the properties it leaves behind; targeting the motion
+           class also covers touch, where the old perspective-based selector
+           matched nothing at all. */
+        .placard-scroll [class*="intersect:motion-"] {
+          animation: none !important;
           filter: none !important;
           opacity: 1 !important;
-          perspective: none !important;
-          transform-style: flat !important;
-          will-change: auto !important;
+          transform: none !important;
         }
       `}</style>
       {/* Desktop: resident right dock, crossfaded by activeUnit. Wider now

@@ -26,7 +26,13 @@ type StacksState = {
   modalOpen: boolean;
   panelState: PanelState;
   pendingBook: Book | null;
+  /** hoverKey of the prop under the pointer, or null. Not every claimant is
+   * clickable — see INERT_HOVER. */
   hovered: string | null;
+  /** hoverKey of the prop currently being carried, or null. Travel must
+   * freeze while a prop is in hand, or dragging one sideways scrolls the
+   * whole room out from under it. */
+  dragging: string | null;
   /** True while the desktop EffectComposer owns the frame — scene blending
    * happens in linear HDR (dust/pools re-tune) and the DOM vignette yields
    * to the composer's. */
@@ -47,6 +53,7 @@ type StacksState = {
   setPanelState: (panelState: PanelState) => void;
   setPendingBook: (pendingBook: Book | null) => void;
   setHovered: (hovered: string | null) => void;
+  setDragging: (dragging: string | null) => void;
   setJumpTo: (jumpTo: ((unit: number) => void) | null) => void;
   setTravelTo: (travelTo: ((unit: number) => void) | null) => void;
 };
@@ -59,6 +66,7 @@ export const useStacks = create<StacksState>((set) => ({
   panelState: "closed",
   pendingBook: null,
   hovered: null,
+  dragging: null,
   postfx: false,
   setPostfx: (postfx) => set({ postfx }),
   jumpTo: null,
@@ -70,9 +78,21 @@ export const useStacks = create<StacksState>((set) => ({
   setPanelState: (panelState) => set({ panelState }),
   setPendingBook: (pendingBook) => set({ pendingBook }),
   setHovered: (hovered) => set({ hovered }),
+  setDragging: (dragging) => set({ dragging }),
   setJumpTo: (jumpTo) => set({ jumpTo }),
   setTravelTo: (travelTo) => set({ travelTo }),
 }));
+
+/** Hover keys carrying this prefix open nothing. The photographs claim the
+ * slot so they can lift under the pointer, but a tap on the active unit is a
+ * desktop no-op — a pointer cursor over one would promise a click that never
+ * lands. */
+export const INERT_HOVER = "photo:";
+
+/** hoverKey prefix for props you can pick up. They earn an open-hand cursor
+ * rather than the pointer finger — a finger promises navigation, and these
+ * go nowhere. */
+export const GRAB_HOVER = "grab:";
 
 /** True while the mobile panel owns the viewport — travel must freeze. */
 export function panelBusy(): boolean {

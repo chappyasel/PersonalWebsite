@@ -46,13 +46,19 @@ function installDevHooks() {
       devOpenBook?.(id);
     },
     state() {
-      const { activeUnit, mode, modalOpen, panelState } = useStacks.getState();
+      const { activeUnit, mode, modalOpen, panelState, hovered, dragging } =
+        useStacks.getState();
       return {
         offset: progressRef.current,
         activeUnit,
         mode,
         modalOpen,
         panelState,
+        // Hover and carry are scene-internal (they deliberately never
+        // re-render React), so the harness has no other way to observe
+        // which prop the pointer owns or whether one is in hand.
+        hovered,
+        dragging,
         dpr: glRef?.getPixelRatio() ?? null,
         textures: glRef?.info.memory.textures ?? null,
         geometries: glRef?.info.memory.geometries ?? null,
@@ -84,6 +90,10 @@ export default function StacksCanvas({
   // Travel freezes while the mobile panel or the book modal owns the screen.
   const panelState = useStacks((s) => s.panelState);
   const modalOpen = useStacks((s) => s.modalOpen);
+  // Subscribed rather than read imperatively: ScrollControls needs a real
+  // re-render to see `enabled` change, and a drag starts at most once per
+  // gesture, so the cost is nil.
+  const dragging = useStacks((s) => s.dragging !== null);
   const isTouch = useMemo(
     () =>
       typeof window !== "undefined" &&
@@ -154,7 +164,12 @@ export default function StacksCanvas({
           pages={UNIT_COUNT}
           damping={0.2}
           maxSpeed={1.2}
-          enabled={panelState === "closed" && !modalOpen}
+          // Carrying a prop freezes travel: without this, dragging one
+          // sideways scrolls the room out from under it. Note this flag is
+          // necessary but NOT sufficient — drei only short-circuits its own
+          // handler, so Grabbable also freezes the scroll element's
+          // touchAction/overflowX for the duration of the drag.
+          enabled={panelState === "closed" && !modalOpen && !dragging}
           style={{ scrollbarWidth: "none", touchAction: "pan-x" }}
         >
           <Scene

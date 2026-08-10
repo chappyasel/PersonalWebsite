@@ -9,7 +9,7 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { UNIT_COUNT } from "../data";
-import { progressRef, useStacks } from "../store";
+import { GRAB_HOVER, INERT_HOVER, progressRef, useStacks } from "../store";
 import { cameraForAspect, TRAVEL_X } from "./worldLayout";
 
 export default function CameraRig() {
@@ -71,7 +71,11 @@ export default function CameraRig() {
     });
     // Pointer cursor for hoverable scene objects — the scroll el owns events.
     const unsubscribeCursor = useStacks.subscribe((s) => {
-      el.style.cursor = s.hovered ? "pointer" : "";
+      if (s.dragging) el.style.cursor = "grabbing";
+      else if (s.hovered?.startsWith(GRAB_HOVER)) el.style.cursor = "grab";
+      else if (s.hovered && !s.hovered.startsWith(INERT_HOVER))
+        el.style.cursor = "pointer";
+      else el.style.cursor = "";
     });
     return () => {
       unsubscribeCursor();

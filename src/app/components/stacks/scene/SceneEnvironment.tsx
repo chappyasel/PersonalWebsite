@@ -41,6 +41,8 @@ const SKY_VERTEX = `
 const SKY_FRAGMENT = `
   uniform float uDark;     // 0 light theme … 1 dark theme (damped crossfade)
   uniform float uDawn;     // scroll offset 0…1 — the traverse advances the morning
+  uniform float uPan;      // azimuth the traverse has swept (see SkyDome)
+  uniform float uHover;    // azimuth the pointer is over, or 99 for none
   uniform float uTime;
   uniform float uFrame;    // frame counter mod 64 — scrolls the IGN dither
   uniform float uSimplify; // degrade rung: 1 = two bands, no city/stars/ember
@@ -89,7 +91,17 @@ const SKY_FRAGMENT = `
   void main() {
     vec3 dir = normalize(vLocal);
     float e = dir.y;               // elevation: 0 at the horizon ring
-    float a = atan(dir.z, dir.x);  // azimuth: traverse pans ~[-2.3, -0.9]
+    // Azimuth. The dome rides with the camera (SkyDome), so the traverse's
+    // pan is applied here as a uniform instead of coming from parallax.
+    // It used to come from parallax — the dome was pinned at MID_X while the
+    // camera ran x 0→26.4 — and that put the camera 39% of the radius
+    // off-centre at each end, where the near wall is 2.3× closer than the
+    // far one. Degrees-per-pixel then collapsed near that wall and a single
+    // floor(a * 64.0) city column ballooned into a hard-edged rectangle
+    // hundreds of pixels wide, hazed to city colour: the "clipping in the
+    // fog under Sutro" the owner reported. A rigid pan has uniform angular
+    // scale everywhere, so the skyline reads the same at both ends.
+    float a = atan(dir.z, dir.x) + uPan;
 
     vec3 zenithC  = mix(zenithL, zenithD, uDark);
     vec3 horizonC = mix(horizonL, horizonD, uDark);
@@ -97,6 +109,19 @@ const SKY_FRAGMENT = `
     vec3 emberC   = mix(emberL, emberD, uDark);
     vec3 cityC    = mix(cityL, cityD, uDark);
     vec3 windowC  = mix(windowL, windowD, uDark);
+
+    // The morning arrives as you travel. The ember was already scroll-tied,
+    // but a glow in one corner of the sky isn't a sunrise — the whole vault
+    // has to warm and lift. Tinting the palette here (rather than the final
+    // colour) carries the shift into the haze and the skyline too, so the
+    // city warms with the sky instead of staying a cold cutout on a warm
+    // backdrop. Held subtle on purpose: this is 3:45 → maybe 4:40am.
+    vec3 dawnTint = vec3(1.0) + vec3(0.115, 0.030, -0.070) * uDawn;
+    float dawnLift = 1.0 + uDawn * mix(0.10, 0.17, uDark);
+    zenithC  *= dawnTint * dawnLift;
+    horizonC *= dawnTint * dawnLift;
+    shadowC  *= dawnTint * dawnLift;
+    cityC    *= dawnTint;
 
     // Three-band, non-monotonic: shadow band AT the horizon, the brighter
     // slate band above it (the inversion that reads "sky", not "gradient"),
@@ -221,12 +246,16 @@ const SKY_FRAGMENT = `
     // dusk→2am, so the crown earns a beacon, not a light show.
     float sales = 0.0;
     float crownT = 0.0;
+    float crownM = 0.0;   // tower mask WITHOUT the dissolve — the crown is
+                          // the brightest thing on the skyline, so it must
+                          // not be faded out by the taper it sits on.
     float dSf = a + 1.28;
     float sTop = 0.100;
     if (abs(dSf) < 0.012 && e < sTop + 0.004) {
       float hwS = mix(0.0092, 0.0034, clamp(e / sTop, 0.0, 1.0));
       float dissolve = smoothstep(sTop, sTop - 0.014, e);
-      sales = step(abs(dSf), hwS) * dissolve * step(e, sTop);
+      crownM = step(abs(dSf), hwS) * step(e, sTop);
+      sales = crownM * dissolve;
       crownT = clamp(e / sTop, 0.0, 1.0);
     }
 
@@ -269,9 +298,23 @@ const SKY_FRAGMENT = `
     vec2 wc = vec2(a * 420.0, e * 300.0);
     vec2 wf = fract(wc);
     float inBox = step(abs(wf.x - 0.5), 0.22) * step(abs(wf.y - 0.45), 0.28);
-    float shift = 0.0;
-    if (uSimplify < 0.5) shift = floor(uDawn * 6.0);
-    float lit = step(hash2(floor(wc) + shift), 0.05 * mix(1.0 - 0.7 * uDawn, 1.0 + 0.6 * uDawn, uDark)) * inBox;
+    // Windows must never re-deal as a block. The old rig offset the hash by
+    // floor(uDawn * 6.0), so six times across the traverse the entire city
+    // blinked to a new pattern in one frame — the owner's "background
+    // building lights seem to jump sometimes on movement". Now every window
+    // keeps a fixed hash and crosses a smoothly-moving threshold, so they
+    // wink out one at a time; a slow per-window phase turns a few over on
+    // their own clock, which is what a city at 4am actually does.
+    vec2 wcell = floor(wc);
+    float wHash = hash2(wcell);
+    // Pointer response: the stretch of skyline under the cursor wakes a
+    // little — a few more windows come on, and fade back out behind you.
+    float hq = (a - uHover) / 0.06;
+    float hoverNear = exp(-(hq * hq));
+    float thresh = 0.05 * mix(1.0 - 0.7 * uDawn, 1.0 + 0.6 * uDawn, uDark)
+                 * (1.0 + 2.4 * hoverNear);
+    float slow = 0.006 * sin(uTime * 0.05 + hash2(wcell + 3.0) * 6.2832);
+    float lit = smoothstep(thresh + 0.004, thresh - 0.004, wHash + slow) * inBox;
     float winMask = lit * city * step(0.004, e) * step(e, roof - 0.005) * (1.0 - sutro);
 
     // The silhouette dissolves toward the horizon band near the horizon
@@ -304,14 +347,12 @@ const SKY_FRAGMENT = `
       float karl = karlBand * (0.15 + 0.85 * west) * (0.45 + 0.55 * m) * (1.0 - uDark);
       col = mix(col, mix(horizonC, vec3(0.97, 0.985, 1.0), 0.50), karl * 0.68);
 
-      // Aviation lights, dark only. Salesforce: FAA L-864 red at the
-      // regulation 30 flashes/min, short duty. Transamerica: steady red apex
-      // (the Crown Jewel is holiday-only). Bridge towers: out of phase.
+      // Aviation lights, dark only. Salesforce Tower gets NONE: no source
+      // documents a red obstruction beacon on it, and a single point would
+      // be lost against a 150ft glowing crown anyway. The red constellation
+      // of this skyline belongs to Sutro Tower.
       vec3 avRed = vec3(0.90, 0.12, 0.10);
       float night = smoothstep(0.35, 0.75, uDark);
-      float sfFlash = step(fract(uTime * 0.5), 0.14);
-      float dBeac = length(vec2(dSf, e - sTop));
-      col += avRed * smoothstep(0.0040, 0.0012, dBeac) * sfFlash * night;
       float dApex = length(vec2(dTr, e - 0.082));
       col += avRed * smoothstep(0.0032, 0.0010, dApex) * 0.8 * night;
       float dT1 = length(vec2(a + 1.145, e - 0.030));
@@ -319,12 +360,43 @@ const SKY_FRAGMENT = `
       col += avRed * (smoothstep(0.0030, 0.0010, dT1) * step(fract(uTime * 0.5 + 0.37), 0.14)
                     + smoothstep(0.0030, 0.0010, dT2) * step(fract(uTime * 0.5 + 0.71), 0.14)) * night;
 
-      // Dim-shimmer crown (dark only) — a scrolling band with a ~60s hue
-      // drift, peak clamped to ≤0.35× the ember amplitude so it reads as a
-      // memory of Day for Night, not a light show.
-      float band = 0.5 + 0.5 * sin(e * 240.0 - uTime * 0.7);
+      // Sutro Tower carries 42 warning lights, and at night they are all
+      // that's visible of it: 18 steady-burning reds spread down the levels,
+      // 9 medium-intensity flashers pulsing IN UNISON (FAA AC 70/7460-1L
+      // §5.2) at Sutro's ~20/min, and 3 paler beacons on the prong tips.
+      // The lattice itself is never lit — the legs were floodlit in 1973 and
+      // public outcry had the tubes removed within months.
+      if (abs(dSut) < 0.035 && eh > -0.01 && eh < 0.10) {
+        float sutFlash = step(fract(uTime * 0.3333), 0.16);
+        for (int li = 0; li < 3; li++) {
+          float f = float(li);
+          float lev = 0.016 + f * 0.019;
+          float spread = mix(0.0105, 0.0045, f / 2.0);
+          float dLa = length(vec2(dSut - spread, eh - lev));
+          float dLb = length(vec2(dSut + spread, eh - lev));
+          col += avRed * (smoothstep(0.0016, 0.0005, dLa)
+                        + smoothstep(0.0016, 0.0005, dLb)) * 0.34 * night;
+        }
+        for (int pi = 0; pi < 3; pi++) {
+          float dP = length(vec2(dSut - (float(pi) - 1.0) * 0.0075, eh - 0.086));
+          col += avRed * smoothstep(0.0016, 0.0005, dP)
+               * (0.20 + 0.42 * sutFlash) * night;
+        }
+      }
+
+      // Day for Night (Jim Campbell): 11,136 LEDs across the top SIX floors
+      // of 61, facing INWARD so the light bounces off perforated aluminium —
+      // a soft diffuse wash, never visible pixels. So it is a HORIZONTAL
+      // band around the top ~12%, on all four faces. The old rig ran
+      // sin(e * 240.0) over the top third: wrong axis, wrong extent, and it
+      // scrolled vertically like a progress bar. At 3:45 the video diary is
+      // already off (it runs dusk→2am) and only the Constellation starscape
+      // is still alive until dawn, so this stays a dim drift rather than a
+      // light show — and it brightens as the traverse approaches dawn.
+      float crownBand = smoothstep(0.86, 0.905, crownT);
+      float wash = 0.74 + 0.26 * sin(dSf * 210.0 + uTime * 0.16);
       vec3 crownHue = mix(vec3(0.72, 0.62, 0.55), 0.5 + 0.5 * cos(uTime * 0.105 + vec3(0.0, 2.09, 4.19)), 0.40);
-      col += crownHue * band * smoothstep(0.68, 0.94, crownT) * sales * 0.060 * night;
+      col += crownHue * wash * crownBand * crownM * 0.085 * night;
 
       // Satellite — one dim, tailless, constant-velocity crossing every 92s
       // (Starlink-era truthful; the sophisticated cousin of a shooting
@@ -362,7 +434,18 @@ const SKY_FRAGMENT = `
   }
 `;
 
+// How much azimuth the full traverse sweeps, and where the sweep starts.
+// Measured against the old parallax rig so the compass order and the
+// landmarks' framing survive the change: solving the apparent azimuth of
+// Salesforce Tower (dome-local 9.8, −32.6) from the camera at each end of
+// the run gives −1.031 rad → −1.659 rad, and Sutro the same swing to within
+// 0.05 rad — a near-rigid pan, which is exactly why replacing it with one is
+// faithful rather than a simplification.
+const PAN_SPAN = 0.6;
+const PAN_BIAS = 0.25;
+
 function SkyDome({ dark, simplify }: { dark: boolean; simplify: boolean }) {
+  const domeRef = useRef<THREE.Mesh>(null);
   const material = useMemo(() => {
     const c = (hex: string) => new THREE.Color(hex);
     const L = PALETTES.light;
@@ -374,6 +457,11 @@ function SkyDome({ dark, simplify }: { dark: boolean; simplify: boolean }) {
       uniforms: {
         uDark: { value: dark ? 1 : 0 },
         uDawn: { value: 0 },
+        uPan: { value: -PAN_BIAS },
+        // Seeded near the centre of the opening frame rather than "nowhere":
+        // damping in from a sentinel would sweep the highlight across the
+        // whole skyline on load.
+        uHover: { value: -1.6 },
         uTime: { value: 0 },
         uFrame: { value: 0 },
         uSimplify: { value: 0 },
@@ -398,7 +486,7 @@ function SkyDome({ dark, simplify }: { dark: boolean; simplify: boolean }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => () => material.dispose(), [material]);
-  useFrame(({ clock }, delta) => {
+  useFrame(({ clock, camera, pointer, raycaster }, delta) => {
     const u = material.uniforms;
     u.uDark!.value = THREE.MathUtils.damp(
       u.uDark!.value as number,
@@ -407,15 +495,33 @@ function SkyDome({ dark, simplify }: { dark: boolean; simplify: boolean }) {
       delta,
     );
     u.uDawn!.value = progressRef.current;
+    const pan = progressRef.current * PAN_SPAN - PAN_BIAS;
+    u.uPan!.value = pan;
+    // Which stretch of skyline the pointer is over. The dome rides with the
+    // camera now, so the pointer ray's own direction IS the dome-local
+    // direction — no raycast against geometry needed, and it agrees with
+    // the shader's azimuth by construction. Damped so the lights swell
+    // rather than snap as the cursor sweeps.
+    raycaster.setFromCamera(pointer, camera);
+    const dir = raycaster.ray.direction;
+    const az = Math.atan2(dir.z, dir.x) + pan;
+    u.uHover!.value = THREE.MathUtils.damp(
+      u.uHover!.value as number,
+      az,
+      6,
+      delta,
+    );
     u.uTime!.value = clock.elapsedTime;
     u.uFrame!.value = ((u.uFrame!.value as number) + 1) % 64;
     u.uSimplify!.value = simplify ? 1 : 0;
     u.uPost!.value = useStacks.getState().postfx ? 1 : 0;
+    // The sky is at infinity, so it must not parallax against the room.
+    if (domeRef.current) domeRef.current.position.x = camera.position.x;
   });
   // renderOrder 1: draw after opaque geometry so early-Z rejects the covered
   // sky fragments (its depth-sort position otherwise changes during traverse).
   return (
-    <mesh position={[MID_X, 0, 0]} material={material} renderOrder={1}>
+    <mesh ref={domeRef} position={[MID_X, 0, 0]} material={material} renderOrder={1}>
       <sphereGeometry args={[34, 32, 24]} />
     </mesh>
   );

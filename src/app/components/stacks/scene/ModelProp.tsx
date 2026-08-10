@@ -1,12 +1,14 @@
 "use client";
 
 // GLB prop loader for the curated CC0 set (see scripts/stacks-models.mjs).
-// Two variants:
+// Three variants:
 // - "atlas": CreativeTrio props ship stripped of their shared 128×128
 //   palette atlas; ONE themed MeshStandardMaterial per theme (map =
 //   /models/atlas-{theme}.png) is shared across every atlas prop, so the
 //   whole set recolors with a ~0.8KB texture swap. Never tint atlas props
 //   via material.color — it tints clock faces and pages too.
+// - "recolor": the houseplants, stripped the same way but pointed at the
+//   tiny-treats pair — a second shared atlas, otherwise identical.
 // - "tinted": untextured props (Quaternius open book, the golf club) keep
 //   their own materials; `tints` remaps colors by material name. Props with
 //   a private texture (basketball) use "tinted" with `tintAll` to mute the
@@ -38,15 +40,19 @@ export const MODEL_URLS = [
   "/models/ladder.glb",
   "/models/armchair.glb",
   "/models/sansevieria.glb",
+  "/models/potted-plant.glb",
+  "/models/pothos.glb",
   "/models/barbell.glb",
   "/models/kettlebell.glb",
 ];
 
-/** Themed textures for `recolor`-variant props (own UVs, palette-remapped
- * per theme by the pipeline — same swap mechanism as the shared atlas). */
+/** Isa Lousberg's houseplants are a second atlas set: every prop in it
+ * samples ONE shared texture, so the palette-remapped pair themes all of
+ * them at once — same mechanism and same ~2KB as the CreativeTrio atlas.
+ * The pipeline refuses to build a `recolor` prop that doesn't match it. */
 export const RECOLOR_URLS = [
-  "/models/sansevieria-light.png",
-  "/models/sansevieria-dark.png",
+  "/models/tiny-treats-light.png",
+  "/models/tiny-treats-dark.png",
 ];
 
 // One shared material per themed atlas texture (drei caches the texture by
@@ -108,16 +114,9 @@ export default function ModelProp({
   scale?: number;
 }) {
   const { scene } = useGLTF(url, false);
-  // recolor props theme through their own per-model texture pair; atlas
-  // props share the CreativeTrio atlas pair. Same hook, same material cache.
-  const texUrls = useMemo(
-    () =>
-      variant === "recolor"
-        ? [url.replace(/\.glb$/, "-light.png"), url.replace(/\.glb$/, "-dark.png")]
-        : ATLAS_URLS,
-    [variant, url],
-  );
-  const atlases = useTexture(texUrls);
+  // Two atlas sets, one code path: recolor props sample the tiny-treats
+  // pair, everything else the CreativeTrio pair. Same hook, same cache.
+  const atlases = useTexture(variant === "recolor" ? RECOLOR_URLS : ATLAS_URLS);
   const object = useMemo(() => {
     const clone = scene.clone(true);
     if (variant === "atlas" || variant === "recolor") {

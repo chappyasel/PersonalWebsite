@@ -14,7 +14,7 @@ import PropLink from "../links";
 import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
 import { Polaroid } from "../objects";
-import { DeskFrame, deskFrameHeight } from "../photos";
+import { DeskFrame, deskFrameHeight, PhotoMount } from "../photos";
 import { BookPile, BumperPlates, ShelfUnit } from "../primitives";
 import { useUnitLod } from "../useUnitLod";
 import { type UnitProps } from "./types";
@@ -91,14 +91,24 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
                 the SF Gyms mirror shot, the one that survives 300px. */}
             {/* Tough Mudder, under the wire and grinning — effort without
                 the posing register he rules out. */}
-            <group position={[-0.42, 0.1425, 0.16]} rotation={[-0.14, -0.22, -0.04]}>
+            <PhotoMount
+              unitIndex={index}
+              id="training-mud"
+              position={[-0.42, 0.1425, 0.16]}
+              rotation={[-0.14, -0.22, -0.04]}
+            >
               <Polaroid
                 src="/images/stacks/training-mud.jpg"
                 palette={palette}
                 textured={textured}
               />
-            </group>
-            <group position={[-1.12, 0.272, -0.02]} rotation={[-0.1, 0.16, 0]}>
+            </PhotoMount>
+            <PhotoMount
+              unitIndex={index}
+              id="gym-mirror"
+              position={[-1.12, 0.272, -0.02]}
+              rotation={[-0.1, 0.16, 0]}
+            >
               <RoundedBox
                 castShadow
                 args={[0.42, 0.54, 0.03]}
@@ -119,7 +129,7 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
                   />
                 </React.Suspense>
               )}
-            </group>
+            </PhotoMount>
           </group>
         }
       >
@@ -159,21 +169,30 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
         </group>
         {/* Chappaquiddick pin-flag print — the golf half of the training
             story, leaning between kettlebell and pile. */}
-        <group position={[0.32, 0.1305, 0.12]} rotation={[-0.16, -0.08, 0.06]}>
+        <PhotoMount
+          unitIndex={index}
+          id="golf-flag"
+          position={[0.32, 0.1305, 0.12]}
+          rotation={[-0.16, -0.08, 0.06]}
+        >
           <Polaroid
             src="/images/stacks/golf-flag.jpg"
             palette={palette}
             size={0.215}
             textured={textured}
           />
-        </group>
+        </PhotoMount>
         {/* Racked and folded over the bar after a heavy set. The v4 audit
             concluded no mid-lift still existed in any archive and only a
-            video frame-grab could supply one; it was in the Twitter export.
-            Framed, because it's the one that earns it. */}
-        <group
+            video frame-grab could supply one; it was in the Twitter export —
+            which is also why this one links: the tweet id came through
+            verbatim in the archived filename. */}
+        <PhotoMount
+          unitIndex={index}
+          id="training-squat"
           position={[-0.45, deskFrameHeight(0.23) / 2, 0.12]}
           rotation={[-0.09, 0.2, 0.02]}
+          href="https://x.com/i/status/1742265325423337870"
         >
           <DeskFrame
             src="/images/stacks/training-squat.jpg"
@@ -182,7 +201,7 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
             width={0.24}
             height={0.23}
           />
-        </group>
+        </PhotoMount>
       </ShelfUnit>
       {/* Golf club leaning against the unit's LEFT side (the right hides
           behind the desktop placard). Scale 1.5 → 1.15 tall; base out at

@@ -11,6 +11,9 @@
 // millimetres under the pointer, the same idiom the clickable book covers and
 // talk frames already use. No outlines, no tooltips, no labels — a museum at
 // dawn, not a page full of buttons.
+//
+// Photographs share the shell (see PhotoMount): four of them carry the tweet
+// they were pulled from, the rest only want the affordance.
 import { type ThreeEvent } from "@react-three/fiber";
 import { useRouter } from "next/navigation";
 import React from "react";
@@ -36,6 +39,13 @@ export type PropDestination =
  * navigates in place. */
 const NEW_TAB: PropDestination[] = ["blog"];
 
+/** Where a prop leads: one of the site's own doors, or an arbitrary URL for
+ * the handful of photographs whose source post is known. Exactly one of the
+ * two — a prop with both would have an ambiguous destination. */
+export type PropTarget =
+  | { to: PropDestination; href?: never }
+  | { to?: never; href: string };
+
 export function propHref(to: PropDestination): string {
   const prod = process.env.NODE_ENV === "production";
   switch (to) {
@@ -57,41 +67,49 @@ export function propHref(to: PropDestination): string {
 const ORIGIN: [number, number, number] = [0, 0, 0];
 const DEFAULT_LIFT: [number, number, number] = [0, 0.03, 0.02];
 
-export default function PropLink({
-  unitIndex,
-  to,
-  hoverKey,
-  base = ORIGIN,
-  lift = DEFAULT_LIFT,
-  children,
-}: {
+type HoverProps = {
   unitIndex: number;
-  to: PropDestination;
   /** Unique across the whole scene — it owns the store's single hover slot. */
   hoverKey: string;
-  /** Rest position, when the link also owns the prop's placement. */
+  /** Rest position, when the wrapper also owns the prop's placement. */
   base?: [number, number, number];
   /** Hover displacement: a few mm up and toward the viewer. */
   lift?: [number, number, number];
+  /** Rest tilt, and how far the hover eases it toward level. Only the
+   * photographs use these; see Lift. */
+  rest?: [number, number, number];
+  settle?: number;
+  grow?: number;
   children: React.ReactNode;
-}) {
-  const router = useRouter();
+};
+
+/** The house rules, in one place. `onSelect` is what a tap does — a wrapper
+ * with nothing to open attaches no click handler at all, so the event keeps
+ * travelling to the unit tap plane instead of dying on the prop. */
+function HoverShell({
+  unitIndex,
+  hoverKey,
+  base = ORIGIN,
+  lift = DEFAULT_LIFT,
+  rest,
+  settle,
+  grow,
+  onSelect,
+  children,
+}: HoverProps & { onSelect?: () => void }) {
   const setHovered = useStacks((s) => s.setHovered);
   return (
     <group
-      onClick={(e: ThreeEvent<MouseEvent>) => {
-        if ((e.delta ?? 0) > 6) return; // swipe, not a tap
-        if (useStacks.getState().activeUnit !== unitIndex) return; // → travel
-        e.stopPropagation();
-        const href = propHref(to);
-        if (NEW_TAB.includes(to)) {
-          window.open(href, "_blank", "noopener,noreferrer");
-        } else {
-          // Same-tab navigation, exactly what the placard's <Link> does (the
-          // app router hands a cross-origin href to the browser itself).
-          router.push(href);
-        }
-      }}
+      onClick={
+        onSelect
+          ? (e: ThreeEvent<MouseEvent>) => {
+              if ((e.delta ?? 0) > 6) return; // swipe, not a tap
+              if (useStacks.getState().activeUnit !== unitIndex) return; // → travel
+              e.stopPropagation();
+              onSelect();
+            }
+          : undefined
+      }
       onPointerOver={(e: ThreeEvent<PointerEvent>) => {
         if (useStacks.getState().activeUnit !== unitIndex) return;
         e.stopPropagation();
@@ -103,9 +121,48 @@ export default function PropLink({
         if (useStacks.getState().hovered === hoverKey) setHovered(null);
       }}
     >
-      <Lift hoverKey={hoverKey} base={base} offset={lift}>
+      <Lift
+        hoverKey={hoverKey}
+        base={base}
+        offset={lift}
+        rest={rest}
+        settle={settle}
+        grow={grow}
+      >
         {children}
       </Lift>
     </group>
+  );
+}
+
+/** The affordance without the door: the photographs that can't be traced to
+ * a post still answer the cursor, because a shelf where three of twenty-odd
+ * prints move is a shelf with three loose prints on it. */
+export function HoverProp(props: HoverProps) {
+  return <HoverShell {...props} />;
+}
+
+export default function PropLink(props: HoverProps & PropTarget) {
+  const router = useRouter();
+  return (
+    <HoverShell
+      {...props}
+      onSelect={() => {
+        // A raw href is somebody else's site by definition — always a new
+        // tab, and it wins over `to` because the two never coexist.
+        if (props.href !== undefined) {
+          window.open(props.href, "_blank", "noopener,noreferrer");
+          return;
+        }
+        const href = propHref(props.to);
+        if (NEW_TAB.includes(props.to)) {
+          window.open(href, "_blank", "noopener,noreferrer");
+        } else {
+          // Same-tab navigation, exactly what the placard's <Link> does (the
+          // app router hands a cross-origin href to the browser itself).
+          router.push(href);
+        }
+      }}
+    />
   );
 }

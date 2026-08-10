@@ -9,6 +9,7 @@ import * as THREE from "three";
 
 import { type Palette, rand } from "../theme";
 import { useStacks } from "../store";
+import { ContactShade } from "./GroundPool";
 import Lift from "./Lift";
 import PropLink from "./links";
 import LitImage from "./LitImage";
@@ -164,6 +165,153 @@ export function CardStack({ palette }: { palette: Palette }) {
         <planeGeometry args={[0.284, 0.166]} />
         <meshStandardMaterial map={printTexture} roughness={0.85} />
       </mesh>
+    </group>
+  );
+}
+
+/** The Apple mark as cubic segments in a unit box: y-up, x centred, bottom
+ * of the silhouette at y 0, total height 1 — so the geometry helper dials
+ * one number and the contact convention comes out for free.
+ *
+ * Traced, not eyeballed. A freehand pass read as a plum: at ~40px on screen
+ * recognition rides entirely on three measurements — the bite's radius, how
+ * deep the stem notch cuts between the shoulders, and the leaf's lean — and
+ * the eye gets all three wrong at once. Two outlines, because the leaf is
+ * detached; ExtrudeGeometry takes them as one shape array. */
+const APPLE_OUTLINE: { start: [number, number]; curves: number[][] }[] = [
+  {
+    start: [0.3811, 0.6591],
+    curves: [
+      [0.3753, 0.6546, 0.2729, 0.5969, 0.2729, 0.4685],
+      [0.2729, 0.3201, 0.4032, 0.2676, 0.4071, 0.2663],
+      [0.4065, 0.2631, 0.3864, 0.1944, 0.3384, 0.1244],
+      [0.2956, 0.0628, 0.2509, 0.0013, 0.1829, 0.0013],
+      [0.1149, 0.0013, 0.0974, 0.0408, 0.0189, 0.0408],
+      [-0.0577, 0.0408, -0.0849, 0, -0.1471, 0],
+      [-0.2093, 0, -0.2527, 0.057, -0.3026, 0.127],
+      [-0.3604, 0.2092, -0.4071, 0.3369, -0.4071, 0.4581],
+      [-0.4071, 0.6526, -0.2807, 0.7557, -0.1563, 0.7557],
+      [-0.0902, 0.7557, -0.0351, 0.7123, 0.0065, 0.7123],
+      [0.046, 0.7123, 0.1076, 0.7583, 0.1828, 0.7583],
+      [0.2113, 0.7583, 0.3137, 0.7557, 0.3811, 0.6591],
+    ],
+  },
+  {
+    start: [0.1471, 0.8406],
+    curves: [
+      [0.1782, 0.8775, 0.2002, 0.9287, 0.2002, 0.9799],
+      [0.2002, 0.987, 0.1996, 0.9942, 0.1983, 1],
+      [0.1477, 0.9981, 0.0875, 0.9663, 0.0512, 0.9242],
+      [0.0227, 0.8918, -0.004, 0.8406, -0.004, 0.7887],
+      [-0.004, 0.7809, -0.0027, 0.7731, -0.0021, 0.7706],
+      [0.0012, 0.77, 0.0064, 0.7693, 0.0116, 0.7693],
+      [0.057, 0.7693, 0.1141, 0.7997, 0.1471, 0.8406],
+    ],
+  },
+];
+
+// Cached per height × depth, the plateGeometry idiom — the outline is 19
+// beziers and the cap needs triangulating, which is not work to redo on a
+// theme flip. The chamfer is a fat 3% of height on purpose: it is the only
+// part of the solid whose normals sweep, so under a sparse probe it is what
+// separates machined metal from a grey chip, and at 40 screen pixels a
+// hairline chamfer is just something for antialiasing to eat.
+const appleGeometryCache = new Map<string, THREE.ExtrudeGeometry>();
+function appleGeometry(height: number, depth: number): THREE.ExtrudeGeometry {
+  const key = `${height}|${depth}`;
+  const hit = appleGeometryCache.get(key);
+  if (hit) return hit;
+  const shapes = APPLE_OUTLINE.map(({ start, curves }) => {
+    const shape = new THREE.Shape();
+    shape.moveTo(start[0] * height, start[1] * height);
+    for (const c of curves) {
+      shape.bezierCurveTo(
+        c[0]! * height, c[1]! * height,
+        c[2]! * height, c[3]! * height,
+        c[4]! * height, c[5]! * height,
+      );
+    }
+    return shape;
+  });
+  const geo = new THREE.ExtrudeGeometry(shapes, {
+    depth,
+    bevelEnabled: true,
+    bevelThickness: height * 0.024,
+    bevelSize: height * 0.03,
+    bevelSegments: 3,
+    curveSegments: 12,
+  });
+  // Re-seat on the measured box rather than the shape's: the bevel grows the
+  // silhouette past the unit box on every axis, so the shape's tidy y 0 is
+  // not where the finished solid actually bottoms out.
+  geo.computeBoundingBox();
+  const box = geo.boundingBox!;
+  geo.translate(
+    -(box.min.x + box.max.x) / 2,
+    -box.min.y,
+    -(box.min.z + box.max.z) / 2,
+  );
+  appleGeometryCache.set(key, geo);
+  return geo;
+}
+
+/** The mark standing in a milled billet — a desk object, the kind of thing
+ * you leave a job with. Deliberately paperweight-sized: it is a footnote to
+ * a line in the placard, not a logo placement.
+ *
+ * Metal exception, same reason the trophy needed one: the shared prop atlas
+ * forces metalness 0, so anything that has to look like metal has to opt out
+ * by hand. The billet is bead-blasted (rougher, darker) and the mark is
+ * polished, which is what gives the silhouette an edge to read against when
+ * the sky behind it goes pale in the light theme. */
+export function DeskApple({ palette }: { palette: Palette }) {
+  return (
+    <group>
+      {/* Bead-blasted, and a full stop darker than the mark. Polished it blew
+          out under the lamp into a white bar that read as a strip of card
+          rather than a block, and the drop in value is also what keeps the
+          mark's lower half legible against its own stand. */}
+      <RoundedBox
+        castShadow
+        args={[0.152, 0.021, 0.054]}
+        radius={0.004}
+        smoothness={3}
+        position={[0, 0.0105, 0]}
+      >
+        <meshStandardMaterial
+          color="#5e6368"
+          metalness={0.82}
+          roughness={0.52}
+          envMapIntensity={1.3}
+        />
+      </RoundedBox>
+      {/* Sunk 4mm into the billet so the joint is a shadow line, not a seam
+          the mark appears to balance on. */}
+      <mesh castShadow geometry={appleGeometry(0.15, 0.015)} position={[0, 0.017, 0]}>
+        <meshStandardMaterial
+          color="#c2c6ca"
+          metalness={0.9}
+          // 0.4, not the 0.3 a polished billet wants. The room's IBL is three
+          // lightformers on black, so a tight lobe samples one direction of a
+          // mostly EMPTY environment: at 0.3 the face flipped between silver
+          // and near-black over ~10° of yaw, which would have made the finish
+          // a function of where the prop happened to sit. 0.4 blurs across
+          // enough of the probe to be stable wherever it stands.
+          roughness={0.4}
+          // The room runs its environment at 0.38–0.45 so the painted props
+          // stay matte; at that level a metal has almost nothing to reflect
+          // and lands as flat grey. This surface reads the same probe louder.
+          envMapIntensity={2.2}
+        />
+      </mesh>
+      {/* Grounding travels with the prop (the BookPile rule) — a prop this
+          small loses its footing the instant the base darkening drops. */}
+      <ContactShade
+        color={palette.shadow}
+        width={0.26}
+        height={0.07}
+        position={[0, 0.016, 0.02]}
+      />
     </group>
   );
 }

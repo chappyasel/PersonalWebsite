@@ -31,22 +31,29 @@
 //   Sphere node, patch the mimeType, and let prune drop the rest. Its
 //   faceted normals are smoothed AT LOAD in ModelProp (weld + regenerate) —
 //   node-side GLTFExporter cannot round-trip its embedded texture.
-// - `recolor` props keep their own UVs; their embedded texture is remapped
-//   through the SAME dominant→role→theme tables as the atlas and written to
-//   /models/<name>-{light,dark}.png (the GLB itself ships textureless).
+// - `recolor` props keep their own UVs; Isa Lousberg's "tiny treats" set
+//   ships ONE texture byte for byte across every prop in it — a second
+//   palette atlas, same story as CreativeTrio's — so it is remapped through
+//   the SAME dominant→role→theme tables and written ONCE to
+//   /models/tiny-treats-{light,dark}.png (the GLBs ship textureless).
 import { execFileSync } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
 const OUT = path.join(process.cwd(), "public", "models");
 const CACHE = path.join(os.tmpdir(), "stacks-models-cache");
+// Shared output name for the tiny-treats pair — see the header note.
+const RECOLOR_ATLAS = "tiny-treats";
 
 // name → output file; strip = remove the shared palette atlas; recolor =
 // remap own texture per theme + strip; keepNodes = drop every other scene
 // node (prune removes their meshes); fixMime = rewrite image/unknown →
-// image/jpeg. scale/unit are placement notes — the components own the live
-// numbers. license/author/page feed public/models/LICENSES.json.
+// image/jpeg; simplify = decimation error as a fraction of mesh extent
+// (optimize's own default, 0.0001, keeps every vertex). scale/unit are
+// placement notes — the components own the live numbers. license/author/page
+// feed public/models/LICENSES.json.
 const MANIFEST = [
   { name: "desk-lamp", id: "SF3cZuqW3s", url: "https://static.poly.pizza/4c60b118-f475-4703-bd86-61108ab5a816.glb", strip: true, unit: "about+talks", author: "CreativeTrio", license: "CC0 1.0" },
   { name: "mug", id: "4jSgnM5WWk", url: "https://static.poly.pizza/6be3fa9a-e9f1-4b2f-996f-dc711a4340fa.glb", strip: true, unit: "about+blog", author: "CreativeTrio", license: "CC0 1.0" },
@@ -68,7 +75,17 @@ const MANIFEST = [
   { name: "ladder", id: "p1RR8Ls9EH", url: "https://static.poly.pizza/b103cfda-4dea-47b9-a0c6-439eed17d9ee.glb", strip: true, noAo: true, unit: "books floor", author: "CreativeTrio", license: "CC0 1.0" },
   { name: "armchair", id: "myd1WSucAz", url: "https://static.poly.pizza/2584a961-1b06-4fb7-ba7d-1074b52ca908.glb", strip: true, unit: "about floor", author: "CreativeTrio", license: "CC0 1.0" },
   // ---- v4 round 2: CC0 own-texture (palette remap per theme)
-  { name: "sansevieria", id: "BDwimVUool", url: "https://static.poly.pizza/f972935d-4083-474a-aa51-af7ceec71797.glb", recolor: true, unit: "systems", author: "Isa Lousberg", license: "CC0 1.0" },
+  { name: "sansevieria", id: "BDwimVUool", url: "https://static.poly.pizza/f972935d-4083-474a-aa51-af7ceec71797.glb", recolor: true, noAo: true, unit: "systems", author: "Isa Lousberg", license: "CC0 1.0" },
+  // ---- v4 round 3: more species. One sansevieria was carrying every plant
+  // in a seven-unit room. The whole family is noAo (the sansevieria
+  // included, which is what pays for the other two): blades, leaves and pot
+  // rims are the thin members the bake can't reach, and the budget notices.
+  // Isa's plants decimate BADLY — her leaves are separate flat pieces welded
+  // to nothing, so past ~0.04 error meshoptimizer eats the stems and leaves
+  // the foliage hanging in the air. 0.02 is the floor that still looks like
+  // a plant, and it is why there are two of these and not four.
+  { name: "potted-plant", id: "GJ3Bm5FDE4", url: "https://static.poly.pizza/05ba8d9a-adb7-403d-a60c-e2f685bdc250.glb", strip: true, noAo: true, unit: "about", author: "CreativeTrio", license: "CC0 1.0" },
+  { name: "pothos", id: "JVoJ2itVzh", url: "https://static.poly.pizza/8e0f9c34-b4d2-4488-aa47-2c032b8ced88.glb", recolor: true, noAo: true, simplify: 0.02, unit: "projects", author: "Isa Lousberg", license: "CC0 1.0" },
   // ---- v4 round 2: CC-BY (credited in LICENSES.json + About placard).
   // All three carry plain materials (no textures) — themed at runtime via
   // the "tinted" variant: barbell Iron1Barbell1/Steel1Barbell1, kettlebell
@@ -187,9 +204,10 @@ const THEMES = {
   dark: { "dk-brown": "#453521", brick: "#8f4a2c", orange: "#a86c46", charcoal: "#241d14", magenta: "#6d3f28", lime: "#6d7c42", gold: "#94795a", cyan: "#3c5a72", white: "#c9bda4", grey: "#7a6650", tan: "#b3a68f", "dk-grey": "#3b2e1f", blue: "#334d68", slate: "#57493a", black: "#241d14", pink: "#8a5f48", green: "#5a6a38", red: "#8a4a30", "lt-brown": "#5c4832" },
   light: { "dk-brown": "#826645", brick: "#9c4f38", orange: "#a5764c", charcoal: "#443a2d", magenta: "#84573f", lime: "#7a8f56", gold: "#c2a377", cyan: "#5c7f9c", white: "#f4ecdb", grey: "#a4917a", tan: "#dccdb4", "dk-grey": "#6e5d49", blue: "#4c6d90", slate: "#5c5648", black: "#443a2d", pink: "#b8926a", green: "#5f7a48", red: "#9c4f38", "lt-brown": "#a5845f" },
 };
-// Per-model role overrides for the remap — { role: [light, dark] }. Empty
-// today (the gym set turned out material-based); the hook stays for future
-// own-texture props whose pixels land on the wrong role.
+// Role overrides for the remap — { role: [light, dark] }, keyed by whichever
+// prop writes the shared pair, so an entry moves EVERY prop that samples it.
+// Empty today (the gym set turned out material-based); the hook stays for
+// pixels that land on the wrong role.
 const ROLE_OVERRIDES = {};
 
 const rgb = (hex) => [0, 2, 4].map((i) => parseInt(hex.slice(1 + i, 3 + i), 16));
@@ -215,7 +233,7 @@ function remapPixels(data, channels, count, themeMap, mix) {
   return out;
 }
 
-/** Write <name>-light.png / <name>-dark.png from a model's own texture. */
+/** Write the tiny-treats-{light,dark}.png pair every recolor prop shares. */
 async function recolorTexture(spec, png) {
   const { default: sharp } = await import("sharp");
   // 256px is plenty for palette-flat low-poly textures and keeps PNGs tiny.
@@ -230,7 +248,7 @@ async function recolorTexture(spec, png) {
       }
     }
     const out = remapPixels(data, info.channels, info.width * info.height, map, 1);
-    const file = path.join(OUT, `${spec.name}-${theme}.png`);
+    const file = path.join(OUT, `${RECOLOR_ATLAS}-${theme}.png`);
     await sharp(out, { raw: info }).png({ palette: true }).toFile(file);
   }
 }
@@ -344,13 +362,23 @@ async function buildModels({ bakeAo = false } = {}) {
   fs.mkdirSync(OUT, { recursive: true });
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "stacks-glb-"));
   let total = 0;
+  let sharedTex = null;
   for (const spec of MANIFEST) {
     const raw = await download(spec.url, spec.name);
     if (spec.recolor) {
       const { json, bin } = parseGlb(raw);
       const png = extractImage(json, bin);
       if (!png) throw new Error(`${spec.name}: recolor requested but no embedded texture`);
-      await recolorTexture(spec, png);
+      // Every recolor prop must be the same tiny-treats atlas byte for byte
+      // — one that quietly ships its own texture has to fail here rather
+      // than render through someone else's UVs.
+      const hash = crypto.createHash("sha1").update(png).digest("hex");
+      if (sharedTex === null) {
+        sharedTex = hash;
+        await recolorTexture(spec, png);
+      } else if (hash !== sharedTex) {
+        throw new Error(`${spec.name}: texture differs from the ${RECOLOR_ATLAS} atlas`);
+      }
     }
     const cut = surgery(raw, spec);
     const pre = path.join(tmp, `${spec.name}.pre.glb`);
@@ -367,23 +395,15 @@ async function buildModels({ bakeAo = false } = {}) {
     execFileSync("npx", ["--yes", "@gltf-transform/cli", "center", source, centered, "--pivot", "below"], { stdio: "pipe" });
     execFileSync(
       "npx",
-      ["--yes", "@gltf-transform/cli", "optimize", centered, out, "--compress", "meshopt", "--prune-attributes", "false", "--texture-compress", "false"],
+      ["--yes", "@gltf-transform/cli", "optimize", centered, out, "--compress", "meshopt", "--prune-attributes", "false", "--texture-compress", "false",
+        ...(spec.simplify ? ["--simplify-error", String(spec.simplify)] : [])],
       { stdio: "pipe" },
     );
     const size = fs.statSync(out).size;
     total += size;
-    let extra = "";
-    if (spec.recolor) {
-      for (const t of ["light", "dark"]) {
-        const p = path.join(OUT, `${spec.name}-${t}.png`);
-        const s = fs.statSync(p).size;
-        total += s;
-        extra += ` +${t} ${(s / 1024).toFixed(1)}KB`;
-      }
-    }
-    console.log(`${spec.name.padEnd(18)} ${(size / 1024).toFixed(1).padStart(6)} KB  (${spec.id}, raw ${(raw.length / 1024).toFixed(1)} KB)${extra}`);
+    console.log(`${spec.name.padEnd(18)} ${(size / 1024).toFixed(1).padStart(6)} KB  (${spec.id}, raw ${(raw.length / 1024).toFixed(1)} KB)`);
   }
-  for (const f of ["atlas-dark.png", "atlas-light.png"]) {
+  for (const f of ["atlas-dark.png", "atlas-light.png", `${RECOLOR_ATLAS}-dark.png`, `${RECOLOR_ATLAS}-light.png`]) {
     const p = path.join(OUT, f);
     if (fs.existsSync(p)) total += fs.statSync(p).size;
   }

@@ -220,27 +220,30 @@ export function BookRowMesh({
             </group>
           </ShelfBook>
         ) : item.kind === "flat" ? (
-          <ShelfBook
-            key={i}
-            linkUnit={linkUnit}
-            hoverKey={`link:row:${linkUnit}:${salt}:${i}`}
-            base={[item.x, 0, 0]}
-            lift={FLAT_LIFT}
-          >
+          // Each volume in the horizontal stack is its own door, for the same
+          // reason as BookPile: a shared hoverKey lifted the whole stack as
+          // one slab.
+          <group key={i}>
             {item.colors.map((color, j) => (
-              <RoundedBox
+              <ShelfBook
                 key={j}
-                castShadow
-                args={[0.32, 0.052, 0.24]}
-                radius={0.008}
-                smoothness={4}
-                position={[j * 0.012, 0.024 + j * 0.054, 0]}
-                rotation={[0, rand(i + j, salt + 9) * 0.16 - 0.08, 0]}
+                linkUnit={linkUnit}
+                hoverKey={`link:row:${linkUnit}:${salt}:${i}:${j}`}
+                base={[item.x + j * 0.012, 0.024 + j * 0.054, 0]}
+                lift={FLAT_LIFT}
               >
-                <meshStandardMaterial color={color} roughness={0.7} />
-              </RoundedBox>
+                <RoundedBox
+                  castShadow
+                  args={[0.32, 0.052, 0.24]}
+                  radius={0.008}
+                  smoothness={4}
+                  rotation={[0, rand(i + j, salt + 9) * 0.16 - 0.08, 0]}
+                >
+                  <meshStandardMaterial color={color} roughness={0.7} />
+                </RoundedBox>
+              </ShelfBook>
             ))}
-          </ShelfBook>
+          </group>
         ) : item.kind === "lean" ? (
           // Contact: rotZ drops one bottom corner — lift by the exact
           // h/2·cos + w/2·sin so the corner stays on the wood.
@@ -542,24 +545,44 @@ export function BookPile({
    * planted on the wood) becomes a door into the library. */
   linkUnit?: number;
 }) {
-  const stack = palette.pile.map((_, i) => (
-    <group
-      key={i}
-      // 0.026 = half height 0.03 sunk by ~radius/2 to bury the bevel rim.
-      position={[i * 0.02, 0.026 + i * 0.066, 0]}
-      rotation={[0, rand(i, salt) * 0.5 - 0.25, 0]}
-    >
-      <RoundedBox castShadow args={[0.46, 0.06, 0.32]} radius={0.008} smoothness={4}>
-        <meshStandardMaterial
-          color={palette.pile[(i + salt) % palette.pile.length]}
-          roughness={0.8}
-        />
-      </RoundedBox>
-      <RoundedBox args={[0.44, 0.044, 0.31]} radius={0.008} smoothness={4} position={[0.014, 0, 0.014]}>
-        <meshStandardMaterial color={palette.pages} roughness={0.9} />
-      </RoundedBox>
-    </group>
-  ));
+  // One link PER BOOK, not one for the stack. Wrapping the whole pile in a
+  // single PropLink made three books rise together under the pointer, which
+  // the owner clocked immediately as "some of the books hover in groups
+  // rather than one-by-one" — the pile stopped reading as books and started
+  // reading as one moulded object.
+  const stack = palette.pile.map((_, i) => {
+    // 0.026 = half height 0.03 sunk by ~radius/2 to bury the bevel rim.
+    const base: [number, number, number] = [i * 0.02, 0.026 + i * 0.066, 0];
+    const book = (
+      <group rotation={[0, rand(i, salt) * 0.5 - 0.25, 0]}>
+        <RoundedBox castShadow args={[0.46, 0.06, 0.32]} radius={0.008} smoothness={4}>
+          <meshStandardMaterial
+            color={palette.pile[(i + salt) % palette.pile.length]}
+            roughness={0.8}
+          />
+        </RoundedBox>
+        <RoundedBox args={[0.44, 0.044, 0.31]} radius={0.008} smoothness={4} position={[0.014, 0, 0.014]}>
+          <meshStandardMaterial color={palette.pages} roughness={0.9} />
+        </RoundedBox>
+      </group>
+    );
+    return linkUnit === undefined ? (
+      <group key={i} position={base}>
+        {book}
+      </group>
+    ) : (
+      <PropLink
+        key={i}
+        unitIndex={linkUnit}
+        to="books"
+        hoverKey={`link:pile:${linkUnit}:${salt}:${i}`}
+        base={base}
+        lift={[0, 0.028, 0.025]}
+      >
+        {book}
+      </PropLink>
+    );
+  });
   return (
     <group position={[x, 0, 0]}>
       <ContactShade
@@ -567,18 +590,7 @@ export function BookPile({
         width={0.62}
         position={[0.02, 0.03, 0.02]}
       />
-      {linkUnit === undefined ? (
-        stack
-      ) : (
-        <PropLink
-          unitIndex={linkUnit}
-          to="books"
-          hoverKey={`link:pile:${linkUnit}:${salt}`}
-          lift={[0, 0.028, 0.025]}
-        >
-          {stack}
-        </PropLink>
-      )}
+      {stack}
     </group>
   );
 }
@@ -693,9 +705,20 @@ export function GlowSprite({
   );
 }
 
-/** The lamp's light. Geometry truth: the shade is wide at its closed top
- * and OPENS at the narrow bottom-front end, local [0, 0.295, 0.086], axis
- * [0, −0.56, 0.83]; `yaw` must match the lamp model.
+/** The lamp's light.
+ *
+ * v4.7: the mouth is now MEASURED, not guessed. The shade's opening is a
+ * hole in desk-lamp.glb, so it is literally a boundary edge loop — the
+ * edges used by exactly one triangle. There is exactly one such loop on the
+ * shade: 16 points, centre [0, 0.3989, 0.0107], radius 0.0336, standard
+ * deviation 0.0000, planar to ±1e-5. A perfect circle, no fitting required.
+ *
+ * The old rig had the disc at [0, 0.292, 0.09] with radius 0.042 tilted
+ * 0.595 rad — 10cm BELOW the real opening, 8cm proud of it, oversized, and
+ * 32° off the shade's true axis. That is exactly the crescent of dark down
+ * one side of the mouth the owner reported, and why the pool was thrown too
+ * far forward: the spot was aimed along [0, −0.56, 0.83] when the shade
+ * actually points [0, −0.917, 0.400].
  *
  * v4.4 rebuild. Three previous versions failed the same way — they FAKED
  * light with geometry (a bulb sphere, then a gradient beam cone, under a
@@ -712,6 +735,13 @@ export function GlowSprite({
  * `litRef` (the lamp-toggle egg's damped 0..1 factor) only threads to the
  * self-animating GlowSprite; lights and emissives are dimmed generically by
  * the egg's traverse, so this rig owns no toggle logic. */
+/** Measured from desk-lamp.glb's boundary edge loop — see LampGlow. */
+const MOUTH: [number, number, number] = [0, 0.3989, 0.0107];
+const MOUTH_R = 0.0336;
+/** Rotation about X that lays circleGeometry's +Z normal onto AXIS. */
+const MOUTH_TILT = 1.1597;
+const AXIS: [number, number, number] = [0, -0.9167, 0.3996];
+
 export function LampGlow({
   palette,
   yaw = 0,
@@ -729,35 +759,46 @@ export function LampGlow({
   }, []);
   return (
     <group rotation={[0, yaw, 0]}>
-      {/* Halo, sized to the shade (0.3) rather than to the bay (1.0) — a
-          glow wider than the object making it is fog, not light. */}
-      <group position={[0, 0.29, 0.1]}>
+      {/* Halo, sized to the shade rather than to the bay — a glow wider than
+          the object making it is fog, not light. Centred just OUT of the
+          mouth along the axis, not on the mouth: centred on the mouth it
+          straddles the shade and reads as the whole lamp glowing, which is
+          the "trash lamp" failure mode all over again. */}
+      <group
+        position={[
+          MOUTH[0] + AXIS[0] * 0.05,
+          MOUTH[1] + AXIS[1] * 0.05,
+          MOUTH[2] + AXIS[2] * 0.05,
+        ]}
+      >
         <GlowSprite
           opacity={palette.glowOpacity}
           eased
-          scale={0.36}
+          scale={0.18}
           factorRef={litRef}
         />
       </group>
-      {/* Emissive disc ON the opening plane (normal = cup axis). Flush
-          geometry can never silhouette past the shade from any angle, and
-          it clears Bloom's 0.95 threshold, so the composer grows the soft
-          falloff for us. */}
-      <mesh position={[0, 0.292, 0.09]} rotation={[0.595, 0, 0]}>
-        <circleGeometry args={[0.042, 24]} />
+      {/* Emissive disc ON the measured opening plane, a whisker inside the
+          rim so it can never silhouette past the shade from any angle. It
+          clears Bloom's 0.95 threshold, so on desktop the composer grows the
+          soft falloff for us. DoubleSide because the mouth faces down-and-
+          forward, i.e. away from a camera that sits above the shelf line. */}
+      <mesh position={MOUTH} rotation={[MOUTH_TILT, 0, 0]}>
+        <circleGeometry args={[MOUTH_R * 0.96, 28]} />
         <meshStandardMaterial
           color="#fff1d6"
           emissive="#ffc98a"
           emissiveIntensity={3.4}
           roughness={0.4}
+          side={THREE.DoubleSide}
           toneMapped={false}
         />
       </mesh>
-      {/* The pool: a spot down the cup axis — light leaves the OPENING, it
-          doesn't radiate from the shade's centre of mass. */}
+      {/* The pool: a spot down the TRUE cup axis — light leaves the opening,
+          and it leaves along the direction the shade actually points. */}
       <spotLight
         ref={spotRef}
-        position={[0, 0.295, 0.086]}
+        position={[MOUTH[0], MOUTH[1] - 0.004, MOUTH[2] + 0.002]}
         color="#ffbe73"
         intensity={7.5}
         angle={0.66}
@@ -765,11 +806,22 @@ export function LampGlow({
         distance={3.6}
         decay={2}
       />
-      <object3D ref={targetRef} position={[0, -0.27, 0.92]} />
-      {/* Inside the cup, 3cm back up the axis: the shade's own interior has
+      <object3D
+        ref={targetRef}
+        position={[
+          MOUTH[0] + AXIS[0] * 1.2,
+          MOUTH[1] + AXIS[1] * 1.2,
+          MOUTH[2] + AXIS[2] * 1.2,
+        ]}
+      />
+      {/* Inside the cup, ~3cm back up the axis: the shade's own interior has
           to glow or the lamp reads as a torch someone left on a stick. */}
       <pointLight
-        position={[0, 0.312, 0.061]}
+        position={[
+          MOUTH[0] - AXIS[0] * 0.03,
+          MOUTH[1] - AXIS[1] * 0.03,
+          MOUTH[2] - AXIS[2] * 0.03,
+        ]}
         color="#ffcf96"
         intensity={0.22}
         distance={0.42}
@@ -779,7 +831,11 @@ export function LampGlow({
           without this the books a foot away sit in the dark next to a lit
           lamp, which is the one thing a real desk lamp never does. */}
       <pointLight
-        position={[0, 0.29, 0.18]}
+        position={[
+          MOUTH[0] + AXIS[0] * 0.16,
+          MOUTH[1] + AXIS[1] * 0.16,
+          MOUTH[2] + AXIS[2] * 0.16,
+        ]}
         color="#ffbe73"
         intensity={0.85}
         distance={1.9}

@@ -8,6 +8,7 @@ import { proxied } from "../../theme";
 import { EggLamp } from "../eggs";
 import LitImage from "../LitImage";
 import { Polaroid } from "../objects";
+import { PhotoMount } from "../photos";
 import { FrameRow, ShelfUnit } from "../primitives";
 import { useUnitLod } from "../useUnitLod";
 import { type UnitProps } from "./types";
@@ -42,27 +43,45 @@ export default function UnitTalks({
           {/* GenAI Summit open — him on the mic in the organizer vest
               (curator's top talks pick), an instant print leaning at the
               shelf's far left. */}
-          <group position={[-1.12, 0.1555, 0.05]} rotation={[-0.15, 0.1, -0.05]}>
+          <PhotoMount
+            unitIndex={index}
+            id="talk-summit"
+            position={[-1.12, 0.1555, 0.05]}
+            rotation={[-0.15, 0.1, -0.05]}
+          >
             <Polaroid
               src="/images/stacks/talk-summit.jpg"
               palette={palette}
               size={0.26}
               textured={textured}
             />
-          </group>
+          </PhotoMount>
           {/* Mic in hand, arm up, GenAI Collective banners behind — him
-              HOSTING, a different register from the polished stage shoot. */}
-          <group position={[0.06, 0.1425, 0.14]} rotation={[-0.15, -0.14, 0.04]}>
+              HOSTING, a different register from the polished stage shoot.
+              It links: this one came off a tweet, and the id survived
+              verbatim in the archived filename. */}
+          <PhotoMount
+            unitIndex={index}
+            id="talk-mic"
+            position={[0.06, 0.1425, 0.14]}
+            rotation={[-0.15, -0.14, 0.04]}
+            href="https://x.com/i/status/1798370655718744491"
+          >
             <Polaroid
               src="/images/stacks/talk-mic.jpg"
               palette={palette}
               textured={textured}
             />
-          </group>
+          </PhotoMount>
           {/* Framed Stanford panel shot fills the dead zone left of the
               lamp — the stand mic read "stupid and out of place" (owner, at
               browse); a real stage moment does the same narrative work. */}
-          <group position={[-0.5, 0.224, 0]} rotation={[-0.1, 0.12, 0]}>
+          <PhotoMount
+            unitIndex={index}
+            id="talk-stanford"
+            position={[-0.5, 0.224, 0]}
+            rotation={[-0.1, 0.12, 0]}
+          >
             <RoundedBox
               castShadow
               args={[0.58, 0.44, 0.03]}
@@ -83,7 +102,7 @@ export default function UnitTalks({
                 />
               </React.Suspense>
             )}
-          </group>
+          </PhotoMount>
         </group>
       }
     >

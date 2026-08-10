@@ -8,11 +8,13 @@ import React, { useMemo } from "react";
 import { RoundedBox } from "@react-three/drei";
 
 import { SteamCup } from "../eggs";
+import Grabbable from "../Grabbable";
 import { ContactShade } from "../GroundPool";
 import PropLink from "../links";
 import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
 import { NotebookLean, PaperStack, Polaroid } from "../objects";
+import { PhotoMount } from "../photos";
 import { ShelfUnit } from "../primitives";
 import { useUnitLod } from "../useUnitLod";
 import { type UnitProps } from "./types";
@@ -43,12 +45,28 @@ export default function UnitBlog({
               position={[0, 0.02, 0.02]}
             />
           </group>
-          <React.Suspense fallback={null}>
-            <ModelProp url="/models/mug.glb" dark={dark} position={[-0.55, 0, 0]} rotation={[0, 0.9, 0]} />
-          </React.Suspense>
+          {/* Pick it up and move it. Musings is the right unit to be the one
+              that lets you touch things — it is the quiet end of the shelf,
+              and a mug is the object a visitor's hand reaches for first. */}
+          <Grabbable
+            unitIndex={index}
+            hoverKey="grab:mug"
+            base={[-0.55, 0, 0]}
+            shadeColor={palette.shadow}
+            shadeWidth={0.26}
+          >
+            <React.Suspense fallback={null}>
+              <ModelProp url="/models/mug.glb" dark={dark} rotation={[0, 0.9, 0]} />
+            </React.Suspense>
+          </Grabbable>
           {/* Joshua Tree solo walk — the contemplative register of the
               unit, framed small on the empty lower-left. */}
-          <group position={[-1.0, 0.152, 0]} rotation={[-0.1, 0.14, 0]}>
+          <PhotoMount
+            unitIndex={index}
+            id="musings-walk"
+            position={[-1.0, 0.152, 0]}
+            rotation={[-0.1, 0.14, 0]}
+          >
             <RoundedBox
               castShadow
               args={[0.4, 0.3, 0.025]}
@@ -69,7 +87,7 @@ export default function UnitBlog({
                 />
               </React.Suspense>
             )}
-          </group>
+          </PhotoMount>
         </group>
       }
     >
@@ -125,9 +143,17 @@ export default function UnitBlog({
           />
         </React.Suspense>
       </SteamCup>
-      <React.Suspense fallback={null}>
-        <ModelProp url="/models/headphones.glb" dark={dark} position={[0.12, 0, 0.14]} rotation={[0, 0.5, 0]} scale={2.0} />
-      </React.Suspense>
+      <Grabbable
+        unitIndex={index}
+        hoverKey="grab:headphones"
+        base={[0.12, 0, 0.14]}
+        shadeColor={palette.shadow}
+        shadeWidth={0.42}
+      >
+        <React.Suspense fallback={null}>
+          <ModelProp url="/models/headphones.glb" dark={dark} rotation={[0, 0.5, 0]} scale={2.0} />
+        </React.Suspense>
+      </Grabbable>
       {/* Corkboard leaning back-right, top corner on the strap — fills the
           empty right third (audit §3-Musings). Three pinned instant prints
           from the Instagram curation round (fresh content — the earlier
@@ -144,10 +170,16 @@ export default function UnitBlog({
           // frame in the archive, and the board had room low-right.
           { src: "/images/stacks/musings-shore.jpg", x: 0.15, y: 0.07, roll: -0.06 },
         ].map((pin) => (
-          <group
+          // A pinned print can only come toward you: the brass holds its top
+          // corner, so the standing lift's rise would tear it off the board.
+          // The pin rides along, and the roll levels out under the pointer.
+          <PhotoMount
             key={pin.src}
+            unitIndex={index}
+            id={pin.src}
             position={[pin.x, pin.y, 0.022]}
             rotation={[0, 0, pin.roll]}
+            lift={[0, 0, 0.01]}
           >
             <Polaroid
               src={pin.src}
@@ -163,7 +195,7 @@ export default function UnitBlog({
                 roughness={0.4}
               />
             </mesh>
-          </group>
+          </PhotoMount>
         ))}
       </group>
       <ContactShade

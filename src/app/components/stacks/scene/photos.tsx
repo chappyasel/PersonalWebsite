@@ -11,13 +11,71 @@
 // One shared caveat: LitImage's texture cache is keyed by URL and each
 // instance mutates repeat/offset, so a given photo may appear EXACTLY ONCE
 // in the scene. Reuse needs a clone first.
+//
+// PhotoMount lives here too — every print in the room, whatever its
+// silhouette and whichever file it was declared in, hangs from it.
 import { RoundedBox } from "@react-three/drei";
 import React from "react";
 
+import { INERT_HOVER } from "../store";
 import { type Palette } from "../theme";
+import PropLink, { HoverProp } from "./links";
 import LitImage from "./LitImage";
 
 const FRAME_BORDER = 0.024;
+
+/** A print rises about a centimetre and comes a little way toward you —
+ * enough to catch the lamp, small enough that crossing a shelf of them
+ * doesn't set the room twitching. */
+const PHOTO_LIFT: [number, number, number] = [0, 0.012, 0.016];
+/** ~3° off each axis of the placement tilt: the frame squares up to you
+ * without ever looking like it snapped to a grid. */
+const PHOTO_SETTLE = 0.05;
+const PHOTO_GROW = 1.02;
+
+/** Every photograph in the room mounts through here. It owns the print's
+ * placement, because the hover can only ease a tilt it holds itself, and it
+ * gates on the active unit so prints two units away don't take the cursor.
+ * `href` is for the four frames whose source post is known verbatim. */
+export function PhotoMount({
+  unitIndex,
+  id,
+  position,
+  rotation,
+  lift = PHOTO_LIFT,
+  href,
+  children,
+}: {
+  unitIndex: number;
+  /** The photo's file stem, or its path where the placement already has one
+   * to hand. Either is unique by construction: LitImage's URL-keyed cache
+   * already forbids hanging the same print twice. */
+  id: string;
+  position: [number, number, number];
+  rotation?: [number, number, number];
+  lift?: [number, number, number];
+  /** The post this photograph came from, when there is one. */
+  href?: string;
+  children: React.ReactNode;
+}) {
+  const pose = {
+    unitIndex,
+    base: position,
+    lift,
+    rest: rotation,
+    settle: PHOTO_SETTLE,
+    grow: PHOTO_GROW,
+  };
+  return href === undefined ? (
+    <HoverProp {...pose} hoverKey={`${INERT_HOVER}${id}`}>
+      {children}
+    </HoverProp>
+  ) : (
+    <PropLink {...pose} hoverKey={`link:photo:${id}`} href={href}>
+      {children}
+    </PropLink>
+  );
+}
 
 /** Total height of a DeskFrame — callers need it for the contact math. */
 export function deskFrameHeight(height: number) {

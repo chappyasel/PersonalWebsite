@@ -12,7 +12,7 @@ import { ContactShade, FootPool } from "../GroundPool";
 import PropLink from "../links";
 import ModelProp from "../ModelProp";
 import { InboxTray, Polaroid } from "../objects";
-import { DeskFrame, deskFrameHeight } from "../photos";
+import { DeskFrame, deskFrameHeight, PhotoMount } from "../photos";
 import { BookPile, ShelfUnit } from "../primitives";
 import { useUnitLod } from "../useUnitLod";
 import { type UnitProps } from "./types";
@@ -29,7 +29,9 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
             <BookPile palette={palette} x={0.3} salt={58} linkUnit={index} />
             {/* First light on a ridge, and the redwoods — "get outside" as
                 a practice. They fill the bare left half of this shelf. */}
-            <group
+            <PhotoMount
+              unitIndex={index}
+              id="systems-ridge"
               position={[-1.05, deskFrameHeight(0.2) / 2, 0.05]}
               rotation={[-0.11, 0.26, -0.02]}
             >
@@ -40,14 +42,19 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
                 width={0.28}
                 height={0.2}
               />
-            </group>
-            <group position={[-0.2, 0.1425, 0.14]} rotation={[-0.16, -0.2, 0.05]}>
+            </PhotoMount>
+            <PhotoMount
+              unitIndex={index}
+              id="systems-redwoods"
+              position={[-0.2, 0.1425, 0.14]}
+              rotation={[-0.16, -0.2, 0.05]}
+            >
               <Polaroid
                 src="/images/stacks/systems-redwoods.jpg"
                 palette={palette}
                 textured={textured}
               />
-            </group>
+            </PhotoMount>
             <group position={[-0.55, 0, 0]}>
               <React.Suspense fallback={null}>
                 <ModelProp
@@ -118,13 +125,18 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
         {/* Sunrise over the water, beside the clock whose egg winds to 3:45.
             The unit is about getting up before everyone else; this is what
             that actually looks like. */}
-        <group position={[0.28, 0.1425, 0.1]} rotation={[-0.15, -0.16, 0.03]}>
+        <PhotoMount
+          unitIndex={index}
+          id="systems-sunrise"
+          position={[0.28, 0.1425, 0.1]}
+          rotation={[-0.15, -0.16, 0.03]}
+        >
           <Polaroid
             src="/images/stacks/systems-sunrise.jpg"
             palette={palette}
             textured={textured}
           />
-        </group>
+        </PhotoMount>
         <group position={[0.85, 0, 0]}>
           <InboxTray palette={palette} />
           <ContactShade
