@@ -15,11 +15,15 @@
 //   stock hue toward the palette.
 // Every material is forced to metalness 0 / roughness ~0.7 — CreativeTrio
 // ships 0.4/0.272, which reads as tinted chrome under our environment map.
+import { INERT_HOVER, useStacks } from "../store";
 import { useGLTF, useTexture } from "@react-three/drei";
-import { useEffect, useMemo } from "react";
+import { type ThreeEvent, useFrame } from "@react-three/fiber";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { mergeVertices } from "three-stdlib";
 
+import { LIFT_LAMBDA } from "./Lift";
+import { useInteractionClaimed } from "./interaction";
 import {
   extractTriangles,
   findIslands,
@@ -50,12 +54,23 @@ export const MODEL_URLS = [
   "/models/corkboard.glb",
   "/models/grandfather-clock.glb",
   "/models/ladder.glb",
-  "/models/armchair.glb",
   "/models/sansevieria.glb",
   "/models/potted-plant.glb",
   "/models/pothos.glb",
   "/models/barbell.glb",
   "/models/kettlebell.glb",
+  // v5 additions. These six are placed by unit files but were never in the
+  // preload batch, so they arrived after the first paint and popped in one at
+  // a time; the eames-chair is also the seat's click target, which made its
+  // late arrival an interaction gap rather than only a visual one.
+  // `armchair.glb` came the other way: preloaded, and placed by nothing since
+  // the About chair was swapped for the eames. This list is the placed set.
+  "/models/eames-chair.glb",
+  "/models/monstera.glb",
+  "/models/cactus.glb",
+  "/models/lamp-floor.glb",
+  "/models/lamp-table.glb",
+  "/models/mac.glb",
 ];
 
 /** Isa Lousberg's houseplants are a second atlas set: every prop in it
@@ -202,6 +217,276 @@ function splitSpinPart(root: THREE.Object3D): void {
   }
 }
 
+/** Default floor motion. 2.2 cm of rise reads from a camera sitting ~2° above
+ * the shelf line; the swell alone does not, which is why there is a lift at
+ * all. Both sit UNDER links.tsx's DEFAULT_LIFT (3 cm + 2 cm toward the
+ * viewer) on purpose — a prop that opens a page should still out-move one
+ * that only acknowledges you. */
+const FLOOR_LIFT = 0.022;
+const FLOOR_GROW = 1.015;
+
+/** Twin of the helper in eggs.tsx (not exported there). */
+function reducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+/** Wrapper-group name for the floor: `prop:<model>`. Named because pixels
+ * cannot say WHICH object moved — the harness reads the transform through
+ * `window.__stacks.node()`, the same reason SPIN_NODE has a name. */
+export function hoverNodeName(url: string): string {
+  return `prop:${
+    url
+      .split("/")
+      .pop()
+      ?.replace(/\.glb$/, "") ?? "model"
+  }`;
+}
+
+/**
+ * Backstop for interaction shells that predate `InteractionClaim`: ask the
+ * live scene graph whether an ancestor already handles hover. r3f's own event
+ * dispatcher reads exactly this field to decide which objects an event bubbles
+ * through (`__r3f.handlers`), so the answer is the dispatcher's own. Every
+ * hover shell in this scene — EggTrigger, LampSwitch, HoverShell, Grabbable —
+ * is an `onPointerOver` on a group, and nothing in the scene uses
+ * onPointerMove or onPointerEnter, so this one key is the whole surface.
+ */
+function ancestorHandlesHover(from: THREE.Object3D): boolean {
+  type Instance = { handlers?: Record<string, unknown> };
+  for (let o = from.parent; o; o = o.parent) {
+    const instance = (o as THREE.Object3D & { __r3f?: Instance }).__r3f;
+    if (instance?.handlers?.onPointerOver) return true;
+  }
+  return false;
+}
+
+/**
+ * Is this prop lit by a rig authored AROUND it rather than inside it?
+ *
+ * The floor lamp on Talks is the pattern: the ModelProp is one child of a
+ * group, and its spotLight, two glow sprites and two emissive shade discs are
+ * SIBLINGS placed in the parent's frame at heights measured off the model
+ * (SHADE_BOTTOM_Y / SHADE_TOP_Y). Move the model and it slides out of its own
+ * light, which stays behind. The swell decouples it too — 1.5% of a 1.4-unit
+ * lamp is 2 cm at the shade — so a prop like this gets no floor at all rather
+ * than a lift-free one.
+ *
+ * Proximity is what makes this safe to ask. "Does my parent contain lights?"
+ * is far too blunt: the mug on About shares its group with the desk lamp's
+ * whole rig, and would lose its floor for standing next to a lamp. A light
+ * that is PART of a prop sits inside that prop's own bounding box, so the test
+ * is containment, not kinship. Two levels up, because the rig is often a
+ * sibling of the trigger that wraps the model rather than of the model itself.
+ */
+function litByOwnRig(group: THREE.Object3D, box: THREE.Box3): boolean {
+  const near = box.clone().expandByScalar(0.02);
+  // Real lights only, never sprites, and that is a measured decision rather
+  // than an oversight. ContactShade and FootPool are camera-facing SPRITES
+  // hugging a prop's base and nearly every prop on these shelves has one, so
+  // counting sprites disabled the floor almost everywhere it should apply. A
+  // contact shadow staying on the wood is the correct reading of a lift
+  // anyway — the object is rising off it. Excluding sprites by height instead
+  // fails on the hanging pothos, whose model is offset −0.144 so its own shade
+  // sits near the TOP of its box. Nothing is lost: every glow sprite in this
+  // scene accompanies a real light (see the floor lamp's rig and LampGlow), so
+  // the lights alone already identify every prop that owns a lighting rig.
+  const world = new THREE.Vector3();
+  let found = false;
+  const scan = (o: THREE.Object3D) => {
+    if (found || o === group) return; // never our own subtree
+    if (
+      (o as THREE.Light).isLight === true &&
+      near.containsPoint(o.getWorldPosition(world))
+    ) {
+      found = true;
+      return;
+    }
+    for (const child of o.children) scan(child);
+  };
+  let scope: THREE.Object3D | null = group.parent;
+  for (let up = 0; up < 2 && scope && !found; up++, scope = scope.parent) {
+    for (const child of scope.children) scan(child);
+  }
+  return found;
+}
+
+/**
+ * Greatest world-space dimension, in scene units, above which a prop is
+ * furniture and stops answering the pointer with a bob. The rule the owner
+ * drew: the floor is for small shelf objects a person would pick up, and
+ * furniture must not move when the pointer crosses it.
+ *
+ * A WORLD measurement taken after every scale in the chain, because `scale` is
+ * a multiplier over source models that differ by an order of magnitude and
+ * means nothing on its own — the floor lamp is scaled 1.67 and the mug 2.1,
+ * and the lamp is three times the object.
+ *
+ * Measured, not guessed. Every GLB prop in the world, greatest world dimension
+ * in scene units:
+ *
+ *   alarm-clock  0.269   desk-lamp    0.645  │  eames-chair       0.892
+ *   cup-tea      0.366   lamp-table   0.650  │  golf-club         1.056
+ *   headphones   0.408   pothos       0.664  │  ladder            1.259
+ *   mug          0.418   basketball   0.670  │  lamp-floor        1.436
+ *   potted-plant 0.471   cactus       0.696  │  monstera          1.691
+ *                                            │  grandfather-clock 1.869
+ *
+ * The population is bimodal and the classes are exactly the semantic ones:
+ * everything at or below 0.696 is something you would pick up off a shelf, and
+ * everything at or above 0.892 is furniture. 0.78 sits in that empty band with
+ * ~12% of margin on each side.
+ *
+ * Note this is deliberately looser than "30 cm on a shelf" (0.60 units at the
+ * shelves' 2.00 units per metre), which the measurements rule out: it would
+ * have cut the desk lamp, the table lamp, the basketball, the pothos and the
+ * cactus, all of which are shelf objects. One threshold also covers both house
+ * scales without special-casing, because nothing at the ~0.99 units-per-metre
+ * floor scale comes anywhere near it — the armchair, the smallest of them,
+ * is 0.90 m of real chair.
+ */
+const FLOOR_MAX_SIZE = 0.78;
+
+/** Whether a prop that asked for the floor gets it, and why not if it doesn't.
+ * `size` is reported either way — it is what the dev log is for. */
+function floorVerdict(
+  group: THREE.Object3D,
+  force: boolean,
+): { reason: string | null; size: number } {
+  // Measure before testing anything, so the dev log reports a size for every
+  // prop in the world and not only the ones that survive the earlier gates —
+  // the size cutoff below was chosen off exactly that census.
+  //
+  // World, not local: ancestors carry the unit pose and the two house scales
+  // (2.00 units/m on the shelves, ~0.96 on the floor). updateWorldMatrix first
+  // — this runs before the first frame, so the matrices up the chain have not
+  // necessarily been composed yet.
+  group.updateWorldMatrix(true, true);
+  const box = new THREE.Box3().setFromObject(group);
+  if (box.isEmpty()) return { reason: "empty", size: 0 };
+  const s = box.getSize(new THREE.Vector3());
+  const size = Math.max(s.x, s.y, s.z);
+  if (ancestorHandlesHover(group)) return { reason: "shell", size };
+  if (litByOwnRig(group, box)) return { reason: "rig", size };
+  if (!force && size > FLOOR_MAX_SIZE) return { reason: "furniture", size };
+  return { reason: null, size };
+}
+
+/**
+ * The interaction floor: a prop that has no other answer at least
+ * acknowledges the pointer. A damped rise of a couple of centimetres and a
+ * swell you would not notice on its own, easing on Lift's curve so the whole
+ * world settles alike.
+ *
+ * Hover state lives in refs and drives the group inside useFrame — no React
+ * render per pointer move, the rule the rest of this scene is built on (see
+ * Lift). At rest the frame callback compares two numbers and returns, so an
+ * untouched prop costs nothing.
+ *
+ * The swell pivots at the prop's OWN base, not the wrapper's origin: the
+ * primitive keeps whatever `position` the caller gave it, so scaling the
+ * wrapper would drag a prop standing 1.3 m along the shelf sideways by 2 cm —
+ * a slide, not a swell. Undoing that by the same factor scales about the
+ * child's origin, which is where the prop meets the wood.
+ */
+function HoverFloor({
+  name,
+  lift,
+  grow,
+  force,
+  children,
+}: {
+  name: string;
+  lift: number;
+  grow: number;
+  force: boolean;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<THREE.Group>(null);
+  const hovered = useRef(false);
+  const rise = useRef(0);
+  const swell = useRef(1);
+  const still = useMemo(() => reducedMotion(), []);
+  // Resolved once, after the tree has committed — the prop is attached and
+  // measurable by then, every shell above it has its handlers, and a mounted
+  // prop never changes parents. A prop that stands down drops its handlers
+  // entirely rather than merely ignoring the pointer: with no handlers r3f
+  // leaves it out of the raycast set (furniture is big geometry to hit-test
+  // for nothing) AND out of the bubble chain, so the shell above it is reached
+  // exactly as it was before this component existed.
+  const [inert, setInert] = useState(false);
+  useEffect(() => {
+    const g = ref.current;
+    if (!g) return;
+    const { reason, size } = floorVerdict(g, force);
+    if (reason) setInert(true);
+    if (process.env.NODE_ENV === "development") {
+      console.info(
+        `[stacks] floor ${name} size=${size.toFixed(3)} → ${reason ?? "ON"}`,
+      );
+    }
+  }, [name, force]);
+  // Claims the store's hover slot under the INERT prefix: the floor moves a
+  // prop, it does not open anything, and a pointer finger over a prop with no
+  // destination promises a click that never lands (see store.ts). The claim
+  // still buys correct cursor arbitration against the props that DO open
+  // something, and gives the harness something to read.
+  const hoverKey = INERT_HOVER + useId();
+  useFrame((_, delta) => {
+    const g = ref.current;
+    if (!g || inert) return;
+    const on = hovered.current && !still;
+    const ty = on ? lift : 0;
+    const ts = on ? grow : 1;
+    if (Math.abs(rise.current - ty) + Math.abs(swell.current - ts) < 1e-4) {
+      if (rise.current === ty && swell.current === ts) return; // settled
+      rise.current = ty;
+      swell.current = ts;
+    } else {
+      rise.current = THREE.MathUtils.damp(rise.current, ty, LIFT_LAMBDA, delta);
+      swell.current = THREE.MathUtils.damp(
+        swell.current,
+        ts,
+        LIFT_LAMBDA,
+        delta,
+      );
+    }
+    const base = g.children[0]?.position;
+    const k = 1 - swell.current;
+    g.scale.setScalar(swell.current);
+    g.position.set(
+      base ? base.x * k : 0,
+      (base ? base.y * k : 0) + rise.current,
+      base ? base.z * k : 0,
+    );
+  });
+  // The group stays mounted either way — dropping it would re-parent the model
+  // and churn the graph other systems cache nodes out of. Only the handlers go.
+  const handlers = inert
+    ? {}
+    : {
+        onPointerOver: (e: ThreeEvent<PointerEvent>) => {
+          e.stopPropagation(); // or every prop behind this one lights up too
+          hovered.current = true;
+          useStacks.getState().setHovered(hoverKey);
+        },
+        onPointerOut: () => {
+          hovered.current = false;
+          // Clear only our own slot — a late out must never drop another
+          // prop's freshly claimed hover (the house rule, see EggTrigger).
+          if (useStacks.getState().hovered === hoverKey)
+            useStacks.getState().setHovered(null);
+        },
+      };
+  return (
+    <group ref={ref} name={name} {...handlers}>
+      {children}
+    </group>
+  );
+}
+
 export default function ModelProp({
   url,
   dark,
@@ -212,6 +497,7 @@ export default function ModelProp({
   atlasOverride,
   smoothNormals,
   spinPart,
+  hover = true,
   position,
   rotation,
   scale,
@@ -239,6 +525,16 @@ export default function ModelProp({
    * the memo deps below, and an object here would rebuild the model on every
    * parent render. */
   spinPart?: "sphere";
+  /** Universal interaction floor, ON by default: a small prop with no other
+   * answer still rises a little under the pointer.
+   *
+   * It stands down on its own for anything that should not bob — furniture (by
+   * measured size), a prop lit by a rig of siblings, a prop inside a shell that
+   * already handles the pointer, a prop with `spinPart`. Overridable in both
+   * directions: `false` is an unconditional no, `{ force: true }` puts the
+   * floor on a prop the size cutoff would have excluded. `{ lift, grow }` tunes
+   * the motion — a heavy prop wants a smaller lift rather than none. */
+  hover?: boolean | { lift?: number; grow?: number; force?: boolean };
   position?: [number, number, number];
   rotation?: [number, number, number];
   scale?: number;
@@ -247,6 +543,9 @@ export default function ModelProp({
   // Two atlas sets, one code path: recolor props sample the tiny-treats
   // pair, everything else the CreativeTrio pair. Same hook, same cache.
   const atlases = useTexture(variant === "recolor" ? RECOLOR_URLS : ATLAS_URLS);
+  // Read here, used only by the wrapper below — the hover floor deliberately
+  // owns no state that could reach the memo's deps.
+  const claimed = useInteractionClaimed();
   const object = useMemo(() => {
     const clone = scene.clone(true);
     if (variant === "atlas" || variant === "recolor") {
@@ -270,7 +569,10 @@ export default function ModelProp({
         if (!geo.attributes.color && pos) {
           geo.setAttribute(
             "color",
-            new THREE.BufferAttribute(new Float32Array(3 * pos.count).fill(1), 3),
+            new THREE.BufferAttribute(
+              new Float32Array(3 * pos.count).fill(1),
+              3,
+            ),
           );
         }
         o.material = mat;
@@ -314,7 +616,18 @@ export default function ModelProp({
       });
     }
     return clone;
-  }, [scene, atlases, dark, variant, tints, tintAll, roughness, atlasOverride, smoothNormals, spinPart]);
+  }, [
+    scene,
+    atlases,
+    dark,
+    variant,
+    tints,
+    tintAll,
+    roughness,
+    atlasOverride,
+    smoothNormals,
+    spinPart,
+  ]);
 
   // Release what this memo allocated. `tints` and `atlasOverride` are inline
   // object literals at every call site, so their identity changes on ANY
@@ -347,13 +660,30 @@ export default function ModelProp({
       });
     };
   }, [object]);
-  return (
+  const model = (
     <primitive
       object={object}
       position={position}
       rotation={rotation}
       scale={scale}
     />
+  );
+  // Nothing wrapped, nothing subscribed to the frame loop, and the rendered
+  // tree is byte-for-byte what it was before this prop existed. `spinPart` is
+  // in here because the two motions fight: the wrapper would carry the stand
+  // up with the ball, and the whole point of splitSpinPart is that the stand
+  // holds still.
+  if (hover === false || claimed || spinPart) return model;
+  const tune = hover === true ? null : hover;
+  return (
+    <HoverFloor
+      name={hoverNodeName(url)}
+      lift={tune?.lift ?? FLOOR_LIFT}
+      grow={tune?.grow ?? FLOOR_GROW}
+      force={tune?.force ?? false}
+    >
+      {model}
+    </HoverFloor>
   );
 }
 

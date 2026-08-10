@@ -57,23 +57,103 @@ export function PortraitFrame({
   );
 }
 
+/** Print width. 0.176 is a Polaroid 600 print (0.088 m) at the shelves' 2.00
+ * world units per metre. It was 0.24, which is 2.73 u/m — the same physical
+ * object was standing nearly half again too big next to books that are
+ * correct, and four call sites had drifted to four different sizes. Anything
+ * overriding this is off the house scale by definition. */
+export const POLAROID_SIZE = 0.176;
+const POLAROID_T = 0.008;
+const POSTCARD = { w: 0.296, h: 0.21, t: 0.005 } as const;
+
+/** Where a print's origin sits inside its own board.
+ * - "center": the middle of the print. What a PINNED print wants — the pin's
+ *   coordinates on a corkboard are the centre of the picture.
+ * - "contact": the bottom-back edge, i.e. the edge a print propped against
+ *   something actually rests on. What a LEANING print wants: mount it at the
+ *   plank's own y and it stands on the plank.
+ *
+ * The default is "center" ON PURPOSE, and it is temporary. Flipping it would
+ * be the better API, but the twelve leaning call sites and the four pinned
+ * ones live in files this change cannot touch, so the two edits cannot land
+ * together. With "center" as the default a half-applied migration leaves the
+ * scene exactly as it is today; with "contact" it would fling the four
+ * corkboard pins 10 cm up the board. Once the leaning sites carry
+ * anchor="contact", flip this to "contact" and mark the pins "center". */
+export type PrintAnchor = "center" | "contact";
+
+/** The mount y at which a leaning print rests on the surface below it, for a
+ * print anchored at "contact".
+ *
+ * This exists because the y it replaces could not be checked by eye. Every
+ * leaning print in the world was mounted at a literal — 0.1425, 0.1555,
+ * 0.1305 — each of which was `oldHeight/2 · cos(lean)` for a size the print no
+ * longer is. When Polaroid shrank 0.24 → 0.176 and PostcardPrint grew
+ * 0.21×0.15 → 0.296×0.21, all fourteen constants silently became wrong: eleven
+ * prints floating 1.5–2.2 cm and two buried 1.8–2.2 cm. Nothing in the source
+ * looked wrong, because a bare number cannot look wrong.
+ *
+ * Derived rather than measured, so it cannot go stale: the print occupies
+ * x ∈ [−w/2, w/2], y ∈ [0, h], z ∈ [0, t] about its contact edge, and the
+ * lowest of those eight corners under `rotation` is what has to land on the
+ * wood. Change the size, the lean or the roll and this follows.
+ *
+ * A pure backward lean returns ~0 — that is the whole point of anchoring at
+ * the back edge, since leaning back pivots on it. What this actually corrects
+ * is the ROLL: a few degrees of z drops one bottom corner by up to
+ * (w/2)·sin(roll), and the yaw amplifies it through the XYZ cross term. On the
+ * widest, most-rolled print in the world (the Arches postcard, yaw 0.30 with
+ * roll −0.05) that is 1.5 cm, which is not a rounding error. */
+const seatMatrix = new THREE.Matrix4();
+const seatEuler = new THREE.Euler();
+function seat(
+  rotation: [number, number, number],
+  box: { w: number; h: number; t: number },
+): number {
+  seatMatrix.makeRotationFromEuler(
+    seatEuler.set(rotation[0], rotation[1], rotation[2], "XYZ"),
+  );
+  // The y row of a column-major Matrix4.
+  const e = seatMatrix.elements;
+  const [ax, ay, az] = [e[1], e[5], e[9]];
+  const lowest =
+    -Math.abs(ax) * (box.w / 2) +
+    Math.min(0, ay * box.h) +
+    Math.min(0, az * box.t);
+  return -lowest;
+}
+
+export const polaroidSeat = (
+  rotation: [number, number, number],
+  size: number = POLAROID_SIZE,
+) => seat(rotation, { w: size, h: size * 1.21, t: POLAROID_T });
+
+export const postcardSeat = (rotation: [number, number, number]) =>
+  seat(rotation, POSTCARD);
+
 /** Instant-print photo: white border, square image high in the frame. Used
  * leaning on shelves and pinned to the corkboard. */
 export function Polaroid({
   src,
   palette,
-  size = 0.24,
+  size = POLAROID_SIZE,
   textured = true,
+  anchor = "center",
 }: {
   src: string;
   palette: Palette;
   size?: number;
   textured?: boolean;
+  anchor?: PrintAnchor;
 }) {
   const h = size * 1.21;
   return (
-    <group>
-      <RoundedBox castShadow args={[size, h, 0.008]} radius={0.003} smoothness={2}>
+    // Everything below is unchanged and stays registered to the board; only
+    // the board's own origin moves.
+    <group
+      position={anchor === "contact" ? [0, h / 2, POLAROID_T / 2] : [0, 0, 0]}
+    >
+      <RoundedBox castShadow args={[size, h, POLAROID_T]} radius={0.003} smoothness={2}>
         <meshStandardMaterial color={palette.paper} roughness={0.85} />
       </RoundedBox>
       {textured && (
@@ -91,27 +171,42 @@ export function Polaroid({
   );
 }
 
-/** Small leaning print — the Budapest postcard by the globe. */
+/** Small leaning print — the Budapest postcard by the globe. Same anchor rule
+ * as Polaroid; both of its call sites lean, neither pins. */
 export function PostcardPrint({
   src,
   palette,
   textured = true,
+  anchor = "center",
 }: {
   src: string;
   palette: Palette;
   textured?: boolean;
+  anchor?: PrintAnchor;
 }) {
   return (
-    <group>
-      <RoundedBox castShadow args={[0.21, 0.15, 0.005]} radius={0.002} smoothness={2}>
+    <group
+      position={
+        anchor === "contact" ? [0, POSTCARD.h / 2, POSTCARD.t / 2] : [0, 0, 0]
+      }
+    >
+      {/* A6, 0.148 x 0.105 m, at the shelves' 2.00 u/m. It was 0.21 x 0.15,
+          which is a 0.105 m postcard — half-size stationery beside full-size
+          books. */}
+      <RoundedBox
+        castShadow
+        args={[POSTCARD.w, POSTCARD.h, POSTCARD.t]}
+        radius={0.002}
+        smoothness={2}
+      >
         <meshStandardMaterial color={palette.paper} roughness={0.9} />
       </RoundedBox>
       {textured && (
         <React.Suspense fallback={null}>
           <LitImage
             url={src}
-            width={0.195}
-            height={0.135}
+            width={0.275}
+            height={0.19}
             roughness={0.6}
             position={[0, 0, 0.003]}
           />
@@ -144,7 +239,13 @@ export function CardStack({ palette }: { palette: Palette }) {
     return texture;
   }, []);
   return (
-    <group>
+    // 0.5933 = 0.178/0.30: a business card is 0.089 x 0.051 m, which at the
+    // shelves' 2.00 u/m is 0.178 wide. The stack shipped at 0.30, i.e. 3.37
+    // u/m — the single most oversized thing on the About shelf, a deck of
+    // postcards pretending to be calling cards. Scaling the whole group
+    // rather than the box keeps the printed top card registered to the card
+    // it is printed on, and keeps the fanned offsets in proportion.
+    <group scale={0.5933}>
       {[0, 1, 2, 3].map((i) => (
         <RoundedBox
           key={i}
@@ -320,7 +421,17 @@ export function DeskApple({ palette }: { palette: Palette }) {
  * trifold, the audit's worst single element (§3-Systems). */
 export function InboxTray({ palette }: { palette: Palette }) {
   return (
-    <group rotation={[0, -0.18, 0]}>
+    // x1.9. The tray body was 0.38 wide = 0.19 m, and its sheets 0.30 = 0.15 m:
+    // a letter tray and a stack of A4 both at about half size, on a plank
+    // holding correctly-scaled books. 1.9 lands the body at 0.36 m against a
+    // real 0.35 and the sheets at 0.285 against A4's 0.297. Scaling the group
+    // keeps the sheets inside the walls that hold them.
+    // The grown tray is 0.806 wide once the −0.18 yaw is folded in, so its
+    // placement is now load-bearing: UnitSystems carries it at x 0.20, where
+    // it spans world −0.203…0.603 against a 1280 placard edge at +0.427 and
+    // arrives ~88% visible with its link comfortably clickable. Do not move it
+    // right, and re-check the span before scaling it again.
+    <group rotation={[0, -0.18, 0]} scale={1.9}>
       <RoundedBox castShadow args={[0.38, 0.016, 0.28]} radius={0.004} smoothness={4} position={[0, 0.008, 0]}>
         <meshStandardMaterial color={palette.strap} roughness={0.6} />
       </RoundedBox>
@@ -386,6 +497,11 @@ export function NotebookLean({
   linkUnit?: number;
 }) {
   const setHovered = useStacks((s) => s.setHovered);
+  /** House rule: a prop only answers when its unit is the ACTIVE one. With no
+   * `linkUnit` there is no unit to check against, so the spines stay live —
+   * the only caller without one is a preview outside the shelf row. */
+  const activeHere = () =>
+    linkUnit === undefined || useStacks.getState().activeUnit === linkUnit;
   // Two cool accents among warm neutrals, like the shelf spines.
   const colors = [
     palette.spines[8],
@@ -408,9 +524,16 @@ export function NotebookLean({
             radius={0.008}
             smoothness={4}
             rotation={[0, 0, lean]}
+            // Every one of these three returns WITHOUT stopPropagation when
+            // this unit is not the active one, exactly as EggTrigger,
+            // HoverShell and Grabbable already do. Without the gate a pointer
+            // parked on the live strip beside the placard while you stand on
+            // Projects claims a Musings notebook, and a click there opens the
+            // post instead of travelling to the unit you tapped.
             onPointerOver={
               key
                 ? (e) => {
+                    if (!activeHere()) return;
                     e.stopPropagation();
                     setHovered(`notebook:${key}`);
                   }
@@ -428,6 +551,7 @@ export function NotebookLean({
               key && onNotebookClick
                 ? (e) => {
                     if ((e.delta ?? 0) > 6) return; // swipe, not a tap
+                    if (!activeHere()) return; // fall through → travel
                     e.stopPropagation();
                     onNotebookClick(key);
                   }
@@ -484,11 +608,16 @@ export function PaperStack({
   palette: Palette;
   linkUnit?: number;
 }) {
+  // 0.594 x 0.42 is A4 (0.297 x 0.210 m) at the shelves' 2.00 u/m. It was
+  // 0.42 x 0.30, and InboxTray's sheets on the Systems unit were 0.30 x 0.21:
+  // the same sheet of paper existed at two sizes 1.4x apart, neither right.
+  // The pen keeps its own dimensions — at 0.3 long it is already a 0.15 m
+  // pen, which is correct, and growing it with the paper would break it.
   const sheets = [0, 1, 2].map((i) => (
     <RoundedBox
       key={i}
       castShadow
-      args={[0.42, 0.016, 0.3]}
+      args={[0.594, 0.016, 0.42]}
       radius={0.004}
       smoothness={4}
       position={[i * 0.008, 0.008 + i * 0.017, i * -0.006]}

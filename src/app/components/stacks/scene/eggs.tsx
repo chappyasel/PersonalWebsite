@@ -14,6 +14,7 @@ import * as THREE from "three";
 import { type Palette } from "../theme";
 import { useStacks } from "../store";
 import { FootPool } from "./GroundPool";
+import { extractTriangles, findIslands, type Island } from "./islands";
 import ModelProp, { SPIN_NODE } from "./ModelProp";
 import { ClockFace, type ClockSweep } from "./objects";
 import { LampGlow } from "./primitives";
@@ -83,42 +84,53 @@ export function EggTrigger({
   );
 }
 
-/** Desk lamp that clicks OFF and back ON. The egg owns ALL the dimming:
- * a damped 0..1 factor drives a traverse over the LampGlow subtree that
- * scales every light's intensity, every emissive material, and every
- * transparent mesh material's opacity (base values captured on first
- * touch) — so the toggle survives whatever rig LampGlow becomes. Sprites
- * are skipped: they have their own per-frame opacity writer (GlowSprite),
- * which multiplies the same factor in via `litRef`. */
-export function EggLamp({
+/** The switch behind every lamp in the room. Click the lamp and it goes out;
+ * click again and it comes back. Nothing is persisted — a reload lights it.
+ *
+ * The switch owns ALL the dimming: a damped 0..1 factor drives a traverse over
+ * the `rig` subtree that scales every light's intensity, every emissive
+ * material, and every transparent mesh material's opacity (base values
+ * captured on first touch) — so the toggle survives whatever the rig turns out
+ * to be. That is why this is a wrapper rather than something baked into
+ * EggLamp: the room has three lamps of three different constructions (a desk
+ * lamp with LampGlow, a table lamp with a bare pointLight, a floor lamp with a
+ * spot plus emissive discs plus a ground pool) and one dimmer covers all of
+ * them without any of them knowing about it.
+ *
+ * Two rules the geometry forces:
+ * - The rig is a SIBLING of the click target, never a child. An additive glow
+ *   sprite is a metre-wide transparent quad; inside the trigger it becomes a
+ *   giant invisible hit box that swallows the shelf behind it.
+ * - Sprites are skipped by the traverse. They have their own per-frame opacity
+ *   writer (GlowSprite), which would clobber anything written here, so they
+ *   multiply the factor in themselves — pass the same `litRef` to both.
+ *
+ * At this camera the shade openings are nearly edge-on and a lit lamp whose
+ * only evidence is a pool of shadow reads as switched off, so the visible
+ * proof of ON is the camera-facing glow sprite and the warm ground pool. Those
+ * are exactly what the factor drives.
+ */
+export function LampSwitch({
   unitIndex,
-  palette,
-  dark,
-  yaw,
-  scale = 1.49,
+  hoverKey,
+  litRef,
+  rig,
+  children,
 }: {
   unitIndex: number;
-  palette: Palette;
-  dark: boolean;
-  yaw: number;
-  /** Model AND rig together — never scale the ModelProp alone.
-   *
-   * desk-lamp.glb is 0.4163 tall, which at the room's shelf scale (~2.0 world
-   * units per metre, from the books) is a 0.21 m lamp: half of the real
-   * thing. The reason it stayed that way is that LampGlow's constants —
-   * MOUTH [0, 0.3989, 0.0107], MOUTH_R, AXIS and every offset derived from
-   * them — are measured in UNSCALED model space and the rig is a SIBLING of
-   * the ModelProp, so scaling the model alone tears the light off the shade.
-   * Scaling the shared parent moves both together and keeps the mouth
-   * registered to the hole it was measured from.
-   * 1.49, not the 1.92 a 0.40 m lamp wants: both lamps sit on a LOWER shelf
-   * and the plank above is 0.6575 away. 1.49 lands 0.620, which also matches
-   * the table lamp on Musings (0.3249 x 1.9 = 0.617) — the two silhouettes
-   * differ, their heights should not. */
-  scale?: number;
+  hoverKey: string;
+  /** Shared 0..1 lit factor. Pass one whenever the rig contains a GlowSprite
+   * (or anything else that writes its own opacity per frame) so it can
+   * multiply the same number in. Omit it and the switch keeps its own. */
+  litRef?: { current: number };
+  /** The light rig: lights, emissive shades, glow sprites, ground pools. */
+  rig?: React.ReactNode;
+  /** The lamp body — the click target, and the only thing that is a hit box. */
+  children: React.ReactNode;
 }) {
   const target = useRef(1);
-  const lit = useRef(1);
+  const own = useRef(1);
+  const lit = litRef ?? own;
   const glow = useRef<THREE.Group>(null);
   useFrame((_, delta) => {
     const g = glow.current;
@@ -160,16 +172,72 @@ export function EggLamp({
     });
   });
   return (
+    <group>
+      <EggTrigger
+        unitIndex={unitIndex}
+        hoverKey={hoverKey}
+        onTrigger={() => {
+          target.current = target.current ? 0 : 1;
+        }}
+      >
+        {children}
+      </EggTrigger>
+      {/* Sibling of the trigger, never a child — see the note above. */}
+      <group ref={glow}>{rig}</group>
+    </group>
+  );
+}
+
+/** Desk lamp that clicks OFF and back ON — LampSwitch plus the desk-lamp
+ * model and its LampGlow rig, which is the pairing two units want verbatim. */
+export function EggLamp({
+  unitIndex,
+  palette,
+  dark,
+  yaw,
+  scale = 1.55,
+}: {
+  unitIndex: number;
+  palette: Palette;
+  dark: boolean;
+  yaw: number;
+  /** Model AND rig together — never scale the ModelProp alone.
+   *
+   * desk-lamp.glb is 0.4163 tall, which at the room's shelf scale (~2.0 world
+   * units per metre, from the books) is a 0.21 m lamp: half of the real
+   * thing. The reason it stayed that way is that LampGlow's constants —
+   * MOUTH [0, 0.3989, 0.0107], MOUTH_R, AXIS and every offset derived from
+   * them — are measured in UNSCALED model space and the rig is a SIBLING of
+   * the ModelProp, so scaling the model alone tears the light off the shade.
+   * Scaling the shared parent moves both together and keeps the mouth
+   * registered to the hole it was measured from.
+   * 1.55, not the 2.16 a 0.45 m angle-poise wants: both lamps sit on a LOWER
+   * shelf and the plank above is 0.6575 away, so the ceiling is 1.579 and this
+   * is that minus a centimetre of clearance. 1.55 lands 0.645, which also
+   * matches the table lamp on Musings at its own corrected scale
+   * (0.3249 x 2.0 = 0.650) — the two silhouettes differ, their heights should
+   * not. Say the honest thing rather than pretend: a 0.45 m lamp does not fit
+   * under a 0.33 m gap, and this is the tallest one that does. */
+  scale?: number;
+}) {
+  const lit = useRef(1);
+  return (
     // The scale lives HERE, on the shared parent, so the model and the light
     // rig move as one object. Scaling the ModelProp alone would leave
     // LampGlow's measured mouth behind at the old size.
     <group scale={scale}>
-      <EggTrigger
+      <LampSwitch
         unitIndex={unitIndex}
         hoverKey={`egg:lamp:${unitIndex}`}
-        onTrigger={() => {
-          target.current = target.current ? 0 : 1;
-        }}
+        litRef={lit}
+        rig={
+          // A parent scale moves the lights but does NOT touch their
+          // `distance` — that is a world-space property, not a transform — so
+          // the reach has to be scaled by hand or a bigger lamp lights a
+          // smaller pool. yaw keeps the cone rig pointed out the shade's real
+          // opening.
+          <LampGlow palette={palette} yaw={yaw} litRef={lit} reach={scale} />
+        }
       >
         <React.Suspense fallback={null}>
           <ModelProp
@@ -178,16 +246,7 @@ export function EggLamp({
             rotation={[0, yaw, 0]}
           />
         </React.Suspense>
-      </EggTrigger>
-      {/* Sibling of the trigger, never a child — the additive glow sprite
-          must not become a giant invisible click target. yaw keeps the
-          cone rig pointed out the shade's real opening. */}
-      <group ref={glow}>
-        {/* A parent scale moves the lights but does NOT touch their `distance`
-            — that is a world-space property, not a transform — so the reach
-            has to be scaled by hand or a bigger lamp lights a smaller pool. */}
-        <LampGlow palette={palette} yaw={yaw} litRef={lit} reach={scale} />
-      </group>
+      </LampSwitch>
     </group>
   );
 }
@@ -403,6 +462,240 @@ export function Sway({
   return <group ref={ref}>{children}</group>;
 }
 
+// --- Pendulum ----------------------------------------------------------
+
+/** Name of the node `Pendulum` isolates out of a single-mesh clock. Named
+ * because pixels cannot say WHICH object moved — the camera carries a
+ * permanent idle bob, so every region of the frame reports motion. The
+ * harness reads `window.__stacks.node("stacks-pendulum")` instead, the same
+ * reason SPIN_NODE has a name. */
+export const PENDULUM_NODE = "stacks-pendulum";
+
+/**
+ * The hanging assembly inside a single-mesh clock: the long thin vertical
+ * island (the rod) plus whatever hangs on its lower end (the bob).
+ *
+ * Identified by SHAPE, never by island index — traversal order is an exporter
+ * artifact and the next re-export through scripts/stacks-models.mjs could
+ * reorder it silently (see islands.ts). On grandfather-clock.glb the rod's
+ * height/thickness aspect reads 50.9 against 10.6 for the next nearest
+ * island, and the case is excluded up front as the one island holding most of
+ * the triangles (354 of 547), so the discriminator has a wide margin.
+ *
+ * The pivot is the TOP of the rod on the rod's own vertical line, which is
+ * where the suspension spring would be.
+ */
+function findPendulumParts(
+  islands: Island[],
+): { parts: Island[]; pivot: THREE.Vector3 } | null {
+  if (islands.length < 3) return null;
+  // The case is the body — much the largest island, and never a candidate.
+  const body = islands.reduce((a, b) =>
+    b.triangles.length > a.triangles.length ? b : a,
+  );
+  let rod: Island | null = null;
+  let aspect = 0;
+  for (const isle of islands) {
+    if (isle === body) continue;
+    const thick = Math.max(isle.extent.x, isle.extent.z);
+    if (thick <= 0) continue;
+    const a = isle.extent.y / thick;
+    if (a > aspect) {
+      aspect = a;
+      rod = isle;
+    }
+  }
+  // Nothing in this prop is rod-shaped. Better to swing the whole thing (or
+  // nothing) than to swing a random finial.
+  if (!rod || aspect < 8) return null;
+  const reach = Math.max(rod.extent.y * 0.35, 0.05);
+  const parts: Island[] = [rod];
+  for (const isle of islands) {
+    if (isle === rod || isle === body) continue;
+    // On the rod's line, and hanging at its lower end rather than sitting
+    // beside it further up.
+    if (Math.abs(isle.center.x - rod.center.x) > reach) continue;
+    if (Math.abs(isle.center.z - rod.center.z) > reach) continue;
+    if (isle.center.y > rod.min.y + rod.extent.y * 0.1) continue;
+    if (isle.max.y < rod.min.y - reach) continue;
+    parts.push(isle);
+  }
+  return {
+    parts,
+    pivot: new THREE.Vector3(rod.center.x, rod.max.y, rod.center.z),
+  };
+}
+
+/**
+ * Cut the pendulum out of a loaded prop and re-hang it under its own pivot.
+ *
+ * Layout produced (the twin of ModelProp's splitSpinPart):
+ *   mesh              everything except the pendulum, untouched
+ *     └ PENDULUM_NODE at the pivot; an animator writes rotation here
+ *         └ mesh      rod + bob, baked into that frame
+ *
+ * Only the CLONE is touched: `mesh.geometry = restGeometry` replaces this
+ * instance's reference and never the useGLTF cache's geometry. Both new
+ * geometries carry extractTriangles' `owned` flag, so ModelProp's disposal
+ * effect frees them when the prop rebuilds (a theme flip clones a fresh
+ * scene, which is also why the caller re-resolves the node every frame).
+ */
+function splitPendulum(root: THREE.Object3D): THREE.Object3D | null {
+  let mesh: THREE.Mesh | null = null;
+  let best = -1;
+  root.traverse((o) => {
+    if (!(o instanceof THREE.Mesh)) return;
+    const geo = o.geometry as THREE.BufferGeometry;
+    const n = geo.index?.count ?? geo.attributes.position?.count ?? 0;
+    if (n > best) {
+      best = n;
+      mesh = o;
+    }
+  });
+  // `traverse` hides the assignment from the narrower, so say it plainly.
+  const target = mesh as THREE.Mesh | null;
+  if (!target) return null;
+  const geometry = target.geometry;
+  const found = findPendulumParts(findIslands(geometry));
+  if (!found) {
+    console.error(
+      "[stacks] Pendulum: no rod-shaped island found; prop left whole. " +
+        "Run `node scripts/stacks-render.mjs <name> --islands` to see them.",
+    );
+    return null;
+  }
+  const swingTriangles = found.parts
+    .flatMap((p) => p.triangles)
+    .sort((a, b) => a - b);
+  const swinging = new Set(swingTriangles);
+  const total =
+    (geometry.index
+      ? geometry.index.count
+      : (geometry.attributes.position?.count ?? 0)) / 3;
+  const restTriangles: number[] = [];
+  for (let t = 0; t < total; t++) if (!swinging.has(t)) restTriangles.push(t);
+
+  const swingMesh = new THREE.Mesh(
+    extractTriangles(geometry, swingTriangles, found.pivot),
+    target.material,
+  );
+  swingMesh.castShadow = target.castShadow;
+  swingMesh.receiveShadow = target.receiveShadow;
+  const swing = new THREE.Group();
+  swing.name = PENDULUM_NODE;
+  swing.position.copy(found.pivot);
+  swing.add(swingMesh);
+
+  target.geometry = extractTriangles(geometry, restTriangles);
+  // Child of the MESH, so the pivot stays in the frame the islands were
+  // measured in (the mesh may carry a transform from the GLB's node graph).
+  target.add(swing);
+  if (process.env.NODE_ENV === "development") {
+    console.info(
+      `[stacks] Pendulum: ${swingTriangles.length}/${total} tris swinging, ` +
+        `pivot y ${found.pivot.y.toFixed(4)}`,
+    );
+  }
+  return swing;
+}
+
+/**
+ * The bottom half of a longcase clock, doing the one thing it is for.
+ *
+ * Swings its children through a pivot at local `pivotY`. If the subtree turns
+ * out to be a single-mesh GLB with a pendulum inside it — which is exactly
+ * what grandfather-clock.glb is — the rod and bob are cut out of that mesh and
+ * only THEY swing, inside a case that stays still. That is the difference
+ * between a clock and a clock-shaped object waving at you.
+ *
+ * Two deliberate choices worth defending:
+ *
+ * - It swings about Z, not X. A pendulum turning about X moves toward and away
+ *   from the camera, and the camera sits about 2 degrees above the shelf line,
+ *   so that motion is foreshortened to nearly nothing. About Z it travels
+ *   across the screen, which is the whole point of animating it. `axis="x"` is
+ *   there for a prop hung side-on.
+ * - The default period is a full 2 s — one beat per second, matching the
+ *   second hand EggClock puts on the same dial. A real seconds pendulum is
+ *   0.994 m and this one measures about 0.7 m, so the arithmetic wants ~1.7 s;
+ *   the clock reading as ONE mechanism is worth more than the two decimal
+ *   places, and nobody times a pendulum against a stopwatch.
+ *
+ * The arc is small on purpose. A seconds pendulum swings a few degrees, not a
+ * metronome's forty-five, and the default 0.05 rad is 2.9 degrees each way.
+ */
+export function Pendulum({
+  children,
+  pivotY = 0,
+  amplitude = 0.05,
+  period = 2,
+  axis = "z",
+  unitIndex,
+}: {
+  children: React.ReactNode;
+  /** Pivot height in the wrapper's own space. Ignored when a pendulum is
+   * isolated out of a GLB — the measured suspension point wins over a
+   * hand-typed one. */
+  pivotY?: number;
+  /** Peak lean in radians. */
+  amplitude?: number;
+  /** Seconds per full back-and-forth. */
+  period?: number;
+  axis?: "x" | "z";
+  /** Idle only next to the unit you are looking at. Omit and it always runs
+   * (one sine and one write per frame, which is nothing). */
+  unitIndex?: number;
+}) {
+  const root = useRef<THREE.Group>(null);
+  const whole = useRef<THREE.Group>(null);
+  const node = useRef<THREE.Object3D | null>(null);
+  /** The mesh the split was last attempted against — a failed split must not
+   * re-run the union-find every frame, and a rebuilt prop must re-run it. */
+  const attempted = useRef<THREE.Object3D | null>(null);
+  const still = useMemo(() => reducedMotion(), []);
+  useFrame(({ clock }) => {
+    const g = root.current;
+    if (!g || still) return;
+    if (unitIndex !== undefined && !nearActive(unitIndex)) return;
+    let swing = node.current;
+    if (swing && !isDescendantOf(swing, g)) swing = null;
+    if (!swing) {
+      swing = g.getObjectByName(PENDULUM_NODE) ?? null;
+      if (!swing) {
+        let first: THREE.Object3D | null = null;
+        g.traverse((o) => {
+          if (!first && o instanceof THREE.Mesh) first = o;
+        });
+        const mesh = first as THREE.Object3D | null;
+        // Nothing loaded yet (the prop mounts behind Suspense) — try again
+        // next frame. Something loaded and we have not tried it — try once.
+        if (mesh && attempted.current !== mesh) {
+          attempted.current = mesh;
+          swing = splitPendulum(g);
+        }
+      }
+      node.current = swing;
+    }
+    // No isolated part: swing the whole subtree about `pivotY` instead, which
+    // is what a caller wrapping their own rod and bob in JSX wants.
+    const write = swing ?? whole.current;
+    if (!write) return;
+    const a = amplitude * Math.sin((clock.elapsedTime * Math.PI * 2) / period);
+    if (axis === "x") write.rotation.x = a;
+    else write.rotation.z = a;
+  });
+  return (
+    <group ref={root}>
+      {/* Rotate-about-a-height, spelled out: hinge up to the pivot, hang the
+          children back down from it. Left at identity whenever a part was
+          isolated, so the case never moves. */}
+      <group ref={whole} position={[0, pivotY, 0]}>
+        <group position={[0, -pivotY, 0]}>{children}</group>
+      </group>
+    </group>
+  );
+}
+
 /** Clock egg. The clocks show the VISITOR'S live local time at rest; a
  * click winds the hands clockwise to 3:45 — the owner's wake time — holds
  * a beat, then winds on around to the live time again. That contrast is
@@ -616,7 +909,7 @@ export function RollBall({
   unitIndex: number;
   hoverKey: string;
   palette: Palette;
-  /** Ground-level base (unit-local); the ball center sits 0.045 above it. */
+  /** Ground-level base (unit-local); the ball center sits 0.022 above it. */
   position: [number, number, number];
 }) {
   const ref = useRef<THREE.Group>(null);
@@ -639,17 +932,24 @@ export function RollBall({
         }}
       >
         <group ref={ref}>
-          <mesh position={[0, 0.045, 0]}>
-            <sphereGeometry args={[0.045, 16, 16]} />
+          {/* Radius 0.022, not the 0.045 this shipped at. It stands on the
+              FLOOR, where the room is modelled at ~0.96 world units per metre
+              rather than the shelves' 2.00, so the old 0.09 diameter read as
+              0.094 m — a baseball lying next to a driver. 0.044 lands 0.046 m
+              against a real 0.0427, and the ball-to-club ratio comes out near
+              the 26.9 of the real pair instead of 12.8. */}
+          <mesh position={[0, 0.022, 0]}>
+            <sphereGeometry args={[0.022, 16, 16]} />
             <meshStandardMaterial color={palette.pages} roughness={0.55} />
           </mesh>
-          {/* Generous invisible hit proxy — the ball itself is a 9cm target.
+          {/* Generous invisible hit proxy — the ball itself is now a 4cm
+              target, so the proxy matters more than it did, not less.
               Zero-opacity mesh, the same trick as the unit tap plane. */}
-          <mesh position={[0, 0.06, 0]}>
+          <mesh position={[0, 0.05, 0]}>
             <sphereGeometry args={[0.11, 8, 8]} />
             <meshBasicMaterial transparent opacity={0} depthWrite={false} />
           </mesh>
-          <FootPool color={palette.shadow} size={[0.14, 0.12]} />
+          <FootPool color={palette.shadow} size={[0.08, 0.07]} />
         </group>
       </EggTrigger>
     </group>

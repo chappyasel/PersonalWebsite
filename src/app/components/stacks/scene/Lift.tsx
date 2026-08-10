@@ -10,13 +10,17 @@
 // a random tilt, and letting the hover ease a few degrees of it away — with
 // a hair of scale — reads as the print turning toward you. Both are opt-in,
 // so a caller that passes neither still pays for the position damp alone.
+import { useStacks } from "../store";
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import * as THREE from "three";
 
-import { useStacks } from "../store";
+import { InteractionClaim } from "./interaction";
 
-const LAMBDA = 10; // ~95% of the travel in 300ms
+/** ~95% of the travel in 300ms. Exported because ModelProp's universal hover
+ * floor eases on the same curve — every hover in the world settles alike. */
+export const LIFT_LAMBDA = 10;
+const LAMBDA = LIFT_LAMBDA;
 
 /** Walk one euler component `by` radians toward level, never past it. */
 const toward = (v: number, by: number) =>
@@ -84,7 +88,9 @@ export default function Lift({
   });
   return (
     <group ref={ref} position={base} rotation={rest}>
-      {children}
+      {/* This subtree already lifts under the pointer — ModelProp's universal
+          floor must not add a second lift inside it. */}
+      <InteractionClaim>{children}</InteractionClaim>
     </group>
   );
 }
