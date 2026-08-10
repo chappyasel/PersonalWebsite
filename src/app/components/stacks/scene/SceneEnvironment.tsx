@@ -173,6 +173,61 @@ const SKY_FRAGMENT = `
     // actually does to the sky around a low sun.
     col *= mix(vec3(1.0), vec3(1.05, 0.99, 0.72), min(ember, 1.0) * (1.0 - uDark));
 
+    // ---- The sun, light theme only. It starts the traverse just under the
+    // skyline — all you get is the ember — and clears the rooftops as the
+    // morning advances, which is the same uDawn the whole vault is riding.
+    // Drawn before the city so the buildings occlude it while it is low.
+    float day = 1.0 - uDark;
+    if (day > 0.01) {
+      float sunE = -0.012 + 0.078 * uDawn;
+      float sunGate = smoothstep(-0.006, 0.014, sunE) * day;
+      vec2 sq = vec2((a + 1.15) / 0.0118, (e - sunE) / 0.0118);
+      float sd = length(sq);
+      // White-hot core, warm limb, and a wide soft forward-scatter halo —
+      // the halo is most of what sells a low sun through thick air.
+      // The morning sky already sits on the ACES shoulder, so a disc at
+      // sky-brightness buys nothing — it has to be genuinely HDR to separate
+      // from the air it's shining through, and the halo has to be tinted
+      // rather than white or it disappears the same way.
+      vec3 sunCore = mix(emberC, vec3(1.0, 0.965, 0.88), 0.60);
+      col += sunCore * smoothstep(1.10, 0.92, sd) * 1.85 * sunGate;
+      col += emberC * exp(-sd * sd * 0.055) * 0.55 * sunGate;
+    }
+
+    // ---- Cloud deck, light theme only. The morning sky was one clean
+    // gradient doing no compositional work; a broken deck gives it depth and
+    // something that moves on its own. Three octaves of the same value noise
+    // the air already uses, squashed 3.5:1 so the cells read as flat-bottomed
+    // cloud rather than as lumps, and drifting slowly enough (~2.5 min to
+    // cross the frame) to be weather instead of animation.
+    if (day > 0.01 && uSimplify < 0.5) {
+      vec2 cp = vec2(a * 2.6 + uTime * 0.010, e * 9.1);
+      float cf = 0.54 * vnoise(cp)
+               + 0.29 * vnoise(cp * 2.1 + 19.0)
+               + 0.17 * vnoise(cp * 4.3 + 7.0);
+      // A deck sits in a band of sky: nothing on the deck at the horizon
+      // (that is haze's job) and nothing at the zenith.
+      float deck = smoothstep(0.030, 0.080, e) * (1.0 - smoothstep(0.15, 0.27, e));
+      float cloud = smoothstep(0.50, 0.76, cf) * deck * day;
+      // Cloud reads by being DARKER than the sky, not whiter. A white cloud
+      // on a sky that is already near-white at the shoulder is invisible —
+      // which is exactly what the first pass rendered. So the body shades
+      // the sky it sits on, and only the edge facing the sun takes the
+      // ember. Away from the sun the shading deepens, which is what gives
+      // the deck its form.
+      float rim = smoothstep(0.44, 0.54, cf) - smoothstep(0.56, 0.72, cf);
+      vec3 body = col * mix(0.74, 0.93, azFall);
+      col = mix(col, body, cloud * 0.88);
+      col += mix(vec3(1.0, 0.93, 0.82), emberC, clamp(azFall * 0.85, 0.0, 0.85))
+           * rim * deck * day * (0.06 + 0.42 * azFall);
+    }
+
+    // The sky as it stands BEFORE anything is drawn in front of it. Distant
+    // masses haze toward whatever is behind them, and that is this — not a
+    // fixed horizon hex. Captured ahead of the stars so a ridge doesn't
+    // become faintly transparent to them.
+    vec3 skyBase = col;
+
     // Stars, dark only — hashed cells in azimuth/elevation space with
     // per-star phase and rate, horizon extinction, thinned by the dawn.
     // Simplified halves the field instead of dropping it.
@@ -199,11 +254,29 @@ const SKY_FRAGMENT = `
 
     // Twin Peaks / Mt Davidson + Telegraph Hill — hazier and flatter than
     // the buildings, their east flanks catch the first light.
-    float hillA = 0.032 * hump(a, -2.16, 0.28);
-    float hillB = 0.020 * hump(a, -1.98, 0.22);
-    float telegraph = 0.018 * hump(a, -1.90, 0.065);
+    //
+    // These used to top out at 0.032 rad, which cleared the residential
+    // roofline (0.028) by four milliradians — about six pixels. Six pixels
+    // of a four-hundred-pixel-wide dome is a straight line, and since the
+    // old hillCol sat 57% of the way to the horizon hex it was also roughly
+    // TWICE the luminance of the sky at its own elevation. A pale flat-topped
+    // bar hanging above the rooftops with nothing under it: the owner's
+    // "hard edge in the background". Confirmed by ablation — zeroing hillMask
+    // took the column at the bar from peak (59,67,102) back to a smooth
+    // (28,37,60) → (38,51,82) ramp.
+    //
+    // So the ridge now stands tall enough to show its own curve, and hazes
+    // toward skyBase (below) so it reads as a mass BEHIND the air rather
+    // than a shape painted on top of it.
+    float hillA = 0.050 * hump(a, -2.16, 0.30);
+    float hillB = 0.038 * hump(a, -1.98, 0.24);
+    float telegraph = 0.022 * hump(a, -1.90, 0.070);
     float hillH = max(hillA, max(hillB, telegraph));
-    float hillMask = (1.0 - smoothstep(hillH - 0.002, hillH + 0.002, e)) * step(0.0005, hillH);
+    // A ridge eight kilometres off has no crisp silhouette; the edge is wide
+    // on purpose, and the mask fades in rather than switching on, so the
+    // flanks can't snap where the humps run out.
+    float hillMask = (1.0 - smoothstep(hillH - 0.005, hillH + 0.005, e))
+                   * smoothstep(0.0004, 0.006, hillH);
 
     // Sutro Tower ON its hill (tip 0.118 — the true tallest, 1,811 ft ASL):
     // two legs to a waist, then three prongs, lifted by the hill base.
@@ -322,9 +395,20 @@ const SKY_FRAGMENT = `
     // Light haze eased 0.75→0.60 (v4): the light skyline was a ghost doing
     // zero compositional work (audit §2.3).
     float hazeAmt = (1.0 - smoothstep(0.0, 0.055, e)) * mix(0.60, 0.35, uDark);
-    vec3 hillCol = mix(cityC, horizonC, clamp(hazeAmt + mix(0.26, 0.35, uDark), 0.0, 1.0));
+    // Aerial perspective converges a distant mass on the sky BEHIND it, so
+    // both the ridge and the skyline haze toward skyBase. The ridge starts
+    // darker than the buildings (it is unlit rock, not glass) and carries
+    // more haze, which is what puts it plainly behind them.
+    // Anchored to the sky rather than to the skyline hex: at 3:45 a ridge
+    // eight kilometres out is very nearly the colour of the air in front of
+    // it, a little darker and a little less blue. Deriving it from skyBase
+    // keeps that true through the dawn and through both themes, where a
+    // fixed hex drifted warm and the ridge ended up warmer than the
+    // buildings standing in front of it.
+    vec3 hillCol = mix(skyBase * mix(0.86, 0.74, uDark), cityC * 0.60, 0.22);
+    hillCol = mix(hillCol, skyBase, hazeAmt * 0.8);
     hillCol += emberC * 0.55 * emberAmp * smoothstep(-2.16, -1.95, a);
-    vec3 cityCol = mix(cityC, horizonC, hazeAmt);
+    vec3 cityCol = mix(cityC, skyBase, hazeAmt);
     cityCol += emberC * ember * 0.25;
     // The crown catches the first ember before anything else in the city —
     // tallest, east-facing glass. Salesforce Tower announces the dawn.
@@ -393,10 +477,23 @@ const SKY_FRAGMENT = `
       // already off (it runs dusk→2am) and only the Constellation starscape
       // is still alive until dawn, so this stays a dim drift rather than a
       // light show — and it brightens as the traverse approaches dawn.
-      float crownBand = smoothstep(0.86, 0.905, crownT);
-      float wash = 0.74 + 0.26 * sin(dSf * 210.0 + uTime * 0.16);
-      vec3 crownHue = mix(vec3(0.72, 0.62, 0.55), 0.5 + 0.5 * cos(uTime * 0.105 + vec3(0.0, 2.09, 4.19)), 0.40);
-      col += crownHue * wash * crownBand * crownM * 0.085 * night;
+      // v5: at 0.085 over a five-pixel-wide sliver this was invisible, and
+      // the wash's 0.022 amplitude moved nothing anybody could see. It is
+      // the brightest object on the skyline in real life — 11,136 LEDs
+      // washing perforated aluminium — so it now runs bright enough to
+      // clear Bloom's 0.95 threshold and grow its own halo, and the wash
+      // sweeps the face in about two seconds instead of nine.
+      float crownBand = smoothstep(0.855, 0.900, crownT);
+      float wash = 0.60 + 0.40 * sin(dSf * 240.0 + uTime * 0.85);
+      vec3 crownHue = mix(vec3(0.78, 0.70, 0.62), 0.5 + 0.5 * cos(uTime * 0.105 + vec3(0.0, 2.09, 4.19)), 0.30);
+      col += crownHue * wash * crownBand * crownM * 0.70 * night;
+      // The crown lights the air around itself. Without this the band is a
+      // bright rectangle pasted on the sky; with it, the tower reads as the
+      // source. Kept close in — a halo ten times the width of the thing
+      // making it stops being light and becomes weather.
+      vec2 cq = vec2(dSf / 0.017, (e - sTop * 0.955) / 0.011);
+      col += crownHue * exp(-dot(cq, cq) * 2.2)
+           * (0.20 + 0.05 * sin(uTime * 0.31)) * night;
 
       // Satellite — one dim, tailless, constant-velocity crossing every 92s
       // (Starlink-era truthful; the sophisticated cousin of a shooting
@@ -525,7 +622,7 @@ function SkyDome({ dark, simplify }: { dark: boolean; simplify: boolean }) {
   // sky fragments (its depth-sort position otherwise changes during traverse).
   return (
     <mesh ref={domeRef} position={[MID_X, 0, 0]} material={material} renderOrder={1}>
-      <sphereGeometry args={[34, 32, 24]} />
+      <sphereGeometry args={[34, 160, 96]} />
     </mesh>
   );
 }
