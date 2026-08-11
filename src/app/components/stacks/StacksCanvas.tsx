@@ -17,7 +17,7 @@ import type * as THREE from "three";
 import { UNIT_COUNT, type StacksData } from "./data";
 import { setLoadProgress } from "./loading";
 import Scene from "./scene/Scene";
-import { getSeatAmount, isSeated } from "./scene/seated";
+import { getSeatAmount, isSeated, leaveSeat, requestSeat } from "./scene/seated";
 import { CAMERA } from "./scene/worldLayout";
 import { progressRef, useStacks } from "./store";
 import { PALETTES } from "./theme";
@@ -37,8 +37,10 @@ declare global {
     __stacks?: {
       scrollTo: (unit: number, opts?: { instant?: boolean }) => void;
       openBook: (id: string) => void;
+      sit: (on?: boolean) => void;
       state: () => Record<string, unknown>;
       node: (name: string) => Record<string, unknown> | null;
+      bbox: (name: string) => Record<string, unknown> | null;
     };
   }
 }
@@ -53,6 +55,16 @@ function installDevHooks() {
     },
     openBook(id) {
       devOpenBook?.(id);
+    },
+    // Drive the seat without going through a click. Not a convenience: the
+    // click path is deliberately a window-level pointerup keyed off the hover
+    // slot (r3f's own onClick is gated on a hit list captured at pointerdown,
+    // which does not dispatch reliably under ScrollControls), so a harness
+    // that wants to measure the WALK has no business also re-testing the
+    // click. Separating them is what lets a failure name itself.
+    sit(on = true) {
+      if (on) requestSeat();
+      else leaveSeat();
     },
     // Read one named object's transform out of the scene graph.
     //
@@ -78,6 +90,53 @@ function installDevHooks() {
         parentRotation: o.parent
           ? [o.parent.rotation.x, o.parent.rotation.y, o.parent.rotation.z]
           : null,
+      };
+    },
+    // World-space AABB of a named subtree. `node()` returns transforms, which
+    // cannot answer "how big is the thing and where does it actually sit" —
+    // the question every placement and the seat pose turn on. Built from the
+    // Vector3/Box3 instances already on the geometry, because `three` is
+    // imported type-only here and a runtime import would enter the bundle.
+    bbox(name) {
+      const scene = glRef ? sceneRef : null;
+      if (!scene) return null;
+      let root: THREE.Object3D | null = null;
+      scene.traverse((o) => {
+        if (!root && o.name === name) root = o;
+      });
+      if (!root) return null;
+      const lo = [Infinity, Infinity, Infinity];
+      const hi = [-Infinity, -Infinity, -Infinity];
+      (root as THREE.Object3D).updateWorldMatrix(true, true);
+      (root as THREE.Object3D).traverse((o) => {
+        const g = (o as THREE.Mesh).geometry;
+        if (!g) return;
+        if (!g.boundingBox) g.computeBoundingBox();
+        const bb = g.boundingBox;
+        if (!bb) return;
+        // All eight corners, not just min/max: a rotated child's transformed
+        // min/max pair is not its bounds, and every prop in the chair slot is
+        // yawed.
+        for (let i = 0; i < 8; i++) {
+          const v = bb.min.clone();
+          if (i & 1) v.x = bb.max.x;
+          if (i & 2) v.y = bb.max.y;
+          if (i & 4) v.z = bb.max.z;
+          v.applyMatrix4(o.matrixWorld);
+          const c = [v.x, v.y, v.z];
+          for (let k = 0; k < 3; k++) {
+            if (c[k]! < lo[k]!) lo[k] = c[k]!;
+            if (c[k]! > hi[k]!) hi[k] = c[k]!;
+          }
+        }
+      });
+      if (!Number.isFinite(lo[0])) return null;
+      const r = (v: number) => Number(v.toFixed(4));
+      return {
+        min: lo.map(r),
+        max: hi.map(r),
+        size: hi.map((h, i) => r(h - lo[i]!)),
+        center: hi.map((h, i) => r((h + lo[i]!) / 2)),
       };
     },
     state() {

@@ -27,6 +27,8 @@ let satAt = 0;
  * `e.delta` so a swipe past the unit still travels instead of seating you.
  */
 const CHAIR_HOVER = "egg:chair";
+/** Scene-graph name of the group holding whatever you sit in. */
+export const SEAT_NODE = "stacks-seat";
 
 /**
  * Seating rides a window `pointerup` keyed off the hover slot rather than
@@ -99,7 +101,13 @@ export default function SitChair({
         requestSeat();
       }}
     >
-      {children}
+      {/* Named so the seat pose can be MEASURED against whatever is actually
+          in the chair slot, rather than written down from whichever model was
+          there when someone last looked. SEAT_POSE was hard-coded off the
+          eames hull and became silently wrong the moment the couch replaced
+          it — the camera kept working, it just sat in the wrong place, which
+          is the failure mode a constant cannot warn you about. */}
+      <group name={SEAT_NODE}>{children}</group>
     </EggTrigger>
   );
 }

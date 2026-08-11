@@ -13,6 +13,15 @@ import type { Book } from "~/lib/books/types";
 
 export const progressRef = { current: 0 };
 
+/** Fraction of the viewport height the mobile sheet is currently covering,
+ * 0 when it is away and ~0.9 when it is expanded. Transient for the same
+ * reason as `progressRef`: it changes on every frame of a drag, and the camera
+ * reads it inside its own useFrame to keep the shelf centred in whatever strip
+ * of screen is still visible. Written by the sheet, read by CameraRig, never
+ * subscribed to. `panelState` remains the reactive channel for anything that
+ * only cares whether the sheet is up at all. */
+export const panelCoverageRef = { current: 0 };
+
 export type StacksMode = "flat" | "world";
 
 /** Mobile full-screen panel gesture state machine (Model B). Travel and all

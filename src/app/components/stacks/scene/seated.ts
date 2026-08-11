@@ -18,30 +18,45 @@ export type SeatPose = {
 };
 
 /**
- * Where sitting in the About armchair puts you. Measured against the live
- * chair rather than guessed: eames-chair.glb at its authored pose occupies
- * world x −2.4914…−1.6239, y −1.1150…−0.2246, z −0.1189…+0.7730, so its
- * centre line is x −2.06 and the ground is y −1.115.
+ * Where sitting in the About seat puts you.
+ *
+ * MEASURED, not guessed, and re-measured whenever the seat changes — which is
+ * the whole point of the note that follows. These numbers were originally
+ * taken off eames-chair.glb. When the owner swapped that for a couch, every
+ * one of them silently became wrong: the camera still worked, it just sat
+ * 0.57 units off the couch's centre line and behind its front face, looking
+ * out of the upholstery. A hard-coded pose cannot warn you about that, so it
+ * has to be re-derived rather than nudged.
+ *
+ * Current occupant, read out of the live scene via
+ * `window.__stacks.bbox("stacks-seat")` (the group SitChair wraps around
+ * whatever it is holding):
+ *
+ *   couch.glb   x −3.6725…−1.5950   y −1.1150…+0.2602   z −0.4084…+1.1781
+ *               centre x −2.634, ground y −1.115, front face z +1.178
+ *
+ * eye.x is the seat's centre line.
  *
  * eye.y −0.08 puts the eye 1.035 above the floor, which at the FLOOR scale the
- * chair and the clock share (~0.99 units per metre) is a seated eye height of
- * 1.04 m — right for a low lounge chair, against the 1.37 m the standing
- * travel camera implies.
+ * seat and the clock share (~0.96 units per metre) is a seated eye height of
+ * about 1.08 m — right for a low couch, against the 1.37 m the standing travel
+ * camera implies.
  *
- * eye.z 0.80 is deliberately just past the chair's own front face (0.773)
- * rather than at its centre: the model's facing is not something the camera
- * can know, and an eye inside the hull would be looking into upholstery from
- * whichever side the backrest turned out to be on. You never see the chair you
- * are sitting in, so the cheap, safe placement is the correct one.
+ * eye.z is deliberately just past the seat's own FRONT FACE rather than at its
+ * centre: the model's facing is not something the camera can know, and an eye
+ * inside the hull would be looking into upholstery from whichever side the
+ * backrest turned out to be on. You never see the thing you are sitting in, so
+ * the cheap, safe placement is the correct one. The couch is 0.405 deeper than
+ * the chair was, which is why this moved from 0.80 to 1.20.
  *
- * The target is 6 units out on the far side, level and a degree up — you are
- * looking away from the shelf, out at the Washington skyline.
+ * The target is 6 units straight out, level and a degree up — you are looking
+ * away from the shelf, out at the Washington skyline.
  *
  * Owned by UnitAbout / SitChair — CameraRig only consumes it.
  */
 export const SEAT_POSE: SeatPose = {
-  eye: [-2.06, -0.08, 0.8],
-  target: [-2.06, 0.02, 6.8],
+  eye: [-2.634, -0.08, 1.2],
+  target: [-2.634, 0.02, 7.2],
 };
 
 let seated = false;

@@ -87,20 +87,40 @@ export default function ChromeLayer() {
           </p>
         </GrainReveal>
       </div>
-      {/* Theme toggle — fixed top-right chrome, not buried in the About
-          placard (audit §1.6). z-30 clears the placard dock (z-20); the
-          mobile panel (z-40) still covers it while open. No island: over a
-          rendered scene a floating panel is one more thing to look at, so
-          the control is just the glyph until you reach for it (owner call
-          at browse) — the round hover/press wash is the whole affordance.
+      {/* Theme toggle — fixed chrome, not buried in the About placard (audit
+          §1.6). z-30 clears the placard dock (z-20); the mobile panel (z-40)
+          still covers it while open. No island: over a rendered scene a
+          floating panel is one more thing to look at, so the control is just
+          the glyph until you reach for it (owner call at browse) — the round
+          hover/press wash is the whole affordance.
 
-          This button owns the top-right corner outright on mobile: it is a
-          40px box at top-3, so it occupies 12–52px down from the top edge,
-          and the name opposite it owns the left of the same strip. Nothing
-          else may be placed there. The unit dots used to be, at right-4 top-4,
-          and the seventh one sat under this glyph on a 390px phone; they now
-          take their own centred row below 56px (see UnitRail). */}
-      <div className="pointer-events-auto absolute right-4 top-3 z-30 md:right-6 md:top-4">
+          MOBILE: this button owns the top-right corner outright. It is a 40px
+          box at top-3, so it occupies 12–52px down from the top edge, and the
+          name opposite it owns the left of the same strip. Nothing else may
+          be placed there. The unit row used to be, at right-4 top-4, and the
+          seventh mark sat under this glyph on a 390px phone; it now takes its
+          own centred row below 56px (see UnitRail).
+
+          DESKTOP: bottom-left, because top-right is the placard's. The dock
+          runs `inset-y-0 right-5` and is 27–31rem wide, so a control in that
+          corner is a glyph sitting on the reading column — the owner's "it
+          intersects with the content". The bottom of the left gutter is the
+          one edge with nothing in it: the rail is vertically centred (7 rows
+          of 40px = 280px, so it ends 140px above the middle) and the bottom
+          fade is pointer-events-none.
+
+          left-6 / lg:left-8 rather than the rail's own left-5 / lg:left-7 is
+          optical, not sloppy: this is a 40px box around a 16px glyph, so its
+          centre is 20px in, while the rail's icons start after a 16px thumb
+          lane and centre 24px in from the nav's edge. Adding 4px to the box
+          puts the two centres on the same vertical line (44px at md, 52px at
+          lg), which is what "aligned" means here.
+
+          In DEV ONLY there is also a round "N" Next.js dev-tools button in
+          this corner, at roughly 25–55px x, 846–876px y on a 900px window. It
+          is not ours, it does not ship, and nothing here is laid out around
+          it — but it does sit on top of this glyph in a dev screenshot. */}
+      <div className="pointer-events-auto absolute right-4 top-3 z-30 md:bottom-5 md:left-6 md:right-auto md:top-auto lg:left-8">
         <GrainReveal index={2}>
           <ThemeToggle className="!rounded-full hover:!bg-foreground/[0.09] active:!bg-foreground/[0.14]" />
         </GrainReveal>
