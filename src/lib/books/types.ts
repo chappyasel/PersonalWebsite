@@ -20,6 +20,9 @@ export type BaseBook = {
   hasNotes: boolean;
   hasSummary: boolean;
   isAutomated: boolean;
+  /** Notion "Featured?" — hand-picked by Chappy for the homepage shelf.
+   * Set per Notion page, so a re-read features only the read he checked. */
+  isFeatured: boolean;
   coverUrl: string | null;
   audibleUrl: string | null;
   notionUrl: string;

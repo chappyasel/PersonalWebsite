@@ -99,6 +99,7 @@ export const booksRouter = createTRPCRouter({
         hasNotes: book.hasNotes,
         hasSummary: book.hasSummary,
         isAutomated: book.isAutomated,
+        isFeatured: book.isFeatured,
         coverUrl: book.coverUrl,
         audibleUrl: book.audibleUrl,
         notionUrl: book.notionUrl,

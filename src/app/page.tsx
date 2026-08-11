@@ -110,9 +110,26 @@ export default async function HomePage() {
   }));
   const readingBook = allBooks.find((book) => book.started && !book.finished);
 
+  // Chappy's "Featured?" ticks, in the collection's own finished-desc order.
+  // A featured book with no cover would render as a blank slab, so it is held
+  // to the same bar as any other shelf cover.
+  const featuredBooks = allBooks.filter(
+    (book) => book.isFeatured && book.coverUrl,
+  );
+  // Featured books lead `shelfBooks` so they are guaranteed a slot in the 16
+  // the scene knows about: `onOpenBook` resolves clicks out of this array and
+  // `Scene` warms only these covers. Without the union, a featured cover could
+  // fall past the cut and become an unclickable, late-decoding slab.
+  const featuredIds = new Set(featuredBooks.map((book) => book.id));
+  const shelfBooks = [
+    ...featuredBooks,
+    ...allBooks.filter((book) => book.coverUrl && !featuredIds.has(book.id)),
+  ].slice(0, 16);
+
   const data: StacksData = {
     covers: bookCovers,
-    shelfBooks: allBooks.filter((book) => book.coverUrl).slice(0, 16),
+    shelfBooks,
+    featuredBooks,
     bookStats,
     reading: readingBook
       ? { title: readingBook.title, coverUrl: readingBook.coverUrl }

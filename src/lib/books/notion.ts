@@ -194,6 +194,12 @@ function transformNotionPageToBook(page: PageObjectResponse): BaseBook {
       props["Automated?"] && "checkbox" in props["Automated?"]
         ? (props["Automated?"].checkbox ?? false)
         : false,
+    // Notion "Featured?" — Chappy's hand-picked shelf. Absent or unset reads
+    // as false; no book is featured by accident.
+    isFeatured:
+      props["Featured?"] && "checkbox" in props["Featured?"]
+        ? (props["Featured?"].checkbox ?? false)
+        : false,
     coverUrl:
       props.Cover && "url" in props.Cover ? (props.Cover.url ?? null) : null,
     audibleUrl:

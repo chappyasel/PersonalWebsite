@@ -1,6 +1,6 @@
 /**
  * Backfill script: re-sync the lightweight Notion checkbox flags
- * (Notes?, Summarized?, Automated?) onto every book row.
+ * (Notes?, Summarized?, Automated?, Featured?) onto every book row.
  *
  * The normal book sync only upserts books whose Notion page was edited more
  * recently than the DB copy, so a newly-added flag column stays at its default
@@ -40,6 +40,7 @@ async function main() {
       hasNotes: books.hasNotes,
       hasSummary: books.hasSummary,
       isAutomated: books.isAutomated,
+      isFeatured: books.isFeatured,
     })
     .from(books);
   const byNotionId = new Map(dbBooks.map((b) => [b.notionId, b]));
@@ -58,7 +59,8 @@ async function main() {
     const changed =
       existing.hasNotes !== book.hasNotes ||
       existing.hasSummary !== book.hasSummary ||
-      existing.isAutomated !== book.isAutomated;
+      existing.isAutomated !== book.isAutomated ||
+      existing.isFeatured !== book.isFeatured;
     if (!changed) continue;
 
     updated++;
@@ -69,6 +71,8 @@ async function main() {
         `summary ${existing.hasSummary}→${book.hasSummary}`,
       existing.isAutomated !== book.isAutomated &&
         `automated ${existing.isAutomated}→${book.isAutomated}`,
+      existing.isFeatured !== book.isFeatured &&
+        `featured ${existing.isFeatured}→${book.isFeatured}`,
     ]
       .filter(Boolean)
       .join(", ");
@@ -81,6 +85,7 @@ async function main() {
           hasNotes: book.hasNotes,
           hasSummary: book.hasSummary,
           isAutomated: book.isAutomated,
+          isFeatured: book.isFeatured,
         })
         .where(eq(books.id, existing.id));
     }

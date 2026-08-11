@@ -1,5 +1,15 @@
 // The Stacks — unit registry, serializable home-page data contract, and small
 // formatters. Client-safe: no JSON imports, no server-only modules.
+import {
+  BarbellIcon,
+  BooksIcon,
+  CodeIcon,
+  CompassIcon,
+  MicrophoneStageIcon,
+  PenNibIcon,
+  UserIcon,
+  type Icon,
+} from "@phosphor-icons/react";
 import type { ReactNode } from "react";
 
 import type {
@@ -17,14 +27,42 @@ export type UnitSlug =
   | "blog"
   | "systems";
 
-export const UNITS: { slug: UnitSlug; label: string; railLabel: string }[] = [
-  { slug: "about", label: "About", railLabel: "About" },
-  { slug: "books", label: "Book Notes", railLabel: "Books" },
-  { slug: "training", label: "Training", railLabel: "Training" },
-  { slug: "talks", label: "Featured Talks", railLabel: "Talks" },
-  { slug: "projects", label: "Projects", railLabel: "Projects" },
-  { slug: "blog", label: "Musings", railLabel: "Musings" },
-  { slug: "systems", label: "Systems", railLabel: "Systems" },
+export type Unit = {
+  /** Internal key and URL hash. Deliberately NOT renamed to match `label` —
+   * it is also the key of Scene's UNIT_COMPONENTS map and of the flat page's
+   * slot record, and the hash is a URL people can already be holding. */
+  slug: UnitSlug;
+  /** The unit's ONE name, everywhere it is written.
+   *
+   * There used to be a second field, `railLabel`, and the two disagreed:
+   * the rail said "Books" / "Talks" while the placards said "Book Notes" /
+   * "Featured Talks", and "Training" named a section whose only heading is
+   * "Weightlifting". A visitor clicking a rail entry landed on a panel with
+   * a different title at the top of it.
+   *
+   * These are the names the SECTIONS use, read off their own markup rather
+   * than off either old field — BookNotes/Talks/Projects/BlogPosts h1s, and
+   * Weightlifting.tsx, which is the whole of the training placard. Two are
+   * container names with no single section behind them and so cannot be
+   * copied from one: About (whose placard is an intro and contact, no
+   * heading at all) and Systems (Personal Operating Manual + Core Daily
+   * Routine + quotes, three sections in one unit). */
+  label: string;
+  /** The section's own glyph, so the rail entry and the heading it leads to
+   * are the same mark. Taken from each section's h1 — BooksIcon, BarbellIcon,
+   * MicrophoneStageIcon, CodeIcon, PenNibIcon. The two container units get
+   * one of their own: About is the person, Systems is how he navigates. */
+  icon: Icon;
+};
+
+export const UNITS: Unit[] = [
+  { slug: "about", label: "About", icon: UserIcon },
+  { slug: "books", label: "Book Notes", icon: BooksIcon },
+  { slug: "training", label: "Weightlifting", icon: BarbellIcon },
+  { slug: "talks", label: "Featured Talks", icon: MicrophoneStageIcon },
+  { slug: "projects", label: "Projects", icon: CodeIcon },
+  { slug: "blog", label: "Musings", icon: PenNibIcon },
+  { slug: "systems", label: "Systems", icon: CompassIcon },
 ];
 
 export const UNIT_COUNT = UNITS.length;
@@ -59,6 +97,19 @@ export type StacksData = {
   covers: HomepageBookCover[];
   /** Full Book objects for the covers rendered in-scene — instant modal open. */
   shelfBooks: Book[];
+  /** The books Chappy ticked "Featured?" on in Notion, newest finish first.
+   *
+   * Owner-curated, so the length is whatever he has checked — eight today. Do
+   * NOT hard-code eight: read `featuredBooks.length` and let the row size
+   * itself, or the ninth tick silently goes missing and an untick leaves a
+   * hole. Every entry is also present in `shelfBooks`, which is what
+   * `StacksCanvas.onOpenBook` searches by id and what `Scene` warms through
+   * the image proxy — so a featured cover is always clickable and pre-decoded.
+   *
+   * "Featured?" is set per Notion page, not per title: 7 Habits has two reads
+   * and only the 2023 one is featured. Match on `book.id` (the slug), never on
+   * title. */
+  featuredBooks: Book[];
   bookStats: HomepageBookStats;
   reading: { title: string; coverUrl: string | null } | null;
   talks: StacksTalk[];
