@@ -4,7 +4,8 @@
   "attributionRequired": [
     "Zsky",
     "Poly by Google",
-    "Charlie"
+    "Charlie",
+    "jeremy"
   ],
   "models": [
     {
@@ -78,13 +79,6 @@
       "source": "https://poly.pizza/m/i3LLacyQP4"
     },
     {
-      "file": "ct-books.glb",
-      "title": "ct-books",
-      "author": "CreativeTrio",
-      "license": "CC0 1.0",
-      "source": "https://poly.pizza/m/dxt7dETAy9"
-    },
-    {
       "file": "cup-tea.glb",
       "title": "cup-tea",
       "author": "CreativeTrio",
@@ -104,20 +98,6 @@
       "author": "CreativeTrio",
       "license": "CC0 1.0",
       "source": "https://poly.pizza/m/09YKIkFZnA"
-    },
-    {
-      "file": "ladder.glb",
-      "title": "ladder",
-      "author": "CreativeTrio",
-      "license": "CC0 1.0",
-      "source": "https://poly.pizza/m/p1RR8Ls9EH"
-    },
-    {
-      "file": "armchair.glb",
-      "title": "armchair",
-      "author": "CreativeTrio",
-      "license": "CC0 1.0",
-      "source": "https://poly.pizza/m/myd1WSucAz"
     },
     {
       "file": "sansevieria.glb",
@@ -155,13 +135,6 @@
       "source": "https://poly.pizza/m/08Gs4e3L1N8"
     },
     {
-      "file": "eames-chair.glb",
-      "title": "eames-chair",
-      "author": "Zsky",
-      "license": "CC-BY 3.0",
-      "source": "https://poly.pizza/m/ufzwKuyJuD"
-    },
-    {
       "file": "mac.glb",
       "title": "mac",
       "author": "Charlie",
@@ -195,6 +168,34 @@
       "author": "Isa Lousberg",
       "license": "CC0 1.0",
       "source": "https://poly.pizza/m/ktF2FMl1eT"
+    },
+    {
+      "file": "couch.glb",
+      "title": "couch",
+      "author": "Quaternius",
+      "license": "CC0 1.0",
+      "source": "https://poly.pizza/m/ZOPP3KzNIk"
+    },
+    {
+      "file": "soda-can.glb",
+      "title": "soda-can",
+      "author": "jeremy",
+      "license": "CC-BY 3.0",
+      "source": "https://poly.pizza/m/cNjAaDY27fQ"
+    },
+    {
+      "file": "protein-powder.glb",
+      "title": "protein-powder",
+      "author": "Zsky",
+      "license": "CC-BY 3.0",
+      "source": "https://poly.pizza/m/w9sWcWlV9i"
+    },
+    {
+      "file": "microphone.glb",
+      "title": "microphone",
+      "author": "Poly by Google",
+      "license": "CC-BY 3.0",
+      "source": "https://poly.pizza/m/bD-LseANe2b"
     }
   ]
 }

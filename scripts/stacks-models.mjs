@@ -72,12 +72,13 @@ const MANIFEST = [
   { name: "golf-club", id: "26nMm9C7Bw", url: "https://static.poly.pizza/940b6e7e-09ab-414a-8243-fc63a3faa9fd.glb", noAo: true, unit: "training", author: "Pichuliru", license: "CC0 1.0" },
   { name: "basketball", id: "i3LLacyQP4", url: "https://static.poly.pizza/d4a3995f-5823-4d31-b4ed-a27a0700e896.glb", keepNodes: ["Sphere"], fixMime: true, noAo: true, unit: "training", author: "Armory_3D", license: "CC0 1.0" },
   // ---- v4 round 2: CC0 atlas-shared drop-ins
-  { name: "ct-books", id: "dxt7dETAy9", url: "https://static.poly.pizza/dfbb9f38-a5de-41d7-bcbf-0a0929f3c53d.glb", strip: true, unit: "systems", author: "CreativeTrio", license: "CC0 1.0" },
   { name: "cup-tea", id: "6QBscrL7D3", url: "https://static.poly.pizza/10923bae-556b-4540-8b37-2edaaa78083d.glb", strip: true, unit: "blog", author: "CreativeTrio", license: "CC0 1.0" },
   { name: "corkboard", id: "U8yQZ9l0HZ", url: "https://static.poly.pizza/09cf2ec1-8b2c-4543-b773-962fba13aac5.glb", strip: true, noAo: true, unit: "blog", author: "CreativeTrio", license: "CC0 1.0" },
   { name: "grandfather-clock", id: "09YKIkFZnA", url: "https://static.poly.pizza/88145813-946f-4490-abe5-e3938775991a.glb", strip: true, unit: "systems floor", author: "CreativeTrio", license: "CC0 1.0" },
-  { name: "ladder", id: "p1RR8Ls9EH", url: "https://static.poly.pizza/b103cfda-4dea-47b9-a0c6-439eed17d9ee.glb", strip: true, noAo: true, unit: "books floor", author: "CreativeTrio", license: "CC0 1.0" },
-  { name: "armchair", id: "myd1WSucAz", url: "https://static.poly.pizza/2584a961-1b06-4fb7-ba7d-1074b52ca908.glb", strip: true, unit: "about floor", author: "CreativeTrio", license: "CC0 1.0" },
+  // The library ladder was owner-killed at browse in v7 ("let's just get rid
+  // of the ladder"), after v4 added it and v6 fixed its footing. Entry removed
+  // rather than left dangling: nothing references it and the pipeline is what
+  // decides what ships.
   // ---- v4 round 2: CC0 own-texture (palette remap per theme)
   { name: "sansevieria", id: "BDwimVUool", url: "https://static.poly.pizza/f972935d-4083-474a-aa51-af7ceec71797.glb", recolor: true, noAo: true, unit: "systems", author: "Isa Lousberg", license: "CC0 1.0" },
   // ---- v4 round 3: more species. One sansevieria was carrying every plant
@@ -107,7 +108,6 @@ const MANIFEST = [
   // variant drives it: Cloth1MinimalistModernChair1 (upholstery) and
   // WoodMinimalistModernChair1 (legs). Zsky is already a credited CC-BY
   // author (barbell), so it adds no new name to the About placard.
-  { name: "eames-chair", id: "ufzwKuyJuD", url: "https://static.poly.pizza/f7f1e03b-fbad-4d21-a418-80f50e0dbe4e.glb", unit: "about floor", author: "Zsky", license: "CC-BY 3.0" },
   // The Mac ships as a desk scene (keyboard/keys/mouse/mousepad); keyboard
   // _keys alone is 272 of its 556 tris and none of it reads at 25px. Keep
   // only the compact-Mac body plus the two Happy-Mac screen quads — face and
@@ -124,6 +124,45 @@ const MANIFEST = [
   // reasons in the round-3 note above.
   { name: "monstera", id: "mhLLD0UJ5n", url: "https://static.poly.pizza/25c47ae4-e64f-42cc-8ef7-9f7a69907c92.glb", recolor: true, noAo: true, simplify: 0.02, unit: "about", author: "Isa Lousberg", license: "CC0 1.0" },
   { name: "cactus", id: "ktF2FMl1eT", url: "https://static.poly.pizza/241caab1-030a-4879-8a37-982b7e5d2f49.glb", recolor: true, noAo: true, simplify: 0.02, unit: "systems", author: "Isa Lousberg", license: "CC0 1.0" },
+  // ---- v7 removals. These four had no call site left and were still being
+  // downloaded, built and PRELOADED, i.e. paid for on every visit while
+  // rendering nothing (44 KB between them). ct-books became a real per-spine
+  // BookRowMesh so its spines could hover one at a time; the ladder and the
+  // eames-chair were owner-killed at browse; armchair had been dead since v5,
+  // when the About chair was swapped for the eames and nothing removed it.
+  // Deleting the manifest entry is what actually removes a prop — the pipeline
+  // writes public/models but never prunes it, so the stale .glb must go too.
+  // ---- v7: the owner's own picks, browsed on poly.pizza and chosen by him.
+  //
+  // All three carry PLAIN UNTEXTURED materials — verified, zero images in any
+  // of them — so none needs `strip` or `recolor`. They theme at runtime
+  // through the "tinted" variant keyed on material name, the same path the
+  // barbell, kettlebell and Mac already take. The material names each prop
+  // exposes are listed below because that list IS the theming interface, and
+  // reading it off the GLB beats guessing at it from the component.
+  //
+  // couch replaces eames-chair as the About seat, on his preference. It is a
+  // two-seat couch rather than a lounge chair, so the seated eye has to move:
+  // SEAT_POSE in scene/seated.ts was measured against the eames hull and is
+  // re-measured against this one. 852 tris.
+  //   Couch_Blue = upholstery, Black = base.
+  { name: "couch", id: "ZOPP3KzNIk", url: "https://static.poly.pizza/4e8fbbf3-9992-4068-8918-2126a0304127.glb", unit: "about floor", author: "Quaternius", license: "CC0 1.0" },
+  // The can is 312 tris, which is why it can afford to appear several times in
+  // different colours. Its materials are named for their stock hex, so the
+  // body tint is the `F44336` slot; the other two are the base ring and the
+  // pull tab and should stay neutral or the can stops reading as aluminium.
+  // NEW CC-BY AUTHOR: "jeremy" joins the credits line in the About placard.
+  { name: "soda-can", id: "cNjAaDY27fQ", url: "https://static.poly.pizza/1be087d0-ab82-47b6-84c8-9f9ea9060fd9.glb", noAo: true, unit: "training+projects+blog", author: "jeremy", license: "CC-BY 3.0" },
+  // 104 tris, the cheapest prop in the room by a distance. Zsky is already a
+  // credited CC-BY author (barbell), so it adds no new name.
+  //   Plastic1Protein1 = tub, Lid1Protein1 = lid.
+  { name: "protein-powder", id: "w9sWcWlV9i", url: "https://static.poly.pizza/4e9e8127-6819-4af1-afc2-be217d93859d.glb", unit: "training", author: "Zsky", license: "CC-BY 3.0" },
+  // The Talks mic. Unlike the three above it DOES carry its own texture, and
+  // it is the reason `texMax` exists — see the note at the resize step. The
+  // map is pure greyscale shading over one material (lambert2SG), so it
+  // survives a runtime tint rather than fighting it. 184 tris.
+  // Poly by Google is already a credited CC-BY author (kettlebell).
+  { name: "microphone", id: "bD-LseANe2b", url: "https://static.poly.pizza/67e327c3-3925-4750-9b1a-95794c810c07.glb", texMax: 128, noAo: true, unit: "talks", author: "Poly by Google", license: "CC-BY 3.0" },
 ];
 
 function parseGlb(buf) {
@@ -422,9 +461,27 @@ async function buildModels({ bakeAo = false } = {}) {
     }
     // Bottom-at-origin matches the shelf convention (local y=0 = contact).
     execFileSync("npx", ["--yes", "@gltf-transform/cli", "center", source, centered, "--pivot", "below"], { stdio: "pipe" });
+    // texMax: some props ship a texture wildly out of proportion to their
+    // geometry. The microphone is 184 triangles carrying a 2048x2048 PNG that
+    // holds 189 unique colours, all of them grey — 633 KB of shading map for a
+    // prop that renders about 40 pixels tall. That one file would have been
+    // 1.7x the entire /public/models budget. Resized before optimize, because
+    // optimize's own texture handling is switched off here (no WebP: it writes
+    // EXT_texture_webp into extensionsRequired and hard-fails other clients).
+    let toOptimize = centered;
+    if (spec.texMax) {
+      const resized = path.join(tmp, `${spec.name}.resize.glb`);
+      execFileSync(
+        "npx",
+        ["--yes", "@gltf-transform/cli", "resize", centered, resized,
+          "--width", String(spec.texMax), "--height", String(spec.texMax)],
+        { stdio: "pipe" },
+      );
+      toOptimize = resized;
+    }
     execFileSync(
       "npx",
-      ["--yes", "@gltf-transform/cli", "optimize", centered, out, "--compress", "meshopt", "--prune-attributes", "false", "--texture-compress", "false",
+      ["--yes", "@gltf-transform/cli", "optimize", toOptimize, out, "--compress", "meshopt", "--prune-attributes", "false", "--texture-compress", "false",
         ...(spec.simplify ? ["--simplify-error", String(spec.simplify)] : [])],
       { stdio: "pipe" },
     );
