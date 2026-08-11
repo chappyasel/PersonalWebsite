@@ -95,6 +95,33 @@ const SKY_FRAGMENT = `
   // SF_SHOW_DURATION in the JS below, which stops feeding the clock.
   #define SF_SHOW 9.0
 
+  // ---- The two named towers, in the dome's own angular units. Both are quoted
+  // from the real buildings and both are drawn against the same apparent
+  // distance the rest of the skyline is (≈3.2 km), so they can be checked
+  // against each other rather than eyeballed one at a time.
+  //
+  // Transamerica Pyramid: 853 ft to the tip of the spire on a 175 ft square
+  // base. The WINGS — lifts on the east face, stairwell and smoke tower on the
+  // west — break out of the sloping faces at the 29th floor (387 ft, 0.454 of
+  // the height) and stop at the top of the 48th (641 ft, 0.752), where the
+  // spire takes over.
+  #define TR_TOP    0.082
+  #define TR_HW     0.0102
+  #define TR_WING_B 0.0372
+  #define TR_WING_T 0.0617
+  // Salesforce Tower: 1,070 ft to the top of the crown, 970 ft to the roof,
+  // 150 ft across at the base of the tower tapering to 110 ft at the crown —
+  // so the plates run out to 0.733 of the base, and the top is FLAT.
+  #define SF_TOP    0.100
+  #define SF_ROOF   0.0907
+  #define SF_HW     0.0100
+  #define SF_TAPER  0.267
+
+  // Longest a fireworks launch runs: seven shells, the last let go at 3.10 s,
+  // up to 1.08 s of rise and a 3.4 s willow on top. Mirrored by FIRE_DURATION
+  // in the JS below, which stops feeding the clock.
+  #define FIRE_WINDOW 7.8
+
   uniform float uDark;     // 0 light theme … 1 dark theme (damped crossfade)
   uniform float uDawn;     // scroll offset 0…1 — the traverse advances the morning
   uniform float uPan;      // azimuth the traverse has swept (see SkyDome)
@@ -138,6 +165,24 @@ const SKY_FRAGMENT = `
     float q = (a - c) / w;
     float m = max(1.0 - q * q, 0.0);
     return m * m;
+  }
+  // One rule for every lit window in this city, so the generic carpet and the
+  // named towers can never fall out of step. A FIXED per-cell hash crossing a
+  // smoothly moving threshold, plus a slow per-window phase that turns a few
+  // over on their own clock — never a re-deal. Offsetting the hash by
+  // floor(uDawn * 6.0) is what made the whole skyline blink to a new pattern
+  // six times per traverse ("the building lights jump on movement").
+  float windowLit(vec2 cell, float thr) {
+    float h = hash2(cell);
+    float slow = 0.006 * sin(uTime * 0.05 + hash2(cell + 3.0) * 6.2832);
+    return smoothstep(thr + 0.004, thr - 0.004, h + slow);
+  }
+  // Distance from a point to a segment, in (azimuth, elevation). The bird is
+  // four of these and nothing else.
+  float segD(vec2 p, vec2 s0, vec2 s1) {
+    vec2 pa = p - s0, ba = s1 - s0;
+    float h = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-9), 0.0, 1.0);
+    return length(pa - ba * h);
   }
   // Bilinear value noise on the hash — two octaves are enough for the very
   // low-frequency air the bands need.
@@ -570,6 +615,187 @@ const SKY_FRAGMENT = `
       col += vec3(0.82, 0.88, 1.0) * present * core * tw * bright * starGate;
     }
 
+    // ---- Fireworks over the Golden Gate, fired by clicking the bridge.
+    //
+    // DEPTH FIRST, because that is what was wrong with them. This whole block
+    // used to sit at the very END of main(), after the ridge and the skyline
+    // had already been composited — so a burst additively lit the cables and
+    // the hill it was supposed to be exploding behind, and the backdrop lost
+    // its layering ("the fireworks should be behind the bridge and hill, not
+    // in front of it"). There is no z position to fix: the entire backdrop is
+    // one dome shader and depth here is WRITE ORDER. So the shells are drawn
+    // into the sky HERE — after the stars, before hillMask and structures —
+    // and the ridge, the towers and the cables paint over them, exactly as
+    // they already paint over the stars. That also makes it independent of
+    // the composer: nothing about it is a render pass.
+    //
+    // The bridge is shader geometry, so it has no pointer events of its own.
+    // SkyDome puts an invisible hit target on it whose azimuth and elevation
+    // are computed from the SAME GGB_* constants this shader draws with, so
+    // the two cannot drift apart; a click there writes uFire, seconds since
+    // launch, negative when idle. That gate is frame-uniform — the whole pass
+    // costs one comparison until somebody clicks, the same trick the
+    // satellite already uses — and the azimuth guard keeps the eight seconds
+    // it IS running confined to the bay instead of the whole dome.
+    //
+    // Seven shells now instead of four, with four types, a spread of rise
+    // heights and delays, and a double break on some of them. Two things pay
+    // for that. The stars-per-shell work is skipped outside the shell's own
+    // radius (r2 > rMax²), so away from a burst a shell costs one exp() and
+    // not an atan() and a hash; and the degrade rung drops to four shells.
+    //
+    // The shells now leave from BELOW the roadway — from barges in the strait,
+    // which is where they really go up from — so they climb out from behind
+    // the deck instead of off it, which is the other half of reading as depth.
+    //
+    // Brightness is authored for the composer and lifted when it is absent,
+    // not the other way round: additive glow COMPOUNDS in linear HDR, and a
+    // burst tuned to look right with postfx off blows the frame out with
+    // Bloom on. The spark cores are allowed over Bloom's 0.95 threshold
+    // because they are a handful of pixels each; the soft burst flash is held
+    // well under it, because a wide additive is exactly how a sky goes milky.
+    // The per-shell amplitudes came DOWN with the shell count going up: at the
+    // old 1.15 / 0.45, five shells alive at once is a different picture from
+    // three.
+    if (uFire > 0.0 && uFire < FIRE_WINDOW
+        && abs(a + 2.04) < 0.32 && e > -0.05 && e < 0.28) {
+      vec3 sparkAdd = vec3(0.0);
+      vec3 glowAdd = vec3(0.0);
+      float smoke = 0.0;
+      for (int si = 0; si < 7; si++) {
+        if (si >= 4 && uSimplify > 0.5) break;
+        float fs = float(si);
+        float h0 = hash1(uFireSeed + fs * 4.1);
+        float h1 = hash1(uFireSeed + fs * 9.7);
+        float h2 = hash1(uFireSeed + fs * 2.3);
+        float h3 = hash1(uFireSeed + fs * 13.1);
+        float h4 = hash1(uFireSeed + fs * 6.7);
+        // Staggered, and unevenly: the hash is nearly as large as the step, so
+        // some shells crowd and some leave a hole. An even cadence is a
+        // metronome, and a volley is not one.
+        float t = uFire - (fs * 0.46 + h0 * 0.34);
+        if (t <= 0.0) continue;
+        // Biased WEST of the bridge rather than centred on it: everything
+        // that can occlude a burst — the portrait frame, the top shelf, the
+        // placard — is east of this azimuth, and open sky is west.
+        float az = -2.04 + (h1 - 0.72) * 0.170;
+        float burstE = 0.106 + h2 * 0.044;
+        float rise = 0.86 + h4 * 0.22;
+        // Four shells, and each one is a real thing off a real firing script:
+        // 0 peony (a sphere of streaks), 1 willow (long gold, heavy drop),
+        // 2 ring (one uniform circle), 3 chrysanthemum with a pistil.
+        float typ = floor(h3 * 4.0);
+        float hh = hash1(uFireSeed + fs * 21.3);
+        vec3 hue = hh < 0.28 ? vec3(1.00, 0.84, 0.50)
+                 : hh < 0.50 ? vec3(1.00, 0.42, 0.28)
+                 : hh < 0.70 ? vec3(0.50, 0.76, 1.00)
+                 : hh < 0.87 ? vec3(0.55, 0.95, 0.66)
+                             : vec3(0.95, 0.58, 0.95);
+        // A willow is gold by definition — it is burning charcoal, not a
+        // colour star — so its hue is not up to the hash.
+        if (typ == 1.0) hue = vec3(1.00, 0.80, 0.42);
+        if (t < rise) {
+          // The shell on its way up: one hot dot with a short flickering
+          // trail under it, drifting a little downrange as it slows. No
+          // smoke — at 8 km that is a grey pixel.
+          float u = t / rise;
+          float sy = mix(0.026, burstE, u * (2.0 - u));
+          float dAz = a - az - 0.007 * u * u * (h4 - 0.5) * 2.0;
+          float trail = smoothstep(0.014, 0.0, sy - e)
+                      * step(0.022, e) * step(e, sy)
+                      * smoothstep(0.0012, 0.0003, abs(dAz))
+                      * (0.62 + 0.38 * sin(e * 900.0 + uFireSeed + fs));
+          float head = smoothstep(0.0023, 0.0005, length(vec2(dAz, e - sy)));
+          sparkAdd += vec3(1.00, 0.72, 0.36)
+                    * (head * (1.15 - 0.4 * u) + trail * 0.45);
+          continue;
+        }
+        float age = t - rise;
+        float dur = typ == 1.0 ? 3.4 : 2.6;
+        if (age > dur) continue;
+        float u = age / dur;
+        vec2 p = vec2(a - az, e - burstE);
+        // Undo gravity to get back into the ballistic frame: every spark
+        // shares the same drop, so one add restores the expanding circle
+        // and the whole burst can be tested as a radius. A willow's stars are
+        // heavy and burn long, so they fall visibly — that IS the shell.
+        p.y += (typ == 1.0 ? 0.036 : 0.020) * age * age;
+        float r2 = dot(p, p);
+        // The flash on the air, and the early-out. Outside the shell's own
+        // radius there are no stars to test, so everything below this line —
+        // the atan, the per-ray hash, three smoothsteps — is skipped for the
+        // whole of the sky that isn't inside this particular burst.
+        float glow = exp(-r2 * 2380.0);
+        glowAdd += hue * glow * exp(-age * 3.4);
+        smoke += glow * smoothstep(0.0, 0.25, u) * (1.0 - smoothstep(0.35, 1.0, u));
+        // 0.118 rad: the widest shell (a willow at the top of its velocity
+        // spread, plus its double break, plus the streak's own length).
+        if (r2 > 0.0140) continue;
+        float r = sqrt(r2);
+        float ang = atan(p.y, p.x);
+        // A ring is drawn with more, thinner rays because it has to close.
+        float bins = typ == 2.0 ? 46.0 : 28.0;
+        float bi = floor((ang + 3.14159265) / 6.28318531 * bins);
+        // Every ray gets its own star velocity — which is what gives a peony
+        // its depth — except a ring shell, whose whole point is that they are
+        // all the same.
+        float sp = typ == 2.0 ? 1.0
+                 : 0.52 + 0.80 * hash1(bi * 1.37 + uFireSeed + fs * 5.9);
+        // Shell size, and it is the one number the whole display is judged on:
+        // at the old 0.058 (and a willow at 0.072, spread to 0.095) a single
+        // burst was as wide as the bridge's whole main span, which is not a
+        // firework over the Golden Gate, it is a firework instead of it.
+        float Rk = typ == 1.0 ? 0.060 : (typ == 2.0 ? 0.044 : 0.050);
+        float R = Rk * (1.0 - exp(-3.6 * u)) * sp;
+        float ca = (bi + 0.5) / bins * 6.28318531 - 3.14159265;
+        float da = (ang - ca) * r;
+        // Elongated along the radius: a spark is a streak, not a dot, and a
+        // willow's is the longest streak in the sky.
+        float len = typ == 1.0 ? 0.20 : (typ == 2.0 ? 0.46 : 0.34);
+        float spark = smoothstep(0.0026, 0.0006, length(vec2((r - R) * len, da)));
+        // The pistil — a small tight ring of stars at the centre of a
+        // chrysanthemum, thrown by the shell's own inner break.
+        if (typ == 3.0) {
+          float Rp = 0.019 * (1.0 - exp(-5.4 * u));
+          spark += 0.85 * smoothstep(0.0021, 0.0005,
+                     length(vec2((r - Rp) * 0.55, da)));
+        }
+        // Double break. The stars split again about six tenths of a second
+        // in, and the secondaries come off the SAME rays as the primary
+        // rather than out of nowhere, because that is where they come from.
+        if (h4 > 0.55) {
+          float brk = smoothstep(0.58, 0.80, age)
+                    * (1.0 - smoothstep(0.72, 1.0, u));
+          float R2 = R + 0.017 * (1.0 - exp(-4.2 * max(age - 0.58, 0.0)));
+          spark += brk * 0.75
+                 * smoothstep(0.0020, 0.0005, length(vec2((r - R2) * 0.5, da)));
+        }
+        // Crackle: a chrysanthemum's stars are glitter, so they flicker hard.
+        float twd = typ == 3.0 ? 0.62 : 0.38;
+        float twinkle = (1.0 - twd)
+                      + twd * (0.5 + 0.5 * sin(uTime * 41.0 + bi * 2.7 + fs));
+        float fade = exp(-age * (typ == 1.0 ? 0.78 : 1.15))
+                   * (1.0 - smoothstep(0.72, 1.0, u));
+        // White-hot at the burst, into the shell's own colour, cooling to a
+        // dim ember as it falls.
+        // The white-hot phase is SHORT — a quarter of the burst at 0.24, on
+        // top of an exp fade that puts most of the light in the first half
+        // second, meant every shell read as white and the palette did nothing.
+        vec3 sc = mix(vec3(1.0, 0.97, 0.90), hue, smoothstep(0.0, 0.11, u));
+        sc = mix(sc, hue * vec3(0.70, 0.40, 0.30), smoothstep(0.45, 1.0, u));
+        sparkAdd += sc * spark * twinkle * fade;
+      }
+      // Light theme keeps the shells rather than firing white blobs into a
+      // morning sky: a daytime firework reads as a bright core and then a
+      // puff that is DARKER than the sky behind it, which is the same lesson
+      // the cloud deck learned on the ACES shoulder. So the additive is
+      // pulled back and the smoke does most of the work.
+      col = mix(col, col * 0.78,
+                clamp(smoke, 0.0, 1.0) * 0.8 * (1.0 - uDark));
+      col += sparkAdd * mix(1.45, 1.0, uPost) * 0.92 * mix(0.60, 1.0, uDark);
+      col += glowAdd * mix(1.50, 1.0, uPost) * 0.34 * mix(0.30, 1.0, uDark);
+    }
+
     // ---- The city. Bimodal roofline — a flat residential carpet with one
     // tight downtown cluster punching out — is SF's actual silhouette
     // signature; a uniform hashed roofline is the generic-city shape.
@@ -709,49 +935,79 @@ const SKY_FRAGMENT = `
       }
     }
 
-    // Transamerica Pyramid — tapering triangle plus the two vertical wings
-    // (they are what turn "a triangle" into THE pyramid).
+    // ---- Transamerica Pyramid. The WINGS are what turn "a triangle" into THE
+    // pyramid, and they were drawn wrong in the one way that reads: as two
+    // 1.2-milliradian sticks standing at a FIXED |dTr| = TR_HW, the pyramid's
+    // half-width at its BASE, while the face beside them had already tapered
+    // in to 0.004 by the height they stopped at. So they floated five
+    // milliradians clear of the building with sky between — "is this supposed
+    // to be transamerica? Why are there two lines next to it?"
+    //
+    // Drawn the way they are built instead. Both wings are vertical shafts —
+    // the lifts on the east face, the stairwell and smoke tower on the west —
+    // so their outer faces are PLUMB while the pyramid's faces slope in. Put
+    // that plumb face at the half-width the pyramid has at the 29th floor,
+    // where they break out, and everything else follows for free: they emerge
+    // from the faces at zero width, are attached over their whole length,
+    // widen as the faces recede, and are widest at the flat tops where they
+    // stop. Then the spire steps back in and continues alone — and that step
+    // is the silhouette. At TR_WING_T each wing is 3.0 mrad wide against the
+    // 11.1 mrad the building is there, which is the real 30 ft shaft on a
+    // ~100 ft floor plate.
+    //
+    // They are WINDOWLESS as well (shaft, stairwell, crushed-quartz cladding),
+    // and so is the spire above them. transFace is the glass and nothing else,
+    // which is what makes the wings read after dark rather than just widening
+    // the blob.
     float trans = 0.0;
+    float transFace = 0.0;
+    float transWing = 0.0;
     float dTr = a + 1.62;
-    if (abs(dTr) < 0.014 && e < 0.084) {
-      float hwT = 0.0102 * (1.0 - e / 0.082);
-      trans = step(abs(dTr), max(hwT, 0.0008)) * step(e, 0.082);
-      float wings = step(abs(abs(dTr) - 0.0102), 0.0012) * step(e, 0.050);
-      trans = max(trans, wings);
+    if (abs(dTr) < 0.016 && e < TR_TOP + 0.002) {
+      float hwT = TR_HW * (1.0 - e / TR_TOP);
+      float pyr = step(abs(dTr), max(hwT, 0.0008)) * step(e, TR_TOP);
+      float wingHW = TR_HW * (1.0 - TR_WING_B / TR_TOP);
+      float wings = step(abs(dTr), wingHW)
+                  * step(TR_WING_B, e) * step(e, TR_WING_T);
+      trans = clamp(pyr + wings, 0.0, 1.0);
+      transFace = pyr * step(0.002, e) * step(e, TR_WING_T);
+      transWing = wings * (1.0 - pyr);
     }
 
-    // Salesforce Tower — 1,070 ft on a 180 ft square footprint, tapering
-    // CONTINUOUSLY to a slender rounded crown. Three things were wrong and
-    // they compounded: the taper ran to 0.37 of the base, which pinched the
-    // shaft into a mast; the crown was a cut, not a curve; and the dissolve
-    // then ate the top 14% of what little width was left. The tower read as
-    // a needle with a spike on it.
+    // ---- Salesforce Tower. It is the tallest thing on this skyline and it
+    // reads at every unit, so it is drawn to the four numbers that describe
+    // it rather than to a silhouette that feels right: 1,070 ft to the top of
+    // the crown, 970 ft to the roof, about 150 ft across at the base of the
+    // tower and about 110 ft at the crown.
     //
-    // Now the plates shrink to 0.61 of the base over the full height — every
-    // floor smaller than the one below, which is the actual structure — and
-    // a rounded shoulder closes the last few per cent, because the top of
-    // this building is a curve. Aspect lands at 5.3 : 1 against the real
-    // 5.9 : 1, a shade stout on purpose: at a true 5.9 the upper third is
-    // four pixels and the antialiasing eats it, which is how it came to look
-    // too narrow in the first place.
+    // What that changes. The plates run out to 0.733 of the base, not the
+    // 0.61 that pinched the shaft into a mast. The top is FLAT — the old
+    // rounded shoulder plus a dissolve over the last 9% built a dome and then
+    // faded the dome out, and the real building does neither: it ends in a
+    // sheer glass crown with a hard horizon on it. And it is wider, because
+    // "a little too narrow" was true twice over — the taper AND the dissolve
+    // were both eating the top, so the part of the tower that carries the
+    // light was the part with the fewest pixels left in it.
     //
-    // The dissolve stays, softer, because it is Pelli's stated intent and
-    // the physical perforated-aluminium scrim: the top is meant to give out
-    // into the sky rather than end.
+    // The perforated-aluminium scrim and Pelli's "give out into the sky" are
+    // still there — they are what the crown's own halo is for, below — but
+    // they are LIGHT, not shape. Fading the geometry out was the mistake.
     float sales = 0.0;
     float crownT = 0.0;
-    float crownM = 0.0;   // tower mask WITHOUT the dissolve — the crown is
-                          // the brightest thing on the skyline, so it must
-                          // not be faded out by the taper it sits on.
+    float crownM = 0.0;   // the glass shaft alone: the dark rooftop structure
+                          // above SF_TOP must not take crown light.
     float dSf = a + 1.28;
-    float sTop = 0.100;
-    if (abs(dSf) < 0.013 && e < sTop + 0.004) {
-      float st = clamp(e / sTop, 0.0, 1.0);
-      float shoulder = sqrt(max(1.0 - pow(st, 12.0), 0.0));
-      float hwS = 0.0094 * (1.0 - 0.39 * st) * shoulder;
-      float dissolve = smoothstep(sTop, sTop - 0.009, e);
-      crownM = step(abs(dSf), hwS) * step(e, sTop);
-      sales = crownM * dissolve;
+    float sTop = SF_TOP;
+    if (abs(dSf) < 0.015 && e < SF_TOP + 0.006) {
+      float st = clamp(e / SF_TOP, 0.0, 1.0);
+      float hwS = SF_HW * (1.0 - SF_TAPER * st);
+      crownM = step(abs(dSf), hwS) * step(e, SF_TOP);
+      // The window-washing rig and mechanical penthouse standing on the
+      // crown: small, dark, flat, and it is what the two red obstruction
+      // lights are mounted on (see the aviation lights below).
+      float roofBox = step(abs(dSf), SF_HW * 0.32)
+                    * step(SF_TOP, e) * step(e, SF_TOP + 0.0042);
+      sales = clamp(crownM + roofBox, 0.0, 1.0);
       crownT = st;
     }
 
@@ -802,16 +1058,64 @@ const SKY_FRAGMENT = `
     // wink out one at a time; a slow per-window phase turns a few over on
     // their own clock, which is what a city at 4am actually does.
     vec2 wcell = floor(wc);
-    float wHash = hash2(wcell);
     // Pointer response: the stretch of skyline under the cursor wakes a
     // little — a few more windows come on, and fade back out behind you.
     float hq = (a - uHover) / 0.06;
     float hoverNear = exp(-(hq * hq));
     float thresh = 0.05 * mix(1.0 - 0.7 * uDawn, 1.0 + 0.6 * uDawn, uDark)
                  * (1.0 + 2.4 * hoverNear);
-    float slow = 0.006 * sin(uTime * 0.05 + hash2(wcell + 3.0) * 6.2832);
-    float lit = smoothstep(thresh + 0.004, thresh - 0.004, wHash + slow) * inBox;
-    float winMask = lit * city * step(0.004, e) * step(e, roof - 0.005) * (1.0 - sutro);
+    float lit = windowLit(wcell, thresh) * inBox;
+    // The two named towers own their own facades entirely (see towerWin), so
+    // the generic carpet stops at their outlines rather than laying a second,
+    // differently-pitched grid over the bottom third of each of them.
+    float winMask = lit * city * step(0.004, e) * step(e, roof - 0.005)
+                  * (1.0 - sutro) * (1.0 - trans) * (1.0 - sales);
+
+    // ---- The named towers' own windows.
+    //
+    // The carpet above is gated on the city mask, which stops at the residential
+    // roofline — so everything ABOVE it was a flat dark solid, and the two
+    // tallest and most recognisable buildings on the skyline were the only
+    // two with no lights on at all ("why is it — and salesforce for that
+    // matter — missing window lights"). Same rule as the city (fixed per-cell
+    // hash, smoothly moving threshold, slow per-window phase, pointer
+    // response, and the same wink-out through the dawn), on each building's
+    // own facade grid. A touch above the carpet's threshold, because an
+    // office tower at 3:45 has a cleaning crew in it and a walk-up does not.
+    float towerWin = 0.0;
+    if (transFace > 0.5) {
+      // Transamerica reads as narrow VERTICAL bands — 3,678 windows in slender
+      // strips, and the strips are what the eye keeps. True vertical columns
+      // in azimuth rather than normalised to the taper, so the sloping faces
+      // cut them off, which is what the real facade does. One band per three
+      // real columns, because one real column is 1.4 px.
+      vec2 tc = vec2(dTr * 470.0, e * 260.0);
+      towerWin = windowLit(floor(tc), thresh * 2.0)
+               * step(abs(fract(tc.x) - 0.5), 0.30)
+               * step(abs(fract(tc.y) - 0.45), 0.34);
+    }
+    if (crownM > 0.5) {
+      // Salesforce is a uniform glass grid on a tapering shaft, so its columns
+      // are taken in the SHAFT's own normalised width and converge with it —
+      // which is what a tapering curtain wall does and what a fixed azimuth
+      // pitch would visibly get wrong against a 27% taper. Held clear of the
+      // crown band, which has its own light and does not want a grid in it.
+      float hwSf = SF_HW * (1.0 - SF_TAPER * clamp(e / SF_TOP, 0.0, 1.0));
+      vec2 fc = vec2(dSf / max(hwSf, 1e-4) * 3.6, e * 336.0);
+      towerWin = max(towerWin,
+                     windowLit(floor(fc), thresh * 1.2)
+                     * step(abs(fract(fc.x) - 0.5), 0.30)
+                     * step(abs(fract(fc.y) - 0.45), 0.32)
+                     * (1.0 - smoothstep(0.80, 0.86, crownT)));
+    }
+    towerWin *= step(0.004, e) * ground;
+    // The wings are crushed white quartz with no glass in them, and after
+    // dark that inverts: the glass face goes black between its lit strips
+    // while the stone keeps catching the city's own skyglow. So the two
+    // wings sit a shade LIGHTER than the face they are attached to, which is
+    // what lets them read as two elements rather than as one wide blob — the
+    // job the old detached sticks were doing badly.
+    float wingLift = transWing * mix(0.16, 0.30, uDark);
 
     // The silhouette dissolves toward the horizon band near the horizon
     // line — its own aerial haze; rooftops catch a kiss of the ember.
@@ -851,7 +1155,9 @@ const SKY_FRAGMENT = `
     vec3 ggbCol = mix(cityC, vec3(0.72, 0.235, 0.125), mix(0.74, 0.14, uDark));
     ggbCol = mix(ggbCol, skyBase, min(hazeAmt + mix(0.10, 0.28, uDark), 0.92));
     cityCol = mix(cityCol, ggbCol, ggb);
-    cityCol = mix(cityCol, windowC, winMask * mix(0.45, 0.70, uDark));
+    cityCol *= 1.0 + wingLift;
+    cityCol = mix(cityCol, windowC,
+                  clamp(winMask + towerWin, 0.0, 1.0) * mix(0.45, 0.70, uDark));
 
     col = mix(col, hillCol, hillMask);
     col = mix(col, cityCol, structures);
@@ -1119,14 +1425,23 @@ const SKY_FRAGMENT = `
                  * (1.0 - uDark) * (1.0 - seatWin);
       col = mix(col, mix(horizonC, vec3(0.97, 0.985, 1.0), 0.50), karl * 0.68);
 
-      // Aviation lights, dark only. Salesforce Tower gets NONE: no source
-      // documents a red obstruction beacon on it, and a single point would
-      // be lost against a 150ft glowing crown anyway. The red constellation
-      // of this skyline belongs to Sutro Tower.
+      // Aviation lights, dark only. The red constellation of this skyline
+      // belongs to Sutro Tower; the pyramid's apex and the Golden Gate's two
+      // towers carry one each, and Salesforce carries a pair on the roof
+      // structure above its crown — which the note here used to deny, on the
+      // grounds that no source documented them. The owner's own reference
+      // photograph of the building shows them, so they are drawn: small, dim,
+      // and on their own slow clock, because they are competing with the
+      // brightest object on the skyline from six pixels away.
       vec3 avRed = vec3(0.90, 0.12, 0.10);
       float night = smoothstep(0.35, 0.75, uDark);
-      float dApex = length(vec2(dTr, e - 0.082));
+      float dApex = length(vec2(dTr, e - TR_TOP));
       col += avRed * smoothstep(0.0032, 0.0010, dApex) * 0.8 * night;
+      float sfLampE = e - (SF_TOP + 0.0038);
+      col += avRed
+           * (smoothstep(0.0014, 0.0004, length(vec2(dSf + 0.0019, sfLampE)))
+            + smoothstep(0.0014, 0.0004, length(vec2(dSf - 0.0019, sfLampE))))
+           * (0.24 + 0.40 * step(fract(uTime * 0.3667 + 0.58), 0.14)) * night;
       float dT1 = length(vec2(a + 1.145, e - 0.030));
       float dT2 = length(vec2(a + 1.035, e - 0.030));
       col += avRed * (smoothstep(0.0030, 0.0010, dT1) * step(fract(uTime * 0.5 + 0.37), 0.14)
@@ -1228,7 +1543,12 @@ const SKY_FRAGMENT = `
       // with a morning sky, but a control that does nothing when you point at
       // it is not a control.
       float crownVis = night + (1.0 - night) * 0.34 * clamp(sfLive + sfShow, 0.0, 1.0);
-      float crownBand = smoothstep(0.855, 0.900, crownT);
+      // The lit band is the top ~15% of the building — the six Day for Night
+      // floors plus the glass crown standing above the 970 ft roof — and with
+      // the dissolve gone it now ends where the building does, on a hard flat
+      // horizon, instead of fading into the sky a third of the way through
+      // itself.
+      float crownBand = smoothstep(0.850, 0.888, crownT);
       float wash = 0.60 + 0.40 * sin(dSf * 240.0 + uTime * (0.85 + 3.0 * sfShow));
       float pulse = 1.0;
       if (sfShow > 0.001) {
@@ -1241,8 +1561,11 @@ const SKY_FRAGMENT = `
         0.5 + 0.5 * cos(uTime * (0.105 + 0.62 * sfShow) + uSfSeed
                         + vec3(0.0, 2.09, 4.19)),
         0.30 + 0.40 * sfShow);
+      // 0.70 -> 0.58: the crown mask got both wider and taller when the
+      // dissolve came off, and the same per-fragment amplitude over a bigger
+      // area rendered as one blown white rectangle with no glass in it.
       col += crownHue * wash * pulse * crownBand * crownM * crownVis
-           * 0.70 * (1.0 + 0.85 * sfLive + 1.9 * sfShow);
+           * 0.58 * (1.0 + 0.85 * sfLive + 1.9 * sfShow);
       // The crown lights the air around itself. Without this the band is a
       // bright rectangle pasted on the sky; with it, the tower reads as the
       // source. Kept close in — a halo ten times the width of the thing
@@ -1250,122 +1573,111 @@ const SKY_FRAGMENT = `
       // grows when the installation wakes, since a bigger halo is how a
       // brighter source actually announces itself.
       vec2 cq = vec2(dSf / (0.017 + 0.009 * sfShow),
-                     (e - sTop * 0.955) / (0.011 + 0.005 * sfShow));
+                     (e - sTop * 0.930) / (0.011 + 0.005 * sfShow));
       col += crownHue * exp(-dot(cq, cq) * 2.2)
            * (0.20 + 0.05 * sin(uTime * 0.31) + 0.20 * sfLive + 0.55 * sfShow)
            * crownVis;
 
-      // Satellite — one dim, tailless, constant-velocity crossing every 92s
+      // ---- Satellite — one dim, constant-velocity crossing every 92s
       // (Starlink-era truthful; the sophisticated cousin of a shooting
       // star). uTime-only gate is frame-uniform, so idle cost is nil. The
       // +84 seed lands the first pass ~8s after mount.
+      //
+      // It used to be one 2-milliradian dot, which at this range is honest and
+      // reads as a slow star. Given three parts instead it reads as a
+      // SPACECRAFT without ever exceeding what the pixels can carry: a hot
+      // elongated bus, and two dimmer panels a couple of pixels fore and aft
+      // of it on the track — the arrangement everyone recognises. Behind it a
+      // short trail, which is not a physical tail but the smear the eye leaves
+      // on a moving point. And it flares: a slow swell as the panels come
+      // through the specular angle, with a fine tumble on top. All of it is
+      // still under the brightness of a mid star.
       float satT = mod(uTime + 84.0, 92.0);
       if (satT < 5.5) {
         float passId = floor((uTime + 84.0) / 92.0);
         float t01 = satT / 5.5;
         // e 0.10-0.17: the visible frame only reaches e ≈ 0.20 at desktop
         // aspect — anything higher crosses above the viewport unseen.
-        vec2 sat = vec2(
-          -2.35 + hash1(passId + 0.5) * 0.45 + 1.15 * t01,
-          0.10 + hash1(passId + 7.3) * 0.07 + (hash1(passId + 13.7) - 0.5) * 0.05 * t01
-        );
-        float dSat = length(vec2(a, e) - sat);
-        col += vec3(0.80, 0.85, 0.95) * smoothstep(0.0020, 0.0006, dSat) * 0.55 * night * (1.0 - 0.5 * uDawn);
+        float satE = 0.10 + hash1(passId + 7.3) * 0.07;
+        float satDrift = (hash1(passId + 13.7) - 0.5) * 0.05;
+        vec2 sat = vec2(-2.35 + hash1(passId + 0.5) * 0.45 + 1.15 * t01,
+                        satE + satDrift * t01);
+        // The track's own direction, so the bus and the panels lie ALONG it
+        // rather than along the azimuth axis.
+        vec2 fwd = normalize(vec2(1.15, satDrift));
+        vec2 q = vec2(a, e) - sat;
+        float along = dot(q, fwd);
+        float across = q.x * fwd.y - q.y * fwd.x;
+        // Panels fore and aft, at 2.6 px each side; the bus between them.
+        float bus = smoothstep(0.0016, 0.0004,
+                               length(vec2(along * 0.65, across)));
+        float panels = smoothstep(0.0013, 0.0004,
+                                  length(vec2((abs(along) - 0.0017) * 0.9, across)));
+        float trail = smoothstep(0.0075, 0.0, -along) * step(along, -0.0005)
+                    * smoothstep(0.0011, 0.0002, abs(across));
+        // A flare peaks once per pass; the tumble is a fast small ripple on
+        // it. Squared explicitly — pow() with a negative base is undefined in
+        // GLSL ES, and half of this gaussian's argument is negative.
+        float fq = (t01 - 0.30 - 0.4 * hash1(passId + 3.1)) / 0.16;
+        float flare = 0.72 + 0.55 * exp(-(fq * fq))
+                    + 0.10 * sin(uTime * 5.3 + passId);
+        col += vec3(0.80, 0.85, 0.95)
+             * (bus * 0.55 + panels * 0.30 + trail * 0.13) * flare
+             * night * (1.0 - 0.5 * uDawn);
       }
-    }
 
-    // ---- Fireworks over the bay, fired by clicking the Golden Gate.
-    //
-    // The bridge is shader geometry, so it has no pointer events of its own.
-    // SkyDome puts an invisible hit target on it whose azimuth and elevation
-    // are computed from the SAME GGB_* constants this shader draws with, so
-    // the two cannot drift apart; a click there writes uFire, seconds since
-    // launch, negative when idle. That gate is frame-uniform — the whole pass
-    // costs one comparison until somebody clicks, the same trick the
-    // satellite already uses — and the azimuth guard keeps the seven seconds
-    // it IS running confined to the bay instead of the whole dome.
-    //
-    // The shells rise from the roadway rather than from the horizon, because
-    // that is the object you clicked.
-    //
-    // Brightness is authored for the composer and lifted when it is absent,
-    // not the other way round: additive glow COMPOUNDS in linear HDR, and a
-    // burst tuned to look right with postfx off blows the frame out with
-    // Bloom on. The spark cores are allowed over Bloom's 0.95 threshold
-    // because they are a handful of pixels each; the soft burst flash is held
-    // well under it, because a wide additive is exactly how a sky goes milky.
-    if (uFire > 0.0 && uFire < 7.4
-        && abs(a + 2.04) < 0.32 && e > -0.05 && e < 0.26) {
-      float dayFire = 1.0 - uDark;
-      vec3 sparkAdd = vec3(0.0);
-      vec3 glowAdd = vec3(0.0);
-      float smoke = 0.0;
-      for (int si = 0; si < 4; si++) {
-        float fs = float(si);
-        float t = uFire - fs * 0.74 - hash1(uFireSeed + fs * 4.1) * 0.30;
-        if (t <= 0.0) continue;
-        // Biased WEST of the bridge rather than centred on it: everything
-        // that can occlude a burst — the portrait frame, the top shelf, the
-        // placard — is east of this azimuth, and open sky is west.
-        float az = -2.04 + (hash1(uFireSeed + fs * 9.7) - 0.72) * 0.160;
-        float burstE = 0.112 + hash1(uFireSeed + fs * 2.3) * 0.036;
-        float rise = 0.92;
-        float hsel = hash1(uFireSeed + fs * 13.1);
-        vec3 hue = hsel < 0.42 ? vec3(1.00, 0.84, 0.50)
-                 : (hsel < 0.76 ? vec3(1.00, 0.44, 0.30)
-                                : vec3(0.52, 0.78, 1.00));
-        if (t < rise) {
-          // The shell on its way up: one hot dot easing off the deck with a
-          // short trail under it. No smoke — at 8 km that is a grey pixel.
-          float u = t / rise;
-          float sy = mix(0.0400, burstE, u * (2.0 - u));
-          float dAz = a - az;
-          float trail = smoothstep(0.011, 0.0, sy - e)
-                      * step(0.038, e) * step(e, sy)
-                      * smoothstep(0.0011, 0.0003, abs(dAz));
-          float head = smoothstep(0.0021, 0.0005, length(vec2(dAz, e - sy)));
-          sparkAdd += vec3(1.00, 0.72, 0.36) * (head + trail * 0.5)
-                    * (1.0 - u * 0.35);
-        } else {
-          float age = t - rise;
-          float dur = 2.6;
-          if (age > dur) continue;
-          float u = age / dur;
-          vec2 p = vec2(a - az, e - burstE);
-          // Undo gravity to get back into the ballistic frame: every spark
-          // shares the same drop, so one add restores the expanding circle
-          // and the whole burst can be tested as a radius.
-          p.y += 0.020 * age * age;
-          float r = length(p);
-          float ang = atan(p.y, p.x);
-          float bins = 28.0;
-          float bi = floor((ang + 3.14159265) / 6.28318531 * bins);
-          float sp = 0.52 + 0.80 * hash1(bi * 1.37 + uFireSeed + fs * 5.9);
-          float R = 0.058 * (1.0 - exp(-3.6 * u)) * sp;
-          float ca = (bi + 0.5) / bins * 6.28318531 - 3.14159265;
-          float da = (ang - ca) * r;
-          // Elongated along the radius: a spark is a streak, not a dot.
-          float spark = smoothstep(0.0026, 0.0006, length(vec2((r - R) * 0.34, da)));
-          float twinkle = 0.62 + 0.38 * sin(uTime * 41.0 + bi * 2.7 + fs);
-          float fade = exp(-age * 1.15) * (1.0 - smoothstep(0.72, 1.0, u));
-          // White-hot at the burst, into the shell's own colour, cooling to a
-          // dim ember as it falls.
-          vec3 sc = mix(vec3(1.0, 0.97, 0.90), hue, smoothstep(0.0, 0.24, u));
-          sc = mix(sc, hue * vec3(0.70, 0.40, 0.30), smoothstep(0.45, 1.0, u));
-          sparkAdd += sc * spark * twinkle * fade;
-          float glow = exp(-dot(p, p) * 2380.0);
-          glowAdd += hue * glow * exp(-age * 3.4);
-          smoke += glow * smoothstep(0.0, 0.25, u) * (1.0 - smoothstep(0.35, 1.0, u));
+      // ---- The bird, light theme only, and the daytime answer to the
+      // satellite: something small and alive crossing an otherwise empty sky,
+      // every 74 seconds, gone in eleven. Two of them, out of phase, because
+      // one bird alone reads as a bug on the screen and two read as birds.
+      //
+      // It has to be DARKER than the sky, not brighter — the morning sky sits
+      // on the ACES shoulder, where an additive buys luminance and no shape at
+      // all, which is the same lesson the cloud deck and the daylight fireworks
+      // both learned. So it is a multiply, and what it draws is a silhouette:
+      // four segments per bird, a shallow M, with the wingtips lagging the
+      // elbows by a sixth of a beat (a real wingbeat is a travelling wave down
+      // the wing, and drawing the wing rigid is what makes CG birds look like
+      // scissors). The beat comes in bursts with glides between, which is how
+      // a gull actually crosses a bay.
+      float birdT = mod(uTime + 26.0, 74.0);
+      if (day > 0.01 && birdT < 11.0) {
+        float flock = floor((uTime + 26.0) / 74.0);
+        float bt = birdT / 11.0;
+        for (int bi2 = 0; bi2 < 2; bi2++) {
+          float bf = float(bi2);
+          vec2 org = vec2(-2.32 + hash1(flock + bf * 5.3) * 0.30 + 0.62 * bt,
+                          0.108 + hash1(flock + bf * 11.7) * 0.052
+                          + 0.010 * sin(bt * 4.1 + bf * 2.2));
+          vec2 q = vec2(a, e) - org;
+          if (dot(q, q) > 0.00016) continue;
+          // 17-21 px of wingspan. Measured: at 13 px the silhouette was under
+          // the sky's own dither by the time ACES had finished with it.
+          float W = 0.0058 + 0.0012 * hash1(flock + bf * 2.9);
+          float ph = uTime * (8.6 + 1.1 * bf) + bf * 2.1;
+          // Beat in bursts, glide between.
+          float amp = 0.30 + 0.70 * smoothstep(0.35, 0.75,
+                        0.5 + 0.5 * sin(uTime * 0.55 + bf * 1.7 + flock));
+          float el = sin(ph) * amp;
+          float tp = sin(ph - 1.05) * amp;
+          vec2 body = vec2(0.0, 0.0);
+          vec2 elL = vec2(-W * 0.50, W * 0.34 * el);
+          vec2 elR = vec2(W * 0.50, W * 0.34 * el);
+          vec2 tpL = vec2(-W, W * 0.86 * tp - W * 0.06);
+          vec2 tpR = vec2(W, W * 0.86 * tp - W * 0.06);
+          float d = min(min(segD(q, body, elL), segD(q, elL, tpL)),
+                        min(segD(q, body, elR), segD(q, elR, tpR)));
+          float mask = smoothstep(0.0013, 0.0004, d)
+                     + 0.7 * smoothstep(0.0011, 0.0004, length(q * vec2(0.6, 1.0)));
+          // Fade in and out at the ends of the crossing so nothing pops.
+          mask *= smoothstep(0.0, 0.10, bt) * (1.0 - smoothstep(0.88, 1.0, bt));
+          // 0.50 x 0.85 was not a bird, it was a smudge: a multiply that deep
+          // in LINEAR light comes back off the ACES shoulder as barely a fifth
+          // of a stop, and the measured silhouette sat at luma 163 against a
+          // 230 sky with no shape left in it.
+          col = mix(col, col * 0.30, clamp(mask, 0.0, 1.0) * day * 0.95);
         }
       }
-      // Light theme keeps the shells rather than firing white blobs into a
-      // morning sky: a daytime firework reads as a bright core and then a
-      // puff that is DARKER than the sky behind it, which is the same lesson
-      // the cloud deck learned on the ACES shoulder. So the additive is
-      // pulled back and the smoke does most of the work.
-      col = mix(col, col * 0.78, clamp(smoke, 0.0, 1.0) * 0.8 * dayFire);
-      col += sparkAdd * mix(1.45, 1.0, uPost) * 1.15 * mix(0.60, 1.0, uDark);
-      col += glowAdd * mix(1.50, 1.0, uPost) * 0.45 * mix(0.30, 1.0, uDark);
     }
 
     gl_FragColor = vec4(col, 1.0);
@@ -1412,9 +1724,9 @@ const GGB_E1 = 0.084;
 // the tap plane eats the click before the sky ever hears it.
 const GGB_HIT_Z = -0.28;
 const GGB_HOVER = "sky:goldengate";
-// Longest a launch runs: four shells, the last delayed ~2.5s, rise 0.92s,
-// burst 2.6s. Matches the shader's own uFire window.
-const FIRE_DURATION = 7.4;
+// Longest a launch runs: seven shells, the last let go at 3.10s, up to 1.08s
+// of rise and a 3.4s willow on top. Matches the shader's own FIRE_WINDOW.
+const FIRE_DURATION = 7.8;
 
 // Salesforce Tower's crown, on the same rig. The shader draws the tower at
 // a = −1.28 with the lit band over the top ~14% of sTop 0.100, so the target
