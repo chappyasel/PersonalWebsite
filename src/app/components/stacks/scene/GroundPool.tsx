@@ -10,10 +10,11 @@
 // project to ~zero screen area at the ~2° grazing view and were deleted.
 // Shelf props ground via camera-facing ContactShade sprites here plus baked
 // vertex AO in the models (P2/P4).
+import { useStacks } from "../store";
 import { useMemo } from "react";
 import * as THREE from "three";
 
-import { useStacks } from "../store";
+import { SHELF_GEOMETRY } from "./shelfGeometry";
 
 let sharedTexture: THREE.CanvasTexture | null = null;
 
@@ -82,13 +83,13 @@ function PoolQuad({
 export default function GroundPool({
   color,
   opacity,
-  width = 3.2,
+  width = SHELF_GEOMETRY.width,
 }: {
   color: string;
   opacity: number;
   width?: number;
 }) {
-  const footX = width / 2 - 0.25;
+  const footX = width / 2 - SHELF_GEOMETRY.strapInsetX;
   return (
     <group>
       {[-footX, footX].map((x) => (
@@ -96,14 +97,14 @@ export default function GroundPool({
           key={x}
           color={color}
           opacity={opacity}
-          position={[x, -1.114, -0.32]}
+          position={[x, SHELF_GEOMETRY.groundY + 0.001, SHELF_GEOMETRY.strapZ]}
           scale={[0.5, 0.38]}
         />
       ))}
       <PoolQuad
         color={color}
         opacity={opacity * 0.4}
-        position={[0, -1.115, -0.08]}
+        position={[0, SHELF_GEOMETRY.groundY, SHELF_GEOMETRY.lower.centerZ]}
         scale={[width + 0.2, 0.8]}
       />
     </group>

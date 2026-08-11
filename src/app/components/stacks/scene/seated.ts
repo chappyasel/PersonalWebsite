@@ -28,26 +28,24 @@ export type SeatPose = {
  * out of the upholstery. A hard-coded pose cannot warn you about that, so it
  * has to be re-derived rather than nudged.
  *
- * Current occupant, read out of the live scene via
- * `window.__stacks.bbox("stacks-seat")` (the group SitChair wraps around
- * whatever it is holding):
+ * Current occupant, re-read from the live scene after the couch moved to
+ * local x −2.82/z +0.08/yaw +0.10 inside Unit 0's +0.10 yaw:
  *
- *   couch.glb   x −3.6725…−1.5950   y −1.1150…+0.2602   z −0.4084…+1.1781
- *               centre x −2.634, ground y −1.115, front face z +1.178
+ *   couch.glb   x −3.9736…−1.6223   y −1.1150…+0.2602   z −0.6227…+1.3450
+ *               centre x −2.7979, ground y −1.115, front face z +1.345
  *
  * eye.x is the seat's centre line.
  *
- * eye.y −0.08 puts the eye 1.035 above the floor, which at the FLOOR scale the
- * seat and the clock share (~0.96 units per metre) is a seated eye height of
- * about 1.08 m — right for a low couch, against the 1.37 m the standing travel
- * camera implies.
+ * eye.y +0.02 puts the eye 1.135 above the floor: natural for a low couch,
+ * but ten centimetres higher than the previous pose so the last part of the
+ * transition never grazes the upholstery.
  *
  * eye.z is deliberately just past the seat's own FRONT FACE rather than at its
  * centre: the model's facing is not something the camera can know, and an eye
  * inside the hull would be looking into upholstery from whichever side the
  * backrest turned out to be on. You never see the thing you are sitting in, so
- * the cheap, safe placement is the correct one. The couch is 0.405 deeper than
- * the chair was, which is why this moved from 0.80 to 1.20.
+ * the cheap, safe placement is the correct one. 0.13 units of air beyond the
+ * measured front face also leaves room for the camera near plane.
  *
  * The target is 6 units straight out, level and a degree up — you are looking
  * away from the shelf, out at the Washington skyline.
@@ -55,8 +53,8 @@ export type SeatPose = {
  * Owned by UnitAbout / SitChair — CameraRig only consumes it.
  */
 export const SEAT_POSE: SeatPose = {
-  eye: [-2.634, -0.08, 1.2],
-  target: [-2.634, 0.02, 7.2],
+  eye: [-2.798, 0.02, 1.475],
+  target: [-2.798, 0.14, 7.475],
 };
 
 let seated = false;
@@ -95,6 +93,19 @@ export function leaveSeat() {
   if (!seated) return;
   seated = false;
   emit();
+}
+
+/** Tear down the seat mechanic with no camera tail left behind.
+ *
+ * `leaveSeat` intentionally preserves `amount` so an ordinary in-world exit
+ * can ease back to the shelf. A world/chair unmount has no CameraRig left to
+ * perform that ease, so both the intent and transient blend must be cleared
+ * synchronously before a later mount reads this module singleton. */
+export function resetSeat() {
+  const changed = seated || amount !== 0;
+  seated = false;
+  amount = 0;
+  if (changed) emit();
 }
 
 export function toggleSeat() {

@@ -51,8 +51,14 @@
 // its height (the tools are finely tessellated), so a percentile hull trims
 // 18% — nowhere near the 55% the artefact needs. The real fix is a per-prop
 // hull hint, and it is not worth a prop-by-prop table for one pose.
-import * as THREE from "three";
 import type * as CANNON from "cannon-es";
+import * as THREE from "three";
+
+import {
+  LOWER_SHELF_HEADROOM,
+  SHELF_GEOMETRY,
+  SHELF_SURFACE,
+} from "./shelfGeometry";
 
 /** Exactly the runtime surface this module uses. Spelled out rather than
  * `typeof import("cannon-es")` so the only reference to the package that
@@ -192,13 +198,22 @@ function ballSleepLimit(radius: number) {
  * change the answer; a call site may still override it with `standsOn`. */
 export type ShelfPlane = "top" | "lower" | "floor";
 
+/** The local support height used when trimming derived static colliders.
+ * Shelf worlds are authored with their contact surface at y=0, while the
+ * shared room-floor world lives at the unit root and therefore contacts at
+ * `groundY`. Keeping this decision in one function prevents floor props from
+ * being clipped away by the shelf-only y=0 convention. */
+export function staticColliderSupportY(plane: ShelfPlane) {
+  return plane === "floor" ? SHELF_GEOMETRY.groundY : 0;
+}
+
 /** ShelfUnit's two plank surfaces. Unit-local y in primitives.tsx's `SHELF`,
  * and — because every unit root sits at world y 0 (worldLayout.unitPose) —
  * WORLD y here. Typed rather than imported so the solver chunk keeps no
  * static edge into the render layer; if `SHELF` moves, this moves with it. */
-const PLANK_Y = { top: 0.035, lower: -0.6925 } as const;
-/** Tolerance for "is this ancestor at a plank". The two heights are 0.73
- * apart and the ground bay sits at 0, which is 0.035 from the top plank — so
+const PLANK_Y = SHELF_SURFACE;
+/** Tolerance for "is this ancestor at a plank". The two surfaces come from
+ * the shared shelf contract and the ground bay's unit root sits at 0 — so
  * this has to be well under half of that, and the values are exact constants
  * rather than measurements, so it only has to absorb float drift. */
 const PLANK_EPS = 0.01;
@@ -238,12 +253,9 @@ function isUnder(obj: THREE.Object3D, root: THREE.Object3D): boolean {
  * `<group position={[0, SHELF.x, 0]}>`, because its parent — the unit root —
  * sits at y 0 and ends the climb.
  *
- * The ground bay is deliberately left alone: its content hangs directly off
- * the unit root at y 0, which is indistinguishable by height from the unit
- * root itself and from the scene root above it, so climbing would swallow the
- * whole unit. Those props keep the old behaviour (key on the immediate parent,
- * plane "floor"), which is correct for a single prop and merely does not share
- * a world. Nothing on the ground bay is grabbable today.
+ * Ground-bay content hangs directly off the unit root, so it deliberately
+ * resolves to that root. `worldFor` then scopes membership by support plane:
+ * floor handles share one world without adopting either plank's bodies.
  */
 export function resolveShelf(group: THREE.Object3D): {
   shelf: THREE.Object3D;
@@ -261,10 +273,8 @@ export function resolveShelf(group: THREE.Object3D): {
   return { shelf, plane };
 }
 
-/** Under-plank clearance on the lower shelf: top plank underside (−0.035)
- * minus the lower plank surface (−0.6925). Measured off ShelfUnit's own
- * RoundedBox args in primitives.tsx, not typed in by hand. */
-const LOWER_HEADROOM = 0.6575;
+/** Under-plank clearance derived from the same geometry contract as ShelfUnit. */
+const LOWER_HEADROOM = LOWER_SHELF_HEADROOM;
 
 /** Static-collider budget. The neighbour pass walks INTO groups now (see
  * collectStatics), so a shelf that used to yield three boxes can yield
@@ -317,9 +327,8 @@ const MERGE_UNION_MAX = 0.9;
  * wrapping one collider around the lot is what let props clip each other. */
 const SPLIT_EXTENT = 0.55;
 
-/** How far a body may get from the plank before it is treated as escaped
- * rather than thrown. Generous: the walls are at |x| 1.57 and the whole point
- * of them is that this should never fire. */
+/** How far a body may get from its support before it is treated as escaped.
+ * Generous relative to the 1.29 plank walls and 2.15 floor-bay walls. */
 const ESCAPE_X = 2.4;
 const ESCAPE_Z = 1.6;
 const ESCAPE_Y_DOWN = -1.4;
@@ -418,7 +427,12 @@ function rawBoxIn(
   const out = new THREE.Box3();
   obj.traverse((child) => {
     const mesh = child as THREE.Mesh;
-    if (!mesh.isMesh || !child.visible) return;
+    if (
+      !mesh.isMesh ||
+      !child.visible ||
+      (child.userData as { physicsIgnore?: boolean }).physicsIgnore === true
+    )
+      return;
     const geometry = mesh.geometry;
     if (!geometry) return;
     if (!geometry.boundingBox) geometry.computeBoundingBox();
@@ -436,7 +450,10 @@ function rawBoxIn(
  * or the caller handed us the wrong group, and authored motion is the honest
  * fallback. The neighbour pass deliberately does NOT use this gate — see
  * collectStatics. */
-function boxIn(obj: THREE.Object3D, invFrame: THREE.Matrix4): THREE.Box3 | null {
+function boxIn(
+  obj: THREE.Object3D,
+  invFrame: THREE.Matrix4,
+): THREE.Box3 | null {
   const out = rawBoxIn(obj, invFrame);
   if (!out) return null;
   out.getSize(sizeScratch);
@@ -500,10 +517,20 @@ export function worldFor(
   handles: Iterable<ShelfHandle>,
 ): ShelfWorld | null {
   if (!CANNON_MOD) return null;
-  const { shelf, plane } = resolveShelf(group);
+  const all = [...handles];
+  const resolved = resolveShelf(group);
+  const requested = all.find((handle) => handle.group === group);
+  const shelf = resolved.shelf;
+  const plane = requested?.plane ?? resolved.plane;
   const mine: ShelfHandle[] = [];
-  for (const handle of handles)
-    if (handle.group === group || isUnder(handle.group, shelf)) mine.push(handle);
+  for (const handle of all) {
+    const handlePlane = handle.plane ?? resolveShelf(handle.group).plane;
+    if (
+      handlePlane === plane &&
+      (handle.group === group || isUnder(handle.group, shelf))
+    )
+      mine.push(handle);
+  }
   let world = worlds.get(shelf);
   if (!world) {
     world = new ShelfWorld(CANNON_MOD, shelf, plane, mine);
@@ -550,6 +577,7 @@ export class ShelfWorld {
       gravity: new C.Vec3(0, -GRAVITY, 0),
       allowSleep: true,
     });
+    this.plane = handles.find((h) => h.plane)?.plane ?? plane;
     // Wood: grippy, barely bouncy. A prop that bounces reads as plastic, and
     // friction is what makes a thrown mug tumble instead of skate.
     //
@@ -573,23 +601,36 @@ export class ShelfWorld {
     // cannot reach again until they walk away, and "come back in a minute"
     // is not an interaction.
     const ground = new C.Body({ type: C.Body.STATIC, shape: new C.Plane() });
+    if (this.plane === "floor") ground.position.y = SHELF_GEOMETRY.groundY;
     ground.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
     this.world.addBody(ground);
 
-    // …and invisible half-spaces at the plank's own edges, so nothing slides
+    // …and invisible half-spaces at the support plane's edges, so nothing slides
     // out over open air instead. Footprints from ShelfUnit in primitives.tsx:
-    // top plank 3.2 × 0.85 centred at z 0, lower plank 3.2 × 0.6 at z −0.08,
-    // ground bay the full 0.85 again. Which plank this is came off the shelf
+    // Plank footprints come from their rendered boxes; the wider floor bay
+    // encloses the golf/exercise props. Which plane this is came off the shelf
     // group's WORLD y (see resolveShelf) rather than a parent's local y, so a
     // prop nested three layout groups deep resolves the same plank as one
     // standing directly on the wood. `standsOn` remains as an override and is
     // now needed only for the ground bay.
-    this.plane = handles.find((h) => h.plane)?.plane ?? plane;
-    const zNear = this.plane === "lower" ? 0.19 : 0.39;
-    const zFar = this.plane === "lower" ? -0.35 : -0.39;
+    const footprint =
+      this.plane === "lower"
+        ? SHELF_GEOMETRY.lower
+        : this.plane === "floor"
+          ? SHELF_GEOMETRY.floor
+          : SHELF_GEOMETRY.top;
+    const edgeInset =
+      this.plane === "floor" ? 0.05 : this.plane === "lower" ? 0.03 : 0.035;
+    const supportWidth =
+      this.plane === "floor"
+        ? SHELF_GEOMETRY.floor.width
+        : SHELF_GEOMETRY.width;
+    const halfWidth = supportWidth / 2 - edgeInset;
+    const zNear = footprint.centerZ + footprint.depth / 2 - edgeInset;
+    const zFar = footprint.centerZ - footprint.depth / 2 + edgeInset;
     for (const [pos, euler] of [
-      [new C.Vec3(-1.57, 0, 0), new C.Vec3(0, Math.PI / 2, 0)],
-      [new C.Vec3(1.57, 0, 0), new C.Vec3(0, -Math.PI / 2, 0)],
+      [new C.Vec3(-halfWidth, 0, 0), new C.Vec3(0, Math.PI / 2, 0)],
+      [new C.Vec3(halfWidth, 0, 0), new C.Vec3(0, -Math.PI / 2, 0)],
       [new C.Vec3(0, 0, zFar), new C.Vec3(0, 0, 0)],
       [new C.Vec3(0, 0, zNear), new C.Vec3(0, Math.PI, 0)],
     ] as const) {
@@ -638,10 +679,16 @@ export class ShelfWorld {
     m.decompose(position, quaternion, sizeScratch);
     if (
       process.env.NODE_ENV !== "production" &&
-      Math.abs(sizeScratch.x - 1) + Math.abs(sizeScratch.y - 1) + Math.abs(sizeScratch.z - 1) > 3e-3
+      Math.abs(sizeScratch.x - 1) +
+        Math.abs(sizeScratch.y - 1) +
+        Math.abs(sizeScratch.z - 1) >
+        3e-3
     ) {
       console.warn(
-        `[stacks] physics: ${handle.key} sits under a SCALED group (${sizeScratch.toArray().map((v) => v.toFixed(3)).join(", ")}). ` +
+        `[stacks] physics: ${handle.key} sits under a SCALED group (${sizeScratch
+          .toArray()
+          .map((v) => v.toFixed(3))
+          .join(", ")}). ` +
           "Its hull is measured unscaled and will be the wrong size.",
       );
     }
@@ -653,12 +700,16 @@ export class ShelfWorld {
 
   /** Parent-frame point → shelf frame, in place. */
   private intoShelf(handle: ShelfHandle, v: THREE.Vector3): THREE.Vector3 {
-    return handle.frameQ ? v.applyQuaternion(handle.frameQ).add(handle.frame!) : v;
+    return handle.frameQ
+      ? v.applyQuaternion(handle.frameQ).add(handle.frame!)
+      : v;
   }
 
   /** Shelf-frame point → the handle's parent frame, in place. */
   private outOfShelf(handle: ShelfHandle, v: THREE.Vector3): THREE.Vector3 {
-    return handle.frameQi ? v.sub(handle.frame!).applyQuaternion(handle.frameQi) : v;
+    return handle.frameQi
+      ? v.sub(handle.frame!).applyQuaternion(handle.frameQi)
+      : v;
   }
 
   /** Give a Grabbable a dynamic body, parked at its authored pose. */
@@ -686,10 +737,13 @@ export class ShelfWorld {
       handle.shape === "sphere" ||
       (handle.shape !== "box" &&
         Math.max(...span) / Math.max(Math.min(...span), 1e-6) < SPHERICITY);
-    // The INSCRIBED radius, not the circumscribed one: a ball that pokes out
-    // of its own silhouette hovers visibly above the wood, and this is a
-    // scene with no shadows to hide it.
-    const radius = Math.min(halfX, halfY, halfZ);
+    // The INSCRIBED radius, not the circumscribed one — and measured from the
+    // rendered silhouette before the box-only horizontal shrink. Applying
+    // HULL_SHRINK here made every visible ball 10% larger than its collider
+    // (the 0.05 golf ball reported r=0.045), so it contacted the wood and walls
+    // as a visibly undersized sphere. Boxes still need that small gap trim;
+    // spheres need their actual rendered radius.
+    const radius = Math.min(sizeScratch.x, sizeScratch.y, sizeScratch.z);
 
     // A ball's centre of mass is its centre. COM_FRACTION exists because the
     // shelf props are bottom-heavy silhouettes (a cup with scissors in it, a
@@ -714,10 +768,7 @@ export class ShelfWorld {
       angularDamping: round ? BALL_ANGULAR_DAMPING : 0.6,
     });
     if (round) {
-      body.addShape(
-        new C.Sphere(radius),
-        new C.Vec3(0, centre.y - com.y, 0),
-      );
+      body.addShape(new C.Sphere(radius), new C.Vec3(0, centre.y - com.y, 0));
       this.balls.set(body.id, radius);
     } else {
       body.addShape(
@@ -775,10 +826,12 @@ export class ShelfWorld {
       // Never wrap a grabbable's rest pose in a static wall — a body born
       // inside geometry is ejected across the room on the first step.
       if (occupied.some((taken) => taken.intersectsBox(box))) continue;
-      // Nothing lives under the wood; clipping the box there keeps a prop
-      // that dips below y=0 (a shade-bearing group, a leaning notebook) from
-      // fighting the ground half-space.
-      box.min.y = Math.max(box.min.y, 0);
+      // Nothing lives under the active support plane. Shelf worlds contact at
+      // local y=0; the room-floor world lives in the unit-root frame and
+      // contacts at groundY. Clamping every world to zero used to erase most
+      // floor-level neighbours (barbell, floor plants, furniture), leaving
+      // the dynamic golf balls and dumbbell with no geometry to answer back.
+      box.min.y = Math.max(box.min.y, staticColliderSupportY(this.plane));
       box.getSize(sizeScratch);
       if (sizeScratch.y < MIN_EXTENT) continue;
       const centre = box.getCenter(new THREE.Vector3());
@@ -963,7 +1016,8 @@ export class ShelfWorld {
   release(handle: ShelfHandle, velocity: THREE.Vector3): boolean {
     const body = handle.body;
     if (!body) return false;
-    const clamp = (v: number) => THREE.MathUtils.clamp(v, -MAX_THROW, MAX_THROW);
+    const clamp = (v: number) =>
+      THREE.MathUtils.clamp(v, -MAX_THROW, MAX_THROW);
     this.standUp(body);
     body.type = this.C.Body.DYNAMIC;
     body.allowSleep = true;
@@ -1187,7 +1241,9 @@ export class ShelfWorld {
               spin: handle.body.angularVelocity.length(),
               sleepState: handle.body.sleepState,
               mass: handle.body.mass,
-              half: (handle.body.shapes[0] as CANNON.Box).halfExtents?.toArray(),
+              half: (
+                handle.body.shapes[0] as CANNON.Box
+              ).halfExtents?.toArray(),
               com: handle.com?.toArray(),
             }
           : null,

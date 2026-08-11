@@ -56,7 +56,6 @@ export const MODEL_URLS = [
   "/models/golf-club.glb",
   "/models/basketball.glb",
   "/models/cup-tea.glb",
-  "/models/corkboard.glb",
   "/models/grandfather-clock.glb",
   "/models/sansevieria.glb",
   "/models/potted-plant.glb",
@@ -72,7 +71,6 @@ export const MODEL_URLS = [
   "/models/monstera.glb",
   "/models/cactus.glb",
   "/models/lamp-floor.glb",
-  "/models/lamp-table.glb",
   "/models/mac.glb",
   // v7, the owner's own picks off poly.pizza. The couch is the seat's click
   // target, so it belongs here for the same reason the eames-chair it replaced
@@ -87,6 +85,10 @@ export const MODEL_URLS = [
   "/models/microphone.glb",
   "/models/soda-can.glb",
   "/models/protein-powder.glb",
+  // Owner-selected CC0 plants from the same tiny-treats atlas as pothos;
+  // their geometry is separate, their themed texture is already shared.
+  "/models/succulent-pot.glb",
+  "/models/yucca-plant.glb",
 ];
 
 /** Isa Lousberg's houseplants are a second atlas set: every prop in it
@@ -101,6 +103,118 @@ export const RECOLOR_URLS = [
 // One shared material per themed atlas texture (drei caches the texture by
 // URL, so the uuid is stable across every ModelProp instance).
 const atlasMaterials = new Map<string, THREE.MeshStandardMaterial>();
+
+const ABOUT_CHAIR_URL = "/models/couch.glb";
+let aboutChairFabric:
+  | { color: THREE.DataTexture; roughness: THREE.DataTexture }
+  | undefined;
+
+/** A tiny deterministic woven surface used only by the About couch. The
+ * source model is flat-colour low-poly geometry; multiplying its tint by a
+ * near-white weave plus a higher-frequency roughness/bump map adds actual
+ * fabric response without changing any other tinted ModelProp instance. */
+function aboutChairFabricMaps() {
+  if (aboutChairFabric) return aboutChairFabric;
+  const size = 64;
+  const color = new Uint8Array(size * size * 4);
+  const roughness = new Uint8Array(size * size * 4);
+  const byte = (value: number) => Math.max(0, Math.min(255, Math.round(value)));
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = (y * size + x) * 4;
+      // Crossed four-pixel yarns with deterministic micro-variation. Values
+      // stay close to white so the authored blue remains the dominant color.
+      const yarn = (x % 4 === 0 ? -7 : 2) + (y % 4 === 0 ? -6 : 2);
+      const noise = ((((x * 37 + y * 61) ^ (x * y * 13)) & 15) - 7.5) * 0.5;
+      const c = byte(239 + yarn * 0.9 + noise * 0.75);
+      const r = byte(226 - yarn * 1.5 + noise * 2.1);
+      color.set([c, c, c, 255], i);
+      roughness.set([r, r, r, 255], i);
+    }
+  }
+  const texture = (data: Uint8Array, colorSpace: THREE.ColorSpace) => {
+    const map = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+    map.colorSpace = colorSpace;
+    map.wrapS = THREE.RepeatWrapping;
+    map.wrapT = THREE.RepeatWrapping;
+    map.repeat.set(6, 5);
+    map.magFilter = THREE.LinearFilter;
+    map.minFilter = THREE.LinearMipmapLinearFilter;
+    map.generateMipmaps = true;
+    map.needsUpdate = true;
+    // Module-lifetime and shared only by the couch's two upholstery meshes.
+    map.userData.shared = true;
+    return map;
+  };
+  aboutChairFabric = {
+    color: texture(color, THREE.SRGBColorSpace),
+    roughness: texture(roughness, THREE.NoColorSpace),
+  };
+  return aboutChairFabric;
+}
+
+type AtlasColorSwap = {
+  from: string;
+  to: string;
+  /** RGB byte distance. Palette roles are flat; this only catches resized
+   * edge pixels without bleeding into a neighbouring role. */
+  tolerance?: number;
+};
+
+/** Make a private final-colour atlas for one prop. The source texture and the
+ * shared material stay immutable, so a leaf fix cannot recolor another pot. */
+function remapAtlasTexture(
+  source: THREE.Texture,
+  swaps: ReadonlyArray<AtlasColorSwap>,
+): THREE.CanvasTexture {
+  const image = source.image as CanvasImageSource & {
+    width?: number;
+    height?: number;
+    naturalWidth?: number;
+    naturalHeight?: number;
+  };
+  const width = image.naturalWidth ?? image.width ?? 256;
+  const height = image.naturalHeight ?? image.height ?? 256;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+  ctx.drawImage(image, 0, 0, width, height);
+  const pixels = ctx.getImageData(0, 0, width, height);
+  const parsed = swaps.map((swap) => {
+    const from = Number.parseInt(swap.from.slice(1), 16);
+    const to = Number.parseInt(swap.to.slice(1), 16);
+    return {
+      from: [(from >> 16) & 255, (from >> 8) & 255, from & 255],
+      to: [(to >> 16) & 255, (to >> 8) & 255, to & 255],
+      toleranceSq: (swap.tolerance ?? 5) ** 2,
+    };
+  });
+  for (let i = 0; i < pixels.data.length; i += 4) {
+    for (const swap of parsed) {
+      const dr = pixels.data[i]! - swap.from[0]!;
+      const dg = pixels.data[i + 1]! - swap.from[1]!;
+      const db = pixels.data[i + 2]! - swap.from[2]!;
+      if (dr * dr + dg * dg + db * db > swap.toleranceSq) continue;
+      pixels.data[i] = swap.to[0]!;
+      pixels.data[i + 1] = swap.to[1]!;
+      pixels.data[i + 2] = swap.to[2]!;
+      break;
+    }
+  }
+  ctx.putImageData(pixels, 0, 0);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.flipY = source.flipY;
+  texture.colorSpace = source.colorSpace;
+  texture.magFilter = source.magFilter;
+  texture.minFilter = source.minFilter;
+  texture.wrapS = source.wrapS;
+  texture.wrapT = source.wrapT;
+  texture.anisotropy = source.anisotropy;
+  texture.generateMipmaps = source.generateMipmaps;
+  texture.needsUpdate = true;
+  return texture;
+}
 
 function atlasMaterial(tex: THREE.Texture): THREE.MeshStandardMaterial {
   let mat = atlasMaterials.get(tex.uuid);
@@ -483,10 +597,15 @@ export default function ModelProp({
   /** tinted only: multiply every material (and its texture) by this color. */
   tintAll?: string;
   roughness?: number;
-  /** atlas only: clone the shared atlas material for THIS prop and adjust —
-   * the trophy's metal exception, the dumbbell's iron darkening. Without
-   * this every atlas prop shares one material, so never mutate that one. */
-  atlasOverride?: { tint?: string; metalness?: number; roughness?: number };
+  /** atlas/recolor only: clone the shared atlas material for THIS prop and
+   * adjust. `colorSwaps` also clones the map; neither shared global is ever
+   * mutated. */
+  atlasOverride?: {
+    tint?: string;
+    metalness?: number;
+    roughness?: number;
+    colorSwaps?: ReadonlyArray<AtlasColorSwap>;
+  };
   /** Weld + regenerate normals at load — the basketball ships faceted and
    * the node pipeline can't round-trip its embedded texture (GLTFExporter
    * needs a DOM to re-encode images). Position+uv-equal vertices merge;
@@ -534,6 +653,10 @@ export default function ModelProp({
           mat.metalness = atlasOverride.metalness;
         if (atlasOverride.roughness !== undefined)
           mat.roughness = atlasOverride.roughness;
+        if (atlasOverride.colorSwaps?.length) {
+          mat.map = remapAtlasTexture(mat.map!, atlasOverride.colorSwaps);
+          mat.userData.ownedMap = true;
+        }
       }
       clone.traverse((o) => {
         if (!(o instanceof THREE.Mesh)) return;
@@ -553,14 +676,61 @@ export default function ModelProp({
     } else {
       clone.traverse((o) => {
         if (!(o instanceof THREE.Mesh)) return;
-        const src = o.material as THREE.MeshStandardMaterial;
+        const mesh = o as THREE.Mesh<
+          THREE.BufferGeometry,
+          THREE.MeshStandardMaterial
+        >;
+        const src = mesh.material;
         const mat = src.clone();
         const tint = tints?.[src.name];
         if (tint) mat.color.set(tint);
         if (tintAll) mat.color.multiply(new THREE.Color(tintAll));
         mat.metalness = 0;
         mat.roughness = roughness;
-        o.material = mat;
+        if (url === ABOUT_CHAIR_URL && src.name === "Couch_Blue") {
+          // The 8.5 KB source GLB intentionally has no TEXCOORD_0. Generate a
+          // box projection on a private geometry clone; otherwise a map samples
+          // one texel across the entire couch and provides no fabric variation.
+          const geometry = mesh.geometry.clone();
+          const position = geometry.getAttribute(
+            "position",
+          ) as THREE.BufferAttribute;
+          const normal = geometry.getAttribute(
+            "normal",
+          ) as THREE.BufferAttribute;
+          const uv = new Float32Array(position.count * 2);
+          for (let i = 0; i < position.count; i++) {
+            const x = position.getX(i);
+            const y = position.getY(i);
+            const z = position.getZ(i);
+            const nx = Math.abs(normal.getX(i));
+            const ny = Math.abs(normal.getY(i));
+            const nz = Math.abs(normal.getZ(i));
+            if (ny >= nx && ny >= nz) {
+              uv[i * 2] = x;
+              uv[i * 2 + 1] = z;
+            } else if (nx >= nz) {
+              uv[i * 2] = z;
+              uv[i * 2 + 1] = y;
+            } else {
+              uv[i * 2] = x;
+              uv[i * 2 + 1] = y;
+            }
+          }
+          geometry.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+          // BufferGeometry.clone/copy shares userData by reference in Three
+          // r185. Replace it before tagging ownership or teardown of this
+          // private couch clone can taint and dispose the cached GLB.
+          geometry.userData = { ...geometry.userData, owned: true };
+          mesh.geometry = geometry;
+          const fabric = aboutChairFabricMaps();
+          mat.map = fabric.color;
+          mat.roughnessMap = fabric.roughness;
+          mat.roughness = 0.96;
+          mat.bumpMap = fabric.roughness;
+          mat.bumpScale = 0.014;
+        }
+        mesh.material = mat;
       });
     }
     if (spinPart === "sphere") splitSpinPart(clone);
@@ -584,13 +754,14 @@ export default function ModelProp({
         if (geo.index) flat.setIndex(geo.index.clone());
         const welded = mergeVertices(flat);
         welded.computeVertexNormals();
-        welded.userData.owned = true;
+        welded.userData = { ...welded.userData, owned: true };
         o.geometry = welded;
       });
     }
     return clone;
   }, [
     scene,
+    url,
     atlases,
     dark,
     variant,
@@ -626,7 +797,14 @@ export default function ModelProp({
           : [mesh.material];
         for (const m of mats) {
           const shared = (m.userData as { shared?: boolean }).shared === true;
-          if (!shared) m.dispose();
+          if (!shared) {
+            if (
+              m instanceof THREE.MeshStandardMaterial &&
+              (m.userData as { ownedMap?: boolean }).ownedMap === true
+            )
+              m.map?.dispose();
+            m.dispose();
+          }
         }
         const owned = (mesh.geometry.userData as { owned?: boolean }).owned;
         if (owned === true) mesh.geometry.dispose();

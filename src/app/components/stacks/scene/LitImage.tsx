@@ -7,7 +7,7 @@
 // with repeat/offset; books get a real rounded-rect ShapeGeometry (opaque
 // queue — no transparent sorting), frames and portrait a plain plane.
 import { useTexture } from "@react-three/drei";
-import { useThree, type ThreeEvent } from "@react-three/fiber";
+import { type ThreeEvent, useThree } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 
@@ -114,11 +114,14 @@ export default function LitImage({
   onPointerOut?: (e: ThreeEvent<PointerEvent>) => void;
   onClick?: (e: ThreeEvent<MouseEvent>) => void;
 }) {
-  const tex = useTexture(url);
+  const sourceTexture = useTexture(url);
+  // drei caches useTexture by URL. Every print needs an instance-local
+  // transform because repeat/offset encode this mesh's aspect and focal
+  // point; mutating the cached texture made a second use of the same cover
+  // retroactively recrop the first. Texture.clone shares the decoded image
+  // bytes while isolating sampler state, so reuse remains cheap and safe.
+  const tex = useMemo(() => sourceTexture.clone(), [sourceTexture]);
   const maxAnisotropy = useThree((s) => s.gl.capabilities.getMaxAnisotropy());
-  // useTexture caches by URL — the instance is shared, so mutating
-  // repeat/offset is safe only while each URL renders on exactly one mesh
-  // (true today; clone here if a URL is ever reused).
   const fx = focus?.[0] ?? 0.5;
   const fy = focus?.[1] ?? 0.5;
   useMemo(() => {
@@ -127,6 +130,7 @@ export default function LitImage({
     fitCover(tex, width, height, zoom, [fx, fy]);
     tex.needsUpdate = true;
   }, [tex, maxAnisotropy, width, height, grade, zoom, fx, fy]);
+  useEffect(() => () => tex.dispose(), [tex]);
   const geometry = useMemo(
     () =>
       radius > 0

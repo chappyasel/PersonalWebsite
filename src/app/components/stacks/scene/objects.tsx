@@ -2,18 +2,18 @@
 
 // New scene props for the About, Blog, and Systems units.
 // Box props use RoundedBox for edge highlights (see primitives.tsx).
+import { useStacks } from "../store";
+import { type Palette, rand } from "../theme";
 import { RoundedBox } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import React, { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
-import { type Palette, rand } from "../theme";
-import { useStacks } from "../store";
 import { ContactShade } from "./GroundPool";
 import Lift from "./Lift";
+import LitImage from "./LitImage";
 import ModelProp from "./ModelProp";
 import PropLink from "./links";
-import LitImage from "./LitImage";
 
 /**
  * The only click path in this scene that actually fires under a real pointer.
@@ -220,7 +220,12 @@ export function Polaroid({
     <group
       position={anchor === "contact" ? [0, h / 2, POLAROID_T / 2] : [0, 0, 0]}
     >
-      <RoundedBox castShadow args={[size, h, POLAROID_T]} radius={0.003} smoothness={2}>
+      <RoundedBox
+        castShadow
+        args={[size, h, POLAROID_T]}
+        radius={0.003}
+        smoothness={2}
+      >
         <meshStandardMaterial color={palette.paper} roughness={0.85} />
       </RoundedBox>
       {textured && (
@@ -394,9 +399,12 @@ function appleGeometry(height: number, depth: number): THREE.ExtrudeGeometry {
     shape.moveTo(start[0] * height, start[1] * height);
     for (const c of curves) {
       shape.bezierCurveTo(
-        c[0]! * height, c[1]! * height,
-        c[2]! * height, c[3]! * height,
-        c[4]! * height, c[5]! * height,
+        c[0]! * height,
+        c[1]! * height,
+        c[2]! * height,
+        c[3]! * height,
+        c[4]! * height,
+        c[5]! * height,
       );
     }
     return shape;
@@ -448,8 +456,13 @@ function shimmerTexture(): THREE.CanvasTexture {
   // band that stops abruptly draws a line, and a line across a polished face
   // is a scratch rather than light.
   for (const [stop, a] of [
-    [0, 0], [0.34, 0], [0.42, 0.35], [0.5, 1],
-    [0.58, 0.35], [0.66, 0], [1, 0],
+    [0, 0],
+    [0.34, 0],
+    [0.42, 0.35],
+    [0.5, 1],
+    [0.58, 0.35],
+    [0.66, 0],
+    [1, 0],
   ] as const) {
     grad.addColorStop(stop, `rgba(255, 252, 244, ${a})`);
   }
@@ -469,9 +482,72 @@ function shimmerTexture(): THREE.CanvasTexture {
   return texture;
 }
 
-/** Seconds for one click sweep, and how far it travels in shape units. */
+/** Seconds for one click sweep, and one complete texture cycle. Texture
+ * offsets are applied after repeat in Three's UV transform, so a full sweep
+ * is 1.0 here — SHIMMER_PERIOD remains the physical spacing in shape units. */
 const SHIMMER_S = 0.85;
-const SHIMMER_TRAVEL = SHIMMER_PERIOD;
+const SHIMMER_TRAVEL = 1;
+
+/** One metallic sweep shared by the Apple and AI Collective desk marks. Both
+ * brands now answer with exactly the same motion curve, polish change, click
+ * sweep and reduced-motion behavior; only their underlying geometry differs. */
+export function useMetalShimmer({
+  unitIndex,
+  hoverKey,
+  idleRoughness,
+  idleEnv = 2.2,
+}: {
+  unitIndex: number;
+  hoverKey: string;
+  idleRoughness: number;
+  idleEnv?: number;
+}) {
+  const texture = useMemo(() => {
+    const t = shimmerTexture().clone();
+    t.needsUpdate = true;
+    return t;
+  }, []);
+  useEffect(() => () => texture.dispose(), [texture]);
+  const band = useRef<THREE.MeshBasicMaterial>(null);
+  const mark = useRef<THREE.MeshStandardMaterial>(null);
+  const sweep = useRef(-1);
+  const level = useRef(0);
+  const still = useMemo(() => reducedMotion(), []);
+  usePropClick(unitIndex, hoverKey, () => {
+    if (still) return;
+    sweep.current = 0;
+  });
+  useFrame((_, delta) => {
+    const hot = useStacks.getState().hovered === hoverKey ? 1 : 0;
+    if (Math.abs(level.current - hot) < 1e-3) level.current = hot;
+    else level.current = THREE.MathUtils.damp(level.current, hot, 5, delta);
+    const v = level.current;
+    if (mark.current) {
+      mark.current.envMapIntensity = idleEnv + 1.1 * v;
+      mark.current.roughness = idleRoughness - 0.13 * v;
+    }
+    // Strong enough to read on orange as well as silver at the desk marks'
+    // ~40px rendered size. Click remains the brighter punctuation below.
+    let opacity = 0.58 * v;
+    let offset =
+      -SHIMMER_TRAVEL / 2 + ((performance.now() / 5200) % 1) * SHIMMER_TRAVEL;
+    if (sweep.current >= 0) {
+      sweep.current += Math.min(delta, 1 / 30);
+      if (sweep.current > SHIMMER_S) sweep.current = -1;
+      else {
+        const p = sweep.current / SHIMMER_S;
+        offset = -SHIMMER_TRAVEL / 2 + p * SHIMMER_TRAVEL;
+        opacity = Math.max(opacity, Math.sin(p * Math.PI) * 0.95);
+      }
+    }
+    texture.offset.x = offset;
+    if (band.current && band.current.opacity !== opacity) {
+      band.current.opacity = opacity;
+      band.current.visible = opacity > 0.002;
+    }
+  });
+  return { band, mark, texture };
+}
 
 /** The mark standing in a milled billet — a desk object, the kind of thing
  * you leave a job with. Deliberately paperweight-sized: it is a footnote to
@@ -500,53 +576,10 @@ export function DeskApple({
 }) {
   const HOVER = "shimmer:apple";
   const setHovered = useStacks((s) => s.setHovered);
-  // Cloned, because the sweep is a per-instance texture OFFSET and the cache
-  // holds one image: two apples sharing it would sweep each other's band.
-  const texture = useMemo(() => {
-    const t = shimmerTexture().clone();
-    t.needsUpdate = true;
-    return t;
-  }, []);
-  const band = useRef<THREE.MeshBasicMaterial>(null);
-  const mark = useRef<THREE.MeshStandardMaterial>(null);
-  /** Seconds into a click sweep; negative is at rest. */
-  const sweep = useRef(-1);
-  /** Damped 0→1 hover level, driving both the polish and the idle band. */
-  const level = useRef(0);
-  const still = useMemo(() => reducedMotion(), []);
-  usePropClick(unitIndex, HOVER, () => {
-    if (still) return;
-    sweep.current = 0;
-  });
-  useFrame((_, delta) => {
-    const hot = useStacks.getState().hovered === HOVER ? 1 : 0;
-    if (Math.abs(level.current - hot) < 1e-3) level.current = hot;
-    else level.current = THREE.MathUtils.damp(level.current, hot, 5, delta);
-    const v = level.current;
-    if (mark.current) {
-      // The trophy's language, at the trophy's amplitude: the reflection
-      // brightens and tightens and eases back. See Glint in UnitProjects.
-      mark.current.envMapIntensity = 2.2 + 1.1 * v;
-      mark.current.roughness = 0.4 - 0.13 * v;
-    }
-    let opacity = 0.26 * v;
-    let offset = -SHIMMER_TRAVEL / 2 + ((performance.now() / 5200) % 1) * SHIMMER_TRAVEL;
-    if (sweep.current >= 0) {
-      sweep.current += Math.min(delta, 1 / 30); // a tab-switch delta would jump
-      if (sweep.current > SHIMMER_S) sweep.current = -1;
-      else {
-        const p = sweep.current / SHIMMER_S;
-        offset = -SHIMMER_TRAVEL / 2 + p * SHIMMER_TRAVEL;
-        // Zero at both ends so the band arrives and leaves rather than being
-        // switched on over the mark.
-        opacity = Math.max(opacity, Math.sin(p * Math.PI) * 0.95);
-      }
-    }
-    texture.offset.x = offset;
-    if (band.current && band.current.opacity !== opacity) {
-      band.current.opacity = opacity;
-      band.current.visible = opacity > 0.002;
-    }
+  const { band, mark, texture } = useMetalShimmer({
+    unitIndex,
+    hoverKey: HOVER,
+    idleRoughness: 0.4,
   });
   return (
     <group
@@ -579,7 +612,11 @@ export function DeskApple({
       </RoundedBox>
       {/* Sunk 4mm into the billet so the joint is a shadow line, not a seam
           the mark appears to balance on. */}
-      <mesh castShadow geometry={appleGeometry(0.15, 0.015)} position={[0, 0.017, 0]}>
+      <mesh
+        castShadow
+        geometry={appleGeometry(0.15, 0.015)}
+        position={[0, 0.017, 0]}
+      >
         <meshStandardMaterial
           ref={mark}
           color="#c2c6ca"
@@ -818,7 +855,8 @@ export function NotebookLean({
       {Array.from({ length: count }, (_, i) => {
         const key = clickKeys[i];
         const lean = i === count - 1 ? -0.2 : rand(i, 51) * 0.06 - 0.03;
-        const x = i * 0.105 - (count * 0.105) / 2 + (i === count - 1 ? 0.015 : 0);
+        const x =
+          i * 0.105 - (count * 0.105) / 2 + (i === count - 1 ? 0.015 : 0);
         const spine = (
           <RoundedBox
             castShadow
@@ -990,27 +1028,164 @@ export function PaperStack({
  */
 export const SODA_CAN_SCALE = 0.02287;
 
+export type SodaBrand = "diet-dr-pepper" | "sunkist-zero" | "mtn-dew-zero";
+
+const SODA_BRAND_COLORS: Record<SodaBrand, { body: string; ring: string }> = {
+  "diet-dr-pepper": { body: "#111315", ring: "#a91524" },
+  "sunkist-zero": { body: "#f5f1e8", ring: "#ef741d" },
+  "mtn-dew-zero": { body: "#101512", ring: "#6fbe44" },
+};
+
+const canLabelCache = new Map<SodaBrand, THREE.CanvasTexture>();
+
+/** Original low-poly label art: recognizable product colour/word-shape cues,
+ * never copied packaging artwork. Drawn twice around the circumference so a
+ * can remains identifiable after a visitor rotates or throws it. */
+function canLabelTexture(brand: SodaBrand): THREE.CanvasTexture {
+  const cached = canLabelCache.get(brand);
+  if (cached) return cached;
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext("2d")!;
+
+  const drawDietPepper = (x: number) => {
+    ctx.fillStyle = "#111315";
+    ctx.fillRect(x, 0, 256, 256);
+    ctx.save();
+    ctx.translate(x + 128, 132);
+    ctx.rotate(-0.14);
+    ctx.fillStyle = "#b21d2e";
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 92, 62, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#dc5260";
+    ctx.lineWidth = 7;
+    ctx.stroke();
+    ctx.restore();
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#f4eee7";
+    ctx.font = "700 31px Arial, sans-serif";
+    ctx.fillText("DIET", x + 128, 72);
+    ctx.font = "italic 800 38px Georgia, serif";
+    ctx.fillText("Dr Pepper", x + 128, 144);
+    ctx.font = "700 15px Arial, sans-serif";
+    ctx.fillText("ZERO SUGAR", x + 128, 187);
+  };
+  const drawSunkist = (x: number) => {
+    ctx.fillStyle = "#f6f1e7";
+    ctx.fillRect(x, 0, 256, 256);
+    ctx.save();
+    ctx.translate(x + 128, 112);
+    ctx.fillStyle = "#f27a1b";
+    for (let i = 0; i < 12; i++) {
+      ctx.rotate(Math.PI / 6);
+      ctx.fillRect(-4, -102, 8, 44);
+    }
+    ctx.beginPath();
+    ctx.arc(0, 0, 73, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#153f70";
+    ctx.font = "italic 900 39px Arial, sans-serif";
+    ctx.fillText("SUNKIST", x + 128, 124);
+    ctx.fillStyle = "#1f4367";
+    ctx.font = "800 19px Arial, sans-serif";
+    ctx.fillText("ZERO SUGAR", x + 128, 185);
+    ctx.fillStyle = "#ef741d";
+    ctx.font = "700 14px Arial, sans-serif";
+    ctx.fillText("ORANGE", x + 128, 211);
+  };
+  const drawDew = (x: number) => {
+    ctx.fillStyle = "#101512";
+    ctx.fillRect(x, 0, 256, 256);
+    ctx.fillStyle = "#66bd3d";
+    ctx.beginPath();
+    ctx.moveTo(x + 24, 152);
+    ctx.lineTo(x + 69, 62);
+    ctx.lineTo(x + 226, 91);
+    ctx.lineTo(x + 181, 190);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "#b6da63";
+    ctx.lineWidth = 7;
+    ctx.stroke();
+    ctx.save();
+    ctx.translate(x + 127, 128);
+    ctx.rotate(-0.12);
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#f4f1e9";
+    ctx.font = "900 26px Arial, sans-serif";
+    ctx.fillText("MTN", -45, -2);
+    ctx.fillStyle = "#173b22";
+    ctx.font = "italic 900 43px Arial, sans-serif";
+    ctx.fillText("DEW", 37, 18);
+    ctx.fillStyle = "#d82732";
+    ctx.font = "900 17px Arial, sans-serif";
+    ctx.fillText("ZERO", 1, 56);
+    ctx.restore();
+  };
+
+  for (const x of [0, 256]) {
+    if (brand === "diet-dr-pepper") drawDietPepper(x);
+    else if (brand === "sunkist-zero") drawSunkist(x);
+    else drawDew(x);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.anisotropy = 4;
+  canLabelCache.set(brand, texture);
+  return texture;
+}
+
 export function SodaCan({
   dark,
   body,
+  accent,
+  brand,
   rotation = [0, 0, 0],
 }: {
   dark: boolean;
   /** The body colour, one per shelf. Palette-derived, never the stock red. */
-  body: string;
+  body?: string;
+  /** Colour of the lower ring, used to compose the owner's three two-tone
+   * favourites as one intentional trio instead of scattered single cans. */
+  accent?: string;
+  brand?: SodaBrand;
   rotation?: [number, number, number];
 }) {
+  const brandColors = brand ? SODA_BRAND_COLORS[brand] : null;
+  const label = useMemo(() => (brand ? canLabelTexture(brand) : null), [brand]);
   return (
-    <React.Suspense fallback={null}>
-      <ModelProp
-        url="/models/soda-can.glb"
-        dark={dark}
-        variant="tinted"
-        tints={{ F44336: body }}
-        rotation={rotation}
-        scale={SODA_CAN_SCALE}
-      />
-    </React.Suspense>
+    <group rotation={rotation}>
+      <React.Suspense fallback={null}>
+        <ModelProp
+          url="/models/soda-can.glb"
+          dark={dark}
+          variant="tinted"
+          tints={{
+            F44336: body ?? brandColors?.body ?? "#171717",
+            ...((accent ?? brandColors?.ring)
+              ? { "78909C": accent ?? brandColors!.ring }
+              : {}),
+          }}
+          scale={SODA_CAN_SCALE}
+        />
+      </React.Suspense>
+      {label && (
+        <mesh castShadow position={[0, 0.115, 0]} rotation={[0, Math.PI, 0]}>
+          <cylinderGeometry args={[0.0715, 0.0715, 0.172, 24, 1, true]} />
+          <meshStandardMaterial
+            map={label}
+            roughness={0.58}
+            metalness={0.12}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      )}
+    </group>
   );
 }
 
@@ -1049,12 +1224,16 @@ const liveTurns = () => {
  * clockwise to 3:45 — the owner's wake time — hold ~3s, then wind on
  * around to the live time again. The canvas redraws per frame ONLY while
  * a hand is actually moving (idle and hold frames redraw nothing). */
+export type ClockFaceStyle = "alarm" | "grandfather";
+
 export function ClockFace({
   radius = 0.082,
   sweepRef,
+  faceStyle = "alarm",
 }: {
   radius?: number;
   sweepRef?: { current: ClockSweep | null };
+  faceStyle?: ClockFaceStyle;
 }) {
   const face = useMemo(() => {
     const size = 256;
@@ -1067,11 +1246,24 @@ export function ClockFace({
     // so the same cos/sin pair the base face used stays correct.
     const draw = (hourTurns: number, minuteTurns: number) => {
       ctx.clearRect(0, 0, size, size);
-      ctx.fillStyle = "#f6efdf";
+      const oldCase = faceStyle === "grandfather";
+      ctx.fillStyle = oldCase ? "#f4e5bf" : "#f6efdf";
       ctx.beginPath();
       ctx.arc(c, c, c, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = "#6e5d49";
+      if (oldCase) {
+        ctx.strokeStyle = "#a57d37";
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.arc(c, c, c * 0.91, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.strokeStyle = "#d0ae66";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(c, c, c * 0.82, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = oldCase ? "#5a452d" : "#6e5d49";
       ctx.lineWidth = 6;
       for (let i = 0; i < 12; i++) {
         const a = (i / 12) * Math.PI * 2;
@@ -1081,7 +1273,20 @@ export function ClockFace({
         ctx.lineTo(c + Math.cos(a) * c * 0.92, c + Math.sin(a) * c * 0.92);
         ctx.stroke();
       }
-      ctx.strokeStyle = "#443a2d";
+      if (oldCase) {
+        ctx.fillStyle = "#5a452d";
+        ctx.font = "600 25px Georgia, serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        for (const [label, x, y] of [
+          ["XII", c, c * 0.22],
+          ["III", c * 1.77, c],
+          ["VI", c, c * 1.78],
+          ["IX", c * 0.23, c],
+        ] as const)
+          ctx.fillText(label, x, y);
+      }
+      ctx.strokeStyle = oldCase ? "#2f2922" : "#443a2d";
       ctx.lineCap = "round";
       const hour = hourTurns * Math.PI * 2 - Math.PI / 2;
       ctx.lineWidth = 12;
@@ -1098,7 +1303,7 @@ export function ClockFace({
         c + Math.sin(minute) * c * 0.68,
       );
       ctx.stroke();
-      ctx.fillStyle = "#443a2d";
+      ctx.fillStyle = oldCase ? "#a57d37" : "#443a2d";
       ctx.beginPath();
       ctx.arc(c, c, 10, 0, Math.PI * 2);
       ctx.fill();
@@ -1108,7 +1313,8 @@ export function ClockFace({
     const texture = new THREE.CanvasTexture(canvas);
     texture.anisotropy = 4;
     return { draw, texture, mounted: { h: live.h, m: live.m } };
-  }, []);
+  }, [faceStyle]);
+  useEffect(() => () => face.texture.dispose(), [face]);
   const last = useRef(face.mounted);
   const lastLiveDraw = useRef(performance.now());
   useFrame(() => {
@@ -1171,4 +1377,3 @@ export function ClockFace({
     </mesh>
   );
 }
-

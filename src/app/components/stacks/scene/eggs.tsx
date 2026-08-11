@@ -7,16 +7,16 @@
 // useFrame + damp — zero React re-renders per frame; prefers-reduced-motion
 // skips the motion eggs (the lamp toggle stays — it's a state change, not
 // motion). This is a museum at dawn, not an arcade: no confetti, no sound.
-import { useFrame, type ThreeEvent } from "@react-three/fiber";
+import { useStacks } from "../store";
+import { type Palette } from "../theme";
+import { type ThreeEvent, useFrame } from "@react-three/fiber";
 import React, { useMemo, useRef } from "react";
 import * as THREE from "three";
 
-import { type Palette } from "../theme";
-import { useStacks } from "../store";
 import { FootPool } from "./GroundPool";
-import { extractTriangles, findIslands, type Island } from "./islands";
 import ModelProp, { SPIN_NODE } from "./ModelProp";
-import { ClockFace, type ClockSweep } from "./objects";
+import { type Island, extractTriangles, findIslands } from "./islands";
+import { ClockFace, type ClockFaceStyle, type ClockSweep } from "./objects";
 import { LampGlow } from "./primitives";
 
 function reducedMotion(): boolean {
@@ -196,6 +196,8 @@ export function EggLamp({
   dark,
   yaw,
   scale = 1.55,
+  aimOffset,
+  spillScale,
 }: {
   unitIndex: number;
   palette: Palette;
@@ -211,14 +213,15 @@ export function EggLamp({
    * SIBLING of the ModelProp, so scaling the model alone tears the light off
    * the shade. Scaling the shared parent moves both together and keeps the
    * mouth registered to the opening it was measured from.
-   * 1.55, not the 2.16 a 0.45 m angle-poise wants: both lamps sit on a LOWER
-   * shelf and the plank above is 0.6575 away, so the ceiling is 1.579 and this
-   * is that minus a centimetre of clearance. 1.55 lands 0.645, which also
-   * matches the table lamp on Musings at its own corrected scale
-   * (0.3249 x 2.0 = 0.650) — the two silhouettes differ, their heights should
-   * not. Say the honest thing rather than pretend: a 0.45 m lamp does not fit
-   * under a 0.33 m gap, and this is the tallest one that does. */
+   * At 1.55 the model lands 0.645 high, comfortably inside the expanded
+   * 0.8075 lower-shelf headroom. Retaining that scale keeps the About, Blog
+   * and Systems practicals in one silhouette family while the lighting rig
+   * supplies the stronger presence the composition needs. */
   scale?: number;
+  /** Optional local target correction for the spot cone. The model, mouth and
+   * light source stay registered; only the surface the cone aims at moves. */
+  aimOffset?: [number, number, number];
+  spillScale?: number;
 }) {
   const lit = useRef(1);
   return (
@@ -240,7 +243,13 @@ export function EggLamp({
           // `distance` — that is a world-space property, not a transform — so
           // the reach has to be scaled by hand or a bigger lamp lights a
           // smaller pool.
-          <LampGlow palette={palette} litRef={lit} reach={scale} />
+          <LampGlow
+            palette={palette}
+            litRef={lit}
+            reach={scale}
+            aimOffset={aimOffset}
+            spillScale={spillScale}
+          />
         }
       >
         <React.Suspense fallback={null}>
@@ -384,7 +393,13 @@ export function BounceProp({
  * once a second rather than sweeping — a deadbeat tick with a hair of
  * overshoot is what a clock in a quiet room actually does, and it is far
  * easier to catch out of the corner of your eye than a smooth crawl. */
-function SecondHand({ radius }: { radius: number }) {
+function SecondHand({
+  radius,
+  color = "#9c3a2c",
+}: {
+  radius: number;
+  color?: string;
+}) {
   const ref = useRef<THREE.Group>(null);
   const still = useMemo(() => reducedMotion(), []);
   useFrame((_, delta) => {
@@ -417,11 +432,11 @@ function SecondHand({ radius }: { radius: number }) {
           reading as a spinning stick. */}
       <mesh position={[0, radius * 0.31, 0]}>
         <boxGeometry args={[radius * 0.045, radius * 0.86, 0.0012]} />
-        <meshStandardMaterial color="#9c3a2c" roughness={0.5} />
+        <meshStandardMaterial color={color} roughness={0.5} />
       </mesh>
       <mesh position={[0, -radius * 0.12, 0]}>
         <boxGeometry args={[radius * 0.06, radius * 0.24, 0.0012]} />
-        <meshStandardMaterial color="#9c3a2c" roughness={0.5} />
+        <meshStandardMaterial color={color} roughness={0.5} />
       </mesh>
     </group>
   );
@@ -706,12 +721,14 @@ export function EggClock({
   hoverKey,
   facePosition,
   faceRadius,
+  faceStyle = "alarm",
   children,
 }: {
   unitIndex: number;
   hoverKey: string;
   facePosition: [number, number, number];
   faceRadius: number;
+  faceStyle?: ClockFaceStyle;
   children: React.ReactNode;
 }) {
   const sweep = useRef<ClockSweep | null>(null);
@@ -726,8 +743,11 @@ export function EggClock({
     >
       {children}
       <group position={facePosition}>
-        <ClockFace radius={faceRadius} sweepRef={sweep} />
-        <SecondHand radius={faceRadius} />
+        <ClockFace radius={faceRadius} sweepRef={sweep} faceStyle={faceStyle} />
+        <SecondHand
+          radius={faceRadius}
+          color={faceStyle === "grandfather" ? "#8e6d2d" : undefined}
+        />
       </group>
     </EggTrigger>
   );
@@ -752,8 +772,12 @@ function getSteamTexture(): THREE.CanvasTexture {
   canvas.height = size;
   const ctx = canvas.getContext("2d")!;
   const grad = ctx.createRadialGradient(
-    size / 2, size / 2, 0,
-    size / 2, size / 2, size / 2,
+    size / 2,
+    size / 2,
+    0,
+    size / 2,
+    size / 2,
+    size / 2,
   );
   grad.addColorStop(0, "rgba(255, 246, 232, 0.9)");
   grad.addColorStop(0.55, "rgba(255, 246, 232, 0.28)");

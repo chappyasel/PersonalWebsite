@@ -10,11 +10,17 @@
 //
 // Nothing is downloaded to make this work — the view on the other side is the
 // sky shader, so sitting down costs no bytes.
+import { useStacks } from "../store";
 import React, { useEffect } from "react";
 
-import { useStacks } from "../store";
 import { EggTrigger } from "./eggs";
-import { isSeated, leaveSeat, requestSeat, subscribeSeated } from "./seated";
+import {
+  isSeated,
+  leaveSeat,
+  requestSeat,
+  resetSeat,
+  subscribeSeated,
+} from "./seated";
 
 /** When the seat was taken. The escape listeners run in the capture phase, so
  * they see the seating click before r3f does; this is belt and braces for
@@ -146,6 +152,11 @@ function useSeatEscape() {
     return () => {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("click", onClick, true);
+      // This empty-deps effect is the chair/world lifetime, not a render
+      // effect. Reset before unsubscribing so the store mirror also clears;
+      // normal in-world rerenders and ordinary stand-up easing never run it.
+      satAt = 0;
+      resetSeat();
       unsubscribe();
     };
   }, []);

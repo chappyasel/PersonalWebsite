@@ -14,16 +14,15 @@
 //
 // PhotoMount lives here too — every print in the room, whatever its
 // silhouette and whichever file it was declared in, hangs from it.
+import { INERT_HOVER } from "../store";
+import { type Palette } from "../theme";
 import { RoundedBox } from "@react-three/drei";
 import React from "react";
 
-import { INERT_HOVER } from "../store";
-import { type Palette } from "../theme";
-import PropLink, { HoverProp } from "./links";
 import LitImage from "./LitImage";
+import PropLink, { HoverProp } from "./links";
 
 const FRAME_BORDER = 0.024;
-
 
 // ---------------------------------------------------------------------------
 // Where each photograph leads
@@ -52,6 +51,10 @@ export const PHOTO_LINKS: Record<string, string | null> = {
   // Not a post: his face, and the one destination that needs no research.
   // Same URL the site's own contact buttons and /manual already use.
   portrait: "https://www.linkedin.com/in/chappyasel/",
+  "about-family-v8": null,
+  "about-collective-group-v8": null,
+  "about-speaking-candid-v8": null,
+  "about-delicate-arch-v8": null,
   "about-brothers": null,
   "about-holidays": null,
   "beach-sunset": null,
@@ -67,7 +70,19 @@ export const PHOTO_LINKS: Record<string, string | null> = {
   "training-mud": null,
   "gym-mirror": null,
   "golf-flag": null,
+  "training-golf-group-v8": null,
+  "training-golf-flag-v8": null,
+  "training-trophy-side-v8": null,
+  "training-trophy-front-v8": null,
+  "training-stage-kneeling-v8": null,
+  "training-stage-side-v8": null,
+  "training-gym-pose-v8": null,
+  "training-deadlift-v8": null,
+  "training-bench-v8": null,
   // --- Talks -------------------------------------------------------------
+  // Legacy keys remain for archive compatibility; the current five v8
+  // photographs use their actual file identities and have no recoverable
+  // source-post URL, so none inherits the retired mic/summit destination.
   "talk-mic": "https://x.com/i/status/1798370655718744491",
   // Replaced `talk-summit` when the Talks shelf stopped showing the same
   // photograph three times (C5). Both keys are listed: a retired one costs a
@@ -76,10 +91,19 @@ export const PHOTO_LINKS: Record<string, string | null> = {
   "talk-summit": null,
   "talk-stanford": null,
   "talk-fireside-wide": null,
+  "talk-consensus-phone-v8": null,
+  "talk-panel-v8": null,
+  "talk-ann-interview-v8": null,
+  "talk-demo-night-v8": null,
+  "talk-dc-policy-v8": null,
   // --- Projects ----------------------------------------------------------
+  // Likewise, the personal couch and WWDC images are not the retired cabin or
+  // whiteboard photographs. Their nulls are deliberate rather than guessed.
   "projects-whiteboard": "https://x.com/i/status/1778892048747417620",
   "projects-cabin": null,
   "projects-couch": null,
+  "projects-coding-couch-v8": null,
+  "projects-wwdc-v8": null,
   // --- Musings -----------------------------------------------------------
   "musings-walk": null,
   // The four prints pinned to the corkboard, keyed by path because that is
@@ -92,6 +116,12 @@ export const PHOTO_LINKS: Record<string, string | null> = {
   "systems-ridge": null,
   "systems-redwoods": null,
   "systems-sunrise": null,
+  "systems-working-session-v8": null,
+  "systems-supplements-v8": null,
+  "systems-home-office-v8": null,
+  "systems-sf-dusk-v8": null,
+  "systems-lake-v8": null,
+  "systems-lighthouse-v8": null,
 };
 
 /** The ids the table knows about — a photograph outside this set has never

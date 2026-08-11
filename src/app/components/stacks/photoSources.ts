@@ -1,7 +1,8 @@
-// The photographs in the shelf world whose source post is known for certain
-// — the tweet ID is verbatim in the archive filename, so these four are
-// traced, not inferred. Everything else in the room is a photograph with no
-// recoverable origin, and gets no link rather than a guessed one.
+// The current v8 Talk and Project photographs came from the owner's local
+// photo library without recoverable post IDs. The four traced archive photos
+// this list used to expose have all left the scene, so retaining their links
+// here would make the accessible DOM claim that unrelated new prints were
+// their source. An empty list is intentional: provenance is never guessed.
 //
 // This lives in its own dependency-free module on purpose. Both the scene
 // (which places the links as raycast targets) and PlacardLayer (which
@@ -12,21 +13,4 @@
 // r3f and three — dragging the whole 3D stack into the initial entry that
 // the flat and reduced-motion paths download. The canvas is deliberately a
 // dynamic import; a shared constant must not be the thing that undoes it.
-export const PHOTO_SOURCES: { href: string; label: string }[] = [
-  {
-    href: "https://x.com/i/status/1742265325423337870",
-    label: "Under the bar, mid-set",
-  },
-  {
-    href: "https://x.com/i/status/1778892048747417620",
-    label: "At the whiteboard",
-  },
-  {
-    href: "https://x.com/i/status/1798370655718744491",
-    label: "Hosting, mic in hand",
-  },
-  {
-    href: "https://x.com/i/status/1835742939928240302",
-    label: "Reading NOISE",
-  },
-];
+export const PHOTO_SOURCES: { href: string; label: string }[] = [];

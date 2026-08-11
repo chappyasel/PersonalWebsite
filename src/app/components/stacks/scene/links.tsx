@@ -28,13 +28,13 @@
 // while being dead under a real trackpad. A window listener keyed off the
 // store's hover slot consults none of that machinery. The r3f handler stays,
 // but only to swallow the tap so it cannot also reach the unit travel plane.
+import { useStacks } from "../store";
 import { type ThreeEvent } from "@react-three/fiber";
 import { useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useRef } from "react";
 
 import { devSubdomainUrl } from "~/lib/util";
 
-import { useStacks } from "../store";
 import Lift from "./Lift";
 
 /** The doors the shelf world can open. Books and Weightlifting live on their
@@ -90,22 +90,25 @@ export function useOpenTarget(): (target: PropTarget) => void {
   // Stable across renders: Grabbable holds it in a window-listener effect, and
   // a fresh closure per render would tear the whole gesture down and rebuild
   // it on every parent re-render.
-  return useCallback((target: PropTarget) => {
-    // A raw href is somebody else's site by definition — always a new tab,
-    // and it wins over `to` because the two never coexist.
-    if (target.href !== undefined) {
-      window.open(target.href, "_blank", "noopener,noreferrer");
-      return;
-    }
-    const href = propHref(target.to);
-    if (NEW_TAB.includes(target.to)) {
-      window.open(href, "_blank", "noopener,noreferrer");
-    } else {
-      // Same-tab navigation, exactly what the placard's <Link> does (the app
-      // router hands a cross-origin href to the browser itself).
-      router.push(href);
-    }
-  }, [router]);
+  return useCallback(
+    (target: PropTarget) => {
+      // A raw href is somebody else's site by definition — always a new tab,
+      // and it wins over `to` because the two never coexist.
+      if (target.href !== undefined) {
+        window.open(target.href, "_blank", "noopener,noreferrer");
+        return;
+      }
+      const href = propHref(target.to);
+      if (NEW_TAB.includes(target.to)) {
+        window.open(href, "_blank", "noopener,noreferrer");
+      } else {
+        // Same-tab navigation, exactly what the placard's <Link> does (the app
+        // router hands a cross-origin href to the browser itself).
+        router.push(href);
+      }
+    },
+    [router],
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -163,12 +166,21 @@ function onWindowUp(e: PointerEvent) {
   door.open();
 }
 
-let listening = false;
-function listen() {
-  if (listening || typeof window === "undefined") return;
-  listening = true;
-  window.addEventListener("pointerdown", onWindowDown);
-  window.addEventListener("pointerup", onWindowUp);
+let listenerOwners = 0;
+function retainWindowListeners() {
+  if (typeof window === "undefined") return;
+  listenerOwners += 1;
+  if (listenerOwners === 1) {
+    window.addEventListener("pointerdown", onWindowDown);
+    window.addEventListener("pointerup", onWindowUp);
+  }
+  return () => {
+    listenerOwners = Math.max(0, listenerOwners - 1);
+    if (listenerOwners !== 0) return;
+    window.removeEventListener("pointerdown", onWindowDown);
+    window.removeEventListener("pointerup", onWindowUp);
+    down.ok = false;
+  };
 }
 
 type HoverProps = {
@@ -214,13 +226,14 @@ function HoverShell({
   const hasDoor = !!onSelect;
   useEffect(() => {
     if (!hasDoor) return;
-    listen();
+    const releaseListeners = retainWindowListeners();
     const entry = { unitIndex, open: () => select.current?.() };
     doors.set(hoverKey, entry);
     return () => {
       // Only if it is still ours: a remount can register the replacement
       // before the outgoing effect tears down.
       if (doors.get(hoverKey) === entry) doors.delete(hoverKey);
+      releaseListeners?.();
     };
   }, [hoverKey, unitIndex, hasDoor]);
   return (

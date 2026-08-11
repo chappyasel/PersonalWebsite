@@ -10,15 +10,37 @@
 // propagation: drei's ScrollControls attaches its own passive wheel handler
 // (scrollLeft += deltaY / 2) on the scroll element, and letting both run would
 // double-apply deltas at inconsistent rates.
-import { useEffect, useRef } from "react";
-
-import { UNIT_COUNT, unitIndexFromHash, UNITS } from "../data";
+import { UNITS, UNIT_COUNT, unitIndexFromHash } from "../data";
 import { panelBusy, useStacks } from "../store";
+import { useEffect, useRef } from "react";
 
 function wheelDeltaPx(e: WheelEvent, axisDelta: number): number {
   if (e.deltaMode === 1) return axisDelta * 33; // lines
   if (e.deltaMode === 2) return axisDelta * window.innerHeight; // pages
   return axisDelta;
+}
+
+type BridgeInteractionState = Pick<
+  ReturnType<typeof useStacks.getState>,
+  "dragging" | "modalOpen" | "panelState"
+>;
+
+/** One prop/overlay gets a gesture at a time. In particular, Pointer Events
+ * can hand a touch drag to a Grabbable before this Touch Events bridge sees
+ * `touchmove`; continuing here would move the room underneath the prop. */
+export function blocksWorldTouchTravel(state: BridgeInteractionState) {
+  return !!state.dragging || state.modalOpen || state.panelState !== "closed";
+}
+
+/** DOM cards opt out of world navigation without needing to stop bubbling.
+ * Kept structural so events whose target is Window/Text cannot throw. */
+export function isStacksScrollableTarget(target: EventTarget | null) {
+  const closest = (target as { closest?: (selector: string) => Element | null })
+    ?.closest;
+  return (
+    typeof closest === "function" &&
+    !!closest.call(target, "[data-stacks-scrollable]")
+  );
 }
 
 export default function ScrollBridges() {
@@ -85,8 +107,7 @@ export default function ScrollBridges() {
 
     const onWheel = (e: WheelEvent) => {
       if (useStacks.getState().modalOpen || panelBusy()) return;
-      const target = e.target as HTMLElement | null;
-      if (target?.closest("[data-stacks-scrollable]")) return;
+      if (isStacksScrollableTarget(e.target)) return;
       // A prop in hand freezes travel. Checked here rather than left to
       // Grabbable's own capture-phase swallow: both listeners sit on window,
       // and stopPropagation does not stop a sibling listener on the same
@@ -120,6 +141,11 @@ export default function ScrollBridges() {
     let flingRaf = 0;
 
     const onTouchStart = (e: TouchEvent) => {
+      if (blocksWorldTouchTravel(useStacks.getState())) {
+        axis = null;
+        velocity = 0;
+        return;
+      }
       const t = e.touches[0];
       if (!t) return;
       cancelAnimationFrame(flingRaf);
@@ -131,7 +157,14 @@ export default function ScrollBridges() {
       velocity = 0;
     };
     const onTouchMove = (e: TouchEvent) => {
-      if (useStacks.getState().modalOpen || panelBusy()) return;
+      if (blocksWorldTouchTravel(useStacks.getState())) {
+        // Clear the pending fling as well as bailing from this frame. A prop
+        // can claim the gesture after one vertical sample, and replaying that
+        // stale velocity on touchend would still move the room underneath it.
+        axis = null;
+        velocity = 0;
+        return;
+      }
       const t = e.touches[0];
       if (!t) return;
       const dx = t.clientX - startX;
@@ -165,6 +198,7 @@ export default function ScrollBridges() {
       const state = useStacks.getState();
       if (state.modalOpen || state.panelState !== "closed") return;
       const target = e.target as HTMLElement | null;
+      if (isStacksScrollableTarget(target)) return;
       if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
       if (e.key === "ArrowRight" || e.key === "PageDown") {
         e.preventDefault();

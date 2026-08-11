@@ -39,13 +39,14 @@
 // instantly reads as broken. So Grabbable owns its own shade and drives it:
 // it tracks the prop's x/z, stays on the wood, and spreads and fades as the
 // object rises, which is what a real contact shadow does.
-import { useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
+import { useStacks } from "../store";
+import { type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
-import { useStacks } from "../store";
 import { poolTexture } from "./GroundPool";
 import { LIFT_LAMBDA, TIP, hingeShift } from "./Lift";
+import { grabbablePhysicsEnabled } from "./grabbablePhysics";
 import { type Hinge, TILT_MAX_SIZE, hingeFor } from "./interaction";
 import { type PropDestination, useOpenTarget } from "./links";
 import type {
@@ -70,6 +71,14 @@ const SHADE_OPACITY = 0.12;
  * than a click. The same 6 that r3f's own `event.delta` gate uses, so a prop
  * that is both a handle and a door answers a tap exactly as its neighbours do. */
 const TAP_PX = 6;
+
+/** Small imperative seam for authored interactions that need to put a loose
+ * prop in motion without faking a pointer drag. The golf club uses this to
+ * strike one of the exact same balls a visitor can pick up; physics remains
+ * owned here, not duplicated in the unit composition. */
+export type GrabbableCommand = {
+  launch: (velocity: [number, number, number]) => void;
+};
 
 // --- the lazily-loaded solver -----------------------------------------------
 //
@@ -96,6 +105,169 @@ let fetching = false;
  * standing on a plank rather than from a list some unit file has to keep in
  * sync by hand. */
 const registry = new Set<ShelfHandle>();
+
+// --- the one gesture dispatcher the whole shelf world shares ---------------
+//
+// Seventy-three props used to install the same six window listeners. Besides
+// the 438 native registrations, that made event ordering part of mount order:
+// every press walked every prop until the hovered one happened to claim it.
+// One module-level dispatcher resolves the target once and hands the gesture
+// to exactly one mounted Grabbable. The per-prop closures still own authored
+// motion and solver release, so this changes no physics contract.
+
+type GrabEventEntry = {
+  key: string;
+  unitIndex: number;
+  group: THREE.Object3D;
+  camera: THREE.Camera;
+  domElement: HTMLElement;
+  down: (event: PointerEvent, tapOnly: boolean) => boolean;
+  move: (event: PointerEvent) => void;
+  up: (event: PointerEvent) => boolean;
+  cancel: (event?: PointerEvent) => boolean;
+  wheel: (event: WheelEvent) => void;
+  blur: () => void;
+};
+
+const eventEntries = new Map<string, GrabEventEntry>();
+const eventRaycaster = new THREE.Raycaster();
+const eventPointer = new THREE.Vector2();
+const tapCounts = new Map<string, number>();
+let activeEventEntry: GrabEventEntry | null = null;
+let eventDispatcherListening = false;
+
+/** Touch has no hover phase, so resolve its press against the same visible
+ * Grabbable groups r3f renders. Furniture and the DOM placard are deliberately
+ * absent: only loose handles in the active unit participate, and a touch that
+ * starts on UI never leaks through to scenery behind it. */
+function touchEntry(event: PointerEvent): GrabEventEntry | null {
+  const state = useStacks.getState();
+  const scrollEl = state.scrollEl;
+  if (
+    scrollEl &&
+    event.target instanceof Node &&
+    !scrollEl.contains(event.target)
+  )
+    return null;
+  const candidates = [...eventEntries.values()].filter(
+    (entry) => entry.unitIndex === state.activeUnit,
+  );
+  const first = candidates[0];
+  if (!first) return null;
+  const rect = first.domElement.getBoundingClientRect();
+  if (
+    rect.width <= 0 ||
+    rect.height <= 0 ||
+    event.clientX < rect.left ||
+    event.clientX > rect.right ||
+    event.clientY < rect.top ||
+    event.clientY > rect.bottom
+  )
+    return null;
+  eventPointer.set(
+    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+    -((event.clientY - rect.top) / rect.height) * 2 + 1,
+  );
+  eventRaycaster.setFromCamera(eventPointer, first.camera);
+  const roots = new Map<THREE.Object3D, GrabEventEntry>();
+  for (const entry of candidates) roots.set(entry.group, entry);
+  const hits = eventRaycaster.intersectObjects(
+    candidates.map((entry) => entry.group),
+    true,
+  );
+  for (const hit of hits) {
+    let node: THREE.Object3D | null = hit.object;
+    while (node) {
+      const entry = roots.get(node);
+      if (entry) return entry;
+      node = node.parent;
+    }
+  }
+  return null;
+}
+
+function entryForDown(event: PointerEvent): GrabEventEntry | null {
+  if (event.pointerType === "touch") return touchEntry(event);
+  const hovered = useStacks.getState().hovered;
+  return hovered ? (eventEntries.get(hovered) ?? null) : null;
+}
+
+function onEventDown(event: PointerEvent) {
+  if (activeEventEntry) return;
+  const entry = entryForDown(event);
+  if (!entry?.down(event, event.pointerType === "touch")) return;
+  activeEventEntry = entry;
+}
+
+function onEventMove(event: PointerEvent) {
+  activeEventEntry?.move(event);
+}
+
+function onEventUp(event: PointerEvent) {
+  const entry = activeEventEntry;
+  if (entry?.up(event)) activeEventEntry = null;
+}
+
+function onEventCancel(event: PointerEvent) {
+  const entry = activeEventEntry;
+  if (entry?.cancel(event)) activeEventEntry = null;
+}
+
+function onEventWheel(event: WheelEvent) {
+  activeEventEntry?.wheel(event);
+}
+
+function onEventBlur() {
+  activeEventEntry?.blur();
+  activeEventEntry = null;
+}
+
+function startEventDispatcher() {
+  if (eventDispatcherListening || typeof window === "undefined") return;
+  eventDispatcherListening = true;
+  window.addEventListener("wheel", onEventWheel, {
+    capture: true,
+    passive: false,
+  });
+  window.addEventListener("pointerdown", onEventDown);
+  window.addEventListener("pointermove", onEventMove);
+  window.addEventListener("pointerup", onEventUp);
+  window.addEventListener("pointercancel", onEventCancel);
+  window.addEventListener("blur", onEventBlur);
+}
+
+function stopEventDispatcher() {
+  if (!eventDispatcherListening || typeof window === "undefined") return;
+  eventDispatcherListening = false;
+  window.removeEventListener("wheel", onEventWheel, { capture: true });
+  window.removeEventListener("pointerdown", onEventDown);
+  window.removeEventListener("pointermove", onEventMove);
+  window.removeEventListener("pointerup", onEventUp);
+  window.removeEventListener("pointercancel", onEventCancel);
+  window.removeEventListener("blur", onEventBlur);
+  activeEventEntry = null;
+}
+
+function subscribeGrabEvents(entry: GrabEventEntry): () => void {
+  eventEntries.set(entry.key, entry);
+  startEventDispatcher();
+  return () => {
+    if (eventEntries.get(entry.key) === entry) eventEntries.delete(entry.key);
+    if (activeEventEntry === entry) {
+      entry.cancel();
+      activeEventEntry = null;
+    }
+    // Fast Refresh unmounts the outgoing component tree before mounting its
+    // replacement. Releasing the final subscriber removes the old module's
+    // native closures, so HMR never accumulates dispatchers.
+    if (eventEntries.size === 0) stopEventDispatcher();
+  };
+}
+
+function recordTap(key: string) {
+  if (process.env.NODE_ENV !== "production")
+    tapCounts.set(key, (tapCounts.get(key) ?? 0) + 1);
+}
 
 /** Desktop, and only while the scene is running at full quality.
  *
@@ -150,6 +322,12 @@ if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
     world: (key: string) =>
       [...registry].find((handle) => handle.key === key)?.world?.report() ??
       null,
+    dispatcher: () => ({
+      handles: eventEntries.size,
+      windowListeners: eventDispatcherListening ? 6 : 0,
+      active: activeEventEntry?.key ?? null,
+    }),
+    taps: () => Object.fromEntries(tapCounts),
   };
 }
 
@@ -159,6 +337,12 @@ declare global {
       physics: () => boolean;
       props: () => unknown[];
       world: (key: string) => unknown;
+      dispatcher: () => {
+        handles: number;
+        windowListeners: number;
+        active: string | null;
+      };
+      taps: () => Record<string, number>;
     };
   }
 }
@@ -175,6 +359,9 @@ export default function Grabbable({
   standsOn,
   to,
   href,
+  onTap,
+  commandRef,
+  physics: physicsPreference,
   children,
 }: {
   /** Only the active unit answers — off-screen props let the click fall
@@ -211,8 +398,18 @@ export default function Grabbable({
    * three different ways depending on which one you reached for. */
   to?: PropDestination;
   href?: string;
+  /** Local action for a press that never became a carry. Stateful objects
+   * such as featured covers use this instead of pretending to be a route. */
+  onTap?: () => void;
+  /** Optional command handle for another in-scene prop to launch this one.
+   * It deliberately exposes velocity, not the underlying rigid body. */
+  commandRef?: React.MutableRefObject<GrabbableCommand | null>;
+  /** Keep pointer carrying and tap arbitration but bypass free shelf physics,
+   * returning to the authored base after release. Defaults to true. */
+  physics?: boolean;
   children: React.ReactNode;
 }) {
+  const physicsEnabled = grabbablePhysicsEnabled(physicsPreference);
   const group = useRef<THREE.Group>(null);
   /** The hover nod, on a child of the physics group rather than on the group
    * itself. Deliberate: the outer group's pose is the one the solver reads and
@@ -235,9 +432,16 @@ export default function Grabbable({
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
   const pointerId = useRef<number | null>(null);
+  /** Touch can tap a prop but never carry it. This is latched for one gesture
+   * so a touch release cannot accidentally enter the desktop solver path. */
+  const tapOnly = useRef(false);
   /** Where the current press started and whether it has travelled far enough
    * to be a carry rather than a click. Null between gestures. */
   const gesture = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  const onTapRef = useRef(onTap);
+  useEffect(() => {
+    onTapRef.current = onTap;
+  }, [onTap]);
   const open = useOpenTarget();
   /** The shared record this prop's rigid body hangs off. Null until mount,
    * and bodyless until a world has been built around it. */
@@ -251,6 +455,27 @@ export default function Grabbable({
    * moment you dragged a prop across the DOM placard the prop froze in mid
    * air until the cursor came back. */
   const ndc = useMemo(() => new THREE.Vector2(), []);
+
+  const launch = useCallback(
+    (next: [number, number, number]) => {
+      // A scripted strike never steals a prop out of the visitor's hand.
+      if (phase.current === "held") return;
+      velocity.set(next[0], next[1], next[2]);
+      const entry = handle.current;
+      const released = entry?.world?.release(entry, velocity) ?? false;
+      phase.current = released ? "sim" : "settling";
+    },
+    [velocity],
+  );
+
+  useEffect(() => {
+    if (!commandRef) return;
+    const command: GrabbableCommand = { launch };
+    commandRef.current = command;
+    return () => {
+      if (commandRef.current === command) commandRef.current = null;
+    };
+  }, [commandRef, launch]);
   const track = useCallback(
     (e: PointerEvent) => {
       const r = gl.domElement.getBoundingClientRect();
@@ -327,40 +552,40 @@ export default function Grabbable({
     }
   }, [velocity]);
 
-  useEffect(() => {
-    const onDown = (e: PointerEvent) => {
-      // Touch is excluded, and not as a shortcut. `touch-action` is latched
-      // by the browser when a gesture BEGINS, so setting it in pointerdown is
-      // already too late: the pan is eligible, the browser claims the gesture
-      // and fires pointercancel, and the grab dies half a frame after it
-      // starts. On this scene a horizontal touch drag is also literally the
-      // travel gesture, so the two cannot coexist without a long-press arming
-      // step. Travel wins on touch; carrying props is a pointer affordance.
-      if (e.pointerType === "touch") return;
+  const onGrabDown = useCallback(
+    (event: PointerEvent, touchTapOnly: boolean): boolean => {
       // Primary button of the primary pointer only — otherwise a right-click
       // starts a carry, and a second pointer's release ends someone else's.
-      if (!e.isPrimary || e.button !== 0) return;
+      if (!event.isPrimary || event.button !== 0) return false;
       const store = useStacks.getState();
       // `isPrimary` is per pointer TYPE, so a primary pen and a primary mouse
       // are both primary at once. One prop in hand at a time, always.
-      if (store.dragging) return;
-      if (store.hovered !== hoverKey) return;
-      if (store.activeUnit !== unitIndex) return;
-      pointerId.current = e.pointerId;
+      if (store.dragging || store.activeUnit !== unitIndex) return false;
+      if (!touchTapOnly && store.hovered !== hoverKey) return false;
+
+      pointerId.current = event.pointerId;
+      tapOnly.current = touchTapOnly;
+      gesture.current = {
+        x: event.clientX,
+        y: event.clientY,
+        moved: false,
+      };
+
+      // Touch retains native horizontal travel. We only remember enough to
+      // answer a stationary release; no held phase, scroll freeze, solver or
+      // pointer tracking is entered, so carrying remains desktop-only.
+      if (touchTapOnly) return true;
+
       phase.current = "held";
       velocity.set(0, 0, 0);
-      // Where the press began, so the release can tell a CLICK from a CARRY.
-      // Screen pixels, not scene units: 6px is the same gate r3f's own
-      // `event.delta` uses, and it is a statement about the hand, not the room.
-      gesture.current = { x: e.clientX, y: e.clientY, moved: false };
-      track(e);
+      track(event);
       // Build (or join) this plank's world while the prop is still standing
       // exactly on its mark — the collision boxes are measured here, and a
       // prop measured mid-carry would be measured tilted.
       const entry = handle.current;
       const g = group.current;
       simulated.current = false;
-      if (physics && entry && g) {
+      if (physicsEnabled && physics && entry && g) {
         // The prop's OWN group, not its parent: the solver resolves which
         // plank this is from the world matrix, so every prop on a shelf lands
         // in one world and they can hit each other regardless of which layout
@@ -379,67 +604,112 @@ export default function Grabbable({
         el.style.touchAction = "none";
         el.style.overflowX = "hidden";
       }
-    };
-    const onMove = (e: PointerEvent) => {
-      if (phase.current !== "held" || e.pointerId !== pointerId.current) return;
-      const g = gesture.current;
-      if (g && Math.hypot(e.clientX - g.x, e.clientY - g.y) > TAP_PX)
-        g.moved = true;
-      track(e);
-    };
-    const onUp = (e: PointerEvent) => {
-      if (e.pointerId !== pointerId.current) return;
+      return true;
+    },
+    [hoverKey, physicsEnabled, track, unitIndex, velocity],
+  );
+
+  const onGrabMove = useCallback(
+    (event: PointerEvent) => {
+      if (event.pointerId !== pointerId.current) return;
+      const current = gesture.current;
+      if (
+        current &&
+        Math.hypot(event.clientX - current.x, event.clientY - current.y) >
+          TAP_PX
+      )
+        current.moved = true;
+      if (!tapOnly.current && phase.current === "held") track(event);
+    },
+    [track],
+  );
+
+  const onGrabUp = useCallback(
+    (event: PointerEvent): boolean => {
+      if (event.pointerId !== pointerId.current) return false;
       const tapped = gesture.current?.moved === false;
+      const wasTapOnly = tapOnly.current;
       gesture.current = null;
-      release();
+      tapOnly.current = false;
+      if (wasTapOnly) pointerId.current = null;
+      else release();
+
       // A press that never moved was never a carry. Opening here rather than
       // through an r3f onClick is not a style choice: r3f gates click-type
       // events on the object having been in the hit list captured at
       // POINTERDOWN, and pointerdown does not dispatch on this scene at all
       // (see the note above). A window pointerup consults none of that.
-      if (tapped && (to !== undefined || href !== undefined))
-        open(href !== undefined ? { href } : { to: to! });
-    };
-    // Freezing the scroll element is not enough on its own: drei's
-    // ScrollControls attaches its own wheel handler that does
-    // `el.scrollLeft += e.deltaY / 2`, and a PROGRAMMATIC scroll still works
-    // under overflow:hidden. So a trackpad flick mid-carry would slide the
-    // room out from under the prop. Capture-phase on window runs before the
-    // element's own listener, so stopping it there is what actually holds.
-    const onWheel = (e: WheelEvent) => {
-      if (phase.current !== "held") return;
-      // The placard is a real scroll container sitting over the scene, and
-      // carrying a prop is no reason to freeze someone's reading. Only
-      // swallow the wheel when it isn't headed there.
-      const t = e.target;
-      if (t instanceof Element && t.closest("[data-stacks-scrollable]")) return;
-      e.preventDefault();
-      // Capture-phase on window, so stopping here keeps the event from ever
-      // descending to the scroll element where drei's own wheel handler
-      // lives. It does NOT stop sibling window listeners, though, which is
-      // why ScrollBridges checks `dragging` itself rather than relying on
-      // this — two listeners on the same node have no ordering guarantee.
-      e.stopPropagation();
-    };
-    window.addEventListener("wheel", onWheel, { capture: true, passive: false });
-    window.addEventListener("pointerdown", onDown);
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    // A cancelled gesture (context menu, tab switch, the browser reclaiming
-    // the pointer) must not leave the prop welded to a cursor that is no
-    // longer pressed, with the scroll element still frozen.
-    window.addEventListener("pointercancel", onUp);
-    window.addEventListener("blur", release);
-    return () => {
-      window.removeEventListener("wheel", onWheel, { capture: true });
-      window.removeEventListener("pointerdown", onDown);
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", onUp);
-      window.removeEventListener("blur", release);
+      if (tapped) {
+        recordTap(hoverKey);
+        if (onTapRef.current) onTapRef.current();
+        else if (to !== undefined || href !== undefined)
+          open(href !== undefined ? { href } : { to: to! });
+      }
+      return true;
+    },
+    [href, hoverKey, open, release, to],
+  );
+
+  const onGrabCancel = useCallback(
+    (event?: PointerEvent): boolean => {
+      if (event && event.pointerId !== pointerId.current) return false;
+      gesture.current = null;
+      tapOnly.current = false;
+      // Cancellation releases desktop physics exactly like pointerup, but it
+      // is never a tap. This distinction is what lets the browser reclaim a
+      // touch swipe without opening the prop under its starting finger.
       release();
+      return true;
+    },
+    [release],
+  );
+
+  const onGrabWheel = useCallback((event: WheelEvent) => {
+    if (phase.current !== "held") return;
+    // The placard is a real scroll container sitting over the scene, and
+    // carrying a prop is no reason to freeze someone's reading. Only swallow
+    // the wheel when it isn't headed there.
+    const target = event.target;
+    if (target instanceof Element && target.closest("[data-stacks-scrollable]"))
+      return;
+    event.preventDefault();
+    // Capture-phase on window runs before drei's scroll-element handler.
+    event.stopPropagation();
+  }, []);
+
+  useEffect(() => {
+    const g = group.current;
+    if (!g) return;
+    const entry: GrabEventEntry = {
+      key: hoverKey,
+      unitIndex,
+      group: g,
+      camera,
+      domElement: gl.domElement,
+      down: onGrabDown,
+      move: onGrabMove,
+      up: onGrabUp,
+      cancel: onGrabCancel,
+      wheel: onGrabWheel,
+      blur: () => {
+        gesture.current = null;
+        tapOnly.current = false;
+        release();
+      },
     };
-  }, [hoverKey, unitIndex, release, track, velocity, to, href, open]);
+    return subscribeGrabEvents(entry);
+  }, [
+    camera,
+    gl,
+    hoverKey,
+    onGrabCancel,
+    onGrabDown,
+    onGrabMove,
+    onGrabUp,
+    onGrabWheel,
+    release,
+    unitIndex,
+  ]);
 
   useFrame((state, rawDelta) => {
     const g = group.current;
@@ -490,8 +760,18 @@ export default function Grabbable({
         step.subVectors(g.position, world).divideScalar(delta);
         velocity.lerp(step, 1 - Math.exp(-26 * delta));
       }
-      g.rotation.z = THREE.MathUtils.damp(g.rotation.z, -velocity.x * 0.05, 8, delta);
-      g.rotation.x = THREE.MathUtils.damp(g.rotation.x, velocity.z * 0.05, 8, delta);
+      g.rotation.z = THREE.MathUtils.damp(
+        g.rotation.z,
+        -velocity.x * 0.05,
+        8,
+        delta,
+      );
+      g.rotation.x = THREE.MathUtils.damp(
+        g.rotation.x,
+        velocity.z * 0.05,
+        8,
+        delta,
+      );
     } else if (phase.current === "sim") {
       // The solver owns this transform; the shelf's tick below writes it.
     } else if (phase.current === "settling") {
@@ -515,8 +795,13 @@ export default function Grabbable({
       // the mug ended up with its handle somewhere new every time, which is
       // exactly the permanent rearrangement this phase exists to prevent.
       const settled =
-        Math.abs(p.x - base[0]) + Math.abs(p.y - base[1]) + Math.abs(p.z - base[2]) +
-        Math.abs(g.rotation.x) + Math.abs(g.rotation.y) + Math.abs(g.rotation.z) < 1e-4;
+        Math.abs(p.x - base[0]) +
+          Math.abs(p.y - base[1]) +
+          Math.abs(p.z - base[2]) +
+          Math.abs(g.rotation.x) +
+          Math.abs(g.rotation.y) +
+          Math.abs(g.rotation.z) <
+        1e-4;
       if (settled) {
         // Idle out completely, exactly as Lift does — a prop at rest must
         // not keep writing its own transform every frame.
@@ -529,9 +814,24 @@ export default function Grabbable({
         p.x = THREE.MathUtils.damp(p.x, base[0], HOME_LAMBDA, delta);
         p.y = THREE.MathUtils.damp(p.y, base[1], HOME_LAMBDA, delta);
         p.z = THREE.MathUtils.damp(p.z, base[2], HOME_LAMBDA, delta);
-        g.rotation.x = THREE.MathUtils.damp(g.rotation.x, 0, HOME_LAMBDA, delta);
-        g.rotation.y = THREE.MathUtils.damp(g.rotation.y, 0, HOME_LAMBDA, delta);
-        g.rotation.z = THREE.MathUtils.damp(g.rotation.z, 0, HOME_LAMBDA, delta);
+        g.rotation.x = THREE.MathUtils.damp(
+          g.rotation.x,
+          0,
+          HOME_LAMBDA,
+          delta,
+        );
+        g.rotation.y = THREE.MathUtils.damp(
+          g.rotation.y,
+          0,
+          HOME_LAMBDA,
+          delta,
+        );
+        g.rotation.z = THREE.MathUtils.damp(
+          g.rotation.z,
+          0,
+          HOME_LAMBDA,
+          delta,
+        );
       }
     }
 
@@ -585,7 +885,8 @@ export default function Grabbable({
           delta,
         );
       n.rotation.x = nodAngle.current;
-      if (hinge.current) n.position.copy(hingeShift(hinge.current.pivot, n.rotation, undefined));
+      if (hinge.current)
+        n.position.copy(hingeShift(hinge.current.pivot, n.rotation, undefined));
     }
 
     // The shade stays on the wood under wherever the prop actually is, and
@@ -627,7 +928,7 @@ export default function Grabbable({
           // The one honest moment to start the download: a pointer resting on
           // something you can pick up, several hundred milliseconds before the
           // press. Idempotent, and a no-op on touch or a degraded machine.
-          prefetchPhysics();
+          if (physicsEnabled) prefetchPhysics();
         }}
         onPointerOut={() => {
           if (useStacks.getState().hovered === hoverKey)
