@@ -12,7 +12,13 @@ import { proxied } from "../../theme";
 import { Sway } from "../eggs";
 import { ContactShade } from "../GroundPool";
 import ModelProp from "../ModelProp";
-import { Polaroid, polaroidSeat } from "../objects";
+import {
+  Polaroid,
+  polaroidSeat,
+  reducedMotion,
+  SodaCan,
+  usePropClick,
+} from "../objects";
 import PropLink, { HoverProp } from "../links";
 import { DeskFrame, deskFrameHeight, FlatPrint, PhotoMount } from "../photos";
 import { BookPile, FrameRow, ShelfUnit } from "../primitives";
@@ -34,18 +40,44 @@ import { type UnitProps } from "./types";
  * a cached list pointing at freed materials. The traverse costs nothing —
  * it runs only while the damp is in flight, over a prop of two meshes. */
 function Glint({
+  unitIndex,
   hoverKey,
   children,
 }: {
+  unitIndex: number;
   hoverKey: string;
   children: React.ReactNode;
 }) {
   const group = useRef<THREE.Group>(null);
+  const spin = useRef<THREE.Group>(null);
   const level = useRef(0);
+  /** Where the turn is heading, in radians. A click adds 2π; the damp below
+   * chases it, so a second click mid-turn adds to it instead of restarting. */
+  const turnTo = useRef(0);
+  usePropClick(unitIndex, hoverKey, () => {
+    if (reducedMotion()) return;
+    turnTo.current += Math.PI * 2;
+  });
   useFrame((_, delta) => {
     const g = group.current;
     if (!g) return;
     const target = useStacks.getState().hovered === hoverKey ? 1 : 0;
+    const t = spin.current;
+    if (t && t.rotation.y !== turnTo.current) {
+      // 1.6, not the 3.4 the badge flip uses: a cup turning on its plinth
+      // should take about two seconds, which is how long it takes to read the
+      // plate. Snap on arrival so the idle frames cost nothing.
+      const next = THREE.MathUtils.damp(t.rotation.y, turnTo.current, 1.6, delta);
+      t.rotation.y =
+        Math.abs(next - turnTo.current) < 1e-3 ? turnTo.current : next;
+      if (t.rotation.y === turnTo.current) {
+        // Keep the angle bounded, or a long session accumulates float error
+        // into a visible wobble.
+        const wrapped = t.rotation.y % (Math.PI * 2);
+        t.rotation.y = wrapped;
+        turnTo.current = wrapped;
+      }
+    }
     if (Math.abs(level.current - target) < 1e-3) {
       if (level.current === target) return; // settled
       level.current = target;
@@ -61,17 +93,188 @@ function Glint({
       // Never write to the atlas material every other prop is sharing —
       // atlasOverride clones it for this prop, and only that clone is ours.
       if (mat.userData.shared === true) return;
-      mat.envMapIntensity = 1 + 1.5 * v;
-      mat.roughness = 0.35 - 0.16 * v;
+      // 1 → 3.6 and 0.35 → 0.13, up from 1 → 2.5 / 0.35 → 0.19. The owner's
+      // "hovering + clicking the trophy doesn't seem to do anything" was half
+      // a real absence (there was no click at all) and half an amplitude
+      // problem: the prop is 0.45 units of dark brass against a bright sky,
+      // and a 1.5× swing in envMapIntensity on a surface that reflects a
+      // three-lightformer probe is a few levels of grey nobody sees. This is
+      // as far as it goes before the cup reads as chrome.
+      mat.envMapIntensity = 1 + 2.6 * v;
+      mat.roughness = 0.35 - 0.22 * v;
     });
   });
-  return <group ref={group}>{children}</group>;
+  return (
+    <group ref={group}>
+      {/* Named so the harness can read the turn off the scene graph rather
+          than off pixels — see the note on CLUB_NODE in UnitTraining. */}
+      <group ref={spin} name={TROPHY_NODE}>
+        {children}
+      </group>
+    </group>
+  );
 }
+
+/** @see Glint */
+export const TROPHY_NODE = "stacks-trophy-turn";
 
 /** Declared once because it is used twice — as the mount's rotation and as
  * the input to polaroidSeat. A lean typed into one and not the other is the
  * exact bug this scene has regrown four times. */
 const WHITEBOARD_LEAN: [number, number, number] = [-0.15, -0.12, 0.04];
+
+/**
+ * The classic Finder mark, drawn properly (owner: "I also think you can
+ * improve the finder logo").
+ *
+ * The face on the Mac's screen is not a texture, it is GEOMETRY inside
+ * mac.glb: 28 triangles of `M_screen_whitetext` and 28 of `M_lam_black`, both
+ * standing proud of the `M_screen_blue` panel between y 0.0348 and 0.0601.
+ * At 188 triangles for the whole machine that budget cannot draw a face, and
+ * what it produced was a broken dashed line for the mouth and a split that
+ * lands nowhere in particular. Editing the GLB is the model pipeline's job and
+ * not this file's; what a call site CAN do is remap materials by name, so both
+ * face islands are tinted to the screen's own blue — which erases them, since
+ * they are 0.5 mm of blue on blue — and the mark is redrawn as a canvas on a
+ * quad 2 mm in front.
+ *
+ * What it draws is the Finder icon and not the Happy Mac: a rounded square
+ * split by a slanted line, one half light with a dark profile facing right,
+ * the other dark with a light profile facing left. Two half-faces looking past
+ * each other. It was designed to work at 32 × 32 pixels, which is roughly what
+ * it gets here — the quad is 0.193 × 0.221 world units, about 50 px at this
+ * camera — so it is the rare mark that does not need simplifying for the size.
+ *
+ * Cached per theme-independent: the icon is the Mac's own colours, not the
+ * room's, for the same reason the screen stays out of the tint list — a beige
+ * box with a warm-grey screen reads as switched off.
+ */
+let finderTextureCache: THREE.CanvasTexture | null = null;
+function finderTexture(): THREE.CanvasTexture {
+  if (finderTextureCache) return finderTextureCache;
+  const S = 128;
+  const canvas = document.createElement("canvas");
+  canvas.width = S;
+  canvas.height = S;
+  const ctx = canvas.getContext("2d")!;
+  const LIGHT = "#f2efe4";
+  const DARK = "#12233d";
+  ctx.clearRect(0, 0, S, S);
+
+  // The plate: a rounded square, inset so the blue screen frames it.
+  const m = 10;
+  const r = 14;
+  const plate = new Path2D();
+  plate.moveTo(m + r, m);
+  plate.arcTo(S - m, m, S - m, S - m, r);
+  plate.arcTo(S - m, S - m, m, S - m, r);
+  plate.arcTo(m, S - m, m, m, r);
+  plate.arcTo(m, m, S - m, m, r);
+  plate.closePath();
+
+  /** A head in profile facing +x, in a 0..1 box: crown, forehead, brow, nose,
+   * lips, chin, jaw, neck, then back down the skull. One filled silhouette
+   * rather than features drawn on an oval, because at 50 px an outline with
+   * features inside it is a smudge and a silhouette is still a silhouette.
+   * The nose reaches u 0.78, and both faces are placed so that lands just
+   * PAST the split — each is clipped to its own half, so the two profiles
+   * tile the icon and meet exactly on the line. */
+  const PROFILE: number[][] = [
+    [0.30, 0.03], [0.52, 0.08], [0.62, 0.25], // crown → forehead
+    [0.60, 0.35], [0.62, 0.39],               // brow
+    [0.78, 0.50], [0.61, 0.545],              // nose
+    [0.68, 0.60], [0.60, 0.66],               // lips
+    [0.68, 0.76], [0.50, 0.86],               // chin → jaw
+    [0.44, 0.91], [0.44, 1.02],               // neck
+    [0.02, 1.02], [0.02, 0.60],               // shoulder → back
+    [0.06, 0.22], [0.30, 0.03],               // back of the head
+  ];
+  const profile = (flip: boolean, ox: number, w: number) => {
+    const p = new Path2D();
+    const at = (u: number) => (flip ? ox + (1 - u) * w : ox + u * w);
+    p.moveTo(at(PROFILE[0]![0]!) * S, PROFILE[0]![1]! * S);
+    for (const [u, v] of PROFILE.slice(1)) p.lineTo(at(u!) * S, v! * S);
+    p.closePath();
+    return p;
+  };
+
+  // The split leans — a vertical one reads as a seam between two icons rather
+  // than as one mark. Written as two closed polygons rather than as one line
+  // plus an even-odd rule, so each half can be used as a clip directly.
+  const half = (right: boolean) => {
+    const p = new Path2D();
+    const top = S * 0.58;
+    const bot = S * 0.42;
+    if (right) {
+      p.moveTo(top, 0);
+      p.lineTo(S, 0);
+      p.lineTo(S, S);
+      p.lineTo(bot, S);
+    } else {
+      p.moveTo(top, 0);
+      p.lineTo(0, 0);
+      p.lineTo(0, S);
+      p.lineTo(bot, S);
+    }
+    p.closePath();
+    return p;
+  };
+
+  ctx.save();
+  ctx.clip(plate);
+  ctx.fillStyle = LIGHT;
+  ctx.fillRect(0, 0, S, S);
+  ctx.fillStyle = DARK;
+  ctx.fill(half(true));
+  // Left half: a dark face on light, looking right at the split. The two
+  // placements are solved rather than eyeballed — the profile's nose is at
+  // u 0.78, so ox 0.06 with w 0.60 lands it at 0.528 and its mirror at 0.472,
+  // a hair either side of the split's 0.50 at mid height, which is what makes
+  // the two silhouettes meet on the line instead of leaving a crack down it.
+  // The backs of the heads land at 0.072 and 0.928, so each face keeps a
+  // sliver of its own ground behind it rather than filling its half solid.
+  ctx.save();
+  ctx.clip(half(false));
+  ctx.fillStyle = DARK;
+  ctx.fill(profile(false, 0.06, 0.6));
+  ctx.restore();
+  // Right half: its mirror, light on dark, looking left at the same line.
+  ctx.save();
+  ctx.clip(half(true));
+  ctx.fillStyle = LIGHT;
+  ctx.fill(profile(true, 0.34, 0.6));
+  ctx.restore();
+  ctx.restore();
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.anisotropy = 4;
+  finderTextureCache = texture;
+  return texture;
+}
+
+/** The screen's own measurements, off the GLB by material island:
+ * `M_screen_blue` spans x −0.0156…0.0156, y 0.0338…0.0609, front face
+ * z 0.0226, and the face islands it has to cover reach z 0.0241. */
+function FinderMark() {
+  const texture = useMemo(() => finderTexture(), []);
+  return (
+    <mesh position={[0, 0.0474, 0.0245]}>
+      <planeGeometry args={[0.021, 0.024]} />
+      <meshStandardMaterial
+        map={texture}
+        transparent
+        roughness={0.55}
+        // The screen is a lit phosphor, not paint: without a little emissive
+        // it goes to the same value as the beige box around it the moment the
+        // sky behind the unit is bright, and a dark screen reads as a machine
+        // that is off — which is the one thing this prop must never say.
+        emissive="#7f95c4"
+        emissiveIntensity={0.45}
+        emissiveMap={texture}
+      />
+    </mesh>
+  );
+}
 
 export default function UnitProjects({
   data,
@@ -96,7 +299,18 @@ export default function UnitProjects({
       toneSeed={index}
       lower={
         <group>
-          <BookPile palette={palette} x={0.18} salt={47} linkUnit={index} />
+          {/* SPACING + SEPARATION (H2, H6). The Mac is 0.598 wide once its −0.34
+              yaw is folded in and its left edge lands at x 0.328; the pile's
+              top book reached 0.463, so 24 of the Mac's vertices were inside
+              it — 1.37 cm deep, measured against the book's own oriented box
+              rather than an axis-aligned one. The pile is what moves: pushing
+              the Mac right instead would post it behind the desktop placard,
+              whose left edge is +0.427 on a 1280 window.
+              0.18 → 0.02 clears the Mac by 2.9 cm, and the rest of the run
+              steps left with it so the shelf reads as filled rather than as
+              a cluster on the right: pothos −1.43, frame −1.05, trophy −0.70,
+              print −0.36, pile +0.02, Mac +0.64. */}
+          <BookPile palette={palette} x={0.02} salt={47} linkUnit={index} />
           {/* Pothos out at the plank end, where its vines can hang past the
               edge instead of lying on the wood — that overhang is the whole
               reason to own one. Everything else on this shelf is flat and
@@ -174,15 +388,16 @@ export default function UnitProjects({
           <HoverProp
             unitIndex={index}
             hoverKey="glint:trophy"
+            base={[-0.7, 0, 0]}
             lift={[0, 0, 0]}
+            grow={1.05}
           >
-            <Glint hoverKey="glint:trophy">
+            <Glint unitIndex={index} hoverKey="glint:trophy">
               <React.Suspense fallback={null}>
                 <ModelProp
                   url="/models/trophy.glb"
                   dark={dark}
                   atlasOverride={{ metalness: 0.35, roughness: 0.35 }}
-                  position={[-0.6, 0, 0]}
                   rotation={[0, 0.3, 0]}
                   scale={1.55}
                 />
@@ -197,7 +412,7 @@ export default function UnitProjects({
           <PhotoMount
             unitIndex={index}
             id="projects-cabin"
-            position={[-1.0, deskFrameHeight(0.22) / 2, 0.06]}
+            position={[-1.05, deskFrameHeight(0.22) / 2, 0.06]}
             rotation={[-0.1, 0.24, 0.02]}
           >
             <DeskFrame
@@ -218,7 +433,7 @@ export default function UnitProjects({
           <PhotoMount
             unitIndex={index}
             id="projects-whiteboard"
-            position={[-0.2, polaroidSeat(WHITEBOARD_LEAN), 0.12]}
+            position={[-0.36, polaroidSeat(WHITEBOARD_LEAN), 0.12]}
             rotation={WHITEBOARD_LEAN}
             href="https://x.com/i/status/1778892048747417620"
           >
@@ -285,11 +500,23 @@ export default function UnitProjects({
                 tints={{
                   M_plastic_bone: palette.paper,
                   M_plastic_bone_shad: palette.metal,
+                  // The GLB's own face, erased — see FinderMark. Both islands
+                  // go to the screen's own blue, which is what they are
+                  // standing half a millimetre in front of.
+                  M_screen_whitetext: "#1a5be7",
+                  M_lam_black: "#1a5be7",
                 }}
                 rotation={[0, -0.34, 0]}
                 scale={9.2}
               />
             </React.Suspense>
+            {/* The redrawn mark, in the model's own frame: same yaw and same
+                scale as the ModelProp beside it, so the quad sits on the
+                screen at every size the machine is ever drawn at. Inside the
+                PropLink, so it rises with the Mac under the pointer. */}
+            <group rotation={[0, -0.34, 0]} scale={9.2}>
+              <FinderMark />
+            </group>
           </PropLink>
           <ContactShade
             color={palette.shadow}
@@ -319,6 +546,24 @@ export default function UnitProjects({
           somewhere between +0.28 and +1.51 depending on the window, moving
           ±0.49 more as the camera pans with the pointer. UnitBooks fixed this
           by hand in v4; Projects and Talks never got the same treatment. */}
+      {/* The second of the room's three cans. The top shelf of this unit is a
+          row of framed screenshots and nothing else — its whole front ledge is
+          bare — so one small object standing in front of the row is the
+          cheapest thing that stops it reading as thumbnails pasted on wood,
+          the same job the tent card does on Talks. Cool blue here against the
+          rust on Training and the olive on Musings. */}
+      <group position={[-1.36, 0, 0.26]}>
+        <SodaCan
+          dark={dark}
+          body={dark ? palette.spines[7] : palette.spines[8]}
+          rotation={[0, -0.4, 0]}
+        />
+        <ContactShade
+          color={palette.shadow}
+          width={0.2}
+          position={[0, 0.02, 0.02]}
+        />
+      </group>
       <group position={[-0.25, 0, 0]}>
         <FrameRow
           frames={frames}

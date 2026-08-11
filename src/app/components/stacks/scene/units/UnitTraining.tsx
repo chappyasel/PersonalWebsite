@@ -12,7 +12,7 @@ import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
 import { BounceProp, EggTrigger, RollBall } from "../eggs";
 import PropLink from "../links";
-import { Polaroid, polaroidSeat } from "../objects";
+import { Polaroid, polaroidSeat, SodaCan } from "../objects";
 import { DeskFrame, PhotoMount, deskFrameHeight } from "../photos";
 import { BookPile, BumperPlates, ShelfUnit } from "../primitives";
 import { useUnitLod } from "../useUnitLod";
@@ -25,15 +25,60 @@ import { useStacks } from "../../store";
 
 import type { UnitProps } from "./types";
 
-/** The club's grip tip, in the frame ModelProp draws it in — scale 1.44 and
+/**
+ * The driver at the room's real scale. 1.44 → 2.99 (owner: "basically all the
+ * on-the-ground stuff looks small").
+ *
+ * The old 1.44 was set against a FLOOR family drawn at ~0.96 world units per
+ * metre. That family was the error: the bookcase's own joinery puts the room
+ * at 2.00 u/m (bay pitch 0.7275 = 0.36 m, clear headroom 0.6575 = 0.33 m,
+ * plank depth 0.6 = 0.30 m — a bookshelf at 2.00, a wardrobe at 0.96), so 1.44
+ * was a 0.55 m club. 2.99 is 2.298 world = 1.149 m, a real driver, and here it
+ * is the METRE that binds rather than the frame.
+ *
+ * It cost the anchor. The club rests on TWO things and the second is a shelf
+ * corner, so growing it moves where that corner has to be. On the LOWER
+ * plank's corner (−1.6, −0.6925) the shaft rises at 0.352 of x per unit of y
+ * and, at any length past 1.15, crosses under the TOP plank while still inside
+ * x > −1.6 — i.e. straight through it. Measured, not feared: the largest club
+ * that fits under that plank on the old anchor is scale 1.53, so the old
+ * placement had 4% of headroom left in it and no more.
+ *
+ * So it moves up one shelf: the shaft now rests on the TOP plank's outer top
+ * corner (−1.6, +0.035), which the old note correctly said a 1.44 club could
+ * not reach (it tops out at y −0.008 from this floor) and a 2.99 one reaches
+ * easily. Above that contact the shaft carries on over the top plank into open
+ * air — there is no third plank. x −2.2060 is where the shaft lands on that
+ * corner to within 0.4 mm.
+ *
+ * MEASURE THE SHAFT WITH TRIANGLES, NOT VERTICES, or you will "prove" this
+ * placement broken. golf-club.glb's shaft is a TWO-RING cylinder: it carries no
+ * vertices at all between its ends, so a vertex-distance sweep reports the club
+ * a clear half-metre from a plank it is actually resting on, and reports the
+ * same 509 mm at every base x because the nearest vertex never changes. That
+ * false reading nearly reverted this change. The numbers above come from
+ * sampling each triangle on a 14 × 14 barycentric grid (84,240 points) against
+ * the planks, the straps and the bumper plates as solids.
+ *
+ * z −0.10 → +0.24 is the other half of it and it is not cosmetic: at −0.10 the
+ * shaft passes within 8 mm of the big bumper plate standing on the top shelf.
+ * +0.24 puts it 0.10 in front of the plate and still 0.19 inside the top
+ * plank's front lip at 0.425, so the contact is on wood.
+ *
+ * The head lands on the open floor at x −2.35…−2.05, the grip at (−1.206,
+ * 0.970) — inside the frame, which shows 2.62 units above this floor at the
+ * worst pointer position.
+ *
+ * The grip tip, in the frame ModelProp draws it in — scale 2.99 and
  * yaw −1.0, BEFORE the lean. Read off the .glb: the highest vertex lands at
- * (0.0638, 1.1069), and 1.1069 is the model's own 0.7687 height times 1.44, so
+ * (0.1326, 2.2983), and 2.2983 is the model's own 0.7687 height times 2.99, so
  * the number checks itself. z is dropped on purpose — the swing turns about z
  * and a z offset in the pivot changes nothing about the result.
  *
  * This is the SWING PIVOT. Re-export the model or change `scale` and it is
  * stale; it is derived, not tuned, so re-measure rather than nudge. */
-const CLUB_GRIP: [number, number, number] = [0.0638, 1.1069, 0];
+const CLUB_S = 2.99;
+const CLUB_GRIP: [number, number, number] = [0.1326, 2.2983, 0];
 
 /** Peak of the first arc, radians about the grip. Swept against the model's
  * own triangles, 0.22 lifts the head's sole 0.129 world off the floor and
@@ -136,8 +181,8 @@ function ClubSwing({
               floor around it. Spans x −0.028..0.092, which is the shaft's own
               0..0.064 with a margin, rather than the centred box that used to
               miss the grip end by 1.4 cm. */}
-          <mesh position={[0.032, 0.57, -0.02]}>
-            <boxGeometry args={[0.12, 1.14, 0.12]} />
+          <mesh position={[0.066, 1.18, -0.04]}>
+            <boxGeometry args={[0.16, 2.37, 0.16]} />
             <meshBasicMaterial transparent opacity={0} depthWrite={false} />
           </mesh>
         </group>
@@ -199,6 +244,8 @@ function useClubClick(unitIndex: number, onSwing: () => void) {
  * the input to polaroidSeat. A lean typed into one and not the other is the
  * exact bug this scene has regrown four times. */
 const GOLF_FLAG_LEAN: [number, number, number] = [-0.16, -0.08, 0.06];
+/** Same rule, for the Tough Mudder print — see the H4 note at its mount. */
+const MUD_LEAN: [number, number, number] = [-0.14, -0.22, -0.04];
 
 export default function UnitTraining({ palette, dark, index }: UnitProps) {
   const textured = useUnitLod(index);
@@ -324,19 +371,72 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
                 the SF Gyms mirror shot, the one that survives 300px. */}
             {/* Tough Mudder, under the wire and grinning — effort without
                 the posing register he rules out. */}
+            {/* 5 lb tub, filling the hole the framed gym shot left when it
+                moved out to the plank end. protein-powder.glb is 0.2690 tall
+                and a real tub is about 0.28 m, so at the room's 2.00 world
+                units per metre the scale is 0.56 / 0.269 = 2.082: 0.56 tall
+                under 0.6575 of headroom, 0.313 across. Its z 0.06 keeps it
+                0.20 clear of the barbell lying along the shelf back. */}
+            <PropLink
+              unitIndex={index}
+              to="weightlifting"
+              hoverKey="link:protein"
+              base={[-0.98, 0, 0.06]}
+              lift={[0, 0.018, 0.015]}
+            >
+              <React.Suspense fallback={null}>
+                <ModelProp
+                  url="/models/protein-powder.glb"
+                  dark={dark}
+                  variant="tinted"
+                  tints={{
+                    Plastic1Protein1: palette.paper,
+                    Lid1Protein1: palette.hub,
+                  }}
+                  rotation={[0, 0.3, 0]}
+                  scale={2.082}
+                />
+              </React.Suspense>
+            </PropLink>
+            <ContactShade
+              color={palette.shadow}
+              width={0.4}
+              position={[-0.98, 0.03, 0.08]}
+            />
+            {/* H4, "this weight intersects the photo – bad", and this is the
+                pair he was looking at: at x −0.42 eight of the dumbbell's
+                vertices sat INSIDE the print, 3.2 mm deep. Measured by putting
+                every vertex into the print's own ORIENTED box — an
+                axis-aligned test is useless on this shelf, because the
+                barbell's AABB spans the whole plank and calls everything an
+                intersection.
+                −0.42 → −0.72 takes the print clear of the dumbbell's x span
+                (−0.671…+0.071) rather than shaving a millimetre off it, and
+                lands it in the 0.5-wide hole between the framed gym shot and
+                the iron. The literal 0.1425 goes with it: that was
+                `oldHeight/2 · cos(lean)` for a size this print stopped being,
+                and it is the one print on this unit that was never migrated to
+                polaroidSeat — it stood 0.93 cm off the wood. */}
             <PhotoMount
               unitIndex={index}
               id="training-mud"
-              position={[-0.42, 0.1425, 0.16]}
-              rotation={[-0.14, -0.22, -0.04]}
+              position={[-0.72, polaroidSeat(MUD_LEAN), 0.18]}
+              rotation={MUD_LEAN}
             >
               <Polaroid
                 src="/images/stacks/training-mud.jpg"
                 palette={palette}
                 textured={textured}
+                anchor="contact"
               />
             </PhotoMount>
-            {/* z 0.03 → 0.09. The frame stays where it was in x; it is the
+            {/* z 0.09 → 0.15. Same H4 pass: the outer bumper plate's nearest
+                triangle sits 1.2 cm from this frame's box, which is contact by
+                eye at a camera that renders a centimetre as 2.6 px — plate and
+                photograph read as one object. 0.15 opens it to 3.6 cm, measured
+                the same way, and is as far forward as it goes: the frame's own
+                front reach lands 0.01 inside the plank's lip at 0.22.
+                The earlier note, still true: z 0.03 → 0.09. The frame stays where it was in x; it is the
                 barbell that moved back and grew, and its outer plate shares
                 this frame's x span. At scale 0.94 the disc's front face
                 reaches z −0.011, and the frame's own back corner (0.09 less
@@ -346,7 +446,7 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
             <PhotoMount
               unitIndex={index}
               id="gym-mirror"
-              position={[-1.12, 0.272, 0.09]}
+              position={[-1.34, 0.272, 0.15]}
               rotation={[-0.1, 0.16, 0]}
             >
               <RoundedBox
@@ -424,6 +524,23 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
         <group position={[0.75, 0, 0]}>
           <BookPile palette={palette} salt={31} linkUnit={index} />
         </group>
+        {/* One of three cans across the room, each tinted from its own theme
+            palette rather than the stock red — see SodaCan. Rust here, cool
+            blue on Projects, olive on Musings, so no two read the same in
+            either theme. 0.14 across, so it needs a real gap and this is the
+            one the pin-flag print and the pile leave. */}
+        <group position={[0.58, 0, 0.06]}>
+          <SodaCan
+            dark={dark}
+            body={dark ? palette.spines[0] : palette.spines[3]}
+            rotation={[0, 0.6, 0]}
+          />
+          <ContactShade
+            color={palette.shadow}
+            width={0.2}
+            position={[0, 0.02, 0.02]}
+          />
+        </group>
         {/* Chappaquiddick pin-flag print — the golf half of the training
             story, leaning between kettlebell and pile. */}
         <PhotoMount
@@ -469,40 +586,36 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
           />
         </PhotoMount>
       </ShelfUnit>
-      {/* Golf club propped against the unit's LEFT side (the right hides behind
-          the desktop placard). 1.5 → 1.44: a driver is 1.15 m, and the floor
-          props in this world are drawn at the BOOKCASE's ~0.96 units per metre
-          rather than the shelf's 2.0, which puts the shaft at 1.1069 world
-          (0.7687 in the .glb × 1.44).
+      {/* Golf club standing on the floor at the unit's LEFT flank (the right
+          hides behind the desktop placard), leaning back against the bookcase.
+          Scale, base x and base y are all solved rather than chosen — see
+          CLUB_S for the arithmetic and for why the anchor moved from the lower
+          plank's corner to the top plank's.
 
-          IT NOW TOUCHES TWO THINGS, and both numbers below are solved from the
-          model's triangles rather than chosen:
+          IT TOUCHES TWO THINGS, and both numbers below come off the model's
+          triangles:
 
-          - The head is on the GROUND at −1.115. y −1.1249, not the ground's own
+          - The head is on the GROUND at −1.115. y −1.1355, not the ground's own
             −1.115, because the −0.36 lean rotates the club's contact footprint
-            about THIS group's origin and the drop is 0.0099. A tilted object's
+            about THIS group's origin and the drop is 0.0205. A tilted object's
             contact point is not its bounding-box minimum; that mistake is the
-            single most repeated bug in this scene.
-          - The shaft rests on the LOWER PLANK'S OUTER TOP EDGE — the corner at
-            x −1.6 (half of ShelfUnit's 3.2 width), y −0.6925 (SHELF.lower).
-            x −1.99 → −1.8489 is what puts it there. −1.8495 leaves the shaft
-            clear of the corner and −1.8489 has it touching, so the contact is
-            good to 0.018 mm and lands on the shaft (Golf_Club_2) at z −0.156,
-            comfortably inside the plank's own −0.38..0.22.
+            single most repeated bug in this scene, and the drop scales with the
+            club, so it moved when the scale did.
+          - The shaft rests on the TOP PLANK'S OUTER TOP EDGE — the corner at
+            x −1.6 (half of ShelfUnit's 3.2 width), y +0.035 (SHELF.top).
+            x −2.2060 lands the shaft on it with 0.4 mm to spare: −2.2050 buries
+            it 0.6 mm in the wood and −2.2100 floats it 4.4 mm.
 
-          Which anchor is available is not a matter of taste. The club is 1.1069
-          long, so from the floor it can reach y −0.0081 at best — it CANNOT get
-          to the top plank's corner at +0.07, and it would have to lie at 67°
-          off vertical for the grip tip to meet the lower plank's END FACE. The
-          lower plank's top corner is the only edge a 1.1 m club standing on
-          this floor can lean on, and it fixes the base x once the lean is
-          given. Above the contact the shaft carries on into the open left bay
-          and the grip ends at (−1.402, −0.111): 0.111 clear of the top plank
-          above it and 0.037 clear in x of the gym-mirror frame, which is in any
-          case 0.2 away in z.
+          Which anchor is available is not a matter of taste, and it changed
+          with the size. A 1.107-long club could only reach y −0.008 from this
+          floor, so the LOWER plank's corner at −0.6925 was the only edge it
+          could touch. A 2.298-long one cannot USE that corner: above it the
+          shaft is still inside x > −1.6 and would pass straight through the
+          top plank. It can reach the top plank's corner, and above that there
+          is nothing at all to hit.
 
           Egg: click and it swings once about the grip — see ClubSwing. */}
-      <group position={[-1.8489, -1.1249, -0.1]} rotation={[0, 0, -0.36]}>
+      <group position={[-2.206, -1.1355, 0.24]} rotation={[0, 0, -0.36]}>
         <ClubSwing unitIndex={index}>
           <React.Suspense fallback={null}>
             <ModelProp
@@ -517,7 +630,7 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
                 M_PCL_Flat_White_Darker: "#9aa0a4",
               }}
               rotation={[0, -1.0, 0]}
-              scale={1.44}
+              scale={CLUB_S}
             />
           </React.Suspense>
         </ClubSwing>
@@ -526,23 +639,25 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
           the club's company, which is exactly the company it keeps.
           Egg: click and it rolls a few cm, settles, rolls back next click
           (RollBall carries its own FootPool so the shadow rides along).
-          Left where it was while the club moved 0.14 right: the head now spans
-          x −1.893..−1.781 and z −0.135..−0.044, so the ball sits just off its
-          toe and 0.10 in FRONT of it in z. It is deliberately outside the swing
-          plane — see ClubSwing; the club is not allowed to pretend to hit it. */}
+          It travels with the head, which moved to the open floor in front of
+          the case when the club grew: the head now spans x −2.35…−2.05 and
+          z 0.09…0.39, so the ball sits just off its toe and in FRONT of it in
+          z. It is deliberately outside the swing plane — see ClubSwing; the
+          club is not allowed to pretend to hit it. */}
       <RollBall
         unitIndex={index}
         hoverKey="egg:golf"
         palette={palette}
-        position={[-1.78, -1.115, 0.06]}
+        position={[-2.12, -1.115, 0.45]}
       />
       {/* Under the head, which is the club's only ground contact — the pool
-          followed the base x and the head's own z footprint (−0.09), not the
-          old wrapper origin it was copied from. */}
+          follows the base x and the head's own z footprint, and it grew with
+          the club (a 0.42-wide pool under a head that is now 0.31 across left
+          daylight at both ends, which is the bug the tray's shade had). */}
       <FootPool
         color={palette.shadow}
-        size={[0.42, 0.3]}
-        position={[-1.85, -1.115, -0.09]}
+        size={[0.87, 0.62]}
+        position={[-2.21, -1.115, 0.22]}
       />
     </group>
   );

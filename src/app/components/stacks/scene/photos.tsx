@@ -25,6 +25,80 @@ import LitImage from "./LitImage";
 const FRAME_BORDER = 0.024;
 
 
+// ---------------------------------------------------------------------------
+// Where each photograph leads
+// ---------------------------------------------------------------------------
+
+/**
+ * Every print in the room, and the post it came from.
+ *
+ * ONE table rather than an `href` scattered across seven unit files, because
+ * the question "which of these is still missing a link" is one the owner has
+ * to be able to answer at a glance — and because the placements move (props
+ * are respaced most rounds) while the provenance of a photograph never does.
+ *
+ * `null` is a REAL value here and means "we do not have the post URL yet". It
+ * is not a placeholder to be filled with something plausible: these are the
+ * owner's own posts, and a link to the wrong one is worse than no link at all.
+ * A null print still hovers, still nods, and simply opens nothing.
+ *
+ * The key is PhotoMount's `id`, which is the photo's file stem (or its path,
+ * for the corkboard pins whose placement already has one to hand). Adding a
+ * photograph without adding it here is a dev-time warning, not a silent
+ * omission — see PhotoMount.
+ */
+export const PHOTO_LINKS: Record<string, string | null> = {
+  // --- About -------------------------------------------------------------
+  // Not a post: his face, and the one destination that needs no research.
+  // Same URL the site's own contact buttons and /manual already use.
+  portrait: "https://www.linkedin.com/in/chappyasel/",
+  "about-brothers": null,
+  "about-holidays": null,
+  "beach-sunset": null,
+  bros: null,
+  "postcard-budapest": null,
+  "postcard-arches": null,
+  // --- Books -------------------------------------------------------------
+  "books-noise": "https://x.com/i/status/1835742939928240302",
+  "books-quiet": null,
+  "books-goldenhour": null,
+  // --- Training ----------------------------------------------------------
+  "training-squat": "https://x.com/i/status/1742265325423337870",
+  "training-mud": null,
+  "gym-mirror": null,
+  "golf-flag": null,
+  // --- Talks -------------------------------------------------------------
+  "talk-mic": "https://x.com/i/status/1798370655718744491",
+  // Replaced `talk-summit` when the Talks shelf stopped showing the same
+  // photograph three times (C5). Both keys are listed: a retired one costs a
+  // lookup miss and nothing else, and if it comes back it comes back linked.
+  "talk-consensus-alt": null,
+  "talk-summit": null,
+  "talk-stanford": null,
+  "talk-fireside-wide": null,
+  // --- Projects ----------------------------------------------------------
+  "projects-whiteboard": "https://x.com/i/status/1778892048747417620",
+  "projects-cabin": null,
+  "projects-couch": null,
+  // --- Musings -----------------------------------------------------------
+  "musings-walk": null,
+  // The four prints pinned to the corkboard, keyed by path because that is
+  // what their placement loop has.
+  "/images/stacks/pin-dunes.jpg": null,
+  "/images/stacks/pin-trail.jpg": null,
+  "/images/stacks/pin-creek.jpg": null,
+  "/images/stacks/musings-shore.jpg": null,
+  // --- Systems -----------------------------------------------------------
+  "systems-ridge": null,
+  "systems-redwoods": null,
+  "systems-sunrise": null,
+};
+
+/** The ids the table knows about — a photograph outside this set has never
+ * been considered, which is a different thing from one considered and found
+ * to have no post. */
+export type PhotoId = keyof typeof PHOTO_LINKS;
+
 /** A print rises about a centimetre and comes a little way toward you —
  * enough to catch the lamp, small enough that crossing a shelf of them
  * doesn't set the room twitching. */
@@ -37,7 +111,11 @@ const PHOTO_GROW = 1.02;
 /** Every photograph in the room mounts through here. It owns the print's
  * placement, because the hover can only ease a tilt it holds itself, and it
  * gates on the active unit so prints two units away don't take the cursor.
- * `href` is for the four frames whose source post is known verbatim. */
+ *
+ * The destination comes from PHOTO_LINKS by `id`, so a photograph becomes
+ * clickable the moment its post URL is known and no placement has to be
+ * touched. `href` stays as a per-call-site override for anything the table
+ * cannot know. */
 export function PhotoMount({
   unitIndex,
   id,
@@ -55,10 +133,22 @@ export function PhotoMount({
   position: [number, number, number];
   rotation?: [number, number, number];
   lift?: [number, number, number];
-  /** The post this photograph came from, when there is one. */
+  /** Override for the table above. Almost nothing needs it. */
   href?: string;
   children: React.ReactNode;
 }) {
+  const listed = Object.prototype.hasOwnProperty.call(PHOTO_LINKS, id);
+  const link = href ?? PHOTO_LINKS[id] ?? null;
+  if (process.env.NODE_ENV === "development" && !listed && href === undefined) {
+    // A new print that nobody has decided a destination for. Silence here
+    // would mean it quietly ships inert, which is how the room ended up with
+    // four linked photographs and twenty-five unlinked ones in the first
+    // place. Warn once per mount, name the id so it can be pasted straight
+    // into PHOTO_LINKS.
+    console.warn(
+      `[stacks] photo "${id}" is not in PHOTO_LINKS — add it with a post URL, or null if there isn't one.`,
+    );
+  }
   const pose = {
     unitIndex,
     base: position,
@@ -67,12 +157,12 @@ export function PhotoMount({
     settle: PHOTO_SETTLE,
     grow: PHOTO_GROW,
   };
-  return href === undefined ? (
+  return link === null ? (
     <HoverProp {...pose} hoverKey={`${INERT_HOVER}${id}`}>
       {children}
     </HoverProp>
   ) : (
-    <PropLink {...pose} hoverKey={`link:photo:${id}`} href={href}>
+    <PropLink {...pose} hoverKey={`link:photo:${id}`} href={link}>
       {children}
     </PropLink>
   );

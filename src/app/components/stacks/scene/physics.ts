@@ -187,11 +187,79 @@ function ballSleepLimit(radius: number) {
 }
 
 /** Which plank a body stands on. It decides where the ground is, where the
- * edges are, and whether there is a plank overhead to stop a throw. Derived
- * from the parent group's y when the call site does not say (ShelfUnit mounts
- * its two shelves at SHELF.top 0.035 and SHELF.lower −0.6925), but a prop
- * standing on the ground bay has no such parent and has to declare it. */
+ * edges are, and whether there is a plank overhead to stop a throw. Resolved
+ * from the prop's WORLD matrix (see resolveShelf), so nesting depth does not
+ * change the answer; a call site may still override it with `standsOn`. */
 export type ShelfPlane = "top" | "lower" | "floor";
+
+/** ShelfUnit's two plank surfaces. Unit-local y in primitives.tsx's `SHELF`,
+ * and — because every unit root sits at world y 0 (worldLayout.unitPose) —
+ * WORLD y here. Typed rather than imported so the solver chunk keeps no
+ * static edge into the render layer; if `SHELF` moves, this moves with it. */
+const PLANK_Y = { top: 0.035, lower: -0.6925 } as const;
+/** Tolerance for "is this ancestor at a plank". The two heights are 0.73
+ * apart and the ground bay sits at 0, which is 0.035 from the top plank — so
+ * this has to be well under half of that, and the values are exact constants
+ * rather than measurements, so it only has to absorb float drift. */
+const PLANK_EPS = 0.01;
+
+const worldScratch = new THREE.Vector3();
+
+function plankAt(y: number): ShelfPlane | null {
+  if (Math.abs(y - PLANK_Y.top) < PLANK_EPS) return "top";
+  if (Math.abs(y - PLANK_Y.lower) < PLANK_EPS) return "lower";
+  return null;
+}
+
+/** True when `obj` is somewhere below `root`. */
+function isUnder(obj: THREE.Object3D, root: THREE.Object3D): boolean {
+  for (let o = obj.parent; o; o = o.parent) if (o === root) return true;
+  return false;
+}
+
+/**
+ * The group that IS the plank a prop stands on — and which plank that is.
+ *
+ * NOT `group.parent`, and that substitution was two bugs wearing one coat.
+ * Unit files wrap several props in a layout `<group>` for positioning, so the
+ * immediate parent is a different object for almost every prop on the same
+ * shelf. Measured before this existed: `grab:mug` and `grab:headphones`, both
+ * standing on the Musings lower plank, built two SEPARATE worlds holding one
+ * dynamic body each (3 and 12 neighbour boxes), so they could not collide with
+ * one another — the same root cause as the `addNeighbours()` bug fixed last
+ * round (a local-space shortcut standing in for a world-space question),
+ * surviving in a second function. And the plank was read off that layout
+ * group's LOCAL y, which reported the About mug — declared inside `lower={…}`
+ * — as standing on the TOP shelf, so its world got the top plank's wall
+ * positions and no overhead lid.
+ *
+ * World y answers both at once. Climb while the ancestor is still at the same
+ * plank height and take the OUTERMOST one: that is ShelfUnit's own
+ * `<group position={[0, SHELF.x, 0]}>`, because its parent — the unit root —
+ * sits at y 0 and ends the climb.
+ *
+ * The ground bay is deliberately left alone: its content hangs directly off
+ * the unit root at y 0, which is indistinguishable by height from the unit
+ * root itself and from the scene root above it, so climbing would swallow the
+ * whole unit. Those props keep the old behaviour (key on the immediate parent,
+ * plane "floor"), which is correct for a single prop and merely does not share
+ * a world. Nothing on the ground bay is grabbable today.
+ */
+export function resolveShelf(group: THREE.Object3D): {
+  shelf: THREE.Object3D;
+  plane: ShelfPlane;
+} {
+  const start = group.parent ?? group;
+  start.updateWorldMatrix(true, false);
+  const plane = plankAt(start.getWorldPosition(worldScratch).y);
+  if (!plane) return { shelf: start, plane: "floor" };
+  let shelf = start;
+  for (let o = start.parent; o; o = o.parent) {
+    if (plankAt(o.getWorldPosition(worldScratch).y) !== plane) break;
+    shelf = o;
+  }
+  return { shelf, plane };
+}
 
 /** Under-plank clearance on the lower shelf: top plank underside (−0.035)
  * minus the lower plank surface (−0.6925). Measured off ShelfUnit's own
@@ -290,6 +358,17 @@ export type ShelfHandle = {
   /** Last pushed body position, so a kinematically-carried body reports a
    * real velocity to the solver and can shove its neighbours. */
   prev?: THREE.Vector3;
+  /** The handle's PARENT frame expressed in the shelf frame — the transform
+   * that lets a prop nested in a layout group share a world with a prop that
+   * is a direct child of the plank. Identity in the second case, which is
+   * exactly what every body used to assume unconditionally. Kept as position +
+   * quaternion for the per-frame pose conversions and as a matrix for the box
+   * work; `frameQi` is the cached inverse rotation, because pull() runs every
+   * frame and inverting a quaternion per prop per frame is free work. */
+  frame?: THREE.Vector3;
+  frameQ?: THREE.Quaternion;
+  frameQi?: THREE.Quaternion;
+  frameM?: THREE.Matrix4;
 };
 
 let CANNON_MOD: CannonModule | null = null;
@@ -322,6 +401,7 @@ const invScratch = new THREE.Matrix4();
 const vecScratch = new THREE.Vector3();
 const quatScratch = new THREE.Quaternion();
 const sizeScratch = new THREE.Vector3();
+const IDENTITY = new THREE.Quaternion();
 
 /** AABB of `obj`'s renderable geometry expressed in the frame `invFrame`
  * takes world space into.
@@ -407,22 +487,27 @@ function mergeTouching(boxes: THREE.Box3[], from = 0) {
 
 const worlds = new WeakMap<THREE.Object3D, ShelfWorld>();
 
-/** The world for the shelf `parent` belongs to, built on first use from every
- * handle standing on it. Cached against the group itself, so it dies with the
- * scene and survives every travel in between — which is what lets a prop stay
- * knocked over while you are looking at it. */
+/** The world for the plank `group` stands on, built on first use from every
+ * handle standing on the same one. Cached against the plank group, so it dies
+ * with the scene and survives every travel in between — which is what lets a
+ * prop stay knocked over while you are looking at it.
+ *
+ * Membership is "is a DESCENDANT of the plank", not "is a direct child of the
+ * same parent". That one word is the fix: it is what puts every prop on a
+ * shelf into one world so they can actually hit each other. */
 export function worldFor(
-  parent: THREE.Object3D,
+  group: THREE.Object3D,
   handles: Iterable<ShelfHandle>,
 ): ShelfWorld | null {
   if (!CANNON_MOD) return null;
+  const { shelf, plane } = resolveShelf(group);
   const mine: ShelfHandle[] = [];
   for (const handle of handles)
-    if (handle.group.parent === parent) mine.push(handle);
-  let world = worlds.get(parent);
+    if (handle.group === group || isUnder(handle.group, shelf)) mine.push(handle);
+  let world = worlds.get(shelf);
   if (!world) {
-    world = new ShelfWorld(CANNON_MOD, parent, mine);
-    worlds.set(parent, world);
+    world = new ShelfWorld(CANNON_MOD, shelf, plane, mine);
+    worlds.set(shelf, world);
   } else {
     // A Grabbable that mounted after the world was built (a hot reload, or a
     // unit that grew a prop) still gets a body.
@@ -434,7 +519,8 @@ export function worldFor(
 export class ShelfWorld {
   private readonly C: CannonModule;
   private readonly world: CANNON.World;
-  private readonly parent: THREE.Object3D;
+  /** The plank group. Every body in this world lives in its frame. */
+  private readonly shelf: THREE.Object3D;
   /** Which plank this world models — decides the edge walls and whether
    * there is a lid. Set in the constructor, read by report(). */
   readonly plane: ShelfPlane;
@@ -454,11 +540,12 @@ export class ShelfWorld {
 
   constructor(
     C: CannonModule,
-    parent: THREE.Object3D,
+    shelf: THREE.Object3D,
+    plane: ShelfPlane,
     handles: ShelfHandle[],
   ) {
     this.C = C;
-    this.parent = parent;
+    this.shelf = shelf;
     this.world = new C.World({
       gravity: new C.Vec3(0, -GRAVITY, 0),
       allowSleep: true,
@@ -492,14 +579,12 @@ export class ShelfWorld {
     // …and invisible half-spaces at the plank's own edges, so nothing slides
     // out over open air instead. Footprints from ShelfUnit in primitives.tsx:
     // top plank 3.2 × 0.85 centred at z 0, lower plank 3.2 × 0.6 at z −0.08,
-    // ground bay the full 0.85 again. The two shelves sit 0.73 apart, so the
-    // parent group's own y names the plank without importing the layout —
-    // unless a handle says otherwise, which is how a prop standing on the
-    // GROUND (whose parent is the unit root, at y 0, and which would
-    // otherwise be read as a top shelf) gets the right box.
-    const declared = handles.find((h) => h.plane)?.plane;
-    this.plane =
-      declared ?? (parent.position.y < -0.3 ? "lower" : "top");
+    // ground bay the full 0.85 again. Which plank this is came off the shelf
+    // group's WORLD y (see resolveShelf) rather than a parent's local y, so a
+    // prop nested three layout groups deep resolves the same plank as one
+    // standing directly on the wood. `standsOn` remains as an override and is
+    // now needed only for the ground bay.
+    this.plane = handles.find((h) => h.plane)?.plane ?? plane;
     const zNear = this.plane === "lower" ? 0.19 : 0.39;
     const zFar = this.plane === "lower" ? -0.35 : -0.39;
     for (const [pos, euler] of [
@@ -530,6 +615,52 @@ export class ShelfWorld {
     this.addNeighbours();
   }
 
+  /** Work out where this handle's own parent frame sits inside the shelf
+   * frame, once, at adopt time. Layout groups are static — a unit file's
+   * `<group position={…}>` never moves — so this is a mount-time constant, and
+   * it is the identity for a prop that hangs directly off the plank.
+   *
+   * Scale is asserted rather than supported: every group between a plank and a
+   * prop in this scene is a pure translation or rotation (props scale INSIDE
+   * ModelProp, below the Grabbable), and a scaled frame would need the hull
+   * measurements scaled too. A dev warning is the honest response to one
+   * appearing rather than silently simulating the wrong size. */
+  private measureFrame(handle: ShelfHandle) {
+    const parent = handle.group.parent ?? this.shelf;
+    this.shelf.updateWorldMatrix(true, false);
+    parent.updateWorldMatrix(true, false);
+    const m = new THREE.Matrix4()
+      .copy(this.shelf.matrixWorld)
+      .invert()
+      .multiply(parent.matrixWorld);
+    const position = new THREE.Vector3();
+    const quaternion = new THREE.Quaternion();
+    m.decompose(position, quaternion, sizeScratch);
+    if (
+      process.env.NODE_ENV !== "production" &&
+      Math.abs(sizeScratch.x - 1) + Math.abs(sizeScratch.y - 1) + Math.abs(sizeScratch.z - 1) > 3e-3
+    ) {
+      console.warn(
+        `[stacks] physics: ${handle.key} sits under a SCALED group (${sizeScratch.toArray().map((v) => v.toFixed(3)).join(", ")}). ` +
+          "Its hull is measured unscaled and will be the wrong size.",
+      );
+    }
+    handle.frame = position;
+    handle.frameQ = quaternion;
+    handle.frameQi = quaternion.clone().invert();
+    handle.frameM = m;
+  }
+
+  /** Parent-frame point → shelf frame, in place. */
+  private intoShelf(handle: ShelfHandle, v: THREE.Vector3): THREE.Vector3 {
+    return handle.frameQ ? v.applyQuaternion(handle.frameQ).add(handle.frame!) : v;
+  }
+
+  /** Shelf-frame point → the handle's parent frame, in place. */
+  private outOfShelf(handle: ShelfHandle, v: THREE.Vector3): THREE.Vector3 {
+    return handle.frameQi ? v.sub(handle.frame!).applyQuaternion(handle.frameQi) : v;
+  }
+
   /** Give a Grabbable a dynamic body, parked at its authored pose. */
   adopt(handle: ShelfHandle) {
     if (this.handles.includes(handle)) return;
@@ -537,6 +668,7 @@ export class ShelfWorld {
     const box = localBox(handle.group);
     this.handles.push(handle);
     handle.world = this;
+    this.measureFrame(handle);
     if (!box) return; // model still streaming in — authored motion covers it
     const centre = box.getCenter(new THREE.Vector3());
     box.getSize(sizeScratch).multiplyScalar(0.5);
@@ -619,7 +751,7 @@ export class ShelfWorld {
     const C = this.C;
     // Its own matrix, not the shared scratch: localBox() below runs inside
     // the same loop and would clobber it.
-    const inv = new THREE.Matrix4().copy(this.parent.matrixWorld).invert();
+    const inv = new THREE.Matrix4().copy(this.shelf.matrixWorld).invert();
     const dynamic = new Set(this.handles.map((h) => h.group as THREE.Object3D));
     const occupied: THREE.Box3[] = [];
     for (const handle of this.handles) {
@@ -628,11 +760,15 @@ export class ShelfWorld {
       // Against the AUTHORED pose, not wherever the prop happens to be: the
       // world is built on a grab, and a prop still springing home from an
       // earlier authored drag would otherwise veto whichever neighbour it was
-      // passing over, permanently.
-      if (box) occupied.push(box.translate(handle.base));
+      // passing over, permanently. Placed at base in the handle's PARENT
+      // frame, then carried into the shelf frame the static boxes live in.
+      if (!box) continue;
+      box.translate(handle.base);
+      if (handle.frameM) box.applyMatrix4(handle.frameM);
+      occupied.push(box);
     }
     const boxes: THREE.Box3[] = [];
-    for (const child of this.parent.children)
+    for (const child of this.shelf.children)
       this.collectStatics(child, inv, dynamic, boxes, 0);
 
     for (const box of boxes) {
@@ -743,9 +879,13 @@ export class ShelfWorld {
     if (!body || !handle.com || !handle.prev) return;
     const group = handle.group;
     vecScratch.copy(handle.com).applyQuaternion(group.quaternion);
-    const x = group.position.x + vecScratch.x;
-    const y = group.position.y + vecScratch.y;
-    const z = group.position.z + vecScratch.z;
+    // Group pose is in the handle's PARENT frame; bodies live in the shelf's.
+    // The two are the same frame for a prop that hangs off the plank directly,
+    // and a fixed offset (plus rotation) for one inside a layout group.
+    this.intoShelf(handle, vecScratch.add(group.position));
+    const x = vecScratch.x;
+    const y = vecScratch.y;
+    const z = vecScratch.z;
     // Velocity from the body's own movement, which is what the solver needs
     // to resolve a contact with something the carrier is pushing INTO. The
     // first push after a grab reports zero because prev was just seeded.
@@ -756,11 +896,13 @@ export class ShelfWorld {
         (z - handle.prev.z) / delta,
       );
     body.position.set(x, y, z);
+    quatScratch.copy(group.quaternion);
+    if (handle.frameQ) quatScratch.premultiply(handle.frameQ);
     body.quaternion.set(
-      group.quaternion.x,
-      group.quaternion.y,
-      group.quaternion.z,
-      group.quaternion.w,
+      quatScratch.x,
+      quatScratch.y,
+      quatScratch.z,
+      quatScratch.w,
     );
     handle.prev.set(x, y, z);
     body.wakeUp();
@@ -778,13 +920,17 @@ export class ShelfWorld {
       body.quaternion.z,
       body.quaternion.w,
     );
+    // Shelf frame → the handle's parent frame, the exact inverse of push.
+    if (handle.frameQi) quatScratch.premultiply(handle.frameQi);
     handle.group.quaternion.copy(quatScratch);
+    // com is in the prop's OWN local frame, so it rotates by the group's
+    // quaternion — which is now the parent-frame one — and is subtracted after
+    // the body position has come back out of the shelf frame.
+    vecScratch.set(body.position.x, body.position.y, body.position.z);
+    this.outOfShelf(handle, vecScratch);
+    handle.group.position.copy(vecScratch);
     vecScratch.copy(handle.com).applyQuaternion(quatScratch);
-    handle.group.position.set(
-      body.position.x - vecScratch.x,
-      body.position.y - vecScratch.y,
-      body.position.z - vecScratch.z,
-    );
+    handle.group.position.sub(vecScratch);
   }
 
   /** Take a prop into the hand. Returns false when this handle has no body
@@ -803,11 +949,10 @@ export class ShelfWorld {
     body.velocity.setZero();
     body.angularVelocity.setZero();
     vecScratch.copy(handle.com).applyQuaternion(handle.group.quaternion);
-    handle.prev.set(
-      handle.group.position.x + vecScratch.x,
-      handle.group.position.y + vecScratch.y,
-      handle.group.position.z + vecScratch.z,
-    );
+    // Shelf frame, like every other body coordinate — `prev` is differenced
+    // against body positions to produce the carrier's velocity.
+    this.intoShelf(handle, vecScratch.add(handle.group.position));
+    handle.prev.copy(vecScratch);
     return true;
   }
 
@@ -883,12 +1028,19 @@ export class ShelfWorld {
     if (!body || !handle.com) return;
     body.type = this.C.Body.DYNAMIC;
     body.allowSleep = true;
-    body.position.set(
-      handle.base.x + handle.com.x,
-      handle.base.y + handle.com.y,
-      handle.base.z + handle.com.z,
+    // The authored pose is in the handle's parent frame; the body is not.
+    vecScratch.copy(handle.base).add(handle.com);
+    this.intoShelf(handle, vecScratch);
+    body.position.set(vecScratch.x, vecScratch.y, vecScratch.z);
+    // A parked prop's group rotation is identity, so the body's is whatever
+    // the layout group above it contributes.
+    quatScratch.copy(handle.frameQ ?? IDENTITY);
+    body.quaternion.set(
+      quatScratch.x,
+      quatScratch.y,
+      quatScratch.z,
+      quatScratch.w,
     );
-    body.quaternion.set(0, 0, 0, 1);
     body.velocity.setZero();
     body.angularVelocity.setZero();
     body.force.setZero();

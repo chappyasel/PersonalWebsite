@@ -8,15 +8,29 @@
 // store's cursor slot on the active unit.
 //
 // The affordance is the scene's own damped Lift: the prop rises a few
-// millimetres under the pointer, the same idiom the clickable book covers and
-// talk frames already use. No outlines, no tooltips, no labels — a museum at
-// dawn, not a page full of buttons.
+// millimetres under the pointer and nods toward you, the same idiom the
+// clickable book covers and talk frames already use. No outlines, no tooltips,
+// no labels — a museum at dawn, not a page full of buttons.
 //
-// Photographs share the shell (see PhotoMount): four of them carry the tweet
-// they were pulled from, the rest only want the affordance.
+// Photographs share the shell (see PhotoMount): the ones whose source post is
+// known open it, the rest only want the affordance.
+//
+// WHY THE OPEN RIDES A WINDOW POINTERUP AND NOT r3f's onClick.
+// r3f gates every click-type event on the object having been in the hit list
+// captured at POINTERDOWN (`internal.initialHits`), and pointerdown does not
+// dispatch reliably with the scene connected to drei's ScrollControls —
+// Grabbable.tsx:262-273 measured a mesh whose onPointerOver fired every time
+// and which never received down, up or click. Worse, `initialHits` is never
+// cleared, so a failed pointerdown leaves it STALE rather than empty and the
+// click lands on whatever the last dispatching pointerdown saw. The symptom is
+// "links work intermittently, on the wrong prop", and a synthetic
+// mouse.down()/mouse.up() DOES dispatch, so it passes every automated check
+// while being dead under a real trackpad. A window listener keyed off the
+// store's hover slot consults none of that machinery. The r3f handler stays,
+// but only to swallow the tap so it cannot also reach the unit travel plane.
 import { type ThreeEvent } from "@react-three/fiber";
 import { useRouter } from "next/navigation";
-import React from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 
 import { devSubdomainUrl } from "~/lib/util";
 
@@ -40,8 +54,8 @@ export type PropDestination =
 const NEW_TAB: PropDestination[] = ["blog"];
 
 /** Where a prop leads: one of the site's own doors, or an arbitrary URL for
- * the handful of photographs whose source post is known. Exactly one of the
- * two — a prop with both would have an ambiguous destination. */
+ * the photographs whose source post is known. Exactly one of the two — a prop
+ * with both would have an ambiguous destination. */
 export type PropTarget =
   | { to: PropDestination; href?: never }
   | { to?: never; href: string };
@@ -67,6 +81,96 @@ export function propHref(to: PropDestination): string {
 const ORIGIN: [number, number, number] = [0, 0, 0];
 const DEFAULT_LIFT: [number, number, number] = [0, 0.03, 0.02];
 
+/** Open a prop's destination. Shared with Grabbable, which offers the same
+ * doors from a prop you can also pick up — a press that never moved is a
+ * click, and a prop should not have to choose between being a handle and
+ * being a door. */
+export function useOpenTarget(): (target: PropTarget) => void {
+  const router = useRouter();
+  // Stable across renders: Grabbable holds it in a window-listener effect, and
+  // a fresh closure per render would tear the whole gesture down and rebuild
+  // it on every parent re-render.
+  return useCallback((target: PropTarget) => {
+    // A raw href is somebody else's site by definition — always a new tab,
+    // and it wins over `to` because the two never coexist.
+    if (target.href !== undefined) {
+      window.open(target.href, "_blank", "noopener,noreferrer");
+      return;
+    }
+    const href = propHref(target.to);
+    if (NEW_TAB.includes(target.to)) {
+      window.open(href, "_blank", "noopener,noreferrer");
+    } else {
+      // Same-tab navigation, exactly what the placard's <Link> does (the app
+      // router hands a cross-origin href to the browser itself).
+      router.push(href);
+    }
+  }, [router]);
+}
+
+// ---------------------------------------------------------------------------
+// The one gesture listener the whole scene's prop links share
+// ---------------------------------------------------------------------------
+
+/** Every mounted shell that has somewhere to go, by hoverKey. One shared pair
+ * of window listeners rather than a pair per prop: there are several dozen of
+ * these in the world and they all ask the same three questions. */
+const doors = new Map<string, { unitIndex: number; open: () => void }>();
+
+/** Pointerdown position, so a drag across a prop is not a click on it. The
+ * same 6px gate r3f's own `event.delta` uses. */
+const down = { x: 0, y: 0, ok: false };
+const DRAG_PX = 6;
+
+/** When the window path last opened something. r3f's `click` is dispatched
+ * from the DOM click event, which fires AFTER pointerup — so by the time the
+ * scene handler runs, the door may already be open, and its only remaining
+ * job is to stop the tap reaching the unit travel plane behind it. */
+let opened = 0;
+
+/** True while a scene handler should defer to the open that just happened. */
+function justOpened(): boolean {
+  return performance.now() - opened < 400;
+}
+
+function onWindowDown(e: PointerEvent) {
+  down.x = e.clientX;
+  down.y = e.clientY;
+  // Travel owns touch on this scene (a horizontal drag IS the traverse), so
+  // the window path is pointer-only and touch keeps the behaviour it shipped
+  // with. Non-primary pointers and non-primary buttons never open anything.
+  down.ok = e.pointerType !== "touch" && e.isPrimary && e.button === 0;
+}
+
+function onWindowUp(e: PointerEvent) {
+  if (!down.ok || e.pointerType === "touch") return;
+  down.ok = false;
+  if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > DRAG_PX) return;
+  const s = useStacks.getState();
+  // A prop in hand, an open panel or an open modal all mean this gesture was
+  // about something else.
+  if (s.dragging || s.modalOpen || s.panelState !== "closed") return;
+  // The hover slot is only refreshed while the pointer is over the element
+  // r3f is connected to (drei's scroll container). Move onto the DOM placard,
+  // which sits ABOVE the canvas, and no pointerout ever fires — the slot goes
+  // stale, and without this check a click on a placard link would also open
+  // whichever prop the pointer left behind.
+  const el = s.scrollEl;
+  if (el && e.target instanceof Node && !el.contains(e.target)) return;
+  const door = s.hovered ? doors.get(s.hovered) : undefined;
+  if (door?.unitIndex !== s.activeUnit) return;
+  opened = performance.now();
+  door.open();
+}
+
+let listening = false;
+function listen() {
+  if (listening || typeof window === "undefined") return;
+  listening = true;
+  window.addEventListener("pointerdown", onWindowDown);
+  window.addEventListener("pointerup", onWindowUp);
+}
+
 type HoverProps = {
   unitIndex: number;
   /** Unique across the whole scene — it owns the store's single hover slot. */
@@ -80,6 +184,9 @@ type HoverProps = {
   rest?: [number, number, number];
   settle?: number;
   grow?: number;
+  /** Radians of automatic nod. Lift decides on its own unless this says
+   * otherwise; 0 refuses. */
+  tip?: number;
   children: React.ReactNode;
 };
 
@@ -94,10 +201,28 @@ function HoverShell({
   rest,
   settle,
   grow,
+  tip,
   onSelect,
   children,
 }: HoverProps & { onSelect?: () => void }) {
   const setHovered = useStacks((s) => s.setHovered);
+  // The handler is re-created on every render (callers pass inline closures),
+  // and the registry must not churn with it — a ref keeps the registration
+  // itself mount-stable while the behaviour stays current.
+  const select = useRef(onSelect);
+  select.current = onSelect;
+  const hasDoor = !!onSelect;
+  useEffect(() => {
+    if (!hasDoor) return;
+    listen();
+    const entry = { unitIndex, open: () => select.current?.() };
+    doors.set(hoverKey, entry);
+    return () => {
+      // Only if it is still ours: a remount can register the replacement
+      // before the outgoing effect tears down.
+      if (doors.get(hoverKey) === entry) doors.delete(hoverKey);
+    };
+  }, [hoverKey, unitIndex, hasDoor]);
   return (
     <group
       onClick={
@@ -105,7 +230,12 @@ function HoverShell({
           ? (e: ThreeEvent<MouseEvent>) => {
               if ((e.delta ?? 0) > 6) return; // swipe, not a tap
               if (useStacks.getState().activeUnit !== unitIndex) return; // → travel
+              // Swallow it either way, so the tap cannot ALSO reach the unit
+              // travel plane behind the prop…
               e.stopPropagation();
+              // …but the window pointerup above has usually already opened
+              // the door by now, and opening it twice is two tabs.
+              if (justOpened()) return;
               onSelect();
             }
           : undefined
@@ -128,6 +258,7 @@ function HoverShell({
         rest={rest}
         settle={settle}
         grow={grow}
+        tip={tip}
       >
         {children}
       </Lift>
@@ -143,26 +274,20 @@ export function HoverProp(props: HoverProps) {
 }
 
 export default function PropLink(props: HoverProps & PropTarget) {
-  const router = useRouter();
-  return (
-    <HoverShell
-      {...props}
-      onSelect={() => {
-        // A raw href is somebody else's site by definition — always a new
-        // tab, and it wins over `to` because the two never coexist.
-        if (props.href !== undefined) {
-          window.open(props.href, "_blank", "noopener,noreferrer");
-          return;
-        }
-        const href = propHref(props.to);
-        if (NEW_TAB.includes(props.to)) {
-          window.open(href, "_blank", "noopener,noreferrer");
-        } else {
-          // Same-tab navigation, exactly what the placard's <Link> does (the
-          // app router hands a cross-origin href to the browser itself).
-          router.push(href);
-        }
-      }}
-    />
-  );
+  const open = useOpenTarget();
+  return <HoverShell {...props} onSelect={() => open(props as PropTarget)} />;
+}
+
+if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
+  // Which props actually have a door, and under which hover key. The DOM says
+  // nothing about any of this — the shells deliberately re-render nothing —
+  // and "is this prop clickable" is otherwise only answerable by clicking it.
+  window.__links = () =>
+    [...doors].map(([key, d]) => ({ key, unit: d.unitIndex }));
+}
+
+declare global {
+  interface Window {
+    __links?: () => { key: string; unit: number }[];
+  }
 }

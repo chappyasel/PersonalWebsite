@@ -72,6 +72,64 @@ const TILT_ARCHES: [number, number, number] = [-0.18, 0.3, -0.05];
  */
 const PORTRAIT_SCALE = 0.65;
 
+/**
+ * The reading COUCH — the owner picked it himself over the lounge chair it
+ * replaces ("I prefer this chair over what we currently have") — and its size
+ * is the one number in this file that is a compromise rather than an answer.
+ *
+ * The room is 2.00 world units per metre throughout. Everything standing ON a
+ * shelf was already drawn at that (the book primitives pin it on eight axes)
+ * while everything on the FLOOR was drawn at ~0.96, and the bookcase settles
+ * which of the two is real three ways over: its bay pitch is 0.7275 units and
+ * its clear headroom 0.6575, which are 0.36 m and 0.33 m at 2.00 (a bookshelf)
+ * and 0.76 m and 0.68 m at 0.96 (not one); and its planks are 0.6–0.85 deep,
+ * which is 0.30–0.43 m at 2.00 and 0.63–0.89 m at 0.96, i.e. a wardrobe. So
+ * the case is a 1.60 × 0.575 m low unit and the floor family was half size.
+ *
+ * couch.glb is 2.8855 × 1.9100 × 2.2035. A 1.50 m two-seater wants 1.04 and a
+ * 0.80 m back wants 0.42; the model is squarer in plan than a real loveseat,
+ * so neither target is reachable alone. What actually decides it is the FLOOR
+ * SLOT, and the slot is a world-layout number, not a prop one: units sit 4.4
+ * apart and each case is 3.2 wide, so there is 1.2 units — 0.60 m — of floor
+ * between any two cases, and on this unit the usable run is the 1.07 between
+ * the plank's end at −1.60 and the frame's left edge at −2.69 (this camera
+ * holds 267.5 px per unit at the couch's depth on a 1440 × 900 window). No
+ * couch fits in 0.53 m of floor.
+ *
+ * 0.72 is where two things meet. It stands 1.375 world = 0.69 m at the back
+ * and 2.078 = 1.04 m across, so it is a small two-seater rather than a
+ * doll's-house one, and it is TALLER than the top plank (0.260 against 0.035),
+ * which is what a couch beside a 0.575 m console actually is. It runs off the
+ * left of the frame by about half its width, and that is deliberate: a couch
+ * cut by the edge of the first unit reads as a room continuing, where a couch
+ * shrunk to fit reads as a toy. The alternative is to change the room — widen
+ * UNIT_SPACING in scene/worldLayout.ts or pull the camera back — which is not
+ * this file's to do and is the owner's call.
+ *
+ * The yaw comes off entirely (own −0.10 cancels the unit's +0.10, so the couch
+ * is square to the world). It is not styling: the couch is 2.08 × 1.59 in plan
+ * and every 0.1 rad of yaw costs about 0.16 of the 1.07 the slot has. Square
+ * is also what a couch pushed back against a wall does.
+ *
+ * The upholstery tint is load-bearing and not decoration. The desktop rail's
+ * labels cross screen x 28…167 on this unit, which is world x −2.59…−2.07 —
+ * the middle of the couch — and 14 px type over the old mid-tone orange
+ * armchair measured 2.77:1 against a 3:1 AA floor, the worst seven cells in
+ * the room. A pale oatmeal upholstery in the light theme puts a light backdrop
+ * under dark type and takes that well past AA without anyone having to paint a
+ * panel behind the nav. Dark theme already passed at 6.56 and keeps a deep
+ * brown.
+ *
+ * SEAT_POSE in scene/seated.ts is still measured against the old chair's hull,
+ * so sitting down lands the camera in the wrong place until its owner
+ * re-measures. That is known and not a bug here. The couch stays INSIDE the
+ * existing <SitChair> wrapper with its `egg:chair` hover slot untouched —
+ * lifting the model out of it kills the whole Washington vista silently.
+ */
+const COUCH_SCALE = 0.72;
+const COUCH_X = -2.659;
+const COUCH_YAW = -0.1;
+
 export default function UnitAbout({
   palette,
   dark,
@@ -90,7 +148,7 @@ export default function UnitAbout({
             {/* Egg: the lamp clicks off and back on. */}
             <EggLamp unitIndex={index} palette={palette} dark={dark} yaw={0.55} />
           </group>
-          <BookPile palette={palette} x={0.62} salt={9} linkUnit={index} />
+          <BookPile palette={palette} x={0.72} salt={9} linkUnit={index} />
           {/* Apple desk object in the gap between the lamp and the family
               frame. It belongs on THIS unit and not on Projects: the bio in
               the placard beside it is the only text in the world that says
@@ -101,8 +159,8 @@ export default function UnitAbout({
               camera (so no rotation of its own): the mark's face is the one
               near-mirror in the scene, and off-square it swings away from
               the environment probe's lit half and goes black. */}
-          <group position={[-0.42, 0, 0.15]}>
-            <DeskApple palette={palette} />
+          <group position={[-0.35, 0, 0.16]}>
+            <DeskApple palette={palette} unitIndex={index} />
           </group>
           {/* Same 2.1 as its twin on Musings — mug.glb is really a pen-and-
               scissors caddy whose bbox top is the scissor tips, not the cup
@@ -122,7 +180,7 @@ export default function UnitAbout({
           <Grabbable
             unitIndex={index}
             hoverKey="grab:mug:about"
-            base={[0.16, 0, 0.05]}
+            base={[0.35, 0, 0.05]}
             shadeColor={palette.shadow}
             shadeWidth={0.32}
           >
@@ -135,7 +193,7 @@ export default function UnitAbout({
           <PhotoMount
             unitIndex={index}
             id="about-brothers"
-            position={[-1.06, polaroidSeat(TILT_BROTHERS), 0.06]}
+            position={[-1.3, polaroidSeat(TILT_BROTHERS), 0.06]}
             rotation={TILT_BROTHERS}
           >
             <Polaroid
@@ -148,7 +206,7 @@ export default function UnitAbout({
           <PhotoMount
             unitIndex={index}
             id="about-holidays"
-            position={[-0.14, deskFrameHeight(0.2) / 2, 0.04]}
+            position={[-0.05, deskFrameHeight(0.2) / 2, 0.04]}
             rotation={[-0.12, -0.18, 0]}
           >
             <DeskFrame
@@ -192,7 +250,7 @@ export default function UnitAbout({
           loses its right edge to the placard below 1600px. That is the
           deliberate trade: a houseplant is the cheapest thing on this shelf
           to half-hide, and the globe was the most expensive. */}
-      <group position={[0.72, 0, -0.29]}>
+      <group position={[0.62, 0, -0.29]}>
         <Sway unitIndex={index} amount={0.022} rate={0.44}>
           <React.Suspense fallback={null}>
             <ModelProp
@@ -209,7 +267,7 @@ export default function UnitAbout({
           position={[0, 0.02, 0.02]}
         />
       </group>
-      <group position={[0.25, 0, 0]}>
+      <group position={[0.02, 0, 0]}>
         <CardStack palette={palette} />
         <ContactShade
           color={palette.shadow}
@@ -219,11 +277,19 @@ export default function UnitAbout({
       </group>
       {/* Polaroid pair leaning by the cards — the beach at sunset and the
           four brothers (audit §5 ★ picks). The contact height is derived from
-          the tilt rather than written down; see the TILT_* note above. */}
+          the tilt rather than written down; see the TILT_* note above.
+          SPACING (H2): 0.45/0.63 → 0.22/0.42, and the card stack 0.25 → 0.02.
+          The readable width of this shelf is −1.55…+0.43 (the desktop placard
+          takes everything past +0.427 on a 1280 window) and the run had a
+          0.38-wide hole between the portrait's right edge and the cards while
+          the last print and the houseplant sat in or behind the panel. The
+          five objects now step across it at roughly even pitch: globe −1.35,
+          portrait −0.55, cards +0.02, beach +0.22, brothers +0.42, plant
+          +0.62 — the plant keeps the one slot it is cheap to half-hide. */}
       <PhotoMount
         unitIndex={index}
         id="beach-sunset"
-        position={[0.45, polaroidSeat(TILT_BEACH), 0.1]}
+        position={[0.22, polaroidSeat(TILT_BEACH), 0.1]}
         rotation={TILT_BEACH}
       >
         <Polaroid
@@ -236,7 +302,7 @@ export default function UnitAbout({
       <PhotoMount
         unitIndex={index}
         id="bros"
-        position={[0.63, polaroidSeat(TILT_BROS), 0.17]}
+        position={[0.42, polaroidSeat(TILT_BROS), 0.17]}
         rotation={TILT_BROS}
       >
         <Polaroid
@@ -332,46 +398,30 @@ export default function UnitAbout({
         </PhotoMount>
       </group>
       </ShelfUnit>
-      {/* Reading chair on the ground at the LEFT flank, angled toward
-          the unit — the room reads inhabited before a single word is read.
-          x −2.08 keeps its armrest CLEAR of the full-width lower plank
-          (ends at −1.6; the v4.0 spot ran the arm through it).
-          The owner asked for an Eames. Said plainly: there is no Eames
-          lounge chair on poly.pizza — a sweep of eames / lounge chair /
-          armchair / recliner / mid century modern turned up about ninety
-          chairs and not one plywood shell, leather cushion or ottoman. This
-          is the nearest honest read: a 1950s Danish lounge chair, one-piece
-          upholstered shell sweeping from a sloping high back into low arms,
-          seat cushion a separate slab, on four splayed tapered dowel legs.
-          It is a real upgrade on the club chair it replaces and it is not an
-          Eames, and he should judge it knowing that. The only genuine icon
-          on the site is Breuer's Wassily, which I passed on: 6,116 tris and
-          392 KB of tubular steel that reads as a wire scribble at this
-          scale.
-          0.73 gives 0.890 world against a real 0.85 m chair, on the floor
-          conversion the ladder and grandfather clock already imply — 13%
-          taller than the old armchair, which is right for a high back.
-          The tint is not optional: as authored the upholstery is
-          0.10/0.09/0.01, i.e. near-black, and untinted it renders as a
-          silhouette with no chair in it. */}
-      {/* Click it and you sit down in it, turn around, and look out at the
+      {/* Reading couch on the ground at the LEFT flank — the room reads
+          inhabited before a single word is read. See COUCH_SCALE for the size,
+          the yaw, the x, and the tint, all four of which are solved rather
+          than chosen.
+          Click it and you sit down in it, turn around, and look out at the
           Washington skyline he grew up under. The glue is in SitChair; the
           camera easing is CameraRig's and the sky is SceneEnvironment's, and
           the three talk through scene/seated.ts rather than to each other. */}
-      <group position={[-2.08, -1.115, 0.12]} rotation={[0, 0.55, 0]}>
+      <group position={[COUCH_X, -1.115, 0.12]} rotation={[0, COUCH_YAW, 0]}>
         <SitChair unitIndex={index}>
           <React.Suspense fallback={null}>
             <ModelProp
-              url="/models/eames-chair.glb"
+              url="/models/couch.glb"
               dark={dark}
               variant="tinted"
-              // Tan leather rather than a palette spine hex: the spine reds
-              // are book-cover saturation and put a salmon chair in the room.
               tints={{
-                Cloth1MinimalistModernChair1: dark ? "#6d4b38" : "#9a6f52",
-                WoodMinimalistModernChair1: palette.woodDark,
+                // Pale oatmeal in daylight so the rail's dark labels have a
+                // light backdrop (see COUCH_SCALE); a deep, warm brown at
+                // night, where the rail already passes and the room wants the
+                // mass to sit back.
+                Couch_Blue: dark ? "#4a3a2c" : "#cfc3ac",
+                Black: palette.woodDark,
               }}
-              scale={0.73}
+              scale={COUCH_SCALE}
             />
           </React.Suspense>
         </SitChair>
@@ -387,17 +437,19 @@ export default function UnitAbout({
           overlap in x and 0.80 in z, i.e. bodily inside each other.
           Separating them in x is not available (the chair already sits at the
           plank's end, and the left edge of the viewport is x −2.44 at
-          1280px), so the split is in DEPTH: the plant now stands behind the
-          chair. The model reaches +1.29 forward of its origin at this scale,
-          so z −1.45 puts its front face at −0.323, clearing the chair's back
-          face by 0.20, and x −2.72 puts its right edge at −1.934, clear of
-          the chair's left edge by 0.31. The boxes are disjoint on BOTH axes,
-          so no leaf can pass through the upholstery at any sway phase — and
-          it is still clear of the bookcase's own edge at −1.6345.
-          0.55 → 0.62 comes out of the same pass: at 0.55 it stood 1.13 world
-          against a 0.90 chair, which is a short plant for a floor. 0.62 is as
-          far as it goes before it starts crowding the chair on screen rather
-          than standing behind it.
+          1280px), so the split is in DEPTH: the plant stands behind the chair.
+          0.62 → 1.00 and z −1.45 → −2.00, and the two move TOGETHER because
+          the second is what pays for the first. At the room's real 2.00 units
+          per metre (see CHAIR_SCALE) 0.62 was a 0.63 m plant, which is a
+          tabletop pot standing on a floor; 1.00 is 1.02 m, a floor monstera.
+          Growing it also grows its reach: yawed −0.30 (its own −0.40 inside a
+          unit yawed +0.10) the model measures 1.354 from its axis in z, so at
+          the old z −1.45 its front leaves would have reached −0.096 and gone
+          straight through the chair, whose back face is at −0.475. z −2.00
+          puts that front face at −0.646 — 0.17 clear — and costs nothing on
+          screen, because standing further from the camera is exactly what
+          lets it be bigger without crowding: 2.04 units at 194.8 px per unit
+          is 397 px against the 265 px it was, up 50%.
           y −1.115, the ground plane itself. This was −1.0919 on the theory
           that "the pot base sits 0.023 BELOW this model's origin", which is
           backwards — raising the origin by that 0.023 is what put the plant
@@ -408,26 +460,26 @@ export default function UnitAbout({
           belongs on the ground and nowhere else. Re-run that script rather
           than adjusting this by eye — a bare number here cannot look wrong. */}
       <Sway unitIndex={index} amount={0.018} rate={0.31} phase={0.7}>
-        <group position={[-2.72, -1.115, -1.45]} rotation={[0, -0.4, 0]}>
+        <group position={[-2.72, -1.115, -2.0]} rotation={[0, -0.4, 0]}>
           <React.Suspense fallback={null}>
             <ModelProp
               url="/models/monstera.glb"
               dark={dark}
               variant="recolor"
-              scale={0.62}
+              scale={1.0}
             />
           </React.Suspense>
         </group>
       </Sway>
       <FootPool
         color={palette.shadow}
-        size={[0.56, 0.42]}
-        position={[-2.72, -1.115, -1.45]}
+        size={[0.9, 0.68]}
+        position={[-2.72, -1.115, -2.0]}
       />
       <FootPool
         color={palette.shadow}
-        size={[0.62, 0.48]}
-        position={[-2.08, -1.115, 0.12]}
+        size={[2.1, 1.6]}
+        position={[COUCH_X, -1.115, 0.12]}
       />
     </group>
   );

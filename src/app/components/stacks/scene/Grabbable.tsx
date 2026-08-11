@@ -45,6 +45,9 @@ import * as THREE from "three";
 
 import { useStacks } from "../store";
 import { poolTexture } from "./GroundPool";
+import { LIFT_LAMBDA, TIP, hingeShift } from "./Lift";
+import { type Hinge, TILT_MAX_SIZE, hingeFor } from "./interaction";
+import { type PropDestination, useOpenTarget } from "./links";
 import type {
   HullShape,
   Phase,
@@ -63,6 +66,10 @@ const GRAVITY = 3.4;
 /** Matches ContactShade's default so a grabbable prop grounds exactly like
  * its neighbours until the moment it is picked up. */
 const SHADE_OPACITY = 0.12;
+/** Pointer travel, in screen pixels, above which a press is a CARRY rather
+ * than a click. The same 6 that r3f's own `event.delta` gate uses, so a prop
+ * that is both a handle and a door answers a tap exactly as its neighbours do. */
+const TAP_PX = 6;
 
 // --- the lazily-loaded solver -----------------------------------------------
 //
@@ -77,7 +84,7 @@ const SHADE_OPACITY = 0.12;
 type PhysicsModule = {
   warm: () => Promise<boolean>;
   worldFor: (
-    parent: THREE.Object3D,
+    group: THREE.Object3D,
     handles: Iterable<ShelfHandle>,
   ) => ShelfWorld | null;
 };
@@ -166,6 +173,8 @@ export default function Grabbable({
   shape,
   massKg,
   standsOn,
+  to,
+  href,
   children,
 }: {
   /** Only the active unit answers — off-screen props let the click fall
@@ -194,9 +203,27 @@ export default function Grabbable({
    * bay, whose parent sits at y 0 and would otherwise be read as a top
    * shelf, putting the floor 1.1 units too high. */
   standsOn?: ShelfPlane;
+  /** Where this prop leads, if anywhere. A prop should not have to choose
+   * between being a handle and being a door: a press that never MOVED is a
+   * click and opens this, a press that moved is a carry. Same 6px gate r3f's
+   * own `event.delta` uses, and the same destinations PropLink offers — the
+   * two wrappers were the reason a shelf full of similar objects behaved
+   * three different ways depending on which one you reached for. */
+  to?: PropDestination;
+  href?: string;
   children: React.ReactNode;
 }) {
   const group = useRef<THREE.Group>(null);
+  /** The hover nod, on a child of the physics group rather than on the group
+   * itself. Deliberate: the outer group's pose is the one the solver reads and
+   * writes, and a few degrees of hover tilt held there would keep `settled`
+   * false forever, so a prop you were merely POINTING at could never park its
+   * body and would hold the shelf's kinematic push open. Inside, the nod is
+   * purely visual and the physics pose is untouched. */
+  const nod = useRef<THREE.Group>(null);
+  const nodAngle = useRef(0);
+  const hinge = useRef<Hinge | null | undefined>(undefined);
+  const still = useMemo(() => reducedMotion(), []);
   const shade = useRef<THREE.Sprite>(null);
   const phase = useRef<Phase>("rest");
   const velocity = useMemo(() => new THREE.Vector3(), []);
@@ -208,6 +235,10 @@ export default function Grabbable({
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
   const pointerId = useRef<number | null>(null);
+  /** Where the current press started and whether it has travelled far enough
+   * to be a carry rather than a click. Null between gestures. */
+  const gesture = useRef<{ x: number; y: number; moved: boolean } | null>(null);
+  const open = useOpenTarget();
   /** The shared record this prop's rigid body hangs off. Null until mount,
    * and bodyless until a world has been built around it. */
   const handle = useRef<ShelfHandle | null>(null);
@@ -318,15 +349,23 @@ export default function Grabbable({
       pointerId.current = e.pointerId;
       phase.current = "held";
       velocity.set(0, 0, 0);
+      // Where the press began, so the release can tell a CLICK from a CARRY.
+      // Screen pixels, not scene units: 6px is the same gate r3f's own
+      // `event.delta` uses, and it is a statement about the hand, not the room.
+      gesture.current = { x: e.clientX, y: e.clientY, moved: false };
       track(e);
       // Build (or join) this plank's world while the prop is still standing
       // exactly on its mark — the collision boxes are measured here, and a
       // prop measured mid-carry would be measured tilted.
       const entry = handle.current;
-      const parent = group.current?.parent;
+      const g = group.current;
       simulated.current = false;
-      if (physics && entry && parent) {
-        const shelf = physics.worldFor(parent, registry);
+      if (physics && entry && g) {
+        // The prop's OWN group, not its parent: the solver resolves which
+        // plank this is from the world matrix, so every prop on a shelf lands
+        // in one world and they can hit each other regardless of which layout
+        // group each unit file happens to have wrapped them in.
+        const shelf = physics.worldFor(g, registry);
         if (shelf) simulated.current = shelf.grab(entry);
       }
       store.setDragging(hoverKey);
@@ -342,10 +381,24 @@ export default function Grabbable({
       }
     };
     const onMove = (e: PointerEvent) => {
-      if (phase.current === "held" && e.pointerId === pointerId.current) track(e);
+      if (phase.current !== "held" || e.pointerId !== pointerId.current) return;
+      const g = gesture.current;
+      if (g && Math.hypot(e.clientX - g.x, e.clientY - g.y) > TAP_PX)
+        g.moved = true;
+      track(e);
     };
     const onUp = (e: PointerEvent) => {
-      if (e.pointerId === pointerId.current) release();
+      if (e.pointerId !== pointerId.current) return;
+      const tapped = gesture.current?.moved === false;
+      gesture.current = null;
+      release();
+      // A press that never moved was never a carry. Opening here rather than
+      // through an r3f onClick is not a style choice: r3f gates click-type
+      // events on the object having been in the hit list captured at
+      // POINTERDOWN, and pointerdown does not dispatch on this scene at all
+      // (see the note above). A window pointerup consults none of that.
+      if (tapped && (to !== undefined || href !== undefined))
+        open(href !== undefined ? { href } : { to: to! });
     };
     // Freezing the scroll element is not enough on its own: drei's
     // ScrollControls attaches its own wheel handler that does
@@ -386,7 +439,7 @@ export default function Grabbable({
       window.removeEventListener("blur", release);
       release();
     };
-  }, [hoverKey, unitIndex, release, track, velocity]);
+  }, [hoverKey, unitIndex, release, track, velocity, to, href, open]);
 
   useFrame((state, rawDelta) => {
     const g = group.current;
@@ -491,6 +544,50 @@ export default function Grabbable({
     if (shelf && (phase.current === "held" || !shelf.carrying()))
       shelf.tick(delta, state.clock.elapsedTime);
 
+    // The hover nod. Same gesture, same curve and same hinge edge as every
+    // other prop in the world (see Lift) — a prop you can pick up should not
+    // be the one prop that ignores the pointer until you press. Only at REST:
+    // a prop in hand already tilts into its direction of travel, and one
+    // mid-tumble belongs to the solver.
+    const n = nod.current;
+    if (n) {
+      const wants =
+        phase.current === "rest" &&
+        useStacks.getState().hovered === hoverKey &&
+        !still;
+      if (wants && hinge.current === undefined) {
+        const measured = hingeFor(n, false, TILT_MAX_SIZE);
+        if (measured) {
+          hinge.current = measured.reason ? null : measured;
+          if (
+            process.env.NODE_ENV === "development" &&
+            measured.reason === "furniture"
+          ) {
+            // The draggability rule, enforced where it can actually be
+            // checked. A call site cannot know a prop's world size — `scale`
+            // is a multiplier over wildly different source models — so this is
+            // the only honest place to say "that one is too big to pick up".
+            console.warn(
+              `[stacks] ${hoverKey} measures ${measured.size.toFixed(3)}, over the ` +
+                `${TILT_MAX_SIZE} draggable line (DRAGGABLE_RULE in interaction.ts). ` +
+                "Furniture should not be a handle.",
+            );
+          }
+        }
+      }
+      const target = wants && hinge.current ? TIP : 0;
+      if (Math.abs(nodAngle.current - target) < 1e-4) nodAngle.current = target;
+      else
+        nodAngle.current = THREE.MathUtils.damp(
+          nodAngle.current,
+          target,
+          LIFT_LAMBDA,
+          delta,
+        );
+      n.rotation.x = nodAngle.current;
+      if (hinge.current) n.position.copy(hingeShift(hinge.current.pivot, n.rotation, undefined));
+    }
+
     // The shade stays on the wood under wherever the prop actually is, and
     // spreads and thins with height — the only cue in a shadowless scene
     // that the object has left the shelf. It is a SIBLING of the moving
@@ -537,8 +634,21 @@ export default function Grabbable({
             useStacks.getState().setHovered(null);
         }}
       >
-        {children}
+        {/* Named for the same reason Lift's group and SPIN_NODE are: the nod
+            is a few degrees on ONE object in a scene where the camera never
+            stops moving, so a screenshot cannot tell you it happened. */}
+        <group ref={nod} name={`nod:${hoverKey}`}>
+          {children}
+        </group>
       </group>
     </>
+  );
+}
+
+/** Twin of the helper in Lift/ModelProp (not exported there). */
+function reducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
   );
 }

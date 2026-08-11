@@ -206,11 +206,11 @@ export function EggLamp({
    * desk-lamp.glb is 0.4163 tall, which at the room's shelf scale (~2.0 world
    * units per metre, from the books) is a 0.21 m lamp: half of the real
    * thing. The reason it stayed that way is that LampGlow's constants —
-   * MOUTH [0, 0.3989, 0.0107], MOUTH_R, AXIS and every offset derived from
-   * them — are measured in UNSCALED model space and the rig is a SIBLING of
-   * the ModelProp, so scaling the model alone tears the light off the shade.
-   * Scaling the shared parent moves both together and keeps the mouth
-   * registered to the hole it was measured from.
+   * MOUTH [0, 0.2981, 0.0546], MOUTH_R, AXIS and every offset `along()`
+   * derives from them — are measured in UNSCALED model space and the rig is a
+   * SIBLING of the ModelProp, so scaling the model alone tears the light off
+   * the shade. Scaling the shared parent moves both together and keeps the
+   * mouth registered to the opening it was measured from.
    * 1.55, not the 2.16 a 0.45 m angle-poise wants: both lamps sit on a LOWER
    * shelf and the plank above is 0.6575 away, so the ceiling is 1.579 and this
    * is that minus a centimetre of clearance. 1.55 lands 0.645, which also
@@ -222,10 +222,15 @@ export function EggLamp({
 }) {
   const lit = useRef(1);
   return (
-    // The scale lives HERE, on the shared parent, so the model and the light
-    // rig move as one object. Scaling the ModelProp alone would leave
-    // LampGlow's measured mouth behind at the old size.
-    <group scale={scale}>
+    // ONE group carries the scale AND the yaw, and both the model and the
+    // light rig hang from it. That is the whole structural fix of v6: the yaw
+    // used to be handed separately to the ModelProp and to LampGlow, so the
+    // shade's orientation was written down twice and could disagree, and the
+    // rig's measured mouth was registered to a pose the model did not
+    // necessarily hold. Nothing below this group may carry a transform of its
+    // own — a `position` or a second `scale` on either child is exactly how a
+    // lamp slides out of its own lighting.
+    <group scale={scale} rotation={[0, yaw, 0]}>
       <LampSwitch
         unitIndex={unitIndex}
         hoverKey={`egg:lamp:${unitIndex}`}
@@ -234,17 +239,12 @@ export function EggLamp({
           // A parent scale moves the lights but does NOT touch their
           // `distance` — that is a world-space property, not a transform — so
           // the reach has to be scaled by hand or a bigger lamp lights a
-          // smaller pool. yaw keeps the cone rig pointed out the shade's real
-          // opening.
-          <LampGlow palette={palette} yaw={yaw} litRef={lit} reach={scale} />
+          // smaller pool.
+          <LampGlow palette={palette} litRef={lit} reach={scale} />
         }
       >
         <React.Suspense fallback={null}>
-          <ModelProp
-            url="/models/desk-lamp.glb"
-            dark={dark}
-            rotation={[0, yaw, 0]}
-          />
+          <ModelProp url="/models/desk-lamp.glb" dark={dark} />
         </React.Suspense>
       </LampSwitch>
     </group>

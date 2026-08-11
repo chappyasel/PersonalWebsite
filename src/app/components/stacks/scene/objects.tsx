@@ -4,15 +4,82 @@
 // Box props use RoundedBox for edge highlights (see primitives.tsx).
 import { RoundedBox } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import React, { useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { type Palette, rand } from "../theme";
 import { useStacks } from "../store";
 import { ContactShade } from "./GroundPool";
 import Lift from "./Lift";
+import ModelProp from "./ModelProp";
 import PropLink from "./links";
 import LitImage from "./LitImage";
+
+/**
+ * The only click path in this scene that actually fires under a real pointer.
+ *
+ * r3f delivers `onClick` only to an object that was in the hit list captured at
+ * POINTERDOWN, and pointerdown does not dispatch reliably under drei's
+ * ScrollControls here (`Grabbable.tsx:262-273`). The failure is asymmetric and
+ * that is what makes it expensive: a synthetic `mouse.down()/mouse.up()` from a
+ * test harness DOES fire the handler, so a dead mechanic passes every automated
+ * check and does nothing under a trackpad. Worse, the stale hit list misroutes
+ * the NEXT click onto whatever was in it.
+ *
+ * So the click rides a window-level `pointerup` keyed off the store's hover
+ * slot instead, with a drag guard. `EggTrigger`/`HoverProp` still wrap the prop
+ * — they own the hover slot and the cursor, and the slot is what this keys off,
+ * so a prop can only be clicked from where the prop actually is.
+ *
+ * Extracted from `UnitTraining`'s `useClubClick`, which is where three
+ * components independently converged on this shape (SitChair and the Golden
+ * Gate launcher being the other two).
+ */
+export function usePropClick(
+  unitIndex: number,
+  hoverKey: string,
+  onClick: () => void,
+) {
+  const fire = useRef(onClick);
+  fire.current = onClick;
+  useEffect(() => {
+    // Where the press started, so a drag across the prop still travels
+    // instead of triggering it — the same intent as EggTrigger's `e.delta > 6`.
+    let downX = 0;
+    let downY = 0;
+    let downOn = false;
+    const onDown = (e: PointerEvent) => {
+      downX = e.clientX;
+      downY = e.clientY;
+      downOn = useStacks.getState().hovered === hoverKey;
+    };
+    const onUp = (e: PointerEvent) => {
+      if (!downOn) return;
+      downOn = false;
+      const s = useStacks.getState();
+      if (s.hovered !== hoverKey) return;
+      if (s.activeUnit !== unitIndex) return; // → the tap plane travels
+      if (s.panelState !== "closed" || s.modalOpen || s.dragging) return;
+      if (Math.hypot(e.clientX - downX, e.clientY - downY) > 6) return;
+      fire.current();
+    };
+    window.addEventListener("pointerdown", onDown, true);
+    window.addEventListener("pointerup", onUp, true);
+    return () => {
+      window.removeEventListener("pointerdown", onDown, true);
+      window.removeEventListener("pointerup", onUp, true);
+    };
+  }, [unitIndex, hoverKey]);
+}
+
+/** prefers-reduced-motion, read once. A local copy on purpose — eggs.tsx has
+ * its own for the same reason primitives.tsx does (import cycles). */
+export function reducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
 
 /** Framed standing portrait — the identity anchor of the About unit.
  * Zoom/focus re-crops toward the face; the source square otherwise leads
@@ -356,6 +423,56 @@ function appleGeometry(height: number, depth: number): THREE.ExtrudeGeometry {
   return geo;
 }
 
+/** The band that runs across the mark — one soft gaussian stripe on a
+ * transparent strip, tiled so sweeping it is a texture OFFSET rather than a
+ * moving mesh.
+ *
+ * Why a second copy of the extruded geometry and not a quad in front of it:
+ * the mark is a bitten apple with a detached leaf, so a rectangular highlight
+ * standing over it draws a rectangle, which is the exact halo mistake the
+ * floor lamp's glow made in v5. Re-using `appleGeometry` masks the sweep to
+ * the silhouette for free — and ExtrudeGeometry's default UV generator writes
+ * the front cap's UVs as the SHAPE's own x/y, so the texture is already in
+ * the mark's own units and one offset unit is one world unit of travel. */
+const SHIMMER_PERIOD = 0.34;
+let shimmerTextureCache: THREE.CanvasTexture | null = null;
+function shimmerTexture(): THREE.CanvasTexture {
+  if (shimmerTextureCache) return shimmerTextureCache;
+  const w = 128;
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = 4;
+  const ctx = canvas.getContext("2d")!;
+  const grad = ctx.createLinearGradient(0, 0, w, 0);
+  // Arriving at both ends with a near-zero derivative, the GlowSprite rule: a
+  // band that stops abruptly draws a line, and a line across a polished face
+  // is a scratch rather than light.
+  for (const [stop, a] of [
+    [0, 0], [0.34, 0], [0.42, 0.35], [0.5, 1],
+    [0.58, 0.35], [0.66, 0], [1, 0],
+  ] as const) {
+    grad.addColorStop(stop, `rgba(255, 252, 244, ${a})`);
+  }
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, 4);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  // Tilted, because a vertical bar travelling sideways reads as a wipe and a
+  // raked one reads as light. The repeat is in SHAPE units (see above): one
+  // period is 0.34, a little over twice the mark's own width, so only one
+  // band is ever on the face.
+  texture.center.set(0.5, 0.5);
+  texture.rotation = -0.85;
+  texture.repeat.set(1 / SHIMMER_PERIOD, 1 / SHIMMER_PERIOD);
+  shimmerTextureCache = texture;
+  return texture;
+}
+
+/** Seconds for one click sweep, and how far it travels in shape units. */
+const SHIMMER_S = 0.85;
+const SHIMMER_TRAVEL = SHIMMER_PERIOD;
+
 /** The mark standing in a milled billet — a desk object, the kind of thing
  * you leave a job with. Deliberately paperweight-sized: it is a footnote to
  * a line in the placard, not a logo placement.
@@ -364,10 +481,84 @@ function appleGeometry(height: number, depth: number): THREE.ExtrudeGeometry {
  * forces metalness 0, so anything that has to look like metal has to opt out
  * by hand. The billet is bead-blasted (rougher, darker) and the mark is
  * polished, which is what gives the silhouette an edge to read against when
- * the sky behind it goes pale in the light theme. */
-export function DeskApple({ palette }: { palette: Palette }) {
+ * the sky behind it goes pale in the light theme.
+ *
+ * It answers now (owner: "clicking on the apple logo should make it shimmer.
+ * also needs a hover"). One mechanism at two intensities: the pointer runs a
+ * slow, faint band across the mark and tightens the polish; a click fires one
+ * bright sweep across it. The prop itself never moves — it is square to the
+ * plank ON PURPOSE (the mark's face is the one near-mirror in the scene and
+ * off-square it swings out of the environment probe's lit half and goes
+ * black), so a hover that turned or lifted it would put the thing it is meant
+ * to show you into shadow. */
+export function DeskApple({
+  palette,
+  unitIndex,
+}: {
+  palette: Palette;
+  unitIndex: number;
+}) {
+  const HOVER = "shimmer:apple";
+  const setHovered = useStacks((s) => s.setHovered);
+  // Cloned, because the sweep is a per-instance texture OFFSET and the cache
+  // holds one image: two apples sharing it would sweep each other's band.
+  const texture = useMemo(() => {
+    const t = shimmerTexture().clone();
+    t.needsUpdate = true;
+    return t;
+  }, []);
+  const band = useRef<THREE.MeshBasicMaterial>(null);
+  const mark = useRef<THREE.MeshStandardMaterial>(null);
+  /** Seconds into a click sweep; negative is at rest. */
+  const sweep = useRef(-1);
+  /** Damped 0→1 hover level, driving both the polish and the idle band. */
+  const level = useRef(0);
+  const still = useMemo(() => reducedMotion(), []);
+  usePropClick(unitIndex, HOVER, () => {
+    if (still) return;
+    sweep.current = 0;
+  });
+  useFrame((_, delta) => {
+    const hot = useStacks.getState().hovered === HOVER ? 1 : 0;
+    if (Math.abs(level.current - hot) < 1e-3) level.current = hot;
+    else level.current = THREE.MathUtils.damp(level.current, hot, 5, delta);
+    const v = level.current;
+    if (mark.current) {
+      // The trophy's language, at the trophy's amplitude: the reflection
+      // brightens and tightens and eases back. See Glint in UnitProjects.
+      mark.current.envMapIntensity = 2.2 + 1.1 * v;
+      mark.current.roughness = 0.4 - 0.13 * v;
+    }
+    let opacity = 0.26 * v;
+    let offset = -SHIMMER_TRAVEL / 2 + ((performance.now() / 5200) % 1) * SHIMMER_TRAVEL;
+    if (sweep.current >= 0) {
+      sweep.current += Math.min(delta, 1 / 30); // a tab-switch delta would jump
+      if (sweep.current > SHIMMER_S) sweep.current = -1;
+      else {
+        const p = sweep.current / SHIMMER_S;
+        offset = -SHIMMER_TRAVEL / 2 + p * SHIMMER_TRAVEL;
+        // Zero at both ends so the band arrives and leaves rather than being
+        // switched on over the mark.
+        opacity = Math.max(opacity, Math.sin(p * Math.PI) * 0.95);
+      }
+    }
+    texture.offset.x = offset;
+    if (band.current && band.current.opacity !== opacity) {
+      band.current.opacity = opacity;
+      band.current.visible = opacity > 0.002;
+    }
+  });
   return (
-    <group>
+    <group
+      onPointerOver={(e) => {
+        if (useStacks.getState().activeUnit !== unitIndex) return;
+        e.stopPropagation();
+        setHovered(HOVER);
+      }}
+      onPointerOut={() => {
+        if (useStacks.getState().hovered === HOVER) setHovered(null);
+      }}
+    >
       {/* Bead-blasted, and a full stop darker than the mark. Polished it blew
           out under the lamp into a white bar that read as a strip of card
           rather than a block, and the drop in value is also what keeps the
@@ -390,6 +581,7 @@ export function DeskApple({ palette }: { palette: Palette }) {
           the mark appears to balance on. */}
       <mesh castShadow geometry={appleGeometry(0.15, 0.015)} position={[0, 0.017, 0]}>
         <meshStandardMaterial
+          ref={mark}
           color="#c2c6ca"
           metalness={0.9}
           // 0.4, not the 0.3 a polished billet wants. The room's IBL is three
@@ -405,6 +597,27 @@ export function DeskApple({ palette }: { palette: Palette }) {
           envMapIntensity={2.2}
         />
       </mesh>
+      {/* The sweep, on its own copy of the silhouette 0.2mm proud. Additive
+          and depth-tested against the mark it sits on, so it can only ever
+          brighten metal and never paints a shape onto the sky behind it —
+          the halo mistake, re-learned once already on the floor lamp. */}
+      <mesh
+        geometry={appleGeometry(0.15, 0.015)}
+        position={[0, 0.017, 0.0002]}
+        scale={[1.002, 1.002, 1.06]}
+        renderOrder={2}
+      >
+        <meshBasicMaterial
+          ref={band}
+          map={texture}
+          transparent
+          opacity={0}
+          visible={false}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          toneMapped={false}
+        />
+      </mesh>
       {/* Grounding travels with the prop (the BookPile rule) — a prop this
           small loses its footing the instant the base darkening drops. */}
       <ContactShade
@@ -417,64 +630,153 @@ export function DeskApple({ palette }: { palette: Palette }) {
   );
 }
 
-/** Paper inbox tray with fanned sheets — replaces the blank quote-card
- * trifold, the audit's worst single element (§3-Systems). */
-export function InboxTray({ palette }: { palette: Palette }) {
+/** A clipboard's board, in world units: 0.30 × 0.42 × 0.014. A real A5
+ * clipboard is 0.16 × 0.23 m, which at the shelf family's 2.00 units per metre
+ * is 0.32 × 0.46 — this is that, a hair under, so it stays clear of the top
+ * plank's neighbours. Exported because the seat below is derived from it. */
+const CLIPBOARD = { w: 0.3, h: 0.42, t: 0.014 } as const;
+
+/** The mount y at which a leaning clipboard rests on the plank, derived from
+ * its own box and its own tilt exactly as `polaroidSeat` is. The board is
+ * anchored at its bottom-back edge, so this is not `h/2·cos θ` — a bare
+ * literal here is the single most-regrown bug in this scene. */
+export const routineBoardSeat = (rotation: [number, number, number]) =>
+  seat(rotation, CLIPBOARD);
+
+/** The checklist printed on the sheet. Deliberately unreadable: the same
+ * "title marks" idiom the book spines use, because at the ~40 px this
+ * subtends real words would be a smear and fake words would be a lie. What
+ * has to READ is the shape — boxes down the left margin, three of them
+ * struck through — and that reads at any size. */
+const routineSheetCache = new Map<string, THREE.CanvasTexture>();
+function routineSheetTexture(ink: string): THREE.CanvasTexture {
+  const hit = routineSheetCache.get(ink);
+  if (hit) return hit;
+  const w = 256;
+  const h = 358;
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d")!;
+  ctx.fillStyle = "#f7f2e6";
+  ctx.fillRect(0, 0, w, h);
+  // A ruled margin, which is what makes a blank sheet read as a FORM.
+  ctx.strokeStyle = "rgba(150, 130, 100, 0.35)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(46, 24);
+  ctx.lineTo(46, h - 20);
+  ctx.stroke();
+  const rows = 7;
+  for (let i = 0; i < rows; i++) {
+    const y = 52 + i * 42;
+    const done = i < 3;
+    ctx.strokeStyle = ink;
+    ctx.globalAlpha = 0.72;
+    ctx.lineWidth = 3;
+    ctx.strokeRect(16, y - 11, 22, 22);
+    if (done) {
+      // A tick, drawn as a tick — two strokes, because a filled box reads as
+      // a black square and a black square is not a checked box.
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(19, y);
+      ctx.lineTo(26, y + 8);
+      ctx.lineTo(37, y - 9);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = done ? 0.3 : 0.55;
+    ctx.fillStyle = ink;
+    ctx.fillRect(60, y - 5, 60 + rand(i, 91) * 130, 7);
+    if (done) {
+      ctx.globalAlpha = 0.45;
+      ctx.fillRect(58, y - 2, 66 + rand(i, 91) * 130, 2);
+    }
+  }
+  ctx.globalAlpha = 1;
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.anisotropy = 4;
+  routineSheetCache.set(ink, texture);
+  return texture;
+}
+
+/**
+ * The daily checklist on a clipboard, standing up — the door to /routine.
+ *
+ * It replaces `InboxTray` (owner, of the tray: "wtf is this? Replace it with
+ * something better"). The tray was not badly built; it was badly ORIENTED. A
+ * letter tray is a shallow horizontal box and its contents are flat sheets, so
+ * at this camera — which sits 2.24° above the shelf line — everything that
+ * identified it was seen within a couple of degrees of edge-on. What arrived
+ * was a cream box with dark diagonal slabs in it, which is not a reading of a
+ * tray, it is the absence of one. The same geometry made the old ContactPools
+ * invisible and put the conference badge on its edge instead of on its face.
+ *
+ * So the replacement is chosen by that rule rather than by taste: **anything
+ * on this shelf that carries meaning has to stand up.** A clipboard is a
+ * vertical plane by construction, and the one mark it carries — a column of
+ * boxes with the first three ticked — survives being 40 px tall, which no
+ * arrangement of loose sheets does. It is also the more honest object for
+ * where it hangs: this prop is the link to /routine, and a checklist IS the
+ * routine, where a tray of paper was a metaphor for one.
+ *
+ * No GLB. `scripts/stacks-models.mjs` has 26 downloaded props and the pipeline
+ * research (memory: stacks-glb-props) records that CreativeTrio's CC0 set has
+ * no clipboard, notebook, planner or desk tray of any kind — "no CC0 notebook"
+ * is one of its durable negative results. Four boxes and a canvas is cheaper
+ * than the wrong model.
+ */
+export function RoutineBoard({ palette }: { palette: Palette }) {
+  const sheet = useMemo(() => routineSheetTexture(palette.ink), [palette.ink]);
   return (
-    // x1.9. The tray body was 0.38 wide = 0.19 m, and its sheets 0.30 = 0.15 m:
-    // a letter tray and a stack of A4 both at about half size, on a plank
-    // holding correctly-scaled books. 1.9 lands the body at 0.36 m against a
-    // real 0.35 and the sheets at 0.285 against A4's 0.297. Scaling the group
-    // keeps the sheets inside the walls that hold them.
-    // The grown tray is 0.806 wide once the −0.18 yaw is folded in, so its
-    // placement is now load-bearing: UnitSystems carries it at x 0.20, where
-    // it spans world −0.203…0.603 against a 1280 placard edge at +0.427 and
-    // arrives ~88% visible with its link comfortably clickable. Do not move it
-    // right, and re-check the span before scaling it again.
-    <group rotation={[0, -0.18, 0]} scale={1.9}>
-      <RoundedBox castShadow args={[0.38, 0.016, 0.28]} radius={0.004} smoothness={4} position={[0, 0.008, 0]}>
-        <meshStandardMaterial color={palette.strap} roughness={0.6} />
-      </RoundedBox>
-      {[-1, 1].map((side) => (
-        <RoundedBox
-          key={side}
-          castShadow
-          args={[0.014, 0.075, 0.28]}
-          radius={0.004}
-          smoothness={4}
-          position={[side * 0.183, 0.045, 0]}
-        >
-          <meshStandardMaterial color={palette.strap} roughness={0.6} />
-        </RoundedBox>
-      ))}
-      <RoundedBox castShadow args={[0.38, 0.075, 0.014]} radius={0.004} smoothness={4} position={[0, 0.045, -0.133]}>
-        <meshStandardMaterial color={palette.strap} roughness={0.6} />
-      </RoundedBox>
-      {/* fanned sheets inside, one riding up the back wall */}
-      {[0, 1, 2, 3].map((i) => (
-        <RoundedBox
-          key={i}
-          args={[0.3, 0.0045, 0.21]}
-          radius={0.002}
-          smoothness={2}
-          position={[rand(i, 83) * 0.02 - 0.01, 0.02 + i * 0.006, rand(i, 84) * 0.02 - 0.01]}
-          rotation={[0, rand(i, 85) * 0.16 - 0.08, 0]}
-        >
-          <meshStandardMaterial
-            color={i % 2 === 0 ? palette.paper : palette.pages}
-            roughness={0.95}
-          />
-        </RoundedBox>
-      ))}
+    // Anchored at the bottom-BACK edge, like a leaning print: the caller mounts
+    // it with routineBoardSeat() and it stands on the wood at any tilt.
+    <group position={[0, CLIPBOARD.h / 2, CLIPBOARD.t / 2]}>
       <RoundedBox
-        args={[0.28, 0.004, 0.2]}
-        radius={0.002}
-        smoothness={2}
-        position={[0, 0.085, -0.085]}
-        rotation={[-0.62, 0, 0.03]}
+        castShadow
+        args={[CLIPBOARD.w, CLIPBOARD.h, CLIPBOARD.t]}
+        radius={0.006}
+        smoothness={4}
       >
-        <meshStandardMaterial color={palette.paper} roughness={0.95} />
+        <meshStandardMaterial color={palette.woodDark} roughness={0.72} />
       </RoundedBox>
+      {/* The sheet, inset so a rim of board shows on all four sides — that
+          border is most of what says "clipboard" rather than "picture". */}
+      <mesh position={[0, -0.012, CLIPBOARD.t / 2 + 0.0015]}>
+        <planeGeometry args={[CLIPBOARD.w - 0.036, CLIPBOARD.h - 0.062]} />
+        <meshStandardMaterial map={sheet} roughness={0.94} />
+      </mesh>
+      {/* The clip. Metal exception, the DeskApple/trophy rule: the shared prop
+          atlas forces metalness 0, and a clipboard with a matte clip is a
+          rectangle with a smaller rectangle on it. */}
+      <RoundedBox
+        castShadow
+        args={[0.126, 0.038, 0.026]}
+        radius={0.006}
+        smoothness={3}
+        position={[0, CLIPBOARD.h / 2 - 0.03, CLIPBOARD.t / 2 - 0.002]}
+      >
+        <meshStandardMaterial
+          color={palette.metal}
+          metalness={0.65}
+          roughness={0.34}
+          envMapIntensity={1.6}
+        />
+      </RoundedBox>
+      {/* The roll bar across the clip's face. Laid along X — a cylinder is
+          Y-up by default, and left unrotated it stands the bar on end, which
+          is a rivet rather than a spring. */}
+      <mesh
+        position={[0, CLIPBOARD.h / 2 - 0.03, CLIPBOARD.t / 2 + 0.012]}
+        rotation={[0, 0, Math.PI / 2]}
+      >
+        <cylinderGeometry args={[0.007, 0.007, 0.104, 8]} />
+        <meshStandardMaterial
+          color={palette.metal}
+          metalness={0.65}
+          roughness={0.3}
+        />
+      </mesh>
     </group>
   );
 }
@@ -599,8 +901,8 @@ export function NotebookLean({
   );
 }
 
-/** Paper stack + pen for the Blog lower shelf. `linkUnit` makes the sheets
- * (the pen stays put) a door to the writing. */
+/** Paper stack + pen for the Blog lower shelf. `linkUnit` makes the stack —
+ * pen included — a door to the writing. */
 export function PaperStack({
   palette,
   linkUnit,
@@ -626,10 +928,34 @@ export function PaperStack({
       <meshStandardMaterial color={palette.paper} roughness={0.95} />
     </RoundedBox>
   ));
+  // The pen is a CHILD of the lift, not a sibling of it (owner: "the pen needs
+  // to move up with these papers"). It is lying ON the top sheet — its y 0.062
+  // is that sheet's surface — so when the stack rose under the pointer and the
+  // pen did not, the pen was left hanging in the gap the lift opened. Anything
+  // resting on a prop belongs inside that prop's lift; the ContactShade is the
+  // opposite case and stays outside, planted on the wood (the BookPile rule).
+  const pen = (
+    <mesh
+      key="pen"
+      castShadow
+      position={[0.12, 0.062, 0.1]}
+      rotation={[0, 0.9, Math.PI / 2]}
+    >
+      <cylinderGeometry args={[0.012, 0.012, 0.3, 12]} />
+      <meshStandardMaterial
+        color={palette.hub}
+        roughness={0.4}
+        metalness={0.3}
+      />
+    </mesh>
+  );
   return (
     <group>
       {linkUnit === undefined ? (
-        sheets
+        <>
+          {sheets}
+          {pen}
+        </>
       ) : (
         <PropLink
           unitIndex={linkUnit}
@@ -638,21 +964,53 @@ export function PaperStack({
           lift={[0, 0.022, 0.02]}
         >
           {sheets}
+          {pen}
         </PropLink>
       )}
-      <mesh
-        castShadow
-        position={[0.12, 0.062, 0.1]}
-        rotation={[0, 0.9, Math.PI / 2]}
-      >
-        <cylinderGeometry args={[0.012, 0.012, 0.3, 12]} />
-        <meshStandardMaterial
-          color={palette.hub}
-          roughness={0.4}
-          metalness={0.3}
-        />
-      </mesh>
     </group>
+  );
+}
+
+/**
+ * A drinks can, at the room's real scale, in whatever colour the shelf wants.
+ *
+ * The owner picked the model and asked "can we do a few diff colors?", so this
+ * exists to keep the SIZE in one place while the colour varies: three cans in
+ * three units diverging on scale would read as three different objects.
+ *
+ * soda-can.glb is 10.0583 tall by 6.1135 across, a ratio of 1.645 against a
+ * real 330 ml can's 115 / 66 = 1.742 — close enough that no correction is
+ * worth the distortion. At the shelves' 2.00 world units per metre a 115 mm can
+ * is 0.230 world, so the scale is 0.230 / 10.0583 = 0.02287 and it lands
+ * 0.140 across against a real 0.132.
+ *
+ * `F44336` is the body — the ONE colour slot. The base ring (78909C) and the
+ * tab (FFFFFF) are deliberately left alone: tint those and the can stops being
+ * aluminium and becomes a painted cylinder.
+ */
+export const SODA_CAN_SCALE = 0.02287;
+
+export function SodaCan({
+  dark,
+  body,
+  rotation = [0, 0, 0],
+}: {
+  dark: boolean;
+  /** The body colour, one per shelf. Palette-derived, never the stock red. */
+  body: string;
+  rotation?: [number, number, number];
+}) {
+  return (
+    <React.Suspense fallback={null}>
+      <ModelProp
+        url="/models/soda-can.glb"
+        dark={dark}
+        variant="tinted"
+        tints={{ F44336: body }}
+        rotation={rotation}
+        scale={SODA_CAN_SCALE}
+      />
+    </React.Suspense>
   );
 }
 

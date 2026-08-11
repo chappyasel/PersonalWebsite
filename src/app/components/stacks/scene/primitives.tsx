@@ -13,7 +13,7 @@ import { type Palette, PALETTES, proxied, rand } from "../theme";
 import { useStacks } from "../store";
 import { ContactShade } from "./GroundPool";
 import Lift, { LIFT_LAMBDA } from "./Lift";
-import PropLink from "./links";
+import PropLink, { type PropDestination } from "./links";
 import LitImage from "./LitImage";
 
 export type RowItem =
@@ -21,6 +21,16 @@ export type RowItem =
   | { kind: "flat"; x: number; n: number; colors: string[] }
   | { kind: "lean"; x: number; w: number; h: number; color: string }
   | { kind: "cover"; x: number; url: string; key: string };
+
+/** Width below which a spine gets no printed detail at all. Not every book on
+ * a shelf has bands and a title block — a row where all fourteen do is a
+ * wallpaper pattern, which is the other way to fail at "these are books". */
+const DETAIL_MIN_W = 0.068;
+/** Along-axis lean of a leaning spine, radians. Used at three places (the
+ * pose, the contact height, and the gap packRow opens in front of it), so it
+ * is declared once: a lean typed into two of the three is the bug this file
+ * keeps regrowing. */
+const LEAN = 0.17;
 
 export function packRow(
   width: number,
@@ -32,8 +42,17 @@ export function packRow(
   let x = -width / 2 + 0.1;
   let coverIdx = 0;
   let i = 0;
-  let flatUsed = false;
-  while (x < width / 2 - 0.25) {
+  let flats = 0;
+  let leaned = false;
+  // Two stacks on a long row, one on a short one. A single flat stack on a
+  // 2.9 row is one incident in three feet of upright spines.
+  const maxFlats = width > 2.4 ? 2 : 1;
+  // The tail margin exists so the loop can never start a 0.34-wide COVER it
+  // has no room to finish. A row with no covers to place has nothing to
+  // reserve for, and reserving anyway left a spine-only row a quarter of a
+  // unit short of the width it was asked for.
+  const tail = covers.length ? 0.25 : 0.1;
+  while (x < width / 2 - tail) {
     const roll = rand(i, salt);
     if (roll > 0.7 && coverIdx < covers.length) {
       const w = 0.34;
@@ -41,9 +60,34 @@ export function packRow(
       x += w + 0.04;
       coverIdx++;
     } else if (roll < 0.04) {
-      x += 0.06 + rand(i, salt + 1) * 0.08;
-    } else if (!flatUsed && roll >= 0.04 && roll < 0.1) {
-      // One horizontal stack lying on the row — real shelves are never all
+      // A gap, and — once per row — a book leaning back into it. A leaner
+      // mid-row is the single most "real shelf" thing a packed row can do, and
+      // it is only physically possible where there is somewhere to lean.
+      // The gap is a fixed 0.105 rather than the old 0.06…0.14 because it has
+      // to CLEAR the lean, and the clearance is small. The box turns about its
+      // own centre, so its top-left corner sits (w/2)·cos θ + (h/2)·sin θ left
+      // of centre: at the worst roll here (w 0.085, h 0.58) that is 0.0916, so
+      // 0.105 leaves 0.0134 between the leaner's head and the book behind it —
+      // touching, which is what leaning means, without passing through. An
+      // overlap here is exactly the kind a screenshot cannot show you, because
+      // interpenetration and layering look identical from one camera.
+      if (!leaned && x > -width / 2 + 0.5 && x < width / 2 - 0.6) {
+        x += 0.105;
+        items.push({
+          kind: "lean",
+          x,
+          w: 0.055 + rand(i, salt + 2) * 0.03,
+          h: 0.4 + rand(i, salt + 3) * 0.18,
+          color:
+            palette.spines[Math.floor(rand(i, salt + 4) * palette.spines.length)]!,
+        });
+        x += 0.075;
+        leaned = true;
+      } else {
+        x += 0.06 + rand(i, salt + 1) * 0.08;
+      }
+    } else if (flats < maxFlats && roll >= 0.04 && roll < 0.1) {
+      // A horizontal stack lying on the row — real shelves are never all
       // vertical (audit §3-Books).
       const n = 2 + Math.round(rand(i, salt + 6));
       items.push({
@@ -57,10 +101,20 @@ export function packRow(
         ),
       });
       x += 0.34 + 0.03;
-      flatUsed = true;
+      flats++;
     } else {
-      const w = 0.055 + rand(i, salt + 2) * 0.075;
-      const h = 0.4 + rand(i, salt + 3) * 0.2;
+      // Widths are drawn from two families rather than one flat range: most
+      // books on a shelf are 20–30 mm and a few are 45+ (an atlas, a monograph,
+      // the one hardback nobody finishes). A uniform 0.055…0.130 puts an even
+      // spread of intermediate thicknesses on the shelf, which is what makes a
+      // packed row read as extruded rather than collected.
+      const fat = rand(i, salt + 12) > 0.78;
+      const w = fat
+        ? 0.098 + rand(i, salt + 2) * 0.042
+        : 0.048 + rand(i, salt + 2) * 0.036;
+      // Tall books tend to be the fat ones, so the two correlate rather than
+      // being rolled independently.
+      const h = (fat ? 0.5 : 0.4) + rand(i, salt + 3) * 0.16;
       const color =
         palette.spines[Math.floor(rand(i, salt + 4) * palette.spines.length)]!;
       items.push({ kind: "spine", x: x + w / 2, w, h, color });
@@ -80,9 +134,24 @@ export function packRow(
   return items;
 }
 
-// Ridge bands + occasional title dashes for the widest spines, drawn on a
-// transparent overlay so the spine keeps its material color. Cached by
-// variant — the canvas count stays O(variants), not O(spines).
+/**
+ * The printing on a spine: hubs, rules, a title block, a publisher's panel.
+ *
+ * Drawn on a transparent overlay so the spine keeps its own material colour,
+ * and cached by variant — the canvas count stays O(variants), not O(spines),
+ * which is what lets every row in the world pay for this.
+ *
+ * Six kinds, because the failure mode of the previous two (bands, or bands +
+ * dashes) was that half the shelf carried an identical mark at an identical
+ * height. What a real row has is a handful of DIFFERENT conventions sitting
+ * next to each other: a clothbound with raised hubs, a paperback with a solid
+ * label panel, a gilt-ruled hardback, a modern jacket with type running the
+ * length of it, and one or two with nothing on them at all.
+ *
+ * All of it is unreadable by design. At this camera a spine is 6–14 px wide,
+ * so anything that resolves as letters would resolve as WRONG letters — the
+ * marks are the right size, weight and rhythm for type and nothing more.
+ */
 const spineDetailCache = new Map<string, THREE.CanvasTexture>();
 function spineDetailTexture(ink: string, variant: number): THREE.CanvasTexture {
   const key = `${ink}|${variant}`;
@@ -92,20 +161,48 @@ function spineDetailTexture(ink: string, variant: number): THREE.CanvasTexture {
   canvas.width = 64;
   canvas.height = 256;
   const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = "rgba(0,0,0,0.18)";
-  for (const y of [18, 30, 218, 230]) ctx.fillRect(6, y, 52, 5);
-  if (variant % 2 === 0) {
-    // Title marks — unreadable-by-design dashes where a title would sit.
+  const bandY = (v: number) => (variant % 2 === 0 ? v : v + 6);
+  const dashes = (top: number, bottom: number, w: number, seed: number) => {
     ctx.fillStyle = ink;
-    ctx.globalAlpha = 0.6;
-    let y = 68;
-    for (let j = 0; j < 3 + (variant % 3); j++) {
-      const h = 14 + rand(j, variant) * 22;
-      ctx.fillRect(26, y, 11, h);
-      y += h + 12;
-      if (y > 190) break;
+    ctx.globalAlpha = 0.62;
+    let y = top;
+    for (let j = 0; j < 6; j++) {
+      const h = 13 + rand(j, seed) * 24;
+      if (y + h > bottom) break;
+      ctx.fillRect(32 - w / 2, y, w, h);
+      y += h + 11;
     }
     ctx.globalAlpha = 1;
+  };
+  if (variant === 0) {
+    // Plain. Not an omission — see the note above.
+  } else if (variant === 1) {
+    // Raised hubs: the four ridges a sewn cloth binding has across its spine.
+    ctx.fillStyle = "rgba(0,0,0,0.20)";
+    for (const y of [58, 108, 158, 208]) ctx.fillRect(0, bandY(y), 64, 7);
+    ctx.fillStyle = "rgba(255,255,255,0.10)";
+    for (const y of [58, 108, 158, 208]) ctx.fillRect(0, bandY(y) - 3, 64, 3);
+  } else if (variant === 2) {
+    // Head and tail rules with type between them.
+    ctx.fillStyle = "rgba(0,0,0,0.18)";
+    for (const y of [18, 30, 218, 230]) ctx.fillRect(6, y, 52, 5);
+    dashes(70, 196, 11, variant);
+  } else if (variant === 3) {
+    // Paperback: a solid label panel with the title reversed out of it.
+    ctx.fillStyle = "rgba(255,252,244,0.62)";
+    ctx.fillRect(4, 52, 56, 152);
+    dashes(66, 190, 10, variant);
+  } else if (variant === 4) {
+    // Long type running the length of the spine, publisher's mark at the tail.
+    dashes(30, 214, 12, variant);
+    ctx.fillStyle = ink;
+    ctx.globalAlpha = 0.5;
+    ctx.fillRect(24, 226, 16, 12);
+    ctx.globalAlpha = 1;
+  } else {
+    // Gilt double rule top and bottom, nothing between.
+    ctx.fillStyle = "rgba(255,224,160,0.5)";
+    for (const y of [22, 32, 216, 226]) ctx.fillRect(8, y, 48, 3);
   }
   const texture = new THREE.CanvasTexture(canvas);
   spineDetailCache.set(key, texture);
@@ -133,6 +230,7 @@ export class CoverBoundary extends React.Component<
  * shelf is the rest of the library, so it opens the library. */
 function ShelfBook({
   linkUnit,
+  to = "books",
   hoverKey,
   base,
   lift,
@@ -141,6 +239,7 @@ function ShelfBook({
   children,
 }: {
   linkUnit?: number;
+  to?: PropDestination;
   hoverKey: string;
   base: [number, number, number];
   lift: [number, number, number];
@@ -159,7 +258,7 @@ function ShelfBook({
   return (
     <PropLink
       unitIndex={linkUnit}
-      to="books"
+      to={to}
       hoverKey={hoverKey}
       base={base}
       lift={lift}
@@ -319,6 +418,7 @@ export function BookRowMesh({
   coverWidth = 384,
   onCoverClick,
   linkUnit,
+  to = "books",
 }: {
   items: RowItem[];
   palette: Palette;
@@ -331,6 +431,9 @@ export function BookRowMesh({
   /** Unit index — set it and every non-cover book in the row becomes a door
    * into the library (gated on that unit being the active one). */
   linkUnit?: number;
+  /** Where those doors lead. The library for a row of books; Systems' row is
+   * the operating manual, and points at that instead. */
+  to?: PropDestination;
 }) {
   const setHovered = useStacks((s) => s.setHovered);
   // Contact darkening under the row. No light in the scene casts a shadow and
@@ -379,6 +482,7 @@ export function BookRowMesh({
           <ShelfBook
             key={i}
             linkUnit={linkUnit}
+            to={to}
             hoverKey={`link:row:${linkUnit}:${salt}:${i}`}
             // The roll turns the box about its own centre, so its lowest
             // corner is at −[(h/2)·cos θ + (w/2)·|sin θ|], not −h/2. An earlier
@@ -413,7 +517,12 @@ export function BookRowMesh({
                   roughness={0.55 + rand(i, salt + 6) * 0.35}
                 />
               </RoundedBox>
-              {item.w >= 0.09 && (
+              {/* Printing. DETAIL_MIN_W rather than the old 0.09: at 0.09
+                  only the fat family carried any mark at all, so a row read as
+                  two or three printed books standing in a block of blanks.
+                  Variant 0 is deliberately empty, so about a sixth of the row
+                  still has nothing on it. */}
+              {item.w >= DETAIL_MIN_W && (
                 <mesh position={[0, 0, depths[i]! / 2 + 0.001]}>
                   <planeGeometry args={[item.w * 0.9, item.h * 0.94]} />
                   <meshStandardMaterial
@@ -435,6 +544,7 @@ export function BookRowMesh({
               <ShelfBook
                 key={j}
                 linkUnit={linkUnit}
+                to={to}
                 hoverKey={`link:row:${linkUnit}:${salt}:${i}:${j}`}
                 // Step 0.052 = the book's own height, so the volumes touch;
                 // the old 0.054 left 2mm of daylight between every pair.
@@ -459,10 +569,11 @@ export function BookRowMesh({
           <ShelfBook
             key={i}
             linkUnit={linkUnit}
+            to={to}
             hoverKey={`link:row:${linkUnit}:${salt}:${i}`}
             base={[
               item.x,
-              (item.h / 2) * Math.cos(0.17) + (item.w / 2) * Math.sin(0.17),
+              (item.h / 2) * Math.cos(LEAN) + (item.w / 2) * Math.sin(LEAN),
               0,
             ]}
             lift={SPINE_LIFT}
@@ -472,7 +583,7 @@ export function BookRowMesh({
                 so the hinge below sits INSIDE it and pivots on the contact
                 edge of the LEANED book rather than of an upright one. The
                 mount y above is untouched. */}
-            <group rotation={[0, 0, 0.17]}>
+            <group rotation={[0, 0, LEAN]}>
               <SpineTip
                 hoverKey={`link:row:${linkUnit}:${salt}:${i}`}
                 name={`${SPINE_NODE}:${linkUnit}:${salt}:${i}`}
@@ -487,6 +598,20 @@ export function BookRowMesh({
                 >
                   <meshStandardMaterial color={item.color} roughness={0.65} />
                 </RoundedBox>
+                {item.w >= DETAIL_MIN_W && (
+                  <mesh position={[0, 0, 0.151]}>
+                    <planeGeometry args={[item.w * 0.9, item.h * 0.94]} />
+                    <meshStandardMaterial
+                      map={spineDetailTexture(
+                        palette.ink,
+                        Math.floor(rand(i, salt + 8) * 6),
+                      )}
+                      transparent
+                      depthWrite={false}
+                      roughness={0.7}
+                    />
+                  </mesh>
+                )}
               </SpineTip>
             </group>
           </ShelfBook>
@@ -1080,146 +1205,292 @@ export function GlowSprite({
   );
 }
 
-/** The lamp's light.
+/* ---------------------------------------------------------------------- *
+ * The desk lamp's shade, measured off desk-lamp.glb.
  *
- * v4.7: the mouth is now MEASURED, not guessed. The shade's opening is a
- * hole in desk-lamp.glb, so it is literally a boundary edge loop — the
- * edges used by exactly one triangle. There is exactly one such loop on the
- * shade: 16 points, centre [0, 0.3989, 0.0107], radius 0.0336, standard
- * deviation 0.0000, planar to ±1e-5. A perfect circle, no fitting required.
+ * v6: THE RIG WAS ON THE WRONG HOLE, and everything the owner reported about
+ * this lamp follows from that one fact.
  *
- * The old rig had the disc at [0, 0.292, 0.09] with radius 0.042 tilted
- * 0.595 rad — 10cm BELOW the real opening, 8cm proud of it, oversized, and
- * 32° off the shade's true axis. That is exactly the crescent of dark down
- * one side of the mouth the owner reported, and why the pool was thrown too
- * far forward: the spot was aimed along [0, −0.56, 0.83] when the shade
- * actually points [0, −0.917, 0.400].
+ * The v4.7 note that stood here was right about the method and wrong about
+ * which answer it had found. The shade is island #5 of the single mesh (110
+ * triangles, y 0.2777…0.4163), and it has exactly ONE boundary edge loop:
+ * 16 points, centre [0, 0.3989, 0.0107], radius 0.0336, sd 0.0000. That loop
+ * was taken to be the shade's mouth. It is the VENT at the narrow end — the
+ * little hole at the top-back of an angle-poise head, where the arm comes in.
  *
- * v4.4 rebuild. Three previous versions failed the same way — they FAKED
- * light with geometry (a bulb sphere, then a gradient beam cone, under a
- * one-world-unit additive haze sprite). Every fake reads as a decal the
- * moment the camera moves off-axis, and the haze was so wide it doubled as
- * weather. So: nothing here draws light except things that are actually
- * light. A SpotLight down the cup axis makes the pool, a small emissive
- * disc seals the mouth so the source itself is visibly hot, a shade-mouth
- * halo the size of the shade covers the no-composer path, and two weak
- * points warm the cup interior and the props beside it. On desktop the
- * halo you actually see is Bloom's, earned by the disc sitting above the
- * threshold — which is what makes it behave like light instead of a sticker.
+ * The real mouth has no boundary loop precisely because it is the good end:
+ * the rim is doubled (an outer wall at r 0.0562 folding to an inner wall at
+ * r 0.0524), so every edge there is used by two triangles and an edge-loop
+ * search cannot see it. Walking the island's radius along the axis finds it
+ * immediately — 16 verts at r 0.0336 at t 0, 32 verts at r 0.0543 at t 0.1100
+ * — and the bulb (island #6, 158 tris) sits at t 0.045…0.111, i.e. filling
+ * the shade right up to that plane. A bulb is at the wide end of a shade.
  *
- * `litRef` (the lamp-toggle egg's damped 0..1 factor) only threads to the
- * self-animating GlowSprite; lights and emissives are dimmed generically by
- * the egg's traverse, so this rig owns no toggle logic. */
-/** Measured from desk-lamp.glb's boundary edge loop — see LampGlow. */
-const MOUTH: [number, number, number] = [0, 0.3989, 0.0107];
-const MOUTH_R = 0.0336;
+ * So the whole rig — emissive disc, spotlight, halo, both points — has been
+ * sitting 0.1100 of model space (0.171 world at the shipped 1.55) up the axis
+ * from the opening, at 62% of its diameter, tucked into the vent behind the
+ * arm. That is exactly the report: the shade is unlit black plastic (nothing
+ * warm is anywhere near the fabric you can see), the light does not appear to
+ * come out of anything (the source is inside the head, pointed at its own
+ * lining), and the pool is a hard ellipse thrown too far forward (the spot
+ * starts 17 cm higher and further back than the mouth it is supposed to leave).
+ *
+ * All five numbers below are measured, and they are stated as a mouth-relative
+ * frame on purpose: `along(t)` walks the axis from the mouth, so every
+ * position in the rig reads as a distance out of (or back into) the opening
+ * rather than as a literal, and moving one cannot leave the others behind.
+ * ---------------------------------------------------------------------- */
+/** The vent at the narrow end — NOT the opening. Kept because it anchors the
+ * measurement chain and because the next person to run a boundary-loop search
+ * will find it and think they have found the mouth. */
+const SHADE_VENT: [number, number, number] = [0, 0.3989, 0.0107];
+const SHADE_VENT_R = 0.0336;
+/** Vent → mouth, i.e. the direction the shade points. */
+const AXIS: [number, number, number] = [0, -0.9167, 0.3996];
+/** Vent-plane to mouth-plane, along AXIS. */
+const SHADE_LEN = 0.11;
+/** The opening light actually leaves by — DERIVED from the vent and the axis
+ * rather than written down again. The two ends of one cone are one
+ * measurement, and this file's recurring bug is the second copy of a number
+ * that stops agreeing with the first. */
+const MOUTH: [number, number, number] = [
+  SHADE_VENT[0] + AXIS[0] * SHADE_LEN,
+  SHADE_VENT[1] + AXIS[1] * SHADE_LEN,
+  SHADE_VENT[2] + AXIS[2] * SHADE_LEN,
+];
+const MOUTH_R = 0.0543;
 /** Rotation about X that lays circleGeometry's +Z normal onto AXIS. */
 const MOUTH_TILT = 1.1597;
-const AXIS: [number, number, number] = [0, -0.9167, 0.3996];
+/** Rotation about X that lays cylinderGeometry's +Y onto −AXIS, so the cone's
+ * `radiusTop` end is the vent and its `radiusBottom` end is the mouth. */
+const SHADE_TILT = -0.411;
 
+/** A point `t` out of the mouth along the shade's axis (negative = back up
+ * inside the shade). Every position in the rig goes through this. */
+const along = (t: number): [number, number, number] => [
+  MOUTH[0] + AXIS[0] * t,
+  MOUTH[1] + AXIS[1] * t,
+  MOUTH[2] + AXIS[2] * t,
+];
+
+/** The ramp painted onto the desk lamp's shade — see ShadeGlow.
+ *
+ * 4 × 128 because nothing varies around the circumference. v = 0 is the
+ * cylinder's BOTTOM ring and CanvasTexture flips Y, so the gradient is written
+ * from canvas-bottom upward and the stops read mouth-rim → vent-rim. The peak
+ * sits at v 0.29, which is not a taste call: the bulb's island centre projects
+ * to t 0.078 of the shade's 0.110, i.e. 0.032 back from the mouth, and
+ * 0.032/0.110 = 0.29. Both ends arrive with a near-zero derivative for
+ * GlowSprite's reason — a ramp that stops at a rim draws a line there, and a
+ * line on a lampshade is a seam, not light. */
+let shadeTextureCache: THREE.CanvasTexture | null = null;
+function shadeTexture(): THREE.CanvasTexture {
+  if (shadeTextureCache) return shadeTextureCache;
+  const h = 128;
+  const canvas = document.createElement("canvas");
+  canvas.width = 4;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d")!;
+  const grad = ctx.createLinearGradient(0, h, 0, 0);
+  for (const [stop, a] of [
+    [0, 0.06], [0.1, 0.46], [0.2, 0.84], [0.29, 1],
+    [0.45, 0.8], [0.62, 0.46], [0.8, 0.18], [0.92, 0.05], [1, 0.02],
+  ] as const) {
+    grad.addColorStop(stop, `rgba(255, 201, 138, ${a})`);
+  }
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 4, h);
+  shadeTextureCache = new THREE.CanvasTexture(canvas);
+  return shadeTextureCache;
+}
+
+/** A lit lampshade is TRANSLUCENT, and this one is a flat opaque island of the
+ * dark theme atlas — which is why it reads as black plastic however much glow
+ * is piled around it. Same answer the floor lamp on Talks arrived at (see
+ * ShadeFabric in UnitTalks.tsx): a second cone carrying an additive ramp,
+ * brightest where the bulb is and falling to nothing at both rims, so the
+ * fabric glows from within instead of being filled flat.
+ *
+ * The two non-obvious parts, both inherited from that lamp because both were
+ * paid for there:
+ *
+ * - It sits INSIDE the measured shade (0.975) and wins the depth test with a
+ *   polygon offset, rather than standing proud of it. Standing proud draws a
+ *   hard pale outline all the way round the lamp, because the band of cone
+ *   hanging past the GLB's silhouette lands on the SKY and warm additive over
+ *   a night sky is grey. The offset here is −8 rather than the floor lamp's
+ *   −4: this shade is double-walled (0.0038 of model space between the walls),
+ *   so there are two surfaces to win against instead of one.
+ * - It is toneMapped, unlike the mouth disc. An additive layer this large held
+ *   above the ACES shoulder is exactly what blows out once the composer mounts
+ *   and Bloom compounds it. */
+function ShadeGlow({ day, postfx }: { day: boolean; postfx: boolean }) {
+  const texture = useMemo(() => shadeTexture(), []);
+  return (
+    <mesh position={along(-SHADE_LEN / 2)} rotation={[SHADE_TILT, 0, 0]}>
+      <cylinderGeometry
+        args={[
+          SHADE_VENT_R * 0.975,
+          MOUTH_R * 0.975,
+          SHADE_LEN * 0.985,
+          24,
+          1,
+          true,
+        ]}
+      />
+      <meshBasicMaterial
+        map={texture}
+        transparent
+        // Stronger than the floor lamp's 0.62/0.98 because it is fighting a
+        // dark shade rather than a cream one, and because this shade subtends
+        // about a fifth of the area on screen.
+        //
+        // Both paths are authored, not one scaled off the other, and the
+        // no-composer path is the MOBILE one — not just `?nopostfx`. Additive
+        // warm over a dark shade clips the red channel first and then the
+        // green, so at the strength that reads bright there it flattens to a
+        // WHITE shade with the warmth washed out (seen on a 390 px shot).
+        // Pulling the alpha back and pre-warming the colour holds the amber;
+        // the composited path has ACES doing that job and wants neither.
+        color={postfx ? "#ffffff" : "#ffb26a"}
+        opacity={(day ? 1 : 0.9) * (postfx ? 0.65 : 0.62)}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+        polygonOffset
+        polygonOffsetFactor={-8}
+        polygonOffsetUnits={-8}
+      />
+    </mesh>
+  );
+}
+
+/** The desk lamp's light.
+ *
+ * v4.4's rule still holds and is the reason this rig looks the way it does:
+ * nothing here draws light except things that are actually light. Three
+ * earlier versions FAKED it with geometry (a bulb sphere, a gradient beam
+ * cone, a one-world-unit additive haze) and every fake read as a decal the
+ * moment the camera moved off-axis. So: a SpotLight down the true cup axis
+ * makes the pool, a small emissive disc seals the mouth so the source is
+ * visibly hot, a shade-sized halo covers the no-composer path, ShadeGlow
+ * lights the fabric, and two weak points put the lamp's spill on the shelf
+ * and on the props beside it. On desktop the halo you actually see is Bloom's,
+ * earned by the disc sitting above the threshold.
+ *
+ * The one light this rig no longer spends is the interior one. It used to sit
+ * 0.03 back up the axis to make the cup glow — the job ShadeGlow now does far
+ * better and for no light at all — and there is nowhere safe to put it anyway:
+ * the bulb island fills t 0.045…0.111, so a point light inside this shade is
+ * always a few millimetres from geometry, which is the blown-hotspot failure
+ * the table lamp on Musings is currently exhibiting. It is respent on the
+ * room. The count is unchanged at three, which matters: three.js bakes light
+ * counts into every program.
+ *
+ * `litRef` (the lamp-toggle egg's damped 0..1 factor) only threads to the
+ * self-animating GlowSprite; lights, emissives and transparent materials are
+ * dimmed generically by the egg's traverse, so this rig owns no toggle logic.
+ *
+ * NOTE ON STRUCTURE, and it is the point of the v6 pass: this rig no longer
+ * takes a `yaw`. It used to, and the model took the same yaw separately, so
+ * the shade's orientation was written down twice and could disagree. EggLamp
+ * now carries the yaw AND the scale on the one group both the model and this
+ * rig hang from, which is the only arrangement in which the rig cannot come
+ * off the shade. `reach` remains, because a light's `distance` is a
+ * world-space falloff radius that no parent transform touches. */
 export function LampGlow({
   palette,
-  yaw = 0,
   litRef,
   reach = 1,
 }: {
   palette: Palette;
-  yaw?: number;
   litRef?: { current: number };
-  /** The parent group's uniform scale. Every position in this rig is in
-   * model space and rides that scale for free, but a light's `distance` is a
-   * world-space falloff radius that no transform touches — so it is the one
-   * number that has to be multiplied here. Intensities are deliberately left
-   * alone: the lamp got bigger, not brighter. */
+  /** The shared parent's uniform scale. Positions ride it for free; light
+   * `distance` does not, so it is the one number multiplied by hand.
+   * Intensities are left alone: the lamp got bigger, not brighter. */
   reach?: number;
 }) {
   const spotRef = useRef<THREE.SpotLight>(null);
   const targetRef = useRef<THREE.Object3D>(null);
+  const postfx = useStacks((s) => s.postfx);
+  const day = palette !== PALETTES.dark;
   useEffect(() => {
     if (spotRef.current && targetRef.current)
       spotRef.current.target = targetRef.current;
   }, []);
   return (
-    <group rotation={[0, yaw, 0]}>
-      {/* Halo, sized to the shade rather than to the bay — a glow wider than
-          the object making it is fog, not light. Centred just OUT of the
-          mouth along the axis, not on the mouth: centred on the mouth it
-          straddles the shade and reads as the whole lamp glowing, which is
-          the "trash lamp" failure mode all over again. */}
-      <group
-        position={[
-          MOUTH[0] + AXIS[0] * 0.05,
-          MOUTH[1] + AXIS[1] * 0.05,
-          MOUTH[2] + AXIS[2] * 0.05,
-        ]}
-      >
+    <group>
+      {/* The fabric, lit from inside. */}
+      <ShadeGlow day={day} postfx={postfx} />
+      {/* Halo, sized UNDER the opening it leaves and hugging it — the floor
+          lamp's rule, and it was broken here twice over. 0.18 against a mouth
+          0.1086 across was a halo 1.66× the width of the object making it,
+          which is fog; and it was hung off the vent, which is a ball of light
+          floating behind the head. 0.097 is 0.89 of the mouth, the same ratio
+          the floor lamp settled on, and 0.014 out of the rim rather than
+          0.05 — near enough that what you see is spill leaving a mouth. */}
+      <group position={along(0.014)}>
         <GlowSprite
           opacity={palette.glowOpacity}
           eased
-          scale={0.18}
+          scale={0.097}
           factorRef={litRef}
         />
       </group>
-      {/* Emissive disc ON the measured opening plane, a whisker inside the
-          rim so it can never silhouette past the shade from any angle. It
-          clears Bloom's 0.95 threshold, so on desktop the composer grows the
-          soft falloff for us. DoubleSide because the mouth faces down-and-
-          forward, i.e. away from a camera that sits above the shelf line. */}
+      {/* Emissive disc ON the measured opening plane, a whisker inside the rim
+          so it can never silhouette past the shade from any angle. It clears
+          Bloom's 0.95 threshold, so on desktop the composer grows the soft
+          falloff for us. DoubleSide because the mouth faces down-and-forward,
+          away from a camera sitting above the shelf line — which is also why
+          it is 2.0/1.1 and not the old flat 3.4: seen at ~26° off edge-on, a
+          disc held that far over the threshold is three clipped white pixels
+          rather than a warm source (the floor lamp's white-specks finding). */}
       <mesh position={MOUTH} rotation={[MOUTH_TILT, 0, 0]}>
-        <circleGeometry args={[MOUTH_R * 0.96, 28]} />
+        <circleGeometry args={[MOUTH_R * 0.94, 28]} />
         <meshStandardMaterial
           color="#fff1d6"
           emissive="#ffc98a"
-          emissiveIntensity={3.4}
+          emissiveIntensity={day ? 1.1 : 2}
           roughness={0.4}
           side={THREE.DoubleSide}
           toneMapped={false}
         />
       </mesh>
-      {/* The pool: a spot down the TRUE cup axis — light leaves the opening,
-          and it leaves along the direction the shade actually points. */}
+      {/* The pool: a spot from just inside the mouth, down the true axis.
+          7.5 → 4.3 is not a taste call either. The source moved 0.171 world
+          closer to the plank, and the throw from mouth to wood fell from 0.674
+          to 0.504, so the same intensity would have landed 1.79× the
+          irradiance — a brighter, tighter version of the hard ellipse that was
+          being complained about. 4.3 holds the old brightness; the angle opens
+          and the penumbra goes to 0.95 to take the edge off it. */}
       <spotLight
         ref={spotRef}
-        position={[MOUTH[0], MOUTH[1] - 0.004, MOUTH[2] + 0.002]}
+        position={along(-0.005)}
         color="#ffbe73"
-        intensity={7.5}
-        angle={0.66}
-        penumbra={0.85}
+        intensity={4.3}
+        angle={0.72}
+        penumbra={0.95}
         distance={3.6 * reach}
         decay={2}
       />
-      <object3D
-        ref={targetRef}
-        position={[
-          MOUTH[0] + AXIS[0] * 1.2,
-          MOUTH[1] + AXIS[1] * 1.2,
-          MOUTH[2] + AXIS[2] * 1.2,
-        ]}
-      />
-      {/* Inside the cup, ~3cm back up the axis: the shade's own interior has
-          to glow or the lamp reads as a torch someone left on a stick. */}
+      <object3D ref={targetRef} position={along(1.2)} />
+      {/* Close spill: the shade's outside, the stalk and the wood right under
+          the lamp. 0.114 world off the nearest rim at the shipped scale, which
+          is the clearance a point light needs to stay a glow rather than a
+          blown speck. */}
       <pointLight
-        position={[
-          MOUTH[0] - AXIS[0] * 0.03,
-          MOUTH[1] - AXIS[1] * 0.03,
-          MOUTH[2] - AXIS[2] * 0.03,
-        ]}
+        position={along(0.05)}
         color="#ffcf96"
-        intensity={0.22}
-        distance={0.42 * reach}
+        intensity={0.55}
+        distance={0.9 * reach}
         decay={2}
       />
       {/* Ambient kiss on the neighbouring props — the spot is a cone, so
-          without this the books a foot away sit in the dark next to a lit
-          lamp, which is the one thing a real desk lamp never does. */}
+          without this the objects a hand's width away sit in the dark next to
+          a lit lamp, which is the one thing a real desk lamp never does. */}
       <pointLight
-        position={[
-          MOUTH[0] + AXIS[0] * 0.16,
-          MOUTH[1] + AXIS[1] * 0.16,
-          MOUTH[2] + AXIS[2] * 0.16,
-        ]}
+        position={along(0.16)}
         color="#ffbe73"
-        intensity={0.85}
+        intensity={0.9}
         distance={1.9 * reach}
         decay={2}
       />

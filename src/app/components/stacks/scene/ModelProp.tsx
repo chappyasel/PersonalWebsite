@@ -22,8 +22,14 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { mergeVertices } from "three-stdlib";
 
-import { LIFT_LAMBDA } from "./Lift";
-import { useInteractionClaimed } from "./interaction";
+import { LIFT_LAMBDA, TIP, hingeShift } from "./Lift";
+import {
+  HOVER_MAX_SIZE,
+  type Hinge,
+  hingeFor,
+  litByOwnRig,
+  useInteractionClaimed,
+} from "./interaction";
 import {
   extractTriangles,
   findIslands,
@@ -49,11 +55,9 @@ export const MODEL_URLS = [
   "/models/open-book.glb",
   "/models/golf-club.glb",
   "/models/basketball.glb",
-  "/models/ct-books.glb",
   "/models/cup-tea.glb",
   "/models/corkboard.glb",
   "/models/grandfather-clock.glb",
-  "/models/ladder.glb",
   "/models/sansevieria.glb",
   "/models/potted-plant.glb",
   "/models/pothos.glb",
@@ -65,12 +69,24 @@ export const MODEL_URLS = [
   // late arrival an interaction gap rather than only a visual one.
   // `armchair.glb` came the other way: preloaded, and placed by nothing since
   // the About chair was swapped for the eames. This list is the placed set.
-  "/models/eames-chair.glb",
   "/models/monstera.glb",
   "/models/cactus.glb",
   "/models/lamp-floor.glb",
   "/models/lamp-table.glb",
   "/models/mac.glb",
+  // v7, the owner's own picks off poly.pizza. The couch is the seat's click
+  // target, so it belongs here for the same reason the eames-chair it replaced
+  // did: arriving late makes it an interaction gap, not just a visual pop.
+  //
+  // Three entries came OUT at the same time — ct-books, ladder and eames-chair
+  // — because the props they preloaded are no longer placed by anything. A
+  // stale entry here is not free: this list is fetched on every load and every
+  // byte of it counts against the models payload budget, while rendering
+  // nothing.
+  "/models/couch.glb",
+  "/models/microphone.glb",
+  "/models/soda-can.glb",
+  "/models/protein-powder.glb",
 ];
 
 /** Isa Lousberg's houseplants are a second atlas set: every prop in it
@@ -263,94 +279,13 @@ function ancestorHandlesHover(from: THREE.Object3D): boolean {
   return false;
 }
 
-/**
- * Is this prop lit by a rig authored AROUND it rather than inside it?
- *
- * The floor lamp on Talks is the pattern: the ModelProp is one child of a
- * group, and its spotLight, two glow sprites and two emissive shade discs are
- * SIBLINGS placed in the parent's frame at heights measured off the model
- * (SHADE_BOTTOM_Y / SHADE_TOP_Y). Move the model and it slides out of its own
- * light, which stays behind. The swell decouples it too — 1.5% of a 1.4-unit
- * lamp is 2 cm at the shade — so a prop like this gets no floor at all rather
- * than a lift-free one.
- *
- * Proximity is what makes this safe to ask. "Does my parent contain lights?"
- * is far too blunt: the mug on About shares its group with the desk lamp's
- * whole rig, and would lose its floor for standing next to a lamp. A light
- * that is PART of a prop sits inside that prop's own bounding box, so the test
- * is containment, not kinship. Two levels up, because the rig is often a
- * sibling of the trigger that wraps the model rather than of the model itself.
- */
-function litByOwnRig(group: THREE.Object3D, box: THREE.Box3): boolean {
-  const near = box.clone().expandByScalar(0.02);
-  // Real lights only, never sprites, and that is a measured decision rather
-  // than an oversight. ContactShade and FootPool are camera-facing SPRITES
-  // hugging a prop's base and nearly every prop on these shelves has one, so
-  // counting sprites disabled the floor almost everywhere it should apply. A
-  // contact shadow staying on the wood is the correct reading of a lift
-  // anyway — the object is rising off it. Excluding sprites by height instead
-  // fails on the hanging pothos, whose model is offset −0.144 so its own shade
-  // sits near the TOP of its box. Nothing is lost: every glow sprite in this
-  // scene accompanies a real light (see the floor lamp's rig and LampGlow), so
-  // the lights alone already identify every prop that owns a lighting rig.
-  const world = new THREE.Vector3();
-  let found = false;
-  const scan = (o: THREE.Object3D) => {
-    if (found || o === group) return; // never our own subtree
-    if (
-      (o as THREE.Light).isLight === true &&
-      near.containsPoint(o.getWorldPosition(world))
-    ) {
-      found = true;
-      return;
-    }
-    for (const child of o.children) scan(child);
-  };
-  let scope: THREE.Object3D | null = group.parent;
-  for (let up = 0; up < 2 && scope && !found; up++, scope = scope.parent) {
-    for (const child of scope.children) scan(child);
-  }
-  return found;
-}
-
-/**
- * Greatest world-space dimension, in scene units, above which a prop is
- * furniture and stops answering the pointer with a bob. The rule the owner
- * drew: the floor is for small shelf objects a person would pick up, and
- * furniture must not move when the pointer crosses it.
- *
- * A WORLD measurement taken after every scale in the chain, because `scale` is
- * a multiplier over source models that differ by an order of magnitude and
- * means nothing on its own — the floor lamp is scaled 1.67 and the mug 2.1,
- * and the lamp is three times the object.
- *
- * Measured, not guessed. Every GLB prop in the world, greatest world dimension
- * in scene units:
- *
- *   alarm-clock  0.269   desk-lamp    0.645  │  eames-chair       0.892
- *   cup-tea      0.366   lamp-table   0.650  │  golf-club         1.056
- *   headphones   0.408   pothos       0.664  │  ladder            1.259
- *   mug          0.418   basketball   0.670  │  lamp-floor        1.436
- *   potted-plant 0.471   cactus       0.696  │  monstera          1.691
- *                                            │  grandfather-clock 1.869
- *
- * The population is bimodal and the classes are exactly the semantic ones:
- * everything at or below 0.696 is something you would pick up off a shelf, and
- * everything at or above 0.892 is furniture. 0.78 sits in that empty band with
- * ~12% of margin on each side.
- *
- * Note this is deliberately looser than "30 cm on a shelf" (0.60 units at the
- * shelves' 2.00 units per metre), which the measurements rule out: it would
- * have cut the desk lamp, the table lamp, the basketball, the pothos and the
- * cactus, all of which are shelf objects. One threshold also covers both house
- * scales without special-casing, because nothing at the ~0.99 units-per-metre
- * floor scale comes anywhere near it — the armchair, the smallest of them,
- * is 0.90 m of real chair.
- */
-const FLOOR_MAX_SIZE = 0.78;
-
 /** Whether a prop that asked for the floor gets it, and why not if it doesn't.
- * `size` is reported either way — it is what the dev log is for. */
+ * `size` is reported either way — it is what the dev log is for.
+ *
+ * The size cutoff and the own-rig test both live in `interaction.ts` now, as
+ * `HOVER_MAX_SIZE` and `litByOwnRig` — the floor and Lift's nod are one rule
+ * about what the pointer may do to a prop, and two copies of it would drift.
+ * The reasoning behind each is written out there. */
 function floorVerdict(
   group: THREE.Object3D,
   force: boolean,
@@ -370,7 +305,7 @@ function floorVerdict(
   const size = Math.max(s.x, s.y, s.z);
   if (ancestorHandlesHover(group)) return { reason: "shell", size };
   if (litByOwnRig(group, box)) return { reason: "rig", size };
-  if (!force && size > FLOOR_MAX_SIZE) return { reason: "furniture", size };
+  if (!force && size > HOVER_MAX_SIZE) return { reason: "furniture", size };
   return { reason: null, size };
 }
 
@@ -390,6 +325,14 @@ function floorVerdict(
  * wrapper would drag a prop standing 1.3 m along the shelf sideways by 2 cm —
  * a slide, not a swell. Undoing that by the same factor scales about the
  * child's origin, which is where the prop meets the wood.
+ *
+ * The nod is the third channel, and it hinges the same way every other prop in
+ * the world does (see Lift's TIP and hingeFor): about the prop's own
+ * front-bottom edge, so the far half of the base rises off the plank instead
+ * of driving through it. It rides the SAME two gates as the rise — a prop too
+ * big to bob is too big to nod, and a prop wearing its own lighting rig gets
+ * neither, because turning a floor lamp slides its shade out of the spotlight
+ * that is a sibling of the model rather than a child of it.
  */
 function HoverFloor({
   name,
@@ -408,6 +351,13 @@ function HoverFloor({
   const hovered = useRef(false);
   const rise = useRef(0);
   const swell = useRef(1);
+  const nod = useRef(0);
+  /** undefined = not measured yet (a GLB may still be streaming), null =
+   * measured and refused. Resolved on first hover rather than in the mount
+   * effect for exactly that reason: `floorVerdict` runs before the first frame
+   * and can measure an empty box, and a hinge edge derived from an empty box
+   * is a hinge through the origin. */
+  const hinge = useRef<Hinge | null | undefined>(undefined);
   const still = useMemo(() => reducedMotion(), []);
   // Resolved once, after the tree has committed — the prop is attached and
   // measurable by then, every shell above it has its handlers, and a mounted
@@ -438,12 +388,28 @@ function HoverFloor({
     const g = ref.current;
     if (!g || inert) return;
     const on = hovered.current && !still;
+    // Measured lazily, and only once the pointer is actually on the prop — by
+    // then the GLB has certainly streamed in, and a prop nobody touches never
+    // pays for a bbox walk at all.
+    if (on && hinge.current === undefined) {
+      const measured = hingeFor(g, false, HOVER_MAX_SIZE);
+      if (measured) hinge.current = measured.reason ? null : measured;
+    }
+    const pivot = hinge.current?.pivot ?? null;
     const ty = on ? lift : 0;
     const ts = on ? grow : 1;
-    if (Math.abs(rise.current - ty) + Math.abs(swell.current - ts) < 1e-4) {
-      if (rise.current === ty && swell.current === ts) return; // settled
+    const tn = on && pivot ? TIP : 0;
+    if (
+      Math.abs(rise.current - ty) +
+        Math.abs(swell.current - ts) +
+        Math.abs(nod.current - tn) <
+      1e-4
+    ) {
+      if (rise.current === ty && swell.current === ts && nod.current === tn)
+        return; // settled
       rise.current = ty;
       swell.current = ts;
+      nod.current = tn;
     } else {
       rise.current = THREE.MathUtils.damp(rise.current, ty, LIFT_LAMBDA, delta);
       swell.current = THREE.MathUtils.damp(
@@ -452,15 +418,22 @@ function HoverFloor({
         LIFT_LAMBDA,
         delta,
       );
+      nod.current = THREE.MathUtils.damp(nod.current, tn, LIFT_LAMBDA, delta);
     }
     const base = g.children[0]?.position;
     const k = 1 - swell.current;
     g.scale.setScalar(swell.current);
+    g.rotation.x = nod.current;
     g.position.set(
       base ? base.x * k : 0,
       (base ? base.y * k : 0) + rise.current,
       base ? base.z * k : 0,
     );
+    // The hinge compensation, on top of the swell's own. Taken from the
+    // rotation the group HAS this frame, not the one it is easing toward, so
+    // the contact edge is pinned throughout the ease rather than only at the
+    // ends. Exactly zero at rest, so an untouched prop is where it always was.
+    if (pivot) g.position.add(hingeShift(pivot, g.rotation, undefined));
   });
   // The group stays mounted either way — dropping it would re-parent the model
   // and churn the graph other systems cache nodes out of. Only the handlers go.

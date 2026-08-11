@@ -15,7 +15,7 @@ import { ContactShade } from "../GroundPool";
 import PropLink, { HoverProp } from "../links";
 import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
-import { NotebookLean, PaperStack, Polaroid } from "../objects";
+import { NotebookLean, PaperStack, Polaroid, SodaCan } from "../objects";
 import { PhotoMount } from "../photos";
 import { Bookend, ShelfUnit } from "../primitives";
 import { useUnitLod } from "../useUnitLod";
@@ -67,15 +67,28 @@ function TableLampSwitch({
       >
         {children}
       </EggTrigger>
-      {/* 0.44 → 0.463 and 1.1 → 1.158: the light is a SIBLING of the model,
-          so the lamp's scale bump does not carry it. `distance` is a
-          world-space falloff radius and never inherits a parent scale
-          either — both have to be walked up by hand. */}
+      {/* 0.44 → 0.463 → 0.560, and 1.1 → 1.158 → 1.26. The light is a SIBLING
+          of the model, so the lamp's scale bump does not carry it, and
+          `distance` is a world-space falloff radius that never inherits a
+          parent scale either — both have to be walked by hand.
+          0.560 is the G2 fix, and the owner's own guess at it was backwards:
+          "the light source coming out of this lamp seems to flicker on
+          movement. please fix (by moving the light source down a little?)".
+          Measured cause — at 0.463 the emitter sat at model y 0.2315, which is
+          INSIDE the finial knob (body island #0 runs y 0…0.2352 with a 0.0172
+          world radius there), so peak irradiance was 3382·I on a knob whose
+          four harp wires are only ~3 px across on screen. A blown core behind
+          3-px wires aliases as the camera moves; that is the flicker. Moving
+          the light DOWN drives it further into the urn and makes it worse.
+          0.560 is model y 0.280, the middle of the shade void: the nearest
+          geometry becomes the finial tip at 0.0896 world (125·I, 27× less
+          peak) and the harp wires at 0.0920. The reach comes back up by the
+          same 0.097 the light rose, or the shelf under it goes dark. */}
       <pointLight
         ref={light}
-        position={[0, 0.463, 0]}
+        position={[0, 0.56, 0]}
         intensity={intensity}
-        distance={1.158}
+        distance={1.26}
         decay={2}
         color="#ffcf9a"
       />
@@ -101,7 +114,7 @@ export default function UnitBlog({
       toneSeed={index}
       lower={
         <group>
-          <group position={[0.25, 0, 0]}>
+          <group position={[0.18, 0, 0]}>
             <PaperStack palette={palette} linkUnit={index} />
             <ContactShade
               color={palette.shadow}
@@ -122,7 +135,7 @@ export default function UnitBlog({
           <Grabbable
             unitIndex={index}
             hoverKey="grab:mug"
-            base={[-0.55, 0, 0]}
+            base={[-0.62, 0, 0]}
             shadeColor={palette.shadow}
             shadeWidth={0.32}
           >
@@ -159,12 +172,33 @@ export default function UnitBlog({
               position={[0, 0.02, 0.01]}
             />
           </group>
+          {/* The last of the room's three cans — olive here, against the rust
+              on Training and the cool blue on Projects, so no two read the
+              same in either theme. It takes the gap the framed walk and the
+              pen cup leave, which is the last bare run on this shelf. */}
+          <group position={[-0.88, 0, 0.04]}>
+            <SodaCan
+              dark={dark}
+              body={dark ? palette.spines[2] : palette.spines[7]}
+              rotation={[0, 0.9, 0]}
+            />
+            <ContactShade
+              color={palette.shadow}
+              width={0.2}
+              position={[0, 0.02, 0.02]}
+            />
+          </group>
           {/* Joshua Tree solo walk — the contemplative register of the
-              unit, framed small on the empty lower-left. */}
+              unit, framed small on the empty lower-left.
+              −1.00 → −1.25 (H2): this shelf's readable width is −1.55…+0.47
+              and it was using −1.20…+0.88 of it, leaving 0.35 of bare plank
+              at the end the eye lands on first. The frame, the pen cup and
+              the paper each step 0.07 left; the table lamp at +0.72 does not
+              move (its light rig is being rebuilt elsewhere this round). */}
           <PhotoMount
             unitIndex={index}
             id="musings-walk"
-            position={[-1.0, 0.152, 0]}
+            position={[-1.25, 0.152, 0]}
             rotation={[-0.1, 0.14, 0]}
           >
             <RoundedBox
