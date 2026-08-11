@@ -8,11 +8,6 @@
 // Book URLs use a hash (#book-<id>) rather than a path: the home domain has no
 // /books route, so a path would 404 on reload; the hash reloads cleanly and
 // reopens the modal.
-import { useEffect } from "react";
-
-import { devSubdomainUrl } from "~/lib/util";
-import { BooksTRPCProvider } from "~/trpc/books-provider";
-
 import { ModalHost } from "../../../books/components/ModalHost";
 import {
   BookPreviewProvider,
@@ -21,6 +16,10 @@ import {
 } from "../../../books/contexts/BookPreviewContext";
 import { UNITS } from "../data";
 import { useStacks } from "../store";
+import { useEffect } from "react";
+
+import { devSubdomainUrl } from "~/lib/util";
+import { BooksTRPCProvider } from "~/trpc/books-provider";
 
 const BOOK_HASH = /^#book-(.+)$/;
 const BOOKS_UNIT = UNITS.findIndex((unit) => unit.slug === "books");
@@ -94,7 +93,9 @@ export default function StacksBookModal() {
     <BooksTRPCProvider>
       <BookPreviewProvider>
         <ModalBridge />
-        <ModalHost />
+        <ModalHost
+          presentation={{ source: "stacks", booksHref: booksBaseUrl() }}
+        />
       </BookPreviewProvider>
     </BooksTRPCProvider>
   );

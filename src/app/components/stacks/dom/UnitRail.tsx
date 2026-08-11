@@ -9,27 +9,44 @@
 // `unit.icon`, which are the section's OWN name and glyph (see data.ts) — the
 // rail used to carry a second, shorter set of names that disagreed with the
 // placards they led to.
-import { useEffect, useRef } from "react";
-
-import { UNIT_COUNT, UNITS } from "../data";
+import { UNITS, UNIT_COUNT } from "../data";
 import { progressRef, useStacks } from "../store";
+import { useEffect, useRef } from "react";
 
 /** Desktop row height, in rem. The rows are `h-10` and the travelling thumb
  * translates by this per unit, so the two must agree — one number, used
  * twice, rather than a class and a magic multiplier that drift apart. */
 const ROW_REM = 2.5;
+/** The mobile buttons and thumb share this one rem-sized step. Keeping the
+ * transform in rem means a root type-scale change adjusts both immediately;
+ * there is no pixel measurement or ResizeObserver cadence to fall behind. */
+const MOBILE_STEP_REM = 2.75;
 
 export default function UnitRail() {
   const activeUnit = useStacks((s) => s.activeUnit);
   const thumbRef = useRef<HTMLDivElement>(null);
+  const mobileThumbRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let raf = 0;
+    let lastProgress = Number.NaN;
     const tick = () => {
+      const progress = progressRef.current;
       const thumb = thumbRef.current;
-      if (thumb) {
+      const mobileThumb = mobileThumbRef.current;
+      // The camera loop publishes continuously, including while the room is
+      // at rest. Avoid dirtying two DOM styles every animation frame when the
+      // shared progress value has not changed; rem-based transforms still
+      // respond to a root font-size change without another write.
+      if (progress !== lastProgress) {
         // Track height is (UNIT_COUNT - 1) gaps of one row.
-        thumb.style.transform = `translateY(${progressRef.current * (UNIT_COUNT - 1) * ROW_REM}rem)`;
+        if (thumb) {
+          thumb.style.transform = `translateY(${progress * (UNIT_COUNT - 1) * ROW_REM}rem)`;
+        }
+        if (mobileThumb) {
+          mobileThumb.style.transform = `translateX(${progress * (UNIT_COUNT - 1) * MOBILE_STEP_REM}rem)`;
+        }
+        lastProgress = progress;
       }
       raf = requestAnimationFrame(tick);
     };
@@ -52,69 +69,46 @@ export default function UnitRail() {
   return (
     <>
       <style>{`
-        /* ── The contrast floor ──────────────────────────────────────────
-           Every mark in this rail floats on a live 3D scene, and the thing
-           behind any given one is whatever the traverse and the theme put
-           there: a night sky, a lit bridge tower, a white morning. A fixed
-           grey has no guaranteed contrast against that, which is why the
-           mobile row read as a few faint dashes.
-
-           So each mark carries its own backing rather than relying on the
-           scene to be dark or light. The halo is drawn in the BACKGROUND
-           colour, so it lightens around dark glyphs on the light theme and
-           darkens around light ones on dark — the same trick the shared
-           section headings already use (text-shadow 0 0 20px white, black in
-           dark).
-
-           The two 1px passes are a RING, not a glow, and the order matters:
-           each drop-shadow shadows the output of the one before it, so two
-           1px passes compound into a near-solid 2px outline that separates
-           the stroke from whatever it is lying on. That is what does the
-           work over a large mid-tone mass; a soft blur alone cannot, because
-           a blur wide enough to cover 14px type is a smear. The 4px pass
-           behind them is the soft part, and it is what carries a mark that
-           sits on plain sky.
-
-           drop-shadow rather than text-shadow because it has to cover the
-           icon as well as the label, and one filter stack serves both.
-
-           HOW FAR THIS GOES, measured rather than asserted, on all seven
-           units in both themes with the filter forced off for comparison:
-
-             MOBILE row (the marks are icons, so the 3:1 non-text floor):
-               light  3.57 worst, 2.98 with the halo off
-               dark   5.07 worst, 3.37 with the halo off
-             DESKTOP rail (the marks are 14px labels, so 4.5:1 is the bar):
-               light  2.77 worst, 1.30 with the halo off
-               dark   6.56 worst, 4.46 with the halo off
-
-           So the halo is doing real work — it roughly doubles the worst case
-           on the punishing side — but the desktop rail does NOT have a floor
-           the way the mobile row does, and saying it did would be a lie the
-           next person would have to discover. The mobile row lives in a strip
-           of sky whose luminance moves 1.4x across the whole traverse. The
-           desktop rail crosses the entire room, 4.9x on light, and About
-           parks a mid-tone orange armchair directly behind it: every label on
-           unit 0 lands at 2.8–3.5 against 1.3–1.8 unhaloed. A 2px ring cannot
-           take 14px type over a large mid-tone mass to AA; only a backing
-           surface or moving the mass would, and both are somebody else's
-           call. The residual is unit 0 on light, and it is logged, not
-           papered over. */
+        /* The rail floats over a live scene, so its local edge needs to work
+           over both sky and furniture. Use the theme background as a crisp
+           zero-blur separator around the foreground glyph. This is an edge,
+           not a backing surface or halo: no blur radius, no broad luminance
+           patch, and no fog spreading into the scene. */
         .stacks-rail-row {
-          filter:
-            drop-shadow(0 0 1px hsl(var(--background)))
-            drop-shadow(0 0 1px hsl(var(--background)))
-            drop-shadow(0 0 4px hsl(var(--background) / 0.85));
+          /* A crisp one-pixel separation keeps the glyph legible without the
+             diffuse backing glow that made the rail look fogged in. */
+          filter: drop-shadow(0 1px 0 hsl(var(--background) / 0.82));
         }
-        /* Inactive marks step back rather than disappear, and 0.85 is
-           measured rather than picked: scoring every mark's own glyph against
-           its own local backdrop, on all seven units in both themes, 0.70
-           held 4.3:1 on dark but only 2.5:1 on light — under the 3:1 AA floor
-           for a non-text indicator, which is what these are. At 0.85 the
-           worst mobile mark is 3.42:1 light, 4.47:1 dark.
-
-           The active mark stays at 1 and keeps a bar twice as wide, so
-           stepping the rest up does not cost the row its "you are here". */
+        /* Compact widths put the persistent name and icon rail over a wide
+           range of shelf/sky values. Four zero-blur
+           strokes provide a crisp local edge in both themes; there is no
+           backing plate and no diffuse glow spreading into the scene. */
+        @media (width < 1200px) {
+          .stacks-unit-rail-mobile {
+            top: calc(env(safe-area-inset-top, 0px) + 3.5rem);
+            padding-left: env(safe-area-inset-left, 0px);
+            padding-right: env(safe-area-inset-right, 0px);
+          }
+          .stacks-rail-row {
+            filter:
+              drop-shadow(1px 0 0 hsl(var(--background) / 0.94))
+              drop-shadow(-1px 0 0 hsl(var(--background) / 0.94))
+              drop-shadow(0 1px 0 hsl(var(--background) / 0.94))
+              drop-shadow(0 -1px 0 hsl(var(--background) / 0.94));
+          }
+          .stacks-reveal > p {
+            color: hsl(var(--foreground) / 0.96);
+            font-weight: 600;
+            text-shadow:
+              1px 0 0 hsl(var(--background) / 0.94),
+              -1px 0 0 hsl(var(--background) / 0.94),
+              0 1px 0 hsl(var(--background) / 0.94),
+              0 -1px 0 hsl(var(--background) / 0.94);
+          }
+        }
+        /* Inactive glyphs step back just enough to leave the full-opacity
+           icon plus moving thumb as the current-position signal. They stay
+           near foreground strength because the scene beneath is variable. */
         .stacks-rail-icon {
           opacity: 0.85;
           transition: opacity 0.3s ease-out;
@@ -167,7 +161,7 @@ export default function UnitRail() {
       {/* Desktop: vertical labeled rail */}
       <nav
         aria-label="Sections"
-        className="pointer-events-auto absolute left-5 top-1/2 z-30 hidden -translate-y-1/2 md:block lg:left-7"
+        className="pointer-events-auto absolute left-5 top-1/2 z-30 hidden -translate-y-1/2 min-[1200px]:left-7 min-[1200px]:block"
       >
         <div className="relative flex flex-col">
           {/* A short vertical bar rather than the dot this used to be. It now
@@ -193,7 +187,7 @@ export default function UnitRail() {
                 // ~20% up from the h-8 / text-xs this was: the rail is the
                 // map of the whole page and it was reading as a footnote.
                 // pl-4 is the thumb's lane, so the icons start clear of it.
-                className={`stacks-rail-row group flex h-10 items-center pl-4 text-left font-serif text-sm tracking-wide transition-colors duration-300 ${
+                className={`stacks-rail-row group flex h-10 items-center rounded-lg pl-4 text-left font-serif text-sm tracking-wide transition-colors duration-300 focus-visible:ring-2 focus-visible:ring-foreground/40 ${
                   active
                     ? "text-foreground"
                     : "text-muted-foreground hover:text-foreground"
@@ -202,7 +196,7 @@ export default function UnitRail() {
                 <span className="stacks-rail-inner flex items-center gap-2.5">
                   <Icon
                     aria-hidden
-                    weight="duotone"
+                    weight="bold"
                     className="stacks-rail-icon size-4 shrink-0"
                   />
                   {unit.label}
@@ -233,12 +227,13 @@ export default function UnitRail() {
           easier to see". Two things were wrong and only one of them was
           size: a 10x3px mark is small, but a mark with no contrast floor is
           invisible at any size. So the marks are now the sections' own
-          glyphs at 19px, they carry the halo above, and the bar survives
-          underneath as the position indicator. A visitor also gets to see
+          glyphs at 19px, they carry the crisp theme-coloured edge above, and
+          the bar survives underneath as the position indicator. A visitor gets to see
           WHICH seven things the row is, which the dashes never told them.
 
-          Seven 44px columns is 308px, so the row still fits a 320px screen
-          with margin, and 44 remains the axis a thumb actually misses. */}
+          Seven 2.75rem columns is 19.25rem, so the row still fits a 320px
+          screen with margin. The same MOBILE_STEP_REM constant drives each
+          button and the thumb, so their travel axes cannot detach. */}
       {/* pointer-events on the BUTTONS, not the nav. The nav spans the full
           width so the row can centre, and an interactive container that wide
           would deaden a strip straight across the room — including the empty
@@ -246,46 +241,37 @@ export default function UnitRail() {
           behind. */}
       <nav
         aria-label="Sections"
-        className="pointer-events-none absolute inset-x-0 top-14 z-30 flex justify-center md:hidden"
+        className="stacks-unit-rail-mobile pointer-events-none absolute inset-x-0 z-30 flex justify-center min-[1200px]:hidden"
       >
-        {UNITS.map((unit, i) => {
-          const Icon = unit.icon;
-          const active = i === activeUnit;
-          return (
-            <button
-              key={unit.slug}
-              type="button"
-              aria-label={unit.label}
-              aria-current={active ? "true" : undefined}
-              data-active={active || undefined}
-              onClick={() => go(i)}
-              className="stacks-rail-row pointer-events-auto flex h-12 w-11 flex-col items-center justify-center gap-1 text-foreground"
-            >
-              <Icon
-                aria-hidden
-                weight="duotone"
-                className="stacks-rail-icon size-[19px] shrink-0"
-              />
-              {/* Bars, not dots, and that is about the sky behind them.
-                  Round marks put this row in a straight visual tie with the
-                  starfield: same shape, same size, and the stars sit at
-                  whatever x the current unit's sky happens to put them. Two
-                  separate readers counted a doubled dot at position 4, which
-                  was a star a few px off a real one — and travelling to
-                  another unit just moves the collision to a different pair,
-                  so it is the shape that is wrong, not the placement. Width
-                  also carries the active state better than a scale did: a bar
-                  that grows reads as progress along a row, where a dot that
-                  swells only reads as a slightly bigger dot. */}
-              <span
-                aria-hidden
-                className={`h-[3px] rounded-full transition-all duration-300 ${
-                  active ? "w-4 bg-foreground/90" : "w-2 bg-foreground/50"
-                }`}
-              />
-            </button>
-          );
-        })}
+        <div className="relative flex">
+          <div
+            ref={mobileThumbRef}
+            aria-hidden
+            className="absolute bottom-1 left-3 h-1 w-5 rounded-full bg-foreground/85 shadow-[0_1px_0_hsl(var(--background)/0.8)] will-change-transform"
+          />
+          {UNITS.map((unit, i) => {
+            const Icon = unit.icon;
+            const active = i === activeUnit;
+            return (
+              <button
+                key={unit.slug}
+                type="button"
+                aria-label={unit.label}
+                aria-current={active ? "true" : undefined}
+                data-active={active || undefined}
+                onClick={() => go(i)}
+                className="stacks-rail-row pointer-events-auto flex h-12 items-center justify-center rounded-xl pb-1 text-foreground focus-visible:ring-2 focus-visible:ring-foreground/50"
+                style={{ width: `${MOBILE_STEP_REM}rem` }}
+              >
+                <Icon
+                  aria-hidden
+                  weight="bold"
+                  className="stacks-rail-icon size-[22px] shrink-0"
+                />
+              </button>
+            );
+          })}
+        </div>
       </nav>
     </>
   );

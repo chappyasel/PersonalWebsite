@@ -151,12 +151,25 @@
 }
 
 @layer base {
+  html {
+    @apply bg-background;
+    min-height: 100%;
+  }
   * {
     @apply border-border;
   }
   body {
     @apply bg-background text-foreground;
+    min-height: 100%;
     font-family: var(--font-selected), Georgia, serif;
+  }
+  /* The fixed Stacks world owns scrolling while it is active. Scope the
+     rubber-band suppression to that mode so the site's document pages retain
+     native mobile scrolling. `data-world` is installed before first paint and
+     remains `ready` for the lifetime of the mounted world. */
+  html[data-world],
+  html[data-world] body {
+    overscroll-behavior: none;
   }
   /* Remove default focus outlines - components handle their own focus styles */
   button:focus,
@@ -171,9 +184,8 @@ html[data-font="georgia"] {
 }
 
 html[data-font="system"] {
-  --font-selected:
-    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+  --font-selected: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
 }
 
 html[data-font="literata"] {
@@ -289,10 +301,11 @@ html[data-world="ready"] .stacks-boot {
  * it is ceremony — you watch a progress indicator narrate a wait that isn't
  * happening.
  *
- * So the boot screen starts invisible and only fades in if the prediction was
- * wrong. It is NOT hidden: a warm flag plus an evicted cache (or a plane, or
- * a hotel wifi) is a real combination, and hiding the loader there would put
- * a blank background up for twenty seconds with nothing to say for itself.
+ * So the shelf indicator starts invisible and only fades in if the prediction
+ * was wrong. The boot surface itself stays present: a warm flag plus an
+ * evicted cache (or a plane, or a hotel wifi) is a real combination, and the
+ * surface gives the eventual reveal the same fade path whether or not the
+ * indicator had time to appear.
  *
  * The grace has to be CSS, not React. On a throttled connection React is not
  * hydrated for the first several seconds of the load — the exact window this
@@ -308,9 +321,10 @@ html[data-world="ready"] .stacks-boot {
  * screen reads as a broken page. The 400ms fallback covers a record with no
  * duration in it.
  */
-html[data-world="warm"] .stacks-boot {
+html[data-world="warm"] .stacks-boot-shelf {
   opacity: 0;
-  animation: stacks-boot-late 220ms ease var(--stacks-warm-grace, 400ms) forwards;
+  animation: stacks-boot-late 220ms ease var(--stacks-warm-grace, 400ms)
+    forwards;
 }
 @keyframes stacks-boot-late {
   to {
@@ -331,7 +345,50 @@ html[data-world="warm"] .stacks-boot {
 }
 
 .stacks-boot-shelf {
+  position: relative;
+  isolation: isolate;
   width: 190px;
+  transition:
+    opacity 300ms ease,
+    transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* A narrow pool of light belongs to this room's visual language, but it is
+   deliberately local to the shelf rather than a diffuse page glow. It gives
+   the little object one place in the otherwise quiet field without competing
+   with the actual room that is about to replace it. */
+.stacks-boot-shelf::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  bottom: -18px;
+  width: 248px;
+  height: 82px;
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    hsl(35 48% 72% / 0.13) 0%,
+    hsl(35 36% 72% / 0.055) 42%,
+    transparent 74%
+  );
+  transform: translateX(-50%);
+}
+
+.stacks-boot-title {
+  margin: 0 0 10px;
+  color: hsl(var(--foreground) / 0.58);
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.16em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+html[data-world="ready"] .stacks-boot-shelf {
+  opacity: 0;
+  transform: translateY(7px) scale(0.985);
 }
 
 .stacks-boot-spines {
@@ -410,6 +467,8 @@ html[data-world="warm"] .stacks-boot {
   border-radius: 2px;
   overflow: hidden;
   background: hsl(28 22% 42% / 0.55);
+  transform-origin: center;
+  animation: stacks-boot-plank-arrive 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 /* The still-working signal. The spines hold position between assets, so
    without this a slow download is indistinguishable from a dead one. */
@@ -434,7 +493,58 @@ html[data-world="warm"] .stacks-boot {
   }
 }
 
+@keyframes stacks-boot-plank-arrive {
+  from {
+    opacity: 0;
+    transform: scaleX(0.72);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+/* The room renders at full fidelity behind an opaque compositor layer. The
+   curtain, rather than the canvas/DOM world, fades away: filtering or
+   transforming the world itself creates a new backdrop root and changes the
+   appearance of every frosted placard. Cold visits get a measured dissolve;
+   a predicted-warm visit is deliberately briefer and never replays the full
+   loading ceremony. */
+.stacks-world-shell {
+  background: hsl(var(--background));
+}
+
+.stacks-world-curtain {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  background: hsl(var(--background));
+  opacity: 1;
+  visibility: visible;
+  pointer-events: none;
+  transition:
+    opacity 520ms cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0s linear 520ms;
+}
+
+.stacks-world-shell[data-load-path="warm"] .stacks-world-curtain {
+  transition-duration: 280ms, 0s;
+  transition-delay: 0s, 280ms;
+}
+
+.stacks-world-shell[data-revealed] .stacks-world-curtain {
+  opacity: 0;
+  visibility: hidden;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .stacks-boot,
+  .stacks-boot-shelf,
+  .stacks-boot-plank,
+  .stacks-world-curtain {
+    animation: none;
+    transition: none;
+  }
   .stacks-boot-plank::after {
     animation: none;
     opacity: 0;

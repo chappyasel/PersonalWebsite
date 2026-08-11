@@ -7,17 +7,23 @@ import {
   PerformanceMonitor,
   ScrollControls,
   useProgress,
+  useScroll,
 } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
 import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type * as THREE from "three";
 
-import { UNIT_COUNT, type StacksData } from "./data";
+import { type StacksData, UNIT_COUNT } from "./data";
 import { setLoadProgress } from "./loading";
 import Scene from "./scene/Scene";
-import { getSeatAmount, isSeated, leaveSeat, requestSeat } from "./scene/seated";
+import {
+  getSeatAmount,
+  isSeated,
+  leaveSeat,
+  requestSeat,
+} from "./scene/seated";
 import { CAMERA } from "./scene/worldLayout";
 import { progressRef, useStacks } from "./store";
 import { PALETTES } from "./theme";
@@ -26,6 +32,27 @@ import { PALETTES } from "./theme";
 // single postfx byte. Mount/unmount ONLY (never enabled={false}: a mounted-
 // disabled composer pins the renderer to NoToneMapping = blown frame).
 const Effects = dynamic(() => import("./scene/Effects"), { ssr: false });
+
+/** Touch skips the expensive post-processing chain, so it can spend a little
+ * more of that budget on the base framebuffer. DPR 3 phones are still capped
+ * at 1.5; PerformanceMonitor drops them to 1 after a sustained decline. */
+const TOUCH_DPR_RANGE: [number, number] = [1, 1.5];
+
+/** Drei's overflow element is natively keyboard-focusable, so leaving it
+ * unnamed makes the first Tab stop a full-viewport anonymous div. Name the
+ * region without replacing the rail's explicit section controls. */
+function ScrollRegionA11y() {
+  const { el } = useScroll();
+  useEffect(() => {
+    el.setAttribute("role", "region");
+    el.setAttribute("aria-label", "Horizontal scene navigation");
+    return () => {
+      el.removeAttribute("role");
+      el.removeAttribute("aria-label");
+    };
+  }, [el]);
+  return null;
+}
 
 let glRef: THREE.WebGLRenderer | null = null;
 let sceneRef: THREE.Scene | null = null;
@@ -189,6 +216,16 @@ function installDevHooks() {
         hovered,
         dragging,
         dpr: glRef?.getPixelRatio() ?? null,
+        framebuffer: glRef
+          ? {
+              buffer: [glRef.domElement.width, glRef.domElement.height],
+              css: [
+                glRef.domElement.clientWidth,
+                glRef.domElement.clientHeight,
+              ],
+              deviceDpr: window.devicePixelRatio,
+            }
+          : null,
         textures: glRef?.info.memory.textures ?? null,
         geometries: glRef?.info.memory.geometries ?? null,
         calls: glRef?.info.render.calls ?? null,
@@ -247,6 +284,21 @@ export default function StacksCanvas({
   // One-way degrade ladder: sustained low fps steps dpr → dust → shadows.
   // Never steps back up — flip-flopping reads worse than a stable floor.
   const [degrade, setDegrade] = useState(0);
+  const ownedRenderer = useRef<THREE.WebGLRenderer | null>(null);
+
+  useEffect(
+    () => () => {
+      // Module-level refs exist only for the development harness. Do not let
+      // an unmounted world keep a disposed renderer/scene/camera reachable or
+      // leave hooks pointing at the previous route's graph.
+      if (glRef !== ownedRenderer.current) return;
+      glRef = null;
+      sceneRef = null;
+      cameraRef = null;
+      if (process.env.NODE_ENV !== "production") delete window.__stacks;
+    },
+    [],
+  );
 
   // Composer path: desktop only, and unmounted at the SAME rung that drops
   // dpr (N8AO × adaptive-dpr is a known-bad pair). ?nopostfx forces the
@@ -254,8 +306,10 @@ export default function StacksCanvas({
   const postfx =
     !isTouch &&
     degrade === 0 &&
-    !(typeof window !== "undefined" &&
-      window.location.search.includes("nopostfx"));
+    !(
+      typeof window !== "undefined" &&
+      window.location.search.includes("nopostfx")
+    );
   const setPostfx = useStacks((s) => s.setPostfx);
   useEffect(() => {
     setPostfx(postfx);
@@ -285,13 +339,14 @@ export default function StacksCanvas({
       <Canvas
         shadows="soft"
         camera={{ position: [0, CAMERA.y, CAMERA.z], fov: CAMERA.fov }}
-        dpr={degrade >= 1 ? 1 : isTouch ? [1, 1.25] : [1, 1.5]}
+        dpr={degrade >= 1 ? 1 : isTouch ? TOUCH_DPR_RANGE : [1, 1.5]}
         // Desktop runs SMAA in the composer — MSAA underneath is dead
         // weight. Touch keeps MSAA (no composer there, ever).
         gl={{ antialias: isTouch }}
         onCreated={({ gl, scene, camera }) => {
           gl.toneMappingExposure = dark ? 1.25 : 1.12;
           glRef = gl;
+          ownedRenderer.current = gl;
           sceneRef = scene;
           cameraRef = camera;
           installDevHooks();
@@ -327,6 +382,7 @@ export default function StacksCanvas({
           enabled={panelState === "closed" && !modalOpen}
           style={{ scrollbarWidth: "none", touchAction: "pan-x" }}
         >
+          <ScrollRegionA11y />
           <Scene
             data={data}
             palette={palette}

@@ -16,9 +16,8 @@
 // what is actually loading. The travelling highlight on the plank is the
 // "still working" signal — it is what tells a stalled download apart from a
 // finished one, since the spines themselves hold position.
-import { useSyncExternalStore } from "react";
-
 import { getLoadProgress, subscribeLoadProgress } from "../loading";
+import { useSyncExternalStore } from "react";
 
 /** Where the CSS estimate hands over to real asset progress.
  *
@@ -63,6 +62,7 @@ export default function BootScreen() {
   return (
     <div className="stacks-boot" aria-hidden>
       <div className="stacks-boot-shelf">
+        <p className="stacks-boot-title">The Stacks</p>
         <div className="stacks-boot-spines">
           {SPINES.map((spine, i) => (
             <span
@@ -70,7 +70,11 @@ export default function BootScreen() {
               data-in={filled >= i + 0.35 ? "" : undefined}
               data-tone={spine.tone}
               style={
-                { width: spine.w, height: spine.h, "--i": i } as React.CSSProperties
+                {
+                  width: spine.w,
+                  height: spine.h,
+                  "--i": i,
+                } as React.CSSProperties
               }
             />
           ))}

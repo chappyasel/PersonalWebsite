@@ -17,12 +17,12 @@
 import dynamic from "next/dynamic";
 import { Component, useCallback, useEffect, useRef, useState } from "react";
 
+import FlatHome from "./FlatHome";
 import { type StacksData, type StacksSlots } from "./data";
 import BootScreen from "./dom/BootScreen";
 import ChromeLayer from "./dom/ChromeLayer";
 import PlacardLayer from "./dom/PlacardLayer";
 import UnitRail from "./dom/UnitRail";
-import FlatHome from "./FlatHome";
 import ScrollBridges from "./input/ScrollBridges";
 import {
   getLoadProgress,
@@ -51,6 +51,11 @@ const REVEAL_PROGRESS = 0.85;
 /** navigator.connection is still not in the DOM lib. */
 type NavigatorWithConnection = Navigator & {
   connection?: { saveData?: boolean };
+};
+
+type WindowWithStacksBoot = Window & {
+  __stacksWorldBootTimer?: number;
+  __stacksWorldBootToken?: number;
 };
 
 /** A chunk that fails to load throws during render, which would blank the
@@ -88,6 +93,7 @@ export default function StacksHome({
   const [worldReady, setWorldReady] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const [flatGone, setFlatGone] = useState(false);
+  const [bootPath, setBootPath] = useState<"cold" | "warm">("cold");
 
   const demote = useCallback(() => {
     setWorldPhase(null);
@@ -126,9 +132,34 @@ export default function StacksHome({
     // A warm phase is carried through rather than overwritten: writing
     // "pending" here would slam the loading animation on screen at hydration,
     // which is precisely the thing the warm path exists to avoid.
-    setWorldPhase(isWarmBoot() ? "warm" : "pending");
+    const warm = isWarmBoot();
+    setBootPath(warm ? "warm" : "cold");
+    setWorldPhase(warm ? "warm" : "pending");
     setMode("world");
   }, [setMode]);
+
+  // `data-world` is a pre-paint handshake, not route state. Clear it when
+  // this homepage unmounts so SPA navigation cannot carry the world's
+  // overscroll lock onto /books, /manual, or another document route.
+  useEffect(() => {
+    const bootWindow = window as WindowWithStacksBoot;
+    const retirePrepaintBackstop = () => {
+      if (bootWindow.__stacksWorldBootTimer) {
+        window.clearTimeout(bootWindow.__stacksWorldBootTimer);
+        bootWindow.__stacksWorldBootTimer = 0;
+      }
+      bootWindow.__stacksWorldBootToken =
+        (bootWindow.__stacksWorldBootToken ?? 0) + 1;
+    };
+    // React owns failure recovery from this point (CanvasBoundary plus the
+    // longer hang backstop), so the parse-time timer must not survive this
+    // boot and later clear a newer SPA visit's attribute.
+    retirePrepaintBackstop();
+    return () => {
+      retirePrepaintBackstop();
+      setWorldPhase(null);
+    };
+  }, []);
 
   // Nothing is downloading until the component that owns the import renders,
   // and `mode` only flips one tick later. Kicking it here overlaps the chunk
@@ -195,8 +226,10 @@ export default function StacksHome({
     <>
       {mode === "world" && (
         <div
-          className={`fixed inset-0 z-10 transition-opacity duration-300 ${
-            revealed ? "opacity-100" : "pointer-events-none opacity-0"
+          data-load-path={bootPath}
+          data-revealed={revealed ? "" : undefined}
+          className={`stacks-world-shell fixed inset-0 z-10 ${
+            revealed ? "pointer-events-auto" : "pointer-events-none"
           }`}
         >
           <CanvasBoundary onError={demote}>
@@ -206,10 +239,15 @@ export default function StacksHome({
               onLost={demote}
             />
           </CanvasBoundary>
+          <UnitRail />
           <ChromeLayer />
           <PlacardLayer data={data} slots={slots} />
-          <UnitRail />
           <ScrollBridges />
+          {/* The canvas is allowed to finish behind an opaque curtain. The
+              handoff can therefore be choreographed without filtering or
+              transforming the world itself — both would turn the placards'
+              backdrop filters into the wrong compositing root. */}
+          <div aria-hidden className="stacks-world-curtain" />
         </div>
       )}
       <BootScreen />

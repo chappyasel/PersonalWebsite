@@ -1,16 +1,25 @@
 "use client";
 
+import { useModalState } from "../contexts/BookPreviewContext";
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 
-import { useModalState } from "../contexts/BookPreviewContext";
+const Modal = dynamic(() => import("./Modal").then((module) => module.Modal), {
+  ssr: false,
+});
 
-const Modal = dynamic(
-  () => import("./Modal").then((module) => module.Modal),
-  { ssr: false },
-);
+export type ModalPresentation = {
+  /** The modal was opened over the 3D homepage rather than inside Books. */
+  source: "stacks";
+  /** Absolute in production, dev-subdomain URL locally. */
+  booksHref: string;
+};
 
-export function ModalHost() {
+export function ModalHost({
+  presentation,
+}: {
+  presentation?: ModalPresentation;
+}) {
   const { isModalOpen } = useModalState();
   // Mount the modal chunk before the first click rather than because of it.
   // Loading it on open lands the modal a commit too late for framer-motion's
@@ -39,5 +48,5 @@ export function ModalHost() {
     };
   }, [isWarm]);
 
-  return isModalOpen || isWarm ? <Modal /> : null;
+  return isModalOpen || isWarm ? <Modal presentation={presentation} /> : null;
 }

@@ -4,6 +4,7 @@ import {
   type SpringOptions,
   motion,
   useMotionValue,
+  useReducedMotion,
   useSpring,
 } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
@@ -18,18 +19,19 @@ type TiltCardProps = {
 };
 
 const springValues: SpringOptions = {
-  damping: 25,
-  stiffness: 120,
-  mass: 1,
+  damping: 19,
+  stiffness: 92,
+  mass: 1.05,
 };
 
 export default function TiltCard({
   children,
   className,
   tiltAmplitude = 4,
-  hoverScale = 1.03,
+  hoverScale = 1.02,
 }: TiltCardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const reduceMotion = useReducedMotion();
 
   const [isTouchDevice, setIsTouchDevice] = useState(false);
   useEffect(() => {
@@ -41,7 +43,7 @@ export default function TiltCard({
   const scale = useSpring(1, springValues);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (isTouchDevice || !containerRef.current) return;
+    if (isTouchDevice || reduceMotion || !containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     const offsetX = e.clientX - rect.left - rect.width / 2;
     const offsetY = e.clientY - rect.top - rect.height / 2;
@@ -50,7 +52,7 @@ export default function TiltCard({
   };
 
   const handleMouseEnter = () => {
-    if (!isTouchDevice) scale.set(hoverScale);
+    if (!isTouchDevice && !reduceMotion) scale.set(hoverScale);
   };
 
   const handleMouseLeave = () => {
@@ -63,6 +65,11 @@ export default function TiltCard({
   return (
     <div
       ref={containerRef}
+      // These inert 3D declarations stay in the reduced-motion first paint as
+      // well. useReducedMotion resolves differently on the server and client;
+      // branching the authored attributes on it caused every flat-page card
+      // to report a hydration mismatch. The event handlers above are the
+      // motion gate, so the values remain exactly 0/0/1 when motion is reduced.
       className={cn(!isTouchDevice && "[perspective:800px]", className)}
       onMouseMove={handleMouseMove}
       onMouseEnter={handleMouseEnter}
@@ -75,7 +82,7 @@ export default function TiltCard({
             ? undefined
             : { rotateX, rotateY, scale, willChange: "transform" }
         }
-        whileTap={isTouchDevice ? { scale: 0.97 } : undefined}
+        whileTap={isTouchDevice && !reduceMotion ? { scale: 0.97 } : undefined}
       >
         {children}
       </motion.div>

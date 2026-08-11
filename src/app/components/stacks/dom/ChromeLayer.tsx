@@ -4,10 +4,10 @@
 // reveal), animated film grain, bottom vignette, the persistent name, and
 // the theme toggle island. Everything except the toggle island is
 // pointer-events-none; interactive layers manage their own events.
-import { ThemeToggle } from "~/components/ui/theme-toggle";
-
 import { useStacks } from "../store";
 import { GRAIN_URI } from "../theme";
+
+import { ThemeToggle } from "~/components/ui/theme-toggle";
 
 export function GrainReveal({
   index = 0,
@@ -38,13 +38,47 @@ export default function ChromeLayer() {
         :root { --stacks-ease: cubic-bezier(0.16, 1, 0.3, 1); }
         .stacks-scroll { scrollbar-width: none; }
         .stacks-scroll::-webkit-scrollbar { display: none; }
+        .stacks-wordmark {
+          left: max(1.25rem, env(safe-area-inset-left, 0px));
+          top: max(1rem, env(safe-area-inset-top, 0px));
+        }
+        .stacks-theme-toggle {
+          right: max(1rem, env(safe-area-inset-right, 0px));
+          top: max(0.75rem, env(safe-area-inset-top, 0px));
+        }
+        @media (width >= 1200px) {
+          .stacks-wordmark {
+            left: max(1.75rem, env(safe-area-inset-left, 0px));
+            top: max(1.25rem, env(safe-area-inset-top, 0px));
+          }
+          .stacks-theme-toggle {
+            bottom: max(1.25rem, env(safe-area-inset-bottom, 0px));
+            left: max(2rem, env(safe-area-inset-left, 0px));
+            right: auto;
+            top: auto;
+          }
+        }
         .stacks-reveal {
           opacity: 0;
+        }
+        .stacks-world-shell[data-revealed] .stacks-reveal {
           animation: stacks-resolve 0.9s var(--stacks-ease) forwards;
+        }
+        .stacks-world-shell[data-load-path="warm"][data-revealed] .stacks-reveal {
+          animation-duration: 0.58s;
         }
         @keyframes stacks-resolve {
           from { opacity: 0; filter: blur(14px); transform: translateY(12px); }
           to { opacity: 1; filter: blur(0); transform: translateY(0); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .stacks-reveal,
+          .stacks-world-shell[data-revealed] .stacks-reveal {
+            opacity: 1;
+            animation: none;
+            filter: none;
+            transform: none;
+          }
         }
         .stacks-grain {
           position: absolute;
@@ -72,17 +106,14 @@ export default function ChromeLayer() {
           background-position forces CPU repaints. The wrapper clips the 110%
           oversize so jitter never exposes an edge. */}
       <div className="pointer-events-none absolute inset-0 z-[5] overflow-hidden">
-        <div
-          className="stacks-grain"
-          style={{ backgroundImage: GRAIN_URI }}
-        />
+        <div className="stacks-grain" style={{ backgroundImage: GRAIN_URI }} />
       </div>
       {!postfx && (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[6] h-[12dvh] bg-gradient-to-t from-background/90 to-transparent" />
       )}
-      <div className="pointer-events-none absolute left-5 top-4 z-20 md:left-7 md:top-5">
+      <div className="stacks-wordmark pointer-events-none absolute z-20">
         <GrainReveal index={0}>
-          <p className="font-serif text-base tracking-tight text-foreground/85 md:text-lg">
+          <p className="font-serif text-base tracking-tight text-foreground/85 min-[1200px]:text-lg">
             Chappy Asel
           </p>
         </GrainReveal>
@@ -120,7 +151,7 @@ export default function ChromeLayer() {
           this corner, at roughly 25–55px x, 846–876px y on a 900px window. It
           is not ours, it does not ship, and nothing here is laid out around
           it — but it does sit on top of this glyph in a dev screenshot. */}
-      <div className="pointer-events-auto absolute right-4 top-3 z-30 md:bottom-5 md:left-6 md:right-auto md:top-auto lg:left-8">
+      <div className="stacks-theme-toggle pointer-events-auto absolute z-30">
         <GrainReveal index={2}>
           <ThemeToggle className="!rounded-full hover:!bg-foreground/[0.09] active:!bg-foreground/[0.14]" />
         </GrainReveal>

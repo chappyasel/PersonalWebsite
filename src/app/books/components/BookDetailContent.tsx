@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
+import { formatLength, formatReadDates, getOrdinalSuffix } from "../lib/format";
 import { PlayIcon } from "@phosphor-icons/react";
 import {
   ArrowLeftIcon,
@@ -43,8 +44,8 @@ import remarkGfm from "remark-gfm";
 
 import { capture } from "~/lib/analytics";
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
-import { getBookPath, getBooksPath } from "~/lib/books/paths";
 import { selectBookNotice } from "~/lib/books/notices";
+import { getBookPath, getBooksPath } from "~/lib/books/paths";
 import type { BaseBook, Book } from "~/lib/books/types";
 import { cn } from "~/lib/util";
 
@@ -57,90 +58,9 @@ import {
   TooltipTrigger,
 } from "~/components/ui/tooltip";
 
-import {
-  formatLength,
-  formatReadDates,
-  getOrdinalSuffix,
-} from "../lib/format";
 import { AutomatedNotice, ReadingNowNotice } from "./BookNotices";
 import { InlineMarkdown } from "./InlineMarkdown";
 import { TagBadge } from "./TagBadge";
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
-
-/* eslint-disable @next/next/no-img-element */
 
 // Animation configuration - overdamped to prevent oscillation
 const SPRING_CONFIG = {
@@ -200,11 +120,7 @@ function BookNoteSummary({
       />
       <span className="min-w-0 flex-1">
         {Children.map(children, (child) =>
-          typeof child === "string" ? (
-            <InlineMarkdown source={child} />
-          ) : (
-            child
-          ),
+          typeof child === "string" ? <InlineMarkdown source={child} /> : child,
         )}
       </span>
     </span>
@@ -290,7 +206,10 @@ function getReadingDays(
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 }
 
-type BookDetailBook = BaseBook & Partial<Pick<Book, "readNumber" | "totalReads" | "otherReadings">> & { notes?: string };
+type BookDetailBook = BaseBook &
+  Partial<Pick<Book, "readNumber" | "totalReads" | "otherReadings">> & {
+    notes?: string;
+  };
 
 type BookDetailContentProps = {
   book: BookDetailBook;
@@ -303,6 +222,8 @@ type BookDetailContentProps = {
   bookshelfBookCount?: number;
   isModal?: boolean;
   onClose?: () => void;
+  /** Shown only when a modal was opened outside the dedicated Books site. */
+  modalBreadcrumbHref?: string;
 };
 
 export function BookDetailContent({
@@ -316,6 +237,7 @@ export function BookDetailContent({
   bookshelfBookCount,
   isModal = false,
   onClose,
+  modalBreadcrumbHref,
 }: BookDetailContentProps) {
   const coverUrl = enhanceCoverUrl(book.coverUrl);
   const hasTrackedView = useRef(false);
@@ -510,36 +432,70 @@ export function BookDetailContent({
       >
         {/* Container for content with max-w-3xl */}
         <div className="relative mx-auto w-full max-w-3xl">
-          {/* Standalone-page breadcrumb */}
-          {!isModal && (
+          {/* Standalone pages keep their library-count breadcrumb. A modal
+              opened over the 3D homepage gets a shorter return trail to the
+              dedicated Books site; modals already on Books get neither, so
+              the same navigation is never repeated in its own app. */}
+          {(!isModal || modalBreadcrumbHref) && (
             <motion.nav
               aria-label="Breadcrumb"
-              className="px-6 text-sm text-muted-foreground xs:px-14"
+              data-stacks-book-breadcrumb={
+                modalBreadcrumbHref ? "external" : undefined
+              }
+              className={cn(
+                "px-6 text-sm text-muted-foreground xs:px-14",
+                modalBreadcrumbHref && "pr-28 xs:pr-32",
+              )}
               style={{ marginBottom: breadcrumbMarginBottom }}
             >
-              <ol className="flex min-w-0 items-center gap-2">
-                <li className="shrink-0">
-                  <Link
-                    href={getBooksPath()}
-                    className="inline-flex items-center gap-1.5 font-medium transition-colors hover:text-foreground"
-                  >
-                    <ArrowLeftIcon size={16} weight="bold" />
-                    <span>Chappy&apos;s Book Notes</span>
-                  </Link>
-                </li>
-                <li aria-hidden="true" className="text-border">
-                  /
-                </li>
-                <li className="shrink-0 tabular-nums">
-                  <Link
-                    href={getBooksPath()}
-                    className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground"
-                  >
-                    <BooksIcon size={16} weight="duotone" />
-                    {bookshelfBookCount?.toLocaleString() ?? "All"} books
-                  </Link>
-                </li>
-              </ol>
+              {modalBreadcrumbHref ? (
+                <ol className="flex min-w-0 items-center gap-2">
+                  <li className="min-w-0">
+                    <a
+                      href={modalBreadcrumbHref}
+                      className="inline-flex max-w-full items-center gap-1.5 font-medium transition-colors hover:text-foreground"
+                    >
+                      <ArrowLeftIcon
+                        aria-hidden
+                        size={16}
+                        weight="bold"
+                        className="shrink-0"
+                      />
+                      <span className="truncate">Book Notes</span>
+                    </a>
+                  </li>
+                  <li aria-hidden="true" className="text-border">
+                    /
+                  </li>
+                  <li aria-current="page" className="shrink-0">
+                    Details
+                  </li>
+                </ol>
+              ) : (
+                <ol className="flex min-w-0 items-center gap-2">
+                  <li className="shrink-0">
+                    <Link
+                      href={getBooksPath()}
+                      className="inline-flex items-center gap-1.5 font-medium transition-colors hover:text-foreground"
+                    >
+                      <ArrowLeftIcon size={16} weight="bold" />
+                      <span>Chappy&apos;s Book Notes</span>
+                    </Link>
+                  </li>
+                  <li aria-hidden="true" className="text-border">
+                    /
+                  </li>
+                  <li className="shrink-0 tabular-nums">
+                    <Link
+                      href={getBooksPath()}
+                      className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground"
+                    >
+                      <BooksIcon size={16} weight="duotone" />
+                      {bookshelfBookCount?.toLocaleString() ?? "All"} books
+                    </Link>
+                  </li>
+                </ol>
+              )}
             </motion.nav>
           )}
 
@@ -576,7 +532,11 @@ export function BookDetailContent({
                         className="flex size-10 items-center justify-center rounded-full bg-muted shadow-sm backdrop-blur-sm transition-all duration-200 ease-in-out hover:bg-primary/20"
                         aria-label="Close"
                       >
-                        <XIcon size={20} weight="bold" className="text-primary" />
+                        <XIcon
+                          size={20}
+                          weight="bold"
+                          className="text-primary"
+                        />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -723,7 +683,10 @@ export function BookDetailContent({
                                 <div className="flex cursor-default items-center gap-1">
                                   <div className="flex items-center gap-1 font-medium">
                                     {i > 0 ? (
-                                      <ArrowsClockwiseIcon size={12} weight="bold" />
+                                      <ArrowsClockwiseIcon
+                                        size={12}
+                                        weight="bold"
+                                      />
                                     ) : (
                                       <CalendarIcon size={12} weight="bold" />
                                     )}
@@ -739,13 +702,22 @@ export function BookDetailContent({
                                   </div>
                                   <span className="font-semibold">
                                     {reading.started && reading.finished
-                                      ? formatReadDates(reading.started, reading.finished)
+                                      ? formatReadDates(
+                                          reading.started,
+                                          reading.finished,
+                                        )
                                       : reading.started
                                         ? (() => {
                                             const d = new Date(reading.started);
-                                            const month = d.toLocaleDateString("en-US", { month: "long" });
+                                            const month = d.toLocaleDateString(
+                                              "en-US",
+                                              { month: "long" },
+                                            );
                                             const day = d.getDate();
-                                            const year = d.toLocaleDateString("en-US", { year: "2-digit" });
+                                            const year = d.toLocaleDateString(
+                                              "en-US",
+                                              { year: "2-digit" },
+                                            );
                                             return `${month} ${day}${getOrdinalSuffix(day)} '${year}`;
                                           })()
                                         : "Unknown"}
@@ -755,7 +727,11 @@ export function BookDetailContent({
                               {reading.started && reading.finished && (
                                 <TooltipContent>
                                   <p>
-                                    {getReadingDays(reading.started, reading.finished)} days
+                                    {getReadingDays(
+                                      reading.started,
+                                      reading.finished,
+                                    )}{" "}
+                                    days
                                   </p>
                                 </TooltipContent>
                               )}
@@ -927,7 +903,9 @@ export function BookDetailContent({
                       <CalendarIcon size={12} weight="bold" />
                       <span>Published:</span>
                     </div>
-                    <span className="font-semibold">{book.publicationYear}</span>
+                    <span className="font-semibold">
+                      {book.publicationYear}
+                    </span>
                   </div>
                 )}
                 {(book.audioLengthMin != null || book.pageCount != null) && (
@@ -966,13 +944,22 @@ export function BookDetailContent({
                             </div>
                             <span className="font-semibold">
                               {reading.started && reading.finished
-                                ? formatReadDates(reading.started, reading.finished)
+                                ? formatReadDates(
+                                    reading.started,
+                                    reading.finished,
+                                  )
                                 : reading.started
                                   ? (() => {
                                       const d = new Date(reading.started);
-                                      const month = d.toLocaleDateString("en-US", { month: "long" });
+                                      const month = d.toLocaleDateString(
+                                        "en-US",
+                                        { month: "long" },
+                                      );
                                       const day = d.getDate();
-                                      const year = d.toLocaleDateString("en-US", { year: "2-digit" });
+                                      const year = d.toLocaleDateString(
+                                        "en-US",
+                                        { year: "2-digit" },
+                                      );
                                       return `${month} ${day}${getOrdinalSuffix(day)} '${year}`;
                                     })()
                                   : "Unknown"}
@@ -982,7 +969,11 @@ export function BookDetailContent({
                         {reading.started && reading.finished && (
                           <TooltipContent>
                             <p>
-                              {getReadingDays(reading.started, reading.finished)} days
+                              {getReadingDays(
+                                reading.started,
+                                reading.finished,
+                              )}{" "}
+                              days
                             </p>
                           </TooltipContent>
                         )}
@@ -1112,69 +1103,69 @@ export function BookDetailContent({
                 <div
                   className={cn(
                     "prose prose-base prose-neutral max-w-none leading-[1.85] text-foreground",
-                  "prose-headings:mb-0 prose-headings:font-semibold prose-headings:text-foreground prose-h1:translate-y-3 prose-h1:py-3 prose-h1:text-2xl prose-h2:translate-y-[-8px] prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs",
-                  "prose-p:translate-y-2 prose-p:text-foreground prose-a:text-foreground prose-a:underline hover:prose-a:text-foreground prose-strong:font-semibold prose-strong:text-foreground",
-                  "prose-ol:my-0 prose-ol:list-decimal prose-ul:my-0 prose-ul:list-disc prose-li:my-px prose-li:text-foreground",
-                  "prose-img:max-h-[600px] prose-img:max-w-[400px] prose-img:rounded-lg prose-img:shadow-md",
-                )}
-              >
-                <PhotoProvider>
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    rehypePlugins={[rehypeRaw]}
-                    urlTransform={(url) => {
-                      // Allow data URLs (base64 images from Notion)
-                      if (url.startsWith("data:")) {
-                        return url;
+                    "prose-headings:mb-0 prose-headings:font-semibold prose-headings:text-foreground prose-h1:translate-y-3 prose-h1:py-3 prose-h1:text-2xl prose-h2:translate-y-[-8px] prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs",
+                    "prose-p:translate-y-2 prose-p:text-foreground prose-a:text-foreground prose-a:underline hover:prose-a:text-foreground prose-strong:font-semibold prose-strong:text-foreground",
+                    "prose-ol:my-0 prose-ol:list-decimal prose-ul:my-0 prose-ul:list-disc prose-li:my-px prose-li:text-foreground",
+                    "prose-img:max-h-[600px] prose-img:max-w-[400px] prose-img:rounded-lg prose-img:shadow-md",
+                  )}
+                >
+                  <PhotoProvider>
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      rehypePlugins={[rehypeRaw]}
+                      urlTransform={(url) => {
+                        // Allow data URLs (base64 images from Notion)
+                        if (url.startsWith("data:")) {
+                          return url;
+                        }
+                        // Allow Notion S3 image URLs
+                        if (url.includes("prod-files-secure.s3")) {
+                          return url;
+                        }
+                        // Use default transform for security on other URLs
+                        return defaultUrlTransform(url);
+                      }}
+                      components={
+                        {
+                          img: ({ src, alt, ...props }) => {
+                            if (!src) return null;
+                            return (
+                              <PhotoView src={src as string}>
+                                <img
+                                  src={src}
+                                  alt={alt ?? ""}
+                                  className="cursor-zoom-in"
+                                  {...props}
+                                />
+                              </PhotoView>
+                            );
+                          },
+                          details: ({ node: _node, ...props }) => (
+                            <AnimatedDetails {...props} />
+                          ),
+                          blockquote: ({
+                            children,
+                            node: _node,
+                            className,
+                            ...props
+                          }) => (
+                            <blockquote
+                              {...props}
+                              className={cn(
+                                "book-notes-quote my-4 border-l-2 border-foreground/15 py-1 pl-5 font-normal italic text-muted-foreground",
+                                className,
+                              )}
+                            >
+                              {children}
+                            </blockquote>
+                          ),
+                          summary: BookNoteSummary,
+                        } as Components
                       }
-                      // Allow Notion S3 image URLs
-                      if (url.includes("prod-files-secure.s3")) {
-                        return url;
-                      }
-                      // Use default transform for security on other URLs
-                      return defaultUrlTransform(url);
-                    }}
-                    components={
-                      {
-                        img: ({ src, alt, ...props }) => {
-                          if (!src) return null;
-                          return (
-                            <PhotoView src={src as string}>
-                              <img
-                                src={src}
-                                alt={alt ?? ""}
-                                className="cursor-zoom-in"
-                                {...props}
-                              />
-                            </PhotoView>
-                          );
-                        },
-                        details: ({ node: _node, ...props }) => (
-                          <AnimatedDetails {...props} />
-                        ),
-                        blockquote: ({
-                          children,
-                          node: _node,
-                          className,
-                          ...props
-                        }) => (
-                          <blockquote
-                            {...props}
-                            className={cn(
-                              "book-notes-quote my-4 border-l-2 border-foreground/15 py-1 pl-5 font-normal italic text-muted-foreground",
-                              className,
-                            )}
-                          >
-                            {children}
-                          </blockquote>
-                        ),
-                        summary: BookNoteSummary,
-                      } as Components
-                    }
-                  >
-                    {processDetailsBlocks(fullBook.notes)}
-                  </ReactMarkdown>
-                </PhotoProvider>
+                    >
+                      {processDetailsBlocks(fullBook.notes)}
+                    </ReactMarkdown>
+                  </PhotoProvider>
                 </div>
               </>
             ) : (

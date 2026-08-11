@@ -58,9 +58,10 @@ try {
 } catch (_) {}
 `;
 
-// theme-color is set by themeBootstrapScript / ThemeColorSync instead of being
-// declared here, so that it can follow an explicit override rather than only
-// prefers-color-scheme.
+// Let native controls and browser chrome follow the resolved light/dark
+// palette on every route. The homepage adds `viewportFit: "cover"` in its
+// own segment because only that fixed, safe-area-aware experience paints into
+// the display cutouts.
 export const viewport: Viewport = {
   colorScheme: "light dark",
 };

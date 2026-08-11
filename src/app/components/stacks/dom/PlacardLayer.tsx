@@ -5,8 +5,24 @@
 // per unit docked right, crossfaded by activeUnit. Mobile: a bottom sheet
 // with three detents — peek (the default, filling the floor void under the
 // bookcase), expanded (full height), and dismissed (a chip, the world with
-// nothing on it). Panel bodies lazy-mount on first activation and stay
-// mounted.
+// nothing on it). Desktop panels mount on first visit and then stay resident,
+// so scroll/media state survives a return without front-loading unopened
+// sections; mobile renders the current section in one physical sheet.
+import { DeferredBookCarousel } from "../../DeferredBookCarousel";
+import { type StacksData, type StacksSlots, UNITS } from "../data";
+import { PHOTO_SOURCES } from "../photoSources";
+import { bookSecretRef, subscribeBookSecret } from "../scene/bookSecret";
+import {
+  STACKS_DESKTOP_QUERY,
+  STACKS_MOBILE_QUERY,
+  cameraForAspect,
+} from "../scene/worldLayout";
+import {
+  closeStacksPanel,
+  openStacksPanel,
+  panelCoverageRef,
+  useStacks,
+} from "../store";
 import {
   BookOpenIcon,
   BookOpenTextIcon,
@@ -17,28 +33,24 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import {
-  animate,
   AnimatePresence,
+  animate,
   motion,
   useMotionValue,
   useReducedMotion,
 } from "framer-motion";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
-
-import { devSubdomainUrl } from "~/lib/util";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import licenses from "~~/models/LICENSES.json";
 
-import { DeferredBookCarousel } from "../../DeferredBookCarousel";
-import { UNITS, type StacksData, type StacksSlots } from "../data";
-import { PHOTO_SOURCES } from "../photoSources";
-import { cameraForAspect } from "../scene/worldLayout";
-import {
-  closeStacksPanel,
-  openStacksPanel,
-  panelCoverageRef,
-  useStacks,
-} from "../store";
+import { devSubdomainUrl } from "~/lib/util";
 
 /** Which edges of a scroll container have content past them. Mirrors the
  * AIC platform's pattern of only fading an edge that actually continues, so
@@ -69,10 +81,10 @@ function useScrollEdges(
     const ro = new ResizeObserver(update);
     ro.observe(el);
     for (const child of Array.from(el.children)) ro.observe(child);
-    // Panel bodies lazy-mount on first activation and the lifting heatmap
-    // arrives async, so the children present at mount are not the children
-    // that decide whether this thing scrolls. Without the subtree watch the
-    // fade never appears on exactly the long placards that need it.
+    // Mobile swaps section bodies and several cards populate asynchronously,
+    // so the children present at mount are not necessarily the children that
+    // decide whether this thing scrolls. Without the subtree watch the fade
+    // can miss exactly the long placards that need it.
     const mo = new MutationObserver(update);
     mo.observe(el, { childList: true, subtree: true });
     return () => {
@@ -102,15 +114,25 @@ const CULL_MARGIN = 120;
  * ever puts one there, but reading the computed matrix rather than assuming
  * the token means a measurement taken mid-transition subtracts the exact
  * amount that frame is showing. */
-function liftOf(hit: Element | null): [number, number] {
-  if (!hit) return [0, 0];
+function transformOf(hit: Element | null): {
+  x: number;
+  y: number;
+  scaleX: number;
+  scaleY: number;
+} {
+  if (!hit) return { x: 0, y: 0, scaleX: 1, scaleY: 1 };
   const t = getComputedStyle(hit).transform;
-  if (!t || t === "none") return [0, 0];
+  if (!t || t === "none") return { x: 0, y: 0, scaleX: 1, scaleY: 1 };
   try {
     const m = new DOMMatrixReadOnly(t);
-    return [m.e, m.f];
+    return {
+      x: m.e,
+      y: m.f,
+      scaleX: Math.hypot(m.a, m.b) || 1,
+      scaleY: Math.hypot(m.c, m.d) || 1,
+    };
   } catch {
-    return [0, 0];
+    return { x: 0, y: 0, scaleX: 1, scaleY: 1 };
   }
 }
 
@@ -205,6 +227,7 @@ function BlurPlates({
     if (!el || !mounted) return;
     let raf = 0;
     let tagged = new Set<Element>();
+    let surfaceTagged = new Set<Element>();
     const observed = new WeakSet<Element>();
     const ro = new ResizeObserver(() => schedule());
 
@@ -251,6 +274,12 @@ function BlurPlates({
           );
         });
       });
+      const nextSurfaces = new Set<Element>(cards);
+      for (const card of cards) card.classList.add("placard-surface");
+      for (const old of surfaceTagged) {
+        if (!nextSurfaces.has(old)) old.classList.remove("placard-surface");
+      }
+      surfaceTagged = nextSurfaces;
       // Cards resize without mutating: a font swap, an image decoding, a
       // descendant-only reflow. Observing each measured card is what catches
       // those; the scroller's own box never changes.
@@ -286,12 +315,19 @@ function BlurPlates({
         // permanently high once the pointer left. Read off the live matrix
         // rather than the -3px token so a measurement landing mid-transition
         // gets the fractional value it actually has.
-        const [liftX, liftY] = liftOf(hits[i] ?? null);
+        const live = transformOf(hits[i] ?? null);
+        const width = r.width / live.scaleX;
+        const height = r.height / live.scaleY;
         return {
-          top: r.top - base.top + el.scrollTop - liftY,
-          left: r.left - base.left - liftX,
-          width: r.width,
-          height: r.height,
+          top:
+            r.top -
+            base.top +
+            el.scrollTop -
+            live.y +
+            (height * (live.scaleY - 1)) / 2,
+          left: r.left - base.left - live.x + (width * (live.scaleX - 1)) / 2,
+          width,
+          height,
           radius: getComputedStyle(c).borderRadius,
         };
       });
@@ -445,6 +481,7 @@ function BlurPlates({
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
       for (const old of tagged) old.classList.remove("placard-hit");
+      for (const old of surfaceTagged) old.classList.remove("placard-surface");
       ro.disconnect();
       mo.disconnect();
     };
@@ -487,17 +524,17 @@ function BlurPlates({
  * reason. */
 function Panel({
   active,
+  mounted,
+  label,
   children,
 }: {
   active: boolean;
+  mounted: boolean;
+  label: string;
   children: React.ReactNode;
 }) {
-  const [mounted, setMounted] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const edges = useScrollEdges(scrollRef, mounted);
-  useEffect(() => {
-    if (active) setMounted(true);
-  }, [active]);
+  const edges = useScrollEdges(scrollRef);
   // Only fade an edge that actually continues, so a short placard gets no
   // phantom dissolve — the AIC platform's rule, and the reason both edges
   // live in ONE gradient with four conditional stops rather than two masks.
@@ -522,16 +559,16 @@ function Panel({
       // Full viewport height on purpose: the plates behind clip instead of
       // fading, so the clip has to happen off-screen. The vertical padding
       // is what keeps content off the very edges of the glass.
-      className={`absolute inset-y-0 right-0 w-full transition-opacity duration-200 ${
-        active
-          ? "pointer-events-auto opacity-100 delay-200"
-          : "pointer-events-none opacity-0 delay-0"
+      className={`absolute inset-y-0 right-0 w-full ${
+        active ? "pointer-events-auto" : "pointer-events-none"
       }`}
     >
       <BlurPlates scrollRef={scrollRef} mounted={mounted} />
       <div
         ref={scrollRef}
         data-stacks-scrollable
+        tabIndex={active ? 0 : -1}
+        aria-label={`${label} section content`}
         // aria-hidden is duplicated from the wrapper on purpose: the input
         // bridge and the scroll-isolation gate both look up the ACTIVE
         // scroller by this attribute pair.
@@ -556,7 +593,7 @@ function Panel({
         // padding. Chaining is already handled a layer up — ScrollBridges'
         // wheel listener bails on any target inside [data-stacks-scrollable] —
         // so nothing here depends on contain's chaining behaviour.
-        className="stacks-scroll placard-scroll relative h-full overflow-y-auto overscroll-none py-10 pl-1 pr-3"
+        className="stacks-scroll placard-scroll relative h-full overflow-y-auto overscroll-none px-8 py-10"
         style={{ maskImage: mask, WebkitMaskImage: mask }}
       >
         {/* Short placards stay optically centred — the panel is full-height
@@ -571,6 +608,102 @@ function Panel({
   );
 }
 
+/** Section-swap cadence shared by the desktop dock and mobile sheet. */
+const SWAP_OUT_MS = 120;
+const SWAP_IN_MS = 220;
+/** A section change follows the horizontal room: forward content arrives
+ * from the right and previous content from the left. Twelve pixels is enough
+ * to make direction legible without making a reading panel feel like a
+ * carousel. */
+const SWAP_DISTANCE_PX = 12;
+
+/** Framer's reduced-motion snapshot is correct at mount, but a browser or OS
+ * preference can change while the page is open. Mirror the media query so an
+ * already-mounted world also stops immediately (the world is not mounted at
+ * all when reduced motion is present at boot). */
+function useStacksReducedMotion() {
+  const framerReduced = useReducedMotion();
+  const [mediaReduced, setMediaReduced] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setMediaReduced(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  return Boolean(framerReduced) || mediaReduced;
+}
+
+/** The desktop document changes in the same direction as the horizontal
+ * room. Once visited, a document stays mounted: scrollTop, decoded media,
+ * plate observers, and focus registration survive a trip away and back. An
+ * inactive document rests twelve pixels on the side of the active
+ * one where it lives in the room; changing activeUnit naturally sends the
+ * outgoing panel the opposite way while drawing the incoming one from its
+ * travel direction. */
+function DesktopPanel({
+  activeUnit,
+  modalOpen,
+  bodies,
+}: {
+  activeUnit: number;
+  modalOpen: boolean;
+  bodies: Record<(typeof UNITS)[number]["slug"], React.ReactNode>;
+}) {
+  const reduceMotion = useStacksReducedMotion();
+  // First activation mounts a document; every later visit reuses it. This
+  // retains scroll and decoded media without loading all unopened sections
+  // during the WebGL boot.
+  const visitedRef = useRef(new Set<number>([activeUnit]));
+  visitedRef.current.add(activeUnit);
+  const previousRef = useRef(activeUnit);
+  const direction: 1 | -1 =
+    activeUnit === previousRef.current || activeUnit > previousRef.current
+      ? 1
+      : -1;
+  useEffect(() => {
+    previousRef.current = activeUnit;
+  }, [activeUnit]);
+
+  return (
+    <>
+      {UNITS.map((unit, index) => {
+        const active = index === activeUnit && !modalOpen;
+        const side = index < activeUnit ? -1 : index > activeUnit ? 1 : 0;
+        const duration = active ? SWAP_IN_MS : SWAP_OUT_MS;
+        const delay = active ? SWAP_OUT_MS : 0;
+        return (
+          <div
+            key={unit.slug}
+            data-stacks-desktop-panel={unit.slug}
+            data-stacks-active={active || undefined}
+            data-swap-direction={direction > 0 ? "next" : "previous"}
+            className="absolute inset-0"
+            style={{
+              opacity: active ? 1 : 0,
+              transform: `translateX(${reduceMotion || active ? 0 : side * SWAP_DISTANCE_PX}px)`,
+              transitionProperty: "opacity, transform",
+              transitionDuration: reduceMotion ? "0ms" : `${duration}ms`,
+              transitionDelay: reduceMotion ? "0ms" : `${delay}ms`,
+              transitionTimingFunction: active
+                ? "cubic-bezier(0.16, 1, 0.3, 1)"
+                : "ease-out",
+            }}
+          >
+            <Panel
+              active={active}
+              mounted={visitedRef.current.has(index)}
+              label={unit.label}
+            >
+              {bodies[unit.slug]}
+            </Panel>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 /** One surface for a content block, matching the card the shared sections
  * draw for themselves. About and Books build their bodies here rather than
  * reusing a site section, so they'd otherwise be the only placards with no
@@ -581,7 +714,7 @@ function Panel({
  * is what the plate copies. */
 function PlacardCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-foreground/[0.06] p-5 backdrop-blur-[24px]">
+    <div className="rounded-3xl border border-foreground/[0.06] p-5 backdrop-blur-[24px] min-[1200px]:p-6">
       {children}
     </div>
   );
@@ -665,7 +798,7 @@ function BooksPlacard({ data }: { data: StacksData }) {
       </div>
       {/* Negative insets so the marquee runs to the card's edges and its
           side mask fades against the frame rather than inside a gutter. */}
-      <div className="-mx-5 -mb-1 overflow-hidden">
+      <div className="-mx-5 -mb-1 overflow-hidden min-[1200px]:-mx-6">
         <DeferredBookCarousel books={covers} />
       </div>
     </div>
@@ -711,10 +844,19 @@ const PEEK_MIN_PX = 160;
 /** And it never takes more than this much of the screen whatever the
  * arithmetic says, because the room is the point of the page. */
 const PEEK_MAX_FRACTION = 0.45;
-/** Header height: the grabber block (16) plus the title row (h-11). Used to
- * work out whether the peek window actually has content past its bottom
- * edge, so a short placard gets no phantom fade. */
-const SHEET_HEADER_PX = 60;
+/** Header geometry. Peek keeps its compact 8px-to-grabber lead so the room
+ * preview is not spent on chrome. Expanded gives the visible grabber the
+ * same 20px inset as the sheet's side gutter: 20px above the 4px bar, then
+ * 4px below it inside a 28px hit target. Both share the 44px title row. */
+const SHEET_GRABBER_PEEK_PX = 16;
+const SHEET_GRABBER_EXPANDED_PX = 28;
+const SHEET_TITLE_ROW_PX = 44;
+/** A long document that lands within this distance of the viewport cap uses
+ * the cap. This keeps About's expanded grabber exactly one 20px inset below
+ * the safe-area edge instead of leaving an accidental 18–30px extra sliver
+ * merely because its final line happens to fit. */
+const SHEET_MAX_SNAP_PX = 44;
+const SHEET_HEIGHT_EPSILON_PX = 0.5;
 
 /** Height of the empty floor below the bookcase, in px — the peek height. */
 function peekHeightFor(width: number, height: number): number {
@@ -723,8 +865,9 @@ function peekHeightFor(width: number, height: number): number {
   const toFoot = Math.atan2(pose.y - FOOT.y, pose.z - FOOT.z);
   const halfFov = ((pose.fov / 2) * Math.PI) / 180;
   // Fraction of the viewport height, from the top, where the feet land:
-  // 66.8% at 390x844, against ~570px measured off a screenshot versus 563px
-  // predicted — the difference is the camera's slow vertical bob (±0.03).
+  // 68.4% at 390x844 with the phone lens, or about 577px before the camera's
+  // slow vertical bob (±0.03). Keeping this projection on the shared pose is
+  // what lets a framing tune shrink the peek instead of cropping the shelf.
   const foot = 0.5 + (Math.tan(toFoot - pitch) / Math.tan(halfFov)) * 0.5;
   return Math.round(
     Math.min(
@@ -792,11 +935,6 @@ const SHEET_SPRING = {
   damping: 42,
   mass: 0.9,
 };
-/** How long the outgoing placard takes to leave, and how long the incoming
- * one takes to arrive. The exit is deliberately the shorter of the two so a
- * fast traverse doesn't feel like it is waiting for the page to catch up. */
-const SWAP_OUT_MS = 120;
-const SWAP_IN_MS = 220;
 /** Backstop only. The swap normally lands when the exit animation reports
  * itself finished, because a TIMER cannot know when that is: measured on the
  * real page, a unit change costs a 149ms main-thread stall (the arriving
@@ -825,10 +963,10 @@ const SWAP_FALLBACK_MS = 600;
  * state, and the store keeps meaning exactly what it meant before — "the
  * panel owns the viewport".
  *
- * The sheet is always full-height and always mounted; the three detents are
- * three values of a translateY. That is what lets one continuous drag run
- * from expanded to dismissed, and it keeps the text from reflowing on every
- * frame of the transition the way an animated height would.
+ * The sheet is always mounted and is content-height up to a viewport-safe
+ * cap; the three detents are three values of a translateY. That is what lets
+ * one continuous drag run from expanded to dismissed without reflowing the
+ * text on every gesture frame.
  *
  * WHICH GESTURE WINS. Three vertical drags compete on a phone:
  *
@@ -854,8 +992,10 @@ const SWAP_FALLBACK_MS = 600;
  * "closing", so the pushed history entry is always consumed. */
 function MobilePanel({
   bodies,
+  secretActive,
 }: {
   bodies: Record<(typeof UNITS)[number]["slug"], React.ReactNode>;
+  secretActive: boolean;
 }) {
   const activeUnit = useStacks((s) => s.activeUnit);
   const modalOpen = useStacks((s) => s.modalOpen);
@@ -864,7 +1004,10 @@ function MobilePanel({
   const expanded = panelState === "opening" || panelState === "open";
   const [dismissed, setDismissed] = useState(false);
   const metrics = useSheetMetrics();
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useStacksReducedMotion();
+  const sheetHeaderPx =
+    (expanded ? SHEET_GRABBER_EXPANDED_PX : SHEET_GRABBER_PEEK_PX) +
+    SHEET_TITLE_ROW_PX;
 
   // ── Changing section ────────────────────────────────────────────────
   // The body used to swap on the frame the active unit changed, so a
@@ -886,18 +1029,36 @@ function MobilePanel({
   // trace read `0.01, 1.00 (old content), 0.00 (new content)` on
   // consecutive frames, warm and cold. A motion value is only ever written
   // by the animation, so a re-render cannot put it anywhere.
-  const [shownSlug, setShownSlug] = useState(unit.slug);
+  const [shownIndex, setShownIndex] = useState(activeUnit);
   const bodyOpacity = useMotionValue(1);
-  const bodyLift = useMotionValue(0);
+  const bodyX = useMotionValue(0);
   // Always the unit being travelled to, so a commit that lands two units
   // later shows the one you are actually on rather than the one the fade
   // started for.
-  const targetSlugRef = useRef(unit.slug);
-  targetSlugRef.current = unit.slug;
-  const commitSwap = useCallback(() => setShownSlug(targetSlugRef.current), []);
+  const targetIndexRef = useRef(activeUnit);
+  targetIndexRef.current = activeUnit;
+  const shownIndexRef = useRef(shownIndex);
+  shownIndexRef.current = shownIndex;
+  const directionRef = useRef<1 | -1>(1);
+  const [swapDirection, setSwapDirection] = useState<1 | -1>(1);
+  const commitSwap = useCallback(() => {
+    const target = targetIndexRef.current;
+    const from = shownIndexRef.current;
+    const direction: 1 | -1 =
+      target === from ? directionRef.current : target > from ? 1 : -1;
+    directionRef.current = direction;
+    setSwapDirection(direction);
+    bodyOpacity.set(reduceMotion ? 1 : 0);
+    bodyX.set(reduceMotion ? 0 : direction * SWAP_DISTANCE_PX);
+    shownIndexRef.current = target;
+    setShownIndex(target);
+  }, [bodyOpacity, bodyX, reduceMotion]);
   // Out.
   useEffect(() => {
-    if (shownSlug === unit.slug) return;
+    if (shownIndex === activeUnit) return;
+    const direction: 1 | -1 = activeUnit > shownIndex ? 1 : -1;
+    directionRef.current = direction;
+    setSwapDirection(direction);
     if (reduceMotion) {
       commitSwap();
       return;
@@ -910,7 +1071,7 @@ function MobilePanel({
         if (!done) commitSwap();
       },
     });
-    const drop = animate(bodyLift, 6, {
+    const slide = animate(bodyX, -direction * SWAP_DISTANCE_PX, {
       duration: SWAP_OUT_MS / 1000,
       ease: "easeOut",
     });
@@ -919,33 +1080,35 @@ function MobilePanel({
       done = true;
       clearTimeout(backstop);
       fade.stop();
-      drop.stop();
+      slide.stop();
     };
-  }, [unit.slug, shownSlug, reduceMotion, commitSwap, bodyOpacity, bodyLift]);
+  }, [activeUnit, shownIndex, reduceMotion, commitSwap, bodyOpacity, bodyX]);
   // And in, on whatever the commit landed on.
   useEffect(() => {
     if (reduceMotion) {
       bodyOpacity.set(1);
-      bodyLift.set(0);
+      bodyX.set(0);
       return;
     }
     const fade = animate(bodyOpacity, 1, {
       duration: SWAP_IN_MS / 1000,
       ease: [0.16, 1, 0.3, 1],
     });
-    const rise = animate(bodyLift, 0, {
+    const slide = animate(bodyX, 0, {
       duration: SWAP_IN_MS / 1000,
       ease: [0.16, 1, 0.3, 1],
     });
     return () => {
       fade.stop();
-      rise.stop();
+      slide.stop();
     };
-  }, [shownSlug, reduceMotion, bodyOpacity, bodyLift]);
-  const shownUnit = UNITS.find((u) => u.slug === shownSlug) ?? unit;
+  }, [shownIndex, reduceMotion, bodyOpacity, bodyX]);
+  const shownUnit = UNITS[shownIndex] ?? unit;
+  const shownSlug = shownUnit.slug;
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   // Mobile keeps its sheet — an opaque surface is what makes the text
   // readable over a rendered room — but it loses the inner cards and gains
   // the same edge fade as desktop, so the two form factors read as one
@@ -974,41 +1137,229 @@ function MobilePanel({
     if (el) el.scrollTop = 0;
   }, [expanded, shownSlug]);
 
-  // The one number the whole sheet is positioned by: 0 is expanded, and the
-  // sheet is full height, so the peek and dismissed detents are just further
-  // down the same axis.
+  // The sheet is only as tall as the document it contains, capped below the
+  // safe-area top. A short placard therefore reads as a deliberate card
+  // instead of a nearly empty full-screen layer, while About and the other
+  // long documents still get a viewport-height scroller.
   const vh = metrics?.vh ?? 0;
   const peek = metrics?.peek ?? 0;
+  const [naturalHeight, setNaturalHeight] = useState(0);
+  useEffect(() => {
+    const content = contentRef.current;
+    const scroll = scrollRef.current;
+    if (!content || !scroll) return;
+    const measure = () => {
+      const style = getComputedStyle(scroll);
+      const padding =
+        Number.parseFloat(style.paddingTop) +
+        Number.parseFloat(style.paddingBottom);
+      setNaturalHeight(
+        Math.ceil(sheetHeaderPx + content.scrollHeight + padding),
+      );
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(content);
+    for (const child of Array.from(content.children)) ro.observe(child);
+    const mo = new MutationObserver(measure);
+    mo.observe(content, { childList: true, subtree: true });
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+    };
+  }, [shownSlug, metrics, sheetHeaderPx]);
+  const contentHeight = Math.max(peek, naturalHeight || peek);
+  const requestedHeight =
+    vh && contentHeight >= vh - SHEET_MAX_SNAP_PX ? vh : contentHeight;
+  // The actual box may be shorter than requestedHeight because max-height
+  // clears the dynamic viewport and its safe area. The drag detents and
+  // coverage publisher must use the rendered number, not the request.
+  const [sheetHeight, setSheetHeight] = useState(0);
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    const measure = () => {
+      const next = panel.getBoundingClientRect().height;
+      setSheetHeight((previous) =>
+        Math.abs(previous - next) < SHEET_HEIGHT_EPSILON_PX ? previous : next,
+      );
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(panel);
+    return () => ro.disconnect();
+  }, [requestedHeight]);
+  const renderedHeight = sheetHeight || requestedHeight;
   // Starts off the bottom of the screen, so the sheet's first move is to rise
   // into peek with the room rather than to drop out of a full-screen pose it
   // was never in.
   const y = useMotionValue(
     typeof window === "undefined" ? 0 : window.innerHeight,
   );
+  // A dismissed sheet still has to stay mounted: its content is the source
+  // for the animated chip label, and reopening should return to the same
+  // physical sheet rather than construct a new one at the bottom edge. Keep
+  // a separate opacity channel so a late content-height measurement cannot
+  // expose that parked sheet for one frame. About and Talks are tall enough
+  // to make that stale-height frame cover the viewport; the shorter units
+  // happened to hide the bug below the fold.
+  const sheetOpacity = useMotionValue(1);
+  const sheetParkedRef = useRef(false);
+  const parkSheet = useCallback((parked: boolean) => {
+    sheetParkedRef.current = parked;
+    const panel = panelRef.current;
+    panel?.toggleAttribute("data-sheet-parked", parked);
+    panel?.classList.toggle("invisible", parked);
+    panel?.classList.toggle("visible", !parked);
+  }, []);
   // A book modal takes the viewport, so the sheet gets out of its way rather
-  // than sitting behind it at z-40.
-  const hidden = dismissed || modalOpen;
-  const restY = expanded && !modalOpen ? 0 : hidden ? vh : vh - peek;
+  // than sitting behind it at z-40. The hidden reading room does the same:
+  // its reveal is a whole-bay scene change, and leaving the Book Notes sheet
+  // over it made the finished room look like background decoration. Unlike a
+  // user dismissal, this temporary hide does not leave a chip behind; closing
+  // the case restores the exact sheet detent the visitor had before.
+  const hidden = dismissed || modalOpen || secretActive;
+  // The collapsed chip is resident for the same reason as the sheet. Framer's
+  // declarative entrance briefly reapplied its `initial` opacity on the render
+  // where the sheet became parked (measured as 1 → 0 → 1 on one frame). A
+  // stable pair of motion values has exactly one writer and therefore cannot
+  // replay merely because some neighboring state committed.
+  const chipOpacity = useMotionValue(0);
+  const chipY = useMotionValue(12);
+  const chipVisibility = useMotionValue<"visible" | "hidden">("hidden");
+  const chipActive = hidden && !modalOpen && !secretActive;
+  useEffect(() => {
+    if (chipActive) {
+      chipVisibility.set("visible");
+      chipOpacity.set(0);
+      chipY.set(12);
+      const fade = animate(chipOpacity, 1, {
+        duration: reduceMotion ? 0 : 0.18,
+        delay: reduceMotion ? 0 : 0.12,
+        ease: "easeOut",
+      });
+      const travel = animate(chipY, 0, {
+        duration: reduceMotion ? 0 : 0.22,
+        delay: reduceMotion ? 0 : 0.12,
+        ease: [0.16, 1, 0.3, 1],
+      });
+      return () => {
+        fade.stop();
+        travel.stop();
+      };
+    }
+    const fade = animate(chipOpacity, 0, {
+      duration: reduceMotion ? 0 : 0.12,
+      ease: "easeOut",
+      onComplete: () => chipVisibility.set("hidden"),
+    });
+    const travel = animate(chipY, 8, {
+      duration: reduceMotion ? 0 : 0.12,
+      ease: "easeOut",
+    });
+    return () => {
+      fade.stop();
+      travel.stop();
+    };
+  }, [chipActive, chipOpacity, chipVisibility, chipY, reduceMotion]);
+  const restY =
+    expanded && !modalOpen && !secretActive
+      ? 0
+      : hidden
+        ? renderedHeight
+        : Math.max(0, renderedHeight - peek);
   const restRef = useRef(restY);
   restRef.current = restY;
   const settle = useCallback(() => {
     animate(y, restRef.current, SHEET_SPRING);
   }, [y]);
+  const pose =
+    expanded && !modalOpen && !secretActive
+      ? "expanded"
+      : hidden
+        ? "hidden"
+        : "peek";
+  const poseRef = useRef<typeof pose | null>(null);
   useEffect(() => {
     // Before the viewport is measured every detent is zero, which is the
     // expanded pose — animating to it would flash a full-screen sheet.
-    if (metrics) settle();
-  }, [metrics, restY, settle]);
+    if (!metrics) return;
+    const changedPose = poseRef.current !== pose;
+    poseRef.current = pose;
+    if (changedPose) {
+      parkSheet(false);
+      if (pose === "hidden") {
+        const travel = animate(y, restRef.current, SHEET_SPRING);
+        if (modalOpen) {
+          // The modal owns the whole viewport. There is no sheet-to-chip
+          // handoff to show, so retire the sheet immediately behind it.
+          sheetOpacity.set(0);
+          parkSheet(true);
+          return () => travel.stop();
+        }
+        // Fade only after the downward travel is legible. The chip begins its
+        // own entrance at the same beat, so the two read as one handoff rather
+        // than a full sheet blinking into an unrelated control.
+        const fade = animate(sheetOpacity, 0, {
+          duration: reduceMotion ? 0 : 0.18,
+          delay: reduceMotion ? 0 : 0.08,
+          ease: "easeOut",
+          onComplete: () => {
+            parkSheet(true);
+            // Content can resize while this is travelling. Once the sheet is
+            // invisible, adopt the latest endpoint atomically so no later
+            // measurement can expose a stale sliver.
+            y.stop();
+            y.set(restRef.current);
+          },
+        });
+        return () => {
+          travel.stop();
+          fade.stop();
+        };
+      }
+      sheetOpacity.set(1);
+      settle();
+      return;
+    }
+  }, [
+    metrics,
+    modalOpen,
+    parkSheet,
+    pose,
+    reduceMotion,
+    secretActive,
+    settle,
+    sheetOpacity,
+    y,
+  ]);
+  // ResizeObserver fires once per frame while the sheet's content-height
+  // transition is running. Restarting a spring on every callback makes a
+  // peeking sheet wobble and can prevent it from ever technically resting.
+  // The visible peek is constant, so track height changes directly; only a
+  // real detent change deserves a new spring. While a dismissal is actively
+  // travelling, leave its endpoint alone; once the sheet has faded and is
+  // parked, snap the invisible box to the latest height.
+  const heightPoseRef = useRef<typeof pose | null>(null);
+  useEffect(() => {
+    const changedPose = heightPoseRef.current !== pose;
+    heightPoseRef.current = pose;
+    if (changedPose) return;
+    if (!metrics || pose === "expanded") return;
+    if (pose === "hidden" && !sheetParkedRef.current) return;
+    y.stop();
+    y.set(restY);
+  }, [metrics, pose, restY, y]);
 
-  // The sheet stays MOUNTED at every width — `md:hidden` is a display rule,
-  // not a conditional render — so anything this component publishes about
+  // The sheet stays MOUNTED at every width — the 1200px utility is a display
+  // rule, not a conditional render — so anything this component publishes about
   // the screen has to be gated on the mobile layout actually being the one
   // in force. Without this the desktop scene would be recentred around a
   // sheet that is `display: none`, since CameraRig treats any non-zero
   // coverage as authoritative and drops its own fallback.
   const [narrow, setNarrow] = useState(true);
   useEffect(() => {
-    const mq = window.matchMedia("(max-width: 767px)");
+    const mq = window.matchMedia(STACKS_MOBILE_QUERY);
     const sync = () => setNarrow(mq.matches);
     sync();
     mq.addEventListener("change", sync);
@@ -1026,7 +1377,9 @@ function MobilePanel({
   useEffect(() => {
     const publish = (value: number) => {
       panelCoverageRef.current =
-        narrow && vh ? Math.min(1, Math.max(0, (vh - value) / vh)) : 0;
+        narrow && vh
+          ? Math.min(1, Math.max(0, (renderedHeight - value) / vh))
+          : 0;
     };
     publish(y.get());
     const unsubscribe = y.on("change", publish);
@@ -1034,7 +1387,7 @@ function MobilePanel({
       unsubscribe();
       panelCoverageRef.current = 0;
     };
-  }, [y, vh, narrow]);
+  }, [y, vh, narrow, renderedHeight]);
 
   // Opening from anywhere lands on expanded, so a unit tapped in the room
   // while the sheet was dismissed comes back to peek when it closes rather
@@ -1065,7 +1418,7 @@ function MobilePanel({
   // Widening past the md breakpoint with the panel up strands the frozen
   // travel state — fold the panel immediately.
   useEffect(() => {
-    const mq = window.matchMedia("(min-width: 768px)");
+    const mq = window.matchMedia(STACKS_DESKTOP_QUERY);
     const onChange = () => {
       if (mq.matches && useStacks.getState().panelState !== "closed") {
         useStacks.getState().setPanelState("closed");
@@ -1095,6 +1448,14 @@ function MobilePanel({
     setDismissed(true);
     closeStacksPanel(); // no-op unless we are leaving expanded
   }, []);
+  const restoreFromChip = useCallback(() => {
+    // Restore visibility while the sheet is still parked entirely below the
+    // viewport. The following state change springs it into peek; doing these
+    // in the opposite order creates a one-frame invisible response to tap.
+    parkSheet(false);
+    sheetOpacity.set(1);
+    setDismissed(false);
+  }, [parkSheet, sheetOpacity]);
 
   // ONE title per sheet, and it is the unit's own name.
   //
@@ -1117,19 +1478,34 @@ function MobilePanel({
   // alone, which matters because these headings come from the shared site
   // sections that the desktop dock still renders in full.
   const title = shownUnit.label;
-  useEffect(() => {
+  const ShownIcon = shownUnit.icon;
+  useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
     const apply = () => {
-      const first = el.querySelector("h1, h2");
+      const first = el.querySelector(".placard-section-heading, h1, h2");
       const dup = !!first && norm(first.textContent ?? "") === norm(title);
-      for (const h of el.querySelectorAll("h1, h2")) {
-        h.toggleAttribute("data-dup-title", dup && h === first);
+      for (const h of el.querySelectorAll(".placard-section-heading, h1, h2")) {
+        const duplicate = dup && h === first;
+        h.toggleAttribute("data-dup-title", duplicate);
+        // Systems is a container whose Manual/Routine headings must remain
+        // visible below the sheet's h2. Their shared flat-page components
+        // correctly author h1, so override only this mobile copy's a11y level
+        // rather than weakening the document-page outline.
+        if (h.tagName === "H1" && !duplicate) {
+          h.setAttribute("role", "heading");
+          h.setAttribute("aria-level", "3");
+          h.setAttribute("data-sheet-subheading", "");
+        } else if (h.hasAttribute("data-sheet-subheading")) {
+          h.removeAttribute("role");
+          h.removeAttribute("aria-level");
+          h.removeAttribute("data-sheet-subheading");
+        }
       }
     };
     apply();
-    // Bodies lazy-mount, so the heading is usually absent on the first pass.
+    // A section swap can commit before its shared body has populated.
     // Attributes are deliberately NOT watched: this writes one, and watching
     // them would feed the observer its own output.
     const mo = new MutationObserver(apply);
@@ -1172,21 +1548,20 @@ function MobilePanel({
       return bottom - top;
     };
     const update = () =>
-      setPeekOverflows(contentOf() > peek - SHEET_HEADER_PX + 4);
+      setPeekOverflows(contentOf() > peek - sheetHeaderPx + 4);
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
     const body = el.querySelector(".placard-body") ?? el;
     for (const child of Array.from(body.children)) ro.observe(child);
-    // Bodies lazy-mount and the lifting heatmap arrives async, so the
-    // children present now are not the ones that decide this.
+    // A section swap and async card media can both change the real extent.
     const mo = new MutationObserver(update);
     mo.observe(el, { childList: true, subtree: true });
     return () => {
       ro.disconnect();
       mo.disconnect();
     };
-  }, [peek, shownSlug]);
+  }, [peek, shownSlug, sheetHeaderPx]);
 
   // The drag. Hand-rolled and non-passive rather than framer's drag: framer
   // sets touch-action:none on the element it drags, which kills the inner
@@ -1405,12 +1780,12 @@ function MobilePanel({
   if (!metrics) return null;
 
   return (
-    <div className="md:hidden">
+    <div className="min-[1200px]:hidden">
       <AnimatePresence>
         {expanded && (
           <motion.div
             key="dim"
-            className="fixed inset-0 z-30 bg-background/40"
+            className="fixed inset-0 z-30 bg-background/10"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -1422,16 +1797,23 @@ function MobilePanel({
         ref={panelRef}
         data-stacks-panel
         data-sheet={expanded ? "expanded" : hidden ? "dismissed" : "peek"}
+        data-swap-direction={swapDirection > 0 ? "next" : "previous"}
         // No `transition` prop here on purpose. `y` is a MotionValue driven
         // imperatively by `animate(y, …, SHEET_SPRING)` in the gesture code,
         // and there is no declarative `animate` prop for a transition to
         // govern — one used to sit here and controlled nothing, which reads
         // like the spring lives here when it does not.
-        style={{ y }}
+        style={{
+          y,
+          opacity: sheetOpacity,
+          height: requestedHeight,
+          maxHeight: "calc(100dvh - env(safe-area-inset-top, 0px) - 1.25rem)",
+        }}
         // Never unmounted, only translated — see the header comment. Off the
         // bottom it must also be out of the tab order and out of the way of
         // taps on the room, which `inert` and pointer-events do between them.
         inert={hidden}
+        aria-hidden={hidden}
         // Inset from both edges and capped, so the room runs down either side
         // of the sheet instead of being guillotined by it — and so the top
         // corners can stay rounded at every detent. They used to square off
@@ -1444,32 +1826,48 @@ function MobilePanel({
         // `stacks-sheet` is the frosting: the same backdrop recipe as the
         // desktop plates, so the room reads through the sheet rather than
         // stopping at it. See the CSS at the foot of this file.
-        className={`stacks-sheet fixed inset-y-0 left-0 right-0 z-40 mx-auto flex w-[calc(100%-1.5rem)] max-w-[700px] flex-col rounded-t-2xl border-x border-t border-foreground/[0.07] shadow-[0px_-6px_28px_2px_rgba(0,0,0,0.13)] ${
+        className={`stacks-sheet fixed bottom-0 left-0 right-0 z-40 mx-auto flex w-[calc(100%-2.5rem)] max-w-[700px] flex-col rounded-t-3xl border-x border-t border-foreground/[0.07] shadow-[0px_-4px_18px_rgba(0,0,0,0.055)] ${
           hidden ? "pointer-events-none" : "pointer-events-auto"
-        }`}
+        } visible`}
       >
         {/* The grabber is the whole discoverability story for the drag, and
             it is why the sheet does not need a caption explaining itself.
             There is no chevron beside it any more: a button that duplicated
             the gesture earned its space only while the gesture was in doubt. */}
-        <div className="flex h-4 items-start justify-center pt-2">
-          <div aria-hidden className="h-1 w-9 rounded-full bg-foreground/20" />
-        </div>
+        <button
+          type="button"
+          aria-label={
+            expanded ? "Collapse section panel" : "Expand section panel"
+          }
+          onClick={expanded ? collapse : expand}
+          className={`stacks-sheet-grabber flex w-full items-start justify-center rounded-t-3xl focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/45 ${
+            expanded ? "h-7 pt-5" : "h-4 pt-2"
+          }`}
+        >
+          <span
+            aria-hidden
+            className="h-1 w-10 rounded-full bg-foreground/25"
+          />
+        </button>
         <div className="flex h-11 items-center justify-between pl-5 pr-1">
           {/* Hoisted out of the body — see the effect above. It fades with
               the body it names, so a section change never shows one
               placard's title over another's content. */}
-          <motion.h2
-            className="min-w-0 flex-1 truncate font-serif text-lg font-semibold text-foreground"
-            style={{ opacity: bodyOpacity }}
+          <motion.div
+            data-stacks-swap-part="header"
+            className="flex min-w-0 flex-1 items-center gap-2.5"
+            style={{ opacity: bodyOpacity, x: bodyX }}
           >
-            {title}
-          </motion.h2>
+            <ShownIcon aria-hidden weight="bold" className="size-5 shrink-0" />
+            <h2 className="truncate font-serif text-lg font-semibold text-foreground">
+              {title}
+            </h2>
+          </motion.div>
           <button
             type="button"
             aria-label="Close"
             onClick={dismiss}
-            className="flex size-11 shrink-0 items-center justify-center text-muted-foreground"
+            className="flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground focus-visible:ring-2 focus-visible:ring-foreground/45"
           >
             <XIcon className="size-5" weight="bold" />
           </button>
@@ -1480,6 +1878,8 @@ function MobilePanel({
         <div className="relative min-h-0 flex-1">
           <div
             ref={scrollRef}
+            tabIndex={hidden ? -1 : 0}
+            aria-label={`${title} section content`}
             // Only tagged while it can actually scroll. The attribute is what
             // ScrollBridges' wheel handler bails on, and leaving it on an
             // `overflow: hidden` element would deaden a third of the screen
@@ -1510,14 +1910,14 @@ function MobilePanel({
                 placard `justify-center` is a no-op either way, since the
                 content already exceeds the container. */}
             <motion.div
-              className={`placard-body flex min-h-full flex-col ${
-                expanded ? "justify-center" : "justify-start"
-              }`}
+              ref={contentRef}
+              data-stacks-swap-part="body"
+              className="placard-body flex flex-col justify-start"
               // The section change. `shownSlug` is the OUTGOING placard for
               // the whole length of the fade-out, so nothing is ever drawn
               // over anything else — see the two effects above, which own
               // these two values.
-              style={{ opacity: bodyOpacity, y: bodyLift }}
+              style={{ opacity: bodyOpacity, x: bodyX }}
             >
               {bodies[shownSlug]}
             </motion.div>
@@ -1531,30 +1931,38 @@ function MobilePanel({
           <motion.div
             aria-hidden
             className="stacks-sheet-fade pointer-events-none absolute inset-x-0"
-            style={{ top: peek - SHEET_HEADER_PX - FADE_PX, height: FADE_PX }}
+            style={{ top: peek - sheetHeaderPx - FADE_PX, height: FADE_PX }}
             animate={{ opacity: expanded || !peekOverflows ? 0 : 1 }}
             transition={{ duration: 0.18 }}
           />
         </div>
       </motion.div>
-      <AnimatePresence>
-        {hidden && !modalOpen && (
-          <motion.button
-            key="chip"
-            type="button"
-            data-stacks-chip
-            onClick={() => setDismissed(false)}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 12 }}
-            transition={{ duration: 0.2 }}
-            className="pointer-events-auto fixed inset-x-0 bottom-3 z-40 mx-auto flex h-11 w-fit max-w-[80vw] items-center gap-2 rounded-[22px] border border-foreground/[0.06] bg-background/85 px-4 font-serif text-sm text-foreground shadow-[0px_4px_24px_2px_rgba(0,0,0,0.10)] backdrop-blur"
-          >
-            <span className="truncate">{title}</span>
-            <CaretUpIcon className="size-3.5 shrink-0" weight="bold" />
-          </motion.button>
-        )}
-      </AnimatePresence>
+      <motion.button
+        type="button"
+        data-stacks-chip={chipActive ? "" : undefined}
+        data-swap-direction={swapDirection > 0 ? "next" : "previous"}
+        onClick={restoreFromChip}
+        inert={!chipActive}
+        aria-hidden={!chipActive}
+        style={{
+          opacity: chipOpacity,
+          y: chipY,
+          visibility: chipVisibility,
+        }}
+        className={`fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 mx-auto flex h-11 w-fit max-w-[80vw] items-center gap-2 rounded-full border border-foreground/[0.06] bg-background/55 px-4 font-serif text-sm text-foreground shadow-[0px_3px_16px_rgba(0,0,0,0.07)] backdrop-blur-xl focus-visible:ring-2 focus-visible:ring-foreground/50 ${
+          chipActive ? "pointer-events-auto" : "pointer-events-none"
+        }`}
+      >
+        <motion.span
+          data-stacks-swap-part="chip"
+          className="flex min-w-0 items-center gap-2"
+          style={{ opacity: bodyOpacity, x: bodyX }}
+        >
+          <ShownIcon aria-hidden weight="bold" className="size-4 shrink-0" />
+          <span className="truncate">{title}</span>
+        </motion.span>
+        <CaretUpIcon className="size-3.5 shrink-0" weight="bold" />
+      </motion.button>
     </div>
   );
 }
@@ -1568,6 +1976,11 @@ export default function PlacardLayer({
 }) {
   const activeUnit = useStacks((s) => s.activeUnit);
   const modalOpen = useStacks((s) => s.modalOpen);
+  const secretActive = useSyncExternalStore(
+    subscribeBookSecret,
+    () => bookSecretRef.phase !== "closed",
+    () => false,
+  );
 
   const bodies: Record<(typeof UNITS)[number]["slug"], React.ReactNode> = {
     about: (
@@ -1578,22 +1991,21 @@ export default function PlacardLayer({
         <div className="flex flex-col items-center gap-2 pt-4">
           {slots.contact}
         </div>
-        {/* The four photographs in the room that link to their source post
-            do it as raycast targets, and a canvas has no focus order and no
-            accessible name — so those URLs exist nowhere a keyboard or a
-            screen reader can reach them. This mirrors them into the DOM
-            without putting anything on the glass. */}
-        <nav aria-label="Photo sources" className="sr-only">
-          <ul>
-            {PHOTO_SOURCES.map((p) => (
-              <li key={p.href}>
-                <a href={p.href} target="_blank" rel="noopener noreferrer">
-                  {p.label} — source post
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        {/* Known photo-source links are mirrored into the DOM because canvas
+            raycast targets have no focus order or accessible name. */}
+        {PHOTO_SOURCES.length > 0 && (
+          <nav aria-label="Photo sources" className="sr-only">
+            <ul>
+              {PHOTO_SOURCES.map((p) => (
+                <li key={p.href}>
+                  <a href={p.href} target="_blank" rel="noopener noreferrer">
+                    {p.label} — source post
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )}
         {/* CC-BY attribution for the props. It stays off the glass, because
             the visible line was clutter in a room that has no other
             captions, but it is real text now rather than an HTML comment
@@ -1633,27 +2045,38 @@ export default function PlacardLayer({
       // focusable — the cover marquee is aria-hidden presentation and its
       // tooltips hang off plain divs — so there is no interactive control
       // for the anchor to swallow.
-      // The anchor wraps the HEADING TOO, not just the card. He asked for two
+      // The HEADING is linked too, not just the card. He asked for two
       // things that only look contradictory: the title outside the card like
       // every other section, and "clicking anywhere on the book notes section"
       // going to the library. Wrapping the card alone satisfies the first and
-      // quietly fails the second — the title and the gap above the card stay
-      // dead, which is exactly the part of "anywhere" a person aims at.
-      <Link
-        href={booksHref()}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Browse the whole library at books.chappyasel.com"
-        className="flex flex-col gap-3 rounded-xl"
-      >
-        <h2 className="flex items-center gap-2 text-xl font-semibold text-foreground">
-          <BooksIcon weight="duotone" className="size-6 shrink-0" />
-          Book Notes
+      // quietly fails the second — the title stays dead, which is exactly the
+      // part of "anywhere" a person aims at. The h2 remains the semantic
+      // section heading; the anchor is its interactive text, not its replacement.
+      <div className="flex flex-col gap-3">
+        <h2 className="placard-section-heading w-fit text-xl font-semibold text-foreground">
+          <Link
+            href={booksHref()}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Browse the whole library at books.chappyasel.com"
+            className="flex items-center gap-2 rounded-lg focus-visible:ring-2 focus-visible:ring-foreground/45"
+          >
+            <BooksIcon weight="duotone" className="size-6 shrink-0" />
+            Book Notes
+          </Link>
         </h2>
-        <PlacardCard>
-          <BooksPlacard data={data} />
-        </PlacardCard>
-      </Link>
+        <Link
+          href={booksHref()}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Browse the whole library at books.chappyasel.com"
+          className="rounded-3xl"
+        >
+          <PlacardCard>
+            <BooksPlacard data={data} />
+          </PlacardCard>
+        </Link>
+      </div>
     ),
     training: <div className="placard-sections">{slots.training}</div>,
     talks: <div className="placard-sections">{slots.talks}</div>,
@@ -1717,7 +2140,7 @@ export default function PlacardLayer({
         }
         /* The lift belongs to both layers — they are one card in two pieces
            and must travel exactly the same distance. */
-        .placard-plates, .placard-scroll { --plate-lift: -3px; }
+        .placard-plates, .placard-scroll { --plate-scale: 1.015; }
         .placard-plate {
           position: absolute;
           border: 1px solid hsl(var(--foreground) / 0.06);
@@ -1741,15 +2164,37 @@ export default function PlacardLayer({
            element's OWN transform, and an element's own transform does not
            cut it off from the backdrop behind its parent. */
         .stacks-sheet {
-          --sheet-fill: hsl(var(--background) / 0.76);
+          --sheet-fill: hsl(var(--background) / 0.34);
           background-color: var(--sheet-fill);
-          backdrop-filter: blur(64px) saturate(1.9) brightness(1.22);
-          -webkit-backdrop-filter: blur(64px) saturate(1.9) brightness(1.22);
+          backdrop-filter: blur(58px) saturate(1.7) brightness(1.18);
+          -webkit-backdrop-filter: blur(58px) saturate(1.7) brightness(1.18);
+        }
+        @media (prefers-reduced-motion: no-preference) {
+          .stacks-sheet {
+            transition: height 0.3s var(--stacks-ease, cubic-bezier(0.16, 1, 0.3, 1));
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          [data-stacks-desktop-panel] {
+            transform: none !important;
+            transition: none !important;
+          }
+          [data-stacks-desktop-panel][data-stacks-active] {
+            opacity: 1 !important;
+          }
+          [data-stacks-desktop-panel]:not([data-stacks-active]) {
+            opacity: 0 !important;
+          }
+          [data-stacks-swap-part] {
+            opacity: 1 !important;
+            transform: none !important;
+            transition: none !important;
+          }
         }
         .dark .stacks-sheet {
-          --sheet-fill: hsl(var(--background) / 0.62);
-          backdrop-filter: blur(64px) saturate(1.9) brightness(0.8);
-          -webkit-backdrop-filter: blur(64px) saturate(1.9) brightness(0.8);
+          --sheet-fill: hsl(var(--background) / 0.22);
+          backdrop-filter: blur(58px) saturate(1.7) brightness(0.8);
+          -webkit-backdrop-filter: blur(58px) saturate(1.7) brightness(0.8);
         }
         /* The peek window's bottom edge, which has to dissolve the last line
            of text into the sheet it is printed on. It used to fade to the
@@ -1783,24 +2228,26 @@ export default function PlacardLayer({
         .placard-plate[data-press] {
           box-shadow: 0px 3px 10px 0px rgba(0, 0, 0, 0.10);
         }
+        .placard-surface { border-radius: 1.5rem !important; }
+        .placard-hit { transform-origin: center; }
         @media (prefers-reduced-motion: no-preference) {
           .placard-plate,
           .placard-scroll .placard-hit {
             transition:
-              transform 0.34s var(--stacks-ease, cubic-bezier(0.16, 1, 0.3, 1)),
-              background-color 0.34s var(--stacks-ease, ease-out),
-              border-color 0.34s var(--stacks-ease, ease-out),
-              box-shadow 0.34s var(--stacks-ease, ease-out);
+              transform 0.5s var(--stacks-ease, cubic-bezier(0.16, 1, 0.3, 1)),
+              background-color 0.5s var(--stacks-ease, ease-out),
+              border-color 0.5s var(--stacks-ease, ease-out),
+              box-shadow 0.5s var(--stacks-ease, ease-out);
           }
           .placard-plate[data-hover],
           .placard-plate[data-focus],
           .placard-scroll .placard-hit:hover,
           .placard-scroll .placard-hit:focus-visible {
-            transform: translateY(var(--plate-lift, -3px));
+            transform: scale(var(--plate-scale, 1.015));
           }
           .placard-plate[data-press],
           .placard-scroll .placard-hit:active {
-            transform: translateY(-1px);
+            transform: scale(0.997);
           }
         }
         /* Keyboard only — the plate's lit edge is the mouse acknowledgement,
@@ -1822,7 +2269,7 @@ export default function PlacardLayer({
            at the narrowest dock and 16.0px at the widest. Mobile keeps a
            flat 0.875rem, which is exactly what the sheet renders today. */
         .placard-scroll { --ps: 0.875rem; }
-        @media (min-width: 768px) {
+        @media (min-width: 1200px) {
           .placard-scroll { --ps: calc(0.4375rem + var(--pw, 31rem) * 0.0141); }
         }
         /* Every rem-sized Tailwind step in here becomes a multiple of --ps.
@@ -1839,11 +2286,33 @@ export default function PlacardLayer({
         .placard-scroll .text-2xl { font-size: calc(var(--ps) * 1.714); line-height: 1.333; }
         .placard-sections section { margin-top: 0; }
         .placard-sections .mt-20 { margin-top: 0; }
+        /* Four timeline markers cannot borrow the viewport's sm breakpoint:
+           this reading column is narrow even on a 1440px screen. A stable
+           2x2 grid keeps every label paired with its time and eliminates the
+           orphan divider the flex-wrap version could leave on row two. */
+        .placard-scroll [data-routine-timeline] {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
         /* The placard's own scale for the shared sections: display sizes
            chosen for a full-width section overflow a reading column. Held
            above the map by specificity, deliberately. */
-        .placard-scroll .placard-sections h1 { font-size: calc(var(--ps) * 1.429); line-height: 1.4; }
-        .placard-scroll .placard-sections h1 svg { width: calc(var(--ps) * 1.714); height: calc(var(--ps) * 1.714); }
+        @media (min-width: 1200px) {
+          .placard-scroll .placard-sections h1,
+          .placard-scroll .placard-section-heading {
+            color: hsl(24 12% 16%) !important;
+            font-size: calc(var(--ps) * 1.786) !important;
+            line-height: 1.25;
+          }
+          .dark .placard-scroll .placard-sections h1,
+          .dark .placard-scroll .placard-section-heading {
+            color: hsl(var(--foreground)) !important;
+          }
+          .placard-scroll .placard-sections h1 svg,
+          .placard-scroll .placard-section-heading svg {
+            width: calc(var(--ps) * 1.786) !important;
+            height: calc(var(--ps) * 1.786) !important;
+          }
+        }
         .placard-scroll .placard-sections .text-2xl,
         .placard-scroll .placard-sections .sm\\:text-3xl,
         .placard-scroll .placard-sections .md\\:text-3xl { font-size: calc(var(--ps) * 1.286); line-height: 1.333; }
@@ -1890,7 +2359,7 @@ export default function PlacardLayer({
            subtly heavier than intended, and it left hover with two edges to
            brighten instead of one. Transparent rather than removed so the
            border box (and every layout that depends on it) is untouched. */
-        @media (min-width: 768px) {
+        @media (min-width: 1200px) {
           .placard-scroll [class*="backdrop-blur"] {
             border-color: transparent !important;
             box-shadow: none !important;
@@ -1899,10 +2368,24 @@ export default function PlacardLayer({
         /* Mobile has no plate layer — the sheet itself is the single blurred
            surface, which is what "one blur, not blur on blur" means there —
            so the cards just need a quiet fill of their own back. */
-        @media (max-width: 767px) {
+        @media (width < 1200px) {
+          .placard-surface,
           .placard-scroll [class*="backdrop-blur"] {
-            background-color: hsl(var(--muted) / 0.45) !important;
+            border-radius: 1.25rem !important;
           }
+          .placard-scroll [class*="backdrop-blur"] {
+            background-color: hsl(var(--muted) / 0.20) !important;
+          }
+          /* sm: padding belongs to the shared full-page layout. The sheet is
+             still a narrow reading column at 640–1199px, so keep every card
+             on the same 20px inset as About and Books. */
+          .placard-scroll .sm\\:p-6 { padding: 1.25rem !important; }
+          .placard-scroll .sm\\:px-6 {
+            padding-left: 1.25rem !important;
+            padding-right: 1.25rem !important;
+          }
+          .placard-scroll .sm\\:pb-6,
+          .placard-scroll .sm\\:pb-4 { padding-bottom: 1.25rem !important; }
           /* The sheet runs to the physical bottom of the screen, so the last
              line of a fully expanded placard would otherwise sit under the
              home indicator. Only the sheet's scroller — the desktop dock has
@@ -1910,23 +2393,28 @@ export default function PlacardLayer({
           [data-stacks-panel] .placard-scroll {
             padding-bottom: max(1.5rem, calc(env(safe-area-inset-bottom) + 0.75rem));
           }
-          /* Only at full height does the sheet reach the notch. At peek its
-             top edge is two thirds of the way down the screen, and reserving
-             a status bar there would just be a gap above the title. */
-          [data-stacks-panel][data-sheet="expanded"] {
-            padding-top: env(safe-area-inset-top);
-          }
           /* A body heading that only repeats the sheet's own title. Marked
              from JS by text match — see the effect in MobilePanel. */
           [data-stacks-panel] [data-dup-title] { display: none; }
-          [data-stacks-panel] { transition: padding-top 0.2s ease-out; }
+          /* A subsection title belongs below the sheet title in the type
+             hierarchy. Shared page sections use display sizes outside the
+             sheet; mobile normalises them without touching desktop. */
+          [data-stacks-panel] .placard-sections h1,
+          [data-stacks-panel] .placard-section-heading {
+            font-size: 1rem !important;
+            line-height: 1.35 !important;
+          }
+          [data-stacks-panel] .placard-sections h1 svg,
+          [data-stacks-panel] .placard-section-heading svg {
+            width: 1.125rem !important;
+            height: 1.125rem !important;
+          }
         }
-        /* Kill the scroll-reveal inside the placard. tailwindcss-intersect's
-           variant is &:not([no-intersect]), so these styles apply BY DEFAULT
-           and the observer only ever removes them — and it does one
-           querySelectorAll at boot, which can never see a placard body,
-           because those lazy-mount on first activation. So the reveal ran
-           every time, forever. Worse, motion-blur-in-sm settles on
+        /* Kill the page-level scroll reveal inside the resident placards.
+           Those bodies spend most of their life invisible/inert, so a
+           viewport observer does not represent their actual activation and
+           can leave them permanently in the reveal state. Worse,
+           motion-blur-in-sm settles on
            filter: blur(0) grayscale(0), which is NOT filter: none, and that
            made every wrapper a permanent backdrop root — the real reason
            half the cards never blurred. Kill the animation itself rather
@@ -1970,8 +2458,8 @@ export default function PlacardLayer({
           type below is derived from the same value, so the column and its
           contents cannot scale apart. */}
       <div
-        className={`absolute bottom-0 top-0 z-20 hidden transition-opacity duration-200 md:block ${
-          modalOpen ? "pointer-events-none opacity-0" : ""
+        className={`absolute bottom-0 top-0 z-20 hidden transition-opacity duration-200 min-[1200px]:block ${
+          modalOpen || secretActive ? "pointer-events-none opacity-0" : ""
         }`}
         style={
           {
@@ -1985,14 +2473,14 @@ export default function PlacardLayer({
           } as React.CSSProperties
         }
       >
-        {UNITS.map((unit, i) => (
-          <Panel key={unit.slug} active={i === activeUnit && !modalOpen}>
-            {bodies[unit.slug]}
-          </Panel>
-        ))}
+        <DesktopPanel
+          activeUnit={activeUnit}
+          modalOpen={modalOpen || secretActive}
+          bodies={bodies}
+        />
       </div>
       {/* Mobile: peek chip → full-screen panel. */}
-      <MobilePanel bodies={bodies} />
+      <MobilePanel bodies={bodies} secretActive={secretActive} />
     </div>
   );
 }

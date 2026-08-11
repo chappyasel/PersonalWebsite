@@ -15,16 +15,19 @@ const timelineMarkers = [
 export default function DailyRoutine() {
   return (
     <section className="flex w-full flex-col items-center justify-around gap-4">
-      <h1 className="flex w-full items-center gap-2 md:gap-3 text-2xl md:text-3xl font-semibold text-foreground [text-shadow:_0_0_20px_rgba(255,255,255,1)] dark:[text-shadow:_0_0_20px_rgba(0,0,0,0.8)]">
-        <SunHorizonIcon weight="duotone" className="size-7 md:size-8 shrink-0" />
+      <h1 className="flex w-full items-center gap-2 text-2xl font-semibold text-foreground [text-shadow:_0_0_20px_rgba(255,255,255,1)] dark:[text-shadow:_0_0_20px_rgba(0,0,0,0.8)] md:gap-3 md:text-3xl">
+        <SunHorizonIcon
+          weight="duotone"
+          className="size-7 shrink-0 md:size-8"
+        />
         Core Daily Routine
       </h1>
       <TiltCard className="w-full intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000">
         <Link
           href="/routine"
-          className="group relative block w-full px-4 py-4 sm:px-7 sm:py-6 [transform-style:preserve-3d]"
+          className="group relative block w-full p-5 [transform-style:preserve-3d] sm:p-6"
         >
-          <div className="absolute inset-0 rounded-xl border border-foreground/[0.06] bg-muted/40 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-lg transition-shadow duration-300 ease-in-out group-hover:shadow-[0px_4px_20px_0px_rgba(0,0,0,0.1)]" />
+          <div className="absolute inset-0 rounded-3xl border border-foreground/[0.06] bg-muted/40 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-lg transition-shadow duration-500 ease-out group-hover:shadow-[0px_8px_24px_0px_rgba(0,0,0,0.1)]" />
 
           <div className="relative" style={{ transform: "translateZ(20px)" }}>
             <p className="text-lg leading-snug">
@@ -32,11 +35,14 @@ export default function DailyRoutine() {
               through workout, work, and wind-down by 9:15pm.
             </p>
 
-            <div className="mt-4 flex flex-wrap items-center gap-2 sm:gap-0 sm:divide-x sm:divide-foreground/10">
+            <div
+              data-routine-timeline
+              className="mt-4 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4"
+            >
               {timelineMarkers.map(({ time, label, isAM }, index) => (
                 <div
                   key={index}
-                  className="flex items-baseline gap-1.5 sm:px-4 first:sm:pl-0 last:sm:pr-0"
+                  className="flex min-w-0 items-baseline gap-1.5"
                 >
                   <span
                     className={`text-sm font-bold tabular-nums ${isAM ? "text-amber-500 dark:text-amber-400" : "text-indigo-500 dark:text-indigo-400"}`}

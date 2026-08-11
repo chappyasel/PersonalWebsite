@@ -55,19 +55,6 @@ function formatShortDate(dateStr: string) {
   });
 }
 
-function formatRange(startDate: string | null, endDate: string | null) {
-  if (!startDate || !endDate) return "Last 12 months";
-  const start = parseLocalDate(startDate).toLocaleDateString("en-US", {
-    month: "short",
-    year: "numeric",
-  });
-  const end = parseLocalDate(endDate).toLocaleDateString("en-US", {
-    month: "short",
-    year: "numeric",
-  });
-  return `${start} - ${end}`;
-}
-
 function categoryLabel(categories: Record<string, number>) {
   const entries = Object.entries(categories);
   if (entries.length === 0) return "Workout";
@@ -157,26 +144,17 @@ const MOSAIC_DAYS = MOSAIC_COLUMNS * MOSAIC_ROWS * MOSAIC_BLOCKS;
 const MOSAIC_BLOCK_DAYS = MOSAIC_COLUMNS * MOSAIC_ROWS;
 
 function ActivityMosaic({ data }: { data: ActivityMosaicData }) {
-  const { cells, displayStartDate, displayEndDate } = useActivityCells(data);
+  const { cells } = useActivityCells(data);
 
   return (
-    <div className="px-4 pt-5 sm:px-6 sm:pt-6">
-      <div className="mb-3 flex items-end justify-between gap-3">
-        <div>
-          <p className="mt-1 text-lg font-semibold text-foreground">
-            Recent Activity
-          </p>
-          <p className="mt-0.5 text-xs font-medium text-muted-foreground">
-            {formatRange(displayStartDate, displayEndDate)}
-          </p>
-        </div>
-      </div>
-
+    <div className="px-5 pb-5 sm:px-6 sm:pb-6">
       <div className="h-[300px] rounded-lg border border-foreground/[0.06] bg-background/20 p-3 sm:h-[340px]">
         <TooltipProvider delayDuration={150}>
           <div
             className="grid h-full gap-3"
-            style={{ gridTemplateRows: `repeat(${MOSAIC_BLOCKS}, minmax(0, 1fr))` }}
+            style={{
+              gridTemplateRows: `repeat(${MOSAIC_BLOCKS}, minmax(0, 1fr))`,
+            }}
           >
             {cells.map((block, blockIndex) => (
               <div
@@ -250,20 +228,17 @@ export default function Weightlifting({
       </h1>
       <TiltCard
         className="w-full intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000"
-        hoverScale={1.05}
+        hoverScale={1.02}
       >
         <Link
-          className="block w-full overflow-hidden rounded-xl border border-foreground/[0.06] bg-muted/40 shadow-[0px_4px_12px_1px_rgba(0,0,0,0.07)] backdrop-blur-lg transition-shadow duration-300 ease-in-out hover:shadow-[0px_4px_15px_0px_rgba(0,0,0,0.1)]"
+          className="block w-full overflow-hidden rounded-3xl border border-foreground/[0.06] bg-muted/40 shadow-[0px_4px_12px_1px_rgba(0,0,0,0.07)] backdrop-blur-lg transition-shadow duration-500 ease-out hover:shadow-[0px_8px_24px_0px_rgba(0,0,0,0.1)]"
           href={
             process.env.NODE_ENV === "production"
               ? "https://weightlifting.chappyasel.com"
               : devSubdomainUrl("weightlifting")
           }
         >
-          <ActivityMosaic data={activity} />
-
-          <div className="flex flex-col items-center px-8 pb-5 pt-3">
-            <div className="mb-3 h-px w-2/3 bg-gradient-to-r from-transparent via-foreground/10 to-transparent" />
+          <div className="flex flex-col items-center p-5 sm:p-6 sm:pb-4">
             <div className="flex w-full justify-around gap-1">
               <div className="flex flex-col items-center gap-0.5">
                 <span className="text-2xl font-semibold text-foreground sm:text-3xl">
@@ -306,6 +281,7 @@ export default function Weightlifting({
               </div>
             </div>
           </div>
+          <ActivityMosaic data={activity} />
         </Link>
       </TiltCard>
     </section>
