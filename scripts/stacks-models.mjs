@@ -55,32 +55,148 @@ const RECOLOR_ATLAS = "tiny-treats";
 // placement notes — the components own the live numbers. license/author/page
 // feed public/models/LICENSES.json.
 const MANIFEST = [
-  { name: "desk-lamp", id: "SF3cZuqW3s", url: "https://static.poly.pizza/4c60b118-f475-4703-bd86-61108ab5a816.glb", strip: true, unit: "about+talks", author: "CreativeTrio", license: "CC0 1.0" },
-  { name: "mug", id: "4jSgnM5WWk", url: "https://static.poly.pizza/6be3fa9a-e9f1-4b2f-996f-dc711a4340fa.glb", strip: true, unit: "about+blog", author: "CreativeTrio", license: "CC0 1.0" },
-  { name: "alarm-clock", id: "y5f363OS9C", url: "https://static.poly.pizza/d86c60be-ae6e-4757-9c9c-0531796c24c2.glb", strip: true, unit: "systems", author: "CreativeTrio", license: "CC0 1.0" },
-  { name: "headphones", id: "PSsWSIAYIL", url: "https://static.poly.pizza/b72a848f-b4c6-40fb-ada7-69c4c524bd27.glb", strip: true, unit: "blog", author: "CreativeTrio", license: "CC0 1.0" },
-  { name: "dumbbell", id: "PW9q10xh5g", url: "https://static.poly.pizza/a9b5fb20-6ecb-4f20-996f-88743f2519da.glb", strip: true, unit: "training", author: "CreativeTrio", license: "CC0 1.0" },
-  { name: "globe", id: "Y4Dof9b2p5", url: "https://static.poly.pizza/002557d4-03f3-4201-a86c-f66e0af82182.glb", strip: true, unit: "about", author: "CreativeTrio", license: "CC0 1.0" },
-  { name: "trophy", id: "fLy8KmmD1t", url: "https://static.poly.pizza/b56b0827-c9f6-46e6-9a5d-160225686ee7.glb", strip: true, unit: "projects", author: "CreativeTrio", license: "CC0 1.0" },
-  { name: "open-book", id: "JEDMpG0UIR", url: "https://static.poly.pizza/64810c3b-57be-44be-aaba-926b56a0cebc.glb", noAo: true, unit: "blog", author: "Quaternius", license: "CC0 1.0" },
+  {
+    name: "desk-lamp",
+    id: "SF3cZuqW3s",
+    url: "https://static.poly.pizza/4c60b118-f475-4703-bd86-61108ab5a816.glb",
+    strip: true,
+    unit: "about+talks",
+    author: "CreativeTrio",
+    license: "CC0 1.0",
+  },
+  {
+    name: "mug",
+    id: "4jSgnM5WWk",
+    url: "https://static.poly.pizza/6be3fa9a-e9f1-4b2f-996f-dc711a4340fa.glb",
+    strip: true,
+    unit: "about+blog",
+    author: "CreativeTrio",
+    license: "CC0 1.0",
+  },
+  {
+    name: "alarm-clock",
+    id: "y5f363OS9C",
+    url: "https://static.poly.pizza/d86c60be-ae6e-4757-9c9c-0531796c24c2.glb",
+    strip: true,
+    unit: "systems",
+    author: "CreativeTrio",
+    license: "CC0 1.0",
+  },
+  {
+    name: "headphones",
+    id: "PSsWSIAYIL",
+    url: "https://static.poly.pizza/b72a848f-b4c6-40fb-ada7-69c4c524bd27.glb",
+    strip: true,
+    unit: "blog",
+    author: "CreativeTrio",
+    license: "CC0 1.0",
+  },
+  {
+    name: "dumbbell",
+    id: "PW9q10xh5g",
+    url: "https://static.poly.pizza/a9b5fb20-6ecb-4f20-996f-88743f2519da.glb",
+    strip: true,
+    unit: "training",
+    author: "CreativeTrio",
+    license: "CC0 1.0",
+  },
+  {
+    name: "globe",
+    id: "Y4Dof9b2p5",
+    url: "https://static.poly.pizza/002557d4-03f3-4201-a86c-f66e0af82182.glb",
+    strip: true,
+    unit: "about",
+    author: "CreativeTrio",
+    license: "CC0 1.0",
+  },
+  {
+    name: "trophy",
+    id: "fLy8KmmD1t",
+    url: "https://static.poly.pizza/b56b0827-c9f6-46e6-9a5d-160225686ee7.glb",
+    strip: true,
+    unit: "projects",
+    author: "CreativeTrio",
+    license: "CC0 1.0",
+  },
+  {
+    name: "open-book",
+    id: "JEDMpG0UIR",
+    url: "https://static.poly.pizza/64810c3b-57be-44be-aaba-926b56a0cebc.glb",
+    noAo: true,
+    unit: "blog",
+    author: "Quaternius",
+    license: "CC0 1.0",
+  },
   // noAo below: thin members / dark tints where baked AO never reads —
   // their bytes matter more than their crevices. /public/models is a soft
   // ~420 KB ceiling (398 KB as of round 4) — it is lazy-loaded after first
   // paint, so it sits OUTSIDE the 180 KB initial-route budget that
   // scripts/check-route-budgets.mjs asserts. Nothing fails the build on it;
   // the per-prop and total KB this script prints are the only guard.
-  { name: "golf-club", id: "26nMm9C7Bw", url: "https://static.poly.pizza/940b6e7e-09ab-414a-8243-fc63a3faa9fd.glb", noAo: true, unit: "training", author: "Pichuliru", license: "CC0 1.0" },
-  { name: "basketball", id: "i3LLacyQP4", url: "https://static.poly.pizza/d4a3995f-5823-4d31-b4ed-a27a0700e896.glb", keepNodes: ["Sphere"], fixMime: true, noAo: true, unit: "training", author: "Armory_3D", license: "CC0 1.0" },
+  {
+    name: "golf-club",
+    id: "26nMm9C7Bw",
+    url: "https://static.poly.pizza/940b6e7e-09ab-414a-8243-fc63a3faa9fd.glb",
+    noAo: true,
+    unit: "training",
+    author: "Pichuliru",
+    license: "CC0 1.0",
+  },
+  {
+    name: "basketball",
+    id: "i3LLacyQP4",
+    url: "https://static.poly.pizza/d4a3995f-5823-4d31-b4ed-a27a0700e896.glb",
+    keepNodes: ["Sphere"],
+    fixMime: true,
+    noAo: true,
+    unit: "training",
+    author: "Armory_3D",
+    license: "CC0 1.0",
+  },
   // ---- v4 round 2: CC0 atlas-shared drop-ins
-  { name: "cup-tea", id: "6QBscrL7D3", url: "https://static.poly.pizza/10923bae-556b-4540-8b37-2edaaa78083d.glb", strip: true, unit: "blog", author: "CreativeTrio", license: "CC0 1.0" },
-  { name: "corkboard", id: "U8yQZ9l0HZ", url: "https://static.poly.pizza/09cf2ec1-8b2c-4543-b773-962fba13aac5.glb", strip: true, noAo: true, unit: "blog", author: "CreativeTrio", license: "CC0 1.0" },
-  { name: "grandfather-clock", id: "09YKIkFZnA", url: "https://static.poly.pizza/88145813-946f-4490-abe5-e3938775991a.glb", strip: true, unit: "systems floor", author: "CreativeTrio", license: "CC0 1.0" },
+  {
+    name: "cup-tea",
+    id: "6QBscrL7D3",
+    url: "https://static.poly.pizza/10923bae-556b-4540-8b37-2edaaa78083d.glb",
+    strip: true,
+    unit: "blog",
+    author: "CreativeTrio",
+    license: "CC0 1.0",
+  },
+  {
+    name: "corkboard",
+    id: "U8yQZ9l0HZ",
+    url: "https://static.poly.pizza/09cf2ec1-8b2c-4543-b773-962fba13aac5.glb",
+    strip: true,
+    noAo: true,
+    unit: "blog",
+    author: "CreativeTrio",
+    license: "CC0 1.0",
+  },
+  {
+    name: "grandfather-clock",
+    id: "09YKIkFZnA",
+    url: "https://static.poly.pizza/88145813-946f-4490-abe5-e3938775991a.glb",
+    strip: true,
+    unit: "systems floor",
+    author: "CreativeTrio",
+    license: "CC0 1.0",
+  },
   // The library ladder was owner-killed at browse in v7 ("let's just get rid
   // of the ladder"), after v4 added it and v6 fixed its footing. Entry removed
   // rather than left dangling: nothing references it and the pipeline is what
   // decides what ships.
   // ---- v4 round 2: CC0 own-texture (palette remap per theme)
-  { name: "sansevieria", id: "BDwimVUool", url: "https://static.poly.pizza/f972935d-4083-474a-aa51-af7ceec71797.glb", recolor: true, noAo: true, unit: "systems", author: "Isa Lousberg", license: "CC0 1.0" },
+  {
+    name: "sansevieria",
+    id: "BDwimVUool",
+    url: "https://static.poly.pizza/f972935d-4083-474a-aa51-af7ceec71797.glb",
+    recolor: true,
+    noAo: true,
+    unit: "systems",
+    author: "Isa Lousberg",
+    license: "CC0 1.0",
+  },
   // ---- v4 round 3: more species. One sansevieria was carrying every plant
   // in a seven-unit room. The whole family is noAo (the sansevieria
   // included, which is what pays for the other two): blades, leaves and pot
@@ -89,8 +205,27 @@ const MANIFEST = [
   // to nothing, so past ~0.04 error meshoptimizer eats the stems and leaves
   // the foliage hanging in the air. 0.02 is the floor that still looks like
   // a plant, and it is why there are two of these and not four.
-  { name: "potted-plant", id: "GJ3Bm5FDE4", url: "https://static.poly.pizza/05ba8d9a-adb7-403d-a60c-e2f685bdc250.glb", strip: true, noAo: true, unit: "about", author: "CreativeTrio", license: "CC0 1.0" },
-  { name: "pothos", id: "JVoJ2itVzh", url: "https://static.poly.pizza/8e0f9c34-b4d2-4488-aa47-2c032b8ced88.glb", recolor: true, noAo: true, simplify: 0.02, unit: "projects", author: "Isa Lousberg", license: "CC0 1.0" },
+  {
+    name: "potted-plant",
+    id: "GJ3Bm5FDE4",
+    url: "https://static.poly.pizza/05ba8d9a-adb7-403d-a60c-e2f685bdc250.glb",
+    strip: true,
+    noAo: true,
+    unit: "about",
+    author: "CreativeTrio",
+    license: "CC0 1.0",
+  },
+  {
+    name: "pothos",
+    id: "JVoJ2itVzh",
+    url: "https://static.poly.pizza/8e0f9c34-b4d2-4488-aa47-2c032b8ced88.glb",
+    recolor: true,
+    noAo: true,
+    simplify: 0.02,
+    unit: "projects",
+    author: "Isa Lousberg",
+    license: "CC0 1.0",
+  },
   // ---- v4 round 2: CC-BY (credited in LICENSES.json + About placard).
   // All three carry plain materials (no textures) — themed at runtime via
   // the "tinted" variant: barbell Iron1Barbell1/Steel1Barbell1, kettlebell
@@ -98,8 +233,23 @@ const MANIFEST = [
   // bumper plate once tinted and leaned). v4.1: the plate/mic were owner-
   // killed at browse (dinnerware read / out-of-place) — procedural bumpers
   // and a framed photo replaced them.
-  { name: "barbell", id: "AX5jGlJZlk", url: "https://static.poly.pizza/4915af72-c243-407c-960c-272a4ce73d97.glb", noAo: true, unit: "training", author: "Zsky", license: "CC-BY 3.0" },
-  { name: "kettlebell", id: "08Gs4e3L1N8", url: "https://static.poly.pizza/9044238c-c3ef-47ae-a8e1-5a140cb64e78.glb", unit: "training", author: "Poly by Google", license: "CC-BY 3.0" },
+  {
+    name: "barbell",
+    id: "AX5jGlJZlk",
+    url: "https://static.poly.pizza/4915af72-c243-407c-960c-272a4ce73d97.glb",
+    noAo: true,
+    unit: "training",
+    author: "Zsky",
+    license: "CC-BY 3.0",
+  },
+  {
+    name: "kettlebell",
+    id: "08Gs4e3L1N8",
+    url: "https://static.poly.pizza/9044238c-c3ef-47ae-a8e1-5a140cb64e78.glb",
+    unit: "training",
+    author: "Poly by Google",
+    license: "CC-BY 3.0",
+  },
   // ---- v4 round 4: the owner's named asks (Eames / Mac / +2 lamps / +2 plants).
   // eames-chair is the honest near-miss: poly.pizza has NO Eames lounge (no
   // plywood shells, no ottoman, no star base). This is the site's top
@@ -115,15 +265,87 @@ const MANIFEST = [
   // child that is not itself matched. M_screen_blue / M_screen_whitetext are
   // the screen materials a tinted variant must leave alone or the Mac stops
   // reading as switched on.
-  { name: "mac", id: "goeJLARWbs", url: "https://static.poly.pizza/3e43bb1d-0715-4b84-849a-3ae813a6ffed.glb", keepNodes: ["monitor_and_body", "face", "face_shadow"], unit: "projects (github link)", author: "Charlie", license: "CC-BY 3.0" },
-  { name: "lamp-table", id: "1nKtMmYxLT", url: "https://static.poly.pizza/cc9fbab2-f93f-4dfc-947b-b91f10a7b6bb.glb", strip: true, unit: "books+blog", author: "CreativeTrio", license: "CC0 1.0" },
-  { name: "lamp-floor", id: "8LiDIfXVLi", url: "https://static.poly.pizza/98dd45a1-0682-4d44-83d1-32fa2a4fca5b.glb", noAo: true, unit: "floor", author: "Kenney", license: "CC0 1.0" },
+  {
+    name: "mac",
+    id: "goeJLARWbs",
+    url: "https://static.poly.pizza/3e43bb1d-0715-4b84-849a-3ae813a6ffed.glb",
+    keepNodes: ["monitor_and_body", "face", "face_shadow"],
+    unit: "projects (github link)",
+    author: "Charlie",
+    license: "CC-BY 3.0",
+  },
+  {
+    name: "lamp-table",
+    id: "1nKtMmYxLT",
+    url: "https://static.poly.pizza/cc9fbab2-f93f-4dfc-947b-b91f10a7b6bb.glb",
+    strip: true,
+    unit: "books+blog",
+    author: "CreativeTrio",
+    license: "CC0 1.0",
+  },
+  {
+    name: "lamp-floor",
+    id: "8LiDIfXVLi",
+    url: "https://static.poly.pizza/98dd45a1-0682-4d44-83d1-32fa2a4fca5b.glb",
+    noAo: true,
+    unit: "floor",
+    author: "Kenney",
+    license: "CC0 1.0",
+  },
   // Two more species, same tiny-treats atlas as pothos/sansevieria (verified
   // byte-identical by the hash check below). Medium monstera not large: the
   // large one is 5.9k tris for the same silhouette. Both noAo + 0.02 for the
   // reasons in the round-3 note above.
-  { name: "monstera", id: "mhLLD0UJ5n", url: "https://static.poly.pizza/25c47ae4-e64f-42cc-8ef7-9f7a69907c92.glb", recolor: true, noAo: true, simplify: 0.02, unit: "about", author: "Isa Lousberg", license: "CC0 1.0" },
-  { name: "cactus", id: "ktF2FMl1eT", url: "https://static.poly.pizza/241caab1-030a-4879-8a37-982b7e5d2f49.glb", recolor: true, noAo: true, simplify: 0.02, unit: "systems", author: "Isa Lousberg", license: "CC0 1.0" },
+  {
+    name: "monstera",
+    id: "mhLLD0UJ5n",
+    url: "https://static.poly.pizza/25c47ae4-e64f-42cc-8ef7-9f7a69907c92.glb",
+    recolor: true,
+    noAo: true,
+    simplify: 0.02,
+    unit: "about",
+    author: "Isa Lousberg",
+    license: "CC0 1.0",
+  },
+  {
+    name: "cactus",
+    id: "ktF2FMl1eT",
+    url: "https://static.poly.pizza/241caab1-030a-4879-8a37-982b7e5d2f49.glb",
+    recolor: true,
+    noAo: true,
+    simplify: 0.02,
+    unit: "systems",
+    author: "Isa Lousberg",
+    license: "CC0 1.0",
+  },
+  // Owner-selected v8 plants. Both pages identify Isa Lousberg as creator and
+  // CC0 1.0; both embedded images hash byte-for-byte to the existing
+  // tiny-treats atlas (sha1 aa1e2f65…), so they add geometry only and reuse
+  // the one themed texture already paid for by pothos/sansevieria.
+  {
+    name: "succulent-pot",
+    title: "Succulent Pot",
+    id: "y3zjCa6BeR",
+    url: "https://static.poly.pizza/c3c99f98-5d16-449b-a24e-29564a3a6c64.glb",
+    recolor: true,
+    noAo: true,
+    simplify: 0.02,
+    unit: "about",
+    author: "Isa Lousberg",
+    license: "CC0 1.0",
+  },
+  {
+    name: "yucca-plant",
+    title: "Yucca Plant",
+    id: "uKRTMhxfiu",
+    url: "https://static.poly.pizza/4a45783b-8c84-46d6-81cb-82dd3e7a971a.glb",
+    recolor: true,
+    noAo: true,
+    simplify: 0.02,
+    unit: "projects-musings floor",
+    author: "Isa Lousberg",
+    license: "CC0 1.0",
+  },
   // ---- v7 removals. These four had no call site left and were still being
   // downloaded, built and PRELOADED, i.e. paid for on every visit while
   // rendering nothing (44 KB between them). ct-books became a real per-spine
@@ -146,23 +368,54 @@ const MANIFEST = [
   // SEAT_POSE in scene/seated.ts was measured against the eames hull and is
   // re-measured against this one. 852 tris.
   //   Couch_Blue = upholstery, Black = base.
-  { name: "couch", id: "ZOPP3KzNIk", url: "https://static.poly.pizza/4e8fbbf3-9992-4068-8918-2126a0304127.glb", unit: "about floor", author: "Quaternius", license: "CC0 1.0" },
+  {
+    name: "couch",
+    id: "ZOPP3KzNIk",
+    url: "https://static.poly.pizza/4e8fbbf3-9992-4068-8918-2126a0304127.glb",
+    unit: "about floor",
+    author: "Quaternius",
+    license: "CC0 1.0",
+  },
   // The can is 312 tris, which is why it can afford to appear several times in
   // different colours. Its materials are named for their stock hex, so the
   // body tint is the `F44336` slot; the other two are the base ring and the
   // pull tab and should stay neutral or the can stops reading as aluminium.
   // NEW CC-BY AUTHOR: "jeremy" joins the credits line in the About placard.
-  { name: "soda-can", id: "cNjAaDY27fQ", url: "https://static.poly.pizza/1be087d0-ab82-47b6-84c8-9f9ea9060fd9.glb", noAo: true, unit: "training+projects+blog", author: "jeremy", license: "CC-BY 3.0" },
+  {
+    name: "soda-can",
+    id: "cNjAaDY27fQ",
+    url: "https://static.poly.pizza/1be087d0-ab82-47b6-84c8-9f9ea9060fd9.glb",
+    noAo: true,
+    unit: "training+projects+blog",
+    author: "jeremy",
+    license: "CC-BY 3.0",
+  },
   // 104 tris, the cheapest prop in the room by a distance. Zsky is already a
   // credited CC-BY author (barbell), so it adds no new name.
   //   Plastic1Protein1 = tub, Lid1Protein1 = lid.
-  { name: "protein-powder", id: "w9sWcWlV9i", url: "https://static.poly.pizza/4e9e8127-6819-4af1-afc2-be217d93859d.glb", unit: "training", author: "Zsky", license: "CC-BY 3.0" },
+  {
+    name: "protein-powder",
+    id: "w9sWcWlV9i",
+    url: "https://static.poly.pizza/4e9e8127-6819-4af1-afc2-be217d93859d.glb",
+    unit: "training",
+    author: "Zsky",
+    license: "CC-BY 3.0",
+  },
   // The Talks mic. Unlike the three above it DOES carry its own texture, and
   // it is the reason `texMax` exists — see the note at the resize step. The
   // map is pure greyscale shading over one material (lambert2SG), so it
   // survives a runtime tint rather than fighting it. 184 tris.
   // Poly by Google is already a credited CC-BY author (kettlebell).
-  { name: "microphone", id: "bD-LseANe2b", url: "https://static.poly.pizza/67e327c3-3925-4750-9b1a-95794c810c07.glb", texMax: 128, noAo: true, unit: "talks", author: "Poly by Google", license: "CC-BY 3.0" },
+  {
+    name: "microphone",
+    id: "bD-LseANe2b",
+    url: "https://static.poly.pizza/67e327c3-3925-4750-9b1a-95794c810c07.glb",
+    texMax: 128,
+    noAo: true,
+    unit: "talks",
+    author: "Poly by Google",
+    license: "CC-BY 3.0",
+  },
 ];
 
 function parseGlb(buf) {
@@ -209,7 +462,10 @@ function extractImage(json, bin) {
   const img = json.images?.[0];
   if (!img) return null;
   const view = json.bufferViews[img.bufferView];
-  return bin.subarray(view.byteOffset ?? 0, (view.byteOffset ?? 0) + view.byteLength);
+  return bin.subarray(
+    view.byteOffset ?? 0,
+    (view.byteOffset ?? 0) + view.byteLength,
+  );
 }
 
 function stripTextures(json) {
@@ -249,7 +505,8 @@ function surgery(buf, spec) {
       return k;
     };
     for (const scene of json.scenes ?? []) scene.nodes.forEach(visit);
-    if (!keep.some(Boolean)) throw new Error(`keepNodes matched nothing: ${spec.keepNodes}`);
+    if (!keep.some(Boolean))
+      throw new Error(`keepNodes matched nothing: ${spec.keepNodes}`);
     for (const n of json.nodes ?? []) {
       if (n.children) n.children = n.children.filter((c) => keep[c]);
     }
@@ -266,11 +523,91 @@ function surgery(buf, spec) {
 // lands on the theme hex. v4: green/lime/cyan/blue DIVERGE — v3 mapped them
 // to near-identical warm greys, which flattened the globe to a checkerboard
 // and the plant to dead khaki.
-const DOMINANT = ["462720", "a24444", "cf6d34", "242227", "8f0951", "67ea66", "e7c451", "3ab7d9", "e7e7e7", "8b8b8b", "c3a391", "3b3b3b", "315e94", "3e3f57", "141414", "ff7797", "75af6d", "c54747", "b27757"];
-const ROLES = ["dk-brown", "brick", "orange", "charcoal", "magenta", "lime", "gold", "cyan", "white", "grey", "tan", "dk-grey", "blue", "slate", "black", "pink", "green", "red", "lt-brown"];
+const DOMINANT = [
+  "462720",
+  "a24444",
+  "cf6d34",
+  "242227",
+  "8f0951",
+  "67ea66",
+  "e7c451",
+  "3ab7d9",
+  "e7e7e7",
+  "8b8b8b",
+  "c3a391",
+  "3b3b3b",
+  "315e94",
+  "3e3f57",
+  "141414",
+  "ff7797",
+  "75af6d",
+  "c54747",
+  "b27757",
+];
+const ROLES = [
+  "dk-brown",
+  "brick",
+  "orange",
+  "charcoal",
+  "magenta",
+  "lime",
+  "gold",
+  "cyan",
+  "white",
+  "grey",
+  "tan",
+  "dk-grey",
+  "blue",
+  "slate",
+  "black",
+  "pink",
+  "green",
+  "red",
+  "lt-brown",
+];
 const THEMES = {
-  dark: { "dk-brown": "#453521", brick: "#8f4a2c", orange: "#a86c46", charcoal: "#241d14", magenta: "#6d3f28", lime: "#6d7c42", gold: "#94795a", cyan: "#3c5a72", white: "#c9bda4", grey: "#7a6650", tan: "#b3a68f", "dk-grey": "#3b2e1f", blue: "#334d68", slate: "#57493a", black: "#241d14", pink: "#8a5f48", green: "#5a6a38", red: "#8a4a30", "lt-brown": "#5c4832" },
-  light: { "dk-brown": "#826645", brick: "#9c4f38", orange: "#a5764c", charcoal: "#443a2d", magenta: "#84573f", lime: "#7a8f56", gold: "#c2a377", cyan: "#5c7f9c", white: "#f4ecdb", grey: "#a4917a", tan: "#dccdb4", "dk-grey": "#6e5d49", blue: "#4c6d90", slate: "#5c5648", black: "#443a2d", pink: "#b8926a", green: "#5f7a48", red: "#9c4f38", "lt-brown": "#a5845f" },
+  dark: {
+    "dk-brown": "#453521",
+    brick: "#8f4a2c",
+    orange: "#a86c46",
+    charcoal: "#241d14",
+    magenta: "#6d3f28",
+    lime: "#6d7c42",
+    gold: "#94795a",
+    cyan: "#3c5a72",
+    white: "#c9bda4",
+    grey: "#7a6650",
+    tan: "#b3a68f",
+    "dk-grey": "#3b2e1f",
+    blue: "#334d68",
+    slate: "#57493a",
+    black: "#241d14",
+    pink: "#8a5f48",
+    green: "#5a6a38",
+    red: "#8a4a30",
+    "lt-brown": "#5c4832",
+  },
+  light: {
+    "dk-brown": "#826645",
+    brick: "#9c4f38",
+    orange: "#a5764c",
+    charcoal: "#443a2d",
+    magenta: "#84573f",
+    lime: "#7a8f56",
+    gold: "#c2a377",
+    cyan: "#5c7f9c",
+    white: "#f4ecdb",
+    grey: "#a4917a",
+    tan: "#dccdb4",
+    "dk-grey": "#6e5d49",
+    blue: "#4c6d90",
+    slate: "#5c5648",
+    black: "#443a2d",
+    pink: "#b8926a",
+    green: "#5f7a48",
+    red: "#9c4f38",
+    "lt-brown": "#a5845f",
+  },
 };
 // Role overrides for the remap — { role: [light, dark] }, keyed by whichever
 // prop writes the shared pair, so an entry moves EVERY prop that samples it.
@@ -278,7 +615,8 @@ const THEMES = {
 // pixels that land on the wrong role.
 const ROLE_OVERRIDES = {};
 
-const rgb = (hex) => [0, 2, 4].map((i) => parseInt(hex.slice(1 + i, 3 + i), 16));
+const rgb = (hex) =>
+  [0, 2, 4].map((i) => parseInt(hex.slice(1 + i, 3 + i), 16));
 
 /** Nearest-dominant palette remap of raw RGBA pixels toward one theme. */
 function remapPixels(data, channels, count, themeMap, mix) {
@@ -286,17 +624,27 @@ function remapPixels(data, channels, count, themeMap, mix) {
   const targets = dom.map((_, i) => rgb(themeMap[ROLES[i]]));
   const out = Buffer.from(data);
   for (let p = 0; p < count; p++) {
-    const px = [data[p * channels], data[p * channels + 1], data[p * channels + 2]];
+    const px = [
+      data[p * channels],
+      data[p * channels + 1],
+      data[p * channels + 2],
+    ];
     let best = 0;
     let bd = Infinity;
     for (let i = 0; i < dom.length; i++) {
-      const d = (px[0] - dom[i][0]) ** 2 + (px[1] - dom[i][1]) ** 2 + (px[2] - dom[i][2]) ** 2;
+      const d =
+        (px[0] - dom[i][0]) ** 2 +
+        (px[1] - dom[i][1]) ** 2 +
+        (px[2] - dom[i][2]) ** 2;
       if (d < bd) {
         bd = d;
         best = i;
       }
     }
-    for (let c = 0; c < 3; c++) out[p * channels + c] = Math.round(px[c] + (targets[best][c] - px[c]) * mix);
+    for (let c = 0; c < 3; c++)
+      out[p * channels + c] = Math.round(
+        px[c] + (targets[best][c] - px[c]) * mix,
+      );
   }
   return out;
 }
@@ -305,7 +653,10 @@ function remapPixels(data, channels, count, themeMap, mix) {
 async function recolorTexture(spec, png) {
   const { default: sharp } = await import("sharp");
   // 256px is plenty for palette-flat low-poly textures and keeps PNGs tiny.
-  const src = sharp(png).resize(256, 256, { fit: "inside", withoutEnlargement: true });
+  const src = sharp(png).resize(256, 256, {
+    fit: "inside",
+    withoutEnlargement: true,
+  });
   const { data, info } = await src.raw().toBuffer({ resolveWithObject: true });
   for (const [theme, baseMap] of Object.entries(THEMES)) {
     const overrides = ROLE_OVERRIDES[spec.name];
@@ -315,7 +666,13 @@ async function recolorTexture(spec, png) {
         map[role] = theme === "light" ? light : dark;
       }
     }
-    const out = remapPixels(data, info.channels, info.width * info.height, map, 1);
+    const out = remapPixels(
+      data,
+      info.channels,
+      info.width * info.height,
+      map,
+      1,
+    );
     const file = path.join(OUT, `${RECOLOR_ATLAS}-${theme}.png`);
     await sharp(out, { raw: info }).png({ palette: true }).toFile(file);
   }
@@ -324,12 +681,16 @@ async function recolorTexture(spec, png) {
 function writeLicenses() {
   const entries = MANIFEST.map((m) => ({
     file: `${m.name}.glb`,
-    title: m.name,
+    title: m.title ?? m.name,
     author: m.author,
     license: m.license,
     source: `https://poly.pizza/m/${m.id}`,
   }));
-  const ccby = [...new Set(entries.filter((e) => e.license.startsWith("CC-BY")).map((e) => e.author))];
+  const ccby = [
+    ...new Set(
+      entries.filter((e) => e.license.startsWith("CC-BY")).map((e) => e.author),
+    ),
+  ];
   const manifest = {
     generated: "scripts/stacks-models.mjs",
     note: "All models CC0 except the CC-BY set below, credited in the About placard.",
@@ -338,16 +699,33 @@ function writeLicenses() {
   };
   const file = path.join(OUT, "LICENSES.json");
   fs.writeFileSync(file, JSON.stringify(manifest, null, 2) + "\n");
-  console.log(`\nLICENSES.json written — CC-BY credits required for: ${ccby.join(", ")}`);
-  console.log(`suggested credit line: “3D props include CC-BY work by ${ccby.join(", ")}.”`);
+  console.log(
+    `\nLICENSES.json written — CC-BY credits required for: ${ccby.join(", ")}`,
+  );
+  console.log(
+    `suggested credit line: “3D props include CC-BY work by ${ccby.join(", ")}.”`,
+  );
 }
 
 // ---- vertex-AO bake (COLOR_0) — node-side three raycast, pre-optimize.
 async function aoBake(preFile, aoFile) {
-  globalThis.Image = class { constructor() { setTimeout(() => this.onload && this.onload(), 0); } set src(v) {} addEventListener(t, f) { if (t === "load") setTimeout(f, 0); } removeEventListener() {} };
-  globalThis.document = { createElementNS: () => ({ getContext: () => ({}), style: {} }), createElement: () => ({ getContext: () => ({}), style: {} }) };
+  globalThis.Image = class {
+    constructor() {
+      setTimeout(() => this.onload && this.onload(), 0);
+    }
+    set src(v) {}
+    addEventListener(t, f) {
+      if (t === "load") setTimeout(f, 0);
+    }
+    removeEventListener() {}
+  };
+  globalThis.document = {
+    createElementNS: () => ({ getContext: () => ({}), style: {} }),
+    createElement: () => ({ getContext: () => ({}), style: {} }),
+  };
   globalThis.self = globalThis;
-  if (!globalThis.URL.createObjectURL) globalThis.URL.createObjectURL = () => "blob:stub";
+  if (!globalThis.URL.createObjectURL)
+    globalThis.URL.createObjectURL = () => "blob:stub";
   globalThis.FileReader = class {
     readAsArrayBuffer(blob) {
       blob.arrayBuffer().then((ab) => {
@@ -362,7 +740,9 @@ async function aoBake(preFile, aoFile) {
   ]);
   const buf = fs.readFileSync(preFile);
   const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
-  const gltf = await new Promise((res, rej) => new GLTFLoader().parse(ab, "", res, rej));
+  const gltf = await new Promise((res, rej) =>
+    new GLTFLoader().parse(ab, "", res, rej),
+  );
   const scene = gltf.scene;
   scene.updateMatrixWorld(true);
   const meshes = [];
@@ -381,11 +761,13 @@ async function aoBake(preFile, aoFile) {
     const t = (i + 0.5) / N;
     const phi = Math.acos(1 - t); // bias toward the pole (normal)
     const theta = Math.PI * (1 + Math.sqrt(5)) * i;
-    DIRS.push(new THREE.Vector3(
-      Math.sin(phi) * Math.cos(theta),
-      Math.sin(phi) * Math.sin(theta),
-      Math.cos(phi),
-    ));
+    DIRS.push(
+      new THREE.Vector3(
+        Math.sin(phi) * Math.cos(theta),
+        Math.sin(phi) * Math.sin(theta),
+        Math.cos(phi),
+      ),
+    );
   }
   const normalMat = new THREE.Matrix3();
   const v = new THREE.Vector3();
@@ -426,17 +808,29 @@ async function aoBake(preFile, aoFile) {
   fs.writeFileSync(aoFile, Buffer.from(glb));
 }
 
-async function buildModels({ bakeAo = false } = {}) {
+async function buildModels({ bakeAo = false, only = null } = {}) {
   fs.mkdirSync(OUT, { recursive: true });
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "stacks-glb-"));
   let total = 0;
   let sharedTex = null;
-  for (const spec of MANIFEST) {
+  const selected = only
+    ? MANIFEST.filter((spec) => only.has(spec.name))
+    : MANIFEST;
+  if (only && selected.length !== only.size) {
+    const found = new Set(selected.map((spec) => spec.name));
+    throw new Error(
+      `unknown --only model(s): ${[...only].filter((name) => !found.has(name)).join(", ")}`,
+    );
+  }
+  for (const spec of selected) {
     const raw = await download(spec.url, spec.name);
     if (spec.recolor) {
       const { json, bin } = parseGlb(raw);
       const png = extractImage(json, bin);
-      if (!png) throw new Error(`${spec.name}: recolor requested but no embedded texture`);
+      if (!png)
+        throw new Error(
+          `${spec.name}: recolor requested but no embedded texture`,
+        );
       // Every recolor prop must be the same tiny-treats atlas byte for byte
       // — one that quietly ships its own texture has to fail here rather
       // than render through someone else's UVs.
@@ -445,7 +839,9 @@ async function buildModels({ bakeAo = false } = {}) {
         sharedTex = hash;
         await recolorTexture(spec, png);
       } else if (hash !== sharedTex) {
-        throw new Error(`${spec.name}: texture differs from the ${RECOLOR_ATLAS} atlas`);
+        throw new Error(
+          `${spec.name}: texture differs from the ${RECOLOR_ATLAS} atlas`,
+        );
       }
     }
     const cut = surgery(raw, spec);
@@ -460,7 +856,19 @@ async function buildModels({ bakeAo = false } = {}) {
       source = aoFile;
     }
     // Bottom-at-origin matches the shelf convention (local y=0 = contact).
-    execFileSync("npx", ["--yes", "@gltf-transform/cli", "center", source, centered, "--pivot", "below"], { stdio: "pipe" });
+    execFileSync(
+      "npx",
+      [
+        "--yes",
+        "@gltf-transform/cli",
+        "center",
+        source,
+        centered,
+        "--pivot",
+        "below",
+      ],
+      { stdio: "pipe" },
+    );
     // texMax: some props ship a texture wildly out of proportion to their
     // geometry. The microphone is 184 triangles carrying a 2048x2048 PNG that
     // holds 189 unique colours, all of them grey — 633 KB of shading map for a
@@ -473,28 +881,58 @@ async function buildModels({ bakeAo = false } = {}) {
       const resized = path.join(tmp, `${spec.name}.resize.glb`);
       execFileSync(
         "npx",
-        ["--yes", "@gltf-transform/cli", "resize", centered, resized,
-          "--width", String(spec.texMax), "--height", String(spec.texMax)],
+        [
+          "--yes",
+          "@gltf-transform/cli",
+          "resize",
+          centered,
+          resized,
+          "--width",
+          String(spec.texMax),
+          "--height",
+          String(spec.texMax),
+        ],
         { stdio: "pipe" },
       );
       toOptimize = resized;
     }
     execFileSync(
       "npx",
-      ["--yes", "@gltf-transform/cli", "optimize", toOptimize, out, "--compress", "meshopt", "--prune-attributes", "false", "--texture-compress", "false",
-        ...(spec.simplify ? ["--simplify-error", String(spec.simplify)] : [])],
+      [
+        "--yes",
+        "@gltf-transform/cli",
+        "optimize",
+        toOptimize,
+        out,
+        "--compress",
+        "meshopt",
+        "--prune-attributes",
+        "false",
+        "--texture-compress",
+        "false",
+        ...(spec.simplify ? ["--simplify-error", String(spec.simplify)] : []),
+      ],
       { stdio: "pipe" },
     );
     const size = fs.statSync(out).size;
     total += size;
-    console.log(`${spec.name.padEnd(18)} ${(size / 1024).toFixed(1).padStart(6)} KB  (${spec.id}, raw ${(raw.length / 1024).toFixed(1)} KB)`);
+    console.log(
+      `${spec.name.padEnd(18)} ${(size / 1024).toFixed(1).padStart(6)} KB  (${spec.id}, raw ${(raw.length / 1024).toFixed(1)} KB)`,
+    );
   }
-  for (const f of ["atlas-dark.png", "atlas-light.png", `${RECOLOR_ATLAS}-dark.png`, `${RECOLOR_ATLAS}-light.png`]) {
+  for (const f of [
+    "atlas-dark.png",
+    "atlas-light.png",
+    `${RECOLOR_ATLAS}-dark.png`,
+    `${RECOLOR_ATLAS}-light.png`,
+  ]) {
     const p = path.join(OUT, f);
     if (fs.existsSync(p)) total += fs.statSync(p).size;
   }
   writeLicenses();
-  console.log(`total (incl. themed atlases + recolor textures): ${(total / 1024).toFixed(1)} KB`);
+  console.log(
+    `total (incl. themed atlases + recolor textures): ${(total / 1024).toFixed(1)} KB`,
+  );
 }
 
 // ---- themed atlas generation (nearest-match remap of the shared palette
@@ -508,27 +946,52 @@ async function buildAtlases(mix) {
   const { json, bin } = parseGlb(raw);
   const png = extractImage(json, bin);
   if (!png) throw new Error("no embedded atlas in source GLB");
-  const { data, info } = await sharp(png).raw().toBuffer({ resolveWithObject: true });
+  const { data, info } = await sharp(png)
+    .raw()
+    .toBuffer({ resolveWithObject: true });
   for (const [theme, map] of Object.entries(THEMES)) {
-    const out = remapPixels(data, info.channels, info.width * info.height, map, mix);
+    const out = remapPixels(
+      data,
+      info.channels,
+      info.width * info.height,
+      map,
+      mix,
+    );
     const file = path.join(OUT, `atlas-${theme}.png`);
     await sharp(out, { raw: info }).png({ palette: true }).toFile(file);
-    console.log(`atlas-${theme}.png ${(fs.statSync(file).size / 1024).toFixed(2)} KB (mix ${mix})`);
+    console.log(
+      `atlas-${theme}.png ${(fs.statSync(file).size / 1024).toFixed(2)} KB (mix ${mix})`,
+    );
   }
 }
 
 // ---- inspection: front-plane vertex clusters (dial registration data) ----
 async function inspect(name) {
-  globalThis.Image = class { constructor() { setTimeout(() => this.onload && this.onload(), 0); } set src(v) {} addEventListener(t, f) { if (t === "load") setTimeout(f, 0); } removeEventListener() {} };
-  globalThis.document = { createElementNS: () => ({ getContext: () => ({}), style: {} }), createElement: () => ({ getContext: () => ({}), style: {} }) };
+  globalThis.Image = class {
+    constructor() {
+      setTimeout(() => this.onload && this.onload(), 0);
+    }
+    set src(v) {}
+    addEventListener(t, f) {
+      if (t === "load") setTimeout(f, 0);
+    }
+    removeEventListener() {}
+  };
+  globalThis.document = {
+    createElementNS: () => ({ getContext: () => ({}), style: {} }),
+    createElement: () => ({ getContext: () => ({}), style: {} }),
+  };
   globalThis.self = globalThis;
-  if (!globalThis.URL.createObjectURL) globalThis.URL.createObjectURL = () => "blob:stub";
+  if (!globalThis.URL.createObjectURL)
+    globalThis.URL.createObjectURL = () => "blob:stub";
   const [{ GLTFLoader, MeshoptDecoder }, THREE] = await Promise.all([
     import("three-stdlib"),
     import("three"),
   ]);
   const loader = new GLTFLoader();
-  loader.setMeshoptDecoder(typeof MeshoptDecoder === "function" ? MeshoptDecoder() : MeshoptDecoder);
+  loader.setMeshoptDecoder(
+    typeof MeshoptDecoder === "function" ? MeshoptDecoder() : MeshoptDecoder,
+  );
   const buf = fs.readFileSync(path.join(OUT, `${name}.glb`));
   const ab = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
   const g = await new Promise((res, rej) => loader.parse(ab, "", res, rej));
@@ -544,27 +1007,52 @@ async function inspect(name) {
     }
   });
   const bb = new THREE.Box3().setFromObject(g.scene);
-  console.log(`${name} bbox min=(${bb.min.x.toFixed(4)},${bb.min.y.toFixed(4)},${bb.min.z.toFixed(4)}) max=(${bb.max.x.toFixed(4)},${bb.max.y.toFixed(4)},${bb.max.z.toFixed(4)})`);
+  console.log(
+    `${name} bbox min=(${bb.min.x.toFixed(4)},${bb.min.y.toFixed(4)},${bb.min.z.toFixed(4)}) max=(${bb.max.x.toFixed(4)},${bb.max.y.toFixed(4)},${bb.max.z.toFixed(4)})`,
+  );
   const buckets = new Map();
   for (const [x, y, z] of verts) {
     const k = Math.round(z / 0.002);
     if (!buckets.has(k)) buckets.set(k, []);
     buckets.get(k).push([x, y]);
   }
-  for (const [k, pts] of [...buckets.entries()].sort((a, b) => b[1].length - a[1].length).slice(0, 6)) {
-    let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
-    for (const [x, y] of pts) { if (x < minX) minX = x; if (x > maxX) maxX = x; if (y < minY) minY = y; if (y > maxY) maxY = y; }
-    console.log(`z≈${(k * 0.002).toFixed(3)} n=${pts.length} center=(${((minX + maxX) / 2).toFixed(4)},${((minY + maxY) / 2).toFixed(4)}) rx=${((maxX - minX) / 2).toFixed(4)} ry=${((maxY - minY) / 2).toFixed(4)}`);
+  for (const [k, pts] of [...buckets.entries()]
+    .sort((a, b) => b[1].length - a[1].length)
+    .slice(0, 6)) {
+    let minX = 1e9,
+      maxX = -1e9,
+      minY = 1e9,
+      maxY = -1e9;
+    for (const [x, y] of pts) {
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+    console.log(
+      `z≈${(k * 0.002).toFixed(3)} n=${pts.length} center=(${((minX + maxX) / 2).toFixed(4)},${((minY + maxY) / 2).toFixed(4)}) rx=${((maxX - minX) / 2).toFixed(4)} ry=${((maxY - minY) / 2).toFixed(4)}`,
+    );
   }
 }
 
 const args = process.argv.slice(2);
 const atlasArg = args.indexOf("--atlas");
 const inspectArg = args.indexOf("--inspect");
+const onlyArg = args.indexOf("--only");
 if (atlasArg !== -1) {
   await buildAtlases(Number(args[atlasArg + 1] ?? 1));
 } else if (inspectArg !== -1) {
   await inspect(args[inspectArg + 1]);
 } else {
-  await buildModels({ bakeAo: args.includes("--ao") });
+  await buildModels({
+    bakeAo: args.includes("--ao"),
+    only:
+      onlyArg === -1
+        ? null
+        : new Set(
+            String(args[onlyArg + 1] ?? "")
+              .split(",")
+              .filter(Boolean),
+          ),
+  });
 }

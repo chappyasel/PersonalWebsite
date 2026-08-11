@@ -1,12 +1,7 @@
 {
   "generated": "scripts/stacks-models.mjs",
   "note": "All models CC0 except the CC-BY set below, credited in the About placard.",
-  "attributionRequired": [
-    "Zsky",
-    "Poly by Google",
-    "Charlie",
-    "jeremy"
-  ],
+  "attributionRequired": ["Zsky", "Poly by Google", "Charlie", "jeremy"],
   "models": [
     {
       "file": "desk-lamp.glb",
@@ -168,6 +163,20 @@
       "author": "Isa Lousberg",
       "license": "CC0 1.0",
       "source": "https://poly.pizza/m/ktF2FMl1eT"
+    },
+    {
+      "file": "succulent-pot.glb",
+      "title": "Succulent Pot",
+      "author": "Isa Lousberg",
+      "license": "CC0 1.0",
+      "source": "https://poly.pizza/m/y3zjCa6BeR"
+    },
+    {
+      "file": "yucca-plant.glb",
+      "title": "Yucca Plant",
+      "author": "Isa Lousberg",
+      "license": "CC0 1.0",
+      "source": "https://poly.pizza/m/uKRTMhxfiu"
     },
     {
       "file": "couch.glb",

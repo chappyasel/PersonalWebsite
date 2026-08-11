@@ -15,11 +15,14 @@
 import * as THREE from "three";
 
 import { resolveShelf } from "~/app/components/stacks/scene/physics";
+import { SHELF_SURFACE } from "~/app/components/stacks/scene/shelfGeometry";
 
-const SHELF = { top: 0.035, lower: -0.6925 };
+const SHELF = SHELF_SURFACE;
 let failures = 0;
 const check = (name: string, ok: boolean, detail = "") => {
-  console.log(`${ok ? "ok  " : "FAIL"}  ${name}${detail ? "  — " + detail : ""}`);
+  console.log(
+    `${ok ? "ok  " : "FAIL"}  ${name}${detail ? "  — " + detail : ""}`,
+  );
   if (!ok) failures++;
 };
 
@@ -104,7 +107,8 @@ for (const [name, g, shouldBeWrong] of [
 ] as const) {
   const old = g.parent!.position.y < -0.3 ? "lower" : "top";
   check(
-    `old rule reads "${name}" as ${old}` + (shouldBeWrong ? " (wrong)" : " (right)"),
+    `old rule reads "${name}" as ${old}` +
+      (shouldBeWrong ? " (wrong)" : " (right)"),
     (old === "top") === shouldBeWrong,
   );
 }
@@ -116,7 +120,10 @@ for (const [name, g, shouldBeWrong] of [
 function roundTrip(g: THREE.Object3D, label: string) {
   const { shelf } = resolveShelf(g);
   const parent = g.parent!;
-  const m = new THREE.Matrix4().copy(shelf.matrixWorld).invert().multiply(parent.matrixWorld);
+  const m = new THREE.Matrix4()
+    .copy(shelf.matrixWorld)
+    .invert()
+    .multiply(parent.matrixWorld);
   const frame = new THREE.Vector3();
   const frameQ = new THREE.Quaternion();
   const scale = new THREE.Vector3();
@@ -125,21 +132,32 @@ function roundTrip(g: THREE.Object3D, label: string) {
 
   check(
     `${label}: frame is unscaled`,
-    Math.abs(scale.x - 1) + Math.abs(scale.y - 1) + Math.abs(scale.z - 1) < 1e-9,
+    Math.abs(scale.x - 1) + Math.abs(scale.y - 1) + Math.abs(scale.z - 1) <
+      1e-9,
     scale.toArray().join(", "),
   );
 
   // A pose in the prop's parent frame, tumbled as the solver would leave it.
   const pos = new THREE.Vector3(0.12, 0.31, -0.07);
-  const quat = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.4, -1.1, 0.25));
+  const quat = new THREE.Quaternion().setFromEuler(
+    new THREE.Euler(0.4, -1.1, 0.25),
+  );
 
   const shelfPos = pos.clone().applyQuaternion(frameQ).add(frame);
   const shelfQuat = quat.clone().premultiply(frameQ);
   const backPos = shelfPos.clone().sub(frame).applyQuaternion(frameQi);
   const backQuat = shelfQuat.clone().premultiply(frameQi);
 
-  check(`${label}: position round-trips`, backPos.distanceTo(pos) < 1e-9, `${backPos.distanceTo(pos)}`);
-  check(`${label}: rotation round-trips`, backQuat.angleTo(quat) < 1e-6, `${backQuat.angleTo(quat)}`);
+  check(
+    `${label}: position round-trips`,
+    backPos.distanceTo(pos) < 1e-9,
+    `${backPos.distanceTo(pos)}`,
+  );
+  check(
+    `${label}: rotation round-trips`,
+    backQuat.angleTo(quat) < 1e-6,
+    `${backQuat.angleTo(quat)}`,
+  );
 
   // …and the forward transform genuinely agrees with the scene graph: a point
   // in the prop's parent frame must land where three.js says it lands.
