@@ -15,6 +15,7 @@
 //   renderer.toneMappingExposure into any program that declares it.
 // - Noise replaces the sky's IGN dither (gated off via uPost) — dithering
 //   linear HDR would grain the midtones; output-space noise is film grain.
+import { useFrame } from "@react-three/fiber";
 import {
   Bloom,
   EffectComposer,
@@ -26,7 +27,6 @@ import {
   Vignette,
   useDispose,
 } from "@react-three/postprocessing";
-import { useFrame } from "@react-three/fiber";
 import { BlendFunction, Effect, ToneMappingMode } from "postprocessing";
 import { useMemo } from "react";
 import { MathUtils, Uniform } from "three";
@@ -129,12 +129,25 @@ export default function Effects({ dark }: { dark: boolean }) {
         distanceFalloff={0.8}
         intensity={2.4}
       />
-      <Bloom mipmapBlur luminanceThreshold={0.95} intensity={0.4} />
-      {tiltShift && <TiltShift2 blur={0.12} />}
+      {/* Keep bloom on HDR practicals, not on the moon and white sky detail.
+          The floor-lamp mouth and fixture faces are deliberately authored
+          above 1.0; the dome is not. A higher threshold therefore gives the
+          practicals room for a stronger optical shoulder without laying a
+          global haze over the skyline. */}
+      <Bloom
+        mipmapBlur
+        luminanceThreshold={dark ? 1.25 : 1.35}
+        luminanceSmoothing={0.08}
+        intensity={dark ? 1.2 : 0.4}
+      />
+      {/* Split the difference between the original miniature blur and the
+          broader v8 window: edges stay dreamy, while the useful centre and
+          nearby interaction targets remain legible. */}
+      {tiltShift && <TiltShift2 blur={0.105} taper={0.6} />}
       {/* Light theme eases both finishing touches: premultiplied noise
           scales with luminance (a near-white sky grains hard), and dark
           corners read as grime against it. */}
-      <Vignette eskil={false} offset={0.28} darkness={dark ? 0.5 : 0.3} />
+      <Vignette eskil={false} offset={0.34} darkness={dark ? 0.5 : 0.3} />
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
       {graded && <Grade dark={dark} />}
       <Noise premultiply opacity={dark ? 0.22 : 0.07} />

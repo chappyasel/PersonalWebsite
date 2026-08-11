@@ -23,15 +23,23 @@
 // touch devices have no composer, so these hexes must read on their own.
 export const PALETTES = {
   light: {
-    skyTop: "#93a9c8",
-    skyHorizon: "#d8c3a6",
-    // Cooler than skyHorizon on purpose: the sun band has to be the warmest
-    // thing in the frame, and this band covers most of the lower screen.
-    skyShadow: "#beb2a8",
-    skyEmber: "#ffcf92",
-    skyline: "#94a3b6",
+    // A soft coastal morning rather than the old grey-blue / tobacco-brown
+    // split. These are still authored below the ACES shoulder (see the note
+    // above), but the lower two bands now carry cool neutral air; warmth is
+    // reserved for the horizon and the sun, where it has a source.
+    skyTop: "#9eb5d0",
+    skyHorizon: "#e2d6ca",
+    skyShadow: "#c4cbd3",
+    skyEmber: "#f5c78d",
+    // The secret Washington view owns a distinct east-facing daylight vault.
+    // These stay in sRGB here and are linearized with the other sky uniforms.
+    dcSkyTop: "#659bd0",
+    dcSkyHorizon: "#b8d7ef",
+    dcSkyShadow: "#91bee2",
+    dcWater: "#5f97c4",
+    skyline: "#8297ac",
     skyWindow: "#ffca8a",
-    fog: "#c9bcac",
+    fog: "#c8cbd0",
     wood: "#a5845f",
     woodDark: "#8a6746",
     strap: "#836441",
@@ -44,8 +52,16 @@ export const PALETTES = {
     paper: "#f6efdf",
     ink: "#6f5c45",
     spines: [
-      "#a5764c", "#8d7355", "#c2a377", "#9c4f38", "#6e5d49",
-      "#b8926a", "#84573f", "#5c5648", "#6e7f95", "#a4917a",
+      "#a5764c",
+      "#8d7355",
+      "#c2a377",
+      "#9c4f38",
+      "#6e5d49",
+      "#b8926a",
+      "#84573f",
+      "#5c5648",
+      "#6e7f95",
+      "#a4917a",
     ],
     pile: ["#8a5a3c", "#5c5648", "#9c6b4f"],
     shadow: "#5c4324",
@@ -58,6 +74,10 @@ export const PALETTES = {
     skyHorizon: "#3a4762",
     skyShadow: "#1b2233",
     skyEmber: "#e07c3e",
+    dcSkyTop: "#1e2842",
+    dcSkyHorizon: "#3a4762",
+    dcSkyShadow: "#1b2233",
+    dcWater: "#17233a",
     skyline: "#141b2b",
     skyWindow: "#ffbe73",
     fog: "#253045",
@@ -73,8 +93,16 @@ export const PALETTES = {
     paper: "#c9bda4",
     ink: "#3b2e1f",
     spines: [
-      "#8f4a2c", "#94795a", "#5f6134", "#a86c46", "#463a2b",
-      "#7a6650", "#6d3f28", "#42506e", "#75604a", "#57493a",
+      "#8f4a2c",
+      "#94795a",
+      "#5f6134",
+      "#a86c46",
+      "#463a2b",
+      "#7a6650",
+      "#6d3f28",
+      "#42506e",
+      "#75604a",
+      "#57493a",
     ],
     pile: ["#8a4a30", "#59602f", "#9c7857"],
     shadow: "#0b0a10",

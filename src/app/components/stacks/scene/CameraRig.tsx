@@ -3,12 +3,7 @@
 // Drives the camera from the drei scroll offset, publishes per-frame progress
 // to the transient ref, flips activeUnit only on unit-boundary crosses, and
 // registers the scroll element with the store for the DOM bridges.
-import { useFrame, useThree } from "@react-three/fiber";
-import { useScroll } from "@react-three/drei";
-import { useEffect, useMemo, useRef } from "react";
-import * as THREE from "three";
-
-import { UNIT_COUNT } from "../data";
+import { UNIT_COUNT, unitIndexFromHash } from "../data";
 import {
   GRAB_HOVER,
   INERT_HOVER,
@@ -16,12 +11,27 @@ import {
   progressRef,
   useStacks,
 } from "../store";
-import { isSeated, leaveSeat, SEAT_POSE, setSeatAmount } from "./seated";
-import { cameraForAspect, TRAVEL_X } from "./worldLayout";
+import { useScroll } from "@react-three/drei";
+import { useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useMemo, useRef } from "react";
+import * as THREE from "three";
+
+import {
+  bookSecretChoreography,
+  bookSecretRef,
+  tickBookSecret,
+} from "./bookSecret";
+import { SEAT_POSE, isSeated, leaveSeat, setSeatAmount } from "./seated";
+import {
+  cameraForAspect,
+  cameraXForScrollOffset,
+  scrollOffsetForUnit,
+  unitProgressForScrollOffset,
+} from "./worldLayout";
 
 /** Field of view while seated. Travel runs a narrow 33 so one shelf unit
  * fills the frame; a horizon needs more room than a bookcase does. */
-const SEAT_FOV = 40;
+const SEAT_FOV = 42;
 /** Rate constant for the 0→1 seat blend, per SECOND rather than per frame.
  *
  * Per-frame easing is what the rest of this rig uses and it is wrong here.
@@ -29,25 +39,44 @@ const SEAT_FOV = 40;
  * makes its duration a function of the display: measured on a 120 Hz panel the
  * old 0.055 landed the whole walk in roughly 250 ms, so the thing tuned to
  * read as walking read as a teleport on exactly the hardware most likely to
- * see it. 2.6/s settles in about 1.8 s on any display.
+ * see it. 1.75/s reaches 99% in about 2.6 s on any display: slow enough to
+ * read as one calm move, short enough not to become a cutscene.
  *
  * A brisk walk would take four seconds. This is faster than a person, and
  * deliberately: it is a transition, not a cutscene. */
-const SEAT_RATE = 2.6;
-/** The walk owns the first 70% of the blend, the turn-and-sit the last 45%.
- * They overlap deliberately: a person starts turning toward a chair before
- * they have finished arriving at it, and a hard handover reads as two
- * separate animations played back to back. */
-const WALK_END = 0.7;
-const SIT_START = 0.55;
-/** How far short of the seat you stand before dropping into it, in z. The
- * chair hull ends at z 0.773 and the seated eye is 0.80, so 0.55 puts the
- * standing pose just clear of the upholstery on the side you approach from. */
-const STAND_BACK = 0.55;
+const SEAT_RATE = 1.75;
+/** Three deliberately overlapping beats: approach, turn, then descend.
+ *
+ * The old path had already completed 84% of its approach at seatAmount .57,
+ * while it was still staring directly at the cushion. It cleared the AABB,
+ * but the chair filled most of the frame and visually read as a collision.
+ * Holding the approach until .84 (with the squared easing below), beginning
+ * the vista turn at .42, and delaying the drop until .72 keeps that closest
+ * pass high, distant, and looking over the upholstery. */
+const WALK_END = 0.84;
+const TURN_START = 0.42;
+const TURN_END = 0.72;
+const SIT_START = 0.72;
+/** How far short of the seat you stand before dropping into it, in z. */
+const STAND_BACK = 0.82;
+/** Rise during the approach. The new couch is both deeper and taller; keeping
+ * the travel camera at shelf height made the last diagonal skim its back. */
+const APPROACH_LIFT = 0.65;
 /** Walking cadence, rad/s. 11 is ~105 steps per minute, an unhurried indoor
  * walk. The bob rides a gait envelope that is zero at both ends, so the
  * camera never bobs while standing still or while seated. */
 const GAIT_RATE = 11;
+
+/** Convert a per-frame interpolation amount authored at 60 Hz into the
+ * equivalent exponential rate. At 60 Hz these are pixel-identical to the old
+ * alphas; at 30/120/144 Hz they now cover the same distance per second. */
+const lambdaAt60Hz = (alpha: number) => -Math.log(1 - alpha) * 60;
+const LEAN_LAMBDA = lambdaAt60Hz(0.08);
+const BASE_Y_LAMBDA = lambdaAt60Hz(0.05);
+const LOOK_X_LAMBDA = lambdaAt60Hz(0.045);
+const LOOK_Y_LAMBDA = lambdaAt60Hz(0.05);
+const FRAMING_LAMBDA = lambdaAt60Hz(0.12);
+const SEAT_POINTER_LAMBDA = 5.5;
 
 const smoothstep = (x: number) => {
   const t = x < 0 ? 0 : x > 1 ? 1 : x;
@@ -80,6 +109,9 @@ export default function CameraRig() {
   const seatOffset = useRef(0);
   const seatAim = useRef(new THREE.Vector3());
   const seatEye = useRef(new THREE.Vector3());
+  const seatPointer = useRef(new THREE.Vector2());
+  const initialAboutPending = useRef(true);
+  const initialAboutFrames = useRef(0);
   const travelEye = useRef(new THREE.Vector3());
   // Walk-to-the-chair scratch: Bezier control point, the position along it,
   // and the point on the chair you keep your eyes on while approaching.
@@ -89,6 +121,7 @@ export default function CameraRig() {
   const orient = useRef(new THREE.Matrix4());
   const qTravel = useRef(new THREE.Quaternion());
   const qWalk = useRef(new THREE.Quaternion());
+  const qApproach = useRef(new THREE.Quaternion());
   const qSeat = useRef(new THREE.Quaternion());
   const qMix = useRef(new THREE.Quaternion());
   const size = useThree((s) => s.size);
@@ -115,21 +148,64 @@ export default function CameraRig() {
     state.setScrollEl(el);
     // Instant jump: snap drei's damped offset (its internal target ref and the
     // eased value) plus our look target so deep-links land without a flythrough.
-    const scrollTarget = (
-      scroll as unknown as { scroll: { current: number } }
-    ).scroll;
-    const clampedOffset = (unit: number) => {
-      const raw = UNIT_COUNT > 1 ? unit / (UNIT_COUNT - 1) : 0;
-      return Math.min(1, Math.max(0, raw));
+    const scrollTarget = (scroll as unknown as { scroll: { current: number } })
+      .scroll;
+    const clampedOffset = (unit: number) =>
+      Math.min(1, Math.max(0, scrollOffsetForUnit(unit)));
+    // Start on About's true stop, leaving a real native-scroll lead-in to its
+    // left for the complete chair. ScrollControls can mount before its pages
+    // have layout, when max === 0; writing scrollLeft then is silently lost
+    // and its next frame pulls the camera back to the far-left lead-in. Retry
+    // from the camera frame after layout, and let any deep link cancel the
+    // pending About sync rather than overwriting explicit navigation.
+    // Infer first-load intent from the URL rather than Drei's mutable native
+    // sentinel. It deliberately seeds `scrollLeft = 1`, and depending on
+    // effect ordering its damped offset may already be a tiny non-zero value
+    // when this child mounts. No hash is the canonical About URL; an explicit
+    // unit hash belongs to ScrollBridges and must never be overwritten.
+    const initialHashUnit = unitIndexFromHash(window.location.hash);
+    initialAboutPending.current =
+      initialHashUnit === null || initialHashUnit === 0;
+    initialAboutFrames.current = 0;
+    const markInitialSync = (value: string) => {
+      if (process.env.NODE_ENV === "development") {
+        el.dataset.stacksInitialSync = value;
+      }
     };
+    markInitialSync(
+      `armed:${initialAboutPending.current}:${window.location.hash}`,
+    );
+    const cancelInitialSync = (reason = "complete") => {
+      markInitialSync(`done:${reason}`);
+      initialAboutPending.current = false;
+    };
+    const cancelFromPointer = (event: Event) =>
+      cancelInitialSync(`input:${event.type}`);
+    const cancelFromKeyboard = (event: KeyboardEvent) => {
+      if (
+        event.key === "ArrowLeft" ||
+        event.key === "ArrowRight" ||
+        event.key === "PageUp" ||
+        event.key === "PageDown" ||
+        event.key === "Home" ||
+        event.key === "End"
+      ) {
+        cancelInitialSync(`input:key:${event.key}`);
+      }
+    };
+    el.addEventListener("pointerdown", cancelFromPointer, { passive: true });
+    el.addEventListener("wheel", cancelFromPointer, { passive: true });
+    el.addEventListener("touchstart", cancelFromPointer, { passive: true });
+    window.addEventListener("keydown", cancelFromKeyboard);
     state.setJumpTo((unit: number) => {
+      cancelInitialSync(`jump:${unit}`);
       const max = el.scrollWidth - el.clientWidth;
       const offset = clampedOffset(unit);
       el.scrollLeft = offset * max;
       scrollTarget.current = offset;
       scroll.offset = offset;
-      progressRef.current = offset;
-      const targetX = offset * TRAVEL_X;
+      progressRef.current = unitProgressForScrollOffset(offset);
+      const targetX = cameraXForScrollOffset(offset);
       look.current.set(targetX, -0.08, -0.2);
       const active = Math.min(UNIT_COUNT - 1, Math.max(0, Math.round(unit)));
       prevActive.current = active;
@@ -138,6 +214,7 @@ export default function CameraRig() {
     // Damped travel: write the damp target directly (plus scrollLeft so the
     // native element agrees) — never depends on the scroll event.
     state.setTravelTo((unit: number) => {
+      cancelInitialSync(`travel:${unit}`);
       const max = el.scrollWidth - el.clientWidth;
       const offset = clampedOffset(unit);
       el.scrollLeft = offset * max;
@@ -152,6 +229,11 @@ export default function CameraRig() {
       else el.style.cursor = "";
     });
     return () => {
+      cancelInitialSync("cleanup");
+      el.removeEventListener("pointerdown", cancelFromPointer);
+      el.removeEventListener("wheel", cancelFromPointer);
+      el.removeEventListener("touchstart", cancelFromPointer);
+      window.removeEventListener("keydown", cancelFromKeyboard);
       unsubscribeCursor();
       const cleanup = useStacks.getState();
       cleanup.setScrollEl(null);
@@ -162,13 +244,84 @@ export default function CameraRig() {
   }, [scroll.el]);
 
   useFrame(({ camera, pointer, clock }, delta) => {
+    // Drei installs its horizontal listener over multiple effects and ignores
+    // the first native scroll event. On a narrow/touch viewport its event
+    // connection is not observable through the same object identity as on
+    // desktop, so waiting on `events.connected === el` deadlocked the initial
+    // camera at the left lead-in. Instead, once layout exposes a real range,
+    // synchronize the native position, Drei's target, and its damped value
+    // for twelve rendered frames. This spans listener installation and the
+    // first-run guard without any browser-timer assumptions.
+    if (initialAboutPending.current) {
+      const hashUnit = unitIndexFromHash(window.location.hash);
+      if (hashUnit !== null && hashUnit > 0) {
+        initialAboutPending.current = false;
+      } else {
+        const el = scroll.el;
+        const max = el.scrollWidth - el.clientWidth;
+        if (el.isConnected && max > 0) {
+          const offset = Math.min(1, Math.max(0, scrollOffsetForUnit(0)));
+          el.scrollLeft = offset * max;
+          const target = (scroll as unknown as { scroll: { current: number } })
+            .scroll;
+          target.current = offset;
+          scroll.offset = offset;
+          progressRef.current = unitProgressForScrollOffset(offset);
+          initialAboutFrames.current += 1;
+          if (process.env.NODE_ENV === "development") {
+            el.dataset.stacksInitialSync = `force:${initialAboutFrames.current}:${Math.round(el.scrollLeft)}:${offset.toFixed(5)}`;
+          }
+          if (initialAboutFrames.current >= 12) {
+            initialAboutPending.current = false;
+            if (process.env.NODE_ENV === "development") {
+              el.dataset.stacksInitialSync = "done:render-frames";
+            }
+          }
+        }
+      }
+    }
+    // A backgrounded tab hands back one enormous delta on return. All camera
+    // damping uses the same cap so resuming cannot snap any one subsystem.
+    const dt = delta > 0.05 ? 0.05 : delta;
+    // CameraRig mounts before every unit, making it the single clock for the
+    // Books reveal. The bookcase and particles read the value later in this
+    // same frame instead of the camera trailing them by one rendered frame.
+    tickBookSecret(dt);
     const offset = scroll.offset;
-    progressRef.current = offset;
-    const targetX = offset * TRAVEL_X;
+    const progress = unitProgressForScrollOffset(offset);
+    progressRef.current = progress;
+    const targetX = cameraXForScrollOffset(offset);
     const t = clock.elapsedTime;
+    // The hidden library passage leans the viewer in rather than cutting to a
+    // second camera. It fades out spatially as soon as intentional rail/deep-
+    // link travel leaves Books, and reduced-motion keeps the camera planted
+    // while the bookcase itself changes state instantly.
+    const booksProximity =
+      1 -
+      THREE.MathUtils.clamp(
+        Math.abs(progress * (UNIT_COUNT - 1) - 1) / 0.65,
+        0,
+        1,
+      );
+    const secretVisual = bookSecretChoreography(bookSecretRef.progress);
+    // Wait until the threshold is visible before the viewer moves, then let
+    // the room resolve before the final arrival. The old one-channel dolly
+    // began with the first millimetre of shelf travel, making the environment
+    // and camera jump toward geometry that had only just become visible.
+    const secretScore =
+      secretVisual.threshold * 0.12 +
+      secretVisual.room * 0.5 +
+      secretVisual.arrival * 0.38;
+    const secret =
+      (bookSecretRef.reducedMotion ? 0 : secretScore) * booksProximity;
     const busy = useStacks.getState().panelState !== "closed";
-    lean.current += ((busy ? 1 : 0) - lean.current) * 0.08;
-    const calm = 1 - lean.current;
+    lean.current = THREE.MathUtils.damp(
+      lean.current,
+      busy ? 1 : 0,
+      LEAN_LAMBDA,
+      dt,
+    );
+    const calm = (1 - lean.current) * (1 - secret * 0.88);
 
     // The seat. Moving the room always beats sitting in it, so the offset the
     // seat was taken at is the escape hatch for every travel path at once.
@@ -180,9 +333,6 @@ export default function CameraRig() {
       leaveSeat();
     }
     wasSeated.current = isSeated();
-    // Clamped: a backgrounded tab hands back one enormous delta on return,
-    // and an unclamped exponential would snap the visitor into the chair.
-    const dt = delta > 0.05 ? 0.05 : delta;
     seat.current +=
       ((isSeated() ? 1 : 0) - seat.current) * (1 - Math.exp(-SEAT_RATE * dt));
     if (seat.current < 0.0004) seat.current = 0;
@@ -192,14 +342,33 @@ export default function CameraRig() {
 
     // Travel pose, integrated whether or not it is the one being rendered —
     // standing up has to land on a live camera, not one frozen where it sat.
-    baseY.current +=
-      (pose.y + (pointer.y * 0.08 + Math.sin(t * 0.4) * 0.03) * calm -
-        baseY.current) *
-      0.05;
-    const baseZ = pose.z - 0.6 * lean.current;
-    look.current.x +=
-      (targetX + pointer.x * 0.45 * calm - look.current.x) * 0.045;
-    look.current.y += ((pointer.y * 0.12 - 0.08) * calm - look.current.y) * 0.05;
+    baseY.current = THREE.MathUtils.damp(
+      baseY.current,
+      pose.y +
+        secret * 0.14 +
+        (pointer.y * 0.08 + Math.sin(t * 0.4) * 0.03) * calm,
+      BASE_Y_LAMBDA,
+      dt,
+    );
+    const baseZ = pose.z - 0.6 * lean.current - secret * 1.02;
+    look.current.x = THREE.MathUtils.damp(
+      look.current.x,
+      targetX + pointer.x * 0.45 * calm,
+      LOOK_X_LAMBDA,
+      dt,
+    );
+    look.current.y = THREE.MathUtils.damp(
+      look.current.y,
+      (pointer.y * 0.12 - 0.08) * calm + secret * 0.1,
+      LOOK_Y_LAMBDA,
+      dt,
+    );
+    look.current.z = THREE.MathUtils.damp(
+      look.current.z,
+      -0.2 - secret * 0.62,
+      LOOK_Y_LAMBDA,
+      dt,
+    );
 
     // Recentre into whatever strip of screen the mobile sheet has left us.
     // The sheet covers the bottom of the window, so a shelf centred in the
@@ -213,7 +382,12 @@ export default function CameraRig() {
       panelCoverageRef.current > 0
         ? panelCoverageRef.current
         : lean.current * 0.5;
-    framing.current += (coverage - framing.current) * 0.12;
+    framing.current = THREE.MathUtils.damp(
+      framing.current,
+      coverage,
+      FRAMING_LAMBDA,
+      dt,
+    );
     const persp = camera as THREE.PerspectiveCamera;
     if (framing.current > 0.002) {
       persp.setViewOffset(
@@ -237,9 +411,21 @@ export default function CameraRig() {
       // stops dead reads as a still image rather than a place you are in.
       const [ex, ey, ez] = SEAT_POSE.eye;
       const [tx, ty, tz] = SEAT_POSE.target;
+      seatPointer.current.x = THREE.MathUtils.damp(
+        seatPointer.current.x,
+        pointer.x,
+        SEAT_POINTER_LAMBDA,
+        dt,
+      );
+      seatPointer.current.y = THREE.MathUtils.damp(
+        seatPointer.current.y,
+        pointer.y,
+        SEAT_POINTER_LAMBDA,
+        dt,
+      );
       seatEye.current.set(
         ex,
-        ey + Math.sin(t * 0.33) * 0.012 + pointer.y * 0.03,
+        ey + Math.sin(t * 0.33) * 0.012 + seatPointer.current.y * 0.04,
         ez,
       );
       // You walk over to the chair, then you turn round and sit in it. Those
@@ -249,7 +435,13 @@ export default function CameraRig() {
       // "the room turned around me" rather than "I walked over there".
       //
       // `walk` carries the position, `sit` carries the turn and the drop.
-      const walk = smoothstep(s / WALK_END);
+      // Squaring the eased walk holds the camera in the open room through the
+      // first half, then closes the remaining distance once the view has begun
+      // turning toward the vista. This changes the route, not the global
+      // exponential clock, so the calm ~2.6 s transition duration is intact.
+      const easedWalk = smoothstep(s / WALK_END);
+      const walk = easedWalk * easedWalk;
+      const turn = smoothstep((s - TURN_START) / (TURN_END - TURN_START));
       const sit = smoothstep((s - SIT_START) / (1 - SIT_START));
       // The horizontal term is NEGATED, and that is not a taste call.
       //
@@ -259,7 +451,11 @@ export default function CameraRig() {
       // in both poses therefore pans the seated view the wrong way — the world
       // slides right when the pointer goes right, instead of the view turning
       // toward it. Vertical is untouched: a yaw cannot invert up.
-      seatAim.current.set(tx - pointer.x * 0.9, ty + pointer.y * 0.35, tz);
+      seatAim.current.set(
+        tx - seatPointer.current.x * 1.1,
+        ty + seatPointer.current.y * 0.45,
+        tz,
+      );
       travelEye.current.set(targetX, baseY.current, baseZ);
 
       // The walk, as a quadratic Bezier rather than a straight line. The
@@ -271,7 +467,7 @@ export default function CameraRig() {
       const standZ = ez + STAND_BACK;
       ctrl.current.set(
         targetX + (ex - targetX) * 0.15,
-        baseY.current,
+        baseY.current + APPROACH_LIFT * 0.5,
         baseZ + (standZ - baseZ) * 0.55,
       );
       const iw = 1 - walk;
@@ -285,7 +481,7 @@ export default function CameraRig() {
         b0 * targetX + b1 * ctrl.current.x + b2 * ex,
         b0 * baseY.current +
           b1 * ctrl.current.y +
-          b2 * baseY.current +
+          b2 * (baseY.current + APPROACH_LIFT) +
           Math.sin(t * GAIT_RATE) * 0.018 * gait,
         b0 * baseZ + b1 * ctrl.current.z + b2 * standZ,
       );
@@ -307,14 +503,20 @@ export default function CameraRig() {
       // snaps the view the instant the walk starts. Looking AT the chair you
       // are heading for is what a person does, and it also means the 180°
       // turn happens while you are stationary, where it belongs.
-      chairLook.current.set(ex, ey - 0.34, ez - 0.2);
+      // Keep the approach gaze on the upper cushion rather than the seat pan;
+      // a low aim exaggerated the impression that the camera entered it.
+      chairLook.current.set(ex, ey + 0.72, ez - 0.02);
       orient.current.lookAt(travelEye.current, look.current, UP);
       qTravel.current.setFromRotationMatrix(orient.current);
       orient.current.lookAt(camera.position, chairLook.current, UP);
       qWalk.current.setFromRotationMatrix(orient.current);
       orient.current.lookAt(seatEye.current, seatAim.current, UP);
       qSeat.current.setFromRotationMatrix(orient.current);
-      qMix.current.slerpQuaternions(qTravel.current, qWalk.current, walk);
+      // Start turning toward the vista before descending. At the closest
+      // lateral pass the couch therefore lives at the edge of the frame,
+      // rather than becoming the frame.
+      qApproach.current.slerpQuaternions(qWalk.current, qSeat.current, turn);
+      qMix.current.slerpQuaternions(qTravel.current, qApproach.current, walk);
       camera.quaternion.slerpQuaternions(qMix.current, qSeat.current, sit);
       seatBlend = sit;
     }
@@ -332,9 +534,12 @@ export default function CameraRig() {
       (camera as THREE.PerspectiveCamera).updateProjectionMatrix();
     }
 
+    bookSecretRef.rendered.cameraScore = secret;
+    bookSecretRef.rendered.cameraZ = camera.position.z;
+
     const active = Math.min(
       UNIT_COUNT - 1,
-      Math.max(0, Math.round(offset * (UNIT_COUNT - 1))),
+      Math.max(0, Math.round(progress * (UNIT_COUNT - 1))),
     );
     if (active !== prevActive.current) {
       prevActive.current = active;

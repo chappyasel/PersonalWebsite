@@ -2,16 +2,16 @@
 
 // Atmosphere for The Stacks — gradient sky dome, fog-matched palette,
 // hemisphere fill, camera-tracking key light with soft shadows, and dust.
+import { progressRef, useStacks } from "../store";
+import { PALETTES, type Palette, rand } from "../theme";
 import { Environment, Lightformer } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
-import { PALETTES, type Palette, rand } from "../theme";
-import { progressRef, useStacks } from "../store";
 import { poolTexture } from "./GroundPool";
 import { getSeatAmount } from "./seated";
-import { MID_X, TRAVEL_X } from "./worldLayout";
+import { MID_X, STACKS_DESKTOP_MIN_WIDTH, TRAVEL_X } from "./worldLayout";
 
 // Chappy's morning, painted truthfully. Dark theme is 3:45am San Francisco —
 // fully dark, cold indigo, the city mostly asleep; light theme is just after
@@ -24,8 +24,8 @@ import { MID_X, TRAVEL_X } from "./worldLayout";
 // Mt Davidson → Sutro Tower on its hill → Coit on Telegraph Hill →
 // Transamerica → the downtown cluster → Salesforce Tower → the ember →
 // Bay Bridge with the Bay Lights. Truthful details: the Salesforce crown is
-// DARK at 3:45 (Day for Night runs dusk→2am) — it gets the FAA L-864 beacon
-// and catches the first ember before anything else in the city; the Bay
+// DARK at 3:45 (Day for Night runs dusk→2am) and catches the first ember
+// before anything else in the city; the Bay
 // Lights run dusk-until-dawn, so they are the one landmark alive all night.
 //
 // The dome must also run the same tonemapping + colorspace encode as every
@@ -67,6 +67,10 @@ const SKY_FRAGMENT = `
   #define DC_OLDPOST  0.0638
   #define DC_JEFF     0.3994
   #define DC_CAPITOL  0.4676
+  // The memory-house is composed independently of the surveyed skyline. At
+  // 0.005 it literally straddled the Monument; −0.045 centres the reduced
+  // silhouette in the rendered gap between desktop nav and Monument.
+  #define DC_HOME    -0.0450
   #define DC_BAND_L   0.0350
   #define DC_BAND_R   0.4450
   //
@@ -109,13 +113,14 @@ const SKY_FRAGMENT = `
   #define TR_HW     0.0102
   #define TR_WING_B 0.0372
   #define TR_WING_T 0.0617
-  // Salesforce Tower: 1,070 ft to the top of the crown, 970 ft to the roof,
-  // 150 ft across at the base of the tower tapering to 110 ft at the crown —
-  // so the plates run out to 0.733 of the base, and the top is FLAT.
+  // Salesforce Tower: 1,070 ft to the top of the crown, 970 ft to the roof.
+  // Its lower shaft stays broad before the upper floors pull inward more
+  // decisively; the crown is about 70% of the base width and ends flat.
   #define SF_TOP    0.100
   #define SF_ROOF   0.0907
   #define SF_HW     0.0100
-  #define SF_TAPER  0.267
+  // 0.70 × 0.80 = 0.56 of the base width at the flat top.
+  #define SF_TAPER  0.440
 
   // Longest a fireworks launch runs: seven shells, the last let go at 3.10 s,
   // up to 1.08 s of rise and a 3.4 s willow on top. Mirrored by FIRE_DURATION
@@ -143,6 +148,10 @@ const SKY_FRAGMENT = `
   uniform vec3 horizonL; uniform vec3 horizonD;
   uniform vec3 shadowL;  uniform vec3 shadowD;
   uniform vec3 emberL;   uniform vec3 emberD;
+  uniform vec3 dcZenithL;
+  uniform vec3 dcHorizonL;
+  uniform vec3 dcShadowL;
+  uniform vec3 dcWaterL;
   uniform vec3 cityL;    uniform vec3 cityD;
   uniform vec3 windowL;  uniform vec3 windowD;
   varying vec3 vLocal;
@@ -369,8 +378,112 @@ const SKY_FRAGMENT = `
     return r;
   }
 
-  // The cherry canopy ringing the basin — massing, not trees. Individual
-  // crowns at this scale are noise, so this returns the HEIGHT of one low
+  // Chappy's childhood home, reduced to the architectural cues that survive
+  // at this distance: a tall two-storey white facade, black hipped roof and
+  // shutters, a full-width porch with slim columns, and the yellow front
+  // door. Returns overall coverage, dark trim, and door coverage. It lives
+  // left of the Monument like a memory set just outside the literal skyline.
+  vec4 dcHome(float x, float h) {
+    // Two-thirds of the previous angular width. The reference is a tall,
+    // narrow two-storey house, but the earlier memory-object competed with
+    // the 555-foot Monument and consumed the only gap beside the navigation.
+    float q = (x - DC_HOME) * 1.77;
+    if (q < -0.043 || q > 0.070 || h < 0.0004 || h > 0.050)
+      return vec4(0.0);
+
+    // Front facade plus the narrower right side plane: the reference is a
+    // three-quarter view, not a flat elevation. The side's roof/eaves step
+    // down slightly with perspective while the front remains dominant.
+    float frontLower = step(-0.036, q) * step(q, 0.021)
+                     * step(0.003, h) * step(h, 0.023);
+    // The side/garage wing is deliberately subordinate to the front facade.
+    // Its old 0.047-wide run was nearly as wide as the house front and read
+    // as a second attached building after the overall scale came down.
+    float sideLowerEdge = 0.052 - 0.12 * max(h - 0.004, 0.0);
+    float sideLower = step(0.021, q) * step(q, sideLowerEdge)
+                    * step(0.004, h) * step(h, 0.021);
+    float frontUpper = step(-0.033, q) * step(q, 0.020)
+                     * step(0.023, h) * step(h, 0.038);
+    float sideUpperEdge = 0.049 - 0.13 * max(h - 0.021, 0.0);
+    float sideUpper = step(0.020, q) * step(q, sideUpperEdge)
+                    * step(0.021, h) * step(h, 0.036);
+
+    // Low hip roof with a short ridge left of centre, then a longer falling
+    // side plane toward the visible right wall.
+    float rt = clamp((h - 0.038) / 0.011, 0.0, 1.0);
+    float roofFront = step(-0.041 + 0.028 * rt, q)
+                    * step(q, 0.029 - 0.018 * rt)
+                    * step(0.037, h) * step(h, 0.049);
+    float roofSide = step(0.020 - 0.008 * rt, q)
+                   * step(q, 0.052 - 0.035 * rt)
+                   * step(0.0355, h) * step(h, 0.0475);
+
+    float porchRoof = step(-0.041, q) * step(q, 0.028)
+                    * step(0.0190, h) * step(h, 0.0217);
+    float porchDeck = step(-0.040, q) * step(q, 0.030)
+                    * step(0.0012, h) * step(h, 0.0037);
+    float columns = (step(abs(q + 0.031), 0.0009)
+                   + step(abs(q + 0.014), 0.0008)
+                   + step(abs(q - 0.004), 0.0008)
+                   + step(abs(q - 0.022), 0.0009))
+                  * step(0.0035, h) * step(h, 0.0200);
+    float whole = clamp(frontLower + sideLower + frontUpper + sideUpper
+                      + roofFront + roofSide + porchRoof + porchDeck + columns,
+                        0.0, 1.0);
+
+    // White-framed windows are knocked out of the black upper siding; a
+    // smaller inset restores the dark glass and leaves a narrow pale frame.
+    float upperRow = step(0.0270, h) * step(h, 0.0344);
+    float upperOuter = (step(abs(q + 0.024), 0.0040)
+                      + step(abs(q + 0.007), 0.0038)
+                      + step(abs(q - 0.011), 0.0038)
+                      + step(abs(q - 0.030), 0.0031)) * upperRow;
+    float upperGlass = (step(abs(q + 0.024), 0.0026)
+                      + step(abs(q + 0.007), 0.0025)
+                      + step(abs(q - 0.011), 0.0025)
+                      + step(abs(q - 0.030), 0.0020))
+                     * step(0.0281, h) * step(h, 0.0333);
+    upperOuter = clamp(upperOuter, 0.0, 1.0);
+    upperGlass = clamp(upperGlass, 0.0, 1.0);
+    float blackUpper = clamp(frontUpper + sideUpper, 0.0, 1.0)
+                     * (1.0 - upperOuter) + upperGlass;
+
+    // The ground floor remains white, with dark shutter/window cores and a
+    // small yellow-green door just left of centre, as in the reference.
+    float lowerGlass = (step(abs(q + 0.027), 0.0027)
+                      + step(abs(q + 0.015), 0.0027)
+                      + step(abs(q - 0.014), 0.0027)
+                      + step(abs(q - 0.033), 0.0022))
+                     * step(0.008, h) * step(h, 0.0153);
+    float shutters = (step(abs(q + 0.031), 0.0012)
+                    + step(abs(q + 0.011), 0.0012)
+                    + step(abs(q - 0.018), 0.0012)
+                    + step(abs(q - 0.037), 0.0010))
+                   * step(0.0074, h) * step(h, 0.0160);
+    // A porch only reads when there is space behind the columns. The source
+    // photo's deep porch shadow is a stronger likeness cue than another row
+    // of tiny window rectangles at this distance.
+    float porchRecess = step(-0.033, q) * step(q, 0.020)
+                      * step(0.0040, h) * step(h, 0.0187);
+    float darkTrim = clamp(roofFront + roofSide + porchRoof + blackUpper
+                         + lowerGlass + shutters + porchRecess, 0.0, 1.0);
+    float door = step(abs(q + 0.0015), 0.0034)
+               * step(0.0035, h) * step(h, 0.0165);
+    float side = clamp(sideLower + sideUpper, 0.0, 1.0);
+    return vec4(whole, darkTrim, door, side);
+  }
+
+  float dcHomeColumns(float x, float h) {
+    float q = (x - DC_HOME) * 1.77;
+    return clamp(step(abs(q + 0.031), 0.00125)
+               + step(abs(q + 0.014), 0.00110)
+               + step(abs(q - 0.004), 0.00110)
+               + step(abs(q - 0.022), 0.00125), 0.0, 1.0)
+         * step(0.0035, h) * step(h, 0.0200);
+  }
+
+  // The mature park canopy along the far bank — massing, not hero trees.
+  // Individual crowns at this scale are noise, so this returns the HEIGHT of one low
   // irregular band and the caller decides coverage: two octaves of the same
   // value noise the air uses, and the silhouettes' plinths deliberately
   // disappear into it, because that is where the trees actually stand.
@@ -383,8 +496,8 @@ const SKY_FRAGMENT = `
     // Pushed off the middle: a band whose height wanders inside a narrow
     // range is a ruled line with a wobble on it, not a stand of trees.
     n = smoothstep(0.28, 0.78, n);
-    // 30 ft Yoshinos on the far shore — East and West Potomac Park, 1.3 to
-    // 1.9 km out — which is 0.0018 to 0.0080 rad. The octaves above are
+    // Mature elm, oak, and mixed park trees on the far shore — East and West
+    // Potomac Park, 1.3 to 1.9 km out — which is 0.0018 to 0.0080 rad. The octaves above are
     // already right and only the amplitude needed moving: the 78× octave
     // gives cells about 0.013 rad wide and one crown at that range subtends
     // 0.011, so one cell is one tree. Any taller and the rounded humps stop
@@ -392,12 +505,11 @@ const SKY_FRAGMENT = `
     // basin conspicuously does not have.
     //
     // The far shore is not one planting, and drawing it as one is what left
-    // the whole left of the frame empty. Right of the Monument is the Tidal
-    // Basin rim and East Potomac Park — cherries, low and pale. Left of it is
-    // West Potomac Park, which is mature elm and oak: half again as tall and
-    // a great deal darker. The caller re-derives the same ramp to shade
-    // them apart — it is one smoothstep, and sharing it through a return
-    // value would cost the reflection a second evaluation.
+    // the whole left of the frame empty. The left park mass is older, taller,
+    // and darker; the basin side is clipped lower and catches more open sky.
+    // The caller re-derives the same ramp to shade them apart — it is one
+    // smoothstep, and sharing it through a return value would cost the
+    // reflection a second evaluation.
     float park = smoothstep(0.10, -0.24, az);
     return 0.0018 + 0.0062 * n + 0.0060 * n * park;
   }
@@ -430,7 +542,7 @@ const SKY_FRAGMENT = `
     // colour) carries the shift into the haze and the skyline too, so the
     // city warms with the sky instead of staying a cold cutout on a warm
     // backdrop. Held subtle on purpose: this is 3:45 → maybe 4:40am.
-    vec3 dawnTint = vec3(1.0) + vec3(0.115, 0.030, -0.070) * uDawn;
+    vec3 dawnTint = vec3(1.0) + vec3(0.050, 0.025, -0.018) * uDawn;
     float dawnLift = 1.0 + uDawn * mix(0.10, 0.17, uDark);
     zenithC  *= dawnTint * dawnLift;
     horizonC *= dawnTint * dawnLift;
@@ -484,7 +596,15 @@ const SKY_FRAGMENT = `
     // washed out instead of warming. The dawn therefore also TINTS, pulling
     // blue out of the band it lights, which is what a long scattering path
     // actually does to the sky around a low sun.
-    col *= mix(vec3(1.0), vec3(1.05, 0.99, 0.72), min(ember, 1.0) * (1.0 - uDark));
+    col *= mix(vec3(1.0), vec3(1.035, 1.0, 0.93), min(ember, 1.0) * (1.0 - uDark));
+
+    // Skyline haze must converge on the AIR behind the sun, not the emissive
+    // disc itself. skyBase is captured later because the seated DC vista
+    // needs its own dusk contribution, but using that sun-bearing value for
+    // San Francisco made a hazed building partially transparent to the sun.
+    // This base keeps the atmospheric colour and ember while excluding only
+    // the hard solar layer drawn next.
+    vec3 sfHazeBase = col;
 
     // ---- The sun, light theme only. It starts the traverse just under the
     // skyline — all you get is the ember — and clears the rooftops as the
@@ -505,6 +625,29 @@ const SKY_FRAGMENT = `
       vec3 sunCore = mix(emberC, vec3(1.0, 0.965, 0.88), 0.60);
       col += sunCore * smoothstep(1.10, 0.92, sd) * 1.85 * sunGate;
       col += emberC * exp(-sd * sd * 0.055) * 0.55 * sunGate;
+    }
+
+    // ---- The moon, dark theme only. It rises from behind the skyline,
+    // crests near the middle of the traverse, then settles behind the city
+    // again. Like the sun it is painted before hills/buildings, so every
+    // silhouette occludes it naturally instead of relying on a cutout mask.
+    float night = uDark;
+    if (night > 0.01) {
+      float moonArc = sin(clamp(uDawn, 0.0, 1.0) * 3.14159265);
+      float moonE = -0.009 + 0.142 * pow(max(moonArc, 0.0), 0.82);
+      vec2 mq = vec2((a + 1.55) / 0.0125, (e - moonE) / 0.0125);
+      float md = length(mq);
+      float moonGate = smoothstep(-0.002, 0.020, moonE) * night;
+      float disc = smoothstep(1.06, 0.91, md) * moonGate;
+      float crater = 0.50 * vnoise(mq * 2.8 + 8.0)
+                   + 0.50 * vnoise(mq * 5.7 + 21.0);
+      vec3 moonC = mix(vec3(0.72, 0.77, 0.84),
+                       vec3(0.94, 0.92, 0.83), crater * 0.24);
+      float moonLimb = sqrt(max(0.0, 1.0 - md * md));
+      moonC *= 0.79 + 0.21 * moonLimb;
+      col = mix(col, moonC, disc * 0.92);
+      float halo = exp(-md * md * 0.21) * (1.0 - disc * 0.70);
+      col += vec3(0.42, 0.50, 0.66) * halo * moonGate * 0.20;
     }
 
     // ---- Cloud deck, light theme only. The morning sky was one clean
@@ -552,13 +695,10 @@ const SKY_FRAGMENT = `
     float dcWin = smoothstep(1.05, 0.80, abs(dz - 0.23));
     float seatWin = uSeat * dcWin;
 
-    // The dusk grade over Washington. Both themes get the same moment —
-    // the twenty minutes after sunset — because a vista dropped into a noon
-    // sky reads as a decal, and because this is where the contrast comes
-    // from: pulling the low sky DOWN is what lets floodlit marble sit in
-    // front of it and be brighter than it. The old rig did the opposite,
-    // glowing the horizon up and then drawing pale stone on top of it, and
-    // the monuments came out as ghosts in both themes.
+    // Washington owns its own moment of day. Dark retains the established
+    // twenty-minutes-after-sunset grade; light is a clear east-facing blue
+    // morning. Reusing dusk for both themes was the muddy seated frame: it
+    // pulled a cool morning vault toward umber before the river mirrored it.
     //
     // Elevation-graded and seat-faded, so there is no azimuthal seam to
     // find; authored for the composer and lifted when it is absent, since a
@@ -569,8 +709,40 @@ const SKY_FRAGMENT = `
     float dcBeltA = mix(0.150, 0.100, uDark) * mix(1.22, 1.0, uPost);
     float dcDim = mix(0.30, 1.0, uDark);
     if (seatWin > 0.002) {
-      col = mix(col, dcSkyGrade(col, e, umbraC, beltC, dcShK, dcBeltA, dcDim),
-                seatWin);
+      vec3 dcDay = skyBand(e, dcShadowL, dcHorizonL, dcZenithL);
+      // Low-frequency blue-air variation adds depth without importing SF's
+      // warm cloud deck into the Washington window.
+      float dcAir = 0.58 * vnoise(vec2(dz * 1.8, e * 5.0) + uTime * 0.002)
+                  + 0.42 * vnoise(vec2(dz * 4.2, e * 10.5) + 17.0);
+      dcDay *= 0.975 + 0.050 * dcAir;
+      // A separate, slowly drifting cloud layer. The earlier low-frequency
+      // grade moved too little and too faintly to read as weather; this keeps
+      // the same soft air but gives it a few unmistakable, broken cloud forms.
+      vec2 dcp = vec2(dz * 8.4 + uTime * 0.0065,
+                      e * 18.5 - uTime * 0.0012);
+      float dcCf = 0.54 * vnoise(dcp)
+                 + 0.31 * vnoise(dcp * vec2(1.92, 1.34) + 11.4)
+                 + 0.15 * vnoise(dcp * vec2(3.85, 2.20) + 3.7);
+      float dcCloudBand = smoothstep(0.034, 0.070, e)
+                        * (1.0 - smoothstep(0.19, 0.275, e));
+      // A higher horizontal frequency plus a slightly harder island gate
+      // keeps the weather in separated cottony groups. The earlier 3.15x
+      // field formed one frame-wide strip, which read as haze rather than
+      // clouds even though its values were moving.
+      float dcCloudIslands = smoothstep(0.42, 0.67,
+          vnoise(vec2(dz * 12.7 + uTime * 0.0042, 6.3)));
+      float dcCloud = smoothstep(0.585, 0.735, dcCf)
+                    * dcCloudBand * dcCloudIslands;
+      vec3 dcCloudDay = mix(dcDay * 0.91, vec3(0.89, 0.94, 0.985),
+                            smoothstep(0.50, 0.68, dcCf));
+      dcDay = mix(dcDay, dcCloudDay, dcCloud * 0.42);
+      vec3 dcDusk = dcSkyGrade(col, e, umbraC, beltC,
+                               dcShK, dcBeltA, dcDim);
+      vec3 dcSky = mix(dcDay, dcDusk, uDark);
+      vec3 dcCloudDusk = mix(dcSky * 0.74, beltC * 0.30,
+                             smoothstep(0.54, 0.72, dcCf));
+      dcSky = mix(dcSky, dcCloudDusk, dcCloud * uDark * 0.15);
+      col = mix(col, dcSky, seatWin);
       // City skyglow, and it is doing real work. Washington is a low bright
       // city and after sunset the air over it holds a warm dome that is
       // strongest on the horizon and gone within three degrees. Without it
@@ -585,7 +757,50 @@ const SKY_FRAGMENT = `
       float glowAz = smoothstep(-0.12, 0.10, dz)
                    * (1.0 - smoothstep(0.40, 0.68, dz));
       col += beltC * glowAz * exp(-max(e, -0.006) / 0.024)
-           * mix(0.035, 0.018, uDark) * mix(1.22, 1.0, uPost) * seatWin;
+           * mix(0.004, 0.018, uDark) * mix(1.22, 1.0, uPost) * seatWin;
+    }
+
+    // A small flock crosses the seated vista occasionally. It shares the
+    // dome's analytic azimuth space, so the silhouettes stay in Washington
+    // as the camera looks around rather than sliding with the screen. A
+    // staggered shallow-M wing profile is enough at this distance; slow
+    // fades at each edge keep the flock from popping into existence.
+    float dcBirdT = mod(uTime, 30.0);
+    // Keep this tiny six-bird silhouette even on the simplified sky rung.
+    // It is analytic/no-texture and costs less than one noise octave; gating
+    // it made the requested life in the DC view disappear precisely on the
+    // mobile/lower-power devices that benefit most from a readable cue.
+    if (seatWin > 0.002) {
+      // Two half-cycle-staggered groups guarantee one flock is in the open
+      // sky while the other enters or leaves. The single previous flock was
+      // technically present yet routinely outside the capture window.
+      for (int df = 0; df < 2; df++) {
+        float ff = float(df);
+        float bt = fract(dcBirdT / 30.0 + ff * 0.5);
+        float flockId = floor(uTime / 30.0) + ff * 19.0;
+        for (int db = 0; db < 3; db++) {
+          float bf = float(db);
+          vec2 org = vec2(-0.23 + 0.54 * bt + bf * 0.028,
+                          0.108 + bf * 0.015 + ff * 0.018
+                          + 0.008 * sin(bt * 4.0 + bf * 1.9));
+          vec2 q = vec2(dz, e) - org;
+          if (dot(q, q) > 0.00018) continue;
+          float w = 0.0062 + 0.0008 * hash1(flockId + bf * 7.1);
+          float beat = sin(uTime * (6.3 + bf * 0.35) + bf * 1.7);
+          vec2 elbowL = vec2(-w * 0.52, w * 0.25 * beat);
+          vec2 elbowR = vec2( w * 0.52, w * 0.25 * beat);
+          vec2 tipL = vec2(-w, w * (0.48 * sin(uTime * 6.3 - 0.8 + bf) - 0.05));
+          vec2 tipR = vec2( w, w * (0.48 * sin(uTime * 6.3 - 0.8 + bf) - 0.05));
+          float d = min(min(segD(q, vec2(0.0), elbowL), segD(q, elbowL, tipL)),
+                        min(segD(q, vec2(0.0), elbowR), segD(q, elbowR, tipR)));
+          float bird = smoothstep(0.00155, 0.00038, d)
+                     * smoothstep(0.0, 0.10, bt)
+                     * (1.0 - smoothstep(0.88, 1.0, bt));
+          vec3 birdInk = mix(vec3(0.075, 0.105, 0.130),
+                             vec3(0.42, 0.37, 0.44), uDark);
+          col = mix(col, birdInk, bird * seatWin * 0.96);
+        }
+      }
     }
 
     // The sky as it stands BEFORE anything is drawn in front of it. Distant
@@ -719,7 +934,7 @@ const SKY_FRAGMENT = `
         // shares the same drop, so one add restores the expanding circle
         // and the whole burst can be tested as a radius. A willow's stars are
         // heavy and burn long, so they fall visibly — that IS the shell.
-        p.y += (typ == 1.0 ? 0.036 : 0.020) * age * age;
+        p.y += (typ == 1.0 ? 0.027 : 0.015) * age * age;
         float r2 = dot(p, p);
         // The flash on the air, and the early-out. Outside the shell's own
         // radius there are no stars to test, so everything below this line —
@@ -975,39 +1190,31 @@ const SKY_FRAGMENT = `
     }
 
     // ---- Salesforce Tower. It is the tallest thing on this skyline and it
-    // reads at every unit, so it is drawn to the four numbers that describe
-    // it rather than to a silhouette that feels right: 1,070 ft to the top of
-    // the crown, 970 ft to the roof, about 150 ft across at the base of the
-    // tower and about 110 ft at the crown.
+    // reads at every unit, so it is drawn to the dimensions that describe it:
+    // 1,070 ft to the crown, 970 ft to the roof, a broad lower shaft and a
+    // distinctly narrower but still flat crown.
     //
-    // What that changes. The plates run out to 0.733 of the base, not the
-    // 0.61 that pinched the shaft into a mast. The top is FLAT — the old
-    // rounded shoulder plus a dissolve over the last 9% built a dome and then
-    // faded the dome out, and the real building does neither: it ends in a
-    // sheer glass crown with a hard horizon on it. And it is wider, because
-    // "a little too narrow" was true twice over — the taper AND the dissolve
-    // were both eating the top, so the part of the tower that carries the
-    // light was the part with the fewest pixels left in it.
+    // The taper is deliberately eased: almost vertical through the lower
+    // floors, then increasingly narrow through the upper shaft. A linear
+    // taper made the whole building a simple trapezoid; a separate roof box
+    // then turned its top into a mast. The real read is one continuous glass
+    // volume ending in a flat, softly narrowed crown.
     //
     // The perforated-aluminium scrim and Pelli's "give out into the sky" are
     // still there — they are what the crown's own halo is for, below — but
     // they are LIGHT, not shape. Fading the geometry out was the mistake.
     float sales = 0.0;
     float crownT = 0.0;
-    float crownM = 0.0;   // the glass shaft alone: the dark rooftop structure
-                          // above SF_TOP must not take crown light.
+    float crownM = 0.0;
+    float sfHalfWidth = 0.0;
     float dSf = a + 1.28;
     float sTop = SF_TOP;
-    if (abs(dSf) < 0.015 && e < SF_TOP + 0.006) {
+    if (abs(dSf) < 0.015 && e < SF_TOP + 0.002) {
       float st = clamp(e / SF_TOP, 0.0, 1.0);
-      float hwS = SF_HW * (1.0 - SF_TAPER * st);
-      crownM = step(abs(dSf), hwS) * step(e, SF_TOP);
-      // The window-washing rig and mechanical penthouse standing on the
-      // crown: small, dark, flat, and it is what the two red obstruction
-      // lights are mounted on (see the aviation lights below).
-      float roofBox = step(abs(dSf), SF_HW * 0.32)
-                    * step(SF_TOP, e) * step(e, SF_TOP + 0.0042);
-      sales = clamp(crownM + roofBox, 0.0, 1.0);
+      float easedTaper = st * (0.32 + 0.68 * st);
+      sfHalfWidth = SF_HW * (1.0 - SF_TAPER * easedTaper);
+      crownM = step(abs(dSf), sfHalfWidth) * step(e, SF_TOP);
+      sales = crownM;
       crownT = st;
     }
 
@@ -1098,9 +1305,10 @@ const SKY_FRAGMENT = `
       // Salesforce is a uniform glass grid on a tapering shaft, so its columns
       // are taken in the SHAFT's own normalised width and converge with it —
       // which is what a tapering curtain wall does and what a fixed azimuth
-      // pitch would visibly get wrong against a 27% taper. Held clear of the
+      // pitch would visibly get wrong against the eased 30% taper. Held clear of the
       // crown band, which has its own light and does not want a grid in it.
-      float hwSf = SF_HW * (1.0 - SF_TAPER * clamp(e / SF_TOP, 0.0, 1.0));
+      float sfSt = clamp(e / SF_TOP, 0.0, 1.0);
+      float hwSf = SF_HW * (1.0 - SF_TAPER * sfSt * (0.32 + 0.68 * sfSt));
       vec2 fc = vec2(dSf / max(hwSf, 1e-4) * 3.6, e * 336.0);
       towerWin = max(towerWin,
                      windowLit(floor(fc), thresh * 1.2)
@@ -1123,19 +1331,21 @@ const SKY_FRAGMENT = `
     // zero compositional work (audit §2.3).
     float hazeAmt = (1.0 - smoothstep(0.0, 0.055, e)) * mix(0.60, 0.35, uDark);
     // Aerial perspective converges a distant mass on the sky BEHIND it, so
-    // both the ridge and the skyline haze toward skyBase. The ridge starts
+    // both the ridge and the skyline haze toward sfHazeBase. The ridge starts
     // darker than the buildings (it is unlit rock, not glass) and carries
     // more haze, which is what puts it plainly behind them.
-    // Anchored to the sky rather than to the skyline hex: at 3:45 a ridge
+    // Anchored to the sunless atmospheric base rather than to the skyline hex:
+    // at 3:45 a ridge
     // eight kilometres out is very nearly the colour of the air in front of
-    // it, a little darker and a little less blue. Deriving it from skyBase
+    // it, a little darker and a little less blue. Deriving it from sfHazeBase
     // keeps that true through the dawn and through both themes, where a
     // fixed hex drifted warm and the ridge ended up warmer than the
-    // buildings standing in front of it.
-    vec3 hillCol = mix(skyBase * mix(0.86, 0.74, uDark), cityC * 0.60, 0.22);
-    hillCol = mix(hillCol, skyBase, hazeAmt * 0.8);
+    // buildings standing in front of it. This is also what prevents the sun's
+    // hard disc from being reintroduced inside a silhouette by aerial haze.
+    vec3 hillCol = mix(sfHazeBase * mix(0.86, 0.74, uDark), cityC * 0.60, 0.22);
+    hillCol = mix(hillCol, sfHazeBase, hazeAmt * 0.8);
     hillCol += emberC * 0.55 * emberAmp * smoothstep(-2.16, -1.95, a);
-    vec3 cityCol = mix(cityC, skyBase, hazeAmt);
+    vec3 cityCol = mix(cityC, sfHazeBase, hazeAmt);
     cityCol += emberC * ember * 0.25;
     // The crown catches the first ember before anything else in the city —
     // tallest, east-facing glass. Salesforce Tower announces the dawn.
@@ -1153,11 +1363,22 @@ const SKY_FRAGMENT = `
     // International Orange has to read by being DARKER than a sky sitting on
     // the ACES shoulder, not warmer than it — the same lesson as the clouds.
     vec3 ggbCol = mix(cityC, vec3(0.72, 0.235, 0.125), mix(0.74, 0.14, uDark));
-    ggbCol = mix(ggbCol, skyBase, min(hazeAmt + mix(0.10, 0.28, uDark), 0.92));
+    ggbCol = mix(ggbCol, sfHazeBase, min(hazeAmt + mix(0.10, 0.28, uDark), 0.92));
     cityCol = mix(cityCol, ggbCol, ggb);
     cityCol *= 1.0 + wingLift;
     cityCol = mix(cityCol, windowC,
                   clamp(winMask + towerWin, 0.0, 1.0) * mix(0.45, 0.70, uDark));
+    // In daylight the perforated crown still needs a quiet edge against a
+    // similarly pale sky before anybody hovers it. The broad top glass is a
+    // fraction darker, with a restrained side/top rim so the continuous taper
+    // survives the additive installation wash below.
+    cityCol *= 1.0 - (1.0 - uDark) * crownM
+                    * smoothstep(0.82, 0.94, crownT) * 0.12;
+    float crownRim = crownM * smoothstep(0.82, 0.90, crownT)
+                   * max(smoothstep(0.60, 0.92,
+                                    abs(dSf) / max(sfHalfWidth, 1e-4)),
+                         smoothstep(0.965, 0.995, crownT));
+    cityCol *= 1.0 - (1.0 - uDark) * crownRim * 0.18;
 
     col = mix(col, hillCol, hillMask);
     col = mix(col, cityCol, structures);
@@ -1189,7 +1410,7 @@ const SKY_FRAGMENT = `
       // of a sky the Earth's shadow has pulled down, and a black 130 ft band
       // under it. One silhouette with a tone channel, rather than the two
       // separate drawings the old two-signs construction needed.
-      vec3 dcDark = mix(vec3(0.085, 0.079, 0.072), vec3(0.006, 0.008, 0.014), uDark);
+      vec3 dcDark = mix(vec3(0.060, 0.080, 0.100), vec3(0.006, 0.008, 0.014), uDark);
       vec3 dcLit  = mix(vec3(0.96, 0.88, 0.73), vec3(0.66, 0.57, 0.44), uDark);
 
       // Haze varies with DISTANCE, which dcCity carries per element, plus a
@@ -1200,23 +1421,11 @@ const SKY_FRAGMENT = `
       float murk = mix(0.075, 0.14, uDark)
                  * (1.0 - smoothstep(0.0, 0.045, max(above, 0.0)));
 
-      // Blossom. Yoshino is 70% of the trees and at peak bloom the mass is
-      // WHITE with a pink flush — the saturated cultivar, Kwanzan, is 13% of
-      // the park and opens a fortnight later, so there is no candy pink in
-      // this picture. Yoshino also blooms before it leafs out, so the band is
-      // flowers on bare branches: airy, and LIGHTER in value than the ground
-      // it stands on.
-      //
-      // And with the sun behind the viewer the canopy is FRONTLIT, not
-      // backlit, which inverts the old construction. It is also the safer
-      // picture: the pink now lives on an object instead of being painted
-      // onto the sky, where it smears into the pink fog this kept producing.
-      // Kept well under the marble: brighter than the shadowed sky it stands
-      // against, dimmer than anything with a floodlight on it. Authored as a
-      // fixed value rather than tied to the sky's luminance, because the sky
-      // at the waterline is now the darkest thing in the frame and dividing
-      // by it is how the band became a lit filament ruled across the water.
-      vec3 canCol = mix(dcLit, beltC, 0.34) * mix(0.19, 0.155, uDark);
+      // Mature mixed park canopy. It stays quieter than the marble and uses
+      // natural olive/blue-green values in both themes; no ornamental pink
+      // band or foreground specimen trees remain in this vista.
+      vec3 canCol = mix(vec3(0.115, 0.175, 0.095),
+                        vec3(0.020, 0.038, 0.028), uDark);
 
       // ---- The water.
       if (depth > -0.0016) {
@@ -1234,8 +1443,11 @@ const SKY_FRAGMENT = `
         // mirrors HIGH sky, so the Belt of Venus lands as a rose sheen in
         // the foreground while the far water stays in the Earth's shadow.
         float mh = 0.24 * (1.0 - exp(-depth * REFLECT_K / 0.24));
-        vec3 water = dcSkyGrade(skyBand(mh, shadowC, horizonC, zenithC),
-                                mh, umbraC, beltC, dcShK, dcBeltA, dcDim);
+        vec3 waterDay = skyBand(mh, dcShadowL, dcHorizonL, dcZenithL);
+        vec3 waterDusk = dcSkyGrade(skyBand(mh, shadowC, horizonC, zenithC),
+                                    mh, umbraC, beltC,
+                                    dcShK, dcBeltA, dcDim);
+        vec3 water = mix(waterDay, waterDusk, uDark);
         // Dark theme: water is darker than the sky it mirrors and much
         // darker close in, because a mirror seen at a grazing angle returns
         // nearly everything and one seen steeply returns a few per cent.
@@ -1248,7 +1460,9 @@ const SKY_FRAGMENT = `
         // dimming sky is what a river actually does twenty minutes before
         // sunset.
         float dd = smoothstep(0.0, 0.22, depth);
-        water *= mix(mix(2.30, 0.55, dd), mix(0.84, 0.26, dd), uDark);
+        water *= mix(mix(1.08, 0.72, dd), mix(0.84, 0.26, dd), uDark);
+        water = mix(water, dcWaterL,
+                    (1.0 - uDark) * mix(0.10, 0.24, dd));
 
         // The swell. Wave crests run ACROSS the basin, so every phase here is
         // a function of DEPTH, warped only gently by azimuth — a phase that
@@ -1355,13 +1569,13 @@ const SKY_FRAGMENT = `
         col = mix(col, mix(col, windowC, 0.62),
                   fLit * sil.x * (1.0 - sil.z) * edge
                   * smoothstep(0.35, 0.75, uDark) * 0.55);
+
         float ch = canopyTop(dz);
         float can = 1.0 - smoothstep(ch - 0.0026, ch + 0.0026, above);
-        // Two kilometres of blossom is not one value. Without this the band
-        // is the brightest continuous thing in the frame AND the flattest,
-        // and it reads as a sandbar rather than as trees.
+        // Two kilometres of park canopy is not one value. Without this the
+        // band is the flattest thing in the frame and reads as a sandbar.
         float canV = 0.52 + 0.48 * vnoise(vec2(dz * 2.2, 9.4));
-        // Elm and oak on the park side, blossom on the basin side.
+        // Older elm/oak mass on the park side, lower mixed growth toward the basin.
         vec3 canS = mix(canCol, canCol * vec3(0.40, 0.46, 0.40),
                         smoothstep(0.10, -0.24, dz)) * canV;
         col = mix(col, canS, can * edge * 0.94);
@@ -1371,6 +1585,33 @@ const SKY_FRAGMENT = `
         // have compounded again under Bloom.
         float crown = can * smoothstep(ch - 0.0070, ch - 0.0012, above);
         col = mix(col, canS * 1.42, crown * edge * 0.85);
+
+        // The childhood home is a memory-object rather than a surveyed
+        // landmark, but it must remain architecturally readable. It is on
+        // the near edge of the far-shore trees, so paint it AFTER the canopy;
+        // the previous ordering buried the porch and both storeys and left
+        // only a roof shard plus a yellow square at the frame edge.
+        // The 0.79 elevation scale makes the silhouette 0.79 / 1.18 = 67%
+        // of its previous height without moving its shoreline contact.
+        vec4 home = dcHome(dz, above / 0.79);
+        vec3 homeWall = mix(vec3(0.76, 0.77, 0.74),
+                            vec3(0.115, 0.120, 0.125), uDark);
+        vec3 homeSide = mix(homeWall * 0.72, homeWall * 0.64, uDark);
+        vec3 homeTrim = mix(vec3(0.040, 0.047, 0.050),
+                            vec3(0.008, 0.010, 0.014), uDark);
+        // Saturated enough to survive the intentionally reduced silhouette:
+        // the yellow-green entry is the reference photo's identifying cue.
+        vec3 homeDoor = mix(vec3(0.98, 0.78, 0.10),
+                            vec3(0.95, 0.63, 0.07), uDark);
+        col = mix(col, homeWall, home.x * edge * 0.96);
+        // The darker right plane is the minimum depth cue that survives the
+        // far-shore scale; without it the hipped roof and side wall collapse
+        // into a flat front elevation.
+        col = mix(col, homeSide, home.w * edge * 0.92);
+        col = mix(col, homeTrim, home.y * edge * 0.985);
+        float homeColumns = dcHomeColumns(dz, above / 0.79);
+        col = mix(col, homeWall * 1.08, homeColumns * edge * 0.98);
+        col = mix(col, homeDoor, home.z * edge);
       }
 
       // The Monument's red aircraft warning lights — eight of them in life,
@@ -1400,7 +1641,7 @@ const SKY_FRAGMENT = `
       // near, a middle and a far.
       float nb = -0.268 - 0.012 * vnoise(vec2(dz * 2.6, 1.9))
                + 0.022 * smoothstep(0.60, 0.97, vnoise(vec2(dz * 9.0, 6.4)));
-      vec3 nearC = mix(vec3(0.085, 0.086, 0.062), vec3(0.009, 0.011, 0.017), uDark);
+      vec3 nearC = mix(vec3(0.050, 0.105, 0.070), vec3(0.009, 0.011, 0.017), uDark);
       // The grass at the lip catches the belt the same way the far canopy
       // does; below that it goes to nothing, because nothing is lighting it.
       nearC += beltC * smoothstep(nb - 0.022, nb, e) * mix(0.055, 0.040, uDark);
@@ -1427,21 +1668,12 @@ const SKY_FRAGMENT = `
 
       // Aviation lights, dark only. The red constellation of this skyline
       // belongs to Sutro Tower; the pyramid's apex and the Golden Gate's two
-      // towers carry one each, and Salesforce carries a pair on the roof
-      // structure above its crown — which the note here used to deny, on the
-      // grounds that no source documented them. The owner's own reference
-      // photograph of the building shows them, so they are drawn: small, dim,
-      // and on their own slow clock, because they are competing with the
-      // brightest object on the skyline from six pixels away.
+      // towers carry one each. Salesforce stays a single clean crown here —
+      // at this scale a rooftop pair reads as dots detached from the form.
       vec3 avRed = vec3(0.90, 0.12, 0.10);
       float night = smoothstep(0.35, 0.75, uDark);
       float dApex = length(vec2(dTr, e - TR_TOP));
       col += avRed * smoothstep(0.0032, 0.0010, dApex) * 0.8 * night;
-      float sfLampE = e - (SF_TOP + 0.0038);
-      col += avRed
-           * (smoothstep(0.0014, 0.0004, length(vec2(dSf + 0.0019, sfLampE)))
-            + smoothstep(0.0014, 0.0004, length(vec2(dSf - 0.0019, sfLampE))))
-           * (0.24 + 0.40 * step(fract(uTime * 0.3667 + 0.58), 0.14)) * night;
       float dT1 = length(vec2(a + 1.145, e - 0.030));
       float dT2 = length(vec2(a + 1.035, e - 0.030));
       col += avRed * (smoothstep(0.0030, 0.0010, dT1) * step(fract(uTime * 0.5 + 0.37), 0.14)
@@ -1542,7 +1774,8 @@ const SKY_FRAGMENT = `
       // Awake, the crown reads by day too — dimmer, because it is competing
       // with a morning sky, but a control that does nothing when you point at
       // it is not a control.
-      float crownVis = night + (1.0 - night) * 0.34 * clamp(sfLive + sfShow, 0.0, 1.0);
+      float crownVis = night + (1.0 - night)
+                     * (0.12 + 0.36 * clamp(sfLive + sfShow, 0.0, 1.0));
       // The lit band is the top ~15% of the building — the six Day for Night
       // floors plus the glass crown standing above the 970 ft roof — and with
       // the dissolve gone it now ends where the building does, on a hard flat
@@ -1760,19 +1993,19 @@ const SF_SHOW_DURATION = 9.0;
 // offset from it.
 /** Monument → Capitol, plus the Capitol's own half-width. */
 const DC_COMPOSITION = 0.498;
-/** Pixels of the right of the frame the desktop placard owns, by breakpoint
- *  (w-[27rem] + right-5, then lg:right-8, then xl:w-[31rem]); below md it is
- *  hidden and the whole width is sky. */
+/** Pixels on the right owned by the live desktop dock, including its gutter.
+ * Mirrors PlacardLayer's clamp expressions so the seated skyline is composed
+ * against the glass edge at every desktop width. */
 function placardPx(w: number): number {
-  if (w >= 1280) return 528;
-  if (w >= 1024) return 464;
-  if (w >= 768) return 452;
-  return 0;
+  if (w < STACKS_DESKTOP_MIN_WIDTH) return 0;
+  const panel = THREE.MathUtils.clamp(w * 0.225 + 13 * 16, 27 * 16, 40 * 16);
+  const gutter = THREE.MathUtils.clamp(0.6 * 16 + w * 0.011, 1.25 * 16, 2 * 16);
+  return panel + gutter;
 }
 // How much of the seated camera's pointer yaw the vista gives back.
 //
-// CameraRig swings the seated aim by ±0.149 rad with the pointer, undamped,
-// against 0.213 rad of total slack in the frame — so at the extremes the
+// CameraRig swings the seated aim by about ±0.18 rad with a damped pointer,
+// against limited total slack in the frame — so at the extremes the
 // Monument walks off the left edge or the Capitol slides under the placard,
 // and the state you are guaranteed to be in the instant you sit down is the
 // worst one, because the pointer is still on the chair at the far left.
@@ -1780,6 +2013,32 @@ function placardPx(w: number): number {
 // is undetectable: the only other things in this window are the sky's own
 // gradient and the water, both of which are functions of elevation alone.
 const DC_COUNTER_PAN = 0.5;
+
+function parkSkyTarget(
+  mesh: THREE.Mesh | null,
+  camera: THREE.Camera,
+  pan: number,
+  az: number,
+  halfAz: number,
+  e0: number,
+  e1: number,
+  z: number,
+) {
+  if (!mesh) return;
+  const th = az - pan;
+  const ph = (e0 + e1) * 0.5;
+  const cp = Math.cos(ph);
+  const dz = Math.sin(th) * cp;
+  if (dz >= -0.05) return;
+  const distance = (z - camera.position.z) / dz;
+  mesh.position.set(
+    camera.position.x + Math.cos(th) * cp * distance,
+    camera.position.y + Math.sin(ph) * distance,
+    z,
+  );
+  mesh.scale.set(2 * halfAz * distance, (e1 - e0) * distance, 1);
+  mesh.lookAt(camera.position);
+}
 
 function SkyDome({ dark, simplify }: { dark: boolean; simplify: boolean }) {
   const domeRef = useRef<THREE.Mesh>(null);
@@ -1789,6 +2048,7 @@ function SkyDome({ dark, simplify }: { dark: boolean; simplify: boolean }) {
   const pendingFire = useRef(false);
   const sfStart = useRef(-1);
   const pendingSf = useRef(false);
+  const viewDirection = useRef(new THREE.Vector3());
   const setHovered = useStacks((s) => s.setHovered);
   const material = useMemo(() => {
     const c = (hex: string) => new THREE.Color(hex);
@@ -1825,6 +2085,10 @@ function SkyDome({ dark, simplify }: { dark: boolean; simplify: boolean }) {
         shadowD: { value: c(D.skyShadow) },
         emberL: { value: c(L.skyEmber) },
         emberD: { value: c(D.skyEmber) },
+        dcZenithL: { value: c(L.dcSkyTop) },
+        dcHorizonL: { value: c(L.dcSkyHorizon) },
+        dcShadowL: { value: c(L.dcSkyShadow) },
+        dcWaterL: { value: c(L.dcWater) },
         cityL: { value: c(L.skyline) },
         cityD: { value: c(D.skyline) },
         windowL: { value: c(L.skyWindow) },
@@ -1910,9 +2174,11 @@ function SkyDome({ dark, simplify }: { dark: boolean; simplify: boolean }) {
     // ---- Place Washington against the viewport.
     //
     // Seated, the camera looks +z, so the centre of the frame sits at
-    // azimuth π/2 plus the pan — plus whatever yaw the pointer has added,
-    // which CameraRig applies undamped and which is halved here (see
-    // DC_COUNTER_PAN). Everything after that is one solve: put the Capitol
+    // azimuth π/2 plus the pan — plus the ACTUAL damped camera yaw, which
+    // is halved here (see DC_COUNTER_PAN). Deriving it from the quaternion
+    // keeps this composition on the same clock as CameraRig's smoothed seated
+    // pointer rather than independently following the raw pointer. Everything
+    // after that is one solve: put the Capitol
     // just inside whatever edge the placard leaves, and if that would push
     // the Monument off the left of the frame, stop and let the Capitol go
     // instead — the Monument is the composition and the Capitol is the
@@ -1925,7 +2191,16 @@ function SkyDome({ dark, simplify }: { dark: boolean; simplify: boolean }) {
     const tanH = Math.tan(halfA);
     const vw = size.width || 1;
     const visRight = (2 * (vw - placardPx(vw))) / vw - 1;
-    const yaw = Math.atan2(6.0, -pointer.x * 0.9) - Math.PI * 0.5;
+    camera.getWorldDirection(viewDirection.current);
+    const worldAz = Math.atan2(
+      viewDirection.current.z,
+      viewDirection.current.x,
+    );
+    const yaw =
+      THREE.MathUtils.euclideanModulo(
+        worldAz - Math.PI * 0.5 + Math.PI,
+        Math.PI * 2,
+      ) - Math.PI;
     const centre = Math.PI * 0.5 + pan + DC_COUNTER_PAN * yaw;
     const anchor = Math.max(
       centre + Math.atan((visRight - 0.07) * tanH) - DC_COMPOSITION,
@@ -1978,34 +2253,29 @@ function SkyDome({ dark, simplify }: { dark: boolean; simplify: boolean }) {
     // own azimuth, so the world azimuth of a drawn feature is its shader
     // azimuth MINUS the pan), and the plane is sized to subtend the same
     // angular window at whatever distance the fixed z puts it.
-    const park = (
-      mesh: THREE.Mesh | null,
-      az: number,
-      halfAz: number,
-      e0: number,
-      e1: number,
-      z: number,
-    ) => {
-      if (!mesh) return;
-      const th = az - pan;
-      const ph = (e0 + e1) * 0.5;
-      const cp = Math.cos(ph);
-      const dz = Math.sin(th) * cp;
-      // th stays in the third quadrant across the whole traverse for both
-      // targets, so dz is always solidly negative — but a degenerate solve
-      // would fling the plane to infinity, so it is guarded, not assumed.
-      if (dz >= -0.05) return;
-      const t = (z - camera.position.z) / dz;
-      mesh.position.set(
-        camera.position.x + Math.cos(th) * cp * t,
-        camera.position.y + Math.sin(ph) * t,
-        z,
-      );
-      mesh.scale.set(2 * halfAz * t, (e1 - e0) * t, 1);
-      mesh.lookAt(camera.position);
-    };
-    park(hitRef.current, GGB_AZ, GGB_HALF_A, GGB_E0, GGB_E1, GGB_HIT_Z);
-    park(sfHitRef.current, SF_AZ, SF_HALF_A, SF_E0, SF_E1, SF_HIT_Z);
+    // th stays in the third quadrant across the whole traverse for both
+    // targets, so dz is always solidly negative. parkSkyTarget still guards
+    // the degenerate case without allocating a closure on every frame.
+    parkSkyTarget(
+      hitRef.current,
+      camera,
+      pan,
+      GGB_AZ,
+      GGB_HALF_A,
+      GGB_E0,
+      GGB_E1,
+      GGB_HIT_Z,
+    );
+    parkSkyTarget(
+      sfHitRef.current,
+      camera,
+      pan,
+      SF_AZ,
+      SF_HALF_A,
+      SF_E0,
+      SF_E1,
+      SF_HIT_Z,
+    );
     // The sky is at infinity, so it must not parallax against the room — in
     // ANY axis. Copying only x left the dome fixed in y and z while the
     // camera bobs (CameraRig's idle sine plus pointer parallax) and dollies
@@ -2073,7 +2343,7 @@ function RoomEnvironment({ dark }: { dark: boolean }) {
     >
       <Lightformer
         form="rect"
-        color={dark ? "#ffc98f" : "#ffd9b0"}
+        color={dark ? "#ffc98f" : "#ffe4cb"}
         intensity={dark ? 1.5 : 1.8}
         position={[4, 3, 4]}
         scale={10}
@@ -2084,7 +2354,7 @@ function RoomEnvironment({ dark }: { dark: boolean }) {
           sky the dome is painting. */}
       <Lightformer
         form="rect"
-        color={dark ? "#414f70" : "#7a8ba4"}
+        color={dark ? "#414f70" : "#8ca4bd"}
         intensity={dark ? 1.3 : 0.7}
         position={[-5, 2, 1]}
         scale={8}
@@ -2092,7 +2362,7 @@ function RoomEnvironment({ dark }: { dark: boolean }) {
       />
       <Lightformer
         form="circle"
-        color={dark ? "#5b432c" : "#a97e54"}
+        color={dark ? "#5b432c" : "#aeb4bb"}
         intensity={0.5}
         position={[0, -4, 2]}
         scale={8}
@@ -2147,7 +2417,27 @@ function Dust({ palette, count = 380 }: { palette: Palette; count?: number }) {
 // (GroundPool.tsx), so there is no per-frame shadow pass at all.
 function KeyLight({ dark }: { dark: boolean }) {
   const lightRef = useRef<THREE.DirectionalLight>(null);
+  const hemiRef = useRef<THREE.HemisphereLight>(null);
   const scene = useThree((s) => s.scene);
+  const dawnLight = useMemo(
+    () => ({
+      keyEarly: new THREE.Color("#fff3e6"),
+      keyLate: new THREE.Color("#ffe5c8"),
+      skyEarly: new THREE.Color("#eaf3ff"),
+      skyLate: new THREE.Color("#fff0df"),
+      groundEarly: new THREE.Color("#a8b2bf"),
+      groundLate: new THREE.Color("#b8aea7"),
+      // Night still has a warm frontal key, but its broad fill comes from the
+      // blue hour sky.  The old ochre hemisphere multiplied every dark-theme
+      // albedo toward the same brown and left low-facing props nearly black.
+      // These sources touch lit materials only: the authored sky dome, moon,
+      // skyline and DOM chrome are all outside this lighting path.
+      keyDark: new THREE.Color("#efd0b1"),
+      skyDark: new THREE.Color("#91a6c9"),
+      groundDark: new THREE.Color("#33291f"),
+    }),
+    [],
+  );
   useEffect(() => {
     const light = lightRef.current;
     if (!light) return;
@@ -2159,19 +2449,48 @@ function KeyLight({ dark }: { dark: boolean }) {
   }, [scene]);
   useFrame(({ camera }) => {
     const light = lightRef.current;
-    if (!light) return;
+    const hemi = hemiRef.current;
+    if (!light || !hemi) return;
     light.position.x = camera.position.x + 4;
     light.target.position.x = camera.position.x;
+    if (dark) {
+      // The traverse's dawn progression belongs to the light theme; night
+      // keeps one bounded exposure all the way through the room.
+      light.color.copy(dawnLight.keyDark);
+      light.intensity = 1.35;
+      hemi.color.copy(dawnLight.skyDark);
+      hemi.groundColor.copy(dawnLight.groundDark);
+      hemi.intensity = 1.2;
+      return;
+    }
+    const dawn = THREE.MathUtils.smoothstep(progressRef.current, 0, 1);
+    light.color.lerpColors(dawnLight.keyEarly, dawnLight.keyLate, dawn);
+    light.intensity = THREE.MathUtils.lerp(1.28, 1.42, dawn);
+    hemi.color.lerpColors(dawnLight.skyEarly, dawnLight.skyLate, dawn);
+    hemi.groundColor.lerpColors(
+      dawnLight.groundEarly,
+      dawnLight.groundLate,
+      dawn,
+    );
+    hemi.intensity = THREE.MathUtils.lerp(1.0, 1.08, dawn);
   });
   return (
-    <directionalLight
-      ref={lightRef}
-      position={[4, 6.5, 6]}
-      intensity={dark ? 1.15 : 1.35}
-      // Dark key slightly desaturated (was #e8b57e) — the heavier orange
-      // multiplied every albedo toward the same brown (audit §2.3).
-      color={dark ? "#e3bd94" : "#ffe9cb"}
-    />
+    <>
+      <hemisphereLight
+        ref={hemiRef}
+        color={dark ? "#91a6c9" : "#eaf3ff"}
+        groundColor={dark ? "#33291f" : "#a8b2bf"}
+        intensity={dark ? 1.2 : 1.0}
+      />
+      <directionalLight
+        ref={lightRef}
+        position={[4, 6.5, 6]}
+        intensity={dark ? 1.35 : 1.28}
+        // Dark key remains unchanged. The light key starts neutral-warm and
+        // follows the scroll-driven morning in useFrame above.
+        color={dark ? "#efd0b1" : "#fff3e6"}
+      />
+    </>
   );
 }
 
@@ -2191,11 +2510,6 @@ export default function SceneEnvironment({
       <fog attach="fog" args={[palette.fog, 8, 24]} />
       <SkyDome dark={dark} simplify={!!skySimplify} />
       <RoomEnvironment key={dark ? "env-d" : "env-l"} dark={dark} />
-      <hemisphereLight
-        color={dark ? "#a8825c" : "#fff2df"}
-        groundColor={dark ? "#2a1c10" : "#b08c66"}
-        intensity={dark ? 0.95 : 1.05}
-      />
       <KeyLight dark={dark} />
       {!dustOff && <Dust palette={palette} />}
     </>

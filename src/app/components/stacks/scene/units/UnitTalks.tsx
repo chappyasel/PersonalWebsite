@@ -1,45 +1,17 @@
 "use client";
 
-// Featured talks — framed stills warmed by the reading lamp.
-//
-// v5 rebuild. This was the emptiest unit in the world and it was not close:
-// five placements against About's fifteen, four of them photographs, and one
-// GLB in the whole unit. A gallery wall with a lamp on it. Worse, the frame
-// row restates the placard's three cards one-for-one directly beside them, so
-// half the unit's visual weight was a duplicate of the panel next to it.
-//
-// Three structural problems, fixed here:
-//
-// 1. Frame 3 was half behind the desktop placard. FrameRow sat at local x 0
-//    with width 2.6, so the frames landed at −0.87 / 0 / +0.87 and the third
-//    spanned 0.49…1.25. The panel is 464px wide below the xl breakpoint and
-//    528px above it, and the camera pans ±0.49 world units with the pointer:
-//    x ≤ +0.85 is safe on desktop, x ≥ +1.3 is invisible. UnitBooks already
-//    hit this and fixed it by hand; Talks never got the same treatment. The
-//    row now sits at −0.25.
-// 2. The entire front ledge of the upper shelf — z 0…+0.42 across 3.2 of
-//    plank — was empty. It is the largest unused surface in the world. The
-//    tent card and the fireside frame stand on it, in front of the row,
-//    which is also what stops the row reading as thumbnails pasted on wood.
-// 3. Nothing on the ground. Every unit that reads as furnished has a floor
-//    prop and every unit that reads thin does not. The floor lamp is the
-//    change that most moves this unit from "wall" to "room", and it earns
-//    its place twice over: a second lamp silhouette was wanted anyway.
+// Featured talks — five candid event photographs, foliage, books, and a floor
+// lamp. The stills keep their native aspect ratios instead of being recropped
+// into one repeated thumbnail shape.
 import { useStacks } from "../../store";
-import { proxied } from "../../theme";
-import { ContactShade, FootPool } from "../GroundPool";
-import LitImage from "../LitImage";
+import Grabbable from "../Grabbable";
+import { FootPool } from "../GroundPool";
 import ModelProp from "../ModelProp";
-import { EggLamp, EggTrigger, LampSwitch } from "../eggs";
-import { HoverProp } from "../links";
-import { Polaroid, polaroidSeat } from "../objects";
-import { DeskFrame, PhotoMount, deskFrameHeight } from "../photos";
-import { FrameRow, GlowSprite, ShelfUnit } from "../primitives";
-import { ConferenceBadge, TentCard } from "../speaking";
+import { LampSwitch, Sway } from "../eggs";
+import { DeskFrame, PHOTO_LINKS, deskFrameHeight } from "../photos";
+import { BookPile, GlowSprite, ShelfUnit } from "../primitives";
 import { useUnitLod } from "../useUnitLod";
-import { RoundedBox } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
-import React, { useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { type UnitProps } from "./types";
@@ -56,7 +28,7 @@ import { type UnitProps } from "./types";
  * small"). The note this replaces reasoned inside a FLOOR family drawn at
  * ~0.96 units per metre, and that family was the error: the bookcase's own
  * joinery puts the room at 2.00 u/m — bay pitch 0.7275 (0.36 m), clear
- * headroom 0.6575 (0.33 m), plank depth 0.6 (0.30 m), all three a bookshelf
+ * headroom 0.8075 (0.40 m), plank depth 0.6 (0.30 m), all three a bookshelf
  * at 2.00 and none of them furniture at 0.96 — so the case is a 1.60 × 0.575 m
  * low unit and everything standing on the floor beside it was half size. At
  * 1.67 this was a 0.72 m lamp.
@@ -106,8 +78,14 @@ function fabricTexture(): THREE.CanvasTexture {
   // GlowSprite's halo traces a gaussian. A ramp that stops abruptly at a rim
   // draws a line there, and a line on a lampshade is a seam, not light.
   for (const [stop, a] of [
-    [0, 0.05], [0.1, 0.28], [0.24, 0.68], [0.42, 1],
-    [0.58, 0.86], [0.76, 0.44], [0.9, 0.15], [1, 0.02],
+    [0, 0.05],
+    [0.1, 0.28],
+    [0.24, 0.68],
+    [0.42, 1],
+    [0.58, 0.86],
+    [0.76, 0.44],
+    [0.9, 0.15],
+    [1, 0.02],
   ] as const) {
     grad.addColorStop(stop, `rgba(255, 201, 138, ${a})`);
   }
@@ -171,7 +149,7 @@ function ShadeFabric({ dark }: { dark: boolean }) {
       <meshBasicMaterial
         map={texture}
         transparent
-        opacity={(dark ? 0.62 : 0.98) * (postfx ? 0.65 : 1)}
+        opacity={(dark ? 0.44 : 0.64) * (postfx ? 0.65 : 1)}
         blending={THREE.AdditiveBlending}
         depthWrite={false}
         polygonOffset
@@ -182,115 +160,97 @@ function ShadeFabric({ dark }: { dark: boolean }) {
   );
 }
 
-/**
- * Which still the SHELF shows for a talk, keyed by videoId. Owner, of the
- * three framed stills: "this is basically the same photo 3 times. please fix".
- *
- * He was looking at a real thing. The archive holds one Consensus moment —
- * him and the CoinDesk host in two chairs against a teal wall — and it had
- * been cropped three ways and hung three times on one shelf: the YouTube
- * thumbnail in frame 1, `talk-consensus.jpg` in frame 2 (an override in
- * page.tsx, put there because talk 2's OWN thumbnail is a photograph of a
- * projected slide), and `talk-fireside-wide.jpg` in the small frame standing
- * in front of them. Three sizes of one picture.
- *
- * Frame 2 is the one that has to move, because it is the only one showing an
- * event it does not belong to. `talk-summit.jpg` is the right still for it on
- * the merits and not just for variety: the talk is "What Really Is The AI
- * Collective?" and the photograph is him on the mic in the Collective's own
- * orange organiser vest. It is also the only image in the set that is not a
- * dark stage — an indoor, daylit, three-figure composition — so the row now
- * reads as three different rooms at a glance.
- *
- * That frees nothing on the shelf, so the leaning print at the far left takes
- * `talk-consensus-alt.jpg` instead: same event as frame 1, a genuinely
- * different frame (him alone, plain light-teal wall, no second person), and
- * it lives 1.6 units away from it.
- *
- * This supersedes `SCENE_TALK_STILLS` in src/app/page.tsx for videoId
- * 5Pl0nqh7ZLU. That entry is now dead and should be deleted — see the report;
- * page.tsx is not this change's to edit.
- *
- * Honest residual: the archive has four genuinely distinct talk photographs
- * (Consensus, the Collective vests ×2, the AI Summit panel) for seven picture
- * slots on this unit, so frame 1 and the small front frame are still two crops
- * of one moment. They are at opposite ends of the shelf and at very different
- * sizes; the fix for the rest is more photographs, not more code.
- */
-const SHELF_STILL: Record<string, string> = {
-  "5Pl0nqh7ZLU": "/images/stacks/talk-summit.jpg",
-};
-
-/** Each lean is declared once because it is used twice — as the mount's
- * rotation and as the input to polaroidSeat. A lean typed into one and not the
- * other is the exact bug this scene has regrown four times. */
-const SUMMIT_LEAN: [number, number, number] = [-0.15, 0.1, -0.05];
-const MIC_LEAN: [number, number, number] = [-0.15, -0.14, 0.04];
-
-/** Turn it over. A badge is the one object on a shelf you physically flip,
- * and this component already models both faces — the printed card and the
- * blank stock behind it — so the back is there waiting to be seen.
- *
- * SpinProp is the near-miss: it adds a full 2π per click, which on a badge
- * reads as a turntable rather than a hand. This adds π, so the first click
- * shows you the back and the second brings the name home. */
-function FlipProp({
-  unitIndex,
-  hoverKey,
-  children,
-}: {
-  unitIndex: number;
-  hoverKey: string;
-  children: React.ReactNode;
-}) {
-  const ref = useRef<THREE.Group>(null);
-  const target = useRef(0);
-  useFrame((_, delta) => {
-    const g = ref.current;
-    if (!g || g.rotation.y === target.current) return;
-    const next = THREE.MathUtils.damp(g.rotation.y, target.current, 3.4, delta);
-    g.rotation.y =
-      Math.abs(next - target.current) < 1e-3 ? target.current : next;
-  });
+/** A SpotLight aims at an Object3D, not along its parent's local -Y axis.
+ * Leaving the default target at world origin made the inter-unit lamp sweep
+ * backward across the whole traverse after it moved away from x=0. Keep a
+ * real target in the same lamp group so the cone remains directly beneath
+ * the shade at every world position and yaw. */
+function FloorLampSpot({ dark }: { dark: boolean }) {
+  const light = useRef<THREE.SpotLight>(null);
+  const target = useRef<THREE.Object3D>(null);
+  useEffect(() => {
+    if (light.current && target.current) light.current.target = target.current;
+  }, []);
   return (
-    <EggTrigger
-      unitIndex={unitIndex}
-      hoverKey={hoverKey}
-      onTrigger={() => {
-        if (
-          typeof window !== "undefined" &&
-          window.matchMedia("(prefers-reduced-motion: reduce)").matches
-        ) {
-          return;
-        }
-        target.current += Math.PI;
-      }}
-    >
-      <group ref={ref}>{children}</group>
-    </EggTrigger>
+    <>
+      <object3D ref={target} position={[0, 0.02, 0]} />
+      <spotLight
+        ref={light}
+        position={[0, SHADE_BOTTOM_Y - 0.017, 0]}
+        color="#ffbe73"
+        intensity={dark ? 12.5 : 7}
+        angle={0.85}
+        penumbra={0.9}
+        distance={3.81}
+        decay={2}
+      />
+    </>
   );
 }
 
-export default function UnitTalks({
-  data,
+const ANN_W = 0.528;
+const ANN_H = ANN_W * (640 / 1024);
+const CONSENSUS_W = 0.648;
+const CONSENSUS_H = CONSENSUS_W * (576 / 1024);
+const PANEL_W = 0.552;
+const PANEL_H = PANEL_W * (576 / 1024);
+const DEMO_W = 0.696;
+const DEMO_H = DEMO_W * (640 / 1024);
+const DC_W = 0.72;
+const DC_H = DC_W * (576 / 1024);
+
+/** Centre height that keeps a rolled frame's lowest corner on local shelf y=0. */
+function frameSeat(width: number, height: number, roll: number) {
+  const framedWidth = width + 0.048;
+  const framedHeight = deskFrameHeight(height);
+  return (
+    (framedHeight / 2) * Math.cos(Math.abs(roll)) +
+    (framedWidth / 2) * Math.sin(Math.abs(roll))
+  );
+}
+
+function TalkPhoto({
+  unitIndex,
   palette,
-  dark,
-  index,
-  coverWidth,
-  onOpenUrl,
-}: UnitProps) {
+  id,
+  base,
+  seat,
+  rotation,
+  width,
+  children,
+}: {
+  unitIndex: number;
+  palette: UnitProps["palette"];
+  id: string;
+  base: [number, number, number];
+  seat: number;
+  rotation: [number, number, number];
+  width: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <Grabbable
+      unitIndex={unitIndex}
+      hoverKey={`grab:photo:${id}`}
+      base={base}
+      shadeColor={palette.shadow}
+      shadeWidth={Math.max(0.34, width * 1.08)}
+      shape="box"
+      massKg={0.58}
+      href={PHOTO_LINKS[id] ?? undefined}
+    >
+      <group position={[0, seat, 0]} rotation={rotation}>
+        {children}
+      </group>
+    </Grabbable>
+  );
+}
+
+export default function UnitTalks({ palette, dark, index }: UnitProps) {
   const textured = useUnitLod(index);
   /** Shared 0..1 lit factor for the floor lamp: the switch damps it and the
    * two glow sprites multiply it in themselves. */
   const lit = useRef(1);
-  const frames = useMemo(
-    () =>
-      data.talks.map((talk) => ({
-        src: proxied(SHELF_STILL[talk.videoId] ?? talk.still, coverWidth),
-        key: talk.url,
-      })),
-    [data.talks, coverWidth],
-  );
   return (
     <>
       <ShelfUnit
@@ -298,216 +258,185 @@ export default function UnitTalks({
         toneSeed={index}
         lower={
           <group>
-            {/* 0.55 → 0.62. The lamp is now scaled to 1.49 (it was rendering
-                at half the size of a real one), and at 0.55 its wider base
-                closed to 0.020 of the badge. Moving the lamp rather than the
-                badge, because the lamp is what grew. 0.62 spans 0.503…0.700,
-                still well inside the +0.85 safe band. */}
-            <group position={[0.62, 0, 0]}>
-              {/* Egg: the lamp clicks off and back on. */}
-              <EggLamp
-                unitIndex={index}
-                palette={palette}
-                dark={dark}
-                yaw={-0.5}
-              />
-            </group>
-            {/* Consensus, him alone against the plain teal wall — the other
-                frame from that morning, and NOT the two-chair shot the row
-                above already carries at full size. See SHELF_STILL: the vest
-                photograph that used to lean here has gone into frame 2, where
-                it is the still for the talk it was actually taken at.
-                −1.12 → −1.30 uses the plank end the shelf was leaving bare. */}
-            {/* Anchored at the contact edge and seated by polaroidSeat rather
-                than the old literal 0.1555, which stood the print 2.21 cm off
-                the wood: a centred board hangs its lowest corner below
-                wherever the caller puts it, by an amount that depends on the
-                lean, so every leaning print in the world floated by its own
-                private number.
-                The explicit size={0.176} went with it. It was set to match a
-                real 88 × 107 mm Polaroid 600 after the same object had been
-                drawn at four sizes across the world — and POLAROID_SIZE is now
-                that number, so passing it again only creates a second copy to
-                drift out of step with the seat. */}
-            <PhotoMount
+            {/* Two lower-shelf photographs, deliberately different widths and
+                depth offsets. Their frame apertures use the source ratios
+                exactly, so LitImage has no reason to crop either file. */}
+            <TalkPhoto
               unitIndex={index}
-              id="talk-consensus-alt"
-              position={[-1.3, polaroidSeat(SUMMIT_LEAN), 0.05]}
-              rotation={SUMMIT_LEAN}
+              palette={palette}
+              id="talk-demo-night-v8"
+              base={[-0.91, 0, -0.01]}
+              seat={frameSeat(DEMO_W, DEMO_H, -0.018)}
+              rotation={[-0.07, 0.11, -0.018]}
+              width={DEMO_W}
             >
-              <Polaroid
-                src="/images/stacks/talk-consensus-alt.jpg"
+              <DeskFrame
+                src="/images/stacks/v8/talk-demo-night.webp"
                 palette={palette}
                 textured={textured}
-                anchor="contact"
+                width={DEMO_W}
+                height={DEMO_H}
               />
-            </PhotoMount>
-            {/* Mic in hand, arm up, GenAI Collective banners behind — him
-                HOSTING, a different register from the polished stage shoot.
-                It links: this one came off a tweet, and the id survived
-                verbatim in the archived filename. */}
-            {/* Same migration as talk-summit: contact anchor + polaroidSeat,
-                replacing a literal 0.1425 that floated it 1.57 cm. */}
-            <PhotoMount
+            </TalkPhoto>
+            <TalkPhoto
               unitIndex={index}
-              id="talk-mic"
-              position={[0.06, polaroidSeat(MIC_LEAN), 0.14]}
-              rotation={MIC_LEAN}
-              href="https://x.com/i/status/1798370655718744491"
+              palette={palette}
+              id="talk-dc-policy-v8"
+              base={[-0.14, 0, 0.035]}
+              seat={frameSeat(DC_W, DC_H, 0.014)}
+              rotation={[-0.05, -0.12, 0.014]}
+              width={DC_W}
             >
-              <Polaroid
-                src="/images/stacks/talk-mic.jpg"
+              <DeskFrame
+                src="/images/stacks/v8/talk-dc-policy.webp"
                 palette={palette}
                 textured={textured}
-                anchor="contact"
+                width={DC_W}
+                height={DC_H}
               />
-            </PhotoMount>
-            {/* Framed Stanford panel shot fills the dead zone left of the
-                lamp — the stand mic read "stupid and out of place" (owner, at
-                browse); a real stage moment does the same narrative work.
-                −0.50 → −0.72 (H2): with the leaning print moved out to the
-                plank end this frame left a 0.42-wide hole between them, the
-                largest bare run on the unit. At −0.72 it spans −1.01…−0.43,
-                which is 0.20 off the print and 0.28 off the instant print on
-                its right. */}
-            <PhotoMount
+            </TalkPhoto>
+
+            {/* The microphone belongs on the shelf it describes. The model is
+                rotated onto its side and raised by half its narrow dimension,
+                rather than balanced upright on a stand. */}
+            <Grabbable
               unitIndex={index}
-              id="talk-stanford"
-              position={[-0.72, 0.224, 0]}
-              rotation={[-0.1, 0.12, 0]}
+              hoverKey="grab:microphone"
+              base={[0.33, 0, 0.23]}
+              shadeColor={palette.shadow}
+              shadeWidth={0.48}
+              shape="box"
+              massKg={0.7}
             >
-              <RoundedBox
-                castShadow
-                args={[0.58, 0.44, 0.03]}
-                radius={0.008}
-                smoothness={4}
-                position={[0, 0, -0.018]}
+              <group
+                position={[0, 0.027, 0]}
+                rotation={[0, -0.28, -Math.PI / 2]}
               >
-                <meshStandardMaterial color={palette.frame} roughness={0.6} />
-              </RoundedBox>
-              {textured && (
                 <React.Suspense fallback={null}>
-                  <LitImage
-                    url="/images/stacks/talk-stanford.jpg"
-                    width={0.52}
-                    height={0.38}
-                    roughness={0.5}
-                    position={[0, 0, -0.001]}
+                  <ModelProp
+                    url="/models/microphone.glb"
+                    dark={dark}
+                    variant="tinted"
+                    tints={{ lambert2SG: palette.metal }}
+                    scale={0.041}
                   />
                 </React.Suspense>
-              )}
-            </PhotoMount>
-            {/* The badge you come home with, lanyard coiled beside it. The
-                only object in the unit that is residue rather than record —
-                everything else here is a picture OF a talk. Under the lamp's
-                pool, in the gap the lamp left on its right. */}
-            {/* Egg: click and it turns over to the blank card stock, click
-                again and the name comes back. */}
-            <group position={[0.38, 0, 0.12]} rotation={[0, -0.35, 0]}>
-              <FlipProp unitIndex={index} hoverKey={`egg:badge:${index}`}>
-                <ConferenceBadge
-                  palette={palette}
-                  venue="CONSENSUS"
-                  cordColor={palette.spines[3] ?? palette.ink}
-                />
-              </FlipProp>
+              </group>
+            </Grabbable>
+
+            <group position={[0, 0, -0.06]}>
+              <BookPile
+                palette={palette}
+                x={0.7}
+                salt={59}
+                linkUnit={index}
+                grabbable
+              />
             </group>
+            <Grabbable
+              unitIndex={index}
+              hoverKey="grab:plant:talks-pothos"
+              base={[1.16, 0, 0.02]}
+              shadeColor={palette.shadow}
+              shadeWidth={0.42}
+              shape="box"
+              massKg={2.3}
+            >
+              <Sway unitIndex={index} amount={0.019} rate={0.31} phase={0.7}>
+                <React.Suspense fallback={null}>
+                  <ModelProp
+                    url="/models/pothos.glb"
+                    dark={dark}
+                    variant="recolor"
+                    position={[0, -0.139, 0]}
+                    rotation={[0, 0.279, 0]}
+                    scale={0.62}
+                  />
+                </React.Suspense>
+              </Sway>
+            </Grabbable>
           </group>
         }
       >
-        <group position={[-0.25, 0, 0]}>
-          <FrameRow
-            frames={frames}
-            width={2.6}
-            palette={palette}
-            textured={textured}
-            unitIndex={index}
-            onFrameClick={onOpenUrl}
-          />
-        </group>
-        {/* The panel table's name card, standing on the front ledge and
-            overlapping the bottom of the first frame. The overlap is the
-            point: the row's problem was that it reads as a flat plane of
-            thumbnails, and one small object standing in front of it is the
-            cheapest way to break that. */}
-        {/* 0.28 → 0.42 wide. A table tent card is 0.21 m across, which is
-            0.42 here; at 0.28 it was a 0.14 m card, small enough that the
-            name on it was never going to resolve. Height rides along at the
-            same 1.5 so the printed face is not stretched.
-            The 0.24 yaw moved OUT of this group and into the hover's `rest`,
-            because a tilt applied outside the lift is out of the hover's
-            reach. Hover now eases the full 0.24 away and the card turns
-            square to you, which is the angle its type is legible at — the
-            fixed yaw was exactly the angle that kept it illegible. */}
-        <group position={[-1.0, 0, 0.3]}>
-          <HoverProp
-            unitIndex={index}
-            hoverKey="hover:tentcard"
-            lift={[0, 0.008, 0.014]}
-            rest={[0, 0.24, 0]}
-            settle={0.24}
-            grow={1.05}
-          >
-            <TentCard palette={palette} width={0.42} height={0.255} />
-          </HoverProp>
-        </group>
-        {/* A vocal mic on its desk stand, on the front ledge between the name
-            card and the fireside frame. The unit's own header calls that ledge
-            the largest unused surface in the world, and this is the object it
-            was always missing: everything else here is a picture OF a talk,
-            and a mic is the thing you actually stand behind.
-            NOT the v4 stand mic the owner killed at browse — that was a
-            full-height floor stand next to a bookcase, which is why it read as
-            out of place. microphone.glb is 11.1418 tall, and a real desk mic
-            on its stand is about 0.25 m, so at the room's 2.00 world units per
-            metre the scale is 0.50 / 11.1418 = 0.0449 and it stands 0.50 world
-            — a hand's length, the same order as the tent card beside it.
-            Single greyscale material, so the tint just multiplies it. */}
-        <group position={[-0.52, 0, 0.3]} rotation={[0, 0.22, 0]}>
-          <HoverProp
-            unitIndex={index}
-            hoverKey="hover:mic"
-            lift={[0, 0.01, 0.014]}
-          >
-            <React.Suspense fallback={null}>
-              <ModelProp
-                url="/models/microphone.glb"
-                dark={dark}
-                variant="tinted"
-                tints={{ lambert2SG: palette.metal }}
-                scale={0.0449}
-              />
-            </React.Suspense>
-          </HoverProp>
-          <ContactShade
-            color={palette.shadow}
-            width={0.24}
-            position={[0, 0.02, 0.02]}
-          />
-        </group>
-        {/* The one Talks photograph the repo processed and never placed. It
-            earns a seventh image on three counts: it is the only WIDE
-            silhouette among three tall frames and three square prints, the
-            only one showing a conversation rather than him addressing a
-            room, and it stands 0.33 forward of the row, which is the
-            front-to-back depth this unit had none of. */}
-        <PhotoMount
+        {/* Three top-shelf moments form a loose gallery rather than a uniform
+            frame row: different widths, yaws, rolls and depths, but all five
+            photographs in this unit retain the raw file's own ratio. */}
+        <TalkPhoto
           unitIndex={index}
-          id="talk-fireside-wide"
-          position={[0.26, deskFrameHeight(0.236) / 2, 0.27]}
-          rotation={[-0.08, -0.18, 0.02]}
+          palette={palette}
+          id="talk-ann-interview-v8"
+          base={[-1.02, 0, -0.055]}
+          seat={frameSeat(ANN_W, ANN_H, -0.022)}
+          rotation={[-0.06, 0.13, -0.022]}
+          width={ANN_W}
         >
           <DeskFrame
-            src="/images/stacks/talk-fireside-wide.jpg"
+            src="/images/stacks/v8/talk-ann-interview.webp"
             palette={palette}
             textured={textured}
-            width={0.42}
-            height={0.236}
+            width={ANN_W}
+            height={ANN_H}
           />
-        </PhotoMount>
+        </TalkPhoto>
+        <TalkPhoto
+          unitIndex={index}
+          palette={palette}
+          id="talk-consensus-phone-v8"
+          base={[-0.37, 0, -0.02]}
+          seat={frameSeat(CONSENSUS_W, CONSENSUS_H, 0.012)}
+          rotation={[-0.08, -0.04, 0.012]}
+          width={CONSENSUS_W}
+        >
+          <DeskFrame
+            src="/images/stacks/v8/talk-consensus-phone.webp"
+            palette={palette}
+            textured={textured}
+            width={CONSENSUS_W}
+            height={CONSENSUS_H}
+          />
+        </TalkPhoto>
+        <TalkPhoto
+          unitIndex={index}
+          palette={palette}
+          id="talk-panel-v8"
+          base={[0.3, 0, 0.03]}
+          seat={frameSeat(PANEL_W, PANEL_H, 0.026)}
+          rotation={[-0.05, -0.14, 0.026]}
+          width={PANEL_W}
+        >
+          <DeskFrame
+            src="/images/stacks/v8/talk-panel.webp"
+            palette={palette}
+            textured={textured}
+            width={PANEL_W}
+            height={PANEL_H}
+          />
+        </TalkPhoto>
+
+        <Grabbable
+          unitIndex={index}
+          hoverKey="grab:plant:talks-top"
+          base={[1.02, 0, -0.18]}
+          shadeColor={palette.shadow}
+          shadeWidth={0.28}
+          shape="box"
+          massKg={2.1}
+        >
+          <Sway unitIndex={index} amount={0.018} rate={0.36} phase={1.8}>
+            <React.Suspense fallback={null}>
+              <ModelProp
+                url="/models/potted-plant.glb"
+                dark={dark}
+                rotation={[0, -0.42, 0]}
+                scale={0.82}
+              />
+            </React.Suspense>
+          </Sway>
+        </Grabbable>
       </ShelfUnit>
-      {/* Floor lamp at the left flank, clear of the lower plank (which ends
-          at −1.6). See LAMP_S for why it is 1.67 and not the 1.95 that stood
+      {/* Floor lamp in the breathing room between Talks and Projects. Its
+          local x is half the 4.4-unit pitch, so it belongs to neither shelf
+          while still warming both. See LAMP_S for why it is 1.67 and not the 1.95 that stood
           it taller than a grandfather clock.
           Egg: it clicks off and back on, like both desk lamps. The room has
           three lamps and until now only two of them answered. The trigger
@@ -515,7 +444,7 @@ export default function UnitTalks({
           ground pool is a sibling in the rig, because an additive sprite is a
           metre-wide transparent quad and inside the trigger it becomes an
           invisible hit box over half the unit. */}
-      <group position={[-1.98, -1.115, 0.06]} rotation={[0, 0.45, 0]}>
+      <group position={[2.12, -1.115, 0.06]} rotation={[0, -0.45, 0]}>
         <LampSwitch
           unitIndex={index}
           hoverKey={`egg:lamp:floor:${index}`}
@@ -552,15 +481,22 @@ export default function UnitTalks({
                rather than 3.2/1.6, which keeps it over Bloom's 0.95 threshold
                (emissive #ffc98a is luminance 0.83, so ×1.9 = 1.6) while
                landing amber instead of clipped white. */}
-              <mesh
-                position={[0, SHADE_BOTTOM_Y, 0]}
-                rotation={[-Math.PI / 2, 0, 0]}
-              >
-                <circleGeometry args={[SHADE_BOTTOM_R * 0.88, 24]} />
+              <mesh position={[0, SHADE_BOTTOM_Y - 0.009, 0]}>
+                {/* A real diffuser has thickness. The old zero-thickness disc
+                    projected to a 2px line from this low camera and could not
+                    look like the broad hot aperture in the reference. */}
+                <cylinderGeometry
+                  args={[
+                    SHADE_BOTTOM_R * 0.88,
+                    SHADE_BOTTOM_R * 0.88,
+                    0.018,
+                    32,
+                  ]}
+                />
                 <meshStandardMaterial
                   color="#ffe6bd"
                   emissive="#ffc98a"
-                  emissiveIntensity={dark ? 1.9 : 1.0}
+                  emissiveIntensity={dark ? 4.5 : 2.2}
                   roughness={0.4}
                   side={THREE.DoubleSide}
                   toneMapped={false}
@@ -576,7 +512,7 @@ export default function UnitTalks({
                   GlowSprite writes its own opacity every frame. */}
               <group position={[0, SHADE_BOTTOM_Y - 0.055, 0]}>
                 <GlowSprite
-                  opacity={palette.glowOpacity * 0.85}
+                  opacity={palette.glowOpacity * 1.7}
                   eased
                   scale={0.444}
                   factorRef={lit}
@@ -584,7 +520,7 @@ export default function UnitTalks({
               </group>
               <group position={[0, SHADE_TOP_Y + 0.024, 0]}>
                 <GlowSprite
-                  opacity={palette.glowOpacity * 0.5}
+                  opacity={palette.glowOpacity * 0.65}
                   eased
                   scale={0.264}
                   factorRef={lit}
@@ -595,23 +531,15 @@ export default function UnitTalks({
                   `distance` is a world-space falloff radius and the parent
                   scale does not touch it, so all three distances came down
                   with the lamp (× 0.856). */}
-              <spotLight
-position={[0, SHADE_BOTTOM_Y - 0.017, 0]}
-                color="#ffbe73"
-                intensity={dark ? 7.4 : 3.0}
-                angle={0.85}
-                penumbra={0.9}
-                distance={3.81}
-                decay={2}
-              />
+              <FloorLampSpot dark={dark} />
               {/* Up out of the top opening — a drum shade throws as much light
                   at the ceiling as at the floor, and without it the top of the
                   lamp is a dark rim above a lit cone. */}
               <pointLight
-position={[0, SHADE_TOP_Y + 0.073, 0]}
+                position={[0, SHADE_TOP_Y + 0.073, 0]}
                 color="#ffcf96"
-                intensity={dark ? 0.9 : 0.4}
-distance={2.05}
+                intensity={dark ? 2 : 1}
+                distance={1.85}
                 decay={2}
               />
               {/* Retargeted, NOT added — the rig still costs exactly three
@@ -628,24 +556,11 @@ distance={2.05}
                   short of 1.1 lights the floor and nothing the visitor is
                   actually looking at. */}
               <pointLight
-position={[0, SHADE_BOTTOM_Y - 0.154, 0]}
+                position={[0, SHADE_BOTTOM_Y - 0.154, 0]}
                 color="#ffcf96"
-                intensity={dark ? 1.15 : 0.5}
-distance={2.99}
+                intensity={dark ? 4 : 1}
+                distance={2.5}
                 decay={2}
-              />
-              {/* The warm pool is the light landing on the ground, so it lives
-                  in the rig and goes out with the lamp. Light theme 0.12 →
-                  0.26: PoolQuad blends NORMALLY (it is a shadow primitive
-                  first), so on a pale floor a warm quad has only its hue to
-                  work with, and the composer fades it another 0.8 on top. At
-                  0.12 there was nothing under the lamp at noon at all, which
-                  is the half-done case — a lamp lit for night that stops
-                  reading as lit in daylight. */}
-              <FootPool
-                color="#ffbe73"
-size={[1.33, 0.85]}
-                opacity={dark ? 0.3 : 0.26}
               />
             </>
           }
@@ -655,7 +570,10 @@ size={[1.33, 0.85]}
               url="/models/lamp-floor.glb"
               dark={dark}
               variant="tinted"
-              tints={{ metal: palette.metal }}
+              tints={{
+                lamp: dark ? "#c48735" : "#d7bb7b",
+                metal: palette.metal,
+              }}
               scale={LAMP_S}
             />
           </React.Suspense>
@@ -665,7 +583,7 @@ size={[1.33, 0.85]}
             shadow is the one thing here that must not dim. */}
         <FootPool
           color={palette.shadow}
-size={[0.50, 0.36]}
+          size={[0.5, 0.36]}
           opacity={0.3}
           position={[0, 0.002, 0]}
         />
