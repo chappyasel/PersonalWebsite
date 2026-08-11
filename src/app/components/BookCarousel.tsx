@@ -118,12 +118,25 @@ function MarqueeRow({
 
   return (
     <div className="w-full overflow-visible">
+      {/* Two copies, each its OWN flex group, and the outer track carries no
+          gap of its own.
+          A single row of `[...books, ...books]` with one `gap-3` is the obvious
+          way to write this and it does not loop cleanly: 2N covers have 2N-1
+          gaps between them, so translating exactly -50% travels N covers plus
+          N-0.5 gaps. The track lands half a gap short every cycle — 6px at this
+          spacing — and the seam walks across the row.
+          Giving each copy a trailing `pr-3` equal to the gap makes one copy
+          exactly N covers + N gaps wide, so half the track is a whole copy and
+          -50% is seamless by construction rather than by tuning. */}
       <div
-        className={`flex w-fit gap-3 will-change-transform motion-reduce:animate-none ${animationClass}`}
+        className={`flex w-fit will-change-transform motion-reduce:animate-none ${animationClass}`}
       >
-        {/* Render books twice for seamless loop */}
-        {[...books, ...books].map((book, index) => (
-          <BookCover key={`${book.id}-${index}`} book={book} />
+        {[0, 1].map((copy) => (
+          <div key={copy} className="flex gap-3 pr-3" aria-hidden={copy === 1}>
+            {books.map((book, index) => (
+              <BookCover key={`${book.id}-${index}`} book={book} />
+            ))}
+          </div>
         ))}
       </div>
     </div>

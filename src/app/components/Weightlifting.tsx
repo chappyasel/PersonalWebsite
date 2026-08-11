@@ -129,25 +129,32 @@ function useActivityCells(data: ActivityMosaicData) {
       };
     });
 
-    return [
-      items.filter((cell) => cell.blockIndex === 0),
-      items.filter((cell) => cell.blockIndex === 1),
-    ];
+    // Derived from MOSAIC_BLOCKS rather than listed, so changing the block
+    // count is one constant and not three places that can disagree.
+    return Array.from({ length: MOSAIC_BLOCKS }, (_, block) =>
+      items.filter((cell) => cell.blockIndex === block),
+    );
   }, [data]);
 
   const displayStartDate = cells[0]?.[0]?.key ?? data?.startDate ?? null;
   const displayEndDate =
-    cells[cells.length - 1]?.[MOSAIC_DAYS / 2 - 1]?.key ??
+    cells[cells.length - 1]?.[MOSAIC_BLOCK_DAYS - 1]?.key ??
     data?.endDate ??
     null;
 
   return { cells, displayStartDate, displayEndDate };
 }
 
-const MOSAIC_COLUMNS = 26;
+// Four bands of a quarter-year rather than two of a half-year: same 364 days,
+// same one-cell-per-day honesty, but each cell gets twice the width. At 26
+// columns the year was legible as a texture and unreadable as data — the owner
+// called it "too compact".
+const MOSAIC_COLUMNS = 13;
 const MOSAIC_ROWS = 7;
-const MOSAIC_BLOCKS = 2;
+const MOSAIC_BLOCKS = 4;
 const MOSAIC_DAYS = MOSAIC_COLUMNS * MOSAIC_ROWS * MOSAIC_BLOCKS;
+/** Days in one band. The end-date label reads the last cell of the last one. */
+const MOSAIC_BLOCK_DAYS = MOSAIC_COLUMNS * MOSAIC_ROWS;
 
 function ActivityMosaic({ data }: { data: ActivityMosaicData }) {
   const { cells, displayStartDate, displayEndDate } = useActivityCells(data);
@@ -165,9 +172,12 @@ function ActivityMosaic({ data }: { data: ActivityMosaicData }) {
         </div>
       </div>
 
-      <div className="h-[190px] rounded-lg border border-foreground/[0.06] bg-background/20 p-3 sm:h-[210px]">
+      <div className="h-[300px] rounded-lg border border-foreground/[0.06] bg-background/20 p-3 sm:h-[340px]">
         <TooltipProvider delayDuration={150}>
-          <div className="grid h-full grid-rows-2 gap-3">
+          <div
+            className="grid h-full gap-3"
+            style={{ gridTemplateRows: `repeat(${MOSAIC_BLOCKS}, minmax(0, 1fr))` }}
+          >
             {cells.map((block, blockIndex) => (
               <div
                 key={blockIndex}

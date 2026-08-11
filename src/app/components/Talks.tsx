@@ -1,22 +1,9 @@
-import {
-  ArrowUpRightIcon,
-  MicrophoneStageIcon,
-} from "@phosphor-icons/react/dist/ssr";
-import Link from "next/link";
+import { MicrophoneStageIcon } from "@phosphor-icons/react/dist/ssr";
 import data from "public/data/speaking.json";
-import React from "react";
 
 import TalkCard, { type Talk } from "./TalkCard";
 
-type Mention = {
-  outlet: string;
-  title: string;
-  date: string;
-  url: string;
-};
-
 const TALKS: Talk[] = data.talks;
-const MENTIONS: Mention[] = data.mentions;
 
 export default async function Talks() {
   return (
@@ -35,36 +22,6 @@ export default async function Talks() {
         ))}
       </div>
 
-      {MENTIONS.length > 0 && (
-        <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-2 px-1 pt-1 text-sm text-muted-foreground">
-          <span className="font-semibold text-muted-foreground">
-            Elsewhere
-          </span>
-          {MENTIONS.map((mention, index) => (
-            <React.Fragment key={mention.url}>
-              {index > 0 && (
-                <span aria-hidden className="opacity-40">
-                  ·
-                </span>
-              )}
-              <Link
-                href={mention.url}
-                target="_blank"
-                className="group flex items-center gap-1.5 transition-colors duration-300 hover:text-foreground"
-              >
-                <span className="font-semibold text-foreground transition-colors duration-300 group-hover:text-foreground">
-                  {mention.outlet}
-                </span>
-                <span className="opacity-80">{mention.title}</span>
-                <ArrowUpRightIcon
-                  weight="bold"
-                  className="size-3.5 shrink-0 opacity-50"
-                />
-              </Link>
-            </React.Fragment>
-          ))}
-        </div>
-      )}
     </section>
   );
 }

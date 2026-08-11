@@ -20,7 +20,74 @@ export type RowItem =
   | { kind: "spine"; x: number; w: number; h: number; color: string }
   | { kind: "flat"; x: number; n: number; colors: string[] }
   | { kind: "lean"; x: number; w: number; h: number; color: string }
-  | { kind: "cover"; x: number; url: string; key: string };
+  /** A face-out book. Everything past `key` is POSE, and every one of them
+   * defaults to the old dead-upright cover, so a caller that only knows where
+   * it wants the book still gets what it always got. They exist because eight
+   * covers at one size, one angle and one depth read as a product grid pasted
+   * onto a plank however carefully they are spaced — see the layout note in
+   * UnitBooks. The pose is authored by the CALLER rather than rolled here: the
+   * lean of a book and the pitch to the neighbour it leans on are one
+   * measurement, and splitting them across two files is how this scene's
+   * leaning props keep ending up in mid-air. */
+  | {
+      kind: "cover";
+      x: number;
+      url: string;
+      key: string;
+      /** Uniform scale. A shelf of one book size is a shelf of one book. */
+      s?: number;
+      /** Yaw about Y — the book turned a few degrees off square. */
+      yaw?: number;
+      /** Lean about Z, radians. POSITIVE tips the head to the LEFT, i.e. onto
+       * a neighbour standing to the left of it. The seat below compensates. */
+      lean?: number;
+      /** Depth offset from the row's own z, so the fronts are not one plane. */
+      dz?: number;
+      /** Height of the flat book (or two) this one stands ON, 0 for straight
+       * on the wood. The riser is drawn here and stays on the shelf when the
+       * cover lifts — it is the shelf's, not the book's. */
+      riser?: number;
+    };
+
+/** Half-extents of a featured cover at scale 1, and the 4 mm its bevel is
+ * buried by. Read by the seat below, by the geometry, and by the caller doing
+ * the packing — the width of this box is the one number the layout, the mesh
+ * and the contact height all have to agree on. */
+export const COVER_W = 0.36;
+export const COVER_H = 0.52;
+const COVER_SINK = 0.004;
+
+/**
+ * Where a featured cover's origin has to sit for its lowest corner to land on
+ * the wood, given its scale, its lean and whatever it is standing on.
+ *
+ * A tilted box's contact point is NOT its bounding-box minimum, and this is
+ * the single most-regrown bug in this scene. The box turns about its own
+ * centre, so a lean of θ about Z drops one bottom corner to
+ * −(halfH·cos θ + halfW·|sin θ|) — the second term is the one everybody
+ * forgets, and forgetting it drives that corner straight through the plank.
+ * Yaw is deliberately absent: a rotation about Y leaves the base flat and
+ * moves the contact height by exactly nothing.
+ */
+export function coverSeat(s: number, lean: number, riser: number): number {
+  return (
+    riser +
+    s *
+      ((COVER_H / 2) * Math.cos(lean) +
+        (COVER_W / 2) * Math.abs(Math.sin(lean))) -
+    COVER_SINK
+  );
+}
+
+/** Half the x a cover eats, lean included. Both extremes of a rotated box are
+ * ±(halfW·cos θ + halfH·|sin θ|) — symmetric, which is why the packer can add
+ * two of these and get the pitch at which two books touch. */
+export function coverExtent(s: number, lean: number): number {
+  return (
+    s *
+    ((COVER_W / 2) * Math.cos(lean) + (COVER_H / 2) * Math.abs(Math.sin(lean)))
+  );
+}
 
 /** Width below which a spine gets no printed detail at all. Not every book on
  * a shelf has bands and a title block — a row where all fourteen do is a
@@ -410,6 +477,165 @@ const spineRoll = (i: number, salt: number) => rand(i, salt + 5) * 0.04 - 0.02;
  * "indeterminate". Left inline the expression stays linear in item.h and
  * item.w, and the checker can still do the algebra. Verified both ways. */
 
+/**
+ * One face-out book: the pose, the riser it may be standing on, and the note
+ * it opens.
+ *
+ * It is a component rather than a branch inlined in BookRowMesh's map because
+ * the pose is now five numbers that have to agree with each other — the seat
+ * is a function of the lean AND the scale AND the riser, and the untextured
+ * LOD silhouette has to be posed identically or the shelf rearranges itself
+ * when you walk toward it. Written twice, they would disagree; this file's
+ * whole history is numbers that were written twice.
+ */
+function FeaturedCover({
+  item,
+  palette,
+  textured,
+  coverWidth,
+  onCoverClick,
+  linkUnit,
+  riserColor,
+}: {
+  item: Extract<RowItem, { kind: "cover" }>;
+  palette: Palette;
+  textured: boolean;
+  coverWidth: 256 | 384;
+  onCoverClick?: (key: string) => void;
+  linkUnit?: number;
+  riserColor: string;
+}) {
+  const setHovered = useStacks((s) => s.setHovered);
+  const s = item.s ?? 1;
+  const lean = item.lean ?? 0;
+  const riser = item.riser ?? 0;
+  const z = 0.06 + (item.dz ?? 0);
+  const seat = coverSeat(s, lean, riser);
+  /** Lean is on the INNER group, not on Lift's `rest`. `rest` is the channel a
+   * hover eases away, and a book leaning on its neighbour that straightens
+   * itself when you point at it walks its head through that neighbour. */
+  const pose: [number, number, number] = [0, item.yaw ?? 0, lean];
+  return (
+    // Named so the harness can measure the WHOLE assembly, riser included:
+    // scripts/stacks-floaters.mjs cannot reach this branch (it resolves
+    // `item.kind === "spine"` symbolically and walks the spine arm of the
+    // ternary for every row item), so `window.__stacks.bbox("stacks-cover:<id>")`
+    // against the plank is the only proof these are seated.
+    <group name={`stacks-cover:${item.key}`}>
+      {/* The flat book it stands on, if any. Deliberately OUTSIDE the Lift:
+          the riser belongs to the shelf, so it stays put when the cover rises,
+          which is what "the book was resting on it" looks like. Inert on
+          purpose — a hover target hidden under a cover is a target nobody can
+          aim at, and giving it one only adds a way to open the library by
+          accident while trying to open a note. */}
+      {riser > 0 && (
+        <RoundedBox
+          castShadow
+          args={[COVER_W * s * 0.86, riser, 0.24]}
+          radius={0.006}
+          smoothness={3}
+          position={[item.x, riser / 2, z]}
+          rotation={[0, (item.yaw ?? 0) * 0.5 + 0.06, 0]}
+        >
+          <meshStandardMaterial color={riserColor} roughness={0.78} />
+        </RoundedBox>
+      )}
+      {!textured ? (
+        <group position={[item.x, seat, z]} rotation={pose} scale={s}>
+          <RoundedBox
+            castShadow
+            args={[COVER_W, COVER_H, 0.048]}
+            radius={0.008}
+            smoothness={4}
+          >
+            <meshStandardMaterial color={palette.cover} roughness={0.7} />
+          </RoundedBox>
+        </group>
+      ) : (
+        <CoverBoundary
+          fallback={
+            <group position={[item.x, seat, z]} rotation={pose} scale={s}>
+              <RoundedBox
+                castShadow
+                args={[COVER_W, COVER_H, 0.048]}
+                radius={0.008}
+                smoothness={4}
+              >
+                <meshStandardMaterial color="#9c8567" roughness={0.8} />
+              </RoundedBox>
+            </group>
+          }
+        >
+          <Lift
+            hoverKey={`book:${item.key}`}
+            base={[item.x, seat, z]}
+            offset={[0, 0.05, 0.06]}
+          >
+            <group rotation={pose} scale={s}>
+              <RoundedBox
+                castShadow
+                args={[COVER_W, COVER_H, 0.048]}
+                radius={0.008}
+                smoothness={4}
+                position={[0, 0, -0.027]}
+              >
+                <meshStandardMaterial color={palette.cover} roughness={0.7} />
+              </RoundedBox>
+              <React.Suspense fallback={null}>
+                <LitImage
+                  url={proxied(item.url, coverWidth)}
+                  width={0.34}
+                  height={0.5}
+                  radius={0.012}
+                  roughness={0.6}
+                  position={[0, 0, -0.002]}
+                  onPointerOver={(e) => {
+                    // Same activeUnit gate every other wrapper in the scene
+                    // uses. Without it a cover claimed the cursor from two
+                    // units away through the strip of canvas beside the
+                    // placard, and the click opened its book instead of
+                    // travelling.
+                    if (
+                      linkUnit !== undefined &&
+                      useStacks.getState().activeUnit !== linkUnit
+                    )
+                      return;
+                    e.stopPropagation();
+                    setHovered(`book:${item.key}`);
+                  }}
+                  onPointerOut={() => {
+                    // over(B) can land before out(A) — only clear our own
+                    // hover or the late out would drop B's lift mid-anim.
+                    if (useStacks.getState().hovered === `book:${item.key}`)
+                      setHovered(null);
+                  }}
+                  onClick={
+                    onCoverClick
+                      ? (e) => {
+                          // r3f fires onClick even after a swipe that starts
+                          // and ends on a mesh — delta gates only
+                          // onPointerMissed upstream.
+                          if ((e.delta ?? 0) > 6) return;
+                          if (
+                            linkUnit !== undefined &&
+                            useStacks.getState().activeUnit !== linkUnit
+                          )
+                            return; // → the unit tap plane travels
+                          e.stopPropagation();
+                          onCoverClick(item.key);
+                        }
+                      : undefined
+                  }
+                />
+              </React.Suspense>
+            </group>
+          </Lift>
+        </CoverBoundary>
+      )}
+    </group>
+  );
+}
+
 export function BookRowMesh({
   items,
   palette,
@@ -435,7 +661,6 @@ export function BookRowMesh({
    * the operating manual, and points at that instead. */
   to?: PropDestination;
 }) {
-  const setHovered = useStacks((s) => s.setHovered);
   // Contact darkening under the row. No light in the scene casts a shadow and
   // N8AO runs at half resolution (and not at all on touch), so the line where
   // a spine meets the wood carries no occlusion at all. One billboard per
@@ -451,7 +676,12 @@ export function BookRowMesh({
     let lo = Infinity;
     let hi = -Infinity;
     for (const it of items) {
-      const half = it.kind === "flat" ? 0.17 : it.kind === "cover" ? 0.18 : it.w / 2;
+      const half =
+        it.kind === "flat"
+          ? 0.17
+          : it.kind === "cover"
+            ? coverExtent(it.s ?? 1, it.lean ?? 0)
+            : it.w / 2;
       lo = Math.min(lo, it.x - half);
       hi = Math.max(hi, it.x + half);
     }
@@ -615,96 +845,21 @@ export function BookRowMesh({
               </SpineTip>
             </group>
           </ShelfBook>
-        ) : !textured ? (
-          <group
-            key={item.key}
-            position={[item.x, 0.26, 0.06]}
-            rotation={[0, (i % 2 === 0 ? 1 : -1) * 0.05, 0]}
-          >
-            <RoundedBox castShadow args={[0.36, 0.52, 0.048]} radius={0.008} smoothness={4}>
-              <meshStandardMaterial color={palette.cover} roughness={0.7} />
-            </RoundedBox>
-          </group>
         ) : (
-          <CoverBoundary
+          <FeaturedCover
             key={item.key}
-            fallback={
-              <RoundedBox
-                castShadow
-                args={[0.34, 0.5, 0.045]}
-                radius={0.008}
-                smoothness={4}
-                position={[item.x, 0.25, 0.06]}
-              >
-                <meshStandardMaterial color="#9c8567" roughness={0.8} />
-              </RoundedBox>
+            item={item}
+            palette={palette}
+            textured={textured}
+            coverWidth={coverWidth}
+            onCoverClick={onCoverClick}
+            linkUnit={linkUnit}
+            riserColor={
+              palette.spines[
+                Math.floor(rand(i, salt + 14) * palette.spines.length)
+              ]!
             }
-          >
-            <Lift
-              hoverKey={`book:${item.key}`}
-              base={[item.x, 0.256, 0.06]}
-              offset={[0, 0.05, 0.06]}
-            >
-              <group rotation={[0, (i % 2 === 0 ? 1 : -1) * 0.05, 0]}>
-                <RoundedBox
-                  castShadow
-                  args={[0.36, 0.52, 0.048]}
-                  radius={0.008}
-                  smoothness={4}
-                  position={[0, 0, -0.027]}
-                >
-                  <meshStandardMaterial color={palette.cover} roughness={0.7} />
-                </RoundedBox>
-                <React.Suspense fallback={null}>
-                  <LitImage
-                    url={proxied(item.url, coverWidth)}
-                    width={0.34}
-                    height={0.5}
-                    radius={0.012}
-                    roughness={0.6}
-                    position={[0, 0, -0.002]}
-                    onPointerOver={(e) => {
-                      // Same activeUnit gate every other wrapper in the scene
-                      // uses. Without it a cover claimed the cursor from two
-                      // units away through the strip of canvas beside the
-                      // placard, and the click opened its book instead of
-                      // travelling.
-                      if (
-                        linkUnit !== undefined &&
-                        useStacks.getState().activeUnit !== linkUnit
-                      )
-                        return;
-                      e.stopPropagation();
-                      setHovered(`book:${item.key}`);
-                    }}
-                    onPointerOut={() => {
-                      // over(B) can land before out(A) — only clear our own
-                      // hover or the late out would drop B's lift mid-anim.
-                      if (useStacks.getState().hovered === `book:${item.key}`)
-                        setHovered(null);
-                    }}
-                    onClick={
-                      onCoverClick
-                        ? (e) => {
-                            // r3f fires onClick even after a swipe that starts
-                            // and ends on a mesh — delta gates only
-                            // onPointerMissed upstream.
-                            if ((e.delta ?? 0) > 6) return;
-                            if (
-                              linkUnit !== undefined &&
-                              useStacks.getState().activeUnit !== linkUnit
-                            )
-                              return; // → the unit tap plane travels
-                            e.stopPropagation();
-                            onCoverClick(item.key);
-                          }
-                        : undefined
-                    }
-                  />
-                </React.Suspense>
-              </group>
-            </Lift>
-          </CoverBoundary>
+          />
         ),
       )}
     </group>

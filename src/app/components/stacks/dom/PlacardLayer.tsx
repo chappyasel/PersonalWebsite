@@ -1223,6 +1223,11 @@ function MobilePanel({
     let base = 0;
     let owned: boolean | null = null; // null until the drag arms
     let fromScroller = false;
+    // Whether the gesture STARTED over the scroller. Read at arm time instead
+    // of the live target: the pointer can cross out of the scroller inside the
+    // 6px before the drag arms, and asking where it is now rather than where
+    // it began hands an expanded-sheet gesture down the wrong branch.
+    let startInScroller = false;
 
     /** Set the frame the gesture is measured against. */
     const begin = (clientY: number, ts: number, target: EventTarget | null) => {
@@ -1234,24 +1239,22 @@ function MobilePanel({
       base = y.get();
       // Resolved once, at the start: whether the scroller is at its top is a
       // property of the gesture's origin, not of the frame it is asked in.
-      fromScroller =
+      startInScroller =
         target instanceof Element &&
-        !!target.closest("[data-stacks-scrollable]") &&
-        (scrollRef.current?.scrollTop ?? 0) <= 0;
+        !!target.closest("[data-stacks-scrollable]");
+      fromScroller =
+        startInScroller && (scrollRef.current?.scrollTop ?? 0) <= 0;
     };
     /** Track the pointer 1:1. Returns whether the sheet took the gesture, so
      * the caller can suppress whatever the platform would otherwise do with
      * it — a native scroll on touch, a text selection on the mouse. */
-    const move = (clientY: number, ts: number, target: EventTarget | null) => {
+    const move = (clientY: number, ts: number) => {
       const dy = clientY - startY;
       if (owned === null) {
         if (Math.abs(dy) < DRAG_ARM_PX) return false;
         // Peek has no scroller to compete with; expanded hands everything to
         // the scroller except a pull-down that began at the top.
-        const inScroller =
-          target instanceof Element &&
-          !!target.closest("[data-stacks-scrollable]");
-        owned = !expanded || !inScroller || (dy > 0 && fromScroller);
+        owned = !expanded || !startInScroller || (dy > 0 && fromScroller);
       }
       if (!owned) return false;
       // 6ms is under one frame at 120Hz, so a real touch stream still samples
@@ -1309,12 +1312,21 @@ function MobilePanel({
     const onTouchMove = (e: TouchEvent) => {
       const t = e.touches[0];
       if (!t) return;
-      if (move(t.clientY, e.timeStamp || performance.now(), e.target)) {
+      if (move(t.clientY, e.timeStamp || performance.now())) {
         e.preventDefault();
       }
     };
     const onTouchEnd = (e: TouchEvent) => {
       end(e.timeStamp || performance.now());
+    };
+    /** A cancelled touch is not a completed gesture, and routing it through
+     * `end` made it one: an incoming call, a system edge-swipe or the browser
+     * taking the stream over would run the commit logic and expand, collapse
+     * or dismiss the sheet on the visitor's behalf. Cancellation means put it
+     * back. */
+    const onTouchCancel = () => {
+      if (owned) settle();
+      owned = null;
     };
 
     // ── The mouse half ────────────────────────────────────────────────
@@ -1332,7 +1344,7 @@ function MobilePanel({
     };
     const onMouseMove = (e: MouseEvent) => {
       if (!mouseDown) return;
-      if (!move(e.clientY, e.timeStamp || performance.now(), e.target)) return;
+      if (!move(e.clientY, e.timeStamp || performance.now())) return;
       // preventDefault does not stop a selection that has already started, so
       // clear it and turn selection off for the rest of the drag.
       if (!dragged) {
@@ -1361,7 +1373,7 @@ function MobilePanel({
     panel.addEventListener("touchstart", onTouchStart, { passive: true });
     panel.addEventListener("touchmove", onTouchMove, { passive: false });
     panel.addEventListener("touchend", onTouchEnd, { passive: true });
-    panel.addEventListener("touchcancel", onTouchEnd, { passive: true });
+    panel.addEventListener("touchcancel", onTouchCancel, { passive: true });
     panel.addEventListener("mousedown", onMouseDown);
     panel.addEventListener("click", onClickCapture, { capture: true });
     window.addEventListener("mousemove", onMouseMove, { passive: false });
@@ -1370,7 +1382,7 @@ function MobilePanel({
       panel.removeEventListener("touchstart", onTouchStart);
       panel.removeEventListener("touchmove", onTouchMove);
       panel.removeEventListener("touchend", onTouchEnd);
-      panel.removeEventListener("touchcancel", onTouchEnd);
+      panel.removeEventListener("touchcancel", onTouchCancel);
       panel.removeEventListener("mousedown", onMouseDown);
       panel.removeEventListener("click", onClickCapture, { capture: true });
       window.removeEventListener("mousemove", onMouseMove);
@@ -1410,8 +1422,12 @@ function MobilePanel({
         ref={panelRef}
         data-stacks-panel
         data-sheet={expanded ? "expanded" : hidden ? "dismissed" : "peek"}
+        // No `transition` prop here on purpose. `y` is a MotionValue driven
+        // imperatively by `animate(y, …, SHEET_SPRING)` in the gesture code,
+        // and there is no declarative `animate` prop for a transition to
+        // govern — one used to sit here and controlled nothing, which reads
+        // like the spring lives here when it does not.
         style={{ y }}
-        transition={SHEET_SPRING}
         // Never unmounted, only translated — see the header comment. Off the
         // bottom it must also be out of the tab order and out of the way of
         // taps on the room, which `inert` and pointer-events do between them.
@@ -1617,23 +1633,27 @@ export default function PlacardLayer({
       // focusable — the cover marquee is aria-hidden presentation and its
       // tooltips hang off plain divs — so there is no interactive control
       // for the anchor to swallow.
-      <div className="flex flex-col gap-3">
+      // The anchor wraps the HEADING TOO, not just the card. He asked for two
+      // things that only look contradictory: the title outside the card like
+      // every other section, and "clicking anywhere on the book notes section"
+      // going to the library. Wrapping the card alone satisfies the first and
+      // quietly fails the second — the title and the gap above the card stay
+      // dead, which is exactly the part of "anywhere" a person aims at.
+      <Link
+        href={booksHref()}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Browse the whole library at books.chappyasel.com"
+        className="flex flex-col gap-3 rounded-xl"
+      >
         <h2 className="flex items-center gap-2 text-xl font-semibold text-foreground">
           <BooksIcon weight="duotone" className="size-6 shrink-0" />
           Book Notes
         </h2>
-        <Link
-          href={booksHref()}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Browse the whole library at books.chappyasel.com"
-          className="block rounded-xl"
-        >
-          <PlacardCard>
-            <BooksPlacard data={data} />
-          </PlacardCard>
-        </Link>
-      </div>
+        <PlacardCard>
+          <BooksPlacard data={data} />
+        </PlacardCard>
+      </Link>
     ),
     training: <div className="placard-sections">{slots.training}</div>,
     talks: <div className="placard-sections">{slots.talks}</div>,
