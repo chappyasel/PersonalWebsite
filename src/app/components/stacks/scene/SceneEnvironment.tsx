@@ -6,12 +6,18 @@ import { progressRef, useStacks } from "../store";
 import { PALETTES, type Palette, rand } from "../theme";
 import { Environment, Lightformer } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { poolTexture } from "./GroundPool";
 import { getSeatAmount } from "./seated";
 import { MID_X, STACKS_DESKTOP_MIN_WIDTH, TRAVEL_X } from "./worldLayout";
+
+// Park the meadow experiment without deleting it. React.lazy is intentional:
+// while this is false the meadow chunk is neither requested nor evaluated,
+// so none of its geometry, textures, shaders, or frame work reach production.
+const MEADOW_ENABLED = false;
+const Meadow = lazy(() => import("./Meadow"));
 
 // Chappy's morning, painted truthfully. Dark theme is 3:45am San Francisco —
 // fully dark, cold indigo, the city mostly asleep; light theme is just after
@@ -587,6 +593,17 @@ const SKY_FRAGMENT = `
     // sky was one flat horizon band. 0.045→0.30 lands the cool cap inside the
     // frame and gives the sky a vertical arc to read.
     vec3 col = skyBand(e, shadowC, horizonC, zenithC);
+    // The room camera only sees roughly the bottom 0.20 elevation of this
+    // enormous dome. Even after the v5 ramp correction, that meant the blue
+    // zenith was still diluted by two warm bands and the light sky printed as
+    // grey. Pull the blue cap down into the visible frame in LIGHT mode only,
+    // preserving the dark sky byte-for-byte at uDark=1 and preserving the
+    // damped theme crossfade at every value between. The low 0.055 gate keeps
+    // the pale tan horizon intact behind the skyline. This second pass makes
+    // the cap deliberately decisive: the previous 42% contribution was still
+    // mostly neutralised by the warm base bands after ACES.
+    float lightCap = (1.0 - uDark) * smoothstep(0.040, 0.180, e);
+    col = mix(col, zenithC, lightCap * 0.84);
     col = mix(col, shadowC * mix(0.88, 0.45, uDark), smoothstep(0.02, 0.30, -e));
 
     // Air. Two octaves of very low-frequency drift over the band mix — a real
@@ -2568,6 +2585,11 @@ export default function SceneEnvironment({
     <>
       <fog attach="fog" args={[palette.fog, 8, 24]} />
       <SkyDome dark={dark} simplify={!!skySimplify} />
+      {MEADOW_ENABLED && (
+        <Suspense fallback={null}>
+          <Meadow dark={dark} simplify={!!skySimplify} />
+        </Suspense>
+      )}
       <RoomEnvironment key={dark ? "env-d" : "env-l"} dark={dark} />
       <KeyLight dark={dark} />
       {!dustOff && <Dust palette={palette} />}

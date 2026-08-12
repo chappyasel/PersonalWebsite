@@ -4,6 +4,7 @@ import {
   backgroundWorldGesture,
   blocksWorldTouchTravel,
   isStacksScrollableTarget,
+  worldNavigationStep,
 } from "./ScrollBridges";
 
 describe("ScrollBridges interaction ownership", () => {
@@ -32,6 +33,14 @@ describe("ScrollBridges interaction ownership", () => {
 
     expect(isStacksScrollableTarget(scrollableChild)).toBe(true);
     expect(isStacksScrollableTarget({} as EventTarget)).toBe(false);
+  });
+
+  it("maps vertical arrows to the same unit steps as horizontal arrows", () => {
+    expect(worldNavigationStep("ArrowRight")).toBe(1);
+    expect(worldNavigationStep("ArrowDown")).toBe(1);
+    expect(worldNavigationStep("ArrowLeft")).toBe(-1);
+    expect(worldNavigationStep("ArrowUp")).toBe(-1);
+    expect(worldNavigationStep("Enter")).toBeNull();
   });
 
   it("collapses an expanded sheet and preserves outside world travel", () => {

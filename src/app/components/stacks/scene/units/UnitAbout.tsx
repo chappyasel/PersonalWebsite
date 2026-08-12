@@ -17,6 +17,7 @@ import {
   deskFrameHeight,
 } from "../photos";
 import { ShelfUnit } from "../primitives";
+import { ABOUT_COUCH } from "../seated";
 import { SHELF_GEOMETRY } from "../shelfGeometry";
 import { useUnitLod } from "../useUnitLod";
 import { RoundedBox } from "@react-three/drei";
@@ -42,15 +43,6 @@ import { type UnitProps } from "./types";
 export const PORTRAIT_SRC = "/images/about/profile.jpg";
 
 const PORTRAIT_SCALE = 0.78;
-const COUCH_SCALE = 0.72;
-// Twenty degrees farther counter-clockwise, presenting the seat toward the
-// globe while retaining the camera path's existing approach.
-const COUCH_YAW = 0.1 + Math.PI / 9;
-const COUCH_X = -2.82;
-// Pull the seat back into the room instead of letting its front edge crowd the
-// camera plane. The shorter world lead-in in worldLayout compensates for the
-// smaller projected footprint at the far-left discovery stop.
-const COUCH_Z = -0.3;
 
 function CollectiveLogo({
   palette,
@@ -665,8 +657,8 @@ export default function UnitAbout({
       </Grabbable>
 
       <group
-        position={[COUCH_X, SHELF_GEOMETRY.groundY, COUCH_Z]}
-        rotation={[0, COUCH_YAW, 0]}
+        position={[ABOUT_COUCH.x, SHELF_GEOMETRY.groundY, ABOUT_COUCH.z]}
+        rotation={[0, ABOUT_COUCH.yaw, 0]}
       >
         <SitChair unitIndex={index}>
           <React.Suspense fallback={null}>
@@ -679,7 +671,7 @@ export default function UnitAbout({
                 Black: dark ? "#253447" : "#344a61",
               }}
               roughness={0.84}
-              scale={COUCH_SCALE}
+              scale={ABOUT_COUCH.scale}
             />
           </React.Suspense>
         </SitChair>
@@ -687,7 +679,7 @@ export default function UnitAbout({
       <FootPool
         color={palette.shadow}
         size={[2.1, 1.6]}
-        position={[COUCH_X, SHELF_GEOMETRY.groundY, COUCH_Z]}
+        position={[ABOUT_COUCH.x, SHELF_GEOMETRY.groundY, ABOUT_COUCH.z]}
       />
     </group>
   );

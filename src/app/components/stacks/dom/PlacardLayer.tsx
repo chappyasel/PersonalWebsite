@@ -2276,13 +2276,9 @@ export default function PlacardLayer({
         @media (min-width: 1200px) {
           .placard-scroll .placard-sections h1,
           .placard-scroll .placard-section-heading {
-            color: hsl(24 12% 16%) !important;
+            color: hsl(var(--foreground)) !important;
             font-size: calc(var(--ps) * 1.786) !important;
             line-height: 1.25;
-          }
-          .dark .placard-scroll .placard-sections h1,
-          .dark .placard-scroll .placard-section-heading {
-            color: hsl(var(--foreground)) !important;
           }
           .placard-scroll .placard-sections h1 svg,
           .placard-scroll .placard-section-heading svg {

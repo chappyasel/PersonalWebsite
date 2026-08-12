@@ -113,7 +113,7 @@ export default function ChromeLayer() {
       )}
       <div className="stacks-wordmark pointer-events-none absolute z-20">
         <GrainReveal index={0}>
-          <p className="font-serif text-base tracking-tight text-foreground/85 min-[1200px]:text-lg">
+          <p className="font-serif text-base tracking-tight text-foreground min-[1200px]:text-lg">
             Chappy Asel
           </p>
         </GrainReveal>

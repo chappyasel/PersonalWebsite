@@ -19,11 +19,11 @@
 import { useFrame } from "@react-three/fiber";
 import {
   Bloom,
+  DepthOfField,
   EffectComposer,
   N8AO,
   Noise,
   SMAA,
-  TiltShift2,
   ToneMapping,
   Vignette,
   useDispose,
@@ -107,12 +107,15 @@ function Grade({ dark }: { dark: boolean }) {
 }
 
 export default function Effects({ dark }: { dark: boolean }) {
-  // Owner-approved at browse (2026-08-09): the miniature look SHIPS.
-  // ?notiltshift keeps an escape hatch for A/B.
-  const tiltShift = useMemo(
+  // A real depth buffer now owns the miniature softness: the shelves sit in
+  // a broad sharp band, while the near foreground and distant skyline fall
+  // gently out of focus. Keep the old query escape hatch as well as the more
+  // literal one so existing comparison links still work.
+  const depthOfField = useMemo(
     () =>
       typeof window === "undefined" ||
-      !window.location.search.includes("notiltshift"),
+      (!window.location.search.includes("notiltshift") &&
+        !window.location.search.includes("nodof")),
     [],
   );
   const graded = useMemo(
@@ -141,10 +144,19 @@ export default function Effects({ dark }: { dark: boolean }) {
         luminanceSmoothing={0.08}
         intensity={dark ? 1.2 : 0.4}
       />
-      {/* Split the difference between the original miniature blur and the
-          broader v8 window: edges stay dreamy, while the useful centre and
-          nearby interaction targets remain legible. */}
-      {tiltShift && <TiltShift2 blur={0.105} taper={0.6} />}
+      {/* Camera→shelf distance is 5.8–6.4 world units across the alternating
+          unit poses. A 2.6-unit focus range leaves held props and both shelf
+          planes crisp, then rolls into optical bokeh toward the far skyline.
+          This composer is already desktop-only and unmounts at the first
+          performance decline, so mobile/degraded paths pay nothing. */}
+      {depthOfField && (
+        <DepthOfField
+          focusDistance={6.05}
+          focusRange={2.6}
+          bokehScale={1.25}
+          resolutionScale={0.5}
+        />
+      )}
       {/* Light theme eases both finishing touches: premultiplied noise
           scales with luminance (a near-white sky grains hard), and dark
           corners read as grime against it. */}

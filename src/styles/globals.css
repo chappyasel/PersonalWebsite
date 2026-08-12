@@ -148,6 +148,34 @@
     --grainient-color-2: #6b5744;
     --grainient-color-3: #8b7355;
   }
+
+  /* The World UI sits over photography, sky, wood, and translucent glass,
+     so Book Notes' reading-page greys lose contrast after backdrop blending.
+     Use the stronger Book Notes placard title value as World light mode's
+     primary ink, and lift dark mode equivalently toward paper white. Muted
+     text retains a clear hierarchy without falling back into low-contrast
+     middle grey. Scope this to data-world: dedicated long-form routes keep
+     their established AAA reading palette. */
+  html[data-world] {
+    --foreground: 24 12% 16%;
+    --card-foreground: 24 12% 16%;
+    --popover-foreground: 24 12% 16%;
+    --primary: 24 12% 16%;
+    --secondary-foreground: 24 12% 16%;
+    --muted-foreground: 24 8% 26%;
+    --accent-foreground: 24 12% 16%;
+    --ring: 24 12% 16%;
+  }
+  html.dark[data-world] {
+    --foreground: 24 8% 92%;
+    --card-foreground: 24 8% 92%;
+    --popover-foreground: 24 8% 92%;
+    --primary: 24 8% 92%;
+    --secondary-foreground: 24 8% 92%;
+    --muted-foreground: 24 6% 82%;
+    --accent-foreground: 24 8% 92%;
+    --ring: 24 8% 92%;
+  }
 }
 
 @layer base {
@@ -433,8 +461,8 @@ html[data-world="ready"] .stacks-boot-threshold {
   background: hsl(var(--muted-foreground) / 0.54);
   opacity: 0;
   transform: translateY(7px) rotate(0.7deg);
-  animation: stacks-boot-book-cadence 6.3s
-    cubic-bezier(0.22, 0.9, 0.3, 1) infinite;
+  animation: stacks-boot-book-cadence 6.3s cubic-bezier(0.22, 0.9, 0.3, 1)
+    infinite;
   animation-delay: var(--book-delay);
 }
 

@@ -43,6 +43,17 @@ export function isStacksScrollableTarget(target: EventTarget | null) {
   );
 }
 
+/** Horizontal and vertical arrow pairs describe the same previous/next
+ * movement through the one-dimensional World. Page keys retain their existing
+ * aliases. Keeping the mapping pure makes it harder for the input paths to
+ * drift apart. */
+export function worldNavigationStep(key: string): -1 | 1 | null {
+  if (key === "ArrowRight" || key === "ArrowDown" || key === "PageDown")
+    return 1;
+  if (key === "ArrowLeft" || key === "ArrowUp" || key === "PageUp") return -1;
+  return null;
+}
+
 export function backgroundWorldGesture(
   state: BridgeInteractionState,
   scrollableTarget: boolean,
@@ -225,13 +236,12 @@ export default function ScrollBridges() {
       const target = e.target as HTMLElement | null;
       if (isStacksScrollableTarget(target)) return;
       if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
-      if (e.key === "ArrowRight" || e.key === "PageDown") {
-        e.preventDefault();
-        state.travelTo?.(Math.min(UNIT_COUNT - 1, state.activeUnit + 1));
-      } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
-        e.preventDefault();
-        state.travelTo?.(Math.max(0, state.activeUnit - 1));
-      }
+      const step = worldNavigationStep(e.key);
+      if (step === null) return;
+      e.preventDefault();
+      state.travelTo?.(
+        Math.min(UNIT_COUNT - 1, Math.max(0, state.activeUnit + step)),
+      );
     };
     window.addEventListener("keydown", onKey);
 

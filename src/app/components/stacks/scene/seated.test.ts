@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  ABOUT_COUCH,
+  SEAT_POSE,
   getSeatAmount,
   isSeated,
   requestSeat,
@@ -30,5 +32,14 @@ describe("seated world lifetime", () => {
 
     expect(listener).toHaveBeenCalledTimes(2);
     expect(isSeated()).toBe(false);
+  });
+
+  it("keeps the seated camera aligned with the shifted About couch", () => {
+    expect(ABOUT_COUCH.x).toBe(-3.38);
+    expect(ABOUT_COUCH.z).toBe(-0.45);
+    expect(SEAT_POSE.eye[0]).toBeCloseTo(-3.4081, 3);
+    expect(SEAT_POSE.eye[2]).toBeCloseTo(1.0036, 3);
+    expect(SEAT_POSE.target[0]).toBe(SEAT_POSE.eye[0]);
+    expect(SEAT_POSE.target[2] - SEAT_POSE.eye[2]).toBe(6);
   });
 });

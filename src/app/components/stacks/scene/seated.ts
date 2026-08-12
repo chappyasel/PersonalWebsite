@@ -9,6 +9,7 @@
  * Deliberately dependency-free (no React, no three) so any of the three can
  * import it without pulling the others into its chunk.
  */
+import { unitPose } from "./worldLayout";
 
 export type SeatPose = {
   /** World-space eye position when seated. */
@@ -16,6 +17,31 @@ export type SeatPose = {
   /** World-space point the seated camera looks at (behind the shelf line). */
   target: [number, number, number];
 };
+
+/** Single source of truth for the About couch's authored transform. Its scene
+ * model, floor contact, and measured seated camera all move together. */
+export const ABOUT_COUCH = {
+  scale: 0.72,
+  yaw: 0.1 + Math.PI / 9,
+  x: -3.38,
+  z: -0.45,
+} as const;
+
+const ABOUT_COUCH_MEASURED = {
+  x: -2.82,
+  z: -0.3,
+  eye: [-2.8359, 0.02, 1.0969] as const,
+};
+
+const couchDeltaX = ABOUT_COUCH.x - ABOUT_COUCH_MEASURED.x;
+const couchDeltaZ = ABOUT_COUCH.z - ABOUT_COUCH_MEASURED.z;
+const aboutUnitYaw = unitPose(0).rotation[1];
+const couchWorldDeltaX =
+  Math.cos(aboutUnitYaw) * couchDeltaX + Math.sin(aboutUnitYaw) * couchDeltaZ;
+const couchWorldDeltaZ =
+  -Math.sin(aboutUnitYaw) * couchDeltaX + Math.cos(aboutUnitYaw) * couchDeltaZ;
+const couchEyeX = ABOUT_COUCH_MEASURED.eye[0] + couchWorldDeltaX;
+const couchEyeZ = ABOUT_COUCH_MEASURED.eye[2] + couchWorldDeltaZ;
 
 /**
  * Where sitting in the About seat puts you.
@@ -29,11 +55,11 @@ export type SeatPose = {
  * has to be re-derived rather than nudged.
  *
  * Current occupant, translated from the measured live hull after the couch
- * moved from local z +0.08 to −0.30 inside Unit 0's +0.10 yaw. The local
- * −0.38 z shift becomes world (−0.0379 x, −0.3781 z):
+ * moved from local (−2.82, −0.30) to (−3.38, −0.45) inside Unit 0's +0.10
+ * yaw. That local (−0.56 x, −0.15 z) shift becomes world
+ * (−0.5722 x, −0.0933 z):
  *
- *   couch.glb   x −4.0115…−1.6602   y −1.1150…+0.2602   z −1.0008…+0.9669
- *               centre x −2.8359, ground y −1.115, front face z +0.9669
+ *   couch.glb   centre x −3.4081, ground y −1.115, front face z +0.8736
  *
  * eye.x is the seat's centre line.
  *
@@ -54,8 +80,8 @@ export type SeatPose = {
  * Owned by UnitAbout / SitChair — CameraRig only consumes it.
  */
 export const SEAT_POSE: SeatPose = {
-  eye: [-2.836, 0.02, 1.097],
-  target: [-2.836, 0.14, 7.097],
+  eye: [couchEyeX, ABOUT_COUCH_MEASURED.eye[1], couchEyeZ],
+  target: [couchEyeX, 0.14, couchEyeZ + 6],
 };
 
 let seated = false;

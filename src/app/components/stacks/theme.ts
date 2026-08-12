@@ -23,13 +23,17 @@
 // touch devices have no composer, so these hexes must read on their own.
 export const PALETTES = {
   light: {
-    // A soft coastal morning rather than the old grey-blue / tobacco-brown
-    // split. These are still authored below the ACES shoulder (see the note
-    // above), but the lower two bands now carry cool neutral air; warmth is
-    // reserved for the horizon and the sun, where it has a source.
-    skyTop: "#9eb5d0",
-    skyHorizon: "#e2d6ca",
-    skyShadow: "#c4cbd3",
+    // The meadow reference's clear pastoral morning: a distinctly blue upper
+    // vault falling through cream into a pale sun-warmed horizon. These are
+    // deliberately more chromatic than their intended screen colours because
+    // ACES compresses the dome before display. SceneEnvironment also brings
+    // the blue cap into the camera's shallow visible elevation range; without
+    // that, even a blue `skyTop` contributes too little to escape grey.
+    // More saturated than the first pastoral pass: the dome is ACES-tonemapped
+    // and the visible camera band samples only part of this cap.
+    skyTop: "#4f9fe0",
+    skyHorizon: "#edddc9",
+    skyShadow: "#e5d1b8",
     skyEmber: "#f5c78d",
     // The secret Washington view owns a distinct east-facing daylight vault.
     // These stay in sRGB here and are linearized with the other sky uniforms.
@@ -39,7 +43,8 @@ export const PALETTES = {
     dcWater: "#5f97c4",
     skyline: "#8297ac",
     skyWindow: "#ffca8a",
-    fog: "#c8cbd0",
+    // Far geometry meets the warm eye-level band, not the blue cap.
+    fog: "#e5d1b8",
     wood: "#a5845f",
     woodDark: "#8a6746",
     strap: "#836441",

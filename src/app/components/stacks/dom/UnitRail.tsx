@@ -13,10 +13,10 @@ import { UNITS, UNIT_COUNT } from "../data";
 import { closeStacksPanel, progressRef, useStacks } from "../store";
 import { useEffect, useRef } from "react";
 
-/** Desktop row height, in rem. The rows are `h-10` and the travelling thumb
+/** Desktop row height, in rem. The rows are `h-9` and the travelling thumb
  * translates by this per unit, so the two must agree — one number, used
  * twice, rather than a class and a magic multiplier that drift apart. */
-const ROW_REM = 2.5;
+const ROW_REM = 2.25;
 /** Every mobile button shares this rem-sized step, keeping all seven icons
  * centered as one row through root type-scale changes. */
 const MOBILE_STEP_REM = 2.75;
@@ -71,41 +71,15 @@ export default function UnitRail() {
   return (
     <>
       <style>{`
-        /* The rail floats over a live scene, so its local edge needs to work
-           over both sky and furniture. Use the theme background as a crisp
-           zero-blur separator around the foreground glyph. This is an edge,
-           not a backing surface or halo: no blur radius, no broad luminance
-           patch, and no fog spreading into the scene. */
-        .stacks-rail-row {
-          /* A crisp one-pixel separation keeps the glyph legible without the
-             diffuse backing glow that made the rail look fogged in. */
-          filter: drop-shadow(0 1px 0 hsl(var(--background) / 0.82));
-        }
         /* Compact widths put the persistent name and icon rail over a wide
-           range of shelf/sky values. Four zero-blur
-           strokes provide a crisp local edge in both themes; there is no
-           backing plate and no diffuse glow spreading into the scene. */
+           range of shelf/sky values. The strengthened World foreground tokens
+           now provide the contrast directly, so chrome remains one clean
+           colour instead of gaining a reverse-theme outline. */
         @media (width < 1200px) {
           .stacks-unit-rail-mobile {
             top: calc(env(safe-area-inset-top, 0px) + 3.5rem);
             padding-left: env(safe-area-inset-left, 0px);
             padding-right: env(safe-area-inset-right, 0px);
-          }
-          .stacks-rail-row {
-            filter:
-              drop-shadow(1px 0 0 hsl(var(--background) / 0.94))
-              drop-shadow(-1px 0 0 hsl(var(--background) / 0.94))
-              drop-shadow(0 1px 0 hsl(var(--background) / 0.94))
-              drop-shadow(0 -1px 0 hsl(var(--background) / 0.94));
-          }
-          .stacks-reveal > p {
-            color: hsl(var(--foreground) / 0.96);
-            font-weight: 600;
-            text-shadow:
-              1px 0 0 hsl(var(--background) / 0.94),
-              -1px 0 0 hsl(var(--background) / 0.94),
-              0 1px 0 hsl(var(--background) / 0.94),
-              0 -1px 0 hsl(var(--background) / 0.94);
           }
         }
         /* Inactive glyphs step back just enough to leave the full-opacity
@@ -174,7 +148,7 @@ export default function UnitRail() {
           <div
             ref={thumbRef}
             aria-hidden
-            className="absolute left-0 top-[13px] h-3.5 w-[2px] rounded-full bg-foreground/70 will-change-transform"
+            className="absolute left-0 top-[11px] h-3.5 w-[2px] rounded-full bg-foreground/70 will-change-transform"
           />
           {UNITS.map((unit, i) => {
             const Icon = unit.icon;
@@ -186,10 +160,10 @@ export default function UnitRail() {
                 onClick={() => go(i)}
                 aria-current={active ? "true" : undefined}
                 data-active={active || undefined}
-                // ~20% up from the h-8 / text-xs this was: the rail is the
-                // map of the whole page and it was reading as a footnote.
-                // pl-4 is the thumb's lane, so the icons start clear of it.
-                className={`stacks-rail-row group flex h-10 items-center rounded-lg pl-4 text-left font-serif text-sm tracking-wide transition-colors duration-300 focus-visible:ring-2 focus-visible:ring-foreground/40 ${
+                // The desktop rail uses a larger mark and label but a tighter
+                // 2.25rem step, improving scanability without stretching the
+                // seven-item group down the scene. pl-4 is the thumb's lane.
+                className={`stacks-rail-row group flex h-9 items-center rounded-lg pl-4 text-left font-serif text-[1.05rem] tracking-wide transition-colors duration-300 focus-visible:ring-2 focus-visible:ring-foreground/40 ${
                   active
                     ? "text-foreground"
                     : "text-muted-foreground hover:text-foreground"
@@ -199,7 +173,7 @@ export default function UnitRail() {
                   <Icon
                     aria-hidden
                     weight="bold"
-                    className="stacks-rail-icon size-4 shrink-0"
+                    className="stacks-rail-icon size-[19px] shrink-0"
                   />
                   {unit.label}
                 </span>
@@ -229,8 +203,8 @@ export default function UnitRail() {
           easier to see". Two things were wrong and only one of them was
           size: a 10x3px mark is small, but a mark with no contrast floor is
           invisible at any size. So the marks are now the sections' own
-          glyphs at 19px, they carry the crisp theme-coloured edge above, and
-          a stationary bar survives underneath as the position indicator. A visitor gets to see
+          glyphs at 19px in the stronger shared foreground, and a stationary
+          bar survives underneath as the position indicator. A visitor gets to see
           WHICH seven things the row is, which the dashes never told them.
 
           Seven 2.75rem columns is 19.25rem, so the row still fits a 320px
@@ -270,7 +244,7 @@ export default function UnitRail() {
                 />
                 <span
                   aria-hidden
-                  className={`absolute bottom-1 left-1/2 h-1 w-5 -translate-x-1/2 rounded-full bg-foreground/85 shadow-[0_1px_0_hsl(var(--background)/0.8)] transition-opacity duration-200 ${
+                  className={`absolute bottom-1 left-1/2 h-1 w-5 -translate-x-1/2 rounded-full bg-foreground/85 transition-opacity duration-200 ${
                     active ? "opacity-100" : "opacity-0"
                   }`}
                 />
