@@ -62,6 +62,8 @@ import { AutomatedNotice, ReadingNowNotice } from "./BookNotices";
 import { InlineMarkdown } from "./InlineMarkdown";
 import { TagBadge } from "./TagBadge";
 
+/* eslint-disable @next/next/no-img-element */
+
 // Animation configuration - overdamped to prevent oscillation
 const SPRING_CONFIG = {
   type: "spring" as const,
@@ -224,6 +226,10 @@ type BookDetailContentProps = {
   onClose?: () => void;
   /** Shown only when a modal was opened outside the dedicated Books site. */
   modalBreadcrumbHref?: string;
+  /** Absolute detail URL when the modal lives outside the Books host. */
+  modalBookHref?: string;
+  /** Books-host count mirrored into the external modal breadcrumb. */
+  modalBookCount?: number;
 };
 
 export function BookDetailContent({
@@ -238,6 +244,8 @@ export function BookDetailContent({
   isModal = false,
   onClose,
   modalBreadcrumbHref,
+  modalBookHref,
+  modalBookCount,
 }: BookDetailContentProps) {
   const coverUrl = enhanceCoverUrl(book.coverUrl);
   const hasTrackedView = useRef(false);
@@ -450,10 +458,10 @@ export function BookDetailContent({
             >
               {modalBreadcrumbHref ? (
                 <ol className="flex min-w-0 items-center gap-2">
-                  <li className="min-w-0">
+                  <li className="shrink-0">
                     <a
                       href={modalBreadcrumbHref}
-                      className="inline-flex max-w-full items-center gap-1.5 font-medium transition-colors hover:text-foreground"
+                      className="inline-flex items-center gap-1.5 font-medium transition-colors hover:text-foreground"
                     >
                       <ArrowLeftIcon
                         aria-hidden
@@ -461,14 +469,20 @@ export function BookDetailContent({
                         weight="bold"
                         className="shrink-0"
                       />
-                      <span className="truncate">Book Notes</span>
+                      <span>Chappy&apos;s Book Notes</span>
                     </a>
                   </li>
                   <li aria-hidden="true" className="text-border">
                     /
                   </li>
-                  <li aria-current="page" className="shrink-0">
-                    Details
+                  <li className="shrink-0 tabular-nums">
+                    <a
+                      href={modalBreadcrumbHref}
+                      className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground"
+                    >
+                      <BooksIcon size={16} weight="duotone" />
+                      {modalBookCount?.toLocaleString() ?? "All"} books
+                    </a>
                   </li>
                 </ol>
               ) : (
@@ -507,7 +521,7 @@ export function BookDetailContent({
                   <TooltipTrigger asChild>
                     {/* Use <a> instead of Link to force hard navigation out of intercepted route */}
                     <a
-                      href={getBookPath(bookId)}
+                      href={modalBookHref ?? getBookPath(bookId)}
                       className="flex size-10 items-center justify-center rounded-full bg-muted shadow-sm backdrop-blur-sm transition-all duration-200 ease-in-out hover:bg-primary/20"
                       aria-label="Open full page"
                     >

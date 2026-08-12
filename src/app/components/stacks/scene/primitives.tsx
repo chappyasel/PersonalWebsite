@@ -13,6 +13,7 @@ import * as THREE from "three";
 
 import Grabbable from "./Grabbable";
 import { ContactShade } from "./GroundPool";
+import HeldFacing from "./HeldFacing";
 import Lift, { LIFT_LAMBDA } from "./Lift";
 import LitImage from "./LitImage";
 import {
@@ -45,6 +46,8 @@ export type RowItem =
       x: number;
       url: string;
       key: string;
+      /** Server-sampled jacket perimeter color for this physical shell. */
+      color?: string;
       /** Uniform scale. A shelf of one book size is a shelf of one book. */
       s?: number;
       /** Yaw about Y — the book turned a few degrees off square. */
@@ -319,6 +322,8 @@ function ShelfBook({
   lift,
   rest,
   settle,
+  grabbable = false,
+  shadeColor,
   children,
 }: {
   linkUnit?: number;
@@ -330,6 +335,9 @@ function ShelfBook({
    * group, so the hover can ease it away — see `settle`. */
   rest?: [number, number, number];
   settle?: number;
+  /** Carry this individual volume while retaining its tap destination. */
+  grabbable?: boolean;
+  shadeColor?: string;
   children: React.ReactNode;
 }) {
   if (linkUnit === undefined)
@@ -337,6 +345,23 @@ function ShelfBook({
       <group position={base} rotation={rest}>
         {children}
       </group>
+    );
+  if (grabbable && shadeColor)
+    return (
+      <Grabbable
+        unitIndex={linkUnit}
+        hoverKey={hoverKey}
+        base={base}
+        shadeColor={shadeColor}
+        // A row book's base is its centre, not the plank. The shelf already
+        // supplies the shared contact shadow.
+        shadeWidth={0}
+        shape="box"
+        massKg={0.65}
+        to={to}
+      >
+        <group rotation={rest}>{children}</group>
+      </Grabbable>
     );
   return (
     <PropLink
@@ -442,12 +467,14 @@ function SpineTip({
   name,
   height,
   depth,
+  disabled = false,
   children,
 }: {
   hoverKey: string;
   name: string;
   height: number;
   depth: number;
+  disabled?: boolean;
   children: React.ReactNode;
 }) {
   const hinge = useRef<THREE.Group>(null);
@@ -456,7 +483,9 @@ function SpineTip({
     const g = hinge.current;
     if (!g) return;
     const target =
-      !still && useStacks.getState().hovered === hoverKey ? SPINE_TIP : 0;
+      !disabled && !still && useStacks.getState().hovered === hoverKey
+        ? SPINE_TIP
+        : 0;
     // Same snap-and-idle contract as Lift: settle exactly, then do no work.
     if (Math.abs(g.rotation.x - target) < 1e-4) {
       g.rotation.x = target;
@@ -555,73 +584,88 @@ function FeaturedCover({
       <meshStandardMaterial color={riserColor} roughness={0.78} />
     </RoundedBox>
   );
-  const cover = (draggable: boolean) => (
-    <group
-      position={draggable ? [0, seat, 0] : undefined}
-      rotation={pose}
-      scale={s}
-    >
-      <RoundedBox
-        castShadow
-        args={[COVER_W, COVER_H, 0.048]}
-        radius={0.008}
-        smoothness={4}
-        position={[0, 0, -0.027]}
-      >
-        <meshStandardMaterial color={palette.cover} roughness={0.7} />
-      </RoundedBox>
-      {/* A failed jacket texture degrades to the physical cover above, never
+  const cover = (draggable: boolean) => {
+    const contents = (
+      <>
+        <RoundedBox
+          castShadow
+          args={[COVER_W, COVER_H, 0.048]}
+          radius={0.008}
+          smoothness={4}
+          position={[0, 0, -0.027]}
+        >
+          <meshStandardMaterial
+            color={item.color ?? palette.cover}
+            roughness={0.7}
+          />
+        </RoundedBox>
+        {/* A failed jacket texture degrades to the physical cover above, never
           to a replacement OUTSIDE Grabbable. The book therefore keeps its
           exact tap/carry contract even when an image CDN request fails. */}
-      <CoverBoundary fallback={null}>
-        <React.Suspense fallback={null}>
-          <LitImage
-            url={proxied(item.url, coverWidth)}
-            width={0.34}
-            height={0.5}
-            radius={0.012}
-            roughness={0.6}
-            position={[0, 0, -0.002]}
-            onPointerOver={
-              draggable
-                ? undefined
-                : (e) => {
-                    if (
-                      linkUnit !== undefined &&
-                      useStacks.getState().activeUnit !== linkUnit
-                    )
-                      return;
-                    e.stopPropagation();
-                    setHovered(hoverKey);
-                  }
-            }
-            onPointerOut={
-              draggable
-                ? undefined
-                : () => {
-                    if (useStacks.getState().hovered === hoverKey)
-                      setHovered(null);
-                  }
-            }
-            onClick={
-              !draggable && onCoverClick
-                ? (e) => {
-                    if ((e.delta ?? 0) > 6) return;
-                    if (
-                      linkUnit !== undefined &&
-                      useStacks.getState().activeUnit !== linkUnit
-                    )
-                      return;
-                    e.stopPropagation();
-                    onCoverClick(item.key);
-                  }
-                : undefined
-            }
-          />
-        </React.Suspense>
-      </CoverBoundary>
-    </group>
-  );
+        <CoverBoundary fallback={null}>
+          <React.Suspense fallback={null}>
+            <LitImage
+              url={proxied(item.url, coverWidth)}
+              width={0.34}
+              height={0.5}
+              radius={0.012}
+              roughness={0.6}
+              position={[0, 0, -0.002]}
+              onPointerOver={
+                draggable
+                  ? undefined
+                  : (e) => {
+                      if (
+                        linkUnit !== undefined &&
+                        useStacks.getState().activeUnit !== linkUnit
+                      )
+                        return;
+                      e.stopPropagation();
+                      setHovered(hoverKey);
+                    }
+              }
+              onPointerOut={
+                draggable
+                  ? undefined
+                  : () => {
+                      if (useStacks.getState().hovered === hoverKey)
+                        setHovered(null);
+                    }
+              }
+              onClick={
+                !draggable && onCoverClick
+                  ? (e) => {
+                      if ((e.delta ?? 0) > 6) return;
+                      if (
+                        linkUnit !== undefined &&
+                        useStacks.getState().activeUnit !== linkUnit
+                      )
+                        return;
+                      e.stopPropagation();
+                      onCoverClick(item.key);
+                    }
+                  : undefined
+              }
+            />
+          </React.Suspense>
+        </CoverBoundary>
+      </>
+    );
+    return draggable ? (
+      <HeldFacing
+        hoverKey={hoverKey}
+        position={[0, seat, 0]}
+        rest={pose}
+        scale={s}
+      >
+        {contents}
+      </HeldFacing>
+    ) : (
+      <group rotation={pose} scale={s}>
+        {contents}
+      </group>
+    );
+  };
   return (
     // Named so the harness can measure the WHOLE assembly, riser included:
     // scripts/stacks-floaters.mjs cannot reach this branch (it resolves
@@ -698,6 +742,7 @@ export function BookRowMesh({
   linkUnit,
   to = "books",
   grabbableCovers = false,
+  grabbableVolumes = false,
 }: {
   items: RowItem[];
   palette: Palette;
@@ -716,6 +761,9 @@ export function BookRowMesh({
   /** Opt-in for curated face-out books: carry on drag, keep the existing
    * per-book modal on a tap. Packed spines remain structural shelf rows. */
   grabbableCovers?: boolean;
+  /** Opt-in for packed spines, leaners, and flat volumes. Each volume keeps
+   * its existing tap destination through Grabbable's tap/drag arbitration. */
+  grabbableVolumes?: boolean;
 }) {
   // Contact darkening under the row. No light in the scene casts a shadow and
   // N8AO runs at half resolution (and not at all on touch), so the line where
@@ -785,12 +833,15 @@ export function BookRowMesh({
             lift={SPINE_LIFT}
             rest={[0, 0, spineRoll(i, salt)]}
             settle={SPINE_SETTLE}
+            grabbable={grabbableVolumes}
+            shadeColor={palette.shadow}
           >
             <SpineTip
               hoverKey={bookRowHoverKey(linkUnit, salt, i)}
               name={bookRowNodeName("spine", linkUnit, salt, i)}
               height={item.h}
               depth={depths[i]!}
+              disabled={grabbableVolumes}
             >
               <RoundedBox
                 castShadow
@@ -839,6 +890,8 @@ export function BookRowMesh({
                 // the old 0.054 left 2mm of daylight between every pair.
                 base={[item.x + j * 0.012, 0.022 + j * 0.052, 0]}
                 lift={FLAT_LIFT}
+                grabbable={grabbableVolumes}
+                shadeColor={palette.shadow}
               >
                 <group name={bookRowNodeName("flat", linkUnit, salt, i, j)}>
                   <RoundedBox
@@ -868,6 +921,8 @@ export function BookRowMesh({
               0,
             ]}
             lift={SPINE_LIFT}
+            grabbable={grabbableVolumes}
+            shadeColor={palette.shadow}
           >
             {/* The authored lean moves from the mesh onto a wrapping group —
                 transform-identical, since both turn about the same origin —
@@ -880,6 +935,7 @@ export function BookRowMesh({
                 name={bookRowNodeName("lean", linkUnit, salt, i)}
                 height={item.h}
                 depth={0.3}
+                disabled={grabbableVolumes}
               >
                 <RoundedBox
                   castShadow
@@ -918,6 +974,7 @@ export function BookRowMesh({
             to={to}
             grabbable={grabbableCovers}
             riserColor={
+              item.color ??
               palette.spines[
                 Math.floor(rand(i, salt + 14) * palette.spines.length)
               ]!

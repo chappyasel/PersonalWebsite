@@ -297,12 +297,11 @@ html[data-world="ready"] .stacks-boot {
 /*
  * Warm boot: this visitor has had the world on screen recently, so the chunk
  * and the assets are almost certainly still in their HTTP cache and the room
- * is close. Playing the whole shelf-building animation for a load that beats
- * it is ceremony — you watch a progress indicator narrate a wait that isn't
- * happening.
+ * is close. Replaying the whole threshold study for a load that beats it is
+ * ceremony, so it only appears if the prediction was wrong.
  *
- * So the shelf indicator starts invisible and only fades in if the prediction
- * was wrong. The boot surface itself stays present: a warm flag plus an
+ * So the entrance starts invisible and only fades in if the prediction was
+ * wrong. The boot surface itself stays present: a warm flag plus an
  * evicted cache (or a plane, or a hotel wifi) is a real combination, and the
  * surface gives the eventual reveal the same fade path whether or not the
  * indicator had time to appear.
@@ -321,15 +320,9 @@ html[data-world="ready"] .stacks-boot {
  * screen reads as a broken page. The 400ms fallback covers a record with no
  * duration in it.
  */
-html[data-world="warm"] .stacks-boot-shelf {
-  opacity: 0;
-  animation: stacks-boot-late 220ms ease var(--stacks-warm-grace, 400ms)
-    forwards;
-}
-@keyframes stacks-boot-late {
-  to {
-    opacity: 1;
-  }
+html[data-world="warm"] .stacks-boot-entry {
+  animation-duration: 220ms;
+  animation-delay: var(--stacks-warm-grace, 400ms);
 }
 
 .stacks-boot {
@@ -340,138 +333,131 @@ html[data-world="warm"] .stacks-boot-shelf {
   place-items: center;
   background: hsl(var(--background));
   transition:
-    opacity 420ms ease,
-    visibility 0s linear 420ms;
+    opacity 360ms ease,
+    visibility 0s linear 360ms;
 }
 
-.stacks-boot-shelf {
+.stacks-boot-threshold {
   position: relative;
   isolation: isolate;
-  width: 190px;
+  width: clamp(230px, 29vw, 310px);
   transition:
-    opacity 300ms ease,
-    transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
+    opacity 360ms ease,
+    transform 560ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* A narrow pool of light belongs to this room's visual language, but it is
-   deliberately local to the shelf rather than a diffuse page glow. It gives
-   the little object one place in the otherwise quiet field without competing
-   with the actual room that is about to replace it. */
-.stacks-boot-shelf::before {
+.stacks-boot-entry {
+  position: relative;
+  isolation: isolate;
+  animation: stacks-boot-enter 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* A narrow pool of light belongs to this room's visual language. It grounds
+   the little bookcase without turning it into a software indicator. */
+.stacks-boot-entry::before {
   content: "";
   position: absolute;
   z-index: -1;
   left: 50%;
-  bottom: -18px;
-  width: 248px;
-  height: 82px;
+  bottom: -8px;
+  width: 76%;
+  height: 72px;
   border-radius: 50%;
   background: radial-gradient(
     ellipse at center,
-    hsl(35 48% 72% / 0.13) 0%,
-    hsl(35 36% 72% / 0.055) 42%,
-    transparent 74%
+    hsl(35 48% 72% / 0.12) 0%,
+    hsl(35 36% 72% / 0.045) 48%,
+    transparent 76%
   );
   transform: translateX(-50%);
 }
 
-.stacks-boot-title {
-  margin: 0 0 10px;
-  color: hsl(var(--foreground) / 0.58);
+.stacks-boot-wordmark {
+  margin: 0 0 18px;
+  color: hsl(var(--foreground) / 0.74);
   font-family: var(--font-serif), Georgia, serif;
-  font-size: 11px;
+  font-size: clamp(19px, 1.8vw, 22px);
   line-height: 1;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.095em;
   text-align: center;
-  text-transform: uppercase;
 }
 
-html[data-world="ready"] .stacks-boot-shelf {
+html[data-world="ready"] .stacks-boot-threshold {
   opacity: 0;
-  transform: translateY(7px) scale(0.985);
+  transform: translateY(4px) scale(1.055);
 }
 
-.stacks-boot-spines {
+.stacks-boot-bookcase {
+  position: relative;
+  width: 100%;
+  padding: 4px 17px 6px;
+}
+
+.stacks-boot-bookcase::before,
+.stacks-boot-bookcase::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  width: 4px;
+  border-radius: 2px;
+  background: hsl(28 22% 42% / 0.43);
+}
+
+.stacks-boot-bookcase::before {
+  left: 13px;
+}
+
+.stacks-boot-bookcase::after {
+  right: 13px;
+}
+
+.stacks-boot-shelf {
+  position: relative;
+  height: 46px;
+}
+
+.stacks-boot-books {
+  position: absolute;
+  inset: auto 7px 5px;
   display: flex;
+  height: 39px;
   align-items: flex-end;
   justify-content: center;
   gap: 4px;
-  height: 56px;
 }
 
-/* Spines rise onto the shelf as their slot fills. Transform and opacity only
-   — this paints while the main thread is busy parsing the WebGL chunk, and
-   anything that triggers layout there stutters visibly. */
-.stacks-boot-spines span {
+.stacks-boot-book {
   display: block;
+  flex: 0 0 auto;
   border-radius: 1px 1px 0 0;
+  background: hsl(var(--muted-foreground) / 0.54);
   opacity: 0;
-  transform: translateY(9px);
-  transition:
-    opacity 340ms ease,
-    transform 340ms cubic-bezier(0.22, 0.9, 0.3, 1);
-  background: hsl(var(--muted-foreground) / 0.5);
-}
-.stacks-boot-spines span[data-tone="1"] {
-  background: hsl(24 24% 46% / 0.62);
-}
-.stacks-boot-spines span[data-tone="2"] {
-  background: hsl(96 12% 40% / 0.62);
-}
-.stacks-boot-spines span[data-tone="3"] {
-  background: hsl(9 34% 46% / 0.6);
-}
-/*
- * The pre-hydration estimate. Nothing can report real progress while the
- * WebGL chunk is still downloading, and on a throttled connection React is
- * not alive for the first ten seconds of that wait — so the first four spines
- * arrive on a CSS schedule instead. The delays are solved from the same curve
- * BootScreen's ESTIMATE_CEILING caps (0.55 * (1 - e^(-t/4.5s)), a spine at
- * each (i + 0.35)/7), so when the real numbers arrive the shelf is already
- * where they would have put it and nothing jumps. Spines five through seven
- * have no schedule: they are only ever earned.
- */
-.stacks-boot-spines span:nth-child(-n + 4) {
-  animation: stacks-boot-arrive 340ms cubic-bezier(0.22, 0.9, 0.3, 1) forwards;
-}
-.stacks-boot-spines span:nth-child(1) {
-  animation-delay: 0.4s;
-}
-.stacks-boot-spines span:nth-child(2) {
-  animation-delay: 1.9s;
-}
-.stacks-boot-spines span:nth-child(3) {
-  animation-delay: 4.2s;
-}
-.stacks-boot-spines span:nth-child(4) {
-  animation-delay: 9.2s;
+  transform: translateY(7px) rotate(0.7deg);
+  animation: stacks-boot-book-cadence 6.3s
+    cubic-bezier(0.22, 0.9, 0.3, 1) infinite;
+  animation-delay: var(--book-delay);
 }
 
-.stacks-boot-spines span[data-in] {
-  animation: none;
-  opacity: 1;
-  transform: none;
+.stacks-boot-book[data-tone="1"] {
+  background: hsl(24 24% 46% / 0.64);
 }
-
-@keyframes stacks-boot-arrive {
-  to {
-    opacity: 1;
-    transform: none;
-  }
+.stacks-boot-book[data-tone="2"] {
+  background: hsl(96 12% 40% / 0.64);
+}
+.stacks-boot-book[data-tone="3"] {
+  background: hsl(9 34% 46% / 0.62);
 }
 
 .stacks-boot-plank {
-  position: relative;
-  height: 4px;
-  margin-top: 3px;
+  position: absolute;
+  inset: auto 0 0;
+  height: 5px;
   border-radius: 2px;
   overflow: hidden;
-  background: hsl(28 22% 42% / 0.55);
-  transform-origin: center;
-  animation: stacks-boot-plank-arrive 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  background: hsl(28 22% 42% / 0.56);
+  box-shadow: 0 1px 0 hsl(var(--background) / 0.32);
 }
-/* The still-working signal. The spines hold position between assets, so
-   without this a slow download is indistinguishable from a dead one. */
+
 .stacks-boot-plank::after {
   content: "";
   position: absolute;
@@ -479,37 +465,47 @@ html[data-world="ready"] .stacks-boot-shelf {
   border-radius: inherit;
   background: linear-gradient(
     90deg,
-    transparent 0%,
-    hsl(38 46% 72% / 0.75) 50%,
-    transparent 100%
+    transparent,
+    hsl(38 46% 72% / 0.45),
+    transparent
   );
-  transform: translateX(-100%);
-  animation: stacks-boot-sweep 2.1s ease-in-out infinite;
+  opacity: 0.42;
 }
 
-@keyframes stacks-boot-sweep {
-  to {
-    transform: translateX(100%);
-  }
-}
-
-@keyframes stacks-boot-plank-arrive {
+@keyframes stacks-boot-enter {
   from {
     opacity: 0;
-    transform: scaleX(0.72);
+    transform: translateY(7px) scale(0.985);
   }
   to {
     opacity: 1;
-    transform: scaleX(1);
+    transform: none;
   }
 }
 
-/* The room renders at full fidelity behind an opaque compositor layer. The
-   curtain, rather than the canvas/DOM world, fades away: filtering or
-   transforming the world itself creates a new backdrop root and changes the
-   appearance of every frosted placard. Cold visits get a measured dissolve;
-   a predicted-warm visit is deliberately briefer and never replays the full
-   loading ceremony. */
+@keyframes stacks-boot-book-cadence {
+  0%,
+  4% {
+    opacity: 0;
+    transform: translateY(7px) rotate(0.7deg);
+  }
+  9%,
+  78% {
+    opacity: 1;
+    transform: none;
+  }
+  92%,
+  100% {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+}
+
+/* The room renders at full fidelity behind two opaque compositor panels. The
+   panels, rather than the canvas/DOM world, part: filtering or transforming
+   the world itself creates a new backdrop root and changes the appearance of
+   every frosted placard. Cold visits get the measured doorway reveal; a
+   predicted-warm visit is deliberately briefer. */
 .stacks-world-shell {
   background: hsl(var(--background));
 }
@@ -518,40 +514,85 @@ html[data-world="ready"] .stacks-boot-shelf {
   position: absolute;
   inset: 0;
   z-index: 60;
-  background: hsl(var(--background));
-  opacity: 1;
-  visibility: visible;
   pointer-events: none;
-  transition:
-    opacity 520ms cubic-bezier(0.16, 1, 0.3, 1),
-    visibility 0s linear 520ms;
+  overflow: hidden;
 }
 
-.stacks-world-shell[data-load-path="warm"] .stacks-world-curtain {
-  transition-duration: 280ms, 0s;
-  transition-delay: 0s, 280ms;
+.stacks-world-curtain::before,
+.stacks-world-curtain::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  width: 51%;
+  background: hsl(var(--background));
+  will-change: transform;
+  transition: transform 720ms cubic-bezier(0.76, 0, 0.24, 1);
 }
 
-.stacks-world-shell[data-revealed] .stacks-world-curtain {
-  opacity: 0;
+.stacks-world-curtain::before {
+  left: 0;
+  box-shadow: 8px 0 28px hsl(35 45% 68% / 0.055);
+}
+
+.stacks-world-curtain::after {
+  right: 0;
+  box-shadow: -8px 0 28px hsl(35 45% 68% / 0.055);
+}
+
+.stacks-world-shell[data-load-path="warm"] .stacks-world-curtain::before,
+.stacks-world-shell[data-load-path="warm"] .stacks-world-curtain::after {
+  transition-duration: 360ms;
+}
+
+.stacks-world-shell[data-revealed] .stacks-world-curtain::before {
+  transform: translateX(-100%);
+}
+
+.stacks-world-shell[data-revealed] .stacks-world-curtain::after {
+  transform: translateX(100%);
+}
+
+/* Retire the entrance compositor after it has revealed the live room. The
+   shell stays mounted for hydration stability, but it must not keep 21 book
+   animations and two viewport-sized promoted layers alive behind WebGL. */
+.stacks-world-shell[data-revealed] .stacks-world-curtain::before,
+.stacks-world-shell[data-revealed] .stacks-world-curtain::after {
   visibility: hidden;
+  will-change: auto;
+  transition:
+    transform 720ms cubic-bezier(0.76, 0, 0.24, 1),
+    visibility 0s linear 720ms;
+}
+
+.stacks-world-shell[data-load-path="warm"][data-revealed]
+  .stacks-world-curtain::before,
+.stacks-world-shell[data-load-path="warm"][data-revealed]
+  .stacks-world-curtain::after {
+  transition-duration: 360ms, 0s;
+  transition-delay: 0s, 360ms;
+}
+
+.stacks-world-shell[data-revealed] .stacks-boot-book {
+  animation-play-state: paused;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .stacks-boot,
-  .stacks-boot-shelf,
-  .stacks-boot-plank,
+  .stacks-boot-threshold,
+  .stacks-boot-entry,
+  .stacks-boot-book,
   .stacks-world-curtain {
     animation: none;
     transition: none;
   }
-  .stacks-boot-plank::after {
-    animation: none;
-    opacity: 0;
-  }
-  .stacks-boot-spines span,
-  .stacks-boot-spines span:nth-child(-n + 4) {
-    animation: none;
+
+  .stacks-world-curtain::before,
+  .stacks-world-curtain::after {
     transition: none;
+  }
+
+  .stacks-boot-book {
+    opacity: 1;
+    transform: none;
   }
 }

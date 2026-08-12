@@ -89,10 +89,27 @@ export default function UnitBlog({
           yaw={-0.34}
           scale={1.74}
         />
+        {/* Three measured feet from desk-lamp.glb, transformed by the same
+            1.74 scale and -0.34 yaw as EggLamp. Separate contact pools keep
+            every leg visibly attached to the plank; the former single oval
+            sat between them and made the rear foot read as airborne. */}
         <ContactShade
           color={palette.shadow}
-          width={0.36}
-          position={[0, 0.02, 0.01]}
+          width={0.11}
+          height={0.06}
+          position={[0.029, 0.012, -0.082]}
+        />
+        <ContactShade
+          color={palette.shadow}
+          width={0.11}
+          height={0.06}
+          position={[-0.094, 0.012, 0.004]}
+        />
+        <ContactShade
+          color={palette.shadow}
+          width={0.11}
+          height={0.06}
+          position={[0.068, 0.012, 0.07]}
         />
       </group>
 

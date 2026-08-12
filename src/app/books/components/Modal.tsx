@@ -294,6 +294,14 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                       modalBreadcrumbHref={
                         fromStacks ? presentation.booksHref : undefined
                       }
+                      modalBookHref={
+                        fromStacks
+                          ? `${presentation.booksHref}/${bookId}`
+                          : undefined
+                      }
+                      modalBookCount={
+                        fromStacks ? presentation.bookCount : undefined
+                      }
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center p-8">

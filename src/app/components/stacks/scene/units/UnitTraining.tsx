@@ -1,96 +1,30 @@
 "use client";
 
-import Grabbable, { type GrabbableCommand } from "../Grabbable";
-import { ContactShade, FootPool } from "../GroundPool";
+import Grabbable from "../Grabbable";
+import { FootPool } from "../GroundPool";
+import HeldFacing from "../HeldFacing";
 import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
 import { Sway } from "../eggs";
-import PropLink from "../links";
-import { SodaCan, reducedMotion } from "../objects";
+import { SodaCan } from "../objects";
 import { DeskFrame, PHOTO_LINKS, PhotoMount, deskFrameHeight } from "../photos";
-import { BookPile, BumperPlates, ShelfUnit } from "../primitives";
+import { BookPile, ShelfUnit } from "../primitives";
 import { SHELF_GEOMETRY } from "../shelfGeometry";
 import { useUnitLod } from "../useUnitLod";
 import { RoundedBox } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
-import React, { useRef } from "react";
+import React from "react";
 import * as THREE from "three";
 
+import {
+  GOLF_BALL_RADIUS,
+  createDimpledGolfBallGeometry,
+  createGolfBallBumpTexture,
+} from "./trainingGolfBall";
 import type { UnitProps } from "./types";
 
 const CLUB_SCALE = 2.35;
-const CLUB_GRIP: [number, number, number] = [0.104, 1.806, 0];
-const CLUB_NODE = "stacks-golf-swing";
-
-function ClubSwing({
-  triggerRef,
-  onImpact,
-  children,
-}: {
-  triggerRef?: React.MutableRefObject<(() => void) | null>;
-  onImpact: () => void;
-  children: React.ReactNode;
-}) {
-  const ref = useRef<THREE.Group>(null);
-  const t = useRef(-1);
-  const hit = useRef(false);
-  const still = React.useMemo(() => reducedMotion(), []);
-  const start = React.useCallback(() => {
-    if (still) {
-      onImpact();
-      return;
-    }
-    t.current = 0;
-    hit.current = false;
-  }, [onImpact, still]);
-  React.useEffect(() => {
-    if (!triggerRef) return;
-    triggerRef.current = start;
-    return () => {
-      triggerRef.current = null;
-    };
-  }, [start, triggerRef]);
-  useFrame((_, delta) => {
-    const group = ref.current;
-    if (!group || t.current < 0) return;
-    t.current += Math.min(delta, 1 / 30);
-    const time = t.current;
-    if (time < 0.38) {
-      // Deliberate backswing: the head rises before accelerating through the
-      // ball, which reads as a golf stroke rather than another shelf wobble.
-      const p = THREE.MathUtils.smoothstep(time, 0, 0.38);
-      group.rotation.z = THREE.MathUtils.lerp(0, 0.72, p);
-      return;
-    }
-    if (time < 0.68) {
-      const p = THREE.MathUtils.smoothstep(time, 0.38, 0.68);
-      group.rotation.z = THREE.MathUtils.lerp(0.72, -2.18, p);
-      if (!hit.current && p > 0.64) {
-        hit.current = true;
-        onImpact();
-      }
-      return;
-    }
-    if (time > 1.55) {
-      group.rotation.z = 0;
-      t.current = -1;
-      return;
-    }
-    const p = THREE.MathUtils.smoothstep(time, 0.68, 1.55);
-    group.rotation.z = THREE.MathUtils.lerp(-2.18, 0, p);
-  });
-  return (
-    <group ref={ref} name={CLUB_NODE} position={CLUB_GRIP}>
-      <group position={[-CLUB_GRIP[0], -CLUB_GRIP[1], 0]}>
-        {children}
-        <mesh position={[0.05, 0.92, -0.03]}>
-          <boxGeometry args={[0.15, 1.88, 0.14]} />
-          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-        </mesh>
-      </group>
-    </group>
-  );
-}
+const GOLF_BALL_GEOMETRY = createDimpledGolfBallGeometry();
+const GOLF_BALL_BUMP = createGolfBallBumpTexture();
 
 function TrainingPhoto({
   unitIndex,
@@ -111,10 +45,11 @@ function TrainingPhoto({
   width: number;
   children: React.ReactNode;
 }) {
+  const hoverKey = `grab:photo:${id}`;
   return (
     <Grabbable
       unitIndex={unitIndex}
-      hoverKey={`grab:photo:${id}`}
+      hoverKey={hoverKey}
       base={base}
       shadeColor={palette.shadow}
       shadeWidth={Math.max(0.3, width * 1.18)}
@@ -122,9 +57,9 @@ function TrainingPhoto({
       massKg={0.45}
       href={PHOTO_LINKS[id] ?? undefined}
     >
-      <group position={[0, seat, 0]} rotation={rotation}>
+      <HeldFacing hoverKey={hoverKey} position={[0, seat, 0]} rest={rotation}>
         {children}
-      </group>
+      </HeldFacing>
     </Grabbable>
   );
 }
@@ -316,13 +251,11 @@ function GolfBall({
   palette,
   position,
   id,
-  commandRef,
 }: {
   unitIndex: number;
   palette: UnitProps["palette"];
   position: [number, number, number];
   id: string;
-  commandRef?: React.MutableRefObject<GrabbableCommand | null>;
 }) {
   return (
     <Grabbable
@@ -335,11 +268,19 @@ function GolfBall({
       massKg={0.046}
       standsOn="floor"
       to="weightlifting"
-      commandRef={commandRef}
     >
-      <mesh castShadow position={[0, 0.05, 0]}>
-        <sphereGeometry args={[0.05, 20, 20]} />
-        <meshStandardMaterial color={palette.pages} roughness={0.62} />
+      <mesh
+        castShadow
+        dispose={null}
+        geometry={GOLF_BALL_GEOMETRY}
+        position={[0, GOLF_BALL_RADIUS, 0]}
+      >
+        <meshStandardMaterial
+          bumpMap={GOLF_BALL_BUMP}
+          bumpScale={0.01}
+          color={palette.pages}
+          roughness={0.56}
+        />
       </mesh>
       <mesh position={[0, 0.065, 0]} userData={{ physicsIgnore: true }}>
         <sphereGeometry args={[0.105, 8, 8]} />
@@ -351,8 +292,6 @@ function GolfBall({
 
 export default function UnitTraining({ palette, dark, index }: UnitProps) {
   const textured = useUnitLod(index);
-  const clubTrigger = useRef<(() => void) | null>(null);
-  const strikeBall = useRef<GrabbableCommand | null>(null);
   return (
     <group>
       <ShelfUnit
@@ -396,21 +335,9 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
             </TrainingPhoto>
             {(
               [
-                {
-                  id: "diet-dr-pepper",
-                  x: -0.39,
-                  href: "https://www.target.com/p/-/A-12965383",
-                },
-                {
-                  id: "sunkist-zero",
-                  x: -0.18,
-                  href: "https://www.sunkistsoda.com/",
-                },
-                {
-                  id: "mtn-dew-zero",
-                  x: 0.03,
-                  href: "https://www.pepsicopartners.com/pepsico/en/USD/BEVERAGES/Soft-Drinks/Mountain-Dew-Zero-Sugar/p/1-SN109-1",
-                },
+                { id: "diet-dr-pepper", x: -0.39 },
+                { id: "sunkist-zero", x: -0.18 },
+                { id: "mtn-dew-zero", x: 0.03 },
               ] as const
             ).map((can, i) => (
               <Grabbable
@@ -422,7 +349,6 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
                 shadeWidth={0.18}
                 shape="box"
                 massKg={0.36}
-                href={can.href}
               >
                 <SodaCan
                   dark={dark}
@@ -567,33 +493,33 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
         </Grabbable>
       </ShelfUnit>
 
-      {/* The loaded bar and spare bumpers belong in the rear floor bay, not
-          on a display plank. Keeping both behind the shelf legs preserves the
-          seven-photo board and prevents the plate silhouettes from reading as
-          an overhanging shelf prop. */}
-      <group position={[-0.68, SHELF_GEOMETRY.groundY, -1.22]} scale={1.05}>
-        <BumperPlates linkUnit={index} />
-        <ContactShade
-          color={palette.shadow}
-          width={0.72}
-          position={[0.12, 0.03, 0.08]}
-        />
-      </group>
-      <PropLink unitIndex={index} to="weightlifting" hoverKey="link:barbell">
-        <group position={[2.12, SHELF_GEOMETRY.groundY, -0.72]}>
-          <React.Suspense fallback={null}>
-            <ModelProp
-              url="/models/barbell.glb"
-              dark={dark}
-              variant="tinted"
-              tints={{ Iron1Barbell1: palette.hub, Steel1Barbell1: "#8a8f94" }}
-              roughness={0.45}
-              rotation={[0, 0.02, 0]}
-              scale={0.77}
-            />
-          </React.Suspense>
-        </group>
-      </PropLink>
+      {/* The single loaded bar owns the rear exercise bay. The two loose
+          bumper stacks that used to sit behind the unit repeated its plates
+          and read as unrelated weights, so they are intentionally absent. */}
+      <Grabbable
+        unitIndex={index}
+        to="weightlifting"
+        hoverKey="grab:barbell"
+        base={[1.92, SHELF_GEOMETRY.groundY, -1.04]}
+        shadeColor={palette.shadow}
+        shadeWidth={1.35}
+        shape="box"
+        massKg={60}
+        standsOn="floor"
+        spin={0.16}
+      >
+        <React.Suspense fallback={null}>
+          <ModelProp
+            url="/models/barbell.glb"
+            dark={dark}
+            variant="tinted"
+            tints={{ Iron1Barbell1: palette.hub, Steel1Barbell1: "#8a8f94" }}
+            roughness={0.45}
+            rotation={[0, -Math.PI / 4, 0]}
+            scale={0.77}
+          />
+        </React.Suspense>
+      </Grabbable>
 
       {/* A second compact dumbbell belongs to the floor exercise bay. Keeping
           it on a different plane prevents two handles and four heads from
@@ -629,28 +555,26 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
         shape="box"
         massKg={0.42}
         standsOn="floor"
-        onTap={() => clubTrigger.current?.()}
       >
+        {/* The previous tap animation swung a 1.8-unit radius through 2.18
+            radians around the grip, necessarily throwing the head into the
+            sky. The authored swing is disabled until it can be rebuilt from
+            a physically constrained local rig; the club remains draggable. */}
         <group position={[0, -0.005, 0]} rotation={[0, 0, -0.18]}>
-          <ClubSwing
-            triggerRef={clubTrigger}
-            onImpact={() => strikeBall.current?.launch([4.8, 1.15, -0.2])}
-          >
-            <React.Suspense fallback={null}>
-              <ModelProp
-                url="/models/golf-club.glb"
-                dark={dark}
-                variant="tinted"
-                tints={{
-                  M_PCL_Flat_Black: palette.hub,
-                  M_PCL_Flat_Grey_Light: palette.metal,
-                  M_PCL_Flat_White_Darker: "#9aa0a4",
-                }}
-                rotation={[0, -1, 0]}
-                scale={CLUB_SCALE}
-              />
-            </React.Suspense>
-          </ClubSwing>
+          <React.Suspense fallback={null}>
+            <ModelProp
+              url="/models/golf-club.glb"
+              dark={dark}
+              variant="tinted"
+              tints={{
+                M_PCL_Flat_Black: palette.hub,
+                M_PCL_Flat_Grey_Light: palette.metal,
+                M_PCL_Flat_White_Darker: "#9aa0a4",
+              }}
+              rotation={[0, -1, 0]}
+              scale={CLUB_SCALE}
+            />
+          </React.Suspense>
         </group>
       </Grabbable>
       <GolfBall
@@ -658,7 +582,6 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
         palette={palette}
         id="one"
         position={[-1.7, SHELF_GEOMETRY.groundY, 0.4]}
-        commandRef={strikeBall}
       />
       <GolfBall
         unitIndex={index}

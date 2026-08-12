@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  backgroundWorldGesture,
   blocksWorldTouchTravel,
   isStacksScrollableTarget,
 } from "./ScrollBridges";
@@ -31,5 +32,41 @@ describe("ScrollBridges interaction ownership", () => {
 
     expect(isStacksScrollableTarget(scrollableChild)).toBe(true);
     expect(isStacksScrollableTarget({} as EventTarget)).toBe(false);
+  });
+
+  it("collapses an expanded sheet and preserves outside world travel", () => {
+    expect(
+      backgroundWorldGesture(
+        { dragging: null, modalOpen: false, panelState: "open" },
+        false,
+      ),
+    ).toBe("collapse-and-travel");
+    expect(
+      backgroundWorldGesture(
+        { dragging: null, modalOpen: false, panelState: "closing" },
+        false,
+      ),
+    ).toBe("travel");
+  });
+
+  it("keeps gestures inside the sheet and modal/prop gestures isolated", () => {
+    expect(
+      backgroundWorldGesture(
+        { dragging: null, modalOpen: false, panelState: "open" },
+        true,
+      ),
+    ).toBe("blocked");
+    expect(
+      backgroundWorldGesture(
+        { dragging: null, modalOpen: true, panelState: "closed" },
+        false,
+      ),
+    ).toBe("blocked");
+    expect(
+      backgroundWorldGesture(
+        { dragging: "grab:barbell", modalOpen: false, panelState: "closed" },
+        false,
+      ),
+    ).toBe("blocked");
   });
 });

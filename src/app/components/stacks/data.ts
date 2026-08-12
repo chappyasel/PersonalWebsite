@@ -111,11 +111,12 @@ export type StacksData = {
    * and only the 2023 one is featured. Match on `book.id` (the slug), never on
    * title. */
   featuredBooks: Book[];
-  /** Up to three current reads, newest started date first.
-   * When fewer than three current reads have covers, the server fills the
-   * display from the most recent covered books without duplicating an id. */
+  /** Server-sampled physical-board colors for every featured book. */
+  featuredBookColors: Record<string, ReadingBookEdgeColor>;
+  /** The newest current read with a cover, or the most recent covered book as
+   * a fallback when there is no active current read. */
   readingBooks: Book[];
-  /** Server-sampled jacket perimeter colors for the three About books.
+  /** Server-sampled jacket perimeter color for the About book.
    * This stays scene-only: it does not extend the Notion/DB book schema. */
   readingBookColors: Record<string, ReadingBookEdgeColor>;
   bookStats: HomepageBookStats;

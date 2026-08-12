@@ -102,4 +102,13 @@ describe("cover perimeter colors", () => {
       expect(contrastRatio(colors.cover, colors.pages)).toBeGreaterThan(1.35);
     }
   });
+
+  it("keeps near-black violet jackets charcoal-plum rather than neon purple", () => {
+    expect(readingBookMaterialColors("#100020", "#f4ecdb", false).cover).toBe(
+      "#402d53",
+    );
+    expect(readingBookMaterialColors("#100020", "#b3a68f", true).cover).toBe(
+      "#4d3762",
+    );
+  });
 });

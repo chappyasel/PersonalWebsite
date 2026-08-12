@@ -6,7 +6,7 @@ export const ABOUT_READING_BOOK = {
 } as const;
 
 export type ReadingBookPose = {
-  /** Newest-first index: 0 newest, 2 third-most-recent. */
+  /** The current book is the sole volume displayed on this shelf. */
   index: number;
   base: [number, number, number];
   rotation: [number, number, number];
@@ -17,28 +17,18 @@ export const ABOUT_SMALL_PLANT_X = 0.53;
 export const ABOUT_SMALL_PLANT_ENVELOPE = 0.135;
 export const ABOUT_LOWER_PHOTO_LEFT = 0.84 - 0.3072 / 2;
 
-// The supplied three-book reference is one compact mass: two almost perfectly
-// horizontal books with a small cloth-board offset, then a third standing
-// behind them and leaning into their top-left quarter. Keep these authored
-// values together — treating them as three independent "nice looking" poses
-// is how the previous version became three separated diving boards.
-const BOTTOM_X = 0.2;
-const MIDDLE_X = 0.18;
-const BOTTOM_Z = 0.035;
-const MIDDLE_Z = 0.015;
-/** Thirty degrees away from vertical, rising toward the stack at screen-right. */
-const NEWEST_ANGLE = (60 * Math.PI) / 180;
-/** Present enough of the standing jacket face to match the reference instead
- * of showing only a page-block edge to the camera. */
-const NEWEST_COVER_TILT = 0.32;
-/** The standing book starts on the shelf, just left of and behind the compact
- * pair. Its lower board is hidden slightly by the horizontal stack, while a
- * point farther up the same board meets the pair's rear-left face. */
-const STANDING_STACK_INSET = 0.025;
-const STANDING_TOE_X = -0.001;
-const STANDING_TOE_Z = MIDDLE_Z - ABOUT_READING_BOOK.depth / 2;
+export const CURRENT_READING_ROTATION: [number, number, number] = [
+  Math.PI / 2,
+  0,
+  0,
+];
+export const CURRENT_READING_BASE: [number, number, number] = [
+  0.08,
+  ABOUT_READING_BOOK.depth / 2,
+  0.07,
+];
 
-/** Matches Three's default XYZ Euler matrix (`Rz * Ry * Rx`). */
+/** Matches Three's default intrinsic XYZ Euler matrix. */
 function rotate(
   x: number,
   y: number,
@@ -53,9 +43,9 @@ function rotate(
   const cz = Math.cos(rz);
   const sz = Math.sin(rz);
   return [
-    cy * cz * x + (sx * sy * cz - cx * sz) * y + (cx * sy * cz + sx * sz) * z,
-    cy * sz * x + (sx * sy * sz + cx * cz) * y + (cx * sy * sz - sx * cz) * z,
-    -sy * x + sx * cy * y + cx * cy * z,
+    cy * cz * x - cy * sz * y + sy * z,
+    (cx * sz + sx * sy * cz) * x + (cx * cz - sx * sy * sz) * y - sx * cy * z,
+    (sx * sz - cx * sy * cz) * x + (sx * cz + cx * sy * sz) * y + cx * cy * z,
   ];
 }
 
@@ -73,51 +63,16 @@ function point3(
   ];
 }
 
-/** Newest-first poses derived from the reference's support graph, not three
- * unrelated offsets. The two older books overlap horizontally as a compact
- * flat pair. The newest is planted on the shelf to their left/rear and leans
- * rightward into their rear-left face, so the pair naturally occludes its
- * lower board rather than appearing to balance it on top. */
-export function readingStackPoses(): [
-  ReadingBookPose,
-  ReadingBookPose,
-  ReadingBookPose,
-] {
-  const halfW = ABOUT_READING_BOOK.width / 2;
-  const halfT = ABOUT_READING_BOOK.thickness / 2;
-  const halfD = ABOUT_READING_BOOK.depth / 2;
-  const third: ReadingBookPose = {
-    index: 2,
-    base: [BOTTOM_X, halfT, BOTTOM_Z],
-    rotation: [0, 0, 0],
-  };
-
-  const second: ReadingBookPose = {
-    index: 1,
-    base: [MIDDLE_X, halfT + ABOUT_READING_BOOK.thickness, MIDDLE_Z],
-    rotation: [0, 0, 0],
-  };
-
-  // RoundedBox removes the mathematical corner. Use the first real point on
-  // the lower-left/front edge as the shelf contact. Pitching around X puts the
-  // rest of the volume behind that toe and still exposes its jacket face.
-  const newestToeOffset = rotate(
-    -halfW + ABOUT_READING_BOOK.radius,
-    -halfT,
-    halfD - ABOUT_READING_BOOK.radius,
-    [NEWEST_COVER_TILT, 0, NEWEST_ANGLE],
-  );
-  const newest: ReadingBookPose = {
-    index: 0,
-    base: [
-      STANDING_TOE_X - newestToeOffset[0],
-      -newestToeOffset[1],
-      STANDING_TOE_Z - newestToeOffset[2],
-    ],
-    rotation: [NEWEST_COVER_TILT, 0, NEWEST_ANGLE],
-  };
-
-  return [newest, second, third];
+/** One unambiguous current-book pose: square to the camera, with its complete
+ * bottom edge resting directly on the shelf. */
+export function readingStackPoses(): [ReadingBookPose] {
+  return [
+    {
+      index: 0,
+      base: [...CURRENT_READING_BASE],
+      rotation: [...CURRENT_READING_ROTATION],
+    },
+  ];
 }
 
 export function readingBookPoint(
@@ -133,40 +88,9 @@ export function readingBookPoint3(
   which: "shelf-toe" | "lean-contact" | "stack-contact",
 ): [number, number, number] {
   const halfW = ABOUT_READING_BOOK.width / 2;
-  const halfT = ABOUT_READING_BOOK.thickness / 2;
   const halfD = ABOUT_READING_BOOK.depth / 2;
-  if (which === "shelf-toe")
-    return point3(
-      pose,
-      -halfW + ABOUT_READING_BOOK.radius,
-      -halfT,
-      halfD - ABOUT_READING_BOOK.radius,
-    );
-  if (which === "lean-contact") {
-    // Move along the standing book's long axis until its board reaches the
-    // horizontal pair's left face. The shared local y/z makes this a real
-    // line contact rather than two unrelated hand-tuned world points.
-    const stackContactX = MIDDLE_X - halfW + STANDING_STACK_INSET;
-    const localToeX = -halfW + ABOUT_READING_BOOK.radius;
-    const localContactX =
-      localToeX + (stackContactX - STANDING_TOE_X) / Math.cos(NEWEST_ANGLE);
-    return point3(
-      pose,
-      localContactX,
-      -halfT,
-      halfD - ABOUT_READING_BOOK.radius,
-    );
-  }
-  const stackContactX = MIDDLE_X - halfW + STANDING_STACK_INSET;
-  const contactY =
-    ((stackContactX - STANDING_TOE_X) / Math.cos(NEWEST_ANGLE)) *
-    Math.sin(NEWEST_ANGLE);
-  return point3(
-    pose,
-    -halfW + STANDING_STACK_INSET,
-    contactY - (halfT + ABOUT_READING_BOOK.thickness),
-    -halfD,
-  );
+  if (which === "shelf-toe") return point3(pose, -halfW, 0, halfD);
+  return point3(pose, halfW, 0, halfD);
 }
 
 export function readingStackBounds(poses: ReadingBookPose[]) {
@@ -193,7 +117,7 @@ export function readingStackBounds(poses: ReadingBookPose[]) {
   return { left, right, bottom, top };
 }
 
-export const READING_HELD_COVER_TILT = 0.4;
+export const READING_HELD_COVER_TILT = Math.PI / 2;
 
 export type AboutReadingMaterialEvidence = {
   id: string;
@@ -217,9 +141,9 @@ export function aboutReadingMaterials() {
   return materialEvidence.map((material) => ({ ...material }));
 }
 
-/** While carried, square most of the authored bank and pitch the top surface
- * toward the camera. `amount=0` is bit-for-bit the authored contact pose, so
- * release can always settle home without a second source of truth. */
+/** While carried, turn every jacket fully toward +Z and square its bank.
+ * `amount=0` is bit-for-bit the authored contact pose, so release can always
+ * settle home without a second source of truth. */
 export function readingHeldRotation(
   rest: [number, number, number],
   amount: number,
@@ -228,18 +152,20 @@ export function readingHeldRotation(
   return [
     rest[0] * (1 - t) + READING_HELD_COVER_TILT * t,
     rest[1] * (1 - t),
-    rest[2] * (1 - t * 0.76),
+    rest[2] * (1 - t),
   ];
+}
+
+/** Camera-facing component of a book's +Y cover normal. */
+export function readingCoverForward(rotation: [number, number, number]) {
+  return rotate(0, 1, 0, rotation)[2];
 }
 
 export function aboutReadingSnapshot() {
   const poses = readingStackPoses();
   const bounds = readingStackBounds(poses);
-  const [, second, third] = poses;
-  const middleBottom = second.base[1] - ABOUT_READING_BOOK.thickness / 2;
-  const newestToe = readingBookPoint3(poses[0], "shelf-toe");
-  const newestLean = readingBookPoint3(poses[0], "lean-contact");
-  const newestSupport = readingBookPoint3(second, "stack-contact");
+  const leftFoot = readingBookPoint3(poses[0], "shelf-toe");
+  const rightFoot = readingBookPoint3(poses[0], "lean-contact");
   return {
     poses: poses.map((pose) => ({
       ...pose,
@@ -248,15 +174,7 @@ export function aboutReadingSnapshot() {
     })),
     bounds,
     contactError: {
-      second: Math.abs(
-        middleBottom - (third.base[1] + ABOUT_READING_BOOK.thickness / 2),
-      ),
-      shelf: Math.abs(newestToe[1]),
-      newest: Math.hypot(
-        newestLean[0] - newestSupport[0],
-        newestLean[1] - newestSupport[1],
-        newestLean[2] - newestSupport[2],
-      ),
+      shelf: Math.max(Math.abs(leftFoot[1]), Math.abs(rightFoot[1])),
     },
     plant: {
       x: ABOUT_SMALL_PLANT_X,

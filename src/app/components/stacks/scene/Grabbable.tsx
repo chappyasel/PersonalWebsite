@@ -921,6 +921,13 @@ export default function Grabbable({
       <group
         ref={group}
         position={base}
+        // Tap/drag arbitration happens on the native window gesture above.
+        // Consume Three's later synthetic click so the same ray cannot also
+        // activate a link or unit plane sitting behind this carried object.
+        onClick={(event) => {
+          if (useStacks.getState().activeUnit !== unitIndex) return;
+          event.stopPropagation();
+        }}
         onPointerOver={(e: ThreeEvent<PointerEvent>) => {
           if (useStacks.getState().activeUnit !== unitIndex) return;
           e.stopPropagation();

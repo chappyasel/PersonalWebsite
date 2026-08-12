@@ -255,7 +255,7 @@ export default function StacksHome({
       {/* Books modal — mounted at the root, outside GrainientBackground's
           [contain:paint] and the world's transforms, so fixed positioning
           resolves to the viewport. */}
-      <StacksBookModal />
+      <StacksBookModal bookCount={data.bookStats.total} />
     </>
   );
 }

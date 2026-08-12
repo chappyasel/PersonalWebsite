@@ -87,11 +87,22 @@ export function featuredRiserHoverKey(
 /** Pick by intent (nearest readable spine), not by a brittle index/window.
  * Any packing retune can move the exact old candidate; as long as the row has
  * one upright book, the secret handle cannot silently disappear. */
-export function pickSecretSpineIndex(items: RowItem[], preferredX = -0.375) {
+export function pickSecretSpineIndex(
+  items: RowItem[],
+  preferredX = -0.375,
+  occupied: ReadonlyArray<readonly [number, number]> = [],
+) {
   let best = -1;
   let distance = Infinity;
   items.forEach((item, index) => {
     if (item.kind !== "spine") return;
+    const halfWidth = item.w / 2;
+    if (
+      occupied.some(
+        ([min, max]) => item.x + halfWidth > min && item.x - halfWidth < max,
+      )
+    )
+      return;
     const next = Math.abs(item.x - preferredX);
     if (next < distance) {
       distance = next;
@@ -241,8 +252,8 @@ export function auditBookInteractions(
   duplicates("nodeName");
 
   const shimmer = inventory.filter((item) => item.shimmer);
-  if (shimmer.length !== 1 || shimmer[0]?.role !== "secret")
-    errors.push("expected exactly one shimmering secret spine");
+  if (shimmer.length)
+    errors.push("secret-room shimmer must stay disabled with the room runtime");
 
   for (const id of expectedFeaturedIds) {
     const matches = inventory.filter(

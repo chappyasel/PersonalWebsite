@@ -448,8 +448,8 @@ const SKY_FRAGMENT = `
     float blackUpper = clamp(frontUpper + sideUpper, 0.0, 1.0)
                      * (1.0 - upperOuter) + upperGlass;
 
-    // The ground floor remains white, with dark shutter/window cores and a
-    // small yellow-green door just left of centre, as in the reference.
+    // The ground floor remains white, with dark shutters around cool reflected
+    // glass and a tall olive door just left of centre, as in the reference.
     float lowerGlass = (step(abs(q + 0.027), 0.0027)
                       + step(abs(q + 0.015), 0.0027)
                       + step(abs(q - 0.014), 0.0027)
@@ -467,8 +467,8 @@ const SKY_FRAGMENT = `
                       * step(0.0040, h) * step(h, 0.0187);
     float darkTrim = clamp(roofFront + roofSide + porchRoof + blackUpper
                          + lowerGlass + shutters + porchRecess, 0.0, 1.0);
-    float door = step(abs(q + 0.0015), 0.0034)
-               * step(0.0035, h) * step(h, 0.0165);
+    float door = step(abs(q + 0.0015), 0.0030)
+               * step(0.0037, h) * step(h, 0.0184);
     float side = clamp(sideLower + sideUpper, 0.0, 1.0);
     return vec4(whole, darkTrim, door, side);
   }
@@ -480,6 +480,34 @@ const SKY_FRAGMENT = `
                + step(abs(q - 0.004), 0.00110)
                + step(abs(q - 0.022), 0.00125), 0.0, 1.0)
          * step(0.0035, h) * step(h, 0.0200);
+  }
+
+  // Cool blue-gray reflections restore the reference's glass instead of
+  // letting every pane merge into the black shutters/siding. Kept separate
+  // from dcHome's trim channel so the palette can remain theme-aware.
+  float dcHomeWindows(float x, float h) {
+    float q = (x - DC_HOME) * 1.77;
+    float upper = (step(abs(q + 0.024), 0.0026)
+                 + step(abs(q + 0.007), 0.0025)
+                 + step(abs(q - 0.011), 0.0025)
+                 + step(abs(q - 0.030), 0.0020))
+                * step(0.0281, h) * step(h, 0.0333);
+    float lower = (step(abs(q + 0.027), 0.0027)
+                 + step(abs(q + 0.015), 0.0027)
+                 + step(abs(q - 0.014), 0.0027)
+                 + step(abs(q - 0.033), 0.0022))
+                * step(0.0080, h) * step(h, 0.0153);
+    return clamp(upper + lower, 0.0, 1.0);
+  }
+
+  // The source door has a glazed multi-pane top, not a solid yellow block.
+  float dcHomeDoorGlass(float x, float h) {
+    float q = (x - DC_HOME) * 1.77;
+    float pane = step(abs(q + 0.0015), 0.00215)
+               * step(0.0130, h) * step(h, 0.0177);
+    float mullions = clamp(step(abs(q + 0.0015), 0.00024)
+                         + step(abs(h - 0.01535), 0.00022), 0.0, 1.0);
+    return pane * (1.0 - mullions);
   }
 
   // The mature park canopy along the far bank — massing, not hero trees.
@@ -1594,24 +1622,29 @@ const SKY_FRAGMENT = `
         // The 0.79 elevation scale makes the silhouette 0.79 / 1.18 = 67%
         // of its previous height without moving its shoreline contact.
         vec4 home = dcHome(dz, above / 0.79);
-        vec3 homeWall = mix(vec3(0.76, 0.77, 0.74),
+        vec3 homeWall = mix(vec3(0.88, 0.89, 0.86),
                             vec3(0.115, 0.120, 0.125), uDark);
         vec3 homeSide = mix(homeWall * 0.72, homeWall * 0.64, uDark);
-        vec3 homeTrim = mix(vec3(0.040, 0.047, 0.050),
+        vec3 homeTrim = mix(vec3(0.025, 0.030, 0.033),
                             vec3(0.008, 0.010, 0.014), uDark);
-        // Saturated enough to survive the intentionally reduced silhouette:
-        // the yellow-green entry is the reference photo's identifying cue.
-        vec3 homeDoor = mix(vec3(0.98, 0.78, 0.10),
-                            vec3(0.95, 0.63, 0.07), uDark);
+        vec3 homeWindow = mix(vec3(0.25, 0.48, 0.63),
+                              vec3(0.055, 0.13, 0.21), uDark);
+        // The real entry reads olive-chartreuse, not school-bus yellow.
+        vec3 homeDoor = mix(vec3(0.46, 0.50, 0.20),
+                            vec3(0.38, 0.35, 0.12), uDark);
         col = mix(col, homeWall, home.x * edge * 0.96);
         // The darker right plane is the minimum depth cue that survives the
         // far-shore scale; without it the hipped roof and side wall collapse
         // into a flat front elevation.
         col = mix(col, homeSide, home.w * edge * 0.92);
         col = mix(col, homeTrim, home.y * edge * 0.985);
+        float homeGlass = dcHomeWindows(dz, above / 0.79);
+        col = mix(col, homeWindow, homeGlass * edge * 0.98);
         float homeColumns = dcHomeColumns(dz, above / 0.79);
         col = mix(col, homeWall * 1.08, homeColumns * edge * 0.98);
         col = mix(col, homeDoor, home.z * edge);
+        float doorGlass = dcHomeDoorGlass(dz, above / 0.79);
+        col = mix(col, homeWindow * 1.08, doorGlass * edge * 0.98);
       }
 
       // The Monument's red aircraft warning lights — eight of them in life,
@@ -2373,7 +2406,7 @@ function RoomEnvironment({ dark }: { dark: boolean }) {
 }
 
 function Dust({ palette, count = 380 }: { palette: Palette; count?: number }) {
-  const ref = useRef<THREE.Points>(null);
+  const ref = useRef<THREE.Group>(null);
   // Additive blending lands in linear HDR under the composer — the motes
   // read ~a third weaker there (audit §2.1 item 4).
   const postfx = useStacks((s) => s.postfx);
@@ -2392,23 +2425,49 @@ function Dust({ palette, count = 380 }: { palette: Palette; count?: number }) {
     ref.current.position.y = Math.sin(t * 0.18) * 0.07;
     ref.current.position.x = Math.sin(t * 0.11) * 0.1;
   });
+  const light = palette === PALETTES.light;
   return (
-    <points ref={ref}>
-      <bufferGeometry key={count}>
-        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
-      </bufferGeometry>
-      {/* Soft radial sprite map — untextured Points rasterize as 1-2px hard
-          white squares against dark wood (audit §1.7). */}
-      <pointsMaterial
-        map={poolTexture()}
-        size={0.04}
-        color={palette.dust}
-        transparent
-        opacity={palette.dustOpacity * (postfx ? 1.35 : 1)}
-        depthWrite={false}
-        sizeAttenuation
-      />
-    </points>
+    <group ref={ref}>
+      {/* Light mode is two registrations of the SAME field: a broad, low
+          opacity gold halo behind a small saturated amber core. More motes
+          would read as snow; two-scale sprites read as individual fireflies
+          and remain visible over both the white sky and darker furniture. */}
+      {light && (
+        <points>
+          <bufferGeometry key={`halo-${count}`}>
+            <bufferAttribute
+              attach="attributes-position"
+              args={[positions, 3]}
+            />
+          </bufferGeometry>
+          <pointsMaterial
+            map={poolTexture()}
+            size={0.09}
+            color="#f2b63f"
+            transparent
+            opacity={0.42 * (postfx ? 1.2 : 1)}
+            depthWrite={false}
+            sizeAttenuation
+          />
+        </points>
+      )}
+      <points>
+        <bufferGeometry key={`core-${count}`}>
+          <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+        </bufferGeometry>
+        {/* Soft radial sprite map — untextured Points rasterize as 1-2px hard
+            squares against dark wood (audit §1.7). */}
+        <pointsMaterial
+          map={poolTexture()}
+          size={light ? 0.032 : 0.04}
+          color={palette.dust}
+          transparent
+          opacity={palette.dustOpacity * (postfx ? 1.35 : 1)}
+          depthWrite={false}
+          sizeAttenuation
+        />
+      </points>
+    </group>
   );
 }
 

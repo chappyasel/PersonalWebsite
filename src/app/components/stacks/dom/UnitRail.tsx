@@ -10,22 +10,20 @@
 // rail used to carry a second, shorter set of names that disagreed with the
 // placards they led to.
 import { UNITS, UNIT_COUNT } from "../data";
-import { progressRef, useStacks } from "../store";
+import { closeStacksPanel, progressRef, useStacks } from "../store";
 import { useEffect, useRef } from "react";
 
 /** Desktop row height, in rem. The rows are `h-10` and the travelling thumb
  * translates by this per unit, so the two must agree — one number, used
  * twice, rather than a class and a magic multiplier that drift apart. */
 const ROW_REM = 2.5;
-/** The mobile buttons and thumb share this one rem-sized step. Keeping the
- * transform in rem means a root type-scale change adjusts both immediately;
- * there is no pixel measurement or ResizeObserver cadence to fall behind. */
+/** Every mobile button shares this rem-sized step, keeping all seven icons
+ * centered as one row through root type-scale changes. */
 const MOBILE_STEP_REM = 2.75;
 
 export default function UnitRail() {
   const activeUnit = useStacks((s) => s.activeUnit);
   const thumbRef = useRef<HTMLDivElement>(null);
-  const mobileThumbRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let raf = 0;
@@ -33,7 +31,6 @@ export default function UnitRail() {
     const tick = () => {
       const progress = progressRef.current;
       const thumb = thumbRef.current;
-      const mobileThumb = mobileThumbRef.current;
       // The camera loop publishes continuously, including while the room is
       // at rest. Avoid dirtying two DOM styles every animation frame when the
       // shared progress value has not changed; rem-based transforms still
@@ -42,9 +39,6 @@ export default function UnitRail() {
         // Track height is (UNIT_COUNT - 1) gaps of one row.
         if (thumb) {
           thumb.style.transform = `translateY(${progress * (UNIT_COUNT - 1) * ROW_REM}rem)`;
-        }
-        if (mobileThumb) {
-          mobileThumb.style.transform = `translateX(${progress * (UNIT_COUNT - 1) * MOBILE_STEP_REM}rem)`;
         }
         lastProgress = progress;
       }
@@ -56,7 +50,15 @@ export default function UnitRail() {
 
   const go = (index: number) => {
     const { travelTo, panelState, modalOpen } = useStacks.getState();
-    if (!travelTo || panelState !== "closed" || modalOpen) return;
+    if (!travelTo || modalOpen) return;
+    if (panelState === "open" || panelState === "opening") {
+      // The tab is outside the expanded sheet. Collapse first, but do not eat
+      // the navigation the visitor actually requested; the resident target
+      // sheet can arrive while the shared detent settles to peek.
+      closeStacksPanel();
+    } else if (panelState === "closing") {
+      return;
+    }
     const slug = UNITS[index]!.slug;
     window.history.pushState(
       null,
@@ -228,12 +230,15 @@ export default function UnitRail() {
           size: a 10x3px mark is small, but a mark with no contrast floor is
           invisible at any size. So the marks are now the sections' own
           glyphs at 19px, they carry the crisp theme-coloured edge above, and
-          the bar survives underneath as the position indicator. A visitor gets to see
+          a stationary bar survives underneath as the position indicator. A visitor gets to see
           WHICH seven things the row is, which the dashes never told them.
 
           Seven 2.75rem columns is 19.25rem, so the row still fits a 320px
-          screen with margin. The same MOBILE_STEP_REM constant drives each
-          button and the thumb, so their travel axes cannot detach. */}
+          screen with margin. Each button owns its own underline. The former
+          single underline was continuously translated on a promoted GPU
+          layer; iOS Safari intermittently retained its old raster tiles as a
+          trail of tiny dashes. Stationary underlines only crossfade, so there
+          is no moving texture for WebKit to smear. */}
       {/* pointer-events on the BUTTONS, not the nav. The nav spans the full
           width so the row can centre, and an interactive container that wide
           would deaden a strip straight across the room — including the empty
@@ -241,14 +246,9 @@ export default function UnitRail() {
           behind. */}
       <nav
         aria-label="Sections"
-        className="stacks-unit-rail-mobile pointer-events-none absolute inset-x-0 z-30 flex justify-center min-[1200px]:hidden"
+        className="stacks-unit-rail-mobile pointer-events-none absolute inset-x-0 z-20 flex justify-center min-[1200px]:hidden"
       >
         <div className="relative flex">
-          <div
-            ref={mobileThumbRef}
-            aria-hidden
-            className="absolute bottom-1 left-3 h-1 w-5 rounded-full bg-foreground/85 shadow-[0_1px_0_hsl(var(--background)/0.8)] will-change-transform"
-          />
           {UNITS.map((unit, i) => {
             const Icon = unit.icon;
             const active = i === activeUnit;
@@ -260,13 +260,19 @@ export default function UnitRail() {
                 aria-current={active ? "true" : undefined}
                 data-active={active || undefined}
                 onClick={() => go(i)}
-                className="stacks-rail-row pointer-events-auto flex h-12 items-center justify-center rounded-xl pb-1 text-foreground focus-visible:ring-2 focus-visible:ring-foreground/50"
+                className="stacks-rail-row pointer-events-auto relative flex h-12 items-center justify-center rounded-xl pb-1 text-foreground focus-visible:ring-2 focus-visible:ring-foreground/50"
                 style={{ width: `${MOBILE_STEP_REM}rem` }}
               >
                 <Icon
                   aria-hidden
                   weight="bold"
                   className="stacks-rail-icon size-[22px] shrink-0"
+                />
+                <span
+                  aria-hidden
+                  className={`absolute bottom-1 left-1/2 h-1 w-5 -translate-x-1/2 rounded-full bg-foreground/85 shadow-[0_1px_0_hsl(var(--background)/0.8)] transition-opacity duration-200 ${
+                    active ? "opacity-100" : "opacity-0"
+                  }`}
                 />
               </button>
             );

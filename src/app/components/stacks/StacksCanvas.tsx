@@ -33,10 +33,14 @@ import { PALETTES } from "./theme";
 // disabled composer pins the renderer to NoToneMapping = blown frame).
 const Effects = dynamic(() => import("./scene/Effects"), { ssr: false });
 
-/** Touch skips the expensive post-processing chain, so it can spend a little
- * more of that budget on the base framebuffer. DPR 3 phones are still capped
- * at 1.5; PerformanceMonitor drops them to 1 after a sustained decline. */
-const TOUCH_DPR_RANGE: [number, number] = [1, 1.5];
+/** Render at Retina density where the device allows it. Native 3x on a phone
+ * costs nine framebuffer pixels per CSS pixel, so 2x is the quality ceiling;
+ * it is visually Retina without quadrupling the old 1.5x workload. A
+ * sustained decline settles at 1.5x rather than the old 1x floor—the latter
+ * was visibly one-third-resolution on an iPhone and made every shelf edge and
+ * cover texture look pixelated. */
+const RENDER_DPR_RANGE: [number, number] = [1, 2];
+const FALLBACK_DPR_RANGE: [number, number] = [1, 1.5];
 
 /** Drei's overflow element is natively keyboard-focusable, so leaving it
  * unnamed makes the first Tab stop a full-viewport anonymous div. Name the
@@ -339,10 +343,13 @@ export default function StacksCanvas({
       <Canvas
         shadows="soft"
         camera={{ position: [0, CAMERA.y, CAMERA.z], fov: CAMERA.fov }}
-        dpr={degrade >= 1 ? 1 : isTouch ? TOUCH_DPR_RANGE : [1, 1.5]}
-        // Desktop runs SMAA in the composer — MSAA underneath is dead
-        // weight. Touch keeps MSAA (no composer there, ever).
-        gl={{ antialias: isTouch }}
+        dpr={degrade >= 1 ? FALLBACK_DPR_RANGE : RENDER_DPR_RANGE}
+        // Keep hardware MSAA as the renderer's guaranteed edge-quality floor.
+        // Desktop normally adds SMAA in the composer, but the performance
+        // ladder deliberately unmounts that composer after a sustained
+        // decline. Creating the context without MSAA made that fallback path
+        // lose ALL antialiasing and exposed stair-stepped shelf silhouettes.
+        gl={{ antialias: true }}
         onCreated={({ gl, scene, camera }) => {
           gl.toneMappingExposure = dark ? 1.25 : 1.12;
           glRef = gl;

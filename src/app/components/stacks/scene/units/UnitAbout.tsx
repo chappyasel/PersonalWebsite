@@ -1,9 +1,9 @@
 "use client";
 
-import { useStacks } from "../../store";
 import { proxied } from "../../theme";
 import Grabbable from "../Grabbable";
 import { ContactShade, FootPool } from "../GroundPool";
+import HeldFacing from "../HeldFacing";
 import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
 import SitChair from "../SitChair";
@@ -20,7 +20,7 @@ import { ShelfUnit } from "../primitives";
 import { SHELF_GEOMETRY } from "../shelfGeometry";
 import { useUnitLod } from "../useUnitLod";
 import { RoundedBox } from "@react-three/drei";
-import { useFrame, useLoader } from "@react-three/fiber";
+import { useLoader } from "@react-three/fiber";
 import React from "react";
 import * as THREE from "three";
 import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
@@ -34,8 +34,6 @@ import {
   ABOUT_READING_BOOK,
   ABOUT_SMALL_PLANT_X,
   type ReadingBookPose,
-  readingBookPoint3,
-  readingHeldRotation,
   readingStackPoses,
   recordAboutReadingMaterials,
 } from "./aboutReadingStack";
@@ -49,6 +47,10 @@ const COUCH_SCALE = 0.72;
 // globe while retaining the camera path's existing approach.
 const COUCH_YAW = 0.1 + Math.PI / 9;
 const COUCH_X = -2.82;
+// Pull the seat back into the room instead of letting its front edge crowd the
+// camera plane. The shorter world lead-in in worldLayout compensates for the
+// smaller projected footprint at the far-left discovery stop.
+const COUCH_Z = -0.3;
 
 function CollectiveLogo({
   palette,
@@ -197,6 +199,7 @@ function LoosePhoto({
   base,
   seat = 0,
   rotation = [0, 0, 0],
+  facingRotation = [0, 0, 0],
   width,
   children,
 }: {
@@ -206,13 +209,15 @@ function LoosePhoto({
   base: [number, number, number];
   seat?: number;
   rotation?: [number, number, number];
+  facingRotation?: [number, number, number];
   width: number;
   children: React.ReactNode;
 }) {
+  const hoverKey = `grab:photo:${id}`;
   return (
     <Grabbable
       unitIndex={unitIndex}
-      hoverKey={`grab:photo:${id}`}
+      hoverKey={hoverKey}
       base={base}
       shadeColor={palette.shadow}
       shadeWidth={Math.max(0.28, width * 1.18)}
@@ -220,9 +225,14 @@ function LoosePhoto({
       massKg={0.48}
       href={PHOTO_LINKS[id] ?? undefined}
     >
-      <group position={[0, seat, 0]} rotation={rotation}>
+      <HeldFacing
+        hoverKey={hoverKey}
+        position={[0, seat, 0]}
+        rest={rotation}
+        facingRotation={facingRotation}
+      >
         {children}
-      </group>
+      </HeldFacing>
     </Grabbable>
   );
 }
@@ -245,17 +255,9 @@ function ReadingStack({
   onOpenBook?: (id: string) => void;
 }) {
   const poses = React.useMemo(() => readingStackPoses(), []);
-  const standingToe = React.useMemo(
-    () => readingBookPoint3(poses[0], "shelf-toe"),
-    [poses],
-  );
-  const standingKey = books[0] ? `grab:reading:${books[0].id}` : null;
-  const standingCarried = useStacks(
-    (state) => standingKey !== null && state.dragging === standingKey,
-  );
   const materials = React.useMemo(
     () =>
-      books.slice(0, 3).map((book) => {
+      books.slice(0, 1).map((book) => {
         const sampled = bookColors[book.id] ?? {
           edge: fallbackCoverEdgeColor(book.id),
           source: "fallback" as const,
@@ -272,20 +274,7 @@ function ReadingStack({
   React.useEffect(() => recordAboutReadingMaterials(materials), [materials]);
   return (
     <group>
-      {/* The reference's leaning volume is planted on the wood behind the
-          horizontal pair. Its Grabbable center is elevated, so its generic
-          sprite would float at that center; ground this small toe shadow at
-          the actual shelf contact and hide it while the book is carried. */}
-      {!standingCarried && (
-        <ContactShade
-          color={palette.shadow}
-          width={0.18}
-          height={0.055}
-          opacity={0.24}
-          position={[standingToe[0] + 0.012, 0.014, standingToe[2] + 0.025]}
-        />
-      )}
-      {books.slice(0, 3).map((book, i) => {
+      {books.slice(0, 1).map((book, i) => {
         const pose = poses[i]!;
         const material = materials[i]!;
         return (
@@ -295,10 +284,7 @@ function ReadingStack({
             hoverKey={`grab:reading:${book.id}`}
             base={[...pose.base]}
             shadeColor={palette.shadow}
-            // The bottom flat book uses Grabbable's center-derived shade. The
-            // planted standing book needs the shelf-level toe shade above;
-            // the supported middle book needs no independent pool.
-            shadeWidth={i === 2 ? 0.4 : 0}
+            shadeWidth={0.36}
             shape="box"
             massKg={0.62}
             physics={false}
@@ -404,31 +390,15 @@ function HeldReadingCover({
   name: string;
   children: React.ReactNode;
 }) {
-  const group = React.useRef<THREE.Group>(null);
-  const amount = React.useRef(0);
-  const still = React.useMemo(
-    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-    [],
-  );
-  useFrame((_, delta) => {
-    const node = group.current;
-    if (!node) return;
-    const target = useStacks.getState().dragging === hoverKey ? 1 : 0;
-    amount.current = still
-      ? target
-      : THREE.MathUtils.damp(
-          amount.current,
-          target,
-          9,
-          Math.min(delta, 1 / 30),
-        );
-    const rotation = readingHeldRotation(pose.rotation, amount.current);
-    node.rotation.set(...rotation);
-  });
   return (
-    <group ref={group} name={name} rotation={pose.rotation}>
+    <HeldFacing
+      hoverKey={hoverKey}
+      name={name}
+      rest={pose.rotation}
+      facingRotation={[Math.PI / 2, 0, 0]}
+    >
       {children}
-    </group>
+    </HeldFacing>
   );
 }
 
@@ -638,6 +608,7 @@ export default function UnitAbout({
           id="about-delicate-arch-v8"
           base={[0.78, 0, 0.12]}
           rotation={[0, -0.2, 0]}
+          facingRotation={[Math.PI / 2, 0, 0]}
           width={0.24}
         >
           <FlatPrint
@@ -694,7 +665,7 @@ export default function UnitAbout({
       </Grabbable>
 
       <group
-        position={[COUCH_X, SHELF_GEOMETRY.groundY, 0.08]}
+        position={[COUCH_X, SHELF_GEOMETRY.groundY, COUCH_Z]}
         rotation={[0, COUCH_YAW, 0]}
       >
         <SitChair unitIndex={index}>
@@ -716,7 +687,7 @@ export default function UnitAbout({
       <FootPool
         color={palette.shadow}
         size={[2.1, 1.6]}
-        position={[COUCH_X, SHELF_GEOMETRY.groundY, 0.08]}
+        position={[COUCH_X, SHELF_GEOMETRY.groundY, COUCH_Z]}
       />
     </group>
   );

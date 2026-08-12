@@ -6,9 +6,10 @@ import { useStacks } from "../../store";
 import { proxied } from "../../theme";
 import Grabbable from "../Grabbable";
 import { ContactShade } from "../GroundPool";
+import HeldFacing from "../HeldFacing";
 import ModelProp from "../ModelProp";
 import PropLink from "../links";
-import { reducedMotion, usePropClick } from "../objects";
+import { reducedMotion } from "../objects";
 import { DeskFrame, PHOTO_LINKS, deskFrameHeight } from "../photos";
 import { BookPile, FrameRow, ShelfUnit } from "../primitives";
 import { SHELF_GEOMETRY } from "../shelfGeometry";
@@ -46,49 +47,18 @@ const YUCCA_ATLAS_DARK = {
  * a cached list pointing at freed materials. The traverse costs nothing —
  * it runs only while the damp is in flight, over a prop of two meshes. */
 function Glint({
-  unitIndex,
   hoverKey,
   children,
 }: {
-  unitIndex: number;
   hoverKey: string;
   children: React.ReactNode;
 }) {
   const group = useRef<THREE.Group>(null);
-  const spin = useRef<THREE.Group>(null);
   const level = useRef(0);
-  /** Where the turn is heading, in radians. A click adds 2π; the damp below
-   * chases it, so a second click mid-turn adds to it instead of restarting. */
-  const turnTo = useRef(0);
-  usePropClick(unitIndex, hoverKey, () => {
-    if (reducedMotion()) return;
-    turnTo.current += Math.PI * 2;
-  });
   useFrame((_, delta) => {
     const g = group.current;
     if (!g) return;
     const target = useStacks.getState().hovered === hoverKey ? 1 : 0;
-    const t = spin.current;
-    if (t && t.rotation.y !== turnTo.current) {
-      // 1.6, not the 3.4 the badge flip uses: a cup turning on its plinth
-      // should take about two seconds, which is how long it takes to read the
-      // plate. Snap on arrival so the idle frames cost nothing.
-      const next = THREE.MathUtils.damp(
-        t.rotation.y,
-        turnTo.current,
-        1.6,
-        delta,
-      );
-      t.rotation.y =
-        Math.abs(next - turnTo.current) < 1e-3 ? turnTo.current : next;
-      if (t.rotation.y === turnTo.current) {
-        // Keep the angle bounded, or a long session accumulates float error
-        // into a visible wobble.
-        const wrapped = t.rotation.y % (Math.PI * 2);
-        t.rotation.y = wrapped;
-        turnTo.current = wrapped;
-      }
-    }
     if (Math.abs(level.current - target) < 1e-3) {
       if (level.current === target) return; // settled
       level.current = target;
@@ -115,19 +85,8 @@ function Glint({
       mat.roughness = 0.35 - 0.22 * v;
     });
   });
-  return (
-    <group ref={group}>
-      {/* Named so the harness can read the turn off the scene graph rather
-          than off pixels — see the note on CLUB_NODE in UnitTraining. */}
-      <group ref={spin} name={TROPHY_NODE}>
-        {children}
-      </group>
-    </group>
-  );
+  return <group ref={group}>{children}</group>;
 }
-
-/** @see Glint */
-export const TROPHY_NODE = "stacks-trophy-turn";
 
 /** Pixel Happy Mac boot mark. The GLB's tiny face geometry is hidden by the
  * blue screen tint below; this nearest-filtered texture replaces it with a
@@ -263,10 +222,11 @@ function ProjectPhoto({
   width: number;
   children: React.ReactNode;
 }) {
+  const hoverKey = `grab:photo:${id}`;
   return (
     <Grabbable
       unitIndex={unitIndex}
-      hoverKey={`grab:photo:${id}`}
+      hoverKey={hoverKey}
       base={base}
       shadeColor={palette.shadow}
       shadeWidth={Math.max(0.3, width * 1.16)}
@@ -274,9 +234,9 @@ function ProjectPhoto({
       massKg={0.48}
       href={PHOTO_LINKS[id] ?? undefined}
     >
-      <group position={[0, seat, 0]} rotation={rotation}>
+      <HeldFacing hoverKey={hoverKey} position={[0, seat, 0]} rest={rotation}>
         {children}
-      </group>
+      </HeldFacing>
     </Grabbable>
   );
 }
@@ -326,21 +286,18 @@ export default function UnitProjects({
             {/* Metal exception: the shared atlas material is metalness 0, so
               the trophy read as terracotta (audit §3-Projects). */}
             {/* A hollow metal trophy is a natural handheld object, not shelf
-              furniture. A tap still opens the homework project; a drag picks
-              it up with a deliberately modest real-world mass. Glint remains
-              inside the moving body so its reflective response travels with
-              the cup instead of being left behind at the authored position. */}
+              furniture. It has no navigation destination: a drag picks it up
+              and its restrained hover glint carries the visual interest. */}
             <Grabbable
               unitIndex={index}
-              hoverKey="glint:trophy"
+              hoverKey="grab:trophy"
               base={[-0.67, 0, -0.02]}
               shadeColor={palette.shadow}
               shadeWidth={0.28}
               shape="box"
               massKg={1.8}
-              href={data.projects[0]?.link}
             >
-              <Glint unitIndex={index} hoverKey="glint:trophy">
+              <Glint hoverKey="grab:trophy">
                 <React.Suspense fallback={null}>
                   <ModelProp
                     url="/models/trophy.glb"

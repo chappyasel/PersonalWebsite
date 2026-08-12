@@ -6,9 +6,10 @@
 //   renderer to NoToneMapping and blows out the frame. StacksCanvas mounts
 //   and unmounts this component instead, in lockstep with the dpr ladder
 //   (N8AO × adaptive-dpr is a known-bad pair).
-// - multisampling={0}: SMAA replaces MSAA (gl.antialias is false on the
-//   desktop path), and MSAA render targets corrupt on iOS anyway — though
-//   touch devices never download this module at all.
+// - multisampling={0}: SMAA owns the composer's offscreen target; the base
+//   canvas still requests hardware MSAA so the performance ladder retains an
+//   antialiasing floor when it unmounts this composer. MSAA render targets
+//   corrupt on iOS anyway — touch devices never download this module at all.
 // - ToneMapping mode is ACES explicitly — the effect DEFAULTS TO AGX, and
 //   the mode enum must come from `postprocessing` (not re-exported).
 //   Exposure parity with the composer-off path is automatic: three binds

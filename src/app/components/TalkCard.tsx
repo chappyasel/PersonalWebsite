@@ -83,8 +83,15 @@ export default function TalkCard({ talk }: { talk: Talk }) {
           />
           <div className="absolute inset-0 bg-black/10 transition-colors duration-300 group-hover:bg-black/20" />
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="flex size-14 items-center justify-center rounded-full bg-black/55 text-white shadow-lg backdrop-blur-sm transition-transform duration-300 ease-out group-hover:scale-110">
-              <PlayIcon weight="fill" className="size-6 translate-x-[2px]" />
+            <span
+              className="talk-play-control flex size-14 items-center justify-center rounded-full bg-black/40 text-white shadow-[0_4px_18px_rgba(0,0,0,0.22)] ring-1 ring-white/15 transition-transform duration-300 ease-out group-hover:scale-110"
+              style={{
+                backdropFilter: "blur(10px) saturate(0.8) brightness(0.78)",
+                WebkitBackdropFilter:
+                  "blur(10px) saturate(0.8) brightness(0.78)",
+              }}
+            >
+              <PlayIcon weight="fill" className="size-6" />
             </span>
           </div>
         </div>

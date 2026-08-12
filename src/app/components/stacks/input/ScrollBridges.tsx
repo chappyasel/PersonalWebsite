@@ -11,7 +11,7 @@
 // (scrollLeft += deltaY / 2) on the scroll element, and letting both run would
 // double-apply deltas at inconsistent rates.
 import { UNITS, UNIT_COUNT, unitIndexFromHash } from "../data";
-import { panelBusy, useStacks } from "../store";
+import { closeStacksPanel, useStacks } from "../store";
 import { useEffect, useRef } from "react";
 
 function wheelDeltaPx(e: WheelEvent, axisDelta: number): number {
@@ -41,6 +41,18 @@ export function isStacksScrollableTarget(target: EventTarget | null) {
     typeof closest === "function" &&
     !!closest.call(target, "[data-stacks-scrollable]")
   );
+}
+
+export function backgroundWorldGesture(
+  state: BridgeInteractionState,
+  scrollableTarget: boolean,
+): "blocked" | "collapse-and-travel" | "travel" {
+  if (state.modalOpen || state.dragging || scrollableTarget) return "blocked";
+  if (state.panelState === "open" || state.panelState === "opening")
+    return "collapse-and-travel";
+  // `closing` is deliberately travel-capable: the gesture that collapsed the
+  // sheet must not disappear while its 280ms visual settle finishes.
+  return "travel";
 }
 
 export default function ScrollBridges() {
@@ -106,14 +118,11 @@ export default function ScrollBridges() {
     if (!scrollEl) return;
 
     const onWheel = (e: WheelEvent) => {
-      if (useStacks.getState().modalOpen || panelBusy()) return;
-      if (isStacksScrollableTarget(e.target)) return;
-      // A prop in hand freezes travel. Checked here rather than left to
-      // Grabbable's own capture-phase swallow: both listeners sit on window,
-      // and stopPropagation does not stop a sibling listener on the same
-      // node — only registration order would decide it, and that is not
-      // something to depend on.
-      if (useStacks.getState().dragging) return;
+      const action = backgroundWorldGesture(
+        useStacks.getState(),
+        isStacksScrollableTarget(e.target),
+      );
+      if (action === "blocked") return;
       if (e.ctrlKey) {
         // Trackpad pinch — don't zoom the page and don't travel.
         e.preventDefault();
@@ -121,6 +130,7 @@ export default function ScrollBridges() {
       }
       e.preventDefault();
       e.stopPropagation();
+      if (action === "collapse-and-travel") closeStacksPanel();
       const dominant =
         Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
       scrollEl.scrollLeft += wheelDeltaPx(e, dominant);
@@ -139,13 +149,21 @@ export default function ScrollBridges() {
     let lastT = 0;
     let velocity = 0;
     let flingRaf = 0;
+    let ownsCollapsingGesture = false;
 
     const onTouchStart = (e: TouchEvent) => {
-      if (blocksWorldTouchTravel(useStacks.getState())) {
+      const action = backgroundWorldGesture(
+        useStacks.getState(),
+        isStacksScrollableTarget(e.target),
+      );
+      if (action === "blocked") {
         axis = null;
         velocity = 0;
+        ownsCollapsingGesture = false;
         return;
       }
+      ownsCollapsingGesture = action === "collapse-and-travel";
+      if (ownsCollapsingGesture) closeStacksPanel();
       const t = e.touches[0];
       if (!t) return;
       cancelAnimationFrame(flingRaf);
@@ -157,7 +175,12 @@ export default function ScrollBridges() {
       velocity = 0;
     };
     const onTouchMove = (e: TouchEvent) => {
-      if (blocksWorldTouchTravel(useStacks.getState())) {
+      const state = useStacks.getState();
+      if (
+        state.dragging ||
+        state.modalOpen ||
+        (!ownsCollapsingGesture && state.panelState !== "closed")
+      ) {
         // Clear the pending fling as well as bailing from this frame. A prop
         // can claim the gesture after one vertical sample, and replaying that
         // stale velocity on touchend would still move the room underneath it.
@@ -172,17 +195,19 @@ export default function ScrollBridges() {
       if (!axis && Math.hypot(dx, dy) > 8) {
         axis = Math.abs(dy) > Math.abs(dx) ? "v" : "h";
       }
-      if (axis !== "v") return;
+      if (axis !== "v" && !(ownsCollapsingGesture && axis === "h")) return;
       e.preventDefault();
       const now = performance.now();
-      const step = lastY - t.clientY; // swipe up = travel forward
+      const step = axis === "v" ? lastY - t.clientY : startX - t.clientX; // swipe up/left = travel forward
       scrollEl.scrollLeft += step;
       if (now > lastT) velocity = (step / (now - lastT)) * 16.7;
+      if (axis === "h") startX = t.clientX;
       lastY = t.clientY;
       lastT = now;
     };
     const onTouchEnd = () => {
-      if (axis !== "v" || Math.abs(velocity) < 0.5) return;
+      ownsCollapsingGesture = false;
+      if ((axis !== "v" && axis !== "h") || Math.abs(velocity) < 0.5) return;
       const fling = () => {
         scrollEl.scrollLeft += velocity;
         velocity *= 0.95;

@@ -16,11 +16,6 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
-import {
-  bookSecretChoreography,
-  bookSecretRef,
-  tickBookSecret,
-} from "./bookSecret";
 import { SEAT_POSE, isSeated, leaveSeat, setSeatAmount } from "./seated";
 import {
   cameraForAspect,
@@ -283,37 +278,12 @@ export default function CameraRig() {
     // A backgrounded tab hands back one enormous delta on return. All camera
     // damping uses the same cap so resuming cannot snap any one subsystem.
     const dt = delta > 0.05 ? 0.05 : delta;
-    // CameraRig mounts before every unit, making it the single clock for the
-    // Books reveal. The bookcase and particles read the value later in this
-    // same frame instead of the camera trailing them by one rendered frame.
-    tickBookSecret(dt);
     const offset = scroll.offset;
     const progress = unitProgressForScrollOffset(offset);
     progressRef.current = progress;
     const targetX = cameraXForScrollOffset(offset);
     const t = clock.elapsedTime;
-    // The hidden library passage leans the viewer in rather than cutting to a
-    // second camera. It fades out spatially as soon as intentional rail/deep-
-    // link travel leaves Books, and reduced-motion keeps the camera planted
-    // while the bookcase itself changes state instantly.
-    const booksProximity =
-      1 -
-      THREE.MathUtils.clamp(
-        Math.abs(progress * (UNIT_COUNT - 1) - 1) / 0.65,
-        0,
-        1,
-      );
-    const secretVisual = bookSecretChoreography(bookSecretRef.progress);
-    // Wait until the threshold is visible before the viewer moves, then let
-    // the room resolve before the final arrival. The old one-channel dolly
-    // began with the first millimetre of shelf travel, making the environment
-    // and camera jump toward geometry that had only just become visible.
-    const secretScore =
-      secretVisual.threshold * 0.12 +
-      secretVisual.room * 0.5 +
-      secretVisual.arrival * 0.38;
-    const secret =
-      (bookSecretRef.reducedMotion ? 0 : secretScore) * booksProximity;
+    const secret = 0;
     const busy = useStacks.getState().panelState !== "closed";
     lean.current = THREE.MathUtils.damp(
       lean.current,
@@ -370,18 +340,20 @@ export default function CameraRig() {
       dt,
     );
 
-    // Recentre into whatever strip of screen the mobile sheet has left us.
-    // The sheet covers the bottom of the window, so a shelf centred in the
-    // full canvas sits low in the part you can actually see. Aiming the
+    // Recentre into the EXTRA strip of screen the expanded mobile sheet takes.
+    // Peek already equals the projected floor void (PlacardLayer derives it
+    // from this exact camera pose), so counting all of peek as occlusion
+    // pushed the shelf too high, while counting none planted it too low. The
+    // DOM publisher discounts half the natural void: setViewOffset itself
+    // shifts by half the published coverage, landing exactly midway between
+    // those two measured compositions. Coverage beyond peek remains linear.
+    // Aiming the
     // camera down was the old fix and it was wrong twice over: it is a
     // perspective change rather than a framing one, so the shelf keyed and
     // the horizon tilted, and it was a fixed amount while the sheet now has
     // three detents. A frustum offset is the exact answer — same projection,
     // image shifted up by exactly half the covered height.
-    const coverage =
-      panelCoverageRef.current > 0
-        ? panelCoverageRef.current
-        : lean.current * 0.5;
+    const coverage = panelCoverageRef.current;
     framing.current = THREE.MathUtils.damp(
       framing.current,
       coverage,
@@ -533,9 +505,6 @@ export default function CameraRig() {
       (camera as THREE.PerspectiveCamera).fov = fov;
       (camera as THREE.PerspectiveCamera).updateProjectionMatrix();
     }
-
-    bookSecretRef.rendered.cameraScore = secret;
-    bookSecretRef.rendered.cameraZ = camera.position.z;
 
     const active = Math.min(
       UNIT_COUNT - 1,

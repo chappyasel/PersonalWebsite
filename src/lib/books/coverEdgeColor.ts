@@ -97,15 +97,28 @@ function clothColor(edge: string, dark: boolean): string {
   // cream pages. Preserve any real hue, but give neutral edges a restrained
   // warm-gray chroma and clamp luminance away from both scene extremes.
   const neutral = hsl.s < 0.08;
+  // Near-black chromatic scans carry reliable hue but not reliable apparent
+  // saturation: lifting them to scene-readable lightness at full saturation
+  // turns a black-violet jacket into neon purple. Keep the hue, but treat it
+  // as dark dyed cloth rather than illuminated ink.
+  const nearBlack = !neutral && hsl.l < 0.1;
   const h = neutral ? 32 : hsl.h;
-  const s = clamp(hsl.s, neutral ? 0.18 : 0.26, dark ? 0.74 : 0.68);
-  const l = neutral
+  const s = nearBlack
     ? dark
-      ? 0.42
-      : 0.38
-    : dark
-      ? clamp(hsl.l, 0.36, 0.64)
-      : clamp(hsl.l, 0.25, 0.58);
+      ? 0.28
+      : 0.3
+    : clamp(hsl.s, neutral ? 0.18 : 0.26, dark ? 0.74 : 0.68);
+  const l = nearBlack
+    ? dark
+      ? 0.3
+      : 0.25
+    : neutral
+      ? dark
+        ? 0.42
+        : 0.38
+      : dark
+        ? clamp(hsl.l, 0.36, 0.64)
+        : clamp(hsl.l, 0.25, 0.58);
   return hex(hslToRgb(h, s, l));
 }
 

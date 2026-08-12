@@ -13,6 +13,8 @@ export type ModalPresentation = {
   source: "stacks";
   /** Absolute in production, dev-subdomain URL locally. */
   booksHref: string;
+  /** Same source-of-truth count shown by the standalone detail breadcrumb. */
+  bookCount: number;
 };
 
 export function ModalHost({

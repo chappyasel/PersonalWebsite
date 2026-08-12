@@ -28,15 +28,11 @@ import {
   allowsBookSecretProjectedRecovery,
   beginBookSecretPull,
   bookSecretRef,
-  bookSecretRenderScore,
   closeBookSecret,
   commitsBookSecretReturnTap,
   releaseBookSecretPull,
   requestBookSecretHint,
-  resetBookSecret,
   setBookSecretPull,
-  setBookSecretReducedMotion,
-  subscribeBookSecret,
 } from "../bookSecret";
 import { HoverProp } from "../links";
 import {
@@ -51,25 +47,21 @@ import { SHELF_GEOMETRY } from "../shelfGeometry";
 import { useUnitLod } from "../useUnitLod";
 import { RoundedBox } from "@react-three/drei";
 import { type ThreeEvent, useFrame } from "@react-three/fiber";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+
+import {
+  fallbackCoverEdgeColor,
+  readingBookMaterialColors,
+} from "~/lib/books/coverEdgeColor";
 
 import { type UnitProps } from "./types";
 
-// The hidden room has substantially more authored geometry than the shelf it
-// replaces. Keep it out of the initial route, then warm the tiny room chunk as
-// soon as Books owns the camera. Waiting until the latch releases left a blank
-// aperture on a cold/dev cache while the case was already swinging; unit-level
-// priming preserves lazy startup without making network timing part of the
-// reveal choreography.
-const loadSecretReadingRoom = () => import("../SecretReadingRoom");
-const SecretReadingRoom = React.lazy(loadSecretReadingRoom);
+// The hidden-room renderer is intentionally off for this pass. Entering Books
+// used to begin a lazy room import plus WebGL material/shader setup on the pan
+// path, producing multi-second freezes and intermittent blank compositor
+// frames. Keep the distinctive volume as a normal tactile decorative spine;
+// no dormant trigger or invisible room remains wired to it.
 
 /**
  * THE FRONT RANK'S GEOMETRY. Everything here is an EDGE, never a centre.
@@ -132,55 +124,6 @@ const SECRET_RETURN_HIT_PX = 48;
 const SECRET_REST_Z = 0.105;
 const SECRET_DOOR_HINGE_X = -SHELF_GEOMETRY.width / 2 - 0.04;
 const SECRET_DOOR_CENTER_X = -SECRET_DOOR_HINGE_X;
-const NO_RAYCAST: THREE.Object3D["raycast"] = () => undefined;
-
-type SecretFadeBaseline = {
-  opacity: number;
-  transparent: boolean;
-  depthWrite: boolean;
-};
-
-/** Fade the real authored surfaces rather than putting a full-bay colour
- * plane in front of them. Baselines live on each material so zero-opacity hit
- * proxies and already-transparent cover materials restore exactly. */
-function setSecretSurfaceOpacity(root: THREE.Object3D | null, raw: number) {
-  if (!root) return;
-  const opacity = THREE.MathUtils.clamp(raw, 0, 1);
-  root.traverse((object) => {
-    const renderable = object as THREE.Object3D & {
-      material?: THREE.Material | THREE.Material[];
-    };
-    if (!renderable.material) return;
-    const materials = Array.isArray(renderable.material)
-      ? renderable.material
-      : [renderable.material];
-    for (const material of materials) {
-      let baseline = material.userData.stacksSecretFade as
-        | SecretFadeBaseline
-        | undefined;
-      if (!baseline) {
-        baseline = {
-          opacity: material.opacity,
-          transparent: material.transparent,
-          depthWrite: material.depthWrite,
-        };
-        material.userData.stacksSecretFade = baseline;
-      }
-      const transparent = baseline.transparent || opacity < 0.999;
-      const depthWrite = opacity >= 0.999 ? baseline.depthWrite : false;
-      if (
-        material.transparent !== transparent ||
-        material.depthWrite !== depthWrite
-      ) {
-        material.transparent = transparent;
-        material.depthWrite = depthWrite;
-        material.needsUpdate = true;
-      }
-      material.opacity = baseline.opacity * opacity;
-    }
-  });
-}
-
 const smoothstep = (value: number) => {
   const x = THREE.MathUtils.clamp(value, 0, 1);
   return x * x * (3 - 2 * x);
@@ -255,6 +198,8 @@ export function isSecretProjectedHit(
 /** Empty wood on the case is the discoverability surface, never the trigger.
  * Hovering or tapping it tips the odd spine forward; the visitor must still
  * find that spine and deliberately pull it past the physical latch. */
+// Kept as dormant implementation material while the unstable room is disabled.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function SecretShelfAffordance({ index }: { index: number }) {
   const setHovered = useStacks((state) => state.setHovered);
   const eligible = () => {
@@ -303,6 +248,7 @@ function SecretShelfAffordance({ index }: { index: number }) {
  * borrowing the generic free-carry gesture, which cannot distinguish pulling
  * a latch from simply moving a book elsewhere. Pushing the open book upward
  * reverses it; the brass handle inside the passage is the clearer return path. */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function SecretPullBook({
   index,
   palette,
@@ -601,6 +547,7 @@ function SecretPullBook({
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function SecretReturnHandle() {
   const group = useRef<THREE.Group>(null);
   const projected = useMemo(() => new THREE.Vector3(), []);
@@ -817,7 +764,7 @@ type Pose = {
 type Joint = "front" | "lean" | "tight" | "gap";
 
 function layoutFeatured(
-  slice: { url: string; key: string }[],
+  slice: { url: string; key: string; color: string }[],
   salt: number,
   edgeL: number,
 ): RowItem[] {
@@ -977,6 +924,7 @@ function layoutFeatured(
       x,
       url: cover.url,
       key: cover.key,
+      color: cover.color,
       s: p.s,
       yaw: p.yaw,
       lean: p.lean,
@@ -1003,15 +951,12 @@ function BookendTarget() {
 export default function UnitBooks({
   data,
   palette,
+  dark,
   index,
   coverWidth,
   onOpenBook,
 }: UnitProps) {
   const textured = useUnitLod(index);
-  const active = useStacks((state) => state.activeUnit === index);
-  useEffect(() => {
-    if (active) void loadSecretReadingRoom();
-  }, [active]);
   /**
    * THE FEATURED SHELF — the owner's own `Featured?` checkbox in Notion, not a
    * rule of mine. `data.featuredBooks` arrives already filtered to books with a
@@ -1033,8 +978,19 @@ export default function UnitBooks({
     () =>
       data.featuredBooks
         .filter((book) => book.coverUrl)
-        .map((book) => ({ url: book.coverUrl!, key: book.id })),
-    [data.featuredBooks],
+        .map((book) => {
+          const sampled = data.featuredBookColors[book.id] ?? {
+            edge: fallbackCoverEdgeColor(book.id),
+            source: "fallback" as const,
+          };
+          return {
+            url: book.coverUrl!,
+            key: book.id,
+            color: readingBookMaterialColors(sampled.edge, palette.pages, dark)
+              .cover,
+          };
+        }),
+    [dark, data.featuredBookColors, data.featuredBooks, palette.pages],
   );
 
   /**
@@ -1094,14 +1050,26 @@ export default function UnitBooks({
   // Replace one ordinary generated spine — don't layer a trigger in front of
   // it. The selection is geometric rather than an array magic number so a
   // future packing retune still picks a readable right-hand spine.
-  const secretIndex = pickSecretSpineIndex(topRow);
-  const secretItem = secretIndex >= 0 ? topRow[secretIndex] : undefined;
-  const visibleTopRow = useMemo(
-    () => topRow.filter((_, itemIndex) => itemIndex !== secretIndex),
+  const occupiedTop = useMemo(
+    () =>
+      topFeatured.flatMap((item): Array<readonly [number, number]> => {
+        if (item.kind !== "cover") return [];
+        const extent = coverExtent(item.s ?? 1, item.lean ?? 0);
+        // The packed row is authored inside a -0.05 x-offset group below.
+        return [[item.x - extent + 0.05, item.x + extent + 0.05] as const];
+      }),
+    [topFeatured],
+  );
+  const secretIndex = pickSecretSpineIndex(topRow, EDGE_R + 0.05, occupiedTop);
+  const disabledSecretTopRow = useMemo(
+    () =>
+      topRow.map((item, itemIndex) =>
+        itemIndex === secretIndex && item.kind === "spine"
+          ? { ...item, color: "#35584e" }
+          : item,
+      ),
     [secretIndex, topRow],
   );
-  const secretDepth =
-    secretIndex >= 0 ? 0.26 + rand(secretIndex, 26) * 0.08 : 0.3;
   const interactionInput = useMemo(
     () =>
       ({
@@ -1124,7 +1092,7 @@ export default function UnitBooks({
             shelf: "top",
             salt: 15,
             role: "packed",
-            items: visibleTopRow,
+            items: disabledSecretTopRow,
           },
           {
             shelf: "lower",
@@ -1133,23 +1101,14 @@ export default function UnitBooks({
             items: lowerRow,
           },
         ],
-        secret:
-          secretItem?.kind === "spine"
-            ? {
-                shelf: "top",
-                hoverKey: SECRET_HOVER,
-                nodeName: "stacks-secret-book",
-              }
-            : undefined,
       }) satisfies BookInteractionInput,
     [
       featured,
       index,
+      disabledSecretTopRow,
       lowerFeatured,
       lowerRow,
-      secretItem,
       topFeatured,
-      visibleTopRow,
     ],
   );
   const interactionInventory = useMemo(
@@ -1157,16 +1116,6 @@ export default function UnitBooks({
     [interactionInput],
   );
   const doorPivot = useRef<THREE.Group>(null);
-  const shelf = useRef<THREE.Group>(null);
-  const portal = useRef<THREE.Group>(null);
-  const portalInterior = useRef<THREE.Group>(null);
-  const portalThreshold = useRef<THREE.Group>(null);
-  const blocker = useRef<THREE.Mesh>(null);
-  const blockerRaycast = useRef<THREE.Object3D["raycast"] | null>(null);
-  const portalLight = useRef<THREE.PointLight>(null);
-  const portalFillLight = useRef<THREE.PointLight>(null);
-  const portalDust = useRef<THREE.Points>(null);
-  const [secretPrimed, setSecretPrimed] = useState(false);
 
   useEffect(() => {
     // Canvas markup cannot expose a semantic census. This dev hook mirrors the
@@ -1175,160 +1124,6 @@ export default function UnitBooks({
     setBookInteractionInventory(interactionInput);
     return () => setBookInteractionInventory(null);
   }, [interactionInput]);
-
-  // Motion preference can change without a reload. The direct-manipulation
-  // pull remains direct; the autonomous bookcase/camera choreography snaps.
-  useEffect(() => {
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const sync = () => setBookSecretReducedMotion(media.matches);
-    sync();
-    media.addEventListener("change", sync);
-    return () => media.removeEventListener("change", sync);
-  }, []);
-
-  // The open passage owns lateral travel, but only while this unit owns the
-  // camera. Rail/deep-link navigation closes it and immediately releases the
-  // scroll element; the closing animation can finish while travel proceeds.
-  useEffect(() => {
-    let saved:
-      | { el: HTMLDivElement; overflowX: string; touchAction: string }
-      | undefined;
-    const engaged = () => {
-      const phase = bookSecretRef.phase;
-      return (
-        useStacks.getState().activeUnit === index &&
-        (phase === "opening" ||
-          phase === "open" ||
-          phase === "pulling-close" ||
-          phase === "closing")
-      );
-    };
-    const syncLock = () => {
-      const state = useStacks.getState();
-      if (bookSecretRef.phase !== "closed") setSecretPrimed(true);
-      if (state.activeUnit !== index && bookSecretRef.phase !== "closed")
-        closeBookSecret();
-      const el = state.scrollEl;
-      if (engaged() && el && !saved) {
-        saved = {
-          el,
-          overflowX: el.style.overflowX,
-          touchAction: el.style.touchAction,
-        };
-        el.style.overflowX = "hidden";
-        el.style.touchAction = "none";
-      } else if ((!engaged() || saved?.el !== el) && saved) {
-        saved.el.style.overflowX = saved.overflowX;
-        saved.el.style.touchAction = saved.touchAction;
-        saved = undefined;
-      }
-    };
-    const onWheel = (event: WheelEvent) => {
-      if (!engaged()) return;
-      const target = event.target;
-      if (
-        target instanceof Element &&
-        target.closest("[data-stacks-scrollable]")
-      )
-        return;
-      event.preventDefault();
-      event.stopPropagation();
-    };
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && bookSecretRef.phase !== "closed")
-        closeBookSecret();
-    };
-    const unsubscribeSecret = subscribeBookSecret(syncLock);
-    const unsubscribeStore = useStacks.subscribe(syncLock);
-    window.addEventListener("wheel", onWheel, {
-      capture: true,
-      passive: false,
-    });
-    window.addEventListener("keydown", onKey);
-    syncLock();
-    return () => {
-      unsubscribeSecret();
-      unsubscribeStore();
-      window.removeEventListener("wheel", onWheel, { capture: true });
-      window.removeEventListener("keydown", onKey);
-      if (saved) {
-        saved.el.style.overflowX = saved.overflowX;
-        saved.el.style.touchAction = saved.touchAction;
-      }
-      resetBookSecret();
-    };
-  }, [index]);
-
-  useFrame(({ clock }) => {
-    // Reduced motion crossfades the actual shelf and room materials in place;
-    // the normal score eases those surfaces forward from deeper in the bay.
-    // No full-bay colour plane participates in either path.
-    const reduced = bookSecretRef.reducedMotion;
-    const score = bookSecretRenderScore(bookSecretRef.visualProgress, reduced);
-    const { visual, ...renderedScore } = score;
-    const { door, threshold, room } = visual;
-    const { doorAngle } = score;
-    const portalVisible = secretPrimed;
-    if (doorPivot.current) {
-      // Hinge on the left jamb. The old 3.18-unit lateral slide physically
-      // crossed into Weightlifting on mobile; this 87° swing clears the full
-      // opening while its swept volume stays inside the Books bay.
-      doorPivot.current.rotation.y = doorAngle;
-      // Once an in-place reduced-motion crossfade is complete, park the fully
-      // transparent case outside the raycast volume.
-      doorPivot.current.position.y =
-        reduced && score.shelfOpacity <= 0.001
-          ? 100
-          : Math.sin(door * Math.PI) * 0.016;
-      doorPivot.current.position.z = Math.sin(door * Math.PI) * 0.025;
-      doorPivot.current.visible = true;
-      setSecretSurfaceOpacity(doorPivot.current, score.shelfOpacity);
-    }
-    if (shelf.current) {
-      shelf.current.position.x = SECRET_DOOR_CENTER_X;
-      shelf.current.position.z = Math.sin(door * Math.PI) * 0.085;
-    }
-    if (portalThreshold.current) {
-      portalThreshold.current.position.z = score.thresholdZ;
-      portalThreshold.current.scale.set(1, 0.985 + threshold * 0.015, 1);
-      setSecretSurfaceOpacity(portalThreshold.current, score.thresholdOpacity);
-    }
-    if (portalInterior.current) {
-      portalInterior.current.position.z = score.roomZ;
-      const scale = 0.982 + room * 0.018;
-      portalInterior.current.scale.set(scale, scale, 1);
-      setSecretSurfaceOpacity(portalInterior.current, score.roomOpacity);
-    }
-    if (blocker.current) {
-      if (!blockerRaycast.current && blocker.current.raycast !== NO_RAYCAST)
-        blockerRaycast.current = blocker.current.raycast.bind(blocker.current);
-      const blocking =
-        bookSecretRef.phase !== "closed" ||
-        bookSecretRef.visualProgress > 0.0001;
-      blocker.current.visible = true;
-      blocker.current.raycast =
-        blocking && blockerRaycast.current
-          ? blockerRaycast.current
-          : NO_RAYCAST;
-    }
-    if (portalLight.current) portalLight.current.intensity = score.keyLight;
-    if (portalFillLight.current)
-      portalFillLight.current.intensity = score.fillLight;
-    if (portalDust.current) {
-      if (!bookSecretRef.reducedMotion) {
-        portalDust.current.rotation.y =
-          Math.sin(clock.elapsedTime * 0.12) * 0.07 * room;
-        portalDust.current.position.y =
-          Math.sin(clock.elapsedTime * 0.31) * 0.022 * room;
-      }
-      const material = portalDust.current.material as THREE.PointsMaterial;
-      material.opacity = score.dustOpacity;
-    }
-    Object.assign(bookSecretRef.rendered, {
-      ...renderedScore,
-      portalVisible,
-    });
-  });
 
   return (
     <group>
@@ -1339,27 +1134,12 @@ export default function UnitBooks({
           inventory={interactionInventory}
         />
       )}
-      {(secretPrimed || active) && (
-        <React.Suspense fallback={null}>
-          <SecretReadingRoom
-            palette={palette}
-            groupRef={portal}
-            interiorRef={portalInterior}
-            thresholdRef={portalThreshold}
-            keyLightRef={portalLight}
-            fillLightRef={portalFillLight}
-            dustRef={portalDust}
-            returnControl={<SecretReturnHandle />}
-          />
-        </React.Suspense>
-      )}
       <group
         ref={doorPivot}
-        name="stacks-secret-bookcase-door"
+        name="stacks-books-bookcase"
         position={[SECRET_DOOR_HINGE_X, 0, 0]}
       >
-        <group ref={shelf} position={[SECRET_DOOR_CENTER_X, 0, 0]}>
-          <SecretShelfAffordance index={index} />
+        <group position={[SECRET_DOOR_CENTER_X, 0, 0]}>
           <ShelfUnit
             palette={palette}
             toneSeed={index}
@@ -1431,7 +1211,7 @@ export default function UnitBooks({
             )}
             <group position={[-0.05, 0, 0]}>
               <BookRowMesh
-                items={visibleTopRow}
+                items={disabledSecretTopRow}
                 palette={palette}
                 salt={15}
                 textured={textured}
@@ -1439,18 +1219,6 @@ export default function UnitBooks({
                 onCoverClick={onOpenBook}
                 linkUnit={index}
               />
-              {secretItem?.kind === "spine" && (
-                <SecretPullBook
-                  index={index}
-                  palette={palette}
-                  // In the natural gap between the second and third face-out
-                  // covers, safely clear of both the rail and reading dock.
-                  x={secretItem.x}
-                  width={Math.max(0.074, secretItem.w)}
-                  height={secretItem.h}
-                  depth={secretDepth}
-                />
-              )}
               {/* Its twin on the top row, leaning the other way against the
                 packed spines. */}
               <HoverProp
@@ -1466,20 +1234,6 @@ export default function UnitBooks({
               </HoverProp>
             </group>
           </ShelfUnit>
-          {/* Once the bookcase starts moving it becomes one coherent door, not
-              a shelf of simultaneously draggable props. `visible={false}` is
-              not an input gate in three/r3f, so the raycast method itself is
-              enabled only while the reveal owns this moving case. */}
-          <mesh
-            ref={blocker}
-            position={[0, -0.22, 0.68]}
-            onPointerOver={(event) => event.stopPropagation()}
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <planeGeometry args={[3.1, 2.35]} />
-            <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-          </mesh>
         </group>
       </group>
     </group>

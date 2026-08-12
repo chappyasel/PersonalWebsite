@@ -21,6 +21,8 @@ import { useEffect } from "react";
 import { devSubdomainUrl } from "~/lib/util";
 import { BooksTRPCProvider } from "~/trpc/books-provider";
 
+import { jumpToUnitWhenReady } from "./bookModalSync";
+
 const BOOK_HASH = /^#book-(.+)$/;
 const BOOKS_UNIT = UNITS.findIndex((unit) => unit.slug === "books");
 
@@ -55,17 +57,7 @@ function ModalBridge() {
     const match = BOOK_HASH.exec(window.location.hash);
     if (!match?.[1]) return;
     openModalById(decodeURIComponent(match[1]));
-    const state = useStacks.getState();
-    if (state.jumpTo) {
-      state.jumpTo(BOOKS_UNIT);
-      return;
-    }
-    const unsubscribe = useStacks.subscribe((s) => {
-      if (!s.jumpTo) return;
-      s.jumpTo(BOOKS_UNIT);
-      unsubscribe();
-    });
-    return unsubscribe;
+    return jumpToUnitWhenReady(useStacks, BOOKS_UNIT);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -88,13 +80,17 @@ function ModalBridge() {
   return null;
 }
 
-export default function StacksBookModal() {
+export default function StacksBookModal({ bookCount }: { bookCount: number }) {
   return (
     <BooksTRPCProvider>
       <BookPreviewProvider>
         <ModalBridge />
         <ModalHost
-          presentation={{ source: "stacks", booksHref: booksBaseUrl() }}
+          presentation={{
+            source: "stacks",
+            booksHref: booksBaseUrl(),
+            bookCount,
+          }}
         />
       </BookPreviewProvider>
     </BooksTRPCProvider>

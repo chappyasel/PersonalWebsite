@@ -16,16 +16,17 @@ export const CAMERA = { z: 5.8, y: 0.25, fov: 33 };
 /** Tablet portrait keeps almost all of the original wide framing. Phones use
  * the same safe camera distance with a slightly narrower lens below. */
 export const CAMERA_NARROW = { z: 7.6, y: 0.3, fov: 40.5 };
-const CAMERA_PHONE = { ...CAMERA_NARROW, fov: 38.5 };
+// tan(38.5° / 2) / tan(32.5° / 2) = 1.20: the requested twenty-percent
+// tighter phone composition, without changing camera distance or parallax.
+const CAMERA_PHONE = { ...CAMERA_NARROW, fov: 32.5 };
 const PHONE_ASPECT = 0.5;
 const TABLET_PORTRAIT_ASPECT = 0.75;
 export const MID_X = ((UNIT_COUNT - 1) * UNIT_SPACING) / 2;
 export const TRAVEL_X = (UNIT_COUNT - 1) * UNIT_SPACING;
-/** A short, real scrollable lead-in before About. The unit itself still has a
- * precise stop at x=0; the far-left stop intentionally crops roughly a third
- * of the reading chair so the secret remains discoverable without creating a
- * large empty runway before the first unit. */
-export const TRAVEL_LEAD_IN = 1.5;
+/** A short, real scrollable lead-in before About. The seat now rests farther
+ * back in the room and needs less lateral runway to remain discoverable; this
+ * stop prevents visitors from panning into empty space at the far left. */
+export const TRAVEL_LEAD_IN = 1.2;
 export const TRAVEL_RANGE_X = TRAVEL_X + TRAVEL_LEAD_IN;
 
 export function cameraXForScrollOffset(offset: number) {
@@ -50,8 +51,8 @@ export function cameraForAspect(aspect: number) {
   if (aspect > TABLET_PORTRAIT_ASPECT) return CAMERA;
   if (aspect <= PHONE_ASPECT) return CAMERA_PHONE;
 
-  // A phone needs roughly ten percent more apparent scale than the previous
-  // 42° lens, while 768 portrait only needs a gentle correction. Interpolate
+  // A phone needs roughly twenty percent more apparent scale than the previous
+  // 38.5° lens, while 768 portrait only needs a gentle correction. Interpolate
   // between those two known compositions so folding phones and split-screen
   // tablets do not hit another visual breakpoint in the middle.
   const tabletBlend =

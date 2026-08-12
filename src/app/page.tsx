@@ -143,17 +143,12 @@ export default async function HomePage() {
   const currentReads = allBooks
     .filter((book) => book.started && !book.finished && book.coverUrl)
     .sort((a, b) => (b.started ?? "").localeCompare(a.started ?? ""))
-    .slice(0, 3);
+    .slice(0, 1);
   const currentReadIds = new Set(currentReads.map((book) => book.id));
   const readingBooks = [
     ...currentReads,
     ...allBooks.filter((book) => book.coverUrl && !currentReadIds.has(book.id)),
-  ].slice(0, 3);
-  // Perimeter sampling is server-side and time-boxed, so the client never
-  // reads image pixels (or inherits remote-cover CORS hazards). The resolver
-  // deduplicates work, uses Next's month-long fetch cache, and falls back to a
-  // stable id color if a cold remote cover misses the 650ms budget.
-  const readingBookColors = await readingBookEdgeColors(readingBooks);
+  ].slice(0, 1);
 
   // Chappy's "Featured?" ticks, in the collection's own finished-desc order.
   // A featured book with no cover would render as a blank slab, so it is held
@@ -161,6 +156,14 @@ export default async function HomePage() {
   const featuredBooks = allBooks.filter(
     (book) => book.isFeatured && book.coverUrl,
   );
+  // Perimeter sampling is server-side and time-boxed, so the client never
+  // reads image pixels (or inherits remote-cover CORS hazards). Both the
+  // current book and every featured book receive their own physical board
+  // color; a stable id color is only the cold-fetch fallback.
+  const [readingBookColors, featuredBookColors] = await Promise.all([
+    readingBookEdgeColors(readingBooks),
+    readingBookEdgeColors(featuredBooks),
+  ]);
   // Featured books lead `shelfBooks` so they are guaranteed a slot in the 16
   // the scene knows about: `onOpenBook` resolves clicks out of this array and
   // `Scene` warms only these covers. Without the union, a featured cover could
@@ -180,6 +183,7 @@ export default async function HomePage() {
     covers: bookCovers,
     shelfBooks,
     featuredBooks,
+    featuredBookColors,
     readingBooks,
     readingBookColors,
     bookStats,

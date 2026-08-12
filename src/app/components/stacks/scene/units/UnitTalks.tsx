@@ -6,6 +6,7 @@
 import { useStacks } from "../../store";
 import Grabbable from "../Grabbable";
 import { FootPool } from "../GroundPool";
+import HeldFacing from "../HeldFacing";
 import ModelProp from "../ModelProp";
 import { LampSwitch, Sway } from "../eggs";
 import { DeskFrame, PHOTO_LINKS, deskFrameHeight } from "../photos";
@@ -228,10 +229,11 @@ function TalkPhoto({
   width: number;
   children: React.ReactNode;
 }) {
+  const hoverKey = `grab:photo:${id}`;
   return (
     <Grabbable
       unitIndex={unitIndex}
-      hoverKey={`grab:photo:${id}`}
+      hoverKey={hoverKey}
       base={base}
       shadeColor={palette.shadow}
       shadeWidth={Math.max(0.34, width * 1.08)}
@@ -239,9 +241,9 @@ function TalkPhoto({
       massKg={0.58}
       href={PHOTO_LINKS[id] ?? undefined}
     >
-      <group position={[0, seat, 0]} rotation={rotation}>
+      <HeldFacing hoverKey={hoverKey} position={[0, seat, 0]} rest={rotation}>
         {children}
-      </group>
+      </HeldFacing>
     </Grabbable>
   );
 }
@@ -296,34 +298,6 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
               />
             </TalkPhoto>
 
-            {/* The microphone belongs on the shelf it describes. The model is
-                rotated onto its side and raised by half its narrow dimension,
-                rather than balanced upright on a stand. */}
-            <Grabbable
-              unitIndex={index}
-              hoverKey="grab:microphone"
-              base={[0.33, 0, 0.23]}
-              shadeColor={palette.shadow}
-              shadeWidth={0.48}
-              shape="box"
-              massKg={0.7}
-            >
-              <group
-                position={[0, 0.027, 0]}
-                rotation={[0, -0.28, -Math.PI / 2]}
-              >
-                <React.Suspense fallback={null}>
-                  <ModelProp
-                    url="/models/microphone.glb"
-                    dark={dark}
-                    variant="tinted"
-                    tints={{ lambert2SG: palette.metal }}
-                    scale={0.041}
-                  />
-                </React.Suspense>
-              </group>
-            </Grabbable>
-
             <group position={[0, 0, -0.06]}>
               <BookPile
                 palette={palette}
@@ -336,7 +310,7 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
             <Grabbable
               unitIndex={index}
               hoverKey="grab:plant:talks-pothos"
-              base={[1.16, 0, 0.02]}
+              base={[1.18, 0, 0.12]}
               shadeColor={palette.shadow}
               shadeWidth={0.42}
               shape="box"
@@ -348,8 +322,8 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
                     url="/models/pothos.glb"
                     dark={dark}
                     variant="recolor"
-                    position={[0, -0.139, 0]}
-                    rotation={[0, 0.279, 0]}
+                    position={[0, -0.135, 0]}
+                    rotation={[0, 2.3, 0]}
                     scale={0.62}
                   />
                 </React.Suspense>
@@ -413,10 +387,37 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
           />
         </TalkPhoto>
 
+        {/* Laid across the top shelf, where its full body is visible. The
+            source model's measured contact island needs 0.030 world units
+            beneath its origin after the side rotation. That seat puts the
+            grille and handle in contact instead of letting the physics solver
+            lift a buried model toward the camera. */}
+        <Grabbable
+          unitIndex={index}
+          hoverKey="grab:microphone"
+          base={[0.82, 0, 0.1]}
+          shadeColor={palette.shadow}
+          shadeWidth={0.5}
+          shape="box"
+          massKg={0.7}
+        >
+          <group position={[0, 0.03, 0]} rotation={[0, -0.22, -Math.PI / 2]}>
+            <React.Suspense fallback={null}>
+              <ModelProp
+                url="/models/microphone.glb"
+                dark={dark}
+                variant="tinted"
+                tints={{ lambert2SG: palette.metal }}
+                scale={0.041}
+              />
+            </React.Suspense>
+          </group>
+        </Grabbable>
+
         <Grabbable
           unitIndex={index}
           hoverKey="grab:plant:talks-top"
-          base={[1.02, 0, -0.18]}
+          base={[1.3, 0, -0.18]}
           shadeColor={palette.shadow}
           shadeWidth={0.28}
           shape="box"
@@ -447,6 +448,7 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
       <group position={[2.12, -1.115, 0.06]} rotation={[0, -0.45, 0]}>
         <LampSwitch
           unitIndex={index}
+          activeUnitIndexes={[index, index + 1]}
           hoverKey={`egg:lamp:floor:${index}`}
           litRef={lit}
           rig={

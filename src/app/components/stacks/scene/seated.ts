@@ -28,11 +28,12 @@ export type SeatPose = {
  * out of the upholstery. A hard-coded pose cannot warn you about that, so it
  * has to be re-derived rather than nudged.
  *
- * Current occupant, re-read from the live scene after the couch moved to
- * local x −2.82/z +0.08/yaw +0.10 inside Unit 0's +0.10 yaw:
+ * Current occupant, translated from the measured live hull after the couch
+ * moved from local z +0.08 to −0.30 inside Unit 0's +0.10 yaw. The local
+ * −0.38 z shift becomes world (−0.0379 x, −0.3781 z):
  *
- *   couch.glb   x −3.9736…−1.6223   y −1.1150…+0.2602   z −0.6227…+1.3450
- *               centre x −2.7979, ground y −1.115, front face z +1.345
+ *   couch.glb   x −4.0115…−1.6602   y −1.1150…+0.2602   z −1.0008…+0.9669
+ *               centre x −2.8359, ground y −1.115, front face z +0.9669
  *
  * eye.x is the seat's centre line.
  *
@@ -53,8 +54,8 @@ export type SeatPose = {
  * Owned by UnitAbout / SitChair — CameraRig only consumes it.
  */
 export const SEAT_POSE: SeatPose = {
-  eye: [-2.798, 0.02, 1.475],
-  target: [-2.798, 0.14, 7.475],
+  eye: [-2.836, 0.02, 1.097],
+  target: [-2.836, 0.14, 7.097],
 };
 
 let seated = false;

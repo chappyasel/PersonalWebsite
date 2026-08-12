@@ -5,7 +5,6 @@ import {
   auditBookInteractions,
   bookInteractionSnapshot,
   buildBookInteractions,
-  permitsSecretProjectedFallback,
   pickSecretSpineIndex,
   respondersForHover,
   setBookInteractionInventory,
@@ -52,11 +51,6 @@ const input: BookInteractionInput = {
       ],
     },
   ],
-  secret: {
-    shelf: "top",
-    hoverKey: "grab:books:secret-spine",
-    nodeName: "stacks-secret-book",
-  },
 };
 
 describe("Book Notes interaction inventory", () => {
@@ -70,9 +64,7 @@ describe("Book Notes interaction inventory", () => {
     );
     expect(inventory.filter((item) => item.role === "flat")).toHaveLength(3);
     expect(inventory.filter((item) => item.role === "riser")).toHaveLength(3);
-    expect(inventory.filter((item) => item.shimmer)).toEqual([
-      expect.objectContaining({ role: "secret" }),
-    ]);
+    expect(inventory.filter((item) => item.shimmer)).toEqual([]);
   });
 
   it("binds each featured cover to its exact detail id and carry gesture", () => {
@@ -113,7 +105,7 @@ describe("Book Notes interaction inventory", () => {
     ).toBe(true);
   });
 
-  it("fails closed when keys collide or a second book claims shimmer", () => {
+  it("fails closed when keys collide or a disabled secret shimmer returns", () => {
     const inventory = buildBookInteractions(input);
     const broken = [
       ...inventory,
@@ -130,7 +122,7 @@ describe("Book Notes interaction inventory", () => {
     expect(audit.errors).toEqual(
       expect.arrayContaining([
         expect.stringContaining("duplicate hover key"),
-        expect.stringContaining("exactly one shimmering secret spine"),
+        expect.stringContaining("secret-room shimmer must stay disabled"),
       ]),
     );
   });
@@ -139,7 +131,6 @@ describe("Book Notes interaction inventory", () => {
     setBookInteractionInventory(input);
     setBookInteractionScreens({
       "featured:book-0": [212, 418],
-      "secret:pull-spine": [337, 402],
     });
 
     const snapshot = bookInteractionSnapshot();
@@ -147,10 +138,6 @@ describe("Book Notes interaction inventory", () => {
     expect(
       snapshot.inventory.find((item) => item.id === "featured:book-0")?.screen,
     ).toEqual([212, 418]);
-    expect(
-      snapshot.inventory.find((item) => item.id === "secret:pull-spine")
-        ?.screen,
-    ).toEqual([337, 402]);
     setBookInteractionInventory(null);
   });
 
@@ -170,9 +157,19 @@ describe("Book Notes interaction inventory", () => {
     ).toBe(-1);
   });
 
-  it("reserves touch for real scene hits so projected recovery cannot steal a cover", () => {
-    expect(permitsSecretProjectedFallback("touch")).toBe(false);
-    expect(permitsSecretProjectedFallback("mouse")).toBe(true);
-    expect(permitsSecretProjectedFallback("pen")).toBe(true);
+  it("chooses the rightmost unoccupied placeholder instead of clipping a cover", () => {
+    const items = [
+      { kind: "spine" as const, x: -0.5, w: 0.08, h: 0.5, color: "#765" },
+      { kind: "spine" as const, x: 0.2, w: 0.08, h: 0.5, color: "#876" },
+      { kind: "spine" as const, x: 0.72, w: 0.08, h: 0.5, color: "#987" },
+    ];
+
+    expect(pickSecretSpineIndex(items, 0.2, [[0.1, 0.4]])).toBe(2);
+    expect(
+      pickSecretSpineIndex(items, 0.2, [
+        [-0.6, -0.4],
+        [0.1, 0.8],
+      ]),
+    ).toBe(-1);
   });
 });

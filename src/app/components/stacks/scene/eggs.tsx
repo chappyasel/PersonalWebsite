@@ -50,26 +50,33 @@ function isDescendantOf(node: THREE.Object3D, root: THREE.Object3D): boolean {
  * props never advertise a pointer they won't honor. */
 export function EggTrigger({
   unitIndex,
+  activeUnitIndexes,
   hoverKey,
   onTrigger,
   children,
 }: {
   unitIndex: number;
+  /** Inter-unit fixtures can belong to both adjacent stops. */
+  activeUnitIndexes?: readonly number[];
   hoverKey: string;
   onTrigger: () => void;
   children: React.ReactNode;
 }) {
   const setHovered = useStacks((s) => s.setHovered);
+  const ownsActiveUnit = () => {
+    const active = useStacks.getState().activeUnit;
+    return activeUnitIndexes?.includes(active) ?? active === unitIndex;
+  };
   return (
     <group
       onClick={(e: ThreeEvent<MouseEvent>) => {
         if ((e.delta ?? 0) > 6) return; // swipe, not a tap
-        if (useStacks.getState().activeUnit !== unitIndex) return; // fall through → travel
+        if (!ownsActiveUnit()) return; // fall through → travel
         e.stopPropagation();
         onTrigger();
       }}
       onPointerOver={(e: ThreeEvent<PointerEvent>) => {
-        if (useStacks.getState().activeUnit !== unitIndex) return;
+        if (!ownsActiveUnit()) return;
         e.stopPropagation();
         setHovered(hoverKey);
       }}
@@ -112,12 +119,14 @@ export function EggTrigger({
  */
 export function LampSwitch({
   unitIndex,
+  activeUnitIndexes,
   hoverKey,
   litRef,
   rig,
   children,
 }: {
   unitIndex: number;
+  activeUnitIndexes?: readonly number[];
   hoverKey: string;
   /** Shared 0..1 lit factor. Pass one whenever the rig contains a GlowSprite
    * (or anything else that writes its own opacity per frame) so it can
@@ -175,6 +184,7 @@ export function LampSwitch({
     <group>
       <EggTrigger
         unitIndex={unitIndex}
+        activeUnitIndexes={activeUnitIndexes}
         hoverKey={hoverKey}
         onTrigger={() => {
           target.current = target.current ? 0 : 1;

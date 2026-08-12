@@ -65,8 +65,11 @@ export const PALETTES = {
     ],
     pile: ["#8a5a3c", "#5c5648", "#9c6b4f"],
     shadow: "#5c4324",
-    dust: "#c9a97e",
-    dustOpacity: 0.3,
+    // Saturated amber core for light-mode fireflies. SceneEnvironment adds a
+    // separate larger gold halo; keeping the core darker is what preserves
+    // contrast over the near-white sky instead of merely brightening it.
+    dust: "#b76a0b",
+    dustOpacity: 0.78,
     glowOpacity: 0.22,
   },
   dark: {

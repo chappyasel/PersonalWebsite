@@ -5,6 +5,7 @@
 // three-print ledges instead of becoming another rigid gallery grid.
 import Grabbable from "../Grabbable";
 import { ContactShade, FootPool } from "../GroundPool";
+import HeldFacing from "../HeldFacing";
 import ModelProp from "../ModelProp";
 import { EggClock, EggLamp, EggTrigger, Pendulum, Sway } from "../eggs";
 import PropLink from "../links";
@@ -119,10 +120,11 @@ function SystemPhoto({
   textured: boolean;
 }) {
   const height = photo.width / photo.aspect;
+  const hoverKey = `grab:photo:${photo.id}`;
   return (
     <Grabbable
       unitIndex={unitIndex}
-      hoverKey={`grab:photo:${photo.id}`}
+      hoverKey={hoverKey}
       base={[photo.x, 0, photo.z]}
       shadeColor={palette.shadow}
       shadeWidth={Math.max(0.3, photo.width * 1.15)}
@@ -130,9 +132,10 @@ function SystemPhoto({
       massKg={0.45}
       href={PHOTO_LINKS[photo.id] ?? undefined}
     >
-      <group
+      <HeldFacing
+        hoverKey={hoverKey}
         position={[0, deskFrameHeight(height) / 2, 0]}
-        rotation={[0, photo.yaw, 0]}
+        rest={[0, photo.yaw, 0]}
       >
         <DeskFrame
           src={photo.src}
@@ -141,7 +144,7 @@ function SystemPhoto({
           width={photo.width}
           height={height}
         />
-      </group>
+      </HeldFacing>
     </Grabbable>
   );
 }
@@ -274,17 +277,29 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
           </group>
         }
       >
-        <group position={[-1.02, 0, -0.08]}>
+        <group position={[-1.14, 0, -0.08]}>
           <BookRowMesh
             items={manualRow}
             palette={palette}
             salt={68}
             linkUnit={index}
             to="manual"
+            grabbableVolumes
           />
         </group>
 
-        <group position={[-0.78, 0, 0.25]}>
+        {/* The clock's egg and the carrier deliberately share one hover key:
+            a stationary press still winds the face to 3:45, while crossing
+            the grab threshold suppresses that click and carries the clock. */}
+        <Grabbable
+          unitIndex={index}
+          hoverKey="egg:clock:alarm"
+          base={[-0.66, 0, 0.25]}
+          shadeColor={palette.shadow}
+          shadeWidth={0.3}
+          shape="box"
+          massKg={0.45}
+        >
           <EggClock
             unitIndex={index}
             hoverKey="egg:clock:alarm"
@@ -299,7 +314,7 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
               />
             </React.Suspense>
           </EggClock>
-        </group>
+        </Grabbable>
 
         {TOP_PHOTOS.map((photo) => (
           <SystemPhoto
