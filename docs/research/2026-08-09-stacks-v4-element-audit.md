@@ -1,4 +1,4 @@
-# The Stacks v4 — element-by-element audit (v2, fan-out verified)
+# Homepage 3D scene v4 — element-by-element audit (v2, fan-out verified)
 
 Date: 2026-08-09 · Branch: `feat/stacks-home` through `868996a` (v3 complete)
 This is v2 of the audit — five parallel agents replaced v1's desk-research

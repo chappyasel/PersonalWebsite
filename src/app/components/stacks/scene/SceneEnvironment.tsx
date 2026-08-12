@@ -1,6 +1,6 @@
 "use client";
 
-// Atmosphere for The Stacks — gradient sky dome, fog-matched palette,
+// Atmosphere for the homepage 3D scene — gradient sky dome, fog-matched palette,
 // hemisphere fill, camera-tracking key light with soft shadows, and dust.
 import { progressRef, useStacks } from "../store";
 import { PALETTES, type Palette, rand } from "../theme";

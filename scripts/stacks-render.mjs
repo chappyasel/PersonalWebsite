@@ -1,4 +1,4 @@
-// The Stacks prop inspector — renders and measures the BUILT GLBs in
+// Homepage 3D scene prop inspector — renders and measures the BUILT GLBs in
 // /public/models with no GPU, so a placement question can be settled before
 // it reaches the scene. This repo has shipped three bugs that a render would
 // have caught in seconds: the desk lamp's emissive disc sat 10 cm low and 32°

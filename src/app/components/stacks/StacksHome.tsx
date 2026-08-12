@@ -1,6 +1,6 @@
 "use client";
 
-// Composition root and mode gate for The Stacks.
+// Composition root and mode gate for the homepage 3D scene.
 //
 // Server render and the first client render are always the flat page (no
 // hydration mismatch). What changed in v5 is that the flat page is no longer

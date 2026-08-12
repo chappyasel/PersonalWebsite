@@ -1,4 +1,4 @@
-# The Stacks — Context
+# Homepage 3D Scene — Context
 
 The home page of chappyasel.com: a single horizontal room of shelf units that
 visitors travel through. It presents who Chappy is by showing his things in
@@ -6,7 +6,7 @@ one continuous space rather than listing sections on a page.
 
 ## Terms
 
-**The Stacks** — the home-page world as a whole: seven shelf units in one
+**Homepage scene** — the home-page world as a whole: seven shelf units in one
 shared atmosphere, traveled laterally.
 
 **Unit** — one shelf vignette representing one facet (About, Books, Training,

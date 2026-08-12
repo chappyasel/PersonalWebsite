@@ -1,6 +1,6 @@
 "use client";
 
-// Shared state for The Stacks. Two channels with different update rates:
+// Shared state for the homepage 3D scene. Two channels with different update rates:
 //
 // - `progressRef` is transient — written every frame by the scroll rig and read
 //   imperatively (camera, rail thumb). Nothing subscribes to it; per-frame

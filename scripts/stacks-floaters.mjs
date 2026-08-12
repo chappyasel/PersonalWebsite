@@ -1,4 +1,4 @@
-// The Stacks floating-prop detector — finds every prop whose base does not sit
+// Homepage 3D scene floating-prop detector — finds every prop whose base does not sit
 // on the thing it is supposed to be sitting on, with no GPU and no browser.
 //
 //   node scripts/stacks-floaters.mjs                 # ranked table, worst first
@@ -1636,7 +1636,7 @@ const cm = (world) => (world / UNITS_PER_METRE) * 100;
 const pad = (s, n) => String(s).padEnd(n);
 const num = (v, n = 4) => (v >= 0 ? "+" : "") + v.toFixed(n);
 
-console.log(`\nThe Stacks — floating-prop report`);
+console.log(`\nHomepage 3D scene — floating-prop report`);
 console.log(`  planes   top plank ${SUPPORT_PLANES.top}   lower plank ${SUPPORT_PLANES.lower}   ground ${SUPPORT_PLANES.ground}`);
 const glbCount = resolvedAll.filter((r) => r.kind === "glb").length;
 const glbFiles = new Set(resolvedAll.filter((r) => r.kind === "glb").map((r) => r.model)).size;

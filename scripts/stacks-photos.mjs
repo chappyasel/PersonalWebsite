@@ -1,4 +1,4 @@
-// The Stacks photo pipeline — copies the APPROVED picks from the local photo
+// Homepage 3D scene photo pipeline — copies the APPROVED picks from the local photo
 // libraries into public/images/stacks/ with neutral filenames, capped per prop
 // class, JPEG q72, metadata stripped (sharp drops EXIF/GPS by default).
 //

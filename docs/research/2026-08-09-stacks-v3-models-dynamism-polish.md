@@ -1,4 +1,4 @@
-# The Stacks v3 research — models, dynamism, polish
+# Homepage 3D scene v3 research — models, dynamism, polish
 
 Date: 2026-08-09 · Branch context: `feat/stacks-home` (v2 complete through 2f43b50)
 Method: three parallel research agents (models / sky / polish) against live pages,

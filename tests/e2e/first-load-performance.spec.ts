@@ -39,6 +39,19 @@ test("preloads only the critical Georgia faces", async ({ page }) => {
   ]);
 });
 
+test("advertises the public homepage OG image", async ({ page, request }) => {
+  await page.goto("/");
+
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+    "content",
+    /^https:\/\/www\.chappyasel\.com\/opengraph-image/,
+  );
+
+  const image = await request.get("/opengraph-image");
+  expect(image.ok()).toBe(true);
+  expect(image.headers()["content-type"]).toBe("image/png");
+});
+
 test("applies a stored font before the app hydrates", async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem("font-preference", "system");

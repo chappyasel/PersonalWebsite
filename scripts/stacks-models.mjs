@@ -1,4 +1,4 @@
-// The Stacks prop pipeline — downloads the curated GLBs, strips the shared
+// Homepage 3D scene prop pipeline — downloads the curated GLBs, strips the shared
 // CreativeTrio palette atlas (theming happens at runtime via the themed
 // atlas swap), palette-remaps own-texture props into per-theme textures,
 // extracts the basketball from its hoop scene, normalizes every prop to

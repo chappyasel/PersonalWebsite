@@ -1,4 +1,4 @@
-# The Stacks v2 research — fidelity, mobile, atmosphere
+# Homepage 3D scene v2 research — fidelity, mobile, atmosphere
 
 Date: 2026-08-09 · Branch context: `feat/stacks-home` (commit a72952b)
 Method: three parallel research agents against primary sources (docs, license

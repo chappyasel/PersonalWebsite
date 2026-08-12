@@ -1,6 +1,6 @@
 import { readFile } from "fs/promises";
-import { join } from "path";
 import { ImageResponse } from "next/og";
+import { join } from "path";
 
 import { loadGeorgiaProBold } from "~/app/books/[bookId]/fonts";
 
@@ -13,22 +13,28 @@ export const size = {
 };
 export const contentType = "image/png";
 
-const PROD_URL = "https://chappyasel.com";
+const PROD_URL = "https://www.chappyasel.com";
 
-async function loadProfileImage(): Promise<string> {
+async function loadSceneImage(): Promise<string> {
   try {
-    const imagePath = join(process.cwd(), "public", "images", "about", "profile.jpg");
+    const imagePath = join(
+      process.cwd(),
+      "public",
+      "images",
+      "stacks",
+      "home-og-scene.jpg",
+    );
     const buffer = await readFile(imagePath);
     return `data:image/jpeg;base64,${buffer.toString("base64")}`;
   } catch {
-    return `${PROD_URL}/images/about/profile.jpg`;
+    return `${PROD_URL}/images/stacks/home-og-scene.jpg`;
   }
 }
 
 export default async function Image() {
-  const [fontBold, profileSrc] = await Promise.all([
+  const [fontBold, sceneSrc] = await Promise.all([
     loadGeorgiaProBold(),
-    loadProfileImage(),
+    loadSceneImage(),
   ]);
 
   return new ImageResponse(
@@ -36,38 +42,68 @@ export default async function Image() {
       <div
         style={{
           display: "flex",
-          flexDirection: "column",
+          position: "relative",
           width: "100%",
           height: "100%",
-          backgroundColor: "#f5f5f5",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "32px",
+          overflow: "hidden",
+          backgroundColor: "#e9e6de",
           fontFamily: '"Georgia Pro"',
         }}
       >
-        {/* Profile Image */}
         <img
-          src={profileSrc}
-          width={340}
-          height={340}
+          src={sceneSrc}
+          alt=""
+          width={1200}
+          height={630}
           style={{
-            borderRadius: "50%",
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
             objectFit: "cover",
           }}
         />
-        {/* Name */}
+
         <div
           style={{
             display: "flex",
-            fontSize: "72px",
+            position: "absolute",
+            inset: "auto 0 0",
+            height: 145,
+            background:
+              "linear-gradient(to bottom, rgba(246, 243, 236, 0), rgba(246, 243, 236, 0.96) 72%)",
+          }}
+        />
+
+        {/* The scene owns the image; the name sits in the clear floor beneath
+            the shelves instead of covering any of their contents. */}
+        <div
+          style={{
+            display: "flex",
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 22,
+            justifyContent: "center",
+            fontSize: 70,
             fontWeight: 700,
-            color: "#737373",
-            letterSpacing: "-0.02em",
+            lineHeight: 1,
+            color: "#342f29",
+            letterSpacing: "-0.035em",
           }}
         >
           Chappy Asel
         </div>
+
+        <div
+          style={{
+            display: "flex",
+            position: "absolute",
+            inset: 14,
+            border: "1px solid rgba(52, 47, 41, 0.16)",
+            borderRadius: 22,
+          }}
+        />
       </div>
     ),
     {

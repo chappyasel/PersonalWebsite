@@ -1,4 +1,4 @@
-// Visual constants for The Stacks — theme palettes, film grain, and the
+// Visual constants for the homepage 3D scene — theme palettes, film grain, and the
 // deterministic pseudo-random used to keep shelf packing stable across renders.
 // Shared by scene (WebGL) and DOM layers; keep this module dependency-free.
 

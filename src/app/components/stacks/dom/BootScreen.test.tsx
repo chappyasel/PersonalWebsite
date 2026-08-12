@@ -3,12 +3,11 @@ import { describe, expect, it } from "vitest";
 
 import BootScreen from "./BootScreen";
 
-describe("Stacks entrance", () => {
+describe("Homepage entrance", () => {
   it("presents Chappy's name rather than a product or loading label", () => {
     const markup = renderToStaticMarkup(<BootScreen />);
 
     expect(markup).toContain("Chappy Asel");
-    expect(markup).not.toContain("The Stacks");
     expect(markup).not.toMatch(/progress|loading|status/i);
   });
 

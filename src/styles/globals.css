@@ -302,7 +302,7 @@ html[data-font="literata"] {
 }
 
 /*
- * Boot handshake for The Stacks.
+ * Boot handshake for the homepage 3D scene.
  *
  * A pre-paint script in the homepage (see page.tsx) sets data-world="pending"
  * on <html> when the browser can actually run the world. Everything below

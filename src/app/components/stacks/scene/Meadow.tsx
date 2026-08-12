@@ -6,7 +6,7 @@
 // https://tympanus.net/codrops/2025/02/04/how-to-make-the-fluffiest-grass-with-three-js/
 //
 // The reference implementation targets a walkable million-blade landscape.
-// The Stacks only needs a quiet meadow behind the furniture, so one bounded
+// The homepage only needs a quiet meadow behind the furniture, so one bounded
 // instanced field (three crossed cards per tuft), one terrain draw and one
 // flower-points draw are enough. The alpha map is generated in memory: no
 // copied model or texture enters the application bundle.

@@ -1,4 +1,4 @@
-// The Stacks — unit registry, serializable home-page data contract, and small
+// Homepage 3D scene — unit registry, serializable home-page data contract, and small
 // formatters. Client-safe: no JSON imports, no server-only modules.
 import {
   BarbellIcon,

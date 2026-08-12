@@ -1,4 +1,4 @@
-// World-space layout for The Stacks — spacing, camera, and unit poses.
+// World-space layout for the homepage 3D scene — spacing, camera, and unit poses.
 // No three.js imports so DOM-side modules can share the math.
 import { UNIT_COUNT } from "../data";
 

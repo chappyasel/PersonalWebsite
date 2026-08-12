@@ -68,8 +68,8 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
+    process.env.NODE_ENV === "production"
+      ? "https://www.chappyasel.com"
       : (process.env.NEXTAUTH_URL ??
         `http://localhost:${process.env.PORT ?? 3000}`),
   ),

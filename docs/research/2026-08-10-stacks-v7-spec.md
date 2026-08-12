@@ -1,4 +1,4 @@
-# The Stacks v7 — owner feedback tracker (2026-08-10)
+# Homepage 3D scene v7 — owner feedback tracker (2026-08-10)
 
 Every item from the owner's round-3 review, verbatim, with an ID. This file is the
 contract: **nothing here ships as "done" without evidence**, and nothing here gets

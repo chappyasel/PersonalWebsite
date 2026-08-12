@@ -1,12 +1,12 @@
-# The Stacks v8 — refinement and completeness spec
+# Homepage 3D scene v8 — refinement and completeness spec
 
 ## Problem Statement
 
-The new Stacks homepage has the right experiential direction, but it still reads as a work in progress. The personal photography is not the intended set, several units feel sparse or unbalanced, shelf and prop proportions are inconsistent, some skyline and lighting details break the illusion, physics coverage is inconsistent, and the placard/navigation experience lacks the same degree of finish on desktop and mobile. The large number of interdependent visual requests also makes it easy for an individual detail to be changed without being verified in every theme, viewport, and interaction state.
+The new 3D homepage has the right experiential direction, but it still reads as a work in progress. The personal photography is not the intended set, several units feel sparse or unbalanced, shelf and prop proportions are inconsistent, some skyline and lighting details break the illusion, physics coverage is inconsistent, and the placard/navigation experience lacks the same degree of finish on desktop and mobile. The large number of interdependent visual requests also makes it easy for an individual detail to be changed without being verified in every theme, viewport, and interaction state.
 
 ## Solution
 
-Refine the Stacks as one coherent room rather than a collection of isolated fixes. Replace the personal imagery with the owner-curated photo library, rebalance every unit around narrower and taller-spaced shelves, improve prop density and physical consistency, rebuild the light sky and landmark details, and give every interactive object a common physical/hover vocabulary. Unify placard, card, navigation, and mobile-sheet styling and motion, then adversarially audit every requested item across desktop and mobile, light and dark themes, all seven units, and the secret seated view.
+Refine the 3D homepage as one coherent room rather than a collection of isolated fixes. Replace the personal imagery with the owner-curated photo library, rebalance every unit around narrower and taller-spaced shelves, improve prop density and physical consistency, rebuild the light sky and landmark details, and give every interactive object a common physical/hover vocabulary. Unify placard, card, navigation, and mobile-sheet styling and motion, then adversarially audit every requested item across desktop and mobile, light and dark themes, all seven units, and the secret seated view.
 
 ## User Stories
 
@@ -183,7 +183,7 @@ Refine the Stacks as one coherent room rather than a collection of isolated fixe
 - [x] 156. Extend the sheet's glass surface below its measured content box so resisted upward overdrag never exposes the page background beneath it.
 - [x] 157. Make the inter-unit loaded barbell a 60kg floor-physics Grabbable, preserving its Weightlifting tap destination while drag-versus-tap arbitration prevents accidental navigation during a carry.
 - [x] 158. Darken and blur the Featured Talks play control, remove the misleading lower white thumbnail fade, and retain a clear white play glyph in both themes.
-- [x] 159. Make Stacks-opened book modals reproduce the standalone detail breadcrumb exactly (`Chappy's Book Notes / [books] N books`) and route both breadcrumb and expand actions to the absolute Books host, including local subdomain development.
+- [x] 159. Make homepage-opened book modals reproduce the standalone detail breadcrumb exactly (`Chappy's Book Notes / [books] N books`) and route both breadcrumb and expand actions to the absolute Books host, including local subdomain development.
 - [x] 160. Replace the shared content-swapping mobile sheet with seven resident per-section sheets that independently translate and fade like the desktop panels. Each card owns its title, body, measurement, and scroll state, eliminating the observer-frame height race rather than compensating for it after paint.
 - [x] 161. Treat every press outside an expanded mobile sheet as a collapse request; section-rail presses additionally complete their requested navigation in the same interaction instead of being discarded while the panel is open.
 - [x] 162. Remove repeated shared-section titles from resident mobile cards, including before async bodies settle, and make the complete title band toggle expanded/peek detents while preserving the X as a separate dismiss-to-pill control.
