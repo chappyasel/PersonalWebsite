@@ -45,15 +45,15 @@ const MONSTERA_ATLAS_DARK = {
   colorSwaps: [{ from: "#334d68", to: "#4e713d", tolerance: 6 }] as const,
 } as const;
 
-const V8_PHOTOS_BY_UNIT: readonly (readonly string[])[] = [
-  [
+const V8_PHOTOS_BY_UNIT: Record<UnitSlug, readonly string[]> = {
+  about: [
     "about-collective-group",
     "about-delicate-arch",
     "about-family",
     "about-speaking-candid",
   ],
-  [],
-  [
+  books: [],
+  training: [
     "training-bench",
     "training-deadlift",
     "training-golf-flag",
@@ -64,16 +64,16 @@ const V8_PHOTOS_BY_UNIT: readonly (readonly string[])[] = [
     "training-trophy-front",
     "training-trophy-side",
   ],
-  [
+  talks: [
     "talk-ann-interview",
     "talk-consensus-phone",
     "talk-dc-policy",
     "talk-demo-night",
     "talk-panel",
   ],
-  ["projects-coding-couch", "projects-wwdc"],
-  [],
-  [
+  projects: ["projects-coding-couch", "projects-wwdc"],
+  blog: [],
+  systems: [
     "systems-home-office",
     "systems-lake",
     "systems-lighthouse",
@@ -81,7 +81,7 @@ const V8_PHOTOS_BY_UNIT: readonly (readonly string[])[] = [
     "systems-supplements",
     "systems-working-session",
   ],
-] as const;
+};
 
 // Tap anywhere on a unit: mobile opens the panel for the active unit,
 // otherwise travel there (same pushState + travelTo as the rail). Desktop
@@ -140,27 +140,34 @@ function Scene({
   // direct rail/deep-link jump promotes its destination and neighbours to the
   // front of the queue synchronously.
   useEffect(() => {
-    const byUnit: string[][] = V8_PHOTOS_BY_UNIT.map((names) =>
-      names.map((name) => `/images/stacks/v8/${name}.webp`),
-    );
-    byUnit[0]!.unshift(proxied(PORTRAIT_SRC, coverWidth));
-    byUnit[1]!.push(
+    const byUnit = Object.fromEntries(
+      UNITS.map(({ slug }) => [
+        slug,
+        V8_PHOTOS_BY_UNIT[slug].map((name) => `/images/stacks/v8/${name}.webp`),
+      ]),
+    ) as Record<UnitSlug, string[]>;
+    byUnit.about.unshift(proxied(PORTRAIT_SRC, coverWidth));
+    byUnit.books.push(
       ...data.shelfBooks
         .filter((b) => b.coverUrl)
         .map((b) => proxied(b.coverUrl!, coverWidth)),
     );
-    byUnit[3]!.push(
+    byUnit.talks.push(
       ...data.talks.map((talk) => proxied(talk.still, coverWidth)),
     );
-    byUnit[4]!.push(
+    byUnit.projects.push(
       ...data.projects.map((project) => proxied(project.image, coverWidth)),
     );
 
-    const warmed = new Set<number>();
+    const warmed = new Set<UnitSlug>();
+    const warmSlug = (slug: UnitSlug) => {
+      if (warmed.has(slug)) return;
+      warmed.add(slug);
+      for (const url of byUnit[slug]) useTexture.preload(url);
+    };
     const warmUnit = (index: number) => {
-      if (index < 0 || index >= UNIT_COUNT || warmed.has(index)) return;
-      warmed.add(index);
-      for (const url of byUnit[index]!) useTexture.preload(url);
+      if (index < 0 || index >= UNIT_COUNT) return;
+      warmSlug(UNITS[index]!.slug);
     };
     const warmNear = (index: number) => {
       warmUnit(index);
@@ -173,9 +180,10 @@ function Scene({
       if (state.activeUnit !== previous.activeUnit) warmNear(state.activeUnit);
     });
 
-    // Units ordered by likely first traversal from About. Empty Blog remains
-    // in the queue only so the scheduler is layout-order agnostic.
-    const idleQueue = [2, 3, 4, 5, 6];
+    // Follow the canonical traverse. Already-warmed current/adjacent units
+    // are cheap no-ops, and even media-empty units remain in the queue so the
+    // scheduler never acquires its own ordering knowledge.
+    const idleQueue = UNITS.map((unit) => unit.slug);
     let queueIndex = 0;
     let idleHandle = 0;
     let delayHandle = 0;
@@ -188,7 +196,7 @@ function Scene({
       if (cancelled || queueIndex >= idleQueue.length) return;
       const run = () => {
         if (cancelled) return;
-        warmUnit(idleQueue[queueIndex++]!);
+        warmSlug(idleQueue[queueIndex++]!);
         delayHandle = window.setTimeout(scheduleNext, 650);
       };
       if (idleApi.requestIdleCallback) {

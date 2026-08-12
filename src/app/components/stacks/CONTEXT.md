@@ -10,7 +10,7 @@ one continuous space rather than listing sections on a page.
 shared atmosphere, traveled laterally.
 
 **Unit** — one shelf vignette representing one facet (About, Books, Training,
-Talks, Projects, Musings, Systems). A unit has scene objects and exactly one
+Systems, Projects, Musings, Talks). A unit has scene objects and exactly one
 placard. The unit order is fixed and meaningful: it is the traverse.
 
 **Traverse** — the full journey from the first unit to the last. Vertical

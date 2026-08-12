@@ -346,13 +346,15 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
         />
       </ShelfUnit>
 
-      <group position={[-1.98, -1.115, -0.15]} rotation={[0, 0.15, 0]}>
+      {/* Shared floor fixture on the outgoing Systems/Projects seam. Mirror
+          the old incoming placement so its face turns back into both bays. */}
+      <group position={[1.98, -1.115, -0.15]} rotation={[0, -0.15, 0]}>
         <FloorClock unitIndex={index} dark={dark} />
       </group>
       <FootPool
         color={palette.shadow}
         size={[0.66, 0.44]}
-        position={[-1.98, -1.115, -0.1]}
+        position={[1.98, -1.115, -0.1]}
       />
     </group>
   );

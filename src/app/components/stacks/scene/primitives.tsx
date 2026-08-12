@@ -2063,7 +2063,7 @@ export function FrameRow({
   focus = [0.5, 0],
   grabbable = false,
 }: {
-  frames: { src: string; key: string }[];
+  frames: { src: string; key: string; href?: string }[];
   width: number;
   palette: Palette;
   textured?: boolean;
@@ -2083,7 +2083,7 @@ export function FrameRow({
   const setHovered = useStacks((s) => s.setHovered);
   return (
     <group>
-      {frames.map(({ src, key }, i) => {
+      {frames.map(({ src, key, href }, i) => {
         // Frames at 0.76 wide on 2.6-row slots leave ~0.1 air between them;
         // per-frame yaw/roll jitter + a z-stagger kill the edge-to-edge
         // "thumbnail band" read. The roll drops one bottom corner, so the
@@ -2142,7 +2142,7 @@ export function FrameRow({
                         }
                   }
                   onClick={
-                    !grabbable && onFrameClick
+                    !grabbable && onFrameClick && href
                       ? (e) => {
                           if ((e.delta ?? 0) > 6) return; // swipe, not a tap
                           if (
@@ -2151,7 +2151,7 @@ export function FrameRow({
                           )
                             return; // → the unit tap plane travels
                           e.stopPropagation();
-                          onFrameClick(key);
+                          onFrameClick(href);
                         }
                       : undefined
                   }
@@ -2175,7 +2175,7 @@ export function FrameRow({
             shadeWidth={0.82}
             shape="box"
             massKg={0.82}
-            onTap={onFrameClick ? () => onFrameClick(key) : undefined}
+            onTap={onFrameClick && href ? () => onFrameClick(href) : undefined}
           >
             {frame}
           </Grabbable>

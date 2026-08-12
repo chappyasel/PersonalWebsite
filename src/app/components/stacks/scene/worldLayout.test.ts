@@ -6,6 +6,7 @@ import {
   cameraForAspect,
   cameraXForScrollOffset,
   scrollOffsetForUnit,
+  unitPose,
 } from "./worldLayout";
 
 function projectionScale(pose: { z: number; fov: number }) {
@@ -20,7 +21,9 @@ describe("mobile camera framing", () => {
     expect(phone.fov).toBeCloseTo(32.5, 4);
     expect(tablet.fov).toBeCloseTo(40.5, 4);
     expect(projectionScale(phone)).toBeGreaterThan(projectionScale(tablet));
-    expect(projectionScale(phone) / projectionScale({ z: phone.z, fov: 38.5 })).toBeCloseTo(1.2, 2);
+    expect(
+      projectionScale(phone) / projectionScale({ z: phone.z, fov: 38.5 }),
+    ).toBeCloseTo(1.2, 2);
   });
 
   it("leaves landscape and desktop framing unchanged", () => {
@@ -38,5 +41,19 @@ describe("About lead-in", () => {
     expect(TRAVEL_LEAD_IN).toBe(1.2);
     expect(cameraXForScrollOffset(0)).toBe(-1.2);
     expect(cameraXForScrollOffset(scrollOffsetForUnit(0))).toBeCloseTo(0, 10);
+  });
+});
+
+describe("alternating unit poses", () => {
+  it("recesses Systems in slot four and brings final Talks forward", () => {
+    const systems = unitPose(3);
+    const talks = unitPose(6);
+
+    expect(systems.position[0]).toBeCloseTo(13.2, 10);
+    expect(systems.position[2]).toBe(-0.55);
+    expect(systems.rotation[1]).toBe(-0.12);
+    expect(talks.position[0]).toBeCloseTo(26.4, 10);
+    expect(talks.position[2]).toBe(0);
+    expect(talks.rotation[1]).toBe(0.1);
   });
 });

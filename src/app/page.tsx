@@ -47,9 +47,9 @@ export const viewport: Viewport = {
 // liars-dice replaced fantasy in v4 — the fantasy image is a GitHub file
 // listing, illegible at frame scale (audit §3-Projects).
 const SCENE_PROJECT_IMAGES = [
-  "homework.jpg",
   "weightlifting.jpg",
   "liars-dice.png",
+  "homework.jpg",
 ];
 
 // Scene-only still overrides for the Talks frames (JSON data untouched):

@@ -50,7 +50,13 @@ import licenses from "~~/models/LICENSES.json";
 
 import { devSubdomainUrl } from "~/lib/util";
 
-import { mobileSheetGeometry, mobileSheetRestY } from "./mobileSheetGeometry";
+import {
+  mobileSheetCameraCoverage,
+  mobileSheetGeometry,
+  mobileSheetMaterialOverscan,
+  mobileSheetRestY,
+  mobileSheetRubberBandY,
+} from "./mobileSheetGeometry";
 
 /** Which edges of a scroll container have content past them. Mirrors the
  * AIC platform's pattern of only fading an edge that actually continues, so
@@ -963,10 +969,11 @@ const SHEET_SPRING = {
  * sections keep the same viewing detent, while the store keeps meaning
  * exactly what it meant before — "the panel owns the viewport".
  *
- * The sheet is always mounted and is content-height up to a viewport-safe
- * cap; the three detents are three values of a translateY. That is what lets
- * one continuous drag run from expanded to dismissed without reflowing the
- * text on every gesture frame.
+ * The sheet is always mounted and its content frame is content-height up to a
+ * viewport-safe cap; the three detents are three values of a translateY. The
+ * material shell extends farther below the viewport, but never participates
+ * in measurement. That is what lets one continuous drag run from expanded to
+ * dismissed without reflowing the text on every gesture frame.
  *
  * WHICH GESTURE WINS. Three vertical drags compete on a phone:
  *
@@ -1027,11 +1034,11 @@ function MobileUnitPanel({
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const contentFrameRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  // Mobile keeps its sheet — an opaque surface is what makes the text
-  // readable over a rendered room — but it loses the inner cards and gains
-  // the same edge fade as desktop, so the two form factors read as one
-  // design rather than two.
+  // Mobile keeps one translucent material surface to make text readable over
+  // the rendered room, but loses the inner cards and gains the same edge fade
+  // as desktop, so the two form factors read as one design rather than two.
   const edges = useScrollEdges(scrollRef, expanded && active);
 
   // One scroller serves seven placards and all three detents, so its
@@ -1063,6 +1070,7 @@ function MobileUnitPanel({
   // the visible title window remains fixed even as the off-screen body swaps.
   const vh = metrics?.vh ?? 0;
   const peek = metrics?.peek ?? 0;
+  const materialOverscan = mobileSheetMaterialOverscan(vh);
   const [naturalHeight, setNaturalHeight] = useState(0);
   useLayoutEffect(() => {
     const content = contentRef.current;
@@ -1092,22 +1100,23 @@ function MobileUnitPanel({
   const contentHeight = Math.max(peek, naturalHeight || peek);
   const requestedHeight =
     vh && contentHeight >= vh - SHEET_MAX_SNAP_PX ? vh : contentHeight;
-  // The actual box may be shorter than requestedHeight because max-height
-  // clears the dynamic viewport and its safe area. The drag detents and
-  // coverage publisher must use the rendered number, not the request.
+  // The content frame may be shorter than requestedHeight because max-height
+  // clears the dynamic viewport and its safe area. The material shell is
+  // deliberately taller, so drag detents and camera coverage measure this
+  // inner frame rather than the shell.
   const [sheetHeight, setSheetHeight] = useState(0);
   useEffect(() => {
-    const panel = panelRef.current;
-    if (!panel) return;
+    const frame = contentFrameRef.current;
+    if (!frame) return;
     const measure = () => {
-      const next = panel.getBoundingClientRect().height;
+      const next = frame.getBoundingClientRect().height;
       setSheetHeight((previous) =>
         Math.abs(previous - next) < SHEET_HEIGHT_EPSILON_PX ? previous : next,
       );
     };
     measure();
     const ro = new ResizeObserver(measure);
-    ro.observe(panel);
+    ro.observe(frame);
     return () => ro.disconnect();
   }, [requestedHeight]);
   const renderedHeight = sheetHeight || requestedHeight;
@@ -1308,10 +1317,9 @@ function MobileUnitPanel({
   useEffect(() => {
     if (!active) return;
     const publish = (value: number) => {
-      const covered = renderedHeight - value;
       panelCoverageRef.current =
         narrow && vh
-          ? Math.min(1, Math.max(0, (covered - peek * 0.5) / vh))
+          ? mobileSheetCameraCoverage(renderedHeight, value, peek, vh)
           : 0;
     };
     publish(y.get());
@@ -1606,8 +1614,9 @@ function MobileUnitPanel({
       }
       lastY = clientY;
       const next = base + dy;
-      // Above full height there is nothing left to reveal, so resist.
-      y.set(next < 0 ? next * 0.25 : next);
+      // Above full height there is nothing left to reveal, so resist and
+      // clamp to the exact range covered by the material overscan.
+      y.set(mobileSheetRubberBandY(next, metrics.vh));
       return true;
     };
     /** Snap to whichever detent the throw asked for. */
@@ -1787,8 +1796,9 @@ function MobileUnitPanel({
           style={{
             y,
             opacity: sheetOpacity,
-            height: requestedHeight,
-            maxHeight: "calc(100dvh - env(safe-area-inset-top, 0px) - 1.25rem)",
+            bottom: -materialOverscan,
+            height: requestedHeight + materialOverscan,
+            maxHeight: `calc(100dvh - env(safe-area-inset-top, 0px) - 1.25rem + ${materialOverscan}px)`,
           }}
           animate={{ x: reduceMotion || active ? 0 : side * SWAP_DISTANCE_PX }}
           transition={{ duration: reduceMotion ? 0 : active ? 0.22 : 0.12 }}
@@ -1809,83 +1819,92 @@ function MobileUnitPanel({
           // `stacks-sheet` is the frosting: the same backdrop recipe as the
           // desktop plates, so the room reads through the sheet rather than
           // stopping at it. See the CSS at the foot of this file.
-          className={`stacks-sheet fixed bottom-0 left-0 right-0 z-40 mx-auto flex w-[calc(100%-2.5rem)] max-w-[700px] flex-col rounded-t-3xl border-x border-t border-foreground/[0.07] shadow-[0px_-4px_18px_rgba(0,0,0,0.055)] ${
+          className={`stacks-sheet fixed left-0 right-0 z-40 mx-auto w-[calc(100%-2.5rem)] max-w-[700px] rounded-t-3xl border-x border-t border-foreground/[0.07] shadow-[0px_-4px_18px_rgba(0,0,0,0.055)] ${
             interactive ? "pointer-events-auto" : "pointer-events-none"
           } visible`}
         >
-          {/* The grabber is the whole discoverability story for the drag, and
+          <div
+            ref={contentFrameRef}
+            className="flex min-h-0 w-full flex-col"
+            style={{
+              height: requestedHeight,
+              maxHeight:
+                "calc(100dvh - env(safe-area-inset-top, 0px) - 1.25rem)",
+            }}
+          >
+            {/* The grabber is the whole discoverability story for the drag, and
             it is why the sheet does not need a caption explaining itself.
             There is no chevron beside it any more: a button that duplicated
             the gesture earned its space only while the gesture was in doubt. */}
-          <button
-            type="button"
-            aria-label={
-              expanded ? "Collapse section panel" : "Expand section panel"
-            }
-            onClick={expanded ? collapse : expand}
-            className="stacks-sheet-grabber relative z-10 flex h-6 w-full items-start justify-center rounded-t-3xl pt-4 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/45"
-          >
-            <span
-              aria-hidden
-              className="h-1 w-10 rounded-full bg-foreground/25"
-            />
-          </button>
-          <div className="relative z-10 flex h-10 items-center justify-between pl-5 pr-1">
-            {/* Hoisted out of the body — see the effect above. It fades with
+            <button
+              type="button"
+              aria-label={
+                expanded ? "Collapse section panel" : "Expand section panel"
+              }
+              onClick={expanded ? collapse : expand}
+              className="stacks-sheet-grabber relative z-10 flex h-6 w-full items-start justify-center rounded-t-3xl pt-4 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/45"
+            >
+              <span
+                aria-hidden
+                className="h-1 w-10 rounded-full bg-foreground/25"
+              />
+            </button>
+            <div className="relative z-10 flex h-10 items-center justify-between pl-5 pr-1">
+              {/* Hoisted out of the body — see the effect above. It fades with
               the body it names, so a section change never shows one
               placard's title over another's content. */}
-            <button
-              type="button"
-              aria-label={`${expanded ? "Collapse" : "Expand"} ${title} section panel`}
-              onClick={expanded ? collapse : expand}
-              data-stacks-swap-part="header"
-              className="flex h-full min-w-0 flex-1 items-center gap-2.5 text-left focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/45"
-            >
-              <ShownIcon
-                aria-hidden
-                weight="bold"
-                className="size-[1.375rem] shrink-0"
-              />
-              <h2 className="truncate font-serif text-xl font-semibold text-foreground">
-                {title}
-              </h2>
-            </button>
-            <button
-              type="button"
-              aria-label="Close"
-              onClick={dismiss}
-              className="-my-0.5 flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground focus-visible:ring-2 focus-visible:ring-foreground/45"
-            >
-              <XIcon className="size-5" weight="bold" />
-            </button>
-          </div>
-          {/* Mobile takes the same masked-scroller dissolve as desktop. It
+              <button
+                type="button"
+                aria-label={`${expanded ? "Collapse" : "Expand"} ${title} section panel`}
+                onClick={expanded ? collapse : expand}
+                data-stacks-swap-part="header"
+                className="flex h-full min-w-0 flex-1 items-center gap-2.5 text-left focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/45"
+              >
+                <ShownIcon
+                  aria-hidden
+                  weight="bold"
+                  className="size-[1.375rem] shrink-0"
+                />
+                <h2 className="truncate font-serif text-xl font-semibold text-foreground">
+                  {title}
+                </h2>
+              </button>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={dismiss}
+                className="-my-0.5 flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground focus-visible:ring-2 focus-visible:ring-foreground/45"
+              >
+                <XIcon className="size-5" weight="bold" />
+              </button>
+            </div>
+            {/* Mobile takes the same masked-scroller dissolve as desktop. It
             needs no plate layer: the sheet behind is the one blurred
             surface, so nothing inside it is asking for a backdrop. */}
-          <div className="relative min-h-0 flex-1">
-            <div
-              ref={scrollRef}
-              tabIndex={interactive ? 0 : -1}
-              aria-label={`${title} section content`}
-              // Only tagged while it can actually scroll. The attribute is what
-              // ScrollBridges' wheel handler bails on, and leaving it on an
-              // `overflow: hidden` element would deaden a third of the screen
-              // to the wheel on a narrow desktop window for no reason.
-              data-stacks-scrollable={expanded ? "" : undefined}
-              // `overscroll-none` for the same reason as the desktop scroller:
-              // contain leaves the elastic bounce in place. It matters more
-              // here, because the pull-down arms at scrollTop 0 and a native
-              // rubber-band at the top edge competes for the same drag.
-              className={`stacks-scroll placard-scroll h-full overscroll-none px-5 pb-6 pt-3 font-serif text-muted-foreground ${
-                expanded ? "overflow-y-auto" : "overflow-hidden"
-              }`}
-              style={
-                expanded && sheetMask
-                  ? { maskImage: sheetMask, WebkitMaskImage: sheetMask }
-                  : undefined
-              }
-            >
-              {/* Short placards sit centred once the sheet is at full height,
+            <div className="relative min-h-0 flex-1">
+              <div
+                ref={scrollRef}
+                tabIndex={interactive ? 0 : -1}
+                aria-label={`${title} section content`}
+                // Only tagged while it can actually scroll. The attribute is what
+                // ScrollBridges' wheel handler bails on, and leaving it on an
+                // `overflow: hidden` element would deaden a third of the screen
+                // to the wheel on a narrow desktop window for no reason.
+                data-stacks-scrollable={expanded ? "" : undefined}
+                // `overscroll-none` for the same reason as the desktop scroller:
+                // contain leaves the elastic bounce in place. It matters more
+                // here, because the pull-down arms at scrollTop 0 and a native
+                // rubber-band at the top edge competes for the same drag.
+                className={`stacks-scroll placard-scroll h-full overscroll-none px-5 pb-6 pt-3 font-serif text-muted-foreground ${
+                  expanded ? "overflow-y-auto" : "overflow-hidden"
+                }`}
+                style={
+                  expanded && sheetMask
+                    ? { maskImage: sheetMask, WebkitMaskImage: sheetMask }
+                    : undefined
+                }
+              >
+                {/* Short placards sit centred once the sheet is at full height,
                 which is the same thing the desktop dock does and for the same
                 reason. Book Notes is 236px of content: pinned to the top of an
                 844px sheet it left five sixths of the screen empty and read as
@@ -1896,13 +1915,16 @@ function MobileUnitPanel({
                 title and the opening lines is its entire job — and on a tall
                 placard `justify-center` is a no-op either way, since the
                 content already exceeds the container. */}
-              <div
-                ref={contentRef}
-                data-stacks-swap-part="body"
-                data-duplicate-section-title={bodyRepeatsTitle ? "" : undefined}
-                className="placard-body flex flex-col justify-start"
-              >
-                {body}
+                <div
+                  ref={contentRef}
+                  data-stacks-swap-part="body"
+                  data-duplicate-section-title={
+                    bodyRepeatsTitle ? "" : undefined
+                  }
+                  className="placard-body flex flex-col justify-start"
+                >
+                  {body}
+                </div>
               </div>
             </div>
           </div>
@@ -2141,26 +2163,6 @@ export default function PlacardLayer({
           background-color: var(--sheet-fill);
           backdrop-filter: blur(58px) saturate(1.7) brightness(1.18);
           -webkit-backdrop-filter: blur(58px) saturate(1.7) brightness(1.18);
-        }
-        /* Upward overdrag deliberately has resistance, but the translated
-           sheet's physical bottom used to rise with it and expose a white
-           strip. Continue the same surface below the measured box. Absolute
-           positioning keeps this out of content-height and detent math; it is
-           only revealed when the sheet rubber-bands above y=0. */
-        .stacks-sheet::after {
-          content: "";
-          pointer-events: none;
-          position: absolute;
-          z-index: -1;
-          top: calc(100% - 1px);
-          left: -1px;
-          right: -1px;
-          height: max(18rem, 50dvh);
-          /* This continuation cannot sample the backdrop outside its parent's
-             measured blur box, so replaying the translucent fill rendered a
-             darker grey band. Use the sheet's resolved paper colour at near
-             opacity; the one-pixel overlap makes the join invisible. */
-          background-color: hsl(var(--background) / 0.94);
         }
         @media (prefers-reduced-motion: reduce) {
           [data-stacks-desktop-panel] {

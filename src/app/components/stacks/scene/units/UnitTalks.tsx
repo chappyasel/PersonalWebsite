@@ -435,7 +435,7 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
           </Sway>
         </Grabbable>
       </ShelfUnit>
-      {/* Floor lamp in the breathing room between Talks and Projects. Its
+      {/* Floor lamp in the breathing room between Musings and Talks. Its
           local x is half the 4.4-unit pitch, so it belongs to neither shelf
           while still warming both. See LAMP_S for why it is 1.67 and not the 1.95 that stood
           it taller than a grandfather clock.
@@ -445,10 +445,10 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
           ground pool is a sibling in the rig, because an additive sprite is a
           metre-wide transparent quad and inside the trigger it becomes an
           invisible hit box over half the unit. */}
-      <group position={[2.12, -1.115, 0.06]} rotation={[0, -0.45, 0]}>
+      <group position={[-2.12, -1.115, 0.06]} rotation={[0, 0.45, 0]}>
         <LampSwitch
           unitIndex={index}
-          activeUnitIndexes={[index, index + 1]}
+          activeUnitIndexes={[index - 1, index]}
           hoverKey={`egg:lamp:floor:${index}`}
           litRef={lit}
           rig={

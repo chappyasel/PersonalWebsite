@@ -60,10 +60,10 @@ export const UNITS: Unit[] = [
   { slug: "about", label: "About", icon: UserIcon },
   { slug: "books", label: "Book Notes", icon: BooksIcon },
   { slug: "training", label: "Weightlifting", icon: BarbellIcon },
-  { slug: "talks", label: "Featured Talks", icon: MicrophoneStageIcon },
+  { slug: "systems", label: "Systems", icon: CompassIcon },
   { slug: "projects", label: "Projects", icon: CodeIcon },
   { slug: "blog", label: "Musings", icon: PenNibIcon },
-  { slug: "systems", label: "Systems", icon: CompassIcon },
+  { slug: "talks", label: "Featured Talks", icon: MicrophoneStageIcon },
 ];
 
 export const UNIT_COUNT = UNITS.length;
@@ -84,7 +84,7 @@ export type StacksTalk = {
 
 export type StacksProject = {
   name: string;
-  link: string;
+  link?: string;
   image: string;
 };
 

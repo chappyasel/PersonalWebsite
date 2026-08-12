@@ -8,18 +8,17 @@
       "description": "A gamified iOS app to tracks and analyze user workouts complete with intelligent feedback, online leaderboards. Contains multiple heuristic algorithms to gamify user progress via achievements and milestones."
     },
     {
-      "name": "Homework App (Acquired)",
-      "link": "https://apps.apple.com/us/app/id1097438761",
-      "image": "homework.jpg",
-      "languages": ["Objective C"],
-      "description": "An iOS app I built back in high school for organizing and keeping track of my homework assignments. Ended up becoming the #1 homework app on the App Store and got acquired by Haystack AI!"
-    },
-    {
       "name": "Liar's Dice",
       "link": "/liarsdice",
       "image": "liars-dice.png",
       "languages": ["React", "TypeScript"],
       "description": "Liar's Dice is a dice game that combines luck and skill as one must weigh probabilities with the game theory involved in predicting the decisions of other intellegent actors. I developed a simple tool to assist in deriving probabilities for each hand to aid in decision-making. This is exposed both as a simple React webpage as well as an API accessible by posting a POST request /api/v1/liarsdice/play."
+    },
+    {
+      "name": "Homework App (Acquired)",
+      "image": "homework.jpg",
+      "languages": ["Objective C"],
+      "description": "An iOS app I built back in high school for organizing and keeping track of my homework assignments. Ended up becoming the #1 homework app on the App Store and got acquired by Haystack AI!"
     },
     {
       "name": "Web Experiments",
