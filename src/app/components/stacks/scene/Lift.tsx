@@ -34,12 +34,38 @@ import {
 export const LIFT_LAMBDA = 10;
 const LAMBDA = LIFT_LAMBDA;
 
+/** One scene-wide legibility control for hover distance. This intentionally
+ * scales displacement, rotation and swell DELTA without changing the damping
+ * curve: props move twice as far, not twice as abruptly. */
+export const HOVER_MOTION_SCALE = 2;
+
 /** Radians of automatic nod, for a prop whose call site authored no rotation
- * response of its own. ~3.4°, which on a 0.5-tall book cover walks the top
- * edge about 1.5 cm — legible beside a 3 cm rise, and small enough that
- * crossing a shelf of props does not set the room rocking. Exported so the
- * universal floor in ModelProp can nod by exactly the same amount. */
-export const TIP = 0.06;
+ * response of its own. The original 0.06-radian gesture was difficult to see
+ * at shelf distance; the shared scale makes it ~6.9° while the hinge keeps the
+ * front-bottom contact edge planted. Exported so Grabbable and ModelProp nod
+ * by exactly the same amount. */
+export const TIP = 0.06 * HOVER_MOTION_SCALE;
+
+/** Apply the global scale around the neutral value rather than multiplying
+ * the value itself. In particular, 1.02 grows to 1.04, not 2.04. Exported for
+ * the small deterministic contract test. */
+export function amplifyHoverMotion(
+  offset: [number, number, number],
+  settle: number,
+  grow: number,
+  tip: number,
+) {
+  return {
+    offset: offset.map((value) => value * HOVER_MOTION_SCALE) as [
+      number,
+      number,
+      number,
+    ],
+    settle: settle * HOVER_MOTION_SCALE,
+    grow: 1 + (grow - 1) * HOVER_MOTION_SCALE,
+    tip: tip * HOVER_MOTION_SCALE,
+  };
+}
 
 /** Walk one euler component `by` radians toward level, never past it. */
 const toward = (v: number, by: number) =>
@@ -130,7 +156,13 @@ export default function Lift({
   /** A caller-authored rotation response wins; `tip={0}` refuses outright. */
   const authored =
     settle > 0 && !!rest && (rest[0] !== 0 || rest[1] !== 0 || rest[2] !== 0);
-  const wanted = still ? 0 : (tip ?? (authored ? 0 : TIP));
+  const motion = amplifyHoverMotion(
+    offset,
+    settle,
+    grow,
+    tip ?? (authored ? 0 : TIP / HOVER_MOTION_SCALE),
+  );
+  const wanted = still ? 0 : motion.tip;
 
   useFrame((_, delta) => {
     const g = ref.current;
@@ -156,14 +188,14 @@ export default function Lift({
       }
     }
     const pivot = hinge.current?.pivot ?? null;
-    const tx = base[0] + (lifted ? offset[0] : 0);
-    const ty = base[1] + (lifted ? offset[1] : 0);
-    const tz = base[2] + (lifted ? offset[2] : 0);
-    const by = lifted ? settle : 0;
+    const tx = base[0] + (lifted ? motion.offset[0] : 0);
+    const ty = base[1] + (lifted ? motion.offset[1] : 0);
+    const tz = base[2] + (lifted ? motion.offset[2] : 0);
+    const by = lifted ? motion.settle : 0;
     const rx = (rest ? toward(rest[0], by) : 0) + (lifted && pivot ? wanted : 0);
     const ry = rest ? toward(rest[1], by) : 0;
     const rz = rest ? toward(rest[2], by) : 0;
-    const ts = lifted ? grow : 1;
+    const ts = lifted ? motion.grow : 1;
     const r = g.rotation;
     const error =
       Math.abs(pos.x - tx) +

@@ -1033,6 +1033,7 @@ function MobileUnitPanel({
   const shownSlug = unit.slug;
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const materialRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const contentFrameRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -1134,14 +1135,27 @@ function MobileUnitPanel({
   // to make that stale-height frame cover the viewport; the shorter units
   // happened to hide the bug below the fold.
   const sheetOpacity = useMotionValue(1);
+  const [sheetParked, setSheetParked] = useState(false);
   const sheetParkedRef = useRef(false);
   const parkSheet = useCallback((parked: boolean) => {
     sheetParkedRef.current = parked;
+    setSheetParked(parked);
+
     const panel = panelRef.current;
     panel?.toggleAttribute("data-sheet-parked", parked);
     panel?.classList.toggle("invisible", parked);
     panel?.classList.toggle("visible", !parked);
-  }, []);
+
+    // Every resident reacts to the shared detent, but only the active one may
+    // paint glass. Re-showing all seven here stacks seven translucent fills
+    // into an opaque white slab and can expose a tall inactive shell above a
+    // short active sheet.
+    const material = materialRef.current;
+    const materialHidden = parked || !active;
+    material?.toggleAttribute("data-sheet-parked", parked);
+    material?.classList.toggle("invisible", materialHidden);
+    material?.classList.toggle("visible", !materialHidden);
+  }, [active]);
   // A book modal takes the viewport, so the sheet gets out of its way rather
   // than sitting behind it at z-40. The hidden reading room does the same:
   // its reveal is a whole-bay scene change, and leaving the Book Notes sheet
@@ -1767,11 +1781,35 @@ function MobileUnitPanel({
           />
         )}
       </AnimatePresence>
+      {/* The glass is a sibling of the fading content, never its child. An
+          opacity below one on any ancestor makes a backdrop root; when the
+          material lived inside the crossfade below, browsers could not sample
+          the room until that opacity reached exactly one, so the blur popped
+          in on the final frame. The resident material switches immediately
+          between identical aligned surfaces while only their contents fade. */}
+      <motion.div
+        ref={materialRef}
+        aria-hidden
+        data-stacks-sheet-material=""
+        data-stacks-panel-unit={shownSlug}
+        style={{
+          y,
+          bottom: -materialOverscan,
+          height: requestedHeight + materialOverscan,
+          maxHeight: `calc(100dvh - env(safe-area-inset-top, 0px) - 1.25rem + ${materialOverscan}px)`,
+        }}
+        className={`stacks-sheet pointer-events-none fixed left-0 right-0 z-40 mx-auto w-[calc(100%-2.5rem)] max-w-[700px] rounded-t-3xl border-x border-t border-foreground/[0.07] shadow-[0px_-4px_18px_rgba(0,0,0,0.055)] ${
+          active && !sheetParked ? "visible" : "invisible"
+        }`}
+      />
+      {/* Section opacity belongs to content alone. This layer intentionally
+          contains no backdrop-filter, so its crossfade cannot interrupt the
+          continuously rendered glass above. */}
       <motion.div
         aria-hidden={!active}
         animate={{ opacity: active ? 1 : 0 }}
         transition={{ duration: reduceMotion ? 0 : active ? 0.22 : 0.12 }}
-        className="pointer-events-none fixed inset-0 z-40"
+        className="pointer-events-none fixed inset-0 z-[41]"
       >
         <motion.div
           ref={panelRef}
@@ -1816,12 +1854,11 @@ function MobileUnitPanel({
           // never does. `left/right-0 + mx-auto` rather than a translate,
           // because the transform is already carrying the drag.
           //
-          // `stacks-sheet` is the frosting: the same backdrop recipe as the
-          // desktop plates, so the room reads through the sheet rather than
-          // stopping at it. See the CSS at the foot of this file.
-          className={`stacks-sheet fixed left-0 right-0 z-40 mx-auto w-[calc(100%-2.5rem)] max-w-[700px] rounded-t-3xl border-x border-t border-foreground/[0.07] shadow-[0px_-4px_18px_rgba(0,0,0,0.055)] ${
+          // The frosting is the sibling above. This layer owns interaction,
+          // content geometry and the section crossfade, but no backdrop.
+          className={`fixed left-0 right-0 z-40 mx-auto w-[calc(100%-2.5rem)] max-w-[700px] rounded-t-3xl ${
             interactive ? "pointer-events-auto" : "pointer-events-none"
-          } visible`}
+          } ${sheetParked ? "invisible" : "visible"}`}
         >
           <div
             ref={contentFrameRef}
@@ -2145,24 +2182,28 @@ export default function PlacardLayer({
           -webkit-backdrop-filter: blur(var(--plate-blur)) saturate(var(--plate-sat)) brightness(var(--plate-bright));
         }
         /* ── The sheet ────────────────────────────────────────────────
-           Mobile's one blurred surface, and now the same recipe as the
-           desktop plates rather than an opaque slab: the sheet was
-           background/95 over a blur, which is a wall with a window painted
-           on it. It is the same four values, tuned up a little — the sheet
-           is the ONLY glass on mobile (the cards inside it have their own
-           backdrop-filter stripped, since one blur cannot sample another),
-           so it carries all of the legibility work by itself where desktop
-           splits it across a plate per card.
+           Mobile's one blurred surface. Unlike the desktop plates, the
+           sheet stays neutral: the pastoral horizon beneath it contains a
+           lot of cream and yellow, and saturating that backdrop made the
+           entire surface read as tinted glass. A nearly desaturated sample
+           retains the scene's light and shadow without inheriting its hue;
+           neutral white/black fills keep the global warm reading palette
+           from reintroducing a cast here. Once neutral, the fill can also be
+           thinner without turning the sheet yellow again.
+
+           The sheet is the ONLY glass on mobile (the cards inside it have
+           their own backdrop-filter stripped, since one blur cannot sample
+           another), so it carries all of the legibility work by itself.
 
            It can hold a backdrop-filter at all only because nothing above
            it in the tree makes a backdrop root: the drag lives in this
            element's OWN transform, and an element's own transform does not
            cut it off from the backdrop behind its parent. */
         .stacks-sheet {
-          --sheet-fill: hsl(var(--background) / 0.34);
+          --sheet-fill: rgb(255 255 255 / 0.24);
           background-color: var(--sheet-fill);
-          backdrop-filter: blur(58px) saturate(1.7) brightness(1.18);
-          -webkit-backdrop-filter: blur(58px) saturate(1.7) brightness(1.18);
+          backdrop-filter: blur(58px) saturate(0.35) brightness(1.18);
+          -webkit-backdrop-filter: blur(58px) saturate(0.35) brightness(1.18);
         }
         @media (prefers-reduced-motion: reduce) {
           [data-stacks-desktop-panel] {
@@ -2182,9 +2223,9 @@ export default function PlacardLayer({
           }
         }
         .dark .stacks-sheet {
-          --sheet-fill: hsl(var(--background) / 0.22);
-          backdrop-filter: blur(58px) saturate(1.7) brightness(0.8);
-          -webkit-backdrop-filter: blur(58px) saturate(1.7) brightness(0.8);
+          --sheet-fill: rgb(0 0 0 / 0.16);
+          backdrop-filter: blur(58px) saturate(0.35) brightness(0.8);
+          -webkit-backdrop-filter: blur(58px) saturate(0.35) brightness(0.8);
         }
         /* Scrolled out of sight: stop paying for a blur nobody can see. Set
            from the scroll handler by arithmetic — see cull(). */

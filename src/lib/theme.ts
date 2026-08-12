@@ -32,7 +32,15 @@ export function normalizeTheme(value: string | undefined | null): ThemeChoice {
     : "system";
 }
 
-export function nextTheme(current: string | undefined | null): ThemeChoice {
-  const index = THEME_ORDER.indexOf(normalizeTheme(current));
-  return THEME_ORDER[(index + 1) % THEME_ORDER.length]!;
+/**
+ * Return the opposite of the theme the visitor can currently see.
+ *
+ * This intentionally accepts the resolved theme rather than the saved theme:
+ * when the saved preference is "system", a click should still produce an
+ * immediate visual change instead of first cycling to the same-looking mode.
+ */
+export function oppositeTheme(
+  resolvedTheme: string | undefined | null,
+): Exclude<ThemeChoice, "system"> {
+  return resolvedTheme === "dark" ? "light" : "dark";
 }

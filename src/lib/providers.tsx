@@ -4,7 +4,7 @@ import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes";
 import { useEffect } from "react";
 import { Observer } from "tailwindcss-intersect";
 
-import { THEME_COLOR, THEME_STORAGE_KEY, nextTheme } from "~/lib/theme";
+import { THEME_COLOR, THEME_STORAGE_KEY, oppositeTheme } from "~/lib/theme";
 
 export function ObserverProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -92,7 +92,7 @@ function ThemeColorSync() {
 }
 
 function ThemeKeyboardShortcut() {
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -102,14 +102,12 @@ function ThemeKeyboardShortcut() {
         (e.key.toLowerCase() === "l" || e.code === "KeyL")
       ) {
         e.preventDefault();
-        // Same System → Light → Dark cycle as the toggle button, so the
-        // shortcut can also get you *back* to following the OS.
-        setTheme(nextTheme(theme));
+        setTheme(oppositeTheme(resolvedTheme));
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [theme, setTheme]);
+  }, [resolvedTheme, setTheme]);
 
   return null;
 }

@@ -22,7 +22,12 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { mergeVertices } from "three-stdlib";
 
-import { LIFT_LAMBDA, TIP, hingeShift } from "./Lift";
+import {
+  HOVER_MOTION_SCALE,
+  LIFT_LAMBDA,
+  TIP,
+  hingeShift,
+} from "./Lift";
 import {
   HOVER_MAX_SIZE,
   type Hinge,
@@ -347,13 +352,13 @@ function splitSpinPart(root: THREE.Object3D): void {
   }
 }
 
-/** Default floor motion. 2.2 cm of rise reads from a camera sitting ~2° above
- * the shelf line; the swell alone does not, which is why there is a lift at
- * all. Both sit UNDER links.tsx's DEFAULT_LIFT (3 cm + 2 cm toward the
- * viewer) on purpose — a prop that opens a page should still out-move one
- * that only acknowledges you. */
-const FLOOR_LIFT = 0.022;
-const FLOOR_GROW = 1.015;
+/** Default floor motion, amplified by the same scene-wide control as Lift.
+ * The swell alone does not read from a camera sitting ~2° above the shelf
+ * line, which is why there is a rise at all. Both still sit UNDER a linked
+ * prop's amplified motion on purpose — a prop that opens a page should
+ * out-move one that only acknowledges you. */
+const FLOOR_LIFT = 0.022 * HOVER_MOTION_SCALE;
+const FLOOR_GROW = 1 + 0.015 * HOVER_MOTION_SCALE;
 
 /** Twin of the helper in eggs.tsx (not exported there). */
 function reducedMotion(): boolean {

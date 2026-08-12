@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+Read `AGENTS.md` for repository-owned skill guidance. In particular, changes to the Book Notes schema, Notion mapping, sync behavior, tag taxonomy, or query workflow must be reviewed against `.agents/skills/book-notes/SKILL.md` in the same change.
+
 ## Commands
 
 ### Development

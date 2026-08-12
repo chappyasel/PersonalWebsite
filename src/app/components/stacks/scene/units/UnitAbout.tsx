@@ -450,6 +450,28 @@ export default function UnitAbout({
               />
             </LoosePhoto>
 
+            {/* A loose personal print at the far-right edge of the first
+                lower shelf. Its portrait ratio follows the supplied 3:4
+                source exactly; face-up placement keeps it distinct from the
+                standing group photo immediately behind it. */}
+            <LoosePhoto
+              unitIndex={index}
+              palette={palette}
+              id="about-profile-full-v8"
+              base={[1.14, 0, 0.05]}
+              rotation={[0, -0.16, 0]}
+              facingRotation={[Math.PI / 2, 0, 0]}
+              width={0.2}
+            >
+              <FlatPrint
+                src="/images/stacks/v8/about-profile-full.webp"
+                palette={palette}
+                textured={textured}
+                width={0.2}
+                height={0.267}
+              />
+            </LoosePhoto>
+
             <Grabbable
               unitIndex={index}
               hoverKey="shimmer:apple"

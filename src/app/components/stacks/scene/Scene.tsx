@@ -50,6 +50,7 @@ const V8_PHOTOS_BY_UNIT: Record<UnitSlug, readonly string[]> = {
     "about-collective-group",
     "about-delicate-arch",
     "about-family",
+    "about-profile-full",
     "about-speaking-candid",
   ],
   books: [],

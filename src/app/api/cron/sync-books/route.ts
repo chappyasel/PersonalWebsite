@@ -43,7 +43,7 @@ async function handleSync(source: "cron" | "manual") {
 
 /**
  * Vercel Cron endpoint for syncing books from Notion
- * Called daily at 6:00 AM UTC
+ * Called daily at 9:00 AM UTC
  */
 export async function GET(request: NextRequest) {
   // Verify cron secret (Vercel automatically adds this)

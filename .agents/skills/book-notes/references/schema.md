@@ -1,0 +1,139 @@
+# book-notes — example queries
+
+## Basic lookups
+
+```sql
+-- Find a book by partial title
+SELECT id, title, author, rating, finished
+FROM books
+WHERE title ILIKE '%sapiens%'
+LIMIT 10;
+
+-- Get full notes for one book
+SELECT title, author, rating, notes
+FROM books
+WHERE id = 'thinking-fast-and-slow';
+```
+
+## Filtering and ranking
+
+```sql
+-- Top-rated finished books
+SELECT title, author, rating, finished
+FROM books
+WHERE rating IS NOT NULL AND finished IS NOT NULL
+ORDER BY rating DESC, finished DESC
+LIMIT 25;
+
+-- Currently reading (started but not finished)
+SELECT title, author, started
+FROM books
+WHERE started IS NOT NULL AND finished IS NULL
+ORDER BY started DESC;
+
+-- Recently finished
+SELECT title, author, rating, finished
+FROM books
+WHERE finished IS NOT NULL
+ORDER BY finished DESC
+LIMIT 20;
+```
+
+## Featured
+
+`is_featured` mirrors the `Featured?` checkbox in Notion. It is a hand-curated
+shortlist, not a derived one, so it is the right answer to "which books does
+Chappy single out" and the wrong answer to "which does he rate highest".
+Currently 8 books. Note that a re-read is a separate row and the checkbox is set
+per Notion page, so only one row of a re-read pair carries the flag — match on
+`id`, never on title.
+
+```sql
+-- The featured shortlist, in the order the homepage shows it
+SELECT id, title, author, rating, finished
+FROM books
+WHERE is_featured
+ORDER BY finished DESC;
+```
+
+## Tags / topics
+
+```sql
+-- Books with a given tag
+SELECT b.title, b.author, b.rating
+FROM books b
+JOIN book_tags t ON t.book_id = b.id
+WHERE t.tag_name = 'Macroeconomics'
+ORDER BY b.rating DESC NULLS LAST;
+
+-- All tags with counts
+SELECT tag_name, COUNT(*) AS n
+FROM book_tags
+GROUP BY tag_name
+ORDER BY n DESC;
+
+-- Books matching any of several tags
+SELECT DISTINCT b.title, b.author, b.rating
+FROM books b
+JOIN book_tags t ON t.book_id = b.id
+WHERE t.tag_name IN ('AI', 'Philosophy', 'Sociology')
+ORDER BY b.rating DESC NULLS LAST;
+```
+
+## Full-text-ish search inside notes
+
+```sql
+-- Find books whose notes mention a concept
+SELECT id, title, author
+FROM books
+WHERE notes ILIKE '%attention is all you need%'
+LIMIT 20;
+
+-- Pull a snippet with context around a case-insensitive match
+SELECT title,
+       SUBSTRING(
+         notes
+         FROM GREATEST(STRPOS(LOWER(notes), 'compounding') - 80, 1)
+         FOR 480
+       ) AS snippet
+FROM books
+WHERE notes ILIKE '%compounding%'
+LIMIT 10;
+```
+
+## Reading pace
+
+```sql
+-- Books finished per month (last 2 years)
+SELECT DATE_TRUNC('month', finished) AS month, COUNT(*) AS n
+FROM books
+WHERE finished >= NOW() - INTERVAL '2 years'
+GROUP BY 1
+ORDER BY 1;
+
+-- Average rating per year
+SELECT EXTRACT(YEAR FROM finished) AS year,
+       COUNT(*) AS n,
+       ROUND(AVG(rating)::numeric, 2) AS avg_rating
+FROM books
+WHERE finished IS NOT NULL AND rating IS NOT NULL
+GROUP BY 1
+ORDER BY 1 DESC;
+```
+
+## Re-reads
+
+```sql
+-- Books read more than once (same title/author with multiple rows)
+SELECT title, author, COUNT(*) AS times_read
+FROM books
+GROUP BY title, author
+HAVING COUNT(*) > 1
+ORDER BY times_read DESC;
+```
+
+## Metadata / sync freshness
+
+```sql
+SELECT MAX(last_synced_at) AS last_sync FROM books;
+```

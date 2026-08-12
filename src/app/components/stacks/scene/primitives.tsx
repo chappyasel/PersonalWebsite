@@ -14,7 +14,7 @@ import * as THREE from "three";
 import Grabbable from "./Grabbable";
 import { ContactShade } from "./GroundPool";
 import HeldFacing from "./HeldFacing";
-import Lift, { LIFT_LAMBDA } from "./Lift";
+import Lift, { HOVER_MOTION_SCALE, LIFT_LAMBDA } from "./Lift";
 import LitImage from "./LitImage";
 import {
   bookRowHoverKey,
@@ -422,12 +422,10 @@ const FLAT_LIFT: [number, number, number] = [0, 0, 0.07];
  * moved: `window.__stacks.node(`${SPINE_NODE}:${unit}:${salt}:${i}`)`. */
 export const SPINE_NODE = "stacks-spine";
 
-/** How far a hovered spine hinges out of the row, in radians. 0.12 moves the
- * head of a 0.5-tall spine 6 cm forward — about 14 px at this camera, which is
- * more separation than the 4.5 cm translation it replaces — while the tallest
- * spine's head reaches z 0.25 at a height of 0.4, well over the photographs
- * propped at the shelf lip (z 0.24, and only 0.21 tall). */
-const SPINE_TIP = 0.12;
+/** How far a hovered spine hinges out of the row, in radians. The authored
+ * 0.12-radian gesture is amplified with every other shelf hover so packed
+ * books do not remain the one subtle family after the global retune. */
+const SPINE_TIP = 0.12 * HOVER_MOTION_SCALE;
 
 /** prefers-reduced-motion. A local copy of eggs.tsx's predicate on purpose:
  * eggs.tsx imports LampGlow from this module, so importing it back would close

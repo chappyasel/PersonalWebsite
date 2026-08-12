@@ -51,6 +51,7 @@ export const PHOTO_LINKS: Record<string, string | null> = {
   // Not a post: his face, and the one destination that needs no research.
   // Same URL the site's own contact buttons and /manual already use.
   portrait: "https://www.linkedin.com/in/chappyasel/",
+  "about-profile-full-v8": "https://www.linkedin.com/in/chappyasel/",
   "about-family-v8": null,
   "about-collective-group-v8": null,
   "about-speaking-candid-v8": null,
