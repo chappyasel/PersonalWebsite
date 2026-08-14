@@ -46,6 +46,22 @@ export default function ChromeLayer() {
           right: max(1rem, env(safe-area-inset-right, 0px));
           top: max(0.75rem, env(safe-area-inset-top, 0px));
         }
+        /* Light-mode chrome sits directly on a scene whose value changes
+           from sky to grass. Use the Systems quote treatment here too:
+           white ink plus a restrained black halo, rather than a page-theme
+           foreground that can disappear over either end of the meadow. */
+        html:not(.dark) .stacks-on-background-text {
+          color: rgb(255 255 255 / 0.94) !important;
+          text-shadow: 0 1px 3px rgb(0 0 0 / 0.55), 0 0 14px rgb(0 0 0 / 0.4);
+          --tw-ring-color: rgb(255 255 255 / 0.48);
+        }
+        html:not(.dark) .stacks-on-background-text svg {
+          filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.55)) drop-shadow(0 0 7px rgb(0 0 0 / 0.4));
+        }
+        html:not(.dark) .stacks-on-background-mark {
+          background-color: rgb(255 255 255 / 0.9) !important;
+          box-shadow: 0 1px 3px rgb(0 0 0 / 0.45), 0 0 10px rgb(0 0 0 / 0.3);
+        }
         @media (width >= 1200px) {
           .stacks-wordmark {
             left: max(1.75rem, env(safe-area-inset-left, 0px));
@@ -108,12 +124,15 @@ export default function ChromeLayer() {
       <div className="pointer-events-none absolute inset-0 z-[5] overflow-hidden">
         <div className="stacks-grain" style={{ backgroundImage: GRAIN_URI }} />
       </div>
+      {/* Composer-off fallback vignette. Black in BOTH themes (round 3: the
+          white light-mode version read as ground fog over the meadow) and
+          half the old strength — a grounding shadow, not a fog bank. */}
       {!postfx && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[6] h-[12dvh] bg-gradient-to-t from-background/90 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[6] h-[12dvh] bg-gradient-to-t from-black/45 to-transparent" />
       )}
       <div className="stacks-wordmark pointer-events-none absolute z-20">
         <GrainReveal index={0}>
-          <p className="font-serif text-base tracking-tight text-foreground min-[1200px]:text-lg">
+          <p className="stacks-on-background-text font-serif text-base tracking-tight text-foreground min-[1200px]:text-lg">
             Chappy Asel
           </p>
         </GrainReveal>
@@ -153,7 +172,7 @@ export default function ChromeLayer() {
           it — but it does sit on top of this glyph in a dev screenshot. */}
       <div className="stacks-theme-toggle pointer-events-auto absolute z-30">
         <GrainReveal index={2}>
-          <ThemeToggle className="!rounded-full hover:!bg-foreground/[0.09] active:!bg-foreground/[0.14]" />
+          <ThemeToggle className="stacks-on-background-text !rounded-full hover:!bg-foreground/[0.09] active:!bg-foreground/[0.14]" />
         </GrainReveal>
       </div>
     </>

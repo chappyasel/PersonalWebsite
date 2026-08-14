@@ -17,34 +17,39 @@
 // #e3dcc9 printed [221,219,212] and #d4d7d3 printed [216,217,215], i.e. one
 // undifferentiated grey-beige wall. The light hexes are now authored a step
 // DEEPER, which is where ACES still carries colour, so the frame gets a real
-// vertical arc: cool dawn blue overhead → the bright warm band → a dusty haze
-// layer at eye level. Dark keeps its luminance envelope and buys richness in
+// vertical arc: clear morning blue overhead → a softer blue horizon → pale
+// blue haze at eye level. Dark keeps its luminance envelope and buys richness in
 // chroma instead. Effects.tsx rebuilds the rest of the chroma post-ACES;
 // touch devices have no composer, so these hexes must read on their own.
 export const PALETTES = {
   light: {
-    // The meadow reference's clear pastoral morning: a distinctly blue upper
-    // vault falling through cream into a pale sun-warmed horizon. These are
-    // deliberately more chromatic than their intended screen colours because
+    // The meadow reference's clear pastoral morning: a saturated blue upper
+    // vault fading to a lower band with about half the top's blue contrast.
+    // Keeping every stop in the same blue family prevents the eye-level sky
+    // and matching fog from resolving to grey. These are deliberately more
+    // chromatic than their intended screen colours because
     // ACES compresses the dome before display. SceneEnvironment also brings
     // the blue cap into the camera's shallow visible elevation range; without
     // that, even a blue `skyTop` contributes too little to escape grey.
     // More saturated than the first pastoral pass: the dome is ACES-tonemapped
     // and the visible camera band samples only part of this cap.
-    skyTop: "#4f9fe0",
-    skyHorizon: "#edddc9",
-    skyShadow: "#e5d1b8",
+    skyTop: "#126bb0",
+    skyHorizon: "#4f8ab3",
+    skyShadow: "#6a9aba",
     skyEmber: "#f5c78d",
     // The secret Washington view owns a distinct east-facing daylight vault.
     // These stay in sRGB here and are linearized with the other sky uniforms.
-    dcSkyTop: "#659bd0",
-    dcSkyHorizon: "#b8d7ef",
-    dcSkyShadow: "#91bee2",
-    dcWater: "#5f97c4",
-    skyline: "#8297ac",
+    dcSkyTop: "#397fb8",
+    dcSkyHorizon: "#78afd4",
+    dcSkyShadow: "#5f95bd",
+    dcWater: "#3f789f",
+    // Distant blue-grey, but materially darker than the eye-level air. The
+    // old #8297ac had the same relative luminance as skyShadow, so atmospheric
+    // blending erased the buildings instead of merely softening them.
+    skyline: "#5b7288",
     skyWindow: "#ffca8a",
-    // Far geometry meets the warm eye-level band, not the blue cap.
-    fog: "#e5d1b8",
+    // Far geometry meets the pale blue eye-level band, not the full blue cap.
+    fog: "#6a9aba",
     wood: "#a5845f",
     woodDark: "#8a6746",
     strap: "#836441",

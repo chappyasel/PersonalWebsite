@@ -183,10 +183,7 @@ function FloorClock({ unitIndex, dark }: { unitIndex: number; dark: boolean }) {
         unitIndex={unitIndex}
         hoverKey="egg:clock:floor"
         facePosition={[0, 1.15 * CLOCK_S, 0.0736 * CLOCK_S]}
-        // Slightly overscan the painted GLB dial so no baked ticks or hands
-        // can peek around the live canvas, while staying inside its bezel.
         faceRadius={0.071 * CLOCK_S}
-        faceStyle="grandfather"
       >
         <EggTrigger
           unitIndex={unitIndex}

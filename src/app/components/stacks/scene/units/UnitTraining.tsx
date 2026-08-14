@@ -1,6 +1,6 @@
 "use client";
 
-import Grabbable from "../Grabbable";
+import Grabbable, { type GrabbableCommand } from "../Grabbable";
 import { FootPool } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
 import LitImage from "../LitImage";
@@ -17,6 +17,8 @@ import * as THREE from "three";
 
 import {
   GOLF_BALL_RADIUS,
+  GOLF_SHOT_RETURN_MS,
+  GOLF_SHOT_VELOCITIES,
   createDimpledGolfBallGeometry,
   createGolfBallBumpTexture,
 } from "./trainingGolfBall";
@@ -255,8 +257,10 @@ function GolfBall({
   unitIndex: number;
   palette: UnitProps["palette"];
   position: [number, number, number];
-  id: string;
+  id: keyof typeof GOLF_SHOT_VELOCITIES;
 }) {
+  const commandRef = React.useRef<GrabbableCommand | null>(null);
+  const shot = GOLF_SHOT_VELOCITIES[id];
   return (
     <Grabbable
       unitIndex={unitIndex}
@@ -267,7 +271,15 @@ function GolfBall({
       shape="sphere"
       massKg={0.046}
       standsOn="floor"
-      to="weightlifting"
+      commandRef={commandRef}
+      onTap={() => {
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+          return;
+        commandRef.current?.launch([shot[0], shot[1], shot[2]], {
+          returnAfterMs: GOLF_SHOT_RETURN_MS,
+          terrain: "meadow",
+        });
+      }}
     >
       <mesh
         castShadow

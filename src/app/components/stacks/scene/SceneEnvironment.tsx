@@ -2,6 +2,7 @@
 
 // Atmosphere for the homepage 3D scene — gradient sky dome, fog-matched palette,
 // hemisphere fill, camera-tracking key light with soft shadows, and dust.
+import { markMeadowReady } from "../loading";
 import { progressRef, useStacks } from "../store";
 import { PALETTES, type Palette, rand } from "../theme";
 import { Environment, Lightformer } from "@react-three/drei";
@@ -9,10 +10,13 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
-import { markMeadowReady } from "../loading";
+import Butterflies from "./Butterflies";
 import { poolTexture } from "./GroundPool";
 import Meadow from "./Meadow";
+import Petals from "./Petals";
+import { DAYLIGHT_RENDERING } from "./daylightRendering";
 import { getSeatAmount } from "./seated";
+import { SKY_LIGHTING } from "./skyLighting";
 import { MID_X, STACKS_DESKTOP_MIN_WIDTH, TRAVEL_X } from "./worldLayout";
 
 // The meadow ships — statically, since round 2. React.lazy put its JS fetch
@@ -36,8 +40,8 @@ const MEADOW_ENABLED = true;
 // Mt Davidson → Sutro Tower on its hill → Coit on Telegraph Hill →
 // Transamerica → the downtown cluster → Salesforce Tower → the ember →
 // Bay Bridge with the Bay Lights. Truthful details: the Salesforce crown is
-// DARK at 3:45 (Day for Night runs dusk→2am) and catches the first ember
-// before anything else in the city; the Bay
+// DARK at 3:45 (Day for Night runs dusk→2am); in light mode its glass follows
+// the atmospheric grade until hover/click wakes the installation. The Bay
 // Lights run dusk-until-dawn, so they are the one landmark alive all night.
 //
 // The dome must also run the same tonemapping + colorspace encode as every
@@ -255,6 +259,23 @@ const SKY_FRAGMENT = `
     c = mix(c, umbraC, shK * smoothstep(0.125, -0.030, el));
     float bq = (el - 0.152) / 0.066;
     return c + beltC * exp(-(bq * bq)) * beltA;
+  }
+
+  // One Washington weather field, sampled by both the sky and its mirrored
+  // elevation in the Potomac. Returning density and mask together keeps the
+  // cloud shape, water reflection and animation on the same clock.
+  vec2 dcCloudField(float az, float el) {
+    vec2 p = vec2(az * 8.4 + uTime * 0.0065,
+                  el * 18.5 - uTime * 0.0012);
+    float density = 0.54 * vnoise(p)
+                  + 0.31 * vnoise(p * vec2(1.92, 1.34) + 11.4)
+                  + 0.15 * vnoise(p * vec2(3.85, 2.20) + 3.7);
+    float band = smoothstep(0.034, 0.070, el)
+               * (1.0 - smoothstep(0.19, 0.275, el));
+    float islands = smoothstep(0.42, 0.67,
+        vnoise(vec2(az * 12.7 + uTime * 0.0042, 6.3)));
+    float mask = smoothstep(0.585, 0.735, density) * band * islands;
+    return vec2(density, mask);
   }
 
   // The city, drawn ONCE as a function of height above the waterline, which
@@ -604,10 +625,10 @@ const SKY_FRAGMENT = `
     // zenith was still diluted by two warm bands and the light sky printed as
     // grey. Pull the blue cap down into the visible frame in LIGHT mode only,
     // preserving the dark sky byte-for-byte at uDark=1 and preserving the
-    // damped theme crossfade at every value between. The low 0.055 gate keeps
-    // the pale tan horizon intact behind the skyline. This second pass makes
-    // the cap deliberately decisive: the previous 42% contribution was still
-    // mostly neutralised by the warm base bands after ACES.
+    // damped theme crossfade at every value between. The low gate keeps the
+    // paler, half-strength blue horizon intact behind the skyline. This second
+    // pass makes the cap deliberately decisive: the previous 42% contribution
+    // was still mostly neutralised by the paler base bands after ACES.
     float lightCap = (1.0 - uDark) * smoothstep(0.040, 0.180, e);
     col = mix(col, zenithC, lightCap * 0.84);
     col = mix(col, shadowC * mix(0.88, 0.45, uDark), smoothstep(0.02, 0.30, -e));
@@ -640,48 +661,40 @@ const SKY_FRAGMENT = `
     float qe = (e - emberElev) / emberW;
     float ember = exp(-(qe * qe)) * emberAmp * azFall;
     float qg = (e - 0.02) / 0.04;
-    ember += (1.0 - uDark) * 0.10 * exp(-(qg * qg));
-    col += emberC * ember;
+    ember += (1.0 - uDark)
+           * ${SKY_LIGHTING.atmosphere.horizonEmber.toFixed(3)}
+           * exp(-(qg * qg));
+    // Dark mode keeps the additive first-ember energy it was authored with.
+    // In light mode the same broad gaussian must tint the existing air rather
+    // than add HDR energy: additive light was the smooth near-white band over
+    // SF that survived every cloud/fog retune and crushed title contrast.
+    float lightEmber = min(ember, 1.0) * (1.0 - uDark);
+    vec3 emberSky = mix(col, emberC, 0.38)
+                  * ${SKY_LIGHTING.atmosphere.emberLift.toFixed(2)};
+    col = mix(col, emberSky,
+              lightEmber * ${SKY_LIGHTING.atmosphere.emberMix.toFixed(2)});
+    col += emberC * ember * uDark;
     // Light theme only: the morning sky already sits on the ACES shoulder, so
     // adding energy there buys brightness and almost no colour — the glow
     // washed out instead of warming. The dawn therefore also TINTS, pulling
     // blue out of the band it lights, which is what a long scattering path
     // actually does to the sky around a low sun.
-    col *= mix(vec3(1.0), vec3(1.035, 1.0, 0.93), min(ember, 1.0) * (1.0 - uDark));
+    col *= mix(vec3(1.0), vec3(1.035, 1.0, 0.93), lightEmber);
 
-    // Skyline haze must converge on the AIR behind the sun, not the emissive
-    // disc itself. skyBase is captured later because the seated DC vista
-    // needs its own dusk contribution, but using that sun-bearing value for
-    // San Francisco made a hazed building partially transparent to the sun.
-    // This base keeps the atmospheric colour and ember while excluding only
-    // the hard solar layer drawn next.
+    // Capture the atmospheric colour and ember before the skyline is drawn.
+    // The seated DC vista needs its own dusk contribution later, while San
+    // Francisco's haze must converge on the shared air behind its buildings.
     vec3 sfHazeBase = col;
 
-    // ---- The sun, light theme only. It starts the traverse just under the
-    // skyline — all you get is the ember — and clears the rooftops as the
-    // morning advances, which is the same uDawn the whole vault is riding.
-    // Drawn before the city so the buildings occlude it while it is low.
+    // Light mode keeps a source-less dawn: the horizon ember, warming sky and
+    // scroll-driven key describe the morning without painting a solar disc
+    // whose screen position does not drive the scene's fixed light direction.
     float day = 1.0 - uDark;
-    if (day > 0.01) {
-      float sunE = -0.012 + 0.078 * uDawn;
-      float sunGate = smoothstep(-0.006, 0.014, sunE) * day;
-      vec2 sq = vec2((a + 1.15) / 0.0118, (e - sunE) / 0.0118);
-      float sd = length(sq);
-      // White-hot core, warm limb, and a wide soft forward-scatter halo —
-      // the halo is most of what sells a low sun through thick air.
-      // The morning sky already sits on the ACES shoulder, so a disc at
-      // sky-brightness buys nothing — it has to be genuinely HDR to separate
-      // from the air it's shining through, and the halo has to be tinted
-      // rather than white or it disappears the same way.
-      vec3 sunCore = mix(emberC, vec3(1.0, 0.965, 0.88), 0.60);
-      col += sunCore * smoothstep(1.10, 0.92, sd) * 1.85 * sunGate;
-      col += emberC * exp(-sd * sd * 0.055) * 0.55 * sunGate;
-    }
 
     // ---- The moon, dark theme only. It rises from behind the skyline,
     // crests near the middle of the traverse, then settles behind the city
-    // again. Like the sun it is painted before hills/buildings, so every
-    // silhouette occludes it naturally instead of relying on a cutout mask.
+    // again. It is painted before hills/buildings, so every silhouette
+    // occludes it naturally instead of relying on a cutout mask.
     float night = uDark;
     if (night > 0.01) {
       float moonArc = sin(clamp(uDawn, 0.0, 1.0) * 3.14159265);
@@ -708,14 +721,55 @@ const SKY_FRAGMENT = `
     // cloud rather than as lumps, and drifting slowly enough (~2.5 min to
     // cross the frame) to be weather instead of animation.
     if (day > 0.01 && uSimplify < 0.5) {
-      vec2 cp = vec2(a * 2.6 + uTime * 0.010, e * 9.1);
+      vec2 cp = vec2(
+        a * 2.6 + uTime * ${SKY_LIGHTING.atmosphere.cloudDrift.toFixed(3)},
+        e * 9.1
+      );
       float cf = 0.54 * vnoise(cp)
-               + 0.29 * vnoise(cp * 2.1 + 19.0)
-               + 0.17 * vnoise(cp * 4.3 + 7.0);
+               + 0.29 * vnoise(
+                   cp * 2.1 + 19.0
+                   + vec2(-uTime, uTime * 0.35)
+                   * ${SKY_LIGHTING.atmosphere.cloudMorph.toFixed(3)}
+                 )
+               + 0.17 * vnoise(
+                   cp * 4.3 + 7.0
+                   + vec2(uTime * 0.22, -uTime)
+                   * ${SKY_LIGHTING.atmosphere.cloudMorph.toFixed(3)}
+                 );
+      // A second sparse, higher deck is camera-continuous (a - uPan). The
+      // primary field remains world-anchored and supplies the obvious drift,
+      // but its seeded slice was completely empty over the first two units
+      // and only became cloudy near the end. This quiet layer guarantees a
+      // few broken forms throughout the traverse without raising the primary
+      // density threshold into overcast territory at the final units.
+      float localA = a - uPan;
+      float coverageSeed = ${SKY_LIGHTING.atmosphere.cloudCoverageSeed.toFixed(1)};
+      float coverageDrift = uTime
+                          * ${SKY_LIGHTING.atmosphere.cloudCoverageDrift.toFixed(4)};
+      float coverage = 0.62 * vnoise(vec2(
+                         localA * 1.65 + coverageSeed - coverageDrift,
+                         e * 7.0 + coverageSeed * 0.37
+                       ))
+                     + 0.38 * vnoise(vec2(
+                         localA * 3.8 - coverageSeed * 0.61
+                           + coverageDrift * 0.5,
+                         e * 14.0 + 11.0 + coverageSeed * 0.19
+                           - coverageDrift * 0.7
+                       ));
+      cf = max(
+        cf,
+        coverage * ${SKY_LIGHTING.atmosphere.cloudCoverageScale.toFixed(2)}
+      );
       // A deck sits in a band of sky: nothing on the deck at the horizon
       // (that is haze's job) and nothing at the zenith.
-      float deck = smoothstep(0.030, 0.080, e) * (1.0 - smoothstep(0.15, 0.27, e));
-      float cloud = smoothstep(0.50, 0.76, cf) * deck * day;
+      float deck = smoothstep(
+        ${SKY_LIGHTING.atmosphere.cloudDeckFadeIn[0].toFixed(2)},
+        ${SKY_LIGHTING.atmosphere.cloudDeckFadeIn[1].toFixed(2)}, e
+      ) * (1.0 - smoothstep(0.17, 0.27, e));
+      float cloud = smoothstep(
+        ${SKY_LIGHTING.atmosphere.cloudDensityGate[0].toFixed(2)},
+        ${SKY_LIGHTING.atmosphere.cloudDensityGate[1].toFixed(2)}, cf
+      ) * deck * day;
       // Cloud reads by being DARKER than the sky, not whiter. A white cloud
       // on a sky that is already near-white at the shoulder is invisible —
       // which is exactly what the first pass rendered. So the body shades
@@ -723,10 +777,13 @@ const SKY_FRAGMENT = `
       // ember. Away from the sun the shading deepens, which is what gives
       // the deck its form.
       float rim = smoothstep(0.44, 0.54, cf) - smoothstep(0.56, 0.72, cf);
-      vec3 body = col * mix(0.74, 0.93, azFall);
-      col = mix(col, body, cloud * 0.88);
+      vec3 body = col * mix(0.78, 0.94, azFall);
+      col = mix(col, body,
+                cloud * ${SKY_LIGHTING.atmosphere.cloudBodyOpacity.toFixed(2)});
       col += mix(vec3(1.0, 0.93, 0.82), emberC, clamp(azFall * 0.85, 0.0, 0.85))
-           * rim * deck * day * (0.06 + 0.42 * azFall);
+           * rim * cloud
+           * (${SKY_LIGHTING.atmosphere.cloudRimBase.toFixed(3)}
+              + ${SKY_LIGHTING.atmosphere.cloudRimSun.toFixed(2)} * azFall);
     }
 
     // How much of the dome the seated vista owns. Hoisted this far up for two
@@ -769,24 +826,27 @@ const SKY_FRAGMENT = `
       // A separate, slowly drifting cloud layer. The earlier low-frequency
       // grade moved too little and too faintly to read as weather; this keeps
       // the same soft air but gives it a few unmistakable, broken cloud forms.
-      vec2 dcp = vec2(dz * 8.4 + uTime * 0.0065,
-                      e * 18.5 - uTime * 0.0012);
-      float dcCf = 0.54 * vnoise(dcp)
-                 + 0.31 * vnoise(dcp * vec2(1.92, 1.34) + 11.4)
-                 + 0.15 * vnoise(dcp * vec2(3.85, 2.20) + 3.7);
-      float dcCloudBand = smoothstep(0.034, 0.070, e)
-                        * (1.0 - smoothstep(0.19, 0.275, e));
-      // A higher horizontal frequency plus a slightly harder island gate
-      // keeps the weather in separated cottony groups. The earlier 3.15x
-      // field formed one frame-wide strip, which read as haze rather than
-      // clouds even though its values were moving.
-      float dcCloudIslands = smoothstep(0.42, 0.67,
-          vnoise(vec2(dz * 12.7 + uTime * 0.0042, 6.3)));
-      float dcCloud = smoothstep(0.585, 0.735, dcCf)
-                    * dcCloudBand * dcCloudIslands;
-      vec3 dcCloudDay = mix(dcDay * 0.91, vec3(0.89, 0.94, 0.985),
-                            smoothstep(0.50, 0.68, dcCf));
-      dcDay = mix(dcDay, dcCloudDay, dcCloud * 0.42);
+      vec2 dcWeather = dcCloudField(dz, e);
+      float dcCf = dcWeather.x;
+      float dcCloud = dcWeather.y;
+      // As in the SF vault, daylight cloud bodies read by shading the blue
+      // already behind them. A restrained blue rim supplies volume without
+      // returning a white overlay to the ACES shoulder.
+      float dcCloudCore = smoothstep(0.50, 0.70, dcCf);
+      vec3 dcCloudDay = dcDay * mix(
+        ${DAYLIGHT_RENDERING.washington.cloudBodyShade[0].toFixed(2)},
+        ${DAYLIGHT_RENDERING.washington.cloudBodyShade[1].toFixed(2)},
+        dcCloudCore
+      );
+      dcDay = mix(
+        dcDay,
+        dcCloudDay,
+        dcCloud * ${DAYLIGHT_RENDERING.washington.cloudBodyOpacity.toFixed(2)}
+      );
+      float dcCloudRim = (smoothstep(0.50, 0.60, dcCf)
+                         - smoothstep(0.68, 0.78, dcCf)) * dcCloud;
+      dcDay += dcHorizonL * dcCloudRim
+             * ${DAYLIGHT_RENDERING.washington.cloudRimOpacity.toFixed(3)};
       vec3 dcDusk = dcSkyGrade(col, e, umbraC, beltC,
                                dcShK, dcBeltA, dcDim);
       vec3 dcSky = mix(dcDay, dcDusk, uDark);
@@ -1378,9 +1438,11 @@ const SKY_FRAGMENT = `
 
     // The silhouette dissolves toward the horizon band near the horizon
     // line — its own aerial haze; rooftops catch a kiss of the ember.
-    // Light haze eased 0.75→0.60 (v4): the light skyline was a ghost doing
-    // zero compositional work (audit §2.3).
-    float hazeAmt = (1.0 - smoothstep(0.0, 0.055, e)) * mix(0.60, 0.35, uDark);
+    // A narrow veil grounds the distant buildings without dissolving their
+    // silhouette. The former 60% blend made the skyline nearly the same value
+    // as the sky, especially after the blue-vault retune.
+    float hazeAmt = (1.0 - smoothstep(0.0, 0.055, e))
+                  * mix(${DAYLIGHT_RENDERING.skylineHaze.toFixed(2)}, 0.35, uDark);
     // Aerial perspective converges a distant mass on the sky BEHIND it, so
     // both the ridge and the skyline haze toward sfHazeBase. The ridge starts
     // darker than the buildings (it is unlit rock, not glass) and carries
@@ -1391,16 +1453,15 @@ const SKY_FRAGMENT = `
     // it, a little darker and a little less blue. Deriving it from sfHazeBase
     // keeps that true through the dawn and through both themes, where a
     // fixed hex drifted warm and the ridge ended up warmer than the
-    // buildings standing in front of it. This is also what prevents the sun's
-    // hard disc from being reintroduced inside a silhouette by aerial haze.
+    // buildings standing in front of it.
     vec3 hillCol = mix(sfHazeBase * mix(0.86, 0.74, uDark), cityC * 0.60, 0.22);
     hillCol = mix(hillCol, sfHazeBase, hazeAmt * 0.8);
     hillCol += emberC * 0.55 * emberAmp * smoothstep(-2.16, -1.95, a);
     vec3 cityCol = mix(cityC, sfHazeBase, hazeAmt);
     cityCol += emberC * ember * 0.25;
-    // The crown catches the first ember before anything else in the city —
-    // tallest, east-facing glass. Salesforce Tower announces the dawn.
-    cityCol += emberC * smoothstep(0.55, 1.0, crownT) * ember * 2.5 * sales;
+    // Salesforce's daylight crown stays in this same blue-grey glass/haze
+    // grade. Its separate emissive installation is interaction-only below;
+    // adding the horizon ember here made the top a beige block.
     // International Orange, hazed. In the light theme the paint reads as
     // itself, a warm line drawing inside the Karl the mist block already lays
     // over the west (~23% of it at this azimuth) — which is how the Golden
@@ -1413,8 +1474,26 @@ const SKY_FRAGMENT = `
     // skyline became "a ghost doing zero compositional work" (audit §2.3).
     // International Orange has to read by being DARKER than a sky sitting on
     // the ACES shoulder, not warmer than it — the same lesson as the clouds.
-    vec3 ggbCol = mix(cityC, vec3(0.72, 0.235, 0.125), mix(0.74, 0.14, uDark));
-    ggbCol = mix(ggbCol, sfHazeBase, min(hazeAmt + mix(0.10, 0.28, uDark), 0.92));
+    vec3 ggbPaint = vec3(
+      ${DAYLIGHT_RENDERING.goldenGatePaintLinear[0].toFixed(3)},
+      ${DAYLIGHT_RENDERING.goldenGatePaintLinear[1].toFixed(3)},
+      ${DAYLIGHT_RENDERING.goldenGatePaintLinear[2].toFixed(3)}
+    );
+    vec3 ggbCol = mix(
+      cityC,
+      ggbPaint,
+      mix(${DAYLIGHT_RENDERING.goldenGateDayPaintMix.toFixed(2)}, 0.14, uDark)
+    );
+    // The skyline already owns aerial perspective. In daylight the bridge
+    // gets only a fraction of that veil; the old extra +10% haze made its
+    // linear-HDR orange resolve as a translucent salmon overlay. Dark mode
+    // keeps the deeper distance haze that lets the Bay Lights lead.
+    float ggbDayHaze = hazeAmt
+                     * ${DAYLIGHT_RENDERING.goldenGateDayHazeScale.toFixed(2)}
+                     + ${DAYLIGHT_RENDERING.goldenGateDayExtraHaze.toFixed(2)};
+    float ggbNightHaze = min(hazeAmt + 0.28, 0.92);
+    ggbCol = mix(ggbCol, sfHazeBase,
+                 mix(ggbDayHaze, ggbNightHaze, uDark));
     cityCol = mix(cityCol, ggbCol, ggb);
     cityCol *= 1.0 + wingLift;
     cityCol = mix(cityCol, windowC,
@@ -1512,8 +1591,32 @@ const SKY_FRAGMENT = `
         // sunset.
         float dd = smoothstep(0.0, 0.22, depth);
         water *= mix(mix(1.08, 0.72, dd), mix(0.84, 0.26, dd), uDark);
-        water = mix(water, dcWaterL,
-                    (1.0 - uDark) * mix(0.10, 0.24, dd));
+        water = mix(
+          water,
+          dcWaterL,
+          (1.0 - uDark) * mix(
+            ${DAYLIGHT_RENDERING.washington.waterTint[0].toFixed(2)},
+            ${DAYLIGHT_RENDERING.washington.waterTint[1].toFixed(2)},
+            dd
+          )
+        );
+        // Mirror the same moving cloud mask used by the sky. The reflection
+        // is darker and softer, as a wind-ruffled river should be, but it now
+        // participates in the weather instead of remaining a flat blue fill.
+        vec2 waterWeather = dcCloudField(dz, mh);
+        vec3 waterCloud = water
+                        * mix(
+                            ${DAYLIGHT_RENDERING.washington.waterCloudShade[0].toFixed(2)},
+                            ${DAYLIGHT_RENDERING.washington.waterCloudShade[1].toFixed(2)},
+                            smoothstep(0.50, 0.70, waterWeather.x)
+                          );
+        water = mix(
+          water,
+          waterCloud,
+          waterWeather.y
+            * ${DAYLIGHT_RENDERING.washington.waterCloudReflection.toFixed(2)}
+            * (1.0 - uDark)
+        );
 
         // The swell. Wave crests run ACROSS the basin, so every phase here is
         // a function of DEPTH, warped only gently by azimuth — a phase that
@@ -1531,6 +1634,18 @@ const SKY_FRAGMENT = `
           rip = 0.64 * rip
               + 0.36 * sin(pz * 390.0 + sin(a * 7.9 + 2.1) * 1.1 - uTime * 0.67);
         }
+        // Small moving facet contrast gives the base water its own surface
+        // response. Patch noise breaks the ripple phase into gusts so this
+        // cannot become a stack of full-width horizontal stripes.
+        float facetPatch = vnoise(vec2(
+          dz * 6.7 + uTime * 0.012,
+          pz * 23.0 - uTime * 0.018
+        ));
+        float facet = rip * (0.30 + 0.70 * facetPatch)
+                    * smoothstep(0.003, 0.10, depth);
+        water *= 1.0 + facet
+               * ${DAYLIGHT_RENDERING.washington.waterFacetContrast.toFixed(2)}
+               * (1.0 - uDark);
         // The mirror shears sideways and cuts into horizontal slices rather
         // than dissolving into a smear. Amplitude is zero AT the bank — where
         // the water meets the shore there is nothing to ripple, and that is
@@ -1718,9 +1833,16 @@ const SKY_FRAGMENT = `
       col = mix(col, mix(horizonC, zenithC, 0.35), baseBand * m * structures * 0.5 * uDark * (1.0 - seatWin));
       float west = smoothstep(-1.75, -2.15, a);
       float karlBand = smoothstep(0.075, 0.014, e) * step(-0.01, e);
-      float karl = karlBand * (0.15 + 0.85 * west) * (0.45 + 0.55 * m)
+      float karl = karlBand
+                 * (${SKY_LIGHTING.atmosphere.karlBase.toFixed(2)}
+                    + ${SKY_LIGHTING.atmosphere.karlWest.toFixed(2)} * west)
+                 * (0.45 + 0.55 * m)
                  * (1.0 - uDark) * (1.0 - seatWin);
-      col = mix(col, mix(horizonC, vec3(0.97, 0.985, 1.0), 0.50), karl * 0.68);
+      col = mix(
+        col,
+        mix(horizonC, zenithC, 0.18),
+        karl * ${SKY_LIGHTING.atmosphere.karlOpacity.toFixed(2)}
+      );
 
       // Aviation lights, dark only. The red constellation of this skyline
       // belongs to Sutro Tower; the pyramid's apex and the Golden Gate's two
@@ -1827,11 +1949,14 @@ const SKY_FRAGMENT = `
         sfShow = smoothstep(0.0, 0.5, uSfShow)
                * (1.0 - smoothstep(SF_SHOW - 1.6, SF_SHOW, uSfShow));
       }
-      // Awake, the crown reads by day too — dimmer, because it is competing
-      // with a morning sky, but a control that does nothing when you point at
-      // it is not a control.
+      // By day the installation is truly off at rest, so the crown inherits
+      // the tower's glass and atmospheric grade. Hover/click wakes the same
+      // wash at a restrained level; dark mode keeps its existing visibility.
+      float dayCrownActive = clamp(sfLive + sfShow, 0.0, 1.0);
       float crownVis = night + (1.0 - night)
-                     * (0.12 + 0.36 * clamp(sfLive + sfShow, 0.0, 1.0));
+                     * (${SKY_LIGHTING.salesforce.dayIdleEmission.toFixed(2)}
+                        + ${SKY_LIGHTING.salesforce.dayActiveEmission.toFixed(2)}
+                        * dayCrownActive);
       // The lit band is the top ~15% of the building — the six Day for Night
       // floors plus the glass crown standing above the 970 ft roof — and with
       // the dissolve gone it now ends where the building does, on a hard flat
@@ -2395,12 +2520,14 @@ function RoomEnvironment({ dark }: { dark: boolean }) {
     <Environment
       frames={1}
       resolution={256}
-      environmentIntensity={dark ? 0.45 : 0.38}
+      environmentIntensity={
+        dark ? 0.45 : DAYLIGHT_RENDERING.environmentIntensity
+      }
     >
       <Lightformer
         form="rect"
         color={dark ? "#ffc98f" : "#ffe4cb"}
-        intensity={dark ? 1.5 : 1.8}
+        intensity={dark ? 1.5 : DAYLIGHT_RENDERING.environmentWarmIntensity}
         position={[4, 3, 4]}
         scale={10}
         target={[0, 0, 0]}
@@ -2411,7 +2538,7 @@ function RoomEnvironment({ dark }: { dark: boolean }) {
       <Lightformer
         form="rect"
         color={dark ? "#414f70" : "#8ca4bd"}
-        intensity={dark ? 1.3 : 0.7}
+        intensity={dark ? 1.3 : DAYLIGHT_RENDERING.environmentCoolIntensity}
         position={[-5, 2, 1]}
         scale={8}
         target={[0, 0, 0]}
@@ -2547,14 +2674,22 @@ function KeyLight({ dark }: { dark: boolean }) {
     }
     const dawn = THREE.MathUtils.smoothstep(progressRef.current, 0, 1);
     light.color.lerpColors(dawnLight.keyEarly, dawnLight.keyLate, dawn);
-    light.intensity = THREE.MathUtils.lerp(1.28, 1.42, dawn);
+    light.intensity = THREE.MathUtils.lerp(
+      DAYLIGHT_RENDERING.directionalIntensity[0],
+      DAYLIGHT_RENDERING.directionalIntensity[1],
+      dawn,
+    );
     hemi.color.lerpColors(dawnLight.skyEarly, dawnLight.skyLate, dawn);
     hemi.groundColor.lerpColors(
       dawnLight.groundEarly,
       dawnLight.groundLate,
       dawn,
     );
-    hemi.intensity = THREE.MathUtils.lerp(1.0, 1.08, dawn);
+    hemi.intensity = THREE.MathUtils.lerp(
+      DAYLIGHT_RENDERING.hemisphereIntensity[0],
+      DAYLIGHT_RENDERING.hemisphereIntensity[1],
+      dawn,
+    );
   });
   return (
     <>
@@ -2562,12 +2697,12 @@ function KeyLight({ dark }: { dark: boolean }) {
         ref={hemiRef}
         color={dark ? "#91a6c9" : "#eaf3ff"}
         groundColor={dark ? "#33291f" : "#a8b2bf"}
-        intensity={dark ? 1.2 : 1.0}
+        intensity={dark ? 1.2 : DAYLIGHT_RENDERING.hemisphereIntensity[0]}
       />
       <directionalLight
         ref={lightRef}
         position={[4, 6.5, 6]}
-        intensity={dark ? 1.35 : 1.28}
+        intensity={dark ? 1.35 : DAYLIGHT_RENDERING.directionalIntensity[0]}
         // Dark key remains unchanged. The light key starts neutral-warm and
         // follows the scroll-driven morning in useFrame above.
         color={dark ? "#efd0b1" : "#fff3e6"}
@@ -2617,6 +2752,12 @@ export default function SceneEnvironment({
       {meadow && (
         <Suspense fallback={null}>
           <Meadow dark={dark} rung={rung} />
+          {/* Inside the same gate as the field they fly over: ?nomeadow must
+              not leave three butterflies over a bare floor. */}
+          <Butterflies dark={dark} />
+          {/* Same gate, same reason: petals off the meadow's own flowers have
+              nothing to come from without the field. */}
+          <Petals dark={dark} />
         </Suspense>
       )}
       <RoomEnvironment key={dark ? "env-d" : "env-l"} dark={dark} />

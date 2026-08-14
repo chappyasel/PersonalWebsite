@@ -89,6 +89,10 @@ test("keeps below-fold homepage media deferred", async ({ page }) => {
 });
 
 test("positions deferred carousel images for fill layout", async ({ page }) => {
+  // This assertion covers FlatHome's deferred carousel. On a WebGL-capable
+  // runner the immersive world intentionally hides that document, so select
+  // the supported reduced-motion path explicitly instead of racing the boot.
+  await page.emulateMedia({ reducedMotion: "reduce" });
   const imageWarnings: string[] = [];
   page.on("console", (message) => {
     if (

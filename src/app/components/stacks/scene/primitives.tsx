@@ -16,13 +16,13 @@ import { ContactShade } from "./GroundPool";
 import HeldFacing from "./HeldFacing";
 import Lift, { HOVER_MOTION_SCALE, LIFT_LAMBDA } from "./Lift";
 import LitImage from "./LitImage";
-import { registerMeadowLamp } from "./meadowLights";
 import {
   bookRowHoverKey,
   bookRowNodeName,
   featuredRiserHoverKey,
 } from "./bookInteractions";
 import PropLink, { type PropDestination } from "./links";
+import { registerMeadowLamp } from "./meadowLights";
 import {
   SHELF_GEOMETRY,
   SHELF_SURFACE,
@@ -1859,8 +1859,7 @@ export function LampGlow({
     // Continue the beam to the lawn (y ≈ −1.1). A near-horizontal aim would
     // send the intersection to the horizon, so the throw is capped — past
     // that the overspill is too diffuse to anchor anywhere specific.
-    const t =
-      aim.y < -1e-3 ? Math.min((-1.1 - mouth.y) / aim.y, 5) : 2;
+    const t = aim.y < -1e-3 ? Math.min((-1.1 - mouth.y) / aim.y, 5) : 2;
     return registerMeadowLamp(meadowId, {
       x: mouth.x + aim.x * t,
       y: -1.1,
@@ -2086,6 +2085,7 @@ export function FrameRow({
   onFrameClick,
   unitIndex,
   focus = [0.5, 0],
+  imageGrade = 0.08,
   grabbable = false,
 }: {
   frames: { src: string; key: string; href?: string }[];
@@ -2096,6 +2096,8 @@ export function FrameRow({
   /** Source-space focal point for cover-fit. Project screenshots keep their
    * top edge by default; callers can opt into another composition. */
   focus?: [number, number];
+  /** Warm texture grade. App screenshots can opt out while photos retain it. */
+  imageGrade?: number;
   /** Pass it and the row obeys the scene's activeUnit rule. Without it a
    * frame claims the cursor from two units away through the live strip of
    * canvas beside the placard, and the click opens the talk instead of
@@ -2143,6 +2145,7 @@ export function FrameRow({
                   width={0.68}
                   height={0.4}
                   roughness={0.5}
+                  grade={imageGrade}
                   position={[0, 0, -0.001]}
                   focus={focus}
                   onPointerOver={

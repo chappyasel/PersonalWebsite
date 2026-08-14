@@ -81,6 +81,12 @@ const SCENE_TALK_STILLS: Record<number, string> = {
 const WORLD_BOOT_SCRIPT = `
 try {
   var el = document.documentElement;
+  // The automated OG renderer asks for the same live scene with its DOM
+  // controls removed. Set this during parsing so not even the first paint can
+  // leak homepage chrome into the capture.
+  if (new URLSearchParams(location.search).has("og-capture")) {
+    el.dataset.ogCapture = "";
+  }
   if (window.__stacksWorldBootTimer) {
     clearTimeout(window.__stacksWorldBootTimer);
     window.__stacksWorldBootTimer = 0;

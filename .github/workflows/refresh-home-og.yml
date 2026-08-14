@@ -1,0 +1,97 @@
+name: Refresh homepage OG image
+
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      source_url:
+        description: Deployed homepage to capture
+        required: false
+        default: https://www.chappyasel.com
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-home-og
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' &&
+       startsWith(github.event.deployment.environment, 'Production'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out the deployed revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'deployment_status' && github.event.deployment.sha || 'main' }}
+          fetch-depth: 2
+
+      - name: Check whether the scene changed
+        id: scene
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          elif git diff --quiet HEAD^ HEAD -- \
+            src/app/page.tsx \
+            src/app/components/stacks \
+            src/styles/globals.css \
+            scripts/generate/home-og-scene.mjs \
+            public/data \
+            public/models \
+            public/images/about \
+            public/images/projects \
+            public/images/stacks \
+            ':(exclude)public/images/stacks/home-og-scene.jpg'; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Node
+        if: steps.scene.outputs.changed == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: yarn
+
+      - name: Install dependencies
+        if: steps.scene.outputs.changed == 'true'
+        run: yarn install --frozen-lockfile
+
+      - name: Install Chromium
+        if: steps.scene.outputs.changed == 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Capture deployed scene
+        if: steps.scene.outputs.changed == 'true'
+        env:
+          HOME_OG_SOURCE_URL: ${{ inputs.source_url || github.event.deployment_status.environment_url || 'https://www.chappyasel.com' }}
+        run: yarn generate:home-og --url "$HOME_OG_SOURCE_URL"
+
+      - name: Commit refreshed image
+        if: steps.scene.outputs.changed == 'true'
+        shell: bash
+        run: |
+          if git diff --quiet -- public/images/stacks/home-og-scene.jpg; then
+            echo "The rendered image is unchanged."
+            exit 0
+          fi
+
+          git fetch origin main
+          if [[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]]; then
+            echo "A newer production revision exists; its deployment will refresh the image."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/images/stacks/home-og-scene.jpg
+          git commit -m "chore: refresh homepage OG image"
+          git push origin HEAD:main

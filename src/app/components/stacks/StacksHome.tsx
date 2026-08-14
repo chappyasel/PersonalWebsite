@@ -149,6 +149,10 @@ export default function StacksHome({
   // overscroll lock onto /books, /manual, or another document route.
   useEffect(() => {
     const bootWindow = window as WindowWithStacksBoot;
+    const captureMode = new URLSearchParams(window.location.search).has(
+      "og-capture",
+    );
+    document.documentElement.toggleAttribute("data-og-capture", captureMode);
     const retirePrepaintBackstop = () => {
       if (bootWindow.__stacksWorldBootTimer) {
         window.clearTimeout(bootWindow.__stacksWorldBootTimer);
@@ -164,6 +168,7 @@ export default function StacksHome({
     return () => {
       retirePrepaintBackstop();
       setWorldPhase(null);
+      document.documentElement.removeAttribute("data-og-capture");
     };
   }, []);
 
@@ -240,6 +245,7 @@ export default function StacksHome({
       {mode === "world" && (
         <div
           data-load-path={bootPath}
+          data-canvas-ready={worldReady ? "" : undefined}
           data-revealed={revealed ? "" : undefined}
           className={`stacks-world-shell fixed inset-0 z-10 ${
             revealed ? "pointer-events-auto" : "pointer-events-none"
@@ -252,10 +258,18 @@ export default function StacksHome({
               onLost={demote}
             />
           </CanvasBoundary>
-          <UnitRail />
-          <ChromeLayer />
-          <PlacardLayer data={data} slots={slots} />
-          <ScrollBridges />
+          <style>{`
+            html[data-og-capture] .stacks-og-ui,
+            html[data-og-capture] .stacks-world-curtain,
+            html[data-og-capture] .stacks-boot,
+            html[data-og-capture] .stacks-flat { display: none !important; }
+          `}</style>
+          <div className="stacks-og-ui contents">
+            <UnitRail />
+            <ChromeLayer />
+            <PlacardLayer data={data} slots={slots} />
+            <ScrollBridges />
+          </div>
           {/* The canvas is allowed to finish behind an opaque curtain. The
               handoff can therefore be choreographed without filtering or
               transforming the world itself — both would turn the placards'

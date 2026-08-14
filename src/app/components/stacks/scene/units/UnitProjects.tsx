@@ -8,6 +8,7 @@ import Grabbable from "../Grabbable";
 import { ContactShade } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
 import ModelProp from "../ModelProp";
+import { DAYLIGHT_RENDERING } from "../daylightRendering";
 import PropLink from "../links";
 import { reducedMotion } from "../objects";
 import { DeskFrame, PHOTO_LINKS, deskFrameHeight } from "../photos";
@@ -440,6 +441,7 @@ export default function UnitProjects({
             textured={textured}
             unitIndex={index}
             onFrameClick={onOpenUrl}
+            imageGrade={dark ? undefined : DAYLIGHT_RENDERING.projectImageGrade}
             grabbable
           />
         </group>

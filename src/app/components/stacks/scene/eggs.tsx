@@ -699,12 +699,21 @@ export function Pendulum({
         const mesh = first as THREE.Object3D | null;
         // Nothing loaded yet (the prop mounts behind Suspense) — try again
         // next frame. Something loaded and we have not tried it — try once.
+        if (!mesh) return;
         if (mesh && attempted.current !== mesh) {
           attempted.current = mesh;
           swing = splitPendulum(g);
         }
       }
       node.current = swing;
+    }
+    // Before the GLB existed there was no pendulum to animate. Older code
+    // rotated this fallback group anyway, then left that rotation behind once
+    // the real pendulum was isolated, permanently separating the case from
+    // its canvas face.
+    if (swing && whole.current) {
+      whole.current.rotation.x = 0;
+      whole.current.rotation.z = 0;
     }
     // No isolated part: swing the whole subtree about `pivotY` instead, which
     // is what a caller wrapping their own rod and bob in JSX wants.

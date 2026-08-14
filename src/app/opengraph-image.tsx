@@ -68,28 +68,31 @@ export default async function Image() {
           style={{
             display: "flex",
             position: "absolute",
-            inset: "auto 0 0",
-            height: 145,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 170,
             background:
-              "linear-gradient(to bottom, rgba(246, 243, 236, 0), rgba(246, 243, 236, 0.96) 72%)",
+              "linear-gradient(to bottom, rgba(10, 24, 20, 0), rgba(10, 24, 20, 0.82) 70%)",
           }}
         />
 
-        {/* The scene owns the image; the name sits in the clear floor beneath
-            the shelves instead of covering any of their contents. */}
+        {/* Reserve the lower meadow as the signature zone. The dark fade
+            keeps the centered name stable as flowers and loose props evolve. */}
         <div
           style={{
             display: "flex",
             position: "absolute",
             left: 0,
             right: 0,
-            bottom: 22,
+            bottom: 26,
             justifyContent: "center",
-            fontSize: 70,
+            fontSize: 64,
             fontWeight: 700,
             lineHeight: 1,
-            color: "#342f29",
+            color: "#ffffff",
             letterSpacing: "-0.035em",
+            textShadow: "0 2px 14px rgba(0, 0, 0, 0.38)",
           }}
         >
           Chappy Asel
@@ -99,8 +102,11 @@ export default async function Image() {
           style={{
             display: "flex",
             position: "absolute",
-            inset: 14,
-            border: "1px solid rgba(52, 47, 41, 0.16)",
+            left: 14,
+            top: 14,
+            right: 14,
+            bottom: 14,
+            border: "1px solid rgba(255, 255, 255, 0.2)",
             borderRadius: 22,
           }}
         />

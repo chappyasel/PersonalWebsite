@@ -1,6 +1,13 @@
 import * as THREE from "three";
 
 export const GOLF_BALL_RADIUS = 0.05;
+export const GOLF_SHOT_RETURN_MS = 5_000;
+export const GOLF_SHOT_VELOCITIES = {
+  one: [0.18, 4.0, -7.0],
+  two: [-0.12, 4.15, -7.2],
+  three: [0.28, 4.1, -7.15],
+  four: [-0.24, 4.05, -7.05],
+} as const;
 
 const DIMPLE_COUNT = 92;
 const DIMPLE_ANGLE = 0.118;
@@ -36,12 +43,7 @@ export function createGolfBallBumpTexture(): THREE.DataTexture {
       data[offset + 3] = 255;
     }
   }
-  const texture = new THREE.DataTexture(
-    data,
-    width,
-    height,
-    THREE.RGBAFormat,
-  );
+  const texture = new THREE.DataTexture(data, width, height, THREE.RGBAFormat);
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.ClampToEdgeWrapping;
   texture.needsUpdate = true;

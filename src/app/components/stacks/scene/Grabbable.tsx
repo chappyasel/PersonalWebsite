@@ -49,6 +49,7 @@ import { LIFT_LAMBDA, TIP, hingeShift } from "./Lift";
 import { grabbablePhysicsEnabled } from "./grabbablePhysics";
 import { type Hinge, TILT_MAX_SIZE, hingeFor } from "./interaction";
 import { type PropDestination, useOpenTarget } from "./links";
+import { meadowHeight } from "./meadowField";
 import type {
   HullShape,
   Phase,
@@ -77,7 +78,10 @@ const TAP_PX = 6;
  * strike one of the exact same balls a visitor can pick up; physics remains
  * owned here, not duplicated in the unit composition. */
 export type GrabbableCommand = {
-  launch: (velocity: [number, number, number]) => void;
+  launch: (
+    velocity: [number, number, number],
+    options?: { returnAfterMs?: number; terrain?: "meadow" },
+  ) => void;
 };
 
 // --- the lazily-loaded solver -----------------------------------------------
@@ -424,10 +428,17 @@ export default function Grabbable({
   const shade = useRef<THREE.Sprite>(null);
   const phase = useRef<Phase>("rest");
   const velocity = useMemo(() => new THREE.Vector3(), []);
+  const scriptedReturnAt = useRef<number | null>(null);
+  const scriptedLanded = useRef(false);
+  const scriptedBounces = useRef(0);
+  const launchTerrain = useRef<"meadow" | null>(null);
   const step = useMemo(() => new THREE.Vector3(), []);
   const plane = useMemo(() => new THREE.Plane(), []);
   const hit = useMemo(() => new THREE.Vector3(), []);
   const world = useMemo(() => new THREE.Vector3(), []);
+  const terrainPoint = useMemo(() => new THREE.Vector3(), []);
+  const terrainNormal = useMemo(() => new THREE.Vector3(), []);
+  const parentQuaternion = useMemo(() => new THREE.Quaternion(), []);
   const raycaster = useThree((s) => s.raycaster);
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
@@ -457,12 +468,30 @@ export default function Grabbable({
   const ndc = useMemo(() => new THREE.Vector2(), []);
 
   const launch = useCallback(
-    (next: [number, number, number]) => {
+    (
+      next: [number, number, number],
+      options?: { returnAfterMs?: number; terrain?: "meadow" },
+    ) => {
       // A scripted strike never steals a prop out of the visitor's hand.
       if (phase.current === "held") return;
       velocity.set(next[0], next[1], next[2]);
       const entry = handle.current;
-      const released = entry?.world?.release(entry, velocity) ?? false;
+      const returnAfterMs = options?.returnAfterMs;
+      scriptedReturnAt.current = returnAfterMs
+        ? performance.now() + returnAfterMs
+        : null;
+      scriptedLanded.current = false;
+      scriptedBounces.current = 0;
+      launchTerrain.current = options?.terrain ?? null;
+      // A meadow shot leaves the bounded shelf solver and instead integrates
+      // gravity against the actual height field rendered in the background.
+      if (scriptedReturnAt.current !== null && entry?.world) {
+        entry.world.park(entry);
+      }
+      const released =
+        scriptedReturnAt.current === null
+          ? (entry?.world?.release(entry, velocity) ?? false)
+          : false;
       phase.current = released ? "sim" : "settling";
     },
     [velocity],
@@ -570,6 +599,10 @@ export default function Grabbable({
         y: event.clientY,
         moved: false,
       };
+      scriptedReturnAt.current = null;
+      scriptedLanded.current = false;
+      scriptedBounces.current = 0;
+      launchTerrain.current = null;
 
       // Touch retains native horizontal travel. We only remember enough to
       // answer a stationary release; no held phase, scroll freeze, solver or
@@ -721,6 +754,20 @@ export default function Grabbable({
     if (entry) entry.base.set(base[0], base[1], base[2]);
     const shelf: ShelfWorld | null = entry?.world ?? null;
 
+    if (
+      scriptedReturnAt.current !== null &&
+      performance.now() >= scriptedReturnAt.current
+    ) {
+      scriptedReturnAt.current = null;
+      scriptedLanded.current = false;
+      scriptedBounces.current = 0;
+      launchTerrain.current = null;
+      velocity.set(0, 0, 0);
+      g.position.set(base[0], base[1], base[2]);
+      g.rotation.set(0, 0, 0);
+      phase.current = "rest";
+    }
+
     // Travel ends the rearrangement. Not a timer, not the release — the prop
     // stays exactly where you knocked it for as long as you are standing in
     // front of it, and is back on its mark before the next visitor arrives.
@@ -775,12 +822,51 @@ export default function Grabbable({
     } else if (phase.current === "sim") {
       // The solver owns this transform; the shelf's tick below writes it.
     } else if (phase.current === "settling") {
-      velocity.y -= GRAVITY * delta;
-      g.position.addScaledVector(velocity, delta);
-      g.rotation.y += velocity.x * spin * delta;
-      if (g.position.y <= base[1]) {
-        g.position.y = base[1];
-        if (Math.abs(velocity.y) > 0.3) {
+      if (!scriptedLanded.current) {
+        velocity.y -= GRAVITY * delta;
+        g.position.addScaledVector(velocity, delta);
+        g.rotation.y += velocity.x * spin * delta;
+      }
+      let landingY = base[1];
+      if (launchTerrain.current === "meadow") {
+        g.getWorldPosition(terrainPoint);
+        terrainPoint.y = meadowHeight(terrainPoint.x, terrainPoint.z);
+        if (g.parent) g.parent.worldToLocal(terrainPoint);
+        landingY = terrainPoint.y;
+      }
+      if (!scriptedLanded.current && g.position.y <= landingY) {
+        g.position.y = landingY;
+        if (scriptedReturnAt.current !== null) {
+          if (launchTerrain.current === "meadow") {
+            g.getWorldPosition(terrainPoint);
+            const e = 0.12;
+            const x = terrainPoint.x;
+            const z = terrainPoint.z;
+            terrainNormal
+              .set(
+                meadowHeight(x - e, z) - meadowHeight(x + e, z),
+                2 * e,
+                meadowHeight(x, z - e) - meadowHeight(x, z + e),
+              )
+              .normalize();
+            if (g.parent) {
+              g.parent.getWorldQuaternion(parentQuaternion).invert();
+              terrainNormal.applyQuaternion(parentQuaternion);
+            }
+            const normalSpeed = velocity.dot(terrainNormal);
+            if (normalSpeed < 0)
+              velocity.addScaledVector(terrainNormal, -1.28 * normalSpeed);
+            velocity.multiplyScalar(0.68);
+            scriptedBounces.current += 1;
+            if (scriptedBounces.current >= 3 || velocity.lengthSq() < 0.3) {
+              velocity.set(0, 0, 0);
+              scriptedLanded.current = true;
+            }
+          } else {
+            velocity.set(0, 0, 0);
+            scriptedLanded.current = true;
+          }
+        } else if (Math.abs(velocity.y) > 0.3) {
           velocity.y *= -0.32;
           velocity.x *= 0.55;
           velocity.z *= 0.55;
@@ -899,7 +985,14 @@ export default function Grabbable({
     if (s) {
       const lift = Math.max(0, g.position.y - base[1]);
       const spreadT = Math.min(1, lift / 0.45);
-      s.position.set(g.position.x, base[1] + 0.02, g.position.z + 0.02);
+      let shadeY = base[1];
+      if (launchTerrain.current === "meadow") {
+        g.getWorldPosition(terrainPoint);
+        terrainPoint.y = meadowHeight(terrainPoint.x, terrainPoint.z);
+        if (g.parent) g.parent.worldToLocal(terrainPoint);
+        shadeY = terrainPoint.y;
+      }
+      s.position.set(g.position.x, shadeY + 0.02, g.position.z + 0.02);
       const w = shadeWidth * (1 + spreadT * 0.7);
       s.scale.set(w, w * 0.32, 1);
       s.material.opacity = SHADE_OPACITY * (1 - 0.65 * spreadT);

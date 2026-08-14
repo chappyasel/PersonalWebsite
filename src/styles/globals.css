@@ -191,13 +191,28 @@
     min-height: 100%;
     font-family: var(--font-selected), Georgia, serif;
   }
-  /* The fixed Stacks world owns scrolling while it is active. Scope the
-     rubber-band suppression to that mode so the site's document pages retain
-     native mobile scrolling. `data-world` is installed before first paint and
-     remains `ready` for the lifetime of the mounted world. */
-  html[data-world],
-  html[data-world] body {
-    overscroll-behavior: none;
+  /* Stacks reuses cards authored with flat-page tilt. Once a card's own
+     backdrop-filter is promoted, a surviving perspective/preserve-3d chain
+     can paint that glass over its translated content. The placard scope
+     deliberately flattens the complete chain and gives separate background
+     siblings an explicit paint order; cards outside Stacks retain their tilt. */
+  .placard-scroll [class*="perspective:"] {
+    perspective: none !important;
+  }
+  .placard-scroll [class*="preserve-3d"] {
+    transform: none !important;
+    transform-style: flat !important;
+    perspective: none !important;
+  }
+  .placard-scroll [style*="translateZ"] {
+    transform: none !important;
+  }
+  .placard-scroll [data-placard-background] {
+    z-index: 0;
+    pointer-events: none;
+  }
+  .placard-scroll [data-placard-background] ~ * {
+    z-index: 1;
   }
   /* Remove default focus outlines - components handle their own focus styles */
   button:focus,

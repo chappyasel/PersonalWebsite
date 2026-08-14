@@ -27,7 +27,11 @@ export default function DailyRoutine() {
           href="/routine"
           className="group relative block w-full p-5 [transform-style:preserve-3d] sm:p-6"
         >
-          <div className="absolute inset-0 rounded-3xl border border-foreground/[0.06] bg-muted/40 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-lg transition-shadow duration-500 ease-out group-hover:shadow-[0px_8px_24px_0px_rgba(0,0,0,0.1)]" />
+          <div
+            data-placard-background=""
+            data-placard-surface=""
+            className="absolute inset-0 rounded-3xl border border-foreground/[0.06] bg-muted/40 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-lg transition-shadow duration-500 ease-out group-hover:shadow-[0px_8px_24px_0px_rgba(0,0,0,0.1)]"
+          />
 
           <div className="relative" style={{ transform: "translateZ(20px)" }}>
             <p className="text-lg leading-snug">

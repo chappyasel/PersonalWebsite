@@ -51,7 +51,11 @@ function ProjectItem({ project }: { project: Project }) {
   const content = (
     <>
       {/* Background layer — sits flat so backdrop-blur doesn't flatten 3D */}
-      <div className="absolute inset-0 rounded-3xl border border-foreground/[0.06] bg-muted/40 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-lg transition-shadow duration-500 ease-out group-hover:shadow-[0px_8px_24px_0px_rgba(0,0,0,0.1)]" />
+      <div
+        data-placard-background=""
+        data-placard-surface=""
+        className="absolute inset-0 rounded-3xl border border-foreground/[0.06] bg-muted/40 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-lg transition-shadow duration-500 ease-out group-hover:shadow-[0px_8px_24px_0px_rgba(0,0,0,0.1)]"
+      />
       <div
         className="relative h-full sm:h-auto sm:basis-1/3"
         style={{ transform: "translateZ(30px)" }}

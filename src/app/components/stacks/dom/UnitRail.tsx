@@ -176,7 +176,7 @@ export default function UnitRail() {
           <div
             ref={thumbRef}
             aria-hidden
-            className="absolute left-0 top-[11px] h-3.5 w-[2px] rounded-full bg-foreground/70 will-change-transform"
+            className="stacks-on-background-mark absolute left-0 top-[11px] h-3.5 w-[2px] rounded-full bg-foreground/70 will-change-transform"
           />
           {UNITS.map((unit, i) => {
             const Icon = unit.icon;
@@ -191,7 +191,7 @@ export default function UnitRail() {
                 // The desktop rail uses a larger mark and label but a tighter
                 // 2.25rem step, improving scanability without stretching the
                 // seven-item group down the scene. pl-4 is the thumb's lane.
-                className={`stacks-rail-row group flex h-9 items-center rounded-lg pl-4 text-left font-serif text-[1.05rem] tracking-wide transition-colors duration-300 focus-visible:ring-2 focus-visible:ring-foreground/40 ${
+                className={`stacks-on-background-text stacks-rail-row group flex h-9 items-center rounded-lg pl-4 text-left font-serif text-[1.05rem] tracking-wide transition-colors duration-300 focus-visible:ring-2 focus-visible:ring-foreground/40 ${
                   active
                     ? "text-foreground"
                     : "text-muted-foreground hover:text-foreground"
@@ -262,7 +262,7 @@ export default function UnitRail() {
                 aria-current={active ? "true" : undefined}
                 data-active={active || undefined}
                 onClick={() => go(i)}
-                className="stacks-rail-row pointer-events-auto relative flex h-12 items-center justify-center rounded-xl pb-1 text-foreground focus-visible:ring-2 focus-visible:ring-foreground/50"
+                className="stacks-on-background-text stacks-rail-row pointer-events-auto relative flex h-12 items-center justify-center rounded-xl pb-1 text-foreground focus-visible:ring-2 focus-visible:ring-foreground/50"
                 style={{ width: `${MOBILE_STEP_REM}rem` }}
               >
                 <Icon
@@ -272,7 +272,7 @@ export default function UnitRail() {
                 />
                 <span
                   aria-hidden
-                  className={`absolute bottom-1 left-1/2 h-1 w-5 -translate-x-1/2 rounded-full bg-foreground/85 transition-opacity duration-200 ${
+                  className={`stacks-on-background-mark absolute bottom-1 left-1/2 h-1 w-5 -translate-x-1/2 rounded-full bg-foreground/85 transition-opacity duration-200 ${
                     active ? "opacity-100" : "opacity-0"
                   }`}
                 />

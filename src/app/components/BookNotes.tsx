@@ -44,6 +44,7 @@ export default function BookNotes({
         hoverScale={1.02}
       >
         <Link
+          data-placard-surface=""
           className="block w-full overflow-hidden rounded-3xl border border-foreground/[0.06] bg-muted/40 shadow-[0px_4px_12px_1px_rgba(0,0,0,0.07)] backdrop-blur-lg transition-shadow duration-500 ease-out hover:shadow-[0px_8px_24px_0px_rgba(0,0,0,0.1)]"
           href={bookHref}
         >
