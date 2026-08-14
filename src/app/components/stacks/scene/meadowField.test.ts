@@ -29,6 +29,7 @@ import {
   inEastFeather,
   inWestFeather,
   meadowHeight,
+  shadeScale,
   unionWestX,
   westFeatherScale,
 } from "./meadowField";
@@ -199,6 +200,21 @@ describe("placement", () => {
       );
     }
     expect(full).toBeGreaterThan(500); // the strip is genuinely populated
+  });
+
+  it("shades tufts under the furniture in color, never in geometry", () => {
+    // The contact shadow rides the baked sun term (bakedSun × shadeScale):
+    // full shade at the shelf and couch centres, untouched in open field.
+    expect(shadeScale(0, 0)).toBeCloseTo(0.3, 5);
+    expect(shadeScale(-3.41, -0.11)).toBeCloseTo(0.3, 5);
+    expect(shadeScale(10, -10)).toBe(1);
+    const grass = buildGrassInstances();
+    for (const stream of [grass.near, grass.far]) {
+      for (let i = 0; i < stream.count; i += 31) {
+        expect(stream.sun[i]!).toBeGreaterThanOrEqual(0);
+        expect(stream.sun[i]!).toBeLessThanOrEqual(1);
+      }
+    }
   });
 
   it("feathers the western flank instead of cutting it", () => {

@@ -7,7 +7,7 @@
 import { rand } from "../theme";
 
 import { SEAT_POSE } from "./seated";
-import { TRAVEL_LEAD_IN, TRAVEL_X } from "./worldLayout";
+import { TRAVEL_LEAD_IN, TRAVEL_X, UNIT_SPACING, unitPose } from "./worldLayout";
 
 // ---------------------------------------------------------------------------
 // Cameras the field is derived against. Every extent below is a consequence
@@ -338,6 +338,35 @@ export const MEADOW_RUNG_FLOWERS = [0, 0, 1408, 1600] as const;
 // furniture IN the grass. Uniform density right up to the shelf posts is the
 // look; the tallest near tuft tips out around y −0.97, below the shelf
 // planks, so nothing clips.
+//
+// What the furniture DOES do to the grass is shade it. The ground draws
+// baked shadow decals under every unit and the couch, but tufts grow up
+// through those decals and used to stay fully lit — the same-browse "the
+// lighting doesn't have any impact on the grass". These sites darken each
+// tuft's baked sun term inside the furniture footprints (color, never
+// geometry — density stays uniform).
+const SHADE_UNIT_COUNT = Math.round(TRAVEL_X / UNIT_SPACING) + 1;
+const SHADE_SITES: { x: number; z: number; r0: number; r1: number }[] = [];
+for (let i = 0; i < SHADE_UNIT_COUNT; i++) {
+  const [px, , pz] = unitPose(i).position;
+  SHADE_SITES.push({ x: px, z: pz, r0: 1.4, r1: 2.9 });
+}
+// The About couch — world centre from the measured hull (seated.ts).
+SHADE_SITES.push({ x: -3.41, z: -0.11, r0: 1.1, r1: 2.2 });
+
+/** Contact-shadow factor ∈ [0.3, 1] multiplied into the baked sun term. At
+ * the 0.3 floor a flat-lawn tuft (sun ≈ 0.85) drops to ≈ 0.26, which the
+ * grass fragment turns into ≈ ×0.78 body darkening in light theme and a
+ * softer ≈ ×0.92 at night — a shadow, not a hole. */
+export function shadeScale(x: number, z: number): number {
+  let s = 1;
+  for (const site of SHADE_SITES) {
+    const d = Math.hypot(x - site.x, z - site.z);
+    const t = smoothstep(site.r0, site.r1, d);
+    if (t < s) s = t;
+  }
+  return 0.3 + 0.7 * s;
+}
 
 // ---------------------------------------------------------------------------
 // West density feather. The walk phase of the seat transition can face the
@@ -442,14 +471,16 @@ const SUN_DIR = (() => {
 })();
 
 function bakedSun(x: number, z: number): number {
-  // Central-difference terrain normal → half-Lambert against the key.
+  // Central-difference terrain normal → half-Lambert against the key,
+  // multiplied by the furniture contact shadow (shadeScale) so tufts under
+  // the shelves and couch sit in the same shade their ground decals paint.
   const e = 0.35;
   const dx = (meadowHeight(x + e, z) - meadowHeight(x - e, z)) / (2 * e);
   const dz = (meadowHeight(x, z + e) - meadowHeight(x, z - e)) / (2 * e);
   const l = Math.hypot(dx, 1, dz);
   const ndl =
     (-dx / l) * SUN_DIR.x + (1 / l) * SUN_DIR.y + (-dz / l) * SUN_DIR.z;
-  return 0.5 + 0.5 * Math.max(-1, Math.min(1, ndl));
+  return (0.5 + 0.5 * Math.max(-1, Math.min(1, ndl))) * shadeScale(x, z);
 }
 
 function traverseXRange(d: number): [number, number] {

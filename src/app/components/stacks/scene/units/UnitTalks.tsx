@@ -5,6 +5,7 @@
 // into one repeated thumbnail shape.
 import { useStacks } from "../../store";
 import Grabbable from "../Grabbable";
+import { registerMeadowLamp } from "../meadowLights";
 import { FootPool } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
 import ModelProp from "../ModelProp";
@@ -253,6 +254,26 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
   /** Shared 0..1 lit factor for the floor lamp: the switch damps it and the
    * two glow sprites multiply it in themselves. */
   const lit = useRef(1);
+  // The one practical standing IN the grass. The meadow's shaders are unlit,
+  // so FloorLampSpot's real pool stops at the lawn — register the lamp with
+  // the meadow (position measured from the mounted rig, so nesting and unit
+  // pose cannot drift it) and the grass paints the matching warm pool,
+  // following the click-off egg through the same lit ref. Radius is the
+  // spot's ground circle: height above ground × tan(0.85 cone) ≈ 2.2.
+  const lampRootRef = useRef<THREE.Group>(null);
+  useEffect(() => {
+    const root = lampRootRef.current;
+    if (!root) return;
+    const mouth = new THREE.Vector3();
+    root.getWorldPosition(mouth);
+    return registerMeadowLamp(`talks-floor-lamp-${index}`, {
+      x: mouth.x,
+      y: mouth.y + SHADE_BOTTOM_Y - 0.017,
+      z: mouth.z,
+      radius: 2.2,
+      litRef: lit,
+    });
+  }, [index]);
   return (
     <>
       <ShelfUnit
@@ -445,7 +466,7 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
           ground pool is a sibling in the rig, because an additive sprite is a
           metre-wide transparent quad and inside the trigger it becomes an
           invisible hit box over half the unit. */}
-      <group position={[-2.12, -1.115, 0.06]} rotation={[0, 0.45, 0]}>
+      <group ref={lampRootRef} position={[-2.12, -1.115, 0.06]} rotation={[0, 0.45, 0]}>
         <LampSwitch
           unitIndex={index}
           activeUnitIndexes={[index - 1, index]}

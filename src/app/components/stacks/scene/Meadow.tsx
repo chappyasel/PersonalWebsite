@@ -22,6 +22,7 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { MEADOW_LAMP_MAX, getMeadowLamps } from "./meadowLights";
 import {
   MEADOW_BANK,
   MEADOW_FLOWER_TOTAL,
@@ -121,6 +122,30 @@ const DOME_GLSL = /* glsl */ `
   }
 `;
 
+// The practicals' pools (meadowLights.ts). The grass is unlit by design, so
+// the handful of registered ground-pooling lamps arrive as a fixed uniform
+// array and an analytic radial pool — warm where the real SpotLight is
+// bright, dark when its click-off egg is off (uLampGlow carries the same
+// eased lit factor the glow sprites read). Evaluated per VERTEX (tuft
+// origin / terrain vertex): the pools are metres wide, so vertex resolution
+// is invisible and the fragment cost is one madd.
+const LAMP_GLSL = /* glsl */ `
+  uniform vec4 uLampPos[${MEADOW_LAMP_MAX}];
+  uniform float uLampGlow[${MEADOW_LAMP_MAX}];
+  float lampPool(vec3 p) {
+    float g = 0.0;
+    for (int i = 0; i < ${MEADOW_LAMP_MAX}; i++) {
+      vec2 d = p.xz - uLampPos[i].xz;
+      float fall = 1.0 - smoothstep(0.0, uLampPos[i].w, length(d));
+      g += uLampGlow[i] * fall * fall;
+    }
+    return g;
+  }
+`;
+/** The pool's warm hue — FloorLampSpot's #ffbe73 pushed slightly toward
+ * amber so it stays lamp-colored after the grass's own green multiplies in. */
+const LAMP_WARM = "vec3(1.0, 0.72, 0.44)";
+
 const SHARED_UNIFORMS_GLSL = /* glsl */ `
   uniform float uTime;
   uniform float uDark;
@@ -153,12 +178,14 @@ const GRASS_VERTEX = /* glsl */ `
   varying float vSun;
   varying float vPatch;
   varying float vWind;
+  varying float vLamp;
   varying float vFog;
   varying vec2 vUv;
   varying vec3 vFogColor;
   ${NOISE_GLSL}
   ${WIND_GLSL}
   ${DOME_GLSL}
+  ${LAMP_GLSL}
   void main() {
     vec3 origin = vec3(instanceMatrix[3]);
     // Geometry is height-normalized: position.y IS the 0→1 wind/color gate.
@@ -181,6 +208,7 @@ const GRASS_VERTEX = /* glsl */ `
     // texture; low-frequency value noise is the textureless equivalent).
     vPatch = vnoise(origin.xz * 0.16);
     vWind = length(w);
+    vLamp = lampPool(origin);
     vUv = uv;
     vFog = ${GRASS_FOG};
     vFogColor = domeBelow(world.xyz);
@@ -195,6 +223,7 @@ const GRASS_FRAGMENT = /* glsl */ `
   varying float vSun;
   varying float vPatch;
   varying float vWind;
+  varying float vLamp;
   varying float vFog;
   varying vec2 vUv;
   varying vec3 vFogColor;
@@ -214,6 +243,10 @@ const GRASS_FRAGMENT = /* glsl */ `
     // seated DC vista owns the light); gusts catch a soft sheen.
     col *= 1.0 + vec3(0.055, 0.028, -0.020) * uDawn * vT * (1.0 - uSeat * 0.8);
     col *= 1.0 + vWind * 1.2 * vT * mix(0.35, 0.15, uDark);
+    // The practicals' pools — tips catch more than roots, and the night
+    // weighting is where the lamp actually reads. Additive in linear HDR
+    // compounds under bloom, so the peak stays modest.
+    col += ${LAMP_WARM} * vLamp * (0.3 + 0.7 * vT) * mix(0.10, 0.30, uDark);
     col = mix(col, vFogColor, vFog);
     gl_FragColor = vec4(col, 1.0);
     #include <tonemapping_fragment>
@@ -227,14 +260,17 @@ const TERRAIN_VERTEX = /* glsl */ `
   varying vec3 vWorld;
   varying float vSun;
   varying float vDepth;
+  varying float vLamp;
   varying float vFog;
   varying vec3 vFogColor;
   ${DOME_GLSL}
+  ${LAMP_GLSL}
   void main() {
     vWorld = position;
     vSun = 0.5 + 0.5 * dot(normalize(normal), uSunDir);
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     vDepth = -mv.z;
+    vLamp = lampPool(position);
     vFog = ${TERRAIN_FOG};
     vFogColor = domeBelow(position);
     gl_Position = projectionMatrix * mv;
@@ -246,6 +282,7 @@ const TERRAIN_FRAGMENT = /* glsl */ `
   varying vec3 vWorld;
   varying float vSun;
   varying float vDepth;
+  varying float vLamp;
   varying float vFog;
   varying vec3 vFogColor;
   ${NOISE_GLSL}
@@ -264,6 +301,9 @@ const TERRAIN_FRAGMENT = /* glsl */ `
     vec3 col = mix(base, tip * 0.82, 0.18 + 0.55 * mott);
     col *= 1.0 + (vSun - 0.5) * mix(0.9, 0.35, uDark);
     col *= 1.0 + vec3(0.055, 0.028, -0.020) * uDawn * 0.5 * (1.0 - uSeat * 0.8);
+    // The carpet sits under the tuft pile, so its pool reads dimmer than
+    // the lit tips above it.
+    col += ${LAMP_WARM} * vLamp * mix(0.07, 0.22, uDark);
     col = mix(col, vFogColor, vFog);
     gl_FragColor = vec4(col, 1.0);
     #include <tonemapping_fragment>
@@ -278,12 +318,14 @@ const FLOWER_VERTEX = /* glsl */ `
   attribute float aTint;
   varying float vTint;
   varying float vClamp;
+  varying float vLamp;
   varying float vFog;
   varying vec2 vUv;
   varying vec3 vFogColor;
   ${NOISE_GLSL}
   ${WIND_GLSL}
   ${DOME_GLSL}
+  ${LAMP_GLSL}
   void main() {
     vec3 origin = vec3(instanceMatrix[3]);
     // Identity instance rotation → the scale lives in [0][0].
@@ -312,6 +354,7 @@ const FLOWER_VERTEX = /* glsl */ `
     // cluster into a color mix.
     vTint = aTint;
     vClamp = 1.0 - 1.0 / k;
+    vLamp = lampPool(origin);
     vUv = uv;
     vFog = ${GRASS_FOG};
     vFogColor = domeBelow(world.xyz);
@@ -328,6 +371,7 @@ const FLOWER_FRAGMENT = /* glsl */ `
   uniform vec3 uNightB;
   varying float vTint;
   varying float vClamp;
+  varying float vLamp;
   varying float vFog;
   varying vec2 vUv;
   varying vec3 vFogColor;
@@ -345,6 +389,7 @@ const FLOWER_FRAGMENT = /* glsl */ `
     float r = length(vUv - 0.5) * 2.0;
     if (r > 0.92) discard;
     col *= 1.0 - 0.22 * smoothstep(0.30, 0.92, r);
+    col += ${LAMP_WARM} * vLamp * mix(0.06, 0.20, uDark);
     col = mix(col, vFogColor, max(vFog, vClamp * 0.85));
     gl_FragColor = vec4(col, 1.0);
     #include <tonemapping_fragment>
@@ -458,6 +503,15 @@ export default function Meadow({
       uTipAD: { value: c(COLORS.tipAD) },
       uTipBL: { value: c(COLORS.tipBL) },
       uTipBD: { value: c(COLORS.tipBD) },
+      // Practical pools (meadowLights.ts) — positions and eased lit factors
+      // rewritten each frame; glow 0 disables an unused slot outright.
+      uLampPos: {
+        value: Array.from(
+          { length: MEADOW_LAMP_MAX },
+          () => new THREE.Vector4(0, 0, 0, 1),
+        ),
+      },
+      uLampGlow: { value: new Array<number>(MEADOW_LAMP_MAX).fill(0) },
     };
     const grassOnly = {
       uAlpha: { value: null as THREE.Texture | null },
@@ -623,6 +677,17 @@ export default function Meadow({
     // resize/dpr safety with no listener.
     built.flowerOnly.uPixelScale.value =
       (gl.domElement.height * camera.projectionMatrix.elements[5]) / 2;
+    // Practical pools: mirror the registry into the uniform array. Reading
+    // the lit refs here (not React state) keeps the click-off egg's ease
+    // frame-locked with the lamp's own glow sprites.
+    let li = 0;
+    for (const lamp of getMeadowLamps().values()) {
+      if (li >= MEADOW_LAMP_MAX) break;
+      shared.uLampPos.value[li]!.set(lamp.x, lamp.y, lamp.z, lamp.radius);
+      shared.uLampGlow.value[li] = lamp.litRef.current;
+      li++;
+    }
+    for (; li < MEADOW_LAMP_MAX; li++) shared.uLampGlow.value[li] = 0;
     const density = densityRef.current;
     const countFor = (table: readonly number[]) =>
       density === null
