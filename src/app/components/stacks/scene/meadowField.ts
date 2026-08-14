@@ -7,6 +7,7 @@
 import { rand } from "../theme";
 
 import { SEAT_POSE } from "./seated";
+import { SHELF_GEOMETRY, SHELF_UNDERSIDE } from "./shelfGeometry";
 import { TRAVEL_LEAD_IN, TRAVEL_X, UNIT_SPACING, unitPose } from "./worldLayout";
 
 // ---------------------------------------------------------------------------
@@ -92,6 +93,27 @@ export const MEADOW_TERRAIN = {
 export const MEADOW_FOG = {
   terrain: [8, 24],
   grass: [8, 22],
+  /** Fog CAP (owner round 3: "middle area quite bland and perhaps overly
+   * foggy", "hills — I can't even tell"). The ramps above no longer converge
+   * all the way to the dome color in the open field: a theme-split fraction
+   * of local color survives, which is what keeps the midfield green and
+   * gives the horizon ridge a readable hill form instead of a flat
+   * dome-colored wall. LIGHT runs far clearer than dark (owner: "the fog
+   * looks the right level in dark but in light it's too much… a more direct
+   * connect between the blue sky and green grass") — the hill edge stays
+   * green against the sky. The residual is REVOKED — fog returns to 100% —
+   * (a) inside a band along the terrain rectangle's borders (the actual
+   * edge-invisibility duty; every boundary edge still saturates exactly as
+   * the check script's (a) contract assumes) and (b) past `capFade` view
+   * depth, a far backstop that sits BEYOND the ridge silhouette (d ≈ 26–30
+   * central) so it never re-fogs the crest line the cap exists to show. */
+  cap: [0.5, 0.86],
+  capFade: [32, 38],
+  /** Border-recovery band widths (x edges / z edges). The z band is
+   * narrower so it stays clear of the horizon ridge's far flank
+   * (crest −21.5, σ 3 vs minZ −27). */
+  border: 6,
+  borderZ: 3,
 } as const;
 
 /** Base plain height. Room prop ground is −1.115 (shadow pools −1.114). */
@@ -195,27 +217,34 @@ export const HORIZON_RIDGE = {
   holdMaxX: 42,
   /** Fully tapered by these x — comfortably inside the terrain rectangle
    * (−36 … 53), so an above-horizon silhouette can never reach a rectangle
-   * edge and cut against the sky. */
-  endMinX: -28,
-  endMaxX: 46,
+   * edge and cut against the sky. Round 3 tripled the crest height, so the
+   * tapers widened (4 → 7/8 units) to keep the descending shoulders
+   * gradual. */
+  endMinX: -31,
+  endMaxX: 50,
   /** Below-horizon tail height. From the lowest eye it reads at e ≈ −0.016:
    * under the horizon, over the deep-gap floor, and painted in the exact
    * dome-shadow color it sits against (invisible by construction). */
   tailY: -0.3,
 } as const;
 
-/** Authored world-y crest line of the horizon ridge, rolling in x. The held
- * band [0.37, 0.55] is derived from the eye envelope: from the HIGHEST bobbed
- * eye (phone, y 0.41, d 29.1) the lowest crest still sits at e ≥ −0.0013 (no
- * sky gap opens behind the shelves), and from the LOWEST bobbed eye (desktop,
- * y 0.14, d 27.3) the tallest crest stays under the e ≈ +0.016 cap — at or a
- * little above the horizon, never a wall. The check script measures the real
- * silhouettes; vitest pins this function's range and taper. */
+/** Authored world-y crest line of the horizon ridge, rolling in x. Round 3
+ * ("doesn't look nearly hilly enough — I can't even tell") roughly doubled
+ * the whole band and its roll: held band ≈ [0.68, 1.08], derived from the
+ * eye envelope. From the HIGHEST bobbed eye (phone, y 0.41, d 29.1) the
+ * lowest crest still sits at e ≈ +0.009 (above the horizon — the water/sky
+ * band behind the shelves stays closed), and from the LOWEST bobbed eye
+ * (desktop, y 0.14, d 27.3) the tallest crest reads at e ≈ +0.034 — real
+ * hills, but still under the GGB deck line (e 0.038), so no structure BODY
+ * is ever swallowed. Two sine octaves + value noise make the crest roll
+ * rather than wall. The check script measures the real silhouettes; vitest
+ * pins this function's range and taper. */
 export function horizonCrestY(x: number): number {
   const roll =
-    0.46 +
-    0.06 * Math.sin(x * 0.22 + 1.7) +
-    0.028 * (vnoise1(x * 0.12, 3.7) - 0.5) * 2;
+    0.88 +
+    0.11 * Math.sin(x * 0.22 + 1.7) +
+    0.05 * Math.sin(x * 0.53 - 0.4) +
+    0.04 * (vnoise1(x * 0.12, 3.7) - 0.5) * 2;
   const hold =
     smoothstep(HORIZON_RIDGE.endMinX, HORIZON_RIDGE.holdMinX, x) *
     (1 - smoothstep(HORIZON_RIDGE.holdMaxX, HORIZON_RIDGE.endMaxX, x));
@@ -307,6 +336,13 @@ export const GRASS_BANDS = {
   near: { count: 6000, d0: TRAVERSE_EYE.z - VEGETATION_FRONT_Z, d1: 14 },
   /** The meadow moment, z −8.2 → −18.2: taller, wider tufts with distance. */
   mid: { count: 2500, d0: 14, d1: 24 },
+  /** The horizon ridge's near face, z −17.2 → −22.8 (overlapping the mid
+   * band's tail by one z-unit so there is no density seam). Sparse but BIG
+   * tufts: under the round-3 fog cap the ridge keeps a residual of local
+   * color, and this band is what makes that residual read as a grassy hill
+   * face instead of smooth felt. Heights stay modest (≤ ~0.45) so the tuft
+   * fringe over the proven crest silhouette stays a fuzz, not a wall. */
+  ridge: { count: 1000, d0: 23, d1: 28.6 },
   /** Seated band, z +1.6 → skirt, depths against the SEAT eye. Starts well
    * behind the rail so the walk phase of the seat transition (which can
    * face the couch's surround from close range) sees lawn, not a boundary;
@@ -315,8 +351,14 @@ export const GRASS_BANDS = {
 } as const;
 
 export const MEADOW_GRASS_TOTAL =
-  GRASS_BANDS.near.count + GRASS_BANDS.mid.count + GRASS_BANDS.seated.count;
-export const MEADOW_FLOWER_TOTAL = 1600;
+  GRASS_BANDS.near.count +
+  GRASS_BANDS.mid.count +
+  GRASS_BANDS.ridge.count +
+  GRASS_BANDS.seated.count;
+/** 1600 → 1900 at round 3: the traverse drifts extended up the ridge face
+ * ("flowers all the way into the hills"), and the extra 300 keep the near
+ * and mid field at their approved density despite the larger area. */
+export const MEADOW_FLOWER_TOTAL = 1900;
 
 // The degrade dial's order contract. Each instance gets a quality quantile;
 // the buffer is ordered rung-major at these cumulative fractions,
@@ -326,14 +368,14 @@ export const MEADOW_FLOWER_TOTAL = 1600;
 // make a lowered count delete the far field first and pull the horizon in.)
 export const MEADOW_RUNG_FRACTIONS = [0.45, 0.7, 0.88, 1] as const;
 /** The near lawn draws the detailed tuft LOD in its own InstancedMesh; the
- * mid + seated bands share the light LOD in a second one. Each mesh has its
- * own rung-ordered buffer and count table; the combined table is the
- * reporting total. */
+ * mid + seated + ridge bands share the light LOD in a second one. Each mesh
+ * has its own rung-ordered buffer and count table; the combined table is
+ * the reporting total. */
 export const MEADOW_RUNG_GRASS_NEAR = [2700, 4200, 5280, 6000] as const;
-export const MEADOW_RUNG_GRASS_FAR = [2250, 3500, 4400, 5000] as const;
-export const MEADOW_RUNG_GRASS = [4950, 7700, 9680, 11000] as const;
+export const MEADOW_RUNG_GRASS_FAR = [2700, 4200, 5280, 6000] as const;
+export const MEADOW_RUNG_GRASS = [5400, 8400, 10560, 12000] as const;
 /** Flowers stay OFF at the two lowest quality rungs (degrade ≥ 2). */
-export const MEADOW_RUNG_FLOWERS = [0, 0, 1408, 1600] as const;
+export const MEADOW_RUNG_FLOWERS = [0, 0, 1672, 1900] as const;
 
 // There are deliberately NO furniture clearings. The first round shipped
 // grass that thinned and shortened around the shelf units and the couch, and
@@ -345,30 +387,98 @@ export const MEADOW_RUNG_FLOWERS = [0, 0, 1408, 1600] as const;
 // What the furniture DOES do to the grass is shade it. The ground draws
 // baked shadow decals under every unit and the couch, but tufts grow up
 // through those decals and used to stay fully lit — the same-browse "the
-// lighting doesn't have any impact on the grass". These sites darken each
-// tuft's baked sun term inside the furniture footprints (color, never
-// geometry — density stays uniform).
+// lighting doesn't have any impact on the grass". These sites carry a
+// contact-shadow mask (aShade) that the shaders multiply straight into the
+// body color inside the furniture footprints (color, never geometry —
+// density stays uniform).
 const SHADE_UNIT_COUNT = Math.round(TRAVEL_X / UNIT_SPACING) + 1;
-const SHADE_SITES: { x: number; z: number; r0: number; r1: number }[] = [];
-for (let i = 0; i < SHADE_UNIT_COUNT; i++) {
-  const [px, , pz] = unitPose(i).position;
-  SHADE_SITES.push({ x: px, z: pz, r0: 1.4, r1: 2.9 });
-}
-// The About couch — world centre from the measured hull (seated.ts).
-SHADE_SITES.push({ x: -3.41, z: -0.11, r0: 1.1, r1: 2.2 });
 
-/** Contact-shadow factor ∈ [0.3, 1] multiplied into the baked sun term. At
- * the 0.3 floor a flat-lawn tuft (sun ≈ 0.85) drops to ≈ 0.26, which the
- * grass fragment turns into ≈ ×0.78 body darkening in light theme and a
- * softer ≈ ×0.92 at night — a shadow, not a hole. */
+/** Contact-shadow occluders — the PROGRAMMATIC model (owner round 3: "the
+ * shadows are far too large under the shelves… really just under the bottom
+ * shelf, with maybe a little secondary one for the top shelf… some sorta
+ * algo"): each occluder is its real footprint box projected straight down,
+ * and `lift` (underside height above the lawn) drives everything else —
+ * penumbra width grows with lift, strength decays with it. So the LOW
+ * bottom plank throws a tight dark band exactly its own size, the HIGH top
+ * plank a wide faint wash (the "secondary"), and a ground-sitting fixture
+ * like the Systems floor clock a hard little pool that grades out — one
+ * rule, no per-prop art direction. Overlapping occluders combine
+ * multiplicatively like real occlusion. Boxes stay world-axis-aligned: the
+ * units' ±0.1 rad yaw skews a footprint ≈0.15 u, under its penumbra. */
+type ShadeOccluder = { x: number; z: number; hx: number; hz: number; lift: number };
+const SHADE_OCCLUDERS: ShadeOccluder[] = [];
+/** Place a unit-local footprint into world space through the unit's yaw. */
+function pushUnitOccluder(
+  i: number,
+  lx: number,
+  lz: number,
+  hx: number,
+  hz: number,
+  lift: number,
+) {
+  const pose = unitPose(i);
+  const yaw = pose.rotation[1];
+  const c = Math.cos(yaw);
+  const s = Math.sin(yaw);
+  SHADE_OCCLUDERS.push({
+    x: pose.position[0] + lx * c + lz * s,
+    z: pose.position[2] - lx * s + lz * c,
+    hx,
+    hz,
+    lift,
+  });
+}
+for (let i = 0; i < SHADE_UNIT_COUNT; i++) {
+  // Both shelf planks, straight from the shared geometry contract.
+  pushUnitOccluder(
+    i,
+    0,
+    SHELF_GEOMETRY.lower.centerZ,
+    SHELF_GEOMETRY.width / 2,
+    SHELF_GEOMETRY.lower.depth / 2,
+    SHELF_UNDERSIDE.lower - MEADOW_GROUND_BASE,
+  );
+  pushUnitOccluder(
+    i,
+    0,
+    SHELF_GEOMETRY.top.centerZ,
+    SHELF_GEOMETRY.width / 2,
+    SHELF_GEOMETRY.top.depth / 2,
+    SHELF_UNDERSIDE.top - MEADOW_GROUND_BASE,
+  );
+}
+// The About couch — measured hull centre (seated.ts), frame underside ≈0.18
+// above the lawn on its legs.
+SHADE_OCCLUDERS.push({ x: -3.41, z: 0.0, hx: 1.0, hz: 0.72, lift: 0.18 });
+// Systems floor clock (UnitSystems, local 1.98/−0.15, FootPool 0.66×0.44).
+pushUnitOccluder(3, 1.98, -0.15, 0.34, 0.26, 0.02);
+// Talks floor lamp base (UnitTalks, local −2.12/0.06).
+pushUnitOccluder(6, -2.12, 0.06, 0.19, 0.19, 0.02);
+
+/** Penumbra width and strength as functions of occluder lift — the whole
+ * "algorithm". Bottom plank (lift ≈0.27): pen ≈0.37, strength ≈0.75. Top
+ * plank (lift ≈1.14): pen ≈0.98, strength ≈0.22. Ground fixtures: pen
+ * ≈0.19, strength ≈0.91. */
+const SHADE_PEN_BASE = 0.18;
+const SHADE_PEN_PER_LIFT = 0.7;
+function occluderStrength(lift: number): number {
+  return clamp(0.92 - 0.62 * lift, 0.18, 0.92);
+}
+
+/** Furniture contact-shadow mask: →0 fully shaded, 1 open lawn. Rides its
+ * own instance/vertex attribute (aShade); the shaders apply it as a direct
+ * body-color multiplier (depth of the darkening is a shader-side knob —
+ * this function owns only the occlusion geometry). */
 export function shadeScale(x: number, z: number): number {
   let s = 1;
-  for (const site of SHADE_SITES) {
-    const d = Math.hypot(x - site.x, z - site.z);
-    const t = smoothstep(site.r0, site.r1, d);
-    if (t < s) s = t;
+  for (const o of SHADE_OCCLUDERS) {
+    const dx = Math.max(Math.abs(x - o.x) - o.hx, 0);
+    const dz = Math.max(Math.abs(z - o.z) - o.hz, 0);
+    const d = Math.hypot(dx, dz);
+    const pen = SHADE_PEN_BASE + SHADE_PEN_PER_LIFT * o.lift;
+    s *= 1 - occluderStrength(o.lift) * (1 - smoothstep(0, pen, d));
   }
-  return 0.3 + 0.7 * s;
+  return s;
 }
 
 // ---------------------------------------------------------------------------
@@ -383,12 +493,13 @@ export function shadeScale(x: number, z: number): number {
 // reach and traverse frustums never yaw, so the hard edge resumes.
 export const WEST_FEATHER = { span: 8 } as const;
 
-/** Far density feather: the vegetation far line (z −18.2) reads at only
- * ~85–90% fog from the walk path (a few units west and south of the rail),
- * so the last few units of the mid band thin out by scale — the same
- * no-line-to-find treatment as the west flank. */
+/** Far density feather: with the ridge band the vegetation far line moved
+ * to z −22.8, where the fog cap still leaves a residual of local color, so
+ * the last few units thin out by scale — the same no-line-to-find treatment
+ * as the west flank. (The mid band's tail no longer feathers: the ridge
+ * band overlaps it, so there is no line there at all.) */
 export const FAR_FEATHER = { span: 3.5 } as const;
-const VEGETATION_FAR_Z = TRAVERSE_EYE.z - 24; // mid band d1
+const VEGETATION_FAR_Z = TRAVERSE_EYE.z - GRASS_BANDS.ridge.d1;
 
 export function farFeatherScale(z: number): number {
   return 1 - 0.88 * smoothstep(VEGETATION_FAR_Z + FAR_FEATHER.span, VEGETATION_FAR_Z, z);
@@ -402,7 +513,7 @@ export function inFarFeather(z: number): boolean {
  * no band covers z). */
 export function unionWestX(z: number): number {
   let west = Infinity;
-  if (z <= VEGETATION_FRONT_Z && z >= TRAVERSE_EYE.z - GRASS_BANDS.mid.d1) {
+  if (z <= VEGETATION_FRONT_Z && z >= TRAVERSE_EYE.z - GRASS_BANDS.ridge.d1) {
     west = Math.min(west, TRAVERSE_MIN_X - LATERAL_REACH * (TRAVERSE_EYE.z - z) - 0.6);
   }
   if (z >= SEAT_Z + GRASS_BANDS.seated.d0 && z <= MEADOW_BANK.skirtZ) {
@@ -453,6 +564,13 @@ export type GrassInstances = {
   /** Baked half-Lambert sun term from the terrain normal under the tuft —
    * what shapes the hills into lit and shaded flanks at zero shader cost. */
   sun: Float32Array;
+  /** Furniture contact-shadow mask (shadeScale): 0 under the shelves/couch,
+   * 1 open lawn. Applied as a direct body-color multiplier in the shader. */
+  shade: Float32Array;
+  /** Source band id per instance (GRASS_BANDS order; 3 = ridge). Not a GPU
+   * attribute — it exists so tests can audit per-band invariants after the
+   * rung-major reorder (the mid and ridge bands overlap in z). */
+  band: Uint8Array;
 };
 
 type RawInstance = {
@@ -474,22 +592,34 @@ const SUN_DIR = (() => {
 })();
 
 function bakedSun(x: number, z: number): number {
-  // Central-difference terrain normal → half-Lambert against the key,
-  // multiplied by the furniture contact shadow (shadeScale) so tufts under
-  // the shelves and couch sit in the same shade their ground decals paint.
+  // Central-difference terrain normal → half-Lambert against the key. Pure
+  // slope shading — the furniture contact shadow rides its own attribute
+  // (shadeScale → aShade) so the two signals stay independently tunable.
   const e = 0.35;
   const dx = (meadowHeight(x + e, z) - meadowHeight(x - e, z)) / (2 * e);
   const dz = (meadowHeight(x, z + e) - meadowHeight(x, z - e)) / (2 * e);
   const l = Math.hypot(dx, 1, dz);
   const ndl =
     (-dx / l) * SUN_DIR.x + (1 / l) * SUN_DIR.y + (-dz / l) * SUN_DIR.z;
-  return (0.5 + 0.5 * Math.max(-1, Math.min(1, ndl))) * shadeScale(x, z);
+  return 0.5 + 0.5 * Math.max(-1, Math.min(1, ndl));
 }
 
 function traverseXRange(d: number): [number, number] {
   return [
     TRAVERSE_MIN_X - LATERAL_REACH * d - 0.6,
     TRAVERSE_MAX_X + LATERAL_REACH * d + 0.6,
+  ];
+}
+
+/** The trapezoid clipped to the terrain rectangle — the deepest rows (the
+ * ridge band and hill flowers, d > 24) out-reach the rectangle's east edge;
+ * the frustum out-slopes the rectangle there anyway, and the fog cap's
+ * border-recovery band fully fogs the last strip. */
+function clippedTraverseXRange(d: number): [number, number] {
+  const [x0, x1] = traverseXRange(d);
+  return [
+    Math.max(x0, MEADOW_TERRAIN.minX + 0.3),
+    Math.min(x1, MEADOW_TERRAIN.maxX - 0.3),
   ];
 }
 
@@ -505,7 +635,8 @@ function seatedHalfWidth(z: number): number {
 export type GrassStreams = {
   /** Near lawn — detailed tuft LOD, its own InstancedMesh. */
   near: GrassInstances;
-  /** Mid meadow + seated bank — light tuft LOD, second InstancedMesh. */
+  /** Mid meadow + seated bank + ridge face — light tuft LOD, second
+   * InstancedMesh. */
   far: GrassInstances;
 };
 
@@ -517,6 +648,7 @@ export function buildGrassInstances(
     { ...GRASS_BANDS.near, id: 0 },
     { ...GRASS_BANDS.mid, id: 1 },
     { ...GRASS_BANDS.seated, id: 2 },
+    { ...GRASS_BANDS.ridge, id: 3 },
   ].map((b) => ({ ...b, count: Math.round(b.count * scale) }));
 
   const raw: RawInstance[] = [];
@@ -546,7 +678,8 @@ export function buildGrassInstances(
         x = SEAT_X - hw + rand(i, 42) * 2 * hw;
       } else {
         z = TRAVERSE_EYE.z - d;
-        const [x0, x1] = traverseXRange(d);
+        const [x0, x1] =
+          band.id === 3 ? clippedTraverseXRange(d) : traverseXRange(d);
         x = x0 + rand(i, 42) * (x1 - x0);
       }
       let height: number;
@@ -559,6 +692,12 @@ export function buildGrassInstances(
       } else if (band.id === 2) {
         height = 0.16 * (0.9 + 0.5 * rand(i, 44));
         width = 0.32 + 0.16 * rand(i, 45);
+      } else if (band.id === 3) {
+        // Ridge face: few, huge, squat. Width carries the coverage (the
+        // band is sparse); height stays under ~0.45 so the tuft fringe
+        // above the proven crest silhouette is a fuzz, not a wall.
+        height = 0.24 + 0.2 * rand(i, 44);
+        width = 1.15 + 0.6 * rand(i, 45);
       } else {
         height = 0.16 * (0.8 + 0.4 * rand(i, 44));
         width = 0.32 + 0.16 * rand(i, 45);
@@ -616,6 +755,8 @@ export function buildGrassInstances(
       height: new Float32Array(ordered.length),
       width: new Float32Array(ordered.length),
       sun: new Float32Array(ordered.length),
+      shade: new Float32Array(ordered.length),
+      band: new Uint8Array(ordered.length),
     };
     ordered.forEach((r, k) => {
       out.x[k] = r.x;
@@ -625,11 +766,13 @@ export function buildGrassInstances(
       out.height[k] = r.height;
       out.width[k] = r.width;
       out.sun[k] = bakedSun(r.x, r.z);
+      out.shade[k] = shadeScale(r.x, r.z);
+      out.band[k] = r.band;
     });
     return out;
   };
 
-  return { near: assemble([0]), far: assemble([1, 2]) };
+  return { near: assemble([0]), far: assemble([1, 2, 3]) };
 }
 
 // ---------------------------------------------------------------------------
@@ -682,22 +825,25 @@ type RawFlower = { x: number; z: number; scale: number; q: number; tint: number 
 export function buildFlowerPositions(
   total: number = MEADOW_FLOWER_TOTAL,
 ): FlowerInstances {
-  const traverseCount = Math.round(total * (1240 / MEADOW_FLOWER_TOTAL));
+  const traverseCount = Math.round(total * (1540 / MEADOW_FLOWER_TOTAL));
   const bankCount = total - traverseCount;
   const groups: RawFlower[][] = [[], []];
 
   for (let s = 0; groups[0]!.length < traverseCount; s++) {
-    // Seed placement — depth weighting ∝ exp(−((d − 16)/5)²) on [8, 24]: the
-    // drifts dominate the mid field and stay sparse in the near lawn (near
-    // heads read huge at the rail). Deterministic salted tries stand in for
-    // rejection sampling; a miss keeps its last candidate (an isolated clump).
+    // Seed placement — two-lobed depth weighting on [8, ridge.d1]: the main
+    // gaussian keeps the drifts dominating the mid field and sparse in the
+    // near lawn (near heads read huge at the rail); the second lobe carries
+    // them up the horizon ridge's face (owner round 3: "the flowers need to
+    // go all the way into the hills"). Deterministic salted tries stand in
+    // for rejection sampling; a miss keeps its last candidate.
     let x = 0;
     let z = 0;
     for (let t = 0; t < 6; t++) {
-      const d = 8 + rand(s, 61 + t * 7) * 16;
-      if (rand(s, 62 + t * 7) > gauss(d, 16, 5)) continue;
+      const d = 8 + rand(s, 61 + t * 7) * (GRASS_BANDS.ridge.d1 - 8);
+      const w = Math.max(gauss(d, 16, 5), 0.8 * gauss(d, 26.5, 3));
+      if (rand(s, 62 + t * 7) > w) continue;
       z = TRAVERSE_EYE.z - d;
-      const [x0, x1] = traverseXRange(d);
+      const [x0, x1] = clippedTraverseXRange(d);
       x = x0 + rand(s, 63 + t * 7) * (x1 - x0);
       if (driftMask(x, z)) break;
     }
@@ -717,15 +863,24 @@ export function buildFlowerPositions(
       const i = groups[0]!.length;
       // Clamp the head back into its own depth's trapezoid so a clump seeded
       // near a band boundary cannot leak a head past the proven extents.
-      const d = clamp(TRAVERSE_EYE.z - (z + clusterOffset(i, 76)), 8, 24);
+      const d = clamp(
+        TRAVERSE_EYE.z - (z + clusterOffset(i, 76)),
+        8,
+        GRASS_BANDS.ridge.d1,
+      );
       const hz = TRAVERSE_EYE.z - d;
-      const [x0, x1] = traverseXRange(d);
+      const [x0, x1] = clippedTraverseXRange(d);
       const hx = clamp(x + clusterOffset(i, 71), x0, x1);
       groups[0]!.push({
         x: hx,
         z: hz,
+        // Hill heads grow like the far tufts do, so a drift on the ridge
+        // face reads as a drift, not dust (the pixel floor handles the
+        // very far tail). The boost is steep — at the first cut (×1.9 max)
+        // the owner couldn't find them ("really hard to see them").
         scale:
           (0.7 + rand(i, 66) * 0.5) *
+          (1 + 1.6 * smoothstep(18, 27, d)) *
           westFeatherScale(hx, hz) *
           farFeatherScale(hz),
         q: rand(i, 98),

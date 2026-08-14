@@ -13,7 +13,11 @@
 // WHAT IT CHECKS, per pose (traverse offsets × eye bob × aspects 0.462…3.0,
 // plus the seated pose at every aspect):
 //   (a)  No terrain or vegetation boundary edge inside any frustum at less
-//        than 99% of its fog ramp, unless terrain occludes it.
+//        than 99% of its fog ramp, unless terrain occludes it. (The round-3
+//        fog CAP does not weaken this: the cap's residual local color is
+//        revoked inside the terrain rectangle's border bands and past
+//        capFade depth — see MEADOW_FOG.cap — so fog still saturates at
+//        every boundary this check samples.)
 //   (a2) The vegetation front line starts inside the exported near-feather
 //        zone — below every frame bottom — with a self-test proving the
 //        check still catches the old z=3.25 front line.
@@ -23,7 +27,8 @@
 //        gap (e ≥ −0.002) — the water/sky band behind the shelves stays
 //        closed from every eye, including the highest bob.
 //   (c)  Every silhouette column stays under the global elevation cap
-//        (e ≤ +0.016): "at or a little above the horizon", never a wall.
+//        (e ≤ +0.036): real hills above the horizon (round 3), but still
+//        under the GGB deck line (e 0.038), never a wall.
 //        Landmark azimuth windows are deliberately GONE (owner round 2):
 //        a full-span ridge sweeps every window as the eye traverses, and
 //        the hill-in-front-of-city-base read is the desired depth cue. The
@@ -92,13 +97,16 @@ const V_MARGIN = 0.0183; // pointer + idle pitch swing
 const OFFSETS = [0, 0.25, 0.5, 0.75, 1];
 const ASPECTS = [0.462, 0.75, 1.0, 1.33, 1.78, 2.39, 3.0];
 const Y_BOB = [-0.11, 0, 0.11];
-/** Global silhouette elevation cap: "a little above the horizon". Keeps the
- * ridge under every structure BODY (the GGB deck starts at e 0.038) while
- * letting it tuck in front of structure bases — the desired depth cue. */
-const RIDGE_E_CAP = 0.016;
+/** Global silhouette elevation cap. Round 3 ("doesn't look nearly hilly
+ * enough") raised the crest band to read as real hills — but the cap still
+ * sits under the GGB deck line (e 0.038), so no structure BODY is ever
+ * swallowed; only structure bases tuck behind the ridge. */
+const RIDGE_E_CAP = 0.036;
 /** No silhouette column whose ray crosses the ridge's held span may dip
- * below this — the sky/water band behind the shelves stays closed. */
-const RIDGE_GAP_FLOOR = -0.002;
+ * below this — the raised crest now clears the horizon PROPER from every
+ * eye (lowest margin ≈ +0.006 at the widest oblique), so the floor moved
+ * above zero: the water/sky band behind the shelves is closed outright. */
+const RIDGE_GAP_FLOOR = 0.002;
 /** Checked hold span, pulled in from the authored one so the smoothstep
  * shoulders (which are mid-taper by design) are not held to the floor. */
 const RIDGE_HOLD = {
@@ -333,7 +341,7 @@ const NEAR_EYE_Z = 5.8;
 const SEATED_Z0 = SEAT_POSE.eye[2] + GRASS_BANDS.seated.d0;
 const seatedHw = (z: number) => 3.2 + (z - SEAT_POSE.eye[2]) * 1.017 + 0.6;
 function inTraverseBand(x: number, z: number): boolean {
-  if (z > VEGETATION_FRONT_Z || z < NEAR_EYE_Z - GRASS_BANDS.mid.d1) return false;
+  if (z > VEGETATION_FRONT_Z || z < NEAR_EYE_Z - GRASS_BANDS.ridge.d1) return false;
   const d = NEAR_EYE_Z - z;
   return (
     x > -1.2 - LATERAL_REACH * d - 0.6 + 0.05 &&
@@ -348,7 +356,7 @@ function inSeatedBand(x: number, z: number): boolean {
 // fades by density over WEST_FEATHER.span units precisely because the walk
 // phase can face it from arbitrary yaw at close range — there is no line
 // there to discover (vitest pins the feather's shape).
-for (let d = GRASS_BANDS.near.d0; d <= GRASS_BANDS.mid.d1; d += 0.2) {
+for (let d = GRASS_BANDS.near.d0; d <= GRASS_BANDS.ridge.d1; d += 0.2) {
   const z = NEAR_EYE_Z - d;
   for (const side of [-1, 1]) {
     const x =

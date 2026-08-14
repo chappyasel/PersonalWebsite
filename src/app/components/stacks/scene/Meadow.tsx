@@ -34,6 +34,7 @@ import {
   buildFlowerPositions,
   buildGrassInstances,
   meadowHeight,
+  shadeScale,
 } from "./meadowField";
 import { getSeatAmount } from "./seated";
 
@@ -41,18 +42,20 @@ const TUFT_URL = "/models/grass-tuft.glb";
 const ALPHA_URL = "/images/stacks/grass-tuft-alpha.webp";
 
 // Meadow-only colors — not PALETTES duplicates, so local hexes are
-// legitimate. Light theme is FluffyGrass's own palette (deep #313f1b base
-// under minty #9bd38d tips — the dark-under-bright layering IS the fluff);
+// legitimate. Light theme starts from FluffyGrass's palette, darkened 20%
+// to deepen the lawn while preserving its dark-under-bright fluff layering;
 // tip B gives patch-scale variation. Dark is the moonlit equivalent.
 const COLORS = {
-  baseL: "#313f1b",
-  tipAL: "#9bd38d",
-  tipBL: "#2e5237",
+  baseL: "#273216",
+  tipAL: "#7ca971",
+  tipBL: "#25422c",
   baseD: "#0d1710",
   tipAD: "#3f5a49",
   tipBD: "#1d2c25",
-  flowerA: "#6b82cf", // soft cornflower blue, 55% (owner round 2)
-  flowerB: "#d98a43", // poppy orange, 20%
+  // Round 3 deepened A and B ("in general in light mode it's hard to see
+  // them"): more chroma survives the fog mix and the pale lawn behind.
+  flowerA: "#5b76d6", // cornflower blue, 55% (owner round 2)
+  flowerB: "#e0862f", // poppy orange, 20%
   flowerC: "#ece0c6", // cream, 25%
   nightA: "#7e85a8",
   nightB: "#9aa0b8",
@@ -171,11 +174,32 @@ const SHARED_UNIFORMS_GLSL = /* glsl */ `
 const GRASS_FOG = `smoothstep(${MEADOW_FOG.grass[0].toFixed(1)}, ${MEADOW_FOG.grass[1].toFixed(1)}, -mv.z)`;
 const TERRAIN_FOG = `smoothstep(${MEADOW_FOG.terrain[0].toFixed(1)}, ${MEADOW_FOG.terrain[1].toFixed(1)}, -mv.z)`;
 
+// The round-3 fog CAP (MEADOW_FOG.cap): the ramps above no longer converge
+// all the way to the dome color in the open field — a theme-split residual
+// of local color survives, which keeps the midfield green in light mode and
+// lets the horizon ridge read as a grassy hill instead of a flat
+// dome-colored wall. The residual is REVOKED (fog returns to 100%) past
+// `capFade` view depth and inside the terrain rectangle's border bands, so
+// every boundary edge still saturates and the check script's (a) edge
+// contract stays exactly true at the borders.
+const FOG_CAP_GLSL = /* glsl */ `
+  float fogAmount(float ramp, vec3 wp, float d) {
+    float cap = mix(${MEADOW_FOG.cap[0].toFixed(2)}, ${MEADOW_FOG.cap[1].toFixed(2)}, uDark);
+    float recover = smoothstep(${MEADOW_FOG.capFade[0].toFixed(1)}, ${MEADOW_FOG.capFade[1].toFixed(1)}, d);
+    recover = max(recover, smoothstep(${(MEADOW_TERRAIN.minX + MEADOW_FOG.border).toFixed(1)}, ${MEADOW_TERRAIN.minX.toFixed(1)}, wp.x));
+    recover = max(recover, smoothstep(${(MEADOW_TERRAIN.maxX - MEADOW_FOG.border).toFixed(1)}, ${MEADOW_TERRAIN.maxX.toFixed(1)}, wp.x));
+    recover = max(recover, smoothstep(${(MEADOW_TERRAIN.minZ + MEADOW_FOG.borderZ).toFixed(1)}, ${MEADOW_TERRAIN.minZ.toFixed(1)}, wp.z));
+    return ramp * mix(cap, 1.0, recover);
+  }
+`;
+
 const GRASS_VERTEX = /* glsl */ `
   ${SHARED_UNIFORMS_GLSL}
   attribute float aSun;
+  attribute float aShade;
   varying float vT;
   varying float vSun;
+  varying float vShade;
   varying float vPatch;
   varying float vWind;
   varying float vLamp;
@@ -186,6 +210,7 @@ const GRASS_VERTEX = /* glsl */ `
   ${WIND_GLSL}
   ${DOME_GLSL}
   ${LAMP_GLSL}
+  ${FOG_CAP_GLSL}
   void main() {
     vec3 origin = vec3(instanceMatrix[3]);
     // Geometry is height-normalized: position.y IS the 0→1 wind/color gate.
@@ -204,13 +229,14 @@ const GRASS_VERTEX = /* glsl */ `
     vec4 mv = viewMatrix * world;
     vT = t;
     vSun = aSun;
+    vShade = aShade;
     // Patch-scale tip variation (FluffyGrass drives this with a perlin
     // texture; low-frequency value noise is the textureless equivalent).
     vPatch = vnoise(origin.xz * 0.16);
     vWind = length(w);
     vLamp = lampPool(origin);
     vUv = uv;
-    vFog = ${GRASS_FOG};
+    vFog = fogAmount(${GRASS_FOG}, world.xyz, -mv.z);
     vFogColor = domeBelow(world.xyz);
     gl_Position = projectionMatrix * mv;
   }
@@ -221,6 +247,7 @@ const GRASS_FRAGMENT = /* glsl */ `
   uniform sampler2D uAlpha;
   varying float vT;
   varying float vSun;
+  varying float vShade;
   varying float vPatch;
   varying float vWind;
   varying float vLamp;
@@ -239,6 +266,11 @@ const GRASS_FRAGMENT = /* glsl */ `
     // Baked terrain-normal sun term — lit and shaded hill flanks. The moon
     // flattens it.
     col *= 1.0 + (vSun - 0.5) * mix(0.9, 0.35, uDark);
+    // Furniture contact shadow (round 3: "much more prominent"): a direct
+    // body multiplier, applied BEFORE the lamp pools so a practical can
+    // still lift the grass it shades. Night eases off — moonlight ambient
+    // fills real shadows.
+    col *= mix(mix(0.35, 0.6, uDark), 1.0, vShade);
     // The dawn warms the tips along the traverse (standing down when the
     // seated DC vista owns the light); gusts catch a soft sheen.
     col *= 1.0 + vec3(0.055, 0.028, -0.020) * uDawn * vT * (1.0 - uSeat * 0.8);
@@ -257,21 +289,25 @@ const GRASS_FRAGMENT = /* glsl */ `
 const TERRAIN_VERTEX = /* glsl */ `
   ${SHARED_UNIFORMS_GLSL}
   uniform vec3 uSunDir;
+  attribute float aShade;
   varying vec3 vWorld;
   varying float vSun;
+  varying float vShade;
   varying float vDepth;
   varying float vLamp;
   varying float vFog;
   varying vec3 vFogColor;
   ${DOME_GLSL}
   ${LAMP_GLSL}
+  ${FOG_CAP_GLSL}
   void main() {
     vWorld = position;
     vSun = 0.5 + 0.5 * dot(normalize(normal), uSunDir);
+    vShade = aShade;
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     vDepth = -mv.z;
     vLamp = lampPool(position);
-    vFog = ${TERRAIN_FOG};
+    vFog = fogAmount(${TERRAIN_FOG}, position, -mv.z);
     vFogColor = domeBelow(position);
     gl_Position = projectionMatrix * mv;
   }
@@ -281,6 +317,7 @@ const TERRAIN_FRAGMENT = /* glsl */ `
   ${SHARED_UNIFORMS_GLSL}
   varying vec3 vWorld;
   varying float vSun;
+  varying float vShade;
   varying float vDepth;
   varying float vLamp;
   varying float vFog;
@@ -300,6 +337,9 @@ const TERRAIN_FRAGMENT = /* glsl */ `
     vec3 tip = mix(mix(uTipAL, uTipBL, patchN), mix(uTipAD, uTipBD, patchN), uDark);
     vec3 col = mix(base, tip * 0.82, 0.18 + 0.55 * mott);
     col *= 1.0 + (vSun - 0.5) * mix(0.9, 0.35, uDark);
+    // The carpet sits under the tuft pile — its contact shadow runs a touch
+    // shallower than the tufts' so the pile above stays the darkest read.
+    col *= mix(mix(0.4, 0.62, uDark), 1.0, vShade);
     col *= 1.0 + vec3(0.055, 0.028, -0.020) * uDawn * 0.5 * (1.0 - uSeat * 0.8);
     // The carpet sits under the tuft pile, so its pool reads dimmer than
     // the lit tips above it.
@@ -326,6 +366,7 @@ const FLOWER_VERTEX = /* glsl */ `
   ${WIND_GLSL}
   ${DOME_GLSL}
   ${LAMP_GLSL}
+  ${FOG_CAP_GLSL}
   void main() {
     vec3 origin = vec3(instanceMatrix[3]);
     // Identity instance rotation → the scale lives in [0][0].
@@ -356,7 +397,11 @@ const FLOWER_VERTEX = /* glsl */ `
     vClamp = 1.0 - 1.0 / k;
     vLamp = lampPool(origin);
     vUv = uv;
-    vFog = ${GRASS_FOG};
+    // Flowers take 3/4 of the grass fog: they are the accents the eye is
+    // meant to find, and at full fog the hill drifts vanished entirely
+    // (round 3). They never reach the terrain borders (clipped rectangle,
+    // z ≥ −22.8), so the under-fogging cannot expose an edge.
+    vFog = fogAmount(${GRASS_FOG}, world.xyz, -mv.z) * 0.75;
     vFogColor = domeBelow(world.xyz);
     gl_Position = projectionMatrix * mv;
   }
@@ -435,9 +480,14 @@ function makeTerrainGeometry(): THREE.PlaneGeometry {
     MEADOW_TERRAIN.minZ + depth / 2,
   );
   const positions = geometry.attributes.position!;
+  const shade = new Float32Array(positions.count);
   for (let i = 0; i < positions.count; i++) {
-    positions.setY(i, meadowHeight(positions.getX(i), positions.getZ(i)));
+    const x = positions.getX(i);
+    const z = positions.getZ(i);
+    positions.setY(i, meadowHeight(x, z));
+    shade[i] = shadeScale(x, z);
   }
+  geometry.setAttribute("aShade", new THREE.BufferAttribute(shade, 1));
   geometry.computeVertexNormals();
   geometry.computeBoundingSphere();
   return geometry;
@@ -445,16 +495,18 @@ function makeTerrainGeometry(): THREE.PlaneGeometry {
 
 /** Clone a tuft LOD out of the GLB, height-normalized so position.y is the
  * 0→1 gate (footprint scales along, ~2.5 per unit height), with the
- * stream's baked per-instance sun term attached. */
+ * stream's baked per-instance sun and contact-shadow terms attached. */
 function prepareTuftGeometry(
   source: THREE.BufferGeometry,
   sun: Float32Array,
+  shade: Float32Array,
 ): THREE.BufferGeometry {
   const geometry = source.clone();
   geometry.computeBoundingBox();
   const maxY = Math.max(geometry.boundingBox!.max.y, 1e-4);
   geometry.scale(1 / maxY, 1 / maxY, 1 / maxY);
   geometry.setAttribute("aSun", new THREE.InstancedBufferAttribute(sun, 1));
+  geometry.setAttribute("aShade", new THREE.InstancedBufferAttribute(shade, 1));
   return geometry;
 }
 
@@ -569,8 +621,8 @@ export default function Meadow({
       throw new Error("grass-tuft.glb is missing its LOD00/LOD01 meshes");
     }
     return {
-      near: prepareTuftGeometry(lod0, streams.near.sun),
-      far: prepareTuftGeometry(lod1, streams.far.sun),
+      near: prepareTuftGeometry(lod0, streams.near.sun, streams.near.shade),
+      far: prepareTuftGeometry(lod1, streams.far.sun, streams.far.shade),
     };
   }, [gltf, streams]);
 

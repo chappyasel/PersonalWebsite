@@ -78,20 +78,20 @@ describe("rung dial", () => {
   it("thins every band uniformly at every rung", () => {
     // A rung prefix must keep every band alive at the rung's fraction —
     // that is what makes `count` a density dial instead of a depth cut.
-    // The far mesh holds two bands (mid + seated); split by z.
+    // The far mesh holds three bands (mid + seated + ridge); the mid and
+    // ridge bands overlap in z, so split by the audit band id.
     MEADOW_RUNG_FRACTIONS.forEach((frac, ri) => {
       expect(grass.near.rungCounts[ri]! / GRASS_BANDS.near.count).toBeCloseTo(
         frac,
         2,
       );
-      let mid = 0;
-      let seated = 0;
+      const perBand = [0, 0, 0, 0];
       for (let i = 0; i < grass.far.rungCounts[ri]!; i++) {
-        if (grass.far.z[i]! <= -8.19) mid += 1;
-        else seated += 1;
+        perBand[grass.far.band[i]!] = (perBand[grass.far.band[i]!] ?? 0) + 1;
       }
-      expect(mid / GRASS_BANDS.mid.count).toBeCloseTo(frac, 2);
-      expect(seated / GRASS_BANDS.seated.count).toBeCloseTo(frac, 2);
+      expect(perBand[1]! / GRASS_BANDS.mid.count).toBeCloseTo(frac, 2);
+      expect(perBand[2]! / GRASS_BANDS.seated.count).toBeCloseTo(frac, 2);
+      expect(perBand[3]! / GRASS_BANDS.ridge.count).toBeCloseTo(frac, 2);
     });
   });
 });
@@ -106,14 +106,18 @@ describe("placement", () => {
       for (let i = 0; i < stream.count; i++) {
         expect(stream.x[i]!).toBeGreaterThanOrEqual(MEADOW_TERRAIN.minX);
         expect(stream.x[i]!).toBeLessThanOrEqual(MEADOW_TERRAIN.maxX);
-        expect(stream.z[i]!).toBeGreaterThanOrEqual(-18.3);
+        expect(stream.z[i]!).toBeGreaterThanOrEqual(
+          5.8 - GRASS_BANDS.ridge.d1 - 1e-4,
+        );
         expect(stream.z[i]!).toBeLessThanOrEqual(MEADOW_BANK.skirtZ + 1e-6);
       }
     }
     for (let i = 0; i < flowers.count; i++) {
       expect(flowers.x[i]!).toBeGreaterThanOrEqual(MEADOW_TERRAIN.minX);
       expect(flowers.x[i]!).toBeLessThanOrEqual(MEADOW_TERRAIN.maxX);
-      expect(flowers.z[i]!).toBeGreaterThanOrEqual(-18.3);
+      expect(flowers.z[i]!).toBeGreaterThanOrEqual(
+        5.8 - GRASS_BANDS.ridge.d1 - 1e-4,
+      );
       expect(flowers.z[i]!).toBeLessThanOrEqual(MEADOW_BANK.skirtZ + 1e-6);
     }
   });
@@ -203,16 +207,27 @@ describe("placement", () => {
   });
 
   it("shades tufts under the furniture in color, never in geometry", () => {
-    // The contact shadow rides the baked sun term (bakedSun × shadeScale):
-    // full shade at the shelf and couch centres, untouched in open field.
-    expect(shadeScale(0, 0)).toBeCloseTo(0.3, 5);
-    expect(shadeScale(-3.41, -0.11)).toBeCloseTo(0.3, 5);
+    // The contact shadow is a mask (shadeScale → aShade, a direct
+    // body-color multiplier in the shaders) built from projected occluder
+    // BOXES whose penumbra/strength derive from underside height: deep
+    // under the low bottom plank + couch, exactly 1 in open field, and the
+    // shadow band hugs the plank footprint — a metre north of the shelf
+    // line the lawn is already fully lit (the round-3 "far too large"
+    // regression guard). The sun term stays pure slope shading.
+    expect(shadeScale(0, 0)).toBeLessThan(0.25); // under both unit-0 planks
+    expect(shadeScale(-3.41, 0)).toBeLessThan(0.25); // under the couch
     expect(shadeScale(10, -10)).toBe(1);
+    expect(shadeScale(0, -2)).toBe(1); // north of the shelf: open lawn
+    // The top plank's secondary is FAINT: on its front penumbra where the
+    // bottom plank no longer reaches, the mask stays above 0.5.
+    expect(shadeScale(0, 0.75)).toBeGreaterThan(0.5);
     const grass = buildGrassInstances();
     for (const stream of [grass.near, grass.far]) {
       for (let i = 0; i < stream.count; i += 31) {
         expect(stream.sun[i]!).toBeGreaterThanOrEqual(0);
         expect(stream.sun[i]!).toBeLessThanOrEqual(1);
+        expect(stream.shade[i]!).toBeGreaterThanOrEqual(0);
+        expect(stream.shade[i]!).toBeLessThanOrEqual(1);
       }
     }
   });
@@ -236,9 +251,11 @@ describe("placement", () => {
       expect(eastFeatherScale(east - EAST_FEATHER.span, z)).toBeCloseTo(1, 5);
       expect(inEastFeather(east, z)).toBe(true);
     }
-    // The far line thins out the same way.
-    expect(farFeatherScale(5.8 - 24)).toBeLessThanOrEqual(0.13);
-    expect(farFeatherScale(5.8 - 24 + FAR_FEATHER.span)).toBeCloseTo(1, 5);
+    // The far line (the ridge band's tail since round 3) thins the same way.
+    expect(farFeatherScale(5.8 - GRASS_BANDS.ridge.d1)).toBeLessThanOrEqual(0.13);
+    expect(
+      farFeatherScale(5.8 - GRASS_BANDS.ridge.d1 + FAR_FEATHER.span),
+    ).toBeCloseTo(1, 5);
   });
 });
 
@@ -274,17 +291,18 @@ describe("terrain silhouette", () => {
   });
 
   it("rolls the held crest inside its provable elevation band", () => {
-    // Derived envelope (see horizonCrestY): from the highest bobbed eye
-    // (phone, y 0.41, d 29.1) the lowest held crest still reads at
-    // e ≥ −0.002 (no sky gap behind the shelves); from the lowest bobbed
-    // eye (desktop, y 0.14, d 27.3) the tallest crest stays under the
-    // e ≈ +0.016 cap.
+    // Derived envelope (see horizonCrestY, round 3 heights): from the
+    // highest bobbed eye (phone, y 0.41, d 29.1) the lowest held crest
+    // clears the horizon outright (e ≥ +0.008 — the water/sky band behind
+    // the shelves is closed with margin); from the lowest bobbed eye
+    // (desktop, y 0.14, d 27.3) the tallest crest stays under the e 0.036
+    // cap, which itself sits under the GGB deck line (0.038).
     for (let x = HORIZON_RIDGE.holdMinX; x <= HORIZON_RIDGE.holdMaxX; x += 0.1) {
       const y = horizonCrestY(x);
-      expect(y).toBeGreaterThanOrEqual(0.36);
-      expect(y).toBeLessThanOrEqual(0.56);
-      expect(Math.atan((y - 0.41) / 29.1)).toBeGreaterThanOrEqual(-0.002);
-      expect(Math.atan((y - 0.14) / 27.3)).toBeLessThanOrEqual(0.016);
+      expect(y).toBeGreaterThanOrEqual(0.66);
+      expect(y).toBeLessThanOrEqual(1.1);
+      expect(Math.atan((y - 0.41) / 29.1)).toBeGreaterThanOrEqual(0.008);
+      expect(Math.atan((y - 0.14) / 27.3)).toBeLessThanOrEqual(0.035);
     }
   });
 
@@ -292,8 +310,12 @@ describe("terrain silhouette", () => {
     // An above-horizon crest that reached a rectangle x-edge would cut
     // against the sky — a fogged silhouette still has a shape. The tail
     // must be fully below-horizon strictly inside the rectangle.
-    expect(HORIZON_RIDGE.endMinX).toBeGreaterThan(MEADOW_TERRAIN.minX + 6);
-    expect(HORIZON_RIDGE.endMaxX).toBeLessThan(MEADOW_TERRAIN.maxX - 6);
+    // The tapers widened with the round-3 crest raise; ≥ 2 units of
+    // below-horizon tail still separate them from the rectangle edges
+    // (and the fog cap's border-recovery band overlaps the tails, so the
+    // tail region is also at 100% fog).
+    expect(HORIZON_RIDGE.endMinX).toBeGreaterThan(MEADOW_TERRAIN.minX + 4);
+    expect(HORIZON_RIDGE.endMaxX).toBeLessThan(MEADOW_TERRAIN.maxX - 2);
     for (let x = MEADOW_TERRAIN.minX; x <= HORIZON_RIDGE.endMinX; x += 0.2) {
       expect(horizonCrestY(x)).toBeLessThanOrEqual(HORIZON_RIDGE.tailY + 0.01);
     }
@@ -301,10 +323,12 @@ describe("terrain silhouette", () => {
       expect(horizonCrestY(x)).toBeLessThanOrEqual(HORIZON_RIDGE.tailY + 0.01);
     }
     // The taper itself is smooth — no cliff for a frame edge to catch.
+    // (Worst analytic slope with the round-3 crest: ≈ 0.071 per 0.2 x at
+    // the west taper's midpoint.)
     for (let x = MEADOW_TERRAIN.minX; x <= MEADOW_TERRAIN.maxX - 0.2; x += 0.2) {
       expect(
         Math.abs(horizonCrestY(x + 0.2) - horizonCrestY(x)),
-      ).toBeLessThanOrEqual(0.06);
+      ).toBeLessThanOrEqual(0.09);
     }
   });
 
