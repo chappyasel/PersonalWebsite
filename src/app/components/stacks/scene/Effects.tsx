@@ -121,10 +121,15 @@ export default function Effects({ dark }: { dark: boolean }) {
       !window.location.search.includes("notiltshift"),
     [],
   );
+  // DoF graduated from opt-in comparison to default (owner call, round 3):
+  // real optical falloff into the hills and skyline, adopted once the
+  // strong ?withdof grade made the difference judgeable. Cost ~1ms, paid
+  // only by composer-capable desktops — the degrade ladder and the touch
+  // gate keep it off everything weaker. ?nodof restores the fog-only look.
   const depthOfField = useMemo(
     () =>
-      typeof window !== "undefined" &&
-      window.location.search.includes("withdof"),
+      typeof window === "undefined" ||
+      !window.location.search.includes("nodof"),
     [],
   );
   const graded = useMemo(
@@ -158,17 +163,16 @@ export default function Effects({ dark }: { dark: boolean }) {
           planes crisp, then rolls into optical bokeh toward the far skyline.
           This composer is already desktop-only and unmounts at the first
           performance decline, so mobile/degraded paths pay nothing. */}
-      {/* Opt-in comparison grade (?withdof), deliberately STRONG: at the
-          old 1.25/0.5 the pass was indistinguishable from fog alone (the
-          owner couldn't tell the two URLs apart), which is no comparison
-          at all. This is what "bokeh carries the distance" would look
-          like — judge it against fog, then tune down if adopted. */}
+      {/* Settled between the invisible 1.25/0.5 original and the 3.4/0.75
+          comparison grade: the shelf plane stays crisp, the hills and
+          skyline fall into believable bokeh, and the buffers stay at 0.6
+          resolution so the pass costs about a millisecond. */}
       {depthOfField && (
         <DepthOfField
           focusDistance={6.05}
-          focusRange={1.9}
-          bokehScale={3.4}
-          resolutionScale={0.75}
+          focusRange={2.2}
+          bokehScale={2.4}
+          resolutionScale={0.6}
         />
       )}
       {/* The side blur: a vertical focus line with blur growing toward the
