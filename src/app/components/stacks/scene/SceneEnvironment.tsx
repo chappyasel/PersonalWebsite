@@ -6,19 +6,24 @@ import { progressRef, useStacks } from "../store";
 import { PALETTES, type Palette, rand } from "../theme";
 import { Environment, Lightformer } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { Suspense, lazy, useEffect, useMemo, useRef } from "react";
+import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { markMeadowReady } from "../loading";
 import { poolTexture } from "./GroundPool";
+import Meadow from "./Meadow";
 import { getSeatAmount } from "./seated";
 import { MID_X, STACKS_DESKTOP_MIN_WIDTH, TRAVEL_X } from "./worldLayout";
 
-// The meadow ships. React.lazy is still intentional: the chunk loads after
-// boot (outside the route budget and the LCP window), and flipping this back
-// to false re-parks it at zero production cost — the rejection path for the
-// whole feature is this one line. `?nomeadow` gives the same A/B per visit.
+// The meadow ships — statically, since round 2. React.lazy put its JS fetch
+// AFTER first mount, where the boot reveal could not see it (the loading
+// manager never counts a chunk fetch) and grass popped in after the curtain
+// lifted. A static import folds it into the StacksCanvas async chunk, which
+// the route budget does not measure (the manifest lists only StacksHome), so
+// the homepage entry stays untouched. Flipping this to false still re-parks
+// the feature at zero cost — the rejection path is this one line — and
+// `?nomeadow` gives the same A/B per visit.
 const MEADOW_ENABLED = true;
-const Meadow = lazy(() => import("./Meadow"));
 
 // Chappy's morning, painted truthfully. Dark theme is 3:45am San Francisco —
 // fully dark, cold indigo, the city mostly asleep; light theme is just after
@@ -2596,6 +2601,11 @@ export default function SceneEnvironment({
       ),
     [],
   );
+  // No meadow, nothing for the reveal gate to wait on — report ready NOW so
+  // a ?nomeadow (or flag-off) boot reveals at the pre-meadow timing.
+  useEffect(() => {
+    if (!meadow) markMeadowReady();
+  }, [meadow]);
   // The degrade ladder maps straight onto the meadow's quality rungs: each
   // step down thins every band uniformly (never a bare plane), and rungs
   // 0–1 (degrade ≥ 2) also zero the flowers. One-way, so counts only shrink.

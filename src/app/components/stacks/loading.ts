@@ -35,6 +35,27 @@ export function subscribeLoadProgress(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
+// ---------------------------------------------------------------------------
+// Meadow readiness — a separate flag because the progress number above
+// cannot carry it. The published progress is a monotonic high-water mark
+// over drei's DefaultLoadingManager, the manager rebases between batches,
+// and the meadow chunk's own JS fetch was invisible to it entirely — so
+// "progress ≥ 0.85" can be true while the grass has not arrived, and the
+// boot reveal used to race it (grass popping in after the curtain lifted).
+// Meadow reports here the moment its instance buffers are filled; the mount
+// site reports immediately when the meadow is disabled (?nomeadow, flag
+// off) so the reveal gate never waits on something that will not come.
+
+let meadowReady = false;
+
+export function markMeadowReady(): void {
+  meadowReady = true;
+}
+
+export function isMeadowReady(): boolean {
+  return meadowReady;
+}
+
 /** The document-level handshake the pre-paint boot script starts. `pending`
  * hides the flat page and shows the boot screen; `warm` hides the flat page
  * but holds the boot screen back (see WARM_* below); `ready` retires both.

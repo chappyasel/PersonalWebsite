@@ -14,6 +14,7 @@
 // prep, GLSL, and the per-frame uniform writes — nothing else runs per
 // frame. Two grass draws (near lawn = detailed tuft LOD, mid+seated =
 // light LOD) + terrain + flowers = four draw calls.
+import { markMeadowReady } from "../loading";
 import { progressRef } from "../store";
 import { PALETTES } from "../theme";
 import { useGLTF, useTexture } from "@react-three/drei";
@@ -564,6 +565,9 @@ export default function Meadow({
     }
     flowerMesh.instanceMatrix.needsUpdate = true;
     flowerMesh.computeBoundingSphere();
+    // The buffers are filled and the GLB/alpha suspended above us, so the
+    // next painted frame contains grass — tell the boot reveal gate.
+    markMeadowReady();
   }, [streams, flowers]);
 
   // Live browse knobs on the house dev-hook object. Writes go straight into
@@ -653,3 +657,8 @@ export default function Meadow({
 }
 
 useGLTF.preload(TUFT_URL, false);
+// Without this the alpha texture only starts fetching when the component
+// first renders — one Suspense round-trip later than the GLB, and exactly
+// the kind of straggler the boot reveal used to race. Both assets now join
+// the FIRST loading-manager batch at chunk eval.
+useTexture.preload(ALPHA_URL);

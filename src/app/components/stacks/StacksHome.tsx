@@ -26,6 +26,7 @@ import UnitRail from "./dom/UnitRail";
 import ScrollBridges from "./input/ScrollBridges";
 import {
   getLoadProgress,
+  isMeadowReady,
   isWarmBoot,
   rememberWarmBoot,
   setLoadProgress,
@@ -47,6 +48,11 @@ const STREAM_GRACE_MS = 900;
 /** Enough of the assets that unit 0 is dressed. Waiting for all of them means
  * waiting on units the visitor cannot see yet. */
 const REVEAL_PROGRESS = 0.85;
+/** How long the grass may hold the reveal past the arms above. The meadow is
+ * structural to the first frame (a lawn popping in under a dressed room
+ * reads as breakage — owner round 2), so it gets its own gate; but a stalled
+ * asset must never hang the boot, so the hold is bounded. */
+const MEADOW_WAIT_MS = 3500;
 
 /** navigator.connection is still not in the DOM lib. */
 type NavigatorWithConnection = Navigator & {
@@ -188,9 +194,16 @@ export default function StacksHome({
     if (!worldReady || revealed) return;
     readyAt.current ||= performance.now();
     const check = () => {
+      const elapsed = performance.now() - readyAt.current;
+      // The meadow arm is AND-ed onto the existing pair: the published
+      // progress cannot see the grass (it is a monotonic high-water mark
+      // and the meadow's chunk fetch never counted), so without this the
+      // reveal races the lawn and loses on cold loads. It only briefly
+      // holds the door — a stalled asset can't hang the boot.
       if (
-        getLoadProgress() >= REVEAL_PROGRESS ||
-        performance.now() - readyAt.current > STREAM_GRACE_MS
+        (getLoadProgress() >= REVEAL_PROGRESS ||
+          elapsed > STREAM_GRACE_MS) &&
+        (isMeadowReady() || elapsed > MEADOW_WAIT_MS)
       ) {
         setRevealed(true);
         return;
