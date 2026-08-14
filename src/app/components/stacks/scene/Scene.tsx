@@ -115,6 +115,7 @@ function Scene({
   dustOff,
   shadowsOff,
   skySimplify,
+  degrade,
   onOpenBook,
   onOpenUrl,
 }: {
@@ -125,6 +126,10 @@ function Scene({
   dustOff?: boolean;
   shadowsOff?: boolean;
   skySimplify?: boolean;
+  /** Raw performance-ladder rung — SceneEnvironment maps it onto the
+   * meadow's density dial; the existing booleans stay authoritative for
+   * dust/sky/shadows. */
+  degrade?: number;
   onOpenBook?: (bookId: string) => void;
   onOpenUrl?: (url: string) => void;
 }) {
@@ -232,6 +237,7 @@ function Scene({
         dark={dark}
         dustOff={dustOff}
         skySimplify={skySimplify}
+        degrade={degrade}
       />
       {UNITS.map((unit, i) => {
         const Unit = UNIT_COMPONENTS[unit.slug];

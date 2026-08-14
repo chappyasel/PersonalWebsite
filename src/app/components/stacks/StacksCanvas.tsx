@@ -398,6 +398,7 @@ export default function StacksCanvas({
             dustOff={degrade >= 2}
             shadowsOff={degrade >= 3}
             skySimplify={degrade >= 2}
+            degrade={degrade}
             onOpenBook={onOpenBook}
             onOpenUrl={onOpenUrl}
           />

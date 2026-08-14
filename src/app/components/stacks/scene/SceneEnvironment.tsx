@@ -13,10 +13,11 @@ import { poolTexture } from "./GroundPool";
 import { getSeatAmount } from "./seated";
 import { MID_X, STACKS_DESKTOP_MIN_WIDTH, TRAVEL_X } from "./worldLayout";
 
-// Park the meadow experiment without deleting it. React.lazy is intentional:
-// while this is false the meadow chunk is neither requested nor evaluated,
-// so none of its geometry, textures, shaders, or frame work reach production.
-const MEADOW_ENABLED = false;
+// The meadow ships. React.lazy is still intentional: the chunk loads after
+// boot (outside the route budget and the LCP window), and flipping this back
+// to false re-parks it at zero production cost — the rejection path for the
+// whole feature is this one line. `?nomeadow` gives the same A/B per visit.
+const MEADOW_ENABLED = true;
 const Meadow = lazy(() => import("./Meadow"));
 
 // Chappy's morning, painted truthfully. Dark theme is 3:45am San Francisco —
@@ -2575,19 +2576,37 @@ export default function SceneEnvironment({
   dark,
   dustOff,
   skySimplify,
+  degrade = 0,
 }: {
   palette: Palette;
   dark: boolean;
   dustOff?: boolean;
   skySimplify?: boolean;
+  /** PerformanceMonitor's one-way ladder rung (0 = full quality). */
+  degrade?: number;
 }) {
+  // ?nomeadow joins the existing query family (?nopostfx) as the live A/B
+  // escape. Read once — the search string cannot change without a reload.
+  const meadow = useMemo(
+    () =>
+      MEADOW_ENABLED &&
+      !(
+        typeof window !== "undefined" &&
+        window.location.search.includes("nomeadow")
+      ),
+    [],
+  );
+  // The degrade ladder maps straight onto the meadow's quality rungs: each
+  // step down thins every band uniformly (never a bare plane), and rungs
+  // 0–1 (degrade ≥ 2) also zero the flowers. One-way, so counts only shrink.
+  const rung = (3 - Math.min(3, degrade)) as 0 | 1 | 2 | 3;
   return (
     <>
       <fog attach="fog" args={[palette.fog, 8, 24]} />
       <SkyDome dark={dark} simplify={!!skySimplify} />
-      {MEADOW_ENABLED && (
+      {meadow && (
         <Suspense fallback={null}>
-          <Meadow dark={dark} />
+          <Meadow dark={dark} rung={rung} />
         </Suspense>
       )}
       <RoomEnvironment key={dark ? "env-d" : "env-l"} dark={dark} />
