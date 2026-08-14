@@ -27,6 +27,7 @@ import {
   MEADOW_BANK,
   MEADOW_FLOWER_TOTAL,
   MEADOW_FOG,
+  MEADOW_GROUND_BASE,
   MEADOW_RUNG_FLOWERS,
   MEADOW_RUNG_GRASS_FAR,
   MEADOW_RUNG_GRASS_NEAR,
@@ -71,6 +72,12 @@ const SUN_DIR = new THREE.Vector3(4, 7, 6).normalize();
 // Flower quad, world units before instance scale.
 const FLOWER_HW = 0.024;
 const FLOWER_H = 0.048;
+
+/** Pointer-poke support: hover is a fine-pointer idea — on touch the last
+ * tap would leave a frozen dent in the lawn. Evaluated once (SSR-safe). */
+const finePointer =
+  typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches;
+const pokeScratch = new THREE.Vector3();
 
 // ---------------------------------------------------------------------------
 // Shared GLSL. Hoskins hash-without-sine (the SceneEnvironment idiom —
@@ -155,6 +162,10 @@ const LAMP_WARM = "vec3(1.0, 0.72, 0.44)";
 const SHARED_UNIFORMS_GLSL = /* glsl */ `
   uniform float uTime;
   uniform float uDark;
+  // Pointer poke: ground-plane hit under the cursor (.xy = world x/z),
+  // radius (.z) and eased strength (.w). Tufts and flower heads lean away
+  // from it — the lawn answers the pointer like the props do.
+  uniform vec4 uPoke;
   uniform float uDawn;
   uniform float uSeat;
   uniform float uWindAmp;
@@ -196,6 +207,17 @@ const FOG_CAP_GLSL = /* glsl */ `
   }
 `;
 
+// Traveling cloud shadows — a slow low-frequency dimming field drifting
+// loosely downwind. THE scale cue: the lawn reads as a landscape under a
+// sky rather than a carpet. Sampled per vertex (blobs are tens of units
+// wide), halved at night where moon clouds should whisper.
+const CLOUD_GLSL = /* glsl */ `
+  float cloudAt(vec2 wxz) {
+    float c = vnoise(wxz * 0.04 + uTime * vec2(-0.014, -0.011));
+    return 1.0 - mix(0.11, 0.05, uDark) * smoothstep(0.45, 0.8, c);
+  }
+`;
+
 const GRASS_VERTEX = /* glsl */ `
   ${SHARED_UNIFORMS_GLSL}
   attribute float aSun;
@@ -206,6 +228,7 @@ const GRASS_VERTEX = /* glsl */ `
   varying float vPatch;
   varying float vWind;
   varying float vLamp;
+  varying float vCloud;
   varying float vFog;
   varying vec2 vUv;
   varying vec3 vFogColor;
@@ -214,6 +237,7 @@ const GRASS_VERTEX = /* glsl */ `
   ${DOME_GLSL}
   ${LAMP_GLSL}
   ${FOG_CAP_GLSL}
+  ${CLOUD_GLSL}
   void main() {
     vec3 origin = vec3(instanceMatrix[3]);
     // Geometry is height-normalized: position.y IS the 0→1 wind/color gate.
@@ -225,7 +249,18 @@ const GRASS_VERTEX = /* glsl */ `
     // roots planted; magnitude scales with the tuft's world height.
     vec2 w = windAt(origin.xz, uTime * uWindSpeed);
     float hScale = length(vec3(instanceMatrix[1]));
-    vec2 disp = w * t * t * hScale;
+    // The pointer parts the grass: tufts inside the poke radius lean
+    // radially away, through the same height-gated bend as the wind (the
+    // existing quadratic-drop line then squashes them down for free). The
+    // COMBINED lean is clamped — the owner's "set max distortion": a gust
+    // plus a poke can never fold a tuft flat.
+    vec2 pk = origin.xz - uPoke.xy;
+    float pkd = max(length(pk), 1e-4);
+    float push = (1.0 - smoothstep(0.1, uPoke.z, pkd)) * uPoke.w;
+    vec2 lean = w + pk / pkd * push;
+    float ll = max(length(lean), 1e-4);
+    lean *= min(ll, 0.42) / ll;
+    vec2 disp = lean * t * t * hScale;
     world.x += disp.x;
     world.z += disp.y;
     world.y -= 0.4 * dot(disp, disp) / max(hScale, 1e-3);
@@ -238,6 +273,7 @@ const GRASS_VERTEX = /* glsl */ `
     vPatch = vnoise(origin.xz * 0.16);
     vWind = length(w);
     vLamp = lampPool(origin);
+    vCloud = cloudAt(origin.xz);
     vUv = uv;
     vFog = fogAmount(${GRASS_FOG}, world.xyz, -mv.z);
     vFogColor = domeBelow(world.xyz);
@@ -254,6 +290,7 @@ const GRASS_FRAGMENT = /* glsl */ `
   varying float vPatch;
   varying float vWind;
   varying float vLamp;
+  varying float vCloud;
   varying float vFog;
   varying vec2 vUv;
   varying vec3 vFogColor;
@@ -278,6 +315,12 @@ const GRASS_FRAGMENT = /* glsl */ `
     // seated DC vista owns the light); gusts catch a soft sheen.
     col *= 1.0 + vec3(0.055, 0.028, -0.020) * uDawn * vT * (1.0 - uSeat * 0.8);
     col *= 1.0 + vWind * 1.2 * vT * mix(0.35, 0.15, uDark);
+    // Passing cloud shade.
+    col *= vCloud;
+    // Moonlight: a cool silver lift on the tips plus a traveling glint
+    // where gusts bend them — the night lawn reads MOONLIT rather than
+    // merely dark. Additive but tiny; stays far under the bloom knee.
+    col += vec3(0.62, 0.68, 0.82) * uDark * vT * vT * (0.045 + vWind * 0.35 * vT);
     // The practicals' pools — tips catch more than roots, and the night
     // weighting is where the lamp actually reads. Additive in linear HDR
     // compounds under bloom, so the peak stays modest.
@@ -298,11 +341,14 @@ const TERRAIN_VERTEX = /* glsl */ `
   varying float vShade;
   varying float vDepth;
   varying float vLamp;
+  varying float vCloud;
   varying float vFog;
   varying vec3 vFogColor;
+  ${NOISE_GLSL}
   ${DOME_GLSL}
   ${LAMP_GLSL}
   ${FOG_CAP_GLSL}
+  ${CLOUD_GLSL}
   void main() {
     vWorld = position;
     vSun = 0.5 + 0.5 * dot(normalize(normal), uSunDir);
@@ -310,6 +356,7 @@ const TERRAIN_VERTEX = /* glsl */ `
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     vDepth = -mv.z;
     vLamp = lampPool(position);
+    vCloud = cloudAt(position.xz);
     vFog = fogAmount(${TERRAIN_FOG}, position, -mv.z);
     vFogColor = domeBelow(position);
     gl_Position = projectionMatrix * mv;
@@ -323,6 +370,7 @@ const TERRAIN_FRAGMENT = /* glsl */ `
   varying float vShade;
   varying float vDepth;
   varying float vLamp;
+  varying float vCloud;
   varying float vFog;
   varying vec3 vFogColor;
   ${NOISE_GLSL}
@@ -344,6 +392,7 @@ const TERRAIN_FRAGMENT = /* glsl */ `
     // shallower than the tufts' so the pile above stays the darkest read.
     col *= mix(mix(0.4, 0.62, uDark), 1.0, vShade);
     col *= 1.0 + vec3(0.055, 0.028, -0.020) * uDawn * 0.5 * (1.0 - uSeat * 0.8);
+    col *= vCloud;
     // The carpet sits under the tuft pile, so its pool reads dimmer than
     // the lit tips above it.
     col += ${LAMP_WARM} * vLamp * mix(0.07, 0.22, uDark);
@@ -382,8 +431,13 @@ const FLOWER_VERTEX = /* glsl */ `
     // Y-billboard: quad x-axis perpendicular to the camera in the XZ plane.
     vec3 p = vec3(position.x * f.y, position.y, -position.x * f.x) * s;
     // Shares the grass wind at reduced amplitude; position.y / quad height
-    // normalizes to the same radians·height product the tufts use.
+    // normalizes to the same radians·height product the tufts use. The
+    // pointer poke leans heads away at half the tufts' throw so a parted
+    // patch parts its flowers too.
     vec2 w = windAt(origin.xz, uTime * uWindSpeed) * 0.35;
+    vec2 pk = origin.xz - uPoke.xy;
+    float pkd = max(length(pk), 1e-4);
+    w += pk / pkd * (1.0 - smoothstep(0.1, uPoke.z, pkd)) * uPoke.w * 0.5;
     p.xz += w * position.y * ${(1 / FLOWER_H).toFixed(2)};
     // Pixel floor: a far head that would project under uPxFloor pixels is
     // scaled up about its own centre to hold that size, and the fragment
@@ -593,6 +647,8 @@ export default function Meadow({
         ),
       },
       uLampGlow: { value: new Array<number>(MEADOW_LAMP_MAX).fill(0) },
+      // Pointer poke (x, z, radius, strength) — written per frame below.
+      uPoke: { value: new THREE.Vector4(0, 0, 0.6, 0) },
     };
     const grassOnly = {
       uAlpha: { value: null as THREE.Texture | null },
@@ -727,6 +783,21 @@ export default function Meadow({
     };
   }, [built]);
 
+  // Click pulse for the pointer poke: stamped in the scene's own uTime
+  // clock (written every frame below) so the pulse math never mixes time
+  // bases. Any pointerdown counts — if the cursor is over a card the hit
+  // point is hidden behind it anyway.
+  const pokeClickAt = useRef(-100);
+  const bootAt = useRef(-1);
+  useEffect(() => {
+    if (!finePointer) return;
+    const onDown = () => {
+      pokeClickAt.current = built.shared.uTime.value;
+    };
+    window.addEventListener("pointerdown", onDown, { passive: true });
+    return () => window.removeEventListener("pointerdown", onDown);
+  }, [built]);
+
   useEffect(
     () => () => {
       built.terrainGeometry.dispose();
@@ -741,8 +812,33 @@ export default function Meadow({
   );
 
   // The complete per-frame cost: six uniform writes and three count fields.
-  useFrame(({ clock, gl, camera }, delta) => {
+  useFrame(({ clock, gl, camera, pointer }, delta) => {
     const shared = built.shared;
+    // Pointer → lawn: unproject the cursor and hit the base ground plane
+    // analytically (no raycaster, no geometry walk). Owner-tuned feel
+    // (round 3, second pass): hover is a whisper — slow fluid trail, low
+    // strength — and a CLICK breathes a short stronger pulse through the
+    // same spot. Fine pointers only — a touch would leave a frozen dent
+    // under the last tap.
+    if (finePointer) {
+      const poke = shared.uPoke.value;
+      pokeScratch.set(pointer.x, pointer.y, 0.5).unproject(camera);
+      pokeScratch.sub(camera.position).normalize();
+      let target = 0;
+      if (pokeScratch.y < -1e-3) {
+        const tt = (MEADOW_GROUND_BASE - camera.position.y) / pokeScratch.y;
+        if (tt > 0 && tt < 26) {
+          const hx = camera.position.x + pokeScratch.x * tt;
+          const hz = camera.position.z + pokeScratch.z * tt;
+          poke.x = THREE.MathUtils.damp(poke.x, hx, 7, delta);
+          poke.y = THREE.MathUtils.damp(poke.y, hz, 7, delta);
+          const sinceClick = clock.elapsedTime - pokeClickAt.current;
+          target =
+            0.24 + 0.34 * Math.exp(-(sinceClick * sinceClick) / 0.18);
+        }
+      }
+      poke.w = THREE.MathUtils.damp(poke.w, target, 3.5, delta);
+    }
     shared.uDark.value = THREE.MathUtils.damp(
       shared.uDark.value,
       dark ? 1 : 0,
@@ -754,6 +850,16 @@ export default function Meadow({
     // keeps React out of the loop, same as the dome.
     shared.uSeat.value = getSeatAmount();
     shared.uTime.value = clock.elapsedTime;
+    // Boot gust: one wind swell sweeps the lawn as the reveal lands (the
+    // meadow's first frames sit just ahead of it), then the amplitude
+    // settles to the authored 0.14 and stops being written — the dev wind
+    // knob owns it from there.
+    if (bootAt.current < 0) bootAt.current = clock.elapsedTime;
+    const since = clock.elapsedTime - bootAt.current;
+    if (since < 6) {
+      const g = Math.exp(-((since - 1.6) * (since - 1.6)) / 1.1);
+      shared.uWindAmp.value = 0.14 * (1 + 1.4 * g);
+    }
     // Pixels per world unit at depth 1 — one multiply per frame buys
     // resize/dpr safety with no listener.
     built.flowerOnly.uPixelScale.value =
@@ -762,10 +868,16 @@ export default function Meadow({
     // the lit refs here (not React state) keeps the click-off egg's ease
     // frame-locked with the lamp's own glow sprites.
     let li = 0;
+    const lt = clock.elapsedTime;
     for (const lamp of getMeadowLamps().values()) {
       if (li >= MEADOW_LAMP_MAX) break;
       shared.uLampPos.value[li]!.set(lamp.x, lamp.y, lamp.z, lamp.radius);
-      shared.uLampGlow.value[li] = lamp.litRef.current * lamp.strength;
+      // Filament breathing: a few percent of two incommensurate sines per
+      // slot — the pools flicker like real practicals at night.
+      shared.uLampGlow.value[li] =
+        lamp.litRef.current *
+        lamp.strength *
+        (1 + 0.04 * Math.sin(lt * 11 + li * 7.3) + 0.025 * Math.sin(lt * 27 + li * 2.1));
       li++;
     }
     for (; li < MEADOW_LAMP_MAX; li++) shared.uLampGlow.value[li] = 0;
