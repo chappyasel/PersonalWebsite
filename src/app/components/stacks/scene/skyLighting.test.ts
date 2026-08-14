@@ -5,6 +5,8 @@ import { SKY_LIGHTING } from "./skyLighting";
 const fract = (value: number) => value - Math.floor(value);
 const mix = (a: number, b: number, amount: number) => a + (b - a) * amount;
 const smooth = (value: number) => value * value * (3 - 2 * value);
+const smoothstep = (start: number, end: number, value: number) =>
+  smooth(Math.max(0, Math.min(1, (value - start) / (end - start))));
 
 // Mirrors the sky shader's Hoskins hash and value noise. Sampling the actual
 // traverse catches a cloud field that is technically dynamic but empty over
@@ -32,7 +34,12 @@ function vnoise(x: number, y: number) {
   );
 }
 
-function cloudField(localAzimuth: number, pan: number, elevation: number) {
+function cloudField(
+  localAzimuth: number,
+  pan: number,
+  elevation: number,
+  simplified = false,
+) {
   const a = localAzimuth + pan;
   const x = a * 2.6;
   const y = elevation * 9.1;
@@ -42,16 +49,23 @@ function cloudField(localAzimuth: number, pan: number, elevation: number) {
     0.17 * vnoise(x * 4.3 + 7, y * 4.3 + 7);
   const seed = SKY_LIGHTING.atmosphere.cloudCoverageSeed;
   const coverage =
-    0.62 * vnoise(localAzimuth * 1.65 + seed, elevation * 7 + seed * 0.37) +
+    0.62 *
+      vnoise(
+        localAzimuth * SKY_LIGHTING.atmosphere.cloudCoverageAzimuth[0] + seed,
+        elevation * SKY_LIGHTING.atmosphere.cloudCoverageElevation[0] +
+          seed * 0.37,
+      ) +
     0.38 *
       vnoise(
-        localAzimuth * 3.8 - seed * 0.61,
-        elevation * 14 + 11 + seed * 0.19,
+        localAzimuth * SKY_LIGHTING.atmosphere.cloudCoverageAzimuth[1] -
+          seed * 0.61,
+        elevation * SKY_LIGHTING.atmosphere.cloudCoverageElevation[1] +
+          11 +
+          seed * 0.19,
       );
-  return Math.max(
-    primary,
-    coverage * SKY_LIGHTING.atmosphere.cloudCoverageScale,
-  );
+  const coverageField =
+    coverage * SKY_LIGHTING.atmosphere.cloudCoverageScale;
+  return simplified ? coverageField : Math.max(primary, coverageField);
 }
 
 describe("Stacks light-mode atmospheric lighting", () => {
@@ -65,15 +79,28 @@ describe("Stacks light-mode atmospheric lighting", () => {
       0.06,
     );
     expect(SKY_LIGHTING.atmosphere.cloudDensityGate[0]).toBeGreaterThanOrEqual(
-      0.5,
+      0.46,
     );
-    expect(SKY_LIGHTING.atmosphere.cloudBodyOpacity).toBeLessThanOrEqual(0.7);
-    expect(SKY_LIGHTING.atmosphere.cloudRimSun).toBeLessThanOrEqual(0.2);
+    expect(SKY_LIGHTING.atmosphere.cloudDensityGate[1]).toBeLessThanOrEqual(
+      0.72,
+    );
+    const minimumBodyContrast =
+      (1 - SKY_LIGHTING.atmosphere.cloudBodyShade[1]) *
+      SKY_LIGHTING.atmosphere.cloudBodyOpacity;
+    expect(minimumBodyContrast).toBeGreaterThanOrEqual(0.09);
+    expect(SKY_LIGHTING.atmosphere.cloudBodyOpacity).toBeLessThanOrEqual(0.85);
+    expect(SKY_LIGHTING.atmosphere.cloudRimSun).toBeLessThanOrEqual(0.4);
     expect(SKY_LIGHTING.atmosphere.cloudDrift).toBeGreaterThan(0);
     expect(SKY_LIGHTING.atmosphere.cloudDrift).toBeLessThanOrEqual(0.015);
     expect(SKY_LIGHTING.atmosphere.cloudMorph).toBeGreaterThan(0);
     expect(SKY_LIGHTING.atmosphere.cloudMorph).toBeLessThanOrEqual(0.006);
     expect(SKY_LIGHTING.atmosphere.cloudCoverageDrift).toBeGreaterThan(0);
+    expect(SKY_LIGHTING.atmosphere.cloudCoverageScale).toBeGreaterThanOrEqual(
+      0.85,
+    );
+    expect(SKY_LIGHTING.atmosphere.cloudCoverageScale).toBeLessThanOrEqual(
+      1,
+    );
     expect(SKY_LIGHTING.atmosphere.horizonEmber).toBeLessThanOrEqual(0.04);
     expect(SKY_LIGHTING.atmosphere.emberMix).toBeLessThanOrEqual(0.45);
     expect(SKY_LIGHTING.atmosphere.emberLift).toBeLessThanOrEqual(1.05);
@@ -81,18 +108,41 @@ describe("Stacks light-mode atmospheric lighting", () => {
     expect(SKY_LIGHTING.atmosphere.karlOpacity).toBeLessThanOrEqual(0.2);
   });
 
-  it("keeps a sparse cloud presence across every traverse unit", () => {
-    for (let unit = 0; unit < 7; unit++) {
-      const pan = (unit / 6) * 0.6 - 0.25;
-      let visible = 0;
-      const samples = 201;
-      for (let sample = 0; sample < samples; sample++) {
-        const localAzimuth = -2.25 + (sample / (samples - 1)) * 1.4;
-        if (cloudField(localAzimuth, pan, 0.14) > 0.5) visible++;
+  it("keeps a legible cloud deck across every traverse unit", () => {
+    for (const simplified of [false, true]) {
+      for (let unit = 0; unit < 7; unit++) {
+        const pan = (unit / 6) * 0.6 - 0.25;
+        let visible = 0;
+        let opacity = 0;
+        const horizontalSamples = 201;
+        const verticalSamples = 81;
+        for (let y = 0; y < verticalSamples; y++) {
+          const elevation = 0.07 + (y / (verticalSamples - 1)) * 0.2;
+          const deck =
+            smoothstep(
+              SKY_LIGHTING.atmosphere.cloudDeckFadeIn[0],
+              SKY_LIGHTING.atmosphere.cloudDeckFadeIn[1],
+              elevation,
+            ) *
+            (1 - smoothstep(0.17, 0.27, elevation));
+          for (let x = 0; x < horizontalSamples; x++) {
+            const localAzimuth =
+              -2.25 + (x / (horizontalSamples - 1)) * 1.4;
+            const density = smoothstep(
+              SKY_LIGHTING.atmosphere.cloudDensityGate[0],
+              SKY_LIGHTING.atmosphere.cloudDensityGate[1],
+              cloudField(localAzimuth, pan, elevation, simplified),
+            );
+            const cloudOpacity = density * deck;
+            opacity += cloudOpacity;
+            if (cloudOpacity > 0.15) visible++;
+          }
+        }
+        const samples = horizontalSamples * verticalSamples;
+        expect(opacity / samples).toBeGreaterThanOrEqual(0.09);
+        expect(visible / samples).toBeGreaterThanOrEqual(0.16);
+        expect(visible / samples).toBeLessThanOrEqual(0.4);
       }
-      const coverage = visible / samples;
-      expect(coverage).toBeGreaterThanOrEqual(0.08);
-      expect(coverage).toBeLessThanOrEqual(0.45);
     }
   });
 });

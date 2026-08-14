@@ -33,14 +33,13 @@ import { PALETTES } from "./theme";
 // disabled composer pins the renderer to NoToneMapping = blown frame).
 const Effects = dynamic(() => import("./scene/Effects"), { ssr: false });
 
-/** Render at Retina density where the device allows it. Native 3x on a phone
- * costs nine framebuffer pixels per CSS pixel, so 2x is the quality ceiling;
- * it is visually Retina without quadrupling the old 1.5x workload. A
- * sustained decline settles at 1.5x rather than the old 1x floor—the latter
- * was visibly one-third-resolution on an iPhone and made every shelf edge and
- * cover texture look pixelated. */
-const RENDER_DPR_RANGE: [number, number] = [1, 2];
-const FALLBACK_DPR_RANGE: [number, number] = [1, 1.5];
+/** Render at the device's native Retina density where it allows it. A 2x cap
+ * is visibly soft on 3x iPhones because Safari must upscale the entire scene.
+ * The performance ladder still has a 2.5x escape hatch for a 3x device that
+ * cannot sustain native density, without returning to the visibly pixelated
+ * 1.5x floor. */
+const RENDER_DPR_RANGE: [number, number] = [1, 3];
+const FALLBACK_DPR_RANGE: [number, number] = [1.5, 2.5];
 
 /** Drei's overflow element is natively keyboard-focusable, so leaving it
  * unnamed makes the first Tab stop a full-viewport anonymous div. Name the

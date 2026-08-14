@@ -8,15 +8,19 @@ export const SKY_LIGHTING = {
   atmosphere: {
     /** Keep clouds above the skyline instead of veiling its full height. */
     cloudDeckFadeIn: [0.07, 0.11],
-    cloudDensityGate: [0.5, 0.76],
-    cloudBodyOpacity: 0.68,
-    cloudRimBase: 0.025,
-    cloudRimSun: 0.2,
+    cloudDensityGate: [0.48, 0.7],
+    cloudBodyShade: [0.68, 0.88],
+    cloudBodyOpacity: 0.78,
+    cloudBodyDesaturation: 0.32,
+    cloudRimBase: 0.03,
+    cloudRimSun: 0.16,
     cloudDrift: 0.012,
     cloudMorph: 0.004,
     /** Camera-continuous high deck prevents empty cloud runs between units. */
     cloudCoverageSeed: 33,
-    cloudCoverageScale: 0.78,
+    cloudCoverageAzimuth: [4.2, 9],
+    cloudCoverageElevation: [20, 40],
+    cloudCoverageScale: 0.96,
     cloudCoverageDrift: 0.0005,
     /** A localized sunrise already exists; keep the rest of the horizon blue. */
     horizonEmber: 0.035,

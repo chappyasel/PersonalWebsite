@@ -716,26 +716,29 @@ const SKY_FRAGMENT = `
 
     // ---- Cloud deck, light theme only. The morning sky was one clean
     // gradient doing no compositional work; a broken deck gives it depth and
-    // something that moves on its own. Three octaves of the same value noise
-    // the air already uses, squashed 3.5:1 so the cells read as flat-bottomed
-    // cloud rather than as lumps, and drifting slowly enough (~2.5 min to
-    // cross the frame) to be weather instead of animation.
-    if (day > 0.01 && uSimplify < 0.5) {
-      vec2 cp = vec2(
-        a * 2.6 + uTime * ${SKY_LIGHTING.atmosphere.cloudDrift.toFixed(3)},
-        e * 9.1
-      );
-      float cf = 0.54 * vnoise(cp)
-               + 0.29 * vnoise(
-                   cp * 2.1 + 19.0
-                   + vec2(-uTime, uTime * 0.35)
-                   * ${SKY_LIGHTING.atmosphere.cloudMorph.toFixed(3)}
-                 )
-               + 0.17 * vnoise(
-                   cp * 4.3 + 7.0
-                   + vec2(uTime * 0.22, -uTime)
-                   * ${SKY_LIGHTING.atmosphere.cloudMorph.toFixed(3)}
-                 );
+    // something that moves on its own. Full quality adds a three-octave,
+    // world-anchored field. Simplified sky keeps the cheaper two-octave
+    // camera-continuous deck below, so a performance decline cannot erase the
+    // weather entirely.
+    if (day > 0.01) {
+      float cf = 0.0;
+      if (uSimplify < 0.5) {
+        vec2 cp = vec2(
+          a * 2.6 + uTime * ${SKY_LIGHTING.atmosphere.cloudDrift.toFixed(3)},
+          e * 9.1
+        );
+        cf = 0.54 * vnoise(cp)
+           + 0.29 * vnoise(
+               cp * 2.1 + 19.0
+               + vec2(-uTime, uTime * 0.35)
+               * ${SKY_LIGHTING.atmosphere.cloudMorph.toFixed(3)}
+             )
+           + 0.17 * vnoise(
+               cp * 4.3 + 7.0
+               + vec2(uTime * 0.22, -uTime)
+               * ${SKY_LIGHTING.atmosphere.cloudMorph.toFixed(3)}
+             );
+      }
       // A second sparse, higher deck is camera-continuous (a - uPan). The
       // primary field remains world-anchored and supplies the obvious drift,
       // but its seeded slice was completely empty over the first two units
@@ -747,13 +750,17 @@ const SKY_FRAGMENT = `
       float coverageDrift = uTime
                           * ${SKY_LIGHTING.atmosphere.cloudCoverageDrift.toFixed(4)};
       float coverage = 0.62 * vnoise(vec2(
-                         localA * 1.65 + coverageSeed - coverageDrift,
-                         e * 7.0 + coverageSeed * 0.37
+                         localA * ${SKY_LIGHTING.atmosphere.cloudCoverageAzimuth[0].toFixed(2)}
+                           + coverageSeed - coverageDrift,
+                         e * ${SKY_LIGHTING.atmosphere.cloudCoverageElevation[0].toFixed(1)}
+                           + coverageSeed * 0.37
                        ))
                      + 0.38 * vnoise(vec2(
-                         localA * 3.8 - coverageSeed * 0.61
+                         localA * ${SKY_LIGHTING.atmosphere.cloudCoverageAzimuth[1].toFixed(2)}
+                           - coverageSeed * 0.61
                            + coverageDrift * 0.5,
-                         e * 14.0 + 11.0 + coverageSeed * 0.19
+                         e * ${SKY_LIGHTING.atmosphere.cloudCoverageElevation[1].toFixed(1)}
+                           + 11.0 + coverageSeed * 0.19
                            - coverageDrift * 0.7
                        ));
       cf = max(
@@ -777,11 +784,21 @@ const SKY_FRAGMENT = `
       // ember. Away from the sun the shading deepens, which is what gives
       // the deck its form.
       float rim = smoothstep(0.44, 0.54, cf) - smoothstep(0.56, 0.72, cf);
-      vec3 body = col * mix(0.78, 0.94, azFall);
+      vec3 body = col * mix(
+        ${SKY_LIGHTING.atmosphere.cloudBodyShade[0].toFixed(2)},
+        ${SKY_LIGHTING.atmosphere.cloudBodyShade[1].toFixed(2)}, azFall
+      );
+      float bodyLuma = dot(body, vec3(0.299, 0.587, 0.114));
+      vec3 cloudGrey = bodyLuma * vec3(0.96, 1.0, 1.04);
+      body = mix(
+        body,
+        cloudGrey,
+        ${SKY_LIGHTING.atmosphere.cloudBodyDesaturation.toFixed(2)}
+      );
       col = mix(col, body,
                 cloud * ${SKY_LIGHTING.atmosphere.cloudBodyOpacity.toFixed(2)});
       col += mix(vec3(1.0, 0.93, 0.82), emberC, clamp(azFall * 0.85, 0.0, 0.85))
-           * rim * cloud
+           * rim * deck * day
            * (${SKY_LIGHTING.atmosphere.cloudRimBase.toFixed(3)}
               + ${SKY_LIGHTING.atmosphere.cloudRimSun.toFixed(2)} * azFall);
     }
