@@ -3,10 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   EAST_FEATHER,
   FAR_FEATHER,
+  FLOWER_CLUSTER,
   FLOWER_LIFT,
   GRASS_BANDS,
   GRASS_ROOT_SINK,
-  LATERAL_REACH,
+  HORIZON_RIDGE,
   MEADOW_BANK,
   MEADOW_FLOWER_TOTAL,
   MEADOW_GRASS_TOTAL,
@@ -22,13 +23,12 @@ import {
   WEST_FEATHER,
   buildFlowerPositions,
   buildGrassInstances,
-  clearingScale,
   eastFeatherScale,
   farFeatherScale,
+  horizonCrestY,
   inEastFeather,
   inWestFeather,
   meadowHeight,
-  ridgeCrestY,
   unionWestX,
   westFeatherScale,
 } from "./meadowField";
@@ -171,15 +171,34 @@ describe("placement", () => {
     ).toBe(true);
   });
 
-  it("clears furniture without ever deleting grass", () => {
-    expect(clearingScale(0, 0)).toBeCloseTo(0.4, 3);
-    expect(clearingScale(-3.5, -0.3)).toBeCloseTo(0.4, 3);
-    expect(clearingScale(10, -10)).toBe(1);
-    for (let x = -6; x <= 30; x += 0.7) {
-      for (let z = -4; z <= 4; z += 0.7) {
-        expect(clearingScale(x, z)).toBeGreaterThanOrEqual(0.4);
-      }
+  it("grows uniformly through the furniture strip (no clearings)", () => {
+    // Owner round 2: grass must NOT thin or shorten around the shelves and
+    // couch. Every tuft's height/width scale comes from the edge feathers
+    // alone, so instances deep inside the field carry their full raw size.
+    const grass = buildGrassInstances();
+    let full = 0;
+    for (let i = 0; i < grass.near.count; i++) {
+      const x = grass.near.x[i]!;
+      const z = grass.near.z[i]!;
+      if (x < -2 || x > 28 || z < -4) continue; // furniture strip only
+      if (
+        westFeatherScale(x, z) === 1 &&
+        eastFeatherScale(x, z) === 1 &&
+        farFeatherScale(z) === 1
+      )
+        full += 1;
+      // The raw near-band height floor is 0.16·0.8·(feathers). Anything
+      // below it would mean a hidden per-position damping crept back in.
+      expect(grass.near.height[i]!).toBeGreaterThanOrEqual(
+        0.16 *
+          0.8 *
+          westFeatherScale(x, z) *
+          eastFeatherScale(x, z) *
+          farFeatherScale(z) -
+          1e-6,
+      );
     }
+    expect(full).toBeGreaterThan(500); // the strip is genuinely populated
   });
 
   it("feathers the western flank instead of cutting it", () => {
@@ -229,80 +248,47 @@ describe("terrain silhouette", () => {
     }
   });
 
-  it("lands the far-ridge crest inside the skyline fade band", () => {
-    const eyes = [
-      { y: 0.25, z: 5.8 }, // desktop
-      { y: 0.3, z: 7.6 }, // phone / tablet
-    ];
-    for (const eye of eyes) {
-      const dz = eye.z - -24.5;
-      for (let ex = -1.2; ex <= 26.4; ex += 2.76) {
-        for (let x = MEADOW_TERRAIN.minX; x <= MEADOW_TERRAIN.maxX; x += 0.5) {
-          if (Math.abs(x - ex) > LATERAL_REACH * dz) continue; // beyond widest frustum
-          const dist = Math.hypot(dz, x - ex);
-          const e = Math.atan((ridgeCrestY(x) - eye.y) / dist);
-          expect(e).toBeGreaterThanOrEqual(-0.098);
-          expect(e).toBeLessThanOrEqual(-0.021);
-        }
-      }
+  it("authors the horizon ridge exactly at its crest plane", () => {
+    // The ridge mask reaches 1 at HORIZON_RIDGE.z, so meadowHeight there IS
+    // the authored crest line — no undulation, mid-roll, or bank leak can
+    // push a measured silhouette past what horizonCrestY proves.
+    for (let x = MEADOW_TERRAIN.minX; x <= MEADOW_TERRAIN.maxX; x += 0.37) {
+      expect(meadowHeight(x, HORIZON_RIDGE.z)).toBeCloseTo(horizonCrestY(x), 6);
     }
   });
 
-  it("caps the flanking swells below every drawn landmark", () => {
-    const apexNear = (cx: number, cz: number) => {
-      let best = { x: cx, z: cz, y: -Infinity };
-      for (let x = cx - 6; x <= cx + 6; x += 0.1) {
-        for (let z = cz - 6; z <= cz + 6; z += 0.1) {
-          const y = meadowHeight(x, z);
-          if (y > best.y) best = { x, z, y };
-        }
-      }
-      return best;
-    };
-    const aL = apexNear(-13, -22);
-    const aR = apexNear(38, -21);
-    for (const ex of [-1.2, 2, 6, 13, 20, 26.4]) {
-      for (const a of [aL, aR]) {
-        // Eye y 0.14 — the LOW bob — is the steepest sightline any pose has.
-        const e = Math.atan(
-          (a.y - 0.14) / Math.hypot(a.x - ex, a.z - 5.8),
-        );
-        // Sutro's lowest drawn pixel is e 0.010, the GGB deck 0.038 — an
-        // apex under 0.009 can never touch either.
-        expect(e).toBeLessThanOrEqual(0.009);
-      }
+  it("rolls the held crest inside its provable elevation band", () => {
+    // Derived envelope (see horizonCrestY): from the highest bobbed eye
+    // (phone, y 0.41, d 29.1) the lowest held crest still reads at
+    // e ≥ −0.002 (no sky gap behind the shelves); from the lowest bobbed
+    // eye (desktop, y 0.14, d 27.3) the tallest crest stays under the
+    // e ≈ +0.016 cap.
+    for (let x = HORIZON_RIDGE.holdMinX; x <= HORIZON_RIDGE.holdMaxX; x += 0.1) {
+      const y = horizonCrestY(x);
+      expect(y).toBeGreaterThanOrEqual(0.36);
+      expect(y).toBeLessThanOrEqual(0.56);
+      expect(Math.atan((y - 0.41) / 29.1)).toBeGreaterThanOrEqual(-0.002);
+      expect(Math.atan((y - 0.14) / 27.3)).toBeLessThanOrEqual(0.016);
     }
   });
 
-  it("keeps the swells' above-horizon spans clear of the bridges", () => {
-    const pan = (ex: number) =>
-      Math.min(1, Math.max(0, ex / 26.4)) * 0.6 - 0.25;
-    // S_L: every above-horizon sample stays ≥ 0.015 rad left of the GGB
-    // window's left edge (dome az −2.102) from every eye that can frame it.
-    for (const ex of [-1.2, 0, 2, 4, 6, 8]) {
-      for (let x = -21; x <= -5; x += 0.2) {
-        for (let z = -30; z <= -14; z += 0.2) {
-          const dist = Math.hypot(x - ex, z - 5.8);
-          const e = Math.atan((meadowHeight(x, z) - 0.25) / dist);
-          if (e <= -0.002) continue;
-          expect(Math.atan2(z - 5.8, x - ex) + pan(ex)).toBeLessThanOrEqual(
-            -2.102 - 0.015,
-          );
-        }
-      }
+  it("tapers below the horizon before the terrain's x-edges", () => {
+    // An above-horizon crest that reached a rectangle x-edge would cut
+    // against the sky — a fogged silhouette still has a shape. The tail
+    // must be fully below-horizon strictly inside the rectangle.
+    expect(HORIZON_RIDGE.endMinX).toBeGreaterThan(MEADOW_TERRAIN.minX + 6);
+    expect(HORIZON_RIDGE.endMaxX).toBeLessThan(MEADOW_TERRAIN.maxX - 6);
+    for (let x = MEADOW_TERRAIN.minX; x <= HORIZON_RIDGE.endMinX; x += 0.2) {
+      expect(horizonCrestY(x)).toBeLessThanOrEqual(HORIZON_RIDGE.tailY + 0.01);
     }
-    // S_R: stays right of the Bay Bridge's right edge (dome az −1.027).
-    for (const ex of [13.2, 18, 22, 26.4]) {
-      for (let x = 30; x <= 46; x += 0.2) {
-        for (let z = -29; z <= -13; z += 0.2) {
-          const dist = Math.hypot(x - ex, z - 5.8);
-          const e = Math.atan((meadowHeight(x, z) - 0.25) / dist);
-          if (e <= -0.002) continue;
-          expect(
-            Math.atan2(z - 5.8, x - ex) + pan(ex),
-          ).toBeGreaterThanOrEqual(-1.027 + 0.015);
-        }
-      }
+    for (let x = HORIZON_RIDGE.endMaxX; x <= MEADOW_TERRAIN.maxX; x += 0.2) {
+      expect(horizonCrestY(x)).toBeLessThanOrEqual(HORIZON_RIDGE.tailY + 0.01);
+    }
+    // The taper itself is smooth — no cliff for a frame edge to catch.
+    for (let x = MEADOW_TERRAIN.minX; x <= MEADOW_TERRAIN.maxX - 0.2; x += 0.2) {
+      expect(
+        Math.abs(horizonCrestY(x + 0.2) - horizonCrestY(x)),
+      ).toBeLessThanOrEqual(0.06);
     }
   });
 
@@ -313,25 +299,74 @@ describe("terrain silhouette", () => {
       const y = meadowHeight(x, MEADOW_BANK.skirtZ);
       return Math.atan(((y - SEAT_Y) * Math.cos(theta)) / dCrest);
     };
-    // Central composition band (the plan's derivation): the bank holds the
-    // bottom ~14% of the seated frame under a wide strip of open Potomac.
+    // Central composition band, re-derived for the round-2 bank (skirt at
+    // 8.6, amp 0.08): the grass line from the seat now reads at
+    // e ≈ −0.155…−0.135 — roughly two-thirds of the round-1 band height —
+    // under a wide strip of open Potomac.
     for (let t = -0.3; t <= 0.3; t += 0.002) {
-      expect(crestE(t)).toBeGreaterThanOrEqual(-0.115);
-      expect(crestE(t)).toBeLessThanOrEqual(-0.093);
+      expect(crestE(t)).toBeGreaterThanOrEqual(-0.158);
+      expect(crestE(t)).toBeLessThanOrEqual(-0.132);
     }
     // Full 21:9 seated frustum + margin: at wide azimuths the crest sits
-    // farther out and reads shallower — geometry caps it at the base-plain
-    // elevation (−0.086 at the corner), so the tight central band cannot
-    // hold there. What matters is staying far below the waterline (e = 0,
-    // with every far-shore structure above it): ≤ −0.06 everywhere.
+    // farther out and reads shallower. What matters is staying far below
+    // the waterline (e = 0, with every far-shore structure above it):
+    // ≤ −0.095 everywhere (worst corner measures ≈ −0.099).
     for (let t = -0.7923; t <= 0.7923; t += 0.002) {
-      expect(crestE(t)).toBeLessThanOrEqual(-0.06);
+      expect(crestE(t)).toBeLessThanOrEqual(-0.095);
       // Skirt occlusion: the sight ray over the crest descends at most
-      // ~0.11 per unit z; the skirt drops 0.9 — the terrain edge is
+      // ~0.16 per unit z; the skirt drops 0.9 — the terrain edge is
       // unreachable from the seat.
       const x = SEAT_X + Math.tan(t) * dCrest;
       const rayFall = (SEAT_Y - meadowHeight(x, MEADOW_BANK.skirtZ)) / dCrest;
       expect(rayFall).toBeLessThan(MEADOW_BANK.skirtDrop - 0.5);
     }
+  });
+});
+
+describe("flower clumps", () => {
+  const flowers = buildFlowerPositions();
+
+  it("shares one species tint per cluster at ~1/5 seed density", () => {
+    const groups = new Map<number, number[]>();
+    for (let i = 0; i < flowers.count; i++) {
+      const tint = flowers.tint[i]!;
+      expect(tint).toBeGreaterThanOrEqual(0);
+      expect(tint).toBeLessThanOrEqual(1);
+      const members = groups.get(tint) ?? [];
+      members.push(i);
+      groups.set(tint, members);
+    }
+    // ~1/5 of the heads are cluster seeds (4–6 heads each), and every head
+    // carries its seed's tint — so distinct tints ≈ seed count.
+    expect(groups.size).toBeGreaterThan(flowers.count / 8);
+    expect(groups.size).toBeLessThan(flowers.count / 3);
+    // Clump cohesion: heads sharing a seed stay inside the bounded gaussian
+    // spread (Irwin–Hall caps an axis offset at ±3.46σ; clamps only shrink).
+    const reach = 2 * 3.47 * FLOWER_CLUSTER.sigma;
+    for (const members of groups.values()) {
+      let minX = Infinity;
+      let maxX = -Infinity;
+      let minZ = Infinity;
+      let maxZ = -Infinity;
+      for (const i of members) {
+        minX = Math.min(minX, flowers.x[i]!);
+        maxX = Math.max(maxX, flowers.x[i]!);
+        minZ = Math.min(minZ, flowers.z[i]!);
+        maxZ = Math.max(maxZ, flowers.z[i]!);
+      }
+      expect(maxX - minX).toBeLessThanOrEqual(reach);
+      expect(maxZ - minZ).toBeLessThanOrEqual(reach);
+    }
+  });
+
+  it("keeps the shader's species split honest", () => {
+    // vTint thresholds in Meadow.tsx: A < 0.55 ≤ B < 0.75 ≤ C. The seed
+    // tints are lattice-uniform, so the head split stays near 55/20/25.
+    let a = 0;
+    for (let i = 0; i < flowers.count; i++) {
+      if (flowers.tint[i]! < 0.55) a += 1;
+    }
+    expect(a / flowers.count).toBeGreaterThan(0.45);
+    expect(a / flowers.count).toBeLessThan(0.65);
   });
 });

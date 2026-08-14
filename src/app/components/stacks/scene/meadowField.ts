@@ -7,7 +7,7 @@
 import { rand } from "../theme";
 
 import { SEAT_POSE } from "./seated";
-import { TRAVEL_LEAD_IN, TRAVEL_X, UNIT_SPACING, unitPose } from "./worldLayout";
+import { TRAVEL_LEAD_IN, TRAVEL_X } from "./worldLayout";
 
 // ---------------------------------------------------------------------------
 // Cameras the field is derived against. Every extent below is a consequence
@@ -105,20 +105,31 @@ export const GRASS_ROOT_SINK = 0.015;
 export const FLOWER_LIFT = 0.06;
 
 // Bank + far-skirt regions (authored silhouettes, see meadowHeight).
+// The bank came IN by three units at the owner's round-2 browse ("the seated
+// grass extends ~50% too far"): the grass line from the seat is set by where
+// the band ENDS, not by the bank's height, so the whole rise moved closer
+// and flattened (amp 0.17 → 0.08 — a subtle roll, the skirt line does the
+// composition work). GRASS_BANDS.seated.d1, the bank flower group, the
+// bank-calm damping window, and Meadow.tsx's seated water slide all derive
+// from these numbers, so they move together.
 export const MEADOW_BANK = {
-  riseStartZ: 8.0,
-  crestZ: 10.8,
-  skirtZ: 11.2,
+  riseStartZ: 6.5,
+  crestZ: 8.2,
+  skirtZ: 8.6,
+  /** Bank rise amplitude, world units above the base plain. */
+  amp: 0.08,
   /** Skirt drop per unit z. The steepest seated sight ray over the crest
-   * falls 0.102/unit at the extreme azimuth; 0.9 ≫ that, so the terrain end
-   * is never visible (also holds for the sit-transition eye at y 0.25,
-   * ray slope 0.156). */
+   * falls ≈ 0.156/unit at the new, closer crest; 0.9 ≫ that, so the terrain
+   * end is never visible (also holds for the walk-phase eye at y ≤ 0.9,
+   * ray slope ≈ 0.30). */
   skirtDrop: 0.9,
 } as const;
 export const MEADOW_FAR_SKIRT = {
   z: -24.5,
-  /** Sight ray over the R3 crest falls at worst 0.038/unit ≪ 1.1: hidden —
-   * and it is past 100% fog regardless. */
+  /** Wherever the horizon ridge crests above eye level the sight ray over it
+   * ASCENDS and the far terrain end is unreachable outright; at the tapered
+   * ends the ray falls ≤ 0.025/unit ≪ 1.1 — and it is past 100% fog
+   * regardless. */
   drop: 1.1,
 } as const;
 
@@ -161,15 +172,51 @@ function vnoise2(x: number, y: number, salt: number): number {
 // Terrain height. TS only — vertices are baked once at build; the GLSL never
 // evaluates this.
 //
-// The far ridge's crest is AUTHORED in world y so its silhouette can be
-// proven: crest y ∈ [−1.40, −0.80] reads from the traverse eyes at elevation
-// −0.028…−0.054 (desktop eye y 0.25, d 30.3; phone y 0.3, d 32.1; worst
-// frame-edge cos-shallowing ×0.814 → −0.028) — inside the skyline fade band
-// (structures × smoothstep(−0.10, −0.02, e)) with ≥ 0.008 margin.
-export function ridgeCrestY(x: number): number {
-  const y =
-    -1.1 + 0.3 * Math.sin(x * 0.24 + 2.1) + 0.15 * (vnoise1(x * 0.13, 3.7) - 0.5) * 2;
-  return clamp(y, -1.4, -0.8);
+// The horizon ridge (owner round 2: "rolling hills at/above the horizon
+// behind the shelves"). One continuous crest line replaces the old
+// below-horizon far ridge and both flanking swells: it closes the water/sky
+// band that used to show between the meadow and the skyline, and reads as a
+// pale haze hill in front of the city's base — at ≈ 27 units of view depth
+// it is 100% terrain-fogged, so it paints the flat dome-shadow color against
+// the sky, which is exactly the fogged-hill read the owner approved on the
+// old S_L swell.
+export const HORIZON_RIDGE = {
+  /** Crest plane. meadowHeight equals horizonCrestY exactly here (the ridge
+   * mask reaches 1), which is what makes the silhouette provable. */
+  z: -21.5,
+  sigma: 3.0,
+  /** x-span where the crest HOLDS above the horizon. Sized so the widest
+   * checked frame (aspect 3.0) from either traverse end still sees held
+   * crest across the shelf line; the taper lives outside it. */
+  holdMinX: -24,
+  holdMaxX: 42,
+  /** Fully tapered by these x — comfortably inside the terrain rectangle
+   * (−36 … 53), so an above-horizon silhouette can never reach a rectangle
+   * edge and cut against the sky. */
+  endMinX: -28,
+  endMaxX: 46,
+  /** Below-horizon tail height. From the lowest eye it reads at e ≈ −0.016:
+   * under the horizon, over the deep-gap floor, and painted in the exact
+   * dome-shadow color it sits against (invisible by construction). */
+  tailY: -0.3,
+} as const;
+
+/** Authored world-y crest line of the horizon ridge, rolling in x. The held
+ * band [0.37, 0.55] is derived from the eye envelope: from the HIGHEST bobbed
+ * eye (phone, y 0.41, d 29.1) the lowest crest still sits at e ≥ −0.0013 (no
+ * sky gap opens behind the shelves), and from the LOWEST bobbed eye (desktop,
+ * y 0.14, d 27.3) the tallest crest stays under the e ≈ +0.016 cap — at or a
+ * little above the horizon, never a wall. The check script measures the real
+ * silhouettes; vitest pins this function's range and taper. */
+export function horizonCrestY(x: number): number {
+  const roll =
+    0.46 +
+    0.06 * Math.sin(x * 0.22 + 1.7) +
+    0.028 * (vnoise1(x * 0.12, 3.7) - 0.5) * 2;
+  const hold =
+    smoothstep(HORIZON_RIDGE.endMinX, HORIZON_RIDGE.holdMinX, x) *
+    (1 - smoothstep(HORIZON_RIDGE.holdMaxX, HORIZON_RIDGE.endMaxX, x));
+  return HORIZON_RIDGE.tailY + (roll - HORIZON_RIDGE.tailY) * hold;
 }
 
 export function meadowHeight(x: number, z: number): number {
@@ -179,7 +226,11 @@ export function meadowHeight(x: number, z: number): number {
   // MEADOW_SHELF_CEILING_Y, and through the bank region so the seated crest
   // silhouette stays inside its authored elevation band.
   const strip = smoothstep(-4, -3, z) * (1 - smoothstep(1, 2, z));
-  const bankCalm = smoothstep(6, 9, z);
+  const bankCalm = smoothstep(
+    MEADOW_BANK.riseStartZ - 2,
+    MEADOW_BANK.riseStartZ + 1,
+    z,
+  );
   const und =
     (0.05 * Math.sin(x * 0.58 + z * 0.31) +
       0.028 * Math.sin(x * 0.19 - z * 0.44)) *
@@ -208,42 +259,28 @@ export function meadowHeight(x: number, z: number): number {
   let mid = r1 + r2;
   if (mid > 0.5) mid = 0.5 + (mid - 0.5) * 0.25;
 
-  // R3 far ridge — the horizon silhouette. Crest y is authored directly
-  // (ridgeCrestY); where the crest dips below the plain the ridge opens into
-  // a fogged valley, which is what keeps the skyline handoff from reading as
-  // one continuous wall.
-  const r3 = (ridgeCrestY(x) - MEADOW_GROUND_BASE) * gauss(z, MEADOW_FAR_SKIRT.z, 1.6);
-
-  // Flanking swells — the ONLY above-horizon crests, framing the city at
-  // empty azimuths. S_L (−13, −22) apex world y ≈ +0.49: its above-horizon
-  // azimuth span clears the GGB dome window (−2.04 ± 0.062) by ≥ 0.021 rad
-  // from every traverse eye, and its apex elevation (≤ +0.009) can never
-  // touch the deck at e 0.038. S_R (38, −21) apex ≈ +0.48 sits right of the
-  // Bay Bridge's right edge (dome az −1.027) from every eye that frames it.
-  // Amplitudes measured, not solved: R2 leaks ~0.06 under S_R, the
-  // undulation adds ±0.035 under both, and the eye's LOW bob (y −0.11)
-  // steepens every apex sightline — the raw 1.66/1.65 gaussians crested at
-  // e 0.011+ from a bobbed-down eye, over the +0.009 ceiling the vitest and
-  // check script hold them to (Sutro's lowest drawn pixel is e 0.010).
-  // Trimmed until the MEASURED worst-case apexes clear it: apex world y
-  // ≈ +0.40/+0.39, still above the horizon from every standing pose.
-  const sw = 3.5;
-  const sL =
-    1.56 * Math.exp(-(((x + 13) / sw) ** 2 + ((z + 22) / sw) ** 2));
-  const sR =
-    1.51 * Math.exp(-(((x - 38) / sw) ** 2 + ((z + 21) / sw) ** 2));
-
   // Seated riverbank (all x — no lateral seam to find). Crest silhouette
-  // from the seat reads at e ≈ −0.111…−0.082 across the seated frame:
-  // always well below the DC waterline (the dome draws water at e < 0 and
-  // every far-shore structure above it), so the bank cuts against open
-  // Potomac water only — Columbia Island's own grassy bank.
+  // from the seat reads at e ≈ −0.155…−0.135 across the central seated
+  // frame: always well below the DC waterline (the dome draws water at
+  // e < 0 and every far-shore structure above it), so the bank cuts against
+  // open Potomac water only — Columbia Island's own grassy bank.
   const bank =
-    0.17 *
+    MEADOW_BANK.amp *
     smoothstep(MEADOW_BANK.riseStartZ, MEADOW_BANK.crestZ, z) *
     (0.75 + 0.25 * Math.sin(x * 0.55 + 1.9));
 
-  let y = MEADOW_GROUND_BASE + und + mid + r3 + sL + sR + bank;
+  // R4, the horizon ridge. NOT additive: the ridge mask cross-fades the
+  // whole local relief (undulation, mid rolls, bank) into the authored crest
+  // line, so at the crest plane meadowHeight(x, −21.5) IS horizonCrestY(x)
+  // exactly — no leak from R2's tail or the undulation can push a measured
+  // silhouette over the proven band. The blend also calms the last of the
+  // mid rolls on the ridge's near flank, which reads as the valley before
+  // the far hills.
+  const ridgeMask = gauss(z, HORIZON_RIDGE.z, HORIZON_RIDGE.sigma);
+  let y =
+    MEADOW_GROUND_BASE +
+    (und + mid + bank) * (1 - ridgeMask) +
+    (horizonCrestY(x) - MEADOW_GROUND_BASE) * ridgeMask;
 
   // Authored skirts: both drop far faster than any sight ray over their
   // crests can descend, so the rectangle's actual ends are unreachable.
@@ -295,29 +332,12 @@ export const MEADOW_RUNG_GRASS = [4950, 7700, 9680, 11000] as const;
 /** Flowers stay OFF at the two lowest quality rungs (degrade ≥ 2). */
 export const MEADOW_RUNG_FLOWERS = [0, 0, 1408, 1600] as const;
 
-/** Furniture clearings: grass thins and shortens around the seven shelf
- * units and the couch — no rejection, no count churn, and nothing pokes
- * through the ground shadow pools (pool y −1.114 vs a cleared tip at
- * ≈ −1.13). Scale factor is ≥ 0.45 everywhere. */
-const UNIT_COUNT = Math.round(TRAVEL_X / UNIT_SPACING) + 1;
-const CLEARING_SITES: { x: number; z: number; r0: number; r1: number }[] = [];
-for (let i = 0; i < UNIT_COUNT; i++) {
-  const [px, , pz] = unitPose(i).position;
-  CLEARING_SITES.push({ x: px, z: pz, r0: 1.6, r1: 3.0 });
-}
-CLEARING_SITES.push({ x: -3.5, z: -0.3, r0: 1.2, r1: 2.4 });
-
-export function clearingScale(x: number, z: number): number {
-  let clr = 1;
-  for (const site of CLEARING_SITES) {
-    const d = Math.hypot(x - site.x, z - site.z);
-    const s = smoothstep(site.r0, site.r1, d);
-    if (s < clr) clr = s;
-  }
-  // 0.40 floor: the tallest cleared near blade (0.095·1.2·0.40 ≈ 0.046)
-  // tops out ≈ 0.027 under the shadow pools at −1.114.
-  return 0.4 + 0.6 * clr;
-}
+// There are deliberately NO furniture clearings. The first round shipped
+// grass that thinned and shortened around the shelf units and the couch, and
+// the owner's browse called it out — the FluffyGrass reference sits its
+// furniture IN the grass. Uniform density right up to the shelf posts is the
+// look; the tallest near tuft tips out around y −0.97, below the shelf
+// planks, so nothing clips.
 
 // ---------------------------------------------------------------------------
 // West density feather. The walk phase of the seat transition can face the
@@ -510,10 +530,7 @@ export function buildGrassInstances(
         width = 0.32 + 0.16 * rand(i, 45);
       }
       const f =
-        clearingScale(x, z) *
-        westFeatherScale(x, z) *
-        eastFeatherScale(x, z) *
-        farFeatherScale(z);
+        westFeatherScale(x, z) * eastFeatherScale(x, z) * farFeatherScale(z);
       raw.push({
         x,
         z,
@@ -582,9 +599,13 @@ export function buildGrassInstances(
 }
 
 // ---------------------------------------------------------------------------
-// Flowers — placed in connected drifts (~10 units apart) via a low-frequency
-// value-noise mask, mid-field weighted along the traverse plus a handful on
-// the bank crest so a few heads break the water silhouette from the seat.
+// Flowers — CLUMPED (owner round 2): the drift-masked candidate logic that
+// used to place every head now places ~1/5 of them as CLUSTER SEEDS, and
+// each seed spawns 4–6 heads at deterministic gaussian offsets — cornflower
+// and poppy clumps rather than confetti. Every head keeps its own quality
+// quantile q, so the rung dial thins clumps head-by-head instead of
+// deleting whole clusters. Each CLUMP draws one species color (tint is
+// per-seed): a blue drift here, an orange drift there.
 export type FlowerInstances = {
   count: number;
   rungCounts: number[];
@@ -592,6 +613,9 @@ export type FlowerInstances = {
   y: Float32Array;
   z: Float32Array;
   scale: Float32Array;
+  /** Per-head species tint in [0,1), shared across a clump — the shader's
+   * vTint thresholds (0.55 / 0.75) turn it into the A/B/C color split. */
+  tint: Float32Array;
 };
 
 const DRIFT_SALT = 83;
@@ -599,7 +623,27 @@ export function driftMask(x: number, z: number): boolean {
   return vnoise2(x * 0.09, z * 0.09, DRIFT_SALT) > 0.66;
 }
 
-type RawFlower = { x: number; z: number; scale: number; q: number };
+export const FLOWER_CLUSTER = {
+  headsMin: 4,
+  headsMax: 6,
+  /** Gaussian offset σ in world units. */
+  sigma: 0.35,
+} as const;
+
+/** Bounded deterministic ≈gaussian (Irwin–Hall of 4 lattice draws, rescaled
+ * to sd σ): clumps read organic but no head can stray past 3.46σ, so the
+ * clamps below almost never engage. */
+function clusterOffset(i: number, salt: number): number {
+  const s =
+    rand(i, salt) +
+    rand(i, salt + 1) +
+    rand(i, salt + 2) +
+    rand(i, salt + 3) -
+    2;
+  return s * FLOWER_CLUSTER.sigma * 1.732;
+}
+
+type RawFlower = { x: number; z: number; scale: number; q: number; tint: number };
 
 export function buildFlowerPositions(
   total: number = MEADOW_FLOWER_TOTAL,
@@ -608,57 +652,92 @@ export function buildFlowerPositions(
   const bankCount = total - traverseCount;
   const groups: RawFlower[][] = [[], []];
 
-  for (let i = 0; i < traverseCount; i++) {
-    // Depth weighting ∝ exp(−((d − 16)/5)²) on [8, 24]: the drifts dominate
-    // the mid field and stay sparse in the near lawn (near heads read huge
-    // at the rail). Deterministic salted tries stand in for rejection
-    // sampling; a miss keeps its last candidate (an isolated head).
+  for (let s = 0; groups[0]!.length < traverseCount; s++) {
+    // Seed placement — depth weighting ∝ exp(−((d − 16)/5)²) on [8, 24]: the
+    // drifts dominate the mid field and stay sparse in the near lawn (near
+    // heads read huge at the rail). Deterministic salted tries stand in for
+    // rejection sampling; a miss keeps its last candidate (an isolated clump).
     let x = 0;
     let z = 0;
     for (let t = 0; t < 6; t++) {
-      const d = 8 + rand(i, 61 + t * 7) * 16;
-      if (rand(i, 62 + t * 7) > gauss(d, 16, 5)) continue;
+      const d = 8 + rand(s, 61 + t * 7) * 16;
+      if (rand(s, 62 + t * 7) > gauss(d, 16, 5)) continue;
       z = TRAVERSE_EYE.z - d;
       const [x0, x1] = traverseXRange(d);
-      x = x0 + rand(i, 63 + t * 7) * (x1 - x0);
+      x = x0 + rand(s, 63 + t * 7) * (x1 - x0);
       if (driftMask(x, z)) break;
     }
     if (x === 0 && z === 0) {
       const d = 15;
       z = TRAVERSE_EYE.z - d;
       const [x0, x1] = traverseXRange(d);
-      x = x0 + rand(i, 64) * (x1 - x0);
+      x = x0 + rand(s, 64) * (x1 - x0);
     }
-    groups[0]!.push({
-      x,
-      z,
-      scale:
-        (0.7 + rand(i, 66) * 0.5) * westFeatherScale(x, z) * farFeatherScale(z),
-      q: rand(i, 98),
-    });
+    const tint = rand(s, 69);
+    const heads =
+      FLOWER_CLUSTER.headsMin +
+      Math.floor(
+        rand(s, 68) * (FLOWER_CLUSTER.headsMax - FLOWER_CLUSTER.headsMin + 1),
+      );
+    for (let h = 0; h < heads && groups[0]!.length < traverseCount; h++) {
+      const i = groups[0]!.length;
+      // Clamp the head back into its own depth's trapezoid so a clump seeded
+      // near a band boundary cannot leak a head past the proven extents.
+      const d = clamp(TRAVERSE_EYE.z - (z + clusterOffset(i, 76)), 8, 24);
+      const hz = TRAVERSE_EYE.z - d;
+      const [x0, x1] = traverseXRange(d);
+      const hx = clamp(x + clusterOffset(i, 71), x0, x1);
+      groups[0]!.push({
+        x: hx,
+        z: hz,
+        scale:
+          (0.7 + rand(i, 66) * 0.5) *
+          westFeatherScale(hx, hz) *
+          farFeatherScale(hz),
+        q: rand(i, 98),
+        tint,
+      });
+    }
   }
 
-  for (let i = 0; i < bankCount; i++) {
-    const j = traverseCount + i;
+  for (let s = 0; groups[1]!.length < bankCount; s++) {
+    const sj = 4096 + s; // clear of the traverse seeds' lattice rows
     // Bias toward the crest (pow < 1 pushes z toward the skirt line) so the
-    // heads sit on the silhouette against the water.
+    // clumps sit on the silhouette against the water.
     let x = 0;
     let z = 0;
     for (let t = 0; t < 6; t++) {
       z =
         MEADOW_BANK.riseStartZ +
-        Math.pow(rand(j, 61 + t * 7), 0.5) *
+        Math.pow(rand(sj, 61 + t * 7), 0.5) *
           (MEADOW_BANK.skirtZ - MEADOW_BANK.riseStartZ);
       const hw = seatedHalfWidth(z);
-      x = SEAT_X - hw + rand(j, 63 + t * 7) * 2 * hw;
+      x = SEAT_X - hw + rand(sj, 63 + t * 7) * 2 * hw;
       if (driftMask(x, z)) break;
     }
-    groups[1]!.push({
-      x,
-      z,
-      scale: (0.9 + rand(j, 66) * 0.7) * westFeatherScale(x, z),
-      q: rand(j, 98),
-    });
+    const tint = rand(sj, 69);
+    const heads =
+      FLOWER_CLUSTER.headsMin +
+      Math.floor(
+        rand(sj, 68) * (FLOWER_CLUSTER.headsMax - FLOWER_CLUSTER.headsMin + 1),
+      );
+    for (let h = 0; h < heads && groups[1]!.length < bankCount; h++) {
+      const j = traverseCount + groups[1]!.length;
+      const hz = clamp(
+        z + clusterOffset(j, 76),
+        MEADOW_BANK.riseStartZ - 0.8,
+        MEADOW_BANK.skirtZ,
+      );
+      const hw = seatedHalfWidth(hz);
+      const hx = clamp(x + clusterOffset(j, 71), SEAT_X - hw, SEAT_X + hw);
+      groups[1]!.push({
+        x: hx,
+        z: hz,
+        scale: (0.9 + rand(j, 66) * 0.7) * westFeatherScale(hx, hz),
+        q: rand(j, 98),
+        tint,
+      });
+    }
   }
 
   // Same stratified-order contract as the grass, with the flower rung table's
@@ -693,12 +772,14 @@ export function buildFlowerPositions(
     y: new Float32Array(ordered.length),
     z: new Float32Array(ordered.length),
     scale: new Float32Array(ordered.length),
+    tint: new Float32Array(ordered.length),
   };
   ordered.forEach((f, k) => {
     out.x[k] = f.x;
     out.y[k] = meadowHeight(f.x, f.z) + FLOWER_LIFT;
     out.z[k] = f.z;
     out.scale[k] = f.scale;
+    out.tint[k] = f.tint;
   });
   return out;
 }

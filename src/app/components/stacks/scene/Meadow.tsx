@@ -22,6 +22,7 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import {
+  MEADOW_BANK,
   MEADOW_FLOWER_TOTAL,
   MEADOW_FOG,
   MEADOW_RUNG_FLOWERS,
@@ -48,8 +49,8 @@ const COLORS = {
   baseD: "#0d1710",
   tipAD: "#3f5a49",
   tipBD: "#1d2c25",
-  flowerA: "#d977a2", // pink, 55%
-  flowerB: "#dfae52", // yellow, 20%
+  flowerA: "#6b82cf", // soft cornflower blue, 55% (owner round 2)
+  flowerB: "#d98a43", // poppy orange, 20%
   flowerC: "#ece0c6", // cream, 25%
   nightA: "#7e85a8",
   nightB: "#9aa0b8",
@@ -104,7 +105,9 @@ const WIND_GLSL = /* glsl */ `
 // (SceneEnvironment:579-583, :607). This is the dark-theme edge fix: below
 // the horizon the dome shows skyShadow-derived color, NOT palette.fog.
 // Seated, the target slides to the Potomac's water color across the bank
-// span, on the same uSeat clock the dome's own DC window rides.
+// span, on the same uSeat clock the dome's own DC window rides — the ramp
+// is interpolated from MEADOW_BANK so it reaches full dcWater by the skirt
+// line and keeps tracking it when the bank is retuned.
 const DOME_GLSL = /* glsl */ `
   vec3 domeBelow(vec3 worldPos) {
     vec3 shadowC = mix(uShadowL, uShadowD, uDark);
@@ -113,7 +116,7 @@ const DOME_GLSL = /* glsl */ `
     float e = normalize(worldPos - cameraPosition).y;
     vec3 below = shadowC * mix(1.0, mix(0.88, 0.45, uDark), smoothstep(0.02, 0.30, -e));
     vec3 water = mix(uDcWaterL, uDcWaterD, uDark);
-    return mix(below, water, uSeat * smoothstep(4.0, 9.0, worldPos.z));
+    return mix(below, water, uSeat * smoothstep(${(MEADOW_BANK.riseStartZ - 3).toFixed(1)}, ${(MEADOW_BANK.skirtZ - 1.1).toFixed(1)}, worldPos.z));
   }
 `;
 
@@ -271,6 +274,7 @@ const FLOWER_VERTEX = /* glsl */ `
   ${SHARED_UNIFORMS_GLSL}
   uniform float uPixelScale;
   uniform float uPxFloor;
+  attribute float aTint;
   varying float vTint;
   varying float vClamp;
   varying float vFog;
@@ -302,7 +306,10 @@ const FLOWER_VERTEX = /* glsl */ `
     p = (p - c) * k + c;
     vec4 world = modelMatrix * vec4(origin + p, 1.0);
     vec4 mv = viewMatrix * world;
-    vTint = hash2(origin.xz * 2.71);
+    // Species tint is a per-instance attribute shared across a clump (one
+    // clump, one color) rather than a position hash, which speckled every
+    // cluster into a color mix.
+    vTint = aTint;
     vClamp = 1.0 - 1.0 / k;
     vUv = uv;
     vFog = ${GRASS_FOG};
@@ -346,8 +353,9 @@ const FLOWER_FRAGMENT = /* glsl */ `
 
 // ---------------------------------------------------------------------------
 
-/** Flower head: one quad, Y-billboarded in the vertex shader. */
-function makeFlowerGeometry(): THREE.BufferGeometry {
+/** Flower head: one quad, Y-billboarded in the vertex shader, with the
+ * per-clump species tint riding along as an instanced attribute. */
+function makeFlowerGeometry(tint: Float32Array): THREE.BufferGeometry {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute(
     "position",
@@ -360,6 +368,7 @@ function makeFlowerGeometry(): THREE.BufferGeometry {
     "uv",
     new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2),
   );
+  geometry.setAttribute("aTint", new THREE.InstancedBufferAttribute(tint, 1));
   geometry.setIndex([0, 1, 2, 0, 2, 3]);
   return geometry;
 }
@@ -424,6 +433,7 @@ export default function Meadow({
   const alphaMap = useTexture(ALPHA_URL);
 
   const streams = useMemo(() => buildGrassInstances(), []);
+  const flowers = useMemo(() => buildFlowerPositions(), []);
 
   const built = useMemo(() => {
     const c = (hex: string) => new THREE.Color(hex);
@@ -465,7 +475,7 @@ export default function Meadow({
       grassOnly,
       flowerOnly,
       terrainGeometry: makeTerrainGeometry(),
-      flowerGeometry: makeFlowerGeometry(),
+      flowerGeometry: makeFlowerGeometry(flowers.tint),
       terrainMaterial: new THREE.ShaderMaterial({
         uniforms: { ...shared, uSunDir: { value: SUN_DIR } },
         vertexShader: TERRAIN_VERTEX,
@@ -545,7 +555,6 @@ export default function Meadow({
     fill(farRef.current, streams.far);
     const flowerMesh = flowerRef.current;
     if (!flowerMesh) return;
-    const flowers = buildFlowerPositions();
     quaternion.identity();
     for (let i = 0; i < flowers.count; i++) {
       position.set(flowers.x[i]!, flowers.y[i]!, flowers.z[i]);
@@ -555,7 +564,7 @@ export default function Meadow({
     }
     flowerMesh.instanceMatrix.needsUpdate = true;
     flowerMesh.computeBoundingSphere();
-  }, [streams]);
+  }, [streams, flowers]);
 
   // Live browse knobs on the house dev-hook object. Writes go straight into
   // the shared uniform holders, so every material follows at once; winning

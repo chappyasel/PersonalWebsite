@@ -17,29 +17,28 @@
 //   (a2) The vegetation front line starts inside the exported near-feather
 //        zone — below every frame bottom — with a self-test proving the
 //        check still catches the old z=3.25 front line.
-//   (b)  The far-field terrain silhouette lands inside the skyline fade
-//        band (e ∈ [−0.10, −0.02]) at every azimuth column…
-//   (c)  …except above-horizon rises, which must come from the two authored
-//        swell footprints, stay under the global elevation cap, and keep
-//        clear of every drawn landmark's azimuth×elevation window. The
-//        windows are extracted from SceneEnvironment.tsx's own source text
-//        (anchored regexes, loud failure on a miss) so a skyline retune
-//        re-arms this check instead of stranding it.
+//   (b)  Any silhouette column that drops below the skyline fade band's top
+//        (e ≤ −0.02) stays above the deep-gap floor (e ≥ −0.101), and rays
+//        crossing the horizon ridge's HELD span never open a sub-horizon
+//        gap (e ≥ −0.002) — the water/sky band behind the shelves stays
+//        closed from every eye, including the highest bob.
+//   (c)  Every silhouette column stays under the global elevation cap
+//        (e ≤ +0.016): "at or a little above the horizon", never a wall.
+//        Landmark azimuth windows are deliberately GONE (owner round 2):
+//        a full-span ridge sweeps every window as the eye traverses, and
+//        the hill-in-front-of-city-base read is the desired depth cue. The
+//        cap alone keeps the GGB deck (e 0.038) and every structure body
+//        clear; only structure BASES tuck behind the ridge.
 //   (d)  The seated bank silhouette is continuous, never flat for ≥0.15 rad
 //        (the end-of-rectangle signature), and is the authored crest — not
 //        a fogged or cut terrain end.
-//
-// The hills and the ember are deliberately NOT hard windows: they are soft
-// haze masses whose lowest band is already 60–85% converged on sky, and the
-// swells rising in front of them read as depth layering (near hill before
-// far ridge). Their protection is the global cap in (c): no swell may reach
-// Sutro's lowest drawn pixel (e 0.010), the one structure inside their span.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
 import {
   GRASS_BANDS,
+  HORIZON_RIDGE,
   LATERAL_REACH,
   MEADOW_BANK,
   MEADOW_FOG,
@@ -65,15 +64,18 @@ const SKY_SOURCE = readFileSync(
 );
 
 // ---------------------------------------------------------------------------
-// Landmark windows, read out of the sky shader's own constants. A regex that
+// Camera pan, read out of the sky shader's own constants. A regex that
 // stops matching is a FAILURE, not a skip — the check must die loudly the
-// day the skyline is retuned, exactly like the floaters walker.
+// day the sky is retuned, exactly like the floaters walker. (The landmark
+// window extraction that used to live here left with the swells: the
+// horizon ridge deliberately sweeps every window, so only the pan survives
+// — it still positions the dome relative to each pose.)
 function extract(name: string, re: RegExp): number {
   const m = SKY_SOURCE.match(re);
   if (!m?.[1]) {
     throw new Error(
       `stacks-meadow-check: anchor regex for ${name} no longer matches ` +
-        `SceneEnvironment.tsx (${re}). Re-derive the landmark window before ` +
+        `SceneEnvironment.tsx (${re}). Re-derive the constant before ` +
         `trusting this check.`,
     );
   }
@@ -82,46 +84,6 @@ function extract(name: string, re: RegExp): number {
 
 const PAN_SPAN = extract("PAN_SPAN", /const PAN_SPAN = ([\d.]+);/);
 const PAN_BIAS = extract("PAN_BIAS", /const PAN_BIAS = ([\d.]+);/);
-const GGB_AZ = extract("GGB_AZ", /const GGB_AZ = (-[\d.]+);/);
-const GGB_GX = extract("GGB_GX", /const GGB_GX = ([\d.]+);/);
-const GGB_SPAN = extract("GGB span", /if \(abs\(gx\) < ([\d.]+) &&/);
-const GGB_DECK_E = extract("GGB deck", /float deckY = ([\d.]+) \+/);
-const SUTRO_AZ = -extract("Sutro az", /float dSut = a \+ ([\d.]+);/);
-const SUTRO_HALF = extract("Sutro half", /if \(abs\(dSut\) < ([\d.]+) &&/);
-const SUTRO_HILL_E = extract("Sutro hill", /float eh = e - ([\d.]+);/);
-const SUTRO_BOTTOM_EH = extract("Sutro bottom", /&& eh > (-[\d.]+)\)/);
-const COIT_AZ = -extract("Coit az", /float dCoit = a \+ ([\d.]+);/);
-const COIT_HALF = extract("Coit half", /if \(abs\(dCoit\) < ([\d.]+) &&/);
-const COIT_BOTTOM = extract("Coit bottom", /step\(([\d.]+), e\) \* step\(e, 0\.040\)/);
-const TRANS_AZ = -extract("Trans az", /float dTr = a \+ ([\d.]+);/);
-const TRANS_HALF = extract("Trans half", /if \(abs\(dTr\) < ([\d.]+) &&/);
-const SALES_AZ = -extract("Sales az", /float dSf = a \+ ([\d.]+);/);
-const SALES_HALF = extract("Sales half", /if \(abs\(dSf\) < ([\d.]+) &&/);
-const BAY_AZ = -extract("Bay az", /float bx = \(a \+ ([\d.]+)\) \/ [\d.]+;/);
-const BAY_GX = extract("Bay gx", /float bx = \(a \+ [\d.]+\) \/ ([\d.]+);/);
-const BAY_SPAN = extract("Bay span", /if \(abs\(bx\) < ([\d.]+) &&/);
-const CARPET_AZ = -extract("carpet az", /abs\(a \+ ([\d.]+)\)\);/);
-const CARPET_HALF = extract("carpet half", /smoothstep\(([\d.]+), 0\.10,/);
-
-const SUTRO_BOTTOM = SUTRO_HILL_E + SUTRO_BOTTOM_EH; // 0.030 − 0.02 = 0.010
-
-type Window = {
-  name: string;
-  az: number;
-  half: number;
-  /** Lowest drawn elevation — a silhouette may share the azimuth window as
-   * long as it stays below this (with margin); 0 means hard-forbidden. */
-  bottom: number;
-};
-const WINDOWS: Window[] = [
-  { name: "goldengate", az: GGB_AZ, half: GGB_SPAN * GGB_GX, bottom: GGB_DECK_E },
-  { name: "sutro", az: SUTRO_AZ, half: SUTRO_HALF, bottom: SUTRO_BOTTOM },
-  { name: "coit", az: COIT_AZ, half: COIT_HALF, bottom: COIT_BOTTOM },
-  { name: "transamerica", az: TRANS_AZ, half: TRANS_HALF, bottom: 0 },
-  { name: "salesforce", az: SALES_AZ, half: SALES_HALF, bottom: 0 },
-  { name: "baybridge", az: BAY_AZ, half: BAY_SPAN * BAY_GX, bottom: 0.002 },
-  { name: "carpet", az: CARPET_AZ, half: CARPET_HALF, bottom: 0 },
-];
 
 // ---------------------------------------------------------------------------
 // Poses.
@@ -130,12 +92,19 @@ const V_MARGIN = 0.0183; // pointer + idle pitch swing
 const OFFSETS = [0, 0.25, 0.5, 0.75, 1];
 const ASPECTS = [0.462, 0.75, 1.0, 1.33, 1.78, 2.39, 3.0];
 const Y_BOB = [-0.11, 0, 0.11];
-/** Global cap for any above-horizon terrain: below Sutro's lowest pixel. */
-const SWELL_E_CAP = 0.0095;
-const SWELL_FOOTPRINTS = [
-  { x: -13, z: -22 },
-  { x: 38, z: -21 },
-];
+/** Global silhouette elevation cap: "a little above the horizon". Keeps the
+ * ridge under every structure BODY (the GGB deck starts at e 0.038) while
+ * letting it tuck in front of structure bases — the desired depth cue. */
+const RIDGE_E_CAP = 0.016;
+/** No silhouette column whose ray crosses the ridge's held span may dip
+ * below this — the sky/water band behind the shelves stays closed. */
+const RIDGE_GAP_FLOOR = -0.002;
+/** Checked hold span, pulled in from the authored one so the smoothstep
+ * shoulders (which are mid-taper by design) are not held to the floor. */
+const RIDGE_HOLD = {
+  minX: HORIZON_RIDGE.holdMinX + 2,
+  maxX: HORIZON_RIDGE.holdMaxX - 2,
+};
 
 function fog99(ramp: readonly [number, number]): number {
   // Invert smoothstep(a, b, d) = 0.99 for d.
@@ -481,46 +450,45 @@ function silhouetteAt(pose: Pose, phi: number): Silhouette | null {
   return best;
 }
 
-let fadeBandColumns = 0;
-let swellColumns = 0;
+let horizonColumns = 0;
+let belowColumns = 0;
 for (const pose of poses.filter((p) => p.mode === "traverse")) {
+  const a0 = Math.atan2(pose.forward[2], pose.forward[0]);
   const span = pose.hHalf + pose.hMargin;
   for (let phi = -span; phi <= span; phi += AZ_STEP) {
     const sil = silhouetteAt(pose, phi);
     if (!sil) continue;
+    // (c) The global cap — every column, ridge and mid rolls alike.
+    assertOk(
+      sil.e <= RIDGE_E_CAP,
+      `(c) silhouette over the global cap: e ${sil.e.toFixed(4)} at ` +
+        `(${sil.x.toFixed(1)}, ${sil.z.toFixed(1)}) [${pose.name}]`,
+    );
+    if (sil.e > RIDGE_GAP_FLOOR) horizonColumns++;
+    else belowColumns++;
+    // (b) Deep-gap floor for anything that drops below the fade band's top.
     if (sil.e <= -0.02) {
-      fadeBandColumns++;
       assertOk(
         sil.e >= -0.101,
         `(b) silhouette below the fade band: e ${sil.e.toFixed(4)} at ` +
           `(${sil.x.toFixed(1)}, ${sil.z.toFixed(1)}) [${pose.name}]`,
       );
-      continue;
     }
-    // Above the fade band: only the authored swells may do this.
-    swellColumns++;
-    const inSwell = SWELL_FOOTPRINTS.some(
-      (c) => Math.hypot(sil.x - c.x, sil.z - c.z) < 9,
-    );
-    assertOk(
-      inSwell,
-      `(c) above-band silhouette outside the swell footprints at ` +
-        `(${sil.x.toFixed(1)}, ${sil.z.toFixed(1)}) e ${sil.e.toFixed(4)} [${pose.name}]`,
-    );
-    assertOk(
-      sil.e <= SWELL_E_CAP,
-      `(c) swell over the global cap: e ${sil.e.toFixed(4)} [${pose.name}]`,
-    );
-    const domeAz =
-      Math.atan2(sil.z - pose.eye[2], sil.x - pose.eye[0]) + pose.pan;
-    for (const w of WINDOWS) {
-      const inWindow = Math.abs(domeAz - w.az) <= w.half + 0.015;
-      if (!inWindow) continue;
-      assertOk(
-        w.bottom > 0 && sil.e < w.bottom - 0.001,
-        `(c) swell inside the ${w.name} window (dome az ${domeAz.toFixed(3)}, ` +
-          `e ${sil.e.toFixed(4)} vs bottom ${w.bottom}) [${pose.name}]`,
-      );
+    // (b) Horizon coverage: a ray that crosses the ridge's held span must
+    // crest at or above the horizon — no sky/water gap behind the shelves.
+    // The HIGH bob is the binding eye; checking every pose subsumes it.
+    const dirX = Math.cos(a0 + phi);
+    const dirZ = Math.sin(a0 + phi);
+    if (dirZ < -0.01) {
+      const s = (HORIZON_RIDGE.z - pose.eye[2]) / dirZ;
+      const xr = pose.eye[0] + dirX * s;
+      if (xr >= RIDGE_HOLD.minX && xr <= RIDGE_HOLD.maxX) {
+        assertOk(
+          sil.e >= RIDGE_GAP_FLOOR,
+          `(b) sub-horizon gap through the held ridge span: e ` +
+            `${sil.e.toFixed(4)} at ridge x ${xr.toFixed(1)} [${pose.name}]`,
+        );
+      }
     }
   }
 }
@@ -565,14 +533,14 @@ for (const pose of poses.filter((p) => p.mode === "seat")) {
 // ---------------------------------------------------------------------------
 console.log(
   `stacks-meadow-check: ${poses.length} poses, ${edgeSamples.length} edge samples, ` +
-    `${checks} assertions (${fadeBandColumns} fade-band columns, ` +
-    `${swellColumns} swell columns), ${failures.length} failure(s)`,
+    `${checks} assertions (${horizonColumns} horizon columns, ` +
+    `${belowColumns} below-horizon columns), ${failures.length} failure(s)`,
 );
-// A zero here means a whole branch went dead — the swells left every frame
+// A zero here means a whole branch went dead — the ridge left every frame
 // or the silhouette scan stopped seeing terrain — which is itself a failure.
-if (fadeBandColumns === 0 || swellColumns === 0) {
+if (horizonColumns === 0 || belowColumns === 0) {
   failures.push(
-    `coverage: fade-band columns ${fadeBandColumns}, swell columns ${swellColumns} — a check branch is no longer exercised`,
+    `coverage: horizon columns ${horizonColumns}, below-horizon columns ${belowColumns} — a check branch is no longer exercised`,
   );
 }
 if (failures.length) {
