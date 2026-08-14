@@ -24,6 +24,7 @@ import {
   N8AO,
   Noise,
   SMAA,
+  TiltShift2,
   ToneMapping,
   Vignette,
   useDispose,
@@ -107,15 +108,21 @@ function Grade({ dark }: { dark: boolean }) {
 }
 
 export default function Effects({ dark }: { dark: boolean }) {
-  // A real depth buffer now owns the miniature softness: the shelves sit in
-  // a broad sharp band, while the near foreground and distant skyline fall
-  // gently out of focus. Keep the old query escape hatch as well as the more
-  // literal one so existing comparison links still work.
+  // Two softness treatments, independently escapable for A/B links:
+  // TiltShift2 is the owner-approved side blur (browse 2026-08-09) that
+  // v8's DoF displaced — its loss was called out at the next browse and it
+  // is now restored; DepthOfField is the real depth-driven bokeh that
+  // replaced it. ?notiltshift and ?nodof each kill exactly one.
+  const tiltShift = useMemo(
+    () =>
+      typeof window === "undefined" ||
+      !window.location.search.includes("notiltshift"),
+    [],
+  );
   const depthOfField = useMemo(
     () =>
       typeof window === "undefined" ||
-      (!window.location.search.includes("notiltshift") &&
-        !window.location.search.includes("nodof")),
+      !window.location.search.includes("nodof"),
     [],
   );
   const graded = useMemo(
@@ -157,6 +164,13 @@ export default function Effects({ dark }: { dark: boolean }) {
           resolutionScale={0.5}
         />
       )}
+      {/* The side blur: a vertical focus line with blur growing toward the
+          left/right screen edges — the frame vignettes into softness the way
+          a tilt-shift photo does, independent of scene depth. Values are the
+          last shipped ones (removed in 710610c when DoF took this slot; the
+          owner asked for it back). Vignette offset 0.34 below is the value
+          this was originally tuned against. */}
+      {tiltShift && <TiltShift2 blur={0.105} taper={0.6} />}
       {/* Light theme eases both finishing touches: premultiplied noise
           scales with luminance (a near-white sky grains hard), and dark
           corners read as grime against it. */}
