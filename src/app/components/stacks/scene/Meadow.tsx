@@ -220,8 +220,11 @@ const FOG_CAP_GLSL = /* glsl */ `
 // wide), halved at night where moon clouds should whisper.
 const CLOUD_GLSL = /* glsl */ `
   float cloudAt(vec2 wxz) {
-    float c = vnoise(wxz * 0.04 + uTime * vec2(-0.014, -0.011));
-    return 1.0 - mix(0.11, 0.035, uDark) * smoothstep(0.45, 0.8, c);
+    // First cut (0.11 deep, ~70s per blob) was imperceptible — the owner
+    // asked where it was. Now ~25s per blob and a real shadow in light;
+    // night stays a whisper.
+    float c = vnoise(wxz * 0.04 + uTime * vec2(-0.042, -0.033));
+    return 1.0 - mix(0.17, 0.05, uDark) * smoothstep(0.42, 0.72, c);
   }
 `;
 
