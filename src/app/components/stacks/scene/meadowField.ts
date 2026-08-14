@@ -113,15 +113,18 @@ export const FLOWER_LIFT = 0.06;
 // bank-calm damping window, and Meadow.tsx's seated water slide all derive
 // from these numbers, so they move together.
 export const MEADOW_BANK = {
-  riseStartZ: 6.5,
-  crestZ: 8.2,
-  skirtZ: 8.6,
+  // Screenshot-tuned at the seated pose: the first cut (skirt 8.6) still
+  // left the grass band at ~28% of frame height; 7.0 lands the crest line
+  // at e ≈ −0.19, the ~23% band that is two-thirds of the round-1 height.
+  riseStartZ: 5.0,
+  crestZ: 6.7,
+  skirtZ: 7.0,
   /** Bank rise amplitude, world units above the base plain. */
   amp: 0.08,
   /** Skirt drop per unit z. The steepest seated sight ray over the crest
-   * falls ≈ 0.156/unit at the new, closer crest; 0.9 ≫ that, so the terrain
+   * falls ≈ 0.193/unit at the close crest; 0.9 ≫ that, so the terrain
    * end is never visible (also holds for the walk-phase eye at y ≤ 0.9,
-   * ray slope ≈ 0.30). */
+   * ray slope ≈ 0.40). */
   skirtDrop: 0.9,
 } as const;
 export const MEADOW_FAR_SKIRT = {

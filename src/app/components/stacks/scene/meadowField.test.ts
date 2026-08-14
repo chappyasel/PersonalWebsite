@@ -316,19 +316,20 @@ describe("terrain silhouette", () => {
       return Math.atan(((y - SEAT_Y) * Math.cos(theta)) / dCrest);
     };
     // Central composition band, re-derived for the round-2 bank (skirt at
-    // 8.6, amp 0.08): the grass line from the seat now reads at
-    // e ≈ −0.155…−0.135 — roughly two-thirds of the round-1 band height —
-    // under a wide strip of open Potomac.
+    // 7.0 after the seated-pose screenshot check — 8.6 still read ~28% of
+    // frame height): the grass line from the seat now reads at
+    // e ≈ −0.196…−0.171 — two-thirds of the round-1 band height — under a
+    // wide strip of open Potomac.
     for (let t = -0.3; t <= 0.3; t += 0.002) {
-      expect(crestE(t)).toBeGreaterThanOrEqual(-0.158);
-      expect(crestE(t)).toBeLessThanOrEqual(-0.132);
+      expect(crestE(t)).toBeGreaterThanOrEqual(-0.199);
+      expect(crestE(t)).toBeLessThanOrEqual(-0.168);
     }
     // Full 21:9 seated frustum + margin: at wide azimuths the crest sits
     // farther out and reads shallower. What matters is staying far below
     // the waterline (e = 0, with every far-shore structure above it):
-    // ≤ −0.095 everywhere (worst corner measures ≈ −0.099).
+    // ≤ −0.12 everywhere (worst corner measures ≈ −0.127).
     for (let t = -0.7923; t <= 0.7923; t += 0.002) {
-      expect(crestE(t)).toBeLessThanOrEqual(-0.095);
+      expect(crestE(t)).toBeLessThanOrEqual(-0.12);
       // Skirt occlusion: the sight ray over the crest descends at most
       // ~0.16 per unit z; the skirt drops 0.9 — the terrain edge is
       // unreachable from the seat.
