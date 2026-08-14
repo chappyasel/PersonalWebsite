@@ -72,7 +72,10 @@ jobs:
       - name: Capture deployed scene
         if: steps.scene.outputs.changed == 'true'
         env:
-          HOME_OG_SOURCE_URL: ${{ inputs.source_url || github.event.deployment_status.environment_url || 'https://www.chappyasel.com' }}
+          # Unique Vercel deployment URLs are protected by SSO. Production
+          # deployment events therefore capture the public alias; manual runs
+          # may still override it for an explicit source.
+          HOME_OG_SOURCE_URL: ${{ inputs.source_url || 'https://www.chappyasel.com' }}
         run: yarn generate:home-og --url "$HOME_OG_SOURCE_URL"
 
       - name: Commit refreshed image
