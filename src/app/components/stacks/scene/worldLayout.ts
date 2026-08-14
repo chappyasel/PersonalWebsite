@@ -33,9 +33,24 @@ export function cameraXForScrollOffset(offset: number) {
   return offset * TRAVEL_RANGE_X - TRAVEL_LEAD_IN;
 }
 
-export function scrollOffsetForUnit(unit: number) {
+/** How far right of unit 0's shelf the ABOUT STOP rests, by aspect — the
+ * "move the initial scene" fix (owner round 2, item 8). At the old stop
+ * (camera x 0) a 16:9 frame put the couch's right edge exactly at the left
+ * frame edge, so any leftward pointer sway slid it under the nav rail. The
+ * resting camera now shifts right with aspect: the couch plus its full
+ * ±0.45 look-sway excursion stays off-frame left of the rail, while the
+ * About shelf's left edge stays right of the rail's column, at every
+ * desktop aspect from 1200px squares to 21:9. The nav itself has NOT
+ * moved — the scene did. Mobile chrome has no left rail; callers pass the
+ * shift only on ≥1200px viewports. */
+export function aboutStopShift(aspect: number): number {
+  return Math.min(1.5, Math.max(0, 1.4 * (aspect - 1.35)));
+}
+
+export function scrollOffsetForUnit(unit: number, aboutShift = 0) {
   if (TRAVEL_RANGE_X === 0) return 0;
-  return (unit * UNIT_SPACING + TRAVEL_LEAD_IN) / TRAVEL_RANGE_X;
+  const stopX = unit * UNIT_SPACING + (unit === 0 ? aboutShift : 0);
+  return (stopX + TRAVEL_LEAD_IN) / TRAVEL_RANGE_X;
 }
 
 export function unitProgressForScrollOffset(offset: number) {

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   CAMERA,
   TRAVEL_LEAD_IN,
+  aboutStopShift,
   cameraForAspect,
   cameraXForScrollOffset,
   scrollOffsetForUnit,
@@ -41,6 +42,23 @@ describe("About lead-in", () => {
     expect(TRAVEL_LEAD_IN).toBe(1.2);
     expect(cameraXForScrollOffset(0)).toBe(-1.2);
     expect(cameraXForScrollOffset(scrollOffsetForUnit(0))).toBeCloseTo(0, 10);
+  });
+
+  it("shifts the About REST right with aspect so the nav sits in the couch–shelf gap", () => {
+    // Square-ish desktops keep the authored stop; wide frames slide the
+    // resting camera right so the couch (plus its ±0.45 look sway) stays
+    // off-frame left of the static rail. Only unit 0's stop moves.
+    expect(aboutStopShift(1.0)).toBe(0);
+    expect(aboutStopShift(1.35)).toBe(0);
+    expect(aboutStopShift(16 / 9)).toBeCloseTo(1.4 * (16 / 9 - 1.35), 10);
+    expect(aboutStopShift(3.5)).toBe(1.5); // 21:9 and beyond cap out
+    const shift = aboutStopShift(16 / 9);
+    expect(
+      cameraXForScrollOffset(scrollOffsetForUnit(0, shift)),
+    ).toBeCloseTo(shift, 10);
+    expect(
+      cameraXForScrollOffset(scrollOffsetForUnit(3, shift)),
+    ).toBeCloseTo(13.2, 10);
   });
 });
 

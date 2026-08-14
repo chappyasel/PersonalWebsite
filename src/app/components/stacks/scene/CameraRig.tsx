@@ -18,6 +18,8 @@ import * as THREE from "three";
 
 import { SEAT_POSE, isSeated, leaveSeat, setSeatAmount } from "./seated";
 import {
+  STACKS_DESKTOP_MIN_WIDTH,
+  aboutStopShift,
   cameraForAspect,
   cameraXForScrollOffset,
   scrollOffsetForUnit,
@@ -85,6 +87,17 @@ const SEAT_TRAVEL_TOLERANCE = 0.0015;
 
 const UP = new THREE.Vector3(0, 1, 0);
 
+/** The About stop's aspect-dependent rest shift ("move the initial scene",
+ * round 2). Read from the live window each call rather than captured — the
+ * scroll-element effect outlives resizes. Mobile chrome has no left rail,
+ * so below the desktop seam the stop stays on the shelf's centre line. */
+function currentAboutShift(): number {
+  if (typeof window === "undefined") return 0;
+  return window.innerWidth >= STACKS_DESKTOP_MIN_WIDTH
+    ? aboutStopShift(window.innerWidth / window.innerHeight)
+    : 0;
+}
+
 export default function CameraRig() {
   const scroll = useScroll();
   const look = useRef(new THREE.Vector3(0, -0.05, -0.2));
@@ -146,7 +159,7 @@ export default function CameraRig() {
     const scrollTarget = (scroll as unknown as { scroll: { current: number } })
       .scroll;
     const clampedOffset = (unit: number) =>
-      Math.min(1, Math.max(0, scrollOffsetForUnit(unit)));
+      Math.min(1, Math.max(0, scrollOffsetForUnit(unit, currentAboutShift())));
     // Start on About's true stop, leaving a real native-scroll lead-in to its
     // left for the complete chair. ScrollControls can mount before its pages
     // have layout, when max === 0; writing scrollLeft then is silently lost
@@ -257,7 +270,10 @@ export default function CameraRig() {
         const el = scroll.el;
         const max = el.scrollWidth - el.clientWidth;
         if (el.isConnected && max > 0) {
-          const offset = Math.min(1, Math.max(0, scrollOffsetForUnit(0)));
+          const offset = Math.min(
+            1,
+            Math.max(0, scrollOffsetForUnit(0, currentAboutShift())),
+          );
           el.scrollLeft = offset * max;
           const target = (scroll as unknown as { scroll: { current: number } })
             .scroll;
