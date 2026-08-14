@@ -108,11 +108,13 @@ function Grade({ dark }: { dark: boolean }) {
 }
 
 export default function Effects({ dark }: { dark: boolean }) {
-  // Two softness treatments, independently escapable for A/B links:
-  // TiltShift2 is the owner-approved side blur (browse 2026-08-09) that
-  // v8's DoF displaced — its loss was called out at the next browse and it
-  // is now restored; DepthOfField is the real depth-driven bokeh that
-  // replaced it. ?notiltshift and ?nodof each kill exactly one.
+  // The side blur is the default; depth-of-field is an opt-in comparison.
+  // TiltShift2 is the owner-approved treatment (browse 2026-08-09) that
+  // v8's DoF displaced — its loss was called out at the round-2 browse.
+  // Side-by-side captures at the owner's framing showed stacking DoF on
+  // top only softens the shelf props the tilt-shift deliberately keeps
+  // crisp, so DoF mounts only under ?withdof (its own escape ?notiltshift
+  // kills the default for the inverse comparison).
   const tiltShift = useMemo(
     () =>
       typeof window === "undefined" ||
@@ -121,8 +123,8 @@ export default function Effects({ dark }: { dark: boolean }) {
   );
   const depthOfField = useMemo(
     () =>
-      typeof window === "undefined" ||
-      !window.location.search.includes("nodof"),
+      typeof window !== "undefined" &&
+      window.location.search.includes("withdof"),
     [],
   );
   const graded = useMemo(
