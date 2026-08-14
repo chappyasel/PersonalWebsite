@@ -221,7 +221,7 @@ const FOG_CAP_GLSL = /* glsl */ `
 const CLOUD_GLSL = /* glsl */ `
   float cloudAt(vec2 wxz) {
     float c = vnoise(wxz * 0.04 + uTime * vec2(-0.014, -0.011));
-    return 1.0 - mix(0.11, 0.05, uDark) * smoothstep(0.45, 0.8, c);
+    return 1.0 - mix(0.11, 0.035, uDark) * smoothstep(0.45, 0.8, c);
   }
 `;
 
@@ -334,10 +334,13 @@ const GRASS_FRAGMENT = /* glsl */ `
     col += vec3(0.9, 0.95, 1.0) * vDew * vT * vT
          * pow(0.5 + 0.5 * sin(uTime * 1.1 + vPatch * 47.0), 24.0)
          * (1.0 - uDark) * (1.0 - uDawn * 0.6) * 0.35;
-    // Moonlight: a cool silver lift on the tips plus a traveling glint
-    // where gusts bend them — the night lawn reads MOONLIT rather than
-    // merely dark. Additive but tiny; stays far under the bloom knee.
-    col += vec3(0.62, 0.68, 0.82) * uDark * vT * vT * (0.045 + vWind * 0.35 * vT);
+    // Moonlight: mostly a traveling glint where gusts bend the tips, over
+    // a whisper of constant lift — the night lawn reads MOONLIT rather
+    // than merely dark. The tint leans GREEN on purpose: the first cut's
+    // silver-blue read as a grey wash over the lawn ("did you just make
+    // the grass less green in dark mode?"). Additive but tiny; stays far
+    // under the bloom knee.
+    col += vec3(0.5, 0.74, 0.6) * uDark * vT * vT * (0.02 + vWind * 0.35 * vT);
     // The practicals' pools — tips catch more than roots, and the night
     // weighting is where the lamp actually reads. Additive in linear HDR
     // compounds under bloom, so the peak stays modest.
