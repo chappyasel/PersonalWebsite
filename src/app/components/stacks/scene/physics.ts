@@ -559,6 +559,31 @@ export class ShelfWorld {
   /** clock.elapsedTime of the last step — every Grabbable on the shelf calls
    * tick(), only the first one in a frame does the work. */
   private stamp = -1;
+
+  /** The legal interior of the edge walls, derived from the plane on demand
+   * (never stored: release() reads it, and a field written only by the
+   * constructor is exactly the thing a Fast Refresh strands — hot-swapped
+   * methods on an old instance found `bounds` undefined, threw mid-release,
+   * and left the prop frozen in the visitor's hand). */
+  private supportBounds() {
+    const footprint =
+      this.plane === "lower"
+        ? SHELF_GEOMETRY.lower
+        : this.plane === "floor"
+          ? SHELF_GEOMETRY.floor
+          : SHELF_GEOMETRY.top;
+    const edgeInset =
+      this.plane === "floor" ? 0.05 : this.plane === "lower" ? 0.03 : 0.035;
+    const supportWidth =
+      this.plane === "floor"
+        ? SHELF_GEOMETRY.floor.width
+        : SHELF_GEOMETRY.width;
+    return {
+      halfWidth: supportWidth / 2 - edgeInset,
+      zNear: footprint.centerZ + footprint.depth / 2 - edgeInset,
+      zFar: footprint.centerZ - footprint.depth / 2 + edgeInset,
+    };
+  }
   /** Dev-only contact log. "Did it collide or did it spring" is a question
    * the solver can answer directly, and a trajectory that merely looks like a
    * bounce is not the same as cannon reporting the pair. Compiled out of
@@ -613,21 +638,7 @@ export class ShelfWorld {
     // prop nested three layout groups deep resolves the same plank as one
     // standing directly on the wood. `standsOn` remains as an override and is
     // now needed only for the ground bay.
-    const footprint =
-      this.plane === "lower"
-        ? SHELF_GEOMETRY.lower
-        : this.plane === "floor"
-          ? SHELF_GEOMETRY.floor
-          : SHELF_GEOMETRY.top;
-    const edgeInset =
-      this.plane === "floor" ? 0.05 : this.plane === "lower" ? 0.03 : 0.035;
-    const supportWidth =
-      this.plane === "floor"
-        ? SHELF_GEOMETRY.floor.width
-        : SHELF_GEOMETRY.width;
-    const halfWidth = supportWidth / 2 - edgeInset;
-    const zNear = footprint.centerZ + footprint.depth / 2 - edgeInset;
-    const zFar = footprint.centerZ - footprint.depth / 2 + edgeInset;
+    const { halfWidth, zNear, zFar } = this.supportBounds();
     for (const [pos, euler] of [
       [new C.Vec3(-halfWidth, 0, 0), new C.Vec3(0, Math.PI / 2, 0)],
       [new C.Vec3(halfWidth, 0, 0), new C.Vec3(0, -Math.PI / 2, 0)],
@@ -1019,8 +1030,37 @@ export class ShelfWorld {
     const clamp = (v: number) =>
       THREE.MathUtils.clamp(v, -MAX_THROW, MAX_THROW);
     this.standUp(body);
+    // The carry is kinematic — nothing stops the visitor dragging a prop
+    // straight through the invisible edge walls. A body handed back to the
+    // solver from BEHIND one of those infinite half-spaces is ejected
+    // across the room by penetration resolution ("whenever I let go it
+    // goes crazy"), so the release point is clamped back inside the legal
+    // box first, by the body's own half-extents. A prop physically wider
+    // than the support (the barbell) skips the axis it can't fit.
+    body.aabbNeedsUpdate = true;
+    body.updateAABB();
+    const hx = (body.aabb.upperBound.x - body.aabb.lowerBound.x) / 2;
+    const hz = (body.aabb.upperBound.z - body.aabb.lowerBound.z) / 2;
+    const within = (v: number, lo: number, hi: number) =>
+      lo > hi ? v : THREE.MathUtils.clamp(v, lo, hi);
+    const b = this.supportBounds();
+    body.position.x = within(body.position.x, -b.halfWidth + hx, b.halfWidth - hx);
+    body.position.z = within(body.position.z, b.zFar + hz, b.zNear - hz);
+    if (this.plane === "lower") {
+      const hy = (body.aabb.upperBound.y - body.aabb.lowerBound.y) / 2;
+      body.position.y = Math.min(body.position.y, LOWER_HEADROOM - hy - 0.004);
+    }
     body.type = this.C.Body.DYNAMIC;
-    body.allowSleep = true;
+    // Sleep stays OFF from the hand until the first contact: a slow lob
+    // spends longer than sleepTimeLimit under its sleep speed around the
+    // arc's apex, and cannon froze it there in midair. Landing on
+    // something is what makes rest plausible again.
+    body.allowSleep = false;
+    const rearm = () => {
+      body.allowSleep = true;
+      body.removeEventListener("collide", rearm);
+    };
+    body.addEventListener("collide", rearm);
     body.wakeUp();
     body.velocity.set(clamp(velocity.x), clamp(velocity.y), clamp(velocity.z));
     const radius = this.balls.get(body.id);
