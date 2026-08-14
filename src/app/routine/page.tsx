@@ -1,18 +1,18 @@
+import rawData from "../../../public/data/routine.json";
 import { inArray } from "drizzle-orm";
 
-import { GrainientBackground } from "~/components/ui/grainient-background";
 import { db } from "~/server/db";
 import { books } from "~/server/db/schema";
 
 import RoutineHero from "./components/RoutineHero";
 import RoutineSection from "./components/RoutineSection";
-import RoutineTimeline from "./components/RoutineTimeline";
 import { RoutineTOCMobile, RoutineTOCSidebar } from "./components/RoutineTOC";
-import { HashScrollSpacer } from "./components/sectionLink";
+import RoutineTimeline from "./components/RoutineTimeline";
 import SupplementCardsSection from "./components/SupplementCards";
-import type { BookLookup, RoutineData } from "./types";
+import { HashScrollSpacer } from "./components/sectionLink";
+import { GrainientBackground } from "~/components/ui/grainient-background";
 
-import rawData from "../../../public/data/routine.json";
+import type { BookLookup, RoutineData } from "./types";
 
 const data = rawData as unknown as RoutineData;
 
@@ -72,6 +72,7 @@ export default async function RoutinePage() {
       icon: r.icon,
     })),
   ];
+  const timelineEntries = [...data.timeline.am, ...data.timeline.pm];
 
   return (
     <GrainientBackground className="min-h-screen bg-background font-serif text-muted-foreground">
@@ -82,13 +83,14 @@ export default async function RoutinePage() {
             <RoutineHero
               intro={data.intro}
               lastUpdated={data.lastUpdated}
+              entries={timelineEntries}
             />
           </div>
 
           {/* Content with TOC */}
           <div className="mt-16 flex justify-center">
             <RoutineTOCSidebar items={tocItems} />
-            <div className="w-full max-w-2xl space-y-8">
+            <div className="w-full max-w-2xl space-y-8" data-routine-content>
               {/* Mobile sticky TOC */}
               <RoutineTOCMobile items={tocItems} />
 

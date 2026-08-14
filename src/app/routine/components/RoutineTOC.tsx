@@ -85,7 +85,10 @@ export function RoutineTOCMobile({ items }: { items: TOCItem[] }) {
   const { activeId, scrollTo } = useActiveSection(items);
 
   return (
-    <nav className="sticky top-0 z-30 -ml-2 w-[calc(100%+16px)] rounded-[14px] bg-background/80 px-4 py-2 backdrop-blur-md lg:hidden">
+    <nav
+      className="sticky top-0 z-30 -ml-2 w-[calc(100%+16px)] rounded-[14px] bg-background/80 px-4 py-2 backdrop-blur-md lg:hidden"
+      data-routine-mobile-toc
+    >
       <div className="flex flex-wrap gap-1.5">
         {items.map((item) => (
           <button
