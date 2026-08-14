@@ -294,7 +294,27 @@ export default function StacksCanvas({
 
   // One-way degrade ladder: sustained low fps steps dpr → dust → shadows.
   // Never steps back up — flip-flopping reads worse than a stable floor.
+  //
+  // Declines during an active scroll fling are IGNORED (round 3): a fling
+  // through the full meadow is a workload transient, not a statement about
+  // the device, and because the ladder is one-way a single fast scroll was
+  // permanently stripping the composer — the owner watched the tilt-shift
+  // (and vignette, AO, grade) vanish mid-browse twice. A genuinely weak
+  // device also dips while idle (wind, dust), so real declines still land
+  // between scrolls.
   const [degrade, setDegrade] = useState(0);
+  const lastScrollAt = useRef(0);
+  useEffect(() => {
+    const bump = () => {
+      lastScrollAt.current = performance.now();
+    };
+    window.addEventListener("wheel", bump, { passive: true });
+    window.addEventListener("touchmove", bump, { passive: true });
+    return () => {
+      window.removeEventListener("wheel", bump);
+      window.removeEventListener("touchmove", bump);
+    };
+  }, []);
   const ownedRenderer = useRef<THREE.WebGLRenderer | null>(null);
 
   useEffect(
@@ -377,7 +397,10 @@ export default function StacksCanvas({
         <Exposure dark={dark} />
         {postfx && <Effects dark={dark} />}
         <PerformanceMonitor
-          onDecline={() => setDegrade((d) => Math.min(3, d + 1))}
+          onDecline={() => {
+            if (performance.now() - lastScrollAt.current < 1500) return;
+            setDegrade((d) => Math.min(3, d + 1));
+          }}
         />
         <ScrollControls
           horizontal
