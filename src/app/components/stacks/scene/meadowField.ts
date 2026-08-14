@@ -23,9 +23,14 @@ import { TRAVEL_LEAD_IN, TRAVEL_X, UNIT_SPACING, unitPose } from "./worldLayout"
 export const TRAVERSE_EYE = { y: 0.25, z: 5.8 } as const;
 export const TRAVERSE_MIN_X = -TRAVEL_LEAD_IN;
 export const TRAVERSE_MAX_X = TRAVEL_X;
-/** tan(0.6161 + 0.06): lateral reach per unit of view depth from the widest
- * supported frustum (21:9) plus lean/yaw margin. */
-export const LATERAL_REACH = 0.802;
+/** Lateral reach per unit of view depth from the widest checked frustum:
+ * aspect 3.0 (a 1200×400 desktop window is reachable) at fov 33 gives
+ * h-half atan(tan(16.5°)·3) = 0.7265 rad; +0.06 lean/yaw margin → tan
+ * 0.994, rounded up so the samplers' extra 0.6-unit slack keeps every
+ * vegetation side edge strictly outside every frustum (1.0 + 0.6/d > 0.994
+ * at all depths). The earlier 21:9-derived 0.802 left the side trapezoid
+ * ~20% inside a 3.0-aspect frame — the check script is the arbiter here. */
+export const LATERAL_REACH = 1.0;
 const SEAT_X = SEAT_POSE.eye[0];
 const SEAT_Z = SEAT_POSE.eye[2];
 
@@ -37,31 +42,36 @@ const SEAT_Z = SEAT_POSE.eye[2];
 //   Desktop:  −0.0550 − 0.2880 − 0.0183 = −0.3613 → ground (Δy 1.42) enters
 //             at depth 3.76 → z ≤ 2.04 (2.3 with margin).
 //   Phone:    −0.0487 − 0.2836 − 0.0183 = −0.3506 → depth 4.02 → z ≤ 3.58.
-//   Tablet portrait (fov 40.5): −0.0487 − 0.3534 − 0.0183 = −0.4204 →
-//             depth 3.29 → z ≤ 4.31 — TABLET, not desktop, drives the front
-//             line. Vegetation starts just behind it, so no camera ever sees
-//             the front density edge, and the strip desktop never reaches
-//             (2.3 → 4.4) is overdraw headroom, not a visible boundary.
-//   Seated:   0.02 − 0.3665 − 0.02 = −0.3665 → ground (Δy 1.19) enters 3.09
-//             out → z ≥ 4.10; the seated band starts at 3.8, below the frame.
-export const VEGETATION_FRONT_Z = 4.4;
+//   Tablet portrait (fov 40.5) at the LOW eye bob (y 0.3 − 0.11 = 0.19,
+//             which also shallows the pitch to −atan(0.27/7.8) = −0.0346):
+//             −0.0346 − 0.3534 − 0.0183 = −0.4063 → ground (Δy 1.325 at the
+//             undulation's +0.035 crest) enters at depth 3.08 → z ≤ 4.52 —
+//             TABLET AT LOW BOB, not desktop, drives the front line.
+//             Vegetation starts just behind it, so no camera ever sees the
+//             front density edge, and the strip desktop never reaches
+//             (2.3 → 4.6) is overdraw headroom, not a visible boundary.
+//   Seated:   0.02 − 0.3665 − 0.02 = −0.3665 → ground (Δy ≥ 1.155) enters
+//             3.0 out → z ≥ 4.0; the seated band starts at 3.8, below frame.
+export const VEGETATION_FRONT_Z = 4.6;
 /** Farthest frame-bottom ground entry of any supported camera (tablet
- * portrait). Vegetation may only START between this and the front line —
- * a front edge inside this zone is below every frame bottom. The old meadow's
- * z = 3.25 edge sat 1.06 INSIDE the tablet frame, which is the bug class the
- * check script's self-test proves it still catches. */
-export const NEAR_FEATHER_ZONE = { minZ: 4.31, maxZ: VEGETATION_FRONT_Z } as const;
+ * portrait at low eye bob). Vegetation may only START between this and the
+ * front line — a front edge inside this zone is below every frame bottom.
+ * The old meadow's z = 3.25 edge sat well INSIDE the tablet frame, which is
+ * the bug class the check script's self-test proves it still catches. */
+export const NEAR_FEATHER_ZONE = { minZ: 4.52, maxZ: VEGETATION_FRONT_Z } as const;
 export const inNearFeatherZone = (z: number) =>
   z >= NEAR_FEATHER_ZONE.minZ && z <= NEAR_FEATHER_ZONE.maxZ;
 
-// Terrain rectangle. Both far skirts end fully occluded or fully fogged; the
-// ±x edges sit ≥ 24 view-depth from every reachable eye (including the
-// seat-transition swing: eye x −3.4 → left edge 24.6 away, eye x 26.4 →
-// right edge 26.6 away) and the terrain fog ramp saturates at exactly 24, so
-// all four edges are at 100% dome-matched fog before geometry ends. Lateral
-// need per z-plane is trapezoidal (reach = d·0.802 from both traverse
-// extremes): near-band far z −8.2 (d 14) → x [−12.4, 37.6]; mid far z −18.2
-// (d 24) → x [−20.4, 45.6]; terrain far z −27 (d 32.8) → x [−27.5, 52.7].
+// Terrain rectangle. Every edge is either outside every checked frustum or
+// past 99% terrain fog before geometry ends: an x-edge sample at view depth
+// d is in a frustum only if |Δx| ≤ 0.994·d, and |Δx| ≥ 26.6 from both
+// traverse extremes means that needs d ≥ 26.8 — beyond the 23.1 where the
+// fog ramp passes 99%. The ±x edges also sit ≥ 24 radial from every eye on
+// the seat-transition swing (eye x −3.4 → left edge 24.6 away, eye x 26.4 →
+// right edge 26.6 away), covering the yaw sweep the pose matrix cannot
+// sample. Vegetation spans per z-plane are trapezoidal (reach = d·1.0):
+// near-band far z −8.2 (d 14) → x [−15.8, 41]; mid far z −18.2 (d 24) →
+// x [−25.8, 51] — all inside the rectangle.
 export const MEADOW_TERRAIN = {
   minX: -28,
   maxX: 53,
@@ -182,6 +192,14 @@ export function meadowHeight(x: number, z: number): number {
   // the rolling-with-haze-separation layering.
   const r2 = 0.55 * gauss(z, -16, 3.8) * (0.55 + 0.45 * Math.sin(x * 0.43 - 0.7));
 
+  // Where R1's and R2's x-phases align (~every 27 units) the raw stack
+  // reaches 0.85 and its crest breaches the skyline fade band from a
+  // 3.0-aspect frame corner at low eye bob. Compress the sum's excess so
+  // the combined crest tops out ≈ 0.51 (y ≈ −0.63, e ≤ −0.022 from every
+  // pose) while solo crests keep most of their roll.
+  let mid = r1 + r2;
+  if (mid > 0.4) mid = 0.4 + (mid - 0.4) * 0.24;
+
   // R3 far ridge — the horizon silhouette. Crest y is authored directly
   // (ridgeCrestY); where the crest dips below the plain the ridge opens into
   // a fogged valley, which is what keeps the skyline handoff from reading as
@@ -194,15 +212,18 @@ export function meadowHeight(x: number, z: number): number {
   // from every traverse eye, and its apex elevation (≤ +0.009) can never
   // touch the deck at e 0.038. S_R (38, −21) apex ≈ +0.48 sits right of the
   // Bay Bridge's right edge (dome az −1.027) from every eye that frames it.
-  // Amplitudes measured, not solved: R2 leaks ~0.06 under S_R (and the
-  // undulation ±0.035 under both), so the raw 1.66/1.65 gaussians crested at
-  // apex elevations of 0.0085/0.0099 — over the +0.009 apex ceiling the
-  // vitest holds them to. Trimmed until the MEASURED apexes clear it.
+  // Amplitudes measured, not solved: R2 leaks ~0.06 under S_R, the
+  // undulation adds ±0.035 under both, and the eye's LOW bob (y −0.11)
+  // steepens every apex sightline — the raw 1.66/1.65 gaussians crested at
+  // e 0.011+ from a bobbed-down eye, over the +0.009 ceiling the vitest and
+  // check script hold them to (Sutro's lowest drawn pixel is e 0.010).
+  // Trimmed until the MEASURED worst-case apexes clear it: apex world y
+  // ≈ +0.40/+0.39, still above the horizon from every standing pose.
   const sw = 3.5;
   const sL =
-    1.64 * Math.exp(-(((x + 13) / sw) ** 2 + ((z + 22) / sw) ** 2));
+    1.56 * Math.exp(-(((x + 13) / sw) ** 2 + ((z + 22) / sw) ** 2));
   const sR =
-    1.61 * Math.exp(-(((x - 38) / sw) ** 2 + ((z + 21) / sw) ** 2));
+    1.51 * Math.exp(-(((x - 38) / sw) ** 2 + ((z + 21) / sw) ** 2));
 
   // Seated riverbank (all x — no lateral seam to find). Crest silhouette
   // from the seat reads at e ≈ −0.111…−0.082 across the seated frame:
@@ -214,7 +235,7 @@ export function meadowHeight(x: number, z: number): number {
     smoothstep(MEADOW_BANK.riseStartZ, MEADOW_BANK.crestZ, z) *
     (0.75 + 0.25 * Math.sin(x * 0.55 + 1.9));
 
-  let y = MEADOW_GROUND_BASE + und + r1 + r2 + r3 + sL + sR + bank;
+  let y = MEADOW_GROUND_BASE + und + mid + r3 + sL + sR + bank;
 
   // Authored skirts: both drop far faster than any sight ray over their
   // crests can descend, so the rectangle's actual ends are unreachable.
@@ -306,8 +327,11 @@ function traverseXRange(d: number): [number, number] {
   ];
 }
 
-/** Seated trapezoid half-width at a z plane — seated h-half fov (21:9, fov
- * 42) is 0.7423 rad, +0.05 margin → tan ≈ 1.017, plus 0.6 slack. */
+/** Seated trapezoid half-width at a z plane — slope tan(0.7423 + 0.05)
+ * (21:9 at fov 42, + lean margin) ≈ 1.017. The widest checked aspect (3.0,
+ * tan ≈ 1.28) out-slopes this, but the 3.2 + 0.6 base slack keeps the band
+ * edge outside that frustum at every depth to the crest (14.2 vs 13.0 at
+ * the skirt line) — asserted by the check script's seated poses. */
 function seatedHalfWidth(z: number): number {
   return 3.2 + (z - SEAT_Z) * 1.017 + 0.6;
 }

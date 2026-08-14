@@ -4,6 +4,7 @@ import {
   FLOWER_LIFT,
   GRASS_BANDS,
   GRASS_ROOT_SINK,
+  LATERAL_REACH,
   MEADOW_BANK,
   MEADOW_FLOWER_TOTAL,
   MEADOW_GRASS_TOTAL,
@@ -103,8 +104,9 @@ describe("placement", () => {
     }
     expect(front).toBeLessThanOrEqual(NEAR_FEATHER_ZONE.maxZ);
     // The zone itself must sit behind the deepest frame-bottom ground entry
-    // (tablet portrait, z 4.31) — the old z = 3.25 front line violated this.
-    expect(NEAR_FEATHER_ZONE.minZ).toBeGreaterThanOrEqual(4.31);
+    // (tablet portrait at low eye bob, z 4.52) — the old z = 3.25 front
+    // line violated this.
+    expect(NEAR_FEATHER_ZONE.minZ).toBeGreaterThanOrEqual(4.52);
     expect(3.25).toBeLessThan(NEAR_FEATHER_ZONE.minZ);
   });
 
@@ -179,7 +181,7 @@ describe("terrain silhouette", () => {
       const dz = eye.z - -24.5;
       for (let ex = -1.2; ex <= 26.4; ex += 2.76) {
         for (let x = MEADOW_TERRAIN.minX; x <= MEADOW_TERRAIN.maxX; x += 0.5) {
-          if (Math.abs(x - ex) > 0.802 * dz) continue; // beyond widest frustum
+          if (Math.abs(x - ex) > LATERAL_REACH * dz) continue; // beyond widest frustum
           const dist = Math.hypot(dz, x - ex);
           const e = Math.atan((ridgeCrestY(x) - eye.y) / dist);
           expect(e).toBeGreaterThanOrEqual(-0.098);
@@ -204,8 +206,9 @@ describe("terrain silhouette", () => {
     const aR = apexNear(38, -21);
     for (const ex of [-1.2, 2, 6, 13, 20, 26.4]) {
       for (const a of [aL, aR]) {
+        // Eye y 0.14 — the LOW bob — is the steepest sightline any pose has.
         const e = Math.atan(
-          (a.y - 0.25) / Math.hypot(a.x - ex, a.z - 5.8),
+          (a.y - 0.14) / Math.hypot(a.x - ex, a.z - 5.8),
         );
         // Sutro's lowest drawn pixel is e 0.010, the GGB deck 0.038 — an
         // apex under 0.009 can never touch either.

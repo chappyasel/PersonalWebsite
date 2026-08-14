@@ -23,6 +23,7 @@
     "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
     "start": "next start",
     "check:budgets": "node scripts/check-route-budgets.mjs",
+    "check:meadow": "npx tsx ./scripts/stacks-meadow-check.ts",
     "test:performance": "playwright test",
     "generate:blog-posts": "npx tsx ./scripts/generate/blog-posts.ts",
     "generate:manual": "npx tsx ./scripts/generate/manual.ts",
