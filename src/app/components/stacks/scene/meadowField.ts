@@ -64,22 +64,23 @@ export const inNearFeatherZone = (z: number) =>
 
 // Terrain rectangle. Every edge is either outside every checked frustum or
 // past 99% terrain fog before geometry ends: an x-edge sample at view depth
-// d is in a frustum only if |Δx| ≤ 0.994·d, and |Δx| ≥ 26.6 from both
-// traverse extremes means that needs d ≥ 26.8 — beyond the 23.1 where the
-// fog ramp passes 99%. The ±x edges also sit ≥ 24 radial from every eye on
-// the seat-transition swing (eye x −3.4 → left edge 24.6 away, eye x 26.4 →
-// right edge 26.6 away), covering the yaw sweep the pose matrix cannot
-// sample. Vegetation spans per z-plane are trapezoidal (reach = d·1.0):
-// near-band far z −8.2 (d 14) → x [−15.8, 41]; mid far z −18.2 (d 24) →
-// x [−25.8, 51] — all inside the rectangle.
+// d is in a frustum only if |Δx| ≤ 0.994·d, so the fog bar (23.1) sets the
+// minimum standoff. The WEST edge is driven by the walk phase of the seat
+// transition, not the traverse: mid-walk the camera can face the edge
+// directly at any yaw, so the standoff there is radial — 23.1/cos(hHalf +
+// margin) ≈ 33 from the walk path's western reach (x ≈ −3.2) → minX −36.
+// The east edge only ever faces traverse frustums (26.6 lateral from x
+// 26.4 needs d ≥ 26.8 > 23.1). Vegetation spans per z-plane are
+// trapezoidal (reach = d·1.0): near-band far z −8.2 (d 14) → x [−15.8,
+// 41]; mid far z −18.2 (d 24) → x [−25.8, 51] — all inside the rectangle.
 export const MEADOW_TERRAIN = {
-  minX: -28,
+  minX: -36,
   maxX: 53,
   minZ: -27,
   maxZ: 12.8,
-  // 216×132 keeps far cells small enough that per-vertex fog color
+  // ~0.37-unit cells keep far cells small enough that per-vertex fog color
   // interpolation cannot band against the analytic dome.
-  segmentsX: 216,
+  segmentsX: 240,
   segmentsZ: 132,
 } as const;
 
@@ -100,8 +101,8 @@ export const MEADOW_GROUND_BASE = -1.17;
 export const MEADOW_SHELF_CEILING_Y = -1.15;
 /** Blade roots sink below the surface so slope contact never gaps. */
 export const GRASS_ROOT_SINK = 0.015;
-/** Flower heads float at canopy height above the terrain. */
-export const FLOWER_LIFT = 0.1;
+/** Flower heads sit half-buried IN the grass, not floating over it. */
+export const FLOWER_LIFT = 0.06;
 
 // Bank + far-skirt regions (authored silhouettes, see meadowHeight).
 export const MEADOW_BANK = {
@@ -172,33 +173,40 @@ export function ridgeCrestY(x: number): number {
 }
 
 export function meadowHeight(x: number, z: number): number {
-  // Near undulation, damped to ×0.3 through the shelf strip (z ∈ [−3, 1])
-  // so the surface never rises above MEADOW_SHELF_CEILING_Y there.
+  // Near undulation — big enough to give the lawn a visible swell (the flat
+  // sheet was the first thing the owner rejected). Damped through the shelf
+  // strip (z ∈ [−3, 1]) so the surface never rises above
+  // MEADOW_SHELF_CEILING_Y, and through the bank region so the seated crest
+  // silhouette stays inside its authored elevation band.
   const strip = smoothstep(-4, -3, z) * (1 - smoothstep(1, 2, z));
+  const bankCalm = smoothstep(6, 9, z);
   const und =
-    (0.02 * Math.sin(x * 0.58 + z * 0.31) +
-      0.015 * Math.sin(x * 0.19 - z * 0.44)) *
-    (1 - 0.7 * strip);
+    (0.05 * Math.sin(x * 0.58 + z * 0.31) +
+      0.028 * Math.sin(x * 0.19 - z * 0.44)) *
+    (1 - 0.775 * strip) *
+    (1 - 0.6 * bankCalm);
 
-  // R1 mid ridgeline (z −13): first haze layer, ~80% terrain fog at d ≈ 18.8.
-  // The crest rolls in x so the read is rolling hills, not a berm.
+  // R1 mid ridgeline (z −11.5): the first ROLLING hill line, close enough
+  // to read as a hill through ~70% fog rather than a fogged bump. The crest
+  // rolls in x so the read is rolling hills, not a berm. Amplitude sits
+  // under the frame-corner/low-bob elevation ceiling the check enforces.
   const r1 =
-    0.42 *
-    gauss(z, -13, 3.4) *
+    0.62 *
+    gauss(z, -11.5, 3.6) *
     (0.55 + 0.45 * Math.sin(x * 0.66 + 1.3) + 0.18 * (vnoise1(x * 0.21, 7.3) - 0.5));
 
-  // R2 mid-far ridgeline (z −16): second, fainter layer (~94% fog),
-  // x-phase offset from R1 so their crests interleave in screen space —
-  // the rolling-with-haze-separation layering.
-  const r2 = 0.55 * gauss(z, -16, 3.8) * (0.55 + 0.45 * Math.sin(x * 0.43 - 0.7));
+  // R2 mid-far ridgeline (z −15.5): second layer (~90% fog), x-phase offset
+  // from R1 so their crests interleave in screen space — the
+  // rolling-with-haze-separation layering.
+  const r2 = 0.55 * gauss(z, -15.5, 4.0) * (0.55 + 0.45 * Math.sin(x * 0.43 - 0.7));
 
   // Where R1's and R2's x-phases align (~every 27 units) the raw stack
-  // reaches 0.85 and its crest breaches the skyline fade band from a
-  // 3.0-aspect frame corner at low eye bob. Compress the sum's excess so
-  // the combined crest tops out ≈ 0.51 (y ≈ −0.63, e ≤ −0.022 from every
-  // pose) while solo crests keep most of their roll.
+  // nearly doubles and its crest would breach the skyline fade band from a
+  // 3.0-aspect frame corner at low eye bob. Compress the sum's excess above
+  // the knee so aligned crests top out ≈ 0.62 while solo crests keep their
+  // full roll. The check script owns the exact ceiling.
   let mid = r1 + r2;
-  if (mid > 0.4) mid = 0.4 + (mid - 0.4) * 0.24;
+  if (mid > 0.5) mid = 0.5 + (mid - 0.5) * 0.25;
 
   // R3 far ridge — the horizon silhouette. Crest y is authored directly
   // (ridgeCrestY); where the crest dips below the plain the ridge opens into
@@ -250,18 +258,25 @@ export function meadowHeight(x: number, z: number): number {
 // Instances per unit DEPTH ∝ 1/d — the strip width already grows ≈ linearly
 // with d, so per-ground-area density falls as 1/d² and SCREEN coverage stays
 // constant. Inverse-CDF for that weighting: d = d0 · (d1/d0)^u.
+// Instances are TUFTS (the FluffyGrass 8-card cluster, MIT, vendored as
+// grass-tuft.glb), not single blades: each covers ~2.5× its height in
+// footprint, so a few thousand overlapping tufts give the reference's
+// full-pile coverage where tens of thousands of blades read as debris.
 export const GRASS_BANDS = {
-  /** Quiet short lawn, z +4.4 → −8.2 (depth 1.4 → 14 from the rail). */
-  near: { count: 16000, d0: TRAVERSE_EYE.z - VEGETATION_FRONT_Z, d1: 14 },
-  /** The meadow moment, z −8.2 → −18.2: taller, wider blades with distance. */
-  mid: { count: 3000, d0: 14, d1: 24 },
-  /** Seated riverbank band, z +3.8 → skirt, depths against the SEAT eye. */
-  seated: { count: 4000, d0: 3.8 - SEAT_Z, d1: MEADOW_BANK.skirtZ - SEAT_Z },
+  /** Quiet short lawn, z +4.6 → −8.2 (depth 1.2 → 14 from the rail). */
+  near: { count: 6000, d0: TRAVERSE_EYE.z - VEGETATION_FRONT_Z, d1: 14 },
+  /** The meadow moment, z −8.2 → −18.2: taller, wider tufts with distance. */
+  mid: { count: 2500, d0: 14, d1: 24 },
+  /** Seated band, z +1.6 → skirt, depths against the SEAT eye. Starts well
+   * behind the rail so the walk phase of the seat transition (which can
+   * face the couch's surround from close range) sees lawn, not a boundary;
+   * the sampler pins 70% of the count onto the bank itself. */
+  seated: { count: 2500, d0: 1.6 - SEAT_Z, d1: MEADOW_BANK.skirtZ - SEAT_Z },
 } as const;
 
 export const MEADOW_GRASS_TOTAL =
   GRASS_BANDS.near.count + GRASS_BANDS.mid.count + GRASS_BANDS.seated.count;
-export const MEADOW_FLOWER_TOTAL = 800;
+export const MEADOW_FLOWER_TOTAL = 1600;
 
 // The degrade dial's order contract. Each instance gets a quality quantile;
 // the buffer is ordered rung-major at these cumulative fractions,
@@ -270,9 +285,15 @@ export const MEADOW_FLOWER_TOTAL = 800;
 // vanishes, no depth cut-line appears. (Literal back-to-front ordering would
 // make a lowered count delete the far field first and pull the horizon in.)
 export const MEADOW_RUNG_FRACTIONS = [0.45, 0.7, 0.88, 1] as const;
-export const MEADOW_RUNG_GRASS = [10350, 16100, 20240, 23000] as const;
+/** The near lawn draws the detailed tuft LOD in its own InstancedMesh; the
+ * mid + seated bands share the light LOD in a second one. Each mesh has its
+ * own rung-ordered buffer and count table; the combined table is the
+ * reporting total. */
+export const MEADOW_RUNG_GRASS_NEAR = [2700, 4200, 5280, 6000] as const;
+export const MEADOW_RUNG_GRASS_FAR = [2250, 3500, 4400, 5000] as const;
+export const MEADOW_RUNG_GRASS = [4950, 7700, 9680, 11000] as const;
 /** Flowers stay OFF at the two lowest quality rungs (degrade ≥ 2). */
-export const MEADOW_RUNG_FLOWERS = [0, 0, 704, 800] as const;
+export const MEADOW_RUNG_FLOWERS = [0, 0, 1408, 1600] as const;
 
 /** Furniture clearings: grass thins and shortens around the seven shelf
  * units and the couch — no rejection, no count churn, and nothing pokes
@@ -293,21 +314,93 @@ export function clearingScale(x: number, z: number): number {
     const s = smoothstep(site.r0, site.r1, d);
     if (s < clr) clr = s;
   }
-  return 0.45 + 0.55 * clr;
+  // 0.40 floor: the tallest cleared near blade (0.095·1.2·0.40 ≈ 0.046)
+  // tops out ≈ 0.027 under the shadow pools at −1.114.
+  return 0.4 + 0.6 * clr;
+}
+
+// ---------------------------------------------------------------------------
+// West density feather. The walk phase of the seat transition can face the
+// field's western flank DIRECTLY from a few units away (any yaw, ~30 units
+// of radial reach before grass fog saturates), so no hard trapezoid edge
+// can survive there — the standoff would need to be ~30 units of wasted
+// instances. Instead the westmost stretch of the vegetation union fades by
+// SCALE over WEST_FEATHER.span units: thinning grass, no line to find. The
+// check script exempts feathered boundary samples from the hard-edge rule;
+// vitest pins the span. South of endZ the flank is beyond the walk's fog
+// reach and traverse frustums never yaw, so the hard edge resumes.
+export const WEST_FEATHER = { span: 8 } as const;
+
+/** Far density feather: the vegetation far line (z −18.2) reads at only
+ * ~85–90% fog from the walk path (a few units west and south of the rail),
+ * so the last few units of the mid band thin out by scale — the same
+ * no-line-to-find treatment as the west flank. */
+export const FAR_FEATHER = { span: 3.5 } as const;
+const VEGETATION_FAR_Z = TRAVERSE_EYE.z - 24; // mid band d1
+
+export function farFeatherScale(z: number): number {
+  return 1 - 0.88 * smoothstep(VEGETATION_FAR_Z + FAR_FEATHER.span, VEGETATION_FAR_Z, z);
+}
+
+export function inFarFeather(z: number): boolean {
+  return z <= VEGETATION_FAR_Z + FAR_FEATHER.span + 0.1;
+}
+
+/** Western boundary of the vegetation union at a z plane (−Infinity where
+ * no band covers z). */
+export function unionWestX(z: number): number {
+  let west = Infinity;
+  if (z <= VEGETATION_FRONT_Z && z >= TRAVERSE_EYE.z - GRASS_BANDS.mid.d1) {
+    west = Math.min(west, TRAVERSE_MIN_X - LATERAL_REACH * (TRAVERSE_EYE.z - z) - 0.6);
+  }
+  if (z >= SEAT_Z + GRASS_BANDS.seated.d0 && z <= MEADOW_BANK.skirtZ) {
+    west = Math.min(west, SEAT_X - seatedHalfWidth(z));
+  }
+  return west;
+}
+
+/** Scale multiplier implementing the feather: → 0.12 at the boundary. */
+export function westFeatherScale(x: number, z: number): number {
+  const west = unionWestX(z);
+  if (!Number.isFinite(west)) return 1;
+  return 0.12 + 0.88 * smoothstep(0, WEST_FEATHER.span, x - west);
+}
+
+export function inWestFeather(x: number, z: number): boolean {
+  return x <= unionWestX(z) + WEST_FEATHER.span + 0.5;
+}
+
+/** The seated band's EAST flank past the traverse front line gets the same
+ * treatment: settled-seat pointer sway (±0.18 rad of yaw) grazes it at
+ * ultrawide aspects, so it fades instead of cutting. */
+export const EAST_FEATHER = { span: 4 } as const;
+
+export function eastFeatherScale(x: number, z: number): number {
+  if (z <= VEGETATION_FRONT_Z) return 1; // traverse band owns the east there
+  const east = SEAT_X + seatedHalfWidth(z);
+  return 0.12 + 0.88 * smoothstep(0, EAST_FEATHER.span, east - x);
+}
+
+export function inEastFeather(x: number, z: number): boolean {
+  if (z <= VEGETATION_FRONT_Z) return false;
+  return x >= SEAT_X + seatedHalfWidth(z) - EAST_FEATHER.span - 0.5;
 }
 
 export type GrassInstances = {
   count: number;
-  /** Rung-major cumulative counts — must equal MEADOW_RUNG_GRASS. */
+  /** Rung-major cumulative counts — must equal the mesh's rung table. */
   rungCounts: number[];
   x: Float32Array;
   y: Float32Array;
   z: Float32Array;
   yaw: Float32Array;
-  /** World-unit blade height (geometry is height-normalized to 1). */
+  /** World-unit tuft height (geometry is height-normalized to 1). */
   height: Float32Array;
-  /** Multiplier on the blade's baked base width. */
+  /** Lateral tuft scale (geometry footprint is ~2.5 per unit height). */
   width: Float32Array;
+  /** Baked half-Lambert sun term from the terrain normal under the tuft —
+   * what shapes the hills into lit and shaded flanks at zero shader cost. */
+  sun: Float32Array;
 };
 
 type RawInstance = {
@@ -319,6 +412,25 @@ type RawInstance = {
   q: number;
   band: number;
 };
+
+/** The scene key light's fixed direction (KeyLight sits at eye + (4, 6.5,
+ * 6)-ish looking back at the rail — the offset never changes, so the
+ * direction is a constant and the sun term can be baked per tuft). */
+const SUN_DIR = (() => {
+  const l = Math.hypot(4, 7, 6);
+  return { x: 4 / l, y: 7 / l, z: 6 / l };
+})();
+
+function bakedSun(x: number, z: number): number {
+  // Central-difference terrain normal → half-Lambert against the key.
+  const e = 0.35;
+  const dx = (meadowHeight(x + e, z) - meadowHeight(x - e, z)) / (2 * e);
+  const dz = (meadowHeight(x, z + e) - meadowHeight(x, z - e)) / (2 * e);
+  const l = Math.hypot(dx, 1, dz);
+  const ndl =
+    (-dx / l) * SUN_DIR.x + (1 / l) * SUN_DIR.y + (-dz / l) * SUN_DIR.z;
+  return 0.5 + 0.5 * Math.max(-1, Math.min(1, ndl));
+}
 
 function traverseXRange(d: number): [number, number] {
   return [
@@ -336,9 +448,16 @@ function seatedHalfWidth(z: number): number {
   return 3.2 + (z - SEAT_Z) * 1.017 + 0.6;
 }
 
+export type GrassStreams = {
+  /** Near lawn — detailed tuft LOD, its own InstancedMesh. */
+  near: GrassInstances;
+  /** Mid meadow + seated bank — light tuft LOD, second InstancedMesh. */
+  far: GrassInstances;
+};
+
 export function buildGrassInstances(
   total: number = MEADOW_GRASS_TOTAL,
-): GrassInstances {
+): GrassStreams {
   const scale = total / MEADOW_GRASS_TOTAL;
   const bands = [
     { ...GRASS_BANDS.near, id: 0 },
@@ -351,7 +470,20 @@ export function buildGrassInstances(
   for (const band of bands) {
     for (let k = 0; k < band.count; k++, i++) {
       const u = rand(i, 41);
-      const d = band.d0 * Math.pow(band.d1 / band.d0, u);
+      let d: number;
+      if (band.id === 2) {
+        // Seated band: 30% is couch-surround lawn (walk-phase coverage),
+        // 70% is pinned onto the bank itself so the riverbank stays dense
+        // — a single 1/d ramp from 0.6 would sink half the band behind
+        // the seat where nothing ever looks.
+        const bankD0 = 2.8;
+        d =
+          u < 0.3
+            ? band.d0 * Math.pow(bankD0 / band.d0, u / 0.3)
+            : bankD0 * Math.pow(band.d1 / bankD0, (u - 0.3) / 0.7);
+      } else {
+        d = band.d0 * Math.pow(band.d1 / band.d0, u);
+      }
       let x: number;
       let z: number;
       if (band.id === 2) {
@@ -366,18 +498,22 @@ export function buildGrassInstances(
       let height: number;
       let width: number;
       if (band.id === 1) {
-        // Mid meadow: blades grow to ~0.18 tall / ~1.9× wide with distance,
-        // holding screen fill as areal density drops.
-        height = (0.083 + 0.1 * smoothstep(10, 22, d)) * (0.8 + 0.4 * rand(i, 44));
-        width = (0.8 + 0.5 * rand(i, 45)) * (1 + 0.9 * smoothstep(10, 24, d));
+        // Mid meadow: tufts grow to ~0.45 tall / ~2.5-unit footprints with
+        // distance, holding screen fill as areal density drops.
+        height = (0.16 + 0.3 * smoothstep(10, 22, d)) * (0.8 + 0.4 * rand(i, 44));
+        width = (0.32 + 0.16 * rand(i, 45)) * (1 + 1.2 * smoothstep(10, 24, d));
       } else if (band.id === 2) {
-        height = 0.083 * (0.9 + 0.5 * rand(i, 44));
-        width = 0.8 + 0.5 * rand(i, 45);
+        height = 0.16 * (0.9 + 0.5 * rand(i, 44));
+        width = 0.32 + 0.16 * rand(i, 45);
       } else {
-        height = 0.083 * (0.8 + 0.4 * rand(i, 44));
-        width = 0.8 + 0.5 * rand(i, 45);
+        height = 0.16 * (0.8 + 0.4 * rand(i, 44));
+        width = 0.32 + 0.16 * rand(i, 45);
       }
-      const f = clearingScale(x, z);
+      const f =
+        clearingScale(x, z) *
+        westFeatherScale(x, z) *
+        eastFeatherScale(x, z) *
+        farFeatherScale(z);
       raw.push({
         x,
         z,
@@ -392,8 +528,8 @@ export function buildGrassInstances(
 
   // Rung stratification: within each band, order by quality quantile and cut
   // at the exact cumulative fractions — every band thins by the same ratio
-  // at every rung. Buffer order is rung-major, front-to-back (ascending
-  // 5.8 − z) within each rung for early-z.
+  // at every rung. Each mesh's buffer is rung-major, front-to-back
+  // (ascending 5.8 − z) within each rung for early-z.
   const perBandRungs: RawInstance[][][] = bands.map(() =>
     MEADOW_RUNG_FRACTIONS.map(() => []),
   );
@@ -408,36 +544,41 @@ export function buildGrassInstances(
     });
   });
 
-  const ordered: RawInstance[] = [];
-  const rungCounts: number[] = [];
-  MEADOW_RUNG_FRACTIONS.forEach((_, ri) => {
-    const rung: RawInstance[] = [];
-    for (const bandRungs of perBandRungs) rung.push(...bandRungs[ri]!);
-    // Ascending view depth (5.8 − z) = descending z.
-    rung.sort((a, b) => b.z - a.z || a.x - b.x);
-    ordered.push(...rung);
-    rungCounts.push(ordered.length);
-  });
-
-  const out: GrassInstances = {
-    count: ordered.length,
-    rungCounts,
-    x: new Float32Array(ordered.length),
-    y: new Float32Array(ordered.length),
-    z: new Float32Array(ordered.length),
-    yaw: new Float32Array(ordered.length),
-    height: new Float32Array(ordered.length),
-    width: new Float32Array(ordered.length),
+  const assemble = (bandIndices: number[]): GrassInstances => {
+    const ordered: RawInstance[] = [];
+    const rungCounts: number[] = [];
+    MEADOW_RUNG_FRACTIONS.forEach((_, ri) => {
+      const rung: RawInstance[] = [];
+      for (const bi of bandIndices) rung.push(...perBandRungs[bi]![ri]!);
+      // Ascending view depth (5.8 − z) = descending z.
+      rung.sort((a, b) => b.z - a.z || a.x - b.x);
+      ordered.push(...rung);
+      rungCounts.push(ordered.length);
+    });
+    const out: GrassInstances = {
+      count: ordered.length,
+      rungCounts,
+      x: new Float32Array(ordered.length),
+      y: new Float32Array(ordered.length),
+      z: new Float32Array(ordered.length),
+      yaw: new Float32Array(ordered.length),
+      height: new Float32Array(ordered.length),
+      width: new Float32Array(ordered.length),
+      sun: new Float32Array(ordered.length),
+    };
+    ordered.forEach((r, k) => {
+      out.x[k] = r.x;
+      out.y[k] = meadowHeight(r.x, r.z) - GRASS_ROOT_SINK;
+      out.z[k] = r.z;
+      out.yaw[k] = r.yaw;
+      out.height[k] = r.height;
+      out.width[k] = r.width;
+      out.sun[k] = bakedSun(r.x, r.z);
+    });
+    return out;
   };
-  ordered.forEach((r, k) => {
-    out.x[k] = r.x;
-    out.y[k] = meadowHeight(r.x, r.z) - GRASS_ROOT_SINK;
-    out.z[k] = r.z;
-    out.yaw[k] = r.yaw;
-    out.height[k] = r.height;
-    out.width[k] = r.width;
-  });
-  return out;
+
+  return { near: assemble([0]), far: assemble([1, 2]) };
 }
 
 // ---------------------------------------------------------------------------
@@ -455,7 +596,7 @@ export type FlowerInstances = {
 
 const DRIFT_SALT = 83;
 export function driftMask(x: number, z: number): boolean {
-  return vnoise2(x * 0.09, z * 0.09, DRIFT_SALT) > 0.62;
+  return vnoise2(x * 0.09, z * 0.09, DRIFT_SALT) > 0.66;
 }
 
 type RawFlower = { x: number; z: number; scale: number; q: number };
@@ -463,20 +604,20 @@ type RawFlower = { x: number; z: number; scale: number; q: number };
 export function buildFlowerPositions(
   total: number = MEADOW_FLOWER_TOTAL,
 ): FlowerInstances {
-  const traverseCount = Math.round(total * (620 / MEADOW_FLOWER_TOTAL));
+  const traverseCount = Math.round(total * (1240 / MEADOW_FLOWER_TOTAL));
   const bankCount = total - traverseCount;
   const groups: RawFlower[][] = [[], []];
 
   for (let i = 0; i < traverseCount; i++) {
-    // Depth weighting ∝ exp(−((d − 15)/6)²) on [6, 24]: the drifts dominate
-    // the mid field and stay sparse in the near lawn. Deterministic salted
-    // tries stand in for rejection sampling; a miss keeps its last candidate
-    // (an isolated head, not a hole).
+    // Depth weighting ∝ exp(−((d − 16)/5)²) on [8, 24]: the drifts dominate
+    // the mid field and stay sparse in the near lawn (near heads read huge
+    // at the rail). Deterministic salted tries stand in for rejection
+    // sampling; a miss keeps its last candidate (an isolated head).
     let x = 0;
     let z = 0;
     for (let t = 0; t < 6; t++) {
-      const d = 6 + rand(i, 61 + t * 7) * 18;
-      if (rand(i, 62 + t * 7) > gauss(d, 15, 6)) continue;
+      const d = 8 + rand(i, 61 + t * 7) * 16;
+      if (rand(i, 62 + t * 7) > gauss(d, 16, 5)) continue;
       z = TRAVERSE_EYE.z - d;
       const [x0, x1] = traverseXRange(d);
       x = x0 + rand(i, 63 + t * 7) * (x1 - x0);
@@ -488,7 +629,13 @@ export function buildFlowerPositions(
       const [x0, x1] = traverseXRange(d);
       x = x0 + rand(i, 64) * (x1 - x0);
     }
-    groups[0]!.push({ x, z, scale: 0.8 + rand(i, 66) * 0.5, q: rand(i, 98) });
+    groups[0]!.push({
+      x,
+      z,
+      scale:
+        (0.7 + rand(i, 66) * 0.5) * westFeatherScale(x, z) * farFeatherScale(z),
+      q: rand(i, 98),
+    });
   }
 
   for (let i = 0; i < bankCount; i++) {
@@ -506,7 +653,12 @@ export function buildFlowerPositions(
       x = SEAT_X - hw + rand(j, 63 + t * 7) * 2 * hw;
       if (driftMask(x, z)) break;
     }
-    groups[1]!.push({ x, z, scale: 0.8 + rand(j, 66) * 0.5, q: rand(j, 98) });
+    groups[1]!.push({
+      x,
+      z,
+      scale: (0.9 + rand(j, 66) * 0.7) * westFeatherScale(x, z),
+      q: rand(j, 98),
+    });
   }
 
   // Same stratified-order contract as the grass, with the flower rung table's

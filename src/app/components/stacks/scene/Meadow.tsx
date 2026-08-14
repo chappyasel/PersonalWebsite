@@ -1,21 +1,22 @@
 "use client";
 
-// The meadow below the horizon — dense opaque grass, rolling fogged hills,
-// flower drifts — the AGI-footer read rebuilt on the original skeleton: one
-// InstancedMesh per vegetation kind, matrices written once, every animation
-// in the vertex shader, zero textures, three draw calls (~150k tris total).
+// The meadow below the horizon — a faithful port of Ebenezer's FluffyGrass
+// recipe (MIT, https://github.com/thebenezer/FluffyGrass — the vendored
+// grass-tuft.glb + alpha texture are his) onto this scene's verified field
+// math. What makes it fluffy, learned the hard way after two failed
+// original attempts: BIG overlapping multi-card tufts (not blades), a soft
+// hand-authored multi-blade alpha texture (not procedural stripes), a
+// near-black base under bright tips so overlap reads as pile depth, and a
+// terrain painted in the same palette so coverage never breaks.
 //
-// Opaque blades on purpose. The previous alpha-card tufts needed DoubleSide +
-// discard + mip-dissolving DataTextures; cards read flat and game-y, and on
-// mobile TBDR GPUs `discard` disables hidden-surface removal for everything
-// behind them. Tapered 4-tri blades with front+back faces baked at flipped
-// winding keep FrontSide culling, full early-z, and no alpha at any distance.
-//
-// All placement math lives in meadowField.ts (pure, shared with vitest and
-// scripts/stacks-meadow-check.ts); this file owns geometry, GLSL, and the
-// per-frame uniform writes — nothing else runs per frame.
+// Layout, fog, and degrade all come from meadowField.ts (pure, shared with
+// vitest and scripts/stacks-meadow-check.ts); this file owns geometry
+// prep, GLSL, and the per-frame uniform writes — nothing else runs per
+// frame. Two grass draws (near lawn = detailed tuft LOD, mid+seated =
+// light LOD) + terrain + flowers = four draw calls.
 import { progressRef } from "../store";
 import { PALETTES } from "../theme";
+import { useGLTF, useTexture } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
@@ -23,38 +24,44 @@ import * as THREE from "three";
 import {
   MEADOW_FLOWER_TOTAL,
   MEADOW_FOG,
-  MEADOW_GRASS_TOTAL,
   MEADOW_RUNG_FLOWERS,
-  MEADOW_RUNG_GRASS,
+  MEADOW_RUNG_GRASS_FAR,
+  MEADOW_RUNG_GRASS_NEAR,
   MEADOW_TERRAIN,
   buildFlowerPositions,
   buildGrassInstances,
   meadowHeight,
 } from "./meadowField";
+import { getSeatAmount } from "./seated";
+
+const TUFT_URL = "/models/grass-tuft.glb";
+const ALPHA_URL = "/images/stacks/grass-tuft-alpha.webp";
 
 // Meadow-only colors — not PALETTES duplicates, so local hexes are
-// legitimate. Authored deep: ACES compresses the upper mids ~3:1, and the
-// screen target is the reference's pastel sage/cream, not lawn green. Dark
-// is a moonlit blue-green with pale silver/lavender flower heads.
+// legitimate. Light theme is FluffyGrass's own palette (deep #313f1b base
+// under minty #9bd38d tips — the dark-under-bright layering IS the fluff);
+// tip B gives patch-scale variation. Dark is the moonlit equivalent.
 const COLORS = {
-  baseL: "#4d6338",
-  tipL: "#b8c48b",
-  baseD: "#131f1a",
-  tipD: "#43584a",
-  flowerA: "#d4789f", // pink, 55%
-  flowerB: "#d9a94e", // yellow, 20%
-  flowerC: "#e6dcc2", // cream, 25%
-  nightA: "#9aa0c4",
-  nightB: "#c0c6d8",
+  baseL: "#313f1b",
+  tipAL: "#9bd38d",
+  tipBL: "#2e5237",
+  baseD: "#0d1710",
+  tipAD: "#3f5a49",
+  tipBD: "#1d2c25",
+  flowerA: "#d977a2", // pink, 55%
+  flowerB: "#dfae52", // yellow, 20%
+  flowerC: "#ece0c6", // cream, 25%
+  nightA: "#7e85a8",
+  nightB: "#9aa0b8",
 } as const;
 
-// Blade profile (geometry is height-normalized so position.y IS the 0→1
-// wind gate): base half-width 0.009 tapering to 0.0016 at the tip.
-const BLADE_BASE_HW = 0.009;
-const BLADE_TIP_HW = 0.0016;
+/** KeyLight's constant direction (eye-relative offset (4, 7, 6) — see
+ * meadowField's bakedSun, which uses the same vector for tufts). */
+const SUN_DIR = new THREE.Vector3(4, 7, 6).normalize();
+
 // Flower quad, world units before instance scale.
-const FLOWER_HW = 0.022;
-const FLOWER_H = 0.044;
+const FLOWER_HW = 0.024;
+const FLOWER_H = 0.048;
 
 // ---------------------------------------------------------------------------
 // Shared GLSL. Hoskins hash-without-sine (the SceneEnvironment idiom —
@@ -78,9 +85,8 @@ const NOISE_GLSL = /* glsl */ `
 // SimonDev-style two-scale traveling wind: a low-frequency direction field,
 // then gust strength and fine breeze that march ALONG the wind so energy
 // visibly travels downwind instead of shimmering in place. Gust is squared
-// for a calm bias — mostly quiet, occasional swells. Returns the lean in
-// radians (XZ plane). uTime-based real seconds, never per-frame deltas —
-// immune to the 120 Hz double-speed trap.
+// for a calm bias. Returns the lean in radians (XZ plane). uTime-based real
+// seconds, never per-frame deltas — immune to the 120 Hz double-speed trap.
 const WIND_GLSL = /* glsl */ `
   vec2 windAt(vec2 pos, float t) {
     float ang = (vnoise(pos * 0.035 + vec2(t * 0.025, 0.0)) - 0.5) * 1.2 - 2.35;
@@ -94,25 +100,40 @@ const WIND_GLSL = /* glsl */ `
 
 // The ONE fog story. Every meadow fragment converges on what the DOME
 // actually renders at the fragment's own view elevation — the skyShadow
-// palette crossfade × the dawn tint (SceneEnvironment dawnTint/dawnLift) ×
-// the below-horizon darkening at that elevation. This is the dark-theme
-// edge fix: below the horizon the dome shows skyShadow-derived color
-// (#1b2233 family), NOT palette.fog #253045 — converging on scene fog left
-// a visible seam at every fogged edge. The dome's ±3% air noise and the
-// light-mode zenith cap never reach e < 0.02, so this reproduces the dome's
-// below-horizon pixel to well under a tonemapped value step.
-//
-// uSeat is deliberately absent: seated, the DC window redraws the dome, but
-// the only meadow surface in that frame is the bank at ≤ ~10% fog weight —
-// everything heavily fogged is out of frame or occluded by the crest.
+// palette crossfade × the dawn tint × the below-horizon darkening
+// (SceneEnvironment:579-583, :607). This is the dark-theme edge fix: below
+// the horizon the dome shows skyShadow-derived color, NOT palette.fog.
+// Seated, the target slides to the Potomac's water color across the bank
+// span, on the same uSeat clock the dome's own DC window rides.
 const DOME_GLSL = /* glsl */ `
   vec3 domeBelow(vec3 worldPos) {
     vec3 shadowC = mix(uShadowL, uShadowD, uDark);
     shadowC *= (vec3(1.0) + vec3(0.050, 0.025, -0.018) * uDawn)
              * (1.0 + uDawn * mix(0.10, 0.17, uDark));
     float e = normalize(worldPos - cameraPosition).y;
-    return shadowC * mix(1.0, mix(0.88, 0.45, uDark), smoothstep(0.02, 0.30, -e));
+    vec3 below = shadowC * mix(1.0, mix(0.88, 0.45, uDark), smoothstep(0.02, 0.30, -e));
+    vec3 water = mix(uDcWaterL, uDcWaterD, uDark);
+    return mix(below, water, uSeat * smoothstep(4.0, 9.0, worldPos.z));
   }
+`;
+
+const SHARED_UNIFORMS_GLSL = /* glsl */ `
+  uniform float uTime;
+  uniform float uDark;
+  uniform float uDawn;
+  uniform float uSeat;
+  uniform float uWindAmp;
+  uniform float uWindSpeed;
+  uniform vec3 uShadowL;
+  uniform vec3 uShadowD;
+  uniform vec3 uDcWaterL;
+  uniform vec3 uDcWaterD;
+  uniform vec3 uBaseL;
+  uniform vec3 uBaseD;
+  uniform vec3 uTipAL;
+  uniform vec3 uTipAD;
+  uniform vec3 uTipBL;
+  uniform vec3 uTipBD;
 `;
 
 // Fog ramps interpolated from meadowField so the shader and the headless
@@ -122,51 +143,41 @@ const GRASS_FOG = `smoothstep(${MEADOW_FOG.grass[0].toFixed(1)}, ${MEADOW_FOG.gr
 const TERRAIN_FOG = `smoothstep(${MEADOW_FOG.terrain[0].toFixed(1)}, ${MEADOW_FOG.terrain[1].toFixed(1)}, -mv.z)`;
 
 const GRASS_VERTEX = /* glsl */ `
-  uniform float uTime;
-  uniform float uDark;
-  uniform float uDawn;
-  uniform float uWindAmp;
-  uniform float uWindSpeed;
-  uniform float uThicken;
-  uniform vec3 uShadowL;
-  uniform vec3 uShadowD;
+  ${SHARED_UNIFORMS_GLSL}
+  attribute float aSun;
   varying float vT;
-  varying float vVar;
+  varying float vSun;
+  varying float vPatch;
   varying float vWind;
   varying float vFog;
+  varying vec2 vUv;
   varying vec3 vFogColor;
   ${NOISE_GLSL}
   ${WIND_GLSL}
   ${DOME_GLSL}
   void main() {
     vec3 origin = vec3(instanceMatrix[3]);
+    // Geometry is height-normalized: position.y IS the 0→1 wind/color gate.
     float t = position.y;
-    // Wind lean gated linearly by height, plus a per-blade resting droop
-    // with a quadratic ease so blades rest bent at the tip, not hinged at
-    // the root. Displacement form (p.xz += bend·y; p.y −= ½|bend|²·y) is the
-    // rigid rotation exact to 2nd order — max total bend ≈ 0.38 rad keeps
-    // the length error under 1% with no per-vertex axis-angle matrices.
+    vec4 world = modelMatrix * instanceMatrix * vec4(position, 1.0);
+    // Wind displaces in WORLD space, after the instance yaw — displacing in
+    // card space rotated every tuft's lean into a different direction and
+    // scrambled the traveling gust front. Quadratic height gate keeps the
+    // roots planted; magnitude scales with the tuft's world height.
     vec2 w = windAt(origin.xz, uTime * uWindSpeed);
-    float dr = hash2(origin.xz * 1.93);
-    vec2 droopDir = normalize(vec2(dr - 0.5, hash2(origin.xz * 3.11) - 0.5) + 1e-4);
-    vec2 bend = w * t + droopDir * (0.10 + 0.14 * dr) * t * t;
-    vec3 p = position;
-    p.xz += bend * position.y;
-    p.y -= 0.5 * dot(bend, bend) * position.y;
-    vec4 world = modelMatrix * instanceMatrix * vec4(p, 1.0);
+    float hScale = length(vec3(instanceMatrix[1]));
+    vec2 disp = w * t * t * hScale;
+    world.x += disp.x;
+    world.z += disp.y;
+    world.y -= 0.4 * dot(disp, disp) / max(hScale, 1e-3);
     vec4 mv = viewMatrix * world;
-    // View-space thickening (SimonDev Quick_Grass): an edge-on opaque blade
-    // is a sub-pixel line that MSAA dissolves into shimmer; when the camera
-    // looks along the blade plane, push the silhouette columns apart in view
-    // space. The smoothstep guard backs the push off again at full edge-on
-    // so the blade cannot tear into two strips.
-    vec3 nV = normalize(normalMatrix * mat3(instanceMatrix) * normal);
-    float vdn = clamp(abs(nV.z), 0.0, 1.0);
-    float thicken = (1.0 - vdn) * (1.0 - vdn) * smoothstep(0.0, 0.2, vdn);
-    mv.x += uThicken * thicken * (uv.x - 0.5) * 0.014 * sign(nV.z);
     vT = t;
-    vVar = hash2(origin.xz * 1.31);
+    vSun = aSun;
+    // Patch-scale tip variation (FluffyGrass drives this with a perlin
+    // texture; low-frequency value noise is the textureless equivalent).
+    vPatch = vnoise(origin.xz * 0.16);
     vWind = length(w);
+    vUv = uv;
     vFog = ${GRASS_FOG};
     vFogColor = domeBelow(world.xyz);
     gl_Position = projectionMatrix * mv;
@@ -174,26 +185,31 @@ const GRASS_VERTEX = /* glsl */ `
 `;
 
 const GRASS_FRAGMENT = /* glsl */ `
-  uniform float uDark;
-  uniform float uDawn;
-  uniform vec3 uBaseL;
-  uniform vec3 uBaseD;
-  uniform vec3 uTipL;
-  uniform vec3 uTipD;
+  ${SHARED_UNIFORMS_GLSL}
+  uniform sampler2D uAlpha;
   varying float vT;
-  varying float vVar;
+  varying float vSun;
+  varying float vPatch;
   varying float vWind;
   varying float vFog;
+  varying vec2 vUv;
   varying vec3 vFogColor;
   void main() {
+    // The tuft texture's red channel is the blade-cluster mask. Boost by
+    // fog so mip-averaging can never thin the far field into stubble.
+    float a = texture2D(uAlpha, vec2(vUv.x, 1.0 - vUv.y)).r;
+    a *= 1.0 + vFog * 1.5;
+    if (a < 0.12) discard;
     vec3 base = mix(uBaseL, uBaseD, uDark);
-    vec3 tip = mix(uTipL, uTipD, uDark);
-    tip = mix(tip, tip * 0.78, vVar * 0.6);
-    vec3 col = mix(base, tip, smoothstep(0.05, 0.95, vT));
-    // The dawn warms the tips as the traverse advances; gusts catch a
-    // subtle sheen on whatever they are currently leaning.
-    col *= 1.0 + vec3(0.055, 0.028, -0.020) * uDawn * vT;
-    col *= 1.0 + vWind * 1.6 * vT * mix(0.35, 0.15, uDark);
+    vec3 tip = mix(mix(uTipAL, uTipBL, vPatch), mix(uTipAD, uTipBD, vPatch), uDark);
+    vec3 col = mix(base, tip, vT);
+    // Baked terrain-normal sun term — lit and shaded hill flanks. The moon
+    // flattens it.
+    col *= 1.0 + (vSun - 0.5) * mix(0.9, 0.35, uDark);
+    // The dawn warms the tips along the traverse (standing down when the
+    // seated DC vista owns the light); gusts catch a soft sheen.
+    col *= 1.0 + vec3(0.055, 0.028, -0.020) * uDawn * vT * (1.0 - uSeat * 0.8);
+    col *= 1.0 + vWind * 1.2 * vT * mix(0.35, 0.15, uDark);
     col = mix(col, vFogColor, vFog);
     gl_FragColor = vec4(col, 1.0);
     #include <tonemapping_fragment>
@@ -202,19 +218,19 @@ const GRASS_FRAGMENT = /* glsl */ `
 `;
 
 const TERRAIN_VERTEX = /* glsl */ `
-  uniform float uDark;
-  uniform float uDawn;
-  uniform vec3 uShadowL;
-  uniform vec3 uShadowD;
+  ${SHARED_UNIFORMS_GLSL}
+  uniform vec3 uSunDir;
   varying vec3 vWorld;
-  varying float vSlope;
+  varying float vSun;
+  varying float vDepth;
   varying float vFog;
   varying vec3 vFogColor;
   ${DOME_GLSL}
   void main() {
     vWorld = position;
-    vSlope = clamp(normal.y, 0.0, 1.0);
+    vSun = 0.5 + 0.5 * dot(normalize(normal), uSunDir);
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    vDepth = -mv.z;
     vFog = ${TERRAIN_FOG};
     vFogColor = domeBelow(position);
     gl_Position = projectionMatrix * mv;
@@ -222,25 +238,28 @@ const TERRAIN_VERTEX = /* glsl */ `
 `;
 
 const TERRAIN_FRAGMENT = /* glsl */ `
-  uniform float uDark;
-  uniform float uDawn;
-  uniform vec3 uBaseL;
-  uniform vec3 uBaseD;
-  uniform vec3 uTipL;
-  uniform vec3 uTipD;
+  ${SHARED_UNIFORMS_GLSL}
   varying vec3 vWorld;
-  varying float vSlope;
+  varying float vSun;
+  varying float vDepth;
   varying float vFog;
   varying vec3 vFogColor;
   ${NOISE_GLSL}
   void main() {
-    float varied = vnoise(vWorld.xz * 0.35);
+    // The carpet: the ground must read as the grass mass's own depths, not
+    // soil — mottled clumps in the SAME palette as the tufts, so coverage
+    // gaps read as shadow between clumps. The finest octave fades with
+    // distance so the carpet never shimmers against its mipless noise.
+    float m1 = vnoise(vWorld.xz * 2.3);
+    float m2 = vnoise(vWorld.xz * 7.1 + 13.0);
+    float m3 = vnoise(vWorld.xz * 21.0 + 47.0) * smoothstep(20.0, 6.0, vDepth);
+    float mott = 0.46 * m1 + 0.34 * m2 + 0.20 * m3;
+    float patchN = vnoise(vWorld.xz * 0.16);
     vec3 base = mix(uBaseL, uBaseD, uDark);
-    // A hair under the blade tips so blades read against the soil.
-    vec3 tip = mix(uTipL, uTipD, uDark) * 0.90;
-    vec3 col = mix(base, tip, 0.25 + 0.5 * varied);
-    col *= mix(0.80, 1.06, vSlope);
-    col *= 1.0 + vec3(0.055, 0.028, -0.020) * uDawn * 0.5;
+    vec3 tip = mix(mix(uTipAL, uTipBL, patchN), mix(uTipAD, uTipBD, patchN), uDark);
+    vec3 col = mix(base, tip * 0.82, 0.18 + 0.55 * mott);
+    col *= 1.0 + (vSun - 0.5) * mix(0.9, 0.35, uDark);
+    col *= 1.0 + vec3(0.055, 0.028, -0.020) * uDawn * 0.5 * (1.0 - uSeat * 0.8);
     col = mix(col, vFogColor, vFog);
     gl_FragColor = vec4(col, 1.0);
     #include <tonemapping_fragment>
@@ -249,18 +268,13 @@ const TERRAIN_FRAGMENT = /* glsl */ `
 `;
 
 const FLOWER_VERTEX = /* glsl */ `
-  uniform float uTime;
-  uniform float uDark;
-  uniform float uDawn;
-  uniform float uWindAmp;
-  uniform float uWindSpeed;
+  ${SHARED_UNIFORMS_GLSL}
   uniform float uPixelScale;
   uniform float uPxFloor;
-  uniform vec3 uShadowL;
-  uniform vec3 uShadowD;
   varying float vTint;
   varying float vClamp;
   varying float vFog;
+  varying vec2 vUv;
   varying vec3 vFogColor;
   ${NOISE_GLSL}
   ${WIND_GLSL}
@@ -275,13 +289,12 @@ const FLOWER_VERTEX = /* glsl */ `
     // Y-billboard: quad x-axis perpendicular to the camera in the XZ plane.
     vec3 p = vec3(position.x * f.y, position.y, -position.x * f.x) * s;
     // Shares the grass wind at reduced amplitude; position.y / quad height
-    // normalizes to the same radians·height product the blades use.
+    // normalizes to the same radians·height product the tufts use.
     vec2 w = windAt(origin.xz, uTime * uWindSpeed) * 0.35;
     p.xz += w * position.y * ${(1 / FLOWER_H).toFixed(2)};
     // Pixel floor: a far head that would project under uPxFloor pixels is
     // scaled up about its own centre to hold that size, and the fragment
-    // dissolves it toward the fog color by the clamped amount instead —
-    // opaque material, so a color dissolve is the only shimmer kill there is.
+    // dissolves it toward the fog color by the clamped amount instead.
     vec3 c = vec3(0.0, ${(FLOWER_H / 2).toFixed(3)} * s, 0.0);
     float depth = -(viewMatrix * vec4(origin + c, 1.0)).z;
     float px = uPixelScale * ${FLOWER_H.toFixed(3)} * s / max(depth, 1e-3);
@@ -291,6 +304,7 @@ const FLOWER_VERTEX = /* glsl */ `
     vec4 mv = viewMatrix * world;
     vTint = hash2(origin.xz * 2.71);
     vClamp = 1.0 - 1.0 / k;
+    vUv = uv;
     vFog = ${GRASS_FOG};
     vFogColor = domeBelow(world.xyz);
     gl_Position = projectionMatrix * mv;
@@ -307,15 +321,22 @@ const FLOWER_FRAGMENT = /* glsl */ `
   varying float vTint;
   varying float vClamp;
   varying float vFog;
+  varying vec2 vUv;
   varying vec3 vFogColor;
   ${NOISE_GLSL}
   void main() {
     vec3 day = vTint < 0.55 ? uFlowerA : (vTint < 0.75 ? uFlowerB : uFlowerC);
     day *= 0.92 + 0.16 * hash2(vec2(vTint, 7.7));
-    // Moonlit silver/lavender — a color crossfade on the shared uDark clock,
-    // in step with the sky's own theme damp.
-    vec3 night = mix(uNightA, uNightB, step(0.5, vTint));
+    // Moonlit lavender, deliberately dim — near-white heads read as paper
+    // scraps at 3:45am. The crossfade rides the shared uDark clock.
+    vec3 night = mix(uNightA, uNightB, step(0.5, vTint)) * 0.65;
     vec3 col = mix(day, night, uDark * 0.85);
+    // Round head via discard — alpha-to-coverage broke under the postfx
+    // composer (non-MSAA target) and canvas-alpha compositing, printing the
+    // full quad. A hard disc with a darkened rim reads soft at these sizes.
+    float r = length(vUv - 0.5) * 2.0;
+    if (r > 0.92) discard;
+    col *= 1.0 - 0.22 * smoothstep(0.30, 0.92, r);
     col = mix(col, vFogColor, max(vFog, vClamp * 0.85));
     gl_FragColor = vec4(col, 1.0);
     #include <tonemapping_fragment>
@@ -324,41 +345,8 @@ const FLOWER_FRAGMENT = /* glsl */ `
 `;
 
 // ---------------------------------------------------------------------------
-// Geometry builders.
 
-/** Opaque tapered blade: 8 verts / 4 tris, height-normalized to 1. Both
- * faces are baked with flipped winding and authored ±Z normals, so the
- * default FrontSide draws the blade from every direction — no DoubleSide,
- * no discard, and mobile TBDR hidden-surface removal stays on. */
-function makeBladeGeometry(): THREE.BufferGeometry {
-  const geometry = new THREE.BufferGeometry();
-  const quad = [
-    -BLADE_BASE_HW, 0, 0,
-    BLADE_BASE_HW, 0, 0,
-    BLADE_TIP_HW, 1, 0,
-    -BLADE_TIP_HW, 1, 0,
-  ];
-  geometry.setAttribute(
-    "position",
-    new THREE.Float32BufferAttribute([...quad, ...quad], 3),
-  );
-  geometry.setAttribute(
-    "normal",
-    new THREE.Float32BufferAttribute(
-      [0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1],
-      3,
-    ),
-  );
-  geometry.setAttribute(
-    "uv",
-    new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1], 2),
-  );
-  geometry.setIndex([0, 1, 2, 0, 2, 3, 4, 6, 5, 4, 7, 6]);
-  return geometry;
-}
-
-/** Flower head: one quad, Y-billboarded in the vertex shader (the camera
- * only ever sees its front face). */
+/** Flower head: one quad, Y-billboarded in the vertex shader. */
 function makeFlowerGeometry(): THREE.BufferGeometry {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute(
@@ -400,7 +388,20 @@ function makeTerrainGeometry(): THREE.PlaneGeometry {
   return geometry;
 }
 
-// ---------------------------------------------------------------------------
+/** Clone a tuft LOD out of the GLB, height-normalized so position.y is the
+ * 0→1 gate (footprint scales along, ~2.5 per unit height), with the
+ * stream's baked per-instance sun term attached. */
+function prepareTuftGeometry(
+  source: THREE.BufferGeometry,
+  sun: Float32Array,
+): THREE.BufferGeometry {
+  const geometry = source.clone();
+  geometry.computeBoundingBox();
+  const maxY = Math.max(geometry.boundingBox!.max.y, 1e-4);
+  geometry.scale(1 / maxY, 1 / maxY, 1 / maxY);
+  geometry.setAttribute("aSun", new THREE.InstancedBufferAttribute(sun, 1));
+  return geometry;
+}
 
 export default function Meadow({
   dark,
@@ -408,34 +409,47 @@ export default function Meadow({
 }: {
   dark: boolean;
   /** Quality rung (3 = full). Maps 1:1 onto MEADOW_RUNG_* counts; the
-   * buffer's rung-stratified order makes each step a uniform density cut
+   * buffers' rung-stratified order makes each step a uniform density cut
    * across every band rather than a depth cut. */
   rung?: 0 | 1 | 2 | 3;
 }) {
-  const grassRef = useRef<THREE.InstancedMesh>(null);
+  const nearRef = useRef<THREE.InstancedMesh>(null);
+  const farRef = useRef<THREE.InstancedMesh>(null);
   const flowerRef = useRef<THREE.InstancedMesh>(null);
   /** Dev-only density override: a 0..1 fraction of the full buffers that
    * beats the rung while set. Never written in production. */
   const densityRef = useRef<number | null>(null);
 
+  const gltf = useGLTF(TUFT_URL, false);
+  const alphaMap = useTexture(ALPHA_URL);
+
+  const streams = useMemo(() => buildGrassInstances(), []);
+
   const built = useMemo(() => {
     const c = (hex: string) => new THREE.Color(hex);
-    // ONE set of uniform holders — the three materials reference the SAME
+    // ONE set of uniform holders — every material references the SAME
     // { value } objects, so each per-frame write updates all of them.
     const shared = {
       uTime: { value: 0 },
       uDark: { value: dark ? 1 : 0 },
       uDawn: { value: 0 },
+      uSeat: { value: 0 },
       uWindAmp: { value: 0.14 },
       uWindSpeed: { value: 0.85 },
-      uThicken: { value: 1.0 },
-      // skyShadow comes from PALETTES — never a duplicated palette hex.
+      // skyShadow/dcWater come from PALETTES — never a duplicated hex.
       uShadowL: { value: c(PALETTES.light.skyShadow) },
       uShadowD: { value: c(PALETTES.dark.skyShadow) },
+      uDcWaterL: { value: c(PALETTES.light.dcWater) },
+      uDcWaterD: { value: c(PALETTES.dark.dcWater) },
       uBaseL: { value: c(COLORS.baseL) },
       uBaseD: { value: c(COLORS.baseD) },
-      uTipL: { value: c(COLORS.tipL) },
-      uTipD: { value: c(COLORS.tipD) },
+      uTipAL: { value: c(COLORS.tipAL) },
+      uTipAD: { value: c(COLORS.tipAD) },
+      uTipBL: { value: c(COLORS.tipBL) },
+      uTipBD: { value: c(COLORS.tipBD) },
+    };
+    const grassOnly = {
+      uAlpha: { value: null as THREE.Texture | null },
     };
     const flowerOnly = {
       uFlowerA: { value: c(COLORS.flowerA) },
@@ -444,23 +458,27 @@ export default function Meadow({
       uNightA: { value: c(COLORS.nightA) },
       uNightB: { value: c(COLORS.nightB) },
       uPixelScale: { value: 1000 },
-      uPxFloor: { value: 1.5 },
+      uPxFloor: { value: 2.0 },
     };
     return {
       shared,
+      grassOnly,
       flowerOnly,
       terrainGeometry: makeTerrainGeometry(),
-      bladeGeometry: makeBladeGeometry(),
       flowerGeometry: makeFlowerGeometry(),
       terrainMaterial: new THREE.ShaderMaterial({
-        uniforms: { ...shared },
+        uniforms: { ...shared, uSunDir: { value: SUN_DIR } },
         vertexShader: TERRAIN_VERTEX,
         fragmentShader: TERRAIN_FRAGMENT,
       }),
+      // The tuft cards face every direction and cut out via discard —
+      // DoubleSide + alpha test is the FluffyGrass technique; the opaque
+      // FrontSide blade experiment is what the owner rejected.
       grassMaterial: new THREE.ShaderMaterial({
-        uniforms: { ...shared },
+        uniforms: { ...shared, ...grassOnly },
         vertexShader: GRASS_VERTEX,
         fragmentShader: GRASS_FRAGMENT,
+        side: THREE.DoubleSide,
       }),
       flowerMaterial: new THREE.ShaderMaterial({
         uniforms: { ...shared, ...flowerOnly },
@@ -472,28 +490,61 @@ export default function Meadow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Instance fill, once. Matrices come out of meadowField's rung-ordered
-  // streams; nothing here is ever rewritten.
+  // Tuft geometries: LOD00 for the near lawn, LOD01 for mid + seated.
+  const tuftGeometries = useMemo(() => {
+    let lod0: THREE.BufferGeometry | null = null;
+    let lod1: THREE.BufferGeometry | null = null;
+    gltf.scene.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      if (o.name.includes("LOD00")) lod0 = mesh.geometry;
+      if (o.name.includes("LOD01")) lod1 = mesh.geometry;
+    });
+    if (!lod0 || !lod1) {
+      throw new Error("grass-tuft.glb is missing its LOD00/LOD01 meshes");
+    }
+    return {
+      near: prepareTuftGeometry(lod0, streams.near.sun),
+      far: prepareTuftGeometry(lod1, streams.far.sun),
+    };
+  }, [gltf, streams]);
+
+  // The alpha mask is data, not color — keep it linear so the threshold
+  // means the same thing the source texture authored.
   useEffect(() => {
-    const grassMesh = grassRef.current;
-    const flowerMesh = flowerRef.current;
-    if (!grassMesh || !flowerMesh) return;
+    alphaMap.colorSpace = THREE.NoColorSpace;
+    alphaMap.needsUpdate = true;
+    built.grassOnly.uAlpha.value = alphaMap;
+  }, [alphaMap, built]);
+
+  // Instance fill, once per stream. Matrices come out of meadowField's
+  // rung-ordered streams; nothing here is ever rewritten.
+  useEffect(() => {
     const matrix = new THREE.Matrix4();
     const quaternion = new THREE.Quaternion();
     const euler = new THREE.Euler();
     const position = new THREE.Vector3();
     const scale = new THREE.Vector3();
-    const grass = buildGrassInstances();
-    for (let i = 0; i < grass.count; i++) {
-      position.set(grass.x[i]!, grass.y[i]!, grass.z[i]);
-      euler.set(0, grass.yaw[i]!, 0);
-      quaternion.setFromEuler(euler);
-      scale.set(grass.width[i]!, grass.height[i]!, grass.width[i]);
-      matrix.compose(position, quaternion, scale);
-      grassMesh.setMatrixAt(i, matrix);
-    }
-    grassMesh.instanceMatrix.needsUpdate = true;
-    grassMesh.computeBoundingSphere();
+    const fill = (
+      mesh: THREE.InstancedMesh | null,
+      stream: typeof streams.near,
+    ) => {
+      if (!mesh) return;
+      for (let i = 0; i < stream.count; i++) {
+        position.set(stream.x[i]!, stream.y[i]!, stream.z[i]);
+        euler.set(0, stream.yaw[i]!, 0);
+        quaternion.setFromEuler(euler);
+        scale.set(stream.width[i]!, stream.height[i]!, stream.width[i]);
+        matrix.compose(position, quaternion, scale);
+        mesh.setMatrixAt(i, matrix);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.computeBoundingSphere();
+    };
+    fill(nearRef.current, streams.near);
+    fill(farRef.current, streams.far);
+    const flowerMesh = flowerRef.current;
+    if (!flowerMesh) return;
     const flowers = buildFlowerPositions();
     quaternion.identity();
     for (let i = 0; i < flowers.count; i++) {
@@ -504,11 +555,11 @@ export default function Meadow({
     }
     flowerMesh.instanceMatrix.needsUpdate = true;
     flowerMesh.computeBoundingSphere();
-  }, []);
+  }, [streams]);
 
   // Live browse knobs on the house dev-hook object. Writes go straight into
-  // the shared uniform holders, so all three materials follow at once;
-  // winning values get baked into the defaults above. Zero production cost.
+  // the shared uniform holders, so every material follows at once; winning
+  // values get baked into the defaults above. Zero production cost.
   useEffect(() => {
     if (process.env.NODE_ENV === "production") return;
     const hooks = window.__stacks;
@@ -516,12 +567,10 @@ export default function Meadow({
     hooks.meadow = (opts) => {
       if (opts?.wind !== undefined) built.shared.uWindAmp.value = opts.wind;
       if (opts?.speed !== undefined) built.shared.uWindSpeed.value = opts.speed;
-      if (opts?.thicken !== undefined) built.shared.uThicken.value = opts.thicken;
       if (opts?.density !== undefined) densityRef.current = opts.density;
       return {
         wind: built.shared.uWindAmp.value,
         speed: built.shared.uWindSpeed.value,
-        thicken: built.shared.uThicken.value,
         density: densityRef.current,
       };
     };
@@ -533,16 +582,17 @@ export default function Meadow({
   useEffect(
     () => () => {
       built.terrainGeometry.dispose();
-      built.bladeGeometry.dispose();
       built.flowerGeometry.dispose();
       built.terrainMaterial.dispose();
       built.grassMaterial.dispose();
       built.flowerMaterial.dispose();
+      tuftGeometries.near.dispose();
+      tuftGeometries.far.dispose();
     },
-    [built],
+    [built, tuftGeometries],
   );
 
-  // The complete per-frame cost: five uniform writes and two count fields.
+  // The complete per-frame cost: six uniform writes and three count fields.
   useFrame(({ clock, gl, camera }, delta) => {
     const shared = built.shared;
     shared.uDark.value = THREE.MathUtils.damp(
@@ -552,35 +602,36 @@ export default function Meadow({
       delta,
     );
     shared.uDawn.value = progressRef.current;
+    // CameraRig writes this every frame while it eases; reading it here
+    // keeps React out of the loop, same as the dome.
+    shared.uSeat.value = getSeatAmount();
     shared.uTime.value = clock.elapsedTime;
     // Pixels per world unit at depth 1 — one multiply per frame buys
-    // resize/dpr safety with no listener. domElement.height is the drawing
-    // buffer (device pixels), which is what the flower px floor measures in.
+    // resize/dpr safety with no listener.
     built.flowerOnly.uPixelScale.value =
       (gl.domElement.height * camera.projectionMatrix.elements[5]) / 2;
     const density = densityRef.current;
-    if (grassRef.current) {
-      grassRef.current.count =
-        density === null
-          ? MEADOW_RUNG_GRASS[rung]
-          : Math.round(MEADOW_GRASS_TOTAL * Math.min(1, Math.max(0, density)));
-    }
-    if (flowerRef.current) {
-      flowerRef.current.count =
-        density === null
-          ? MEADOW_RUNG_FLOWERS[rung]
-          : Math.round(MEADOW_FLOWER_TOTAL * Math.min(1, Math.max(0, density)));
-    }
+    const countFor = (table: readonly number[]) =>
+      density === null
+        ? table[rung]!
+        : Math.round(table[3]! * Math.min(1, Math.max(0, density)));
+    if (nearRef.current) nearRef.current.count = countFor(MEADOW_RUNG_GRASS_NEAR);
+    if (farRef.current) farRef.current.count = countFor(MEADOW_RUNG_GRASS_FAR);
+    if (flowerRef.current) flowerRef.current.count = countFor(MEADOW_RUNG_FLOWERS);
   });
 
-  // Draw order terrain → grass → flowers; all opaque, so three's own
-  // front-to-back object sort keeps early-z doing the overdraw work.
+  // Draw order terrain → grass → flowers.
   return (
     <group>
       <mesh geometry={built.terrainGeometry} material={built.terrainMaterial} />
       <instancedMesh
-        ref={grassRef}
-        args={[built.bladeGeometry, built.grassMaterial, MEADOW_GRASS_TOTAL]}
+        ref={nearRef}
+        args={[tuftGeometries.near, built.grassMaterial, MEADOW_RUNG_GRASS_NEAR[3]]}
+        frustumCulled={false}
+      />
+      <instancedMesh
+        ref={farRef}
+        args={[tuftGeometries.far, built.grassMaterial, MEADOW_RUNG_GRASS_FAR[3]]}
         frustumCulled={false}
       />
       <instancedMesh
@@ -591,3 +642,5 @@ export default function Meadow({
     </group>
   );
 }
+
+useGLTF.preload(TUFT_URL, false);

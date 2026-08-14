@@ -1,7 +1,12 @@
 {
   "generated": "scripts/stacks-models.mjs",
   "note": "All models CC0 except the CC-BY set below, credited in the About placard.",
-  "attributionRequired": ["Zsky", "Poly by Google", "Charlie", "jeremy"],
+  "attributionRequired": [
+    "Zsky",
+    "Poly by Google",
+    "Charlie",
+    "jeremy"
+  ],
   "models": [
     {
       "file": "desk-lamp.glb",
@@ -205,6 +210,13 @@
       "author": "Poly by Google",
       "license": "CC-BY 3.0",
       "source": "https://poly.pizza/m/bD-LseANe2b"
+    },
+    {
+      "file": "grass-tuft.glb",
+      "title": "FluffyGrass tuft LODs (with grass-tuft-alpha.webp)",
+      "author": "Ebenezer (thebenezer)",
+      "license": "MIT",
+      "source": "https://github.com/thebenezer/FluffyGrass"
     }
   ]
 }

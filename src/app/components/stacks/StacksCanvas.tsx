@@ -72,12 +72,11 @@ declare global {
       state: () => Record<string, unknown>;
       node: (name: string) => Record<string, unknown> | null;
       bbox: (name: string) => Record<string, unknown> | null;
-      /** Registered by Meadow in dev: live wind/thicken/density knobs.
+      /** Registered by Meadow in dev: live wind/density knobs.
        * No-arg call returns the current values. */
       meadow?: (opts?: {
         wind?: number;
         speed?: number;
-        thicken?: number;
         density?: number | null;
       }) => Record<string, number | null>;
     };

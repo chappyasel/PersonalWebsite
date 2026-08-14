@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  EAST_FEATHER,
+  FAR_FEATHER,
   FLOWER_LIFT,
   GRASS_BANDS,
   GRASS_ROOT_SINK,
@@ -11,15 +13,24 @@ import {
   MEADOW_RUNG_FLOWERS,
   MEADOW_RUNG_FRACTIONS,
   MEADOW_RUNG_GRASS,
+  MEADOW_RUNG_GRASS_FAR,
+  MEADOW_RUNG_GRASS_NEAR,
   MEADOW_SHELF_CEILING_Y,
   MEADOW_TERRAIN,
   NEAR_FEATHER_ZONE,
   VEGETATION_FRONT_Z,
+  WEST_FEATHER,
   buildFlowerPositions,
   buildGrassInstances,
   clearingScale,
+  eastFeatherScale,
+  farFeatherScale,
+  inEastFeather,
+  inWestFeather,
   meadowHeight,
   ridgeCrestY,
+  unionWestX,
+  westFeatherScale,
 } from "./meadowField";
 import { SEAT_POSE } from "./seated";
 
@@ -31,62 +42,72 @@ describe("rung dial", () => {
   const grass = buildGrassInstances();
   const flowers = buildFlowerPositions();
 
-  it("orders the buffer at the exported rung boundaries", () => {
-    expect(grass.rungCounts).toEqual([...MEADOW_RUNG_GRASS]);
+  it("orders both mesh buffers at the exported rung boundaries", () => {
+    expect(grass.near.rungCounts).toEqual([...MEADOW_RUNG_GRASS_NEAR]);
+    expect(grass.far.rungCounts).toEqual([...MEADOW_RUNG_GRASS_FAR]);
     expect(flowers.rungCounts).toEqual([...MEADOW_RUNG_FLOWERS]);
-    expect(grass.count).toBe(MEADOW_GRASS_TOTAL);
+    expect(grass.near.count + grass.far.count).toBe(MEADOW_GRASS_TOTAL);
     expect(flowers.count).toBe(MEADOW_FLOWER_TOTAL);
     MEADOW_RUNG_FRACTIONS.forEach((frac, i) => {
+      expect(MEADOW_RUNG_GRASS[i]).toBe(
+        MEADOW_RUNG_GRASS_NEAR[i]! + MEADOW_RUNG_GRASS_FAR[i]!,
+      );
       expect(MEADOW_RUNG_GRASS[i]).toBe(Math.round(MEADOW_GRASS_TOTAL * frac));
     });
   });
 
   it("never dials down to bare terrain", () => {
-    expect(MEADOW_RUNG_GRASS[0]).toBeGreaterThan(0);
+    expect(MEADOW_RUNG_GRASS_NEAR[0]).toBeGreaterThan(0);
+    expect(MEADOW_RUNG_GRASS_FAR[0]).toBeGreaterThan(0);
   });
 
   it("draws front-to-back within each rung (early-z)", () => {
-    let start = 0;
-    for (const end of grass.rungCounts) {
-      for (let i = start + 1; i < end; i++) {
-        // Ascending view depth from the rail plane = descending z.
-        expect(grass.z[i]!).toBeLessThanOrEqual(grass.z[i - 1]! + 1e-6);
+    for (const stream of [grass.near, grass.far]) {
+      let start = 0;
+      for (const end of stream.rungCounts) {
+        for (let i = start + 1; i < end; i++) {
+          // Ascending view depth from the rail plane = descending z.
+          expect(stream.z[i]!).toBeLessThanOrEqual(stream.z[i - 1]! + 1e-6);
+        }
+        start = end;
       }
-      start = end;
     }
   });
 
   it("thins every band uniformly at every rung", () => {
-    // A rung prefix must keep all three bands alive at the rung's fraction —
+    // A rung prefix must keep every band alive at the rung's fraction —
     // that is what makes `count` a density dial instead of a depth cut.
-    const bandOf = (z: number) =>
-      z > VEGETATION_FRONT_Z - 0.001 ? "seated" : z > -8.2 ? "near" : "mid";
+    // The far mesh holds two bands (mid + seated); split by z.
     MEADOW_RUNG_FRACTIONS.forEach((frac, ri) => {
-      const counts = { near: 0, mid: 0, seated: 0 };
-      for (let i = 0; i < grass.rungCounts[ri]!; i++) {
-        counts[bandOf(grass.z[i]!)] += 1;
+      expect(grass.near.rungCounts[ri]! / GRASS_BANDS.near.count).toBeCloseTo(
+        frac,
+        2,
+      );
+      let mid = 0;
+      let seated = 0;
+      for (let i = 0; i < grass.far.rungCounts[ri]!; i++) {
+        if (grass.far.z[i]! <= -8.19) mid += 1;
+        else seated += 1;
       }
-      // The z-based classifier miscounts only inside the 0.6-unit
-      // near/seated overlap strip, so hold each band to ±2% of its share.
-      expect(counts.mid / GRASS_BANDS.mid.count).toBeCloseTo(frac, 1);
-      expect(
-        (counts.near + counts.seated) /
-          (GRASS_BANDS.near.count + GRASS_BANDS.seated.count),
-      ).toBeCloseTo(frac, 2);
+      expect(mid / GRASS_BANDS.mid.count).toBeCloseTo(frac, 2);
+      expect(seated / GRASS_BANDS.seated.count).toBeCloseTo(frac, 2);
     });
   });
 });
 
 describe("placement", () => {
   const grass = buildGrassInstances();
+  const streams = [grass.near, grass.far];
   const flowers = buildFlowerPositions();
 
   it("keeps every instance on the terrain rectangle", () => {
-    for (let i = 0; i < grass.count; i++) {
-      expect(grass.x[i]!).toBeGreaterThanOrEqual(MEADOW_TERRAIN.minX);
-      expect(grass.x[i]!).toBeLessThanOrEqual(MEADOW_TERRAIN.maxX);
-      expect(grass.z[i]!).toBeGreaterThanOrEqual(-18.3);
-      expect(grass.z[i]!).toBeLessThanOrEqual(MEADOW_BANK.skirtZ + 1e-6);
+    for (const stream of streams) {
+      for (let i = 0; i < stream.count; i++) {
+        expect(stream.x[i]!).toBeGreaterThanOrEqual(MEADOW_TERRAIN.minX);
+        expect(stream.x[i]!).toBeLessThanOrEqual(MEADOW_TERRAIN.maxX);
+        expect(stream.z[i]!).toBeGreaterThanOrEqual(-18.3);
+        expect(stream.z[i]!).toBeLessThanOrEqual(MEADOW_BANK.skirtZ + 1e-6);
+      }
     }
     for (let i = 0; i < flowers.count; i++) {
       expect(flowers.x[i]!).toBeGreaterThanOrEqual(MEADOW_TERRAIN.minX);
@@ -98,9 +119,12 @@ describe("placement", () => {
 
   it("starts vegetation inside the near-feather zone, below every frame", () => {
     let front = -Infinity;
-    for (let i = 0; i < grass.count; i++) {
-      // Traverse-band front line only — the seated band lives behind the rail.
-      if (grass.z[i]! <= VEGETATION_FRONT_Z) front = Math.max(front, grass.z[i]!);
+    for (const stream of streams) {
+      for (let i = 0; i < stream.count; i++) {
+        // Traverse front line only — the seated band lives behind the rail.
+        if (stream.z[i]! <= VEGETATION_FRONT_Z)
+          front = Math.max(front, stream.z[i]!);
+      }
     }
     expect(front).toBeLessThanOrEqual(NEAR_FEATHER_ZONE.maxZ);
     // The zone itself must sit behind the deepest frame-bottom ground entry
@@ -110,12 +134,16 @@ describe("placement", () => {
     expect(3.25).toBeLessThan(NEAR_FEATHER_ZONE.minZ);
   });
 
-  it("roots blades in the terrain and floats flowers at canopy height", () => {
-    for (let i = 0; i < grass.count; i += 89) {
-      expect(grass.y[i]!).toBeCloseTo(
-        meadowHeight(grass.x[i]!, grass.z[i]!) - GRASS_ROOT_SINK,
-        5,
-      );
+  it("roots tufts in the terrain and floats flowers at canopy height", () => {
+    for (const stream of streams) {
+      for (let i = 0; i < stream.count; i += 47) {
+        expect(stream.y[i]!).toBeCloseTo(
+          meadowHeight(stream.x[i]!, stream.z[i]!) - GRASS_ROOT_SINK,
+          5,
+        );
+        expect(stream.sun[i]!).toBeGreaterThanOrEqual(0);
+        expect(stream.sun[i]!).toBeLessThanOrEqual(1);
+      }
     }
     for (let i = 0; i < flowers.count; i += 7) {
       expect(flowers.y[i]!).toBeCloseTo(
@@ -127,11 +155,16 @@ describe("placement", () => {
 
   it("is deterministic across builds", () => {
     const again = buildGrassInstances();
-    expect(Buffer.from(again.x.buffer).equals(Buffer.from(grass.x.buffer))).toBe(true);
-    expect(Buffer.from(again.z.buffer).equals(Buffer.from(grass.z.buffer))).toBe(true);
-    expect(
-      Buffer.from(again.height.buffer).equals(Buffer.from(grass.height.buffer)),
-    ).toBe(true);
+    for (const [a, b] of [
+      [again.near, grass.near],
+      [again.far, grass.far],
+    ] as const) {
+      expect(Buffer.from(a.x.buffer).equals(Buffer.from(b.x.buffer))).toBe(true);
+      expect(Buffer.from(a.z.buffer).equals(Buffer.from(b.z.buffer))).toBe(true);
+      expect(Buffer.from(a.height.buffer).equals(Buffer.from(b.height.buffer))).toBe(
+        true,
+      );
+    }
     const flowersAgain = buildFlowerPositions();
     expect(
       Buffer.from(flowersAgain.x.buffer).equals(Buffer.from(flowers.x.buffer)),
@@ -139,14 +172,38 @@ describe("placement", () => {
   });
 
   it("clears furniture without ever deleting grass", () => {
-    expect(clearingScale(0, 0)).toBeCloseTo(0.45, 3);
-    expect(clearingScale(-3.5, -0.3)).toBeCloseTo(0.45, 3);
+    expect(clearingScale(0, 0)).toBeCloseTo(0.4, 3);
+    expect(clearingScale(-3.5, -0.3)).toBeCloseTo(0.4, 3);
     expect(clearingScale(10, -10)).toBe(1);
     for (let x = -6; x <= 30; x += 0.7) {
       for (let z = -4; z <= 4; z += 0.7) {
-        expect(clearingScale(x, z)).toBeGreaterThanOrEqual(0.45);
+        expect(clearingScale(x, z)).toBeGreaterThanOrEqual(0.4);
       }
     }
+  });
+
+  it("feathers the western flank instead of cutting it", () => {
+    // The walk phase of the seat transition can face this flank directly,
+    // so the boundary must be a density fade, not a line the check script
+    // would otherwise have to prove unreachable.
+    for (let z = -10; z <= 11; z += 0.9) {
+      const west = unionWestX(z);
+      if (!Number.isFinite(west)) continue;
+      expect(westFeatherScale(west, z)).toBeLessThanOrEqual(0.13);
+      expect(westFeatherScale(west + WEST_FEATHER.span, z)).toBeCloseTo(1, 5);
+      expect(inWestFeather(west, z)).toBe(true);
+      expect(inWestFeather(west + WEST_FEATHER.span + 1, z)).toBe(false);
+    }
+    // The seated band's east flank past the front line fades the same way.
+    for (let z = 5.2; z <= 11; z += 1.1) {
+      const east = SEAT_X + 3.2 + (z - SEAT_Z) * 1.017 + 0.6;
+      expect(eastFeatherScale(east, z)).toBeLessThanOrEqual(0.13);
+      expect(eastFeatherScale(east - EAST_FEATHER.span, z)).toBeCloseTo(1, 5);
+      expect(inEastFeather(east, z)).toBe(true);
+    }
+    // The far line thins out the same way.
+    expect(farFeatherScale(5.8 - 24)).toBeLessThanOrEqual(0.13);
+    expect(farFeatherScale(5.8 - 24 + FAR_FEATHER.span)).toBeCloseTo(1, 5);
   });
 });
 

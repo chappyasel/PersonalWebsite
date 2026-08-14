@@ -46,6 +46,9 @@ import {
   MEADOW_TERRAIN,
   NEAR_FEATHER_ZONE,
   VEGETATION_FRONT_Z,
+  inEastFeather,
+  inFarFeather,
+  inWestFeather,
   meadowHeight,
 } from "../src/app/components/stacks/scene/meadowField";
 import { SEAT_POSE } from "../src/app/components/stacks/scene/seated";
@@ -156,7 +159,13 @@ type Pose = {
   hHalf: number;
   vHalf: number;
   pan: number;
-  seat: boolean;
+  /** Horizontal frustum widening: lean margin for the traverse, lean +
+   * pointer-sway yaw (±0.18 rad, CameraRig seatAim) for the settled seat. */
+  hMargin: number;
+  /** traverse → edge + silhouette/window checks; seat → edge + bank checks;
+   * swing → edge checks only (mid-turn frames have no skyline handoff to
+   * hold to the fade band, but their edges must still be undiscoverable). */
+  mode: "traverse" | "seat" | "swing";
 };
 
 function norm(v: Vec3): Vec3 {
@@ -182,7 +191,8 @@ for (const offset of OFFSETS) {
         hHalf,
         vHalf,
         pan: progress * PAN_SPAN - PAN_BIAS,
-        seat: false,
+        hMargin: H_MARGIN,
+        mode: "traverse",
       });
     }
   }
@@ -201,8 +211,76 @@ for (const aspect of ASPECTS) {
     hHalf: Math.atan(Math.tan(vHalf) * aspect),
     vHalf,
     pan: -PAN_BIAS, // progress 0 at the About stop
-    seat: true,
+    hMargin: 0.18 + H_MARGIN,
+    mode: "seat",
   });
+}
+// Travel↔seat swing, modeled on CameraRig's actual two-phase transition
+// (CameraRig.tsx:405-505): the WALK carries the eye along a quadratic
+// Bezier to a standing point behind the seat while the view turns (turn
+// completes at s = 0.72), and only THEN does the SIT phase widen the fov
+// 33 → 42 while the yaw is already within ~22° of the seat direction. So
+// the wide-fov frustum never looks down the traverse — bracketing every
+// yaw at fov 42 would demand a frame no real camera produces. Walk-phase
+// poses sweep every azimuth the turn can pass at the travel frustum;
+// sit-phase poses use the widened frustum inside the ±0.45 rad yaw cone.
+// These frames have no authored skyline composition — edge rules only.
+{
+  const seatEye = SEAT_POSE.eye;
+  const standZ = seatEye[2] + 0.82; // STAND_BACK
+  const walkVHalf = ((33 / 2) * Math.PI) / 180;
+  const walkHHalf = Math.atan(Math.tan(walkVHalf) * 3.0);
+  for (const startX of [0, -1.2]) {
+    const ctrl: Vec3 = [
+      startX + (seatEye[0] - startX) * 0.15,
+      0.25 + 0.325,
+      5.8 + (standZ - 5.8) * 0.55,
+    ];
+    for (const w of [0.3, 0.6, 0.9]) {
+      const iw = 1 - w;
+      const eye: Vec3 = [
+        iw * iw * startX + 2 * iw * w * ctrl[0] + w * w * seatEye[0],
+        iw * iw * 0.25 + 2 * iw * w * ctrl[1] + w * w * (0.25 + 0.65),
+        iw * iw * 5.8 + 2 * iw * w * ctrl[2] + w * w * standZ,
+      ];
+      for (const az of [-0.5, -0.75, -1.0, 0.75, 0.5].map((f) => Math.PI * f)) {
+        poses.push({
+          name: `swing-walk x${startX} w${w} az${az.toFixed(2)}`,
+          eye,
+          forward: [Math.cos(az), -0.055, Math.sin(az)],
+          hHalf: walkHHalf,
+          vHalf: walkVHalf,
+          pan: -PAN_BIAS,
+          hMargin: H_MARGIN,
+          mode: "swing",
+        });
+      }
+    }
+  }
+  for (const sit of [0.25, 0.5, 0.75]) {
+    const fov = 33 + (SEAT_FOV - 33) * sit;
+    const vHalf = ((fov / 2) * Math.PI) / 180;
+    const eye: Vec3 = [
+      seatEye[0],
+      0.9 + (seatEye[1] - 0.9) * sit,
+      standZ + (seatEye[2] - standZ) * sit,
+    ];
+    // Residual turn yaw decays as the fov opens; the turn arrives from the
+    // WEST, so the residual only ever points that side of the seat aim.
+    const dev = 0.38 * (1 - sit);
+    for (const az of [Math.PI / 2, Math.PI / 2 + dev]) {
+      poses.push({
+        name: `swing-sit s` + sit + ` az` + az.toFixed(2),
+        eye,
+        forward: [Math.cos(az), 0.02, Math.sin(az)],
+        hHalf: Math.atan(Math.tan(vHalf) * 3.0),
+        vHalf,
+        pan: -PAN_BIAS,
+        hMargin: H_MARGIN,
+        mode: "swing",
+      });
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -229,7 +307,7 @@ function project(pose: Pose, p: Vec3): { df: number; inFrustum: boolean } {
   return {
     df,
     inFrustum:
-      Math.abs(Math.atan(dr / df)) <= pose.hHalf + H_MARGIN &&
+      Math.abs(Math.atan(dr / df)) <= pose.hHalf + pose.hMargin &&
       Math.abs(Math.atan(du / df)) <= pose.vHalf + V_MARGIN,
   };
 }
@@ -283,6 +361,7 @@ for (let z = MEADOW_TERRAIN.minZ; z <= MEADOW_TERRAIN.maxZ; z += 0.5) {
 // INSIDE the other band is interior grass, not a boundary (the traverse
 // side edge passes right through the seated band in front of the couch).
 const NEAR_EYE_Z = 5.8;
+const SEATED_Z0 = SEAT_POSE.eye[2] + GRASS_BANDS.seated.d0;
 const seatedHw = (z: number) => 3.2 + (z - SEAT_POSE.eye[2]) * 1.017 + 0.6;
 function inTraverseBand(x: number, z: number): boolean {
   if (z > VEGETATION_FRONT_Z || z < NEAR_EYE_Z - GRASS_BANDS.mid.d1) return false;
@@ -293,9 +372,13 @@ function inTraverseBand(x: number, z: number): boolean {
   );
 }
 function inSeatedBand(x: number, z: number): boolean {
-  if (z < 3.8 || z > MEADOW_BANK.skirtZ) return false;
+  if (z < SEATED_Z0 || z > MEADOW_BANK.skirtZ) return false;
   return Math.abs(x - SEAT_POSE.eye[0]) < seatedHw(z) - 0.05;
 }
+// Boundary samples inside the exported west feather are exempt: the flank
+// fades by density over WEST_FEATHER.span units precisely because the walk
+// phase can face it from arbitrary yaw at close range — there is no line
+// there to discover (vitest pins the feather's shape).
 for (let d = GRASS_BANDS.near.d0; d <= GRASS_BANDS.mid.d1; d += 0.2) {
   const z = NEAR_EYE_Z - d;
   for (const side of [-1, 1]) {
@@ -303,31 +386,30 @@ for (let d = GRASS_BANDS.near.d0; d <= GRASS_BANDS.mid.d1; d += 0.2) {
       side < 0
         ? -1.2 - LATERAL_REACH * d - 0.6
         : TRAVEL_X + LATERAL_REACH * d + 0.6;
-    if (inSeatedBand(x, z)) continue;
+    if (inSeatedBand(x, z) || inWestFeather(x, z) || inFarFeather(z)) continue;
     edgeSamples.push({ p: [x, meadowHeight(x, z), z], kind: "grass" });
   }
 }
-{
-  const zFar = NEAR_EYE_Z - GRASS_BANDS.mid.d1;
-  const half = LATERAL_REACH * GRASS_BANDS.mid.d1 + 0.6;
-  for (let x = -1.2 - half; x <= TRAVEL_X + half; x += 0.5) {
-    edgeSamples.push({ p: [x, meadowHeight(x, zFar), zFar], kind: "grass" });
-  }
-}
+// The far line is a terminal density feather (inFarFeather) — no line to
+// test. Its hard-boundary duty transfers to the feather-shape vitest.
 // Seated band front + side edges (the rear edge is the authored crest,
 // checked in d).
-for (let z = 3.8; z <= MEADOW_BANK.skirtZ; z += 0.2) {
+for (let z = SEATED_Z0; z <= MEADOW_BANK.skirtZ; z += 0.2) {
   for (const side of [-1, 1]) {
     const x = SEAT_POSE.eye[0] + side * seatedHw(z);
-    if (inTraverseBand(x, z)) continue;
+    if (inTraverseBand(x, z) || inWestFeather(x, z) || inEastFeather(x, z))
+      continue;
     edgeSamples.push({ p: [x, meadowHeight(x, z), z], kind: "grass" });
   }
 }
 {
-  const hw = seatedHw(3.8);
+  const hw = seatedHw(SEATED_Z0);
   for (let x = SEAT_POSE.eye[0] - hw; x <= SEAT_POSE.eye[0] + hw; x += 0.5) {
-    if (inTraverseBand(x, 3.8)) continue;
-    edgeSamples.push({ p: [x, meadowHeight(x, 3.8), 3.8], kind: "grass" });
+    if (inTraverseBand(x, SEATED_Z0) || inWestFeather(x, SEATED_Z0)) continue;
+    edgeSamples.push({
+      p: [x, meadowHeight(x, SEATED_Z0), SEATED_Z0],
+      kind: "grass",
+    });
   }
 }
 
@@ -353,7 +435,7 @@ assertOk(
   "(a2) vegetation front line left the near-feather zone",
 );
 let frontLineSeen = false;
-for (const pose of poses.filter((p) => !p.seat)) {
+for (const pose of poses.filter((p) => p.mode === "traverse")) {
   for (let dx = -8; dx <= 8; dx += 0.5) {
     const x = pose.eye[0] + dx;
     const front: Vec3 = [x, meadowHeight(x, VEGETATION_FRONT_Z), VEGETATION_FRONT_Z];
@@ -401,8 +483,8 @@ function silhouetteAt(pose: Pose, phi: number): Silhouette | null {
 
 let fadeBandColumns = 0;
 let swellColumns = 0;
-for (const pose of poses.filter((p) => !p.seat)) {
-  const span = pose.hHalf + H_MARGIN;
+for (const pose of poses.filter((p) => p.mode === "traverse")) {
+  const span = pose.hHalf + pose.hMargin;
   for (let phi = -span; phi <= span; phi += AZ_STEP) {
     const sil = silhouetteAt(pose, phi);
     if (!sil) continue;
@@ -445,28 +527,29 @@ for (const pose of poses.filter((p) => !p.seat)) {
 
 // ---------------------------------------------------------------------------
 // (d) Seated bank silhouette: continuous authored crest, no rectangle end.
-for (const pose of poses.filter((p) => p.seat)) {
-  const span = pose.hHalf + 0.05;
-  const line: Silhouette[] = [];
+for (const pose of poses.filter((p) => p.mode === "seat")) {
+  const span = pose.hHalf + pose.hMargin;
+  const line: { sil: Silhouette; phi: number }[] = [];
   for (let phi = -span; phi <= span; phi += AZ_STEP) {
     const sil = silhouetteAt(pose, phi);
     assertOk(!!sil, `(d) seated column with no terrain at phi ${phi.toFixed(3)} [${pose.name}]`);
-    if (sil) line.push(sil);
+    if (sil) line.push({ sil, phi });
   }
   let flatRun = 0;
   for (let i = 0; i < line.length; i++) {
-    const sil = line[i]!;
-    // The silhouette must be the authored crest — near (unfogged; the
-    // crest line sits ≤ 16.6 out even at the widest fan angle, well under
-    // the 21.2 where grass fog saturates) and at the bank, never the far
-    // skirt or a fogged terrain end.
+    const { sil, phi } = line[i]!;
+    // The silhouette must be the authored crest — at the bank (never the
+    // far skirt or a cut terrain end) and nearly unfogged. Nearness is a
+    // FOG-depth bound: at wide fan angles the crest is radially far but
+    // its view-axis depth (what the fog ramp reads) stays ≈ 10.
+    const fogDepth = sil.s * Math.cos(phi);
     assertOk(
-      sil.z <= MEADOW_BANK.skirtZ + 0.3 && sil.s < 18,
+      sil.z <= MEADOW_BANK.skirtZ + 0.3 && fogDepth < 15,
       `(d) seated silhouette is not the bank crest: (${sil.x.toFixed(1)}, ` +
-        `${sil.z.toFixed(1)}) at ${sil.s.toFixed(1)} out [${pose.name}]`,
+        `${sil.z.toFixed(1)}) fog depth ${fogDepth.toFixed(1)} [${pose.name}]`,
     );
     if (i === 0) continue;
-    const de = Math.abs(sil.e - line[i - 1]!.e);
+    const de = Math.abs(sil.e - line[i - 1]!.sil.e);
     assertOk(
       de < 0.01,
       `(d) seated silhouette jump of ${de.toFixed(4)} rad at column ${i} [${pose.name}]`,
