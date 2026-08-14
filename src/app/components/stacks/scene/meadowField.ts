@@ -830,17 +830,21 @@ export function buildFlowerPositions(
   const groups: RawFlower[][] = [[], []];
 
   for (let s = 0; groups[0]!.length < traverseCount; s++) {
-    // Seed placement — two-lobed depth weighting on [8, ridge.d1]: the main
-    // gaussian keeps the drifts dominating the mid field and sparse in the
-    // near lawn (near heads read huge at the rail); the second lobe carries
-    // them up the horizon ridge's face (owner round 3: "the flowers need to
-    // go all the way into the hills"). Deterministic salted tries stand in
-    // for rejection sampling; a miss keeps its last candidate.
+    // Seed placement — two-lobed depth weighting on [4.8, ridge.d1]: the
+    // main gaussian keeps the drifts dominating the mid field; the second
+    // lobe carries them up the horizon ridge's face (owner round 3: "the
+    // flowers need to go all the way into the hills"); and the 0.16 floor
+    // scatters occasional clumps right through the shelf strip (z −3…1 is
+    // d 4.8…8.8 — "should the flowers come all the way up to the shelves?
+    // ya") at ~a sixth of midfield density, so the furniture sits IN the
+    // flowering meadow without near heads crowding the placards.
+    // Deterministic salted tries stand in for rejection sampling; a miss
+    // keeps its last candidate.
     let x = 0;
     let z = 0;
     for (let t = 0; t < 6; t++) {
-      const d = 8 + rand(s, 61 + t * 7) * (GRASS_BANDS.ridge.d1 - 8);
-      const w = Math.max(gauss(d, 16, 5), 0.8 * gauss(d, 26.5, 3));
+      const d = 4.8 + rand(s, 61 + t * 7) * (GRASS_BANDS.ridge.d1 - 4.8);
+      const w = Math.max(gauss(d, 16, 5), 0.8 * gauss(d, 26.5, 3), 0.16);
       if (rand(s, 62 + t * 7) > w) continue;
       z = TRAVERSE_EYE.z - d;
       const [x0, x1] = clippedTraverseXRange(d);
@@ -865,7 +869,7 @@ export function buildFlowerPositions(
       // near a band boundary cannot leak a head past the proven extents.
       const d = clamp(
         TRAVERSE_EYE.z - (z + clusterOffset(i, 76)),
-        8,
+        4.8,
         GRASS_BANDS.ridge.d1,
       );
       const hz = TRAVERSE_EYE.z - d;

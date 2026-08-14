@@ -357,6 +357,8 @@ const FLOWER_VERTEX = /* glsl */ `
   uniform float uPxFloor;
   attribute float aTint;
   varying float vTint;
+  varying float vSpin;
+  varying float vPx;
   varying float vClamp;
   varying float vLamp;
   varying float vFog;
@@ -394,6 +396,9 @@ const FLOWER_VERTEX = /* glsl */ `
     // clump, one color) rather than a position hash, which speckled every
     // cluster into a color mix.
     vTint = aTint;
+    // Per-head petal rotation + projected size, for the fragment's rosette.
+    vSpin = hash2(origin.xz * 43.7) * 6.2832;
+    vPx = px;
     vClamp = 1.0 - 1.0 / k;
     vLamp = lampPool(origin);
     vUv = uv;
@@ -415,6 +420,8 @@ const FLOWER_FRAGMENT = /* glsl */ `
   uniform vec3 uNightA;
   uniform vec3 uNightB;
   varying float vTint;
+  varying float vSpin;
+  varying float vPx;
   varying float vClamp;
   varying float vLamp;
   varying float vFog;
@@ -428,12 +435,28 @@ const FLOWER_FRAGMENT = /* glsl */ `
     // scraps at 3:45am. The crossfade rides the shared uDark clock.
     vec3 night = mix(uNightA, uNightB, step(0.5, vTint)) * 0.65;
     vec3 col = mix(day, night, uDark * 0.85);
-    // Round head via discard — alpha-to-coverage broke under the postfx
-    // composer (non-MSAA target) and canvas-alpha compositing, printing the
-    // full quad. A hard disc with a darkened rim reads soft at these sizes.
-    float r = length(vUv - 0.5) * 2.0;
-    if (r > 0.92) discard;
+    // Petal rosette via discard (round 3: "clearly just circles") —
+    // alpha-to-coverage broke under the postfx composer (non-MSAA target)
+    // and canvas-alpha compositing, printing the full quad, so the shape
+    // stays a hard discard mask. Cost over the old disc: one atan + one
+    // cos per covered fragment, on a few thousand centimetre-scale quads —
+    // nothing. Cornflowers get 6 lobes, poppies/daisies 5, each head spun
+    // by its own hash. The silhouette collapses back to the plain disc as
+    // the head shrinks toward the pixel floor, so far drifts stay calm
+    // dots instead of shimmering stars.
+    vec2 pq = (vUv - 0.5) * 2.0;
+    float r = length(pq);
+    float theta = atan(pq.y, pq.x) + vSpin;
+    float lobes = vTint < 0.55 ? 6.0 : 5.0;
+    float lobe = pow(0.5 + 0.5 * cos(lobes * theta), 0.65);
+    float shape = smoothstep(7.0, 16.0, vPx);
+    float petalR = mix(0.86, 0.30 + 0.62 * lobe, shape);
+    if (r > max(petalR, 0.32)) discard;
     col *= 1.0 - 0.22 * smoothstep(0.30, 0.92, r);
+    // Stamen — a warm eye in each head, dimming with the night. Fades in
+    // with the petal shape so far dots keep their pure species color.
+    vec3 stamen = mix(vec3(0.96, 0.80, 0.34), vec3(0.55, 0.53, 0.45), uDark * 0.85);
+    col = mix(col, stamen, (1.0 - smoothstep(0.14, 0.30, r)) * shape);
     col += ${LAMP_WARM} * vLamp * mix(0.06, 0.20, uDark);
     col = mix(col, vFogColor, max(vFog, vClamp * 0.85));
     gl_FragColor = vec4(col, 1.0);
