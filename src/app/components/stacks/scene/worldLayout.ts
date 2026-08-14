@@ -2,6 +2,8 @@
 // No three.js imports so DOM-side modules can share the math.
 import { UNIT_COUNT } from "../data";
 
+import { SHELF_GEOMETRY } from "./shelfGeometry";
+
 export const UNIT_SPACING = 4.4;
 /** The reading dock needs enough horizontal room to coexist with a complete
  * unit. Below this width the sheet/compact rail preserve the scene instead.
@@ -31,20 +33,6 @@ export const TRAVEL_RANGE_X = TRAVEL_X + TRAVEL_LEAD_IN;
 
 export function cameraXForScrollOffset(offset: number) {
   return offset * TRAVEL_RANGE_X - TRAVEL_LEAD_IN;
-}
-
-/** How far right of unit 0's shelf the ABOUT STOP rests, by aspect — the
- * "move the initial scene" fix (owner round 2, item 8). At the old stop
- * (camera x 0) a 16:9 frame put the couch's right edge exactly at the left
- * frame edge, so any leftward pointer sway slid it under the nav rail. The
- * resting camera now shifts right with aspect: the couch plus its full
- * ±0.45 look-sway excursion stays off-frame left of the rail, while the
- * About shelf's left edge stays right of the rail's column, at every
- * desktop aspect from 1200px squares to 21:9. The nav itself has NOT
- * moved — the scene did. Mobile chrome has no left rail; callers pass the
- * shift only on ≥1200px viewports. */
-export function aboutStopShift(aspect: number): number {
-  return Math.min(1.5, Math.max(0, 1.4 * (aspect - 1.35)));
 }
 
 export function scrollOffsetForUnit(unit: number, aboutShift = 0) {
@@ -84,3 +72,44 @@ export const unitPose = (i: number) =>
     position: [i * UNIT_SPACING, 0, i % 2 === 0 ? 0 : -0.55],
     rotation: [0, i % 2 === 0 ? 0.1 : -0.12, 0],
   }) as const;
+
+// Left edge of unit 0's shelf in world space: (−width/2, 0) through the
+// unit's +0.10 yaw. The one scene anchor the About stop is solved against.
+const aboutYaw = unitPose(0).rotation[1];
+const ABOUT_SHELF_LEFT = {
+  x: (-SHELF_GEOMETRY.width / 2) * Math.cos(aboutYaw),
+  z: (SHELF_GEOMETRY.width / 2) * Math.sin(aboutYaw),
+} as const;
+
+/** Clear air between the rail's widest label and the projected shelf edge. */
+export const RAIL_SHELF_MARGIN_PX = 24;
+
+/** How far right of unit 0's shelf the ABOUT STOP rests — the "move the
+ * initial scene" fix (owner round 2, item 8, refined at review). The nav
+ * does not move; the resting camera slides right until the About shelf's
+ * projected LEFT edge sits RAIL_SHELF_MARGIN_PX right of the rail's widest
+ * row ("Featured Talks", measured live by UnitRail into railRightPxRef) —
+ * the nav lands in the couch–shelf gap with a constant margin at every
+ * desktop viewport, and the couch (which needs far less) clears the frame
+ * as a side effect. Solved from the same projection the placard peek uses:
+ *   frac = 0.5 + ((worldX − camX)/(camZ − worldZ)) · 0.5/tan(hHalf).
+ * The cap keeps the stop well left of the unit-boundary midpoint (2.2), so
+ * activeUnit can never round to 1 at rest; the floor keeps square-ish
+ * viewports on the authored stop (where the gap cannot fit the rail —
+ * status quo). Mobile chrome has no left rail; callers pass the shift only
+ * on ≥1200px viewports. */
+export function aboutStopShift(
+  vw: number,
+  vh: number,
+  railRightPx: number,
+): number {
+  const aspect = vw / vh;
+  const cam = cameraForAspect(aspect);
+  const vHalf = ((cam.fov / 2) * Math.PI) / 180;
+  const tanH = Math.tan(vHalf) * aspect;
+  const frac = (railRightPx + RAIL_SHELF_MARGIN_PX) / vw;
+  const camX =
+    ABOUT_SHELF_LEFT.x -
+    (frac - 0.5) * (cam.z - ABOUT_SHELF_LEFT.z) * 2 * tanH;
+  return Math.min(2.0, Math.max(0, camX));
+}

@@ -10,8 +10,13 @@
 // rail used to carry a second, shorter set of names that disagreed with the
 // placards they led to.
 import { UNITS, UNIT_COUNT } from "../data";
-import { closeStacksPanel, progressRef, useStacks } from "../store";
-import { useEffect, useRef } from "react";
+import {
+  closeStacksPanel,
+  progressRef,
+  railRightPxRef,
+  useStacks,
+} from "../store";
+import { useEffect, useLayoutEffect, useRef } from "react";
 
 /** Desktop row height, in rem. The rows are `h-9` and the travelling thumb
  * translates by this per unit, so the two must agree — one number, used
@@ -24,6 +29,28 @@ const MOBILE_STEP_REM = 2.75;
 export default function UnitRail() {
   const activeUnit = useStacks((s) => s.activeUnit);
   const thumbRef = useRef<HTMLDivElement>(null);
+  const railRef = useRef<HTMLElement>(null);
+
+  // Publish the rail's measured right edge (its widest row is "Featured
+  // Talks") for CameraRig's About-stop solver: the initial framing slides
+  // right until the shelf's projected left edge clears this by a margin.
+  // Measured, not assumed — label widths move with the serif font's swap-in
+  // and with root type-size changes, hence the fonts.ready re-measure.
+  useLayoutEffect(() => {
+    const measure = () => {
+      const nav = railRef.current;
+      if (!nav) return;
+      const rect = nav.getBoundingClientRect();
+      railRightPxRef.current = rect.width > 0 ? rect.right : 0;
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    void document.fonts?.ready.then(measure);
+    return () => {
+      window.removeEventListener("resize", measure);
+      railRightPxRef.current = 0;
+    };
+  }, []);
 
   useEffect(() => {
     let raf = 0;
@@ -136,6 +163,7 @@ export default function UnitRail() {
       `}</style>
       {/* Desktop: vertical labeled rail */}
       <nav
+        ref={railRef}
         aria-label="Sections"
         className="pointer-events-auto absolute left-5 top-1/2 z-30 hidden -translate-y-1/2 min-[1200px]:left-7 min-[1200px]:block"
       >

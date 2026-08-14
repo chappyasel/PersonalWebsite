@@ -16,6 +16,7 @@ import { ContactShade } from "./GroundPool";
 import HeldFacing from "./HeldFacing";
 import Lift, { HOVER_MOTION_SCALE, LIFT_LAMBDA } from "./Lift";
 import LitImage from "./LitImage";
+import { registerMeadowLamp } from "./meadowLights";
 import {
   bookRowHoverKey,
   bookRowNodeName,
@@ -1819,6 +1820,7 @@ export function LampGlow({
   reach = 1,
   aimOffset = [0, 0, 0],
   spillScale = 1,
+  meadowId,
 }: {
   palette: Palette;
   litRef?: { current: number };
@@ -1834,6 +1836,12 @@ export function LampGlow({
    * task lamp aimed at nearby metal needs the cone—not the bulb-adjacent
    * fill—to define the pool's brightest point. */
   spillScale?: number;
+  /** Register this lamp's overspill with the unlit meadow (meadowLights).
+   * The pool is anchored where the CONE lands, not under the base: the ray
+   * from the mouth through the aim target is continued to the lawn plane,
+   * so an angled task lamp warms the grass on the side it points at
+   * (owner: "the grass light isn't factoring in the directionality"). */
+  meadowId?: string;
 }) {
   const spotRef = useRef<THREE.SpotLight>(null);
   const targetRef = useRef<THREE.Object3D>(null);
@@ -1842,7 +1850,26 @@ export function LampGlow({
   useEffect(() => {
     if (spotRef.current && targetRef.current)
       spotRef.current.target = targetRef.current;
-  }, []);
+    if (!meadowId || !spotRef.current || !targetRef.current) return;
+    const mouth = new THREE.Vector3();
+    const aim = new THREE.Vector3();
+    spotRef.current.getWorldPosition(mouth);
+    targetRef.current.getWorldPosition(aim);
+    aim.sub(mouth);
+    // Continue the beam to the lawn (y ≈ −1.1). A near-horizontal aim would
+    // send the intersection to the horizon, so the throw is capped — past
+    // that the overspill is too diffuse to anchor anywhere specific.
+    const t =
+      aim.y < -1e-3 ? Math.min((-1.1 - mouth.y) / aim.y, 5) : 2;
+    return registerMeadowLamp(meadowId, {
+      x: mouth.x + aim.x * t,
+      y: -1.1,
+      z: mouth.z + aim.z * t,
+      radius: 1.15,
+      strength: 0.45,
+      litRef: litRef ?? { current: 1 },
+    });
+  }, [meadowId, litRef]);
   return (
     <group>
       {/* The fabric, lit from inside. */}

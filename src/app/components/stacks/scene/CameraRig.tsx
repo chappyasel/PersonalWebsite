@@ -9,6 +9,7 @@ import {
   INERT_HOVER,
   panelCoverageRef,
   progressRef,
+  railRightPxRef,
   useStacks,
 } from "../store";
 import { useScroll } from "@react-three/drei";
@@ -87,15 +88,21 @@ const SEAT_TRAVEL_TOLERANCE = 0.0015;
 
 const UP = new THREE.Vector3(0, 1, 0);
 
-/** The About stop's aspect-dependent rest shift ("move the initial scene",
- * round 2). Read from the live window each call rather than captured — the
- * scroll-element effect outlives resizes. Mobile chrome has no left rail,
- * so below the desktop seam the stop stays on the shelf's centre line. */
+/** The About stop's rest shift ("move the initial scene", round 2): solved
+ * so the projected shelf edge clears the rail's measured widest row. Read
+ * from the live window and railRightPxRef each call rather than captured —
+ * the scroll-element effect outlives resizes and font swaps. Mobile chrome
+ * has no left rail, so below the desktop seam the stop stays on the
+ * shelf's centre line. 210px stands in until UnitRail's first measurement
+ * lands (its layout effect runs before this frame in practice). */
 function currentAboutShift(): number {
   if (typeof window === "undefined") return 0;
-  return window.innerWidth >= STACKS_DESKTOP_MIN_WIDTH
-    ? aboutStopShift(window.innerWidth / window.innerHeight)
-    : 0;
+  if (window.innerWidth < STACKS_DESKTOP_MIN_WIDTH) return 0;
+  return aboutStopShift(
+    window.innerWidth,
+    window.innerHeight,
+    railRightPxRef.current || 210,
+  );
 }
 
 export default function CameraRig() {

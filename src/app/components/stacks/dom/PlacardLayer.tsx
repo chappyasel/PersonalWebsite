@@ -2156,9 +2156,9 @@ export default function PlacardLayer({
            — up on light, down on dark — which buys contrast without buying
            opacity. It is kept gentle on purpose: measured on the real scene,
            1.6 on light clipped 42% of the glass to flat white, which costs
-           more scene colour than the extra transparency wins back. 1.32
-           matches the sheet (raised from 1.25 in the same round-2 pass —
-           the grey cast the owner flagged was under-brightness, not fill).
+           more scene colour than the extra transparency wins back. 1.45
+           matches the sheet (raised from 1.25 across round 2 — the grey
+           cast the owner flagged was under-brightness, not fill).
 
            Measured against the real scene, this set holds body copy above
            the 4.5:1 AA floor in both themes — no worse than the near-opaque
@@ -2167,7 +2167,7 @@ export default function PlacardLayer({
           --plate-alpha: 0.70;
           --plate-blur: 80px;
           --plate-sat: 0.35;
-          --plate-bright: 1.32;
+          --plate-bright: 1.45;
         }
         /* Dark can afford to be thinner: light text on a dark room starts
            around 9:1, so the fill is doing far less legibility work there
@@ -2198,8 +2198,10 @@ export default function PlacardLayer({
            deliberate, see the fill notes above) keeps the global warm
            reading palette from reintroducing a cast here. Once neutral,
            the fill can also be thinner without turning the sheet yellow
-           again. Light brightness sits at 1.32 (round 2 — 1.18 left the
-           sheet reading grey over the meadow).
+           again. Light brightness sits at 1.45 over a 0.32 white fill
+           (round 2, twice: 1.18 read grey over the meadow, and the first
+           bump to 1.32 was still "muted / not white enough" on the
+           owner's phone).
 
            The sheet is the ONLY glass on mobile (the cards inside it have
            their own backdrop-filter stripped, since one blur cannot sample
@@ -2210,10 +2212,10 @@ export default function PlacardLayer({
            element's OWN transform, and an element's own transform does not
            cut it off from the backdrop behind its parent. */
         .stacks-sheet {
-          --sheet-fill: rgb(255 255 255 / 0.24);
+          --sheet-fill: rgb(255 255 255 / 0.32);
           background-color: var(--sheet-fill);
-          backdrop-filter: blur(58px) saturate(0.35) brightness(1.32);
-          -webkit-backdrop-filter: blur(58px) saturate(0.35) brightness(1.32);
+          backdrop-filter: blur(58px) saturate(0.35) brightness(1.45);
+          -webkit-backdrop-filter: blur(58px) saturate(0.35) brightness(1.45);
         }
         @media (prefers-reduced-motion: reduce) {
           [data-stacks-desktop-panel] {

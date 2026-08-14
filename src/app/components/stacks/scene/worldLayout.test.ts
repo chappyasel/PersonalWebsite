@@ -44,15 +44,19 @@ describe("About lead-in", () => {
     expect(cameraXForScrollOffset(scrollOffsetForUnit(0))).toBeCloseTo(0, 10);
   });
 
-  it("shifts the About REST right with aspect so the nav sits in the couch–shelf gap", () => {
-    // Square-ish desktops keep the authored stop; wide frames slide the
-    // resting camera right so the couch (plus its ±0.45 look sway) stays
-    // off-frame left of the static rail. Only unit 0's stop moves.
-    expect(aboutStopShift(1.0)).toBe(0);
-    expect(aboutStopShift(1.35)).toBe(0);
-    expect(aboutStopShift(16 / 9)).toBeCloseTo(1.4 * (16 / 9 - 1.35), 10);
-    expect(aboutStopShift(3.5)).toBe(1.5); // 21:9 and beyond cap out
-    const shift = aboutStopShift(16 / 9);
+  it("solves the About REST so the shelf edge clears the rail's widest label", () => {
+    // 2000×1250 with the rail's right edge measured at 198px: the camera
+    // slides right until the projected shelf left edge sits 24px past the
+    // label — about x 0.78. Only unit 0's stop moves.
+    const shift = aboutStopShift(2000, 1250, 198);
+    expect(shift).toBeGreaterThan(0.7);
+    expect(shift).toBeLessThan(0.9);
+    // Wider frames ask for more; the cap keeps the rest left of the unit
+    // boundary midpoint (2.2) so activeUnit can never round to 1 at rest.
+    expect(aboutStopShift(3440, 1440, 198)).toBe(2.0);
+    // Square-ish viewports floor at the authored stop (status quo — the
+    // gap physically cannot fit the rail there).
+    expect(aboutStopShift(1200, 1200, 198)).toBe(0);
     expect(
       cameraXForScrollOffset(scrollOffsetForUnit(0, shift)),
     ).toBeCloseTo(shift, 10);

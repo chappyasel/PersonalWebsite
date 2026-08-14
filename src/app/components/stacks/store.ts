@@ -13,6 +13,14 @@ import type { Book } from "~/lib/books/types";
 
 export const progressRef = { current: 0 };
 
+/** Right edge of the desktop unit rail's widest row, in CSS px — written by
+ * UnitRail's measurement effect (and re-written after font swaps/resizes),
+ * read by CameraRig to solve the About stop so the projected shelf edge
+ * clears "Featured Talks" by a margin. Transient: it participates in the
+ * per-frame initial-sync loop and must never re-render React. 0 = not yet
+ * measured (CameraRig falls back to a conservative estimate). */
+export const railRightPxRef = { current: 0 };
+
 /** Fraction of the viewport height the mobile sheet is currently covering,
  * 0 when it is away and ~0.9 when it is expanded. Transient for the same
  * reason as `progressRef`: it changes on every frame of a drag, and the camera
