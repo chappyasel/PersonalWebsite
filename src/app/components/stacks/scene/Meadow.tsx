@@ -57,7 +57,11 @@ const COLORS = {
   // them"): more chroma survives the fog mix and the pale lawn behind.
   flowerA: "#5b76d6", // cornflower blue, 55% (owner round 2)
   flowerB: "#e0862f", // poppy orange, 20%
-  flowerC: "#ece0c6", // cream, 25%
+  flowerC: "#ece0c6", // cream, 17%
+  // The top 8% of the tint range renders as SEED HEADS — slim wheat tips
+  // instead of rosettes — so some "flower" clumps read as dry grass gone
+  // to seed, which breaks up the candy of an all-bloom field.
+  seed: "#d9c893",
   // Night heads: dim but SATURATED (round-3 third pass: "too bright and
   // not vibrant enough in dark mode") — moonlit cornflower and violet
   // rather than the old grey lavenders.
@@ -232,6 +236,7 @@ const GRASS_VERTEX = /* glsl */ `
   varying float vWind;
   varying float vLamp;
   varying float vCloud;
+  varying float vDew;
   varying float vFog;
   varying vec2 vUv;
   varying vec3 vFogColor;
@@ -277,6 +282,8 @@ const GRASS_VERTEX = /* glsl */ `
     vWind = length(w);
     vLamp = lampPool(origin);
     vCloud = cloudAt(origin.xz);
+    // ~2% of tufts carry a dew twinkle while the light is young.
+    vDew = step(0.98, vnoise(origin.xz * 91.7));
     vUv = uv;
     vFog = fogAmount(${GRASS_FOG}, world.xyz, -mv.z);
     vFogColor = domeBelow(world.xyz);
@@ -294,6 +301,7 @@ const GRASS_FRAGMENT = /* glsl */ `
   varying float vWind;
   varying float vLamp;
   varying float vCloud;
+  varying float vDew;
   varying float vFog;
   varying vec2 vUv;
   varying vec3 vFogColor;
@@ -320,6 +328,12 @@ const GRASS_FRAGMENT = /* glsl */ `
     col *= 1.0 + vWind * 1.2 * vT * mix(0.35, 0.15, uDark);
     // Passing cloud shade.
     col *= vCloud;
+    // Dawn dew: the marked tufts twinkle slowly on their tips in light
+    // mode, strongest early in the traverse (uDawn low) — reads as wet
+    // grass catching first light, gone by night and by full dawn warmth.
+    col += vec3(0.9, 0.95, 1.0) * vDew * vT * vT
+         * pow(0.5 + 0.5 * sin(uTime * 1.1 + vPatch * 47.0), 24.0)
+         * (1.0 - uDark) * (1.0 - uDawn * 0.6) * 0.35;
     // Moonlight: a cool silver lift on the tips plus a traveling glint
     // where gusts bend them — the night lawn reads MOONLIT rather than
     // merely dark. Additive but tiny; stays far under the bloom knee.
@@ -481,6 +495,7 @@ const FLOWER_FRAGMENT = /* glsl */ `
   uniform vec3 uFlowerA;
   uniform vec3 uFlowerB;
   uniform vec3 uFlowerC;
+  uniform vec3 uSeed;
   uniform vec3 uNightA;
   uniform vec3 uNightB;
   varying float vTint;
@@ -493,7 +508,10 @@ const FLOWER_FRAGMENT = /* glsl */ `
   varying vec3 vFogColor;
   ${NOISE_GLSL}
   void main() {
-    vec3 day = vTint < 0.55 ? uFlowerA : (vTint < 0.75 ? uFlowerB : uFlowerC);
+    bool seedHead = vTint >= 0.92;
+    vec3 day = vTint < 0.55
+      ? uFlowerA
+      : (vTint < 0.75 ? uFlowerB : (seedHead ? uSeed : uFlowerC));
     day *= 0.92 + 0.16 * hash2(vec2(vTint, 7.7));
     // Moonlit lavender, deliberately dim — near-white heads read as paper
     // scraps at 3:45am. The crossfade rides the shared uDark clock.
@@ -513,17 +531,25 @@ const FLOWER_FRAGMENT = /* glsl */ `
     // dots instead of shimmering stars.
     vec2 pq = (vUv - 0.5) * 2.0;
     float r = length(pq);
-    float theta = atan(pq.y, pq.x) + vSpin;
-    float lobes = vTint < 0.55 ? 6.0 : 5.0;
-    float lobe = pow(0.5 + 0.5 * cos(lobes * theta), 0.65);
-    float shape = smoothstep(7.0, 16.0, vPx);
-    float petalR = mix(0.86, 0.30 + 0.62 * lobe, shape);
-    if (r > max(petalR, 0.32)) discard;
-    col *= 1.0 - 0.22 * smoothstep(0.30, 0.92, r);
-    // Stamen — a warm eye in each head, dimming with the night. Fades in
-    // with the petal shape so far dots keep their pure species color.
-    vec3 stamen = mix(vec3(0.96, 0.80, 0.34), vec3(0.38, 0.37, 0.32), uDark * 0.94);
-    col = mix(col, stamen, (1.0 - smoothstep(0.14, 0.30, r)) * shape);
+    if (seedHead) {
+      // Slim upright wheat tip: a tall ellipse, shaded toward its edge —
+      // no petals, no stamen, no spin (seed heads stand, not turn).
+      float re = length(vec2(pq.x / 0.3, pq.y / 0.95));
+      if (re > 1.0) discard;
+      col *= 1.0 - 0.25 * smoothstep(0.2, 1.0, re);
+    } else {
+      float theta = atan(pq.y, pq.x) + vSpin;
+      float lobes = vTint < 0.55 ? 6.0 : 5.0;
+      float lobe = pow(0.5 + 0.5 * cos(lobes * theta), 0.65);
+      float shape = smoothstep(7.0, 16.0, vPx);
+      float petalR = mix(0.86, 0.30 + 0.62 * lobe, shape);
+      if (r > max(petalR, 0.32)) discard;
+      col *= 1.0 - 0.22 * smoothstep(0.30, 0.92, r);
+      // Stamen — a warm eye in each head, dimming with the night. Fades in
+      // with the petal shape so far dots keep their pure species color.
+      vec3 stamen = mix(vec3(0.96, 0.80, 0.34), vec3(0.38, 0.37, 0.32), uDark * 0.94);
+      col = mix(col, stamen, (1.0 - smoothstep(0.14, 0.30, r)) * shape);
+    }
     col += ${LAMP_WARM} * vLamp * mix(0.06, 0.20, uDark);
     col = mix(col, vFogColor, max(vFog, vClamp * 0.85));
     gl_FragColor = vec4(col, 1.0);
@@ -666,6 +692,7 @@ export default function Meadow({
       uFlowerA: { value: c(COLORS.flowerA) },
       uFlowerB: { value: c(COLORS.flowerB) },
       uFlowerC: { value: c(COLORS.flowerC) },
+      uSeed: { value: c(COLORS.seed) },
       uNightA: { value: c(COLORS.nightA) },
       uNightB: { value: c(COLORS.nightB) },
       uPixelScale: { value: 1000 },
