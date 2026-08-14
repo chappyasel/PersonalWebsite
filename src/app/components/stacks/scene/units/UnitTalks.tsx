@@ -271,6 +271,7 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
       y: mouth.y + SHADE_BOTTOM_Y - 0.017,
       z: mouth.z,
       radius: 2.2,
+      strength: 1,
       litRef: lit,
     });
   }, [index]);

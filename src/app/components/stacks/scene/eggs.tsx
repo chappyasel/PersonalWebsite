@@ -10,12 +10,13 @@
 import { useStacks } from "../store";
 import { type Palette } from "../theme";
 import { type ThreeEvent, useFrame } from "@react-three/fiber";
-import React, { useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { FootPool } from "./GroundPool";
 import ModelProp, { SPIN_NODE } from "./ModelProp";
 import { type Island, extractTriangles, findIslands } from "./islands";
+import { registerMeadowLamp } from "./meadowLights";
 import { ClockFace, type ClockFaceStyle, type ClockSweep } from "./objects";
 import { LampGlow } from "./primitives";
 
@@ -234,6 +235,27 @@ export function EggLamp({
   spillScale?: number;
 }) {
   const lit = useRef(1);
+  // Every desk lamp also spills into the meadow (owner: "should these kinda
+  // lights also cast into the grass?" — yes). The registered pool is small
+  // and dim — a plank lamp's overspill, not the floor lamp's stage pool —
+  // and it rides the same lit ref, so clicking the lamp off darkens the
+  // grass with the shade. Position is measured from the mounted group, so
+  // unit nesting and pose changes cannot drift it.
+  const rootRef = useRef<THREE.Group>(null);
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const base = new THREE.Vector3();
+    root.getWorldPosition(base);
+    return registerMeadowLamp(`desk-lamp-${unitIndex}`, {
+      x: base.x,
+      y: base.y,
+      z: base.z,
+      radius: 1.15,
+      strength: 0.45,
+      litRef: lit,
+    });
+  }, [unitIndex]);
   return (
     // ONE group carries the scale AND the yaw, and both the model and the
     // light rig hang from it. That is the whole structural fix of v6: the yaw
@@ -243,7 +265,7 @@ export function EggLamp({
     // necessarily hold. Nothing below this group may carry a transform of its
     // own — a `position` or a second `scale` on either child is exactly how a
     // lamp slides out of its own lighting.
-    <group scale={scale} rotation={[0, yaw, 0]}>
+    <group ref={rootRef} scale={scale} rotation={[0, yaw, 0]}>
       <LampSwitch
         unitIndex={unitIndex}
         hoverKey={`egg:lamp:${unitIndex}`}

@@ -26,12 +26,15 @@ export type MeadowLamp = {
   z: number;
   /** Ground-pool radius in world units (≈ height · tan(cone angle)). */
   radius: number;
+  /** Relative pool brightness, 1 = the floor lamp's. Desk lamps spilling
+   * over a plank edge register well under 1. */
+  strength: number;
   /** The practical's eased lit factor — the same ref its glow sprites read,
    * so the grass pool follows the click-off egg frame-for-frame. */
   litRef: { current: number };
 };
 
-export const MEADOW_LAMP_MAX = 4;
+export const MEADOW_LAMP_MAX = 6;
 
 const lamps = new Map<string, MeadowLamp>();
 

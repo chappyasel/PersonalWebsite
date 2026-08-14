@@ -2,7 +2,13 @@ import React from "react";
 
 const Quotes: React.FC = () => {
   return (
-    <section className="mt-20 space-y-6 text-sm italic text-muted-foreground">
+    // On the 3D homepage these float directly over the meadow with no glass
+    // behind them, where muted text disappeared into the grass. Same fix the
+    // Personal Operating Manual heading uses over the same backdrop: a soft
+    // theme-matched glow shadow (inherits to the footers) plus a firmer
+    // foreground — not white text, which only works in one theme. On the
+    // flat page both shadows match the background and are invisible.
+    <section className="mt-20 space-y-6 text-sm italic text-foreground/80 [text-shadow:_0_0_16px_rgba(255,255,255,0.9)] dark:[text-shadow:_0_0_16px_rgba(0,0,0,0.85)]">
       <blockquote className="mx-auto max-w-2xl text-center">
         &ldquo;The test of a first-rate intelligence is the ability to hold two
         opposing ideas in mind at the same time and still retain the ability to

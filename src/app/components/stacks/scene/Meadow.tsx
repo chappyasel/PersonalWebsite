@@ -684,7 +684,7 @@ export default function Meadow({
     for (const lamp of getMeadowLamps().values()) {
       if (li >= MEADOW_LAMP_MAX) break;
       shared.uLampPos.value[li]!.set(lamp.x, lamp.y, lamp.z, lamp.radius);
-      shared.uLampGlow.value[li] = lamp.litRef.current;
+      shared.uLampGlow.value[li] = lamp.litRef.current * lamp.strength;
       li++;
     }
     for (; li < MEADOW_LAMP_MAX; li++) shared.uLampGlow.value[li] = 0;
