@@ -2143,16 +2143,22 @@ export default function PlacardLayer({
            glass gets averaged with everything around it instead of punching
            a low-contrast hole under a line of type.
 
-           saturate() is what keeps the colour it picks up warm; a blur that
-           wide averages a scene toward grey on its own.
+           saturate() now DESATURATES (0.35, the sheet's value). The old ×2
+           dates from the room-interior scene, where it kept the picked-up
+           wood warm; over the meadow the same boost turned the backdrop's
+           cream-and-green into a tinted card — the owner's round-2 "same
+           treatment as the sheet" is what unified the two surfaces. A
+           nearly desaturated sample keeps the scene's light and shadow
+           without inheriting its hue.
 
            brightness() is the legibility lever, and the reason the fill can
            drop this far. It pushes the backdrop AWAY from the text luminance
            — up on light, down on dark — which buys contrast without buying
            opacity. It is kept gentle on purpose: measured on the real scene,
            1.6 on light clipped 42% of the glass to flat white, which costs
-           more scene colour than the extra transparency wins back. At 1.25
-           nothing clips and the glass carries ~2.5× the chroma it did before.
+           more scene colour than the extra transparency wins back. 1.32
+           matches the sheet (raised from 1.25 in the same round-2 pass —
+           the grey cast the owner flagged was under-brightness, not fill).
 
            Measured against the real scene, this set holds body copy above
            the 4.5:1 AA floor in both themes — no worse than the near-opaque
@@ -2160,15 +2166,15 @@ export default function PlacardLayer({
         .placard-plates {
           --plate-alpha: 0.70;
           --plate-blur: 80px;
-          --plate-sat: 2;
-          --plate-bright: 1.25;
+          --plate-sat: 0.35;
+          --plate-bright: 1.32;
         }
         /* Dark can afford to be thinner: light text on a dark room starts
            around 9:1, so the fill is doing far less legibility work there
-           than it is on light. */
+           than it is on light. Brightness matches the sheet's dark value. */
         .dark .placard-plates {
           --plate-alpha: 0.5;
-          --plate-bright: 0.78;
+          --plate-bright: 0.8;
         }
         /* The lift belongs to both layers — they are one card in two pieces
            and must travel exactly the same distance. */
@@ -2182,14 +2188,18 @@ export default function PlacardLayer({
           -webkit-backdrop-filter: blur(var(--plate-blur)) saturate(var(--plate-sat)) brightness(var(--plate-bright));
         }
         /* ── The sheet ────────────────────────────────────────────────
-           Mobile's one blurred surface. Unlike the desktop plates, the
-           sheet stays neutral: the pastoral horizon beneath it contains a
-           lot of cream and yellow, and saturating that backdrop made the
-           entire surface read as tinted glass. A nearly desaturated sample
-           retains the scene's light and shadow without inheriting its hue;
-           neutral white/black fills keep the global warm reading palette
-           from reintroducing a cast here. Once neutral, the fill can also be
-           thinner without turning the sheet yellow again.
+           Mobile's one blurred surface, and since round 2 the model the
+           desktop plates copy (same saturate, same brightness): the
+           pastoral horizon beneath contains a lot of cream and yellow, and
+           saturating that backdrop made the surface read as tinted glass.
+           A nearly desaturated sample retains the scene's light and shadow
+           without inheriting its hue; the sheet's own neutral white/black
+           fill (vs the plates' theme-token fill — that difference is
+           deliberate, see the fill notes above) keeps the global warm
+           reading palette from reintroducing a cast here. Once neutral,
+           the fill can also be thinner without turning the sheet yellow
+           again. Light brightness sits at 1.32 (round 2 — 1.18 left the
+           sheet reading grey over the meadow).
 
            The sheet is the ONLY glass on mobile (the cards inside it have
            their own backdrop-filter stripped, since one blur cannot sample
@@ -2202,8 +2212,8 @@ export default function PlacardLayer({
         .stacks-sheet {
           --sheet-fill: rgb(255 255 255 / 0.24);
           background-color: var(--sheet-fill);
-          backdrop-filter: blur(58px) saturate(0.35) brightness(1.18);
-          -webkit-backdrop-filter: blur(58px) saturate(0.35) brightness(1.18);
+          backdrop-filter: blur(58px) saturate(0.35) brightness(1.32);
+          -webkit-backdrop-filter: blur(58px) saturate(0.35) brightness(1.32);
         }
         @media (prefers-reduced-motion: reduce) {
           [data-stacks-desktop-panel] {
