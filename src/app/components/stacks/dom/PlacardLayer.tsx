@@ -2198,10 +2198,14 @@ export default function PlacardLayer({
            deliberate, see the fill notes above) keeps the global warm
            reading palette from reintroducing a cast here. Once neutral,
            the fill can also be thinner without turning the sheet yellow
-           again. Light brightness sits at 1.45 over a 0.32 white fill
-           (round 2, twice: 1.18 read grey over the meadow, and the first
-           bump to 1.32 was still "muted / not white enough" on the
-           owner's phone).
+           again. Light sits at saturate 0.15 / brightness 1.45 / 0.40
+           white fill (round 2, three passes: 1.18 read grey, 1.32 was
+           still "muted / not white enough" on the owner's phone, and at
+           0.35 saturate a full-lawn backdrop still left a mint cast —
+           measured ~Δ18 green over neutral; 0.15 + 0.40 lands ~Δ10,
+           which reads white. The sheet diverges from the desktop plates
+           here deliberately: it is the one surface whose backdrop is
+           ENTIRELY grass).
 
            The sheet is the ONLY glass on mobile (the cards inside it have
            their own backdrop-filter stripped, since one blur cannot sample
@@ -2212,10 +2216,10 @@ export default function PlacardLayer({
            element's OWN transform, and an element's own transform does not
            cut it off from the backdrop behind its parent. */
         .stacks-sheet {
-          --sheet-fill: rgb(255 255 255 / 0.32);
+          --sheet-fill: rgb(255 255 255 / 0.4);
           background-color: var(--sheet-fill);
-          backdrop-filter: blur(58px) saturate(0.35) brightness(1.45);
-          -webkit-backdrop-filter: blur(58px) saturate(0.35) brightness(1.45);
+          backdrop-filter: blur(58px) saturate(0.15) brightness(1.45);
+          -webkit-backdrop-filter: blur(58px) saturate(0.15) brightness(1.45);
         }
         @media (prefers-reduced-motion: reduce) {
           [data-stacks-desktop-panel] {
