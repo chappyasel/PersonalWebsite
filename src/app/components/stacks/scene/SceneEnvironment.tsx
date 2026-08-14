@@ -2587,7 +2587,7 @@ export default function SceneEnvironment({
       <SkyDome dark={dark} simplify={!!skySimplify} />
       {MEADOW_ENABLED && (
         <Suspense fallback={null}>
-          <Meadow dark={dark} simplify={!!skySimplify} />
+          <Meadow dark={dark} />
         </Suspense>
       )}
       <RoomEnvironment key={dark ? "env-d" : "env-l"} dark={dark} />
