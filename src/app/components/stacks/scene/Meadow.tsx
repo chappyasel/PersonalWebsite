@@ -414,6 +414,9 @@ export default function Meadow({
 }) {
   const grassRef = useRef<THREE.InstancedMesh>(null);
   const flowerRef = useRef<THREE.InstancedMesh>(null);
+  /** Dev-only density override: a 0..1 fraction of the full buffers that
+   * beats the rung while set. Never written in production. */
+  const densityRef = useRef<number | null>(null);
 
   const built = useMemo(() => {
     const c = (hex: string) => new THREE.Color(hex);
@@ -503,6 +506,30 @@ export default function Meadow({
     flowerMesh.computeBoundingSphere();
   }, []);
 
+  // Live browse knobs on the house dev-hook object. Writes go straight into
+  // the shared uniform holders, so all three materials follow at once;
+  // winning values get baked into the defaults above. Zero production cost.
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    const hooks = window.__stacks;
+    if (!hooks) return;
+    hooks.meadow = (opts) => {
+      if (opts?.wind !== undefined) built.shared.uWindAmp.value = opts.wind;
+      if (opts?.speed !== undefined) built.shared.uWindSpeed.value = opts.speed;
+      if (opts?.thicken !== undefined) built.shared.uThicken.value = opts.thicken;
+      if (opts?.density !== undefined) densityRef.current = opts.density;
+      return {
+        wind: built.shared.uWindAmp.value,
+        speed: built.shared.uWindSpeed.value,
+        thicken: built.shared.uThicken.value,
+        density: densityRef.current,
+      };
+    };
+    return () => {
+      delete hooks.meadow;
+    };
+  }, [built]);
+
   useEffect(
     () => () => {
       built.terrainGeometry.dispose();
@@ -531,8 +558,19 @@ export default function Meadow({
     // buffer (device pixels), which is what the flower px floor measures in.
     built.flowerOnly.uPixelScale.value =
       (gl.domElement.height * camera.projectionMatrix.elements[5]) / 2;
-    if (grassRef.current) grassRef.current.count = MEADOW_RUNG_GRASS[rung];
-    if (flowerRef.current) flowerRef.current.count = MEADOW_RUNG_FLOWERS[rung];
+    const density = densityRef.current;
+    if (grassRef.current) {
+      grassRef.current.count =
+        density === null
+          ? MEADOW_RUNG_GRASS[rung]
+          : Math.round(MEADOW_GRASS_TOTAL * Math.min(1, Math.max(0, density)));
+    }
+    if (flowerRef.current) {
+      flowerRef.current.count =
+        density === null
+          ? MEADOW_RUNG_FLOWERS[rung]
+          : Math.round(MEADOW_FLOWER_TOTAL * Math.min(1, Math.max(0, density)));
+    }
   });
 
   // Draw order terrain → grass → flowers; all opaque, so three's own
