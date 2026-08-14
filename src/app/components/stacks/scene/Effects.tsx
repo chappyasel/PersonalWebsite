@@ -158,12 +158,17 @@ export default function Effects({ dark }: { dark: boolean }) {
           planes crisp, then rolls into optical bokeh toward the far skyline.
           This composer is already desktop-only and unmounts at the first
           performance decline, so mobile/degraded paths pay nothing. */}
+      {/* Opt-in comparison grade (?withdof), deliberately STRONG: at the
+          old 1.25/0.5 the pass was indistinguishable from fog alone (the
+          owner couldn't tell the two URLs apart), which is no comparison
+          at all. This is what "bokeh carries the distance" would look
+          like — judge it against fog, then tune down if adopted. */}
       {depthOfField && (
         <DepthOfField
           focusDistance={6.05}
-          focusRange={2.6}
-          bokehScale={1.25}
-          resolutionScale={0.5}
+          focusRange={1.9}
+          bokehScale={3.4}
+          resolutionScale={0.75}
         />
       )}
       {/* The side blur: a vertical focus line with blur growing toward the
