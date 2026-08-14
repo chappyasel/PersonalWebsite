@@ -164,8 +164,11 @@ const SHARED_UNIFORMS_GLSL = /* glsl */ `
   uniform float uDark;
   // Pointer poke: ground-plane hit under the cursor (.xy = world x/z),
   // radius (.z) and eased strength (.w). Tufts and flower heads lean away
-  // from it — the lawn answers the pointer like the props do.
+  // from it — the lawn answers the pointer like the props do. uPokeF is
+  // the FLOWERS' copy of the same signal, eased much more slowly (stems
+  // bend and recover lazily where blades spring).
   uniform vec4 uPoke;
+  uniform vec4 uPokeF;
   uniform float uDawn;
   uniform float uSeat;
   uniform float uWindAmp;
@@ -432,12 +435,16 @@ const FLOWER_VERTEX = /* glsl */ `
     vec3 p = vec3(position.x * f.y, position.y, -position.x * f.x) * s;
     // Shares the grass wind at reduced amplitude; position.y / quad height
     // normalizes to the same radians·height product the tufts use. The
-    // pointer poke leans heads away at half the tufts' throw so a parted
-    // patch parts its flowers too.
+    // pointer poke rides the flowers' SLOW copy of the signal (uPokeF) at
+    // a small factor — the first cut used the fast grass signal at 0.5,
+    // which threw heads several head-heights sideways ("react way too
+    // much / stretch too much"); 0.12 lands the same world-throw as the
+    // clamped grass lean, and the lazy easing makes stems bend and
+    // recover slowly instead of snapping.
     vec2 w = windAt(origin.xz, uTime * uWindSpeed) * 0.35;
-    vec2 pk = origin.xz - uPoke.xy;
+    vec2 pk = origin.xz - uPokeF.xy;
     float pkd = max(length(pk), 1e-4);
-    w += pk / pkd * (1.0 - smoothstep(0.1, uPoke.z, pkd)) * uPoke.w * 0.5;
+    w += pk / pkd * (1.0 - smoothstep(0.1, uPokeF.z, pkd)) * uPokeF.w * 0.12;
     p.xz += w * position.y * ${(1 / FLOWER_H).toFixed(2)};
     // Pixel floor: a far head that would project under uPxFloor pixels is
     // scaled up about its own centre to hold that size, and the fragment
@@ -648,7 +655,9 @@ export default function Meadow({
       },
       uLampGlow: { value: new Array<number>(MEADOW_LAMP_MAX).fill(0) },
       // Pointer poke (x, z, radius, strength) — written per frame below.
+      // uPokeF is the flowers' slow-eased copy.
       uPoke: { value: new THREE.Vector4(0, 0, 0.6, 0) },
+      uPokeF: { value: new THREE.Vector4(0, 0, 0.6, 0) },
     };
     const grassOnly = {
       uAlpha: { value: null as THREE.Texture | null },
@@ -832,12 +841,23 @@ export default function Meadow({
           const hz = camera.position.z + pokeScratch.z * tt;
           poke.x = THREE.MathUtils.damp(poke.x, hx, 7, delta);
           poke.y = THREE.MathUtils.damp(poke.y, hz, 7, delta);
+          const pokeF = shared.uPokeF.value;
+          pokeF.x = THREE.MathUtils.damp(pokeF.x, hx, 3.5, delta);
+          pokeF.y = THREE.MathUtils.damp(pokeF.y, hz, 3.5, delta);
           const sinceClick = clock.elapsedTime - pokeClickAt.current;
           target =
             0.24 + 0.34 * Math.exp(-(sinceClick * sinceClick) / 0.18);
         }
       }
       poke.w = THREE.MathUtils.damp(poke.w, target, 3.5, delta);
+      // Stems are lazier than blades: the flowers' strength eases at less
+      // than half the grass rate, both bending and recovering.
+      shared.uPokeF.value.w = THREE.MathUtils.damp(
+        shared.uPokeF.value.w,
+        target,
+        1.5,
+        delta,
+      );
     }
     shared.uDark.value = THREE.MathUtils.damp(
       shared.uDark.value,
