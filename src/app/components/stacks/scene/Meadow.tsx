@@ -433,8 +433,11 @@ const FLOWER_FRAGMENT = /* glsl */ `
     day *= 0.92 + 0.16 * hash2(vec2(vTint, 7.7));
     // Moonlit lavender, deliberately dim — near-white heads read as paper
     // scraps at 3:45am. The crossfade rides the shared uDark clock.
-    vec3 night = mix(uNightA, uNightB, step(0.5, vTint)) * 0.65;
-    vec3 col = mix(day, night, uDark * 0.85);
+    // (0.65/0.85 still glowed against the rosette shapes at the owner's
+    // round-3 browse — "too bright in dark mode" — so night dropped to
+    // 0.45 and the crossfade runs nearly full.)
+    vec3 night = mix(uNightA, uNightB, step(0.5, vTint)) * 0.45;
+    vec3 col = mix(day, night, uDark * 0.94);
     // Petal rosette via discard (round 3: "clearly just circles") —
     // alpha-to-coverage broke under the postfx composer (non-MSAA target)
     // and canvas-alpha compositing, printing the full quad, so the shape
@@ -455,7 +458,7 @@ const FLOWER_FRAGMENT = /* glsl */ `
     col *= 1.0 - 0.22 * smoothstep(0.30, 0.92, r);
     // Stamen — a warm eye in each head, dimming with the night. Fades in
     // with the petal shape so far dots keep their pure species color.
-    vec3 stamen = mix(vec3(0.96, 0.80, 0.34), vec3(0.55, 0.53, 0.45), uDark * 0.85);
+    vec3 stamen = mix(vec3(0.96, 0.80, 0.34), vec3(0.38, 0.37, 0.32), uDark * 0.94);
     col = mix(col, stamen, (1.0 - smoothstep(0.14, 0.30, r)) * shape);
     col += ${LAMP_WARM} * vLamp * mix(0.06, 0.20, uDark);
     col = mix(col, vFogColor, max(vFog, vClamp * 0.85));
