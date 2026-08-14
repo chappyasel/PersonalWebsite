@@ -2118,7 +2118,10 @@ export default function PlacardLayer({
       <div className="placard-sections flex flex-col gap-8">
         {slots.manual}
         {slots.routine}
-        {slots.quotes}
+        {/* .stacks-quotes rewrites desktop quotes white-on-dark-halo — see
+            the style block. Mobile keeps the component's original dark-on-
+            sheet treatment, and the flat page remains untouched. */}
+        <div className="stacks-quotes">{slots.quotes}</div>
       </div>
     ),
   };
@@ -2198,14 +2201,21 @@ export default function PlacardLayer({
            deliberate, see the fill notes above) keeps the global warm
            reading palette from reintroducing a cast here. Once neutral,
            the fill can also be thinner without turning the sheet yellow
-           again. Light sits at saturate 0.15 / brightness 1.45 / 0.40
-           white fill (round 2, three passes: 1.18 read grey, 1.32 was
-           still "muted / not white enough" on the owner's phone, and at
-           0.35 saturate a full-lawn backdrop still left a mint cast —
-           measured ~Δ18 green over neutral; 0.15 + 0.40 lands ~Δ10,
-           which reads white. The sheet diverges from the desktop plates
-           here deliberately: it is the one surface whose backdrop is
-           ENTIRELY grass).
+           again. Light sits at saturate 0.15 / brightness 1.28 / 0.54
+           white fill. Round-2 history: 1.18 read grey, 1.32 was still
+           "muted / not white enough" on the owner's phone, and at 0.35
+           saturate a full-lawn backdrop still left a mint cast (~Δ18
+           green over neutral). Round 3: even 0.15 + 0.40 still read
+           "muddied" against the owner's reference (the near-opaque warm
+           sheet of the room era) — over an all-grass backdrop the
+           legibility lever is FILL, not brightness, so the fill came up
+           to 0.68 and brightness back down to 1.28 to keep the ghost of
+           the lawn without clipping. Once the cards gained their own clean
+           white fill, the sheet could come back down to 0.54: enough to
+           neutralise the darker grass without flattening the card/sheet
+           hierarchy into one white slab. The sheet diverges from the desktop
+           plates here deliberately: it is the one surface whose backdrop
+           is ENTIRELY grass.
 
            The sheet is the ONLY glass on mobile (the cards inside it have
            their own backdrop-filter stripped, since one blur cannot sample
@@ -2216,10 +2226,10 @@ export default function PlacardLayer({
            element's OWN transform, and an element's own transform does not
            cut it off from the backdrop behind its parent. */
         .stacks-sheet {
-          --sheet-fill: rgb(255 255 255 / 0.4);
+          --sheet-fill: rgb(255 255 255 / 0.54);
           background-color: var(--sheet-fill);
-          backdrop-filter: blur(58px) saturate(0.15) brightness(1.45);
-          -webkit-backdrop-filter: blur(58px) saturate(0.15) brightness(1.45);
+          backdrop-filter: blur(58px) saturate(0.15) brightness(1.28);
+          -webkit-backdrop-filter: blur(58px) saturate(0.15) brightness(1.28);
         }
         @media (prefers-reduced-motion: reduce) {
           [data-stacks-desktop-panel] {
@@ -2242,6 +2252,23 @@ export default function PlacardLayer({
           --sheet-fill: rgb(0 0 0 / 0.16);
           backdrop-filter: blur(58px) saturate(0.35) brightness(0.8);
           -webkit-backdrop-filter: blur(58px) saturate(0.35) brightness(0.8);
+        }
+        /* On desktop the closing quotes float raw over the meadow with no
+           glass behind them, and the round-2 glow treatment still lost to
+           the lawn in light mode ("I really can't read it"). Over grass the
+           only stable read is subtitle-style: white text with a dark halo,
+           one treatment for both themes. The breakpoint and desktop-panel
+           scope are both intentional: mobile keeps the original dark copy
+           on its pale sheet, and Quotes.tsx also renders on the flat page,
+           where white would vanish into the background. */
+        @media (min-width: 1200px) {
+          [data-stacks-desktop-panel] .stacks-quotes section {
+            color: rgb(255 255 255 / 0.94);
+            text-shadow: 0 1px 3px rgb(0 0 0 / 0.55), 0 0 14px rgb(0 0 0 / 0.4);
+          }
+          [data-stacks-desktop-panel] .stacks-quotes section footer {
+            color: rgb(255 255 255 / 0.72);
+          }
         }
         /* Scrolled out of sight: stop paying for a blur nobody can see. Set
            from the scroll handler by arithmetic — see cull(). */
@@ -2344,6 +2371,19 @@ export default function PlacardLayer({
             width: calc(var(--ps) * 1.786) !important;
             height: calc(var(--ps) * 1.786) !important;
           }
+          /* Like the fixed chrome, desktop section titles sit on the scene,
+             not on their cards. In light mode they need the quote's stable
+             white-on-dark-halo treatment. Mobile is deliberately excluded:
+             those same titles live on the pale sheet and stay dark. */
+          html:not(.dark) [data-stacks-desktop-panel] .placard-sections h1,
+          html:not(.dark) [data-stacks-desktop-panel] .placard-section-heading {
+            color: rgb(255 255 255 / 0.94) !important;
+            text-shadow: 0 1px 3px rgb(0 0 0 / 0.55), 0 0 14px rgb(0 0 0 / 0.4) !important;
+          }
+          html:not(.dark) [data-stacks-desktop-panel] .placard-sections h1 svg,
+          html:not(.dark) [data-stacks-desktop-panel] .placard-section-heading svg {
+            filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.55)) drop-shadow(0 0 7px rgb(0 0 0 / 0.4));
+          }
         }
         .placard-scroll .placard-sections .text-2xl,
         .placard-scroll .placard-sections .sm\\:text-3xl,
@@ -2421,6 +2461,14 @@ export default function PlacardLayer({
           .placard-scroll [class*="backdrop-blur"] {
             background-color: hsl(var(--muted) / 0.20) !important;
           }
+          /* In light mode the sheet is deliberately translucent enough to
+             show the meadow. Give cards a separate clean-white layer so
+             they remain unmistakably above it instead of dissolving into
+             the same grass-tinted material. Dark mode keeps the quieter
+             theme-token fill above. */
+          html:not(.dark) .placard-scroll [class*="backdrop-blur"] {
+            background-color: rgb(255 255 255 / 0.56) !important;
+          }
           /* sm: padding belongs to the shared full-page layout. The sheet is
              still a narrow reading column at 640–1199px, so keep every card
              on the same 20px inset as About and Books. */
@@ -2460,8 +2508,10 @@ export default function PlacardLayer({
              sheet; mobile normalises them without touching desktop. */
           [data-stacks-mobile-panel] .placard-sections h1,
           [data-stacks-mobile-panel] .placard-section-heading {
+            color: hsl(var(--foreground)) !important;
             font-size: 1rem !important;
             line-height: 1.35 !important;
+            text-shadow: none !important;
           }
           [data-stacks-mobile-panel] .placard-sections h1 svg,
           [data-stacks-mobile-panel] .placard-section-heading svg {
