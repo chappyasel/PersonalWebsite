@@ -66,6 +66,10 @@ test("applies a stored font before the app hydrates", async ({ page }) => {
 });
 
 test("keeps below-fold homepage media deferred", async ({ page }) => {
+  // This assertion covers FlatHome's viewport deferral. The WebGL homepage
+  // owns resident scene placards instead, so select the flat path explicitly
+  // rather than depending on how quickly the immersive world boots.
+  await page.emulateMedia({ reducedMotion: "reduce" });
   const requestedImages: string[] = [];
   page.on("request", (request) => {
     const url = request.url();

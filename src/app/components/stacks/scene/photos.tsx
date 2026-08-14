@@ -246,6 +246,7 @@ export function DeskFrame({
         <React.Suspense fallback={null}>
           <LitImage
             url={src}
+            role="feature"
             width={width}
             height={height}
             roughness={0.55}
@@ -292,6 +293,7 @@ export function FlatPrint({
         <React.Suspense fallback={null}>
           <LitImage
             url={src}
+            role="support"
             width={width}
             height={height}
             roughness={0.6}

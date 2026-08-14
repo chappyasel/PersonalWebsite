@@ -69,7 +69,7 @@ Run SQL via the bundled script. Output is CSV on stdout.
 
 ### Freshness caveat
 
-The Postgres book cache syncs daily at 09:00 UTC. Existing mirrored pages may be stale until the next successful sync. New pages enter the mirror only when `Started` or `Finished` is non-empty; blank scaffolds and undated want-to-read pages are intentionally outside the SQL mirror. If SQL misses a page or freshness matters, query the Notion Book Notes database directly by title/page ID. Hand off to `book-notes-summarizer` when the task is to write a finished summary.
+The Postgres book cache syncs daily at 09:00 UTC. Existing mirrored pages may be stale until the next successful sync. After a successful sync, changed website book routes and OG images are invalidated and the changed OG images are warmed; unchanged images remain cached. New pages enter the mirror only when `Started` or `Finished` is non-empty; blank scaffolds and undated want-to-read pages are intentionally outside the SQL mirror. If SQL misses a page or freshness matters, query the Notion Book Notes database directly by title/page ID. Hand off to `book-notes-summarizer` when the task is to write a finished summary.
 
 ## Book tag taxonomy cleanup / repair
 

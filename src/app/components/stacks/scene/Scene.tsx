@@ -14,6 +14,7 @@ import GroundPool, { FootPool } from "./GroundPool";
 import ModelProp, { preloadModels } from "./ModelProp";
 import SceneEnvironment from "./SceneEnvironment";
 import { Sway } from "./eggs";
+import { V8_PHOTOS_BY_UNIT, scenePhotoManifestUrl } from "./photoTextures";
 import { SHELF_GEOMETRY } from "./shelfGeometry";
 import UnitAbout, { PORTRAIT_SRC } from "./units/UnitAbout";
 import UnitBlog from "./units/UnitBlog";
@@ -45,45 +46,6 @@ const MONSTERA_ATLAS_DARK = {
   colorSwaps: [{ from: "#334d68", to: "#4e713d", tolerance: 6 }] as const,
 } as const;
 
-const V8_PHOTOS_BY_UNIT: Record<UnitSlug, readonly string[]> = {
-  about: [
-    "about-collective-group",
-    "about-delicate-arch",
-    "about-family",
-    "about-profile-full",
-    "about-speaking-candid",
-  ],
-  books: [],
-  training: [
-    "training-bench",
-    "training-deadlift",
-    "training-golf-flag",
-    "training-golf-group",
-    "training-gym-pose",
-    "training-stage-kneeling",
-    "training-stage-side",
-    "training-trophy-front",
-    "training-trophy-side",
-  ],
-  talks: [
-    "talk-ann-interview",
-    "talk-consensus-phone",
-    "talk-dc-policy",
-    "talk-demo-night",
-    "talk-panel",
-  ],
-  projects: ["projects-coding-couch", "projects-wwdc"],
-  blog: [],
-  systems: [
-    "systems-home-office",
-    "systems-lake",
-    "systems-lighthouse",
-    "systems-sf-dusk",
-    "systems-supplements",
-    "systems-working-session",
-  ],
-};
-
 // Tap anywhere on a unit: mobile opens the panel for the active unit,
 // otherwise travel there (same pushState + travelTo as the rail). Desktop
 // active unit is a no-op — the placard is already resident.
@@ -107,15 +69,11 @@ function onUnitTap(index: number, e: ThreeEvent<MouseEvent>) {
   state.travelTo(index);
 }
 
-function Scene({
+const SceneContent = memo(function SceneContent({
   data,
   palette,
   dark,
   coverWidth,
-  dustOff,
-  shadowsOff,
-  skySimplify,
-  degrade,
   onOpenBook,
   onOpenUrl,
 }: {
@@ -123,13 +81,6 @@ function Scene({
   palette: Palette;
   dark: boolean;
   coverWidth: 256 | 384;
-  dustOff?: boolean;
-  shadowsOff?: boolean;
-  skySimplify?: boolean;
-  /** Raw performance-ladder rung — SceneEnvironment maps it onto the
-   * meadow's density dial; the existing booleans stay authoritative for
-   * dust/sky/shadows. */
-  degrade?: number;
   onOpenBook?: (bookId: string) => void;
   onOpenUrl?: (url: string) => void;
 }) {
@@ -140,16 +91,16 @@ function Scene({
   }, []);
   // Warm the current/adjacent units immediately, then trickle the rest by
   // unit during idle time. The old single 2.5 s timer launched every cover,
-  // talk still, project image, and all 26 physical photos at once. That made
+  // talk still, project image, and all 27 physical photos at once. That made
   // a short but needless decode/network spike. The sticky LOD latch still
-  // receives pre-decoded textures before ordinary lateral travel, while a
-  // direct rail/deep-link jump promotes its destination and neighbours to the
-  // front of the queue synchronously.
+  // receives pre-decoded, role-sized textures before ordinary lateral travel
+  // without ever warming their 768–1024 px masters. A direct rail/deep-link
+  // jump promotes its destination and neighbours to the front of the queue.
   useEffect(() => {
     const byUnit = Object.fromEntries(
       UNITS.map(({ slug }) => [
         slug,
-        V8_PHOTOS_BY_UNIT[slug].map((name) => `/images/stacks/v8/${name}.webp`),
+        V8_PHOTOS_BY_UNIT[slug].map(scenePhotoManifestUrl),
       ]),
     ) as Record<UnitSlug, string[]>;
     byUnit.about.unshift(proxied(PORTRAIT_SRC, coverWidth));
@@ -224,21 +175,6 @@ function Scene({
   }, [data, coverWidth]);
   return (
     <>
-      {/* CameraRig FIRST. r3f runs useFrame callbacks in registration order,
-          which is mount order, so anything reading camera.position must
-          mount after the rig that writes it. With the environment first, the
-          sky dome tracked the camera one frame late — at radius 34 that is
-          nearly a degree of parallax during fast travel, i.e. sky jitter.
-          Every other camera-reading effect (hover lift easing, carried
-          props) was a frame stale for the same reason. */}
-      <CameraRig />
-      <SceneEnvironment
-        palette={palette}
-        dark={dark}
-        dustOff={dustOff}
-        skySimplify={skySimplify}
-        degrade={degrade}
-      />
       {UNITS.map((unit, i) => {
         const Unit = UNIT_COMPONENTS[unit.slug];
         return (
@@ -252,12 +188,6 @@ function Scene({
               onOpenBook={onOpenBook}
               onOpenUrl={onOpenUrl}
             />
-            {/* Soft analytic ground pool — replaces the per-frame 2048²
-                directional shadow map (the scene is static; only the camera
-                moves). */}
-            {!shadowsOff && (
-              <GroundPool color={palette.shadow} opacity={dark ? 0.55 : 0.4} />
-            )}
             {/* Invisible raycast plane BEHIND the interactive props (covers
                 sit at z 0.06+ and stopPropagation first) — tap-a-unit target
                 for the mobile panel and lateral travel. */}
@@ -299,6 +229,97 @@ function Scene({
         opacity={dark ? 0.45 : 0.28}
         size={[1.25, 0.8]}
         position={[2.2, SHELF_GEOMETRY.groundY, -1.72]}
+      />
+    </>
+  );
+});
+
+function QualityLayer({
+  palette,
+  dark,
+  dustOff,
+  shadowsOff,
+  cloudSimplify,
+  moving,
+  degrade,
+}: {
+  palette: Palette;
+  dark: boolean;
+  dustOff?: boolean;
+  shadowsOff?: boolean;
+  cloudSimplify?: boolean;
+  moving?: boolean;
+  degrade?: number;
+}) {
+  return (
+    <>
+      <SceneEnvironment
+        palette={palette}
+        dark={dark}
+        dustOff={dustOff}
+        cloudSimplify={cloudSimplify}
+        moving={moving}
+        degrade={degrade}
+      />
+      {!shadowsOff &&
+        UNITS.map((unit, i) => (
+          <group key={`pool-${unit.slug}`} {...unitPose(i)}>
+            {/* Soft analytic grounding, isolated from the content units so a
+                quality transition cannot rebuild their private materials. */}
+            <GroundPool color={palette.shadow} opacity={dark ? 0.55 : 0.4} />
+          </group>
+        ))}
+    </>
+  );
+}
+
+function Scene({
+  data,
+  palette,
+  dark,
+  coverWidth,
+  dustOff,
+  shadowsOff,
+  cloudSimplify,
+  moving,
+  degrade,
+  onOpenBook,
+  onOpenUrl,
+}: {
+  data: StacksData;
+  palette: Palette;
+  dark: boolean;
+  coverWidth: 256 | 384;
+  dustOff?: boolean;
+  shadowsOff?: boolean;
+  cloudSimplify?: boolean;
+  moving?: boolean;
+  degrade?: number;
+  onOpenBook?: (bookId: string) => void;
+  onOpenUrl?: (url: string) => void;
+}) {
+  return (
+    <>
+      {/* CameraRig FIRST. r3f executes useFrame callbacks in mount order; the
+          environment and interactive content must read the camera after it
+          has moved for this frame. */}
+      <CameraRig />
+      <QualityLayer
+        palette={palette}
+        dark={dark}
+        dustOff={dustOff}
+        shadowsOff={shadowsOff}
+        cloudSimplify={cloudSimplify}
+        moving={moving}
+        degrade={degrade}
+      />
+      <SceneContent
+        data={data}
+        palette={palette}
+        dark={dark}
+        coverWidth={coverWidth}
+        onOpenBook={onOpenBook}
+        onOpenUrl={onOpenUrl}
       />
     </>
   );

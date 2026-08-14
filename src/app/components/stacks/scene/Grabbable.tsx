@@ -357,6 +357,7 @@ export default function Grabbable({
   base,
   shadeWidth = 0.5,
   shadeColor,
+  tiltOnHover = true,
   spin = 0.9,
   shape,
   massKg,
@@ -377,6 +378,10 @@ export default function Grabbable({
   base: [number, number, number];
   shadeWidth?: number;
   shadeColor: string;
+  /** Keep the authored facing angle fixed while still allowing hover/tap
+   * behavior. Reflective marks use shimmer instead of the shared nod because
+   * even a small pitch can move their environment highlight off the face. */
+  tiltOnHover?: boolean;
   /** How much horizontal throw becomes yaw on the way down. Ignored for a
    * ball, which rolls at ω = v/r instead. */
   spin?: number;
@@ -939,6 +944,7 @@ export default function Grabbable({
     if (n) {
       const wants =
         phase.current === "rest" &&
+        tiltOnHover &&
         useStacks.getState().hovered === hoverKey &&
         !still;
       if (wants && hinge.current === undefined) {

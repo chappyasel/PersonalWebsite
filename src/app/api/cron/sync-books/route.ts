@@ -1,8 +1,7 @@
-import { revalidatePath, revalidateTag } from "next/cache";
 import { type NextRequest, NextResponse } from "next/server";
 
+import { refreshBookCachesAfterSync } from "~/lib/books/cacheInvalidation";
 import { syncBooksFromNotion } from "~/lib/books/sync";
-import { BOOKS_DATA_TAG } from "~/server/queries/books";
 
 import { env } from "~/env";
 
@@ -22,22 +21,12 @@ function verifyAuth(request: NextRequest): boolean {
 async function handleSync(source: "cron" | "manual") {
   console.log(`${source} triggered: syncing books from Notion...`);
   const result = await syncBooksFromNotion(source);
-
-  // Purge cached book pages when anything changed so additions, edits, and
-  // deletions show up immediately instead of after the 24h ISR window.
-  // Manual syncs always revalidate: they're a human asking for fresh state,
-  // and the ISR cache persists across deployments on Vercel.
-  const changes = result.booksAdded + result.booksUpdated + result.booksDeleted;
-  if (changes > 0 || source === "manual") {
-    console.log(`${changes} book(s) changed — revalidating /books pages`);
-    revalidateTag(BOOKS_DATA_TAG, "max");
-    revalidatePath("/books", "layout");
-    revalidatePath("/");
-  }
+  const cacheRefresh = await refreshBookCachesAfterSync(result, source);
 
   return NextResponse.json({
     success: true,
     result,
+    cacheRefresh,
   });
 }
 

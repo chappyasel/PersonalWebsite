@@ -132,7 +132,7 @@ function CollectiveLogo({
         // Keep the face nearly square to the environment probe (like the
         // DeskApple) so the anodized front catches the broad light form,
         // while a small yaw still reveals the extruded copper-orange edge.
-        rotation={[0, -0.04, 0]}
+        rotation={[0, 0.04, 0]}
       >
         <meshPhysicalMaterial
           ref={front}
@@ -166,7 +166,7 @@ function CollectiveLogo({
       <mesh
         geometry={shimmerMark}
         position={[0, 0.118, 0.005]}
-        rotation={[0, -0.04, 0]}
+        rotation={[0, 0.04, 0]}
         scale={1.003}
       >
         <meshBasicMaterial
@@ -478,6 +478,7 @@ export default function UnitAbout({
               base={[-0.48, 0, 0.07]}
               shadeColor={palette.shadow}
               shadeWidth={0.26}
+              tiltOnHover={false}
               shape="box"
               massKg={0.35}
             >
@@ -489,6 +490,7 @@ export default function UnitAbout({
               base={[-0.24, 0, 0.05]}
               shadeColor={palette.shadow}
               shadeWidth={0.26}
+              tiltOnHover={false}
               shape="box"
               massKg={0.42}
             >

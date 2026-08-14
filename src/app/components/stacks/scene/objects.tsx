@@ -112,6 +112,7 @@ export function PortraitFrame({
         <React.Suspense fallback={null}>
           <LitImage
             url={src}
+            role="hero"
             width={0.86}
             height={1.08}
             roughness={0.5}
@@ -232,6 +233,7 @@ export function Polaroid({
         <React.Suspense fallback={null}>
           <LitImage
             url={src}
+            role="support"
             width={size * 0.88}
             height={size * 0.88}
             roughness={0.55}
@@ -277,6 +279,7 @@ export function PostcardPrint({
         <React.Suspense fallback={null}>
           <LitImage
             url={src}
+            role="support"
             width={0.275}
             height={0.19}
             roughness={0.6}
@@ -489,8 +492,8 @@ const SHIMMER_S = 0.85;
 const SHIMMER_TRAVEL = 1;
 
 /** One metallic sweep shared by the Apple and AI Collective desk marks. Both
- * brands now answer with exactly the same motion curve, polish change, click
- * sweep and reduced-motion behavior; only their underlying geometry differs. */
+ * brands answer with the same motion curve, environment lift, click sweep and
+ * reduced-motion behavior; only their underlying geometry differs. */
 export function useMetalShimmer({
   unitIndex,
   hoverKey,
@@ -524,7 +527,11 @@ export function useMetalShimmer({
     const v = level.current;
     if (mark.current) {
       mark.current.envMapIntensity = idleEnv + 1.1 * v;
-      mark.current.roughness = idleRoughness - 0.13 * v;
+      // Keep the lobe broad enough to hold the warm reflection found by the
+      // authored yaw. Tightening it on hover made that light form disappear
+      // between samples of the sparse environment map, turning both faces
+      // dark exactly when their shimmer affordance began.
+      mark.current.roughness = idleRoughness;
     }
     // Strong enough to read on orange as well as silver at the desk marks'
     // ~40px rendered size. Click remains the brighter punctuation below.
@@ -561,7 +568,7 @@ export function useMetalShimmer({
  *
  * It answers now (owner: "clicking on the apple logo should make it shimmer.
  * also needs a hover"). One mechanism at two intensities: the pointer runs a
- * slow, faint band across the mark and tightens the polish; a click fires one
+ * slow, faint band across the mark and lifts its environment response; a click fires one
  * bright sweep across it. The prop itself never moves — it is square to the
  * plank ON PURPOSE (the mark's face is the one near-mirror in the scene and
  * off-square it swings out of the environment probe's lit half and goes
@@ -583,6 +590,7 @@ export function DeskApple({
   });
   return (
     <group
+      rotation={[0, 0.04, 0]}
       onPointerOver={(e) => {
         if (useStacks.getState().activeUnit !== unitIndex) return;
         e.stopPropagation();

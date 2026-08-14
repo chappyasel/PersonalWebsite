@@ -8,7 +8,12 @@ import { rand } from "../theme";
 
 import { SEAT_POSE } from "./seated";
 import { SHELF_GEOMETRY, SHELF_UNDERSIDE } from "./shelfGeometry";
-import { TRAVEL_LEAD_IN, TRAVEL_X, UNIT_SPACING, unitPose } from "./worldLayout";
+import {
+  TRAVEL_LEAD_IN,
+  TRAVEL_X,
+  UNIT_SPACING,
+  unitPose,
+} from "./worldLayout";
 
 // ---------------------------------------------------------------------------
 // Cameras the field is derived against. Every extent below is a consequence
@@ -59,7 +64,10 @@ export const VEGETATION_FRONT_Z = 4.6;
  * front line — a front edge inside this zone is below every frame bottom.
  * The old meadow's z = 3.25 edge sat well INSIDE the tablet frame, which is
  * the bug class the check script's self-test proves it still catches. */
-export const NEAR_FEATHER_ZONE = { minZ: 4.52, maxZ: VEGETATION_FRONT_Z } as const;
+export const NEAR_FEATHER_ZONE = {
+  minZ: 4.52,
+  maxZ: VEGETATION_FRONT_Z,
+} as const;
 export const inNearFeatherZone = (z: number) =>
   z >= NEAR_FEATHER_ZONE.minZ && z <= NEAR_FEATHER_ZONE.maxZ;
 
@@ -276,12 +284,15 @@ export function meadowHeight(x: number, z: number): number {
   const r1 =
     0.62 *
     gauss(z, -11.5, 3.6) *
-    (0.55 + 0.45 * Math.sin(x * 0.66 + 1.3) + 0.18 * (vnoise1(x * 0.21, 7.3) - 0.5));
+    (0.55 +
+      0.45 * Math.sin(x * 0.66 + 1.3) +
+      0.18 * (vnoise1(x * 0.21, 7.3) - 0.5));
 
   // R2 mid-far ridgeline (z −15.5): second layer (~90% fog), x-phase offset
   // from R1 so their crests interleave in screen space — the
   // rolling-with-haze-separation layering.
-  const r2 = 0.55 * gauss(z, -15.5, 4.0) * (0.55 + 0.45 * Math.sin(x * 0.43 - 0.7));
+  const r2 =
+    0.55 * gauss(z, -15.5, 4.0) * (0.55 + 0.45 * Math.sin(x * 0.43 - 0.7));
 
   // Where R1's and R2's x-phases align (~every 27 units) the raw stack
   // nearly doubles and its crest would breach the skyline fade band from a
@@ -316,8 +327,10 @@ export function meadowHeight(x: number, z: number): number {
 
   // Authored skirts: both drop far faster than any sight ray over their
   // crests can descend, so the rectangle's actual ends are unreachable.
-  if (z > MEADOW_BANK.skirtZ) y -= MEADOW_BANK.skirtDrop * (z - MEADOW_BANK.skirtZ);
-  if (z < MEADOW_FAR_SKIRT.z) y -= MEADOW_FAR_SKIRT.drop * (MEADOW_FAR_SKIRT.z - z);
+  if (z > MEADOW_BANK.skirtZ)
+    y -= MEADOW_BANK.skirtDrop * (z - MEADOW_BANK.skirtZ);
+  if (z < MEADOW_FAR_SKIRT.z)
+    y -= MEADOW_FAR_SKIRT.drop * (MEADOW_FAR_SKIRT.z - z);
   return y;
 }
 
@@ -375,7 +388,10 @@ export const MEADOW_RUNG_GRASS_NEAR = [2700, 4200, 5280, 6000] as const;
 export const MEADOW_RUNG_GRASS_FAR = [2700, 4200, 5280, 6000] as const;
 export const MEADOW_RUNG_GRASS = [5400, 8400, 10560, 12000] as const;
 /** Flowers stay OFF at the two lowest quality rungs (degrade ≥ 2). */
-export const MEADOW_RUNG_FLOWERS = [0, 0, 1672, 1900] as const;
+// Flower heads are only two triangles each (~3.8k total) and carry far more
+// visual identity than that cost warrants removing. Durable rungs thin the
+// expensive grass geometry while preserving the authored meadow colour.
+export const MEADOW_RUNG_FLOWERS = [1900, 1900, 1900, 1900] as const;
 
 // There are deliberately NO furniture clearings. The first round shipped
 // grass that thinned and shortened around the shelf units and the couch, and
@@ -405,7 +421,13 @@ const SHADE_UNIT_COUNT = Math.round(TRAVEL_X / UNIT_SPACING) + 1;
  * rule, no per-prop art direction. Overlapping occluders combine
  * multiplicatively like real occlusion. Boxes stay world-axis-aligned: the
  * units' ±0.1 rad yaw skews a footprint ≈0.15 u, under its penumbra. */
-type ShadeOccluder = { x: number; z: number; hx: number; hz: number; lift: number };
+type ShadeOccluder = {
+  x: number;
+  z: number;
+  hx: number;
+  hz: number;
+  lift: number;
+};
 const SHADE_OCCLUDERS: ShadeOccluder[] = [];
 /** Place a unit-local footprint into world space through the unit's yaw. */
 function pushUnitOccluder(
@@ -502,7 +524,10 @@ export const FAR_FEATHER = { span: 3.5 } as const;
 const VEGETATION_FAR_Z = TRAVERSE_EYE.z - GRASS_BANDS.ridge.d1;
 
 export function farFeatherScale(z: number): number {
-  return 1 - 0.88 * smoothstep(VEGETATION_FAR_Z + FAR_FEATHER.span, VEGETATION_FAR_Z, z);
+  return (
+    1 -
+    0.88 * smoothstep(VEGETATION_FAR_Z + FAR_FEATHER.span, VEGETATION_FAR_Z, z)
+  );
 }
 
 export function inFarFeather(z: number): boolean {
@@ -514,7 +539,10 @@ export function inFarFeather(z: number): boolean {
 export function unionWestX(z: number): number {
   let west = Infinity;
   if (z <= VEGETATION_FRONT_Z && z >= TRAVERSE_EYE.z - GRASS_BANDS.ridge.d1) {
-    west = Math.min(west, TRAVERSE_MIN_X - LATERAL_REACH * (TRAVERSE_EYE.z - z) - 0.6);
+    west = Math.min(
+      west,
+      TRAVERSE_MIN_X - LATERAL_REACH * (TRAVERSE_EYE.z - z) - 0.6,
+    );
   }
   if (z >= SEAT_Z + GRASS_BANDS.seated.d0 && z <= MEADOW_BANK.skirtZ) {
     west = Math.min(west, SEAT_X - seatedHalfWidth(z));
@@ -640,6 +668,98 @@ export type GrassStreams = {
   far: GrassInstances;
 };
 
+/**
+ * Spatial culling grid for the vegetation buffers. The cells are deliberately
+ * broad: a portrait camera normally intersects only a handful, while an
+ * ultrawide traverse still submits materially fewer vertices without turning
+ * the old two grass draws into hundreds of tiny calls.
+ *
+ * Tile membership never changes placement. `buildMeadowTiles` stores indices
+ * back into the authored stream and preserves every rung's front-to-back
+ * order inside each cell.
+ */
+export const MEADOW_TILE_SIZE = { x: 14, z: 8 } as const;
+
+export type MeadowTile = {
+  key: string;
+  ix: number;
+  iz: number;
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+  indices: Uint32Array;
+  /** Cumulative local counts matching the source stream's quality rungs. */
+  rungCounts: readonly [number, number, number, number];
+};
+
+type TileableInstances = {
+  count: number;
+  rungCounts: number[];
+  x: Float32Array;
+  z: Float32Array;
+};
+
+/** Partition an authored rung-major stream without dropping or moving an
+ * instance. Tiles are sorted front-to-back by their z row, then west-to-east,
+ * so opaque/discarded vegetation keeps the old early-z bias between draws. */
+export function buildMeadowTiles(stream: TileableInstances): MeadowTile[] {
+  if (stream.rungCounts.length !== 4 || stream.rungCounts[3] !== stream.count) {
+    throw new Error("Meadow tile source must contain four cumulative rungs");
+  }
+
+  type PendingTile = {
+    ix: number;
+    iz: number;
+    rungs: [number[], number[], number[], number[]];
+  };
+  const pending = new Map<string, PendingTile>();
+  let start = 0;
+
+  stream.rungCounts.forEach((end, rung) => {
+    for (let i = start; i < end; i++) {
+      const ix = Math.floor(
+        (stream.x[i]! - MEADOW_TERRAIN.minX) / MEADOW_TILE_SIZE.x,
+      );
+      const iz = Math.floor(
+        (stream.z[i]! - MEADOW_TERRAIN.minZ) / MEADOW_TILE_SIZE.z,
+      );
+      const key = `${ix}:${iz}`;
+      let tile = pending.get(key);
+      if (!tile) {
+        tile = { ix, iz, rungs: [[], [], [], []] };
+        pending.set(key, tile);
+      }
+      tile.rungs[rung]!.push(i);
+    }
+    start = end;
+  });
+
+  return [...pending.entries()]
+    .map(([key, tile]): MeadowTile => {
+      const ordered: number[] = [];
+      const rungCounts: [number, number, number, number] = [0, 0, 0, 0];
+      tile.rungs.forEach((indices, rung) => {
+        ordered.push(...indices);
+        rungCounts[rung] = ordered.length;
+      });
+      const minX = MEADOW_TERRAIN.minX + tile.ix * MEADOW_TILE_SIZE.x;
+      const minZ = MEADOW_TERRAIN.minZ + tile.iz * MEADOW_TILE_SIZE.z;
+      return {
+        key,
+        ix: tile.ix,
+        iz: tile.iz,
+        minX,
+        maxX: minX + MEADOW_TILE_SIZE.x,
+        minZ,
+        maxZ: minZ + MEADOW_TILE_SIZE.z,
+        indices: Uint32Array.from(ordered),
+        rungCounts,
+      };
+    })
+    .sort((a, b) => b.iz - a.iz || a.ix - b.ix);
+}
+
 export function buildGrassInstances(
   total: number = MEADOW_GRASS_TOTAL,
 ): GrassStreams {
@@ -687,7 +807,8 @@ export function buildGrassInstances(
       if (band.id === 1) {
         // Mid meadow: tufts grow to ~0.45 tall / ~2.5-unit footprints with
         // distance, holding screen fill as areal density drops.
-        height = (0.16 + 0.3 * smoothstep(10, 22, d)) * (0.8 + 0.4 * rand(i, 44));
+        height =
+          (0.16 + 0.3 * smoothstep(10, 22, d)) * (0.8 + 0.4 * rand(i, 44));
         width = (0.32 + 0.16 * rand(i, 45)) * (1 + 1.2 * smoothstep(10, 24, d));
       } else if (band.id === 2) {
         height = 0.16 * (0.9 + 0.5 * rand(i, 44));
@@ -820,7 +941,13 @@ function clusterOffset(i: number, salt: number): number {
   return s * FLOWER_CLUSTER.sigma * 1.732;
 }
 
-type RawFlower = { x: number; z: number; scale: number; q: number; tint: number };
+type RawFlower = {
+  x: number;
+  z: number;
+  scale: number;
+  q: number;
+  tint: number;
+};
 
 export function buildFlowerPositions(
   total: number = MEADOW_FLOWER_TOTAL,
@@ -940,7 +1067,9 @@ export function buildFlowerPositions(
   // own fractions (0 / 0 / 0.88 / 1 of the buffer): both groups thin by the
   // same ratio, front-to-back within each stratum.
   const fractions = MEADOW_RUNG_FLOWERS.map((c) => c / MEADOW_FLOWER_TOTAL);
-  const perGroupRungs: RawFlower[][][] = groups.map(() => fractions.map(() => []));
+  const perGroupRungs: RawFlower[][][] = groups.map(() =>
+    fractions.map(() => []),
+  );
   groups.forEach((members, gi) => {
     const sorted = [...members].sort((a, b) => a.q - b.q || a.x - b.x);
     let start = 0;

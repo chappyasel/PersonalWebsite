@@ -18,11 +18,13 @@ import {
   MEADOW_RUNG_GRASS_NEAR,
   MEADOW_SHELF_CEILING_Y,
   MEADOW_TERRAIN,
+  MEADOW_TILE_SIZE,
   NEAR_FEATHER_ZONE,
   VEGETATION_FRONT_Z,
   WEST_FEATHER,
   buildFlowerPositions,
   buildGrassInstances,
+  buildMeadowTiles,
   eastFeatherScale,
   farFeatherScale,
   horizonCrestY,
@@ -49,6 +51,12 @@ describe("rung dial", () => {
     expect(flowers.rungCounts).toEqual([...MEADOW_RUNG_FLOWERS]);
     expect(grass.near.count + grass.far.count).toBe(MEADOW_GRASS_TOTAL);
     expect(flowers.count).toBe(MEADOW_FLOWER_TOTAL);
+    expect(MEADOW_RUNG_FLOWERS).toEqual([
+      MEADOW_FLOWER_TOTAL,
+      MEADOW_FLOWER_TOTAL,
+      MEADOW_FLOWER_TOTAL,
+      MEADOW_FLOWER_TOTAL,
+    ]);
     MEADOW_RUNG_FRACTIONS.forEach((frac, i) => {
       expect(MEADOW_RUNG_GRASS[i]).toBe(
         MEADOW_RUNG_GRASS_NEAR[i]! + MEADOW_RUNG_GRASS_FAR[i]!,
@@ -93,6 +101,84 @@ describe("rung dial", () => {
       expect(perBand[2]! / GRASS_BANDS.seated.count).toBeCloseTo(frac, 2);
       expect(perBand[3]! / GRASS_BANDS.ridge.count).toBeCloseTo(frac, 2);
     });
+  });
+});
+
+describe("spatial meadow tiles", () => {
+  const grass = buildGrassInstances();
+  const flowers = buildFlowerPositions();
+
+  const verifyPartition = (
+    stream: Pick<typeof grass.near, "count" | "rungCounts" | "x" | "z">,
+  ) => {
+    const tiles = buildMeadowTiles(stream);
+    const seen = new Uint8Array(stream.count);
+
+    expect(tiles.length).toBeGreaterThan(1);
+    for (const tile of tiles) {
+      expect(tile.indices.length).toBeGreaterThan(0);
+      expect(tile.maxX - tile.minX).toBe(MEADOW_TILE_SIZE.x);
+      expect(tile.maxZ - tile.minZ).toBe(MEADOW_TILE_SIZE.z);
+
+      for (const index of tile.indices) {
+        expect(seen[index]).toBe(0);
+        seen[index] = 1;
+        expect(stream.x[index]!).toBeGreaterThanOrEqual(tile.minX);
+        expect(stream.x[index]!).toBeLessThan(tile.maxX);
+        expect(stream.z[index]!).toBeGreaterThanOrEqual(tile.minZ);
+        expect(stream.z[index]!).toBeLessThan(tile.maxZ);
+      }
+
+      // A local rung is exactly the matching source-rung prefix in this
+      // cell. Tiling therefore cannot create a density seam or activate a
+      // lower-quality instance before its authored rung.
+      stream.rungCounts.forEach((sourceEnd, rung) => {
+        const active = [...tile.indices.slice(0, tile.rungCounts[rung])];
+        const expected = [...tile.indices].filter((index) => index < sourceEnd);
+        expect(active).toEqual(expected);
+      });
+    }
+
+    expect([...seen].every((value) => value === 1)).toBe(true);
+    stream.rungCounts.forEach((count, rung) => {
+      expect(tiles.reduce((sum, tile) => sum + tile.rungCounts[rung]!, 0)).toBe(
+        count,
+      );
+    });
+
+    // Tile ordering retains the old front-to-back submission bias.
+    for (let i = 1; i < tiles.length; i++) {
+      const previous = tiles[i - 1]!;
+      const current = tiles[i]!;
+      expect(
+        previous.iz > current.iz ||
+          (previous.iz === current.iz && previous.ix < current.ix),
+      ).toBe(true);
+    }
+  };
+
+  it("covers every grass and flower exactly once with seamless cells", () => {
+    verifyPartition(grass.near);
+    verifyPartition(grass.far);
+    verifyPartition(flowers);
+  });
+
+  it("is deterministic across builds", () => {
+    const first = buildMeadowTiles(grass.far);
+    const again = buildMeadowTiles(buildGrassInstances().far);
+    expect(
+      first.map(({ key, rungCounts, indices }) => ({
+        key,
+        rungCounts,
+        indices: [...indices],
+      })),
+    ).toEqual(
+      again.map(({ key, rungCounts, indices }) => ({
+        key,
+        rungCounts,
+        indices: [...indices],
+      })),
+    );
   });
 });
 
@@ -164,11 +250,15 @@ describe("placement", () => {
       [again.near, grass.near],
       [again.far, grass.far],
     ] as const) {
-      expect(Buffer.from(a.x.buffer).equals(Buffer.from(b.x.buffer))).toBe(true);
-      expect(Buffer.from(a.z.buffer).equals(Buffer.from(b.z.buffer))).toBe(true);
-      expect(Buffer.from(a.height.buffer).equals(Buffer.from(b.height.buffer))).toBe(
+      expect(Buffer.from(a.x.buffer).equals(Buffer.from(b.x.buffer))).toBe(
         true,
       );
+      expect(Buffer.from(a.z.buffer).equals(Buffer.from(b.z.buffer))).toBe(
+        true,
+      );
+      expect(
+        Buffer.from(a.height.buffer).equals(Buffer.from(b.height.buffer)),
+      ).toBe(true);
     }
     const flowersAgain = buildFlowerPositions();
     expect(
@@ -252,7 +342,9 @@ describe("placement", () => {
       expect(inEastFeather(east, z)).toBe(true);
     }
     // The far line (the ridge band's tail since round 3) thins the same way.
-    expect(farFeatherScale(5.8 - GRASS_BANDS.ridge.d1)).toBeLessThanOrEqual(0.13);
+    expect(farFeatherScale(5.8 - GRASS_BANDS.ridge.d1)).toBeLessThanOrEqual(
+      0.13,
+    );
     expect(
       farFeatherScale(5.8 - GRASS_BANDS.ridge.d1 + FAR_FEATHER.span),
     ).toBeCloseTo(1, 5);
@@ -271,7 +363,11 @@ describe("terrain silhouette", () => {
   it("is continuous everywhere, steep only on the authored skirts", () => {
     const step = 0.2;
     for (let x = MEADOW_TERRAIN.minX; x <= MEADOW_TERRAIN.maxX; x += step) {
-      for (let z = MEADOW_TERRAIN.minZ; z <= MEADOW_TERRAIN.maxZ - step; z += step) {
+      for (
+        let z = MEADOW_TERRAIN.minZ;
+        z <= MEADOW_TERRAIN.maxZ - step;
+        z += step
+      ) {
         const jump = Math.abs(meadowHeight(x, z + step) - meadowHeight(x, z));
         const onSkirt =
           z + step > MEADOW_BANK.skirtZ - 1e-6 || z < -24.5 + step + 1e-6;
@@ -297,7 +393,11 @@ describe("terrain silhouette", () => {
     // the shelves is closed with margin); from the lowest bobbed eye
     // (desktop, y 0.14, d 27.3) the tallest crest stays under the e 0.036
     // cap, which itself sits under the GGB deck line (0.038).
-    for (let x = HORIZON_RIDGE.holdMinX; x <= HORIZON_RIDGE.holdMaxX; x += 0.1) {
+    for (
+      let x = HORIZON_RIDGE.holdMinX;
+      x <= HORIZON_RIDGE.holdMaxX;
+      x += 0.1
+    ) {
       const y = horizonCrestY(x);
       expect(y).toBeGreaterThanOrEqual(0.66);
       expect(y).toBeLessThanOrEqual(1.1);
@@ -325,7 +425,11 @@ describe("terrain silhouette", () => {
     // The taper itself is smooth — no cliff for a frame edge to catch.
     // (Worst analytic slope with the round-3 crest: ≈ 0.071 per 0.2 x at
     // the west taper's midpoint.)
-    for (let x = MEADOW_TERRAIN.minX; x <= MEADOW_TERRAIN.maxX - 0.2; x += 0.2) {
+    for (
+      let x = MEADOW_TERRAIN.minX;
+      x <= MEADOW_TERRAIN.maxX - 0.2;
+      x += 0.2
+    ) {
       expect(
         Math.abs(horizonCrestY(x + 0.2) - horizonCrestY(x)),
       ).toBeLessThanOrEqual(0.09);

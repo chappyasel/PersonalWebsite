@@ -16,6 +16,7 @@
 //   renderer.toneMappingExposure into any program that declares it.
 // - Noise replaces the sky's IGN dither (gated off via uPost) — dithering
 //   linear HDR would grain the midtones; output-space noise is film grain.
+import { useStacks } from "../store";
 import { useFrame } from "@react-three/fiber";
 import {
   Bloom,
@@ -32,6 +33,9 @@ import {
 import { BlendFunction, Effect, ToneMappingMode } from "postprocessing";
 import { useMemo } from "react";
 import { MathUtils, Uniform } from "three";
+
+import { tiltShiftEnabled } from "./quality";
+import { unitPose } from "./worldLayout";
 
 // The print grade — the last thing between ACES and the screen, and the
 // reason the room reads as one photograph rather than 37 correctly-lit
@@ -107,31 +111,42 @@ function Grade({ dark }: { dark: boolean }) {
   return <primitive object={effect} dispose={null} />;
 }
 
-export default function Effects({ dark }: { dark: boolean }) {
-  // The side blur is the default; depth-of-field is an opt-in comparison.
-  // TiltShift2 is the owner-approved treatment (browse 2026-08-09) that
-  // v8's DoF displaced — its loss was called out at the round-2 browse.
-  // Side-by-side captures at the owner's framing showed stacking DoF on
-  // top only softens the shelf props the tilt-shift deliberately keeps
-  // crisp, so DoF mounts only under ?withdof (its own escape ?notiltshift
-  // kills the default for the inverse comparison).
-  const tiltShift = useMemo(
-    () =>
-      typeof window === "undefined" ||
-      !window.location.search.includes("notiltshift"),
-    [],
-  );
-  // DoF graduated from opt-in comparison to default (owner call, round 3):
-  // real optical falloff into the hills and skyline, adopted once the
-  // strong ?withdof grade made the difference judgeable. Cost ~1ms, paid
-  // only by composer-capable desktops — the degrade ladder and the touch
-  // gate keep it off everything weaker. ?nodof restores the fog-only look.
+export default function Effects({
+  dark,
+  quality = "full",
+}: {
+  dark: boolean;
+  /**
+   * `finish` keeps the cheap authored print/edge treatment after a sustained
+   * decline while removing the spatial passes that scale most with pixels.
+   * The parent still unmounts the complete composer at the final rung.
+   */
+  quality?: "full" | "finish" | "off";
+}) {
+  // DoF is the expensive world-space blur and remains full-tier only. The
+  // owner-approved side tilt shift is the cheaper compositional treatment;
+  // it survives in finish mode and can still be isolated with ?notiltshift.
   const depthOfField = useMemo(
     () =>
       typeof window === "undefined" ||
       !window.location.search.includes("nodof"),
     [],
   );
+  const tiltShift = useMemo(
+    () =>
+      tiltShiftEnabled(
+        quality,
+        depthOfField,
+        typeof window !== "undefined" &&
+          window.location.search.includes("notiltshift"),
+      ),
+    [depthOfField, quality],
+  );
+  const activeUnit = useStacks((state) => state.activeUnit);
+  const focusTarget = useMemo<[number, number, number]>(() => {
+    const pose = unitPose(activeUnit);
+    return [pose.position[0], pose.position[1], pose.position[2]];
+  }, [activeUnit]);
   const graded = useMemo(
     () =>
       typeof window === "undefined" ||
@@ -140,47 +155,43 @@ export default function Effects({ dark }: { dark: boolean }) {
   );
   return (
     <EffectComposer multisampling={0}>
-      <N8AO
-        halfRes
-        quality="low"
-        aoRadius={0.32}
-        distanceFalloff={0.8}
-        intensity={2.4}
-      />
+      {quality === "full" && (
+        <N8AO
+          halfRes
+          quality="low"
+          aoRadius={0.32}
+          distanceFalloff={0.8}
+          intensity={2.4}
+        />
+      )}
       {/* Keep bloom on HDR practicals, not on the moon and white sky detail.
           The floor-lamp mouth and fixture faces are deliberately authored
           above 1.0; the dome is not. A higher threshold therefore gives the
           practicals room for a stronger optical shoulder without laying a
           global haze over the skyline. */}
-      <Bloom
-        mipmapBlur
-        luminanceThreshold={dark ? 1.25 : 1.35}
-        luminanceSmoothing={0.08}
-        intensity={dark ? 1.2 : 0.4}
-      />
-      {/* Camera→shelf distance is 5.8–6.4 world units across the alternating
-          unit poses. A 2.6-unit focus range leaves held props and both shelf
-          planes crisp, then rolls into optical bokeh toward the far skyline.
-          This composer is already desktop-only and unmounts at the first
-          performance decline, so mobile/degraded paths pay nothing. */}
-      {/* Settled between the invisible 1.25/0.5 original and the 3.4/0.75
-          comparison grade: the shelf plane stays crisp, the hills and
-          skyline fall into believable bokeh, and the buffers stay at 0.6
-          resolution so the pass costs about a millisecond. */}
-      {depthOfField && (
+      {quality === "full" && (
+        <Bloom
+          mipmapBlur
+          luminanceThreshold={dark ? 1.25 : 1.35}
+          luminanceSmoothing={0.08}
+          intensity={dark ? 1.2 : 0.4}
+        />
+      )}
+      {/* Target the active shelf in world space instead of assuming the wide
+          camera's 5.8-unit pose. Portrait layouts pull the camera back to 7.6;
+          a fixed 6.05 focus distance put the focal plane in the foreground
+          grass. The effect measures camera→target every frame, including the
+          alternating unit depths and the About stop's lateral offset. */}
+      {quality === "full" && depthOfField && (
         <DepthOfField
-          focusDistance={6.05}
+          target={focusTarget}
           focusRange={2.2}
-          bokehScale={2.4}
+          bokehScale={1.6}
           resolutionScale={0.6}
         />
       )}
-      {/* The side blur: a vertical focus line with blur growing toward the
-          left/right screen edges — the frame vignettes into softness the way
-          a tilt-shift photo does, independent of scene depth. Values are the
-          last shipped ones (removed in 710610c when DoF took this slot; the
-          owner asked for it back). Vignette offset 0.34 below is the value
-          this was originally tuned against. */}
+      {/* Vertical focus line with softness growing toward the screen edges.
+          This is part of the approved look, so finish mode keeps it. */}
       {tiltShift && <TiltShift2 blur={0.105} taper={0.6} />}
       {/* Light theme eases both finishing touches: premultiplied noise
           scales with luminance (a near-white sky grains hard), and dark

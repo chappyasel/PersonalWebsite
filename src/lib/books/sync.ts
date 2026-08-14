@@ -29,6 +29,8 @@ export type SyncResult = {
   booksUpdated: number;
   booksUnchanged: number;
   booksDeleted: number;
+  bookIdsToInvalidate: string[];
+  bookIdsToWarm: string[];
   fullContentFetched: number;
   fullContentSkipped: number;
   errors: SyncError[];
@@ -105,8 +107,11 @@ export async function syncBooksFromNotion(
 
     // STEP 3.5: Delete books that no longer exist in Notion
     const notionIdSet = new Set(notionBooks.map((b) => b.notionId));
-    const { deleted: booksDeleted, guardError } =
-      await deleteBooksRemovedFromNotion(notionIdSet, dbBooks);
+    const {
+      deleted: booksDeleted,
+      deletedBookIds,
+      guardError,
+    } = await deleteBooksRemovedFromNotion(notionIdSet, dbBooks);
 
     // STEP 4: Categorize books (new, updated, unchanged)
     const { newBooks, updatedBooks, unchangedBooks } = categorizeBooks(
@@ -126,6 +131,31 @@ export async function syncBooksFromNotion(
     // STEP 6: Upsert books to database
     console.log("Upserting books to database...");
     await upsertBooksToDatabase(contentFetchResults, unchangedBooks);
+
+    // Build a precise cache plan. Successful new/updated books and books whose
+    // generated slug changed need fresh pages/images. Removed and superseded
+    // slugs only need invalidation; warming them would cache a not-found card.
+    const existingIdByNotionId = new Map(
+      dbBooks.map((book) => [book.notionId, book.id]),
+    );
+    const successfulChangedBooks = contentFetchResults
+      .filter((result) => result.success)
+      .map((result) => result.book);
+    const bookIdsToWarm = new Set(
+      successfulChangedBooks.map((book) => book.id),
+    );
+    const bookIdsToInvalidate = new Set(deletedBookIds);
+
+    for (const book of [...successfulChangedBooks, ...unchangedBooks]) {
+      const previousId = existingIdByNotionId.get(book.notionId);
+      if (previousId && previousId !== book.id) {
+        bookIdsToInvalidate.add(previousId);
+        bookIdsToWarm.add(book.id);
+      }
+    }
+    for (const bookId of bookIdsToWarm) {
+      bookIdsToInvalidate.add(bookId);
+    }
 
     // STEP 7: Calculate results
     const errors = contentFetchResults
@@ -147,6 +177,8 @@ export async function syncBooksFromNotion(
       booksUpdated: updatedBooks.length,
       booksUnchanged: unchangedBooks.length,
       booksDeleted,
+      bookIdsToInvalidate: [...bookIdsToInvalidate].sort(),
+      bookIdsToWarm: [...bookIdsToWarm].sort(),
       fullContentFetched: contentFetchResults.filter((r) => r.success).length,
       fullContentSkipped: unchangedBooks.length,
       errors,
@@ -176,11 +208,15 @@ export async function syncBooksFromNotion(
 async function deleteBooksRemovedFromNotion(
   notionIds: Set<string>,
   dbBooks: Array<{ id: string; notionId: string }>,
-): Promise<{ deleted: number; guardError: SyncError | null }> {
+): Promise<{
+  deleted: number;
+  deletedBookIds: string[];
+  guardError: SyncError | null;
+}> {
   const staleBooks = dbBooks.filter((b) => !notionIds.has(b.notionId));
 
   if (staleBooks.length === 0) {
-    return { deleted: 0, guardError: null };
+    return { deleted: 0, deletedBookIds: [], guardError: null };
   }
 
   if (staleBooks.length > DELETION_GUARD_LIMIT) {
@@ -190,6 +226,7 @@ async function deleteBooksRemovedFromNotion(
 
     return {
       deleted: 0,
+      deletedBookIds: [],
       guardError: {
         bookId: "deletion-guard",
         bookTitle: `${staleBooks.length} books missing from Notion`,
@@ -204,7 +241,11 @@ async function deleteBooksRemovedFromNotion(
     await db.delete(books).where(eq(books.notionId, book.notionId));
   }
 
-  return { deleted: staleBooks.length, guardError: null };
+  return {
+    deleted: staleBooks.length,
+    deletedBookIds: staleBooks.map((book) => book.id),
+    guardError: null,
+  };
 }
 
 /**

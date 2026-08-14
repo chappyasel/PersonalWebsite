@@ -11,6 +11,8 @@ import { type ThreeEvent, useThree } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 
+import { type ScenePhotoRole, scenePhotoUrl } from "./photoTextures";
+
 /** object-fit: cover with an optional zoom and focal point. `focus` is
  * CSS-object-position-like: [x from left, y from TOP], each 0..1. */
 function fitCover(
@@ -87,6 +89,7 @@ function warmGrade(tex: THREE.Texture, grade: number) {
 
 export default function LitImage({
   url,
+  role = "feature",
   width,
   height,
   radius = 0,
@@ -100,6 +103,8 @@ export default function LitImage({
   onClick,
 }: {
   url: string;
+  /** Runtime resolution class for local v8 scene photography. */
+  role?: ScenePhotoRole;
   width: number;
   height: number;
   radius?: number;
@@ -114,7 +119,8 @@ export default function LitImage({
   onPointerOut?: (e: ThreeEvent<PointerEvent>) => void;
   onClick?: (e: ThreeEvent<MouseEvent>) => void;
 }) {
-  const sourceTexture = useTexture(url);
+  const resolvedUrl = scenePhotoUrl(url, role);
+  const sourceTexture = useTexture(resolvedUrl);
   // drei caches useTexture by URL. Every print needs an instance-local
   // transform because repeat/offset encode this mesh's aspect and focal
   // point; mutating the cached texture made a second use of the same cover

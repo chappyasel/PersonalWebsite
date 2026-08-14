@@ -6,6 +6,7 @@
 // pointer-events-none; interactive layers manage their own events.
 import { useStacks } from "../store";
 import { GRAIN_URI } from "../theme";
+import { useEffect, useRef, useState } from "react";
 
 import { ThemeToggle } from "~/components/ui/theme-toggle";
 
@@ -28,6 +29,158 @@ export function GrainReveal({
   );
 }
 
+type DevHudSnapshot = {
+  fps: number;
+  p50: number;
+  p95: number;
+  durable: number | null;
+  forced: boolean | null;
+  moving: boolean | null;
+  postprocessing: string | null;
+  dpr: number | null;
+  framebuffer: string | null;
+  calls: number | null;
+  triangles: number | null;
+  textures: number | null;
+  programs: number | null;
+};
+
+const EMPTY_DEV_HUD: DevHudSnapshot = {
+  fps: 0,
+  p50: 0,
+  p95: 0,
+  durable: null,
+  forced: null,
+  moving: null,
+  postprocessing: null,
+  dpr: null,
+  framebuffer: null,
+  calls: null,
+  triangles: null,
+  textures: null,
+  programs: null,
+};
+
+function numeric(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function record(value: unknown): Record<string, unknown> | null {
+  return value != null && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function rendererSnapshot(): Omit<DevHudSnapshot, "fps" | "p50" | "p95"> {
+  const state = window.__stacks?.state();
+  const quality = record(state?.quality);
+  const framebuffer = record(state?.framebuffer);
+  const buffer = Array.isArray(framebuffer?.buffer) ? framebuffer.buffer : null;
+  return {
+    durable: numeric(quality?.durable),
+    forced: typeof quality?.forced === "boolean" ? quality.forced : null,
+    moving: typeof quality?.moving === "boolean" ? quality.moving : null,
+    postprocessing:
+      typeof quality?.postprocessing === "string"
+        ? quality.postprocessing
+        : null,
+    dpr: numeric(state?.dpr) ?? numeric(quality?.effectiveDpr),
+    framebuffer:
+      buffer && numeric(buffer[0]) != null && numeric(buffer[1]) != null
+        ? `${numeric(buffer[0])}×${numeric(buffer[1])}`
+        : null,
+    calls: numeric(state?.calls),
+    triangles: numeric(state?.triangles),
+    textures: numeric(state?.textures),
+    programs: numeric(state?.programs),
+  };
+}
+
+function percentile(sorted: number[], portion: number) {
+  if (sorted.length === 0) return 0;
+  return sorted[
+    Math.min(sorted.length - 1, Math.ceil(sorted.length * portion) - 1)
+  ]!;
+}
+
+function compactCount(value: number | null) {
+  if (value == null) return "–";
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}m`;
+  if (value >= 1_000) return `${Math.round(value / 1_000)}k`;
+  return String(Math.round(value));
+}
+
+/** A live, self-contained development readout. It deliberately samples RAF
+ * cadence rather than the opt-in performance harness, so it remains useful
+ * while visually inspecting ordinary navigation. */
+function DevPerformanceHud() {
+  const [snapshot, setSnapshot] = useState(EMPTY_DEV_HUD);
+  const samples = useRef<number[]>([]);
+
+  useEffect(() => {
+    let animationFrame = 0;
+    let previousFrame = performance.now();
+    let lastPublish = previousFrame;
+
+    const frame = (now: number) => {
+      const elapsed = now - previousFrame;
+      previousFrame = now;
+      // Ignore long background-tab pauses; they describe visibility, not the
+      // scene's steady rendering performance.
+      if (elapsed > 0 && elapsed < 1_000) {
+        samples.current.push(elapsed);
+        if (samples.current.length > 240) samples.current.shift();
+      }
+
+      if (now - lastPublish >= 500) {
+        const frameTimes = [...samples.current].sort((a, b) => a - b);
+        const mean =
+          frameTimes.reduce((total, value) => total + value, 0) /
+          Math.max(1, frameTimes.length);
+        setSnapshot({
+          fps: mean > 0 ? 1_000 / mean : 0,
+          p50: percentile(frameTimes, 0.5),
+          p95: percentile(frameTimes, 0.95),
+          ...rendererSnapshot(),
+        });
+        lastPublish = now;
+      }
+      animationFrame = requestAnimationFrame(frame);
+    };
+
+    animationFrame = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(animationFrame);
+  }, []);
+
+  const quality = snapshot.durable == null ? "Q–" : `Q${snapshot.durable}`;
+  const movement =
+    snapshot.moving == null ? "waiting" : snapshot.moving ? "moving" : "still";
+  const qualityMode = snapshot.forced ? "forced" : "auto";
+
+  return (
+    <output
+      className="stacks-dev-hud pointer-events-none"
+      aria-label="Development rendering performance"
+      title="Development-only rolling rendering metrics"
+    >
+      <span>
+        {Math.round(snapshot.fps)} fps · {snapshot.p50.toFixed(1)}/
+        {snapshot.p95.toFixed(1)} ms p50/p95
+      </span>
+      <span>
+        {quality} {qualityMode}/{movement} · FX {snapshot.postprocessing ?? "–"}{" "}
+        · DPR {snapshot.dpr?.toFixed(2) ?? "–"} · {snapshot.framebuffer ?? "–"}
+      </span>
+      <span>
+        {compactCount(snapshot.calls)} calls ·{" "}
+        {compactCount(snapshot.triangles)} tri ·{" "}
+        {compactCount(snapshot.textures)} tex ·{" "}
+        {compactCount(snapshot.programs)} prog
+      </span>
+    </output>
+  );
+}
+
 export default function ChromeLayer() {
   // The composer's Vignette owns edge darkening while active — stacking the
   // DOM bottom fade on top double-darkens the floor (audit §2.1).
@@ -41,6 +194,30 @@ export default function ChromeLayer() {
         .stacks-wordmark {
           left: max(1.25rem, env(safe-area-inset-left, 0px));
           top: max(1rem, env(safe-area-inset-top, 0px));
+        }
+        ${
+          process.env.NODE_ENV === "development"
+            ? `.stacks-dev-hud {
+                display: grid;
+                gap: 1px;
+                min-width: max-content;
+                padding: 4px 6px;
+                border: 1px solid rgb(255 255 255 / 0.16);
+                border-radius: 5px;
+                color: rgb(255 255 255 / 0.88);
+                background: rgb(4 10 18 / 0.42);
+                box-shadow: 0 1px 5px rgb(0 0 0 / 0.24);
+                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+                font-size: 8px;
+                font-variant-numeric: tabular-nums;
+                font-weight: 500;
+                letter-spacing: -0.01em;
+                line-height: 1.12;
+                text-shadow: 0 1px 2px rgb(0 0 0 / 0.75);
+                white-space: nowrap;
+                backdrop-filter: blur(4px);
+              }`
+            : ""
         }
         .stacks-theme-toggle {
           right: max(1rem, env(safe-area-inset-right, 0px));
@@ -131,11 +308,16 @@ export default function ChromeLayer() {
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[6] h-[12dvh] bg-gradient-to-t from-black/45 to-transparent" />
       )}
       <div className="stacks-wordmark pointer-events-none absolute z-20">
-        <GrainReveal index={0}>
-          <p className="stacks-on-background-text font-serif text-base tracking-tight text-foreground min-[1200px]:text-lg">
-            Chappy Asel
-          </p>
-        </GrainReveal>
+        <div className="flex items-start gap-2.5">
+          <GrainReveal index={0}>
+            <p className="stacks-on-background-text whitespace-nowrap font-serif text-base tracking-tight text-foreground min-[1200px]:text-lg">
+              Chappy Asel
+            </p>
+          </GrainReveal>
+          {process.env.NODE_ENV === "development" ? (
+            <DevPerformanceHud />
+          ) : null}
+        </div>
       </div>
       {/* Theme toggle — fixed chrome, not buried in the About placard (audit
           §1.6). z-30 clears the placard dock (z-20); the mobile panel (z-40)

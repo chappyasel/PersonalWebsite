@@ -12,8 +12,8 @@
 // Layout, fog, and degrade all come from meadowField.ts (pure, shared with
 // vitest and scripts/stacks-meadow-check.ts); this file owns geometry
 // prep, GLSL, and the per-frame uniform writes — nothing else runs per
-// frame. Two grass draws (near lawn = detailed tuft LOD, mid+seated =
-// light LOD) + terrain + flowers = four draw calls.
+// frame. Near lawn, far lawn, and flowers are spatially tiled over shared
+// geometry/materials so Three can reject offscreen vegetation by frustum.
 import { markMeadowReady } from "../loading";
 import { progressRef } from "../store";
 import { PALETTES } from "../theme";
@@ -22,21 +22,19 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
-import { MEADOW_LAMP_MAX, getMeadowLamps } from "./meadowLights";
 import {
   MEADOW_BANK,
-  MEADOW_FLOWER_TOTAL,
   MEADOW_FOG,
   MEADOW_GROUND_BASE,
-  MEADOW_RUNG_FLOWERS,
-  MEADOW_RUNG_GRASS_FAR,
-  MEADOW_RUNG_GRASS_NEAR,
   MEADOW_TERRAIN,
+  type MeadowTile,
   buildFlowerPositions,
   buildGrassInstances,
+  buildMeadowTiles,
   meadowHeight,
   shadeScale,
 } from "./meadowField";
+import { MEADOW_LAMP_MAX, getMeadowLamps } from "./meadowLights";
 import { getSeatAmount } from "./seated";
 
 const TUFT_URL = "/models/grass-tuft.glb";
@@ -230,8 +228,8 @@ const CLOUD_GLSL = /* glsl */ `
 
 const GRASS_VERTEX = /* glsl */ `
   ${SHARED_UNIFORMS_GLSL}
-  attribute float aSun;
-  attribute float aShade;
+  // InstancedMesh injects instanceColor per tile (r = terrain sun,
+  // g = furniture contact shade) while every tile shares one geometry.
   varying float vT;
   varying float vSun;
   varying float vShade;
@@ -277,8 +275,8 @@ const GRASS_VERTEX = /* glsl */ `
     world.y -= 0.4 * dot(disp, disp) / max(hScale, 1e-3);
     vec4 mv = viewMatrix * world;
     vT = t;
-    vSun = aSun;
-    vShade = aShade;
+    vSun = instanceColor.r;
+    vShade = instanceColor.g;
     // Patch-scale tip variation (FluffyGrass drives this with a perlin
     // texture; low-frequency value noise is the textureless equivalent).
     vPatch = vnoise(origin.xz * 0.16);
@@ -430,7 +428,8 @@ const FLOWER_VERTEX = /* glsl */ `
   ${SHARED_UNIFORMS_GLSL}
   uniform float uPixelScale;
   uniform float uPxFloor;
-  attribute float aTint;
+  // InstancedMesh injects instanceColor per tile while every tile shares one
+  // geometry; its red channel carries the authored species tint.
   varying float vTint;
   varying float vSpin;
   varying float vPx;
@@ -479,7 +478,7 @@ const FLOWER_VERTEX = /* glsl */ `
     // Species tint is a per-instance attribute shared across a clump (one
     // clump, one color) rather than a position hash, which speckled every
     // cluster into a color mix.
-    vTint = aTint;
+    vTint = instanceColor.r;
     // Per-head petal rotation + projected size, for the fragment's rosette.
     vSpin = hash2(origin.xz * 43.7) * 6.2832;
     vPx = px;
@@ -568,12 +567,25 @@ const FLOWER_FRAGMENT = /* glsl */ `
 
 /** Flower head: one quad, Y-billboarded in the vertex shader, with the
  * per-clump species tint riding along as an instanced attribute. */
-function makeFlowerGeometry(tint: Float32Array): THREE.BufferGeometry {
+function makeFlowerGeometry(): THREE.BufferGeometry {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute(
     "position",
     new THREE.Float32BufferAttribute(
-      [-FLOWER_HW, 0, 0, FLOWER_HW, 0, 0, FLOWER_HW, FLOWER_H, 0, -FLOWER_HW, FLOWER_H, 0],
+      [
+        -FLOWER_HW,
+        0,
+        0,
+        FLOWER_HW,
+        0,
+        0,
+        FLOWER_HW,
+        FLOWER_H,
+        0,
+        -FLOWER_HW,
+        FLOWER_H,
+        0,
+      ],
       3,
     ),
   );
@@ -581,7 +593,6 @@ function makeFlowerGeometry(tint: Float32Array): THREE.BufferGeometry {
     "uv",
     new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2),
   );
-  geometry.setAttribute("aTint", new THREE.InstancedBufferAttribute(tint, 1));
   geometry.setIndex([0, 1, 2, 0, 2, 3]);
   return geometry;
 }
@@ -616,19 +627,16 @@ function makeTerrainGeometry(): THREE.PlaneGeometry {
 }
 
 /** Clone a tuft LOD out of the GLB, height-normalized so position.y is the
- * 0→1 gate (footprint scales along, ~2.5 per unit height), with the
- * stream's baked per-instance sun and contact-shadow terms attached. */
+ * 0→1 gate (footprint scales along, ~2.5 per unit height). Per-instance
+ * lighting is owned by each tile's InstancedMesh so this geometry stays
+ * shared by every tile. */
 function prepareTuftGeometry(
   source: THREE.BufferGeometry,
-  sun: Float32Array,
-  shade: Float32Array,
 ): THREE.BufferGeometry {
   const geometry = source.clone();
   geometry.computeBoundingBox();
   const maxY = Math.max(geometry.boundingBox!.max.y, 1e-4);
   geometry.scale(1 / maxY, 1 / maxY, 1 / maxY);
-  geometry.setAttribute("aSun", new THREE.InstancedBufferAttribute(sun, 1));
-  geometry.setAttribute("aShade", new THREE.InstancedBufferAttribute(shade, 1));
   return geometry;
 }
 
@@ -642,9 +650,9 @@ export default function Meadow({
    * across every band rather than a depth cut. */
   rung?: 0 | 1 | 2 | 3;
 }) {
-  const nearRef = useRef<THREE.InstancedMesh>(null);
-  const farRef = useRef<THREE.InstancedMesh>(null);
-  const flowerRef = useRef<THREE.InstancedMesh>(null);
+  const nearRefs = useRef<Array<THREE.InstancedMesh | null>>([]);
+  const farRefs = useRef<Array<THREE.InstancedMesh | null>>([]);
+  const flowerRefs = useRef<Array<THREE.InstancedMesh | null>>([]);
   /** Dev-only density override: a 0..1 fraction of the full buffers that
    * beats the rung while set. Never written in production. */
   const densityRef = useRef<number | null>(null);
@@ -654,6 +662,40 @@ export default function Meadow({
 
   const streams = useMemo(() => buildGrassInstances(), []);
   const flowers = useMemo(() => buildFlowerPositions(), []);
+  const tiles = useMemo(
+    () => ({
+      near: buildMeadowTiles(streams.near),
+      far: buildMeadowTiles(streams.far),
+      flowers: buildMeadowTiles(flowers),
+    }),
+    [streams, flowers],
+  );
+  // `instanceColor` must exist when Three first compiles each ShaderMaterial:
+  // it controls the prefix that declares the attribute. Build these before
+  // render rather than attaching them in an effect, which would produce one
+  // invalid first-frame program behind the boot curtain.
+  const tileAttributes = useMemo(() => {
+    const grass = (stream: typeof streams.near, tile: MeadowTile) => {
+      const values = new Float32Array(tile.indices.length * 3);
+      tile.indices.forEach((index, local) => {
+        values[local * 3] = stream.sun[index]!;
+        values[local * 3 + 1] = stream.shade[index]!;
+      });
+      return new THREE.InstancedBufferAttribute(values, 3);
+    };
+    const flower = (tile: MeadowTile) => {
+      const values = new Float32Array(tile.indices.length * 3);
+      tile.indices.forEach((index, local) => {
+        values[local * 3] = flowers.tint[index]!;
+      });
+      return new THREE.InstancedBufferAttribute(values, 3);
+    };
+    return {
+      near: tiles.near.map((tile) => grass(streams.near, tile)),
+      far: tiles.far.map((tile) => grass(streams.far, tile)),
+      flowers: tiles.flowers.map(flower),
+    };
+  }, [streams, flowers, tiles]);
 
   const built = useMemo(() => {
     const c = (hex: string) => new THREE.Color(hex);
@@ -709,7 +751,7 @@ export default function Meadow({
       grassOnly,
       flowerOnly,
       terrainGeometry: makeTerrainGeometry(),
-      flowerGeometry: makeFlowerGeometry(flowers.tint),
+      flowerGeometry: makeFlowerGeometry(),
       terrainMaterial: new THREE.ShaderMaterial({
         uniforms: { ...shared, uSunDir: { value: SUN_DIR } },
         vertexShader: TERRAIN_VERTEX,
@@ -748,10 +790,10 @@ export default function Meadow({
       throw new Error("grass-tuft.glb is missing its LOD00/LOD01 meshes");
     }
     return {
-      near: prepareTuftGeometry(lod0, streams.near.sun, streams.near.shade),
-      far: prepareTuftGeometry(lod1, streams.far.sun, streams.far.shade),
+      near: prepareTuftGeometry(lod0),
+      far: prepareTuftGeometry(lod1),
     };
-  }, [gltf, streams]);
+  }, [gltf]);
 
   // The alpha mask is data, not color — keep it linear so the threshold
   // means the same thing the source texture authored.
@@ -761,47 +803,68 @@ export default function Meadow({
     built.grassOnly.uAlpha.value = alphaMap;
   }, [alphaMap, built]);
 
-  // Instance fill, once per stream. Matrices come out of meadowField's
-  // rung-ordered streams; nothing here is ever rewritten.
+  // Instance fill, once per tile. The matrices still point at meadowField's
+  // exact authored placements; only their draw ownership changes. Each
+  // tile keeps rung-major ordering locally and gets an actual instance
+  // bound (plus shader-displacement padding), enabling normal frustum
+  // culling without a per-frame CPU visibility walk.
   useEffect(() => {
     const matrix = new THREE.Matrix4();
     const quaternion = new THREE.Quaternion();
     const euler = new THREE.Euler();
     const position = new THREE.Vector3();
     const scale = new THREE.Vector3();
-    const fill = (
+    const padBounds = (mesh: THREE.InstancedMesh) => {
+      mesh.computeBoundingBox();
+      mesh.computeBoundingSphere();
+      // Wind/poke bend happens in the vertex shader after Three computes the
+      // instance bounds. 0.5 exceeds the grass's 0.42-radian maximum throw
+      // and the flowers' two-pixel floor/wind displacement.
+      mesh.boundingBox?.expandByScalar(0.5);
+      if (mesh.boundingSphere) mesh.boundingSphere.radius += 0.5;
+    };
+    const fillGrassTile = (
       mesh: THREE.InstancedMesh | null,
       stream: typeof streams.near,
+      tile: MeadowTile,
     ) => {
       if (!mesh) return;
-      for (let i = 0; i < stream.count; i++) {
+      for (let local = 0; local < tile.indices.length; local++) {
+        const i = tile.indices[local]!;
         position.set(stream.x[i]!, stream.y[i]!, stream.z[i]);
         euler.set(0, stream.yaw[i]!, 0);
         quaternion.setFromEuler(euler);
         scale.set(stream.width[i]!, stream.height[i]!, stream.width[i]);
         matrix.compose(position, quaternion, scale);
-        mesh.setMatrixAt(i, matrix);
+        mesh.setMatrixAt(local, matrix);
       }
       mesh.instanceMatrix.needsUpdate = true;
-      mesh.computeBoundingSphere();
+      padBounds(mesh);
     };
-    fill(nearRef.current, streams.near);
-    fill(farRef.current, streams.far);
-    const flowerMesh = flowerRef.current;
-    if (!flowerMesh) return;
-    quaternion.identity();
-    for (let i = 0; i < flowers.count; i++) {
-      position.set(flowers.x[i]!, flowers.y[i]!, flowers.z[i]);
-      scale.setScalar(flowers.scale[i]!);
-      matrix.compose(position, quaternion, scale);
-      flowerMesh.setMatrixAt(i, matrix);
-    }
-    flowerMesh.instanceMatrix.needsUpdate = true;
-    flowerMesh.computeBoundingSphere();
+    tiles.near.forEach((tile, i) =>
+      fillGrassTile(nearRefs.current[i] ?? null, streams.near, tile),
+    );
+    tiles.far.forEach((tile, i) =>
+      fillGrassTile(farRefs.current[i] ?? null, streams.far, tile),
+    );
+    tiles.flowers.forEach((tile, tileIndex) => {
+      const mesh = flowerRefs.current[tileIndex];
+      if (!mesh) return;
+      quaternion.identity();
+      for (let local = 0; local < tile.indices.length; local++) {
+        const i = tile.indices[local]!;
+        position.set(flowers.x[i]!, flowers.y[i]!, flowers.z[i]);
+        scale.setScalar(flowers.scale[i]!);
+        matrix.compose(position, quaternion, scale);
+        mesh.setMatrixAt(local, matrix);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+      padBounds(mesh);
+    });
     // The buffers are filled and the GLB/alpha suspended above us, so the
     // next painted frame contains grass — tell the boot reveal gate.
     markMeadowReady();
-  }, [streams, flowers]);
+  }, [streams, flowers, tiles]);
 
   // Live browse knobs on the house dev-hook object. Writes go straight into
   // the shared uniform holders, so every material follows at once; winning
@@ -853,7 +916,8 @@ export default function Meadow({
     [built, tuftGeometries],
   );
 
-  // The complete per-frame cost: six uniform writes and three count fields.
+  // The complete per-frame cost: shared uniform writes plus one cheap count
+  // assignment per tile. Visibility itself remains Three's frustum test.
   useFrame(({ clock, gl, camera, pointer }, delta) => {
     const shared = built.shared;
     // Pointer → lawn: unproject the cursor and hit the base ground plane
@@ -878,8 +942,7 @@ export default function Meadow({
           pokeF.x = THREE.MathUtils.damp(pokeF.x, hx, 3.5, delta);
           pokeF.y = THREE.MathUtils.damp(pokeF.y, hz, 3.5, delta);
           const sinceClick = clock.elapsedTime - pokeClickAt.current;
-          target =
-            0.24 + 0.34 * Math.exp(-(sinceClick * sinceClick) / 0.18);
+          target = 0.24 + 0.34 * Math.exp(-(sinceClick * sinceClick) / 0.18);
         }
       }
       poke.w = THREE.MathUtils.damp(poke.w, target, 3.5, delta);
@@ -930,7 +993,9 @@ export default function Meadow({
       shared.uLampGlow.value[li] =
         lamp.litRef.current *
         lamp.strength *
-        (1 + 0.04 * Math.sin(lt * 11 + li * 7.3) + 0.025 * Math.sin(lt * 27 + li * 2.1));
+        (1 +
+          0.04 * Math.sin(lt * 11 + li * 7.3) +
+          0.025 * Math.sin(lt * 27 + li * 2.1));
       li++;
     }
     for (; li < MEADOW_LAMP_MAX; li++) shared.uLampGlow.value[li] = 0;
@@ -939,30 +1004,58 @@ export default function Meadow({
       density === null
         ? table[rung]!
         : Math.round(table[3]! * Math.min(1, Math.max(0, density)));
-    if (nearRef.current) nearRef.current.count = countFor(MEADOW_RUNG_GRASS_NEAR);
-    if (farRef.current) farRef.current.count = countFor(MEADOW_RUNG_GRASS_FAR);
-    if (flowerRef.current) flowerRef.current.count = countFor(MEADOW_RUNG_FLOWERS);
+    tiles.near.forEach((tile, i) => {
+      const mesh = nearRefs.current[i];
+      if (mesh) mesh.count = countFor(tile.rungCounts);
+    });
+    tiles.far.forEach((tile, i) => {
+      const mesh = farRefs.current[i];
+      if (mesh) mesh.count = countFor(tile.rungCounts);
+    });
+    tiles.flowers.forEach((tile, i) => {
+      const mesh = flowerRefs.current[i];
+      if (mesh) mesh.count = countFor(tile.rungCounts);
+    });
   });
 
   // Draw order terrain → grass → flowers.
   return (
     <group>
       <mesh geometry={built.terrainGeometry} material={built.terrainMaterial} />
-      <instancedMesh
-        ref={nearRef}
-        args={[tuftGeometries.near, built.grassMaterial, MEADOW_RUNG_GRASS_NEAR[3]]}
-        frustumCulled={false}
-      />
-      <instancedMesh
-        ref={farRef}
-        args={[tuftGeometries.far, built.grassMaterial, MEADOW_RUNG_GRASS_FAR[3]]}
-        frustumCulled={false}
-      />
-      <instancedMesh
-        ref={flowerRef}
-        args={[built.flowerGeometry, built.flowerMaterial, MEADOW_FLOWER_TOTAL]}
-        frustumCulled={false}
-      />
+      {tiles.near.map((tile, i) => (
+        <instancedMesh
+          key={`near:${tile.key}`}
+          ref={(mesh) => {
+            nearRefs.current[i] = mesh;
+          }}
+          instanceColor={tileAttributes.near[i]}
+          args={[tuftGeometries.near, built.grassMaterial, tile.indices.length]}
+        />
+      ))}
+      {tiles.far.map((tile, i) => (
+        <instancedMesh
+          key={`far:${tile.key}`}
+          ref={(mesh) => {
+            farRefs.current[i] = mesh;
+          }}
+          instanceColor={tileAttributes.far[i]}
+          args={[tuftGeometries.far, built.grassMaterial, tile.indices.length]}
+        />
+      ))}
+      {tiles.flowers.map((tile, i) => (
+        <instancedMesh
+          key={`flower:${tile.key}`}
+          ref={(mesh) => {
+            flowerRefs.current[i] = mesh;
+          }}
+          instanceColor={tileAttributes.flowers[i]}
+          args={[
+            built.flowerGeometry,
+            built.flowerMaterial,
+            tile.indices.length,
+          ]}
+        />
+      ))}
     </group>
   );
 }

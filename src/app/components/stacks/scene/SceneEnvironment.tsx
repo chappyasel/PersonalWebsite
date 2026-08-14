@@ -11,10 +11,15 @@ import { Suspense, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import Butterflies from "./Butterflies";
-import { poolTexture } from "./GroundPool";
 import Meadow from "./Meadow";
 import Petals from "./Petals";
 import { DAYLIGHT_RENDERING } from "./daylightRendering";
+import {
+  type DurableQualityRung,
+  cloudDetailEnabled,
+  landmarkDetailEnabled,
+  meadowQualityRung,
+} from "./quality";
 import { getSeatAmount } from "./seated";
 import { SKY_LIGHTING } from "./skyLighting";
 import { MID_X, STACKS_DESKTOP_MIN_WIDTH, TRAVEL_X } from "./worldLayout";
@@ -714,31 +719,41 @@ const SKY_FRAGMENT = `
       col += vec3(0.42, 0.50, 0.66) * halo * moonGate * 0.20;
     }
 
-    // ---- Cloud deck, light theme only. The morning sky was one clean
-    // gradient doing no compositional work; a broken deck gives it depth and
-    // something that moves on its own. Full quality adds a three-octave,
-    // world-anchored field. Simplified sky keeps the cheaper two-octave
-    // camera-continuous deck below, so a performance decline cannot erase the
-    // weather entirely.
+    // ---- Cloud deck, light theme only. High quality is macro MASS eroded by
+    // a finer field, rather than five equally weighted octaves: that produces
+    // connected cloudy bodies with broken edges instead of busy fog. The low
+    // program compiles the mass/erosion work out completely and keeps the
+    // camera-continuous coverage deck, so movement or a sustained decline can
+    // become cheaper without deleting the weather.
     if (day > 0.01) {
       float cf = 0.0;
-      if (uSimplify < 0.5) {
+#ifdef SKY_CLOUD_DETAIL
         vec2 cp = vec2(
           a * 2.6 + uTime * ${SKY_LIGHTING.atmosphere.cloudDrift.toFixed(3)},
           e * 9.1
         );
-        cf = 0.54 * vnoise(cp)
-           + 0.29 * vnoise(
-               cp * 2.1 + 19.0
-               + vec2(-uTime, uTime * 0.35)
-               * ${SKY_LIGHTING.atmosphere.cloudMorph.toFixed(3)}
-             )
-           + 0.17 * vnoise(
-               cp * 4.3 + 7.0
-               + vec2(uTime * 0.22, -uTime)
-               * ${SKY_LIGHTING.atmosphere.cloudMorph.toFixed(3)}
-             );
-      }
+        float macro = 0.66 * vnoise(cp * 0.72)
+                    + 0.34 * vnoise(
+                        cp * 1.36 + vec2(-uTime, uTime * 0.28)
+                        * ${SKY_LIGHTING.atmosphere.cloudMorph.toFixed(3)}
+                      );
+        float erosion = 0.62 * vnoise(
+                            cp * 3.2 + 19.0
+                            + vec2(-uTime, uTime * 0.35)
+                            * ${SKY_LIGHTING.atmosphere.cloudMorph.toFixed(3)}
+                          )
+                      + 0.38 * vnoise(
+                            cp * 6.4 + 7.0
+                            + vec2(uTime * 0.22, -uTime)
+                            * ${SKY_LIGHTING.atmosphere.cloudMorph.toFixed(3)}
+                          );
+        // Erosion only cuts the boundary/holes; it cannot turn an empty macro
+        // region into salt-and-pepper cloud. A subtle elevation bias flattens
+        // the underside while letting tops billow into the deck.
+        float shapedErosion = (erosion - 0.50) * 0.23;
+        float baseLift = smoothstep(0.025, 0.095, e) * 0.035;
+        cf = macro + shapedErosion + baseLift;
+#endif
       // A second sparse, higher deck is camera-continuous (a - uPan). The
       // primary field remains world-anchored and supplies the obvious drift,
       // but its seeded slice was completely empty over the first two units
@@ -937,8 +952,19 @@ const SKY_FRAGMENT = `
     // become faintly transparent to them.
     vec3 skyBase = col;
 
-    // Stars, dark only — hashed cells in azimuth/elevation space with
-    // per-star phase and rate, horizon extinction, thinned by the dawn.
+    // Stars, dark only — one procedural field with a magnitude distribution,
+    // colour temperature, and elevation-dependent scintillation. This stays
+    // inside the sky's existing draw call: a brighter, more varied night sky
+    // costs no geometry, objects, textures, or React work.
+    //
+    // The twinkle is intentionally asymmetric. Stars overhead mostly hold
+    // steady while low stars cross more turbulent air and vary a little more;
+    // even there two incommensurate waves keep them from blinking like LEDs.
+    // Rare bright stars get a larger, hotter core and let the existing bloom
+    // produce their only aureole. Drawing diffraction spikes into the source
+    // mask makes post-processing magnify them into soft crosses. A power curve
+    // on magnitude is important here — equal-sized white dots read as snow,
+    // not a sky.
     // Simplified halves the field instead of dropping it. Thinned again over
     // the basin: that window is at dusk, not at 3:45, and a full 3am field
     // hanging over an afterglow is the first thing that reads as wrong.
@@ -950,12 +976,45 @@ const SKY_FRAGMENT = `
       vec2 sc = vec2(a * 34.0, e * 34.0);
       vec2 cell = floor(sc);
       float present = step(hash2(cell), 0.22 * (1.0 - 0.5 * uSimplify));
-      vec2 pos = vec2(hash2(cell + 17.0), hash2(cell + 43.0)) * 0.7 + 0.15;
-      float d = length(fract(sc) - pos);
-      float core = smoothstep(0.10, 0.02, d);
-      float tw = 0.75 + 0.25 * sin(uTime * (0.6 + hash2(cell + 71.0) * 1.6) + hash2(cell + 5.0) * 6.28);
-      float bright = 0.35 + 0.65 * hash2(cell + 29.0);
-      col += vec3(0.82, 0.88, 1.0) * present * core * tw * bright * starGate;
+      // Coherent per-cell branch: 78% of cells stop here before the hashes,
+      // trigonometry, colour work, and glint shaping below. That makes the
+      // richer field cheaper than evaluating even one extra wave everywhere.
+      if (present > 0.5) {
+        vec2 pos = vec2(hash2(cell + 17.0), hash2(cell + 43.0)) * 0.7 + 0.15;
+        vec2 q = fract(sc) - pos;
+        float d = length(q);
+        float rawMag = hash2(cell + 29.0);
+        float magnitude = rawMag * rawMag;
+        float radius = mix(0.032, 0.078, magnitude);
+        float core = smoothstep(radius, radius * 0.16, d);
+
+        float phase = hash2(cell + 5.0) * 6.28318531;
+        float rate = 0.55 + hash2(cell + 71.0) * 1.25;
+        float scintillation = 1.0 - smoothstep(0.035, 0.24, e);
+        float twinkleWave = 0.62 * sin(uTime * rate + phase)
+                          + 0.38 * sin(uTime * rate * 1.73 + phase * 2.31);
+        float twinkleDepth = mix(0.035, 0.18, scintillation)
+                           * mix(0.55, 1.0, magnitude);
+        float twinkle = 1.0 + twinkleWave * twinkleDepth;
+
+        // Temperature is stable per star. The small time-varying bias on low
+        // stars is atmospheric dispersion, not a full RGB colour cycle.
+        float temperature = hash2(cell + 89.0);
+        vec3 starCool = vec3(0.68, 0.80, 1.00);
+        vec3 starNeutral = vec3(0.92, 0.94, 1.00);
+        vec3 starWarm = vec3(1.00, 0.78, 0.55);
+        vec3 starColor = temperature < 0.22
+          ? mix(starWarm, starNeutral, temperature / 0.22)
+          : mix(starNeutral, starCool, (temperature - 0.22) / 0.78);
+        starColor = mix(
+          starColor,
+          vec3(0.72, 0.84, 1.0),
+          max(twinkleWave, 0.0) * scintillation * 0.08
+        );
+
+        float brightness = 0.24 + 0.76 * magnitude;
+        col += starColor * core * twinkle * brightness * starGate;
+      }
     }
 
     // ---- Fireworks over the Golden Gate, fired by clicking the bridge.
@@ -2238,7 +2297,15 @@ function parkSkyTarget(
   mesh.lookAt(camera.position);
 }
 
-function SkyDome({ dark, simplify }: { dark: boolean; simplify: boolean }) {
+function SkyDome({
+  dark,
+  simplify,
+  cloudDetail,
+}: {
+  dark: boolean;
+  simplify: boolean;
+  cloudDetail: boolean;
+}) {
   const domeRef = useRef<THREE.Mesh>(null);
   const hitRef = useRef<THREE.Mesh>(null);
   const sfHitRef = useRef<THREE.Mesh>(null);
@@ -2248,57 +2315,68 @@ function SkyDome({ dark, simplify }: { dark: boolean; simplify: boolean }) {
   const pendingSf = useRef(false);
   const viewDirection = useRef(new THREE.Vector3());
   const setHovered = useStacks((s) => s.setHovered);
-  const material = useMemo(() => {
+  const sky = useMemo(() => {
     const c = (hex: string) => new THREE.Color(hex);
     const L = PALETTES.light;
     const D = PALETTES.dark;
-    return new THREE.ShaderMaterial({
-      side: THREE.BackSide,
-      depthWrite: false,
-      fog: false,
-      uniforms: {
-        uDark: { value: dark ? 1 : 0 },
-        uDawn: { value: 0 },
-        uPan: { value: -PAN_BIAS },
-        // Seeded near the centre of the opening frame rather than "nowhere":
-        // damping in from a sentinel would sweep the highlight across the
-        // whole skyline on load.
-        uHover: { value: -1.6 },
-        uTime: { value: 0 },
-        uFrame: { value: 0 },
-        uSimplify: { value: 0 },
-        uPost: { value: 0 },
-        uFire: { value: -1 },
-        uFireSeed: { value: 0 },
-        uSeat: { value: 0 },
-        uDcAnchor: { value: 1.0 },
-        uSfHover: { value: 0 },
-        uSfShow: { value: -1 },
-        uSfSeed: { value: 0 },
-        zenithL: { value: c(L.skyTop) },
-        zenithD: { value: c(D.skyTop) },
-        horizonL: { value: c(L.skyHorizon) },
-        horizonD: { value: c(D.skyHorizon) },
-        shadowL: { value: c(L.skyShadow) },
-        shadowD: { value: c(D.skyShadow) },
-        emberL: { value: c(L.skyEmber) },
-        emberD: { value: c(D.skyEmber) },
-        dcZenithL: { value: c(L.dcSkyTop) },
-        dcHorizonL: { value: c(L.dcSkyHorizon) },
-        dcShadowL: { value: c(L.dcSkyShadow) },
-        dcWaterL: { value: c(L.dcWater) },
-        cityL: { value: c(L.skyline) },
-        cityD: { value: c(D.skyline) },
-        windowL: { value: c(L.skyWindow) },
-        windowD: { value: c(D.skyWindow) },
-      },
-      vertexShader: SKY_VERTEX,
-      fragmentShader: SKY_FRAGMENT,
-    });
+    const uniforms = {
+      uDark: { value: dark ? 1 : 0 },
+      uDawn: { value: 0 },
+      uPan: { value: -PAN_BIAS },
+      // Seeded near the centre of the opening frame rather than "nowhere":
+      // damping in from a sentinel would sweep the highlight across the
+      // whole skyline on load.
+      uHover: { value: -1.6 },
+      uTime: { value: 0 },
+      uFrame: { value: 0 },
+      uSimplify: { value: 0 },
+      uPost: { value: 0 },
+      uFire: { value: -1 },
+      uFireSeed: { value: 0 },
+      uSeat: { value: 0 },
+      uDcAnchor: { value: 1.0 },
+      uSfHover: { value: 0 },
+      uSfShow: { value: -1 },
+      uSfSeed: { value: 0 },
+      zenithL: { value: c(L.skyTop) },
+      zenithD: { value: c(D.skyTop) },
+      horizonL: { value: c(L.skyHorizon) },
+      horizonD: { value: c(D.skyHorizon) },
+      shadowL: { value: c(L.skyShadow) },
+      shadowD: { value: c(D.skyShadow) },
+      emberL: { value: c(L.skyEmber) },
+      emberD: { value: c(D.skyEmber) },
+      dcZenithL: { value: c(L.dcSkyTop) },
+      dcHorizonL: { value: c(L.dcSkyHorizon) },
+      dcShadowL: { value: c(L.dcSkyShadow) },
+      dcWaterL: { value: c(L.dcWater) },
+      cityL: { value: c(L.skyline) },
+      cityD: { value: c(D.skyline) },
+      windowL: { value: c(L.skyWindow) },
+      windowD: { value: c(D.skyWindow) },
+    };
+    const create = (detailed: boolean) =>
+      new THREE.ShaderMaterial({
+        side: THREE.BackSide,
+        depthWrite: false,
+        fog: false,
+        uniforms,
+        defines: detailed ? { SKY_CLOUD_DETAIL: 1 } : {},
+        vertexShader: SKY_VERTEX,
+        fragmentShader: SKY_FRAGMENT,
+      });
+    return { detailed: create(true), simple: create(false) };
     // The material lives for the mount — theme flips crossfade via uDark.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  useEffect(() => () => material.dispose(), [material]);
+  const material = cloudDetail ? sky.detailed : sky.simple;
+  useEffect(
+    () => () => {
+      sky.detailed.dispose();
+      sky.simple.dispose();
+    },
+    [sky],
+  );
   // Launch rides a WINDOW pointer event keyed off the hover slot, not r3f's
   // per-object onClick. Measured, not preferred, and the same conclusion
   // Grabbable already reached and wrote down (Grabbable.tsx:262-273): with
@@ -2572,70 +2650,148 @@ function RoomEnvironment({ dark }: { dark: boolean }) {
   );
 }
 
+const DUST_VERTEX = `
+  uniform float uTime;
+  uniform float uViewportScale;
+  attribute vec4 aDust; // phase, apparent size, speed, warmth
+  varying float vLife;
+  varying float vWarmth;
+  varying float vFocus;
+  #include <fog_pars_vertex>
+
+  void main() {
+    float phase = aDust.x;
+    float t = uTime * aDust.z;
+    vec3 p = position;
+
+    // A shared low-frequency current carries the field while two individual
+    // eddies stop it moving as one sheet. Every term is analytic in time, so
+    // the CPU uploads one float per frame and never touches 380 positions.
+    float current = sin(uTime * 0.075 + position.y * 1.8);
+    p.x += current * 0.055
+         + sin(t * 0.31 + phase) * (0.045 + 0.055 * aDust.y)
+         + sin(t * 0.13 + phase * 2.7) * 0.025;
+    p.y += sin(t * 0.23 + phase * 1.4) * (0.035 + 0.050 * aDust.y)
+         + sin(t * 0.09 + position.x * 0.7) * 0.030;
+    p.z += cos(t * 0.19 + phase * 1.9) * (0.035 + 0.060 * aDust.y);
+
+    vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
+    gl_Position = projectionMatrix * mvPosition;
+    gl_PointSize = max(
+      1.0,
+      0.070 * aDust.y * uViewportScale / max(-mvPosition.z, 0.1)
+    );
+
+    // Dust catches light intermittently as it tumbles. Most motes keep a high
+    // floor and only shimmer; a deterministic 14% minority crosses much
+    // narrower light volumes and can disappear on a long, irregular cycle.
+    // That gives the field entrances/exits without making every point blink
+    // like a firefly.
+    float envelope = 0.5 + 0.5 * sin(t * 0.61 + phase * 3.1);
+    float glint = 0.5 + 0.5 * sin(t * 1.73 + phase * 5.7);
+    float shimmer = 0.64 + 0.28 * envelope + 0.08 * glint;
+    float shaftMote = step(0.86, fract(phase * 2.7056));
+    float shaftWave = 0.5 + 0.5 * sin(
+      t * 0.17 + phase * 2.3 + 0.34 * sin(t * 0.071 + phase * 4.1)
+    );
+    float shaftLife = 0.02 + 0.98 * smoothstep(0.22, 0.78, shaftWave);
+    vLife = mix(shimmer, shaftLife, shaftMote);
+    vWarmth = aDust.w;
+    // Extreme foreground/background motes fade instead of clipping into
+    // giant discs or becoming a hard one-pixel stipple.
+    vFocus = smoothstep(3.8, 5.4, -mvPosition.z)
+           * (1.0 - smoothstep(10.5, 13.0, -mvPosition.z));
+    #include <fog_vertex>
+  }
+`;
+
+const DUST_FRAGMENT = `
+  uniform vec3 uCoreColor;
+  uniform vec3 uHaloColor;
+  uniform float uOpacity;
+  varying float vLife;
+  varying float vWarmth;
+  varying float vFocus;
+  #include <fog_pars_fragment>
+
+  void main() {
+    vec2 q = gl_PointCoord * 2.0 - 1.0;
+    float r2 = dot(q, q);
+    if (r2 > 1.0) discard;
+
+    // One sprite contains the former halo and core registrations. The soft
+    // shoulder reads as out-of-focus reflected light; the compact centre
+    // gives the mote a location instead of a generic bloom blob.
+    float edge = smoothstep(1.0, 0.58, r2);
+    float halo = exp(-r2 * 3.6) * edge;
+    float core = smoothstep(0.13, 0.008, r2);
+    vec3 temperature = mix(uHaloColor, uCoreColor, core);
+    temperature = mix(temperature, temperature * vec3(1.05, 0.92, 0.76),
+                      vWarmth * 0.18);
+    float alpha = (halo * 0.42 + core * 0.58) * vLife * vFocus * uOpacity;
+    gl_FragColor = vec4(temperature, alpha);
+    #include <fog_fragment>
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+  }
+`;
+
 function Dust({ palette, count = 380 }: { palette: Palette; count?: number }) {
-  const ref = useRef<THREE.Group>(null);
   // Additive blending lands in linear HDR under the composer — the motes
   // read ~a third weaker there (audit §2.1 item 4).
   const postfx = useStacks((s) => s.postfx);
-  const positions = useMemo(() => {
-    const arr = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) {
-      arr[i * 3] = -2 + rand(i, 21) * (TRAVEL_X + 4);
-      arr[i * 3 + 1] = -1.3 + rand(i, 22) * 3.1;
-      arr[i * 3 + 2] = -2.2 + rand(i, 23) * 3.4;
-    }
-    return arr;
-  }, [count]);
-  useFrame(({ clock }) => {
-    if (!ref.current) return;
-    const t = clock.elapsedTime;
-    ref.current.position.y = Math.sin(t * 0.18) * 0.07;
-    ref.current.position.x = Math.sin(t * 0.11) * 0.1;
-  });
   const light = palette === PALETTES.light;
-  return (
-    <group ref={ref}>
-      {/* Light mode is two registrations of the SAME field: a broad, low
-          opacity gold halo behind a small saturated amber core. More motes
-          would read as snow; two-scale sprites read as individual fireflies
-          and remain visible over both the white sky and darker furniture. */}
-      {light && (
-        <points>
-          <bufferGeometry key={`halo-${count}`}>
-            <bufferAttribute
-              attach="attributes-position"
-              args={[positions, 3]}
-            />
-          </bufferGeometry>
-          <pointsMaterial
-            map={poolTexture()}
-            size={0.09}
-            color="#f2b63f"
-            transparent
-            opacity={0.42 * (postfx ? 1.2 : 1)}
-            depthWrite={false}
-            sizeAttenuation
-          />
-        </points>
-      )}
-      <points>
-        <bufferGeometry key={`core-${count}`}>
-          <bufferAttribute attach="attributes-position" args={[positions, 3]} />
-        </bufferGeometry>
-        {/* Soft radial sprite map — untextured Points rasterize as 1-2px hard
-            squares against dark wood (audit §1.7). */}
-        <pointsMaterial
-          map={poolTexture()}
-          size={light ? 0.032 : 0.04}
-          color={palette.dust}
-          transparent
-          opacity={palette.dustOpacity * (postfx ? 1.35 : 1)}
-          depthWrite={false}
-          sizeAttenuation
-        />
-      </points>
-    </group>
+  const geometry = useMemo(() => {
+    const positions = new Float32Array(count * 3);
+    const dust = new Float32Array(count * 4);
+    for (let i = 0; i < count; i++) {
+      positions[i * 3] = -2 + rand(i, 21) * (TRAVEL_X + 4);
+      positions[i * 3 + 1] = -1.3 + rand(i, 22) * 3.1;
+      positions[i * 3 + 2] = -2.2 + rand(i, 23) * 3.4;
+      dust[i * 4] = rand(i, 31) * Math.PI * 2;
+      dust[i * 4 + 1] = 0.62 + rand(i, 32) * 1.05;
+      dust[i * 4 + 2] = 0.72 + rand(i, 33) * 0.62;
+      dust[i * 4 + 3] = rand(i, 34);
+    }
+    const result = new THREE.BufferGeometry();
+    result.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    result.setAttribute("aDust", new THREE.BufferAttribute(dust, 4));
+    result.computeBoundingSphere();
+    return result;
+  }, [count]);
+  const material = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        uniforms: {
+          uTime: { value: 0 },
+          uViewportScale: { value: 1 },
+          uCoreColor: { value: new THREE.Color(palette.dust) },
+          uHaloColor: {
+            value: new THREE.Color(light ? "#f2b63f" : "#ffe2bd"),
+          },
+          uOpacity: {
+            value: palette.dustOpacity * (postfx ? (light ? 1.2 : 1.35) : 1),
+          },
+        },
+        vertexShader: DUST_VERTEX,
+        fragmentShader: DUST_FRAGMENT,
+        transparent: true,
+        depthWrite: false,
+      }),
+    [light, palette.dust, palette.dustOpacity, postfx],
   );
+  useEffect(
+    () => () => {
+      geometry.dispose();
+    },
+    [geometry],
+  );
+  useEffect(() => () => material.dispose(), [material]);
+  useFrame(({ clock, size, viewport }) => {
+    material.uniforms.uTime!.value = clock.elapsedTime;
+    material.uniforms.uViewportScale!.value = size.height * viewport.dpr * 0.5;
+  });
+  return <points geometry={geometry} material={material} />;
 }
 
 // Warm key light following the camera laterally so every unit reads the same.
@@ -2732,13 +2888,16 @@ export default function SceneEnvironment({
   palette,
   dark,
   dustOff,
-  skySimplify,
+  cloudSimplify,
+  moving = false,
   degrade = 0,
 }: {
   palette: Palette;
   dark: boolean;
   dustOff?: boolean;
-  skySimplify?: boolean;
+  cloudSimplify?: boolean;
+  /** Temporary travel tier: keep landmarks, but compile cloud erosion out. */
+  moving?: boolean;
   /** PerformanceMonitor's one-way ladder rung (0 = full quality). */
   degrade?: number;
 }) {
@@ -2758,14 +2917,19 @@ export default function SceneEnvironment({
   useEffect(() => {
     if (!meadow) markMeadowReady();
   }, [meadow]);
-  // The degrade ladder maps straight onto the meadow's quality rungs: each
-  // step down thins every band uniformly (never a bare plane), and rungs
-  // 0–1 (degrade ≥ 2) also zero the flowers. One-way, so counts only shrink.
-  const rung = (3 - Math.min(3, degrade)) as 0 | 1 | 2 | 3;
+  // The durable ladder maps straight onto meadow density. Temporary travel
+  // may simplify continuous shader work, but it must not change instance
+  // counts: discrete removals read as grass popping during a pan.
+  const durableRung = Math.min(3, Math.max(0, degrade)) as DurableQualityRung;
+  const rung = meadowQualityRung(durableRung, moving);
   return (
     <>
       <fog attach="fog" args={[palette.fog, 8, 24]} />
-      <SkyDome dark={dark} simplify={!!skySimplify} />
+      <SkyDome
+        dark={dark}
+        simplify={!landmarkDetailEnabled(!!cloudSimplify)}
+        cloudDetail={cloudDetailEnabled(!!cloudSimplify, moving)}
+      />
       {meadow && (
         <Suspense fallback={null}>
           <Meadow dark={dark} rung={rung} />

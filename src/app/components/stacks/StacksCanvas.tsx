@@ -9,15 +9,35 @@ import {
   useProgress,
   useScroll,
 } from "@react-three/drei";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 import type * as THREE from "three";
 
 import { type StacksData, UNIT_COUNT } from "./data";
 import { setLoadProgress } from "./loading";
 import Scene from "./scene/Scene";
+import { ScenePerformanceSampler } from "./scene/performanceMetrics";
+import {
+  type DurableQualityRung,
+  QUALITY_RECOVERY_STABLE_MS,
+  type QualityTransitionReason,
+  cloudDetailEnabled,
+  forcedQualityFromSearch,
+  initialQualityState,
+  meadowQualityRung,
+  postprocessingQuality,
+  reduceQuality,
+  resolveDpr,
+} from "./scene/quality";
 import {
   getSeatAmount,
   isSeated,
@@ -33,13 +53,17 @@ import { PALETTES } from "./theme";
 // disabled composer pins the renderer to NoToneMapping = blown frame).
 const Effects = dynamic(() => import("./scene/Effects"), { ssr: false });
 
-/** Render at the device's native Retina density where it allows it. A 2x cap
- * is visibly soft on 3x iPhones because Safari must upscale the entire scene.
- * The performance ladder still has a 2.5x escape hatch for a 3x device that
- * cannot sustain native density, without returning to the visibly pixelated
- * 1.5x floor. */
-const RENDER_DPR_RANGE: [number, number] = [1, 3];
-const FALLBACK_DPR_RANGE: [number, number] = [1.5, 2.5];
+const performanceSampler = new ScenePerformanceSampler();
+const qualitySnapshot = {
+  durable: 0 as DurableQualityRung,
+  moving: false,
+  effectiveDpr: 1,
+  postprocessing: "off" as "full" | "finish" | "off",
+  meadowRung: 3 as 0 | 1 | 2 | 3,
+  cloudDetail: true,
+  forced: false,
+};
+let forceQuality: ((rung: DurableQualityRung) => void) | null = null;
 
 /** Drei's overflow element is natively keyboard-focusable, so leaving it
  * unnamed makes the first Tab stop a full-viewport anonymous div. Name the
@@ -78,12 +102,21 @@ declare global {
         speed?: number;
         density?: number | null;
       }) => Record<string, number | null>;
+      quality: (rung?: DurableQualityRung) => Record<string, unknown>;
+      measure: (action?: "start" | "stop" | "reset") => Record<string, unknown>;
     };
   }
 }
 
 function installDevHooks() {
-  if (process.env.NODE_ENV === "production") return;
+  // Production measurements opt in explicitly. Keeping the hooks behind a
+  // query flag lets Playwright exercise the optimized build without exposing
+  // the control surface during ordinary visits.
+  if (
+    process.env.NODE_ENV === "production" &&
+    !new URLSearchParams(window.location.search).has("harness")
+  )
+    return;
   window.__stacks = {
     scrollTo(unit, opts) {
       const { jumpTo, travelTo } = useStacks.getState();
@@ -177,8 +210,15 @@ function installDevHooks() {
       };
     },
     state() {
-      const { activeUnit, mode, modalOpen, panelState, hovered, dragging } =
-        useStacks.getState();
+      const {
+        activeUnit,
+        mode,
+        modalOpen,
+        panelState,
+        hovered,
+        dragging,
+        travelTo,
+      } = useStacks.getState();
       return {
         offset: progressRef.current,
         activeUnit,
@@ -225,6 +265,7 @@ function installDevHooks() {
         // which prop the pointer owns or whether one is in hand.
         hovered,
         dragging,
+        controlsReady: Boolean(travelTo),
         dpr: glRef?.getPixelRatio() ?? null,
         framebuffer: glRef
           ? {
@@ -239,7 +280,23 @@ function installDevHooks() {
         textures: glRef?.info.memory.textures ?? null,
         geometries: glRef?.info.memory.geometries ?? null,
         calls: glRef?.info.render.calls ?? null,
+        triangles: glRef?.info.render.triangles ?? null,
+        points: glRef?.info.render.points ?? null,
+        lines: glRef?.info.render.lines ?? null,
+        programs: glRef?.info.programs?.length ?? null,
+        quality: { ...qualitySnapshot },
+        measurement: performanceSampler.summary(),
       };
+    },
+    quality(rung) {
+      if (rung != null) forceQuality?.(rung);
+      return { ...qualitySnapshot };
+    },
+    measure(action) {
+      if (action === "start") performanceSampler.start();
+      if (action === "stop") performanceSampler.stop();
+      if (action === "reset") performanceSampler.reset();
+      return performanceSampler.summary();
     },
   };
 }
@@ -263,6 +320,93 @@ function Exposure({ dark }: { dark: boolean }) {
   useEffect(() => {
     gl.toneMappingExposure = dark ? 1.25 : 1.12;
   }, [gl, dark]);
+  return null;
+}
+
+/** Records only while the development harness has an active measurement.
+ * Three resets renderer.info after every render call by default, which makes
+ * a postprocessed frame report only its final fullscreen pass. Reset once at
+ * the start of the R3F frame instead so the HUD/harness see the whole
+ * multi-pass frame. */
+function PerformanceProbe() {
+  const gl = useThree((state) => state.gl);
+  useEffect(() => {
+    const previous = gl.info.autoReset;
+    gl.info.autoReset = false;
+    return () => {
+      gl.info.autoReset = previous;
+    };
+  }, [gl]);
+  useFrame((_, delta) => {
+    gl.info.reset();
+    performanceSampler.frame(delta);
+  }, -1_000);
+  return null;
+}
+
+/**
+ * ScrollControls also moves for rail/deep-link navigation, so DOM wheel and
+ * touch listeners cannot identify every expensive camera traverse. The
+ * canonical progress ref catches all paths and emits React state only at the
+ * beginning/end of movement, never per frame.
+ */
+function MovementProbe({ onChange }: { onChange: (moving: boolean) => void }) {
+  const previous = useRef(progressRef.current);
+  const moving = useRef(false);
+  const lastMovedAt = useRef(-Infinity);
+  useFrame(() => {
+    const now = performance.now();
+    const progress = progressRef.current;
+    if (Math.abs(progress - previous.current) > 0.000_002) {
+      lastMovedAt.current = now;
+      if (!moving.current) {
+        moving.current = true;
+        onChange(true);
+      }
+    } else if (moving.current && now - lastMovedAt.current >= 650) {
+      moving.current = false;
+      onChange(false);
+    }
+    previous.current = progress;
+  });
+  return null;
+}
+
+/** Idle-compile the scene after each real theme/quality variant is mounted. */
+function ShaderPrewarm({ variant }: { variant: string }) {
+  const { gl, scene, camera } = useThree();
+  useEffect(() => {
+    let cancelled = false;
+    let timeout = 0;
+    let idle = 0;
+    const compile = () => {
+      if (cancelled) return;
+      try {
+        // Three's compileAsync polling can dereference an absent program on
+        // some WebGL drivers, throwing outside the returned promise. Running
+        // the ordinary compiler during idle keeps prewarming best-effort and
+        // contains every failure in this call stack.
+        gl.compile(scene, camera);
+      } catch {
+        // Compilation remains an optimization. A driver that rejects the
+        // prewarm path must never prevent the already-renderable world.
+      }
+    };
+    const idleApi = window as unknown as {
+      requestIdleCallback?: Window["requestIdleCallback"];
+      cancelIdleCallback?: Window["cancelIdleCallback"];
+    };
+    if (idleApi.requestIdleCallback) {
+      idle = idleApi.requestIdleCallback(compile, { timeout: 1800 });
+    } else {
+      timeout = window.setTimeout(compile, 500);
+    }
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+      if (idle && idleApi.cancelIdleCallback) idleApi.cancelIdleCallback(idle);
+    };
+  }, [camera, gl, scene, variant]);
   return null;
 }
 
@@ -291,29 +435,80 @@ export default function StacksCanvas({
     [],
   );
 
-  // One-way degrade ladder: sustained low fps steps dpr → dust → shadows.
-  // Never steps back up — flip-flopping reads worse than a stable floor.
-  //
-  // Declines during an active scroll fling are IGNORED (round 3): a fling
-  // through the full meadow is a workload transient, not a statement about
-  // the device, and because the ladder is one-way a single fast scroll was
-  // permanently stripping the composer — the owner watched the tilt-shift
-  // (and vignette, AO, grade) vanish mid-browse twice. A genuinely weak
-  // device also dips while idle (wind, dust), so real declines still land
-  // between scrolls.
-  const [degrade, setDegrade] = useState(0);
-  const lastScrollAt = useRef(0);
+  const forcedQuality = useMemo(
+    () =>
+      typeof window === "undefined"
+        ? null
+        : forcedQualityFromSearch(window.location.search),
+    [],
+  );
+  const [quality, dispatchQuality] = useReducer(
+    reduceQuality,
+    forcedQuality,
+    initialQualityState,
+  );
+  const qualityRef = useRef(quality);
+  qualityRef.current = quality;
+  const transitionReason = useRef<QualityTransitionReason>("forced");
+  const previousDurable = useRef(quality.durable);
+  const [viewport, setViewport] = useState(() => ({
+    width: typeof window === "undefined" ? 1 : window.innerWidth,
+    height: typeof window === "undefined" ? 1 : window.innerHeight,
+    deviceDpr: typeof window === "undefined" ? 1 : window.devicePixelRatio,
+  }));
   useEffect(() => {
-    const bump = () => {
-      lastScrollAt.current = performance.now();
+    const measure = () => {
+      setViewport({
+        width: window.innerWidth,
+        height: window.innerHeight,
+        deviceDpr: window.devicePixelRatio,
+      });
     };
-    window.addEventListener("wheel", bump, { passive: true });
-    window.addEventListener("touchmove", bump, { passive: true });
+    window.addEventListener("resize", measure, { passive: true });
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+  useEffect(() => {
+    forceQuality = (rung) => {
+      transitionReason.current = "forced";
+      dispatchQuality({ type: "force", rung, now: performance.now() });
+    };
     return () => {
-      window.removeEventListener("wheel", bump);
-      window.removeEventListener("touchmove", bump);
+      forceQuality = null;
     };
   }, []);
+  useEffect(() => {
+    if (quality.durable === previousDurable.current) return;
+    performanceSampler.transition({
+      at: performance.now(),
+      from: previousDurable.current,
+      to: quality.durable,
+      reason: transitionReason.current,
+    });
+    previousDurable.current = quality.durable;
+  }, [quality.durable]);
+  useEffect(() => {
+    if (quality.stableSince == null || quality.recoveryUsed) return;
+    const remaining = Math.max(
+      0,
+      quality.stableSince + QUALITY_RECOVERY_STABLE_MS - performance.now(),
+    );
+    const timeout = window.setTimeout(() => {
+      transitionReason.current = "recovery";
+      dispatchQuality({ type: "recover", now: performance.now() });
+    }, remaining);
+    return () => window.clearTimeout(timeout);
+  }, [quality.recoveryUsed, quality.stableSince]);
+  const onMovementChange = useCallback((moving: boolean) => {
+    dispatchQuality({ type: "movement", moving });
+    if (moving) dispatchQuality({ type: "unstable" });
+  }, []);
+  const dpr = resolveDpr({
+    cssWidth: viewport.width,
+    cssHeight: viewport.height,
+    deviceDpr: viewport.deviceDpr,
+    rung: quality.durable,
+    touch: isTouch,
+  });
   const ownedRenderer = useRef<THREE.WebGLRenderer | null>(null);
 
   useEffect(
@@ -325,7 +520,7 @@ export default function StacksCanvas({
       glRef = null;
       sceneRef = null;
       cameraRef = null;
-      if (process.env.NODE_ENV !== "production") delete window.__stacks;
+      delete window.__stacks;
     },
     [],
   );
@@ -333,17 +528,32 @@ export default function StacksCanvas({
   // Composer path: desktop only, and unmounted at the SAME rung that drops
   // dpr (N8AO × adaptive-dpr is a known-bad pair). ?nopostfx forces the
   // off-path for A/B shots and the ladder's correctness check.
-  const postfx =
+  const postfxQuality =
     !isTouch &&
-    degrade === 0 &&
     !(
       typeof window !== "undefined" &&
       window.location.search.includes("nopostfx")
-    );
+    )
+      ? postprocessingQuality(quality.durable)
+      : "off";
+  const postfx = postfxQuality !== "off";
   const setPostfx = useStacks((s) => s.setPostfx);
   useEffect(() => {
     setPostfx(postfx);
   }, [postfx, setPostfx]);
+  qualitySnapshot.durable = quality.durable;
+  qualitySnapshot.moving = quality.moving;
+  qualitySnapshot.effectiveDpr = dpr;
+  qualitySnapshot.postprocessing = postfxQuality;
+  qualitySnapshot.meadowRung = meadowQualityRung(
+    quality.durable,
+    quality.moving,
+  );
+  qualitySnapshot.cloudDetail = cloudDetailEnabled(
+    quality.durable >= 2,
+    quality.moving,
+  );
+  qualitySnapshot.forced = forcedQuality != null;
 
   const onOpenBook = useCallback(
     (id: string) => {
@@ -369,7 +579,7 @@ export default function StacksCanvas({
       <Canvas
         shadows="soft"
         camera={{ position: [0, CAMERA.y, CAMERA.z], fov: CAMERA.fov }}
-        dpr={degrade >= 1 ? FALLBACK_DPR_RANGE : RENDER_DPR_RANGE}
+        dpr={dpr}
         // Keep hardware MSAA as the renderer's guaranteed edge-quality floor.
         // Desktop normally adds SMAA in the composer, but the performance
         // ladder deliberately unmounts that composer after a sustained
@@ -394,11 +604,22 @@ export default function StacksCanvas({
         }}
       >
         <Exposure dark={dark} />
-        {postfx && <Effects dark={dark} />}
+        {postfx && <Effects dark={dark} quality={postfxQuality} />}
+        <PerformanceProbe />
+        <MovementProbe onChange={onMovementChange} />
+        <ShaderPrewarm
+          variant={`${dark ? "dark" : "light"}-${quality.durable}-${postfxQuality}`}
+        />
         <PerformanceMonitor
           onDecline={() => {
-            if (performance.now() - lastScrollAt.current < 1500) return;
-            setDegrade((d) => Math.min(3, d + 1));
+            dispatchQuality({ type: "unstable" });
+            if (qualityRef.current.moving || forcedQuality != null) return;
+            transitionReason.current = "decline";
+            dispatchQuality({ type: "decline", now: performance.now() });
+          }}
+          onIncline={() => {
+            if (qualityRef.current.moving || forcedQuality != null) return;
+            dispatchQuality({ type: "incline", now: performance.now() });
           }}
         />
         <ScrollControls
@@ -424,10 +645,11 @@ export default function StacksCanvas({
             palette={palette}
             dark={dark}
             coverWidth={isTouch ? 256 : 384}
-            dustOff={degrade >= 2}
-            shadowsOff={degrade >= 3}
-            skySimplify={degrade >= 2}
-            degrade={degrade}
+            dustOff={quality.durable >= 2}
+            shadowsOff={quality.durable >= 3}
+            cloudSimplify={quality.durable >= 2}
+            moving={quality.moving}
+            degrade={quality.durable}
             onOpenBook={onOpenBook}
             onOpenUrl={onOpenUrl}
           />

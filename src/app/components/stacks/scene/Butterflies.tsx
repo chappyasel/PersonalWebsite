@@ -15,17 +15,72 @@
 // scroll. Riding the camera is also why the wander frequencies stay low: the
 // visible motion is the offset, and the traverse supplies the rest.
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { MEADOW_GROUND_BASE } from "./meadowField";
 
 const TAU = Math.PI * 2;
 
-/** Wing plane: span (out from the body line) × chord (fore-aft). ~10 cm of
- * total wingspan at the meadow's scale, which is a real swallowtail. */
+/** ~11 cm total wingspan at the meadow's scale, which is a large real
+ * swallowtail. The outline below keeps that footprint while replacing the
+ * old rectangles with distinct forewing and hindwing lobes. */
 const WING_SPAN = 0.05;
-const WING_CHORD = 0.065;
+
+function createWingGeometry() {
+  const wing = new THREE.Shape();
+  // Shape-space +y becomes world -z after the mesh is laid flat. The upper
+  // run is therefore the swept-back forewing; the lower lobe is the smaller,
+  // rounder hindwing. Both meet at the thorax rather than at a square edge.
+  wing.moveTo(0.002, -0.014);
+  wing.bezierCurveTo(0.018, -0.03, 0.043, -0.033, WING_SPAN, -0.021);
+  wing.bezierCurveTo(0.057, -0.006, 0.047, 0.009, 0.034, 0.012);
+  wing.bezierCurveTo(0.044, 0.024, 0.038, 0.038, 0.023, 0.035);
+  wing.bezierCurveTo(0.011, 0.031, 0.004, 0.017, 0.002, 0.008);
+  wing.closePath();
+  const geometry = new THREE.ShapeGeometry(wing, 5);
+
+  // A low-cost root-to-tip value gradient suggests wing membranes and a dark
+  // thoracic joint without another mesh, texture, or draw call. Vertex colour
+  // multiplies each butterfly's authored species colour.
+  const position = geometry.getAttribute("position");
+  const colors = new Float32Array(position.count * 3);
+  for (let i = 0; i < position.count; i++) {
+    const across = THREE.MathUtils.clamp(position.getX(i) / WING_SPAN, 0, 1);
+    const shade = 0.62 + 0.38 * Math.sqrt(across);
+    colors[i * 3] = shade;
+    colors[i * 3 + 1] = shade;
+    colors[i * 3 + 2] = shade;
+  }
+  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+function createBodyGeometry() {
+  const body = new THREE.Shape();
+  body.moveTo(-0.006, -0.012);
+  body.bezierCurveTo(-0.007, 0.002, -0.0045, 0.028, 0, 0.037);
+  body.bezierCurveTo(0.0045, 0.028, 0.007, 0.002, 0.006, -0.012);
+  body.closePath();
+
+  const head = new THREE.Shape();
+  head.absarc(0, -0.019, 0.0065, 0, TAU, false);
+
+  // Antennae are narrow tapered membranes rather than Lines: native WebGL
+  // line width is inconsistent, while these remain visible as a one-pixel
+  // silhouette on every device and can merge into the same body draw.
+  const antenna = (side: 1 | -1) => {
+    const shape = new THREE.Shape();
+    shape.moveTo(side * 0.0015, -0.022);
+    shape.lineTo(side * 0.014, -0.045);
+    shape.lineTo(side * 0.0124, -0.046);
+    shape.lineTo(side * 0.0005, -0.024);
+    shape.closePath();
+    return shape;
+  };
+  return new THREE.ShapeGeometry([body, head, antenna(-1), antenna(1)], 5);
+}
 
 const FLAP_AMP = 1.0;
 /** Body heading eases toward the travel direction rather than snapping to it:
@@ -121,6 +176,15 @@ function Flight({ dark }: { dark: boolean }) {
   // Start AT the current theme: a dark boot must not open with three
   // butterflies shrinking away.
   const darkAmt = useRef(dark ? 1 : 0);
+  const wingGeometry = useMemo(() => createWingGeometry(), []);
+  const bodyGeometry = useMemo(() => createBodyGeometry(), []);
+  useEffect(
+    () => () => {
+      wingGeometry.dispose();
+      bodyGeometry.dispose();
+    },
+    [bodyGeometry, wingGeometry],
+  );
 
   useFrame(({ clock, camera }, delta) => {
     const g = root.current;
@@ -207,6 +271,17 @@ function Flight({ dark }: { dark: boolean }) {
             bodies.current[i] = o;
           }}
         >
+          {/* A readable insect silhouette at this scale: tapered abdomen,
+              distinct head, and splayed antennae, merged into one shared
+              mesh. It sits just above the wings and follows their yaw/bank. */}
+          <mesh
+            geometry={bodyGeometry}
+            position={[0, 0.004, 0]}
+            rotation={[-Math.PI / 2, 0, 0]}
+            raycast={() => null}
+          >
+            <meshBasicMaterial color="#30251e" side={THREE.DoubleSide} />
+          </mesh>
           {[1, -1].map((side) => (
             <group
               key={side}
@@ -214,15 +289,19 @@ function Flight({ dark }: { dark: boolean }) {
                 wings.current[i * 2 + (side === 1 ? 0 : 1)] = o;
               }}
             >
-              {/* Hinged at the body line and laid flat, so the pivot's z
-                  rotation is a dihedral flap rather than a spin. */}
+              {/* Mirrored from one shared anatomical outline, hinged at the
+                  thorax and laid flat so z rotation is a dihedral flap. */}
               <mesh
-                position={[(side * WING_SPAN) / 2, 0, 0]}
+                geometry={wingGeometry}
                 rotation={[-Math.PI / 2, 0, 0]}
+                scale={[side, 1, 1]}
                 raycast={() => null}
               >
-                <planeGeometry args={[WING_SPAN, WING_CHORD]} />
-                <meshBasicMaterial color={f.color} side={THREE.DoubleSide} />
+                <meshBasicMaterial
+                  color={f.color}
+                  side={THREE.DoubleSide}
+                  vertexColors
+                />
               </mesh>
             </group>
           ))}

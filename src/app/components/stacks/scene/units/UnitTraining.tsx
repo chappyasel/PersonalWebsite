@@ -226,6 +226,7 @@ function TrainingBoard({
               <React.Suspense fallback={null}>
                 <LitImage
                   url={pin.src}
+                  role="support"
                   width={pin.width}
                   height={height}
                   roughness={0.6}

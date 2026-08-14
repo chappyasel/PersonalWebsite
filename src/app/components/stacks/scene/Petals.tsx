@@ -32,6 +32,74 @@ const TAU = Math.PI * 2;
 const PETAL_W = 0.02;
 const PETAL_H = 0.03;
 
+/** One low-poly, gently cupped petal shared by all ten instances. A flat
+ * rectangle reads as confetti the moment it turns broadside; this outline
+ * narrows into the flower attachment at one end, rounds at the other, and
+ * carries a raised centre fold that changes its silhouette while tumbling. */
+function createPetalGeometry() {
+  const halfW = PETAL_W * 0.5;
+  const halfH = PETAL_H * 0.5;
+  const rows = [
+    { y: -halfH, width: 0, fold: 0 },
+    { y: -halfH * 0.72, width: halfW * 0.4, fold: 0.0006 },
+    { y: -halfH * 0.3, width: halfW * 0.8, fold: 0.0018 },
+    { y: halfH * 0.2, width: halfW, fold: 0.0028 },
+    { y: halfH * 0.67, width: halfW * 0.74, fold: 0.0018 },
+    { y: halfH * 0.93, width: halfW * 0.3, fold: 0.0007 },
+    { y: halfH, width: 0, fold: 0 },
+  ];
+  const positions: number[] = [];
+  const colors: number[] = [];
+  const indices: number[] = [];
+  for (let row = 0; row < rows.length; row++) {
+    const r = rows[row]!;
+    // The right edge is a touch tighter and the ridge wanders slightly: real
+    // loose petals are not bilaterally perfect, even when they share a plant.
+    positions.push(-r.width, r.y, 0);
+    positions.push(
+      Math.sin((row / (rows.length - 1)) * Math.PI) * 0.00045,
+      r.y,
+      r.fold,
+    );
+    positions.push(r.width * 0.88, r.y, 0);
+    const endFade = Math.sin((row / (rows.length - 1)) * Math.PI);
+    colors.push(0.7, 0.7, 0.7);
+    colors.push(
+      0.82 + 0.18 * endFade,
+      0.82 + 0.18 * endFade,
+      0.82 + 0.18 * endFade,
+    );
+    colors.push(0.74, 0.74, 0.74);
+    if (row === rows.length - 1) continue;
+    const here = row * 3;
+    const next = here + 3;
+    indices.push(
+      here,
+      next,
+      here + 1,
+      here + 1,
+      next,
+      next + 1,
+      here + 1,
+      next + 1,
+      here + 2,
+      here + 2,
+      next + 1,
+      next + 2,
+    );
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(positions, 3),
+  );
+  geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
 // The base wind angle out of the grass shader (Meadow.tsx WIND_GLSL: the noise
 // swings ±0.6 rad around −2.35). Held as the angle rather than a hardcoded
 // vector so a retuned wind carries the petals with it. (cos, sin) of an angle
@@ -125,9 +193,12 @@ const DUMMY = new THREE.Object3D();
 
 function Drift({ dark }: { dark: boolean }) {
   const mesh = useRef<THREE.InstancedMesh>(null);
+  const petalGeometry = useMemo(() => createPetalGeometry(), []);
   // Start AT the current theme, so a dark boot does not open by shrinking ten
   // petals away.
   const darkAmt = useRef(dark ? 1 : 0);
+
+  useEffect(() => () => petalGeometry.dispose(), [petalGeometry]);
 
   // Species colours are written once. They are per-INSTANCE, not per-vertex:
   // the material keeps vertexColors off and three switches the program to
@@ -206,6 +277,7 @@ function Drift({ dark }: { dark: boolean }) {
   return (
     <instancedMesh
       ref={mesh}
+      geometry={petalGeometry}
       args={[undefined, undefined, PETALS.length]}
       // They track the camera, so their authored bounds are meaningless and a
       // cull test would drop them mid-traverse.
@@ -213,8 +285,7 @@ function Drift({ dark }: { dark: boolean }) {
       // Never intercept a prop click: these cross in front of the shelf.
       raycast={() => null}
     >
-      <planeGeometry args={[PETAL_W, PETAL_H]} />
-      <meshBasicMaterial side={THREE.DoubleSide} />
+      <meshBasicMaterial side={THREE.DoubleSide} vertexColors />
     </instancedMesh>
   );
 }

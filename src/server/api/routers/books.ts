@@ -1,16 +1,13 @@
 import { and, asc, desc, eq, isNotNull, sql } from "drizzle-orm";
-import { revalidatePath, revalidateTag } from "next/cache";
 import { z } from "zod";
 
 import {
   computeDailyReading,
   computeReadingAnalytics,
 } from "~/lib/books/analytics";
+import { refreshBookCachesAfterSync } from "~/lib/books/cacheInvalidation";
 import { syncBooksFromNotion } from "~/lib/books/sync";
-import type {
-  BookReading,
-  BookWithNotes,
-} from "~/lib/books/types";
+import type { BookReading, BookWithNotes } from "~/lib/books/types";
 import {
   createTRPCRouter,
   protectedProcedure,
@@ -19,7 +16,6 @@ import {
 import { db } from "~/server/db";
 import { books, syncMetadata } from "~/server/db/schema";
 import {
-  BOOKS_DATA_TAG,
   bookCollectionInputSchema,
   getBookStats,
   getBookTags,
@@ -183,10 +179,8 @@ export const booksRouter = createTRPCRouter({
    */
   triggerSync: protectedProcedure.mutation(async () => {
     const result = await syncBooksFromNotion("manual");
-    revalidateTag(BOOKS_DATA_TAG, "max");
-    revalidatePath("/books", "layout");
-    revalidatePath("/");
-    return result;
+    const cacheRefresh = await refreshBookCachesAfterSync(result, "manual");
+    return { ...result, cacheRefresh };
   }),
 
   /**

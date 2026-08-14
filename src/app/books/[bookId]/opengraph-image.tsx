@@ -11,7 +11,6 @@ import {
   getTitleStyle,
   truncateTitle,
 } from "~/lib/books/ogImageUtils";
-import { db } from "~/server/db";
 
 import { loadGeorgiaProBold, loadGeorgiaProRegular } from "./fonts";
 import { formatReadDates, formatSingleReadDate } from "~/app/books/lib/format";
@@ -19,20 +18,12 @@ import { formatReadDates, formatSingleReadDate } from "~/app/books/lib/format";
 // Use nodejs runtime for database access
 export const runtime = "nodejs";
 
-// Pre-render every book's OG image at build time (mirrors page.tsx).
-// In Next.js 16 routes are dynamic by default — without this the image
-// cold-generates (~2.5s) on every crawler hit and Twitter/X times out,
-// leaving a "no image" state cached on their side.
+// Generate each image on first request and cache it until the Notion sync
+// invalidates that specific book. The post-sync warmer pays the cold render
+// before a social crawler can encounter it.
 export const dynamic = "force-static";
 export const dynamicParams = true;
-export const revalidate = 86400;
-
-export async function generateStaticParams() {
-  const allBooks = await db.query.books.findMany({
-    columns: { id: true },
-  });
-  return allBooks.map((book) => ({ bookId: book.id }));
-}
+export const revalidate = false;
 
 // OG image size
 export const alt = "Book cover and details";
