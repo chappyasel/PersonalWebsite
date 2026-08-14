@@ -57,8 +57,11 @@ const COLORS = {
   flowerA: "#5b76d6", // cornflower blue, 55% (owner round 2)
   flowerB: "#e0862f", // poppy orange, 20%
   flowerC: "#ece0c6", // cream, 25%
-  nightA: "#7e85a8",
-  nightB: "#9aa0b8",
+  // Night heads: dim but SATURATED (round-3 third pass: "too bright and
+  // not vibrant enough in dark mode") — moonlit cornflower and violet
+  // rather than the old grey lavenders.
+  nightA: "#6f79c8",
+  nightB: "#a290c8",
 } as const;
 
 /** KeyLight's constant direction (eye-relative offset (4, 7, 6) — see
@@ -436,7 +439,7 @@ const FLOWER_FRAGMENT = /* glsl */ `
     // (0.65/0.85 still glowed against the rosette shapes at the owner's
     // round-3 browse — "too bright in dark mode" — so night dropped to
     // 0.45 and the crossfade runs nearly full.)
-    vec3 night = mix(uNightA, uNightB, step(0.5, vTint)) * 0.45;
+    vec3 night = mix(uNightA, uNightB, step(0.5, vTint)) * 0.42;
     vec3 col = mix(day, night, uDark * 0.94);
     // Petal rosette via discard (round 3: "clearly just circles") —
     // alpha-to-coverage broke under the postfx composer (non-MSAA target)

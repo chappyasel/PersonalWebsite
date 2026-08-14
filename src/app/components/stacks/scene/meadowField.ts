@@ -844,7 +844,9 @@ export function buildFlowerPositions(
     let x = 0;
     let z = 0;
     for (let t = 0; t < 6; t++) {
-      const d = 4.8 + rand(s, 61 + t * 7) * (GRASS_BANDS.ridge.d1 - 4.8);
+      // Range starts at d 2.6 (z 3.2, well in front of the shelves —
+      // third pass: "they can still come up a bit further").
+      const d = 2.6 + rand(s, 61 + t * 7) * (GRASS_BANDS.ridge.d1 - 2.6);
       const w = Math.max(gauss(d, 16, 5), 0.8 * gauss(d, 26.5, 3), 0.3);
       if (rand(s, 62 + t * 7) > w) continue;
       z = TRAVERSE_EYE.z - d;
@@ -870,7 +872,7 @@ export function buildFlowerPositions(
       // near a band boundary cannot leak a head past the proven extents.
       const d = clamp(
         TRAVERSE_EYE.z - (z + clusterOffset(i, 76)),
-        4.8,
+        2.6,
         GRASS_BANDS.ridge.d1,
       );
       const hz = TRAVERSE_EYE.z - d;
