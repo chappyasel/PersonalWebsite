@@ -13,9 +13,7 @@ test("desktop cards own their native glass surfaces", async ({ browser }) => {
   });
   await page.goto("/");
 
-  const panel = page.locator(
-    "[data-stacks-desktop-panel][data-stacks-active]",
-  );
+  const panel = page.locator("[data-stacks-desktop-panel][data-stacks-active]");
   await expect(panel).toBeAttached();
 
   // A separately translated plate can lag compositor-driven native scrolling.
@@ -45,8 +43,9 @@ test("desktop cards own their native glass surfaces", async ({ browser }) => {
     };
   });
   expect(scrollBoundary.wheelCanceled).toBe(false);
-  expect(scrollBoundary.chain.filter(({ overscrollY }) => overscrollY !== "auto"))
-    .toEqual([]);
+  expect(
+    scrollBoundary.chain.filter(({ overscrollY }) => overscrollY !== "auto"),
+  ).toEqual([]);
   expect(scrollBoundary.maskImage).toBe("none");
   expect(scrollBoundary.webkitMaskImage).toBe("none");
 
@@ -67,12 +66,13 @@ test("desktop cards own their native glass surfaces", async ({ browser }) => {
 
   expect(material.backdropFilter).not.toBe("none");
   expect(material.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
-  expect(material.backgroundAlpha).toBeGreaterThanOrEqual(0.68);
+  expect(material.backgroundAlpha).toBeGreaterThanOrEqual(0.42);
+  expect(material.backgroundAlpha).toBeLessThanOrEqual(0.52);
 
   await context.close();
 });
 
-test("dark desktop cards retain the stronger native material", async ({
+test("dark desktop cards retain their translucent native material", async ({
   browser,
 }) => {
   const context = await browser.newContext({
@@ -97,7 +97,8 @@ test("dark desktop cards retain the stronger native material", async ({
     const hasAlpha = color.startsWith("rgba") || color.includes("/");
     return hasAlpha ? Number(channels.at(-1)) : 1;
   });
-  expect(backgroundAlpha).toBeGreaterThanOrEqual(0.48);
+  expect(backgroundAlpha).toBeGreaterThanOrEqual(0.16);
+  expect(backgroundAlpha).toBeLessThanOrEqual(0.24);
 
   await context.close();
 });
@@ -146,4 +147,66 @@ test("separate card backgrounds use a flat deterministic paint order", async ({
     motionTransformStyle: "flat",
     tiltPerspective: "none",
   });
+});
+
+test("clickable placard cards scale while static cards stay still", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    sessionStorage.setItem("stacks-webgl-v1", "1");
+  });
+  await page.goto("/");
+
+  // The flat document contains the same TiltCard instances reused by the
+  // desktop placards. Scoping one card as a placard gives us a deterministic
+  // reproduction without depending on WebGL travel in headless Chromium.
+  const cards = page.locator("section [data-tilt-card-interactive]");
+  const count = await cards.count();
+  expect(count).toBeGreaterThanOrEqual(8);
+
+  const scales = await cards.evaluateAll(async (elements) => {
+    for (const element of elements) {
+      element.closest("section")?.classList.add("placard-scroll");
+      element.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    return elements.map((element) => {
+      const motionLayer = element.querySelector("[data-tilt-motion]");
+      const transform = motionLayer
+        ? getComputedStyle(motionLayer).transform
+        : "none";
+      const matrix =
+        transform === "none" ? null : new DOMMatrixReadOnly(transform);
+      return {
+        label: element.textContent?.trim().replace(/\s+/g, " ").slice(0, 80),
+        scale: matrix ? Math.hypot(matrix.a, matrix.b) : 1,
+      };
+    });
+  });
+
+  for (const result of scales) {
+    expect(result.scale, result.label).toBeGreaterThan(1.005);
+  }
+
+  const staticCards = page.locator(
+    "section [data-tilt-card]:not([data-tilt-card-interactive])",
+  );
+  if ((await staticCards.count()) > 0) {
+    const staticCard = staticCards.first();
+    const scale = await staticCard.evaluate(async (element) => {
+      // The flat fallback can be visually hidden once WebGL resolves, but it
+      // is the same resident component and its event semantics remain fully
+      // testable without Playwright requiring an actionable hit target.
+      element.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+      await new Promise((resolve) => setTimeout(resolve, 250));
+      const motionLayer = element.querySelector("[data-tilt-motion]");
+      const transform = motionLayer
+        ? getComputedStyle(motionLayer).transform
+        : "none";
+      const matrix =
+        transform === "none" ? null : new DOMMatrixReadOnly(transform);
+      return matrix ? Math.hypot(matrix.a, matrix.b) : 1;
+    });
+    expect(scale).toBeCloseTo(1, 3);
+  }
 });

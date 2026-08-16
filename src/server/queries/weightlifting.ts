@@ -1,19 +1,15 @@
-import "server-only";
-
 import { sql } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
+import "server-only";
 
+import { effectiveDaysInYear } from "~/lib/stats/yoy";
 import {
   WEIGHTLIFTING_ACTIVITY_TAG,
   WEIGHTLIFTING_REVALIDATE,
   WEIGHTLIFTING_TAG,
 } from "~/lib/weightlifting/cache";
 import { db } from "~/server/db";
-import {
-  wlExercises,
-  wlSets,
-  wlWorkouts,
-} from "~/server/db/schema";
+import { wlExercises, wlSets, wlWorkouts } from "~/server/db/schema";
 
 export const getCachedActivityMosaic = unstable_cache(
   async (months: number) => {
@@ -135,26 +131,29 @@ export const getCachedActivityMosaic = unstable_cache(
 
 export const getCachedWeightliftingStats = unstable_cache(
   async () => {
-    const [[workoutCount], [setCount], [totalVolume], [totalDuration], [earliest]] =
-      await Promise.all([
-        db.select({ count: sql<number>`COUNT(*)` }).from(wlWorkouts),
-        db.select({ count: sql<number>`COUNT(*)` }).from(wlSets),
-        db
-          .select({ total: sql<number>`COALESCE(SUM(volume), 0)` })
-          .from(wlSets),
-        db
-          .select({
-            total: sql<number>`COALESCE(SUM(${wlWorkouts.durationSeconds}), 0)`,
-          })
-          .from(wlWorkouts),
-        db
-          .select({
-            earliest: sql<
-              string | null
-            >`TO_CHAR(MIN(${wlWorkouts.date}), 'YYYY-MM-DD')`,
-          })
-          .from(wlWorkouts),
-      ]);
+    const [
+      [workoutCount],
+      [setCount],
+      [totalVolume],
+      [totalDuration],
+      [earliest],
+    ] = await Promise.all([
+      db.select({ count: sql<number>`COUNT(*)` }).from(wlWorkouts),
+      db.select({ count: sql<number>`COUNT(*)` }).from(wlSets),
+      db.select({ total: sql<number>`COALESCE(SUM(volume), 0)` }).from(wlSets),
+      db
+        .select({
+          total: sql<number>`COALESCE(SUM(${wlWorkouts.durationSeconds}), 0)`,
+        })
+        .from(wlWorkouts),
+      db
+        .select({
+          earliest: sql<
+            string | null
+          >`TO_CHAR(MIN(${wlWorkouts.date}), 'YYYY-MM-DD')`,
+        })
+        .from(wlWorkouts),
+    ]);
 
     return {
       totalWorkouts: Number(workoutCount?.count ?? 0),
@@ -168,9 +167,125 @@ export const getCachedWeightliftingStats = unstable_cache(
   { revalidate: WEIGHTLIFTING_REVALIDATE, tags: [WEIGHTLIFTING_TAG] },
 );
 
+/**
+ * The homepage placard intentionally carries only the three records it shows
+ * and one count per year. The full exercise history remains on the dedicated
+ * weightlifting route.
+ */
+export const getCachedWeightliftingPlacard = unstable_cache(
+  async () => {
+    const [stats, yearlyRows, recordRows] = await Promise.all([
+      getCachedWeightliftingStats(),
+      db.execute<{
+        year: number;
+        workouts: number;
+      }>(sql`
+        SELECT
+          EXTRACT(YEAR FROM ${wlWorkouts.date})::int AS year,
+          COUNT(*)::int AS workouts
+        FROM ${wlWorkouts}
+        GROUP BY 1
+        ORDER BY 1
+      `),
+      db.execute<{
+        key: "bench" | "squat" | "deadlift";
+        label: string;
+        exercise_name: string;
+        category: string | null;
+        best_one_rm: number | null;
+        reps: number | null;
+        weight: number | null;
+      }>(sql`
+        WITH target_lifts(key, label, exercise_name, lift_order) AS (
+          VALUES
+            ('bench', 'Bench', 'Flat Barbell Bench Press', 1),
+            ('squat', 'Squat', 'Back Squats', 2),
+            ('deadlift', 'Deadlift', 'Conventional Deadlifts', 3)
+        )
+        SELECT
+          target.key,
+          target.label,
+          target.exercise_name,
+          record.category,
+          record.best_one_rm,
+          record.reps,
+          record.weight
+        FROM target_lifts target
+        LEFT JOIN LATERAL (
+          SELECT
+            ${wlExercises.category} AS category,
+            ${wlSets.oneRM} AS best_one_rm,
+            ${wlSets.reps} AS reps,
+            ${wlSets.weight} AS weight
+          FROM ${wlSets}
+          INNER JOIN ${wlExercises}
+            ON ${wlExercises.id} = ${wlSets.exerciseId}
+          WHERE ${wlSets.oneRM} IS NOT NULL
+            AND CASE
+              WHEN ${wlExercises.iteration} IS NOT NULL
+                AND ${wlExercises.iteration} <> ''
+              THEN ${wlExercises.iteration} || ' ' || ${wlExercises.name}
+              ELSE ${wlExercises.name}
+            END = target.exercise_name
+          ORDER BY ${wlSets.oneRM} DESC
+          LIMIT 1
+        ) record ON true
+        ORDER BY target.lift_order
+      `),
+    ]);
+
+    const currentYear = new Date().getUTCFullYear();
+    const firstYear = yearlyRows[0]?.year ?? currentYear;
+    const counts = new Map(
+      yearlyRows.map((row) => [Number(row.year), Number(row.workouts)]),
+    );
+    const currentYearWorkouts = counts.get(currentYear) ?? 0;
+    const daysInCurrentYear = Math.round(
+      (Date.UTC(currentYear + 1, 0, 1) - Date.UTC(currentYear, 0, 1)) /
+        86_400_000,
+    );
+    const elapsedFraction =
+      effectiveDaysInYear(String(currentYear), new Date()) / daysInCurrentYear;
+    const projectedRemainder =
+      elapsedFraction > 0 && elapsedFraction < 1
+        ? (currentYearWorkouts * (1 - elapsedFraction)) / elapsedFraction
+        : 0;
+
+    return {
+      stats,
+      yearly: Array.from(
+        { length: Math.max(1, currentYear - firstYear + 1) },
+        (_, index) => {
+          const year = firstYear + index;
+          return {
+            year,
+            workouts: counts.get(year) ?? 0,
+            projectedRemainder: year === currentYear ? projectedRemainder : 0,
+          };
+        },
+      ),
+      records: recordRows.map((record) => ({
+        key: record.key,
+        label: record.label,
+        exerciseName: record.exercise_name,
+        category: record.category,
+        bestOneRM:
+          record.best_one_rm === null ? null : Number(record.best_one_rm),
+        reps: record.reps === null ? null : Number(record.reps),
+        weight: record.weight === null ? null : Number(record.weight),
+      })),
+    };
+  },
+  ["weightlifting-homepage-placard"],
+  { revalidate: WEIGHTLIFTING_REVALIDATE, tags: [WEIGHTLIFTING_TAG] },
+);
+
 export type ActivityMosaicData = Awaited<
   ReturnType<typeof getCachedActivityMosaic>
 >;
 export type WeightliftingStatsData = Awaited<
   ReturnType<typeof getCachedWeightliftingStats>
+>;
+export type WeightliftingPlacardData = Awaited<
+  ReturnType<typeof getCachedWeightliftingPlacard>
 >;

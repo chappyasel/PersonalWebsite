@@ -10,6 +10,8 @@ import { useEffect, useRef, useState } from "react";
 
 import { ThemeToggle } from "~/components/ui/theme-toggle";
 
+import DoorLabel from "./DoorLabel";
+
 export function GrainReveal({
   index = 0,
   className,
@@ -187,6 +189,7 @@ export default function ChromeLayer() {
   const postfx = useStacks((s) => s.postfx);
   return (
     <>
+      <DoorLabel />
       <style>{`
         :root { --stacks-ease: cubic-bezier(0.16, 1, 0.3, 1); }
         .stacks-scroll { scrollbar-width: none; }

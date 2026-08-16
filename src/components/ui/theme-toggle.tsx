@@ -113,7 +113,7 @@ export function ThemeToggle({ className }: { className?: string }) {
                 aria-haspopup="dialog"
                 aria-expanded={optionsOpen}
                 className={cn(
-                  "flex size-10 items-center justify-center rounded-md bg-transparent text-sm text-muted-foreground transition-all hover:bg-secondary/80 hover:text-foreground",
+                  "flex size-10 items-center justify-center rounded-md bg-transparent text-sm text-muted-foreground transition-all hover:bg-secondary/80 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
                   className,
                 )}
                 data-theme-toggle

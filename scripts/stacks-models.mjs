@@ -346,6 +346,58 @@ const MANIFEST = [
     author: "Isa Lousberg",
     license: "CC0 1.0",
   },
+  // Owner-approved 2026-08-15 after the three-angle source/scene-ready review.
+  // Plain untextured materials remain named, so UnitAbout owns the restrained
+  // dawn palette through ModelProp's tinted variant. 1,020 triangles is the
+  // inspected 20-triangle exception recorded in the approval ledger.
+  {
+    name: "sailboat",
+    title: "Sail Boat",
+    id: "BgSZXwmm7k",
+    url: "https://static.poly.pizza/b1d42c7e-152a-4d56-a754-cca000a5abad.glb",
+    noAo: true,
+    unit: "musings",
+    author: "Quaternius",
+    license: "CC0 1.0",
+  },
+  // Owner-requested 2026-08-15 shelf props. Each source page identifies the
+  // model as CC-BY and the pipeline keeps the original geometry/materials;
+  // scene components only scale, orient and (where useful) tint named plain
+  // materials. These remain candidates until the inspector and in-scene
+  // comparison checks recorded in the source-asset ledger pass.
+  {
+    name: "phone",
+    title: "Phone",
+    id: "1L9oJAw6nY2",
+    url: "https://static.poly.pizza/eeb96574-1c13-426a-acb4-6a21d4b49a8e.glb",
+    noAo: true,
+    simplify: 0.02,
+    unit: "projects",
+    author: "Alex Safayan",
+    license: "CC-BY 3.0",
+  },
+  {
+    name: "notebook",
+    title: "Notebook",
+    id: "9Ptsg_xZt6B",
+    url: "https://static.poly.pizza/d9b91830-403d-4f37-a2bc-45e99137afa9.glb",
+    noAo: true,
+    unit: "projects",
+    author: "jeremy",
+    license: "CC-BY 3.0",
+  },
+  {
+    name: "harmonica",
+    title: "Harmonica",
+    id: "8Aw334FnDZE",
+    url: "https://static.poly.pizza/e8f94a73-e848-428d-b847-6a966f867ecd.glb",
+    texMax: 128,
+    noAo: true,
+    simplify: 0.02,
+    unit: "talks",
+    author: "Poly by Google",
+    license: "CC-BY 3.0",
+  },
   // ---- v7 removals. These four had no call site left and were still being
   // downloaded, built and PRELOADED, i.e. paid for on every visit while
   // rendering nothing (44 KB between them). ct-books became a real per-spine
@@ -415,6 +467,19 @@ const MANIFEST = [
     unit: "talks",
     author: "Poly by Google",
     license: "CC-BY 3.0",
+  },
+];
+
+// Assets adapted directly from open-source repositories rather than fetched
+// from Poly Pizza. They still belong in the generated public roster so a
+// routine model-pipeline run can never erase a required notice.
+const VENDORED_LICENSES = [
+  {
+    file: "grass-tuft.glb",
+    title: "FluffyGrass tuft LODs (with grass-tuft-alpha.webp)",
+    author: "Ebenezer (thebenezer)",
+    license: "MIT",
+    source: "https://github.com/thebenezer/FluffyGrass",
   },
 ];
 
@@ -679,13 +744,16 @@ async function recolorTexture(spec, png) {
 }
 
 function writeLicenses() {
-  const entries = MANIFEST.map((m) => ({
-    file: `${m.name}.glb`,
-    title: m.title ?? m.name,
-    author: m.author,
-    license: m.license,
-    source: `https://poly.pizza/m/${m.id}`,
-  }));
+  const entries = [
+    ...MANIFEST.map((m) => ({
+      file: `${m.name}.glb`,
+      title: m.title ?? m.name,
+      author: m.author,
+      license: m.license,
+      source: `https://poly.pizza/m/${m.id}`,
+    })),
+    ...VENDORED_LICENSES,
+  ];
   const ccby = [
     ...new Set(
       entries.filter((e) => e.license.startsWith("CC-BY")).map((e) => e.author),
@@ -693,7 +761,7 @@ function writeLicenses() {
   ];
   const manifest = {
     generated: "scripts/stacks-models.mjs",
-    note: "All models CC0 except the CC-BY set below, credited in the About placard.",
+    note: "Source models are CC0 except the credited CC-BY set and the vendored MIT FluffyGrass asset below.",
     attributionRequired: ccby,
     models: entries,
   };

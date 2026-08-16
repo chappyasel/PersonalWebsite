@@ -393,14 +393,11 @@ export const MEADOW_RUNG_GRASS = [5400, 8400, 10560, 12000] as const;
 // expensive grass geometry while preserving the authored meadow colour.
 export const MEADOW_RUNG_FLOWERS = [1900, 1900, 1900, 1900] as const;
 
-// There are deliberately NO furniture clearings. The first round shipped
-// grass that thinned and shortened around the shelf units and the couch, and
-// the owner's browse called it out — the FluffyGrass reference sits its
-// furniture IN the grass. Uniform density right up to the shelf posts is the
-// look; the tallest near tuft tips out around y −0.97, below the shelf
-// planks, so nothing clips.
+// Authored unmown areas preserve the same instance count and keep grass taller
+// beneath furniture, where a mower could not reach. Their crest is narrow:
+// the room still sits IN a meadow without applying a global height multiplier.
 //
-// What the furniture DOES do to the grass is shade it. The ground draws
+// Furniture also shades the grass. The ground draws
 // baked shadow decals under every unit and the couch, but tufts grow up
 // through those decals and used to stay fully lit — the same-browse "the
 // lighting doesn't have any impact on the grass". These sites carry a
@@ -501,6 +498,105 @@ export function shadeScale(x: number, z: number): number {
     s *= 1 - occluderStrength(o.lift) * (1 - smoothstep(0, pen, d));
   }
   return s;
+}
+
+type UnmownArea = {
+  x: number;
+  z: number;
+  hx: number;
+  hz: number;
+  underGrowth: number;
+};
+const UNMOWN_AREAS: UnmownArea[] = [];
+for (let i = 0; i < SHADE_UNIT_COUNT; i++) {
+  const pose = unitPose(i);
+  UNMOWN_AREAS.push({
+    x: pose.position[0],
+    z: pose.position[2],
+    hx: SHELF_GEOMETRY.width / 2 + 0.08,
+    hz: 0.64,
+    underGrowth: 1.22,
+  });
+}
+// About couch and dumbbell; Training golf/weight bay; Systems clock; the
+// Musings/Talks practical seam. These are intentionally explicit authored
+// unmown footprints, not a global grass multiplier.
+UNMOWN_AREAS.push(
+  { x: -3.41, z: 0, hx: 1.12, hz: 0.82, underGrowth: 1.2 },
+  { x: 1.05, z: 0.62, hx: 0.42, hz: 0.35, underGrowth: 1.16 },
+  {
+    x: unitPose(2).position[0] - 1.5,
+    z: 0.45,
+    hx: 1.0,
+    hz: 0.55,
+    underGrowth: 1.2,
+  },
+  {
+    x: unitPose(3).position[0] + 1.98,
+    z: -0.15,
+    hx: 0.4,
+    hz: 0.34,
+    underGrowth: 1.17,
+  },
+  {
+    x: unitPose(6).position[0] - 2.12,
+    z: 0.06,
+    hx: 0.3,
+    hz: 0.3,
+    underGrowth: 1.17,
+  },
+);
+
+export function clearanceScale(x: number, z: number): number {
+  let scale = 1;
+  for (const area of UNMOWN_AREAS) {
+    const inside =
+      Math.abs(x - area.x) <= area.hx && Math.abs(z - area.z) <= area.hz;
+    const dx = Math.max(Math.abs(x - area.x) - area.hx, 0);
+    const dz = Math.max(Math.abs(z - area.z) - area.hz, 0);
+    const distance = Math.hypot(dx, dz);
+    // Furniture blocks mowing. Keep the grass tall beneath the footprint and
+    // let it crest a little higher around the reachable edge, instead of
+    // cutting a bare rectangular safety mat into the meadow.
+    const growth = inside
+      ? area.underGrowth
+      : 1 + 0.3 * (1 - smoothstep(0.03, 0.42, distance));
+    scale = Math.max(scale, growth);
+  }
+  return scale;
+}
+
+/** Grass stays visibly unmown under the furniture but cannot pass through the
+ * lower plank. The small air gap keeps alpha-card tips from flickering on the
+ * solid underside at grazing camera angles. */
+export const UNDER_SHELF_GRASS_TIP_Y = SHELF_UNDERSIDE.lower - 0.01;
+
+export function underLowerShelf(x: number, z: number): boolean {
+  for (let i = 0; i < SHADE_UNIT_COUNT; i += 1) {
+    const pose = unitPose(i);
+    const yaw = pose.rotation[1];
+    const dx = x - pose.position[0];
+    const dz = z - pose.position[2];
+    const localX = dx * Math.cos(yaw) - dz * Math.sin(yaw);
+    const localZ = dx * Math.sin(yaw) + dz * Math.cos(yaw);
+    if (
+      Math.abs(localX) <= SHELF_GEOMETRY.width / 2 &&
+      Math.abs(localZ - SHELF_GEOMETRY.lower.centerZ) <=
+        SHELF_GEOMETRY.lower.depth / 2
+    )
+      return true;
+  }
+  return false;
+}
+
+function tallGrowthBias(x: number, z: number) {
+  const behindShelves = 1 - smoothstep(-0.2, 2.4, z);
+  const pitch = UNIT_SPACING;
+  const local = Math.abs(
+    ((((x + pitch / 2) % pitch) + pitch) % pitch) - pitch / 2,
+  );
+  const atSeam = 1 - smoothstep(0.18, 0.72, Math.abs(local - pitch / 2));
+  return Math.max(behindShelves, atSeam * 0.8);
 }
 
 // ---------------------------------------------------------------------------
@@ -825,12 +921,24 @@ export function buildGrassInstances(
       }
       const f =
         westFeatherScale(x, z) * eastFeatherScale(x, z) * farFeatherScale(z);
+      // Exact 70/25/5 authored height tiers. Taller tiers gain a little more
+      // presence behind cases and at unit seams; the furniture mask below can
+      // raise them further but never shorten them.
+      const tierRoll = rand(i, 144);
+      const tier = tierRoll < 0.7 ? 1 : tierRoll < 0.95 ? 1.32 : 1.78;
+      const concentration = tier === 1 ? 1 : 1 + tallGrowthBias(x, z) * 0.16;
+      const clearance = clearanceScale(x, z);
+      const rootY = meadowHeight(x, z) - GRASS_ROOT_SINK;
+      const authoredHeight = height * tier * concentration * f * clearance;
+      const cappedHeight = underLowerShelf(x, z)
+        ? Math.min(authoredHeight, Math.max(0, UNDER_SHELF_GRASS_TIP_Y - rootY))
+        : authoredHeight;
       raw.push({
         x,
         z,
         yaw: rand(i, 43) * Math.PI * 2,
-        height: height * f,
-        width: width * f,
+        height: cappedHeight,
+        width: width * f * (0.82 + clearance * 0.18),
         q: rand(i, 97),
         band: band.id,
       });

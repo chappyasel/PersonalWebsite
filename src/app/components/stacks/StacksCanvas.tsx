@@ -24,7 +24,10 @@ import type * as THREE from "three";
 
 import { type StacksData, UNIT_COUNT } from "./data";
 import { setLoadProgress } from "./loading";
+import { prewarmGrabbablePhysics } from "./scene/Grabbable";
 import Scene from "./scene/Scene";
+import { sceneInteractionInventory } from "./scene/interactionRegistry";
+import { setInteractionProjectionContext } from "./scene/interactionProjection";
 import { ScenePerformanceSampler } from "./scene/performanceMetrics";
 import {
   type DurableQualityRung,
@@ -47,6 +50,7 @@ import {
 import { CAMERA } from "./scene/worldLayout";
 import { progressRef, useStacks } from "./store";
 import { PALETTES } from "./theme";
+import { isWebGLContextUsable } from "./webglProbe";
 
 // Desktop-only composer chain — dynamic so touch devices never download a
 // single postfx byte. Mount/unmount ONLY (never enabled={false}: a mounted-
@@ -265,6 +269,12 @@ function installDevHooks() {
         // which prop the pointer owns or whether one is in hand.
         hovered,
         dragging,
+        interactions: sceneInteractionInventory().map((interaction) => ({
+          id: interaction.id,
+          activeUnits: interaction.activeUnits,
+          movable: Boolean(interaction.movable),
+          activation: interaction.activation?.kind ?? null,
+        })),
         controlsReady: Boolean(travelTo),
         dpr: glRef?.getPixelRatio() ?? null,
         framebuffer: glRef
@@ -321,6 +331,29 @@ function Exposure({ dark }: { dark: boolean }) {
     gl.toneMappingExposure = dark ? 1.25 : 1.12;
   }, [gl, dark]);
   return null;
+}
+
+/** `postprocessing` reads `.alpha` from getContextAttributes() without a
+ * null check. A context can be lost between Canvas creation and the dynamic
+ * composer mount, so keep that library out of the tree and hand control to
+ * the existing flat-page fallback when the renderer is no longer usable. */
+function ContextSafeEffects({
+  dark,
+  quality,
+  onUnavailable,
+}: {
+  dark: boolean;
+  quality: "full" | "finish";
+  onUnavailable?: () => void;
+}) {
+  const gl = useThree((state) => state.gl);
+  const usable = isWebGLContextUsable(gl.getContext());
+
+  useEffect(() => {
+    if (!usable) onUnavailable?.();
+  }, [onUnavailable, usable]);
+
+  return usable ? <Effects dark={dark} quality={quality} /> : null;
 }
 
 /** Records only while the development harness has an active measurement.
@@ -407,6 +440,34 @@ function ShaderPrewarm({ variant }: { variant: string }) {
       if (idle && idleApi.cancelIdleCallback) idleApi.cancelIdleCallback(idle);
     };
   }, [camera, gl, scene, variant]);
+  return null;
+}
+
+/** Fine-pointer/full-quality desktops pay the solver startup after the first
+ * painted frame, never during the first grab. The import remains lazy. */
+function PhysicsPrewarm() {
+  useEffect(() => {
+    if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches)
+      return;
+    let idle = 0;
+    let timeout = 0;
+    const schedule = () => {
+      const api = window as Window & {
+        requestIdleCallback?: Window["requestIdleCallback"];
+      };
+      if (api.requestIdleCallback)
+        idle = api.requestIdleCallback(prewarmGrabbablePhysics, {
+          timeout: 1800,
+        });
+      else timeout = window.setTimeout(prewarmGrabbablePhysics, 450);
+    };
+    const frame = requestAnimationFrame(schedule);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(timeout);
+      if (idle) window.cancelIdleCallback?.(idle);
+    };
+  }, []);
   return null;
 }
 
@@ -520,6 +581,7 @@ export default function StacksCanvas({
       glRef = null;
       sceneRef = null;
       cameraRef = null;
+      setInteractionProjectionContext(null, null);
       delete window.__stacks;
     },
     [],
@@ -574,7 +636,7 @@ export default function StacksCanvas({
   }, [onOpenBook]);
 
   return (
-    <div className="absolute inset-0">
+    <div className="stacks-canvas-shell absolute inset-0">
       <LoadReporter />
       <Canvas
         shadows="soft"
@@ -592,6 +654,7 @@ export default function StacksCanvas({
           ownedRenderer.current = gl;
           sceneRef = scene;
           cameraRef = camera;
+          setInteractionProjectionContext(camera, gl.domElement);
           installDevHooks();
           if (onLost) {
             gl.domElement.addEventListener("webglcontextlost", () => onLost(), {
@@ -604,8 +667,15 @@ export default function StacksCanvas({
         }}
       >
         <Exposure dark={dark} />
-        {postfx && <Effects dark={dark} quality={postfxQuality} />}
+        {postfx && (
+          <ContextSafeEffects
+            dark={dark}
+            quality={postfxQuality}
+            onUnavailable={onLost}
+          />
+        )}
         <PerformanceProbe />
+        <PhysicsPrewarm />
         <MovementProbe onChange={onMovementChange} />
         <ShaderPrewarm
           variant={`${dark ? "dark" : "light"}-${quality.durable}-${postfxQuality}`}

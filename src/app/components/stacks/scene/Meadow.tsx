@@ -408,6 +408,18 @@ const TERRAIN_FRAGMENT = /* glsl */ `
     vec3 base = mix(uBaseL, uBaseD, uDark);
     vec3 tip = mix(mix(uTipAL, uTipBL, patchN), mix(uTipAD, uTipBD, patchN), uDark);
     vec3 col = mix(base, tip * 0.82, 0.18 + 0.55 * mott);
+    // Low-frequency earthiness: warm mineral soil, cool moss, and dry grass
+    // emerge as value/roughness-like modulation of the existing carpet. No
+    // photo texture or extra detail octave enters the scene.
+    float earthN = vnoise(vWorld.xz * 0.075 + 31.0);
+    float mossN = vnoise(vWorld.xz * 0.11 + 73.0);
+    float dryN = vnoise(vWorld.xz * 0.09 + 119.0);
+    vec3 soil = mix(vec3(0.25, 0.17, 0.10), vec3(0.12, 0.10, 0.08), uDark);
+    vec3 moss = mix(vec3(0.25, 0.34, 0.18), vec3(0.14, 0.22, 0.17), uDark);
+    vec3 dryGrass = mix(vec3(0.52, 0.43, 0.25), vec3(0.27, 0.25, 0.18), uDark);
+    col = mix(col, soil, smoothstep(0.74, 0.94, earthN) * 0.14);
+    col = mix(col, moss, smoothstep(0.70, 0.93, mossN) * 0.10);
+    col = mix(col, dryGrass, smoothstep(0.78, 0.96, dryN) * 0.08);
     col *= 1.0 + (vSun - 0.5) * mix(0.9, 0.35, uDark);
     // The carpet sits under the tuft pile — its contact shadow runs a touch
     // shallower than the tufts' so the pile above stays the darkest read.

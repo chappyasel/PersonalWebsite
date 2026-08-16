@@ -16,6 +16,7 @@ import type { ReadingBookEdgeColor } from "~/lib/books/coverEdgeColor";
 import type {
   Book,
   HomepageBookCover,
+  HomepageBookPlacard,
   HomepageBookStats,
 } from "~/lib/books/types";
 
@@ -33,26 +34,20 @@ export type Unit = {
    * it is also the key of Scene's UNIT_COMPONENTS map and of the flat page's
    * slot record, and the hash is a URL people can already be holding. */
   slug: UnitSlug;
-  /** The unit's ONE name, everywhere it is written.
-   *
-   * There used to be a second field, `railLabel`, and the two disagreed:
-   * the rail said "Books" / "Talks" while the placards said "Book Notes" /
-   * "Featured Talks", and "Training" named a section whose only heading is
-   * "Weightlifting". A visitor clicking a rail entry landed on a panel with
-   * a different title at the top of it.
-   *
-   * These are the names the SECTIONS use, read off their own markup rather
+  /** The section's canonical name, used by its panel, sheet, and announcements.
+   * These names come from the sections' own markup rather
    * than off either old field — BookNotes/Talks/Projects/BlogPosts h1s, and
-   * Weightlifting.tsx, which is the whole of the training placard. Two are
-   * container names with no single section behind them and so cannot be
-   * copied from one: About (whose placard is an intro and contact, no
-   * heading at all) and Systems (Personal Operating Manual + Core Daily
-   * Routine + quotes, three sections in one unit). */
+   * Weightlifting.tsx, which is the whole of the training placard, and
+   * PersonalSystems.tsx, which names the shared manual/routine section.
+   * About is the sole container with no heading of its own. */
   label: string;
+  /** Optional shorter navigation copy. This may abbreviate a title but must
+   * not replace `label` anywhere outside the unit rail. */
+  railLabel?: string;
   /** The section's own glyph, so the rail entry and the heading it leads to
    * are the same mark. Taken from each section's h1 — BooksIcon, BarbellIcon,
-   * MicrophoneStageIcon, CodeIcon, PenNibIcon. The two container units get
-   * one of their own: About is the person, Systems is how he navigates. */
+   * MicrophoneStageIcon, CodeIcon, PenNibIcon, CompassIcon. About gets the
+   * person glyph because its placard intentionally has no heading. */
   icon: Icon;
 };
 
@@ -63,7 +58,12 @@ export const UNITS: Unit[] = [
   { slug: "systems", label: "Systems", icon: CompassIcon },
   { slug: "projects", label: "Projects", icon: CodeIcon },
   { slug: "blog", label: "Musings", icon: PenNibIcon },
-  { slug: "talks", label: "Featured Talks", icon: MicrophoneStageIcon },
+  {
+    slug: "talks",
+    label: "Featured Talks",
+    railLabel: "Talks",
+    icon: MicrophoneStageIcon,
+  },
 ];
 
 export const UNIT_COUNT = UNITS.length;
@@ -101,9 +101,10 @@ export type StacksData = {
   /** The books Chappy ticked "Featured?" on in Notion, newest finish first.
    *
    * Owner-curated, so the length is whatever he has checked — eight today. Do
-   * NOT hard-code eight: read `featuredBooks.length` and let the row size
-   * itself, or the ninth tick silently goes missing and an untick leaves a
-   * hole. Every entry is also present in `shelfBooks`, which is what
+   * NOT assume eight upstream: consumers must handle this list growing. The
+   * physical scene shows the newest books up to its measured two-row capacity
+   * while the DOM library retains the full list. Every entry is also present
+   * in `shelfBooks`, which is what
    * `StacksCanvas.onOpenBook` searches by id and what `Scene` warms through
    * the image proxy — so a featured cover is always clickable and pre-decoded.
    *
@@ -113,13 +114,15 @@ export type StacksData = {
   featuredBooks: Book[];
   /** Server-sampled physical-board colors for every featured book. */
   featuredBookColors: Record<string, ReadingBookEdgeColor>;
-  /** The newest current read with a cover, or the most recent covered book as
-   * a fallback when there is no active current read. */
+  /** Up to three newest current/recent reads with covers for the About shelf. */
   readingBooks: Book[];
-  /** Server-sampled jacket perimeter color for the About book.
+  /** Server-sampled jacket perimeter colors for the About books.
    * This stays scene-only: it does not extend the Notion/DB book schema. */
   readingBookColors: Record<string, ReadingBookEdgeColor>;
   bookStats: HomepageBookStats;
+  /** Compact, derived data for the richer Book Notes placard. Full book notes
+   * and unused library fields stay server-side. */
+  bookPlacard: HomepageBookPlacard;
   talks: StacksTalk[];
   projects: StacksProject[];
   blogPosts: StacksBlogPost[];
@@ -132,8 +135,7 @@ export type StacksSlots = {
   contact: ReactNode;
   books: ReactNode;
   training: ReactNode;
-  manual: ReactNode;
-  routine: ReactNode;
+  systems: ReactNode;
   talks: ReactNode;
   blog: ReactNode;
   projects: ReactNode;

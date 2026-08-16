@@ -6,6 +6,12 @@ await import("./src/env.js");
 
 /** @type {import("next").NextConfig} */
 const config = {
+  // React Three Fiber releases an unmounted Canvas on a 500 ms delay. React
+  // Strict Mode's development remount reuses that canvas/root before the old
+  // cleanup runs, so the cleanup force-loses the live replacement context.
+  // Production is unaffected by Strict effects; opting out keeps the local
+  // WebGL lifecycle equivalent to production.
+  reactStrictMode: false,
   images: {
     remotePatterns: [
       {

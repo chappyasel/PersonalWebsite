@@ -5,13 +5,18 @@
 // into one repeated thumbnail shape.
 import { useStacks } from "../../store";
 import Grabbable from "../Grabbable";
-import { registerMeadowLamp } from "../meadowLights";
 import { FootPool } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
 import ModelProp from "../ModelProp";
 import { LampSwitch, Sway } from "../eggs";
-import { DeskFrame, PHOTO_LINKS, deskFrameHeight } from "../photos";
-import { BookPile, GlowSprite, ShelfUnit } from "../primitives";
+import { registerMeadowLamp } from "../meadowLights";
+import {
+  DeskFrame,
+  PHOTO_LINKS,
+  deskFrameHeight,
+  photoDoorLabel,
+} from "../photos";
+import { GlowSprite, ShelfUnit } from "../primitives";
 import { useUnitLod } from "../useUnitLod";
 import React, { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
@@ -180,7 +185,7 @@ function FloorLampSpot({ dark }: { dark: boolean }) {
         ref={light}
         position={[0, SHADE_BOTTOM_Y - 0.017, 0]}
         color="#ffbe73"
-        intensity={dark ? 12.5 : 7}
+        intensity={dark ? 10 : 5.6}
         angle={0.85}
         penumbra={0.9}
         distance={3.81}
@@ -231,6 +236,7 @@ function TalkPhoto({
   children: React.ReactNode;
 }) {
   const hoverKey = `grab:photo:${id}`;
+  const href = PHOTO_LINKS[id] ?? null;
   return (
     <Grabbable
       unitIndex={unitIndex}
@@ -240,7 +246,8 @@ function TalkPhoto({
       shadeWidth={Math.max(0.34, width * 1.08)}
       shape="box"
       massKg={0.58}
-      href={PHOTO_LINKS[id] ?? undefined}
+      href={href ?? undefined}
+      doorLabel={href ? photoDoorLabel(href) : undefined}
     >
       <HeldFacing hoverKey={hoverKey} position={[0, seat, 0]} rest={rotation}>
         {children}
@@ -320,19 +327,35 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
               />
             </TalkPhoto>
 
-            <group position={[0, 0, -0.06]}>
-              <BookPile
-                palette={palette}
-                x={0.7}
-                salt={59}
-                linkUnit={index}
-                grabbable
-              />
-            </group>
+            <Grabbable
+              unitIndex={index}
+              hoverKey="grab:microphone"
+              base={[0.34, 0, 0.08]}
+              shadeColor={palette.shadow}
+              shadeWidth={0.5}
+              shape="box"
+              massKg={0.7}
+            >
+              <group
+                position={[0, 0.03, 0]}
+                rotation={[0, -0.22, -Math.PI / 2]}
+              >
+                <React.Suspense fallback={null}>
+                  <ModelProp
+                    url="/models/microphone.glb"
+                    dark={dark}
+                    variant="tinted"
+                    tints={{ lambert2SG: palette.metal }}
+                    scale={0.041}
+                  />
+                </React.Suspense>
+              </group>
+            </Grabbable>
+
             <Grabbable
               unitIndex={index}
               hoverKey="grab:plant:talks-pothos"
-              base={[1.18, 0, 0.12]}
+              base={[1.08, 0, 0.12]}
               shadeColor={palette.shadow}
               shadeWidth={0.42}
               shape="box"
@@ -409,28 +432,24 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
           />
         </TalkPhoto>
 
-        {/* Laid across the top shelf, where its full body is visible. The
-            source model's measured contact island needs 0.030 world units
-            beneath its origin after the side rotation. That seat puts the
-            grille and handle in contact instead of letting the physics solver
-            lift a buried model toward the camera. */}
+        {/* The requested harmonica takes the microphone's old upper-shelf
+            position. Its source is already horizontal and bottom-normalized. */}
         <Grabbable
           unitIndex={index}
-          hoverKey="grab:microphone"
-          base={[0.82, 0, 0.1]}
+          hoverKey="grab:harmonica:talks"
+          base={[0.82, 0, 0.08]}
           shadeColor={palette.shadow}
           shadeWidth={0.5}
           shape="box"
-          massKg={0.7}
+          massKg={0.18}
         >
-          <group position={[0, 0.03, 0]} rotation={[0, -0.22, -Math.PI / 2]}>
+          <group rotation={[0, -0.2, 0]}>
             <React.Suspense fallback={null}>
               <ModelProp
-                url="/models/microphone.glb"
+                url="/models/harmonica.glb"
                 dark={dark}
                 variant="tinted"
-                tints={{ lambert2SG: palette.metal }}
-                scale={0.041}
+                scale={0.021}
               />
             </React.Suspense>
           </group>
@@ -467,7 +486,11 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
           ground pool is a sibling in the rig, because an additive sprite is a
           metre-wide transparent quad and inside the trigger it becomes an
           invisible hit box over half the unit. */}
-      <group ref={lampRootRef} position={[-2.12, -1.115, 0.06]} rotation={[0, 0.45, 0]}>
+      <group
+        ref={lampRootRef}
+        position={[-2.12, -1.115, 0.06]}
+        rotation={[0, 0.45, 0]}
+      >
         <LampSwitch
           unitIndex={index}
           activeUnitIndexes={[index - 1, index]}
@@ -536,7 +559,7 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
                   GlowSprite writes its own opacity every frame. */}
               <group position={[0, SHADE_BOTTOM_Y - 0.055, 0]}>
                 <GlowSprite
-                  opacity={palette.glowOpacity * 1.7}
+                  opacity={palette.glowOpacity * 1.36}
                   eased
                   scale={0.444}
                   factorRef={lit}
@@ -544,7 +567,7 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
               </group>
               <group position={[0, SHADE_TOP_Y + 0.024, 0]}>
                 <GlowSprite
-                  opacity={palette.glowOpacity * 0.65}
+                  opacity={palette.glowOpacity * 0.52}
                   eased
                   scale={0.264}
                   factorRef={lit}
@@ -582,7 +605,7 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
               <pointLight
                 position={[0, SHADE_BOTTOM_Y - 0.154, 0]}
                 color="#ffcf96"
-                intensity={dark ? 4 : 1}
+                intensity={dark ? 3 : 0.75}
                 distance={2.5}
                 decay={2}
               />

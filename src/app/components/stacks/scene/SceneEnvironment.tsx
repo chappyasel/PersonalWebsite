@@ -15,6 +15,10 @@ import Meadow from "./Meadow";
 import Petals from "./Petals";
 import { DAYLIGHT_RENDERING } from "./daylightRendering";
 import {
+  getSceneInteraction,
+  registerSceneInteraction,
+} from "./interactionRegistry";
+import {
   type DurableQualityRung,
   cloudDetailEnabled,
   landmarkDetailEnabled,
@@ -143,6 +147,14 @@ const SKY_FRAGMENT = `
   // 0.70 × 0.80 = 0.56 of the base width at the flat top.
   #define SF_TAPER  0.440
 
+  // Jasper, 45 Lansing: 430 ft / 39 floors. Keep its quiet rectangular mass
+  // east of Salesforce and west of the Bay Bridge, in the same atmospheric
+  // material as the rest of the skyline. Its identity lives in one window,
+  // not a contrasting facade treatment.
+  #define JASPER_AZ  -1.190
+  #define JASPER_TOP  0.0515
+  #define JASPER_HW   0.0068
+
   // Longest a fireworks launch runs: seven shells, the last let go at 3.10 s,
   // up to 1.08 s of rise and a 3.4 s willow on top. Mirrored by FIRE_DURATION
   // in the JS below, which stops feeding the clock.
@@ -165,6 +177,8 @@ const SKY_FRAGMENT = `
   uniform float uSfHover;  // 0…1 damped: pointer is on Salesforce's crown
   uniform float uSfShow;   // seconds since the crown was clicked, < 0 idle
   uniform float uSfSeed;   // re-deals the crown's palette on every wake
+  uniform float uJasperHover; // 0…1 damped: pointer is on 45 Lansing
+  uniform float uJasperShow;  // seconds since Chappy's window was clicked
   uniform vec3 zenithL;  uniform vec3 zenithD;
   uniform vec3 horizonL; uniform vec3 horizonD;
   uniform vec3 shadowL;  uniform vec3 shadowD;
@@ -195,6 +209,12 @@ const SKY_FRAGMENT = `
     float q = (a - c) / w;
     float m = max(1.0 - q * q, 0.0);
     return m * m;
+  }
+  // A tiny skyline block in angular coordinates. Keeping the authored tower
+  // inventory in this one idiom makes every quoted height and bearing legible
+  // in the shader instead of hiding the skyline inside a random roof hash.
+  float sfBlock(float az, float el, float centre, float halfW, float top) {
+    return step(abs(az - centre), halfW) * step(0.001, el) * step(el, top);
   }
   // One rule for every lit window in this city, so the generic carpet and the
   // named towers can never fall out of step. A FIXED per-cell hash crossing a
@@ -1212,6 +1232,14 @@ const SKY_FRAGMENT = `
     roof = mix(roof, -0.004, seatWin);
     float city = 1.0 - smoothstep(roof - 0.0015, roof + 0.0015, e);
 
+    // Jasper is one restrained addition to the old skyline composition. A
+    // shallow recessed crown is enough to keep its 39-storey slab distinct;
+    // the facade deliberately inherits the city material below.
+    float dJasper = a - JASPER_AZ;
+    float jasperBody = sfBlock(a, e, JASPER_AZ, JASPER_HW, JASPER_TOP - 0.0025);
+    float jasperCrown = sfBlock(a, e, JASPER_AZ, JASPER_HW * 0.82, JASPER_TOP);
+    float jasper = max(jasperBody, jasperCrown);
+
     // Twin Peaks / Mt Davidson + Telegraph Hill — hazier and flatter than
     // the buildings, their east flanks catch the first light.
     //
@@ -1409,8 +1437,8 @@ const SKY_FRAGMENT = `
     // suspension deck), two towers, and the Bay Lights strung on the cable.
     // −1.09 rather than the surveyed −1.02: at −1.02 the whole span hides
     // behind the Systems shelf props at unit 6 on desktop. −1.09 keeps the
-    // compass order (east of Salesforce) and hangs the cables in front of
-    // the ember glow.
+    // compass order (east of Salesforce and Jasper) and hangs the cables in
+    // front of the ember glow.
     float bridge = 0.0;
     float bayLight = 0.0;
     float bx = (a + 1.09) / 0.055;
@@ -1435,7 +1463,7 @@ const SKY_FRAGMENT = `
     }
 
     float ground = smoothstep(-0.10, -0.02, e);
-    float structures = clamp(city + sutro + coit + trans + sales + bridge + ggb, 0.0, 1.0) * ground;
+    float structures = clamp(city + sutro + coit + trans + sales + jasper + bridge + ggb, 0.0, 1.0) * ground;
     hillMask *= ground;
 
     // Sparse warm window glints — the city is mostly asleep. Scrolling
@@ -1463,7 +1491,8 @@ const SKY_FRAGMENT = `
     // the generic carpet stops at their outlines rather than laying a second,
     // differently-pitched grid over the bottom third of each of them.
     float winMask = lit * city * step(0.004, e) * step(e, roof - 0.005)
-                  * (1.0 - sutro) * (1.0 - trans) * (1.0 - sales);
+                  * (1.0 - sutro) * (1.0 - trans) * (1.0 - sales)
+                  * (1.0 - jasper);
 
     // ---- The named towers' own windows.
     //
@@ -1511,6 +1540,20 @@ const SKY_FRAGMENT = `
     // what lets them read as two elements rather than as one wide blob — the
     // job the old detached sticks were doing badly.
     float wingLift = transWing * mix(0.16, 0.30, uDark);
+
+    // Floor 33, one bay left of centre. The building remains an ordinary
+    // skyline silhouette; only this single window owns an interaction.
+    float jasperFloor33 = 0.004 + (JASPER_TOP - 0.006) * (32.5 / 39.0);
+    float jasperApartment = jasper
+      * smoothstep(0.00100, 0.00045,
+          length(vec2(dJasper + JASPER_HW * 0.47,
+                      (e - jasperFloor33) * 1.35)));
+    float jasperShow = 0.0;
+    if (uJasperShow >= 0.0 && uJasperShow < 8.0) {
+      jasperShow = smoothstep(0.0, 0.35, uJasperShow)
+                 * (1.0 - smoothstep(6.6, 8.0, uJasperShow));
+    }
+    float jasperLive = clamp(uJasperHover + jasperShow, 0.0, 1.0);
 
     // The silhouette dissolves toward the horizon band near the horizon
     // line — its own aerial haze; rooftops catch a kiss of the ember.
@@ -1589,6 +1632,18 @@ const SKY_FRAGMENT = `
     col = mix(col, hillCol, hillMask);
     col = mix(col, cityCol, structures);
     col += windowC * bayLight * uDark * (1.0 - 0.8 * smoothstep(0.4, 1.0, uDawn)) * 0.85;
+    // Same visual vocabulary as Salesforce's interactive crown: a smooth,
+    // time-varying spectrum rather than a flashing indicator. At rest the
+    // apartment is just another dim city window; hover wakes the rainbow and
+    // click leaves it running briefly for touch visitors.
+    vec3 jasperHue = 0.5 + 0.5 * cos(
+      uTime * 0.82 + vec3(0.0, 2.09, 4.19)
+    );
+    vec3 apartmentC = mix(windowC, jasperHue, jasperLive);
+    float apartmentIdle = mix(0.06, 0.22, uDark);
+    col += apartmentC * jasperApartment
+         * (apartmentIdle + jasperLive * mix(0.72, 1.15, uDark))
+         * (1.0 - seatWin);
 
     // ---- Washington at dusk. uSeat is CameraRig's eased 0..1 out of
     // scene/seated.ts, so none of this costs anything — or exists — until
@@ -2240,6 +2295,16 @@ const SF_HOVER = "sky:salesforce";
 /** Matches the shader's SF_SHOW. */
 const SF_SHOW_DURATION = 9.0;
 
+// Jasper / 45 Lansing. The forgiving hit area covers the tower, while the
+// shader response itself stays confined to the floor-33 left-side window.
+const JASPER_AZ = -1.19;
+const JASPER_HALF_A = 0.02;
+const JASPER_E0 = 0.012;
+const JASPER_E1 = 0.06;
+const JASPER_HIT_Z = -0.28;
+const JASPER_HOVER = "sky:jasper";
+const JASPER_SHOW_DURATION = 8.0;
+
 // ---- Where the Washington Monument goes.
 //
 // The vista is 0.468 rad wide from the Monument to the Capitol and the frame
@@ -2309,10 +2374,13 @@ function SkyDome({
   const domeRef = useRef<THREE.Mesh>(null);
   const hitRef = useRef<THREE.Mesh>(null);
   const sfHitRef = useRef<THREE.Mesh>(null);
+  const jasperHitRef = useRef<THREE.Mesh>(null);
   const fireStart = useRef(-1);
   const pendingFire = useRef(false);
   const sfStart = useRef(-1);
   const pendingSf = useRef(false);
+  const jasperStart = useRef(-1);
+  const pendingJasper = useRef(false);
   const viewDirection = useRef(new THREE.Vector3());
   const setHovered = useStacks((s) => s.setHovered);
   const sky = useMemo(() => {
@@ -2338,6 +2406,8 @@ function SkyDome({
       uSfHover: { value: 0 },
       uSfShow: { value: -1 },
       uSfSeed: { value: 0 },
+      uJasperHover: { value: 0 },
+      uJasperShow: { value: -1 },
       zenithL: { value: c(L.skyTop) },
       zenithD: { value: c(D.skyTop) },
       horizonL: { value: c(L.skyHorizon) },
@@ -2377,6 +2447,59 @@ function SkyDome({
     },
     [sky],
   );
+  useEffect(() => {
+    const bridge = hitRef.current;
+    const crown = sfHitRef.current;
+    const jasper = jasperHitRef.current;
+    if (!bridge || !crown || !jasper) return;
+    const activeUnits = [0, 1, 2, 3, 4, 5, 6];
+    const skipMotion = () =>
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const releaseBridge = registerSceneInteraction({
+      id: GGB_HOVER,
+      root: bridge,
+      activeUnits,
+      activation: {
+        kind: "egg",
+        run: () => {
+          if (!skipMotion()) pendingFire.current = true;
+        },
+        reducedMotion: "skip",
+      },
+      hover: { kind: "none" },
+    });
+    const releaseCrown = registerSceneInteraction({
+      id: SF_HOVER,
+      root: crown,
+      activeUnits,
+      activation: {
+        kind: "egg",
+        run: () => {
+          if (!skipMotion()) pendingSf.current = true;
+        },
+        reducedMotion: "skip",
+      },
+      hover: { kind: "none" },
+    });
+    const releaseJasper = registerSceneInteraction({
+      id: JASPER_HOVER,
+      root: jasper,
+      activeUnits,
+      activation: {
+        kind: "egg",
+        run: () => {
+          if (!skipMotion()) pendingJasper.current = true;
+        },
+        reducedMotion: "skip",
+      },
+      hover: { kind: "none" },
+    });
+    return () => {
+      releaseBridge();
+      releaseCrown();
+      releaseJasper();
+    };
+  }, []);
   // Launch rides a WINDOW pointer event keyed off the hover slot, not r3f's
   // per-object onClick. Measured, not preferred, and the same conclusion
   // Grabbable already reached and wrote down (Grabbable.tsx:262-273): with
@@ -2404,8 +2527,18 @@ function SkyDome({
       if (Math.hypot(e.clientX - from[0], e.clientY - from[1]) > 6) return;
       const s = useStacks.getState();
       if (s.dragging) return; // a throw, not a tap
-      if (s.hovered === GGB_HOVER) pendingFire.current = true;
-      else if (s.hovered === SF_HOVER) pendingSf.current = true;
+      if (
+        s.hovered !== GGB_HOVER &&
+        s.hovered !== SF_HOVER &&
+        s.hovered !== JASPER_HOVER
+      )
+        return;
+      const interaction = getSceneInteraction(s.hovered);
+      if (
+        interaction?.activation?.kind === "egg" &&
+        interaction.activeUnits.includes(s.activeUnit)
+      )
+        interaction.activation.run();
     };
     window.addEventListener("pointerdown", onDown);
     window.addEventListener("pointerup", onUp);
@@ -2493,6 +2626,12 @@ function SkyDome({
       5,
       delta,
     );
+    u.uJasperHover!.value = THREE.MathUtils.damp(
+      u.uJasperHover!.value as number,
+      hoveredSlot === JASPER_HOVER ? 1 : 0,
+      5,
+      delta,
+    );
 
     // Fireworks clock. The click handler can only raise a flag — it has no
     // clock of its own — so the launch time is stamped here, on the frame
@@ -2523,6 +2662,17 @@ function SkyDome({
     } else {
       u.uSfShow!.value = -1;
     }
+    if (pendingJasper.current) {
+      pendingJasper.current = false;
+      jasperStart.current = clock.elapsedTime;
+    }
+    if (jasperStart.current >= 0) {
+      const age = clock.elapsedTime - jasperStart.current;
+      if (age > JASPER_SHOW_DURATION) jasperStart.current = -1;
+      u.uJasperShow!.value = age;
+    } else {
+      u.uJasperShow!.value = -1;
+    }
 
     // Park the bridge's hit target on the bridge. Azimuth follows the pan
     // exactly as the shader's does (the shader adds uPan to the fragment's
@@ -2551,6 +2701,16 @@ function SkyDome({
       SF_E0,
       SF_E1,
       SF_HIT_Z,
+    );
+    parkSkyTarget(
+      jasperHitRef.current,
+      camera,
+      pan,
+      JASPER_AZ,
+      JASPER_HALF_A,
+      JASPER_E0,
+      JASPER_E1,
+      JASPER_HIT_Z,
     );
     // The sky is at infinity, so it must not parallax against the room — in
     // ANY axis. Copying only x left the dome fixed in y and z while the
@@ -2598,6 +2758,22 @@ function SkyDome({
         }}
         onPointerOut={() => {
           if (useStacks.getState().hovered === SF_HOVER) setHovered(null);
+        }}
+      >
+        <planeGeometry args={[1, 1]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+      {/* Jasper at 45 Lansing. The tower is forgiving to point at, but the
+          shader's response remains confined to Chappy's floor-33 window. */}
+      <mesh
+        ref={jasperHitRef}
+        name={JASPER_HOVER}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          setHovered(JASPER_HOVER);
+        }}
+        onPointerOut={() => {
+          if (useStacks.getState().hovered === JASPER_HOVER) setHovered(null);
         }}
       >
         <planeGeometry args={[1, 1]} />

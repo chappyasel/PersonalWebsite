@@ -5,7 +5,6 @@ import {
   auditBookInteractions,
   bookInteractionSnapshot,
   buildBookInteractions,
-  pickSecretSpineIndex,
   respondersForHover,
   setBookInteractionInventory,
   setBookInteractionScreens,
@@ -100,12 +99,17 @@ describe("Book Notes interaction inventory", () => {
     }
     expect(
       inventory
-        .filter((item) => item.role === "flat" || item.role === "riser")
+        .filter((item) => item.role === "spine" || item.role === "lean")
+        .every((item) => item.hoverMotion === "upward-y"),
+    ).toBe(true);
+    expect(
+      inventory
+        .filter((item) => item.role === "riser" || item.role === "flat")
         .every((item) => item.hoverMotion === "forward-z"),
     ).toBe(true);
   });
 
-  it("fails closed when keys collide or a disabled secret shimmer returns", () => {
+  it("fails closed when interaction keys collide", () => {
     const inventory = buildBookInteractions(input);
     const broken = [
       ...inventory,
@@ -113,17 +117,13 @@ describe("Book Notes interaction inventory", () => {
         ...inventory[0]!,
         id: "counterfeit",
         role: "spine" as const,
-        shimmer: true,
       },
     ];
 
     const audit = auditBookInteractions(broken, input.expectedFeaturedIds);
     expect(audit.ok).toBe(false);
     expect(audit.errors).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining("duplicate hover key"),
-        expect.stringContaining("secret-room shimmer must stay disabled"),
-      ]),
+      expect.arrayContaining([expect.stringContaining("duplicate hover key")]),
     );
   });
 
@@ -139,37 +139,5 @@ describe("Book Notes interaction inventory", () => {
       snapshot.inventory.find((item) => item.id === "featured:book-0")?.screen,
     ).toEqual([212, 418]);
     setBookInteractionInventory(null);
-  });
-
-  it("always chooses the closest available spine for the secret handle", () => {
-    expect(
-      pickSecretSpineIndex([
-        { kind: "flat", x: -0.38, n: 2, colors: ["#123", "#456"] },
-        { kind: "spine", x: -0.8, w: 0.08, h: 0.5, color: "#765" },
-        { kind: "lean", x: -0.37, w: 0.07, h: 0.44, color: "#654" },
-        { kind: "spine", x: -0.32, w: 0.08, h: 0.5, color: "#876" },
-      ]),
-    ).toBe(3);
-    expect(
-      pickSecretSpineIndex([
-        { kind: "flat", x: -0.38, n: 2, colors: ["#123", "#456"] },
-      ]),
-    ).toBe(-1);
-  });
-
-  it("chooses the rightmost unoccupied placeholder instead of clipping a cover", () => {
-    const items = [
-      { kind: "spine" as const, x: -0.5, w: 0.08, h: 0.5, color: "#765" },
-      { kind: "spine" as const, x: 0.2, w: 0.08, h: 0.5, color: "#876" },
-      { kind: "spine" as const, x: 0.72, w: 0.08, h: 0.5, color: "#987" },
-    ];
-
-    expect(pickSecretSpineIndex(items, 0.2, [[0.1, 0.4]])).toBe(2);
-    expect(
-      pickSecretSpineIndex(items, 0.2, [
-        [-0.6, -0.4],
-        [0.1, 0.8],
-      ]),
-    ).toBe(-1);
   });
 });

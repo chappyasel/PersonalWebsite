@@ -11,7 +11,7 @@ describe("ScrollBridges interaction ownership", () => {
   it("does not translate a touch while a prop owns the drag", () => {
     expect(
       blocksWorldTouchTravel({
-        dragging: "grab:books:secret-spine",
+        dragging: "grab:books:featured-cover",
         modalOpen: false,
         panelState: "closed",
       }),
@@ -28,7 +28,7 @@ describe("ScrollBridges interaction ownership", () => {
   it("leaves PageUp/PageDown with an opted-in scrollable card", () => {
     const scrollableChild = {
       closest: (selector: string) =>
-        selector === "[data-stacks-scrollable]" ? {} : null,
+        selector.includes("[data-stacks-scrollable]") ? {} : null,
     } as unknown as EventTarget;
 
     expect(isStacksScrollableTarget(scrollableChild)).toBe(true);
@@ -59,6 +59,11 @@ describe("ScrollBridges interaction ownership", () => {
   });
 
   it("keeps gestures inside the sheet and modal/prop gestures isolated", () => {
+    const mobileChild = {
+      closest: (selector: string) =>
+        selector.includes("[data-stacks-mobile-panel]") ? {} : null,
+    } as unknown as EventTarget;
+    expect(isStacksScrollableTarget(mobileChild)).toBe(true);
     expect(
       backgroundWorldGesture(
         { dragging: null, modalOpen: false, panelState: "open" },

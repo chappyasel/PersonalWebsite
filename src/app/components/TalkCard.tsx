@@ -56,11 +56,11 @@ export default function TalkCard({ talk }: { talk: Talk }) {
 
   return (
     <TiltCard
+      interactive
       className={cn(
         "w-full intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000",
         featured && "sm:col-span-2",
       )}
-      hoverScale={1.02}
     >
       <Link
         href={talk.url}

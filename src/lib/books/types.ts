@@ -73,6 +73,31 @@ export type HomepageBookStats = {
   pagesPerDay: number | null;
 };
 
+export type HomepageBookPreview = Pick<
+  Book,
+  | "id"
+  | "title"
+  | "author"
+  | "coverUrl"
+  | "started"
+  | "finished"
+  | "rating"
+  | "audioLengthMin"
+  | "pageCount"
+>;
+
+export type HomepageBookPlacard = {
+  stats: HomepageBookStats & { trackedSince: number | null };
+  subjects: Array<{ name: string; count: number }>;
+  current: HomepageBookPreview[];
+  recent: HomepageBookPreview[];
+  yearly: Array<{
+    year: number;
+    books: number;
+    projectedRemainder: number;
+  }>;
+};
+
 export type ReadingAnalyticsBucket = {
   period: string; // ISO week start "YYYY-MM-DD" (Monday), month "YYYY-MM", or year "YYYY"
   wallClockHours: number;

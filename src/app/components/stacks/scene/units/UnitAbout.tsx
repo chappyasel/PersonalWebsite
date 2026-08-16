@@ -1,6 +1,7 @@
 "use client";
 
 import { proxied } from "../../theme";
+import { TJMedallionProp } from "../AuthoredProps";
 import Grabbable from "../Grabbable";
 import { ContactShade, FootPool } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
@@ -15,6 +16,7 @@ import {
   PHOTO_LINKS,
   PhotoMount,
   deskFrameHeight,
+  photoDoorLabel,
 } from "../photos";
 import { ShelfUnit } from "../primitives";
 import { ABOUT_COUCH } from "../seated";
@@ -32,13 +34,16 @@ import {
 } from "~/lib/books/coverEdgeColor";
 
 import {
+  ABOUT_LOWER_PHOTO_X,
   ABOUT_READING_BOOK,
   ABOUT_SMALL_PLANT_X,
   type ReadingBookPose,
   readingStackPoses,
   recordAboutReadingMaterials,
 } from "./aboutReadingStack";
+import { featuredBookThickness } from "./featuredBookGeometry";
 import { type UnitProps } from "./types";
+import { REVIEWED_SHELF_LAYOUT } from "./unitShelfLayout";
 
 export const PORTRAIT_SRC = "/images/about/profile.jpg";
 
@@ -206,6 +211,7 @@ function LoosePhoto({
   children: React.ReactNode;
 }) {
   const hoverKey = `grab:photo:${id}`;
+  const href = PHOTO_LINKS[id] ?? null;
   return (
     <Grabbable
       unitIndex={unitIndex}
@@ -215,7 +221,8 @@ function LoosePhoto({
       shadeWidth={Math.max(0.28, width * 1.18)}
       shape="box"
       massKg={0.48}
-      href={PHOTO_LINKS[id] ?? undefined}
+      href={href ?? undefined}
+      doorLabel={href ? photoDoorLabel(href) : undefined}
     >
       <HeldFacing
         hoverKey={hoverKey}
@@ -249,7 +256,7 @@ function ReadingStack({
   const poses = React.useMemo(() => readingStackPoses(), []);
   const materials = React.useMemo(
     () =>
-      books.slice(0, 1).map((book) => {
+      books.slice(0, 3).map((book) => {
         const sampled = bookColors[book.id] ?? {
           edge: fallbackCoverEdgeColor(book.id),
           source: "fallback" as const,
@@ -266,9 +273,13 @@ function ReadingStack({
   React.useEffect(() => recordAboutReadingMaterials(materials), [materials]);
   return (
     <group>
-      {books.slice(0, 1).map((book, i) => {
+      {books.slice(0, 3).map((book, i) => {
         const pose = poses[i]!;
         const material = materials[i]!;
+        const thickness = featuredBookThickness(
+          book.pageCount,
+          book.audioLengthMin,
+        );
         return (
           <Grabbable
             key={book.id}
@@ -281,23 +292,28 @@ function ReadingStack({
             massKg={0.62}
             physics={false}
             onTap={() => onOpenBook?.(book.id)}
+            doorLabel={`Read ${book.title}`}
           >
             <HeldReadingCover
               hoverKey={`grab:reading:${book.id}`}
               pose={pose}
               name={`stacks-reading-cover:${book.id}`}
             >
-              <ReadingBookShell cover={material.cover} pages={material.pages} />
+              <ReadingBookShell
+                cover={material.cover}
+                pages={material.pages}
+                thickness={thickness}
+              />
               {book.coverUrl && (
                 <React.Suspense fallback={null}>
                   <group
-                    position={[0, ABOUT_READING_BOOK.thickness / 2 + 0.001, 0]}
+                    position={[0, thickness / 2 + 0.001, 0]}
                     rotation={[-Math.PI / 2, 0, 0]}
                   >
                     <LitImage
                       url={proxied(book.coverUrl, coverWidth)}
-                      width={0.29}
-                      height={0.38}
+                      width={0.263}
+                      height={0.416}
                       roughness={0.64}
                     />
                   </group>
@@ -316,10 +332,17 @@ const READING_BOARD_THICKNESS = 0.007;
 /** A book rather than a colored brick: cream page block, two jacket-matched
  * cloth boards, and a wrapped spine. The slight board overhang is what makes
  * the two horizontal books read as overlapping volumes in the reference. */
-function ReadingBookShell({ cover, pages }: { cover: string; pages: string }) {
-  const pageThickness =
-    ABOUT_READING_BOOK.thickness - READING_BOARD_THICKNESS * 2;
-  const boardY = ABOUT_READING_BOOK.thickness / 2 - READING_BOARD_THICKNESS / 2;
+function ReadingBookShell({
+  cover,
+  pages,
+  thickness,
+}: {
+  cover: string;
+  pages: string;
+  thickness: number;
+}) {
+  const pageThickness = thickness - READING_BOARD_THICKNESS * 2;
+  const boardY = thickness / 2 - READING_BOARD_THICKNESS / 2;
   return (
     <group>
       <RoundedBox
@@ -353,11 +376,7 @@ function ReadingBookShell({ cover, pages }: { cover: string; pages: string }) {
       <RoundedBox
         castShadow
         position={[-ABOUT_READING_BOOK.width / 2 + 0.006, 0, 0]}
-        args={[
-          0.012,
-          ABOUT_READING_BOOK.thickness - 0.004,
-          ABOUT_READING_BOOK.depth,
-        ]}
+        args={[0.012, thickness - 0.004, ABOUT_READING_BOOK.depth]}
         radius={0.003}
         smoothness={2}
       >
@@ -403,6 +422,9 @@ export default function UnitAbout({
   onOpenBook,
 }: UnitProps) {
   const textured = useUnitLod(index);
+  const tjTalk = data.talks.find(
+    (talk) => talk.title === "Principles for Living in the Age of Acceleration",
+  );
   return (
     <group>
       <ShelfUnit
@@ -436,7 +458,7 @@ export default function UnitAbout({
               unitIndex={index}
               palette={palette}
               id="about-collective-group-v8"
-              base={[0.84, 0, 0.12]}
+              base={[ABOUT_LOWER_PHOTO_X, 0, 0.12]}
               seat={deskFrameHeight(0.1922) / 2}
               rotation={[-0.09, -0.14, 0.018]}
               width={0.3072}
@@ -450,44 +472,24 @@ export default function UnitAbout({
               />
             </LoosePhoto>
 
-            {/* A loose personal print at the far-right edge of the first
-                lower shelf. Its portrait ratio follows the supplied 3:4
-                source exactly; face-up placement keeps it distinct from the
-                standing group photo immediately behind it. */}
-            <LoosePhoto
-              unitIndex={index}
-              palette={palette}
-              id="about-profile-full-v8"
-              base={[1.14, 0, 0.05]}
-              rotation={[0, -0.16, 0]}
-              facingRotation={[Math.PI / 2, 0, 0]}
-              width={0.2}
-            >
-              <FlatPrint
-                src="/images/stacks/v8/about-profile-full.webp"
-                palette={palette}
-                textured={textured}
-                width={0.2}
-                height={0.267}
-              />
-            </LoosePhoto>
-
             <Grabbable
               unitIndex={index}
               hoverKey="shimmer:apple"
-              base={[-0.48, 0, 0.07]}
+              base={[0, 0, SHELF_GEOMETRY.lower.centerZ]}
               shadeColor={palette.shadow}
               shadeWidth={0.26}
               tiltOnHover={false}
               shape="box"
               massKg={0.35}
             >
-              <DeskApple palette={palette} unitIndex={index} />
+              <group rotation={[0, -0.16, 0]}>
+                <DeskApple palette={palette} unitIndex={index} />
+              </group>
             </Grabbable>
             <Grabbable
               unitIndex={index}
               hoverKey="grab:ai-collective-mark"
-              base={[-0.24, 0, 0.05]}
+              base={[-0.48, 0, SHELF_GEOMETRY.lower.centerZ]}
               shadeColor={palette.shadow}
               shadeWidth={0.26}
               tiltOnHover={false}
@@ -495,7 +497,9 @@ export default function UnitAbout({
               massKg={0.42}
             >
               <React.Suspense fallback={null}>
-                <CollectiveLogo palette={palette} unitIndex={index} />
+                <group rotation={[0, -0.16, 0]}>
+                  <CollectiveLogo palette={palette} unitIndex={index} />
+                </group>
               </React.Suspense>
             </Grabbable>
             <ReadingStack
@@ -507,30 +511,17 @@ export default function UnitAbout({
               unitIndex={index}
               onOpenBook={onOpenBook}
             />
-            {/* The small succulent now bridges the reading stack and lower
-                photograph. Its model is already ground-normalized, so y=0 is
-                exact contact with this shelf's local surface. */}
-            <Grabbable
-              unitIndex={index}
-              hoverKey="grab:plant:about-succulent"
-              base={[ABOUT_SMALL_PLANT_X, 0, 0.03]}
-              shadeColor={palette.shadow}
-              shadeWidth={0.28}
-              shape="box"
-              massKg={1.2}
-            >
-              <Sway unitIndex={index} amount={0.012} rate={0.28} phase={0.4}>
-                <React.Suspense fallback={null}>
-                  <ModelProp
-                    url="/models/succulent-pot.glb"
-                    dark={dark}
-                    variant="recolor"
-                    rotation={[0, -0.4, 0]}
-                    scale={0.18}
-                  />
-                </React.Suspense>
-              </Sway>
-            </Grabbable>
+            {tjTalk && (
+              <React.Suspense fallback={null}>
+                <TJMedallionProp
+                  unitIndex={index}
+                  palette={palette}
+                  dark={dark}
+                  base={[-0.24, 0, SHELF_GEOMETRY.lower.centerZ]}
+                  href={tjTalk.url}
+                />
+              </React.Suspense>
+            )}
             {/* The warm practical from the original desk composition. The
                 model and its measured light rig share this one transform;
                 fixed task lighting is architecture, not a throwable prop. */}
@@ -586,7 +577,7 @@ export default function UnitAbout({
           unitIndex={index}
           palette={palette}
           id="about-family-v8"
-          base={[0.02, 0, 0.1]}
+          base={[0.48, 0, 0.1]}
           seat={deskFrameHeight(0.264) / 2}
           rotation={[-0.08, 0.2, -0.025]}
           width={0.264 * (769 / 1024)}
@@ -604,12 +595,12 @@ export default function UnitAbout({
           unitIndex={index}
           palette={palette}
           id="about-speaking-candid-v8"
-          base={[0.42, 0, 0.12]}
-          seat={deskFrameHeight(0.2041) / 2}
-          rotation={[-0.1, -0.18, 0.02]}
+          base={[REVIEWED_SHELF_LAYOUT.about.speakingPrintX, 0, 0.15]}
+          rotation={[0, -0.22, 0]}
+          facingRotation={[Math.PI / 2, 0, 0]}
           width={0.306}
         >
-          <DeskFrame
+          <FlatPrint
             src="/images/stacks/v8/about-speaking-candid.webp"
             palette={palette}
             textured={textured}
@@ -618,11 +609,33 @@ export default function UnitAbout({
           />
         </LoosePhoto>
 
+        <Grabbable
+          unitIndex={index}
+          hoverKey="grab:plant:about-succulent"
+          base={[ABOUT_SMALL_PLANT_X, 0, -0.08]}
+          shadeColor={palette.shadow}
+          shadeWidth={0.28}
+          shape="box"
+          massKg={1.2}
+        >
+          <Sway unitIndex={index} amount={0.012} rate={0.28} phase={0.4}>
+            <React.Suspense fallback={null}>
+              <ModelProp
+                url="/models/succulent-pot.glb"
+                dark={dark}
+                variant="recolor"
+                rotation={[0, -0.4, 0]}
+                scale={0.18}
+              />
+            </React.Suspense>
+          </Sway>
+        </Grabbable>
+
         <LoosePhoto
           unitIndex={index}
           palette={palette}
           id="about-delicate-arch-v8"
-          base={[0.78, 0, 0.12]}
+          base={[REVIEWED_SHELF_LAYOUT.about.archPrintX, 0, 0.12]}
           rotation={[0, -0.2, 0]}
           facingRotation={[Math.PI / 2, 0, 0]}
           width={0.24}
@@ -632,6 +645,28 @@ export default function UnitAbout({
             palette={palette}
             textured={textured}
             width={0.24}
+            height={0.24}
+          />
+        </LoosePhoto>
+
+        {/* A frame can lean backward into a plant; it cannot balance on one
+            lower corner sideways. The exact 30° x-tilt moves its top toward
+            the rear of the shelf while the contact-derived seat keeps its
+            complete bottom edge on the plank. */}
+        <LoosePhoto
+          unitIndex={index}
+          palette={palette}
+          id="about-profile-full-v8"
+          base={[1, 0, 0.13]}
+          seat={REVIEWED_SHELF_LAYOUT.about.profileSeat}
+          rotation={[-Math.PI / 6, -0.08, 0]}
+          width={0.18}
+        >
+          <DeskFrame
+            src="/images/stacks/v8/about-profile-full.webp"
+            palette={palette}
+            textured={textured}
+            width={0.18}
             height={0.24}
           />
         </LoosePhoto>

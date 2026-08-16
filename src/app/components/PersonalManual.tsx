@@ -5,65 +5,69 @@ import Link from "next/link";
 
 import TiltCard from "./TiltCard";
 
+const manualSections = [
+  "Personality, Strengths & Blind Spots",
+  "How We Collaborate",
+  "Communication",
+  "Feedback",
+  "Hobbies",
+];
+
 export default function PersonalManual() {
   return (
-    <section className="flex w-full flex-col items-center justify-around gap-4">
-      <h1 className="flex w-full items-center gap-2 text-2xl font-semibold text-foreground [text-shadow:_0_0_20px_rgba(255,255,255,1)] dark:[text-shadow:_0_0_20px_rgba(0,0,0,0.8)] md:gap-3 md:text-3xl">
-        <BookOpenTextIcon
-          weight="duotone"
-          className="size-7 shrink-0 md:size-8"
+    <TiltCard
+      interactive
+      className="w-full intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000"
+    >
+      <Link
+        href="/manual"
+        data-placard-link=""
+        className="group relative block w-full p-5 [transform-style:preserve-3d] sm:p-6"
+      >
+        <div
+          data-placard-background=""
+          data-placard-surface=""
+          className="absolute inset-0 rounded-3xl border border-foreground/[0.06] bg-muted/40 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-lg transition-shadow duration-500 ease-out group-hover:shadow-[0px_8px_24px_0px_rgba(0,0,0,0.1)]"
         />
-        Personal Operating Manual
-      </h1>
-      <TiltCard className="w-full intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000">
-        <Link
-          href="/manual"
-          className="group relative block w-full p-5 [transform-style:preserve-3d] sm:p-6"
-        >
-          <div
-            data-placard-background=""
-            data-placard-surface=""
-            className="absolute inset-0 rounded-3xl border border-foreground/[0.06] bg-muted/40 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-lg transition-shadow duration-500 ease-out group-hover:shadow-[0px_8px_24px_0px_rgba(0,0,0,0.1)]"
-          />
 
-          <div className="relative" style={{ transform: "translateZ(20px)" }}>
-            <p className="text-lg leading-snug">
-              How I work, think, and collaborate. A guide to understanding what
-              drives me and how to work with me best.
-            </p>
+        <div className="relative" style={{ transform: "translateZ(20px)" }}>
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground md:text-xl">
+            <BookOpenTextIcon weight="duotone" className="size-5 shrink-0" />
+            Personal Operating Manual
+          </h2>
+          <p className="mt-2 text-lg leading-snug">
+            How I work, think, and collaborate. A guide to understanding what
+            drives me and how to work with me best.
+          </p>
 
-            <blockquote className="mt-4 border-l-2 border-muted-foreground/30 pl-4 italic opacity-80">
-              &ldquo;My mission is to bridge the gap between the speed of
-              technological progress and society&apos;s ability to adapt, by
-              building communities and tools that empower people to thrive in an
-              era of accelerating change.&rdquo;
-            </blockquote>
+          <ol
+            data-manual-section-index=""
+            className="mt-4 grid grid-cols-1 overflow-hidden rounded-2xl border border-foreground/10 sm:grid-cols-2"
+          >
+            {manualSections.map((section, index) => (
+              <li
+                key={section}
+                className={`flex min-h-12 items-center gap-2 border-b border-foreground/10 px-3 py-2 text-sm leading-snug last:border-b-0 ${index === manualSections.length - 1 ? "sm:col-span-2" : index % 2 === 0 ? "sm:border-r" : ""}`}
+              >
+                <span className="font-mono text-[0.68rem] tabular-nums text-cyan-700/75 dark:text-cyan-300/75">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <span className="font-medium text-foreground/90">
+                  {section}
+                </span>
+              </li>
+            ))}
+          </ol>
 
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-foreground/[0.07] px-3 py-1 text-xs font-semibold">
-                ENTJ-A
-              </span>
-              <span className="rounded-full bg-foreground/[0.07] px-3 py-1 text-xs font-semibold">
-                Achiever
-              </span>
-              <span className="rounded-full bg-foreground/[0.07] px-3 py-1 text-xs font-semibold">
-                Learner
-              </span>
-              <span className="rounded-full bg-foreground/[0.07] px-3 py-1 text-xs font-semibold">
-                Activator
-              </span>
-            </div>
-
-            <p className="mt-4 flex items-center gap-1.5 text-sm font-semibold transition-colors duration-300 group-hover:text-foreground">
-              Read the full manual
-              <ArrowRightIcon
-                weight="bold"
-                className="size-4 transition-transform duration-300 group-hover:translate-x-1"
-              />
-            </p>
-          </div>
-        </Link>
-      </TiltCard>
-    </section>
+          <p className="mt-4 flex items-center gap-1.5 text-sm font-semibold transition-colors duration-300 group-hover:text-foreground">
+            Read the full manual
+            <ArrowRightIcon
+              weight="bold"
+              className="size-4 transition-transform duration-300 group-hover:translate-x-1"
+            />
+          </p>
+        </div>
+      </Link>
+    </TiltCard>
   );
 }

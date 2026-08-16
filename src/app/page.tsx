@@ -5,23 +5,22 @@ import speakingData from "public/data/speaking.json";
 import React from "react";
 
 import { readingBookEdgeColors } from "~/lib/books/coverEdgeColor.server";
-import { computeHomepageBookStats } from "~/lib/books/homepage";
+import { buildHomepageBookPlacard } from "~/lib/books/homepagePlacard";
 import { getDefaultBooks } from "~/server/queries/books";
 import {
   getCachedActivityMosaic,
-  getCachedWeightliftingStats,
+  getCachedWeightliftingPlacard,
 } from "~/server/queries/weightlifting";
 
 import AboutMe, { AboutIntro } from "./components/About";
 import BlogPosts from "./components/BlogPosts";
 import BookNotes from "./components/BookNotes";
 import ContactButtons from "./components/ContactButtons";
-import DailyRoutine from "./components/DailyRoutine";
-import { DeferredWeightlifting } from "./components/DeferredWeightlifting";
-import PersonalManual from "./components/PersonalManual";
+import PersonalSystems from "./components/PersonalSystems";
 import Projects from "./components/Projects";
 import Quotes from "./components/Quotes";
 import Talks from "./components/Talks";
+import Weightlifting from "./components/Weightlifting";
 import StacksHome from "./components/stacks/StacksHome";
 import { type StacksData } from "./components/stacks/data";
 import {
@@ -130,12 +129,13 @@ try {
 `;
 
 export default async function HomePage() {
-  const [allBooks, activity, liftingStats] = await Promise.all([
+  const [allBooks, activity, liftingPlacard] = await Promise.all([
     getDefaultBooks(),
     getCachedActivityMosaic(12),
-    getCachedWeightliftingStats(),
+    getCachedWeightliftingPlacard(),
   ]);
-  const bookStats = computeHomepageBookStats(allBooks);
+  const bookPlacard = buildHomepageBookPlacard(allBooks);
+  const bookStats = bookPlacard.stats;
   const bookCovers = allBooks.slice(0, 60).map((book) => ({
     id: book.id,
     title: book.title,
@@ -149,12 +149,12 @@ export default async function HomePage() {
   const currentReads = allBooks
     .filter((book) => book.started && !book.finished && book.coverUrl)
     .sort((a, b) => (b.started ?? "").localeCompare(a.started ?? ""))
-    .slice(0, 1);
+    .slice(0, 3);
   const currentReadIds = new Set(currentReads.map((book) => book.id));
   const readingBooks = [
     ...currentReads,
     ...allBooks.filter((book) => book.coverUrl && !currentReadIds.has(book.id)),
-  ].slice(0, 1);
+  ].slice(0, 3);
 
   // Chappy's "Featured?" ticks, in the collection's own finished-desc order.
   // A featured book with no cover would render as a blank slab, so it is held
@@ -193,6 +193,7 @@ export default async function HomePage() {
     readingBooks,
     readingBookColors,
     bookStats,
+    bookPlacard,
     talks: speakingData.talks.map((talk, i) => ({
       videoId: talk.videoId,
       title: talk.title,
@@ -228,11 +229,8 @@ export default async function HomePage() {
     aboutIntro: <AboutIntro />,
     contact: <ContactButtons />,
     books: <BookNotes books={bookCovers} stats={bookStats} />,
-    training: (
-      <DeferredWeightlifting activity={activity} stats={liftingStats} />
-    ),
-    manual: <PersonalManual />,
-    routine: <DailyRoutine />,
+    training: <Weightlifting activity={activity} data={liftingPlacard} />,
+    systems: <PersonalSystems />,
     talks: <Talks />,
     blog: <BlogPosts />,
     projects: <Projects />,

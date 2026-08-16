@@ -1,10 +1,11 @@
 {
   "generated": "scripts/stacks-models.mjs",
-  "note": "All models CC0 except the CC-BY set below, credited in the About placard.",
+  "note": "Source models are CC0 except the credited CC-BY set and the vendored MIT FluffyGrass asset below.",
   "attributionRequired": [
     "Zsky",
     "Poly by Google",
     "Charlie",
+    "Alex Safayan",
     "jeremy"
   ],
   "models": [
@@ -182,6 +183,34 @@
       "author": "Isa Lousberg",
       "license": "CC0 1.0",
       "source": "https://poly.pizza/m/uKRTMhxfiu"
+    },
+    {
+      "file": "sailboat.glb",
+      "title": "Sail Boat",
+      "author": "Quaternius",
+      "license": "CC0 1.0",
+      "source": "https://poly.pizza/m/BgSZXwmm7k"
+    },
+    {
+      "file": "phone.glb",
+      "title": "Phone",
+      "author": "Alex Safayan",
+      "license": "CC-BY 3.0",
+      "source": "https://poly.pizza/m/1L9oJAw6nY2"
+    },
+    {
+      "file": "notebook.glb",
+      "title": "Notebook",
+      "author": "jeremy",
+      "license": "CC-BY 3.0",
+      "source": "https://poly.pizza/m/9Ptsg_xZt6B"
+    },
+    {
+      "file": "harmonica.glb",
+      "title": "Harmonica",
+      "author": "Poly by Google",
+      "license": "CC-BY 3.0",
+      "source": "https://poly.pizza/m/8Aw334FnDZE"
     },
     {
       "file": "couch.glb",

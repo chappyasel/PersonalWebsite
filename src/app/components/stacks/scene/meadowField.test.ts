@@ -20,11 +20,13 @@ import {
   MEADOW_TERRAIN,
   MEADOW_TILE_SIZE,
   NEAR_FEATHER_ZONE,
+  UNDER_SHELF_GRASS_TIP_Y,
   VEGETATION_FRONT_Z,
   WEST_FEATHER,
   buildFlowerPositions,
   buildGrassInstances,
   buildMeadowTiles,
+  clearanceScale,
   eastFeatherScale,
   farFeatherScale,
   horizonCrestY,
@@ -32,6 +34,7 @@ import {
   inWestFeather,
   meadowHeight,
   shadeScale,
+  underLowerShelf,
   unionWestX,
   westFeatherScale,
 } from "./meadowField";
@@ -266,10 +269,7 @@ describe("placement", () => {
     ).toBe(true);
   });
 
-  it("grows uniformly through the furniture strip (no clearings)", () => {
-    // Owner round 2: grass must NOT thin or shorten around the shelves and
-    // couch. Every tuft's height/width scale comes from the edge feathers
-    // alone, so instances deep inside the field carry their full raw size.
+  it("preserves instances with unmown growth under furniture and at its edges", () => {
     const grass = buildGrassInstances();
     let full = 0;
     for (let i = 0; i < grass.near.count; i++) {
@@ -282,18 +282,43 @@ describe("placement", () => {
         farFeatherScale(z) === 1
       )
         full += 1;
-      // The raw near-band height floor is 0.16·0.8·(feathers). Anything
-      // below it would mean a hidden per-position damping crept back in.
+      // Neither the global tiers nor furniture masks ever shrink the grass.
       expect(grass.near.height[i]!).toBeGreaterThanOrEqual(
         0.16 *
           0.8 *
           westFeatherScale(x, z) *
           eastFeatherScale(x, z) *
-          farFeatherScale(z) -
+          farFeatherScale(z) *
+          clearanceScale(x, z) -
           1e-6,
       );
+      expect(clearanceScale(x, z)).toBeGreaterThanOrEqual(1);
     }
     expect(full).toBeGreaterThan(500); // the strip is genuinely populated
+    expect(grass.near.count + grass.far.count).toBe(MEADOW_GRASS_TOTAL);
+  });
+
+  it("grows grass beneath shelves and a taller unmown apron at their edges", () => {
+    // First shelf is centred at x=0 and has a 1.40-unit half-width mask.
+    expect(clearanceScale(0, 0)).toBeCloseTo(1.22, 5);
+    expect(clearanceScale(1.41, 0)).toBeGreaterThan(1.22);
+    expect(clearanceScale(2.2, 0)).toBe(1);
+  });
+
+  it("keeps unmown grass tall without piercing the lower shelf plank", () => {
+    const grass = buildGrassInstances();
+    let checked = 0;
+    for (const stream of [grass.near, grass.far]) {
+      for (let i = 0; i < stream.count; i += 1) {
+        if (!underLowerShelf(stream.x[i]!, stream.z[i]!)) continue;
+        checked += 1;
+        expect(stream.y[i]! + stream.height[i]!).toBeLessThanOrEqual(
+          UNDER_SHELF_GRASS_TIP_Y + 1e-6,
+        );
+        expect(stream.height[i]!).toBeGreaterThan(0.14);
+      }
+    }
+    expect(checked).toBeGreaterThanOrEqual(100);
   });
 
   it("shades tufts under the furniture in color, never in geometry", () => {

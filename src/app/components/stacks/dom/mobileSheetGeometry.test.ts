@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import {
   MOBILE_SHEET_SEAM_TOLERANCE_PX,
+  MOBILE_SHEET_WHEEL_COOLDOWN_MS,
+  accumulateMobileSheetWheelIntent,
   mobileSheetCameraCoverage,
   mobileSheetGeometry,
   mobileSheetMaterialOverscan,
   mobileSheetMaxUpwardOverdrag,
   mobileSheetRestY,
   mobileSheetRubberBandY,
+  mobileSheetScrollIntent,
 } from "./mobileSheetGeometry";
 
 describe("mobile sheet transition geometry", () => {
@@ -73,5 +76,130 @@ describe("mobile sheet transition geometry", () => {
       );
       expect(materialBottom).toBeGreaterThan(viewportHeight);
     }
+  });
+
+  it("turns only content-boundary wheel attempts into detent changes", () => {
+    expect(
+      mobileSheetScrollIntent({
+        expanded: false,
+        canExpand: true,
+        scrollTop: 0,
+        deltaY: 24,
+      }),
+    ).toBe("expand");
+    expect(
+      mobileSheetScrollIntent({
+        expanded: false,
+        canExpand: true,
+        scrollTop: 0,
+        deltaY: -24,
+      }),
+    ).toBeNull();
+    expect(
+      mobileSheetScrollIntent({
+        expanded: false,
+        canExpand: false,
+        scrollTop: 0,
+        deltaY: 24,
+      }),
+    ).toBeNull();
+    expect(
+      mobileSheetScrollIntent({
+        expanded: true,
+        canExpand: true,
+        scrollTop: 0,
+        deltaY: -24,
+      }),
+    ).toBe("collapse");
+    expect(
+      mobileSheetScrollIntent({
+        expanded: true,
+        canExpand: true,
+        scrollTop: 40,
+        deltaY: -24,
+      }),
+    ).toBeNull();
+    expect(
+      mobileSheetScrollIntent({
+        expanded: true,
+        canExpand: true,
+        scrollTop: 0,
+        deltaY: 24,
+      }),
+    ).toBeNull();
+  });
+
+  it("requires sustained boundary intent and resets after a pause", () => {
+    let state = null;
+    for (const [at, deltaY] of [
+      [0, 9],
+      [12, 10],
+      [24, 8],
+    ] as const) {
+      const result = accumulateMobileSheetWheelIntent({
+        state,
+        intent: "expand",
+        deltaY,
+        at,
+        lockedUntil: 0,
+      });
+      expect(result.committed).toBeNull();
+      expect(result.consume).toBe(true);
+      state = result.state;
+    }
+
+    const committed = accumulateMobileSheetWheelIntent({
+      state,
+      intent: "expand",
+      deltaY: 10,
+      at: 36,
+      lockedUntil: 0,
+    });
+    expect(committed.committed).toBe("expand");
+    expect(committed.state).toBeNull();
+
+    const afterPause = accumulateMobileSheetWheelIntent({
+      state: { intent: "collapse", distance: 30, lastAt: 0 },
+      intent: "collapse",
+      deltaY: -8,
+      at: 200,
+      lockedUntil: 0,
+    });
+    expect(afterPause.committed).toBeNull();
+    expect(afterPause.state?.distance).toBe(8);
+  });
+
+  it("resets on direction changes and consumes post-snap momentum", () => {
+    const reversed = accumulateMobileSheetWheelIntent({
+      state: { intent: "expand", distance: 30, lastAt: 20 },
+      intent: "collapse",
+      deltaY: -8,
+      at: 30,
+      lockedUntil: 0,
+    });
+    expect(reversed.committed).toBeNull();
+    expect(reversed.state).toEqual({
+      intent: "collapse",
+      distance: 8,
+      lastAt: 30,
+    });
+
+    const locked = accumulateMobileSheetWheelIntent({
+      state: null,
+      intent: "expand",
+      deltaY: 60,
+      at: MOBILE_SHEET_WHEEL_COOLDOWN_MS - 1,
+      lockedUntil: MOBILE_SHEET_WHEEL_COOLDOWN_MS,
+    });
+    expect(locked).toEqual({ state: null, committed: null, consume: true });
+
+    const native = accumulateMobileSheetWheelIntent({
+      state: reversed.state,
+      intent: null,
+      deltaY: 20,
+      at: 40,
+      lockedUntil: 0,
+    });
+    expect(native).toEqual({ state: null, committed: null, consume: false });
   });
 });

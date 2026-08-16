@@ -49,6 +49,12 @@ import { LIFT_LAMBDA, TIP, hingeShift } from "./Lift";
 import { grabbablePhysicsEnabled } from "./grabbablePhysics";
 import { type Hinge, TILT_MAX_SIZE, hingeFor } from "./interaction";
 import { type PropDestination, useOpenTarget } from "./links";
+import {
+  MASS_HANDLING,
+  destinationFor,
+  massClassFor,
+  registerSceneInteraction,
+} from "./interactionRegistry";
 import { meadowHeight } from "./meadowField";
 import type {
   HullShape,
@@ -104,6 +110,13 @@ type PhysicsModule = {
 
 let physics: PhysicsModule | null = null;
 let fetching = false;
+const visitModes = new Map<number, "simulated" | "authored">();
+let previousVisitUnit = useStacks.getState().activeUnit;
+useStacks.subscribe((state) => {
+  if (state.activeUnit === previousVisitUnit) return;
+  visitModes.delete(previousVisitUnit);
+  previousVisitUnit = state.activeUnit;
+});
 
 /** Every mounted Grabbable, so a world can be built from the props actually
  * standing on a plank rather than from a list some unit file has to keep in
@@ -288,10 +301,10 @@ function physicsAllowed(): boolean {
   return useStacks.getState().postfx;
 }
 
-/** Fire-and-forget. Called from hover, so the download overlaps the visitor
- * deciding whether to grab; if they beat it, the first drag runs authored and
- * every drag after it is simulated. */
-function prefetchPhysics() {
+/** Fire-and-forget. The canvas schedules this after first paint on eligible
+ * desktop devices. Whichever mode is ready for the first grab is then locked
+ * for that active-unit visit. */
+export function prewarmGrabbablePhysics() {
   if (physics || fetching || !physicsAllowed()) return;
   fetching = true;
   void import("./physics")
@@ -364,7 +377,10 @@ export default function Grabbable({
   standsOn,
   to,
   href,
+  doorLabel,
+  external = true,
   onTap,
+  egg,
   commandRef,
   physics: physicsPreference,
   children,
@@ -407,9 +423,15 @@ export default function Grabbable({
    * three different ways depending on which one you reached for. */
   to?: PropDestination;
   href?: string;
+  /** Required outcome copy for arbitrary URLs or local-action Doors. Route
+   * destinations inherit their exact copy from the destination table. */
+  doorLabel?: string;
+  external?: boolean;
   /** Local action for a press that never became a carry. Stateful objects
    * such as featured covers use this instead of pretending to be a route. */
   onTap?: () => void;
+  /** Marks onTap as a quiet easter egg rather than a Door. */
+  egg?: { reducedMotion: "skip" | "state-only" };
   /** Optional command handle for another in-scene prop to launch this one.
    * It deliberately exposes velocity, not the underlying rigid body. */
   commandRef?: React.MutableRefObject<GrabbableCommand | null>;
@@ -419,6 +441,8 @@ export default function Grabbable({
   children: React.ReactNode;
 }) {
   const physicsEnabled = grabbablePhysicsEnabled(physicsPreference);
+  const massClass = massClassFor(massKg ?? 1);
+  const handling = MASS_HANDLING[massClass];
   const group = useRef<THREE.Group>(null);
   /** The hover nod, on a child of the physics group rather than on the group
    * itself. Deliberate: the outer group's pose is the one the solver reads and
@@ -549,6 +573,47 @@ export default function Grabbable({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const root = group.current;
+    if (!root) return;
+    const run = () => {
+      if (onTapRef.current) onTapRef.current();
+      else if (to !== undefined) open({ to });
+      else if (href !== undefined && doorLabel)
+        open({ href, label: doorLabel, external });
+    };
+    const activation = egg
+      ? ({ kind: "egg", run, reducedMotion: egg.reducedMotion } as const)
+      : to !== undefined
+        ? ({ kind: "door", ...destinationFor(to), run } as const)
+        : href !== undefined && doorLabel
+          ? ({ kind: "door", label: doorLabel, href, external, run } as const)
+          : onTap !== undefined && doorLabel
+            ? ({ kind: "door", label: doorLabel, external: false, run } as const)
+            : undefined;
+    return registerSceneInteraction({
+      id: hoverKey,
+      root,
+      activeUnits: [unitIndex],
+      movable: { massKg: massKg ?? 1, massClass },
+      activation,
+      hover: { kind: tiltOnHover ? "tilt" : "none" },
+    });
+  }, [
+    doorLabel,
+    egg,
+    external,
+    href,
+    hoverKey,
+    massClass,
+    massKg,
+    onTap,
+    open,
+    tiltOnHover,
+    to,
+    unitIndex,
+  ]);
+
   // Grab and release ride WINDOW pointer events keyed off the hover slot,
   // not r3f's per-object onPointerDown. Measured, not preferred: with the
   // scene connected to ScrollControls' scroll element, `onPointerOver` on
@@ -565,6 +630,7 @@ export default function Grabbable({
     pointerId.current = null;
     if (phase.current !== "held") return;
     const entry = handle.current;
+    velocity.multiplyScalar(handling.throwTilt);
     // Hand the throw to the solver if this gesture had one. The velocity is
     // the prop's ACTUAL movement, not the gap to the cursor — using the gap
     // made it a spring constant rather than a speed, and everything left the
@@ -584,7 +650,7 @@ export default function Grabbable({
       el.style.touchAction = "pan-x";
       el.style.overflowX = "auto";
     }
-  }, [velocity]);
+  }, [handling.throwTilt, velocity]);
 
   const onGrabDown = useCallback(
     (event: PointerEvent, touchTapOnly: boolean): boolean => {
@@ -623,7 +689,8 @@ export default function Grabbable({
       const entry = handle.current;
       const g = group.current;
       simulated.current = false;
-      if (physicsEnabled && physics && entry && g) {
+      const locked = visitModes.get(unitIndex);
+      if (locked !== "authored" && physicsEnabled && physics && entry && g) {
         // The prop's OWN group, not its parent: the solver resolves which
         // plank this is from the world matrix, so every prop on a shelf lands
         // in one world and they can hit each other regardless of which layout
@@ -631,6 +698,8 @@ export default function Grabbable({
         const shelf = physics.worldFor(g, registry);
         if (shelf) simulated.current = shelf.grab(entry);
       }
+      if (!locked)
+        visitModes.set(unitIndex, simulated.current ? "simulated" : "authored");
       store.setDragging(hoverKey);
       // drei's ScrollControls `enabled` flag only short-circuits its own
       // handler — the DOM element keeps scrolling natively. Freezing the
@@ -681,11 +750,15 @@ export default function Grabbable({
         recordTap(hoverKey);
         if (onTapRef.current) onTapRef.current();
         else if (to !== undefined || href !== undefined)
-          open(href !== undefined ? { href } : { to: to! });
+          open(
+            href !== undefined
+              ? { href, label: doorLabel ?? "Open link", external }
+              : { to: to! },
+          );
       }
       return true;
     },
-    [href, hoverKey, open, release, to],
+    [doorLabel, external, href, hoverKey, open, release, to],
   );
 
   const onGrabCancel = useCallback(
@@ -797,7 +870,10 @@ export default function Grabbable({
       raycaster.setFromCamera(ndc, camera);
       if (raycaster.ray.intersectPlane(plane, hit)) {
         g.parent?.worldToLocal(hit);
-        hit.y = Math.max(hit.y, base[1]); // never below the wood
+        hit.y = Math.min(
+          base[1] + handling.maxLift,
+          Math.max(hit.y, base[1]),
+        ); // mass-class lift ceiling, never below the wood
         // Throw velocity is the prop's ACTUAL movement, not the gap to the
         // cursor. Using the gap made it a spring constant rather than a
         // speed — a cursor 10cm away produced ~1.9 u/s no matter how slowly
@@ -808,19 +884,22 @@ export default function Grabbable({
         // normal step by a tenth of a normal delta and hands the solver a
         // 4 u/s fling the visitor never performed.
         world.copy(g.position);
-        g.position.lerp(hit, 1 - Math.exp(-22 * delta));
+        g.position.lerp(
+          hit,
+          1 - Math.exp(-handling.followLambda * delta),
+        );
         step.subVectors(g.position, world).divideScalar(delta);
         velocity.lerp(step, 1 - Math.exp(-26 * delta));
       }
       g.rotation.z = THREE.MathUtils.damp(
         g.rotation.z,
-        -velocity.x * 0.05,
+        -velocity.x * 0.05 * handling.throwTilt,
         8,
         delta,
       );
       g.rotation.x = THREE.MathUtils.damp(
         g.rotation.x,
-        velocity.z * 0.05,
+        velocity.z * 0.05 * handling.throwTilt,
         8,
         delta,
       );
@@ -1034,7 +1113,7 @@ export default function Grabbable({
           // The one honest moment to start the download: a pointer resting on
           // something you can pick up, several hundred milliseconds before the
           // press. Idempotent, and a no-op on touch or a degraded machine.
-          if (physicsEnabled) prefetchPhysics();
+          if (physicsEnabled) prewarmGrabbablePhysics();
         }}
         onPointerOut={() => {
           if (useStacks.getState().hovered === hoverKey)

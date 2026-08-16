@@ -11,7 +11,10 @@ const HEIGHT = 630;
 // The live desktop camera leaves the right third open for its placard. Capture
 // mode removes that UI, so crop the unused side and enlarge the focal shelf.
 // 900x472.5 is exactly the OG card's 40:21 aspect ratio.
-const SCENE_CROP = { x: 70, y: 75, width: 900, height: 472.5 };
+// Start the crop slightly lower in the framebuffer so the shelves land a
+// little higher in the finished card, leaving a quieter meadow band for the
+// overlaid name without changing the horizontal composition.
+const SCENE_CROP = { x: 70, y: 90, width: 900, height: 472.5 };
 const ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../..",

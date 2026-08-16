@@ -139,6 +139,12 @@ const PHOTO_LIFT: [number, number, number] = [0, 0.012, 0.016];
 const PHOTO_SETTLE = 0.05;
 const PHOTO_GROW = 1.02;
 
+export function photoDoorLabel(href: string) {
+  if (href.includes("linkedin.com")) return "View on LinkedIn";
+  if (href.includes("x.com")) return "View on X";
+  return "View photo source";
+}
+
 /** Every photograph in the room mounts through here. It owns the print's
  * placement, because the hover can only ease a tilt it holds itself, and it
  * gates on the active unit so prints two units away don't take the cursor.
@@ -193,7 +199,12 @@ export function PhotoMount({
       {children}
     </HoverProp>
   ) : (
-    <PropLink {...pose} hoverKey={`link:photo:${id}`} href={link}>
+    <PropLink
+      {...pose}
+      hoverKey={`link:photo:${id}`}
+      href={link}
+      label={photoDoorLabel(link)}
+    >
       {children}
     </PropLink>
   );

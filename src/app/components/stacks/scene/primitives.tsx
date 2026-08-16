@@ -14,8 +14,9 @@ import * as THREE from "three";
 import Grabbable from "./Grabbable";
 import { ContactShade } from "./GroundPool";
 import HeldFacing from "./HeldFacing";
-import Lift, { HOVER_MOTION_SCALE, LIFT_LAMBDA } from "./Lift";
+import Lift from "./Lift";
 import LitImage from "./LitImage";
+import ShelfSpacingProbe from "./ShelfSpacingProbe";
 import {
   bookRowHoverKey,
   bookRowNodeName,
@@ -47,8 +48,13 @@ export type RowItem =
       x: number;
       url: string;
       key: string;
+      /** Human title used by the Door Label; never reconstructed from a slug. */
+      label?: string;
       /** Server-sampled jacket perimeter color for this physical shell. */
       color?: string;
+      /** Physical fore-edge thickness derived from the book's page/runtime
+       * length, clamped to the readable low-poly shelf range. */
+      thickness?: number;
       /** Uniform scale. A shelf of one book size is a shelf of one book. */
       s?: number;
       /** Yaw about Y — the book turned a few degrees off square. */
@@ -116,7 +122,7 @@ const LEAN = 0.17;
 
 export function packRow(
   width: number,
-  covers: { url: string; key: string }[],
+  covers: { url: string; key: string; label?: string }[],
   palette: Palette,
   salt: number,
 ): RowItem[] {
@@ -373,32 +379,22 @@ function ShelfBook({
       lift={lift}
       rest={rest}
       settle={settle}
+      tip={0}
     >
       {children}
     </PropLink>
   );
 }
 
-/** The hovered spine does not TRANSLATE at all — it hinges. See SpineTip.
- *
- * Every previous version moved the whole book: 0.035 up (a spine rising out of
- * the row), then 0.042 up and 0.045 toward the viewer. Both share one defect,
- * and it is visible in any hover screenshot: lifting a book off a plank opens a
- * lit gap along its whole bottom edge, and the shelf strip behind it shines
- * straight through. A bright line under a book is precisely the "floating" read
- * this scene keeps being told about. Raising the book to signal a hover
- * re-creates it deliberately, twelve times a second, under the pointer.
- *
- * Kept as the zero vector rather than deleted so the two other row items
- * (the leaner, the flat stack) read from one place, and so the next person to
- * reach for a translation here finds this note first. */
-const SPINE_LIFT: [number, number, number] = [0, 0, 0];
-/** Radians of authored lean the hover eases away. Every spine is packed at up
- * to ±0.02 of roll, so this stands the hovered one fully upright. */
-const SPINE_SETTLE = 0.05;
-// A horizontal stack is already seated volume-on-volume. Raising any member
-// drives it through the one above; pulling it straight toward the viewer gives
-// the same tactile read while preserving every neighbour's occupied space.
+/** Background volumes advertise their Door by lifting vertically. They never
+ * move toward the camera: that path crosses the front-rank cover plane and
+ * produces exactly the z-fighting the owner reported. The global hover scale
+ * turns 0.025 into a restrained 0.05-unit rise. */
+const SPINE_LIFT: [number, number, number] = [0, 0.025, 0];
+/** Keep each book's authored organic roll while it rises. */
+const SPINE_SETTLE = 0;
+// A volume inside a horizontal stack cannot rise without entering the one
+// above it, so this one family retains a small forward pull.
 const FLAT_LIFT: [number, number, number] = [0, 0, 0.07];
 /* There is deliberately no SPINE_SINK any more.
  *
@@ -419,87 +415,25 @@ const FLAT_LIFT: [number, number, number] = [0, 0, 0.07];
  * than by pushing the book through the shelf, which is the move that cannot be
  * distinguished from the bug. */
 
-/** Name prefix for a spine's hinge node, so the harness can ask which book
- * moved: `window.__stacks.node(`${SPINE_NODE}:${unit}:${salt}:${i}`)`. */
+/** Name prefix for a spine's stable diagnostic node. */
 export const SPINE_NODE = "stacks-spine";
 
-/** How far a hovered spine hinges out of the row, in radians. The authored
- * 0.12-radian gesture is amplified with every other shelf hover so packed
- * books do not remain the one subtle family after the global retune. */
-const SPINE_TIP = 0.12 * HOVER_MOTION_SCALE;
-
-/** prefers-reduced-motion. A local copy of eggs.tsx's predicate on purpose:
- * eggs.tsx imports LampGlow from this module, so importing it back would close
- * a cycle for four lines of matchMedia. */
-function reducedMotion(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
-}
-
-/**
- * A hovered spine tips OUT of the row, hinged on its bottom-front edge.
- *
- * This is what a hand does to a book it is about to take: a finger on the head
- * of the spine, the toe stays on the shelf, the heel comes up. Nothing about it
- * needs the book to leave the wood, which is the whole point — the contact edge
- * the row was so carefully seated on stays seated, at every angle, and the lit
- * seam a translation opens under the book never appears.
- *
- * The hinge is three groups rather than a rotation on the mesh: a rotation
- * applied to the box turns it about its own centre, which lifts the toe and
- * buries the heel. Translating the pivot to the contact edge, rotating there,
- * and translating back is the only way to turn about an edge the geometry does
- * not have an origin on. The two offsets are exact inverses, so the RESTING
- * pose is untouched — which is what keeps scripts/stacks-floaters.mjs measuring
- * the same seat it measured before.
- *
- * `name` is not decoration. Which object moved is unanswerable from pixels
- * here — the camera carries an idle bob and pointer parallax, so every region
- * of the frame reports motion — and this node's `rotation.x` is the one
- * conclusive read: hover a spine, and `window.__stacks.node()` shows that spine
- * at SPINE_TIP and its neighbours at 0.
- */
+/** Stable named wrapper for diagnostics. Motion now belongs entirely to the
+ * parent Lift, whose y-position can be compared without camera/parallax noise. */
 function SpineTip({
-  hoverKey,
   name,
   height,
   depth,
-  disabled = false,
   children,
 }: {
-  hoverKey: string;
   name: string;
   height: number;
   depth: number;
-  disabled?: boolean;
   children: React.ReactNode;
 }) {
-  const hinge = useRef<THREE.Group>(null);
-  const still = useMemo(() => reducedMotion(), []);
-  useFrame((_, delta) => {
-    const g = hinge.current;
-    if (!g) return;
-    const target =
-      !disabled && !still && useStacks.getState().hovered === hoverKey
-        ? SPINE_TIP
-        : 0;
-    // Same snap-and-idle contract as Lift: settle exactly, then do no work.
-    if (Math.abs(g.rotation.x - target) < 1e-4) {
-      g.rotation.x = target;
-      return;
-    }
-    g.rotation.x = THREE.MathUtils.damp(
-      g.rotation.x,
-      target,
-      LIFT_LAMBDA,
-      delta,
-    );
-  });
   return (
     <group position={[0, -height / 2, depth / 2]}>
-      <group ref={hinge} name={name}>
+      <group name={name}>
         <group position={[0, height / 2, -depth / 2]}>{children}</group>
       </group>
     </group>
@@ -558,6 +492,7 @@ function FeaturedCover({
 }) {
   const setHovered = useStacks((s) => s.setHovered);
   const s = item.s ?? 1;
+  const thickness = item.thickness ?? 0.048;
   const lean = item.lean ?? 0;
   const riser = item.riser ?? 0;
   const z = 0.06 + (item.dz ?? 0);
@@ -586,16 +521,42 @@ function FeaturedCover({
   const cover = (draggable: boolean) => {
     const contents = (
       <>
+        {/* Cream page block plus distinct front/back boards and spine: the
+            cover image is a jacket on a book, not a texture on a cuboid. */}
         <RoundedBox
           castShadow
-          args={[COVER_W, COVER_H, 0.048]}
-          radius={0.008}
-          smoothness={4}
-          position={[0, 0, -0.027]}
+          args={[COVER_W - 0.014, COVER_H - 0.014, thickness - 0.01]}
+          radius={0.005}
+          smoothness={3}
+          position={[0.005, 0, -thickness / 2 - 0.003]}
+        >
+          <meshStandardMaterial color={palette.pages} roughness={0.88} />
+        </RoundedBox>
+        {[0, -thickness - 0.006].map((zBoard) => (
+          <RoundedBox
+            key={zBoard}
+            castShadow
+            args={[COVER_W, COVER_H, 0.006]}
+            radius={0.006}
+            smoothness={3}
+            position={[0, 0, zBoard]}
+          >
+            <meshStandardMaterial
+              color={item.color ?? palette.cover}
+              roughness={0.7}
+            />
+          </RoundedBox>
+        ))}
+        <RoundedBox
+          castShadow
+          args={[0.014, COVER_H, thickness + 0.006]}
+          radius={0.004}
+          smoothness={3}
+          position={[-COVER_W / 2 + 0.007, 0, -thickness / 2 - 0.003]}
         >
           <meshStandardMaterial
             color={item.color ?? palette.cover}
-            roughness={0.7}
+            roughness={0.74}
           />
         </RoundedBox>
         {/* A failed jacket texture degrades to the physical cover above, never
@@ -609,7 +570,7 @@ function FeaturedCover({
               height={0.5}
               radius={0.012}
               roughness={0.6}
-              position={[0, 0, -0.002]}
+              position={[0, 0, 0.004]}
               onPointerOver={
                 draggable
                   ? undefined
@@ -698,7 +659,7 @@ function FeaturedCover({
         <group position={[item.x, seat, z]} rotation={pose} scale={s}>
           <RoundedBox
             castShadow
-            args={[COVER_W, COVER_H, 0.048]}
+            args={[COVER_W, COVER_H, item.thickness ?? 0.048]}
             radius={0.008}
             smoothness={4}
           >
@@ -715,6 +676,9 @@ function FeaturedCover({
           shape="box"
           massKg={0.65}
           onTap={onCoverClick ? () => onCoverClick(item.key) : undefined}
+          doorLabel={
+            onCoverClick ? `Read ${item.label ?? "book notes"}` : undefined
+          }
         >
           {cover(true)}
         </Grabbable>
@@ -810,8 +774,8 @@ export function BookRowMesh({
           // exactly 0.3 deep at z 0, so all fourteen front faces were
           // coplanar — a row of books with one perfectly flat face is a
           // milled block, which is what the owner saw. Backs stay squared to
-          // the shelf, the fronts step by up to 8cm (~21px), and the hover
-          // pulls one of them out of that stepped line.
+          // the shelf and the fronts step by up to 8cm (~21px); hover rises
+          // vertically without crossing the front rank.
           <ShelfBook
             key={i}
             linkUnit={linkUnit}
@@ -836,11 +800,9 @@ export function BookRowMesh({
             shadeColor={palette.shadow}
           >
             <SpineTip
-              hoverKey={bookRowHoverKey(linkUnit, salt, i)}
               name={bookRowNodeName("spine", linkUnit, salt, i)}
               height={item.h}
               depth={depths[i]!}
-              disabled={grabbableVolumes}
             >
               <RoundedBox
                 castShadow
@@ -923,18 +885,14 @@ export function BookRowMesh({
             grabbable={grabbableVolumes}
             shadeColor={palette.shadow}
           >
-            {/* The authored lean moves from the mesh onto a wrapping group —
-                transform-identical, since both turn about the same origin —
-                so the hinge below sits INSIDE it and pivots on the contact
-                edge of the LEANED book rather than of an upright one. The
-                mount y above is untouched. */}
+            {/* The authored lean lives on a wrapping group so the named inner
+                node stays useful to the interaction probe. The parent Lift
+                translates both together and never changes this rest pose. */}
             <group rotation={[0, 0, LEAN]}>
               <SpineTip
-                hoverKey={bookRowHoverKey(linkUnit, salt, i)}
                 name={bookRowNodeName("lean", linkUnit, salt, i)}
                 height={item.h}
                 depth={0.3}
-                disabled={grabbableVolumes}
               >
                 <RoundedBox
                   castShadow
@@ -1235,8 +1193,18 @@ export function ShelfUnit({
   toneSeed?: number;
 }) {
   const tone = toneSeed === undefined ? 1 : 0.96 + rand(toneSeed, 77) * 0.08;
+  const topContents = useRef<THREE.Group>(null);
+  const lowerContents = useRef<THREE.Group>(null);
   return (
     <group>
+      {process.env.NODE_ENV !== "production" && toneSeed !== undefined && (
+        <ShelfSpacingProbe
+          unitIndex={toneSeed}
+          top={topContents}
+          lower={lowerContents}
+          halfWidth={width / 2}
+        />
+      )}
       <RoundedBox
         castShadow
         receiveShadow
@@ -1375,8 +1343,12 @@ export function ShelfUnit({
         form="back"
         intensity={0.85}
       />
-      <group position={[0, SHELF.top, 0]}>{children}</group>
-      <group position={[0, SHELF.lower, 0]}>{lower}</group>
+      <group ref={topContents} position={[0, SHELF.top, 0]}>
+        {children}
+      </group>
+      <group ref={lowerContents} position={[0, SHELF.lower, 0]}>
+        {lower}
+      </group>
     </group>
   );
 }
@@ -2204,6 +2176,8 @@ export function FrameRow({
             shape="box"
             massKg={0.82}
             onTap={onFrameClick && href ? () => onFrameClick(href) : undefined}
+            doorLabel={href ? `View ${key}` : undefined}
+            external
           >
             {frame}
           </Grabbable>

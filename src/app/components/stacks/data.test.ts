@@ -24,4 +24,11 @@ describe("homepage 3D traverse order", () => {
     }
     expect(unitIndexFromHash("#unknown")).toBeNull();
   });
+
+  it("shortens Talks only in the unit rail", () => {
+    const talks = UNITS.find((unit) => unit.slug === "talks");
+
+    expect(talks?.railLabel).toBe("Talks");
+    expect(talks?.label).toBe("Featured Talks");
+  });
 });

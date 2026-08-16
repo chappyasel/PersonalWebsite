@@ -5,10 +5,9 @@
 // The progress thumb reads the transient progressRef on its own rAF loop;
 // nothing re-renders per frame.
 //
-// Both form factors name the unit with `unit.label` and mark it with
-// `unit.icon`, which are the section's OWN name and glyph (see data.ts) — the
-// rail used to carry a second, shorter set of names that disagreed with the
-// placards they led to.
+// Both form factors mark a unit with its section glyph. The rail normally uses
+// the canonical section name; a unit may opt into a shorter navigation-only
+// label without changing the title of the destination it opens.
 import { UNITS, UNIT_COUNT } from "../data";
 import {
   closeStacksPanel,
@@ -30,12 +29,13 @@ export default function UnitRail() {
   const activeUnit = useStacks((s) => s.activeUnit);
   const thumbRef = useRef<HTMLDivElement>(null);
   const railRef = useRef<HTMLElement>(null);
+  const desktopButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const mobileButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
-  // Publish the rail's measured right edge (its widest row is "Featured
-  // Talks") for CameraRig's About-stop solver: the initial framing slides
-  // right until the shelf's projected left edge clears this by a margin.
-  // Measured, not assumed — label widths move with the serif font's swap-in
-  // and with root type-size changes, hence the fonts.ready re-measure.
+  // Publish the rail's measured right edge for CameraRig's About-stop solver:
+  // the initial framing slides right until the shelf's projected left edge
+  // clears this by a margin. Measured, not assumed — label widths move with
+  // the serif font's swap-in and root type-size changes.
   useLayoutEffect(() => {
     const measure = () => {
       const nav = railRef.current;
@@ -77,22 +77,60 @@ export default function UnitRail() {
 
   const go = (index: number) => {
     const { travelTo, panelState, modalOpen } = useStacks.getState();
-    if (!travelTo || modalOpen) return;
+    if (!travelTo || modalOpen) return false;
+    const pushSectionHistory = () => {
+      const slug = UNITS[index]!.slug;
+      window.history.pushState(
+        null,
+        "",
+        index === 0 ? window.location.pathname : `#${slug}`,
+      );
+    };
     if (panelState === "open" || panelState === "opening") {
       // The tab is outside the expanded sheet. Collapse first, but do not eat
       // the navigation the visitor actually requested; the resident target
       // sheet can arrive while the shared detent settles to peek.
       closeStacksPanel();
+      travelTo(index);
+      // closeStacksPanel owns a pending history.back(). Pushing the section
+      // hash before that pop commits lets the back operation erase the new
+      // URL. Travel immediately, but publish its hash only after the shared
+      // sheet detent has returned to closed.
+      const unsubscribe = useStacks.subscribe((state) => {
+        if (state.panelState !== "closed") return;
+        unsubscribe();
+        pushSectionHistory();
+      });
+      return true;
     } else if (panelState === "closing") {
-      return;
+      return false;
     }
-    const slug = UNITS[index]!.slug;
-    window.history.pushState(
-      null,
-      "",
-      index === 0 ? window.location.pathname : `#${slug}`,
-    );
+    pushSectionHistory();
     travelTo(index);
+    return true;
+  };
+
+  const onRailKeyDown = (
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    index: number,
+    refs: React.RefObject<Array<HTMLButtonElement | null>>,
+  ) => {
+    let next: number | null = null;
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      next = Math.min(UNIT_COUNT - 1, index + 1);
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      next = Math.max(0, index - 1);
+    } else if (event.key === "Home") {
+      next = 0;
+    } else if (event.key === "End") {
+      next = UNIT_COUNT - 1;
+    }
+    if (next === null) return;
+    event.preventDefault();
+    // Keep the window-level world bridge from handling the same arrow a
+    // second time. The rail owns both travel and its roving focus position.
+    event.stopPropagation();
+    if (go(next)) requestAnimationFrame(() => refs.current[next]?.focus());
   };
 
   return (
@@ -181,12 +219,20 @@ export default function UnitRail() {
           {UNITS.map((unit, i) => {
             const Icon = unit.icon;
             const active = i === activeUnit;
+            const railLabel = unit.railLabel ?? unit.label;
             return (
               <button
                 key={unit.slug}
+                ref={(element) => {
+                  desktopButtonRefs.current[i] = element;
+                }}
                 type="button"
                 onClick={() => go(i)}
-                aria-current={active ? "true" : undefined}
+                onKeyDown={(event) =>
+                  onRailKeyDown(event, i, desktopButtonRefs)
+                }
+                tabIndex={active ? 0 : -1}
+                aria-current={active ? "page" : undefined}
                 data-active={active || undefined}
                 // The desktop rail uses a larger mark and label but a tighter
                 // 2.25rem step, improving scanability without stretching the
@@ -203,7 +249,7 @@ export default function UnitRail() {
                     weight="bold"
                     className="stacks-rail-icon size-[19px] shrink-0"
                   />
-                  {unit.label}
+                  {railLabel}
                 </span>
               </button>
             );
@@ -254,14 +300,20 @@ export default function UnitRail() {
           {UNITS.map((unit, i) => {
             const Icon = unit.icon;
             const active = i === activeUnit;
+            const railLabel = unit.railLabel ?? unit.label;
             return (
               <button
                 key={unit.slug}
+                ref={(element) => {
+                  mobileButtonRefs.current[i] = element;
+                }}
                 type="button"
-                aria-label={unit.label}
-                aria-current={active ? "true" : undefined}
+                aria-label={railLabel}
+                aria-current={active ? "page" : undefined}
+                tabIndex={active ? 0 : -1}
                 data-active={active || undefined}
                 onClick={() => go(i)}
+                onKeyDown={(event) => onRailKeyDown(event, i, mobileButtonRefs)}
                 className="stacks-on-background-text stacks-rail-row pointer-events-auto relative flex h-12 items-center justify-center rounded-xl pb-1 text-foreground focus-visible:ring-2 focus-visible:ring-foreground/50"
                 style={{ width: `${MOBILE_STEP_REM}rem` }}
               >

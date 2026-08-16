@@ -121,17 +121,6 @@ export default function StacksHome({
       setWorldPhase(null);
       return;
     }
-    try {
-      const probe = document.createElement("canvas");
-      const gl = probe.getContext("webgl2") ?? probe.getContext("webgl");
-      if (!gl) {
-        setWorldPhase(null);
-        return;
-      }
-    } catch {
-      setWorldPhase(null);
-      return;
-    }
     // Agrees with the pre-paint script, and also covers the case where the
     // script never ran (a bfcache restore, an extension stripping inline
     // scripts) — the boot screen still comes up rather than the document.

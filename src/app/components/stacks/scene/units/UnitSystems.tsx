@@ -15,8 +15,13 @@ import {
   routineBoardSeat,
   usePropClick,
 } from "../objects";
-import { DeskFrame, PHOTO_LINKS, deskFrameHeight } from "../photos";
-import { BookPile, BookRowMesh, ShelfUnit, packRow } from "../primitives";
+import {
+  DeskFrame,
+  PHOTO_LINKS,
+  deskFrameHeight,
+  photoDoorLabel,
+} from "../photos";
+import { BookRowMesh, ShelfUnit, packRow } from "../primitives";
 import { useUnitLod } from "../useUnitLod";
 import { useFrame } from "@react-three/fiber";
 import React, { useMemo, useRef } from "react";
@@ -53,8 +58,8 @@ const TOP_PHOTOS: SystemPhotoSpec[] = [
     id: "systems-working-session-v8",
     src: "/images/stacks/v8/systems-working-session.webp",
     aspect: 1024 / 536,
-    width: 0.42,
-    x: -0.34,
+    width: 0.5,
+    x: -0.22,
     z: 0.09,
     yaw: 0.11,
   },
@@ -62,19 +67,10 @@ const TOP_PHOTOS: SystemPhotoSpec[] = [
     id: "systems-supplements-v8",
     src: "/images/stacks/v8/systems-supplements.webp",
     aspect: 1024 / 511,
-    width: 0.408,
-    x: 0.14,
+    width: 0.49,
+    x: 0.36,
     z: 0.14,
     yaw: -0.11,
-  },
-  {
-    id: "systems-home-office-v8",
-    src: "/images/stacks/v8/systems-home-office.webp",
-    aspect: 4 / 3,
-    width: 0.324,
-    x: 0.58,
-    z: 0.08,
-    yaw: 0.16,
   },
 ];
 
@@ -83,8 +79,8 @@ const LOWER_PHOTOS: SystemPhotoSpec[] = [
     id: "systems-sf-dusk-v8",
     src: "/images/stacks/v8/systems-sf-dusk.webp",
     aspect: 4 / 3,
-    width: 0.324,
-    x: -0.7,
+    width: 0.38,
+    x: -0.64,
     z: 0.13,
     yaw: -0.17,
   },
@@ -92,8 +88,8 @@ const LOWER_PHOTOS: SystemPhotoSpec[] = [
     id: "systems-lake-v8",
     src: "/images/stacks/v8/systems-lake.webp",
     aspect: 4 / 3,
-    width: 0.324,
-    x: -0.3,
+    width: 0.38,
+    x: -0.19,
     z: 0.13,
     yaw: 0.1,
   },
@@ -101,10 +97,19 @@ const LOWER_PHOTOS: SystemPhotoSpec[] = [
     id: "systems-lighthouse-v8",
     src: "/images/stacks/v8/systems-lighthouse.webp",
     aspect: 819 / 1024,
-    width: 0.216,
-    x: 0.08,
+    width: 0.27,
+    x: 0.22,
     z: 0.14,
     yaw: -0.2,
+  },
+  {
+    id: "systems-home-office-v8",
+    src: "/images/stacks/v8/systems-home-office.webp",
+    aspect: 4 / 3,
+    width: 0.38,
+    x: 0.6,
+    z: 0.08,
+    yaw: 0.16,
   },
 ];
 
@@ -121,6 +126,7 @@ function SystemPhoto({
 }) {
   const height = photo.width / photo.aspect;
   const hoverKey = `grab:photo:${photo.id}`;
+  const href = PHOTO_LINKS[photo.id] ?? null;
   return (
     <Grabbable
       unitIndex={unitIndex}
@@ -130,7 +136,8 @@ function SystemPhoto({
       shadeWidth={Math.max(0.3, photo.width * 1.15)}
       shape="box"
       massKg={0.45}
-      href={PHOTO_LINKS[photo.id] ?? undefined}
+      href={href ?? undefined}
+      doorLabel={href ? photoDoorLabel(href) : undefined}
     >
       <HeldFacing
         hoverKey={hoverKey}
@@ -219,7 +226,7 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
             <Grabbable
               unitIndex={index}
               hoverKey="grab:plant:sansevieria"
-              base={[-1.05, 0, -0.08]}
+              base={[-1.22, 0, -0.08]}
               shadeColor={palette.shadow}
               shadeWidth={0.36}
               shape="box"
@@ -250,20 +257,15 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
                 textured={textured}
               />
             ))}
-            <BookPile
-              palette={palette}
-              x={0.48}
-              salt={58}
-              linkUnit={index}
-              grabbable
-            />
-            <group position={[0.9, 0, -0.04]}>
+            <group position={[1.08, 0, -0.04]}>
               <EggLamp
                 unitIndex={index}
                 palette={palette}
                 dark={dark}
                 yaw={-0.56}
                 scale={1.52}
+                aimOffset={[-0.42, 0.02, 0.04]}
+                spillScale={0.75}
               />
               <ContactShade
                 color={palette.shadow}

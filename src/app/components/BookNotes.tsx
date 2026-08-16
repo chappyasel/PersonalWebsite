@@ -40,8 +40,8 @@ export default function BookNotes({
         Book Notes
       </h1>
       <TiltCard
+        interactive
         className="w-full intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000"
-        hoverScale={1.02}
       >
         <Link
           data-placard-surface=""

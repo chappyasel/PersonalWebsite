@@ -36,7 +36,10 @@ export default async function BlogPosts() {
 
 function BlogPostItem({ post }: { post: BlogPost }) {
   return (
-    <TiltCard className="w-full intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000">
+    <TiltCard
+      interactive
+      className="w-full intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000"
+    >
       <Link
         href={post.link}
         target="_blank"

@@ -22,12 +22,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { mergeVertices } from "three-stdlib";
 
-import {
-  HOVER_MOTION_SCALE,
-  LIFT_LAMBDA,
-  TIP,
-  hingeShift,
-} from "./Lift";
+import { HOVER_MOTION_SCALE, LIFT_LAMBDA, TIP, hingeShift } from "./Lift";
 import {
   HOVER_MAX_SIZE,
   type Hinge,
@@ -94,6 +89,10 @@ export const MODEL_URLS = [
   // their geometry is separate, their themed texture is already shared.
   "/models/succulent-pot.glb",
   "/models/yucca-plant.glb",
+  "/models/sailboat.glb",
+  "/models/phone.glb",
+  "/models/notebook.glb",
+  "/models/harmonica.glb",
 ];
 
 /** Isa Lousberg's houseplants are a second atlas set: every prop in it

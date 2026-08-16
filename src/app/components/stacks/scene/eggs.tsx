@@ -10,12 +10,16 @@
 import { useStacks } from "../store";
 import { type Palette } from "../theme";
 import { type ThreeEvent, useFrame } from "@react-three/fiber";
-import React, { useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { FootPool } from "./GroundPool";
 import ModelProp, { SPIN_NODE } from "./ModelProp";
 import { type Island, extractTriangles, findIslands } from "./islands";
+import {
+  getSceneInteraction,
+  registerSceneInteraction,
+} from "./interactionRegistry";
 import { ClockFace, type ClockFaceStyle, type ClockSweep } from "./objects";
 import { LampGlow } from "./primitives";
 
@@ -53,6 +57,7 @@ export function EggTrigger({
   activeUnitIndexes,
   hoverKey,
   onTrigger,
+  reducedMotionBehavior = "skip",
   children,
 }: {
   unitIndex: number;
@@ -60,20 +65,43 @@ export function EggTrigger({
   activeUnitIndexes?: readonly number[];
   hoverKey: string;
   onTrigger: () => void;
+  reducedMotionBehavior?: "skip" | "state-only";
   children: React.ReactNode;
 }) {
   const setHovered = useStacks((s) => s.setHovered);
+  const root = useRef<THREE.Group>(null);
+  const trigger = useRef(onTrigger);
+  trigger.current = onTrigger;
   const ownsActiveUnit = () => {
     const active = useStacks.getState().activeUnit;
     return activeUnitIndexes?.includes(active) ?? active === unitIndex;
   };
+  useEffect(() => {
+    if (!root.current) return;
+    return registerSceneInteraction({
+      id: hoverKey,
+      root: root.current,
+      activeUnits: [...(activeUnitIndexes ?? [unitIndex])],
+      activation: {
+        kind: "egg",
+        run: () => {
+          if (!reducedMotion() || reducedMotionBehavior === "state-only")
+            trigger.current();
+        },
+        reducedMotion: reducedMotionBehavior,
+      },
+      hover: { kind: "none" },
+    });
+  }, [activeUnitIndexes, hoverKey, reducedMotionBehavior, unitIndex]);
   return (
     <group
+      ref={root}
       onClick={(e: ThreeEvent<MouseEvent>) => {
         if ((e.delta ?? 0) > 6) return; // swipe, not a tap
         if (!ownsActiveUnit()) return; // fall through → travel
         e.stopPropagation();
-        onTrigger();
+        const activation = getSceneInteraction(hoverKey)?.activation;
+        if (activation?.kind === "egg") activation.run();
       }}
       onPointerOver={(e: ThreeEvent<PointerEvent>) => {
         if (!ownsActiveUnit()) return;
@@ -189,6 +217,7 @@ export function LampSwitch({
         onTrigger={() => {
           target.current = target.current ? 0 : 1;
         }}
+        reducedMotionBehavior="state-only"
       >
         {children}
       </EggTrigger>

@@ -141,7 +141,7 @@ test("records fixed-checkpoint scene performance and renderer counters", async (
 test("movement preserves visual quality and durable rungs are forceable", async ({
   page,
 }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(120_000);
   const runtimeErrors = collectRuntimeErrors(page);
   await page.goto("/?quality=0&harness=1&nopostfx=1", {
     waitUntil: "commit",
@@ -156,20 +156,53 @@ test("movement preserves visual quality and durable rungs are forceable", async 
     },
   );
 
-  await page.evaluate(() => window.__stacks!.scrollTo(3));
   const stillVisualQuality = (await stacksState(page)).quality;
-  await expect
-    .poll(async () => (await stacksState(page)).quality.moving, {
-      timeout: 5_000,
-    })
-    .toBe(true);
-  expect((await stacksState(page)).quality).toMatchObject({
-    meadowRung: stillVisualQuality.meadowRung,
-    cloudDetail: stillVisualQuality.cloudDetail,
+  // Capture on animation frames inside the page. On SwiftShader a rendered
+  // frame can monopolize the main thread longer than Playwright's polling
+  // interval, so an out-of-page poll can miss the entire (real) moving state.
+  const movementTrace = await page.evaluate(async () => {
+    const trace: Array<{
+      activeUnit: number;
+      moving: boolean;
+      meadowRung: number;
+      cloudDetail: boolean;
+    }> = [];
+    window.__stacks!.scrollTo(3);
+    await new Promise<void>((resolve) => {
+      const started = performance.now();
+      const sample = () => {
+        const state = window.__stacks!.state() as unknown as StacksState;
+        trace.push({
+          activeUnit: state.activeUnit,
+          moving: state.quality.moving,
+          meadowRung: state.quality.meadowRung,
+          cloudDetail: state.quality.cloudDetail,
+        });
+        const moved = trace.some((item) => item.moving);
+        if (
+          (moved && state.activeUnit === 3 && !state.quality.moving) ||
+          performance.now() - started > 12_000
+        ) {
+          resolve();
+          return;
+        }
+        requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    });
+    return trace;
   });
+  expect(movementTrace.some((sample) => sample.moving)).toBe(true);
+  expect(movementTrace.at(-1)).toMatchObject({ activeUnit: 3 });
+  for (const sample of movementTrace.filter((item) => item.moving)) {
+    expect(sample).toMatchObject({
+      meadowRung: stillVisualQuality.meadowRung,
+      cloudDetail: stillVisualQuality.cloudDetail,
+    });
+  }
   await expect
     .poll(async () => (await stacksState(page)).quality.moving, {
-      timeout: 8_000,
+      timeout: 30_000,
     })
     .toBe(false);
   expect((await stacksState(page)).quality).toMatchObject({

@@ -1,14 +1,20 @@
 "use client";
 
+import { ShakerProp } from "../AuthoredProps";
 import Grabbable, { type GrabbableCommand } from "../Grabbable";
 import { FootPool } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
 import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
-import { Sway } from "../eggs";
 import { SodaCan } from "../objects";
-import { DeskFrame, PHOTO_LINKS, PhotoMount, deskFrameHeight } from "../photos";
-import { BookPile, ShelfUnit } from "../primitives";
+import {
+  DeskFrame,
+  PHOTO_LINKS,
+  PhotoMount,
+  deskFrameHeight,
+  photoDoorLabel,
+} from "../photos";
+import { ShelfUnit } from "../primitives";
 import { SHELF_GEOMETRY } from "../shelfGeometry";
 import { useUnitLod } from "../useUnitLod";
 import { RoundedBox } from "@react-three/drei";
@@ -23,6 +29,7 @@ import {
   createGolfBallBumpTexture,
 } from "./trainingGolfBall";
 import type { UnitProps } from "./types";
+import { REVIEWED_SHELF_LAYOUT } from "./unitShelfLayout";
 
 const CLUB_SCALE = 2.35;
 const GOLF_BALL_GEOMETRY = createDimpledGolfBallGeometry();
@@ -48,6 +55,7 @@ function TrainingPhoto({
   children: React.ReactNode;
 }) {
   const hoverKey = `grab:photo:${id}`;
+  const href = PHOTO_LINKS[id] ?? null;
   return (
     <Grabbable
       unitIndex={unitIndex}
@@ -57,7 +65,8 @@ function TrainingPhoto({
       shadeWidth={Math.max(0.3, width * 1.18)}
       shape="box"
       massKg={0.45}
-      href={PHOTO_LINKS[id] ?? undefined}
+      href={href ?? undefined}
+      doorLabel={href ? photoDoorLabel(href) : undefined}
     >
       <HeldFacing hoverKey={hoverKey} position={[0, seat, 0]} rest={rotation}>
         {children}
@@ -410,7 +419,6 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
               shadeWidth={0.45}
               shape="sphere"
               massKg={0.62}
-              to="weightlifting"
             >
               <React.Suspense fallback={null}>
                 <ModelProp
@@ -421,6 +429,7 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
                   roughness={0.78}
                   smoothNormals
                   rotation={[0, 1.2, 0]}
+                  position={[0, -0.016, 0]}
                   scale={0.435}
                 />
               </React.Suspense>
@@ -477,33 +486,30 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
             />
           </React.Suspense>
         </Grabbable>
-        <BookPile
-          palette={palette}
-          x={0.78}
-          salt={31}
-          linkUnit={index}
-          grabbable
-        />
-        <Grabbable
+        <ShakerProp
           unitIndex={index}
-          hoverKey="grab:plant:training"
-          base={[1.18, 0, -0.2]}
-          shadeColor={palette.shadow}
-          shadeWidth={0.3}
-          shape="box"
-          massKg={2.2}
-        >
-          <Sway unitIndex={index} amount={0.014} rate={0.32} phase={2.1}>
-            <React.Suspense fallback={null}>
-              <ModelProp
-                url="/models/potted-plant.glb"
-                dark={dark}
-                rotation={[0, -0.6, 0]}
-                scale={0.82}
-              />
-            </React.Suspense>
-          </Sway>
-        </Grabbable>
+          palette={palette}
+          dark={dark}
+          base={[REVIEWED_SHELF_LAYOUT.training.shakerX[0], 0, 0.045]}
+        />
+        <ShakerProp
+          unitIndex={index}
+          palette={palette}
+          dark={dark}
+          id="training-navy"
+          cupColor={dark ? "#46647a" : "#7596aa"}
+          lidColor="#263a52"
+          base={[REVIEWED_SHELF_LAYOUT.training.shakerX[1], 0, 0]}
+        />
+        <ShakerProp
+          unitIndex={index}
+          palette={palette}
+          dark={dark}
+          id="training-amber"
+          cupColor={dark ? "#8b6044" : "#c78e65"}
+          lidColor="#633a2b"
+          base={[REVIEWED_SHELF_LAYOUT.training.shakerX[2], 0, 0.025]}
+        />
       </ShelfUnit>
 
       {/* The single loaded bar owns the rear exercise bay. The two loose

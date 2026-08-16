@@ -5,7 +5,6 @@
 // registers the scroll element with the store for the DOM bridges.
 import { UNIT_COUNT, unitIndexFromHash } from "../data";
 import {
-  GRAB_HOVER,
   INERT_HOVER,
   panelCoverageRef,
   progressRef,
@@ -18,6 +17,7 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { SEAT_POSE, isSeated, leaveSeat, setSeatAmount } from "./seated";
+import { cursorForInteraction } from "./interactionRegistry";
 import {
   STACKS_DESKTOP_MIN_WIDTH,
   aboutStopShift,
@@ -248,11 +248,16 @@ export default function CameraRig() {
     });
     // Pointer cursor for hoverable scene objects — the scroll el owns events.
     const unsubscribeCursor = useStacks.subscribe((s) => {
-      if (s.dragging) el.style.cursor = "grabbing";
-      else if (s.hovered?.startsWith(GRAB_HOVER)) el.style.cursor = "grab";
-      else if (s.hovered && !s.hovered.startsWith(INERT_HOVER))
-        el.style.cursor = "pointer";
-      else el.style.cursor = "";
+      const cursor = cursorForInteraction(s.hovered, s.dragging);
+      // Legacy eggs remain pointer claimants while the registry migration is
+      // completed; inert scenery keeps the ordinary canvas cursor.
+      el.style.cursor =
+        cursor ||
+        (s.hovered &&
+        !s.hovered.startsWith(INERT_HOVER) &&
+        (s.hovered.startsWith("egg:") || s.hovered.startsWith("sky:"))
+          ? "pointer"
+          : "");
     });
     return () => {
       cancelInitialSync("cleanup");
@@ -317,7 +322,6 @@ export default function CameraRig() {
     progressRef.current = progress;
     const targetX = cameraXForScrollOffset(offset);
     const t = clock.elapsedTime;
-    const secret = 0;
     const busy = useStacks.getState().panelState !== "closed";
     lean.current = THREE.MathUtils.damp(
       lean.current,
@@ -325,7 +329,7 @@ export default function CameraRig() {
       LEAN_LAMBDA,
       dt,
     );
-    const calm = (1 - lean.current) * (1 - secret * 0.88);
+    const calm = 1 - lean.current;
 
     // The seat. Moving the room always beats sitting in it, so the offset the
     // seat was taken at is the escape hatch for every travel path at once.
@@ -348,13 +352,11 @@ export default function CameraRig() {
     // standing up has to land on a live camera, not one frozen where it sat.
     baseY.current = THREE.MathUtils.damp(
       baseY.current,
-      pose.y +
-        secret * 0.14 +
-        (pointer.y * 0.08 + Math.sin(t * 0.4) * 0.03) * calm,
+      pose.y + (pointer.y * 0.08 + Math.sin(t * 0.4) * 0.03) * calm,
       BASE_Y_LAMBDA,
       dt,
     );
-    const baseZ = pose.z - 0.6 * lean.current - secret * 1.02;
+    const baseZ = pose.z - 0.6 * lean.current;
     look.current.x = THREE.MathUtils.damp(
       look.current.x,
       targetX + pointer.x * 0.45 * calm,
@@ -375,13 +377,13 @@ export default function CameraRig() {
     );
     look.current.y = THREE.MathUtils.damp(
       look.current.y,
-      (pointer.y * 0.12 - 0.08) * calm + secret * 0.1,
+      (pointer.y * 0.12 - 0.08) * calm,
       LOOK_Y_LAMBDA,
       dt,
     );
     look.current.z = THREE.MathUtils.damp(
       look.current.z,
-      -0.2 - secret * 0.62,
+      -0.2,
       LOOK_Y_LAMBDA,
       dt,
     );

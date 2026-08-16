@@ -39,7 +39,10 @@ export function isStacksScrollableTarget(target: EventTarget | null) {
     ?.closest;
   return (
     typeof closest === "function" &&
-    !!closest.call(target, "[data-stacks-scrollable]")
+    !!closest.call(
+      target,
+      "[data-stacks-scrollable], [data-stacks-mobile-panel]",
+    )
   );
 }
 

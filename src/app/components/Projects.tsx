@@ -98,7 +98,10 @@ function ProjectItem({ project }: { project: Project }) {
   );
 
   return (
-    <TiltCard className="w-full intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000">
+    <TiltCard
+      interactive={Boolean(project.link)}
+      className="w-full intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000"
+    >
       {project.link ? (
         <Link
           href={project.link}

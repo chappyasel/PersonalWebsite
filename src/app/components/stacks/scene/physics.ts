@@ -540,7 +540,11 @@ export function worldFor(
     // unit that grew a prop) still gets a body.
     for (const handle of mine) world.adopt(handle);
   }
-  return world;
+  // A streamed model that has not produced measurable geometry yet makes the
+  // whole first visit use authored motion. Returning a partly populated world
+  // would let the first ready prop choose simulation while a later prop
+  // silently chose a different mode in the same unit.
+  return world.ready() ? world : null;
 }
 
 export class ShelfWorld {
@@ -725,11 +729,14 @@ export class ShelfWorld {
 
   /** Give a Grabbable a dynamic body, parked at its authored pose. */
   adopt(handle: ShelfHandle) {
-    if (this.handles.includes(handle)) return;
+    const registered = this.handles.includes(handle);
+    if (registered && handle.body) return;
     const C = this.C;
     const box = localBox(handle.group);
-    this.handles.push(handle);
-    handle.world = this;
+    if (!registered) {
+      this.handles.push(handle);
+      handle.world = this;
+    }
     this.measureFrame(handle);
     if (!box) return; // model still streaming in — authored motion covers it
     const centre = box.getCenter(new THREE.Vector3());
@@ -802,6 +809,13 @@ export class ShelfWorld {
     handle.prev = new THREE.Vector3();
     this.world.addBody(body);
     this.park(handle);
+  }
+
+  /** True only after every mounted handle has a measured body. `adopt`
+   * deliberately retries body-less handles, so a streamed GLB can become
+   * ready before the first grab without rebuilding the shelf world. */
+  ready(): boolean {
+    return this.handles.length > 0 && this.handles.every((handle) => handle.body);
   }
 
   /** Static boxes for everything else standing on the same plank. This is

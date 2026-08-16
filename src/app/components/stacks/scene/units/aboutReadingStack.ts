@@ -1,31 +1,33 @@
 export const ABOUT_READING_BOOK = {
-  width: 0.32,
+  width: 0.285,
+  /** Default/fallback only; live books derive their fore-edge from length. */
   thickness: 0.048,
-  depth: 0.425,
+  depth: 0.45,
   radius: 0.008,
 } as const;
 
 export type ReadingBookPose = {
-  /** The current book is the sole volume displayed on this shelf. */
+  /** Newest first; the three jackets form a shallow camera-overlapped fan. */
   index: number;
   base: [number, number, number];
   rotation: [number, number, number];
 };
 
-export const ABOUT_SMALL_PLANT_X = 0.53;
+export const ABOUT_SMALL_PLANT_X = 0.72;
 /** Measured GLB width 1.4887 × authored 0.18 scale ÷ 2, rounded outward. */
 export const ABOUT_SMALL_PLANT_ENVELOPE = 0.135;
-export const ABOUT_LOWER_PHOTO_LEFT = 0.84 - 0.3072 / 2;
+export const ABOUT_LOWER_PHOTO_X = 1.06;
+export const ABOUT_LOWER_PHOTO_LEFT = ABOUT_LOWER_PHOTO_X - 0.3072 / 2;
 
 export const CURRENT_READING_ROTATION: [number, number, number] = [
   Math.PI / 2,
   0,
-  0,
+  Math.PI / 6,
 ];
 export const CURRENT_READING_BASE: [number, number, number] = [
-  0.08,
+  0.33,
   ABOUT_READING_BOOK.depth / 2,
-  0.07,
+  0.035,
 ];
 
 /** Matches Three's default intrinsic XYZ Euler matrix. */
@@ -63,16 +65,22 @@ function point3(
   ];
 }
 
-/** One unambiguous current-book pose: square to the camera, with its complete
- * bottom edge resting directly on the shelf. */
-export function readingStackPoses(): [ReadingBookPose] {
-  return [
-    {
-      index: 0,
-      base: [...CURRENT_READING_BASE],
-      rotation: [...CURRENT_READING_ROTATION],
-    },
-  ];
+/** Three grounded books turned 30° toward the About practical. Their shallow
+ * x/depth cadence overlaps in camera space without intersecting in 3D. */
+export function readingStackPoses(): [
+  ReadingBookPose,
+  ReadingBookPose,
+  ReadingBookPose,
+] {
+  return ([0, 1, 2] as const).map((index) => ({
+    index,
+    base: [
+      CURRENT_READING_BASE[0] + index * 0.185,
+      CURRENT_READING_BASE[1],
+      CURRENT_READING_BASE[2] + index * 0.046,
+    ],
+    rotation: [...CURRENT_READING_ROTATION],
+  })) as [ReadingBookPose, ReadingBookPose, ReadingBookPose];
 }
 
 export function readingBookPoint(
@@ -161,11 +169,18 @@ export function readingCoverForward(rotation: [number, number, number]) {
   return rotate(0, 1, 0, rotation)[2];
 }
 
+/** Negative X points from the reading fan toward the About practical. */
+export function readingCoverLampward(rotation: [number, number, number]) {
+  return rotate(0, 1, 0, rotation)[0];
+}
+
 export function aboutReadingSnapshot() {
   const poses = readingStackPoses();
   const bounds = readingStackBounds(poses);
-  const leftFoot = readingBookPoint3(poses[0], "shelf-toe");
-  const rightFoot = readingBookPoint3(poses[0], "lean-contact");
+  const contacts = poses.flatMap((pose) => [
+    readingBookPoint3(pose, "shelf-toe"),
+    readingBookPoint3(pose, "lean-contact"),
+  ]);
   return {
     poses: poses.map((pose) => ({
       ...pose,
@@ -174,16 +189,11 @@ export function aboutReadingSnapshot() {
     })),
     bounds,
     contactError: {
-      shelf: Math.max(Math.abs(leftFoot[1]), Math.abs(rightFoot[1])),
+      shelf: Math.max(...contacts.map((point) => Math.abs(point[1]))),
     },
-    plant: {
-      x: ABOUT_SMALL_PLANT_X,
-      shelfY: 0,
-      gapFromBooks:
-        ABOUT_SMALL_PLANT_X - ABOUT_SMALL_PLANT_ENVELOPE - bounds.right,
-      gapFromPhoto:
-        ABOUT_LOWER_PHOTO_LEFT -
-        (ABOUT_SMALL_PLANT_X + ABOUT_SMALL_PLANT_ENVELOPE),
+    lowerPhoto: {
+      x: ABOUT_LOWER_PHOTO_X,
+      right: ABOUT_LOWER_PHOTO_X + 0.3072 / 2,
     },
   };
 }

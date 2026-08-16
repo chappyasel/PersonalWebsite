@@ -2,30 +2,37 @@ import { describe, expect, it } from "vitest";
 
 import {
   ABOUT_LOWER_PHOTO_LEFT,
+  ABOUT_LOWER_PHOTO_X,
   ABOUT_READING_BOOK,
-  ABOUT_SMALL_PLANT_ENVELOPE,
-  ABOUT_SMALL_PLANT_X,
   CURRENT_READING_BASE,
   CURRENT_READING_ROTATION,
   aboutReadingSnapshot,
   readingBookPoint3,
   readingCoverForward,
+  readingCoverLampward,
   readingHeldRotation,
   readingStackBounds,
   readingStackPoses,
 } from "./aboutReadingStack";
 
-describe("About current-reading book", () => {
-  it("authors exactly one book, square to the camera", () => {
+describe("About recent-reading fan", () => {
+  it("authors three grounded books turned 30 degrees toward the lamp", () => {
     const poses = readingStackPoses();
 
-    expect(poses).toHaveLength(1);
+    expect(poses).toHaveLength(3);
     expect(poses[0]).toEqual({
       index: 0,
       base: CURRENT_READING_BASE,
       rotation: CURRENT_READING_ROTATION,
     });
-    expect(readingCoverForward(poses[0].rotation)).toBeCloseTo(1, 8);
+    expect(poses[0].base[0]).toBe(0.33);
+    expect(readingCoverForward(poses[0].rotation)).toBeCloseTo(
+      Math.cos(Math.PI / 6),
+      8,
+    );
+    expect(readingCoverLampward(poses[0].rotation)).toBeLessThan(0);
+    expect(poses[1].base[0] - poses[0].base[0]).toBeCloseTo(0.185, 8);
+    expect(poses[2].base[2]).toBeGreaterThan(poses[1].base[2]);
   });
 
   it("rests its complete bottom edge directly on the shelf", () => {
@@ -35,8 +42,14 @@ describe("About current-reading book", () => {
 
     expect(leftFoot[1]).toBeCloseTo(0, 8);
     expect(rightFoot[1]).toBeCloseTo(0, 8);
-    expect(rightFoot[0] - leftFoot[0]).toBeCloseTo(ABOUT_READING_BOOK.width, 8);
-    expect(leftFoot[2]).toBeCloseTo(rightFoot[2], 8);
+    expect(rightFoot[0] - leftFoot[0]).toBeCloseTo(
+      ABOUT_READING_BOOK.width * Math.cos(Math.PI / 6),
+      8,
+    );
+    expect(Math.abs(rightFoot[2] - leftFoot[2])).toBeCloseTo(
+      ABOUT_READING_BOOK.width * Math.sin(Math.PI / 6),
+      8,
+    );
   });
 
   it("has an upright, shelf-grounded silhouette", () => {
@@ -44,29 +57,29 @@ describe("About current-reading book", () => {
 
     expect(bounds.bottom).toBeCloseTo(0, 8);
     expect(bounds.top).toBeCloseTo(ABOUT_READING_BOOK.depth, 8);
-    expect(bounds.right - bounds.left).toBeCloseTo(ABOUT_READING_BOOK.width, 8);
+    expect(bounds.right - bounds.left).toBeGreaterThan(
+      ABOUT_READING_BOOK.width * 2,
+    );
   });
 
-  it("does not change orientation when carried because it already faces the viewer", () => {
+  it("squares the jacket while carried and returns to the authored fan", () => {
     const [current] = readingStackPoses();
 
-    expect(readingHeldRotation(current.rotation, 1)).toEqual(current.rotation);
+    expect(readingHeldRotation(current.rotation, 1)).toEqual([
+      Math.PI / 2,
+      0,
+      0,
+    ]);
     expect(readingHeldRotation(current.rotation, 0)).toEqual(current.rotation);
   });
 
-  it("keeps grounded clearance before the small plant and lower photo", () => {
+  it("keeps the lower-right photograph fully supported by the plank", () => {
     const snapshot = aboutReadingSnapshot();
 
-    expect(snapshot.poses).toHaveLength(1);
+    expect(snapshot.poses).toHaveLength(3);
     expect(snapshot.contactError.shelf).toBeLessThan(1e-10);
-    expect(snapshot.plant.shelfY).toBe(0);
-    expect(snapshot.plant.gapFromBooks).toBeGreaterThan(0);
-    expect(snapshot.plant.gapFromPhoto).toBeGreaterThan(0);
-    expect(snapshot.bounds.right).toBeLessThan(
-      ABOUT_SMALL_PLANT_X - ABOUT_SMALL_PLANT_ENVELOPE,
-    );
-    expect(ABOUT_SMALL_PLANT_X + ABOUT_SMALL_PLANT_ENVELOPE).toBeLessThan(
-      ABOUT_LOWER_PHOTO_LEFT,
-    );
+    expect(snapshot.lowerPhoto.x).toBe(ABOUT_LOWER_PHOTO_X);
+    expect(ABOUT_LOWER_PHOTO_LEFT).toBeGreaterThan(-1.6);
+    expect(snapshot.lowerPhoto.right).toBeLessThan(1.6);
   });
 });

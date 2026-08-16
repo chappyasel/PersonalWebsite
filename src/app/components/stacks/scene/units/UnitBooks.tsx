@@ -13,27 +13,15 @@
 // case's left end is the only place in the room where you can see the whole
 // of a bookcase's silhouette. If a replacement lands later it goes at
 // x ≈ −2.2 on the ground, which is the slot the ladder vacated.
-import { GRAB_HOVER, useStacks } from "../../store";
-import { type Palette, rand } from "../../theme";
+import { useStacks } from "../../store";
+import { rand } from "../../theme";
 import {
   type BookInteraction,
   type BookInteractionInput,
   buildBookInteractions,
-  permitsSecretProjectedFallback,
-  pickSecretSpineIndex,
   setBookInteractionInventory,
   setBookInteractionScreens,
 } from "../bookInteractions";
-import {
-  allowsBookSecretProjectedRecovery,
-  beginBookSecretPull,
-  bookSecretRef,
-  closeBookSecret,
-  commitsBookSecretReturnTap,
-  releaseBookSecretPull,
-  requestBookSecretHint,
-  setBookSecretPull,
-} from "../bookSecret";
 import { HoverProp } from "../links";
 import {
   BookRowMesh,
@@ -43,11 +31,10 @@ import {
   coverExtent,
   packRow,
 } from "../primitives";
-import { SHELF_GEOMETRY } from "../shelfGeometry";
+import { layoutShelfRow, splitShelfRows } from "../shelfSpacing";
 import { useUnitLod } from "../useUnitLod";
-import { RoundedBox } from "@react-three/drei";
-import { type ThreeEvent, useFrame } from "@react-three/fiber";
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import { useFrame } from "@react-three/fiber";
+import React, { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import {
@@ -55,13 +42,12 @@ import {
   readingBookMaterialColors,
 } from "~/lib/books/coverEdgeColor";
 
+import { featuredBookThickness } from "./featuredBookGeometry";
 import { type UnitProps } from "./types";
 
-// The hidden-room renderer is intentionally off for this pass. Entering Books
-// used to begin a lazy room import plus WebGL material/shader setup on the pan
-// path, producing multi-second freezes and intermittent blank compositor
-// frames. Keep the distinctive volume as a normal tactile decorative spine;
-// no dormant trigger or invisible room remains wired to it.
+// Every packed spine now follows the same ordinary shelf behavior. The former
+// hidden-room renderer, pivot, special target, debug path and tests are gone;
+// there is no dormant branch left to preload or accidentally activate.
 
 /**
  * THE FRONT RANK'S GEOMETRY. Everything here is an EDGE, never a centre.
@@ -71,11 +57,10 @@ import { type UnitProps } from "./types";
  * real half-extents (`coverExtent`) and only the two outer edges of a row are
  * pinned to these.
  *
- * RIGHT is +0.35. The plank runs to ±1.60, but the desktop placard covers
- * everything past +0.467 on a 1280 × 900 window — its left edge is
- * (viewportWidth/2 − 528) over the 239.6 px per unit this camera holds on an
- * odd unit — and +0.35 keeps a centimetre of margin on the narrowest window
- * that still gets a placard. Anything right of that is invisible on a laptop.
+ * RIGHT is +1.24. The featured covers deliberately use most of the physical
+ * plank instead of bunching into the left half. The desktop placard can cover
+ * part of that authored vista while it is open; the same destinations remain
+ * present in the placard DOM, and focus mode reveals the complete shelf.
  *
  * LEFT is −1.46, and it is the PHONE that sets it, not the plank. Desktop can
  * read to −1.55, but the 390-wide camera frames this unit at 128.4 px per
@@ -89,46 +74,13 @@ import { type UnitProps } from "./types";
  * a print across the corner of a featured book is the one occlusion this rank
  * cannot afford.
  */
-const EDGE_R = 0.35;
-const EDGE_L_TOP = -1.24;
-const EDGE_L_LOWER = -1.14;
+const EDGE_R = 1.24;
+const EDGE_L_TOP = -1.3;
+const EDGE_L_LOWER = -1.24;
 
-/** How many covers a shelf will take before the packer has to start
- * compressing. Five 0.36-wide books touching span 1.72 of the 1.90 available,
- * which leaves just enough for one real gap; a sixth can only be fitted by
- * overlapping them, so the split below sends it to the other shelf instead. */
-const SHELF_CAP = 5;
-/** Share of the ticked books the TOP shelf takes. Deliberately NOT a half.
- * An even split is the one arrangement that guarantees a reader can pair each
- * book on one shelf with the book above it, which is what makes a shelf read
- * as a grid however prettily each row is spaced. At the eight currently
- * ticked this is 5 and 3. */
-const TOP_SHARE = 0.6;
-const SECRET_HOVER = `${GRAB_HOVER}books:secret-spine`;
-const SECRET_SHELF_HOVER = "secret:books:shelf-clue";
-const SECRET_RETURN_HOVER = "secret:books:return";
-const SECRET_PULL_PX = 92;
-const SECRET_LATCH = 0.7;
-// Measured against the rendered spine at the narrow desktop breakpoint. The
-// old 36×140px window reached well into both neighbouring covers; 20×64px is
-// still forgiving around the visible spine without becoming a second prop's
-// hit area.
-const SECRET_HIT_HALF_WIDTH = 10;
-const SECRET_HIT_HALF_HEIGHT = 32;
-// Matches the visible dark medallion, not just its inner brass ring. The
-// projected centre can still move while the camera finishes its arrival, so
-// a tap anywhere on the visible disc must claim the same return control.
-const SECRET_RETURN_HIT_PX = 48;
-// Front edge sits level with the face-out rank, making the narrow spine
-// aimable without looking mysteriously half-pulled before the gesture begins.
-const SECRET_REST_Z = 0.105;
-const SECRET_DOOR_HINGE_X = -SHELF_GEOMETRY.width / 2 - 0.04;
-const SECRET_DOOR_CENTER_X = -SECRET_DOOR_HINGE_X;
-const smoothstep = (value: number) => {
-  const x = THREE.MathUtils.clamp(value, 0, 1);
-  return x * x * (3 - 2 * x);
-};
-
+/** Four enlarged covers preserve legibility and variable air across one row.
+ * Source content may grow without changing this measured physical capacity. */
+const SHELF_CAP = 4;
 /** Canvas-only targets need measured screen centres for real pointer QA.
  * Box centres (rather than object origins) work for hinged spines, whose
  * named pivot intentionally lives at the bottom-front contact edge. */
@@ -166,544 +118,6 @@ function BookInteractionProbe({
     setBookInteractionScreens(screens);
   });
   return null;
-}
-
-/** Projected R3F fallback is allowed only over this world's own input
- * surfaces. Window capture also sees the DOM sheet and every unrelated page
- * control; a screen-space rectangle alone must never claim those events. */
-export function isSecretProjectionSurface(
-  target: EventTarget | null,
-  scrollEl: HTMLDivElement | null,
-) {
-  const node = target as Node | null;
-  if (!scrollEl || !node || typeof node.nodeType !== "number") return false;
-  if (scrollEl.contains(node)) return true;
-  const canvas = scrollEl.parentElement?.querySelector("canvas");
-  return node === canvas;
-}
-
-export function isSecretProjectedHit(
-  event: Pick<PointerEvent, "clientX" | "clientY" | "target">,
-  scrollEl: HTMLDivElement | null,
-  screen: [number, number] | null,
-) {
-  if (!screen || !isSecretProjectionSurface(event.target, scrollEl))
-    return false;
-  return (
-    Math.abs(event.clientX - screen[0]) <= SECRET_HIT_HALF_WIDTH &&
-    Math.abs(event.clientY - screen[1]) <= SECRET_HIT_HALF_HEIGHT
-  );
-}
-
-/** Empty wood on the case is the discoverability surface, never the trigger.
- * Hovering or tapping it tips the odd spine forward; the visitor must still
- * find that spine and deliberately pull it past the physical latch. */
-// Kept as dormant implementation material while the unstable room is disabled.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function SecretShelfAffordance({ index }: { index: number }) {
-  const setHovered = useStacks((state) => state.setHovered);
-  const eligible = () => {
-    const state = useStacks.getState();
-    return (
-      state.activeUnit === index &&
-      !state.modalOpen &&
-      state.panelState === "closed" &&
-      !state.dragging &&
-      (!state.hovered || state.hovered === SECRET_SHELF_HOVER) &&
-      bookSecretRef.phase === "closed"
-    );
-  };
-
-  return (
-    <mesh
-      name="stacks-secret-shelf-affordance"
-      // Behind every cover/plant hit, but across the bookcase's empty wood.
-      // Foreground Grabbables stop propagation, so their hover/drag ownership
-      // wins before this recovery surface ever sees the pointer.
-      position={[0, -0.2, -0.2]}
-      onPointerOver={(event) => {
-        if (!eligible()) return;
-        event.stopPropagation();
-        setHovered(SECRET_SHELF_HOVER);
-        requestBookSecretHint();
-      }}
-      onPointerOut={() => {
-        if (useStacks.getState().hovered === SECRET_SHELF_HOVER)
-          setHovered(null);
-      }}
-      onClick={(event) => {
-        if ((event.delta ?? 0) > 6 || !eligible()) return;
-        event.stopPropagation();
-        requestBookSecretHint();
-      }}
-    >
-      <planeGeometry args={[3.08, 2.22]} />
-      <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-    </mesh>
-  );
-}
-
-/** The one book that is more handle than hyperlink. A downward pull maps to
- * local +Z — physically out of the shelf and toward the camera — instead of
- * borrowing the generic free-carry gesture, which cannot distinguish pulling
- * a latch from simply moving a book elsewhere. Pushing the open book upward
- * reverses it; the brass handle inside the passage is the clearer return path. */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function SecretPullBook({
-  index,
-  palette,
-  x,
-  height,
-  width,
-  depth,
-}: {
-  index: number;
-  palette: Palette;
-  x: number;
-  height: number;
-  width: number;
-  depth: number;
-}) {
-  const group = useRef<THREE.Group>(null);
-  const projected = useMemo(() => new THREE.Vector3(), []);
-  const setHovered = useStacks((state) => state.setHovered);
-  const pointer = useRef<number | null>(null);
-  const gesture = useRef<{
-    x: number;
-    y: number;
-    direction: "open" | "close";
-  } | null>(null);
-  const scrollStyle = useRef<{
-    el: HTMLDivElement;
-    overflowX: string;
-    touchAction: string;
-  } | null>(null);
-
-  useEffect(
-    () => () => {
-      bookSecretRef.screen = null;
-    },
-    [],
-  );
-
-  const restoreGestureScroll = useCallback(() => {
-    const saved = scrollStyle.current;
-    if (saved) {
-      saved.el.style.overflowX = saved.overflowX;
-      saved.el.style.touchAction = saved.touchAction;
-      scrollStyle.current = null;
-    }
-  }, []);
-
-  const hitsProjectedBook = useCallback((event: PointerEvent) => {
-    const scrollEl = useStacks.getState().scrollEl;
-    const screen = bookSecretRef.screen;
-    // This fallback survives ScrollControls' event reconnection window, where
-    // the visible R3F hit can briefly miss, but stays inside the measured
-    // spine instead of overlapping adjacent draggable covers.
-    return isSecretProjectedHit(event, scrollEl, screen);
-  }, []);
-
-  const start = useCallback(
-    (event: PointerEvent) => {
-      if (pointer.current !== null || !event.isPrimary || event.button !== 0)
-        return;
-      const store = useStacks.getState();
-      if (
-        store.activeUnit !== index ||
-        store.modalOpen ||
-        store.panelState !== "closed" ||
-        store.dragging
-      )
-        return;
-      // The shelf spine is the entrance, not an invisible remote control once
-      // the hinged case is parked beside the viewer. The room's brass handle
-      // is the explicit return path; disabling close here prevents a phantom
-      // projected hit from floating over a neighbouring bay.
-      const direction = bookSecretRef.phase === "closed" ? "open" : null;
-      if (!direction || !beginBookSecretPull(direction)) return;
-      pointer.current = event.pointerId;
-      gesture.current = {
-        x: event.clientX,
-        y: event.clientY,
-        direction,
-      };
-      store.setDragging(SECRET_HOVER);
-      const el = store.scrollEl;
-      if (el) {
-        scrollStyle.current = {
-          el,
-          overflowX: el.style.overflowX,
-          touchAction: el.style.touchAction,
-        };
-        el.style.overflowX = "hidden";
-        el.style.touchAction = "none";
-      }
-    },
-    [index],
-  );
-
-  const finish = useCallback(() => {
-    if (pointer.current === null) return;
-    const commit = bookSecretRef.pull >= SECRET_LATCH;
-    pointer.current = null;
-    gesture.current = null;
-    useStacks.getState().setDragging(null);
-    restoreGestureScroll();
-    releaseBookSecretPull(commit);
-  }, [restoreGestureScroll]);
-
-  useEffect(() => {
-    const onDown = (event: PointerEvent) => {
-      const hovered = useStacks.getState().hovered;
-      // A real R3F hover owns the hit. Projected recovery is only for the
-      // brief no-owner gap — it may not override an adjacent Grabbable.
-      if (hovered === SECRET_HOVER) {
-        start(event);
-        return;
-      }
-      if (!permitsSecretProjectedFallback(event.pointerType)) return;
-      if (
-        !allowsBookSecretProjectedRecovery(hovered, SECRET_SHELF_HOVER) ||
-        !hitsProjectedBook(event)
-      )
-        return;
-      // This listener runs in capture phase. Starting immediately would beat
-      // Grabbable's touch raycast in bubble phase and let the projected spine
-      // steal a neighbouring cover. Defer one microtask: a real cover/prop
-      // claims `dragging` first; the recovery starts only if nobody did.
-      queueMicrotask(() => {
-        const store = useStacks.getState();
-        if (
-          store.dragging ||
-          !allowsBookSecretProjectedRecovery(store.hovered, SECRET_SHELF_HOVER)
-        )
-          return;
-        start(event);
-      });
-    };
-    const onMove = (event: PointerEvent) => {
-      if (pointer.current === null) {
-        const store = useStacks.getState();
-        const eligible =
-          store.activeUnit === index &&
-          !store.modalOpen &&
-          store.panelState === "closed" &&
-          bookSecretRef.phase === "closed";
-        if (
-          eligible &&
-          hitsProjectedBook(event) &&
-          (store.hovered === SECRET_HOVER ||
-            allowsBookSecretProjectedRecovery(
-              store.hovered,
-              SECRET_SHELF_HOVER,
-            ))
-        ) {
-          store.setHovered(SECRET_HOVER);
-        } else if (store.hovered === SECRET_HOVER) {
-          store.setHovered(null);
-        }
-        return;
-      }
-      if (event.pointerId !== pointer.current) return;
-      const active = gesture.current;
-      if (!active) return;
-      const dy = event.clientY - active.y;
-      const dx = Math.abs(event.clientX - active.x);
-      const directional = active.direction === "open" ? dy : -dy;
-      // Sideways travel is not a secret pull. Penalising it makes an ordinary
-      // horizontal room-pan fail safely even if it began over this spine.
-      setBookSecretPull((directional - dx * 0.3) / SECRET_PULL_PX);
-    };
-    const onUp = (event: PointerEvent) => {
-      if (event.pointerId === pointer.current) finish();
-    };
-    const onWheel = (event: WheelEvent) => {
-      if (pointer.current === null) return;
-      event.preventDefault();
-      event.stopPropagation();
-    };
-    window.addEventListener("pointerdown", onDown, { capture: true });
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", onUp);
-    window.addEventListener("blur", finish);
-    window.addEventListener("wheel", onWheel, {
-      capture: true,
-      passive: false,
-    });
-    return () => {
-      window.removeEventListener("pointerdown", onDown, { capture: true });
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", onUp);
-      window.removeEventListener("blur", finish);
-      window.removeEventListener("wheel", onWheel, { capture: true });
-      restoreGestureScroll();
-    };
-  }, [finish, hitsProjectedBook, index, restoreGestureScroll, start]);
-
-  useFrame(({ camera, clock, size }, rawDelta) => {
-    const node = group.current;
-    if (!node) return;
-    const dt = Math.min(rawDelta, 1 / 30);
-    const phase = bookSecretRef.phase;
-    const amount =
-      phase === "pulling-open" ? bookSecretRef.pull : bookSecretRef.progress;
-    const pulled = smoothstep(amount);
-    const hint = bookSecretRef.reducedMotion
-      ? 0
-      : Math.sin(bookSecretRef.hintProgress * Math.PI);
-    node.position.z = THREE.MathUtils.damp(
-      node.position.z,
-      SECRET_REST_Z + pulled * 0.38 + hint * 0.11,
-      13,
-      dt,
-    );
-    node.rotation.x = THREE.MathUtils.damp(
-      node.rotation.x,
-      -pulled * 0.1,
-      11,
-      dt,
-    );
-    node.rotation.y = THREE.MathUtils.damp(
-      node.rotation.y,
-      hint * 0.07,
-      11,
-      dt,
-    );
-    // A hair of gilded shimmer makes the odd spine discoverable only when
-    // someone is already looking at it; it never glows like a UI control.
-    const mark = node.getObjectByName("stacks-secret-gilt") as THREE.Mesh;
-    const material = mark?.material as THREE.MeshStandardMaterial | undefined;
-    if (material) {
-      const hovered = useStacks.getState().hovered;
-      const direct = hovered === SECRET_HOVER;
-      const clue =
-        hovered === SECRET_SHELF_HOVER || bookSecretRef.hintProgress > 0;
-      material.emissiveIntensity = direct
-        ? 0.42 + Math.sin(clock.elapsedTime * 2.4) * 0.12
-        : clue
-          ? bookSecretRef.reducedMotion
-            ? 0.34
-            : 0.26 + Math.sin(clock.elapsedTime * 2.1) * 0.08
-          : 0.08;
-    }
-    if (bookSecretRef.phase === "closed") {
-      node.getWorldPosition(projected).project(camera);
-      bookSecretRef.screen = [
-        (projected.x * 0.5 + 0.5) * size.width,
-        (-projected.y * 0.5 + 0.5) * size.height,
-      ];
-    } else {
-      bookSecretRef.screen = null;
-    }
-  });
-
-  const onPointerDown = (event: ThreeEvent<PointerEvent>) => {
-    event.stopPropagation();
-    start(event.nativeEvent);
-  };
-
-  return (
-    <group
-      ref={group}
-      name="stacks-secret-book"
-      position={[x, height / 2, SECRET_REST_Z]}
-      onPointerOver={(event) => {
-        if (useStacks.getState().activeUnit !== index) return;
-        event.stopPropagation();
-        setHovered(SECRET_HOVER);
-      }}
-      onPointerOut={() => {
-        if (useStacks.getState().hovered === SECRET_HOVER) setHovered(null);
-      }}
-      onPointerDown={onPointerDown}
-    >
-      <RoundedBox args={[width, height, depth]} radius={0.01} smoothness={4}>
-        <meshStandardMaterial
-          color={palette.skyTop === "#1e2842" ? "#27423b" : "#35584e"}
-          roughness={0.58}
-        />
-      </RoundedBox>
-      <mesh name="stacks-secret-gilt" position={[0, 0.02, depth / 2 + 0.002]}>
-        <planeGeometry args={[Math.max(0.018, width * 0.22), height * 0.68]} />
-        <meshStandardMaterial
-          color="#c7a76b"
-          emissive="#b9883e"
-          emissiveIntensity={0.08}
-          roughness={0.34}
-          metalness={0.72}
-        />
-      </mesh>
-      {/* Generous but invisible aim area; pulling still requires 64+ px of
-          directional movement. It stays within the measured 20px projected
-          recovery window so it cannot overlap a face-out cover beside it. */}
-      <mesh position={[0, 0, depth / 2 + 0.012]}>
-        <planeGeometry args={[Math.max(0.084, width * 1.12), height * 1.02]} />
-        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-      </mesh>
-    </group>
-  );
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function SecretReturnHandle() {
-  const group = useRef<THREE.Group>(null);
-  const projected = useMemo(() => new THREE.Vector3(), []);
-  const setHovered = useStacks((state) => state.setHovered);
-  const pressed = useRef<{ x: number; y: number } | null>(null);
-  useEffect(() => {
-    const hit = (event: PointerEvent) => {
-      const screen = bookSecretRef.returnScreen;
-      return (
-        !!screen &&
-        Math.hypot(event.clientX - screen[0], event.clientY - screen[1]) <=
-          SECRET_RETURN_HIT_PX
-      );
-    };
-    const onDown = (event: PointerEvent) => {
-      if (
-        bookSecretRef.phase === "open" &&
-        bookSecretRef.visualProgress > 0.98 &&
-        (useStacks.getState().hovered === SECRET_RETURN_HOVER || hit(event))
-      )
-        pressed.current = { x: event.clientX, y: event.clientY };
-    };
-    const onMove = (event: PointerEvent) => {
-      if (pressed.current) return;
-      const store = useStacks.getState();
-      if (
-        bookSecretRef.phase === "open" &&
-        bookSecretRef.visualProgress > 0.98 &&
-        hit(event) &&
-        (!store.hovered || store.hovered === SECRET_RETURN_HOVER)
-      )
-        store.setHovered(SECRET_RETURN_HOVER);
-      else if (store.hovered === SECRET_RETURN_HOVER) store.setHovered(null);
-    };
-    const onUp = (event: PointerEvent) => {
-      const start = pressed.current;
-      pressed.current = null;
-      if (
-        commitsBookSecretReturnTap(start, {
-          x: event.clientX,
-          y: event.clientY,
-        })
-      )
-        closeBookSecret();
-    };
-    window.addEventListener("pointerdown", onDown, { capture: true });
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", onUp);
-    return () => {
-      window.removeEventListener("pointerdown", onDown, { capture: true });
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", onUp);
-    };
-  }, []);
-
-  useEffect(
-    () => () => {
-      bookSecretRef.returnScreen = null;
-    },
-    [],
-  );
-
-  useFrame(({ camera, size }) => {
-    const node = group.current;
-    if (
-      !node ||
-      bookSecretRef.phase !== "open" ||
-      bookSecretRef.visualProgress <= 0.98
-    ) {
-      bookSecretRef.returnScreen = null;
-      return;
-    }
-    node.getWorldPosition(projected).project(camera);
-    bookSecretRef.returnScreen = [
-      (projected.x * 0.5 + 0.5) * size.width,
-      (-projected.y * 0.5 + 0.5) * size.height,
-    ];
-  });
-
-  return (
-    <group
-      ref={group}
-      name="stacks-secret-return"
-      position={[0, -0.16, 0.15]}
-      onPointerOver={(event) => {
-        if (
-          bookSecretRef.phase !== "open" ||
-          bookSecretRef.visualProgress <= 0.98
-        )
-          return;
-        event.stopPropagation();
-        setHovered(SECRET_RETURN_HOVER);
-      }}
-      onPointerOut={() => {
-        if (useStacks.getState().hovered === SECRET_RETURN_HOVER)
-          setHovered(null);
-      }}
-      onClick={(event) => {
-        if (
-          (event.delta ?? 0) > 6 ||
-          bookSecretRef.phase !== "open" ||
-          bookSecretRef.visualProgress <= 0.98
-        )
-          return;
-        event.stopPropagation();
-        closeBookSecret();
-      }}
-    >
-      <mesh>
-        <torusGeometry args={[0.115, 0.022, 10, 28]} />
-        <meshStandardMaterial
-          color="#d8b46f"
-          metalness={0.82}
-          roughness={0.25}
-          emissive="#9b6b28"
-          emissiveIntensity={0.18}
-        />
-      </mesh>
-      <mesh position={[0, 0, -0.012]}>
-        <circleGeometry args={[0.07, 24]} />
-        <meshStandardMaterial color="#33251b" roughness={0.76} />
-      </mesh>
-      {/* A physical inlay, not a UI glyph: the left arrow makes the only
-          return control readable even before its hover treatment wakes. */}
-      <mesh position={[0.012, 0, 0.018]}>
-        <planeGeometry args={[0.075, 0.012]} />
-        <meshStandardMaterial
-          color="#d8b46f"
-          metalness={0.82}
-          roughness={0.25}
-        />
-      </mesh>
-      <mesh position={[-0.022, 0.021, 0.019]} rotation={[0, 0, 0.68]}>
-        <planeGeometry args={[0.052, 0.012]} />
-        <meshStandardMaterial
-          color="#d8b46f"
-          metalness={0.82}
-          roughness={0.25}
-        />
-      </mesh>
-      <mesh position={[-0.022, -0.021, 0.019]} rotation={[0, 0, -0.68]}>
-        <planeGeometry args={[0.052, 0.012]} />
-        <meshStandardMaterial
-          color="#d8b46f"
-          metalness={0.82}
-          roughness={0.25}
-        />
-      </mesh>
-      <mesh position={[0, 0, 0.026]}>
-        <ringGeometry args={[0.115, 0.19, 28]} />
-        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-      </mesh>
-    </group>
-  );
 }
 
 /**
@@ -761,10 +175,16 @@ type Pose = {
   dz: number;
   ext: number;
 };
-type Joint = "front" | "lean" | "tight" | "gap";
+type Joint = "lean" | "tight" | "gap";
 
 function layoutFeatured(
-  slice: { url: string; key: string; color: string }[],
+  slice: {
+    url: string;
+    key: string;
+    label: string;
+    color: string;
+    thickness: number;
+  }[],
   salt: number,
   edgeL: number,
 ): RowItem[] {
@@ -772,8 +192,9 @@ function layoutFeatured(
   if (n === 0) return [];
 
   // Pass 1 — the per-book pose that owes nothing to its neighbours. The scale
-  // band bottoms out at 0.80 — a 0.29 × 0.42 book — which is still better than
-  // twice the width of the fattest spine behind it, and that ratio is what
+  // band bottoms out at 1.0 — a 0.36 × 0.52 book — and averages about 20%
+  // larger than the former 0.80–1.00 band while retaining organic variation.
+  // It remains more than twice the width of the fattest spine behind it, which
   // makes a featured book legible as the wide mass on the shelf.
   //
   // `dz` never goes negative and that is a measurement, not a taste call: a
@@ -783,7 +204,7 @@ function layoutFeatured(
   // BEHIND a fat spine, and a featured book with a paperback standing in front
   // of its corner is worse than no depth variation at all.
   const pose: Pose[] = slice.map((_, i) => ({
-    s: 0.8 + rand(i, salt) * 0.2,
+    s: 1 + rand(i, salt) * 0.15,
     yaw: (rand(i, salt + 1) - 0.5) * 0.22,
     lean: 0,
     riser: 0,
@@ -793,17 +214,12 @@ function layoutFeatured(
 
   // Pass 2 — the joints, and the pose changes that only make sense as a pair.
   const nj = n - 1;
-  const fronts = n >= 4 ? 1 + (n >= 7 ? 1 : 0) : 0;
   const leans = n >= 2 ? 1 + (n >= 6 ? 1 : 0) : 0;
-  const gaps =
-    n >= 3 ? Math.max(1, Math.round((nj - fronts - leans) * 0.55)) : 0;
+  const gaps = n >= 3 ? Math.max(1, Math.round((nj - leans) * 0.55)) : 0;
   const bag: Joint[] = [
-    ...(Array(fronts).fill("front") as Joint[]),
     ...(Array(leans).fill("lean") as Joint[]),
     ...(Array(gaps).fill("gap") as Joint[]),
-    ...(Array(Math.max(0, nj - fronts - leans - gaps)).fill(
-      "tight",
-    ) as Joint[]),
+    ...(Array(Math.max(0, nj - leans - gaps)).fill("tight") as Joint[]),
   ];
   const joint: Joint[] = [];
   Array.from({ length: nj }, (_, k) => k + 1)
@@ -813,9 +229,7 @@ function layoutFeatured(
     });
 
   for (let i = 1; i < n; i++) {
-    if (joint[i] === "front") {
-      pose[i]!.dz += 0.085;
-    } else if (joint[i] === "lean") {
+    if (joint[i] === "lean") {
       const theta = 0.11 + rand(i, salt + 6) * 0.07;
       // A book only leans where there is something to lean ON, so which of the
       // pair tips is decided here, with the joint, and never by the book on its
@@ -825,10 +239,8 @@ function layoutFeatured(
       // reach, keeps what it has: a double lean is a domino, not a shelf.
       if (rand(i, salt + 5) > 0.5 || pose[i - 1]!.lean !== 0) {
         pose[i]!.lean = theta;
-      } else if (joint[i - 1] !== "front") {
-        pose[i - 1]!.lean = -theta;
       } else {
-        pose[i]!.lean = theta;
+        pose[i - 1]!.lean = -theta;
       }
       // Leaners share a depth with what they are leaning on. Two books at
       // different z cannot touch, and a lean into thin air reads as falling.
@@ -847,84 +259,34 @@ function layoutFeatured(
     pose[i]!.ext = coverExtent(pose[i]!.s, pose[i]!.lean);
   }
 
-  // Pass 4 — pitches, then fit. `snug` is the pitch at which the pair touches;
-  // every joint is quoted as a departure from it so the arithmetic is the same
-  // whatever the two books happen to be.
-  const snug = (i: number) => pose[i - 1]!.ext + pose[i]!.ext;
-  const pitch: number[] = [];
-  for (let i = 1; i < n; i++) {
-    pitch[i] =
-      joint[i] === "front"
-        ? snug(i) - 0.02
-        : joint[i] === "lean"
-          ? snug(i) + 0.004
-          : joint[i] === "tight"
-            ? snug(i) + 0.02
-            : snug(i) + 0.12 + rand(i, salt + 7) * 0.14;
-  }
-
-  const available = EDGE_R - edgeL;
-  const total = () =>
-    pose[0]!.ext + pose[n - 1]!.ext + pitch.reduce((a, b) => a + (b ?? 0), 0);
-
-  // Overflow, in the order that costs the composition least: close the gaps
-  // first, and only then squeeze everything. A ninth and tenth tick land in
-  // the gaps; an eleventh starts pushing books together. Nothing here can drop
-  // a book — the list is the owner's checkbox and every tick has to appear.
-  let span = total();
-  if (span > available) {
-    const slack = pitch.reduce(
-      (a, p, i) => a + (joint[i] === "gap" ? p - snug(i) - 0.02 : 0),
-      0,
-    );
-    const k = slack > 0 ? Math.max(0, 1 - (span - available) / slack) : 0;
-    for (let i = 1; i < n; i++) {
-      if (joint[i] === "gap") {
-        pitch[i] = snug(i) + 0.02 + (pitch[i]! - snug(i) - 0.02) * k;
-      }
-    }
-    span = total();
-  }
-  if (span > available) {
-    const room = available - pose[0]!.ext - pose[n - 1]!.ext;
-    const sum = pitch.reduce((a, b) => a + (b ?? 0), 0);
-    const k = sum > 0 ? Math.max(0.45, room / sum) : 1;
-    for (let i = 1; i < n; i++) pitch[i] = pitch[i]! * k;
-    span = total();
-  }
-
-  // Use most of the remaining plank as irregular breathing room. This matters
-  // most for the three-book lower rank: leaving all of its spare at the right
-  // made the eight featured covers look like a dense 5-up row over a small
-  // 3-up grid. Weighted joints preserve clusters while letting both ranks use
-  // the width of the narrower v8 shelves.
-  let spare = Math.max(0, available - span);
-  if (n > 1 && spare > 0) {
-    const spread = spare * 0.78;
-    const weights = Array.from(
-      { length: n - 1 },
-      (_, i) => 0.65 + rand(i + 1, salt + 9) * 0.7,
-    );
-    const weightTotal = weights.reduce((sum, weight) => sum + weight, 0);
-    for (let i = 1; i < n; i++) {
-      pitch[i] = pitch[i]! + spread * (weights[i - 1]! / weightTotal);
-    }
-    span += spread;
-    spare = Math.max(0, available - span);
-  }
-
-  // Split the small remainder asymmetrically so the two rows never share the
-  // same starting vertical.
-  let x = edgeL + pose[0]!.ext + spare * (0.25 + rand(0, salt + 8) * 0.35);
+  // Pass 4 — solve against physical half-extents. The placer has a hard 4.5cm
+  // air-gap invariant: it can vary the rhythm, but it is not allowed to gain
+  // space by compressing below tangency or stepping one cover through another.
+  const placed = layoutShelfRow(
+    pose.map((p, index) => ({ index, halfWidth: p.ext })),
+    { left: edgeL, right: EDGE_R },
+    {
+      minGap: 0.045,
+      minGaps: Array.from({ length: n - 1 }, (_, index) =>
+        joint[index + 1] === "lean" ? 0.004 : 0.045,
+      ),
+      gapWeights: Array.from({ length: n - 1 }, (_, index) => {
+        const kind = joint[index + 1];
+        const variation = 0.85 + rand(index + 1, salt + 9) * 0.3;
+        return (kind === "gap" ? 2.2 : kind === "lean" ? 0.01 : 1) * variation;
+      }),
+    },
+  );
   return slice.map((cover, i) => {
-    if (i > 0) x += pitch[i]!;
     const p = pose[i]!;
     return {
       kind: "cover" as const,
-      x,
+      x: placed[i]!.x,
       url: cover.url,
       key: cover.key,
+      label: cover.label,
       color: cover.color,
+      thickness: cover.thickness,
       s: p.s,
       yaw: p.yaw,
       lean: p.lean,
@@ -964,10 +326,10 @@ export default function UnitBooks({
    * `shelfBooks`, so their covers are pre-decoded by Scene's warming pass and
    * clickable through the same `onOpenBook` the row has always used.
    *
-   * NOTHING here hard-codes eight. It is a checkbox list: a ninth tick has to
-   * appear on the shelf and an untick has to close the gap, so the layout reads
-   * `featured.length` and sizes itself. An EMPTY list — which is what runtime
-   * gives until the pending Postgres migration lands — renders no front row at
+   * The checkbox list can grow beyond the measured eight-cover physical rank.
+   * The scene keeps the newest two rows and the complete collection remains in
+   * the DOM library; a content edit can never crash the canvas. An EMPTY list
+   * renders no front row at
    * all and leaves two full packed rows of spines behind it. That is a shelf,
    * not a hole; do not "fix" the emptiness.
    *
@@ -986,8 +348,13 @@ export default function UnitBooks({
           return {
             url: book.coverUrl!,
             key: book.id,
+            label: book.title,
             color: readingBookMaterialColors(sampled.edge, palette.pages, dark)
               .cover,
+            thickness: featuredBookThickness(
+              book.pageCount,
+              book.audioLengthMin,
+            ),
           };
         }),
     [dark, data.featuredBookColors, data.featuredBooks, palette.pages],
@@ -1021,21 +388,15 @@ export default function UnitBooks({
    * `layoutFeatured` above owns it; the only thing decided here is how many
    * books each shelf gets.
    *
-   * The split is 60/40 rather than half and half, capped at what a shelf can
-   * hold. An even split is the arrangement that lets a reader pair every book
-   * with the one above it, which is most of what "grid" means; 5 and 3 has no
-   * such pairing. Both rows still size themselves off `featured.length`, so a
-   * ninth tick lands on the lower shelf, an untick closes the gap, and an
-   * empty list renders no front rank at all.
+   * Each row is capped at its measured four-cover capacity. Odd counts still
+   * split 4/3 rather than leaving a visual hole; an empty list renders no front
+   * rank at all.
    */
   const [topFeatured, lowerFeatured] = useMemo(() => {
-    const top = Math.min(
-      SHELF_CAP,
-      Math.max(1, Math.ceil(featured.length * TOP_SHARE)),
-    );
+    const rows = splitShelfRows(featured, SHELF_CAP);
     return [
-      layoutFeatured(featured.slice(0, top), 16, EDGE_L_TOP),
-      layoutFeatured(featured.slice(top), 41, EDGE_L_LOWER),
+      layoutFeatured(rows.top, 16, EDGE_L_TOP),
+      layoutFeatured(rows.lower, 41, EDGE_L_LOWER),
     ];
   }, [featured]);
 
@@ -1047,34 +408,13 @@ export default function UnitBooks({
   const topRow = useMemo(() => packRow(2.42, [], palette, 15), [palette]);
   const lowerRow = useMemo(() => packRow(2.28, [], palette, 40), [palette]);
 
-  // Replace one ordinary generated spine — don't layer a trigger in front of
-  // it. The selection is geometric rather than an array magic number so a
-  // future packing retune still picks a readable right-hand spine.
-  const occupiedTop = useMemo(
-    () =>
-      topFeatured.flatMap((item): Array<readonly [number, number]> => {
-        if (item.kind !== "cover") return [];
-        const extent = coverExtent(item.s ?? 1, item.lean ?? 0);
-        // The packed row is authored inside a -0.05 x-offset group below.
-        return [[item.x - extent + 0.05, item.x + extent + 0.05] as const];
-      }),
-    [topFeatured],
-  );
-  const secretIndex = pickSecretSpineIndex(topRow, EDGE_R + 0.05, occupiedTop);
-  const disabledSecretTopRow = useMemo(
-    () =>
-      topRow.map((item, itemIndex) =>
-        itemIndex === secretIndex && item.kind === "spine"
-          ? { ...item, color: "#35584e" }
-          : item,
-      ),
-    [secretIndex, topRow],
-  );
   const interactionInput = useMemo(
     () =>
       ({
         unitIndex: index,
-        expectedFeaturedIds: featured.map((book) => book.key),
+        expectedFeaturedIds: [...topFeatured, ...lowerFeatured].flatMap(
+          (book) => (book.kind === "cover" ? [book.key] : []),
+        ),
         rows: [
           {
             shelf: "top",
@@ -1092,7 +432,7 @@ export default function UnitBooks({
             shelf: "top",
             salt: 15,
             role: "packed",
-            items: disabledSecretTopRow,
+            items: topRow,
           },
           {
             shelf: "lower",
@@ -1102,20 +442,13 @@ export default function UnitBooks({
           },
         ],
       }) satisfies BookInteractionInput,
-    [
-      featured,
-      index,
-      disabledSecretTopRow,
-      lowerFeatured,
-      lowerRow,
-      topFeatured,
-    ],
+    [index, topRow, lowerFeatured, lowerRow, topFeatured],
   );
   const interactionInventory = useMemo(
     () => buildBookInteractions(interactionInput),
     [interactionInput],
   );
-  const doorPivot = useRef<THREE.Group>(null);
+  const bookcaseRoot = useRef<THREE.Group>(null);
 
   useEffect(() => {
     // Canvas markup cannot expose a semantic census. This dev hook mirrors the
@@ -1130,16 +463,12 @@ export default function UnitBooks({
       {process.env.NODE_ENV !== "production" && (
         <BookInteractionProbe
           index={index}
-          root={doorPivot}
+          root={bookcaseRoot}
           inventory={interactionInventory}
         />
       )}
-      <group
-        ref={doorPivot}
-        name="stacks-books-bookcase"
-        position={[SECRET_DOOR_HINGE_X, 0, 0]}
-      >
-        <group position={[SECRET_DOOR_CENTER_X, 0, 0]}>
+      <group ref={bookcaseRoot} name="stacks-books-bookcase">
+        <group>
           <ShelfUnit
             palette={palette}
             toneSeed={index}
@@ -1211,7 +540,7 @@ export default function UnitBooks({
             )}
             <group position={[-0.05, 0, 0]}>
               <BookRowMesh
-                items={disabledSecretTopRow}
+                items={topRow}
                 palette={palette}
                 salt={15}
                 textured={textured}

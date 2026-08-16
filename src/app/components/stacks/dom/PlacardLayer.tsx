@@ -8,7 +8,6 @@
 // nothing on it). Desktop panels mount on first visit and then stay resident,
 // so scroll/media state survives a return without front-loading unopened
 // sections; mobile renders the current section in one physical sheet.
-import { DeferredBookCarousel } from "../../DeferredBookCarousel";
 import { type StacksData, type StacksSlots, UNITS } from "../data";
 import { PHOTO_SOURCES } from "../photoSources";
 import {
@@ -27,8 +26,11 @@ import {
   BookOpenTextIcon,
   BooksIcon,
   CalendarBlankIcon,
+  CaretRightIcon,
   CaretUpIcon,
+  ClockCounterClockwiseIcon,
   ClockIcon,
+  TagIcon,
   XIcon,
 } from "@phosphor-icons/react";
 import {
@@ -38,6 +40,7 @@ import {
   useMotionValue,
   useReducedMotion,
 } from "framer-motion";
+import Image from "next/image";
 import Link from "next/link";
 import {
   useCallback,
@@ -48,15 +51,41 @@ import {
 } from "react";
 import licenses from "~~/models/LICENSES.json";
 
+import { getBookPath } from "~/lib/books/paths";
+import { getTagColor, getTagIcon } from "~/lib/books/tagColors";
+import type {
+  HomepageBookPlacard,
+  HomepageBookPreview,
+} from "~/lib/books/types";
 import { devSubdomainUrl } from "~/lib/util";
 
 import {
+  PlacardCardHeading,
+  PlacardLinkCard,
+  PlacardNestedLinkCard,
+  PlacardStatsCard,
+} from "./PlacardStatsCard";
+import {
+  ignoresFocusShortcut,
+  readFocusMode,
+  writeFocusMode,
+} from "./focusMode";
+import {
+  MOBILE_SHEET_WHEEL_COOLDOWN_MS,
+  type MobileSheetWheelIntentState,
+  accumulateMobileSheetWheelIntent,
   mobileSheetCameraCoverage,
   mobileSheetGeometry,
   mobileSheetMaterialOverscan,
   mobileSheetRestY,
   mobileSheetRubberBandY,
+  mobileSheetScrollIntent,
 } from "./mobileSheetGeometry";
+import {
+  formatLength,
+  formatReadDates,
+  formatSingleReadDate,
+} from "~/app/books/lib/format";
 
 /** Which edges of a scroll container have content past them. Mirrors the
  * AIC platform's pattern of only fading an edge that actually continues, so
@@ -73,7 +102,10 @@ function useScrollEdges(
   const [edges, setEdges] = useState({ top: false, bottom: false });
   useEffect(() => {
     const el = ref.current;
-    if (!el || !attached) return;
+    if (!el || !attached) {
+      setEdges({ top: false, bottom: false });
+      return;
+    }
     const update = () => {
       const { scrollTop, scrollHeight, clientHeight } = el;
       const top = scrollTop > 4;
@@ -105,6 +137,26 @@ function useScrollEdges(
 /** How far mobile sheet content dissolves at each scroll edge. */
 const FADE_PX = 34;
 
+/** Home/End belong to the section whose scroller owns focus, not the room
+ * behind it. Keeping this on the scroller also means nested links can use the
+ * keys without first moving focus to an otherwise invisible scroll box. */
+function handleSectionBoundaryKey(event: React.KeyboardEvent<HTMLDivElement>) {
+  if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+  if (event.key !== "Home" && event.key !== "End") return;
+  const target = event.target as HTMLElement;
+  if (
+    /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) ||
+    target.isContentEditable
+  )
+    return;
+  event.preventDefault();
+  event.stopPropagation();
+  event.currentTarget.scrollTo({
+    top: event.key === "Home" ? 0 : event.currentTarget.scrollHeight,
+    behavior: "auto",
+  });
+}
+
 /** Desktop placard. The containing panel is gone — a blurred panel holding
  * blurred cards was a box on a box (owner at browse) — so each content
  * block keeps its own single blurred surface and the headers sit directly
@@ -126,6 +178,7 @@ function Panel({
   children: React.ReactNode;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const edges = useScrollEdges(scrollRef, active && mounted);
   return (
     <div
       aria-hidden={!active}
@@ -146,6 +199,7 @@ function Panel({
       <div
         ref={scrollRef}
         data-stacks-scrollable
+        onKeyDown={handleSectionBoundaryKey}
         tabIndex={active ? 0 : -1}
         aria-label={`${label} section content`}
         // aria-hidden is duplicated from the wrapper on purpose: the input
@@ -178,6 +232,17 @@ function Panel({
           {mounted ? children : null}
         </div>
       </div>
+      {/* A sibling cue rather than a mask on the scroller: CSS masks create a
+          backdrop root, which would stop every glass card inside from
+          sampling the scene. The cue is present only while more content
+          remains and fades away at the document's actual bottom. */}
+      <div
+        aria-hidden
+        data-desktop-overflow-cue={edges.bottom ? "" : undefined}
+        className={`pointer-events-none absolute inset-x-8 bottom-0 h-7 bg-gradient-to-t from-black/[0.14] via-black/[0.05] to-transparent transition-opacity duration-200 motion-reduce:transition-none dark:from-black/35 dark:via-black/10 ${
+          edges.bottom ? "opacity-100" : "opacity-0"
+        }`}
+      />
     </div>
   );
 }
@@ -208,28 +273,78 @@ function useStacksReducedMotion() {
   return Boolean(framerReduced) || mediaReduced;
 }
 
+/** Mount the current document immediately, warm only its immediate neighbors
+ * when the main thread is idle, and retain everything already prepared. This
+ * keeps a one-step section change warm without decoding covers, charts and
+ * media for all seven placards during the scene's critical boot path. */
+function usePreparedUnitSet(activeUnit: number) {
+  const [prepared, setPrepared] = useState<Set<number>>(
+    () => new Set([activeUnit]),
+  );
+
+  useEffect(() => {
+    setPrepared((current) => {
+      if (current.has(activeUnit)) return current;
+      const next = new Set(current);
+      next.add(activeUnit);
+      return next;
+    });
+
+    const adjacent = [activeUnit - 1, activeUnit + 1].filter(
+      (index) => index >= 0 && index < UNITS.length,
+    );
+    const prepareAdjacent = () => {
+      setPrepared((current) => {
+        if (adjacent.every((index) => current.has(index))) return current;
+        const next = new Set(current);
+        for (const index of adjacent) next.add(index);
+        return next;
+      });
+    };
+
+    const idleWindow = window as typeof window & {
+      requestIdleCallback?: (
+        callback: () => void,
+        options?: { timeout: number },
+      ) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    if (idleWindow.requestIdleCallback) {
+      const id = idleWindow.requestIdleCallback(prepareAdjacent, {
+        timeout: 600,
+      });
+      return () => idleWindow.cancelIdleCallback?.(id);
+    }
+    const id = window.setTimeout(prepareAdjacent, 160);
+    return () => window.clearTimeout(id);
+  }, [activeUnit]);
+
+  return prepared;
+}
+
 /** The desktop document changes in the same direction as the horizontal
  * room. Once visited, a document stays mounted: scrollTop, decoded media,
  * and focus registration survive a trip away and back. An
  * inactive document rests twelve pixels on the side of the active
  * one where it lives in the room; changing activeUnit naturally sends the
  * outgoing panel the opposite way while drawing the incoming one from its
- * travel direction. */
+ * travel direction. The wrapper moves but never fades: opacity is inherited
+ * by descendants, so putting it here would turn this into a Backdrop Root and
+ * cut every card off from the scene it needs to blur. */
 function DesktopPanel({
   activeUnit,
   modalOpen,
+  detailsHidden,
   bodies,
+  preparedUnits,
 }: {
   activeUnit: number;
   modalOpen: boolean;
+  detailsHidden: boolean;
   bodies: Record<(typeof UNITS)[number]["slug"], React.ReactNode>;
+  preparedUnits: ReadonlySet<number>;
 }) {
   const reduceMotion = useStacksReducedMotion();
-  // First activation mounts a document; every later visit reuses it. This
-  // retains scroll and decoded media without loading all unopened sections
-  // during the WebGL boot.
-  const visitedRef = useRef(new Set<number>([activeUnit]));
-  visitedRef.current.add(activeUnit);
   const previousRef = useRef(activeUnit);
   const direction: 1 | -1 =
     activeUnit === previousRef.current || activeUnit > previousRef.current
@@ -242,7 +357,7 @@ function DesktopPanel({
   return (
     <>
       {UNITS.map((unit, index) => {
-        const active = index === activeUnit && !modalOpen;
+        const active = index === activeUnit && !modalOpen && !detailsHidden;
         const side = index < activeUnit ? -1 : index > activeUnit ? 1 : 0;
         const duration = active ? SWAP_IN_MS : SWAP_OUT_MS;
         const delay = active ? SWAP_OUT_MS : 0;
@@ -253,20 +368,31 @@ function DesktopPanel({
             data-stacks-active={active || undefined}
             data-swap-direction={direction > 0 ? "next" : "previous"}
             className="absolute inset-0"
-            style={{
-              opacity: active ? 1 : 0,
-              transform: `translateX(${reduceMotion || active ? 0 : side * SWAP_DISTANCE_PX}px)`,
-              transitionProperty: "opacity, transform",
-              transitionDuration: reduceMotion ? "0ms" : `${duration}ms`,
-              transitionDelay: reduceMotion ? "0ms" : `${delay}ms`,
-              transitionTimingFunction: active
-                ? "cubic-bezier(0.16, 1, 0.3, 1)"
-                : "ease-out",
-            }}
+            style={
+              {
+                "--stacks-panel-opacity": active ? 1 : 0,
+                "--stacks-panel-fade-duration": reduceMotion
+                  ? "0ms"
+                  : `${duration}ms`,
+                "--stacks-panel-fade-delay": reduceMotion
+                  ? "0ms"
+                  : `${delay}ms`,
+                "--stacks-panel-fade-easing": active
+                  ? "cubic-bezier(0.16, 1, 0.3, 1)"
+                  : "ease-out",
+                transform: `translateX(${reduceMotion || active ? 0 : side * SWAP_DISTANCE_PX}px)`,
+                transitionProperty: "transform",
+                transitionDuration: reduceMotion ? "0ms" : `${duration}ms`,
+                transitionDelay: reduceMotion ? "0ms" : `${delay}ms`,
+                transitionTimingFunction: active
+                  ? "cubic-bezier(0.16, 1, 0.3, 1)"
+                  : "ease-out",
+              } as React.CSSProperties
+            }
           >
             <Panel
               active={active}
-              mounted={visitedRef.current.has(index)}
+              mounted={index === activeUnit || preparedUnits.has(index)}
               label={unit.label}
             >
               {bodies[unit.slug]}
@@ -296,32 +422,6 @@ function PlacardCard({ children }: { children: React.ReactNode }) {
   );
 }
 
-function StatBlock({
-  value,
-  label,
-  icon,
-  mobile = true,
-}: {
-  value: string;
-  label: string;
-  icon: React.ReactNode;
-  mobile?: boolean;
-}) {
-  return (
-    <div
-      className={`${mobile ? "flex" : "hidden sm:flex"} flex-col items-center gap-0.5`}
-    >
-      <span className="text-2xl font-semibold text-foreground sm:text-3xl">
-        {value}
-      </span>
-      <span className="flex items-center gap-1 text-xs text-muted-foreground sm:text-sm [&>svg]:size-3.5 sm:[&>svg]:size-4">
-        {icon}
-        {label}
-      </span>
-    </div>
-  );
-}
-
 /** The CC-BY authors owed a credit, read out of the roster the model
  * pipeline generates rather than typed here — scripts/stacks-models.mjs
  * writes public/models/LICENSES.json, and a prop the owner picks tomorrow
@@ -344,47 +444,249 @@ function booksHref() {
     : devSubdomainUrl("books");
 }
 
-/** Library placard — the numbers, then the marquee of covers carried over
- * from the previous home page. The card is a door: the whole surface is one
- * link to the library, so there is nothing left to instruct the reader about
- * and the two lines of instructions that used to sit here are gone.
- *
- * The carousel comes in through DeferredBookCarousel, which keeps
- * BookCarousel (framer springs, Radix tooltips, next/image per cover) in its
- * own dynamic chunk — this placard is in the main bundle. */
+function bookNotesHref(bookId: string) {
+  return `${booksHref()}${getBookPath(bookId)}`;
+}
+
+function subjectBooksHref(subject: string) {
+  const query = new URLSearchParams({ tags: subject });
+  return `${booksHref()}/?${query.toString()}`;
+}
+
+function formatStat(value: number | null, suffix = "") {
+  return value === null ? "—" : `${value.toFixed(1)}${suffix}`;
+}
+
+function BookStatsCard({ data }: { data: HomepageBookPlacard }) {
+  const { stats } = data;
+  return (
+    <PlacardStatsCard
+      headline={stats.total.toLocaleString()}
+      headlineIcon={BookOpenIcon}
+      headlineLabel={`Books since ${stats.trackedSince ?? "the beginning"}`}
+      years={data.yearly.map((year) => ({
+        year: year.year,
+        value: year.books,
+        projectedRemainder: year.projectedRemainder,
+      }))}
+      yearUnit="books"
+      stats={[
+        {
+          icon: CalendarBlankIcon,
+          label: "Per year",
+          value: formatStat(stats.perYear),
+        },
+        {
+          icon: ClockIcon,
+          label: "Average read",
+          value: formatStat(stats.avgDays, "d"),
+        },
+        {
+          icon: BookOpenTextIcon,
+          label: "Pages / day",
+          value: formatStat(stats.pagesPerDay),
+        },
+      ]}
+    />
+  );
+}
+
+const SUBJECT_PLACEMENTS = [
+  "book-subject-feature",
+  "book-subject-feature",
+  "book-subject-standard",
+  "book-subject-standard",
+  "book-subject-standard",
+  "book-subject-compact",
+  "book-subject-compact",
+  "book-subject-compact",
+] as const;
+
+function BookSubjectLandscape({
+  subjects,
+}: {
+  subjects: HomepageBookPlacard["subjects"];
+}) {
+  return (
+    <div className="book-subjects-container">
+      <div className="book-subjects-grid">
+        {subjects.map((subject, index) => {
+          const colors = getTagColor(subject.name);
+          const Icon = getTagIcon(subject.name);
+          const compact = index >= 5;
+          return (
+            <Link
+              key={subject.name}
+              href={subjectBooksHref(subject.name)}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Browse ${subject.name} books`}
+              className={`${SUBJECT_PLACEMENTS[index] ?? "book-subject-standard"} flex min-w-0 overflow-hidden rounded-xl border text-left transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45 ${compact ? "p-2" : "p-3"}`}
+              style={{
+                backgroundColor: `color-mix(in srgb, ${colors.fg} 14%, transparent)`,
+                borderColor: `color-mix(in srgb, ${colors.fg} 32%, transparent)`,
+                boxShadow: `inset 0 1px 0 rgb(255 255 255 / 0.38), inset 0 -1px 0 color-mix(in srgb, ${colors.fg} 10%, transparent), 0 7px 16px -12px rgb(0 0 0 / 0.34)`,
+                backdropFilter: "blur(18px) saturate(1.25)",
+                WebkitBackdropFilter: "blur(18px) saturate(1.25)",
+                color: "hsl(var(--foreground))",
+              }}
+            >
+              <div className="flex min-w-0 items-start gap-2">
+                <Icon
+                  className="size-4 shrink-0"
+                  weight="duotone"
+                  style={{ color: colors.fg }}
+                />
+                <div className="min-w-0">
+                  <span className="line-clamp-2 font-serif text-xs font-medium leading-[1.15]">
+                    {subject.name}
+                  </span>
+                  <span
+                    className="mt-1 block text-[9px] font-medium uppercase leading-none tracking-[0.08em] opacity-60"
+                    style={{ color: colors.fg }}
+                  >
+                    {subject.count} books
+                  </span>
+                </div>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function BookStars({ rating }: { rating: number }) {
+  return (
+    <span aria-label={`${rating} out of 5 stars`} className="tracking-[0.08em]">
+      <span aria-hidden>{"★".repeat(rating)}</span>
+      <span aria-hidden className="text-foreground/15">
+        {"★".repeat(5 - rating)}
+      </span>
+    </span>
+  );
+}
+
+function BookPreviewRow({ book }: { book: HomepageBookPreview }) {
+  const dates = book.finished
+    ? (formatReadDates(book.started, book.finished) ??
+      formatSingleReadDate(book.finished))
+    : book.started
+      ? `Started ${formatSingleReadDate(book.started)}`
+      : null;
+  const length = formatLength(book.audioLengthMin, book.pageCount);
+  return (
+    <Link
+      href={bookNotesHref(book.id)}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={`Read notes for ${book.title} by ${book.author}`}
+      className="book-preview-row grid grid-cols-[76px_1fr] gap-4 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent"
+    >
+      <div className="book-preview-cover relative aspect-[2/3] overflow-hidden rounded-[4px] bg-foreground/5">
+        {book.coverUrl ? (
+          <Image
+            src={book.coverUrl}
+            alt=""
+            fill
+            sizes="76px"
+            className="object-cover"
+          />
+        ) : (
+          <div className="flex size-full items-center justify-center bg-gradient-to-br from-muted to-muted-foreground/10 p-1 text-center">
+            <span className="line-clamp-3 text-[8px] font-semibold leading-tight text-muted-foreground">
+              {book.title}
+            </span>
+          </div>
+        )}
+      </div>
+      <div className="min-w-0 self-center">
+        <p className="book-preview-title line-clamp-1 font-serif text-[17px] font-medium leading-[1.2] text-foreground">
+          {book.title}
+        </p>
+        <p className="mt-0.5 truncate text-xs leading-tight text-muted-foreground">
+          {book.author}
+        </p>
+        {book.rating !== null ? (
+          <div className="mt-1.5 text-[11px] leading-tight text-muted-foreground">
+            <BookStars rating={book.rating} />
+          </div>
+        ) : null}
+        {length ? (
+          <p className="mt-1 text-[11px] leading-tight text-muted-foreground/70">
+            {length}
+          </p>
+        ) : null}
+        {dates ? (
+          <p className="mt-1 line-clamp-2 text-[11px] leading-tight text-muted-foreground/50">
+            {dates}
+          </p>
+        ) : null}
+      </div>
+    </Link>
+  );
+}
+
+function BookLedger({ books }: { books: HomepageBookPreview[] }) {
+  return (
+    <div className="book-ledger-container">
+      <div className="book-ledger-grid">
+        {books.map((book) => (
+          <BookPreviewRow key={book.id} book={book} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Three peer surfaces: analytics first, the active reading ledger second,
+ * then the subject map as a broader view of the library. The animated shelf
+ * remains on the flat fallback; the 3D home uses its added vertical room for
+ * information instead of repeating the shelf. */
 function BooksPlacard({ data }: { data: StacksData }) {
-  const { bookStats, covers } = data;
+  const href = booksHref();
+  const { bookPlacard } = data;
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-around gap-1">
-        <StatBlock
-          value={bookStats.total.toString()}
-          label="Books"
-          icon={<BookOpenIcon className="size-3.5" weight="bold" />}
-        />
-        <StatBlock
-          value={bookStats.perYear?.toFixed(1) ?? "—"}
-          label="Per Year"
-          icon={<CalendarBlankIcon className="size-3.5" weight="bold" />}
-          mobile={false}
-        />
-        <StatBlock
-          value={bookStats.avgDays ? `${bookStats.avgDays.toFixed(1)}d` : "—"}
-          label="Avg Read"
-          icon={<ClockIcon className="size-3.5" weight="bold" />}
-        />
-        <StatBlock
-          value={bookStats.pagesPerDay?.toFixed(1) ?? "—"}
-          label="Pages / Day"
-          icon={<BookOpenTextIcon className="size-3.5" weight="bold" />}
-          mobile={false}
-        />
-      </div>
-      {/* Negative insets so the marquee runs to the card's edges and its
-          side mask fades against the frame rather than inside a gutter. */}
-      <div className="-mx-5 -mb-1 overflow-hidden min-[1200px]:-mx-6">
-        <DeferredBookCarousel books={covers} />
-      </div>
+      <PlacardLinkCard
+        href={href}
+        label="Browse Book Notes reading stats"
+        newTab
+      >
+        <BookStatsCard data={bookPlacard} />
+      </PlacardLinkCard>
+      <PlacardNestedLinkCard href={href} label="Browse all Book Notes" newTab>
+        {bookPlacard.current.length > 0 ? (
+          <>
+            <PlacardCardHeading icon={BookOpenTextIcon}>
+              Currently reading
+            </PlacardCardHeading>
+            <BookLedger books={bookPlacard.current} />
+            <PlacardCardHeading
+              icon={ClockCounterClockwiseIcon}
+              className="mt-8"
+            >
+              Recently read
+            </PlacardCardHeading>
+          </>
+        ) : (
+          <PlacardCardHeading icon={ClockCounterClockwiseIcon}>
+            Recently read
+          </PlacardCardHeading>
+        )}
+        <BookLedger books={bookPlacard.recent} />
+      </PlacardNestedLinkCard>
+      <PlacardNestedLinkCard
+        href={href}
+        label="Browse the Book Notes subject library"
+        newTab
+      >
+        <PlacardCardHeading icon={TagIcon}>
+          Library by subject
+        </PlacardCardHeading>
+        <BookSubjectLandscape subjects={bookPlacard.subjects} />
+      </PlacardNestedLinkCard>
     </div>
   );
 }
@@ -571,14 +873,12 @@ function MobileUnitPanel({
   body,
   unitIndex,
   active,
-  secretActive,
   dismissed,
   setDismissed,
 }: {
   body: React.ReactNode;
   unitIndex: number;
   active: boolean;
-  secretActive: boolean;
   dismissed: boolean;
   setDismissed: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
@@ -607,6 +907,10 @@ function MobileUnitPanel({
   const panelRef = useRef<HTMLDivElement>(null);
   const contentFrameRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const headerButtonRef = useRef<HTMLButtonElement>(null);
+  const chipRef = useRef<HTMLButtonElement>(null);
+  const focusChipOnRevealRef = useRef(false);
+  const wheelDetentLockRef = useRef(0);
   // Mobile keeps one translucent material surface to make text readable over
   // the rendered room. Inner cards retain their contrasting fills but not a
   // second backdrop blur, and the sheet owns the scroll-edge dissolve.
@@ -706,33 +1010,37 @@ function MobileUnitPanel({
   // happened to hide the bug below the fold.
   const sheetOpacity = useMotionValue(1);
   const [sheetParked, setSheetParked] = useState(false);
+  const [sheetDragging, setSheetDragging] = useState(false);
   const sheetParkedRef = useRef(false);
-  const parkSheet = useCallback((parked: boolean) => {
-    sheetParkedRef.current = parked;
-    setSheetParked(parked);
+  const parkSheet = useCallback(
+    (parked: boolean) => {
+      sheetParkedRef.current = parked;
+      setSheetParked(parked);
 
-    const panel = panelRef.current;
-    panel?.toggleAttribute("data-sheet-parked", parked);
-    panel?.classList.toggle("invisible", parked);
-    panel?.classList.toggle("visible", !parked);
+      const panel = panelRef.current;
+      panel?.toggleAttribute("data-sheet-parked", parked);
+      panel?.classList.toggle("invisible", parked);
+      panel?.classList.toggle("visible", !parked);
 
-    // Every resident reacts to the shared detent, but only the active one may
-    // paint glass. Re-showing all seven here stacks seven translucent fills
-    // into an opaque white slab and can expose a tall inactive shell above a
-    // short active sheet.
-    const material = materialRef.current;
-    const materialHidden = parked || !active;
-    material?.toggleAttribute("data-sheet-parked", parked);
-    material?.classList.toggle("invisible", materialHidden);
-    material?.classList.toggle("visible", !materialHidden);
-  }, [active]);
+      // Every resident reacts to the shared detent, but only the active one may
+      // paint glass. Re-showing all seven here stacks seven translucent fills
+      // into an opaque white slab and can expose a tall inactive shell above a
+      // short active sheet.
+      const material = materialRef.current;
+      const materialHidden = parked || !active;
+      material?.toggleAttribute("data-sheet-parked", parked);
+      material?.classList.toggle("invisible", materialHidden);
+      material?.classList.toggle("visible", !materialHidden);
+    },
+    [active],
+  );
   // A book modal takes the viewport, so the sheet gets out of its way rather
   // than sitting behind it at z-40. The hidden reading room does the same:
   // its reveal is a whole-bay scene change, and leaving the Book Notes sheet
   // over it made the finished room look like background decoration. Unlike a
   // user dismissal, this temporary hide does not leave a chip behind; closing
   // the case restores the exact sheet detent the visitor had before.
-  const hidden = dismissed || modalOpen || secretActive;
+  const hidden = dismissed || modalOpen;
   const interactive = active && !hidden;
   // The collapsed chip is resident for the same reason as the sheet. Framer's
   // declarative entrance briefly reapplied its `initial` opacity on the render
@@ -745,7 +1053,7 @@ function MobileUnitPanel({
   // Exactly one resident may own the chip: the active one. The DISMISSED
   // detent itself is shared above the residents, because it is a viewing
   // preference: section travel changes the chip's content, not its pose.
-  const chipActive = active && hidden && !modalOpen && !secretActive;
+  const chipActive = active && hidden && !modalOpen;
   useEffect(() => {
     // A section change is not a chip dismissal. The outgoing resident must
     // relinquish the single mobile chip slot synchronously, otherwise its
@@ -774,6 +1082,10 @@ function MobileUnitPanel({
         delay: reduceMotion ? 0 : 0.12,
         ease: [0.16, 1, 0.3, 1],
       });
+      if (focusChipOnRevealRef.current) {
+        focusChipOnRevealRef.current = false;
+        requestAnimationFrame(() => chipRef.current?.focus());
+      }
       return () => {
         fade.stop();
         travel.stop();
@@ -793,12 +1105,7 @@ function MobileUnitPanel({
       travel.stop();
     };
   }, [active, chipActive, chipOpacity, chipVisibility, chipY, reduceMotion]);
-  const pose =
-    expanded && !modalOpen && !secretActive
-      ? "expanded"
-      : hidden
-        ? "hidden"
-        : "peek";
+  const pose = expanded && !modalOpen ? "expanded" : hidden ? "hidden" : "peek";
   const restY = mobileSheetRestY(pose, renderedHeight, peek);
   const restRef = useRef(restY);
   restRef.current = restY;
@@ -854,7 +1161,6 @@ function MobileUnitPanel({
     parkSheet,
     pose,
     reduceMotion,
-    secretActive,
     settle,
     sheetOpacity,
     y,
@@ -990,6 +1296,9 @@ function MobileUnitPanel({
     if (useStacks.getState().panelState === "closed") settle();
   }, [setDismissed, settle]);
   const dismiss = useCallback(() => {
+    focusChipOnRevealRef.current = Boolean(
+      panelRef.current?.contains(document.activeElement),
+    );
     setDismissed(true);
     closeStacksPanel(); // no-op unless we are leaving expanded
   }, [setDismissed]);
@@ -1000,6 +1309,7 @@ function MobileUnitPanel({
     parkSheet(false);
     sheetOpacity.set(1);
     setDismissed(false);
+    requestAnimationFrame(() => headerButtonRef.current?.focus());
   }, [parkSheet, setDismissed, sheetOpacity]);
 
   // ONE title per sheet, and it is the unit's own name.
@@ -1008,12 +1318,9 @@ function MobileUnitPanel({
   // only when it says the same thing. This used to HOIST that heading into
   // the header instead, because the labels and the sections disagreed —
   // "Training" over a body that said "Weightlifting" — but the labels now
-  // come from the sections' own markup, so there is nothing left to reconcile
-  // and hoisting only does damage: Systems is a container of three sections
-  // (Personal Operating Manual, Core Daily Routine, quotes), so hoisting its
-  // FIRST heading titled the whole sheet after a third of its contents AND
-  // hid that sub-section's name, leaving the rail and the sheet disagreeing —
-  // the exact complaint the labels were changed to fix.
+  // come from the sections' own markup, so there is nothing left to reconcile.
+  // Systems now follows that same contract: its shared h1 matches the
+  // rail/sheet label, while its two card h2s retain their own destination names.
   //
   // Matching rather than hoisting degrades correctly: a body whose heading
   // matches loses the duplicate, a body with no heading (About) keeps the
@@ -1027,6 +1334,7 @@ function MobileUnitPanel({
   const bodyRepeatsTitle =
     shownSlug === "books" ||
     shownSlug === "training" ||
+    shownSlug === "systems" ||
     shownSlug === "talks" ||
     shownSlug === "projects" ||
     shownSlug === "blog";
@@ -1046,11 +1354,10 @@ function MobileUnitPanel({
       for (const h of el.querySelectorAll(".placard-section-heading, h1, h2")) {
         const duplicate = dup && h === first;
         h.toggleAttribute("data-dup-title", duplicate);
-        // Systems is a container whose Manual/Routine headings must remain
-        // visible below the sheet's h2. Their shared flat-page components
-        // correctly author h1, so override only this mobile copy's a11y level
-        // rather than weakening the document-page outline.
-        if (h.tagName === "H1" && !duplicate) {
+        // Card titles are h2 beneath Systems' h1 on the flat page.
+        // In the mobile sheet its own h2 replaces that h1, so expose the card
+        // titles as level-three headings without weakening the flat outline.
+        if ((h.tagName === "H1" || h.tagName === "H2") && !duplicate) {
           h.setAttribute("role", "heading");
           h.setAttribute("aria-level", "3");
           h.setAttribute("data-sheet-subheading", "");
@@ -1104,8 +1411,15 @@ function MobileUnitPanel({
       }
       return bottom - top;
     };
-    const update = () =>
-      setPeekOverflows(contentOf() > peek - sheetHeaderPx + 4);
+    const update = () => {
+      // The scroller's pt-3 is inside the peek window, so it consumes visible
+      // height before the first content pixel. Ignoring it let marginally
+      // clipped placards report that they fit, suppressing both the dissolve
+      // and every gesture path that relies on `peekOverflows`.
+      const paddingTop = Number.parseFloat(getComputedStyle(el).paddingTop);
+      const available = peek - sheetHeaderPx - paddingTop;
+      setPeekOverflows(contentOf() > available + 4);
+    };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
@@ -1159,6 +1473,7 @@ function MobileUnitPanel({
     // 6px before the drag arms, and asking where it is now rather than where
     // it began hands an expanded-sheet gesture down the wrong branch.
     let startInScroller = false;
+    let startScrollerAtTop = false;
 
     /** Set the frame the gesture is measured against. */
     const begin = (clientY: number, ts: number, target: EventTarget | null) => {
@@ -1170,9 +1485,16 @@ function MobileUnitPanel({
       base = y.get();
       // Resolved once, at the start: whether the scroller is at its top is a
       // property of the gesture's origin, not of the frame it is asked in.
-      startInScroller =
-        target instanceof Element &&
-        !!target.closest("[data-stacks-scrollable]");
+      const scroller =
+        target instanceof Element
+          ? target.closest("[data-stacks-scrollable]")
+          : null;
+      startInScroller = !!scroller;
+      // Allow one physical pixel for fractional offsets and Safari's elastic
+      // scroll bookkeeping. This is captured at gesture start so reaching the
+      // top at the tail of an upward flick never transfers ownership mid-drag.
+      startScrollerAtTop =
+        scroller instanceof HTMLElement && scroller.scrollTop <= 1;
     };
     /** Track the pointer 1:1. Returns whether the sheet took the gesture, so
      * the caller can suppress whatever the platform would otherwise do with
@@ -1181,13 +1503,14 @@ function MobileUnitPanel({
       const dy = clientY - startY;
       if (owned === null) {
         if (Math.abs(dy) < DRAG_ARM_PX) return false;
-        // Peek has no scroller to compete with. Expanded content always stays
-        // native—even a downward pull from scrollTop 0—so iOS/macOS can render
-        // their normal elastic overscroll. The grabber and header remain sheet
-        // drag handles because gestures beginning there are outside scroller.
-        owned = !expanded || !startInScroller;
+        // Peek has no scroller to compete with. Expanded content remains
+        // native except for a downward pull that began at its top boundary;
+        // that familiar overscroll gesture collapses the sheet instead of
+        // stretching a document that has nowhere left to go.
+        owned = !expanded || !startInScroller || (startScrollerAtTop && dy > 0);
       }
       if (!owned) return false;
+      setSheetDragging(true);
       // 6ms is under one frame at 120Hz, so a real touch stream still samples
       // on every move while a same-tick burst samples on none of them.
       if (ts - sampleT >= VELOCITY_SAMPLE_MS) {
@@ -1204,6 +1527,7 @@ function MobileUnitPanel({
     };
     /** Snap to whichever detent the throw asked for. */
     const end = (ts: number) => {
+      setSheetDragging(false);
       if (!owned) {
         owned = null;
         return false;
@@ -1259,6 +1583,47 @@ function MobileUnitPanel({
     const onTouchCancel = () => {
       if (owned) settle();
       owned = null;
+      setSheetDragging(false);
+    };
+
+    // Trackpad and wheel input use the same content-boundary contract as
+    // touch: scroll deeper from peek to expand, or scroll above the top of an
+    // expanded document to collapse. ScrollBridges deliberately lets events
+    // from the mobile panel reach this listener instead of moving the world.
+    let wheelIntentState: MobileSheetWheelIntentState | null = null;
+    const onWheel = (event: WheelEvent) => {
+      const scroller = scrollRef.current;
+      const target = event.target;
+      if (!scroller || !(target instanceof Node) || !scroller.contains(target))
+        return;
+      const deltaY =
+        event.deltaMode === WheelEvent.DOM_DELTA_LINE
+          ? event.deltaY * 32
+          : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+            ? event.deltaY * metrics.vh
+            : event.deltaY;
+      const intent = mobileSheetScrollIntent({
+        expanded,
+        canExpand: peekOverflows,
+        scrollTop: scroller.scrollTop,
+        deltaY,
+      });
+      const at = event.timeStamp || performance.now();
+      const accumulated = accumulateMobileSheetWheelIntent({
+        state: wheelIntentState,
+        intent,
+        deltaY,
+        at,
+        lockedUntil: wheelDetentLockRef.current,
+      });
+      wheelIntentState = accumulated.state;
+      if (!accumulated.consume) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (!accumulated.committed) return;
+      wheelDetentLockRef.current = at + MOBILE_SHEET_WHEEL_COOLDOWN_MS;
+      if (accumulated.committed === "expand") expand();
+      else collapse();
     };
 
     // ── The mouse half ────────────────────────────────────────────────
@@ -1306,6 +1671,7 @@ function MobileUnitPanel({
     panel.addEventListener("touchmove", onTouchMove, { passive: false });
     panel.addEventListener("touchend", onTouchEnd, { passive: true });
     panel.addEventListener("touchcancel", onTouchCancel, { passive: true });
+    panel.addEventListener("wheel", onWheel, { passive: false });
     panel.addEventListener("mousedown", onMouseDown);
     panel.addEventListener("click", onClickCapture, { capture: true });
     window.addEventListener("mousemove", onMouseMove, { passive: false });
@@ -1315,6 +1681,7 @@ function MobileUnitPanel({
       panel.removeEventListener("touchmove", onTouchMove);
       panel.removeEventListener("touchend", onTouchEnd);
       panel.removeEventListener("touchcancel", onTouchCancel);
+      panel.removeEventListener("wheel", onWheel);
       panel.removeEventListener("mousedown", onMouseDown);
       panel.removeEventListener("click", onClickCapture, { capture: true });
       window.removeEventListener("mousemove", onMouseMove);
@@ -1323,13 +1690,18 @@ function MobileUnitPanel({
     };
   }, [metrics, expanded, peekOverflows, y, settle, expand, collapse, dismiss]);
 
-  // Only the scrolled-away TOP edge dissolves. A bottom mask laid a white
-  // gradient over full-bleed talk thumbnails and looked like part of the
-  // media itself. The scroller's physical bottom is already clipped by the
-  // sheet, so it needs no second visual boundary.
-  const sheetMask = edges.top
-    ? `linear-gradient(to bottom, transparent 0, black ${FADE_PX}px)`
-    : undefined;
+  // Expanded reading keeps the existing scrolled-away top dissolve. Peek gets
+  // a much shallower bottom dissolve only when the document actually
+  // continues below the detent. That makes the visible slice read as a
+  // preview without adding a caption or chevron, and disappears entirely for
+  // short placards that already fit.
+  const sheetMask = expanded
+    ? edges.top
+      ? `linear-gradient(to bottom, transparent 0, black ${FADE_PX}px)`
+      : undefined
+    : peekOverflows
+      ? "linear-gradient(to bottom, black 0, black calc(100% - 20px), transparent 100%)"
+      : undefined;
 
   // One frame of nothing rather than one frame of a full-screen sheet: the
   // detents are derived from a measured viewport, and before that measurement
@@ -1452,7 +1824,12 @@ function MobileUnitPanel({
             >
               <span
                 aria-hidden
-                className="h-1 w-10 rounded-full bg-foreground/25"
+                data-sheet-dragging={sheetDragging ? "" : undefined}
+                className={`h-1 rounded-full shadow-sm transition-[width,background-color,box-shadow] duration-150 ease-out motion-reduce:transition-none ${
+                  sheetDragging
+                    ? "w-[46px] bg-foreground/45 shadow-foreground/10"
+                    : "w-10 bg-foreground/25 shadow-transparent"
+                }`}
               />
             </button>
             <div className="relative z-10 flex h-10 items-center justify-between pl-5 pr-1">
@@ -1460,11 +1837,12 @@ function MobileUnitPanel({
               the body it names, so a section change never shows one
               placard's title over another's content. */}
               <button
+                ref={headerButtonRef}
                 type="button"
                 aria-label={`${expanded ? "Collapse" : "Expand"} ${title} section panel`}
                 onClick={expanded ? collapse : expand}
                 data-stacks-swap-part="header"
-                className="flex h-full min-w-0 flex-1 items-center gap-2.5 text-left focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/45"
+                className="flex h-full min-w-0 flex-1 items-center gap-2.5 text-left text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/45"
               >
                 <ShownIcon
                   aria-hidden
@@ -1491,20 +1869,22 @@ function MobileUnitPanel({
               <div
                 ref={scrollRef}
                 tabIndex={interactive ? 0 : -1}
+                onKeyDown={handleSectionBoundaryKey}
                 aria-label={`${title} section content`}
                 // Only tagged while it can actually scroll. The attribute is what
                 // ScrollBridges' wheel handler bails on, and leaving it on an
                 // `overflow: hidden` element would deaden a third of the screen
                 // to the wheel on a narrow desktop window for no reason.
                 data-stacks-scrollable={expanded ? "" : undefined}
-                // Native overscroll is intentional. Expanded content owns its
-                // full touch stream, including a downward pull at scrollTop 0;
-                // sheet dragging remains available from the header/grabber.
+                data-peek-overflow={!expanded && peekOverflows ? "" : undefined}
+                // Expanded content scrolls natively until a downward pull
+                // begins at scrollTop 0. The gesture arbiter then hands that
+                // boundary pull to the sheet so it can collapse toward peek.
                 className={`stacks-scroll placard-scroll h-full px-5 pb-6 pt-3 font-serif text-muted-foreground ${
                   expanded ? "overflow-y-auto" : "overflow-hidden"
                 }`}
                 style={
-                  expanded && sheetMask
+                  sheetMask
                     ? { maskImage: sheetMask, WebkitMaskImage: sheetMask }
                     : undefined
                 }
@@ -1536,6 +1916,7 @@ function MobileUnitPanel({
         </motion.div>
       </motion.div>
       <motion.button
+        ref={chipRef}
         type="button"
         data-stacks-chip={active && chipActive ? "" : undefined}
         data-swap-direction={side < 0 ? "previous" : "next"}
@@ -1547,7 +1928,7 @@ function MobileUnitPanel({
           y: chipY,
           visibility: chipVisibility,
         }}
-        className={`fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 mx-auto flex h-11 w-fit max-w-[80vw] items-center gap-2 rounded-full border border-foreground/[0.06] bg-background/55 px-4 font-serif text-sm text-foreground shadow-[0px_3px_16px_rgba(0,0,0,0.07)] backdrop-blur-xl focus-visible:ring-2 focus-visible:ring-foreground/50 ${
+        className={`stacks-chip fixed inset-x-0 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 mx-auto flex h-11 w-fit max-w-[80vw] items-center gap-2 rounded-full border px-4 font-serif text-sm text-foreground focus-visible:ring-2 focus-visible:ring-foreground/50 ${
           active && chipActive ? "pointer-events-auto" : "pointer-events-none"
         }`}
       >
@@ -1572,16 +1953,40 @@ export default function PlacardLayer({
   slots: StacksSlots;
 }) {
   const activeUnit = useStacks((s) => s.activeUnit);
+  const preparedUnits = usePreparedUnitSet(activeUnit);
   const modalOpen = useStacks((s) => s.modalOpen);
+  const reduceMotion = useStacksReducedMotion();
+  const [detailsHidden, setDetailsHidden] = useState(false);
+  const skipInitialFocusPersist = useRef(true);
+  useEffect(() => {
+    setDetailsHidden(readFocusMode(window.sessionStorage));
+  }, []);
+  useEffect(() => {
+    // Do not overwrite a stored hidden state with the server-safe initial
+    // `false` before the hydration read above has had a chance to apply it.
+    if (skipInitialFocusPersist.current) {
+      skipInitialFocusPersist.current = false;
+      return;
+    }
+    writeFocusMode(window.sessionStorage, detailsHidden);
+  }, [detailsHidden]);
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== "h" || event.repeat) return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (!window.matchMedia(STACKS_DESKTOP_QUERY).matches) return;
+      if (modalOpen || ignoresFocusShortcut(event.target)) return;
+      event.preventDefault();
+      setDetailsHidden((hidden) => !hidden);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [modalOpen]);
   // Resident cards own content, measurement and scroll position. Their
   // three-position sheet pose remains one global preference, so dismissing
   // Book Notes and travelling to Weightlifting yields a Weightlifting chip,
   // never a new sheet plus the stale Book Notes chip.
   const [mobileDismissed, setMobileDismissed] = useState(false);
-  // The unstable secret-room renderer is disabled; no hidden scene state may
-  // suppress the ordinary placards or mobile sheet.
-  const secretActive = false;
-
   const bodies: Record<(typeof UNITS)[number]["slug"], React.ReactNode> = {
     about: (
       <PlacardCard>
@@ -1639,15 +2044,14 @@ export default function PlacardLayer({
       // shared sections all render their h1 on the scene and the card below
       // it, and Books was the only one wearing its title inside the frame.
       //
-      // The card itself is the link, so its authored shadow and focus state
-      // stay attached to the same native surface as the content. Nothing
-      // inside is focusable — the cover marquee is aria-hidden presentation and its
-      // tooltips hang off plain divs — so there is no interactive control
-      // for the anchor to swallow.
-      // The HEADING is linked too, not just the card. He asked for two
-      // things that only look contradictory: the title outside the card like
+      // Each of the three peer cards is a link, so its authored shadow and
+      // focus state stay attached to the same native surface as its content.
+      // Nothing inside is separately interactive, so the anchors do not
+      // swallow nested controls.
+      // The HEADING is linked too, not just the cards. He asked for two
+      // things that only look contradictory: the title outside the cards like
       // every other section, and "clicking anywhere on the book notes section"
-      // going to the library. Wrapping the card alone satisfies the first and
+      // going to the library. Wrapping the cards alone satisfies the first and
       // quietly fails the second — the title stays dead, which is exactly the
       // part of "anywhere" a person aims at. The h2 remains the semantic
       // section heading; the anchor is its interactive text, not its replacement.
@@ -1664,17 +2068,7 @@ export default function PlacardLayer({
             Book Notes
           </Link>
         </h2>
-        <Link
-          href={booksHref()}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Browse the whole library at books.chappyasel.com"
-          className="rounded-3xl"
-        >
-          <PlacardCard>
-            <BooksPlacard data={data} />
-          </PlacardCard>
-        </Link>
+        <BooksPlacard data={data} />
       </div>
     ),
     training: <div className="placard-sections">{slots.training}</div>,
@@ -1683,8 +2077,7 @@ export default function PlacardLayer({
     blog: <div className="placard-sections">{slots.blog}</div>,
     systems: (
       <div className="placard-sections flex flex-col gap-8">
-        {slots.manual}
-        {slots.routine}
+        {slots.systems}
         {/* .stacks-quotes rewrites desktop quotes white-on-dark-halo — see
             the style block. Mobile keeps the component's original dark-on-
             sheet treatment, and the flat page remains untouched. */}
@@ -1695,6 +2088,9 @@ export default function PlacardLayer({
 
   return (
     <div className="font-serif text-muted-foreground">
+      <p className="sr-only" aria-live="polite" aria-atomic="true">
+        {UNITS[activeUnit]?.label} section
+      </p>
       <style>{`
         /* No scrollbar gutter: with the panel gone the track would draw a
            grey rule straight down the scene. Mobile has a sheet-edge fade;
@@ -1709,14 +2105,14 @@ export default function PlacardLayer({
              native surfaces. The explicit marker excludes nested language
              pills, so only the card-sized glass receives the wide scene blur. */
           [data-stacks-desktop-panel] [data-placard-surface] {
-            background-color: hsl(var(--background) / 0.70) !important;
-            backdrop-filter: blur(80px) saturate(0.35) brightness(1.45) !important;
-            -webkit-backdrop-filter: blur(80px) saturate(0.35) brightness(1.45) !important;
+            background-color: rgb(255 255 255 / 0.46) !important;
+            backdrop-filter: blur(80px) saturate(0.22) brightness(1.85) !important;
+            -webkit-backdrop-filter: blur(80px) saturate(0.22) brightness(1.85) !important;
           }
           .dark [data-stacks-desktop-panel] [data-placard-surface] {
-            background-color: hsl(var(--background) / 0.50) !important;
-            backdrop-filter: blur(80px) saturate(0.35) brightness(0.8) !important;
-            -webkit-backdrop-filter: blur(80px) saturate(0.35) brightness(0.8) !important;
+            background-color: rgb(0 0 0 / 0.18) !important;
+            backdrop-filter: blur(80px) saturate(0.22) brightness(0.42) !important;
+            -webkit-backdrop-filter: blur(80px) saturate(0.22) brightness(0.42) !important;
           }
         }
         /* ── The sheet ────────────────────────────────────────────────
@@ -1728,20 +2124,11 @@ export default function PlacardLayer({
            fill keeps the global warm reading palette from reintroducing a
            cast here. Once neutral,
            the fill can also be thinner without turning the sheet yellow
-           again. Light sits at saturate 0.15 / brightness 1.28 / 0.54
-           white fill. Round-2 history: 1.18 read grey, 1.32 was still
-           "muted / not white enough" on the owner's phone, and at 0.35
-           saturate a full-lawn backdrop still left a mint cast (~Δ18
-           green over neutral). Round 3: even 0.15 + 0.40 still read
-           "muddied" against the owner's reference (the near-opaque warm
-           sheet of the room era) — over an all-grass backdrop the
-           legibility lever is FILL, not brightness, so the fill came up
-           to 0.68 and brightness back down to 1.28 to keep the ghost of
-           the lawn without clipping. Once the cards gained their own clean
-           white fill, the sheet could come back down to 0.54: enough to
-           neutralise the darker grass without flattening the card/sheet
-           hierarchy into one white slab. It is the one surface whose
-           backdrop is entirely grass.
+           again. The sheet is intentionally a light-touch lens now: cards
+           carry the reading contrast while the meadow remains clearly
+           visible through the space between them. Brightness stays close to
+           neutral in both themes so transparency does not merely turn into a
+           pale veil in light mode or a dark veil in dark mode.
 
            The sheet is the ONLY glass on mobile (the cards inside it have
            their own backdrop-filter stripped, since one blur cannot sample
@@ -1751,22 +2138,40 @@ export default function PlacardLayer({
            it in the tree makes a backdrop root: the drag lives in this
            element's OWN transform, and an element's own transform does not
            cut it off from the backdrop behind its parent. */
-        .stacks-sheet {
-          --sheet-fill: rgb(255 255 255 / 0.54);
+        .stacks-sheet,
+        .stacks-chip {
+          --sheet-fill: rgb(255 255 255 / 0.16);
           background-color: var(--sheet-fill);
-          backdrop-filter: blur(58px) saturate(0.15) brightness(1.28);
-          -webkit-backdrop-filter: blur(58px) saturate(0.15) brightness(1.28);
+          border-color: rgb(87 83 78 / 0.18) !important;
+          backdrop-filter: blur(42px) saturate(0.28) brightness(1.18);
+          -webkit-backdrop-filter: blur(42px) saturate(0.28) brightness(1.18);
+        }
+        .stacks-sheet {
+          box-shadow:
+            inset 0 1px 0 rgb(255 255 255 / 0.72),
+            inset 1px 0 0 rgb(255 255 255 / 0.12),
+            inset -1px 0 0 rgb(255 255 255 / 0.12),
+            0 -2px 6px rgb(28 25 23 / 0.08),
+            0 -18px 40px -24px rgb(28 25 23 / 0.42) !important;
+        }
+        .stacks-chip {
+          box-shadow:
+            inset 0 1px 0 rgb(255 255 255 / 0.72),
+            inset 0 -1px 0 rgb(255 255 255 / 0.14),
+            0 2px 5px rgb(28 25 23 / 0.10),
+            0 12px 30px -18px rgb(28 25 23 / 0.38) !important;
         }
         @media (prefers-reduced-motion: reduce) {
           [data-stacks-desktop-panel] {
             transform: none !important;
             transition: none !important;
           }
-          [data-stacks-desktop-panel][data-stacks-active] {
-            opacity: 1 !important;
-          }
-          [data-stacks-desktop-panel]:not([data-stacks-active]) {
-            opacity: 0 !important;
+          [data-stacks-desktop-panel] [data-placard-surface],
+          [data-stacks-desktop-panel] :has(> [data-placard-surface]) > :not([data-placard-surface]),
+          [data-stacks-desktop-panel] .placard-section-heading,
+          [data-stacks-desktop-panel] .placard-sections h1,
+          [data-stacks-desktop-panel] .stacks-quotes > section {
+            transition: none !important;
           }
           [data-stacks-swap-part] {
             opacity: 1 !important;
@@ -1774,10 +2179,27 @@ export default function PlacardLayer({
             transition: none !important;
           }
         }
+        .dark .stacks-sheet,
+        .dark .stacks-chip {
+          --sheet-fill: rgb(0 0 0 / 0);
+          border-color: rgb(255 255 255 / 0.22) !important;
+          backdrop-filter: blur(32px) saturate(0.45) brightness(0.94);
+          -webkit-backdrop-filter: blur(32px) saturate(0.45) brightness(0.94);
+        }
         .dark .stacks-sheet {
-          --sheet-fill: rgb(0 0 0 / 0.08);
-          backdrop-filter: blur(58px) saturate(0.35) brightness(0.9);
-          -webkit-backdrop-filter: blur(58px) saturate(0.35) brightness(0.9);
+          box-shadow:
+            inset 0 1px 0 rgb(255 255 255 / 0.28),
+            inset 1px 0 0 rgb(255 255 255 / 0.08),
+            inset -1px 0 0 rgb(255 255 255 / 0.08),
+            0 -2px 7px rgb(0 0 0 / 0.28),
+            0 -18px 42px -22px rgb(0 0 0 / 0.82) !important;
+        }
+        .dark .stacks-chip {
+          box-shadow:
+            inset 0 1px 0 rgb(255 255 255 / 0.28),
+            inset 0 -1px 0 rgb(255 255 255 / 0.08),
+            0 3px 7px rgb(0 0 0 / 0.34),
+            0 14px 32px -18px rgb(0 0 0 / 0.78) !important;
         }
         /* On desktop the closing quotes float raw over the meadow with no
            glass behind them, and the round-2 glow treatment still lost to
@@ -1824,14 +2246,68 @@ export default function PlacardLayer({
         .placard-scroll .text-lg { font-size: calc(var(--ps) * 1.286); line-height: 1.556; }
         .placard-scroll .text-xl { font-size: calc(var(--ps) * 1.429); line-height: 1.4; }
         .placard-scroll .text-2xl { font-size: calc(var(--ps) * 1.714); line-height: 1.333; }
+        /* Book Notes lives in two very different shells: the full-width
+           mobile sheet and the much narrower desktop dock. Viewport media
+           queries cannot describe either one's usable card width, so the
+           ledger and subject map make their own inline size available to
+           container queries. Once the ledger has 25rem of actual content,
+           stacking rating, length, and dates gives two compact rows enough
+           room without shrinking the type back to the old 8–9px scale. */
+        .book-ledger-container,
+        .book-subjects-container { container-type: inline-size; }
+        .book-ledger-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          row-gap: 1.75rem;
+        }
+        .book-subjects-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          grid-auto-rows: minmax(5.5rem, auto);
+          gap: 0.5rem;
+        }
+        .book-preview-cover {
+          transform: perspective(700px) rotateY(-3deg) translateZ(0);
+          transform-origin: left center;
+          box-shadow:
+            1px 0 0 rgb(255 255 255 / 0.22),
+            0 5px 20px 2px rgb(0 0 0 / 0.16);
+          transition: transform 240ms ease, box-shadow 240ms ease;
+        }
+        .book-preview-row:hover .book-preview-cover {
+          transform: perspective(700px) rotateY(-5deg) translateY(-2px) translateZ(4px);
+          box-shadow:
+            2px 0 0 rgb(255 255 255 / 0.26),
+            0 9px 25px 1px rgb(0 0 0 / 0.22);
+        }
+        @container (min-width: 25rem) {
+          .book-ledger-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            column-gap: 1.5rem;
+          }
+          .book-preview-row {
+            grid-template-columns: 64px minmax(0, 1fr);
+            gap: 0.875rem;
+          }
+          .book-preview-title { font-size: 0.9375rem; }
+        }
+        @container (min-width: 18rem) {
+          .book-subjects-grid {
+            height: 16.75rem;
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+            grid-template-rows: repeat(4, minmax(0, 1fr)) minmax(3.75rem, auto);
+          }
+          .book-subject-feature { grid-column: span 3; grid-row: span 2; }
+          .book-subject-standard { grid-column: span 2; grid-row: span 2; }
+          .book-subject-compact { grid-column: span 2; }
+        }
         .placard-sections section { margin-top: 0; }
         .placard-sections .mt-20 { margin-top: 0; }
-        /* Four timeline markers cannot borrow the viewport's sm breakpoint:
-           this reading column is narrow even on a 1440px screen. A stable
-           2x2 grid keeps every label paired with its time and eliminates the
-           orphan divider the flex-wrap version could leave on row two. */
+        /* The routine card owns a compact four-stop track. Keep its markers
+           on the same row inside the narrow dock so the connecting line and
+           chronology cannot split into two unrelated pairs. */
         .placard-scroll [data-routine-timeline] {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
+          grid-template-columns: repeat(4, minmax(0, 1fr));
         }
         /* The placard's own scale for the shared sections: display sizes
            chosen for a full-width section overflow a reading column. Held
@@ -1924,13 +2400,13 @@ export default function PlacardLayer({
              the same grass-tinted material. Dark mode keeps the quieter
              theme-token fill above. */
           html:not(.dark) .placard-scroll [class*="backdrop-blur"] {
-            background-color: rgb(255 255 255 / 0.56) !important;
+            background-color: rgb(255 255 255 / 0.40) !important;
           }
           /* Mirror that separation in dark mode: the sheet itself remains a
-             light-touch veil over the meadow, while cards become the darker,
+             clear lens over the meadow, while cards become the darker,
              more opaque reading surfaces in front of it. */
           .dark .placard-scroll [class*="backdrop-blur"] {
-            background-color: rgb(0 0 0 / 0.42) !important;
+            background-color: rgb(0 0 0 / 0.30) !important;
           }
           /* sm: padding belongs to the shared full-page layout. The sheet is
              still a narrow reading column at 640–1199px, so keep every card
@@ -1952,10 +2428,10 @@ export default function PlacardLayer({
           /* A body heading that only repeats the sheet's own title. Marked
              from JS by text match — see the effect in MobileUnitPanel. */
           [data-stacks-mobile-panel] [data-dup-title] { display: none; }
-          /* Shared full-page sections author their own h1. Four mobile cards
-             have exactly the same title hoisted into the resident sheet
-             header; mark those bodies structurally so the duplicate cannot
-             flash while an async section hydrates before the observer runs. */
+          /* Shared full-page sections author their own h1. When that title
+             exactly matches the resident sheet header, mark the body
+             structurally so the duplicate cannot flash before the observer
+             runs. */
           [data-stacks-mobile-panel] [data-duplicate-section-title] .placard-sections h1:first-of-type {
             display: none;
           }
@@ -1980,6 +2456,102 @@ export default function PlacardLayer({
           [data-stacks-mobile-panel] .placard-section-heading svg {
             width: 1.125rem !important;
             height: 1.125rem !important;
+          }
+          /* Quotes.tsx adds a page-level glow so the closing quotes remain
+             legible on the flat homepage. Inside the mobile sheet they
+             already sit on a readable surface, where that glow looks muddy. */
+          [data-stacks-mobile-panel] .stacks-quotes > section {
+            text-shadow: none !important;
+          }
+        }
+        /* AIC's best glass detail is its inset highlight: the top edge catches
+           light while a small, diffuse shadow separates the surface from the
+           scene. Apply that material language to every placard card. Linked
+           cards lift slightly, gain edge definition, and change tint so their
+           clickability is visible before the copy has to explain it. */
+        .placard-scroll [data-placard-surface] {
+          border-color: rgb(87 83 78 / 0.18) !important;
+          box-shadow:
+            inset 0 1px 0 rgb(255 255 255 / 0.72),
+            inset 0 -1px 0 rgb(255 255 255 / 0.14),
+            0 1px 2px rgb(28 25 23 / 0.10),
+            0 12px 30px -20px rgb(28 25 23 / 0.40) !important;
+          transition-property: background-color, border-color, box-shadow;
+          transition-duration: 200ms;
+          transition-timing-function: ease-out;
+        }
+        .dark .placard-scroll [data-placard-surface] {
+          border-color: rgb(255 255 255 / 0.22) !important;
+          box-shadow:
+            inset 0 1px 0 rgb(255 255 255 / 0.28),
+            inset 0 -1px 0 rgb(255 255 255 / 0.08),
+            0 14px 34px -18px rgb(0 0 0 / 0.86) !important;
+        }
+        html:not(.dark) .placard-scroll [data-placard-link]:hover [data-placard-surface],
+        html:not(.dark) .placard-scroll [data-placard-link]:focus-visible [data-placard-surface],
+        html:not(.dark) .placard-scroll a:hover [data-placard-surface],
+        html:not(.dark) .placard-scroll a[data-placard-surface]:hover,
+        html:not(.dark) .placard-scroll a:focus-visible [data-placard-surface],
+        html:not(.dark) .placard-scroll a[data-placard-surface]:focus-visible {
+          background-color: rgb(235 232 225 / 0.44) !important;
+          border-color: rgb(87 83 78 / 0.28) !important;
+          box-shadow:
+            inset 0 1px 0 rgb(255 255 255 / 0.80),
+            inset 0 -1px 0 rgb(255 255 255 / 0.16),
+            0 2px 5px rgb(28 25 23 / 0.12),
+            0 18px 36px -20px rgb(28 25 23 / 0.52) !important;
+        }
+        .dark .placard-scroll [data-placard-link]:hover [data-placard-surface],
+        .dark .placard-scroll [data-placard-link]:focus-visible [data-placard-surface],
+        .dark .placard-scroll a:hover [data-placard-surface],
+        .dark .placard-scroll a[data-placard-surface]:hover,
+        .dark .placard-scroll a:focus-visible [data-placard-surface],
+        .dark .placard-scroll a[data-placard-surface]:focus-visible {
+          background-color: rgb(255 255 255 / 0.05) !important;
+          border-color: rgb(255 255 255 / 0.25) !important;
+          box-shadow:
+            inset 0 1px 0 rgb(255 255 255 / 0.28),
+            inset 0 -1px 0 rgb(255 255 255 / 0.08),
+            0 16px 36px -20px rgb(0 0 0 / 0.86) !important;
+        }
+        @media (width < 1200px) {
+          /* The dark mobile sheet is nearly clear, so its cards need more
+             separation than their desktop counterparts. Hover deepens that
+             material instead of adding the pale wash used previously. */
+          .dark .placard-scroll [data-placard-link]:hover [data-placard-surface],
+          .dark .placard-scroll [data-placard-link]:focus-visible [data-placard-surface],
+          .dark .placard-scroll a:hover [data-placard-surface],
+          .dark .placard-scroll a[data-placard-surface]:hover,
+          .dark .placard-scroll a:focus-visible [data-placard-surface],
+          .dark .placard-scroll a[data-placard-surface]:focus-visible {
+            background-color: rgb(0 0 0 / 0.36) !important;
+          }
+        }
+        /* Fade the visual pieces, never the section that contains them.
+           A surface may fade itself after sampling the room, but opacity on
+           an ancestor would make that ancestor a Backdrop Root and leave the
+           nested glass with nothing useful to blur. Cards with a flat glass
+           background therefore fade that background and each foreground
+           sibling independently; cards that own their glass fade as one. */
+        @media (min-width: 1200px) {
+          [data-stacks-desktop-panel] [data-placard-surface],
+          [data-stacks-desktop-panel] :has(> [data-placard-surface]) > :not([data-placard-surface]),
+          [data-stacks-desktop-panel] .placard-section-heading,
+          [data-stacks-desktop-panel] .placard-sections h1,
+          [data-stacks-desktop-panel] .stacks-quotes > section {
+            opacity: var(--stacks-panel-opacity);
+            transition-property: opacity;
+            transition-duration: var(--stacks-panel-fade-duration);
+            transition-delay: var(--stacks-panel-fade-delay);
+            transition-timing-function: var(--stacks-panel-fade-easing);
+          }
+          [data-stacks-desktop-panel] [data-placard-surface] {
+            transition-property: opacity, background-color, border-color, box-shadow;
+            transition-duration:
+              var(--stacks-panel-fade-duration), 200ms, 200ms, 200ms;
+            transition-delay: var(--stacks-panel-fade-delay), 0ms, 0ms, 0ms;
+            transition-timing-function:
+              var(--stacks-panel-fade-easing), ease-out, ease-out, ease-out;
           }
         }
         /* Kill the page-level scroll reveal inside the resident placards.
@@ -2011,8 +2583,15 @@ export default function PlacardLayer({
           type below is derived from the same value, so the column and its
           contents cannot scale apart. */}
       <div
-        className={`absolute bottom-0 top-0 z-20 hidden transition-opacity duration-200 min-[1200px]:block ${
-          modalOpen || secretActive ? "pointer-events-none opacity-0" : ""
+        id="stacks-desktop-details"
+        data-stacks-desktop-dock
+        data-hidden={detailsHidden ? "true" : "false"}
+        aria-hidden={detailsHidden || modalOpen}
+        inert={detailsHidden || modalOpen}
+        className={`absolute bottom-0 top-0 z-20 hidden transition-[opacity,transform] duration-200 min-[1200px]:block ${
+          modalOpen || detailsHidden
+            ? "pointer-events-none translate-x-[calc(100%+2rem)] opacity-0"
+            : ""
         }`}
         style={
           {
@@ -2028,9 +2607,69 @@ export default function PlacardLayer({
       >
         <DesktopPanel
           activeUnit={activeUnit}
-          modalOpen={modalOpen || secretActive}
+          modalOpen={modalOpen}
+          detailsHidden={detailsHidden}
           bodies={bodies}
+          preparedUnits={preparedUnits}
         />
+      </div>
+      {/* Keep the glass tooltip outside the arrow's animated transform.
+          Backdrop filters sample only within their nearest compositing root;
+          nesting it under the scaling button left the text behind it sharp. */}
+      <div
+        className="group absolute right-1.5 z-30 hidden size-11 min-[1200px]:block"
+        style={{ top: "calc(50% - 1.375rem)" }}
+      >
+        <span
+          id="stacks-details-tooltip"
+          role="tooltip"
+          className="stacks-glass-tooltip pointer-events-none absolute right-full top-1/2 mr-2.5 -translate-y-1/2 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium tracking-[0.01em] text-stone-900 opacity-0 transition-[opacity,transform] duration-200 group-focus-within:-translate-x-0.5 group-focus-within:opacity-100 group-hover:-translate-x-0.5 group-hover:opacity-100 motion-reduce:transition-none dark:text-white"
+        >
+          <span className="relative block h-4 w-[4.7rem] overflow-hidden whitespace-nowrap text-center leading-4">
+            <AnimatePresence initial={false} mode="popLayout">
+              <motion.span
+                key={detailsHidden ? "show" : "hide"}
+                className="absolute inset-0"
+                initial={{ opacity: 0, y: detailsHidden ? 5 : -5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: detailsHidden ? -5 : 5 }}
+                transition={{
+                  duration: reduceMotion ? 0 : 0.18,
+                  ease: [0.16, 1, 0.3, 1],
+                }}
+              >
+                {detailsHidden ? "Show details" : "Hide details"}
+              </motion.span>
+            </AnimatePresence>
+          </span>
+        </span>
+        <button
+          type="button"
+          data-stacks-details-toggle=""
+          aria-label={detailsHidden ? "Show details" : "Hide details"}
+          aria-describedby="stacks-details-tooltip"
+          aria-controls="stacks-desktop-details"
+          aria-expanded={!detailsHidden}
+          aria-keyshortcuts="H"
+          onClick={() => setDetailsHidden((hidden) => !hidden)}
+          className="flex size-11 items-center justify-center text-white/65 transition-[color,transform] duration-300 hover:scale-[1.08] hover:text-white focus-visible:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 motion-reduce:transition-none"
+        >
+          <motion.span
+            aria-hidden="true"
+            className="drop-shadow-[0_1px_3px_rgba(0,0,0,0.62)]"
+            animate={{
+              rotate: detailsHidden ? 180 : 0,
+              x: detailsHidden ? -1 : 1,
+            }}
+            transition={
+              reduceMotion
+                ? { duration: 0 }
+                : { type: "spring", stiffness: 310, damping: 22, mass: 0.7 }
+            }
+          >
+            <CaretRightIcon aria-hidden="true" size={22} weight="bold" />
+          </motion.span>
+        </button>
       </div>
       {/* Mobile mirrors desktop's resident-panel ownership: every section
           keeps its own measured sheet, and complete cards crossfade/translate
@@ -2038,10 +2677,13 @@ export default function PlacardLayer({
       {UNITS.map((unit, index) => (
         <MobileUnitPanel
           key={unit.slug}
-          body={bodies[unit.slug]}
+          body={
+            index === activeUnit || preparedUnits.has(index)
+              ? bodies[unit.slug]
+              : null
+          }
           unitIndex={index}
           active={index === activeUnit}
-          secretActive={secretActive}
           dismissed={mobileDismissed}
           setDismissed={setMobileDismissed}
         />

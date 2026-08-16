@@ -11,8 +11,13 @@ import ModelProp from "../ModelProp";
 import { DAYLIGHT_RENDERING } from "../daylightRendering";
 import PropLink from "../links";
 import { reducedMotion } from "../objects";
-import { DeskFrame, PHOTO_LINKS, deskFrameHeight } from "../photos";
-import { BookPile, FrameRow, ShelfUnit } from "../primitives";
+import {
+  DeskFrame,
+  PHOTO_LINKS,
+  deskFrameHeight,
+  photoDoorLabel,
+} from "../photos";
+import { FrameRow, ShelfUnit } from "../primitives";
 import { SHELF_GEOMETRY } from "../shelfGeometry";
 import { useUnitLod } from "../useUnitLod";
 import { useFrame } from "@react-three/fiber";
@@ -20,6 +25,7 @@ import React, { useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { type UnitProps } from "./types";
+import { REVIEWED_SHELF_LAYOUT } from "./unitShelfLayout";
 
 // tiny-treats' themed atlas deliberately retains one cool blue foliage role.
 // The Yucca uses that role on half of its leaf clusters, where it reads as a
@@ -224,6 +230,7 @@ function ProjectPhoto({
   children: React.ReactNode;
 }) {
   const hoverKey = `grab:photo:${id}`;
+  const href = PHOTO_LINKS[id] ?? null;
   return (
     <Grabbable
       unitIndex={unitIndex}
@@ -233,7 +240,8 @@ function ProjectPhoto({
       shadeWidth={Math.max(0.3, width * 1.16)}
       shape="box"
       massKg={0.48}
-      href={PHOTO_LINKS[id] ?? undefined}
+      href={href ?? undefined}
+      doorLabel={href ? photoDoorLabel(href) : undefined}
     >
       <HeldFacing hoverKey={hoverKey} position={[0, seat, 0]} rest={rotation}>
         {children}
@@ -267,24 +275,9 @@ export default function UnitProjects({
         toneSeed={index}
         lower={
           <group>
-            {/* SPACING + SEPARATION (H2, H6). The Mac is 0.598 wide once its −0.34
-              yaw is folded in and its left edge lands at x 0.328; the pile's
-              top book reached 0.463, so 24 of the Mac's vertices were inside
-              it — 1.37 cm deep, measured against the book's own oriented box
-              rather than an axis-aligned one. The pile is what moves: pushing
-              the Mac right instead would post it behind the desktop placard,
-              whose left edge is +0.427 on a 1280 window.
-              0.18 → 0.02 clears the Mac by 2.9 cm, and the rest of the run
-              steps left with it so the shelf reads as filled rather than as
-              a cluster on the right: pothos −1.43, frame −1.05, trophy −0.70,
-              print −0.36, pile +0.02, Mac +0.64. */}
-            <BookPile
-              palette={palette}
-              x={0.02}
-              salt={47}
-              linkUnit={index}
-              grabbable
-            />
+            {/* The generic book pile that once crowded the Mac is gone. The
+                remaining personal photographs, trophy and Mac keep their
+                measured separation and leave an intentional patch of wood. */}
             {/* Metal exception: the shared atlas material is metalness 0, so
               the trophy read as terracotta (audit §3-Projects). */}
             {/* A hollow metal trophy is a natural handheld object, not shelf
@@ -293,7 +286,7 @@ export default function UnitProjects({
             <Grabbable
               unitIndex={index}
               hoverKey="grab:trophy"
-              base={[-0.67, 0, -0.02]}
+              base={[REVIEWED_SHELF_LAYOUT.projects.trophyX, 0, -0.02]}
               shadeColor={palette.shadow}
               shadeWidth={0.28}
               shape="box"
@@ -332,11 +325,58 @@ export default function UnitProjects({
                 height={PROJECT_COUCH_H}
               />
             </ProjectPhoto>
+            <Grabbable
+              unitIndex={index}
+              hoverKey="grab:notebook:projects"
+              base={[REVIEWED_SHELF_LAYOUT.projects.notebookX, 0, 0.09]}
+              shadeColor={palette.shadow}
+              shadeWidth={0.42}
+              shape="box"
+              massKg={0.45}
+            >
+              <React.Suspense fallback={null}>
+                <ModelProp
+                  url="/models/notebook.glb"
+                  dark={dark}
+                  variant="tinted"
+                  tints={{
+                    FFEB3B: dark ? "#52647a" : "#71869e",
+                    F44336: dark ? "#8c6d4f" : "#b68d62",
+                    "795548": dark ? "#3b302a" : "#5b493e",
+                  }}
+                  rotation={[0, -0.22, 0]}
+                  scale={0.052}
+                />
+              </React.Suspense>
+            </Grabbable>
+            <Grabbable
+              unitIndex={index}
+              hoverKey="grab:phone:projects"
+              base={[REVIEWED_SHELF_LAYOUT.projects.phoneX, 0, 0.13]}
+              shadeColor={palette.shadow}
+              shadeWidth={0.28}
+              shape="box"
+              massKg={0.19}
+            >
+              <group
+                position={[0, REVIEWED_SHELF_LAYOUT.projects.phoneSeat, 0]}
+                rotation={[-Math.PI / 2, 0, 0.28]}
+              >
+                <React.Suspense fallback={null}>
+                  <ModelProp
+                    url="/models/phone.glb"
+                    dark={dark}
+                    variant="tinted"
+                    scale={0.28}
+                  />
+                </React.Suspense>
+              </group>
+            </Grabbable>
             <ProjectPhoto
               unitIndex={index}
               palette={palette}
               id="projects-wwdc-v8"
-              base={[-0.37, 0, 0.11]}
+              base={[REVIEWED_SHELF_LAYOUT.projects.wwdcPhotoX, 0, 0.11]}
               seat={deskFrameHeight(PROJECT_WWDC_H) / 2}
               rotation={[-0.06, -0.13, 0]}
               width={PROJECT_WWDC_W}
@@ -377,7 +417,7 @@ export default function UnitProjects({
               things standing on it. Two scales for two different things.) At
               5.0 a compact Macintosh stood 0.6× the width of the hardcovers
               beside it when the real machine is 1.5× wider than one. The
-              pile moved to 0.18 to open the window.
+              neighboring clutter moved away to open the window.
               7.0 → 9.2. 7.0 put the machine 0.196 × 0.245 × 0.192 m against a
               Macintosh 128K's real 0.246 × 0.345 × 0.277, i.e. 1.4 units per
               metre on a shelf whose books are at 2.0 — it was in the
@@ -394,8 +434,9 @@ export default function UnitProjects({
             <PropLink
               unitIndex={index}
               hoverKey="link:projects:mac"
-              base={[0.64, 0, -0.14]}
+              base={[REVIEWED_SHELF_LAYOUT.projects.macX, 0, -0.14]}
               href="https://github.com/chappyasel"
+              label="View Chappy on GitHub"
             >
               <React.Suspense fallback={null}>
                 <ModelProp
@@ -426,7 +467,11 @@ export default function UnitProjects({
             <ContactShade
               color={palette.shadow}
               width={0.4}
-              position={[0.64, 0.02, -0.11]}
+              position={[
+                REVIEWED_SHELF_LAYOUT.projects.macX + 0.24,
+                0.02,
+                -0.11,
+              ]}
             />
           </group>
         }

@@ -37,7 +37,7 @@ export const PALETTES = {
     skyHorizon: "#4f8ab3",
     skyShadow: "#6a9aba",
     skyEmber: "#f5c78d",
-    // The secret Washington view owns a distinct east-facing daylight vault.
+    // The seated Washington vista owns a distinct east-facing daylight vault.
     // These stay in sRGB here and are linearized with the other sky uniforms.
     dcSkyTop: "#397fb8",
     dcSkyHorizon: "#78afd4",

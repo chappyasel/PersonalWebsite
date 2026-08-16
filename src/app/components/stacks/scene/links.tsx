@@ -9,8 +9,8 @@
 //
 // The affordance is the scene's own damped Lift: the prop rises a few
 // millimetres under the pointer and nods toward you, the same idiom the
-// clickable book covers and talk frames already use. No outlines, no tooltips,
-// no labels — a museum at dawn, not a page full of buttons.
+// clickable book covers and talk frames already use. Doors add one restrained
+// destination label after dwell; inert scenery and eggs never do.
 //
 // Photographs share the shell (see PhotoMount): the ones whose source post is
 // known open it, the rest only want the affordance.
@@ -32,21 +32,22 @@ import { useStacks } from "../store";
 import { type ThreeEvent } from "@react-three/fiber";
 import { useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useRef } from "react";
-
-import { devSubdomainUrl } from "~/lib/util";
+import type * as THREE from "three";
 
 import Lift from "./Lift";
+import {
+  destinationFor,
+  type DoorSpec,
+  type PropDestination,
+  registerSceneInteraction,
+} from "./interactionRegistry";
+import { doorAtPointer } from "./interactionProjection";
 
 /** The doors the shelf world can open. Books and Weightlifting live on their
  * own subdomains in production — the exact hrefs the placard and the flat
  * sections already link to; the manual and the routine are same-origin
  * routes; "blog" is the Medium profile the Musings posts come from. */
-export type PropDestination =
-  | "books"
-  | "weightlifting"
-  | "manual"
-  | "routine"
-  | "blog";
+export type { PropDestination } from "./interactionRegistry";
 
 /** Off-site destinations open in a new tab (the existing onOpenUrl path the
  * talk frames and blog notebooks use); everything else is this site and
@@ -58,24 +59,30 @@ const NEW_TAB: PropDestination[] = ["blog"];
  * with both would have an ambiguous destination. */
 export type PropTarget =
   | { to: PropDestination; href?: never }
-  | { to?: never; href: string };
+  | {
+      to?: never;
+      href: string;
+      /** Arbitrary URLs cannot infer honest outcome copy. */
+      label: string;
+      external?: boolean;
+    };
 
 export function propHref(to: PropDestination): string {
-  const prod = process.env.NODE_ENV === "production";
-  switch (to) {
-    case "books":
-      return prod ? "https://books.chappyasel.com" : devSubdomainUrl("books");
-    case "weightlifting":
-      return prod
-        ? "https://weightlifting.chappyasel.com"
-        : devSubdomainUrl("weightlifting");
-    case "manual":
-      return "/manual";
-    case "routine":
-      return "/routine";
-    case "blog":
-      return "https://medium.com/@chappyasel";
+  return destinationFor(to).href;
+}
+
+function doorFor(target: PropTarget, run: () => void): DoorSpec {
+  if (target.href !== undefined) {
+    return {
+      kind: "door",
+      label: target.label,
+      href: target.href,
+      external: target.external ?? true,
+      run,
+    };
   }
+  const destination = destinationFor(target.to);
+  return { kind: "door", ...destination, run };
 }
 
 const ORIGIN: [number, number, number] = [0, 0, 0];
@@ -122,7 +129,7 @@ const doors = new Map<string, { unitIndex: number; open: () => void }>();
 
 /** Pointerdown position, so a drag across a prop is not a click on it. The
  * same 6px gate r3f's own `event.delta` uses. */
-const down = { x: 0, y: 0, ok: false };
+const down = { x: 0, y: 0, ok: false, touchDoor: null as string | null };
 const DRAG_PX = 6;
 
 /** When the window path last opened something. r3f's `click` is dispatched
@@ -139,14 +146,15 @@ function justOpened(): boolean {
 function onWindowDown(e: PointerEvent) {
   down.x = e.clientX;
   down.y = e.clientY;
-  // Travel owns touch on this scene (a horizontal drag IS the traverse), so
-  // the window path is pointer-only and touch keeps the behaviour it shipped
-  // with. Non-primary pointers and non-primary buttons never open anything.
-  down.ok = e.pointerType !== "touch" && e.isPrimary && e.button === 0;
+  down.ok = e.isPrimary && e.button === 0;
+  down.touchDoor =
+    down.ok && e.pointerType === "touch"
+      ? doorAtPointer(e.clientX, e.clientY, useStacks.getState().activeUnit)
+      : null;
 }
 
 function onWindowUp(e: PointerEvent) {
-  if (!down.ok || e.pointerType === "touch") return;
+  if (!down.ok) return;
   down.ok = false;
   if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > DRAG_PX) return;
   const s = useStacks.getState();
@@ -160,7 +168,9 @@ function onWindowUp(e: PointerEvent) {
   // whichever prop the pointer left behind.
   const el = s.scrollEl;
   if (el && e.target instanceof Node && !el.contains(e.target)) return;
-  const door = s.hovered ? doors.get(s.hovered) : undefined;
+  const key = e.pointerType === "touch" ? down.touchDoor : s.hovered;
+  down.touchDoor = null;
+  const door = key ? doors.get(key) : undefined;
   if (door?.unitIndex !== s.activeUnit) return;
   opened = performance.now();
   door.open();
@@ -215,8 +225,10 @@ function HoverShell({
   grow,
   tip,
   onSelect,
+  doorTarget,
   children,
-}: HoverProps & { onSelect?: () => void }) {
+}: HoverProps & { onSelect?: () => void; doorTarget?: PropTarget }) {
+  const root = useRef<THREE.Group>(null);
   const setHovered = useStacks((s) => s.setHovered);
   // The handler is re-created on every render (callers pass inline closures),
   // and the registry must not churn with it — a ref keeps the registration
@@ -236,8 +248,19 @@ function HoverShell({
       releaseListeners?.();
     };
   }, [hoverKey, unitIndex, hasDoor]);
+  useEffect(() => {
+    if (!onSelect || !doorTarget || !root.current) return;
+    return registerSceneInteraction({
+      id: hoverKey,
+      root: root.current,
+      activeUnits: [unitIndex],
+      activation: doorFor(doorTarget, () => select.current?.()),
+      hover: { kind: "lift" },
+    });
+  }, [doorTarget, hoverKey, onSelect, unitIndex]);
   return (
     <group
+      ref={root}
       onClick={
         onSelect
           ? (e: ThreeEvent<MouseEvent>) => {
@@ -288,7 +311,10 @@ export function HoverProp(props: HoverProps) {
 
 export default function PropLink(props: HoverProps & PropTarget) {
   const open = useOpenTarget();
-  return <HoverShell {...props} onSelect={() => open(props as PropTarget)} />;
+  const select = useCallback(() => open(props as PropTarget), [open, props]);
+  return (
+    <HoverShell {...props} onSelect={select} doorTarget={props as PropTarget} />
+  );
 }
 
 if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
