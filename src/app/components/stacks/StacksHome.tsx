@@ -30,11 +30,13 @@ import {
   isMeadowReady,
   isWarmBoot,
   rememberWarmBoot,
+  resetMeadowReady,
   setLoadProgress,
   setWorldPhase,
 } from "./loading";
 import StacksBookModal from "./modal/StacksBookModal";
 import { useStacks } from "./store";
+import { browserCanUseStacksWorld } from "./webglProbe";
 
 const StacksCanvas = dynamic(() => import("./StacksCanvas"), { ssr: false });
 
@@ -54,11 +56,6 @@ const REVEAL_PROGRESS = 0.85;
  * reads as breakage — owner round 2), so it gets its own gate; but a stalled
  * asset must never hang the boot, so the hold is bounded. */
 const MEADOW_WAIT_MS = 3500;
-
-/** navigator.connection is still not in the DOM lib. */
-type NavigatorWithConnection = Navigator & {
-  connection?: { saveData?: boolean };
-};
 
 type WindowWithStacksBoot = Window & {
   __stacksWorldBootTimer?: number;
@@ -108,20 +105,12 @@ export default function StacksHome({
   }, [setMode]);
 
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (!browserCanUseStacksWorld()) {
       setWorldPhase(null);
+      setMode("flat");
       return;
     }
-    // Save-Data, checked here as well as in the pre-paint script. The script
-    // used to be the only place, which meant it never actually held: it can
-    // decline to set the attribute, but this effect then set it anyway and
-    // mounted the world a moment later. A visitor who asked their browser to
-    // conserve got the document for half a second and a megabyte of room
-    // after it.
-    if ((navigator as NavigatorWithConnection).connection?.saveData) {
-      setWorldPhase(null);
-      return;
-    }
+    resetMeadowReady();
     // Agrees with the pre-paint script, and also covers the case where the
     // script never ran (a bfcache restore, an extension stripping inline
     // scripts) — the boot screen still comes up rather than the document.
@@ -158,14 +147,16 @@ export default function StacksHome({
     return () => {
       retirePrepaintBackstop();
       setWorldPhase(null);
+      setMode("flat");
       document.documentElement.removeAttribute("data-og-capture");
     };
-  }, []);
+  }, [setMode]);
 
   // Nothing is downloading until the component that owns the import renders,
   // and `mode` only flips one tick later. Kicking it here overlaps the chunk
   // fetch with the rest of hydration instead of queueing behind it.
   useEffect(() => {
+    if (!browserCanUseStacksWorld()) return;
     void (
       StacksCanvas as unknown as { render?: { preload?: () => void } }
     ).render?.preload?.();
@@ -272,7 +263,9 @@ export default function StacksHome({
           <div aria-hidden className="stacks-world-curtain" />
         </div>
       )}
-      {(mode === "flat" || !flatGone) && <FlatHome slots={slots} />}
+      {(mode === "flat" || !flatGone) && (
+        <FlatHome slots={slots} animated={mode === "flat"} />
+      )}
       {/* Books modal — mounted at the root, outside GrainientBackground's
           [contain:paint] and the world's transforms, so fixed positioning
           resolves to the viewport. */}

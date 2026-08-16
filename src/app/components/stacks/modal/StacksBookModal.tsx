@@ -9,6 +9,7 @@
 // /books route, so a path would 404 on reload; the hash reloads cleanly and
 // reopens the modal.
 import { ModalHost } from "../../../books/components/ModalHost";
+import { shouldUseModalEnterShortcut } from "../../../books/components/modalKeyboard";
 import {
   BookPreviewProvider,
   useModalActions,
@@ -21,7 +22,7 @@ import { useEffect } from "react";
 import { devSubdomainUrl } from "~/lib/util";
 import { BooksTRPCProvider } from "~/trpc/books-provider";
 
-import { jumpToUnitWhenReady } from "./bookModalSync";
+import { jumpToUnitWhenReady, ownDirectBookHashHistory } from "./bookModalSync";
 
 const BOOK_HASH = /^#book-(.+)$/;
 const BOOKS_UNIT = UNITS.findIndex((unit) => unit.slug === "books");
@@ -56,6 +57,7 @@ function ModalBridge() {
   useEffect(() => {
     const match = BOOK_HASH.exec(window.location.hash);
     if (!match?.[1]) return;
+    ownDirectBookHashHistory(window.history, window.location);
     openModalById(decodeURIComponent(match[1]));
     return jumpToUnitWhenReady(useStacks, BOOKS_UNIT);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -66,7 +68,7 @@ function ModalBridge() {
   useEffect(() => {
     if (!isModalOpen || !selectedBookId) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== "Enter") return;
+      if (!shouldUseModalEnterShortcut(e)) return;
       if (document.querySelector(".PhotoView-Portal")) return;
       e.preventDefault();
       e.stopImmediatePropagation();

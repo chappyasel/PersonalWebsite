@@ -21,7 +21,7 @@ export function ContactButton({ contact }: { contact: Contact }) {
       className="relative flex h-8 w-8 items-center justify-center transition-all duration-300 ease-in-out hover:text-muted-foreground"
       href={contact.link}
       target="_blank"
-      title={contact.title}
+      aria-label={contact.title}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >

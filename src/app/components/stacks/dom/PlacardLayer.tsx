@@ -51,6 +51,7 @@ import {
 } from "react";
 import licenses from "~~/models/LICENSES.json";
 
+import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import { getBookPath } from "~/lib/books/paths";
 import { getTagColor, getTagIcon } from "~/lib/books/tagColors";
 import type {
@@ -67,6 +68,7 @@ import {
 } from "./PlacardStatsCard";
 import {
   ignoresFocusShortcut,
+  isFocusModeShortcut,
   readFocusMode,
   writeFocusMode,
 } from "./focusMode";
@@ -559,6 +561,7 @@ function BookStars({ rating }: { rating: number }) {
 }
 
 function BookPreviewRow({ book }: { book: HomepageBookPreview }) {
+  const coverUrl = enhanceCoverUrl(book.coverUrl);
   const dates = book.finished
     ? (formatReadDates(book.started, book.finished) ??
       formatSingleReadDate(book.finished))
@@ -575,9 +578,9 @@ function BookPreviewRow({ book }: { book: HomepageBookPreview }) {
       className="book-preview-row grid grid-cols-[76px_1fr] gap-4 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent"
     >
       <div className="book-preview-cover relative aspect-[2/3] overflow-hidden rounded-[4px] bg-foreground/5">
-        {book.coverUrl ? (
+        {coverUrl ? (
           <Image
-            src={book.coverUrl}
+            src={coverUrl}
             alt=""
             fill
             sizes="76px"
@@ -2077,8 +2080,7 @@ export default function PlacardLayer({
   }, [detailsHidden]);
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() !== "h" || event.repeat) return;
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (!isFocusModeShortcut(event)) return;
       if (!window.matchMedia(STACKS_DESKTOP_QUERY).matches) return;
       if (modalOpen || ignoresFocusShortcut(event.target)) return;
       event.preventDefault();
@@ -2803,7 +2805,7 @@ export default function PlacardLayer({
           aria-describedby="stacks-details-tooltip"
           aria-controls="stacks-desktop-details"
           aria-expanded={!detailsHidden}
-          aria-keyshortcuts="H"
+          aria-keyshortcuts="Alt+H"
           onClick={() => setDetailsHidden((hidden) => !hidden)}
           className="flex size-11 items-center justify-center text-white/65 transition-[color,transform] duration-300 hover:scale-[1.08] hover:text-white focus-visible:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 motion-reduce:transition-none"
         >

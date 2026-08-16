@@ -10,6 +10,7 @@
   "scripts": {
     "prebuild": "bash scripts/fetch-dad-content.sh",
     "build": "next build",
+    "postbuild": "npm run check:budgets",
     "db:generate": "drizzle-kit generate",
     "db:migrate:dev": "dotenv -e .env.development.local -- drizzle-kit migrate",
     "db:migrate:prod": "drizzle-kit migrate",

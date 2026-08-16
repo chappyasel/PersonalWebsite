@@ -11,6 +11,7 @@ import { Spinner } from "~/components/ui/spinner";
 
 import { BookDetailContent } from "./BookDetailContent";
 import type { ModalPresentation } from "./ModalHost";
+import { shouldUseModalEnterShortcut } from "./modalKeyboard";
 
 const FOCUSABLE_SELECTOR = [
   "a[href]",
@@ -169,7 +170,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
 
       if (e.key === "Escape" && !photoViewOpen) {
         handleClose();
-      } else if (e.key === "Enter" && !photoViewOpen && bookId) {
+      } else if (shouldUseModalEnterShortcut(e) && !photoViewOpen && bookId) {
         // Navigate to full page view
         e.preventDefault();
         window.location.href = getBookPath(bookId);

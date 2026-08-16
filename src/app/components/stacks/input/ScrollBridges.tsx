@@ -57,6 +57,31 @@ export function worldNavigationStep(key: string): -1 | 1 | null {
   return null;
 }
 
+/** Browser pinch zoom arrives as Ctrl+wheel on desktop trackpads. */
+export function isBrowserZoomWheel(event: Pick<WheelEvent, "ctrlKey">) {
+  return event.ctrlKey;
+}
+
+export function isInteractiveWorldNavigationTarget(target: EventTarget | null) {
+  const closest = (target as { closest?: (selector: string) => Element | null })
+    ?.closest;
+  return (
+    typeof closest === "function" &&
+    !!closest.call(
+      target,
+      "a[href], button, input, textarea, select, [role='button'], [role='link'], [contenteditable]:not([contenteditable='false'])",
+    )
+  );
+}
+
+export function shouldHandleWorldNavigationKey(
+  event: Pick<KeyboardEvent, "defaultPrevented" | "target">,
+) {
+  return (
+    !event.defaultPrevented && !isInteractiveWorldNavigationTarget(event.target)
+  );
+}
+
 export function backgroundWorldGesture(
   state: BridgeInteractionState,
   scrollableTarget: boolean,
@@ -137,11 +162,7 @@ export default function ScrollBridges() {
         isStacksScrollableTarget(e.target),
       );
       if (action === "blocked") return;
-      if (e.ctrlKey) {
-        // Trackpad pinch — don't zoom the page and don't travel.
-        e.preventDefault();
-        return;
-      }
+      if (isBrowserZoomWheel(e)) return;
       e.preventDefault();
       e.stopPropagation();
       if (action === "collapse-and-travel") closeStacksPanel();
@@ -234,11 +255,11 @@ export default function ScrollBridges() {
     scrollEl.addEventListener("touchend", onTouchEnd, { passive: true });
 
     const onKey = (e: KeyboardEvent) => {
+      if (!shouldHandleWorldNavigationKey(e)) return;
       const state = useStacks.getState();
       if (state.modalOpen || state.panelState !== "closed") return;
       const target = e.target as HTMLElement | null;
       if (isStacksScrollableTarget(target)) return;
-      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
       const step = worldNavigationStep(e.key);
       if (step === null) return;
       e.preventDefault();

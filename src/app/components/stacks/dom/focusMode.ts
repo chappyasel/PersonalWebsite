@@ -1,5 +1,20 @@
 export const FOCUS_SESSION_KEY = "stacks:details-hidden";
 
+export function isFocusModeShortcut(
+  event: Pick<
+    KeyboardEvent,
+    "altKey" | "ctrlKey" | "key" | "metaKey" | "repeat"
+  >,
+) {
+  return (
+    event.key.toLowerCase() === "h" &&
+    !event.repeat &&
+    event.altKey &&
+    !event.metaKey &&
+    !event.ctrlKey
+  );
+}
+
 export function ignoresFocusShortcut(target: EventTarget | null) {
   const element = target as
     | (EventTarget & { closest?: (query: string) => unknown })

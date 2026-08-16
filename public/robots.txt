@@ -4,3 +4,5 @@ Disallow: /dad
 Disallow: /youtube
 Disallow: /api/trpc/dad
 Disallow: /api/trpc/youtube
+
+Sitemap: https://www.chappyasel.com/sitemap.xml

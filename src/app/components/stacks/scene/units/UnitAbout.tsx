@@ -13,6 +13,7 @@ import {
   ABOUT_BOOT_LANDMARKS,
   aboutLandmarkNodeName,
 } from "../aboutBootComposition";
+import { proxiedBookCover } from "../bookCoverTexture";
 import { EggLamp, SpinProp, Sway } from "../eggs";
 import { DeskApple, PortraitFrame, useMetalShimmer } from "../objects";
 import {
@@ -312,7 +313,7 @@ function ReadingStack({
                       rotation={[-Math.PI / 2, 0, 0]}
                     >
                       <LitImage
-                        url={proxied(book.coverUrl, coverWidth)}
+                        url={proxiedBookCover(book.coverUrl, coverWidth)}
                         width={0.2893}
                         height={0.4576}
                         roughness={0.64}

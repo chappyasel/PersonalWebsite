@@ -18,11 +18,14 @@ const COLORS = {
 
 interface GrainientBackgroundProps extends React.HTMLProps<HTMLDivElement> {
   children: ReactNode;
+  /** Skip the OGL renderer when this fallback is mounted but visually hidden. */
+  animated?: boolean;
 }
 
 export function GrainientBackground({
   className,
   children,
+  animated = true,
   ...props
 }: GrainientBackgroundProps) {
   const { resolvedTheme } = useTheme();
@@ -38,9 +41,8 @@ export function GrainientBackground({
   const [bottomNearViewport, setBottomNearViewport] = useState(false);
 
   useEffect(() => {
-    const reducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    );
+    if (!animated) return;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     if (reducedMotion.matches) return;
     // Without WebGL, ogl's Renderer throws during construction and takes the
     // whole tree down — keep the static gradient instead.
@@ -76,7 +78,7 @@ export function GrainientBackground({
       if (idleId !== undefined) window.cancelIdleCallback(idleId);
       if (timeoutId !== undefined) globalThis.clearTimeout(timeoutId);
     };
-  }, []);
+  }, [animated]);
 
   useEffect(() => {
     if (!bottomRef.current) return;
@@ -106,7 +108,7 @@ export function GrainientBackground({
         )}
         style={staticGradient}
       >
-        {Renderer && (
+        {animated && Renderer && (
           <Renderer
             color1={colors.color1}
             color2={colors.color2}
@@ -124,7 +126,7 @@ export function GrainientBackground({
         )}
         style={staticGradient}
       >
-        {Renderer && bottomNearViewport && (
+        {animated && Renderer && bottomNearViewport && (
           <Renderer
             color1={colors.color3}
             color2={colors.color2}

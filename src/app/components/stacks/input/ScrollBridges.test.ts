@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   backgroundWorldGesture,
   blocksWorldTouchTravel,
+  isBrowserZoomWheel,
+  isInteractiveWorldNavigationTarget,
   isStacksScrollableTarget,
+  shouldHandleWorldNavigationKey,
   worldNavigationStep,
 } from "./ScrollBridges";
 
@@ -41,6 +44,30 @@ describe("ScrollBridges interaction ownership", () => {
     expect(worldNavigationStep("ArrowLeft")).toBe(-1);
     expect(worldNavigationStep("ArrowUp")).toBe(-1);
     expect(worldNavigationStep("Enter")).toBeNull();
+  });
+
+  it("leaves browser zoom gestures and focused controls alone", () => {
+    expect(isBrowserZoomWheel({ ctrlKey: true })).toBe(true);
+    expect(isBrowserZoomWheel({ ctrlKey: false })).toBe(false);
+
+    const button = {
+      closest: (selector: string) =>
+        selector.includes("button") ? ({} as Element) : null,
+    } as unknown as EventTarget;
+    expect(isInteractiveWorldNavigationTarget(button)).toBe(true);
+    expect(isInteractiveWorldNavigationTarget(null)).toBe(false);
+    expect(
+      shouldHandleWorldNavigationKey({
+        defaultPrevented: true,
+        target: null,
+      }),
+    ).toBe(false);
+    expect(
+      shouldHandleWorldNavigationKey({
+        defaultPrevented: false,
+        target: button,
+      }),
+    ).toBe(false);
   });
 
   it("collapses an expanded sheet and preserves outside world travel", () => {

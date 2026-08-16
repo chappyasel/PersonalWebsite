@@ -5,7 +5,7 @@
 // Box props use RoundedBox — edge highlights are the cheapest "crafted vs
 // primitive" signal; perfect 90° corners are the strongest primitive tell.
 import { useStacks } from "../store";
-import { PALETTES, type Palette, proxied, rand } from "../theme";
+import { PALETTES, type Palette, rand } from "../theme";
 import { RoundedBox } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import React, { useEffect, useMemo, useRef } from "react";
@@ -17,6 +17,7 @@ import HeldFacing from "./HeldFacing";
 import Lift from "./Lift";
 import LitImage from "./LitImage";
 import ShelfSpacingProbe from "./ShelfSpacingProbe";
+import { proxiedBookCover } from "./bookCoverTexture";
 import {
   bookRowHoverKey,
   bookRowNodeName,
@@ -566,7 +567,7 @@ function FeaturedCover({
         <CoverBoundary fallback={null}>
           <React.Suspense fallback={null}>
             <LitImage
-              url={proxied(item.url, coverWidth)}
+              url={proxiedBookCover(item.url, coverWidth)}
               width={0.34}
               height={0.5}
               radius={0.012}

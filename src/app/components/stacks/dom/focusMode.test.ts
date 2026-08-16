@@ -3,11 +3,27 @@ import { describe, expect, it } from "vitest";
 import {
   FOCUS_SESSION_KEY,
   ignoresFocusShortcut,
+  isFocusModeShortcut,
   readFocusMode,
   writeFocusMode,
 } from "./focusMode";
 
 describe("desktop focus mode", () => {
+  it("requires Alt+H rather than a bare character shortcut", () => {
+    const event = {
+      key: "h",
+      repeat: false,
+      altKey: true,
+      metaKey: false,
+      ctrlKey: false,
+    };
+
+    expect(isFocusModeShortcut(event)).toBe(true);
+    expect(isFocusModeShortcut({ ...event, altKey: false })).toBe(false);
+    expect(isFocusModeShortcut({ ...event, ctrlKey: true })).toBe(false);
+    expect(isFocusModeShortcut({ ...event, repeat: true })).toBe(false);
+  });
+
   it("round-trips through session-shaped storage", () => {
     const values = new Map<string, string>();
     const storage = {

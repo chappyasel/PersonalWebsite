@@ -1,4 +1,4 @@
-import { type Viewport } from "next";
+import { type Metadata, type Viewport } from "next";
 import blogData from "public/data/blog-posts.json";
 import projectsData from "public/data/projects.json";
 import speakingData from "public/data/speaking.json";
@@ -25,8 +25,12 @@ import StacksHome from "./components/stacks/StacksHome";
 import { type StacksData } from "./components/stacks/data";
 import BootScreen from "./components/stacks/dom/BootScreen";
 import { WARM_KEY, WARM_TTL_MS } from "./components/stacks/loading";
+import { WEBGL_CAPABILITY_KEY } from "./components/stacks/webglProbe";
+
+import { homepageMetadata } from "./homeMetadata";
 
 export const revalidate = 86400;
+export const metadata: Metadata = homepageMetadata;
 
 // The immersive homepage intentionally paints beneath iOS Safari's browser
 // chrome and accounts for the safe areas in its own fixed UI. Keep this local
@@ -90,12 +94,12 @@ try {
 
   // Cache only the stable capability probe. Motion preference and Save-Data
   // are live visitor choices and must be evaluated on every document load.
-  var ok = sessionStorage.getItem("stacks-webgl-v1");
+  var ok = sessionStorage.getItem(${JSON.stringify(WEBGL_CAPABILITY_KEY)});
   if (ok === null) {
     ok = "0";
     var c = document.createElement("canvas");
     if (c.getContext("webgl2") || c.getContext("webgl")) ok = "1";
-    sessionStorage.setItem("stacks-webgl-v1", ok);
+    sessionStorage.setItem(${JSON.stringify(WEBGL_CAPABILITY_KEY)}, ok);
   }
   var motionOK = !matchMedia("(prefers-reduced-motion: reduce)").matches;
   var dataOK = !(navigator.connection && navigator.connection.saveData);

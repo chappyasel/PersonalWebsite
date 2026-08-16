@@ -4,24 +4,18 @@
 export function enhanceCoverUrl(url: string | null): string | null {
   if (!url) return null;
 
-  // For Google Books URLs, add high-quality parameters
-  if (url.includes("books.google.com")) {
-    let enhancedUrl = url;
-
-    // Increase zoom level for better resolution
-    if (enhancedUrl.includes("zoom=")) {
-      enhancedUrl = enhancedUrl.replace(/zoom=\d+/, "zoom=1");
-    } else {
-      enhancedUrl += enhancedUrl.includes("?") ? "&zoom=1" : "?zoom=1";
-    }
-
-    // Add fife parameter for even higher quality (w800 = 800px width)
-    if (!enhancedUrl.includes("fife=")) {
-      enhancedUrl += "&fife=w800";
-    }
-
-    return enhancedUrl;
+  // Google Books' API thumbnails can opt into a rendered page-curl edge.
+  // Request the clean, high-resolution cover art everywhere instead.
+  try {
+    const enhancedUrl = new URL(url);
+    if (enhancedUrl.hostname !== "books.google.com") return url;
+    enhancedUrl.searchParams.set("zoom", "1");
+    enhancedUrl.searchParams.set("fife", "w800");
+    enhancedUrl.searchParams.delete("edge");
+    return enhancedUrl.toString();
+  } catch {
+    // Cover data comes from an external CMS. A malformed URL should degrade
+    // to the existing image fallback, never throw during homepage rendering.
+    return url;
   }
-
-  return url;
 }

@@ -1,7 +1,7 @@
+import { useStacks } from "../store";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { useStacks } from "../store";
-import { jumpToUnitWhenReady } from "./bookModalSync";
+import { jumpToUnitWhenReady, ownDirectBookHashHistory } from "./bookModalSync";
 
 describe("book modal world synchronization", () => {
   afterEach(() => {
@@ -39,5 +39,29 @@ describe("book modal world synchronization", () => {
     }
 
     expect(calls).toBe(100);
+  });
+
+  it("gives a direct book hash an onsite close destination", () => {
+    const calls: Array<{ method: string; url: string }> = [];
+    const history = {
+      replaceState: (
+        _data: unknown,
+        _unused: string,
+        url?: string | URL | null,
+      ) => calls.push({ method: "replace", url: String(url) }),
+      pushState: (_data: unknown, _unused: string, url?: string | URL | null) =>
+        calls.push({ method: "push", url: String(url) }),
+    };
+
+    ownDirectBookHashHistory(history, {
+      pathname: "/",
+      search: "?ref=launch",
+      hash: "#book-example",
+    });
+
+    expect(calls).toEqual([
+      { method: "replace", url: "/?ref=launch" },
+      { method: "push", url: "/?ref=launch#book-example" },
+    ]);
   });
 });

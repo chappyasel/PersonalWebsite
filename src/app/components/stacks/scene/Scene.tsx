@@ -13,6 +13,7 @@ import CameraRig from "./CameraRig";
 import GroundPool, { FootPool } from "./GroundPool";
 import ModelProp, { preloadModels } from "./ModelProp";
 import SceneEnvironment from "./SceneEnvironment";
+import { proxiedBookCover } from "./bookCoverTexture";
 import { Sway } from "./eggs";
 import { V8_PHOTOS_BY_UNIT, scenePhotoManifestUrl } from "./photoTextures";
 import { SHELF_GEOMETRY } from "./shelfGeometry";
@@ -103,7 +104,7 @@ const SceneContent = memo(function SceneContent({
     byUnit.books.push(
       ...data.shelfBooks
         .filter((b) => b.coverUrl)
-        .map((b) => proxied(b.coverUrl!, coverWidth)),
+        .map((b) => proxiedBookCover(b.coverUrl!, coverWidth)),
     );
     byUnit.talks.push(
       ...data.talks.map((talk) => proxied(talk.still, coverWidth)),

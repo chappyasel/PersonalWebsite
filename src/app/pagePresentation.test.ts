@@ -24,4 +24,13 @@ describe("homepage first paint", () => {
     expect(source.match(/<BootScreen\b/g)).toHaveLength(1);
     expect(stacksHomeSource).not.toContain("<BootScreen");
   });
+
+  it("uses the same eligibility policy for world mount and preload", () => {
+    expect(stacksHomeSource).toContain(
+      'import { browserCanUseStacksWorld } from "./webglProbe";',
+    );
+    expect(
+      stacksHomeSource.match(/browserCanUseStacksWorld\(\)/g),
+    ).toHaveLength(2);
+  });
 });

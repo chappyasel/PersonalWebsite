@@ -90,6 +90,10 @@ export function isBootSequenceReady(): boolean {
 
 let meadowReady = false;
 
+export function resetMeadowReady(): void {
+  meadowReady = false;
+}
+
 export function markMeadowReady(): void {
   meadowReady = true;
 }

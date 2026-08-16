@@ -1,5 +1,18 @@
 type JumpTo = (unit: number) => void;
 
+type BookHashLocation = Pick<Location, "hash" | "pathname" | "search">;
+type BookHashHistory = Pick<History, "pushState" | "replaceState">;
+
+/** Give a direct book hash its own history entry so modal close stays onsite. */
+export function ownDirectBookHashHistory(
+  history: BookHashHistory,
+  location: BookHashLocation,
+) {
+  const baseUrl = `${location.pathname}${location.search}`;
+  history.replaceState(null, "", baseUrl);
+  history.pushState({ stacksBook: true }, "", `${baseUrl}${location.hash}`);
+}
+
 type JumpState = {
   jumpTo: JumpTo | null;
 };
