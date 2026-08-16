@@ -35,6 +35,48 @@ export function subscribeLoadProgress(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
+export type WorldRevealReadiness = {
+  assetsReady: boolean;
+  streamGraceExpired: boolean;
+  meadowReady: boolean;
+  meadowWaitExpired: boolean;
+  bootSequenceReady: boolean;
+};
+
+/** Pure reveal gate kept here so the boot-to-world handoff can be tested
+ * without mounting WebGL. */
+export function canRevealWorld({
+  assetsReady,
+  streamGraceExpired,
+  meadowReady,
+  meadowWaitExpired,
+  bootSequenceReady,
+}: WorldRevealReadiness): boolean {
+  return (
+    (assetsReady || streamGraceExpired) &&
+    (meadowReady || meadowWaitExpired) &&
+    bootSequenceReady
+  );
+}
+
+// The live room can arrive much faster than the loading vignette. Keep this
+// independent from asset progress so a cached or unusually fast WebGL boot
+// still shows one honest item-by-item pass instead of three objects followed
+// by an abrupt cut to the completed room.
+let bootSequenceReady = false;
+
+export function resetBootSequenceReady(): void {
+  bootSequenceReady = false;
+}
+
+export function markBootSequenceReady(): void {
+  bootSequenceReady = true;
+}
+
+export function isBootSequenceReady(): boolean {
+  return bootSequenceReady;
+}
+
 // ---------------------------------------------------------------------------
 // Meadow readiness — a separate flag because the progress number above
 // cannot carry it. The published progress is a monotonic high-water mark
@@ -57,11 +99,13 @@ export function isMeadowReady(): boolean {
 }
 
 /** The document-level handshake the pre-paint boot script starts. `pending`
- * hides the flat page and shows the boot screen; `warm` hides the flat page
- * but holds the boot screen back (see WARM_* below); `ready` retires both.
+ * hides the flat page and shows the boot screen; `warm` does the same while
+ * selecting the shorter cached-world transition; `ready` retires both.
  * The attribute lives on <html> so CSS can act on it during the very first
  * paint, before React exists — see the script in page.tsx. */
-export function setWorldPhase(phase: "pending" | "warm" | "ready" | null): void {
+export function setWorldPhase(
+  phase: "pending" | "warm" | "ready" | null,
+): void {
   const root = document.documentElement;
   if (phase === null) delete root.dataset.world;
   else root.dataset.world = phase;
@@ -88,8 +132,7 @@ export function isWarmBoot(): boolean {
 // outright; a wrong guess costs a few hundred milliseconds of quiet before
 // the shelf comes up as usual (globals.css, `data-world="warm"`).
 
-/** Key for the record: `{ t: last successful reveal (epoch ms), d: how long
- * that reveal took from navigation start } `. */
+/** Key for the record: `{ t: last successful reveal (epoch ms) }`. */
 export const WARM_KEY = "stacks-warm";
 
 /** How long a successful reveal is allowed to predict the next one. Long
@@ -97,31 +140,10 @@ export const WARM_KEY = "stacks-warm";
  * evicted HTTP cache cannot keep claiming to be warm for weeks. */
 export const WARM_TTL_MS = 3 * 24 * 60 * 60 * 1000;
 
-/** Headroom on the measured grace. The question the grace really asks is "is
- * this load going worse than the last one?", and a grace set to exactly the
- * last duration answers that with a coin toss — half of an unchanged load
- * would flash the loader for the last instant before the room arrives.
- * Thirty percent means it only comes up when the load is meaningfully
- * slower. */
-export const WARM_GRACE_SLACK = 1.3;
-
-/** Floor and ceiling on the measured grace. The floor keeps a suspiciously
- * fast measurement from making the grace meaningless; the ceiling is the
- * point past which an unexplained blank background stops reading as speed and
- * starts reading as breakage — about a second is where a quiet screen turns
- * into a broken one. */
-export const WARM_GRACE_MIN_MS = 250;
-export const WARM_GRACE_MAX_MS = 900;
-
-/** Records that the world reached the screen here, and how long it took. The
- * duration is what the next load spends its grace period on: the honest
- * estimate of "still fine, keep waiting" is how long it took last time. */
-export function rememberWarmBoot(revealMs: number): void {
+/** Records that the world reached the screen here. */
+export function rememberWarmBoot(): void {
   try {
-    localStorage.setItem(
-      WARM_KEY,
-      JSON.stringify({ t: Date.now(), d: Math.round(revealMs) }),
-    );
+    localStorage.setItem(WARM_KEY, JSON.stringify({ t: Date.now() }));
   } catch {
     // Private mode, quota, storage disabled. Every load is cold; that's fine.
   }

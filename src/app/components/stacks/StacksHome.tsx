@@ -19,13 +19,14 @@ import { Component, useCallback, useEffect, useRef, useState } from "react";
 
 import FlatHome from "./FlatHome";
 import { type StacksData, type StacksSlots } from "./data";
-import BootScreen from "./dom/BootScreen";
 import ChromeLayer from "./dom/ChromeLayer";
 import PlacardLayer from "./dom/PlacardLayer";
 import UnitRail from "./dom/UnitRail";
 import ScrollBridges from "./input/ScrollBridges";
 import {
+  canRevealWorld,
   getLoadProgress,
+  isBootSequenceReady,
   isMeadowReady,
   isWarmBoot,
   rememberWarmBoot,
@@ -195,8 +196,13 @@ export default function StacksHome({
       // reveal races the lawn and loses on cold loads. It only briefly
       // holds the door — a stalled asset can't hang the boot.
       if (
-        (getLoadProgress() >= REVEAL_PROGRESS || elapsed > STREAM_GRACE_MS) &&
-        (isMeadowReady() || elapsed > MEADOW_WAIT_MS)
+        canRevealWorld({
+          assetsReady: getLoadProgress() >= REVEAL_PROGRESS,
+          streamGraceExpired: elapsed > STREAM_GRACE_MS,
+          meadowReady: isMeadowReady(),
+          meadowWaitExpired: elapsed > MEADOW_WAIT_MS,
+          bootSequenceReady: isBootSequenceReady(),
+        })
       ) {
         setRevealed(true);
         return;
@@ -210,10 +216,9 @@ export default function StacksHome({
   useEffect(() => {
     if (!revealed) return;
     setWorldPhase("ready");
-    // The world got here. Record it, with how long it took: that is what the
-    // next load's pre-paint script reads to decide whether to hold the
-    // loading animation back, and for how long.
-    rememberWarmBoot(performance.now());
+    // The world got here. The next load can use the shorter cached-world
+    // transition, while still painting this loader immediately.
+    rememberWarmBoot();
     // The shelf finishes filling as it fades. Reveal is allowed to happen on
     // the streaming grace rather than on 100% of the assets, and a loader
     // that dissolves half-full reads as giving up rather than as finishing.
@@ -247,7 +252,9 @@ export default function StacksHome({
             />
           </CanvasBoundary>
           <style>{`
-            html[data-og-capture] .stacks-og-ui,
+            /* Keep the desktop chrome's geometry measurable so the capture
+               uses the same authored tilt-shift line as the live scene. */
+            html[data-og-capture] .stacks-og-ui { visibility: hidden !important; }
             html[data-og-capture] .stacks-world-curtain,
             html[data-og-capture] .stacks-boot,
             html[data-og-capture] .stacks-flat { display: none !important; }
@@ -265,10 +272,6 @@ export default function StacksHome({
           <div aria-hidden className="stacks-world-curtain" />
         </div>
       )}
-      <BootScreen
-        readingBooks={data.readingBooks}
-        readingBookColors={data.readingBookColors}
-      />
       {(mode === "flat" || !flatGone) && <FlatHome slots={slots} />}
       {/* Books modal — mounted at the root, outside GrainientBackground's
           [contain:paint] and the world's transforms, so fixed positioning

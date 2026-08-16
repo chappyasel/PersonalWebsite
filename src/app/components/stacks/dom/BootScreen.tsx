@@ -6,7 +6,7 @@ import {
   readingBookMaterialColors,
 } from "../../../../lib/books/coverEdgeColor";
 import type { Book } from "../../../../lib/books/types";
-import { getLoadProgress, subscribeLoadProgress } from "../loading";
+import { markBootSequenceReady, resetBootSequenceReady } from "../loading";
 import {
   ABOUT_BOOT_COMPOSITION,
   type AboutBootLandmark,
@@ -29,11 +29,11 @@ import {
 } from "react";
 
 export const SCENE_TO_BOOT_SVG = 100;
-export const BOOT_CADENCE_STEP_SECONDS = 0.16;
-export const BOOT_CADENCE_HOLD_SECONDS = 1.8;
-const BOOT_CADENCE_LEAD_SECONDS = 0.24;
-export const BOOT_CADENCE_SETTLE_SECONDS = 0.42;
-const BOOT_CADENCE_FADE_SECONDS = 0.48;
+export const BOOT_CADENCE_STEP_SECONDS = 0.12;
+export const BOOT_CADENCE_SETTLE_SECONDS = 0.32;
+export const BOOT_WAVE_INTRO_SECONDS = 0.36;
+export const BOOT_WAVE_DURATION_SECONDS = 3.6;
+const BOOT_WAVE_MIN_OPACITY = 0.18;
 
 export function projectSceneY(sceneY: number) {
   return -sceneY * SCENE_TO_BOOT_SVG;
@@ -42,22 +42,24 @@ export function projectSceneY(sceneY: number) {
 export function bootCadence(itemCount: number) {
   const lastSlot = Math.max(0, itemCount - 1);
   const revealDuration =
-    BOOT_CADENCE_LEAD_SECONDS +
-    lastSlot * BOOT_CADENCE_STEP_SECONDS +
-    BOOT_CADENCE_SETTLE_SECONDS;
+    lastSlot * BOOT_CADENCE_STEP_SECONDS + BOOT_CADENCE_SETTLE_SECONDS;
   return {
     delays: Array.from(
       { length: itemCount },
-      (_, index) =>
-        BOOT_CADENCE_LEAD_SECONDS + index * BOOT_CADENCE_STEP_SECONDS,
+      (_, index) => index * BOOT_CADENCE_STEP_SECONDS,
     ),
     revealDuration,
-    duration:
-      revealDuration + BOOT_CADENCE_HOLD_SECONDS + BOOT_CADENCE_FADE_SECONDS,
+    waveDuration: BOOT_WAVE_DURATION_SECONDS,
   };
 }
 
 type BootReadingBook = Pick<Book, "id">;
+
+const DEFAULT_BOOT_READING_BOOKS: BootReadingBook[] = [
+  { id: "boot-reading-one" },
+  { id: "boot-reading-two" },
+  { id: "boot-reading-three" },
+];
 
 type BootScreenProps = {
   readingBooks?: BootReadingBook[];
@@ -84,11 +86,6 @@ export function bootItemPose(
   return { opacity: visible, offsetY: (1 - visible) * 7 };
 }
 
-export function bootPlaybackRate(progress: number) {
-  const clamped = Math.min(1, Math.max(0, progress));
-  return 1 + clamped * 0.35;
-}
-
 export function bootItemKeyframes(
   index: number,
   cadence: ReturnType<typeof bootCadence>,
@@ -101,11 +98,10 @@ export function bootItemKeyframes(
     opacity: 1,
     transform: "translate3d(0, 0, 0)",
   };
-  const revealStart = cadence.delays[index]! / cadence.duration;
+  const revealStart = cadence.delays[index]! / cadence.revealDuration;
   const revealEnd =
-    (cadence.delays[index]! + BOOT_CADENCE_SETTLE_SECONDS) / cadence.duration;
-  const fadeStart =
-    (cadence.revealDuration + BOOT_CADENCE_HOLD_SECONDS) / cadence.duration;
+    (cadence.delays[index]! + BOOT_CADENCE_SETTLE_SECONDS) /
+    cadence.revealDuration;
 
   return [
     { ...hidden, offset: 0 },
@@ -115,13 +111,87 @@ export function bootItemKeyframes(
       easing: "cubic-bezier(0.16, 1, 0.3, 1)",
     },
     { ...visible, offset: revealEnd },
-    {
-      ...visible,
-      offset: fadeStart,
-      easing: "cubic-bezier(0.65, 0, 0.35, 1)",
-    },
-    { ...hidden, offset: 1 },
+    { ...visible, offset: 1 },
   ];
+}
+
+/** The exact contiguous window at a wave step. ABOUT_BOOT_COMPOSITION is
+ * authored top-shelf left→right, then lower-shelf left→right, so incrementing
+ * the step produces that same visible route. */
+export function bootWaveWindow(step: number, itemCount: number): number[] {
+  if (itemCount <= 0) return [];
+  const width = Math.max(1, Math.round(itemCount / 4));
+  const start = ((step % itemCount) + itemCount) % itemCount;
+  return Array.from(
+    { length: width },
+    (_, offset) => (start + offset) % itemCount,
+  );
+}
+
+/** Smoothly establishes the first window after every object has appeared. */
+export function bootWaveIntroKeyframes(
+  index: number,
+  itemCount: number,
+): Keyframe[] {
+  const dimmed = bootWaveWindow(0, itemCount).includes(index);
+  return [
+    { opacity: 1, offset: 0 },
+    { opacity: dimmed ? BOOT_WAVE_MIN_OPACITY : 1, offset: 1 },
+  ];
+}
+
+/** After the one-shot reveal and intro, a fixed-width window advances one
+ * landmark per step. CSS interpolates between steps, fading the outgoing
+ * landmark in while the next one fades out. */
+export function bootWaveKeyframes(
+  index: number,
+  itemCount: number,
+): Keyframe[] {
+  if (itemCount <= 0) return [];
+  return Array.from({ length: itemCount + 1 }, (_, step) => ({
+    opacity: bootWaveWindow(step, itemCount).includes(index)
+      ? BOOT_WAVE_MIN_OPACITY
+      : 1,
+    offset: step / itemCount,
+  }));
+}
+
+function cssKeyframes(name: string, frames: Keyframe[]) {
+  const body = frames
+    .map(({ offset, opacity, transform, easing }) => {
+      const percentage = Number((Number(offset) * 100).toFixed(5));
+      const alpha = opacity === undefined ? "" : `opacity:${String(opacity)};`;
+      const translation =
+        transform === undefined ? "" : `transform:${String(transform)};`;
+      const timing = easing
+        ? `animation-timing-function:${String(easing)};`
+        : "";
+      return `${percentage}%{${alpha}${translation}${timing}}`;
+    })
+    .join("");
+  return `@keyframes ${name}{${body}}`;
+}
+
+export function bootCssKeyframes(
+  itemCount: number,
+  cadence: ReturnType<typeof bootCadence>,
+) {
+  return Array.from({ length: itemCount }, (_, index) => {
+    return [
+      cssKeyframes(
+        `stacks-boot-reveal-${index}`,
+        bootItemKeyframes(index, cadence),
+      ),
+      cssKeyframes(
+        `stacks-boot-wave-intro-${index}`,
+        bootWaveIntroKeyframes(index, itemCount),
+      ),
+      cssKeyframes(
+        `stacks-boot-wave-${index}`,
+        bootWaveKeyframes(index, itemCount),
+      ),
+    ].join("");
+  }).join("");
 }
 
 function useBootMotion(
@@ -131,42 +201,61 @@ function useBootMotion(
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
+    resetBootSequenceReady();
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       scene.dataset.bootMotion = "reduced";
+      markBootSequenceReady();
       return;
     }
-    const phase = document.documentElement.dataset.world;
-    if (phase !== "pending" && phase !== "warm") return;
+    let animations: Animation[] = [];
+    let readinessFrame = 0;
+    let retireTimer = 0;
 
-    const motions = Array.from(
-      scene.querySelectorAll<SVGGElement>(".stacks-boot-item-motion"),
-    );
-    const duration = cadence.duration * 1000;
-    const timelineTime = Number(document.timeline.currentTime ?? 0);
-    const animations = motions.map((motion, index) => {
-      const animation = motion.animate(bootItemKeyframes(index, cadence), {
-        duration,
-        iterations: Infinity,
-        easing: "linear",
-      });
-      // Align every item to the document timeline so hydration cannot create
-      // thirteen slightly different clocks. CSS runs the same entrance before
-      // hydration; the WAAPI animation takes over atomically on the next paint.
-      animation.currentTime = timelineTime % duration;
-      return animation;
-    });
-    scene.dataset.bootMotion = "compositor";
+    const start = () => {
+      if (animations.length) return;
+      const phase = document.documentElement.dataset.world;
+      if (phase !== "pending" && phase !== "warm") return;
 
-    const updateRate = () => {
-      const rate = bootPlaybackRate(getLoadProgress());
-      for (const animation of animations) animation.updatePlaybackRate(rate);
+      const motions = Array.from(
+        scene.querySelectorAll<SVGGElement>(".stacks-boot-item-motion"),
+      );
+      const timelineTime = Number(document.timeline.currentTime ?? 0);
+      // The server-rendered CSS animation has already been running since the
+      // first paint. Adopt those exact compositor timelines instead of
+      // replacing them during hydration, which used to jump to an arbitrary
+      // page-relative point in a freshly-created loop.
+      animations = motions.flatMap((motion) => motion.getAnimations());
+      scene.dataset.bootMotion = "compositor";
+
+      const observeFirstPass = () => {
+        const animationTime = Number(animations[0]?.currentTime ?? 0);
+        if (
+          timelineTime >= cadence.revealDuration * 1000 ||
+          animationTime >= cadence.revealDuration * 1000
+        ) {
+          markBootSequenceReady();
+          return;
+        }
+        readinessFrame = requestAnimationFrame(observeFirstPass);
+      };
+      observeFirstPass();
     };
-    updateRate();
-    const unsubscribe = subscribeLoadProgress(updateRate);
+
+    start();
     const observer = new MutationObserver(() => {
       const phase = document.documentElement.dataset.world;
-      if (phase === "pending" || phase === "warm") return;
-      for (const animation of animations) animation.cancel();
+      if (phase === "pending" || phase === "warm") {
+        start();
+        return;
+      }
+      cancelAnimationFrame(readinessFrame);
+      // Let the boot wrapper finish its 360ms opacity transition before
+      // retiring the compositor timelines. Cancelling immediately snaps every
+      // landmark back to its hidden base style during the handoff.
+      retireTimer = window.setTimeout(() => {
+        for (const animation of animations) animation.cancel();
+        animations = [];
+      }, 420);
       observer.disconnect();
     });
     observer.observe(document.documentElement, {
@@ -175,8 +264,9 @@ function useBootMotion(
     });
 
     return () => {
-      unsubscribe();
       observer.disconnect();
+      cancelAnimationFrame(readinessFrame);
+      window.clearTimeout(retireTimer);
       for (const animation of animations) animation.cancel();
     };
   }, [cadence, sceneRef]);
@@ -471,10 +561,11 @@ function LandmarkGlyph({
 }
 
 export default function BootScreen({
-  readingBooks = [],
+  readingBooks = DEFAULT_BOOT_READING_BOOKS,
   readingBookColors = {},
 }: BootScreenProps) {
   const cadence = ABOUT_BOOT_CADENCE;
+  const keyframes = bootCssKeyframes(ABOUT_BOOT_COMPOSITION.length, cadence);
   const sceneRef = useRef<SVGSVGElement>(null);
   useBootMotion(sceneRef, cadence);
   const support = SHELF_GEOMETRY.support;
@@ -487,6 +578,7 @@ export default function BootScreen({
     (SHELF_GEOMETRY.width / 2 - SHELF_GEOMETRY.strapInsetX) * SCENE_TO_BOOT_SVG;
   return (
     <div className="stacks-boot" aria-hidden style={paletteVariables()}>
+      <style>{keyframes}</style>
       <div className="stacks-boot-threshold">
         <div className="stacks-boot-entry">
           <p className="stacks-boot-wordmark">Chappy Asel</p>
@@ -496,7 +588,9 @@ export default function BootScreen({
             data-boot-item-count={ABOUT_BOOT_COMPOSITION.length}
             style={
               {
-                "--stacks-boot-loop-duration": `${cadence.duration.toFixed(2)}s`,
+                "--stacks-boot-reveal-duration": `${cadence.revealDuration.toFixed(2)}s`,
+                "--stacks-boot-wave-intro-duration": `${BOOT_WAVE_INTRO_SECONDS.toFixed(2)}s`,
+                "--stacks-boot-wave-duration": `${cadence.waveDuration.toFixed(2)}s`,
               } as BootStyle
             }
             viewBox="-150 -108 300 230"
@@ -547,14 +641,14 @@ export default function BootScreen({
                   data-shelf-id={landmark.shelf}
                   data-cadence-slot={index}
                   key={landmark.id}
-                  style={
-                    {
-                      "--stacks-boot-item-delay": `${cadence.delays[index]!.toFixed(2)}s`,
-                    } as BootStyle
-                  }
                   transform={`translate(${landmark.x * SCENE_TO_BOOT_SVG} ${projectSceneY(SHELF_SURFACE[landmark.shelf])})`}
                 >
-                  <g className="stacks-boot-item-motion">
+                  <g
+                    className="stacks-boot-item-motion"
+                    style={{
+                      animationName: `stacks-boot-reveal-${index}, stacks-boot-wave-intro-${index}, stacks-boot-wave-${index}`,
+                    }}
+                  >
                     <LandmarkGlyph
                       landmark={landmark}
                       readingBooks={readingBooks}

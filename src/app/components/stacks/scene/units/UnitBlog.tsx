@@ -4,13 +4,75 @@
 // paper, an open book, headphones and tea, with plants softening both ends.
 import Grabbable from "../Grabbable";
 import { ContactShade } from "../GroundPool";
+import HeldFacing from "../HeldFacing";
 import ModelProp from "../ModelProp";
 import { EggLamp, SteamCup, Sway } from "../eggs";
 import { NotebookLean, PaperStack } from "../objects";
 import { BookPile, Bookend, ShelfUnit } from "../primitives";
-import React, { useMemo } from "react";
+import { useTexture } from "@react-three/drei";
+import React, { useEffect, useMemo } from "react";
+import * as THREE from "three";
 
 import { type UnitProps } from "./types";
+
+const VINEYARD_VINES_STICKER_URL =
+  "/images/stacks/vineyard-vines-sticker.svg?v=4";
+const VINEYARD_VINES_STICKER_HOVER_KEY = "grab:sticker:vineyard-vines";
+
+/** A thin, die-cut decal left flat on the wood in front of the sailboat. */
+function VineyardVinesSticker({
+  unitIndex,
+  shadeColor,
+}: {
+  unitIndex: number;
+  shadeColor: string;
+}) {
+  const texture = useTexture(VINEYARD_VINES_STICKER_URL);
+  useEffect(() => {
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.needsUpdate = true;
+  }, [texture]);
+
+  return (
+    <Grabbable
+      unitIndex={unitIndex}
+      hoverKey={VINEYARD_VINES_STICKER_HOVER_KEY}
+      base={[0.9, 0.005, 0.16]}
+      shadeColor={shadeColor}
+      shadeWidth={0.22}
+      shape="box"
+      massKg={0.006}
+    >
+      <HeldFacing
+        hoverKey={VINEYARD_VINES_STICKER_HOVER_KEY}
+        rest={[-Math.PI / 2, 0, 0]}
+      >
+        {/* A paper-thin backing gives the physics solver a real hull while
+            the textured face stays exactly on its upper surface. */}
+        <mesh>
+          <boxGeometry args={[0.26, 0.113, 0.01]} />
+          <meshBasicMaterial
+            transparent
+            opacity={0}
+            depthWrite={false}
+            colorWrite={false}
+          />
+        </mesh>
+        <mesh position={[0, 0, 0.0051]}>
+          <planeGeometry args={[0.26, 0.113]} />
+          <meshBasicMaterial
+            map={texture}
+            transparent
+            alphaTest={0.02}
+            polygonOffset
+            polygonOffsetFactor={-2}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      </HeldFacing>
+    </Grabbable>
+  );
+}
 
 export default function UnitBlog({
   data,
@@ -106,6 +168,12 @@ export default function UnitBlog({
                 />
               </React.Suspense>
             </Grabbable>
+            <React.Suspense fallback={null}>
+              <VineyardVinesSticker
+                unitIndex={index}
+                shadeColor={palette.shadow}
+              />
+            </React.Suspense>
           </group>
         }
       >
@@ -241,3 +309,5 @@ export default function UnitBlog({
     </>
   );
 }
+
+useTexture.preload(VINEYARD_VINES_STICKER_URL);

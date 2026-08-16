@@ -401,7 +401,6 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
               shadeWidth={0.4}
               shape="box"
               massKg={0.9}
-              to="weightlifting"
             >
               <React.Suspense fallback={null}>
                 <ModelProp

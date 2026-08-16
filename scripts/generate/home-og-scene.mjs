@@ -40,11 +40,9 @@ function captureUrl(rawUrl) {
     throw new Error("--url must use http or https");
   }
   url.searchParams.set("og-capture", "1");
-  // The interactive scene uses photographic softness at its edges and in the
-  // distant meadow. A social card is already downsampled by every platform,
-  // so keep the rest of the grade but render this still without blur passes.
-  url.searchParams.set("nodof", "1");
-  url.searchParams.set("notiltshift", "1");
+  // Keep the authored post-processing deterministic in software-rendered CI:
+  // rung 0 retains AO, bloom, depth of field, tilt shift, and the final grade.
+  url.searchParams.set("quality", "0");
   return url;
 }
 
@@ -72,17 +70,17 @@ const browser = await chromium.launch({
 try {
   const context = await browser.newContext({
     viewport: { width: WIDTH, height: HEIGHT },
-    // Oversample enough to keep the enlarged crop crisp without asking a
-    // software CI renderer to sustain the scene's full 2x performance tier.
-    deviceScaleFactor: 1.5,
-    colorScheme: "light",
+    // Render at the card's native pixel density. Full AO, bloom, depth of
+    // field, and tilt shift exhaust SwiftShader at the former 1.5x setting.
+    deviceScaleFactor: 1,
+    colorScheme: "dark",
     reducedMotion: "no-preference",
   });
   const page = await context.newPage();
 
   // Make the capture independent of the machine or CI runner's saved theme.
   await page.addInitScript(() => {
-    localStorage.setItem("theme", "light");
+    localStorage.setItem("theme", "dark");
   });
 
   const failures = [];
@@ -110,23 +108,26 @@ try {
     "html[data-og-capture] .stacks-world-shell[data-canvas-ready]",
     {
       state: "attached",
-      timeout: 60_000,
+      // Full post-processing takes roughly 60–90 seconds to compile under
+      // SwiftShader on a cold runner before the canvas can paint its frame.
+      timeout: 120_000,
     },
   );
   await page.evaluate(async () => document.fonts?.ready);
-  const uiDisplay = await page
+  const uiVisibility = await page
     .locator(".stacks-og-ui")
-    .evaluate((element) => getComputedStyle(element).display);
-  if (uiDisplay !== "none") {
+    .evaluate((element) => getComputedStyle(element).visibility);
+  if (uiVisibility !== "hidden") {
     throw new Error(
-      `Capture UI should be hidden; computed display is ${uiDisplay}`,
+      `Capture UI should be hidden; computed visibility is ${uiVisibility}`,
     );
   }
 
-  // The first canvas frame deliberately permits secondary props to stream in.
-  // Give those textures a fixed settle window before freezing CSS animations
-  // and reading the framebuffer.
-  await page.waitForTimeout(7_500);
+  // Full post-processing takes long enough to compile under SwiftShader that
+  // secondary textures have already settled by the first painted frame. Keep
+  // this final pause short so a software renderer is not asked to sustain the
+  // expensive composer for several idle seconds before reading its framebuffer.
+  await page.waitForTimeout(1_000);
   await page.evaluate(() => {
     // `next dev` injects its launcher as a custom-element portal. It is not
     // present in production, but removing it makes local/manual regeneration
@@ -135,6 +136,10 @@ try {
       portal.remove();
     });
   });
+  await page.waitForSelector(
+    "html[data-og-capture] .stacks-world-shell[data-canvas-ready]",
+    { state: "attached", timeout: 5_000 },
+  );
   await page.screenshot({
     path: rawOutputPath,
     type: "png",
@@ -143,6 +148,7 @@ try {
     caret: "hide",
     fullPage: false,
     scale: "device",
+    timeout: 120_000,
   });
 
   await sharp(rawOutputPath)

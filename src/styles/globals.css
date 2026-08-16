@@ -370,37 +370,6 @@ html[data-world="ready"] .stacks-boot {
   visibility: hidden;
 }
 
-/*
- * Warm boot: this visitor has had the world on screen recently, so the chunk
- * and the assets are almost certainly still in their HTTP cache and the room
- * is close. Replaying the whole threshold study for a load that beats it is
- * ceremony, so it only appears if the prediction was wrong.
- *
- * So the entrance starts invisible and only fades in if the prediction was
- * wrong. The boot surface itself stays present: a warm flag plus an
- * evicted cache (or a plane, or a hotel wifi) is a real combination, and the
- * surface gives the eventual reveal the same fade path whether or not the
- * indicator had time to appear.
- *
- * The grace has to be CSS, not React. On a throttled connection React is not
- * hydrated for the first several seconds of the load — the exact window this
- * governs — so a JS-driven timer would be asleep for all of it. The delay
- * runs from the boot screen's first paint, which is what the visitor's own
- * clock started on too.
- *
- * The value comes from the last measured reveal, plus 30% headroom, clamped
- * to 250–900ms (page.tsx writes it; see WARM_GRACE_* in loading.ts). "A bit
- * longer than it took last time" is the only honest answer to "how long is it
- * reasonable to say nothing for", and the 900ms ceiling is the point where
- * quiet stops reading as speed — past about a second an unexplained blank
- * screen reads as a broken page. The 400ms fallback covers a record with no
- * duration in it.
- */
-html[data-world="warm"] .stacks-boot-entry {
-  animation-duration: 220ms;
-  animation-delay: var(--stacks-warm-grace, 400ms);
-}
-
 .stacks-boot {
   --stacks-boot-wood: var(--stacks-boot-wood-light);
   --stacks-boot-wood-edge: var(--stacks-boot-wood-edge-light);
@@ -457,6 +426,14 @@ html[data-world="warm"] .stacks-boot-entry {
   --stacks-boot-ink: var(--stacks-boot-ink-dark);
   --stacks-boot-leaf: var(--stacks-boot-leaf-dark);
   --stacks-boot-pot: var(--stacks-boot-pot-dark);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--stacks-boot-sky) 46%, hsl(var(--background))) 0%,
+    color-mix(in srgb, var(--stacks-boot-haze) 26%, hsl(var(--background))) 43%,
+    color-mix(in srgb, var(--stacks-boot-meadow) 24%, hsl(var(--background)))
+      72%,
+    color-mix(in srgb, var(--stacks-boot-wood) 20%, hsl(var(--background))) 100%
+  );
 }
 
 .stacks-boot-threshold {
@@ -471,7 +448,6 @@ html[data-world="warm"] .stacks-boot-entry {
 .stacks-boot-entry {
   position: relative;
   isolation: isolate;
-  animation: stacks-boot-enter 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 /* A narrow pool of light belongs to this room's visual language. It grounds
@@ -494,13 +470,17 @@ html[data-world="warm"] .stacks-boot-entry {
   transform: translateX(-50%);
 }
 
+.dark .stacks-boot-entry::before {
+  display: none;
+}
+
 .stacks-boot-wordmark {
   margin: 0 0 28px;
-  color: hsl(var(--foreground) / 0.74);
+  color: hsl(var(--foreground) / 0.95);
   font-family: var(--font-serif), Georgia, serif;
-  font-size: clamp(28px, 3.1vw, 44px);
+  font-size: clamp(28.56px, 3.162vw, 44.88px);
   line-height: 1;
-  letter-spacing: 0.095em;
+  letter-spacing: -0.025em;
   text-align: center;
 }
 
@@ -575,16 +555,25 @@ html[data-world="ready"] .stacks-boot-threshold {
   transform-box: fill-box;
   transform-origin: center bottom;
   will-change: opacity, transform;
-  animation: stacks-boot-item-settle 420ms cubic-bezier(0.16, 1, 0.3, 1)
-    var(--stacks-boot-item-delay) both;
+  animation-duration: var(--stacks-boot-reveal-duration),
+    var(--stacks-boot-wave-intro-duration), var(--stacks-boot-wave-duration);
+  animation-delay: 0s, var(--stacks-boot-reveal-duration),
+    calc(
+      var(--stacks-boot-reveal-duration) +
+        var(--stacks-boot-wave-intro-duration)
+    );
+  animation-timing-function: linear, cubic-bezier(0.45, 0, 0.55, 1), linear;
+  animation-iteration-count: 1, 1, infinite;
+  animation-fill-mode: forwards, forwards, none;
 }
 
-/* Before React hydrates, CSS owns a one-pass entrance. Once mounted, the Web
-   Animations API replaces it with a synchronized compositor loop; loading
-   events may adjust playback rate, but JavaScript never paints a frame. */
-.stacks-boot-scene[data-boot-motion="compositor"] .stacks-boot-item-motion {
-  animation: none;
-}
+/* The per-item keyframes are server-rendered with the SVG, so this compositor
+   sequence starts before hydration and stays smooth independently of WebGL.
+   Each item reveals once; after the complete shelf is present, the second
+   timeline establishes a three-item window and the third slides that window
+   left→right across the top shelf, then left→right across the lower shelf.
+   Once mounted, JavaScript only observes the timelines to coordinate the
+   handoff; it never paints a frame, replaces the animation, or changes speed. */
 
 .stacks-boot-frame {
   fill: var(--stacks-boot-frame);
@@ -677,28 +666,6 @@ html[data-world="ready"] .stacks-boot-threshold {
 .dark .stacks-boot-reading-book {
   --stacks-boot-book: var(--stacks-boot-book-dark);
   --stacks-boot-book-page: var(--stacks-boot-book-page-dark);
-}
-
-@keyframes stacks-boot-enter {
-  from {
-    opacity: 0;
-    transform: translateY(7px) scale(0.985);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes stacks-boot-item-settle {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 7px, 0);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
 }
 
 /* The room renders at full fidelity behind two opaque compositor panels. The

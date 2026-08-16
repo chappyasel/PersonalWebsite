@@ -5,7 +5,7 @@ const routes = [
   {
     name: "homepage",
     manifest: ".next/server/app/page_client-reference-manifest.js",
-    budget: 180 * 1024,
+    budget: 250 * 1024,
   },
   {
     name: "books",

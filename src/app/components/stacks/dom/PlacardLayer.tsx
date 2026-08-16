@@ -2250,8 +2250,8 @@ export default function PlacardLayer({
           }
           .dark [data-stacks-desktop-panel] [data-placard-surface] {
             background-color: rgb(0 0 0 / 0.05) !important;
-            backdrop-filter: blur(80px) saturate(0.22) brightness(0.42) !important;
-            -webkit-backdrop-filter: blur(80px) saturate(0.22) brightness(0.42) !important;
+            backdrop-filter: blur(80px) saturate(0.22) brightness(0.60) !important;
+            -webkit-backdrop-filter: blur(80px) saturate(0.22) brightness(0.60) !important;
           }
         }
         /* ── The sheet ────────────────────────────────────────────────
@@ -2539,7 +2539,7 @@ export default function PlacardLayer({
              clear lens over the meadow, while cards become the darker,
              more opaque reading surfaces in front of it. */
           .dark .placard-scroll [class*="backdrop-blur"] {
-            background-color: rgb(0 0 0 / 0.30) !important;
+            background-color: rgb(0 0 0 / 0.42) !important;
           }
           /* sm: padding belongs to the shared full-page layout. The sheet is
              still a narrow reading column at 640–1199px, so keep every card
@@ -2662,20 +2662,21 @@ export default function PlacardLayer({
           .dark [data-stacks-desktop-panel] a[data-placard-surface]:hover,
           .dark [data-stacks-desktop-panel] a:focus-visible [data-placard-surface],
           .dark [data-stacks-desktop-panel] a[data-placard-surface]:focus-visible {
-            background-color: rgb(255 255 255 / 0.07) !important;
+            background-color: rgb(0 0 0 / 0.12) !important;
           }
         }
         @media (width < 1200px) {
           /* The dark mobile sheet is nearly clear, so its cards need more
-             separation than their desktop counterparts. Hover deepens that
-             material instead of adding the pale wash used previously. */
+             separation than their desktop counterparts. Hover lifts that
+             dark fill by only two percentage points, keeping the feedback
+             visible without flashing a pale wash over the card. */
           .dark .placard-scroll [data-placard-link]:hover [data-placard-surface],
           .dark .placard-scroll [data-placard-link]:focus-visible [data-placard-surface],
           .dark .placard-scroll a:hover [data-placard-surface],
           .dark .placard-scroll a[data-placard-surface]:hover,
           .dark .placard-scroll a:focus-visible [data-placard-surface],
           .dark .placard-scroll a[data-placard-surface]:focus-visible {
-            background-color: rgb(0 0 0 / 0.36) !important;
+            background-color: rgb(0 0 0 / 0.40) !important;
           }
         }
         /* Fade the visual pieces, never the section that contains them.

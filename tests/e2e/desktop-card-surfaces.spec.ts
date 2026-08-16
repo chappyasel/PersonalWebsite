@@ -92,14 +92,44 @@ test("dark desktop cards retain their translucent native material", async ({
     .locator("[data-placard-surface]")
     .first();
   await expect(surface).toBeAttached();
-  const backgroundAlpha = await surface.evaluate((element) => {
-    const color = getComputedStyle(element).backgroundColor;
+  const material = await surface.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const color = style.backgroundColor;
     const channels = color.match(/(?:\d*\.)?\d+/g) ?? [];
     const hasAlpha = color.startsWith("rgba") || color.includes("/");
-    return hasAlpha ? Number(channels.at(-1)) : 1;
+    return {
+      backdropFilter: style.backdropFilter,
+      backgroundAlpha: hasAlpha ? Number(channels.at(-1)) : 1,
+    };
   });
-  expect(backgroundAlpha).toBeGreaterThanOrEqual(0.03);
-  expect(backgroundAlpha).toBeLessThanOrEqual(0.07);
+  expect(material.backdropFilter).toContain("brightness(0.6)");
+  expect(material.backgroundAlpha).toBeGreaterThanOrEqual(0.03);
+  expect(material.backgroundAlpha).toBeLessThanOrEqual(0.07);
+
+  await context.close();
+});
+
+test("dark desktop card hover deepens rather than lightens the fill", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    colorScheme: "dark",
+    viewport: { width: 1440, height: 900 },
+  });
+  const page = await context.newPage();
+  await page.addInitScript(() => {
+    localStorage.setItem("theme", "dark");
+    sessionStorage.setItem("stacks-webgl-v1", "1");
+  });
+  await page.goto("/");
+
+  const surface = page
+    .locator("[data-stacks-desktop-panel][data-stacks-active]")
+    .locator("a[data-placard-surface], a [data-placard-surface]")
+    .first();
+  await expect(surface).toBeAttached();
+  await surface.hover();
+  await expect(surface).toHaveCSS("background-color", "rgba(0, 0, 0, 0.12)");
 
   await context.close();
 });

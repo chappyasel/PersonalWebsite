@@ -14,6 +14,7 @@ import {
 describe("scene interaction registry", () => {
   it("derives route labels, hrefs, and external treatment together", () => {
     expect(destinationFor("weightlifting").label).toBe("Open Weightlifting");
+    expect(destinationFor("blog").label).toBe("Open Medium");
     expect(destinationFor("manual")).toMatchObject({
       href: "/manual",
       external: false,

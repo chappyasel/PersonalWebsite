@@ -26,14 +26,17 @@ const springValues: SpringOptions = {
   mass: 1.05,
 };
 
-// Scale should answer quickly enough to confirm clickability, then settle
-// with one restrained overshoot. Keeping it separate from the slower tilt
-// spring avoids making the card feel floaty under the pointer.
+// One quick, lightly underdamped spring drives every direct interaction:
+// desktop hover/lift and touch or mouse press/release. The higher stiffness
+// gives it the immediate response of Apple's controls; the modest overshoot
+// keeps the return alive without making a reading card feel rubbery.
 const hoverSpringValues: SpringOptions = {
-  damping: 16,
-  stiffness: 220,
-  mass: 0.75,
+  damping: 22,
+  stiffness: 360,
+  mass: 0.72,
 };
+
+const pressedScale = 0.97;
 
 export default function TiltCard({
   children,
@@ -79,6 +82,21 @@ export default function TiltCard({
     rotateY.set(0);
   };
 
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!interactive || reduceMotion || !e.isPrimary || e.button !== 0) {
+      return;
+    }
+    scale.set(pressedScale);
+    lift.set(0);
+  };
+
+  const settleAfterPress = () => {
+    const stillHovered =
+      supportsHover() && containerRef.current?.matches(":hover");
+    scale.set(stillHovered ? hoverScale : 1);
+    lift.set(stillHovered ? -2 : 0);
+  };
+
   return (
     <div
       ref={containerRef}
@@ -97,7 +115,9 @@ export default function TiltCard({
       onMouseMove={handleMouseMove}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      onTouchEnd={handleMouseLeave}
+      onPointerDown={handlePointerDown}
+      onPointerUp={settleAfterPress}
+      onPointerCancel={settleAfterPress}
     >
       <motion.div
         data-tilt-motion=""
@@ -109,7 +129,6 @@ export default function TiltCard({
           scale,
           willChange: "transform",
         }}
-        whileTap={interactive && !reduceMotion ? { scale: 0.97 } : undefined}
       >
         {children}
       </motion.div>

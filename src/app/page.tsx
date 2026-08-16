@@ -23,13 +23,8 @@ import Talks from "./components/Talks";
 import Weightlifting from "./components/Weightlifting";
 import StacksHome from "./components/stacks/StacksHome";
 import { type StacksData } from "./components/stacks/data";
-import {
-  WARM_GRACE_MAX_MS,
-  WARM_GRACE_MIN_MS,
-  WARM_GRACE_SLACK,
-  WARM_KEY,
-  WARM_TTL_MS,
-} from "./components/stacks/loading";
+import BootScreen from "./components/stacks/dom/BootScreen";
+import { WARM_KEY, WARM_TTL_MS } from "./components/stacks/loading";
 
 export const revalidate = 86400;
 
@@ -69,9 +64,9 @@ const SCENE_TALK_STILLS: Record<number, string> = {
 // Second decision, second store. The viability probe is per-tab because it
 // answers "can this browser run it". The WARM record is per-profile because
 // it answers "is the chunk already on this disk" — and the HTTP cache that
-// makes a reload fast is shared across tabs. Warm only changes how the wait
-// is PRESENTED (see globals.css); it never overrides reduced-motion or
-// Save-Data, both of which are settled before it is read.
+// makes a reload fast is shared across tabs. Warm only shortens the final
+// handoff into the cached room; it never hides the boot vignette or overrides
+// reduced-motion / Save-Data, both of which are settled before it is read.
 //
 // The timeout is the safety net for the case this whole mechanism creates: if
 // the JS bundle never boots, the flat page is hidden behind a loading screen
@@ -105,17 +100,13 @@ try {
   var motionOK = !matchMedia("(prefers-reduced-motion: reduce)").matches;
   var dataOK = !(navigator.connection && navigator.connection.saveData);
   if (ok === "1" && motionOK && dataOK) {
-    var warm = null;
+    var warm = false;
     try {
       var rec = JSON.parse(localStorage.getItem(${JSON.stringify(WARM_KEY)}) || "null");
       var age = rec ? Date.now() - rec.t : Infinity;
-      if (age >= 0 && age < ${WARM_TTL_MS}) warm = rec.d;
+      if (age >= 0 && age < ${WARM_TTL_MS}) warm = true;
     } catch (_) {}
-    if (warm !== null) {
-      el.style.setProperty("--stacks-warm-grace", Math.min(${WARM_GRACE_MAX_MS},
-        Math.max(${WARM_GRACE_MIN_MS}, (warm || 0) * ${WARM_GRACE_SLACK})) + "ms");
-    }
-    el.dataset.world = warm === null ? "pending" : "warm";
+    el.dataset.world = warm ? "warm" : "pending";
     window.__stacksWorldBootTimer = setTimeout(function () {
       if (window.__stacksWorldBootToken !== bootToken) return;
       window.__stacksWorldBootTimer = 0;
@@ -128,7 +119,23 @@ try {
 } catch (_) {}
 `;
 
-export default async function HomePage() {
+export default function HomePage() {
+  return (
+    <>
+      {/* This synchronous shell is flushed before the data-backed homepage
+          suspends, so the capability decision and the bookcase both exist on
+          the first eligible paint instead of leaving the layout background
+          alone while books and training data resolve. */}
+      <script dangerouslySetInnerHTML={{ __html: WORLD_BOOT_SCRIPT }} />
+      <BootScreen />
+      <React.Suspense fallback={null}>
+        <HomePageContent />
+      </React.Suspense>
+    </>
+  );
+}
+
+async function HomePageContent() {
   const [allBooks, activity, liftingPlacard] = await Promise.all([
     getDefaultBooks(),
     getCachedActivityMosaic(12),
@@ -237,18 +244,5 @@ export default async function HomePage() {
     quotes: <Quotes />,
   };
 
-  return (
-    <>
-      {/* Runs during HTML parse, ahead of the flat document below it, so the
-          decision is made BEFORE the first paint. React can't do this: it
-          renders flat on the server and on the first client render (on
-          purpose — anything else is a hydration mismatch), so by the time an
-          effect could switch modes the vertical homepage is already on
-          screen and being read. The attribute is all this script owns; CSS in
-          globals.css does the rest, and React takes the attribute over from
-          `pending` the moment it is alive. */}
-      <script dangerouslySetInnerHTML={{ __html: WORLD_BOOT_SCRIPT }} />
-      <StacksHome data={data} slots={slots} />
-    </>
-  );
+  return <StacksHome data={data} slots={slots} />;
 }

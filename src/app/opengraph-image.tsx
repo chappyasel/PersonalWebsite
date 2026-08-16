@@ -46,7 +46,7 @@ export default async function Image() {
           width: "100%",
           height: "100%",
           overflow: "hidden",
-          backgroundColor: "#e9e6de",
+          backgroundColor: "#081310",
           fontFamily: '"Georgia Pro"',
         }}
       >
@@ -87,29 +87,17 @@ export default async function Image() {
             right: 0,
             bottom: 26,
             justifyContent: "center",
-            fontSize: 64,
+            fontSize: 65.28,
             fontWeight: 700,
             lineHeight: 1,
             color: "#ffffff",
+            opacity: 0.95,
             letterSpacing: "-0.035em",
             textShadow: "0 2px 14px rgba(0, 0, 0, 0.38)",
           }}
         >
           Chappy Asel
         </div>
-
-        <div
-          style={{
-            display: "flex",
-            position: "absolute",
-            left: 14,
-            top: 14,
-            right: 14,
-            bottom: 14,
-            border: "1px solid rgba(255, 255, 255, 0.2)",
-            borderRadius: 22,
-          }}
-        />
       </div>
     ),
     {

@@ -31,15 +31,16 @@ test("keeps landmark motion on synchronized compositor animations", async ({
     .locator(".stacks-boot-item-motion")
     .evaluateAll((nodes) =>
       nodes.map((node) => {
-        const animation = node.getAnimations()[0];
-        const keyframes = (
-          animation?.effect as KeyframeEffect | null
-        )?.getKeyframes();
+        const animations = node.getAnimations();
+        const keyframes = animations.flatMap(
+          (animation) =>
+            (animation.effect as KeyframeEffect | null)?.getKeyframes() ?? [],
+        );
         return {
-          count: node.getAnimations().length,
-          playState: animation?.playState,
-          playbackRate: animation?.playbackRate,
-          properties: keyframes?.map((keyframe) =>
+          count: animations.length,
+          playStates: animations.map((animation) => animation.playState),
+          playbackRates: animations.map((animation) => animation.playbackRate),
+          properties: keyframes.map((keyframe) =>
             Object.keys(keyframe)
               .filter(
                 (key) =>
@@ -55,9 +56,14 @@ test("keeps landmark motion on synchronized compositor animations", async ({
 
   expect(motion).toHaveLength(ABOUT_BOOT_COMPOSITION.length);
   for (const item of motion) {
-    expect(item.count).toBe(1);
-    expect(item.playState).toBe("running");
-    expect(item.playbackRate).toBeGreaterThanOrEqual(1);
+    expect(item.count).toBe(3);
+    expect(item.playStates).toContain("running");
+    expect(
+      item.playStates.every(
+        (state) => state === "running" || state === "finished",
+      ),
+    ).toBe(true);
+    expect(item.playbackRates.every((rate) => rate === 1)).toBe(true);
     expect(
       item.properties?.every((keys) =>
         keys.every((key) => key === "opacity" || key === "transform"),

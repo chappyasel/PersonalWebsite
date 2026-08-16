@@ -85,7 +85,7 @@ export function destinationFor(to: PropDestination): Destination {
     case "blog":
       return {
         href: "https://medium.com/@chappyasel",
-        label: "Open Musings",
+        label: "Open Medium",
         external: true,
       };
   }

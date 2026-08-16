@@ -67,7 +67,7 @@ test("keeps the mobile sheet highly transparent in both themes", async ({
       .first()
       .evaluate((element) => getComputedStyle(element).backgroundColor);
     expect(cardBackground).toBe(
-      theme === "light" ? "rgba(255, 255, 255, 0.4)" : "rgba(0, 0, 0, 0.3)",
+      theme === "light" ? "rgba(255, 255, 255, 0.4)" : "rgba(0, 0, 0, 0.42)",
     );
 
     await page.getByRole("button", { name: "Close" }).evaluate((element) => {

@@ -8,9 +8,12 @@ import { describe, expect, it } from "vitest";
 import BootScreen, {
   BOOT_CADENCE_SETTLE_SECONDS,
   bootCadence,
+  bootCssKeyframes,
   bootItemKeyframes,
   bootItemPose,
-  bootPlaybackRate,
+  bootWaveIntroKeyframes,
+  bootWaveKeyframes,
+  bootWaveWindow,
 } from "./BootScreen";
 
 const BOOKS = [{ id: "alpha" }, { id: "bravo" }, { id: "charlie" }] as const;
@@ -140,10 +143,15 @@ describe("Homepage entrance", () => {
       landmarks.length,
     );
     expect(first).toContain(
-      `--stacks-boot-loop-duration:${cadence.duration.toFixed(2)}s`,
+      `--stacks-boot-reveal-duration:${cadence.revealDuration.toFixed(2)}s`,
     );
-    cadence.delays.forEach((delay) => {
-      expect(first).toContain(`--stacks-boot-item-delay:${delay.toFixed(2)}s`);
+    cadence.delays.forEach((_, index) => {
+      expect(first).toContain(`@keyframes stacks-boot-reveal-${index}`);
+      expect(first).toContain(`@keyframes stacks-boot-wave-intro-${index}`);
+      expect(first).toContain(`@keyframes stacks-boot-wave-${index}`);
+      expect(first).toContain(
+        `animation-name:stacks-boot-reveal-${index}, stacks-boot-wave-intro-${index}, stacks-boot-wave-${index}`,
+      );
     });
   });
 
@@ -170,7 +178,7 @@ describe("Homepage entrance", () => {
     const cadence = bootCadence(ABOUT_BOOT_COMPOSITION.length);
     const keyframes = bootItemKeyframes(4, cadence);
 
-    expect(keyframes).toHaveLength(5);
+    expect(keyframes).toHaveLength(4);
     expect(keyframes.map(({ offset }) => offset)).toEqual(
       [...keyframes.map(({ offset }) => offset)].sort(
         (left, right) => Number(left) - Number(right),
@@ -183,9 +191,60 @@ describe("Homepage entrance", () => {
       expect(keyframe).not.toHaveProperty("left");
       expect(keyframe).not.toHaveProperty("top");
     }
-    expect(bootPlaybackRate(0)).toBe(1);
-    expect(bootPlaybackRate(0.5)).toBeCloseTo(1.175);
-    expect(bootPlaybackRate(1)).toBe(1.35);
+    expect(
+      bootCssKeyframes(ABOUT_BOOT_COMPOSITION.length, cadence),
+    ).not.toContain("left:");
+  });
+
+  it("reveals once and never resets the completed shelf to empty", () => {
+    const cadence = bootCadence(ABOUT_BOOT_COMPOSITION.length);
+    const frames = bootItemKeyframes(
+      ABOUT_BOOT_COMPOSITION.length - 1,
+      cadence,
+    );
+
+    expect(cadence.delays[0]).toBe(0);
+    expect(frames.at(-1)).toMatchObject({ opacity: 1, offset: 1 });
+    expect(frames.slice(2).every(({ opacity }) => opacity === 1)).toBe(true);
+  });
+
+  it("moves one contiguous quarter-width window through the declared order", () => {
+    const count = ABOUT_BOOT_COMPOSITION.length;
+    const waves = Array.from({ length: count }, (_, index) =>
+      bootWaveKeyframes(index, count),
+    );
+
+    expect(bootWaveWindow(0, count)).toEqual([0, 1, 2]);
+    expect(bootWaveWindow(1, count)).toEqual([1, 2, 3]);
+    expect(bootWaveWindow(5, count)).toEqual([5, 6, 7]);
+    expect(bootWaveWindow(12, count)).toEqual([12, 0, 1]);
+    for (let step = 0; step <= count; step += 1) {
+      const dimmed = waves.flatMap((frames, index) =>
+        Number(frames[step]?.opacity) === 0.18 ? [index] : [],
+      );
+      expect(dimmed).toEqual(
+        [...bootWaveWindow(step, count)].sort((a, b) => a - b),
+      );
+    }
+
+    expect(bootWaveIntroKeyframes(0, count)).toEqual([
+      { opacity: 1, offset: 0 },
+      { opacity: 0.18, offset: 1 },
+    ]);
+    expect(bootWaveIntroKeyframes(3, count).at(-1)).toMatchObject({
+      opacity: 1,
+    });
+
+    const top = ABOUT_BOOT_COMPOSITION.filter(({ shelf }) => shelf === "top");
+    const lower = ABOUT_BOOT_COMPOSITION.filter(
+      ({ shelf }) => shelf === "lower",
+    );
+    expect(top.map(({ x }) => x)).toEqual(
+      [...top.map(({ x }) => x)].sort((a, b) => a - b),
+    );
+    expect(lower.map(({ x }) => x)).toEqual(
+      [...lower.map(({ x }) => x)].sort((a, b) => a - b),
+    );
   });
 
   it("keeps every declared silhouette supported by its full-width shelf", () => {
