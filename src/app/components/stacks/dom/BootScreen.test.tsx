@@ -1,30 +1,215 @@
+import { readingBookMaterialColors } from "../../../../lib/books/coverEdgeColor";
+import { ABOUT_BOOT_COMPOSITION } from "../scene/aboutBootComposition";
+import { SHELF_GEOMETRY, SHELF_PLANKS } from "../scene/shelfGeometry";
+import { PALETTES } from "../theme";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import BootScreen from "./BootScreen";
+import BootScreen, {
+  BOOT_CADENCE_SETTLE_SECONDS,
+  bootCadence,
+  bootItemKeyframes,
+  bootItemPose,
+  bootPlaybackRate,
+} from "./BootScreen";
+
+const BOOKS = [{ id: "alpha" }, { id: "bravo" }, { id: "charlie" }] as const;
+
+const COLORS = {
+  alpha: { edge: "#a84f35", source: "edge" as const },
+  bravo: { edge: "#3f7355", source: "edge" as const },
+  charlie: { edge: "#315f8d", source: "edge" as const },
+};
+
+function renderBoot(bookCount = 0) {
+  return renderToStaticMarkup(
+    <BootScreen
+      readingBooks={BOOKS.slice(0, bookCount)}
+      readingBookColors={COLORS}
+    />,
+  );
+}
+
+function renderedPlanks(markup: string) {
+  return [
+    ...markup.matchAll(/data-boot-plank="" data-shelf-id="([^"]+)"/g),
+  ].map((match) => match[1]);
+}
+
+function renderedLandmarks(markup: string) {
+  return [
+    ...markup.matchAll(
+      /data-landmark-id="([^"]+)" data-shelf-id="([^"]+)" data-cadence-slot="([^"]+)"/g,
+    ),
+  ].map((match) => ({
+    id: match[1],
+    shelf: match[2],
+    slot: Number(match[3]),
+  }));
+}
 
 describe("Homepage entrance", () => {
-  it("presents Chappy's name rather than a product or loading label", () => {
-    const markup = renderToStaticMarkup(<BootScreen />);
+  it("renders exactly the two shared full-width shelf planks", () => {
+    const markup = renderBoot();
+
+    expect(renderedPlanks(markup)).toEqual(
+      SHELF_PLANKS.map((plank) => plank.id),
+    );
+    expect(renderedPlanks(markup)).toHaveLength(2);
+    for (const plank of SHELF_PLANKS) {
+      expect(plank.width).toBe(SHELF_GEOMETRY.width);
+      expect(markup).toContain(`data-depth="${plank.depth}"`);
+    }
+  });
+
+  it("renders every real landmark exactly once on its declared shelf", () => {
+    const landmarks = renderedLandmarks(renderBoot());
+
+    expect(landmarks).toEqual(
+      ABOUT_BOOT_COMPOSITION.map((landmark, slot) => ({
+        id: landmark.id,
+        shelf: landmark.shelf,
+        slot,
+      })),
+    );
+    expect(new Set(landmarks.map(({ id }) => id)).size).toBe(landmarks.length);
+    expect(
+      [...renderBoot().matchAll(/data-model-silhouette="([^"]+)"/g)].map(
+        (match) => match[1],
+      ),
+    ).toEqual([
+      "globe",
+      "succulent",
+      "large-plant",
+      "cactus",
+      "desk-lamp",
+      "ai-collective",
+      "tj-medallion",
+    ]);
+  });
+
+  it("contains no legacy placeholder rows, books, labels, or progress copy", () => {
+    const markup = renderBoot();
 
     expect(markup).toContain("Chappy Asel");
+    expect(markup).not.toContain("data-book=");
+    expect(markup).not.toContain("stacks-boot-bookcase");
+    expect(markup).not.toContain("stacks-boot-shelf");
     expect(markup).not.toMatch(/progress|loading|status/i);
   });
 
-  it("keeps the decorative entrance out of the accessibility tree", () => {
-    const markup = renderToStaticMarkup(<BootScreen />);
+  it.each([0, 1, 2, 3])(
+    "renders exactly %i server-selected reading books and sampled colors",
+    (bookCount) => {
+      const markup = renderBoot(bookCount);
+      const rendered = [...markup.matchAll(/data-reading-book="([^"]+)"/g)];
 
-    expect(markup).toContain('class="stacks-boot" aria-hidden="true"');
-    expect(markup.match(/data-shelf=/g)).toHaveLength(3);
-    expect(markup.match(/data-book=/g)).toHaveLength(21);
+      expect(rendered.map((match) => match[1])).toEqual(
+        BOOKS.slice(0, bookCount).map((book) => book.id),
+      );
+      for (const book of BOOKS.slice(0, bookCount)) {
+        const sampled = COLORS[book.id];
+        const light = readingBookMaterialColors(
+          sampled.edge,
+          PALETTES.light.pages,
+          false,
+        );
+        const dark = readingBookMaterialColors(
+          sampled.edge,
+          PALETTES.dark.pages,
+          true,
+        );
+        expect(markup).toContain(`data-edge-color="${sampled.edge}"`);
+        expect(markup).toContain(`data-book-color-light="${light.cover}"`);
+        expect(markup).toContain(`data-book-color-dark="${dark.cover}"`);
+      }
+    },
+  );
+
+  it("assigns unique deterministic cadence slots and derives the loop", () => {
+    const first = renderBoot(3);
+    const second = renderBoot(3);
+    const landmarks = renderedLandmarks(first);
+    const cadence = bootCadence(ABOUT_BOOT_COMPOSITION.length);
+
+    expect(first).toBe(second);
+    expect(landmarks.map(({ slot }) => slot)).toEqual(
+      ABOUT_BOOT_COMPOSITION.map((_, index) => index),
+    );
+    expect(new Set(landmarks.map(({ slot }) => slot)).size).toBe(
+      landmarks.length,
+    );
+    expect(first).toContain(
+      `--stacks-boot-loop-duration:${cadence.duration.toFixed(2)}s`,
+    );
+    cadence.delays.forEach((delay) => {
+      expect(first).toContain(`--stacks-boot-item-delay:${delay.toFixed(2)}s`);
+    });
   });
 
-  it("assigns every book a deterministic time-cadence slot", () => {
-    const markup = renderToStaticMarkup(<BootScreen />);
+  it("continuously fades and settles each item from one shared progress", () => {
+    const cadence = bootCadence(ABOUT_BOOT_COMPOSITION.length);
+    const index = 4;
+    const start = cadence.delays[index]! / cadence.revealDuration;
+    const end = start + BOOT_CADENCE_SETTLE_SECONDS / cadence.revealDuration;
 
-    for (let index = 0; index < 21; index += 1) {
-      const delay = (0.3 + index * 0.3).toFixed(1);
-      expect(markup).toContain(`--book-delay:${delay}s`);
+    expect(bootItemPose(start, index, cadence)).toEqual({
+      opacity: 0,
+      offsetY: 7,
+    });
+    const middle = bootItemPose((start + end) / 2, index, cadence);
+    expect(middle.opacity).toBeCloseTo(0.5, 5);
+    expect(middle.offsetY).toBeCloseTo(3.5, 5);
+    expect(bootItemPose(end, index, cadence)).toEqual({
+      opacity: 1,
+      offsetY: 0,
+    });
+  });
+
+  it("builds a compositor-only loop with a constant base rate", () => {
+    const cadence = bootCadence(ABOUT_BOOT_COMPOSITION.length);
+    const keyframes = bootItemKeyframes(4, cadence);
+
+    expect(keyframes).toHaveLength(5);
+    expect(keyframes.map(({ offset }) => offset)).toEqual(
+      [...keyframes.map(({ offset }) => offset)].sort(
+        (left, right) => Number(left) - Number(right),
+      ),
+    );
+    for (const keyframe of keyframes) {
+      expect(Object.keys(keyframe).sort()).toEqual(
+        expect.arrayContaining(["offset", "opacity", "transform"]),
+      );
+      expect(keyframe).not.toHaveProperty("left");
+      expect(keyframe).not.toHaveProperty("top");
     }
+    expect(bootPlaybackRate(0)).toBe(1);
+    expect(bootPlaybackRate(0.5)).toBeCloseTo(1.175);
+    expect(bootPlaybackRate(1)).toBe(1.35);
+  });
+
+  it("keeps every declared silhouette supported by its full-width shelf", () => {
+    const shelfLeft = -SHELF_GEOMETRY.width / 2;
+    const shelfRight = SHELF_GEOMETRY.width / 2;
+
+    for (const landmark of ABOUT_BOOT_COMPOSITION) {
+      expect(landmark.x - landmark.profile.width / 2).toBeGreaterThanOrEqual(
+        shelfLeft,
+      );
+      expect(landmark.x + landmark.profile.width / 2).toBeLessThanOrEqual(
+        shelfRight,
+      );
+    }
+  });
+
+  it("is deterministic, decorative SSR markup with both scene palettes", () => {
+    const markup = renderBoot(3);
+
+    expect(markup).toContain('class="stacks-boot" aria-hidden="true"');
+    expect(markup).toContain('role="presentation"');
+    expect(markup).not.toContain("aria-live");
+    expect(markup).not.toContain('role="progressbar"');
+    expect(markup).toContain(`--stacks-boot-wood-light:${PALETTES.light.wood}`);
+    expect(markup).toContain(`--stacks-boot-wood-dark:${PALETTES.dark.wood}`);
   });
 });

@@ -48,13 +48,13 @@ import { poolTexture } from "./GroundPool";
 import { LIFT_LAMBDA, TIP, hingeShift } from "./Lift";
 import { grabbablePhysicsEnabled } from "./grabbablePhysics";
 import { type Hinge, TILT_MAX_SIZE, hingeFor } from "./interaction";
-import { type PropDestination, useOpenTarget } from "./links";
 import {
   MASS_HANDLING,
   destinationFor,
   massClassFor,
   registerSceneInteraction,
 } from "./interactionRegistry";
+import { type PropDestination, useOpenTarget } from "./links";
 import { meadowHeight } from "./meadowField";
 import type {
   HullShape,
@@ -374,15 +374,18 @@ export default function Grabbable({
   spin = 0.9,
   shape,
   massKg,
+  restitution,
   standsOn,
   to,
   href,
   doorLabel,
+  actionLabel,
   external = true,
   onTap,
   egg,
   commandRef,
   physics: physicsPreference,
+  draggable = true,
   children,
 }: {
   /** Only the active unit answers — off-screen props let the click fall
@@ -410,6 +413,8 @@ export default function Grabbable({
    * hollow ones: a basketball massed by volume outweighs a golf ball 110 to
    * 1 instead of 13 to 1, and the golf ball cannot budge it. */
   massKg?: number;
+  /** Bounce coefficient against the support surface. */
+  restitution?: number;
   /** Which plank the prop stands on. Only needed for a prop whose parent
    * group is not one of ShelfUnit's two shelves — anything on the ground
    * bay, whose parent sits at y 0 and would otherwise be read as a top
@@ -426,6 +431,7 @@ export default function Grabbable({
   /** Required outcome copy for arbitrary URLs or local-action Doors. Route
    * destinations inherit their exact copy from the destination table. */
   doorLabel?: string;
+  actionLabel?: string;
   external?: boolean;
   /** Local action for a press that never became a carry. Stateful objects
    * such as featured covers use this instead of pretending to be a route. */
@@ -438,9 +444,12 @@ export default function Grabbable({
   /** Keep pointer carrying and tap arbitration but bypass free shelf physics,
    * returning to the authored base after release. Defaults to true. */
   physics?: boolean;
+  /** Keep click activation and its pointer cursor without allowing a carry. */
+  draggable?: boolean;
   children: React.ReactNode;
 }) {
-  const physicsEnabled = grabbablePhysicsEnabled(physicsPreference);
+  const physicsEnabled =
+    draggable && grabbablePhysicsEnabled(physicsPreference);
   const massClass = massClassFor(massKg ?? 1);
   const handling = MASS_HANDLING[massClass];
   const group = useRef<THREE.Group>(null);
@@ -467,6 +476,7 @@ export default function Grabbable({
   const world = useMemo(() => new THREE.Vector3(), []);
   const terrainPoint = useMemo(() => new THREE.Vector3(), []);
   const terrainNormal = useMemo(() => new THREE.Vector3(), []);
+  const terrainGravity = useMemo(() => new THREE.Vector3(), []);
   const parentQuaternion = useMemo(() => new THREE.Quaternion(), []);
   const raycaster = useThree((s) => s.raycaster);
   const camera = useThree((s) => s.camera);
@@ -514,13 +524,14 @@ export default function Grabbable({
       launchTerrain.current = options?.terrain ?? null;
       // A meadow shot leaves the bounded shelf solver and instead integrates
       // gravity against the actual height field rendered in the background.
-      if (scriptedReturnAt.current !== null && entry?.world) {
+      const scripted =
+        scriptedReturnAt.current !== null || launchTerrain.current !== null;
+      if (scripted && entry?.world) {
         entry.world.park(entry);
       }
-      const released =
-        scriptedReturnAt.current === null
-          ? (entry?.world?.release(entry, velocity) ?? false)
-          : false;
+      const released = scripted
+        ? false
+        : (entry?.world?.release(entry, velocity) ?? false);
       phase.current = released ? "sim" : "settling";
     },
     [velocity],
@@ -560,6 +571,7 @@ export default function Grabbable({
       spin,
       shape,
       massKg,
+      restitution,
       plane: standsOn,
       phase,
     };
@@ -588,19 +600,25 @@ export default function Grabbable({
         ? ({ kind: "door", ...destinationFor(to), run } as const)
         : href !== undefined && doorLabel
           ? ({ kind: "door", label: doorLabel, href, external, run } as const)
-          : onTap !== undefined && doorLabel
-            ? ({ kind: "door", label: doorLabel, external: false, run } as const)
+          : onTap !== undefined && (actionLabel ?? doorLabel)
+            ? ({
+                kind: "action",
+                label: actionLabel ?? doorLabel!,
+                run,
+              } as const)
             : undefined;
     return registerSceneInteraction({
       id: hoverKey,
       root,
       activeUnits: [unitIndex],
-      movable: { massKg: massKg ?? 1, massClass },
+      movable: draggable ? { massKg: massKg ?? 1, massClass } : undefined,
       activation,
-      hover: { kind: tiltOnHover ? "tilt" : "none" },
+      hover: { kind: draggable && tiltOnHover ? "tilt" : "none" },
     });
   }, [
+    actionLabel,
     doorLabel,
+    draggable,
     egg,
     external,
     href,
@@ -664,7 +682,7 @@ export default function Grabbable({
       if (!touchTapOnly && store.hovered !== hoverKey) return false;
 
       pointerId.current = event.pointerId;
-      tapOnly.current = touchTapOnly;
+      tapOnly.current = touchTapOnly || !draggable;
       gesture.current = {
         x: event.clientX,
         y: event.clientY,
@@ -678,7 +696,7 @@ export default function Grabbable({
       // Touch retains native horizontal travel. We only remember enough to
       // answer a stationary release; no held phase, scroll freeze, solver or
       // pointer tracking is entered, so carrying remains desktop-only.
-      if (touchTapOnly) return true;
+      if (tapOnly.current) return true;
 
       phase.current = "held";
       velocity.set(0, 0, 0);
@@ -713,7 +731,7 @@ export default function Grabbable({
       }
       return true;
     },
-    [hoverKey, physicsEnabled, track, unitIndex, velocity],
+    [draggable, hoverKey, physicsEnabled, track, unitIndex, velocity],
   );
 
   const onGrabMove = useCallback(
@@ -849,11 +867,16 @@ export default function Grabbable({
     // Travel ends the rearrangement. Not a timer, not the release — the prop
     // stays exactly where you knocked it for as long as you are standing in
     // front of it, and is back on its mark before the next visitor arrives.
-    if (
-      phase.current === "sim" &&
-      useStacks.getState().activeUnit !== unitIndex
-    )
-      phase.current = "rest";
+    if (useStacks.getState().activeUnit !== unitIndex) {
+      if (phase.current === "sim") phase.current = "rest";
+      if (phase.current === "settling" && launchTerrain.current === "meadow") {
+        velocity.set(0, 0, 0);
+        launchTerrain.current = null;
+        g.position.set(base[0], base[1], base[2]);
+        g.rotation.set(0, 0, 0);
+        phase.current = "rest";
+      }
+    }
 
     if (phase.current === "held") {
       // Drag plane: camera-facing, through the prop's current position, so
@@ -870,10 +893,7 @@ export default function Grabbable({
       raycaster.setFromCamera(ndc, camera);
       if (raycaster.ray.intersectPlane(plane, hit)) {
         g.parent?.worldToLocal(hit);
-        hit.y = Math.min(
-          base[1] + handling.maxLift,
-          Math.max(hit.y, base[1]),
-        ); // mass-class lift ceiling, never below the wood
+        hit.y = Math.min(base[1] + handling.maxLift, Math.max(hit.y, base[1])); // mass-class lift ceiling, never below the wood
         // Throw velocity is the prop's ACTUAL movement, not the gap to the
         // cursor. Using the gap made it a spring constant rather than a
         // speed — a cursor 10cm away produced ~1.9 u/s no matter how slowly
@@ -884,10 +904,7 @@ export default function Grabbable({
         // normal step by a tenth of a normal delta and hands the solver a
         // 4 u/s fling the visitor never performed.
         world.copy(g.position);
-        g.position.lerp(
-          hit,
-          1 - Math.exp(-handling.followLambda * delta),
-        );
+        g.position.lerp(hit, 1 - Math.exp(-handling.followLambda * delta));
         step.subVectors(g.position, world).divideScalar(delta);
         velocity.lerp(step, 1 - Math.exp(-26 * delta));
       }
@@ -906,56 +923,80 @@ export default function Grabbable({
     } else if (phase.current === "sim") {
       // The solver owns this transform; the shelf's tick below writes it.
     } else if (phase.current === "settling") {
-      if (!scriptedLanded.current) {
+      if (launchTerrain.current === "meadow") {
+        // Once launched, golf balls live on the actual meadow height field:
+        // gravity carries them through the shot, the surface normal produces
+        // real bounces, then tangential gravity and rolling resistance let
+        // them wander down the hills instead of freezing or fading home.
         velocity.y -= GRAVITY * delta;
         g.position.addScaledVector(velocity, delta);
-        g.rotation.y += velocity.x * spin * delta;
-      }
-      let landingY = base[1];
-      if (launchTerrain.current === "meadow") {
         g.getWorldPosition(terrainPoint);
-        terrainPoint.y = meadowHeight(terrainPoint.x, terrainPoint.z);
+        const worldX = terrainPoint.x;
+        const worldZ = terrainPoint.z;
+        // The rendered meadow's grass canopy sits above its mathematical
+        // soil height. Lift golf contact to the visible turf so the ball's
+        // lower hemisphere does not bounce underneath the blades.
+        terrainPoint.y = meadowHeight(terrainPoint.x, terrainPoint.z) + 0.065;
         if (g.parent) g.parent.worldToLocal(terrainPoint);
-        landingY = terrainPoint.y;
-      }
-      if (!scriptedLanded.current && g.position.y <= landingY) {
-        g.position.y = landingY;
-        if (scriptedReturnAt.current !== null) {
-          if (launchTerrain.current === "meadow") {
-            g.getWorldPosition(terrainPoint);
-            const e = 0.12;
-            const x = terrainPoint.x;
-            const z = terrainPoint.z;
-            terrainNormal
-              .set(
-                meadowHeight(x - e, z) - meadowHeight(x + e, z),
-                2 * e,
-                meadowHeight(x, z - e) - meadowHeight(x, z + e),
-              )
-              .normalize();
-            if (g.parent) {
-              g.parent.getWorldQuaternion(parentQuaternion).invert();
-              terrainNormal.applyQuaternion(parentQuaternion);
-            }
-            const normalSpeed = velocity.dot(terrainNormal);
-            if (normalSpeed < 0)
-              velocity.addScaledVector(terrainNormal, -1.28 * normalSpeed);
-            velocity.multiplyScalar(0.68);
+        if (g.position.y <= terrainPoint.y) {
+          g.position.y = terrainPoint.y;
+          const e = 0.12;
+          terrainNormal
+            .set(
+              meadowHeight(worldX - e, worldZ) -
+                meadowHeight(worldX + e, worldZ),
+              2 * e,
+              meadowHeight(worldX, worldZ - e) -
+                meadowHeight(worldX, worldZ + e),
+            )
+            .normalize();
+          if (g.parent) {
+            g.parent.getWorldQuaternion(parentQuaternion).invert();
+            terrainNormal.applyQuaternion(parentQuaternion);
+          }
+          const normalSpeed = velocity.dot(terrainNormal);
+          if (normalSpeed < -0.5) {
+            // A golf ball on turf has a lively first hop without behaving
+            // like a superball. Preserve most lateral speed through impact.
+            velocity.addScaledVector(terrainNormal, -1.32 * normalSpeed);
+            velocity.x *= 0.9;
+            velocity.z *= 0.9;
             scriptedBounces.current += 1;
-            if (scriptedBounces.current >= 3 || velocity.lengthSq() < 0.3) {
-              velocity.set(0, 0, 0);
-              scriptedLanded.current = true;
-            }
           } else {
+            // Remove only motion into the hill, then project gravity onto its
+            // tangent. Exponential drag is frame-rate independent and leaves
+            // enough energy for the ball to follow the contours visibly.
+            if (normalSpeed < 0)
+              velocity.addScaledVector(terrainNormal, -normalSpeed);
+            terrainGravity.set(0, -GRAVITY, 0);
+            terrainGravity.addScaledVector(
+              terrainNormal,
+              -terrainGravity.dot(terrainNormal),
+            );
+            velocity.addScaledVector(terrainGravity, delta);
+            velocity.multiplyScalar(Math.exp(-0.48 * delta));
+          }
+          g.rotation.x += (velocity.z / 0.05) * delta;
+          g.rotation.z -= (velocity.x / 0.05) * delta;
+        }
+      } else {
+        if (!scriptedLanded.current) {
+          velocity.y -= GRAVITY * delta;
+          g.position.addScaledVector(velocity, delta);
+          g.rotation.y += velocity.x * spin * delta;
+        }
+        if (!scriptedLanded.current && g.position.y <= base[1]) {
+          g.position.y = base[1];
+          if (scriptedReturnAt.current !== null) {
             velocity.set(0, 0, 0);
             scriptedLanded.current = true;
+          } else if (Math.abs(velocity.y) > 0.3) {
+            velocity.y *= -0.32;
+            velocity.x *= 0.55;
+            velocity.z *= 0.55;
+          } else {
+            phase.current = "rest";
           }
-        } else if (Math.abs(velocity.y) > 0.3) {
-          velocity.y *= -0.32;
-          velocity.x *= 0.55;
-          velocity.z *= 0.55;
-        } else {
-          phase.current = "rest";
         }
       }
     } else {

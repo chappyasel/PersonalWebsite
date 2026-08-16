@@ -43,6 +43,11 @@ type StacksState = {
   modalOpen: boolean;
   panelState: PanelState;
   pendingBook: Book | null;
+  /** Infrequently changing DOM measurements that position the desktop lens.
+   * These are reactive because the canvas must immediately observe sidebar
+   * hide/show and resize changes across its separate React root. */
+  desktopNavRightPx: number;
+  desktopDetailsLeftPx: number | null;
   /** hoverKey of the prop under the pointer, or null. Not every claimant is
    * clickable — see INERT_HOVER. */
   hovered: string | null;
@@ -77,6 +82,8 @@ type StacksState = {
   setModalOpen: (modalOpen: boolean) => void;
   setPanelState: (panelState: PanelState) => void;
   setPendingBook: (pendingBook: Book | null) => void;
+  setDesktopNavRightPx: (desktopNavRightPx: number) => void;
+  setDesktopDetailsLeftPx: (desktopDetailsLeftPx: number | null) => void;
   setHovered: (hovered: string | null) => void;
   setDragging: (dragging: string | null) => void;
   setJumpTo: (jumpTo: ((unit: number) => void) | null) => void;
@@ -90,6 +97,8 @@ export const useStacks = create<StacksState>((set) => ({
   modalOpen: false,
   panelState: "closed",
   pendingBook: null,
+  desktopNavRightPx: 0,
+  desktopDetailsLeftPx: null,
   hovered: null,
   dragging: null,
   seated: false,
@@ -104,6 +113,18 @@ export const useStacks = create<StacksState>((set) => ({
   setModalOpen: (modalOpen) => set({ modalOpen }),
   setPanelState: (panelState) => set({ panelState }),
   setPendingBook: (pendingBook) => set({ pendingBook }),
+  setDesktopNavRightPx: (desktopNavRightPx) =>
+    set((state) =>
+      state.desktopNavRightPx === desktopNavRightPx
+        ? state
+        : { desktopNavRightPx },
+    ),
+  setDesktopDetailsLeftPx: (desktopDetailsLeftPx) =>
+    set((state) =>
+      state.desktopDetailsLeftPx === desktopDetailsLeftPx
+        ? state
+        : { desktopDetailsLeftPx },
+    ),
   setHovered: (hovered) => set({ hovered }),
   setDragging: (dragging) => set({ dragging }),
   setJumpTo: (jumpTo) => set({ jumpTo }),

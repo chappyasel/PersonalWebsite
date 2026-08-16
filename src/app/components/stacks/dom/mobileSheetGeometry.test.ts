@@ -5,7 +5,9 @@ import {
   MOBILE_SHEET_WHEEL_COOLDOWN_MS,
   accumulateMobileSheetWheelIntent,
   mobileSheetCameraCoverage,
+  mobileSheetChipActive,
   mobileSheetGeometry,
+  mobileSheetHorizontalSwipeIntent,
   mobileSheetMaterialOverscan,
   mobileSheetMaxUpwardOverdrag,
   mobileSheetRestY,
@@ -14,6 +16,45 @@ import {
 } from "./mobileSheetGeometry";
 
 describe("mobile sheet transition geometry", () => {
+  it("reveals the pill only after its dismissed sheet is physically parked", () => {
+    expect(
+      mobileSheetChipActive({
+        active: true,
+        hidden: true,
+        modalOpen: false,
+        sheetParked: false,
+      }),
+    ).toBe(false);
+    expect(
+      mobileSheetChipActive({
+        active: true,
+        hidden: true,
+        modalOpen: false,
+        sheetParked: true,
+      }),
+    ).toBe(true);
+  });
+
+  it("commits deliberate horizontal swipes in physical room order", () => {
+    expect(
+      mobileSheetHorizontalSwipeIntent({ deltaX: -80, velocityX: 0.2 }),
+    ).toBe(1);
+    expect(
+      mobileSheetHorizontalSwipeIntent({ deltaX: 80, velocityX: 0.2 }),
+    ).toBe(-1);
+    expect(
+      mobileSheetHorizontalSwipeIntent({ deltaX: -12, velocityX: -0.8 }),
+    ).toBe(1);
+    expect(
+      mobileSheetHorizontalSwipeIntent({ deltaX: 30, velocityX: -0.8 }),
+    ).toBe(1);
+    expect(
+      mobileSheetHorizontalSwipeIntent({ deltaX: -30, velocityX: 0.8 }),
+    ).toBe(-1);
+    expect(
+      mobileSheetHorizontalSwipeIntent({ deltaX: 30, velocityX: 0.2 }),
+    ).toBeNull();
+  });
   it("keeps the grabber and header fixed through both transition directions", () => {
     const geometries = (["closed", "opening", "open", "closing"] as const).map(
       mobileSheetGeometry,

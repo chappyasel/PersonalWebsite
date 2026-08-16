@@ -47,6 +47,22 @@ describe("scene interaction registry", () => {
     expect(cursorForInteraction("test:movable-door", null)).toBe("");
   });
 
+  it("keeps actions clickable without presenting them as Doors", () => {
+    const release = registerSceneInteraction({
+      id: "test:action",
+      root: new Group(),
+      activeUnits: [0],
+      activation: {
+        kind: "action",
+        label: "Launch golf ball",
+        run: () => undefined,
+      },
+    });
+    expect(getSceneInteraction("test:action")?.activation?.kind).toBe("action");
+    expect(cursorForInteraction("test:action", null)).toBe("pointer");
+    release();
+  });
+
   it("merges capabilities registered by nested scene components", () => {
     const carrier = new Group();
     const releaseMovable = registerSceneInteraction({

@@ -1,27 +1,52 @@
 "use client";
 
-import {
-  CaretLeftIcon,
-  CaretRightIcon,
-} from "@phosphor-icons/react/dist/ssr";
+import { wlSearchParams } from "../lib/searchParams";
+import { QUERY_STALE_TIME, categoryColor } from "../lib/utils";
+import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react/dist/ssr";
 import { motion } from "framer-motion";
 import { useQueryState } from "nuqs";
 import { useState } from "react";
 
-import { Skeleton } from "~/components/ui/skeleton";
 import { api } from "~/trpc/react";
-import { wlSearchParams } from "../lib/searchParams";
-import { categoryColor, QUERY_STALE_TIME } from "../lib/utils";
+
+import { Skeleton } from "~/components/ui/skeleton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "~/components/ui/tooltip";
+
 import { QueryErrorFallback } from "./QueryErrorFallback";
 import { WorkoutDetailModal } from "./WorkoutDetailModal";
 
 const MONTH_NAMES = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ];
 const MONTH_NAMES_FULL = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 const DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -63,7 +88,7 @@ function DayCell({
         .join(", ")}`
     : undefined;
 
-  return (
+  const cell = (
     <motion.div
       layoutId={hasWorkout ? `day-${dateStr}` : undefined}
       role={hasWorkout ? "button" : undefined}
@@ -111,6 +136,21 @@ function DayCell({
         <div className="mt-0.5 h-1.5" />
       )}
     </motion.div>
+  );
+
+  if (!hasWorkout) return cell;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{cell}</TooltipTrigger>
+      <TooltipContent sideOffset={6}>
+        <p className="mb-1 font-medium">{ariaLabel?.split(":")[0]}</p>
+        {sorted.map(([category, count]) => (
+          <p key={category} className="text-muted-foreground">
+            {category}: <span className="text-foreground">{count}</span>
+          </p>
+        ))}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -239,17 +279,19 @@ export function YearCalendar() {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-          {Array.from({ length: 12 }).map((_, month) => (
-            <MonthMiniCalendar
-              key={month}
-              year={year}
-              month={month}
-              dayMap={dayMap}
-              onDayClick={setSelectedDate}
-            />
-          ))}
-        </div>
+        <TooltipProvider delayDuration={150} skipDelayDuration={100}>
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+            {Array.from({ length: 12 }).map((_, month) => (
+              <MonthMiniCalendar
+                key={month}
+                year={year}
+                month={month}
+                dayMap={dayMap}
+                onDayClick={setSelectedDate}
+              />
+            ))}
+          </div>
+        </TooltipProvider>
       )}
 
       <WorkoutDetailModal

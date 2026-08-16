@@ -3,7 +3,7 @@
 import { getSceneInteraction, projectDoor } from "../scene/interactionRegistry";
 import { progressRef, useStacks } from "../store";
 import { ArrowUpRightIcon } from "@phosphor-icons/react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   DOOR_LABEL_VIEWPORT_GUTTER,
@@ -16,7 +16,10 @@ const TRANSITION_MS = 200;
  * contents are replaced, and a full exit must stay mounted through the last
  * transition frame. */
 const SWITCH_DWELL_MS = TRANSITION_MS + 20;
-const EXIT_MS = TRANSITION_MS + 20;
+// Leave enough fully-transparent tail for a loaded frame to paint the end of
+// the fade before React removes the node. A 20ms tail is less than two frames
+// and could visually skip straight from opaque to unmounted under WebGL load.
+const EXIT_MS = TRANSITION_MS + 100;
 
 function isFinePointer() {
   return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
@@ -34,9 +37,17 @@ export default function DoorLabel() {
     external: boolean;
   } | null>(null);
   const [visible, setVisible] = useState(false);
+  const visibleRef = useRef(false);
+  const setLabelVisible = useCallback((next: boolean) => {
+    visibleRef.current = next;
+    setVisible(next);
+  }, []);
   const shownRef = useRef<typeof shown>(null);
   const node = useRef<HTMLDivElement>(null);
+  const pointer = useRef({ x: 0, y: 0 });
   const hadDoor = useRef(false);
+  const eligibleRef = useRef(false);
+  const desiredIdRef = useRef<string | null>(null);
   const exitTimer = useRef<number | null>(null);
   const enterFrame = useRef<number | null>(null);
   const positionedId = useRef<string | null>(null);
@@ -50,44 +61,75 @@ export default function DoorLabel() {
   );
 
   useEffect(() => {
+    pointer.current = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    const track = (event: PointerEvent) => {
+      const scrollEl = useStacks.getState().scrollEl;
+      if (
+        scrollEl &&
+        event.target instanceof Node &&
+        !scrollEl.contains(event.target)
+      )
+        return;
+      pointer.current = { x: event.clientX, y: event.clientY };
+    };
+    window.addEventListener("pointermove", track, { passive: true });
+    return () => window.removeEventListener("pointermove", track);
+  }, []);
+
+  useEffect(() => {
     const spec = getSceneInteraction(hovered);
-    const door = spec?.activation?.kind === "door" ? spec.activation : null;
+    const activation =
+      spec?.activation?.kind === "door" || spec?.activation?.kind === "action"
+        ? spec.activation
+        : null;
     const eligible =
       isFinePointer() &&
-      door &&
+      activation &&
       spec?.activeUnits.includes(activeUnit) &&
       !dragging &&
       !modalOpen &&
       panelState === "closed";
-    if (!eligible || !door || !spec) {
-      if (enterFrame.current !== null) cancelAnimationFrame(enterFrame.current);
+    if (!eligible || !activation || !spec) {
+      eligibleRef.current = false;
+      desiredIdRef.current = null;
+      if (enterFrame.current !== null) {
+        cancelAnimationFrame(enterFrame.current);
+        enterFrame.current = null;
+      }
       positionedId.current = null;
-      setVisible(false);
+      setLabelVisible(false);
       if (exitTimer.current !== null) window.clearTimeout(exitTimer.current);
       exitTimer.current = window.setTimeout(() => {
+        exitTimer.current = null;
         shownRef.current = null;
         setShown(null);
       }, EXIT_MS);
       hadDoor.current = false;
       return;
     }
-    if (exitTimer.current !== null) window.clearTimeout(exitTimer.current);
-    if (shownRef.current && shownRef.current.id !== spec.id) setVisible(false);
+    eligibleRef.current = true;
+    desiredIdRef.current = spec.id;
+    if (exitTimer.current !== null) {
+      window.clearTimeout(exitTimer.current);
+      exitTimer.current = null;
+    }
+    if (shownRef.current && shownRef.current.id !== spec.id)
+      setLabelVisible(false);
     const delay = hadDoor.current ? SWITCH_DWELL_MS : INITIAL_DWELL_MS;
     hadDoor.current = true;
     const timeout = window.setTimeout(() => {
       const next = {
         id: spec.id,
-        label: door.label.replace(/\s*↗\s*$/, ""),
-        external: door.external,
+        label: activation.label.replace(/\s*↗\s*$/, ""),
+        external: activation.kind === "door" && activation.external,
       };
       positionedId.current = null;
-      setVisible(false);
+      setLabelVisible(false);
       shownRef.current = next;
       setShown(next);
     }, delay);
     return () => window.clearTimeout(timeout);
-  }, [activeUnit, dragging, hovered, modalOpen, panelState]);
+  }, [activeUnit, dragging, hovered, modalOpen, panelState, setLabelVisible]);
 
   useEffect(() => {
     if (!shown) return;
@@ -95,32 +137,40 @@ export default function DoorLabel() {
     let previousProgress = progressRef.current;
     const place = () => {
       if (Math.abs(progressRef.current - previousProgress) > 0.000_002) {
-        if (enterFrame.current !== null)
+        previousProgress = progressRef.current;
+        if (enterFrame.current !== null) {
           cancelAnimationFrame(enterFrame.current);
+          enterFrame.current = null;
+        }
         positionedId.current = null;
-        setVisible(false);
-        exitTimer.current = window.setTimeout(() => {
-          shownRef.current = null;
-          setShown(null);
-        }, EXIT_MS);
+        setLabelVisible(false);
+        // Camera damping can continue by tiny amounts after the visitor has
+        // already reached the next object. Keep the projection loop alive so
+        // the same hover can enter once motion settles; stopping here stranded
+        // linked props forever at opacity zero until pointerout.
+        frame = requestAnimationFrame(place);
         return;
       }
       previousProgress = progressRef.current;
       const element = node.current;
       const projected = projectDoor(shown.id);
-      if (!element || !projected || projected.behind) {
-        if (element) element.style.visibility = "hidden";
-        if (positionedId.current === shown.id) {
-          positionedId.current = null;
-          setVisible(false);
+      if (element) {
+        // Projection normally resolves from the object's geometry or carrier
+        // origin. Pointer position remains an emergency fallback only when the
+        // scene has not installed its projection context yet.
+        let objectAnchored = false;
+        let anchor = pointer.current;
+        if (projected && !projected.behind) {
+          objectAnchored = true;
+          anchor = projected;
         }
-      } else {
+        element.dataset.anchorSource = objectAnchored ? "object" : "pointer";
         const dock = document.querySelector<HTMLElement>(
           '[data-stacks-desktop-dock]:not([data-hidden="true"])',
         );
         const dockRect = dock?.getBoundingClientRect() ?? null;
         const x = clampDoorLabelX(
-          projected.x,
+          anchor.x,
           element.offsetWidth,
           window.innerWidth,
           dockRect,
@@ -129,7 +179,7 @@ export default function DoorLabel() {
           DOOR_LABEL_VIEWPORT_GUTTER + element.offsetHeight,
           Math.min(
             window.innerHeight - DOOR_LABEL_VIEWPORT_GUTTER,
-            projected.y - 10,
+            anchor.y - 10,
           ),
         );
         // The positioned node is also the glass node. Keeping positioning on
@@ -138,23 +188,38 @@ export default function DoorLabel() {
         element.style.setProperty("--door-label-x", `${x}px`);
         element.style.setProperty("--door-label-y", `${y}px`);
         element.style.visibility = "visible";
-        if (positionedId.current !== shown.id) {
-          positionedId.current = shown.id;
-          if (enterFrame.current !== null)
-            cancelAnimationFrame(enterFrame.current);
+        if (positionedId.current !== shown.id) positionedId.current = shown.id;
+        if (
+          eligibleRef.current &&
+          desiredIdRef.current === shown.id &&
+          !visibleRef.current &&
+          enterFrame.current === null
+        ) {
           // Paint one fully positioned, transparent frame before beginning
           // the entrance. Otherwise the transform's 0px CSS-variable
           // fallbacks can become the transition's starting coordinates.
           enterFrame.current = requestAnimationFrame(() => {
-            if (shownRef.current?.id === shown.id) setVisible(true);
+            enterFrame.current = null;
+            if (
+              shownRef.current?.id === shown.id &&
+              desiredIdRef.current === shown.id
+            )
+              setLabelVisible(true);
           });
         }
       }
       frame = requestAnimationFrame(place);
     };
     frame = requestAnimationFrame(place);
-    return () => cancelAnimationFrame(frame);
-  }, [shown]);
+    return () => {
+      cancelAnimationFrame(frame);
+      if (enterFrame.current !== null) {
+        cancelAnimationFrame(enterFrame.current);
+        enterFrame.current = null;
+      }
+      positionedId.current = null;
+    };
+  }, [setLabelVisible, shown]);
 
   if (!shown) return null;
   return (

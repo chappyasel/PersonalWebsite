@@ -39,7 +39,7 @@ test("desktop details focus mode persists and guards the H shortcut", async ({
     const state = window.__stacks?.state();
     return (state?.interactions ?? []) as Array<{
       id: string;
-      activation: "door" | "egg" | null;
+      activation: "door" | "action" | "egg" | null;
     }>;
   });
   const sceneIds = sceneInteractions.map((item) => item.id);

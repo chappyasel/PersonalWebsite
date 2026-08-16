@@ -15,11 +15,11 @@ import * as THREE from "three";
 
 import { FootPool } from "./GroundPool";
 import ModelProp, { SPIN_NODE } from "./ModelProp";
-import { type Island, extractTriangles, findIslands } from "./islands";
 import {
   getSceneInteraction,
   registerSceneInteraction,
 } from "./interactionRegistry";
+import { type Island, extractTriangles, findIslands } from "./islands";
 import { ClockFace, type ClockFaceStyle, type ClockSweep } from "./objects";
 import { LampGlow } from "./primitives";
 
@@ -796,6 +796,15 @@ export function EggClock({
     >
       {children}
       <group position={facePosition}>
+        {faceStyle === "grandfather" ? (
+          <mesh
+            position={[0, faceRadius * 0.12, -0.002]}
+            scale={[1, 1.55, 1]}
+          >
+            <circleGeometry args={[faceRadius * 1.18, 32]} />
+            <meshStandardMaterial color="#f4e5bf" roughness={0.82} />
+          </mesh>
+        ) : null}
         <ClockFace radius={faceRadius} sweepRef={sweep} faceStyle={faceStyle} />
         <SecondHand
           radius={faceRadius}

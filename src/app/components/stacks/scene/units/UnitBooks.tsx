@@ -192,8 +192,8 @@ function layoutFeatured(
   if (n === 0) return [];
 
   // Pass 1 — the per-book pose that owes nothing to its neighbours. The scale
-  // band bottoms out at 1.0 — a 0.36 × 0.52 book — and averages about 20%
-  // larger than the former 0.80–1.00 band while retaining organic variation.
+  // band stays close to the About shelf's larger current-reading books while
+  // retaining enough organic variation to avoid a rigid display grid.
   // It remains more than twice the width of the fattest spine behind it, which
   // makes a featured book legible as the wide mass on the shelf.
   //
@@ -204,7 +204,7 @@ function layoutFeatured(
   // BEHIND a fat spine, and a featured book with a paperback standing in front
   // of its corner is worse than no depth variation at all.
   const pose: Pose[] = slice.map((_, i) => ({
-    s: 1 + rand(i, salt) * 0.15,
+    s: 0.88 + rand(i, salt) * 0.1,
     yaw: (rand(i, salt + 1) - 0.5) * 0.22,
     lean: 0,
     riser: 0,

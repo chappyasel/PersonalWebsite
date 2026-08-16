@@ -2,20 +2,15 @@
 
 // Persistent labeled unit rail — vertical on desktop (left edge), icon row on
 // mobile (centred under the top chrome). Click = pushState + damped travel.
-// The progress thumb reads the transient progressRef on its own rAF loop;
-// nothing re-renders per frame.
+// Both layouts use the same selected-section pill dimensions, duration, and
+// easing; only the axis changes to suit the vertical/horizontal rails.
 //
 // Both form factors mark a unit with its section glyph. The rail normally uses
 // the canonical section name; a unit may opt into a shorter navigation-only
 // label without changing the title of the destination it opens.
 import { UNITS, UNIT_COUNT } from "../data";
-import {
-  closeStacksPanel,
-  progressRef,
-  railRightPxRef,
-  useStacks,
-} from "../store";
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { closeStacksPanel, railRightPxRef, useStacks } from "../store";
+import { useLayoutEffect, useRef } from "react";
 
 /** Desktop row height, in rem. The rows are `h-9` and the travelling thumb
  * translates by this per unit, so the two must agree — one number, used
@@ -24,10 +19,13 @@ const ROW_REM = 2.25;
 /** Every mobile button shares this rem-sized step, keeping all seven icons
  * centered as one row through root type-scale changes. */
 const MOBILE_STEP_REM = 2.75;
+/** Shared marker geometry: the desktop and mobile rails should feel like two
+ * orientations of one control, not unrelated navigation treatments. */
+const INDICATOR_LENGTH_REM = 1.25;
+const INDICATOR_THICKNESS_REM = 0.25;
 
 export default function UnitRail() {
   const activeUnit = useStacks((s) => s.activeUnit);
-  const thumbRef = useRef<HTMLDivElement>(null);
   const railRef = useRef<HTMLElement>(null);
   const desktopButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const mobileButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -41,7 +39,9 @@ export default function UnitRail() {
       const nav = railRef.current;
       if (!nav) return;
       const rect = nav.getBoundingClientRect();
-      railRightPxRef.current = rect.width > 0 ? rect.right : 0;
+      const right = rect.width > 0 ? rect.right : 0;
+      railRightPxRef.current = right;
+      useStacks.getState().setDesktopNavRightPx(right);
     };
     measure();
     window.addEventListener("resize", measure);
@@ -49,30 +49,8 @@ export default function UnitRail() {
     return () => {
       window.removeEventListener("resize", measure);
       railRightPxRef.current = 0;
+      useStacks.getState().setDesktopNavRightPx(0);
     };
-  }, []);
-
-  useEffect(() => {
-    let raf = 0;
-    let lastProgress = Number.NaN;
-    const tick = () => {
-      const progress = progressRef.current;
-      const thumb = thumbRef.current;
-      // The camera loop publishes continuously, including while the room is
-      // at rest. Avoid dirtying two DOM styles every animation frame when the
-      // shared progress value has not changed; rem-based transforms still
-      // respond to a root font-size change without another write.
-      if (progress !== lastProgress) {
-        // Track height is (UNIT_COUNT - 1) gaps of one row.
-        if (thumb) {
-          thumb.style.transform = `translateY(${progress * (UNIT_COUNT - 1) * ROW_REM}rem)`;
-        }
-        lastProgress = progress;
-      }
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
   }, []);
 
   const go = (index: number) => {
@@ -152,69 +130,66 @@ export default function UnitRail() {
            near foreground strength because the scene beneath is variable. */
         .stacks-rail-icon {
           opacity: 0.85;
-          transition: opacity 0.3s ease-out;
+          transform: scale(0.94);
+          transition: opacity 0.38s var(--stacks-ease, ease-out), transform 0.38s var(--stacks-ease, ease-out);
         }
-        .stacks-rail-row[data-active] .stacks-rail-icon,
         .stacks-rail-row:focus-visible .stacks-rail-icon {
           opacity: 1;
+          transform: scale(1);
         }
         /* Hover gated on a real pointer. A tap leaves sticky :hover behind on
            touch, which would strand one mark of the mobile row lit as though
            it were the active unit. */
         @media (hover: hover) {
-          .stacks-rail-row:hover .stacks-rail-icon { opacity: 1; }
+          .stacks-rail-row:hover .stacks-rail-icon {
+            opacity: 1;
+            transform: scale(1);
+          }
         }
-        /* The plate's ring, so the rail and the placard acknowledge a
-           keyboard the same way. */
+        /* Selection wins over hover/focus so the current section remains the
+           strongest state even while its button owns the pointer or focus. */
+        .stacks-rail-row[data-active] .stacks-rail-icon {
+          opacity: 1;
+          transform: scale(1.06);
+        }
+        .stacks-rail-label {
+          opacity: 0.78;
+          transition: opacity 0.38s var(--stacks-ease, ease-out);
+        }
+        .stacks-rail-row[data-active] .stacks-rail-label,
+        .stacks-rail-row:focus-visible .stacks-rail-label {
+          opacity: 1;
+        }
+        @media (hover: hover) {
+          .stacks-rail-row:hover .stacks-rail-label { opacity: 1; }
+        }
+        /* One shared focus treatment. The button's responsive border radius
+           remains intact instead of being replaced by a second ring shape. */
         .stacks-rail-row:focus-visible {
           outline: 2px solid hsl(var(--foreground) / 0.45);
           outline-offset: 2px;
-          border-radius: 5px;
-        }
-        @media (prefers-reduced-motion: no-preference) {
-          /* Hover leans the row toward the room it opens, and settles back on
-             the same long ease everything else in the world uses. The
-             transform lives on an INNER span so it never has to share the
-             property with the arrival animation below. */
-          .stacks-rail-inner {
-            transition: transform 0.42s var(--stacks-ease, cubic-bezier(0.16, 1, 0.3, 1));
-          }
-          .stacks-rail-row:focus-visible .stacks-rail-inner {
-            transform: translateX(3px);
-          }
-          @media (hover: hover) {
-            .stacks-rail-row:hover .stacks-rail-inner {
-              transform: translateX(3px);
-            }
-          }
-          /* Becoming the active unit. Attribute-driven, so it fires on the
-             change itself without re-mounting the button (which would kill
-             the colour transition beside it). */
-          .stacks-rail-row[data-active] .stacks-rail-icon {
-            animation: stacks-rail-arrive 520ms var(--stacks-ease, cubic-bezier(0.16, 1, 0.3, 1));
-          }
-        }
-        @keyframes stacks-rail-arrive {
-          from { transform: scale(0.72); opacity: 0.3; }
-          to { transform: scale(1); opacity: 1; }
         }
       `}</style>
       {/* Desktop: vertical labeled rail */}
       <nav
         ref={railRef}
         aria-label="Sections"
-        className="pointer-events-auto absolute left-5 top-1/2 z-30 hidden -translate-y-1/2 min-[1200px]:left-7 min-[1200px]:block"
+        className="stacks-unit-rail-desktop pointer-events-auto absolute left-5 top-1/2 z-30 hidden -translate-y-1/2 min-[1200px]:left-7 min-[1200px]:block"
       >
         <div className="relative flex flex-col">
-          {/* A short vertical bar rather than the dot this used to be. It now
-              slides down a column of icons, and a bar sliding beside a list
-              reads as a position along it where a dot beside icons reads as
-              one more mark in the set. It also rhymes with the mobile row,
-              which is bars for its own reasons. */}
-          <div
-            ref={thumbRef}
+          {/* The same 20px × 4px pill used by mobile, rotated for the vertical
+              rail and kept left of the glyph. It moves from selected section
+              to selected section with the same duration/ease. */}
+          <span
             aria-hidden
-            className="stacks-on-background-mark absolute left-0 top-[11px] h-3.5 w-[2px] rounded-full bg-foreground/70 will-change-transform"
+            data-stacks-rail-indicator="desktop"
+            className="stacks-on-background-mark pointer-events-none absolute left-0 top-2 rounded-full bg-foreground/85 transition-transform duration-500 will-change-transform motion-reduce:transition-none"
+            style={{
+              width: `${INDICATOR_THICKNESS_REM}rem`,
+              height: `${INDICATOR_LENGTH_REM}rem`,
+              transform: `translateY(${activeUnit * ROW_REM}rem)`,
+              transitionTimingFunction: "var(--stacks-ease)",
+            }}
           />
           {UNITS.map((unit, i) => {
             const Icon = unit.icon;
@@ -237,7 +212,7 @@ export default function UnitRail() {
                 // The desktop rail uses a larger mark and label but a tighter
                 // 2.25rem step, improving scanability without stretching the
                 // seven-item group down the scene. pl-4 is the thumb's lane.
-                className={`stacks-on-background-text stacks-rail-row group flex h-9 items-center rounded-lg pl-4 text-left font-serif text-[1.05rem] tracking-wide transition-colors duration-300 focus-visible:ring-2 focus-visible:ring-foreground/40 ${
+                className={`stacks-on-background-text stacks-rail-row group flex h-9 items-center rounded-lg pl-4 text-left font-serif text-[1.05rem] tracking-wide transition-colors duration-300 focus-visible:text-foreground ${
                   active
                     ? "text-foreground"
                     : "text-muted-foreground hover:text-foreground"
@@ -247,9 +222,9 @@ export default function UnitRail() {
                   <Icon
                     aria-hidden
                     weight="bold"
-                    className="stacks-rail-icon size-[19px] shrink-0"
+                    className="stacks-rail-icon size-[22px] shrink-0 text-foreground"
                   />
-                  {railLabel}
+                  <span className="stacks-rail-label">{railLabel}</span>
                 </span>
               </button>
             );
@@ -277,16 +252,14 @@ export default function UnitRail() {
           easier to see". Two things were wrong and only one of them was
           size: a 10x3px mark is small, but a mark with no contrast floor is
           invisible at any size. So the marks are now the sections' own
-          glyphs at 19px in the stronger shared foreground, and a stationary
-          bar survives underneath as the position indicator. A visitor gets to see
-          WHICH seven things the row is, which the dashes never told them.
+          glyphs at 22px in the stronger shared foreground, and a moving pill
+          survives underneath as the position indicator. A visitor gets to
+          see WHICH seven things the row is, which the dashes never told them.
 
           Seven 2.75rem columns is 19.25rem, so the row still fits a 320px
-          screen with margin. Each button owns its own underline. The former
-          single underline was continuously translated on a promoted GPU
-          layer; iOS Safari intermittently retained its old raster tiles as a
-          trail of tiny dashes. Stationary underlines only crossfade, so there
-          is no moving texture for WebKit to smear. */}
+          screen with margin. The indicator animates its layout position rather
+          than a promoted transform on mobile: iOS Safari intermittently kept
+          old transform-layer raster tiles as a trail of tiny dashes. */}
       {/* pointer-events on the BUTTONS, not the nav. The nav spans the full
           width so the row can centre, and an interactive container that wide
           would deaden a strip straight across the room — including the empty
@@ -294,9 +267,20 @@ export default function UnitRail() {
           behind. */}
       <nav
         aria-label="Sections"
-        className="stacks-unit-rail-mobile pointer-events-none absolute inset-x-0 z-20 flex justify-center min-[1200px]:hidden"
+        className="stacks-unit-rail-mobile pointer-events-none absolute inset-x-0 z-30 flex justify-center min-[1200px]:hidden"
       >
         <div className="relative flex">
+          <span
+            aria-hidden
+            data-stacks-rail-indicator="mobile"
+            className="stacks-on-background-mark pointer-events-none absolute bottom-1 rounded-full bg-foreground/85 transition-[left,width] duration-500 motion-reduce:transition-none"
+            style={{
+              left: `calc(${activeUnit * MOBILE_STEP_REM}rem + 0.75rem)`,
+              width: `${INDICATOR_LENGTH_REM}rem`,
+              height: `${INDICATOR_THICKNESS_REM}rem`,
+              transitionTimingFunction: "var(--stacks-ease)",
+            }}
+          />
           {UNITS.map((unit, i) => {
             const Icon = unit.icon;
             const active = i === activeUnit;
@@ -314,19 +298,13 @@ export default function UnitRail() {
                 data-active={active || undefined}
                 onClick={() => go(i)}
                 onKeyDown={(event) => onRailKeyDown(event, i, mobileButtonRefs)}
-                className="stacks-on-background-text stacks-rail-row pointer-events-auto relative flex h-12 items-center justify-center rounded-xl pb-1 text-foreground focus-visible:ring-2 focus-visible:ring-foreground/50"
+                className="stacks-on-background-text stacks-rail-row pointer-events-auto relative flex h-12 items-center justify-center rounded-xl pb-1 text-foreground"
                 style={{ width: `${MOBILE_STEP_REM}rem` }}
               >
                 <Icon
                   aria-hidden
                   weight="bold"
-                  className="stacks-rail-icon size-[22px] shrink-0"
-                />
-                <span
-                  aria-hidden
-                  className={`stacks-on-background-mark absolute bottom-1 left-1/2 h-1 w-5 -translate-x-1/2 rounded-full bg-foreground/85 transition-opacity duration-200 ${
-                    active ? "opacity-100" : "opacity-0"
-                  }`}
+                  className="stacks-rail-icon size-[22px] shrink-0 text-foreground"
                 />
               </button>
             );

@@ -227,22 +227,50 @@ export default function ChromeLayer() {
           top: max(0.75rem, env(safe-area-inset-top, 0px));
         }
         /* Light-mode chrome sits directly on a scene whose value changes
-           from sky to grass. Use the Systems quote treatment here too:
-           white ink plus a restrained black halo, rather than a page-theme
-           foreground that can disappear over either end of the meadow. */
+           from sky to grass. White ink supplies contrast without adding a
+           halo to the type. */
         html:not(.dark) .stacks-on-background-text {
           color: rgb(255 255 255 / 0.94) !important;
-          text-shadow: 0 1px 3px rgb(0 0 0 / 0.55), 0 0 14px rgb(0 0 0 / 0.4);
           --tw-ring-color: rgb(255 255 255 / 0.48);
         }
-        html:not(.dark) .stacks-on-background-text svg {
-          filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.55)) drop-shadow(0 0 7px rgb(0 0 0 / 0.4));
+        /* Rail icons carry an explicit foreground token so desktop and mobile
+           remain identical in dark mode. On a light-mode scene, the chrome's
+           white ink must win on the SVG itself rather than only its parent. */
+        html:not(.dark) .stacks-on-background-text .stacks-rail-icon {
+          color: rgb(255 255 255 / 0.94) !important;
         }
         html:not(.dark) .stacks-on-background-mark {
           background-color: rgb(255 255 255 / 0.9) !important;
-          box-shadow: 0 1px 3px rgb(0 0 0 / 0.45), 0 0 10px rgb(0 0 0 / 0.3);
+        }
+        @media (width < 1200px) {
+          .stacks-wordmark .stacks-on-background-text,
+          .stacks-unit-rail-mobile .stacks-on-background-text,
+          .stacks-theme-toggle .stacks-on-background-text {
+            text-shadow: none !important;
+          }
+          .stacks-unit-rail-mobile .stacks-on-background-text svg,
+          .stacks-theme-toggle svg {
+            filter: none !important;
+          }
+          .stacks-unit-rail-mobile .stacks-on-background-mark {
+            box-shadow: none !important;
+          }
         }
         @media (width >= 1200px) {
+          /* Desktop chrome shares one restrained contact shadow in both
+             themes. No element gets the old wide halo treatment. */
+          .stacks-wordmark .stacks-on-background-text,
+          .stacks-unit-rail-desktop .stacks-on-background-text,
+          .stacks-theme-toggle .stacks-on-background-text {
+            text-shadow: 0 1px 2px rgb(0 0 0 / 0.28) !important;
+          }
+          .stacks-unit-rail-desktop .stacks-rail-icon,
+          .stacks-theme-toggle svg {
+            filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.24)) !important;
+          }
+          .stacks-unit-rail-desktop .stacks-on-background-mark {
+            box-shadow: 0 1px 2px rgb(0 0 0 / 0.28) !important;
+          }
           .stacks-wordmark {
             left: max(1.75rem, env(safe-area-inset-left, 0px));
             top: max(1.25rem, env(safe-area-inset-top, 0px));

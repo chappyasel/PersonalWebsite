@@ -1,8 +1,11 @@
 import TiltCard from "../../TiltCard";
 import type { Icon } from "@phosphor-icons/react";
 import Link from "next/link";
+import { useState } from "react";
 
 import { cn } from "~/lib/util";
+
+import { tooltipSurfaceClassName } from "~/components/ui/tooltip";
 
 export type PlacardYearDatum = {
   year: number;
@@ -112,6 +115,7 @@ function PlacardYearBars({
   years: PlacardYearDatum[];
   unit: string;
 }) {
+  const [touchedYear, setTouchedYear] = useState<number | null>(null);
   const max = Math.max(
     1,
     ...years.map((year) => year.value + year.projectedRemainder),
@@ -133,9 +137,36 @@ function PlacardYearBars({
         return (
           <div
             key={year.year}
+            tabIndex={0}
+            aria-label={`${year.year}: ${year.value} ${unit}`}
+            onPointerUp={(event) => {
+              if (event.pointerType !== "touch") return;
+              event.preventDefault();
+              event.stopPropagation();
+              setTouchedYear((current) =>
+                current === year.year ? null : year.year,
+              );
+            }}
+            onClick={(event) => {
+              if (
+                typeof window !== "undefined" &&
+                window.matchMedia("(hover: none)").matches
+              ) {
+                event.preventDefault();
+                event.stopPropagation();
+              }
+            }}
+            onBlur={() => setTouchedYear(null)}
             className="group/year relative flex min-w-0 flex-1 flex-col items-center justify-end"
           >
-            <div className="pointer-events-none absolute bottom-[calc(100%+0.4rem)] left-1/2 z-10 w-max -translate-x-1/2 translate-y-1 rounded-lg border border-white/30 bg-background/90 px-2 py-1 text-center text-[10px] leading-tight text-foreground opacity-0 shadow-lg backdrop-blur-md transition-[opacity,transform] duration-150 group-hover/year:translate-y-0 group-hover/year:opacity-100">
+            <div
+              role="tooltip"
+              className={cn(
+                tooltipSurfaceClassName,
+                "pointer-events-none absolute bottom-[calc(100%+0.4rem)] left-1/2 z-[100] w-max -translate-x-1/2 translate-y-1 text-center text-[10px] leading-tight opacity-0 transition-[opacity,transform] duration-150 group-hover/year:translate-y-0 group-hover/year:opacity-100 group-focus/year:translate-y-0 group-focus/year:opacity-100",
+                touchedYear === year.year && "translate-y-0 opacity-100",
+              )}
+            >
               <span className="block text-muted-foreground">{year.year}</span>
               <strong className="font-semibold tabular-nums">
                 {year.value} {unit}
@@ -187,20 +218,20 @@ export function PlacardStatsCard({
   stats: PlacardStat[];
 }) {
   return (
-    <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(7.75rem,.8fr)] items-stretch">
-      <div className="flex min-h-52 min-w-0 flex-col justify-between pr-5">
+    <div className="grid grid-cols-[minmax(0,1.25fr)_minmax(7rem,.75fr)] items-stretch min-[1200px]:grid-cols-[minmax(0,1.2fr)_minmax(7.75rem,.8fr)]">
+      <div className="flex min-h-44 min-w-0 flex-col justify-between pr-4 min-[1200px]:min-h-52 min-[1200px]:pr-5">
         <div>
           <strong className="block whitespace-nowrap font-serif text-[clamp(3.25rem,13vw,5rem)] font-normal leading-[.78] tracking-[-0.055em] text-foreground">
             {headline}
           </strong>
-          <span className="mt-5 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="mt-4 flex items-center gap-1.5 whitespace-nowrap text-[11px] text-muted-foreground min-[1200px]:mt-5 min-[1200px]:text-xs">
             <HeadlineIcon className="size-3.5 shrink-0" weight="bold" />
             {headlineLabel}
           </span>
         </div>
         <PlacardYearBars years={years} unit={yearUnit} />
       </div>
-      <div className="flex min-w-0 flex-col justify-between border-l border-foreground/10 pl-5 text-right">
+      <div className="flex min-w-0 flex-col justify-between border-l border-foreground/10 pl-4 text-right min-[1200px]:pl-5">
         {stats.map(({ icon: StatIcon, label, value }) => (
           <div key={label}>
             <strong className="block text-[1.65rem] font-semibold tabular-nums leading-none text-foreground">

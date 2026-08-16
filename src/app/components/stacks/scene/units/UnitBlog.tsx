@@ -6,7 +6,6 @@ import Grabbable from "../Grabbable";
 import { ContactShade } from "../GroundPool";
 import ModelProp from "../ModelProp";
 import { EggLamp, SteamCup, Sway } from "../eggs";
-import PropLink, { HoverProp } from "../links";
 import { NotebookLean, PaperStack } from "../objects";
 import { BookPile, Bookend, ShelfUnit } from "../primitives";
 import React, { useMemo } from "react";
@@ -32,7 +31,15 @@ export default function UnitBlog({
         toneSeed={index}
         lower={
           <group>
-            <group position={[-1.24, 0, -0.02]}>
+            <Grabbable
+              unitIndex={index}
+              hoverKey="grab:plant:musings"
+              base={[-1.24, 0, -0.02]}
+              shadeColor={palette.shadow}
+              shadeWidth={0.42}
+              shape="box"
+              massKg={1.4}
+            >
               <Sway unitIndex={index} amount={0.022} rate={0.34} phase={1.8}>
                 <React.Suspense fallback={null}>
                   <ModelProp
@@ -43,12 +50,7 @@ export default function UnitBlog({
                   />
                 </React.Suspense>
               </Sway>
-              <ContactShade
-                color={palette.shadow}
-                width={0.42}
-                position={[0, 0.025, 0.04]}
-              />
-            </group>
+            </Grabbable>
 
             <Grabbable
               unitIndex={index}
@@ -69,14 +71,15 @@ export default function UnitBlog({
 
             <group position={[-0.3, 0, 0]}>
               <PaperStack palette={palette} linkUnit={index} />
-              <ContactShade
-                color={palette.shadow}
-                width={0.55}
-                position={[0, 0.02, 0.02]}
-              />
             </group>
 
-            <BookPile palette={palette} x={0.38} salt={47} linkUnit={index} />
+            <BookPile
+              palette={palette}
+              x={0.38}
+              salt={47}
+              linkUnit={index}
+              grabbable
+            />
             <Grabbable
               unitIndex={index}
               hoverKey="grab:sailboat:musings"
@@ -155,17 +158,19 @@ export default function UnitBlog({
             position={[0, 0.03, 0.1]}
           />
         </group>
-        <group position={[-0.24, 0, 0.02]}>
-          <HoverProp
-            unitIndex={index}
-            hoverKey="hover:bookend:blog"
-            lift={[0, 0, 0]}
-            rest={[0, 0, -0.045]}
-            settle={0.045}
-          >
+        <Grabbable
+          unitIndex={index}
+          hoverKey="grab:bookend:blog"
+          base={[-0.24, 0, 0.02]}
+          shadeColor={palette.shadow}
+          shadeWidth={0.24}
+          shape="box"
+          massKg={0.7}
+        >
+          <group rotation={[0, 0, -0.045]}>
             <Bookend palette={palette} flip />
-          </HoverProp>
-        </group>
+          </group>
+        </Grabbable>
 
         <Grabbable
           unitIndex={index}
@@ -184,29 +189,42 @@ export default function UnitBlog({
           </React.Suspense>
         </Grabbable>
 
-        <SteamCup
+        <Grabbable
           unitIndex={index}
           hoverKey="egg:tea"
-          steamAt={[0.39, 0.122, -0.08]}
-          dark={dark}
-          always
+          base={[0.39, 0, -0.08]}
+          shadeColor={palette.shadow}
+          shadeWidth={0.28}
+          shape="box"
+          massKg={0.3}
         >
-          <React.Suspense fallback={null}>
-            <ModelProp
-              url="/models/cup-tea.glb"
-              dark={dark}
-              position={[0.39, 0, -0.08]}
-              rotation={[0, 0.6, 0]}
-              scale={2.4}
-            />
-          </React.Suspense>
-        </SteamCup>
+          <SteamCup
+            unitIndex={index}
+            hoverKey="egg:tea"
+            steamAt={[0, 0.122, 0]}
+            dark={dark}
+            always
+          >
+            <React.Suspense fallback={null}>
+              <ModelProp
+                url="/models/cup-tea.glb"
+                dark={dark}
+                rotation={[0, 0.6, 0]}
+                scale={2.4}
+              />
+            </React.Suspense>
+          </SteamCup>
+        </Grabbable>
 
-        <PropLink
+        <Grabbable
           unitIndex={index}
           to="books"
-          hoverKey="link:openbook"
-          lift={[0, 0.025, 0.02]}
+          hoverKey="grab:openbook"
+          base={[0.8, 0, 0.08]}
+          shadeColor={palette.shadow}
+          shadeWidth={0.62}
+          shape="box"
+          massKg={0.72}
         >
           <React.Suspense fallback={null}>
             <ModelProp
@@ -214,12 +232,11 @@ export default function UnitBlog({
               dark={dark}
               variant="tinted"
               tints={{ Beige: palette.pages, DarkRed: palette.spines[3] }}
-              position={[0.8, 0, 0.08]}
               rotation={[0, -0.25, 0]}
               scale={0.7}
             />
           </React.Suspense>
-        </PropLink>
+        </Grabbable>
       </ShelfUnit>
     </>
   );

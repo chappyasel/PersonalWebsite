@@ -3,7 +3,7 @@
 // Scene graph: atmosphere + camera rig + the seven shelf units + the baked
 // ground shadows that ground them.
 import { type StacksData, UNITS, UNIT_COUNT, type UnitSlug } from "../data";
-import { openStacksPanel, useStacks } from "../store";
+import { useStacks } from "../store";
 import { type Palette, proxied } from "../theme";
 import { useTexture } from "@react-three/drei";
 import { type ThreeEvent } from "@react-three/fiber";
@@ -24,7 +24,7 @@ import UnitSystems from "./units/UnitSystems";
 import UnitTalks from "./units/UnitTalks";
 import UnitTraining from "./units/UnitTraining";
 import { type UnitProps } from "./units/types";
-import { STACKS_MOBILE_QUERY, unitPose } from "./worldLayout";
+import { unitPose } from "./worldLayout";
 
 const UNIT_COMPONENTS: Record<UnitSlug, ComponentType<UnitProps>> = {
   about: UnitAbout,
@@ -46,19 +46,15 @@ const MONSTERA_ATLAS_DARK = {
   colorSwaps: [{ from: "#334d68", to: "#4e713d", tolerance: 6 }] as const,
 } as const;
 
-// Tap anywhere on a unit: mobile opens the panel for the active unit,
-// otherwise travel there (same pushState + travelTo as the rail). Desktop
-// active unit is a no-op — the placard is already resident.
+// Tap the room behind a unit to travel there. Tapping the active unit is a
+// no-op on every viewport: mobile scene taps belong to the 3D interactions,
+// while the sheet's grabber, header, and chip are its explicit controls.
 function onUnitTap(index: number, e: ThreeEvent<MouseEvent>) {
   if ((e.delta ?? 0) > 6) return; // swipe, not a tap
   e.stopPropagation();
   const state = useStacks.getState();
   if (state.panelState !== "closed" || state.modalOpen) return;
-  const isMobile = window.matchMedia(STACKS_MOBILE_QUERY).matches;
-  if (index === state.activeUnit) {
-    if (isMobile) openStacksPanel();
-    return;
-  }
+  if (index === state.activeUnit) return;
   if (!state.travelTo) return;
   const slug = UNITS[index]!.slug;
   window.history.pushState(
@@ -189,8 +185,8 @@ const SceneContent = memo(function SceneContent({
               onOpenUrl={onOpenUrl}
             />
             {/* Invisible raycast plane BEHIND the interactive props (covers
-                sit at z 0.06+ and stopPropagation first) — tap-a-unit target
-                for the mobile panel and lateral travel. */}
+                sit at z 0.06+ and stopPropagation first) — a lateral travel
+                target only. The active unit deliberately does nothing. */}
             <mesh position={[0, 0.1, -0.3]} onClick={(e) => onUnitTap(i, e)}>
               <planeGeometry args={[3.4, 2.6]} />
               <meshBasicMaterial transparent opacity={0} depthWrite={false} />

@@ -191,12 +191,16 @@ export function TJMedallionProp({
   dark,
   base,
   href,
+  name,
+  scale,
 }: {
   unitIndex: number;
   palette: Palette;
   dark: boolean;
   base: [number, number, number];
   href: string;
+  name?: string;
+  scale: number;
 }) {
   return (
     <Grabbable
@@ -208,10 +212,10 @@ export function TJMedallionProp({
       shape="box"
       massKg={0.45}
       href={href}
-      doorLabel="Watch Principles for Living in the Age of Acceleration"
+      doorLabel="Visit TJHSST"
       external
     >
-      <group rotation={[0, -0.16, 0]} scale={0.72}>
+      <group name={name} rotation={[0, -0.16, 0]} scale={scale}>
         <TJMedallionBody dark={dark} />
       </group>
     </Grabbable>

@@ -18,6 +18,12 @@ export type DoorSpec = {
   external: boolean;
 };
 
+export type ActionSpec = {
+  kind: "action";
+  label: string;
+  run: () => void;
+};
+
 export type EggSpec = {
   kind: "egg";
   run: () => void;
@@ -33,7 +39,7 @@ export type SceneInteractionSpec = {
   root: THREE.Object3D;
   activeUnits: number[];
   movable?: MovableSpec;
-  activation?: DoorSpec | EggSpec;
+  activation?: DoorSpec | ActionSpec | EggSpec;
   hover?: HoverResponseSpec;
 };
 
@@ -188,7 +194,7 @@ declare global {
       id: string;
       units: number[];
       movable: boolean;
-      activation: "door" | "egg" | null;
+      activation: "door" | "action" | "egg" | null;
       label: string | null;
     }>;
   }

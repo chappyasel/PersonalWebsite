@@ -9,11 +9,11 @@ import { useFrame } from "@react-three/fiber";
 import React, { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import Grabbable from "./Grabbable";
 import { ContactShade } from "./GroundPool";
 import Lift from "./Lift";
 import LitImage from "./LitImage";
 import ModelProp from "./ModelProp";
-import PropLink from "./links";
 
 /**
  * The only click path in this scene that actually fires under a real pointer.
@@ -896,7 +896,7 @@ export function NotebookLean({
                 : undefined
             }
             onClick={
-              key && onNotebookClick
+              linkUnit === undefined && key && onNotebookClick
                 ? (e) => {
                     if ((e.delta ?? 0) > 6) return; // swipe, not a tap
                     if (!activeHere()) return; // fall through → travel
@@ -912,7 +912,28 @@ export function NotebookLean({
             />
           </RoundedBox>
         );
-        // Only clickable spines pay for a useFrame slot. 0.257 = lean-
+        if (linkUnit !== undefined) {
+          return (
+            <Grabbable
+              key={i}
+              unitIndex={linkUnit}
+              hoverKey={
+                key ? `notebook:${key}` : `grab:notebook:${linkUnit}:${i}`
+              }
+              base={[x, 0.257, 0]}
+              shadeColor={palette.shadow}
+              shadeWidth={0.14}
+              shape="box"
+              massKg={0.45}
+              onTap={key ? () => onNotebookClick?.(key) : undefined}
+              doorLabel={key ? "Read this musing" : undefined}
+              to={key ? undefined : "blog"}
+            >
+              {spine}
+            </Grabbable>
+          );
+        }
+        // Only clickable preview spines pay for a useFrame slot. 0.257 = lean-
         // compensated contact, sunk ~radius/2 to bury the bevel rim.
         if (key) {
           return (
@@ -926,21 +947,10 @@ export function NotebookLean({
             </Lift>
           );
         }
-        return linkUnit === undefined ? (
+        return (
           <group key={i} position={[x, 0.257, 0]}>
             {spine}
           </group>
-        ) : (
-          <PropLink
-            key={i}
-            unitIndex={linkUnit}
-            to="blog"
-            hoverKey={`link:notebook:${linkUnit}:${i}`}
-            base={[x, 0.257, 0]}
-            lift={[0, 0.04, 0.02]}
-          >
-            {spine}
-          </PropLink>
         );
       })}
     </group>
@@ -1003,15 +1013,19 @@ export function PaperStack({
           {pen}
         </>
       ) : (
-        <PropLink
+        <Grabbable
           unitIndex={linkUnit}
           to="blog"
-          hoverKey={`link:paper:${linkUnit}`}
-          lift={[0, 0.022, 0.02]}
+          hoverKey={`grab:paper:${linkUnit}`}
+          base={[0, 0, 0]}
+          shadeColor={palette.shadow}
+          shadeWidth={0.55}
+          shape="box"
+          massKg={0.38}
         >
           {sheets}
           {pen}
-        </PropLink>
+        </Grabbable>
       )}
     </group>
   );

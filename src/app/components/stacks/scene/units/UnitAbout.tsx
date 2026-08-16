@@ -1,5 +1,6 @@
 "use client";
 
+import { useStacks } from "../../store";
 import { proxied } from "../../theme";
 import { TJMedallionProp } from "../AuthoredProps";
 import Grabbable from "../Grabbable";
@@ -8,6 +9,10 @@ import HeldFacing from "../HeldFacing";
 import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
 import SitChair from "../SitChair";
+import {
+  ABOUT_BOOT_LANDMARKS,
+  aboutLandmarkNodeName,
+} from "../aboutBootComposition";
 import { EggLamp, SpinProp, Sway } from "../eggs";
 import { DeskApple, PortraitFrame, useMetalShimmer } from "../objects";
 import {
@@ -23,7 +28,7 @@ import { ABOUT_COUCH } from "../seated";
 import { SHELF_GEOMETRY } from "../shelfGeometry";
 import { useUnitLod } from "../useUnitLod";
 import { RoundedBox } from "@react-three/drei";
-import { useLoader } from "@react-three/fiber";
+import { useFrame, useLoader } from "@react-three/fiber";
 import React from "react";
 import * as THREE from "three";
 import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
@@ -34,9 +39,7 @@ import {
 } from "~/lib/books/coverEdgeColor";
 
 import {
-  ABOUT_LOWER_PHOTO_X,
   ABOUT_READING_BOOK,
-  ABOUT_SMALL_PLANT_X,
   type ReadingBookPose,
   readingStackPoses,
   recordAboutReadingMaterials,
@@ -46,8 +49,6 @@ import { type UnitProps } from "./types";
 import { REVIEWED_SHELF_LAYOUT } from "./unitShelfLayout";
 
 export const PORTRAIT_SRC = "/images/about/profile.jpg";
-
-const PORTRAIT_SCALE = 0.78;
 
 function CollectiveLogo({
   palette,
@@ -276,10 +277,8 @@ function ReadingStack({
       {books.slice(0, 3).map((book, i) => {
         const pose = poses[i]!;
         const material = materials[i]!;
-        const thickness = featuredBookThickness(
-          book.pageCount,
-          book.audioLengthMin,
-        );
+        const thickness =
+          1.1 * featuredBookThickness(book.pageCount, book.audioLengthMin);
         return (
           <Grabbable
             key={book.id}
@@ -291,40 +290,98 @@ function ReadingStack({
             shape="box"
             massKg={0.62}
             physics={false}
+            tiltOnHover={false}
             onTap={() => onOpenBook?.(book.id)}
-            doorLabel={`Read ${book.title}`}
+            actionLabel={`Read ${book.title}`}
           >
-            <HeldReadingCover
-              hoverKey={`grab:reading:${book.id}`}
-              pose={pose}
-              name={`stacks-reading-cover:${book.id}`}
-            >
-              <ReadingBookShell
-                cover={material.cover}
-                pages={material.pages}
-                thickness={thickness}
-              />
-              {book.coverUrl && (
-                <React.Suspense fallback={null}>
-                  <group
-                    position={[0, thickness / 2 + 0.001, 0]}
-                    rotation={[-Math.PI / 2, 0, 0]}
-                  >
-                    <LitImage
-                      url={proxied(book.coverUrl, coverWidth)}
-                      width={0.263}
-                      height={0.416}
-                      roughness={0.64}
-                    />
-                  </group>
-                </React.Suspense>
-              )}
-            </HeldReadingCover>
+            <ReadingBookHover hoverKey={`grab:reading:${book.id}`} index={i}>
+              <HeldReadingCover
+                hoverKey={`grab:reading:${book.id}`}
+                pose={pose}
+                name={`stacks-reading-cover:${book.id}`}
+              >
+                <ReadingBookShell
+                  cover={material.cover}
+                  pages={material.pages}
+                  thickness={thickness}
+                />
+                {book.coverUrl && (
+                  <React.Suspense fallback={null}>
+                    <group
+                      position={[0, thickness / 2 + 0.001, 0]}
+                      rotation={[-Math.PI / 2, 0, 0]}
+                    >
+                      <LitImage
+                        url={proxied(book.coverUrl, coverWidth)}
+                        width={0.2893}
+                        height={0.4576}
+                        roughness={0.64}
+                      />
+                    </group>
+                  </React.Suspense>
+                )}
+              </HeldReadingCover>
+            </ReadingBookHover>
           </Grabbable>
         );
       })}
     </group>
   );
+}
+
+const READING_HOVER_OFFSETS = [
+  [-0.085, 0.032, 0.07],
+  [0.12, 0.055, 0.14],
+  [0.085, 0.032, 0.07],
+] as const;
+
+/** The shared hinged nod makes this tightly fanned trio swing through its
+ * neighbors. Instead, each jacket eases into its own clear lane: the outer
+ * books peel away from the stack and the middle book comes straight forward. */
+function ReadingBookHover({
+  hoverKey,
+  index,
+  children,
+}: {
+  hoverKey: string;
+  index: number;
+  children: React.ReactNode;
+}) {
+  const group = React.useRef<THREE.Group>(null);
+  const still = React.useMemo(
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    [],
+  );
+  const offset = READING_HOVER_OFFSETS[index] ?? READING_HOVER_OFFSETS[1];
+
+  useFrame((_, rawDelta) => {
+    const node = group.current;
+    if (!node) return;
+    const state = useStacks.getState();
+    const active = state.hovered === hoverKey && state.dragging !== hoverKey;
+    const amount = active && !still ? 1 : 0;
+    const delta = Math.min(rawDelta, 1 / 30);
+    node.position.x = THREE.MathUtils.damp(
+      node.position.x,
+      offset[0] * amount,
+      12,
+      delta,
+    );
+    node.position.y = THREE.MathUtils.damp(
+      node.position.y,
+      offset[1] * amount,
+      12,
+      delta,
+    );
+    node.position.z = THREE.MathUtils.damp(
+      node.position.z,
+      offset[2] * amount,
+      12,
+      delta,
+    );
+  });
+
+  return <group ref={group}>{children}</group>;
 }
 
 const READING_BOARD_THICKNESS = 0.007;
@@ -422,9 +479,6 @@ export default function UnitAbout({
   onOpenBook,
 }: UnitProps) {
   const textured = useUnitLod(index);
-  const tjTalk = data.talks.find(
-    (talk) => talk.title === "Principles for Living in the Age of Acceleration",
-  );
   return (
     <group>
       <ShelfUnit
@@ -435,106 +489,134 @@ export default function UnitAbout({
             <Grabbable
               unitIndex={index}
               hoverKey="grab:plant:about-cactus"
-              base={[-1.12, 0, -0.04]}
+              base={[ABOUT_BOOT_LANDMARKS.cactus.x, 0, -0.04]}
               shadeColor={palette.shadow}
               shadeWidth={0.28}
               shape="box"
               massKg={1.6}
             >
-              <Sway unitIndex={index} amount={0.014} rate={0.34}>
-                <React.Suspense fallback={null}>
-                  <ModelProp
-                    url="/models/cactus.glb"
-                    dark={dark}
-                    variant="recolor"
-                    rotation={[0, -0.35, 0]}
-                    scale={0.34}
-                  />
-                </React.Suspense>
-              </Sway>
+              <group name={aboutLandmarkNodeName("cactus")}>
+                <Sway unitIndex={index} amount={0.014} rate={0.34}>
+                  <React.Suspense fallback={null}>
+                    <ModelProp
+                      url="/models/cactus.glb"
+                      dark={dark}
+                      variant="recolor"
+                      rotation={[0, -0.35, 0]}
+                      scale={ABOUT_BOOT_LANDMARKS.cactus.sceneScale}
+                    />
+                  </React.Suspense>
+                </Sway>
+              </group>
             </Grabbable>
 
             <LoosePhoto
               unitIndex={index}
               palette={palette}
               id="about-collective-group-v8"
-              base={[ABOUT_LOWER_PHOTO_X, 0, 0.12]}
+              base={[ABOUT_BOOT_LANDMARKS["collective-frame"].x, 0, 0.12]}
               seat={deskFrameHeight(0.1922) / 2}
               rotation={[-0.09, -0.14, 0.018]}
               width={0.3072}
             >
-              <DeskFrame
-                src="/images/stacks/v8/about-collective-group.webp"
-                palette={palette}
-                textured={textured}
-                width={0.3072}
-                height={0.3072 * (640 / 1024)}
-              />
+              <group name={aboutLandmarkNodeName("collective-frame")}>
+                <DeskFrame
+                  src="/images/stacks/v8/about-collective-group.webp"
+                  palette={palette}
+                  textured={textured}
+                  width={0.3072}
+                  height={0.3072 * (640 / 1024)}
+                />
+              </group>
             </LoosePhoto>
 
             <Grabbable
               unitIndex={index}
               hoverKey="shimmer:apple"
-              base={[0, 0, SHELF_GEOMETRY.lower.centerZ]}
+              base={[
+                ABOUT_BOOT_LANDMARKS.apple.x,
+                0,
+                SHELF_GEOMETRY.lower.centerZ,
+              ]}
               shadeColor={palette.shadow}
               shadeWidth={0.26}
               tiltOnHover={false}
               shape="box"
               massKg={0.35}
             >
-              <group rotation={[0, -0.16, 0]}>
+              <group
+                name={aboutLandmarkNodeName("apple")}
+                rotation={[0, -0.16, 0]}
+              >
                 <DeskApple palette={palette} unitIndex={index} />
               </group>
             </Grabbable>
             <Grabbable
               unitIndex={index}
               hoverKey="grab:ai-collective-mark"
-              base={[-0.48, 0, SHELF_GEOMETRY.lower.centerZ]}
+              base={[
+                ABOUT_BOOT_LANDMARKS["ai-collective"].x,
+                0,
+                SHELF_GEOMETRY.lower.centerZ,
+              ]}
               shadeColor={palette.shadow}
               shadeWidth={0.26}
               tiltOnHover={false}
               shape="box"
               massKg={0.42}
+              href="https://aicollective.com/"
+              doorLabel="Visit The AI Collective"
             >
               <React.Suspense fallback={null}>
-                <group rotation={[0, -0.16, 0]}>
+                <group
+                  name={aboutLandmarkNodeName("ai-collective")}
+                  rotation={[0, -0.16, 0]}
+                >
                   <CollectiveLogo palette={palette} unitIndex={index} />
                 </group>
               </React.Suspense>
             </Grabbable>
-            <ReadingStack
-              books={data.readingBooks}
-              bookColors={data.readingBookColors}
-              palette={palette}
-              dark={dark}
-              coverWidth={coverWidth}
-              unitIndex={index}
-              onOpenBook={onOpenBook}
-            />
-            {tjTalk && (
-              <React.Suspense fallback={null}>
-                <TJMedallionProp
-                  unitIndex={index}
-                  palette={palette}
-                  dark={dark}
-                  base={[-0.24, 0, SHELF_GEOMETRY.lower.centerZ]}
-                  href={tjTalk.url}
-                />
-              </React.Suspense>
-            )}
-            {/* The warm practical from the original desk composition. The
-                model and its measured light rig share this one transform;
-                fixed task lighting is architecture, not a throwable prop. */}
-            <group position={[-0.72, 0, -0.06]}>
-              <EggLamp
+            <group name={aboutLandmarkNodeName("reading-stack")}>
+              <ReadingStack
+                books={data.readingBooks}
+                bookColors={data.readingBookColors}
+                palette={palette}
+                dark={dark}
+                coverWidth={coverWidth}
+                unitIndex={index}
+                onOpenBook={onOpenBook}
+              />
+            </group>
+            <React.Suspense fallback={null}>
+              <TJMedallionProp
                 unitIndex={index}
                 palette={palette}
                 dark={dark}
-                yaw={0.78}
-                scale={1.5}
-                aimOffset={[0.35, 0, 0]}
-                spillScale={0.3}
+                base={[
+                  ABOUT_BOOT_LANDMARKS["tj-medallion"].x,
+                  0,
+                  SHELF_GEOMETRY.lower.centerZ,
+                ]}
+                href="https://tjhsst.fcps.edu/"
+                name={aboutLandmarkNodeName("tj-medallion")}
+                scale={ABOUT_BOOT_LANDMARKS["tj-medallion"].sceneScale}
               />
+            </React.Suspense>
+            {/* The warm practical from the original desk composition. The
+                model and its measured light rig share this one transform;
+                fixed task lighting is architecture, not a throwable prop. */}
+            <group position={[ABOUT_BOOT_LANDMARKS["desk-lamp"].x, 0, -0.06]}>
+              <group name={aboutLandmarkNodeName("desk-lamp")}>
+                <EggLamp
+                  unitIndex={index}
+                  palette={palette}
+                  dark={dark}
+                  yaw={0.78}
+                  scale={ABOUT_BOOT_LANDMARKS["desk-lamp"].sceneScale}
+                  aimOffset={[0.35, 0, 0]}
+                  spillScale={0.3}
+                />
+              </group>
               <ContactShade
                 color={palette.shadow}
                 width={0.32}
@@ -544,18 +626,20 @@ export default function UnitAbout({
           </group>
         }
       >
-        <group position={[-1.16, 0, 0.02]}>
-          <SpinProp unitIndex={index} hoverKey="egg:globe" idleRate={0.11}>
-            <React.Suspense fallback={null}>
-              <ModelProp
-                url="/models/globe.glb"
-                dark={dark}
-                rotation={[0, -0.7, 0]}
-                scale={1.75}
-                spinPart="sphere"
-              />
-            </React.Suspense>
-          </SpinProp>
+        <group position={[ABOUT_BOOT_LANDMARKS.globe.x, 0, 0.02]}>
+          <group name={aboutLandmarkNodeName("globe")}>
+            <SpinProp unitIndex={index} hoverKey="egg:globe" idleRate={0.11}>
+              <React.Suspense fallback={null}>
+                <ModelProp
+                  url="/models/globe.glb"
+                  dark={dark}
+                  rotation={[0, -0.7, 0]}
+                  scale={ABOUT_BOOT_LANDMARKS.globe.sceneScale}
+                  spinPart="sphere"
+                />
+              </React.Suspense>
+            </SpinProp>
+          </group>
           <ContactShade
             color={palette.shadow}
             width={0.4}
@@ -563,8 +647,15 @@ export default function UnitAbout({
           />
         </group>
 
-        <PhotoMount unitIndex={index} id="portrait" position={[-0.42, 0, 0]}>
-          <group scale={PORTRAIT_SCALE}>
+        <PhotoMount
+          unitIndex={index}
+          id="portrait"
+          position={[ABOUT_BOOT_LANDMARKS.portrait.x, 0, 0]}
+        >
+          <group
+            name={aboutLandmarkNodeName("portrait")}
+            scale={ABOUT_BOOT_LANDMARKS.portrait.sceneScale}
+          >
             <PortraitFrame
               src={proxied(PORTRAIT_SRC, coverWidth)}
               palette={palette}
@@ -577,18 +668,20 @@ export default function UnitAbout({
           unitIndex={index}
           palette={palette}
           id="about-family-v8"
-          base={[0.48, 0, 0.1]}
+          base={[ABOUT_BOOT_LANDMARKS["family-frame"].x, 0, 0.1]}
           seat={deskFrameHeight(0.264) / 2}
           rotation={[-0.08, 0.2, -0.025]}
           width={0.264 * (769 / 1024)}
         >
-          <DeskFrame
-            src="/images/stacks/v8/about-family.webp"
-            palette={palette}
-            textured={textured}
-            width={0.264 * (769 / 1024)}
-            height={0.264}
-          />
+          <group name={aboutLandmarkNodeName("family-frame")}>
+            <DeskFrame
+              src="/images/stacks/v8/about-family.webp"
+              palette={palette}
+              textured={textured}
+              width={0.264 * (769 / 1024)}
+              height={0.264}
+            />
+          </group>
         </LoosePhoto>
 
         <LoosePhoto
@@ -612,23 +705,25 @@ export default function UnitAbout({
         <Grabbable
           unitIndex={index}
           hoverKey="grab:plant:about-succulent"
-          base={[ABOUT_SMALL_PLANT_X, 0, -0.08]}
+          base={[ABOUT_BOOT_LANDMARKS.succulent.x, 0, -0.08]}
           shadeColor={palette.shadow}
           shadeWidth={0.28}
           shape="box"
           massKg={1.2}
         >
-          <Sway unitIndex={index} amount={0.012} rate={0.28} phase={0.4}>
-            <React.Suspense fallback={null}>
-              <ModelProp
-                url="/models/succulent-pot.glb"
-                dark={dark}
-                variant="recolor"
-                rotation={[0, -0.4, 0]}
-                scale={0.18}
-              />
-            </React.Suspense>
-          </Sway>
+          <group name={aboutLandmarkNodeName("succulent")}>
+            <Sway unitIndex={index} amount={0.012} rate={0.28} phase={0.4}>
+              <React.Suspense fallback={null}>
+                <ModelProp
+                  url="/models/succulent-pot.glb"
+                  dark={dark}
+                  variant="recolor"
+                  rotation={[0, -0.4, 0]}
+                  scale={ABOUT_BOOT_LANDMARKS.succulent.sceneScale}
+                />
+              </React.Suspense>
+            </Sway>
+          </group>
         </Grabbable>
 
         <LoosePhoto
@@ -657,39 +752,43 @@ export default function UnitAbout({
           unitIndex={index}
           palette={palette}
           id="about-profile-full-v8"
-          base={[1, 0, 0.13]}
+          base={[ABOUT_BOOT_LANDMARKS["profile-frame"].x, 0, 0.13]}
           seat={REVIEWED_SHELF_LAYOUT.about.profileSeat}
           rotation={[-Math.PI / 6, -0.08, 0]}
           width={0.18}
         >
-          <DeskFrame
-            src="/images/stacks/v8/about-profile-full.webp"
-            palette={palette}
-            textured={textured}
-            width={0.18}
-            height={0.24}
-          />
+          <group name={aboutLandmarkNodeName("profile-frame")}>
+            <DeskFrame
+              src="/images/stacks/v8/about-profile-full.webp"
+              palette={palette}
+              textured={textured}
+              width={0.18}
+              height={0.24}
+            />
+          </group>
         </LoosePhoto>
 
         <Grabbable
           unitIndex={index}
           hoverKey="grab:plant:about-large"
-          base={[1.18, 0, -0.23]}
+          base={[ABOUT_BOOT_LANDMARKS["large-plant"].x, 0, -0.23]}
           shadeColor={palette.shadow}
           shadeWidth={0.34}
           shape="box"
           massKg={3.1}
         >
-          <Sway unitIndex={index} amount={0.02} rate={0.42} phase={1.3}>
-            <React.Suspense fallback={null}>
-              <ModelProp
-                url="/models/potted-plant.glb"
-                dark={dark}
-                rotation={[0, 0.5, 0]}
-                scale={1.05}
-              />
-            </React.Suspense>
-          </Sway>
+          <group name={aboutLandmarkNodeName("large-plant")}>
+            <Sway unitIndex={index} amount={0.02} rate={0.42} phase={1.3}>
+              <React.Suspense fallback={null}>
+                <ModelProp
+                  url="/models/potted-plant.glb"
+                  dark={dark}
+                  rotation={[0, 0.5, 0]}
+                  scale={ABOUT_BOOT_LANDMARKS["large-plant"].sceneScale}
+                />
+              </React.Suspense>
+            </Sway>
+          </group>
         </Grabbable>
       </ShelfUnit>
 

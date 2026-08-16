@@ -35,7 +35,7 @@ const PROJECT_IMAGES: Record<string, StaticImageData> = {
 export default async function Projects() {
   return (
     <section className="flex w-full flex-wrap items-center justify-around gap-4">
-      <h1 className="flex w-full items-center gap-2 text-2xl font-semibold text-foreground [text-shadow:_0_0_20px_rgba(255,255,255,1)] dark:[text-shadow:_0_0_20px_rgba(0,0,0,0.8)] md:gap-3 md:text-3xl">
+      <h1 className="flex w-full items-center gap-2 text-2xl font-semibold text-foreground md:gap-3 md:text-3xl">
         <CodeIcon weight="regular" className="size-7 shrink-0 md:size-8" />
         Projects
       </h1>
@@ -83,11 +83,11 @@ function ProjectItem({ project }: { project: Project }) {
       >
         <h3 className="text-lg font-semibold md:text-xl">{project.name}</h3>
         <p className="mt-1 line-clamp-4 text-sm">{project.description}</p>
-        <div className="mt-2 flex flex-wrap gap-2">
+        <div className="mt-2 flex flex-wrap gap-1.5">
           {project.languages.map((language) => (
             <span
               key={language}
-              className="rounded-full border border-foreground/[0.06] bg-muted/40 px-2.5 py-0.5 text-sm font-semibold backdrop-blur-lg"
+              className="rounded-full border border-white/30 bg-white/25 px-2 py-px text-[11px] font-medium text-foreground/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_1px_3px_rgba(0,0,0,0.06)] backdrop-blur-xl dark:border-white/[0.12] dark:bg-white/[0.07] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_1px_3px_rgba(0,0,0,0.18)] md:text-xs"
             >
               {language}
             </span>

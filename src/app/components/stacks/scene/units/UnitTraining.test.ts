@@ -2,15 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import {
   GOLF_BALL_RADIUS,
-  GOLF_SHOT_RETURN_MS,
   GOLF_SHOT_VELOCITIES,
   createDimpledGolfBallGeometry,
   createGolfBallBumpTexture,
 } from "./trainingGolfBall";
 
 describe("Weightlifting golf balls", () => {
-  it("launches every ball toward the background and respawns after five seconds", () => {
-    expect(GOLF_SHOT_RETURN_MS).toBe(5_000);
+  it("launches every ball toward the background hills", () => {
     expect(Object.values(GOLF_SHOT_VELOCITIES)).toHaveLength(4);
     for (const [, upward, intoHills] of Object.values(GOLF_SHOT_VELOCITIES)) {
       expect(upward).toBeGreaterThan(0);

@@ -18,6 +18,8 @@ import {
   getSceneInteraction,
   registerSceneInteraction,
 } from "./interactionRegistry";
+import { claimEffectLayer, effectLayerAges } from "./layeredEffects";
+import { activationAtPointer } from "./interactionProjection";
 import {
   type DurableQualityRung,
   cloudDetailEnabled,
@@ -27,6 +29,8 @@ import {
 import { getSeatAmount } from "./seated";
 import { SKY_LIGHTING } from "./skyLighting";
 import { MID_X, STACKS_DESKTOP_MIN_WIDTH, TRAVEL_X } from "./worldLayout";
+
+const FIREWORK_LAYERS = 4;
 
 // The meadow ships — statically, since round 2. React.lazy put its JS fetch
 // AFTER first mount, where the boot reveal could not see it (the loading
@@ -169,8 +173,8 @@ const SKY_FRAGMENT = `
   uniform float uSimplify; // degrade rung: 1 = two bands, no city/stars/ember
   uniform float uPost;     // 1 = composer owns the frame: skip the IGN dither
                            // (it would grain linear HDR; Noise runs in-chain)
-  uniform float uFire;     // seconds since the bridge was clicked, < 0 idle
-  uniform float uFireSeed; // re-deals the shells on every launch
+  uniform float uFires[${FIREWORK_LAYERS}]; // launch ages, < 0 idle
+  uniform float uFireSeeds[${FIREWORK_LAYERS}]; // each launch deals its own shells
   uniform float uSeat;     // 0 at the shelf … 1 seated (scene/seated.ts)
   uniform float uDcAnchor; // azimuth the Washington Monument is drawn at —
                            // solved per frame from the viewport (see SkyDome)
@@ -1054,8 +1058,8 @@ const SKY_FRAGMENT = `
     // The bridge is shader geometry, so it has no pointer events of its own.
     // SkyDome puts an invisible hit target on it whose azimuth and elevation
     // are computed from the SAME GGB_* constants this shader draws with, so
-    // the two cannot drift apart; a click there writes uFire, seconds since
-    // launch, negative when idle. That gate is frame-uniform — the whole pass
+    // the two cannot drift apart; each click claims a uFires slot, storing
+    // seconds since launch, negative when idle. Those gates are frame-uniform —
     // costs one comparison until somebody clicks, the same trick the
     // satellite already uses — and the azimuth guard keeps the eight seconds
     // it IS running confined to the bay instead of the whole dome.
@@ -1079,23 +1083,26 @@ const SKY_FRAGMENT = `
     // The per-shell amplitudes came DOWN with the shell count going up: at the
     // old 1.15 / 0.45, five shells alive at once is a different picture from
     // three.
-    if (uFire > 0.0 && uFire < FIRE_WINDOW
-        && abs(a + 2.04) < 0.32 && e > -0.05 && e < 0.28) {
+    for (int fi = 0; fi < ${FIREWORK_LAYERS}; fi++) {
+      float fireAge = uFires[fi];
+      float fireSeed = uFireSeeds[fi];
+      if (fireAge > 0.0 && fireAge < FIRE_WINDOW
+          && abs(a + 2.04) < 0.32 && e > -0.05 && e < 0.28) {
       vec3 sparkAdd = vec3(0.0);
       vec3 glowAdd = vec3(0.0);
       float smoke = 0.0;
       for (int si = 0; si < 7; si++) {
         if (si >= 4 && uSimplify > 0.5) break;
         float fs = float(si);
-        float h0 = hash1(uFireSeed + fs * 4.1);
-        float h1 = hash1(uFireSeed + fs * 9.7);
-        float h2 = hash1(uFireSeed + fs * 2.3);
-        float h3 = hash1(uFireSeed + fs * 13.1);
-        float h4 = hash1(uFireSeed + fs * 6.7);
+        float h0 = hash1(fireSeed + fs * 4.1);
+        float h1 = hash1(fireSeed + fs * 9.7);
+        float h2 = hash1(fireSeed + fs * 2.3);
+        float h3 = hash1(fireSeed + fs * 13.1);
+        float h4 = hash1(fireSeed + fs * 6.7);
         // Staggered, and unevenly: the hash is nearly as large as the step, so
         // some shells crowd and some leave a hole. An even cadence is a
         // metronome, and a volley is not one.
-        float t = uFire - (fs * 0.46 + h0 * 0.34);
+        float t = fireAge - (fs * 0.46 + h0 * 0.34);
         if (t <= 0.0) continue;
         // Biased WEST of the bridge rather than centred on it: everything
         // that can occlude a burst — the portrait frame, the top shelf, the
@@ -1107,7 +1114,7 @@ const SKY_FRAGMENT = `
         // 0 peony (a sphere of streaks), 1 willow (long gold, heavy drop),
         // 2 ring (one uniform circle), 3 chrysanthemum with a pistil.
         float typ = floor(h3 * 4.0);
-        float hh = hash1(uFireSeed + fs * 21.3);
+        float hh = hash1(fireSeed + fs * 21.3);
         vec3 hue = hh < 0.28 ? vec3(1.00, 0.84, 0.50)
                  : hh < 0.50 ? vec3(1.00, 0.42, 0.28)
                  : hh < 0.70 ? vec3(0.50, 0.76, 1.00)
@@ -1126,7 +1133,7 @@ const SKY_FRAGMENT = `
           float trail = smoothstep(0.014, 0.0, sy - e)
                       * step(0.022, e) * step(e, sy)
                       * smoothstep(0.0012, 0.0003, abs(dAz))
-                      * (0.62 + 0.38 * sin(e * 900.0 + uFireSeed + fs));
+                      * (0.62 + 0.38 * sin(e * 900.0 + fireSeed + fs));
           float head = smoothstep(0.0023, 0.0005, length(vec2(dAz, e - sy)));
           sparkAdd += vec3(1.00, 0.72, 0.36)
                     * (head * (1.15 - 0.4 * u) + trail * 0.45);
@@ -1162,7 +1169,7 @@ const SKY_FRAGMENT = `
         // its depth — except a ring shell, whose whole point is that they are
         // all the same.
         float sp = typ == 2.0 ? 1.0
-                 : 0.52 + 0.80 * hash1(bi * 1.37 + uFireSeed + fs * 5.9);
+                 : 0.52 + 0.80 * hash1(bi * 1.37 + fireSeed + fs * 5.9);
         // Shell size, and it is the one number the whole display is judged on:
         // at the old 0.058 (and a willow at 0.072, spread to 0.095) a single
         // burst was as wide as the bridge's whole main span, which is not a
@@ -1216,6 +1223,7 @@ const SKY_FRAGMENT = `
                 clamp(smoke, 0.0, 1.0) * 0.8 * (1.0 - uDark));
       col += sparkAdd * mix(1.45, 1.0, uPost) * 0.92 * mix(0.60, 1.0, uDark);
       col += glowAdd * mix(1.50, 1.0, uPost) * 0.34 * mix(0.30, 1.0, uDark);
+      }
     }
 
     // ---- The city. Bimodal roofline — a flat residential carpet with one
@@ -2128,13 +2136,10 @@ const SKY_FRAGMENT = `
       // star). uTime-only gate is frame-uniform, so idle cost is nil. The
       // +84 seed lands the first pass ~8s after mount.
       //
-      // It used to be one 2-milliradian dot, which at this range is honest and
-      // reads as a slow star. Given three parts instead it reads as a
-      // SPACECRAFT without ever exceeding what the pixels can carry: a hot
-      // elongated bus, and two dimmer panels a couple of pixels fore and aft
-      // of it on the track — the arrangement everyone recognises. Behind it a
-      // short trail, which is not a physical tail but the smear the eye leaves
-      // on a moving point. And it flares: a slow swell as the panels come
+      // The old few-pixel bus still collapsed to a dot after tone mapping.
+      // Draw a narrow, tapered exposure streak with a brighter leading head:
+      // not a comet tail, but the short smear a moving satellite leaves in a
+      // long exposure. It flares: a slow swell as the panels come
       // through the specular angle, with a fine tumble on top. All of it is
       // still under the brightness of a mid star.
       float satT = mod(uTime + 84.0, 92.0);
@@ -2153,13 +2158,19 @@ const SKY_FRAGMENT = `
         vec2 q = vec2(a, e) - sat;
         float along = dot(q, fwd);
         float across = q.x * fwd.y - q.y * fwd.x;
-        // Panels fore and aft, at 2.6 px each side; the bus between them.
+        // A compact head plus a 25–35 px tapered track makes direction
+        // legible even on a high-DPI display.
         float bus = smoothstep(0.0016, 0.0004,
                                length(vec2(along * 0.65, across)));
         float panels = smoothstep(0.0013, 0.0004,
                                   length(vec2((abs(along) - 0.0017) * 0.9, across)));
-        float trail = smoothstep(0.0075, 0.0, -along) * step(along, -0.0005)
-                    * smoothstep(0.0011, 0.0002, abs(across));
+        float trailGate = smoothstep(-0.026, -0.018, along)
+                        * (1.0 - smoothstep(-0.001, 0.003, along));
+        float trailTaper = smoothstep(-0.026, -0.006, along);
+        float trail = trailGate * trailTaper
+                    * smoothstep(0.00105, 0.00016, abs(across));
+        float halo = trailGate * trailTaper
+                   * smoothstep(0.0022, 0.00035, abs(across));
         // A flare peaks once per pass; the tumble is a fast small ripple on
         // it. Squared explicitly — pow() with a negative base is undefined in
         // GLSL ES, and half of this gaussian's argument is negative.
@@ -2167,7 +2178,7 @@ const SKY_FRAGMENT = `
         float flare = 0.72 + 0.55 * exp(-(fq * fq))
                     + 0.10 * sin(uTime * 5.3 + passId);
         col += vec3(0.80, 0.85, 0.95)
-             * (bus * 0.55 + panels * 0.30 + trail * 0.13) * flare
+             * (bus * 0.68 + panels * 0.28 + trail * 0.34 + halo * 0.06) * flare
              * night * (1.0 - 0.5 * uDawn);
       }
 
@@ -2375,8 +2386,10 @@ function SkyDome({
   const hitRef = useRef<THREE.Mesh>(null);
   const sfHitRef = useRef<THREE.Mesh>(null);
   const jasperHitRef = useRef<THREE.Mesh>(null);
-  const fireStart = useRef(-1);
-  const pendingFire = useRef(false);
+  const fireStarts = useRef(new Array<number>(FIREWORK_LAYERS).fill(-1));
+  const fireAges = useRef(new Array<number>(FIREWORK_LAYERS).fill(-1));
+  const fireSeeds = useRef(new Array<number>(FIREWORK_LAYERS).fill(0));
+  const pendingFire = useRef(0);
   const sfStart = useRef(-1);
   const pendingSf = useRef(false);
   const jasperStart = useRef(-1);
@@ -2399,8 +2412,12 @@ function SkyDome({
       uFrame: { value: 0 },
       uSimplify: { value: 0 },
       uPost: { value: 0 },
-      uFire: { value: -1 },
-      uFireSeed: { value: 0 },
+      uFires: {
+        value: fireAges.current,
+      },
+      uFireSeeds: {
+        value: fireSeeds.current,
+      },
       uSeat: { value: 0 },
       uDcAnchor: { value: 1.0 },
       uSfHover: { value: 0 },
@@ -2462,7 +2479,7 @@ function SkyDome({
       activation: {
         kind: "egg",
         run: () => {
-          if (!skipMotion()) pendingFire.current = true;
+          if (!skipMotion()) pendingFire.current += 1;
         },
         reducedMotion: "skip",
       },
@@ -2513,14 +2530,34 @@ function SkyDome({
   // Keying off the hover slot is also what keeps this honest — the slot is
   // claimed by the same invisible plane the shader's own GGB constants
   // place, so the sky cannot be fired at from anywhere the bridge is not.
+  // Touch has no durable hover, so it resolves that same registered plane
+  // directly from the pointerdown coordinates.
   useEffect(() => {
     let down: [number, number] | null = null;
+    let touchEgg: string | null = null;
     const onDown = (e: PointerEvent) => {
+      if (!e.isPrimary || e.button !== 0) {
+        down = null;
+        touchEgg = null;
+        return;
+      }
       down = [e.clientX, e.clientY];
+      const hit =
+        e.pointerType === "touch"
+          ? activationAtPointer(
+              e.clientX,
+              e.clientY,
+              useStacks.getState().activeUnit,
+            )
+          : null;
+      touchEgg = hit?.kind === "egg" ? hit.id : null;
     };
     const onUp = (e: PointerEvent) => {
       const from = down;
       down = null;
+      const tappedEgg =
+        e.pointerType === "touch" ? touchEgg : useStacks.getState().hovered;
+      touchEgg = null;
       if (e.button !== 0 || !from) return;
       // A drag across the scroll element is travel, not a tap — the same
       // 6px threshold every other trigger in the scene uses for r3f's delta.
@@ -2528,12 +2565,12 @@ function SkyDome({
       const s = useStacks.getState();
       if (s.dragging) return; // a throw, not a tap
       if (
-        s.hovered !== GGB_HOVER &&
-        s.hovered !== SF_HOVER &&
-        s.hovered !== JASPER_HOVER
+        tappedEgg !== GGB_HOVER &&
+        tappedEgg !== SF_HOVER &&
+        tappedEgg !== JASPER_HOVER
       )
         return;
-      const interaction = getSceneInteraction(s.hovered);
+      const interaction = getSceneInteraction(tappedEgg);
       if (
         interaction?.activation?.kind === "egg" &&
         interaction.activeUnits.includes(s.activeUnit)
@@ -2633,21 +2670,25 @@ function SkyDome({
       delta,
     );
 
-    // Fireworks clock. The click handler can only raise a flag — it has no
-    // clock of its own — so the launch time is stamped here, on the frame
-    // after the click.
-    if (pendingFire.current) {
-      pendingFire.current = false;
-      fireStart.current = clock.elapsedTime;
-      u.uFireSeed!.value = Math.random() * 97;
+    // Fireworks pool. Every click claims its own clock/seed slot, including
+    // clicks coalesced before the next frame, so a new volley layers over
+    // the launches already in flight instead of restarting them.
+    const fireLaunches = pendingFire.current;
+    pendingFire.current = 0;
+    for (let launch = 0; launch < fireLaunches; launch += 1) {
+      const slot = claimEffectLayer(
+        fireStarts.current,
+        clock.elapsedTime,
+        FIRE_DURATION,
+      );
+      fireSeeds.current[slot] = Math.random() * 97;
     }
-    if (fireStart.current >= 0) {
-      const age = clock.elapsedTime - fireStart.current;
-      if (age > FIRE_DURATION) fireStart.current = -1;
-      u.uFire!.value = age;
-    } else {
-      u.uFire!.value = -1;
-    }
+    effectLayerAges(
+      fireStarts.current,
+      clock.elapsedTime,
+      FIRE_DURATION,
+      fireAges.current,
+    );
     // The crown's show clock, same shape. Clicking again while it runs
     // restarts it rather than queueing, which is what a light switch does.
     if (pendingSf.current) {

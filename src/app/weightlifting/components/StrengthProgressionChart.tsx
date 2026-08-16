@@ -1,5 +1,8 @@
 "use client";
 
+import { useMediaQuery } from "../hooks/useMediaQuery";
+import { type ChartMode, wlSearchParams } from "../lib/searchParams";
+import { QUERY_STALE_TIME, categoryColor } from "../lib/utils";
 import { CaretDownIcon, PlusIcon, XIcon } from "@phosphor-icons/react/dist/ssr";
 import { AnimatePresence, motion } from "framer-motion";
 import { useQueryStates } from "nuqs";
@@ -15,17 +18,17 @@ import {
   YAxis,
 } from "recharts";
 
-import { Skeleton } from "~/components/ui/skeleton";
+import { api } from "~/trpc/react";
+
 import {
+  type ChartConfig,
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-  type ChartConfig,
 } from "~/components/ui/chart";
-import { api } from "~/trpc/react";
-import { useMediaQuery } from "../hooks/useMediaQuery";
-import { type ChartMode, wlSearchParams } from "../lib/searchParams";
-import { categoryColor, QUERY_STALE_TIME } from "../lib/utils";
+import { Skeleton } from "~/components/ui/skeleton";
+import { tooltipSurfaceClassName } from "~/components/ui/tooltip";
+
 import { QueryErrorFallback } from "./QueryErrorFallback";
 
 const TIME_RANGES = [
@@ -243,7 +246,7 @@ function AggregateTooltip({
   const prCount = data.prCount as number | undefined;
 
   return (
-    <div className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs shadow-md dark:border-neutral-700 dark:bg-neutral-800">
+    <div className={tooltipSurfaceClassName}>
       <p className="mb-1 font-medium text-neutral-700 dark:text-neutral-200">
         {formatDateFull(date)}
       </p>
@@ -255,8 +258,7 @@ function AggregateTooltip({
       )}
       {prCount != null && prCount > 0 && (
         <p className="text-neutral-500 dark:text-neutral-400">
-          PRs this month:{" "}
-          <span className="font-medium">{prCount}</span>
+          PRs this month: <span className="font-medium">{prCount}</span>
         </p>
       )}
     </div>
@@ -273,9 +275,10 @@ export function StrengthProgressionChart({
   setSelectedExercises,
 }: StrengthProgressionChartProps) {
   // mode: null = device auto; range: months, 0 = all
-  const [{ mode: urlMode, range: timeRange }, setChartParams] = useQueryStates(
-    { mode: wlSearchParams.mode, range: wlSearchParams.range },
-  );
+  const [{ mode: urlMode, range: timeRange }, setChartParams] = useQueryStates({
+    mode: wlSearchParams.mode,
+    range: wlSearchParams.range,
+  });
   // undefined on the server / first client render → desktop defaults,
   // then reactive to viewport changes
   const isMobile = useMediaQuery("(max-width: 767px)");
@@ -486,8 +489,7 @@ export function StrengthProgressionChart({
             }
 
             // Add single target point at next July 1st for trendline endpoint
-            const lastDate =
-              monthlyData[monthlyData.length - 1]?.date ?? today;
+            const lastDate = monthlyData[monthlyData.length - 1]?.date ?? today;
             if (nextJulyDate > lastDate) {
               const x = daysBetween(firstDate, nextJulyDate);
               monthlyData.push({
@@ -742,7 +744,7 @@ export function StrengthProgressionChart({
         {/* Exercises toggle button (mobile) */}
         <button
           onClick={() => setPillsOverride(!pillsExpanded)}
-          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-neutral-500 transition-colors hover:text-neutral-700 md:hidden dark:text-neutral-400 dark:hover:text-neutral-200"
+          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-neutral-500 transition-colors hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 md:hidden"
         >
           {selectedExercises.length} exercises
           <CaretDownIcon
@@ -982,7 +984,7 @@ export function StrengthProgressionChart({
                 formatDate(new Date(value).toISOString().slice(0, 10))
               }
               minTickGap={40}
-              className="text-[10px] fill-neutral-500 dark:fill-neutral-400"
+              className="fill-neutral-500 text-[10px] dark:fill-neutral-400"
             />
             <YAxis
               yAxisId="left"
@@ -993,7 +995,7 @@ export function StrengthProgressionChart({
               tickMargin={8}
               domain={["auto", "auto"]}
               tickFormatter={(value: number) => `${value}`}
-              className="text-[10px] fill-neutral-500 dark:fill-neutral-400"
+              className="fill-neutral-500 text-[10px] dark:fill-neutral-400"
               label={{
                 value:
                   chartMode === "aggregate"
@@ -1002,8 +1004,7 @@ export function StrengthProgressionChart({
                 angle: -90,
                 position: "insideLeft",
                 offset: 0,
-                className:
-                  "text-[10px] fill-neutral-400 dark:fill-neutral-500",
+                className: "text-[10px] fill-neutral-400 dark:fill-neutral-500",
               }}
             />
             {chartMode === "aggregate" && (
@@ -1016,7 +1017,7 @@ export function StrengthProgressionChart({
                 }}
                 tickMargin={8}
                 allowDecimals={false}
-                className="text-[10px] fill-neutral-500 dark:fill-neutral-400"
+                className="fill-neutral-500 text-[10px] dark:fill-neutral-400"
                 label={{
                   value: "PRs / month",
                   angle: 90,
@@ -1033,18 +1034,10 @@ export function StrengthProgressionChart({
                   <AggregateTooltip />
                 ) : (
                   <ChartTooltipContent
-                    labelFormatter={(
-                      _label,
-                      payload,
-                    ) => {
-                      const item = (
-                        payload as Record<string, unknown>[]
-                      )?.[0]?.payload as
-                        | Record<string, unknown>
-                        | undefined;
-                      return formatDateFull(
-                        (item?.date as string) ?? "",
-                      );
+                    labelFormatter={(_label, payload) => {
+                      const item = (payload as Record<string, unknown>[])?.[0]
+                        ?.payload as Record<string, unknown> | undefined;
+                      return formatDateFull((item?.date as string) ?? "");
                     }}
                   />
                 )
@@ -1103,7 +1096,6 @@ export function StrengthProgressionChart({
                   r={5}
                   fill="var(--color-trendTotal)"
                   stroke="var(--color-trendTotal)"
-
                   label={{
                     value: jp.total.toLocaleString(),
                     position: "top",

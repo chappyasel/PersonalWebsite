@@ -7,8 +7,47 @@ export const MOBILE_SHEET_SEAM_TOLERANCE_PX = 2;
 export const MOBILE_SHEET_WHEEL_COMMIT_PX = 36;
 export const MOBILE_SHEET_WHEEL_RESET_MS = 140;
 export const MOBILE_SHEET_WHEEL_COOLDOWN_MS = 280;
+export const MOBILE_SHEET_SWIPE_COMMIT_PX = 52;
+export const MOBILE_SHEET_SWIPE_FLING_PX_MS = 0.6;
 
 export type MobileSheetScrollIntent = "expand" | "collapse" | null;
+
+/** The pill replaces a physically parked sheet. It must never be derived
+ * from dismissal intent alone, because an interrupted resident transition
+ * can leave that sheet onscreen after the intent has already changed. */
+export function mobileSheetChipActive({
+  active,
+  hidden,
+  modalOpen,
+  sheetParked,
+}: {
+  active: boolean;
+  hidden: boolean;
+  modalOpen: boolean;
+  sheetParked: boolean;
+}) {
+  return active && hidden && !modalOpen && sheetParked;
+}
+
+/** Horizontal sheet gesture → physical section direction. Negative travel is
+ * a leftward swipe and therefore advances to the room on the right. */
+export function mobileSheetHorizontalSwipeIntent({
+  deltaX,
+  velocityX,
+}: {
+  deltaX: number;
+  velocityX: number;
+}): -1 | 1 | null {
+  const distanceCommitted = Math.abs(deltaX) > MOBILE_SHEET_SWIPE_COMMIT_PX;
+  const velocityCommitted =
+    Math.abs(velocityX) > MOBILE_SHEET_SWIPE_FLING_PX_MS;
+  if (!distanceCommitted && !velocityCommitted) return null;
+
+  // A decisive drag owns the direction. For a short fast flick, use the
+  // release velocity so a tiny rebound at lift-off cannot reverse intent.
+  const direction = distanceCommitted ? deltaX : velocityX;
+  return direction < 0 ? 1 : -1;
+}
 
 export type MobileSheetWheelIntentState = {
   intent: Exclude<MobileSheetScrollIntent, null>;

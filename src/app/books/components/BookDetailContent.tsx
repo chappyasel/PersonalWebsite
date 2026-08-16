@@ -469,19 +469,31 @@ export function BookDetailContent({
                         weight="bold"
                         className="shrink-0"
                       />
-                      <span>Chappy&apos;s Book Notes</span>
+                      <span className="xs:hidden">Book Notes</span>
+                      <span className="hidden xs:inline">
+                        Chappy&apos;s Book Notes
+                      </span>
                     </a>
                   </li>
-                  <li aria-hidden="true" className="text-border">
+                  <li
+                    aria-hidden="true"
+                    className="hidden text-border xs:block"
+                  >
                     /
                   </li>
                   <li className="shrink-0 tabular-nums">
                     <a
                       href={modalBreadcrumbHref}
                       className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground"
+                      aria-label={`${modalBookCount?.toLocaleString() ?? "All"} books`}
                     >
                       <BooksIcon size={16} weight="duotone" />
-                      {modalBookCount?.toLocaleString() ?? "All"} books
+                      <span className="xs:hidden">
+                        {modalBookCount?.toLocaleString() ?? "All"}
+                      </span>
+                      <span className="hidden xs:inline">
+                        {modalBookCount?.toLocaleString() ?? "All"} books
+                      </span>
                     </a>
                   </li>
                 </ol>

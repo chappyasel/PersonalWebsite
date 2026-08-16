@@ -25,7 +25,27 @@ export const SHELF_GEOMETRY = {
   },
   strapInsetX: 0.25,
   strapZ: -0.32,
+  support: {
+    width: 0.07,
+    footWidth: 0.12,
+    footHeight: 0.05,
+    footDepth: 0.12,
+    cleatWidth: 0.1,
+    cleatHeight: 0.06,
+    cleatDepth: 0.1,
+  },
 } as const;
+
+export type ShelfPlankId = "top" | "lower";
+
+/** Ordered render projection for the two physical planks. WebGL and the
+ * server-rendered entrance both iterate this collection, so adding, removing,
+ * or resizing a shelf cannot silently update only one representation. */
+export const SHELF_PLANKS = (["top", "lower"] as const).map((id) => ({
+  id,
+  width: SHELF_GEOMETRY.width,
+  ...SHELF_GEOMETRY[id],
+}));
 
 export const SHELF_SURFACE = {
   top: SHELF_GEOMETRY.top.centerY + SHELF_GEOMETRY.top.thickness / 2,

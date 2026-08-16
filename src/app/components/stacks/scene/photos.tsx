@@ -51,7 +51,7 @@ export const PHOTO_LINKS: Record<string, string | null> = {
   // Not a post: his face, and the one destination that needs no research.
   // Same URL the site's own contact buttons and /manual already use.
   portrait: "https://www.linkedin.com/in/chappyasel/",
-  "about-profile-full-v8": "https://www.linkedin.com/in/chappyasel/",
+  "about-profile-full-v8": "https://www.instagram.com/chappyasel/",
   "about-family-v8": null,
   "about-collective-group-v8": null,
   "about-speaking-candid-v8": null,
@@ -67,19 +67,19 @@ export const PHOTO_LINKS: Record<string, string | null> = {
   "books-quiet": null,
   "books-goldenhour": null,
   // --- Training ----------------------------------------------------------
-  "training-squat": "https://x.com/i/status/1742265325423337870",
+  "training-squat": null,
   "training-mud": null,
   "gym-mirror": null,
   "golf-flag": null,
   "training-golf-group-v8": null,
   "training-golf-flag-v8": null,
-  "training-trophy-side-v8": null,
-  "training-trophy-front-v8": null,
-  "training-stage-kneeling-v8": null,
-  "training-stage-side-v8": null,
-  "training-gym-pose-v8": null,
-  "training-deadlift-v8": null,
-  "training-bench-v8": null,
+  "training-trophy-side-v8": "https://www.instagram.com/boyswithgains/",
+  "training-trophy-front-v8": "https://www.instagram.com/boyswithgains/",
+  "training-stage-kneeling-v8": "https://www.instagram.com/boyswithgains/",
+  "training-stage-side-v8": "https://www.instagram.com/boyswithgains/",
+  "training-gym-pose-v8": "https://www.instagram.com/boyswithgains/",
+  "training-deadlift-v8": "https://www.instagram.com/boyswithgains/",
+  "training-bench-v8": "https://www.instagram.com/boyswithgains/",
   // --- Talks -------------------------------------------------------------
   // Legacy keys remain for archive compatibility; the current five v8
   // photographs use their actual file identities and have no recoverable
@@ -140,7 +140,8 @@ const PHOTO_SETTLE = 0.05;
 const PHOTO_GROW = 1.02;
 
 export function photoDoorLabel(href: string) {
-  if (href.includes("linkedin.com")) return "View on LinkedIn";
+  if (href.includes("linkedin.com")) return "Open LinkedIn";
+  if (href.includes("instagram.com")) return "Open Instagram";
   if (href.includes("x.com")) return "View on X";
   return "View photo source";
 }

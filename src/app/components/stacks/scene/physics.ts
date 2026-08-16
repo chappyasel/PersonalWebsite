@@ -70,6 +70,7 @@ type CannonModule = {
   Box: typeof CANNON.Box;
   Sphere: typeof CANNON.Sphere;
   Plane: typeof CANNON.Plane;
+  Material: typeof CANNON.Material;
 };
 
 /** Matches Grabbable's authored GRAVITY. Deliberately under 9.81: a prop
@@ -182,6 +183,20 @@ const SPHERICITY = 1.18;
  * in the sweep was that, not a slower ball. */
 const BALL_LINEAR_DAMPING = 0.8;
 const BALL_ANGULAR_DAMPING = 0.9;
+const MAX_BALL_SPIN = 24;
+
+/** No-slip release spin with a visual/solver safety cap. Tiny spheres can
+ * otherwise receive triple-digit angular velocity from an ordinary flick. */
+export function ballReleaseSpin(
+  velocity: Pick<THREE.Vector3, "x" | "z">,
+  radius: number,
+): [number, number, number] {
+  const x = velocity.z / Math.max(radius, 0.02);
+  const z = -velocity.x / Math.max(radius, 0.02);
+  const length = Math.hypot(x, z);
+  const scale = length > MAX_BALL_SPIN ? MAX_BALL_SPIN / length : 1;
+  return [x * scale, 0, z * scale];
+}
 
 /** cannon's sleep test compares |v|² + |ω|² against sleepSpeedLimit², and a
  * ball rolling without slipping has ω = v/r. On a 0.045-radius golf ball a
@@ -350,6 +365,8 @@ export type ShelfHandle = {
   /** What the prop weighs, in real kilograms. Overrides the uniform-density
    * guess, which is wrong by two orders of magnitude on anything hollow. */
   massKg?: number;
+  /** Per-prop bounce against wood; ordinary objects keep the quiet default. */
+  restitution?: number;
   /** Which plank this prop stands on. Defaults to a read of the parent
    * group's y, which is right for anything mounted through ShelfUnit. */
   plane?: ShelfPlane;
@@ -560,6 +577,7 @@ export class ShelfWorld {
    * `instanceof` on the shape means reaching for the class on every read;
    * the radius is what release() and the sleep threshold both want anyway. */
   private readonly balls = new Map<number, number>();
+  private readonly surfaceMaterial: CANNON.Material;
   /** clock.elapsedTime of the last step — every Grabbable on the shelf calls
    * tick(), only the first one in a frame does the work. */
   private stamp = -1;
@@ -618,6 +636,7 @@ export class ShelfWorld {
     // number the eye is actually judging.
     this.world.defaultContactMaterial.friction = 0.75;
     this.world.defaultContactMaterial.restitution = 0.05;
+    this.surfaceMaterial = new C.Material({ friction: 1, restitution: 1 });
     // Contact stiffness, relaxation and solver iterations are left at
     // cannon's defaults ON PURPOSE. Softening them was the first attempt at
     // taming the ejection when a prop is released inside a neighbour, and it
@@ -629,7 +648,11 @@ export class ShelfWorld {
     // purpose: a prop that falls off the front edge is a prop the visitor
     // cannot reach again until they walk away, and "come back in a minute"
     // is not an interaction.
-    const ground = new C.Body({ type: C.Body.STATIC, shape: new C.Plane() });
+    const ground = new C.Body({
+      type: C.Body.STATIC,
+      shape: new C.Plane(),
+      material: this.surfaceMaterial,
+    });
     if (this.plane === "floor") ground.position.y = SHELF_GEOMETRY.groundY;
     ground.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
     this.world.addBody(ground);
@@ -649,7 +672,11 @@ export class ShelfWorld {
       [new C.Vec3(0, 0, zFar), new C.Vec3(0, 0, 0)],
       [new C.Vec3(0, 0, zNear), new C.Vec3(0, Math.PI, 0)],
     ] as const) {
-      const wall = new C.Body({ type: C.Body.STATIC, shape: new C.Plane() });
+      const wall = new C.Body({
+        type: C.Body.STATIC,
+        shape: new C.Plane(),
+        material: this.surfaceMaterial,
+      });
       wall.position.copy(pos);
       wall.quaternion.setFromEuler(euler.x, euler.y, euler.z);
       this.world.addBody(wall);
@@ -661,7 +688,11 @@ export class ShelfWorld {
     // pass fixes. The top shelf gets no lid on purpose: there is no plank
     // above it, and a prop thrown off it is caught by the walls and gravity.
     if (this.plane === "lower") {
-      const lid = new C.Body({ type: C.Body.STATIC, shape: new C.Plane() });
+      const lid = new C.Body({
+        type: C.Body.STATIC,
+        shape: new C.Plane(),
+        material: this.surfaceMaterial,
+      });
       lid.position.set(0, LOWER_HEADROOM, 0);
       lid.quaternion.setFromEuler(Math.PI / 2, 0, 0); // normal −Y
       this.world.addBody(lid);
@@ -784,6 +815,17 @@ export class ShelfWorld {
       // rolling resistance instead of skid resistance.
       linearDamping: round ? BALL_LINEAR_DAMPING : 0.5,
       angularDamping: round ? BALL_ANGULAR_DAMPING : 0.6,
+      // Leave ordinary props material-less so cannon keeps the world's
+      // established default for prop↔prop contacts. Only an explicitly
+      // bouncy prop needs a material; paired with the unit-valued shelf
+      // material below, its authored coefficients pass through unchanged.
+      material:
+        handle.restitution === undefined
+          ? undefined
+          : new C.Material({
+              friction: 0.75,
+              restitution: handle.restitution,
+            }),
     });
     if (round) {
       body.addShape(new C.Sphere(radius), new C.Vec3(0, centre.y - com.y, 0));
@@ -815,7 +857,9 @@ export class ShelfWorld {
    * deliberately retries body-less handles, so a streamed GLB can become
    * ready before the first grab without rebuilding the shelf world. */
   ready(): boolean {
-    return this.handles.length > 0 && this.handles.every((handle) => handle.body);
+    return (
+      this.handles.length > 0 && this.handles.every((handle) => handle.body)
+    );
   }
 
   /** Static boxes for everything else standing on the same plank. This is
@@ -865,6 +909,7 @@ export class ShelfWorld {
       sizeScratch.z *= HULL_SHRINK;
       const body = new C.Body({
         type: C.Body.STATIC,
+        material: this.surfaceMaterial,
         shape: new C.Box(
           new C.Vec3(sizeScratch.x, sizeScratch.y, sizeScratch.z),
         ),
@@ -1058,7 +1103,11 @@ export class ShelfWorld {
     const within = (v: number, lo: number, hi: number) =>
       lo > hi ? v : THREE.MathUtils.clamp(v, lo, hi);
     const b = this.supportBounds();
-    body.position.x = within(body.position.x, -b.halfWidth + hx, b.halfWidth - hx);
+    body.position.x = within(
+      body.position.x,
+      -b.halfWidth + hx,
+      b.halfWidth - hx,
+    );
     body.position.z = within(body.position.z, b.zFar + hz, b.zNear - hz);
     if (this.plane === "lower") {
       const hy = (body.aabb.upperBound.y - body.aabb.lowerBound.y) / 2;
@@ -1085,11 +1134,8 @@ export class ShelfWorld {
       // it travels is a ball skidding on ice, and the eye reads that
       // immediately. Friction would eventually spin it up to this anyway —
       // handing it over at release just skips the skid.
-      body.angularVelocity.set(
-        clamp(velocity.z) / radius,
-        0,
-        -clamp(velocity.x) / radius,
-      );
+      const [spinX, spinY, spinZ] = ballReleaseSpin(velocity, radius);
+      body.angularVelocity.set(spinX, spinY, spinZ);
     } else {
       // Tumble about the axis across the direction of travel, plus the yaw
       // the authored settle used to apply on its own.

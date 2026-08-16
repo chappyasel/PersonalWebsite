@@ -26,8 +26,8 @@ import { type StacksData, UNIT_COUNT } from "./data";
 import { setLoadProgress } from "./loading";
 import { prewarmGrabbablePhysics } from "./scene/Grabbable";
 import Scene from "./scene/Scene";
-import { sceneInteractionInventory } from "./scene/interactionRegistry";
 import { setInteractionProjectionContext } from "./scene/interactionProjection";
+import { sceneInteractionInventory } from "./scene/interactionRegistry";
 import { ScenePerformanceSampler } from "./scene/performanceMetrics";
 import {
   type DurableQualityRung,
@@ -94,6 +94,7 @@ declare global {
   interface Window {
     __stacks?: {
       scrollTo: (unit: number, opts?: { instant?: boolean }) => void;
+      hover: (id: string | null) => void;
       openBook: (id: string) => void;
       sit: (on?: boolean) => void;
       state: () => Record<string, unknown>;
@@ -126,6 +127,9 @@ function installDevHooks() {
       const { jumpTo, travelTo } = useStacks.getState();
       if (opts?.instant) jumpTo?.(unit);
       else travelTo?.(unit);
+    },
+    hover(id) {
+      useStacks.getState().setHovered(id);
     },
     openBook(id) {
       devOpenBook?.(id);

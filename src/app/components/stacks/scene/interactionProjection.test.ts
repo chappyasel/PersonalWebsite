@@ -1,11 +1,18 @@
-import { BoxGeometry, Group, Mesh, MeshBasicMaterial, PerspectiveCamera } from "three";
+import {
+  BoxGeometry,
+  Group,
+  Mesh,
+  MeshBasicMaterial,
+  PerspectiveCamera,
+} from "three";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { registerSceneInteraction } from "./interactionRegistry";
 import {
+  activationAtPointer,
   doorAtPointer,
   setInteractionProjectionContext,
 } from "./interactionProjection";
+import { projectDoor, registerSceneInteraction } from "./interactionRegistry";
 
 const rect = {
   x: 0,
@@ -29,6 +36,36 @@ function target(z: number) {
 
 describe("scene interaction projection", () => {
   afterEach(() => setInteractionProjectionContext(null, null));
+
+  it("anchors an empty linked carrier to its own world origin", () => {
+    const camera = new PerspectiveCamera(50, 1, 0.1, 100);
+    camera.position.z = 5;
+    camera.lookAt(0, 0, 0);
+    camera.updateMatrixWorld(true);
+    setInteractionProjectionContext(camera, {
+      getBoundingClientRect: () => rect,
+    } as HTMLElement);
+
+    const root = new Group();
+    root.position.set(1, 0.5, 0);
+    const release = registerSceneInteraction({
+      id: "test:empty-linked-carrier",
+      root,
+      activeUnits: [0],
+      activation: {
+        kind: "action",
+        label: "Open test action",
+        run: () => undefined,
+      },
+    });
+
+    const projected = projectDoor("test:empty-linked-carrier");
+    expect(projected).not.toBeNull();
+    expect(projected!.x).toBeGreaterThan(50);
+    expect(projected!.y).toBeLessThan(50);
+    expect(projected!.behind).toBe(false);
+    release();
+  });
 
   it("lets the nearest registered non-Door occlude a Door on touch", () => {
     const camera = new PerspectiveCamera(50, 1, 0.1, 100);
@@ -60,5 +97,32 @@ describe("scene interaction projection", () => {
     releaseOccluder();
     expect(doorAtPointer(50, 50, 0)).toBe("test:back-door");
     releaseDoor();
+  });
+
+  it("resolves a registered easter egg directly from touch coordinates", () => {
+    const camera = new PerspectiveCamera(50, 1, 0.1, 100);
+    camera.position.z = 5;
+    camera.lookAt(0, 0, 0);
+    camera.updateMatrixWorld(true);
+    setInteractionProjectionContext(camera, {
+      getBoundingClientRect: () => rect,
+    } as HTMLElement);
+
+    const release = registerSceneInteraction({
+      id: "sky:salesforce",
+      root: target(0),
+      activeUnits: [0, 1, 2, 3, 4, 5, 6],
+      activation: {
+        kind: "egg",
+        run: () => undefined,
+        reducedMotion: "skip",
+      },
+    });
+
+    expect(activationAtPointer(50, 50, 3)).toEqual({
+      id: "sky:salesforce",
+      kind: "egg",
+    });
+    release();
   });
 });

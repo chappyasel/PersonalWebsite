@@ -1,5 +1,10 @@
 import { expect, test } from "@playwright/test";
 
+// A cold production WebGL boot can consume most of Playwright's default 30s
+// before the two-theme material probe begins. Keep the interaction assertions
+// strict while giving the scene enough startup headroom on local/CI runners.
+test.describe.configure({ timeout: 90_000 });
+
 test("keeps the mobile sheet highly transparent in both themes", async ({
   browser,
 }) => {
@@ -31,7 +36,9 @@ test("keeps the mobile sheet highly transparent in both themes", async ({
       };
     });
 
-    expect(material.alpha).toBeLessThanOrEqual(theme === "light" ? 0.18 : 0.001);
+    expect(material.alpha).toBeLessThanOrEqual(
+      theme === "light" ? 0.18 : 0.001,
+    );
     expect(material.backdropFilter).toContain(
       theme === "light" ? "blur(42px)" : "blur(32px)",
     );
@@ -90,21 +97,31 @@ test("keeps one mobile sheet glass layer outside opacity fades", async ({
 }) => {
   await page.goto("/");
   await expect(page.locator("[data-stacks-panel]")).toBeAttached();
+  await page.waitForFunction(() => {
+    const boot = document.querySelector(".stacks-boot");
+    return !boot || getComputedStyle(boot).pointerEvents === "none";
+  });
   await page.evaluate(() => {
     const expand = document.querySelector(
       '[data-stacks-panel] button[aria-label="Expand section panel"]',
     );
-    if (!(expand instanceof HTMLButtonElement)) throw new Error("missing expand control");
+    if (!(expand instanceof HTMLButtonElement))
+      throw new Error("missing expand control");
     expand.click();
   });
-  await expect(page.locator('[data-stacks-panel][data-sheet="expanded"]'))
-    .toBeAttached();
+  await expect(
+    page.locator('[data-stacks-panel][data-sheet="expanded"]'),
+  ).toBeAttached();
 
   const overscroll = await page
     .locator("[data-stacks-panel] .placard-scroll")
     .evaluate(async (element) => {
       const chain: Array<{ tag: string; overscrollY: string }> = [];
-      for (let node: Element | null = element; node; node = node.parentElement) {
+      for (
+        let node: Element | null = element;
+        node;
+        node = node.parentElement
+      ) {
         chain.push({
           tag: node.tagName.toLowerCase(),
           overscrollY: getComputedStyle(node).overscrollBehaviorY,
@@ -144,8 +161,12 @@ test("keeps one mobile sheet glass layer outside opacity fades", async ({
       await new Promise(requestAnimationFrame);
       const material = Array.from(
         document.querySelectorAll("[data-stacks-sheet-material]"),
-      ).find((candidate) => getComputedStyle(candidate).visibility !== "hidden");
-      const transform = material ? getComputedStyle(material).transform : "none";
+      ).find(
+        (candidate) => getComputedStyle(candidate).visibility !== "hidden",
+      );
+      const transform = material
+        ? getComputedStyle(material).transform
+        : "none";
       const sheetDragY =
         transform === "none" ? 0 : new DOMMatrixReadOnly(transform).m42;
       element.dispatchEvent(
@@ -163,8 +184,9 @@ test("keeps one mobile sheet glass layer outside opacity fades", async ({
         touchMoveCanceled: moveEvent.defaultPrevented,
       };
     });
-  expect(overscroll.chain.filter(({ overscrollY }) => overscrollY !== "auto"))
-    .toEqual([]);
+  expect(
+    overscroll.chain.filter(({ overscrollY }) => overscrollY !== "auto"),
+  ).toEqual([]);
   expect(overscroll.touchMoveCanceled).toBe(true);
   expect(overscroll.sheetDragY).toBeGreaterThan(20);
 
@@ -196,7 +218,11 @@ test("keeps one mobile sheet glass layer outside opacity fades", async ({
         }
 
         for (const glass of visibleGlass) {
-          for (let node = glass.parentElement; node; node = node.parentElement) {
+          for (
+            let node = glass.parentElement;
+            node;
+            node = node.parentElement
+          ) {
             const opacity = Number.parseFloat(getComputedStyle(node).opacity);
             if (opacity > 0 && opacity < 1) {
               result = `${glass.getAttribute("data-stacks-panel-unit") ?? "sheet"}: ancestor opacity ${opacity.toFixed(3)}`;
@@ -230,7 +256,8 @@ test("pulling down from the top of expanded content collapses to peek", async ({
     const expand = document.querySelector(
       '[data-stacks-panel] button[aria-label="Expand section panel"]',
     );
-    if (!(expand instanceof HTMLButtonElement)) throw new Error("missing expand control");
+    if (!(expand instanceof HTMLButtonElement))
+      throw new Error("missing expand control");
     expand.click();
   });
   const panel = page.locator('[data-stacks-panel][data-sheet="expanded"]');
@@ -282,6 +309,84 @@ test("pulling down from the top of expanded content collapses to peek", async ({
   });
 
   expect(canceled).toBe(true);
-  await expect(page.locator('[data-stacks-panel][data-sheet="peek"]'))
-    .toBeAttached();
+  await expect(
+    page.locator('[data-stacks-panel][data-sheet="peek"]'),
+  ).toBeAttached();
+});
+
+test("parks a dismissed sheet before revealing its pill during section travel", async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await page.addInitScript(() => {
+    sessionStorage.setItem("stacks-webgl-v1", "1");
+  });
+  await page.goto("/?harness=1");
+  await expect(page.locator("[data-stacks-panel]")).toBeAttached();
+  await page.waitForFunction(() => Boolean(window.__stacks));
+
+  const assertExclusiveFor = async (durationMs: number) => {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < durationMs) {
+      const bothVisible = await page.evaluate(() => {
+        const visible = (element: Element | null) => {
+          if (!(element instanceof HTMLElement)) return false;
+          const style = getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
+          return (
+            style.visibility !== "hidden" &&
+            style.display !== "none" &&
+            Number.parseFloat(style.opacity) > 0.02 &&
+            rect.top < window.innerHeight - 1 &&
+            rect.bottom > 1
+          );
+        };
+        const anySheetVisible = Array.from(
+          document.querySelectorAll("[data-stacks-mobile-panel]"),
+        ).some(visible);
+        const anyChipVisible = Array.from(
+          document.querySelectorAll(".stacks-chip"),
+        ).some(visible);
+        return anySheetVisible && anyChipVisible;
+      });
+      expect(bothVisible).toBe(false);
+      await page.waitForTimeout(25);
+    }
+  };
+
+  await page.getByRole("button", { name: "Close" }).evaluate((element) => {
+    (element as HTMLButtonElement).click();
+  });
+  // Change resident ownership while the sheet-to-pill handoff is still in
+  // flight. This used to cancel the incoming resident's parking callback,
+  // leaving its sheet stranded and its pill unavailable or double-painted.
+  await page.waitForTimeout(16);
+  await page.evaluate(async () => {
+    const interval = window.setInterval(
+      () => window.__stacks?.scrollTo(1, { instant: true }),
+      4,
+    );
+    await new Promise((resolve) => window.setTimeout(resolve, 120));
+    window.clearInterval(interval);
+  });
+  await assertExclusiveFor(900);
+
+  await expect(page.locator("[data-stacks-chip]")).toBeVisible();
+  const visibleSheets = await page
+    .locator("[data-stacks-mobile-panel]")
+    .evaluateAll(
+      (elements) =>
+        elements.filter((element) => {
+          const style = getComputedStyle(element);
+          const rect = element.getBoundingClientRect();
+          return (
+            style.visibility !== "hidden" &&
+            style.display !== "none" &&
+            Number.parseFloat(style.opacity) > 0.02 &&
+            rect.top < window.innerHeight - 1 &&
+            rect.bottom > 1
+          );
+        }).length,
+    );
+  expect(visibleSheets).toBe(0);
 });

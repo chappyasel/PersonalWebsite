@@ -2,8 +2,9 @@
   "generated": "scripts/stacks-models.mjs",
   "note": "Source models are CC0 except the credited CC-BY set and the vendored MIT FluffyGrass asset below.",
   "attributionRequired": [
-    "Zsky",
     "Poly by Google",
+    "Arif",
+    "Zsky",
     "Charlie",
     "Alex Safayan",
     "jeremy"
@@ -43,6 +44,20 @@
       "author": "CreativeTrio",
       "license": "CC0 1.0",
       "source": "https://poly.pizza/m/PW9q10xh5g"
+    },
+    {
+      "file": "golf-tee.glb",
+      "title": "golf-tee",
+      "author": "Poly by Google",
+      "license": "CC-BY 3.0",
+      "source": "https://poly.pizza/m/1glx8YEqY9F"
+    },
+    {
+      "file": "golf-flag.glb",
+      "title": "golf-flag",
+      "author": "Arif",
+      "license": "CC-BY 4.0",
+      "source": "https://poly.pizza/m/hCznL0BXnD"
     },
     {
       "file": "globe.glb",

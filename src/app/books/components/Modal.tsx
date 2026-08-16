@@ -211,10 +211,10 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
 
           {/* Modal */}
           <div
-            className="fixed inset-0 z-50 overflow-y-auto"
+            className="fixed inset-0 z-50 overflow-y-auto overscroll-contain"
             onClick={handleClose}
           >
-            <div className="flex min-h-full items-center justify-center p-4">
+            <div className="flex h-[100dvh] min-h-[320px] items-center justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))]">
               <motion.div
                 ref={shellRef}
                 role="dialog"
@@ -224,7 +224,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                 }
                 tabIndex={-1}
                 data-book-modal-shell={fromStacks ? "stacks" : undefined}
-                className="relative w-full max-w-4xl outline-none"
+                className={`relative w-full max-w-4xl outline-none ${book?.hasNotes ? "h-full max-h-[max(85dvh,1000px)]" : ""}`}
                 onClick={(e) => e.stopPropagation()}
                 initial={
                   fromStacks && !reduceMotion
@@ -251,14 +251,14 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                     Framer to morph from a source that does not exist. */}
                 <motion.div
                   layoutId={fromStacks ? undefined : `book-cover-${bookId}`}
-                  className={`absolute inset-0 rounded-2xl bg-background shadow-[0px_10px_50px_10px_rgba(0,0,0,0.1)] dark:bg-muted ${book?.hasNotes ? "h-[max(85vh,min(1000px,calc(100vh-32px)))]" : "max-h-[85vh]"}`}
+                  className={`absolute inset-0 rounded-2xl bg-background shadow-[0px_10px_50px_10px_rgba(0,0,0,0.1)] dark:bg-muted ${book?.hasNotes ? "h-full" : "max-h-[85dvh]"}`}
                   transition={{
                     layout: { type: "spring", stiffness: 300, damping: 30 },
                   }}
                 />
                 {/* Actual content - fades in on top */}
                 <motion.div
-                  className={`relative overflow-hidden rounded-2xl bg-background dark:bg-muted ${book?.hasNotes ? "h-[max(85vh,min(1000px,calc(100vh-32px)))]" : "max-h-[85vh]"}`}
+                  className={`relative overflow-hidden rounded-2xl bg-background dark:bg-muted ${book?.hasNotes ? "h-full" : "max-h-[85dvh]"}`}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}

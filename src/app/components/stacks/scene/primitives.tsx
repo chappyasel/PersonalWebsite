@@ -26,6 +26,7 @@ import PropLink, { type PropDestination } from "./links";
 import { registerMeadowLamp } from "./meadowLights";
 import {
   SHELF_GEOMETRY,
+  SHELF_PLANKS,
   SHELF_SURFACE,
   SHELF_UNDERSIDE,
 } from "./shelfGeometry";
@@ -1205,34 +1206,39 @@ export function ShelfUnit({
           halfWidth={width / 2}
         />
       )}
-      <RoundedBox
-        castShadow
-        receiveShadow
-        args={[width, SHELF_GEOMETRY.top.thickness, SHELF_GEOMETRY.top.depth]}
-        radius={0.012}
-        smoothness={4}
-      >
-        <WoodMaterial hex={palette.wood} tone={tone} repeat={[2.4, 1]} />
-      </RoundedBox>
-      {/* end-grain darkening at the plank ends */}
-      {[-1, 1].map((side) => (
-        <mesh
-          key={side}
-          position={[
-            side * (width / 2 - 0.006),
-            SHELF_GEOMETRY.top.centerY,
-            SHELF_GEOMETRY.top.centerZ,
-          ]}
-        >
-          <boxGeometry
-            args={[
-              0.013,
-              SHELF_GEOMETRY.top.thickness + 0.002,
-              SHELF_GEOMETRY.top.depth + 0.01,
-            ]}
-          />
-          <meshStandardMaterial color={palette.woodDark} roughness={0.85} />
-        </mesh>
+      {SHELF_PLANKS.map((plank) => (
+        <React.Fragment key={plank.id}>
+          <RoundedBox
+            castShadow
+            receiveShadow
+            args={[width, plank.thickness, plank.depth]}
+            radius={0.012}
+            smoothness={4}
+            position={[0, plank.centerY, plank.centerZ]}
+          >
+            <WoodMaterial
+              hex={palette.wood}
+              tone={tone}
+              repeat={[2.4, plank.id === "top" ? 1 : 0.8]}
+            />
+          </RoundedBox>
+          {/* End-grain darkening at both ends of this same shared plank. */}
+          {[-1, 1].map((side) => (
+            <mesh
+              key={side}
+              position={[
+                side * (width / 2 - 0.006),
+                plank.centerY,
+                plank.centerZ,
+              ]}
+            >
+              <boxGeometry
+                args={[0.013, plank.thickness + 0.002, plank.depth + 0.01]}
+              />
+              <meshStandardMaterial color={palette.woodDark} roughness={0.85} />
+            </mesh>
+          ))}
+        </React.Fragment>
       ))}
       {/* Straps run all the way to the shared ground plane with a small
           plinth foot — the bookcase stands instead of hovering. 0.07² so the
@@ -1250,7 +1256,11 @@ export function ShelfUnit({
         >
           <RoundedBox
             castShadow
-            args={[0.07, -SHELF_GEOMETRY.groundY, 0.07]}
+            args={[
+              SHELF_GEOMETRY.support.width,
+              -SHELF_GEOMETRY.groundY,
+              SHELF_GEOMETRY.support.width,
+            ]}
             radius={0.012}
             smoothness={4}
             position={[0, SHELF_GEOMETRY.groundY / 2, 0]}
@@ -1264,7 +1274,11 @@ export function ShelfUnit({
             />
           </RoundedBox>
           <RoundedBox
-            args={[0.12, 0.05, 0.12]}
+            args={[
+              SHELF_GEOMETRY.support.footWidth,
+              SHELF_GEOMETRY.support.footHeight,
+              SHELF_GEOMETRY.support.footDepth,
+            ]}
             radius={0.008}
             smoothness={4}
             position={[0, SHELF_GEOMETRY.groundY + 0.025, 0]}
@@ -1272,7 +1286,11 @@ export function ShelfUnit({
             <meshStandardMaterial color={palette.strap} roughness={0.7} />
           </RoundedBox>
           <RoundedBox
-            args={[0.1, 0.06, 0.1]}
+            args={[
+              SHELF_GEOMETRY.support.cleatWidth,
+              SHELF_GEOMETRY.support.cleatHeight,
+              SHELF_GEOMETRY.support.cleatDepth,
+            ]}
             radius={0.008}
             smoothness={4}
             position={[0, SHELF_GEOMETRY.lower.centerY - 0.0575, 0]}
@@ -1280,43 +1298,6 @@ export function ShelfUnit({
             <meshStandardMaterial color={palette.strap} roughness={0.7} />
           </RoundedBox>
         </group>
-      ))}
-      <RoundedBox
-        castShadow
-        receiveShadow
-        args={[
-          width,
-          SHELF_GEOMETRY.lower.thickness,
-          SHELF_GEOMETRY.lower.depth,
-        ]}
-        radius={0.012}
-        smoothness={4}
-        position={[
-          0,
-          SHELF_GEOMETRY.lower.centerY,
-          SHELF_GEOMETRY.lower.centerZ,
-        ]}
-      >
-        <WoodMaterial hex={palette.wood} tone={tone} repeat={[2.4, 0.8]} />
-      </RoundedBox>
-      {[-1, 1].map((side) => (
-        <mesh
-          key={side}
-          position={[
-            side * (width / 2 - 0.006),
-            SHELF_GEOMETRY.lower.centerY,
-            SHELF_GEOMETRY.lower.centerZ,
-          ]}
-        >
-          <boxGeometry
-            args={[
-              0.013,
-              SHELF_GEOMETRY.lower.thickness + 0.002,
-              SHELF_GEOMETRY.lower.depth + 0.01,
-            ]}
-          />
-          <meshStandardMaterial color={palette.woodDark} roughness={0.85} />
-        </mesh>
       ))}
       {/* One fixture per shelf, wired here rather than in the seven unit
           files so no shelf can be forgotten. Only ONE of the three casts a

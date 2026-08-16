@@ -1,5 +1,13 @@
 # Agent instructions
 
+## Browser automation
+
+Do not use browser-control tools, Chrome, the in-app browser, Playwright browser
+sessions, screenshots, or other interactive browser automation unless Chappy
+explicitly asks for browser-based testing or inspection. This applies to UI and
+layout changes too: make ordinary changes by inspecting the source and running
+targeted unit, type, lint, or existing automated tests instead.
+
 ## Book Notes skill
 
 The repository-owned interface for Chappy's book library lives at `.agents/skills/book-notes/SKILL.md`.

@@ -7,6 +7,7 @@ import {
   CURRENT_READING_BASE,
   CURRENT_READING_ROTATION,
   aboutReadingSnapshot,
+  readingBookFrontElevation,
   readingBookPoint3,
   readingCoverForward,
   readingCoverLampward,
@@ -16,7 +17,25 @@ import {
 } from "./aboutReadingStack";
 
 describe("About recent-reading fan", () => {
-  it("authors three grounded books turned 30 degrees toward the lamp", () => {
+  it("projects the exact three live covers into the boot front elevation", () => {
+    const elevations = readingStackPoses().map(readingBookFrontElevation);
+
+    expect(elevations).toHaveLength(3);
+    expect(
+      elevations.map((points) => Math.min(...points.map(([, y]) => y))),
+    ).toEqual([0, 0, 0]);
+    expect(
+      elevations.map((points) =>
+        Number(
+          (
+            Math.max(...points.map(([x]) => x)) -
+            Math.min(...points.map(([x]) => x))
+          ).toFixed(4),
+        ),
+      ),
+    ).toEqual([0.2402, 0.2402, 0.2402]);
+  });
+  it("authors three grounded books turned 40 degrees toward the lamp", () => {
     const poses = readingStackPoses();
 
     expect(poses).toHaveLength(3);
@@ -27,11 +46,11 @@ describe("About recent-reading fan", () => {
     });
     expect(poses[0].base[0]).toBe(0.33);
     expect(readingCoverForward(poses[0].rotation)).toBeCloseTo(
-      Math.cos(Math.PI / 6),
+      Math.cos((Math.PI * 2) / 9),
       8,
     );
     expect(readingCoverLampward(poses[0].rotation)).toBeLessThan(0);
-    expect(poses[1].base[0] - poses[0].base[0]).toBeCloseTo(0.185, 8);
+    expect(poses[1].base[0] - poses[0].base[0]).toBeCloseTo(0.18, 8);
     expect(poses[2].base[2]).toBeGreaterThan(poses[1].base[2]);
   });
 
@@ -43,11 +62,11 @@ describe("About recent-reading fan", () => {
     expect(leftFoot[1]).toBeCloseTo(0, 8);
     expect(rightFoot[1]).toBeCloseTo(0, 8);
     expect(rightFoot[0] - leftFoot[0]).toBeCloseTo(
-      ABOUT_READING_BOOK.width * Math.cos(Math.PI / 6),
+      ABOUT_READING_BOOK.width * Math.cos((Math.PI * 2) / 9),
       8,
     );
     expect(Math.abs(rightFoot[2] - leftFoot[2])).toBeCloseTo(
-      ABOUT_READING_BOOK.width * Math.sin(Math.PI / 6),
+      ABOUT_READING_BOOK.width * Math.sin((Math.PI * 2) / 9),
       8,
     );
   });

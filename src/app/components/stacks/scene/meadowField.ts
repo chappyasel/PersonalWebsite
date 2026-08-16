@@ -346,7 +346,7 @@ export function meadowHeight(x: number, z: number): number {
 // full-pile coverage where tens of thousands of blades read as debris.
 export const GRASS_BANDS = {
   /** Quiet short lawn, z +4.6 → −8.2 (depth 1.2 → 14 from the rail). */
-  near: { count: 6000, d0: TRAVERSE_EYE.z - VEGETATION_FRONT_Z, d1: 14 },
+  near: { count: 7200, d0: TRAVERSE_EYE.z - VEGETATION_FRONT_Z, d1: 14 },
   /** The meadow moment, z −8.2 → −18.2: taller, wider tufts with distance. */
   mid: { count: 2500, d0: 14, d1: 24 },
   /** The horizon ridge's near face, z −17.2 → −22.8 (overlapping the mid
@@ -379,14 +379,14 @@ export const MEADOW_FLOWER_TOTAL = 1900;
 // then thins ALL bands uniformly — a true density dial: no band ever
 // vanishes, no depth cut-line appears. (Literal back-to-front ordering would
 // make a lowered count delete the far field first and pull the horizon in.)
-export const MEADOW_RUNG_FRACTIONS = [0.45, 0.7, 0.88, 1] as const;
+export const MEADOW_RUNG_FRACTIONS = [0.65, 0.78, 0.9, 1] as const;
 /** The near lawn draws the detailed tuft LOD in its own InstancedMesh; the
  * mid + seated + ridge bands share the light LOD in a second one. Each mesh
  * has its own rung-ordered buffer and count table; the combined table is
  * the reporting total. */
-export const MEADOW_RUNG_GRASS_NEAR = [2700, 4200, 5280, 6000] as const;
-export const MEADOW_RUNG_GRASS_FAR = [2700, 4200, 5280, 6000] as const;
-export const MEADOW_RUNG_GRASS = [5400, 8400, 10560, 12000] as const;
+export const MEADOW_RUNG_GRASS_NEAR = [4680, 5616, 6480, 7200] as const;
+export const MEADOW_RUNG_GRASS_FAR = [3900, 4680, 5400, 6000] as const;
+export const MEADOW_RUNG_GRASS = [8580, 10296, 11880, 13200] as const;
 /** Flowers stay OFF at the two lowest quality rungs (degrade ≥ 2). */
 // Flower heads are only two triangles each (~3.8k total) and carry far more
 // visual identity than that cost warrants removing. Durable rungs thin the
@@ -908,7 +908,7 @@ export function buildGrassInstances(
         width = (0.32 + 0.16 * rand(i, 45)) * (1 + 1.2 * smoothstep(10, 24, d));
       } else if (band.id === 2) {
         height = 0.16 * (0.9 + 0.5 * rand(i, 44));
-        width = 0.32 + 0.16 * rand(i, 45);
+        width = 0.36 + 0.18 * rand(i, 45);
       } else if (band.id === 3) {
         // Ridge face: few, huge, squat. Width carries the coverage (the
         // band is sparse); height stays under ~0.45 so the tuft fringe
@@ -917,7 +917,7 @@ export function buildGrassInstances(
         width = 1.15 + 0.6 * rand(i, 45);
       } else {
         height = 0.16 * (0.8 + 0.4 * rand(i, 44));
-        width = 0.32 + 0.16 * rand(i, 45);
+        width = 0.38 + 0.18 * rand(i, 45);
       }
       const f =
         westFeatherScale(x, z) * eastFeatherScale(x, z) * farFeatherScale(z);

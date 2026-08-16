@@ -75,7 +75,9 @@ import {
   type MobileSheetWheelIntentState,
   accumulateMobileSheetWheelIntent,
   mobileSheetCameraCoverage,
+  mobileSheetChipActive,
   mobileSheetGeometry,
+  mobileSheetHorizontalSwipeIntent,
   mobileSheetMaterialOverscan,
   mobileSheetRestY,
   mobileSheetRubberBandY,
@@ -178,7 +180,6 @@ function Panel({
   children: React.ReactNode;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const edges = useScrollEdges(scrollRef, active && mounted);
   return (
     <div
       aria-hidden={!active}
@@ -232,17 +233,6 @@ function Panel({
           {mounted ? children : null}
         </div>
       </div>
-      {/* A sibling cue rather than a mask on the scroller: CSS masks create a
-          backdrop root, which would stop every glass card inside from
-          sampling the scene. The cue is present only while more content
-          remains and fades away at the document's actual bottom. */}
-      <div
-        aria-hidden
-        data-desktop-overflow-cue={edges.bottom ? "" : undefined}
-        className={`pointer-events-none absolute inset-x-8 bottom-0 h-7 bg-gradient-to-t from-black/[0.14] via-black/[0.05] to-transparent transition-opacity duration-200 motion-reduce:transition-none dark:from-black/35 dark:via-black/10 ${
-          edges.bottom ? "opacity-100" : "opacity-0"
-        }`}
-      />
     </div>
   );
 }
@@ -521,7 +511,7 @@ function BookSubjectLandscape({
               target="_blank"
               rel="noopener noreferrer"
               aria-label={`Browse ${subject.name} books`}
-              className={`${SUBJECT_PLACEMENTS[index] ?? "book-subject-standard"} flex min-w-0 overflow-hidden rounded-xl border text-left transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45 ${compact ? "p-2" : "p-3"}`}
+              className={`${SUBJECT_PLACEMENTS[index] ?? "book-subject-standard"} flex min-w-0 overflow-hidden rounded-xl border text-left transition-[transform,box-shadow] duration-200 hover:scale-[1.015] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45 ${compact ? "p-2" : "p-3"}`}
               style={{
                 backgroundColor: `color-mix(in srgb, ${colors.fg} 14%, transparent)`,
                 borderColor: `color-mix(in srgb, ${colors.fg} 32%, transparent)`,
@@ -628,12 +618,25 @@ function BookPreviewRow({ book }: { book: HomepageBookPreview }) {
   );
 }
 
-function BookLedger({ books }: { books: HomepageBookPreview[] }) {
+function BookLedger({
+  books,
+  recent = false,
+}: {
+  books: HomepageBookPreview[];
+  recent?: boolean;
+}) {
   return (
     <div className="book-ledger-container">
       <div className="book-ledger-grid">
-        {books.map((book) => (
-          <BookPreviewRow key={book.id} book={book} />
+        {books.map((book, index) => (
+          <div
+            key={book.id}
+            className={
+              recent && index >= 5 ? "book-recent-overflow" : undefined
+            }
+          >
+            <BookPreviewRow book={book} />
+          </div>
         ))}
       </div>
     </div>
@@ -675,7 +678,7 @@ function BooksPlacard({ data }: { data: StacksData }) {
             Recently read
           </PlacardCardHeading>
         )}
-        <BookLedger books={bookPlacard.recent} />
+        <BookLedger books={bookPlacard.recent} recent />
       </PlacardNestedLinkCard>
       <PlacardNestedLinkCard
         href={href}
@@ -1053,7 +1056,12 @@ function MobileUnitPanel({
   // Exactly one resident may own the chip: the active one. The DISMISSED
   // detent itself is shared above the residents, because it is a viewing
   // preference: section travel changes the chip's content, not its pose.
-  const chipActive = active && hidden && !modalOpen;
+  const chipActive = mobileSheetChipActive({
+    active,
+    hidden,
+    modalOpen,
+    sheetParked,
+  });
   useEffect(() => {
     // A section change is not a chip dismissal. The outgoing resident must
     // relinquish the single mobile chip slot synchronously, otherwise its
@@ -1074,12 +1082,12 @@ function MobileUnitPanel({
       chipY.set(12);
       const fade = animate(chipOpacity, 1, {
         duration: reduceMotion ? 0 : 0.18,
-        delay: reduceMotion ? 0 : 0.12,
+        delay: reduceMotion ? 0 : 0.04,
         ease: "easeOut",
       });
       const travel = animate(chipY, 0, {
         duration: reduceMotion ? 0 : 0.22,
-        delay: reduceMotion ? 0 : 0.12,
+        delay: reduceMotion ? 0 : 0.04,
         ease: [0.16, 1, 0.3, 1],
       });
       if (focusChipOnRevealRef.current) {
@@ -1119,7 +1127,11 @@ function MobileUnitPanel({
     if (!metrics) return;
     const changedPose = poseRef.current !== pose;
     poseRef.current = pose;
-    if (changedPose) {
+    // `parkSheet` changes identity with resident ownership. If that interrupts
+    // a hidden transition, restart the physical park even though the semantic
+    // pose itself is unchanged; otherwise its completion callback is lost.
+    const interruptedHiddenPark = pose === "hidden" && !sheetParkedRef.current;
+    if (changedPose || interruptedHiddenPark) {
       parkSheet(false);
       if (pose === "hidden") {
         const travel = animate(y, restRef.current, SHEET_SPRING);
@@ -1306,11 +1318,57 @@ function MobileUnitPanel({
     // Restore visibility while the sheet is still parked entirely below the
     // viewport. The following state change springs it into peek; doing these
     // in the opposite order creates a one-frame invisible response to tap.
+    chipOpacity.stop();
+    chipY.stop();
+    chipOpacity.set(0);
+    chipVisibility.set("hidden");
     parkSheet(false);
     sheetOpacity.set(1);
     setDismissed(false);
     requestAnimationFrame(() => headerButtonRef.current?.focus());
-  }, [parkSheet, setDismissed, sheetOpacity]);
+  }, [
+    chipOpacity,
+    chipVisibility,
+    chipY,
+    parkSheet,
+    setDismissed,
+    sheetOpacity,
+  ]);
+
+  const swipeToAdjacentUnit = useCallback((direction: -1 | 1) => {
+    const state = useStacks.getState();
+    const target = state.activeUnit + direction;
+    if (
+      target < 0 ||
+      target >= UNITS.length ||
+      !state.travelTo ||
+      state.modalOpen
+    )
+      return false;
+    const pushHistory = () => {
+      const slug = UNITS[target]!.slug;
+      window.history.pushState(
+        null,
+        "",
+        target === 0 ? window.location.pathname : `#${slug}`,
+      );
+    };
+    if (state.panelState === "open" || state.panelState === "opening") {
+      closeStacksPanel();
+      state.travelTo(target);
+      const unsubscribe = useStacks.subscribe((next) => {
+        if (next.panelState !== "closed") return;
+        unsubscribe();
+        pushHistory();
+      });
+    } else if (state.panelState === "closing") {
+      return false;
+    } else {
+      pushHistory();
+      state.travelTo(target);
+    }
+    return true;
+  }, []);
 
   // ONE title per sheet, and it is the unit's own name.
   //
@@ -1458,6 +1516,8 @@ function MobileUnitPanel({
     if (!panel || !metrics) return;
     let startY = 0;
     let lastY = 0;
+    let startX = 0;
+    let lastX = 0;
     // Velocity is sampled on its own clock rather than per move. Two touchmoves
     // can land in the same millisecond — a coalesced burst, or anything
     // dispatching them synchronously — and dividing by a sub-millisecond dt
@@ -1466,8 +1526,11 @@ function MobileUnitPanel({
     let sampleY = 0;
     let sampleT = 0;
     let velocity = 0; // px/ms, positive downward
+    let velocityX = 0;
     let base = 0;
     let owned: boolean | null = null; // null until the drag arms
+    let axis: "horizontal" | "vertical" | null = null;
+    let sampleX = 0;
     // Whether the gesture STARTED over the scroller. Read at arm time instead
     // of the live target: the pointer can cross out of the scroller inside the
     // 6px before the drag arms, and asking where it is now rather than where
@@ -1476,12 +1539,20 @@ function MobileUnitPanel({
     let startScrollerAtTop = false;
 
     /** Set the frame the gesture is measured against. */
-    const begin = (clientY: number, ts: number, target: EventTarget | null) => {
+    const begin = (
+      clientX: number,
+      clientY: number,
+      ts: number,
+      target: EventTarget | null,
+    ) => {
       y.stop();
       startY = lastY = sampleY = clientY;
+      startX = lastX = sampleX = clientX;
       sampleT = ts;
       velocity = 0;
+      velocityX = 0;
       owned = null;
+      axis = null;
       base = y.get();
       // Resolved once, at the start: whether the scroller is at its top is a
       // property of the gesture's origin, not of the frame it is asked in.
@@ -1499,15 +1570,22 @@ function MobileUnitPanel({
     /** Track the pointer 1:1. Returns whether the sheet took the gesture, so
      * the caller can suppress whatever the platform would otherwise do with
      * it — a native scroll on touch, a text selection on the mouse. */
-    const move = (clientY: number, ts: number) => {
+    const move = (clientX: number, clientY: number, ts: number) => {
       const dy = clientY - startY;
+      const dx = clientX - startX;
       if (owned === null) {
-        if (Math.abs(dy) < DRAG_ARM_PX) return false;
-        // Peek has no scroller to compete with. Expanded content remains
-        // native except for a downward pull that began at its top boundary;
-        // that familiar overscroll gesture collapses the sheet instead of
-        // stretching a document that has nowhere left to go.
-        owned = !expanded || !startInScroller || (startScrollerAtTop && dy > 0);
+        if (Math.max(Math.abs(dx), Math.abs(dy)) < DRAG_ARM_PX) return false;
+        axis = Math.abs(dx) > Math.abs(dy) * 1.15 ? "horizontal" : "vertical";
+        if (axis === "horizontal") {
+          owned = true;
+        } else {
+          // Peek has no scroller to compete with. Expanded content remains
+          // native except for a downward pull that began at its top boundary;
+          // that familiar overscroll gesture collapses the sheet instead of
+          // stretching a document that has nowhere left to go.
+          owned =
+            !expanded || !startInScroller || (startScrollerAtTop && dy > 0);
+        }
       }
       if (!owned) return false;
       setSheetDragging(true);
@@ -1515,10 +1593,14 @@ function MobileUnitPanel({
       // on every move while a same-tick burst samples on none of them.
       if (ts - sampleT >= VELOCITY_SAMPLE_MS) {
         velocity = (clientY - sampleY) / (ts - sampleT);
+        velocityX = (clientX - sampleX) / (ts - sampleT);
         sampleY = clientY;
+        sampleX = clientX;
         sampleT = ts;
       }
       lastY = clientY;
+      lastX = clientX;
+      if (axis === "horizontal") return true;
       const next = base + dy;
       // Above full height there is nothing left to reveal, so resist and
       // clamp to the exact range covered by the material overscan.
@@ -1536,6 +1618,17 @@ function MobileUnitPanel({
       // A finger that came to rest before lifting placed the sheet, it did not
       // throw it — so the velocity from before the pause must not carry.
       if (ts - sampleT > VELOCITY_STALE_MS) velocity = 0;
+      if (ts - sampleT > VELOCITY_STALE_MS) velocityX = 0;
+      if (axis === "horizontal") {
+        const dx = lastX - startX;
+        const direction = mobileSheetHorizontalSwipeIntent({
+          deltaX: dx,
+          velocityX,
+        });
+        if (direction) swipeToAdjacentUnit(direction);
+        axis = null;
+        return true;
+      }
       const dy = lastY - startY;
       const committed =
         Math.abs(dy) > DRAG_STEP_PX || Math.abs(velocity) > FLING;
@@ -1563,12 +1656,12 @@ function MobileUnitPanel({
     const onTouchStart = (e: TouchEvent) => {
       const t = e.touches[0];
       if (!t) return;
-      begin(t.clientY, e.timeStamp || performance.now(), e.target);
+      begin(t.clientX, t.clientY, e.timeStamp || performance.now(), e.target);
     };
     const onTouchMove = (e: TouchEvent) => {
       const t = e.touches[0];
       if (!t) return;
-      if (move(t.clientY, e.timeStamp || performance.now())) {
+      if (move(t.clientX, t.clientY, e.timeStamp || performance.now())) {
         e.preventDefault();
       }
     };
@@ -1583,6 +1676,7 @@ function MobileUnitPanel({
     const onTouchCancel = () => {
       if (owned) settle();
       owned = null;
+      axis = null;
       setSheetDragging(false);
     };
 
@@ -1637,11 +1731,11 @@ function MobileUnitPanel({
       if (e.button !== 0) return;
       mouseDown = true;
       dragged = false;
-      begin(e.clientY, e.timeStamp || performance.now(), e.target);
+      begin(e.clientX, e.clientY, e.timeStamp || performance.now(), e.target);
     };
     const onMouseMove = (e: MouseEvent) => {
       if (!mouseDown) return;
-      if (!move(e.clientY, e.timeStamp || performance.now())) return;
+      if (!move(e.clientX, e.clientY, e.timeStamp || performance.now())) return;
       // preventDefault does not stop a selection that has already started, so
       // clear it and turn selection off for the rest of the drag.
       if (!dragged) {
@@ -1688,7 +1782,17 @@ function MobileUnitPanel({
       window.removeEventListener("mouseup", onMouseUp);
       panel.style.userSelect = "";
     };
-  }, [metrics, expanded, peekOverflows, y, settle, expand, collapse, dismiss]);
+  }, [
+    metrics,
+    expanded,
+    peekOverflows,
+    y,
+    settle,
+    expand,
+    collapse,
+    dismiss,
+    swipeToAdjacentUnit,
+  ]);
 
   // Expanded reading keeps the existing scrolled-away top dissolve. Peek gets
   // a much shallower bottom dissolve only when the document actually
@@ -1820,7 +1924,7 @@ function MobileUnitPanel({
                 expanded ? "Collapse section panel" : "Expand section panel"
               }
               onClick={expanded ? collapse : expand}
-              className="stacks-sheet-grabber relative z-10 flex h-6 w-full items-start justify-center rounded-t-3xl pt-4 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/45"
+              className="stacks-sheet-grabber relative z-10 flex h-6 w-full items-start justify-center rounded-t-3xl pt-4 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/45"
             >
               <span
                 aria-hidden
@@ -1842,7 +1946,7 @@ function MobileUnitPanel({
                 aria-label={`${expanded ? "Collapse" : "Expand"} ${title} section panel`}
                 onClick={expanded ? collapse : expand}
                 data-stacks-swap-part="header"
-                className="flex h-full min-w-0 flex-1 items-center gap-2.5 text-left text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/45"
+                className="flex h-full min-w-0 flex-1 items-center gap-2.5 text-left text-foreground outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/45"
               >
                 <ShownIcon
                   aria-hidden
@@ -1957,6 +2061,7 @@ export default function PlacardLayer({
   const modalOpen = useStacks((s) => s.modalOpen);
   const reduceMotion = useStacksReducedMotion();
   const [detailsHidden, setDetailsHidden] = useState(false);
+  const desktopDockRef = useRef<HTMLDivElement>(null);
   const skipInitialFocusPersist = useRef(true);
   useEffect(() => {
     setDetailsHidden(readFocusMode(window.sessionStorage));
@@ -1982,6 +2087,41 @@ export default function PlacardLayer({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [modalOpen]);
+  useLayoutEffect(() => {
+    const dock = desktopDockRef.current;
+    const publish = useStacks.getState().setDesktopDetailsLeftPx;
+    if (!dock || detailsHidden || modalOpen) {
+      publish(null);
+      return;
+    }
+
+    const measure = () => {
+      const scroller = dock.querySelector<HTMLElement>(
+        "[data-stacks-desktop-panel][data-stacks-active] .placard-scroll",
+      );
+      if (!scroller) {
+        publish(null);
+        return;
+      }
+      const paddingLeft = Number.parseFloat(
+        window.getComputedStyle(scroller).paddingLeft,
+      );
+      publish(
+        scroller.getBoundingClientRect().left +
+          (Number.isFinite(paddingLeft) ? paddingLeft : 0),
+      );
+    };
+
+    measure();
+    const resizeObserver = new ResizeObserver(measure);
+    resizeObserver.observe(dock);
+    window.addEventListener("resize", measure);
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", measure);
+      publish(null);
+    };
+  }, [activeUnit, detailsHidden, modalOpen]);
   // Resident cards own content, measurement and scroll position. Their
   // three-position sheet pose remains one global preference, so dismissing
   // Book Notes and travelling to Weightlifting yields a Weightlifting chip,
@@ -2078,9 +2218,8 @@ export default function PlacardLayer({
     systems: (
       <div className="placard-sections flex flex-col gap-8">
         {slots.systems}
-        {/* .stacks-quotes rewrites desktop quotes white-on-dark-halo — see
-            the style block. Mobile keeps the component's original dark-on-
-            sheet treatment, and the flat page remains untouched. */}
+        {/* Desktop quotes use white ink with a restrained contact shadow.
+            Mobile keeps dark-on-sheet type, and the flat page stays plain. */}
         <div className="stacks-quotes">{slots.quotes}</div>
       </div>
     ),
@@ -2105,12 +2244,12 @@ export default function PlacardLayer({
              native surfaces. The explicit marker excludes nested language
              pills, so only the card-sized glass receives the wide scene blur. */
           [data-stacks-desktop-panel] [data-placard-surface] {
-            background-color: rgb(255 255 255 / 0.46) !important;
-            backdrop-filter: blur(80px) saturate(0.22) brightness(1.85) !important;
-            -webkit-backdrop-filter: blur(80px) saturate(0.22) brightness(1.85) !important;
+            background-color: rgb(255 255 255 / 0.18) !important;
+            backdrop-filter: blur(80px) saturate(0.28) brightness(1.4) !important;
+            -webkit-backdrop-filter: blur(80px) saturate(0.28) brightness(1.4) !important;
           }
           .dark [data-stacks-desktop-panel] [data-placard-surface] {
-            background-color: rgb(0 0 0 / 0.18) !important;
+            background-color: rgb(0 0 0 / 0.05) !important;
             backdrop-filter: blur(80px) saturate(0.22) brightness(0.42) !important;
             -webkit-backdrop-filter: blur(80px) saturate(0.22) brightness(0.42) !important;
           }
@@ -2201,18 +2340,13 @@ export default function PlacardLayer({
             0 3px 7px rgb(0 0 0 / 0.34),
             0 14px 32px -18px rgb(0 0 0 / 0.78) !important;
         }
-        /* On desktop the closing quotes float raw over the meadow with no
-           glass behind them, and the round-2 glow treatment still lost to
-           the lawn in light mode ("I really can't read it"). Over grass the
-           only stable read is subtitle-style: white text with a dark halo,
-           one treatment for both themes. The breakpoint and desktop-panel
-           scope are both intentional: mobile keeps the original dark copy
-           on its pale sheet, and Quotes.tsx also renders on the flat page,
-           where white would vanish into the background. */
+        /* Desktop quotes float directly over the meadow. A single restrained
+           contact shadow separates the letters without recreating the broad
+           glow removed from mobile and flat layouts. */
         @media (min-width: 1200px) {
           [data-stacks-desktop-panel] .stacks-quotes section {
             color: rgb(255 255 255 / 0.94);
-            text-shadow: 0 1px 3px rgb(0 0 0 / 0.55), 0 0 14px rgb(0 0 0 / 0.4);
+            text-shadow: 0 1px 2px rgb(0 0 0 / 0.28);
           }
           [data-stacks-desktop-panel] .stacks-quotes section footer {
             color: rgb(255 255 255 / 0.72);
@@ -2275,7 +2409,7 @@ export default function PlacardLayer({
           transition: transform 240ms ease, box-shadow 240ms ease;
         }
         .book-preview-row:hover .book-preview-cover {
-          transform: perspective(700px) rotateY(-5deg) translateY(-2px) translateZ(4px);
+          transform: perspective(700px) rotateY(-5deg) scale(1.025) translateZ(4px);
           box-shadow:
             2px 0 0 rgb(255 255 255 / 0.26),
             0 9px 25px 1px rgb(0 0 0 / 0.22);
@@ -2290,6 +2424,10 @@ export default function PlacardLayer({
             gap: 0.875rem;
           }
           .book-preview-title { font-size: 0.9375rem; }
+          .book-recent-overflow { display: block; }
+        }
+        @container (max-width: 24.999rem) {
+          .book-recent-overflow { display: none; }
         }
         @container (min-width: 18rem) {
           .book-subjects-grid {
@@ -2318,24 +2456,19 @@ export default function PlacardLayer({
             color: hsl(var(--foreground)) !important;
             font-size: calc(var(--ps) * 1.786) !important;
             line-height: 1.25;
+            text-shadow: 0 1px 2px rgb(0 0 0 / 0.28) !important;
           }
           .placard-scroll .placard-sections h1 svg,
           .placard-scroll .placard-section-heading svg {
             width: calc(var(--ps) * 1.786) !important;
             height: calc(var(--ps) * 1.786) !important;
+            filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.24));
           }
-          /* Like the fixed chrome, desktop section titles sit on the scene,
-             not on their cards. In light mode they need the quote's stable
-             white-on-dark-halo treatment. Mobile is deliberately excluded:
-             those same titles live on the pale sheet and stay dark. */
+          /* Desktop section titles sit on the scene rather than their cards.
+             Keep their white light-mode ink, without a halo or icon shadow. */
           html:not(.dark) [data-stacks-desktop-panel] .placard-sections h1,
           html:not(.dark) [data-stacks-desktop-panel] .placard-section-heading {
             color: rgb(255 255 255 / 0.94) !important;
-            text-shadow: 0 1px 3px rgb(0 0 0 / 0.55), 0 0 14px rgb(0 0 0 / 0.4) !important;
-          }
-          html:not(.dark) [data-stacks-desktop-panel] .placard-sections h1 svg,
-          html:not(.dark) [data-stacks-desktop-panel] .placard-section-heading svg {
-            filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.55)) drop-shadow(0 0 7px rgb(0 0 0 / 0.4));
           }
         }
         .placard-scroll .placard-sections .text-2xl,
@@ -2456,10 +2589,10 @@ export default function PlacardLayer({
           [data-stacks-mobile-panel] .placard-section-heading svg {
             width: 1.125rem !important;
             height: 1.125rem !important;
+            filter: none !important;
           }
-          /* Quotes.tsx adds a page-level glow so the closing quotes remain
-             legible on the flat homepage. Inside the mobile sheet they
-             already sit on a readable surface, where that glow looks muddy. */
+          /* Mobile titles and quotes sit on a readable sheet surface; neither
+             inherits the desktop contact shadow or any authored glow. */
           [data-stacks-mobile-panel] .stacks-quotes > section {
             text-shadow: none !important;
           }
@@ -2513,6 +2646,24 @@ export default function PlacardLayer({
             inset 0 1px 0 rgb(255 255 255 / 0.28),
             inset 0 -1px 0 rgb(255 255 255 / 0.08),
             0 16px 36px -20px rgb(0 0 0 / 0.86) !important;
+        }
+        @media (min-width: 1200px) {
+          html:not(.dark) [data-stacks-desktop-panel] [data-placard-link]:hover [data-placard-surface],
+          html:not(.dark) [data-stacks-desktop-panel] [data-placard-link]:focus-visible [data-placard-surface],
+          html:not(.dark) [data-stacks-desktop-panel] a:hover [data-placard-surface],
+          html:not(.dark) [data-stacks-desktop-panel] a[data-placard-surface]:hover,
+          html:not(.dark) [data-stacks-desktop-panel] a:focus-visible [data-placard-surface],
+          html:not(.dark) [data-stacks-desktop-panel] a[data-placard-surface]:focus-visible {
+            background-color: rgb(255 255 255 / 0.25) !important;
+          }
+          .dark [data-stacks-desktop-panel] [data-placard-link]:hover [data-placard-surface],
+          .dark [data-stacks-desktop-panel] [data-placard-link]:focus-visible [data-placard-surface],
+          .dark [data-stacks-desktop-panel] a:hover [data-placard-surface],
+          .dark [data-stacks-desktop-panel] a[data-placard-surface]:hover,
+          .dark [data-stacks-desktop-panel] a:focus-visible [data-placard-surface],
+          .dark [data-stacks-desktop-panel] a[data-placard-surface]:focus-visible {
+            background-color: rgb(255 255 255 / 0.07) !important;
+          }
         }
         @media (width < 1200px) {
           /* The dark mobile sheet is nearly clear, so its cards need more
@@ -2583,6 +2734,7 @@ export default function PlacardLayer({
           type below is derived from the same value, so the column and its
           contents cannot scale apart. */}
       <div
+        ref={desktopDockRef}
         id="stacks-desktop-details"
         data-stacks-desktop-dock
         data-hidden={detailsHidden ? "true" : "false"}
@@ -2623,7 +2775,7 @@ export default function PlacardLayer({
         <span
           id="stacks-details-tooltip"
           role="tooltip"
-          className="stacks-glass-tooltip pointer-events-none absolute right-full top-1/2 mr-2.5 -translate-y-1/2 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium tracking-[0.01em] text-stone-900 opacity-0 transition-[opacity,transform] duration-200 group-focus-within:-translate-x-0.5 group-focus-within:opacity-100 group-hover:-translate-x-0.5 group-hover:opacity-100 motion-reduce:transition-none dark:text-white"
+          className="stacks-glass-tooltip pointer-events-none absolute right-full top-1/2 -mr-1.5 -translate-y-1/2 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium tracking-[0.01em] text-stone-900 opacity-0 transition-[opacity,transform] duration-200 group-focus-within:opacity-100 group-hover:opacity-100 motion-reduce:transition-none dark:text-white"
         >
           <span className="relative block h-4 w-[4.7rem] overflow-hidden whitespace-nowrap text-center leading-4">
             <AnimatePresence initial={false} mode="popLayout">

@@ -6,6 +6,8 @@ import { FootPool } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
 import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
+import WavingGolfFlag from "../WavingGolfFlag";
+import { meadowHeight } from "../meadowField";
 import { SodaCan } from "../objects";
 import {
   DeskFrame,
@@ -17,13 +19,13 @@ import {
 import { ShelfUnit } from "../primitives";
 import { SHELF_GEOMETRY } from "../shelfGeometry";
 import { useUnitLod } from "../useUnitLod";
+import { unitPose } from "../worldLayout";
 import { RoundedBox } from "@react-three/drei";
 import React from "react";
 import * as THREE from "three";
 
 import {
   GOLF_BALL_RADIUS,
-  GOLF_SHOT_RETURN_MS,
   GOLF_SHOT_VELOCITIES,
   createDimpledGolfBallGeometry,
   createGolfBallBumpTexture,
@@ -34,6 +36,16 @@ import { REVIEWED_SHELF_LAYOUT } from "./unitShelfLayout";
 const CLUB_SCALE = 2.35;
 const GOLF_BALL_GEOMETRY = createDimpledGolfBallGeometry();
 const GOLF_BALL_BUMP = createGolfBallBumpTexture();
+const GOLF_FLAG_LOCAL = [-1.55, -16.5] as const;
+
+function golfFlagPosition(unitIndex: number): [number, number, number] {
+  const pose = unitPose(unitIndex);
+  const yaw = pose.rotation[1];
+  const [x, z] = GOLF_FLAG_LOCAL;
+  const worldX = pose.position[0] + x * Math.cos(yaw) + z * Math.sin(yaw);
+  const worldZ = pose.position[2] - x * Math.sin(yaw) + z * Math.cos(yaw);
+  return [x, meadowHeight(worldX, worldZ), z];
+}
 
 function TrainingPhoto({
   unitIndex,
@@ -281,12 +293,12 @@ function GolfBall({
       shape="sphere"
       massKg={0.046}
       standsOn="floor"
+      draggable={false}
       commandRef={commandRef}
       onTap={() => {
         if (window.matchMedia("(prefers-reduced-motion: reduce)").matches)
           return;
         commandRef.current?.launch([shot[0], shot[1], shot[2]], {
-          returnAfterMs: GOLF_SHOT_RETURN_MS,
           terrain: "meadow",
         });
       }}
@@ -301,6 +313,7 @@ function GolfBall({
           bumpMap={GOLF_BALL_BUMP}
           bumpScale={0.01}
           color={palette.pages}
+          fog={false}
           roughness={0.56}
         />
       </mesh>
@@ -314,6 +327,7 @@ function GolfBall({
 
 export default function UnitTraining({ palette, dark, index }: UnitProps) {
   const textured = useUnitLod(index);
+  const targetPosition = React.useMemo(() => golfFlagPosition(index), [index]);
   return (
     <group>
       <ShelfUnit
@@ -419,6 +433,7 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
               shadeWidth={0.45}
               shape="sphere"
               massKg={0.62}
+              restitution={0.62}
             >
               <React.Suspense fallback={null}>
                 <ModelProp
@@ -620,6 +635,37 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
         id="four"
         position={[-1.62, SHELF_GEOMETRY.groundY, 0.16]}
       />
+      {[
+        [-1.82, 0.42],
+        [-1.62, 0.34],
+        [-1.46, 0.22],
+      ].map(([x, z], tee) => (
+        <Grabbable
+          key={tee}
+          unitIndex={index}
+          hoverKey={`grab:golf-tee:${tee}`}
+          base={[x!, SHELF_GEOMETRY.groundY, z!]}
+          shadeColor={palette.shadow}
+          shadeWidth={0.09}
+          shape="box"
+          massKg={0.006}
+          standsOn="floor"
+        >
+          <React.Suspense fallback={null}>
+            <ModelProp
+              url="/models/golf-tee.glb"
+              dark={dark}
+              variant="tinted"
+              tintAll={tee === 1 ? "#2d6da3" : "#f2ede2"}
+              rotation={[0, tee * 0.7, 0]}
+              scale={0.00036}
+            />
+          </React.Suspense>
+        </Grabbable>
+      ))}
+      <React.Suspense fallback={null}>
+        <WavingGolfFlag dark={dark} position={targetPosition} />
+      </React.Suspense>
       <FootPool
         color={palette.shadow}
         size={[0.58, 0.42]}

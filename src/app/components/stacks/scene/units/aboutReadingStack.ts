@@ -1,8 +1,10 @@
+import { ABOUT_BOOT_LANDMARKS } from "../aboutBootComposition";
+
 export const ABOUT_READING_BOOK = {
-  width: 0.285,
+  width: 0.3135,
   /** Default/fallback only; live books derive their fore-edge from length. */
-  thickness: 0.048,
-  depth: 0.45,
+  thickness: 0.0528,
+  depth: 0.495,
   radius: 0.008,
 } as const;
 
@@ -13,19 +15,19 @@ export type ReadingBookPose = {
   rotation: [number, number, number];
 };
 
-export const ABOUT_SMALL_PLANT_X = 0.72;
+export const ABOUT_SMALL_PLANT_X = ABOUT_BOOT_LANDMARKS.succulent.x;
 /** Measured GLB width 1.4887 × authored 0.18 scale ÷ 2, rounded outward. */
 export const ABOUT_SMALL_PLANT_ENVELOPE = 0.135;
-export const ABOUT_LOWER_PHOTO_X = 1.06;
+export const ABOUT_LOWER_PHOTO_X = ABOUT_BOOT_LANDMARKS["collective-frame"].x;
 export const ABOUT_LOWER_PHOTO_LEFT = ABOUT_LOWER_PHOTO_X - 0.3072 / 2;
 
 export const CURRENT_READING_ROTATION: [number, number, number] = [
   Math.PI / 2,
   0,
-  Math.PI / 6,
+  (Math.PI * 2) / 9,
 ];
 export const CURRENT_READING_BASE: [number, number, number] = [
-  0.33,
+  ABOUT_BOOT_LANDMARKS["reading-stack"].x - 0.18,
   ABOUT_READING_BOOK.depth / 2,
   0.035,
 ];
@@ -65,7 +67,7 @@ function point3(
   ];
 }
 
-/** Three grounded books turned 30° toward the About practical. Their shallow
+/** Three grounded books turned 40° toward the About practical. Their shallow
  * x/depth cadence overlaps in camera space without intersecting in 3D. */
 export function readingStackPoses(): [
   ReadingBookPose,
@@ -75,9 +77,9 @@ export function readingStackPoses(): [
   return ([0, 1, 2] as const).map((index) => ({
     index,
     base: [
-      CURRENT_READING_BASE[0] + index * 0.185,
+      CURRENT_READING_BASE[0] + index * 0.18,
       CURRENT_READING_BASE[1],
-      CURRENT_READING_BASE[2] + index * 0.046,
+      CURRENT_READING_BASE[2] + index * 0.058,
     ],
     rotation: [...CURRENT_READING_ROTATION],
   })) as [ReadingBookPose, ReadingBookPose, ReadingBookPose];
@@ -99,6 +101,21 @@ export function readingBookPoint3(
   const halfD = ABOUT_READING_BOOK.depth / 2;
   if (which === "shelf-toe") return point3(pose, -halfW, 0, halfD);
   return point3(pose, halfW, 0, halfD);
+}
+
+/** Exact front-elevation corners of one live reading cover. The boot SVG uses
+ * this projection instead of inventing a second stack of upright rectangles. */
+export function readingBookFrontElevation(
+  pose: ReadingBookPose,
+): [number, number][] {
+  const halfW = ABOUT_READING_BOOK.width / 2;
+  const halfD = ABOUT_READING_BOOK.depth / 2;
+  return [
+    point3(pose, -halfW, 0, halfD),
+    point3(pose, halfW, 0, halfD),
+    point3(pose, halfW, 0, -halfD),
+    point3(pose, -halfW, 0, -halfD),
+  ].map(([x, y]) => [x, y]);
 }
 
 export function readingStackBounds(poses: ReadingBookPose[]) {

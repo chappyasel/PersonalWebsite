@@ -22,6 +22,7 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { claimEffectLayer, effectLayerAges } from "./layeredEffects";
 import {
   MEADOW_BANK,
   MEADOW_FOG,
@@ -34,23 +35,22 @@ import {
   meadowHeight,
   shadeScale,
 } from "./meadowField";
+import { meadowPokeStrength } from "./meadowInteraction";
 import { MEADOW_LAMP_MAX, getMeadowLamps } from "./meadowLights";
+import {
+  MEADOW_POKE,
+  MEADOW_WIND,
+  meadowDragSample,
+  meadowPulseState,
+} from "./meadowMotion";
 import { getSeatAmount } from "./seated";
 
 const TUFT_URL = "/models/grass-tuft.glb";
 const ALPHA_URL = "/images/stacks/grass-tuft-alpha.webp";
 
-// Meadow-only colors — not PALETTES duplicates, so local hexes are
-// legitimate. Light theme starts from FluffyGrass's palette, darkened 20%
-// to deepen the lawn while preserving its dark-under-bright fluff layering;
-// tip B gives patch-scale variation. Dark is the moonlit equivalent.
+// Flower-only colors live here. Grass colors are part of PALETTES because the
+// boot vignette now uses the same meadow tone to bridge its sky and wood.
 const COLORS = {
-  baseL: "#273216",
-  tipAL: "#7ca971",
-  tipBL: "#25422c",
-  baseD: "#0d1710",
-  tipAD: "#3f5a49",
-  tipBD: "#1d2c25",
   // Round 3 deepened A and B ("in general in light mode it's hard to see
   // them"): more chroma survives the fog mix and the pale lawn behind.
   flowerA: "#5b76d6", // cornflower blue, 55% (owner round 2)
@@ -112,7 +112,15 @@ const WIND_GLSL = /* glsl */ `
     float gust = vnoise(pos * 0.22 - dir * (t * 0.55));
     gust *= gust;
     float breeze = vnoise(pos * 0.85 - dir * (t * 1.10));
-    return dir * (uWindAmp * (0.35 + 0.85 * gust + 0.25 * breeze));
+    vec2 wind = dir * (uWindAmp * (0.35 + 0.85 * gust + 0.25 * breeze));
+    float magnitude = length(wind);
+    if (magnitude > ${MEADOW_WIND.gustKnee.toFixed(2)}) {
+      float span = ${(MEADOW_WIND.gustCeiling - MEADOW_WIND.gustKnee).toFixed(2)};
+      float limited = ${MEADOW_WIND.gustKnee.toFixed(2)}
+        + span * (1.0 - exp(-(magnitude - ${MEADOW_WIND.gustKnee.toFixed(2)}) / span));
+      wind *= limited / magnitude;
+    }
+    return wind;
   }
 `;
 
@@ -160,6 +168,7 @@ const LAMP_GLSL = /* glsl */ `
 /** The pool's warm hue — FloorLampSpot's #ffbe73 pushed slightly toward
  * amber so it stays lamp-colored after the grass's own green multiplies in. */
 const LAMP_WARM = "vec3(1.0, 0.72, 0.44)";
+const MEADOW_PULSE_LAYERS = 6;
 
 const SHARED_UNIFORMS_GLSL = /* glsl */ `
   uniform float uTime;
@@ -171,6 +180,11 @@ const SHARED_UNIFORMS_GLSL = /* glsl */ `
   // bend and recover lazily where blades spring).
   uniform vec4 uPoke;
   uniform vec4 uPokeF;
+  uniform vec2 uPokeDir;
+  // Concurrent expanding click rings: origin (.xy), radius (.z), strength
+  // (.w). A bounded pool keeps repeated clicks layered without unbounded
+  // shader work.
+  uniform vec4 uPulses[${MEADOW_PULSE_LAYERS}];
   uniform float uDawn;
   uniform float uSeat;
   uniform float uWindAmp;
@@ -258,17 +272,45 @@ const GRASS_VERTEX = /* glsl */ `
     // roots planted; magnitude scales with the tuft's world height.
     vec2 w = windAt(origin.xz, uTime * uWindSpeed);
     float hScale = length(vec3(instanceMatrix[1]));
-    // The pointer parts the grass: tufts inside the poke radius lean
-    // radially away, through the same height-gated bend as the wind (the
-    // existing quadratic-drop line then squashes them down for free). The
-    // COMBINED lean is clamped — the owner's "set max distortion": a gust
-    // plus a poke can never fold a tuft flat.
+    // Mouse travel brushes a tight patch in the direction of the stroke.
+    // Clicking creates a separate, immediately broad outward burst. The
+    // COMBINED lean is clamped so a gust plus interaction cannot fold a
+    // tuft flat.
     vec2 pk = origin.xz - uPoke.xy;
     float pkd = max(length(pk), 1e-4);
-    float push = (1.0 - smoothstep(0.1, uPoke.z, pkd)) * uPoke.w;
-    vec2 lean = w + pk / pkd * push;
+    // Hover is a brush, not a force field: the spatial mask follows the
+    // trailing cursor centre, while uPokeDir points along mouse travel.
+    float pokeShape = 1.0 - smoothstep(0.0, uPoke.z, pkd);
+    vec2 pulseLean = vec2(0.0);
+    float pulseActivity = 0.0;
+    for (int pi = 0; pi < ${MEADOW_PULSE_LAYERS}; pi++) {
+      vec4 pulse = uPulses[pi];
+      vec2 pulseDelta = origin.xz - pulse.xy;
+      float pulseDistance = max(length(pulseDelta), 1e-4);
+      // Full force begins on a compact front, then the front races outward
+      // while fading. Unlike the old sine envelope, it never powers up late.
+      float pulseShape = 1.0 - smoothstep(
+        ${MEADOW_POKE.pulseWidth.toFixed(2)} * 0.35,
+        ${MEADOW_POKE.pulseWidth.toFixed(2)},
+        abs(pulseDistance - pulse.z)
+      );
+      float activity = clamp(pulse.w / ${MEADOW_POKE.clickStrength.toFixed(2)}, 0.0, 1.0);
+      pulseActivity = max(pulseActivity, pulseShape * activity);
+      pulseLean += pulseDelta / pulseDistance * pulseShape * pulse.w;
+    }
+    float pokeActivity = clamp(uPoke.w / ${MEADOW_POKE.hoverStrength.toFixed(2)}, 0.0, 1.0);
+    // Give the click's first frame room instead of summing two full-strength
+    // interactions into the hard lean limit.
+    float push = pokeShape * uPoke.w * (1.0 - 0.70 * pulseActivity);
+    float interactionShape = max(
+      pokeShape * pokeActivity,
+      pulseActivity
+    );
+    vec2 lean = w * (1.0 - ${MEADOW_POKE.windSuppression.toFixed(2)} * interactionShape)
+      + uPokeDir * push
+      + pulseLean;
     float ll = max(length(lean), 1e-4);
-    lean *= min(ll, 0.42) / ll;
+    lean *= min(ll, ${MEADOW_WIND.maxLean.toFixed(2)}) / ll;
     vec2 disp = lean * t * t * hScale;
     world.x += disp.x;
     world.z += disp.y;
@@ -475,7 +517,27 @@ const FLOWER_VERTEX = /* glsl */ `
     vec2 w = windAt(origin.xz, uTime * uWindSpeed) * 0.35;
     vec2 pk = origin.xz - uPokeF.xy;
     float pkd = max(length(pk), 1e-4);
-    w += pk / pkd * (1.0 - smoothstep(0.1, uPokeF.z, pkd)) * uPokeF.w * 0.12;
+    vec2 pulseLean = vec2(0.0);
+    float pulseActivity = 0.0;
+    for (int pi = 0; pi < ${MEADOW_PULSE_LAYERS}; pi++) {
+      vec4 pulse = uPulses[pi];
+      vec2 pulseDelta = origin.xz - pulse.xy;
+      float pulseDistance = max(length(pulseDelta), 1e-4);
+      float pulseShape = 1.0 - smoothstep(
+        ${MEADOW_POKE.pulseWidth.toFixed(2)} * 0.35,
+        ${MEADOW_POKE.pulseWidth.toFixed(2)},
+        abs(pulseDistance - pulse.z)
+      );
+      float activity = clamp(pulse.w / ${MEADOW_POKE.clickStrength.toFixed(2)}, 0.0, 1.0);
+      pulseActivity = max(pulseActivity, pulseShape * activity);
+      pulseLean += pulseDelta / pulseDistance * pulseShape * pulse.w * 0.10;
+    }
+    w += uPokeDir
+      * (1.0 - smoothstep(0.0, uPokeF.z, pkd))
+      * uPokeF.w
+      * (1.0 - 0.70 * pulseActivity)
+      * 0.12;
+    w += pulseLean;
     p.xz += w * position.y * ${(1 / FLOWER_H).toFixed(2)};
     // Pixel floor: a far head that would project under uPxFloor pixels is
     // scaled up about its own centre to hold that size, and the fragment
@@ -718,19 +780,19 @@ export default function Meadow({
       uDark: { value: dark ? 1 : 0 },
       uDawn: { value: 0 },
       uSeat: { value: 0 },
-      uWindAmp: { value: 0.14 },
-      uWindSpeed: { value: 0.85 },
+      uWindAmp: { value: MEADOW_WIND.amplitude as number },
+      uWindSpeed: { value: MEADOW_WIND.speed as number },
       // skyShadow/dcWater come from PALETTES — never a duplicated hex.
       uShadowL: { value: c(PALETTES.light.skyShadow) },
       uShadowD: { value: c(PALETTES.dark.skyShadow) },
       uDcWaterL: { value: c(PALETTES.light.dcWater) },
       uDcWaterD: { value: c(PALETTES.dark.dcWater) },
-      uBaseL: { value: c(COLORS.baseL) },
-      uBaseD: { value: c(COLORS.baseD) },
-      uTipAL: { value: c(COLORS.tipAL) },
-      uTipAD: { value: c(COLORS.tipAD) },
-      uTipBL: { value: c(COLORS.tipBL) },
-      uTipBD: { value: c(COLORS.tipBD) },
+      uBaseL: { value: c(PALETTES.light.meadowBase) },
+      uBaseD: { value: c(PALETTES.dark.meadowBase) },
+      uTipAL: { value: c(PALETTES.light.meadowTipA) },
+      uTipAD: { value: c(PALETTES.dark.meadowTipA) },
+      uTipBL: { value: c(PALETTES.light.meadowTipB) },
+      uTipBD: { value: c(PALETTES.dark.meadowTipB) },
       // Practical pools (meadowLights.ts) — positions and eased lit factors
       // rewritten each frame; glow 0 disables an unused slot outright.
       uLampPos: {
@@ -742,8 +804,15 @@ export default function Meadow({
       uLampGlow: { value: new Array<number>(MEADOW_LAMP_MAX).fill(0) },
       // Pointer poke (x, z, radius, strength) — written per frame below.
       // uPokeF is the flowers' slow-eased copy.
-      uPoke: { value: new THREE.Vector4(0, 0, 0.6, 0) },
-      uPokeF: { value: new THREE.Vector4(0, 0, 0.6, 0) },
+      uPoke: { value: new THREE.Vector4(0, 0, MEADOW_POKE.radius, 0) },
+      uPokeF: { value: new THREE.Vector4(0, 0, MEADOW_POKE.radius, 0) },
+      uPokeDir: { value: new THREE.Vector2() },
+      uPulses: {
+        value: Array.from(
+          { length: MEADOW_PULSE_LAYERS },
+          () => new THREE.Vector4(0, 0, 0, 0),
+        ),
+      },
     };
     const grassOnly = {
       uAlpha: { value: null as THREE.Texture | null },
@@ -904,12 +973,27 @@ export default function Meadow({
   // clock (written every frame below) so the pulse math never mixes time
   // bases. Any pointerdown counts — if the cursor is over a card the hit
   // point is hidden behind it anyway.
-  const pokeClickAt = useRef(-100);
+  const pokeClickAt = useRef(new Array<number>(MEADOW_PULSE_LAYERS).fill(-1));
+  const pokeClickReach = useRef(new Array<number>(MEADOW_PULSE_LAYERS).fill(0));
+  const pokeClickAges = useRef(new Array<number>(MEADOW_PULSE_LAYERS).fill(-1));
+  const pokeHit = useRef(new THREE.Vector2());
+  const pokeHitReach = useRef(0);
+  const pokePreviousHit = useRef(new THREE.Vector2());
+  const pokePreviousPointer = useRef(new THREE.Vector2());
+  const pokeHasPrevious = useRef(false);
   const bootAt = useRef(-1);
   useEffect(() => {
     if (!finePointer) return;
     const onDown = () => {
-      pokeClickAt.current = built.shared.uTime.value;
+      const slot = claimEffectLayer(
+        pokeClickAt.current,
+        built.shared.uTime.value,
+        MEADOW_POKE.pulseDuration,
+      );
+      const pulse = built.shared.uPulses.value[slot]!;
+      pulse.x = pokeHit.current.x;
+      pulse.y = pokeHit.current.y;
+      pokeClickReach.current[slot] = pokeHitReach.current;
     };
     window.addEventListener("pointerdown", onDown, { passive: true });
     return () => window.removeEventListener("pointerdown", onDown);
@@ -933,13 +1017,12 @@ export default function Meadow({
   useFrame(({ clock, gl, camera, pointer }, delta) => {
     const shared = built.shared;
     // Pointer → lawn: unproject the cursor and hit the base ground plane
-    // analytically (no raycaster, no geometry walk). Owner-tuned feel
-    // (round 3, second pass): hover is a whisper — slow fluid trail, low
-    // strength — and a CLICK breathes a short stronger pulse through the
-    // same spot. Fine pointers only — a touch would leave a frozen dent
-    // under the last tap.
+    // analytically (no raycaster, no geometry walk). Movement brushes a
+    // trailing patch in the stroke direction; a click launches its own
+    // outward ring. Fine pointers only — touch would leave a frozen trail.
     if (finePointer) {
       const poke = shared.uPoke.value;
+      pokeHitReach.current = 0;
       pokeScratch.set(pointer.x, pointer.y, 0.5).unproject(camera);
       pokeScratch.sub(camera.position).normalize();
       let target = 0;
@@ -948,24 +1031,109 @@ export default function Meadow({
         if (tt > 0 && tt < 26) {
           const hx = camera.position.x + pokeScratch.x * tt;
           const hz = camera.position.z + pokeScratch.z * tt;
-          poke.x = THREE.MathUtils.damp(poke.x, hx, 7, delta);
-          poke.y = THREE.MathUtils.damp(poke.y, hz, 7, delta);
-          const pokeF = shared.uPokeF.value;
-          pokeF.x = THREE.MathUtils.damp(pokeF.x, hx, 3.5, delta);
-          pokeF.y = THREE.MathUtils.damp(pokeF.y, hz, 3.5, delta);
-          const sinceClick = clock.elapsedTime - pokeClickAt.current;
-          target = 0.24 + 0.34 * Math.exp(-(sinceClick * sinceClick) / 0.18);
+          const reach = meadowPokeStrength(hx, hz);
+          pokeHit.current.set(hx, hz);
+          pokeHitReach.current = reach;
+          if (reach > 0) {
+            const pointerMoved =
+              pokeHasPrevious.current &&
+              Math.hypot(
+                pointer.x - pokePreviousPointer.current.x,
+                pointer.y - pokePreviousPointer.current.y,
+              ) >= MEADOW_POKE.pointerMoveEpsilon;
+            if (pointerMoved) {
+              const drag = meadowDragSample(
+                pokePreviousHit.current.x,
+                pokePreviousHit.current.y,
+                hx,
+                hz,
+                delta,
+                reach,
+              );
+              target = drag.strength;
+              shared.uPokeDir.value.x = THREE.MathUtils.damp(
+                shared.uPokeDir.value.x,
+                drag.directionX,
+                MEADOW_POKE.dragDirectionLambda,
+                delta,
+              );
+              shared.uPokeDir.value.y = THREE.MathUtils.damp(
+                shared.uPokeDir.value.y,
+                drag.directionZ,
+                MEADOW_POKE.dragDirectionLambda,
+                delta,
+              );
+            }
+            poke.x = THREE.MathUtils.damp(
+              poke.x,
+              hx,
+              MEADOW_POKE.grassPositionLambda,
+              delta,
+            );
+            poke.y = THREE.MathUtils.damp(
+              poke.y,
+              hz,
+              MEADOW_POKE.grassPositionLambda,
+              delta,
+            );
+            const pokeF = shared.uPokeF.value;
+            pokeF.x = THREE.MathUtils.damp(
+              pokeF.x,
+              hx,
+              MEADOW_POKE.flowerPositionLambda,
+              delta,
+            );
+            pokeF.y = THREE.MathUtils.damp(
+              pokeF.y,
+              hz,
+              MEADOW_POKE.flowerPositionLambda,
+              delta,
+            );
+          }
+          pokePreviousHit.current.set(hx, hz);
+          pokePreviousPointer.current.set(pointer.x, pointer.y);
+          pokeHasPrevious.current = true;
+        } else {
+          pokeHasPrevious.current = false;
         }
+      } else {
+        pokeHasPrevious.current = false;
       }
-      poke.w = THREE.MathUtils.damp(poke.w, target, 3.5, delta);
+      poke.w = THREE.MathUtils.damp(
+        poke.w,
+        target,
+        target > poke.w
+          ? MEADOW_POKE.grassAttackLambda
+          : MEADOW_POKE.grassReleaseLambda,
+        delta,
+      );
       // Stems are lazier than blades: the flowers' strength eases at less
       // than half the grass rate, both bending and recovering.
       shared.uPokeF.value.w = THREE.MathUtils.damp(
         shared.uPokeF.value.w,
         target,
-        1.5,
+        target > shared.uPokeF.value.w
+          ? MEADOW_POKE.flowerAttackLambda
+          : MEADOW_POKE.flowerReleaseLambda,
         delta,
       );
+      const pulseAges = effectLayerAges(
+        pokeClickAt.current,
+        clock.elapsedTime,
+        MEADOW_POKE.pulseDuration,
+        pokeClickAges.current,
+      );
+      for (let index = 0; index < MEADOW_PULSE_LAYERS; index += 1) {
+        const uniform = shared.uPulses.value[index]!;
+        const age = pulseAges[index]!;
+        if (age < 0) {
+          uniform.w = 0;
+          continue;
+        }
+        const pulse = meadowPulseState(age, pokeClickReach.current[index]!);
+        uniform.z = pulse.radius;
+        uniform.w = pulse.strength;
+      }
     }
     shared.uDark.value = THREE.MathUtils.damp(
       shared.uDark.value,
@@ -980,13 +1148,14 @@ export default function Meadow({
     shared.uTime.value = clock.elapsedTime;
     // Boot gust: one wind swell sweeps the lawn as the reveal lands (the
     // meadow's first frames sit just ahead of it), then the amplitude
-    // settles to the authored 0.14 and stops being written — the dev wind
+    // settles to the authored baseline and stops being written — the dev wind
     // knob owns it from there.
     if (bootAt.current < 0) bootAt.current = clock.elapsedTime;
     const since = clock.elapsedTime - bootAt.current;
     if (since < 6) {
       const g = Math.exp(-((since - 1.6) * (since - 1.6)) / 1.1);
-      shared.uWindAmp.value = 0.14 * (1 + 1.4 * g);
+      shared.uWindAmp.value =
+        MEADOW_WIND.amplitude * (1 + MEADOW_WIND.bootBoost * g);
     }
     // Pixels per world unit at depth 1 — one multiply per frame buys
     // resize/dpr safety with no listener.

@@ -1,7 +1,6 @@
 import * as THREE from "three";
 
 export const GOLF_BALL_RADIUS = 0.05;
-export const GOLF_SHOT_RETURN_MS = 5_000;
 export const GOLF_SHOT_VELOCITIES = {
   one: [0.18, 4.0, -7.0],
   two: [-0.12, 4.15, -7.2],

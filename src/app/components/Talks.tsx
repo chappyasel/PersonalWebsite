@@ -8,7 +8,7 @@ const TALKS: Talk[] = data.talks;
 export default async function Talks() {
   return (
     <section className="flex w-full flex-col items-center justify-around gap-4">
-      <h1 className="flex w-full items-center gap-2 text-2xl font-semibold text-foreground [text-shadow:_0_0_20px_rgba(255,255,255,1)] dark:[text-shadow:_0_0_20px_rgba(0,0,0,0.8)] md:gap-3 md:text-3xl">
+      <h1 className="flex w-full items-center gap-2 text-2xl font-semibold text-foreground md:gap-3 md:text-3xl">
         <MicrophoneStageIcon
           weight="duotone"
           className="size-7 shrink-0 md:size-8"

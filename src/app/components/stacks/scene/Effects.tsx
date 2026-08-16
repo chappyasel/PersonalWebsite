@@ -17,7 +17,7 @@
 // - Noise replaces the sky's IGN dither (gated off via uPost) — dithering
 //   linear HDR would grain the midtones; output-space noise is film grain.
 import { useStacks } from "../store";
-import { useFrame } from "@react-three/fiber";
+import { useFrame, useThree } from "@react-three/fiber";
 import {
   Bloom,
   DepthOfField,
@@ -34,6 +34,7 @@ import { BlendFunction, Effect, ToneMappingMode } from "postprocessing";
 import { useMemo } from "react";
 import { MathUtils, Uniform } from "three";
 
+import { desktopLensLine } from "./lensGeometry";
 import { tiltShiftEnabled } from "./quality";
 import { unitPose } from "./worldLayout";
 
@@ -111,6 +112,31 @@ function Grade({ dark }: { dark: boolean }) {
   return <primitive object={effect} dispose={null} />;
 }
 
+function SideLens({ seated }: { seated: boolean }) {
+  const viewportWidth = useThree((state) => state.size.width);
+  const navRightPx = useStacks((state) => state.desktopNavRightPx);
+  const detailsLeftPx = useStacks((state) => state.desktopDetailsLeftPx);
+  const line = useMemo(
+    () =>
+      desktopLensLine({
+        viewportWidth,
+        navRightPx,
+        detailsLeftPx,
+      }),
+    [detailsLeftPx, navRightPx, viewportWidth],
+  );
+
+  return (
+    <TiltShift2
+      key={`${line.start[0]}`}
+      start={line.start}
+      end={line.end}
+      blur={seated ? 0.018 : 0.105}
+      taper={seated ? 0.86 : 0.6}
+    />
+  );
+}
+
 export default function Effects({
   dark,
   quality = "full",
@@ -143,6 +169,7 @@ export default function Effects({
     [depthOfField, quality],
   );
   const activeUnit = useStacks((state) => state.activeUnit);
+  const seated = useStacks((state) => state.seated);
   const focusTarget = useMemo<[number, number, number]>(() => {
     const pose = unitPose(activeUnit);
     return [pose.position[0], pose.position[1], pose.position[2]];
@@ -182,7 +209,7 @@ export default function Effects({
           a fixed 6.05 focus distance put the focal plane in the foreground
           grass. The effect measures camera→target every frame, including the
           alternating unit depths and the About stop's lateral offset. */}
-      {quality === "full" && depthOfField && (
+      {quality === "full" && depthOfField && !seated && (
         <DepthOfField
           target={focusTarget}
           focusRange={2.2}
@@ -192,7 +219,7 @@ export default function Effects({
       )}
       {/* Vertical focus line with softness growing toward the screen edges.
           This is part of the approved look, so finish mode keeps it. */}
-      {tiltShift && <TiltShift2 blur={0.105} taper={0.6} />}
+      {tiltShift && <SideLens seated={seated} />}
       {/* Light theme eases both finishing touches: premultiplied noise
           scales with luminance (a near-white sky grains hard), and dark
           corners read as grime against it. */}

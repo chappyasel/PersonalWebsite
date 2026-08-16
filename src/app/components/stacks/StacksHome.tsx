@@ -195,8 +195,7 @@ export default function StacksHome({
       // reveal races the lawn and loses on cold loads. It only briefly
       // holds the door — a stalled asset can't hang the boot.
       if (
-        (getLoadProgress() >= REVEAL_PROGRESS ||
-          elapsed > STREAM_GRACE_MS) &&
+        (getLoadProgress() >= REVEAL_PROGRESS || elapsed > STREAM_GRACE_MS) &&
         (isMeadowReady() || elapsed > MEADOW_WAIT_MS)
       ) {
         setRevealed(true);
@@ -266,7 +265,10 @@ export default function StacksHome({
           <div aria-hidden className="stacks-world-curtain" />
         </div>
       )}
-      <BootScreen />
+      <BootScreen
+        readingBooks={data.readingBooks}
+        readingBookColors={data.readingBookColors}
+      />
       {(mode === "flat" || !flatGone) && <FlatHome slots={slots} />}
       {/* Books modal — mounted at the root, outside GrainientBackground's
           [contain:paint] and the world's transforms, so fixed positioning

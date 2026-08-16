@@ -402,6 +402,19 @@ html[data-world="warm"] .stacks-boot-entry {
 }
 
 .stacks-boot {
+  --stacks-boot-wood: var(--stacks-boot-wood-light);
+  --stacks-boot-wood-edge: var(--stacks-boot-wood-edge-light);
+  --stacks-boot-sky: var(--stacks-boot-sky-light);
+  --stacks-boot-haze: var(--stacks-boot-haze-light);
+  --stacks-boot-meadow: var(--stacks-boot-meadow-light);
+  --stacks-boot-glow: var(--stacks-boot-glow-light);
+  --stacks-boot-strap: var(--stacks-boot-strap-light);
+  --stacks-boot-frame: var(--stacks-boot-frame-light);
+  --stacks-boot-page: var(--stacks-boot-page-light);
+  --stacks-boot-metal: var(--stacks-boot-metal-light);
+  --stacks-boot-ink: var(--stacks-boot-ink-light);
+  --stacks-boot-leaf: var(--stacks-boot-leaf-light);
+  --stacks-boot-pot: var(--stacks-boot-pot-light);
   position: fixed;
   inset: 0;
   z-index: 20;
@@ -410,15 +423,46 @@ html[data-world="warm"] .stacks-boot-entry {
   -webkit-user-select: none;
   user-select: none;
   background: hsl(var(--background));
+  background: radial-gradient(
+      ellipse at 50% 72%,
+      color-mix(in srgb, var(--stacks-boot-glow) 18%, transparent),
+      transparent 46%
+    ),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--stacks-boot-sky) 46%, hsl(var(--background))) 0%,
+      color-mix(in srgb, var(--stacks-boot-haze) 26%, hsl(var(--background)))
+        43%,
+      color-mix(in srgb, var(--stacks-boot-meadow) 24%, hsl(var(--background)))
+        72%,
+      color-mix(in srgb, var(--stacks-boot-wood) 20%, hsl(var(--background)))
+        100%
+    );
   transition:
     opacity 360ms ease,
     visibility 0s linear 360ms;
 }
 
+.dark .stacks-boot {
+  --stacks-boot-wood: var(--stacks-boot-wood-dark);
+  --stacks-boot-wood-edge: var(--stacks-boot-wood-edge-dark);
+  --stacks-boot-sky: var(--stacks-boot-sky-dark);
+  --stacks-boot-haze: var(--stacks-boot-haze-dark);
+  --stacks-boot-meadow: var(--stacks-boot-meadow-dark);
+  --stacks-boot-glow: var(--stacks-boot-glow-dark);
+  --stacks-boot-strap: var(--stacks-boot-strap-dark);
+  --stacks-boot-frame: var(--stacks-boot-frame-dark);
+  --stacks-boot-page: var(--stacks-boot-page-dark);
+  --stacks-boot-metal: var(--stacks-boot-metal-dark);
+  --stacks-boot-ink: var(--stacks-boot-ink-dark);
+  --stacks-boot-leaf: var(--stacks-boot-leaf-dark);
+  --stacks-boot-pot: var(--stacks-boot-pot-dark);
+}
+
 .stacks-boot-threshold {
   position: relative;
   isolation: isolate;
-  width: clamp(230px, 29vw, 310px);
+  width: min(88vw, 560px);
   transition:
     opacity 360ms ease,
     transform 560ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -451,10 +495,10 @@ html[data-world="warm"] .stacks-boot-entry {
 }
 
 .stacks-boot-wordmark {
-  margin: 0 0 18px;
+  margin: 0 0 28px;
   color: hsl(var(--foreground) / 0.74);
   font-family: var(--font-serif), Georgia, serif;
-  font-size: clamp(19px, 1.8vw, 22px);
+  font-size: clamp(28px, 3.1vw, 44px);
   line-height: 1;
   letter-spacing: 0.095em;
   text-align: center;
@@ -465,89 +509,174 @@ html[data-world="ready"] .stacks-boot-threshold {
   transform: translateY(4px) scale(1.055);
 }
 
-.stacks-boot-bookcase {
-  position: relative;
-  width: 100%;
-  padding: 4px 17px 6px;
-}
-
-.stacks-boot-bookcase::before,
-.stacks-boot-bookcase::after {
-  content: "";
-  position: absolute;
-  inset-block: 0;
-  width: 4px;
-  border-radius: 2px;
-  background: hsl(28 22% 42% / 0.43);
-}
-
-.stacks-boot-bookcase::before {
-  left: 13px;
-}
-
-.stacks-boot-bookcase::after {
-  right: 13px;
-}
-
-.stacks-boot-shelf {
-  position: relative;
-  height: 46px;
-}
-
-.stacks-boot-books {
-  position: absolute;
-  inset: auto 7px 5px;
-  display: flex;
-  height: 39px;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 4px;
-}
-
-.stacks-boot-book {
+.stacks-boot-scene {
   display: block;
-  flex: 0 0 auto;
-  border-radius: 1px 1px 0 0;
-  background: hsl(var(--muted-foreground) / 0.54);
+  width: 100%;
+  overflow: visible;
+}
+
+.stacks-boot-supports {
+  fill: var(--stacks-boot-strap);
+  opacity: 0.78;
+}
+
+.stacks-boot-planks {
+  fill: var(--stacks-boot-wood);
+  stroke: var(--stacks-boot-wood-edge);
+  stroke-width: 1;
+}
+
+.stacks-boot-ground {
+  stroke: var(--stacks-boot-strap);
+  stroke-width: 0.8;
+  opacity: 0.24;
+}
+
+.stacks-boot-model-silhouette {
+  fill: var(--stacks-boot-metal);
+  opacity: 0.9;
+}
+
+.stacks-boot-model-silhouette[data-model-silhouette="cactus"],
+.stacks-boot-model-silhouette[data-model-silhouette="succulent"],
+.stacks-boot-model-silhouette[data-model-silhouette="large-plant"] {
+  fill: var(--stacks-boot-leaf);
+}
+
+.stacks-boot-model-silhouette[data-model-silhouette="ai-collective"] {
+  fill: #ff7a2d;
+}
+
+.stacks-boot-mark-base {
+  fill: color-mix(in srgb, var(--stacks-boot-metal) 72%, black);
+}
+
+.stacks-boot-tj-ring {
+  fill: #2b59a2;
+  stroke: color-mix(in srgb, #2b59a2 70%, var(--stacks-boot-metal));
+  stroke-width: 0.7;
+}
+
+.stacks-boot-tj-face {
+  fill: var(--stacks-boot-page);
+}
+
+.stacks-boot-tj-detail {
+  fill: none;
+  stroke: var(--stacks-boot-metal);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.05;
+}
+
+.stacks-boot-item-motion {
   opacity: 0;
-  transform: translateY(7px) rotate(0.7deg);
-  animation: stacks-boot-book-cadence 6.3s cubic-bezier(0.22, 0.9, 0.3, 1)
-    infinite;
-  animation-delay: var(--book-delay);
+  transform: translate3d(0, 7px, 0);
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  will-change: opacity, transform;
+  animation: stacks-boot-item-settle 420ms cubic-bezier(0.16, 1, 0.3, 1)
+    var(--stacks-boot-item-delay) both;
 }
 
-.stacks-boot-book[data-tone="1"] {
-  background: hsl(24 24% 46% / 0.64);
-}
-.stacks-boot-book[data-tone="2"] {
-  background: hsl(96 12% 40% / 0.64);
-}
-.stacks-boot-book[data-tone="3"] {
-  background: hsl(9 34% 46% / 0.62);
+/* Before React hydrates, CSS owns a one-pass entrance. Once mounted, the Web
+   Animations API replaces it with a synchronized compositor loop; loading
+   events may adjust playback rate, but JavaScript never paints a frame. */
+.stacks-boot-scene[data-boot-motion="compositor"] .stacks-boot-item-motion {
+  animation: none;
 }
 
-.stacks-boot-plank {
-  position: absolute;
-  inset: auto 0 0;
-  height: 5px;
-  border-radius: 2px;
-  overflow: hidden;
-  background: hsl(28 22% 42% / 0.56);
-  box-shadow: 0 1px 0 hsl(var(--background) / 0.32);
+.stacks-boot-frame {
+  fill: var(--stacks-boot-frame);
 }
 
-.stacks-boot-plank::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    hsl(38 46% 72% / 0.45),
-    transparent
-  );
-  opacity: 0.42;
+.stacks-boot-frame-empty {
+  fill: var(--stacks-boot-page);
+  stroke: var(--stacks-boot-ink);
+  stroke-width: 0.7;
+  opacity: 0.84;
+}
+
+.stacks-boot-globe {
+  fill: color-mix(in srgb, var(--stacks-boot-metal) 28%, transparent);
+  stroke: var(--stacks-boot-metal);
+  stroke-width: 2;
+}
+
+.stacks-boot-detail,
+.stacks-boot-metal,
+.stacks-boot-collective,
+.stacks-boot-apple {
+  fill: none;
+  stroke: var(--stacks-boot-metal);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.stacks-boot-detail {
+  stroke: var(--stacks-boot-ink);
+  stroke-width: 1.2;
+  opacity: 0.72;
+}
+
+.stacks-boot-metal-fill,
+.stacks-boot-medallion,
+.stacks-boot-medallion-base,
+.stacks-boot-lamp-shade {
+  fill: var(--stacks-boot-metal);
+}
+
+.stacks-boot-medallion {
+  stroke: var(--stacks-boot-page);
+  stroke-width: 1.2;
+}
+
+.stacks-boot-collective {
+  fill: #ff7a2d;
+  stroke: none;
+}
+
+.stacks-boot-apple {
+  fill: color-mix(in srgb, var(--stacks-boot-metal) 72%, transparent);
+  stroke-width: 1.6;
+}
+
+.stacks-boot-leaf {
+  fill: color-mix(in srgb, var(--stacks-boot-leaf) 78%, transparent);
+  stroke: var(--stacks-boot-leaf);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+
+.stacks-boot-pot {
+  fill: var(--stacks-boot-pot);
+  opacity: 0.9;
+}
+
+.stacks-boot-reading-book {
+  --stacks-boot-book: var(--stacks-boot-book-light);
+  --stacks-boot-book-page: var(--stacks-boot-book-page-light);
+  fill: var(--stacks-boot-book);
+  stroke: var(--stacks-boot-book-page);
+  stroke-width: 1.2;
+}
+
+.stacks-boot-book-edge {
+  fill: color-mix(in srgb, var(--stacks-boot-book) 72%, black);
+  stroke: none;
+}
+
+.stacks-boot-book-page-line {
+  fill: none;
+  stroke: var(--stacks-boot-book-page);
+  stroke-width: 1.2;
+  opacity: 0.86;
+}
+
+.dark .stacks-boot-reading-book {
+  --stacks-boot-book: var(--stacks-boot-book-dark);
+  --stacks-boot-book-page: var(--stacks-boot-book-page-dark);
 }
 
 @keyframes stacks-boot-enter {
@@ -561,21 +690,14 @@ html[data-world="ready"] .stacks-boot-threshold {
   }
 }
 
-@keyframes stacks-boot-book-cadence {
-  0%,
-  4% {
+@keyframes stacks-boot-item-settle {
+  from {
     opacity: 0;
-    transform: translateY(7px) rotate(0.7deg);
+    transform: translate3d(0, 7px, 0);
   }
-  9%,
-  78% {
+  to {
     opacity: 1;
-    transform: none;
-  }
-  92%,
-  100% {
-    opacity: 0;
-    transform: translateY(2px);
+    transform: translate3d(0, 0, 0);
   }
 }
 
@@ -640,8 +762,8 @@ html[data-world="ready"] .stacks-boot-threshold {
 }
 
 /* Retire the entrance compositor after it has revealed the live room. The
-   shell stays mounted for hydration stability, but it must not keep 21 book
-   animations and two viewport-sized promoted layers alive behind WebGL. */
+   shell stays mounted for hydration stability, but it must not keep the SVG
+   item animations and two viewport-sized promoted layers alive behind WebGL. */
 .stacks-world-shell[data-revealed] .stacks-world-curtain::before,
 .stacks-world-shell[data-revealed] .stacks-world-curtain::after {
   visibility: hidden;
@@ -659,10 +781,6 @@ html[data-world="ready"] .stacks-boot-threshold {
   transition-delay: 0s, 360ms;
 }
 
-.stacks-world-shell[data-revealed] .stacks-boot-book {
-  animation-play-state: paused;
-}
-
 @media (prefers-reduced-motion: reduce) {
   [data-stacks-desktop-dock],
   [aria-controls="stacks-desktop-details"] {
@@ -671,7 +789,7 @@ html[data-world="ready"] .stacks-boot-threshold {
   .stacks-boot,
   .stacks-boot-threshold,
   .stacks-boot-entry,
-  .stacks-boot-book,
+  .stacks-boot-item-motion,
   .stacks-world-curtain {
     animation: none;
     transition: none;
@@ -682,8 +800,9 @@ html[data-world="ready"] .stacks-boot-threshold {
     transition: none;
   }
 
-  .stacks-boot-book {
+  .stacks-boot-item-motion {
     opacity: 1;
     transform: none;
+    will-change: auto;
   }
 }

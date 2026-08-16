@@ -49,9 +49,10 @@ the 3D scene. On desktop it stands beside the world; on mobile it is summoned
 (see Peek Chip), never resident.
 
 **Peek Chip** — mobile's collapsed placard: one line naming the active unit,
-pinned at the bottom of the clean world. Tapping the chip or the unit expands
-it into the full placard; while a placard is expanded the traverse is paused,
-and the world leans slightly toward the unit being read.
+pinned at the bottom of the clean world. Tapping the chip or the sheet's own
+controls expands it into the full placard; tapping the 3D scene remains
+available for scene interactions. While a placard is expanded the traverse is
+paused, and the world leans slightly toward the unit being read.
 
 **World mode** — the full 3D experience (canvas + placards + chrome).
 

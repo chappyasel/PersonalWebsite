@@ -191,6 +191,7 @@ function FloorClock({ unitIndex, dark }: { unitIndex: number; dark: boolean }) {
         hoverKey="egg:clock:floor"
         facePosition={[0, 1.15 * CLOCK_S, 0.0736 * CLOCK_S]}
         faceRadius={0.071 * CLOCK_S}
+        faceStyle="grandfather"
       >
         <EggTrigger
           unitIndex={unitIndex}

@@ -1,5 +1,4 @@
 import {
-  FacebookLogoIcon,
   GithubLogoIcon,
   InstagramLogoIcon,
   LinkedinLogoIcon,
@@ -23,12 +22,6 @@ const CONTACTS: Contact[] = [
     icon: <XLogoIcon size={28} weight="duotone" />,
   },
   {
-    title: "Medium",
-    username: "@chappyasel",
-    link: "https://medium.com/@chappyasel",
-    icon: <RssSimpleIcon size={28} weight="duotone" />,
-  },
-  {
     title: "Instagram",
     username: "@chappyasel",
     link: "https://www.instagram.com/chappyasel/",
@@ -41,10 +34,10 @@ const CONTACTS: Contact[] = [
     icon: <GithubLogoIcon size={28} weight="duotone" />,
   },
   {
-    title: "Facebook",
-    username: "chappy.asel",
-    link: "https://www.facebook.com/chappy.asel",
-    icon: <FacebookLogoIcon size={28} weight="duotone" />,
+    title: "Medium",
+    username: "@chappyasel",
+    link: "https://medium.com/@chappyasel",
+    icon: <RssSimpleIcon size={28} weight="duotone" />,
   },
 ];
 
