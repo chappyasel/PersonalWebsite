@@ -39,6 +39,10 @@ export type PanelState = "closed" | "opening" | "open" | "closing";
 type StacksState = {
   mode: StacksMode;
   activeUnit: number;
+  /** True only while the camera occupies the hidden Golf stop between Books
+   * and Weightlifting. It is separate from activeUnit because the Golf stop
+   * is fractional and must not replace either public section. */
+  golfFocused: boolean;
   scrollEl: HTMLDivElement | null;
   modalOpen: boolean;
   panelState: PanelState;
@@ -78,6 +82,7 @@ type StacksState = {
   travelTo: ((unit: number) => void) | null;
   setMode: (mode: StacksMode) => void;
   setActiveUnit: (activeUnit: number) => void;
+  setGolfFocused: (golfFocused: boolean) => void;
   setScrollEl: (scrollEl: HTMLDivElement | null) => void;
   setModalOpen: (modalOpen: boolean) => void;
   setPanelState: (panelState: PanelState) => void;
@@ -93,6 +98,7 @@ type StacksState = {
 export const useStacks = create<StacksState>((set) => ({
   mode: "flat",
   activeUnit: 0,
+  golfFocused: false,
   scrollEl: null,
   modalOpen: false,
   panelState: "closed",
@@ -109,6 +115,7 @@ export const useStacks = create<StacksState>((set) => ({
   travelTo: null,
   setMode: (mode) => set({ mode }),
   setActiveUnit: (activeUnit) => set({ activeUnit }),
+  setGolfFocused: (golfFocused) => set({ golfFocused }),
   setScrollEl: (scrollEl) => set({ scrollEl }),
   setModalOpen: (modalOpen) => set({ modalOpen }),
   setPanelState: (panelState) => set({ panelState }),

@@ -30,10 +30,12 @@ export type UnitSlug =
   | "systems";
 
 export type Unit = {
-  /** Internal key and URL hash. Deliberately NOT renamed to match `label` —
-   * it is also the key of Scene's UNIT_COMPONENTS map and of the flat page's
-   * slot record, and the hash is a URL people can already be holding. */
+  /** Stable internal key used by Scene's component map and flat-page slots. */
   slug: UnitSlug;
+  /** Public URL hash when the internal key is implementation-oriented. Old
+   * internal-key hashes remain accepted as aliases. */
+  urlSlug?: string;
+  urlAliases?: string[];
   /** The section's canonical name, used by its panel, sheet, and announcements.
    * These names come from the sections' own markup rather
    * than off either old field — BookNotes/Talks/Projects/BlogPosts h1s, and
@@ -54,10 +56,20 @@ export type Unit = {
 export const UNITS: Unit[] = [
   { slug: "about", label: "About", icon: UserIcon },
   { slug: "books", label: "Book Notes", icon: BooksIcon },
-  { slug: "training", label: "Weightlifting", icon: BarbellIcon },
+  {
+    slug: "training",
+    urlSlug: "weightlifting",
+    label: "Weightlifting",
+    icon: BarbellIcon,
+  },
   { slug: "systems", label: "Systems", icon: CompassIcon },
   { slug: "projects", label: "Projects", icon: CodeIcon },
-  { slug: "blog", label: "Musings", icon: PenNibIcon },
+  {
+    slug: "blog",
+    urlSlug: "musings",
+    label: "Musings",
+    icon: PenNibIcon,
+  },
   {
     slug: "talks",
     label: "Featured Talks",
@@ -67,11 +79,91 @@ export const UNITS: Unit[] = [
 ];
 
 export const UNIT_COUNT = UNITS.length;
+export const GOLF_PATHNAME = "/golf";
+export const GOLF_UNIT_INDEX = UNITS.findIndex(
+  (unit) => unit.slug === "training",
+);
+/** A narrow, rail-less camera stop between Books and Weightlifting. It sits
+ * slightly toward Weightlifting so the green, rather than the club shaft,
+ * owns the centre of the frame. */
+export const GOLF_STOP_POSITION = 1.6;
+/** Golf enters after Books has clearly released and remains available until
+ * just before Weightlifting reaches its authored centre. */
+export const GOLF_FOCUS_START = 1.4;
+export const GOLF_FOCUS_END = 1.8;
 
 export function unitIndexFromHash(hash: string): number | null {
   const slug = hash.replace(/^#/, "");
-  const index = UNITS.findIndex((unit) => unit.slug === slug);
+  const index = UNITS.findIndex(
+    (unit) =>
+      unit.slug === slug ||
+      unit.urlSlug === slug ||
+      unit.urlAliases?.includes(slug),
+  );
   return index === -1 ? null : index;
+}
+
+export function scenePositionFromHash(hash: string): number | null {
+  if (hash.replace(/^#/, "") === "golf") return GOLF_STOP_POSITION;
+  return unitIndexFromHash(hash);
+}
+
+function normalizedPathname(pathname: string) {
+  return pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+}
+
+export function defaultScenePositionForPathname(pathname: string) {
+  return normalizedPathname(pathname) === GOLF_PATHNAME
+    ? GOLF_STOP_POSITION
+    : 0;
+}
+
+/** Explicit section hashes win; otherwise a hidden route may choose a
+ * different initial room stop than the canonical homepage. */
+export function initialScenePositionFromLocation(
+  pathname: string,
+  hash: string,
+) {
+  return (
+    scenePositionFromHash(hash) ?? defaultScenePositionForPathname(pathname)
+  );
+}
+
+export function golfFocusedForScenePosition(position: number) {
+  return position >= GOLF_FOCUS_START && position <= GOLF_FOCUS_END;
+}
+
+/** Mirrors travel without erasing a pathname's special default. On /golf,
+ * the hidden Golf stop is the clean URL, so every public unit keeps a hash. */
+export function unitUrlForLocation(
+  pathname: string,
+  search: string,
+  unitIndex: number,
+) {
+  const base = `${pathname}${search}`;
+  const unit = UNITS[unitIndex];
+  const slug = unit?.urlSlug ?? unit?.slug;
+  const pathnameDefault = defaultScenePositionForPathname(pathname);
+  if (
+    !slug ||
+    (Number.isInteger(pathnameDefault) && unitIndex === pathnameDefault)
+  )
+    return base;
+  return `${base}#${slug}`;
+}
+
+export function sceneUrlForLocation(
+  pathname: string,
+  search: string,
+  unitIndex: number,
+  golfFocused: boolean,
+) {
+  const base = `${pathname}${search}`;
+  if (golfFocused)
+    return normalizedPathname(pathname) === GOLF_PATHNAME
+      ? base
+      : `${base}#golf`;
+  return unitUrlForLocation(pathname, search, unitIndex);
 }
 
 export type StacksTalk = {

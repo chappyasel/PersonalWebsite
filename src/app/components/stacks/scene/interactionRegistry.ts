@@ -155,11 +155,21 @@ export function doorDisplayLabel(door: DoorSpec) {
   return door.external ? `${base} ↗` : base;
 }
 
+/** Labels are navigation affordances only. Scene actions can still expose an
+ * accessible name through their own control, but can never enter DoorLabel. */
+export function doorLabelActivation(
+  spec: SceneInteractionSpec | null,
+): DoorSpec | null {
+  return spec?.activation?.kind === "door" ? spec.activation : null;
+}
+
 export function cursorForInteraction(
   id: string | null,
   dragging: string | null,
 ): "" | "grab" | "grabbing" | "pointer" {
   if (dragging) return "grabbing";
+  if (id?.startsWith("golf-club:") || id?.startsWith("golf-ball:"))
+    return "pointer";
   const spec = getSceneInteraction(id);
   if (!spec) return "";
   if (spec.movable) return "grab";

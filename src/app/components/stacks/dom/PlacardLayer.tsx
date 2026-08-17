@@ -8,7 +8,12 @@
 // nothing on it). Desktop panels mount on first visit and then stay resident,
 // so scroll/media state survives a return without front-loading unopened
 // sections; mobile renders the current section in one physical sheet.
-import { type StacksData, type StacksSlots, UNITS } from "../data";
+import {
+  type StacksData,
+  type StacksSlots,
+  UNITS,
+  unitUrlForLocation,
+} from "../data";
 import { PHOTO_SOURCES } from "../photoSources";
 import {
   STACKS_DESKTOP_QUERY,
@@ -1349,11 +1354,14 @@ function MobileUnitPanel({
     )
       return false;
     const pushHistory = () => {
-      const slug = UNITS[target]!.slug;
       window.history.pushState(
         null,
         "",
-        target === 0 ? window.location.pathname : `#${slug}`,
+        unitUrlForLocation(
+          window.location.pathname,
+          window.location.search,
+          target,
+        ),
       );
     };
     if (state.panelState === "open" || state.panelState === "opening") {
@@ -2060,6 +2068,7 @@ export default function PlacardLayer({
   slots: StacksSlots;
 }) {
   const activeUnit = useStacks((s) => s.activeUnit);
+  const golfFocused = useStacks((s) => s.golfFocused);
   const preparedUnits = usePreparedUnitSet(activeUnit);
   const modalOpen = useStacks((s) => s.modalOpen);
   const reduceMotion = useStacksReducedMotion();
@@ -2092,7 +2101,7 @@ export default function PlacardLayer({
   useLayoutEffect(() => {
     const dock = desktopDockRef.current;
     const publish = useStacks.getState().setDesktopDetailsLeftPx;
-    if (!dock || detailsHidden || modalOpen) {
+    if (!dock || detailsHidden || modalOpen || golfFocused) {
       publish(null);
       return;
     }
@@ -2123,7 +2132,7 @@ export default function PlacardLayer({
       window.removeEventListener("resize", measure);
       publish(null);
     };
-  }, [activeUnit, detailsHidden, modalOpen]);
+  }, [activeUnit, detailsHidden, golfFocused, modalOpen]);
   // Resident cards own content, measurement and scroll position. Their
   // three-position sheet pose remains one global preference, so dismissing
   // Book Notes and travelling to Weightlifting yields a Weightlifting chip,
@@ -2230,7 +2239,7 @@ export default function PlacardLayer({
   return (
     <div className="font-serif text-muted-foreground">
       <p className="sr-only" aria-live="polite" aria-atomic="true">
-        {UNITS[activeUnit]?.label} section
+        {golfFocused ? "Golf" : UNITS[activeUnit]?.label} section
       </p>
       <style>{`
         /* No scrollbar gutter: with the panel gone the track would draw a
@@ -2741,10 +2750,10 @@ export default function PlacardLayer({
         id="stacks-desktop-details"
         data-stacks-desktop-dock
         data-hidden={detailsHidden ? "true" : "false"}
-        aria-hidden={detailsHidden || modalOpen}
-        inert={detailsHidden || modalOpen}
+        aria-hidden={detailsHidden || modalOpen || golfFocused}
+        inert={detailsHidden || modalOpen || golfFocused}
         className={`absolute bottom-0 top-0 z-20 hidden transition-[opacity,transform] duration-200 min-[1200px]:block ${
-          modalOpen || detailsHidden
+          modalOpen || detailsHidden || golfFocused
             ? "pointer-events-none translate-x-[calc(100%+2rem)] opacity-0"
             : ""
         }`}
@@ -2763,7 +2772,7 @@ export default function PlacardLayer({
         <DesktopPanel
           activeUnit={activeUnit}
           modalOpen={modalOpen}
-          detailsHidden={detailsHidden}
+          detailsHidden={detailsHidden || golfFocused}
           bodies={bodies}
           preparedUnits={preparedUnits}
         />
@@ -2772,7 +2781,9 @@ export default function PlacardLayer({
           Backdrop filters sample only within their nearest compositing root;
           nesting it under the scaling button left the text behind it sharp. */}
       <div
-        className="group absolute right-1.5 z-30 hidden size-11 min-[1200px]:block"
+        className={`group absolute right-1.5 z-30 hidden size-11 min-[1200px]:block ${
+          golfFocused ? "pointer-events-none opacity-0" : ""
+        }`}
         style={{ top: "calc(50% - 1.375rem)" }}
       >
         <span
@@ -2838,7 +2849,7 @@ export default function PlacardLayer({
               : null
           }
           unitIndex={index}
-          active={index === activeUnit}
+          active={!golfFocused && index === activeUnit}
           dismissed={mobileDismissed}
           setDismissed={setMobileDismissed}
         />

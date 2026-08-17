@@ -14,6 +14,7 @@
 // prep, GLSL, and the per-frame uniform writes — nothing else runs per
 // frame. Near lawn, far lawn, and flowers are spatially tiled over shared
 // geometry/materials so Three can reject offscreen vegetation by frustum.
+import { sceneAudio } from "../audio/sceneAudio";
 import { markMeadowReady } from "../loading";
 import { progressRef } from "../store";
 import { PALETTES } from "../theme";
@@ -22,6 +23,18 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import {
+  GOLF_COURSE_CENTER,
+  GOLF_GREEN,
+  golfSurfaceAt,
+  suppressGolfVegetation,
+} from "./golf/golfCourse";
+import {
+  GOLF_DARK_GREEN_FINAL_CEILING,
+  GOLF_GREEN_COLORS,
+  GOLF_GREEN_FOG_SCALE,
+  golfRgbGlsl,
+} from "./golf/golfPresentation";
 import { claimEffectLayer, effectLayerAges } from "./layeredEffects";
 import {
   MEADOW_BANK,
@@ -42,6 +55,7 @@ import {
   MEADOW_WIND,
   meadowDragSample,
   meadowPulseState,
+  meadowWindAudioLevel,
 } from "./meadowMotion";
 import { getSeatAmount } from "./seated";
 
@@ -450,6 +464,33 @@ const TERRAIN_FRAGMENT = /* glsl */ `
     vec3 base = mix(uBaseL, uBaseD, uDark);
     vec3 tip = mix(mix(uTipAL, uTipBL, patchN), mix(uTipAD, uTipBD, patchN), uDark);
     vec3 col = mix(base, tip * 0.82, 0.18 + 0.55 * mott);
+    // The putting surface is painted into the shared meadow material. An
+    // analytic ellipse keeps the crosshatch bounded and avoids another mesh
+    // or texture fetch; the feathered fringe agrees with golfCourse.ts.
+    vec2 golfCenter = vec2(${GOLF_COURSE_CENTER.x.toFixed(4)}, ${GOLF_COURSE_CENTER.z.toFixed(4)});
+    float golfYaw = ${GOLF_COURSE_CENTER.yaw.toFixed(4)};
+    vec2 gd = vWorld.xz - golfCenter;
+    vec2 glocal = vec2(
+      gd.x * cos(golfYaw) - gd.y * sin(golfYaw),
+      gd.x * sin(golfYaw) + gd.y * cos(golfYaw)
+    );
+    float greenD = length(glocal / vec2(${(GOLF_GREEN.width / 2).toFixed(2)}, ${(GOLF_GREEN.depth / 2).toFixed(2)}));
+    float fringeD = length(glocal / vec2(${(GOLF_GREEN.width / 2 + GOLF_GREEN.fringe).toFixed(2)}, ${(GOLF_GREEN.depth / 2 + GOLF_GREEN.fringe).toFixed(2)}));
+    float fringeMask = (1.0 - smoothstep(0.98, 1.02, fringeD))
+      * smoothstep(0.96, 1.01, greenD);
+    float greenMask = 1.0 - smoothstep(0.97, 1.02, greenD);
+    // Broad diagonal mowing passes hold up through the scene fog better than
+    // the former hairline pattern. Crossing two passes gives the green its
+    // soft diamond checker without introducing a texture or shimmer.
+    float hatchA = smoothstep(0.42, 0.58, 0.5 + 0.5 * sin((glocal.x + glocal.y) * 8.4));
+    float hatchB = smoothstep(0.42, 0.58, 0.5 + 0.5 * sin((glocal.x - glocal.y) * 8.4));
+    float hatch = (hatchA + hatchB) * 0.5;
+    vec3 greenLow = mix(${golfRgbGlsl(GOLF_GREEN_COLORS.lightLow)}, ${golfRgbGlsl(GOLF_GREEN_COLORS.darkLow)}, uDark);
+    vec3 greenHigh = mix(${golfRgbGlsl(GOLF_GREEN_COLORS.lightHigh)}, ${golfRgbGlsl(GOLF_GREEN_COLORS.darkHigh)}, uDark);
+    vec3 greenCol = mix(greenLow, greenHigh, 0.30 + hatch * 0.40);
+    vec3 fringeCol = mix(${golfRgbGlsl(GOLF_GREEN_COLORS.lightFringe)}, ${golfRgbGlsl(GOLF_GREEN_COLORS.darkFringe)}, uDark);
+    col = mix(col, fringeCol, fringeMask);
+    col = mix(col, greenCol, greenMask);
     // Low-frequency earthiness: warm mineral soil, cool moss, and dry grass
     // emerge as value/roughness-like modulation of the existing carpet. No
     // photo texture or extra detail octave enters the scene.
@@ -471,7 +512,18 @@ const TERRAIN_FRAGMENT = /* glsl */ `
     // The carpet sits under the tuft pile, so its pool reads dimmer than
     // the lit tips above it.
     col += ${LAMP_WARM} * vLamp * mix(0.07, 0.22, uDark);
-    col = mix(col, vFogColor, vFog);
+    float greenFogScale = mix(${GOLF_GREEN_FOG_SCALE.light.toFixed(2)}, ${GOLF_GREEN_FOG_SCALE.dark.toFixed(2)}, uDark);
+    float localFog = mix(vFog, vFog * greenFogScale, greenMask);
+    col = mix(col, vFogColor, localFog);
+    // Theme-space values are linear and therefore display much brighter after
+    // colorspace conversion. Cap only the dark green after every lighting/fog
+    // contribution so it cannot flare neon while the rest of the meadow stays
+    // moonlit; the low/high mowing contrast remains below this ceiling.
+    col = mix(
+      col,
+      min(col, ${golfRgbGlsl(GOLF_DARK_GREEN_FINAL_CEILING)}),
+      greenMask * uDark
+    );
     gl_FragColor = vec4(col, 1.0);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
@@ -915,7 +967,16 @@ export default function Meadow({
         position.set(stream.x[i]!, stream.y[i]!, stream.z[i]);
         euler.set(0, stream.yaw[i]!, 0);
         quaternion.setFromEuler(euler);
-        scale.set(stream.width[i]!, stream.height[i]!, stream.width[i]);
+        const golf = suppressGolfVegetation(
+          stream.x[i]!,
+          stream.z[i]!,
+          (Math.sin(i * 91.733) + 1) / 2,
+        );
+        scale.set(
+          stream.width[i]! * golf.grassScale,
+          stream.height[i]! * golf.grassScale,
+          stream.width[i]! * golf.grassScale,
+        );
         matrix.compose(position, quaternion, scale);
         mesh.setMatrixAt(local, matrix);
       }
@@ -935,7 +996,11 @@ export default function Meadow({
       for (let local = 0; local < tile.indices.length; local++) {
         const i = tile.indices[local]!;
         position.set(flowers.x[i]!, flowers.y[i]!, flowers.z[i]);
-        scale.setScalar(flowers.scale[i]!);
+        scale.setScalar(
+          golfSurfaceAt(flowers.x[i]!, flowers.z[i]!) === "rough"
+            ? flowers.scale[i]!
+            : 0,
+        );
         matrix.compose(position, quaternion, scale);
         mesh.setMatrixAt(local, matrix);
       }
@@ -1157,6 +1222,7 @@ export default function Meadow({
       shared.uWindAmp.value =
         MEADOW_WIND.amplitude * (1 + MEADOW_WIND.bootBoost * g);
     }
+    sceneAudio.setWindLevel(meadowWindAudioLevel(shared.uWindAmp.value));
     // Pixels per world unit at depth 1 — one multiply per frame buys
     // resize/dpr safety with no listener.
     built.flowerOnly.uPixelScale.value =

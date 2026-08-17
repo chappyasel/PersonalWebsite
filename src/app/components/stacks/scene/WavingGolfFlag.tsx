@@ -5,6 +5,9 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { GOLF_CUP } from "./golf/golfCourse";
+import { GOLF_FOG_POLICY } from "./golf/golfPresentation";
+
 const FLAG_URL = "/models/golf-flag.glb";
 const FLAG_LOGO_URL = "/images/stacks/reginald-solo-logo.webp";
 
@@ -42,12 +45,10 @@ export default function WavingGolfFlag({
       materials.current.push(material);
       node.material = material;
       // The source asset is authored as one blue material and distant meadow
-      // fog collapses that and the pole to the same horizon tint. Keep the
-      // target readable: a warm neutral pole and a high-contrast three-panel
-      // golf flag, both exempt from the final fog wash at this small scale.
-      // At night the flag needs to inherit the same depth cue as the hills.
-      // Keeping it exempt from fog made the white logo read like a light.
-      material.fog = dark;
+      // fog collapses that and the pole to the same horizon tint. Rebuild the
+      // cloth color below from the logo luminance so its purple field, white
+      // bird and orange crown remain separate after the night fog pass.
+      material.fog = GOLF_FOG_POLICY.flag(dark);
       material.metalness = 0.04;
       material.roughness = 0.72;
       if (!node.name.includes("Flag_of_Portugal")) {
@@ -86,9 +87,10 @@ export default function WavingGolfFlag({
           "#include <map_fragment>",
           `#ifdef USE_MAP
                vec4 logoSample = texture2D(map, vMapUv);
-               vec3 royalPurple = vec3(0.435, 0.176, 0.659);
-               diffuseColor.rgb = mix(royalPurple, logoSample.rgb, logoSample.a);
-               diffuseColor.rgb *= ${dark ? "0.64" : "0.92"};
+               vec3 royalPurple = vec3(${dark ? "0.23, 0.12, 0.32" : "0.435, 0.176, 0.659"});
+               float logoInk = smoothstep(0.06, 0.22, max(logoSample.r, max(logoSample.g, logoSample.b)));
+               diffuseColor.rgb = mix(royalPurple, logoSample.rgb, logoInk);
+               diffuseColor.rgb *= ${dark ? "0.72" : "0.92"};
                diffuseColor.a = 1.0;
              #endif`,
         );
@@ -114,15 +116,41 @@ export default function WavingGolfFlag({
   });
 
   return (
-    <group position={position} rotation={rotation} scale={scale}>
-      <primitive object={scene} />
-      <mesh castShadow position={[-0.719, 1.991, 0.065]}>
-        <cylinderGeometry args={[0.026, 0.026, 3.982, 10]} />
+    <group position={position}>
+      {/* Public position is the actual pole axis and cup centre. The source
+          GLB's pole lived at (-.719, 0, .065); counter-offsetting the visual
+          subtree removes that asset-origin leak from every caller. */}
+      <group
+        position={[0.719 * scale, 0, -0.065 * scale]}
+        rotation={rotation}
+        scale={scale}
+      >
+        <primitive object={scene} />
+        <mesh castShadow position={[-0.719, 1.991, 0.065]}>
+          <cylinderGeometry args={[0.026, 0.026, 3.982, 10]} />
+          <meshStandardMaterial
+            color={dark ? "#58636a" : "#e8e1d2"}
+            fog={GOLF_FOG_POLICY.flag(dark)}
+            metalness={0.04}
+            roughness={0.72}
+          />
+        </mesh>
+      </group>
+      <mesh position={[0, -GOLF_CUP.depth / 2, 0]}>
+        <cylinderGeometry
+          args={[GOLF_CUP.radius, GOLF_CUP.radius * 0.92, GOLF_CUP.depth, 32]}
+        />
         <meshStandardMaterial
-          color={dark ? "#70665c" : "#e8e1d2"}
-          fog={dark}
-          metalness={0.04}
-          roughness={0.72}
+          color={dark ? "#07090a" : "#161914"}
+          roughness={1}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+      <mesh position={[0, 0.001, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[GOLF_CUP.radius * 0.9, GOLF_CUP.radius, 32]} />
+        <meshStandardMaterial
+          color={dark ? "#334329" : "#48623a"}
+          roughness={0.94}
         />
       </mesh>
     </group>

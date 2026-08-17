@@ -1,6 +1,10 @@
 "use client";
 
-import { getSceneInteraction, projectDoor } from "../scene/interactionRegistry";
+import {
+  doorLabelActivation,
+  getSceneInteraction,
+  projectDoor,
+} from "../scene/interactionRegistry";
 import { progressRef, useStacks } from "../store";
 import { ArrowUpRightIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -78,10 +82,7 @@ export default function DoorLabel() {
 
   useEffect(() => {
     const spec = getSceneInteraction(hovered);
-    const activation =
-      spec?.activation?.kind === "door" || spec?.activation?.kind === "action"
-        ? spec.activation
-        : null;
+    const activation = doorLabelActivation(spec);
     const eligible =
       isFinePointer() &&
       activation &&
@@ -121,7 +122,7 @@ export default function DoorLabel() {
       const next = {
         id: spec.id,
         label: activation.label.replace(/\s*↗\s*$/, ""),
-        external: activation.kind === "door" && activation.external,
+        external: activation.external,
       };
       positionedId.current = null;
       setLabelVisible(false);

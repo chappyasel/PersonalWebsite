@@ -5,6 +5,7 @@ import {
   MASS_HANDLING,
   cursorForInteraction,
   destinationFor,
+  doorLabelActivation,
   doorDisplayLabel,
   getSceneInteraction,
   massClassFor,
@@ -61,7 +62,15 @@ describe("scene interaction registry", () => {
     });
     expect(getSceneInteraction("test:action")?.activation?.kind).toBe("action");
     expect(cursorForInteraction("test:action", null)).toBe("pointer");
+    expect(doorLabelActivation(getSceneInteraction("test:action"))).toBeNull();
     release();
+  });
+
+  it("gives golf controls a cursor without registering a label capability", () => {
+    expect(cursorForInteraction("golf-club:strike", null)).toBe("pointer");
+    expect(cursorForInteraction("golf-ball:one", null)).toBe("pointer");
+    expect(getSceneInteraction("golf-club:strike")).toBeNull();
+    expect(getSceneInteraction("golf-ball:one")).toBeNull();
   });
 
   it("merges capabilities registered by nested scene components", () => {

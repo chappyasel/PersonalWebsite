@@ -6,6 +6,7 @@ import {
   limitMeadowWind,
   meadowDragSample,
   meadowPulseState,
+  meadowWindAudioLevel,
 } from "./meadowMotion";
 
 describe("meadow pointer motion", () => {
@@ -17,9 +18,17 @@ describe("meadow pointer motion", () => {
     expect(limitMeadowWind(10)).toBeLessThanOrEqual(MEADOW_WIND.gustCeiling);
     const revealPeak =
       MEADOW_WIND.amplitude * (1 + MEADOW_WIND.bootBoost) * 1.45;
-    expect(limitMeadowWind(revealPeak)).toBeLessThan(
-      MEADOW_WIND.gustCeiling,
+    expect(limitMeadowWind(revealPeak)).toBeLessThan(MEADOW_WIND.gustCeiling);
+  });
+
+  it("exposes the same normalized amplitude to the ambient audio bed", () => {
+    const baseline = meadowWindAudioLevel(MEADOW_WIND.amplitude);
+    const reveal = meadowWindAudioLevel(
+      MEADOW_WIND.amplitude * (1 + MEADOW_WIND.bootBoost),
     );
+    expect(baseline).toBeCloseTo(0.56, 4);
+    expect(reveal).toBeGreaterThan(baseline);
+    expect(meadowWindAudioLevel(MEADOW_WIND.gustCeiling)).toBe(1);
   });
 
   it("keeps each interaction below the shader's hard lean clamp at peak wind", () => {
@@ -35,8 +44,7 @@ describe("meadow pointer motion", () => {
   });
 
   it("uses a tight, responsive brush that stays under the cursor", () => {
-    const oneFrameFollow =
-      1 - Math.exp(-MEADOW_POKE.grassPositionLambda / 60);
+    const oneFrameFollow = 1 - Math.exp(-MEADOW_POKE.grassPositionLambda / 60);
     expect(MEADOW_POKE.radius).toBeLessThanOrEqual(0.6);
     expect(MEADOW_POKE.hoverStrength).toBeGreaterThanOrEqual(0.18);
     expect(MEADOW_POKE.dragSpeedScale).toBeLessThanOrEqual(1.7);

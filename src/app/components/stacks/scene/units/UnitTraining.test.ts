@@ -2,20 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   GOLF_BALL_RADIUS,
-  GOLF_SHOT_VELOCITIES,
   createDimpledGolfBallGeometry,
   createGolfBallBumpTexture,
 } from "./trainingGolfBall";
 
 describe("Weightlifting golf balls", () => {
-  it("launches every ball toward the background hills", () => {
-    expect(Object.values(GOLF_SHOT_VELOCITIES)).toHaveLength(4);
-    for (const [, upward, intoHills] of Object.values(GOLF_SHOT_VELOCITIES)) {
-      expect(upward).toBeGreaterThan(0);
-      expect(intoHills).toBeLessThan(0);
-    }
-  });
-
   it("uses real recessed surface geometry while preserving the ball silhouette", () => {
     const geometry = createDimpledGolfBallGeometry();
     const positions = geometry.getAttribute("position");

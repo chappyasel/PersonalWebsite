@@ -22,10 +22,12 @@ import {
 } from "react";
 import type * as THREE from "three";
 
+import { sceneAudio } from "./audio/sceneAudio";
 import { type StacksData, UNIT_COUNT } from "./data";
 import { setLoadProgress } from "./loading";
 import { prewarmGrabbablePhysics } from "./scene/Grabbable";
 import Scene from "./scene/Scene";
+import type { GolfShotOutcome } from "./scene/golf/golfTypes";
 import { setInteractionProjectionContext } from "./scene/interactionProjection";
 import { sceneInteractionInventory } from "./scene/interactionRegistry";
 import { ScenePerformanceSampler } from "./scene/performanceMetrics";
@@ -107,6 +109,10 @@ declare global {
         speed?: number;
         density?: number | null;
       }) => Record<string, number | null>;
+      golf?: {
+        state: () => Record<string, unknown>;
+        forceNext: (outcome: GolfShotOutcome) => void;
+      };
       quality: (rung?: DurableQualityRung) => Record<string, unknown>;
       measure: (action?: "start" | "stop" | "reset") => Record<string, unknown>;
     };
@@ -299,6 +305,7 @@ function installDevHooks() {
         lines: glRef?.info.render.lines ?? null,
         programs: glRef?.info.programs?.length ?? null,
         quality: { ...qualitySnapshot },
+        audio: sceneAudio.snapshot(),
         measurement: performanceSampler.summary(),
       };
     },
@@ -378,6 +385,35 @@ function PerformanceProbe() {
     gl.info.reset();
     performanceSampler.frame(delta);
   }, -1_000);
+  return null;
+}
+
+/** Owns the world-only audio lifecycle. The capture listeners synchronously
+ * create/resume Web Audio inside the visitor's first real gesture; downloads
+ * and ambience begin only after that autoplay-safe unlock. */
+function SceneAudioBridge() {
+  const camera = useThree((state) => state.camera);
+  useEffect(() => {
+    const unlock = () => sceneAudio.unlock();
+    window.addEventListener("pointerdown", unlock, { capture: true });
+    window.addEventListener("keydown", unlock, { capture: true });
+    const visibility = () => sceneAudio.visibility(document.hidden);
+    document.addEventListener("visibilitychange", visibility);
+    sceneAudio.startAmbience();
+    return () => {
+      window.removeEventListener("pointerdown", unlock, { capture: true });
+      window.removeEventListener("keydown", unlock, { capture: true });
+      document.removeEventListener("visibilitychange", visibility);
+      sceneAudio.teardown();
+    };
+  }, []);
+  useFrame(() => {
+    const e = camera.matrixWorld.elements;
+    sceneAudio.updateListener(
+      { x: camera.position.x, y: camera.position.y, z: camera.position.z },
+      { x: -(e[8] ?? 0), y: -(e[9] ?? 0), z: -(e[10] ?? 1) },
+    );
+  });
   return null;
 }
 
@@ -679,6 +715,7 @@ export default function StacksCanvas({
           />
         )}
         <PerformanceProbe />
+        <SceneAudioBridge />
         <PhysicsPrewarm />
         <MovementProbe onChange={onMovementChange} />
         <ShaderPrewarm

@@ -6,6 +6,7 @@
 // evaluate everything here without WebGL.
 import { rand } from "../theme";
 
+import { GOLF_COURSE_CENTER, golfCourseHeight } from "./golf/golfCourse";
 import { SEAT_POSE } from "./seated";
 import { SHELF_GEOMETRY, SHELF_UNDERSIDE } from "./shelfGeometry";
 import {
@@ -259,7 +260,7 @@ export function horizonCrestY(x: number): number {
   return HORIZON_RIDGE.tailY + (roll - HORIZON_RIDGE.tailY) * hold;
 }
 
-export function meadowHeight(x: number, z: number): number {
+function meadowBaseHeight(x: number, z: number): number {
   // Near undulation — big enough to give the lawn a visible swell (the flat
   // sheet was the first thing the owner rejected). Damped through the shelf
   // strip (z ∈ [−3, 1]) so the surface never rises above
@@ -332,6 +333,19 @@ export function meadowHeight(x: number, z: number): number {
   if (z < MEADOW_FAR_SKIRT.z)
     y -= MEADOW_FAR_SKIRT.drop * (MEADOW_FAR_SKIRT.z - z);
   return y;
+}
+
+const GOLF_CENTER_BASE_HEIGHT = meadowBaseHeight(
+  GOLF_COURSE_CENTER.x,
+  GOLF_COURSE_CENTER.z,
+);
+
+/** The putting surface is part of the canonical field, not an overlay. Every
+ * terrain vertex, vegetation root, golf collision and flag placement reads
+ * this same continuous function. */
+export function meadowHeight(x: number, z: number): number {
+  const base = meadowBaseHeight(x, z);
+  return golfCourseHeight(x, z, base, GOLF_CENTER_BASE_HEIGHT);
 }
 
 // ---------------------------------------------------------------------------

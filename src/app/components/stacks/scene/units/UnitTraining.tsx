@@ -1,12 +1,19 @@
 "use client";
 
 import { ShakerProp } from "../AuthoredProps";
-import Grabbable, { type GrabbableCommand } from "../Grabbable";
+import Grabbable from "../Grabbable";
 import { FootPool } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
 import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
 import WavingGolfFlag from "../WavingGolfFlag";
+import GolfExperience from "../golf/GolfExperience";
+import { GOLF_FLAG_LOCAL } from "../golf/golfCourse";
+import {
+  GOLF_CLUB_REST_BASE,
+  GOLF_TEE_ROTATIONS,
+  GOLF_TEE_STARTS,
+} from "../golf/golfLayout";
 import { meadowHeight } from "../meadowField";
 import { SodaCan } from "../objects";
 import {
@@ -24,19 +31,8 @@ import { RoundedBox } from "@react-three/drei";
 import React from "react";
 import * as THREE from "three";
 
-import {
-  GOLF_BALL_RADIUS,
-  GOLF_SHOT_VELOCITIES,
-  createDimpledGolfBallGeometry,
-  createGolfBallBumpTexture,
-} from "./trainingGolfBall";
 import type { UnitProps } from "./types";
 import { REVIEWED_SHELF_LAYOUT } from "./unitShelfLayout";
-
-const CLUB_SCALE = 2.35;
-const GOLF_BALL_GEOMETRY = createDimpledGolfBallGeometry();
-const GOLF_BALL_BUMP = createGolfBallBumpTexture();
-const GOLF_FLAG_LOCAL = [-1.55, -16.5] as const;
 
 function golfFlagPosition(unitIndex: number): [number, number, number] {
   const pose = unitPose(unitIndex);
@@ -267,61 +263,6 @@ function TrainingBoard({
         );
       })}
     </group>
-  );
-}
-
-function GolfBall({
-  unitIndex,
-  palette,
-  position,
-  id,
-}: {
-  unitIndex: number;
-  palette: UnitProps["palette"];
-  position: [number, number, number];
-  id: keyof typeof GOLF_SHOT_VELOCITIES;
-}) {
-  const commandRef = React.useRef<GrabbableCommand | null>(null);
-  const shot = GOLF_SHOT_VELOCITIES[id];
-  return (
-    <Grabbable
-      unitIndex={unitIndex}
-      hoverKey={`grab:golf-ball:${id}`}
-      base={position}
-      shadeColor={palette.shadow}
-      shadeWidth={0.14}
-      shape="sphere"
-      massKg={0.046}
-      standsOn="floor"
-      draggable={false}
-      commandRef={commandRef}
-      onTap={() => {
-        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches)
-          return;
-        commandRef.current?.launch([shot[0], shot[1], shot[2]], {
-          terrain: "meadow",
-        });
-      }}
-    >
-      <mesh
-        castShadow
-        dispose={null}
-        geometry={GOLF_BALL_GEOMETRY}
-        position={[0, GOLF_BALL_RADIUS, 0]}
-      >
-        <meshStandardMaterial
-          bumpMap={GOLF_BALL_BUMP}
-          bumpScale={0.01}
-          color={palette.pages}
-          fog={false}
-          roughness={0.56}
-        />
-      </mesh>
-      <mesh position={[0, 0.065, 0]} userData={{ physicsIgnore: true }}>
-        <sphereGeometry args={[0.105, 8, 8]} />
-        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-      </mesh>
-    </Grabbable>
   );
 }
 
@@ -579,76 +520,12 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
         </React.Suspense>
       </Grabbable>
 
-      <Grabbable
-        unitIndex={index}
-        hoverKey="grab:golf-club"
-        base={[-2.05, SHELF_GEOMETRY.groundY, 0.32]}
-        shadeColor={palette.shadow}
-        shadeWidth={0.46}
-        shape="box"
-        massKg={0.42}
-        standsOn="floor"
-      >
-        {/* The previous tap animation swung a 1.8-unit radius through 2.18
-            radians around the grip, necessarily throwing the head into the
-            sky. The authored swing is disabled until it can be rebuilt from
-            a physically constrained local rig; the club remains draggable. */}
-        <group position={[0, -0.005, 0]} rotation={[0, 0, -0.18]}>
-          <React.Suspense fallback={null}>
-            <ModelProp
-              url="/models/golf-club.glb"
-              dark={dark}
-              variant="tinted"
-              tints={{
-                M_PCL_Flat_Black: palette.hub,
-                M_PCL_Flat_Grey_Light: palette.metal,
-                M_PCL_Flat_White_Darker: "#9aa0a4",
-              }}
-              rotation={[0, -1, 0]}
-              scale={CLUB_SCALE}
-            />
-          </React.Suspense>
-        </group>
-      </Grabbable>
-      <GolfBall
-        unitIndex={index}
-        palette={palette}
-        id="one"
-        position={[-1.7, SHELF_GEOMETRY.groundY, 0.4]}
-      />
-      <GolfBall
-        unitIndex={index}
-        palette={palette}
-        id="two"
-        position={[-1.52, SHELF_GEOMETRY.groundY, 0.29]}
-      />
-      <GolfBall
-        unitIndex={index}
-        palette={palette}
-        id="three"
-        position={[-1.9, SHELF_GEOMETRY.groundY, 0.34]}
-      />
-      <GolfBall
-        unitIndex={index}
-        palette={palette}
-        id="four"
-        position={[-1.62, SHELF_GEOMETRY.groundY, 0.16]}
-      />
-      {[
-        [-1.82, 0.42],
-        [-1.62, 0.34],
-        [-1.46, 0.22],
-      ].map(([x, z], tee) => (
-        <Grabbable
-          key={tee}
-          unitIndex={index}
-          hoverKey={`grab:golf-tee:${tee}`}
-          base={[x!, SHELF_GEOMETRY.groundY, z!]}
-          shadeColor={palette.shadow}
-          shadeWidth={0.09}
-          shape="box"
-          massKg={0.006}
-          standsOn="floor"
+      <GolfExperience palette={palette} dark={dark} index={index} />
+      {GOLF_TEE_STARTS.map(([x, z], tee) => (
+        <group
+          key={`golf-tee:${tee}`}
+          position={[x, SHELF_GEOMETRY.groundY + 0.012, z]}
+          rotation={GOLF_TEE_ROTATIONS[tee]}
         >
           <React.Suspense fallback={null}>
             <ModelProp
@@ -656,11 +533,10 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
               dark={dark}
               variant="tinted"
               tintAll={tee === 1 ? "#2d6da3" : "#f2ede2"}
-              rotation={[0, tee * 0.7, 0]}
               scale={0.00036}
             />
           </React.Suspense>
-        </Grabbable>
+        </group>
       ))}
       <React.Suspense fallback={null}>
         <WavingGolfFlag dark={dark} position={targetPosition} />
@@ -668,7 +544,11 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
       <FootPool
         color={palette.shadow}
         size={[0.58, 0.42]}
-        position={[-2.05, SHELF_GEOMETRY.groundY, 0.32]}
+        position={[
+          GOLF_CLUB_REST_BASE.x,
+          GOLF_CLUB_REST_BASE.y,
+          GOLF_CLUB_REST_BASE.z,
+        ]}
       />
     </group>
   );

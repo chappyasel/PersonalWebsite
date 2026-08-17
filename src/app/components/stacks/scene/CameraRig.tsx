@@ -3,7 +3,11 @@
 // Drives the camera from the drei scroll offset, publishes per-frame progress
 // to the transient ref, flips activeUnit only on unit-boundary crosses, and
 // registers the scroll element with the store for the DOM bridges.
-import { UNIT_COUNT, unitIndexFromHash } from "../data";
+import {
+  UNIT_COUNT,
+  golfFocusedForScenePosition,
+  initialScenePositionFromLocation,
+} from "../data";
 import {
   INERT_HOVER,
   panelCoverageRef,
@@ -16,8 +20,8 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
-import { SEAT_POSE, isSeated, leaveSeat, setSeatAmount } from "./seated";
 import { cursorForInteraction } from "./interactionRegistry";
+import { SEAT_POSE, isSeated, leaveSeat, setSeatAmount } from "./seated";
 import {
   STACKS_DESKTOP_MIN_WIDTH,
   aboutStopShift,
@@ -118,6 +122,7 @@ export default function CameraRig() {
   const scroll = useScroll();
   const look = useRef(new THREE.Vector3(0, -0.05, -0.2));
   const prevActive = useRef(0);
+  const prevGolfFocused = useRef(false);
   // 0→1 while the mobile panel is open: dolly toward the unit, kill the bob.
   const lean = useRef(0);
   // Damped copy of the sheet's screen coverage, driving the frustum offset.
@@ -187,9 +192,11 @@ export default function CameraRig() {
     // effect ordering its damped offset may already be a tiny non-zero value
     // when this child mounts. No hash is the canonical About URL; an explicit
     // unit hash belongs to ScrollBridges and must never be overwritten.
-    const initialHashUnit = unitIndexFromHash(window.location.hash);
-    initialAboutPending.current =
-      initialHashUnit === null || initialHashUnit === 0;
+    const initialScenePosition = initialScenePositionFromLocation(
+      window.location.pathname,
+      window.location.hash,
+    );
+    initialAboutPending.current = initialScenePosition === 0;
     initialAboutFrames.current = 0;
     const markInitialSync = (value: string) => {
       if (process.env.NODE_ENV === "development") {
@@ -234,8 +241,12 @@ export default function CameraRig() {
       const targetX = cameraXForScrollOffset(offset);
       look.current.set(targetX, -0.08, -0.2);
       const active = Math.min(UNIT_COUNT - 1, Math.max(0, Math.round(unit)));
+      const golfFocused = golfFocusedForScenePosition(unit);
       prevActive.current = active;
-      useStacks.getState().setActiveUnit(active);
+      prevGolfFocused.current = golfFocused;
+      const current = useStacks.getState();
+      current.setActiveUnit(active);
+      current.setGolfFocused(golfFocused);
     });
     // Damped travel: write the damp target directly (plus scrollLeft so the
     // native element agrees) — never depends on the scroll event.
@@ -270,6 +281,7 @@ export default function CameraRig() {
       cleanup.setScrollEl(null);
       cleanup.setJumpTo(null);
       cleanup.setTravelTo(null);
+      cleanup.setGolfFocused(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scroll.el]);
@@ -284,8 +296,11 @@ export default function CameraRig() {
     // for twelve rendered frames. This spans listener installation and the
     // first-run guard without any browser-timer assumptions.
     if (initialAboutPending.current) {
-      const hashUnit = unitIndexFromHash(window.location.hash);
-      if (hashUnit !== null && hashUnit > 0) {
+      const urlScenePosition = initialScenePositionFromLocation(
+        window.location.pathname,
+        window.location.hash,
+      );
+      if (urlScenePosition > 0) {
         initialAboutPending.current = false;
       } else {
         const el = scroll.el;
@@ -554,13 +569,19 @@ export default function CameraRig() {
       (camera as THREE.PerspectiveCamera).updateProjectionMatrix();
     }
 
+    const scenePosition = progress * (UNIT_COUNT - 1);
     const active = Math.min(
       UNIT_COUNT - 1,
-      Math.max(0, Math.round(progress * (UNIT_COUNT - 1))),
+      Math.max(0, Math.round(scenePosition)),
     );
     if (active !== prevActive.current) {
       prevActive.current = active;
       useStacks.getState().setActiveUnit(active);
+    }
+    const golfFocused = golfFocusedForScenePosition(scenePosition);
+    if (golfFocused !== prevGolfFocused.current) {
+      prevGolfFocused.current = golfFocused;
+      useStacks.getState().setGolfFocused(golfFocused);
     }
   });
   return null;

@@ -10,7 +10,13 @@
 // propagation: drei's ScrollControls attaches its own passive wheel handler
 // (scrollLeft += deltaY / 2) on the scroll element, and letting both run would
 // double-apply deltas at inconsistent rates.
-import { UNITS, UNIT_COUNT, unitIndexFromHash } from "../data";
+import {
+  UNIT_COUNT,
+  golfFocusedForScenePosition,
+  initialScenePositionFromLocation,
+  scenePositionFromHash,
+  sceneUrlForLocation,
+} from "../data";
 import { closeStacksPanel, useStacks } from "../store";
 import { useEffect, useRef } from "react";
 
@@ -109,24 +115,53 @@ export default function ScrollBridges() {
 
     if (!didInitialJump.current) {
       didInitialJump.current = true;
-      const target = unitIndexFromHash(window.location.hash);
-      if (target !== null && target > 0) jumpTo(target);
+      const target = initialScenePositionFromLocation(
+        window.location.pathname,
+        window.location.hash,
+      );
+      if (target > 0) jumpTo(target);
+      // Accepted legacy aliases are read-compatible, then immediately
+      // canonicalized so a centered golf stop always exposes #golf for copy,
+      // refresh, and subsequent history entries.
+      if (scenePositionFromHash(window.location.hash) !== null) {
+        const canonical = sceneUrlForLocation(
+          window.location.pathname,
+          window.location.search,
+          Math.round(target),
+          golfFocusedForScenePosition(target),
+        );
+        const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        if (current !== canonical)
+          window.history.replaceState(null, "", canonical);
+      }
     }
 
     // Mirror travel into the URL — at most one replaceState per unit change.
-    let mirrored = useStacks.getState().activeUnit;
+    let mirrored = {
+      activeUnit: useStacks.getState().activeUnit,
+      golfFocused: useStacks.getState().golfFocused,
+    };
     const unsubscribe = useStacks.subscribe((state) => {
-      if (state.activeUnit === mirrored) return;
-      mirrored = state.activeUnit;
+      if (
+        state.activeUnit === mirrored.activeUnit &&
+        state.golfFocused === mirrored.golfFocused
+      )
+        return;
+      mirrored = {
+        activeUnit: state.activeUnit,
+        golfFocused: state.golfFocused,
+      };
       if (state.modalOpen) return; // the modal owns the URL while open
       if (state.panelState !== "closed") return; // panel owns it too
-      const slug = UNITS[mirrored]?.slug;
       window.history.replaceState(
         null,
         "",
-        mirrored === 0 || !slug
-          ? window.location.pathname + window.location.search
-          : `#${slug}`,
+        sceneUrlForLocation(
+          window.location.pathname,
+          window.location.search,
+          mirrored.activeUnit,
+          mirrored.golfFocused,
+        ),
       );
     });
 
@@ -140,8 +175,14 @@ export default function ScrollBridges() {
         return;
       }
       if (state.panelState === "closing") return; // our own history.back()
-      const target = unitIndexFromHash(window.location.hash) ?? 0;
-      mirrored = target; // suppress the replaceState echo for this travel
+      const target = initialScenePositionFromLocation(
+        window.location.pathname,
+        window.location.hash,
+      );
+      mirrored = {
+        activeUnit: Math.round(target),
+        golfFocused: golfFocusedForScenePosition(target),
+      }; // suppress the replaceState echo for this travel
       state.travelTo?.(target);
     };
     window.addEventListener("popstate", onPopState);
@@ -263,9 +304,12 @@ export default function ScrollBridges() {
       const step = worldNavigationStep(e.key);
       if (step === null) return;
       e.preventDefault();
-      state.travelTo?.(
-        Math.min(UNIT_COUNT - 1, Math.max(0, state.activeUnit + step)),
-      );
+      const destination = state.golfFocused
+        ? step < 0
+          ? 1
+          : 2
+        : Math.min(UNIT_COUNT - 1, Math.max(0, state.activeUnit + step));
+      state.travelTo?.(destination);
     };
     window.addEventListener("keydown", onKey);
 

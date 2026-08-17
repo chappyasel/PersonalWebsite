@@ -40,6 +40,10 @@ export function limitMeadowWind(magnitude: number): number {
   );
 }
 
+export function meadowWindAudioLevel(amplitude: number): number {
+  return Math.min(1, Math.max(0, amplitude / MEADOW_WIND.gustCeiling));
+}
+
 export function meadowDragSample(
   previousX: number,
   previousZ: number,

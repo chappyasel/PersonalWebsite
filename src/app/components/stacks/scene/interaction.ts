@@ -143,8 +143,8 @@ export const TILT_MAX_SIZE = 1.0;
  * Two things the rule cannot decide, because they are taste rather than
  * geometry:
  *   - A prop can be an EGG or a HANDLE, not both. The basketball bounces and
- *     the golf ball rolls on click today; picking either up means giving that
- *     up.
+ *     the dedicated golf balls queue a club strike on click; picking either
+ *     up would mean giving that interaction up.
  *   - A prop CAN be a door and a handle at once — Grabbable takes `to`/`href`
  *     and opens on a press that never moved — so the weights can keep leading
  *     to weightlifting.chappyasel.com while also being liftable.

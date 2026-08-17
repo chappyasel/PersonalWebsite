@@ -2,7 +2,13 @@
 
 // Scene graph: atmosphere + camera rig + the seven shelf units + the baked
 // ground shadows that ground them.
-import { type StacksData, UNITS, UNIT_COUNT, type UnitSlug } from "../data";
+import {
+  type StacksData,
+  UNITS,
+  UNIT_COUNT,
+  type UnitSlug,
+  unitUrlForLocation,
+} from "../data";
 import { useStacks } from "../store";
 import { type Palette, proxied } from "../theme";
 import { useTexture } from "@react-three/drei";
@@ -57,11 +63,14 @@ function onUnitTap(index: number, e: ThreeEvent<MouseEvent>) {
   if (state.panelState !== "closed" || state.modalOpen) return;
   if (index === state.activeUnit) return;
   if (!state.travelTo) return;
-  const slug = UNITS[index]!.slug;
   window.history.pushState(
     null,
     "",
-    index === 0 ? window.location.pathname : `#${slug}`,
+    unitUrlForLocation(
+      window.location.pathname,
+      window.location.search,
+      index,
+    ),
   );
   state.travelTo(index);
 }

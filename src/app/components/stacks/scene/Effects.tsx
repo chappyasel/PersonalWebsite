@@ -212,7 +212,10 @@ export default function Effects({
       {quality === "full" && depthOfField && !seated && (
         <DepthOfField
           target={focusTarget}
-          focusRange={2.2}
+          // Training owns a real tee-to-green action axis. Keep the static
+          // focal plane (never rack focus during a shot), but broaden its
+          // accepted range enough that the club and distant cup stay legible.
+          focusRange={activeUnit === 2 ? 16.5 : 2.2}
           bokehScale={1.6}
           resolutionScale={0.6}
         />

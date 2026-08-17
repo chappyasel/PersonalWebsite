@@ -8,7 +8,7 @@
 // Both form factors mark a unit with its section glyph. The rail normally uses
 // the canonical section name; a unit may opt into a shorter navigation-only
 // label without changing the title of the destination it opens.
-import { UNITS, UNIT_COUNT } from "../data";
+import { UNITS, UNIT_COUNT, unitUrlForLocation } from "../data";
 import { closeStacksPanel, railRightPxRef, useStacks } from "../store";
 import { useLayoutEffect, useRef } from "react";
 
@@ -26,6 +26,7 @@ const INDICATOR_THICKNESS_REM = 0.25;
 
 export default function UnitRail() {
   const activeUnit = useStacks((s) => s.activeUnit);
+  const golfFocused = useStacks((s) => s.golfFocused);
   const railRef = useRef<HTMLElement>(null);
   const desktopButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const mobileButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -57,11 +58,14 @@ export default function UnitRail() {
     const { travelTo, panelState, modalOpen } = useStacks.getState();
     if (!travelTo || modalOpen) return false;
     const pushSectionHistory = () => {
-      const slug = UNITS[index]!.slug;
       window.history.pushState(
         null,
         "",
-        index === 0 ? window.location.pathname : `#${slug}`,
+        unitUrlForLocation(
+          window.location.pathname,
+          window.location.search,
+          index,
+        ),
       );
     };
     if (panelState === "open" || panelState === "opening") {
@@ -189,11 +193,13 @@ export default function UnitRail() {
               height: `${INDICATOR_LENGTH_REM}rem`,
               transform: `translateY(${activeUnit * ROW_REM}rem)`,
               transitionTimingFunction: "var(--stacks-ease)",
+              opacity: golfFocused ? 0 : 1,
             }}
           />
           {UNITS.map((unit, i) => {
             const Icon = unit.icon;
-            const active = i === activeUnit;
+            const current = i === activeUnit;
+            const active = !golfFocused && current;
             const railLabel = unit.railLabel ?? unit.label;
             return (
               <button
@@ -206,7 +212,7 @@ export default function UnitRail() {
                 onKeyDown={(event) =>
                   onRailKeyDown(event, i, desktopButtonRefs)
                 }
-                tabIndex={active ? 0 : -1}
+                tabIndex={current ? 0 : -1}
                 aria-current={active ? "page" : undefined}
                 data-active={active || undefined}
                 // The desktop rail uses a larger mark and label but a tighter
@@ -279,11 +285,13 @@ export default function UnitRail() {
               width: `${INDICATOR_LENGTH_REM}rem`,
               height: `${INDICATOR_THICKNESS_REM}rem`,
               transitionTimingFunction: "var(--stacks-ease)",
+              opacity: golfFocused ? 0 : 1,
             }}
           />
           {UNITS.map((unit, i) => {
             const Icon = unit.icon;
-            const active = i === activeUnit;
+            const current = i === activeUnit;
+            const active = !golfFocused && current;
             const railLabel = unit.railLabel ?? unit.label;
             return (
               <button
@@ -294,7 +302,7 @@ export default function UnitRail() {
                 type="button"
                 aria-label={railLabel}
                 aria-current={active ? "page" : undefined}
-                tabIndex={active ? 0 : -1}
+                tabIndex={current ? 0 : -1}
                 data-active={active || undefined}
                 onClick={() => go(i)}
                 onKeyDown={(event) => onRailKeyDown(event, i, mobileButtonRefs)}

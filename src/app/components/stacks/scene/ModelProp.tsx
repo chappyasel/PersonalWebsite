@@ -36,6 +36,10 @@ import {
   findSphereIsland,
   findSpinAxis,
 } from "./islands";
+import {
+  filterTrianglesToHalfSpace,
+  modelDetailHalfSpace,
+} from "./oneSidedDetailGeometry";
 
 /** Name of the node `spinPart` isolates. Animators find it by traversing the
  * subtree rather than through a prop, which keeps ModelProp's memo free of
@@ -583,6 +587,7 @@ export default function ModelProp({
   dark,
   variant = "atlas",
   tints,
+  materialProperties,
   tintAll,
   roughness = 0.7,
   atlasOverride,
@@ -598,6 +603,12 @@ export default function ModelProp({
   variant?: "atlas" | "tinted" | "recolor";
   /** tinted only: material name → hex color remap. */
   tints?: Record<string, string>;
+  /** tinted only: opt selected materials into physically metallic shading
+   * without making grips, pages, or other sibling materials metallic. */
+  materialProperties?: Record<
+    string,
+    { metalness?: number; roughness?: number }
+  >;
   /** tinted only: multiply every material (and its texture) by this color. */
   tintAll?: string;
   roughness?: number;
@@ -689,8 +700,15 @@ export default function ModelProp({
         const tint = tints?.[src.name];
         if (tint) mat.color.set(tint);
         if (tintAll) mat.color.multiply(new THREE.Color(tintAll));
-        mat.metalness = 0;
-        mat.roughness = roughness;
+        const properties = materialProperties?.[src.name];
+        mat.metalness = properties?.metalness ?? 0;
+        mat.roughness = properties?.roughness ?? roughness;
+        const detailHalfSpace = modelDetailHalfSpace(url, src.name);
+        if (detailHalfSpace)
+          mesh.geometry = filterTrianglesToHalfSpace(
+            mesh.geometry,
+            detailHalfSpace,
+          );
         if (url === ABOUT_CHAIR_URL && src.name === "Couch_Blue") {
           // The 8.5 KB source GLB intentionally has no TEXCOORD_0. Generate a
           // box projection on a private geometry clone; otherwise a map samples
@@ -770,6 +788,7 @@ export default function ModelProp({
     dark,
     variant,
     tints,
+    materialProperties,
     tintAll,
     roughness,
     atlasOverride,
