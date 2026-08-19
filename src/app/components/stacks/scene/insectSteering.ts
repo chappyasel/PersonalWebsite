@@ -89,6 +89,35 @@ export const BUTTERFLY_STEERING_PROFILE: InsectSteeringProfile = {
   transitBias: 2.2,
 };
 
+/**
+ * Tighter and twitchier than the butterflies (ADR 0007). A moth is not a slow
+ * butterfly: it commits to a heading for under a second where a butterfly holds
+ * one for two and a half, turns harder, and cruises at about two thirds the
+ * speed inside a volume a fraction of the size.
+ *
+ * Transit is a butterfly concept — a butterfly belongs to a region of the room
+ * and may cross between regions, while a moth belongs to a lamp — so the
+ * transit fields are inert here rather than tuned.
+ */
+export const MOTH_STEERING_PROFILE: InsectSteeringProfile = {
+  cruiseSpeed: 0.34,
+  speedVariation: 0.55,
+  speedVariationRate: 0.41,
+  wanderDistance: 0.62,
+  wanderRadius: 0.55,
+  wanderTurnSeconds: 0.85,
+  response: 0.26,
+  repelDistance: 0.28,
+  repelBias: 3,
+  repelEscape: 6.5,
+  repelLookAhead: 0.26,
+  containBias: 3.2,
+  containLookAhead: 0.45,
+  transitSpeed: 0.34,
+  transitWander: 1,
+  transitBias: 0,
+};
+
 export type InsectSteeringState = {
   /** Unit vector: the current point on the wander sphere. */
   wanderX: number;
