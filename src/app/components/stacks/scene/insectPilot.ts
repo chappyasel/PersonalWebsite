@@ -28,6 +28,19 @@ import {
 const TAU = Math.PI * 2;
 const HALF_PI = Math.PI / 2;
 const FOLDED_WING_ANGLE = Math.PI / 2 - 0.12;
+/**
+ * Fractions of a refused landing step to retry, shortest last. The obstacle a
+ * full step crosses is usually further along it than the tracking error is, so
+ * a shorter step through the same air is ordinarily clear.
+ */
+const LANDING_SLIDE_FRACTIONS = [0.55, 0.24] as const;
+/**
+ * Consecutive fully-refused steps before a landing is abandoned. At the 1/120 s
+ * fixed step this is a fifth of a second of genuinely blocked air — long enough
+ * that transient tracking error cannot reach it, short enough that a Perch a
+ * prop has actually moved onto is given up promptly.
+ */
+const LANDING_REFUSAL_STEPS = 24;
 const WING_FOLD_RATE = 4.8;
 const FIXED_STEP = 1 / 120;
 const MAX_FRAME_DELTA = 0.1;
@@ -110,6 +123,9 @@ export type InsectPilotProfile = {
   restingWingFrequency: number;
   wingAmplitude: number;
   restingWingAmplitude: number;
+  /** What a settled insect does with its wings. Presentation only — no
+   * translation, which would re-enter collision. */
+  restingIdle: InsectRestingIdle;
   wingAmplitudeRate: number;
   wingFrequencyRate: number;
   /** Speed at which the Flap Layer reads as full cruise. Deliberately not
@@ -131,6 +147,28 @@ export type InsectPilotProfile = {
   /** Distance from contact at which the flare begins. */
   flareDistance: number;
 };
+
+/**
+ * The perched idle (the Flap Layer, presentation only).
+ *
+ * What this replaces is a constant ±5.7° at 1.05 Hz, which is not what a
+ * settled butterfly does with its wings: it is STILL, for a long time, and
+ * then opens and closes them once, slowly, and is still again. A permanent
+ * low-amplitude twitch reads as an idling machine, and twenty-one of them
+ * twitching at the same rate reads as one machine.
+ *
+ * `interval` and `depth` are varied per insect from its own seed, and the
+ * three wing colours carry deliberately different temperaments, so no two
+ * perched residents are ever on the same schedule.
+ */
+export type InsectRestingIdle = Readonly<{
+  /** Seconds of stillness between openings, low and high. */
+  interval: readonly [number, number];
+  /** Seconds one deliberate open-and-close takes. */
+  duration: number;
+  /** How far the wings open, as a fraction of the folded angle. */
+  depth: number;
+}>;
 
 export type InsectRoamConfig = {
   profile: InsectSteeringProfile;
@@ -180,9 +218,16 @@ export const BUTTERFLY_PILOT_PROFILE: InsectPilotProfile = {
   wanderFrequency: 1.17,
   wanderDecayDistance: 0.34,
   wingFrequency: 8.8,
-  restingWingFrequency: 1.05,
+  // Not a twitch rate any more: the residual sway a settled insect has while
+  // it is doing nothing. The episodic opening is `restingIdle`.
+  restingWingFrequency: 0.26,
   wingAmplitude: 1,
-  restingWingAmplitude: 0.1,
+  restingWingAmplitude: 0.019,
+  restingIdle: {
+    interval: [3.4, 9.5],
+    duration: 1.15,
+    depth: 0.72,
+  },
   wingAmplitudeRate: 2.8,
   wingFrequencyRate: 18,
   flapReferenceSpeed: 1.05,
@@ -212,8 +257,16 @@ export const MOTH_PILOT_PROFILE: InsectPilotProfile = {
   wanderAmplitude: 0.052,
   wanderFrequency: 0.92,
   wingFrequency: 7,
-  restingWingFrequency: 0.76,
-  restingWingAmplitude: 0.075,
+  restingWingFrequency: 0.19,
+  restingWingAmplitude: 0.014,
+  // A moth at rest holds its wings flatter and moves them less often than a
+  // butterfly does. It is also the only one of the two you meet at night,
+  // where any motion at all is more conspicuous.
+  restingIdle: {
+    interval: [5.5, 14],
+    duration: 1.6,
+    depth: 0.38,
+  },
   wingAmplitudeRate: 2.3,
   wingFrequencyRate: 14,
   flapReferenceSpeed: 0.92,
@@ -363,6 +416,20 @@ export type InsectPilot = {
   wingFrequency: number;
   wingFold: number;
   wingAngle: number;
+  /** Seconds of stillness left before the next perched opening. */
+  restIdleTimer: number;
+  /** Seconds into the current opening, or −1 while still. */
+  restIdleAge: number;
+  /** How many openings this insect has performed. Only the schedule reads it,
+   * so a long rest never repeats an interval. */
+  restIdleCount: number;
+  /** This insect's own opening depth, as a fraction of the folded angle. */
+  restIdleDepth: number;
+  /** Kept so the schedule can be re-rolled without the creator's arguments. */
+  seed: number;
+  /** Consecutive refused steps during a Landing Cycle. One refusal used to
+   * end the landing outright (ADR 0005). */
+  blockedSteps: number;
   roam: InsectRoamConfig | null;
   steering: InsectSteeringState | null;
   /** Nose-up thorax pitch in radians. Presentation only: the renderer applies
@@ -427,6 +494,32 @@ function normalize(
 
 function distance(a: PilotVector, b: PilotVector) {
   return magnitude(a.x - b.x, a.y - b.y, a.z - b.z);
+}
+
+/**
+ * How long this insect stays still before its next opening.
+ *
+ * Deterministic per insect AND per opening, so two residents of the same
+ * shelf never fall into step and neither of them repeats a cycle.
+ */
+export function restingIdleInterval(
+  profile: Pick<InsectPilotProfile, "restingIdle">,
+  seed: number,
+  count: number,
+) {
+  const [low, high] = profile.restingIdle.interval;
+  return low + (high - low) * stableNoise(seed * 7 + count * 131 + 53);
+}
+
+/** The wing opening at `age` seconds into one, as a fraction 0..1 of the
+ * authored depth. One smooth open and close, never a cycle. */
+export function restingIdleOpening(
+  profile: Pick<InsectPilotProfile, "restingIdle">,
+  age: number,
+) {
+  const duration = Math.max(EPSILON, profile.restingIdle.duration);
+  if (age <= 0 || age >= duration) return 0;
+  return Math.sin(Math.PI * (age / duration));
 }
 
 function stableNoise(seed: number) {
@@ -567,6 +660,16 @@ export function createInsectPilot(options: InsectPilotOptions): InsectPilot {
     wingFrequency: options.profile.wingFrequency,
     wingFold: 0,
     wingAngle: 0,
+    restIdleTimer: restingIdleInterval(options.profile, options.seed, 0),
+    restIdleAge: -1,
+    restIdleCount: 0,
+    // Depth varies per insect around the authored temperament, so two
+    // residents of the same colour still open their wings differently.
+    restIdleDepth:
+      options.profile.restingIdle.depth *
+      (0.72 + 0.56 * stableNoise(options.seed + 211)),
+    seed: options.seed,
+    blockedSteps: 0,
     roam: options.roam ?? null,
     steering: options.roam ? createInsectSteeringState(options.seed) : null,
     bodyPitch: 0,
@@ -1625,7 +1728,84 @@ function advanceWing(pilot: InsectPilot, step: number) {
   pilot.wingPhase = (pilot.wingPhase + TAU * pilot.wingFrequency * step) % TAU;
   pilot.wingAngle =
     pilot.wingFold * FOLDED_WING_ANGLE +
-    pilot.wingAmplitude * Math.sin(pilot.wingPhase);
+    pilot.wingAmplitude * Math.sin(pilot.wingPhase) -
+    pilot.wingFold * FOLDED_WING_ANGLE * advanceRestingIdle(pilot, step);
+}
+
+/**
+ * The episodic perched opening, 0..1 of the folded angle.
+ *
+ * A settled insect is still — and then, every several seconds, opens and
+ * closes its wings once, deliberately. This is entirely presentational: the
+ * body does not move, because moving it is translation and translation
+ * re-enters collision.
+ */
+function advanceRestingIdle(pilot: InsectPilot, step: number) {
+  if (pilot.phase !== "rest") {
+    // Whatever the insect was doing while perched does not survive takeoff,
+    // and the next perch starts its own schedule.
+    pilot.restIdleAge = -1;
+    return 0;
+  }
+  if (pilot.restIdleAge >= 0) {
+    pilot.restIdleAge += step;
+    if (pilot.restIdleAge >= pilot.profile.restingIdle.duration) {
+      pilot.restIdleAge = -1;
+      pilot.restIdleCount += 1;
+      pilot.restIdleTimer = restingIdleInterval(
+        pilot.profile,
+        pilot.seed,
+        pilot.restIdleCount,
+      );
+      return 0;
+    }
+    return (
+      restingIdleOpening(pilot.profile, pilot.restIdleAge) * pilot.restIdleDepth
+    );
+  }
+  pilot.restIdleTimer -= step;
+  if (pilot.restIdleTimer <= 0) pilot.restIdleAge = 0;
+  return 0;
+}
+
+/**
+ * Try progressively shorter versions of a refused step, taking the first that
+ * is clear. True when the pilot moved.
+ */
+function slideLandingStep(
+  pilot: InsectPilot,
+  world: InsectFlightWorld,
+  foldedPhase: boolean,
+) {
+  const fullX = pilot.proposal.x - pilot.position.x;
+  const fullY = pilot.proposal.y - pilot.position.y;
+  const fullZ = pilot.proposal.z - pilot.position.z;
+  for (const fraction of LANDING_SLIDE_FRACTIONS) {
+    pilot.proposal.x = pilot.position.x + fullX * fraction;
+    pilot.proposal.y = pilot.position.y + fullY * fraction;
+    pilot.proposal.z = pilot.position.z + fullZ * fraction;
+    const clear =
+      foldedPhase && world.sweepFolded
+        ? world.sweepFolded(
+            pilot.position,
+            pilot.proposal,
+            pilot.normal,
+            pilot.tangent,
+            true,
+          )
+        : world.sweepSphere(
+            pilot.position,
+            pilot.proposal,
+            pilot.profile.wingRadius,
+            true,
+            false,
+          );
+    if (!clear) continue;
+    copy(pilot.position, pilot.proposal);
+    holdAboveContactPlane(pilot);
+    return true;
+  }
+  return false;
 }
 
 function reached(
@@ -1868,6 +2048,7 @@ function advanceFixed(pilot: InsectPilot, world: InsectFlightWorld) {
   if (proposalIsClear) {
     copy(pilot.position, pilot.proposal);
     holdAboveContactPlane(pilot);
+    pilot.blockedSteps = 0;
     pilot.velocity.x += pilot.acceleration.x * FIXED_STEP;
     pilot.velocity.y += pilot.acceleration.y * FIXED_STEP;
     pilot.velocity.z += pilot.acceleration.z * FIXED_STEP;
@@ -1881,13 +2062,30 @@ function advanceFixed(pilot: InsectPilot, world: InsectFlightWorld) {
     pilot.velocity.y += pilot.acceleration.y * FIXED_STEP;
     pilot.velocity.z += pilot.acceleration.z * FIXED_STEP;
     clampMagnitude(pilot.velocity, speedLimit);
-    if (pilot.phase === "approach" || pilot.phase === "hover") {
+    // Slide before abandoning (ADR 0005). The pilot TRACKS the planned
+    // polyline rather than replaying it, so near tight geometry it deviates by
+    // a centimetre or two and a step gets refused; ending the whole landing on
+    // one refusal is what made the arrival read as a butterfly repeatedly
+    // changing its mind. Measured before this: of ten attempts, seven reached
+    // hover, seven touched down, four rested.
+    const sliding =
+      pilot.phase === "approach" ||
+      pilot.phase === "hover" ||
+      pilot.phase === "touchdown";
+    const slid = sliding && slideLandingStep(pilot, world, foldedPhase);
+    if (slid) pilot.blockedSteps = 0;
+    // A phase with nothing to abandon — launch, rejoin — keeps its existing
+    // behaviour: record the code and keep integrating.
+    const abandon =
+      !slid && (!sliding || ++pilot.blockedSteps >= LANDING_REFUSAL_STEPS);
+    if (abandon) pilot.blockedSteps = 0;
+    if (abandon && (pilot.phase === "approach" || pilot.phase === "hover")) {
       pilot.rejectionCode =
         pilot.phase === "approach" ? "approach-blocked" : "hover-blocked";
       releaseReservation(pilot, world);
       pilot.landingPlan = null;
       beginRejoin(pilot, "approach-blocked");
-    } else if (pilot.phase === "touchdown") {
+    } else if (abandon && pilot.phase === "touchdown") {
       pilot.rejectionCode = "touchdown-blocked";
       // At touchdown the support is intentionally inside the spherical flight
       // envelope. Releasing it before moving outward would turn that support
@@ -1896,9 +2094,9 @@ function advanceFixed(pilot: InsectPilot, world: InsectFlightWorld) {
         pilot.rejectionCode = "touchdown-blocked";
         pilot.event = "approach-blocked";
       }
-    } else if (pilot.phase === "launch") {
+    } else if (abandon && pilot.phase === "launch") {
       pilot.rejectionCode = "launch-blocked";
-    } else if (pilot.phase === "rejoin") {
+    } else if (abandon && pilot.phase === "rejoin") {
       pilot.rejectionCode = "rejoin-blocked";
     }
   }

@@ -19,6 +19,7 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { INSECT_ENVELOPES } from "./insectCollision";
 import {
   type InsectFlightVolume,
   insectFlightVolumePoint,
@@ -151,11 +152,34 @@ const DARK_LAMBDA = 3.5;
 // interpolates between a slow deep hover beat and this rate with airspeed. The
 // three values stay distinct on purpose — a shared frequency is what makes
 // three insects read as one flock of clones.
+// `restingIdle` is a temperament, not a tuning: three insects perched on the
+// same shelf opening their wings on the same schedule read as three copies of
+// one insect, which is the same failure the shared `flapHz` had. The cream one
+// is restless and shallow, the blue one rare and deep, the orange one somewhere
+// between with a quicker gesture.
 const FLIGHTS = [
-  { color: "#f2e8d2", flapHz: 9.3 },
-  { color: "#8b9be0", flapHz: 8.2 },
-  { color: "#e8a25e", flapHz: 10.1 },
+  {
+    color: "#f2e8d2",
+    flapHz: 9.3,
+    restingIdle: { interval: [2.6, 6.4], duration: 0.95, depth: 0.58 },
+  },
+  {
+    color: "#8b9be0",
+    flapHz: 8.2,
+    restingIdle: { interval: [6.2, 14.5], duration: 1.5, depth: 0.86 },
+  },
+  {
+    color: "#e8a25e",
+    flapHz: 10.1,
+    restingIdle: { interval: [3.8, 9.1], duration: 0.72, depth: 0.7 },
+  },
 ] as const;
+/** Metres the renderer drops the body below the collision datum once its
+ * wings are shut. See `InsectEnvelope.renderLift`. */
+const BUTTERFLY_RENDER_SINK =
+  INSECT_ENVELOPES.butterfly.contactLift -
+  INSECT_ENVELOPES.butterfly.renderLift;
+
 export const BUTTERFLIES_PER_UNIT = 3;
 export const BUTTERFLY_COUNT = UNIT_COUNT * BUTTERFLIES_PER_UNIT;
 
@@ -602,6 +626,7 @@ const BUTTERFLY_PILOT_PROFILES: readonly InsectPilotProfile[] = FLIGHTS.map(
   (flight) => ({
     ...BUTTERFLY_PILOT_PROFILE,
     wingFrequency: flight.flapHz,
+    restingIdle: flight.restingIdle,
   }),
 );
 
@@ -1197,7 +1222,17 @@ function Flight({ dark }: { dark: boolean }) {
             landingNoise(i, motion.attempts * 17 + 7);
         motion.restEndsAt = Number.POSITIVE_INFINITY;
       }
-      b.position.set(pilot.position.x, pilot.position.y, pilot.position.z);
+      // The drawn body sits closer to the surface than the collision datum
+      // does. `contactLift` used to be both, so tuning the visible perched gap
+      // moved the resting envelope and turned Perches red; they are separate
+      // numbers now. The sink rides `wingFold`, so the body settles exactly as
+      // the wings close rather than popping down when touchdown begins.
+      const sink = BUTTERFLY_RENDER_SINK * pilot.wingFold;
+      b.position.set(
+        pilot.position.x - pilot.normal.x * sink,
+        pilot.position.y - pilot.normal.y * sink,
+        pilot.position.z - pilot.normal.z * sink,
+      );
       wr.rotation.z = pilot.wingAngle;
       wl.rotation.z = -pilot.wingAngle;
 

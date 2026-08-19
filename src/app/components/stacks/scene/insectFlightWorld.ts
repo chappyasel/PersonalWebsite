@@ -2,6 +2,8 @@ import * as THREE from "three";
 
 import {
   INSECT_ENVELOPES,
+  INSECT_PLAN_DILATION,
+  INSECT_PLAN_ENVELOPES,
   type InsectCollisionBox,
   type InsectCollisionIndex,
   type InsectSupportContactRegion,
@@ -547,7 +549,7 @@ export class ThreeInsectFlightWorld implements InsectFlightWorld {
       volume: request.volume ?? unitFlightVolume(perch.unitIndex),
       collisionRevision: cache.index.revision,
       foldedSweep: (_phase, from, to) => {
-        const routeRadius = request.profile.wingRadius;
+        const routeRadius = request.profile.wingRadius + INSECT_PLAN_DILATION;
         if (
           from.y - routeRadius < MEADOW_GROUND_BASE ||
           to.y - routeRadius < MEADOW_GROUND_BASE
@@ -557,14 +559,23 @@ export class ThreeInsectFlightWorld implements InsectFlightWorld {
           [from, to],
           request.target.normal,
           request.target.tangent,
-          INSECT_ENVELOPES[this.species],
+          // Dilated, for the same reason the sphere is: the pilot flies the
+          // hover arc and the touchdown with the folded pose, and it tracks
+          // them rather than replaying them (ADR 0005).
+          INSECT_PLAN_ENVELOPES[this.species],
           cache.index,
           supportGroup,
           supportContactRegion,
         );
       },
       sweep: (phase, from, to) => {
-        const routeRadius = request.profile.wingRadius;
+        // Plan dilated, fly exact (ADR 0005). The pilot TRACKS this route with
+        // finite gain and jerk limits rather than replaying it, which is what
+        // keeps the motion from reading as a machine following a spline — and
+        // means it deviates by a centimetre or two. Validating with a slightly
+        // larger radius than the one the pilot is swept against absorbs that
+        // by construction instead of making it fatal.
+        const routeRadius = request.profile.wingRadius + INSECT_PLAN_DILATION;
         if (
           from.y - routeRadius < MEADOW_GROUND_BASE ||
           to.y - routeRadius < MEADOW_GROUND_BASE

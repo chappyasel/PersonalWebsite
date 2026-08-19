@@ -25,6 +25,8 @@ import {
   insectPilotPhaseLimits,
   insectWingAmplitudeForSpeed,
   insectWingFrequencyForSpeed,
+  restingIdleInterval,
+  restingIdleOpening,
 } from "./insectPilot";
 import { BUTTERFLY_STEERING_PROFILE } from "./insectSteering";
 
@@ -994,8 +996,19 @@ describe("acceleration-limited insect pilot", () => {
       ),
     ).toBe(true);
     advanceUntil(value, world, "touchdown");
+    // One refused step is survivable now: the pilot slides and keeps flying.
+    // Ending the whole landing on a single refusal is what made the arrival
+    // read as a butterfly repeatedly changing its mind (ADR 0005).
     world.blockNextTouchdownMovement = true;
     advanceInsectPilot(value, 1 / 120, world);
+    expect(value.phase).toBe("touchdown");
+    expect(value.rejectionCode).toBe("none");
+
+    // Sustained refusal still launches it outward rather than releasing in
+    // place, which would turn the support back into a collider around it.
+    world.obstacles.push({ center: { ...value.position }, radius: 0.03 });
+    for (let step = 0; step < 240 && value.phase === "touchdown"; step++)
+      advanceInsectPilot(value, 1 / 120, world);
     expect(value.phase).toBe("launch");
     expect(value.event).toBe("approach-blocked");
     expect(world.reservations.get("blocked-touchdown")).toBe(value.occupantId);
@@ -1013,7 +1026,8 @@ describe("acceleration-limited insect pilot", () => {
     ).toBe(true);
     advanceUntil(value, world, "touchdown");
     world.obstacles.push({ center: { ...value.position }, radius: 0.03 });
-    advanceInsectPilot(value, 1 / 60, world);
+    for (let step = 0; step < 240 && value.phase === "touchdown"; step++)
+      advanceInsectPilot(value, 1 / 120, world);
     expect(value.phase).toBe("launch");
     const before = { ...value.position };
     advanceUntil(value, world, "rejoin");
@@ -1536,5 +1550,93 @@ describe("landing over a support that is really there", () => {
     // Not "most of them": a single hover step measured without the licence is
     // one refused movement, and one refused movement ends the landing.
     expect(hoverStepsAllowingSupport).toBe(hoverSteps);
+  });
+});
+
+describe("the perched idle", () => {
+  it("stays still, then opens and closes once", () => {
+    // What this replaces is a constant ±5.7° at 1.05 Hz. A settled butterfly
+    // is STILL for a long time and then opens its wings once, slowly; a
+    // permanent low-amplitude twitch reads as an idling machine.
+    const profile = BUTTERFLY_PILOT_PROFILE;
+    expect(restingIdleOpening(profile, -1)).toBe(0);
+    expect(restingIdleOpening(profile, 0)).toBe(0);
+    expect(restingIdleOpening(profile, profile.restingIdle.duration)).toBe(0);
+    expect(
+      restingIdleOpening(profile, profile.restingIdle.duration / 2),
+    ).toBeCloseTo(1, 9);
+    // One open and close, never a cycle: it rises once and comes back.
+    let previous = 0;
+    let turns = 0;
+    for (let step = 1; step <= 40; step++) {
+      const value = restingIdleOpening(
+        profile,
+        (step / 40) * profile.restingIdle.duration,
+      );
+      if (step > 1 && Math.sign(value - previous) < 0 && previous > 0) turns++;
+      previous = value;
+    }
+    expect(turns).toBeGreaterThan(0);
+  });
+
+  it("never puts two residents on the same schedule", () => {
+    const seen = new Set<string>();
+    for (let seed = 0; seed < 21; seed++)
+      for (let count = 0; count < 4; count++)
+        seen.add(
+          restingIdleInterval(BUTTERFLY_PILOT_PROFILE, seed, count).toFixed(6),
+        );
+    // Deterministic per insect AND per opening, so a long rest never repeats
+    // an interval either.
+    expect(seen.size).toBe(21 * 4);
+    const [low, high] = BUTTERFLY_PILOT_PROFILE.restingIdle.interval;
+    for (const value of seen) {
+      expect(Number(value)).toBeGreaterThanOrEqual(low);
+      expect(Number(value)).toBeLessThanOrEqual(high);
+    }
+  });
+
+  it("opens the wings while perched and never while flying", () => {
+    const world = new PrimitiveFlightWorld();
+    const value = pilot(world);
+    expect(
+      commandInsectPilot(
+        value,
+        { type: "land", target: landingTarget("idle-perch") },
+        world,
+      ),
+    ).toBe(true);
+    advanceUntil(value, world, "rest");
+    // Let the terminal position hold finish converging onto the contact; what
+    // is being measured is the IDLE, not the last few millimetres of landing.
+    for (let step = 0; step < 120; step++)
+      advanceInsectPilot(value, 1 / 120, world);
+    const settled = { ...value.position };
+
+    let opened = 0;
+    let still = 0;
+    let moved = 0;
+    for (let step = 0; step < 120 * 30; step++) {
+      advanceInsectPilot(value, 1 / 120, world);
+      if (value.phase !== "rest") break;
+      const openness = 1 - value.wingAngle / (Math.PI / 2 - 0.12);
+      if (openness > 0.25) opened++;
+      else still++;
+      moved = Math.max(
+        moved,
+        Math.hypot(
+          value.position.x - settled.x,
+          value.position.y - settled.y,
+          value.position.z - settled.z,
+        ),
+      );
+    }
+    expect(opened).toBeGreaterThan(0);
+    // Mostly still. The opening is an event, not a state.
+    expect(still).toBeGreaterThan(opened * 2);
+    // Presentation only. The idle repositions nothing — translation would
+    // re-enter collision — so what is left over thirty seconds is the pilot's
+    // existing station-keeping wobble, about a millimetre.
+    expect(moved).toBeLessThan(0.002);
   });
 });

@@ -9,6 +9,7 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { INSECT_ENVELOPES } from "./insectCollision";
 import type { InsectContainment } from "./insectContainment";
 import {
   ThreeInsectFlightWorld,
@@ -86,6 +87,10 @@ export const WILDLIFE_PRESENTATION = {
   },
 } as const;
 const MOTH_MODEL_SCALE = 0.9;
+/** Metres the renderer drops the body below the collision datum once its wings
+ * are shut. See `InsectEnvelope.renderLift`. */
+const MOTH_RENDER_SINK =
+  INSECT_ENVELOPES.moth.contactLift - INSECT_ENVELOPES.moth.renderLift;
 const TAU = Math.PI * 2;
 const wrapPi = (angle: number) =>
   THREE.MathUtils.euclideanModulo(angle + Math.PI, TAU) - Math.PI;
@@ -1041,7 +1046,15 @@ function LivingWildlife({ dark }: { dark: boolean }) {
             );
             bodyMesh.setColorAt(mothIndex, mothColor);
 
-            mothDummy.position.set(position.x, position.y, position.z);
+            // As with the butterflies: the drawn body sits closer to the
+            // surface than the collision datum does, and settles with the
+            // wings rather than popping down at touchdown.
+            const mothSink = MOTH_RENDER_SINK * (pilot?.wingFold ?? 0);
+            mothDummy.position.set(
+              position.x - motion.target.normal.x * mothSink,
+              position.y - motion.target.normal.y * mothSink,
+              position.z - motion.target.normal.z * mothSink,
+            );
             mothDummy.quaternion
               .copy(mothParentQuaternion)
               .multiply(mothFlatQuaternion);

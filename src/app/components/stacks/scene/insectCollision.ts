@@ -35,8 +35,20 @@ export type InsectEnvelope = Readonly<{
   halfLength: number;
   /** Resting wing movement plus body thickness. */
   halfHeight: number;
-  /** Body-center lift from the resolved surface contact while resting. */
+  /** Body-center lift from the resolved surface contact while resting. This is
+   * the COLLISION datum: the resting envelope and every terminal check are
+   * measured from it. */
   contactLift: number;
+  /**
+   * Where the renderer draws the body centre while perched, above the same
+   * contact.
+   *
+   * Deliberately separate from `contactLift`, which used to do both jobs — so
+   * tuning the visible gap moved the resting envelope, and six millimetres
+   * turned two good Perches red. The visual gap is a dial now; the geometry it
+   * was entangled with is not.
+   */
+  renderLift: number;
   /** Rotation-independent radius used by flight-corridor sweeps. */
   sweepRadius: number;
   /** Settled butterflies close their wings above the thorax. Flight and every
@@ -59,6 +71,18 @@ export type InsectEnvelope = Readonly<{
  * scale. `sweepRadius` encloses the complete extended pose under any rotation;
  * terminal checks retain the flatter species-specific resting footprint.
  */
+/**
+ * How much larger the LANDING PLANNER's envelope is than the one the pilot is
+ * actually swept against (ADR 0005).
+ *
+ * Sized at the tracking error it exists to absorb, which is a centimetre or
+ * two near tight geometry. It is bought at a real cost: marginal Perches get
+ * harder to plan for, not easier — the About collective mark sits in a 6 cm
+ * gap between the desk lamp and the TJ medallion — so this is the number to
+ * move first if the Perch audit starts rejecting sites that used to resolve.
+ */
+export const INSECT_PLAN_DILATION = 0.008;
+
 export const INSECT_ENVELOPES = {
   butterfly: {
     halfSpan: 0.06,
@@ -72,6 +96,10 @@ export const INSECT_ENVELOPES = {
     // it about a centimetre up: enough to clear z-fighting with the surface
     // and to read as standing on legs, not enough to read as flight.
     contactLift: 0.012,
+    // Plus the body mesh's own 4 mm offset: about a centimetre of visible
+    // stance, which is enough to clear z-fighting and to read as standing on
+    // legs, and not enough to read as flight.
+    renderLift: 0.006,
     sweepRadius: 0.08,
     resting: {
       halfLength: 0.05,
@@ -88,6 +116,7 @@ export const INSECT_ENVELOPES = {
     halfLength: 0.055,
     halfHeight: 0.014,
     contactLift: 0.01,
+    renderLift: 0.005,
     sweepRadius: 0.095,
     resting: {
       halfLength: 0.055,
@@ -97,6 +126,44 @@ export const INSECT_ENVELOPES = {
     },
   },
 } as const satisfies Record<"butterfly" | "moth", InsectEnvelope>;
+
+/**
+ * The same envelope, grown by the plan dilation (ADR 0005).
+ *
+ * It grows sideways and UPWARD only. Growing it downward would push the folded
+ * pose into the very surface the insect is landing on, which is the one
+ * collider the plan is already forgiving — dilating into it would be asking a
+ * different question, not a stricter version of the same one.
+ */
+function dilateInsectEnvelope(
+  envelope: InsectEnvelope,
+  amount: number,
+): InsectEnvelope {
+  return {
+    ...envelope,
+    halfSpan: envelope.halfSpan + amount,
+    halfLength: envelope.halfLength + amount,
+    halfHeight: envelope.halfHeight + amount,
+    sweepRadius: envelope.sweepRadius + amount,
+    resting: {
+      halfLength: envelope.resting.halfLength + amount,
+      halfSpan: envelope.resting.halfSpan + amount,
+      centerLift: envelope.resting.centerLift + amount,
+      halfHeight: envelope.resting.halfHeight + amount,
+    },
+  };
+}
+
+export const INSECT_PLAN_ENVELOPES: Record<
+  "butterfly" | "moth",
+  InsectEnvelope
+> = {
+  butterfly: dilateInsectEnvelope(
+    INSECT_ENVELOPES.butterfly,
+    INSECT_PLAN_DILATION,
+  ),
+  moth: dilateInsectEnvelope(INSECT_ENVELOPES.moth, INSECT_PLAN_DILATION),
+};
 
 /**
  * The collision boxes a landing insect is allowed to touch: the geometry of

@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   type CollisionPoint,
   INSECT_ENVELOPES,
+  INSECT_PLAN_DILATION,
+  INSECT_PLAN_ENVELOPES,
   type InsectCollisionBox,
   insectCollisionRevisionIsCurrent,
   insectCorridorIsClear,
@@ -595,5 +597,45 @@ describe("insect collision kernel", () => {
       true,
       true,
     ]);
+  });
+});
+
+describe("planning envelope", () => {
+  it("plans against a larger envelope than the pilot is swept with", () => {
+    // The pilot TRACKS the compiled route rather than replaying it, so it
+    // deviates by a centimetre or two near tight geometry. Validating with a
+    // slightly larger envelope absorbs that by construction (ADR 0005).
+    expect(INSECT_PLAN_DILATION).toBeGreaterThan(0);
+    for (const species of ["butterfly", "moth"] as const) {
+      const exact = INSECT_ENVELOPES[species];
+      const dilated = INSECT_PLAN_ENVELOPES[species];
+      expect(dilated.sweepRadius).toBeCloseTo(
+        exact.sweepRadius + INSECT_PLAN_DILATION,
+        9,
+      );
+      expect(dilated.resting.halfSpan).toBeGreaterThan(exact.resting.halfSpan);
+      // It grows sideways and UPWARD only: growing it downward would push the
+      // folded pose into the very surface it is landing on.
+      expect(
+        dilated.resting.centerLift - dilated.resting.halfHeight,
+      ).toBeCloseTo(exact.resting.centerLift - exact.resting.halfHeight, 9);
+    }
+  });
+
+  it("keeps the drawn perched gap off the collision datum", () => {
+    // `contactLift` used to be both, so tuning the visible gap moved the
+    // resting envelope; six millimetres turned two good Perches red.
+    for (const species of ["butterfly", "moth"] as const) {
+      const envelope = INSECT_ENVELOPES[species];
+      expect(envelope.renderLift).toBeGreaterThan(0);
+      expect(envelope.renderLift).toBeLessThan(envelope.contactLift);
+      // The resting box is still measured from the collision datum and still
+      // straddles it, which is the whole point of separating the two: the
+      // drawn gap can move without any of this moving.
+      expect(envelope.resting.centerLift).toBeGreaterThan(envelope.contactLift);
+      expect(
+        envelope.resting.centerLift - envelope.resting.halfHeight,
+      ).toBeLessThanOrEqual(envelope.contactLift);
+    }
   });
 });
