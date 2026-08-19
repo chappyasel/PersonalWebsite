@@ -10,19 +10,22 @@ import { BUTTERFLY_PILOT_PROFILE } from "./insectPilot";
 
 describe("insect landing cadence", () => {
   it("keeps the owner-approved rest and flight ranges", () => {
-    // Retuned for the OUTCOME the ranges exist to produce: two to three
-    // butterflies settled on the shelf in view. Three residents per Unit at a
-    // 12-25 s rest against a 15-30 s flight gap averaged about one.
-    expect(LANDING_TIMING.butterflyRest).toEqual([20, 40]);
+    // The ceiling is an owner instruction, not a tuning result: "how long can
+    // butterflies dwell? seems like too long — shouldn't be more than like 15
+    // seconds." A settled butterfly that outstays it reads as scenery rather
+    // than as an animal, however good the occupancy statistic looks.
+    expect(LANDING_TIMING.butterflyRest[1]).toBeLessThanOrEqual(15);
+    expect(LANDING_TIMING.butterflyRest).toEqual([9, 15]);
     expect(LANDING_TIMING.mothRest).toEqual([2, 6]);
-    expect(LANDING_TIMING.flight).toEqual([4, 11]);
-    // Rest must dominate the cycle, not punctuate it.
+    expect(LANDING_TIMING.flight).toEqual([2, 5]);
+    // Rest must still dominate the cycle rather than punctuate it — the gaps
+    // came down with the rest so the ratio survived the cut.
     const restMean =
       (LANDING_TIMING.butterflyRest[0] + LANDING_TIMING.butterflyRest[1]) / 2;
     const flightMean =
       (LANDING_TIMING.flight[0] + LANDING_TIMING.flight[1]) / 2;
     expect(restMean).toBeGreaterThan(flightMean * 3);
-    expect(LANDING_TIMING.retryBackoff).toEqual([3, 5]);
+    expect(LANDING_TIMING.retryBackoff).toEqual([2, 3.5]);
   });
 
   it("returns stable, bounded staggering without shared random state", () => {
@@ -149,17 +152,60 @@ describe("complete Landing Plan", () => {
     expect(radius(plan.hover[0]!)).toBeGreaterThan(radius(plan.touchdown[0]!));
     expect(radius(plan.touchdown.at(-1)!)).toBeLessThan(0.005);
 
-    // And it goes around: more than a full turn of bearing change.
+    // It leans into the approach without circling. The upper bound is the point
+    // of this assertion, not the lower one: an arc that orbits the Perch is the
+    // corkscrew this curve was rewritten to stop being. Under half a turn total.
+    // Only where the radius is large enough for a bearing to mean anything.
+    // Inside a few millimetres of the contact, atan2 about the contact is two
+    // vanishing numbers and swings freely — the same degeneracy that made the
+    // renderer's facing flutter, and it would otherwise be counted as winding.
     let wound = 0;
     for (let index = 1; index < descent.length; index++) {
       const previous = descent[index - 1]!;
       const current = descent[index]!;
+      if (radius(previous) < 0.005 || radius(current) < 0.005) continue;
       const delta =
         Math.atan2(current.z - plan.contact.z, current.x - plan.contact.x) -
         Math.atan2(previous.z - plan.contact.z, previous.x - plan.contact.x);
       wound += Math.abs(((delta + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
     }
-    expect(wound).toBeGreaterThan(Math.PI * 2);
+    expect(wound).toBeGreaterThan(0.1);
+    expect(wound).toBeLessThan(Math.PI);
+
+    // The winding is FRONT-LOADED. This is the shape claim that matters to the
+    // eye: the insect's facing follows its heading, so turning that continues
+    // all the way to the contact reads as a corkscrew flipping the insect back
+    // and forth exactly where it is slowest and largest on screen. Spending the
+    // sweep early leaves a straight radial run-in.
+    // Yaw only. The curve deliberately changes PITCH right to the end — that is
+    // the κ flattening that makes it meet the surface along the surface instead
+    // of descending onto it — and including that here would measure the feature
+    // rather than the fault.
+    const headings: number[] = [];
+    for (let index = 1; index < descent.length; index++) {
+      const previous = descent[index - 1]!;
+      const current = descent[index]!;
+      const dx = current.x - previous.x;
+      const dz = current.z - previous.z;
+      if (Math.hypot(dx, dz) > 1e-9) headings.push(Math.atan2(dz, dx));
+    }
+    const turning = (from: number, to: number) => {
+      let total = 0;
+      for (let index = from + 1; index < to; index++) {
+        const delta = headings[index]! - headings[index - 1]!;
+        total += Math.abs(((delta + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+      }
+      return total;
+    };
+    const lastQuarter = turning(
+      Math.floor(headings.length * 0.75),
+      headings.length,
+    );
+    expect(lastQuarter).toBeLessThan(
+      turning(0, Math.floor(headings.length / 2)),
+    );
+    // ~11°: a settling bank, not a spin.
+    expect(lastQuarter).toBeLessThan(0.2);
   });
 
   it("meets a horizontal Perch along the surface rather than descending onto it", () => {

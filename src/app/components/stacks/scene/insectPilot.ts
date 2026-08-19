@@ -18,6 +18,7 @@ import {
 } from "./insectLanding";
 import type { InsectPerchRejectionCode } from "./insectPerchDiagnostic";
 import {
+  type InsectEvasion,
   type InsectSteeringProfile,
   type InsectSteeringState,
   advanceInsectSteering,
@@ -42,6 +43,23 @@ const LANDING_SLIDE_FRACTIONS = [0.55, 0.24] as const;
  */
 const LANDING_REFUSAL_STEPS = 24;
 const WING_FOLD_RATE = 4.8;
+/**
+ * Distance from contact at which the wings begin to close.
+ *
+ * They used to begin closing when the TOUCHDOWN PHASE began, and at
+ * `WING_FOLD_RATE` that is over in a fifth of a second — so the insect covered
+ * the whole last stretch as a rigid glide. Owner review: "that last bit of them
+ * not flapping but like floating down. That's really bad actually. They need to
+ * be flapping until they're completely stationary."
+ *
+ * Eighteen millimetres is about a body length, and the fold rate means the
+ * wings are still moving as the feet arrive and finish closing just after —
+ * which is the order the real gesture happens in.
+ */
+const WING_FOLD_CONTACT_DISTANCE = 0.018;
+/** Time constant and snap threshold for a resting insect's grip on its Perch. */
+const REST_GRIP_RATE = 24;
+const REST_GRIP_SNAP = 2e-4;
 const FIXED_STEP = 1 / 120;
 const MAX_FRAME_DELTA = 0.1;
 const EPSILON = 1e-9;
@@ -168,6 +186,23 @@ export type InsectRestingIdle = Readonly<{
   duration: number;
   /** How far the wings open, as a fraction of the folded angle. */
   depth: number;
+  /**
+   * Radians of thorax pitch through the same episode — a small rock fore and
+   * aft while the wings open, not a second oscillator.
+   *
+   * Owner review: "can we make the butterflies and moths look a little more
+   * active when they're landed? maybe a bit more flapping? and maybe a tiny
+   * bit of intermittent bobbing?" Bobbing is the delicate half of that: a
+   * perched insect that translates is an insect that has left its contact
+   * plane, and the contact plane is the one thing a settled insect must never
+   * cross. Pitch is a rotation about the thorax, so it costs nothing in
+   * collision and reads as the animal shifting its weight.
+   *
+   * It rides the wing episode deliberately. An independent timer would give a
+   * still insect a second thing happening for no visible reason, which is the
+   * "idling machine" this idle was written to escape.
+   */
+  bob: number;
 }>;
 
 export type InsectRoamConfig = {
@@ -189,6 +224,12 @@ export type InsectRoamConfig = {
    * is; the pilot only forwards it to the Intent Layer.
    */
   transit: { x: number; y: number; z: number } | null;
+  /**
+   * Pointer avoidance for this frame, or null. Owned by the renderer for the
+   * same reason `transit` is: "near the cursor" is a screen-space fact, and
+   * the pilot has no camera.
+   */
+  evade: InsectEvasion | null;
 };
 
 export const BUTTERFLY_PILOT_PROFILE: InsectPilotProfile = {
@@ -202,7 +243,23 @@ export const BUTTERFLY_PILOT_PROFILE: InsectPilotProfile = {
   approachDistance: 0.26,
   approachLateral: 0.15,
   arrivalAngle: 0.436,
-  arrivalTurns: 1.2,
+  // Winding of the Arrival Curve about its lift axis, in turns.
+  //
+  // 0.12, down from 1.2. At 1.2 the insect orbited the Perch completely on the
+  // way in — the corkscrew. What is left is a tenth of a turn, front-loaded
+  // (see the Arrival Curve comment in `insectLanding.ts`), which is a slight
+  // lean into the approach and not a circuit: the insect comes in, rises, and
+  // sets down.
+  //
+  // Not zero, and the reason is the CONNECTOR rather than the arc. The
+  // connector into the curve mouth is a Hermite that has to match the curve's
+  // entry velocity; with no swirl at all that velocity points straight down the
+  // radius, so an insect arriving from the side has to turn square at the mouth
+  // and the connector bulges out into whatever is next to the Perch. A little
+  // tangential component gives it something to match and the connector stays
+  // gentle. Exactly zero failed to reach Life 3.0 in Books; 0.1 already
+  // reached it, so this is not a reachability cliff being tiptoed around.
+  arrivalTurns: 0.12,
   launchDistance: 0.34,
   acquireDistance: 1.45,
   positionTolerance: 0.018,
@@ -220,13 +277,18 @@ export const BUTTERFLY_PILOT_PROFILE: InsectPilotProfile = {
   wingFrequency: 8.8,
   // Not a twitch rate any more: the residual sway a settled insect has while
   // it is doing nothing. The episodic opening is `restingIdle`.
-  restingWingFrequency: 0.26,
+  restingWingFrequency: 0.34,
   wingAmplitude: 1,
-  restingWingAmplitude: 0.019,
+  restingWingAmplitude: 0.026,
+  // Opening every 1.6-4.8 s rather than every 3.4-9.5. The schedule was
+  // written against a 30-62 s stay and now has to fill a 9-15 s one, so the
+  // same numbers would have given many visits a single opening or none —
+  // which is a butterfly that lands, sits perfectly still, and leaves.
   restingIdle: {
-    interval: [3.4, 9.5],
-    duration: 1.15,
-    depth: 0.72,
+    interval: [1.6, 4.8],
+    duration: 1.0,
+    depth: 0.8,
+    bob: 0.09,
   },
   wingAmplitudeRate: 2.8,
   wingFrequencyRate: 18,
@@ -251,21 +313,23 @@ export const MOTH_PILOT_PROFILE: InsectPilotProfile = {
   approachDistance: 0.24,
   approachLateral: 0.13,
   arrivalAngle: 0.436,
-  arrivalTurns: 1.1,
+  // Reduced for the same reason as the butterfly profile above.
+  arrivalTurns: 0.11,
   launchDistance: 0.3,
   acquireDistance: 1.15,
   wanderAmplitude: 0.052,
   wanderFrequency: 0.92,
   wingFrequency: 7,
-  restingWingFrequency: 0.19,
-  restingWingAmplitude: 0.014,
+  restingWingFrequency: 0.25,
+  restingWingAmplitude: 0.02,
   // A moth at rest holds its wings flatter and moves them less often than a
   // butterfly does. It is also the only one of the two you meet at night,
   // where any motion at all is more conspicuous.
   restingIdle: {
-    interval: [5.5, 14],
-    duration: 1.6,
-    depth: 0.38,
+    interval: [2.4, 6.5],
+    duration: 1.35,
+    depth: 0.52,
+    bob: 0.06,
   },
   wingAmplitudeRate: 2.3,
   wingFrequencyRate: 14,
@@ -321,6 +385,8 @@ export interface InsectFlightWorld {
     perchId: string,
     occupantId: string,
     plannedCollisionRevision?: number | null,
+    /** The exact, possibly spread contact the accepted plan was compiled for. */
+    plannedTarget?: InsectLandingTarget,
   ): boolean | InsectReservationResult;
   release(perchId: string, occupantId: string): void;
 }
@@ -520,6 +586,18 @@ export function restingIdleOpening(
   const duration = Math.max(EPSILON, profile.restingIdle.duration);
   if (age <= 0 || age >= duration) return 0;
   return Math.sin(Math.PI * (age / duration));
+}
+
+/** Thorax pitch at `age` seconds into an opening, in radians. A FULL cycle
+ * against the wings' single hump, so the insect rocks forward and back once
+ * rather than nodding and staying nodded. */
+export function restingIdleBob(
+  profile: Pick<InsectPilotProfile, "restingIdle">,
+  age: number,
+) {
+  const duration = Math.max(EPSILON, profile.restingIdle.duration);
+  if (age <= 0 || age >= duration) return 0;
+  return profile.restingIdle.bob * Math.sin(TAU * (age / duration));
 }
 
 function stableNoise(seed: number) {
@@ -792,7 +870,10 @@ export function commandInsectPilot(
               from,
               to,
               pilot.profile.wingRadius + pilot.profile.wanderAmplitude,
-              phase === "hover" || phase === "touchdown" || phase === "launch",
+              phase === "approach" ||
+                phase === "hover" ||
+                phase === "touchdown" ||
+                phase === "launch",
             ),
         });
     if (!compiled.ok) {
@@ -804,6 +885,7 @@ export function commandInsectPilot(
       command.target.id,
       pilot.occupantId,
       compiled.plan.collisionRevision,
+      command.target,
     );
     if (
       reservation === false ||
@@ -870,6 +952,13 @@ export function commandInsectPilot(
       copy(pilot.contact, pilot.landingPlan.touchdown.at(-1)!);
       copy(pilot.launchTarget, pilot.landingPlan.launch.at(-1)!);
     }
+    // The prop moved; the insect standing on it did not. Ordinarily the next
+    // fixed step projects it back above the new contact plane, but a frame
+    // shorter than the fixed step takes none — measured live, a settled
+    // butterfly sat 9.7 mm INSIDE a photo frame that had just swayed under it.
+    // Re-projecting here makes the correction part of the move rather than
+    // something that happens shortly afterwards.
+    holdAboveContactPlane(pilot);
     return true;
   }
 
@@ -1652,7 +1741,7 @@ function advanceFlap(pilot: InsectPilot, step: number) {
     const remaining = distance(pilot.position, pilot.contact);
     const target =
       pilot.phase === "rest"
-        ? 0
+        ? restingIdleBob(profile, pilot.restIdleAge) * pilot.restIdleDepth
         : profile.flarePitch *
           Math.max(
             0,
@@ -1689,7 +1778,10 @@ function advanceWing(pilot: InsectPilot, step: number) {
   // which is what `hoverWingAmplitude` and `hoverWingFrequency` are for, and
   // it is the difference between braking and coasting. The wings shut on
   // touchdown, where contact explains the change.
-  const foldedPresentation = folded;
+  // Touchdown is excluded: the wings keep their speed-driven beat right through
+  // it, and the fold is driven by how far the feet still have to go rather than
+  // by which phase the pilot is in.
+  const foldedPresentation = folded && pilot.phase !== "touchdown";
   const speed = magnitude(pilot.velocity.x, pilot.velocity.y, pilot.velocity.z);
   const targetAmplitude = foldedPresentation
     ? pilot.profile.restingWingAmplitude
@@ -1720,7 +1812,20 @@ function advanceWing(pilot: InsectPilot, step: number) {
   );
   pilot.wingAmplitude += amplitudeDelta;
   pilot.wingFrequency += frequencyDelta;
-  const targetFold = foldedPresentation ? 1 : 0;
+  const targetFold =
+    pilot.phase === "touchdown"
+      ? Math.max(
+          0,
+          Math.min(
+            1,
+            1 -
+              distance(pilot.position, pilot.contact) /
+                WING_FOLD_CONTACT_DISTANCE,
+          ),
+        )
+      : foldedPresentation
+        ? 1
+        : 0;
   pilot.wingFold += Math.max(
     -WING_FOLD_RATE * step,
     Math.min(WING_FOLD_RATE * step, targetFold - pilot.wingFold),
@@ -1852,6 +1957,7 @@ function advanceFixed(pilot: InsectPilot, world: InsectFlightWorld) {
         profile: pilot.roam.profile,
         containment: pilot.roam.containment,
         transit: pilot.roam.transit,
+        evade: pilot.roam.evade,
         position: pilot.position,
         velocity: pilot.velocity,
         step: FIXED_STEP,
@@ -1881,6 +1987,48 @@ function advanceFixed(pilot: InsectPilot, world: InsectFlightWorld) {
     copy(pilot.velocity, pilot.cruise.velocity);
     copy(pilot.desiredAcceleration, pilot.cruise.acceleration);
     applyAccelerationLimits(pilot, FIXED_STEP);
+    advanceWing(pilot, FIXED_STEP);
+    advanceFlap(pilot, FIXED_STEP);
+    return;
+  }
+
+  if (pilot.phase === "rest") {
+    // A perched insect is ATTACHED to its Perch. It was holding station near
+    // one instead: `desiredStationaryAcceleration` toward `contact`, every
+    // frame, through an acceleration and jerk limiter. A limited spring
+    // overshoots, comes back, and overshoots the other way, so a settled
+    // butterfly rocked gently forever and never quite arrived — owner review,
+    // "there shouldn't be that back and forth sway at the end, they should
+    // just stick".
+    //
+    // Following `contact` exactly rather than chasing it is also what makes a
+    // Perch on a MOVING prop work: the globe turns, a shelf prop gets picked
+    // up, and the contact point is re-derived every frame by `update-perch`.
+    // A spring lags a moving target by construction; a pin does not. And
+    // because the position IS the contact point, an insect can no longer end
+    // up below its own contact plane, which the live check had been catching
+    // at up to 15 mm.
+    const grip = 1 - Math.exp(-REST_GRIP_RATE * FIXED_STEP);
+    pilot.position.x += (pilot.contact.x - pilot.position.x) * grip;
+    pilot.position.y += (pilot.contact.y - pilot.position.y) * grip;
+    pilot.position.z += (pilot.contact.z - pilot.position.z) * grip;
+    if (distance(pilot.position, pilot.contact) < REST_GRIP_SNAP)
+      copy(pilot.position, pilot.contact);
+    // Nothing is left to integrate. Zeroing the velocity rather than damping it
+    // is the point: any residual is what the spring used to feed on.
+    pilot.velocity.x = 0;
+    pilot.velocity.y = 0;
+    pilot.velocity.z = 0;
+    // Acceleration is no longer driving anything, but it is still REPORTED, and
+    // dropping it to zero in one step is an unbounded jerk — the suite caught
+    // 18.57 against a limit of 18. Let it decay through the same limiter every
+    // other phase uses, so the published kinematics stay continuous across a
+    // landing without any of it reaching the position.
+    pilot.desiredAcceleration.x = 0;
+    pilot.desiredAcceleration.y = 0;
+    pilot.desiredAcceleration.z = 0;
+    applyAccelerationLimits(pilot, FIXED_STEP);
+    pilot.blockedSteps = 0;
     advanceWing(pilot, FIXED_STEP);
     advanceFlap(pilot, FIXED_STEP);
     return;
@@ -1932,9 +2080,9 @@ function advanceFixed(pilot: InsectPilot, world: InsectFlightWorld) {
         profile.touchdownSpeed * 1.35,
         false,
       );
-  } else if (pilot.phase === "touchdown" || pilot.phase === "rest") {
+  } else if (pilot.phase === "touchdown") {
     const touchdown = pilot.landingPlan?.touchdown;
-    if (pilot.phase === "touchdown" && touchdown) {
+    if (touchdown) {
       pilot.routeTargetVelocity.x = 0;
       pilot.routeTargetVelocity.y = 0;
       pilot.routeTargetVelocity.z = 0;
@@ -2022,11 +2170,17 @@ function advanceFixed(pilot: InsectPilot, world: InsectFlightWorld) {
   // already forgiven, the step was refused, and the landing bailed to
   // `hover-blocked`. Twenty-one residents spent ninety seconds approaching
   // Perches and reached zero of them.
+  // `rest` is absent because it no longer reaches here: a perched insect is
+  // pinned to its contact point and returns above, so there is no proposal to
+  // sweep.
   const foldedPhase =
-    pilot.phase === "hover" ||
-    pilot.phase === "touchdown" ||
-    pilot.phase === "rest" ||
-    foldedLaunchStep;
+    pilot.phase === "hover" || pilot.phase === "touchdown" || foldedLaunchStep;
+  // The planner gives `approach` the same bounded support licence because the
+  // Arrival Curve starts in that phase. The pilot must fly under the contract
+  // it compiled: this remains local to the reserved contact region, while the
+  // rest of the prop and every neighbouring collider stay hard.
+  const supportPhase =
+    pilot.phase === "approach" || foldedPhase || pilot.phase === "launch";
   const proposalIsClear =
     foldedPhase && world.sweepFolded
       ? world.sweepFolded(
@@ -2040,7 +2194,7 @@ function advanceFixed(pilot: InsectPilot, world: InsectFlightWorld) {
           pilot.position,
           pilot.proposal,
           profile.wingRadius,
-          foldedPhase || pilot.phase === "launch",
+          supportPhase,
           pilot.phase === "launch" || pilot.phase === "rejoin",
         );
 

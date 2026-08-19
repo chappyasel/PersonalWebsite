@@ -66,13 +66,49 @@ export const BUTTERFLY_RESIDENCY = {
    */
   minPerUnit: 2,
   /**
-   * ...and nobody's shelf becomes a swarm. With 21 residents, a floor of 2 and
-   * a cap of 6 produce the authored target directly: about six in the Unit in
-   * view, three in its neighbours, two at the far end.
+   * ...and nobody's shelf becomes a swarm.
+   *
+   * Owner review of the first tuning: "no more than 5 on screen otherwise
+   * feels spammy. 3-5 at all times feels ideal." A cap of 6 was written to a
+   * count, not to a viewport, and the viewport is what the visitor sees — a
+   * shelf and slivers of its neighbours. With 18 residents a floor of 2 and a
+   * cap of 4 put four on the Unit in view and three on each side, so the
+   * frame holds about four and never more than five.
+   *
+   * The cap also does most of the work on the other half of that note. Demand
+   * swings by AT MOST two per Unit as the camera passes, so a redistribution
+   * is two or three insects crossing, not a shelf emptying; capping the
+   * concurrent crossings (below) covers the rest.
    */
-  maxPerUnit: 6,
-  /** Metres of camera x over which the migration bias decays. One Unit. */
-  cameraFalloff: UNIT_SPACING,
+  maxPerUnit: 4,
+  /**
+   * Metres of camera x over which the migration bias decays.
+   *
+   * One Unit made the weighting steep enough that the camera's own shelf took
+   * every spare resident. Half again as wide spreads the same surplus across
+   * the shelf in view and its two neighbours, which is what stops an arrival
+   * being a crowd and a departure being an exodus.
+   */
+  cameraFalloff: UNIT_SPACING * 1.5,
+  /**
+   * Residents that may be under crossing orders at once, across the whole
+   * room.
+   *
+   * Nothing about the demand model bounds this: a viewport-sized scroll can
+   * leave four Units surplus simultaneously and every one of them is entitled
+   * to send. Owner review named the result exactly — "makes it look like
+   * there's a stampede" — so the queue is served a few at a time. The rest
+   * wait, which costs only settling time, and re-homing serves everything far
+   * enough away to be moved for free anyway.
+   */
+  maxConcurrentTransits: 3,
+  /**
+   * Seconds a resident carries an order before its crossing heading engages,
+   * as a band. Orders are handed out on ONE frame; without a stagger the whole
+   * cohort turns together, which reads as a formation however few of them
+   * there are.
+   */
+  transitStagger: [0.4, 2.8],
   /**
    * Hazard rate, per second, for a migration that is entirely favourable. Bias
    * scales it down toward zero for a crossing that moves away from the viewer,
@@ -277,6 +313,15 @@ export function butterflyTransitDestination(
   residents: readonly number[],
   demand: readonly number[],
   currentUnit: number,
+  /**
+   * Which way to break a tie when a Unit is short on BOTH sides. Scanning
+   * ascending always resolved that leftward, so a shelf between two deficits
+   * sent everyone the same way and the visitor saw a single file — "shouldn't
+   * they be coming in from both directions?". The caller alternates it per
+   * resident, which costs nothing and makes an equidistant pair genuinely a
+   * pair.
+   */
+  preferRight = false,
 ): number | null {
   if ((residents[currentUnit] ?? 0) <= (demand[currentUnit] ?? 0)) return null;
   let best: number | null = null;
@@ -285,7 +330,14 @@ export function butterflyTransitDestination(
     if (unit === currentUnit) continue;
     if ((residents[unit] ?? 0) >= (demand[unit] ?? 0)) continue;
     const distance = Math.abs(unit - currentUnit);
-    if (distance < bestDistance) {
+    if (
+      distance < bestDistance ||
+      (distance === bestDistance &&
+        preferRight &&
+        best !== null &&
+        unit > currentUnit &&
+        best < currentUnit)
+    ) {
       bestDistance = distance;
       best = unit;
     }

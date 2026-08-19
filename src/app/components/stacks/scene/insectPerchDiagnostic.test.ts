@@ -6,6 +6,8 @@ import {
 } from "./insectCollision";
 import {
   INSECT_PERCH_REJECTION_CODES,
+  INSECT_ROUTE_FAILURE_ESCALATION,
+  INSECT_ROUTE_FAILURE_TTL_SECONDS,
   InsectDiagnosticsController,
   evaluateInsectPerchDiagnostic,
   insectDiagnosticsEnabled,
@@ -57,7 +59,21 @@ describe("shared insect Perch diagnostics", () => {
     });
 
     expect(unlit.disposition).toBe("waiting");
+    // Reserved but still inbound: amber, like any other "not right now".
     expect(occupied.disposition).toBe("waiting");
+    expect(occupied.rejectionCode).toBe("reserved");
+    // Actually stood on: its own disposition, because it is the one state that
+    // means a landing succeeded.
+    const settled = evaluateInsectPerchDiagnostic({
+      ...base,
+      occupantId: "butterfly:2",
+      occupantAtRest: true,
+    });
+    expect(settled.disposition).toBe("occupied");
+    expect(settled.rejectionCode).toBe("occupied");
+    // Both are equally unavailable to a second insect.
+    expect(occupied.status).toBe("occupied");
+    expect(settled.status).toBe("occupied");
     expect(unsafe.disposition).toBe("rejected");
     expect(
       evaluateInsectPerchDiagnostic({
@@ -72,9 +88,10 @@ describe("shared insect Perch diagnostics", () => {
       total: 4,
       ready: 1,
       waiting: 2,
+      occupied: 0,
       rejected: 1,
       rejections: [
-        { code: "occupied", count: 1 },
+        { code: "reserved", count: 1 },
         { code: "resting-pose-blocked", count: 1 },
         { code: "unlit-lamp", count: 1 },
       ],
@@ -92,6 +109,13 @@ describe("shared insect Perch diagnostics", () => {
     expect(
       evaluateInsectPerchDiagnostic({ ...base, occupantId: "butterfly:2" })
         .rejectionCode,
+    ).toBe("reserved");
+    expect(
+      evaluateInsectPerchDiagnostic({
+        ...base,
+        occupantId: "butterfly:2",
+        occupantAtRest: true,
+      }).rejectionCode,
     ).toBe("occupied");
     expect(
       evaluateInsectPerchDiagnostic({ ...base, plannedCollisionRevision: 3 })
@@ -216,9 +240,76 @@ describe("shared insect Perch diagnostics", () => {
       rejectionCodes.push(afterDiagnostic.rejectionCode);
     }
 
-    expect(new Set(dispositions)).toEqual(new Set(["rejected"]));
-    expect(new Set(rejectionCodes)).toEqual(new Set(["hover-blocked"]));
+    // The invariant this test exists for is that a blocked Perch never reads
+    // ready between an animated revision and the next publication. Which shade
+    // of not-ready it reads is a separate decision: a single blocked attempt is
+    // "waiting", and only repeated failure escalates to a red site verdict.
+    expect(dispositions).not.toContain("ready");
+    expect(new Set(rejectionCodes)).toEqual(
+      new Set(["hover-blocked", "route-unreachable"]),
+    );
+    // Escalation must actually engage rather than leaving a permanently
+    // unroutable site amber forever.
+    expect(rejectionCodes[rejectionCodes.length - 1]).toBe("route-unreachable");
     expect(revisions.size).toBe(100);
+  });
+
+  it("forgets a route verdict once it is older than the retention window", () => {
+    const controller = new InsectDiagnosticsController();
+    controller.publishRoutes(
+      "about:test",
+      4,
+      [{ phase: "launch", points: [], clear: false }],
+      100,
+    );
+    // Still inside the window: the verdict describes a recent sweep.
+    expect(
+      controller.diagnosticRouteStateForCollisionRevision(
+        "about:test",
+        5,
+        100 + INSECT_ROUTE_FAILURE_TTL_SECONDS - 1,
+      ),
+    ).toEqual({ routes: [], retainedFailure: "launch-blocked" });
+    // Past it, the sweep is not evidence about the site any more. A Perch that
+    // nobody has attempted for a while must not keep displaying a stale
+    // attempt's verdict.
+    expect(
+      controller.diagnosticRouteStateForCollisionRevision(
+        "about:test",
+        5,
+        100 + INSECT_ROUTE_FAILURE_TTL_SECONDS + 1,
+      ),
+    ).toEqual({ routes: [], retainedFailure: null });
+  });
+
+  it("escalates only on consecutive failures and resets the count on success", () => {
+    const controller = new InsectDiagnosticsController();
+    const blocked = [{ phase: "approach" as const, points: [], clear: false }];
+    const clear = [{ phase: "approach" as const, points: [], clear: true }];
+    const retained = () =>
+      controller.diagnosticRouteStateForCollisionRevision("about:test", 99)
+        .retainedFailure;
+
+    for (
+      let attempt = 1;
+      attempt < INSECT_ROUTE_FAILURE_ESCALATION;
+      attempt++
+    ) {
+      controller.clearRoutes("about:test");
+      controller.publishRoutes("about:test", 1, blocked);
+      expect(retained()).toBe("approach-blocked");
+    }
+    controller.clearRoutes("about:test");
+    controller.publishRoutes("about:test", 1, blocked);
+    expect(retained()).toBe("route-unreachable");
+
+    // One insect reaching it proves the site routable; the count starts over,
+    // so a later awkward approach is again just one failed attempt.
+    controller.clearRoutes("about:test");
+    controller.publishRoutes("about:test", 1, clear);
+    controller.clearRoutes("about:test");
+    controller.publishRoutes("about:test", 1, blocked);
+    expect(retained()).toBe("approach-blocked");
   });
 
   it("drops stale successful routes and lets a cleared stale failure be recompiled", () => {

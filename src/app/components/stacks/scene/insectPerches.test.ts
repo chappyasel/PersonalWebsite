@@ -37,20 +37,22 @@ describe("authored insect Perches", () => {
     expect(catalog.some((perch) => perch.id === "books:life-3-0-pages")).toBe(
       true,
     );
-    // The near plate. Its predecessor sat behind the shelf, out of sight and
-    // out of the Flight Volume.
+    // The bar. Both plates are outside the Flight Volume — the barbell lies
+    // diagonally, so one is 0.29 m behind the back wall and the other 0.33 m
+    // past the lateral face — and every predecessor of this Perch sat on one
+    // of them.
+    expect(catalog.some((perch) => perch.id === "training:barbell-bar")).toBe(
+      true,
+    );
     expect(
       catalog.some((perch) => perch.id === "training:barbell-front-plate"),
-    ).toBe(true);
-    expect(
-      catalog.some((perch) => perch.id === "training:barbell-left-plate"),
     ).toBe(false);
     expect(
       catalog.filter(
         (perch) =>
           perch.id.startsWith("systems:") && perch.id.endsWith("-frame"),
       ),
-    ).toHaveLength(4);
+    ).toHaveLength(5);
     expect(
       catalog.some((perch) =>
         "ownerId" in perch ? perch.ownerId?.startsWith("shelf:") : false,
@@ -310,6 +312,30 @@ describe("authored insect Perches", () => {
       mesh.geometry.dispose();
       mesh.material.dispose();
       sprite.material.dispose();
+    }
+  });
+});
+
+describe("every shelf carries the same number of Perches", () => {
+  it("holds seven on each of the seven Units", () => {
+    // Occupancy is meant to rise from insects STAYING rather than from more
+    // traffic, but a Unit cannot hold four settled residents against four
+    // Perches without every arrival competing for the last one. Books had four
+    // against a shelf of two dozen props; Projects and Training had four each.
+    const catalog = insectPerchCatalog();
+    expect(catalog).toHaveLength(7);
+    for (const [unitIndex, unit] of catalog.entries())
+      expect(unit, `Unit ${unitIndex}`).toHaveLength(7);
+  });
+
+  it("names a distinct prop for every Perch on a shelf", () => {
+    // Two Perches on one prop is one prop with two insects on it, not two
+    // sites — and it reads as a queue.
+    for (const [unitIndex, unit] of insectPerchCatalog().entries()) {
+      const owners = unit.map((perch) =>
+        "ownerId" in perch ? perch.ownerId : null,
+      );
+      expect(new Set(owners).size, `Unit ${unitIndex}`).toBe(owners.length);
     }
   });
 });

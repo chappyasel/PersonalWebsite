@@ -288,6 +288,7 @@ describe("Unit Books forced Landing Plan", () => {
         containment: createInsectFlightVolumeContainment(volume),
         volume,
         transit: null,
+        evade: null,
       },
     });
     try {

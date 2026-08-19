@@ -154,7 +154,20 @@ export type InsectLandingPlanRequest = {
  *
  *   r(s) = R(1 − s)
  *   h(s) = H(1 − s)((1 − s) + κ) / (1 + κ)
- *   θ(s) = θ₀ ± 2π · turns · s
+ *   θ(s) = θ₀ ± 2π · turns · (1 − (1 − s)³)
+ *
+ * The winding is FRONT-LOADED: the sweep completes, but its rate 3(1 − s)²
+ * vanishes at the contact. A linear θ(s) — what this was — turns at a constant
+ * rate all the way in, and while the swirl term of the velocity decays with the
+ * radius, the radial term does not: its magnitude stays R while its direction
+ * keeps rotating. So the heading swept fastest exactly where the insect was
+ * slowest and largest on screen, which read as a corkscrew flipping the
+ * insect's facing back and forth as it settled.
+ *
+ * Cubic rather than quadratic because two effects have to die out, not one: the
+ * bearing itself, and the ratio of swirl to radial velocity that sets how far
+ * the heading leads the radius. Quadratic left ~24° of yaw in the final quarter
+ * of the descent; cubic leaves under 10°, which reads as a settling bank.
  *
  * κ is not a shape preference; it is solved so the terminal slope dh/dr equals
  * the authored arrival angle. A pure quadratic height (κ = 0) arrives exactly
@@ -167,6 +180,25 @@ type ArrivalCurve = Readonly<{
   normal: PilotVector;
   tangent: PilotVector;
   bitangent: PilotVector;
+  /**
+   * The direction the curve's height is measured along — the Perch normal
+   * tilted toward the entry side by `ARRIVAL_TILTS`.
+   *
+   * It used to BE the normal, and that is why every landing looked the same.
+   * The curve is `contact + normal·height + (disc)·radius`, so on any flat
+   * surface the top of the spiral sat directly over the contact point and the
+   * eight entry bearings only chose which compass direction the insect
+   * descended in — never the elevation. Owner review: "why aren't they allowed
+   * to come from more aggressive directions? Looks like it's always this
+   * classic floating down from the top."
+   *
+   * Tilting only this vector, and leaving the radial disc in the surface's own
+   * tangent plane, keeps the whole curve on the outer side of the contact
+   * plane by construction: every sample's normal component is
+   * `height·cos(tilt)`, which cannot go negative. The insect swings in from the
+   * side and rises onto the Perch instead of settling onto it from above.
+   */
+  lift: PilotVector;
   radius: number;
   height: number;
   kappa: number;
@@ -201,25 +233,36 @@ function arrivalHeight(curve: ArrivalCurve, remaining: number) {
   );
 }
 
+/** Fraction of the total sweep completed at `s`, and its derivative. Both are
+ * needed together and must not drift apart. */
+function arrivalSweepFraction(s: number) {
+  const remaining = 1 - s;
+  return 1 - remaining * remaining * remaining;
+}
+
+function arrivalSweepRate(remaining: number) {
+  return 3 * remaining * remaining;
+}
+
 function arrivalPoint(curve: ArrivalCurve, s: number): PilotVector {
   const remaining = 1 - s;
   const radius = curve.radius * remaining;
   const height = arrivalHeight(curve, remaining);
-  const angle = curve.startAngle + curve.sweepAngle * s;
+  const angle = curve.startAngle + curve.sweepAngle * arrivalSweepFraction(s);
   const cos = Math.cos(angle);
   const sin = Math.sin(angle);
   return {
     x:
       curve.contact.x +
-      curve.normal.x * height +
+      curve.lift.x * height +
       (curve.tangent.x * cos + curve.bitangent.x * sin) * radius,
     y:
       curve.contact.y +
-      curve.normal.y * height +
+      curve.lift.y * height +
       (curve.tangent.y * cos + curve.bitangent.y * sin) * radius,
     z:
       curve.contact.z +
-      curve.normal.z * height +
+      curve.lift.z * height +
       (curve.tangent.z * cos + curve.bitangent.z * sin) * radius,
   };
 }
@@ -227,23 +270,27 @@ function arrivalPoint(curve: ArrivalCurve, s: number): PilotVector {
 /** d/ds of the curve, normalized and scaled to `speed`. */
 function arrivalVelocity(curve: ArrivalCurve, s: number, speed: number) {
   const remaining = 1 - s;
-  const angle = curve.startAngle + curve.sweepAngle * s;
+  const angle = curve.startAngle + curve.sweepAngle * arrivalSweepFraction(s);
   const cos = Math.cos(angle);
   const sin = Math.sin(angle);
   const radialRate = -curve.radius;
   const heightRate =
     (-curve.height * (2 * remaining + curve.kappa)) / (1 + curve.kappa);
-  const swirl = curve.radius * remaining * curve.sweepAngle;
+  // r(s) · dθ/ds. Front-loaded winding makes this fall off as the square of the
+  // remaining parameter rather than linearly, so the last of the arc is a
+  // straight radial run-in and the heading is settled before contact.
+  const swirl =
+    curve.radius * remaining * curve.sweepAngle * arrivalSweepRate(remaining);
   const x =
-    curve.normal.x * heightRate +
+    curve.lift.x * heightRate +
     (curve.tangent.x * cos + curve.bitangent.x * sin) * radialRate +
     (-curve.tangent.x * sin + curve.bitangent.x * cos) * swirl;
   const y =
-    curve.normal.y * heightRate +
+    curve.lift.y * heightRate +
     (curve.tangent.y * cos + curve.bitangent.y * sin) * radialRate +
     (-curve.tangent.y * sin + curve.bitangent.y * cos) * swirl;
   const z =
-    curve.normal.z * heightRate +
+    curve.lift.z * heightRate +
     (curve.tangent.z * cos + curve.bitangent.z * sin) * radialRate +
     (-curve.tangent.z * sin + curve.bitangent.z * cos) * swirl;
   const length = Math.hypot(x, y, z);
@@ -293,6 +340,23 @@ const ARRIVAL_SCALES = [1, 0.68, 0.46, 0.32] as const;
  * it is only reached for after every full-winding candidate has failed.
  */
 const ARRIVAL_TURN_FRACTIONS = [1, 0.45, 0.25] as const;
+
+/**
+ * Tilts of the curve's lift axis away from the Perch normal, in radians.
+ *
+ * Zero is the old behaviour — the spiral sits directly over the contact point
+ * and the insect descends onto it. At 0.95 rad the axis is 54° off the normal,
+ * so the arc's high end is out to the SIDE and the insect comes in almost
+ * level, banking up onto the Perch at the last moment.
+ *
+ * Which tilt an attempt uses comes from that attempt's `variation`, so a Perch
+ * gets a genuinely different arrival each time rather than one house style with
+ * jitter. Zero leads the list deliberately: it is both the fallback pass and
+ * what a caller that supplies no variation gets, so a cramped site that can
+ * only be reached from directly above still can be, and every non-varying
+ * caller keeps the arrival it already had.
+ */
+const ARRIVAL_TILTS = [0, 0.45, 0.75, 1.02, 1.24] as const;
 
 /** Absolute bearing difference between entry slot `step` and where the insect
  * actually is, wrapped into [0, π]. */
@@ -521,118 +585,159 @@ export function compileInsectLandingPlan(
   // every size.
   const CANDIDATES_PER_SCALE = 16;
   const CANDIDATES_PER_TURN = ARRIVAL_SCALES.length * CANDIDATES_PER_SCALE;
-  for (const viaDepth of vias) {
+  // One slant per attempt, chosen by that attempt's own variation, with the
+  // overhead descent as the fallback pass. Searching every tilt against every
+  // bearing, winding and size would be four times the sweeps for a Perch that
+  // is usually solved by the first candidate — and the fallback is what
+  // guarantees a cramped site keeps the arrival it already had.
+  const chosenTilt =
+    ARRIVAL_TILTS[
+      Math.min(
+        ARRIVAL_TILTS.length - 1,
+        Math.floor(variation * ARRIVAL_TILTS.length),
+      )
+    ]!;
+  const tiltPasses = chosenTilt === 0 ? [0] : [chosenTilt, 0];
+  const lift = { x: 0, y: 0, z: 0 };
+  for (const tilt of tiltPasses) {
     if (approach) break;
-    for (
-      let candidate = 0;
-      candidate < ARRIVAL_TURN_FRACTIONS.length * CANDIDATES_PER_TURN &&
-      !approach;
-      candidate++
-    ) {
-      const turnFraction =
-        ARRIVAL_TURN_FRACTIONS[Math.floor(candidate / CANDIDATES_PER_TURN)]!;
-      const withinTurn = candidate % CANDIDATES_PER_TURN;
-      const scale = ARRIVAL_SCALES[Math.floor(withinTurn / 16)]!;
-      const preferred = variation < 0.5 ? 1 : -1;
-      const winding = withinTurn % 2 === 0 ? preferred : -preferred;
-      const curve: ArrivalCurve = {
-        contact,
-        normal,
-        tangent,
-        bitangent,
-        radius: radius * scale,
-        height: height * scale,
-        kappa,
-        sweepAngle:
-          winding *
-          options.profile.arrivalTurns *
-          turnFraction *
-          turnScale *
-          Math.PI *
-          2,
-        startAngle:
-          (ENTRY_BEARINGS[Math.floor(withinTurn / 2) % 8]! / 8) * Math.PI * 2,
-      };
-      const points: PilotVector[] = [];
-      for (let index = 0; index <= ARRIVAL_SAMPLES; index++)
-        points.push(arrivalPoint(curve, index / ARRIVAL_SAMPLES));
-      // Force the last sample onto the exact contact object: the pilot's
-      // terminal tolerance is four millimetres and floating point should not
-      // spend it, and sharing the object with `launch[0]` keeps a moved Perch
-      // translating one point once.
-      points[ARRIVAL_SAMPLES] = contact;
+    const tiltCos = Math.cos(tilt);
+    const tiltSin = Math.sin(tilt);
+    for (const viaDepth of vias) {
+      if (approach) break;
+      for (
+        let candidate = 0;
+        candidate < ARRIVAL_TURN_FRACTIONS.length * CANDIDATES_PER_TURN &&
+        !approach;
+        candidate++
+      ) {
+        const turnFraction =
+          ARRIVAL_TURN_FRACTIONS[Math.floor(candidate / CANDIDATES_PER_TURN)]!;
+        const withinTurn = candidate % CANDIDATES_PER_TURN;
+        const scale = ARRIVAL_SCALES[Math.floor(withinTurn / 16)]!;
+        const preferred = variation < 0.5 ? 1 : -1;
+        const winding = withinTurn % 2 === 0 ? preferred : -preferred;
+        const startAngle =
+          (ENTRY_BEARINGS[Math.floor(withinTurn / 2) % 8]! / 8) * Math.PI * 2;
+        // Lean the lift axis toward the side the spiral starts on, so the high
+        // end of the arc is where the insect is coming from. Leaning it the
+        // other way would make the insect cross over the Perch and come back.
+        const entryCos = Math.cos(startAngle);
+        const entrySin = Math.sin(startAngle);
+        lift.x =
+          normal.x * tiltCos +
+          (tangent.x * entryCos + bitangent.x * entrySin) * tiltSin;
+        lift.y =
+          normal.y * tiltCos +
+          (tangent.y * entryCos + bitangent.y * entrySin) * tiltSin;
+        lift.z =
+          normal.z * tiltCos +
+          (tangent.z * entryCos + bitangent.z * entrySin) * tiltSin;
+        const liftLength = Math.hypot(lift.x, lift.y, lift.z) || 1;
+        lift.x /= liftLength;
+        lift.y /= liftLength;
+        lift.z /= liftLength;
+        const curve: ArrivalCurve = {
+          contact,
+          normal,
+          tangent,
+          bitangent,
+          lift: { ...lift },
+          radius: radius * scale,
+          height: height * scale,
+          kappa,
+          sweepAngle:
+            winding *
+            options.profile.arrivalTurns *
+            turnFraction *
+            turnScale *
+            Math.PI *
+            2,
+          startAngle,
+        };
+        const points: PilotVector[] = [];
+        for (let index = 0; index <= ARRIVAL_SAMPLES; index++)
+          points.push(arrivalPoint(curve, index / ARRIVAL_SAMPLES));
+        // Force the last sample onto the exact contact object: the pilot's
+        // terminal tolerance is four millimetres and floating point should not
+        // spend it, and sharing the object with `launch[0]` keeps a moved Perch
+        // translating one point once.
+        points[ARRIVAL_SAMPLES] = contact;
 
-      const hoverIndex = Math.min(
-        ARRIVAL_SAMPLES - 2,
-        Math.max(
-          1,
-          Math.round(
-            arrivalParameterAtHeight(curve, openWingHeight) * ARRIVAL_SAMPLES,
+        const hoverIndex = Math.min(
+          ARRIVAL_SAMPLES - 2,
+          Math.max(
+            1,
+            Math.round(
+              arrivalParameterAtHeight(curve, openWingHeight) * ARRIVAL_SAMPLES,
+            ),
           ),
-        ),
-      );
-      const touchdownIndex = Math.min(
-        ARRIVAL_SAMPLES - 1,
-        Math.max(
-          hoverIndex + 1,
-          Math.round(
-            arrivalParameterAtHeight(curve, curve.height * 0.2) *
-              ARRIVAL_SAMPLES,
+        );
+        const touchdownIndex = Math.min(
+          ARRIVAL_SAMPLES - 1,
+          Math.max(
+            hoverIndex + 1,
+            Math.round(
+              arrivalParameterAtHeight(curve, curve.height * 0.2) *
+                ARRIVAL_SAMPLES,
+            ),
           ),
-        ),
-      );
+        );
 
-      // Fly in from wherever the insect actually is. Matching the curve's own
-      // tangent at the join is what keeps the whole descent one continuous
-      // gesture instead of a connector followed by a spiral.
-      const entry = points[0]!;
-      const entryVelocity = arrivalVelocity(
-        curve,
-        0,
-        options.profile.approachSpeed,
-      );
-      const entryDuration = Math.max(
-        0.8,
-        Math.hypot(
-          entry.x - options.start.position.x,
-          entry.y - options.start.position.y,
-          entry.z - options.start.position.z,
-        ) / options.profile.approachSpeed,
-      );
-      const stagingVolume = options.volume ?? null;
-      const staged = viaDepth !== null && stagingVolume !== null;
-      if (viaDepth !== null && stagingVolume !== null)
-        approachStagingVia(stagingVolume, entry, viaDepth, via);
-      const candidateApproach = staged
-        ? connectorVia(
-            via,
-            options.start,
-            entry,
-            entryVelocity,
-            options.profile.approachSpeed,
-          )
-        : hermite(
-            options.start.position,
-            options.start.velocity,
-            entry,
-            entryVelocity,
-            entryDuration,
-            Math.max(12, Math.ceil(entryDuration * 12)),
-          );
-      candidateApproach.push(...points.slice(1, hoverIndex + 1));
-      if (!routeIsClear("approach", candidateApproach, options.sweep)) continue;
-      foundClearApproach = true;
+        // Fly in from wherever the insect actually is. Matching the curve's own
+        // tangent at the join is what keeps the whole descent one continuous
+        // gesture instead of a connector followed by a spiral.
+        const entry = points[0]!;
+        const entryVelocity = arrivalVelocity(
+          curve,
+          0,
+          options.profile.approachSpeed,
+        );
+        const entryDuration = Math.max(
+          0.8,
+          Math.hypot(
+            entry.x - options.start.position.x,
+            entry.y - options.start.position.y,
+            entry.z - options.start.position.z,
+          ) / options.profile.approachSpeed,
+        );
+        const stagingVolume = options.volume ?? null;
+        const staged = viaDepth !== null && stagingVolume !== null;
+        if (viaDepth !== null && stagingVolume !== null)
+          approachStagingVia(stagingVolume, entry, viaDepth, via);
+        const candidateApproach = staged
+          ? connectorVia(
+              via,
+              options.start,
+              entry,
+              entryVelocity,
+              options.profile.approachSpeed,
+            )
+          : hermite(
+              options.start.position,
+              options.start.velocity,
+              entry,
+              entryVelocity,
+              entryDuration,
+              Math.max(12, Math.ceil(entryDuration * 12)),
+            );
+        candidateApproach.push(...points.slice(1, hoverIndex + 1));
+        if (!routeIsClear("approach", candidateApproach, options.sweep))
+          continue;
+        foundClearApproach = true;
 
-      const candidateHover = points.slice(hoverIndex, touchdownIndex + 1);
-      if (!routeIsClear("hover", candidateHover, foldedSweep)) continue;
-      foundClearHover = true;
+        const candidateHover = points.slice(hoverIndex, touchdownIndex + 1);
+        if (!routeIsClear("hover", candidateHover, foldedSweep)) continue;
+        foundClearHover = true;
 
-      const candidateTouchdown = points.slice(touchdownIndex);
-      if (!routeIsClear("touchdown", candidateTouchdown, foldedSweep)) continue;
+        const candidateTouchdown = points.slice(touchdownIndex);
+        if (!routeIsClear("touchdown", candidateTouchdown, foldedSweep))
+          continue;
 
-      approach = candidateApproach;
-      hover = candidateHover;
-      touchdown = candidateTouchdown;
+        approach = candidateApproach;
+        hover = candidateHover;
+        touchdown = candidateTouchdown;
+      }
     }
   }
   if (!approach)
@@ -774,16 +879,54 @@ export function compileInsectLandingPlan(
   };
 }
 
+/**
+ * Full width of the resting-yaw spread, in radians, about the contact normal.
+ *
+ * Facing comes from the direction the insect arrived, which is the honest
+ * source — but residents approach a given shelf from broadly the same side, so
+ * on its own it still produced a row of near-parallel perched insects. Owner
+ * review, on being asked about landing variation: "I more meant like rotation."
+ *
+ * A full turn would be wrong: real insects on a ledge do broadly face out from
+ * it, and a butterfly pointing into the shelf reads as a mistake rather than as
+ * variety. Two thirds of a turn keeps every arrival plausible while making no
+ * two of them line up.
+ */
+export const INSECT_LANDING_YAW = Math.PI * 0.66;
+
 export const LANDING_TIMING = {
   // Occupancy should rise from insects staying, not from more traffic, and
   // the target is two to three settled on the shelf you are looking at. With
   // three residents per Unit that needs each of them perched about two thirds
   // of the time, so rest has to dominate the cycle rather than punctuate it:
   // a 12-25 s rest against a 15-30 s flight gap averaged barely one.
-  butterflyRest: [20, 40],
+  //
+  // Live measurement then said 20-40 s still was not enough: across a walk of
+  // the whole room, samples came out 23% approaching and 6% resting. An
+  // approach that is abandoned costs the whole cycle and leaves nothing on the
+  // shelf, so the ratio has to be bought at both ends — a longer stay, and a
+  // shorter wait between tries.
+  // ...and then the owner watched it: "how long can butterflies dwell? seems
+  // like too long — shouldn't be more than like 15 seconds."
+  //
+  // He is right, and the reasoning above had the causality backwards. A long
+  // rest buys occupancy by making each landing LAST rather than by making
+  // landings HAPPEN, and with three slots per shelf a 46-second average meant
+  // the same three Perches were held for a minute at a time. Measured over
+  // 40 s on five shelves, that is exactly what the room looked like: three
+  // sites occupied and every other site 100% ready and never once visited —
+  // which is the real content of "I still haven't seen a butterfly land on the
+  // boat" and "can we let them land on the barbell". The sites were fine. They
+  // were simply never free at the moment anyone was choosing.
+  //
+  // Shorter rests cost some standing occupancy and buy turnover, arrivals, and
+  // coverage of the whole shelf. The gaps come down with it so the slot refills
+  // promptly, and `BUTTERFLY_OCCUPANCY.engaged` goes up by one to hold the
+  // headline number closer to where it was.
+  butterflyRest: [9, 15],
   mothRest: [2, 6],
-  flight: [4, 11],
-  retryBackoff: [3, 5],
+  flight: [2, 5],
+  retryBackoff: [2, 3.5],
   pointerDepartPx: 70,
   pointerCancelPx: 100,
   pointerConfirm: [0.08, 0.12],

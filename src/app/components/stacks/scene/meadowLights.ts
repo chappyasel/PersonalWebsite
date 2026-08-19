@@ -32,9 +32,35 @@ export type MeadowLamp = {
   /** The practical's eased lit factor — the same ref its glow sprites read,
    * so the grass pool follows the click-off egg frame-for-frame. */
   litRef: { current: number };
+  /** World-space light source. This is deliberately separate from x/y/z:
+   * angled desk lamps register their meadow pool where the cone lands, while
+   * the moth cone begins at the visible shade mouth that emitted it. */
+  sourceX: number;
+  sourceY: number;
+  sourceZ: number;
+  /** World-space target of the visible light cone. Moths occupy the volume
+   * between source and target rather than orbiting the shade mouth. */
+  coneTargetX: number;
+  coneTargetY: number;
+  coneTargetZ: number;
+  /** Night moth density and cone volume. Larger practicals support more
+   * insects, a deeper flight volume, and a broader radial spread. */
+  mothCount: number;
+  mothNearDistance: number;
+  mothFarDistance: number;
+  mothMaxRadius: number;
 };
 
 export const MEADOW_LAMP_MAX = 6;
+
+/** Measured widest rim of the scaled Talks floor-lamp shade. The conservative
+ * below-mouth clearance test shares this source of truth with the fixture. */
+export const TALKS_FLOOR_SHADE_RADIUS = 0.0878 * 2.85;
+
+export const MOTH_LIGHT_PROFILES = {
+  desk: { count: 2, nearDistance: 0.18, farDistance: 0.74, maxRadius: 0.72 },
+  floor: { count: 5, nearDistance: 0.32, farDistance: 1.8, maxRadius: 1.55 },
+} as const;
 
 const lamps = new Map<string, MeadowLamp>();
 

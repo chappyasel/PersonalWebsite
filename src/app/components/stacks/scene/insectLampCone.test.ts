@@ -11,6 +11,8 @@ import {
   createInsectLampConeContainment,
   insectLampConeContainment,
   insectLampConeResidencyDrift,
+  lampConeAxialMin,
+  lampConeContainsPoint,
   lampConeLocal,
   lampConeOuterRadius,
   lampConeRadius,
@@ -204,6 +206,7 @@ describe("moths roam by intent", () => {
             containment,
             volume: null,
             transit: null,
+            evade: null,
           },
         }),
     );
@@ -272,5 +275,39 @@ describe("moths roam by intent", () => {
       // ...and it never stops. A motionless moth is worse than no moth.
       expect(track.stalled / frames).toBeLessThan(0.05);
     }
+  });
+
+  it("reaches back past the source, so the fixture itself is inside it", () => {
+    // Owner review: "why can't moths go straight up to the light and around
+    // the light source itself?" and "how are moths supposed to land when the
+    // targets aren't within their cone?" — both were the same boundary. The
+    // cone began at the shade mouth, so the lamp, and every Perch mounted on
+    // it, sat outside the region a moth was allowed to occupy.
+    const cone = createInsectLampCone();
+    expect(lampConeAxialMin(cone)).toBeLessThan(0);
+
+    const onAxis = (axial: number) => ({
+      x: cone.sourceX + cone.dirX * axial,
+      y: cone.sourceY + cone.dirY * axial,
+      z: cone.sourceZ + cone.dirZ * axial,
+    });
+    // Level with the source, and a little behind it: the shade.
+    expect(lampConeContainsPoint(cone, onAxis(0))).toBe(true);
+    expect(
+      lampConeContainsPoint(cone, onAxis(lampConeAxialMin(cone) + 0.02)),
+    ).toBe(true);
+    // The column around the fixture has real width, or there is nothing to
+    // orbit — `lampConeRadius` holds its near value upstream of the mouth.
+    const source = onAxis(0);
+    expect(lampConeContainsPoint(cone, { ...source, z: source.z + 0.12 })).toBe(
+      true,
+    );
+    // ...and the far side of the boundary is still outside.
+    expect(
+      lampConeContainsPoint(cone, onAxis(lampConeAxialMin(cone) - 0.05)),
+    ).toBe(false);
+    expect(lampConeContainsPoint(cone, onAxis(cone.farDistance + 0.05))).toBe(
+      false,
+    );
   });
 });

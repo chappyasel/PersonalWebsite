@@ -27,7 +27,9 @@ import {
 } from "./insectResidency";
 import { CAMERA, CAMERA_LOOK_X_MAX_LAG, UNIT_SPACING } from "./worldLayout";
 
-const TOTAL = 21;
+// Mirrors `BUTTERFLY_COUNT`, kept local so this file does not have to import a
+// react-three component to test a distribution.
+const TOTAL = 18;
 
 describe("camera-weighted demand", () => {
   it("holds the floor everywhere and the cap nowhere but the Unit in view", () => {
@@ -43,12 +45,15 @@ describe("camera-weighted demand", () => {
   });
 
   it("falls off monotonically with distance from the camera", () => {
-    // The authored target: about six in the Unit in view, three in its
-    // neighbours, two at the far end.
+    // The target the owner set by eye: "no more than 5 on screen otherwise
+    // feels spammy. 3-5 at all times feels ideal." A frame is a Unit plus
+    // slivers of its neighbours, so that is four in the Unit in view, three in
+    // each neighbour, two at the far end.
     const demand = butterflyResidencyDemand(unitCenterX(3), TOTAL);
-    expect(demand[3]).toBe(6);
-    expect(demand[2]).toBeGreaterThanOrEqual(3);
-    expect(demand[4]).toBeGreaterThanOrEqual(3);
+    expect(demand[3]).toBe(BUTTERFLY_RESIDENCY.maxPerUnit);
+    expect(demand[3]).toBeLessThanOrEqual(5);
+    expect(demand[2]).toBe(3);
+    expect(demand[4]).toBe(3);
     expect(demand[0]).toBe(2);
     expect(demand[6]).toBe(2);
     for (let unit = 1; unit <= 3; unit++)
@@ -57,18 +62,37 @@ describe("camera-weighted demand", () => {
       expect(demand[unit]!).toBeGreaterThanOrEqual(demand[unit + 1]!);
   });
 
-  it("moves continuously as the camera crosses a Unit boundary", () => {
-    // The store changes `activeUnit` a handful of times per traverse; demand
-    // is judged against the continuous camera x precisely so the population
-    // does not move in seven steps.
-    let changes = 0;
+  it("moves one resident at a time, and never where a Unit is", () => {
+    // Two properties, and the second is the whole of the owner's "makes it
+    // look like there's a stampede".
+    //
+    // A demand that jumped by two or three would order that many crossings on
+    // one frame, and a cohort leaving together reads as a formation however
+    // well each individual flies. Nothing enforces this directly — it falls
+    // out of the divisor method against a cap only two above the floor — so it
+    // is worth pinning, because widening either number would quietly lose it.
+    //
+    // And the transitions have to sit BETWEEN Unit centres. If they landed on
+    // them, the population would be moving with `activeUnit` after all, and
+    // the continuous camera x this is judged against would be doing nothing.
     let previous = butterflyResidencyDemand(0, TOTAL);
-    for (let step = 1; step <= 44; step++) {
-      const demand = butterflyResidencyDemand(step * 0.1, TOTAL);
-      if (demand.some((value, unit) => value !== previous[unit])) changes++;
+    let transitions = 0;
+    for (let step = 1; step * 0.05 <= UNIT_SPACING * (UNIT_COUNT - 1); step++) {
+      const cameraX = step * 0.05;
+      const demand = butterflyResidencyDemand(cameraX, TOTAL);
+      const arriving = demand.reduce(
+        (sum, value, unit) => sum + Math.max(0, value - previous[unit]!),
+        0,
+      );
       previous = demand;
+      if (arriving === 0) continue;
+      transitions++;
+      expect(arriving).toBe(1);
+      const nearestUnit = Math.round(cameraX / UNIT_SPACING) * UNIT_SPACING;
+      expect(Math.abs(cameraX - nearestUnit)).toBeGreaterThan(0.4);
     }
-    expect(changes).toBeGreaterThan(1);
+    // A step function over seven Units would produce six.
+    expect(transitions).toBeGreaterThanOrEqual(8);
   });
 });
 

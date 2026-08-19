@@ -2,16 +2,22 @@ import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
 import {
-  BUTTERFLIES_PER_UNIT,
   BUTTERFLY_COUNT,
+  BUTTERFLY_EVASION,
+  BUTTERFLY_OCCUPANCY,
+  BUTTERFLY_STARVED_GAP,
+  assignButterflyTransits,
   butterflyEscapeCause,
+  butterflyEvasionStrength,
   butterflyFlightVolume,
   butterflyHomeUnit,
   butterflyIsActiveNeighbor,
-  butterflyLandingPopulationLimit,
+  butterflyMayBeginLanding,
+  butterflyNextAttemptAt,
   butterflyPerchFailureMessage,
   butterflyStartPosition,
   butterflyTrailPoints,
+  butterflyTransitHeading,
   createButterflyMotion,
   recordButterflyTrail,
   selectForcedButterflyResident,
@@ -43,7 +49,11 @@ import {
   commandInsectPilot,
   createInsectPilot,
 } from "./insectPilot";
-import { UNIT_FLIGHT_VOLUMES, unitCenterX } from "./insectResidency";
+import {
+  BUTTERFLY_RESIDENCY,
+  UNIT_FLIGHT_VOLUMES,
+  unitCenterX,
+} from "./insectResidency";
 import { registerSceneInteraction } from "./interactionRegistry";
 
 describe("butterfly roaming state", () => {
@@ -124,44 +134,93 @@ describe("butterfly roaming state", () => {
 });
 
 describe("butterfly shelf residents", () => {
-  it("keeps three residents in every one of the seven Unit home ranges", () => {
-    expect(BUTTERFLIES_PER_UNIT).toBe(3);
-    expect(BUTTERFLY_COUNT).toBe(21);
+  it("puts somebody on every one of the seven Units at mount", () => {
+    // The count is no longer a multiple of the Unit count — it is written to
+    // what a FRAME should hold, not to what a shelf should hold (owner review:
+    // "3-5 at all times feels ideal") — so the boot arrangement has to spread
+    // rather than fill three at a time, or unit 6 mounts empty and the floor of
+    // 2 has to be repaired by a crossing before anyone has scrolled anywhere.
+    expect(BUTTERFLY_COUNT).toBe(18);
 
     const residents = Array.from({ length: BUTTERFLY_COUNT }, (_, index) =>
       butterflyHomeUnit(index),
     );
     for (let unit = 0; unit < 7; unit++)
-      expect(residents.filter((homeUnit) => homeUnit === unit)).toHaveLength(3);
+      expect(
+        residents.filter((homeUnit) => homeUnit === unit).length,
+      ).toBeGreaterThanOrEqual(BUTTERFLY_RESIDENCY.minPerUnit);
+    expect(residents.every((unit) => unit >= 0 && unit < 7)).toBe(true);
   });
 
   it("judges active-neighbor eligibility on where a resident is now", () => {
     expect(butterflyIsActiveNeighbor(2, 1)).toBe(true);
-    expect(butterflyIsActiveNeighbor(3, 1)).toBe(false);
+    // Two Units of reach, not one: a shelf the visitor is about to arrive at
+    // has to be populated BEFORE they arrive, or every landing happens in full
+    // view and every shelf is empty on arrival.
+    expect(butterflyIsActiveNeighbor(3, 1)).toBe(true);
+    expect(butterflyIsActiveNeighbor(4, 1)).toBe(false);
     expect(butterflyIsActiveNeighbor(5, 6)).toBe(true);
   });
 
   it("selects exactly one available active-shelf resident for a force request", () => {
     // Index no longer implies Unit — Residency migrates — so the caller's
     // lookup is what decides who counts as a resident of the active shelf.
-    const unitOf = (index: number) => (index === 2 || index === 19 ? 4 : 0);
+    const unitOf = (index: number) => (index === 2 || index === 17 ? 4 : 0);
     const attempted: number[] = [];
     const selected = selectForcedButterflyResident(4, unitOf, (index) => {
       attempted.push(index);
-      return index === 19;
+      return index === 17;
     });
 
-    expect(selected).toBe(19);
-    expect(attempted).toEqual([2, 19]);
+    expect(selected).toBe(17);
+    expect(attempted).toEqual([2, 17]);
     expect(selectForcedButterflyResident(4, unitOf, () => false)).toBeNull();
   });
 
-  it("lets three butterflies hold the active shelf at once, in every window", () => {
-    // The old quota returned one for three windows in four, across all
-    // twenty-one residents, which is why most Perches were never used.
-    for (const time of [0, 27, 84, 611])
-      for (const forced of [false, true])
-        expect(butterflyLandingPopulationLimit(time, forced)).toBe(3);
+  it("caps settled residents loosely and arriving ones tightly", () => {
+    // Occupancy is meant to fall out of how long an insect STAYS, not out of
+    // permission to arrive. What has to stay small is the number flying at the
+    // same planks at once, and the engaged cap is one short of a Unit's full
+    // demand so a busy shelf always has somebody still in the air.
+    expect(butterflyMayBeginLanding({ engaged: 0, approaching: 0 })).toBe(true);
+    expect(butterflyMayBeginLanding({ engaged: 2, approaching: 1 })).toBe(true);
+    expect(butterflyMayBeginLanding({ engaged: 3, approaching: 0 })).toBe(
+      false,
+    );
+    expect(butterflyMayBeginLanding({ engaged: 1, approaching: 2 })).toBe(
+      false,
+    );
+    expect(BUTTERFLY_OCCUPANCY.engaged).toBeLessThan(
+      BUTTERFLY_RESIDENCY.maxPerUnit,
+    );
+  });
+
+  it("puts almost all of the pointer lean in the innermost third", () => {
+    // "Subtly elusive" is a statement about the CURVE, not the strength: a
+    // linear falloff makes every resident within the radius lean a little,
+    // which reads as the whole room tilting away from the cursor. Quadratic
+    // means a resident a hand's width away barely notices and the one you are
+    // actually chasing keeps sliding out of reach.
+    const radius = BUTTERFLY_EVASION.radiusPx;
+    expect(butterflyEvasionStrength(0)).toBe(1);
+    expect(butterflyEvasionStrength(radius)).toBe(0);
+    expect(butterflyEvasionStrength(radius * 2)).toBe(0);
+    expect(butterflyEvasionStrength(Number.POSITIVE_INFINITY)).toBe(0);
+    expect(butterflyEvasionStrength(radius * 0.66)).toBeLessThan(0.12);
+    expect(butterflyEvasionStrength(radius * 0.33)).toBeGreaterThan(0.4);
+  });
+
+  it("stops waiting out a flight when its shelf has emptied", () => {
+    // "How can we have it be that there's basically always 1-2 on perches?"
+    // The gap between landings is a flight, which is right for a shelf that
+    // already has somebody on it and wrong for one that has nobody.
+    expect(butterflyNextAttemptAt(40, 1, 10)).toBe(40);
+    expect(butterflyNextAttemptAt(40, 0, 10)).toBe(10 + BUTTERFLY_STARVED_GAP);
+    // ...but a resident that has just FAILED to find a Perch is already
+    // retrying faster than this, and must not be pulled in further.
+    expect(butterflyNextAttemptAt(12.5, 0, 10)).toBe(12.5);
+    // ...and one that is already due stays due.
+    expect(butterflyNextAttemptAt(5, 0, 10)).toBe(5);
   });
 
   it("carries a selected forced Perch through preparation, planning, and reservation", () => {
@@ -328,6 +387,28 @@ describe("residents land where they live", () => {
       }
     });
   });
+
+  it("keeps every Perch inside its own Unit's authored extent", () => {
+    // The x-only version of this missed the Training barbell entirely. The
+    // barbell lies diagonally across the corner of the shelf, so its near plate
+    // is fine in x and 0.29 m BEHIND the back wall, while its far plate is fine
+    // in z and 0.33 m past the lateral face. An invariant written to the axis
+    // that happened to fail last time is not an invariant.
+    const extent = BUTTERFLY_FLIGHT_VOLUME_EXTENT;
+    insectPerchCatalog().forEach((unit, unitIndex) => {
+      for (const definition of unit) {
+        const [x, y, z] = definition.position;
+        const where = `${definition.id} on unit ${unitIndex}`;
+        expect(Math.abs(x), `${where}: x`).toBeLessThanOrEqual(
+          extent.halfWidth,
+        );
+        expect(y, `${where}: y`).toBeGreaterThanOrEqual(extent.minY);
+        expect(y, `${where}: y`).toBeLessThanOrEqual(extent.maxY);
+        expect(z, `${where}: z`).toBeGreaterThanOrEqual(extent.minZ);
+        expect(z, `${where}: z`).toBeLessThanOrEqual(extent.maxZ);
+      }
+    });
+  });
 });
 
 describe("residency migrates", () => {
@@ -363,9 +444,6 @@ describe("residency migrates", () => {
         velocity,
         roaming: true,
         residents,
-        // Everyone is where they should be, so nothing is surplus: this is
-        // ordinary migration, not Transit.
-        demand: balanced(),
         cameraX: unitCenterX(4),
         rehomingMargin: 1000,
         step: 1 / 60,
@@ -381,12 +459,106 @@ describe("residency migrates", () => {
     expect(motion.rehomedAt).toBe(-1);
   });
 
-  it("re-homes a surplus resident only while it is provably off screen", () => {
+  it("sends only as many residents as the imbalance calls for", () => {
+    // Judged per insect, "am I surplus?" is true for every resident of an
+    // over-populated Unit at once, so a shelf one over its demand used to send
+    // all of them across together — a conveyor belt, not a redistribution. It
+    // also starved the Landing Cycle, because a resident under orders does not
+    // attempt a Perch.
+    const motions = [0, 0, 0, 0, 0, 0].map((unit, index) =>
+      createButterflyMotion(index + 1, unit),
+    );
+    const residents = [6, 2, 2, 2, 3, 3, 3];
+    const demand = [4, 2, 2, 2, 3, 5, 3];
+    assignButterflyTransits(motions, residents, demand, () => true, 0);
+
+    const ordered = motions.filter((motion) => motion.transitTo !== null);
+    expect(ordered).toHaveLength(2);
+    for (const motion of ordered) expect(motion.transitTo).toBe(5);
+
+    // Sticky: the same two keep their orders rather than the population
+    // re-deciding who is moving sixty times a second.
+    const before = motions.map((motion) => motion.transitTo);
+    assignButterflyTransits(motions, residents, demand, () => true, 0);
+    expect(motions.map((motion) => motion.transitTo)).toEqual(before);
+
+    // ...and released the moment the reason goes.
+    assignButterflyTransits(motions, residents, residents, () => true, 0);
+    expect(motions.every((motion) => motion.transitTo === null)).toBe(true);
+  });
+
+  it("never sends more of the room across at once than a viewer can read", () => {
+    // "The butterflies moving between sections makes it look like there's a
+    // stampede." Nothing in the demand model bounds the number of simultaneous
+    // crossings: one scroll can leave four Units surplus at the same instant
+    // and every one of them is entitled to send.
+    const motions = Array.from({ length: 12 }, (_, index) =>
+      createButterflyMotion(index + 1, index % 4),
+    );
+    const residents = [3, 3, 3, 3, 2, 2, 2];
+    const demand = [1, 1, 1, 1, 4, 4, 4];
+    assignButterflyTransits(motions, residents, demand, () => true, 0);
+
+    const ordered = motions.filter((motion) => motion.transitTo !== null);
+    expect(ordered).toHaveLength(BUTTERFLY_RESIDENCY.maxConcurrentTransits);
+  });
+
+  it("staggers departures instead of turning a cohort together", () => {
+    const motions = Array.from({ length: 6 }, (_, index) =>
+      createButterflyMotion(index + 1, 3),
+    );
+    const residents = [2, 2, 2, 5, 2, 2, 2];
+    const demand = [2, 2, 3, 2, 3, 2, 2];
+    assignButterflyTransits(motions, residents, demand, () => true, 100);
+
+    const ordered = motions.filter((motion) => motion.transitTo !== null);
+    expect(ordered.length).toBeGreaterThan(1);
+    const [low, high] = BUTTERFLY_RESIDENCY.transitStagger;
+    for (const motion of ordered) {
+      // Orders are handed out on ONE frame; the crossings must not start on
+      // one. Until this passes the resident roams normally, so it leaves from
+      // wherever its own wander has taken it by then.
+      expect(motion.transitAt).toBeGreaterThanOrEqual(100 + low);
+      expect(motion.transitAt).toBeLessThanOrEqual(100 + high);
+      expect(butterflyTransitHeading(motion, { x: 0, y: 0, z: 0 }, 100)).toBe(
+        null,
+      );
+    }
+    expect(new Set(ordered.map((motion) => motion.transitAt)).size).toBe(
+      ordered.length,
+    );
+    // ...and the heading is live once the delay has passed.
+    const first = ordered[0]!;
+    expect(
+      butterflyTransitHeading(first, { x: 0, y: 0, z: 0 }, first.transitAt),
+    ).not.toBe(null);
+  });
+
+  it("feeds a shelf that is short on both sides from both sides", () => {
+    // "Shouldn't they be coming in from both directions?" Scanning ascending
+    // always resolved an equidistant pair leftward, so a surplus Unit between
+    // two deficits sent every resident the same way and the visitor saw single
+    // file.
+    const motions = Array.from({ length: 4 }, (_, index) =>
+      createButterflyMotion(index + 1, 3),
+    );
+    const residents = [2, 2, 2, 6, 2, 2, 2];
+    const demand = [2, 2, 3, 2, 3, 2, 2];
+    assignButterflyTransits(motions, residents, demand, () => true, 0);
+
+    const destinations = motions
+      .map((motion) => motion.transitTo)
+      .filter((unit): unit is number => unit !== null);
+    expect(destinations).toContain(2);
+    expect(destinations).toContain(4);
+  });
+
+  it("re-homes a resident under orders only while it is provably off screen", () => {
     const inFrame = createButterflyMotion(9, 0);
+    inFrame.transitTo = 5;
     const position = worldPoint(0, [0, 0.3, 1.2]);
     const velocity = { x: 0.2, y: 0, z: 0 };
     const residents = [6, 2, 2, 2, 3, 3, 3];
-    const demand = [2, 2, 2, 2, 3, 6, 4];
 
     expect(
       updateButterflyResidency({
@@ -395,19 +567,19 @@ describe("residency migrates", () => {
         velocity,
         roaming: true,
         residents,
-        demand,
         cameraX: unitCenterX(0),
         rehomingMargin: 12,
         step: 1 / 60,
         time: 1,
       }),
     ).toBe("none");
-    // Not re-homed, but under orders: Transit is the fallback that always
-    // works when nothing may be moved for free.
+    // Not re-homed, so it flies: Transit is the fallback that always works
+    // when nothing may be moved for free.
     expect(inFrame.currentUnit).toBe(0);
     expect(inFrame.transitTo).toBe(5);
 
     const offScreen = createButterflyMotion(10, 0);
+    offScreen.transitTo = 5;
     expect(
       updateButterflyResidency({
         motion: offScreen,
@@ -415,7 +587,6 @@ describe("residency migrates", () => {
         velocity,
         roaming: true,
         residents,
-        demand,
         cameraX: unitCenterX(5),
         rehomingMargin: 12,
         step: 1 / 60,
@@ -446,7 +617,6 @@ describe("residency migrates", () => {
         velocity: { x: 1, y: 0, z: 0 },
         roaming: false,
         residents,
-        demand: [2, 2, 2, 2, 2, 2, 9],
         cameraX: unitCenterX(6),
         rehomingMargin: 0,
         step: 1 / 60,

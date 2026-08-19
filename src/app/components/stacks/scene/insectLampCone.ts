@@ -55,7 +55,16 @@ export type InsectLampCone = {
   /** How hard a moth behind the fixture leans toward the camera side, as a
    * multiple of the wander radius. */
   forwardDrift: number;
+  /** How far past the source, against the beam, the moths may go — a multiple
+   * of `maxRadius`. See `MOTH_LAMP_CONE_SHAPE.aboveReach`. */
+  aboveReach: number;
 };
+
+/** The upstream end of the occupied band: past the source, around the fixture
+ * itself, rather than at the mouth of the beam. */
+export function lampConeAxialMin(cone: InsectLampCone) {
+  return cone.nearDistance - cone.maxRadius * cone.aboveReach;
+}
 
 export const MOTH_LAMP_CONE_SHAPE = {
   /** Half again the local radius. Measured against nothing — it is authored to
@@ -64,6 +73,25 @@ export const MOTH_LAMP_CONE_SHAPE = {
   overshoot: 0.55,
   margin: 0.28,
   forwardDrift: 1.6,
+  /**
+   * How far BACK past the source a moth may go, as a multiple of `maxRadius`.
+   *
+   * The cone used to begin at `nearDistance` and open only downstream, which
+   * had two consequences the owner found immediately. Moths could never reach
+   * the fixture: "why can't moths go straight up to the light and around the
+   * light source itself?" — the answer was that the light was outside the
+   * region they were confined to, which is an absurd thing to be true of a
+   * moth. And every Lamp Perch sits ON the shade, at or behind the mouth, so
+   * the sites they were told to land on were outside their containment too:
+   * "how are moths supposed to land when the targets aren't within their cone?"
+   *
+   * Opening the near end past the source fixes both, and needs no separate
+   * radius rule: `lampConeRadius` already clamps to its near value upstream of
+   * `nearDistance`, so the region above the mouth is a column around the
+   * fixture rather than a point. The shade itself is solid and moths carry
+   * geometry repulsion (ADR 0007), so what they do in that column is orbit it.
+   */
+  aboveReach: 0.55,
 } as const;
 
 /** The cone's radius at `axial` metres down the beam. */
@@ -161,6 +189,26 @@ export function lampConeOuterRadius(cone: InsectLampCone, axial: number) {
   return lampConeRadius(cone, axial) * (1 + cone.overshoot);
 }
 
+/**
+ * Whether a world point is inside the region a moth is actually contained to.
+ *
+ * Moth-Perch eligibility used a plain distance-to-the-bulb sphere while moth
+ * FLIGHT was contained by this cone, so the two disagreed by construction and
+ * a moth could be sent to a site it was not allowed to occupy. Owner review:
+ * "how are moths supposed to land when the targets aren't within their cone?"
+ * Asking the containment itself is the only version of the test that cannot
+ * drift from the answer.
+ */
+export function lampConeContainsPoint(
+  cone: InsectLampCone,
+  point: CollisionPoint,
+) {
+  lampConeLocal(cone, point, LOCAL);
+  if (LOCAL.axial < lampConeAxialMin(cone) || LOCAL.axial > cone.farDistance)
+    return false;
+  return LOCAL.radial <= lampConeOuterRadius(cone, LOCAL.axial);
+}
+
 export function insectLampConeContainment(
   cone: InsectLampCone,
   point: CollisionPoint,
@@ -174,7 +222,7 @@ export function insectLampConeContainment(
   const radialRamp = axisRamp(LOCAL.radial, -outer, outer, cone.margin);
   const axialRamp = axisRamp(
     LOCAL.axial,
-    cone.nearDistance,
+    lampConeAxialMin(cone),
     cone.farDistance,
     cone.margin,
   );
@@ -214,7 +262,7 @@ export function clampToInsectLampCone(
   lampConeLocal(cone, position, LOCAL);
   const axial = Math.min(
     cone.farDistance + slack,
-    Math.max(cone.nearDistance - slack, LOCAL.axial),
+    Math.max(lampConeAxialMin(cone) - slack, LOCAL.axial),
   );
   const outer = lampConeOuterRadius(cone, axial) + slack;
   const radial = Math.min(outer, LOCAL.radial);

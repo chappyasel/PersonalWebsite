@@ -180,7 +180,9 @@ export function findSpinAxis(
   if (axis.y < 0) axis.negate();
   return {
     axis,
-    tiltDegrees: THREE.MathUtils.radToDeg(Math.acos(THREE.MathUtils.clamp(axis.y, -1, 1))),
+    tiltDegrees: THREE.MathUtils.radToDeg(
+      Math.acos(THREE.MathUtils.clamp(axis.y, -1, 1)),
+    ),
     derived: true,
   };
 }
@@ -213,7 +215,11 @@ export function extractTriangles(
       for (let k = 0; k < 3; k++) {
         const i = index ? index.getX(t * 3 + k) : t * 3 + k;
         if (spatial && (optionalOffset || optionalRotation)) {
-          v.set(src.getComponent(i, 0), src.getComponent(i, 1), src.getComponent(i, 2));
+          v.set(
+            src.getComponent(i, 0),
+            src.getComponent(i, 1),
+            src.getComponent(i, 2),
+          );
           // Normals rotate but must not translate.
           if (optionalOffset && name === "position") v.sub(optionalOffset);
           if (optionalRotation) v.applyQuaternion(optionalRotation);
@@ -231,4 +237,40 @@ export function extractTriangles(
   // useGLTF cache and must never be disposed.
   out.userData.owned = true;
   return out;
+}
+
+/** Partition a spherical triangle set into local octants. Rendering remains
+ * byte-for-byte the same when the returned parts share a material and parent
+ * transform, while per-mesh collision bounds follow the curved surface much
+ * more closely than one cube around the complete sphere. */
+export function partitionTrianglesByOctant(
+  geometry: THREE.BufferGeometry,
+  triangles: readonly number[],
+  center: THREE.Vector3,
+  localRotation: THREE.Quaternion,
+): number[][] {
+  const positions = geometry.getAttribute("position");
+  const index = geometry.getIndex();
+  const parts = Array.from({ length: 8 }, () => [] as number[]);
+  const centroid = new THREE.Vector3();
+  const vertex = new THREE.Vector3();
+  for (const triangle of triangles) {
+    centroid.set(0, 0, 0);
+    for (let corner = 0; corner < 3; corner++) {
+      const vertexIndex =
+        index?.getX(triangle * 3 + corner) ?? triangle * 3 + corner;
+      vertex.fromBufferAttribute(positions, vertexIndex);
+      centroid.add(vertex);
+    }
+    centroid
+      .multiplyScalar(1 / 3)
+      .sub(center)
+      .applyQuaternion(localRotation);
+    const octant =
+      (centroid.x >= 0 ? 1 : 0) |
+      (centroid.y >= 0 ? 2 : 0) |
+      (centroid.z >= 0 ? 4 : 0);
+    parts[octant]!.push(triangle);
+  }
+  return parts.filter((part) => part.length > 0);
 }

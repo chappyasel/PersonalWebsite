@@ -42,11 +42,21 @@ place the insect at that coordinate literally.
 
 An anchor within tolerance of a real triangle resolves; one that is not is
 rejected as `contact-too-distant` and the site is dead. Bounding boxes are a
-poor guide — a sailboat's mast shares one mesh with its hull, so the box top is
-13 cm above anything a probe can hit, and the `musings:sailboat-masthead`
-anchor here is the resolved contact read back out of the running scene rather
-than a corner of that box. When adding a site, author it, read the HUD (or the
-diagnostics dump), and copy the resolved contact back into both files.
+poor guide — the sailboat source groups mast and hull islands into broad
+material meshes, whose unsplit box top is 13 cm above anything a probe can
+hit. `ModelProp` now splits those disconnected islands for collision, but the
+`musings:sailboat-masthead` anchor remains the resolved triangle contact read
+back out of the running scene rather than a corner of either box. When adding
+a site, author it, read the HUD (or the diagnostics dump, or `yarn
+check:perches`), and copy the resolved contact back into both files. Every
+anchor added in the +13 round below was authored that way: a candidate near
+the prop, then the measured contact written back.
+
+The Books shelf is the exception, and deliberately: its Perches are projected
+through the same count-dependent layout that places the covers
+(`featuredBookPerchDefinitions`), so they are measured by construction and the
+rows below are a mirror of what that projection produced. Adding one is adding
+a book id to `BOOK_PERCH_IDS`.
 
 The development HUD is the live inventory: its Perch section shows the real
 authored anchor/contact/normal, owner and occupant, complete envelope, Landing
@@ -57,32 +67,40 @@ sign-off is recorded separately rather than invented by a headless test.
 
 ## About — unit 0
 
-| ID                         | Intended surface       | Anchor `[x, y, z]`            | Normal `[x, y, z]`           | Owner match                    | Lamp ID       | Clearance |
-| -------------------------- | ---------------------- | ----------------------------- | ---------------------------- | ------------------------------ | ------------- | --------: |
-| `about:aic-crown`          | AI Collective mark top | `[-0.4747, -0.6345, -0.0753]` | `[0, 1, 0]`                  | `id: grab:ai-collective-mark`  | —             |    `0.12` |
-| `about:portrait-frame-top` | Profile portrait crown | `[-0.4211, 1.0002, -0.1101]`  | `[0, 0.9982, -0.0600]`       | `id: grab:photo:portrait`      | —             |    `0.12` |
-| `about:globe-crown`        | Globe crown            | `[-1.2072, 0.5241, -0.0117]`  | `[-0.2467, 0.9238, 0.2929]`  | `id: egg:globe`                | —             |    `0.12` |
-| `about:lamp-shade`         | Desk-lamp shade crown  | `[-0.6848, -0.2193, -0.0106]` | `[-0.2812, 0.9166, -0.2842]` | `id: egg:lamp:0`               | `desk-lamp-0` |    `0.12` |
-| `about:tj-medallion-rim`   | TJ medallion top rim   | `[-0.2400, -0.5890, -0.0800]` | `[0, 1, 0]`                  | `id: grab:tj-medallion:about`  | —             |    `0.12` |
-| `about:other-minds-top`    | Frontmost reading book | `[0.6900, -0.3470, 0.1500]`   | `[0, 1, 0]`                  | `id: grab:reading:other-minds` | —             |    `0.12` |
+| ID                         | Intended surface       | Anchor `[x, y, z]`            | Normal `[x, y, z]`           | Owner match                      | Lamp ID       | Clearance |
+| -------------------------- | ---------------------- | ----------------------------- | ---------------------------- | -------------------------------- | ------------- | --------: |
+| `about:aic-crown`          | AI Collective mark top | `[-0.4747, -0.6345, -0.0753]` | `[0, 1, 0]`                  | `id: grab:ai-collective-mark`    | —             |    `0.12` |
+| `about:portrait-frame-top` | Profile portrait crown | `[-0.4211, 1.0002, -0.1101]`  | `[0, 0.9982, -0.0600]`       | `id: grab:photo:portrait`        | —             |    `0.12` |
+| `about:behave-top`         | Rearmost reading book  | `[0.3300, -0.3470, 0.0350]`   | `[0, 1, 0]`                  | `id: grab:reading:behave`        | —             |    `0.12` |
+| `about:lamp-shade`         | Desk-lamp shade crown  | `[-0.6848, -0.2193, -0.0106]` | `[-0.2812, 0.9166, -0.2842]` | `id: egg:lamp:0`                 | `desk-lamp-0` |    `0.12` |
+| `about:tj-medallion-rim`   | TJ medallion top rim   | `[-0.2400, -0.5890, -0.0800]` | `[0, 1, 0]`                  | `id: grab:tj-medallion:about`    | —             |    `0.12` |
+| `about:other-minds-top`    | Frontmost reading book | `[0.6900, -0.3470, 0.1500]`   | `[0, 1, 0]`                  | `id: grab:reading:other-minds`   | —             |    `0.12` |
+| `about:family-frame-top`   | Family frame top edge  | `[0.4348, 0.3476, 0.0869]`    | `[0.0245, 0.9961, -0.0848]`  | `id: grab:photo:about-family-v8` | —             |    `0.12` |
 
 ## Books — unit 1
 
-| ID                                   | Intended surface                | Anchor `[x, y, z]`          | Normal `[x, y, z]`         | Owner match                       | Lamp ID | Clearance |
-| ------------------------------------ | ------------------------------- | --------------------------- | -------------------------- | --------------------------------- | ------- | --------: |
-| `books:the-12-levers-pages`          | _The 12 Levers_ page-block top  | `[-1.1258, 0.5160, 0.2222]` | `[0, 1, 0]`                | `id: book:the-12-levers`          | —       |    `0.12` |
-| `books:superminds-pages`             | _Superminds_ page-block top     | `[-0.0502, 0.5127, 0.2013]` | `[0, 1, 0]`                | `id: book:superminds`             | —       |    `0.12` |
-| `books:life-3-0-pages`               | _Life 3.0_ page-block top       | `[0.7133, -0.3320, 0.2166]` | `[0.1618, 0.9868, 0.0038]` | `id: book:life-3-0`               | —       |    `0.12` |
-| `books:thinking-fast-and-slow-pages` | _Thinking, Fast and Slow_ pages | `[1.0669, -0.3438, 0.2099]` | `[0, 1, 0]`                | `id: book:thinking-fast-and-slow` | —       |    `0.12` |
+| ID                                                | Intended surface                  | Anchor `[x, y, z]`           | Normal `[x, y, z]`          | Owner match                                    | Lamp ID | Clearance |
+| ------------------------------------------------- | --------------------------------- | ---------------------------- | --------------------------- | ---------------------------------------------- | ------- | --------: |
+| `books:the-12-levers-pages`                       | _The 12 Levers_ page-block top    | `[-1.1258, 0.5160, 0.2222]`  | `[0, 1, 0]`                 | `id: book:the-12-levers`                       | —       |    `0.12` |
+| `books:superminds-pages`                          | _Superminds_ page-block top       | `[-0.0502, 0.5127, 0.2013]`  | `[0, 1, 0]`                 | `id: book:superminds`                          | —       |    `0.12` |
+| `books:life-3-0-pages`                            | _Life 3.0_ page-block top         | `[0.7133, -0.3320, 0.2166]`  | `[0.1618, 0.9868, 0.0038]`  | `id: book:life-3-0`                            | —       |    `0.12` |
+| `books:thinking-fast-and-slow-pages`              | _Thinking, Fast and Slow_ pages   | `[1.0669, -0.3438, 0.2099]`  | `[0, 1, 0]`                 | `id: book:thinking-fast-and-slow`              | —       |    `0.12` |
+| `books:bowling-alone-pages`                       | _Bowling Alone_ page-block top    | `[0.6861, 0.4985, 0.2252]`   | `[0, 1, 0]`                 | `id: book:bowling-alone`                       | —       |    `0.12` |
+| `books:barking-up-the-wrong-tree-pages`           | _Barking Up the Wrong Tree_ pages | `[-1.0664, -0.3520, 0.2205]` | `[0, 1, 0]`                 | `id: book:barking-up-the-wrong-tree`           | —       |    `0.12` |
+| `books:homo-deus-pages`                           | _Homo Deus_ page-block top        | `[-0.3607, -0.3156, 0.1806]` | `[0.0301, 0.9571, -0.2883]` | `id: book:homo-deus`                           | —       |    `0.12` |
+| `books:7-habits-of-highly-effective-people-pages` | _7 Habits_ page-block top         | _projected from the layout_  | _projected_                 | `id: book:7-habits-of-highly-effective-people` | —       |    `0.12` |
 
 ## Training — unit 2
 
-| ID                                | Intended surface         | Anchor `[x, y, z]`           | Normal `[x, y, z]`          | Owner match                       | Lamp ID | Clearance |
-| --------------------------------- | ------------------------ | ---------------------------- | --------------------------- | --------------------------------- | ------- | --------: |
-| `training:barbell-front-plate`    | Barbell near-plate crown | `[2.6630, -0.6327, -0.3820]` | `[0.2707, 0.9238, -0.2707]` | `id: grab:barbell`                | —       |    `0.12` |
-| `training:protein-lid`            | Protein-tub lid          | `[0.3800, -0.2824, 0.0400]`  | `[0, 1, 0]`                 | `id: grab:protein`                | —       |    `0.12` |
-| `training:dumbbell-left-plate`    | Left dumbbell crown      | `[-1.1097, 0.2814, 0.3055]`  | `[0, 1, 0]`                 | `id: grab:dumbbell:training:left` | —       |    `0.12` |
-| `training:navy-shaker-mouthpiece` | Navy shaker mouthpiece   | `[1.0850, 0.4120, 0]`        | `[0, 1, 0]`                 | `id: grab:shaker:training-navy`   | —       |    `0.12` |
+| ID                             | Intended surface         | Anchor `[x, y, z]`           | Normal `[x, y, z]`          | Owner match                            | Lamp ID | Clearance |
+| ------------------------------ | ------------------------ | ---------------------------- | --------------------------- | -------------------------------------- | ------- | --------: |
+| `training:barbell-bar`         | Barbell bar, mid-span    | `[1.9200, -0.8375, -1.0400]` | `[0, 1, 0]`                 | `id: grab:barbell`                     | —       |    `0.06` |
+| `training:protein-lid`         | Protein-tub lid          | `[0.3800, -0.2824, 0.0400]`  | `[0, 1, 0]`                 | `id: grab:protein`                     | —       |    `0.12` |
+| `training:dumbbell-left-plate` | Left dumbbell crown      | `[-1.1097, 0.2814, 0.3055]`  | `[0, 1, 0]`                 | `id: grab:dumbbell:training:left`      | —       |    `0.12` |
+| `training:navy-shaker-rim`     | Navy shaker lid ring     | `[1.0813, 0.4120, -0.0259]`  | `[0, 1, 0]`                 | `id: grab:shaker:training-navy`        | —       |    `0.02` |
+| `training:kettlebell-handle`   | Kettlebell handle crown  | `[0.4804, 0.5521, 0.0508]`   | `[0.1012, 0.9656, -0.2395]` | `id: grab:kettlebell`                  | —       |    `0.12` |
+| `training:golf-flag-frame-top` | Golf-flag frame top edge | `[-0.7395, -0.5564, 0.1039]` | `[0.0198, 0.9945, -0.1026]` | `id: grab:photo:training-golf-flag-v8` | —       |    `0.12` |
+| `training:mtn-dew-lid`         | Mtn Dew can lid          | `[0.0300, -0.6127, 0.1000]`  | `[0.0437, 0.9929, 0.1111]`  | `id: grab:can:mtn-dew-zero`            | —       |    `0.12` |
 
 ## Systems — unit 3
 
@@ -94,15 +112,19 @@ sign-off is recorded separately rather than invented by a headless test.
 | `systems:lake-frame`            | Lake photo top            | `[-0.1909, -0.5095, 0.1210]` | `[0, 1, 0]`           | `id: grab:photo:systems-lake-v8`            | —             |    `0.12` |
 | `systems:lamp-shade`            | Sloped desk-lamp shade    | `[1.02, -0.39, 0.08]`        | `[-0.35, 0.90, 0.22]` | `id: egg:lamp:3`                            | `desk-lamp-3` |    `0.12` |
 | `systems:alarm-clock-crown`     | Alarm clock crown         | `[-0.6600, 0.3040, 0.2500]`  | `[0, 1, 0]`           | `id: egg:clock:alarm`                       | —             |    `0.12` |
+| `systems:lighthouse-frame`      | Lighthouse photo top      | `[0.2218, -0.4569, 0.1312]`  | `[0, 1, 0]`           | `id: grab:photo:systems-lighthouse-v8`      | —             |    `0.12` |
 
 ## Projects — unit 4
 
-| ID                       | Intended surface | Anchor `[x, y, z]`           | Normal `[x, y, z]`          | Owner match                  | Lamp ID | Clearance |
-| ------------------------ | ---------------- | ---------------------------- | --------------------------- | ---------------------------- | ------- | --------: |
-| `projects:trophy`        | Trophy cup crown | `[-0.7427, -0.3896, 0.0547]` | `[0, 1, 0]`                 | `id: grab:trophy`            | —       |    `0.12` |
-| `projects:notebook-page` | Notebook page    | `[0.0231, -0.8245, -0.1475]` | `[0, 1, 0]`                 | `id: grab:notebook:projects` | —       |    `0.12` |
-| `projects:phone-face`    | Phone face       | `[0.4118, -0.7928, -0.0724]` | `[0, 1, 0]`                 | `id: grab:phone:projects`    | —       |    `0.12` |
-| `projects:mac-top`       | Mac casing top   | `[0.8765, -0.2160, -0.1280]` | `[0.0457, 0.9906, -0.1291]` | `id: link:projects:mac`      | —       |    `0.12` |
+| ID                                 | Intended surface        | Anchor `[x, y, z]`           | Normal `[x, y, z]`           | Owner match                              | Lamp ID | Clearance |
+| ---------------------------------- | ----------------------- | ---------------------------- | ---------------------------- | ---------------------------------------- | ------- | --------: |
+| `projects:trophy`                  | Trophy cup crown        | `[-0.7427, -0.3896, 0.0547]` | `[0, 1, 0]`                  | `id: grab:trophy`                        | —       |    `0.12` |
+| `projects:notebook-page`           | Notebook page           | `[0.0231, -0.8245, -0.1475]` | `[0, 1, 0]`                  | `id: grab:notebook:projects`             | —       |    `0.12` |
+| `projects:phone-face`              | Phone face              | `[0.4118, -0.7928, -0.0724]` | `[0, 1, 0]`                  | `id: grab:phone:projects`                | —       |    `0.12` |
+| `projects:mac-top`                 | Mac casing crest        | `[0.9205, -0.1986, 0.0229]`  | `[0.0330, 0.9910, -0.1330]`  | `id: link:projects:mac`                  | —       |    `0.09` |
+| `projects:weightlifting-frame-top` | Weightlifting frame top | `[-0.8474, 0.5261, -0.1279]` | `[0.0268, 0.9945, -0.1009]`  | `id: grab:frame:Weightlifting App`       | —       |    `0.12` |
+| `projects:liars-dice-frame-top`    | Liar's Dice frame top   | `[0.0050, 0.5205, -0.0875]`  | `[0.0114, 0.9949, -0.0998]`  | `id: grab:frame:Liar's Dice`             | —       |    `0.12` |
+| `projects:homework-frame-top`      | Homework App frame top  | `[0.8491, 0.5299, -0.1152]`  | `[-0.0326, 0.9943, -0.1017]` | `id: grab:frame:Homework App (Acquired)` | —       |    `0.12` |
 
 ## Musings — unit 5
 
@@ -118,13 +140,15 @@ sign-off is recorded separately rather than invented by a headless test.
 
 ## Talks — unit 6
 
-| ID                           | Intended surface       | Anchor `[x, y, z]`            | Normal `[x, y, z]`          | Owner match                              | Lamp ID              | Clearance |
-| ---------------------------- | ---------------------- | ----------------------------- | --------------------------- | ---------------------------------------- | -------------------- | --------: |
-| `talks:microphone-crown`     | Microphone head crown  | `[0.7132, -0.7469, 0.1811]`   | `[-0.082, 0.927, 0.366]`    | `id: grab:microphone`                    | —                    |    `0.12` |
-| `talks:harmonica-deck`       | Harmonica deck         | `[0.8200, 0.0903, 0.0800]`    | `[0, 1, 0]`                 | `id: grab:harmonica:talks`               | —                    |    `0.12` |
-| `talks:consensus-frame-top`  | Consensus photo crown  | `[-0.3721, 0.4503, -0.0455]`  | `[-0.012, 0.9967, -0.0804]` | `id: grab:photo:talk-consensus-phone-v8` | —                    |    `0.12` |
-| `talks:demo-night-frame-top` | Demo-night photo crown | `[-0.9067, -0.3541, -0.0363]` | `[0.0179, 0.9973, -0.0719]` | `id: grab:photo:talk-demo-night-v8`      | —                    |    `0.12` |
-| `talks:floor-lamp-rim`       | Floor-lamp rim         | `[-2.0038, 1.3360, -0.0199]`  | `[0, 1, 0]`                 | `id: egg:lamp:floor:6`                   | `talks-floor-lamp-6` |    `0.15` |
+| ID                           | Intended surface       | Anchor `[x, y, z]`            | Normal `[x, y, z]`           | Owner match                              | Lamp ID              | Clearance |
+| ---------------------------- | ---------------------- | ----------------------------- | ---------------------------- | ---------------------------------------- | -------------------- | --------: |
+| `talks:microphone-crown`     | Microphone barrel      | `[0.5311, -0.7721, 0.1237]`   | `[-0.095, 0.922, 0.374]`     | `id: grab:microphone`                    | —                    |    `0.12` |
+| `talks:harmonica-deck`       | Harmonica deck         | `[0.8200, 0.0903, 0.0800]`    | `[0, 1, 0]`                  | `id: grab:harmonica:talks`               | —                    |    `0.12` |
+| `talks:consensus-frame-top`  | Consensus photo crown  | `[-0.3721, 0.4503, -0.0455]`  | `[-0.012, 0.9967, -0.0804]`  | `id: grab:photo:talk-consensus-phone-v8` | —                    |    `0.12` |
+| `talks:demo-night-frame-top` | Demo-night photo crown | `[-0.9067, -0.3541, -0.0363]` | `[0.0179, 0.9973, -0.0719]`  | `id: grab:photo:talk-demo-night-v8`      | —                    |    `0.12` |
+| `talks:floor-lamp-flank`     | Floor-lamp shade wall  | `[-2.1379, 1.1318, 0.2382]`   | `[0.027, 0.122, 0.992]`      | `id: egg:lamp:floor:6`                   | `talks-floor-lamp-6` |    `0.15` |
+| `talks:panel-frame-top`      | Panel photo crown      | `[0.3023, 0.4006, 0.0110]`    | `[-0.0257, 0.9982, -0.0536]` | `id: grab:photo:talk-panel-v8`           | —                    |    `0.12` |
+| `talks:dc-policy-frame-top`  | DC policy photo crown  | `[-0.1380, -0.3847, 0.0166]`  | `[-0.0139, 0.9986, -0.0516]` | `id: grab:photo:talk-dc-policy-v8`       | —                    |    `0.12` |
 
 ## Current shared route and Landing Cycle
 

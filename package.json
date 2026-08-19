@@ -25,6 +25,7 @@
     "start": "next start",
     "check:budgets": "node scripts/check-route-budgets.mjs",
     "check:meadow": "npx tsx ./scripts/stacks-meadow-check.ts",
+    "check:perches": "npx tsx ./scripts/stacks-perch-check.ts",
     "test:performance": "playwright test",
     "generate:blog-posts": "npx tsx ./scripts/generate/blog-posts.ts",
     "generate:home-og": "node ./scripts/generate/home-og-scene.mjs",

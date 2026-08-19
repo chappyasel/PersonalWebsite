@@ -29,7 +29,12 @@ import {
   advanceInsectPilot,
   createInsectPilot,
 } from "./insectPilot";
-import { BUTTERFLY_STEERING_PROFILE } from "./insectSteering";
+import {
+  BUTTERFLY_STEERING_PROFILE,
+  MOTH_STEERING_PROFILE,
+  createInsectSteeringState,
+  nudgeInsectSteering,
+} from "./insectSteering";
 import { SHELF_GEOMETRY } from "./shelfGeometry";
 import { unitPose } from "./worldLayout";
 
@@ -131,6 +136,7 @@ function resident(index: number) {
       containment: CONTAINMENT,
       volume: VOLUME,
       transit: null,
+      evade: null,
     },
   });
 }
@@ -176,6 +182,117 @@ function fly(count: number, seconds: number, frameRate = 60) {
     }
   return { pilots, tracks, world };
 }
+
+/**
+ * Fly the same residents twice — once ignoring a fixed point in the room, once
+ * leaning away from it — and report where each spent its time.
+ *
+ * The "cursor" is a world point rather than a screen position because the
+ * conversion from pixels is the renderer's job (see `BUTTERFLY_EVASION`); what
+ * the Intent Layer is handed, and all this needs, is a direction and a
+ * strength.
+ */
+function flyPast(cursor: PilotVector, seconds: number, evading: boolean) {
+  const world = new SoftFlightWorld();
+  const pilots = Array.from({ length: 6 }, (_, index) => resident(index));
+  const away = { x: 0, y: 0, z: 0, strength: 0 };
+  let near = 0;
+  let total = 0;
+  let stalled = 0;
+  let approaching = 0;
+  for (let frame = 0; frame < seconds * 60; frame++)
+    for (const pilot of pilots) {
+      if (evading && pilot.roam) {
+        const dx = pilot.position.x - cursor.x;
+        const dy = pilot.position.y - cursor.y;
+        const dz = pilot.position.z - cursor.z;
+        const distance = Math.hypot(dx, dy, dz) || 1;
+        const strength = distance < 0.9 ? (1 - distance / 0.9) ** 2 : 0;
+        away.x = dx / distance;
+        away.y = dy / distance;
+        away.z = dz / distance;
+        away.strength = strength;
+        pilot.roam.evade = strength > 0 ? away : null;
+      }
+      advanceInsectPilot(pilot, 1 / 60, world);
+      const distance = Math.hypot(
+        pilot.position.x - cursor.x,
+        pilot.position.y - cursor.y,
+        pilot.position.z - cursor.z,
+      );
+      total++;
+      if (distance < 0.55) near++;
+      if (
+        Math.hypot(pilot.velocity.x, pilot.velocity.y, pilot.velocity.z) < 0.08
+      )
+        stalled++;
+      if (
+        distance < 0.9 &&
+        (cursor.x - pilot.position.x) * pilot.velocity.x +
+          (cursor.y - pilot.position.y) * pilot.velocity.y +
+          (cursor.z - pilot.position.z) * pilot.velocity.z >
+          0
+      )
+        approaching++;
+    }
+  return { near: near / total, stalled: stalled / total, approaching };
+}
+
+describe("pointer evasion", () => {
+  const cursor: PilotVector = {
+    x: unitPose(UNIT).position[0],
+    y: -0.2,
+    z: unitPose(UNIT).position[2] + 1.1,
+  };
+
+  it("keeps residents out of the cursor's immediate neighbourhood", () => {
+    const ignoring = flyPast(cursor, 60, false);
+    const evading = flyPast(cursor, 60, true);
+
+    expect(ignoring.near).toBeGreaterThan(0.01);
+    expect(evading.near).toBeLessThan(ignoring.near * 0.65);
+  });
+
+  it("saturates, which is why the bias can stay small", () => {
+    // Measured across evadeBias 2.4 / 3.2 / 4.0 / 5.0, dwell inside the
+    // cursor's neighbourhood moved 43% -> 50%. Doubling the strength buys
+    // seven points, because what bounds the dwell is the size of the
+    // neighbourhood and not the force turning the insect out of it — a
+    // resident still has to cross the room. That is the whole argument for
+    // authoring this at the bottom of the curve: everything above it is a
+    // visibly harder shove for almost nothing.
+    expect(BUTTERFLY_STEERING_PROFILE.evadeBias).toBeLessThan(
+      BUTTERFLY_STEERING_PROFILE.containBias,
+    );
+    // Moths evade harder, on the owner's call. What keeps that safe is the
+    // same relation, not a smaller number: the Lamp Cone has to stay able to
+    // out-argue the cursor, or a moth chased hard enough leaves the light —
+    // and a moth outside the light is the defect ADR 0007 exists to fix.
+    expect(MOTH_STEERING_PROFILE.evadeBias).toBeGreaterThan(
+      BUTTERFLY_STEERING_PROFILE.evadeBias,
+    );
+    expect(MOTH_STEERING_PROFILE.evadeBias).toBeLessThan(
+      MOTH_STEERING_PROFILE.containBias,
+    );
+  });
+
+  it("is a lean, not a repulsor: residents still fly at the cursor sometimes", () => {
+    // The distinction the owner asked for is "subtly elusive", and the failure
+    // mode on the other side of it is a room where the pointer visibly pushes
+    // wildlife around — at which point the cursor is a weapon and the insects
+    // are objects. Composed against the wander, an evading resident that is
+    // already turning your way sometimes keeps coming.
+    const evading = flyPast(cursor, 60, true);
+    expect(evading.approaching).toBeGreaterThan(0);
+  });
+
+  it("never pins or stalls a resident it is pushing", () => {
+    // A bias strong enough to hold an insect against its containment would
+    // stop it, and a motionless insect is worse than no insect.
+    const evading = flyPast(cursor, 60, true);
+    expect(evading.stalled).toBeLessThan(0.02);
+  });
+});
 
 describe("steering roam", () => {
   it("stays inside the Flight Volume over three minutes of flight", () => {
@@ -308,5 +425,43 @@ describe("steering roam", () => {
           slow.position.z - other.position.z,
         ),
       ).toBeLessThan(0.03);
+  });
+
+  it("breaks a steering fixed point rather than only reporting one", () => {
+    // A controller that sums containment, repulsion, drift and wander can sum
+    // to zero, and a resident that finds that point stays in it — owner
+    // review: "butterflies still sometimes freeze in midair which I'd rather
+    // avoid." The nudge has to actually MOVE the wander term, because the
+    // wander term is what makes the equilibrium an equilibrium.
+    const state = createInsectSteeringState(11);
+    const before = {
+      x: state.wanderX,
+      y: state.wanderY,
+      z: state.wanderZ,
+      phase: state.speedPhase,
+    };
+    const out = { x: 0, y: 0, z: 0 };
+    nudgeInsectSteering(state, out);
+
+    expect(
+      Math.hypot(
+        state.wanderX - before.x,
+        state.wanderY - before.y,
+        state.wanderZ - before.z,
+      ),
+    ).toBeGreaterThan(0.1);
+    expect(state.speedPhase).not.toBe(before.phase);
+    expect(Math.hypot(out.x, out.y, out.z)).toBeCloseTo(1, 6);
+    // Up is the one direction a shelf never blocks, and a stalled insect is
+    // usually wedged under or beside something.
+    expect(out.y).toBeGreaterThan(0);
+
+    // Successive nudges must not repeat, or an insect that re-stalls in the
+    // same corner is handed the same useless escape.
+    const second = { x: 0, y: 0, z: 0 };
+    nudgeInsectSteering(state, second);
+    expect(
+      Math.hypot(out.x - second.x, out.y - second.y, out.z - second.z),
+    ).toBeGreaterThan(0.05);
   });
 });

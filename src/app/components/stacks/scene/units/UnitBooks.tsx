@@ -13,6 +13,10 @@
 // case's left end is the only place in the room where you can see the whole
 // of a bookcase's silhouette. If a replacement lands later it goes at
 // x ≈ −2.2 on the ground, which is the slot the ladder vacated.
+import {
+  fallbackCoverEdgeColor,
+  readingBookMaterialColors,
+} from "../../../../../lib/books/coverEdgeColor";
 import { useStacks } from "../../store";
 import { rand } from "../../theme";
 import {
@@ -26,21 +30,19 @@ import { HoverProp } from "../links";
 import {
   BookRowMesh,
   Bookend,
+  COVER_H,
   type RowItem,
   ShelfUnit,
   coverExtent,
+  coverSeat,
   packRow,
 } from "../primitives";
+import { SHELF_SURFACE } from "../shelfGeometry";
 import { layoutShelfRow, splitShelfRows } from "../shelfSpacing";
 import { useUnitLod } from "../useUnitLod";
 import { useFrame } from "@react-three/fiber";
 import React, { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-
-import {
-  fallbackCoverEdgeColor,
-  readingBookMaterialColors,
-} from "~/lib/books/coverEdgeColor";
 
 import { featuredBookThickness } from "./featuredBookGeometry";
 import { type UnitProps } from "./types";
@@ -77,6 +79,7 @@ import { type UnitProps } from "./types";
 const EDGE_R = 1.24;
 const EDGE_L_TOP = -1.3;
 const EDGE_L_LOWER = -1.24;
+export const LOWER_FEATURED_ROW_Z = 0.15;
 
 /** Four enlarged covers preserve legibility and variable air across one row.
  * Source content may grow without changing this measured physical capacity. */
@@ -177,7 +180,7 @@ type Pose = {
 };
 type Joint = "lean" | "tight" | "gap";
 
-function layoutFeatured(
+export function layoutFeatured(
   slice: {
     url: string;
     key: string;
@@ -293,6 +296,115 @@ function layoutFeatured(
       dz: p.dz,
       riser: p.riser,
     };
+  });
+}
+
+export type FeaturedBookPerchInput = Readonly<{
+  id: string;
+  title: string;
+  coverUrl: string | null;
+  pageCount: number | null;
+  audioLengthMin: number | null;
+}>;
+
+export type FeaturedBookPerchDefinition = Readonly<{
+  id: string;
+  position: readonly [number, number, number];
+  normal: readonly [number, number, number];
+  tangent: readonly [number, number, number];
+  ownerId: string;
+}>;
+
+const BOOK_PERCH_IDS = new Map([
+  ["the-12-levers", "books:the-12-levers-pages"],
+  ["superminds", "books:superminds-pages"],
+  ["life-3-0", "books:life-3-0-pages"],
+  ["thinking-fast-and-slow", "books:thinking-fast-and-slow-pages"],
+  // Four featured covers was the fewest Perches of any shelf, on the Unit
+  // with the most props on it. These three cost nothing to place: the whole
+  // point of projecting through the layout is that a Perch on a cover is
+  // measured by construction rather than authored.
+  ["bowling-alone", "books:bowling-alone-pages"],
+  ["barking-up-the-wrong-tree", "books:barking-up-the-wrong-tree-pages"],
+  ["homo-deus", "books:homo-deus-pages"],
+  // The eighth featured cover, and the only one that had no Perch — the top
+  // row's rightmost. Owner review: "why can't butterflies land on the top
+  // rightmost featured book too?" There was no reason beyond this map: seven
+  // ids had been written out by hand against eight covers, so the shelf looked
+  // uniform and behaved as though one book were different.
+  [
+    "7-habits-of-highly-effective-people",
+    "books:7-habits-of-highly-effective-people-pages",
+  ],
+]);
+
+/** Project semantic book Perches through the exact count-dependent layout
+ * used by the rendered featured rows. A Featured? edit recomposes both rows,
+ * so the stable interaction id cannot safely be paired with a static point. */
+export function featuredBookPerchDefinitions(
+  books: readonly FeaturedBookPerchInput[],
+): FeaturedBookPerchDefinition[] {
+  const featured = books
+    .filter((book): book is FeaturedBookPerchInput & { coverUrl: string } =>
+      Boolean(book.coverUrl),
+    )
+    .map((book) => ({
+      url: book.coverUrl,
+      key: book.id,
+      label: book.title,
+      color: "#000000",
+      thickness: featuredBookThickness(book.pageCount, book.audioLengthMin),
+    }));
+  const rows = splitShelfRows(featured, SHELF_CAP);
+  const placed = [
+    ...layoutFeatured(rows.top, 16, EDGE_L_TOP).map((item) => ({
+      item,
+      shelfY: SHELF_SURFACE.top,
+    })),
+    ...layoutFeatured(rows.lower, 41, EDGE_L_LOWER).map((item) => ({
+      item,
+      shelfY: SHELF_SURFACE.lower,
+    })),
+  ];
+  return placed.flatMap(({ item, shelfY }) => {
+    if (item.kind !== "cover") return [];
+    const perchId = BOOK_PERCH_IDS.get(item.key);
+    if (!perchId) return [];
+    const scale = item.s ?? 1;
+    const lean = item.lean ?? 0;
+    const thickness = item.thickness ?? 0.048;
+    const quaternion = new THREE.Quaternion().setFromEuler(
+      new THREE.Euler(0, item.yaw ?? 0, lean),
+    );
+    const position = new THREE.Vector3(
+      0.005,
+      (COVER_H - 0.014) / 2,
+      -thickness / 2 - 0.003,
+    )
+      .multiplyScalar(scale)
+      .applyQuaternion(quaternion)
+      .add(
+        new THREE.Vector3(
+          item.x,
+          shelfY + coverSeat(scale, lean, item.riser ?? 0),
+          0.18 + (item.dz ?? 0),
+        ),
+      );
+    const normal = new THREE.Vector3(0, 1, 0)
+      .applyQuaternion(quaternion)
+      .normalize();
+    const tangent = new THREE.Vector3(1, 0, 0)
+      .applyQuaternion(quaternion)
+      .normalize();
+    return [
+      {
+        id: perchId,
+        position: position.toArray() as [number, number, number],
+        normal: normal.toArray() as [number, number, number],
+        tangent: tangent.toArray() as [number, number, number],
+        ownerId: `book:${item.key}`,
+      },
+    ];
   });
 }
 
@@ -483,6 +595,7 @@ export default function UnitBooks({
                     coverWidth={coverWidth}
                     onCoverClick={onOpenBook}
                     linkUnit={index}
+                    grabbableVolumes
                   />
                   {/* L-steel pair holds the short row's loose start. It is
                     authored 2.6° off plumb — a bookend takes the row's lean —
@@ -501,10 +614,11 @@ export default function UnitBooks({
                     <BookendTarget />
                   </HoverProp>
                 </group>
-                {/* The featured half of the shelf, standing 0.12 forward of the
-                  packed spines — see the note on the layout above. */}
+                {/* The lower front rank needs another 3 cm over the top row:
+                  its deterministic leftmost cover otherwise begins 18 mm
+                  inside the deepest packed spine at the same x. */}
                 {lowerFeatured.length > 0 && (
-                  <group position={[0, 0, 0.12]}>
+                  <group position={[0, 0, LOWER_FEATURED_ROW_Z]}>
                     <BookRowMesh
                       items={lowerFeatured}
                       palette={palette}
@@ -514,6 +628,7 @@ export default function UnitBooks({
                       onCoverClick={onOpenBook}
                       linkUnit={index}
                       grabbableCovers
+                      grabbableVolumes
                     />
                   </group>
                 )}
@@ -535,6 +650,7 @@ export default function UnitBooks({
                   onCoverClick={onOpenBook}
                   linkUnit={index}
                   grabbableCovers
+                  grabbableVolumes
                 />
               </group>
             )}
@@ -547,6 +663,7 @@ export default function UnitBooks({
                 coverWidth={coverWidth}
                 onCoverClick={onOpenBook}
                 linkUnit={index}
+                grabbableVolumes
               />
               {/* Its twin on the top row, leaning the other way against the
                 packed spines. */}

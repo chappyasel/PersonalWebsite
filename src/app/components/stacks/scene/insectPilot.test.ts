@@ -25,6 +25,7 @@ import {
   insectPilotPhaseLimits,
   insectWingAmplitudeForSpeed,
   insectWingFrequencyForSpeed,
+  restingIdleBob,
   restingIdleInterval,
   restingIdleOpening,
 } from "./insectPilot";
@@ -687,7 +688,7 @@ describe("acceleration-limited insect pilot", () => {
     }
   });
 
-  it("exempts the support only for final contact and launch, not approach", () => {
+  it("uses the bounded support licence throughout arrival and launch", () => {
     const world = new PrimitiveFlightWorld();
     const value = pilot(world);
     expect(
@@ -697,16 +698,11 @@ describe("acceleration-limited insect pilot", () => {
         world,
       ),
     ).toBe(true);
-    const firstSupportContact = world.supportContactFlags.indexOf(true);
-    expect(firstSupportContact).toBeGreaterThan(0);
-    expect(
-      world.supportContactFlags
-        .slice(0, firstSupportContact)
-        .every((allowed) => !allowed),
-    ).toBe(true);
+    expect(world.supportContactFlags.some((allowed) => allowed)).toBe(true);
     world.supportContactFlags.length = 0;
     advanceInsectPilot(value, 1 / 60, world);
-    expect(world.supportContactFlags.every((allowed) => !allowed)).toBe(true);
+    expect(world.supportContactFlags.length).toBeGreaterThan(0);
+    expect(world.supportContactFlags.every((allowed) => allowed)).toBe(true);
     advanceUntil(value, world, "rest");
     expect(commandInsectPilot(value, { type: "depart" }, world)).toBe(true);
     expect(world.supportContactFlags.slice(-2)).toEqual([true, false]);
@@ -1315,6 +1311,7 @@ describe("Escape", () => {
         containment: createInsectFlightVolumeContainment(ORIGIN_VOLUME),
         volume: ORIGIN_VOLUME,
         transit: null,
+        evade: null,
       },
     });
     expect(
@@ -1577,6 +1574,37 @@ describe("the perched idle", () => {
       previous = value;
     }
     expect(turns).toBeGreaterThan(0);
+  });
+
+  it("rocks the thorax through the opening and never outside it", () => {
+    // Owner review: "maybe a tiny bit of intermittent bobbing?" The delicate
+    // part is that a perched insect must not TRANSLATE — that leaves the
+    // contact plane — so the bob is pitch, and it rides the wing episode
+    // rather than running on a timer of its own.
+    const profile = BUTTERFLY_PILOT_PROFILE;
+    expect(profile.restingIdle.bob).toBeGreaterThan(0);
+    // A still insect is still. `restIdleAge` is -1 between openings.
+    expect(restingIdleBob(profile, -1)).toBe(0);
+    expect(restingIdleBob(profile, 0)).toBe(0);
+    expect(restingIdleBob(profile, profile.restingIdle.duration)).toBe(0);
+
+    // A full cycle, not a hump: the insect rocks forward and then back, and
+    // ends where it started rather than nodded over.
+    const quarter = restingIdleBob(profile, profile.restingIdle.duration / 4);
+    const half = restingIdleBob(profile, profile.restingIdle.duration / 2);
+    const threeQuarter = restingIdleBob(
+      profile,
+      (profile.restingIdle.duration * 3) / 4,
+    );
+    expect(quarter).toBeCloseTo(profile.restingIdle.bob, 6);
+    expect(half).toBeCloseTo(0, 6);
+    expect(threeQuarter).toBeCloseTo(-profile.restingIdle.bob, 6);
+
+    // Tiny, as asked. A perched insect that pitches like a flying one reads as
+    // a landing that never finished.
+    expect(profile.restingIdle.bob).toBeLessThan(
+      profile.bodyPitchAmplitude / 4,
+    );
   });
 
   it("never puts two residents on the same schedule", () => {

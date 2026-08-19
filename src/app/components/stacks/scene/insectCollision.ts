@@ -379,7 +379,12 @@ export function insectCorridorIsClear(
   ignoredBoxes: ReadonlySet<string> | null = null,
   allowPenetrationEscape = false,
   supportContactRegion: InsectSupportContactRegion | null = null,
+  /** Receives the id of the box that refused the corridor. Same reason as
+   * `insectTerminalPoseIsClear`: "blocked" without "by what" costs a round of
+   * guessing per site. */
+  outBlockedBy: { id: string | null } | null = null,
 ): boolean {
+  if (outBlockedBy) outBlockedBy.id = null;
   if (points.length === 0) return false;
   const segmentCount = Math.max(1, points.length - 1);
   for (let segment = 0; segment < segmentCount; segment++) {
@@ -407,6 +412,7 @@ export function insectCorridorIsClear(
           )
         )
           continue;
+        if (outBlockedBy) outBlockedBy.id = box.id;
         return false;
       }
       if (
@@ -435,6 +441,7 @@ export function insectCorridorIsClear(
             continue;
         }
       }
+      if (outBlockedBy) outBlockedBy.id = box.id;
       return false;
     }
   }
@@ -986,7 +993,9 @@ export function insectFoldedCorridorIsClear(
   index: InsectCollisionIndex,
   supportBoxes: ReadonlySet<string> | null = null,
   supportContactRegion: InsectSupportContactRegion | null = null,
+  outBlockedBy: { id: string | null } | null = null,
 ) {
+  if (outBlockedBy) outBlockedBy.id = null;
   if (points.length === 0) return false;
   const normalLength = Math.hypot(normal.x, normal.y, normal.z);
   if (normalLength < 1e-8) return false;
@@ -1044,6 +1053,7 @@ export function insectFoldedCorridorIsClear(
           )
         )
           continue;
+        if (outBlockedBy) outBlockedBy.id = candidate.id;
         return false;
       }
       if (
@@ -1073,8 +1083,10 @@ export function insectFoldedCorridorIsClear(
           candidate.max.y,
           candidate.max.z,
         )
-      )
+      ) {
+        if (outBlockedBy) outBlockedBy.id = candidate.id;
         return false;
+      }
     }
   }
   return true;
@@ -1206,7 +1218,12 @@ export function insectTerminalPoseIsClear(
   index: InsectCollisionIndex,
   supportBoxes: ReadonlySet<string> | null,
   supportContactRegion: InsectSupportContactRegion | null = null,
+  /** Receives the id of the box that rejected the pose. "Which collider" is the
+   * question every `resting-pose-blocked` investigation opens with, and without
+   * it the answer costs a round of guessing per site. */
+  outBlockedBy: { id: string | null } | null = null,
 ): boolean {
+  if (outBlockedBy) outBlockedBy.id = null;
   const normalLength = Math.hypot(normal.x, normal.y, normal.z);
   if (normalLength < 1e-8) return false;
   const nx = normal.x / normalLength;
@@ -1258,6 +1275,7 @@ export function insectTerminalPoseIsClear(
         )
       )
         continue;
+      if (outBlockedBy) outBlockedBy.id = box.id;
       return false;
     }
     if (
@@ -1285,6 +1303,7 @@ export function insectTerminalPoseIsClear(
         box.max.z,
       )
     ) {
+      if (outBlockedBy) outBlockedBy.id = box.id;
       return false;
     }
   }

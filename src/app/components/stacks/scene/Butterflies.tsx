@@ -32,6 +32,7 @@ import {
   prepareInsectLandingTarget,
 } from "./insectFlightWorld";
 import {
+  INSECT_LANDING_YAW,
   LANDING_TIMING,
   landingNoise,
   pointerDisturbanceIsConfirmed,
@@ -68,7 +69,17 @@ import {
   butterflyTransitDirection,
   relocateInsectBetweenUnits,
 } from "./insectResidency";
-import { BUTTERFLY_STEERING_PROFILE } from "./insectSteering";
+import {
+  BUTTERFLY_STEERING_PROFILE,
+  nudgeInsectSteering,
+} from "./insectSteering";
+import {
+  type InsectTrail,
+  clearInsectTrail,
+  createInsectTrail,
+  insectTrailPoints,
+  recordInsectTrail,
+} from "./insectTrail";
 import { MEADOW_GROUND_BASE } from "./meadowField";
 
 const TAU = Math.PI * 2;
@@ -140,6 +151,26 @@ const YAW_LAMBDA = 4.0;
 const ROLL_LAMBDA = 5.0;
 const BANK_K = 0.55;
 const BANK_MAX = 0.45;
+/**
+ * Tangential speed below which travel direction stops being evidence of where
+ * the insect is pointing, in m/s.
+ *
+ * The pilot TRACKS the Arrival Curve with a position controller rather than
+ * replaying it, so over the last centimetres its velocity is no longer travel —
+ * it is convergence correction, and a damped controller settling on a target
+ * oscillates. Rebuilding the facing from that vector each frame turned the
+ * settle into a back-and-forth spin. Nothing about the curve caused it, which is
+ * why flattening the winding did not help.
+ *
+ * Real insects do not re-derive their heading from their instantaneous velocity,
+ * least of all while stopping: orientation carries its own momentum. So the
+ * heading is captured while the insect is still genuinely travelling and then
+ * HELD. 0.08 sits well under the 0.22 m/s touchdown speed and well over the
+ * controller's residual noise.
+ */
+const REST_HEADING_HOLD_SPEED = 0.08;
+/** Airspeed above the hold speed over which bank authority returns, in m/s. */
+const BANK_FADE_SPEED = 0.22;
 /** Theme crossfade, matching the meadow's own uDark damp. */
 const DARK_LAMBDA = 3.5;
 
@@ -157,21 +188,38 @@ const DARK_LAMBDA = 3.5;
 // one insect, which is the same failure the shared `flapHz` had. The cream one
 // is restless and shallow, the blue one rare and deep, the orange one somewhere
 // between with a quicker gesture.
+//
+// The intervals came down with the stay (`LANDING_TIMING.butterflyRest`, now
+// 9-15 s rather than 30-62). At the old spacing the blue one would have opened
+// its wings roughly once per visit and often not at all, and the temperament
+// that was supposed to read as "rare and deep" would simply have read as dead.
+// `bob` is the thorax rock through the same episode, in radians — the deeper
+// the opening, the more the insect shifts with it.
 const FLIGHTS = [
   {
     color: "#f2e8d2",
     flapHz: 9.3,
-    restingIdle: { interval: [2.6, 6.4], duration: 0.95, depth: 0.58 },
+    restingIdle: { interval: [1.3, 3.2], duration: 0.8, depth: 0.6, bob: 0.07 },
   },
   {
     color: "#8b9be0",
     flapHz: 8.2,
-    restingIdle: { interval: [6.2, 14.5], duration: 1.5, depth: 0.86 },
+    restingIdle: {
+      interval: [2.8, 6.4],
+      duration: 1.25,
+      depth: 0.9,
+      bob: 0.12,
+    },
   },
   {
     color: "#e8a25e",
     flapHz: 10.1,
-    restingIdle: { interval: [3.8, 9.1], duration: 0.72, depth: 0.7 },
+    restingIdle: {
+      interval: [1.9, 4.5],
+      duration: 0.65,
+      depth: 0.72,
+      bob: 0.09,
+    },
   },
 ] as const;
 /** Metres the renderer drops the body below the collision datum once its
@@ -180,13 +228,27 @@ const BUTTERFLY_RENDER_SINK =
   INSECT_ENVELOPES.butterfly.contactLift -
   INSECT_ENVELOPES.butterfly.renderLift;
 
-export const BUTTERFLIES_PER_UNIT = 3;
-export const BUTTERFLY_COUNT = UNIT_COUNT * BUTTERFLIES_PER_UNIT;
+/**
+ * How many butterflies the room holds.
+ *
+ * It was `UNIT_COUNT * 3` — an arrangement, from when a resident had one shelf
+ * for the life of the page. Residency migrates now, so the count is no longer
+ * a statement about any shelf; it is a statement about the FRAME, and the frame
+ * shows about one Unit. Owner review of 21: "no more than 5 on screen otherwise
+ * feels spammy. 3-5 at all times feels ideal." Eighteen against a cap of four
+ * (`BUTTERFLY_RESIDENCY.maxPerUnit`) puts four on the Unit in view, three on
+ * each side, and two at the far end.
+ *
+ * Cutting three also cuts traffic: demand now swings by at most two per Unit as
+ * the camera passes, so a redistribution is a couple of crossings rather than a
+ * shelf emptying.
+ */
+export const BUTTERFLY_COUNT = 18;
 
 // Three translucent wing poses across a fixed shutter interval read as
 // rotational motion blur rather than a duplicate wing. All 126 samples are
 // submitted in one InstancedMesh, so the entire population costs one draw call.
-const WING_BLUR_SAMPLES = 3;
+const WING_BLUR_SAMPLES = 5;
 const WING_BLUR_INSTANCE_COUNT = BUTTERFLY_COUNT * 2 * WING_BLUR_SAMPLES;
 /** Fixed middle ground chosen after comparing 50 ms / 3× against an
  * intentionally excessive 80 ms / 10× diagnostic treatment. */
@@ -194,7 +256,7 @@ const WING_BLUR_EXPOSURE = 0.06;
 const WING_BLUR_STRENGTH = 5;
 const WING_BLUR_MIN_ANGULAR_SPEED = 7;
 const WING_BLUR_FULL_ANGULAR_SPEED = 52;
-const WING_BLUR_OPACITY = [0.075, 0.045, 0.025] as const;
+const WING_BLUR_OPACITY = [0.075, 0.045, 0.025, 0.016, 0.01] as const;
 const WING_BLUR_ANGLE_LIMIT = 1.45;
 
 function createWingBlurMaterial() {
@@ -240,15 +302,35 @@ varying float vInstanceOpacity;`,
 /** Where a resident starts. After boot this is only an initial condition:
  * Residency is `ButterflyMotion.currentUnit`, and it moves. */
 export function butterflyHomeUnit(index: number) {
-  return Math.floor(index / BUTTERFLIES_PER_UNIT);
+  // Spread whatever the count is across all seven Units rather than filling
+  // three at a time: with 18 residents the old `floor(index / 3)` left unit 6
+  // empty at mount, and the floor of 2 would then have to be repaired by a
+  // crossing before the visitor had scrolled anywhere.
+  return Math.min(
+    UNIT_COUNT - 1,
+    Math.floor((index * UNIT_COUNT) / BUTTERFLY_COUNT),
+  );
 }
+
+/**
+ * How far from the shelf in view a resident may still start a landing.
+ *
+ * One Unit meant a shelf was only ever populated after the visitor arrived at
+ * it, so every approach happened in full view and the shelf you scrolled onto
+ * was always empty — "sometimes it seems like they never land. or it takes
+ * forever". Two Units is far enough ahead of the camera that arriving on a
+ * shelf means arriving on one somebody is already sitting on, and it is still
+ * short of the whole room, so residents at the far end are not planning against
+ * a collision index nobody is looking at.
+ */
+export const BUTTERFLY_LANDING_REACH = 2;
 
 /** Eligibility is judged on where a resident IS, not on where it started. */
 export function butterflyIsActiveNeighbor(
   currentUnit: number,
   activeUnit: number,
 ) {
-  return Math.abs(currentUnit - activeUnit) <= 1;
+  return Math.abs(currentUnit - activeUnit) <= BUTTERFLY_LANDING_REACH;
 }
 
 /** Select at most one resident of the active shelf for a forced attempt. An
@@ -279,6 +361,84 @@ function nextMigrationRandom(motion: Pick<ButterflyMotion, "migrationRandom">) {
 
 export type ButterflyResidencyEvent = "none" | "migrated" | "rehomed";
 
+/**
+ * Hand out crossing orders — at most as many per Unit as the imbalance
+ * actually calls for.
+ *
+ * Judged per insect, "am I surplus?" is true for EVERY resident of an
+ * over-populated Unit at once, so a shelf one over its demand sent all of its
+ * residents across together. That is a conveyor belt, not a redistribution,
+ * and it also starved the Landing Cycle: a resident under orders does not
+ * attempt a Perch, so a room that never quite settles never lands anyone.
+ *
+ * Orders are sticky. A resident already crossing keeps its destination as long
+ * as its origin is still over-subscribed, so the population does not re-decide
+ * who is moving several times a second.
+ */
+export function assignButterflyTransits(
+  motions: readonly Pick<
+    ButterflyMotion,
+    "currentUnit" | "transitTo" | "transitAt" | "seed"
+  >[],
+  residents: readonly number[],
+  demand: readonly number[],
+  roaming: (index: number) => boolean,
+  time: number,
+) {
+  const leaving = new Array<number>(residents.length).fill(0);
+  let crossing = 0;
+  for (let index = 0; index < motions.length; index++) {
+    const motion = motions[index]!;
+    if (motion.transitTo === null) continue;
+    // An order that has been served, or whose reason has gone, is released.
+    if (
+      motion.transitTo === motion.currentUnit ||
+      !roaming(index) ||
+      (residents[motion.currentUnit] ?? 0) <= (demand[motion.currentUnit] ?? 0)
+    ) {
+      motion.transitTo = null;
+      continue;
+    }
+    leaving[motion.currentUnit]! += 1;
+    crossing += 1;
+  }
+  for (let unit = 0; unit < residents.length; unit++) {
+    if (crossing >= BUTTERFLY_RESIDENCY.maxConcurrentTransits) break;
+    let outstanding =
+      (residents[unit] ?? 0) - (demand[unit] ?? 0) - (leaving[unit] ?? 0);
+    if (outstanding <= 0) continue;
+    for (
+      let index = 0;
+      index < motions.length &&
+      outstanding > 0 &&
+      crossing < BUTTERFLY_RESIDENCY.maxConcurrentTransits;
+      index++
+    ) {
+      const motion = motions[index]!;
+      if (motion.currentUnit !== unit || motion.transitTo !== null) continue;
+      if (!roaming(index)) continue;
+      // Resolved per RESIDENT, not per Unit, so a shelf that is short on both
+      // sides is fed from both sides rather than emptying leftward.
+      const destination = butterflyTransitDestination(
+        residents,
+        demand,
+        unit,
+        (index & 1) === 1,
+      );
+      if (destination === null) break;
+      motion.transitTo = destination;
+      // Orders are handed out on one frame; the crossings must not start on
+      // one. Until this passes the resident roams normally, so it leaves from
+      // wherever its own wander has taken it by then.
+      const [low, high] = BUTTERFLY_RESIDENCY.transitStagger;
+      motion.transitAt =
+        time + low + (high - low) * landingNoise(index, unit * 7 + 3);
+      outstanding -= 1;
+      crossing += 1;
+    }
+  }
+}
+
 const TRANSIT_DIRECTION = { x: 0, y: 0, z: 0 };
 
 /**
@@ -299,22 +459,18 @@ export function updateButterflyResidency(options: {
   velocity: { x: number; y: number; z: number };
   roaming: boolean;
   residents: number[];
-  demand: readonly number[];
   cameraX: number;
   rehomingMargin: number;
   step: number;
   time: number;
 }): ButterflyResidencyEvent {
-  const { motion, residents, demand } = options;
+  const { motion, residents } = options;
   if (!options.roaming) {
     // A resident with a Landing Plan in the air is committed to one shelf.
     motion.transitTo = null;
     return "none";
   }
   const from = motion.currentUnit;
-  const destination = butterflyTransitDestination(residents, demand, from);
-  motion.transitTo =
-    destination === null || destination === from ? null : destination;
 
   if (
     motion.transitTo !== null &&
@@ -362,8 +518,9 @@ export function updateButterflyResidency(options: {
 export function butterflyTransitHeading(
   motion: ButterflyMotion,
   position: { x: number; y: number; z: number },
+  time: number,
 ) {
-  if (motion.transitTo === null) return null;
+  if (motion.transitTo === null || time < motion.transitAt) return null;
   return butterflyTransitDirection(
     position,
     motion.transitTo,
@@ -374,20 +531,111 @@ export function butterflyTransitHeading(
 }
 
 /**
- * How many butterflies may be engaged with the active shelf at once.
+ * How many butterflies a shelf can hold, split by what they are doing.
  *
- * This was the real reason most Perches were never used: it returned one for
- * three of every four windows, capped across all twenty-one residents, while
- * thirty-one Perches waited. Occupancy is meant to rise from insects staying
- * (see `LANDING_TIMING.butterflyRest`) rather than from more traffic, and a
- * shelf that can hold three settled butterflies is what makes the long rest
- * visible instead of merely long.
+ * One number used to do both jobs, and it capped the wrong thing. Occupancy is
+ * meant to fall out of how long an insect STAYS (see
+ * `LANDING_TIMING.butterflyRest`) rather than out of permission to arrive —
+ * that is the authored principle — so the settled cap is generous. What has to
+ * stay small is the number simultaneously flying at the shelf: with Residency
+ * migrating, a Unit the camera has just reached can hold six residents, and six
+ * of them diving at the same planks at once reads as an event rather than as a
+ * place with wildlife in it.
  */
-export function butterflyLandingPopulationLimit(
-  _time: number,
-  _forcedAttempt: boolean,
+export const BUTTERFLY_OCCUPANCY = {
+  /**
+   * Residents holding a Perch on one Unit, settled or otherwise. Three of a
+   * shelf's four, so a Unit at full demand always has someone still in the air
+   * and the shelf never reads as a display case.
+   *
+   * Raising this to four to buy back the occupancy the shorter rest costs (see
+   * `LANDING_TIMING.butterflyRest`) was tried and is wrong: `maxPerUnit` is 4,
+   * so a shelf at full demand could then have every one of its residents
+   * standing still. The cheap compensation would have cost the exact property
+   * the cap exists to protect, so the shorter dwell is paid for in standing
+   * occupancy and bought back in turnover instead.
+   */
+  engaged: 3,
+  /** ...of which how many may still be on their way to one. */
+  approaching: 2,
+} as const;
+
+/**
+ * Seconds a resident of an EMPTY shelf may be made to wait for its next
+ * attempt.
+ *
+ * The ordinary gap between landings is a flight, and a flight is long — which
+ * is right for a shelf that already has someone on it and wrong for one that
+ * has nobody. Owner review: "how can we have it be that there's basically
+ * always 1-2 on perches". Nothing else changes; a shelf that has just lost its
+ * last resident simply stops waiting out the full flight. Failure backoff
+ * (2.5 s) is shorter than this, so a resident that cannot find a Perch is not
+ * pulled into retrying faster than it already is.
+ */
+export const BUTTERFLY_STARVED_GAP = 3;
+
+/**
+ * Seconds a Perch may fail to prepare before an in-flight landing is abandoned.
+ *
+ * Long enough to ride out a scene-graph rebuild, short enough that a Perch on a
+ * prop the visitor has actually picked up and carried off is given up promptly.
+ */
+export const BUTTERFLY_PERCH_MISS_GRACE = 0.4;
+
+/**
+ * Pointer avoidance while roaming (owner review: "is there a way to make them
+ * avoid the mouse in general? would be kinda cool if they were subtly
+ * elusive").
+ *
+ * Measured in PIXELS, because that is what "near the cursor" means: the pointer
+ * is a ray through the room, and a metre near the camera and a metre at the far
+ * shelf are not the same thing on screen. The strength curve is quadratic, so
+ * almost all of the effect is in the innermost third of the radius — a resident
+ * a hand's width away barely leans, and one you are chasing keeps sliding out
+ * of reach.
+ *
+ * This is distinct from the Escape a pointer provokes during a Landing Cycle
+ * (`pointerDisturbanceIsConfirmed`), which is a disturbance with a cause and
+ * takes the insect off a Perch. This one never interrupts anything; it is a
+ * standing bias on an ordinary roam.
+ */
+export const BUTTERFLY_EVASION = {
+  radiusPx: 210,
+  /** Seconds the lean takes to build and to fade. Without it, a cursor
+   * crossing a resident switches a force on for one frame and reads as a
+   * flinch — and a flinch is a reaction, which is the thing that would make
+   * the pointer feel like a weapon. */
+  lambda: 3.5,
+  /** How much of the lean is "back away from the camera" rather than sideways.
+   * Purely lateral evasion looks like a rail; a little depth makes a resident
+   * duck behind a prop, which is most of what elusive reads as. */
+  depth: 0.35,
+} as const;
+
+/** 0..1 from a screen-space distance. Zero at the radius, 1 at the cursor. */
+export function butterflyEvasionStrength(distancePx: number) {
+  if (!(distancePx < BUTTERFLY_EVASION.radiusPx)) return 0;
+  const near = 1 - Math.max(0, distancePx) / BUTTERFLY_EVASION.radiusPx;
+  return near * near;
+}
+
+export function butterflyNextAttemptAt(
+  nextAttemptAt: number,
+  engagedOnUnit: number,
+  time: number,
 ) {
-  return 3;
+  if (engagedOnUnit > 0) return nextAttemptAt;
+  return Math.min(nextAttemptAt, time + BUTTERFLY_STARVED_GAP);
+}
+
+export function butterflyMayBeginLanding(occupancy: {
+  engaged: number;
+  approaching: number;
+}) {
+  return (
+    occupancy.engaged < BUTTERFLY_OCCUPANCY.engaged &&
+    occupancy.approaching < BUTTERFLY_OCCUPANCY.approaching
+  );
 }
 
 export function butterflyPerchFailureMessage(
@@ -398,12 +646,6 @@ export function butterflyPerchFailureMessage(
 ) {
   return `Perch rejected: ${diagnostic.rejectionCode} — ${diagnostic.rejectionReason}`;
 }
-
-/** How many recent positions a resident keeps for the development trail
- * overlay. Thirty seconds at four samples a second, which is long enough for a
- * shared corridor or a convergence point to become obvious if one exists. */
-const TRAIL_LENGTH = 120;
-const TRAIL_INTERVAL = 0.25;
 
 export type ButterflyMotion = {
   pilot: InsectPilot | null;
@@ -418,6 +660,11 @@ export type ButterflyMotion = {
   currentUnit: number;
   /** Where a directed crossing is going, or null. */
   transitTo: number | null;
+  /** Time the crossing heading engages. See `assignButterflyTransits`. */
+  transitAt: number;
+  /** Damped pointer lean, in the insect's own state so it survives the frames
+   * the cursor is not moving. */
+  evade: { x: number; y: number; z: number; strength: number };
   /** Per-resident coin for migration. Deliberately not a shared PRNG: mount
    * order must never correlate two residents or reshuffle them on reload. */
   migrationRandom: number;
@@ -434,14 +681,24 @@ export type ButterflyMotion = {
   departure: THREE.Vector3;
   projected: THREE.Vector3;
   right: THREE.Vector3;
+  /** Scratch for projecting travel direction into the surface plane. */
+  restForward: THREE.Vector3;
+  /** Scratch: the contact normal, as the axis the resting yaw turns about. */
+  restAxis: THREE.Vector3;
+  /** This landing's resting yaw, in radians. See `INSECT_LANDING_YAW`. */
+  landingYaw: number;
+  /** This landing's displacement across the Perch surface, 0..1. */
+  landingSpread: number;
+  /** When the Perch first failed to prepare, or −1. See the grace window. */
+  perchMissSince: number;
+  /** The facing a landing insect holds: captured from its own arrival, not
+   * from the Perch's authored tangent. */
+  restHeading: THREE.Vector3;
   restMatrix: THREE.Matrix4;
   surfaceQuaternion: THREE.Quaternion;
   flareQuaternion: THREE.Quaternion;
   seed: number;
-  trail: THREE.Vector3[];
-  trailWrite: number;
-  trailFilled: boolean;
-  trailSampledAt: number;
+  trail: InsectTrail;
   lowSpeedSince: number;
   lastMeaningfulMovement: number;
   telemetryPublishedAt: number;
@@ -471,6 +728,8 @@ export function createButterflyMotion(seed = 1, homeUnit = 0): ButterflyMotion {
     world: null,
     currentUnit: homeUnit,
     transitTo: null,
+    transitAt: 0,
+    evade: { x: 0, y: 0, z: 0, strength: 0 },
     migrationRandom: Math.imul(seed + 1, 0x9e3779b1) >>> 0 || 1,
     rehomedAt: -1,
     initial: createKinematicSample(),
@@ -483,14 +742,17 @@ export function createButterflyMotion(seed = 1, homeUnit = 0): ButterflyMotion {
     departure: new THREE.Vector3(0, 1, 0),
     projected: new THREE.Vector3(),
     right: new THREE.Vector3(1, 0, 0),
+    restForward: new THREE.Vector3(),
+    restAxis: new THREE.Vector3(),
+    landingYaw: 0,
+    landingSpread: 0,
+    perchMissSince: -1,
+    restHeading: new THREE.Vector3(),
     restMatrix: new THREE.Matrix4(),
     surfaceQuaternion: new THREE.Quaternion(),
     flareQuaternion: new THREE.Quaternion(),
     seed,
-    trail: Array.from({ length: TRAIL_LENGTH }, () => new THREE.Vector3()),
-    trailWrite: 0,
-    trailFilled: false,
-    trailSampledAt: -1,
+    trail: createInsectTrail(),
     lowSpeedSince: -1,
     lastMeaningfulMovement: 0,
     telemetryPublishedAt: -1,
@@ -529,27 +791,13 @@ export function recordButterflyTrail(
   position: { x: number; y: number; z: number },
   time: number,
 ) {
-  if (time - motion.trailSampledAt < TRAIL_INTERVAL) return false;
-  motion.trailSampledAt = time;
-  motion.trail[motion.trailWrite]!.set(position.x, position.y, position.z);
-  motion.trailWrite = (motion.trailWrite + 1) % TRAIL_LENGTH;
-  if (motion.trailWrite === 0) motion.trailFilled = true;
-  return true;
+  return recordInsectTrail(motion.trail, position, time);
 }
 
 /** Oldest-first snapshot of the ring buffer, allocated only when the
  * development HUD actually asks for it. */
 export function butterflyTrailPoints(motion: ButterflyMotion) {
-  const count = motion.trailFilled ? TRAIL_LENGTH : motion.trailWrite;
-  const points: { x: number; y: number; z: number }[] = [];
-  for (let offset = 0; offset < count; offset++) {
-    const index = motion.trailFilled
-      ? (motion.trailWrite + offset) % TRAIL_LENGTH
-      : offset;
-    const point = motion.trail[index]!;
-    points.push({ x: point.x, y: point.y, z: point.z });
-  }
-  return points;
+  return insectTrailPoints(motion.trail);
 }
 
 /**
@@ -574,6 +822,17 @@ export function butterflyContactGap(
 
 export const BUTTERFLY_STALL_SPEED = 0.08;
 export const BUTTERFLY_STALL_WINDOW = 0.5;
+/**
+ * Speed of the impulse that breaks a stall, in m/s.
+ *
+ * Comfortably above `BUTTERFLY_STALL_SPEED` so the escape cannot itself be
+ * mistaken for another stall on the next frame, and under the cruise speed so
+ * it reads as the insect deciding to move rather than being thrown.
+ */
+export const BUTTERFLY_STALL_ESCAPE_SPEED = 0.34;
+
+/** Scratch for the direction `nudgeInsectSteering` picks. */
+const STALL_ESCAPE = { x: 0, y: 0, z: 0 };
 
 /** A stall is deliberately narrower than "not moving": only an ordinary
  * roaming resident below the meaningful-speed threshold for a full rolling
@@ -630,7 +889,15 @@ const BUTTERFLY_PILOT_PROFILES: readonly InsectPilotProfile[] = FLIGHTS.map(
   }),
 );
 
-function Flight({ dark }: { dark: boolean }) {
+function Flight({
+  dark,
+  wingBlurSamples,
+  suspendOffscreen,
+}: {
+  dark: boolean;
+  wingBlurSamples: 0 | 1 | 3 | 5;
+  suspendOffscreen: boolean;
+}) {
   const root = useRef<THREE.Group>(null);
   const bodies = useRef<(THREE.Group | null)[]>([]);
   const wingBlur = useRef<THREE.InstancedMesh>(null);
@@ -697,7 +964,12 @@ function Flight({ dark }: { dark: boolean }) {
   );
   const pointerIsTouch = useRef(true);
   const pointerActiveUntil = useRef(0);
+  const cameraRight = useRef(new THREE.Vector3());
+  const cameraUp = useRef(new THREE.Vector3());
+  const cameraBack = useRef(new THREE.Vector3());
+  const evadeVector = useRef(new THREE.Vector3());
   const handledForceRequest = useRef(0);
+  const residencyPublishedAt = useRef(-1);
   useEffect(() => {
     const mesh = wingBlur.current;
     if (!mesh) return;
@@ -787,11 +1059,16 @@ function Flight({ dark }: { dark: boolean }) {
     // meshes are off the draw list rather than drawn at zero scale.
     g.visible = day > 0.02;
     if (!g.visible) {
+      // Butterflies only. This used to wipe the whole map, and the moths — who
+      // are alive at exactly the hours the butterflies are not — publish every
+      // 0.25 s, so each moth trail lived from its publish until the next
+      // butterfly frame. Owner review: "moth flight trails are still flashing
+      // like 2 times per second."
       if (
         process.env.NODE_ENV === "development" &&
-        insectDiagnosticsController.getSnapshot().flightStates.length > 0
+        insectDiagnosticsController.hasFlightTelemetry("butterfly")
       )
-        insectDiagnosticsController.clearFlightTelemetry();
+        insectDiagnosticsController.clearFlightTelemetry("butterfly");
       return;
     }
 
@@ -805,6 +1082,7 @@ function Flight({ dark }: { dark: boolean }) {
       diagnostics && diagnostics.forceRequest > handledForceRequest.current,
     );
     const wingBlurMesh = wingBlur.current;
+    if (wingBlurMesh) wingBlurOpacity.array.fill(0);
     const forcedResident = forceRequested
       ? selectForcedButterflyResident(
           stacks.activeUnit,
@@ -824,6 +1102,23 @@ function Flight({ dark }: { dark: boolean }) {
     const residents = new Array<number>(UNIT_COUNT).fill(0);
     for (const motion of motions.current) residents[motion.currentUnit]! += 1;
     const demand = butterflyResidencyDemand(cameraX, BUTTERFLY_COUNT);
+    assignButterflyTransits(
+      motions.current,
+      residents,
+      demand,
+      (index) => (motions.current[index]?.pilot?.phase ?? "roam") === "roam",
+      t,
+    );
+    // Camera basis for pointer evasion. Screen-space right and up, so a lean
+    // "away from the cursor" is computed in the space the cursor lives in.
+    const pointerIsLive =
+      !pointerIsTouch.current &&
+      performance.now() <= pointerActiveUntil.current;
+    if (pointerIsLive) {
+      cameraRight.current.setFromMatrixColumn(camera.matrixWorld, 0);
+      cameraUp.current.setFromMatrixColumn(camera.matrixWorld, 1);
+      cameraBack.current.setFromMatrixColumn(camera.matrixWorld, 2);
+    }
     const rehomingMargin = butterflyRehomingMargin({
       fov: perspective.fov,
       aspect: perspective.aspect,
@@ -834,16 +1129,45 @@ function Flight({ dark }: { dark: boolean }) {
     // resident whose home was within one Unit of the camera — nine residents
     // competing for three slots, so the shelf you were actually looking at
     // averaged about one perched butterfly instead of two or three.
-    const activeLandings = new Array<number>(UNIT_COUNT).fill(0);
-    for (const motion of motions.current)
-      if (motion.pilot?.reservedPerchId)
-        activeLandings[motion.currentUnit]! += 1;
+    const engagedByUnit = new Array<number>(UNIT_COUNT).fill(0);
+    const approachingByUnit = new Array<number>(UNIT_COUNT).fill(0);
+    for (const motion of motions.current) {
+      if (!motion.pilot?.reservedPerchId) continue;
+      engagedByUnit[motion.currentUnit]! += 1;
+      if (
+        motion.pilot.phase === "approach" ||
+        motion.pilot.phase === "hover" ||
+        motion.pilot.phase === "touchdown"
+      )
+        approachingByUnit[motion.currentUnit]! += 1;
+    }
+    if (
+      process.env.NODE_ENV === "development" &&
+      t - residencyPublishedAt.current >= 0.25
+    ) {
+      residencyPublishedAt.current = t;
+      insectDiagnosticsController.publishResidency({
+        cameraX,
+        rehomingMargin,
+        demand,
+        residents: [...residents],
+        transits: motions.current.map((motion) => motion.transitTo),
+      });
+    }
     for (let i = 0; i < BUTTERFLY_COUNT; i++) {
       const b = bodies.current[i];
       const wr = wings.current[i * 2];
       const wl = wings.current[i * 2 + 1];
       if (!b || !wr || !wl) continue;
       const motion = motions.current[i]!;
+      if (
+        suspendOffscreen &&
+        Math.abs(motion.currentUnit - stacks.activeUnit) > 1
+      ) {
+        b.visible = false;
+        continue;
+      }
+      b.visible = true;
       const occupant = `butterfly:${i}`;
       if (!motion.pilot || !motion.world) {
         // No cruise sampler: a steering resident has no analytic flight to
@@ -867,10 +1191,16 @@ function Flight({ dark }: { dark: boolean }) {
             containment: UNIT_FLIGHT_CONTAINMENTS[motion.currentUnit]!,
             volume: UNIT_FLIGHT_VOLUMES[motion.currentUnit]!,
             transit: null,
+            evade: null,
           },
         });
         motion.lastMeaningfulMovement = t;
-        motion.nextAttemptAt = t + 8 + 12 * landingNoise(i, 1);
+        // Boot used to hold every resident in the air for 8-20 s, so the room
+        // the visitor first sees is guaranteed to have nobody sitting on
+        // anything — the worst possible first impression of a system whose
+        // whole point is that insects land. They start trying almost at once
+        // instead; the occupancy caps still decide how many succeed.
+        motion.nextAttemptAt = t + 0.6 + 3.4 * landingNoise(i, 1);
       }
       const pilot = motion.pilot;
       const world = motion.world;
@@ -883,7 +1213,6 @@ function Flight({ dark }: { dark: boolean }) {
         velocity: pilot.velocity,
         roaming: pilot.phase === "roam",
         residents,
-        demand,
         cameraX,
         rehomingMargin,
         step: delta,
@@ -897,26 +1226,75 @@ function Flight({ dark }: { dark: boolean }) {
         // face, so its trail is continuous and worth keeping; a re-home would
         // otherwise draw a stroke across the room that never happened.
         if (residencyEvent === "rehomed") {
-          motion.trailFilled = false;
-          motion.trailWrite = 0;
-          motion.trailSampledAt = -1;
+          clearInsectTrail(motion.trail);
         }
       }
-      if (pilot.roam)
-        pilot.roam.transit = butterflyTransitHeading(motion, pilot.position);
+      if (pilot.roam) {
+        pilot.roam.transit = butterflyTransitHeading(motion, pilot.position, t);
+        // Evasion is a roaming behaviour only. During a Landing Cycle the
+        // pointer already has a louder answer — an Escape with a cause — and
+        // two of them acting at once would make one insect look like it had
+        // two opinions.
+        let target = 0;
+        if (pointerIsLive && pilot.phase === "roam") {
+          motion.projected
+            .set(pilot.position.x, pilot.position.y, pilot.position.z)
+            .project(camera);
+          if (motion.projected.z < 1) {
+            const dx = (motion.projected.x - pointer.x) * size.width * 0.5;
+            const dy = (motion.projected.y - pointer.y) * size.height * 0.5;
+            const away = Math.hypot(dx, dy);
+            target = butterflyEvasionStrength(away);
+            if (target > 0) {
+              // Directly away on screen when there is a direction to be away
+              // in; straight back toward the camera when the cursor is exactly
+              // on the insect, which is the one case with no lateral answer.
+              const scale = away > 1 ? 1 / away : 0;
+              evadeVector.current
+                .copy(cameraRight.current)
+                .multiplyScalar(dx * scale)
+                .addScaledVector(cameraUp.current, dy * scale)
+                // Column 2 of a camera's world matrix points BACK at the
+                // viewer, so the depth term is subtracted: a startled resident
+                // retreats into the room and lets the furniture cover it,
+                // rather than coming at the screen.
+                .addScaledVector(cameraBack.current, -BUTTERFLY_EVASION.depth)
+                .normalize();
+              motion.evade.x = evadeVector.current.x;
+              motion.evade.y = evadeVector.current.y;
+              motion.evade.z = evadeVector.current.z;
+            }
+          }
+        }
+        motion.evade.strength = THREE.MathUtils.damp(
+          motion.evade.strength,
+          target,
+          BUTTERFLY_EVASION.lambda,
+          delta,
+        );
+        pilot.roam.evade = motion.evade.strength > 1e-3 ? motion.evade : null;
+      }
 
       const engagedPerch = getInsectPerch(pilot.reservedPerchId);
       world.setContext(engagedPerch?.unitIndex ?? motion.currentUnit, t);
 
       const automaticAttempt =
         !diagnostics?.pauseAutomaticLandings &&
-        t >= motion.nextAttemptAt &&
+        t >=
+          butterflyNextAttemptAt(
+            motion.nextAttemptAt,
+            engagedByUnit[motion.currentUnit] ?? 0,
+            t,
+          ) &&
         motion.transitTo === null &&
         butterflyIsActiveNeighbor(motion.currentUnit, stacks.activeUnit);
       const forcedAttempt = forceRequested && i === forcedResident;
       if (pilot.phase === "roam" && (automaticAttempt || forcedAttempt)) {
-        const landingLimit = butterflyLandingPopulationLimit(t, forcedAttempt);
-        if ((activeLandings[motion.currentUnit] ?? 0) < landingLimit) {
+        const occupancy = {
+          engaged: engagedByUnit[motion.currentUnit] ?? 0,
+          approaching: approachingByUnit[motion.currentUnit] ?? 0,
+        };
+        if (butterflyMayBeginLanding(occupancy)) {
           const candidates = [...getInsectPerches().values()].filter(
             (perch) =>
               // The resident's OWN shelf, never merely the active one.
@@ -941,7 +1319,16 @@ function Flight({ dark }: { dark: boolean }) {
             );
             let started = false;
             let failureReason = "No eligible Perch on the active shelf.";
-            world.setContext(stacks.activeUnit, t);
+            // Drawn BEFORE any candidate is prepared, because the planner
+            // compiles against the contact it is handed — a route built for the
+            // centre of a Perch and then flown to a point three centimetres
+            // away is a route the pilot spends the whole approach fighting.
+            const attemptSpread = landingNoise(i, motion.attempts * 31 + 17);
+            // The resident's OWN Unit, not the camera's. These are no longer
+            // the same thing: a resident of unit 2 may be planning a landing
+            // while the camera sits on unit 1, and planning against the wrong
+            // Unit's collision index means planning against no index at all.
+            world.setContext(motion.currentUnit, t);
             for (let offset = 0; offset < candidates.length; offset++) {
               const perch = candidates[(first + offset) % candidates.length]!;
               if (
@@ -949,6 +1336,7 @@ function Flight({ dark }: { dark: boolean }) {
                   perch.id,
                   "butterfly",
                   motion.landingTarget,
+                  attemptSpread,
                 )
               ) {
                 if (forcedAttempt)
@@ -971,12 +1359,37 @@ function Flight({ dark }: { dark: boolean }) {
                   world,
                 )
               ) {
-                failureReason = `Landing Plan rejected: ${pilot.rejectionCode}.`;
+                // `perch-not-found` is the one code here that cannot be
+                // explained by geometry: it means the id the pilot was handed
+                // is not in the registry, one instruction after a candidate
+                // scan pulled it OUT of that registry. Owner report: "I'm
+                // getting Landing Plan rejected: perch-not-found after I moved
+                // all the objects even though all perches are still green."
+                // A bare code cannot distinguish "the registry emptied" from
+                // "this one id went missing", and those have different causes,
+                // so the message carries both.
+                failureReason =
+                  pilot.rejectionCode === "perch-not-found"
+                    ? `Landing Plan rejected: ${perch.id} left the registry mid-attempt (${getInsectPerches().size} Perches registered, ${
+                        getInsectPerch(perch.id)
+                          ? "id is back"
+                          : "id still absent"
+                      }).`
+                    : `Landing Plan rejected: ${pilot.rejectionCode}.`;
                 continue;
               }
               motion.attempts++;
               motion.nearSince = -1;
-              activeLandings[motion.currentUnit]! += 1;
+              // A new arrival captures its own facing; the last one's must not
+              // leak into it.
+              motion.restHeading.set(0, 0, 0);
+              motion.landingYaw =
+                (landingNoise(i, motion.attempts * 29 + 13) - 0.5) *
+                INSECT_LANDING_YAW;
+              motion.landingSpread = attemptSpread;
+              motion.perchMissSince = -1;
+              engagedByUnit[motion.currentUnit]! += 1;
+              approachingByUnit[motion.currentUnit]! += 1;
               started = true;
               if (forcedAttempt)
                 insectDiagnosticsController.update({
@@ -1001,7 +1414,7 @@ function Flight({ dark }: { dark: boolean }) {
           }
         } else if (forcedAttempt) {
           insectDiagnosticsController.update({
-            forceResult: `Landing population limit is ${landingLimit}.`,
+            forceResult: `Unit ${motion.currentUnit} holds ${occupancy.engaged}/${BUTTERFLY_OCCUPANCY.engaged} engaged and ${occupancy.approaching}/${BUTTERFLY_OCCUPANCY.approaching} approaching.`,
           });
         }
         if (forcedAttempt)
@@ -1013,13 +1426,13 @@ function Flight({ dark }: { dark: boolean }) {
       let environmentalDrag = false;
       let distancePx = Number.POSITIVE_INFINITY;
       if (perch) {
-        if (
-          prepareInsectLandingTarget(
-            perch.id,
-            "butterfly",
-            motion.landingTarget,
-          )
-        ) {
+        const prepared = prepareInsectLandingTarget(
+          perch.id,
+          "butterfly",
+          motion.landingTarget,
+          motion.landingSpread,
+        );
+        if (prepared) {
           commandInsectPilot(
             pilot,
             { type: "update-perch", target: motion.landingTarget },
@@ -1057,11 +1470,33 @@ function Flight({ dark }: { dark: boolean }) {
           const dy = (motion.projected.y - pointer.y) * size.height * 0.5;
           distancePx = Math.hypot(dx, dy);
         } else {
-          commandInsectPilot(pilot, { type: "cancel" }, world);
-          perch = null;
+          // A Perch that cannot be prepared RIGHT NOW is not necessarily gone.
+          //
+          // Measured on `about:globe-crown`: the owner's bounds vanish on about
+          // 11% of frames — the prop is registered twice and rebuilt behind
+          // Suspense, so there are frames where nothing measurable is mounted.
+          // Cancelling on the first failure meant an approach, which takes
+          // several seconds, essentially never survived: a live watch found
+          // butterfly:0 reserving the globe and reaching `approach` thirteen
+          // times without ever reaching hover, touchdown or rest.
+          //
+          // So a miss has to persist before it counts. The insect keeps flying
+          // the plan it already compiled in the meantime, which is correct —
+          // the Perch has not moved, the scene graph is just mid-rebuild.
+          if (motion.perchMissSince < 0) motion.perchMissSince = t;
+          if (t - motion.perchMissSince >= BUTTERFLY_PERCH_MISS_GRACE) {
+            commandInsectPilot(pilot, { type: "cancel" }, world);
+            perch = null;
+            motion.perchMissSince = -1;
+          }
         }
+        if (prepared) motion.perchMissSince = -1;
       }
-      if (perch?.unitIndex !== stacks.activeUnit && pilot.reservedPerchId) {
+      // A reservation must belong to the resident's own Unit. It used to be
+      // checked against the ACTIVE Unit, which cancelled every landing on a
+      // neighbouring shelf the moment it started — and with Residency
+      // migrating, most landings are on a shelf the camera is not centred on.
+      if (perch?.unitIndex !== motion.currentUnit && pilot.reservedPerchId) {
         commandInsectPilot(pilot, { type: "cancel" }, world);
         perch = null;
       }
@@ -1163,6 +1598,21 @@ function Flight({ dark }: { dark: boolean }) {
         time: t,
         dark: darkAmt.current > 0.5,
       });
+      // ...and now something happens about it. The stall detector has existed
+      // for a while and only ever reported to the dev HUD, so a resident that
+      // found a balance point between containment and repulsion simply stayed
+      // in it — owner review: "butterflies still sometimes freeze in midair
+      // which I'd rather avoid." The nudge moves the wander target, which
+      // moves the equilibrium, and the kick covers the time the controller
+      // would otherwise spend easing back into the same corner.
+      if (stalled && pilot.steering) {
+        nudgeInsectSteering(pilot.steering, STALL_ESCAPE);
+        pilot.velocity.x += STALL_ESCAPE.x * BUTTERFLY_STALL_ESCAPE_SPEED;
+        pilot.velocity.y += STALL_ESCAPE.y * BUTTERFLY_STALL_ESCAPE_SPEED;
+        pilot.velocity.z += STALL_ESCAPE.z * BUTTERFLY_STALL_ESCAPE_SPEED;
+        motion.lowSpeedSince = -1;
+        motion.lastMeaningfulMovement = t;
+      }
       recordButterflyTrail(motion, pilot.position, t);
       if (
         process.env.NODE_ENV === "development" &&
@@ -1172,6 +1622,8 @@ function Flight({ dark }: { dark: boolean }) {
         insectDiagnosticsController.publishFlightState({
           telemetry: {
             occupantId: occupant,
+            time: t,
+            species: "butterfly",
             unitIndex: motion.currentUnit,
             homeUnit: butterflyHomeUnit(i),
             residentIndex: i,
@@ -1184,6 +1636,8 @@ function Flight({ dark }: { dark: boolean }) {
             transitTo: motion.transitTo,
             rehomedAt: motion.rehomedAt,
             perchId: pilot.reservedPerchId,
+            rejectionCode: pilot.rejectionCode,
+            event: pilot.event,
             contactGap: butterflyContactGap(pilot),
             region:
               pilot.phase === "roam"
@@ -1192,6 +1646,11 @@ function Flight({ dark }: { dark: boolean }) {
                     pilot.position,
                   )
                 : "none",
+            // Last frame's rendered heading — this publication runs before the
+            // orientation block below. One frame of lag is irrelevant to the
+            // question it exists to answer, which is whether the facing
+            // oscillates while settling.
+            yaw: b.rotation.y,
             speed: flightSpeed,
             altitude: pilot.position.y - MEADOW_GROUND_BASE,
             clearance: pilot.steering?.clearance ?? Number.POSITIVE_INFINITY,
@@ -1242,26 +1701,156 @@ function Flight({ dark }: { dark: boolean }) {
         velocityX * velocityX + velocityZ * velocityZ,
         0.04,
       );
-      if (pilot.phase === "touchdown" || pilot.phase === "rest") {
+      const settling = pilot.phase === "touchdown" || pilot.phase === "rest";
+      // CAPTURE runs from hover onward; the surface-aligned RENDER below still
+      // only runs once the insect is settling. Touchdown is where it is already
+      // slowing onto the contact, so a capture starting there can find nothing
+      // above the hold speed and fall through to the authored tangent — the
+      // house-style facing this block exists to get rid of. The hover arc is
+      // unambiguously travel, so that is where the heading is taken.
+      if (settling || pilot.phase === "hover") {
+        // Face the way it is actually travelling, not the way the Perch was
+        // authored.
+        //
+        // The forward axis here was `pilot.tangent` — a property of the SITE,
+        // fixed when the Perch was written and unrelated to the direction the
+        // insect is moving. So the body swung round to the Perch's tangent
+        // while the Arrival Curve was still carrying it sideways along the last
+        // of its spiral, and it slid in crabwise. Owner review: "still an issue
+        // with landing where they're floating in a direction they're not
+        // facing."
+        //
+        // Tracking the horizontal travel direction closes the gap at its
+        // source. It also means a settled insect ends up facing whichever way
+        // it came in, so the perched ones stop all pointing the same way — the
+        // authored tangent was quietly a house style.
+        motion.restForward.set(
+          pilot.velocity.x,
+          pilot.velocity.y,
+          pilot.velocity.z,
+        );
+        const alongNormal =
+          motion.restForward.x * pilot.normal.x +
+          motion.restForward.y * pilot.normal.y +
+          motion.restForward.z * pilot.normal.z;
+        motion.restForward.set(
+          motion.restForward.x - pilot.normal.x * alongNormal,
+          motion.restForward.y - pilot.normal.y * alongNormal,
+          motion.restForward.z - pilot.normal.z * alongNormal,
+        );
+        // Below this the travel direction is noise — the pilot is converging on
+        // the contact, so what is left of its velocity is correction rather than
+        // travel, and at rest it is pinned outright. Whatever was captured while
+        // it was still flying is held, which is what makes the facing settle
+        // instead of hunting back and forth as it stops.
+        if (
+          motion.restForward.lengthSq() >
+          REST_HEADING_HOLD_SPEED * REST_HEADING_HOLD_SPEED
+        ) {
+          motion.restForward.normalize();
+          // Turned off the arrival direction by this landing's own angle.
+          // Arrival alone was not enough variety: residents approach a shelf
+          // from broadly the same side, so a row of perched insects still came
+          // out near-parallel. A yaw drawn per attempt decorrelates them
+          // properly, and because it is a rotation ABOUT the contact normal it
+          // cannot move the insect off the surface or tilt it out of the pose
+          // the envelope was cleared for.
+          motion.restForward.applyAxisAngle(
+            motion.restAxis.set(pilot.normal.x, pilot.normal.y, pilot.normal.z),
+            motion.landingYaw,
+          );
+          motion.restHeading.copy(motion.restForward);
+        } else if (motion.restHeading.lengthSq() < 1e-6) {
+          motion.restHeading.set(
+            pilot.tangent.x,
+            pilot.tangent.y,
+            pilot.tangent.z,
+          );
+        }
+      }
+
+      // How much of the surface pose the body has taken on. Ramped across HOVER
+      // rather than switched on at touchdown.
+      //
+      // The resting facing is the arrival direction turned by this landing's own
+      // yaw, which is up to 59° — and rendering that only from touchdown meant
+      // the whole pivot happened in the last half second, on the contact, which
+      // is exactly where a turn is most conspicuous. It read as the insect
+      // spinning as it landed. Spreading it over the hover arc is also what an
+      // insect actually does: it lines up with the surface on the way in, then
+      // sets down already pointing the right way.
+      const alignment = settling
+        ? 1
+        : pilot.reservedPerchId && pilot.phase === "hover"
+          ? // Sized to the hover arc, which is a few tenths of a second — a
+            // window scaled for a longer phase simply never completes and the
+            // pivot falls back onto the contact where it started.
+            THREE.MathUtils.smoothstep(pilot.phaseAge, 0.04, 0.3)
+          : 0;
+      // Flight orientation. Still runs during hover — the surface pose is
+      // blended ON TOP of it below, so the insect keeps flying while it lines
+      // up rather than snapping to the Perch and gliding in rigid.
+      if (!settling) {
+        b.rotation.y +=
+          wrapPi(Math.atan2(velocityX, velocityZ) - b.rotation.y) * ease;
+        // Thorax pitch about the body's own lateral axis, which is why the
+        // group's Euler order is YXZ: yaw first, then pitch, then bank. With
+        // pitch at zero this is exactly the previous yaw-then-bank rotation.
+        b.rotation.x = -pilot.bodyPitch;
+        // Bank into the turn. Never write Euler roll after surface alignment:
+        // doing so reconstructs and destroys the aligned quaternion.
+        //
+        // Faded out with airspeed. `speed2` carries a floor, so as the insect
+        // slows into a hover this quotient is a small cross product over a
+        // constant — the control corrections that dominate a near-stationary
+        // pilot get amplified into visible roll, and the same convergence
+        // oscillation that made the facing hunt shows up as a wobble instead.
+        // Nothing banks without airspeed anyway; a hovering butterfly is level.
+        const turn =
+          (pilot.velocity.z * pilot.acceleration.x -
+            pilot.velocity.x * pilot.acceleration.z) /
+          speed2;
+        const bankAuthority = THREE.MathUtils.clamp(
+          (Math.hypot(velocityX, velocityZ) - REST_HEADING_HOLD_SPEED) /
+            BANK_FADE_SPEED,
+          0,
+          1,
+        );
+        b.rotation.z = THREE.MathUtils.damp(
+          b.rotation.z,
+          THREE.MathUtils.clamp(
+            -BANK_K * turn * bankAuthority,
+            -BANK_MAX,
+            BANK_MAX,
+          ),
+          ROLL_LAMBDA,
+          delta,
+        );
+      }
+
+      if (alignment > 0) {
         motion.right
           .set(
-            pilot.normal.y * pilot.tangent.z - pilot.normal.z * pilot.tangent.y,
-            pilot.normal.z * pilot.tangent.x - pilot.normal.x * pilot.tangent.z,
-            pilot.normal.x * pilot.tangent.y - pilot.normal.y * pilot.tangent.x,
+            pilot.normal.y * motion.restHeading.z -
+              pilot.normal.z * motion.restHeading.y,
+            pilot.normal.z * motion.restHeading.x -
+              pilot.normal.x * motion.restHeading.z,
+            pilot.normal.x * motion.restHeading.y -
+              pilot.normal.y * motion.restHeading.x,
           )
           .normalize();
         motion.restMatrix.set(
           motion.right.x,
           pilot.normal.x,
-          pilot.tangent.x,
+          motion.restHeading.x,
           0,
           motion.right.y,
           pilot.normal.y,
-          pilot.tangent.y,
+          motion.restHeading.y,
           0,
           motion.right.z,
           pilot.normal.z,
-          pilot.tangent.z,
+          motion.restHeading.z,
           0,
           0,
           0,
@@ -1271,28 +1860,17 @@ function Flight({ dark }: { dark: boolean }) {
         motion.surfaceQuaternion.setFromRotationMatrix(motion.restMatrix);
         // The flare rides the aligned quaternion by composition. Writing an
         // Euler pitch here instead would reconstruct and destroy the alignment,
-        // which is the same trap the bank comment below names.
+        // which is the same trap the bank comment above names.
         motion.flareQuaternion.setFromAxisAngle(PITCH_AXIS, -pilot.bodyPitch);
         motion.surfaceQuaternion.multiply(motion.flareQuaternion);
-        b.quaternion.slerp(motion.surfaceQuaternion, 1 - Math.exp(-6 * delta));
-      } else {
-        b.rotation.y +=
-          wrapPi(Math.atan2(velocityX, velocityZ) - b.rotation.y) * ease;
-        // Thorax pitch about the body's own lateral axis, which is why the
-        // group's Euler order is YXZ: yaw first, then pitch, then bank. With
-        // pitch at zero this is exactly the previous yaw-then-bank rotation.
-        b.rotation.x = -pilot.bodyPitch;
-        // Bank into the turn. Never write Euler roll after surface alignment:
-        // doing so reconstructs and destroys the aligned quaternion.
-        const turn =
-          (pilot.velocity.z * pilot.acceleration.x -
-            pilot.velocity.x * pilot.acceleration.z) /
-          speed2;
-        b.rotation.z = THREE.MathUtils.damp(
-          b.rotation.z,
-          THREE.MathUtils.clamp(-BANK_K * turn, -BANK_MAX, BANK_MAX),
-          ROLL_LAMBDA,
-          delta,
+        // Settling ACCUMULATES a damped chase, because nothing rewrites the
+        // orientation underneath it. Hover re-derives the flight orientation
+        // every frame, so there the ramp is the blend weight itself — chaining a
+        // per-frame chase on top of a value that resets would never get past a
+        // tenth of the way across.
+        b.quaternion.slerp(
+          motion.surfaceQuaternion,
+          settling ? 1 - Math.exp(-6 * delta) : alignment,
         );
       }
 
@@ -1324,10 +1902,10 @@ function Flight({ dark }: { dark: boolean }) {
         b.updateMatrix();
         for (let sideIndex = 0; sideIndex < 2; sideIndex++) {
           const direction = sideIndex === 0 ? 1 : -1;
-          for (let sample = 0; sample < WING_BLUR_SAMPLES; sample++) {
+          for (let sample = 0; sample < wingBlurSamples; sample++) {
             const instanceIndex =
               (i * 2 + sideIndex) * WING_BLUR_SAMPLES + sample;
-            const age = (sample + 1) / WING_BLUR_SAMPLES;
+            const age = (sample + 1) / wingBlurSamples;
             const historicalPhase =
               pilot.wingPhase -
               TAU * pilot.wingFrequency * WING_BLUR_EXPOSURE * age;
@@ -1402,13 +1980,15 @@ function Flight({ dark }: { dark: boolean }) {
           </group>
         );
       })}
-      <instancedMesh
-        ref={wingBlur}
-        args={[wingBlurGeometry, wingBlurMaterial, WING_BLUR_INSTANCE_COUNT]}
-        frustumCulled={false}
-        renderOrder={2}
-        raycast={() => null}
-      />
+      {wingBlurSamples > 0 && (
+        <instancedMesh
+          ref={wingBlur}
+          args={[wingBlurGeometry, wingBlurMaterial, WING_BLUR_INSTANCE_COUNT]}
+          frustumCulled={false}
+          renderOrder={2}
+          raycast={() => null}
+        />
+      )}
     </group>
   );
 }
@@ -1417,7 +1997,15 @@ function Flight({ dark }: { dark: boolean }) {
  * this worth keeping — motionless insects hanging over the flowers are worse
  * than an empty field. The gate is read once at mount and lives in
  * a wrapper so the flight's own hooks stay unconditional. */
-export default function Butterflies({ dark }: { dark: boolean }) {
+export default function Butterflies({
+  dark,
+  wingBlurSamples = 3,
+  suspendOffscreen = false,
+}: {
+  dark: boolean;
+  wingBlurSamples?: 0 | 1 | 3 | 5;
+  suspendOffscreen?: boolean;
+}) {
   const reduced = useMemo(
     () =>
       typeof window !== "undefined" &&
@@ -1425,5 +2013,11 @@ export default function Butterflies({ dark }: { dark: boolean }) {
     [],
   );
   if (reduced) return null;
-  return <Flight dark={dark} />;
+  return (
+    <Flight
+      dark={dark}
+      wingBlurSamples={wingBlurSamples}
+      suspendOffscreen={suspendOffscreen}
+    />
+  );
 }

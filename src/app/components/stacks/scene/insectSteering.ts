@@ -68,6 +68,20 @@ export type InsectSteeringProfile = Readonly<{
   transitWander: number;
   /** How hard the crossing heading dominates the composed intent. */
   transitBias: number;
+  /**
+   * How hard the intended heading bends away from the pointer while roaming.
+   *
+   * Deliberately of the same order as `containBias` rather than larger: this
+   * is meant to read as an insect that keeps not quite being where your cursor
+   * is, not as one that flees. A term big enough to see clearly is a term big
+   * enough to make the pointer feel like a weapon, and the room stops being a
+   * place with wildlife in it and becomes a toy.
+   */
+  evadeBias: number;
+  /** Fraction of the speed band gained at full evasion. A small quickening is
+   * most of what "startled" reads as; without it a strong bend just looks like
+   * a wide turn. */
+  evadeSpeed: number;
 }>;
 
 export const BUTTERFLY_STEERING_PROFILE: InsectSteeringProfile = {
@@ -87,6 +101,8 @@ export const BUTTERFLY_STEERING_PROFILE: InsectSteeringProfile = {
   transitSpeed: 1.05,
   transitWander: 0.45,
   transitBias: 2.2,
+  evadeBias: 2.4,
+  evadeSpeed: 0.45,
 };
 
 /**
@@ -116,6 +132,36 @@ export const MOTH_STEERING_PROFILE: InsectSteeringProfile = {
   transitSpeed: 0.34,
   transitWander: 1,
   transitBias: 0,
+  // Harder than the butterflies, on the owner's call ("can we make moths evade
+  // even more aggressively?").
+  //
+  // This was 0, reasoning that a moth is bound to a lamp cone a fraction of a
+  // Flight Volume's size and that the lamp is a prop the visitor is invited to
+  // pick up, so evasion would fight the interaction it decorates. The cone
+  // still argues that case — but it argues it as containment, which is the
+  // right place for it: a moth that bolts from the cursor is pulled back into
+  // the light rather than escaping the room, so a strong lean here reads as
+  // startled and cannot become flight. Above `containBias` (3.2) the cursor
+  // would win that argument and drive moths out of the beam, so it sits just
+  // under it.
+  evadeBias: 3,
+  evadeSpeed: 0.85,
+};
+
+/**
+ * Where the pointer is, expressed the only way the Intent Layer can read it: a
+ * world-space direction to lean away from, and how much.
+ *
+ * Screen distance is the honest measure of "near the cursor" — the pointer is a
+ * ray, not a point in the room — so the conversion happens in the component
+ * that owns the camera, and the agent is handed a direction like any other.
+ */
+export type InsectEvasion = {
+  x: number;
+  y: number;
+  z: number;
+  /** 0..1. Clamped here, so a caller cannot turn this into a force. */
+  strength: number;
 };
 
 export type InsectSteeringState = {
@@ -130,6 +176,7 @@ export type InsectSteeringState = {
   /** Reported by the HUD, not consumed by the model. */
   clearance: number;
   containment: number;
+  evasion: number;
 };
 
 const TAU = Math.PI * 2;
@@ -151,6 +198,7 @@ export function createInsectSteeringState(seed: number): InsectSteeringState {
     random: Math.floor(hash(seed + 113) * 0xffffffff) >>> 0 || 1,
     clearance: Number.POSITIVE_INFINITY,
     containment: 0,
+    evasion: 0,
   };
 }
 
@@ -161,6 +209,42 @@ function nextRandom(state: InsectSteeringState) {
   value = Math.imul(value ^ (value >>> 15), value | 1);
   value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
   return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+}
+
+/**
+ * Break a steering fixed point, and report the direction chosen.
+ *
+ * The Intent Layer is a controller summing containment, geometry repulsion,
+ * residency drift and wander, and nothing forbids those from cancelling: a
+ * resident that drifts into a corner where the inward push exactly balances
+ * the outward one has found a stable equilibrium and will sit in it. Owner
+ * review: "butterflies still sometimes freeze in midair which I'd rather
+ * avoid." `updateButterflyStallState` has always been able to SEE this — it
+ * just had nowhere to report it except the dev HUD.
+ *
+ * Jumping the wander point is what actually resolves it. The wander is a real
+ * term in the sum, so moving it moves the equilibrium; the caller additionally
+ * kicks the velocity along the returned direction, because a balance point
+ * that took a while to fall into can take just as long to leave.
+ */
+export function nudgeInsectSteering(
+  state: InsectSteeringState,
+  out: { x: number; y: number; z: number },
+) {
+  const theta = nextRandom(state) * TAU;
+  const cosPhi = nextRandom(state) * 2 - 1;
+  const sinPhi = Math.sqrt(Math.max(0, 1 - cosPhi * cosPhi));
+  state.wanderX = Math.cos(theta) * sinPhi;
+  // Biased upward: a stalled insect is usually wedged against something below
+  // or beside it, and up is the one direction a shelf never blocks.
+  state.wanderY = Math.abs(cosPhi) * 0.65 + 0.35;
+  state.wanderZ = Math.sin(theta) * sinPhi;
+  state.speedPhase = (state.speedPhase + TAU * 0.37) % TAU;
+  const length = Math.hypot(state.wanderX, state.wanderY, state.wanderZ) || 1;
+  out.x = state.wanderX / length;
+  out.y = state.wanderY / length;
+  out.z = state.wanderZ / length;
+  return out;
 }
 
 const GRADIENT = { x: 0, y: 0, z: 0 };
@@ -198,6 +282,8 @@ export type InsectSteeringStep = {
    * roaming. Containment and repulsion still apply while it is set: Transit
    * raises the speed and suppresses the wander, it does not suspend the model. */
   transit?: CollisionPoint | null;
+  /** Pointer avoidance for this frame, or absent when nothing is near. */
+  evade?: InsectEvasion | null;
   position: CollisionPoint;
   velocity: CollisionPoint;
   step: number;
@@ -216,6 +302,9 @@ export function advanceInsectSteering(options: InsectSteeringStep) {
   const { state, profile, containment, position, velocity, step, out } =
     options;
   const transit = options.transit ?? null;
+  const evade = options.evade ?? null;
+  const evasion = evade ? Math.min(1, Math.max(0, evade.strength)) : 0;
+  state.evasion = evasion;
 
   // Random-walk the point on the wander sphere, then renormalize. Displacing
   // and reprojecting is what keeps a turn going for several seconds instead of
@@ -252,7 +341,8 @@ export function advanceInsectSteering(options: InsectSteeringStep) {
     (1 +
       profile.speedVariation *
         (transit ? 0.35 : 1) *
-        Math.sin(state.speedPhase));
+        Math.sin(state.speedPhase)) *
+    (1 + profile.evadeSpeed * evasion);
 
   // The camera-side bias is a lean on the wander sphere. See
   // `insectFlightVolumeResidencyDrift` for why it is intent and not a shove.
@@ -280,6 +370,18 @@ export function advanceInsectSteering(options: InsectSteeringStep) {
     DESIRED.x += transit.x * profile.transitBias;
     DESIRED.y += transit.y * profile.transitBias;
     DESIRED.z += transit.z * profile.transitBias;
+  }
+  // Evasion is a bias on intent, exactly like containment and repulsion, and
+  // for the same reason: as a force it would produce a visible shove away from
+  // the cursor, and the insect would stop looking like it had decided
+  // anything. Composed here it competes with the wander, so a resident that is
+  // already turning toward you sometimes keeps coming — which is what makes
+  // the ones that slide away read as elusive rather than as repelled.
+  if (evasion > 0) {
+    const weight = profile.evadeBias * evasion;
+    DESIRED.x += evade!.x * weight;
+    DESIRED.y += evade!.y * weight;
+    DESIRED.z += evade!.z * weight;
   }
 
   state.clearance = Number.POSITIVE_INFINITY;

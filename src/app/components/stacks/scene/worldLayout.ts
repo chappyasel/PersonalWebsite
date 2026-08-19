@@ -15,6 +15,10 @@ export const STACKS_DESKTOP_MIN_WIDTH = 1200;
 export const STACKS_MOBILE_QUERY = `(width < ${STACKS_DESKTOP_MIN_WIDTH}px)`;
 export const STACKS_DESKTOP_QUERY = `(width >= ${STACKS_DESKTOP_MIN_WIDTH}px)`;
 export const CAMERA = { z: 5.8, y: 0.25, fov: 33 };
+/** Authored fast-scroll look lag. The meadow's camera-side apron is derived
+ * against this full value so coverage, rather than reduced camera motion,
+ * hides the transient corners. */
+export const CAMERA_LOOK_X_MAX_LAG = 6;
 /** Tablet portrait keeps almost all of the original wide framing. Phones use
  * the same safe camera distance with a slightly narrower lens below. */
 export const CAMERA_NARROW = { z: 7.6, y: 0.3, fov: 40.5 };

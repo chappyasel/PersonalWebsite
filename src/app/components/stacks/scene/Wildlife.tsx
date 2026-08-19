@@ -21,22 +21,29 @@ import {
   createInsectLampCone,
   createInsectLampConeContainment,
   createLampConeLocal,
+  lampConeAxialMin,
   lampConeLocal,
+  lampConeOuterRadius,
   lampConeRadius,
 } from "./insectLampCone";
 import {
+  INSECT_LANDING_YAW,
   LANDING_TIMING,
   landingNoise,
   pointerDisturbanceIsConfirmed,
 } from "./insectLanding";
-import { insectDiagnosticsController } from "./insectPerchDiagnostic";
+import {
+  type InsectLampConeOutline,
+  insectDiagnosticsController,
+} from "./insectPerchDiagnostic";
 import {
   getInsectPerch,
   getInsectPerches,
   getLampInsectPerch,
+  insectPerchAcceptsMoth,
+  insectPerchMothLightIsOn,
   insectPerchOccupant,
   insectPerchOwnerId,
-  lampPerchIsLit,
 } from "./insectPerches";
 import {
   type InsectKinematicSample,
@@ -48,6 +55,14 @@ import {
   createInsectPilot,
 } from "./insectPilot";
 import { MOTH_STEERING_PROFILE } from "./insectSteering";
+import {
+  type InsectTrail,
+  clearInsectTrail,
+  createInsectTrail,
+  insectTrailPoints,
+  recordInsectTrail,
+} from "./insectTrail";
+import { MEADOW_GROUND_BASE } from "./meadowField";
 import { type MeadowLamp, getMeadowLamps } from "./meadowLights";
 import {
   type BatFrame,
@@ -87,6 +102,36 @@ export const WILDLIFE_PRESENTATION = {
   },
 } as const;
 const MOTH_MODEL_SCALE = 0.9;
+/** Seconds a Lamp Perch may fail to prepare before an in-flight moth landing is
+ * abandoned. See `BUTTERFLY_PERCH_MISS_GRACE`. */
+const MOTH_PERCH_MISS_GRACE = 0.4;
+/** Tangential speed below which a landing moth holds its captured facing rather
+ * than re-deriving it from a velocity that is now mostly control correction.
+ * Scaled to the moth's slower 0.19 m/s touchdown. See
+ * `REST_HEADING_HOLD_SPEED` in `Butterflies.tsx`. */
+const MOTH_REST_HEADING_HOLD_SPEED = 0.07;
+/**
+ * Pointer evasion for moths — deliberately sharper than the butterflies'
+ * (radius 210 px, lambda 3.5, depth 0.35).
+ *
+ * A wider radius and a faster time constant is what "more aggressively" means
+ * here: the moth reacts sooner and snaps rather than leans. It is safe to be
+ * this brisk precisely because a moth is contained by its Lamp Cone — the
+ * cursor can startle it off its station but cannot chase it out of the light.
+ */
+const MOTH_EVASION = {
+  radiusPx: 260,
+  lambda: 6,
+  depth: 0.3,
+} as const;
+
+/** 0..1 from a screen-space distance. Quadratic, like the butterflies': almost
+ * all of the response lives in the innermost third. */
+export function mothEvasionStrength(distancePx: number) {
+  if (!(distancePx < MOTH_EVASION.radiusPx)) return 0;
+  const near = 1 - Math.max(0, distancePx) / MOTH_EVASION.radiusPx;
+  return near * near;
+}
 /** Metres the renderer drops the body below the collision datum once its wings
  * are shut. See `InsectEnvelope.renderLift`. */
 const MOTH_RENDER_SINK =
@@ -199,11 +244,40 @@ type MothPilotMotion = {
   presentation: MothFrame;
   projected: THREE.Vector3;
   departure: THREE.Vector3;
+  /** The facing this moth holds once it is down, captured from its own
+   * arrival. See the butterfly note in `Butterflies.tsx`: aligning to the
+   * Perch's authored tangent makes an insect slide in crabwise. */
+  restHeading: THREE.Vector3;
+  /** Recent flown path for the dev flight overlay. Moths published an empty
+   * array here, so the HUD — which skips anything under two points — drew a
+   * route for every butterfly and none for any moth. */
+  trail: InsectTrail;
+  /** This landing's resting yaw about the contact normal, in radians. */
+  landingYaw: number;
+  /** This landing's displacement across the Perch surface, 0..1. */
+  landingSpread: number;
+  /** When the Perch first failed to prepare, or −1. */
+  perchMissSince: number;
+  /** Damped pointer lean, held per moth so it survives the frames the cursor
+   * is not moving. */
+  evade: { x: number; y: number; z: number; strength: number };
   nextAttemptAt: number;
   restEndsAt: number;
   attempts: number;
   nearSince: number;
+  telemetryPublishedAt: number;
 };
+
+/** Signed distance above the plane it is standing on, or null when it is not
+ * standing on one. See `butterflyContactGap`. */
+function mothContactGap(pilot: InsectPilot) {
+  if (pilot.phase !== "touchdown" && pilot.phase !== "rest") return null;
+  return (
+    (pilot.position.x - pilot.contact.x) * pilot.normal.x +
+    (pilot.position.y - pilot.contact.y) * pilot.normal.y +
+    (pilot.position.z - pilot.contact.z) * pilot.normal.z
+  );
+}
 
 function createKinematicSample(): InsectKinematicSample {
   return {
@@ -371,10 +445,17 @@ function createMothPilotMotion(index: number): MothPilotMotion {
     presentation: createMothFrame(),
     projected: new THREE.Vector3(),
     departure: new THREE.Vector3(),
+    restHeading: new THREE.Vector3(),
+    trail: createInsectTrail(),
+    landingYaw: 0,
+    landingSpread: 0,
+    perchMissSince: -1,
+    evade: { x: 0, y: 0, z: 0, strength: 0 },
     nextAttemptAt: 8 + 12 * landingNoise(index, 1),
     restEndsAt: Number.POSITIVE_INFINITY,
     attempts: 0,
     nearSince: -1,
+    telemetryPublishedAt: -1,
   };
 }
 
@@ -473,7 +554,13 @@ function zeroInstances(
   mesh.instanceMatrix.needsUpdate = true;
 }
 
-function LivingWildlife({ dark }: { dark: boolean }) {
+function LivingWildlife({
+  dark,
+  suspendOffscreen,
+}: {
+  dark: boolean;
+  suspendOffscreen: boolean;
+}) {
   const mothBodies = useRef<THREE.InstancedMesh>(null);
   const mothLeftWings = useRef<THREE.InstancedMesh>(null);
   const mothRightWings = useRef<THREE.InstancedMesh>(null);
@@ -500,10 +587,19 @@ function LivingWildlife({ dark }: { dark: boolean }) {
     offsetZ: 0,
   }).current;
   const mothBasis = useRef<MothConeBasis>(createMothConeBasis()).current;
+  // Review overlay only: one scratch cone and a reusable array, so publishing
+  // the drawn Lamp Cones allocates nothing per frame.
+  const outlineCone = useRef<InsectLampCone>(createInsectLampCone()).current;
+  const lampConeOutlines = useRef<InsectLampConeOutline[]>([]).current;
+  const lampConePublishedAt = useRef(-1);
   const mothDummy = useMemo(() => new THREE.Object3D(), []);
   const mothParentQuaternion = useMemo(() => new THREE.Quaternion(), []);
   const mothRestQuaternion = useMemo(() => new THREE.Quaternion(), []);
   const mothRestMatrix = useMemo(() => new THREE.Matrix4(), []);
+  const mothCameraRight = useMemo(() => new THREE.Vector3(), []);
+  const mothCameraUp = useMemo(() => new THREE.Vector3(), []);
+  const mothCameraBack = useMemo(() => new THREE.Vector3(), []);
+  const mothEvadeVector = useMemo(() => new THREE.Vector3(), []);
   const mothRestX = useMemo(() => new THREE.Vector3(), []);
   const mothRestY = useMemo(() => new THREE.Vector3(), []);
   const mothRestZ = useMemo(() => new THREE.Vector3(), []);
@@ -620,7 +716,17 @@ function LivingWildlife({ dark }: { dark: boolean }) {
       for (const motion of mothPilots.current) {
         if (!motion.pilot) continue;
         resetMothPilot(motion, t);
+        // A reset moth stops publishing, and the overlay draws whatever was
+        // published last — so in daylight the room kept a set of moth trails
+        // that no moth was flying. Owner review: "stays persistent in light
+        // mode which is wrong." The trail goes with the pilot that flew it.
+        clearInsectTrail(motion.trail);
       }
+      if (
+        process.env.NODE_ENV === "development" &&
+        insectDiagnosticsController.hasFlightTelemetry("moth")
+      )
+        insectDiagnosticsController.clearFlightTelemetry("moth");
     }
     const bodyMesh = mothBodies.current;
     const leftMesh = mothLeftWings.current;
@@ -640,12 +746,64 @@ function LivingWildlife({ dark }: { dark: boolean }) {
       bodyMesh.visible = mothsVisible;
       leftMesh.visible = mothsVisible;
       rightMesh.visible = mothsVisible;
+      // Screen-space right/up/back, resolved once per frame rather than per
+      // moth: "near the cursor" is a pixel question, so the lean away from it
+      // has to be built in the space the cursor lives in.
+      const mothPointerIsLive =
+        !pointerIsTouch.current &&
+        performance.now() <= pointerActiveUntil.current;
+      if (mothPointerIsLive) {
+        mothCameraRight.setFromMatrixColumn(camera.matrixWorld, 0);
+        mothCameraUp.setFromMatrixColumn(camera.matrixWorld, 1);
+        mothCameraBack.setFromMatrixColumn(camera.matrixWorld, 2);
+      }
+      // Republished at the diagnostics cadence, not per frame. The overlay
+      // draws exactly the cones the moths are steered by; see
+      // `InsectLampConeOutline`.
+      const publishCones =
+        process.env.NODE_ENV === "development" &&
+        t - lampConePublishedAt.current >= 0.25;
+      if (publishCones) {
+        lampConePublishedAt.current = t;
+        lampConeOutlines.length = 0;
+      }
       if (mothsVisible) {
         for (const [lampId, lamp] of getMeadowLamps()) {
           const coneDX = lamp.coneTargetX - lamp.sourceX;
           const coneDY = lamp.coneTargetY - lamp.sourceY;
           const coneDZ = lamp.coneTargetZ - lamp.sourceZ;
           const basis = mothConeBasis(coneDX, coneDY, coneDZ, mothBasis);
+          if (publishCones) {
+            updateMothLampCone(outlineCone, lamp, basis);
+            lampConeOutlines.push({
+              lampId,
+              source: {
+                x: outlineCone.sourceX,
+                y: outlineCone.sourceY,
+                z: outlineCone.sourceZ,
+              },
+              direction: {
+                x: outlineCone.dirX,
+                y: outlineCone.dirY,
+                z: outlineCone.dirZ,
+              },
+              // The drawn near end is the containment's near end, which is
+              // now BEHIND the source — see `lampConeAxialMin`. Drawing from
+              // `nearDistance` would show the beam and hide the column around
+              // the fixture the moths actually occupy.
+              nearDistance: lampConeAxialMin(outlineCone),
+              farDistance: outlineCone.farDistance,
+              nearRadius: lampConeOuterRadius(
+                outlineCone,
+                lampConeAxialMin(outlineCone),
+              ),
+              farRadius: lampConeOuterRadius(
+                outlineCone,
+                outlineCone.farDistance,
+              ),
+              lit: lamp.litRef.current > 0.45,
+            });
+          }
           const lampPerch = getLampInsectPerch(lampId);
           const lampUnitIndex = lampPerch?.unitIndex ?? stacks.activeUnit;
           for (
@@ -657,10 +815,26 @@ function LivingWildlife({ dark }: { dark: boolean }) {
             const behaviorId = mothIndex + lampIndex * 7;
             const motion = mothPilots.current[mothIndex]!;
             if (
+              suspendOffscreen &&
+              Math.abs(lampUnitIndex - stacks.activeUnit) > 1
+            ) {
+              if (motion.pilot) resetMothPilot(motion, t);
+              mothDummy.scale.setScalar(0);
+              mothDummy.updateMatrix();
+              bodyMesh.setMatrixAt(mothIndex, mothDummy.matrix);
+              leftMesh.setMatrixAt(mothIndex, mothDummy.matrix);
+              rightMesh.setMatrixAt(mothIndex, mothDummy.matrix);
+              continue;
+            }
+            if (
               motion.context.lampId !== null &&
               motion.context.lampId !== lampId
             ) {
               resetMothPilot(motion, t);
+              // Re-binding to a different lamp is a position write, not a
+              // flight. Keeping the samples would draw a stroke across the room
+              // that never happened.
+              clearInsectTrail(motion.trail);
             }
             updateMothCruiseContext(
               motion.context,
@@ -715,32 +889,86 @@ function LivingWildlife({ dark }: { dark: boolean }) {
                   containment: motion.containment,
                   volume: null,
                   transit: null,
+                  evade: null,
                 },
               });
               initialized = true;
             }
 
             const pilot = motion.pilot;
+            // Pointer evasion, same shape as the butterflies' but harder — a
+            // moth is meant to be the twitchier of the two. Roaming only: a
+            // moth already on a lamp answers the pointer with an Escape, and
+            // two opinions at once make one insect look confused.
+            if (pilot?.roam) {
+              let target = 0;
+              if (mothPointerIsLive && pilot.phase === "roam") {
+                motion.projected
+                  .set(pilot.position.x, pilot.position.y, pilot.position.z)
+                  .project(camera);
+                if (motion.projected.z < 1) {
+                  const dx =
+                    (motion.projected.x - pointer.x) * size.width * 0.5;
+                  const dy =
+                    (motion.projected.y - pointer.y) * size.height * 0.5;
+                  const away = Math.hypot(dx, dy);
+                  target = mothEvasionStrength(away);
+                  if (target > 0) {
+                    const scale = away > 1 ? 1 / away : 0;
+                    mothEvadeVector
+                      .copy(mothCameraRight)
+                      .multiplyScalar(dx * scale)
+                      .addScaledVector(mothCameraUp, dy * scale)
+                      .addScaledVector(mothCameraBack, -MOTH_EVASION.depth)
+                      .normalize();
+                    motion.evade.x = mothEvadeVector.x;
+                    motion.evade.y = mothEvadeVector.y;
+                    motion.evade.z = mothEvadeVector.z;
+                  }
+                }
+              }
+              motion.evade.strength = THREE.MathUtils.damp(
+                motion.evade.strength,
+                target,
+                MOTH_EVASION.lambda,
+                delta,
+              );
+              pilot.roam.evade =
+                motion.evade.strength > 1e-3 ? motion.evade : null;
+            }
             if (pilot?.reservedPerchId) {
               const perch = getInsectPerch(pilot.reservedPerchId);
+              // Must match the candidate filter above, or a moth abandons the
+              // very Perch it just chose one frame earlier.
               const validPerch =
-                perch?.lampId === lampId &&
+                !!perch &&
                 perch.unitIndex === stacks.activeUnit &&
-                lampPerchIsLit(perch);
+                insectPerchAcceptsMoth(perch) &&
+                insectPerchMothLightIsOn(perch);
               const prepared =
                 validPerch &&
                 prepareInsectLandingTarget(
                   pilot.reservedPerchId,
                   "moth",
                   motion.target,
+                  motion.landingSpread,
                 );
               if (!prepared) {
+                // Same grace the butterflies get: a Lamp Perch that cannot be
+                // prepared this frame is usually a scene-graph rebuild, not a
+                // lamp that has gone. `about:lamp-shade` measured ready on only
+                // 26 samples of 86 before the owner-bounds fix, and cancelling
+                // on the first miss threw away every approach in progress.
+                if (motion.perchMissSince < 0) motion.perchMissSince = t;
                 if (
+                  t - motion.perchMissSince >= MOTH_PERCH_MISS_GRACE &&
                   commandInsectPilot(pilot, { type: "cancel" }, motion.world)
                 ) {
                   scheduleMothFlight(motion, t);
+                  motion.perchMissSince = -1;
                 }
               } else {
+                motion.perchMissSince = -1;
                 commandInsectPilot(
                   pilot,
                   { type: "update-perch", target: motion.target },
@@ -774,33 +1002,81 @@ function LivingWildlife({ dark }: { dark: boolean }) {
               t >= motion.nextAttemptAt &&
               lampAmount > 0.45
             ) {
+              // Any lit site near a lamp, not just the lamp's own fixture.
+              //
+              // This filter used to be `kind === "lamp" && lampId === lampId`,
+              // and there is exactly ONE Lamp Perch per lamp — so a moth had a
+              // single candidate, and if it was occupied, unlit or blocked it
+              // simply never landed. Owner review: "I still haven't seen a
+              // single moth land yet." Moths gather at the light rather than on
+              // the fixture anyway, so a book or shelf edge inside the pool is
+              // both a legitimate site and the one that gives them parity with
+              // the butterflies.
               const candidates = [...getInsectPerches().values()].filter(
                 (perch) =>
-                  perch.kind === "lamp" &&
-                  perch.lampId === lampId &&
                   perch.unitIndex === stacks.activeUnit &&
-                  lampPerchIsLit(perch) &&
+                  insectPerchAcceptsMoth(perch) &&
+                  insectPerchMothLightIsOn(perch) &&
                   !insectPerchOccupant(perch.id) &&
                   insectPerchOwnerId(perch) !== stacks.hovered &&
                   insectPerchOwnerId(perch) !== stacks.dragging,
               );
-              const candidate = candidates[0];
+              // Rotated per attempt so a moth does not hammer the same site.
+              // Taking `candidates[0]` every time meant one Perch absorbed every
+              // attempt on the shelf and the rest were never tried.
+              const candidate =
+                candidates.length > 0
+                  ? candidates[
+                      Math.floor(
+                        landingNoise(motion.index, motion.attempts * 37 + 11) *
+                          candidates.length,
+                      ) % candidates.length
+                    ]
+                  : undefined;
+              // Drawn BEFORE the target is prepared, because the contact the
+              // planner compiles against has to be the displaced one — a plan
+              // built for the centre of a shade and flown to a point three
+              // centimetres away is a plan the pilot has to fight.
+              const spread = landingNoise(
+                motion.index,
+                (motion.attempts + 1) * 31 + 17,
+              );
               if (
                 candidate &&
                 prepareInsectLandingTarget(
                   candidate.id,
                   "moth",
                   motion.target,
+                  spread,
                 ) &&
                 commandInsectPilot(
                   pilot,
-                  { type: "land", target: motion.target },
+                  {
+                    type: "land",
+                    target: motion.target,
+                    // Without this the planner takes its first-choice winding,
+                    // size and entry every time — and, since the Arrival Curve
+                    // tilt is also drawn from it, index 0, which is the
+                    // straight-down descent. A moth landing on the same lamp
+                    // shade twice flew the identical line onto it.
+                    variation: landingNoise(
+                      motion.index,
+                      motion.attempts * 23 + 5,
+                    ),
+                  },
                   motion.world,
                 )
               ) {
                 motion.attempts++;
                 motion.restEndsAt = Number.POSITIVE_INFINITY;
                 motion.nearSince = -1;
+                motion.restHeading.set(0, 0, 0);
+                motion.landingYaw =
+                  (landingNoise(motion.index, motion.attempts * 29 + 13) -
+                    0.5) *
+                  INSECT_LANDING_YAW;
+                motion.landingSpread = spread;
+                motion.perchMissSince = -1;
               } else {
                 motion.nextAttemptAt = t + 2.5;
               }
@@ -916,6 +1192,7 @@ function LivingWildlife({ dark }: { dark: boolean }) {
 
             if (pilot && !initialized) {
               advanceInsectPilot(pilot, delta, motion.world);
+              recordInsectTrail(motion.trail, pilot.position, t);
               if (pilot.event === "landed") {
                 motion.restEndsAt =
                   t +
@@ -929,6 +1206,48 @@ function LivingWildlife({ dark }: { dark: boolean }) {
 
             const position = pilot?.position ?? motion.initial.position;
             const velocity = pilot?.velocity ?? motion.initial.velocity;
+            if (
+              process.env.NODE_ENV === "development" &&
+              pilot &&
+              t - motion.telemetryPublishedAt >= 0.25
+            ) {
+              motion.telemetryPublishedAt = t;
+              // Moths publish the same telemetry the butterflies do, so the
+              // live check (ADR 0006) can hold them to the same invariants: no
+              // displacement flight cannot explain, and never below a contact
+              // plane. They have no Residency, so `unitIndex` is the lamp's.
+              insectDiagnosticsController.publishFlightState({
+                telemetry: {
+                  occupantId: motion.occupantId,
+                  time: t,
+                  species: "moth",
+                  unitIndex: lampUnitIndex,
+                  residentIndex: mothIndex,
+                  phase: pilot.phase,
+                  position: {
+                    x: pilot.position.x,
+                    y: pilot.position.y,
+                    z: pilot.position.z,
+                  },
+                  perchId: pilot.reservedPerchId,
+                  contactGap: mothContactGap(pilot),
+                  region: "none",
+                  speed: Math.hypot(
+                    pilot.velocity.x,
+                    pilot.velocity.y,
+                    pilot.velocity.z,
+                  ),
+                  altitude: pilot.position.y - MEADOW_GROUND_BASE,
+                  clearance:
+                    pilot.steering?.clearance ?? Number.POSITIVE_INFINITY,
+                  containment: pilot.steering?.containment ?? 0,
+                  collisionRevision: null,
+                  lastMeaningfulMovement: t,
+                  stalled: false,
+                },
+                trail: insectTrailPoints(motion.trail),
+              });
+            }
             // Brightness now follows where the moth ACTUALLY is. The model
             // always varied with radial distance and beam depth; it could
             // never show, because the sampled path was constructed bounded by
@@ -987,9 +1306,16 @@ function LivingWildlife({ dark }: { dark: boolean }) {
               mothRolls.current[mothIndex]!,
             );
             mothParentQuaternion.setFromEuler(mothEuler);
+            // Hover is included so the heading is captured while the moth is
+            // unambiguously travelling; by touchdown it is already slowing onto
+            // the contact and may never exceed the hold speed, which would drop
+            // it back to the authored tangent. `alignment` below is zero during
+            // hover, so this is a capture there and nothing more.
             if (
               pilot?.reservedPerchId &&
-              (pilot.phase === "touchdown" || pilot.phase === "rest")
+              (pilot.phase === "hover" ||
+                pilot.phase === "touchdown" ||
+                pilot.phase === "rest")
             ) {
               mothRestY
                 .set(
@@ -998,22 +1324,56 @@ function LivingWildlife({ dark }: { dark: boolean }) {
                   motion.target.normal.z,
                 )
                 .normalize();
-              mothRestZ
-                .set(
-                  motion.target.tangent.x,
-                  motion.target.tangent.y,
-                  motion.target.tangent.z,
-                )
-                .addScaledVector(mothRestY, -mothRestY.dot(mothRestZ))
-                .normalize();
+              // Face the way it is travelling, not the way the Perch was
+              // authored — the same defect the butterflies had, and for the
+              // same reason: `target.tangent` is a property of the site, so the
+              // body swung round to it while the Arrival Curve was still
+              // carrying the moth sideways. Held once it is down, because a
+              // resting pilot is pinned and has no velocity left to read.
+              mothRestZ.set(
+                pilot.velocity.x,
+                pilot.velocity.y,
+                pilot.velocity.z,
+              );
+              mothRestZ.addScaledVector(mothRestY, -mothRestY.dot(mothRestZ));
+              // Above the hold speed only. The pilot tracks the Arrival Curve
+              // with a controller rather than replaying it, so the last of its
+              // velocity is convergence correction, not travel, and a settling
+              // controller oscillates — reading a facing off it made the moth
+              // hunt back and forth as it landed. See
+              // `REST_HEADING_HOLD_SPEED` in `Butterflies.tsx`.
+              if (mothRestZ.lengthSq() > MOTH_REST_HEADING_HOLD_SPEED ** 2)
+                motion.restHeading.copy(
+                  mothRestZ
+                    .normalize()
+                    .applyAxisAngle(mothRestY, motion.landingYaw),
+                );
+              else if (motion.restHeading.lengthSq() < 1e-6)
+                motion.restHeading
+                  .set(
+                    motion.target.tangent.x,
+                    motion.target.tangent.y,
+                    motion.target.tangent.z,
+                  )
+                  .addScaledVector(
+                    mothRestY,
+                    -mothRestY.dot(motion.restHeading),
+                  )
+                  .normalize();
+              mothRestZ.copy(motion.restHeading);
               mothRestX.crossVectors(mothRestY, mothRestZ).normalize();
               mothRestZ.crossVectors(mothRestX, mothRestY).normalize();
               mothRestMatrix.makeBasis(mothRestX, mothRestY, mothRestZ);
               mothRestQuaternion.setFromRotationMatrix(mothRestMatrix);
+              // Hover CAPTURES the heading but must not adopt the surface pose:
+              // the moth is still flying the arc there, and aligning it to the
+              // shade early would lay it flat in mid-air.
               const alignment =
                 pilot.phase === "rest"
                   ? 1
-                  : THREE.MathUtils.smoothstep(pilot.phaseAge, 0, 0.5);
+                  : pilot.phase === "touchdown"
+                    ? THREE.MathUtils.smoothstep(pilot.phaseAge, 0, 0.5)
+                    : 0;
               // Compose the flare onto the aligned quaternion rather than
               // writing an Euler pitch after alignment, which would reconstruct
               // and destroy it.
@@ -1083,6 +1443,8 @@ function LivingWildlife({ dark }: { dark: boolean }) {
           }
           lampIndex++;
         }
+        if (publishCones)
+          insectDiagnosticsController.publishLampCones([...lampConeOutlines]);
         mothDummy.scale.setScalar(0);
         mothDummy.updateMatrix();
         for (; mothIndex < MOTH_COUNT; mothIndex++) {
@@ -1191,7 +1553,13 @@ function LivingWildlife({ dark }: { dark: boolean }) {
 
 /** Animated wildlife has no meaningful still counterpart. Match the existing
  * butterflies/petals contract and omit it completely for reduced motion. */
-export default function Wildlife({ dark }: { dark: boolean }) {
+export default function Wildlife({
+  dark,
+  suspendOffscreen = false,
+}: {
+  dark: boolean;
+  suspendOffscreen?: boolean;
+}) {
   const reduced = useMemo(
     () =>
       typeof window !== "undefined" &&
@@ -1199,5 +1567,5 @@ export default function Wildlife({ dark }: { dark: boolean }) {
     [],
   );
   if (reduced) return null;
-  return <LivingWildlife dark={dark} />;
+  return <LivingWildlife dark={dark} suspendOffscreen={suspendOffscreen} />;
 }
