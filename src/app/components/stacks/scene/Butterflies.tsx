@@ -301,7 +301,7 @@ varying float vInstanceOpacity;`,
 
 /** Where a resident starts. After boot this is only an initial condition:
  * Residency is `ButterflyMotion.currentUnit`, and it moves. */
-export function butterflyHomeUnit(index: number) {
+export function butterflyInitialResidency(index: number) {
   // Spread whatever the count is across all seven Units rather than filling
   // three at a time: with 18 residents the old `floor(index / 3)` left unit 6
   // empty at mount, and the floor of 2 would then have to be repaired by a
@@ -652,7 +652,7 @@ export type ButterflyMotion = {
   world: ThreeInsectFlightWorld | null;
   /**
    * Residency: the Unit whose air this resident currently belongs to. It
-   * replaces the derived `butterflyHomeUnit(i)` everywhere — containment, the
+   * replaces the derived `butterflyInitialResidency(i)` everywhere — containment, the
    * collision index, the Perches it may reach, and the occupancy tally all
    * read this one field, which is what keeps a handoff from leaving any of
    * them behind (ADR 0004).
@@ -722,11 +722,14 @@ function createLandingTarget(): InsectLandingTarget {
   };
 }
 
-export function createButterflyMotion(seed = 1, homeUnit = 0): ButterflyMotion {
+export function createButterflyMotion(
+  seed = 1,
+  initialResidency = 0,
+): ButterflyMotion {
   return {
     pilot: null,
     world: null,
-    currentUnit: homeUnit,
+    currentUnit: initialResidency,
     transitTo: null,
     transitAt: 0,
     evade: { x: 0, y: 0, z: 0, strength: 0 },
@@ -958,7 +961,7 @@ function Flight({
     Array.from({ length: BUTTERFLY_COUNT }, (_, index) =>
       createButterflyMotion(
         sessionSeed.current + index * 104729,
-        butterflyHomeUnit(index),
+        butterflyInitialResidency(index),
       ),
     ),
   );
@@ -1625,7 +1628,7 @@ function Flight({
             time: t,
             species: "butterfly",
             unitIndex: motion.currentUnit,
-            homeUnit: butterflyHomeUnit(i),
+            initialResidency: butterflyInitialResidency(i),
             residentIndex: i,
             phase: pilot.phase,
             position: {

@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   EAST_FEATHER,
   FAR_FEATHER,
+  FLING_APRON_FLOWERS,
+  FLING_GRASS_APRON,
   FLOWER_CLUSTER,
   FLOWER_LIFT,
   GRASS_BANDS,
@@ -29,6 +31,7 @@ import {
   clearanceScale,
   eastFeatherScale,
   farFeatherScale,
+  flingApronHeightScale,
   horizonCrestY,
   inEastFeather,
   inWestFeather,
@@ -92,17 +95,21 @@ describe("rung dial", () => {
     // The far mesh holds three bands (mid + seated + ridge); the mid and
     // ridge bands overlap in z, so split by the audit band id.
     MEADOW_RUNG_FRACTIONS.forEach((frac, ri) => {
-      expect(grass.near.rungCounts[ri]! / GRASS_BANDS.near.count).toBeCloseTo(
-        frac,
-        2,
-      );
-      const perBand = [0, 0, 0, 0];
+      expect(
+        grass.near.rungCounts[ri]! /
+          (GRASS_BANDS.near.count + GRASS_BANDS.apron.count),
+      ).toBeCloseTo(frac, 2);
+      const perBand = [0, 0, 0, 0, 0];
+      for (let i = 0; i < grass.near.rungCounts[ri]!; i++) {
+        perBand[grass.near.band[i]!] = (perBand[grass.near.band[i]!] ?? 0) + 1;
+      }
       for (let i = 0; i < grass.far.rungCounts[ri]!; i++) {
         perBand[grass.far.band[i]!] = (perBand[grass.far.band[i]!] ?? 0) + 1;
       }
       expect(perBand[1]! / GRASS_BANDS.mid.count).toBeCloseTo(frac, 2);
       expect(perBand[2]! / GRASS_BANDS.seated.count).toBeCloseTo(frac, 2);
       expect(perBand[3]! / GRASS_BANDS.ridge.count).toBeCloseTo(frac, 2);
+      expect(perBand[4]! / GRASS_BANDS.apron.count).toBeCloseTo(frac, 2);
     });
   });
 });
@@ -183,6 +190,30 @@ describe("spatial meadow tiles", () => {
       })),
     );
   });
+
+  it("optionally splits dense cells without changing any rung population", () => {
+    const limit = 800;
+    const legacy = buildMeadowTiles(grass.near);
+    const balanced = buildMeadowTiles(grass.near, {
+      maxPopulation: limit,
+    });
+
+    expect(
+      Math.max(...legacy.map((tile) => tile.indices.length)),
+    ).toBeGreaterThan(limit);
+    expect(
+      Math.max(...balanced.map((tile) => tile.indices.length)),
+    ).toBeLessThanOrEqual(limit);
+    expect(balanced.length).toBeGreaterThan(legacy.length);
+    grass.near.rungCounts.forEach((count, rung) => {
+      expect(
+        balanced.reduce((sum, tile) => sum + tile.rungCounts[rung]!, 0),
+      ).toBe(count);
+    });
+    expect(
+      [...balanced.flatMap((tile) => [...tile.indices])].sort((a, b) => a - b),
+    ).toEqual(Array.from({ length: grass.near.count }, (_, index) => index));
+  });
 });
 
 describe("placement", () => {
@@ -226,6 +257,39 @@ describe("placement", () => {
     // line violated this.
     expect(NEAR_FEATHER_ZONE.minZ).toBeGreaterThanOrEqual(4.52);
     expect(3.25).toBeLessThan(NEAR_FEATHER_ZONE.minZ);
+  });
+
+  it("keeps a camera-side grass apron outside the settled view", () => {
+    const apronIndices: number[] = [];
+    for (let i = 0; i < grass.near.count; i++) {
+      if (grass.near.band[i] === 4) apronIndices.push(i);
+    }
+
+    expect(apronIndices).toHaveLength(FLING_GRASS_APRON.count);
+    for (const i of apronIndices) {
+      expect(grass.near.x[i]!).toBeGreaterThanOrEqual(FLING_GRASS_APRON.minX);
+      expect(grass.near.x[i]!).toBeLessThanOrEqual(FLING_GRASS_APRON.maxX);
+      expect(grass.near.z[i]!).toBeGreaterThanOrEqual(FLING_GRASS_APRON.minZ);
+      expect(grass.near.z[i]!).toBeLessThanOrEqual(FLING_GRASS_APRON.maxZ);
+    }
+  });
+
+  it("grows the camera-side apron in broad height drifts", () => {
+    let low = Infinity;
+    let high = -Infinity;
+    for (let x = FLING_GRASS_APRON.minX; x <= FLING_GRASS_APRON.maxX; x += 1) {
+      for (
+        let z = FLING_GRASS_APRON.minZ;
+        z <= FLING_GRASS_APRON.maxZ;
+        z += 0.2
+      ) {
+        const scale = flingApronHeightScale(x, z);
+        low = Math.min(low, scale);
+        high = Math.max(high, scale);
+      }
+    }
+    expect(low).toBeLessThan(0.9);
+    expect(high).toBeGreaterThan(1.35);
   });
 
   it("roots tufts in the terrain and floats flowers at canopy height", () => {
@@ -273,6 +337,7 @@ describe("placement", () => {
     const grass = buildGrassInstances();
     let full = 0;
     for (let i = 0; i < grass.near.count; i++) {
+      if (grass.near.band[i] === 4) continue;
       const x = grass.near.x[i]!;
       const z = grass.near.z[i]!;
       if (x < -2 || x > 28 || z < -4) continue; // furniture strip only
@@ -495,6 +560,29 @@ describe("terrain silhouette", () => {
 
 describe("flower clumps", () => {
   const flowers = buildFlowerPositions();
+
+  it("adds sparse clusters to the camera-side apron", () => {
+    const apron: number[] = [];
+    for (let i = 0; i < flowers.count; i++) {
+      if (flowers.apron[i] === 1) apron.push(i);
+    }
+
+    expect(apron).toHaveLength(FLING_APRON_FLOWERS.count);
+    for (const i of apron) {
+      expect(flowers.x[i]!).toBeGreaterThanOrEqual(
+        FLING_APRON_FLOWERS.minX - 1e-5,
+      );
+      expect(flowers.x[i]!).toBeLessThanOrEqual(
+        FLING_APRON_FLOWERS.maxX + 1e-5,
+      );
+      expect(flowers.z[i]!).toBeGreaterThanOrEqual(
+        FLING_APRON_FLOWERS.minZ - 1e-5,
+      );
+      expect(flowers.z[i]!).toBeLessThanOrEqual(
+        FLING_APRON_FLOWERS.maxZ + 1e-5,
+      );
+    }
+  });
 
   it("shares one species tint per cluster at ~1/5 seed density", () => {
     const groups = new Map<number, number[]>();

@@ -15,6 +15,8 @@ import {
   unitUrlForLocation,
 } from "../data";
 import { PHOTO_SOURCES } from "../photoSources";
+import { useSceneGlassSnapshot } from "../scene/sceneGlassSnapshot";
+import { useScenePerformanceSettings } from "../scene/scenePerformance";
 import {
   STACKS_DESKTOP_QUERY,
   STACKS_MOBILE_QUERY,
@@ -47,10 +49,13 @@ import {
 } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
+import type { CSSProperties } from "react";
 import {
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -175,7 +180,7 @@ function handleSectionBoundaryKey(event: React.KeyboardEvent<HTMLDivElement>) {
  * backdrop root and prevents the cards inside it from sampling the scene;
  * keeping each card's glass on the card also lets native scrolling move its
  * content and surface in the same composited layer. */
-function Panel({
+const Panel = memo(function Panel({
   active,
   mounted,
   label,
@@ -242,7 +247,7 @@ function Panel({
       </div>
     </div>
   );
-}
+});
 
 /** Section-swap cadence shared by the desktop dock and mobile sheet. */
 const SWAP_OUT_MS = 120;
@@ -319,6 +324,71 @@ function usePreparedUnitSet(activeUnit: number) {
   return prepared;
 }
 
+type PlacardBodies = Record<(typeof UNITS)[number]["slug"], React.ReactNode>;
+
+/** A desktop section's lightweight transition shell. Memoizing at this seam
+ * means crossing one unit updates the outgoing and incoming shells while the
+ * other five resident documents keep their React and scroll state untouched.
+ * Delayed `visibility: hidden` lets the outgoing native glass finish its fade,
+ * then removes it from backdrop compositing until it is active again. */
+const DesktopUnitPanel = memo(function DesktopUnitPanel({
+  active,
+  mounted,
+  label,
+  slug,
+  side,
+  direction,
+  reduceMotion,
+  children,
+}: {
+  active: boolean;
+  mounted: boolean;
+  label: string;
+  slug: (typeof UNITS)[number]["slug"];
+  side: -1 | 0 | 1;
+  direction: -1 | 1;
+  reduceMotion: boolean;
+  children: React.ReactNode;
+}) {
+  const duration = active ? SWAP_IN_MS : SWAP_OUT_MS;
+  const delay = active ? SWAP_OUT_MS : 0;
+  const visibilityDelay = active ? 0 : SWAP_OUT_MS;
+  return (
+    <div
+      data-stacks-desktop-panel={slug}
+      data-stacks-active={active || undefined}
+      data-swap-direction={direction > 0 ? "next" : "previous"}
+      className="absolute inset-0"
+      style={
+        {
+          "--stacks-panel-opacity": active ? 1 : 0,
+          "--stacks-panel-fade-duration": reduceMotion
+            ? "0ms"
+            : `${duration}ms`,
+          "--stacks-panel-fade-delay": reduceMotion ? "0ms" : `${delay}ms`,
+          "--stacks-panel-fade-easing": active
+            ? "cubic-bezier(0.16, 1, 0.3, 1)"
+            : "ease-out",
+          transform: `translateX(${reduceMotion || active ? 0 : side * SWAP_DISTANCE_PX}px)`,
+          visibility: active ? "visible" : "hidden",
+          transitionProperty: "transform, visibility",
+          transitionDuration: reduceMotion ? "0ms, 0ms" : `${duration}ms, 0ms`,
+          transitionDelay: reduceMotion
+            ? "0ms, 0ms"
+            : `${delay}ms, ${visibilityDelay}ms`,
+          transitionTimingFunction: active
+            ? "cubic-bezier(0.16, 1, 0.3, 1), linear"
+            : "ease-out, linear",
+        } as React.CSSProperties
+      }
+    >
+      <Panel active={active} mounted={mounted} label={label}>
+        {children}
+      </Panel>
+    </div>
+  );
+});
+
 /** The desktop document changes in the same direction as the horizontal
  * room. Once visited, a document stays mounted: scrollTop, decoded media,
  * and focus registration survive a trip away and back. An
@@ -338,7 +408,7 @@ function DesktopPanel({
   activeUnit: number;
   modalOpen: boolean;
   detailsHidden: boolean;
-  bodies: Record<(typeof UNITS)[number]["slug"], React.ReactNode>;
+  bodies: PlacardBodies;
   preparedUnits: ReadonlySet<number>;
 }) {
   const reduceMotion = useStacksReducedMotion();
@@ -356,45 +426,19 @@ function DesktopPanel({
       {UNITS.map((unit, index) => {
         const active = index === activeUnit && !modalOpen && !detailsHidden;
         const side = index < activeUnit ? -1 : index > activeUnit ? 1 : 0;
-        const duration = active ? SWAP_IN_MS : SWAP_OUT_MS;
-        const delay = active ? SWAP_OUT_MS : 0;
         return (
-          <div
+          <DesktopUnitPanel
             key={unit.slug}
-            data-stacks-desktop-panel={unit.slug}
-            data-stacks-active={active || undefined}
-            data-swap-direction={direction > 0 ? "next" : "previous"}
-            className="absolute inset-0"
-            style={
-              {
-                "--stacks-panel-opacity": active ? 1 : 0,
-                "--stacks-panel-fade-duration": reduceMotion
-                  ? "0ms"
-                  : `${duration}ms`,
-                "--stacks-panel-fade-delay": reduceMotion
-                  ? "0ms"
-                  : `${delay}ms`,
-                "--stacks-panel-fade-easing": active
-                  ? "cubic-bezier(0.16, 1, 0.3, 1)"
-                  : "ease-out",
-                transform: `translateX(${reduceMotion || active ? 0 : side * SWAP_DISTANCE_PX}px)`,
-                transitionProperty: "transform",
-                transitionDuration: reduceMotion ? "0ms" : `${duration}ms`,
-                transitionDelay: reduceMotion ? "0ms" : `${delay}ms`,
-                transitionTimingFunction: active
-                  ? "cubic-bezier(0.16, 1, 0.3, 1)"
-                  : "ease-out",
-              } as React.CSSProperties
-            }
+            active={active}
+            mounted={index === activeUnit || preparedUnits.has(index)}
+            label={unit.label}
+            slug={unit.slug}
+            side={side}
+            direction={direction}
+            reduceMotion={reduceMotion}
           >
-            <Panel
-              active={active}
-              mounted={index === activeUnit || preparedUnits.has(index)}
-              label={unit.label}
-            >
-              {bodies[unit.slug]}
-            </Panel>
-          </div>
+            {bodies[unit.slug]}
+          </DesktopUnitPanel>
         );
       })}
     </>
@@ -880,24 +924,24 @@ const SHEET_SPRING = {
  * Close paths: the chevron, the X, a downward drag, and browser back — the
  * ones that leave EXPANDED all funnel through history.back() → popstate →
  * "closing", so the pushed history entry is always consumed. */
-function MobileUnitPanel({
+const MobileUnitPanel = memo(function MobileUnitPanel({
   body,
   unitIndex,
   active,
+  side,
   dismissed,
   setDismissed,
 }: {
   body: React.ReactNode;
   unitIndex: number;
   active: boolean;
+  side: -1 | 0 | 1;
   dismissed: boolean;
   setDismissed: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
-  const activeUnit = useStacks((s) => s.activeUnit);
   const modalOpen = useStacks((s) => s.modalOpen);
   const panelState = useStacks((s) => s.panelState);
   const unit = UNITS[unitIndex]!;
-  const side = unitIndex < activeUnit ? -1 : unitIndex > activeUnit ? 1 : 0;
   const sheetGeometry = mobileSheetGeometry(panelState);
   const expanded = sheetGeometry.expanded;
   const metrics = useSheetMetrics();
@@ -2058,7 +2102,7 @@ function MobileUnitPanel({
       </motion.button>
     </div>
   );
-}
+});
 
 export default function PlacardLayer({
   data,
@@ -2072,6 +2116,13 @@ export default function PlacardLayer({
   const preparedUnits = usePreparedUnitSet(activeUnit);
   const modalOpen = useStacks((s) => s.modalOpen);
   const reduceMotion = useStacksReducedMotion();
+  const performanceSettings = useScenePerformanceSettings();
+  const glassSnapshot = useSceneGlassSnapshot();
+  const glassStyle = {
+    "--stacks-glass-snapshot": glassSnapshot.dataUrl
+      ? `url("${glassSnapshot.dataUrl}")`
+      : "none",
+  } as CSSProperties;
   const [detailsHidden, setDetailsHidden] = useState(false);
   const desktopDockRef = useRef<HTMLDivElement>(null);
   const skipInitialFocusPersist = useRef(true);
@@ -2132,37 +2183,44 @@ export default function PlacardLayer({
       window.removeEventListener("resize", measure);
       publish(null);
     };
-  }, [activeUnit, detailsHidden, golfFocused, modalOpen]);
+    // Every resident desktop scroller shares the same dock geometry and px-8
+    // inset, so changing the active document cannot change this coordinate.
+    // Re-measuring it at every unit crossing only forces layout during travel.
+  }, [detailsHidden, golfFocused, modalOpen]);
   // Resident cards own content, measurement and scroll position. Their
   // three-position sheet pose remains one global preference, so dismissing
   // Book Notes and travelling to Weightlifting yields a Weightlifting chip,
   // never a new sheet plus the stale Book Notes chip.
   const [mobileDismissed, setMobileDismissed] = useState(false);
-  const bodies: Record<(typeof UNITS)[number]["slug"], React.ReactNode> = {
-    about: (
-      <PlacardCard>
-        <div className="flex items-start justify-between">
-          <div className="text-sm leading-6">{slots.aboutIntro}</div>
-        </div>
-        <div className="flex flex-col items-center gap-2 pt-4">
-          {slots.contact}
-        </div>
-        {/* Known photo-source links are mirrored into the DOM because canvas
+  // The document library is immutable while the visitor travels. Keeping the
+  // exact React elements stable lets the memoized desktop and mobile shells
+  // update ownership without reconciling every card, chart and image again.
+  const bodies = useMemo<PlacardBodies>(
+    () => ({
+      about: (
+        <PlacardCard>
+          <div className="flex items-start justify-between">
+            <div className="text-sm leading-6">{slots.aboutIntro}</div>
+          </div>
+          <div className="flex flex-col items-center gap-2 pt-4">
+            {slots.contact}
+          </div>
+          {/* Known photo-source links are mirrored into the DOM because canvas
             raycast targets have no focus order or accessible name. */}
-        {PHOTO_SOURCES.length > 0 && (
-          <nav aria-label="Photo sources" className="sr-only">
-            <ul>
-              {PHOTO_SOURCES.map((p) => (
-                <li key={p.href}>
-                  <a href={p.href} target="_blank" rel="noopener noreferrer">
-                    {p.label} — source post
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        )}
-        {/* CC-BY attribution for the props. It stays off the glass, because
+          {PHOTO_SOURCES.length > 0 && (
+            <nav aria-label="Photo sources" className="sr-only">
+              <ul>
+                {PHOTO_SOURCES.map((p) => (
+                  <li key={p.href}>
+                    <a href={p.href} target="_blank" rel="noopener noreferrer">
+                      {p.label} — source post
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          )}
+          {/* CC-BY attribution for the props. It stays off the glass, because
             the visible line was clutter in a room that has no other
             captions, but it is real text now rather than an HTML comment
             inside a hidden div. A comment is not content: it is not read by
@@ -2180,64 +2238,71 @@ export default function PlacardLayer({
             The names come from that same generated file, so a prop the
             owner picks tomorrow credits its author without anyone
             remembering to edit this line. */}
-        <p className="sr-only">
-          {`3D props include CC-BY work by ${AUTHOR_LIST}. `}
-          <a href="/models/LICENSES.json">
-            The full roster of models and their licences is published at
-            /models/LICENSES.json
-          </a>
-          .
-        </p>
-      </PlacardCard>
-    ),
-    books: (
-      // Heading above the card, which is what every other unit does — the
-      // shared sections all render their h1 on the scene and the card below
-      // it, and Books was the only one wearing its title inside the frame.
-      //
-      // Each of the three peer cards is a link, so its authored shadow and
-      // focus state stay attached to the same native surface as its content.
-      // Nothing inside is separately interactive, so the anchors do not
-      // swallow nested controls.
-      // The HEADING is linked too, not just the cards. He asked for two
-      // things that only look contradictory: the title outside the cards like
-      // every other section, and "clicking anywhere on the book notes section"
-      // going to the library. Wrapping the cards alone satisfies the first and
-      // quietly fails the second — the title stays dead, which is exactly the
-      // part of "anywhere" a person aims at. The h2 remains the semantic
-      // section heading; the anchor is its interactive text, not its replacement.
-      <div className="flex flex-col gap-3">
-        <h2 className="placard-section-heading w-fit text-xl font-semibold text-foreground">
-          <Link
-            href={booksHref()}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Browse the whole library at books.chappyasel.com"
-            className="flex items-center gap-2 rounded-lg focus-visible:ring-2 focus-visible:ring-foreground/45"
-          >
-            <BooksIcon weight="duotone" className="size-6 shrink-0" />
-            Book Notes
-          </Link>
-        </h2>
-        <BooksPlacard data={data} />
-      </div>
-    ),
-    training: <div className="placard-sections">{slots.training}</div>,
-    talks: <div className="placard-sections">{slots.talks}</div>,
-    projects: <div className="placard-sections">{slots.projects}</div>,
-    blog: <div className="placard-sections">{slots.blog}</div>,
-    systems: (
-      <div className="placard-sections flex flex-col gap-8">
-        {slots.systems}
-        {/* Desktop quotes use white ink with a restrained contact shadow.
+          <p className="sr-only">
+            {`3D props include CC-BY work by ${AUTHOR_LIST}. `}
+            <a href="/models/LICENSES.json">
+              The full roster of models and their licences is published at
+              /models/LICENSES.json
+            </a>
+            .
+          </p>
+        </PlacardCard>
+      ),
+      books: (
+        // Heading above the card, which is what every other unit does — the
+        // shared sections all render their h1 on the scene and the card below
+        // it, and Books was the only one wearing its title inside the frame.
+        //
+        // Each of the three peer cards is a link, so its authored shadow and
+        // focus state stay attached to the same native surface as its content.
+        // Nothing inside is separately interactive, so the anchors do not
+        // swallow nested controls.
+        // The HEADING is linked too, not just the cards. He asked for two
+        // things that only look contradictory: the title outside the cards like
+        // every other section, and "clicking anywhere on the book notes section"
+        // going to the library. Wrapping the cards alone satisfies the first and
+        // quietly fails the second — the title stays dead, which is exactly the
+        // part of "anywhere" a person aims at. The h2 remains the semantic
+        // section heading; the anchor is its interactive text, not its replacement.
+        <div className="flex flex-col gap-3">
+          <h2 className="placard-section-heading w-fit text-xl font-semibold text-foreground">
+            <Link
+              href={booksHref()}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Browse the whole library at books.chappyasel.com"
+              className="flex items-center gap-2 rounded-lg focus-visible:ring-2 focus-visible:ring-foreground/45"
+            >
+              <BooksIcon weight="duotone" className="size-6 shrink-0" />
+              Book Notes
+            </Link>
+          </h2>
+          <BooksPlacard data={data} />
+        </div>
+      ),
+      training: <div className="placard-sections">{slots.training}</div>,
+      talks: <div className="placard-sections">{slots.talks}</div>,
+      projects: <div className="placard-sections">{slots.projects}</div>,
+      blog: <div className="placard-sections">{slots.blog}</div>,
+      systems: (
+        <div className="placard-sections flex flex-col gap-8">
+          {slots.systems}
+          {/* Desktop quotes use white ink with a restrained contact shadow.
             Mobile keeps dark-on-sheet type, and the flat page stays plain. */}
-        <div className="stacks-quotes">{slots.quotes}</div>
-      </div>
-    ),
-  };
+          <div className="stacks-quotes">{slots.quotes}</div>
+        </div>
+      ),
+    }),
+    [data, slots],
+  );
 
   return (
-    <div className="font-serif text-muted-foreground">
+    <div
+      className="font-serif text-muted-foreground"
+      data-stacks-glass-mode={performanceSettings.placardGlassMode}
+      data-stacks-glass-status={glassSnapshot.status}
+      style={glassStyle}
+    >
       <p className="sr-only" aria-live="polite" aria-atomic="true">
         {golfFocused ? "Golf" : UNITS[activeUnit]?.label} section
       </p>
@@ -2738,6 +2803,50 @@ export default function PlacardLayer({
         .placard-scroll [class*="intersect:motion-"] {
           transform: none !important;
         }
+        /* Reversible compositor isolation. Native keeps the authored live
+           browser backdrop above. Sampled uses the tiny settled scene field;
+           flat retains the previous low-end tint for an exact three-way A/B. */
+        [data-stacks-glass-mode="sampled"] [data-stacks-desktop-panel] [data-placard-surface],
+        [data-stacks-glass-mode="sampled"] .stacks-sheet,
+        [data-stacks-glass-mode="sampled"] .stacks-chip,
+        [data-stacks-glass-mode="flat"] [data-stacks-desktop-panel] [data-placard-surface],
+        [data-stacks-glass-mode="flat"] .stacks-sheet,
+        [data-stacks-glass-mode="flat"] .stacks-chip {
+          backdrop-filter: none !important;
+          -webkit-backdrop-filter: none !important;
+        }
+        [data-stacks-glass-mode="sampled"] [data-stacks-desktop-panel] [data-placard-surface],
+        [data-stacks-glass-mode="sampled"] .stacks-sheet,
+        [data-stacks-glass-mode="sampled"] .stacks-chip {
+          background-image:
+            linear-gradient(rgb(255 255 255 / 0.28), rgb(255 255 255 / 0.28)),
+            var(--stacks-glass-snapshot);
+          background-position: center, center;
+          background-repeat: no-repeat, no-repeat;
+          background-size: auto, 100vw 100vh;
+          background-attachment: scroll, fixed;
+        }
+        .dark [data-stacks-glass-mode="sampled"] [data-stacks-desktop-panel] [data-placard-surface],
+        .dark [data-stacks-glass-mode="sampled"] .stacks-sheet,
+        .dark [data-stacks-glass-mode="sampled"] .stacks-chip {
+          background-image:
+            linear-gradient(rgb(0 0 0 / 0.30), rgb(0 0 0 / 0.30)),
+            var(--stacks-glass-snapshot);
+        }
+        [data-stacks-glass-mode="flat"] [data-stacks-desktop-panel] [data-placard-surface] {
+          background-color: rgb(255 255 255 / 0.42) !important;
+        }
+        .dark [data-stacks-glass-mode="flat"] [data-stacks-desktop-panel] [data-placard-surface] {
+          background-color: rgb(0 0 0 / 0.30) !important;
+        }
+        [data-stacks-glass-mode="flat"] .stacks-sheet,
+        [data-stacks-glass-mode="flat"] .stacks-chip {
+          --sheet-fill: rgb(255 255 255 / 0.62);
+        }
+        .dark [data-stacks-glass-mode="flat"] .stacks-sheet,
+        .dark [data-stacks-glass-mode="flat"] .stacks-chip {
+          --sheet-fill: rgb(0 0 0 / 0.52);
+        }
       `}</style>
       {/* Desktop: resident right dock, crossfaded by activeUnit. Wider now
           that no container has to look comfortable at that width — the
@@ -2816,7 +2925,7 @@ export default function PlacardLayer({
           aria-describedby="stacks-details-tooltip"
           aria-controls="stacks-desktop-details"
           aria-expanded={!detailsHidden}
-          aria-keyshortcuts="Alt+H"
+          aria-keyshortcuts="H"
           onClick={() => setDetailsHidden((hidden) => !hidden)}
           className="flex size-11 items-center justify-center text-white/65 transition-[color,transform] duration-300 hover:scale-[1.08] hover:text-white focus-visible:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 motion-reduce:transition-none"
         >
@@ -2850,6 +2959,7 @@ export default function PlacardLayer({
           }
           unitIndex={index}
           active={!golfFocused && index === activeUnit}
+          side={index < activeUnit ? -1 : index > activeUnit ? 1 : 0}
           dismissed={mobileDismissed}
           setDismissed={setMobileDismissed}
         />

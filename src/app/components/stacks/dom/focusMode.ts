@@ -9,7 +9,7 @@ export function isFocusModeShortcut(
   return (
     event.key.toLowerCase() === "h" &&
     !event.repeat &&
-    event.altKey &&
+    !event.altKey &&
     !event.metaKey &&
     !event.ctrlKey
   );

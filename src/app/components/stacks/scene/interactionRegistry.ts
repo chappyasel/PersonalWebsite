@@ -3,11 +3,14 @@
 import { devSubdomainUrl } from "../../../../lib/util";
 import type * as THREE from "three";
 
+import type { DynamicColliderProfile } from "./physicsColliders";
+
 export type MassClass = "light" | "medium" | "heavy" | "massive";
 
 export type MovableSpec = {
   massKg: number;
   massClass: MassClass;
+  colliderProfile?: DynamicColliderProfile;
 };
 
 export type DoorSpec = {
@@ -99,10 +102,30 @@ export function massClassFor(massKg: number): MassClass {
 }
 
 export const MASS_HANDLING = {
-  light: { followLambda: 22, maxLift: 0.75, throwTilt: 1 },
-  medium: { followLambda: 18, maxLift: 0.6, throwTilt: 0.8 },
-  heavy: { followLambda: 13, maxLift: 0.38, throwTilt: 0.45 },
-  massive: { followLambda: 9, maxLift: 0.2, throwTilt: 0.2 },
+  light: {
+    followLambda: 22,
+    maxRaise: 1.5,
+    minDrop: -1.5,
+    throwTilt: 1,
+  },
+  medium: {
+    followLambda: 18,
+    maxRaise: 1,
+    minDrop: -1.5,
+    throwTilt: 0.8,
+  },
+  heavy: {
+    followLambda: 13,
+    maxRaise: 0.6,
+    minDrop: -1.2,
+    throwTilt: 0.45,
+  },
+  massive: {
+    followLambda: 9,
+    maxRaise: 0.25,
+    minDrop: -0.5,
+    throwTilt: 0.2,
+  },
 } as const;
 
 const interactionParts = new Map<string, Map<symbol, SceneInteractionSpec>>();
@@ -144,6 +167,29 @@ export function getSceneInteraction(id: string | null) {
   return id ? composeInteraction(id) : null;
 }
 
+/**
+ * Every root registered under `id`, not just the one `composeInteraction`
+ * elects.
+ *
+ * One prop is often registered twice — `Grabbable` contributes the movable
+ * part and a nested `SpinProp`/`EggTrigger` contributes the activation — and
+ * composition has to pick a single carrier for projection and hit-testing, so
+ * it prefers the movable one. That is right for pointing at a prop and wrong
+ * for measuring it: the elected root can be a handle with no geometry under it,
+ * and anything asking "where is the top of this prop" then gets an empty box.
+ *
+ * Measured on the live page: `egg:globe` reported no visible bounds at all, and
+ * `grab:barbell` and `training:kettlebell-handle` reported them intermittently
+ * — which is exactly how often a Perch on those props was reachable. Unioning
+ * the parts is what makes the question answerable without changing which root
+ * owns the interaction.
+ */
+export function sceneInteractionRoots(id: string) {
+  const parts = interactionParts.get(id);
+  if (!parts?.size) return [];
+  return [...new Set([...parts.values()].map((part) => part.root))];
+}
+
 export function sceneInteractionInventory() {
   return [...interactionParts.keys()]
     .map(composeInteraction)
@@ -155,12 +201,16 @@ export function doorDisplayLabel(door: DoorSpec) {
   return door.external ? `${base} ↗` : base;
 }
 
-/** Labels are navigation affordances only. Scene actions can still expose an
- * accessible name through their own control, but can never enter DoorLabel. */
+/** A label describes the primary stationary activation. Quiet eggs stay
+ * undisclosed, but a local action is just as clickable as navigation and must
+ * not lose its authored outcome merely because the same prop is movable. */
 export function doorLabelActivation(
   spec: SceneInteractionSpec | null,
-): DoorSpec | null {
-  return spec?.activation?.kind === "door" ? spec.activation : null;
+): DoorSpec | ActionSpec | null {
+  return spec?.activation?.kind === "door" ||
+    spec?.activation?.kind === "action"
+    ? spec.activation
+    : null;
 }
 
 export function cursorForInteraction(
@@ -172,8 +222,8 @@ export function cursorForInteraction(
     return "pointer";
   const spec = getSceneInteraction(id);
   if (!spec) return "";
-  if (spec.movable) return "grab";
   if (spec.activation) return "pointer";
+  if (spec.movable) return "grab";
   return "";
 }
 
@@ -220,6 +270,8 @@ if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
       label:
         spec.activation?.kind === "door"
           ? doorDisplayLabel(spec.activation)
-          : null,
+          : spec.activation?.kind === "action"
+            ? spec.activation.label
+            : null,
     }));
 }

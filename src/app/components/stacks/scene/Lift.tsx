@@ -28,6 +28,7 @@ import {
   TILT_MAX_SIZE,
   hingeFor,
 } from "./interaction";
+import { scenePerformanceController } from "./scenePerformance";
 
 /** ~95% of the travel in 300ms. Exported because ModelProp's universal hover
  * floor eases on the same curve — every hover in the world settles alike. */
@@ -104,7 +105,9 @@ export function hingeShift(
   quatScratch.setFromEuler(eulerScratch);
   shiftScratch.copy(pivot).applyQuaternion(quatScratch);
   quatScratch.setFromEuler(now);
-  return shiftScratch.sub(pivotScratch.copy(pivot).applyQuaternion(quatScratch));
+  return shiftScratch.sub(
+    pivotScratch.copy(pivot).applyQuaternion(quatScratch),
+  );
 }
 
 export default function Lift({
@@ -137,6 +140,8 @@ export default function Lift({
   children: React.ReactNode;
 }) {
   const ref = useRef<THREE.Group>(null);
+  const settled = useRef(true);
+  const previousLifted = useRef(false);
   /** Damped position with the hinge compensation taken back OUT, so the
    * compensation can be recomputed from the rotation the group actually has
    * this frame rather than from the one it is heading for. Mount-only state:
@@ -168,6 +173,15 @@ export default function Lift({
     const g = ref.current;
     if (!g) return;
     const lifted = useStacks.getState().hovered === hoverKey;
+    if (lifted !== previousLifted.current) {
+      previousLifted.current = lifted;
+      settled.current = false;
+    }
+    if (
+      scenePerformanceController.getSnapshot().suspendSettledHoverWork &&
+      settled.current
+    )
+      return;
     if (lifted && wanted > 0 && hinge.current === undefined) {
       // `offset[1] === 0` is the call site saying the prop cannot rise, which
       // in this scene is only ever true of something HELD — a print pinned to
@@ -192,7 +206,8 @@ export default function Lift({
     const ty = base[1] + (lifted ? motion.offset[1] : 0);
     const tz = base[2] + (lifted ? motion.offset[2] : 0);
     const by = lifted ? motion.settle : 0;
-    const rx = (rest ? toward(rest[0], by) : 0) + (lifted && pivot ? wanted : 0);
+    const rx =
+      (rest ? toward(rest[0], by) : 0) + (lifted && pivot ? wanted : 0);
     const ry = rest ? toward(rest[1], by) : 0;
     const rz = rest ? toward(rest[2], by) : 0;
     const ts = lifted ? motion.grow : 1;
@@ -210,7 +225,9 @@ export default function Lift({
       pos.set(tx, ty, tz);
       r.set(rx, ry, rz);
       g.scale.setScalar(ts);
+      settled.current = true;
     } else {
+      settled.current = false;
       pos.x = THREE.MathUtils.damp(pos.x, tx, LAMBDA, delta);
       pos.y = THREE.MathUtils.damp(pos.y, ty, LAMBDA, delta);
       pos.z = THREE.MathUtils.damp(pos.z, tz, LAMBDA, delta);

@@ -7,11 +7,8 @@ export type BookInteractionRole =
   | "spine"
   | "flat"
   | "lean";
-export type BookInteractionResponse =
-  | "details-or-carry"
-  | "library-lift"
-  | "library-pull";
-export type BookHoverMotion = "upward-y" | "forward-z" | "carry";
+export type BookInteractionResponse = "details-or-carry" | "library-or-carry";
+export type BookHoverMotion = "carry";
 
 export type BookInteraction = {
   /** Stable physical-volume identity, not a title or a route. */
@@ -105,10 +102,10 @@ function inventoryForRow(
           shelf: row.shelf,
           role: "riser",
           hoverKey: riserHoverKey,
-          nodeName: `lift:${riserHoverKey}`,
-          response: "library-pull",
-          hoverMotion: "forward-z",
-          draggable: false,
+          nodeName: `nod:${riserHoverKey}`,
+          response: "library-or-carry",
+          hoverMotion: "carry",
+          draggable: true,
           shimmer: false,
         },
       ];
@@ -127,12 +124,16 @@ function inventoryForRow(
           shelf: row.shelf,
           role: "flat",
           hoverKey,
-          // The named volume sits inside Lift; point QA at the wrapper whose
-          // transform actually changes so neighbour-isolation is measurable.
-          nodeName: `lift:${hoverKey}`,
-          response: "library-pull",
-          hoverMotion: "forward-z",
-          draggable: false,
+          nodeName: bookRowNodeName(
+            "flat",
+            unitIndex,
+            row.salt,
+            itemIndex,
+            volumeIndex,
+          ),
+          response: "library-or-carry",
+          hoverMotion: "carry",
+          draggable: true,
           shimmer: false,
         };
       });
@@ -146,9 +147,9 @@ function inventoryForRow(
         role: item.kind,
         hoverKey,
         nodeName: bookRowNodeName(item.kind, unitIndex, row.salt, itemIndex),
-        response: "library-lift",
-        hoverMotion: "upward-y",
-        draggable: false,
+        response: "library-or-carry",
+        hoverMotion: "carry",
+        draggable: true,
         shimmer: false,
       },
     ];
@@ -217,11 +218,8 @@ export function auditBookInteractions(
   for (const item of inventory) {
     if (item.role !== "featured" && item.detailId !== undefined)
       errors.push(`decorative volume ${item.id} invents a detail target`);
-    if (
-      (item.role === "flat" || item.role === "riser") &&
-      item.hoverMotion !== "forward-z"
-    )
-      errors.push(`${item.id} can collide vertically with its neighbour`);
+    if (item.draggable && item.hoverMotion !== "carry")
+      errors.push(`${item.id} does not expose its carry response`);
   }
 
   return { ok: errors.length === 0, errors };

@@ -20,8 +20,12 @@ import {
   registerSceneInteraction,
 } from "./interactionRegistry";
 import { type Island, extractTriangles, findIslands } from "./islands";
+import { getMeadowDisturbance } from "./meadowDisturbance";
+import { sampleMeadowWind } from "./meadowMotion";
 import { ClockFace, type ClockFaceStyle, type ClockSweep } from "./objects";
 import { LampGlow } from "./primitives";
+import { useUnitRealLights } from "./scenePerformance";
+import { type SteamSample, writeSteamSample } from "./steamMotion";
 
 function reducedMotion(): boolean {
   return (
@@ -72,10 +76,6 @@ export function EggTrigger({
   const root = useRef<THREE.Group>(null);
   const trigger = useRef(onTrigger);
   trigger.current = onTrigger;
-  const ownsActiveUnit = () => {
-    const active = useStacks.getState().activeUnit;
-    return activeUnitIndexes?.includes(active) ?? active === unitIndex;
-  };
   useEffect(() => {
     if (!root.current) return;
     return registerSceneInteraction({
@@ -98,13 +98,12 @@ export function EggTrigger({
       ref={root}
       onClick={(e: ThreeEvent<MouseEvent>) => {
         if ((e.delta ?? 0) > 6) return; // swipe, not a tap
-        if (!ownsActiveUnit()) return; // fall through → travel
-        e.stopPropagation();
         const activation = getSceneInteraction(hoverKey)?.activation;
-        if (activation?.kind === "egg") activation.run();
+        if (activation?.kind !== "egg") return;
+        e.stopPropagation();
+        activation.run();
       }}
       onPointerOver={(e: ThreeEvent<PointerEvent>) => {
-        if (!ownsActiveUnit()) return;
         e.stopPropagation();
         setHovered(hoverKey);
       }}
@@ -140,10 +139,10 @@ export function EggTrigger({
  *   writer (GlowSprite), which would clobber anything written here, so they
  *   multiply the factor in themselves — pass the same `litRef` to both.
  *
- * At this camera the shade openings are nearly edge-on and a lit lamp whose
- * only evidence is a pool of shadow reads as switched off, so the visible
- * proof of ON is the camera-facing glow sprite and the warm ground pool. Those
- * are exactly what the factor drives.
+ * At this camera some shade openings are nearly edge-on and a lit lamp whose
+ * only evidence is a pool reads as switched off. The source-aligned aperture
+ * halo supplies that visible proof without billboarding; diagnostics retain
+ * the former sprites for comparison. Both follow the same factor.
  */
 export function LampSwitch({
   unitIndex,
@@ -156,11 +155,10 @@ export function LampSwitch({
   unitIndex: number;
   activeUnitIndexes?: readonly number[];
   hoverKey: string;
-  /** Shared 0..1 lit factor. Pass one whenever the rig contains a GlowSprite
-   * (or anything else that writes its own opacity per frame) so it can
-   * multiply the same number in. Omit it and the switch keeps its own. */
+  /** Shared 0..1 lit factor. Pass one whenever the rig contains a GlowSprite,
+   * ApertureHalo, or anything else that writes opacity per frame. */
   litRef?: { current: number };
-  /** The light rig: lights, emissive shades, glow sprites, ground pools. */
+  /** The light rig: lights, emissive shades, aperture treatments, pools. */
   rig?: React.ReactNode;
   /** The lamp body — the click target, and the only thing that is a hit box. */
   children: React.ReactNode;
@@ -187,7 +185,14 @@ export function LampSwitch({
         o.intensity = data.eggBase * next;
         return;
       }
-      if (o instanceof THREE.Sprite || !(o instanceof THREE.Mesh)) return;
+      // ApertureHalo owns an imperative opacity writer like GlowSprite. It is
+      // a Mesh only so it can retain the source plane instead of billboarding.
+      if (
+        o instanceof THREE.Sprite ||
+        o.userData.stacksSelfDimmed === true ||
+        !(o instanceof THREE.Mesh)
+      )
+        return;
       if (Array.isArray(o.material)) return;
       const material = o.material as THREE.Material & {
         emissiveIntensity?: number;
@@ -263,6 +268,7 @@ export function EggLamp({
   spillScale?: number;
 }) {
   const lit = useRef(1);
+  const realLights = useUnitRealLights(unitIndex);
   return (
     // ONE group carries the scale AND the yaw, and both the model and the
     // light rig hang from it. That is the whole structural fix of v6: the yaw
@@ -293,6 +299,7 @@ export function EggLamp({
             // rides the same lit ref, so clicking the lamp off darkens the
             // grass with the shade.
             meadowId={`desk-lamp-${unitIndex}`}
+            realLights={realLights}
           />
         }
       >
@@ -797,10 +804,7 @@ export function EggClock({
       {children}
       <group position={facePosition}>
         {faceStyle === "grandfather" ? (
-          <mesh
-            position={[0, faceRadius * 0.12, -0.002]}
-            scale={[1, 1.55, 1]}
-          >
+          <mesh position={[0, faceRadius * 0.12, -0.002]} scale={[1, 1.55, 1]}>
             <circleGeometry args={[faceRadius * 1.18, 32]} />
             <meshStandardMaterial color="#f4e5bf" roughness={0.82} />
           </mesh>
@@ -818,39 +822,59 @@ export function EggClock({
 // --- Tea steam ---------------------------------------------------------
 
 const WISPS = [
-  { delay: 0, x: -0.01, phase: 0 },
-  { delay: 0.42, x: 0.014, phase: 2.1 },
-  { delay: 0.85, x: 0.002, phase: 4.4 },
+  { delay: 0, life: 2.08, x: -0.006, z: 0.002, phase: 0.2, size: 0.042 },
+  { delay: 0.2, life: 2.34, x: 0.009, z: -0.004, phase: 2.1, size: 0.038 },
+  { delay: 0.43, life: 1.96, x: -0.011, z: 0.005, phase: 4.4, size: 0.04 },
+  { delay: 0.67, life: 2.42, x: 0.004, z: 0.001, phase: 1.25, size: 0.043 },
+  { delay: 0.9, life: 2.16, x: 0.012, z: 0.004, phase: 5.35, size: 0.036 },
+  { delay: 1.16, life: 2.29, x: -0.003, z: -0.005, phase: 3.15, size: 0.041 },
+  { delay: 1.39, life: 2.01, x: -0.01, z: -0.002, phase: 6.05, size: 0.037 },
+  { delay: 1.65, life: 2.38, x: 0.007, z: 0.004, phase: 0.85, size: 0.042 },
+  { delay: 1.88, life: 2.12, x: 0.001, z: -0.003, phase: 3.9, size: 0.039 },
 ];
-const STEAM_LIFE = 1.7;
-const STEAM_TOTAL = 0.85 + STEAM_LIFE;
+const STEAM_TOTAL = Math.max(...WISPS.map((wisp) => wisp.delay + wisp.life));
+
+type SteamParticleState = {
+  birth: THREE.Vector3;
+  cycle: number;
+  burst: number;
+  inheritedVelocity: THREE.Vector3;
+  rotation: number;
+  sample: SteamSample;
+};
 
 let steamTexture: THREE.CanvasTexture | null = null;
 function getSteamTexture(): THREE.CanvasTexture {
   if (steamTexture) return steamTexture;
-  const size = 64;
+  const size = 96;
   const canvas = document.createElement("canvas");
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext("2d")!;
-  const grad = ctx.createRadialGradient(
-    size / 2,
-    size / 2,
-    0,
-    size / 2,
-    size / 2,
-    size / 2,
-  );
-  grad.addColorStop(0, "rgba(255, 246, 232, 0.9)");
-  grad.addColorStop(0.55, "rgba(255, 246, 232, 0.28)");
-  grad.addColorStop(1, "rgba(255, 246, 232, 0)");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, size, size);
+  const puff = (x: number, y: number, radius: number, alpha: number) => {
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    grad.addColorStop(0, `rgba(255, 252, 246, ${alpha})`);
+    grad.addColorStop(0.46, `rgba(255, 250, 241, ${alpha * 0.46})`);
+    grad.addColorStop(1, "rgba(255, 246, 232, 0)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+  };
+  // A narrow, asymmetric condensation filament: denser in the middle with
+  // feathered gaps at either edge, instead of a stack of smoke-like circles.
+  puff(48, 77, 17, 0.38);
+  puff(43, 64, 20, 0.52);
+  puff(52, 49, 21, 0.5);
+  puff(42, 34, 18, 0.36);
+  puff(51, 21, 14, 0.2);
+  ctx.globalCompositeOperation = "destination-out";
+  puff(29, 48, 13, 0.34);
+  puff(68, 63, 12, 0.28);
+  ctx.globalCompositeOperation = "source-over";
   steamTexture = new THREE.CanvasTexture(canvas);
   return steamTexture;
 }
 
-/** Cup of tea that answers a click with three faint steam wisps (~2.5s).
+/** Cup of tea with a buoyant, wind-advected world-space vapor plume.
  * Sprites live OUTSIDE the trigger group so the invisible quads never
  * intercept taps; they stay visible=false except mid-animation. Additive
  * blending reads as lit vapor at night but physically cannot show against
@@ -876,64 +900,163 @@ export function SteamCup({
   children: React.ReactNode;
 }) {
   const started = useRef(0);
+  const burst = useRef(0);
+  const emitter = useRef<THREE.Group>(null);
   const sprites = useRef<(THREE.Sprite | null)[]>([]);
+  const particles = useRef<SteamParticleState[]>(
+    WISPS.map(() => ({
+      birth: new THREE.Vector3(),
+      cycle: Number.NaN,
+      burst: -1,
+      inheritedVelocity: new THREE.Vector3(),
+      rotation: 0,
+      sample: {
+        x: 0,
+        y: 0,
+        z: 0,
+        width: 0,
+        height: 0,
+        opacity: 0,
+        flowX: 0,
+        flowY: 0,
+        flowZ: 0,
+      },
+    })),
+  );
+  const emitterWorld = useMemo(() => new THREE.Vector3(), []);
+  const previousEmitterWorld = useMemo(() => new THREE.Vector3(), []);
+  const emitterVelocity = useMemo(() => new THREE.Vector3(), []);
+  const particleWorld = useMemo(() => new THREE.Vector3(), []);
+  const emitterReady = useRef(false);
   const texture = useMemo(getSteamTexture, []);
   const still = useMemo(() => reducedMotion(), []);
-  useFrame(() => {
-    // Ambient mode runs off the wall clock with each wisp on its own phase,
-    // so the three of them stagger forever instead of marching in step.
-    if (always && !still && nearActive(unitIndex)) {
-      const now = performance.now() / 1000;
-      const boost = started.current
-        ? Math.max(0, 1 - (performance.now() - started.current) / 1600)
+  useFrame((state, delta) => {
+    const root = emitter.current;
+    if (!root) return;
+    const active = nearActive(unitIndex);
+    if (!active || still) {
+      for (const sprite of sprites.current) if (sprite) sprite.visible = false;
+      emitterReady.current = false;
+      return;
+    }
+    root.updateWorldMatrix(true, false);
+    root.getWorldPosition(emitterWorld);
+    if (emitterReady.current && delta > 0) {
+      emitterVelocity
+        .copy(emitterWorld)
+        .sub(previousEmitterWorld)
+        .divideScalar(Math.min(0.05, delta));
+      if (emitterVelocity.lengthSq() > 0.36 ** 2)
+        emitterVelocity.setLength(0.36);
+    } else {
+      emitterVelocity.set(0, 0, 0);
+      emitterReady.current = true;
+    }
+    previousEmitterWorld.copy(emitterWorld);
+    const sceneTime = state.clock.elapsedTime;
+    const disturbance = getMeadowDisturbance();
+    const wind = sampleMeadowWind(
+      emitterWorld.x,
+      emitterWorld.z,
+      sceneTime,
+      disturbance.windAmplitude || undefined,
+    );
+    const fade = dark && useStacks.getState().postfx ? 0.5 : 1;
+    const nowMs = performance.now();
+    const boost =
+      always && started.current
+        ? Math.max(0, 1 - (nowMs - started.current) / 1600)
         : 0;
-      const fade = dark && useStacks.getState().postfx ? 0.5 : 1;
-      const peak = (dark ? 0.22 : 0.28) * (1 + boost);
-      const sizeMul = (dark ? 1 : 1.7) * (1 + boost * 0.35);
+    const peak = (dark ? 0.2 : 0.255) * (1 + boost * 0.7) * fade;
+    const sizeMul = (dark ? 1 : 1.32) * (1 + boost * 0.16);
+
+    const renderParticle = (
+      index: number,
+      progress: number,
+      age: number,
+      cycle: number,
+      burstId: number,
+    ) => {
+      const sprite = sprites.current[index];
+      const particle = particles.current[index]!;
+      const wisp = WISPS[index]!;
+      if (!sprite || progress <= 0 || progress >= 1) {
+        if (sprite) sprite.visible = false;
+        return;
+      }
+      if (particle.cycle !== cycle || particle.burst !== burstId) {
+        particleWorld.set(wisp.x, 0, wisp.z);
+        root.localToWorld(particleWorld);
+        particle.birth.copy(particleWorld);
+        particle.inheritedVelocity.copy(emitterVelocity).multiplyScalar(0.38);
+        particle.cycle = cycle;
+        particle.burst = burstId;
+      }
+      const sample = writeSteamSample(particle.sample, {
+        originX: particle.birth.x,
+        originY: particle.birth.y,
+        originZ: particle.birth.z,
+        progress,
+        age,
+        time: sceneTime,
+        phase: wisp.phase,
+        windX: wind.x,
+        windZ: wind.z,
+        inheritedX: particle.inheritedVelocity.x,
+        inheritedY: particle.inheritedVelocity.y,
+        inheritedZ: particle.inheritedVelocity.z,
+        size: wisp.size * sizeMul,
+      });
+      particleWorld.set(sample.x, sample.y, sample.z);
+      // The birth point stays in world space. Converting only at render time
+      // makes already-emitted vapor lag behind a cup moved by Grabbable's
+      // authored or cannon-es physics instead of remaining glued above it.
+      root.worldToLocal(particleWorld);
+      sprite.visible = true;
+      sprite.position.copy(particleWorld);
+      sprite.scale.set(sample.width, sample.height, 1);
+      sprite.material.opacity = peak * sample.opacity;
+      const cameraMatrix = state.camera.matrixWorld.elements;
+      const screenFlowX =
+        sample.flowX * cameraMatrix[0] +
+        sample.flowY * cameraMatrix[1] +
+        sample.flowZ * cameraMatrix[2];
+      const screenFlowY =
+        sample.flowX * cameraMatrix[4] +
+        sample.flowY * cameraMatrix[5] +
+        sample.flowZ * cameraMatrix[6];
+      const targetRotation = THREE.MathUtils.clamp(
+        -Math.atan2(screenFlowX, Math.max(0.02, screenFlowY)),
+        -0.72,
+        0.72,
+      );
+      particle.rotation = THREE.MathUtils.damp(
+        particle.rotation,
+        targetRotation,
+        5,
+        delta,
+      );
+      sprite.material.rotation = particle.rotation;
+    };
+
+    // Ambient mode runs off the shared scene clock with each wisp on its own phase,
+    // so the particles stagger forever instead of marching in step.
+    if (always) {
       for (let i = 0; i < WISPS.length; i++) {
-        const sprite = sprites.current[i];
         const w = WISPS[i]!;
-        if (!sprite) continue;
-        const p = ((now + w.delay * 2.2) / STEAM_LIFE) % 1;
-        sprite.visible = true;
-        sprite.position.set(
-          w.x + Math.sin(p * 5 + w.phase) * 0.016 * p,
-          0.015 + p * 0.24,
-          0,
-        );
-        const s = (0.05 + p * 0.08) * sizeMul;
-        sprite.scale.set(s, s * 1.35, 1);
-        sprite.material.opacity = peak * Math.sin(Math.PI * p) * fade;
+        const particleTime = sceneTime - w.delay;
+        const cycle = Math.floor(particleTime / w.life);
+        const age = particleTime - cycle * w.life;
+        renderParticle(i, age / w.life, age, cycle, 0);
       }
       return;
     }
     if (!started.current) return;
-    const t = (performance.now() - started.current) / 1000;
-    // Additive sprites compound in the composer's linear HDR target — halve
-    // there, same rule as GlowSprite. Alpha mist doesn't compound.
-    const fade = dark && useStacks.getState().postfx ? 0.5 : 1;
-    // Light needs bigger, denser wisps: an alpha veil starts from far less
-    // contrast than additive-on-night ever does.
-    const peak = dark ? 0.3 : 0.38;
-    const sizeMul = dark ? 1 : 1.7;
+    const t = (nowMs - started.current) / 1000;
     for (let i = 0; i < WISPS.length; i++) {
-      const sprite = sprites.current[i];
       const w = WISPS[i]!;
-      if (!sprite) continue;
-      const p = (t - w.delay) / STEAM_LIFE;
-      if (p <= 0 || p >= 1) {
-        sprite.visible = false;
-        continue;
-      }
-      sprite.visible = true;
-      sprite.position.set(
-        w.x + Math.sin(p * 5 + w.phase) * 0.016 * p,
-        0.015 + p * 0.24,
-        0,
-      );
-      const s = (0.05 + p * 0.08) * sizeMul;
-      sprite.scale.set(s, s * 1.35, 1);
-      sprite.material.opacity = peak * Math.sin(Math.PI * p) * fade;
+      const age = t - w.delay;
+      renderParticle(i, age / w.life, age, 0, burst.current);
     }
     if (t > STEAM_TOTAL) {
       started.current = 0;
@@ -951,11 +1074,12 @@ export function SteamCup({
           // second click while the first is still decaying just refreshes it.
           if (!always && started.current) return;
           started.current = performance.now();
+          burst.current += 1;
         }}
       >
         {children}
       </EggTrigger>
-      <group position={steamAt}>
+      <group ref={emitter} position={steamAt}>
         {WISPS.map((w, i) => (
           <sprite
             key={i}

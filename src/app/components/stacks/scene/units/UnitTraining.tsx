@@ -34,6 +34,16 @@ import * as THREE from "three";
 import type { UnitProps } from "./types";
 import { REVIEWED_SHELF_LAYOUT } from "./unitShelfLayout";
 
+export const TRAINING_BARBELL_POSE: {
+  base: [number, number, number];
+  rotation: [number, number, number];
+  scale: number;
+} = {
+  base: [1.92, SHELF_GEOMETRY.groundY, -1.04],
+  rotation: [0, -Math.PI / 4, 0],
+  scale: 0.77,
+};
+
 function golfFlagPosition(unitIndex: number): [number, number, number] {
   const pose = unitPose(unitIndex);
   const yaw = pose.rotation[1];
@@ -374,6 +384,7 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
               shape="sphere"
               massKg={0.62}
               restitution={0.62}
+              maxThrowSpeed={8}
             >
               <React.Suspense fallback={null}>
                 <ModelProp
@@ -474,7 +485,7 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
         unitIndex={index}
         to="weightlifting"
         hoverKey="grab:barbell"
-        base={[1.92, SHELF_GEOMETRY.groundY, -1.04]}
+        base={TRAINING_BARBELL_POSE.base}
         shadeColor={palette.shadow}
         shadeWidth={1.35}
         shape="box"
@@ -489,8 +500,8 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
             variant="tinted"
             tints={{ Iron1Barbell1: palette.hub, Steel1Barbell1: "#8a8f94" }}
             roughness={0.45}
-            rotation={[0, -Math.PI / 4, 0]}
-            scale={0.77}
+            rotation={TRAINING_BARBELL_POSE.rotation}
+            scale={TRAINING_BARBELL_POSE.scale}
           />
         </React.Suspense>
       </Grabbable>

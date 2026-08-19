@@ -13,19 +13,15 @@ import * as THREE from "three";
 import Butterflies from "./Butterflies";
 import Meadow from "./Meadow";
 import Petals from "./Petals";
+import Wildlife from "./Wildlife";
 import { DAYLIGHT_RENDERING } from "./daylightRendering";
+import { activationAtPointer } from "./interactionProjection";
 import {
   getSceneInteraction,
   registerSceneInteraction,
 } from "./interactionRegistry";
 import { claimEffectLayer, effectLayerAges } from "./layeredEffects";
-import { activationAtPointer } from "./interactionProjection";
-import {
-  type DurableQualityRung,
-  cloudDetailEnabled,
-  landmarkDetailEnabled,
-  meadowQualityRung,
-} from "./quality";
+import { type SceneQualityPlan } from "./quality";
 import { getSeatAmount } from "./seated";
 import { SKY_LIGHTING } from "./skyLighting";
 import { MID_X, STACKS_DESKTOP_MIN_WIDTH, TRAVEL_X } from "./worldLayout";
@@ -94,14 +90,20 @@ const SKY_FRAGMENT = `
   // go depends on the viewport: the desktop placard owns 528 px of the right
   // of the frame, and a phone in portrait sees only 19° of sky in total.
   #define DC_OLDPOST  0.0638
+  #define DC_NMAAHC   0.0262
+  #define DC_WHITTEN  0.1804
+  #define DC_CASTLE   0.2659
+  #define DC_HIRSH    0.3491
   #define DC_JEFF     0.3994
   #define DC_CAPITOL  0.4676
+  #define DC_HUD      0.5230
   // The memory-house is composed independently of the surveyed skyline. At
   // 0.005 it literally straddled the Monument; −0.045 centres the reduced
   // silhouette in the rendered gap between desktop nav and Monument.
   #define DC_HOME    -0.0450
-  #define DC_BAND_L   0.0350
-  #define DC_BAND_R   0.4450
+  // The memory-house is 70% of the previous authored size in both axes.
+  #define DC_HOME_X_SCALE 2.529
+  #define DC_HOME_Y_SCALE 0.553
   //
   // Heights are elevation above the WATERLINE, and the waterline is the true
   // horizon (e = 0) exactly. It is also the mirror plane, and a mirror that
@@ -291,20 +293,71 @@ const SKY_FRAGMENT = `
   }
 
   // One Washington weather field, sampled by both the sky and its mirrored
-  // elevation in the Potomac. Returning density and mask together keeps the
-  // cloud shape, water reflection and animation on the same clock.
-  vec2 dcCloudField(float az, float el) {
-    vec2 p = vec2(az * 8.4 + uTime * 0.0065,
-                  el * 18.5 - uTime * 0.0012);
-    float density = 0.54 * vnoise(p)
-                  + 0.31 * vnoise(p * vec2(1.92, 1.34) + 11.4)
-                  + 0.15 * vnoise(p * vec2(3.85, 2.20) + 3.7);
-    float band = smoothstep(0.034, 0.070, el)
-               * (1.0 - smoothstep(0.19, 0.275, el));
-    float islands = smoothstep(0.42, 0.67,
-        vnoise(vec2(az * 12.7 + uTime * 0.0042, 6.3)));
-    float mask = smoothstep(0.585, 0.735, density) * band * islands;
-    return vec2(density, mask);
+  // elevation in the Potomac. Macro mass and edge erosion are deliberately
+  // separate: thresholding ordinary noise alone made evenly fuzzy blobs that
+  // looked generated rather than observed. The third channel is a higher,
+  // thinner veil, so every cloud is not parked on the same horizontal deck.
+  vec3 dcCloudField(float az, float el) {
+    vec2 drift = vec2(uTime * 0.0052, -uTime * 0.0007);
+    vec2 p = vec2(az * 6.8, el * 15.5) + drift;
+    float macro = 0.66 * vnoise(p)
+                + 0.34 * vnoise(p * vec2(1.78, 1.24) + 11.4);
+    float billow = 0.58 * vnoise(p * vec2(3.35, 2.15) + 3.7)
+                 + 0.42 * vnoise(p * vec2(6.60, 3.75) + 19.2);
+    // A flatter, slightly darker underside makes each mass read as volume.
+    float deck = smoothstep(0.040, 0.070, el)
+               * (1.0 - smoothstep(0.205, 0.285, el));
+    float mass = smoothstep(0.44, 0.68, macro + 0.16 * billow);
+    float eroded = smoothstep(0.38, 0.72, billow);
+    float body = mass * mix(0.68, 1.0, eroded) * deck;
+    // Break the deck into weather systems at a scale much wider than its
+    // scalloped edge; this avoids a wallpaper of equal cotton balls.
+    float systems = smoothstep(0.30, 0.69,
+      vnoise(vec2(az * 4.4 + uTime * 0.0024, 7.1)));
+    body *= systems;
+
+    vec2 wp = vec2(az * 11.5 - uTime * 0.0031,
+                   el * 27.0 + uTime * 0.0004);
+    float wispNoise = 0.62 * vnoise(wp)
+                    + 0.38 * vnoise(wp * vec2(2.7, 1.35) + 23.0);
+    float wisps = smoothstep(0.61, 0.79, wispNoise)
+                * smoothstep(0.145, 0.205, el)
+                * (1.0 - smoothstep(0.255, 0.315, el));
+    return vec3(macro + 0.16 * billow, body, wisps);
+  }
+
+  // The flock is also a reusable field. Sampling it at mirrored elevation in
+  // the water pass gives the birds the same ripple shear as the architecture
+  // instead of inventing a disconnected second animation.
+  float dcBirdField(float az, float el) {
+    if (el < 0.092 || el > 0.168) return 0.0;
+    float dcBirdT = mod(uTime, 30.0);
+    float flock = 0.0;
+    for (int df = 0; df < 2; df++) {
+      float ff = float(df);
+      float bt = fract(dcBirdT / 30.0 + ff * 0.5);
+      float flockId = floor(uTime / 30.0) + ff * 19.0;
+      for (int db = 0; db < 3; db++) {
+        float bf = float(db);
+        vec2 org = vec2(-0.23 + 0.54 * bt + bf * 0.028,
+                        0.108 + bf * 0.015 + ff * 0.018
+                        + 0.008 * sin(bt * 4.0 + bf * 1.9));
+        vec2 q = vec2(az, el) - org;
+        if (dot(q, q) > 0.00018) continue;
+        float w = 0.0062 + 0.0008 * hash1(flockId + bf * 7.1);
+        float beat = sin(uTime * (6.3 + bf * 0.35) + bf * 1.7);
+        vec2 elbowL = vec2(-w * 0.52, w * 0.25 * beat);
+        vec2 elbowR = vec2( w * 0.52, w * 0.25 * beat);
+        vec2 tipL = vec2(-w, w * (0.48 * sin(uTime * 6.3 - 0.8 + bf) - 0.05));
+        vec2 tipR = vec2( w, w * (0.48 * sin(uTime * 6.3 - 0.8 + bf) - 0.05));
+        float d = min(min(segD(q, vec2(0.0), elbowL), segD(q, elbowL, tipL)),
+                      min(segD(q, vec2(0.0), elbowR), segD(q, elbowR, tipR)));
+        flock = max(flock, smoothstep(0.00155, 0.00038, d)
+                   * smoothstep(0.0, 0.10, bt)
+                   * (1.0 - smoothstep(0.88, 1.0, bt)));
+      }
+    }
+    return flock;
   }
 
   // The city, drawn ONCE as a function of height above the waterline, which
@@ -321,6 +374,18 @@ const SKY_FRAGMENT = `
     vec3 r = vec3(0.0);
     if (h < 0.0 || h > DC_MON_TOP + 0.002) return r;
 
+    // Continuous low civic fabric extends well beyond both possible frame
+    // edges. It is intentionally subordinate to the named buildings and will
+    // be mostly screened by trees, but unlike the previous mask it never
+    // dissolves into transparency at an arbitrary composition boundary.
+    float datumTop = 0.0052
+                   + 0.0020 * step(-0.18, x)
+                   + 0.0014 * step(0.56, x)
+                   - 0.0010 * step(0.12, x) * step(x, 0.22);
+    float civicDatum = step(-0.34, x) * step(x, 0.72)
+                     * step(0.0007, h) * step(h, datumTop);
+    r = mix(r, vec3(1.0, 0.24, 0.035), civicDatum);
+
     // US Capitol, 3.8 km out and the haziest thing in frame. Capitol Hill
     // puts its base 27 m above the water, which is most of the reason a
     // 288 ft building reads as tall from here at all. The dome is 96 ft
@@ -331,19 +396,27 @@ const SKY_FRAGMENT = `
     // wings' pediments, colonnades and porticoes are cut; only the roofline
     // matters at 77 px wide.
     float cx = x - DC_CAPITOL;
-    if (abs(cx) < 0.0305 && h < 0.0296) {
-      float blk = step(abs(cx), 0.0299) * step(0.0070, h) * step(h, 0.0150);
-      blk *= 1.0 - step(0.0212, abs(cx)) * step(0.0132, h);
-      float drum = step(abs(cx), 0.0034) * step(0.0150, h) * step(h, 0.0202);
-      float dome = step(length(vec2(cx / 0.0040, (h - 0.0202) / 0.0066)), 1.0)
-                 * step(0.0202, h);
+    if (abs(cx) < 0.0315 && h < 0.0302) {
+      // Three masses and shallow pediments keep the wings from reading as a
+      // single office block. The centre projects toward the viewer and gets
+      // the brighter stone tone carried in r.z.
+      float wings = step(abs(cx), 0.0307) * step(0.0064, h) * step(h, 0.0138);
+      float centre = step(abs(cx), 0.0102) * step(0.0060, h) * step(h, 0.0158);
+      float wingCut = step(0.0206, abs(cx)) * step(0.0120, h);
+      wings *= 1.0 - wingCut;
+      float pedH = 0.0158 - abs(cx) * 0.34;
+      float pediment = step(abs(cx), 0.0100) * step(0.0149, h) * step(h, pedH);
+      float drum = step(abs(cx), 0.0038) * step(0.0156, h) * step(h, 0.0204);
+      float dome = step(length(vec2(cx / 0.00425, (h - 0.0204) / 0.00655)), 1.0)
+                 * step(0.0204, h);
       float lant = step(abs(cx), 0.0015) * step(0.0268, h) * step(h, 0.0284);
       float stat = step(abs(cx), 0.0007) * step(0.0284, h) * step(h, 0.0294);
-      float m = clamp(blk + drum + dome + lant + stat, 0.0, 1.0);
+      float m = clamp(wings + centre + pediment + drum + dome + lant + stat, 0.0, 1.0);
       // The dome and the Statue are floodlit and the wings are not, so after
       // dark the whole building resolves to one small bright cap on a dark
       // block — which is all anyone pictures of it anyway.
-      r = mix(r, vec3(1.0, 0.32, mix(0.12, 0.95, step(0.0150, h))), m);
+      float centreStone = step(abs(cx), 0.0103) * step(0.0146, h);
+      r = mix(r, vec3(1.0, 0.32, mix(0.10, 0.95, centreStone)), m);
     }
 
     // Old Post Office clock tower, 315 ft — 0.57 of the Monument, the third
@@ -352,41 +425,143 @@ const SKY_FRAGMENT = `
     // composition than one vertical alone, and there is no other candidate:
     // every memorial on the Mall is under a quarter of the Monument.
     float ox = x - DC_OLDPOST;
-    if (abs(ox) < 0.0074 && h < 0.0374) {
-      float shaft = step(abs(ox), 0.0055) * step(0.0018, h) * step(h, 0.0322);
-      float corn  = step(abs(ox), 0.0071) * step(0.0322, h) * step(h, 0.0338);
-      float pk = clamp((h - 0.0338) / 0.0034, 0.0, 1.0);
-      float roof = step(abs(ox), 0.0071 * (1.0 - pk * 0.94))
-                 * step(0.0338, h) * step(h, 0.0372);
-      r = mix(r, vec3(1.0, 0.24, 0.42), clamp(shaft + corn + roof, 0.0, 1.0));
+    if (abs(ox) < 0.0078 && h < 0.0392) {
+      float base = step(abs(ox), 0.0064) * step(0.0015, h) * step(h, 0.0062);
+      float shaft = step(abs(ox), 0.00525) * step(0.0062, h) * step(h, 0.0294);
+      float clock = step(abs(ox), 0.00635) * step(0.0230, h) * step(h, 0.0306);
+      float corn  = step(abs(ox), 0.00725) * step(0.0306, h) * step(h, 0.0327);
+      float pk = clamp((h - 0.0327) / 0.0046, 0.0, 1.0);
+      float roof = step(abs(ox), 0.0068 * (1.0 - pk * 0.86))
+                 * step(0.0327, h) * step(h, 0.0373);
+      float mast = step(abs(ox), 0.00055) * step(0.0370, h) * step(h, 0.0390);
+      float litClock = step(0.0230, h) * step(h, 0.0294);
+      r = mix(r, vec3(1.0, 0.24, mix(0.28, 0.72, litClock)),
+              clamp(base + shaft + clock + corn + roof + mast, 0.0, 1.0));
     }
 
-    // The federal cornice band — the element that was missing entirely, and
-    // the highest-value thing in the frame after the Monument itself. Not a
-    // named monument: the USDA South Building, L'Enfant Plaza, the Forrestal
-    // and the Southwest Federal Center, all built to the Height of Buildings
-    // Act's 130 ft ceiling and running unbroken for more than twenty
-    // degrees. That flat ceiling is what makes this read as Washington
-    // rather than as a generic city with an obelisk in it, and it is what
-    // gives the Monument something to be tall against.
-    //
-    // It STEPS UP left to right, and that is distance, not height: the
-    // Federal Triangle behind the Old Post is 2.8 km out and the Southwest
-    // Federal Center 2.0 km, so the same 130 ft subtends 0.0143 at one end
-    // and 0.0209 at the other. Drawn as ONE band with a ragged top rather
-    // than as individual boxes — there is no arrangement of boxes that is
-    // elegant, and the flatness is the elegance.
-    if (x > DC_BAND_L && x < DC_BAND_R) {
-      float bt = smoothstep(DC_BAND_L, DC_BAND_R, x);
-      float top = mix(0.0143, 0.0209, bt)
-                + 0.0024 * (vnoise(vec2(x * 7.3, 3.1)) - 0.5)
-                + 0.0044 * smoothstep(0.58, 0.94, vnoise(vec2(x * 21.0, 8.7)))
-                + 0.0026 * smoothstep(0.72, 0.98, vnoise(vec2(x * 46.0, 2.4)));
-      float ends = smoothstep(DC_BAND_L, DC_BAND_L + 0.010, x)
-                 * smoothstep(DC_BAND_R, DC_BAND_R - 0.010, x);
-      r = mix(r, vec3(1.0, 0.19, 0.0),
-              step(0.0008, h) * step(h, top) * ends);
-    }
+    // The low city is authored as the buildings this sightline actually
+    // crosses, not a noise-generated cornice strip. Each mass uses its own
+    // setback, roof, material tone, and distance haze. Tree canopy hides the
+    // lower storeys in the final composite, as it does in the NPS vista.
+
+    // Federal Triangle and Mall museums behind the Monument: long classical
+    // fronts, but separated by real streets and courtyards. These explicit
+    // gaps must remain sky/tree gaps—never alpha-fade the district at either
+    // end.
+    float triangle = 0.0;
+    triangle += step(0.034, x) * step(x, 0.071)
+              * step(0.0010, h) * step(h, 0.0142);
+    triangle += step(0.075, x) * step(x, 0.111)
+              * step(0.0010, h) * step(h, 0.0168);
+    triangle += step(0.116, x) * step(x, 0.145)
+              * step(0.0010, h) * step(h, 0.0135);
+    // Shallow porticoes and rooftop pavilions break the three blocks without
+    // inventing high-rise roof clutter Washington does not have.
+    triangle += step(0.082, x) * step(x, 0.102)
+              * step(0.0168, h) * step(h, 0.0190);
+    triangle += step(0.122, x) * step(x, 0.138)
+              * step(0.0135, h) * step(h, 0.0152);
+    r = mix(r, vec3(1.0, 0.25, 0.08), clamp(triangle, 0.0, 1.0));
+
+    // National Museum of African American History and Culture: three bronze
+    // corona tiers flare upward just behind/right of the Monument. This dark,
+    // compact counterform is visible in the actual Mall sequence and stops
+    // the Monument/Old Post pairing from floating over anonymous boxes.
+    float nx = x - DC_NMAAHC;
+    float n0t = clamp((h - 0.0030) / 0.0040, 0.0, 1.0);
+    float n1t = clamp((h - 0.0070) / 0.0040, 0.0, 1.0);
+    float n2t = clamp((h - 0.0110) / 0.0040, 0.0, 1.0);
+    float n0 = step(abs(nx), mix(0.0043, 0.0072, n0t))
+             * step(0.0030, h) * step(h, 0.0070);
+    float n1 = step(abs(nx), mix(0.0040, 0.0068, n1t))
+             * step(0.0070, h) * step(h, 0.0110);
+    float n2 = step(abs(nx), mix(0.0037, 0.0064, n2t))
+             * step(0.0110, h) * step(h, 0.0150);
+    r = mix(r, vec3(1.0, 0.21, 0.07), clamp(n0 + n1 + n2, 0.0, 1.0));
+
+    // Jamie L. Whitten / USDA: a five-storey projecting centre, lower
+    // symmetrical wings, recessed links, end pavilions, and shallow hipped
+    // roofs. GSA identifies precisely this three-part composition.
+    float wx = x - DC_WHITTEN;
+    float whWings = step(abs(wx), 0.0360) * step(0.0010, h) * step(h, 0.0138);
+    float whLinks = (step(abs(wx - 0.021), 0.0070)
+                   + step(abs(wx + 0.021), 0.0070))
+                  * step(0.0010, h) * step(h, 0.0115);
+    float whCentre = step(abs(wx), 0.0100) * step(0.0010, h) * step(h, 0.0186);
+    float whEnds = (step(abs(wx - 0.031), 0.0050)
+                  + step(abs(wx + 0.031), 0.0050))
+                 * step(0.0010, h) * step(h, 0.0154);
+    float whRoof = step(abs(wx), 0.0090 - 0.18 * max(h - 0.0186, 0.0))
+                 * step(0.0186, h) * step(h, 0.0206);
+    float whitten = clamp(whWings + whLinks + whCentre + whEnds + whRoof, 0.0, 1.0);
+    r = mix(r, vec3(1.0, 0.16, 0.34), whitten);
+
+    // Low Smithsonian museum terraces leave breathing room around the Castle.
+    float museums = 0.0;
+    museums += step(0.221, x) * step(x, 0.239)
+             * step(0.0010, h) * step(h, 0.0118);
+    museums += step(0.293, x) * step(x, 0.326)
+             * step(0.0010, h) * step(h, 0.0132);
+    museums += step(0.331, x) * step(x, 0.354)
+             * step(0.0010, h) * step(h, 0.0108);
+    r = mix(r, vec3(1.0, 0.20, 0.12), clamp(museums, 0.0, 1.0));
+
+    // Smithsonian Castle: 447-foot red-sandstone body with nine towers. At
+    // this distance four roofline cues survive—the 140-foot north tower,
+    // central battlements, and two unequal turrets—so those are what we draw.
+    float sx = x - DC_CASTLE;
+    float castleBody = step(abs(sx), 0.0295) * step(0.0010, h) * step(h, 0.0102);
+    float castleKeep = step(abs(sx + 0.004), 0.0085)
+                     * step(0.0102, h) * step(h, 0.0148);
+    float castleNorth = step(abs(sx + 0.0200), 0.0042)
+                      * step(0.0080, h) * step(h, 0.0192);
+    float northCapT = clamp((h - 0.0192) / 0.0032, 0.0, 1.0);
+    float castleNorthCap = step(abs(sx + 0.0200), 0.0046 * (1.0 - northCapT))
+                         * step(0.0192, h) * step(h, 0.0224);
+    float castleTurrets = (step(abs(sx - 0.0130), 0.0033)
+                         * step(0.0090, h) * step(h, 0.0165))
+                        + (step(abs(sx - 0.0240), 0.0025)
+                         * step(0.0080, h) * step(h, 0.0142));
+    float castle = clamp(castleBody + castleKeep + castleNorth
+                       + castleNorthCap + castleTurrets, 0.0, 1.0);
+    r = mix(r, vec3(1.0, 0.23, 0.16), castle);
+
+    // Hirshhorn: the low elevated concrete drum is a crucial shape change
+    // between the Castle/USDA band and Forrestal's severe horizontal slab.
+    float ix = x - DC_HIRSH;
+    float hirshBody = step(abs(ix), 0.0135)
+                    * step(0.0060, h) * step(h, 0.0130);
+    float hirshCrown = step(length(vec2(ix / 0.0135, (h - 0.0130) / 0.0024)), 1.0)
+                     * step(0.0130, h);
+    float hirshPiers = (step(abs(ix - 0.0060), 0.0018)
+                      + step(abs(ix + 0.0060), 0.0018))
+                     * step(0.0010, h) * step(h, 0.0060);
+    r = mix(r, vec3(1.0, 0.18, 0.055),
+            clamp(hirshBody + hirshCrown + hirshPiers, 0.0, 1.0));
+
+    // Forrestal / L'Enfant: broad modern slabs and a recessed bridge rather
+    // than another classical box. The height stays low; their identity is
+    // horizontal proportion and stepped roof plant.
+    float modern = 0.0;
+    modern += step(0.358, x) * step(x, 0.382)
+            * step(0.0010, h) * step(h, 0.0158);
+    modern += step(0.362, x) * step(x, 0.376)
+            * step(0.0158, h) * step(h, 0.0180);
+    modern += step(0.418, x) * step(x, 0.442)
+            * step(0.0010, h) * step(h, 0.0144);
+    r = mix(r, vec3(1.0, 0.17, 0.04), clamp(modern, 0.0, 1.0));
+
+    // Robert C. Weaver HUD building: Marcel Breuer's ten-storey curvilinear
+    // X is the one unmistakably modern roofline east of this composition.
+    // A shallow concave top and paired end shoulders carry that identity at
+    // skyline scale; a rectangular tower would be factually wrong.
+    float hx = x - DC_HUD;
+    float hudTop = 0.0162 + 0.0030 * smoothstep(0.006, 0.029, abs(hx));
+    float hud = step(abs(hx), 0.0300) * step(0.0010, h) * step(h, hudTop);
+    float hudEnds = (step(abs(hx - 0.027), 0.0050)
+                   + step(abs(hx + 0.027), 0.0050))
+                  * step(0.0010, h) * step(h, 0.0204);
+    r = mix(r, vec3(1.0, 0.15, 0.03), clamp(hud + hudEnds, 0.0, 1.0));
 
     // Washington Monument — the hero, and the composition. Aspect is drawn,
     // not eyeballed: 10.08 : 1, because at 20 : 1 it is a hairline the
@@ -424,20 +599,93 @@ const SKY_FRAGMENT = `
     // BETWEEN the shafts, not lines ruled onto a solid mass. Softened,
     // because the gaps are a few pixels and step() would crawl with the pan.
     float jx = x - DC_JEFF;
-    if (abs(jx) < 0.0200 && h < 0.0320) {
-      float stylo = step(abs(jx), 0.0198) * step(0.0008, h) * step(h, 0.0040);
+    if (abs(jx) < 0.0215 && h < 0.0320) {
+      float steps = step(abs(jx), 0.0210) * step(0.0007, h) * step(h, 0.0025);
+      float stylo = step(abs(jx), 0.0198) * step(0.0025, h) * step(h, 0.0043);
       float body  = step(abs(jx), 0.0176) * step(0.0040, h) * step(h, 0.0180);
-      float corn  = step(abs(jx), 0.0192) * step(0.0154, h) * step(h, 0.0186);
+      float corn  = step(abs(jx), 0.0194) * step(0.0154, h) * step(h, 0.0188);
       float dome  = step(length(vec2(jx / 0.0176, (h - 0.0186) / 0.0132)), 1.0)
                   * step(0.0186, h);
       float gapU = abs(fract((jx + 0.0176) / 0.0044) - 0.5);
       float colGap = (1.0 - smoothstep(0.14, 0.30, gapU))
                    * step(0.0040, h) * step(h, 0.0118);
-      float m = clamp(stylo + body + corn + dome, 0.0, 1.0)
+      float m = clamp(steps + stylo + body + corn + dome, 0.0, 1.0)
               * (1.0 - colGap * 0.84);
       r = mix(r, vec3(1.0, 0.12, 1.0), m);
     }
     return r;
+  }
+
+  // Facade relief follows each authored building family instead of laying one
+  // grid over the entire city. Classical blocks get cornices and pilasters;
+  // the Castle gets sparse slit windows; modern slabs get horizontal bands.
+  float dcFederalRelief(float x, float h) {
+    if (h < 0.002 || h > 0.0245) return 0.0;
+    float classicalRange = step(0.034, x) * step(x, 0.216);
+    float museumRange = (step(0.221, x) * step(x, 0.239))
+                      + (step(0.293, x) * step(x, 0.354));
+    float modernRange = (step(0.358, x) * step(x, 0.382))
+                      + (step(0.418, x) * step(x, 0.442))
+                      + step(abs(x - DC_HUD), 0.030);
+    float castleRange = step(abs(x - DC_CASTLE), 0.030);
+    float cornice = smoothstep(0.465, 0.499, abs(fract(h / 0.0041) - 0.5));
+    float pilaster = smoothstep(0.455, 0.495, abs(fract(x * 165.0) - 0.5));
+    float colonnade = smoothstep(0.43, 0.495, abs(fract(x * 230.0) - 0.5));
+    float ribbons = smoothstep(0.44, 0.495, abs(fract(h / 0.0030) - 0.5));
+    float castleSlits = smoothstep(0.44, 0.495, abs(fract(x * 285.0) - 0.5))
+                      * step(0.006, h);
+    return clamp(classicalRange * (0.62 * cornice + 0.34 * pilaster)
+               + museumRange * colonnade * 0.56
+               + modernRange * ribbons * 0.72
+               + castleRange * castleSlits * 0.38, 0.0, 1.0);
+  }
+
+  vec3 dcDistrictTint(float x) {
+    vec3 tint = vec3(1.0);
+    if (abs(x - DC_NMAAHC) < 0.008)
+      tint = vec3(1.18, 0.68, 0.34); // dark bronze corona
+    if (abs(x - DC_WHITTEN) < 0.037)
+      tint = vec3(1.07, 1.05, 0.95); // pale marble and red-tile roof warmth
+    if (abs(x - DC_CASTLE) < 0.031)
+      tint = vec3(1.12, 0.67, 0.54); // Seneca red sandstone
+    if (abs(x - DC_HIRSH) < 0.015)
+      tint = vec3(0.92, 0.82, 0.82); // pink-gray aggregate concrete
+    if ((x > 0.358 && x < 0.382) || (x > 0.418 && x < 0.442))
+      tint = vec3(0.88, 0.93, 1.02); // Forrestal/L'Enfant concrete
+    if (abs(x - DC_HUD) < 0.031)
+      tint = vec3(0.76, 0.84, 0.94); // Breuer's exposed precast concrete
+    return tint;
+  }
+
+  float dcFacadeWindows(float x, float h) {
+    float result = 0.0;
+    vec2 classical = fract(vec2(x * 330.0, h * 330.0));
+    float classicalPane = step(abs(classical.x - 0.5), 0.19)
+                        * step(abs(classical.y - 0.5), 0.24);
+    float classicalRange = step(0.034, x) * step(x, 0.216);
+    result = max(result, classicalPane * classicalRange);
+
+    vec2 museum = fract(vec2(x * 270.0, h * 300.0));
+    float museumPane = step(abs(museum.x - 0.5), 0.13)
+                     * step(abs(museum.y - 0.5), 0.23);
+    float museumRange = (step(0.221, x) * step(x, 0.239))
+                      + (step(0.293, x) * step(x, 0.354));
+    result = max(result, museumPane * clamp(museumRange, 0.0, 1.0));
+
+    vec2 castle = fract(vec2((x - DC_CASTLE) * 430.0, h * 250.0));
+    float castlePane = step(abs(castle.x - 0.5), 0.10)
+                     * step(abs(castle.y - 0.5), 0.18)
+                     * step(abs(x - DC_CASTLE), 0.030);
+    result = max(result, castlePane);
+
+    vec2 modern = fract(vec2(x * 390.0, h * 430.0));
+    float modernPane = step(abs(modern.x - 0.5), 0.30)
+                     * step(abs(modern.y - 0.5), 0.12);
+    float modernRange = (step(0.358, x) * step(x, 0.382))
+                      + (step(0.418, x) * step(x, 0.442))
+                      + step(abs(x - DC_HUD), 0.030);
+    result = max(result, modernPane * clamp(modernRange, 0.0, 1.0));
+    return result;
   }
 
   // Chappy's childhood home, reduced to the architectural cues that survive
@@ -446,10 +694,10 @@ const SKY_FRAGMENT = `
   // door. Returns overall coverage, dark trim, and door coverage. It lives
   // left of the Monument like a memory set just outside the literal skyline.
   vec4 dcHome(float x, float h) {
-    // Two-thirds of the previous angular width. The reference is a tall,
-    // narrow two-storey house, but the earlier memory-object competed with
-    // the 555-foot Monument and consumed the only gap beside the navigation.
-    float q = (x - DC_HOME) * 1.77;
+    // Seventy per cent of the previous angular width. The reference is a tall,
+    // narrow two-storey house, but the memory-object must remain a quiet
+    // foreground recollection beside the 555-foot Monument.
+    float q = (x - DC_HOME) * DC_HOME_X_SCALE;
     if (q < -0.043 || q > 0.070 || h < 0.0004 || h > 0.050)
       return vec4(0.0);
 
@@ -536,7 +784,7 @@ const SKY_FRAGMENT = `
   }
 
   float dcHomeColumns(float x, float h) {
-    float q = (x - DC_HOME) * 1.77;
+    float q = (x - DC_HOME) * DC_HOME_X_SCALE;
     return clamp(step(abs(q + 0.031), 0.00125)
                + step(abs(q + 0.014), 0.00110)
                + step(abs(q - 0.004), 0.00110)
@@ -548,7 +796,7 @@ const SKY_FRAGMENT = `
   // letting every pane merge into the black shutters/siding. Kept separate
   // from dcHome's trim channel so the palette can remain theme-aware.
   float dcHomeWindows(float x, float h) {
-    float q = (x - DC_HOME) * 1.77;
+    float q = (x - DC_HOME) * DC_HOME_X_SCALE;
     float upper = (step(abs(q + 0.024), 0.0026)
                  + step(abs(q + 0.007), 0.0025)
                  + step(abs(q - 0.011), 0.0025)
@@ -562,9 +810,17 @@ const SKY_FRAGMENT = `
     return clamp(upper + lower, 0.0, 1.0);
   }
 
+  // Every window is illuminated at night. This is a memory-object, not a
+  // literal occupancy simulation, and a partial pattern reads as an arbitrary
+  // failure at this scale. Kept as a separate field so day still uses cool
+  // reflected glass while night and the Potomac receive the warm treatment.
+  float dcHomeLitWindows(float x, float h) {
+    return dcHomeWindows(x, h);
+  }
+
   // The source door has a glazed multi-pane top, not a solid yellow block.
   float dcHomeDoorGlass(float x, float h) {
-    float q = (x - DC_HOME) * 1.77;
+    float q = (x - DC_HOME) * DC_HOME_X_SCALE;
     float pane = step(abs(q + 0.0015), 0.00215)
                * step(0.0130, h) * step(h, 0.0177);
     float mullions = clamp(step(abs(q + 0.0015), 0.00024)
@@ -882,7 +1138,7 @@ const SKY_FRAGMENT = `
       // A separate, slowly drifting cloud layer. The earlier low-frequency
       // grade moved too little and too faintly to read as weather; this keeps
       // the same soft air but gives it a few unmistakable, broken cloud forms.
-      vec2 dcWeather = dcCloudField(dz, e);
+      vec3 dcWeather = dcCloudField(dz, e);
       float dcCf = dcWeather.x;
       float dcCloud = dcWeather.y;
       // As in the SF vault, daylight cloud bodies read by shading the blue
@@ -903,12 +1159,19 @@ const SKY_FRAGMENT = `
                          - smoothstep(0.68, 0.78, dcCf)) * dcCloud;
       dcDay += dcHorizonL * dcCloudRim
              * ${DAYLIGHT_RENDERING.washington.cloudRimOpacity.toFixed(3)};
+      // High veils stay translucent and cooler than the low bodies. They
+      // provide scale and directional movement without becoming a second
+      // row of equally weighted puffs.
+      vec3 dcWisp = mix(dcDay, dcZenithL, 0.34) * 0.92;
+      dcDay = mix(dcDay, dcWisp, dcWeather.z * 0.22);
       vec3 dcDusk = dcSkyGrade(col, e, umbraC, beltC,
                                dcShK, dcBeltA, dcDim);
       vec3 dcSky = mix(dcDay, dcDusk, uDark);
       vec3 dcCloudDusk = mix(dcSky * 0.74, beltC * 0.30,
                              smoothstep(0.54, 0.72, dcCf));
       dcSky = mix(dcSky, dcCloudDusk, dcCloud * uDark * 0.15);
+      dcSky = mix(dcSky, dcSky * vec3(0.82, 0.86, 0.94),
+                  dcWeather.z * uDark * 0.10);
       col = mix(col, dcSky, seatWin);
       // City skyglow, and it is doing real work. Washington is a low bright
       // city and after sunset the air over it holds a warm dome that is
@@ -932,42 +1195,14 @@ const SKY_FRAGMENT = `
     // as the camera looks around rather than sliding with the screen. A
     // staggered shallow-M wing profile is enough at this distance; slow
     // fades at each edge keep the flock from popping into existence.
-    float dcBirdT = mod(uTime, 30.0);
     // Keep this tiny six-bird silhouette even on the simplified sky rung.
     // It is analytic/no-texture and costs less than one noise octave; gating
     // it made the requested life in the DC view disappear precisely on the
     // mobile/lower-power devices that benefit most from a readable cue.
     if (seatWin > 0.002) {
-      // Two half-cycle-staggered groups guarantee one flock is in the open
-      // sky while the other enters or leaves. The single previous flock was
-      // technically present yet routinely outside the capture window.
-      for (int df = 0; df < 2; df++) {
-        float ff = float(df);
-        float bt = fract(dcBirdT / 30.0 + ff * 0.5);
-        float flockId = floor(uTime / 30.0) + ff * 19.0;
-        for (int db = 0; db < 3; db++) {
-          float bf = float(db);
-          vec2 org = vec2(-0.23 + 0.54 * bt + bf * 0.028,
-                          0.108 + bf * 0.015 + ff * 0.018
-                          + 0.008 * sin(bt * 4.0 + bf * 1.9));
-          vec2 q = vec2(dz, e) - org;
-          if (dot(q, q) > 0.00018) continue;
-          float w = 0.0062 + 0.0008 * hash1(flockId + bf * 7.1);
-          float beat = sin(uTime * (6.3 + bf * 0.35) + bf * 1.7);
-          vec2 elbowL = vec2(-w * 0.52, w * 0.25 * beat);
-          vec2 elbowR = vec2( w * 0.52, w * 0.25 * beat);
-          vec2 tipL = vec2(-w, w * (0.48 * sin(uTime * 6.3 - 0.8 + bf) - 0.05));
-          vec2 tipR = vec2( w, w * (0.48 * sin(uTime * 6.3 - 0.8 + bf) - 0.05));
-          float d = min(min(segD(q, vec2(0.0), elbowL), segD(q, elbowL, tipL)),
-                        min(segD(q, vec2(0.0), elbowR), segD(q, elbowR, tipR)));
-          float bird = smoothstep(0.00155, 0.00038, d)
-                     * smoothstep(0.0, 0.10, bt)
-                     * (1.0 - smoothstep(0.88, 1.0, bt));
-          vec3 birdInk = mix(vec3(0.075, 0.105, 0.130),
-                             vec3(0.42, 0.37, 0.44), uDark);
-          col = mix(col, birdInk, bird * seatWin * 0.96);
-        }
-      }
+      vec3 birdInk = mix(vec3(0.075, 0.105, 0.130),
+                         vec3(0.42, 0.37, 0.44), uDark);
+      col = mix(col, birdInk, dcBirdField(dz, e) * seatWin * 0.96);
     }
 
     // The sky as it stands BEFORE anything is drawn in front of it. Distant
@@ -1742,7 +1977,7 @@ const SKY_FRAGMENT = `
         // Mirror the same moving cloud mask used by the sky. The reflection
         // is darker and softer, as a wind-ruffled river should be, but it now
         // participates in the weather instead of remaining a flat blue fill.
-        vec2 waterWeather = dcCloudField(dz, mh);
+        vec3 waterWeather = dcCloudField(dz, mh);
         vec3 waterCloud = water
                         * mix(
                             ${DAYLIGHT_RENDERING.washington.waterCloudShade[0].toFixed(2)},
@@ -1756,6 +1991,8 @@ const SKY_FRAGMENT = `
             * ${DAYLIGHT_RENDERING.washington.waterCloudReflection.toFixed(2)}
             * (1.0 - uDark)
         );
+        water = mix(water, water * vec3(0.86, 0.90, 0.96),
+                    waterWeather.z * mix(0.12, 0.06, uDark));
 
         // The swell. Wave crests run ACROSS the basin, so every phase here is
         // a function of DEPTH, warped only gently by azimuth — a phase that
@@ -1804,7 +2041,7 @@ const SKY_FRAGMENT = `
         float rs = exp(-depth * 7.0)
                  * (1.0 - 0.34 * smoothstep(0.0, 0.014, depth) * (0.5 - 0.5 * rip));
         vec3 rSil = dcCity(aR, mhR);
-        vec3 rStone = mix(dcDark, dcLit, rSil.z);
+        vec3 rStone = mix(dcDark, dcLit, rSil.z) * dcDistrictTint(aR);
         float chR = canopyTop(aR);
         float rCan = (1.0 - smoothstep(chR - 0.0032, chR + 0.0032, mhR))
                    * step(-0.0004, mhR) * rs * 0.88;
@@ -1813,6 +2050,39 @@ const SKY_FRAGMENT = `
                     mix(mix(canCol, canCol * vec3(0.40, 0.46, 0.40),
                             smoothstep(0.10, -0.24, aR)) * 0.72, water, 0.34),
                     rCan);
+
+        // The memory-house stands in front of the canopy, so its reflection
+        // must do the same. Sampling every authored channel at the rippled
+        // coordinates keeps roof, porch, panes, and lit rooms registered.
+        vec4 rHome = dcHome(aR, mhR / DC_HOME_Y_SCALE);
+        vec3 rHomeWall = mix(vec3(0.88, 0.89, 0.86),
+                             vec3(0.115, 0.120, 0.125), uDark);
+        vec3 rHomeSide = mix(rHomeWall * 0.72, rHomeWall * 0.64, uDark);
+        vec3 rHomeTrim = mix(vec3(0.025, 0.030, 0.033),
+                             vec3(0.008, 0.010, 0.014), uDark);
+        vec3 rHomeGlass = mix(vec3(0.25, 0.48, 0.63),
+                              vec3(0.055, 0.13, 0.21), uDark);
+        vec3 rHomeDoor = mix(vec3(0.46, 0.50, 0.20),
+                             vec3(0.38, 0.35, 0.12), uDark);
+        float homeRs = rs * 0.58;
+        water = mix(water, rHomeWall * 0.52, rHome.x * homeRs);
+        water = mix(water, rHomeSide * 0.48, rHome.w * homeRs);
+        water = mix(water, rHomeTrim * 0.52, rHome.y * homeRs);
+        float rHomeWindows = dcHomeWindows(aR, mhR / DC_HOME_Y_SCALE);
+        water = mix(water, rHomeGlass * 0.62, rHomeWindows * homeRs);
+        water = mix(water, rHomeDoor * 0.58, rHome.z * homeRs);
+        float rHomeLit = dcHomeLitWindows(aR, mhR / DC_HOME_Y_SCALE);
+        vec3 homeGlow = vec3(1.00, 0.53, 0.16);
+        water += homeGlow * rHomeLit * homeRs * uDark * 0.72;
+
+        // The flock is distant and its reflection is appropriately fainter,
+        // but it still interrupts the water in the same place and wing phase.
+        // The shared aR/mhR coordinates let ripple break each shallow M into
+        // the short ink strokes a real reflection would leave.
+        float rBird = dcBirdField(aR, mhR);
+        vec3 rBirdInk = mix(vec3(0.055, 0.075, 0.090),
+                            vec3(0.25, 0.22, 0.28), uDark);
+        water = mix(water, rBirdInk, rBird * rs * 0.42);
 
         // Grazing highlights where the swell catches the Belt of Venus, on
         // the same crowding phase so the crests that light up are the crests
@@ -1856,21 +2126,24 @@ const SKY_FRAGMENT = `
       float edge = smoothstep(-0.0016, 0.0016, above) * seatWin;
       if (edge > 0.001) {
         vec3 sil = dcCity(dz, above);
-        vec3 stone = mix(dcDark, dcLit, sil.z);
+        vec3 stone = mix(dcDark, dcLit, sil.z) * dcDistrictTint(dz);
         vec3 dcCol = mix(stone, skyBase,
                          clamp(sil.y * mix(0.95, 0.90, uDark) + murk, 0.0, 0.94));
         col = mix(col, dcCol, sil.x * edge);
+        float federalRelief = dcFederalRelief(dz, above)
+                            * sil.x * (1.0 - sil.z);
+        vec3 reliefCol = mix(dcCol * 1.16, dcCol * 0.72, uDark);
+        col = mix(col, reliefCol, federalRelief * edge * mix(0.34, 0.20, uDark));
         // Scattered window grids on the unlit federal band — the one thing
         // that is alive on it after dark, and the cheapest way to keep 0.4
         // rad of black bar from reading as a ruled line. Gated on tone so it
         // can never land on marble.
-        // 320 cells per radian is about four pixels: at the 900 the first
-        // pass used, each window was under a pixel and the grid aliased into
-        // diagonal strokes across the band.
-        vec2 fw = vec2(dz * 320.0, above * 320.0);
-        float fLit = step(hash2(floor(fw)), 0.17)
-                   * step(abs(fract(fw.x) - 0.5), 0.24)
-                   * step(abs(fract(fw.y) - 0.5), 0.28);
+        // Occupancy is shared, but pane proportions come from the building
+        // family: classical punched openings, Castle slits, and modern ribbon
+        // windows should never collapse into one city-wide checkerboard.
+        vec2 fw = vec2(dz * 410.0, above * 410.0);
+        float fLit = step(hash2(floor(fw)), 0.24)
+                   * dcFacadeWindows(dz, above);
         col = mix(col, mix(col, windowC, 0.62),
                   fLit * sil.x * (1.0 - sil.z) * edge
                   * smoothstep(0.35, 0.75, uDark) * 0.55);
@@ -1896,9 +2169,9 @@ const SKY_FRAGMENT = `
         // the near edge of the far-shore trees, so paint it AFTER the canopy;
         // the previous ordering buried the porch and both storeys and left
         // only a roof shard plus a yellow square at the frame edge.
-        // The 0.79 elevation scale makes the silhouette 0.79 / 1.18 = 67%
-        // of its previous height without moving its shoreline contact.
-        vec4 home = dcHome(dz, above / 0.79);
+        // Uniform 0.70 scale relative to the previous memory-house, without
+        // moving its shoreline contact.
+        vec4 home = dcHome(dz, above / DC_HOME_Y_SCALE);
         vec3 homeWall = mix(vec3(0.88, 0.89, 0.86),
                             vec3(0.115, 0.120, 0.125), uDark);
         vec3 homeSide = mix(homeWall * 0.72, homeWall * 0.64, uDark);
@@ -1915,13 +2188,20 @@ const SKY_FRAGMENT = `
         // into a flat front elevation.
         col = mix(col, homeSide, home.w * edge * 0.92);
         col = mix(col, homeTrim, home.y * edge * 0.985);
-        float homeGlass = dcHomeWindows(dz, above / 0.79);
+        float homeGlass = dcHomeWindows(dz, above / DC_HOME_Y_SCALE);
         col = mix(col, homeWindow, homeGlass * edge * 0.98);
-        float homeColumns = dcHomeColumns(dz, above / 0.79);
+        // Every room glows in dark mode. The warm layer is added after the
+        // cool exterior glass, allowing Bloom to supply a restrained halo.
+        float homeLit = dcHomeLitWindows(dz, above / DC_HOME_Y_SCALE);
+        vec3 homeGlow = vec3(1.00, 0.53, 0.16);
+        col = mix(col, homeGlow, homeLit * edge * uDark * 0.96);
+        col += homeGlow * homeLit * edge * uDark * 0.20;
+        float homeColumns = dcHomeColumns(dz, above / DC_HOME_Y_SCALE);
         col = mix(col, homeWall * 1.08, homeColumns * edge * 0.98);
         col = mix(col, homeDoor, home.z * edge);
-        float doorGlass = dcHomeDoorGlass(dz, above / 0.79);
-        col = mix(col, homeWindow * 1.08, doorGlass * edge * 0.98);
+        float doorGlass = dcHomeDoorGlass(dz, above / DC_HOME_Y_SCALE);
+        vec3 entryGlass = mix(homeWindow * 1.08, homeGlow * 0.86, uDark);
+        col = mix(col, entryGlass, doorGlass * edge * 0.98);
       }
 
       // The Monument's red aircraft warning lights — eight of them in life,
@@ -2571,11 +2851,7 @@ function SkyDome({
       )
         return;
       const interaction = getSceneInteraction(tappedEgg);
-      if (
-        interaction?.activation?.kind === "egg" &&
-        interaction.activeUnits.includes(s.activeUnit)
-      )
-        interaction.activation.run();
+      if (interaction?.activation?.kind === "egg") interaction.activation.run();
     };
     window.addEventListener("pointerdown", onDown);
     window.addEventListener("pointerup", onUp);
@@ -3104,19 +3380,11 @@ function KeyLight({ dark }: { dark: boolean }) {
 export default function SceneEnvironment({
   palette,
   dark,
-  dustOff,
-  cloudSimplify,
-  moving = false,
-  degrade = 0,
+  quality,
 }: {
   palette: Palette;
   dark: boolean;
-  dustOff?: boolean;
-  cloudSimplify?: boolean;
-  /** Temporary travel tier: keep landmarks, but compile cloud erosion out. */
-  moving?: boolean;
-  /** PerformanceMonitor's one-way ladder rung (0 = full quality). */
-  degrade?: number;
+  quality: Pick<SceneQualityPlan, "environment" | "butterflies" | "wildlife">;
 }) {
   // ?nomeadow joins the existing query family (?nopostfx) as the live A/B
   // escape. Read once — the search string cannot change without a reload.
@@ -3134,33 +3402,43 @@ export default function SceneEnvironment({
   useEffect(() => {
     if (!meadow) markMeadowReady();
   }, [meadow]);
-  // The durable ladder maps straight onto meadow density. Temporary travel
-  // may simplify continuous shader work, but it must not change instance
-  // counts: discrete removals read as grass popping during a pan.
-  const durableRung = Math.min(3, Math.max(0, degrade)) as DurableQualityRung;
-  const rung = meadowQualityRung(durableRung, moving);
   return (
     <>
       <fog attach="fog" args={[palette.fog, 8, 24]} />
       <SkyDome
         dark={dark}
-        simplify={!landmarkDetailEnabled(!!cloudSimplify)}
-        cloudDetail={cloudDetailEnabled(!!cloudSimplify, moving)}
+        simplify={false}
+        cloudDetail={quality.environment.cloudDetail === "full"}
       />
       {meadow && (
         <Suspense fallback={null}>
-          <Meadow dark={dark} rung={rung} />
+          <Meadow
+            dark={dark}
+            rung={quality.environment.meadowRung}
+            farGrassShader={quality.environment.farGrassShader}
+          />
           {/* Inside the same gate as the field they fly over: ?nomeadow must
               not leave three butterflies over a bare floor. */}
-          <Butterflies dark={dark} />
+          <Butterflies
+            dark={dark}
+            wingBlurSamples={quality.butterflies.wingBlurSamples}
+            suspendOffscreen={quality.wildlife.suspendOffscreen}
+          />
           {/* Same gate, same reason: petals off the meadow's own flowers have
               nothing to come from without the field. */}
-          <Petals dark={dark} />
+          <Petals dark={dark} visibleLimit={quality.environment.petals} />
+          {/* Habitat Residents share the field gate, while night moths bind
+              to its registered Talks practical. No meadow means no animals
+              left floating over a bare room. */}
+          <Wildlife
+            dark={dark}
+            suspendOffscreen={quality.wildlife.suspendOffscreen}
+          />
         </Suspense>
       )}
       <RoomEnvironment key={dark ? "env-d" : "env-l"} dark={dark} />
       <KeyLight dark={dark} />
-      {!dustOff && <Dust palette={palette} />}
+      {quality.environment.dust && <Dust palette={palette} />}
     </>
   );
 }

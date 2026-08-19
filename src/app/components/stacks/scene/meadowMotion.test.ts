@@ -7,6 +7,7 @@ import {
   meadowDragSample,
   meadowPulseState,
   meadowWindAudioLevel,
+  sampleMeadowWind,
 } from "./meadowMotion";
 
 describe("meadow pointer motion", () => {
@@ -29,6 +30,17 @@ describe("meadow pointer motion", () => {
     expect(baseline).toBeCloseTo(0.56, 4);
     expect(reveal).toBeGreaterThan(baseline);
     expect(meadowWindAudioLevel(MEADOW_WIND.gustCeiling)).toBe(1);
+  });
+
+  it("samples the shader's naturally changing wind for live diagnostics", () => {
+    const now = sampleMeadowWind(2, -4, 3);
+    const later = sampleMeadowWind(2, -4, 8);
+    const paused = sampleMeadowWind(2, -4, 8, MEADOW_WIND.amplitude, 0);
+    const pausedLater = sampleMeadowWind(2, -4, 80, MEADOW_WIND.amplitude, 0);
+    expect(now.magnitude).toBeGreaterThan(0);
+    expect(now.magnitude).toBeLessThanOrEqual(MEADOW_WIND.gustCeiling);
+    expect(later).not.toEqual(now);
+    expect(pausedLater).toEqual(paused);
   });
 
   it("keeps each interaction below the shader's hard lean clamp at peak wind", () => {
@@ -75,11 +87,16 @@ describe("meadow pointer motion", () => {
   });
 
   it("brushes grass in the mouse travel direction instead of repelling it", () => {
-    expect(meadowDragSample(0, 0, 2, -1, 0.5, 1)).toMatchObject({
+    const forward = meadowDragSample(0, 0, 2, -1, 0.5, 1);
+    const reverse = meadowDragSample(2, -1, 0, 0, 0.5, 1);
+    expect(forward).toMatchObject({
       directionX: 2 / Math.sqrt(5),
       directionZ: -1 / Math.sqrt(5),
     });
-    expect(meadowDragSample(0, 0, 2, -1, 0.5, 1).strength).toBeGreaterThan(0);
+    expect(reverse.directionX).toBeCloseTo(-forward.directionX);
+    expect(reverse.directionZ).toBeCloseTo(-forward.directionZ);
+    expect(reverse.strength).toBeCloseTo(forward.strength);
+    expect(forward.strength).toBeGreaterThan(0);
     expect(meadowDragSample(2, -1, 2, -1, 0.5, 1).strength).toBe(0);
   });
 });

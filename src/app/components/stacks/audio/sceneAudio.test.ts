@@ -144,12 +144,13 @@ describe("scene audio policy", () => {
     expect(SCENE_AUDIO_MIX.meadow).toBeLessThan(0.1);
   });
 
-  it("keeps wind inaudible until the grass reaches its windiest few percent", () => {
-    expect(SCENE_AUDIO_MIX.windAudibleThreshold).toBeGreaterThanOrEqual(0.94);
-    expect(windGainForMotion(0.56)).toBe(0);
-    expect(windGainForMotion(0.9)).toBe(0);
-    expect(windGainForMotion(0.98)).toBeGreaterThan(0);
-    expect(windGainForMotion(1)).toBeLessThanOrEqual(0.012);
+  it("makes normal grass motion audible and gives stronger gusts more presence", () => {
+    const baseline = windGainForMotion(0.56);
+    const revealGust = windGainForMotion(0.7);
+    expect(windGainForMotion(0.4)).toBe(0);
+    expect(baseline).toBeGreaterThan(0);
+    expect(revealGust).toBeGreaterThan(baseline * 2);
+    expect(windGainForMotion(1)).toBeLessThanOrEqual(0.034);
   });
 
   it("uses a bounded spatial falloff", () => {
@@ -187,6 +188,21 @@ describe("scene audio policy", () => {
       ambienceRequested: false,
       voices: 0,
     });
+  });
+
+  it("mutes the authoritative mix without accepting hidden one-shots", () => {
+    installAudioBrowser();
+    const runtime = new SceneAudioRuntime();
+    runtime.setMuted(true);
+    runtime.unlock();
+
+    expect(runtime.snapshot().muted).toBe(true);
+    expect(runtime.play("golf-strike", { x: 0, y: 0, z: 0 })).toBe(false);
+
+    runtime.setMuted(false);
+    expect(runtime.snapshot().muted).toBe(false);
+    expect(runtime.play("golf-strike", { x: 0, y: 0, z: 0 })).toBe(true);
+    runtime.teardown();
   });
 
   it("rate-limits impacts and caps simultaneous positional voices", async () => {
@@ -260,9 +276,7 @@ describe("scene audio policy", () => {
     installAudioBrowser();
     const runtime = new SceneAudioRuntime();
     runtime.unlock();
-    expect(runtime.play("golf-win", { x: 0, y: 0, z: -20 }, 0.28)).toBe(
-      true,
-    );
+    expect(runtime.play("golf-win", { x: 0, y: 0, z: -20 }, 0.28)).toBe(true);
     await vi.waitFor(() =>
       expect(FakeAudioContext.latest?.sources.length).toBeGreaterThan(0),
     );

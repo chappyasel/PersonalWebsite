@@ -1,7 +1,7 @@
 "use client";
 
-// Desktop-only postprocessing (audit §2.1, verified against installed
-// source). Ground rules that keep this correct:
+// Shared postprocessing chain (audit §2.1, verified against installed source).
+// Ground rules that keep this correct:
 // - NEVER pass enabled={false}: a mounted-disabled composer pins the
 //   renderer to NoToneMapping and blows out the frame. StacksCanvas mounts
 //   and unmounts this component instead, in lockstep with the dpr ladder
@@ -9,7 +9,7 @@
 // - multisampling={0}: SMAA owns the composer's offscreen target; the base
 //   canvas still requests hardware MSAA so the performance ladder retains an
 //   antialiasing floor when it unmounts this composer. MSAA render targets
-//   corrupt on iOS anyway — touch devices never download this module at all.
+//   corrupt on iOS, so touch and desktop both keep the composer target at 0.
 // - ToneMapping mode is ACES explicitly — the effect DEFAULTS TO AGX, and
 //   the mode enum must come from `postprocessing` (not re-exported).
 //   Exposure parity with the composer-off path is automatic: three binds
@@ -30,12 +30,17 @@ import {
   Vignette,
   useDispose,
 } from "@react-three/postprocessing";
-import { BlendFunction, Effect, ToneMappingMode } from "postprocessing";
+import {
+  BlendFunction,
+  Effect,
+  EffectAttribute,
+  ToneMappingMode,
+} from "postprocessing";
 import { useMemo } from "react";
 import { MathUtils, Uniform } from "three";
 
 import { desktopLensLine } from "./lensGeometry";
-import { tiltShiftEnabled } from "./quality";
+import { type SceneQualityPlan, tiltShiftEnabled } from "./quality";
 import { unitPose } from "./worldLayout";
 
 // The print grade — the last thing between ACES and the screen, and the
@@ -112,6 +117,77 @@ function Grade({ dark }: { dark: boolean }) {
   return <primitive object={effect} dispose={null} />;
 }
 
+// AMD FidelityFX RCAS, ported from Three's SharpenNode to the current WebGL
+// composer. It is deliberately a convolution effect: postprocessing isolates
+// it after the display-referred grade, so neighbour samples and the center are
+// in the same color space. Trying to hide these taps inside GradeEffect would
+// sample the pre-tonemapped inputBuffer and create colored edge halos.
+const ADAPTIVE_SHARPEN_FRAGMENT = `
+  uniform float uAmount;
+
+  float rcasLuma(const in vec3 color) {
+    return color.g + 0.5 * (color.r + color.b);
+  }
+
+  void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
+    vec3 e = inputColor.rgb;
+    vec3 b = texture2D(inputBuffer, uv + vec2(0.0, -texelSize.y)).rgb;
+    vec3 d = texture2D(inputBuffer, uv + vec2(-texelSize.x, 0.0)).rgb;
+    vec3 f = texture2D(inputBuffer, uv + vec2(texelSize.x, 0.0)).rgb;
+    vec3 h = texture2D(inputBuffer, uv + vec2(0.0, texelSize.y)).rgb;
+
+    vec3 mn4 = min(min(b, d), min(f, h));
+    vec3 mx4 = max(max(b, d), max(f, h));
+    vec3 hitMin = min(mn4, e) / max(mx4 * 4.0, vec3(1e-4));
+    vec3 hitMax = (vec3(1.0) - max(mx4, e)) /
+      min(mn4 * 4.0 - 4.0, vec3(-1e-4));
+    vec3 lobeRgb = max(-hitMin, hitMax);
+    float lobe = max(
+      -(0.25 - 1.0 / 16.0),
+      min(max(lobeRgb.r, max(lobeRgb.g, lobeRgb.b)), 0.0)
+    );
+
+    float bL = rcasLuma(b);
+    float dL = rcasLuma(d);
+    float eL = rcasLuma(e);
+    float fL = rcasLuma(f);
+    float hL = rcasLuma(h);
+    float noise = (bL + dL + fL + hL) * 0.25 - eL;
+    float noiseRange = max(max(bL, dL), max(eL, max(fL, hL))) -
+      min(min(bL, dL), min(eL, min(fL, hL)));
+    float noiseFactor = 1.0 - 0.5 * clamp(
+      abs(noise) / max(noiseRange, 1.0 / 65536.0),
+      0.0,
+      1.0
+    );
+
+    // 1.15 is a mild RCAS sharpness before the scale-derived amount. The
+    // amount is capped on the CPU, so even a heavily reduced framebuffer
+    // cannot reach the ringing-prone reference maximum.
+    float effectiveLobe = lobe * exp2(-1.15) * uAmount * noiseFactor;
+    vec3 result = ((b + d + f + h) * effectiveLobe + e) /
+      (4.0 * effectiveLobe + 1.0);
+    outputColor = vec4(max(result, 0.0), inputColor.a);
+  }
+`;
+
+class AdaptiveSharpenEffect extends Effect {
+  constructor(amount: number) {
+    super("AdaptiveSharpenEffect", ADAPTIVE_SHARPEN_FRAGMENT, {
+      attributes: EffectAttribute.CONVOLUTION,
+      blendFunction: BlendFunction.SRC,
+      uniforms: new Map([["uAmount", new Uniform(amount)]]),
+    });
+  }
+}
+
+function AdaptiveSharpen({ amount }: { amount: number }) {
+  const effect = useMemo(() => new AdaptiveSharpenEffect(amount), []); // eslint-disable-line react-hooks/exhaustive-deps
+  useDispose(effect);
+  effect.uniforms.get("uAmount")!.value = amount;
+  return <primitive object={effect} dispose={null} />;
+}
+
 function SideLens({ seated }: { seated: boolean }) {
   const viewportWidth = useThree((state) => state.size.width);
   const navRightPx = useStacks((state) => state.desktopNavRightPx);
@@ -139,15 +215,13 @@ function SideLens({ seated }: { seated: boolean }) {
 
 export default function Effects({
   dark,
-  quality = "full",
+  plan,
+  sharpenAmount = 0,
 }: {
   dark: boolean;
-  /**
-   * `finish` keeps the cheap authored print/edge treatment after a sustained
-   * decline while removing the spatial passes that scale most with pixels.
-   * The parent still unmounts the complete composer at the final rung.
-   */
-  quality?: "full" | "finish" | "off";
+  plan: SceneQualityPlan["effects"];
+  /** Scale-derived RCAS strength. Zero leaves the pass out of the composer. */
+  sharpenAmount?: number;
 }) {
   // DoF is the expensive world-space blur and remains full-tier only. The
   // owner-approved side tilt shift is the cheaper compositional treatment;
@@ -161,12 +235,12 @@ export default function Effects({
   const tiltShift = useMemo(
     () =>
       tiltShiftEnabled(
-        quality,
+        plan.composer === "direct" ? "off" : plan.composer,
         depthOfField,
         typeof window !== "undefined" &&
           window.location.search.includes("notiltshift"),
       ),
-    [depthOfField, quality],
+    [depthOfField, plan.composer],
   );
   const activeUnit = useStacks((state) => state.activeUnit);
   const seated = useStacks((state) => state.seated);
@@ -181,11 +255,11 @@ export default function Effects({
     [],
   );
   return (
-    <EffectComposer multisampling={0}>
-      {quality === "full" && (
+    <EffectComposer multisampling={plan.multisampling}>
+      {plan.ambientOcclusion && (
         <N8AO
-          halfRes
-          quality="low"
+          halfRes={plan.ambientOcclusionHalfRes}
+          quality={plan.ambientOcclusionQuality}
           aoRadius={0.32}
           distanceFalloff={0.8}
           intensity={2.4}
@@ -196,12 +270,20 @@ export default function Effects({
           above 1.0; the dome is not. A higher threshold therefore gives the
           practicals room for a stronger optical shoulder without laying a
           global haze over the skyline. */}
-      {quality === "full" && (
+      {plan.bloom && (
         <Bloom
           mipmapBlur
-          luminanceThreshold={dark ? 1.25 : 1.35}
-          luminanceSmoothing={0.08}
-          intensity={dark ? 1.2 : 0.4}
+          levels={plan.bloomLevels}
+          resolutionScale={plan.bloomResolutionScale}
+          luminanceThreshold={
+            dark
+              ? plan.bloomLuminanceThreshold.dark
+              : plan.bloomLuminanceThreshold.light
+          }
+          luminanceSmoothing={plan.bloomLuminanceSmoothing}
+          intensity={
+            dark ? plan.bloomIntensity.dark : plan.bloomIntensity.light
+          }
         />
       )}
       {/* Target the active shelf in world space instead of assuming the wide
@@ -209,15 +291,15 @@ export default function Effects({
           a fixed 6.05 focus distance put the focal plane in the foreground
           grass. The effect measures camera→target every frame, including the
           alternating unit depths and the About stop's lateral offset. */}
-      {quality === "full" && depthOfField && !seated && (
+      {plan.depthOfField && depthOfField && !seated && (
         <DepthOfField
           target={focusTarget}
           // Training owns a real tee-to-green action axis. Keep the static
           // focal plane (never rack focus during a shot), but broaden its
           // accepted range enough that the club and distant cup stay legible.
           focusRange={activeUnit === 2 ? 16.5 : 2.2}
-          bokehScale={1.6}
-          resolutionScale={0.6}
+          bokehScale={plan.depthOfFieldBokehScale}
+          resolutionScale={plan.depthOfFieldResolutionScale}
         />
       )}
       {/* Vertical focus line with softness growing toward the screen edges.
@@ -230,6 +312,7 @@ export default function Effects({
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
       {graded && <Grade dark={dark} />}
       <Noise premultiply opacity={dark ? 0.22 : 0.07} />
+      {sharpenAmount > 0 && <AdaptiveSharpen amount={sharpenAmount} />}
       <SMAA />
     </EffectComposer>
   );

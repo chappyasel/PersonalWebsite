@@ -19,8 +19,9 @@
 //        capFade depth — see MEADOW_FOG.cap — so fog still saturates at
 //        every boundary this check samples.)
 //   (a2) The vegetation front line starts inside the exported near-feather
-//        zone — below every frame bottom — with a self-test proving the
-//        check still catches the old z=3.25 front line.
+//        zone below every settled frame. A camera-side grass apron covers
+//        that line at CameraRig's maximum fast-fling yaw; both its back and
+//        side boundaries stay outside those transient frustums.
 //   (b)  Any silhouette column that drops below the skyline fade band's top
 //        (e ≤ −0.02) stays above the deep-gap floor (e ≥ −0.101), and rays
 //        crossing the horizon ridge's HELD span never open a sub-horizon
@@ -37,11 +38,8 @@
 //   (d)  The seated bank silhouette is continuous, never flat for ≥0.15 rad
 //        (the end-of-rectangle signature), and is the authored crest — not
 //        a fogged or cut terrain end.
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
-
 import {
+  FLING_GRASS_APRON,
   GRASS_BANDS,
   HORIZON_RIDGE,
   LATERAL_REACH,
@@ -57,10 +55,14 @@ import {
 } from "../src/app/components/stacks/scene/meadowField";
 import { SEAT_POSE } from "../src/app/components/stacks/scene/seated";
 import {
+  CAMERA_LOOK_X_MAX_LAG,
   TRAVEL_X,
   cameraForAspect,
   cameraXForScrollOffset,
 } from "../src/app/components/stacks/scene/worldLayout";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SKY_SOURCE = readFileSync(
@@ -95,7 +97,9 @@ const PAN_BIAS = extract("PAN_BIAS", /const PAN_BIAS = ([\d.]+);/);
 const H_MARGIN = 0.06; // camera lean / yaw parallax
 const V_MARGIN = 0.0183; // pointer + idle pitch swing
 const OFFSETS = [0, 0.25, 0.5, 0.75, 1];
-const ASPECTS = [0.462, 0.75, 1.0, 1.33, 1.78, 2.39, 3.0];
+const ASPECTS = [
+  0.462, 0.5, 0.6, 0.7, 0.74, 0.75, 0.751, 1.0, 1.33, 1.78, 2.39, 3.0,
+];
 const Y_BOB = [-0.11, 0, 0.11];
 /** Global silhouette elevation cap. Round 3 ("doesn't look nearly hilly
  * enough") raised the crest band to read as real hills — but the cap still
@@ -139,10 +143,10 @@ type Pose = {
   /** Horizontal frustum widening: lean margin for the traverse, lean +
    * pointer-sway yaw (±0.18 rad, CameraRig seatAim) for the settled seat. */
   hMargin: number;
-  /** traverse → edge + silhouette/window checks; seat → edge + bank checks;
-   * swing → edge checks only (mid-turn frames have no skyline handoff to
-   * hold to the fade band, but their edges must still be undiscoverable). */
-  mode: "traverse" | "seat" | "swing";
+  /** traverse → edge + silhouette/window checks; fling → near-edge checks;
+   * seat → edge + bank checks; swing → edge checks only (transient frames
+   * have no skyline handoff to hold to the fade band). */
+  mode: "traverse" | "fling" | "seat" | "swing";
 };
 
 function norm(v: Vec3): Vec3 {
@@ -151,6 +155,7 @@ function norm(v: Vec3): Vec3 {
 }
 
 const poses: Pose[] = [];
+const flingPoses: Pose[] = [];
 for (const offset of OFFSETS) {
   for (const aspect of ASPECTS) {
     const cam = cameraForAspect(aspect);
@@ -171,6 +176,32 @@ for (const offset of OFFSETS) {
         hMargin: H_MARGIN,
         mode: "traverse",
       });
+      // CameraRig damps the look target behind the camera during a fast
+      // fling. Both signs are checked because either scroll direction can
+      // occur at an arbitrary offset. This transient participates in the
+      // near grass-line check below, but not the settled perimeter/skyline
+      // composition checks.
+      // The damped aim can trail a fling by at most the global cap, but it
+      // cannot originate beyond either travel endpoint (apart from the
+      // authored ±0.45 pointer sway). Avoid impossible outward-facing poses
+      // at the two terminal stops.
+      const minLookX = cameraXForScrollOffset(0) - 0.45;
+      const maxLookX = cameraXForScrollOffset(1) + 0.45;
+      for (const lag of [
+        Math.max(-CAMERA_LOOK_X_MAX_LAG, minLookX - eyeX),
+        Math.min(CAMERA_LOOK_X_MAX_LAG, maxLookX - eyeX),
+      ]) {
+        flingPoses.push({
+          name: `fling o${offset} a${aspect} y${y.toFixed(2)} lag${lag}`,
+          eye: [eyeX, y, cam.z],
+          forward: norm([lag, -0.08 - y, -0.2 - cam.z]),
+          hHalf,
+          vHalf,
+          pan: progress * PAN_SPAN - PAN_BIAS,
+          hMargin: H_MARGIN,
+          mode: "fling",
+        });
+      }
     }
   }
 }
@@ -341,7 +372,8 @@ const NEAR_EYE_Z = 5.8;
 const SEATED_Z0 = SEAT_POSE.eye[2] + GRASS_BANDS.seated.d0;
 const seatedHw = (z: number) => 3.2 + (z - SEAT_POSE.eye[2]) * 1.017 + 0.6;
 function inTraverseBand(x: number, z: number): boolean {
-  if (z > VEGETATION_FRONT_Z || z < NEAR_EYE_Z - GRASS_BANDS.ridge.d1) return false;
+  if (z > VEGETATION_FRONT_Z || z < NEAR_EYE_Z - GRASS_BANDS.ridge.d1)
+    return false;
   const d = NEAR_EYE_Z - z;
   return (
     x > -1.2 - LATERAL_REACH * d - 0.6 + 0.05 &&
@@ -415,7 +447,11 @@ let frontLineSeen = false;
 for (const pose of poses.filter((p) => p.mode === "traverse")) {
   for (let dx = -8; dx <= 8; dx += 0.5) {
     const x = pose.eye[0] + dx;
-    const front: Vec3 = [x, meadowHeight(x, VEGETATION_FRONT_Z), VEGETATION_FRONT_Z];
+    const front: Vec3 = [
+      x,
+      meadowHeight(x, VEGETATION_FRONT_Z),
+      VEGETATION_FRONT_Z,
+    ];
     assertOk(
       !project(pose, front).inFrustum,
       `(a2) vegetation front root in frame at x ${x.toFixed(1)} [${pose.name}]`,
@@ -430,6 +466,42 @@ assertOk(
   frontLineSeen,
   "(a2 self-test) the old z=3.25 front line is no longer detectable — the frame-bottom math has drifted",
 );
+
+// (a3) Fast flings keep their full authored yaw. The extra apron must cover
+// the ordinary front line without exposing a new camera-side or lateral edge.
+const apronEdges: Vec3[] = [];
+for (
+  let x = FLING_GRASS_APRON.minX;
+  x <= FLING_GRASS_APRON.maxX;
+  x += 0.5
+) {
+  apronEdges.push([
+    x,
+    meadowHeight(x, FLING_GRASS_APRON.maxZ),
+    FLING_GRASS_APRON.maxZ,
+  ]);
+}
+for (
+  let z = FLING_GRASS_APRON.minZ;
+  z <= FLING_GRASS_APRON.maxZ;
+  z += 0.2
+) {
+  for (const x of [FLING_GRASS_APRON.minX, FLING_GRASS_APRON.maxX]) {
+    apronEdges.push([x, meadowHeight(x, z), z]);
+  }
+}
+for (const pose of flingPoses) {
+  for (const edge of apronEdges) {
+    const projected = project(pose, edge);
+    assertOk(
+      !projected.inFrustum ||
+        projected.df >= GRASS_FOG99 ||
+        occluded(pose, edge),
+      `(a3) fling-grass apron edge visible at (${edge[0].toFixed(1)}, ` +
+        `${edge[2].toFixed(1)}) [${pose.name}]`,
+    );
+  }
+}
 
 // ---------------------------------------------------------------------------
 // (b) + (c): terrain silhouette per azimuth column, traverse poses.
@@ -508,7 +580,10 @@ for (const pose of poses.filter((p) => p.mode === "seat")) {
   const line: { sil: Silhouette; phi: number }[] = [];
   for (let phi = -span; phi <= span; phi += AZ_STEP) {
     const sil = silhouetteAt(pose, phi);
-    assertOk(!!sil, `(d) seated column with no terrain at phi ${phi.toFixed(3)} [${pose.name}]`);
+    assertOk(
+      !!sil,
+      `(d) seated column with no terrain at phi ${phi.toFixed(3)} [${pose.name}]`,
+    );
     if (sil) line.push({ sil, phi });
   }
   let flatRun = 0;
@@ -540,7 +615,8 @@ for (const pose of poses.filter((p) => p.mode === "seat")) {
 
 // ---------------------------------------------------------------------------
 console.log(
-  `stacks-meadow-check: ${poses.length} poses, ${edgeSamples.length} edge samples, ` +
+  `stacks-meadow-check: ${poses.length} settled/swing poses + ` +
+    `${flingPoses.length} fast-fling poses, ${edgeSamples.length} edge samples, ` +
     `${checks} assertions (${horizonColumns} horizon columns, ` +
     `${belowColumns} below-horizon columns), ${failures.length} failure(s)`,
 );

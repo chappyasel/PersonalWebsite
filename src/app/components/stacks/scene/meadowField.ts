@@ -94,6 +94,29 @@ export const MEADOW_TERRAIN = {
   segmentsZ: 132,
 } as const;
 
+/** Extra lawn behind the ordinary camera-side grass line. It is below or
+ * behind every settled travel frustum, but a hard horizontal fling yaws a
+ * bottom corner into this strip. The x span reaches the terrain's own safe
+ * border so an almost-sideways ultrawide fling cannot discover a second
+ * vegetation edge. */
+export const FLING_GRASS_APRON = {
+  count: 3200,
+  minX: MEADOW_TERRAIN.minX + 0.3,
+  maxX: MEADOW_TERRAIN.maxX - 0.3,
+  minZ: VEGETATION_FRONT_Z,
+  maxZ: 6.6,
+} as const;
+
+/** Sparse flower clumps live inside the apron rather than all the way to its
+ * fog-hidden side borders. Their roots remain below settled travel frames. */
+export const FLING_APRON_FLOWERS = {
+  count: 180,
+  minX: TRAVERSE_MIN_X - 6,
+  maxX: TRAVERSE_MAX_X + 6,
+  minZ: 5.0,
+  maxZ: 6.3,
+} as const;
+
 // One ramp story (view-depth smoothsteps): grass saturates at 22, terrain at
 // 24 — exactly the scene fog far — both into the same dome-matched target, so
 // the instanced→terrain handoff and all four terrain edges self-maintain in
@@ -361,6 +384,8 @@ export function meadowHeight(x: number, z: number): number {
 export const GRASS_BANDS = {
   /** Quiet short lawn, z +4.6 → −8.2 (depth 1.2 → 14 from the rail). */
   near: { count: 7200, d0: TRAVERSE_EYE.z - VEGETATION_FRONT_Z, d1: 14 },
+  /** Camera-side safety grass, normally below/behind the frame. */
+  apron: FLING_GRASS_APRON,
   /** The meadow moment, z −8.2 → −18.2: taller, wider tufts with distance. */
   mid: { count: 2500, d0: 14, d1: 24 },
   /** The horizon ridge's near face, z −17.2 → −22.8 (overlapping the mid
@@ -379,13 +404,18 @@ export const GRASS_BANDS = {
 
 export const MEADOW_GRASS_TOTAL =
   GRASS_BANDS.near.count +
+  GRASS_BANDS.apron.count +
   GRASS_BANDS.mid.count +
   GRASS_BANDS.ridge.count +
   GRASS_BANDS.seated.count;
-/** 1600 → 1900 at round 3: the traverse drifts extended up the ridge face
- * ("flowers all the way into the hills"), and the extra 300 keep the near
- * and mid field at their approved density despite the larger area. */
-export const MEADOW_FLOWER_TOTAL = 1900;
+/** A denser flowering layer: 2,800 field heads preserve the authored clumps
+ * and empty intervals while making colour legible between the much denser
+ * grass tufts. The 180 apron heads are additive and normally sit below the
+ * settled travel frame. Flower heads remain two triangles each. */
+const MEADOW_FLOWER_FIELD_TOTAL = 2800;
+const MEADOW_FLOWER_TRAVERSE_TOTAL = 2270;
+export const MEADOW_FLOWER_TOTAL =
+  MEADOW_FLOWER_FIELD_TOTAL + FLING_APRON_FLOWERS.count;
 
 // The degrade dial's order contract. Each instance gets a quality quantile;
 // the buffer is ordered rung-major at these cumulative fractions,
@@ -398,14 +428,19 @@ export const MEADOW_RUNG_FRACTIONS = [0.65, 0.78, 0.9, 1] as const;
  * mid + seated + ridge bands share the light LOD in a second one. Each mesh
  * has its own rung-ordered buffer and count table; the combined table is
  * the reporting total. */
-export const MEADOW_RUNG_GRASS_NEAR = [4680, 5616, 6480, 7200] as const;
+export const MEADOW_RUNG_GRASS_NEAR = [6760, 8112, 9360, 10400] as const;
 export const MEADOW_RUNG_GRASS_FAR = [3900, 4680, 5400, 6000] as const;
-export const MEADOW_RUNG_GRASS = [8580, 10296, 11880, 13200] as const;
+export const MEADOW_RUNG_GRASS = [10660, 12792, 14760, 16400] as const;
 /** Flowers stay OFF at the two lowest quality rungs (degrade ≥ 2). */
-// Flower heads are only two triangles each (~3.8k total) and carry far more
+// Flower heads are only two triangles each (~6k total) and carry far more
 // visual identity than that cost warrants removing. Durable rungs thin the
 // expensive grass geometry while preserving the authored meadow colour.
-export const MEADOW_RUNG_FLOWERS = [1900, 1900, 1900, 1900] as const;
+export const MEADOW_RUNG_FLOWERS = [
+  MEADOW_FLOWER_TOTAL,
+  MEADOW_FLOWER_TOTAL,
+  MEADOW_FLOWER_TOTAL,
+  MEADOW_FLOWER_TOTAL,
+] as const;
 
 // Authored unmown areas preserve the same instance count and keep grass taller
 // beneath furniture, where a mower could not reach. Their crest is narrow:
@@ -687,6 +722,14 @@ export function inEastFeather(x: number, z: number): boolean {
   return x >= SEAT_X + seatedHalfWidth(z) - EAST_FEATHER.span - 0.5;
 }
 
+/** Broad, low-frequency mowing/growth drifts for the camera-side apron.
+ * Keeping the noise wavelength several world units makes the variation read
+ * as patches of lawn rather than every tuft receiving an unrelated height. */
+export function flingApronHeightScale(x: number, z: number): number {
+  const broad = vnoise2(x * 0.075, z * 0.32, 151);
+  return 0.78 + 0.72 * smoothstep(0.24, 0.8, broad);
+}
+
 export type GrassInstances = {
   count: number;
   /** Rung-major cumulative counts — must equal the mesh's rung table. */
@@ -705,7 +748,8 @@ export type GrassInstances = {
   /** Furniture contact-shadow mask (shadeScale): 0 under the shelves/couch,
    * 1 open lawn. Applied as a direct body-color multiplier in the shader. */
   shade: Float32Array;
-  /** Source band id per instance (GRASS_BANDS order; 3 = ridge). Not a GPU
+  /** Source band id per instance (0 near, 1 mid, 2 seated, 3 ridge,
+   * 4 fling apron). Not a GPU
    * attribute — it exists so tests can audit per-band invariants after the
    * rung-major reorder (the mid and ridge bands overlap in z). */
   band: Uint8Array;
@@ -813,7 +857,10 @@ type TileableInstances = {
 /** Partition an authored rung-major stream without dropping or moving an
  * instance. Tiles are sorted front-to-back by their z row, then west-to-east,
  * so opaque/discarded vegetation keeps the old early-z bias between draws. */
-export function buildMeadowTiles(stream: TileableInstances): MeadowTile[] {
+export function buildMeadowTiles(
+  stream: TileableInstances,
+  options: { maxPopulation?: number } = {},
+): MeadowTile[] {
   if (stream.rungCounts.length !== 4 || stream.rungCounts[3] !== stream.count) {
     throw new Error("Meadow tile source must contain four cumulative rungs");
   }
@@ -845,29 +892,97 @@ export function buildMeadowTiles(stream: TileableInstances): MeadowTile[] {
     start = end;
   });
 
-  return [...pending.entries()]
-    .map(([key, tile]): MeadowTile => {
-      const ordered: number[] = [];
-      const rungCounts: [number, number, number, number] = [0, 0, 0, 0];
-      tile.rungs.forEach((indices, rung) => {
-        ordered.push(...indices);
-        rungCounts[rung] = ordered.length;
-      });
-      const minX = MEADOW_TERRAIN.minX + tile.ix * MEADOW_TILE_SIZE.x;
-      const minZ = MEADOW_TERRAIN.minZ + tile.iz * MEADOW_TILE_SIZE.z;
-      return {
-        key,
-        ix: tile.ix,
-        iz: tile.iz,
-        minX,
-        maxX: minX + MEADOW_TILE_SIZE.x,
-        minZ,
-        maxZ: minZ + MEADOW_TILE_SIZE.z,
-        indices: Uint32Array.from(ordered),
-        rungCounts,
-      };
-    })
-    .sort((a, b) => b.iz - a.iz || a.ix - b.ix);
+  const finish = (
+    key: string,
+    tile: PendingTile,
+    bounds?: Pick<MeadowTile, "minX" | "maxX" | "minZ" | "maxZ">,
+  ): MeadowTile => {
+    const ordered: number[] = [];
+    const rungCounts: [number, number, number, number] = [0, 0, 0, 0];
+    tile.rungs.forEach((indices, rung) => {
+      ordered.push(...indices);
+      rungCounts[rung] = ordered.length;
+    });
+    const minX = MEADOW_TERRAIN.minX + tile.ix * MEADOW_TILE_SIZE.x;
+    const minZ = MEADOW_TERRAIN.minZ + tile.iz * MEADOW_TILE_SIZE.z;
+    return {
+      key,
+      ix: tile.ix,
+      iz: tile.iz,
+      minX: bounds?.minX ?? minX,
+      maxX: bounds?.maxX ?? minX + MEADOW_TILE_SIZE.x,
+      minZ: bounds?.minZ ?? minZ,
+      maxZ: bounds?.maxZ ?? minZ + MEADOW_TILE_SIZE.z,
+      indices: Uint32Array.from(ordered),
+      rungCounts,
+    };
+  };
+
+  const legacy = [...pending.entries()].map(([key, tile]) => finish(key, tile));
+  const maxPopulation = options.maxPopulation;
+  if (!maxPopulation || maxPopulation < 1) {
+    return legacy.sort((a, b) => b.iz - a.iz || a.ix - b.ix);
+  }
+
+  /** Split the densest fixed cells by spatial median. Every child retains
+   * the source's incremental rung buckets, so `finish` reconstructs the same
+   * local cumulative-prefix contract as the legacy grid. */
+  const balanced: MeadowTile[] = [];
+  const split = (key: string, tile: PendingTile, depth: number) => {
+    const population = tile.rungs.reduce(
+      (sum, indices) => sum + indices.length,
+      0,
+    );
+    if (population <= maxPopulation) {
+      const all = tile.rungs.flat();
+      const xs = all.map((index) => stream.x[index]!);
+      const zs = all.map((index) => stream.z[index]!);
+      balanced.push(
+        finish(key, tile, {
+          minX: Math.min(...xs),
+          maxX: Math.max(...xs) + 1e-4,
+          minZ: Math.min(...zs),
+          maxZ: Math.max(...zs) + 1e-4,
+        }),
+      );
+      return;
+    }
+
+    const tagged = tile.rungs.flatMap((indices) =>
+      indices.map((index) => ({ index })),
+    );
+    const xs = tagged.map(({ index }) => stream.x[index]!);
+    const zs = tagged.map(({ index }) => stream.z[index]!);
+    const splitX =
+      Math.max(...xs) - Math.min(...xs) >= Math.max(...zs) - Math.min(...zs);
+    tagged.sort((a, b) => {
+      const primary = splitX
+        ? stream.x[a.index]! - stream.x[b.index]!
+        : stream.z[a.index]! - stream.z[b.index]!;
+      const secondary = splitX
+        ? stream.z[a.index]! - stream.z[b.index]!
+        : stream.x[a.index]! - stream.x[b.index]!;
+      return primary || secondary || a.index - b.index;
+    });
+    const halves = [
+      tagged.slice(0, Math.ceil(population / 2)),
+      tagged.slice(Math.ceil(population / 2)),
+    ];
+    halves.forEach((half, side) => {
+      const members = new Set(half.map(({ index }) => index));
+      const rungs = tile.rungs.map((indices) =>
+        indices.filter((index) => members.has(index)),
+      ) as PendingTile["rungs"];
+      split(
+        `${key}.${depth}${side}`,
+        { ix: tile.ix, iz: tile.iz, rungs },
+        depth + 1,
+      );
+    });
+  };
+
+  pending.forEach((tile, key) => split(key, tile, 0));
+  return balanced.sort((a, b) => b.maxZ - a.maxZ || a.minX - b.minX);
 }
 
 export function buildGrassInstances(
@@ -879,6 +994,7 @@ export function buildGrassInstances(
     { ...GRASS_BANDS.mid, id: 1 },
     { ...GRASS_BANDS.seated, id: 2 },
     { ...GRASS_BANDS.ridge, id: 3 },
+    { ...GRASS_BANDS.apron, d0: 0, d1: 0, id: 4 },
   ].map((b) => ({ ...b, count: Math.round(b.count * scale) }));
 
   const raw: RawInstance[] = [];
@@ -887,7 +1003,9 @@ export function buildGrassInstances(
     for (let k = 0; k < band.count; k++, i++) {
       const u = rand(i, 41);
       let d: number;
-      if (band.id === 2) {
+      if (band.id === 4) {
+        d = 0;
+      } else if (band.id === 2) {
         // Seated band: 30% is couch-surround lawn (walk-phase coverage),
         // 70% is pinned onto the bank itself so the riverbank stays dense
         // — a single 1/d ramp from 0.6 would sink half the band behind
@@ -902,7 +1020,14 @@ export function buildGrassInstances(
       }
       let x: number;
       let z: number;
-      if (band.id === 2) {
+      if (band.id === 4) {
+        z =
+          FLING_GRASS_APRON.minZ +
+          rand(i, 46) * (FLING_GRASS_APRON.maxZ - FLING_GRASS_APRON.minZ);
+        x =
+          FLING_GRASS_APRON.minX +
+          rand(i, 42) * (FLING_GRASS_APRON.maxX - FLING_GRASS_APRON.minX);
+      } else if (band.id === 2) {
         z = SEAT_Z + d;
         const hw = seatedHalfWidth(z);
         x = SEAT_X - hw + rand(i, 42) * 2 * hw;
@@ -914,7 +1039,12 @@ export function buildGrassInstances(
       }
       let height: number;
       let width: number;
-      if (band.id === 1) {
+      if (band.id === 4) {
+        const growth = flingApronHeightScale(x, z);
+        height = 0.15 * (0.75 + 0.5 * rand(i, 44)) * growth;
+        width =
+          (0.36 + 0.2 * rand(i, 45)) * (0.9 + 0.25 * ((growth - 0.78) / 0.72));
+      } else if (band.id === 1) {
         // Mid meadow: tufts grow to ~0.45 tall / ~2.5-unit footprints with
         // distance, holding screen fill as areal density drops.
         height =
@@ -934,7 +1064,11 @@ export function buildGrassInstances(
         width = 0.38 + 0.18 * rand(i, 45);
       }
       const f =
-        westFeatherScale(x, z) * eastFeatherScale(x, z) * farFeatherScale(z);
+        band.id === 4
+          ? 1
+          : westFeatherScale(x, z) *
+            eastFeatherScale(x, z) *
+            farFeatherScale(z);
       // Exact 70/25/5 authored height tiers. Taller tiers gain a little more
       // presence behind cases and at unit seams; the furniture mask below can
       // raise them further but never shorten them.
@@ -1015,7 +1149,7 @@ export function buildGrassInstances(
     return out;
   };
 
-  return { near: assemble([0]), far: assemble([1, 2, 3]) };
+  return { near: assemble([0, 4]), far: assemble([1, 2, 3]) };
 }
 
 // ---------------------------------------------------------------------------
@@ -1036,6 +1170,8 @@ export type FlowerInstances = {
   /** Per-head species tint in [0,1), shared across a clump — the shader's
    * vTint thresholds (0.55 / 0.75) turn it into the A/B/C color split. */
   tint: Float32Array;
+  /** 1 for the camera-side fling apron, 0 for the authored field/bank. */
+  apron: Uint8Array;
 };
 
 const DRIFT_SALT = 83;
@@ -1069,14 +1205,21 @@ type RawFlower = {
   scale: number;
   q: number;
   tint: number;
+  apron: boolean;
 };
 
 export function buildFlowerPositions(
   total: number = MEADOW_FLOWER_TOTAL,
 ): FlowerInstances {
-  const traverseCount = Math.round(total * (1540 / MEADOW_FLOWER_TOTAL));
-  const bankCount = total - traverseCount;
-  const groups: RawFlower[][] = [[], []];
+  const apronCount = Math.round(
+    total * (FLING_APRON_FLOWERS.count / MEADOW_FLOWER_TOTAL),
+  );
+  const fieldCount = total - apronCount;
+  const traverseCount = Math.round(
+    fieldCount * (MEADOW_FLOWER_TRAVERSE_TOTAL / MEADOW_FLOWER_FIELD_TOTAL),
+  );
+  const bankCount = fieldCount - traverseCount;
+  const groups: RawFlower[][] = [[], [], []];
 
   for (let s = 0; groups[0]!.length < traverseCount; s++) {
     // Seed placement — two-lobed depth weighting on [4.8, ridge.d1]: the
@@ -1141,6 +1284,7 @@ export function buildFlowerPositions(
           farFeatherScale(hz),
         q: rand(i, 98),
         tint,
+        apron: false,
       });
     }
   }
@@ -1181,13 +1325,60 @@ export function buildFlowerPositions(
         scale: (0.9 + rand(j, 66) * 0.7) * westFeatherScale(hx, hz),
         q: rand(j, 98),
         tint,
+        apron: false,
+      });
+    }
+  }
+
+  // Camera-side flowers: a handful of compact clumps across the travel
+  // corridor, set back from the ordinary z=4.6 lawn line. A low-frequency
+  // acceptance mask creates broad empty stretches between clusters so a
+  // fling reveals a little discovery, not evenly spread confetti.
+  for (let s = 0; groups[2]!.length < apronCount; s++) {
+    const sj = 8192 + s;
+    let x = 0;
+    let z = 0;
+    for (let t = 0; t < 8; t++) {
+      x =
+        FLING_APRON_FLOWERS.minX +
+        rand(sj, 121 + t * 5) *
+          (FLING_APRON_FLOWERS.maxX - FLING_APRON_FLOWERS.minX);
+      z =
+        FLING_APRON_FLOWERS.minZ +
+        rand(sj, 122 + t * 5) *
+          (FLING_APRON_FLOWERS.maxZ - FLING_APRON_FLOWERS.minZ);
+      if (vnoise2(x * 0.11, z * 0.5, 173) > 0.5) break;
+    }
+    const tint = rand(sj, 129);
+    const heads =
+      FLOWER_CLUSTER.headsMin +
+      Math.floor(
+        rand(sj, 128) * (FLOWER_CLUSTER.headsMax - FLOWER_CLUSTER.headsMin + 1),
+      );
+    for (let h = 0; h < heads && groups[2]!.length < apronCount; h++) {
+      const j = fieldCount + groups[2]!.length;
+      groups[2]!.push({
+        x: clamp(
+          x + clusterOffset(j, 131),
+          FLING_APRON_FLOWERS.minX,
+          FLING_APRON_FLOWERS.maxX,
+        ),
+        z: clamp(
+          z + clusterOffset(j, 136) * 0.65,
+          FLING_APRON_FLOWERS.minZ,
+          FLING_APRON_FLOWERS.maxZ,
+        ),
+        scale: 0.8 + rand(j, 126) * 0.45,
+        q: rand(j, 138),
+        tint,
+        apron: true,
       });
     }
   }
 
   // Same stratified-order contract as the grass, with the flower rung table's
-  // own fractions (0 / 0 / 0.88 / 1 of the buffer): both groups thin by the
-  // same ratio, front-to-back within each stratum.
+  // own fractions. Field, bank, and camera-side groups thin by the same ratio,
+  // front-to-back within each stratum.
   const fractions = MEADOW_RUNG_FLOWERS.map((c) => c / MEADOW_FLOWER_TOTAL);
   const perGroupRungs: RawFlower[][][] = groups.map(() =>
     fractions.map(() => []),
@@ -1220,6 +1411,7 @@ export function buildFlowerPositions(
     z: new Float32Array(ordered.length),
     scale: new Float32Array(ordered.length),
     tint: new Float32Array(ordered.length),
+    apron: new Uint8Array(ordered.length),
   };
   ordered.forEach((f, k) => {
     out.x[k] = f.x;
@@ -1227,6 +1419,7 @@ export function buildFlowerPositions(
     out.z[k] = f.z;
     out.scale[k] = f.scale;
     out.tint[k] = f.tint;
+    out.apron[k] = f.apron ? 1 : 0;
   });
   return out;
 }

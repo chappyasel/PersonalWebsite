@@ -69,7 +69,6 @@ function useSeatClick(unitIndex: number) {
       downOn = false;
       const s = useStacks.getState();
       if (s.hovered !== CHAIR_HOVER) return;
-      if (s.activeUnit !== unitIndex) return; // → the tap plane travels
       if (s.panelState !== "closed" || s.modalOpen || s.dragging) return;
       if (Math.hypot(e.clientX - downX, e.clientY - downY) > 6) return;
       if (isSeated()) return;

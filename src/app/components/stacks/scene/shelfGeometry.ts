@@ -38,6 +38,14 @@ export const SHELF_GEOMETRY = {
 
 export type ShelfPlankId = "top" | "lower";
 
+/** Stable non-interactive owner id for authored insect contacts on the real
+ * shelf mesh. Perches still resolve a triangle and validate every neighboring
+ * prop; this only makes the broad physical plank addressable by the shared
+ * contact resolver. */
+export function shelfPerchOwnerId(unitIndex: number, plank: ShelfPlankId) {
+  return `shelf:${unitIndex}:${plank}`;
+}
+
 /** Ordered render projection for the two physical planks. WebGL and the
  * server-rendered entrance both iterate this collection, so adding, removing,
  * or resizing a shelf cannot silently update only one representation. */

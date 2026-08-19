@@ -1,16 +1,16 @@
 "use client";
 
-// Prop navigation — the scenery props that have an honest destination become
-// doors into the matching page of the site. Same house rules as the easter
-// eggs (see EggTrigger): a prop only answers when its unit is the ACTIVE one
-// — anywhere else the click falls through untouched so the unit tap plane
-// still travels — swipes are not taps (delta gate), and hover only claims the
-// store's cursor slot on the active unit.
+// Prop navigation — scenery props with an honest destination become Doors
+// into the matching page of the site. A visible nearest-hit prop answers even
+// while the traverse is rounding into its neighboring unit; `activeUnits`
+// remains ownership metadata, not an interaction partition. Swipes are not
+// taps (delta gate), and inert scenery never claims the cursor slot.
 //
 // The affordance is the scene's own damped Lift: the prop rises a few
 // millimetres under the pointer and nods toward you, the same idiom the
-// clickable book covers and talk frames already use. Doors add one restrained
-// destination label after dwell; inert scenery and eggs never do.
+// clickable book covers and talk frames already use. Doors and explicit local
+// actions add one restrained outcome label after dwell; inert scenery and
+// quiet eggs never do.
 //
 // Photographs share the shell (see PhotoMount): the ones whose source post is
 // known open it, the rest only want the affordance.
@@ -35,13 +35,13 @@ import React, { useCallback, useEffect, useRef } from "react";
 import type * as THREE from "three";
 
 import Lift from "./Lift";
+import { doorAtPointer } from "./interactionProjection";
 import {
-  destinationFor,
   type DoorSpec,
   type PropDestination,
+  destinationFor,
   registerSceneInteraction,
 } from "./interactionRegistry";
-import { doorAtPointer } from "./interactionProjection";
 
 /** The doors the shelf world can open. Books and Weightlifting live on their
  * own subdomains in production — the exact hrefs the placard and the flat
@@ -171,7 +171,7 @@ function onWindowUp(e: PointerEvent) {
   const key = e.pointerType === "touch" ? down.touchDoor : s.hovered;
   down.touchDoor = null;
   const door = key ? doors.get(key) : undefined;
-  if (door?.unitIndex !== s.activeUnit) return;
+  if (!door) return;
   opened = performance.now();
   door.open();
 }
@@ -265,7 +265,6 @@ function HoverShell({
         onSelect
           ? (e: ThreeEvent<MouseEvent>) => {
               if ((e.delta ?? 0) > 6) return; // swipe, not a tap
-              if (useStacks.getState().activeUnit !== unitIndex) return; // → travel
               // Swallow it either way, so the tap cannot ALSO reach the unit
               // travel plane behind the prop…
               e.stopPropagation();
@@ -277,7 +276,6 @@ function HoverShell({
           : undefined
       }
       onPointerOver={(e: ThreeEvent<PointerEvent>) => {
-        if (useStacks.getState().activeUnit !== unitIndex) return;
         e.stopPropagation();
         setHovered(hoverKey);
       }}

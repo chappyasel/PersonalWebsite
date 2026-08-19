@@ -91,22 +91,14 @@ describe("Book Notes interaction inventory", () => {
     ).toBe(true);
   });
 
-  it("lets one hover key animate one volume and uses collision-safe motion", () => {
+  it("lets one hover key carry exactly one physical volume", () => {
     const inventory = buildBookInteractions(input);
 
     for (const item of inventory) {
       expect(respondersForHover(inventory, item.hoverKey)).toEqual([item.id]);
     }
-    expect(
-      inventory
-        .filter((item) => item.role === "spine" || item.role === "lean")
-        .every((item) => item.hoverMotion === "upward-y"),
-    ).toBe(true);
-    expect(
-      inventory
-        .filter((item) => item.role === "riser" || item.role === "flat")
-        .every((item) => item.hoverMotion === "forward-z"),
-    ).toBe(true);
+    expect(inventory.every((item) => item.draggable)).toBe(true);
+    expect(inventory.every((item) => item.hoverMotion === "carry")).toBe(true);
   });
 
   it("fails closed when interaction keys collide", () => {

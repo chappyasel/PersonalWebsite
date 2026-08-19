@@ -9,18 +9,19 @@ import {
 } from "./focusMode";
 
 describe("desktop focus mode", () => {
-  it("requires Alt+H rather than a bare character shortcut", () => {
+  it("uses bare H and rejects modified or repeated shortcuts", () => {
     const event = {
       key: "h",
       repeat: false,
-      altKey: true,
+      altKey: false,
       metaKey: false,
       ctrlKey: false,
     };
 
     expect(isFocusModeShortcut(event)).toBe(true);
-    expect(isFocusModeShortcut({ ...event, altKey: false })).toBe(false);
+    expect(isFocusModeShortcut({ ...event, altKey: true })).toBe(false);
     expect(isFocusModeShortcut({ ...event, ctrlKey: true })).toBe(false);
+    expect(isFocusModeShortcut({ ...event, metaKey: true })).toBe(false);
     expect(isFocusModeShortcut({ ...event, repeat: true })).toBe(false);
   });
 

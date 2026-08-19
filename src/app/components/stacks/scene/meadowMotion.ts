@@ -44,6 +44,69 @@ export function meadowWindAudioLevel(amplitude: number): number {
   return Math.min(1, Math.max(0, amplitude / MEADOW_WIND.gustCeiling));
 }
 
+const fract = (value: number) => value - Math.floor(value);
+
+/** CPU port of Meadow's GLSL hash and value noise. Diagnostics and audio use
+ * one camera-near sample; grass blades still evaluate the field spatially on
+ * the GPU. */
+function meadowWindHash(x: number, z: number) {
+  let px = fract(x * 0.1031);
+  let py = fract(z * 0.1031);
+  let pz = fract(x * 0.1031);
+  const dot = px * (py + 33.33) + py * (pz + 33.33) + pz * (px + 33.33);
+  px += dot;
+  py += dot;
+  pz += dot;
+  return fract((px + py) * pz);
+}
+
+function meadowWindNoise(x: number, z: number) {
+  const ix = Math.floor(x);
+  const iz = Math.floor(z);
+  const fx = fract(x);
+  const fz = fract(z);
+  const sx = fx * fx * (3 - 2 * fx);
+  const sz = fz * fz * (3 - 2 * fz);
+  const near =
+    meadowWindHash(ix, iz) * (1 - sx) + meadowWindHash(ix + 1, iz) * sx;
+  const far =
+    meadowWindHash(ix, iz + 1) * (1 - sx) + meadowWindHash(ix + 1, iz + 1) * sx;
+  return near * (1 - sz) + far * sz;
+}
+
+/** One exact scalar sample of the near-grass shader's traveling wind field. */
+export function sampleMeadowWind(
+  x: number,
+  z: number,
+  time: number,
+  amplitude: number = MEADOW_WIND.amplitude,
+  speed: number = MEADOW_WIND.speed,
+) {
+  const windTime = time * speed;
+  const angle =
+    (meadowWindNoise(x * 0.035 + windTime * 0.025, z * 0.035) - 0.5) * 1.2 -
+    2.35;
+  const directionX = Math.cos(angle);
+  const directionZ = Math.sin(angle);
+  let gust = meadowWindNoise(
+    x * 0.22 - directionX * windTime * 0.55,
+    z * 0.22 - directionZ * windTime * 0.55,
+  );
+  gust *= gust;
+  const breeze = meadowWindNoise(
+    x * 0.85 - directionX * windTime * 1.1,
+    z * 0.85 - directionZ * windTime * 1.1,
+  );
+  const magnitude = limitMeadowWind(
+    amplitude * (0.35 + 0.85 * gust + 0.25 * breeze),
+  );
+  return {
+    x: directionX * magnitude,
+    z: directionZ * magnitude,
+    magnitude,
+  };
+}
+
 export function meadowDragSample(
   previousX: number,
   previousZ: number,

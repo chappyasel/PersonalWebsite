@@ -5,11 +5,9 @@
 import { useStacks } from "../../store";
 import { proxied } from "../../theme";
 import Grabbable from "../Grabbable";
-import { ContactShade } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
 import ModelProp from "../ModelProp";
 import { DAYLIGHT_RENDERING } from "../daylightRendering";
-import PropLink from "../links";
 import { reducedMotion } from "../objects";
 import {
   DeskFrame,
@@ -431,12 +429,17 @@ export default function UnitProjects({
               plank, so it cannot be centred: −0.14 puts the front face at
               0.184, inside the front lip, and lets the back hang past the
               rear edge where a camera in front of the shelf cannot see it. */}
-            <PropLink
+            <Grabbable
               unitIndex={index}
               hoverKey="link:projects:mac"
               base={[REVIEWED_SHELF_LAYOUT.projects.macX, 0, -0.14]}
+              shadeColor={palette.shadow}
+              shadeWidth={0.55}
+              shape="box"
+              massKg={7.5}
+              tiltWhileHeld={false}
               href="https://github.com/chappyasel"
-              label="View Chappy on GitHub"
+              doorLabel="View Chappy on GitHub"
             >
               <React.Suspense fallback={null}>
                 <ModelProp
@@ -459,20 +462,11 @@ export default function UnitProjects({
               {/* The redrawn mark, in the model's own frame: same yaw and same
                 scale as the ModelProp beside it, so the quad sits on the
                 screen at every size the machine is ever drawn at. Inside the
-                PropLink, so it rises with the Mac under the pointer. */}
+                carrier, so it moves with the Mac under the pointer. */}
               <group rotation={[0, -0.34, 0]} scale={9.2}>
                 <FinderMark unitIndex={index} />
               </group>
-            </PropLink>
-            <ContactShade
-              color={palette.shadow}
-              width={0.4}
-              position={[
-                REVIEWED_SHELF_LAYOUT.projects.macX + 0.24,
-                0.02,
-                -0.11,
-              ]}
-            />
+            </Grabbable>
           </group>
         }
       >
@@ -501,6 +495,7 @@ export default function UnitProjects({
         shadeColor={palette.shadow}
         shadeWidth={0.72}
         shape="box"
+        colliderProfile="foliage-base"
         massKg={5.6}
         standsOn="floor"
       >

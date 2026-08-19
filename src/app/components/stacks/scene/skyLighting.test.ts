@@ -63,8 +63,7 @@ function cloudField(
           11 +
           seed * 0.19,
       );
-  const coverageField =
-    coverage * SKY_LIGHTING.atmosphere.cloudCoverageScale;
+  const coverageField = coverage * SKY_LIGHTING.atmosphere.cloudCoverageScale;
   return simplified ? coverageField : Math.max(primary, coverageField);
 }
 
@@ -98,9 +97,7 @@ describe("Stacks light-mode atmospheric lighting", () => {
     expect(SKY_LIGHTING.atmosphere.cloudCoverageScale).toBeGreaterThanOrEqual(
       0.85,
     );
-    expect(SKY_LIGHTING.atmosphere.cloudCoverageScale).toBeLessThanOrEqual(
-      1,
-    );
+    expect(SKY_LIGHTING.atmosphere.cloudCoverageScale).toBeLessThanOrEqual(1);
     expect(SKY_LIGHTING.atmosphere.horizonEmber).toBeLessThanOrEqual(0.04);
     expect(SKY_LIGHTING.atmosphere.emberMix).toBeLessThanOrEqual(0.45);
     expect(SKY_LIGHTING.atmosphere.emberLift).toBeLessThanOrEqual(1.05);
@@ -126,8 +123,7 @@ describe("Stacks light-mode atmospheric lighting", () => {
             ) *
             (1 - smoothstep(0.17, 0.27, elevation));
           for (let x = 0; x < horizontalSamples; x++) {
-            const localAzimuth =
-              -2.25 + (x / (horizontalSamples - 1)) * 1.4;
+            const localAzimuth = -2.25 + (x / (horizontalSamples - 1)) * 1.4;
             const density = smoothstep(
               SKY_LIGHTING.atmosphere.cloudDensityGate[0],
               SKY_LIGHTING.atmosphere.cloudDensityGate[1],

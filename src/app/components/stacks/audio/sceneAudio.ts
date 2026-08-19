@@ -11,14 +11,15 @@ export type SceneAudioState = {
   unlocked: boolean;
   ambienceRequested: boolean;
   suspended: boolean;
+  muted: boolean;
   voices: number;
   windLevel: number;
 };
 
 const VOICE_CAP = 12;
 export const SCENE_AUDIO_MIX = {
-  windAudibleThreshold: 0.94,
-  windMotionRange: 0.012,
+  windAudibleThreshold: 0.4,
+  windMotionRange: 0.034,
   windCrossfadeFloor: 0.44,
   meadow: 0.07,
 } as const;
@@ -29,7 +30,8 @@ export function windGainForMotion(motion: number) {
   const audible =
     (level - SCENE_AUDIO_MIX.windAudibleThreshold) /
     (1 - SCENE_AUDIO_MIX.windAudibleThreshold);
-  return audible * audible * SCENE_AUDIO_MIX.windMotionRange;
+  const eased = audible * audible * (3 - 2 * audible);
+  return eased * SCENE_AUDIO_MIX.windMotionRange;
 }
 const EVENT_COOLDOWN_MS: Partial<Record<SceneSoundEvent, number>> = {
   "golf-turf": 80,
@@ -101,6 +103,7 @@ export class SceneAudioRuntime {
     unlocked: false,
     ambienceRequested: false,
     suspended: false,
+    muted: false,
     voices: 0,
     windLevel: 0.56,
   };
@@ -135,7 +138,7 @@ export class SceneAudioRuntime {
     limiter.release.value = 0.18;
     // One-shots must be audible immediately. Only the ambience bus fades in;
     // fading this master also faded the first club strike almost to silence.
-    master.gain.value = 1;
+    master.gain.value = this.state.muted ? 0 : 1;
     master.connect(limiter).connect(context.destination);
     this.context = context;
     this.master = master;
@@ -170,6 +173,15 @@ export class SceneAudioRuntime {
     this.publish();
   };
 
+  setMuted = (muted: boolean) => {
+    if (this.state.muted === muted) return;
+    this.state.muted = muted;
+    if (this.context?.state === "suspended" && !muted)
+      void this.context.resume();
+    this.fadeMaster(muted ? 0 : 1, muted ? 0.08 : 0.25);
+    this.publish();
+  };
+
   updateListener = (position: GolfVec3, forward: GolfVec3) => {
     this.listener = { position: { ...position }, forward: { ...forward } };
     const listener = this.context?.listener;
@@ -199,7 +211,7 @@ export class SceneAudioRuntime {
       event === "golf-strike"
         ? strikes[this.strikeCursor++ % strikes.length]!
         : event;
-    if (!context || !master || context.state !== "running")
+    if (!context || !master || context.state !== "running" || this.state.muted)
       return false;
     const nowMs = performance.now();
     const cooldown = EVENT_COOLDOWN_MS[event] ?? 0;
@@ -225,8 +237,7 @@ export class SceneAudioRuntime {
   private startVoice(buffer: AudioBuffer, position: GolfVec3, gain: number) {
     const context = this.context;
     const master = this.master;
-    if (!context || !master || context.state !== "running")
-      return;
+    if (!context || !master || context.state !== "running") return;
     this.pruneVoices();
     if (this.voices.length >= VOICE_CAP) {
       this.voices.sort((a, b) => a.started - b.started);
@@ -276,7 +287,7 @@ export class SceneAudioRuntime {
     } else {
       void this.context
         .resume()
-        .then(() => this.fadeMaster(1, 1));
+        .then(() => this.fadeMaster(this.state.muted ? 0 : 1, 1));
     }
     this.publish();
   };

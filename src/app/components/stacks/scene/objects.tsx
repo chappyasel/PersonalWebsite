@@ -58,7 +58,6 @@ export function usePropClick(
       downOn = false;
       const s = useStacks.getState();
       if (s.hovered !== hoverKey) return;
-      if (s.activeUnit !== unitIndex) return; // → the tap plane travels
       if (s.panelState !== "closed" || s.modalOpen || s.dragging) return;
       if (Math.hypot(e.clientX - downX, e.clientY - downY) > 6) return;
       fire.current();
@@ -592,7 +591,6 @@ export function DeskApple({
     <group
       rotation={[0, 0.04, 0]}
       onPointerOver={(e) => {
-        if (useStacks.getState().activeUnit !== unitIndex) return;
         e.stopPropagation();
         setHovered(HOVER);
       }}
@@ -840,15 +838,10 @@ export function NotebookLean({
   clickKeys?: string[];
   onNotebookClick?: (key: string) => void;
   /** Unit index — the spines that aren't a specific post become doors to the
-   * blog as a whole (gated on that unit being the active one). */
+   * blog as a whole. */
   linkUnit?: number;
 }) {
   const setHovered = useStacks((s) => s.setHovered);
-  /** House rule: a prop only answers when its unit is the ACTIVE one. With no
-   * `linkUnit` there is no unit to check against, so the spines stay live —
-   * the only caller without one is a preview outside the shelf row. */
-  const activeHere = () =>
-    linkUnit === undefined || useStacks.getState().activeUnit === linkUnit;
   // Two cool accents among warm neutrals, like the shelf spines.
   const colors = [
     palette.spines[8],
@@ -872,16 +865,9 @@ export function NotebookLean({
             radius={0.008}
             smoothness={4}
             rotation={[0, 0, lean]}
-            // Every one of these three returns WITHOUT stopPropagation when
-            // this unit is not the active one, exactly as EggTrigger,
-            // HoverShell and Grabbable already do. Without the gate a pointer
-            // parked on the live strip beside the placard while you stand on
-            // Projects claims a Musings notebook, and a click there opens the
-            // post instead of travelling to the unit you tapped.
             onPointerOver={
               key
                 ? (e) => {
-                    if (!activeHere()) return;
                     e.stopPropagation();
                     setHovered(`notebook:${key}`);
                   }
@@ -899,7 +885,6 @@ export function NotebookLean({
               linkUnit === undefined && key && onNotebookClick
                 ? (e) => {
                     if ((e.delta ?? 0) > 6) return; // swipe, not a tap
-                    if (!activeHere()) return; // fall through → travel
                     e.stopPropagation();
                     onNotebookClick(key);
                   }
@@ -926,8 +911,10 @@ export function NotebookLean({
               shape="box"
               massKg={0.45}
               onTap={key ? () => onNotebookClick?.(key) : undefined}
+              href={key}
               doorLabel={key ? "Read this musing" : undefined}
               to={key ? undefined : "blog"}
+              external
             >
               {spine}
             </Grabbable>

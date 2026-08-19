@@ -3,16 +3,14 @@
 // The WebGL entry point — the only module that pulls @react-three/* into the
 // bundle (loaded via dynamic import from StacksHome). Canvas config carries
 // the approved prototype look; ScrollControls owns the real scroll container.
-import {
-  PerformanceMonitor,
-  ScrollControls,
-  useProgress,
-  useScroll,
-} from "@react-three/drei";
+import { ScrollControls, useProgress, useScroll } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
 import {
+  Component,
+  type ErrorInfo,
+  type ReactNode,
   useCallback,
   useEffect,
   useMemo,
@@ -25,51 +23,77 @@ import type * as THREE from "three";
 import { sceneAudio } from "./audio/sceneAudio";
 import { type StacksData, UNIT_COUNT } from "./data";
 import { setLoadProgress } from "./loading";
+import { cameraTravelDiagnostics } from "./scene/CameraRig";
 import { prewarmGrabbablePhysics } from "./scene/Grabbable";
 import Scene from "./scene/Scene";
+import SceneGlassSampler from "./scene/SceneGlassSampler";
 import type { GolfShotOutcome } from "./scene/golf/golfTypes";
 import { setInteractionProjectionContext } from "./scene/interactionProjection";
 import { sceneInteractionInventory } from "./scene/interactionRegistry";
+import type {
+  MeadowDiagnosticsSettings,
+  MeadowDiagnosticsUpdate,
+} from "./scene/meadowDiagnostics";
 import { ScenePerformanceSampler } from "./scene/performanceMetrics";
 import {
-  type DurableQualityRung,
-  QUALITY_RECOVERY_STABLE_MS,
-  type QualityTransitionReason,
-  cloudDetailEnabled,
-  forcedQualityFromSearch,
-  initialQualityState,
-  meadowQualityRung,
-  postprocessingQuality,
-  reduceQuality,
-  resolveDpr,
+  browserPerformanceTraceSession,
+  downloadPerformanceTrace,
+  observeBrowserPerformanceTrace,
+  scenePerformanceTrace,
+} from "./scene/performanceTrace";
+import { physicsDiagnosticsController } from "./scene/physicsDiagnostics";
+import {
+  LEGACY_RUNG_BY_PROFILE,
+  QUALITY_DECLINE_COOLDOWN_MS,
+  QUALITY_PERSIST_STABLE_MS,
+  QUALITY_RECOVERY_COOLDOWN_MS,
+  QUALITY_SAMPLE_INTERVAL_MS,
+  QUALITY_SAMPLE_WINDOW_MS,
+  type SceneQualityMetrics,
+  type SceneQualityMode,
+  type SceneQualityPlan,
+  type SceneQualityProfile,
+  initialSceneQualityAdaptationState,
+  qualityModeFromSearch,
+  qualityProfileFromValue,
+  reduceSceneQualityAdaptation,
+  resolveSceneQualityPlan,
+  sceneQualityStorageBucket,
 } from "./scene/quality";
+import { sceneGlassSnapshotController } from "./scene/sceneGlassSnapshot";
+import {
+  DEFAULT_SCENE_PERFORMANCE_SETTINGS,
+  adaptiveSharpenAmount,
+  isSceneTraveling,
+  scenePerformanceController,
+  scenePerformanceSettingsEqual,
+  scenePrewarmDeferred,
+  setSceneTraveling,
+  useScenePerformanceSettings,
+} from "./scene/scenePerformance";
+import {
+  sceneQualityController,
+  useSceneQualityControls,
+} from "./scene/sceneQualityController";
 import {
   getSeatAmount,
   isSeated,
   leaveSeat,
   requestSeat,
 } from "./scene/seated";
-import { CAMERA } from "./scene/worldLayout";
+import { CAMERA, unitPose } from "./scene/worldLayout";
 import { progressRef, useStacks } from "./store";
 import { PALETTES } from "./theme";
 import { isWebGLContextUsable } from "./webglProbe";
 
-// Desktop-only composer chain — dynamic so touch devices never download a
-// single postfx byte. Mount/unmount ONLY (never enabled={false}: a mounted-
-// disabled composer pins the renderer to NoToneMapping = blown frame).
+// Mount/unmount ONLY (never enabled={false}: a mounted-disabled composer pins
+// the renderer to NoToneMapping = blown frame). Touch uses the same effect
+// tiers with a non-MSAA composer target.
 const Effects = dynamic(() => import("./scene/Effects"), { ssr: false });
 
 const performanceSampler = new ScenePerformanceSampler();
-const qualitySnapshot = {
-  durable: 0 as DurableQualityRung,
-  moving: false,
-  effectiveDpr: 1,
-  postprocessing: "off" as "full" | "finish" | "off",
-  meadowRung: 3 as 0 | 1 | 2 | 3,
-  cloudDetail: true,
-  forced: false,
-};
-let forceQuality: ((rung: DurableQualityRung) => void) | null = null;
+let qualitySnapshot: Record<string, unknown> = {};
+let forceQuality: ((value: SceneQualityMode | number) => void) | null = null;
 
 /** Drei's overflow element is natively keyboard-focusable, so leaving it
  * unnamed makes the first Tab stop a full-viewport anonymous div. Name the
@@ -104,17 +128,16 @@ declare global {
       bbox: (name: string) => Record<string, unknown> | null;
       /** Registered by Meadow in dev: live wind/density knobs.
        * No-arg call returns the current values. */
-      meadow?: (opts?: {
-        wind?: number;
-        speed?: number;
-        density?: number | null;
-      }) => Record<string, number | null>;
+      meadow?: (opts?: MeadowDiagnosticsUpdate) => MeadowDiagnosticsSettings;
       golf?: {
         state: () => Record<string, unknown>;
         forceNext: (outcome: GolfShotOutcome) => void;
       };
-      quality: (rung?: DurableQualityRung) => Record<string, unknown>;
+      quality: (value?: SceneQualityMode | number) => Record<string, unknown>;
       measure: (action?: "start" | "stop" | "reset") => Record<string, unknown>;
+      trace: (
+        action?: "status" | "start" | "stop" | "reset" | "download",
+      ) => unknown;
     };
   }
 }
@@ -309,8 +332,8 @@ function installDevHooks() {
         measurement: performanceSampler.summary(),
       };
     },
-    quality(rung) {
-      if (rung != null) forceQuality?.(rung);
+    quality(value) {
+      if (value != null) forceQuality?.(value);
       return { ...qualitySnapshot };
     },
     measure(action) {
@@ -318,6 +341,53 @@ function installDevHooks() {
       if (action === "stop") performanceSampler.stop();
       if (action === "reset") performanceSampler.reset();
       return performanceSampler.summary();
+    },
+    trace(action = "status") {
+      if (action === "start") {
+        const context = glRef?.getContext();
+        scenePerformanceTrace.start({
+          session: browserPerformanceTraceSession({
+            queryFlags: [
+              ...new Set(new URLSearchParams(window.location.search).keys()),
+            ],
+            theme: document.documentElement.classList.contains("dark")
+              ? "dark"
+              : "light",
+            buildMode: process.env.NODE_ENV,
+            quality: { ...qualitySnapshot },
+            performanceSettings: scenePerformanceController.getSnapshot(),
+            renderer: glRef
+              ? {
+                  maxTextureSize: glRef.capabilities.maxTextureSize,
+                  maxSamples:
+                    typeof WebGL2RenderingContext !== "undefined" &&
+                    context instanceof WebGL2RenderingContext
+                      ? Number(
+                          context.getParameter(context.MAX_SAMPLES) as unknown,
+                        )
+                      : 0,
+                }
+              : null,
+          }),
+        });
+        performanceSampler.start();
+        return scenePerformanceTrace.getStatus();
+      }
+      if (action === "stop") {
+        performanceSampler.stop();
+        return scenePerformanceTrace.stop();
+      }
+      if (action === "reset") {
+        performanceSampler.reset();
+        scenePerformanceTrace.reset();
+        return scenePerformanceTrace.getStatus();
+      }
+      if (action === "download") {
+        const report = scenePerformanceTrace.report();
+        downloadPerformanceTrace(report);
+        return report;
+      }
+      return scenePerformanceTrace.getStatus();
     },
   };
 }
@@ -344,27 +414,51 @@ function Exposure({ dark }: { dark: boolean }) {
   return null;
 }
 
-/** `postprocessing` reads `.alpha` from getContextAttributes() without a
- * null check. A context can be lost between Canvas creation and the dynamic
- * composer mount, so keep that library out of the tree and hand control to
- * the existing flat-page fallback when the renderer is no longer usable. */
+/** Composer failures are contained inside the functioning R3F world. Actual
+ * context loss is still handled by Canvas's context-lost listener and hands
+ * the page back to the existing flat fallback. */
+class EffectsErrorBoundary extends Component<
+  { children: ReactNode; onError: () => void },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidCatch(_error: Error, _info: ErrorInfo) {
+    this.props.onError();
+  }
+
+  render() {
+    return this.state.failed ? null : this.props.children;
+  }
+}
+
 function ContextSafeEffects({
   dark,
-  quality,
-  onUnavailable,
+  plan,
+  sharpenAmount,
+  onComposerError,
 }: {
   dark: boolean;
-  quality: "full" | "finish";
-  onUnavailable?: () => void;
+  plan: SceneQualityPlan["effects"];
+  sharpenAmount: number;
+  onComposerError: () => void;
 }) {
   const gl = useThree((state) => state.gl);
   const usable = isWebGLContextUsable(gl.getContext());
 
   useEffect(() => {
-    if (!usable) onUnavailable?.();
-  }, [onUnavailable, usable]);
+    if (!usable) onComposerError();
+  }, [onComposerError, usable]);
 
-  return usable ? <Effects dark={dark} quality={quality} /> : null;
+  return usable ? (
+    <EffectsErrorBoundary onError={onComposerError}>
+      <Effects dark={dark} plan={plan} sharpenAmount={sharpenAmount} />
+    </EffectsErrorBoundary>
+  ) : null;
 }
 
 /** Records only while the development harness has an active measurement.
@@ -374,6 +468,16 @@ function ContextSafeEffects({
  * multi-pass frame. */
 function PerformanceProbe() {
   const gl = useThree((state) => state.gl);
+  const camera = useThree((state) => state.camera);
+  const unitSamples = useMemo(
+    () =>
+      Array.from({ length: UNIT_COUNT }, () => [
+        camera.position.clone(),
+        camera.position.clone(),
+        camera.position.clone(),
+      ]),
+    [camera],
+  );
   useEffect(() => {
     const previous = gl.info.autoReset;
     gl.info.autoReset = false;
@@ -382,9 +486,140 @@ function PerformanceProbe() {
     };
   }, [gl]);
   useFrame((_, delta) => {
+    if (scenePerformanceTrace.isActive() && !document.hidden) {
+      const state = useStacks.getState();
+      const physics = physicsDiagnosticsController.getSnapshot();
+      const quality = qualitySnapshot as {
+        profile?: unknown;
+        effectiveDpr?: unknown;
+      };
+      const visibleUnits: number[] = [];
+      for (let index = 0; index < UNIT_COUNT; index += 1) {
+        const pose = unitPose(index);
+        const [center, left, right] = unitSamples[index]!;
+        const yaw = pose.rotation[1];
+        const edgeX = Math.cos(yaw) * 1.9;
+        const edgeZ = -Math.sin(yaw) * 1.9;
+        center!.set(pose.position[0], 0.4, pose.position[2]).project(camera);
+        left!
+          .set(pose.position[0] - edgeX, 0.4, pose.position[2] - edgeZ)
+          .project(camera);
+        right!
+          .set(pose.position[0] + edgeX, 0.4, pose.position[2] + edgeZ)
+          .project(camera);
+        if (
+          [center, left, right].some(
+            (sample) =>
+              sample!.z >= -1 &&
+              sample!.z <= 1 &&
+              sample!.x >= -1.05 &&
+              sample!.x <= 1.05,
+          )
+        )
+          visibleUnits.push(index);
+      }
+      const matrix = camera.matrixWorld.elements;
+      const viewX = -(matrix[8] ?? 0);
+      const viewZ = -(matrix[10] ?? 1);
+      scenePerformanceTrace.frame({
+        at: performance.now(),
+        frameMs: delta * 1_000,
+        moving: isSceneTraveling(),
+        progress: progressRef.current,
+        activeUnit: state.activeUnit,
+        renderer: {
+          calls: gl.info.render.calls,
+          triangles: gl.info.render.triangles,
+          points: gl.info.render.points,
+          lines: gl.info.render.lines,
+          textures: gl.info.memory.textures,
+          geometries: gl.info.memory.geometries,
+          programs: gl.info.programs?.length ?? 0,
+        },
+        physicsMs: physics.timing.frameMs,
+        cameraYawDeg: Number(
+          ((Math.atan2(viewX, -viewZ) * 180) / Math.PI).toFixed(3),
+        ),
+        cameraLookLagX: Number(cameraTravelDiagnostics.lookLagX.toFixed(4)),
+        visibleUnits,
+        qualityProfile:
+          typeof quality.profile === "string" ? quality.profile : null,
+        dpr:
+          typeof quality.effectiveDpr === "number"
+            ? quality.effectiveDpr
+            : null,
+        glassMode: scenePerformanceController.getSnapshot().placardGlassMode,
+      });
+    }
     gl.info.reset();
     performanceSampler.frame(delta);
   }, -1_000);
+  return null;
+}
+
+function PerformanceTraceObservers() {
+  useEffect(() => {
+    const disconnectBrowserObservers = observeBrowserPerformanceTrace();
+    let previousSettings = scenePerformanceController.getSnapshot();
+    const unsubscribeSettings = scenePerformanceController.subscribe(() => {
+      const settings = scenePerformanceController.getSnapshot();
+      if (scenePerformanceSettingsEqual(settings, previousSettings)) return;
+      previousSettings = settings;
+      scenePerformanceTrace.event({
+        at: performance.now(),
+        type: "performance-settings",
+        detail: { ...settings },
+      });
+    });
+    return () => {
+      disconnectBrowserObservers();
+      unsubscribeSettings();
+    };
+  }, []);
+  return null;
+}
+
+/** Two-second rolling window evaluated four times a second. The fastest
+ * stable frames identify display cadence, capped at 60 Hz, while p95 and the
+ * dropped-frame ratio drive the pure adaptation reducer. */
+function AdaptiveQualityProbe({
+  onSample,
+}: {
+  onSample: (metrics: SceneQualityMetrics) => void;
+}) {
+  const frames = useRef<Array<{ at: number; ms: number }>>([]);
+  const lastSampleAt = useRef(0);
+  useFrame((_, delta) => {
+    const now = performance.now();
+    const ms = delta * 1_000;
+    if (!document.hidden && Number.isFinite(ms) && ms > 0 && ms < 1_000)
+      frames.current.push({ at: now, ms });
+    while (
+      frames.current.length > 0 &&
+      now - frames.current[0]!.at > QUALITY_SAMPLE_WINDOW_MS
+    )
+      frames.current.shift();
+    if (now - lastSampleAt.current < QUALITY_SAMPLE_INTERVAL_MS) return;
+    lastSampleAt.current = now;
+    const sorted = frames.current
+      .map((frame) => frame.ms)
+      .sort((a, b) => a - b);
+    if (sorted.length < 2) return;
+    const at = (portion: number) =>
+      sorted[
+        Math.min(sorted.length - 1, Math.ceil(sorted.length * portion) - 1)
+      ]!;
+    const targetFrameMs = Math.max(1_000 / 60, at(0.1));
+    onSample({
+      targetFrameMs,
+      targetHz: Math.min(60, Math.round(1_000 / targetFrameMs)),
+      p95: at(0.95),
+      droppedFrameRatio:
+        sorted.filter((frame) => frame > targetFrameMs * 1.5).length /
+        sorted.length,
+      sampleCount: sorted.length,
+    });
+  }, -999);
   return null;
 }
 
@@ -394,7 +629,16 @@ function PerformanceProbe() {
 function SceneAudioBridge() {
   const camera = useThree((state) => state.camera);
   useEffect(() => {
-    const unlock = () => sceneAudio.unlock();
+    const unlock = (event: Event) => {
+      const soundToggle =
+        event.target instanceof Element
+          ? event.target.closest("[data-sound-toggle]")
+          : null;
+      // If the first gesture is the currently-on button, its click is about
+      // to mute. Do not initialize or download audio just to turn it off.
+      if (soundToggle && !sceneAudio.snapshot().muted) return;
+      sceneAudio.unlock();
+    };
     window.addEventListener("pointerdown", unlock, { capture: true });
     window.addEventListener("keydown", unlock, { capture: true });
     const visibility = () => sceneAudio.visibility(document.hidden);
@@ -434,14 +678,17 @@ function MovementProbe({ onChange }: { onChange: (moving: boolean) => void }) {
       lastMovedAt.current = now;
       if (!moving.current) {
         moving.current = true;
+        setSceneTraveling(true);
         onChange(true);
       }
     } else if (moving.current && now - lastMovedAt.current >= 650) {
       moving.current = false;
+      setSceneTraveling(false);
       onChange(false);
     }
     previous.current = progress;
   });
+  useEffect(() => () => setSceneTraveling(false), []);
   return null;
 }
 
@@ -452,8 +699,26 @@ function ShaderPrewarm({ variant }: { variant: string }) {
     let cancelled = false;
     let timeout = 0;
     let idle = 0;
+    const schedule = () => {
+      if (cancelled) return;
+      if (scenePrewarmDeferred()) {
+        timeout = window.setTimeout(schedule, 250);
+        return;
+      }
+      if (idleApi.requestIdleCallback) {
+        idle = idleApi.requestIdleCallback(compile, { timeout: 1800 });
+      } else {
+        timeout = window.setTimeout(compile, 500);
+      }
+    };
     const compile = () => {
       if (cancelled) return;
+      // An idle callback may have been queued before travel began. Re-check at
+      // execution time so compilation cannot land in the middle of a jump.
+      if (scenePrewarmDeferred()) {
+        timeout = window.setTimeout(schedule, 250);
+        return;
+      }
       try {
         // Three's compileAsync polling can dereference an absent program on
         // some WebGL drivers, throwing outside the returned promise. Running
@@ -469,11 +734,7 @@ function ShaderPrewarm({ variant }: { variant: string }) {
       requestIdleCallback?: Window["requestIdleCallback"];
       cancelIdleCallback?: Window["cancelIdleCallback"];
     };
-    if (idleApi.requestIdleCallback) {
-      idle = idleApi.requestIdleCallback(compile, { timeout: 1800 });
-    } else {
-      timeout = window.setTimeout(compile, 500);
-    }
+    schedule();
     return () => {
       cancelled = true;
       window.clearTimeout(timeout);
@@ -492,14 +753,29 @@ function PhysicsPrewarm() {
     let idle = 0;
     let timeout = 0;
     const schedule = () => {
+      if (scenePrewarmDeferred()) {
+        timeout = window.setTimeout(schedule, 250);
+        return;
+      }
       const api = window as Window & {
         requestIdleCallback?: Window["requestIdleCallback"];
       };
       if (api.requestIdleCallback)
-        idle = api.requestIdleCallback(prewarmGrabbablePhysics, {
-          timeout: 1800,
-        });
-      else timeout = window.setTimeout(prewarmGrabbablePhysics, 450);
+        idle = api.requestIdleCallback(
+          () => {
+            if (scenePrewarmDeferred()) {
+              timeout = window.setTimeout(schedule, 250);
+              return;
+            }
+            prewarmGrabbablePhysics();
+          },
+          { timeout: 1800 },
+        );
+      else
+        timeout = window.setTimeout(() => {
+          if (scenePrewarmDeferred()) schedule();
+          else prewarmGrabbablePhysics();
+        }, 450);
     };
     const frame = requestAnimationFrame(schedule);
     return () => {
@@ -526,90 +802,307 @@ export default function StacksCanvas({
   const { resolvedTheme } = useTheme();
   const dark = resolvedTheme === "dark";
   const palette = PALETTES[dark ? "dark" : "light"];
+  const performanceSettings = useScenePerformanceSettings();
   // Travel freezes while the mobile panel or the book modal owns the screen.
   const panelState = useStacks((s) => s.panelState);
   const modalOpen = useStacks((s) => s.modalOpen);
+  const activeUnit = useStacks((s) => s.activeUnit);
   const isTouch = useMemo(
     () =>
       typeof window !== "undefined" &&
       window.matchMedia("(pointer: coarse)").matches,
     [],
   );
-
-  const forcedQuality = useMemo(
-    () =>
-      typeof window === "undefined"
-        ? null
-        : forcedQualityFromSearch(window.location.search),
-    [],
-  );
-  const [quality, dispatchQuality] = useReducer(
-    reduceQuality,
-    forcedQuality,
-    initialQualityState,
-  );
-  const qualityRef = useRef(quality);
-  qualityRef.current = quality;
-  const transitionReason = useRef<QualityTransitionReason>("forced");
-  const previousDurable = useRef(quality.durable);
   const [viewport, setViewport] = useState(() => ({
     width: typeof window === "undefined" ? 1 : window.innerWidth,
     height: typeof window === "undefined" ? 1 : window.innerHeight,
     deviceDpr: typeof window === "undefined" ? 1 : window.devicePixelRatio,
   }));
+  const queryMode = useMemo(
+    () =>
+      typeof window === "undefined"
+        ? "auto"
+        : qualityModeFromSearch(window.location.search),
+    [],
+  );
+  const qualityControls = useSceneQualityControls();
+  const [querySynchronized, setQuerySynchronized] = useState(false);
+  const mode = querySynchronized ? qualityControls.mode : queryMode;
+  const storageBucket = useMemo(
+    () =>
+      sceneQualityStorageBucket({
+        touch: isTouch,
+        cssWidth: viewport.width,
+        cssHeight: viewport.height,
+        deviceDpr: viewport.deviceDpr,
+      }),
+    // The learned device class is intentionally fixed for this mount. A
+    // resize pauses learning but does not turn the same device into a new one.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [isTouch],
+  );
+  const restoredProfile = useMemo<SceneQualityProfile | null>(() => {
+    if (typeof window === "undefined" || queryMode !== "auto") return null;
+    try {
+      return qualityProfileFromValue(
+        window.sessionStorage.getItem(storageBucket) ?? "",
+      );
+    } catch {
+      return null;
+    }
+  }, [queryMode, storageBucket]);
+  const initialProfile =
+    queryMode === "auto" ? (restoredProfile ?? "balanced") : queryMode;
+  const [adaptation, dispatchQuality] = useReducer(
+    reduceSceneQualityAdaptation,
+    undefined,
+    () =>
+      initialSceneQualityAdaptationState(
+        initialProfile,
+        typeof performance === "undefined" ? 0 : performance.now(),
+        restoredProfile ? "restored" : "startup",
+      ),
+  );
+  const adaptationRef = useRef(adaptation);
+  adaptationRef.current = adaptation;
+  const [liveMetrics, setLiveMetrics] = useState<SceneQualityMetrics | null>(
+    null,
+  );
+  const [learnedProfile, setLearnedProfile] =
+    useState<SceneQualityProfile | null>(restoredProfile);
+
+  useEffect(() => {
+    if (queryMode !== "auto") sceneQualityController.setMode(queryMode);
+    setQuerySynchronized(true);
+  }, [queryMode]);
+
   useEffect(() => {
     const measure = () => {
+      scenePerformanceTrace.event({
+        at: performance.now(),
+        type: "resize",
+        detail: {
+          viewport: [window.innerWidth, window.innerHeight],
+          deviceDpr: window.devicePixelRatio,
+        },
+      });
       setViewport({
         width: window.innerWidth,
         height: window.innerHeight,
         deviceDpr: window.devicePixelRatio,
       });
+      dispatchQuality({ type: "ignore", now: performance.now() });
     };
     window.addEventListener("resize", measure, { passive: true });
     return () => window.removeEventListener("resize", measure);
   }, []);
+
+  const previousMode = useRef<SceneQualityMode>(mode);
   useEffect(() => {
-    forceQuality = (rung) => {
-      transitionReason.current = "forced";
-      dispatchQuality({ type: "force", rung, now: performance.now() });
+    if (previousMode.current === mode) return;
+    previousMode.current = mode;
+    let profile: SceneQualityProfile;
+    if (mode === "auto") {
+      let stored: SceneQualityProfile | null = null;
+      try {
+        stored = qualityProfileFromValue(
+          window.sessionStorage.getItem(storageBucket) ?? "",
+        );
+      } catch {
+        // Storage is an optional optimization; Balanced remains deterministic.
+      }
+      profile = stored ?? "balanced";
+      setLearnedProfile(stored);
+    } else {
+      profile = mode;
+    }
+    dispatchQuality({
+      type: "profile",
+      now: performance.now(),
+      profile,
+      reason: "manual",
+    });
+  }, [mode, storageBucket]);
+
+  useEffect(() => {
+    dispatchQuality({ type: "freeze", frozen: qualityControls.frozen });
+  }, [qualityControls.frozen]);
+
+  const resetRequest = useRef(qualityControls.resetRequest);
+  useEffect(() => {
+    if (resetRequest.current === qualityControls.resetRequest) return;
+    resetRequest.current = qualityControls.resetRequest;
+    try {
+      window.sessionStorage.removeItem(storageBucket);
+    } catch {
+      // Session storage can be unavailable in hardened browsing modes.
+    }
+    setLearnedProfile(null);
+    if (mode === "auto")
+      dispatchQuality({
+        type: "profile",
+        now: performance.now(),
+        profile: "balanced",
+        reason: "manual",
+      });
+  }, [mode, qualityControls.resetRequest, storageBucket]);
+
+  useEffect(() => {
+    forceQuality = (value) => {
+      if (value === "auto") {
+        sceneQualityController.setMode("auto");
+        return;
+      }
+      const profile = qualityProfileFromValue(value);
+      if (profile) sceneQualityController.setMode(profile);
     };
     return () => {
       forceQuality = null;
     };
   }, []);
+
+  const previousDurable = useRef(LEGACY_RUNG_BY_PROFILE[adaptation.profile]);
   useEffect(() => {
-    if (quality.durable === previousDurable.current) return;
+    const durable = LEGACY_RUNG_BY_PROFILE[adaptation.profile];
+    if (durable === previousDurable.current) return;
+    const at = performance.now();
     performanceSampler.transition({
-      at: performance.now(),
+      at,
       from: previousDurable.current,
-      to: quality.durable,
-      reason: transitionReason.current,
+      to: durable,
+      reason: adaptation.transitionReason,
     });
-    previousDurable.current = quality.durable;
-  }, [quality.durable]);
-  useEffect(() => {
-    if (quality.stableSince == null || quality.recoveryUsed) return;
-    const remaining = Math.max(
-      0,
-      quality.stableSince + QUALITY_RECOVERY_STABLE_MS - performance.now(),
-    );
-    const timeout = window.setTimeout(() => {
-      transitionReason.current = "recovery";
-      dispatchQuality({ type: "recover", now: performance.now() });
-    }, remaining);
-    return () => window.clearTimeout(timeout);
-  }, [quality.recoveryUsed, quality.stableSince]);
+    scenePerformanceTrace.event({
+      at,
+      type: "quality-transition",
+      detail: {
+        from: previousDurable.current,
+        to: durable,
+        profile: adaptation.profile,
+        reason: adaptation.transitionReason,
+        metrics: adaptation.metrics,
+        declineBaseline: adaptation.declineBaseline,
+      },
+    });
+    previousDurable.current = durable;
+  }, [
+    adaptation.declineBaseline,
+    adaptation.metrics,
+    adaptation.profile,
+    adaptation.transitionReason,
+  ]);
+
   const onMovementChange = useCallback((moving: boolean) => {
-    dispatchQuality({ type: "movement", moving });
-    if (moving) dispatchQuality({ type: "unstable" });
+    const now = performance.now();
+    dispatchQuality({ type: "movement", moving, now });
+    scenePerformanceTrace.event({
+      at: now,
+      type: moving ? "travel-start" : "travel-end",
+      detail: {
+        progress: progressRef.current,
+        activeUnit: useStacks.getState().activeUnit,
+      },
+    });
+    if (
+      !moving &&
+      scenePerformanceController.getSnapshot().placardGlassMode === "sampled"
+    )
+      sceneGlassSnapshotController.request("travel-settled");
   }, []);
-  const dpr = resolveDpr({
-    cssWidth: viewport.width,
-    cssHeight: viewport.height,
-    deviceDpr: viewport.deviceDpr,
-    rung: quality.durable,
-    touch: isTouch,
-  });
+
+  useEffect(() => {
+    scenePerformanceTrace.event({
+      at: performance.now(),
+      type: "theme-change",
+      detail: { theme: dark ? "dark" : "light" },
+    });
+    dispatchQuality({ type: "ignore", now: performance.now() });
+  }, [dark]);
+  useEffect(() => {
+    const onVisibility = () => {
+      scenePerformanceTrace.event({
+        at: performance.now(),
+        type: "visibility-change",
+        detail: { hidden: document.hidden },
+      });
+      if (!document.hidden)
+        dispatchQuality({ type: "ignore", now: performance.now() });
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+
+  const noPostfx = useMemo(
+    () =>
+      typeof window !== "undefined" &&
+      window.location.search.includes("nopostfx"),
+    [],
+  );
+  const plan = useMemo(
+    () =>
+      resolveSceneQualityPlan({
+        mode,
+        profile: adaptation.profile,
+        cssWidth: viewport.width,
+        cssHeight: viewport.height,
+        deviceDpr: viewport.deviceDpr,
+        touch: isTouch,
+        directRender: adaptation.directRender || noPostfx,
+        overrides: {
+          ...performanceSettings,
+          skipAmbientOcclusion: scenePerformanceController.isOverridden(
+            "skipAmbientOcclusion",
+          )
+            ? performanceSettings.skipAmbientOcclusion
+            : undefined,
+          skipDepthOfField: scenePerformanceController.isOverridden(
+            "skipDepthOfField",
+          )
+            ? performanceSettings.skipDepthOfField
+            : undefined,
+          simplifiedFarMeadow: scenePerformanceController.isOverridden(
+            "simplifiedFarMeadow",
+          )
+            ? performanceSettings.simplifiedFarMeadow
+            : undefined,
+        },
+        hasCustomOverrides:
+          scenePerformanceController.hasOverrides() ||
+          !scenePerformanceSettingsEqual(
+            performanceSettings,
+            DEFAULT_SCENE_PERFORMANCE_SETTINGS,
+          ),
+      }),
+    [
+      adaptation.directRender,
+      adaptation.profile,
+      isTouch,
+      mode,
+      noPostfx,
+      performanceSettings,
+      viewport,
+    ],
+  );
+  const dpr = plan.dpr;
+  const effectsVariant = `${plan.effects.composer}:${plan.effects.multisampling}:${plan.effects.bloom}:${plan.effects.bloomLevels}:${plan.effects.bloomResolutionScale}:${plan.effects.bloomIntensity.dark}:${plan.effects.bloomIntensity.light}:${plan.effects.bloomLuminanceThreshold.dark}:${plan.effects.bloomLuminanceThreshold.light}:${plan.effects.ambientOcclusion}:${plan.effects.ambientOcclusionHalfRes}:${plan.effects.ambientOcclusionQuality}:${plan.effects.depthOfField}:${plan.effects.depthOfFieldResolutionScale}:${plan.effects.depthOfFieldBokehScale}:${plan.environment.farGrassShader}`;
+  useEffect(() => {
+    scenePerformanceTrace.event({
+      at: performance.now(),
+      type: "effects-variant",
+      detail: {
+        profile: plan.profile,
+        composer: plan.effects.composer,
+        bloom: plan.effects.bloom,
+        ambientOcclusion: plan.effects.ambientOcclusion,
+        depthOfField: plan.effects.depthOfField,
+        farGrassShader: plan.environment.farGrassShader,
+        dpr: plan.dpr,
+        physicalPixels: plan.physicalPixels,
+        pixelBudget: plan.pixelBudget,
+      },
+    });
+    dispatchQuality({ type: "ignore", now: performance.now() });
+  }, [effectsVariant, plan]);
   const ownedRenderer = useRef<THREE.WebGLRenderer | null>(null);
 
   useEffect(
@@ -627,35 +1120,141 @@ export default function StacksCanvas({
     [],
   );
 
-  // Composer path: desktop only, and unmounted at the SAME rung that drops
-  // dpr (N8AO × adaptive-dpr is a known-bad pair). ?nopostfx forces the
-  // off-path for A/B shots and the ladder's correctness check.
   const postfxQuality =
-    !isTouch &&
-    !(
-      typeof window !== "undefined" &&
-      window.location.search.includes("nopostfx")
-    )
-      ? postprocessingQuality(quality.durable)
-      : "off";
-  const postfx = postfxQuality !== "off";
+    plan.effects.composer === "direct" ? "off" : plan.effects.composer;
+  const postfx = plan.effects.composer !== "direct";
+  const renderScale = dpr / Math.max(1, viewport.deviceDpr);
+  const sharpenAmount = adaptiveSharpenAmount(
+    {
+      ...performanceSettings,
+      adaptiveSharpen: plan.effects.adaptiveSharpen,
+    },
+    renderScale,
+    postfxQuality,
+  );
+  const bloomActive = plan.effects.bloom;
   const setPostfx = useStacks((s) => s.setPostfx);
+  const setBloomActive = useStacks((s) => s.setBloomActive);
   useEffect(() => {
     setPostfx(postfx);
   }, [postfx, setPostfx]);
-  qualitySnapshot.durable = quality.durable;
-  qualitySnapshot.moving = quality.moving;
-  qualitySnapshot.effectiveDpr = dpr;
-  qualitySnapshot.postprocessing = postfxQuality;
-  qualitySnapshot.meadowRung = meadowQualityRung(
-    quality.durable,
-    quality.moving,
+  useEffect(() => {
+    setBloomActive(bloomActive);
+  }, [bloomActive, setBloomActive]);
+  const onQualitySample = useCallback(
+    (metrics: SceneQualityMetrics) => {
+      setLiveMetrics(metrics);
+      if (mode !== "auto") return;
+      dispatchQuality({
+        type: "sample",
+        now: performance.now(),
+        metrics,
+        visible: !document.hidden,
+      });
+    },
+    [mode],
   );
-  qualitySnapshot.cloudDetail = cloudDetailEnabled(
-    quality.durable >= 2,
-    quality.moving,
-  );
-  qualitySnapshot.forced = forcedQuality != null;
+  const onComposerError = useCallback(() => {
+    const now = performance.now();
+    scenePerformanceTrace.event({ at: now, type: "effects-error" });
+    dispatchQuality({ type: "effects-error", now });
+  }, []);
+
+  useEffect(() => {
+    if (
+      mode !== "auto" ||
+      adaptation.moving ||
+      adaptation.directRender ||
+      document.hidden
+    )
+      return;
+    const remaining = Math.max(
+      0,
+      adaptation.stableSince + QUALITY_PERSIST_STABLE_MS - performance.now(),
+    );
+    const timeout = window.setTimeout(() => {
+      if (
+        document.hidden ||
+        adaptationRef.current.profile !== adaptation.profile ||
+        adaptationRef.current.moving ||
+        adaptationRef.current.directRender
+      )
+        return;
+      try {
+        window.sessionStorage.setItem(storageBucket, adaptation.profile);
+        setLearnedProfile(adaptation.profile);
+      } catch {
+        // Learning is best-effort and never gates rendering.
+      }
+    }, remaining);
+    return () => window.clearTimeout(timeout);
+  }, [
+    adaptation.directRender,
+    adaptation.moving,
+    adaptation.profile,
+    adaptation.stableSince,
+    mode,
+    storageBucket,
+  ]);
+
+  const cooldownMs = useMemo(() => {
+    // Recompute the displayed countdown on each 250 ms metrics publication.
+    void liveMetrics;
+    return Math.max(
+      0,
+      adaptation.lastTransitionAt +
+        (adaptation.transitionReason === "recovery"
+          ? QUALITY_RECOVERY_COOLDOWN_MS
+          : QUALITY_DECLINE_COOLDOWN_MS) -
+        performance.now(),
+    );
+  }, [adaptation.lastTransitionAt, adaptation.transitionReason, liveMetrics]);
+  const fallbackStatus = adaptation.directRender
+    ? adaptation.transitionReason === "effects-error"
+      ? "direct-effects-error"
+      : "direct-safety"
+    : "composer";
+  qualitySnapshot = {
+    mode,
+    profile: plan.profile,
+    durable: plan.legacyRung,
+    moving: adaptation.moving,
+    frozen: adaptation.frozen,
+    forced: mode !== "auto",
+    effectiveDpr: plan.dpr,
+    physicalPixels: plan.physicalPixels,
+    postprocessing: postfxQuality,
+    sharpen: sharpenAmount,
+    meadowRung: plan.environment.meadowRung,
+    cloudDetail: plan.environment.cloudDetail === "full",
+    transitionReason: adaptation.transitionReason,
+    declineBaseline: adaptation.declineBaseline,
+    storageBucket,
+    learnedProfile,
+    fallbackStatus,
+    metrics: liveMetrics,
+    customOverrides: plan.customOverrides,
+    plan,
+  };
+  useEffect(() => {
+    sceneQualityController.publishRuntime({
+      plan,
+      metrics: liveMetrics,
+      storageBucket,
+      learnedProfile,
+      cooldownRemainingMs: cooldownMs,
+      transitionReason: adaptation.transitionReason,
+      fallbackStatus,
+    });
+  }, [
+    adaptation.transitionReason,
+    cooldownMs,
+    fallbackStatus,
+    learnedProfile,
+    liveMetrics,
+    plan,
+    storageBucket,
+  ]);
 
   const onOpenBook = useCallback(
     (id: string) => {
@@ -710,28 +1309,25 @@ export default function StacksCanvas({
         {postfx && (
           <ContextSafeEffects
             dark={dark}
-            quality={postfxQuality}
-            onUnavailable={onLost}
+            plan={plan.effects}
+            sharpenAmount={sharpenAmount}
+            onComposerError={onComposerError}
           />
         )}
         <PerformanceProbe />
+        <PerformanceTraceObservers />
+        <AdaptiveQualityProbe onSample={onQualitySample} />
         <SceneAudioBridge />
         <PhysicsPrewarm />
+        {performanceSettings.placardGlassMode === "sampled" && (
+          <SceneGlassSampler
+            variant={`${dark ? "dark" : "light"}-${activeUnit}`}
+            paused={adaptation.moving}
+          />
+        )}
         <MovementProbe onChange={onMovementChange} />
         <ShaderPrewarm
-          variant={`${dark ? "dark" : "light"}-${quality.durable}-${postfxQuality}`}
-        />
-        <PerformanceMonitor
-          onDecline={() => {
-            dispatchQuality({ type: "unstable" });
-            if (qualityRef.current.moving || forcedQuality != null) return;
-            transitionReason.current = "decline";
-            dispatchQuality({ type: "decline", now: performance.now() });
-          }}
-          onIncline={() => {
-            if (qualityRef.current.moving || forcedQuality != null) return;
-            dispatchQuality({ type: "incline", now: performance.now() });
-          }}
+          variant={`${dark ? "dark" : "light"}-${plan.profile}-${postfxQuality}`}
         />
         <ScrollControls
           horizontal
@@ -756,11 +1352,7 @@ export default function StacksCanvas({
             palette={palette}
             dark={dark}
             coverWidth={isTouch ? 256 : 384}
-            dustOff={quality.durable >= 2}
-            shadowsOff={quality.durable >= 3}
-            cloudSimplify={quality.durable >= 2}
-            moving={quality.moving}
-            degrade={quality.durable}
+            quality={plan}
             onOpenBook={onOpenBook}
             onOpenUrl={onOpenUrl}
           />

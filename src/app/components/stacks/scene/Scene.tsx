@@ -13,19 +13,39 @@ import { useStacks } from "../store";
 import { type Palette, proxied } from "../theme";
 import { useTexture } from "@react-three/drei";
 import { type ThreeEvent } from "@react-three/fiber";
-import { type ComponentType, Suspense, memo, useEffect } from "react";
+import {
+  type ComponentType,
+  type ReactNode,
+  Suspense,
+  memo,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
+import type * as THREE from "three";
 
 import CameraRig from "./CameraRig";
 import GroundPool, { FootPool } from "./GroundPool";
+import InsectPerchDiagnostics from "./InsectPerchDiagnostics";
 import ModelProp, { preloadModels } from "./ModelProp";
+import PhysicsDiagnosticsOverlay from "./PhysicsDiagnosticsOverlay";
+import {
+  PhysicsSceneFrameDriver,
+  PhysicsSceneProvider,
+  usePhysicsScene,
+} from "./PhysicsSceneProvider";
 import SceneEnvironment from "./SceneEnvironment";
 import { proxiedBookCover } from "./bookCoverTexture";
 import { Sway } from "./eggs";
+import { registerInsectCollisionRoot } from "./insectFlightWorld";
+import { UnitInsectPerches } from "./insectPerches";
 import { V8_PHOTOS_BY_UNIT, scenePhotoManifestUrl } from "./photoTextures";
+import type { SceneQualityPlan } from "./quality";
+import { scenePrewarmDeferred } from "./scenePerformance";
 import { SHELF_GEOMETRY } from "./shelfGeometry";
 import UnitAbout, { PORTRAIT_SRC } from "./units/UnitAbout";
 import UnitBlog from "./units/UnitBlog";
-import UnitBooks from "./units/UnitBooks";
+import UnitBooks, { featuredBookPerchDefinitions } from "./units/UnitBooks";
 import UnitProjects from "./units/UnitProjects";
 import UnitSystems from "./units/UnitSystems";
 import UnitTalks from "./units/UnitTalks";
@@ -66,13 +86,53 @@ function onUnitTap(index: number, e: ThreeEvent<MouseEvent>) {
   window.history.pushState(
     null,
     "",
-    unitUrlForLocation(
-      window.location.pathname,
-      window.location.search,
-      index,
-    ),
+    unitUrlForLocation(window.location.pathname, window.location.search, index),
   );
   state.travelTo(index);
+}
+
+function CollisionIndexedUnit({
+  index,
+  children,
+}: {
+  index: number;
+  children: ReactNode;
+}) {
+  const root = useRef<THREE.Group>(null);
+  const physicsScene = usePhysicsScene();
+  useEffect(() => {
+    if (!root.current) return;
+    const unregisterInsects = registerInsectCollisionRoot(index, root.current);
+    const unregisterPhysics = physicsScene.registerRoot({
+      id: `unit:${index}`,
+      kind: "unit",
+      unitIndex: index,
+      root: root.current,
+    });
+    return () => {
+      unregisterInsects();
+      unregisterPhysics();
+    };
+  }, [index, physicsScene]);
+  return (
+    <group ref={root} {...unitPose(index)}>
+      {children}
+    </group>
+  );
+}
+
+function SharedPhysicsRoot({ children }: { children: ReactNode }) {
+  const root = useRef<THREE.Group>(null);
+  const physicsScene = usePhysicsScene();
+  useEffect(() => {
+    if (!root.current) return;
+    return physicsScene.registerRoot({
+      id: "shared:monstera",
+      kind: "shared",
+      root: root.current,
+    });
+  }, [physicsScene]);
+  return <group ref={root}>{children}</group>;
 }
 
 const SceneContent = memo(function SceneContent({
@@ -90,10 +150,45 @@ const SceneContent = memo(function SceneContent({
   onOpenBook?: (bookId: string) => void;
   onOpenUrl?: (url: string) => void;
 }) {
-  // Prefetch the full GLB prop set once the world has committed — props pop
-  // in together instead of gating the first paint or trickling per-unit.
+  const bookPerches = useMemo(
+    () => featuredBookPerchDefinitions(data.featuredBooks),
+    [data.featuredBooks],
+  );
+  // Prefetch the compact GLB set only when it cannot compete with travel. The
+  // callback checks again when it fires because it may have been queued while
+  // still and become eligible only after a traverse began.
   useEffect(() => {
-    preloadModels();
+    let cancelled = false;
+    let timeout = 0;
+    let idle = 0;
+    const idleApi = window as Window & {
+      requestIdleCallback?: Window["requestIdleCallback"];
+      cancelIdleCallback?: Window["cancelIdleCallback"];
+    };
+    const run = () => {
+      if (cancelled) return;
+      if (scenePrewarmDeferred()) {
+        timeout = window.setTimeout(schedule, 250);
+        return;
+      }
+      preloadModels();
+    };
+    const schedule = () => {
+      if (cancelled) return;
+      if (scenePrewarmDeferred()) {
+        timeout = window.setTimeout(schedule, 250);
+      } else if (idleApi.requestIdleCallback) {
+        idle = idleApi.requestIdleCallback(run, { timeout: 1200 });
+      } else {
+        timeout = window.setTimeout(run, 250);
+      }
+    };
+    schedule();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+      if (idle && idleApi.cancelIdleCallback) idleApi.cancelIdleCallback(idle);
+    };
   }, []);
   // Warm the current/adjacent units immediately, then trickle the rest by
   // unit during idle time. The old single 2.5 s timer launched every cover,
@@ -137,10 +232,24 @@ const SceneContent = memo(function SceneContent({
       warmUnit(index - 1);
       warmUnit(index + 1);
     };
-    warmNear(useStacks.getState().activeUnit);
+    let cancelled = false;
+    let nearDelayHandle = 0;
+    let pendingNear = useStacks.getState().activeUnit;
+    const flushNear = () => {
+      if (cancelled) return;
+      if (scenePrewarmDeferred()) {
+        nearDelayHandle = window.setTimeout(flushNear, 250);
+        return;
+      }
+      warmNear(pendingNear);
+    };
+    flushNear();
 
     const unsubscribe = useStacks.subscribe((state, previous) => {
-      if (state.activeUnit !== previous.activeUnit) warmNear(state.activeUnit);
+      if (state.activeUnit === previous.activeUnit) return;
+      pendingNear = state.activeUnit;
+      window.clearTimeout(nearDelayHandle);
+      flushNear();
     });
 
     // Follow the canonical traverse. Already-warmed current/adjacent units
@@ -150,7 +259,6 @@ const SceneContent = memo(function SceneContent({
     let queueIndex = 0;
     let idleHandle = 0;
     let delayHandle = 0;
-    let cancelled = false;
     const idleApi = window as unknown as {
       requestIdleCallback?: Window["requestIdleCallback"];
       cancelIdleCallback?: Window["cancelIdleCallback"];
@@ -159,6 +267,10 @@ const SceneContent = memo(function SceneContent({
       if (cancelled || queueIndex >= idleQueue.length) return;
       const run = () => {
         if (cancelled) return;
+        if (scenePrewarmDeferred()) {
+          delayHandle = window.setTimeout(scheduleNext, 250);
+          return;
+        }
         warmSlug(idleQueue[queueIndex++]!);
         delayHandle = window.setTimeout(scheduleNext, 650);
       };
@@ -174,6 +286,7 @@ const SceneContent = memo(function SceneContent({
       cancelled = true;
       unsubscribe();
       window.clearTimeout(delayHandle);
+      window.clearTimeout(nearDelayHandle);
       if (idleHandle && idleApi.cancelIdleCallback) {
         idleApi.cancelIdleCallback(idleHandle);
       }
@@ -184,7 +297,11 @@ const SceneContent = memo(function SceneContent({
       {UNITS.map((unit, i) => {
         const Unit = UNIT_COMPONENTS[unit.slug];
         return (
-          <group key={unit.slug} {...unitPose(i)}>
+          <CollisionIndexedUnit key={unit.slug} index={i}>
+            <UnitInsectPerches
+              unitIndex={i}
+              definitions={i === 1 ? bookPerches : undefined}
+            />
             <Unit
               data={data}
               palette={palette}
@@ -197,39 +314,45 @@ const SceneContent = memo(function SceneContent({
             {/* Invisible raycast plane BEHIND the interactive props (covers
                 sit at z 0.06+ and stopPropagation first) — a lateral travel
                 target only. The active unit deliberately does nothing. */}
-            <mesh position={[0, 0.1, -0.3]} onClick={(e) => onUnitTap(i, e)}>
+            <mesh
+              position={[0, 0.1, -0.3]}
+              userData={{ physicsIgnore: true }}
+              onClick={(e) => onUnitTap(i, e)}
+            >
               <planeGeometry args={[3.4, 2.6]} />
               <meshBasicMaterial transparent opacity={0} depthWrite={false} />
             </mesh>
-          </group>
+          </CollisionIndexedUnit>
         );
       })}
       {/* A shared-room object rather than About furniture: the large plant
           marks the transition between the portrait desk and the library. */}
-      <group
-        name="stacks-monstera-anchor"
-        position={[2.2, SHELF_GEOMETRY.groundY, -1.72]}
-        rotation={[0, -0.25, 0]}
-      >
-        {/* Position outside Sway: its rotation now happens at the pot's local
-            floor contact instead of orbiting the whole plant around world 0.
-            FootPool stays fixed under that same contact point. */}
-        <Sway unitIndex={0} amount={0.016} rate={0.3} phase={0.7}>
-          <group name="stacks-monstera-sway-body">
-            <Suspense fallback={null}>
-              <ModelProp
-                url="/models/monstera.glb"
-                dark={dark}
-                variant="recolor"
-                atlasOverride={
-                  dark ? MONSTERA_ATLAS_DARK : MONSTERA_ATLAS_LIGHT
-                }
-                scale={0.92}
-              />
-            </Suspense>
-          </group>
-        </Sway>
-      </group>
+      <SharedPhysicsRoot>
+        <group
+          name="stacks-monstera-anchor"
+          position={[2.2, SHELF_GEOMETRY.groundY, -1.72]}
+          rotation={[0, -0.25, 0]}
+        >
+          {/* Position outside Sway: its rotation now happens at the pot's local
+              floor contact instead of orbiting the whole plant around world 0.
+              FootPool stays fixed under that same contact point. */}
+          <Sway unitIndex={0} amount={0.016} rate={0.3} phase={0.7}>
+            <group name="stacks-monstera-sway-body">
+              <Suspense fallback={null}>
+                <ModelProp
+                  url="/models/monstera.glb"
+                  dark={dark}
+                  variant="recolor"
+                  atlasOverride={
+                    dark ? MONSTERA_ATLAS_DARK : MONSTERA_ATLAS_LIGHT
+                  }
+                  scale={0.92}
+                />
+              </Suspense>
+            </group>
+          </Sway>
+        </group>
+      </SharedPhysicsRoot>
       <FootPool
         color={palette.shadow}
         opacity={dark ? 0.45 : 0.28}
@@ -243,31 +366,16 @@ const SceneContent = memo(function SceneContent({
 function QualityLayer({
   palette,
   dark,
-  dustOff,
-  shadowsOff,
-  cloudSimplify,
-  moving,
-  degrade,
+  quality,
 }: {
   palette: Palette;
   dark: boolean;
-  dustOff?: boolean;
-  shadowsOff?: boolean;
-  cloudSimplify?: boolean;
-  moving?: boolean;
-  degrade?: number;
+  quality: SceneQualityPlan;
 }) {
   return (
     <>
-      <SceneEnvironment
-        palette={palette}
-        dark={dark}
-        dustOff={dustOff}
-        cloudSimplify={cloudSimplify}
-        moving={moving}
-        degrade={degrade}
-      />
-      {!shadowsOff &&
+      <SceneEnvironment palette={palette} dark={dark} quality={quality} />
+      {quality.environment.grounding &&
         UNITS.map((unit, i) => (
           <group key={`pool-${unit.slug}`} {...unitPose(i)}>
             {/* Soft analytic grounding, isolated from the content units so a
@@ -284,11 +392,7 @@ function Scene({
   palette,
   dark,
   coverWidth,
-  dustOff,
-  shadowsOff,
-  cloudSimplify,
-  moving,
-  degrade,
+  quality,
   onOpenBook,
   onOpenUrl,
 }: {
@@ -296,11 +400,7 @@ function Scene({
   palette: Palette;
   dark: boolean;
   coverWidth: 256 | 384;
-  dustOff?: boolean;
-  shadowsOff?: boolean;
-  cloudSimplify?: boolean;
-  moving?: boolean;
-  degrade?: number;
+  quality: SceneQualityPlan;
   onOpenBook?: (bookId: string) => void;
   onOpenUrl?: (url: string) => void;
 }) {
@@ -310,23 +410,24 @@ function Scene({
           environment and interactive content must read the camera after it
           has moved for this frame. */}
       <CameraRig />
-      <QualityLayer
-        palette={palette}
-        dark={dark}
-        dustOff={dustOff}
-        shadowsOff={shadowsOff}
-        cloudSimplify={cloudSimplify}
-        moving={moving}
-        degrade={degrade}
-      />
-      <SceneContent
-        data={data}
-        palette={palette}
-        dark={dark}
-        coverWidth={coverWidth}
-        onOpenBook={onOpenBook}
-        onOpenUrl={onOpenUrl}
-      />
+      <PhysicsSceneProvider>
+        <QualityLayer palette={palette} dark={dark} quality={quality} />
+        <SceneContent
+          data={data}
+          palette={palette}
+          dark={dark}
+          coverWidth={coverWidth}
+          onOpenBook={onOpenBook}
+          onOpenUrl={onOpenUrl}
+        />
+        <PhysicsSceneFrameDriver />
+      </PhysicsSceneProvider>
+      {process.env.NODE_ENV === "development" ? (
+        <>
+          <InsectPerchDiagnostics />
+          <PhysicsDiagnosticsOverlay />
+        </>
+      ) : null}
     </>
   );
 }

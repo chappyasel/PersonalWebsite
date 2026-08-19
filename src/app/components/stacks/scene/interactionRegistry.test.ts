@@ -5,8 +5,8 @@ import {
   MASS_HANDLING,
   cursorForInteraction,
   destinationFor,
-  doorLabelActivation,
   doorDisplayLabel,
+  doorLabelActivation,
   getSceneInteraction,
   massClassFor,
   registerSceneInteraction,
@@ -29,7 +29,7 @@ describe("scene interaction registry", () => {
     ).toBe("View on LinkedIn ↗");
   });
 
-  it("composes movable and Door capabilities without losing grab cursor", () => {
+  it("gives a movable Door its higher-priority click cursor", () => {
     const release = registerSceneInteraction({
       id: "test:movable-door",
       root: new Group(),
@@ -41,7 +41,7 @@ describe("scene interaction registry", () => {
         external: false,
       },
     });
-    expect(cursorForInteraction("test:movable-door", null)).toBe("grab");
+    expect(cursorForInteraction("test:movable-door", null)).toBe("pointer");
     expect(cursorForInteraction("test:movable-door", "test:movable-door")).toBe(
       "grabbing",
     );
@@ -49,11 +49,12 @@ describe("scene interaction registry", () => {
     expect(cursorForInteraction("test:movable-door", null)).toBe("");
   });
 
-  it("keeps actions clickable without presenting them as Doors", () => {
+  it("gives local actions the same label and cursor priority as clicks", () => {
     const release = registerSceneInteraction({
       id: "test:action",
       root: new Group(),
       activeUnits: [0],
+      movable: { massKg: 0.62, massClass: "light" },
       activation: {
         kind: "action",
         label: "Launch golf ball",
@@ -62,7 +63,9 @@ describe("scene interaction registry", () => {
     });
     expect(getSceneInteraction("test:action")?.activation?.kind).toBe("action");
     expect(cursorForInteraction("test:action", null)).toBe("pointer");
-    expect(doorLabelActivation(getSceneInteraction("test:action"))).toBeNull();
+    expect(
+      doorLabelActivation(getSceneInteraction("test:action")),
+    ).toMatchObject({ kind: "action", label: "Launch golf ball" });
     release();
   });
 
@@ -120,12 +123,20 @@ describe("scene interaction registry", () => {
       expect(handling[index]!.followLambda).toBeLessThan(
         handling[index - 1]!.followLambda,
       );
-      expect(handling[index]!.maxLift).toBeLessThan(
-        handling[index - 1]!.maxLift,
+      expect(handling[index]!.maxRaise).toBeLessThan(
+        handling[index - 1]!.maxRaise,
       );
       expect(handling[index]!.throwTilt).toBeLessThan(
         handling[index - 1]!.throwTilt,
       );
     }
+    expect(
+      handling.map(({ maxRaise, minDrop }) => [maxRaise, minDrop]),
+    ).toEqual([
+      [1.5, -1.5],
+      [1, -1.5],
+      [0.6, -1.2],
+      [0.25, -0.5],
+    ]);
   });
 });

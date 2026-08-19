@@ -66,7 +66,7 @@ type Telemetry = {
   time?: number;
   species?: "butterfly" | "moth";
   unitIndex: number;
-  homeUnit?: number;
+  initialResidency?: number;
   residentIndex: number;
   phase: string;
   position?: Point;

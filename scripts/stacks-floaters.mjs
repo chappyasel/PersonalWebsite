@@ -114,10 +114,23 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 // three-stdlib's GLTFLoader expects a DOM (same stubs as stacks-render.mjs).
-globalThis.Image = class { constructor() { setTimeout(() => this.onload && this.onload(), 0); } set src(v) {} addEventListener(t, f) { if (t === "load") setTimeout(f, 0); } removeEventListener() {} };
-globalThis.document = { createElementNS: () => ({ getContext: () => ({}), style: {} }), createElement: () => ({ getContext: () => ({}), style: {} }) };
+globalThis.Image = class {
+  constructor() {
+    setTimeout(() => this.onload && this.onload(), 0);
+  }
+  set src(v) {}
+  addEventListener(t, f) {
+    if (t === "load") setTimeout(f, 0);
+  }
+  removeEventListener() {}
+};
+globalThis.document = {
+  createElementNS: () => ({ getContext: () => ({}), style: {} }),
+  createElement: () => ({ getContext: () => ({}), style: {} }),
+};
 globalThis.self = globalThis;
-if (!globalThis.URL.createObjectURL) globalThis.URL.createObjectURL = () => "blob:stub";
+if (!globalThis.URL.createObjectURL)
+  globalThis.URL.createObjectURL = () => "blob:stub";
 
 const ROOT = process.cwd();
 const SRC = path.join(ROOT, "src");
@@ -138,7 +151,10 @@ const [ts, THREE, { GLTFLoader, MeshoptDecoder }] = await Promise.all([
 ]);
 
 const argv = process.argv.slice(2);
-const flag = (n, d) => { const i = argv.indexOf(n); return i === -1 ? d : argv[i + 1]; };
+const flag = (n, d) => {
+  const i = argv.indexOf(n);
+  return i === -1 ? d : argv[i + 1];
+};
 const OPT = {
   all: argv.includes("--all"),
   filtered: argv.includes("--filtered"),
@@ -185,7 +201,8 @@ const linSub = (a, b) => linAdd(a, linScale(b, -1));
 const linText = (l) => {
   const parts = [];
   if (l.c !== 0 || l.t.size === 0) parts.push(l.c.toFixed(4));
-  for (const [k, v] of l.t) parts.push(`${v >= 0 && parts.length ? "+" : ""}${v.toFixed(3)}·${k}`);
+  for (const [k, v] of l.t)
+    parts.push(`${v >= 0 && parts.length ? "+" : ""}${v.toFixed(3)}·${k}`);
   return parts.join(" ");
 };
 
@@ -214,7 +231,8 @@ const modules = new Map();
 function resolveImport(fromFile, spec) {
   let base;
   if (spec.startsWith("~/")) base = path.join(SRC, spec.slice(2));
-  else if (spec.startsWith(".")) base = path.resolve(path.dirname(fromFile), spec);
+  else if (spec.startsWith("."))
+    base = path.resolve(path.dirname(fromFile), spec);
   else return null; // node_modules — handled by the builtin tables
   for (const ext of [".tsx", ".ts", "/index.tsx", "/index.ts"]) {
     if (fs.existsSync(base + ext)) return base + ext;
@@ -240,7 +258,8 @@ function loadModule(file) {
       const spec = stmt.moduleSpecifier.text;
       const target = resolveImport(file, spec);
       const { name, namedBindings } = stmt.importClause;
-      if (name) mod.imports.set(name.text, { file: target, exported: "default", spec });
+      if (name)
+        mod.imports.set(name.text, { file: target, exported: "default", spec });
       if (namedBindings && ts.isNamedImports(namedBindings)) {
         for (const el of namedBindings.elements) {
           mod.imports.set(el.name.text, {
@@ -256,7 +275,9 @@ function loadModule(file) {
     if (!node) continue;
     if (ts.isFunctionDeclaration(node) && node.name) {
       mod.decls.set(node.name.text, node);
-      if (node.modifiers?.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword)) {
+      if (
+        node.modifiers?.some((m) => m.kind === ts.SyntaxKind.DefaultKeyword)
+      ) {
         mod.decls.set("default", node);
       }
     } else if (ts.isVariableStatement(node)) {
@@ -291,7 +312,11 @@ function evalNode(node, ctx) {
   const { env, mod } = ctx;
 
   if (ts.isParenthesizedExpression(node)) return evalNode(node.expression, ctx);
-  if (ts.isAsExpression(node) || ts.isNonNullExpression(node) || ts.isSatisfiesExpression?.(node)) {
+  if (
+    ts.isAsExpression(node) ||
+    ts.isNonNullExpression(node) ||
+    ts.isSatisfiesExpression?.(node)
+  ) {
     return evalNode(node.expression, ctx);
   }
   if (ts.isNumericLiteral(node)) return NUM(K(Number(node.text)));
@@ -306,7 +331,8 @@ function evalNode(node, ctx) {
   if (ts.isPrefixUnaryExpression(node)) {
     const v = evalNode(node.operand, ctx);
     const l = asLin(v);
-    if (node.operator === ts.SyntaxKind.MinusToken && l) return NUM(linScale(l, -1));
+    if (node.operator === ts.SyntaxKind.MinusToken && l)
+      return NUM(linScale(l, -1));
     if (node.operator === ts.SyntaxKind.PlusToken && l) return NUM(l);
     if (node.operator === ts.SyntaxKind.ExclamationToken && v.k === "bool") {
       return { k: "bool", v: !v.v };
@@ -335,14 +361,22 @@ function evalNode(node, ctx) {
         return UNK("nonlinear quotient");
       }
       if (isConst(la) && isConst(lb)) {
-        if (op === ts.SyntaxKind.LessThanToken) return { k: "bool", v: la.c < lb.c };
-        if (op === ts.SyntaxKind.GreaterThanToken) return { k: "bool", v: la.c > lb.c };
+        if (op === ts.SyntaxKind.LessThanToken)
+          return { k: "bool", v: la.c < lb.c };
+        if (op === ts.SyntaxKind.GreaterThanToken)
+          return { k: "bool", v: la.c > lb.c };
       }
     }
-    if (op === ts.SyntaxKind.EqualsEqualsEqualsToken || op === ts.SyntaxKind.ExclamationEqualsEqualsToken) {
+    if (
+      op === ts.SyntaxKind.EqualsEqualsEqualsToken ||
+      op === ts.SyntaxKind.ExclamationEqualsEqualsToken
+    ) {
       const eq = sameValue(a, b);
       if (eq === null) return UNK("comparison");
-      return { k: "bool", v: op === ts.SyntaxKind.EqualsEqualsEqualsToken ? eq : !eq };
+      return {
+        k: "bool",
+        v: op === ts.SyntaxKind.EqualsEqualsEqualsToken ? eq : !eq,
+      };
     }
     if (op === ts.SyntaxKind.QuestionQuestionToken) {
       return a.k === "undef" || a.k === "null" ? b : a;
@@ -352,7 +386,8 @@ function evalNode(node, ctx) {
 
   if (ts.isConditionalExpression(node)) {
     const test = evalNode(node.condition, ctx);
-    if (test.k === "bool") return evalNode(test.v ? node.whenTrue : node.whenFalse, ctx);
+    if (test.k === "bool")
+      return evalNode(test.v ? node.whenTrue : node.whenFalse, ctx);
     // Unresolved test: take the consequent and say so. In this scene the
     // undecidable ones are all `dark ? colorA : colorB`, which no contact
     // height depends on — but a branch that DID matter would show up as a
@@ -368,13 +403,17 @@ function evalNode(node, ctx) {
   if (ts.isObjectLiteralExpression(node)) {
     const props = new Map();
     for (const p of node.properties) {
-      if (ts.isPropertyAssignment(p) && (ts.isIdentifier(p.name) || ts.isStringLiteral(p.name))) {
+      if (
+        ts.isPropertyAssignment(p) &&
+        (ts.isIdentifier(p.name) || ts.isStringLiteral(p.name))
+      ) {
         props.set(p.name.text, evalNode(p.initializer, ctx));
       } else if (ts.isShorthandPropertyAssignment(p)) {
         props.set(p.name.text, evalNode(p.name, ctx));
       } else if (ts.isSpreadAssignment(p)) {
         const src = evalNode(p.expression, ctx);
-        if (src.k === "obj") for (const [k2, v2] of src.props) props.set(k2, v2);
+        if (src.k === "obj")
+          for (const [k2, v2] of src.props) props.set(k2, v2);
       }
     }
     return { k: "obj", props };
@@ -385,7 +424,11 @@ function evalNode(node, ctx) {
     if (bound) return forceValue(bound);
     const decl = lookupDecl(mod, node.text);
     if (decl && ts.isVariableDeclaration(decl.node) && decl.node.initializer) {
-      return evalNode(decl.node.initializer, { ...ctx, mod: decl.mod, env: new Map() });
+      return evalNode(decl.node.initializer, {
+        ...ctx,
+        mod: decl.mod,
+        env: new Map(),
+      });
     }
     return SYMBOLIC(node.text);
   }
@@ -401,7 +444,8 @@ function evalNode(node, ctx) {
       const v = obj.props.get(node.name.text);
       return v ? forceValue(v) : { k: "undef" };
     }
-    if (obj.k === "arr" && node.name.text === "length") return NUM(K(obj.items.length));
+    if (obj.k === "arr" && node.name.text === "length")
+      return NUM(K(obj.items.length));
     // Anything else — `frames.length` on a memo the walker cannot run — becomes
     // a symbol rather than a hole. A hole here reads as "no value", and the
     // transform code would then silently skip the attribute holding it, which
@@ -412,13 +456,18 @@ function evalNode(node, ctx) {
   if (ts.isElementAccessExpression(node)) {
     const obj = evalNode(node.expression, ctx);
     const idx = asLin(evalNode(node.argumentExpression, ctx));
-    if (obj.k === "arr" && idx && isConst(idx)) return obj.items[idx.c] ?? { k: "undef" };
+    if (obj.k === "arr" && idx && isConst(idx))
+      return obj.items[idx.c] ?? { k: "undef" };
     return SYMBOLIC(`${node.getText()}`);
   }
 
   if (ts.isCallExpression(node)) return evalCall(node, ctx);
 
-  if (ts.isJsxElement(node) || ts.isJsxSelfClosingElement(node) || ts.isJsxFragment(node)) {
+  if (
+    ts.isJsxElement(node) ||
+    ts.isJsxSelfClosingElement(node) ||
+    ts.isJsxFragment(node)
+  ) {
     return { k: "jsx", node, env, mod };
   }
 
@@ -432,7 +481,8 @@ function evalNode(node, ctx) {
 const SYMBOLIC = (name) => NUM(SYMBOL(name));
 
 function sameValue(a, b) {
-  if (a.k === "undef" || b.k === "undef") return (a.k === "undef") === (b.k === "undef");
+  if (a.k === "undef" || b.k === "undef")
+    return (a.k === "undef") === (b.k === "undef");
   if (a.k === "str" && b.k === "str") return a.v === b.v;
   const la = asLin(a);
   const lb = asLin(b);
@@ -452,11 +502,25 @@ function evalCall(node, ctx) {
   const callee = node.expression;
   const calleeText = callee.getText();
 
-  if (ts.isPropertyAccessExpression(callee) && callee.expression.getText() === "Math") {
+  if (
+    ts.isPropertyAccessExpression(callee) &&
+    callee.expression.getText() === "Math"
+  ) {
     const args = node.arguments.map((a) => asLin(evalNode(a, ctx)));
     if (args.some((a) => !a || !isConst(a))) return UNK("Math of symbol");
     const n = args.map((a) => a.c);
-    const fn = { cos: Math.cos, sin: Math.sin, abs: Math.abs, sqrt: Math.sqrt, floor: Math.floor, round: Math.round, max: Math.max, min: Math.min, tan: Math.tan, hypot: Math.hypot }[callee.name.text];
+    const fn = {
+      cos: Math.cos,
+      sin: Math.sin,
+      abs: Math.abs,
+      sqrt: Math.sqrt,
+      floor: Math.floor,
+      round: Math.round,
+      max: Math.max,
+      min: Math.min,
+      tan: Math.tan,
+      hypot: Math.hypot,
+    }[callee.name.text];
     return fn ? NUM(K(fn(...n))) : UNK("Math fn");
   }
 
@@ -484,7 +548,8 @@ function evalCall(node, ctx) {
       const env = new Map(fn.env);
       const defaults = { ...ctx, mod: fn.mod, env };
       bindParam(fn.node.parameters[0], elem, env, ctx, defaults);
-      if (fn.node.parameters[1]) bindParam(fn.node.parameters[1], NUM(K(index)), env, ctx, defaults);
+      if (fn.node.parameters[1])
+        bindParam(fn.node.parameters[1], NUM(K(index)), env, ctx, defaults);
       const body = fn.node.body;
       const inner = { ...ctx, env, mod: fn.mod };
       if (ts.isBlock(body)) {
@@ -497,7 +562,9 @@ function evalCall(node, ctx) {
     if (src.k === "arr") {
       src.items.forEach((item, i) => out.push(run(item, i)));
     } else {
-      ctx.notes.add(`dynamic .map over ${callee.expression.getText()} — index pinned to 0`);
+      ctx.notes.add(
+        `dynamic .map over ${callee.expression.getText()} — index pinned to 0`,
+      );
       out.push(run(SYMBOLIC(`${callee.expression.getText()}[0]`), 0));
     }
     return { k: "arr", items: out };
@@ -511,8 +578,16 @@ function evalCall(node, ctx) {
   // and every book in every packed row went missing without a word. Hence the
   // loud reporting at the end of `walk`.
   if (calleeText === "createElement" || calleeText === "React.createElement") {
-    passthroughs.set(`createElement(${node.arguments[0]?.getText() ?? "?"})`, (passthroughs.get(`createElement(${node.arguments[0]?.getText() ?? "?"})`) ?? 0) + 1);
-    return { k: "arr", items: node.arguments.slice(2).map((a) => evalNode(a, ctx)) };
+    passthroughs.set(
+      `createElement(${node.arguments[0]?.getText() ?? "?"})`,
+      (passthroughs.get(
+        `createElement(${node.arguments[0]?.getText() ?? "?"})`,
+      ) ?? 0) + 1,
+    );
+    return {
+      k: "arr",
+      items: node.arguments.slice(2).map((a) => evalNode(a, ctx)),
+    };
   }
 
   // A plain helper that returns one expression — `deskFrameHeight(0.22)`.
@@ -521,14 +596,31 @@ function evalCall(node, ctx) {
   // this evaluator has no business attempting, and a half-evaluated answer
   // ("unknown") must fall through to the subprocess below rather than be
   // returned as if it were the truth.
-  const decl = ts.isIdentifier(callee) ? lookupDecl(ctx.mod, callee.text) : null;
+  const decl = ts.isIdentifier(callee)
+    ? lookupDecl(ctx.mod, callee.text)
+    : null;
   let inlined = null;
   if (decl) {
-    const fnNode = ts.isVariableDeclaration(decl.node) ? decl.node.initializer : decl.node;
-    if (fnNode && (ts.isArrowFunction(fnNode) || ts.isFunctionDeclaration(fnNode) || ts.isFunctionExpression(fnNode))) {
+    const fnNode = ts.isVariableDeclaration(decl.node)
+      ? decl.node.initializer
+      : decl.node;
+    if (
+      fnNode &&
+      (ts.isArrowFunction(fnNode) ||
+        ts.isFunctionDeclaration(fnNode) ||
+        ts.isFunctionExpression(fnNode))
+    ) {
       const env = new Map();
       const defaults = { ...ctx, mod: decl.mod, env: new Map() };
-      fnNode.parameters.forEach((p, i) => bindParam(p, node.arguments[i] ? evalNode(node.arguments[i], ctx) : undefined, env, ctx, defaults));
+      fnNode.parameters.forEach((p, i) =>
+        bindParam(
+          p,
+          node.arguments[i] ? evalNode(node.arguments[i], ctx) : undefined,
+          env,
+          ctx,
+          defaults,
+        ),
+      );
       const inner = { ...ctx, env, mod: decl.mod };
       const body = fnNode.body;
       if (body && ts.isBlock(body)) {
@@ -558,7 +650,13 @@ function evalCall(node, ctx) {
   if (decl && decl.mod.file.startsWith(SRC)) {
     const args = node.arguments.map((a) => plainValue(evalNode(a, ctx)));
     if (args.every((a) => a !== undefined)) {
-      const importPath = "~/" + path.relative(SRC, decl.mod.file).replace(/\.(tsx?|mts)$/, "").split(path.sep).join("/");
+      const importPath =
+        "~/" +
+        path
+          .relative(SRC, decl.mod.file)
+          .replace(/\.(tsx?|mts)$/, "")
+          .split(path.sep)
+          .join("/");
       const key = `${importPath}|${callee.text}|${JSON.stringify(args)}`;
       if (helperValues.has(key)) return NUM(K(helperValues.get(key)));
       helperWanted.set(key, { importPath, fn: callee.text, args });
@@ -607,7 +705,9 @@ function bindParam(param, value, env, ctx, defaultCtx = ctx) {
     const src = value && value.k === "obj" ? value.props : new Map();
     for (const el of param.name.elements) {
       if (!ts.isIdentifier(el.name)) continue;
-      const key = (el.propertyName ?? el.name).getText().replace(/^["']|["']$/g, "");
+      const key = (el.propertyName ?? el.name)
+        .getText()
+        .replace(/^["']|["']$/g, "");
       let v = src.get(key);
       v = v ? forceValue(v) : undefined;
       if ((!v || v.k === "undef") && el.initializer) {
@@ -639,7 +739,12 @@ function lastReturn(block) {
   let found = null;
   const visit = (n) => {
     if (ts.isReturnStatement(n) && n.expression) found = n;
-    if (ts.isFunctionDeclaration(n) || ts.isArrowFunction(n) || ts.isFunctionExpression(n)) return;
+    if (
+      ts.isFunctionDeclaration(n) ||
+      ts.isArrowFunction(n) ||
+      ts.isFunctionExpression(n)
+    )
+      return;
     ts.forEachChild(n, visit);
   };
   ts.forEachChild(block, visit);
@@ -654,17 +759,20 @@ function lastReturn(block) {
 const IDENTITY = [1, 0, 0, 0, 1, 0, 0, 0, 1];
 
 function eulerMatrix(rx, ry, rz) {
-  const m = new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(rx, ry, rz, "XYZ"));
+  const m = new THREE.Matrix4().makeRotationFromEuler(
+    new THREE.Euler(rx, ry, rz, "XYZ"),
+  );
   const e = m.elements; // column-major
   return [e[0], e[4], e[8], e[1], e[5], e[9], e[2], e[6], e[10]];
 }
 function matMul(a, b) {
   const o = new Array(9).fill(0);
-  for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
-    let s = 0;
-    for (let k = 0; k < 3; k++) s += a[r * 3 + k] * b[k * 3 + c];
-    o[r * 3 + c] = s;
-  }
+  for (let r = 0; r < 3; r++)
+    for (let c = 0; c < 3; c++) {
+      let s = 0;
+      for (let k = 0; k < 3; k++) s += a[r * 3 + k] * b[k * 3 + c];
+      o[r * 3 + c] = s;
+    }
   return o;
 }
 
@@ -672,11 +780,11 @@ const newFrame = () => ({
   p: [ZERO, ZERO, ZERO],
   R: IDENTITY,
   s: 1,
-  slot: null,        // "top" | "lower" | null — which ShelfUnit surface
+  slot: null, // "top" | "lower" | null — which ShelfUnit surface
   inShelfUnit: false,
   chain: [],
   key: 0,
-  bad: [],           // attributes the walker could not read — see readRot
+  bad: [], // attributes the walker could not read — see readRot
 });
 let frameSeq = 0;
 
@@ -730,7 +838,9 @@ function descend(frame, pos, rot, scl, label, bad) {
     s: scl == null ? frame.s : frame.s * scl,
     chain: label ? [...frame.chain, label] : frame.chain,
     key: ++frameSeq,
-    bad: bad?.filter(Boolean).length ? [...frame.bad, ...bad.filter(Boolean)] : frame.bad,
+    bad: bad?.filter(Boolean).length
+      ? [...frame.bad, ...bad.filter(Boolean)]
+      : frame.bad,
   };
 }
 
@@ -743,7 +853,9 @@ function triple(value, label) {
   if (!value) return null;
   if (value.k === "num") return [value.lin, value.lin, value.lin];
   if (value.k !== "arr" || value.items.length < 3) return null;
-  return ["x", "y", "z"].map((ax, i) => asLin(value.items[i]) ?? SYMBOL(`${label ?? "?"}.${ax}`));
+  return ["x", "y", "z"].map(
+    (ax, i) => asLin(value.items[i]) ?? SYMBOL(`${label ?? "?"}.${ax}`),
+  );
 }
 function numericTriple(value) {
   const t = triple(value);
@@ -779,7 +891,9 @@ const maxLin = (a, b) => {
 // numerically identical; the --crosscheck pass proves it.
 // ===========================================================================
 const loader = new GLTFLoader();
-loader.setMeshoptDecoder(typeof MeshoptDecoder === "function" ? MeshoptDecoder() : MeshoptDecoder);
+loader.setMeshoptDecoder(
+  typeof MeshoptDecoder === "function" ? MeshoptDecoder() : MeshoptDecoder,
+);
 const glbCache = new Map();
 
 async function loadTriangles(name) {
@@ -789,11 +903,18 @@ async function loadTriangles(name) {
   if (!fs.existsSync(file)) return null;
   const buf = fs.readFileSync(file);
   const gltf = await new Promise((res, rej) =>
-    loader.parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength), "", res, rej),
+    loader.parse(
+      buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength),
+      "",
+      res,
+      rej,
+    ),
   );
   gltf.scene.updateMatrixWorld(true);
   const tris = [];
-  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+  const a = new THREE.Vector3(),
+    b = new THREE.Vector3(),
+    c = new THREE.Vector3();
   gltf.scene.traverse((o) => {
     if (!o.isMesh) return;
     const pos = o.geometry.attributes.position;
@@ -806,7 +927,11 @@ async function loadTriangles(name) {
       a.fromBufferAttribute(pos, i0).applyMatrix4(o.matrixWorld);
       b.fromBufferAttribute(pos, i1).applyMatrix4(o.matrixWorld);
       c.fromBufferAttribute(pos, i2).applyMatrix4(o.matrixWorld);
-      tris.push([[a.x, a.y, a.z], [b.x, b.y, b.z], [c.x, c.y, c.z]]);
+      tris.push([
+        [a.x, a.y, a.z],
+        [b.x, b.y, b.z],
+        [c.x, c.y, c.z],
+      ]);
     }
   });
   glbCache.set(name, tris);
@@ -829,10 +954,16 @@ async function modelContact(name) {
   const hit = contactCache.get(name);
   if (hit !== undefined) return hit;
   const tris = await loadTriangles(name);
-  if (!tris) { contactCache.set(name, null); return null; }
+  if (!tris) {
+    contactCache.set(name, null);
+    return null;
+  }
   const pts = tris.flat();
   const { min, max } = bounds(pts);
-  const isles = islandSplit(tris, Math.max(max[0] - min[0], max[1] - min[1], max[2] - min[2]));
+  const isles = islandSplit(
+    tris,
+    Math.max(max[0] - min[0], max[1] - min[1], max[2] - min[2]),
+  );
   const contact = contactPlane(isles, min, max);
   const out = { pts, min, max, contact };
   contactCache.set(name, out);
@@ -840,22 +971,29 @@ async function modelContact(name) {
 }
 
 const bounds = (pts) => {
-  const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
-  for (const p of pts) for (let k = 0; k < 3; k++) {
-    if (p[k] < min[k]) min[k] = p[k];
-    if (p[k] > max[k]) max[k] = p[k];
-  }
+  const min = [Infinity, Infinity, Infinity],
+    max = [-Infinity, -Infinity, -Infinity];
+  for (const p of pts)
+    for (let k = 0; k < 3; k++) {
+      if (p[k] < min[k]) min[k] = p[k];
+      if (p[k] > max[k]) max[k] = p[k];
+    }
   return { min, max };
 };
 
 function hull(points) {
   if (points.length < 3) return points.slice();
   const p = [...points].sort((u, v) => u[0] - v[0] || u[1] - v[1]);
-  const cross = (o, u, v) => (u[0] - o[0]) * (v[1] - o[1]) - (u[1] - o[1]) * (v[0] - o[0]);
+  const cross = (o, u, v) =>
+    (u[0] - o[0]) * (v[1] - o[1]) - (u[1] - o[1]) * (v[0] - o[0]);
   const halfHull = (src) => {
     const out = [];
     for (const q of src) {
-      while (out.length >= 2 && cross(out[out.length - 2], out[out.length - 1], q) <= 0) out.pop();
+      while (
+        out.length >= 2 &&
+        cross(out[out.length - 2], out[out.length - 1], q) <= 0
+      )
+        out.pop();
       out.push(q);
     }
     out.pop();
@@ -888,19 +1026,36 @@ function hullArea(points) {
 function islandSplit(tris, scale) {
   const eps = Math.max(scale * 1e-3, 1e-6);
   const ids = new Map();
-  const key = (p) => `${Math.round(p[0] / eps)},${Math.round(p[1] / eps)},${Math.round(p[2] / eps)}`;
+  const key = (p) =>
+    `${Math.round(p[0] / eps)},${Math.round(p[1] / eps)},${Math.round(p[2] / eps)}`;
   const vid = (p) => {
     const k = key(p);
     let v = ids.get(k);
-    if (v === undefined) { v = ids.size; ids.set(k, v); }
+    if (v === undefined) {
+      v = ids.size;
+      ids.set(k, v);
+    }
     return v;
   };
   const parent = [];
-  const find = (x) => { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; };
-  const union = (x, y) => { const a = find(x), b = find(y); if (a !== b) parent[a] = b; };
+  const find = (x) => {
+    while (parent[x] !== x) {
+      parent[x] = parent[parent[x]];
+      x = parent[x];
+    }
+    return x;
+  };
+  const union = (x, y) => {
+    const a = find(x),
+      b = find(y);
+    if (a !== b) parent[a] = b;
+  };
   const triVerts = tris.map((t) => t.map(vid));
   for (const v of triVerts) for (const x of v) parent[x] = parent[x] ?? x;
-  for (const [v0, v1, v2] of triVerts) { union(v0, v1); union(v1, v2); }
+  for (const [v0, v1, v2] of triVerts) {
+    union(v0, v1);
+    union(v1, v2);
+  }
   const groups = new Map();
   tris.forEach((t, i) => {
     const root = find(triVerts[i][0]);
@@ -928,7 +1083,9 @@ function contactPlane(isles, min, max) {
   const planes = [...new Set(isles.map((i) => i.min[1]))].sort((a, b) => a - b);
   for (const plane of planes) {
     const resting = isles.filter((i) => Math.abs(i.min[1] - plane) <= tol);
-    const feet = resting.flatMap((i) => i.pts).filter((p) => p[1] <= plane + slab);
+    const feet = resting
+      .flatMap((i) => i.pts)
+      .filter((p) => p[1] <= plane + slab);
     if (feet.length < 3) continue;
     const flat = feet.map((p) => [p[0], p[2]]);
     const area = hullArea(flat);
@@ -939,29 +1096,59 @@ function contactPlane(isles, min, max) {
   }
   // Nothing qualifies: the whole silhouette is the contact set, which is the
   // safe answer — it can only under-report a float, never invent one.
-  return { y: min[1], area: 0, full, width: 0, islands: 0, feet: isles.flatMap((i) => i.pts) };
+  return {
+    y: min[1],
+    area: 0,
+    full,
+    width: 0,
+    islands: 0,
+    feet: isles.flatMap((i) => i.pts),
+  };
 }
 
 // ===========================================================================
 // The JSX walker.
 // ===========================================================================
-const PASSTHROUGH = new Set(["React.Suspense", "Suspense", "React.Fragment", "Fragment"]);
+const PASSTHROUGH = new Set([
+  "React.Suspense",
+  "Suspense",
+  "React.Fragment",
+  "Fragment",
+]);
 /** Not props: shadow decals painted on the floor and the wood. They are sprites
  * and planes with no volume, and a shadow that "floats" is a shadow drawn at
  * the height it is supposed to be drawn at. */
 const DECALS = new Set(["ContactShade", "FootPool", "GroundPool"]);
 /** Not props: emitters. A light or a glow sprite has no base to sit on. */
-const EMITTERS = new Set(["GlowSprite", "sprite", "pointLight", "spotLight", "directionalLight", "ambientLight", "hemisphereLight", "object3D", "primitive"]);
+const EMITTERS = new Set([
+  "GlowSprite",
+  "sprite",
+  "pointLight",
+  "spotLight",
+  "directionalLight",
+  "ambientLight",
+  "hemisphereLight",
+  "object3D",
+  "primitive",
+]);
 
 function tagName(el) {
-  const t = ts.isJsxSelfClosingElement(el) ? el.tagName : el.openingElement.tagName;
+  const t = ts.isJsxSelfClosingElement(el)
+    ? el.tagName
+    : el.openingElement.tagName;
   return t.getText();
 }
 function attributes(el) {
-  return ts.isJsxSelfClosingElement(el) ? el.attributes : el.openingElement.attributes;
+  return ts.isJsxSelfClosingElement(el)
+    ? el.attributes
+    : el.openingElement.attributes;
 }
 function childrenOf(el) {
-  return ts.isJsxElement(el) ? el.children : ts.isJsxFragment(el) ? el.children : [];
+  return ts.isJsxElement(el)
+    ? el.children
+    : ts.isJsxFragment(el)
+      ? el.children
+      : [];
 }
 
 /** Attribute map for a JSX element, spreads included. Values are thunks — a
@@ -976,8 +1163,14 @@ function attrMap(el, ctx) {
     }
     if (!ts.isJsxAttribute(a)) continue;
     const name = a.name.getText();
-    if (!a.initializer) { out.set(name, { k: "bool", v: true }); continue; }
-    if (ts.isStringLiteral(a.initializer)) { out.set(name, { k: "str", v: a.initializer.text }); continue; }
+    if (!a.initializer) {
+      out.set(name, { k: "bool", v: true });
+      continue;
+    }
+    if (ts.isStringLiteral(a.initializer)) {
+      out.set(name, { k: "str", v: a.initializer.text });
+      continue;
+    }
     if (ts.isJsxExpression(a.initializer) && a.initializer.expression) {
       out.set(name, { k: "thunk", node: a.initializer.expression, ctx });
     }
@@ -1000,7 +1193,11 @@ const passthroughs = new Map();
 
 function note(ctx, el, what) {
   const { line } = ctx.mod.source.getLineAndCharacterOfPosition(el.getStart());
-  unresolved.push({ what, where: `${path.relative(ROOT, ctx.mod.file)}:${line + 1}`, unit: ctx.unit });
+  unresolved.push({
+    what,
+    where: `${path.relative(ROOT, ctx.mod.file)}:${line + 1}`,
+    unit: ctx.unit,
+  });
 }
 
 function record(kind, extra, frame, ctx, el, parentKey) {
@@ -1041,13 +1238,29 @@ async function walk(node, frame, ctx) {
   // objects.tsx that eight units share. Both are reported; this is the one
   // that gets the first column.
   if (ctx.mod.file.startsWith(UNITS)) {
-    const { line } = ctx.mod.source.getLineAndCharacterOfPosition(node.getStart());
-    frame = { ...frame, site: `${path.relative(ROOT, ctx.mod.file)}:${line + 1}`, siteTag: name };
+    const { line } = ctx.mod.source.getLineAndCharacterOfPosition(
+      node.getStart(),
+    );
+    frame = {
+      ...frame,
+      site: `${path.relative(ROOT, ctx.mod.file)}:${line + 1}`,
+      siteTag: name,
+    };
   }
 
   if (DECALS.has(name) || EMITTERS.has(name)) {
-    const { line } = ctx.mod.source.getLineAndCharacterOfPosition(node.getStart());
-    filtered.push({ name, reason: DECALS.has(name) ? "shadow decal — no volume" : "emitter — no base", file: path.relative(ROOT, ctx.mod.file), line: line + 1, unit: ctx.unit });
+    const { line } = ctx.mod.source.getLineAndCharacterOfPosition(
+      node.getStart(),
+    );
+    filtered.push({
+      name,
+      reason: DECALS.has(name)
+        ? "shadow decal — no volume"
+        : "emitter — no base",
+      file: path.relative(ROOT, ctx.mod.file),
+      line: line + 1,
+      unit: ctx.unit,
+    });
     return;
   }
   if (name.endsWith("Material") || name.endsWith("material")) return;
@@ -1062,9 +1275,25 @@ async function walk(node, frame, ctx) {
     const pos = readPos(attrs, "position", ctx, name);
     const rot = readRot(attrs, "rotation", name);
     const scl = readScale(attrs, name);
-    const inner = descend(frame, pos, rot.value, scl.value, name, [rot.bad, scl.bad]);
-    if (url?.k !== "str") { note(ctx, node, "ModelProp with a non-literal url"); return; }
-    record("glb", { model: path.basename(url.v, ".glb"), label: path.basename(url.v, ".glb") }, inner, ctx, node, frame.key);
+    const inner = descend(frame, pos, rot.value, scl.value, name, [
+      rot.bad,
+      scl.bad,
+    ]);
+    if (url?.k !== "str") {
+      note(ctx, node, "ModelProp with a non-literal url");
+      return;
+    }
+    record(
+      "glb",
+      {
+        model: path.basename(url.v, ".glb"),
+        label: path.basename(url.v, ".glb"),
+      },
+      inner,
+      ctx,
+      node,
+      frame.key,
+    );
     return;
   }
 
@@ -1079,14 +1308,24 @@ async function walk(node, frame, ctx) {
       note(ctx, node, `<${name}> args unreadable`);
       return;
     }
-    record("box", { label: name, ext: dims.map(half) }, inner, ctx, node, frame.key);
+    record(
+      "box",
+      { label: name, ext: dims.map(half) },
+      inner,
+      ctx,
+      node,
+      frame.key,
+    );
     return;
   }
   if (name === "mesh" || name === "instancedMesh") {
     const pos = readPos(attrs, "position", ctx, name);
     const rot = readRot(attrs, "rotation", name);
     const scl = readScale(attrs, name);
-    const inner = descend(frame, pos, rot.value, scl.value, name, [rot.bad, scl.bad]);
+    const inner = descend(frame, pos, rot.value, scl.value, name, [
+      rot.bad,
+      scl.bad,
+    ]);
     // An emissive, un-tone-mapped disc is a light source wearing a mesh — the
     // two lamp mouths and the shade openings. It has no base and must never be
     // seated on anything. Checked before the geometry is read, because the
@@ -1095,25 +1334,59 @@ async function walk(node, frame, ctx) {
     // golf ball both carry one, deliberately bigger than the thing it stands
     // in for, so seating it would report a float that nobody can see.
     const invisible = kids.some(
-      (c) => (ts.isJsxElement(c) || ts.isJsxSelfClosingElement(c)) && /[Mm]aterial$/.test(tagName(c)) &&
-        (() => { const m = attrMap(c, ctx); const o = attr(m, "opacity"); const l = o && asLin(o); return (l && isConst(l) && l.c === 0) || attr(m, "visible")?.v === false; })(),
+      (c) =>
+        (ts.isJsxElement(c) || ts.isJsxSelfClosingElement(c)) &&
+        /[Mm]aterial$/.test(tagName(c)) &&
+        (() => {
+          const m = attrMap(c, ctx);
+          const o = attr(m, "opacity");
+          const l = o && asLin(o);
+          return (
+            (l && isConst(l) && l.c === 0) || attr(m, "visible")?.v === false
+          );
+        })(),
     );
     if (invisible) {
-      const { line } = ctx.mod.source.getLineAndCharacterOfPosition(node.getStart());
-      filtered.push({ name: "zero-opacity mesh", reason: "invisible hit proxy", file: path.relative(ROOT, ctx.mod.file), line: line + 1, unit: ctx.unit });
+      const { line } = ctx.mod.source.getLineAndCharacterOfPosition(
+        node.getStart(),
+      );
+      filtered.push({
+        name: "zero-opacity mesh",
+        reason: "invisible hit proxy",
+        file: path.relative(ROOT, ctx.mod.file),
+        line: line + 1,
+        unit: ctx.unit,
+      });
       return;
     }
     const emissive = kids.some(
-      (c) => (ts.isJsxElement(c) || ts.isJsxSelfClosingElement(c)) &&
-        /[Mm]aterial$/.test(tagName(c)) && attrMap(c, ctx).has("emissive"),
+      (c) =>
+        (ts.isJsxElement(c) || ts.isJsxSelfClosingElement(c)) &&
+        /[Mm]aterial$/.test(tagName(c)) &&
+        attrMap(c, ctx).has("emissive"),
     );
     if (emissive) {
-      const { line } = ctx.mod.source.getLineAndCharacterOfPosition(node.getStart());
-      filtered.push({ name: "emissive mesh", reason: "light source, not a prop", file: path.relative(ROOT, ctx.mod.file), line: line + 1, unit: ctx.unit });
+      const { line } = ctx.mod.source.getLineAndCharacterOfPosition(
+        node.getStart(),
+      );
+      filtered.push({
+        name: "emissive mesh",
+        reason: "light source, not a prop",
+        file: path.relative(ROOT, ctx.mod.file),
+        line: line + 1,
+        unit: ctx.unit,
+      });
       return;
     }
     if (attrs.has("geometry")) {
-      record("opaque", { label: "mesh(geometry=…)", ext: null }, inner, ctx, node, frame.key);
+      record(
+        "opaque",
+        { label: "mesh(geometry=…)", ext: null },
+        inner,
+        ctx,
+        node,
+        frame.key,
+      );
       return;
     }
     for (const c of kids) {
@@ -1123,7 +1396,10 @@ async function walk(node, frame, ctx) {
       if (!make) continue;
       const args = attr(attrMap(c, ctx), "args");
       const nums = args?.k === "arr" ? args.items.map(asLin) : [];
-      if (!nums.length || !nums[0]) { note(ctx, c, `<${g}> args unreadable`); continue; }
+      if (!nums.length || !nums[0]) {
+        note(ctx, c, `<${g}> args unreadable`);
+        continue;
+      }
       record("prim", { label: g, ext: make(nums) }, inner, ctx, c, frame.key);
     }
     return;
@@ -1134,15 +1410,24 @@ async function walk(node, frame, ctx) {
     const pos = readPos(attrs, "position", ctx, name);
     const rot = readRot(attrs, "rotation", name);
     const scl = readScale(attrs, name);
-    const inner = descend(frame, pos, rot.value, scl.value, name, [rot.bad, scl.bad]);
+    const inner = descend(frame, pos, rot.value, scl.value, name, [
+      rot.bad,
+      scl.bad,
+    ]);
     for (const c of kids) await walk(c, inner, ctx);
     return;
   }
 
   // ---- a component: inline it from its own definition --------------------
   const decl = lookupDecl(ctx.mod, name.split(".")[0]);
-  const fnNode = decl && (ts.isVariableDeclaration(decl.node) ? decl.node.initializer : decl.node);
-  const isFn = fnNode && (ts.isArrowFunction(fnNode) || ts.isFunctionDeclaration(fnNode) || ts.isFunctionExpression(fnNode));
+  const fnNode =
+    decl &&
+    (ts.isVariableDeclaration(decl.node) ? decl.node.initializer : decl.node);
+  const isFn =
+    fnNode &&
+    (ts.isArrowFunction(fnNode) ||
+      ts.isFunctionDeclaration(fnNode) ||
+      ts.isFunctionExpression(fnNode));
   if (!isFn) {
     // Unknown or class component: treat as a pass-through so its children are
     // still followed, and say so rather than pretending it was understood.
@@ -1154,7 +1439,16 @@ async function walk(node, frame, ctx) {
   const props = new Map(attrs);
   // Children (and any JSX-valued prop, e.g. ShelfUnit's `lower`) keep the
   // CALLER's scope, which is what makes inlining sound.
-  if (kids.length) props.set("children", { k: "jsxlist", items: kids.map((c) => ({ node: c, env: ctx.env, mod: ctx.mod, notes: ctx.notes })) });
+  if (kids.length)
+    props.set("children", {
+      k: "jsxlist",
+      items: kids.map((c) => ({
+        node: c,
+        env: ctx.env,
+        mod: ctx.mod,
+        notes: ctx.notes,
+      })),
+    });
   if (name === "ShelfUnit") {
     // The one structural fact the walker has to know by name: which of a
     // bookcase's two surfaces a subtree landed on. Everything else about the
@@ -1187,14 +1481,21 @@ async function walk(node, frame, ctx) {
   } else {
     ret = body;
   }
-  if (!ret) { unresolved.push({ what: `${name}: no return statement` }); return; }
-  const childFrame = name === "ShelfUnit" ? { ...frame, inShelfUnit: true } : frame;
+  if (!ret) {
+    unresolved.push({ what: `${name}: no return statement` });
+    return;
+  }
+  const childFrame =
+    name === "ShelfUnit" ? { ...frame, inShelfUnit: true } : frame;
   const value = evalNode(ret, inner);
   // A component whose return does not evaluate to something walkable is a
   // whole subtree dropped on the floor. Say so — every prop this tool has ever
   // missed, it missed here.
   if (!["jsx", "jsxlist", "arr", "null", "undef"].includes(value.k)) {
-    unresolved.push({ what: `<${name}> return evaluated to ${value.k}${value.why ? ` (${value.why})` : ""} — subtree not walked`, file: path.relative(ROOT, decl.mod.file) });
+    unresolved.push({
+      what: `<${name}> return evaluated to ${value.k}${value.why ? ` (${value.why})` : ""} — subtree not walked`,
+      file: path.relative(ROOT, decl.mod.file),
+    });
   }
   await walkValue(value, childFrame, inner);
 }
@@ -1202,7 +1503,10 @@ async function walk(node, frame, ctx) {
 async function walkValue(v, frame, ctx) {
   if (!v) return;
   if (v.k === "thunk") return walkValue(forceValue(v), frame, ctx);
-  if (v.k === "arr") { for (const item of v.items) await walkValue(item, frame, ctx); return; }
+  if (v.k === "arr") {
+    for (const item of v.items) await walkValue(item, frame, ctx);
+    return;
+  }
   if (v.k === "jsxlist") {
     for (const item of v.items) {
       const f = v.slot ? { ...frame, slot: v.slot } : frame;
@@ -1243,7 +1547,11 @@ async function resolve(placement) {
   let pl = placement;
   let f = pl.frame;
   if (f.bad.length) {
-    return { ...pl, status: "unresolved", why: `unreadable ${[...new Set(f.bad)].join(", ")} above it` };
+    return {
+      ...pl,
+      status: "unresolved",
+      why: `unreadable ${[...new Set(f.bad)].join(", ")} above it`,
+    };
   }
   // x and z are only needed for the "supported by another prop" test. A prop
   // whose lateral position is symbolic still has an answerable HEIGHT, and
@@ -1252,10 +1560,16 @@ async function resolve(placement) {
   const origin = [footprint ? f.p[0].c : 0, null, footprint ? f.p[2].c : 0];
 
   if (pl.kind === "glb") {
-    if (!isConst(f.p[1])) return { ...pl, status: "unresolved", why: `symbolic height ${linText(f.p[1])}` };
+    if (!isConst(f.p[1]))
+      return {
+        ...pl,
+        status: "unresolved",
+        why: `symbolic height ${linText(f.p[1])}`,
+      };
     origin[1] = f.p[1].c;
     const model = await modelContact(pl.model);
-    if (!model) return { ...pl, status: "unresolved", why: `no ${pl.model}.glb` };
+    if (!model)
+      return { ...pl, status: "unresolved", why: `no ${pl.model}.glb` };
     const toWorld = (p) => {
       const x = f.R[0] * p[0] + f.R[1] * p[1] + f.R[2] * p[2];
       const y = f.R[3] * p[0] + f.R[4] * p[1] + f.R[5] * p[2];
@@ -1266,8 +1580,14 @@ async function resolve(placement) {
     const feet = model.contact.feet.map(toWorld).map((p) => p[1]);
     const contactY = Math.min(...feet);
     return {
-      ...pl, status: "ok", min, max, footprint,
-      contactY, contactHi: Math.max(...feet), lowestY: min[1],
+      ...pl,
+      status: "ok",
+      min,
+      max,
+      footprint,
+      contactY,
+      contactHi: Math.max(...feet),
+      lowestY: min[1],
       contactIslands: model.contact.islands,
       contactArea: model.contact.area / model.contact.full,
       modelContactY: model.contact.y,
@@ -1276,13 +1596,19 @@ async function resolve(placement) {
   }
 
   if (pl.kind === "opaque") {
-    if (!isConst(f.p[1])) return { ...pl, status: "unresolved", why: "opaque solid at a symbolic height" };
+    if (!isConst(f.p[1]))
+      return {
+        ...pl,
+        status: "unresolved",
+        why: "opaque solid at a symbolic height",
+      };
     return { ...pl, status: "opaque", contactY: f.p[1].c, footprint: false };
   }
 
   // Primitive: rotate the half-extents. Exact for a box, conservative for the
   // rest (a rotated cylinder's silhouette is inside its rotated bbox).
-  if (!pl.ext.every(Boolean)) return { ...pl, status: "unresolved", why: "unreadable extents" };
+  if (!pl.ext.every(Boolean))
+    return { ...pl, status: "unresolved", why: "unreadable extents" };
   const axis = (row) => {
     let acc = ZERO;
     for (let c = 0; c < 3; c++) {
@@ -1313,9 +1639,19 @@ async function resolve(placement) {
   const up = linAdd(f.p[1], drop);
   const known = footprint && isConst(spanX) && isConst(spanZ) && isConst(up);
   return {
-    ...pl, status: "ok", footprint: known,
-    min: [origin[0] - (known ? spanX.c : 0), lo, origin[2] - (known ? spanZ.c : 0)],
-    max: [origin[0] + (known ? spanX.c : 0), known ? up.c : hi, origin[2] + (known ? spanZ.c : 0)],
+    ...pl,
+    status: "ok",
+    footprint: known,
+    min: [
+      origin[0] - (known ? spanX.c : 0),
+      lo,
+      origin[2] - (known ? spanZ.c : 0),
+    ],
+    max: [
+      origin[0] + (known ? spanX.c : 0),
+      known ? up.c : hi,
+      origin[2] + (known ? spanZ.c : 0),
+    ],
     contactY: lo,
     contactYHi: hi,
     symbolic: isConst(contact) ? null : linText(contact),
@@ -1325,12 +1661,17 @@ async function resolve(placement) {
 }
 
 const overlapsXZ = (a, b) =>
-  a.min[0] < b.max[0] && a.max[0] > b.min[0] && a.min[2] < b.max[2] && a.max[2] > b.min[2];
+  a.min[0] < b.max[0] &&
+  a.max[0] > b.min[0] &&
+  a.min[2] < b.max[2] &&
+  a.max[2] > b.min[2];
 
 function assignSupport(item, all) {
   const plane =
-    item.frame.slot === "top" ? { y: SUPPORT_PLANES.top, what: "top plank" }
-      : item.frame.slot === "lower" ? { y: SUPPORT_PLANES.lower, what: "lower plank" }
+    item.frame.slot === "top"
+      ? { y: SUPPORT_PLANES.top, what: "top plank" }
+      : item.frame.slot === "lower"
+        ? { y: SUPPORT_PLANES.lower, what: "lower plank" }
         : { y: SUPPORT_PLANES.ground, what: "ground" };
 
   // Another prop, resolved structurally rather than by name. A base swallowed
@@ -1347,7 +1688,11 @@ function assignSupport(item, all) {
     if (!overlapsXZ(item, other)) continue;
     const cx = (item.min[0] + item.max[0]) / 2;
     const cz = (item.min[2] + item.max[2]) / 2;
-    const over = cx >= other.min[0] && cx <= other.max[0] && cz >= other.min[2] && cz <= other.max[2];
+    const over =
+      cx >= other.min[0] &&
+      cx <= other.max[0] &&
+      cz >= other.min[2] &&
+      cz <= other.max[2];
     // MOUNTED: the base is swallowed inside another prop's height AND the item
     // is laterally enclosed by it. Exact containment is a hair too strict — a
     // book's page block is deliberately proud of its covers at the fore-edge,
@@ -1357,10 +1702,16 @@ function assignSupport(item, all) {
     // being mounted inside it.
     const slackX = (item.max[0] - item.min[0]) * 0.1;
     const slackZ = (item.max[2] - item.min[2]) * 0.1;
-    const enclosed = item.min[0] > other.min[0] - slackX && item.max[0] < other.max[0] + slackX
-      && item.min[2] > other.min[2] - slackZ && item.max[2] < other.max[2] + slackZ;
-    const inside = over && enclosed
-      && item.contactY > other.min[1] + 1e-4 && item.contactY < other.max[1] - 1e-4;
+    const enclosed =
+      item.min[0] > other.min[0] - slackX &&
+      item.max[0] < other.max[0] + slackX &&
+      item.min[2] > other.min[2] - slackZ &&
+      item.max[2] < other.max[2] + slackZ;
+    const inside =
+      over &&
+      enclosed &&
+      item.contactY > other.min[1] + 1e-4 &&
+      item.contactY < other.max[1] - 1e-4;
     if (inside && !host) host = other;
     // A surface only counts as a stand if it is above the plank and NOT above
     // the base it is supposed to be carrying. Two ways this was wrong: a full
@@ -1371,12 +1722,25 @@ function assignSupport(item, all) {
     // A stand also has to be UNDER the thing standing on it: bounding boxes
     // touch for objects side by side, and without the centre test a print
     // leaning next to the calling cards gets nominated as standing on them.
-    if (over && other.max[1] > plane.y + 1e-4 && other.max[1] <= item.contactY + OPT.tol) {
+    if (
+      over &&
+      other.max[1] > plane.y + 1e-4 &&
+      other.max[1] <= item.contactY + OPT.tol
+    ) {
       if (!stand || other.max[1] > stand.max[1]) stand = other;
     }
   }
-  if (host) return { support: { y: null, what: `mounted on ${host.label}` }, mounted: true, host };
-  if (stand) return { support: { y: stand.max[1], what: `on ${stand.label}` }, mounted: false };
+  if (host)
+    return {
+      support: { y: null, what: `mounted on ${host.label}` },
+      mounted: true,
+      host,
+    };
+  if (stand)
+    return {
+      support: { y: stand.max[1], what: `on ${stand.label}` },
+      mounted: false,
+    };
   return { support: plane, mounted: false };
 }
 
@@ -1385,7 +1749,10 @@ function assignSupport(item, all) {
 // ===========================================================================
 readSourceConstants();
 
-const UNIT_FILES = fs.readdirSync(UNITS).filter((f) => /^Unit.*\.tsx$/.test(f)).sort();
+const UNIT_FILES = fs
+  .readdirSync(UNITS)
+  .filter((f) => /^Unit.*\.tsx$/.test(f))
+  .sort();
 
 async function walkAllUnits() {
   placements.length = 0;
@@ -1396,8 +1763,16 @@ async function walkAllUnits() {
   for (const file of UNIT_FILES) {
     const mod = loadModule(path.join(UNITS, file));
     const decl = mod.decls.get("default");
-    if (!decl) { unresolved.push({ what: `${file}: no default export`, where: file }); continue; }
-    const ctx = { env: new Map(), mod, notes: new Set(), unit: file.replace(/\.tsx$/, "") };
+    if (!decl) {
+      unresolved.push({ what: `${file}: no default export`, where: file });
+      continue;
+    }
+    const ctx = {
+      env: new Map(),
+      mod,
+      notes: new Set(),
+      unit: file.replace(/\.tsx$/, ""),
+    };
     hoistBlock(decl.body, ctx);
     const ret = lastReturn(decl.body);
     // The unit's own pose (worldLayout.unitPose) is a pure x/z translation plus
@@ -1425,22 +1800,36 @@ async function runDeferredHelpers() {
   let n = 0;
   for (const [importPath, calls] of byModule) {
     const fns = [...new Set(calls.map(([, c]) => c.fn))];
-    lines.push(`import { ${fns.join(", ")} } from ${JSON.stringify(importPath)};`);
+    lines.push(
+      `import { ${fns.join(", ")} } from ${JSON.stringify(importPath)};`,
+    );
     for (const [key, c] of calls) {
-      lines.push(`out.push([${JSON.stringify(key)}, ${c.fn}(${c.args.map((a) => JSON.stringify(a)).join(", ")})]);`);
+      lines.push(
+        `out.push([${JSON.stringify(key)}, ${c.fn}(${c.args.map((a) => JSON.stringify(a)).join(", ")})]);`,
+      );
       n++;
     }
   }
   const script = `const out = [];\n${lines.filter((l) => l.startsWith("import")).join("\n")}\n${lines.filter((l) => !l.startsWith("import")).join("\n")}\nconsole.log(JSON.stringify(out));`;
-  const file = path.join(os.tmpdir(), `stacks-floaters-helpers-${process.pid}.mts`);
+  const file = path.join(
+    os.tmpdir(),
+    `stacks-floaters-helpers-${process.pid}.mts`,
+  );
   fs.writeFileSync(file, script);
   try {
-    const out = execFileSync("npx", ["tsx", "--tsconfig", path.join(ROOT, "tsconfig.json"), file], { encoding: "utf8", cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] });
+    const out = execFileSync(
+      "npx",
+      ["tsx", "--tsconfig", path.join(ROOT, "tsconfig.json"), file],
+      { encoding: "utf8", cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] },
+    );
     for (const [key, value] of JSON.parse(out.trim().split("\n").pop())) {
-      if (typeof value === "number" && Number.isFinite(value)) helperValues.set(key, value);
+      if (typeof value === "number" && Number.isFinite(value))
+        helperValues.set(key, value);
     }
   } catch (e) {
-    console.error(`  helper evaluation failed (${n} call(s)); they will report as unresolved:\n  ${String(e.message).split("\n").slice(0, 3).join("\n  ")}`);
+    console.error(
+      `  helper evaluation failed (${n} call(s)); they will report as unresolved:\n  ${String(e.message).split("\n").slice(0, 3).join("\n  ")}`,
+    );
     return false;
   } finally {
     fs.rmSync(file, { force: true });
@@ -1457,7 +1846,9 @@ if (await runDeferredHelpers()) await walkAllUnits();
 const resolvedAll = [];
 for (const pl of placements) resolvedAll.push(await resolve(pl));
 
-const opaqueParents = new Set(resolvedAll.filter((r) => r.status === "opaque").map((r) => r.parentKey));
+const opaqueParents = new Set(
+  resolvedAll.filter((r) => r.status === "opaque").map((r) => r.parentKey),
+);
 const ok = resolvedAll.filter((r) => r.status === "ok");
 for (const item of ok) {
   if (opaqueParents.has(item.parentKey)) {
@@ -1471,7 +1862,8 @@ for (const item of ok) {
   item.mounted = mounted;
   item.host = host;
   item.gap = support.y === null ? null : item.contactY - support.y;
-  item.gapHi = support.y === null ? null : (item.contactYHi ?? item.contactY) - support.y;
+  item.gapHi =
+    support.y === null ? null : (item.contactYHi ?? item.contactY) - support.y;
 }
 
 // Structure vs props: the bookcase's own planks, straps and cleats are emitted
@@ -1492,7 +1884,8 @@ const verdict = (r) => {
   if (lo >= -OPT.tol && hi <= OPT.tol) return "pass";
   return "indeterminate";
 };
-const worst = (r) => (Math.abs(r.gap) > Math.abs(r.gapHi ?? r.gap) ? r.gap : r.gapHi ?? r.gap);
+const worst = (r) =>
+  Math.abs(r.gap) > Math.abs(r.gapHi ?? r.gap) ? r.gap : (r.gapHi ?? r.gap);
 // Split every gap into the part the TILT is responsible for and the part a
 // stale mount constant is responsible for. Without this the two are
 // indistinguishable in a single number, and they want opposite fixes: a tilt
@@ -1501,9 +1894,10 @@ const worst = (r) => (Math.abs(r.gap) > Math.abs(r.gapHi ?? r.gap) ? r.gap : r.g
 // site). The eleven floating prints looked like a pivot bug and were not — the
 // tilt term is a NEGATIVE 0.2-0.7 cm against a positive 3.6 cm constant.
 for (const r of seated) {
-  if (r.kind === "glb" || !r.ext || !r.ext.every((e) => e && isConst(e))) continue;
-  const upright = r.ext[1].c * r.frame.s;      // half-height, unrotated
-  const tilted = r.frame.p[1].c - r.contactY;  // half-height, as posed
+  if (r.kind === "glb" || !r.ext || !r.ext.every((e) => e && isConst(e)))
+    continue;
+  const upright = r.ext[1].c * r.frame.s; // half-height, unrotated
+  const tilted = r.frame.p[1].c - r.contactY; // half-height, as posed
   r.pivotTerm = upright - tilted;
   r.constantTerm = (r.gap ?? 0) - r.pivotTerm;
 }
@@ -1521,12 +1915,19 @@ const straddling = seated.filter((r) => verdict(r) === "indeterminate");
 let crosscheck = null;
 if (OPT.crosscheck) {
   try {
-    const out = execFileSync("node", [path.join(ROOT, "scripts", "stacks-render.mjs"), "--all", "--report"], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+    const out = execFileSync(
+      "node",
+      [path.join(ROOT, "scripts", "stacks-render.mjs"), "--all", "--report"],
+      { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
+    );
     const ref = new Map();
     let current = null;
     for (const line of out.split("\n")) {
       const head = line.match(/^(\S+)\s+[\d.]+ KB/);
-      if (head) { current = head[1]; continue; }
+      if (head) {
+        current = head[1];
+        continue;
+      }
       const c = line.match(/^\s+contact\s+y\s+([-\d.]+)/);
       if (c && current) ref.set(current, Number(c[1]));
     }
@@ -1537,9 +1938,17 @@ if (OPT.crosscheck) {
       if (expect === undefined) continue;
       // World contact = frame origin + scale × model-space contact.
       const mine = (item.contactY - item.frame.p[1].c) / item.frame.s;
-      rows.push({ model: item.model, expect, mine, delta: Math.abs(mine - expect) });
+      rows.push({
+        model: item.model,
+        expect,
+        mine,
+        delta: Math.abs(mine - expect),
+      });
     }
-    crosscheck = { rows, worst: rows.reduce((m, r) => Math.max(m, r.delta), 0) };
+    crosscheck = {
+      rows,
+      worst: rows.reduce((m, r) => Math.max(m, r.delta), 0),
+    };
   } catch (e) {
     crosscheck = { error: String(e.message).slice(0, 200) };
   }
@@ -1562,7 +1971,9 @@ async function selftest() {
   record(
     "island rule: pothos contact is above its bbox minimum",
     pothos && pothos.contact.y - pothos.min[1] > 0.2,
-    pothos ? `contact ${pothos.contact.y.toFixed(4)} vs bbox min ${pothos.min[1].toFixed(4)}` : "pothos.glb missing",
+    pothos
+      ? `contact ${pothos.contact.y.toFixed(4)} vs bbox min ${pothos.min[1].toFixed(4)}`
+      : "pothos.glb missing",
   );
 
   // 2. A contact may enclose ZERO area. A barbell rests on two plates and
@@ -1573,7 +1984,9 @@ async function selftest() {
     record(
       `zero-area contact accepted: ${name} sits on 0`,
       m && Math.abs(m.contact.y - m.min[1]) < 1e-3,
-      m ? `contact ${m.contact.y.toFixed(4)}, hull encloses ${((m.contact.area / m.contact.full) * 100).toFixed(1)}% of the footprint` : `${name}.glb missing`,
+      m
+        ? `contact ${m.contact.y.toFixed(4)}, hull encloses ${((m.contact.area / m.contact.full) * 100).toFixed(1)}% of the footprint`
+        : `${name}.glb missing`,
     );
   }
 
@@ -1598,10 +2011,15 @@ async function selftest() {
     const world = model.pts.map(toWorld);
     const { min, max } = bounds(world);
     const tris = [];
-    for (let i = 0; i + 2 < world.length; i += 3) tris.push([world[i], world[i + 1], world[i + 2]]);
+    for (let i = 0; i + 2 < world.length; i += 3)
+      tris.push([world[i], world[i + 1], world[i + 2]]);
     const naive = contactPlane(
-      islandSplit(tris, Math.max(max[0] - min[0], max[1] - min[1], max[2] - min[2])),
-      min, max,
+      islandSplit(
+        tris,
+        Math.max(max[0] - min[0], max[1] - min[1], max[2] - min[2]),
+      ),
+      min,
+      max,
     ).y;
     const mine = Math.min(...model.contact.feet.map(toWorld).map((p) => p[1]));
     if (Math.abs(mine - item.contactY) > 1e-9) agreed = -1e9; // ours must be in use
@@ -1617,15 +2035,23 @@ async function selftest() {
   // 4. Hung objects stay hung. Corkboard pins, soil discs and prints inside
   //    their own frames are supported by another prop, not by a plank, and
   //    "fixing" them onto a shelf is a worse bug than the one being hunted.
-  const mountedOnProp = mountedProps.filter((r) => /^mounted on /.test(r.supportInfo.what));
+  const mountedOnProp = mountedProps.filter((r) =>
+    /^mounted on /.test(r.supportInfo.what),
+  );
   record(
     "mounted props stay filtered",
     mountedOnProp.length >= 4,
-    `${mountedOnProp.length} filtered, e.g. ${mountedOnProp.slice(0, 3).map((r) => `${r.label}→${r.supportInfo.what.replace("mounted on ", "")}`).join(", ")}`,
+    `${mountedOnProp.length} filtered, e.g. ${mountedOnProp
+      .slice(0, 3)
+      .map((r) => `${r.label}→${r.supportInfo.what.replace("mounted on ", "")}`)
+      .join(", ")}`,
   );
 
   console.log("\nSELF TEST");
-  for (const c of checks) console.log(`  ${c.pass ? "PASS" : "FAIL"}  ${pad(c.name, 62)} ${c.detail}`);
+  for (const c of checks)
+    console.log(
+      `  ${c.pass ? "PASS" : "FAIL"}  ${pad(c.name, 62)} ${c.detail}`,
+    );
   return checks.every((c) => c.pass);
 }
 
@@ -1637,87 +2063,153 @@ const pad = (s, n) => String(s).padEnd(n);
 const num = (v, n = 4) => (v >= 0 ? "+" : "") + v.toFixed(n);
 
 console.log(`\nHomepage 3D scene — floating-prop report`);
-console.log(`  planes   top plank ${SUPPORT_PLANES.top}   lower plank ${SUPPORT_PLANES.lower}   ground ${SUPPORT_PLANES.ground}`);
+console.log(
+  `  planes   top plank ${SUPPORT_PLANES.top}   lower plank ${SUPPORT_PLANES.lower}   ground ${SUPPORT_PLANES.ground}`,
+);
 const glbCount = resolvedAll.filter((r) => r.kind === "glb").length;
-const glbFiles = new Set(resolvedAll.filter((r) => r.kind === "glb").map((r) => r.model)).size;
-console.log(`  walked   ${UNIT_FILES.length} units → ${placements.length} placements: ${props.length} props, ${structure.length} bookcase parts, ${resolvedAll.length - ok.length} unresolved`);
-console.log(`  GLB      ${glbCount} model placements across ${glbFiles} distinct .glb files`);
-if (helperCount) console.log(`  derived  ${helperCount} placement height(s) computed by running the scene's own helpers`);
-console.log(`  flagging |gap| > ${OPT.tol} world (${cm(OPT.tol).toFixed(2)} cm at ${UNITS_PER_METRE.toFixed(2)} u/m)\n`);
+const glbFiles = new Set(
+  resolvedAll.filter((r) => r.kind === "glb").map((r) => r.model),
+).size;
+console.log(
+  `  walked   ${UNIT_FILES.length} units → ${placements.length} placements: ${props.length} props, ${structure.length} bookcase parts, ${resolvedAll.length - ok.length} unresolved`,
+);
+console.log(
+  `  GLB      ${glbCount} model placements across ${glbFiles} distinct .glb files`,
+);
+if (helperCount)
+  console.log(
+    `  derived  ${helperCount} placement height(s) computed by running the scene's own helpers`,
+  );
+console.log(
+  `  flagging |gap| > ${OPT.tol} world (${cm(OPT.tol).toFixed(2)} cm at ${UNITS_PER_METRE.toFixed(2)} u/m)\n`,
+);
 
 if (crosscheck?.rows) {
-  console.log(`  crosscheck vs stacks-render.mjs: ${crosscheck.rows.length} untilted GLB props, worst disagreement ${crosscheck.worst.toExponential(1)}` +
-    // stacks-render prints `contact y` to four decimals, so half an ulp of the
-    // printed value — 5e-5 — is the floor of any agreement test against it.
-    (crosscheck.worst <= 5e-5 ? "  ✓ (agreement is limited by its 4-decimal print)" : "  ← INVESTIGATE"));
+  console.log(
+    `  crosscheck vs stacks-render.mjs: ${crosscheck.rows.length} untilted GLB props, worst disagreement ${crosscheck.worst.toExponential(1)}` +
+      // stacks-render prints `contact y` to four decimals, so half an ulp of the
+      // printed value — 5e-5 — is the floor of any agreement test against it.
+      (crosscheck.worst <= 5e-5
+        ? "  ✓ (agreement is limited by its 4-decimal print)"
+        : "  ← INVESTIGATE"),
+  );
 } else if (crosscheck?.error) {
   console.log(`  crosscheck skipped: ${crosscheck.error}`);
 }
 
-const shortSite = (r) => (r.site ?? `${r.file}:${r.line}`).replace("src/app/components/stacks/scene/", "");
-const shortDef = (r) => `${r.file}:${r.line}`.replace("src/app/components/stacks/scene/", "");
+const shortSite = (r) =>
+  (r.site ?? `${r.file}:${r.line}`).replace(
+    "src/app/components/stacks/scene/",
+    "",
+  );
+const shortDef = (r) =>
+  `${r.file}:${r.line}`.replace("src/app/components/stacks/scene/", "");
 const label = (r) => (r.kind === "glb" ? r.label : `${r.siteTag ?? r.label}`);
 
-console.log(`${pad("#", 3)}${pad("PROP", 17)}${pad("PLACED AT", 26)}${pad("GEOMETRY FROM", 24)}${pad("SUPPORT", 22)}${pad("CONTACT", 19)}${pad("SUPPORT", 10)}${pad("GAP", 9)}${pad("cm", 8)}`);
+console.log(
+  `${pad("#", 3)}${pad("PROP", 17)}${pad("PLACED AT", 26)}${pad("GEOMETRY FROM", 24)}${pad("SUPPORT", 22)}${pad("CONTACT", 19)}${pad("SUPPORT", 10)}${pad("GAP", 9)}${pad("cm", 8)}`,
+);
 console.log("-".repeat(138));
 flagged.forEach((r, i) => {
   console.log(
-    pad(i + 1, 3) + pad(label(r), 17) + pad(shortSite(r), 26) + pad(shortDef(r), 24) +
-    pad(r.supportInfo.what, 22) +
-    pad(r.symbolic ? `${num(r.contactY)}…${num(r.contactYHi).trim()}` : num(r.contactY), 19) +
-    pad(num(r.supportInfo.y), 10) +
-    pad(num(worst(r)), 9) + pad(num(cm(worst(r)), 2), 8) +
-    (r.tilted ? " tilted" : "") + (r.symbolic ? "  symbolic" : ""),
+    pad(i + 1, 3) +
+      pad(label(r), 17) +
+      pad(shortSite(r), 26) +
+      pad(shortDef(r), 24) +
+      pad(r.supportInfo.what, 22) +
+      pad(
+        r.symbolic
+          ? `${num(r.contactY)}…${num(r.contactYHi).trim()}`
+          : num(r.contactY),
+        19,
+      ) +
+      pad(num(r.supportInfo.y), 10) +
+      pad(num(worst(r)), 9) +
+      pad(num(cm(worst(r)), 2), 8) +
+      (r.tilted ? " tilted" : "") +
+      (r.symbolic ? "  symbolic" : ""),
   );
-  if (OPT.verbose && r.symbolic) console.log(`      contact height = ${r.symbolic}  (symbols bounded to [0, ${SYMBOL_BOUND}])`);
+  if (OPT.verbose && r.symbolic)
+    console.log(
+      `      contact height = ${r.symbolic}  (symbols bounded to [0, ${SYMBOL_BOUND}])`,
+    );
   if (OPT.verbose) {
     console.log(`      chain ${r.frame.chain.join(" > ")}`);
     if (r.pivotTerm !== undefined) {
-      console.log(`      gap = ${num(r.constantTerm)} stale constant  ${num(r.pivotTerm)} tilt`);
+      console.log(
+        `      gap = ${num(r.constantTerm)} stale constant  ${num(r.pivotTerm)} tilt`,
+      );
     }
-    if (r.kind === "glb") console.log(`      model contact y ${r.modelContactY.toFixed(4)} on ${r.contactIslands} island(s), ${(r.contactArea * 100).toFixed(1)}% of footprint; world contact spans ${num(r.contactY)}..${num(r.contactHi)}`);
+    if (r.kind === "glb")
+      console.log(
+        `      model contact y ${r.modelContactY.toFixed(4)} on ${r.contactIslands} island(s), ${(r.contactArea * 100).toFixed(1)}% of footprint; world contact spans ${num(r.contactY)}..${num(r.contactHi)}`,
+      );
   }
 });
 if (!flagged.length) console.log("  (nothing above threshold)");
 
-console.log(`\n${flagged.length} flagged · ${passing.length} seated within tolerance · ${straddling.length} indeterminate · ${mountedProps.length} filtered as mounted`);
+console.log(
+  `\n${flagged.length} flagged · ${passing.length} seated within tolerance · ${straddling.length} indeterminate · ${mountedProps.length} filtered as mounted`,
+);
 if (straddling.length) {
-  console.log("\nINDETERMINATE — a symbolic contact whose interval straddles the surface");
+  console.log(
+    "\nINDETERMINATE — a symbolic contact whose interval straddles the surface",
+  );
   for (const r of straddling) {
-    console.log(`  ${pad(label(r), 17)}${pad(shortSite(r), 26)}${pad(r.supportInfo.what, 22)}gap ${num(r.gap)}…${num(r.gapHi).trim()}   ${r.symbolic ?? ""}`);
+    console.log(
+      `  ${pad(label(r), 17)}${pad(shortSite(r), 26)}${pad(r.supportInfo.what, 22)}gap ${num(r.gap)}…${num(r.gapHi).trim()}   ${r.symbolic ?? ""}`,
+    );
   }
 }
 
 if (OPT.all) {
   console.log("\nPASSED (|gap| within tolerance)");
   for (const r of passing.sort((a, b) => Math.abs(b.gap) - Math.abs(a.gap))) {
-    console.log(`  ${pad(label(r), 17)}${pad(shortSite(r), 26)}${pad(r.supportInfo.what, 22)}gap ${num(r.gap)}  (${num(cm(r.gap), 2)} cm)`);
+    console.log(
+      `  ${pad(label(r), 17)}${pad(shortSite(r), 26)}${pad(r.supportInfo.what, 22)}gap ${num(r.gap)}  (${num(cm(r.gap), 2)} cm)`,
+    );
   }
 }
 
 if (OPT.filtered) {
   console.log("\nFILTERED — deliberately off-plane, by support type");
   for (const r of mountedProps) {
-    console.log(`  ${pad(label(r), 17)}${pad(shortSite(r), 26)}${r.supportInfo.what}`);
+    console.log(
+      `  ${pad(label(r), 17)}${pad(shortSite(r), 26)}${r.supportInfo.what}`,
+    );
   }
   console.log("\nFILTERED — not props");
   const byName = new Map();
-  for (const f of filtered) byName.set(`${f.name} — ${f.reason}`, (byName.get(`${f.name} — ${f.reason}`) ?? 0) + 1);
+  for (const f of filtered)
+    byName.set(
+      `${f.name} — ${f.reason}`,
+      (byName.get(`${f.name} — ${f.reason}`) ?? 0) + 1,
+    );
   for (const [k, n] of [...byName].sort()) console.log(`  ${pad(k, 46)} ×${n}`);
   console.log("\nFILTERED — bookcase structure (it IS the support)");
-  console.log(`  ${structure.length} planks, straps, cleats and end-grain strips`);
+  console.log(
+    `  ${structure.length} planks, straps, cleats and end-grain strips`,
+  );
 }
 
 if (OPT.unresolved) {
   console.log("\nUNRESOLVED placements");
-  for (const r of resolvedAll.filter((x) => x.status !== "ok" && x.status !== "opaque")) {
-    console.log(`  ${pad(r.label ?? r.kind, 20)}${pad(shortSite(r), 26)}${r.why}`);
+  for (const r of resolvedAll.filter(
+    (x) => x.status !== "ok" && x.status !== "opaque",
+  )) {
+    console.log(
+      `  ${pad(r.label ?? r.kind, 20)}${pad(shortSite(r), 26)}${r.why}`,
+    );
   }
-  console.log("\nCOMPONENTS treated as pass-through (no definition found / class component)");
-  for (const [name, n] of [...passthroughs].sort()) console.log(`  ${pad(name, 30)} ×${n}`);
+  console.log(
+    "\nCOMPONENTS treated as pass-through (no definition found / class component)",
+  );
+  for (const [name, n] of [...passthroughs].sort())
+    console.log(`  ${pad(name, 30)} ×${n}`);
   if (unresolved.length) {
     console.log("\nWALKER could not read");
-    for (const u of unresolved) console.log(`  ${pad(u.where ?? "", 42)}${u.what}`);
+    for (const u of unresolved)
+      console.log(`  ${pad(u.where ?? "", 42)}${u.what}`);
   }
 }
 let selftestOk = true;

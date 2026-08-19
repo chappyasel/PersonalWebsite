@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const HOMEPAGE_TITLE = "Chappy Asel";
 export const HOMEPAGE_DESCRIPTION =
-  "Chappy Asel builds tools, communities, and systems around AI, relationships, books, and human agency.";
+  "Chappy Asel is a technologist and community builder who founded The AI Collective. His work spans AI, relationships, books, and human agency.";
 
 export const homepageMetadata: Metadata = {
   title: HOMEPAGE_TITLE,

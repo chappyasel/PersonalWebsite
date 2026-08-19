@@ -16,9 +16,10 @@ describe("meadow pointer reach", () => {
       const fadeEnd = shelfPokeFadeEndAt(x);
 
       expect(meadowPokeStrength(x, backEdge - 0.01)).toBeGreaterThan(0.99);
-      expect(
-        meadowPokeStrength(x, (backEdge + fadeEnd) / 2),
-      ).toBeCloseTo(0.5, 5);
+      expect(meadowPokeStrength(x, (backEdge + fadeEnd) / 2)).toBeCloseTo(
+        0.5,
+        5,
+      );
       expect(meadowPokeStrength(x, fadeEnd)).toBe(0);
       expect(meadowPokeStrength(x, backEdge - 4)).toBe(0);
     }
@@ -42,10 +43,7 @@ describe("meadow pointer reach", () => {
     const backEdge = shelfBackEdgeAt(x);
     const fadeEnd = shelfPokeFadeEndAt(x);
     const samples = Array.from({ length: 21 }, (_, index) =>
-      meadowPokeStrength(
-        x,
-        backEdge + ((fadeEnd - backEdge) * index) / 20,
-      ),
+      meadowPokeStrength(x, backEdge + ((fadeEnd - backEdge) * index) / 20),
     );
 
     expect(samples[0]).toBe(1);

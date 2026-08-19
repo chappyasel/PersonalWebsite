@@ -35,6 +35,7 @@ import {
   findIslands,
   findSphereIsland,
   findSpinAxis,
+  partitionTrianglesByOctant,
 } from "./islands";
 import {
   filterTrianglesToHalfSpace,
@@ -113,6 +114,8 @@ export const RECOLOR_URLS = [
 const atlasMaterials = new Map<string, THREE.MeshStandardMaterial>();
 
 const ABOUT_CHAIR_URL = "/models/couch.glb";
+const BARBELL_URL = "/models/barbell.glb";
+const SAILBOAT_URL = "/models/sailboat.glb";
 let aboutChairFabric:
   | { color: THREE.DataTexture; roughness: THREE.DataTexture }
   | undefined;
@@ -320,21 +323,28 @@ function splitSpinPart(root: THREE.Object3D): void {
     new THREE.Vector3(0, 1, 0),
     axis,
   );
-  const ballGeometry = extractTriangles(
+  const inverseAlign = align.clone().invert();
+  // Keep the visual ball exact, but split it into local octants so the live
+  // collision index sees eight tight curved-surface bounds instead of one
+  // rotating cube that sweeps through the stationary meridian ring.
+  const ballGeometries = partitionTrianglesByOctant(
     geometry,
     ball.triangles,
     ball.center,
-    align.clone().invert(),
+    inverseAlign,
+  ).map((triangles) =>
+    extractTriangles(geometry, triangles, ball.center, inverseAlign),
   );
   const restGeometry = extractTriangles(geometry, rest);
 
-  const ballMesh = new THREE.Mesh(ballGeometry, mesh.material);
-  ballMesh.castShadow = mesh.castShadow;
-  ballMesh.receiveShadow = mesh.receiveShadow;
-
   const spin = new THREE.Group();
   spin.name = SPIN_NODE;
-  spin.add(ballMesh);
+  for (const ballGeometry of ballGeometries) {
+    const ballMesh = new THREE.Mesh(ballGeometry, mesh.material);
+    ballMesh.castShadow = mesh.castShadow;
+    ballMesh.receiveShadow = mesh.receiveShadow;
+    spin.add(ballMesh);
+  }
 
   const mount = new THREE.Group();
   mount.position.copy(ball.center);
@@ -352,6 +362,36 @@ function splitSpinPart(root: THREE.Object3D): void {
       `[stacks] spinPart: ball ${ball.triangles.length}/${total} tris, ` +
         `sphericity ${ball.sphericity.toFixed(3)}, axle tilt ${tiltDegrees.toFixed(1)}°`,
     );
+  }
+}
+
+/**
+ * Preserve a model's rendered triangles while giving each disconnected part
+ * its own mesh bound. The insect collision index is deliberately one AABB per
+ * mesh. Some assets group physically separate pieces into broad material
+ * meshes: the sailboat's masthead otherwise inherits a hull-sized blocker,
+ * while the barbell's shaft inherits a box spanning both plates.
+ */
+export function splitDisconnectedMeshIslands(root: THREE.Object3D): void {
+  const meshes: THREE.Mesh<THREE.BufferGeometry, THREE.Material>[] = [];
+  root.traverse((object) => {
+    if (object instanceof THREE.Mesh)
+      meshes.push(object as THREE.Mesh<THREE.BufferGeometry, THREE.Material>);
+  });
+  for (const mesh of meshes) {
+    const islands = findIslands(mesh.geometry);
+    if (islands.length <= 1) continue;
+    const geometries = islands.map((island) =>
+      extractTriangles(mesh.geometry, island.triangles),
+    );
+    mesh.geometry = geometries[0]!;
+    for (let index = 1; index < geometries.length; index++) {
+      const part = new THREE.Mesh(geometries[index], mesh.material);
+      part.name = `${mesh.name || "mesh"}:island:${index}`;
+      part.castShadow = mesh.castShadow;
+      part.receiveShadow = mesh.receiveShadow;
+      mesh.add(part);
+    }
   }
 }
 
@@ -755,6 +795,8 @@ export default function ModelProp({
         mesh.material = mat;
       });
     }
+    if (url === SAILBOAT_URL || url === BARBELL_URL)
+      splitDisconnectedMeshIslands(clone);
     if (spinPart === "sphere") splitSpinPart(clone);
     if (smoothNormals) {
       clone.traverse((o) => {

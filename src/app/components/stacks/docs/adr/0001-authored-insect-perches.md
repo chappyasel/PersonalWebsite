@@ -23,7 +23,7 @@ resting pose.
 
 ## Decision
 
-Each shelf authors three to five semantic, prop-associated Perches with a
+Each shelf authors at least seven semantic, prop-associated Perches with a
 clearance, owner interaction key, unit, and optional tangent/contact
 tolerances. Before claim, a bounded ray grid finds
 the best anchor/normal-matching mesh contact on that live owner and stores the

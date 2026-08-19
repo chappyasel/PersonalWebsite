@@ -69,7 +69,10 @@ describe("shelf spacing", () => {
   });
 
   it("caps two physical rows without throwing when source content grows", () => {
-    const rows = splitShelfRows(Array.from({ length: 11 }, (_, i) => i), 4);
+    const rows = splitShelfRows(
+      Array.from({ length: 11 }, (_, i) => i),
+      4,
+    );
     expect(rows.top).toEqual([0, 1, 2, 3]);
     expect(rows.lower).toEqual([4, 5, 6, 7]);
     expect(rows.overflow).toEqual([8, 9, 10]);

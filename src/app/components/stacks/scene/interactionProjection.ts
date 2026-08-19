@@ -71,14 +71,14 @@ export type PointerActivation = {
   kind: "door" | "action" | "egg";
 };
 
-/** Touch has no hover state. Raycast every active registered prop so an
+/** Touch has no hover state. Raycast every registered prop so an
  * activation can run only when it owns the nearest visible hit. Inert and
  * movable-only props intentionally return null and occlude activations behind
  * them. */
 export function activationAtPointer(
   clientX: number,
   clientY: number,
-  activeUnit: number,
+  _activeUnit: number,
 ): PointerActivation | null {
   if (!projectionCamera || !projectionElement) return null;
   const rect = projectionElement.getBoundingClientRect();
@@ -102,7 +102,7 @@ export function activationAtPointer(
     activation: "door" | "action" | "egg" | null;
   } | null = null;
   for (const spec of sceneInteractionInventory()) {
-    if (!spec.activeUnits.includes(activeUnit) || !spec.root.visible) continue;
+    if (!spec.root.visible) continue;
     const hit = pointerRaycaster.intersectObject(spec.root, true)[0];
     if (!hit || (best && hit.distance >= best.distance)) continue;
     best = {
@@ -111,9 +111,7 @@ export function activationAtPointer(
       activation: spec.activation?.kind ?? null,
     };
   }
-  return best?.activation
-    ? { id: best.id, kind: best.activation }
-    : null;
+  return best?.activation ? { id: best.id, kind: best.activation } : null;
 }
 
 /** Doors share the general touch raycast while still failing closed when the

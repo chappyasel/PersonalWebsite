@@ -10,7 +10,7 @@ import {
   butterflyEscapeCause,
   butterflyEvasionStrength,
   butterflyFlightVolume,
-  butterflyHomeUnit,
+  butterflyInitialResidency,
   butterflyIsActiveNeighbor,
   butterflyMayBeginLanding,
   butterflyNextAttemptAt,
@@ -111,7 +111,10 @@ describe("butterfly roaming state", () => {
 
   it("starts every resident inside its own Flight Volume", () => {
     for (let index = 0; index < BUTTERFLY_COUNT; index++) {
-      const motion = createButterflyMotion(index, butterflyHomeUnit(index));
+      const motion = createButterflyMotion(
+        index,
+        butterflyInitialResidency(index),
+      );
       const position = { x: 0, y: 0, z: 0 };
       butterflyStartPosition(motion, index, position);
       const volume = butterflyFlightVolume(motion);
@@ -143,11 +146,12 @@ describe("butterfly shelf residents", () => {
     expect(BUTTERFLY_COUNT).toBe(18);
 
     const residents = Array.from({ length: BUTTERFLY_COUNT }, (_, index) =>
-      butterflyHomeUnit(index),
+      butterflyInitialResidency(index),
     );
     for (let unit = 0; unit < 7; unit++)
       expect(
-        residents.filter((homeUnit) => homeUnit === unit).length,
+        residents.filter((initialResidency) => initialResidency === unit)
+          .length,
       ).toBeGreaterThanOrEqual(BUTTERFLY_RESIDENCY.minPerUnit);
     expect(residents.every((unit) => unit >= 0 && unit < 7)).toBe(true);
   });

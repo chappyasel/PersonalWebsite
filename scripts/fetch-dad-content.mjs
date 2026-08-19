@@ -1,6 +1,6 @@
+import { execSync } from "child_process";
 import crypto from "crypto";
 import fs from "fs";
-import { execSync } from "child_process";
 
 const BUCKET = "chappy-dad-journal";
 const OBJECT = "dad-content.tar.gz";
@@ -25,7 +25,10 @@ async function getAccessToken(serviceAccount) {
   const signature = crypto.sign(
     "RSA-SHA256",
     Buffer.from(`${header}.${payload}`),
-    { key: serviceAccount.private_key, padding: crypto.constants.RSA_PKCS1_PADDING },
+    {
+      key: serviceAccount.private_key,
+      padding: crypto.constants.RSA_PKCS1_PADDING,
+    },
   );
   const jwt = `${header}.${payload}.${signature.toString("base64url")}`;
 
@@ -35,7 +38,8 @@ async function getAccessToken(serviceAccount) {
     body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
   });
   const data = await res.json();
-  if (!data.access_token) throw new Error(`Auth failed: ${JSON.stringify(data)}`);
+  if (!data.access_token)
+    throw new Error(`Auth failed: ${JSON.stringify(data)}`);
   return data.access_token;
 }
 
@@ -45,12 +49,17 @@ async function main() {
 
   console.log("Fetching dad content from GCS...");
 
-  const serviceAccount = JSON.parse(Buffer.from(keyBase64, "base64").toString());
+  const serviceAccount = JSON.parse(
+    Buffer.from(keyBase64, "base64").toString(),
+  );
   const token = await getAccessToken(serviceAccount);
 
   const url = `https://storage.googleapis.com/storage/v1/b/${BUCKET}/o/${encodeURIComponent(OBJECT)}?alt=media`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  if (!res.ok) throw new Error(`Download failed: ${res.status} ${res.statusText}`);
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok)
+    throw new Error(`Download failed: ${res.status} ${res.statusText}`);
 
   const buffer = Buffer.from(await res.arrayBuffer());
   fs.writeFileSync(TMP_FILE, buffer);

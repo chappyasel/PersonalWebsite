@@ -23,13 +23,9 @@
 //   off with the horizontal velocity), rest (spring back to the authored
 //   pose).
 //
-// Both paths end at the same rule, which has been narrowed rather than
-// dropped: props come home when TRAVEL LEAVES THE UNIT. A shelf the visitor
-// can permanently rearrange is a shelf that is wrong for the next visitor —
-// but "permanently" was doing the work in that sentence, not "rearrange".
-// Knocking the mug over and having it stay knocked over for as long as you
-// are standing in front of it is the entire point of being able to pick it
-// up. Walk to another unit and every prop is back on its mark.
+// Both paths preserve rearrangements while they remain visible. A settled
+// prop returns directly to its authored mark only after it has stayed outside
+// an expanded camera frustum for a second; travel itself never resets it.
 //
 // The grounding matters more than the motion. This scene casts no shadows at
 // all — there is no shadow-casting light in it, every `castShadow` flag is
@@ -46,6 +42,10 @@ import * as THREE from "three";
 
 import { poolTexture } from "./GroundPool";
 import { LIFT_LAMBDA, TIP, hingeShift } from "./Lift";
+import {
+  type PhysicsSceneScope,
+  usePhysicsScene,
+} from "./PhysicsSceneProvider";
 import { grabbablePhysicsEnabled } from "./grabbablePhysics";
 import { type Hinge, TILT_MAX_SIZE, hingeFor } from "./interaction";
 import {
@@ -56,12 +56,22 @@ import {
 } from "./interactionRegistry";
 import { type PropDestination, useOpenTarget } from "./links";
 import type {
+  HeldMoveResult,
+  HeldPose,
   HullShape,
   Phase,
+  ScenePhysicsWorld,
   ShelfHandle,
   ShelfPlane,
-  ShelfWorld,
+  WorldPreparationResult,
 } from "./physics";
+import type { DynamicColliderProfile } from "./physicsColliders";
+import { physicsDiagnosticsController } from "./physicsDiagnostics";
+import {
+  scenePerformanceController,
+  shouldSuspendSettledPropFrame,
+} from "./scenePerformance";
+import { SHELF_GEOMETRY } from "./shelfGeometry";
 
 /** Damping for the spring home — matches Lift's LAMBDA so a released prop
  * settles at the same rate the shelf's hover affordance moves. */
@@ -69,7 +79,7 @@ const HOME_LAMBDA = 6;
 /** Deliberately under real gravity: a prop dropped 20cm at 9.81 lands in
  * under a fifth of a second, which reads as a glitch rather than a drop.
  * physics.ts carries the same number so both paths fall alike. */
-const GRAVITY = 3.4;
+const GRAVITY = 9.81;
 /** Matches ContactShade's default so a grabbable prop grounds exactly like
  * its neighbours until the moment it is picked up. */
 const SHADE_OPACITY = 0.12;
@@ -90,28 +100,18 @@ const TAP_PX = 6;
  * below. */
 type PhysicsModule = {
   warm: () => Promise<boolean>;
-  worldFor: (
-    group: THREE.Object3D,
-    handles: Iterable<ShelfHandle>,
-  ) => ShelfWorld | null;
+  prepareScenePhysics: (
+    scope: PhysicsSceneScope,
+    handle: ShelfHandle,
+  ) => WorldPreparationResult;
 };
 
 let physics: PhysicsModule | null = null;
 let fetching = false;
-const visitModes = new Map<number, "simulated" | "authored">();
-let previousVisitUnit = useStacks.getState().activeUnit;
-useStacks.subscribe((state) => {
-  if (state.activeUnit === previousVisitUnit) return;
-  visitModes.delete(previousVisitUnit);
-  previousVisitUnit = state.activeUnit;
-});
 
-/** Every mounted Grabbable, so a world can be built from the props actually
- * standing on a plank rather than from a list some unit file has to keep in
- * sync by hand. */
-const registry = new Set<ShelfHandle>();
+let diagnosticsScope: PhysicsSceneScope | null = null;
 
-// --- the one gesture dispatcher the whole shelf world shares ---------------
+// --- the one gesture dispatcher the whole scene shares ---------------------
 //
 // Seventy-three props used to install the same six window listeners. Besides
 // the 438 native registrations, that made event ordering part of mount order:
@@ -143,8 +143,8 @@ let eventDispatcherListening = false;
 
 /** Touch has no hover phase, so resolve its press against the same visible
  * Grabbable groups r3f renders. Furniture and the DOM placard are deliberately
- * absent: only loose handles in the active unit participate, and a touch that
- * starts on UI never leaks through to scenery behind it. */
+ * absent: any loose handle actually under the pointer participates, and a
+ * touch that starts on UI never leaks through to scenery behind it. */
 function touchEntry(event: PointerEvent): GrabEventEntry | null {
   const state = useStacks.getState();
   const scrollEl = state.scrollEl;
@@ -154,9 +154,7 @@ function touchEntry(event: PointerEvent): GrabEventEntry | null {
     !scrollEl.contains(event.target)
   )
     return null;
-  const candidates = [...eventEntries.values()].filter(
-    (entry) => entry.unitIndex === state.activeUnit,
-  );
+  const candidates = [...eventEntries.values()];
   const first = candidates[0];
   if (!first) return null;
   const rect = first.domElement.getBoundingClientRect();
@@ -274,33 +272,30 @@ function recordTap(key: string) {
     tapCounts.set(key, (tapCounts.get(key) ?? 0) + 1);
 }
 
-/** Desktop, and only while the scene is running at full quality.
- *
- * The touch exclusion is the same one that keeps touch from carrying at all
- * (see onDown). The quality gate rides the store's `postfx` flag, which is
- * exactly the signal Effects.tsx mounts on: false on touch, and false the
- * moment the degrade ladder takes its first step. A machine that cannot hold
- * a composer does not also get a solver. (It also means `?nopostfx` turns
- * physics off, which is the correct behaviour for an A/B flag that means
- * "show me the cheap path".) */
+/** Carry simulation is a pointer capability, independent of the visual
+ * quality ladder. Touch remains tap-only. */
 function physicsAllowed(): boolean {
   if (typeof window === "undefined") return false;
-  if (window.matchMedia("(pointer: coarse)").matches) return false;
-  return useStacks.getState().postfx;
+  return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 }
 
 /** Fire-and-forget. The canvas schedules this after first paint on eligible
- * desktop devices. Whichever mode is ready for the first grab is then locked
- * for that active-unit visit. */
+ * desktop devices and hover retries it. */
 export function prewarmGrabbablePhysics() {
   if (physics || fetching || !physicsAllowed()) return;
   fetching = true;
+  physicsDiagnosticsController.update({ moduleState: "loading" });
   void import("./physics")
     .then(async (mod) => {
-      if (!(await mod.warm())) return;
+      if (!(await mod.warm())) {
+        physicsDiagnosticsController.update({ moduleState: "failed" });
+        return;
+      }
       physics = mod;
+      physicsDiagnosticsController.update({ moduleState: "ready" });
     })
     .catch(() => {
+      physicsDiagnosticsController.update({ moduleState: "failed" });
       // A solver that failed to download is not an error the visitor should
       // ever learn about — authored motion covers every drag.
     });
@@ -313,7 +308,7 @@ if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
   window.__grab = {
     physics: () => physics !== null,
     props: () =>
-      [...registry].map((handle) => ({
+      [...(diagnosticsScope?.handles<ShelfHandle>() ?? [])].map((handle) => ({
         key: handle.key,
         unit: handle.unitIndex,
         phase: handle.phase.current,
@@ -322,11 +317,11 @@ if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
         position: handle.group.position.toArray(),
         quaternion: handle.group.quaternion.toArray(),
       })),
-    /** The shelf world a given prop stands in, statics included — the only
-     * way to check that the derived neighbour boxes match the scene. */
+    /** The scene world a given prop belongs to, statics included. */
     world: (key: string) =>
-      [...registry].find((handle) => handle.key === key)?.world?.report() ??
-      null,
+      [...(diagnosticsScope?.handles<ShelfHandle>() ?? [])]
+        .find((handle) => handle.key === key)
+        ?.world?.report() ?? null,
     dispatcher: () => ({
       handles: eventEntries.size,
       windowListeners: eventDispatcherListening ? 6 : 0,
@@ -359,10 +354,13 @@ export default function Grabbable({
   shadeWidth = 0.5,
   shadeColor,
   tiltOnHover = true,
+  tiltWhileHeld = true,
   spin = 0.9,
   shape,
+  colliderProfile,
   massKg,
   restitution,
+  maxThrowSpeed,
   standsOn,
   to,
   href,
@@ -375,8 +373,7 @@ export default function Grabbable({
   draggable = true,
   children,
 }: {
-  /** Only the active unit answers — off-screen props let the click fall
-   * through to the unit-tap plane so a tap still travels there. */
+  /** Owning unit for diagnostics and authored scene relationships. */
   unitIndex: number;
   /** Unique across the scene; owns the store's single hover slot. */
   hoverKey: string;
@@ -388,6 +385,10 @@ export default function Grabbable({
    * behavior. Reflective marks use shimmer instead of the shared nod because
    * even a small pitch can move their environment highlight off the face. */
   tiltOnHover?: boolean;
+  /** Whether pointer velocity banks the prop during a carry. Broad books that
+   * begin in contact with a supporting riser keep their facing stable until
+   * release; the solver can still tumble them normally after a throw. */
+  tiltWhileHeld?: boolean;
   /** How much horizontal throw becomes yaw on the way down. Ignored for a
    * ball, which rolls at ω = v/r instead. */
   spin?: number;
@@ -395,6 +396,9 @@ export default function Grabbable({
    * Pass it explicitly when the model's box lies — a squat prop that is not
    * round, or a round one whose bbox carries a stand. */
   shape?: HullShape;
+  /** Optional authored simplification for visibly concave props. Leafy
+   * plants collide by their solid planter while foliage may overlap. */
+  colliderProfile?: DynamicColliderProfile;
   /** What the prop weighs, in real kilograms. Without it mass comes off a
    * uniform density, which is fine for solid props and badly wrong for
    * hollow ones: a basketball massed by volume outweighs a golf ball 110 to
@@ -402,6 +406,8 @@ export default function Grabbable({
   massKg?: number;
   /** Bounce coefficient against the support surface. */
   restitution?: number;
+  /** Magnitude cap for release velocity. Ordinary props default to 4. */
+  maxThrowSpeed?: number;
   /** Which plank the prop stands on. Only needed for a prop whose parent
    * group is not one of ShelfUnit's two shelves — anything on the ground
    * bay, whose parent sits at y 0 and would otherwise be read as a top
@@ -434,6 +440,7 @@ export default function Grabbable({
 }) {
   const physicsEnabled =
     draggable && grabbablePhysicsEnabled(physicsPreference);
+  const physicsScene = usePhysicsScene();
   const massClass = massClassFor(massKg ?? 1);
   const handling = MASS_HANDLING[massClass];
   const group = useRef<THREE.Group>(null);
@@ -454,10 +461,15 @@ export default function Grabbable({
   const plane = useMemo(() => new THREE.Plane(), []);
   const hit = useMemo(() => new THREE.Vector3(), []);
   const world = useMemo(() => new THREE.Vector3(), []);
+  const shadeGround = useMemo(() => new THREE.Vector3(), []);
+  const visibilityPoint = useMemo(() => new THREE.Vector3(), []);
+  const visibilityMatrix = useMemo(() => new THREE.Matrix4(), []);
+  const visibilityFrustum = useMemo(() => new THREE.Frustum(), []);
   const raycaster = useThree((s) => s.raycaster);
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
   const pointerId = useRef<number | null>(null);
+  const pickupY = useRef(base[1]);
   /** Touch can tap a prop but never carry it. This is latched for one gesture
    * so a touch release cannot accidentally enter the desktop solver path. */
   const tapOnly = useRef(false);
@@ -475,6 +487,8 @@ export default function Grabbable({
   /** Did THIS gesture get a body? Decided once, at pointerdown: a module
    * that lands mid-drag must not change the rules under the visitor's hand. */
   const simulated = useRef(false);
+  const authoredParked = useRef(false);
+  const authoredOffscreenFor = useRef(0);
   /** Normalised device coords of the carrying pointer. Tracked from the
    * window rather than read off r3f's own pointer state: r3f only updates
    * that while the pointer is over the element it is connected to, so the
@@ -507,15 +521,19 @@ export default function Grabbable({
       base: new THREE.Vector3(base[0], base[1], base[2]),
       spin,
       shape,
+      colliderProfile,
       massKg,
       restitution,
+      maxThrowSpeed,
       plane: standsOn,
       phase,
+      physicsEnabled,
     };
     handle.current = entry;
-    registry.add(entry);
+    diagnosticsScope = physicsScene;
+    const unregister = physicsScene.registerHandle(entry);
     return () => {
-      registry.delete(entry);
+      unregister();
       entry.world?.drop(entry);
       handle.current = null;
     };
@@ -548,7 +566,9 @@ export default function Grabbable({
       id: hoverKey,
       root,
       activeUnits: [unitIndex],
-      movable: draggable ? { massKg: massKg ?? 1, massClass } : undefined,
+      movable: draggable
+        ? { massKg: massKg ?? 1, massClass, colliderProfile }
+        : undefined,
       activation,
       hover: { kind: draggable && tiltOnHover ? "tilt" : "none" },
     });
@@ -560,6 +580,7 @@ export default function Grabbable({
     external,
     href,
     hoverKey,
+    colliderProfile,
     massClass,
     massKg,
     onTap,
@@ -607,49 +628,43 @@ export default function Grabbable({
     }
   }, [handling.throwTilt, velocity]);
 
-  const onGrabDown = useCallback(
-    (event: PointerEvent, touchTapOnly: boolean): boolean => {
-      // Primary button of the primary pointer only — otherwise a right-click
-      // starts a carry, and a second pointer's release ends someone else's.
-      if (!event.isPrimary || event.button !== 0) return false;
+  const beginCarry = useCallback(
+    (event: PointerEvent) => {
+      if (phase.current === "held") return;
       const store = useStacks.getState();
-      // `isPrimary` is per pointer TYPE, so a primary pen and a primary mouse
-      // are both primary at once. One prop in hand at a time, always.
-      if (store.dragging || store.activeUnit !== unitIndex) return false;
-      if (!touchTapOnly && store.hovered !== hoverKey) return false;
-
-      pointerId.current = event.pointerId;
-      tapOnly.current = touchTapOnly || !draggable;
-      gesture.current = {
-        x: event.clientX,
-        y: event.clientY,
-        moved: false,
-      };
-      // Touch retains native horizontal travel. We only remember enough to
-      // answer a stationary release; no held phase, scroll freeze, solver or
-      // pointer tracking is entered, so carrying remains desktop-only.
-      if (tapOnly.current) return true;
-
-      phase.current = "held";
-      velocity.set(0, 0, 0);
-      track(event);
-      // Build (or join) this plank's world while the prop is still standing
-      // exactly on its mark — the collision boxes are measured here, and a
-      // prop measured mid-carry would be measured tilted.
       const entry = handle.current;
       const g = group.current;
+      authoredParked.current = false;
+      authoredOffscreenFor.current = 0;
+      velocity.set(0, 0, 0);
+      pickupY.current = g?.position.y ?? base[1];
+      track(event);
+      // Build (or join) the scene world while the prop is still standing
+      // exactly on its mark — collision boxes are measured at this boundary.
       simulated.current = false;
-      const locked = visitModes.get(unitIndex);
-      if (locked !== "authored" && physicsEnabled && physics && entry && g) {
-        // The prop's OWN group, not its parent: the solver resolves which
-        // plank this is from the world matrix, so every prop on a shelf lands
-        // in one world and they can hit each other regardless of which layout
-        // group each unit file happens to have wrapped them in.
-        const shelf = physics.worldFor(g, registry);
-        if (shelf) simulated.current = shelf.grab(entry);
-      }
-      if (!locked)
-        visitModes.set(unitIndex, simulated.current ? "simulated" : "authored");
+      let preparedWorld: ScenePhysicsWorld | null = null;
+      if (physicsEnabled && physics && entry && g) {
+        // The provider supplies every mounted handle and registered static
+        // root, independent of the prop's nesting or authored support.
+        const preparation = physics.prepareScenePhysics(physicsScene, entry);
+        if (preparation.status === "ready") preparedWorld = preparation.world;
+        else
+          physicsDiagnosticsController.publish({
+            code:
+              preparation.reason === "geometry-pending"
+                ? "geometry-pending"
+                : "authored-fallback",
+            handle: entry.key,
+            detail: preparation.reason,
+          });
+      } else if (entry)
+        physicsDiagnosticsController.publish({
+          code: "authored-fallback",
+          handle: entry.key,
+          detail: physicsEnabled ? "module-loading" : "opted-out",
+        });
+      phase.current = "held";
+      if (preparedWorld && entry) simulated.current = preparedWorld.grab(entry);
       store.setDragging(hoverKey);
       // drei's ScrollControls `enabled` flag only short-circuits its own
       // handler — the DOM element keeps scrolling natively. Freezing the
@@ -661,9 +676,34 @@ export default function Grabbable({
         el.style.touchAction = "none";
         el.style.overflowX = "hidden";
       }
+    },
+    [base, hoverKey, physicsEnabled, physicsScene, track, velocity],
+  );
+
+  const onGrabDown = useCallback(
+    (event: PointerEvent, touchTapOnly: boolean): boolean => {
+      // Primary button of the primary pointer only — otherwise a right-click
+      // starts a carry, and a second pointer's release ends someone else's.
+      if (!event.isPrimary || event.button !== 0) return false;
+      const store = useStacks.getState();
+      // `isPrimary` is per pointer TYPE, so a primary pen and a primary mouse
+      // are both primary at once. One prop in hand at a time, always.
+      if (store.dragging) return false;
+      if (!touchTapOnly && store.hovered !== hoverKey) return false;
+
+      pointerId.current = event.pointerId;
+      tapOnly.current = touchTapOnly || !draggable;
+      gesture.current = {
+        x: event.clientX,
+        y: event.clientY,
+        moved: false,
+      };
+      // Physics is deliberately NOT armed here. A stationary press belongs to
+      // the higher-priority click action; only crossing TAP_PX promotes this
+      // pending gesture into a carry and wakes the rigid body.
       return true;
     },
-    [draggable, hoverKey, physicsEnabled, track, unitIndex, velocity],
+    [draggable, hoverKey],
   );
 
   const onGrabMove = useCallback(
@@ -672,13 +712,16 @@ export default function Grabbable({
       const current = gesture.current;
       if (
         current &&
+        !current.moved &&
         Math.hypot(event.clientX - current.x, event.clientY - current.y) >
           TAP_PX
-      )
+      ) {
         current.moved = true;
+        if (!tapOnly.current) beginCarry(event);
+      }
       if (!tapOnly.current && phase.current === "held") track(event);
     },
-    [track],
+    [beginCarry, track],
   );
 
   const onGrabUp = useCallback(
@@ -772,7 +815,7 @@ export default function Grabbable({
     unitIndex,
   ]);
 
-  useFrame((state, rawDelta) => {
+  useFrame((_, rawDelta) => {
     const g = group.current;
     if (!g) return;
     // A backgrounded tab hands back one enormous delta; integrating it would
@@ -780,14 +823,34 @@ export default function Grabbable({
     const delta = Math.min(rawDelta, 1 / 30);
     const entry = handle.current;
     if (entry) entry.base.set(base[0], base[1], base[2]);
-    const shelf: ShelfWorld | null = entry?.world ?? null;
-
-    // Travel ends the rearrangement. Not a timer, not the release — the prop
-    // stays exactly where you knocked it for as long as you are standing in
-    // front of it, and is back on its mark before the next visitor arrives.
-    if (useStacks.getState().activeUnit !== unitIndex) {
-      if (phase.current === "sim") phase.current = "rest";
-    }
+    const shelf: ScenePhysicsWorld | null = entry?.world ?? null;
+    // Distant props that are completely back at rest have nothing left to
+    // integrate, reset, tilt, or re-ground. Keep the callback subscribed so a
+    // debug toggle/active-unit change wakes it immediately, but avoid all of
+    // the matrix/frustum/shade work below while its result would be identical.
+    const atAuthoredPose =
+      Math.abs(g.position.x - base[0]) +
+        Math.abs(g.position.y - base[1]) +
+        Math.abs(g.position.z - base[2]) +
+        Math.abs(g.rotation.x) +
+        Math.abs(g.rotation.y) +
+        Math.abs(g.rotation.z) <
+      1e-4;
+    const stacksState = useStacks.getState();
+    if (
+      shouldSuspendSettledPropFrame({
+        settings: scenePerformanceController.getSnapshot(),
+        phase: phase.current,
+        unitIndex,
+        activeUnit: stacksState.activeUnit,
+        hovered: stacksState.hovered === hoverKey,
+        authoredParked: authoredParked.current,
+        physicsParked: !entry || !!entry.parked,
+        atAuthoredPose,
+        nodSettled: Math.abs(nodAngle.current) < 1e-4,
+      })
+    )
+      return;
 
     if (phase.current === "held") {
       // Drag plane: camera-facing, through the prop's current position, so
@@ -804,7 +867,11 @@ export default function Grabbable({
       raycaster.setFromCamera(ndc, camera);
       if (raycaster.ray.intersectPlane(plane, hit)) {
         g.parent?.worldToLocal(hit);
-        hit.y = Math.min(base[1] + handling.maxLift, Math.max(hit.y, base[1])); // mass-class lift ceiling, never below the wood
+        hit.y = THREE.MathUtils.clamp(
+          hit.y,
+          pickupY.current + handling.minDrop,
+          pickupY.current + handling.maxRaise,
+        );
         // Throw velocity is the prop's ACTUAL movement, not the gap to the
         // cursor. Using the gap made it a spring constant rather than a
         // speed — a cursor 10cm away produced ~1.9 u/s no matter how slowly
@@ -821,87 +888,102 @@ export default function Grabbable({
       }
       g.rotation.z = THREE.MathUtils.damp(
         g.rotation.z,
-        -velocity.x * 0.05 * handling.throwTilt,
+        tiltWhileHeld ? -velocity.x * 0.05 * handling.throwTilt : 0,
         8,
         delta,
       );
       g.rotation.x = THREE.MathUtils.damp(
         g.rotation.x,
-        velocity.z * 0.05 * handling.throwTilt,
+        tiltWhileHeld ? velocity.z * 0.05 * handling.throwTilt : 0,
         8,
         delta,
       );
+      if (simulated.current && entry?.world) {
+        const result: HeldMoveResult = entry.world.moveHeld(
+          entry,
+          {
+            position: g.position,
+            quaternion: g.quaternion,
+          } satisfies HeldPose,
+          delta,
+        );
+        velocity.copy(result.acceptedVelocity);
+      }
     } else if (phase.current === "sim") {
-      // The solver owns this transform; the shelf's tick below writes it.
+      // The solver owns this transform; the scene frame driver writes it.
     } else if (phase.current === "settling") {
       velocity.y -= GRAVITY * delta;
       g.position.addScaledVector(velocity, delta);
       g.rotation.y += velocity.x * spin * delta;
       if (g.position.y <= base[1]) {
         g.position.y = base[1];
-        if (Math.abs(velocity.y) > 0.3) {
-          velocity.y *= -0.32;
-          velocity.x *= 0.55;
-          velocity.z *= 0.55;
-        } else {
-          phase.current = "rest";
-        }
+        velocity.set(0, 0, 0);
+        phase.current = "rest";
+        authoredParked.current = true;
+        authoredOffscreenFor.current = 0;
       }
     } else {
       const p = g.position;
-      // Yaw comes home too. The settle spins the prop, and leaving that spin
-      // in meant "returns to its authored pose" was only true of position —
-      // the mug ended up with its handle somewhere new every time, which is
-      // exactly the permanent rearrangement this phase exists to prevent.
-      const settled =
-        Math.abs(p.x - base[0]) +
-          Math.abs(p.y - base[1]) +
-          Math.abs(p.z - base[2]) +
-          Math.abs(g.rotation.x) +
-          Math.abs(g.rotation.y) +
-          Math.abs(g.rotation.z) <
-        1e-4;
-      if (settled) {
-        // Idle out completely, exactly as Lift does — a prop at rest must
-        // not keep writing its own transform every frame.
-        p.set(base[0], base[1], base[2]);
-        g.rotation.set(0, 0, 0);
-        // Home again: hand the body back to the solver, asleep and on its
-        // mark, ready to be knocked by the next thing thrown at it.
-        if (entry && shelf && !entry.parked) shelf.park(entry);
+      if (authoredParked.current) {
+        // A genuine solver/module fallback still behaves like a rearranged
+        // scene: keep the landed pose while visible, then park it directly.
+        g.getWorldPosition(visibilityPoint);
+        visibilityFrustum.setFromProjectionMatrix(
+          visibilityMatrix.multiplyMatrices(
+            camera.projectionMatrix,
+            camera.matrixWorldInverse,
+          ),
+        );
+        const margin =
+          shadeWidth / 2 +
+          camera.getWorldPosition(shadeGround).distanceTo(visibilityPoint) *
+            0.15;
+        const visible = visibilityFrustum.planes.every(
+          (frustumPlane) =>
+            frustumPlane.distanceToPoint(visibilityPoint) >= -margin,
+        );
+        authoredOffscreenFor.current = visible
+          ? 0
+          : authoredOffscreenFor.current + delta;
+        if (authoredOffscreenFor.current >= 1) {
+          p.set(base[0], base[1], base[2]);
+          g.quaternion.identity();
+          authoredParked.current = false;
+          authoredOffscreenFor.current = 0;
+        }
       } else {
-        p.x = THREE.MathUtils.damp(p.x, base[0], HOME_LAMBDA, delta);
-        p.y = THREE.MathUtils.damp(p.y, base[1], HOME_LAMBDA, delta);
-        p.z = THREE.MathUtils.damp(p.z, base[2], HOME_LAMBDA, delta);
-        g.rotation.x = THREE.MathUtils.damp(
-          g.rotation.x,
-          0,
-          HOME_LAMBDA,
-          delta,
-        );
-        g.rotation.y = THREE.MathUtils.damp(
-          g.rotation.y,
-          0,
-          HOME_LAMBDA,
-          delta,
-        );
-        g.rotation.z = THREE.MathUtils.damp(
-          g.rotation.z,
-          0,
-          HOME_LAMBDA,
-          delta,
-        );
+        // Yaw comes home too. The settle spins the prop, and leaving that spin
+        // in meant "returns to its authored pose" was only true of position.
+        const settled = atAuthoredPose;
+        if (settled) {
+          p.set(base[0], base[1], base[2]);
+          g.rotation.set(0, 0, 0);
+          if (entry && shelf && !entry.parked) shelf.park(entry);
+        } else {
+          p.x = THREE.MathUtils.damp(p.x, base[0], HOME_LAMBDA, delta);
+          p.y = THREE.MathUtils.damp(p.y, base[1], HOME_LAMBDA, delta);
+          p.z = THREE.MathUtils.damp(p.z, base[2], HOME_LAMBDA, delta);
+          g.rotation.x = THREE.MathUtils.damp(
+            g.rotation.x,
+            0,
+            HOME_LAMBDA,
+            delta,
+          );
+          g.rotation.y = THREE.MathUtils.damp(
+            g.rotation.y,
+            0,
+            HOME_LAMBDA,
+            delta,
+          );
+          g.rotation.z = THREE.MathUtils.damp(
+            g.rotation.z,
+            0,
+            HOME_LAMBDA,
+            delta,
+          );
+        }
       }
     }
-
-    // Step the shelf. Every prop standing on the plank calls this and the
-    // world serves only the first one each frame, so who gets there is
-    // whichever useFrame r3f registered first — except while something is in
-    // hand, where the carrier claims the slot. The kinematic body has to be
-    // pushed from the pose computed above, in this frame, or a throw lands
-    // its contact one frame late.
-    if (shelf && (phase.current === "held" || !shelf.carrying()))
-      shelf.tick(delta, state.clock.elapsedTime);
 
     // The hover nod. Same gesture, same curve and same hinge edge as every
     // other prop in the world (see Lift) — a prop you can pick up should not
@@ -957,9 +1039,16 @@ export default function Grabbable({
     // belongs to is worse than no shadow at all.
     const s = shade.current;
     if (s) {
-      const lift = Math.max(0, g.position.y - base[1]);
+      let surfaceY = base[1];
+      if (g.position.y < base[1] - 0.01 && g.parent) {
+        g.getWorldPosition(shadeGround);
+        shadeGround.y = SHELF_GEOMETRY.groundY;
+        g.parent.worldToLocal(shadeGround);
+        surfaceY = shadeGround.y;
+      }
+      const lift = Math.max(0, g.position.y - surfaceY);
       const spreadT = Math.min(1, lift / 0.45);
-      s.position.set(g.position.x, base[1] + 0.02, g.position.z + 0.02);
+      s.position.set(g.position.x, surfaceY + 0.02, g.position.z + 0.02);
       const w = shadeWidth * (1 + spreadT * 0.7);
       s.scale.set(w, w * 0.32, 1);
       s.material.opacity = SHADE_OPACITY * (1 - 0.65 * spreadT);
@@ -985,11 +1074,9 @@ export default function Grabbable({
         // Consume Three's later synthetic click so the same ray cannot also
         // activate a link or unit plane sitting behind this carried object.
         onClick={(event) => {
-          if (useStacks.getState().activeUnit !== unitIndex) return;
           event.stopPropagation();
         }}
         onPointerOver={(e: ThreeEvent<PointerEvent>) => {
-          if (useStacks.getState().activeUnit !== unitIndex) return;
           e.stopPropagation();
           useStacks.getState().setHovered(hoverKey);
           // The one honest moment to start the download: a pointer resting on

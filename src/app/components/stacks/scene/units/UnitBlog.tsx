@@ -19,6 +19,13 @@ const VINEYARD_VINES_STICKER_URL =
   "/images/stacks/vineyard-vines-sticker.svg?v=4";
 const VINEYARD_VINES_STICKER_HOVER_KEY = "grab:sticker:vineyard-vines";
 
+/** Shared with the real-geometry landing regression for the masthead Perch. */
+export const MUSINGS_SAILBOAT_POSE = {
+  base: [1.04, 0, -0.06],
+  rotation: [0, Math.PI / 2, 0],
+  scale: 0.55,
+} as const;
+
 /** A thin, die-cut decal left flat on the wood in front of the sailboat. */
 function VineyardVinesSticker({
   unitIndex,
@@ -100,6 +107,7 @@ export default function UnitBlog({
               shadeColor={palette.shadow}
               shadeWidth={0.42}
               shape="box"
+              colliderProfile="foliage-base"
               massKg={1.4}
             >
               <Sway unitIndex={index} amount={0.022} rate={0.34} phase={1.8}>
@@ -145,7 +153,7 @@ export default function UnitBlog({
             <Grabbable
               unitIndex={index}
               hoverKey="grab:sailboat:musings"
-              base={[1.04, 0, -0.06]}
+              base={[...MUSINGS_SAILBOAT_POSE.base]}
               shadeColor={palette.shadow}
               shadeWidth={0.52}
               shape="box"
@@ -163,8 +171,8 @@ export default function UnitBlog({
                     Steel: dark ? "#20374d" : "#1e3a56",
                   }}
                   roughness={0.7}
-                  rotation={[0, Math.PI / 2, 0]}
-                  scale={0.55}
+                  rotation={[...MUSINGS_SAILBOAT_POSE.rotation]}
+                  scale={MUSINGS_SAILBOAT_POSE.scale}
                 />
               </React.Suspense>
             </Grabbable>

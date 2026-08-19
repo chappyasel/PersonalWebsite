@@ -15,12 +15,12 @@ import {
 } from "../aboutBootComposition";
 import { proxiedBookCover } from "../bookCoverTexture";
 import { EggLamp, SpinProp, Sway } from "../eggs";
+import { getSceneInteraction } from "../interactionRegistry";
 import { DeskApple, PortraitFrame, useMetalShimmer } from "../objects";
 import {
   DeskFrame,
   FlatPrint,
   PHOTO_LINKS,
-  PhotoMount,
   deskFrameHeight,
   photoDoorLabel,
 } from "../photos";
@@ -42,6 +42,7 @@ import {
 import {
   ABOUT_READING_BOOK,
   type ReadingBookPose,
+  readingBookAtAuthoredPose,
   readingStackPoses,
   recordAboutReadingMaterials,
 } from "./aboutReadingStack";
@@ -290,12 +291,15 @@ function ReadingStack({
             shadeWidth={0.36}
             shape="box"
             massKg={0.62}
-            physics={false}
             tiltOnHover={false}
             onTap={() => onOpenBook?.(book.id)}
             actionLabel={`Read ${book.title}`}
           >
-            <ReadingBookHover hoverKey={`grab:reading:${book.id}`} index={i}>
+            <ReadingBookHover
+              hoverKey={`grab:reading:${book.id}`}
+              index={i}
+              authoredBase={pose.base}
+            >
               <HeldReadingCover
                 hoverKey={`grab:reading:${book.id}`}
                 pose={pose}
@@ -342,10 +346,12 @@ const READING_HOVER_OFFSETS = [
 function ReadingBookHover({
   hoverKey,
   index,
+  authoredBase,
   children,
 }: {
   hoverKey: string;
   index: number;
+  authoredBase: readonly [number, number, number];
   children: React.ReactNode;
 }) {
   const group = React.useRef<THREE.Group>(null);
@@ -359,7 +365,16 @@ function ReadingBookHover({
     const node = group.current;
     if (!node) return;
     const state = useStacks.getState();
-    const active = state.hovered === hoverKey && state.dragging !== hoverKey;
+    const carrier = getSceneInteraction(hoverKey)?.root;
+    const active =
+      state.hovered === hoverKey &&
+      state.dragging !== hoverKey &&
+      carrier !== undefined &&
+      readingBookAtAuthoredPose(
+        carrier.position,
+        carrier.quaternion,
+        authoredBase,
+      );
     const amount = active && !still ? 1 : 0;
     const delta = Math.min(rawDelta, 1 / 30);
     node.position.x = THREE.MathUtils.damp(
@@ -494,6 +509,7 @@ export default function UnitAbout({
               shadeColor={palette.shadow}
               shadeWidth={0.28}
               shape="box"
+              colliderProfile="foliage-base"
               massKg={1.6}
             >
               <group name={aboutLandmarkNodeName("cactus")}>
@@ -573,6 +589,24 @@ export default function UnitAbout({
                   name={aboutLandmarkNodeName("ai-collective")}
                   rotation={[0, -0.16, 0]}
                 >
+                  {/* The open C and its thin billet are visually honest but
+                      leave very few raycast pixels at this oblique shelf
+                      angle. This padded target belongs only to pointer
+                      acquisition; physics continues to measure the visible
+                      metal geometry. */}
+                  <mesh
+                    name="interaction-hit:ai-collective"
+                    position={[0, 0.115, 0]}
+                    userData={{ physicsIgnore: true }}
+                  >
+                    <boxGeometry args={[0.29, 0.26, 0.1]} />
+                    <meshBasicMaterial
+                      transparent
+                      opacity={0}
+                      depthWrite={false}
+                      colorWrite={false}
+                    />
+                  </mesh>
                   <CollectiveLogo palette={palette} unitIndex={index} />
                 </group>
               </React.Suspense>
@@ -627,7 +661,15 @@ export default function UnitAbout({
           </group>
         }
       >
-        <group position={[ABOUT_BOOT_LANDMARKS.globe.x, 0, 0.02]}>
+        <Grabbable
+          unitIndex={index}
+          hoverKey="egg:globe"
+          base={[ABOUT_BOOT_LANDMARKS.globe.x, 0, 0.02]}
+          shadeColor={palette.shadow}
+          shadeWidth={0.4}
+          shape="box"
+          massKg={1.4}
+        >
           <group name={aboutLandmarkNodeName("globe")}>
             <SpinProp unitIndex={index} hoverKey="egg:globe" idleRate={0.11}>
               <React.Suspense fallback={null}>
@@ -641,17 +683,14 @@ export default function UnitAbout({
               </React.Suspense>
             </SpinProp>
           </group>
-          <ContactShade
-            color={palette.shadow}
-            width={0.4}
-            position={[0, 0.02, 0.04]}
-          />
-        </group>
+        </Grabbable>
 
-        <PhotoMount
+        <LoosePhoto
           unitIndex={index}
+          palette={palette}
           id="portrait"
-          position={[ABOUT_BOOT_LANDMARKS.portrait.x, 0, 0]}
+          base={[ABOUT_BOOT_LANDMARKS.portrait.x, 0, 0]}
+          width={ABOUT_BOOT_LANDMARKS.portrait.profile.width}
         >
           <group
             name={aboutLandmarkNodeName("portrait")}
@@ -663,7 +702,7 @@ export default function UnitAbout({
               textured={textured}
             />
           </group>
-        </PhotoMount>
+        </LoosePhoto>
 
         <LoosePhoto
           unitIndex={index}
@@ -710,6 +749,7 @@ export default function UnitAbout({
           shadeColor={palette.shadow}
           shadeWidth={0.28}
           shape="box"
+          colliderProfile="foliage-base"
           massKg={1.2}
         >
           <group name={aboutLandmarkNodeName("succulent")}>
@@ -776,6 +816,7 @@ export default function UnitAbout({
           shadeColor={palette.shadow}
           shadeWidth={0.34}
           shape="box"
+          colliderProfile="foliage-base"
           massKg={3.1}
         >
           <group name={aboutLandmarkNodeName("large-plant")}>

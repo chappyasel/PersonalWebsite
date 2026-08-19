@@ -10,12 +10,11 @@ import {
 import { registerSceneInteraction } from "./interactionRegistry";
 
 describe("authored insect Perches", () => {
-  it("provides three to seven distinctive sites on every unit", () => {
+  it("provides at least seven distinctive sites on every unit", () => {
     const catalog = insectPerchCatalog();
     expect(catalog).toHaveLength(7);
     for (const unit of catalog) {
-      expect(unit.length).toBeGreaterThanOrEqual(3);
-      expect(unit.length).toBeLessThanOrEqual(7);
+      expect(unit.length).toBeGreaterThanOrEqual(7);
       expect(new Set(unit.map((perch) => perch.id)).size).toBe(unit.length);
       expect(
         unit.every((perch) => "ownerId" in perch || "ownerPrefix" in perch),

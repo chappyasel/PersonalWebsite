@@ -13,9 +13,71 @@ shared atmosphere, traveled laterally.
 Systems, Projects, Musings, Talks). A unit has scene objects and exactly one
 placard. The unit order is fixed and meaningful: it is the traverse.
 
-**Traverse** — the full journey from the first unit to the last. Vertical
-scrolling advances the traverse; the traverse also advances the morning (see
-Sky).
+**Portrait Composition** — a Unit's mobile-specific staging of the same
+personal world for a narrow viewport. It may reposition or enlarge scene
+objects to preserve meaning, legibility, and touchability rather than scaling
+the desktop arrangement down intact. Each Unit owns its camera target and
+distance while sharing a consistent lens and horizon language with the other
+stops.
+_Avoid_: Shrunken desktop unit, mobile fallback
+
+**Presentation Profile** — the World and Placard composition selected from
+available viewport geometry. It determines wide versus Portrait Composition
+without inferring how the visitor will interact. Short landscape screens reuse
+the responsive World with the Placard at its shortest detent; they do not have
+a separately authored Compact Landscape profile unless usage evidence later
+justifies one.
+_Avoid_: Device class, input mode
+
+**Interaction Profile** — the interaction contract selected from the pointer
+actually in use. Fine pointers receive hover previews; coarse pointers receive
+Touch Focus, independently of the current Presentation Profile.
+_Avoid_: Mobile mode, desktop mode, user-agent class
+
+**Capability Profile** — the rendering budget selected from observed runtime
+performance and device constraints, independently of Presentation and
+Interaction Profiles. It preserves Identity Props, composition, and immediate
+feedback while progressively reducing scalable effects such as shadow detail,
+reflections, particles, and offscreen wildlife to protect frame pacing.
+_Avoid_: Mobile quality, coarse-pointer quality, visual identity downgrade
+
+**Identity Prop** — a scene object whose presence communicates something
+meaningful about Chappy or owns a meaningful action. Every Identity Prop must
+survive into its Unit's Portrait Composition, though its position and scale may
+change.
+_Avoid_: Required decoration, hero prop
+
+**Movable Prop** — an Identity Prop whose semantic role includes physical
+carrying through Weighted dragging. Every fine-pointer Movable Prop remains
+Movable under a coarse-pointer Interaction Profile; Portrait Composition may
+enlarge or reposition its touch target but may not remove the interaction.
+_Avoid_: Desktop-only toy, decorative drag affordance
+
+**Set Dressing** — an atmospheric scene object that strengthens a Unit's
+composition without defining its identity or owning a meaningful action. A
+Portrait Composition may move, simplify, replace, or omit Set Dressing.
+_Avoid_: Identity Prop, required prop
+
+**Traverse** — the full journey from the first Unit to the last. Desktop
+scrolling and mobile World Swipes advance it; the Traverse also advances the
+morning (see Sky).
+
+**World Swipe** — mobile's direct horizontal gesture for advancing or
+reversing the Traverse through the exposed World. Vertical gestures belong to
+the Peek Sheet and readable Placard content, never to lateral World travel.
+_Avoid_: Vertical world scroll, omnidirectional travel swipe
+
+**Kinetic Snap** — the candidate mobile settling behavior in which the World
+follows a World Swipe continuously, release momentum may carry it across
+multiple Units, and every resting position resolves to an authored Portrait
+Composition.
+_Avoid_: Free intermediate rest, one-page swipe
+
+**Arrival Beat** — one restrained, Unit-specific response that acknowledges a
+visitor's first arrival at that Unit during a session. It emerges from that
+Unit's Identity Props, creatures, or motivated light; revisits use the normal
+camera settle.
+_Avoid_: Generic page transition, every-visit spectacle, random flourish
 
 **Sky** — the world's backdrop, always set in Chappy's morning hours. Dark
 theme depicts 3:45am: full night, stars out, the city mostly asleep, dawn not
@@ -43,16 +105,126 @@ practical fixtures. Darkness, falloff, and retained material texture matter
 more than making every object equally bright.
 _Avoid_: Unmotivated fill, decorative rim light, uniform exposure
 
-**Placard** — the dense, readable content for a unit (the museum-label
-metaphor): real section content in a screen-fixed panel, never rendered inside
-the 3D scene. On desktop it stands beside the world; on mobile it is summoned
-(see Peek Chip), never resident.
+**Perch** — an authored, prop-relative landing site with a real triangle grip
+contact, outward surface normal, optional tangent/tolerances, and clearance for
+an insect's complete folded resting pose. Butterflies may use Perches
+throughout all seven Units; the resolved triangle contact follows its owning
+prop if that prop moves.
+_Avoid_: Random shelf coordinate, spawn point
 
-**Peek Chip** — mobile's collapsed placard: one line naming the active unit,
-pinned at the bottom of the clean world. Tapping the chip or the sheet's own
-controls expands it into the full placard; tapping the 3D scene remains
-available for scene interactions. While a placard is expanded the traverse is
-paused, and the world leans slightly toward the unit being read.
+**Perch Diagnostic** — the shared, stable-code verdict for one species at one
+Perch: authored anchor, triangle contact, tangent frame, eligibility,
+occupancy, complete envelope, collision revision, all Landing Plan routes, and
+the exact rejection reason. The development HUD visualizes this same verdict.
+_Avoid_: Debug marker, renderer-only validity
+
+**Flight Volume** — the region of air a roaming insect may occupy: a
+continuous authored extent, not a set of places. It is authored in one Unit's
+own frame — spanning that Unit's whole face, from just above the flowers to
+above the tallest prop, wrapping the furniture with residency weighted toward
+the camera side — and the seven of them tile edge to edge, so the room is
+covered without seams or gaps between them. Membership is a containment force,
+never a route.
+_Avoid_: Safe-air graph, navigation mesh, flight path, authored orbit, cage
+
+**Residency** — which Flight Volume an insect currently belongs to. It is not
+fixed at birth: an insect migrates as it crosses the boundary its volume
+shares with a neighbour, and its containment, its collision field, and the
+Perches it may reach all follow. Tiling is what makes migration possible — at
+a shared boundary the insect is inside both volumes at once, so nothing has to
+move it.
+_Avoid_: Home unit, spawn unit, assigned shelf
+
+**Transit** — the purposeful crossing an insect flies from one Flight Volume
+into a neighbour: raised speed, wander suppressed, but still flight — geometry
+still repels it and containment still applies. It is what roaming is not, a
+movement with somewhere to be, and it is the only redistribution mechanism
+that works when nothing can be re-homed.
+_Avoid_: Migration path, travel animation, waypoint run
+
+**Re-homing** — changing an insect's Residency without flying it, permitted
+only while that insect is provably outside every view the camera can currently
+produce. The margin is computed from the live camera rather than authored,
+because any constant is either unsafe at wide aspect ratios or useless at
+narrow ones.
+_Avoid_: Teleport, respawn, warp, snap
+
+**Intent Layer** — a roaming insect's slow decision about where to be,
+expressed only as forces on its own velocity: a drifting wander target,
+repulsion from nearby geometry, and containment inside the air it belongs to —
+a Flight Volume for a butterfly, a Lamp Cone for a moth. It never produces a
+position, so no two insects can share a line through the air.
+_Avoid_: Route, trajectory, waypoint animation, planner
+
+**Lamp Cone** — the air a moth roams: a soft radial extent about a lit
+practical, containing it the way a Flight Volume contains a butterfly. Softness
+is the point rather than a tolerance — a moth that drifts a little proud of the
+beam, darkens, and is drawn back is doing the thing a moth is for, and a hard
+boundary cannot express it.
+_Avoid_: Light radius, moth orbit, cone path
+
+**Flap Layer** — the fast body motion that makes an insect read as an insect:
+thorax pitch driven a quarter cycle behind the wingbeat that causes it,
+wingbeat rate and depth coupled to airspeed, and — while perched — long
+stillness punctuated by the occasional slow open and close, at a period and
+depth that differ per insect so no two are ever in step. It is presentation
+only and cannot move the insect or alter what it collides with.
+_Avoid_: Bob, animation clip, secondary motion, idle loop
+
+**Lamp Perch** — a Perch inside an active practical's visibly illuminated zone.
+Moths may land only on Lamp Perches while that practical is lit; they never
+settle arbitrarily across unlit shelves.
+_Avoid_: Moth perch, generic Perch
+
+**Landing Cycle** — one insect's interruptible, acceleration-limited sequence
+from roaming through a single continuous Arrival Curve, rest, launch, and a
+position-and-velocity matched return to roaming. It is the only part of an
+insect's life with a hard collision guarantee.
+_Avoid_: Landing animation, waypoint path
+
+**Arrival Curve** — the one continuous curve an insect flies from roaming to
+contact: a spiral around the Perch normal whose radius and height decay
+together, so it meets the surface along the surface rather than descending
+onto it. Circling and settling are the same gesture, not separate phases.
+_Avoid_: Approach phase, hover arc, touchdown segment, normal-axis descent
+
+**Disturbance** — direct interaction with a Perch's owning prop, or recent
+mouse/trackpad activity followed by confirmed proximity to its projected
+screen position. Touch proximity and a dormant cursor are never Disturbances.
+Its severity is part of its identity: a grabbed prop and a passing cursor are
+different Disturbances, not one event at different strengths.
+_Avoid_: Hover state
+
+**Escape** — the departure a Disturbance provokes. It is defined by making
+ground away from the Perch, never by arriving anywhere, so it always resolves:
+an insect that cannot make progress finds another way out or abandons the
+Perch, and never holds station above the site it fled.
+_Avoid_: Departure Vector, escape target, launch waypoint
+
+**Placard** — the primary, readable content for a Unit (the museum-label
+metaphor): real section content in a screen-fixed panel, never rendered inside
+the 3D scene. On desktop it stands beside the World; on mobile it remains
+resident as a Peek Sheet and may expand for reading.
+
+**Travel-Synced Placard** — mobile behavior in which the resident Placard body
+changes as the Traverse crosses into each Unit, including intermediate Units
+during a Kinetic Snap. The content participates in travel rather than waiting
+for the World to settle.
+_Avoid_: Settlement-only content, destination preview
+
+**Peek Sheet** — the resident mobile presentation of the active Unit's
+Placard. Its resting state shares the viewport with the World; it may expand
+for reading or be dismissed into a Peek Chip.
+_Avoid_: Supporting sheet, optional details
+
+**Resting Split** — the mobile Peek Sheet's default approximately 70% World /
+30% Placard division of the usable viewport. The World-weighted area preserves
+the Portrait Composition; it does not make the Placard secondary content.
+_Avoid_: Content hierarchy, fixed pixel height
+
+**Peek Chip** — the dismissed form of the mobile Peek Sheet: one line naming
+the active Unit, pinned at the bottom of the exposed World. It restores the
+resident Peek Sheet; it is not the default presentation of the Placard.
 
 **World mode** — the full 3D experience (canvas + placards + chrome).
 
@@ -62,15 +234,100 @@ the fallback for reduced motion or missing WebGL, and what search engines see.
 **Rail** — the persistent labeled list of all units; the map of the traverse
 and the way to jump.
 
+**Unit Map** — the mobile form of the Rail: a compact active-Unit label and
+seven tactile notches. Tapping expands a fully labeled map; sliding across the
+notches previews Units through the Travel-Synced Placard and commits travel on
+release. Compression, resistance, and snapping provide the required feedback;
+brief haptic ticks are an optional enhancement on supporting devices. The Unit
+Map cedes touch during Ambient Reading.
+_Avoid_: Permanent icon row, hamburger navigation, haptic-only feedback
+
 **Door** — a scene object with an honest destination that opens on a
 stationary activation. A Door may also be movable, but scenery with no
 destination and easter eggs are not Doors.
 _Avoid_: Link, linked prop, clickable object
 
-**Door Label** — the compact destination label a Door reveals when a visitor
-dwells on it. It names the outcome of entering the Door; it is not a general
-label for scenery or easter eggs.
+**Door Label** — the compact outcome label a Door or explicit local action
+reveals when a visitor dwells with a fine pointer or establishes Touch Focus.
+Navigation labels name the destination; local-action labels name what the
+stationary activation does. Under Touch Focus the label is also a large,
+explicit activation target. It appears adjacent to the focused prop and offset
+from the contact; when that would collide with chrome, the Peek Sheet, or a
+viewport edge, it docks above the Peek Sheet with a short visual tether to its
+owner. Movable-only scenery and quiet easter eggs do not receive one.
 _Avoid_: Tooltip, hover label
+
+**Touch Focus** — the persistent mobile selection established by the first tap
+on an Identity Prop. It reveals the prop's outcome before any Door navigation
+or explicit local action occurs and gives a movable-only prop a persistent
+selected state without inventing a Door Label. A subsequent tap on either an
+actionable prop or its Door Label commits the same role-specific activation.
+It has no timeout and clears when focus transfers or the visitor changes
+context through background touch, World travel, rail navigation, or Peek Sheet
+expansion.
+_Avoid_: Hover emulation, instant touch navigation
+
+**Focus Lean** — the restrained, context-preserving camera reframe that begins
+after a quick release establishes Touch Focus. It enlarges the focused prop
+without changing Units or hiding its surroundings, then restores the authored
+Portrait Composition when focus clears. It never begins during unresolved
+Touch Arbitration or carrying.
+_Avoid_: Inspection mode, unit travel, pinch zoom
+
+**Touch Arbitration** — the coarse-pointer decision made when contact begins
+on an active Identity Prop. A quick release establishes Touch Focus; movement
+before the hold threshold becomes a World Swipe with its full displacement;
+a stationary hold on any Movable Prop promotes the same contact into carrying.
+The exposed World outside active Identity Props retains its native swipe
+behavior.
+_Avoid_: Long-press mode, global scroll lock
+
+**Touch Halo** — the invisible, projected coarse-pointer target that expands
+an interactive prop to a dependable minimum hit area without changing its
+visual or physical scale. When Halos overlap, visible proximity and authored
+interaction priority resolve the candidate; Touch Focus confirms it before an
+action commits.
+_Avoid_: Exact-mesh touch, permanent hotspot marker, oversized prop
+
+**Pickup Cue** — the world-native feedback that makes Touch Arbitration
+legible on a Movable Prop: immediate physical compression on contact, a subtle
+loaded lift as the hold threshold completes, then pickup. A light haptic may
+reinforce pickup where supported, and a one-time teaching hint may name the
+gesture on first encounter; neither is required for understanding it.
+_Avoid_: Permanent drag badge, generic progress spinner
+
+**Discovery Cue** — a quiet, contextual hint that teaches one unfamiliar
+gesture at the moment it becomes relevant, then retires permanently once the
+visitor demonstrates that gesture. The opening may cue World Swipe, the Peek
+Sheet exposes its pull affordance, and the first Movable Prop may name tap and
+hold; none block entry into the World.
+_Avoid_: Tutorial screen, permanent gesture legend, repeated coach mark
+
+**Touch Wake** — the small, local disturbance created as a coarse pointer moves
+through exposed World space. Nearby environmental details may bend, stir,
+startle, or sway, then settle quickly; it never fires over UI, performs an
+action, or travels beyond the contact's immediate neighborhood. Capability
+Profile may simplify or omit individual effects while preserving immediate
+contact feedback.
+_Avoid_: Cursor trail, global scene reaction, hidden activation
+
+**Damped Toss** — the coarse-pointer release from carrying: it preserves
+enough release velocity to feel physical while capping extremes for a small
+viewport. Weighted dragging still makes mass perceptible, and any prop that
+escapes its authored play area recovers automatically.
+_Avoid_: Placement-only release, unbounded mobile throw, always snap home
+
+**Offstage Reset** — the existing shared recovery contract for a Movable Prop:
+its rearrangement persists while visible, then returns to its authored pose
+only after remaining outside the expanded camera frustum. Touch carrying keeps
+this desktop behavior unchanged.
+_Avoid_: Reset on travel, session-long disorder, touch-specific recovery
+
+**Ambient Reading** — the expanded Peek Sheet state in which readable content
+owns touch while the World remains visibly alive behind it. Insects, lighting,
+and subtle scene motion continue, but World travel, Touch Focus, and carrying
+pause until the sheet collapses.
+_Avoid_: Interactive background, frozen world
 
 **Source Asset** — licensed third-party or owner-supplied visual material
 being considered for the scene. It is raw material, not something that belongs

@@ -31,7 +31,6 @@ function isFinePointer() {
 
 export default function DoorLabel() {
   const hovered = useStacks((s) => s.hovered);
-  const activeUnit = useStacks((s) => s.activeUnit);
   const dragging = useStacks((s) => s.dragging);
   const modalOpen = useStacks((s) => s.modalOpen);
   const panelState = useStacks((s) => s.panelState);
@@ -86,7 +85,6 @@ export default function DoorLabel() {
     const eligible =
       isFinePointer() &&
       activation &&
-      spec?.activeUnits.includes(activeUnit) &&
       !dragging &&
       !modalOpen &&
       panelState === "closed";
@@ -122,7 +120,7 @@ export default function DoorLabel() {
       const next = {
         id: spec.id,
         label: activation.label.replace(/\s*↗\s*$/, ""),
-        external: activation.external,
+        external: activation.kind === "door" && activation.external,
       };
       positionedId.current = null;
       setLabelVisible(false);
@@ -130,7 +128,7 @@ export default function DoorLabel() {
       setShown(next);
     }, delay);
     return () => window.clearTimeout(timeout);
-  }, [activeUnit, dragging, hovered, modalOpen, panelState, setLabelVisible]);
+  }, [dragging, hovered, modalOpen, panelState, setLabelVisible]);
 
   useEffect(() => {
     if (!shown) return;

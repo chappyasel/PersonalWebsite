@@ -7,6 +7,7 @@ import {
   CURRENT_READING_BASE,
   CURRENT_READING_ROTATION,
   aboutReadingSnapshot,
+  readingBookAtAuthoredPose,
   readingBookFrontElevation,
   readingBookPoint3,
   readingCoverForward,
@@ -90,6 +91,33 @@ describe("About recent-reading fan", () => {
       0,
     ]);
     expect(readingHeldRotation(current.rotation, 0)).toEqual(current.rotation);
+  });
+
+  it("treats shelf hover presentation as authored-pose-only", () => {
+    const [current] = readingStackPoses();
+    const identity = { x: 0, y: 0, z: 0, w: 1 };
+
+    expect(
+      readingBookAtAuthoredPose(
+        { x: current.base[0], y: current.base[1], z: current.base[2] },
+        identity,
+        current.base,
+      ),
+    ).toBe(true);
+    expect(
+      readingBookAtAuthoredPose(
+        { x: current.base[0] + 0.02, y: current.base[1], z: current.base[2] },
+        identity,
+        current.base,
+      ),
+    ).toBe(false);
+    expect(
+      readingBookAtAuthoredPose(
+        { x: current.base[0], y: current.base[1], z: current.base[2] },
+        { x: 0.02, y: 0, z: 0, w: 0.9998 },
+        current.base,
+      ),
+    ).toBe(false);
   });
 
   it("keeps the lower-right photograph fully supported by the plank", () => {

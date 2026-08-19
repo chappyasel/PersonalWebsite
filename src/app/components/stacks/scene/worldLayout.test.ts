@@ -57,12 +57,14 @@ describe("About lead-in", () => {
     // Square-ish viewports floor at the authored stop (status quo — the
     // gap physically cannot fit the rail there).
     expect(aboutStopShift(1200, 1200, 198)).toBe(0);
-    expect(
-      cameraXForScrollOffset(scrollOffsetForUnit(0, shift)),
-    ).toBeCloseTo(shift, 10);
-    expect(
-      cameraXForScrollOffset(scrollOffsetForUnit(3, shift)),
-    ).toBeCloseTo(13.2, 10);
+    expect(cameraXForScrollOffset(scrollOffsetForUnit(0, shift))).toBeCloseTo(
+      shift,
+      10,
+    );
+    expect(cameraXForScrollOffset(scrollOffsetForUnit(3, shift))).toBeCloseTo(
+      13.2,
+      10,
+    );
   });
 });
 

@@ -25,10 +25,13 @@ function Bio({ className }: { className: string }) {
   return (
     <p className={className}>
       <br />
-      I taught myself to code at 12 and got completely hooked. I spent much of
-      my teens cranking out iOS apps, and with a lot of obsession and some
-      incredible luck, one I built in high school became the #1 homework planner
-      in the world and got acquired while I was still in college.
+      I taught myself to code at 12 and got completely hooked.{" "}
+      <span data-nosnippet="">
+        I spent much of my teens cranking out iOS apps, and with a lot of
+        obsession and some incredible luck, one I built in high school became
+        the #1 homework planner in the world and got acquired while I was still
+        in college.
+      </span>
       <br />
       <br />
       That drive to build at a bigger scale led me to my dream job at{" "}

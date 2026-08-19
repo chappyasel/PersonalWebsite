@@ -15,7 +15,15 @@
 // by real failure signals (the chunk refusing to load, the context refusing to
 // create, the context being lost) with a long backstop for a genuine hang.
 import dynamic from "next/dynamic";
-import { Component, useCallback, useEffect, useRef, useState } from "react";
+import {
+  Component,
+  Profiler,
+  type ProfilerOnRenderCallback,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import FlatHome from "./FlatHome";
 import { type StacksData, type StacksSlots } from "./data";
@@ -35,6 +43,7 @@ import {
   setWorldPhase,
 } from "./loading";
 import StacksBookModal from "./modal/StacksBookModal";
+import { scenePerformanceTrace } from "./scene/performanceTrace";
 import { useStacks } from "./store";
 import { browserCanUseStacksWorld } from "./webglProbe";
 
@@ -56,6 +65,23 @@ const REVEAL_PROGRESS = 0.85;
  * reads as breakage — owner round 2), so it gets its own gate; but a stalled
  * asset must never hang the boot, so the hold is bounded. */
 const MEADOW_WAIT_MS = 3500;
+
+const recordPerformanceCommit: ProfilerOnRenderCallback = (
+  id,
+  phase,
+  actualDuration,
+  baseDuration,
+  _startTime,
+  commitTime,
+) => {
+  scenePerformanceTrace.reactCommit({
+    at: commitTime,
+    id,
+    phase,
+    durationMs: actualDuration,
+    baseDurationMs: baseDuration,
+  });
+};
 
 type WindowWithStacksBoot = Window & {
   __stacksWorldBootTimer?: number;
@@ -236,11 +262,13 @@ export default function StacksHome({
           }`}
         >
           <CanvasBoundary onError={demote}>
-            <StacksCanvas
-              data={data}
-              onReady={() => setWorldReady(true)}
-              onLost={demote}
-            />
+            <Profiler id="canvas-react" onRender={recordPerformanceCommit}>
+              <StacksCanvas
+                data={data}
+                onReady={() => setWorldReady(true)}
+                onLost={demote}
+              />
+            </Profiler>
           </CanvasBoundary>
           <style>{`
             /* Keep the desktop chrome's geometry measurable so the capture
@@ -253,7 +281,9 @@ export default function StacksHome({
           <div className="stacks-og-ui contents">
             <UnitRail />
             <ChromeLayer />
-            <PlacardLayer data={data} slots={slots} />
+            <Profiler id="placard" onRender={recordPerformanceCommit}>
+              <PlacardLayer data={data} slots={slots} />
+            </Profiler>
             <ScrollBridges />
           </div>
           {/* The canvas is allowed to finish behind an opaque curtain. The

@@ -1,124 +1,559 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  PHYSICAL_PIXEL_BUDGET,
-  QUALITY_RECOVERY_STABLE_MS,
-  QUALITY_TRANSITION_COOLDOWN_MS,
-  cloudDetailEnabled,
-  forcedQualityFromSearch,
-  initialQualityState,
-  landmarkDetailEnabled,
-  meadowQualityRung,
-  postprocessingQuality,
-  reduceQuality,
-  resolveDpr,
-  tiltShiftEnabled,
+  AUTO_SCENE_QUALITY_PROFILES,
+  QUALITY_DECLINE_COOLDOWN_MS,
+  QUALITY_DECLINE_SUSTAIN_MS,
+  QUALITY_RECOVERY_COOLDOWN_MS,
+  QUALITY_RECOVERY_SUSTAIN_MS,
+  QUALITY_SAFETY_FALLBACK_MS,
+  QUALITY_TRAVEL_VALIDATION_MS,
+  SCENE_QUALITY_DEFINITIONS,
+  SCENE_QUALITY_PROFILES,
+  type SceneQualityAdaptationState,
+  type SceneQualityMetrics,
+  type SceneQualityProfile,
+  initialSceneQualityAdaptationState,
+  qualityModeFromSearch,
+  qualityProfileFromValue,
+  reduceSceneQualityAdaptation,
+  resolveSceneQualityPlan,
+  sceneQualityStorageBucket,
 } from "./quality";
 
-describe("scene quality controller", () => {
-  it("keeps native 3x for the target iPhone portrait canvas", () => {
-    expect(
-      resolveDpr({
-        cssWidth: 390,
-        cssHeight: 844,
-        deviceDpr: 3,
-        rung: 0,
-        touch: true,
-      }),
-    ).toBe(3);
+const good: SceneQualityMetrics = {
+  targetFrameMs: 16.667,
+  targetHz: 60,
+  p95: 17,
+  droppedFrameRatio: 0.02,
+  sampleCount: 120,
+};
+const slow: SceneQualityMetrics = {
+  ...good,
+  p95: 22,
+  droppedFrameRatio: 0.2,
+};
+const severe: SceneQualityMetrics = {
+  ...good,
+  p95: 31,
+  droppedFrameRatio: 0.4,
+};
+
+function sample(
+  state: SceneQualityAdaptationState,
+  now: number,
+  metrics = good,
+  visible = true,
+) {
+  return reduceSceneQualityAdaptation(state, {
+    type: "sample",
+    now,
+    metrics,
+    visible,
+  });
+}
+
+function plan(profile: SceneQualityProfile, touch = false) {
+  return resolveSceneQualityPlan({
+    mode: profile,
+    profile,
+    cssWidth: 1440,
+    cssHeight: 900,
+    deviceDpr: 3,
+    touch,
+  });
+}
+
+describe("scene quality policy", () => {
+  it("maps every desktop and touch profile from one centralized table", () => {
+    for (const profile of SCENE_QUALITY_PROFILES) {
+      const desktop = plan(profile);
+      const touch = plan(profile, true);
+      const definition = SCENE_QUALITY_DEFINITIONS[profile];
+      expect(desktop.pixelBudget).toBe(definition.pixels.desktop);
+      expect(touch.pixelBudget).toBe(definition.pixels.touch);
+      expect(desktop.dpr).toBeLessThanOrEqual(definition.dprCap);
+      expect(touch.dpr).toBeLessThanOrEqual(definition.dprCap);
+      expect({
+        ...touch.effects,
+        multisampling: desktop.effects.multisampling,
+      }).toEqual(desktop.effects);
+      expect(touch.effects.multisampling).toBe(0);
+    }
   });
 
-  it("caps large canvases by physical pixels", () => {
-    const dpr = resolveDpr({
-      cssWidth: 768,
-      cssHeight: 1024,
-      deviceDpr: 3,
-      rung: 0,
-      touch: true,
+  it("implements the specified environment and finishing profiles", () => {
+    expect(AUTO_SCENE_QUALITY_PROFILES).not.toContain("cinematic");
+    expect(plan("cinematic")).toMatchObject({
+      pixelBudget: 16_600_000,
+      effects: {
+        composer: "full",
+        bloom: true,
+        bloomLevels: 10,
+        bloomResolutionScale: 1,
+        bloomIntensity: { dark: 1.8, light: 0.85 },
+        bloomLuminanceThreshold: { dark: 1.05, light: 1.2 },
+        ambientOcclusion: true,
+        ambientOcclusionHalfRes: false,
+        ambientOcclusionQuality: "ultra",
+        depthOfField: true,
+        depthOfFieldResolutionScale: 1,
+        depthOfFieldBokehScale: 2,
+        multisampling: 8,
+      },
+      environment: {
+        meadowDensity: 1,
+        meadowRung: 3,
+        petals: 49,
+        dust: true,
+        cloudDetail: "full",
+        farGrassShader: "full",
+        grounding: true,
+      },
+      butterflies: { wingBlurSamples: 5 },
     });
-    expect(dpr).toBeCloseTo(
-      Math.sqrt(PHYSICAL_PIXEL_BUDGET.touch / (768 * 1024)),
+    expect(plan("showcase").environment).toEqual({
+      meadowDensity: 1,
+      meadowRung: 3,
+      petals: 18,
+      dust: true,
+      cloudDetail: "full",
+      farGrassShader: "full",
+      grounding: true,
+    });
+    expect(plan("showcase").effects).toMatchObject({
+      ambientOcclusion: true,
+      ambientOcclusionHalfRes: true,
+      ambientOcclusionQuality: "medium",
+      depthOfField: true,
+      depthOfFieldResolutionScale: 0.6,
+    });
+    expect(plan("balanced").environment.meadowDensity).toBe(1);
+    expect(plan("balanced").environment.meadowRung).toBe(3);
+    expect(plan("balanced").effects.bloomLevels).toBe(6);
+    expect(plan("balanced").effects).toMatchObject({
+      ambientOcclusion: true,
+      ambientOcclusionHalfRes: true,
+      ambientOcclusionQuality: "low",
+      depthOfField: true,
+      depthOfFieldResolutionScale: 0.5,
+    });
+    expect(plan("efficient").environment).toMatchObject({
+      meadowDensity: 1,
+      meadowRung: 3,
+      petals: 10,
+      dust: false,
+      cloudDetail: "simplified",
+      farGrassShader: "simplified",
+      grounding: true,
+    });
+    expect(plan("efficient").effects).toMatchObject({
+      composer: "full",
+      bloom: true,
+      bloomLevels: 5,
+      ambientOcclusion: false,
+      depthOfField: true,
+      depthOfFieldResolutionScale: 0.45,
+      finishing: true,
+    });
+    expect(plan("safety")).toMatchObject({
+      effects: {
+        composer: "finish",
+        bloom: true,
+        bloomLevels: 4,
+        bloomIntensity: { dark: 0.9, light: 0.3 },
+        ambientOcclusion: false,
+        depthOfField: false,
+        finishing: true,
+        analyticFixtureHalos: true,
+      },
+      environment: {
+        meadowDensity: 1,
+        meadowRung: 3,
+        petals: 7,
+        dust: false,
+        cloudDetail: "simplified",
+        farGrassShader: "simplified",
+        grounding: false,
+      },
+      butterflies: { wingBlurSamples: 0 },
+      wildlife: { suspendOffscreen: true },
+    });
+  });
+
+  it("keeps the authored grass population stable across every transition", () => {
+    for (const profile of SCENE_QUALITY_PROFILES) {
+      expect(plan(profile).environment).toMatchObject({
+        meadowDensity: 1,
+        meadowRung: 3,
+      });
+    }
+  });
+
+  it("uses full far-grass shading only for Showcase and Cinematic by default", () => {
+    expect(plan("cinematic").environment.farGrassShader).toBe("full");
+    expect(plan("showcase").environment.farGrassShader).toBe("full");
+    expect(plan("balanced").environment.farGrassShader).toBe("simplified");
+    expect(plan("efficient").environment.farGrassShader).toBe("simplified");
+    expect(plan("safety").environment.farGrassShader).toBe("simplified");
+
+    const overridden = resolveSceneQualityPlan({
+      mode: "cinematic",
+      profile: "cinematic",
+      cssWidth: 1440,
+      cssHeight: 900,
+      deviceDpr: 2,
+      touch: false,
+      overrides: { simplifiedFarMeadow: true },
+    });
+    expect(overridden.environment.farGrassShader).toBe("simplified");
+    expect(overridden.customOverrides).toBe(true);
+  });
+
+  it("lets manual Cinematic supersample above native DPR without exceeding its capture budget", () => {
+    const cinematic = resolveSceneQualityPlan({
+      mode: "cinematic",
+      profile: "cinematic",
+      cssWidth: 1728,
+      cssHeight: 1117,
+      deviceDpr: 2,
+      touch: false,
+    });
+    expect(cinematic.dpr).toBeGreaterThan(2);
+    expect(cinematic.dpr).toBeLessThanOrEqual(3);
+    expect(cinematic.physicalPixels).toBeLessThanOrEqual(
+      cinematic.pixelBudget + 1,
     );
   });
 
-  it("offers a real sustained low-end escape", () => {
+  it("honors pixel ceilings and lets Safety use sub-1 DPR", () => {
+    const safety = resolveSceneQualityPlan({
+      mode: "safety",
+      profile: "safety",
+      cssWidth: 2200,
+      cssHeight: 1600,
+      deviceDpr: 2,
+      touch: false,
+    });
+    expect(safety.dpr).toBeLessThan(1);
+    expect(safety.dpr).toBeGreaterThanOrEqual(0.75);
+    expect(safety.physicalPixels).toBeLessThanOrEqual(safety.pixelBudget + 1);
+  });
+
+  it("lets Balanced and Efficient honor their budgets below 1 DPR on exceptionally wide viewports", () => {
     const input = {
-      cssWidth: 390,
-      cssHeight: 844,
-      deviceDpr: 3,
-      touch: true,
+      cssWidth: 3310,
+      cssHeight: 1570,
+      deviceDpr: 2,
+      touch: false,
     };
-    expect(resolveDpr({ ...input, rung: 1 })).toBe(2.75);
-    expect(resolveDpr({ ...input, rung: 2 })).toBe(2.5);
-    expect(resolveDpr({ ...input, rung: 3 })).toBe(2);
-  });
-
-  it("never changes meadow density merely because travel starts or stops", () => {
-    expect(meadowQualityRung(0, false)).toBe(3);
-    expect(meadowQualityRung(0, true)).toBe(3);
-    expect(meadowQualityRung(2, false)).toBe(1);
-    expect(meadowQualityRung(2, true)).toBe(1);
-  });
-
-  it("never changes cloud structure merely because travel starts or stops", () => {
-    expect(cloudDetailEnabled(false, false)).toBe(true);
-    expect(cloudDetailEnabled(false, true)).toBe(true);
-    expect(cloudDetailEnabled(true, false)).toBe(false);
-    expect(cloudDetailEnabled(true, true)).toBe(false);
-  });
-
-  it("preserves identity-bearing skyline detail when clouds simplify", () => {
-    expect(landmarkDetailEnabled(false)).toBe(true);
-    expect(landmarkDetailEnabled(true)).toBe(true);
-  });
-
-  it("keeps the approved side tilt shift until the composer turns off", () => {
-    expect(tiltShiftEnabled("full", true, false)).toBe(true);
-    expect(tiltShiftEnabled("finish", false, false)).toBe(true);
-    expect(tiltShiftEnabled("off", false, false)).toBe(false);
-    expect(tiltShiftEnabled("full", false, true)).toBe(false);
-  });
-
-  it("keeps the cheap finishing composer after the first declines", () => {
-    expect(postprocessingQuality(0)).toBe("full");
-    expect(postprocessingQuality(1)).toBe("finish");
-    expect(postprocessingQuality(2)).toBe("finish");
-    expect(postprocessingQuality(3)).toBe("off");
-  });
-
-  it("enforces decline cooldown and one conservative recovery", () => {
-    let state = initialQualityState();
-    state = reduceQuality(state, { type: "decline", now: 1_000 });
-    expect(state.durable).toBe(1);
-    state = reduceQuality(state, { type: "decline", now: 2_000 });
-    expect(state.durable).toBe(1);
-    state = reduceQuality(state, {
-      type: "decline",
-      now: 1_000 + QUALITY_TRANSITION_COOLDOWN_MS,
+    const balanced = resolveSceneQualityPlan({
+      ...input,
+      mode: "balanced",
+      profile: "balanced",
     });
-    expect(state.durable).toBe(2);
-
-    const stableAt = 20_000;
-    state = reduceQuality(state, { type: "incline", now: stableAt });
-    state = reduceQuality(state, {
-      type: "recover",
-      now: stableAt + QUALITY_RECOVERY_STABLE_MS - 1,
+    const efficient = resolveSceneQualityPlan({
+      ...input,
+      mode: "efficient",
+      profile: "efficient",
     });
-    expect(state.durable).toBe(2);
-    state = reduceQuality(state, {
-      type: "recover",
-      now: stableAt + QUALITY_RECOVERY_STABLE_MS,
-    });
-    expect(state.durable).toBe(1);
-    expect(state.recoveryUsed).toBe(true);
 
-    state = reduceQuality(state, { type: "incline", now: 100_000 });
-    state = reduceQuality(state, { type: "recover", now: 200_000 });
-    expect(state.durable).toBe(1);
+    expect(balanced.dpr).toBeLessThan(1);
+    expect(balanced.dpr).toBeGreaterThanOrEqual(0.85);
+    expect(balanced.physicalPixels).toBeLessThanOrEqual(
+      balanced.pixelBudget + 1,
+    );
+    expect(efficient.dpr).toBeLessThan(balanced.dpr);
+    expect(efficient.dpr).toBeGreaterThanOrEqual(0.75);
+    expect(efficient.physicalPixels).toBeLessThanOrEqual(
+      efficient.pixelBudget + 1,
+    );
   });
 
-  it("supports deterministic forced quality URLs", () => {
-    expect(forcedQualityFromSearch("?quality=2")).toBe(2);
-    expect(forcedQualityFromSearch("?quality=9")).toBeNull();
+  it("preserves legacy query and debug values", () => {
+    expect(qualityModeFromSearch("?quality=0")).toBe("showcase");
+    expect(qualityModeFromSearch("?quality=1")).toBe("balanced");
+    expect(qualityModeFromSearch("?quality=2")).toBe("efficient");
+    expect(qualityModeFromSearch("?quality=3")).toBe("safety");
+    expect(qualityModeFromSearch("?quality=cinematic")).toBe("cinematic");
+    expect(qualityModeFromSearch("?quality=9")).toBe("auto");
+    expect(qualityProfileFromValue(0)).toBe("showcase");
+    expect(qualityProfileFromValue("efficient")).toBe("efficient");
+    expect(qualityProfileFromValue("cinematic")).toBe("cinematic");
+  });
+
+  it("applies advanced overrides after profile defaults", () => {
+    const safety = resolveSceneQualityPlan({
+      mode: "safety",
+      profile: "safety",
+      cssWidth: 1440,
+      cssHeight: 900,
+      deviceDpr: 2,
+      touch: false,
+      overrides: {
+        effectiveDprLadder: false,
+        adaptiveSharpen: false,
+        skipAmbientOcclusion: false,
+        skipDepthOfField: false,
+      },
+      hasCustomOverrides: true,
+    });
+    expect(safety.pixelBudget).toBe(5_200_000);
+    expect(safety.effects).toMatchObject({
+      ambientOcclusion: true,
+      depthOfField: true,
+      adaptiveSharpen: false,
+    });
+    expect(safety.customOverrides).toBe(true);
+  });
+
+  it("starts unknown devices at Balanced and restores a valid stored value", () => {
+    expect(initialSceneQualityAdaptationState().profile).toBe("balanced");
+    expect(
+      initialSceneQualityAdaptationState(
+        qualityProfileFromValue("efficient") ?? "balanced",
+        0,
+        "restored",
+      ),
+    ).toMatchObject({ profile: "efficient", transitionReason: "restored" });
+    expect(
+      sceneQualityStorageBucket({
+        touch: true,
+        cssWidth: 390,
+        cssHeight: 844,
+        deviceDpr: 3,
+      }),
+    ).toBe("stacks-quality:v3:coarse:small");
+  });
+});
+
+describe("scene quality adaptation", () => {
+  it("does not decline on mild p95 pacing jitter without meaningful missed frames", () => {
+    const jitter = {
+      ...good,
+      p95: 21.6,
+      droppedFrameRatio: 0.017,
+    };
+    let state = initialSceneQualityAdaptationState("showcase", 0);
+    state = sample(state, state.ignoreUntil, jitter);
+    state = sample(
+      state,
+      state.ignoreUntil + QUALITY_DECLINE_SUSTAIN_MS,
+      jitter,
+    );
+    expect(state.profile).toBe("showcase");
+  });
+
+  it("does not replay the captured M5 Showcase-to-Safety jitter ratchet", () => {
+    const capturedWindows = [
+      { p95: 20.9, droppedFrameRatio: 0.017 },
+      { p95: 21.6, droppedFrameRatio: 0.017 },
+      { p95: 24.8, droppedFrameRatio: 0.042 },
+    ];
+    let state = initialSceneQualityAdaptationState("showcase", 0);
+    let now = state.ignoreUntil;
+    for (const captured of capturedWindows) {
+      const metrics = { ...good, ...captured };
+      state = sample(state, now, metrics);
+      now += QUALITY_DECLINE_SUSTAIN_MS;
+      state = sample(state, now, metrics);
+      now += QUALITY_DECLINE_COOLDOWN_MS;
+    }
+    expect(state.profile).toBe("showcase");
+  });
+
+  it("declines after sustained pressure and skips two tiers when severe", () => {
+    let state = initialSceneQualityAdaptationState("showcase", 0);
+    state = sample(state, 1_000, slow);
+    state = sample(state, 1_000 + QUALITY_DECLINE_SUSTAIN_MS, slow);
+    expect(state.profile).toBe("balanced");
+
+    state = sample(state, state.ignoreUntil, severe);
+    state = sample(
+      state,
+      Math.max(
+        state.ignoreUntil + QUALITY_DECLINE_SUSTAIN_MS,
+        state.lastTransitionAt + QUALITY_DECLINE_COOLDOWN_MS,
+      ),
+      severe,
+    );
+    expect(state.profile).toBe("safety");
+    expect(state.transitionReason).toBe("severe-decline");
+  });
+
+  it("blocks another decline when the previous downgrade did not improve the signal", () => {
+    let state = initialSceneQualityAdaptationState("showcase", 0);
+    state = sample(state, state.ignoreUntil, slow);
+    state = sample(state, state.ignoreUntil + QUALITY_DECLINE_SUSTAIN_MS, slow);
+    expect(state.profile).toBe("balanced");
+
+    state = sample(state, state.ignoreUntil, slow);
+    state = sample(
+      state,
+      Math.max(
+        state.ignoreUntil + QUALITY_DECLINE_SUSTAIN_MS,
+        state.lastTransitionAt + QUALITY_DECLINE_COOLDOWN_MS,
+      ),
+      slow,
+    );
+    expect(state.profile).toBe("balanced");
+  });
+
+  it("enforces decline cooldowns", () => {
+    let state = initialSceneQualityAdaptationState("showcase", 0);
+    state = sample(state, 1_000, slow);
+    state = sample(state, 1_000 + QUALITY_DECLINE_SUSTAIN_MS, slow);
+    expect(state.profile).toBe("balanced");
+    state = sample(state, state.ignoreUntil, slow);
+    state = sample(
+      state,
+      state.lastTransitionAt + QUALITY_DECLINE_COOLDOWN_MS - 1,
+      slow,
+    );
+    expect(state.profile).toBe("balanced");
+  });
+
+  it("queues sustained travel pressure and requires settled confirmation", () => {
+    let state = initialSceneQualityAdaptationState("showcase", 0);
+    state = reduceSceneQualityAdaptation(state, {
+      type: "movement",
+      moving: true,
+      now: 1_000,
+    });
+    state = sample(state, 1_000, slow);
+    state = sample(state, 1_000 + QUALITY_DECLINE_SUSTAIN_MS, severe);
+    expect(state.profile).toBe("showcase");
+    expect(state.queuedDeclineSteps).toBe(2);
+    state = reduceSceneQualityAdaptation(state, {
+      type: "movement",
+      moving: false,
+      now: 3_000,
+    });
+    expect(state.profile).toBe("showcase");
+    state = sample(state, 3_000 + QUALITY_TRAVEL_VALIDATION_MS, severe);
+    expect(state.profile).toBe("efficient");
+    expect(state.transitionReason).toBe("travel-decline");
+  });
+
+  it("does not ratchet Balanced to Safety from transient travel frames", () => {
+    let state = initialSceneQualityAdaptationState("balanced", 0);
+    state = reduceSceneQualityAdaptation(state, {
+      type: "movement",
+      moving: true,
+      now: 1_100,
+    });
+    state = sample(state, 1_200, slow);
+    expect(state.queuedDeclineSteps).toBe(0);
+    state = reduceSceneQualityAdaptation(state, {
+      type: "movement",
+      moving: false,
+      now: 2_000,
+    });
+    state = reduceSceneQualityAdaptation(state, {
+      type: "movement",
+      moving: true,
+      now: 4_000,
+    });
+    state = sample(state, 4_100, slow);
+    state = reduceSceneQualityAdaptation(state, {
+      type: "movement",
+      moving: false,
+      now: 4_800,
+    });
+    state = sample(state, 4_800 + QUALITY_TRAVEL_VALIDATION_MS, good);
+    expect(state).toMatchObject({
+      profile: "balanced",
+      queuedDeclineSteps: 0,
+    });
+  });
+
+  it("disarms sustained travel pressure when the settled window is healthy", () => {
+    let state = initialSceneQualityAdaptationState("balanced", 0);
+    state = reduceSceneQualityAdaptation(state, {
+      type: "movement",
+      moving: true,
+      now: 1_000,
+    });
+    state = sample(state, 1_000, slow);
+    state = sample(state, 1_000 + QUALITY_DECLINE_SUSTAIN_MS, slow);
+    expect(state.queuedDeclineSteps).toBe(1);
+    state = reduceSceneQualityAdaptation(state, {
+      type: "movement",
+      moving: false,
+      now: 3_000,
+    });
+    state = sample(state, 3_000 + QUALITY_TRAVEL_VALIDATION_MS, good);
+    expect(state).toMatchObject({
+      profile: "balanced",
+      queuedDeclineSteps: 0,
+    });
+  });
+
+  it("recovers repeatedly after sustained headroom with a 20-second cadence", () => {
+    let state = initialSceneQualityAdaptationState("safety", 0);
+    state = sample(state, 1_000, good);
+    state = sample(
+      state,
+      Math.max(
+        1_000 + QUALITY_RECOVERY_SUSTAIN_MS,
+        QUALITY_RECOVERY_COOLDOWN_MS,
+      ),
+      good,
+    );
+    expect(state.profile).toBe("efficient");
+    state = sample(state, state.ignoreUntil, good);
+    state = sample(
+      state,
+      state.lastTransitionAt + QUALITY_RECOVERY_COOLDOWN_MS,
+      good,
+    );
+    expect(state.profile).toBe("balanced");
+  });
+
+  it("filters hidden samples and freezes adaptation while retaining metrics", () => {
+    let state = initialSceneQualityAdaptationState("balanced", 0);
+    const hidden = sample(state, 2_000, severe, false);
+    expect(hidden).toBe(state);
+    state = reduceSceneQualityAdaptation(state, {
+      type: "freeze",
+      frozen: true,
+    });
+    state = sample(state, 2_000, severe);
+    state = sample(state, 10_000, severe);
+    expect(state.profile).toBe("balanced");
+    expect(state.metrics).toEqual(severe);
+  });
+
+  it("ignores invalid frame windows", () => {
+    const state = initialSceneQualityAdaptationState("balanced", 0);
+    expect(sample(state, 2_000, { ...severe, p95: Number.NaN })).toBe(state);
+    expect(sample(state, 2_000, { ...severe, sampleCount: 1 })).toBe(state);
+  });
+
+  it("enters direct rendering after eight severe Safety seconds and recovers", () => {
+    let state = initialSceneQualityAdaptationState("safety", 0);
+    state = sample(state, 1_000, severe);
+    state = sample(state, 1_000 + QUALITY_SAFETY_FALLBACK_MS, severe);
+    expect(state.directRender).toBe(true);
+    expect(state.transitionReason).toBe("safety-fallback");
+    state = sample(state, 10_000, good);
+    state = sample(state, 10_000 + QUALITY_RECOVERY_SUSTAIN_MS, good);
+    expect(state.directRender).toBe(false);
+    expect(state.profile).toBe("safety");
+  });
+
+  it("treats composer failure as direct rendering without losing the scene", () => {
+    let state = reduceSceneQualityAdaptation(
+      initialSceneQualityAdaptationState("balanced", 0),
+      { type: "effects-error", now: 500 },
+    );
+    expect(state).toMatchObject({
+      profile: "balanced",
+      directRender: true,
+      transitionReason: "effects-error",
+    });
+    state = sample(state, 1_500, good);
+    state = sample(state, 1_500 + QUALITY_RECOVERY_SUSTAIN_MS, good);
+    expect(state).toMatchObject({ profile: "balanced", directRender: false });
   });
 });

@@ -99,34 +99,53 @@ import path from "node:path";
 
 // three-stdlib's GLTFLoader expects a DOM. None of these stubs are exercised
 // by the meshopt path; they only stop the module from throwing on import.
-globalThis.Image = class { constructor() { setTimeout(() => this.onload && this.onload(), 0); } set src(v) {} addEventListener(t, f) { if (t === "load") setTimeout(f, 0); } removeEventListener() {} };
-globalThis.document = { createElementNS: () => ({ getContext: () => ({}), style: {} }), createElement: () => ({ getContext: () => ({}), style: {} }) };
+globalThis.Image = class {
+  constructor() {
+    setTimeout(() => this.onload && this.onload(), 0);
+  }
+  set src(v) {}
+  addEventListener(t, f) {
+    if (t === "load") setTimeout(f, 0);
+  }
+  removeEventListener() {}
+};
+globalThis.document = {
+  createElementNS: () => ({ getContext: () => ({}), style: {} }),
+  createElement: () => ({ getContext: () => ({}), style: {} }),
+};
 globalThis.self = globalThis;
-if (!globalThis.URL.createObjectURL) globalThis.URL.createObjectURL = () => "blob:stub";
+if (!globalThis.URL.createObjectURL)
+  globalThis.URL.createObjectURL = () => "blob:stub";
 
 const MODELS = path.join(process.cwd(), "public", "models");
 const OUT = path.join(os.tmpdir(), "stacks-render");
-const S = 420;        // pixels per panel
-const MARGIN = 0.14;  // empty fraction around the model
+const S = 420; // pixels per panel
+const MARGIN = 0.14; // empty fraction around the model
 
 const [{ GLTFLoader, MeshoptDecoder }, THREE] = await Promise.all([
   import("three-stdlib"),
   import("three"),
 ]);
 const loader = new GLTFLoader();
-loader.setMeshoptDecoder(typeof MeshoptDecoder === "function" ? MeshoptDecoder() : MeshoptDecoder);
+loader.setMeshoptDecoder(
+  typeof MeshoptDecoder === "function" ? MeshoptDecoder() : MeshoptDecoder,
+);
 
 /** Every triangle in world space, tagged with its material. */
 function readTriangles(scene) {
   const tris = [];
-  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+  const a = new THREE.Vector3(),
+    b = new THREE.Vector3(),
+    c = new THREE.Vector3();
   scene.traverse((o) => {
     if (!o.isMesh) return;
     const pos = o.geometry.attributes.position;
     const idx = o.geometry.index;
     const mat = [o.material].flat()[0];
     const name = mat?.name || "(unnamed)";
-    const color = mat?.color ? [mat.color.r, mat.color.g, mat.color.b] : [0.8, 0.8, 0.8];
+    const color = mat?.color
+      ? [mat.color.r, mat.color.g, mat.color.b]
+      : [0.8, 0.8, 0.8];
     const n = idx ? idx.count : pos.count;
     for (let i = 0; i < n; i += 3) {
       const i0 = idx ? idx.getX(i) : i;
@@ -135,18 +154,28 @@ function readTriangles(scene) {
       a.fromBufferAttribute(pos, i0).applyMatrix4(o.matrixWorld);
       b.fromBufferAttribute(pos, i1).applyMatrix4(o.matrixWorld);
       c.fromBufferAttribute(pos, i2).applyMatrix4(o.matrixWorld);
-      tris.push({ p: [[a.x, a.y, a.z], [b.x, b.y, b.z], [c.x, c.y, c.z]], mat: name, color });
+      tris.push({
+        p: [
+          [a.x, a.y, a.z],
+          [b.x, b.y, b.z],
+          [c.x, c.y, c.z],
+        ],
+        mat: name,
+        color,
+      });
     }
   });
   return tris;
 }
 
 const bounds = (pts) => {
-  const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
-  for (const p of pts) for (let k = 0; k < 3; k++) {
-    if (p[k] < min[k]) min[k] = p[k];
-    if (p[k] > max[k]) max[k] = p[k];
-  }
+  const min = [Infinity, Infinity, Infinity],
+    max = [-Infinity, -Infinity, -Infinity];
+  for (const p of pts)
+    for (let k = 0; k < 3; k++) {
+      if (p[k] < min[k]) min[k] = p[k];
+      if (p[k] > max[k]) max[k] = p[k];
+    }
   return { min, max };
 };
 
@@ -154,11 +183,16 @@ const bounds = (pts) => {
 function hull(points) {
   if (points.length < 3) return points.slice();
   const p = [...points].sort((u, v) => u[0] - v[0] || u[1] - v[1]);
-  const cross = (o, u, v) => (u[0] - o[0]) * (v[1] - o[1]) - (u[1] - o[1]) * (v[0] - o[0]);
+  const cross = (o, u, v) =>
+    (u[0] - o[0]) * (v[1] - o[1]) - (u[1] - o[1]) * (v[0] - o[0]);
   const half = (src) => {
     const out = [];
     for (const q of src) {
-      while (out.length >= 2 && cross(out[out.length - 2], out[out.length - 1], q) <= 0) out.pop();
+      while (
+        out.length >= 2 &&
+        cross(out[out.length - 2], out[out.length - 1], q) <= 0
+      )
+        out.pop();
       out.push(q);
     }
     out.pop();
@@ -203,21 +237,38 @@ function hullArea(points) {
 function islands(tris, scale) {
   const eps = Math.max(scale * 1e-3, 1e-6);
   const ids = new Map();
-  const key = (p) => `${Math.round(p[0] / eps)},${Math.round(p[1] / eps)},${Math.round(p[2] / eps)}`;
+  const key = (p) =>
+    `${Math.round(p[0] / eps)},${Math.round(p[1] / eps)},${Math.round(p[2] / eps)}`;
   const vid = (p) => {
     const k = key(p);
     let v = ids.get(k);
-    if (v === undefined) { v = ids.size; ids.set(k, v); }
+    if (v === undefined) {
+      v = ids.size;
+      ids.set(k, v);
+    }
     return v;
   };
   const parent = [];
-  const find = (x) => { while (parent[x] !== x) { parent[x] = parent[parent[x]]; x = parent[x]; } return x; };
-  const union = (x, y) => { const a = find(x), b = find(y); if (a !== b) parent[a] = b; };
+  const find = (x) => {
+    while (parent[x] !== x) {
+      parent[x] = parent[parent[x]];
+      x = parent[x];
+    }
+    return x;
+  };
+  const union = (x, y) => {
+    const a = find(x),
+      b = find(y);
+    if (a !== b) parent[a] = b;
+  };
 
   const triVerts = tris.map((t) => t.p.map(vid));
   for (let i = 0; i < ids.size; i++) parent[i] = parent[i] ?? i;
   for (const v of triVerts) for (const x of v) parent[x] = parent[x] ?? x;
-  for (const [v0, v1, v2] of triVerts) { union(v0, v1); union(v1, v2); }
+  for (const [v0, v1, v2] of triVerts) {
+    union(v0, v1);
+    union(v1, v2);
+  }
 
   const groups = new Map();
   tris.forEach((t, i) => {
@@ -231,7 +282,9 @@ function islands(tris, scale) {
       const { min, max } = bounds(pts);
       return {
         tris: group.length,
-        min, max, pts,
+        min,
+        max,
+        pts,
         footprint: spread(pts.map((p) => [p[0], p[2]])),
         mats: [...new Set(group.map((t) => t.mat))],
       };
@@ -262,7 +315,9 @@ function contactPlane(isles, min, max) {
   const planes = [...new Set(isles.map((i) => i.min[1]))].sort((a, b) => a - b);
   for (const plane of planes) {
     const resting = isles.filter((i) => Math.abs(i.min[1] - plane) <= tol);
-    const feet = resting.flatMap((i) => i.pts).filter((p) => p[1] <= plane + slab);
+    const feet = resting
+      .flatMap((i) => i.pts)
+      .filter((p) => p[1] <= plane + slab);
     if (feet.length < 3) continue;
     const flat = feet.map((p) => [p[0], p[2]]);
     const area = hullArea(flat);
@@ -288,21 +343,28 @@ function materialStats(tris, axis) {
   const out = new Map();
   for (const t of tris) {
     let m = out.get(t.mat);
-    if (!m) { m = { tris: 0, pts: [] }; out.set(t.mat, m); }
+    if (!m) {
+      m = { tris: 0, pts: [] };
+      out.set(t.mat, m);
+    }
     m.tris++;
     m.pts.push(...t.p);
   }
   for (const [, m] of out) {
     const { min, max } = bounds(m.pts);
-    m.min = min; m.max = max;
+    m.min = min;
+    m.max = max;
     const h = max[1] - min[1] || 1;
     const rad = (p) => Math.hypot(p[0] - axis[0], p[2] - axis[1]);
-    const inBand = (lo, hi) => m.pts.filter((p) => p[1] >= min[1] + h * lo && p[1] <= min[1] + h * hi);
+    const inBand = (lo, hi) =>
+      m.pts.filter((p) => p[1] >= min[1] + h * lo && p[1] <= min[1] + h * hi);
     const rOf = (set) => (set.length ? Math.max(...set.map(rad)) : 0);
     m.rBottom = rOf(inBand(0, 0.1));
     m.rTop = rOf(inBand(0.9, 1));
     m.rMax = rOf(m.pts);
-    m.centroid = [0, 1, 2].map((k) => m.pts.reduce((s, p) => s + p[k], 0) / m.pts.length);
+    m.centroid = [0, 1, 2].map(
+      (k) => m.pts.reduce((s, p) => s + p[k], 0) / m.pts.length,
+    );
   }
   return out;
 }
@@ -324,18 +386,22 @@ function facing(tris, min, max) {
   // to cancel its own back (bulk z came out +0.016 on a chair whose backrest
   // is demonstrably at −0.412), which is how that signal quietly lies.
   const crown = tris.flatMap((t) => t.p).filter((p) => p[1] >= top);
-  const crownZ = crown.length ? crown.reduce((s, p) => s + p[2], 0) / crown.length - mid : 0;
+  const crownZ = crown.length
+    ? crown.reduce((s, p) => s + p[2], 0) / crown.length - mid
+    : 0;
 
   // Signal 2 — DETAIL. An appliance is a plain box behind and a bezel, slot
   // and screen in front, so triangles pile up on the face.
-  let frontTris = 0, backTris = 0;
+  let frontTris = 0,
+    backTris = 0;
   for (const t of tris) {
     if ((t.p[0][2] + t.p[1][2] + t.p[2][2]) / 3 > mid) frontTris++;
     else backTris++;
   }
 
   const crownStrength = Math.abs(crownZ) / halfDepth;
-  const detailStrength = Math.abs(frontTris - backTris) / (frontTris + backTris || 1);
+  const detailStrength =
+    Math.abs(frontTris - backTris) / (frontTris + backTris || 1);
   const useCrown = crownStrength >= detailStrength;
   const strength = useCrown ? crownStrength : detailStrength;
   // Crown sits at the BACK, so the face is opposite it. Detail sits ON the
@@ -351,19 +417,30 @@ function facing(tris, min, max) {
   // gate that noise vetoes a detail signal of 0.53 that is plainly right.
   const FLOOR = 0.15;
   const split =
-    crownFront !== detailFront && crownStrength >= FLOOR && detailStrength >= FLOOR;
+    crownFront !== detailFront &&
+    crownStrength >= FLOOR &&
+    detailStrength >= FLOOR;
   return {
-    crownZ, crownStrength, detailStrength, frontTris, backTris,
+    crownZ,
+    crownStrength,
+    detailStrength,
+    frontTris,
+    backTris,
     via: useCrown ? "crown" : "detail",
-    front, strength, split, clear: strength >= 0.15 && !split,
+    front,
+    strength,
+    split,
+    clear: strength >= 0.15 && !split,
   };
 }
 
 function renderView(tris, min, max, yaw, pitch) {
   const buf = Buffer.alloc(S * S * 3, 255);
   const zbuf = new Float32Array(S * S).fill(Infinity);
-  const cy = Math.cos(yaw), sy = Math.sin(yaw);
-  const cp = Math.cos(pitch), sp = Math.sin(pitch);
+  const cy = Math.cos(yaw),
+    sy = Math.sin(yaw);
+  const cp = Math.cos(pitch),
+    sp = Math.sin(pitch);
   // world -> view: yaw about Y, then pitch about X. `d` is NEGATED so that
   // nearer-to-a-+Z-camera is the smaller number, which is what the z-test
   // below keeps. See the camera-side note in the header.
@@ -374,15 +451,28 @@ function renderView(tris, min, max, yaw, pitch) {
     return [x, y, -(p[1] * sp + z * cp)];
   };
 
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  let minX = Infinity,
+    maxX = -Infinity,
+    minY = Infinity,
+    maxY = -Infinity;
   for (let c = 0; c < 8; c++) {
-    const p = project([c & 1 ? max[0] : min[0], c & 2 ? max[1] : min[1], c & 4 ? max[2] : min[2]]);
-    minX = Math.min(minX, p[0]); maxX = Math.max(maxX, p[0]);
-    minY = Math.min(minY, p[1]); maxY = Math.max(maxY, p[1]);
+    const p = project([
+      c & 1 ? max[0] : min[0],
+      c & 2 ? max[1] : min[1],
+      c & 4 ? max[2] : min[2],
+    ]);
+    minX = Math.min(minX, p[0]);
+    maxX = Math.max(maxX, p[0]);
+    minY = Math.min(minY, p[1]);
+    maxY = Math.max(maxY, p[1]);
   }
   const span = Math.max(maxX - minX, maxY - minY) / (1 - 2 * MARGIN);
-  const ox = (minX + maxX) / 2, oy = (minY + maxY) / 2;
-  const toPx = (p) => [((p[0] - ox) / span) * S + S / 2, S / 2 - ((p[1] - oy) / span) * S];
+  const ox = (minX + maxX) / 2,
+    oy = (minY + maxY) / 2;
+  const toPx = (p) => [
+    ((p[0] - ox) / span) * S + S / 2,
+    S / 2 - ((p[1] - oy) / span) * S,
+  ];
   const L = [0.45, 0.75, 0.5];
   const Ln = Math.hypot(...L);
 
@@ -391,31 +481,53 @@ function renderView(tris, min, max, yaw, pitch) {
     const s = v.map(toPx);
     const e1 = [v[1][0] - v[0][0], v[1][1] - v[0][1], v[1][2] - v[0][2]];
     const e2 = [v[2][0] - v[0][0], v[2][1] - v[0][1], v[2][2] - v[0][2]];
-    const n = [e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2], e1[0] * e2[1] - e1[1] * e2[0]];
+    const n = [
+      e1[1] * e2[2] - e1[2] * e2[1],
+      e1[2] * e2[0] - e1[0] * e2[2],
+      e1[0] * e2[1] - e1[1] * e2[0],
+    ];
     const nl = Math.hypot(...n) || 1;
-    const lam = 0.32 + 0.68 * Math.abs((n[0] * L[0] + n[1] * L[1] + n[2] * L[2]) / (nl * Ln));
+    const lam =
+      0.32 +
+      0.68 * Math.abs((n[0] * L[0] + n[1] * L[1] + n[2] * L[2]) / (nl * Ln));
     // Textureless props ship white; a mid grey lets the shading read.
-    const base = t.color[0] > 0.97 && t.color[1] > 0.97 && t.color[2] > 0.97 ? [0.72, 0.7, 0.66] : t.color;
-    const col = base.map((c) => Math.max(0, Math.min(255, Math.round(c * lam * 255))));
+    const base =
+      t.color[0] > 0.97 && t.color[1] > 0.97 && t.color[2] > 0.97
+        ? [0.72, 0.7, 0.66]
+        : t.color;
+    const col = base.map((c) =>
+      Math.max(0, Math.min(255, Math.round(c * lam * 255))),
+    );
 
     const bx0 = Math.max(0, Math.floor(Math.min(s[0][0], s[1][0], s[2][0])));
     const bx1 = Math.min(S - 1, Math.ceil(Math.max(s[0][0], s[1][0], s[2][0])));
     const by0 = Math.max(0, Math.floor(Math.min(s[0][1], s[1][1], s[2][1])));
     const by1 = Math.min(S - 1, Math.ceil(Math.max(s[0][1], s[1][1], s[2][1])));
-    const areaS = (s[1][0] - s[0][0]) * (s[2][1] - s[0][1]) - (s[2][0] - s[0][0]) * (s[1][1] - s[0][1]);
+    const areaS =
+      (s[1][0] - s[0][0]) * (s[2][1] - s[0][1]) -
+      (s[2][0] - s[0][0]) * (s[1][1] - s[0][1]);
     if (Math.abs(areaS) < 1e-9) continue;
     for (let py = by0; py <= by1; py++) {
       for (let px = bx0; px <= bx1; px++) {
-        const cx = px + 0.5, cyy = py + 0.5;
-        const w0 = ((s[1][0] - cx) * (s[2][1] - cyy) - (s[2][0] - cx) * (s[1][1] - cyy)) / areaS;
-        const w1 = ((s[2][0] - cx) * (s[0][1] - cyy) - (s[0][0] - cx) * (s[2][1] - cyy)) / areaS;
+        const cx = px + 0.5,
+          cyy = py + 0.5;
+        const w0 =
+          ((s[1][0] - cx) * (s[2][1] - cyy) -
+            (s[2][0] - cx) * (s[1][1] - cyy)) /
+          areaS;
+        const w1 =
+          ((s[2][0] - cx) * (s[0][1] - cyy) -
+            (s[0][0] - cx) * (s[2][1] - cyy)) /
+          areaS;
         const w2 = 1 - w0 - w1;
         if (w0 < 0 || w1 < 0 || w2 < 0) continue;
         const d = w0 * v[0][2] + w1 * v[1][2] + w2 * v[2][2];
         const i = py * S + px;
         if (d >= zbuf[i]) continue;
         zbuf[i] = d;
-        buf[i * 3] = col[0]; buf[i * 3 + 1] = col[1]; buf[i * 3 + 2] = col[2];
+        buf[i * 3] = col[0];
+        buf[i * 3 + 1] = col[1];
+        buf[i * 3 + 2] = col[2];
       }
     }
   }
@@ -428,7 +540,9 @@ function renderView(tris, min, max, yaw, pitch) {
   if (gy >= 0 && gy < S) {
     for (let px = 0; px < S; px++) {
       const i = gy * S + px;
-      buf[i * 3] = 220; buf[i * 3 + 1] = 40; buf[i * 3 + 2] = 40;
+      buf[i * 3] = 220;
+      buf[i * 3 + 1] = 40;
+      buf[i * 3 + 2] = 40;
     }
   }
   return buf;
@@ -440,7 +554,12 @@ async function inspect(name, opts) {
   const file = path.join(MODELS, `${name}.glb`);
   const buf = fs.readFileSync(file);
   const gltf = await new Promise((res, rej) =>
-    loader.parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength), "", res, rej),
+    loader.parse(
+      buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength),
+      "",
+      res,
+      rej,
+    ),
   );
   gltf.scene.updateMatrixWorld(true);
 
@@ -451,8 +570,12 @@ async function inspect(name, opts) {
   const scale = Math.max(...size);
   const axis = [(min[0] + max[0]) / 2, (min[2] + max[2]) / 2];
 
-  console.log(`\n${name}  ${(buf.length / 1024).toFixed(1)} KB  ${tris.length} tris`);
-  console.log(`  bbox     min [${f4(min[0])},${f4(min[1])},${f4(min[2])}]  max [${f4(max[0])},${f4(max[1])},${f4(max[2])}]`);
+  console.log(
+    `\n${name}  ${(buf.length / 1024).toFixed(1)} KB  ${tris.length} tris`,
+  );
+  console.log(
+    `  bbox     min [${f4(min[0])},${f4(min[1])},${f4(min[2])}]  max [${f4(max[0])},${f4(max[1])},${f4(max[2])}]`,
+  );
   console.log(`  size     [${f4(size[0])},${f4(size[1])},${f4(size[2])}]`);
 
   const isles = islands(tris, scale);
@@ -460,8 +583,10 @@ async function inspect(name, opts) {
   const rests = contact.y <= size[1] * 0.005;
   console.log(
     `  contact  y ${contact.y.toFixed(4)}  (${contact.islands} island(s) rest here; support polygon ` +
-    `${contact.width.toFixed(4)} wide, ${((contact.area / contact.full) * 100).toFixed(1)}% of footprint area)  ` +
-    (rests ? "SITS ON 0" : `OVERHANG — placement must add y += ${contact.y.toFixed(4)} * scale`),
+      `${contact.width.toFixed(4)} wide, ${((contact.area / contact.full) * 100).toFixed(1)}% of footprint area)  ` +
+      (rests
+        ? "SITS ON 0"
+        : `OVERHANG — placement must add y += ${contact.y.toFixed(4)} * scale`),
   );
 
   console.log(`  islands  ${isles.length}`);
@@ -469,17 +594,18 @@ async function inspect(name, opts) {
     const below = isle.min[1] < contact.y - size[1] * 0.005;
     console.log(
       `    ${String(isle.tris).padStart(4)} tris  y ${isle.min[1].toFixed(4)}..${isle.max[1].toFixed(4)}` +
-      `  footprint ${isle.footprint.toFixed(4)}  ${isle.mats.join(",")}` +
-      (below ? "   <-- HANGS BELOW the contact plane" : ""),
+        `  footprint ${isle.footprint.toFixed(4)}  ${isle.mats.join(",")}` +
+        (below ? "   <-- HANGS BELOW the contact plane" : ""),
     );
   }
-  if (isles.length > 6 && !opts.allIslands) console.log(`    … ${isles.length - 6} more (--islands for all)`);
+  if (isles.length > 6 && !opts.allIslands)
+    console.log(`    … ${isles.length - 6} more (--islands for all)`);
 
   console.log("  materials");
   for (const [mat, m] of materialStats(tris, axis)) {
     console.log(
       `    ${mat.padEnd(30)} ${String(m.tris).padStart(4)} tris  y ${m.min[1].toFixed(4)}..${m.max[1].toFixed(4)}` +
-      `  mouth r ${m.rBottom.toFixed(4)}  top r ${m.rTop.toFixed(4)}  max r ${m.rMax.toFixed(4)}`,
+        `  mouth r ${m.rBottom.toFixed(4)}  top r ${m.rTop.toFixed(4)}  max r ${m.rMax.toFixed(4)}`,
     );
     if (opts.profile) {
       const h = m.max[1] - m.min[1] || 1;
@@ -490,8 +616,12 @@ async function inspect(name, opts) {
         // at its two rims, and an exclusive upper bound drops the top ring
         // entirely — which reads as "the shade has no opening".
         const hi = lo + h / 8;
-        const set = m.pts.filter((p) => p[1] >= lo && (i === 7 ? p[1] <= hi : p[1] < hi));
-        bands.push(`${lo.toFixed(3)}:${(set.length ? Math.max(...set.map((p) => Math.hypot(p[0] - axis[0], p[2] - axis[1]))) : 0).toFixed(4)}`);
+        const set = m.pts.filter(
+          (p) => p[1] >= lo && (i === 7 ? p[1] <= hi : p[1] < hi),
+        );
+        bands.push(
+          `${lo.toFixed(3)}:${(set.length ? Math.max(...set.map((p) => Math.hypot(p[0] - axis[0], p[2] - axis[1]))) : 0).toFixed(4)}`,
+        );
       }
       console.log(`      r(y) ${bands.join("  ")}`);
     }
@@ -500,7 +630,7 @@ async function inspect(name, opts) {
   const face = facing(tris, min, max);
   console.log(
     `  facing   crown z ${face.crownZ >= 0 ? "+" : ""}${face.crownZ.toFixed(4)} (strength ${face.crownStrength.toFixed(2)});  ` +
-    `detail ${face.frontTris}/${face.backTris} tris (strength ${face.detailStrength.toFixed(2)})`,
+      `detail ${face.frontTris}/${face.backTris} tris (strength ${face.detailStrength.toFixed(2)})`,
   );
   console.log(
     face.clear
@@ -512,20 +642,35 @@ async function inspect(name, opts) {
 
   if (opts.render) {
     const { default: sharp } = await import("sharp");
-    const views = opts.yaws.map((d) => renderView(tris, min, max, (d * Math.PI) / 180, opts.pitch));
+    const views = opts.yaws.map((d) =>
+      renderView(tris, min, max, (d * Math.PI) / 180, opts.pitch),
+    );
     const strip = Buffer.alloc(S * views.length * S * 3, 255);
     views.forEach((view, vi) => {
-      for (let y = 0; y < S; y++) view.copy(strip, (y * S * views.length + vi * S) * 3, y * S * 3, (y + 1) * S * 3);
+      for (let y = 0; y < S; y++)
+        view.copy(
+          strip,
+          (y * S * views.length + vi * S) * 3,
+          y * S * 3,
+          (y + 1) * S * 3,
+        );
     });
     fs.mkdirSync(OUT, { recursive: true });
     const png = path.join(OUT, `${name}.png`);
-    await sharp(strip, { raw: { width: S * views.length, height: S, channels: 3 } }).png().toFile(png);
+    await sharp(strip, {
+      raw: { width: S * views.length, height: S, channels: 3 },
+    })
+      .png()
+      .toFile(png);
     console.log(`  render   ${png}  (yaws ${opts.yaws.join(",")})`);
   }
 }
 
 const argv = process.argv.slice(2);
-const flag = (n, d) => { const i = argv.indexOf(n); return i === -1 ? d : argv[i + 1]; };
+const flag = (n, d) => {
+  const i = argv.indexOf(n);
+  return i === -1 ? d : argv[i + 1];
+};
 const opts = {
   yaws: String(flag("--yaws", "0,45,90")).split(",").map(Number),
   pitch: Number(flag("--pitch", 0)),
@@ -533,8 +678,17 @@ const opts = {
   profile: argv.includes("--profile"),
   allIslands: argv.includes("--islands"),
 };
-let names = argv.filter((a) => !a.startsWith("--") && argv[argv.indexOf(a) - 1] !== "--yaws" && argv[argv.indexOf(a) - 1] !== "--pitch");
+let names = argv.filter(
+  (a) =>
+    !a.startsWith("--") &&
+    argv[argv.indexOf(a) - 1] !== "--yaws" &&
+    argv[argv.indexOf(a) - 1] !== "--pitch",
+);
 if (argv.includes("--all") || !names.length) {
-  names = fs.readdirSync(MODELS).filter((f) => f.endsWith(".glb")).map((f) => f.replace(/\.glb$/, "")).sort();
+  names = fs
+    .readdirSync(MODELS)
+    .filter((f) => f.endsWith(".glb"))
+    .map((f) => f.replace(/\.glb$/, ""))
+    .sort();
 }
 for (const n of names) await inspect(n, opts);

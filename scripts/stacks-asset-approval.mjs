@@ -198,9 +198,17 @@ async function main() {
     const sourceFile = path.join(temp, `${candidate.name}-source.glb`);
     const sourceResponse = await fetch(candidate.url);
     if (!sourceResponse.ok)
-      throw new Error(`${candidate.name} download failed: ${sourceResponse.status}`);
-    fs.writeFileSync(sourceFile, Buffer.from(await sourceResponse.arrayBuffer()));
-    const sourceAngles = render(`approval-${candidate.name}-source`, sourceFile);
+      throw new Error(
+        `${candidate.name} download failed: ${sourceResponse.status}`,
+      );
+    fs.writeFileSync(
+      sourceFile,
+      Buffer.from(await sourceResponse.arrayBuffer()),
+    );
+    const sourceAngles = render(
+      `approval-${candidate.name}-source`,
+      sourceFile,
+    );
     const readyAngles = render(
       `approval-${candidate.name}-ready`,
       path.join(MODELS, `${candidate.name}.glb`),

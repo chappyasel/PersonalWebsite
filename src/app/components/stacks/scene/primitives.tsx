@@ -23,13 +23,21 @@ import {
   bookRowNodeName,
   featuredRiserHoverKey,
 } from "./bookInteractions";
+import { registerSceneInteraction } from "./interactionRegistry";
 import PropLink, { type PropDestination } from "./links";
-import { registerMeadowLamp } from "./meadowLights";
+import { MOTH_LIGHT_PROFILES, registerMeadowLamp } from "./meadowLights";
+import {
+  practicalGlowHaloEnabled,
+  practicalGlowSpriteEnabled,
+  useScenePerformanceSettings,
+  useUnitRealLights,
+} from "./scenePerformance";
 import {
   SHELF_GEOMETRY,
   SHELF_PLANKS,
   SHELF_SURFACE,
   SHELF_UNDERSIDE,
+  shelfPerchOwnerId,
 } from "./shelfGeometry";
 
 export type RowItem =
@@ -481,6 +489,7 @@ function FeaturedCover({
   to,
   riserColor,
   grabbable,
+  grabbableRiser,
 }: {
   item: Extract<RowItem, { kind: "cover" }>;
   palette: Palette;
@@ -491,6 +500,7 @@ function FeaturedCover({
   to: PropDestination;
   riserColor: string;
   grabbable?: boolean;
+  grabbableRiser?: boolean;
 }) {
   const setHovered = useStacks((s) => s.setHovered);
   const s = item.s ?? 1;
@@ -521,7 +531,7 @@ function FeaturedCover({
     </RoundedBox>
   );
   const cover = (draggable: boolean) => {
-    const contents = (
+    const contents = textured ? (
       <>
         {/* Cream page block plus distinct front/back boards and spine: the
             cover image is a jacket on a book, not a texture on a cuboid. */}
@@ -577,11 +587,6 @@ function FeaturedCover({
                 draggable
                   ? undefined
                   : (e) => {
-                      if (
-                        linkUnit !== undefined &&
-                        useStacks.getState().activeUnit !== linkUnit
-                      )
-                        return;
                       e.stopPropagation();
                       setHovered(hoverKey);
                     }
@@ -598,11 +603,6 @@ function FeaturedCover({
                 !draggable && onCoverClick
                   ? (e) => {
                       if ((e.delta ?? 0) > 6) return;
-                      if (
-                        linkUnit !== undefined &&
-                        useStacks.getState().activeUnit !== linkUnit
-                      )
-                        return;
                       e.stopPropagation();
                       onCoverClick(item.key);
                     }
@@ -612,6 +612,15 @@ function FeaturedCover({
           </React.Suspense>
         </CoverBoundary>
       </>
+    ) : (
+      <RoundedBox
+        castShadow
+        args={[COVER_W, COVER_H, item.thickness ?? 0.048]}
+        radius={0.008}
+        smoothness={4}
+      >
+        <meshStandardMaterial color={palette.cover} roughness={0.7} />
+      </RoundedBox>
     );
     return draggable ? (
       <HeldFacing
@@ -645,19 +654,37 @@ function FeaturedCover({
             {riserBook}
           </group>
         ) : (
-          <PropLink
-            unitIndex={linkUnit}
+          <ShelfBook
+            linkUnit={linkUnit}
             to={to}
             hoverKey={riserHoverKey}
             base={[item.x, riser / 2, z]}
             lift={FLAT_LIFT}
             rest={riserPose}
-            tip={0}
+            grabbable={grabbableRiser}
+            shadeColor={palette.shadow}
           >
             {riserBook}
-          </PropLink>
+          </ShelfBook>
         ))}
-      {!textured ? (
+      {grabbable && linkUnit !== undefined ? (
+        <Grabbable
+          unitIndex={linkUnit}
+          hoverKey={hoverKey}
+          base={[item.x, 0, z]}
+          shadeColor={palette.shadow}
+          shadeWidth={0.4 * s}
+          shape="box"
+          massKg={0.65}
+          tiltWhileHeld={false}
+          onTap={onCoverClick ? () => onCoverClick(item.key) : undefined}
+          doorLabel={
+            onCoverClick ? `Read ${item.label ?? "book notes"}` : undefined
+          }
+        >
+          {cover(true)}
+        </Grabbable>
+      ) : !textured ? (
         <group position={[item.x, seat, z]} rotation={pose} scale={s}>
           <RoundedBox
             castShadow
@@ -668,22 +695,6 @@ function FeaturedCover({
             <meshStandardMaterial color={palette.cover} roughness={0.7} />
           </RoundedBox>
         </group>
-      ) : grabbable && linkUnit !== undefined ? (
-        <Grabbable
-          unitIndex={linkUnit}
-          hoverKey={hoverKey}
-          base={[item.x, 0, z]}
-          shadeColor={palette.shadow}
-          shadeWidth={0.4 * s}
-          shape="box"
-          massKg={0.65}
-          onTap={onCoverClick ? () => onCoverClick(item.key) : undefined}
-          doorLabel={
-            onCoverClick ? `Read ${item.label ?? "book notes"}` : undefined
-          }
-        >
-          {cover(true)}
-        </Grabbable>
       ) : (
         <Lift
           hoverKey={hoverKey}
@@ -718,7 +729,7 @@ export function BookRowMesh({
   coverWidth?: 256 | 384;
   onCoverClick?: (key: string) => void;
   /** Unit index — set it and every non-cover book in the row becomes a door
-   * into the library (gated on that unit being the active one). */
+   * into the library. */
   linkUnit?: number;
   /** Where those doors lead. The library for a row of books; Systems' row is
    * the operating manual, and points at that instead. */
@@ -726,8 +737,8 @@ export function BookRowMesh({
   /** Opt-in for curated face-out books: carry on drag, keep the existing
    * per-book modal on a tap. Packed spines remain structural shelf rows. */
   grabbableCovers?: boolean;
-  /** Opt-in for packed spines, leaners, and flat volumes. Each volume keeps
-   * its existing tap destination through Grabbable's tap/drag arbitration. */
+  /** Opt-in for packed spines, leaners, flat volumes, and featured risers.
+   * Each volume keeps its tap destination through tap/drag arbitration. */
   grabbableVolumes?: boolean;
 }) {
   // Contact darkening under the row. No light in the scene casts a shadow and
@@ -932,6 +943,7 @@ export function BookRowMesh({
             linkUnit={linkUnit}
             to={to}
             grabbable={grabbableCovers}
+            grabbableRiser={grabbableVolumes}
             riserColor={
               item.color ??
               palette.spines[
@@ -1082,6 +1094,7 @@ export function ShelfLight({
   z,
   /** Adds ONE pointLight. Budgeted at one per unit, not one per shelf. */
   cast = false,
+  realLightVisible = true,
   /** Scales the emissive, the glow and the light together. */
   intensity = 1,
 }: {
@@ -1092,6 +1105,7 @@ export function ShelfLight({
   form?: "under" | "back";
   z?: number;
   cast?: boolean;
+  realLightVisible?: boolean;
   intensity?: number;
 }) {
   const back = form === "back";
@@ -1168,6 +1182,7 @@ export function ShelfLight({
       )}
       {cast && (
         <pointLight
+          visible={realLightVisible}
           position={[0, back ? y + 0.06 : y - 0.06, zz + 0.14]}
           color={FIXTURE_GLOW}
           intensity={lamp}
@@ -1176,6 +1191,63 @@ export function ShelfLight({
         />
       )}
     </group>
+  );
+}
+
+function RegisteredShelfPlank({
+  activeUnit,
+  palette,
+  plank,
+  tone,
+  width,
+}: {
+  activeUnit: number | null;
+  palette: Palette;
+  plank: (typeof SHELF_PLANKS)[number];
+  tone: number;
+  width: number;
+}) {
+  const mesh = useRef<THREE.Mesh>(null);
+  useEffect(() => {
+    if (activeUnit === null || !mesh.current) return;
+    return registerSceneInteraction({
+      id: shelfPerchOwnerId(activeUnit, plank.id),
+      root: mesh.current,
+      activeUnits: [activeUnit],
+      hover: { kind: "none" },
+    });
+  }, [activeUnit, plank.id]);
+  return (
+    <>
+      <RoundedBox
+        ref={mesh}
+        userData={{ physicsIgnore: true }}
+        castShadow
+        receiveShadow
+        args={[width, plank.thickness, plank.depth]}
+        radius={0.012}
+        smoothness={4}
+        position={[0, plank.centerY, plank.centerZ]}
+      >
+        <WoodMaterial
+          hex={palette.wood}
+          tone={tone}
+          repeat={[2.4, plank.id === "top" ? 1 : 0.8]}
+        />
+      </RoundedBox>
+      {[-1, 1].map((side) => (
+        <mesh
+          key={side}
+          userData={{ physicsIgnore: true }}
+          position={[side * (width / 2 - 0.006), plank.centerY, plank.centerZ]}
+        >
+          <boxGeometry
+            args={[0.013, plank.thickness + 0.002, plank.depth + 0.01]}
+          />
+          <meshStandardMaterial color={palette.woodDark} roughness={0.85} />
+        </mesh>
+      ))}
+    </>
   );
 }
 
@@ -1194,6 +1266,7 @@ export function ShelfUnit({
    * read as seven planks of the same lumber order, not one copy-paste. */
   toneSeed?: number;
 }) {
+  const unitRealLights = useUnitRealLights(toneSeed ?? -100);
   const tone = toneSeed === undefined ? 1 : 0.96 + rand(toneSeed, 77) * 0.08;
   const topContents = useRef<THREE.Group>(null);
   const lowerContents = useRef<THREE.Group>(null);
@@ -1208,38 +1281,14 @@ export function ShelfUnit({
         />
       )}
       {SHELF_PLANKS.map((plank) => (
-        <React.Fragment key={plank.id}>
-          <RoundedBox
-            castShadow
-            receiveShadow
-            args={[width, plank.thickness, plank.depth]}
-            radius={0.012}
-            smoothness={4}
-            position={[0, plank.centerY, plank.centerZ]}
-          >
-            <WoodMaterial
-              hex={palette.wood}
-              tone={tone}
-              repeat={[2.4, plank.id === "top" ? 1 : 0.8]}
-            />
-          </RoundedBox>
-          {/* End-grain darkening at both ends of this same shared plank. */}
-          {[-1, 1].map((side) => (
-            <mesh
-              key={side}
-              position={[
-                side * (width / 2 - 0.006),
-                plank.centerY,
-                plank.centerZ,
-              ]}
-            >
-              <boxGeometry
-                args={[0.013, plank.thickness + 0.002, plank.depth + 0.01]}
-              />
-              <meshStandardMaterial color={palette.woodDark} roughness={0.85} />
-            </mesh>
-          ))}
-        </React.Fragment>
+        <RegisteredShelfPlank
+          key={plank.id}
+          activeUnit={toneSeed ?? null}
+          palette={palette}
+          plank={plank}
+          tone={tone}
+          width={width}
+        />
       ))}
       {/* Straps run all the way to the shared ground plane with a small
           plinth foot — the bookcase stands instead of hovering. 0.07² so the
@@ -1301,16 +1350,17 @@ export function ShelfUnit({
         </group>
       ))}
       {/* One fixture per shelf, wired here rather than in the seven unit
-          files so no shelf can be forgotten. Only ONE of the three casts a
+          files so no shelf can be forgotten. Only ONE of the three owns a
           real light — the lower shelf, which is the darkest bay a visitor
-          actually reads props off. Seven units × one light is +7 on a scene
-          that runs 12; a light per shelf would be +14 and is what breaks the
-          shader. Both fixture heights derive from the shelf contract. */}
+          actually reads props off. The full-cost A/B has 21 scene lights;
+          active-neighbour visibility keeps distant shelf lights out of the
+          material shader without removing any visible fixture. */}
       <ShelfLight
         y={SHELF_UNDERSIDE.top}
         width={width}
         palette={palette}
         cast
+        realLightVisible={toneSeed === undefined || unitRealLights}
       />
       <ShelfLight
         y={SHELF_UNDERSIDE.lower}
@@ -1519,11 +1569,61 @@ function glowTexture(): THREE.CanvasTexture {
   return glowTextureCache;
 }
 
+/** A cheap bloom shoulder tied to the source that emits it. Unlike a Sprite,
+ * this plane keeps the aperture's orientation, so an angled lamp produces a
+ * foreshortened ellipse instead of a camera-facing light sphere. The texture
+ * is shared with legacy glows; only this tiny plane and its material are new. */
+export function ApertureHalo({
+  diameter,
+  opacity: baseOpacity,
+  factorRef,
+}: {
+  diameter: number;
+  opacity: number;
+  factorRef?: { current: number };
+}) {
+  const ref =
+    useRef<THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>>(null);
+  const settings = useScenePerformanceSettings();
+  const visible = practicalGlowHaloEnabled(settings);
+  const bloomActive = useStacks((state) => state.bloomActive);
+  // If genuine bloom is enabled, leave only a faint source shoulder for it to
+  // spread. A debug skip or direct-render fallback restores the full analytic
+  // shoulder immediately.
+  const opacity = visible ? baseOpacity * (bloomActive ? 0.38 : 1) : 0;
+  const texture = useMemo(() => glowTexture(), []);
+  useFrame(() => {
+    const halo = ref.current;
+    if (!halo) return;
+    halo.material.opacity = opacity * (factorRef?.current ?? 1);
+  });
+  return (
+    <mesh
+      ref={ref}
+      visible={visible}
+      scale={[diameter, diameter, 1]}
+      userData={{ stacksSelfDimmed: true }}
+    >
+      <planeGeometry />
+      <meshBasicMaterial
+        map={texture}
+        transparent
+        opacity={opacity}
+        blending={THREE.AdditiveBlending}
+        side={THREE.DoubleSide}
+        depthTest
+        depthWrite={false}
+      />
+    </mesh>
+  );
+}
+
 export function GlowSprite({
   opacity: baseOpacity,
   eased = false,
   scale = 1.6,
   factorRef,
+  practical = false,
 }: {
   opacity: number;
   /** Damp opacity by lateral camera distance — an additive sprite over the
@@ -1533,13 +1633,18 @@ export function GlowSprite({
   /** Per-frame 0..1 multiplier read imperatively (the lamp-toggle egg) —
    * never route it through React state. */
   factorRef?: { current: number };
+  /** Practical fixtures default to a source-aligned analytic halo. This flag
+   * lets diagnostics restore their former camera-facing billboard. */
+  practical?: boolean;
 }) {
   const ref = useRef<THREE.Sprite>(null);
   // Additive glow COMPOUNDS in the composer's linear HDR target (pre-
   // tonemap values ride the ACES shoulder) — halve it there or the lamp
   // reads as an orange searchlight.
   const postfx = useStacks((s) => s.postfx);
-  const opacity = baseOpacity * (postfx ? 0.45 : 1);
+  const performanceSettings = useScenePerformanceSettings();
+  const visible = !practical || practicalGlowSpriteEnabled(performanceSettings);
+  const opacity = visible ? baseOpacity * (postfx ? 0.45 : 1) : 0;
   const texture = useMemo(() => glowTexture(), []);
   const world = useMemo(() => new THREE.Vector3(), []);
   useFrame(({ camera }) => {
@@ -1557,7 +1662,7 @@ export function GlowSprite({
     sprite.material.opacity = value * (factorRef?.current ?? 1);
   });
   return (
-    <sprite ref={ref} scale={[scale, scale, 1]}>
+    <sprite ref={ref} visible={visible} scale={[scale, scale, 1]}>
       <spriteMaterial
         map={texture}
         transparent
@@ -1685,13 +1790,13 @@ function shadeTexture(): THREE.CanvasTexture {
  * The two non-obvious parts, both inherited from that lamp because both were
  * paid for there:
  *
- * - It sits INSIDE the measured shade (0.975) and wins the depth test with a
- *   polygon offset, rather than standing proud of it. Standing proud draws a
- *   hard pale outline all the way round the lamp, because the band of cone
- *   hanging past the GLB's silhouette lands on the SKY and warm additive over
- *   a night sky is grey. The offset here is −8 rather than the floor lamp's
- *   −4: this shade is double-walled (0.0038 of model space between the walls),
- *   so there are two surfaces to win against instead of one.
+ * - It sits safely INSIDE the measured outer silhouette: the overlay's mouth
+ *   is 5.5% inside the GLB rim and its vent is 9% inside. It therefore renders
+ *   as a depth-independent lighting layer instead of asking polygon offset to
+ *   pull an inner cone through two opaque shade walls. The latter crossed the
+ *   inner wall along the cone and intermittently lost that depth fight as a
+ *   black longitudinal stripe. The inset keeps a real unlit rim and prevents
+ *   the layer from touching the sky even with depth testing disabled.
  * - It is toneMapped, unlike the mouth disc. An additive layer this large held
  *   above the ACES shoulder is exactly what blows out once the composer mounts
  *   and Bloom compounds it. */
@@ -1726,10 +1831,8 @@ function ShadeGlow({ day, postfx }: { day: boolean; postfx: boolean }) {
         color={postfx ? "#ffffff" : "#ffb26a"}
         opacity={(day ? 1 : 0.94) * (postfx ? 0.78 : 0.7)}
         blending={THREE.AdditiveBlending}
+        depthTest={false}
         depthWrite={false}
-        polygonOffset
-        polygonOffsetFactor={-8}
-        polygonOffsetUnits={-8}
       />
     </mesh>
   );
@@ -1743,10 +1846,10 @@ function ShadeGlow({ day, postfx }: { day: boolean; postfx: boolean }) {
  * cone, a one-world-unit additive haze) and every fake read as a decal the
  * moment the camera moved off-axis. So: a SpotLight down the true cup axis
  * makes the pool, a small emissive disc seals the mouth so the source is
- * visibly hot, a shade-sized halo covers the no-composer path, ShadeGlow
- * lights the fabric, and two weak points put the lamp's spill on the shelf
- * and on the props beside it. On desktop the halo you actually see is Bloom's,
- * earned by the disc sitting above the threshold.
+ * visibly hot, ShadeGlow lights the fabric, and two weak points put the lamp's
+ * spill on the shelf and on the props beside it. The old camera-facing halo is
+ * retained only as a diagnostics comparison; the shipped treatment feathers
+ * the aperture in its own plane instead of drawing a separate light sphere.
  *
  * The one light this rig no longer spends is the interior one. It used to sit
  * 0.03 back up the axis to make the cup glow — the job ShadeGlow now does far
@@ -1757,9 +1860,9 @@ function ShadeGlow({ day, postfx }: { day: boolean; postfx: boolean }) {
  * room. The count is unchanged at three, which matters: three.js bakes light
  * counts into every program.
  *
- * `litRef` (the lamp-toggle egg's damped 0..1 factor) only threads to the
- * self-animating GlowSprite; lights, emissives and transparent materials are
- * dimmed generically by the egg's traverse, so this rig owns no toggle logic.
+ * `litRef` (the lamp-toggle egg's damped 0..1 factor) threads to the two
+ * self-animating halo treatments. Lights, emissives, and the shade overlay are
+ * dimmed generically by the egg's traverse.
  *
  * NOTE ON STRUCTURE, and it is the point of the v6 pass: this rig no longer
  * takes a `yaw`. It used to, and the model took the same yaw separately, so
@@ -1775,6 +1878,7 @@ export function LampGlow({
   aimOffset = [0, 0, 0],
   spillScale = 1,
   meadowId,
+  realLights = true,
 }: {
   palette: Palette;
   litRef?: { current: number };
@@ -1796,6 +1900,11 @@ export function LampGlow({
    * so an angled task lamp warms the grass on the side it points at
    * (owner: "the grass light isn't factoring in the directionality"). */
   meadowId?: string;
+  /** Hiding a Three light removes it from the renderer's light collection.
+   * The emissive fixture, optional legacy GlowSprite, analytic meadow pool,
+   * and moth volume remain mounted, so distant shelves lose no source
+   * geometry. */
+  realLights?: boolean;
 }) {
   const spotRef = useRef<THREE.SpotLight>(null);
   const targetRef = useRef<THREE.Object3D>(null);
@@ -1821,24 +1930,43 @@ export function LampGlow({
       radius: 1.15,
       strength: 0.45,
       litRef: litRef ?? { current: 1 },
+      sourceX: mouth.x,
+      sourceY: mouth.y,
+      sourceZ: mouth.z,
+      coneTargetX: mouth.x + aim.x * t,
+      coneTargetY: -1.1,
+      coneTargetZ: mouth.z + aim.z * t,
+      // Two moths occupy the compact down-and-forward light cone rather than
+      // circling at the shade mouth.
+      mothCount: MOTH_LIGHT_PROFILES.desk.count,
+      mothNearDistance: MOTH_LIGHT_PROFILES.desk.nearDistance,
+      mothFarDistance: MOTH_LIGHT_PROFILES.desk.farDistance,
+      mothMaxRadius: MOTH_LIGHT_PROFILES.desk.maxRadius,
     });
   }, [meadowId, litRef]);
   return (
     <group>
       {/* The fabric, lit from inside. */}
       <ShadeGlow day={day} postfx={postfx} />
-      {/* Halo, sized UNDER the opening it leaves and hugging it — the floor
-          lamp's rule, and it was broken here twice over. 0.18 against a mouth
-          0.1086 across was a halo 1.66× the width of the object making it,
-          which is fog; and it was hung off the vent, which is a ball of light
-          floating behind the head. 0.097 is 0.89 of the mouth, the same ratio
-          the floor lamp settled on, and 0.014 out of the rim rather than
-          0.05 — near enough that what you see is spill leaving a mouth. */}
+      {/* Reversible legacy comparison. Both current modes hide this
+          camera-facing radial billboard; diagnostics can restore it at its
+          last tuned size and position without disturbing the real rig. */}
       <group position={along(0.014)}>
         <GlowSprite
+          practical
           opacity={palette.glowOpacity * (day ? 1.22 : 1.14)}
           eased
           scale={0.097}
+          factorRef={litRef}
+        />
+      </group>
+      {/* Performance bloom: a feathered plane just beyond the actual opening.
+          It inherits the measured mouth rotation, so the shoulder becomes an
+          ellipse at this camera rather than turning to face it like a ball. */}
+      <group position={along(0.008)} rotation={[MOUTH_TILT, 0, 0]}>
+        <ApertureHalo
+          diameter={MOUTH_R * 2 * 1.8}
+          opacity={palette.glowOpacity * (day ? 0.7 : 0.55)}
           factorRef={litRef}
         />
       </group>
@@ -1870,6 +1998,7 @@ export function LampGlow({
           and the penumbra goes to 0.95 to take the edge off it. */}
       <spotLight
         ref={spotRef}
+        visible={realLights}
         position={along(-0.005)}
         color="#ffbe73"
         intensity={day ? 5.6 : 4.8}
@@ -1894,6 +2023,7 @@ export function LampGlow({
           is the clearance a point light needs to stay a glow rather than a
           blown speck. */}
       <pointLight
+        visible={realLights}
         position={along(0.05)}
         color="#ffcf96"
         intensity={(day ? 0.82 : 0.66) * spillScale}
@@ -1904,6 +2034,7 @@ export function LampGlow({
           without this the objects a hand's width away sit in the dark next to
           a lit lamp, which is the one thing a real desk lamp never does. */}
       <pointLight
+        visible={realLights}
         position={along(0.16)}
         color="#ffbe73"
         intensity={(day ? 1.32 : 1.06) * spillScale}
@@ -2052,10 +2183,8 @@ export function FrameRow({
   focus?: [number, number];
   /** Warm texture grade. App screenshots can opt out while photos retain it. */
   imageGrade?: number;
-  /** Pass it and the row obeys the scene's activeUnit rule. Without it a
-   * frame claims the cursor from two units away through the live strip of
-   * canvas beside the placard, and the click opens the talk instead of
-   * travelling. Optional only so the call sites can adopt it separately. */
+  /** Owning unit for diagnostics and authored scene relationships. Optional
+   * only so call sites can adopt the shared interaction registry separately. */
   unitIndex?: number;
   /** Opt-in for freestanding screenshot frames. A tap preserves the frame's
    * destination; a >6px carry moves it without opening. */
@@ -2106,11 +2235,6 @@ export function FrameRow({
                     grabbable
                       ? undefined
                       : (e) => {
-                          if (
-                            unitIndex !== undefined &&
-                            useStacks.getState().activeUnit !== unitIndex
-                          )
-                            return;
                           e.stopPropagation();
                           setHovered(`frame:${key}`);
                         }
@@ -2127,11 +2251,6 @@ export function FrameRow({
                     !grabbable && onFrameClick && href
                       ? (e) => {
                           if ((e.delta ?? 0) > 6) return; // swipe, not a tap
-                          if (
-                            unitIndex !== undefined &&
-                            useStacks.getState().activeUnit !== unitIndex
-                          )
-                            return; // → the unit tap plane travels
                           e.stopPropagation();
                           onFrameClick(href);
                         }
@@ -2158,6 +2277,7 @@ export function FrameRow({
             shape="box"
             massKg={0.82}
             onTap={onFrameClick && href ? () => onFrameClick(href) : undefined}
+            href={href}
             doorLabel={href ? `View ${key}` : undefined}
             external
           >

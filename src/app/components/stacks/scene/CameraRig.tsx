@@ -23,6 +23,7 @@ import * as THREE from "three";
 import { cursorForInteraction } from "./interactionRegistry";
 import { SEAT_POSE, isSeated, leaveSeat, setSeatAmount } from "./seated";
 import {
+  CAMERA_LOOK_X_MAX_LAG,
   STACKS_DESKTOP_MIN_WIDTH,
   aboutStopShift,
   cameraForAspect,
@@ -76,15 +77,6 @@ const lambdaAt60Hz = (alpha: number) => -Math.log(1 - alpha) * 60;
 const LEAN_LAMBDA = lambdaAt60Hz(0.08);
 const BASE_Y_LAMBDA = lambdaAt60Hz(0.05);
 const LOOK_X_LAMBDA = lambdaAt60Hz(0.045);
-/** Hard cap on |look.x − camera.x|, the fast-scroll yaw transient. The
- * unclamped lag peaked around ~11 world units (a ~60° yaw that stared
- * straight down the row and off the meadow's proven envelope — "I can see
- * behind the grass"). The owner tuned this by feel across three passes:
- * 0.55 and 1.6 both read too stiff; the ask is the original tilt "just a
- * tad less", so the cap shaves only the extreme. Peak-fling frames can
- * still graze the field's feathered flanks for a beat — fog, edge blur,
- * and motion cover it, and the owner accepted that trade knowingly. */
-const LOOK_X_MAX_LAG = 6;
 const LOOK_Y_LAMBDA = lambdaAt60Hz(0.05);
 const FRAMING_LAMBDA = lambdaAt60Hz(0.12);
 const SEAT_POINTER_LAMBDA = 5.5;
@@ -100,6 +92,14 @@ const smoothstep = (x: number) => {
 const SEAT_TRAVEL_TOLERANCE = 0.0015;
 
 const UP = new THREE.Vector3(0, 1, 0);
+
+/** Allocation-free travel telemetry for the opt-in performance trace. Kept
+ * outside React so observing the camera never creates another render path. */
+export const cameraTravelDiagnostics = {
+  targetX: 0,
+  lookX: 0,
+  lookLagX: 0,
+};
 
 /** The About stop's rest shift ("move the initial scene", round 2): solved
  * so the projected shelf edge clears the rail's measured widest row. Read
@@ -381,14 +381,14 @@ export default function CameraRig() {
     // The camera POSITION rides the (already-damped) scroll directly while
     // the look target damps again on top, so a fast fling used to open many
     // units of lag between them — the camera yawed ~50° down the row and
-    // swept the frustum clean off the meadow's proven envelope ("I can see
-    // behind the grass"). Clamp the lag just past the ±0.45 pointer sway
-    // the geometry checks already cover: travel keeps a whisper of
-    // look-toward-motion, and no scroll speed can aim backstage.
+    // swept the frustum clean off the original meadow envelope ("I can see
+    // behind the grass"). Keep the authored six-unit cap: the camera-side
+    // grass apron is now verified against this full tilt, so coverage fixes
+    // the corners without flattening the motion.
     look.current.x = THREE.MathUtils.clamp(
       look.current.x,
-      targetX - LOOK_X_MAX_LAG,
-      targetX + LOOK_X_MAX_LAG,
+      targetX - CAMERA_LOOK_X_MAX_LAG,
+      targetX + CAMERA_LOOK_X_MAX_LAG,
     );
     look.current.y = THREE.MathUtils.damp(
       look.current.y,
@@ -568,6 +568,9 @@ export default function CameraRig() {
       (camera as THREE.PerspectiveCamera).fov = fov;
       (camera as THREE.PerspectiveCamera).updateProjectionMatrix();
     }
+    cameraTravelDiagnostics.targetX = targetX;
+    cameraTravelDiagnostics.lookX = look.current.x;
+    cameraTravelDiagnostics.lookLagX = look.current.x - targetX;
 
     const scenePosition = progress * (UNIT_COUNT - 1);
     const active = Math.min(

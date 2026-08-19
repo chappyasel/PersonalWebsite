@@ -7,6 +7,8 @@ import { THEME_COLOR, THEME_STORAGE_KEY } from "~/lib/theme";
 
 import "~/styles/globals.css";
 
+import { HOMEPAGE_DESCRIPTION } from "./homeMetadata";
+
 const literata = Literata({
   subsets: ["latin"],
   variable: "--font-literata",
@@ -74,8 +76,7 @@ export const metadata: Metadata = {
         `http://localhost:${process.env.PORT ?? 3000}`),
   ),
   title: "Chappy Asel",
-  description:
-    "Chappy Asel builds tools, communities, and systems around AI, relationships, books, and human agency.",
+  description: HOMEPAGE_DESCRIPTION,
   icons: [{ rel: "icon", url: "/favicon.ico" }],
 };
 

@@ -71,9 +71,14 @@ type StacksState = {
    * happens in linear HDR (dust/pools re-tune) and the DOM vignette yields
    * to the composer's. */
   postfx: boolean;
+  setPostfx: (postfx: boolean) => void;
+  /** True while a real bloom pass is mounted. Practical apertures use this—not
+   * the user's preference—to hand off cleanly when a debug override or the
+   * emergency direct renderer removes bloom. */
+  bloomActive: boolean;
+  setBloomActive: (bloomActive: boolean) => void;
   /** Instant (undamped) jump to a unit — registered by CameraRig while the
    * canvas is mounted. Deep-links and the dev hooks use it. */
-  setPostfx: (postfx: boolean) => void;
   jumpTo: ((unit: number) => void) | null;
   /** Damped travel to a unit. Sets drei's internal damp target directly
    * instead of relying on the scroll event — Next's patched pushState forces
@@ -111,6 +116,8 @@ export const useStacks = create<StacksState>((set) => ({
   setSeated: (seated) => set({ seated }),
   postfx: false,
   setPostfx: (postfx) => set({ postfx }),
+  bloomActive: false,
+  setBloomActive: (bloomActive) => set({ bloomActive }),
   jumpTo: null,
   travelTo: null,
   setMode: (mode) => set({ mode }),

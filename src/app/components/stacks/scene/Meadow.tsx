@@ -37,6 +37,14 @@ import {
 } from "./golf/golfPresentation";
 import { claimEffectLayer, effectLayerAges } from "./layeredEffects";
 import {
+  type MeadowDiagnosticsUpdate,
+  meadowDiagnosticsController,
+} from "./meadowDiagnostics";
+import {
+  publishMeadowDisturbance,
+  resetMeadowDisturbance,
+} from "./meadowDisturbance";
+import {
   MEADOW_BANK,
   MEADOW_FOG,
   MEADOW_GROUND_BASE,
@@ -56,7 +64,12 @@ import {
   meadowDragSample,
   meadowPulseState,
   meadowWindAudioLevel,
+  sampleMeadowWind,
 } from "./meadowMotion";
+import {
+  meadowTilePopulationLimit,
+  useScenePerformanceSettings,
+} from "./scenePerformance";
 import { getSeatAmount } from "./seated";
 
 const TUFT_URL = "/models/grass-tuft.glb";
@@ -135,6 +148,14 @@ const WIND_GLSL = /* glsl */ `
       wind *= limited / magnitude;
     }
     return wind;
+  }
+  // Far tufts occupy a few pixels and cannot reveal the detailed direction
+  // field or nonlinear gust limiter. One traveling noise sample preserves a
+  // coherent breeze without paying the near lawn's three samples + trig/exp.
+  vec2 farWindAt(vec2 pos, float t) {
+    vec2 dir = vec2(-0.702, -0.712);
+    float gust = vnoise(pos * 0.18 - dir * (t * 0.48));
+    return dir * (uWindAmp * (0.42 + 0.72 * gust * gust));
   }
 `;
 
@@ -261,11 +282,11 @@ const GRASS_VERTEX = /* glsl */ `
   varying float vT;
   varying float vSun;
   varying float vShade;
+  varying float vApron;
   varying float vPatch;
   varying float vWind;
   varying float vLamp;
   varying float vCloud;
-  varying float vDew;
   varying float vFog;
   varying vec2 vUv;
   varying vec3 vFogColor;
@@ -284,8 +305,12 @@ const GRASS_VERTEX = /* glsl */ `
     // card space rotated every tuft's lean into a different direction and
     // scrambled the traveling gust front. Quadratic height gate keeps the
     // roots planted; magnitude scales with the tuft's world height.
-    vec2 w = windAt(origin.xz, uTime * uWindSpeed);
     float hScale = length(vec3(instanceMatrix[1]));
+    #ifdef FAR_SIMPLE
+      vec2 w = farWindAt(origin.xz, uTime * uWindSpeed);
+      vec2 lean = w;
+    #else
+    vec2 w = windAt(origin.xz, uTime * uWindSpeed);
     // Mouse travel brushes a tight patch in the direction of the stroke.
     // Clicking creates a separate, immediately broad outward burst. The
     // COMBINED lean is clamped so a gust plus interaction cannot fold a
@@ -323,6 +348,7 @@ const GRASS_VERTEX = /* glsl */ `
     vec2 lean = w * (1.0 - ${MEADOW_POKE.windSuppression.toFixed(2)} * interactionShape)
       + uPokeDir * push
       + pulseLean;
+    #endif
     float ll = max(length(lean), 1e-4);
     lean *= min(ll, ${MEADOW_WIND.maxLean.toFixed(2)}) / ll;
     vec2 disp = lean * t * t * hScale;
@@ -333,14 +359,17 @@ const GRASS_VERTEX = /* glsl */ `
     vT = t;
     vSun = instanceColor.r;
     vShade = instanceColor.g;
+    vApron = instanceColor.b;
     // Patch-scale tip variation (FluffyGrass drives this with a perlin
     // texture; low-frequency value noise is the textureless equivalent).
     vPatch = vnoise(origin.xz * 0.16);
     vWind = length(w);
-    vLamp = lampPool(origin);
+    #ifdef FAR_SIMPLE
+      vLamp = 0.0;
+    #else
+      vLamp = lampPool(origin);
+    #endif
     vCloud = cloudAt(origin.xz);
-    // ~2% of tufts carry a dew twinkle while the light is young.
-    vDew = step(0.98, vnoise(origin.xz * 91.7));
     vUv = uv;
     vFog = fogAmount(${GRASS_FOG}, world.xyz, -mv.z);
     vFogColor = domeBelow(world.xyz);
@@ -354,15 +383,20 @@ const GRASS_FRAGMENT = /* glsl */ `
   varying float vT;
   varying float vSun;
   varying float vShade;
+  varying float vApron;
   varying float vPatch;
   varying float vWind;
   varying float vLamp;
   varying float vCloud;
-  varying float vDew;
   varying float vFog;
   varying vec2 vUv;
   varying vec3 vFogColor;
   void main() {
+    // The camera-side apron only belongs to the horizontal traverse. It sits
+    // below/behind that camera at rest and fills the corners during a fling;
+    // discard it once the chair transition begins so the seated riverbank
+    // keeps its separately authored density.
+    if (vApron > 0.5 && uSeat > 0.001) discard;
     // The tuft texture's red channel is the blade-cluster mask. Boost by
     // fog so mip-averaging can never thin the far field into stubble.
     float a = texture2D(uAlpha, vec2(vUv.x, 1.0 - vUv.y)).r;
@@ -385,12 +419,6 @@ const GRASS_FRAGMENT = /* glsl */ `
     col *= 1.0 + vWind * 1.2 * vT * mix(0.35, 0.15, uDark);
     // Passing cloud shade.
     col *= vCloud;
-    // Dawn dew: the marked tufts twinkle slowly on their tips in light
-    // mode, strongest early in the traverse (uDawn low) — reads as wet
-    // grass catching first light, gone by night and by full dawn warmth.
-    col += vec3(0.9, 0.95, 1.0) * vDew * vT * vT
-         * pow(0.5 + 0.5 * sin(uTime * 1.1 + vPatch * 47.0), 24.0)
-         * (1.0 - uDark) * (1.0 - uDawn * 0.6) * 0.35;
     // Moonlight: mostly a traveling glint where gusts bend the tips, over
     // a whisper of constant lift — the night lawn reads MOONLIT rather
     // than merely dark. The tint leans GREEN on purpose: the first cut's
@@ -535,8 +563,10 @@ const FLOWER_VERTEX = /* glsl */ `
   uniform float uPixelScale;
   uniform float uPxFloor;
   // InstancedMesh injects instanceColor per tile while every tile shares one
-  // geometry; its red channel carries the authored species tint.
+  // geometry; red carries the authored species tint and blue tags the
+  // camera-side fling apron.
   varying float vTint;
+  varying float vApron;
   varying float vSpin;
   varying float vPx;
   varying float vClamp;
@@ -605,6 +635,7 @@ const FLOWER_VERTEX = /* glsl */ `
     // clump, one color) rather than a position hash, which speckled every
     // cluster into a color mix.
     vTint = instanceColor.r;
+    vApron = instanceColor.b;
     // Per-head petal rotation + projected size, for the fragment's rosette.
     vSpin = hash2(origin.xz * 43.7) * 6.2832;
     vPx = px;
@@ -623,6 +654,7 @@ const FLOWER_VERTEX = /* glsl */ `
 
 const FLOWER_FRAGMENT = /* glsl */ `
   uniform float uDark;
+  uniform float uSeat;
   uniform vec3 uFlowerA;
   uniform vec3 uFlowerB;
   uniform vec3 uFlowerC;
@@ -630,6 +662,7 @@ const FLOWER_FRAGMENT = /* glsl */ `
   uniform vec3 uNightA;
   uniform vec3 uNightB;
   varying float vTint;
+  varying float vApron;
   varying float vSpin;
   varying float vPx;
   varying float vClamp;
@@ -639,6 +672,7 @@ const FLOWER_FRAGMENT = /* glsl */ `
   varying vec3 vFogColor;
   ${NOISE_GLSL}
   void main() {
+    if (vApron > 0.5 && uSeat > 0.001) discard;
     bool seedHead = vTint >= 0.92;
     vec3 day = vTint < 0.55
       ? uFlowerA
@@ -769,13 +803,20 @@ function prepareTuftGeometry(
 export default function Meadow({
   dark,
   rung = 3,
+  farGrassShader = "simplified",
 }: {
   dark: boolean;
   /** Quality rung (3 = full). Maps 1:1 onto MEADOW_RUNG_* counts; the
    * buffers' rung-stratified order makes each step a uniform density cut
    * across every band rather than a depth cut. */
   rung?: 0 | 1 | 2 | 3;
+  /** Resolved visual policy. Performance experiments override the profile in
+   * the quality resolver before this narrow scene slice reaches the meadow. */
+  farGrassShader?: "full" | "simplified";
 }) {
+  const performanceSettings = useScenePerformanceSettings();
+  const simplifiedFar = farGrassShader === "simplified";
+  const maxPopulation = meadowTilePopulationLimit(performanceSettings);
   const nearRefs = useRef<Array<THREE.InstancedMesh | null>>([]);
   const farRefs = useRef<Array<THREE.InstancedMesh | null>>([]);
   const flowerRefs = useRef<Array<THREE.InstancedMesh | null>>([]);
@@ -790,11 +831,20 @@ export default function Meadow({
   const flowers = useMemo(() => buildFlowerPositions(), []);
   const tiles = useMemo(
     () => ({
-      near: buildMeadowTiles(streams.near),
-      far: buildMeadowTiles(streams.far),
-      flowers: buildMeadowTiles(flowers),
+      near: buildMeadowTiles(
+        streams.near,
+        maxPopulation ? { maxPopulation } : undefined,
+      ),
+      far: buildMeadowTiles(
+        streams.far,
+        maxPopulation ? { maxPopulation } : undefined,
+      ),
+      flowers: buildMeadowTiles(
+        flowers,
+        maxPopulation ? { maxPopulation } : undefined,
+      ),
     }),
-    [streams, flowers],
+    [streams, flowers, maxPopulation],
   );
   // `instanceColor` must exist when Three first compiles each ShaderMaterial:
   // it controls the prefix that declares the attribute. Build these before
@@ -806,6 +856,7 @@ export default function Meadow({
       tile.indices.forEach((index, local) => {
         values[local * 3] = stream.sun[index]!;
         values[local * 3 + 1] = stream.shade[index]!;
+        values[local * 3 + 2] = stream.band[index] === 4 ? 1 : 0;
       });
       return new THREE.InstancedBufferAttribute(values, 3);
     };
@@ -813,6 +864,7 @@ export default function Meadow({
       const values = new Float32Array(tile.indices.length * 3);
       tile.indices.forEach((index, local) => {
         values[local * 3] = flowers.tint[index]!;
+        values[local * 3 + 2] = flowers.apron[index]!;
       });
       return new THREE.InstancedBufferAttribute(values, 3);
     };
@@ -898,6 +950,13 @@ export default function Meadow({
         vertexShader: GRASS_VERTEX,
         fragmentShader: GRASS_FRAGMENT,
         side: THREE.DoubleSide,
+      }),
+      farGrassMaterial: new THREE.ShaderMaterial({
+        uniforms: { ...shared, ...grassOnly },
+        vertexShader: GRASS_VERTEX,
+        fragmentShader: GRASS_FRAGMENT,
+        side: THREE.DoubleSide,
+        defines: { FAR_SIMPLE: 1 },
       }),
       flowerMaterial: new THREE.ShaderMaterial({
         uniforms: { ...shared, ...flowerOnly },
@@ -1019,18 +1078,23 @@ export default function Meadow({
     if (process.env.NODE_ENV === "production") return;
     const hooks = window.__stacks;
     if (!hooks) return;
-    hooks.meadow = (opts) => {
-      if (opts?.wind !== undefined) built.shared.uWindAmp.value = opts.wind;
-      if (opts?.speed !== undefined) built.shared.uWindSpeed.value = opts.speed;
-      if (opts?.density !== undefined) densityRef.current = opts.density;
+    const apply = (update: MeadowDiagnosticsUpdate = {}) => {
+      if (update.wind !== undefined) built.shared.uWindAmp.value = update.wind;
+      if (update.speed !== undefined)
+        built.shared.uWindSpeed.value = update.speed;
+      if (update.density !== undefined) densityRef.current = update.density;
       return {
         wind: built.shared.uWindAmp.value,
         speed: built.shared.uWindSpeed.value,
         density: densityRef.current,
       };
     };
+    hooks.meadow = meadowDiagnosticsController.update;
+    meadowDiagnosticsController.connect(apply);
     return () => {
-      delete hooks.meadow;
+      if (hooks.meadow === meadowDiagnosticsController.update)
+        delete hooks.meadow;
+      meadowDiagnosticsController.disconnect(apply);
     };
   }, [built]);
 
@@ -1045,8 +1109,10 @@ export default function Meadow({
   const pokeHitReach = useRef(0);
   const pokePreviousHit = useRef(new THREE.Vector2());
   const pokePreviousPointer = useRef(new THREE.Vector2());
+  const pokeGestureDirection = useRef(new THREE.Vector2());
   const pokeHasPrevious = useRef(false);
   const bootAt = useRef(-1);
+  const nextWindDiagnosticAt = useRef(0);
   useEffect(() => {
     if (!finePointer) return;
     const onDown = () => {
@@ -1066,10 +1132,12 @@ export default function Meadow({
 
   useEffect(
     () => () => {
+      resetMeadowDisturbance();
       built.terrainGeometry.dispose();
       built.flowerGeometry.dispose();
       built.terrainMaterial.dispose();
       built.grassMaterial.dispose();
+      built.farGrassMaterial.dispose();
       built.flowerMaterial.dispose();
       tuftGeometries.near.dispose();
       tuftGeometries.far.dispose();
@@ -1114,6 +1182,12 @@ export default function Meadow({
                 hz,
                 delta,
                 reach,
+              );
+              // Petals need the current gesture immediately. Grass keeps the
+              // eased copy below so its broad lean does not chatter.
+              pokeGestureDirection.current.set(
+                drag.directionX,
+                drag.directionZ,
               );
               target = drag.strength;
               shared.uPokeDir.value.x = THREE.MathUtils.damp(
@@ -1222,7 +1296,28 @@ export default function Meadow({
       shared.uWindAmp.value =
         MEADOW_WIND.amplitude * (1 + MEADOW_WIND.bootBoost * g);
     }
-    sceneAudio.setWindLevel(meadowWindAudioLevel(shared.uWindAmp.value));
+    publishMeadowDisturbance({
+      brush: shared.uPoke.value,
+      direction: pokeGestureDirection.current,
+      windAmplitude: shared.uWindAmp.value,
+      pulses: shared.uPulses.value,
+      pulseStarts: pokeClickAt.current,
+    });
+    // The amplitude uniform is only the field's ceiling. Sample the exact
+    // traveling shader field near the camera so the audio and diagnostics
+    // rise and fall with the gust the visitor is actually looking through.
+    const liveWind = sampleMeadowWind(
+      camera.position.x,
+      camera.position.z - 4,
+      clock.elapsedTime,
+      shared.uWindAmp.value,
+      shared.uWindSpeed.value,
+    ).magnitude;
+    sceneAudio.setWindLevel(meadowWindAudioLevel(liveWind));
+    if (clock.elapsedTime >= nextWindDiagnosticAt.current) {
+      meadowDiagnosticsController.publishLiveWind(liveWind);
+      nextWindDiagnosticAt.current = clock.elapsedTime + 0.1;
+    }
     // Pixels per world unit at depth 1 — one multiply per frame buys
     // resize/dpr safety with no listener.
     built.flowerOnly.uPixelScale.value =
@@ -1286,7 +1381,11 @@ export default function Meadow({
             farRefs.current[i] = mesh;
           }}
           instanceColor={tileAttributes.far[i]}
-          args={[tuftGeometries.far, built.grassMaterial, tile.indices.length]}
+          geometry={tuftGeometries.far}
+          material={
+            simplifiedFar ? built.farGrassMaterial : built.grassMaterial
+          }
+          args={[undefined, undefined, tile.indices.length]}
         />
       ))}
       {tiles.flowers.map((tile, i) => (

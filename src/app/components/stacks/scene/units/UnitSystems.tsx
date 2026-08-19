@@ -8,7 +8,6 @@ import { ContactShade, FootPool } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
 import ModelProp from "../ModelProp";
 import { EggClock, EggLamp, EggTrigger, Pendulum, Sway } from "../eggs";
-import PropLink from "../links";
 import {
   RoutineBoard,
   reducedMotion,
@@ -326,24 +325,21 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
           />
         ))}
 
-        <group
-          position={[0.98, routineBoardSeat(TILT_ROUTINE), -0.02]}
-          rotation={TILT_ROUTINE}
+        <Grabbable
+          unitIndex={index}
+          hoverKey="link:routineboard"
+          base={[0.98, routineBoardSeat(TILT_ROUTINE), -0.02]}
+          shadeColor={palette.shadow}
+          shadeWidth={0.42}
+          shape="box"
+          massKg={0.45}
+          tiltWhileHeld={false}
+          to="routine"
         >
-          <PropLink
-            unitIndex={index}
-            to="routine"
-            hoverKey="link:routineboard"
-            lift={[0, 0.018, 0.016]}
-          >
+          <group rotation={TILT_ROUTINE}>
             <RoutineBoard palette={palette} />
-          </PropLink>
-        </group>
-        <ContactShade
-          color={palette.shadow}
-          width={0.42}
-          position={[0.98, 0.03, 0.04]}
-        />
+          </group>
+        </Grabbable>
       </ShelfUnit>
 
       {/* Shared floor fixture on the outgoing Systems/Projects seam. Mirror

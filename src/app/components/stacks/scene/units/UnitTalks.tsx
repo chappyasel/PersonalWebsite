@@ -9,14 +9,19 @@ import { FootPool } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
 import ModelProp from "../ModelProp";
 import { LampSwitch, Sway } from "../eggs";
-import { registerMeadowLamp } from "../meadowLights";
+import {
+  MOTH_LIGHT_PROFILES,
+  TALKS_FLOOR_SHADE_RADIUS,
+  registerMeadowLamp,
+} from "../meadowLights";
 import {
   DeskFrame,
   PHOTO_LINKS,
   deskFrameHeight,
   photoDoorLabel,
 } from "../photos";
-import { GlowSprite, ShelfUnit } from "../primitives";
+import { ApertureHalo, GlowSprite, ShelfUnit } from "../primitives";
+import { useUnitRealLights } from "../scenePerformance";
 import { useUnitLod } from "../useUnitLod";
 import React, { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
@@ -62,7 +67,7 @@ import { type UnitProps } from "./types";
 const LAMP_S = 2.85;
 const SHADE_BOTTOM_Y = 0.6815 * LAMP_S;
 const SHADE_TOP_Y = 0.86 * LAMP_S;
-const SHADE_BOTTOM_R = 0.0878 * LAMP_S;
+const SHADE_BOTTOM_R = TALKS_FLOOR_SHADE_RADIUS;
 const SHADE_TOP_R = 0.0623 * LAMP_S;
 
 /** The vertical ramp painted onto the shade fabric — see ShadeFabric.
@@ -172,7 +177,7 @@ function ShadeFabric({ dark }: { dark: boolean }) {
  * backward across the whole traverse after it moved away from x=0. Keep a
  * real target in the same lamp group so the cone remains directly beneath
  * the shade at every world position and yaw. */
-function FloorLampSpot({ dark }: { dark: boolean }) {
+function FloorLampSpot({ dark, visible }: { dark: boolean; visible: boolean }) {
   const light = useRef<THREE.SpotLight>(null);
   const target = useRef<THREE.Object3D>(null);
   useEffect(() => {
@@ -183,12 +188,49 @@ function FloorLampSpot({ dark }: { dark: boolean }) {
       <object3D ref={target} position={[0, 0.02, 0]} />
       <spotLight
         ref={light}
+        visible={visible}
         position={[0, SHADE_BOTTOM_Y - 0.017, 0]}
         color="#ffbe73"
         intensity={dark ? 10 : 5.6}
         angle={0.85}
         penumbra={0.9}
         distance={3.81}
+        decay={2}
+      />
+    </>
+  );
+}
+
+/** The only floor-lamp subtree subscribed to active-unit changes. Keeping the
+ * subscription here prevents a light visibility update from re-rendering the
+ * complete Talks unit and rebuilding caller-inline model material options.
+ * The spot leaves the lower mouth, the upper point lights the top opening,
+ * and the lower point supplies the room spill around the cone. */
+function FloorLampRealLights({
+  dark,
+  unitIndex,
+}: {
+  dark: boolean;
+  unitIndex: number;
+}) {
+  const visible = useUnitRealLights(unitIndex);
+  return (
+    <>
+      <FloorLampSpot dark={dark} visible={visible} />
+      <pointLight
+        visible={visible}
+        position={[0, SHADE_TOP_Y + 0.073, 0]}
+        color="#ffcf96"
+        intensity={dark ? 2 : 1}
+        distance={1.85}
+        decay={2}
+      />
+      <pointLight
+        visible={visible}
+        position={[0, SHADE_BOTTOM_Y - 0.154, 0]}
+        color="#ffcf96"
+        intensity={dark ? 3 : 0.75}
+        distance={2.5}
         decay={2}
       />
     </>
@@ -280,6 +322,18 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
       radius: 2.2,
       strength: 1,
       litRef: lit,
+      sourceX: mouth.x,
+      sourceY: mouth.y + SHADE_BOTTOM_Y - 0.017,
+      sourceZ: mouth.z,
+      coneTargetX: mouth.x,
+      coneTargetY: -1.1,
+      coneTargetZ: mouth.z,
+      // The floor shade is the room's largest practical: five moths occupy a
+      // wider, deeper volume below its vertical light cone.
+      mothCount: MOTH_LIGHT_PROFILES.floor.count,
+      mothNearDistance: MOTH_LIGHT_PROFILES.floor.nearDistance,
+      mothFarDistance: MOTH_LIGHT_PROFILES.floor.farDistance,
+      mothMaxRadius: MOTH_LIGHT_PROFILES.floor.maxRadius,
     });
   }, [index]);
   return (
@@ -359,6 +413,7 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
               shadeColor={palette.shadow}
               shadeWidth={0.42}
               shape="box"
+              colliderProfile="foliage-base"
               massKg={2.3}
             >
               <Sway unitIndex={index} amount={0.019} rate={0.31} phase={0.7}>
@@ -462,6 +517,7 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
           shadeColor={palette.shadow}
           shadeWidth={0.28}
           shape="box"
+          colliderProfile="foliage-base"
           massKg={2.1}
         >
           <Sway unitIndex={index} amount={0.018} rate={0.36} phase={1.8}>
@@ -551,14 +607,27 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
               </mesh>
               {/* The fabric itself, lit from inside. */}
               <ShadeFabric dark={dark} />
-              {/* What you actually SEE of a floor lamp from eye level is the
-                  air just below the mouth and just above the top opening, so
-                  those get camera-facing glows — sized UNDER the opening they
-                  leave and hugging it. Both sprites read the switch's lit
-                  factor themselves, because the traverse skips sprites:
-                  GlowSprite writes its own opacity every frame. */}
+              {/* One source-shaped performance halo, attached to the bright
+                  lower diffuser. Its plane faces down with the aperture, so
+                  the low camera sees a soft band—not a circular billboard. */}
+              <group
+                position={[0, SHADE_BOTTOM_Y - 0.021, 0]}
+                rotation={[Math.PI / 2, 0, 0]}
+              >
+                <ApertureHalo
+                  diameter={SHADE_BOTTOM_R * 2 * 1.65}
+                  opacity={palette.glowOpacity * (dark ? 0.42 : 0.32)}
+                  factorRef={lit}
+                />
+              </group>
+              {/* Reversible legacy comparison. Both current modes hide these
+                  camera-facing radial billboards and leave the diffuser,
+                  illuminated fabric, real spill, and meadow pool untouched.
+                  In legacy mode both sprites read the switch's lit factor
+                  themselves because the traverse skips sprites. */}
               <group position={[0, SHADE_BOTTOM_Y - 0.055, 0]}>
                 <GlowSprite
+                  practical
                   opacity={palette.glowOpacity * 1.36}
                   eased
                   scale={0.444}
@@ -567,6 +636,7 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
               </group>
               <group position={[0, SHADE_TOP_Y + 0.024, 0]}>
                 <GlowSprite
+                  practical
                   opacity={palette.glowOpacity * 0.52}
                   eased
                   scale={0.264}
@@ -578,37 +648,7 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
                   `distance` is a world-space falloff radius and the parent
                   scale does not touch it, so all three distances came down
                   with the lamp (× 0.856). */}
-              <FloorLampSpot dark={dark} />
-              {/* Up out of the top opening — a drum shade throws as much light
-                  at the ceiling as at the floor, and without it the top of the
-                  lamp is a dark rim above a lit cone. */}
-              <pointLight
-                position={[0, SHADE_TOP_Y + 0.073, 0]}
-                color="#ffcf96"
-                intensity={dark ? 2 : 1}
-                distance={1.85}
-                decay={2}
-              />
-              {/* Retargeted, NOT added — the rig still costs exactly three
-                  lights. This one used to sit at the shade's mid-height on a
-                  0.43 reach to make the cone glow from inside, which is the
-                  job ShadeFabric now does far better and for no light at all.
-                  Spending it on the room instead: dropped just under the mouth
-                  and widened to 1.75, it is the spill that lands on the pole,
-                  the base and the shelf's left flank. The spot alone is a cone
-                  at the floor, and a lit lamp with nothing warm around it is
-                  the one thing a real lamp never looks like. 1.75 is measured,
-                  not rounded up: the lower plank's near end is 0.83 from the
-                  mouth and the top plank's is 1.04, so a reach that stops
-                  short of 1.1 lights the floor and nothing the visitor is
-                  actually looking at. */}
-              <pointLight
-                position={[0, SHADE_BOTTOM_Y - 0.154, 0]}
-                color="#ffcf96"
-                intensity={dark ? 3 : 0.75}
-                distance={2.5}
-                decay={2}
-              />
+              <FloorLampRealLights dark={dark} unitIndex={index} />
             </>
           }
         >

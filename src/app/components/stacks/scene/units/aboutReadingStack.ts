@@ -15,6 +15,31 @@ export type ReadingBookPose = {
   rotation: [number, number, number];
 };
 
+type PositionLike = Pick<{ x: number; y: number; z: number }, "x" | "y" | "z">;
+type QuaternionLike = PositionLike & { w: number };
+
+const AUTHORED_HOVER_EPSILON = 0.001;
+
+/** Shelf-specific presentation belongs to the curated fan, not to a book that
+ * has been carried elsewhere. The carrier itself starts unrotated; its child
+ * owns the authored jacket angle. */
+export function readingBookAtAuthoredPose(
+  position: PositionLike,
+  quaternion: QuaternionLike,
+  base: readonly [number, number, number],
+) {
+  const positionErrorSquared =
+    (position.x - base[0]) ** 2 +
+    (position.y - base[1]) ** 2 +
+    (position.z - base[2]) ** 2;
+  const rotationErrorSquared =
+    quaternion.x ** 2 + quaternion.y ** 2 + quaternion.z ** 2;
+  return (
+    positionErrorSquared <= AUTHORED_HOVER_EPSILON ** 2 &&
+    rotationErrorSquared <= AUTHORED_HOVER_EPSILON ** 2
+  );
+}
+
 export const ABOUT_SMALL_PLANT_X = ABOUT_BOOT_LANDMARKS.succulent.x;
 /** Measured GLB width 1.4887 × authored 0.18 scale ÷ 2, rounded outward. */
 export const ABOUT_SMALL_PLANT_ENVELOPE = 0.135;

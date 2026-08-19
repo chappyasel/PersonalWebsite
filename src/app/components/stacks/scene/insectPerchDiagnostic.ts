@@ -388,7 +388,7 @@ export type InsectFlightTelemetry = Readonly<{
   unitIndex: number;
   /** Where it started. Only interesting as a measure of how far Residency has
    * drifted from the authored arrangement. */
-  homeUnit?: number;
+  initialResidency?: number;
   residentIndex: number;
   phase: InsectPilotPhase;
   /** World position at publication. The live check (ADR 0006) needs it: a
