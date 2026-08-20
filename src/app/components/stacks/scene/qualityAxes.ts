@@ -72,15 +72,6 @@ export const QUALITY_BOOT_GUARD_MS = 10_000;
  * did not help is precisely the signal to try the next lever. */
 export const QUALITY_AXIS_BLOCK_MS = QUALITY_SAMPLE_WINDOW_MS * 2;
 
-/** How many resolution steps may fail to help before the turn passes on.
- *
- * "Resolution first, always" assumes resolution is the cheap lever. On a
- * main-thread-bound device it is not cheap, it is INERT: the measurement that
- * started this work found a 61 percent pixel cut buying 0.19 milliseconds.
- * Walking all twelve steps there costs sixteen seconds of the visitor's time
- * and a blurrier image, and buys nothing. Two steps is enough to find out,
- * and the answer is already in `improvedOver`. */
-export const QUALITY_RESOLUTION_GIVE_UP_STEPS = 2;
 
 export const QUALITY_TRAVEL_RESOLUTION_DROP_STEPS = 2;
 /** A travel is over budget on the same dropped-frame test the rest budget
@@ -150,7 +141,6 @@ export type SceneQualityAxisState = Readonly<{
   lastChange: QualityAxisChange | null;
   /** Consecutive resolution steps that expired their block without improving
    * anything. Reset by any improvement, and by a rise. */
-  unhelpfulResolutionSteps: number;
   /** At most one deferred content request. A deferral is a delayed decision,
    * not a promise: a later request replaces it, and it is discarded if the
    * classification that produced it no longer holds. */
@@ -245,7 +235,6 @@ export function initialSceneQualityAxisState(
     headroomSince: null,
     pendingBaseline: null,
     pendingBaselineExpiresAt: null,
-    unhelpfulResolutionSteps: 0,
     lastChange: null,
     deferredContent: null,
     booted: false,
@@ -496,17 +485,6 @@ export function reduceSceneQualityAxes(
         if (next.lastChange?.axis === axis && !guarding) return false;
         return !improvedOver(metrics, next.pendingBaseline);
       };
-      // Did the PREVIOUS resolution step help? Resolution is exempt from its
-      // own block, so it never expires one; the verdict has to be read at the
-      // moment the next step would be taken.
-      if (next.lastChange?.axis === "resolution" && next.pendingBaseline)
-        next = improvedOver(metrics, next.pendingBaseline)
-          ? { ...next, unhelpfulResolutionSteps: 0 }
-          : {
-              ...next,
-              unhelpfulResolutionSteps: next.unhelpfulResolutionSteps + 1,
-            };
-
       if (
         next.pendingBaseline &&
         (severeOverrides || blockExpired || improvedOver(metrics, next.pendingBaseline))
@@ -546,18 +524,23 @@ export function reduceSceneQualityAxes(
         now - next.axisChangedAt.resolution >= QUALITY_RESOLUTION_DWELL_MS;
 
       if (constraint === "gpu" || constraint === "cpu") {
-        // Resolution first, but not indefinitely. Spending the invisible
-        // lever before the visible ones is the point of separating the axes;
-        // spending it after it has been shown not to work is just a blurrier
-        // scene that is still slow.
-        // Giving up applies to CPU pressure only. That is where the evidence
-        // is: a 61 percent pixel cut bought 0.19 milliseconds. Against GPU
-        // pressure, fewer pixels is the textbook correct lever and there is
-        // no reason to stop spending it short of the floor.
+        // Resolution answers GPU pressure and nothing else.
+        //
+        // Not a heuristic — a pixel count cannot touch the main thread. Draw
+        // calls, matrix updates, culling, and every line of JS are identical
+        // at 0.6x and at 1.75x; only fragment work changes. The measurement
+        // agreed before the reasoning did: a 61 percent pixel cut bought
+        // 0.19 milliseconds on a main-thread-bound machine.
+        //
+        // It used to be spent on CPU pressure too, giving up after two
+        // unhelpful steps. Two steps is not free. Each one is a blurrier
+        // scene, and since the composer has to be resized to match (see
+        // ComposerPixelRatio in Effects.tsx) each one also reallocates every
+        // render target in the postprocessing chain — hundreds of megabytes
+        // at desktop resolution. Paying that twice to re-derive a number
+        // already known made the scene both worse-looking and slower.
         const resolutionWorthTrying =
-          next.axes.resolutionStep > 0 &&
-          (constraint !== "cpu" ||
-            next.unhelpfulResolutionSteps < QUALITY_RESOLUTION_GIVE_UP_STEPS);
+          next.axes.resolutionStep > 0 && constraint === "gpu";
         if (resolutionWorthTrying) {
           if (blockedAxis("resolution")) return next;
           // A dwell that has not elapsed defers the whole decision rather
@@ -714,12 +697,21 @@ export function reduceSceneQualityAxes(
             : SCENE_RESOLUTION_MAX_STEP;
           if (next.axes.resolutionStep >= cap)
             return restoring ? { ...next, preTravelStep: null } : next;
-          const step = next.axes.resolutionStep + 1;
+          // Restoring after travel jumps; climbing after pressure steps.
+          //
+          // The difference is whether the target is known good. A pre-travel
+          // step was sustainable seconds ago on this same scene, so walking
+          // back to it one rung at a time is a probe with nothing to learn —
+          // and every rung is a full composer reallocation, hundreds of
+          // megabytes at desktop resolution. Climbing out of real pressure
+          // has no such guarantee: the ceiling may be exactly what the device
+          // could not sustain, so it is approached a rung at a time and the
+          // descent stays available if a rung proves too expensive.
+          const step = restoring ? cap : next.axes.resolutionStep + 1;
           return {
             ...next,
             axes: { ...next.axes, resolutionStep: step },
             axisChangedAt: moved(next, "resolution", now),
-            unhelpfulResolutionSteps: 0,
             preTravelStep: step >= cap && restoring ? null : next.preTravelStep,
             lastChange: {
               axis: "resolution",

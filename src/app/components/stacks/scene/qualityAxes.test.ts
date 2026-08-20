@@ -799,10 +799,31 @@ describe("recovery", () => {
     expect(recovered.axes.content).toBe("full");
   });
 
-  it("clears the resolution give-up count when resolution starts working", () => {
-    // Otherwise a device that recovered would still refuse to spend the one
-    // lever that had become useful again.
-    const recovered = recover(bottomOut(), 300_000);
-    expect(recovered.unhelpfulResolutionSteps).toBe(0);
+  it("never spends resolution on main-thread pressure", () => {
+    // A pixel count cannot touch the main thread: draw calls, matrix
+    // updates, culling and every line of JS are identical at 0.6x and at
+    // 1.75x. Measured at 0.19 ms for a 61 percent pixel cut. Spending it
+    // anyway cost a blurrier scene AND a full composer reallocation.
+    let state = initialSceneQualityAxisState("balanced", 0);
+    state = reduceSceneQualityAxes(state, { type: "booted", now: 0 });
+    const cpuBound = {
+      targetFrameMs: 16.667,
+      targetHz: 60,
+      p95: 30,
+      droppedFrameRatio: 0.4,
+      sampleCount: 120,
+      cpuMs: 26,
+      gpuMs: null,
+    };
+    for (let now = 20_000; now <= 200_000; now += 1_000)
+      state = reduceSceneQualityAxes(state, {
+        type: "sample",
+        now,
+        metrics: cpuBound,
+        visible: true,
+      });
+    expect(state.axes.resolutionStep).toBe(SCENE_RESOLUTION_MAX_STEP);
+    // The visible axes are what answer a main-thread problem, and they did.
+    expect(state.axes.content).toBe("minimal");
   });
 });
