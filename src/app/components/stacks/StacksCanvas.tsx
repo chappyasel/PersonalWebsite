@@ -24,6 +24,7 @@ import {
   useState,
 } from "react";
 import type * as THREE from "three";
+import { WebGLRenderer } from "three";
 
 import { sceneAudio } from "./audio/sceneAudio";
 import { type StacksData, UNIT_COUNT } from "./data";
@@ -45,6 +46,7 @@ import type {
   MeadowDiagnosticsSettings,
   MeadowDiagnosticsUpdate,
 } from "./scene/meadowDiagnostics";
+import { createOpaqueSceneContext } from "./scene/opaqueSceneContext";
 import { ScenePerformanceSampler } from "./scene/performanceMetrics";
 import {
   browserPerformanceTraceSession,
@@ -1519,7 +1521,26 @@ export default function StacksCanvas({
         // ladder deliberately unmounts that composer after a sustained
         // decline. Creating the context without MSAA made that fallback path
         // lose ALL antialiasing and exposed stair-stepped shelf silhouettes.
-        gl={{ antialias: true }}
+        // Built here rather than configured, because three hardcodes
+        // `alpha: true` into its own context attributes and its `alpha`
+        // parameter only picks the clear alpha. An opaque canvas is what
+        // stops the compositor blending this scene over the page's near
+        // white paper every frame — see opaqueSceneContext for the
+        // measurement showing the paper never contributed a pixel anyway.
+        // A null context means the browser refused, and three creates its
+        // own exactly as before: losing the flash protection is worth far
+        // less than losing the world.
+        gl={(defaultProps) => {
+          const context = createOpaqueSceneContext(
+            defaultProps.canvas as HTMLCanvasElement,
+          );
+          return new WebGLRenderer({
+            ...defaultProps,
+            antialias: true,
+            alpha: false,
+            ...(context ? { context } : null),
+          });
+        }}
         onCreated={({ gl, scene, camera }) => {
           gl.toneMappingExposure = dark ? 1.25 : 1.12;
           glRef = gl;
