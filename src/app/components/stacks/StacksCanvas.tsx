@@ -30,6 +30,7 @@ import {
   setLoadProgress,
 } from "./loading";
 import { cameraTravelDiagnostics } from "./scene/CameraRig";
+import { sceneBackdropFor } from "./scene/sceneBackdrop";
 import { prewarmGrabbablePhysics } from "./scene/Grabbable";
 import Scene from "./scene/Scene";
 import type { GolfShotOutcome } from "./scene/golf/golfTypes";
@@ -1506,7 +1507,14 @@ export default function StacksCanvas({
   }, []);
 
   return (
-    <div ref={canvasShellRef} className="stacks-canvas-shell absolute inset-0">
+    <div
+      ref={canvasShellRef}
+      className="stacks-canvas-shell absolute inset-0"
+      // Sits directly behind the transparent canvas layer so a frame the
+      // compositor cannot update shows the scene's own tones instead of the
+      // page's near-white paper. See sceneBackdrop.ts for the measurement.
+      style={{ background: sceneBackdropFor(dark) }}
+    >
       <LoadReporter />
       <TouchInteractionLayer />
       <Canvas
