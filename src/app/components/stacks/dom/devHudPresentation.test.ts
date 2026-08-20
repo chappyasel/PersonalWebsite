@@ -22,6 +22,7 @@ const base: DevHudInput = {
   ambientOcclusionQuality: "medium",
   depthOfField: true,
   depthOfFieldResolutionScale: 0.8,
+  depthOfFieldBokehScale: 1.9,
   calls: 84,
   triangles: 1_240_000,
   textures: 42,
@@ -46,7 +47,7 @@ describe("compact development HUD presentation", () => {
       "Cinematic/Manual · 8.2/8.3MP @2.53×",
     );
     expect(rows[2]?.segments.map(({ text }) => text).join("")).toBe(
-      "B9 · AOM · DoF.8",
+      "B9 · AOM · DoF q.8/b1.9",
     );
   });
 

@@ -86,6 +86,7 @@ import {
 } from "./focusMode";
 import {
   MOBILE_SHEET_WHEEL_COOLDOWN_MS,
+  MOBILE_SHEET_HORIZONTAL_DOMINANCE,
   type MobileSheetHeightMeasurement,
   type MobileSheetWheelIntentState,
   accumulateMobileSheetWheelIntent,
@@ -1661,7 +1662,10 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
       const dx = clientX - startX;
       if (owned === null) {
         if (Math.max(Math.abs(dx), Math.abs(dy)) < DRAG_ARM_PX) return false;
-        axis = Math.abs(dx) > Math.abs(dy) * 1.15 ? "horizontal" : "vertical";
+        axis =
+          Math.abs(dx) > Math.abs(dy) * MOBILE_SHEET_HORIZONTAL_DOMINANCE
+            ? "horizontal"
+            : "vertical";
         if (axis === "horizontal") {
           // The sheet owns its touch region. A committed sideways gesture
           // changes its Unit without leaking into World travel underneath.

@@ -27,14 +27,14 @@
 // prop returns directly to its authored mark only after it has stayed outside
 // an expanded camera frustum for a second; travel itself never resets it.
 //
-// The grounding matters more than the motion. This scene casts no shadows at
-// all — there is no shadow-casting light in it, every `castShadow` flag is
-// inert, and contact is faked by analytic ground pools and camera-facing
-// ContactShade sprites pinned at each prop's rest position. Lift a prop
-// without addressing that and its shadow stays behind on the wood, which
-// instantly reads as broken. So Grabbable owns its own shade and drives it:
-// it tracks the prop's x/z, stays on the wood, and spreads and fades as the
-// object rises, which is what a real contact shadow does.
+// The grounding matters more than the motion. The production scene casts no
+// shadows: contact is faked by analytic ground pools and camera-facing
+// ContactShade sprites pinned at each prop's rest position. Cinematic+ mounts
+// a separate diagnostics-only sun and shadow map, but the movable shade still
+// has to follow the prop in every mode. Lift a prop without addressing that
+// and its contact stays behind on the wood, which instantly reads as broken.
+// Grabbable therefore owns its own shade and drives it: it tracks the prop's
+// x/z, stays on the wood, and spreads and fades as the object rises.
 import { useStacks } from "../store";
 import { type ThreeEvent, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef } from "react";

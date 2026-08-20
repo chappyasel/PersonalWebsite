@@ -36,11 +36,27 @@ export function projectedInertiaDistance(
   return (velocityPxMs * frameMs) / (1 - decay);
 }
 
-export function shouldSettleInterruptedInertia(
+export function shouldSettleInterruptedTravel(
   inertiaFrame: number | null,
+  settledUnit: number | null,
+  atAuthoredStop: boolean,
   reason: "new-contact" | "cleanup",
 ) {
-  return inertiaFrame !== null && reason === "new-contact";
+  return (
+    reason === "new-contact" &&
+    (inertiaFrame !== null || (settledUnit === null && !atAuthoredStop))
+  );
+}
+
+export function isAtAuthoredTravelStop(
+  position: number,
+  unitCount: number,
+  additionalStops: readonly number[] = [],
+  tolerance = 0.015,
+) {
+  return authoredTravelStops(unitCount, additionalStops).some(
+    (stop) => Math.abs(position - stop) <= tolerance,
+  );
 }
 
 export function unitForScrollPosition(

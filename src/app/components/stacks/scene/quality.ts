@@ -1,4 +1,9 @@
 import {
+  type PresentationProfile,
+  presentationProfileForViewport,
+} from "../mobile/presentation";
+
+import {
   SCENE_DROPPED_FRAME_MULTIPLIER,
   SCENE_FRAME_BUDGET_HZ,
   SCENE_FRAME_BUDGET_MS,
@@ -17,6 +22,43 @@ export type RendererCapability =
   | "constrained"
   | "standard"
   | "high";
+
+/** DoF buffer resolution controls cost; bokeh controls the visible blur.
+ * Keep those axes independent and tune the latter for the composition the
+ * viewport actually receives. The presentation multipliers preserve each
+ * profile's authored strength across portrait, short-landscape, and wide
+ * compositions as DPR changes. */
+export const DEPTH_OF_FIELD_BOKEH_MULTIPLIER_BY_PRESENTATION: Readonly<
+  Record<PresentationProfile, number>
+> = Object.freeze({
+  portrait: 0.71875,
+  "short-landscape": 0.875,
+  wide: 1.1875,
+});
+
+/** `postprocessing` measures its bokeh kernel in physical framebuffer texels.
+ * The authored values predate the live resolution ladder and were approved
+ * with the renderer capped at 2x. Scale from that reference so changing DPR
+ * changes sampling density without changing the kernel's CSS-pixel footprint. */
+export const DEPTH_OF_FIELD_BOKEH_REFERENCE_DPR = 2;
+export const DEPTH_OF_FIELD_BOKEH_MULTIPLIER_MIN = 0.25;
+export const DEPTH_OF_FIELD_BOKEH_MULTIPLIER_MAX = 3;
+export const DEPTH_OF_FIELD_RESOLUTION_SCALE_MIN = 0.25;
+export const DEPTH_OF_FIELD_RESOLUTION_SCALE_MAX = 1;
+
+export function depthOfFieldBokehScaleForViewport(
+  authoredScale: number,
+  width: number,
+  height: number,
+  dpr: number,
+) {
+  const profile = presentationProfileForViewport(width, height);
+  return (
+    authoredScale *
+    DEPTH_OF_FIELD_BOKEH_MULTIPLIER_BY_PRESENTATION[profile] *
+    (dpr / DEPTH_OF_FIELD_BOKEH_REFERENCE_DPR)
+  );
+}
 
 /** GPU families that only ever appear in phones and tablets.
  *
@@ -208,6 +250,7 @@ export type SceneQualityPlan = Readonly<{
     dust: boolean;
     cloudDetail: "full" | "simplified";
     farGrassShader: "full" | "simplified";
+    grassDeformation: "full" | "lean" | "off";
     grounding: boolean;
   }>;
   butterflies: Readonly<{ wingBlurSamples: 0 | 1 | 3 | 5 }>;
@@ -219,6 +262,10 @@ export type SceneQualityPlan = Readonly<{
   }>;
   customOverrides: boolean;
 }>;
+
+/** Dormant experiment. Scene Diagnostics can still enable the lean field for
+ * the current mount without putting its render targets on the shipped path. */
+export const DEFAULT_GRASS_DEFORMATION_ENABLED = false;
 
 type ProfileDefinition = Readonly<{
   dprCap: number;
@@ -267,7 +314,7 @@ export const SCENE_QUALITY_DEFINITIONS: Readonly<
     pixels: { desktop: 16_600_000, touch: 9_400_000 },
     meadowDensity: 1,
     meadowRung: 3,
-    petals: 49,
+    petals: 196,
     dust: true,
     cloudDetail: "full",
     farGrassShader: "full",
@@ -295,7 +342,7 @@ export const SCENE_QUALITY_DEFINITIONS: Readonly<
     pixels: { desktop: 5_200_000, touch: 3_100_000 },
     meadowDensity: 1,
     meadowRung: 3,
-    petals: 18,
+    petals: 84,
     dust: true,
     cloudDetail: "full",
     farGrassShader: "full",
@@ -312,8 +359,8 @@ export const SCENE_QUALITY_DEFINITIONS: Readonly<
     ambientOcclusionHalfRes: true,
     ambientOcclusionQuality: "medium",
     depthOfField: true,
-    depthOfFieldResolutionScale: 0.6,
-    depthOfFieldBokehScale: 1.6,
+    depthOfFieldResolutionScale: 0.5,
+    depthOfFieldBokehScale: 2.4,
     multisampling: 0,
   },
   balanced: {
@@ -323,7 +370,7 @@ export const SCENE_QUALITY_DEFINITIONS: Readonly<
     pixels: { desktop: 4_100_000, touch: 2_600_000 },
     meadowDensity: 1,
     meadowRung: 3,
-    petals: 14,
+    petals: 70,
     dust: true,
     cloudDetail: "full",
     farGrassShader: "simplified",
@@ -351,7 +398,7 @@ export const SCENE_QUALITY_DEFINITIONS: Readonly<
     pixels: { desktop: 3_200_000, touch: 2_100_000 },
     meadowDensity: 1,
     meadowRung: 3,
-    petals: 10,
+    petals: 42,
     dust: false,
     cloudDetail: "simplified",
     farGrassShader: "simplified",
@@ -379,7 +426,7 @@ export const SCENE_QUALITY_DEFINITIONS: Readonly<
     pixels: { desktop: 2_500_000, touch: 1_600_000 },
     meadowDensity: 1,
     meadowRung: 3,
-    petals: 7,
+    petals: 21,
     dust: false,
     cloudDetail: "simplified",
     farGrassShader: "simplified",
@@ -439,6 +486,9 @@ export type SceneQualityAdvancedOverrides = Readonly<{
   skipAmbientOcclusion?: boolean;
   skipBloom?: boolean;
   skipDepthOfField?: boolean;
+  /** Diagnostics-only tuning applied after presentation and DPR correction. */
+  depthOfFieldBokehMultiplier?: number;
+  depthOfFieldResolutionScale?: number;
   simplifiedFarMeadow?: boolean;
   suspendSettledPropWork?: boolean;
   pausePrewarmDuringTravel?: boolean;
@@ -563,7 +613,8 @@ export function resolveSceneQualityPlan({
       : sceneResolutionScale(resolutionStep, profileDpr);
   // The effects axis selects which authored block renders. Everything else
   // on the plan — pixel budget, meadow, petals — still comes from `profile`.
-  const effects = SCENE_QUALITY_DEFINITIONS[effectsProfileFor(profile, effectsTier)];
+  const effects =
+    SCENE_QUALITY_DEFINITIONS[effectsProfileFor(profile, effectsTier)];
   const ambientOcclusion =
     overrides?.skipAmbientOcclusion == null
       ? effects.ambientOcclusion
@@ -572,10 +623,44 @@ export function resolveSceneQualityPlan({
     overrides?.skipDepthOfField == null
       ? effects.depthOfField
       : !overrides.skipDepthOfField;
+  const requestedBokehMultiplier = overrides?.depthOfFieldBokehMultiplier;
+  const depthOfFieldBokehMultiplier =
+    typeof requestedBokehMultiplier === "number" &&
+    Number.isFinite(requestedBokehMultiplier)
+      ? Math.min(
+          DEPTH_OF_FIELD_BOKEH_MULTIPLIER_MAX,
+          Math.max(
+            DEPTH_OF_FIELD_BOKEH_MULTIPLIER_MIN,
+            requestedBokehMultiplier,
+          ),
+        )
+      : 1;
+  const requestedDepthOfFieldResolutionScale =
+    overrides?.depthOfFieldResolutionScale;
+  const depthOfFieldResolutionScale =
+    typeof requestedDepthOfFieldResolutionScale === "number" &&
+    Number.isFinite(requestedDepthOfFieldResolutionScale)
+      ? Math.min(
+          DEPTH_OF_FIELD_RESOLUTION_SCALE_MAX,
+          Math.max(
+            DEPTH_OF_FIELD_RESOLUTION_SCALE_MIN,
+            requestedDepthOfFieldResolutionScale,
+          ),
+        )
+      : effects.depthOfFieldResolutionScale;
   const bloom = effects.bloom && overrides?.skipBloom !== true;
-  const resolvedContentTier =
-    contentTier ?? CONTENT_TIER_BY_PROFILE[profile];
+  const resolvedContentTier = contentTier ?? CONTENT_TIER_BY_PROFILE[profile];
   const content = SCENE_CONTENT_DEFINITIONS[resolvedContentTier];
+  const resolvedEffectsProfile = effectsProfileFor(profile, effectsTier);
+  const grassDeformation =
+    grassDeformationOff || !DEFAULT_GRASS_DEFORMATION_ENABLED
+      ? "off"
+      : resolvedContentTier === "minimal" || resolvedEffectsProfile === "safety"
+        ? "off"
+        : resolvedContentTier === "reduced" ||
+            resolvedEffectsProfile === "efficient"
+          ? "lean"
+          : "full";
   const customOverrides =
     hasCustomOverrides ??
     Boolean(
@@ -585,6 +670,8 @@ export function resolveSceneQualityPlan({
           overrides.skipAmbientOcclusion === false ||
           overrides.skipBloom === true ||
           overrides.skipDepthOfField === false ||
+          overrides.depthOfFieldBokehMultiplier != null ||
+          overrides.depthOfFieldResolutionScale != null ||
           overrides.simplifiedFarMeadow != null ||
           overrides.suspendSettledPropWork === false ||
           overrides.pausePrewarmDuringTravel === false ||
@@ -617,15 +704,22 @@ export function resolveSceneQualityPlan({
       ambientOcclusionHalfRes: effects.ambientOcclusionHalfRes,
       ambientOcclusionQuality: effects.ambientOcclusionQuality,
       depthOfField: !directRender && depthOfField,
-      depthOfFieldResolutionScale: effects.depthOfFieldResolutionScale,
-      depthOfFieldBokehScale: effects.depthOfFieldBokehScale,
+      depthOfFieldResolutionScale,
+      depthOfFieldBokehScale:
+        depthOfFieldBokehScaleForViewport(
+          effects.depthOfFieldBokehScale,
+          cssWidth,
+          cssHeight,
+          dpr,
+        ) * depthOfFieldBokehMultiplier,
       finishing: !directRender,
       // Multisampled composer targets remain disabled on touch/iOS. The
       // desktop-only Cinematic tier combines 8× MSAA with SMAA for captures.
       multisampling: touch ? 0 : effects.multisampling,
       adaptiveSharpen: overrides?.adaptiveSharpen !== false,
       analyticFixtureHalos:
-        effectsProfileFor(profile, effectsTier) === "safety" || overrides?.practicalGlowMode === "halo",
+        effectsProfileFor(profile, effectsTier) === "safety" ||
+        overrides?.practicalGlowMode === "halo",
     },
     environment: {
       meadowDensity: definition.meadowDensity,
@@ -640,6 +734,7 @@ export function resolveSceneQualityPlan({
           : overrides.simplifiedFarMeadow
             ? "simplified"
             : "full",
+      grassDeformation,
       grounding: definition.grounding,
     },
     butterflies: { wingBlurSamples: definition.wingBlurSamples },
@@ -683,6 +778,11 @@ export const QUALITY_PRESSURE_DROPPED_RATIO = 0.08;
  * at exactly the budget when it is completely idle, so the interval needs
  * real margin before it means anything. */
 export const QUALITY_PRESSURE_P95_MULTIPLIER = 1.25;
+/** A median above this line means the scene is continuously missing 60 Hz,
+ * rather than paying for an isolated long task in the p95 tail. Five percent
+ * leaves room for ordinary vsync jitter without accepting a stable 50–55 Hz
+ * cadence as healthy. */
+export const QUALITY_SUSTAINED_FRAME_P50_MULTIPLIER = 1.05;
 /** Main-thread cost below which a frame that is not failing has room to
  * spare. Cost, not interval: see classifySceneFrameConstraint. */
 export const QUALITY_HEADROOM_CPU_MS = SCENE_FRAME_BUDGET_MS * 0.5;
@@ -714,7 +814,11 @@ export const QUALITY_DOWNGRADE_DROP_IMPROVEMENT = 0.03;
 // v5: quality became three independent axes graded against an absolute frame
 // budget. Every v4 entry was learned by a policy that could read a steady
 // 40 Hz as healthy, so those decisions are not evidence about anything.
-const QUALITY_STORAGE_VERSION = 5;
+//
+// v6 could persist effects learned while iOS resolution was platform-locked.
+// Restoring one after enabling the iOS resolution axis can strand a phone at
+// the old starting DPR while repeatedly retrying a stale minimal-effects tier.
+const QUALITY_STORAGE_VERSION = 7;
 
 export type SceneQualityMetrics = Readonly<{
   targetFrameMs: number;
@@ -846,6 +950,22 @@ export const SCENE_RESOLUTION_SCALE_FLOOR = 0.6;
 export const RESOLUTION_OVERRIDE_MAX_DPR = 4;
 export const RESOLUTION_OVERRIDE_MAX_PIXELS = 20_000_000;
 
+/** Offline OG capture may request the same maximum scale exposed by Scene
+ * Diagnostics. Requiring the capture flag prevents this reload-time override
+ * from becoming part of the visitor-facing quality policy. */
+export function captureResolutionCeilingFromSearch(
+  search: string,
+): number | null {
+  const params = new URLSearchParams(search);
+  if (!params.has("og-capture")) return null;
+  const raw = params.get("og-resolution");
+  if (raw === null) return null;
+  const dpr = Number(raw);
+  return Number.isFinite(dpr) && dpr >= 1 && dpr <= RESOLUTION_OVERRIDE_MAX_DPR
+    ? dpr
+    : null;
+}
+
 /** Clamp a requested manual ceiling to something that can actually be
  * allocated. Returns the DPR the ladder should run against. */
 export function overrideResolutionCeiling(
@@ -883,7 +1003,10 @@ export function sceneResolutionScale(step: number, ceiling: number): number {
     return SCENE_RESOLUTION_SCALE_FLOOR;
   return (
     SCENE_RESOLUTION_SCALE_FLOOR *
-    Math.pow(top / SCENE_RESOLUTION_SCALE_FLOOR, clamped / SCENE_RESOLUTION_STEP_MAX)
+    Math.pow(
+      top / SCENE_RESOLUTION_SCALE_FLOOR,
+      clamped / SCENE_RESOLUTION_STEP_MAX,
+    )
   );
 }
 
@@ -1021,8 +1144,9 @@ export function summariseSceneFrameWindow(
     targetHz: SCENE_FRAME_BUDGET_HZ,
     p95: percentileOf(sorted, 0.95),
     droppedFrameRatio:
-      sorted.filter((ms) => ms > SCENE_FRAME_BUDGET_MS * SCENE_DROPPED_FRAME_MULTIPLIER).length /
-      sorted.length,
+      sorted.filter(
+        (ms) => ms > SCENE_FRAME_BUDGET_MS * SCENE_DROPPED_FRAME_MULTIPLIER,
+      ).length / sorted.length,
     sampleCount: sorted.length,
     cpuMs: percentileOf(sortedCpu, 0.95),
     gpuMs,
@@ -1042,10 +1166,10 @@ export function summariseSceneFrameWindow(
 export function classifySceneFrameConstraint(
   metrics: Pick<
     SceneQualityMetrics,
-    "p95" | "droppedFrameRatio" | "cpuMs" | "gpuMs"
+    "p95" | "droppedFrameRatio" | "cpuMs" | "gpuMs" | "p50" | "cpuP50"
   >,
 ): SceneFrameConstraint {
-  const { cpuMs, p95, gpuMs, droppedFrameRatio } = metrics;
+  const { cpuMs, p95, gpuMs, droppedFrameRatio, p50, cpuP50 } = metrics;
   // Whether there is a problem is asked first. The composition of a frame
   // says where the time went, not whether the time was affordable, and the
   // two used to be conflated: a verdict of "cpu" made content coarsen after
@@ -1057,9 +1181,31 @@ export function classifySceneFrameConstraint(
   // the interval IS the refresh period, so a completely idle 60 Hz machine
   // reports 16.67 ms and floating-point noise decides whether it is in
   // trouble.
-  const pressured =
+  const tailPressure =
     droppedFrameRatio >= QUALITY_PRESSURE_DROPPED_RATIO ||
     p95 > SCENE_FRAME_BUDGET_MS * QUALITY_PRESSURE_P95_MULTIPLIER;
+
+  // The median answers a different question from the tail: is the device
+  // continuously slow? This is the evidence the axes can act on. A brutal
+  // long task in one frame should hold recovery, but changing every frame's
+  // geometry or framebuffer cannot remove that isolated hitch.
+  //
+  // Hand-authored metrics in reducer tests predate the medians. Preserve
+  // their old tail-based meaning; production summaries always carry both.
+  const sustainedLate =
+    p50 == null
+      ? tailPressure
+      : p50 > SCENE_FRAME_BUDGET_MS * QUALITY_SUSTAINED_FRAME_P50_MULTIPLIER;
+  const sustainedCpuMs = cpuP50 ?? cpuMs;
+
+  if (sustainedLate && sustainedCpuMs > QUALITY_CPU_BOUND_MS) return "cpu";
+
+  // Without a timer query, a continuously late frame and a demonstrably
+  // cheap main thread is the best available GPU signal. When a query exists,
+  // it outranks the interval so scheduler stalls are not blamed on pixels.
+  const gpuPressure =
+    gpuMs == null ? sustainedLate : gpuMs > QUALITY_GPU_BOUND_P95_MS;
+  if (sustainedCpuMs < QUALITY_GPU_BOUND_CPU_MS && gpuPressure) return "gpu";
 
   // Room to spare is a question about COST, for the same reason. An interval
   // cannot distinguish two milliseconds of work waiting for vsync from
@@ -1067,16 +1213,11 @@ export function classifySceneFrameConstraint(
   // p95 under 80 percent of the budget, which no healthy 60 Hz display can
   // ever satisfy — it would have climbed on 120 Hz hardware and never once on
   // 60 Hz.
-  if (!pressured)
+  if (!tailPressure && !sustainedLate)
     return cpuMs < QUALITY_HEADROOM_CPU_MS &&
       droppedFrameRatio < QUALITY_HEADROOM_DROPPED_RATIO
       ? "headroom"
       : "unknown";
-
-  if (cpuMs > QUALITY_CPU_BOUND_MS) return "cpu";
-  const gpuTerm = gpuMs ?? p95;
-  if (cpuMs < QUALITY_GPU_BOUND_CPU_MS && gpuTerm > QUALITY_GPU_BOUND_P95_MS)
-    return "gpu";
   return "unknown";
 }
 

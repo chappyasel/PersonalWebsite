@@ -61,7 +61,7 @@ export type TouchGestureEffect =
   | { type: "activate"; interactionId: string }
   | { type: "carry-release"; interactionId: string }
   | { type: "clear-focus"; interactionId: string }
-  | { type: "swipe-release"; velocityX: number }
+  | { type: "swipe-release"; velocityX: number; displacementX: number }
   | { type: "cancel"; interactionId?: string };
 
 export type TouchGestureReduction = {
@@ -196,7 +196,13 @@ export function reduceTouchGesture(
     if (state.phase === "swiping")
       return {
         state: { phase: "idle" },
-        effects: [{ type: "swipe-release", velocityX: state.velocityX }],
+        effects: [
+          {
+            type: "swipe-release",
+            velocityX: state.velocityX,
+            displacementX: state.lastX - state.startX,
+          },
+        ],
       };
     return { state: { phase: "idle" }, effects: [] };
   }

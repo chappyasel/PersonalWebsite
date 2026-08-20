@@ -1,19 +1,12 @@
 import { WORLD_ZOOM_MIN } from "../mobile/travel";
 
 export const MIN_CAMERA_TARGET_DISTANCE = 3.8;
-export const TAP_FOCUS_ZOOM_MULTIPLIER = 1.2;
+export const TAP_FOCUS_ZOOM_MULTIPLIER = 1.44;
 
 export function isGolfControlInteraction(id: string | null) {
   return ["golf-club:", "golf-ball:"].some(
     (prefix) => id?.startsWith(prefix) === true,
   );
-}
-
-export function shouldResetCameraZoomForTravel(
-  wasTraveling: boolean,
-  traveling: boolean,
-) {
-  return traveling && !wasTraveling;
 }
 
 export function cameraTravelState({
@@ -43,6 +36,20 @@ export function cameraTravelState({
   };
 }
 
+export function cameraTravelTransition(
+  wasBlockingTravel: boolean,
+  travel: ReturnType<typeof cameraTravelState>,
+) {
+  // Residual damping can briefly speed up again as the native scroll element
+  // and Drei converge on the same stop. Only leaving the authored stop's
+  // visual tolerance should dismiss an intentional object focus.
+  const blockingTravel = travel.focusBlockedByTravel;
+  return {
+    resetFocus: blockingTravel && !wasBlockingTravel,
+    blockingTravel,
+  };
+}
+
 export function interactionZoomTarget({
   distance,
   focused,
@@ -62,11 +69,15 @@ export function interactionZoomTarget({
   blocked: boolean;
   touchInteraction: boolean;
 }) {
-  if (traveling || blocked || !touchInteraction) return 0;
+  if (traveling || blocked) return 0;
 
   const focusZoom = Math.min(4.5, Math.max(0.7, distance - 5.6));
-  if (dragging) return Math.min(3.2, focusZoom * 0.8);
+  // `focused` is persistent state created only by the coarse-touch arbiter.
+  // Treat it as stronger evidence than the last observed pointer type, which
+  // Safari can replace after the tap while the Focus Lean remains active.
   if (focused) return focusZoom * TAP_FOCUS_ZOOM_MULTIPLIER;
+  if (!touchInteraction) return 0;
+  if (dragging) return Math.min(3.2, focusZoom * 0.8);
   if (pressed) return 0.3;
   if (hovered) return Math.min(0.8, Math.max(0.45, distance * 0.075));
   return 0;

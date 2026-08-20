@@ -22,4 +22,35 @@ describe("scene quality debug controller", () => {
     expect(notifications).toBe(3);
     unsubscribe();
   });
+
+  it("normalizes Cinematic+ to the manual Cinematic plan with a live finish", () => {
+    sceneQualityController.setMode("cinematic+");
+
+    expect(sceneQualityController.getSnapshot()).toMatchObject({
+      mode: "cinematic",
+      cinematicPlus: true,
+    });
+
+    sceneQualityController.setMode("auto");
+    expect(sceneQualityController.getSnapshot()).toMatchObject({
+      mode: "auto",
+      cinematicPlus: false,
+    });
+  });
+
+  it("clamps live DoF tuning and can hand both controls back to the plan", () => {
+    sceneQualityController.setDepthOfFieldBokehMultiplier(99);
+    sceneQualityController.setDepthOfFieldResolutionScale(0);
+
+    expect(sceneQualityController.getSnapshot()).toMatchObject({
+      depthOfFieldBokehMultiplier: 3,
+      depthOfFieldResolutionScale: 0.25,
+    });
+
+    sceneQualityController.resetDepthOfField();
+    expect(sceneQualityController.getSnapshot()).toMatchObject({
+      depthOfFieldBokehMultiplier: null,
+      depthOfFieldResolutionScale: null,
+    });
+  });
 });

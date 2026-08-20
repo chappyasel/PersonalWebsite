@@ -60,11 +60,19 @@ function useSeatClick(unitIndex: number) {
     let downY = 0;
     let downOn = false;
     const onDown = (e: PointerEvent) => {
+      if (e.pointerType === "touch") {
+        downOn = false;
+        return;
+      }
       downX = e.clientX;
       downY = e.clientY;
       downOn = useStacks.getState().hovered === CHAIR_HOVER;
     };
     const onUp = (e: PointerEvent) => {
+      if (e.pointerType === "touch") {
+        downOn = false;
+        return;
+      }
       if (!downOn) return;
       downOn = false;
       const s = useStacks.getState();
@@ -97,6 +105,7 @@ export default function SitChair({
     <EggTrigger
       unitIndex={unitIndex}
       hoverKey={CHAIR_HOVER}
+      touchable={false}
       // Kept as a second path rather than removed: where r3f DOES deliver the
       // click it arrives first, and seating is idempotent.
       onTrigger={() => {

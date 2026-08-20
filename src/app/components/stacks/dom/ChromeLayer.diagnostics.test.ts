@@ -5,6 +5,10 @@ const diagnosticsSource = fs.readFileSync(
   new URL("./SceneDiagnostics.tsx", import.meta.url),
   "utf8",
 );
+const diagnosticsStyles = fs.readFileSync(
+  new URL("./SceneDiagnostics.module.css", import.meta.url),
+  "utf8",
+);
 const chromeSource = fs.readFileSync(
   new URL("./ChromeLayer.tsx", import.meta.url),
   "utf8",
@@ -44,12 +48,28 @@ describe("development diagnostics chrome", () => {
     expect(diagnosticsSource).toContain('role="tabpanel"');
   });
 
+  it("keeps overview navigation contextual", () => {
+    expect(diagnosticsSource).toContain("notices.length > 0");
+    expect(diagnosticsSource).not.toContain("Tune rendering");
+    expect(diagnosticsSource).not.toContain("Inspect scene");
+  });
+
+  it("uses one semantic diagnostics palette", () => {
+    expect(diagnosticsStyles).toContain("--diagnostics-accent:");
+    expect(diagnosticsStyles).toContain("--diagnostics-success:");
+    expect(diagnosticsStyles).toContain("--diagnostics-warning:");
+    expect(diagnosticsStyles).toContain("--diagnostics-danger:");
+    expect(diagnosticsStyles).toContain(
+      'button[aria-pressed="true"] {\n  color: var(--diagnostics-accent);',
+    );
+  });
+
   it("uses fixed-width live chrome so changing metrics cannot shift layout", () => {
-    expect(diagnosticsSource).toContain("inline-size: 240px");
-    expect(diagnosticsSource).toContain("min-inline-size: 240px");
-    expect(diagnosticsSource).toContain("max-inline-size: 240px");
-    expect(diagnosticsSource).toContain("text-overflow: ellipsis");
-    expect(diagnosticsSource).not.toContain("min-width: max-content");
+    expect(diagnosticsStyles).toContain("inline-size: 240px");
+    expect(diagnosticsStyles).toContain("min-inline-size: 240px");
+    expect(diagnosticsStyles).toContain("max-inline-size: 240px");
+    expect(diagnosticsStyles).toContain("text-overflow: ellipsis");
+    expect(diagnosticsStyles).not.toContain("min-width: max-content");
   });
 
   it("uses the HUD as the only console trigger with a safe D shortcut", () => {
@@ -66,13 +86,21 @@ describe("development diagnostics chrome", () => {
     expect(diagnosticsSource).toContain("createDevHudRows(snapshot)");
     expect(diagnosticsSource).toContain("data-tone={segment.tone");
     expect(diagnosticsSource).toContain("data-emphasis={segment.emphasis");
-    expect(diagnosticsSource).toContain('[data-tone="positive"]');
-    expect(diagnosticsSource).toContain('[data-tone="warning"]');
-    expect(diagnosticsSource).toContain('[data-tone="danger"]');
+    expect(diagnosticsStyles).toContain('[data-tone="positive"]');
+    expect(diagnosticsStyles).toContain('[data-tone="warning"]');
+    expect(diagnosticsStyles).toContain('[data-tone="danger"]');
   });
 
   it("exposes adaptive quality controls and the full live policy status", () => {
-    expect(diagnosticsSource).toContain("Quality policy");
+    expect(diagnosticsSource).toContain("Quality mode");
+    expect(diagnosticsSource).toContain('<optgroup label="Manual only">');
+    expect(diagnosticsSource).toContain('<optgroup label="Adaptive range">');
+    expect(
+      diagnosticsSource.indexOf('<option value="cinematic+">'),
+    ).toBeLessThan(diagnosticsSource.indexOf('<option value="cinematic">'));
+    expect(diagnosticsSource).toContain(
+      '<option value="cinematic+">Cinematic+</option>',
+    );
     expect(diagnosticsSource).toContain(
       '<option value="cinematic">Cinematic</option>',
     );
@@ -83,7 +111,7 @@ describe("development diagnostics chrome", () => {
     expect(diagnosticsSource).toContain("storageBucket");
     expect(diagnosticsSource).toContain("fallbackStatus");
     expect(diagnosticsSource).toContain("custom overrides");
-    expect(diagnosticsSource).toContain(': "Auto"');
+    expect(diagnosticsSource).toContain('"Auto · adapting"');
     expect(diagnosticsSource).not.toContain(
       "runtime.forcedProfile ?? runtime.plan.profile",
     );
@@ -123,6 +151,9 @@ describe("development diagnostics chrome", () => {
     expect(diagnosticsSource).toContain('id="stacks-wind-speed"');
     expect(diagnosticsSource).toContain("meadowDiagnosticsController.update");
     expect(diagnosticsSource).toContain("Reset wind");
+    expect(diagnosticsSource).toContain('id="stacks-grass-deformation"');
+    expect(diagnosticsSource).toContain("Persistent grass deformation");
+    expect(diagnosticsSource).toContain("deformationEnabled");
   });
 
   it("toggles authored camera depth from the Simulate view", () => {
@@ -133,7 +164,22 @@ describe("development diagnostics chrome", () => {
       "cameraDepthDiagnosticsController.setEnabled",
     );
     expect(diagnosticsSource).toContain("Authored camera depth");
-    expect(diagnosticsSource).toContain("Changes apply on the next frame");
+    expect(diagnosticsSource).toContain("Simulation controls");
+  });
+
+  it("keeps inspection scope with overlays and telemetry", () => {
+    const inspectStart = diagnosticsSource.indexOf(
+      'id="stacks-diagnostics-panel-inspect"',
+    );
+    const inspectSource = diagnosticsSource.slice(inspectStart);
+
+    expect(inspectSource).toContain('aria-label="Inspection scope"');
+    expect(inspectSource).toContain("Active shelf");
+    expect(inspectSource).toContain("All shelves");
+    expect(inspectSource).toContain("Scene overlays");
+    expect(inspectSource).toContain("Perches ·");
+    expect(inspectSource).toContain("Flights ·");
+    expect(inspectSource).toContain("<PhysicsDiagnosticsDetails");
   });
 
   it("exposes every negligible-impact optimization as an independent control", () => {
@@ -150,11 +196,30 @@ describe("development diagnostics chrome", () => {
     expect(diagnosticsSource).toContain("Skip ambient occlusion");
     expect(diagnosticsSource).toContain("Skip bloom");
     expect(diagnosticsSource).toContain("Skip depth of field");
+    expect(diagnosticsSource).toContain('id="stacks-dof-strength"');
+    expect(diagnosticsSource).toContain('id="stacks-dof-quality"');
+    expect(diagnosticsSource).toContain(
+      "sceneQualityController.setDepthOfFieldBokehMultiplier",
+    );
+    expect(diagnosticsSource).toContain(
+      "sceneQualityController.setDepthOfFieldResolutionScale",
+    );
+    expect(diagnosticsSource).toContain(
+      "sceneQualityController.resetDepthOfField",
+    );
     expect(diagnosticsSource).toContain("Remember slow travel frames");
     expect(diagnosticsSource).toContain("Balance dense meadow tiles");
     expect(diagnosticsSource).toContain("Suspend settled hover work");
     expect(diagnosticsSource).toContain("Enable all optimizations");
     expect(diagnosticsSource).toContain("Disable all optimizations");
+  });
+
+  it("offers a scene-scoped first-visit reset from Render settings", () => {
+    expect(diagnosticsSource).toContain("Reset scene to first visit");
+    expect(diagnosticsSource).toContain("clearSceneFirstVisitStorage");
+    expect(diagnosticsSource).toContain("sceneFirstVisitUrl");
+    expect(diagnosticsSource).toContain("window.location.reload()");
+    expect(diagnosticsSource).toContain("window.location.replace(cleanUrl)");
   });
 
   it("opts the portaled diagnostics drawer out of world-scroll capture", () => {
@@ -195,9 +260,20 @@ describe("production diagnostics activation", () => {
 
   it("offers a hidden mobile entry point without rendering a control", () => {
     expect(chromeSource).toContain(
-      'new URLSearchParams(window.location.search).get("debug") === "1"',
+      "sceneDiagnosticsQueryMode(window.location.search)",
     );
+    expect(chromeSource).toContain('queryMode === "debug"');
     expect(chromeSource).toContain("setRequest({ initiallyOpen: true })");
+  });
+
+  it("loads a production HUD without requesting expensive scene probes", () => {
+    const hudBranch = chromeSource.slice(
+      chromeSource.indexOf('queryMode === "hud"'),
+      chromeSource.indexOf("if (request) return"),
+    );
+
+    expect(hudBranch).toContain("setRequest({ initiallyOpen: false })");
+    expect(hudBranch).not.toContain("requestDevHooks()");
   });
 
   it("does not production-gate the diagnostics loader", () => {

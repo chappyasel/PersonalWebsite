@@ -4,10 +4,10 @@ import {
   MIN_CAMERA_TARGET_DISTANCE,
   TAP_FOCUS_ZOOM_MULTIPLIER,
   cameraTravelState,
+  cameraTravelTransition,
   clampCameraZoom,
   interactionZoomTarget,
   isGolfControlInteraction,
-  shouldResetCameraZoomForTravel,
 } from "./cameraZoom";
 
 const state = {
@@ -33,12 +33,21 @@ describe("interaction camera zoom", () => {
     expect(focus).toBeCloseTo(4.4 * TAP_FOCUS_ZOOM_MULTIPLIER);
   });
 
+  it("adds twenty percent to the previous phone tap-focus zoom", () => {
+    expect(TAP_FOCUS_ZOOM_MULTIPLIER).toBeCloseTo(1.2 * 1.2);
+  });
+
   it("returns to the overview when travel starts", () => {
     expect(
       interactionZoomTarget({ ...state, focused: true, traveling: true }),
     ).toBe(0);
-    expect(shouldResetCameraZoomForTravel(false, true)).toBe(true);
-    expect(shouldResetCameraZoomForTravel(true, true)).toBe(false);
+    const travel = cameraTravelState({
+      scenePosition: 1.2,
+      previousScenePosition: 1.1,
+      alternateStop: 1.52,
+    });
+    expect(cameraTravelTransition(false, travel).resetFocus).toBe(true);
+    expect(cameraTravelTransition(true, travel).resetFocus).toBe(false);
   });
 
   it.each([1, 2, 3, 4, 5, 6])(
@@ -55,11 +64,33 @@ describe("interaction camera zoom", () => {
     },
   );
 
-  it("does not apply automatic object zoom to mouse or pen input", () => {
+  it("does not clear focus for the captured end-of-settle motion", () => {
+    const arrival = cameraTravelState({
+      scenePosition: 2.9994,
+      previousScenePosition: 3.0001,
+      alternateStop: 1.52,
+    });
+
+    expect(arrival.traveling).toBe(true);
+    expect(arrival.focusBlockedByTravel).toBe(false);
+    expect(cameraTravelTransition(false, arrival)).toEqual({
+      resetFocus: false,
+      blockingTravel: false,
+    });
+  });
+
+  it("keeps touch focus zoom after pointer classification becomes stale", () => {
     expect(
       interactionZoomTarget({
         ...state,
         focused: true,
+        touchInteraction: false,
+      }),
+    ).toBeGreaterThan(0);
+    expect(
+      interactionZoomTarget({
+        ...state,
+        hovered: true,
         touchInteraction: false,
       }),
     ).toBe(0);

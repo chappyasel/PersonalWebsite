@@ -1,0 +1,62 @@
+name: Check Stacks Safety budget
+
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      source_url:
+        description: Deployed homepage to test
+        required: false
+        default: https://www.chappyasel.com
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stacks-safety-budget
+  cancel-in-progress: true
+
+jobs:
+  safety-budget:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' &&
+       startsWith(github.event.deployment_status.environment, 'Production'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out the deployed revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'deployment_status' && github.event.deployment.sha || 'main' }}
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Check deterministic quality contracts
+        run: yarn test
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Check the rendered Safety budget
+        env:
+          # Production deployment URLs are protected by SSO. The public alias
+          # points at the successful production deployment by this event.
+          PLAYWRIGHT_BASE_URL: ${{ inputs.source_url || 'https://www.chappyasel.com' }}
+        run: yarn test:performance:safety
+
+      - name: Upload observed renderer counts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stacks-safety-budget
+          path: test-results
+          if-no-files-found: ignore

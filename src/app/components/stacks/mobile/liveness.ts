@@ -1,4 +1,4 @@
-const ARRIVAL_KEY = "stacks.arrivals.v1";
+import { SCENE_ARRIVAL_SESSION_KEY } from "../scene/sceneVisitStorage";
 
 export function browserStorage(kind: "localStorage" | "sessionStorage") {
   if (typeof window === "undefined") return null;
@@ -30,11 +30,11 @@ function writeSet(storage: Storage | null, key: string, value: Set<string>) {
 }
 
 export function claimArrivalBeat(storage: Storage | null, unit: number) {
-  const seen = readSet(storage, ARRIVAL_KEY);
+  const seen = readSet(storage, SCENE_ARRIVAL_SESSION_KEY);
   const key = String(unit);
   if (seen.has(key)) return false;
   seen.add(key);
-  writeSet(storage, ARRIVAL_KEY, seen);
+  writeSet(storage, SCENE_ARRIVAL_SESSION_KEY, seen);
   return true;
 }
 

@@ -88,6 +88,12 @@ describe("mobile sheet transition geometry", () => {
     expect(
       mobileSheetHorizontalSwipeIntent({ deltaX: 30, velocityX: 0.2 }),
     ).toBeNull();
+    expect(
+      mobileSheetHorizontalSwipeIntent({ deltaX: -40, velocityX: 0.2 }),
+    ).toBe(1);
+    expect(
+      mobileSheetHorizontalSwipeIntent({ deltaX: 12, velocityX: 0.5 }),
+    ).toBe(-1);
   });
   it("keeps the grabber and header fixed through both transition directions", () => {
     const geometries = (["closed", "opening", "open", "closing"] as const).map(

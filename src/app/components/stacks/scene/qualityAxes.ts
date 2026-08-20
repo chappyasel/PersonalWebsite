@@ -46,8 +46,18 @@ export const SCENE_RESOLUTION_FLOOR = SCENE_RESOLUTION_SCALE_FLOOR;
 
 export const QUALITY_RESOLUTION_DWELL_MS = 1_500;
 export const QUALITY_RESOLUTION_RISE_MS = 3_000;
+/** A lower step that restored headroom is a known-good operating point. Do
+ * not immediately revisit the step that just missed budget: that creates a
+ * two-state DPR oscillator, and every reversal reallocates Safari's drawing
+ * buffer. A minute still permits genuine thermal recovery without turning a
+ * transient good window into visible flashing. */
+export const QUALITY_RESOLUTION_RETRY_MS = 60_000;
 export const QUALITY_EFFECTS_FALL_MS = 5_000;
 export const QUALITY_EFFECTS_RISE_MS = 15_000;
+/** Re-enabling a spatial pass is a visible, allocative change. If the richer
+ * tier immediately caused pressure, hold the known-good tier before retrying
+ * so DoF and AO cannot cycle every fall/rise interval. */
+export const QUALITY_EFFECTS_RETRY_MS = 60_000;
 export const QUALITY_CONTENT_FALL_MS = 10_000;
 export const QUALITY_CONTENT_RISE_MS = 60_000;
 
@@ -71,7 +81,6 @@ export const QUALITY_BOOT_GUARD_MS = 10_000;
  * move never produces the improvement the block waits for, and a change that
  * did not help is precisely the signal to try the next lever. */
 export const QUALITY_AXIS_BLOCK_MS = QUALITY_SAMPLE_WINDOW_MS * 2;
-
 
 export const QUALITY_TRAVEL_RESOLUTION_DROP_STEPS = 2;
 /** A travel is over budget on the same dropped-frame test the rest budget
@@ -124,6 +133,11 @@ export type SceneQualityAxisState = Readonly<{
   /** When each axis last moved. An axis must re-earn its full sustain before
    * moving again, which is what paces one axis without freezing the others. */
   axisChangedAt: Readonly<Record<QualityAxisName, number>>;
+  /** Earliest time Auto may retry a higher resolution after GPU pressure
+   * established that the previous step missed budget. */
+  resolutionRetryAt: number | null;
+  /** Earliest time Auto may retry a richer effects tier after GPU pressure. */
+  effectsRetryAt: number | null;
   /** How long the current classification has held. These track the run of
    * windows only: a window that breaks the classification resets them, and an
    * axis moving does not, so a slow axis can still accumulate evidence while
@@ -162,7 +176,10 @@ export type SceneQualityAxisState = Readonly<{
 const tierIndex = <T extends string>(tiers: readonly T[], value: T) =>
   Math.max(0, tiers.indexOf(value));
 
-const lowerTier = <T extends string>(tiers: readonly T[], value: T): T | null =>
+const lowerTier = <T extends string>(
+  tiers: readonly T[],
+  value: T,
+): T | null =>
   tierIndex(tiers, value) <= 0 ? null : tiers[tierIndex(tiers, value) - 1]!;
 
 const higherTier = <T extends string>(
@@ -204,7 +221,10 @@ export function resolutionStepForScale(scale: number, ceiling: number): number {
  * existing profile effect blocks with no numeric change, so each tier's look
  * is already reviewed and accepted. */
 export const AXES_BY_PROFILE: Readonly<
-  Record<SceneQualityProfile, Readonly<{ effects: SceneEffectsTier; content: SceneContentTier }>>
+  Record<
+    SceneQualityProfile,
+    Readonly<{ effects: SceneEffectsTier; content: SceneContentTier }>
+  >
 > = {
   cinematic: { effects: "cinematic", content: "full" },
   showcase: { effects: "full", content: "full" },
@@ -217,10 +237,11 @@ export function initialSceneQualityAxisState(
   profile: SceneQualityProfile,
   now: number,
   forced: SceneQualityProfile | null = null,
+  resolutionStep = SCENE_RESOLUTION_MAX_STEP,
 ): SceneQualityAxisState {
   return {
     axes: {
-      resolutionStep: SCENE_RESOLUTION_MAX_STEP,
+      resolutionStep,
       ...AXES_BY_PROFILE[profile],
     },
     forced,
@@ -230,6 +251,8 @@ export function initialSceneQualityAxisState(
     consecutiveOverBudgetTravels: 0,
     settledAt: null,
     axisChangedAt: { resolution: now, effects: now, content: now },
+    resolutionRetryAt: null,
+    effectsRetryAt: null,
     gpuSince: null,
     cpuSince: null,
     headroomSince: null,
@@ -249,15 +272,26 @@ export type SceneQualityAxisEvent =
       now: number;
       metrics: SceneQualityMetrics;
       visible: boolean;
+      /** False on WebKit/iOS, where changing DPR presents cleared black
+       * frames while the drawing buffer is reallocated. */
+      allowResolutionChange?: boolean;
     }>
-  | Readonly<{ type: "travel-start"; now: number }>
+  | Readonly<{
+      type: "travel-start";
+      now: number;
+      allowResolutionChange?: boolean;
+    }>
   | Readonly<{
       type: "travel-end";
       now: number;
       frames?: Readonly<{ total: number; late: number }>;
     }>
   | Readonly<{ type: "travel-frame"; frameMs: number }>
-  | Readonly<{ type: "force"; now: number; profile: SceneQualityProfile | null }>
+  | Readonly<{
+      type: "force";
+      now: number;
+      profile: SceneQualityProfile | null;
+    }>
   | Readonly<{ type: "restore"; now: number; axes: SceneQualityAxes }>
   /** Every boot precondition has been met: the reveal completed, the shader
    * precompile returned, and the first settled window after initial camera
@@ -341,6 +375,14 @@ export function reduceSceneQualityAxes(
         },
         pendingBaseline: null,
         pendingBaselineExpiresAt: null,
+        resolutionRetryAt:
+          event.axes.resolutionStep < SCENE_RESOLUTION_MAX_STEP
+            ? event.now + QUALITY_RESOLUTION_RETRY_MS
+            : null,
+        effectsRetryAt:
+          event.axes.effects !== AXES_BY_PROFILE.showcase.effects
+            ? event.now + QUALITY_EFFECTS_RETRY_MS
+            : null,
         deferredContent: null,
         lastChange: null,
         ...clearedClocks,
@@ -356,6 +398,7 @@ export function reduceSceneQualityAxes(
         axes: { ...state.axes, ...AXES_BY_PROFILE[event.profile] },
         ...clearedClocks,
         pendingBaseline: null,
+        effectsRetryAt: null,
         deferredContent: null,
       };
     }
@@ -398,7 +441,8 @@ export function reduceSceneQualityAxes(
       // fact, by travel-end counting over-budget travels and content
       // stepping down once the pattern repeats. That path costs nothing when
       // the guess would have been wrong.
-      const borrow = state.gpuSince != null;
+      const borrow =
+        event.allowResolutionChange !== false && state.gpuSince != null;
       const step = borrow
         ? Math.max(
             0,
@@ -461,6 +505,7 @@ export function reduceSceneQualityAxes(
 
     case "sample": {
       const { now, metrics, visible } = event;
+      const allowResolutionChange = event.allowResolutionChange !== false;
       if (!visible || metrics.sampleCount < 2 || !Number.isFinite(metrics.p95))
         return state;
       // A cold cache and a warm cache produce very different first seconds.
@@ -498,6 +543,7 @@ export function reduceSceneQualityAxes(
               ...next,
               axes: { ...next.axes, effects: tier },
               axisChangedAt: moved(next, "effects", now),
+              effectsRetryAt: now + QUALITY_EFFECTS_RETRY_MS,
               lastChange: {
                 axis: "effects",
                 direction: "down",
@@ -507,7 +553,13 @@ export function reduceSceneQualityAxes(
         }
         if (
           constraint === "cpu" &&
-          axisReady(next, "content", next.cpuSince, now, QUALITY_CONTENT_FALL_MS)
+          axisReady(
+            next,
+            "content",
+            next.cpuSince,
+            now,
+            QUALITY_CONTENT_FALL_MS,
+          )
         ) {
           const tier = lowerTier(SCENE_CONTENT_TIERS, next.axes.content);
           if (tier) return { ...next, deferredContent: tier };
@@ -573,7 +625,9 @@ export function reduceSceneQualityAxes(
       };
       if (
         next.pendingBaseline &&
-        (severeOverrides || blockExpired || improvedOver(metrics, next.pendingBaseline))
+        (severeOverrides ||
+          blockExpired ||
+          improvedOver(metrics, next.pendingBaseline))
       )
         // The first decline has now been answered by a later window, so the
         // guard has done its job and normal pacing resumes.
@@ -613,10 +667,7 @@ export function reduceSceneQualityAxes(
       // validation, one target reallocation per dwell. CPU pressure does not
       // stop repayment because pixels cannot relieve it; GPU pressure does.
       if (next.preTravelStep != null) {
-        const target = Math.min(
-          SCENE_RESOLUTION_MAX_STEP,
-          next.preTravelStep,
-        );
+        const target = Math.min(SCENE_RESOLUTION_MAX_STEP, next.preTravelStep);
         if (next.axes.resolutionStep >= target) {
           next = { ...next, preTravelStep: null };
         } else if (constraint === "gpu") {
@@ -638,7 +689,7 @@ export function reduceSceneQualityAxes(
       }
 
       if (constraint === "gpu") {
-        if (next.axes.resolutionStep > 0) {
+        if (allowResolutionChange && next.axes.resolutionStep > 0) {
           if (blockedAxis("resolution")) return next;
           // A dwell that has not elapsed defers the whole decision rather
           // than passing the turn to a slower axis: a dwell is a short wait,
@@ -653,6 +704,7 @@ export function reduceSceneQualityAxes(
             axisChangedAt: moved(next, "resolution", now),
             pendingBaseline: metrics,
             pendingBaselineExpiresAt: now + QUALITY_AXIS_BLOCK_MS,
+            resolutionRetryAt: now + QUALITY_RESOLUTION_RETRY_MS,
             lastChange: {
               axis: "resolution",
               direction: "down",
@@ -661,8 +713,9 @@ export function reduceSceneQualityAxes(
           };
         }
 
-        // Only resolution actually sitting at its floor passes GPU pressure
-        // to the effects axis.
+        // Normally only the resolution floor passes GPU pressure to effects.
+        // A platform-locked drawing buffer cannot spend that axis safely, so
+        // it bypasses the unavailable lever instead of stalling forever.
         if (next.forced) return next;
 
         if (
@@ -683,6 +736,7 @@ export function reduceSceneQualityAxes(
               axisChangedAt: moved(next, "effects", now),
               pendingBaseline: metrics,
               pendingBaselineExpiresAt: now + QUALITY_AXIS_BLOCK_MS,
+              effectsRetryAt: now + QUALITY_EFFECTS_RETRY_MS,
               lastChange: {
                 axis: "effects",
                 direction: "down",
@@ -697,7 +751,13 @@ export function reduceSceneQualityAxes(
       if (constraint === "cpu") {
         if (next.forced || blockedAxis("content")) return next;
         if (
-          axisReady(next, "content", next.cpuSince, now, QUALITY_CONTENT_FALL_MS)
+          axisReady(
+            next,
+            "content",
+            next.cpuSince,
+            now,
+            QUALITY_CONTENT_FALL_MS,
+          )
         ) {
           const tier = lowerTier(SCENE_CONTENT_TIERS, next.axes.content);
           if (tier)
@@ -729,7 +789,13 @@ export function reduceSceneQualityAxes(
         // that recovered gets its geometry back rather than only its pixels.
         if (
           !next.forced &&
-          axisReady(next, "content", next.headroomSince, now, QUALITY_CONTENT_RISE_MS) &&
+          axisReady(
+            next,
+            "content",
+            next.headroomSince,
+            now,
+            QUALITY_CONTENT_RISE_MS,
+          ) &&
           next.axes.content !== ceiling.content
         ) {
           const tier = higherTier(
@@ -752,7 +818,14 @@ export function reduceSceneQualityAxes(
 
         if (
           !next.forced &&
-          axisReady(next, "effects", next.headroomSince, now, QUALITY_EFFECTS_RISE_MS) &&
+          (next.effectsRetryAt == null || now >= next.effectsRetryAt) &&
+          axisReady(
+            next,
+            "effects",
+            next.headroomSince,
+            now,
+            QUALITY_EFFECTS_RISE_MS,
+          ) &&
           next.axes.effects !== ceiling.effects
         ) {
           const tier = higherTier(
@@ -765,6 +838,7 @@ export function reduceSceneQualityAxes(
               ...next,
               axes: { ...next.axes, effects: tier },
               axisChangedAt: moved(next, "effects", now),
+              effectsRetryAt: null,
               lastChange: {
                 axis: "effects",
                 direction: "up",
@@ -774,7 +848,15 @@ export function reduceSceneQualityAxes(
         }
 
         if (
-          axisReady(next, "resolution", next.headroomSince, now, QUALITY_RESOLUTION_RISE_MS) &&
+          allowResolutionChange &&
+          (next.resolutionRetryAt == null || now >= next.resolutionRetryAt) &&
+          axisReady(
+            next,
+            "resolution",
+            next.headroomSince,
+            now,
+            QUALITY_RESOLUTION_RISE_MS,
+          ) &&
           dwellElapsed &&
           next.axes.resolutionStep < SCENE_RESOLUTION_MAX_STEP
         ) {
@@ -783,6 +865,7 @@ export function reduceSceneQualityAxes(
             ...next,
             axes: { ...next.axes, resolutionStep: step },
             axisChangedAt: moved(next, "resolution", now),
+            resolutionRetryAt: null,
             lastChange: {
               axis: "resolution",
               direction: "up",

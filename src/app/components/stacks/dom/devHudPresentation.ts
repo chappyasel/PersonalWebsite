@@ -37,6 +37,7 @@ export type DevHudInput = Readonly<{
   ambientOcclusionQuality: string | null;
   depthOfField: boolean | null;
   depthOfFieldResolutionScale: number | null;
+  depthOfFieldBokehScale: number | null;
   calls: number | null;
   triangles: number | null;
   textures: number | null;
@@ -119,7 +120,9 @@ export function createDevHudRows(input: DevHudInput): readonly DevHudRow[] {
       )}`
     : "AO–";
   const dof = input.depthOfField
-    ? `DoF${trimScale(input.depthOfFieldResolutionScale)}`
+    ? `DoF q${trimScale(input.depthOfFieldResolutionScale)}/b${trimScale(
+        input.depthOfFieldBokehScale,
+      )}`
     : "DoF–";
   const statusCandidates: Array<DevHudSegment | null> = [
     input.fallbackStatus?.startsWith("direct")

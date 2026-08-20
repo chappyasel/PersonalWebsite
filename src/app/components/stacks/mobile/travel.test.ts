@@ -4,9 +4,10 @@ import { cameraTravelState } from "../scene/cameraZoom";
 import {
   authoredTravelStops,
   clampWorldZoom,
+  isAtAuthoredTravelStop,
   nearestAuthoredStop,
   projectedInertiaDistance,
-  shouldSettleInterruptedInertia,
+  shouldSettleInterruptedTravel,
   unitForScrollPosition,
   worldZoomFromVerticalDrag,
 } from "./travel";
@@ -39,9 +40,43 @@ describe("kinetic snapping", () => {
 
     expect(stranded.focusBlockedByTravel).toBe(true);
     expect(settled.focusBlockedByTravel).toBe(false);
-    expect(shouldSettleInterruptedInertia(42, "new-contact")).toBe(true);
-    expect(shouldSettleInterruptedInertia(null, "new-contact")).toBe(false);
-    expect(shouldSettleInterruptedInertia(42, "cleanup")).toBe(false);
+    expect(shouldSettleInterruptedTravel(42, null, false, "new-contact")).toBe(
+      true,
+    );
+    expect(shouldSettleInterruptedTravel(null, 1, true, "new-contact")).toBe(
+      false,
+    );
+    expect(shouldSettleInterruptedTravel(42, null, false, "cleanup")).toBe(
+      false,
+    );
+  });
+
+  it("settles the captured iPhone position after inertia has ended", () => {
+    const captured = cameraTravelState({
+      scenePosition: 1.2861,
+      previousScenePosition: 1.2861,
+      alternateStop: 1.65,
+    });
+
+    expect(captured.focusBlockedByTravel).toBe(true);
+    expect(shouldSettleInterruptedTravel(null, null, false, "new-contact")).toBe(
+      true,
+    );
+  });
+
+  it("does not restart travel at the captured near-stop iPhone position", () => {
+    const position = 2.9997;
+    const atAuthoredStop = isAtAuthoredTravelStop(position, 7, [1.52]);
+
+    expect(atAuthoredStop).toBe(true);
+    expect(
+      shouldSettleInterruptedTravel(
+        null,
+        null,
+        atAuthoredStop,
+        "new-contact",
+      ),
+    ).toBe(false);
   });
 
   it("includes optional authored stops and caps visitor zoom", () => {

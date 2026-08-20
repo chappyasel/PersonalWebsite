@@ -49,18 +49,21 @@ describe("scene backdrop", () => {
   // Sampled from the rendered frame, so the ramp must actually descend from
   // sky to ground rather than being a flat wash: the top stop is well clear
   // of the bottom one in both themes.
-  it.each(["light", "dark"] as const)("reads as sky over ground in %s", (theme) => {
-    const stops = stopsOf(SCENE_BACKDROP[theme]);
-    const blueness = (s: (typeof stops)[number]) => s.rgb[2] - s.rgb[1];
-    expect(blueness(stops[0]!)).toBeGreaterThan(blueness(stops.at(-1)!));
-  });
+  it.each(["light", "dark"] as const)(
+    "reads as sky over ground in %s",
+    (theme) => {
+      const stops = stopsOf(SCENE_BACKDROP[theme]);
+      const blueness = (s: (typeof stops)[number]) => s.rgb[2] - s.rgb[1];
+      expect(blueness(stops[0]!)).toBeGreaterThan(blueness(stops.at(-1)!));
+    },
+  );
 
-  // Guards the reason the fix works at all: three hardcodes `alpha: true`
-  // into the context attributes, so passing `alpha: false` to the renderer
-  // only changes the CLEAR alpha. With a backdrop behind the canvas an opaque
-  // clear is actively worse — it paints uncovered pixels black instead of
-  // letting the backdrop show.
-  it("does not request an opaque clear that would hide the backdrop", () => {
+  // Physical iPhone testing disproved the opaque-context workaround: the same
+  // missed frame became black, and preserving the buffer did not make a DPR
+  // reallocation atomic. Keep alpha so this backdrop is the fallback pixels.
+  it("keeps the scene backdrop reachable through the canvas alpha channel", () => {
+    expect(canvas).toContain("gl={{ antialias: true }}");
+    expect(canvas).not.toContain("createOpaqueSceneContext(");
     expect(canvas).not.toMatch(/alpha:\s*false/);
   });
 });

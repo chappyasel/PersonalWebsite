@@ -43,6 +43,7 @@ import {
   filterTrianglesToHalfSpace,
   modelDetailHalfSpace,
 } from "./oneSidedDetailGeometry";
+import { useSceneQualityControls } from "./sceneQualityController";
 
 /** Name of the node `spinPart` isolates. Animators find it by traversing the
  * subtree rather than through a prop, which keeps ModelProp's memo free of
@@ -706,6 +707,7 @@ export default function ModelProp({
   scale?: number;
 }) {
   const { scene } = useGLTF(url, false);
+  const { cinematicPlus } = useSceneQualityControls();
   // Two atlas sets, one code path: recolor props sample the tiny-treats
   // pair, everything else the CreativeTrio pair. Same hook, same cache.
   const atlases = useTexture(variant === "recolor" ? RECOLOR_URLS : ATLAS_URLS);
@@ -856,6 +858,23 @@ export default function ModelProp({
     smoothNormals,
     spinPart,
   ]);
+
+  // GLTF nodes do not inherit the castShadow flags used by the hand-authored
+  // primitives. Opt their private clones into the temporary daylight shadow
+  // pass only while Cinematic+ is live, then restore every original flag.
+  useEffect(() => {
+    if (!cinematicPlus || dark) return;
+    const originals: Array<[THREE.Mesh, boolean]> = [];
+    object.traverse((node) => {
+      if (!(node instanceof THREE.Mesh)) return;
+      const mesh = node as THREE.Mesh;
+      originals.push([mesh, mesh.castShadow]);
+      mesh.castShadow = true;
+    });
+    return () => {
+      for (const [mesh, castShadow] of originals) mesh.castShadow = castShadow;
+    };
+  }, [cinematicPlus, dark, object]);
 
   // Release what this memo allocated. `tints` and `atlasOverride` are inline
   // object literals at every call site, so their identity changes on ANY

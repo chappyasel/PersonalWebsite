@@ -79,14 +79,21 @@ describe("cross-visit quality learning", () => {
   });
 
   it("keys the entry by the versioned bucket", () => {
-    expect(bucket()).toContain("stacks-quality:v5:");
+    expect(bucket()).toContain("stacks-quality:v7:");
   });
 
   it("ignores an entry written under the previous format version", () => {
-    // v4 wrote a bare profile name under a v4 key. Neither the key nor the
-    // shape can be read now, which is the intended invalidation.
-    const v4Key = bucket().replace(":v5:", ":v4:");
-    window.localStorage.setItem(v4Key, "safety");
+    // v6 could learn minimal effects while the iOS resolution axis was
+    // locked. That stale compromise must not return after the axis is live.
+    const v6Key = bucket().replace(":v7:", ":v6:");
+    window.localStorage.setItem(
+      v6Key,
+      JSON.stringify({
+        resolutionStep: 2,
+        effects: "lean",
+        content: "reduced",
+      }),
+    );
     expect(readLearnedQuality(bucket())).toBeNull();
   });
 
@@ -98,7 +105,11 @@ describe("cross-visit quality learning", () => {
   it("rejects an entry with an unrecognised tier", () => {
     window.localStorage.setItem(
       bucket(),
-      JSON.stringify({ resolutionStep: 5, effects: "ludicrous", content: "full" }),
+      JSON.stringify({
+        resolutionStep: 5,
+        effects: "ludicrous",
+        content: "full",
+      }),
     );
     expect(readLearnedQuality(bucket())).toBeNull();
   });
@@ -106,7 +117,11 @@ describe("cross-visit quality learning", () => {
   it("rejects an entry with a non-numeric resolution step", () => {
     window.localStorage.setItem(
       bucket(),
-      JSON.stringify({ resolutionStep: "high", effects: "lean", content: "full" }),
+      JSON.stringify({
+        resolutionStep: "high",
+        effects: "lean",
+        content: "full",
+      }),
     );
     expect(readLearnedQuality(bucket())).toBeNull();
   });
@@ -159,7 +174,9 @@ describe("when persistent storage is unavailable", () => {
   });
 
   it("degrades to disabled rather than throwing on write", () => {
-    expect(() => writeLearnedQuality(bucket(), axes, "efficient")).not.toThrow();
+    expect(() =>
+      writeLearnedQuality(bucket(), axes, "efficient"),
+    ).not.toThrow();
   });
 
   it("degrades to disabled rather than throwing on clear", () => {

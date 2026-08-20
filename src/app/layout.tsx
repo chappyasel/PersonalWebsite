@@ -2,7 +2,7 @@ import { type Metadata, type Viewport } from "next";
 import { Literata } from "next/font/google";
 
 import { FontProvider } from "~/lib/font-provider";
-import { ObserverProvider, ThemeProvider } from "~/lib/providers";
+import { ThemeProvider } from "~/lib/providers";
 import { THEME_COLOR, THEME_STORAGE_KEY } from "~/lib/theme";
 
 import "~/styles/globals.css";
@@ -109,11 +109,9 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
       </head>
       <body>
-        <ObserverProvider>
-          <ThemeProvider>
-            <FontProvider>{children}</FontProvider>
-          </ThemeProvider>
-        </ObserverProvider>
+        <ThemeProvider>
+          <FontProvider>{children}</FontProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -13,6 +13,7 @@ import {
   HOME_OG_LENS_CENTER,
   HOME_OG_LOOK_Y,
   HOME_OG_OUTPUT,
+  HOME_OG_RESOLUTION_CEILING,
   HOME_OG_SCENE_CROP,
   HOME_OG_VIEWPORT,
 } from "./home-og-scene-config.mjs";
@@ -46,6 +47,7 @@ function captureUrl(rawUrl) {
   // Capture with the scene's manual-only maximum-quality profile: full-resolution
   // AO and depth of field, 10-level bloom, 8x MSAA, and maximum environment detail.
   url.searchParams.set("quality", "cinematic");
+  url.searchParams.set("og-resolution", HOME_OG_RESOLUTION_CEILING.toString());
   url.searchParams.set("og-head-on", "1");
   // A slightly narrower capture lens gives the shelf more of the finished
   // card without changing the live homepage camera.

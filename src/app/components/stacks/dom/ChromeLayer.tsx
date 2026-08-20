@@ -1,12 +1,13 @@
 "use client";
 
-// Screen-fixed chrome over the world: shared styles (scrollbar hiding, grain
-// reveal), animated film grain, bottom vignette, the persistent name, and
-// the theme toggle island. Everything except the toggle island is
-// pointer-events-none; interactive layers manage their own events.
-import { requestDevHooks } from "../scene/devHooks";
+// Screen-fixed chrome over the world: shared styles, bottom vignette, the
+// persistent name, and the theme toggle island. Everything except the toggle
+// island is pointer-events-none; interactive layers manage their own events.
+import {
+  requestDevHooks,
+  sceneDiagnosticsQueryMode,
+} from "../scene/devHooks";
 import { useStacks } from "../store";
-import { GRAIN_URI } from "../theme";
 import dynamic from "next/dynamic";
 import { type ComponentType, useEffect, useState } from "react";
 
@@ -22,7 +23,7 @@ const SoundToggle = dynamic(
   },
 );
 
-export function GrainReveal({
+export function ChromeReveal({
   index = 0,
   className,
   children,
@@ -50,7 +51,8 @@ function isEditableShortcutTarget(target: EventTarget | null) {
 }
 
 /** Development keeps the compact HUD visible without enabling the expensive
- * scene probes. Production loads nothing until D or ?debug=1 requests it. */
+ * scene probes. Production loads the same cheap monitor for ?hud=1; D and
+ * ?debug=1 opt into the full instrumented console. */
 function SceneDiagnosticsLoader() {
   const [request, setRequest] = useState<{
     initiallyOpen: boolean;
@@ -62,11 +64,17 @@ function SceneDiagnosticsLoader() {
   }> | null>(null);
 
   useEffect(() => {
-    const debugRequested =
-      new URLSearchParams(window.location.search).get("debug") === "1";
-    if (debugRequested && request?.initiallyOpen !== true) {
+    const queryMode = sceneDiagnosticsQueryMode(window.location.search);
+    if (queryMode === "debug" && request?.initiallyOpen !== true) {
       requestDevHooks();
       setRequest({ initiallyOpen: true });
+      return;
+    }
+    if (queryMode === "hud" && request === null) {
+      // The canvas installs only its cheap read hooks for this URL. Loading the
+      // compact HUD must not signal full instrumentation, which would mount
+      // frame tracing, matrix timing and the perch sweep.
+      setRequest({ initiallyOpen: false });
       return;
     }
     if (request) return;
@@ -219,34 +227,7 @@ export default function ChromeLayer() {
             transform: none;
           }
         }
-        .stacks-grain {
-          position: absolute;
-          inset: -5%;
-          background-size: 180px;
-          opacity: 0.06;
-        }
-        @media (prefers-reduced-motion: no-preference) {
-          .stacks-grain {
-            animation: stacks-grain-jitter 0.7s steps(1) infinite;
-          }
-        }
-        @keyframes stacks-grain-jitter {
-          0% { transform: translate3d(0, 0, 0); }
-          12.5% { transform: translate3d(-2.6%, -1.6%, 0); }
-          25% { transform: translate3d(1.8%, -2.9%, 0); }
-          37.5% { transform: translate3d(-3.4%, 2.2%, 0); }
-          50% { transform: translate3d(2.9%, 1.4%, 0); }
-          62.5% { transform: translate3d(-1.2%, 3.1%, 0); }
-          75% { transform: translate3d(3.3%, -0.9%, 0); }
-          87.5% { transform: translate3d(-2.1%, -3.2%, 0); }
-        }
       `}</style>
-      {/* Grain jitters via compositor transform only — animating seed or
-          background-position forces CPU repaints. The wrapper clips the 110%
-          oversize so jitter never exposes an edge. */}
-      <div className="pointer-events-none absolute inset-0 z-[5] overflow-hidden">
-        <div className="stacks-grain" style={{ backgroundImage: GRAIN_URI }} />
-      </div>
       {/* Composer-off fallback vignette. Black in BOTH themes (round 3: the
           white light-mode version read as ground fog over the meadow) and
           half the old strength — a grounding shadow, not a fog bank. */}
@@ -255,11 +236,11 @@ export default function ChromeLayer() {
       )}
       <div className="stacks-wordmark pointer-events-none absolute z-20">
         <div className="flex items-start gap-2.5">
-          <GrainReveal index={0}>
+          <ChromeReveal index={0}>
             <p className="stacks-on-background-text whitespace-nowrap font-serif text-base tracking-tight text-foreground min-[1200px]:text-lg">
               Chappy Asel
             </p>
-          </GrainReveal>
+          </ChromeReveal>
           <SceneDiagnosticsLoader />
         </div>
       </div>
@@ -297,10 +278,10 @@ export default function ChromeLayer() {
           is not ours, it does not ship, and nothing here is laid out around
           it — but it does sit on top of this glyph in a dev screenshot. */}
       <div className="stacks-theme-toggle pointer-events-auto absolute z-30">
-        <GrainReveal index={2} className="stacks-scene-controls">
+        <ChromeReveal index={2} className="stacks-scene-controls">
           <ThemeToggle className="stacks-on-background-text !rounded-full hover:!bg-foreground/[0.09] active:!bg-foreground/[0.14]" />
           <SoundToggle className="stacks-on-background-text !rounded-full hover:!bg-foreground/[0.09] active:!bg-foreground/[0.14]" />
-        </GrainReveal>
+        </ChromeReveal>
       </div>
     </>
   );

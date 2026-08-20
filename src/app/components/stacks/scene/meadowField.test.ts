@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 
+import { GOLF_COURSE_CENTER, suppressGolfVegetation } from "./golf/golfCourse";
 import {
   EAST_FEATHER,
   FAR_FEATHER,
   FLING_APRON_FLOWERS,
   FLING_GRASS_APRON,
+  FLOWER_BACKGROUND_DENSITY,
+  FLOWER_BACKGROUND_LIFT,
   FLOWER_CLUSTER,
   FLOWER_LIFT,
+  FLOWER_VARIATION,
   GRASS_BANDS,
   GRASS_ROOT_SINK,
   HORIZON_RIDGE,
@@ -22,6 +26,7 @@ import {
   MEADOW_TERRAIN,
   MEADOW_TILE_SIZE,
   NEAR_FEATHER_ZONE,
+  TRAVERSE_EYE,
   UNDER_SHELF_GRASS_TIP_Y,
   VEGETATION_FRONT_Z,
   WEST_FEATHER,
@@ -32,16 +37,30 @@ import {
   eastFeatherScale,
   farFeatherScale,
   flingApronHeightScale,
+  flowerCanopyLift,
+  flowerSurvivesBackgroundThinning,
+  grassFocusHeightScale,
+  grassTuftHorizontalReach,
+  grassTuftNormalizationScale,
   horizonCrestY,
   inEastFeather,
   inWestFeather,
   meadowHeight,
+  midGrassHeight,
+  midGrassWidth,
+  nearGrassHeight,
+  nearGrassWidth,
+  ridgeGrassWidth,
   shadeScale,
+  traverseGrassDensityWeight,
   underLowerShelf,
   unionWestX,
   westFeatherScale,
 } from "./meadowField";
-import { SEAT_POSE } from "./seated";
+import { ABOUT_COUCH, SEAT_POSE } from "./seated";
+import { SHELF_GEOMETRY } from "./shelfGeometry";
+import { TRAINING_BARBELL_POSE } from "./units/unitShelfLayout";
+import { TRAVEL_X, UNIT_SPACING, unitPose } from "./worldLayout";
 
 const SEAT_X = SEAT_POSE.eye[0];
 const SEAT_Y = SEAT_POSE.eye[1];
@@ -111,6 +130,144 @@ describe("rung dial", () => {
       expect(perBand[3]! / GRASS_BANDS.ridge.count).toBeCloseTo(frac, 2);
       expect(perBand[4]! / GRASS_BANDS.apron.count).toBeCloseTo(frac, 2);
     });
+  });
+});
+
+describe("grass tuft LOD normalization", () => {
+  it("corrects cheap-LOD coverage without stretching its cards to full size", () => {
+    const full = grassTuftNormalizationScale(0.13, 0.13);
+    const reduced = grassTuftNormalizationScale(0.15, 0.13);
+    const minimal = grassTuftNormalizationScale(0.2, 0.13);
+
+    expect(reduced.x).toBe(full.x);
+    expect(reduced.z).toBe(full.z);
+    expect(minimal.x).toBeLessThan(full.x);
+    expect(minimal.z).toBeLessThan(full.z);
+    expect(minimal.x).toBeGreaterThan(minimal.y);
+    expect(reduced.y).toBeLessThan(full.y);
+    expect(minimal.y).toBeLessThan(reduced.y);
+  });
+});
+
+describe("near-lawn coverage", () => {
+  const worldPoint = (unit: number, localX: number, localZ: number) => {
+    const pose = unitPose(unit);
+    const yaw = pose.rotation[1];
+    return {
+      x: pose.position[0] + localX * Math.cos(yaw) + localZ * Math.sin(yaw),
+      z: pose.position[2] - localX * Math.sin(yaw) + localZ * Math.cos(yaw),
+    };
+  };
+
+  const safetyCoverageP99 = (
+    center: { x: number; z: number },
+    halfWidth: number,
+    halfDepth: number,
+  ) => {
+    const grass = buildGrassInstances();
+    const distances: number[] = [];
+    for (let z = center.z - halfDepth; z <= center.z + halfDepth; z += 0.2) {
+      for (let x = center.x - halfWidth; x <= center.x + halfWidth; x += 0.2) {
+        let nearest = Number.POSITIVE_INFINITY;
+        for (const stream of [grass.near, grass.far]) {
+          for (let i = 0; i < stream.rungCounts[0]!; i += 1) {
+            if (stream.band[i] !== 0 && stream.band[i] !== 1) continue;
+            nearest = Math.min(
+              nearest,
+              Math.hypot(x - stream.x[i]!, z - stream.z[i]!),
+            );
+          }
+        }
+        distances.push(nearest);
+      }
+    }
+    distances.sort((a, b) => a - b);
+    return distances[Math.floor(distances.length * 0.99)]!;
+  };
+
+  it("overlaps the near and midfield bands instead of exposing a root seam", () => {
+    expect(GRASS_BANDS.near.d1 - GRASS_BANDS.mid.d0).toBeGreaterThanOrEqual(1);
+  });
+
+  it("keeps the barbell rear and About approach covered at Safety density", () => {
+    const barbell = worldPoint(
+      2,
+      TRAINING_BARBELL_POSE.base[0],
+      TRAINING_BARBELL_POSE.base[2],
+    );
+    const couch = worldPoint(0, ABOUT_COUCH.x, ABOUT_COUCH.z);
+
+    expect(
+      safetyCoverageP99({ x: barbell.x, z: TRAVERSE_EYE.z - 14 }, 2.2, 1),
+    ).toBeLessThan(0.4);
+    expect(
+      safetyCoverageP99({ x: couch.x, z: couch.z - 3.2 }, 3, 3.2),
+    ).toBeLessThan(0.4);
+  });
+
+  it("raises the grass behind the shelves into the midfield height", () => {
+    const shelfHeight = nearGrassHeight(5.8, 0.5);
+    const rearHeight = nearGrassHeight(14, 0.5);
+
+    expect(rearHeight).toBeGreaterThan(shelfHeight * 1.4);
+    expect(rearHeight).toBeCloseTo(midGrassHeight(14, 0.5), 2);
+  });
+
+  it("fills the shelf seam without stretching the middle into flat fans", () => {
+    const shelfWidth = nearGrassWidth(5.8, 0.5);
+    const backWidth = nearGrassWidth(14, 0.5);
+
+    expect(shelfWidth).toBeGreaterThan(0.56);
+    expect(backWidth).toBeGreaterThan(shelfWidth * 1.1);
+    expect(backWidth).toBeLessThan(shelfWidth * 1.15);
+    expect(buildGrassInstances().near.count).toBe(MEADOW_RUNG_GRASS_NEAR[3]);
+  });
+
+  it("moves broad overlap out of the midfield and onto the hill", () => {
+    expect(midGrassWidth(24, 0.5)).toBeLessThan(0.75);
+    expect(ridgeGrassWidth(0.5)).toBeGreaterThan(1.7);
+  });
+
+  it("redistributes roots from outer margins into the critical views", () => {
+    const training = unitPose(2);
+    const barbellX =
+      training.position[0] +
+      TRAINING_BARBELL_POSE.base[0] * Math.cos(training.rotation[1]) +
+      TRAINING_BARBELL_POSE.base[2] * Math.sin(training.rotation[1]);
+    const barbellZ =
+      training.position[2] -
+      TRAINING_BARBELL_POSE.base[0] * Math.sin(training.rotation[1]) +
+      TRAINING_BARBELL_POSE.base[2] * Math.cos(training.rotation[1]);
+
+    const betweenShelves = unitPose(0).position[0] + 0.5 * UNIT_SPACING;
+    const couch = worldPoint(0, ABOUT_COUCH.x, ABOUT_COUCH.z);
+    expect(traverseGrassDensityWeight(betweenShelves, -4)).toBe(0.86);
+    expect(traverseGrassDensityWeight(couch.x, couch.z - 3.2)).toBe(1);
+    expect(traverseGrassDensityWeight(TRAVEL_X + 4, -4)).toBe(0.42);
+    expect(traverseGrassDensityWeight(barbellX, barbellZ - 2.4)).toBe(1);
+    expect(
+      traverseGrassDensityWeight(
+        GOLF_COURSE_CENTER.x + 3.4,
+        GOLF_COURSE_CENTER.z - 2.3,
+      ),
+    ).toBe(1);
+    expect(buildGrassInstances().near.count).toBe(MEADOW_RUNG_GRASS_NEAR[3]);
+    expect(buildGrassInstances().far.count).toBe(MEADOW_RUNG_GRASS_FAR[3]);
+  });
+
+  it("lifts sparse focus grass without raising the surrounding field", () => {
+    const training = unitPose(2);
+    const barbellX =
+      training.position[0] +
+      TRAINING_BARBELL_POSE.base[0] * Math.cos(training.rotation[1]) +
+      TRAINING_BARBELL_POSE.base[2] * Math.sin(training.rotation[1]);
+    const barbellZ =
+      training.position[2] -
+      TRAINING_BARBELL_POSE.base[0] * Math.sin(training.rotation[1]) +
+      TRAINING_BARBELL_POSE.base[2] * Math.cos(training.rotation[1]);
+
+    expect(grassFocusHeightScale(barbellX, barbellZ - 2.4)).toBeCloseTo(1.14);
+    expect(grassFocusHeightScale(20, -4)).toBe(1);
   });
 });
 
@@ -304,8 +461,16 @@ describe("placement", () => {
       }
     }
     for (let i = 0; i < flowers.count; i += 7) {
+      const expectedLift =
+        flowers.apron[i] === 1
+          ? FLOWER_LIFT
+          : flowerCanopyLift(
+              flowers.x[i]!,
+              flowers.z[i]!,
+              flowers.variation[i],
+            );
       expect(flowers.y[i]!).toBeCloseTo(
-        meadowHeight(flowers.x[i]!, flowers.z[i]!) + FLOWER_LIFT,
+        meadowHeight(flowers.x[i]!, flowers.z[i]!) + expectedLift,
         5,
       );
     }
@@ -384,6 +549,25 @@ describe("placement", () => {
       }
     }
     expect(checked).toBeGreaterThanOrEqual(100);
+  });
+
+  it("caps wide tufts whose cards reach a lower shelf from outside it", () => {
+    const grass = buildGrassInstances();
+    let checked = 0;
+    for (const stream of [grass.near, grass.far]) {
+      for (let i = 0; i < stream.count; i += 1) {
+        const reach = grassTuftHorizontalReach(
+          stream.width[i]!,
+          stream.height[i]!,
+        );
+        if (!underLowerShelf(stream.x[i]!, stream.z[i]!, reach)) continue;
+        checked += 1;
+        expect(stream.y[i]! + stream.height[i]!).toBeLessThanOrEqual(
+          UNDER_SHELF_GRASS_TIP_Y + 1e-6,
+        );
+      }
+    }
+    expect(checked).toBeGreaterThanOrEqual(500);
   });
 
   it("shades tufts under the furniture in color, never in geometry", () => {
@@ -561,6 +745,172 @@ describe("terrain silhouette", () => {
 describe("flower clumps", () => {
   const flowers = buildFlowerPositions();
 
+  it("raises the middle background without reaching the grass canopy", () => {
+    for (const depth of [10, 14, 18, 20]) {
+      const z = TRAVERSE_EYE.z - depth;
+      const lift = flowerCanopyLift(-8, z, 0.5);
+      const canopy = Math.max(
+        nearGrassHeight(depth, 0.5),
+        midGrassHeight(depth, 0.5),
+      );
+      expect(lift).toBeGreaterThan(FLOWER_LIFT);
+      expect(lift).toBeLessThan(canopy);
+      expect(lift).toBeLessThanOrEqual(FLOWER_BACKGROUND_LIFT.max);
+    }
+  });
+
+  it("has no flower-height ring at the near-to-midfield handoff", () => {
+    const before = flowerCanopyLift(
+      -8,
+      TRAVERSE_EYE.z - GRASS_BANDS.mid.d0 + 0.001,
+      0.5,
+    );
+    const after = flowerCanopyLift(
+      -8,
+      TRAVERSE_EYE.z - GRASS_BANDS.mid.d0 - 0.001,
+      0.5,
+    );
+    expect(Math.abs(after - before)).toBeLessThan(0.001);
+  });
+
+  it("keeps the first half metre behind every shelf planted low", () => {
+    for (let unit = 0; unit <= Math.round(TRAVEL_X / UNIT_SPACING); unit += 1) {
+      const pose = unitPose(unit);
+      const yaw = pose.rotation[1];
+      const localZ =
+        SHELF_GEOMETRY.top.centerZ -
+        SHELF_GEOMETRY.top.depth / 2 -
+        FLOWER_BACKGROUND_LIFT.shelfBackDepth * 0.5;
+      const x = pose.position[0] + localZ * Math.sin(yaw);
+      const z = pose.position[2] + localZ * Math.cos(yaw);
+      expect(flowerCanopyLift(x, z, 0.5)).toBe(FLOWER_LIFT);
+    }
+  });
+
+  it("settles ridge flowers into the shorter hill grass", () => {
+    let checked = 0;
+    for (let i = 0; i < flowers.count; i += 1) {
+      if (flowers.apron[i] === 1) continue;
+      const depth = TRAVERSE_EYE.z - flowers.z[i]!;
+      if (depth < 24) continue;
+      const lift = flowers.y[i]! - meadowHeight(flowers.x[i]!, flowers.z[i]!);
+      expect(lift).toBeCloseTo(
+        flowerCanopyLift(flowers.x[i]!, flowers.z[i]!, flowers.variation[i]),
+        5,
+      );
+      if (depth >= FLOWER_BACKGROUND_LIFT.settleDepth[1])
+        expect(lift).toBeCloseTo(FLOWER_LIFT, 5);
+      checked += 1;
+    }
+    expect(checked).toBeGreaterThan(300);
+  });
+
+  it("halves the visible flower population across the lower hill", () => {
+    let visible = 0;
+    for (let i = 0; i < flowers.count; i += 1) {
+      const depth = TRAVERSE_EYE.z - flowers.z[i]!;
+      if (depth >= 18 && depth < 24 && flowers.scale[i]! > 0) visible += 1;
+    }
+    expect(visible).toBeGreaterThanOrEqual(95);
+    expect(visible).toBeLessThanOrEqual(170);
+  });
+
+  it("reduces only the field behind the shelves by thirty percent", () => {
+    const cutoff = FLOWER_BACKGROUND_DENSITY.startDepth;
+    expect(flowerSurvivesBackgroundThinning(cutoff - 0.001, 0)).toBe(true);
+    expect(flowerSurvivesBackgroundThinning(cutoff, 0.299)).toBe(false);
+    expect(flowerSurvivesBackgroundThinning(cutoff, 0.3)).toBe(true);
+
+    let eligible = 0;
+    let visible = 0;
+    for (let i = 0; i < flowers.count; i += 1) {
+      const depth = TRAVERSE_EYE.z - flowers.z[i]!;
+      if (depth < 12 || depth >= 18) continue;
+      const golf = suppressGolfVegetation(
+        flowers.x[i]!,
+        flowers.z[i]!,
+        flowers.variation[i]!,
+      );
+      if (!golf.flowers) continue;
+      eligible += 1;
+      if (flowers.scale[i]! > 0) visible += 1;
+    }
+    expect(visible / eligible).toBeGreaterThan(0.66);
+    expect(visible / eligible).toBeLessThan(0.74);
+  });
+
+  it("keeps planted high hills dense after shared rear thinning", () => {
+    let middleVisible = 0;
+    let highVisible = 0;
+    for (let i = 0; i < flowers.count; i += 1) {
+      if (flowers.scale[i]! <= 0) continue;
+      const depth = TRAVERSE_EYE.z - flowers.z[i]!;
+      if (depth >= 12 && depth < 18) middleVisible += 1;
+      if (depth >= 24 && depth < GRASS_BANDS.ridge.d1) highVisible += 1;
+    }
+    expect(highVisible).toBeGreaterThan(middleVisible * 1.35);
+    expect(highVisible).toBeLessThan(middleVisible * 1.7);
+
+    for (let unit = 0; unit <= Math.round(TRAVEL_X / UNIT_SPACING); unit += 1) {
+      const viewX = unitPose(unit).position[0];
+      let middleInView = 0;
+      let highInView = 0;
+      for (let i = 0; i < flowers.count; i += 1) {
+        if (flowers.scale[i]! <= 0) continue;
+        const depth = TRAVERSE_EYE.z - flowers.z[i]!;
+        if (Math.abs(flowers.x[i]! - viewX) >= depth * 0.55) continue;
+        if (depth >= 12 && depth < 18) middleInView += 1;
+        if (depth >= 24 && depth < GRASS_BANDS.ridge.d1) highInView += 1;
+      }
+      expect(highInView).toBeGreaterThanOrEqual(middleInView);
+    }
+  });
+
+  it("never leaves a visible flower inside the golf clearing", () => {
+    let cleared = 0;
+    for (let i = 0; i < flowers.count; i += 1) {
+      const golf = suppressGolfVegetation(
+        flowers.x[i]!,
+        flowers.z[i]!,
+        flowers.variation[i]!,
+      );
+      if (golf.flowers) continue;
+      expect(flowers.scale[i]).toBe(0);
+      cleared += 1;
+    }
+    expect(cleared).toBeGreaterThan(20);
+  });
+
+  it("gives individual heads enough variation for tilt, size, and color", () => {
+    let minVariation = Number.POSITIVE_INFINITY;
+    let maxVariation = Number.NEGATIVE_INFINITY;
+    for (let i = 0; i < flowers.count; i += 1) {
+      minVariation = Math.min(minVariation, flowers.variation[i]!);
+      maxVariation = Math.max(maxVariation, flowers.variation[i]!);
+    }
+
+    expect(minVariation).toBeLessThan(0.05);
+    expect(maxVariation).toBeGreaterThan(0.95);
+    expect(FLOWER_VARIATION.tiltRadians).toBeGreaterThan(0.35);
+    expect(FLOWER_VARIATION.aspect[1]).toBeGreaterThan(
+      FLOWER_VARIATION.aspect[0],
+    );
+    expect(FLOWER_VARIATION.pixelFloor[1]).toBeGreaterThan(
+      FLOWER_VARIATION.pixelFloor[0] * 1.4,
+    );
+    expect(FLOWER_VARIATION.value[1]).toBeGreaterThan(
+      FLOWER_VARIATION.value[0],
+    );
+    expect(FLOWER_VARIATION.fieldScale[1]).toBeGreaterThan(
+      FLOWER_VARIATION.fieldScale[0] * 2,
+    );
+    expect(FLOWER_VARIATION.rareColorFraction).toBeGreaterThan(0);
+    expect(FLOWER_VARIATION.rareColorFraction).toBeLessThan(0.05);
+    expect(FLOWER_CLUSTER.headsMax - FLOWER_CLUSTER.headsMin).toBeGreaterThan(
+      3,
+    );
+  });
+
   it("adds sparse clusters to the camera-side apron", () => {
     const apron: number[] = [];
     for (let i = 0; i < flowers.count; i++) {
@@ -618,13 +968,19 @@ describe("flower clumps", () => {
   });
 
   it("keeps the shader's species split honest", () => {
-    // vTint thresholds in Meadow.tsx: A < 0.55 ≤ B < 0.75 ≤ C. The seed
-    // tints are lattice-uniform, so the head split stays near 55/20/25.
+    // vTint thresholds in Meadow.tsx: A < 0.55 ≤ B < 0.75 ≤ C. Clusters
+    // stay lattice-uniform inside the flower-only tint range.
     let a = 0;
     for (let i = 0; i < flowers.count; i++) {
       if (flowers.tint[i]! < 0.55) a += 1;
     }
     expect(a / flowers.count).toBeGreaterThan(0.45);
     expect(a / flowers.count).toBeLessThan(0.65);
+  });
+
+  it("does not generate the pale seed-head species", () => {
+    for (let i = 0; i < flowers.count; i++) {
+      expect(flowers.tint[i]!).toBeLessThan(0.92);
+    }
   });
 });

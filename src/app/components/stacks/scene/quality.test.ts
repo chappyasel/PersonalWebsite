@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   AUTO_SCENE_QUALITY_PROFILES,
+  CONTENT_TIER_BY_PROFILE,
+  DEFAULT_GRASS_DEFORMATION_ENABLED,
+  NARROW_VIEWPORT_DPR_CAP_BY_PROFILE,
+  QUALITY_CPU_BOUND_MS,
   QUALITY_DECLINE_COOLDOWN_MS,
   QUALITY_DECLINE_SUSTAIN_MS,
   QUALITY_IGNORE_AFTER_TRANSITION_MS,
@@ -9,36 +13,34 @@ import {
   QUALITY_SAFETY_FALLBACK_MS,
   QUALITY_SAMPLE_INTERVAL_MS,
   QUALITY_TRAVEL_VALIDATION_MS,
-  NARROW_VIEWPORT_DPR_CAP_BY_PROFILE,
   SAFETY_BUDGET,
   SCENE_CONTENT_DEFINITIONS,
-  SCENE_RESOLUTION_SCALE_FLOOR,
-  CONTENT_TIER_BY_PROFILE,
   SCENE_FRAME_BUDGET_HZ,
   SCENE_FRAME_BUDGET_MS,
   SCENE_QUALITY_DEFINITIONS,
   SCENE_QUALITY_PROFILES,
+  SCENE_RESOLUTION_SCALE_FLOOR,
   type SceneFrameSample,
   type SceneQualityAdaptationState,
   type SceneQualityMetrics,
   type SceneQualityProfile,
   bookCoverWidthForNeed,
   classifySceneFrameConstraint,
-  summariseSceneFrameWindow,
   deriveRendererCapability,
   initialSceneQualityAdaptationState,
   qualityModeFromSearch,
   qualityProfileFromValue,
   reduceSceneQualityAdaptation,
+  rendererLooksWeak,
   resolveSceneQualityPlan,
   sceneQualityStorageBucket,
-  rendererLooksWeak,
   startingProfileForDevice,
+  summariseSceneFrameWindow,
 } from "./quality";
 import {
+  SCENE_RESOLUTION_MAX_STEP,
   initialSceneQualityAxisState,
   reduceSceneQualityAxes,
-  SCENE_RESOLUTION_MAX_STEP,
 } from "./qualityAxes";
 
 const good: SceneQualityMetrics = {
@@ -137,8 +139,13 @@ describe("scene quality policy", () => {
       expect({
         ...touch.effects,
         multisampling: desktop.effects.multisampling,
+        depthOfFieldBokehScale: desktop.effects.depthOfFieldBokehScale,
       }).toEqual(desktop.effects);
       expect(touch.effects.multisampling).toBe(0);
+      expect(touch.effects.depthOfFieldBokehScale / touch.dpr).toBeCloseTo(
+        desktop.effects.depthOfFieldBokehScale / desktop.dpr,
+        4,
+      );
     }
   });
 
@@ -157,12 +164,8 @@ describe("scene quality policy", () => {
         mode: profile,
         profile,
       });
-      expect(resolved.dpr).toBe(
-        NARROW_VIEWPORT_DPR_CAP_BY_PROFILE[profile],
-      );
-      expect(resolved.dprCap).toBe(
-        NARROW_VIEWPORT_DPR_CAP_BY_PROFILE[profile],
-      );
+      expect(resolved.dpr).toBe(NARROW_VIEWPORT_DPR_CAP_BY_PROFILE[profile]);
+      expect(resolved.dprCap).toBe(NARROW_VIEWPORT_DPR_CAP_BY_PROFILE[profile]);
     }
 
     expect(
@@ -248,7 +251,8 @@ describe("scene quality policy", () => {
 
   it("implements the specified environment and finishing profiles", () => {
     expect(AUTO_SCENE_QUALITY_PROFILES).not.toContain("cinematic");
-    expect(plan("cinematic")).toMatchObject({
+    const cinematic = plan("cinematic");
+    expect(cinematic).toMatchObject({
       pixelBudget: 16_600_000,
       effects: {
         composer: "full",
@@ -262,29 +266,33 @@ describe("scene quality policy", () => {
         ambientOcclusionQuality: "ultra",
         depthOfField: true,
         depthOfFieldResolutionScale: 1,
-        depthOfFieldBokehScale: 2,
         multisampling: 8,
       },
       environment: {
         meadowDensity: 1,
         meadowRung: 3,
         contentTier: "full",
-        petals: 49,
+        petals: 196,
         dust: true,
         cloudDetail: "full",
         farGrassShader: "full",
+        grassDeformation: "off",
         grounding: true,
       },
       butterflies: { wingBlurSamples: 5 },
     });
+    expect(
+      cinematic.effects.depthOfFieldBokehScale / cinematic.dpr,
+    ).toBeCloseTo(1.1875, 8);
     expect(plan("showcase").environment).toEqual({
       meadowDensity: 1,
       meadowRung: 3,
       contentTier: "full",
-      petals: 18,
+      petals: 84,
       dust: true,
       cloudDetail: "full",
       farGrassShader: "full",
+      grassDeformation: "off",
       grounding: true,
     });
     expect(plan("showcase").effects).toMatchObject({
@@ -292,10 +300,11 @@ describe("scene quality policy", () => {
       ambientOcclusionHalfRes: true,
       ambientOcclusionQuality: "medium",
       depthOfField: true,
-      depthOfFieldResolutionScale: 0.6,
+      depthOfFieldResolutionScale: 0.5,
     });
     expect(plan("balanced").environment.meadowDensity).toBe(1);
     expect(plan("balanced").environment.meadowRung).toBe(3);
+    expect(plan("balanced").environment.petals).toBe(70);
     expect(plan("balanced").effects.bloomLevels).toBe(6);
     expect(plan("balanced").effects).toMatchObject({
       ambientOcclusion: true,
@@ -307,7 +316,7 @@ describe("scene quality policy", () => {
     expect(plan("efficient").environment).toMatchObject({
       meadowDensity: 1,
       meadowRung: 3,
-      petals: 10,
+      petals: 42,
       dust: false,
       cloudDetail: "simplified",
       farGrassShader: "simplified",
@@ -336,7 +345,7 @@ describe("scene quality policy", () => {
       environment: {
         meadowDensity: 1,
         meadowRung: 3,
-        petals: 7,
+        petals: 21,
         dust: false,
         cloudDetail: "simplified",
         farGrassShader: "simplified",
@@ -345,6 +354,111 @@ describe("scene quality policy", () => {
       butterflies: { wingBlurSamples: 0 },
       wildlife: { suspendOffscreen: true },
     });
+  });
+
+  it("tunes DoF strength for presentation without changing its buffer budget", () => {
+    const portrait = resolveSceneQualityPlan({
+      mode: "efficient",
+      profile: "efficient",
+      cssWidth: 390,
+      cssHeight: 844,
+      deviceDpr: 3,
+      touch: true,
+      narrowViewport: true,
+    });
+    const shortLandscape = resolveSceneQualityPlan({
+      mode: "efficient",
+      profile: "efficient",
+      cssWidth: 844,
+      cssHeight: 390,
+      deviceDpr: 3,
+      touch: true,
+      narrowViewport: true,
+    });
+    const wide = resolveSceneQualityPlan({
+      mode: "showcase",
+      profile: "showcase",
+      cssWidth: 1440,
+      cssHeight: 900,
+      deviceDpr: 2,
+      touch: false,
+    });
+
+    expect(portrait.effects).toMatchObject({
+      depthOfFieldResolutionScale: 0.45,
+    });
+    expect(portrait.effects.depthOfFieldBokehScale / portrait.dpr).toBeCloseTo(
+      0.575,
+      8,
+    );
+    expect(
+      shortLandscape.effects.depthOfFieldBokehScale / shortLandscape.dpr,
+    ).toBeCloseTo(0.7, 8);
+    expect(wide.effects).toMatchObject({
+      depthOfFieldResolutionScale: 0.5,
+    });
+    expect(wide.effects.depthOfFieldBokehScale).toBeCloseTo(2.85, 8);
+  });
+
+  it("keeps the DoF footprint constant while the render scale moves", () => {
+    const plans = [0, 5, SCENE_RESOLUTION_MAX_STEP].map((resolutionStep) =>
+      resolveSceneQualityPlan({
+        mode: "auto",
+        profile: "showcase",
+        contentTier: "full",
+        effectsTier: "full",
+        resolutionStep,
+        cssWidth: 1440,
+        cssHeight: 900,
+        deviceDpr: 2,
+        touch: false,
+        narrowViewport: false,
+      }),
+    );
+    const cssBokehScale = plans.map(
+      (resolved) => resolved.effects.depthOfFieldBokehScale / resolved.dpr,
+    );
+
+    for (const scale of cssBokehScale.slice(1)) {
+      expect(scale).toBeCloseTo(cssBokehScale[0]!, 4);
+    }
+  });
+
+  it("uses the same DoF compensation for supersampled captures", () => {
+    const capture = resolveSceneQualityPlan({
+      mode: "cinematic",
+      profile: "cinematic",
+      resolutionCeiling: 4,
+      cssWidth: 1200,
+      cssHeight: 630,
+      deviceDpr: 4 / 3,
+      touch: false,
+      narrowViewport: false,
+    });
+
+    expect(capture.dpr).toBe(4);
+    expect(capture.effects.depthOfFieldBokehScale).toBe(4.75);
+    expect(capture.effects.depthOfFieldBokehScale / capture.dpr).toBe(1.1875);
+  });
+
+  it("applies live DoF tuning after presentation and DPR compensation", () => {
+    const tuned = resolveSceneQualityPlan({
+      mode: "showcase",
+      profile: "showcase",
+      cssWidth: 1440,
+      cssHeight: 900,
+      deviceDpr: 2,
+      touch: false,
+      narrowViewport: false,
+      overrides: {
+        depthOfFieldBokehMultiplier: 1.5,
+        depthOfFieldResolutionScale: 0.8,
+      },
+    });
+
+    expect(tuned.effects.depthOfFieldBokehScale).toBeCloseTo(4.275, 8);
+    expect(tuned.effects.depthOfFieldResolutionScale).toBe(0.8);
+    expect(tuned.customOverrides).toBe(true);
   });
 
   it("keeps the authored grass population stable across every transition", () => {
@@ -374,6 +488,47 @@ describe("scene quality policy", () => {
     });
     expect(overridden.environment.farGrassShader).toBe("simplified");
     expect(overridden.customOverrides).toBe(true);
+  });
+
+  it("keeps persistent grass deformation dormant across every quality tier", () => {
+    expect(DEFAULT_GRASS_DEFORMATION_ENABLED).toBe(false);
+    expect(plan("cinematic").environment.grassDeformation).toBe("off");
+    expect(plan("showcase").environment.grassDeformation).toBe("off");
+    expect(plan("efficient").environment.grassDeformation).toBe("off");
+    expect(plan("safety").environment.grassDeformation).toBe("off");
+    expect(
+      resolveSceneQualityPlan({
+        mode: "auto",
+        profile: "showcase",
+        contentTier: "reduced",
+        cssWidth: 1200,
+        cssHeight: 800,
+        deviceDpr: 2,
+        touch: false,
+      }).environment.grassDeformation,
+    ).toBe("off");
+    expect(
+      resolveSceneQualityPlan({
+        mode: "auto",
+        profile: "showcase",
+        contentTier: "minimal",
+        cssWidth: 1200,
+        cssHeight: 800,
+        deviceDpr: 2,
+        touch: false,
+      }).environment.grassDeformation,
+    ).toBe("off");
+    expect(
+      resolveSceneQualityPlan({
+        mode: "showcase",
+        profile: "showcase",
+        cssWidth: 1200,
+        cssHeight: 800,
+        deviceDpr: 2,
+        touch: false,
+        grassDeformationOff: true,
+      }).environment.grassDeformation,
+    ).toBe("off");
   });
 
   it("lets manual Cinematic supersample above native DPR without exceeding its capture budget", () => {
@@ -489,7 +644,7 @@ describe("scene quality policy", () => {
         cssHeight: 844,
         deviceDpr: 3,
       }),
-    ).toBe("stacks-quality:v5:constrained:small");
+    ).toBe("stacks-quality:v7:constrained:small");
   });
 });
 
@@ -600,7 +755,12 @@ describe("scene quality adaptation", () => {
     // dropped. Under the old rules that hovered between an 8 % decline
     // trigger and a 5 % recovery gate whose clock reset on any single sample
     // over the line, so it fell three rungs and stayed there.
-    const hovering = { ...good, p95: 11.0, cpuMs: 9.7, droppedFrameRatio: 0.048 };
+    const hovering = {
+      ...good,
+      p95: 11.0,
+      cpuMs: 9.7,
+      droppedFrameRatio: 0.048,
+    };
     const blip = { ...hovering, droppedFrameRatio: 0.09 };
     let state = initialSceneQualityAdaptationState("balanced", 0);
     for (let now = 1_000; now <= 180_000; now += 1_000)
@@ -845,6 +1005,41 @@ describe("a steady 40 frames per second device", () => {
       steadyStream(25, 6).filter((frame) => frame.ms > derivedTarget * 1.5)
         .length / 120;
     expect(droppedUnderDerived).toBeLessThan(0.05);
+  });
+});
+
+describe("a steady CPU-bound device below 60 frames per second", () => {
+  it.each([50, 55])(
+    "does not let a steady %i FPS miss disappear into the pressure gate",
+    (fps) => {
+      const metrics = summariseSceneFrameWindow(steadyStream(1_000 / fps, 12))!;
+      expect(metrics.droppedFrameRatio).toBe(0);
+      expect(metrics.p95).toBeGreaterThan(SCENE_FRAME_BUDGET_MS);
+      expect(metrics.p95).toBeLessThan(SCENE_FRAME_BUDGET_MS * 1.25);
+      expect(metrics.cpuMs).toBeGreaterThan(QUALITY_CPU_BOUND_MS);
+      expect(classifySceneFrameConstraint(metrics)).toBe("cpu");
+    },
+  );
+
+  it("spends resolution instead when the same sustained miss has a cheap main thread", () => {
+    const gpuLimited = summariseSceneFrameWindow(steadyStream(20, 4))!;
+    expect(classifySceneFrameConstraint(gpuLimited)).toBe("gpu");
+  });
+
+  it("does not mistake an isolated CPU tail for sustained CPU pressure", () => {
+    const hitchy: SceneQualityMetrics = {
+      targetFrameMs: SCENE_FRAME_BUDGET_MS,
+      targetHz: SCENE_FRAME_BUDGET_HZ,
+      p95: 323,
+      p50: 16.7,
+      droppedFrameRatio: 0.103,
+      sampleCount: 120,
+      cpuMs: 280,
+      cpuP50: 5,
+      gpuMs: null,
+    };
+
+    expect(classifySceneFrameConstraint(hitchy)).toBe("unknown");
   });
 });
 

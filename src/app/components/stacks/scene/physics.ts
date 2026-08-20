@@ -7,7 +7,7 @@ import type {
   PhysicsSceneScope,
   PhysicsStaticRoot,
 } from "./PhysicsSceneProvider";
-import { publishMeadowImpact } from "./meadowDisturbance";
+import { publishMeadowPhysicalEvent } from "./meadowDisturbance";
 import {
   MEADOW_TRAIL,
   meadowPhysicalResponse,
@@ -1290,10 +1290,15 @@ export class ScenePhysicsWorld {
           massKg: handle.massKg ?? body.mass / SCENE_MASS_PER_KG,
           footprint: handle.meadowFootprint ?? horizontalFootprint(body),
         });
-        publishMeadowImpact({
-          x: body.position.x + offset.x,
+        const contactX = body.position.x + offset.x;
+        const contactZ = body.position.z + offset.z;
+        publishMeadowPhysicalEvent({
+          kind: "impact",
+          startX: contactX,
+          startZ: contactZ,
+          endX: contactX,
+          endZ: contactZ,
           y: body.position.y + offset.y,
-          z: body.position.z + offset.z,
           directionX:
             horizontalSpeed > 1e-5 ? body.velocity.x / horizontalSpeed : 0,
           directionZ:
@@ -1565,10 +1570,13 @@ export class ScenePhysicsWorld {
         footprint: handle.meadowFootprint ?? horizontalFootprint(body),
         trailing: true,
       });
-      publishMeadowImpact({
-        x: body.position.x,
+      publishMeadowPhysicalEvent({
+        kind: "trail",
+        startX: lastX,
+        startZ: lastZ,
+        endX: body.position.x,
+        endZ: body.position.z,
         y: SHELF_GEOMETRY.groundY,
-        z: body.position.z,
         directionX: body.velocity.x / tangentSpeed,
         directionZ: body.velocity.z / tangentSpeed,
         ...response,

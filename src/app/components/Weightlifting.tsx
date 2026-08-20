@@ -11,6 +11,7 @@ import {
 } from "@phosphor-icons/react";
 import { useMemo } from "react";
 
+import { IntersectionMotion } from "~/components/ui/intersection-motion";
 import { devSubdomainUrl } from "~/lib/util";
 import type {
   ActivityMosaicData,
@@ -332,7 +333,7 @@ export default function Weightlifting({
         <BarbellIcon weight="duotone" className="size-7 shrink-0 md:size-8" />
         Weightlifting
       </h1>
-      <div className="flex w-full flex-col gap-4 intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000">
+      <IntersectionMotion className="flex w-full flex-col gap-4 intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000">
         <PlacardLinkCard
           href={href}
           label="Browse weightlifting statistics"
@@ -349,7 +350,7 @@ export default function Weightlifting({
           </PlacardCardHeading>
           <ActivityMosaic data={activity} />
         </PlacardLinkCard>
-      </div>
+      </IntersectionMotion>
     </section>
   );
 }

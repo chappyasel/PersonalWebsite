@@ -8,6 +8,8 @@ import { ContactShade, FootPool } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
 import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
+import { RoundedBox } from "../RoundedBox";
+import SitChair from "../SitChair";
 import TouchFocusTarget from "../TouchFocusTarget";
 import {
   ABOUT_BOOT_LANDMARKS,
@@ -29,7 +31,6 @@ import { ABOUT_COUCH } from "../seated";
 import { SHELF_GEOMETRY } from "../shelfGeometry";
 import { useUnitFrame } from "../unitActivity";
 import { useUnitLod } from "../useUnitLod";
-import { RoundedBox } from "../RoundedBox";
 import { useLoader } from "@react-three/fiber";
 import React from "react";
 import * as THREE from "three";
@@ -893,21 +894,23 @@ export default function UnitAbout({
         position={[ABOUT_COUCH.x, SHELF_GEOMETRY.groundY, ABOUT_COUCH.z]}
         rotation={[0, ABOUT_COUCH.yaw, 0]}
       >
-        <TouchFocusTarget id="focus:couch:about" unitIndex={index}>
-          <React.Suspense fallback={null}>
-            <ModelProp
-              url="/models/couch.glb"
-              dark={dark}
-              variant="tinted"
-              tints={{
-                Couch_Blue: dark ? "#394b61" : "#667d96",
-                Black: dark ? "#253447" : "#344a61",
-              }}
-              roughness={0.84}
-              scale={ABOUT_COUCH.scale}
-            />
-          </React.Suspense>
-        </TouchFocusTarget>
+        <SitChair unitIndex={index}>
+          <TouchFocusTarget id="focus:couch:about" unitIndex={index}>
+            <React.Suspense fallback={null}>
+              <ModelProp
+                url="/models/couch.glb"
+                dark={dark}
+                variant="tinted"
+                tints={{
+                  Couch_Blue: dark ? "#394b61" : "#667d96",
+                  Black: dark ? "#253447" : "#344a61",
+                }}
+                roughness={0.84}
+                scale={ABOUT_COUCH.scale}
+              />
+            </React.Suspense>
+          </TouchFocusTarget>
+        </SitChair>
       </group>
       <FootPool
         color={palette.shadow}

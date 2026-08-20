@@ -1,9 +1,11 @@
+import type { MeadowDeformationDiagnostics } from "./meadowDeformation";
 import { MEADOW_WIND } from "./meadowMotion";
 
 export type MeadowDiagnosticsSettings = Readonly<{
   wind: number;
   speed: number;
   density: number | null;
+  deformationEnabled: boolean;
 }>;
 
 export type MeadowDiagnosticsUpdate = Partial<MeadowDiagnosticsSettings>;
@@ -12,6 +14,7 @@ export type MeadowDiagnosticsSnapshot = MeadowDiagnosticsSettings &
   Readonly<{
     available: boolean;
     liveWind: number;
+    deformation: MeadowDeformationDiagnostics;
   }>;
 
 type MeadowDiagnosticsDriver = (
@@ -23,7 +26,18 @@ const INITIAL: MeadowDiagnosticsSnapshot = Object.freeze({
   wind: MEADOW_WIND.amplitude,
   speed: MEADOW_WIND.speed,
   density: null,
+  deformationEnabled: false,
   liveWind: 0,
+  deformation: Object.freeze({
+    textureCount: 0,
+    acceptedStamps: 0,
+    droppedStamps: 0,
+    outOfBoundsStamps: 0,
+    active: false,
+    recoveryDraws: 0,
+    resetRevision: 0,
+    cpuSubmissionMs: 0,
+  }),
 });
 
 function settingsFromSnapshot(
@@ -33,6 +47,7 @@ function settingsFromSnapshot(
     wind: snapshot.wind,
     speed: snapshot.speed,
     density: snapshot.density,
+    deformationEnabled: snapshot.deformationEnabled,
   };
 }
 
@@ -46,12 +61,14 @@ export function createMeadowDiagnosticsController() {
       available,
       ...settings,
       liveWind: snapshot.liveWind,
+      deformation: snapshot.deformation,
     });
     if (
       next.available === snapshot.available &&
       next.wind === snapshot.wind &&
       next.speed === snapshot.speed &&
       next.density === snapshot.density &&
+      next.deformationEnabled === snapshot.deformationEnabled &&
       next.liveWind === snapshot.liveWind
     )
       return snapshot;
@@ -91,6 +108,24 @@ export function createMeadowDiagnosticsController() {
     publishLiveWind: (liveWind: number) => {
       if (!driver || Math.abs(liveWind - snapshot.liveWind) < 0.001) return;
       snapshot = Object.freeze({ ...snapshot, liveWind });
+      for (const listener of listeners) listener();
+    },
+
+    publishDeformation: (deformation: MeadowDeformationDiagnostics) => {
+      if (!driver) return;
+      const previous = snapshot.deformation;
+      if (
+        previous.textureCount === deformation.textureCount &&
+        previous.acceptedStamps === deformation.acceptedStamps &&
+        previous.droppedStamps === deformation.droppedStamps &&
+        previous.outOfBoundsStamps === deformation.outOfBoundsStamps &&
+        previous.active === deformation.active &&
+        previous.recoveryDraws === deformation.recoveryDraws &&
+        previous.resetRevision === deformation.resetRevision &&
+        previous.cpuSubmissionMs === deformation.cpuSubmissionMs
+      )
+        return;
+      snapshot = Object.freeze({ ...snapshot, deformation });
       for (const listener of listeners) listener();
     },
 

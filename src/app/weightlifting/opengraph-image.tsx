@@ -3,7 +3,7 @@ import { ImageResponse } from "next/og";
 
 import { loadGeorgiaProBold } from "~/app/books/[bookId]/fonts";
 import { db } from "~/server/db";
-import { wlExercises, wlSets, wlWorkouts } from "~/server/db/schema";
+import { wlSets, wlWorkouts } from "~/server/db/schema";
 
 export const runtime = "nodejs";
 

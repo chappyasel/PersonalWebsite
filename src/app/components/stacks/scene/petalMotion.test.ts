@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { buildPetalSources, petalColorForTheme } from "./Petals";
+import {
+  PETAL_FAR_BACKGROUND_Z,
+  ambientPetalsPerUnit,
+  buildPetalSources,
+  petalColorForTheme,
+} from "./Petals";
 import { shelfBackEdgeAt } from "./meadowInteraction";
 import {
   PETALS_PER_UNIT,
@@ -24,6 +29,7 @@ const SOURCE: PetalSource = {
   y: -1.08,
   z: 0.5,
   tint: 0.2,
+  depth: "foreground",
 };
 
 function waitingPetal(id = 2) {
@@ -63,18 +69,44 @@ describe("petal motion", () => {
     }
   });
 
-  it("selects seven real, separated meadow-head donors for every Unit", () => {
+  it("selects 28 real, separated meadow-head donors across foreground and background", () => {
     const sources = buildPetalSources();
     expect(sources).toHaveLength(7 * PETALS_PER_UNIT);
     for (let unitIndex = 0; unitIndex < 7; unitIndex += 1) {
       const local = sources.filter((source) => source.unitIndex === unitIndex);
       expect(local).toHaveLength(PETALS_PER_UNIT);
+      expect(
+        local.filter((source) => source.depth === "background").length,
+      ).toBeGreaterThanOrEqual(18);
+      expect(
+        local.filter((source) => source.z < PETAL_FAR_BACKGROUND_Z).length,
+      ).toBeGreaterThanOrEqual(14);
       for (let a = 0; a < local.length; a += 1)
         for (let b = a + 1; b < local.length; b += 1)
           expect(
             Math.hypot(local[a]!.x - local[b]!.x, local[a]!.z - local[b]!.z),
           ).toBeGreaterThanOrEqual(0.239 - 1e-6);
     }
+  });
+
+  it("caps airborne traffic by the current quality budget", () => {
+    expect(ambientPetalsPerUnit(21)).toBe(3);
+    expect(ambientPetalsPerUnit(42)).toBe(6);
+    expect(ambientPetalsPerUnit(70)).toBe(10);
+    expect(ambientPetalsPerUnit(84)).toBe(10);
+    expect(ambientPetalsPerUnit(196)).toBe(10);
+  });
+
+  it("starts with the quality-budgeted population already in motion", () => {
+    const phases = Array.from({ length: 11 }, (_, id) =>
+      createPetalMotion(id, SOURCE, 0, 10),
+    ).map((motion) => motion.phase);
+    expect(
+      phases
+        .slice(0, 10)
+        .every((phase) => phase === "airborne" || phase === "loosening"),
+    ).toBe(true);
+    expect(phases[10]).toBe("waiting");
   });
 
   it("samples deterministic, bounded wind that travels through world space", () => {
@@ -185,11 +217,13 @@ describe("petal motion", () => {
     expect(left.position.x - SOURCE.x).toBeLessThan(-0.03);
   });
 
-  it("keeps donor petals on the camera side of their shelf", () => {
-    const behind = buildPetalSources().filter(
-      (source) => source.z < shelfBackEdgeAt(source.x) + 0.08,
+  it("keeps every donor on its own side of the shelf row", () => {
+    const crossed = buildPetalSources().filter((source) =>
+      source.depth === "foreground"
+        ? source.z < shelfBackEdgeAt(source.x) + 0.08
+        : source.z > shelfBackEdgeAt(source.x) - 0.08,
     );
-    expect(behind).toEqual([]);
+    expect(crossed).toEqual([]);
   });
 
   it("keeps airborne petals from passing through the shelf row", () => {
@@ -206,6 +240,25 @@ describe("petal motion", () => {
         backstopZ: 0.42,
       });
       expect(motion.position.z).toBeGreaterThanOrEqual(0.42);
+    }
+  });
+
+  it("keeps background petals from passing forward through the shelf row", () => {
+    const motion = waitingPetal();
+    motion.source = { ...SOURCE, z: -0.6, depth: "background" };
+    motion.position.z = -0.6;
+    releasePetal(motion, 0, 0, 1, 0.8);
+    let time = 0;
+    while (time < 1.5) {
+      time += PETAL_FIXED_STEP;
+      advancePetal(motion, {
+        time,
+        step: PETAL_FIXED_STEP,
+        groundY: -2,
+        canRelease: true,
+        frontstopZ: -0.42,
+      });
+      expect(motion.position.z).toBeLessThanOrEqual(-0.42);
     }
   });
 

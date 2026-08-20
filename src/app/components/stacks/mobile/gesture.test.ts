@@ -113,4 +113,22 @@ describe("touch gesture arbitration", () => {
       { type: "clear-focus", interactionId: "prop" },
     ]);
   });
+
+  it("retains total travel when releasing a swipe over a prop", () => {
+    const initial = press().state;
+    const swiping = reduceTouchGesture(initial, {
+      type: "move",
+      pointerId: 1,
+      x: 55,
+      y: 102,
+      at: 80,
+    });
+
+    expect(
+      reduceTouchGesture(swiping.state, { type: "release", pointerId: 1 })
+        .effects,
+    ).toEqual([
+      { type: "swipe-release", velocityX: -0.5625, displacementX: -45 },
+    ]);
+  });
 });

@@ -8,6 +8,16 @@ explicitly asks for browser-based testing or inspection. This applies to UI and
 layout changes too: make ordinary changes by inspecting the source and running
 targeted unit, type, lint, or existing automated tests instead.
 
+## Debug controls
+
+When adding an optional visual effect or performance-sensitive rendering path,
+add a live on/off control to the existing Scene Diagnostics panel. A query
+parameter may remain as a reload-time rollback or benchmarking switch, but it
+does not replace the panel control. Debug overrides reset on reload and must
+not change the resolved production quality policy. Experimental effects remain
+default-off until explicitly approved. Their off path must avoid render-target
+allocation, texture sampling, and per-frame effect work.
+
 ## Book Notes skill
 
 The repository-owned interface for Chappy's book library lives at `.agents/skills/book-notes/SKILL.md`.

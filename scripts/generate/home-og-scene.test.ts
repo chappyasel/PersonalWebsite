@@ -13,6 +13,7 @@ import {
   HOME_OG_FOV,
   HOME_OG_LOOK_Y,
   HOME_OG_OUTPUT,
+  HOME_OG_RESOLUTION_CEILING,
   HOME_OG_SCENE_CROP,
 } from "./home-og-scene-config.mjs";
 
@@ -71,6 +72,10 @@ describe("home OG scene capture", () => {
 
   it("persists the full cinematic effect stack with crop-aware lens geometry", () => {
     expect(generator).toContain('url.searchParams.set("quality", "cinematic")');
+    expect(HOME_OG_RESOLUTION_CEILING).toBe(4);
+    expect(generator).toContain(
+      'url.searchParams.set("og-resolution", HOME_OG_RESOLUTION_CEILING.toString())',
+    );
     expect(generator).not.toContain('url.searchParams.set("notiltshift", "1")');
     expect(generator).toContain(
       'url.searchParams.set("og-lens-center", HOME_OG_LENS_CENTER.toString())',

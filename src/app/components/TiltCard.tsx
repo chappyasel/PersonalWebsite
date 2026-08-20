@@ -9,6 +9,8 @@ import {
 } from "framer-motion";
 import { useRef } from "react";
 
+import { useIntersectionMotion } from "~/components/ui/intersection-motion";
+
 import { tiltCardHoverEnabled } from "./tiltCardMotion";
 import { cn } from "@/src/lib/util";
 
@@ -46,6 +48,10 @@ export default function TiltCard({
   hoverScale = 1.02,
 }: TiltCardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  useIntersectionMotion(
+    containerRef,
+    className?.includes("intersect:") ?? false,
+  );
   const reduceMotion = useReducedMotion();
 
   const rotateX = useSpring(useMotionValue(0), springValues);

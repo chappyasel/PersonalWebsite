@@ -14,8 +14,6 @@
 //   the mode enum must come from `postprocessing` (not re-exported).
 //   Exposure parity with the composer-off path is automatic: three binds
 //   renderer.toneMappingExposure into any program that declares it.
-// - Noise replaces the sky's IGN dither (gated off via uPost) — dithering
-//   linear HDR would grain the midtones; output-space noise is film grain.
 import { useStacks } from "../store";
 import { useFrame, useThree } from "@react-three/fiber";
 import {
@@ -23,8 +21,8 @@ import {
   DepthOfField,
   EffectComposer,
   EffectComposerContext,
+  GodRays,
   N8AO,
-  Noise,
   SMAA,
   TiltShift2,
   ToneMapping,
@@ -33,18 +31,23 @@ import {
 } from "@react-three/postprocessing";
 import {
   BlendFunction,
+  type DepthOfFieldEffect,
   Effect,
   EffectAttribute,
   ToneMappingMode,
 } from "postprocessing";
-import { useContext, useMemo, useRef } from "react";
+import { useContext, useLayoutEffect, useMemo, useRef } from "react";
 import { MathUtils, Uniform } from "three";
 
-import {
-  captureLensCenterFromSearch,
-  sideLensPlan,
-} from "./lensGeometry";
+import { useCinematicSun } from "./cinematicSun";
+import { captureLensCenterFromSearch, sideLensPlan } from "./lensGeometry";
 import { type SceneQualityPlan, tiltShiftEnabled } from "./quality";
+import {
+  type SceneColorGradeSettings,
+  sceneColorGradeFor,
+  useSceneColorGradeSettings,
+} from "./sceneColorGrade";
+import { useSceneQualityControls } from "./sceneQualityController";
 import { depthOfFieldTargetForUnit } from "./worldLayout";
 
 // The print grade — the last thing between ACES and the screen, and the
@@ -68,21 +71,28 @@ import { depthOfFieldTargetForUnit } from "./worldLayout";
 // It runs AFTER ToneMapping (a print grade belongs in display-referred
 // space) but the composer's buffers are linear until the final encode, so
 // the shader steps into an approximate display space and back out. It merges
-// into the existing Vignette/ToneMapping/Noise EffectPass — no extra pass.
+// into the existing Vignette/ToneMapping EffectPass — no extra pass.
 const GRADE_FRAGMENT = `
   uniform float uDark; // 0 light … 1 dark, damped in lockstep with the sky
+  uniform float uLightCurve;
+  uniform float uDarkCurve;
+  uniform float uLightToeTint;
+  uniform float uDarkToeTint;
+  uniform float uLightChromaBoost;
+  uniform float uDarkChromaBoost;
 
   float lumc(const in vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
 
   void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
     vec3 d = pow(max(inputColor.rgb, 0.0), vec3(0.4545454545));
 
-    d = mix(d, d * d * (3.0 - 2.0 * d), mix(0.13, 0.10, uDark));
+    float curve = mix(uLightCurve, uDarkCurve, uDark);
+    d = mix(d, d * d * (3.0 - 2.0 * d), curve);
 
     float l = lumc(d);
     float toe = 8.0 * l * max(0.0, 1.0 - 2.0 * l);
     vec3 toeHue = mix(vec3(1.00, 0.82, 0.60), vec3(0.50, 0.66, 1.00), uDark);
-    d += toeHue * toe * mix(0.030, 0.032, uDark);
+    d += toeHue * toe * mix(uLightToeTint, uDarkToeTint, uDark);
 
     l = lumc(d);
     vec3 keyHue = mix(vec3(1.012, 1.000, 0.978), vec3(1.016, 0.998, 0.968), uDark);
@@ -90,7 +100,8 @@ const GRADE_FRAGMENT = `
 
     l = lumc(d);
     float band = smoothstep(0.30, 0.70, l) * (1.0 - smoothstep(0.84, 1.00, l));
-    float sat = 1.05 + mix(0.22, 0.16, uDark) * band;
+    float chromaBoost = mix(uLightChromaBoost, uDarkChromaBoost, uDark);
+    float sat = 1.05 + chromaBoost * band;
     d = max(vec3(0.0), vec3(l) + (d - vec3(l)) * sat);
 
     outputColor = vec4(pow(d, vec3(2.2)), inputColor.a);
@@ -98,22 +109,45 @@ const GRADE_FRAGMENT = `
 `;
 
 class GradeEffect extends Effect {
-  constructor(dark: number) {
+  constructor(dark: number, settings: SceneColorGradeSettings) {
     super("GradeEffect", GRADE_FRAGMENT, {
       // SRC returns the shader's own output verbatim — a grade replaces the
       // frame, it does not composite over it.
       blendFunction: BlendFunction.SRC,
-      uniforms: new Map([["uDark", new Uniform(dark)]]),
+      uniforms: new Map([
+        ["uDark", new Uniform(dark)],
+        ["uLightCurve", new Uniform(settings.light.curve)],
+        ["uDarkCurve", new Uniform(settings.dark.curve)],
+        ["uLightToeTint", new Uniform(settings.light.toeTint)],
+        ["uDarkToeTint", new Uniform(settings.dark.toeTint)],
+        ["uLightChromaBoost", new Uniform(settings.light.chromaBoost)],
+        ["uDarkChromaBoost", new Uniform(settings.dark.chromaBoost)],
+      ]),
     });
   }
 }
 
-function Grade({ dark }: { dark: boolean }) {
+function Grade({
+  dark,
+  settings,
+}: {
+  dark: boolean;
+  settings: SceneColorGradeSettings;
+}) {
   // Seeded from the mounted theme so a dark first paint never ramps up from
   // the light grade; after that uDark damps at the sky dome's rate, so the
   // grade and the sky cross the theme flip together.
-  const effect = useMemo(() => new GradeEffect(dark ? 1 : 0), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const effect = useMemo(
+    () => new GradeEffect(dark ? 1 : 0, settings),
+    [], // eslint-disable-line react-hooks/exhaustive-deps
+  );
   useDispose(effect);
+  effect.uniforms.get("uLightCurve")!.value = settings.light.curve;
+  effect.uniforms.get("uDarkCurve")!.value = settings.dark.curve;
+  effect.uniforms.get("uLightToeTint")!.value = settings.light.toeTint;
+  effect.uniforms.get("uDarkToeTint")!.value = settings.dark.toeTint;
+  effect.uniforms.get("uLightChromaBoost")!.value = settings.light.chromaBoost;
+  effect.uniforms.get("uDarkChromaBoost")!.value = settings.dark.chromaBoost;
   useFrame((_, delta) => {
     const u = effect.uniforms.get("uDark")!;
     u.value = MathUtils.damp(u.value as number, dark ? 1 : 0, 3.5, delta);
@@ -225,6 +259,42 @@ function SideLens({
   );
 }
 
+/** Keep the DoF targets mounted while its live tuning changes. The React
+ * wrapper reconstructs the whole effect whenever bokeh, focus, or resolution
+ * props change, so pass stable constructor values and update the effect's two
+ * resolution owners directly before the browser can paint the next frame. */
+function LiveBokehDepthOfField({
+  target,
+  focusRange,
+  bokehScale,
+  resolutionScale,
+}: {
+  target: [number, number, number];
+  focusRange: number;
+  bokehScale: number;
+  resolutionScale: number;
+}) {
+  const effect = useRef<DepthOfFieldEffect | null>(null);
+
+  useLayoutEffect(() => {
+    if (!effect.current) return;
+    effect.current.bokehScale = bokehScale;
+    effect.current.cocMaterial.focusRange = focusRange;
+    effect.current.resolution.scale = resolutionScale;
+    effect.current.blurPass.resolution.scale = resolutionScale;
+  }, [bokehScale, focusRange, resolutionScale]);
+
+  return (
+    <DepthOfField
+      ref={effect}
+      target={target}
+      focusRange={2.2}
+      bokehScale={1}
+      resolutionScale={0.5}
+    />
+  );
+}
+
 /**
  * Resize the composer's render targets when the DEVICE PIXEL RATIO changes.
  *
@@ -273,7 +343,12 @@ export default function Effects({
   /** Scale-derived RCAS strength. Zero leaves the pass out of the composer. */
   sharpenAmount?: number;
 }) {
-  // DoF is the expensive world-space blur and remains full-tier only. The
+  const baseColorGrade = useSceneColorGradeSettings();
+  const { cinematicPlus } = useSceneQualityControls();
+  const sun = useCinematicSun();
+  const colorGrade = sceneColorGradeFor(baseColorGrade, cinematicPlus);
+  // DoF is the expensive world-space blur and remains disabled in the
+  // minimal effects tier. The
   // owner-approved side tilt shift is the cheaper compositional treatment;
   // it survives in finish mode and can still be isolated with ?notiltshift.
   const depthOfField = useMemo(
@@ -293,6 +368,7 @@ export default function Effects({
     [depthOfField, plan.composer],
   );
   const activeUnit = useStacks((state) => state.activeUnit);
+  const golfFocused = useStacks((state) => state.golfFocused);
   const seated = useStacks((state) => state.seated);
   const captureLensCenter = useMemo(
     () =>
@@ -349,12 +425,12 @@ export default function Effects({
           grass. The effect measures camera→target every frame, including the
           alternating unit depths and the About stop's lateral offset. */}
       {plan.depthOfField && depthOfField && !seated && (
-        <DepthOfField
+        <LiveBokehDepthOfField
           target={focusTarget}
-          // Training owns a real tee-to-green action axis. Keep the static
+          // Golf owns a real tee-to-green action axis. Keep the static
           // focal plane (never rack focus during a shot), but broaden its
           // accepted range enough that the club and distant cup stay legible.
-          focusRange={activeUnit === 2 ? 16.5 : 2.2}
+          focusRange={golfFocused ? 16.5 : 2.2}
           bokehScale={plan.depthOfFieldBokehScale}
           resolutionScale={plan.depthOfFieldResolutionScale}
         />
@@ -364,13 +440,32 @@ export default function Effects({
       {tiltShift && (
         <SideLens seated={seated} captureCenter={captureLensCenter} />
       )}
-      {/* Light theme eases both finishing touches: premultiplied noise
-          scales with luminance (a near-white sky grains hard), and dark
-          corners read as grime against it. */}
-      <Vignette eskil={false} offset={0.34} darkness={dark ? 0.5 : 0.3} />
+      {/* A real radial-light pass: the scene depth buffer occludes the sun,
+          so shelf edges and props cut visible shafts through it. Keeping the
+          component itself behind Cinematic+ avoids all three of its render
+          targets, texture samples, and per-frame work on every other mode. */}
+      {cinematicPlus && !dark && sun && (
+        <GodRays
+          sun={sun}
+          samples={60}
+          density={0.97}
+          decay={0.945}
+          weight={0.5}
+          exposure={0.68}
+          clampMax={0.92}
+          blur
+          resolutionScale={0.5}
+        />
+      )}
+      {/* Light theme eases the vignette because dark corners read as grime
+          against a bright sky. */}
+      <Vignette
+        eskil={false}
+        offset={0.34}
+        darkness={dark ? colorGrade.dark.vignette : colorGrade.light.vignette}
+      />
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-      {graded && <Grade dark={dark} />}
-      <Noise premultiply opacity={dark ? 0.22 : 0.07} />
+      {graded && <Grade dark={dark} settings={colorGrade} />}
       {sharpenAmount > 0 && <AdaptiveSharpen amount={sharpenAmount} />}
       <SMAA />
       <ComposerPixelRatio />

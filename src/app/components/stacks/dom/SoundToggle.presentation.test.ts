@@ -32,7 +32,19 @@ describe("scene sound control", () => {
     expect(toggle).toContain("sceneAudio.subscribe(setAudio)");
     expect(toggle).toContain("sceneAudio.setMuted(next)");
     expect(toggle).toContain("sceneAudio.unlock()");
-    expect(toggle).toContain("aria-pressed={muted}");
+    expect(toggle).toContain(
+      "aria-pressed={audio.unlocked ? muted : undefined}",
+    );
     expect(canvas).toContain('closest("[data-sound-toggle]")');
+  });
+
+  it("presents locked audio as an enable action until Web Audio is unlocked", () => {
+    expect(toggle).toContain(
+      "const awaitingEnable = !audio.unlocked && !muted",
+    );
+    expect(toggle).toContain('"Enable scene sound"');
+    expect(toggle).toContain("SpeakerNoneIcon");
+    expect(toggle).toContain('awaitingEnable ? "locked"');
+    expect(toggle).toContain("if (awaitingEnable)");
   });
 });

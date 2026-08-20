@@ -4,7 +4,7 @@ const TAU = Math.PI * 2;
 
 export const PETAL_FIXED_STEP = 1 / 30;
 export const PETAL_MAX_FRAME_DELTA = 0.1;
-export const PETALS_PER_UNIT = 7;
+export const PETALS_PER_UNIT = 28;
 /** Settle among the blade tips rather than on the terrain hidden beneath them. */
 export const PETAL_GRASS_CONTACT_LIFT = 0.075;
 
@@ -18,6 +18,7 @@ export type PetalSource = Readonly<{
   y: number;
   z: number;
   tint: number;
+  depth: "foreground" | "background";
 }>;
 
 export type PetalMotion = {
@@ -49,6 +50,8 @@ export type PetalAdvanceOptions = {
   windAmplitude?: number;
   /** Camera-side limit imposed by the shelf row at the petal's current x. */
   backstopZ?: number;
+  /** Meadow-side limit for petals that start behind the shelf row. */
+  frontstopZ?: number;
 };
 
 const PROFILES = [
@@ -209,6 +212,7 @@ export function createPetalMotion(
   id: number,
   source: PetalSource,
   time = 0,
+  initialActivePerUnit = 2,
 ): PetalMotion {
   const motion: PetalMotion = {
     id,
@@ -230,15 +234,21 @@ export function createPetalMotion(
   };
 
   const slot = id % PETALS_PER_UNIT;
+  const depthDirection = source.depth === "foreground" ? 1 : -1;
   if (slot === 0) {
     motion.position.x += (petalNoise(id, 71) - 0.5) * 0.16;
     motion.position.y += 0.09 + petalNoise(id, 73) * 0.05;
-    motion.position.z += (petalNoise(id, 79) - 0.5) * 0.12;
+    motion.position.z += petalNoise(id, 79) * 0.12 * depthDirection;
     releasePetal(motion, time - 0.8);
   } else if (slot === 1) {
     motion.phase = "loosening";
     motion.phaseStartedAt = time;
     motion.transitionAt = time + 0.7 + petalNoise(id, 83) * 0.5;
+  } else if (slot < initialActivePerUnit) {
+    motion.position.x += (petalNoise(id, 71) - 0.5) * 0.24;
+    motion.position.y += 0.06 + petalNoise(id, 73) * 0.1;
+    motion.position.z += petalNoise(id, 79) * 0.2 * depthDirection;
+    releasePetal(motion, time - petalNoise(id, 91) * 2.5);
   } else {
     motion.transitionAt = time + 3 + petalNoise(id, 89) * 12;
   }
@@ -337,6 +347,13 @@ export function advancePetal(
     motion.position.z = options.backstopZ;
     motion.velocity.z = Math.max(0.015, -motion.velocity.z * 0.22);
   }
+  if (
+    options.frontstopZ !== undefined &&
+    motion.position.z > options.frontstopZ
+  ) {
+    motion.position.z = options.frontstopZ;
+    motion.velocity.z = Math.min(-0.015, -motion.velocity.z * 0.22);
+  }
   motion.rotation.x += profile.spinX * (0.72 + wind.magnitude * 2.2) * step;
   motion.rotation.y += profile.spinY * (0.8 + Math.abs(flutter) * 0.35) * step;
   motion.rotation.z = flutter * 0.24;
@@ -387,7 +404,8 @@ export function burstPetal(
   const distance = Math.hypot(dx, dz);
   if (distance > radius || strength <= 0) return false;
   const falloff = smoothstep(1 - distance / Math.max(radius, 1e-5));
-  const angle = petalNoise(motion.id, motion.flightsFromSource * 37 + 109) * TAU;
+  const angle =
+    petalNoise(motion.id, motion.flightsFromSource * 37 + 109) * TAU;
   return impulsePetal(
     motion,
     time,

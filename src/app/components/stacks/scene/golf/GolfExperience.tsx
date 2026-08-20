@@ -5,7 +5,7 @@ import { useStacks } from "../../store";
 import ModelProp from "../ModelProp";
 import { InteractionClaim } from "../interaction";
 import { registerSceneInteraction } from "../interactionRegistry";
-import { publishMeadowImpact } from "../meadowDisturbance";
+import { publishMeadowPhysicalEvent } from "../meadowDisturbance";
 import { meadowHeight } from "../meadowField";
 import {
   MEADOW_TRAIL,
@@ -379,8 +379,13 @@ export default function GolfExperience({
           massKg: GOLF_BALL_MASS_KG,
           footprint: GOLF_BALL_RADIUS * 2,
         });
-        publishMeadowImpact({
-          ...worldPosition!,
+        publishMeadowPhysicalEvent({
+          kind: "impact",
+          startX: worldPosition!.x,
+          startZ: worldPosition!.z,
+          endX: worldPosition!.x,
+          endZ: worldPosition!.z,
+          y: worldPosition!.y,
           directionX:
             horizontalSpeed > 1e-5 ? direction.x / horizontalSpeed : 0,
           directionZ:
@@ -590,8 +595,13 @@ export default function GolfExperience({
           massKg: GOLF_BALL_MASS_KG,
           footprint: GOLF_BALL_RADIUS * 2,
         });
-        publishMeadowImpact({
-          ...strikePosition,
+        publishMeadowPhysicalEvent({
+          kind: "impact",
+          startX: strikePosition.x,
+          startZ: strikePosition.z,
+          endX: strikePosition.x,
+          endZ: strikePosition.z,
+          y: strikePosition.y,
           directionX:
             horizontalSpeed > 1e-5 ? strikeDirection.x / horizontalSpeed : 0,
           directionZ:
@@ -645,8 +655,18 @@ export default function GolfExperience({
             footprint: ball.radius * 2,
             trailing: true,
           });
-          publishMeadowImpact({
-            ...worldPosition,
+          const worldStart = toWorld({
+            x: trail.x,
+            y: ball.position.y,
+            z: trail.z,
+          });
+          publishMeadowPhysicalEvent({
+            kind: "trail",
+            startX: worldStart.x,
+            startZ: worldStart.z,
+            endX: worldPosition.x,
+            endZ: worldPosition.z,
+            y: worldPosition.y,
             directionX: worldDirection.x / tangentSpeed,
             directionZ: worldDirection.z / tangentSpeed,
             ...response,

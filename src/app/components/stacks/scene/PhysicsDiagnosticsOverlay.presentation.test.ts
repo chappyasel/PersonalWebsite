@@ -20,7 +20,7 @@ describe("physics bounds debug mode", () => {
 
   it("exposes a separate all-prop-bounds toggle in the diagnostics console", () => {
     expect(diagnosticsSource).toContain("showAllBounds");
-    expect(diagnosticsSource).toContain("Show granular prop collider boxes");
+    expect(diagnosticsSource).toContain("Prop collider boxes");
   });
 
   it("offers independent physics isolation controls and timing readouts", () => {

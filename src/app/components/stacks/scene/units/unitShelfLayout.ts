@@ -1,5 +1,17 @@
 import { SHELF_GEOMETRY } from "../shelfGeometry";
 
+/** Shared floor pose so meadow coverage can follow the real Training barbell
+ * instead of copying its coordinates into a second system. */
+export const TRAINING_BARBELL_POSE: Readonly<{
+  base: [number, number, number];
+  rotation: [number, number, number];
+  scale: number;
+}> = {
+  base: [1.92, SHELF_GEOMETRY.groundY, -1.04],
+  rotation: [0, -Math.PI / 4, 0],
+  scale: 0.77,
+};
+
 /** Measured envelopes for hand-authored rows that do not use the generic
  * packer. These make spacing and support executable rather than visual-only. */
 export const REVIEWED_SHELF_LAYOUT = {

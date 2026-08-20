@@ -19,8 +19,8 @@ import { markMeadowReady } from "../loading";
 import { progressRef, touchWorldRef } from "../store";
 import { PALETTES } from "../theme";
 import { useGLTF, useTexture } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 import {
@@ -28,7 +28,6 @@ import {
   GOLF_CUP,
   GOLF_CUP_WORLD_CENTER,
   GOLF_GREEN,
-  golfSurfaceAt,
   suppressGolfVegetation,
 } from "./golf/golfCourse";
 import {
@@ -39,6 +38,12 @@ import {
 } from "./golf/golfPresentation";
 import { claimEffectLayer, effectLayerAges } from "./layeredEffects";
 import {
+  MEADOW_DEFORMATION,
+  MEADOW_DEFORMATION_BOUNDS,
+  MeadowDeformationController,
+  type MeadowDeformationQuality,
+} from "./meadowDeformation";
+import {
   type MeadowDiagnosticsUpdate,
   meadowDiagnosticsController,
 } from "./meadowDiagnostics";
@@ -46,9 +51,10 @@ import {
   getMeadowDisturbance,
   publishMeadowDisturbance,
   resetMeadowDisturbance,
-  visitMeadowImpactsSince,
+  visitMeadowPhysicalEventsSince,
 } from "./meadowDisturbance";
 import {
+  FLOWER_VARIATION,
   IDLE_TERRAIN_BUILD_GATE,
   MEADOW_BANK,
   MEADOW_FOG,
@@ -61,6 +67,7 @@ import {
   buildGrassInstances,
   buildMeadowTiles,
   createTerrainGeometryCache,
+  grassTuftNormalizationScale,
   meadowContentPlan,
   meadowHeight,
   meadowTileDrawCount,
@@ -84,6 +91,7 @@ import {
   meadowTilePopulationLimit,
   useScenePerformanceSettings,
 } from "./scenePerformance";
+import { useSceneQualityControls } from "./sceneQualityController";
 import { getSeatAmount } from "./seated";
 import { StaticWorldRoot } from "./staticWorld";
 
@@ -95,18 +103,20 @@ const ALPHA_URL = "/images/stacks/grass-tuft-alpha.webp";
 const COLORS = {
   // Round 3 deepened A and B ("in general in light mode it's hard to see
   // them"): more chroma survives the fog mix and the pale lawn behind.
-  flowerA: "#5b76d6", // cornflower blue, 55% (owner round 2)
-  flowerB: "#e0862f", // poppy orange, 20%
-  flowerC: "#ece0c6", // cream, 17%
-  // The top 8% of the tint range renders as SEED HEADS — slim wheat tips
-  // instead of rosettes — so some "flower" clumps read as dry grass gone
-  // to seed, which breaks up the candy of an all-bloom field.
-  seed: "#d9c893",
+  flowerA: "#5b76d6", // cornflower blue
+  flowerB: "#e0862f", // poppy orange
+  flowerC: "#ece0c6", // cream
+  // Rare per-head accents. Position hashing scatters these through clumps
+  // without changing the dominant field palette.
+  flowerRareA: "#b85cbf", // orchid
+  flowerRareB: "#43a58f", // mint
   // Night heads: dim but SATURATED (round-3 third pass: "too bright and
   // not vibrant enough in dark mode") — moonlit cornflower and violet
   // rather than the old grey lavenders.
   nightA: "#6f79c8",
   nightB: "#a290c8",
+  nightRareA: "#b477bd",
+  nightRareB: "#64ad9d",
 } as const;
 
 /** KeyLight's constant direction (eye-relative offset (4, 7, 6) — see
@@ -290,8 +300,12 @@ const CLOUD_GLSL = /* glsl */ `
   }
 `;
 
-const GRASS_VERTEX = /* glsl */ `
+export const meadowGrassVertexShader = (deformation: boolean) => /* glsl */ `
   ${SHARED_UNIFORMS_GLSL}
+  #ifdef CINEMATIC_PLUS_SHADOWS
+    #include <common>
+    #include <shadowmap_pars_vertex>
+  #endif
   // InstancedMesh injects instanceColor per tile (r = terrain sun,
   // g = furniture contact shade) while every tile shares one geometry.
   varying float vT;
@@ -311,12 +325,47 @@ const GRASS_VERTEX = /* glsl */ `
   ${LAMP_GLSL}
   ${FOG_CAP_GLSL}
   ${CLOUD_GLSL}
+  ${deformation ? `uniform sampler2D uDeformation;` : ""}
   void main() {
     vec3 origin = vec3(instanceMatrix[3]);
     // Geometry is height-normalized: position.y IS the 0→1 wind/color gate.
     float t = position.y;
     vec4 world = modelMatrix * instanceMatrix * vec4(position, 1.0);
     float hScale = length(vec3(instanceMatrix[1]));
+    ${
+      deformation
+        ? `
+    vec2 deformationUv = vec2(
+      (origin.x - ${MEADOW_DEFORMATION_BOUNDS.minX.toFixed(1)}) / ${(MEADOW_DEFORMATION_BOUNDS.maxX - MEADOW_DEFORMATION_BOUNDS.minX).toFixed(1)},
+      (origin.z - ${MEADOW_DEFORMATION_BOUNDS.minZ.toFixed(1)}) / ${(MEADOW_DEFORMATION_BOUNDS.maxZ - MEADOW_DEFORMATION_BOUNDS.minZ).toFixed(1)}
+    );
+    vec4 deformationSample = texture2D(uDeformation, deformationUv);
+    deformationSample *= step(0.0, deformationUv.x) * step(deformationUv.x, 1.0)
+      * step(0.0, deformationUv.y) * step(deformationUv.y, 1.0);
+    float deformationMagnitude = deformationSample.a;
+    vec2 deformationBaseDirection = deformationMagnitude > 0.001
+      ? (deformationSample.rg / deformationMagnitude - 0.5) * 2.0
+      : vec2(0.0);
+    float deformationDirectionLength = length(deformationBaseDirection);
+    float deformationSplay = (vnoise(origin.xz * 4.73) - 0.5)
+      * ${MEADOW_DEFORMATION.directionSplay.toFixed(2)};
+    vec2 deformationDirection = deformationDirectionLength > 0.001
+      ? normalize(
+          deformationBaseDirection
+          + vec2(-deformationBaseDirection.y, deformationBaseDirection.x)
+            * deformationSplay
+        )
+      : deformationBaseDirection;
+    float deformationFlattening = deformationMagnitude > 0.001
+      ? deformationSample.b / deformationMagnitude
+      : 0.0;
+    `
+        : `
+    float deformationMagnitude = 0.0;
+    vec2 deformationDirection = vec2(0.0);
+    float deformationFlattening = 0.0;
+    `
+    }
     #ifdef FAR_SIMPLE
       vec2 w = farWindAt(origin.xz, uTime * uWindSpeed);
       vec2 lean = w;
@@ -360,17 +409,28 @@ const GRASS_VERTEX = /* glsl */ `
       + uPokeDir * push
       + pulseLean;
     #endif
+    lean = lean * (1.0 - ${MEADOW_DEFORMATION.motionSuppression.toFixed(2)} * deformationMagnitude)
+      + deformationDirection * (${MEADOW_DEFORMATION.maxLean.toFixed(2)} * deformationMagnitude);
     float ll = max(length(lean), 1e-4);
-    lean *= min(ll, ${MEADOW_WIND.maxLean.toFixed(2)}) / ll;
+    lean *= min(ll, ${MEADOW_DEFORMATION.maxLean.toFixed(2)}) / ll;
     // Apply one affine lean to the authored tuft. The former t² gate changed
     // its curvature every frame, which read as growth and shrinkage. A linear
     // height term keeps the complete footprint planted and approximates a
     // rotation to second order without sin/cos or another matrix multiply.
     float swayHeight = max(t, 0.0) * hScale;
+    world.y -= swayHeight * ${MEADOW_DEFORMATION.heightCompression.toFixed(2)}
+      * deformationFlattening * deformationMagnitude;
     vec2 disp = lean * swayHeight;
     world.x += disp.x;
     world.z += disp.y;
     world.y -= 0.5 * dot(lean, lean) * swayHeight;
+    #ifdef CINEMATIC_PLUS_SHADOWS
+      vec3 transformedNormal = normalize(
+        normalMatrix * mat3(instanceMatrix) * normal
+      );
+      vec4 worldPosition = world;
+      #include <shadowmap_vertex>
+    #endif
     vec4 mv = viewMatrix * world;
     vT = t;
     vSun = instanceColor.r;
@@ -395,6 +455,12 @@ const GRASS_VERTEX = /* glsl */ `
 
 const GRASS_FRAGMENT = /* glsl */ `
   ${SHARED_UNIFORMS_GLSL}
+  #ifdef CINEMATIC_PLUS_SHADOWS
+    #include <common>
+    uniform bool receiveShadow;
+    #include <shadowmap_pars_fragment>
+    #include <shadowmask_pars_fragment>
+  #endif
   uniform sampler2D uAlpha;
   varying float vT;
   varying float vSun;
@@ -435,6 +501,11 @@ const GRASS_FRAGMENT = /* glsl */ `
     col *= 1.0 + vWind * 1.2 * vT * mix(0.35, 0.15, uDark);
     // Passing cloud shade.
     col *= vCloud;
+    #ifdef CINEMATIC_PLUS_SHADOWS
+      // Props and shelf edges now cut into the visible tuft pile instead of
+      // disappearing beneath its custom unlit material.
+      col *= mix(0.46, 1.0, getShadowMask());
+    #endif
     // Moonlight: mostly a traveling glint where gusts bend the tips, over
     // a whisper of constant lift — the night lawn reads MOONLIT rather
     // than merely dark. The tint leans GREEN on purpose: the first cut's
@@ -455,6 +526,10 @@ const GRASS_FRAGMENT = /* glsl */ `
 
 const TERRAIN_VERTEX = /* glsl */ `
   ${SHARED_UNIFORMS_GLSL}
+  #ifdef CINEMATIC_PLUS_SHADOWS
+    #include <common>
+    #include <shadowmap_pars_vertex>
+  #endif
   uniform vec3 uSunDir;
   attribute float aShade;
   varying vec3 vWorld;
@@ -480,12 +555,23 @@ const TERRAIN_VERTEX = /* glsl */ `
     vCloud = cloudAt(position.xz);
     vFog = fogAmount(${TERRAIN_FOG}, position, -mv.z);
     vFogColor = domeBelow(position);
+    #ifdef CINEMATIC_PLUS_SHADOWS
+      vec3 transformedNormal = normalize(normalMatrix * normal);
+      vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+      #include <shadowmap_vertex>
+    #endif
     gl_Position = projectionMatrix * mv;
   }
 `;
 
 const TERRAIN_FRAGMENT = /* glsl */ `
   ${SHARED_UNIFORMS_GLSL}
+  #ifdef CINEMATIC_PLUS_SHADOWS
+    #include <common>
+    uniform bool receiveShadow;
+    #include <shadowmap_pars_fragment>
+    #include <shadowmask_pars_fragment>
+  #endif
   varying vec3 vWorld;
   varying float vSun;
   varying float vShade;
@@ -561,6 +647,11 @@ const TERRAIN_FRAGMENT = /* glsl */ `
     col *= mix(mix(0.4, 0.62, uDark), 1.0, vShade);
     col *= 1.0 + vec3(0.055, 0.028, -0.020) * uDawn * 0.5 * (1.0 - uSeat * 0.8);
     col *= vCloud;
+    #ifdef CINEMATIC_PLUS_SHADOWS
+      // The carpet is the continuous receiver beneath the tuft cards. A deep
+      // floor keeps projected silhouettes readable through the grass gaps.
+      col *= mix(0.34, 1.0, getShadowMask());
+    #endif
     // The carpet sits under the tuft pile, so its pool reads dimmer than
     // the lit tips above it.
     col += ${LAMP_WARM} * vLamp * mix(0.07, 0.22, uDark);
@@ -587,10 +678,12 @@ const FLOWER_VERTEX = /* glsl */ `
   uniform float uPixelScale;
   uniform float uPxFloor;
   // InstancedMesh injects instanceColor per tile while every tile shares one
-  // geometry; red carries the authored species tint and blue tags the
-  // camera-side fling apron.
+  // geometry; red carries the authored species tint, green the independent
+  // per-head variation, and blue tags the camera-side fling apron.
   varying float vTint;
   varying float vApron;
+  varying float vVariation;
+  varying float vColorVariation;
   varying float vSpin;
   varying float vPx;
   varying float vClamp;
@@ -610,8 +703,32 @@ const FLOWER_VERTEX = /* glsl */ `
     vec2 toC = cameraPosition.xz - origin.xz;
     float dxz = max(length(toC), 1e-4);
     vec2 f = toC / dxz;
-    // Y-billboard: quad x-axis perpendicular to the camera in the XZ plane.
-    vec3 p = vec3(position.x * f.y, position.y, -position.x * f.x) * s;
+    float headVariation = instanceColor.g;
+    float rotationVariation = hash2(origin.xz * 37.1 + vec2(11.7, 29.3));
+    float aspectVariation = hash2(origin.zx * 19.3 + vec2(7.1, 41.9));
+    float tilt = (rotationVariation - 0.5) * ${(FLOWER_VARIATION.tiltRadians * 2).toFixed(3)};
+    float tiltC = cos(tilt);
+    float tiltS = sin(tilt);
+    float aspect = mix(
+      ${FLOWER_VARIATION.aspect[0].toFixed(2)},
+      ${FLOWER_VARIATION.aspect[1].toFixed(2)},
+      aspectVariation
+    );
+    vec2 local = vec2(
+      position.x * aspect,
+      (position.y - ${(FLOWER_H / 2).toFixed(3)}) / aspect
+    );
+    vec2 tilted = vec2(
+      tiltC * local.x - tiltS * local.y,
+      tiltS * local.x + tiltC * local.y
+    );
+    // Y-billboard: quad x-axis perpendicular to the camera in the XZ plane,
+    // with a small per-head screen-plane lean around its own center.
+    vec3 p = vec3(
+      tilted.x * f.y,
+      tilted.y + ${(FLOWER_H / 2).toFixed(3)},
+      -tilted.x * f.x
+    ) * s;
     // Shares the grass wind at reduced amplitude; position.y / quad height
     // normalizes to the same radians·height product the tufts use. The
     // pointer poke rides the flowers' SLOW copy of the signal (uPokeF) at
@@ -651,15 +768,21 @@ const FLOWER_VERTEX = /* glsl */ `
     vec3 c = vec3(0.0, ${(FLOWER_H / 2).toFixed(3)} * s, 0.0);
     float depth = -(viewMatrix * vec4(origin + c, 1.0)).z;
     float px = uPixelScale * ${FLOWER_H.toFixed(3)} * s / max(depth, 1e-3);
-    float k = max(1.0, uPxFloor / max(px, 1e-4));
+    float pxFloor = uPxFloor * mix(
+      ${FLOWER_VARIATION.pixelFloor[0].toFixed(2)},
+      ${FLOWER_VARIATION.pixelFloor[1].toFixed(2)},
+      headVariation
+    );
+    float k = max(1.0, pxFloor / max(px, 1e-4));
     p = (p - c) * k + c;
     vec4 world = modelMatrix * vec4(origin + p, 1.0);
     vec4 mv = viewMatrix * world;
-    // Species tint is a per-instance attribute shared across a clump (one
-    // clump, one color) rather than a position hash, which speckled every
-    // cluster into a color mix.
+    // Species tint stays shared across each clump. A separate position hash
+    // lets the fragment make only a few individual heads into accents.
     vTint = instanceColor.r;
     vApron = instanceColor.b;
+    vVariation = headVariation;
+    vColorVariation = hash2(origin.zx * 61.3 + vec2(17.9, 5.3));
     // Per-head petal rotation + projected size, for the fragment's rosette.
     vSpin = hash2(origin.xz * 43.7) * 6.2832;
     vPx = px;
@@ -682,11 +805,16 @@ const FLOWER_FRAGMENT = /* glsl */ `
   uniform vec3 uFlowerA;
   uniform vec3 uFlowerB;
   uniform vec3 uFlowerC;
-  uniform vec3 uSeed;
+  uniform vec3 uFlowerRareA;
+  uniform vec3 uFlowerRareB;
   uniform vec3 uNightA;
   uniform vec3 uNightB;
+  uniform vec3 uNightRareA;
+  uniform vec3 uNightRareB;
   varying float vTint;
   varying float vApron;
+  varying float vVariation;
+  varying float vColorVariation;
   varying float vSpin;
   varying float vPx;
   varying float vClamp;
@@ -697,10 +825,15 @@ const FLOWER_FRAGMENT = /* glsl */ `
   ${NOISE_GLSL}
   void main() {
     if (vApron > 0.5 && uSeat > 0.001) discard;
-    bool seedHead = vTint >= 0.92;
+    float rareStart = ${(1 - FLOWER_VARIATION.rareColorFraction).toFixed(3)};
+    float rareSplit = ${(1 - FLOWER_VARIATION.rareColorFraction / 2).toFixed(4)};
+    bool rareA = vColorVariation >= rareStart && vColorVariation < rareSplit;
+    bool rareB = vColorVariation >= rareSplit;
     vec3 day = vTint < 0.55
       ? uFlowerA
-      : (vTint < 0.75 ? uFlowerB : (seedHead ? uSeed : uFlowerC));
+      : (vTint < 0.75 ? uFlowerB : uFlowerC);
+    if (rareA) day = uFlowerRareA;
+    if (rareB) day = uFlowerRareB;
     day *= 0.92 + 0.16 * hash2(vec2(vTint, 7.7));
     // Moonlit lavender, deliberately dim — near-white heads read as paper
     // scraps at 3:45am. The crossfade rides the shared uDark clock.
@@ -708,7 +841,20 @@ const FLOWER_FRAGMENT = /* glsl */ `
     // round-3 browse — "too bright in dark mode" — so night dropped to
     // 0.45 and the crossfade runs nearly full.)
     vec3 night = mix(uNightA, uNightB, step(0.5, vTint)) * 0.42;
+    if (rareA) night = uNightRareA * 0.42;
+    if (rareB) night = uNightRareB * 0.42;
     vec3 col = mix(day, night, uDark * 0.94);
+    float headValue = mix(
+      ${FLOWER_VARIATION.value[0].toFixed(2)},
+      ${FLOWER_VARIATION.value[1].toFixed(2)},
+      vVariation
+    );
+    vec3 headTemperature = mix(
+      vec3(0.97, 1.00, 1.03),
+      vec3(1.04, 1.00, 0.96),
+      vVariation
+    );
+    col *= headValue * headTemperature;
     // Petal rosette via discard (round 3: "clearly just circles") —
     // alpha-to-coverage broke under the postfx composer (non-MSAA target)
     // and canvas-alpha compositing, printing the full quad, so the shape
@@ -720,25 +866,17 @@ const FLOWER_FRAGMENT = /* glsl */ `
     // dots instead of shimmering stars.
     vec2 pq = (vUv - 0.5) * 2.0;
     float r = length(pq);
-    if (seedHead) {
-      // Slim upright wheat tip: a tall ellipse, shaded toward its edge —
-      // no petals, no stamen, no spin (seed heads stand, not turn).
-      float re = length(vec2(pq.x / 0.3, pq.y / 0.95));
-      if (re > 1.0) discard;
-      col *= 1.0 - 0.25 * smoothstep(0.2, 1.0, re);
-    } else {
-      float theta = atan(pq.y, pq.x) + vSpin;
-      float lobes = vTint < 0.55 ? 6.0 : 5.0;
-      float lobe = pow(0.5 + 0.5 * cos(lobes * theta), 0.65);
-      float shape = smoothstep(7.0, 16.0, vPx);
-      float petalR = mix(0.86, 0.30 + 0.62 * lobe, shape);
-      if (r > max(petalR, 0.32)) discard;
-      col *= 1.0 - 0.22 * smoothstep(0.30, 0.92, r);
-      // Stamen — a warm eye in each head, dimming with the night. Fades in
-      // with the petal shape so far dots keep their pure species color.
-      vec3 stamen = mix(vec3(0.96, 0.80, 0.34), vec3(0.38, 0.37, 0.32), uDark * 0.94);
-      col = mix(col, stamen, (1.0 - smoothstep(0.14, 0.30, r)) * shape);
-    }
+    float theta = atan(pq.y, pq.x) + vSpin;
+    float lobes = vTint < 0.55 ? 6.0 : 5.0;
+    float lobe = pow(0.5 + 0.5 * cos(lobes * theta), 0.65);
+    float shape = smoothstep(7.0, 16.0, vPx);
+    float petalR = mix(0.86, 0.30 + 0.62 * lobe, shape);
+    if (r > max(petalR, 0.32)) discard;
+    col *= 1.0 - 0.22 * smoothstep(0.30, 0.92, r);
+    // Stamen — a warm eye in each head, dimming with the night. Fades in
+    // with the petal shape so far dots keep their pure species color.
+    vec3 stamen = mix(vec3(0.96, 0.80, 0.34), vec3(0.38, 0.37, 0.32), uDark * 0.94);
+    col = mix(col, stamen, (1.0 - smoothstep(0.14, 0.30, r)) * shape);
     col += ${LAMP_WARM} * vLamp * mix(0.06, 0.20, uDark);
     col = mix(col, vFogColor, max(vFog, vClamp * 0.85));
     gl_FragColor = vec4(col, 1.0);
@@ -810,17 +948,23 @@ function makeTerrainGeometry(
   return geometry;
 }
 
+function tuftMaxY(source: THREE.BufferGeometry) {
+  source.computeBoundingBox();
+  return Math.max(source.boundingBox!.max.y, 1e-4);
+}
+
 /** Clone a tuft LOD out of the GLB, height-normalized so position.y is the
- * 0→1 gate (footprint scales along, ~2.5 per unit height). Per-instance
- * lighting is owned by each tile's InstancedMesh so this geometry stays
- * shared by every tile. */
+ * 0→1 gate. X and Z use a capped correction against the full-detail tuft,
+ * preserving coverage without stretching Safety's eight-card mesh into flat
+ * fans. Per-instance lighting is owned by each tile's InstancedMesh so this
+ * geometry stays shared by every tile. */
 function prepareTuftGeometry(
   source: THREE.BufferGeometry,
+  referenceMaxY: number,
 ): THREE.BufferGeometry {
   const geometry = source.clone();
-  geometry.computeBoundingBox();
-  const maxY = Math.max(geometry.boundingBox!.max.y, 1e-4);
-  geometry.scale(1 / maxY, 1 / maxY, 1 / maxY);
+  const scale = grassTuftNormalizationScale(tuftMaxY(geometry), referenceMaxY);
+  geometry.scale(scale.x, scale.y, scale.z);
   return geometry;
 }
 
@@ -896,6 +1040,7 @@ export default function Meadow({
   dark,
   rung = 3,
   farGrassShader = "simplified",
+  grassDeformation = "off",
   contentTier = "full",
 }: {
   dark: boolean;
@@ -906,12 +1051,45 @@ export default function Meadow({
   /** Resolved visual policy. Performance experiments override the profile in
    * the quality resolver before this narrow scene slice reaches the meadow. */
   farGrassShader?: "full" | "simplified";
+  /** Resolution and allocation policy for persistent physical marks. */
+  grassDeformation?: MeadowDeformationQuality;
   /** Content axis. Moves tuft LOD, terrain tessellation and the near lawn's
    * wind shader — never the instance count, which stays at the rung. */
   contentTier?: SceneContentTier;
 }) {
+  const gl = useThree((state) => state.gl);
+  const { cinematicPlus } = useSceneQualityControls();
+  const daylightCinematicPlus = cinematicPlus && !dark;
   const performanceSettings = useScenePerformanceSettings();
   const simplifiedFar = farGrassShader === "simplified";
+  const [deformationOverride, setDeformationOverride] = useState<
+    boolean | null
+  >(null);
+  const deformationEnabled = deformationOverride ?? grassDeformation !== "off";
+  const effectiveDeformationQuality: MeadowDeformationQuality =
+    deformationEnabled
+      ? grassDeformation === "off"
+        ? "lean"
+        : grassDeformation
+      : "off";
+  const prefersReducedMotion = useMemo(
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    [],
+  );
+  const deformation = useMemo(
+    () =>
+      new MeadowDeformationController(
+        gl,
+        grassDeformation,
+        prefersReducedMotion,
+      ),
+    // The controller resamples when quality changes. Rebuilding it would
+    // throw away the mark the resample is meant to retain.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [gl, prefersReducedMotion],
+  );
   const content = meadowContentPlan(contentTier);
   const terrainGeometry = useTerrainGeometry(contentTier);
   const maxPopulation = meadowTilePopulationLimit(performanceSettings);
@@ -962,6 +1140,7 @@ export default function Meadow({
       const values = new Float32Array(tile.indices.length * 3);
       tile.indices.forEach((index, local) => {
         values[local * 3] = flowers.tint[index]!;
+        values[local * 3 + 1] = flowers.variation[index]!;
         values[local * 3 + 2] = flowers.apron[index]!;
       });
       return new THREE.InstancedBufferAttribute(values, 3);
@@ -1019,23 +1198,36 @@ export default function Meadow({
     const grassOnly = {
       uAlpha: { value: null as THREE.Texture | null },
     };
+    const deformationOnly = {
+      uDeformation: { value: null as THREE.Texture | null },
+    };
     const flowerOnly = {
       uFlowerA: { value: c(COLORS.flowerA) },
       uFlowerB: { value: c(COLORS.flowerB) },
       uFlowerC: { value: c(COLORS.flowerC) },
-      uSeed: { value: c(COLORS.seed) },
+      uFlowerRareA: { value: c(COLORS.flowerRareA) },
+      uFlowerRareB: { value: c(COLORS.flowerRareB) },
       uNightA: { value: c(COLORS.nightA) },
       uNightB: { value: c(COLORS.nightB) },
+      uNightRareA: { value: c(COLORS.nightRareA) },
+      uNightRareB: { value: c(COLORS.nightRareB) },
       uPixelScale: { value: 1000 },
       uPxFloor: { value: 2.0 },
     };
+    const shadowUniforms = () =>
+      THREE.UniformsUtils.clone(THREE.UniformsLib.lights);
     return {
       shared,
       grassOnly,
+      deformationOnly,
       flowerOnly,
       flowerGeometry: makeFlowerGeometry(),
       terrainMaterial: new THREE.ShaderMaterial({
-        uniforms: { ...shared, uSunDir: { value: SUN_DIR } },
+        uniforms: {
+          ...shadowUniforms(),
+          ...shared,
+          uSunDir: { value: SUN_DIR },
+        },
         vertexShader: TERRAIN_VERTEX,
         fragmentShader: TERRAIN_FRAGMENT,
       }),
@@ -1043,14 +1235,37 @@ export default function Meadow({
       // DoubleSide + alpha test is the FluffyGrass technique; the opaque
       // FrontSide blade experiment is what the owner rejected.
       grassMaterial: new THREE.ShaderMaterial({
-        uniforms: { ...shared, ...grassOnly },
-        vertexShader: GRASS_VERTEX,
+        uniforms: { ...shadowUniforms(), ...shared, ...grassOnly },
+        vertexShader: meadowGrassVertexShader(false),
         fragmentShader: GRASS_FRAGMENT,
         side: THREE.DoubleSide,
       }),
       farGrassMaterial: new THREE.ShaderMaterial({
-        uniforms: { ...shared, ...grassOnly },
-        vertexShader: GRASS_VERTEX,
+        uniforms: { ...shadowUniforms(), ...shared, ...grassOnly },
+        vertexShader: meadowGrassVertexShader(false),
+        fragmentShader: GRASS_FRAGMENT,
+        side: THREE.DoubleSide,
+        defines: { FAR_SIMPLE: 1 },
+      }),
+      deformedGrassMaterial: new THREE.ShaderMaterial({
+        uniforms: {
+          ...shadowUniforms(),
+          ...shared,
+          ...grassOnly,
+          ...deformationOnly,
+        },
+        vertexShader: meadowGrassVertexShader(true),
+        fragmentShader: GRASS_FRAGMENT,
+        side: THREE.DoubleSide,
+      }),
+      deformedFarGrassMaterial: new THREE.ShaderMaterial({
+        uniforms: {
+          ...shadowUniforms(),
+          ...shared,
+          ...grassOnly,
+          ...deformationOnly,
+        },
+        vertexShader: meadowGrassVertexShader(true),
         fragmentShader: GRASS_FRAGMENT,
         side: THREE.DoubleSide,
         defines: { FAR_SIMPLE: 1 },
@@ -1064,6 +1279,34 @@ export default function Meadow({
     // Theme transitions run through uDark; remounting would make them snap.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ShaderMaterial does not opt into Three's light/shadow uniforms by
+  // default. Switch that contract and its compile-time branch together so
+  // Cinematic+ receives the directional map immediately, while every other
+  // mode compiles out the sampler and getShadowMask call entirely.
+  useLayoutEffect(() => {
+    const materials = [
+      built.terrainMaterial,
+      built.grassMaterial,
+      built.farGrassMaterial,
+      built.deformedGrassMaterial,
+      built.deformedFarGrassMaterial,
+    ];
+    for (const material of materials) {
+      const defined = material.defines?.CINEMATIC_PLUS_SHADOWS === 1;
+      if (
+        material.lights === daylightCinematicPlus &&
+        defined === daylightCinematicPlus
+      )
+        continue;
+      material.lights = daylightCinematicPlus;
+      material.defines ??= {};
+      if (daylightCinematicPlus)
+        material.defines.CINEMATIC_PLUS_SHADOWS = 1;
+      else delete material.defines.CINEMATIC_PLUS_SHADOWS;
+      material.needsUpdate = true;
+    }
+  }, [built, daylightCinematicPlus]);
 
   // The GLB's three tuft LODs — 66, 32 and 16 triangles — prepared once and
   // indexed by level. The near lawn picks by content tier; the mid + seated
@@ -1081,7 +1324,8 @@ export default function Meadow({
     if (sources.some((source) => source === null)) {
       throw new Error("grass-tuft.glb is missing an LOD00/LOD01/LOD02 mesh");
     }
-    return sources.map((source) => prepareTuftGeometry(source!));
+    const referenceMaxY = tuftMaxY(sources[0]!);
+    return sources.map((source) => prepareTuftGeometry(source!, referenceMaxY));
   }, [gltf]);
   const nearTuftGeometry = tuftLods[content.nearTuftLod]!;
   const farTuftGeometry = tuftLods[content.farTuftLod]!;
@@ -1093,6 +1337,20 @@ export default function Meadow({
     alphaMap.needsUpdate = true;
     built.grassOnly.uAlpha.value = alphaMap;
   }, [alphaMap, built]);
+
+  useEffect(() => {
+    deformation.setQuality(effectiveDeformationQuality);
+    built.deformationOnly.uDeformation.value = deformation.texture;
+  }, [built, deformation, effectiveDeformationQuality]);
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (deformationEnabled)
+        deformation.tick(performance.now() / 1000, document.hidden);
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [deformation, deformationEnabled]);
 
   // Instance fill, once per tile. The matrices still point at meadowField's
   // exact authored placements; only their draw ownership changes. Each
@@ -1123,7 +1381,7 @@ export default function Meadow({
         );
         scale.set(
           stream.width[i]! * golf.grassScale,
-          stream.height[i]! * golf.grassScale,
+          stream.height[i]! * golf.grassHeightScale,
           stream.width[i]! * golf.grassScale,
         );
         matrix.compose(position, quaternion, scale);
@@ -1145,11 +1403,12 @@ export default function Meadow({
       for (let local = 0; local < tile.indices.length; local++) {
         const i = tile.indices[local]!;
         position.set(flowers.x[i]!, flowers.y[i]!, flowers.z[i]);
-        scale.setScalar(
-          golfSurfaceAt(flowers.x[i]!, flowers.z[i]!) === "rough"
-            ? flowers.scale[i]!
-            : 0,
+        const golf = suppressGolfVegetation(
+          flowers.x[i]!,
+          flowers.z[i]!,
+          flowers.variation[i]!,
         );
+        scale.setScalar(golf.flowers ? flowers.scale[i]! : 0);
         matrix.compose(position, quaternion, scale);
         mesh.setMatrixAt(local, matrix);
       }
@@ -1172,7 +1431,6 @@ export default function Meadow({
   // the shared uniform holders, so every material follows at once; winning
   // values get baked into the defaults above. Zero production cost.
   useEffect(() => {
-    if (process.env.NODE_ENV === "production") return;
     const hooks = window.__stacks;
     if (!hooks) return;
     const apply = (update: MeadowDiagnosticsUpdate = {}) => {
@@ -1180,10 +1438,21 @@ export default function Meadow({
       if (update.speed !== undefined)
         built.shared.uWindSpeed.value = update.speed;
       if (update.density !== undefined) densityRef.current = update.density;
+      if (update.deformationEnabled !== undefined) {
+        const nextQuality: MeadowDeformationQuality = update.deformationEnabled
+          ? grassDeformation === "off"
+            ? "lean"
+            : grassDeformation
+          : "off";
+        deformation.setQuality(nextQuality);
+        built.deformationOnly.uDeformation.value = deformation.texture;
+        setDeformationOverride(update.deformationEnabled);
+      }
       return {
         wind: built.shared.uWindAmp.value,
         speed: built.shared.uWindSpeed.value,
         density: densityRef.current,
+        deformationEnabled: update.deformationEnabled ?? deformationEnabled,
       };
     };
     hooks.meadow = meadowDiagnosticsController.update;
@@ -1193,7 +1462,7 @@ export default function Meadow({
         delete hooks.meadow;
       meadowDiagnosticsController.disconnect(apply);
     };
-  }, [built]);
+  }, [built, deformation, deformationEnabled, grassDeformation]);
 
   // Click pulse for the pointer poke: stamped in the scene's own uTime
   // clock (written every frame below) so the pulse math never mixes time
@@ -1215,7 +1484,9 @@ export default function Meadow({
   const pokeGestureDirection = useRef(new THREE.Vector2());
   const pokeHasPrevious = useRef(false);
   const handledTouchPulseRevision = useRef(touchWorldRef.meadowPulseRevision);
-  const handledImpactRevision = useRef(getMeadowDisturbance().impact.revision);
+  const handledImpactRevision = useRef(
+    getMeadowDisturbance().physicalEvent.revision,
+  );
   const bootAt = useRef(-1);
   const nextWindDiagnosticAt = useRef(0);
   useEffect(() => {
@@ -1244,39 +1515,45 @@ export default function Meadow({
       built.terrainMaterial.dispose();
       built.grassMaterial.dispose();
       built.farGrassMaterial.dispose();
+      built.deformedGrassMaterial.dispose();
+      built.deformedFarGrassMaterial.dispose();
       built.flowerMaterial.dispose();
+      deformation.dispose();
       // Terrain geometry belongs to the tier cache, which disposes its own.
       for (const lod of tuftLods) lod.dispose();
     },
-    [built, tuftLods],
+    [built, deformation, tuftLods],
   );
 
   // The complete per-frame cost: shared uniform writes plus one cheap count
   // assignment per tile. Visibility itself remains Three's frustum test.
   useFrame(({ clock, gl, camera, pointer }, delta) => {
     const shared = built.shared;
+    const nowSeconds = performance.now() / 1000;
+    const disturbance = getMeadowDisturbance();
+    deformation.applyResetRevision(disturbance.resetRevision);
     // Pointer → lawn: unproject the cursor and hit the base ground plane
     // analytically (no raycaster, no geometry walk). Movement brushes a
     // trailing patch in the stroke direction; a click launches its own
     // outward ring. Coarse movement reuses these exact uniforms and draw
     // calls through the rAF-bounded Touch Wake signal.
     const touchWake = touchWorldRef.wakeStrength;
-    handledImpactRevision.current = visitMeadowImpactsSince(
+    handledImpactRevision.current = visitMeadowPhysicalEventsSince(
       handledImpactRevision.current,
-      (impact) => {
-        const groundY = meadowHeight(impact.x, impact.z);
+      (event) => {
+        const groundY = meadowHeight(event.endX, event.endZ);
         if (
-          impact.strength > 0 &&
-          impact.y <= groundY + MEADOW_IMPACT.groundTolerance
+          event.strength > 0 &&
+          event.y <= groundY + MEADOW_IMPACT.groundTolerance
         ) {
           const directionLength = Math.hypot(
-            impact.directionX,
-            impact.directionZ,
+            event.directionX,
+            event.directionZ,
           );
           const directionX =
-            directionLength > 1e-5 ? impact.directionX / directionLength : 0;
+            directionLength > 1e-5 ? event.directionX / directionLength : 0;
           const directionZ =
-            directionLength > 1e-5 ? impact.directionZ / directionLength : 0;
+            directionLength > 1e-5 ? event.directionZ / directionLength : 0;
           const stampImpactPulse = (
             x: number,
             z: number,
@@ -1290,24 +1567,30 @@ export default function Meadow({
             const pulse = shared.uPulses.value[slot]!;
             pulse.x = x;
             pulse.y = z;
-            pokeClickReach.current[slot] = impact.strength * strengthScale;
-            pokeClickRadiusScale.current[slot] = impact.radiusScale;
-            pokeClickTimeScale.current[slot] = impact.timeScale;
+            pokeClickReach.current[slot] = event.strength * strengthScale;
+            pokeClickRadiusScale.current[slot] =
+              event.radius / MEADOW_POKE.pulseEndRadius;
+            pokeClickTimeScale.current[slot] = event.timeScale;
           };
           stampImpactPulse(
-            impact.x - directionX * MEADOW_IMPACT.directionOffset * 0.25,
-            impact.z - directionZ * MEADOW_IMPACT.directionOffset * 0.25,
+            event.endX - directionX * MEADOW_IMPACT.directionOffset * 0.25,
+            event.endZ - directionZ * MEADOW_IMPACT.directionOffset * 0.25,
             MEADOW_IMPACT.pulseStrengthScale,
           );
           if (directionLength > 1e-5)
             stampImpactPulse(
-              impact.x - directionX * MEADOW_IMPACT.directionOffset * 1.25,
-              impact.z - directionZ * MEADOW_IMPACT.directionOffset * 1.25,
+              event.endX - directionX * MEADOW_IMPACT.directionOffset * 1.25,
+              event.endZ - directionZ * MEADOW_IMPACT.directionOffset * 1.25,
               MEADOW_IMPACT.wakeStrengthScale,
             );
+          if (deformationEnabled) deformation.stamp(event, nowSeconds);
         }
       },
     );
+    if (deformationEnabled) {
+      deformation.tick(nowSeconds, document.hidden);
+      built.deformationOnly.uDeformation.value = deformation.texture;
+    }
     const touchPulsePending =
       handledTouchPulseRevision.current !== touchWorldRef.meadowPulseRevision;
     const touchMotionRunning =
@@ -1515,6 +1798,7 @@ export default function Meadow({
     sceneAudio.setWindLevel(meadowWindAudioLevel(liveWind));
     if (clock.elapsedTime >= nextWindDiagnosticAt.current) {
       meadowDiagnosticsController.publishLiveWind(liveWind);
+      meadowDiagnosticsController.publishDeformation(deformation.getSnapshot());
       nextWindDiagnosticAt.current = clock.elapsedTime + 0.1;
     }
     // Pixels per world unit at depth 1 — one multiply per frame buys
@@ -1560,7 +1844,11 @@ export default function Meadow({
   // Draw order terrain → grass → flowers.
   return (
     <StaticWorldRoot id="meadow-geometry">
-      <mesh geometry={terrainGeometry} material={built.terrainMaterial} />
+      <mesh
+        receiveShadow={daylightCinematicPlus}
+        geometry={terrainGeometry}
+        material={built.terrainMaterial}
+      />
       {tiles.near.map((tile, i) => (
         <instancedMesh
           key={`near:${tile.key}`}
@@ -1568,14 +1856,19 @@ export default function Meadow({
             nearRefs.current[i] = mesh;
           }}
           instanceColor={tileAttributes.near[i]}
+          receiveShadow={daylightCinematicPlus}
           // Geometry and material are props, not constructor args: a content
           // tier must swap them in place. Remounting would drop the filled
           // instance matrices, which nothing refills.
           geometry={nearTuftGeometry}
           material={
             content.nearGrassSimplified
-              ? built.farGrassMaterial
-              : built.grassMaterial
+              ? deformationEnabled
+                ? built.deformedFarGrassMaterial
+                : built.farGrassMaterial
+              : deformationEnabled
+                ? built.deformedGrassMaterial
+                : built.grassMaterial
           }
           args={[undefined, undefined, tile.indices.length]}
         />
@@ -1587,9 +1880,16 @@ export default function Meadow({
             farRefs.current[i] = mesh;
           }}
           instanceColor={tileAttributes.far[i]}
+          receiveShadow={daylightCinematicPlus}
           geometry={farTuftGeometry}
           material={
-            simplifiedFar ? built.farGrassMaterial : built.grassMaterial
+            simplifiedFar
+              ? deformationEnabled
+                ? built.deformedFarGrassMaterial
+                : built.farGrassMaterial
+              : deformationEnabled
+                ? built.deformedGrassMaterial
+                : built.grassMaterial
           }
           args={[undefined, undefined, tile.indices.length]}
         />

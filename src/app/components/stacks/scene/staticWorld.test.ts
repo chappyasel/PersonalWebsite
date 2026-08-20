@@ -61,4 +61,21 @@ describe("the explicit static-world allowlist", () => {
 
     expect(child.getWorldPosition(new THREE.Vector3()).x).toBe(7);
   });
+
+  it("leaves a grabbable sibling live while a static root is frozen", () => {
+    const scene = new THREE.Scene();
+    const staticRoot = new THREE.Group();
+    const grabbable = new THREE.Group();
+    scene.add(staticRoot, grabbable);
+    const release = freezeStaticWorldRoot(staticRoot, "test-root");
+
+    grabbable.position.x = 2;
+    scene.updateMatrixWorld(true);
+
+    expect(staticRoot.matrixWorldAutoUpdate).toBe(false);
+    expect(grabbable.matrixAutoUpdate).toBe(true);
+    expect(grabbable.matrixWorldAutoUpdate).toBe(true);
+    expect(grabbable.getWorldPosition(new THREE.Vector3()).x).toBe(2);
+    release();
+  });
 });

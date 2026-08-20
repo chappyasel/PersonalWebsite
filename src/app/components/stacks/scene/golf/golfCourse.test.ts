@@ -34,6 +34,7 @@ describe("golf course field", () => {
     };
     expect(suppressGolfVegetation(club.x, club.z, 0)).toEqual({
       grassScale: 0,
+      grassHeightScale: 0,
       flowers: false,
     });
     expect(GOLF_CLUB_VEGETATION_CLEARANCE).toBeLessThan(0.5);
@@ -87,7 +88,7 @@ describe("golf course field", () => {
     ).toBeLessThan(0.01);
     expect(
       suppressGolfVegetation(GOLF_COURSE_CENTER.x, GOLF_COURSE_CENTER.z, 0.1),
-    ).toEqual({ grassScale: 0, flowers: false });
+    ).toEqual({ grassScale: 0, grassHeightScale: 0, flowers: false });
     expect(GOLF_GREEN_CENTER_LOCAL).toEqual([-1.55, -17.2]);
     expect(GOLF_FLAG_LOCAL).toEqual([-1.55, -18.1]);
     expect(GOLF_FLAG_LOCAL[0] - GOLF_GREEN_CENTER_LOCAL[0]).toBeCloseTo(0, 5);
@@ -103,6 +104,7 @@ describe("golf course field", () => {
     expect(golfSurfaceAt(fringeX, fringeZ)).toBe("fringe");
     expect(suppressGolfVegetation(fringeX, fringeZ, 0)).toEqual({
       grassScale: 0,
+      grassHeightScale: 0,
       flowers: false,
     });
   });
@@ -117,12 +119,13 @@ describe("golf course field", () => {
     const outerZ = GOLF_GREEN.depth / 2 + GOLF_GREEN.fringe;
     const behind = worldAtLocal(
       0,
-      -(outerZ + GOLF_VEGETATION_CLEARANCE.back - 0.05),
+      -(outerZ + GOLF_VEGETATION_CLEARANCE.perimeter * 0.5),
     );
     const foreground = worldAtLocal(
       0,
       outerZ + GOLF_VEGETATION_CLEARANCE.front - 0.05,
     );
+    const frontEdge = worldAtLocal(0.8, outerZ + 0.3);
     const beyondOpening = worldAtLocal(
       0,
       outerZ + GOLF_VEGETATION_CLEARANCE.front + 0.2,
@@ -135,31 +138,55 @@ describe("golf course field", () => {
       GOLF_VEGETATION_CLEARANCE.cupSightlineHalfWidth + 0.12,
       outerZ + GOLF_VEGETATION_CLEARANCE.front + 0.2,
     );
+    const edgeTaper = worldAtLocal(
+      -(GOLF_GREEN.width / 2 + GOLF_GREEN.fringe + 0.3),
+      0,
+    );
     const leftBank = worldAtLocal(
-      -(GOLF_GREEN.width / 2 + GOLF_GREEN.fringe + 0.12),
+      -(GOLF_GREEN.width / 2 + GOLF_GREEN.fringe + 0.9),
       0,
     );
     expect(golfSurfaceAt(behind.x, behind.z)).toBe("rough");
-    expect(suppressGolfVegetation(behind.x, behind.z, 0)).toEqual({
-      grassScale: 0,
-      flowers: false,
-    });
+    const behindSuppression = suppressGolfVegetation(behind.x, behind.z, 0);
+    expect(behindSuppression.grassScale).toBeGreaterThan(0.2);
+    expect(behindSuppression.grassScale).toBeLessThan(1);
+    expect(behindSuppression.grassHeightScale).toBeGreaterThan(0.9);
+    expect(behindSuppression.grassHeightScale).toBeGreaterThan(
+      behindSuppression.grassScale,
+    );
+    expect(behindSuppression.flowers).toBe(false);
     expect(suppressGolfVegetation(foreground.x, foreground.z, 0)).toEqual({
       grassScale: 0,
+      grassHeightScale: 0,
+      flowers: false,
+    });
+    expect(suppressGolfVegetation(frontEdge.x, frontEdge.z, 0)).toEqual({
+      grassScale: 0,
+      grassHeightScale: 0,
       flowers: false,
     });
     expect(suppressGolfVegetation(beyondOpening.x, beyondOpening.z, 0)).toEqual(
-      { grassScale: 0, flowers: false },
+      { grassScale: 0, grassHeightScale: 0, flowers: false },
     );
     expect(suppressGolfVegetation(cupSightline.x, cupSightline.z, 0)).toEqual({
       grassScale: 0,
+      grassHeightScale: 0,
       flowers: false,
     });
     expect(
       suppressGolfVegetation(besideCupSightline.x, besideCupSightline.z, 0),
-    ).toEqual({ grassScale: 1, flowers: true });
+    ).toEqual({ grassScale: 1, grassHeightScale: 1, flowers: true });
+    const edgeSuppression = suppressGolfVegetation(edgeTaper.x, edgeTaper.z, 0);
+    expect(edgeSuppression.grassScale).toBeGreaterThan(0.2);
+    expect(edgeSuppression.grassScale).toBeLessThan(1);
+    expect(edgeSuppression.grassHeightScale).toBeGreaterThan(0.85);
+    expect(edgeSuppression.grassHeightScale).toBeGreaterThan(
+      edgeSuppression.grassScale,
+    );
+    expect(edgeSuppression.flowers).toBe(false);
     expect(suppressGolfVegetation(leftBank.x, leftBank.z, 0)).toEqual({
       grassScale: 1,
+      grassHeightScale: 1,
       flowers: true,
     });
   });

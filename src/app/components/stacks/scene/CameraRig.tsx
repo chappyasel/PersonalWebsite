@@ -17,7 +17,6 @@ import {
   touchWorldRef,
   useStacks,
 } from "../store";
-import { publishTouchFocusDiagnostic } from "../input/touchFocusDiagnostics";
 import { useScroll } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
@@ -29,10 +28,10 @@ import {
 } from "./cameraDepthDiagnostics";
 import {
   cameraTravelState,
+  cameraTravelTransition,
   clampCameraZoom,
   interactionZoomTarget,
   isGolfControlInteraction,
-  shouldResetCameraZoomForTravel,
 } from "./cameraZoom";
 import {
   cursorForInteraction,
@@ -162,7 +161,7 @@ export default function CameraRig() {
   const focusBounds = useRef(new THREE.Box3());
   const focusCenter = useRef(new THREE.Vector3());
   const previousScenePosition = useRef(0);
-  const wasTraveling = useRef(false);
+  const wasBlockingTravel = useRef(false);
   const settledFor = useRef(0);
   // Travel height, integrated separately from camera.position.y. The seat
   // blend writes camera.position.y outright, and damping toward a target from
@@ -181,7 +180,6 @@ export default function CameraRig() {
   const travelEye = useRef(new THREE.Vector3());
   const travelLook = useRef(new THREE.Vector3());
   const previousCameraDepthEnabled = useRef<boolean | null>(null);
-  const lastFocusDiagnostic = useRef("");
   // Walk-to-the-chair scratch: Bezier control point, the position along it,
   // and the point on the chair you keep your eyes on while approaching.
   const ctrl = useRef(new THREE.Vector3());
@@ -454,17 +452,22 @@ export default function CameraRig() {
     );
     const calm = 1 - lean.current;
     const state = useStacks.getState();
-    const { focusBlockedByTravel, traveling } = cameraTravelState({
+    const travel = cameraTravelState({
       scenePosition,
       previousScenePosition: previousScenePosition.current,
       alternateStop: GOLF_STOP_POSITION,
     });
-    if (shouldResetCameraZoomForTravel(wasTraveling.current, traveling)) {
+    const { focusBlockedByTravel } = travel;
+    const travelTransition = cameraTravelTransition(
+      wasBlockingTravel.current,
+      travel,
+    );
+    if (travelTransition.resetFocus) {
       touchWorldRef.zoomOffset = 0;
       if (state.focusedInteraction) state.setFocusedInteraction(null);
       if (state.hovered) state.setHovered(null);
     }
-    wasTraveling.current = traveling;
+    wasBlockingTravel.current = travelTransition.blockingTravel;
     const focusSpec = getSceneInteraction(state.focusedInteraction);
     const golfControlFocused = isGolfControlInteraction(
       state.focusedInteraction,
@@ -477,42 +480,6 @@ export default function CameraRig() {
         !busy &&
         !isSeated(),
     );
-    const focusDiagnostic = {
-      interaction: state.focusedInteraction,
-      hasSpec: Boolean(focusSpec),
-      focusEnabled,
-      focusBlockedByTravel,
-      busy,
-      dragging: Boolean(state.dragging),
-      seated: isSeated(),
-      pointerType: touchWorldRef.interactionPointerType,
-      scenePosition: Number(scenePosition.toFixed(4)),
-      distanceFromStop: Number(
-        Math.min(
-          Math.abs(scenePosition - Math.round(scenePosition)),
-          Math.abs(scenePosition - GOLF_STOP_POSITION),
-        ).toFixed(4),
-      ),
-    };
-    const focusDiagnosticKey = JSON.stringify({
-      interaction: focusDiagnostic.interaction,
-      hasSpec: focusDiagnostic.hasSpec,
-      focusEnabled: focusDiagnostic.focusEnabled,
-      focusBlockedByTravel: focusDiagnostic.focusBlockedByTravel,
-      busy: focusDiagnostic.busy,
-      dragging: focusDiagnostic.dragging,
-      seated: focusDiagnostic.seated,
-      pointerType: focusDiagnostic.pointerType,
-    });
-    if (
-      state.focusedInteraction &&
-      focusDiagnosticKey !== lastFocusDiagnostic.current
-    ) {
-      lastFocusDiagnostic.current = focusDiagnosticKey;
-      publishTouchFocusDiagnostic("camera-gate", focusDiagnostic);
-    } else if (!state.focusedInteraction) {
-      lastFocusDiagnostic.current = "";
-    }
     let desiredFocusX = 0;
     let desiredFocusY = 0;
     if (focusEnabled && focusSpec) {

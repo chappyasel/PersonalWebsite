@@ -10,8 +10,13 @@ import {
 import { expandAndClipTouchHalo, resolveTouchHalo } from "../mobile/halos";
 import { haptic } from "../mobile/liveness";
 import {
+  touchSwipeDestination,
+  touchSwipeScrollBounds,
+} from "../mobile/swipeTravel";
+import {
   authoredTravelStops,
-  shouldSettleInterruptedInertia,
+  isAtAuthoredTravelStop,
+  shouldSettleInterruptedTravel,
   worldZoomFromVerticalDrag,
 } from "../mobile/travel";
 import { projectedInteractionBounds } from "../scene/interactionProjection";
@@ -22,8 +27,6 @@ import {
 import { scrollOffsetForUnit } from "../scene/worldLayout";
 import { progressRef, touchWorldRef, useStacks } from "../store";
 import { useEffect, useRef } from "react";
-
-import { publishTouchFocusDiagnostic } from "./touchFocusDiagnostics";
 
 function activeSheetTop() {
   const sheet = document.querySelector<HTMLElement>(
@@ -72,8 +75,14 @@ export default function TouchInteractionLayer() {
       pickupTimer.current = null;
     };
     const stopInertia = (reason: "new-contact" | "cleanup") => {
-      const shouldSettle = shouldSettleInterruptedInertia(
+      const shouldSettle = shouldSettleInterruptedTravel(
         inertiaFrame.current,
+        useStacks.getState().settledUnit,
+        isAtAuthoredTravelStop(
+          progressRef.current * (UNIT_COUNT - 1),
+          UNIT_COUNT,
+          [GOLF_STOP_POSITION],
+        ),
         reason,
       );
       if (inertiaFrame.current !== null)
@@ -88,11 +97,25 @@ export default function TouchInteractionLayer() {
         element.style.overflowX = "auto";
       }
     };
-    const settle = (userInitiated: boolean) => {
+    const settle = (userInitiated: boolean, swipeStartScrollLeft?: number) => {
       const state = useStacks.getState();
       const element = state.scrollEl;
       if (!element || !state.travelTo) return;
-      const unit = nearestStopForElement(element);
+      let unit = nearestStopForElement(element);
+      if (swipeStartScrollLeft !== undefined) {
+        const max = Math.max(1, element.scrollWidth - element.clientWidth);
+        unit =
+          touchSwipeDestination({
+            startScrollLeft: swipeStartScrollLeft,
+            endScrollLeft: element.scrollLeft,
+            stops: authoredTravelStops(UNIT_COUNT, [GOLF_STOP_POSITION]).map(
+              (position) => ({
+                position,
+                scrollLeft: scrollOffsetForUnit(position) * max,
+              }),
+            ),
+          }) ?? unit;
+      }
       state.setFocusedInteraction(null);
       state.travelTo(unit);
       if (userInitiated) haptic(8);
@@ -113,11 +136,6 @@ export default function TouchInteractionLayer() {
             spec?.movableController?.cancel(event);
             store.setPressedInteraction(null);
             store.setFocusedInteraction(effect.interactionId);
-            publishTouchFocusDiagnostic("focus-effect", {
-              interactionId: effect.interactionId,
-              activeUnit: store.activeUnit,
-              scenePosition: progressRef.current * (UNIT_COUNT - 1),
-            });
             restoreTravel();
             break;
           case "activate":
@@ -161,20 +179,50 @@ export default function TouchInteractionLayer() {
             let velocity = -effect.velocityX * 16.7;
             let frames = 0;
             const element = store.scrollEl;
+            const swipeStartScrollLeft = element
+              ? element.scrollLeft + effect.displacementX
+              : undefined;
+            const swipeBounds =
+              element && swipeStartScrollLeft !== undefined
+                ? touchSwipeScrollBounds({
+                    startScrollLeft: swipeStartScrollLeft,
+                    stops: authoredTravelStops(UNIT_COUNT, [
+                      GOLF_STOP_POSITION,
+                    ]).map((position) => ({
+                      position,
+                      scrollLeft:
+                        scrollOffsetForUnit(position) *
+                        Math.max(
+                          1,
+                          element.scrollWidth - element.clientWidth,
+                        ),
+                    })),
+                  })
+                : null;
             if (!element || Math.abs(velocity) < 0.25) {
-              settle(true);
+              settle(true, swipeStartScrollLeft);
               restoreTravel();
               break;
             }
             const coast = () => {
               frames += 1;
               element.scrollLeft += velocity;
+              if (swipeBounds) {
+                const bounded = Math.min(
+                  swipeBounds.max,
+                  Math.max(swipeBounds.min, element.scrollLeft),
+                );
+                if (bounded !== element.scrollLeft) {
+                  element.scrollLeft = bounded;
+                  velocity = 0;
+                }
+              }
               velocity *= 0.9;
               if (Math.abs(velocity) > 0.25 && frames < 90) {
                 inertiaFrame.current = requestAnimationFrame(coast);
               } else {
                 inertiaFrame.current = null;
-                settle(true);
+                settle(true, swipeStartScrollLeft);
                 restoreTravel();
               }
             };
@@ -201,14 +249,31 @@ export default function TouchInteractionLayer() {
       gesture.current = reduction.state;
       runEffects(reduction.effects, native);
     };
-    const exposedWorldEvent = (event: PointerEvent) => {
+    const exposedWorldContact = (
+      target: EventTarget | null,
+      clientY: number,
+    ) => {
       const element = useStacks.getState().scrollEl;
       return Boolean(
         element &&
-          event.target instanceof Node &&
-          element.contains(event.target) &&
-          event.clientY < activeSheetTop(),
+          target instanceof Node &&
+          element.contains(target) &&
+          clientY < activeSheetTop(),
       );
+    };
+    const exposedWorldEvent = (event: PointerEvent) =>
+      exposedWorldContact(event.target, event.clientY);
+    const touchHitAt = (x: number, y: number) => {
+      const bounds = projectedInteractionBounds({ x, y })
+        .map((bounds) =>
+          expandAndClipTouchHalo(bounds, {
+            width: window.innerWidth,
+            height: window.innerHeight,
+            sheetTop: activeSheetTop(),
+          }),
+        )
+        .filter((bounds) => bounds !== null);
+      return resolveTouchHalo(x, y, bounds);
     };
     const publishWake = (event: PointerEvent) => {
       touchWorldRef.pointerX =
@@ -227,49 +292,15 @@ export default function TouchInteractionLayer() {
       // Camera zoom must not depend on CameraRig's separate pointer listener
       // having mounted first. This arbiter owns the accepted touch contact.
       touchWorldRef.interactionPointerType = "touch";
-      const settleInterruptedInertia = stopInertia("new-contact");
-      if (settleInterruptedInertia) settle(false);
+      const settleInterruptedTravel = stopInertia("new-contact");
+      if (settleInterruptedTravel) settle(false);
       latestEvent.current = event;
       const store = useStacks.getState();
       const exposed = exposedWorldEvent(event);
-      publishTouchFocusDiagnostic("pointerdown", {
-        x: Math.round(event.clientX),
-        y: Math.round(event.clientY),
-        exposed,
-        modalOpen: store.modalOpen,
-        panelState: store.panelState,
-        activeUnit: store.activeUnit,
-        settledUnit: store.settledUnit,
-        scenePosition: progressRef.current * (UNIT_COUNT - 1),
-        interruptedInertia: settleInterruptedInertia,
-      });
-      if (
-        !exposed ||
-        store.modalOpen ||
-        store.panelState !== "closed"
-      )
-        return;
+      if (!exposed || store.modalOpen || store.panelState !== "closed") return;
       publishWake(event);
       touchWorldRef.meadowPulseRevision += 1;
-      const bounds = projectedInteractionBounds({
-        x: event.clientX,
-        y: event.clientY,
-      })
-        .map((bounds) =>
-          expandAndClipTouchHalo(bounds, {
-            width: window.innerWidth,
-            height: window.innerHeight,
-            sheetTop: activeSheetTop(),
-          }),
-        )
-        .filter((bounds) => bounds !== null);
-      const hit = resolveTouchHalo(event.clientX, event.clientY, bounds);
-      publishTouchFocusDiagnostic("hit-test", {
-        hit: hit?.id ?? null,
-        candidates: bounds.length,
-        activeUnit: store.activeUnit,
-        scenePosition: progressRef.current * (UNIT_COUNT - 1),
-      });
+      const hit = touchHitAt(event.clientX, event.clientY);
       if (!hit) {
         store.setFocusedInteraction(null);
         backgroundGesture.current = {
@@ -288,7 +319,6 @@ export default function TouchInteractionLayer() {
       const controllerAccepted = spec.movableController?.press(event) ?? true;
       if (!controllerAccepted) return;
       store.scrollEl?.setPointerCapture?.(event.pointerId);
-      if (store.scrollEl) store.scrollEl.style.touchAction = "none";
       reduce(
         {
           type: "press",
@@ -343,6 +373,20 @@ export default function TouchInteractionLayer() {
         event,
       );
     };
+    const onTouchStart = (event: TouchEvent) => {
+      if (!event.cancelable || event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      if (!touch || !exposedWorldContact(event.target, touch.clientY)) return;
+      const store = useStacks.getState();
+      if (store.modalOpen || store.panelState !== "closed") return;
+      if (!touchHitAt(touch.clientX, touch.clientY)) return;
+
+      // `touch-action` is locked before pointerdown handlers run. Cancel the
+      // legacy touch default at gesture start only inside a live Touch Halo,
+      // so the browser cannot replace this carry with a native horizontal pan.
+      // Background World travel and pinch zoom keep their native behavior.
+      event.preventDefault();
+    };
     const onPointerUp = (event: PointerEvent) => {
       if (event.pointerType !== "touch") return;
       clearPickup();
@@ -374,6 +418,10 @@ export default function TouchInteractionLayer() {
     window.addEventListener("lostpointercapture", onPointerCancel, {
       capture: true,
     });
+    window.addEventListener("touchstart", onTouchStart, {
+      capture: true,
+      passive: false,
+    });
     window.addEventListener("resize", clearFocusForContextChange);
     window.addEventListener("orientationchange", clearFocusForContextChange);
     const unsubscribe = useStacks.subscribe((state, previous) => {
@@ -398,6 +446,9 @@ export default function TouchInteractionLayer() {
         capture: true,
       });
       window.removeEventListener("lostpointercapture", onPointerCancel, {
+        capture: true,
+      });
+      window.removeEventListener("touchstart", onTouchStart, {
         capture: true,
       });
       window.removeEventListener("resize", clearFocusForContextChange);

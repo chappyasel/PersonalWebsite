@@ -15,7 +15,9 @@ export const GOLF_GREEN = {
   slope: 0.02,
 } as const;
 export const GOLF_VEGETATION_CLEARANCE = {
-  back: 0.4,
+  /** Root clearance beyond the painted fringe. Wide grass cards rooted any
+   * closer can still lean or overlap onto the putting surface. */
+  perimeter: 0.72,
   front: 1.1,
   openingNearHalfWidth: 1.45,
   openingFarHalfWidth: 0.9,
@@ -103,33 +105,31 @@ export function suppressGolfVegetation(
   x: number,
   z: number,
   _seed: number,
-): { grassScale: number; flowers: boolean } {
+): { grassScale: number; grassHeightScale: number; flowers: boolean } {
   const clubDistance = Math.hypot(
     x - GOLF_CLUB_CLEARING_CENTER.x,
     z - GOLF_CLUB_CLEARING_CENTER.z,
   );
   if (clubDistance < GOLF_CLUB_VEGETATION_CLEARANCE) {
+    const clubScale = smoothstep(
+      0.18,
+      GOLF_CLUB_VEGETATION_CLEARANCE,
+      clubDistance,
+    );
     return {
-      grassScale: smoothstep(
-        0.18,
-        GOLF_CLUB_VEGETATION_CLEARANCE,
-        clubDistance,
-      ),
+      grassScale: clubScale,
+      grassHeightScale: clubScale,
       flowers: false,
     };
   }
   const local = golfCourseLocalPoint(x, z);
-  if (golfSurfaceAt(x, z) !== "rough") return { grassScale: 0, flowers: false };
-
   const outerX = GOLF_GREEN.width / 2 + GOLF_GREEN.fringe;
   const outerZ = GOLF_GREEN.depth / 2 + GOLF_GREEN.fringe;
-  if (local.z < 0) {
-    const protectedBack = Math.hypot(
-      local.x / outerX,
-      local.z / (outerZ + GOLF_VEGETATION_CLEARANCE.back),
-    );
-    if (protectedBack <= 1) return { grassScale: 0, flowers: false };
-  } else {
+  const courseDistance = Math.hypot(local.x / outerX, local.z / outerZ);
+  if (courseDistance <= 1)
+    return { grassScale: 0, grassHeightScale: 0, flowers: false };
+
+  if (local.z >= 0) {
     const openingProgress = Math.min(
       1,
       Math.max(0, (local.z - outerZ) / GOLF_VEGETATION_CLEARANCE.front),
@@ -142,7 +142,7 @@ export function suppressGolfVegetation(
     const insideOpeningDepth =
       local.z >= outerZ && local.z <= outerZ + GOLF_VEGETATION_CLEARANCE.front;
     if (insideOpeningDepth && Math.abs(local.x) <= openingHalfWidth)
-      return { grassScale: 0, flowers: false };
+      return { grassScale: 0, grassHeightScale: 0, flowers: false };
     // Continue only a narrow slot toward the camera. This removes the one
     // projected tuft that can cover the cup while preserving the tall left
     // and right banks that frame the opening.
@@ -153,9 +153,31 @@ export function suppressGolfVegetation(
       insideCupSightline &&
       Math.abs(local.x) <= GOLF_VEGETATION_CLEARANCE.cupSightlineHalfWidth
     )
-      return { grassScale: 0, flowers: false };
+      return { grassScale: 0, grassHeightScale: 0, flowers: false };
   }
-  return { grassScale: 1, flowers: true };
+
+  // Measure the world-space gap from this root to the fringe along its radial
+  // ray. This runs only after the authored foreground and cup openings above,
+  // so the taper fills the bald surround without putting a clump back into
+  // the flag sightline.
+  const radialDistance = Math.hypot(local.x, local.z);
+  const distanceFromCourse = radialDistance * (1 - 1 / courseDistance);
+  if (distanceFromCourse < GOLF_VEGETATION_CLEARANCE.perimeter) {
+    return {
+      grassScale: smoothstep(
+        0,
+        GOLF_VEGETATION_CLEARANCE.perimeter,
+        distanceFromCourse,
+      ),
+      grassHeightScale: smoothstep(
+        0,
+        GOLF_VEGETATION_CLEARANCE.perimeter * 0.45,
+        distanceFromCourse,
+      ),
+      flowers: false,
+    };
+  }
+  return { grassScale: 1, grassHeightScale: 1, flowers: true };
 }
 
 function smoothstep(a: number, b: number, value: number) {

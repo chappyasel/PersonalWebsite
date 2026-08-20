@@ -1,3 +1,5 @@
+import { SCENE_WEBGL_CAPABILITY_SESSION_KEY } from "./scene/sceneVisitStorage";
+
 type ProbeContext = {
   getContextAttributes: () => object | null;
   isContextLost: () => boolean;
@@ -8,7 +10,7 @@ type ContextHealth = Pick<
   "getContextAttributes" | "isContextLost"
 >;
 
-export const WEBGL_CAPABILITY_KEY = "stacks-webgl-v1";
+export const WEBGL_CAPABILITY_KEY = SCENE_WEBGL_CAPABILITY_SESSION_KEY;
 
 export type WorldEligibility = {
   webglAvailable: boolean;

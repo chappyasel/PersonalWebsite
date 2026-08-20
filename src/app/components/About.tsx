@@ -4,6 +4,7 @@ import Link from "next/link";
 import image from "public/images/about/profile.jpg";
 import React from "react";
 
+import { IntersectionMotion } from "~/components/ui/intersection-motion";
 import { ThemeToggle } from "~/components/ui/theme-toggle";
 
 import ContactButtons from "./ContactButtons";
@@ -116,7 +117,7 @@ export function AboutIntro() {
 
 export default async function AboutMe() {
   return (
-    <div
+    <IntersectionMotion
       data-placard-surface=""
       className="relative mt-6 w-full gap-2 rounded-2xl border border-foreground/[0.06] bg-muted/40 p-8 leading-5 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-lg intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000 md:mt-28"
     >
@@ -175,6 +176,6 @@ export default async function AboutMe() {
           </Link>
         </div> */}
       </div>
-    </div>
+    </IntersectionMotion>
   );
 }

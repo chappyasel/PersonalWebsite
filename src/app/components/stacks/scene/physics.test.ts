@@ -444,7 +444,7 @@ describe("shelf physics lifecycle and carrying", () => {
     await warm();
     const { prop } = topFixture();
     const entry = handle("drop", prop);
-    const impactRevision = getMeadowDisturbance().impact.revision;
+    const impactRevision = getMeadowDisturbance().physicalEvent.revision;
     const prepared = worldFor(prop, [entry]);
     expect(prepared.status).toBe("ready");
     if (prepared.status !== "ready") return;
@@ -474,7 +474,7 @@ describe("shelf physics lifecycle and carrying", () => {
     for (let frame = 10; frame < 120; frame++)
       prepared.world.tick(1 / 60, frame + 1);
     expect(entry.body!.sleepState).toBe(2);
-    expect(getMeadowDisturbance().impact.revision).toBe(impactRevision);
+    expect(getMeadowDisturbance().physicalEvent.revision).toBe(impactRevision);
   });
 
   it("honors an authored basketball restitution on a shelf landing", async () => {
@@ -556,7 +556,7 @@ describe("shelf physics lifecycle and carrying", () => {
     await warm();
     const { prop } = topFixture();
     const entry = handle("dragged-off", prop);
-    const impactRevision = getMeadowDisturbance().impact.revision;
+    const impactRevision = getMeadowDisturbance().physicalEvent.revision;
     const prepared = worldFor(prop, [entry]);
     expect(prepared.status).toBe("ready");
     if (prepared.status !== "ready") return;
@@ -587,7 +587,7 @@ describe("shelf physics lifecycle and carrying", () => {
       prepared.world.tick(1 / 60, frame + 1);
     expect(entry.group.position.y).toBeLessThan(-1);
     expect(entry.group.position.x).toBeCloseTo(1.55, 1);
-    const impact = getMeadowDisturbance().impact;
+    const impact = getMeadowDisturbance().physicalEvent;
     expect(impact.revision).toBe(impactRevision + 1);
     expect(impact.y).toBeLessThan(SHELF_GEOMETRY.groundY + 0.02);
     expect(impact.y).toBeGreaterThan(SHELF_GEOMETRY.groundY - 0.15);
@@ -666,17 +666,19 @@ describe("scene-wide physics world", () => {
     const prepared = prepareScenePhysics(scope, entry);
     expect(prepared.status).toBe("ready");
     if (prepared.status !== "ready") return;
-    const revision = getMeadowDisturbance().impact.revision;
+    const revision = getMeadowDisturbance().physicalEvent.revision;
     prepared.world.grab(entry);
     prepared.world.release(entry, new THREE.Vector3(4, 0, 0));
     for (let frame = 0; frame < 90; frame += 1)
       prepared.world.tick(1 / 120, frame + 1);
 
-    const impact = getMeadowDisturbance().impact;
+    const impact = getMeadowDisturbance().physicalEvent;
     expect(impact.revision).toBeGreaterThan(revision + 1);
     expect(impact.directionX).toBeGreaterThan(0.9);
     expect(impact.timeScale).toBe(MEADOW_TRAIL.timeScale);
-    expect(impact.radiusScale).toBeGreaterThan(0);
+    expect(impact.radius).toBeGreaterThan(0);
+    expect(impact.kind).toBe("trail");
+    expect(impact.endX).toBeGreaterThan(impact.startX);
   });
 
   it("resets every settled About reading-stack book after leaving it off-screen", async () => {

@@ -1,4 +1,6 @@
-export const FOCUS_SESSION_KEY = "stacks:details-hidden";
+import { SCENE_FOCUS_SESSION_KEY } from "../scene/sceneVisitStorage";
+
+export const FOCUS_SESSION_KEY = SCENE_FOCUS_SESSION_KEY;
 
 export function isFocusModeShortcut(
   event: Pick<

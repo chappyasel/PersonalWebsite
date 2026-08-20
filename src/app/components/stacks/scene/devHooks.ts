@@ -12,6 +12,40 @@
 let requested = false;
 const listeners = new Set<() => void>();
 
+export type SceneDiagnosticsQueryMode =
+  | "none"
+  | "hud"
+  | "debug"
+  | "harness";
+
+/** Resolve the URL's diagnostics surface once so the chrome and canvas cannot
+ * disagree about whether a visit requested cheap hooks or expensive probes. */
+export function sceneDiagnosticsQueryMode(
+  search: string | URLSearchParams,
+): SceneDiagnosticsQueryMode {
+  const params =
+    typeof search === "string" ? new URLSearchParams(search) : search;
+  if (params.has("harness")) return "harness";
+  if (params.get("debug") === "1") return "debug";
+  if (params.get("hud") === "1") return "hud";
+  return "none";
+}
+
+/** The compact production HUD needs the read-only window hooks, but no scene
+ * probes. Full debug and the performance harness need both. */
+export function sceneDevHooksRequestedBySearch(
+  search: string | URLSearchParams,
+) {
+  return sceneDiagnosticsQueryMode(search) !== "none";
+}
+
+export function sceneInstrumentationRequestedBySearch(
+  search: string | URLSearchParams,
+) {
+  const mode = sceneDiagnosticsQueryMode(search);
+  return mode === "debug" || mode === "harness";
+}
+
 /** Called by the diagnostics loader, however it was triggered. */
 export function requestDevHooks() {
   requested = true;

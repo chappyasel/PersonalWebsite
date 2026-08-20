@@ -7,21 +7,31 @@ import { progressRef, useStacks } from "../store";
 import { PALETTES, type Palette, rand } from "../theme";
 import { Environment, Lightformer } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { Suspense, useEffect, useMemo, useRef } from "react";
+import {
+  type RefObject,
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+} from "react";
 import * as THREE from "three";
 
 import Butterflies from "./Butterflies";
 import Meadow from "./Meadow";
 import Petals from "./Petals";
 import Wildlife from "./Wildlife";
+import { registerCinematicSun } from "./cinematicSun";
 import { DAYLIGHT_RENDERING } from "./daylightRendering";
 import {
   getSceneInteraction,
   registerSceneInteraction,
 } from "./interactionRegistry";
 import { claimEffectLayer, effectLayerAges } from "./layeredEffects";
+import { MEADOW_LAYOUT_REVISION } from "./meadowField";
 import { type SceneQualityPlan } from "./quality";
+import { useSceneQualityControls } from "./sceneQualityController";
 import { getSeatAmount } from "./seated";
+import { SHELF_GEOMETRY } from "./shelfGeometry";
 import { SKY_LIGHTING } from "./skyLighting";
 import { updateManualWorldMatrix } from "./staticWorld";
 import { MID_X, STACKS_DESKTOP_MIN_WIDTH, TRAVEL_X } from "./worldLayout";
@@ -171,10 +181,8 @@ const SKY_FRAGMENT = `
   uniform float uPan;      // azimuth the traverse has swept (see SkyDome)
   uniform float uHover;    // azimuth the pointer is over, or 99 for none
   uniform float uTime;
-  uniform float uFrame;    // frame counter mod 64 — scrolls the IGN dither
   uniform float uSimplify; // degrade rung: 1 = two bands, no city/stars/ember
-  uniform float uPost;     // 1 = composer owns the frame: skip the IGN dither
-                           // (it would grain linear HDR; Noise runs in-chain)
+  uniform float uPost;     // 1 = composer owns the frame
   uniform float uFires[${FIREWORK_LAYERS}]; // launch ages, < 0 idle
   uniform float uFireSeeds[${FIREWORK_LAYERS}]; // each launch deals its own shells
   uniform float uSeat;     // 0 at the shelf … 1 seated (scene/seated.ts)
@@ -293,23 +301,22 @@ const SKY_FRAGMENT = `
   }
 
   // One Washington weather field, sampled by both the sky and its mirrored
-  // elevation in the Potomac. Macro mass and edge erosion are deliberately
-  // separate: thresholding ordinary noise alone made evenly fuzzy blobs that
-  // looked generated rather than observed. The third channel is a higher,
+  // elevation in the Potomac. Broad, vertically compressed noise makes long
+  // strands instead of a row of cotton balls. The third channel is a higher,
   // thinner veil, so every cloud is not parked on the same horizontal deck.
   vec3 dcCloudField(float az, float el) {
     vec2 drift = vec2(uTime * 0.0052, -uTime * 0.0007);
-    vec2 p = vec2(az * 6.8, el * 15.5) + drift;
-    float macro = 0.66 * vnoise(p)
-                + 0.34 * vnoise(p * vec2(1.78, 1.24) + 11.4);
-    float billow = 0.58 * vnoise(p * vec2(3.35, 2.15) + 3.7)
-                 + 0.42 * vnoise(p * vec2(6.60, 3.75) + 19.2);
-    // A flatter, slightly darker underside makes each mass read as volume.
-    float deck = smoothstep(0.040, 0.070, el)
-               * (1.0 - smoothstep(0.205, 0.285, el));
-    float mass = smoothstep(0.44, 0.68, macro + 0.16 * billow);
-    float eroded = smoothstep(0.38, 0.72, billow);
-    float body = mass * mix(0.68, 1.0, eroded) * deck;
+    vec2 p = vec2(az * 5.6, el * 22.0) + drift;
+    float macro = 0.68 * vnoise(p * vec2(0.84, 1.18))
+                + 0.32 * vnoise(vec2(p.x * 1.52 + p.y * 0.42,
+                                      p.y * 1.85) + 11.4);
+    float billow = 0.58 * vnoise(p * vec2(3.15, 4.60) + 3.7)
+                 + 0.42 * vnoise(p * vec2(5.80, 7.40) + 19.2);
+    float deck = smoothstep(0.060, 0.095, el)
+               * (1.0 - smoothstep(0.175, 0.245, el));
+    float mass = smoothstep(0.49, 0.72, macro + 0.11 * billow);
+    float eroded = smoothstep(0.42, 0.76, billow);
+    float body = mass * mix(0.58, 0.88, eroded) * deck;
     // Break the deck into weather systems at a scale much wider than its
     // scalloped edge; this avoids a wallpaper of equal cotton balls.
     float systems = smoothstep(0.30, 0.69,
@@ -971,10 +978,24 @@ const SKY_FRAGMENT = `
     // Francisco's haze must converge on the shared air behind its buildings.
     vec3 sfHazeBase = col;
 
-    // Light mode keeps a source-less dawn: the horizon ember, warming sky and
-    // scroll-driven key describe the morning without painting a solar disc
-    // whose screen position does not drive the scene's fixed light direction.
+    // Production light mode keeps a source-less dawn. Cinematic+ compiles a
+    // visible upper-left sun and a broad warm halo into its own material
+    // variant. Occlusion-aware shafts come from the physical sun mesh and
+    // post-process below, not from painted bands in the sky.
     float day = 1.0 - uDark;
+
+#ifdef CINEMATIC_PLUS
+    float localA = a - uPan;
+    const float sunA = -1.82;
+    const float sunE = 0.205;
+    vec2 sunQ = vec2((localA - sunA) / 0.018, (e - sunE) / 0.018);
+    float sunD = length(sunQ);
+    float sunDisc = smoothstep(1.08, 0.82, sunD) * day;
+    float sunHalo = exp(-sunD * sunD * 0.055) * day;
+
+    col += vec3(1.0, 0.73, 0.40) * sunHalo * 0.16;
+    col = mix(col, vec3(1.34, 1.12, 0.82), sunDisc * 0.94);
+#endif
 
     // ---- The moon, dark theme only. It rises from behind the skyline,
     // crests near the middle of the traverse, then settles behind the city
@@ -999,42 +1020,42 @@ const SKY_FRAGMENT = `
       col += vec3(0.42, 0.50, 0.66) * halo * moonGate * 0.20;
     }
 
-    // ---- Cloud deck, light theme only. High quality is macro MASS eroded by
-    // a finer field, rather than five equally weighted octaves: that produces
-    // connected cloudy bodies with broken edges instead of busy fog. The low
-    // program compiles the mass/erosion work out completely and keeps the
-    // camera-continuous coverage deck, so movement or a sustained decline can
-    // become cheaper without deleting the weather.
+    // ---- Thin daylight clouds, light theme only. High quality combines a
+    // broad sheet with vertically compressed erosion. That produces long,
+    // feathered strands instead of dark, rounded storm-cloud bodies. The low
+    // program keeps only the cheaper camera-continuous wisp field.
     if (day > 0.01) {
       float cf = 0.0;
 #ifdef SKY_CLOUD_DETAIL
         vec2 cp = vec2(
-          a * 2.6 + uTime * ${SKY_LIGHTING.atmosphere.cloudDrift.toFixed(3)},
-          e * 9.1
+          a * 2.3 + uTime * ${SKY_LIGHTING.atmosphere.cloudDrift.toFixed(3)},
+          e * 12.8
         );
-        float macro = 0.66 * vnoise(cp * 0.72)
-                    + 0.34 * vnoise(
-                        cp * 1.36 + vec2(-uTime, uTime * 0.28)
+        float macro = 0.68 * vnoise(cp * vec2(0.72, 1.05))
+                    + 0.32 * vnoise(
+                        vec2(cp.x * 1.42 + cp.y * 0.48, cp.y * 1.85)
+                        + vec2(-uTime, uTime * 0.28)
                         * ${SKY_LIGHTING.atmosphere.cloudMorph.toFixed(3)}
                       );
         float erosion = 0.62 * vnoise(
-                            cp * 3.2 + 19.0
+                            cp * vec2(3.2, 5.0) + 19.0
                             + vec2(-uTime, uTime * 0.35)
                             * ${SKY_LIGHTING.atmosphere.cloudMorph.toFixed(3)}
                           )
                       + 0.38 * vnoise(
-                            cp * 6.4 + 7.0
+                            cp * vec2(5.8, 8.4) + 7.0
                             + vec2(uTime * 0.22, -uTime)
                             * ${SKY_LIGHTING.atmosphere.cloudMorph.toFixed(3)}
                           );
-        // Erosion only cuts the boundary/holes; it cannot turn an empty macro
-        // region into salt-and-pepper cloud. A subtle elevation bias flattens
-        // the underside while letting tops billow into the deck.
-        float shapedErosion = (erosion - 0.50) * 0.23;
-        float baseLift = smoothstep(0.025, 0.095, e) * 0.035;
-        cf = macro + shapedErosion + baseLift;
+        float filament = smoothstep(0.54, 0.78, vnoise(
+          vec2(cp.x * 2.15 + cp.y * 1.7, cp.y * 4.6) + 31.0
+        ));
+        // Fine noise only feathers existing sheets. It cannot create the
+        // salt-and-pepper texture that made the old layer look synthetic.
+        float shapedErosion = (erosion - 0.54) * 0.17;
+        cf = macro + shapedErosion + filament * 0.055;
 #endif
-      // A second sparse, higher deck is camera-continuous (a - uPan). The
+      // A second sparse, higher layer is camera-continuous (a - uPan). The
       // primary field remains world-anchored and supplies the obvious drift,
       // but its seeded slice was completely empty over the first two units
       // and only became cloudy near the end. This quiet layer guarantees a
@@ -1067,22 +1088,30 @@ const SKY_FRAGMENT = `
       float deck = smoothstep(
         ${SKY_LIGHTING.atmosphere.cloudDeckFadeIn[0].toFixed(2)},
         ${SKY_LIGHTING.atmosphere.cloudDeckFadeIn[1].toFixed(2)}, e
-      ) * (1.0 - smoothstep(0.17, 0.27, e));
+      ) * (1.0 - smoothstep(
+        ${SKY_LIGHTING.atmosphere.cloudDeckFadeOut[0].toFixed(2)},
+        ${SKY_LIGHTING.atmosphere.cloudDeckFadeOut[1].toFixed(2)}, e
+      ));
       float cloud = smoothstep(
         ${SKY_LIGHTING.atmosphere.cloudDensityGate[0].toFixed(2)},
         ${SKY_LIGHTING.atmosphere.cloudDensityGate[1].toFixed(2)}, cf
       ) * deck * day;
-      // Cloud reads by being DARKER than the sky, not whiter. A white cloud
-      // on a sky that is already near-white at the shoulder is invisible —
-      // which is exactly what the first pass rendered. So the body shades
-      // the sky it sits on, and only the edge facing the sun takes the
-      // ember. Away from the sun the shading deepens, which is what gives
-      // the deck its form.
-      float rim = smoothstep(0.44, 0.54, cf) - smoothstep(0.56, 0.72, cf);
-      vec3 body = col * mix(
+      // Cirrus is mostly transmitted daylight. Lift the body toward a cool
+      // white, then fold a little sky-coloured shade into its densest strands.
+      // Keeping the shade shallow prevents a storm-cloud silhouette.
+      float core = smoothstep(0.64, 0.82, cf);
+      float rim = smoothstep(0.50, 0.60, cf) - smoothstep(0.69, 0.80, cf);
+      vec3 cloudLight = mix(
+        col,
+        vec3(0.95, 0.97, 1.0),
+        ${SKY_LIGHTING.atmosphere.cloudBodyLightMix.toFixed(2)}
+      );
+      cloudLight = mix(cloudLight, vec3(1.0, 0.96, 0.88), azFall * 0.07);
+      vec3 underside = col * mix(
         ${SKY_LIGHTING.atmosphere.cloudBodyShade[0].toFixed(2)},
         ${SKY_LIGHTING.atmosphere.cloudBodyShade[1].toFixed(2)}, azFall
       );
+      vec3 body = mix(cloudLight, underside, core * 0.30);
       float bodyLuma = dot(body, vec3(0.299, 0.587, 0.114));
       vec3 cloudGrey = bodyLuma * vec3(0.96, 1.0, 1.04);
       body = mix(
@@ -1135,21 +1164,23 @@ const SKY_FRAGMENT = `
       float dcAir = 0.58 * vnoise(vec2(dz * 1.8, e * 5.0) + uTime * 0.002)
                   + 0.42 * vnoise(vec2(dz * 4.2, e * 10.5) + 17.0);
       dcDay *= 0.975 + 0.050 * dcAir;
-      // A separate, slowly drifting cloud layer. The earlier low-frequency
-      // grade moved too little and too faintly to read as weather; this keeps
-      // the same soft air but gives it a few unmistakable, broken cloud forms.
+      // A separate, slowly drifting cloud layer gives the clear morning sky
+      // a few broken strands without turning it into an overcast ceiling.
       vec3 dcWeather = dcCloudField(dz, e);
       float dcCf = dcWeather.x;
       float dcCloud = dcWeather.y;
-      // As in the SF vault, daylight cloud bodies read by shading the blue
-      // already behind them. A restrained blue rim supplies volume without
-      // returning a white overlay to the ACES shoulder.
       float dcCloudCore = smoothstep(0.50, 0.70, dcCf);
-      vec3 dcCloudDay = dcDay * mix(
+      vec3 dcCloudLight = mix(
+        dcDay,
+        vec3(0.94, 0.97, 1.0),
+        ${DAYLIGHT_RENDERING.washington.cloudBodyLightMix.toFixed(2)}
+      );
+      vec3 dcCloudShade = dcDay * mix(
         ${DAYLIGHT_RENDERING.washington.cloudBodyShade[0].toFixed(2)},
         ${DAYLIGHT_RENDERING.washington.cloudBodyShade[1].toFixed(2)},
         dcCloudCore
       );
+      vec3 dcCloudDay = mix(dcCloudLight, dcCloudShade, dcCloudCore * 0.28);
       dcDay = mix(
         dcDay,
         dcCloudDay,
@@ -1159,11 +1190,10 @@ const SKY_FRAGMENT = `
                          - smoothstep(0.68, 0.78, dcCf)) * dcCloud;
       dcDay += dcHorizonL * dcCloudRim
              * ${DAYLIGHT_RENDERING.washington.cloudRimOpacity.toFixed(3)};
-      // High veils stay translucent and cooler than the low bodies. They
-      // provide scale and directional movement without becoming a second
-      // row of equally weighted puffs.
-      vec3 dcWisp = mix(dcDay, dcZenithL, 0.34) * 0.92;
-      dcDay = mix(dcDay, dcWisp, dcWeather.z * 0.22);
+      // High veils catch more light and remain more translucent than the low
+      // strands, which keeps the layer airy at a distance.
+      vec3 dcWisp = mix(dcDay, vec3(0.93, 0.97, 1.0), 0.28);
+      dcDay = mix(dcDay, dcWisp, dcWeather.z * 0.30);
       vec3 dcDusk = dcSkyGrade(col, e, umbraC, beltC,
                                dcShK, dcBeltA, dcDim);
       vec3 dcSky = mix(dcDay, dcDusk, uDark);
@@ -2562,17 +2592,6 @@ const SKY_FRAGMENT = `
     gl_FragColor = vec4(col, 1.0);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
-    // Temporal IGN (Jimenez scroll folded into the fract) with the amplitude
-    // shaped to the midtones — pure dither in the deep end, film grain where
-    // the eye can actually resolve it. Skipped under the composer (both
-    // includes above no-op there and dithering linear HDR reads as grain in
-    // the wrong space — the chain's Noise effect takes over).
-    if (uPost < 0.5) {
-      float n = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)) + uFrame * 0.4076492));
-      float lum = dot(gl_FragColor.rgb, vec3(0.2126, 0.7152, 0.0722));
-      float amp = 2.0 / 255.0 + (5.0 / 255.0) * (1.0 - abs(lum * 2.0 - 1.0));
-      gl_FragColor.rgb += (n - 0.5) * amp;
-    }
   }
 `;
 
@@ -2702,10 +2721,12 @@ function SkyDome({
   dark,
   simplify,
   cloudDetail,
+  cinematicPlus,
 }: {
   dark: boolean;
   simplify: boolean;
   cloudDetail: boolean;
+  cinematicPlus: boolean;
 }) {
   const domeRef = useRef<THREE.Mesh>(null);
   const hitRef = useRef<THREE.Mesh>(null);
@@ -2734,7 +2755,6 @@ function SkyDome({
       // whole skyline on load.
       uHover: { value: -1.6 },
       uTime: { value: 0 },
-      uFrame: { value: 0 },
       uSimplify: { value: 0 },
       uPost: { value: 0 },
       uFires: {
@@ -2767,25 +2787,41 @@ function SkyDome({
       windowL: { value: c(L.skyWindow) },
       windowD: { value: c(D.skyWindow) },
     };
-    const create = (detailed: boolean) =>
+    const create = (detailed: boolean, plus = false) =>
       new THREE.ShaderMaterial({
         side: THREE.BackSide,
         depthWrite: false,
         fog: false,
         uniforms,
-        defines: detailed ? { SKY_CLOUD_DETAIL: 1 } : {},
+        defines: {
+          ...(detailed ? { SKY_CLOUD_DETAIL: 1 } : {}),
+          ...(plus ? { CINEMATIC_PLUS: 1 } : {}),
+        },
         vertexShader: SKY_VERTEX,
         fragmentShader: SKY_FRAGMENT,
       });
-    return { detailed: create(true), simple: create(false) };
+    return {
+      detailed: create(true),
+      simple: create(false),
+      detailedPlus: create(true, true),
+      simplePlus: create(false, true),
+    };
     // The material lives for the mount — theme flips crossfade via uDark.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const material = cloudDetail ? sky.detailed : sky.simple;
+  const material = cloudDetail
+    ? cinematicPlus
+      ? sky.detailedPlus
+      : sky.detailed
+    : cinematicPlus
+      ? sky.simplePlus
+      : sky.simple;
   useEffect(
     () => () => {
       sky.detailed.dispose();
       sky.simple.dispose();
+      sky.detailedPlus.dispose();
+      sky.simplePlus.dispose();
     },
     [sky],
   );
@@ -2923,7 +2959,6 @@ function SkyDome({
       delta,
     );
     u.uTime!.value = clock.elapsedTime;
-    u.uFrame!.value = ((u.uFrame!.value as number) + 1) % 64;
     u.uSimplify!.value = simplify ? 1 : 0;
     u.uPost!.value = useStacks.getState().postfx ? 1 : 0;
     // Seated cross-fade. CameraRig writes this every frame while it eases;
@@ -3335,10 +3370,98 @@ function Dust({ palette, count = 380 }: { palette: Palette; count?: number }) {
   return <points geometry={geometry} material={material} />;
 }
 
+function CinematicSunSource() {
+  const sunRef = useRef<THREE.Mesh>(null);
+  const screenPoint = useMemo(() => new THREE.Vector3(), []);
+
+  useEffect(() => {
+    const sun = sunRef.current;
+    if (!sun) return;
+    return registerCinematicSun(sun);
+  }, []);
+
+  useFrame(({ camera }) => {
+    const sun = sunRef.current;
+    if (!sun) return;
+    // Lock the source to a stable upper-left composition while the camera
+    // travels. It remains far behind the shelves, so their real depth can
+    // carve the radial light pass into visible shafts.
+    screenPoint.set(-0.7, 0.58, 0.2).unproject(camera);
+    screenPoint.sub(camera.position).normalize();
+    sun.position.copy(camera.position).addScaledVector(screenPoint, 16);
+  });
+
+  return (
+    <mesh ref={sunRef} frustumCulled={false}>
+      <sphereGeometry args={[0.46, 32, 32]} />
+      <meshBasicMaterial
+        color="#ffd19a"
+        transparent
+        opacity={1}
+        depthWrite={false}
+        toneMapped={false}
+        fog={false}
+      />
+    </mesh>
+  );
+}
+
+function SunShadowReceiver() {
+  return (
+    <mesh
+      receiveShadow
+      rotation={[-Math.PI / 2, 0, 0]}
+      position={[MID_X, SHELF_GEOMETRY.groundY + 0.004, -0.35]}
+      renderOrder={2}
+    >
+      <planeGeometry args={[TRAVEL_X + 9, 8]} />
+      <shadowMaterial transparent opacity={0.24} depthWrite={false} />
+    </mesh>
+  );
+}
+
+function CinematicSunShadowRig({
+  lightRef,
+}: {
+  lightRef: RefObject<THREE.DirectionalLight | null>;
+}) {
+  return (
+    <>
+      <directionalLight
+        ref={lightRef}
+        castShadow
+        position={[-5.2, 7.8, 4.8]}
+        intensity={1.48}
+        color="#ffe1b8"
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+        shadow-camera-left={-4.8}
+        shadow-camera-right={4.8}
+        shadow-camera-top={4.2}
+        shadow-camera-bottom={-2.8}
+        shadow-camera-near={0.5}
+        shadow-camera-far={22}
+        shadow-bias={-0.00045}
+        shadow-normalBias={0.022}
+        shadow-radius={4}
+      />
+      <CinematicSunSource />
+      <SunShadowReceiver />
+    </>
+  );
+}
+
 // Warm key light following the camera laterally so every unit reads the same.
-// It doesn't cast — grounding comes from the analytic ground pools
-// (GroundPool.tsx), so there is no per-frame shadow pass at all.
-function KeyLight({ dark }: { dark: boolean }) {
+// The normal path keeps the analytic grounding and has no shadow pass.
+// Cinematic+ swaps in a bounded shadow-casting sun and disposes its map when
+// the live control is switched off.
+function KeyLight({
+  dark,
+  cinematicPlus,
+}: {
+  dark: boolean;
+  cinematicPlus: boolean;
+}) {
   const lightRef = useRef<THREE.DirectionalLight>(null);
   const hemiRef = useRef<THREE.HemisphereLight>(null);
   const scene = useThree((s) => s.scene);
@@ -3370,11 +3493,20 @@ function KeyLight({ dark }: { dark: boolean }) {
       scene.remove(light.target);
     };
   }, [scene]);
+  useEffect(() => {
+    if (!cinematicPlus) return;
+    const light = lightRef.current;
+    return () => {
+      const shadow = light?.shadow;
+      shadow?.map?.dispose();
+      shadow?.mapPass?.dispose();
+    };
+  }, [cinematicPlus]);
   useFrame(({ camera }) => {
     const light = lightRef.current;
     const hemi = hemiRef.current;
     if (!light || !hemi) return;
-    light.position.x = camera.position.x + 4;
+    light.position.x = camera.position.x + (cinematicPlus ? -5.2 : 4);
     light.target.position.x = camera.position.x;
     if (dark) {
       // The traverse's dawn progression belongs to the light theme; night
@@ -3387,12 +3519,21 @@ function KeyLight({ dark }: { dark: boolean }) {
       return;
     }
     const dawn = THREE.MathUtils.smoothstep(progressRef.current, 0, 1);
-    light.color.lerpColors(dawnLight.keyEarly, dawnLight.keyLate, dawn);
-    light.intensity = THREE.MathUtils.lerp(
-      DAYLIGHT_RENDERING.directionalIntensity[0],
-      DAYLIGHT_RENDERING.directionalIntensity[1],
-      dawn,
-    );
+    if (cinematicPlus) {
+      light.position.y = 7.8;
+      light.position.z = 4.8;
+      light.color.set("#ffe1b8");
+      light.intensity = 1.48;
+    } else {
+      light.position.y = 6.5;
+      light.position.z = 6;
+      light.color.lerpColors(dawnLight.keyEarly, dawnLight.keyLate, dawn);
+      light.intensity = THREE.MathUtils.lerp(
+        DAYLIGHT_RENDERING.directionalIntensity[0],
+        DAYLIGHT_RENDERING.directionalIntensity[1],
+        dawn,
+      );
+    }
     hemi.color.lerpColors(dawnLight.skyEarly, dawnLight.skyLate, dawn);
     hemi.groundColor.lerpColors(
       dawnLight.groundEarly,
@@ -3413,14 +3554,19 @@ function KeyLight({ dark }: { dark: boolean }) {
         groundColor={dark ? "#33291f" : "#a8b2bf"}
         intensity={dark ? 1.2 : DAYLIGHT_RENDERING.hemisphereIntensity[0]}
       />
-      <directionalLight
-        ref={lightRef}
-        position={[4, 6.5, 6]}
-        intensity={dark ? 1.35 : DAYLIGHT_RENDERING.directionalIntensity[0]}
-        // Dark key remains unchanged. The light key starts neutral-warm and
-        // follows the scroll-driven morning in useFrame above.
-        color={dark ? "#efd0b1" : "#fff3e6"}
-      />
+      {cinematicPlus ? (
+        <CinematicSunShadowRig lightRef={lightRef} />
+      ) : (
+        <directionalLight
+          key="production-key"
+          ref={lightRef}
+          position={[4, 6.5, 6]}
+          intensity={dark ? 1.35 : DAYLIGHT_RENDERING.directionalIntensity[0]}
+          // Dark key remains unchanged. The light key starts neutral-warm and
+          // follows the scroll-driven morning in useFrame above.
+          color={dark ? "#efd0b1" : "#fff3e6"}
+        />
+      )}
     </>
   );
 }
@@ -3434,6 +3580,8 @@ export default function SceneEnvironment({
   dark: boolean;
   quality: Pick<SceneQualityPlan, "environment" | "butterflies" | "wildlife">;
 }) {
+  const { cinematicPlus } = useSceneQualityControls();
+  const daylightCinematicPlus = cinematicPlus && !dark;
   // ?nomeadow joins the existing query family (?nopostfx) as the live A/B
   // escape. Read once — the search string cannot change without a reload.
   const meadow = useMemo(
@@ -3457,13 +3605,16 @@ export default function SceneEnvironment({
         dark={dark}
         simplify={false}
         cloudDetail={quality.environment.cloudDetail === "full"}
+        cinematicPlus={daylightCinematicPlus}
       />
       {meadow && (
         <Suspense fallback={null}>
           <Meadow
+            key={MEADOW_LAYOUT_REVISION}
             dark={dark}
             rung={quality.environment.meadowRung}
             farGrassShader={quality.environment.farGrassShader}
+            grassDeformation={quality.environment.grassDeformation}
             contentTier={quality.environment.contentTier}
           />
           {/* Inside the same gate as the field they fly over: ?nomeadow must
@@ -3486,7 +3637,7 @@ export default function SceneEnvironment({
         </Suspense>
       )}
       <RoomEnvironment key={dark ? "env-d" : "env-l"} dark={dark} />
-      <KeyLight dark={dark} />
+      <KeyLight dark={dark} cinematicPlus={daylightCinematicPlus} />
       {quality.environment.dust && <Dust palette={palette} />}
     </>
   );

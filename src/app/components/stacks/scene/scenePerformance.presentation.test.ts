@@ -205,7 +205,26 @@ describe("scene performance integration", () => {
     expect(effects).toContain(
       "resolutionScale={plan.depthOfFieldResolutionScale}",
     );
+    expect(effects).toContain("effect.current.bokehScale = bokehScale");
+    expect(effects).toContain(
+      "effect.current.cocMaterial.focusRange = focusRange",
+    );
+    expect(effects).toContain(
+      "effect.current.resolution.scale = resolutionScale",
+    );
+    expect(effects).toContain(
+      "effect.current.blurPass.resolution.scale = resolutionScale",
+    );
+    expect(effects).toContain(
+      "[bokehScale, focusRange, resolutionScale]",
+    );
+    expect(effects).toContain("bokehScale={1}");
+    expect(effects).toContain("focusRange={2.2}");
+    expect(effects).toContain("resolutionScale={0.5}");
+    expect(effects).toContain("<LiveBokehDepthOfField");
     expect(effects).toContain("bokehScale={plan.depthOfFieldBokehScale}");
+    expect(effects).toContain("focusRange={golfFocused ? 16.5 : 2.2}");
+    expect(effects).not.toContain("focusRange={activeUnit === 2");
   });
 
   it("runs reversible RCAS only for reduced-DPR composer frames", () => {
@@ -217,7 +236,7 @@ describe("scene performance integration", () => {
     expect(effects).toContain(
       "sharpenAmount > 0 && <AdaptiveSharpen amount={sharpenAmount}",
     );
-    expect(effects.indexOf("<Noise")).toBeLessThan(
+    expect(effects.indexOf("<ToneMapping")).toBeLessThan(
       effects.indexOf("<AdaptiveSharpen"),
     );
     expect(diagnostics).toContain("performanceSettings.adaptiveSharpen");
@@ -248,7 +267,18 @@ describe("scene performance integration", () => {
     expect(canvas).toContain(
       "<AdaptiveQualityProbe onSample={onQualitySample}",
     );
-    expect(canvas).toContain('{ type: "travel-start", now }');
+    expect(canvas).toContain('type: "travel-start"');
+    expect(canvas).not.toContain("allowsDynamicSceneResolution");
+    expect(canvas).not.toContain("allowResolutionChange:");
+    expect(canvas).toContain("initialAutoResolutionStep");
+    expect(canvas).toContain("resolutionStepForScale(starting, ceiling)");
+    expect(canvas).toContain("touch: coarseTouch");
+    expect(canvas).toContain(
+      "qualityControls.depthOfFieldBokehMultiplier ?? undefined",
+    );
+    expect(canvas).toContain(
+      "qualityControls.depthOfFieldResolutionScale ?? undefined",
+    );
     expect(canvas).toContain(
       'contentTier: mode === "auto" ? axisState.axes.content : undefined',
     );

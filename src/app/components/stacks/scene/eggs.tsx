@@ -62,6 +62,7 @@ export function EggTrigger({
   activeUnitIndexes,
   hoverKey,
   onTrigger,
+  touchable = true,
   reducedMotionBehavior = "skip",
   children,
 }: {
@@ -70,6 +71,8 @@ export function EggTrigger({
   activeUnitIndexes?: readonly number[];
   hoverKey: string;
   onTrigger: () => void;
+  /** False when touch owns a separate focus-only interaction for this prop. */
+  touchable?: boolean;
   reducedMotionBehavior?: "skip" | "state-only";
   children: React.ReactNode;
 }) {
@@ -83,6 +86,7 @@ export function EggTrigger({
       id: hoverKey,
       root: root.current,
       activeUnits: [...(activeUnitIndexes ?? [unitIndex])],
+      touchable,
       activation: {
         kind: "egg",
         run: () => {
@@ -93,7 +97,13 @@ export function EggTrigger({
       },
       hover: { kind: "none" },
     });
-  }, [activeUnitIndexes, hoverKey, reducedMotionBehavior, unitIndex]);
+  }, [
+    activeUnitIndexes,
+    hoverKey,
+    reducedMotionBehavior,
+    touchable,
+    unitIndex,
+  ]);
   return (
     <group
       ref={root}

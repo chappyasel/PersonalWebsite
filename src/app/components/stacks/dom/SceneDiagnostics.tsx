@@ -1,23 +1,34 @@
 "use client";
 
+import { browserStorage } from "../mobile/liveness";
 import { cameraDepthDiagnosticsController } from "../scene/cameraDepthDiagnostics";
+import { requestDevHooks } from "../scene/devHooks";
 import {
   sceneDebugOverlayPatches,
   sceneDebugOverlayState,
 } from "../scene/diagnosticsOverlayControls";
-import { requestDevHooks } from "../scene/devHooks";
 import {
   insectDiagnosticsController,
   summarizeInsectPerchDiagnostics,
 } from "../scene/insectPerchDiagnostic";
 import { meadowDiagnosticsController } from "../scene/meadowDiagnostics";
-import { readSceneMatrixMs } from "../scene/sceneFrameCost";
 import { MEADOW_WIND } from "../scene/meadowMotion";
 import {
   downloadPerformanceTrace,
   scenePerformanceTrace,
 } from "../scene/performanceTrace";
 import { physicsDiagnosticsController } from "../scene/physicsDiagnostics";
+import {
+  DEPTH_OF_FIELD_BOKEH_MULTIPLIER_MAX,
+  DEPTH_OF_FIELD_BOKEH_MULTIPLIER_MIN,
+  DEPTH_OF_FIELD_RESOLUTION_SCALE_MAX,
+  DEPTH_OF_FIELD_RESOLUTION_SCALE_MIN,
+} from "../scene/quality";
+import {
+  clearSceneFirstVisitStorage,
+  sceneFirstVisitUrl,
+} from "../scene/sceneFirstVisitReset";
+import { readSceneMatrixMs } from "../scene/sceneFrameCost";
 import {
   allScenePerformanceSettings,
   scenePerformanceController,
@@ -27,6 +38,12 @@ import {
   sceneQualityController,
   useSceneQualityControls,
 } from "../scene/sceneQualityController";
+import { useStacks } from "../store";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
+
+import "./SceneDiagnostics.module.css";
+import { type DevHudInput, createDevHudRows } from "./devHudPresentation";
 
 /** Plain words for the constraint, because "cpu"/"gpu" alone reads as a
  * category rather than as a verdict about this window. */
@@ -36,460 +53,6 @@ const CONSTRAINT_LABEL = {
   headroom: "headroom",
   unknown: "no verdict",
 } as const;
-import { useStacks } from "../store";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { createPortal } from "react-dom";
-
-import { type DevHudInput, createDevHudRows } from "./devHudPresentation";
-
-const DIAGNOSTICS_STYLES = String.raw`.stacks-dev-hud {
-                position: relative;
-                box-sizing: border-box;
-                display: grid;
-                gap: 1px;
-                inline-size: 240px;
-                min-inline-size: 240px;
-                max-inline-size: 240px;
-                padding: 5px 19px 5px 7px;
-                border: 1px solid rgb(255 255 255 / 0.16);
-                border-radius: 5px;
-                appearance: none;
-                color: rgb(255 255 255 / 0.88);
-                background: rgb(4 10 18 / 0.42);
-                box-shadow: 0 1px 5px rgb(0 0 0 / 0.24);
-                cursor: pointer;
-                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-                font-size: 8px;
-                font-variant-numeric: tabular-nums;
-                font-weight: 500;
-                letter-spacing: -0.01em;
-                line-height: 1.12;
-                text-align: left;
-                text-shadow: 0 1px 2px rgb(0 0 0 / 0.75);
-                white-space: nowrap;
-                backdrop-filter: blur(4px);
-              }
-              .stacks-dev-hud:hover,
-              .stacks-dev-hud:focus-visible,
-              .stacks-dev-hud[aria-expanded="true"] {
-                border-color: rgb(125 220 255 / 0.38);
-                background: rgb(4 10 18 / 0.68);
-              }
-              .stacks-dev-hud:focus-visible {
-                outline: 1px solid rgb(125 220 255 / 0.58);
-                outline-offset: 2px;
-              }
-              .stacks-dev-hud::after {
-                position: absolute;
-                top: 4px;
-                right: 5px;
-                display: grid;
-                width: 11px;
-                height: 11px;
-                place-items: center;
-                border: 1px solid rgb(255 255 255 / 0.18);
-                border-radius: 2px;
-                color: rgb(255 255 255 / 0.48);
-                content: "D";
-                font-size: 7px;
-                line-height: 1;
-                text-shadow: none;
-              }
-              .stacks-dev-hud > [data-row] {
-                min-width: 0;
-                overflow: hidden;
-                text-overflow: ellipsis;
-              }
-              .stacks-dev-hud [data-emphasis="true"] { font-weight: 750; }
-              .stacks-dev-hud [data-tone="muted"] { color: rgb(255 255 255 / 0.46); }
-              .stacks-dev-hud [data-tone="accent"] { color: #7ddcff; }
-              .stacks-dev-hud [data-tone="positive"] { color: #66e3a1; }
-              .stacks-dev-hud [data-tone="warning"] { color: #f0bd4f; }
-              .stacks-dev-hud [data-tone="danger"] { color: #ff7e87; }
-              .stacks-dev-hud[data-tracing="true"] {
-                border-color: rgb(125 220 255 / 0.5);
-                box-shadow:
-                  inset 0 0 0 1px rgb(125 220 255 / 0.12),
-                  0 0 14px rgb(125 220 255 / 0.13);
-              }
-              .stacks-debug-launchers {
-                display: flex;
-                align-items: flex-start;
-                gap: 3px;
-              }
-              .stacks-perch-drawer {
-                position: fixed;
-                z-index: 1000;
-                top: max(12px, env(safe-area-inset-top, 0px));
-                right: max(12px, env(safe-area-inset-right, 0px));
-                display: grid;
-                width: min(460px, calc(100vw - 24px));
-                max-height: calc(100dvh - max(24px, env(safe-area-inset-top, 0px) + 12px));
-                gap: 5px;
-                padding: 10px;
-                overflow: auto;
-                border: 1px solid rgb(255 255 255 / 0.18);
-                border-radius: 8px;
-                color: rgb(255 255 255 / 0.92);
-                background: rgb(4 10 18 / 0.96);
-                box-shadow: 0 12px 42px rgb(0 0 0 / 0.52);
-                font: 500 10px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
-                overscroll-behavior: contain;
-              }
-              .stacks-perch-drawer-header {
-                display: flex;
-                align-items: start;
-                justify-content: space-between;
-                gap: 12px;
-                padding-bottom: 7px;
-                border-bottom: 1px solid rgb(255 255 255 / 0.14);
-              }
-              .stacks-perch-drawer-header > div { display: grid; gap: 2px; }
-              .stacks-perch-drawer-header strong { font-size: 12px; }
-              .stacks-perch-drawer button { text-align: left; }
-              .stacks-perch-drawer button[aria-pressed="true"] { color: #66e3a1; }
-              .stacks-diagnostics-tabs {
-                display: grid;
-                grid-template-columns: repeat(4, minmax(0, 1fr));
-                gap: 3px;
-                padding: 3px;
-                border: 1px solid rgb(255 255 255 / 0.1);
-                border-radius: 6px;
-                background: rgb(255 255 255 / 0.025);
-              }
-              .stacks-diagnostics-tabs button {
-                padding: 5px 4px;
-                border-radius: 4px;
-                color: rgb(255 255 255 / 0.58);
-                text-align: center;
-              }
-              .stacks-diagnostics-tabs button[aria-selected="true"] {
-                color: rgb(255 255 255 / 0.96);
-                background: rgb(255 255 255 / 0.1);
-                box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
-              }
-              .stacks-diagnostics-panel {
-                display: grid;
-                min-width: 0;
-                gap: 6px;
-              }
-              .stacks-diagnostics-health {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                gap: 12px;
-                padding: 9px 10px;
-                border: 1px solid rgb(102 227 161 / 0.2);
-                border-radius: 6px;
-                background: rgb(102 227 161 / 0.055);
-              }
-              .stacks-diagnostics-health[data-status="attention"] {
-                border-color: rgb(255 126 135 / 0.24);
-                background: rgb(255 89 100 / 0.065);
-              }
-              .stacks-diagnostics-health > div { display: grid; gap: 1px; }
-              .stacks-diagnostics-health > div > span,
-              .stacks-diagnostics-metrics article > span,
-              .stacks-diagnostics-notices > strong {
-                color: rgb(255 255 255 / 0.5);
-                font-size: 8px;
-                letter-spacing: 0.08em;
-                text-transform: uppercase;
-              }
-              .stacks-diagnostics-health > div > strong { font-size: 13px; }
-              .stacks-diagnostics-health > span {
-                padding: 2px 5px;
-                border-radius: 999px;
-                color: rgb(255 255 255 / 0.7);
-                background: rgb(255 255 255 / 0.07);
-              }
-              .stacks-diagnostics-metrics {
-                display: grid;
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-                gap: 5px;
-              }
-              .stacks-diagnostics-metrics article {
-                display: grid;
-                min-width: 0;
-                gap: 3px;
-                padding: 8px;
-                border: 1px solid rgb(255 255 255 / 0.1);
-                border-radius: 5px;
-                background: rgb(255 255 255 / 0.025);
-              }
-              .stacks-diagnostics-metrics article:last-child {
-                grid-column: 1 / -1;
-                grid-template-columns: 1fr auto;
-              }
-              .stacks-diagnostics-metrics article:last-child > span,
-              .stacks-diagnostics-metrics article:last-child > strong {
-                grid-column: 1 / -1;
-              }
-              .stacks-diagnostics-metrics article > strong {
-                overflow: hidden;
-                font-size: 11px;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-              }
-              .stacks-diagnostics-metrics article > small {
-                overflow: hidden;
-                color: rgb(255 255 255 / 0.64);
-                text-overflow: ellipsis;
-                white-space: nowrap;
-              }
-              .stacks-diagnostics-notices {
-                display: grid;
-                gap: 3px;
-                padding: 8px;
-                border: 1px solid rgb(255 255 255 / 0.1);
-                border-radius: 5px;
-                background: rgb(255 255 255 / 0.025);
-              }
-              .stacks-diagnostics-notices > p {
-                margin: 1px 0 0;
-                color: rgb(255 255 255 / 0.62);
-              }
-              .stacks-diagnostics-notices > button {
-                display: grid;
-                grid-template-columns: minmax(0, 1fr) auto;
-                gap: 8px;
-                padding: 4px 5px;
-                border-radius: 3px;
-                background: rgb(255 255 255 / 0.035);
-              }
-              .stacks-diagnostics-notices > button:hover,
-              .stacks-diagnostics-notices > button:focus-visible {
-                background: rgb(255 255 255 / 0.08);
-              }
-              .stacks-diagnostics-notices > button[data-tone="danger"] > span { color: #ff7e87; }
-              .stacks-diagnostics-notices > button[data-tone="warning"] > span { color: #f0bd4f; }
-              .stacks-diagnostics-notices > button[data-tone="info"] > span { color: #7ddcff; }
-              .stacks-diagnostics-notices > button > small { color: rgb(255 255 255 / 0.5); }
-              .stacks-diagnostics-section {
-                display: grid;
-                min-width: 0;
-                gap: 5px;
-                margin: 0;
-                padding: 7px;
-                border: 1px solid rgb(255 255 255 / 0.12);
-                border-radius: 5px;
-                background: rgb(255 255 255 / 0.025);
-              }
-              .stacks-diagnostics-section legend {
-                padding: 0 4px;
-                color: rgb(255 255 255 / 0.72);
-                font-size: 9px;
-                letter-spacing: 0.08em;
-                text-transform: uppercase;
-              }
-              .stacks-diagnostics-section label {
-                display: flex;
-                align-items: start;
-                gap: 5px;
-              }
-              .stacks-diagnostics-section input { margin-top: 1px; }
-              .stacks-diagnostics-range {
-                display: grid !important;
-                grid-template-columns: 1fr auto;
-                align-items: center !important;
-                gap: 3px 8px !important;
-              }
-              .stacks-diagnostics-range output {
-                color: rgb(255 255 255 / 0.82);
-                font-variant-numeric: tabular-nums;
-              }
-              .stacks-diagnostics-range input[type="range"] {
-                grid-column: 1 / -1;
-                width: 100%;
-                margin: 0;
-              }
-              .stacks-diagnostics-subhead {
-                margin-top: 2px;
-                color: rgb(255 255 255 / 0.7);
-                font-size: 9px;
-              }
-              .stacks-diagnostics-actions {
-                display: flex;
-                flex-wrap: wrap;
-                align-items: center;
-                gap: 5px;
-              }
-              .stacks-diagnostics-actions button,
-              .stacks-perch-drawer-header button {
-                padding: 3px 6px;
-                border: 1px solid rgb(255 255 255 / 0.16);
-                border-radius: 4px;
-                background: rgb(255 255 255 / 0.04);
-              }
-              .stacks-diagnostics-actions button:disabled {
-                opacity: 0.42;
-              }
-              .stacks-diagnostics-details {
-                display: grid;
-                gap: 5px;
-                padding: 7px;
-                border: 1px solid rgb(255 255 255 / 0.12);
-                border-radius: 5px;
-                background: rgb(255 255 255 / 0.025);
-              }
-              .stacks-diagnostics-details > summary {
-                cursor: pointer;
-                color: rgb(255 255 255 / 0.76);
-                user-select: none;
-              }
-              .stacks-diagnostics-details[open] > summary {
-                margin-bottom: 2px;
-                color: rgb(255 255 255 / 0.94);
-              }
-              .stacks-diagnostics-inline-details {
-                padding: 5px 7px;
-                background: rgb(0 0 0 / 0.08);
-              }
-              .stacks-performance-trace[data-state="recording"] {
-                border-color: rgb(125 220 255 / 0.3);
-                background: rgb(125 220 255 / 0.055);
-              }
-              .stacks-performance-trace[data-state="ready"] {
-                border-color: rgb(102 227 161 / 0.24);
-              }
-              .stacks-performance-trace > summary strong {
-                color: rgb(255 255 255 / 0.92);
-              }
-              .stacks-performance-trace[data-state="recording"] > summary strong {
-                color: #7ddcff;
-              }
-              .stacks-performance-trace[data-state="ready"] > summary strong {
-                color: #66e3a1;
-              }
-              .stacks-performance-trace > p {
-                margin: 2px 0;
-                color: rgb(255 255 255 / 0.64);
-              }
-              .stacks-performance-trace > small {
-                color: rgb(255 255 255 / 0.58);
-              }
-              .stacks-performance-trace-result {
-                display: grid;
-                grid-template-columns: repeat(4, minmax(0, 1fr));
-                gap: 4px;
-                font-variant-numeric: tabular-nums;
-              }
-              .stacks-performance-trace-result > span {
-                display: grid;
-                gap: 1px;
-                padding: 4px;
-                border-radius: 3px;
-                color: rgb(255 255 255 / 0.5);
-                background: rgb(255 255 255 / 0.035);
-              }
-              .stacks-performance-trace-result > span > strong {
-                color: rgb(255 255 255 / 0.88);
-              }
-              .stacks-performance-trace-result > small {
-                grid-column: 1 / -1;
-                color: rgb(255 255 255 / 0.58);
-              }
-              .stacks-diagnostics-experiments > .stacks-diagnostics-section {
-                margin-top: 5px;
-                padding: 2px 0 0;
-                border: 0;
-                background: transparent;
-              }
-              .stacks-perch-legend {
-                display: grid;
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-                gap: 4px 10px;
-                padding: 7px;
-                border: 1px solid rgb(255 255 255 / 0.12);
-                border-radius: 5px;
-                background: rgb(255 255 255 / 0.035);
-              }
-              .stacks-perch-legend strong,
-              .stacks-perch-legend small { grid-column: 1 / -1; }
-              .stacks-perch-legend span {
-                display: flex;
-                align-items: center;
-                gap: 5px;
-              }
-              .stacks-perch-legend small { color: rgb(255 255 255 / 0.68); }
-              .stacks-perch-legend i { display: inline-block; flex: none; }
-              .stacks-perch-legend [data-marker="anchor"] {
-                width: 7px;
-                height: 7px;
-                background: #ff334d;
-                transform: rotate(45deg);
-              }
-              .stacks-perch-legend [data-marker="contact"] {
-                width: 7px;
-                height: 7px;
-                background: #55d98b;
-              }
-              .stacks-perch-legend [data-marker="normal"] {
-                width: 12px;
-                height: 2px;
-                background: #7ddcff;
-              }
-              .stacks-perch-legend [data-marker="status"] {
-                width: 6px;
-                height: 6px;
-                border-radius: 50%;
-              }
-              .stacks-perch-legend [data-marker="moth-ring"] {
-                width: 8px;
-                height: 8px;
-                border-radius: 50%;
-                border: 1.5px solid #c79bff;
-              }
-              .stacks-perch-legend [data-disposition="ready"] { background: #55d98b; }
-              .stacks-perch-legend [data-disposition="waiting"] { background: #f0bd4f; }
-              .stacks-perch-legend [data-disposition="occupied"] { background: #5aa9ff; }
-              .stacks-perch-legend [data-disposition="rejected"] { background: #ff5964; }
-              .stacks-perch-summary {
-                display: grid;
-                gap: 4px;
-                padding: 7px;
-                border: 1px solid rgb(255 255 255 / 0.12);
-                border-radius: 5px;
-                background: rgb(255 255 255 / 0.035);
-              }
-              .stacks-perch-summary dl { display: grid; gap: 2px; }
-              .stacks-perch-summary dl > div {
-                display: flex;
-                justify-content: space-between;
-                gap: 12px;
-              }
-              .stacks-perch-list { display: grid; gap: 2px; }
-              .stacks-perch-list > button {
-                display: flex;
-                justify-content: space-between;
-                gap: 12px;
-                padding: 3px 4px;
-              }
-              .stacks-perch-list > output {
-                display: flex;
-                justify-content: space-between;
-                gap: 12px;
-                padding: 3px 4px;
-                color: rgb(255 255 255 / 0.78);
-              }
-              .stacks-perch-list > output[data-stalled="true"] {
-                color: #ff5964;
-              }
-              .stacks-perch-list > button:hover,
-              .stacks-perch-list > button:focus-visible { background: rgb(255 255 255 / 0.07); }
-              .stacks-perch-detail {
-                position: sticky;
-                bottom: 0;
-                padding: 7px;
-                border: 1px solid rgb(255 255 255 / 0.14);
-                border-radius: 5px;
-                background: rgb(4 10 18 / 0.98);
-                white-space: normal;
-              }
-              .stacks-perch-list [data-disposition="ready"] { color: #55d98b; }
-              .stacks-perch-list [data-disposition="waiting"] { color: #f0bd4f; }
-              .stacks-perch-list [data-disposition="occupied"] { color: #5aa9ff; }
-              .stacks-perch-list [data-disposition="rejected"] { color: #ff5964; }`;
 
 type DevHudSnapshot = DevHudInput;
 
@@ -513,6 +76,7 @@ const EMPTY_DEV_HUD: DevHudSnapshot = {
   ambientOcclusionQuality: null,
   depthOfField: null,
   depthOfFieldResolutionScale: null,
+  depthOfFieldBokehScale: null,
   calls: null,
   triangles: null,
   textures: null,
@@ -570,6 +134,7 @@ function rendererSnapshot(): Omit<DevHudSnapshot, "fps"> {
     depthOfField:
       typeof effects?.depthOfField === "boolean" ? effects.depthOfField : null,
     depthOfFieldResolutionScale: numeric(effects?.depthOfFieldResolutionScale),
+    depthOfFieldBokehScale: numeric(effects?.depthOfFieldBokehScale),
     calls: numeric(state?.calls),
     triangles: numeric(state?.triangles),
     textures: numeric(state?.textures),
@@ -832,7 +397,6 @@ function DiagnosticsOverview({
 }) {
   const runtime = qualityControls.runtime;
   const metrics = runtime?.metrics;
-  const effects = runtime?.plan.effects;
   const direct = runtime?.fallbackStatus.startsWith("direct") ?? false;
   const failedPhysics = physicsSnapshot.moduleState === "failed";
   const framePressure = Boolean(
@@ -914,13 +478,6 @@ function DiagnosticsOverview({
         : null,
     ] satisfies Array<DiagnosticsNotice | null>
   ).filter(isPresent);
-  const ao = effects?.ambientOcclusion
-    ? `AO ${effects.ambientOcclusionHalfRes ? "½" : "full"}/${effects.ambientOcclusionQuality}`
-    : "AO off";
-  const dof = effects?.depthOfField
-    ? `DoF ${effects.depthOfFieldResolutionScale.toFixed(2)}×`
-    : "DoF off";
-
   // Share of main-thread cost spent on the world-matrix traversal. Read live
   // rather than sampled: it informs a decision about whether to freeze
   // matrices, and feeds nothing automatic.
@@ -950,49 +507,65 @@ function DiagnosticsOverview({
         <span>{runtime?.transitionReason ?? "calibrating"}</span>
       </section>
 
+      {notices.length > 0 ? (
+        <section
+          className="stacks-diagnostics-notices"
+          aria-label="Active signals"
+        >
+          <strong>Active signals</strong>
+          {notices.map((notice) => (
+            <button
+              key={`${notice.title}:${notice.detail}`}
+              type="button"
+              data-tone={notice.tone}
+              onClick={() => onNavigate(notice.panel)}
+            >
+              <span>{notice.title}</span>
+              <small>{notice.detail}</small>
+            </button>
+          ))}
+        </section>
+      ) : null}
+
       <div className="stacks-diagnostics-metrics">
         <article>
-          <span>Quality</span>
+          <span>Rendering</span>
           {/* In automatic mode the scene does not stand at a preset, so a
               preset name here would misdescribe an independent axis state.
               A forced preset shows its name and the axes it resolved to. */}
           {/* Never collapse to a bare "Waiting": the profile name is known
               from the control store before the canvas has published anything,
               and hiding it makes a booting scene look like a broken one. */}
+          {/* Report the step the frame was RENDERED at, not the one the axis
+              controller is holding. Pinning a step leaves the controller
+              adapting underneath, so those two disagree exactly when someone
+              is watching to see whether their pin took effect — which is the
+              worst possible moment for the panel to describe the wrong one.
+              A pinned step says so, since an unmarked number that ignores the
+              control beside it reads as a broken control. */}
           <strong>
-            {runtime
-              ? `${
-                  runtime.forcedProfile
-                    ? `${runtime.forcedProfile} (forced)`
-                    : "Auto"
-                } · res ${
-                  qualityControls.resolutionStep ?? runtime.axes.resolutionStep
-                }/11${qualityControls.resolutionStep != null ? " pinned" : ""}`
-              : `${qualityControls.mode} · scene not mounted`}
+            {qualityControls.cinematicPlus
+              ? "Cinematic+ · manual"
+              : runtime?.forcedProfile
+                ? `${runtime.forcedProfile} · manual`
+                : "Auto · adapting"}
           </strong>
           <small>
             {runtime
-              ? `fx ${runtime.axes.effects} · geo ${runtime.axes.content}`
+              ? `Effective ${runtime.plan.profile} · res ${
+                  qualityControls.resolutionStep ?? runtime.axes.resolutionStep
+                }/11${qualityControls.resolutionStep != null ? " pinned" : ""}`
               : "no frame published yet"}
           </small>
           <small>
             {runtime
-              ? `${(runtime.plan.physicalPixels / 1_000_000).toFixed(1)}/${(
-                  runtime.plan.pixelBudget / 1_000_000
-                ).toFixed(1)} MP · DPR ${runtime.plan.dpr.toFixed(2)}`
+              ? `DPR ${runtime.plan.dpr.toFixed(2)} · ${(
+                  runtime.plan.physicalPixels / 1_000_000
+                ).toFixed(
+                  1,
+                )} MP · fx ${runtime.axes.effects} · geo ${runtime.axes.content}`
               : "Resolving render plan"}
           </small>
-          <small>
-            {effects
-              ? `B${effects.bloomLevels}@${effects.bloomResolutionScale.toFixed(2)}× · ${ao} · ${dof}`
-              : "Effects unavailable"}
-          </small>
-          {runtime ? (
-            <small>
-              {runtime.plan.environment.farGrassShader} far grass ·{" "}
-              {runtime.plan.effects.multisampling}× composer MSAA
-            </small>
-          ) : null}
         </article>
         <article>
           <span>Frame signal</span>
@@ -1017,77 +590,40 @@ function DiagnosticsOverview({
                 } · ${CONSTRAINT_LABEL[runtime?.constraint ?? "unknown"]}`
               : "No main-thread cost yet"}
           </small>
-          {/* The median beside the 95th percentile. A tail statistic alone
-              cannot tell uniform slowness from a comfortable scene with
-              occasional catastrophic frames, and the right response differs:
-              cheaper tiers for the first, finding the hitch for the second. */}
           <small>
             {metrics?.p50 == null
               ? "No median yet"
-              : `median ${metrics.p50.toFixed(1)} ms frame · ${(
-                  metrics.cpuP50 ?? 0
-                ).toFixed(1)} ms main thread`}
-          </small>
-          {/* World-matrix traversal, broken out of main-thread cost. Three
-              recomputes every object's matrixWorld each frame unless told
-              otherwise, and the issue's proposed freeze is only worth its
-              risk if this number is large. An instantaneous read: it is a
-              diagnostic, not an input to any decision. */}
-          <small>{matrixLabel}</small>
-          <small>
-            {runtime
-              ? `${(runtime.cooldownRemainingMs / 1_000).toFixed(1)}s cooldown · ${runtime.fallbackStatus}`
-              : "Composer status unavailable"}
+              : `median ${metrics.p50.toFixed(1)} ms · ${matrixLabel}`}
           </small>
         </article>
-        <article>
+        <article data-span="full">
           <span>Scene systems</span>
-          <strong>
-            {activeSummary.ready + activeSummary.occupied}/{activeSummary.total}{" "}
-            perches ready
-          </strong>
-          <small>
-            {visibleFlightCount} flights · {stalledFlights} stalled
-          </small>
-          <small>
-            Physics {physicsSnapshot.moduleState} · {physicsSnapshot.bodyCount}{" "}
-            bodies · {physicsSnapshot.pendingHandles.length} pending
-          </small>
+          <div className="stacks-diagnostics-system-grid">
+            <span>
+              Perches
+              <strong>
+                {activeSummary.ready + activeSummary.occupied}/
+                {activeSummary.total} ready
+              </strong>
+            </span>
+            <span>
+              Flights
+              <strong>
+                {visibleFlightCount} live · {stalledFlights} stalled
+              </strong>
+            </span>
+            <span>
+              Physics
+              <strong>
+                {physicsSnapshot.moduleState} · {physicsSnapshot.bodyCount}{" "}
+                bodies
+              </strong>
+            </span>
+          </div>
         </article>
       </div>
 
       <PerformanceTraceControls onStartCapture={onStartTrace} />
-
-      <section
-        className="stacks-diagnostics-notices"
-        aria-label="Active signals"
-      >
-        <strong>Active signals</strong>
-        {notices.length > 0 ? (
-          notices.map((notice) => (
-            <button
-              key={`${notice.title}:${notice.detail}`}
-              type="button"
-              data-tone={notice.tone}
-              onClick={() => onNavigate(notice.panel)}
-            >
-              <span>{notice.title}</span>
-              <small>{notice.detail}</small>
-            </button>
-          ))
-        ) : (
-          <p>No fallbacks, overrides, stalls, or visible helpers.</p>
-        )}
-      </section>
-
-      <div className="stacks-diagnostics-actions">
-        <button type="button" onClick={() => onNavigate("render")}>
-          Tune rendering
-        </button>
-        <button type="button" onClick={() => onNavigate("inspect")}>
-          Inspect scene
-        </button>
-      </div>
     </div>
   );
 }
@@ -1160,6 +696,12 @@ export default function SceneDiagnostics({
   const overlayState = sceneDebugOverlayState(snapshot, physicsSnapshot);
   const allOptimized = allScenePerformanceSettings(true);
   const allUnoptimized = allScenePerformanceSettings(false);
+  const depthOfFieldBokehMultiplier =
+    qualityControls.depthOfFieldBokehMultiplier ?? 1;
+  const depthOfFieldResolutionScale =
+    qualityControls.depthOfFieldResolutionScale ??
+    qualityControls.runtime?.plan.effects.depthOfFieldResolutionScale ??
+    0.6;
 
   const setAllOverlays = (enabled: boolean) => {
     const patches = sceneDebugOverlayPatches(enabled);
@@ -1216,6 +758,23 @@ export default function SceneDiagnostics({
     setOpen((current) => !current);
   };
 
+  const resetSceneToFirstVisit = () => {
+    if (
+      !window.confirm(
+        "Clear saved scene state and reload with the default render settings?",
+      )
+    )
+      return;
+
+    clearSceneFirstVisitStorage(
+      browserStorage("localStorage"),
+      browserStorage("sessionStorage"),
+    );
+    const cleanUrl = sceneFirstVisitUrl(window.location.href);
+    if (cleanUrl === window.location.href) window.location.reload();
+    else window.location.replace(cleanUrl);
+  };
+
   const drawer = open ? (
     <section
       id="stacks-scene-diagnostics"
@@ -1230,7 +789,11 @@ export default function SceneDiagnostics({
           <strong id="stacks-scene-diagnostics-title">Scene console</strong>
           <span>
             {qualityControls.runtime?.plan.profile ?? "calibrating"} ·{" "}
-            {qualityControls.mode} · {overlayState.enabled} helpers visible
+            {qualityControls.cinematicPlus
+              ? "cinematic+"
+              : qualityControls.mode}
+            {" · "}
+            {overlayState.enabled} helpers visible
           </span>
         </div>
         <button
@@ -1258,135 +821,6 @@ export default function SceneDiagnostics({
           onNavigate={setPanel}
         />
       ) : null}
-      {panel === "inspect" ? (
-        <fieldset
-          id="stacks-diagnostics-panel-inspect"
-          className="stacks-diagnostics-section"
-          role="tabpanel"
-          aria-labelledby="stacks-diagnostics-tab-inspect"
-        >
-          <legend>Scene overlays</legend>
-          <div className="stacks-diagnostics-actions">
-            <button
-              type="button"
-              onClick={() => setAllOverlays(true)}
-              disabled={overlayState.all}
-            >
-              Show all overlays
-            </button>
-            <button
-              type="button"
-              onClick={() => setAllOverlays(false)}
-              disabled={!overlayState.any}
-            >
-              Hide all overlays
-            </button>
-          </div>
-          <strong className="stacks-diagnostics-subhead">Perches</strong>
-          <label>
-            <input
-              type="checkbox"
-              checked={snapshot.showEnvelopes}
-              onChange={(event) =>
-                insectDiagnosticsController.update({
-                  showEnvelopes: event.currentTarget.checked,
-                })
-              }
-            />{" "}
-            Markers and wing envelopes
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={snapshot.showRoutes}
-              onChange={(event) =>
-                insectDiagnosticsController.update({
-                  showRoutes: event.currentTarget.checked,
-                })
-              }
-            />{" "}
-            Approach and departure routes
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={snapshot.showFlightVolumes}
-              onChange={(event) =>
-                insectDiagnosticsController.update({
-                  showFlightVolumes: event.currentTarget.checked,
-                })
-              }
-            />{" "}
-            Butterfly flight volumes
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={snapshot.showFlightTrails}
-              onChange={(event) =>
-                insectDiagnosticsController.update({
-                  showFlightTrails: event.currentTarget.checked,
-                })
-              }
-            />{" "}
-            Butterfly flight trails (30 s)
-          </label>
-          {/* Moths get their own pair. They are only ever on screen once the
-            lamps are lit, so sharing the butterflies' switches meant every
-            toggle also drew the half of the room you were not looking at. */}
-          <strong className="stacks-diagnostics-subhead">Moths</strong>
-          <label>
-            <input
-              type="checkbox"
-              checked={snapshot.showLampCones}
-              onChange={(event) =>
-                insectDiagnosticsController.update({
-                  showLampCones: event.currentTarget.checked,
-                })
-              }
-            />{" "}
-            Lamp cones
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={snapshot.showMothTrails}
-              onChange={(event) =>
-                insectDiagnosticsController.update({
-                  showMothTrails: event.currentTarget.checked,
-                })
-              }
-            />{" "}
-            Moth flight trails (30 s)
-          </label>
-          <strong className="stacks-diagnostics-subhead">Physics</strong>
-          <label>
-            <input
-              type="checkbox"
-              checked={physicsSnapshot.showHelpers}
-              onChange={(event) =>
-                physicsDiagnosticsController.update({
-                  showHelpers: event.currentTarget.checked,
-                })
-              }
-            />{" "}
-            Hulls, poses, velocity, contacts, and normals
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              checked={physicsSnapshot.showAllBounds}
-              onChange={(event) =>
-                physicsDiagnosticsController.update({
-                  showAllBounds: event.currentTarget.checked,
-                })
-              }
-            />{" "}
-            Show granular prop collider boxes
-          </label>
-        </fieldset>
-      ) : null}
-
       {panel === "simulate" ? (
         <div
           id="stacks-diagnostics-panel-simulate"
@@ -1394,9 +828,12 @@ export default function SceneDiagnostics({
           role="tabpanel"
           aria-labelledby="stacks-diagnostics-tab-simulate"
         >
+          <header className="stacks-diagnostics-panel-heading">
+            <strong>Simulation controls</strong>
+          </header>
           <fieldset className="stacks-diagnostics-section">
             <legend>Camera</legend>
-            <label>
+            <label className="stacks-diagnostics-control">
               <input
                 type="checkbox"
                 checked={cameraDepthSnapshot.enabled}
@@ -1408,7 +845,6 @@ export default function SceneDiagnostics({
               />{" "}
               Authored camera depth
             </label>
-            <small>Changes apply on the next frame and reset on reload.</small>
           </fieldset>
 
           <fieldset className="stacks-diagnostics-section">
@@ -1477,6 +913,20 @@ export default function SceneDiagnostics({
                 }
               />
             </label>
+            <label className="stacks-diagnostics-control">
+              <input
+                id="stacks-grass-deformation"
+                type="checkbox"
+                checked={meadowSnapshot.deformationEnabled}
+                disabled={!meadowSnapshot.available}
+                onChange={(event) =>
+                  meadowDiagnosticsController.update({
+                    deformationEnabled: event.currentTarget.checked,
+                  })
+                }
+              />{" "}
+              Persistent grass deformation
+            </label>
             <div className="stacks-diagnostics-actions">
               <button
                 type="button"
@@ -1486,36 +936,48 @@ export default function SceneDiagnostics({
                 Reset wind
               </button>
             </div>
-            <small>
-              {meadowSnapshot.available
-                ? "Live gust samples the changing wind near the camera. Edits reset on reload."
-                : "Waiting for the meadow renderer."}
-            </small>
+            <details className="stacks-diagnostics-details stacks-diagnostics-inline-details">
+              <summary>
+                Deformation ·{" "}
+                {meadowSnapshot.available
+                  ? meadowSnapshot.deformation.active
+                    ? "active"
+                    : "idle"
+                  : "unavailable"}
+              </summary>
+              <div className="stacks-diagnostics-stat-grid">
+                <span>
+                  Textures
+                  <strong>{meadowSnapshot.deformation.textureCount}</strong>
+                </span>
+                <span>
+                  Stamps
+                  <strong>{meadowSnapshot.deformation.acceptedStamps}</strong>
+                </span>
+                <span>
+                  Dropped
+                  <strong>{meadowSnapshot.deformation.droppedStamps}</strong>
+                </span>
+                <span>
+                  CPU
+                  <strong>
+                    {meadowSnapshot.deformation.cpuSubmissionMs.toFixed(2)} ms
+                  </strong>
+                </span>
+              </div>
+              <div className="stacks-perch-summary">
+                <span>
+                  {meadowSnapshot.deformation.outOfBoundsStamps} outside ·{" "}
+                  {meadowSnapshot.deformation.recoveryDraws} recovery draws ·
+                  reset {meadowSnapshot.deformation.resetRevision}
+                </span>
+              </div>
+            </details>
           </fieldset>
 
           <fieldset className="stacks-diagnostics-section">
             <legend>Insect behavior</legend>
-            <div className="stacks-diagnostics-actions">
-              <button
-                type="button"
-                onClick={() =>
-                  insectDiagnosticsController.update({ filter: "active" })
-                }
-                aria-pressed={snapshot.filter === "active"}
-              >
-                Active shelf
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  insectDiagnosticsController.update({ filter: "all" })
-                }
-                aria-pressed={snapshot.filter === "all"}
-              >
-                All shelves
-              </button>
-            </div>
-            <label>
+            <label className="stacks-diagnostics-control">
               <input
                 type="checkbox"
                 checked={snapshot.pauseAutomaticLandings}
@@ -1537,73 +999,83 @@ export default function SceneDiagnostics({
                 Force landing attempt
               </button>
               {snapshot.forceResult ? (
-                <span>{snapshot.forceResult}</span>
+                <span className="stacks-diagnostics-result">
+                  {snapshot.forceResult}
+                </span>
               ) : null}
             </div>
           </fieldset>
 
           <fieldset className="stacks-diagnostics-section">
             <legend>Physics runtime</legend>
-            <label>
-              <input
-                type="checkbox"
-                checked={physicsSnapshot.runtime.simulation}
-                onChange={(event) =>
-                  physicsDiagnosticsController.update({
-                    runtime: {
-                      ...physicsSnapshot.runtime,
-                      simulation: event.currentTarget.checked,
-                    },
-                  })
-                }
-              />{" "}
-              Step free-body simulation
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={physicsSnapshot.runtime.heldCollisionProbes}
-                onChange={(event) =>
-                  physicsDiagnosticsController.update({
-                    runtime: {
-                      ...physicsSnapshot.runtime,
-                      heldCollisionProbes: event.currentTarget.checked,
-                    },
-                  })
-                }
-              />{" "}
-              Probe held collisions
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={physicsSnapshot.runtime.generatedStatics}
-                onChange={(event) =>
-                  physicsDiagnosticsController.update({
-                    runtime: {
-                      ...physicsSnapshot.runtime,
-                      generatedStatics: event.currentTarget.checked,
-                    },
-                  })
-                }
-              />{" "}
-              Use generated scene statics
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={physicsSnapshot.runtime.visibilityResets}
-                onChange={(event) =>
-                  physicsDiagnosticsController.update({
-                    runtime: {
-                      ...physicsSnapshot.runtime,
-                      visibilityResets: event.currentTarget.checked,
-                    },
-                  })
-                }
-              />{" "}
-              Run off-screen resets
-            </label>
+            <div className="stacks-diagnostics-option-groups">
+              <div className="stacks-diagnostics-option-group">
+                <strong>Motion</strong>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={physicsSnapshot.runtime.simulation}
+                    onChange={(event) =>
+                      physicsDiagnosticsController.update({
+                        runtime: {
+                          ...physicsSnapshot.runtime,
+                          simulation: event.currentTarget.checked,
+                        },
+                      })
+                    }
+                  />{" "}
+                  Step free-body simulation
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={physicsSnapshot.runtime.visibilityResets}
+                    onChange={(event) =>
+                      physicsDiagnosticsController.update({
+                        runtime: {
+                          ...physicsSnapshot.runtime,
+                          visibilityResets: event.currentTarget.checked,
+                        },
+                      })
+                    }
+                  />{" "}
+                  Run off-screen resets
+                </label>
+              </div>
+              <div className="stacks-diagnostics-option-group">
+                <strong>Collision</strong>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={physicsSnapshot.runtime.heldCollisionProbes}
+                    onChange={(event) =>
+                      physicsDiagnosticsController.update({
+                        runtime: {
+                          ...physicsSnapshot.runtime,
+                          heldCollisionProbes: event.currentTarget.checked,
+                        },
+                      })
+                    }
+                  />{" "}
+                  Probe held collisions
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={physicsSnapshot.runtime.generatedStatics}
+                    onChange={(event) =>
+                      physicsDiagnosticsController.update({
+                        runtime: {
+                          ...physicsSnapshot.runtime,
+                          generatedStatics: event.currentTarget.checked,
+                        },
+                      })
+                    }
+                  />{" "}
+                  Use generated scene statics
+                </label>
+              </div>
+            </div>
           </fieldset>
         </div>
       ) : null}
@@ -1614,18 +1086,26 @@ export default function SceneDiagnostics({
           role="tabpanel"
           aria-labelledby="stacks-diagnostics-tab-render"
         >
+          <header className="stacks-diagnostics-panel-heading">
+            <strong>Scene quality</strong>
+          </header>
           <fieldset className="stacks-diagnostics-section">
-            <legend>Scene quality</legend>
-            <label>
-              Quality policy
+            <legend>Quality mode</legend>
+            <label className="stacks-diagnostics-control">
+              Mode
               <select
                 className="ml-auto rounded border border-white/15 bg-black/40 px-1.5 py-1 text-white"
-                value={qualityControls.mode}
+                value={
+                  qualityControls.cinematicPlus
+                    ? "cinematic+"
+                    : qualityControls.mode
+                }
                 onChange={(event) =>
                   sceneQualityController.setMode(
                     event.currentTarget.value as
                       | "auto"
                       | "cinematic"
+                      | "cinematic+"
                       | "showcase"
                       | "balanced"
                       | "efficient"
@@ -1633,19 +1113,43 @@ export default function SceneDiagnostics({
                   )
                 }
               >
-                <option value="auto">Auto</option>
-                <option value="cinematic">Cinematic</option>
-                <option value="showcase">Showcase</option>
-                <option value="balanced">Balanced</option>
-                <option value="efficient">Efficient</option>
-                <option value="safety">Safety</option>
+                <optgroup label="Manual only">
+                  <option value="cinematic+">Cinematic+</option>
+                  <option value="cinematic">Cinematic</option>
+                </optgroup>
+                <optgroup label="Adaptive range">
+                  <option value="auto">Auto</option>
+                  <option value="showcase">Showcase</option>
+                  <option value="balanced">Balanced</option>
+                  <option value="efficient">Efficient</option>
+                  <option value="safety">Safety</option>
+                </optgroup>
               </select>
             </label>
+            <div className="stacks-diagnostics-current">
+              <span>Now</span>
+              <strong>
+                {qualityControls.cinematicPlus
+                  ? "Cinematic+"
+                  : qualityControls.mode === "auto"
+                    ? "Auto"
+                    : qualityControls.mode}
+              </strong>
+              <small>
+                {qualityControls.runtime
+                  ? `Effective ${qualityControls.runtime.plan.profile} · fx ${qualityControls.runtime.axes.effects} · geo ${qualityControls.runtime.axes.content}`
+                  : "Waiting for the scene to publish its render plan"}
+              </small>
+            </div>
+          </fieldset>
+
+          <fieldset className="stacks-diagnostics-section">
+            <legend>Resolution</legend>
             {/* Resolution is a twelve-step ladder now, and the preset only
                 sets its ceiling. Pinning a step is the only way to compare
                 two render scales without waiting for the ladder to walk
                 between them. Auto hands it back to the controller. */}
-            <label>
+            <label className="stacks-diagnostics-control">
               Render scale
               <select
                 className="ml-auto rounded border border-white/15 bg-black/40 px-1.5 py-1 text-white"
@@ -1678,7 +1182,7 @@ export default function SceneDiagnostics({
                 budget rather than raising it: nothing automatic ever sets it,
                 and the readout below says when a frame is outside the
                 envelope the controller would choose for itself. */}
-            <label>
+            <label className="stacks-diagnostics-control">
               Scale ceiling
               <select
                 className="ml-auto rounded border border-white/15 bg-black/40 px-1.5 py-1 text-white"
@@ -1710,8 +1214,8 @@ export default function SceneDiagnostics({
                   qualityControls.runtime.plan.physicalPixels / 1_000_000
                 ).toFixed(2)} MP against a ${(
                   qualityControls.runtime.plan.pixelBudget / 1_000_000
-                ).toFixed(2)} MP budget. Manual only — the controller will
-                never choose this.`}
+                ).toFixed(2)} MP budget. This is manual-only; the controller
+                will never choose it.`}
               </p>
             ) : null}
             {qualityControls.runtime ? (
@@ -1722,6 +1226,13 @@ export default function SceneDiagnostics({
                 {qualityControls.resolutionStep != null ? " · pinned" : ""}
               </p>
             ) : null}
+          </fieldset>
+
+          <fieldset
+            className="stacks-diagnostics-section"
+            data-disabled={qualityControls.mode !== "auto" || undefined}
+          >
+            <legend>Automatic adaptation</legend>
             <label>
               <input
                 type="checkbox"
@@ -1740,73 +1251,78 @@ export default function SceneDiagnostics({
               >
                 Reset learned profile
               </button>
-              {qualityControls.runtime?.plan.customOverrides ? (
-                <span data-stacks-quality-custom>custom overrides</span>
-              ) : null}
+              <button type="button" onClick={resetSceneToFirstVisit}>
+                Reset scene to first visit
+              </button>
             </div>
-            <details className="stacks-diagnostics-details stacks-diagnostics-inline-details">
-              <summary>Policy internals</summary>
-              {qualityControls.runtime ? (
-                <div className="stacks-perch-summary">
-                  <span>
-                    Effective {qualityControls.runtime.plan.profile} · DPR{" "}
-                    {qualityControls.runtime.plan.dpr.toFixed(2)} ·{" "}
-                    {qualityControls.runtime.plan.physicalPixels.toLocaleString()}{" "}
-                    px
-                  </span>
-                  <span>
-                    Target {qualityControls.runtime.metrics?.targetHz ?? "–"} Hz
-                    · p95{" "}
-                    {qualityControls.runtime.metrics?.p95.toFixed(1) ?? "–"} ms
-                    · drops{" "}
-                    {qualityControls.runtime.metrics
-                      ? `${(qualityControls.runtime.metrics.droppedFrameRatio * 100).toFixed(1)}%`
-                      : "–"}
-                  </span>
-                  <span>
-                    Cooldown{" "}
-                    {(
-                      qualityControls.runtime.cooldownRemainingMs / 1_000
-                    ).toFixed(1)}
-                    s{" · "}
-                    {qualityControls.runtime.transitionReason} ·{" "}
-                    {qualityControls.runtime.fallbackStatus}
-                  </span>
-                  <span>
-                    Bucket {qualityControls.runtime.storageBucket} · learned{" "}
-                    {qualityControls.runtime.learnedProfile ?? "none"}
-                  </span>
-                  <span>
-                    Bloom{" "}
-                    {qualityControls.runtime.plan.effects.bloomResolutionScale.toFixed(
-                      2,
-                    )}
-                    × · AO{" "}
-                    {
-                      qualityControls.runtime.plan.effects
-                        .ambientOcclusionQuality
-                    }{" "}
-                    · DoF{" "}
-                    {qualityControls.runtime.plan.effects.depthOfFieldResolutionScale.toFixed(
-                      2,
-                    )}
-                    × · far grass{" "}
-                    {qualityControls.runtime.plan.environment.farGrassShader}
-                  </span>
-                </div>
-              ) : (
-                <small>
-                  Scene not mounted yet — the canvas publishes this on its
-                  first frame.
-                </small>
-              )}
-            </details>
+            <small>
+              Clears saved scene quality, warm-load, sound, and session state,
+              then reloads without render or diagnostics URL overrides. Theme
+              and font preferences are preserved.
+            </small>
           </fieldset>
+          <details className="stacks-diagnostics-details stacks-diagnostics-inline-details">
+            <summary>Policy internals</summary>
+            {qualityControls.runtime ? (
+              <div className="stacks-perch-summary">
+                <span>
+                  Effective {qualityControls.runtime.plan.profile} · DPR{" "}
+                  {qualityControls.runtime.plan.dpr.toFixed(2)} ·{" "}
+                  {qualityControls.runtime.plan.physicalPixels.toLocaleString()}{" "}
+                  px
+                </span>
+                <span>
+                  Target {qualityControls.runtime.metrics?.targetHz ?? "–"} Hz ·
+                  p95 {qualityControls.runtime.metrics?.p95.toFixed(1) ?? "–"}{" "}
+                  ms · drops{" "}
+                  {qualityControls.runtime.metrics
+                    ? `${(qualityControls.runtime.metrics.droppedFrameRatio * 100).toFixed(1)}%`
+                    : "–"}
+                </span>
+                <span>
+                  Cooldown{" "}
+                  {(
+                    qualityControls.runtime.cooldownRemainingMs / 1_000
+                  ).toFixed(1)}
+                  s{" · "}
+                  {qualityControls.runtime.transitionReason} ·{" "}
+                  {qualityControls.runtime.fallbackStatus}
+                </span>
+                <span>
+                  Bucket {qualityControls.runtime.storageBucket} · learned{" "}
+                  {qualityControls.runtime.learnedProfile ?? "none"}
+                </span>
+                <span>
+                  Bloom{" "}
+                  {qualityControls.runtime.plan.effects.bloomResolutionScale.toFixed(
+                    2,
+                  )}
+                  × · AO{" "}
+                  {qualityControls.runtime.plan.effects.ambientOcclusionQuality}{" "}
+                  · DoF q
+                  {qualityControls.runtime.plan.effects.depthOfFieldResolutionScale.toFixed(
+                    2,
+                  )}
+                  /b
+                  {qualityControls.runtime.plan.effects.depthOfFieldBokehScale.toFixed(
+                    2,
+                  )}{" "}
+                  · far grass{" "}
+                  {qualityControls.runtime.plan.environment.farGrassShader}
+                </span>
+              </div>
+            ) : (
+              <small>
+                Scene not mounted yet. The canvas publishes this on its first
+                frame.
+              </small>
+            )}
+          </details>
           <details className="stacks-diagnostics-details stacks-diagnostics-experiments">
             <summary>
               Rendering experiments ·{" "}
               {qualityControls.runtime?.plan.customOverrides
-                ? "custom active"
+                ? "custom overrides active"
                 : "profile defaults"}
             </summary>
             <fieldset className="stacks-diagnostics-section">
@@ -1993,6 +1509,64 @@ export default function SceneDiagnostics({
                 />{" "}
                 Skip depth of field
               </label>
+              <label
+                className="stacks-diagnostics-range"
+                htmlFor="stacks-dof-strength"
+              >
+                <span>DoF strength</span>
+                <output htmlFor="stacks-dof-strength">
+                  {depthOfFieldBokehMultiplier.toFixed(2)}×
+                </output>
+                <input
+                  id="stacks-dof-strength"
+                  type="range"
+                  min={DEPTH_OF_FIELD_BOKEH_MULTIPLIER_MIN}
+                  max={DEPTH_OF_FIELD_BOKEH_MULTIPLIER_MAX}
+                  step="0.05"
+                  value={depthOfFieldBokehMultiplier}
+                  disabled={performanceSettings.skipDepthOfField}
+                  onChange={(event) =>
+                    sceneQualityController.setDepthOfFieldBokehMultiplier(
+                      event.currentTarget.valueAsNumber,
+                    )
+                  }
+                />
+              </label>
+              <label
+                className="stacks-diagnostics-range"
+                htmlFor="stacks-dof-quality"
+              >
+                <span>DoF buffer quality</span>
+                <output htmlFor="stacks-dof-quality">
+                  {depthOfFieldResolutionScale.toFixed(2)}×
+                </output>
+                <input
+                  id="stacks-dof-quality"
+                  type="range"
+                  min={DEPTH_OF_FIELD_RESOLUTION_SCALE_MIN}
+                  max={DEPTH_OF_FIELD_RESOLUTION_SCALE_MAX}
+                  step="0.05"
+                  value={depthOfFieldResolutionScale}
+                  disabled={performanceSettings.skipDepthOfField}
+                  onChange={(event) =>
+                    sceneQualityController.setDepthOfFieldResolutionScale(
+                      event.currentTarget.valueAsNumber,
+                    )
+                  }
+                />
+              </label>
+              <div className="stacks-diagnostics-actions">
+                <button
+                  type="button"
+                  disabled={
+                    qualityControls.depthOfFieldBokehMultiplier == null &&
+                    qualityControls.depthOfFieldResolutionScale == null
+                  }
+                  onClick={() => sceneQualityController.resetDepthOfField()}
+                >
+                  Reset DoF tuning
+                </button>
+              </div>
               <strong className="stacks-diagnostics-subhead">Scheduling</strong>
               <label>
                 <input
@@ -2043,152 +1617,326 @@ export default function SceneDiagnostics({
                 />{" "}
                 Suspend settled hover work
               </label>
-              <small>
-                Disable all restores the previous full-cost rendering for direct
-                A/B comparison. These controls reset on reload.
-              </small>
-              <small>
-                Placard material: {performanceSettings.placardGlassMode}
-              </small>
             </fieldset>
           </details>
         </div>
       ) : null}
       {panel === "inspect" ? (
-        <details className="stacks-diagnostics-details">
-          <summary>
-            Perch status · {summary.total} sites · {visibleFlights.length}{" "}
-            flights
-          </summary>
-          <div
-            className="stacks-perch-legend"
-            aria-label="Perch diagnostic marker legend"
-          >
-            <strong>Scene marker legend</strong>
-            <span>
-              <i data-marker="anchor" /> Diamond = authored anchor
-            </span>
-            <span>
-              <i data-marker="contact" data-disposition="ready" /> Colored
-              square = resolved contact
-            </span>
-            <span>
-              <i data-marker="normal" /> Blue line = surface normal
-            </span>
-            <span>
-              <i data-marker="status" data-disposition="ready" /> ready ·{" "}
-              <i data-marker="status" data-disposition="waiting" /> claimed,
-              inbound · <i data-marker="status" data-disposition="occupied" />{" "}
-              insect settled ·{" "}
-              <i data-marker="status" data-disposition="rejected" /> rejected
-            </span>
-            <span>
-              <i data-marker="moth-ring" /> Ring = a moth may land here (Lamp
-              Perches only)
-            </span>
-            <small>
-              Helpers are hidden by default and are diagnostic markers, not
-              insects. Hover a Perch below to reveal only that site.
-            </small>
-          </div>
-          <div className="stacks-perch-summary">
-            <span>
-              Showing {summary.total} · {summary.ready} ready ·{" "}
-              {summary.waiting} temporarily unavailable · {summary.occupied}{" "}
-              with an insect settled · {summary.rejected} safety/authoring
-              rejected
-            </span>
-            {summary.rejections.length > 0 ? (
-              <dl>
-                {summary.rejections.map(({ code, count }) => (
-                  <div key={code}>
-                    <dt>{code}</dt>
-                    <dd>×{count}</dd>
-                  </div>
-                ))}
-              </dl>
-            ) : null}
-          </div>
-          <div className="stacks-perch-summary">
-            <span>
-              Flights {visibleFlights.length} · stalled {stalledFlights}
-            </span>
-          </div>
-          <div
-            className="stacks-perch-list"
-            aria-label="Butterfly flight telemetry"
-          >
-            {visibleFlights.map(({ telemetry }) => (
-              <output
-                key={telemetry.occupantId}
-                data-stalled={telemetry.stalled ? "true" : undefined}
-              >
-                <span>
-                  {telemetry.occupantId} · {telemetry.phase} ·{" "}
-                  {telemetry.region} · {telemetry.speed.toFixed(2)} u/s
-                </span>
-                <span>
-                  y {telemetry.altitude.toFixed(2)} · clear{" "}
-                  {Number.isFinite(telemetry.clearance)
-                    ? telemetry.clearance.toFixed(2)
-                    : "∞"}{" "}
-                  · edge {telemetry.containment.toFixed(2)} · rev{" "}
-                  {telemetry.collisionRevision ?? "–"}
-                </span>
-              </output>
-            ))}
-          </div>
-          <div className="stacks-perch-list">
-            {snapshot.diagnostics.map((diagnostic) => (
+        <div
+          id="stacks-diagnostics-panel-inspect"
+          className="stacks-diagnostics-panel"
+          role="tabpanel"
+          aria-labelledby="stacks-diagnostics-tab-inspect"
+        >
+          <header className="stacks-diagnostics-panel-heading">
+            <strong>Scene inspection</strong>
+          </header>
+
+          <div className="stacks-diagnostics-toolbar">
+            <span>Scope</span>
+            <div
+              className="stacks-diagnostics-segmented"
+              role="group"
+              aria-label="Inspection scope"
+            >
               <button
-                key={`${diagnostic.species}:${diagnostic.perchId}`}
                 type="button"
-                onMouseEnter={() =>
-                  insectDiagnosticsController.update({
-                    hoveredPerchId: diagnostic.perchId,
-                  })
+                onClick={() =>
+                  insectDiagnosticsController.update({ filter: "active" })
                 }
-                onMouseLeave={() =>
-                  insectDiagnosticsController.update({ hoveredPerchId: null })
+                aria-pressed={snapshot.filter === "active"}
+              >
+                Active shelf
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  insectDiagnosticsController.update({ filter: "all" })
                 }
-                onFocus={() =>
-                  insectDiagnosticsController.update({
-                    hoveredPerchId: diagnostic.perchId,
-                  })
-                }
-                onBlur={() =>
-                  insectDiagnosticsController.update({ hoveredPerchId: null })
-                }
+                aria-pressed={snapshot.filter === "all"}
+              >
+                All shelves
+              </button>
+            </div>
+          </div>
+
+          <fieldset className="stacks-diagnostics-section">
+            <legend>Scene overlays</legend>
+            <div className="stacks-diagnostics-actions">
+              <button
+                type="button"
+                onClick={() => setAllOverlays(true)}
+                disabled={overlayState.all}
+              >
+                Show all overlays
+              </button>
+              <button
+                type="button"
+                onClick={() => setAllOverlays(false)}
+                disabled={!overlayState.any}
+              >
+                Hide all overlays
+              </button>
+            </div>
+            <div className="stacks-diagnostics-option-groups">
+              <div className="stacks-diagnostics-option-group" data-span="full">
+                <strong>Perches and butterflies</strong>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={snapshot.showEnvelopes}
+                    onChange={(event) =>
+                      insectDiagnosticsController.update({
+                        showEnvelopes: event.currentTarget.checked,
+                      })
+                    }
+                  />{" "}
+                  Markers and wing envelopes
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={snapshot.showRoutes}
+                    onChange={(event) =>
+                      insectDiagnosticsController.update({
+                        showRoutes: event.currentTarget.checked,
+                      })
+                    }
+                  />{" "}
+                  Approach and departure routes
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={snapshot.showFlightVolumes}
+                    onChange={(event) =>
+                      insectDiagnosticsController.update({
+                        showFlightVolumes: event.currentTarget.checked,
+                      })
+                    }
+                  />{" "}
+                  Flight volumes
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={snapshot.showFlightTrails}
+                    onChange={(event) =>
+                      insectDiagnosticsController.update({
+                        showFlightTrails: event.currentTarget.checked,
+                      })
+                    }
+                  />{" "}
+                  Flight trails · 30 s
+                </label>
+              </div>
+              <div className="stacks-diagnostics-option-group">
+                <strong>Moths</strong>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={snapshot.showLampCones}
+                    onChange={(event) =>
+                      insectDiagnosticsController.update({
+                        showLampCones: event.currentTarget.checked,
+                      })
+                    }
+                  />{" "}
+                  Lamp cones
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={snapshot.showMothTrails}
+                    onChange={(event) =>
+                      insectDiagnosticsController.update({
+                        showMothTrails: event.currentTarget.checked,
+                      })
+                    }
+                  />{" "}
+                  Flight trails · 30 s
+                </label>
+              </div>
+              <div className="stacks-diagnostics-option-group">
+                <strong>Physics</strong>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={physicsSnapshot.showHelpers}
+                    onChange={(event) =>
+                      physicsDiagnosticsController.update({
+                        showHelpers: event.currentTarget.checked,
+                      })
+                    }
+                  />{" "}
+                  Hulls, poses, vectors, and contacts
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={physicsSnapshot.showAllBounds}
+                    onChange={(event) =>
+                      physicsDiagnosticsController.update({
+                        showAllBounds: event.currentTarget.checked,
+                      })
+                    }
+                  />{" "}
+                  Prop collider boxes
+                </label>
+              </div>
+            </div>
+          </fieldset>
+
+          <details className="stacks-diagnostics-details">
+            <summary>
+              Perches · {summary.total} visible · {summary.rejected} rejected
+            </summary>
+            <div className="stacks-diagnostics-stat-grid">
+              <span>
+                Ready
+                <strong>{summary.ready}</strong>
+              </span>
+              <span>
+                Waiting
+                <strong>{summary.waiting}</strong>
+              </span>
+              <span>
+                Occupied
+                <strong>{summary.occupied}</strong>
+              </span>
+              <span>
+                Rejected
+                <strong>{summary.rejected}</strong>
+              </span>
+            </div>
+            {summary.rejections.length > 0 ? (
+              <div className="stacks-perch-summary">
+                <dl>
+                  {summary.rejections.map(({ code, count }) => (
+                    <div key={code}>
+                      <dt>{code}</dt>
+                      <dd>×{count}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            ) : null}
+            <details className="stacks-diagnostics-details stacks-diagnostics-inline-details">
+              <summary>Overlay legend</summary>
+              <div
+                className="stacks-perch-legend"
+                aria-label="Perch diagnostic marker legend"
               >
                 <span>
-                  <span data-disposition={diagnostic.disposition}>●</span>{" "}
-                  {diagnostic.perchId} ({diagnostic.species})
+                  <i data-marker="anchor" /> Authored anchor
                 </span>
-                <span>{diagnostic.rejectionCode}</span>
-              </button>
-            ))}
-          </div>
-          {hovered ? (
-            <output className="stacks-perch-detail">
-              {hovered.species} · {hovered.disposition}
-              <br />
-              owner {hovered.ownerId ?? "–"} · occupant{" "}
-              {hovered.occupantId ?? "–"}
-              <br />
-              {hovered.rejectionCode}: {hovered.rejectionReason}
-            </output>
-          ) : null}
-        </details>
-      ) : null}
-      {panel === "inspect" ? (
-        <PhysicsDiagnosticsDetails snapshot={physicsSnapshot} />
+                <span>
+                  <i data-marker="contact" data-disposition="ready" /> Resolved
+                  contact
+                </span>
+                <span>
+                  <i data-marker="normal" /> Surface normal
+                </span>
+                <span>
+                  <i data-marker="moth-ring" /> Moth-eligible perch
+                </span>
+                <span>
+                  <i data-marker="status" data-disposition="ready" /> Ready
+                </span>
+                <span>
+                  <i data-marker="status" data-disposition="waiting" /> Waiting
+                </span>
+                <span>
+                  <i data-marker="status" data-disposition="occupied" />
+                  Occupied
+                </span>
+                <span>
+                  <i data-marker="status" data-disposition="rejected" />
+                  Rejected
+                </span>
+              </div>
+            </details>
+            <div className="stacks-perch-list">
+              {snapshot.diagnostics.map((diagnostic) => (
+                <button
+                  key={`${diagnostic.species}:${diagnostic.perchId}`}
+                  type="button"
+                  onMouseEnter={() =>
+                    insectDiagnosticsController.update({
+                      hoveredPerchId: diagnostic.perchId,
+                    })
+                  }
+                  onMouseLeave={() =>
+                    insectDiagnosticsController.update({ hoveredPerchId: null })
+                  }
+                  onFocus={() =>
+                    insectDiagnosticsController.update({
+                      hoveredPerchId: diagnostic.perchId,
+                    })
+                  }
+                  onBlur={() =>
+                    insectDiagnosticsController.update({ hoveredPerchId: null })
+                  }
+                >
+                  <span>
+                    <span data-disposition={diagnostic.disposition}>●</span>{" "}
+                    {diagnostic.perchId} ({diagnostic.species})
+                  </span>
+                  <span>{diagnostic.rejectionCode}</span>
+                </button>
+              ))}
+            </div>
+            {hovered ? (
+              <output className="stacks-perch-detail">
+                {hovered.species} · {hovered.disposition}
+                <br />
+                owner {hovered.ownerId ?? "–"} · occupant{" "}
+                {hovered.occupantId ?? "–"}
+                <br />
+                {hovered.rejectionCode}: {hovered.rejectionReason}
+              </output>
+            ) : null}
+          </details>
+
+          <details className="stacks-diagnostics-details">
+            <summary>
+              Flights · {visibleFlights.length} visible · {stalledFlights}{" "}
+              stalled
+            </summary>
+            <div
+              className="stacks-perch-list"
+              aria-label="Butterfly flight telemetry"
+            >
+              {visibleFlights.map(({ telemetry }) => (
+                <output
+                  key={telemetry.occupantId}
+                  data-stalled={telemetry.stalled ? "true" : undefined}
+                >
+                  <span>
+                    {telemetry.occupantId} · {telemetry.phase} ·{" "}
+                    {telemetry.region} · {telemetry.speed.toFixed(2)} u/s
+                  </span>
+                  <span>
+                    y {telemetry.altitude.toFixed(2)} · clear{" "}
+                    {Number.isFinite(telemetry.clearance)
+                      ? telemetry.clearance.toFixed(2)
+                      : "∞"}{" "}
+                    · edge {telemetry.containment.toFixed(2)} · rev{" "}
+                    {telemetry.collisionRevision ?? "–"}
+                  </span>
+                </output>
+              ))}
+            </div>
+          </details>
+
+          <PhysicsDiagnosticsDetails snapshot={physicsSnapshot} />
+        </div>
       ) : null}
     </section>
   ) : null;
 
   return (
     <>
-      <style>{DIAGNOSTICS_STYLES}</style>
       <div className="stacks-debug-launchers pointer-events-auto">
         <DevPerformanceHud
           expanded={open}
@@ -2215,20 +1963,35 @@ function PhysicsDiagnosticsDetails({
         Physics state · {snapshot.bodyCount} bodies · {snapshot.staticCount}{" "}
         statics
       </summary>
-      <div className="stacks-perch-summary">
+      <div className="stacks-diagnostics-stat-grid">
         <span>
-          {snapshot.moduleState} · {snapshot.activeWorld ?? "no world"} ·{" "}
-          {snapshot.broadphase ?? "no broadphase"} · gravity {snapshot.gravity}
+          Module
+          <strong>{snapshot.moduleState}</strong>
+        </span>
+        <span>
+          Bodies
+          <strong>{snapshot.bodyCount}</strong>
+        </span>
+        <span>
+          Statics
+          <strong>{snapshot.staticCount}</strong>
+        </span>
+        <span>
+          Frame
+          <strong>{snapshot.timing.frameMs.toFixed(2)} ms</strong>
         </span>
       </div>
       <div className="stacks-perch-summary">
+        <span>
+          {snapshot.activeWorld ?? "no world"} ·{" "}
+          {snapshot.broadphase ?? "no broadphase"} · gravity {snapshot.gravity}
+        </span>
         <span>
           Surface {snapshot.authoredSurface ?? snapshot.plane ?? "–"} · revision{" "}
           {snapshot.geometryRevision?.slice(0, 18) ?? "–"}
         </span>
         <span>
-          {snapshot.bodyCount} bodies · {snapshot.staticCount} statics · phase{" "}
-          {snapshot.phase ?? "–"} · sleep {snapshot.sleepState ?? "–"}
+          Phase {snapshot.phase ?? "–"} · sleep {snapshot.sleepState ?? "–"}
         </span>
         <span>
           {snapshot.readyHandles.length} ready ·{" "}
@@ -2242,8 +2005,7 @@ function PhysicsDiagnosticsDetails({
           {snapshot.visibilityResetState ?? "–"}
         </span>
         <span>
-          Physics timing {snapshot.timing.frameMs.toFixed(2)} ms frame ·{" "}
-          {snapshot.timing.stepMs.toFixed(2)} ms step ·{" "}
+          Timing {snapshot.timing.stepMs.toFixed(2)} ms step ·{" "}
           {snapshot.timing.peakMs.toFixed(2)} ms peak
         </span>
         {snapshot.hullFallbacks.length ? (
@@ -2255,17 +2017,20 @@ function PhysicsDiagnosticsDetails({
           </span>
         ) : null}
       </div>
-      <div className="stacks-perch-list">
-        {snapshot.events
-          .slice()
-          .reverse()
-          .map((event, index) => (
-            <output key={`${event.at}:${index}`}>
-              <span>{event.code}</span>
-              <span>{event.handle ?? event.detail ?? "world"}</span>
-            </output>
-          ))}
-      </div>
+      <details className="stacks-diagnostics-details stacks-diagnostics-inline-details">
+        <summary>Events · {snapshot.events.length}</summary>
+        <div className="stacks-perch-list">
+          {snapshot.events
+            .slice()
+            .reverse()
+            .map((event, index) => (
+              <output key={`${event.at}:${index}`}>
+                <span>{event.code}</span>
+                <span>{event.handle ?? event.detail ?? "world"}</span>
+              </output>
+            ))}
+        </div>
+      </details>
     </details>
   );
 }

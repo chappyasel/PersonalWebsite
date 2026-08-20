@@ -19,7 +19,13 @@ import {
   sceneUrlForLocation,
 } from "../data";
 import { haptic } from "../mobile/liveness";
+import {
+  type TouchTravelStop,
+  touchSwipeDestination,
+  touchSwipeScrollBounds,
+} from "../mobile/swipeTravel";
 import { authoredTravelStops } from "../mobile/travel";
+import { scrollLeftAfterResize } from "../scene/scrollResize";
 import { scrollOffsetForUnit } from "../scene/worldLayout";
 import { closeStacksPanel, useStacks } from "../store";
 import { useEffect, useRef } from "react";
@@ -213,6 +219,32 @@ export default function ScrollBridges() {
   useEffect(() => {
     if (!scrollEl) return;
 
+    let scrollRange = Math.max(0, scrollEl.scrollWidth - scrollEl.clientWidth);
+    let preservedOffset =
+      scrollRange > 0 ? scrollEl.scrollLeft / scrollRange : 0;
+    const reconcileScrollRange = () => {
+      const nextScrollRange = Math.max(
+        0,
+        scrollEl.scrollWidth - scrollEl.clientWidth,
+      );
+      if (
+        scrollRange > 0 &&
+        nextScrollRange > 0 &&
+        nextScrollRange !== scrollRange
+      ) {
+        scrollEl.scrollLeft = scrollLeftAfterResize({
+          scrollLeft: preservedOffset * scrollRange,
+          scrollRange,
+          nextScrollRange,
+        });
+      }
+      scrollRange = nextScrollRange;
+      preservedOffset =
+        scrollRange > 0
+          ? Math.min(1, Math.max(0, scrollEl.scrollLeft / scrollRange))
+          : 0;
+    };
+
     const onWheel = (e: WheelEvent) => {
       const action = backgroundWorldGesture(
         useStacks.getState(),
@@ -220,6 +252,7 @@ export default function ScrollBridges() {
       );
       if (action === "blocked") return;
       if (isBrowserZoomWheel(e)) return;
+      reconcileScrollRange();
       e.preventDefault();
       e.stopPropagation();
       if (action === "collapse-and-travel") closeStacksPanel();
@@ -242,21 +275,15 @@ export default function ScrollBridges() {
     scrollEl.style.touchAction = "pan-x pinch-zoom";
     let coarseTravel = false;
     let settleTimer = 0;
-    const nearestStop = () => {
+    let coarseTravelStops: TouchTravelStop[] = [];
+    const travelStops = () => {
       const max = Math.max(1, scrollEl.scrollWidth - scrollEl.clientWidth);
-      const offset = scrollEl.scrollLeft / max;
-      let unit = 0;
-      let distance = Infinity;
-      for (const index of authoredTravelStops(UNIT_COUNT, [
-        GOLF_STOP_POSITION,
-      ])) {
-        const next = Math.abs(scrollOffsetForUnit(index) - offset);
-        if (next < distance) {
-          distance = next;
-          unit = index;
-        }
-      }
-      return unit;
+      return authoredTravelStops(UNIT_COUNT, [GOLF_STOP_POSITION]).map(
+        (position) => ({
+          position,
+          scrollLeft: scrollOffsetForUnit(position) * max,
+        }),
+      );
     };
     const settleTouchTravel = () => {
       if (!coarseTravel) return;
@@ -265,7 +292,12 @@ export default function ScrollBridges() {
       const state = useStacks.getState();
       if (state.dragging || state.modalOpen || state.panelState !== "closed")
         return;
-      const destination = nearestStop();
+      const destination = touchSwipeDestination({
+        startScrollLeft: coarseStartScrollLeft,
+        endScrollLeft: scrollEl.scrollLeft,
+        stops: coarseTravelStops,
+      });
+      if (destination === null) return;
       state.setFocusedInteraction(null);
       state.travelTo?.(destination);
       state.setSettledUnit(Number.isInteger(destination) ? destination : null);
@@ -273,6 +305,7 @@ export default function ScrollBridges() {
     };
     let coarseStartScrollLeft = 0;
     const onPointerDown = (event: PointerEvent) => {
+      reconcileScrollRange();
       if (event.pointerType !== "touch") return;
       const action = backgroundWorldGesture(
         useStacks.getState(),
@@ -280,6 +313,7 @@ export default function ScrollBridges() {
       );
       coarseTravel = action === "travel";
       coarseStartScrollLeft = scrollEl.scrollLeft;
+      coarseTravelStops = coarseTravel ? travelStops() : [];
     };
     const onPointerUp = (event: PointerEvent) => {
       if (
@@ -290,7 +324,19 @@ export default function ScrollBridges() {
         coarseTravel = false;
     };
     const onScroll = () => {
+      reconcileScrollRange();
       if (!coarseTravel) return;
+      const bounds = touchSwipeScrollBounds({
+        startScrollLeft: coarseStartScrollLeft,
+        stops: coarseTravelStops,
+      });
+      if (bounds) {
+        const bounded = Math.min(
+          bounds.max,
+          Math.max(bounds.min, scrollEl.scrollLeft),
+        );
+        if (bounded !== scrollEl.scrollLeft) scrollEl.scrollLeft = bounded;
+      }
       window.clearTimeout(settleTimer);
       settleTimer = window.setTimeout(settleTouchTravel, 120);
     };

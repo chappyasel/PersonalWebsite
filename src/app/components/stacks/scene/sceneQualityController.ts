@@ -9,8 +9,14 @@ import type {
   SceneQualityProfile,
 } from "./quality";
 import {
-  SCENE_RESOLUTION_MAX_STEP,
+  DEPTH_OF_FIELD_BOKEH_MULTIPLIER_MAX,
+  DEPTH_OF_FIELD_BOKEH_MULTIPLIER_MIN,
+  DEPTH_OF_FIELD_RESOLUTION_SCALE_MAX,
+  DEPTH_OF_FIELD_RESOLUTION_SCALE_MIN,
+} from "./quality";
+import {
   type QualityAxisChange,
+  SCENE_RESOLUTION_MAX_STEP,
   type SceneQualityAxes,
 } from "./qualityAxes";
 
@@ -35,6 +41,10 @@ export type SceneQualityRuntimeSnapshot = Readonly<{
 
 export type SceneQualityControlSnapshot = Readonly<{
   mode: SceneQualityMode;
+  /** Live, diagnostics-only finishing treatment layered over Cinematic.
+   * Kept separate from the production profile union so Auto can never select
+   * it and reloads always restore the approved scene. */
+  cinematicPlus: boolean;
   frozen: boolean;
   resetRequest: number;
   runtime: SceneQualityRuntimeSnapshot | null;
@@ -45,16 +55,22 @@ export type SceneQualityControlSnapshot = Readonly<{
   /** Diagnostics-only render-scale ceiling that replaces the profile cap and
    * the pixel budget. Null leaves the budget in charge. */
   resolutionCeiling: number | null;
+  /** Session-only DoF tuning. Null hands each value back to the plan. */
+  depthOfFieldBokehMultiplier: number | null;
+  depthOfFieldResolutionScale: number | null;
 }>;
 
 class SceneQualityController {
   private snapshot: SceneQualityControlSnapshot = {
     mode: "auto",
+    cinematicPlus: false,
     frozen: false,
     resetRequest: 0,
     runtime: null,
     resolutionStep: null,
     resolutionCeiling: null,
+    depthOfFieldBokehMultiplier: null,
+    depthOfFieldResolutionScale: null,
   };
   private listeners = new Set<() => void>();
 
@@ -69,9 +85,19 @@ class SceneQualityController {
     for (const listener of this.listeners) listener();
   }
 
-  setMode(mode: SceneQualityMode) {
-    if (this.snapshot.mode === mode) return;
-    this.publish({ ...this.snapshot, mode });
+  setMode(mode: SceneQualityMode | "cinematic+") {
+    const cinematicPlus = mode === "cinematic+";
+    const resolvedMode = cinematicPlus ? "cinematic" : mode;
+    if (
+      this.snapshot.mode === resolvedMode &&
+      this.snapshot.cinematicPlus === cinematicPlus
+    )
+      return;
+    this.publish({
+      ...this.snapshot,
+      mode: resolvedMode,
+      cinematicPlus,
+    });
   }
 
   /** Pin the resolution axis, or pass null to hand it back to the
@@ -95,6 +121,43 @@ class SceneQualityController {
     this.publish({ ...this.snapshot, resolutionCeiling: next });
   }
 
+  setDepthOfFieldBokehMultiplier(multiplier: number | null) {
+    const next =
+      multiplier == null || !Number.isFinite(multiplier)
+        ? null
+        : Math.min(
+            DEPTH_OF_FIELD_BOKEH_MULTIPLIER_MAX,
+            Math.max(DEPTH_OF_FIELD_BOKEH_MULTIPLIER_MIN, multiplier),
+          );
+    if (this.snapshot.depthOfFieldBokehMultiplier === next) return;
+    this.publish({ ...this.snapshot, depthOfFieldBokehMultiplier: next });
+  }
+
+  setDepthOfFieldResolutionScale(scale: number | null) {
+    const next =
+      scale == null || !Number.isFinite(scale)
+        ? null
+        : Math.min(
+            DEPTH_OF_FIELD_RESOLUTION_SCALE_MAX,
+            Math.max(DEPTH_OF_FIELD_RESOLUTION_SCALE_MIN, scale),
+          );
+    if (this.snapshot.depthOfFieldResolutionScale === next) return;
+    this.publish({ ...this.snapshot, depthOfFieldResolutionScale: next });
+  }
+
+  resetDepthOfField() {
+    if (
+      this.snapshot.depthOfFieldBokehMultiplier == null &&
+      this.snapshot.depthOfFieldResolutionScale == null
+    )
+      return;
+    this.publish({
+      ...this.snapshot,
+      depthOfFieldBokehMultiplier: null,
+      depthOfFieldResolutionScale: null,
+    });
+  }
+
   setFrozen(frozen: boolean) {
     if (this.snapshot.frozen === frozen) return;
     this.publish({ ...this.snapshot, frozen });
@@ -115,11 +178,14 @@ class SceneQualityController {
   resetControls() {
     this.snapshot = {
       mode: "auto",
+      cinematicPlus: false,
       frozen: false,
       resetRequest: 0,
       runtime: null,
       resolutionStep: null,
       resolutionCeiling: null,
+      depthOfFieldBokehMultiplier: null,
+      depthOfFieldResolutionScale: null,
     };
   }
 }

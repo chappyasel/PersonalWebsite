@@ -8,11 +8,12 @@ import {
 } from "./quality";
 import {
   AXES_BY_PROFILE,
+  QUALITY_BOOT_GUARD_MS,
   QUALITY_CONTENT_FALL_MS,
   QUALITY_CONTENT_RISE_MS,
   QUALITY_EFFECTS_FALL_MS,
+  QUALITY_EFFECTS_RETRY_MS,
   QUALITY_EFFECTS_RISE_MS,
-  QUALITY_BOOT_GUARD_MS,
   QUALITY_RESOLUTION_DWELL_MS,
   QUALITY_TRAVEL_OVER_BUDGET_LIMIT,
   QUALITY_TRAVEL_RESOLUTION_DROP_STEPS,
@@ -51,6 +52,7 @@ function hold(
   fromMs: number,
   durationMs: number,
   stepMs = 250,
+  allowResolutionChange = true,
 ) {
   let next = state;
   for (let t = fromMs; t <= fromMs + durationMs; t += stepMs)
@@ -59,6 +61,7 @@ function hold(
       now: t,
       metrics: value,
       visible: true,
+      allowResolutionChange,
     });
   return next;
 }
@@ -85,8 +88,9 @@ describe("the resolution ladder", () => {
   });
 
   it("spaces steps geometrically, so each is the same relative size", () => {
-    const ratios = Array.from({ length: SCENE_RESOLUTION_MAX_STEP }, (_, i) =>
-      resolutionScaleForStep(i + 1, 3) / resolutionScaleForStep(i, 3),
+    const ratios = Array.from(
+      { length: SCENE_RESOLUTION_MAX_STEP },
+      (_, i) => resolutionScaleForStep(i + 1, 3) / resolutionScaleForStep(i, 3),
     );
     for (const ratio of ratios) expect(ratio).toBeCloseTo(ratios[0]!, 9);
   });
@@ -105,7 +109,10 @@ describe("the resolution ladder", () => {
   });
 
   it("clamps a step outside the ladder rather than extrapolating", () => {
-    expect(resolutionScaleForStep(-5, 3)).toBeCloseTo(SCENE_RESOLUTION_FLOOR, 6);
+    expect(resolutionScaleForStep(-5, 3)).toBeCloseTo(
+      SCENE_RESOLUTION_FLOOR,
+      6,
+    );
     expect(resolutionScaleForStep(99, 3)).toBeCloseTo(3, 6);
   });
 
@@ -225,20 +232,67 @@ describe("axis independence", () => {
       "content",
     ]);
   });
+
+  it("routes GPU pressure to effects when the platform locks its drawing buffer", () => {
+    const state = hold(
+      start(),
+      gpuBound,
+      2_000,
+      QUALITY_EFFECTS_FALL_MS + 500,
+      250,
+      false,
+    );
+    expect(state.axes.resolutionStep).toBe(SCENE_RESOLUTION_MAX_STEP);
+    expect(state.axes.effects).toBe("lean");
+    expect(state.axes.content).toBe("full");
+  });
+
+  it("does not raise a platform-locked drawing buffer under headroom", () => {
+    const base = {
+      ...start(),
+      axes: { ...start().axes, resolutionStep: 8 },
+    };
+    const state = hold(base, headroom, 2_000, 120_000, 250, false);
+    expect(state.axes.resolutionStep).toBe(8);
+  });
 });
 
 describe("the resolution dwell", () => {
   it("takes at most one step inside a single dwell", () => {
-    const state = hold(start(), gpuBound, 2_000, QUALITY_RESOLUTION_DWELL_MS - 500);
+    const state = hold(
+      start(),
+      gpuBound,
+      2_000,
+      QUALITY_RESOLUTION_DWELL_MS - 500,
+    );
     expect(state.axes.resolutionStep).toBe(SCENE_RESOLUTION_MAX_STEP - 1);
   });
 
   it("defers the whole decision rather than passing the turn to a slower axis", () => {
     // A dwell is a short wait. Spending a visible lever to avoid it is the
     // wrong trade, so nothing else may move while it is running.
-    const state = hold(start(), cpuBound, 2_000, QUALITY_RESOLUTION_DWELL_MS - 500);
+    const state = hold(
+      start(),
+      cpuBound,
+      2_000,
+      QUALITY_RESOLUTION_DWELL_MS - 500,
+    );
     expect(state.axes.effects).toBe("full");
     expect(state.axes.content).toBe("full");
+  });
+
+  it("does not immediately revisit a resolution step that just caused GPU pressure", () => {
+    let state = hold(start(), gpuBound, 2_000, QUALITY_RESOLUTION_DWELL_MS);
+    const stableStep = state.axes.resolutionStep;
+
+    // This is the physical-iPhone failure loop: one lower step reaches vsync,
+    // Auto calls that headroom, climbs back into the known-bad step, then the
+    // next late window drops it again. Every reversal reallocates Safari's
+    // drawing buffer and presents a black frame while the grass alternates
+    // between two visibly different raster resolutions.
+    state = hold(state, headroom, 5_000, 10_000);
+
+    expect(state.axes.resolutionStep).toBe(stableStep);
   });
 });
 
@@ -291,7 +345,12 @@ describe("the one-axis-at-a-time block", () => {
     // A device under real, unrelieved pressure must keep making progress on
     // the cheapest lever. Freezing resolution until it proves itself would
     // strand exactly the device that needs it most.
-    const state = hold(start(), gpuBound, 2_000, QUALITY_RESOLUTION_DWELL_MS * 4);
+    const state = hold(
+      start(),
+      gpuBound,
+      2_000,
+      QUALITY_RESOLUTION_DWELL_MS * 4,
+    );
     expect(state.axes.resolutionStep).toBeLessThan(
       SCENE_RESOLUTION_MAX_STEP - 1,
     );
@@ -305,30 +364,40 @@ describe("effects and content time constants", () => {
   });
 
   it("moves effects on a sustained GPU constraint and leaves content alone", () => {
-    const state = hold(atFloor(), gpuBound, 2_000, QUALITY_EFFECTS_FALL_MS + 500);
+    const state = hold(
+      atFloor(),
+      gpuBound,
+      2_000,
+      QUALITY_EFFECTS_FALL_MS + 500,
+    );
     expect(state.axes.effects).toBe("lean");
     expect(state.axes.content).toBe("full");
   });
 
   it("answers CPU pressure with content and leaves effects and resolution alone", () => {
-    const state = hold(
-      start(),
-      cpuBound,
-      2_000,
-      QUALITY_CONTENT_FALL_MS + 500,
-    );
+    const state = hold(start(), cpuBound, 2_000, QUALITY_CONTENT_FALL_MS + 500);
     expect(state.axes.resolutionStep).toBe(SCENE_RESOLUTION_MAX_STEP);
     expect(state.axes.effects).toBe("full");
     expect(state.axes.content).toBe("reduced");
   });
 
   it("does not move effects before the sustain elapses", () => {
-    const state = hold(atFloor(), gpuBound, 2_000, QUALITY_EFFECTS_FALL_MS - 1_000);
+    const state = hold(
+      atFloor(),
+      gpuBound,
+      2_000,
+      QUALITY_EFFECTS_FALL_MS - 1_000,
+    );
     expect(state.axes.effects).toBe("full");
   });
 
   it("resets an axis clock when the classification breaks", () => {
-    let state = hold(atFloor(), gpuBound, 2_000, QUALITY_EFFECTS_FALL_MS - 1_000);
+    let state = hold(
+      atFloor(),
+      gpuBound,
+      2_000,
+      QUALITY_EFFECTS_FALL_MS - 1_000,
+    );
     // One window of something else must restart the run, not extend it.
     state = reduceSceneQualityAxes(state, {
       type: "sample",
@@ -423,6 +492,17 @@ describe("travel", () => {
       now: 1_000,
     });
     expect(state.axes.resolutionStep).toBe(before.axes.resolutionStep);
+  });
+
+  it("does not borrow resolution on a platform with a locked drawing buffer", () => {
+    const before = gpuPressured();
+    const state = reduceSceneQualityAxes(before, {
+      type: "travel-start",
+      now: 1_000,
+      allowResolutionChange: false,
+    });
+    expect(state.axes.resolutionStep).toBe(before.axes.resolutionStep);
+    expect(state.preTravelStep).toBeNull();
   });
 
   it("records no debt and restarts no dwell when it does not borrow", () => {
@@ -571,7 +651,10 @@ describe("the travel budget", () => {
         type: "travel-frame",
         frameMs: i < lateRatio * 100 ? 40 : 10,
       });
-    return reduceSceneQualityAxes(next, { type: "travel-end", now: at + 2_000 });
+    return reduceSceneQualityAxes(next, {
+      type: "travel-end",
+      now: at + 2_000,
+    });
   };
 
   it("counts a travel as over budget past a fifth of its frames", () => {
@@ -764,7 +847,10 @@ describe("the boot grace period", () => {
   });
 
   it("treats a repeated boot signal as a no-op", () => {
-    const first = reduceSceneQualityAxes(cold(), { type: "booted", now: 1_000 });
+    const first = reduceSceneQualityAxes(cold(), {
+      type: "booted",
+      now: 1_000,
+    });
     expect(reduceSceneQualityAxes(first, { type: "booted", now: 9_000 })).toBe(
       first,
     );
@@ -882,10 +968,49 @@ describe("recovery", () => {
     );
   });
 
+  it("lets a fresh conservative phone start climb without a failure retry", () => {
+    const startingStep = 6;
+    let state = initialSceneQualityAxisState(
+      "efficient",
+      0,
+      null,
+      startingStep,
+    );
+    state = reduceSceneQualityAxes(state, { type: "booted", now: 0 });
+    expect(state.resolutionRetryAt).toBeNull();
+
+    state = hold(state, headroom, 2_000, QUALITY_EFFECTS_RISE_MS + 1_000);
+    expect(state.axes.resolutionStep).toBeGreaterThan(startingStep);
+  });
+
+  it("holds a cheaper effects tier before retrying visible spatial passes", () => {
+    let state: SceneQualityAxisState = {
+      ...start(),
+      axes: { resolutionStep: 0, effects: "lean", content: "full" },
+      effectsRetryAt: 10_000 + QUALITY_EFFECTS_RETRY_MS,
+    };
+
+    state = hold(state, headroom, 10_000, QUALITY_EFFECTS_RISE_MS * 2);
+    expect(state.axes.effects).toBe("lean");
+
+    state = hold(
+      state,
+      headroom,
+      10_000 + QUALITY_EFFECTS_RETRY_MS,
+      QUALITY_EFFECTS_RISE_MS,
+    );
+    expect(state.axes.effects).toBe("full");
+  });
+
   it("climbs one step at a time rather than snapping back", () => {
     // Each step reallocates composer targets, so a jump to the ceiling would
-    // be the hitch this ladder exists to avoid.
-    const partly = recover(bottomOut(), 70_000);
+    // be the hitch this ladder exists to avoid. Recovery also waits before
+    // retrying the step that last proved too expensive.
+    const bottom = bottomOut();
+    const partly = recover(
+      bottom,
+      (bottom.resolutionRetryAt ?? 60_000) + 10_000,
+    );
     expect(partly.axes.resolutionStep).toBeGreaterThan(0);
     expect(partly.axes.resolutionStep).toBeLessThan(SCENE_RESOLUTION_MAX_STEP);
   });

@@ -24,7 +24,6 @@ import {
   useState,
 } from "react";
 import type * as THREE from "three";
-import { WebGLRenderer } from "three";
 
 import { sceneAudio } from "./audio/sceneAudio";
 import { type StacksData, UNIT_COUNT } from "./data";
@@ -36,9 +35,14 @@ import {
   setLoadProgress,
 } from "./loading";
 import { cameraTravelDiagnostics } from "./scene/CameraRig";
-import { sceneBackdropFor } from "./scene/sceneBackdrop";
 import { prewarmGrabbablePhysics } from "./scene/Grabbable";
 import Scene from "./scene/Scene";
+import {
+  devHooksRequested,
+  onDevHooksRequested,
+  sceneDevHooksRequestedBySearch,
+  sceneInstrumentationRequestedBySearch,
+} from "./scene/devHooks";
 import type { GolfShotOutcome } from "./scene/golf/golfTypes";
 import { setInteractionProjectionContext } from "./scene/interactionProjection";
 import { sceneInteractionInventory } from "./scene/interactionRegistry";
@@ -46,7 +50,6 @@ import type {
   MeadowDiagnosticsSettings,
   MeadowDiagnosticsUpdate,
 } from "./scene/meadowDiagnostics";
-import { createOpaqueSceneContext } from "./scene/opaqueSceneContext";
 import { ScenePerformanceSampler } from "./scene/performanceMetrics";
 import {
   browserPerformanceTraceSession,
@@ -55,38 +58,19 @@ import {
   scenePerformanceTrace,
 } from "./scene/performanceTrace";
 import { physicsDiagnosticsController } from "./scene/physicsDiagnostics";
-import { devHooksRequested, onDevHooksRequested } from "./scene/devHooks";
-import {
-  type SceneQualityAxes,
-  initialSceneQualityAxisState,
-  reduceSceneQualityAxes,
-} from "./scene/qualityAxes";
-import {
-  type LearnedQuality,
-  clearLearnedQuality,
-  readLearnedQuality,
-  writeLearnedQuality,
-} from "./scene/qualityLearning";
-import {
-  instrumentRendererFrameCost,
-  instrumentSceneMatrixCost,
-  markSceneFrameInstrumented,
-  markSceneFrameStart,
-  readSceneFrameCpuMs,
-  takeSceneFrameInstrumented,
-} from "./scene/sceneFrameCost";
 import {
   QUALITY_PERSIST_STABLE_MS,
-  SCENE_FRAME_BUDGET_MS,
   QUALITY_SAMPLE_INTERVAL_MS,
   QUALITY_SAMPLE_WINDOW_MS,
   QUALITY_TRAVEL_VALIDATION_MS,
   type RendererCapability,
+  SCENE_FRAME_BUDGET_MS,
   type SceneQualityMetrics,
   type SceneQualityMode,
   type SceneQualityPlan,
   type SceneQualityProfile,
   bookCoverWidthForNeed,
+  captureResolutionCeilingFromSearch,
   classifySceneFrameConstraint,
   deriveRendererCapability,
   qualityModeFromSearch,
@@ -97,6 +81,7 @@ import {
   summariseSceneFrameWindow,
 } from "./scene/quality";
 import {
+  QUALITY_RESOLUTION_RETRY_MS,
   SCENE_RESOLUTION_MAX_STEP,
   type SceneQualityAxes,
   initialSceneQualityAxisState,
@@ -112,6 +97,7 @@ import {
 import { sceneBackdropFor } from "./scene/sceneBackdrop";
 import {
   sceneColorGradeController,
+  sceneColorGradeFor,
   useSceneColorGradeSettings,
 } from "./scene/sceneColorGrade";
 import {
@@ -149,6 +135,7 @@ import { CAMERA, STACKS_DESKTOP_MIN_WIDTH } from "./scene/worldLayout";
 import { progressRef, useStacks } from "./store";
 import { PALETTES } from "./theme";
 import { isWebGLContextUsable } from "./webglProbe";
+import { scenePointerMoveWithoutCoarseHover } from "~/app/components/stacks/input/scenePointerEvents";
 
 // Mount/unmount ONLY (never enabled={false}: a mounted-disabled composer pins
 // the renderer to NoToneMapping = blown frame). Touch uses the same effect
@@ -159,29 +146,16 @@ const performanceSampler = new ScenePerformanceSampler();
 let qualitySnapshot: Record<string, unknown> = {};
 let forceQuality: ((value: SceneQualityMode | number) => void) | null = null;
 
-export function shouldSkipSceneHoverRaycast(
-  coarseTouch: boolean,
-  event: Event,
-) {
-  return (
-    coarseTouch &&
-    "pointerType" in event &&
-    (event as PointerEvent).pointerType === "touch"
-  );
-}
-
 function scenePointerEvents(coarseTouch: boolean) {
   return (store: Parameters<typeof createPointerEvents>[0]) => {
     const manager = createPointerEvents(store);
     const handlers = manager.handlers;
     if (!handlers) return manager;
     const onPointerMove = handlers.onPointerMove;
-    handlers.onPointerMove = (
-      event: Parameters<typeof onPointerMove>[0],
-    ) => {
-      if (shouldSkipSceneHoverRaycast(coarseTouch, event)) return;
-      onPointerMove(event);
-    };
+    handlers.onPointerMove = scenePointerMoveWithoutCoarseHover(
+      coarseTouch,
+      onPointerMove,
+    );
     return manager;
   };
 }
@@ -205,13 +179,13 @@ function ScrollRegionA11y() {
 /** The unmasked renderer string, where the browser exposes it. Blocked in
  * hardened modes and in some privacy configurations, so absence is normal and
  * must cost nothing. */
-function readUnmaskedRenderer(context: WebGLRenderingContext | WebGL2RenderingContext) {
+function readUnmaskedRenderer(
+  context: WebGLRenderingContext | WebGL2RenderingContext,
+) {
   try {
     const debug = context.getExtension("WEBGL_debug_renderer_info");
     if (!debug) return null;
-    const value: unknown = context.getParameter(
-      debug.UNMASKED_RENDERER_WEBGL,
-    );
+    const value: unknown = context.getParameter(debug.UNMASKED_RENDERER_WEBGL);
     return typeof value === "string" ? value : null;
   } catch {
     return null;
@@ -252,25 +226,17 @@ declare global {
   }
 }
 
-/** Either flag opts a production visit into development hooks. */
-function hasDevHookFlag(search: URLSearchParams) {
-  return search.has("harness") || search.has("debug");
-}
-
 function installDevHooks() {
   // Production measurements opt in explicitly. Development keeps the cheap
   // imperative hooks available for scene modules; the expensive diagnostic
   // subscribers and sweeps are gated separately in the rendered tree.
   //
-  // `debug` is here as well as `harness` because the compact HUD and the
-  // diagnostics drawer both read `window.__stacks.state()`, and their own
-  // entry point is `?debug=1` (or the D key). Gating the hooks on `harness`
-  // alone rendered the whole HUD as em-dashes and a permanent "Waiting" on
-  // any production visit that opened it: the panel was live, its data source
-  // was never installed.
+  // `hud`, `debug`, and `harness` all read `window.__stacks.state()`. Only the
+  // latter two mount the expensive diagnostic probes; `hud` installs these
+  // read-only hooks so production measurements do not change the workload.
   if (
     process.env.NODE_ENV === "production" &&
-    !hasDevHookFlag(new URLSearchParams(window.location.search)) &&
+    !sceneDevHooksRequestedBySearch(window.location.search) &&
     !devHooksRequested()
   )
     return;
@@ -540,9 +506,14 @@ function LoadReporter() {
 // Keeps tone-mapping exposure in sync when the theme flips after mount.
 function Exposure({ dark }: { dark: boolean }) {
   const gl = useThree((s) => s.gl);
+  const baseColorGrade = useSceneColorGradeSettings();
+  const { cinematicPlus } = useSceneQualityControls();
+  const colorGrade = sceneColorGradeFor(baseColorGrade, cinematicPlus);
   useEffect(() => {
-    gl.toneMappingExposure = dark ? 1.25 : 1.12;
-  }, [gl, dark]);
+    gl.toneMappingExposure = dark
+      ? colorGrade.dark.exposure
+      : colorGrade.light.exposure;
+  }, [colorGrade, gl, dark]);
   return null;
 }
 
@@ -717,12 +688,7 @@ function AdaptiveQualityProbe({
     const instrumented = takeSceneFrameInstrumented();
     markSceneFrameStart(now);
     const ms = delta * 1_000;
-    if (
-      !document.hidden &&
-      Number.isFinite(ms) &&
-      ms > 0 &&
-      ms < 1_000
-    )
+    if (!document.hidden && Number.isFinite(ms) && ms > 0 && ms < 1_000)
       frames.current.push({ at: now, ms, cpuMs, instrumented });
     while (
       frames.current.length > 0 &&
@@ -816,8 +782,7 @@ function MovementProbe({
         onChange(true);
       }
       frames.current.total += 1;
-      if (delta * 1_000 > SCENE_FRAME_BUDGET_MS * 1.5)
-        frames.current.late += 1;
+      if (delta * 1_000 > SCENE_FRAME_BUDGET_MS * 1.5) frames.current.late += 1;
     } else if (moving.current && now - lastMovedAt.current >= 650) {
       moving.current = false;
       setSceneTraveling(false);
@@ -979,7 +944,7 @@ export default function StacksCanvas({
   const [diagnosticsRequested, setDiagnosticsRequested] = useState(() => {
     if (devHooksRequested()) return true;
     if (typeof window === "undefined") return false;
-    return hasDevHookFlag(new URLSearchParams(window.location.search));
+    return sceneInstrumentationRequestedBySearch(window.location.search);
   });
   // The HUD can be opened at any time, including long after the canvas was
   // created. Install its hooks and diagnostics only after that opt-in.
@@ -1030,14 +995,39 @@ export default function StacksCanvas({
     touch: coarseTouch,
     narrowViewport: viewport.width < STACKS_DESKTOP_MIN_WIDTH,
   });
+  // Automatic mode renders under Showcase's ceiling, so a phone cannot start
+  // at Efficient merely by selecting Efficient's content/effects point. Map
+  // that preset's resolved DPR onto the shared twelve-step axis as well. It is
+  // only a starting point; runtime measurements remain free to move it.
+  const initialAutoResolutionStep = useMemo(() => {
+    const common = {
+      mode: "auto" as const,
+      cssWidth: viewport.width,
+      cssHeight: viewport.height,
+      deviceDpr: viewport.deviceDpr,
+      narrowViewport: viewport.width < STACKS_DESKTOP_MIN_WIDTH,
+      touch: coarseTouch,
+    };
+    const ceiling = resolveSceneQualityPlan({
+      ...common,
+      profile: "showcase",
+    }).dpr;
+    const starting = resolveSceneQualityPlan({
+      ...common,
+      profile: initialAxisProfile,
+    }).dpr;
+    return resolutionStepForScale(starting, ceiling);
+  }, [coarseTouch, initialAxisProfile, viewport]);
   const [composerFailed, setComposerFailed] = useState(false);
   const [axisState, dispatchAxes] = useReducer(
     reduceSceneQualityAxes,
     undefined,
     () => {
+      const startedAt =
+        typeof performance === "undefined" ? 0 : performance.now();
       const base = initialSceneQualityAxisState(
         queryMode === "auto" ? initialAxisProfile : queryMode,
-        typeof performance === "undefined" ? 0 : performance.now(),
+        startedAt,
         queryMode === "auto" ? null : queryMode,
         queryMode === "auto"
           ? initialAutoResolutionStep
@@ -1051,6 +1041,10 @@ export default function StacksCanvas({
           effects: restoredLearning.effects,
           content: restoredLearning.content,
         },
+        // A persisted lower rung is a known-good result from an earlier
+        // visit. Hold it before retrying; a fresh conservative starting rung
+        // has no failed higher step and remains free to climb immediately.
+        resolutionRetryAt: startedAt + QUALITY_RESOLUTION_RETRY_MS,
       };
     },
   );
@@ -1162,27 +1156,27 @@ export default function StacksCanvas({
     previousAxes.current = axisState.axes;
   }, [axisState.axes, axisState.lastChange, liveMetrics]);
 
-  const onMovementChange = useCallback((
-    moving: boolean,
-    frames?: TravelFrames,
-  ) => {
-    const now = performance.now();
-    // Pre-emptive: the visitor initiated this, so the headroom is taken
-    // before a frame is missed rather than after.
-    dispatchAxes(
-      moving
-        ? { type: "travel-start", now }
-        : { type: "travel-end", now, frames },
-    );
-    scenePerformanceTrace.event({
-      at: now,
-      type: moving ? "travel-start" : "travel-end",
-      detail: {
-        progress: progressRef.current,
-        activeUnit: useStacks.getState().activeUnit,
-      },
-    });
-  }, []);
+  const onMovementChange = useCallback(
+    (moving: boolean, frames?: TravelFrames) => {
+      const now = performance.now();
+      // Pre-emptive: the visitor initiated this, so the headroom is taken
+      // before a frame is missed rather than after.
+      dispatchAxes(
+        moving
+          ? { type: "travel-start", now }
+          : { type: "travel-end", now, frames },
+      );
+      scenePerformanceTrace.event({
+        at: now,
+        type: moving ? "travel-start" : "travel-end",
+        detail: {
+          progress: progressRef.current,
+          activeUnit: useStacks.getState().activeUnit,
+        },
+      });
+    },
+    [],
+  );
 
   useEffect(() => {
     scenePerformanceTrace.event({
@@ -1209,6 +1203,13 @@ export default function StacksCanvas({
       window.location.search.includes("nopostfx"),
     [],
   );
+  const grassDeformationOff = useMemo(
+    () =>
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("grassDeformation") ===
+        "off",
+    [],
+  );
   // A continuously adapting resolution makes an exact device-pixel-ratio
   // assertion inherently racy. The harness flag already marks the runs that
   // make those assertions, so it is also what holds the axis still.
@@ -1218,6 +1219,15 @@ export default function StacksCanvas({
       new URLSearchParams(window.location.search).has("harness"),
     [],
   );
+  const captureResolutionCeiling = useMemo(
+    () =>
+      typeof window === "undefined"
+        ? null
+        : captureResolutionCeilingFromSearch(window.location.search),
+    [],
+  );
+  const resolutionCeiling =
+    qualityControls.resolutionCeiling ?? captureResolutionCeiling;
   const renderProfile: SceneQualityProfile =
     mode === "auto" ? "showcase" : mode;
   const plan = useMemo(
@@ -1243,7 +1253,7 @@ export default function StacksCanvas({
           // the ladder sat at step 10 reads as the control not working. An
           // explicitly pinned step still wins, since that is someone asking
           // for a rung rather than for a density.
-          (qualityControls.resolutionCeiling != null
+          (resolutionCeiling != null
             ? SCENE_RESOLUTION_MAX_STEP
             : harnessPinnedResolution
               ? null
@@ -1251,15 +1261,14 @@ export default function StacksCanvas({
         // Diagnostics-only, and never set by the controller: it replaces the
         // pixel budget rather than joining it, so a large window can be shown
         // at its display's real density.
-        resolutionCeiling: qualityControls.resolutionCeiling,
+        resolutionCeiling,
         cssWidth: viewport.width,
         cssHeight: viewport.height,
         deviceDpr: viewport.deviceDpr,
         narrowViewport: viewport.width < STACKS_DESKTOP_MIN_WIDTH,
-        touch:
-          rendererCapability === "unknown" ||
-          rendererCapability === "constrained",
+        touch: coarseTouch,
         directRender: composerFailed || noPostfx,
+        grassDeformationOff,
         overrides: {
           ...performanceSettings,
           skipAmbientOcclusion: scenePerformanceController.isOverridden(
@@ -1272,6 +1281,10 @@ export default function StacksCanvas({
           )
             ? performanceSettings.skipDepthOfField
             : undefined,
+          depthOfFieldBokehMultiplier:
+            qualityControls.depthOfFieldBokehMultiplier ?? undefined,
+          depthOfFieldResolutionScale:
+            qualityControls.depthOfFieldResolutionScale ?? undefined,
           simplifiedFarMeadow: scenePerformanceController.isOverridden(
             "simplifiedFarMeadow",
           )
@@ -1279,6 +1292,8 @@ export default function StacksCanvas({
             : undefined,
         },
         hasCustomOverrides:
+          qualityControls.depthOfFieldBokehMultiplier != null ||
+          qualityControls.depthOfFieldResolutionScale != null ||
           scenePerformanceController.hasOverrides() ||
           !scenePerformanceSettingsEqual(
             performanceSettings,
@@ -1287,11 +1302,14 @@ export default function StacksCanvas({
       }),
     [
       composerFailed,
+      coarseTouch,
       axisState.axes.content,
       axisState.axes.effects,
       axisState.axes.resolutionStep,
       qualityControls.resolutionStep,
-      qualityControls.resolutionCeiling,
+      qualityControls.depthOfFieldBokehMultiplier,
+      qualityControls.depthOfFieldResolutionScale,
+      resolutionCeiling,
       harnessPinnedResolution,
       mode,
       noPostfx,
@@ -1391,8 +1409,7 @@ export default function StacksCanvas({
         type: "sample",
         now: performance.now(),
         metrics,
-        visible:
-          !document.hidden && !qualityControls.frozen && !instrumented,
+        visible: !document.hidden && !qualityControls.frozen && !instrumented,
       });
     },
     [qualityControls.frozen],
@@ -1445,11 +1462,10 @@ export default function StacksCanvas({
   ]);
 
   const cooldownMs = 0;
-  const fallbackStatus = composerFailed
-    ? "direct-effects-error"
-    : "composer";
+  const fallbackStatus = composerFailed ? "direct-effects-error" : "composer";
   const transitionReason =
-    axisState.lastChange?.reason ?? (composerFailed ? "effects-error" : "startup");
+    axisState.lastChange?.reason ??
+    (composerFailed ? "effects-error" : "startup");
   // Which resource the last window was short of. Published rather than only
   // acted on, so the overlay can show why the scene made its decision.
   const liveConstraint = liveMetrics
@@ -1565,28 +1581,19 @@ export default function StacksCanvas({
         // ladder deliberately unmounts that composer after a sustained
         // decline. Creating the context without MSAA made that fallback path
         // lose ALL antialiasing and exposed stair-stepped shelf silhouettes.
-        // Built here rather than configured, because three hardcodes
-        // `alpha: true` into its own context attributes and its `alpha`
-        // parameter only picks the clear alpha. An opaque canvas is what
-        // stops the compositor blending this scene over the page's near
-        // white paper every frame — see opaqueSceneContext for the
-        // measurement showing the paper never contributed a pixel anyway.
-        // A null context means the browser refused, and three creates its
-        // own exactly as before: losing the flash protection is worth far
-        // less than losing the world.
-        gl={(defaultProps) => {
-          const context = createOpaqueSceneContext(
-            defaultProps.canvas as HTMLCanvasElement,
-          );
-          return new WebGLRenderer({
-            ...defaultProps,
-            antialias: true,
-            alpha: false,
-            ...(context ? { context } : null),
-          });
-        }}
+        // Keep the default alpha-capable context so the scene-shaped shell
+        // remains visible if WebKit misses a composite. Making the context
+        // opaque only converted that fallback frame from white to black, and
+        // preserving its drawing buffer did not make DPR reallocations atomic.
+        gl={{ antialias: true }}
         onCreated={({ gl, scene, camera }) => {
-          gl.toneMappingExposure = dark ? 1.25 : 1.12;
+          const colorGrade = sceneColorGradeFor(
+            sceneColorGradeController.getSnapshot(),
+            qualityControls.cinematicPlus,
+          );
+          gl.toneMappingExposure = dark
+            ? colorGrade.dark.exposure
+            : colorGrade.light.exposure;
           glRef = gl;
           ownedRenderer.current = gl;
           // Close the frame's main-thread measurement at submission. The
@@ -1663,13 +1670,13 @@ export default function StacksCanvas({
         <PhysicsPrewarm />
         <MovementProbe onChange={onMovementChange} />
         <ShaderPrewarm
-          variant={`${dark ? "dark" : "light"}-${plan.profile}-${postfxQuality}`}
+          variant={`${dark ? "dark" : "light"}-${plan.profile}-${postfxQuality}-${plan.environment.farGrassShader}-${plan.environment.grassDeformation}`}
         />
         <ScrollControls
           horizontal
           pages={UNIT_COUNT}
           damping={0.2}
-          maxSpeed={1.2}
+          maxSpeed={coarseTouch ? 0.95 : 1.2}
           // Carrying a prop freezes travel too, but NOT through this flag.
           // drei only short-circuits its own handler here, so the element
           // keeps scrolling natively anyway; Grabbable sets overflowX hidden

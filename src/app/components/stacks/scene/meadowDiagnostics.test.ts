@@ -8,6 +8,12 @@ import {
 import { MEADOW_WIND } from "./meadowMotion";
 
 describe("meadow diagnostics controls", () => {
+  it("starts the dormant deformation experiment disabled", () => {
+    expect(
+      createMeadowDiagnosticsController().getSnapshot().deformationEnabled,
+    ).toBe(false);
+  });
+
   it("reflects live driver values and sends edits back to the renderer", () => {
     const controller = createMeadowDiagnosticsController();
     const listener = vi.fn();
@@ -16,6 +22,7 @@ describe("meadow diagnostics controls", () => {
       wind: MEADOW_WIND.amplitude,
       speed: MEADOW_WIND.speed,
       density: null,
+      deformationEnabled: true,
     };
     const driver = vi.fn((update: MeadowDiagnosticsUpdate = {}) => {
       settings = { ...settings, ...update };
@@ -23,18 +30,27 @@ describe("meadow diagnostics controls", () => {
     });
 
     controller.connect(driver);
-    expect(controller.getSnapshot()).toEqual({
+    expect(controller.getSnapshot()).toMatchObject({
       available: true,
       liveWind: 0,
       ...settings,
     });
 
-    controller.update({ speed: 1.25, wind: 0.2 });
-    expect(driver).toHaveBeenLastCalledWith({ speed: 1.25, wind: 0.2 });
+    controller.update({
+      speed: 1.25,
+      wind: 0.2,
+      deformationEnabled: false,
+    });
+    expect(driver).toHaveBeenLastCalledWith({
+      speed: 1.25,
+      wind: 0.2,
+      deformationEnabled: false,
+    });
     expect(controller.getSnapshot()).toMatchObject({
       available: true,
       speed: 1.25,
       wind: 0.2,
+      deformationEnabled: false,
     });
     expect(listener).toHaveBeenCalledTimes(2);
 
@@ -49,6 +65,7 @@ describe("meadow diagnostics controls", () => {
       wind: 0.2,
       speed: 1.4,
       density: 0.8,
+      deformationEnabled: true,
     };
     const driver = (update: MeadowDiagnosticsUpdate = {}) => {
       settings = { ...settings, ...update };

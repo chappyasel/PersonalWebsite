@@ -442,6 +442,12 @@ describe("Meadow.tsx wiring", () => {
     for (const name of ["LOD00", "LOD01", "LOD02"]) {
       expect(meadowSource).toContain(`o.name.includes("${name}")`);
     }
+    expect(meadowSource).toContain(
+      "const referenceMaxY = tuftMaxY(sources[0]!)",
+    );
+    expect(meadowSource).toContain(
+      "prepareTuftGeometry(source!, referenceMaxY)",
+    );
     expect(meadowSource).toContain("tuftLods[content.nearTuftLod]!");
     expect(meadowSource).toContain("tuftLods[content.farTuftLod]!");
     // A tier swap must not remount the near tiles: their geometry and
@@ -458,15 +464,33 @@ describe("Meadow.tsx wiring", () => {
     expect(nearMesh).toContain("built.farGrassMaterial");
   });
 
+  it("varies flower rotation independently from lift, size, and color", () => {
+    const flowerVertex = meadowSource.slice(
+      meadowSource.indexOf("const FLOWER_VERTEX"),
+      meadowSource.indexOf("const FLOWER_FRAGMENT"),
+    );
+
+    expect(flowerVertex).toContain(
+      "float rotationVariation = hash2(origin.xz * 37.1",
+    );
+    expect(flowerVertex).toContain(
+      "float aspectVariation = hash2(origin.zx * 19.3",
+    );
+    expect(flowerVertex).toContain("float tilt = (rotationVariation - 0.5)");
+  });
+
+  it("keeps golf-edge grass tall while tapering its footprint", () => {
+    expect(meadowSource).toContain("stream.height[i]! * golf.grassHeightScale");
+    expect(meadowSource).not.toContain("stream.height[i]! * golf.grassScale");
+  });
+
   it("leans the tuft linearly from a planted footprint instead of curving it", () => {
     const grassVertex = meadowSource.slice(
-      meadowSource.indexOf("const GRASS_VERTEX"),
+      meadowSource.indexOf("export const meadowGrassVertexShader"),
       meadowSource.indexOf("const GRASS_FRAGMENT"),
     );
 
-    expect(grassVertex).toContain(
-      "float swayHeight = max(t, 0.0) * hScale;",
-    );
+    expect(grassVertex).toContain("float swayHeight = max(t, 0.0) * hScale;");
     expect(grassVertex).toContain("vec2 disp = lean * swayHeight;");
     expect(grassVertex).toContain(
       "world.y -= 0.5 * dot(lean, lean) * swayHeight;",

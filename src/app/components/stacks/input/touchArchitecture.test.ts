@@ -19,6 +19,7 @@ const sheet = read("../dom/PlacardLayer.tsx");
 const rail = read("../dom/UnitRail.tsx");
 const globals = read("../../../../styles/globals.css");
 const coarseCapability = read("./useCoarseTouchCapability.ts");
+const scenePointerEvents = read("./scenePointerEvents.ts");
 
 describe("coarse-pointer ownership", () => {
   it("has no vertical-to-horizontal Touch Events bridge", () => {
@@ -53,6 +54,18 @@ describe("coarse-pointer ownership", () => {
     expect(environment).toContain('if (e.pointerType === "touch")');
   });
 
+  it("claims a prop touch before the browser can turn its first move into native travel", () => {
+    expect(touchLayer).toMatch(
+      /const onTouchStart = \(event: TouchEvent\)[\s\S]*?touchHitAt\([\s\S]*?event\.preventDefault\(\)/,
+    );
+    expect(touchLayer).toContain(
+      'addEventListener("touchstart", onTouchStart, {',
+    );
+    expect(touchLayer).toMatch(
+      /addEventListener\("touchstart", onTouchStart, \{[\s\S]*?passive: false/,
+    );
+  });
+
   it("keeps the touch arbiter in the lazy canvas bundle", () => {
     expect(home).not.toContain("TouchInteractionLayer");
     expect(canvas).toContain(
@@ -62,10 +75,12 @@ describe("coarse-pointer ownership", () => {
   });
 
   it("skips scene-wide hover raycasts for coarse touch moves", () => {
-    expect(canvas).toContain("shouldSkipSceneHoverRaycast");
-    expect(canvas).toContain('event as PointerEvent).pointerType === "touch"');
+    expect(canvas).toContain("scenePointerMoveWithoutCoarseHover");
+    expect(scenePointerEvents).toContain("shouldSkipSceneHoverRaycast");
+    expect(scenePointerEvents).toContain(
+      'event as PointerEvent).pointerType === "touch"',
+    );
     expect(canvas).toContain("events={pointerEvents}");
-    expect(canvas).toContain("onPointerMove(event)");
   });
 
   it("does not cover the world with discovery-copy pills", () => {

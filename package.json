@@ -27,6 +27,7 @@
     "check:meadow": "npx tsx ./scripts/stacks-meadow-check.ts",
     "check:perches": "npx tsx ./scripts/stacks-perch-check.ts",
     "test:performance": "playwright test",
+    "test:performance:safety": "playwright test tests/e2e/stacks-performance-harness.spec.ts --grep 'holds the Safety triangle budget'",
     "generate:blog-posts": "npx tsx ./scripts/generate/blog-posts.ts",
     "generate:home-og": "node ./scripts/generate/home-og-scene.mjs",
     "generate:about-boot": "node ./scripts/generate-about-boot-silhouettes.mjs",

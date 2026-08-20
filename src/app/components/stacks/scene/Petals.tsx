@@ -3,9 +3,9 @@
 // Loose flower petals on the wind, visible in both themes.
 //
 // Petals are passive evidence of the meadow's weather, not tiny wildlife.
-// Forty-nine deterministic residents are sourced from real flower and seed
-// heads across the seven Units. A small fixed-step state machine lets them
-// loosen, lift, tumble, settle into grass, and occasionally re-enter a gust.
+// The 196 deterministic residents come from real flower heads across the
+// seven Units. A small fixed-step state machine lets them loosen, lift,
+// tumble, settle into grass, and occasionally re-enter a gust.
 // The camera only chooses which residents enter the one instanced draw; it
 // never changes their world positions.
 import { UNIT_COUNT } from "../data";
@@ -16,7 +16,7 @@ import * as THREE from "three";
 import { golfSurfaceAt } from "./golf/golfCourse";
 import {
   getMeadowDisturbance,
-  visitMeadowImpactsSince,
+  visitMeadowPhysicalEventsSince,
 } from "./meadowDisturbance";
 import { buildFlowerPositions, meadowHeight } from "./meadowField";
 import { shelfBackEdgeAt } from "./meadowInteraction";
@@ -42,16 +42,26 @@ import { UNIT_SPACING } from "./worldLayout";
 const PETAL_W = 0.02;
 const PETAL_H = 0.03;
 const SOURCE_HALF_WIDTH = 2.15;
-const SOURCE_MIN_Z = -4.5;
 const SOURCE_MAX_Z = 3.4;
 const SHELF_CLEARANCE = 0.08;
 const SOURCE_SPACING = 0.239;
 const VISIBLE_X_RADIUS = 7.2;
-const VISIBLE_Z_MIN = -4.5;
+const VISIBLE_Z_MIN = -12.5;
 const VISIBLE_Z_MAX = 4.2;
 const DARK_LAMBDA = 3.5;
-const AMBIENT_ACTIVE_PER_UNIT = 2;
+const MAX_AMBIENT_ACTIVE_PER_UNIT = 10;
 const PETAL_DRAG_RADIUS = 0.85;
+
+// The rightmost authored meadow is intentionally sparse beyond z=-5.5. Use
+// -4.5 as the far band so every Unit can supply fourteen real, separated
+// flower heads without borrowing donors from its neighbour.
+export const PETAL_FAR_BACKGROUND_Z = -4.5;
+const PETAL_BACKGROUND_MIN_Z = -12;
+const PETAL_SOURCES_BY_DEPTH = [
+  { depth: "far", count: 14 },
+  { depth: "foreground", count: 8 },
+  { depth: "mid", count: 6 },
+] as const;
 
 const PETAL_COLORS = {
   cornflower: {
@@ -151,36 +161,57 @@ export function petalColorForTheme(
 }
 
 /**
- * Seven well-separated, deterministic donor heads per Unit. The occasional
- * pale seed-head resident reads as windblown chaff; heads suppressed by the
- * golf surface mask cannot produce anything.
+ * Twenty-eight well-separated, deterministic donor heads per Unit. Twenty of
+ * them sit behind the shelves, including fourteen in the far meadow, so the
+ * wind has visible depth instead of clustering every petal around the props.
+ * Heads suppressed by the golf surface mask cannot produce anything.
  */
 export function buildPetalSources(): PetalSource[] {
   const flowers = buildFlowerPositions();
   const sources: PetalSource[] = [];
   for (let unitIndex = 0; unitIndex < UNIT_COUNT; unitIndex += 1) {
     const centerX = unitIndex * UNIT_SPACING;
-    const candidates: number[] = [];
+    const candidatesByDepth: Record<
+      (typeof PETAL_SOURCES_BY_DEPTH)[number]["depth"],
+      number[]
+    > = {
+      far: [],
+      foreground: [],
+      mid: [],
+    };
     for (let index = 0; index < flowers.count; index += 1) {
       const x = flowers.x[index]!;
       const z = flowers.z[index]!;
       if (
-        Math.abs(x - centerX) <= SOURCE_HALF_WIDTH &&
-        z >= SOURCE_MIN_Z &&
-        z <= SOURCE_MAX_Z &&
-        z >= shelfBackEdgeAt(x) + SHELF_CLEARANCE &&
-        golfSurfaceAt(x, z) === "rough"
+        Math.abs(x - centerX) > SOURCE_HALF_WIDTH ||
+        flowers.scale[index]! <= 0 ||
+        z < PETAL_BACKGROUND_MIN_Z ||
+        z > SOURCE_MAX_Z ||
+        golfSurfaceAt(x, z) !== "rough"
       )
-        candidates.push(index);
+        continue;
+      const shelfEdge = shelfBackEdgeAt(x);
+      if (z >= shelfEdge + SHELF_CLEARANCE) {
+        candidatesByDepth.foreground.push(index);
+      } else if (z <= shelfEdge - SHELF_CLEARANCE) {
+        candidatesByDepth[z < PETAL_FAR_BACKGROUND_Z ? "far" : "mid"].push(
+          index,
+        );
+      }
     }
-    candidates.sort(
-      (a, b) =>
-        petalNoise(a, unitIndex * 19 + 101) -
-        petalNoise(b, unitIndex * 19 + 101),
-    );
-
     const selected: number[] = [];
-    for (const index of candidates) {
+    const selectedByDepth: Record<
+      (typeof PETAL_SOURCES_BY_DEPTH)[number]["depth"],
+      number[]
+    > = {
+      far: [],
+      foreground: [],
+      mid: [],
+    };
+    const trySelect = (
+      index: number,
+      depth: (typeof PETAL_SOURCES_BY_DEPTH)[number]["depth"],
+    ) => {
       if (
         selected.every(
           (other) =>
@@ -189,28 +220,79 @@ export function buildPetalSources(): PetalSource[] {
               flowers.z[index]! - flowers.z[other]!,
             ) >= SOURCE_SPACING,
         )
-      )
+      ) {
         selected.push(index);
-      if (selected.length === PETALS_PER_UNIT) break;
+        selectedByDepth[depth].push(index);
+        return true;
+      }
+      return false;
+    };
+    for (const [depthIndex, band] of PETAL_SOURCES_BY_DEPTH.entries()) {
+      candidatesByDepth[band.depth].sort(
+        (a, b) =>
+          petalNoise(a, unitIndex * 19 + 101 + depthIndex * 37) -
+          petalNoise(b, unitIndex * 19 + 101 + depthIndex * 37),
+      );
+      for (const index of candidatesByDepth[band.depth]) {
+        trySelect(index, band.depth);
+        if (selectedByDepth[band.depth].length === band.count) break;
+      }
     }
-    // The authored field currently clears the spacing rule in every Unit.
-    // Keep a deterministic fallback so future density edits cannot delete a
-    // resident population from one shelf.
-    for (const index of candidates) {
+
+    // Preserve the total population if a future meadow edit thins one depth
+    // band. Spacing still wins; another visible donor fills the open slot.
+    const fallback = PETAL_SOURCES_BY_DEPTH.flatMap(
+      (band) => candidatesByDepth[band.depth],
+    ).sort(
+      (a, b) =>
+        petalNoise(a, unitIndex * 19 + 501) -
+        petalNoise(b, unitIndex * 19 + 501),
+    );
+    for (const index of fallback) {
       if (selected.length === PETALS_PER_UNIT) break;
-      if (!selected.includes(index)) selected.push(index);
+      const z = flowers.z[index]!;
+      const depth =
+        z >= shelfBackEdgeAt(flowers.x[index]!) + SHELF_CLEARANCE
+          ? "foreground"
+          : z < PETAL_FAR_BACKGROUND_Z
+            ? "far"
+            : "mid";
+      trySelect(index, depth);
     }
-    for (const index of selected) {
+
+    // Interleave depths so a small render budget cannot spend every slot on
+    // one plane. The one instanced mesh and its single draw call stay intact.
+    const ordered: number[] = [];
+    for (let row = 0; ordered.length < selected.length; row += 1) {
+      for (const band of PETAL_SOURCES_BY_DEPTH) {
+        const index = selectedByDepth[band.depth][row];
+        if (index !== undefined) ordered.push(index);
+      }
+    }
+    for (const index of ordered) {
+      const depth =
+        flowers.z[index]! >=
+        shelfBackEdgeAt(flowers.x[index]!) + SHELF_CLEARANCE
+          ? "foreground"
+          : "background";
       sources.push({
         unitIndex,
         x: flowers.x[index]!,
         y: flowers.y[index]! + 0.036,
         z: flowers.z[index]!,
         tint: flowers.tint[index]!,
+        depth,
       });
     }
   }
   return sources;
+}
+
+export function ambientPetalsPerUnit(visibleLimit: number) {
+  return Math.min(
+    MAX_AMBIENT_ACTIVE_PER_UNIT,
+    Math.max(2, Math.ceil(visibleLimit / UNIT_COUNT)),
+  );
 }
 
 function nearestPassivePetal(
@@ -252,9 +334,16 @@ function PetalField({
   const mesh = useRef<THREE.InstancedMesh>(null);
   const geometry = useMemo(() => createPetalGeometry(), []);
   const sources = useMemo(() => buildPetalSources(), []);
+  const initialActivePerUnit = useRef(
+    ambientPetalsPerUnit(visibleLimit),
+  ).current;
+  const ambientActivePerUnit = ambientPetalsPerUnit(visibleLimit);
   const initialMotions = useMemo(
-    () => sources.map((source, index) => createPetalMotion(index, source)),
-    [sources],
+    () =>
+      sources.map((source, index) =>
+        createPetalMotion(index, source, 0, initialActivePerUnit),
+      ),
+    [initialActivePerUnit, sources],
   );
   const motions = useRef(initialMotions);
   const accumulator = useRef(0);
@@ -269,7 +358,7 @@ function PetalField({
       new Float64Array(initialMotions.length).fill(-1),
     ),
   );
-  const handledImpact = useRef(getMeadowDisturbance().impact.revision);
+  const handledImpact = useRef(getMeadowDisturbance().physicalEvent.revision);
   const lastBrushRelease = useRef(-Infinity);
 
   useEffect(() => {
@@ -312,23 +401,23 @@ function PetalField({
       simulationTime.current += PETAL_FIXED_STEP;
       const time = simulationTime.current;
 
-      handledImpact.current = visitMeadowImpactsSince(
+      handledImpact.current = visitMeadowPhysicalEventsSince(
         handledImpact.current,
-        (impact) => {
-          const groundY = meadowHeight(impact.x, impact.z);
+        (event) => {
+          const groundY = meadowHeight(event.endX, event.endZ);
           if (
             visibleLimit > 7 &&
-            impact.strength > 0 &&
-            impact.y <= groundY + 0.18
+            event.strength > 0 &&
+            event.y <= groundY + 0.18
           ) {
-            const radius = 0.55 + impact.strength * 0.25;
-            const releaseCount = impact.strength >= 0.55 ? 2 : 1;
+            const radius = 0.55 + event.strength * 0.25;
+            const releaseCount = event.strength >= 0.55 ? 2 : 1;
             let first = -1;
             for (let release = 0; release < releaseCount; release += 1) {
               const index = nearestPassivePetal(
                 motions.current,
-                impact.x,
-                impact.z,
+                event.endX,
+                event.endZ,
                 radius,
                 first,
               );
@@ -337,12 +426,12 @@ function PetalField({
               disturbPetal(
                 motions.current[index]!,
                 time,
-                impact.x,
-                impact.z,
+                event.endX,
+                event.endZ,
                 radius,
-                impact.directionX,
-                impact.directionZ,
-                Math.max(0.12, impact.strength * 0.2),
+                event.directionX,
+                event.directionZ,
+                Math.max(0.12, event.strength * 0.2),
               );
             }
           }
@@ -462,13 +551,20 @@ function PetalField({
           time,
           step: PETAL_FIXED_STEP,
           groundY: meadowHeight(motion.position.x, motion.position.z),
-          // Ambient weather releases at most two residents per Unit. Direct
-          // interaction may briefly add another member to a coherent gust.
+          // The quality budget controls ambient traffic independently from
+          // the resident pool. Direct interaction may briefly add another
+          // member to a coherent gust.
           canRelease:
-            (activeByUnit[motion.source.unitIndex] ?? 0) <
-            AMBIENT_ACTIVE_PER_UNIT,
+            (activeByUnit[motion.source.unitIndex] ?? 0) < ambientActivePerUnit,
           windAmplitude: disturbance.windAmplitude || undefined,
-          backstopZ: shelfBackEdgeAt(motion.position.x) + SHELF_CLEARANCE,
+          backstopZ:
+            motion.source.depth === "foreground"
+              ? shelfBackEdgeAt(motion.position.x) + SHELF_CLEARANCE
+              : undefined,
+          frontstopZ:
+            motion.source.depth === "background"
+              ? shelfBackEdgeAt(motion.position.x) - SHELF_CLEARANCE
+              : undefined,
         });
         const isActive =
           motion.phase === "airborne" || motion.phase === "loosening";

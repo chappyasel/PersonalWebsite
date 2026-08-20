@@ -27,6 +27,7 @@ import type { Book } from "~/lib/books/types";
 import { api } from "~/trpc/react";
 
 import { Badge } from "~/components/ui/badge";
+import { useIntersectionMotion } from "~/components/ui/intersection-motion";
 
 import { cn } from "@/src/lib/util";
 
@@ -152,6 +153,7 @@ export const BookCard = memo(function BookCard({
   const actions = useModalActions();
   const { openModal } = actions;
   const cardRef = useRef<HTMLButtonElement>(null);
+  useIntersectionMotion(cardRef);
   const searchParams = useSearchParams();
   const utils = api.useUtils();
   const [copied, setCopied] = useState(false);

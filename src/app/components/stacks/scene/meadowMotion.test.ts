@@ -123,7 +123,7 @@ describe("meadow pointer motion", () => {
     expect(golfBall.strength).toBe(1);
     expect(rollingBall.strength).toBeGreaterThan(0);
     expect(rollingBall.strength).toBeLessThan(golfBall.strength);
-    expect(kettlebell.radiusScale).toBeGreaterThan(golfBall.radiusScale);
+    expect(kettlebell.radius).toBeGreaterThan(golfBall.radius);
     expect(rollingBall.timeScale).toBe(MEADOW_TRAIL.timeScale);
   });
 

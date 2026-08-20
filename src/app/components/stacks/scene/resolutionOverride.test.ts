@@ -4,6 +4,7 @@ import {
   RESOLUTION_OVERRIDE_MAX_DPR,
   RESOLUTION_OVERRIDE_MAX_PIXELS,
   SCENE_RESOLUTION_SCALE_FLOOR,
+  captureResolutionCeilingFromSearch,
   overrideResolutionCeiling,
   resolveSceneQualityPlan,
 } from "./quality";
@@ -21,6 +22,19 @@ const wideWindow = {
 } as const;
 
 describe("the manual resolution ceiling", () => {
+  it("accepts a bounded resolution override only for OG capture", () => {
+    expect(
+      captureResolutionCeilingFromSearch("?og-capture=1&og-resolution=4"),
+    ).toBe(4);
+    expect(captureResolutionCeilingFromSearch("?og-resolution=4")).toBeNull();
+    expect(
+      captureResolutionCeilingFromSearch("?og-capture=1&og-resolution=5"),
+    ).toBeNull();
+    expect(
+      captureResolutionCeilingFromSearch("?og-capture=1&og-resolution=nope"),
+    ).toBeNull();
+  });
+
   it("is off by default, leaving the pixel budget in charge", () => {
     const plan = resolveSceneQualityPlan(wideWindow);
     expect(plan.resolutionCeilingOverridden).toBe(false);

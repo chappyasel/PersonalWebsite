@@ -89,7 +89,7 @@ export function meadowPhysicalResponse(options: {
   );
   return {
     strength,
-    radiusScale: radius / MEADOW_POKE.pulseEndRadius,
+    radius,
     timeScale: options.trailing
       ? MEADOW_TRAIL.timeScale
       : MEADOW_IMPACT.timeScale,

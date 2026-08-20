@@ -73,22 +73,24 @@ describe("Stacks light-mode atmospheric lighting", () => {
     expect(SKY_LIGHTING.salesforce.dayActiveEmission).toBeGreaterThan(0);
   });
 
-  it("keeps visible clouds shaped without bleaching the SF sky", () => {
+  it("keeps the SF clouds sparse, pale, and softly shaded", () => {
     expect(SKY_LIGHTING.atmosphere.cloudDeckFadeIn[0]).toBeGreaterThanOrEqual(
-      0.06,
+      0.08,
     );
     expect(SKY_LIGHTING.atmosphere.cloudDensityGate[0]).toBeGreaterThanOrEqual(
-      0.46,
+      0.52,
     );
     expect(SKY_LIGHTING.atmosphere.cloudDensityGate[1]).toBeLessThanOrEqual(
-      0.72,
+      0.78,
     );
-    const minimumBodyContrast =
-      (1 - SKY_LIGHTING.atmosphere.cloudBodyShade[1]) *
-      SKY_LIGHTING.atmosphere.cloudBodyOpacity;
-    expect(minimumBodyContrast).toBeGreaterThanOrEqual(0.09);
-    expect(SKY_LIGHTING.atmosphere.cloudBodyOpacity).toBeLessThanOrEqual(0.85);
-    expect(SKY_LIGHTING.atmosphere.cloudRimSun).toBeLessThanOrEqual(0.4);
+    expect(SKY_LIGHTING.atmosphere.cloudBodyShade[0]).toBeGreaterThanOrEqual(
+      0.9,
+    );
+    expect(SKY_LIGHTING.atmosphere.cloudBodyLightMix).toBeGreaterThanOrEqual(
+      0.3,
+    );
+    expect(SKY_LIGHTING.atmosphere.cloudBodyOpacity).toBeLessThanOrEqual(0.6);
+    expect(SKY_LIGHTING.atmosphere.cloudRimSun).toBeLessThanOrEqual(0.12);
     expect(SKY_LIGHTING.atmosphere.cloudDrift).toBeGreaterThan(0);
     expect(SKY_LIGHTING.atmosphere.cloudDrift).toBeLessThanOrEqual(0.015);
     expect(SKY_LIGHTING.atmosphere.cloudMorph).toBeGreaterThan(0);
@@ -121,7 +123,12 @@ describe("Stacks light-mode atmospheric lighting", () => {
               SKY_LIGHTING.atmosphere.cloudDeckFadeIn[1],
               elevation,
             ) *
-            (1 - smoothstep(0.17, 0.27, elevation));
+            (1 -
+              smoothstep(
+                SKY_LIGHTING.atmosphere.cloudDeckFadeOut[0],
+                SKY_LIGHTING.atmosphere.cloudDeckFadeOut[1],
+                elevation,
+              ));
           for (let x = 0; x < horizontalSamples; x++) {
             const localAzimuth = -2.25 + (x / (horizontalSamples - 1)) * 1.4;
             const density = smoothstep(
@@ -135,9 +142,9 @@ describe("Stacks light-mode atmospheric lighting", () => {
           }
         }
         const samples = horizontalSamples * verticalSamples;
-        expect(opacity / samples).toBeGreaterThanOrEqual(0.09);
-        expect(visible / samples).toBeGreaterThanOrEqual(0.16);
-        expect(visible / samples).toBeLessThanOrEqual(0.4);
+        expect(opacity / samples).toBeGreaterThanOrEqual(0.035);
+        expect(visible / samples).toBeGreaterThanOrEqual(0.06);
+        expect(visible / samples).toBeLessThanOrEqual(0.28);
       }
     }
   });

@@ -39,17 +39,16 @@ describe("Stacks daylight rendering balance", () => {
     expect(DAYLIGHT_RENDERING.goldenGateDayExtraHaze).toBe(0);
   });
 
-  it("gives the Washington sky and water dimensional light-mode treatment", () => {
+  it("keeps the Washington clouds light while preserving a faint reflection", () => {
     const dc = DAYLIGHT_RENDERING.washington;
-    const minimumCloudContrast =
-      (1 - dc.cloudBodyShade[1]) * dc.cloudBodyOpacity;
     const minimumWaterCloudContrast =
       (1 - dc.waterCloudShade[1]) * dc.waterCloudReflection;
 
-    expect(minimumCloudContrast).toBeGreaterThanOrEqual(0.1);
-    expect(minimumWaterCloudContrast).toBeGreaterThanOrEqual(0.045);
-    expect(dc.cloudBodyOpacity).toBeGreaterThanOrEqual(0.65);
-    expect(dc.cloudBodyOpacity).toBeLessThanOrEqual(0.8);
+    expect(dc.cloudBodyShade[0]).toBeGreaterThanOrEqual(0.9);
+    expect(dc.cloudBodyLightMix).toBeGreaterThanOrEqual(0.3);
+    expect(minimumWaterCloudContrast).toBeGreaterThanOrEqual(0.014);
+    expect(dc.cloudBodyOpacity).toBeGreaterThanOrEqual(0.45);
+    expect(dc.cloudBodyOpacity).toBeLessThanOrEqual(0.6);
     expect(dc.cloudRimOpacity).toBeGreaterThan(0);
     expect(dc.cloudRimOpacity).toBeLessThanOrEqual(0.08);
     expect(dc.waterCloudReflection).toBeGreaterThanOrEqual(0.15);

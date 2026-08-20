@@ -9,15 +9,21 @@ const authoredPropsSource = fs.readFileSync(
   new URL("../AuthoredProps.tsx", import.meta.url),
   "utf8",
 );
+const sitChairSource = fs.readFileSync(
+  new URL("../SitChair.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("About shelf throwable props", () => {
-  it("gives the fixed couch Touch Focus without turning a second tap into seating", () => {
+  it("keeps desktop seating and touch focus as separate couch actions", () => {
     expect(source).toContain(
       'import TouchFocusTarget from "../TouchFocusTarget"',
     );
+    expect(source).toContain('import SitChair from "../SitChair"');
     expect(source).toContain('id="focus:couch:about"');
-    expect(source).not.toContain('import SitChair from "../SitChair"');
-    expect(source).not.toContain("<SitChair");
+    expect(source).toContain("<SitChair");
+    expect(sitChairSource).toContain("touchable={false}");
+    expect(sitChairSource.match(/e\.pointerType === "touch"/g)).toHaveLength(2);
   });
 
   it("keeps the globe's spin egg on a grabbable carrier", () => {

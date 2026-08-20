@@ -2,17 +2,8 @@
 
 import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes";
 import { useEffect } from "react";
-import { Observer } from "tailwindcss-intersect";
 
 import { THEME_COLOR, THEME_STORAGE_KEY, oppositeTheme } from "~/lib/theme";
-
-export function ObserverProvider({ children }: { children: React.ReactNode }) {
-  useEffect(() => {
-    Observer.start();
-  }, []);
-
-  return <>{children}</>;
-}
 
 function getThemeCookieDomain(): string | undefined {
   const hostname = window.location.hostname;

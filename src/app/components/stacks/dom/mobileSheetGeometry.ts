@@ -7,8 +7,9 @@ export const MOBILE_SHEET_SEAM_TOLERANCE_PX = 2;
 export const MOBILE_SHEET_WHEEL_COMMIT_PX = 36;
 export const MOBILE_SHEET_WHEEL_RESET_MS = 140;
 export const MOBILE_SHEET_WHEEL_COOLDOWN_MS = 280;
-export const MOBILE_SHEET_SWIPE_COMMIT_PX = 52;
-export const MOBILE_SHEET_SWIPE_FLING_PX_MS = 0.6;
+export const MOBILE_SHEET_SWIPE_COMMIT_PX = 36;
+export const MOBILE_SHEET_SWIPE_FLING_PX_MS = 0.45;
+export const MOBILE_SHEET_HORIZONTAL_DOMINANCE = 1;
 
 export type MobileSheetScrollIntent = "expand" | "collapse" | null;
 

@@ -31,17 +31,12 @@ import React from "react";
 import * as THREE from "three";
 
 import type { UnitProps } from "./types";
-import { REVIEWED_SHELF_LAYOUT } from "./unitShelfLayout";
+import {
+  REVIEWED_SHELF_LAYOUT,
+  TRAINING_BARBELL_POSE,
+} from "./unitShelfLayout";
 
-export const TRAINING_BARBELL_POSE: {
-  base: [number, number, number];
-  rotation: [number, number, number];
-  scale: number;
-} = {
-  base: [1.92, SHELF_GEOMETRY.groundY, -1.04],
-  rotation: [0, -Math.PI / 4, 0],
-  scale: 0.77,
-};
+export { TRAINING_BARBELL_POSE } from "./unitShelfLayout";
 
 function golfFlagPosition(unitIndex: number): [number, number, number] {
   const pose = unitPose(unitIndex);

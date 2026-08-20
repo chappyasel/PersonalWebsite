@@ -1,7 +1,12 @@
 "use client";
 
 import { sceneAudio } from "../audio/sceneAudio";
-import { SpeakerHighIcon, SpeakerSlashIcon } from "@phosphor-icons/react";
+import { SCENE_SOUND_STORAGE_KEY } from "../scene/sceneVisitStorage";
+import {
+  SpeakerHighIcon,
+  SpeakerNoneIcon,
+  SpeakerSlashIcon,
+} from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 
 import { cn } from "~/lib/utils";
@@ -13,7 +18,7 @@ import {
   TooltipTrigger,
 } from "~/components/ui/tooltip";
 
-export const SCENE_SOUND_STORAGE_KEY = "stacks-scene-sound-muted:v1";
+export { SCENE_SOUND_STORAGE_KEY } from "../scene/sceneVisitStorage";
 
 export function SoundToggle({ className }: { className?: string }) {
   const [audio, setAudio] = useState(sceneAudio.snapshot);
@@ -35,10 +40,23 @@ export function SoundToggle({ className }: { className?: string }) {
   if (!mounted) return <div className="size-10 rounded-md bg-transparent" />;
 
   const muted = audio.muted;
-  const Icon = muted ? SpeakerSlashIcon : SpeakerHighIcon;
-  const action = muted ? "Turn scene sound on" : "Mute scene sound";
+  const awaitingEnable = !audio.unlocked && !muted;
+  const Icon = muted
+    ? SpeakerSlashIcon
+    : awaitingEnable
+      ? SpeakerNoneIcon
+      : SpeakerHighIcon;
+  const action = muted
+    ? "Turn scene sound on"
+    : awaitingEnable
+      ? "Enable scene sound"
+      : "Mute scene sound";
 
   const toggle = () => {
+    if (awaitingEnable) {
+      sceneAudio.unlock();
+      return;
+    }
     const next = !muted;
     sceneAudio.setMuted(next);
     // The button click is an autoplay-safe user gesture. Unlock only when
@@ -59,12 +77,15 @@ export function SoundToggle({ className }: { className?: string }) {
             type="button"
             onClick={toggle}
             aria-label={action}
-            aria-pressed={muted}
+            aria-pressed={audio.unlocked ? muted : undefined}
             className={cn(
               "flex size-10 items-center justify-center rounded-md bg-transparent text-sm text-muted-foreground transition-all hover:bg-secondary/80 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
               className,
             )}
             data-sound-toggle
+            data-sound-state={
+              awaitingEnable ? "locked" : muted ? "muted" : "playing"
+            }
             data-muted={muted ? true : undefined}
           >
             <Icon className="h-4 w-4" weight="bold" />

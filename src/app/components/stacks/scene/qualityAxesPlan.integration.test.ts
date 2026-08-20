@@ -7,6 +7,7 @@ import {
 import {
   initialSceneQualityAxisState,
   reduceSceneQualityAxes,
+  resolutionStepForScale,
 } from "./qualityAxes";
 
 // The axes are only worth having if they reach the renderer. Every unit test
@@ -98,5 +99,50 @@ describe("axes reach the rendered plan", () => {
     const state = soak(metrics({ p95: 30, cpuMs: 26, droppedFrameRatio: 0.4 }));
     expect(state.axes.content).toBe("minimal");
     expect(planFor(state).environment.contentTier).toBe("minimal");
+  });
+
+  it("lets a phone earn resolution without crossing its automatic pixel budget", () => {
+    const phone = {
+      mode: "auto" as const,
+      cssWidth: 390,
+      cssHeight: 844,
+      deviceDpr: 3,
+      touch: true,
+      narrowViewport: true,
+    };
+    const ceiling = resolveSceneQualityPlan({
+      ...phone,
+      profile: "showcase",
+    }).dpr;
+    const starting = resolveSceneQualityPlan({
+      ...phone,
+      profile: "efficient",
+    }).dpr;
+    let state = initialSceneQualityAxisState(
+      "efficient",
+      0,
+      null,
+      resolutionStepForScale(starting, ceiling),
+    );
+    state = reduceSceneQualityAxes(state, { type: "booted", now: 0 });
+    for (let now = 20_000; now <= 260_000; now += 1_000)
+      state = reduceSceneQualityAxes(state, {
+        type: "sample",
+        now,
+        metrics: metrics({}),
+        visible: true,
+      });
+
+    const plan = resolveSceneQualityPlan({
+      ...phone,
+      profile: "showcase",
+      contentTier: state.axes.content,
+      effectsTier: state.axes.effects,
+      resolutionStep: state.axes.resolutionStep,
+    });
+
+    expect(plan.dpr).toBe(3);
+    expect(plan.physicalPixels).toBeLessThanOrEqual(plan.pixelBudget);
+    expect(plan.resolutionCeilingOverridden).toBe(false);
   });
 });
