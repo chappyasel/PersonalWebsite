@@ -15,14 +15,15 @@ const sitChairSource = fs.readFileSync(
 );
 
 describe("About shelf throwable props", () => {
-  it("keeps desktop seating and touch focus as separate couch actions", () => {
-    expect(source).toContain(
+  it("seats from the first couch touch instead of running Focus Lean", () => {
+    expect(source).not.toContain(
       'import TouchFocusTarget from "../TouchFocusTarget"',
     );
     expect(source).toContain('import SitChair from "../SitChair"');
-    expect(source).toContain('id="focus:couch:about"');
+    expect(source).not.toContain('id="focus:couch:about"');
     expect(source).toContain("<SitChair");
-    expect(sitChairSource).toContain("touchable={false}");
+    expect(sitChairSource).not.toContain("touchable={false}");
+    expect(sitChairSource).toContain("activateOnFirstTouch");
     expect(sitChairSource.match(/e\.pointerType === "touch"/g)).toHaveLength(2);
   });
 

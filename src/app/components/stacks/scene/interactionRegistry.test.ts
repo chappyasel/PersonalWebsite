@@ -54,6 +54,7 @@ describe("scene interaction registry", () => {
       id: "test:action",
       root: new Group(),
       activeUnits: [0],
+      activateOnFirstTouch: true,
       movable: { massKg: 0.62, massClass: "light" },
       activation: {
         kind: "action",
@@ -61,7 +62,10 @@ describe("scene interaction registry", () => {
         run: () => undefined,
       },
     });
-    expect(getSceneInteraction("test:action")?.activation?.kind).toBe("action");
+    expect(getSceneInteraction("test:action")).toMatchObject({
+      activateOnFirstTouch: true,
+      activation: { kind: "action" },
+    });
     expect(cursorForInteraction("test:action", null)).toBe("pointer");
     expect(
       doorLabelActivation(getSceneInteraction("test:action")),

@@ -10,7 +10,6 @@ import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
 import { RoundedBox } from "../RoundedBox";
 import SitChair from "../SitChair";
-import TouchFocusTarget from "../TouchFocusTarget";
 import {
   ABOUT_BOOT_LANDMARKS,
   aboutLandmarkNodeName,
@@ -895,21 +894,19 @@ export default function UnitAbout({
         rotation={[0, ABOUT_COUCH.yaw, 0]}
       >
         <SitChair unitIndex={index}>
-          <TouchFocusTarget id="focus:couch:about" unitIndex={index}>
-            <React.Suspense fallback={null}>
-              <ModelProp
-                url="/models/couch.glb"
-                dark={dark}
-                variant="tinted"
-                tints={{
-                  Couch_Blue: dark ? "#394b61" : "#667d96",
-                  Black: dark ? "#253447" : "#344a61",
-                }}
-                roughness={0.84}
-                scale={ABOUT_COUCH.scale}
-              />
-            </React.Suspense>
-          </TouchFocusTarget>
+          <React.Suspense fallback={null}>
+            <ModelProp
+              url="/models/couch.glb"
+              dark={dark}
+              variant="tinted"
+              tints={{
+                Couch_Blue: dark ? "#394b61" : "#667d96",
+                Black: dark ? "#253447" : "#344a61",
+              }}
+              roughness={0.84}
+              scale={ABOUT_COUCH.scale}
+            />
+          </React.Suspense>
         </SitChair>
       </group>
       <FootPool

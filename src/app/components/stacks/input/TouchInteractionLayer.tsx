@@ -192,10 +192,7 @@ export default function TouchInteractionLayer() {
                       position,
                       scrollLeft:
                         scrollOffsetForUnit(position) *
-                        Math.max(
-                          1,
-                          element.scrollWidth - element.clientWidth,
-                        ),
+                        Math.max(1, element.scrollWidth - element.clientWidth),
                     })),
                   })
                 : null;
@@ -330,6 +327,7 @@ export default function TouchInteractionLayer() {
           wasFocused: store.focusedInteraction === hit.id,
           movable: Boolean(spec.movableController),
           activatable: Boolean(spec.activation),
+          activateOnFirstTouch: Boolean(spec.activateOnFirstTouch),
         },
         event,
       );

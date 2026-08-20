@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { type TouchGestureState, reduceTouchGesture } from "./gesture";
 
-const press = (wasFocused = false, movable = true, activatable = true) =>
+const press = (
+  wasFocused = false,
+  movable = true,
+  activatable = true,
+  activateOnFirstTouch = false,
+) =>
   reduceTouchGesture(
     { phase: "idle" },
     {
@@ -15,6 +20,7 @@ const press = (wasFocused = false, movable = true, activatable = true) =>
       wasFocused,
       movable,
       activatable,
+      activateOnFirstTouch,
     },
   );
 
@@ -31,6 +37,15 @@ describe("touch gesture arbitration", () => {
     const second = press(true);
     expect(
       reduceTouchGesture(second.state, { type: "release", pointerId: 1 })
+        .effects,
+    ).toEqual([{ type: "activate", interactionId: "prop" }]);
+  });
+
+  it("activates a direct touch action on its first quick release", () => {
+    const first = press(false, false, true, true);
+
+    expect(
+      reduceTouchGesture(first.state, { type: "release", pointerId: 1 })
         .effects,
     ).toEqual([{ type: "activate", interactionId: "prop" }]);
   });

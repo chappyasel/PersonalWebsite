@@ -105,7 +105,7 @@ export default function SitChair({
     <EggTrigger
       unitIndex={unitIndex}
       hoverKey={CHAIR_HOVER}
-      touchable={false}
+      activateOnFirstTouch
       // Kept as a second path rather than removed: where r3f DOES deliver the
       // click it arrives first, and seating is idempotent.
       onTrigger={() => {

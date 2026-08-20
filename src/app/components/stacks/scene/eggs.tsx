@@ -63,6 +63,7 @@ export function EggTrigger({
   hoverKey,
   onTrigger,
   touchable = true,
+  activateOnFirstTouch = false,
   reducedMotionBehavior = "skip",
   children,
 }: {
@@ -73,6 +74,8 @@ export function EggTrigger({
   onTrigger: () => void;
   /** False when touch owns a separate focus-only interaction for this prop. */
   touchable?: boolean;
+  /** Run on the first stationary tap instead of requiring Touch Focus first. */
+  activateOnFirstTouch?: boolean;
   reducedMotionBehavior?: "skip" | "state-only";
   children: React.ReactNode;
 }) {
@@ -87,6 +90,7 @@ export function EggTrigger({
       root: root.current,
       activeUnits: [...(activeUnitIndexes ?? [unitIndex])],
       touchable,
+      activateOnFirstTouch,
       activation: {
         kind: "egg",
         run: () => {
@@ -98,6 +102,7 @@ export function EggTrigger({
       hover: { kind: "none" },
     });
   }, [
+    activateOnFirstTouch,
     activeUnitIndexes,
     hoverKey,
     reducedMotionBehavior,

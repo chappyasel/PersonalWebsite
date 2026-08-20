@@ -54,6 +54,13 @@ describe("coarse-pointer ownership", () => {
     expect(environment).toContain('if (e.pointerType === "touch")');
   });
 
+  it("routes opt-in first-touch actions through the coarse-touch arbiter", () => {
+    expect(eggs).toContain("activateOnFirstTouch,");
+    expect(touchLayer).toContain(
+      "activateOnFirstTouch: Boolean(spec.activateOnFirstTouch)",
+    );
+  });
+
   it("claims a prop touch before the browser can turn its first move into native travel", () => {
     expect(touchLayer).toMatch(
       /const onTouchStart = \(event: TouchEvent\)[\s\S]*?touchHitAt\([\s\S]*?event\.preventDefault\(\)/,

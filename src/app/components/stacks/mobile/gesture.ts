@@ -18,6 +18,7 @@ export type TouchGestureState =
       wasFocused: boolean;
       movable: boolean;
       activatable: boolean;
+      activateOnFirstTouch: boolean;
     }
   | {
       phase: "swiping";
@@ -45,6 +46,7 @@ export type TouchGestureEvent =
       wasFocused: boolean;
       movable: boolean;
       activatable: boolean;
+      activateOnFirstTouch: boolean;
     }
   | { type: "move"; pointerId: number; x: number; y: number; at: number }
   | { type: "pickup"; pointerId: number }
@@ -89,6 +91,7 @@ export function reduceTouchGesture(
         wasFocused: event.wasFocused,
         movable: event.movable,
         activatable: event.activatable,
+        activateOnFirstTouch: event.activateOnFirstTouch,
       },
       effects: [{ type: "compress", interactionId: event.interactionId }],
     };
@@ -180,7 +183,7 @@ export function reduceTouchGesture(
   if (event.type === "release") {
     if (state.phase === "pressing") {
       const effect: TouchGestureEffect =
-        state.wasFocused && state.activatable
+        state.activatable && (state.activateOnFirstTouch || state.wasFocused)
           ? { type: "activate", interactionId: state.interactionId }
           : { type: "focus", interactionId: state.interactionId };
       return { state: { phase: "idle" }, effects: [effect] };

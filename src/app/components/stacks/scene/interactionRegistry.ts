@@ -63,6 +63,8 @@ export type SceneInteractionSpec = {
   /** False for registry-only geometry such as shelf planks that own insect
    * perches but must not compete with authored props for Touch Focus. */
   touchable?: boolean;
+  /** Skip Touch Focus and run this interaction on the first stationary tap. */
+  activateOnFirstTouch?: boolean;
   root: THREE.Object3D;
   activeUnits: number[];
   touchPriority?: number;
@@ -184,6 +186,7 @@ function composeInteraction(id: string): SceneInteractionSpec | null {
         : id),
     showLabel: all.every((part) => part.showLabel !== false),
     touchable: all.some((part) => part.touchable !== false),
+    activateOnFirstTouch: all.some((part) => part.activateOnFirstTouch),
     // A carrier owns projection and touch hit-testing when a nested trigger
     // contributes activation separately (the alarm clock is the canonical
     // movable + egg case).
