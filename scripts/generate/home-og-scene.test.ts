@@ -72,7 +72,7 @@ describe("home OG scene capture", () => {
 
   it("persists the full cinematic effect stack with crop-aware lens geometry", () => {
     expect(generator).toContain('url.searchParams.set("quality", "cinematic")');
-    expect(HOME_OG_RESOLUTION_CEILING).toBe(4);
+    expect(HOME_OG_RESOLUTION_CEILING).toBe(2);
     expect(generator).toContain(
       'url.searchParams.set("og-resolution", HOME_OG_RESOLUTION_CEILING.toString())',
     );
