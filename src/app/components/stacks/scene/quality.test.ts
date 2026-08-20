@@ -180,7 +180,56 @@ describe("scene quality policy", () => {
         profile: "safety",
         overrides: { effectiveDprLadder: false },
       }),
-    ).toMatchObject({ dpr: 2, dprCap: 2 });
+    ).toMatchObject({
+      // Turning the profile ladder off means "use showcase's DPR policy",
+      // so this follows showcase rather than pinning a number of its own.
+      dpr: NARROW_VIEWPORT_DPR_CAP_BY_PROFILE.showcase,
+      dprCap: NARROW_VIEWPORT_DPR_CAP_BY_PROFILE.showcase,
+    });
+  });
+
+  // The point of raising showcase's narrow cap: a 3x phone that earns the top
+  // of the ladder should render at the resolution its screen actually has.
+  it("lets a 3x phone reach its real resolution at the top of the ladder", () => {
+    const resolved = resolveSceneQualityPlan({
+      mode: "showcase",
+      profile: "showcase",
+      cssWidth: 393,
+      cssHeight: 852,
+      deviceDpr: 3,
+      touch: true,
+      narrowViewport: true,
+    });
+    expect(resolved.dpr).toBe(3);
+  });
+
+  // ...but the pixel budget, not a fixed number, is what holds it back. A
+  // physically larger phone has more CSS pixels to cover at the same budget,
+  // so it lands lower on its own without the smaller one being punished for
+  // it. This is why the fixed cap was the wrong instrument.
+  it("still holds a larger phone below 3x, on the pixel budget alone", () => {
+    const big = resolveSceneQualityPlan({
+      mode: "showcase",
+      profile: "showcase",
+      cssWidth: 430,
+      cssHeight: 932,
+      deviceDpr: 3,
+      touch: true,
+      narrowViewport: true,
+    });
+    expect(big.dpr).toBeLessThan(3);
+    expect(big.dpr).toBeGreaterThan(2.5);
+    expect(big.dpr * big.dpr * 430 * 932).toBeLessThanOrEqual(big.pixelBudget);
+  });
+
+  // The lower rungs keep their reductions: caution belongs in what a device
+  // must demonstrate before climbing, not in an unreachable ceiling.
+  it("keeps the lower rungs reduced on narrow viewports", () => {
+    for (const profile of ["balanced", "efficient", "safety"] as const) {
+      expect(NARROW_VIEWPORT_DPR_CAP_BY_PROFILE[profile]).toBeLessThan(
+        NARROW_VIEWPORT_DPR_CAP_BY_PROFILE.showcase,
+      );
+    }
   });
 
   it("keeps the desktop DPR policy on wide viewports", () => {

@@ -155,9 +155,17 @@ describe("preset mapping", () => {
     });
   });
 
+  // Literals on purpose. The resolution axis is a finer ladder INSIDE the
+  // preset ceilings and must never move one as a side effect, so any change
+  // here has to be typed out deliberately rather than tracked automatically.
+  //
+  // showcase is 3 because a 3x phone that has earned the top of the ladder
+  // should reach its screen's real resolution; the pixel budget, which
+  // scales with the viewport, is what holds larger phones below it. The
+  // lower rungs stay reduced.
   it("leaves the preset narrow-viewport caps untouched", () => {
     expect(NARROW_VIEWPORT_DPR_CAP_BY_PROFILE).toMatchObject({
-      showcase: 2,
+      showcase: 3,
       balanced: 1.75,
       efficient: 1.5,
       safety: 1.25,

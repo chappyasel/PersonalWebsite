@@ -400,11 +400,30 @@ export const SCENE_QUALITY_DEFINITIONS: Readonly<
 
 /** Narrow layouts share the mobile presentation seam, but this cap remains
  * independent of pointer type and renderer classification. Cinematic is
- * manual-only and deliberately keeps its capture-quality DPR policy. */
+ * manual-only and deliberately keeps its capture-quality DPR policy.
+ *
+ * Showcase is deliberately NOT reduced here, so a phone that has earned the
+ * top of the ladder can reach its screen's real resolution. A 3x phone was
+ * previously held at 2, which is 44 percent of the pixels its display has,
+ * on the rung that is supposed to mean "this device proved it can afford
+ * the best". A ceiling that makes the top rung unreachable is not caution,
+ * it is a ladder that lies about its own top.
+ *
+ * Nothing is uncapped by this. The pixel budget still governs, and it
+ * governs better than a fixed number because it scales with the viewport:
+ * `sqrt(3.1MP / cssPixels)` allows about 3.07 on a 390x844 phone and about
+ * 2.78 on a 430x932 one, so the larger screen is held back automatically
+ * and the smaller one is not held back for its neighbour's sake.
+ *
+ * The lower rungs keep their reductions. Conservatism belongs in what a
+ * device must demonstrate before it climbs, and in where it lands when it
+ * cannot cope, rather than in a ceiling nothing can reach. Resolution now
+ * only falls under measured GPU pressure, so a phone that cannot hold this
+ * is stepped down on evidence within a sampling window or two. */
 export const NARROW_VIEWPORT_DPR_CAP_BY_PROFILE: Readonly<
   Record<Exclude<SceneQualityProfile, "cinematic">, number>
 > = Object.freeze({
-  showcase: 2,
+  showcase: 3,
   balanced: 1.75,
   efficient: 1.5,
   safety: 1.25,
