@@ -1,4 +1,4 @@
-import type { GolfVec3 } from "./golfTypes";
+import type { GolfBallState, GolfVec3 } from "./golfTypes";
 
 export type GolfRgb = readonly [number, number, number];
 
@@ -53,6 +53,37 @@ export const GOLF_SOUND_POLICY = {
 } as const;
 
 export const GOLF_VISUAL_SPIN_MAX = 42;
+export const GOLF_GREEN_BALL_SCALE = 2 / 3;
+
+/** The authored foreground ball is deliberately readable at interaction
+ * distance. Ease it down as it travels so its settled size agrees with the
+ * much more distant flag and green, without changing its physical collider. */
+export function golfBallVisualScale(
+  ball: Pick<GolfBallState, "phase" | "position" | "start" | "impacts">,
+  cup: GolfVec3,
+) {
+  if (
+    ball.phase === "ready" ||
+    ball.phase === "queued" ||
+    ball.phase === "addressed" ||
+    ball.phase === "resetting" ||
+    ball.phase === "fading-in"
+  )
+    return 1;
+  if (ball.impacts > 0 || ball.phase === "cup") return GOLF_GREEN_BALL_SCALE;
+
+  const fullDistance = Math.max(
+    0.001,
+    Math.hypot(cup.x - ball.start.x, cup.z - ball.start.z),
+  );
+  const travelled = Math.hypot(
+    ball.position.x - ball.start.x,
+    ball.position.z - ball.start.z,
+  );
+  const progress = Math.min(1, travelled / (fullDistance * 0.75));
+  const eased = progress * progress * (3 - 2 * progress);
+  return 1 + (GOLF_GREEN_BALL_SCALE - 1) * eased;
+}
 
 /** Physical wedge backspin is too fast to sample legibly at 60 Hz. Preserve
  * its axis and direction while capping only the rendered angular step; the

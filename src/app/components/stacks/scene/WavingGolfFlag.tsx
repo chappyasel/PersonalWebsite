@@ -138,16 +138,35 @@ export default function WavingGolfFlag({
       </group>
       <mesh position={[0, -GOLF_CUP.depth / 2, 0]}>
         <cylinderGeometry
-          args={[GOLF_CUP.radius, GOLF_CUP.radius * 0.92, GOLF_CUP.depth, 32]}
+          args={[
+            GOLF_CUP.radius,
+            GOLF_CUP.radius * 0.92,
+            GOLF_CUP.depth,
+            32,
+            1,
+            true,
+          ]}
         />
         <meshStandardMaterial
-          color={dark ? "#07090a" : "#161914"}
+          color={dark ? "#111613" : "#30372f"}
           roughness={1}
-          side={THREE.DoubleSide}
+          side={THREE.BackSide}
         />
       </mesh>
-      <mesh position={[0, 0.001, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[GOLF_CUP.radius * 0.9, GOLF_CUP.radius, 32]} />
+      <mesh
+        position={[0, -GOLF_CUP.depth + 0.002, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+      >
+        <circleGeometry args={[GOLF_CUP.radius * 0.92, 32]} />
+        <meshStandardMaterial
+          color={dark ? "#020303" : "#080a08"}
+          roughness={1}
+        />
+      </mesh>
+      <mesh position={[0, 0.002, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <ringGeometry
+          args={[GOLF_CUP.radius * 0.985, GOLF_CUP.radius * 1.08, 32]}
+        />
         <meshStandardMaterial
           color={dark ? "#334329" : "#48623a"}
           roughness={0.94}

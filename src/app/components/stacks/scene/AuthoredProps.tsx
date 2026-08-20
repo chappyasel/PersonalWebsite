@@ -1,11 +1,13 @@
 "use client";
 
 import type { Palette } from "../theme";
-import { useFrame, useLoader } from "@react-three/fiber";
+import { useLoader } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import Grabbable from "./Grabbable";
+import { useMetalShimmer } from "./objects";
+import { useUnitFrame } from "./unitActivity";
 
 function prefersReducedMotion() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -139,12 +141,37 @@ function ShakerBody({
   );
 }
 
-function TJMedallionBody({ dark }: { dark: boolean }) {
+const TJ_MEDALLION_HOVER = "grab:tj-medallion:about";
+
+function TJMedallionBody({
+  dark,
+  unitIndex,
+}: {
+  dark: boolean;
+  unitIndex: number;
+}) {
   const artwork = useLoader(
     THREE.TextureLoader,
     "/images/stacks/tj-medallion.jpg",
   );
   artwork.colorSpace = THREE.SRGBColorSpace;
+  const shimmerFace = useMemo(() => {
+    const geometry = new THREE.CircleGeometry(0.143, 32);
+    const position = geometry.getAttribute("position") as THREE.BufferAttribute;
+    const uv = geometry.getAttribute("uv") as THREE.BufferAttribute;
+    for (let index = 0; index < position.count; index++) {
+      uv.setXY(index, position.getX(index), position.getY(index));
+    }
+    uv.needsUpdate = true;
+    return geometry;
+  }, []);
+  useEffect(() => () => shimmerFace.dispose(), [shimmerFace]);
+  const { band, mark, texture } = useMetalShimmer({
+    unitIndex,
+    hoverKey: TJ_MEDALLION_HOVER,
+    idleRoughness: 0.4,
+    idleEnv: 2.6,
+  });
   return (
     <group>
       <mesh position={[0, 0.018, 0]}>
@@ -179,7 +206,28 @@ function TJMedallionBody({ dark }: { dark: boolean }) {
       </mesh>
       <mesh position={[0, 0.202, 0.013]}>
         <circleGeometry args={[0.143, 32]} />
-        <meshStandardMaterial map={artwork} roughness={0.52} metalness={0.04} />
+        <meshPhysicalMaterial
+          ref={mark}
+          map={artwork}
+          roughness={0.4}
+          metalness={0.12}
+          envMapIntensity={2.6}
+          clearcoat={0.55}
+          clearcoatRoughness={0.2}
+        />
+      </mesh>
+      <mesh geometry={shimmerFace} position={[0, 0.202, 0.014]}>
+        <meshBasicMaterial
+          ref={band}
+          map={texture}
+          color="#fff7e8"
+          transparent
+          opacity={0}
+          visible={false}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+          toneMapped={false}
+        />
       </mesh>
     </group>
   );
@@ -205,7 +253,7 @@ export function TJMedallionProp({
   return (
     <Grabbable
       unitIndex={unitIndex}
-      hoverKey="grab:tj-medallion:about"
+      hoverKey={TJ_MEDALLION_HOVER}
       base={base}
       shadeColor={palette.shadow}
       shadeWidth={0.34}
@@ -216,7 +264,7 @@ export function TJMedallionProp({
       external
     >
       <group name={name} rotation={[0, -0.16, 0]} scale={scale}>
-        <TJMedallionBody dark={dark} />
+        <TJMedallionBody dark={dark} unitIndex={unitIndex} />
       </group>
     </Grabbable>
   );
@@ -243,7 +291,7 @@ export function ShakerProp({
 }) {
   const motion = useRef<THREE.Group>(null);
   const startedAt = useRef<number | null>(null);
-  useFrame(() => {
+  useUnitFrame(() => {
     const group = motion.current;
     const start = startedAt.current;
     if (!group || start === null) return;

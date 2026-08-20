@@ -24,6 +24,9 @@ export type PerformanceTraceFrame = Readonly<{
   qualityProfile?: string | null;
   dpr?: number | null;
   glassMode?: string | null;
+  unitActivity?: readonly string[];
+  unitWorkExecuted?: number;
+  unitWorkSkipped?: number;
 }>;
 
 export type PerformanceTraceEvent = Readonly<{
@@ -106,7 +109,7 @@ export type PerformanceTraceSpike = Readonly<{
 }>;
 
 export type PerformanceTraceReport = Readonly<{
-  version: 2;
+  version: 3;
   startedAt: number | null;
   stoppedAt: number | null;
   truncated: boolean;
@@ -370,7 +373,7 @@ export class ScenePerformanceTrace {
     const settled = distribution(settledFrames, targetFrameMs);
     const travel = distribution(travelFrames, targetFrameMs);
     return {
-      version: 2,
+      version: 3,
       startedAt: this.startedAt,
       stoppedAt: this.stoppedAt,
       truncated: this.truncated,

@@ -1,7 +1,7 @@
 export type MobileSheetPanelState = "closed" | "opening" | "open" | "closing";
 
-export const MOBILE_SHEET_GRABBER_PX = 24;
-export const MOBILE_SHEET_TITLE_ROW_PX = 40;
+export const MOBILE_SHEET_GRABBER_PX = 16;
+export const MOBILE_SHEET_TITLE_ROW_PX = 48;
 export const MOBILE_SHEET_OVERDRAG_RESISTANCE = 0.25;
 export const MOBILE_SHEET_SEAM_TOLERANCE_PX = 2;
 export const MOBILE_SHEET_WHEEL_COMMIT_PX = 36;
@@ -11,6 +11,33 @@ export const MOBILE_SHEET_SWIPE_COMMIT_PX = 52;
 export const MOBILE_SHEET_SWIPE_FLING_PX_MS = 0.6;
 
 export type MobileSheetScrollIntent = "expand" | "collapse" | null;
+
+export type MobileSheetHeightMeasurement = {
+  requestedHeight: number;
+  renderedHeight: number;
+};
+
+/** Use a frame measurement only for the requested height that produced it.
+ * A resident may mount its body between renders; its previous peek-height
+ * measurement must not position the newly tall frame at the expanded detent. */
+export function mobileSheetRenderedHeight(
+  requestedHeight: number,
+  measurement: MobileSheetHeightMeasurement | null,
+) {
+  if (
+    measurement?.requestedHeight !== requestedHeight ||
+    (measurement?.renderedHeight ?? 0) <= 0
+  )
+    return requestedHeight;
+  return measurement.renderedHeight;
+}
+
+/** Resident detent: 30% of usable height, bounded for readable and scenic
+ * balance. Short landscape keeps only the fixed header detent. */
+export function mobileSheetPeekHeight(width: number, usableHeight: number) {
+  if (width < 1200 && width > usableHeight && usableHeight < 600) return 64;
+  return Math.round(Math.min(280, Math.max(168, usableHeight * 0.3)));
+}
 
 /** The pill replaces a physically parked sheet. It must never be derived
  * from dismissal intent alone, because an interrupted resident transition
@@ -132,7 +159,8 @@ export function mobileSheetGeometry(state: MobileSheetPanelState) {
   return {
     expanded: state === "opening" || state === "open",
     grabberPx: MOBILE_SHEET_GRABBER_PX,
-    headerPx: MOBILE_SHEET_GRABBER_PX + MOBILE_SHEET_TITLE_ROW_PX,
+    // The grabber overlays the title row instead of consuming its own band.
+    headerPx: Math.max(MOBILE_SHEET_GRABBER_PX, MOBILE_SHEET_TITLE_ROW_PX),
   } as const;
 }
 

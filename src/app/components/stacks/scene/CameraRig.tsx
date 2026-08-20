@@ -4,6 +4,7 @@
 // to the transient ref, flips activeUnit only on unit-boundary crosses, and
 // registers the scroll element with the store for the DOM bridges.
 import {
+  GOLF_STOP_POSITION,
   UNIT_COUNT,
   golfFocusedForScenePosition,
   initialScenePositionFromLocation,
@@ -13,6 +14,7 @@ import {
   panelCoverageRef,
   progressRef,
   railRightPxRef,
+  touchWorldRef,
   useStacks,
 } from "../store";
 import { useScroll } from "@react-three/drei";
@@ -20,14 +22,30 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
-import { cursorForInteraction } from "./interactionRegistry";
+import {
+  clampCameraZoom,
+  interactionZoomTarget,
+  isGolfControlInteraction,
+  shouldResetCameraZoomForTravel,
+} from "./cameraZoom";
+import {
+  cursorForInteraction,
+  getSceneInteraction,
+} from "./interactionRegistry";
 import { SEAT_POSE, isSeated, leaveSeat, setSeatAmount } from "./seated";
 import {
   CAMERA_LOOK_X_MAX_LAG,
   STACKS_DESKTOP_MIN_WIDTH,
   aboutStopShift,
+  cameraCompositionForViewport,
   cameraForAspect,
   cameraXForScrollOffset,
+  captureCameraYFromSearch,
+  captureFovFromSearch,
+  captureHeadOnFromSearch,
+  captureLookYFromSearch,
+  golfDollyForViewport,
+  golfLookYOffsetForViewport,
   scrollOffsetForUnit,
   unitProgressForScrollOffset,
 } from "./worldLayout";
@@ -110,6 +128,7 @@ export const cameraTravelDiagnostics = {
  * lands (its layout effect runs before this frame in practice). */
 function currentAboutShift(): number {
   if (typeof window === "undefined") return 0;
+  if (captureHeadOnFromSearch(window.location.search)) return 0;
   if (window.innerWidth < STACKS_DESKTOP_MIN_WIDTH) return 0;
   return aboutStopShift(
     window.innerWidth,
@@ -127,6 +146,16 @@ export default function CameraRig() {
   const lean = useRef(0);
   // Damped copy of the sheet's screen coverage, driving the frustum offset.
   const framing = useRef(0);
+  const focusAmount = useRef(0);
+  const focusX = useRef(0);
+  const focusY = useRef(0);
+  const interactionZoom = useRef(0);
+  const visitorZoom = useRef(0);
+  const focusBounds = useRef(new THREE.Box3());
+  const focusCenter = useRef(new THREE.Vector3());
+  const previousScenePosition = useRef(0);
+  const wasTraveling = useRef(false);
+  const settledFor = useRef(0);
   // Travel height, integrated separately from camera.position.y. The seat
   // blend writes camera.position.y outright, and damping toward a target from
   // an already-blended value feeds back on itself.
@@ -159,16 +188,39 @@ export default function CameraRig() {
     () => cameraForAspect(size.width / size.height),
     [size.width, size.height],
   );
+  const captureFov = useMemo(
+    () =>
+      typeof window === "undefined"
+        ? null
+        : captureFovFromSearch(window.location.search),
+    [],
+  );
+  const captureLookY = useMemo(
+    () =>
+      typeof window === "undefined"
+        ? null
+        : captureLookYFromSearch(window.location.search),
+    [],
+  );
+  const captureCameraY = useMemo(
+    () =>
+      typeof window === "undefined"
+        ? null
+        : captureCameraYFromSearch(window.location.search),
+    [],
+  );
 
   // Apply distance/fov when the pose changes (mount, resize, orientation).
   useEffect(() => {
-    baseY.current = camera.position.y;
+    const initialY = captureCameraY ?? camera.position.y;
+    baseY.current = initialY;
+    camera.position.y = initialY;
     camera.position.z = pose.z;
     if ("fov" in camera) {
       (camera as THREE.PerspectiveCamera).fov = pose.fov;
       (camera as THREE.PerspectiveCamera).updateProjectionMatrix();
     }
-  }, [camera, pose]);
+  }, [camera, captureCameraY, pose]);
 
   useEffect(() => {
     const el = scroll.el;
@@ -212,6 +264,15 @@ export default function CameraRig() {
     };
     const cancelFromPointer = (event: Event) =>
       cancelInitialSync(`input:${event.type}`);
+    const recordPointerType = (event: PointerEvent) => {
+      if (
+        event.pointerType === "touch" ||
+        event.pointerType === "mouse" ||
+        event.pointerType === "pen"
+      ) {
+        touchWorldRef.interactionPointerType = event.pointerType;
+      }
+    };
     const cancelFromKeyboard = (event: KeyboardEvent) => {
       if (
         event.key === "ArrowLeft" ||
@@ -230,6 +291,14 @@ export default function CameraRig() {
     el.addEventListener("wheel", cancelFromPointer, { passive: true });
     el.addEventListener("touchstart", cancelFromPointer, { passive: true });
     window.addEventListener("keydown", cancelFromKeyboard);
+    window.addEventListener("pointerdown", recordPointerType, {
+      capture: true,
+      passive: true,
+    });
+    window.addEventListener("pointermove", recordPointerType, {
+      capture: true,
+      passive: true,
+    });
     state.setJumpTo((unit: number) => {
       cancelInitialSync(`jump:${unit}`);
       const max = el.scrollWidth - el.clientWidth;
@@ -276,6 +345,12 @@ export default function CameraRig() {
       el.removeEventListener("wheel", cancelFromPointer);
       el.removeEventListener("touchstart", cancelFromPointer);
       window.removeEventListener("keydown", cancelFromKeyboard);
+      window.removeEventListener("pointerdown", recordPointerType, {
+        capture: true,
+      });
+      window.removeEventListener("pointermove", recordPointerType, {
+        capture: true,
+      });
       unsubscribeCursor();
       const cleanup = useStacks.getState();
       cleanup.setScrollEl(null);
@@ -336,6 +411,14 @@ export default function CameraRig() {
     const progress = unitProgressForScrollOffset(offset);
     progressRef.current = progress;
     const targetX = cameraXForScrollOffset(offset);
+    const scenePosition = progress * (UNIT_COUNT - 1);
+    const composition = cameraCompositionForViewport(
+      size.width,
+      size.height,
+      scenePosition,
+    );
+    const lookY = captureLookY ?? composition.lookY;
+    const cameraY = captureCameraY ?? composition.y;
     const t = clock.elapsedTime;
     const busy = useStacks.getState().panelState !== "closed";
     lean.current = THREE.MathUtils.damp(
@@ -345,6 +428,87 @@ export default function CameraRig() {
       dt,
     );
     const calm = 1 - lean.current;
+    const state = useStacks.getState();
+    const distanceFromAuthoredStop = Math.min(
+      Math.abs(scenePosition - Math.round(scenePosition)),
+      Math.abs(scenePosition - GOLF_STOP_POSITION),
+    );
+    const traveling =
+      distanceFromAuthoredStop > 0.015 ||
+      Math.abs(scenePosition - previousScenePosition.current) > 0.000_02;
+    if (shouldResetCameraZoomForTravel(wasTraveling.current, traveling)) {
+      touchWorldRef.zoomOffset = 0;
+      if (state.focusedInteraction) state.setFocusedInteraction(null);
+      if (state.hovered) state.setHovered(null);
+    }
+    wasTraveling.current = traveling;
+    const focusSpec = getSceneInteraction(state.focusedInteraction);
+    const golfControlFocused = isGolfControlInteraction(
+      state.focusedInteraction,
+    );
+    const focusEnabled = Boolean(
+      focusSpec &&
+        !golfControlFocused &&
+        !state.dragging &&
+        !traveling &&
+        !busy &&
+        !isSeated(),
+    );
+    let desiredFocusX = 0;
+    let desiredFocusY = 0;
+    if (focusEnabled && focusSpec) {
+      focusSpec.root.updateWorldMatrix(true, true);
+      focusBounds.current.setFromObject(focusSpec.root, true);
+      if (!focusBounds.current.isEmpty()) {
+        focusBounds.current.getCenter(focusCenter.current);
+        desiredFocusX = THREE.MathUtils.clamp(
+          focusCenter.current.x - (targetX + composition.lookXOffset),
+          -0.28,
+          0.28,
+        );
+        desiredFocusY = THREE.MathUtils.clamp(
+          focusCenter.current.y - lookY,
+          -0.12,
+          0.12,
+        );
+      }
+    }
+    focusAmount.current = THREE.MathUtils.damp(
+      focusAmount.current,
+      focusEnabled ? 1 : 0,
+      8,
+      dt,
+    );
+    focusX.current = THREE.MathUtils.damp(focusX.current, desiredFocusX, 8, dt);
+    focusY.current = THREE.MathUtils.damp(focusY.current, desiredFocusY, 8, dt);
+    const pillZoom =
+      size.width < STACKS_DESKTOP_MIN_WIDTH && state.sheetDismissed ? 0.16 : 0;
+    const golfZoom = golfDollyForViewport(size.width, state.golfFocused);
+    visitorZoom.current = THREE.MathUtils.damp(
+      visitorZoom.current,
+      touchWorldRef.zoomOffset + pillZoom + golfZoom,
+      8,
+      dt,
+    );
+    const cameraTargetDistance = composition.z - composition.lookZ;
+    interactionZoom.current = THREE.MathUtils.damp(
+      interactionZoom.current,
+      interactionZoomTarget({
+        distance: cameraTargetDistance,
+        focused: focusEnabled,
+        pressed:
+          Boolean(state.pressedInteraction) &&
+          !isGolfControlInteraction(state.pressedInteraction),
+        hovered:
+          Boolean(state.hovered) && !isGolfControlInteraction(state.hovered),
+        dragging: Boolean(state.dragging),
+        traveling,
+        blocked: busy || isSeated(),
+        touchInteraction: touchWorldRef.interactionPointerType === "touch",
+      }),
+      7,
+      dt,
+    );
 
     // The seat. Moving the room always beats sitting in it, so the offset the
     // seat was taken at is the escape hatch for every travel path at once.
@@ -367,14 +531,23 @@ export default function CameraRig() {
     // standing up has to land on a live camera, not one frozen where it sat.
     baseY.current = THREE.MathUtils.damp(
       baseY.current,
-      pose.y + (pointer.y * 0.08 + Math.sin(t * 0.4) * 0.03) * calm,
+      captureCameraY === null
+        ? cameraY + (pointer.y * 0.08 + Math.sin(t * 0.4) * 0.03) * calm
+        : cameraY,
       BASE_Y_LAMBDA,
       dt,
     );
-    const baseZ = pose.z - 0.6 * lean.current;
+    const cameraZoom = clampCameraZoom(
+      0.6 * lean.current + interactionZoom.current + visitorZoom.current,
+      cameraTargetDistance,
+    );
+    const baseZ = composition.z - cameraZoom;
     look.current.x = THREE.MathUtils.damp(
       look.current.x,
-      targetX + pointer.x * 0.45 * calm,
+      targetX +
+        composition.lookXOffset +
+        focusX.current +
+        pointer.x * 0.45 * calm,
       LOOK_X_LAMBDA,
       dt,
     );
@@ -392,13 +565,16 @@ export default function CameraRig() {
     );
     look.current.y = THREE.MathUtils.damp(
       look.current.y,
-      (pointer.y * 0.12 - 0.08) * calm,
+      lookY +
+        golfLookYOffsetForViewport(size.width, state.golfFocused) +
+        focusY.current +
+        pointer.y * 0.12 * calm,
       LOOK_Y_LAMBDA,
       dt,
     );
     look.current.z = THREE.MathUtils.damp(
       look.current.z,
-      -0.2,
+      composition.lookZ,
       LOOK_Y_LAMBDA,
       dt,
     );
@@ -560,7 +736,8 @@ export default function CameraRig() {
     // not the whole blend: the frame widening while you are still crossing
     // the room reads as the room growing, and the widening is meant to be
     // the moment you settle and the horizon opens up.
-    const fov = pose.fov + (SEAT_FOV - pose.fov) * seatBlend;
+    const travelFov = captureFov ?? composition.fov;
+    const fov = travelFov + (SEAT_FOV - travelFov) * seatBlend;
     if (
       "fov" in camera &&
       Math.abs((camera as THREE.PerspectiveCamera).fov - fov) > 0.001
@@ -572,7 +749,23 @@ export default function CameraRig() {
     cameraTravelDiagnostics.lookX = look.current.x;
     cameraTravelDiagnostics.lookLagX = look.current.x - targetX;
 
-    const scenePosition = progress * (UNIT_COUNT - 1);
+    const movement = Math.abs(scenePosition - previousScenePosition.current);
+    previousScenePosition.current = scenePosition;
+    if (
+      movement < 0.000_02 &&
+      Math.abs(scenePosition - Math.round(scenePosition)) < 0.01
+    ) {
+      settledFor.current += dt;
+      if (settledFor.current >= 0.12) {
+        const settled = Math.round(scenePosition);
+        if (useStacks.getState().settledUnit !== settled)
+          useStacks.getState().setSettledUnit(settled);
+      }
+    } else {
+      settledFor.current = 0;
+      if (useStacks.getState().settledUnit !== null)
+        useStacks.getState().setSettledUnit(null);
+    }
     const active = Math.min(
       UNIT_COUNT - 1,
       Math.max(0, Math.round(scenePosition)),

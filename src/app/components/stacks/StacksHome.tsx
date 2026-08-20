@@ -31,13 +31,16 @@ import ChromeLayer from "./dom/ChromeLayer";
 import PlacardLayer from "./dom/PlacardLayer";
 import UnitRail from "./dom/UnitRail";
 import ScrollBridges from "./input/ScrollBridges";
+import TouchInteractionLayer from "./input/TouchInteractionLayer";
 import {
+  areBootBookFacesReady,
   canRevealWorld,
-  getLoadProgress,
+  isAssetLoadReady,
   isBootSequenceReady,
   isMeadowReady,
   isWarmBoot,
   rememberWarmBoot,
+  resetAssetLoadReady,
   resetMeadowReady,
   setLoadProgress,
   setWorldPhase,
@@ -52,19 +55,9 @@ const StacksCanvas = dynamic(() => import("./StacksCanvas"), { ssr: false });
 /** Long enough that no real network trips it, short enough that a genuinely
  * wedged tab still gets a readable page. */
 const HANG_BACKSTOP_MS = 40000;
-/** After the first frame paints, how long to keep the boot screen up waiting
- * for the rest of the props. The room builds itself in public after this —
- * every prop is independently suspended, so a late arrival is a fade, not a
- * hole. */
-const STREAM_GRACE_MS = 900;
-/** Enough of the assets that unit 0 is dressed. Waiting for all of them means
- * waiting on units the visitor cannot see yet. */
-const REVEAL_PROGRESS = 0.85;
-/** How long the grass may hold the reveal past the arms above. The meadow is
- * structural to the first frame (a lawn popping in under a dressed room
- * reads as breakage — owner round 2), so it gets its own gate; but a stalled
- * asset must never hang the boot, so the hold is bounded. */
-const MEADOW_WAIT_MS = 3500;
+/** A brief idle window closes the gap between one loading-manager batch
+ * completing and a Suspense child queuing the next one. */
+const ASSET_SETTLE_MS = 250;
 
 const recordPerformanceCommit: ProfilerOnRenderCallback = (
   id,
@@ -124,6 +117,7 @@ export default function StacksHome({
   const [revealed, setRevealed] = useState(false);
   const [flatGone, setFlatGone] = useState(false);
   const [bootPath, setBootPath] = useState<"cold" | "warm">("cold");
+  const worldShellRef = useRef<HTMLDivElement>(null);
 
   const demote = useCallback(() => {
     setWorldPhase(null);
@@ -136,6 +130,7 @@ export default function StacksHome({
       setMode("flat");
       return;
     }
+    resetAssetLoadReady();
     resetMeadowReady();
     // Agrees with the pre-paint script, and also covers the case where the
     // script never ran (a bfcache restore, an extension stripping inline
@@ -189,35 +184,19 @@ export default function StacksHome({
     void (StacksCanvas as unknown as { preload?: () => void }).preload?.();
   }, []);
 
-  // Hold the boot screen until the room is worth looking at: the first frame
-  // has painted AND most of the assets are in — or the grace expires and the
-  // remainder streams in on screen.
-  //
-  // A warm boot deliberately does NOT get a shorter grace, which is the first
-  // thing you reach for. Measured: on a load with the assets already local,
-  // REVEAL_PROGRESS is crossed about 130ms after the first frame, so the
-  // reveal is already firing on the progress arm and the grace is never
-  // reached. Every run where it WAS reached had progress stalled around 0.25
-  // — the room genuinely a quarter built. Cutting the grace would only ever
-  // fire in that case, i.e. it would trade the wait for holes on precisely
-  // the visit where the visitor knows what the room is supposed to look like.
-  const readyAt = useRef(0);
+  // Hold the boot screen until a frame has painted, all requested assets have
+  // loaded and stayed idle briefly, the meadow buffers exist, and the boot
+  // vignette has completed its first pass. Time is never treated as scene
+  // readiness. The hang backstop below chooses the flat page instead of
+  // exposing an unfinished room when an asset genuinely wedges.
   useEffect(() => {
     if (!worldReady || revealed) return;
-    readyAt.current ||= performance.now();
     const check = () => {
-      const elapsed = performance.now() - readyAt.current;
-      // The meadow arm is AND-ed onto the existing pair: the published
-      // progress cannot see the grass (it is a monotonic high-water mark
-      // and the meadow's chunk fetch never counted), so without this the
-      // reveal races the lawn and loses on cold loads. It only briefly
-      // holds the door — a stalled asset can't hang the boot.
       if (
         canRevealWorld({
-          assetsReady: getLoadProgress() >= REVEAL_PROGRESS,
-          streamGraceExpired: elapsed > STREAM_GRACE_MS,
+          assetsReady: isAssetLoadReady(performance.now(), ASSET_SETTLE_MS),
+          bootBookFacesReady: areBootBookFacesReady(),
           meadowReady: isMeadowReady(),
-          meadowWaitExpired: elapsed > MEADOW_WAIT_MS,
           bootSequenceReady: isBootSequenceReady(),
         })
       ) {
@@ -236,24 +215,149 @@ export default function StacksHome({
     // The world got here. The next load can use the shorter cached-world
     // transition, while still painting this loader immediately.
     rememberWarmBoot();
-    // The shelf finishes filling as it fades. Reveal is allowed to happen on
-    // the streaming grace rather than on 100% of the assets, and a loader
-    // that dissolves half-full reads as giving up rather than as finishing.
+    // Normalize the published progress after the fully-ready handoff. The
+    // value is only presentation state now; readiness comes from the live
+    // loading-manager state above.
     setLoadProgress(1);
     const timeout = setTimeout(() => setFlatGone(true), 420);
     return () => clearTimeout(timeout);
   }, [revealed]);
 
   useEffect(() => {
-    if (mode !== "world" || worldReady) return;
+    if (mode !== "world" || revealed) return;
+    if (document.documentElement.hasAttribute("data-og-capture")) return;
     const timeout = setTimeout(demote, HANG_BACKSTOP_MS);
     return () => clearTimeout(timeout);
-  }, [mode, worldReady, demote]);
+  }, [mode, revealed, demote]);
+
+  useEffect(() => {
+    const world = worldShellRef.current;
+    if (mode !== "world" || !world) return;
+
+    const selectableElementFor = (target: EventTarget | Node | null) => {
+      const element =
+        target instanceof Element
+          ? target
+          : target instanceof Node
+            ? target.parentElement
+            : null;
+      return (
+        element?.closest(
+          '.placard-scroll, [data-book-modal-shell], input, textarea, [contenteditable="true"]',
+        ) ?? null
+      );
+    };
+    let selectionAllowedForGesture = false;
+    const clearSelection = () => {
+      const selection = window.getSelection();
+      if (!selection?.rangeCount) return;
+      if (
+        selectionAllowedForGesture ||
+        selectableElementFor(selection.anchorNode) ||
+        selectableElementFor(selection.focusNode)
+      )
+        return;
+      selection.removeAllRanges();
+    };
+    const preventSelection = (event: Event) => {
+      if (selectionAllowedForGesture || selectableElementFor(event.target))
+        return;
+      event.preventDefault();
+      window.getSelection()?.removeAllRanges();
+    };
+
+    // WebKit may create the range on a sibling rather than on the canvas that
+    // received the gesture. Catch selection at the document boundary and
+    // clear anything the engine creates despite the CSS guard. Selection that
+    // begins in a placard or book modal is deliberately left alone.
+    document.addEventListener("selectstart", preventSelection, {
+      capture: true,
+    });
+    document.addEventListener("selectionchange", clearSelection);
+
+    // WebKit bug 231161 documents an active touchstart preventDefault as the
+    // reliable escape hatch. Limit it to a genuine second tap so native world
+    // panning and pinch zoom are untouched on ordinary gestures.
+    const DOUBLE_TAP_MS = 400;
+    const DOUBLE_TAP_DISTANCE_PX = 44;
+    const TAP_SLOP_PX = 10;
+    let previousTap: { at: number; x: number; y: number } | null = null;
+    let currentTouch: { x: number; y: number; moved: boolean } | null = null;
+    const onTouchStart = (event: TouchEvent) => {
+      selectionAllowedForGesture = Boolean(selectableElementFor(event.target));
+      if (selectionAllowedForGesture) {
+        previousTap = null;
+        currentTouch = null;
+        return;
+      }
+      if (event.touches.length !== 1) {
+        previousTap = null;
+        currentTouch = null;
+        return;
+      }
+      const touch = event.touches[0];
+      if (!touch) return;
+      const now = performance.now();
+      if (
+        previousTap &&
+        now - previousTap.at <= DOUBLE_TAP_MS &&
+        Math.hypot(
+          touch.clientX - previousTap.x,
+          touch.clientY - previousTap.y,
+        ) <= DOUBLE_TAP_DISTANCE_PX
+      ) {
+        event.preventDefault();
+        window.getSelection()?.removeAllRanges();
+        previousTap = null;
+      }
+      currentTouch = { x: touch.clientX, y: touch.clientY, moved: false };
+    };
+    const onTouchMove = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (!touch || !currentTouch) return;
+      if (
+        Math.hypot(
+          touch.clientX - currentTouch.x,
+          touch.clientY - currentTouch.y,
+        ) > TAP_SLOP_PX
+      )
+        currentTouch.moved = true;
+    };
+    const onTouchEnd = (event: TouchEvent) => {
+      const touch = event.changedTouches[0];
+      if (touch && currentTouch && !currentTouch.moved) {
+        previousTap = {
+          at: performance.now(),
+          x: touch.clientX,
+          y: touch.clientY,
+        };
+      } else {
+        previousTap = null;
+      }
+      currentTouch = null;
+    };
+    world.addEventListener("touchstart", onTouchStart, { passive: false });
+    world.addEventListener("touchmove", onTouchMove, { passive: true });
+    world.addEventListener("touchend", onTouchEnd, { passive: true });
+    world.addEventListener("touchcancel", onTouchEnd, { passive: true });
+
+    return () => {
+      document.removeEventListener("selectstart", preventSelection, {
+        capture: true,
+      });
+      document.removeEventListener("selectionchange", clearSelection);
+      world.removeEventListener("touchstart", onTouchStart);
+      world.removeEventListener("touchmove", onTouchMove);
+      world.removeEventListener("touchend", onTouchEnd);
+      world.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, [mode]);
 
   return (
     <>
       {mode === "world" && (
         <div
+          ref={worldShellRef}
           data-load-path={bootPath}
           data-canvas-ready={worldReady ? "" : undefined}
           data-revealed={revealed ? "" : undefined}
@@ -282,9 +386,14 @@ export default function StacksHome({
             <UnitRail />
             <ChromeLayer />
             <Profiler id="placard" onRender={recordPerformanceCommit}>
-              <PlacardLayer data={data} slots={slots} />
+              <PlacardLayer
+                data={data}
+                slots={slots}
+                sceneRevealed={revealed}
+              />
             </Profiler>
             <ScrollBridges />
+            <TouchInteractionLayer />
           </div>
           {/* The canvas is allowed to finish behind an opaque curtain. The
               handoff can therefore be choreographed without filtering or

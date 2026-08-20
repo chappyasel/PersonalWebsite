@@ -11,12 +11,16 @@
 // (scrollLeft += deltaY / 2) on the scroll element, and letting both run would
 // double-apply deltas at inconsistent rates.
 import {
+  GOLF_STOP_POSITION,
   UNIT_COUNT,
   golfFocusedForScenePosition,
   initialScenePositionFromLocation,
   scenePositionFromHash,
   sceneUrlForLocation,
 } from "../data";
+import { haptic } from "../mobile/liveness";
+import { authoredTravelStops } from "../mobile/travel";
+import { scrollOffsetForUnit } from "../scene/worldLayout";
 import { closeStacksPanel, useStacks } from "../store";
 import { useEffect, useRef } from "react";
 
@@ -100,6 +104,19 @@ export function backgroundWorldGesture(
   return "travel";
 }
 
+export function shouldMirrorWorldHistory(
+  state: Pick<
+    ReturnType<typeof useStacks.getState>,
+    "modalOpen" | "panelState" | "unitMapPreview"
+  >,
+) {
+  return (
+    !state.modalOpen &&
+    state.panelState === "closed" &&
+    state.unitMapPreview === null
+  );
+}
+
 export default function ScrollBridges() {
   const scrollEl = useStacks((s) => s.scrollEl);
   const jumpTo = useStacks((s) => s.jumpTo);
@@ -151,8 +168,7 @@ export default function ScrollBridges() {
         activeUnit: state.activeUnit,
         golfFocused: state.golfFocused,
       };
-      if (state.modalOpen) return; // the modal owns the URL while open
-      if (state.panelState !== "closed") return; // panel owns it too
+      if (!shouldMirrorWorldHistory(state)) return;
       window.history.replaceState(
         null,
         "",
@@ -207,6 +223,10 @@ export default function ScrollBridges() {
       e.preventDefault();
       e.stopPropagation();
       if (action === "collapse-and-travel") closeStacksPanel();
+      // A wheel or trackpad is fine-pointer intent even in a narrow window.
+      // Touch inspection zoom is owned by TouchInteractionLayer's vertical
+      // pointer drag; routing width-sized wheel events into that path made a
+      // narrow desktop window impossible to travel.
       const dominant =
         Math.abs(e.deltaY) >= Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
       scrollEl.scrollLeft += wheelDeltaPx(e, dominant);
@@ -216,84 +236,68 @@ export default function ScrollBridges() {
       capture: true,
     });
 
-    // Touch: native pan-x handles horizontal drags (with momentum); vertical
-    // swipes are re-mapped to lateral travel with a lightweight fling.
-    let axis: "h" | "v" | null = null;
-    let startX = 0;
-    let startY = 0;
-    let lastY = 0;
-    let lastT = 0;
-    let velocity = 0;
-    let flingRaf = 0;
-    let ownsCollapsingGesture = false;
-
-    const onTouchStart = (e: TouchEvent) => {
+    // Coarse World travel is native horizontal pan + browser momentum. The
+    // browser owns the stream until it ends; then every path shares one
+    // authored-stop snap. Vertical motion is intentionally untouched.
+    scrollEl.style.touchAction = "pan-x pinch-zoom";
+    let coarseTravel = false;
+    let settleTimer = 0;
+    const nearestStop = () => {
+      const max = Math.max(1, scrollEl.scrollWidth - scrollEl.clientWidth);
+      const offset = scrollEl.scrollLeft / max;
+      let unit = 0;
+      let distance = Infinity;
+      for (const index of authoredTravelStops(UNIT_COUNT, [
+        GOLF_STOP_POSITION,
+      ])) {
+        const next = Math.abs(scrollOffsetForUnit(index) - offset);
+        if (next < distance) {
+          distance = next;
+          unit = index;
+        }
+      }
+      return unit;
+    };
+    const settleTouchTravel = () => {
+      if (!coarseTravel) return;
+      coarseTravel = false;
+      window.clearTimeout(settleTimer);
+      const state = useStacks.getState();
+      if (state.dragging || state.modalOpen || state.panelState !== "closed")
+        return;
+      const destination = nearestStop();
+      state.setFocusedInteraction(null);
+      state.travelTo?.(destination);
+      state.setSettledUnit(Number.isInteger(destination) ? destination : null);
+      haptic(8);
+    };
+    let coarseStartScrollLeft = 0;
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.pointerType !== "touch") return;
       const action = backgroundWorldGesture(
         useStacks.getState(),
-        isStacksScrollableTarget(e.target),
+        isStacksScrollableTarget(event.target),
       );
-      if (action === "blocked") {
-        axis = null;
-        velocity = 0;
-        ownsCollapsingGesture = false;
-        return;
-      }
-      ownsCollapsingGesture = action === "collapse-and-travel";
-      if (ownsCollapsingGesture) closeStacksPanel();
-      const t = e.touches[0];
-      if (!t) return;
-      cancelAnimationFrame(flingRaf);
-      axis = null;
-      startX = t.clientX;
-      startY = t.clientY;
-      lastY = t.clientY;
-      lastT = performance.now();
-      velocity = 0;
+      coarseTravel = action === "travel";
+      coarseStartScrollLeft = scrollEl.scrollLeft;
     };
-    const onTouchMove = (e: TouchEvent) => {
-      const state = useStacks.getState();
+    const onPointerUp = (event: PointerEvent) => {
       if (
-        state.dragging ||
-        state.modalOpen ||
-        (!ownsCollapsingGesture && state.panelState !== "closed")
-      ) {
-        // Clear the pending fling as well as bailing from this frame. A prop
-        // can claim the gesture after one vertical sample, and replaying that
-        // stale velocity on touchend would still move the room underneath it.
-        axis = null;
-        velocity = 0;
-        return;
-      }
-      const t = e.touches[0];
-      if (!t) return;
-      const dx = t.clientX - startX;
-      const dy = t.clientY - startY;
-      if (!axis && Math.hypot(dx, dy) > 8) {
-        axis = Math.abs(dy) > Math.abs(dx) ? "v" : "h";
-      }
-      if (axis !== "v" && !(ownsCollapsingGesture && axis === "h")) return;
-      e.preventDefault();
-      const now = performance.now();
-      const step = axis === "v" ? lastY - t.clientY : startX - t.clientX; // swipe up/left = travel forward
-      scrollEl.scrollLeft += step;
-      if (now > lastT) velocity = (step / (now - lastT)) * 16.7;
-      if (axis === "h") startX = t.clientX;
-      lastY = t.clientY;
-      lastT = now;
+        event.pointerType === "touch" &&
+        coarseTravel &&
+        Math.abs(scrollEl.scrollLeft - coarseStartScrollLeft) < 1
+      )
+        coarseTravel = false;
     };
-    const onTouchEnd = () => {
-      ownsCollapsingGesture = false;
-      if ((axis !== "v" && axis !== "h") || Math.abs(velocity) < 0.5) return;
-      const fling = () => {
-        scrollEl.scrollLeft += velocity;
-        velocity *= 0.95;
-        if (Math.abs(velocity) > 0.3) flingRaf = requestAnimationFrame(fling);
-      };
-      flingRaf = requestAnimationFrame(fling);
+    const onScroll = () => {
+      if (!coarseTravel) return;
+      window.clearTimeout(settleTimer);
+      settleTimer = window.setTimeout(settleTouchTravel, 120);
     };
-    scrollEl.addEventListener("touchstart", onTouchStart, { passive: true });
-    scrollEl.addEventListener("touchmove", onTouchMove, { passive: false });
-    scrollEl.addEventListener("touchend", onTouchEnd, { passive: true });
+    scrollEl.addEventListener("pointerdown", onPointerDown, { passive: true });
+    scrollEl.addEventListener("pointerup", onPointerUp, { passive: true });
+    scrollEl.addEventListener("scroll", onScroll, { passive: true });
+    scrollEl.addEventListener("scrollend", settleTouchTravel);
 
     const onKey = (e: KeyboardEvent) => {
       if (!shouldHandleWorldNavigationKey(e)) return;
@@ -315,11 +319,12 @@ export default function ScrollBridges() {
 
     return () => {
       window.removeEventListener("wheel", onWheel, { capture: true });
-      scrollEl.removeEventListener("touchstart", onTouchStart);
-      scrollEl.removeEventListener("touchmove", onTouchMove);
-      scrollEl.removeEventListener("touchend", onTouchEnd);
+      scrollEl.removeEventListener("pointerdown", onPointerDown);
+      scrollEl.removeEventListener("pointerup", onPointerUp);
+      scrollEl.removeEventListener("scroll", onScroll);
+      scrollEl.removeEventListener("scrollend", settleTouchTravel);
       window.removeEventListener("keydown", onKey);
-      cancelAnimationFrame(flingRaf);
+      window.clearTimeout(settleTimer);
     };
   }, [scrollEl]);
 

@@ -50,9 +50,9 @@ export const GOLF_CLUB_GRIP_HEIGHT = 0.76866675 * GOLF_CLUB_SCALE;
  * down the rig's -Z shot axis. */
 export const GOLF_CLUB_MODEL_YAW = -Math.PI / 2;
 export const GOLF_CLUB_REST_BASE: GolfVec3 = {
-  x: -2.6,
+  x: -2.9,
   y: SHELF_GEOMETRY.groundY,
-  z: 0.32,
+  z: 0.02,
 };
 
 export const GOLF_CLUB_HEAD_MODEL_BOUNDS = {

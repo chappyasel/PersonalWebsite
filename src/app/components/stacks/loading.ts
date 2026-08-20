@@ -37,9 +37,8 @@ export function subscribeLoadProgress(listener: () => void): () => void {
 
 export type WorldRevealReadiness = {
   assetsReady: boolean;
-  streamGraceExpired: boolean;
+  bootBookFacesReady: boolean;
   meadowReady: boolean;
-  meadowWaitExpired: boolean;
   bootSequenceReady: boolean;
 };
 
@@ -47,16 +46,73 @@ export type WorldRevealReadiness = {
  * without mounting WebGL. */
 export function canRevealWorld({
   assetsReady,
-  streamGraceExpired,
+  bootBookFacesReady,
   meadowReady,
-  meadowWaitExpired,
   bootSequenceReady,
 }: WorldRevealReadiness): boolean {
-  return (
-    (assetsReady || streamGraceExpired) &&
-    (meadowReady || meadowWaitExpired) &&
-    bootSequenceReady
-  );
+  return assetsReady && bootBookFacesReady && meadowReady && bootSequenceReady;
+}
+
+let expectedBootBookFaces = new Set<string>();
+let settledBootBookFaces = new Set<string>();
+
+/** The async data bridge calls this before it notifies BootScreen, so even a
+ * memory-cached SVG image cannot finish before the reveal gate expects it. */
+export function setExpectedBootBookFaces(keys: readonly string[]): void {
+  expectedBootBookFaces = new Set(keys);
+  settledBootBookFaces = new Set();
+}
+
+export function markBootBookFaceSettled(key: string): void {
+  if (!expectedBootBookFaces.has(key)) return;
+  settledBootBookFaces.add(key);
+}
+
+export function areBootBookFacesReady(): boolean {
+  return settledBootBookFaces.size >= expectedBootBookFaces.size;
+}
+
+export type AssetLoadState = {
+  active: boolean;
+  loaded: number;
+  total: number;
+  errors: number;
+};
+
+/** The progress percentage is deliberately not used for readiness. Drei
+ * restarts it for every loading-manager batch, and the boot display keeps a
+ * monotonic high-water mark. The only truthful completion signal is a
+ * manager that has loaded every requested item, has no failures, and is no
+ * longer active. */
+export function assetLoadComplete({
+  active,
+  loaded,
+  total,
+  errors,
+}: AssetLoadState): boolean {
+  return !active && total > 0 && loaded >= total && errors === 0;
+}
+
+let assetLoadReadySince: number | null = null;
+
+export function resetAssetLoadReady(): void {
+  assetLoadReadySince = null;
+}
+
+/** Publishes every loading-manager transition, including a later batch that
+ * starts after an earlier one reached 100%. */
+export function reportAssetLoadState(state: AssetLoadState, now: number): void {
+  if (!assetLoadComplete(state)) {
+    assetLoadReadySince = null;
+    return;
+  }
+  assetLoadReadySince ??= now;
+}
+
+/** Require a quiet idle window so a Suspense child cannot queue the next
+ * batch in the gap between "complete" and the following render. */
+export function isAssetLoadReady(now: number, settleMs: number): boolean {
+  return assetLoadReadySince !== null && now - assetLoadReadySince >= settleMs;
 }
 
 // The live room can arrive much faster than the loading vignette. Keep this

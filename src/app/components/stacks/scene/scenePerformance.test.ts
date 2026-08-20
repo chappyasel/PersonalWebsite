@@ -4,6 +4,7 @@ import {
   DEFAULT_SCENE_PERFORMANCE_SETTINGS,
   adaptiveSharpenAmount,
   allScenePerformanceSettings,
+  effectivePlacardGlassMode,
   farMeadowShaderMode,
   meadowTilePopulationLimit,
   postEffectEnabled,
@@ -23,7 +24,8 @@ describe("reversible scene performance settings", () => {
       pausePrewarmDuringTravel: true,
       activeNeighborhoodLights: true,
       simplifiedFarMeadow: true,
-      placardGlassMode: "native",
+      placardGlassMode: "auto",
+      virtualizeUnitWork: true,
       practicalGlowMode: "halo",
       effectiveDprLadder: true,
       adaptiveSharpen: true,
@@ -40,6 +42,7 @@ describe("reversible scene performance settings", () => {
       activeNeighborhoodLights: false,
       simplifiedFarMeadow: false,
       placardGlassMode: "native",
+      virtualizeUnitWork: false,
       practicalGlowMode: "sprite",
       effectiveDprLadder: false,
       adaptiveSharpen: false,
@@ -55,10 +58,14 @@ describe("reversible scene performance settings", () => {
     );
   });
 
-  it("ships native live placard blur while retaining explicit comparison modes", () => {
-    expect(DEFAULT_SCENE_PERFORMANCE_SETTINGS.placardGlassMode).toBe("native");
-    expect(allScenePerformanceSettings(true).placardGlassMode).toBe("sampled");
+  it("ships paper for coarse touch while retaining native blur for pointers", () => {
+    expect(DEFAULT_SCENE_PERFORMANCE_SETTINGS.placardGlassMode).toBe("auto");
+    expect(allScenePerformanceSettings(true).placardGlassMode).toBe("paper");
     expect(allScenePerformanceSettings(false).placardGlassMode).toBe("native");
+    expect(effectivePlacardGlassMode("auto", true)).toBe("paper");
+    expect(effectivePlacardGlassMode("auto", false)).toBe("native");
+    expect(effectivePlacardGlassMode("native", true)).toBe("native");
+    expect(effectivePlacardGlassMode("paper", false)).toBe("paper");
   });
 
   it("defaults practical lamps to analytic halos while retaining both comparisons", () => {

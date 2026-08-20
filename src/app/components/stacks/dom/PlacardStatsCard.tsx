@@ -23,11 +23,13 @@ export function PlacardLinkCard({
   href,
   label,
   newTab = false,
+  mobileCompact = false,
   children,
 }: {
   href: string;
   label: string;
   newTab?: boolean;
+  mobileCompact?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -37,6 +39,7 @@ export function PlacardLinkCard({
         target={newTab ? "_blank" : undefined}
         rel={newTab ? "noopener noreferrer" : undefined}
         aria-label={label}
+        data-mobile-compact-card={mobileCompact ? "" : undefined}
         className="block w-full rounded-3xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45"
       >
         <div
@@ -111,9 +114,11 @@ export function PlacardNestedLinkCard({
 function PlacardYearBars({
   years,
   unit,
+  compactMobile = false,
 }: {
   years: PlacardYearDatum[];
   unit: string;
+  compactMobile?: boolean;
 }) {
   const [touchedYear, setTouchedYear] = useState<number | null>(null);
   const max = Math.max(
@@ -123,6 +128,8 @@ function PlacardYearBars({
 
   return (
     <div
+      data-year-bars=""
+      data-mobile-compact={compactMobile ? "" : undefined}
       className="flex h-[62px] items-end gap-1.5"
       role="img"
       aria-label={years
@@ -131,8 +138,8 @@ function PlacardYearBars({
     >
       {years.map((year) => {
         const total = year.value + year.projectedRemainder;
-        const actualHeight = Math.max(2, (year.value / max) * 46);
-        const projectedHeight = (year.projectedRemainder / max) * 46;
+        const actualHeight = Math.max(2 / 46, year.value / max);
+        const projectedHeight = year.projectedRemainder / max;
 
         return (
           <div
@@ -184,12 +191,16 @@ function PlacardYearBars({
               {projectedHeight > 0 ? (
                 <div
                   className="border border-dashed border-foreground/35 bg-foreground/[0.06]"
-                  style={{ height: projectedHeight }}
+                  style={{
+                    height: `calc(var(--placard-year-bar-max, 46px) * ${projectedHeight})`,
+                  }}
                 />
               ) : null}
               <div
                 className="bg-foreground/75"
-                style={{ height: actualHeight }}
+                style={{
+                  height: `calc(var(--placard-year-bar-max, 46px) * ${actualHeight})`,
+                }}
               />
             </div>
             <span className="mt-1.5 text-[10px] tabular-nums text-muted-foreground">
@@ -209,6 +220,7 @@ export function PlacardStatsCard({
   years,
   yearUnit,
   stats,
+  compactMobile = false,
 }: {
   headline: string;
   headlineIcon: Icon;
@@ -216,9 +228,13 @@ export function PlacardStatsCard({
   years: PlacardYearDatum[];
   yearUnit: string;
   stats: PlacardStat[];
+  compactMobile?: boolean;
 }) {
   return (
-    <div className="grid grid-cols-[minmax(0,1.25fr)_minmax(7rem,.75fr)] items-stretch min-[1200px]:grid-cols-[minmax(0,1.2fr)_minmax(7.75rem,.8fr)]">
+    <div
+      data-mobile-compact-stats={compactMobile ? "" : undefined}
+      className="grid grid-cols-[minmax(0,1.25fr)_minmax(7rem,.75fr)] items-stretch min-[1200px]:grid-cols-[minmax(0,1.2fr)_minmax(7.75rem,.8fr)]"
+    >
       <div className="flex min-h-44 min-w-0 flex-col justify-between pr-4 min-[1200px]:min-h-52 min-[1200px]:pr-5">
         <div>
           <strong className="block whitespace-nowrap font-serif text-[clamp(3.25rem,13vw,5rem)] font-normal leading-[.78] tracking-[-0.055em] text-foreground">
@@ -229,7 +245,11 @@ export function PlacardStatsCard({
             {headlineLabel}
           </span>
         </div>
-        <PlacardYearBars years={years} unit={yearUnit} />
+        <PlacardYearBars
+          years={years}
+          unit={yearUnit}
+          compactMobile={compactMobile}
+        />
       </div>
       <div className="flex min-w-0 flex-col justify-between border-l border-foreground/10 pl-4 text-right min-[1200px]:pl-5">
         {stats.map(({ icon: StatIcon, label, value }) => (

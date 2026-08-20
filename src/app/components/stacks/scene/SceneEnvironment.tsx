@@ -15,7 +15,6 @@ import Meadow from "./Meadow";
 import Petals from "./Petals";
 import Wildlife from "./Wildlife";
 import { DAYLIGHT_RENDERING } from "./daylightRendering";
-import { activationAtPointer } from "./interactionProjection";
 import {
   getSceneInteraction,
   registerSceneInteraction,
@@ -1556,6 +1555,7 @@ const SKY_FRAGMENT = `
     float ggb = 0.0;
     float ggbTower = 0.0;
     float ggbDeck = 0.0;
+    float ggbCable = 0.0;
     float ggbDeckY = 0.0;
     float gx = (a + 2.04) / 0.055;
     if (abs(gx) < 1.10 && e > 0.024 && e < 0.078) {
@@ -1567,15 +1567,37 @@ const SKY_FRAGMENT = `
       float deckY = 0.0380 + 0.0022 * (1.0 - gx * gx);
       float cableY = deckY + 0.0308 * gx * gx - 0.00325 * gx;
       float towerTop = mix(0.0720, 0.0655, step(0.0, gx));
-      // Art Deco setbacks. A stepped tower is the one detail that makes this
-      // the Golden Gate and not a generic suspension bridge, so the taper is
-      // four discrete stages rather than the smooth ramp Salesforce uses.
+      // Art Deco portal towers. A solid tapered bar survives as a post, not
+      // as the Golden Gate, once DoF and bloom reach the skyline. Keep the
+      // four-stage taper, but build it from separated legs and crossbeams so
+      // the negative-space portals remain legible at OG scale.
       float tt = clamp((e - deckY) / (towerTop - deckY), 0.0, 1.0);
-      float hw = 0.0027 - 0.00042 * min(floor(tt * 4.0), 3.0);
+      float hw = 0.0041 - 0.00048 * min(floor(tt * 4.0), 3.0);
       float dTw = abs(abs(gx) - 1.0) * 0.055;
-      float tower = step(dTw, hw) * step(0.0245, e) * step(e, towerTop);
-      float cable = step(abs(e - cableY), 0.0011) * step(abs(gx), 1.0);
-      ggbDeck = step(abs(e - deckY), 0.0010) * step(abs(gx), 1.06);
+      float legOffset = hw * 0.58;
+      float legHalfW = mix(0.00088, 0.00068, tt);
+      float towerBand = step(0.0245, e) * step(e, towerTop);
+      float towerLegs = step(abs(dTw - legOffset), legHalfW) * towerBand;
+      float lowerBeamY = mix(deckY, towerTop, 0.34);
+      float upperBeamY = mix(deckY, towerTop, 0.68);
+      float portalBeams = clamp(
+        step(abs(e - lowerBeamY), 0.00095)
+        + step(abs(e - upperBeamY), 0.00085),
+        0.0,
+        1.0
+      ) * step(dTw, hw) * towerBand;
+      float tower = clamp(towerLegs + portalBeams, 0.0, 1.0);
+      float cable = step(abs(e - cableY), 0.00155) * step(abs(gx), 1.0);
+      ggbDeck = step(abs(e - deckY), 0.00115) * step(abs(gx), 1.06);
+      // The roadway lights own the upper chord. A second, unlit lower chord
+      // and sparse verticals keep it reading as a bridge deck rather than a
+      // marquee string, without adding more bloom to the horizon.
+      float trussY = deckY - 0.0028;
+      float trussChord = step(abs(e - trussY), 0.00072) * step(abs(gx), 1.04);
+      float trussPosts = step(abs(fract((gx + 1.0) * 10.0) - 0.5), 0.060)
+                       * step(trussY, e) * step(e, deckY)
+                       * step(abs(gx), 1.0);
+      float deckTruss = clamp(trussChord + trussPosts, 0.0, 1.0);
       // Suspender ropes. Only legible near the towers — which is exactly the
       // stretch of span the ridge is not covering.
       float sus = 0.0;
@@ -1585,7 +1607,12 @@ const SKY_FRAGMENT = `
       }
       ggbTower = tower;
       ggbDeckY = deckY;
-      ggb = clamp(tower + cable + ggbDeck + sus, 0.0, 1.0);
+      ggbCable = cable;
+      ggb = clamp(
+        towerLegs + portalBeams + cable + ggbDeck + deckTruss + sus,
+        0.0,
+        1.0
+      );
     }
     // An 8 km bridge stands BEHIND the ridge and the rooftops, but structures
     // composites after the hills — so without this the span would paint over
@@ -1595,6 +1622,7 @@ const SKY_FRAGMENT = `
     ggb *= ggbVis;
     ggbTower *= ggbVis;
     ggbDeck *= ggbVis;
+    ggbCable *= ggbVis;
 
     // Coit Tower on Telegraph Hill — slender shaft, gently flared arcade.
     // Silhouette only (nightly floodlighting is unverified).
@@ -2318,8 +2346,10 @@ const SKY_FRAGMENT = `
       //     unison per FAA AC 70/7460-1L §5.2 — the same rule Sutro's flashers
       //     follow, on its own ~26/min clock so the two skylines do not blink
       //     together.
-      // Left out on purpose: the eight 116 W lights on each main cable, and
-      // the midspan navigation lights, which at this range are under a pixel.
+      // The eight 116 W lights on each main cable are under a pixel at this
+      // range. Their combined throw becomes one very low continuous lift on
+      // the cable mask below, never eight dots or a second marquee string.
+      // Midspan navigation lights remain omitted.
       // Amplitudes are LOW on purpose. This is one continuous 350 px line, not
       // the Bay Lights' isolated dots, so it accumulates far more bloom per
       // unit brightness — at the Bay Lights' own 0.85 it rendered as a blown
@@ -2331,6 +2361,7 @@ const SKY_FRAGMENT = `
       if (abs(gx) < 1.12 && e > 0.020 && e < 0.080) {
         vec3 hps = vec3(1.00, 0.62, 0.24);
         col += hps * ggbDeck * (0.68 + 0.32 * sin(gx * 116.0)) * 0.17 * night;
+        col += hps * ggbCable * 0.055 * night;
         col += hps * ggbTower * exp(-max(e - ggbDeckY, 0.0) * 95.0) * 0.25 * night;
         float ggbFlash = step(fract(uTime * 0.4333), 0.13);
         float dGa = length(vec2((gx + 1.0) * 0.055, e - 0.0720));
@@ -2814,30 +2845,22 @@ function SkyDome({
   // directly from the pointerdown coordinates.
   useEffect(() => {
     let down: [number, number] | null = null;
-    let touchEgg: string | null = null;
     const onDown = (e: PointerEvent) => {
+      if (e.pointerType === "touch") {
+        down = null;
+        return;
+      }
       if (!e.isPrimary || e.button !== 0) {
         down = null;
-        touchEgg = null;
         return;
       }
       down = [e.clientX, e.clientY];
-      const hit =
-        e.pointerType === "touch"
-          ? activationAtPointer(
-              e.clientX,
-              e.clientY,
-              useStacks.getState().activeUnit,
-            )
-          : null;
-      touchEgg = hit?.kind === "egg" ? hit.id : null;
     };
     const onUp = (e: PointerEvent) => {
+      if (e.pointerType === "touch") return;
       const from = down;
       down = null;
-      const tappedEgg =
-        e.pointerType === "touch" ? touchEgg : useStacks.getState().hovered;
-      touchEgg = null;
+      const tappedEgg = useStacks.getState().hovered;
       if (e.button !== 0 || !from) return;
       // A drag across the scroll element is travel, not a tap — the same
       // 6px threshold every other trigger in the scene uses for r3f's delta.

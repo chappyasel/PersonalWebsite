@@ -23,10 +23,12 @@ import * as THREE from "three";
 import { mergeVertices } from "three-stdlib";
 
 import { HOVER_MOTION_SCALE, LIFT_LAMBDA, TIP, hingeShift } from "./Lift";
+import { cameraFacingHoverTilt } from "./hoverTilt";
 import {
   HOVER_MAX_SIZE,
   type Hinge,
   hingeFor,
+  hingePivotForTilt,
   litByOwnRig,
   useInteractionClaimed,
 } from "./interaction";
@@ -490,7 +492,7 @@ function floorVerdict(
  *
  * The nod is the third channel, and it hinges the same way every other prop in
  * the world does (see Lift's TIP and hingeFor): about the prop's own
- * front-bottom edge, so the far half of the base rises off the plank instead
+ * supporting bottom edge, so the opposite half rises off the plank instead
  * of driving through it. It rides the SAME two gates as the rise — a prop too
  * big to bob is too big to nod, and a prop wearing its own lighting rig gets
  * neither, because turning a floor lamp slides its shade out of the spotlight
@@ -514,6 +516,10 @@ function HoverFloor({
   const rise = useRef(0);
   const swell = useRef(1);
   const nod = useRef(0);
+  const cameraDirection = useMemo(() => new THREE.Vector3(), []);
+  const cameraWorld = useMemo(() => new THREE.Vector3(), []);
+  const nodeWorld = useMemo(() => new THREE.Vector3(), []);
+  const parentWorld = useMemo(() => new THREE.Quaternion(), []);
   /** undefined = not measured yet (a GLB may still be streaming), null =
    * measured and refused. Resolved on first hover rather than in the mount
    * effect for exactly that reason: `floorVerdict` runs before the first frame
@@ -546,7 +552,7 @@ function HoverFloor({
   // still buys correct cursor arbitration against the props that DO open
   // something, and gives the harness something to read.
   const hoverKey = INERT_HOVER + useId();
-  useFrame((_, delta) => {
+  useFrame(({ camera }, delta) => {
     const g = ref.current;
     if (!g || inert) return;
     const on = hovered.current && !still;
@@ -557,10 +563,23 @@ function HoverFloor({
       const measured = hingeFor(g, false, HOVER_MAX_SIZE);
       if (measured) hinge.current = measured.reason ? null : measured;
     }
-    const pivot = hinge.current?.pivot ?? null;
+    const measuredHinge = hinge.current ?? null;
     const ty = on ? lift : 0;
     const ts = on ? grow : 1;
-    const tn = on && pivot ? TIP : 0;
+    let tn = 0;
+    if (on && measuredHinge) {
+      camera.getWorldPosition(cameraWorld);
+      g.getWorldPosition(nodeWorld);
+      cameraDirection.copy(cameraWorld).sub(nodeWorld);
+      if (g.parent) {
+        g.parent.getWorldQuaternion(parentWorld).invert();
+        cameraDirection.applyQuaternion(parentWorld);
+      }
+      tn = cameraFacingHoverTilt(cameraDirection, TIP);
+    }
+    const pivot = measuredHinge
+      ? hingePivotForTilt(measuredHinge, tn || nod.current)
+      : null;
     if (
       Math.abs(rise.current - ty) +
         Math.abs(swell.current - ts) +

@@ -1,5 +1,6 @@
 import { unitPose } from "../worldLayout";
 
+import { GOLF_CLUB_REST_BASE } from "./golfLayout";
 import type { GolfSurface } from "./golfTypes";
 
 export const TRAINING_UNIT_INDEX = 2;
@@ -27,6 +28,15 @@ const pose = unitPose(TRAINING_UNIT_INDEX);
 const yaw = pose.rotation[1];
 const c = Math.cos(yaw);
 const s = Math.sin(yaw);
+export const GOLF_CUP_WORLD_CENTER = {
+  x: pose.position[0] + GOLF_FLAG_LOCAL[0] * c + GOLF_FLAG_LOCAL[1] * s,
+  z: pose.position[2] - GOLF_FLAG_LOCAL[0] * s + GOLF_FLAG_LOCAL[1] * c,
+} as const;
+export const GOLF_CLUB_VEGETATION_CLEARANCE = 0.42;
+const GOLF_CLUB_CLEARING_CENTER = {
+  x: pose.position[0] + GOLF_CLUB_REST_BASE.x * c + GOLF_CLUB_REST_BASE.z * s,
+  z: pose.position[2] - GOLF_CLUB_REST_BASE.x * s + GOLF_CLUB_REST_BASE.z * c,
+} as const;
 
 export const GOLF_COURSE_CENTER = {
   x:
@@ -94,6 +104,20 @@ export function suppressGolfVegetation(
   z: number,
   _seed: number,
 ): { grassScale: number; flowers: boolean } {
+  const clubDistance = Math.hypot(
+    x - GOLF_CLUB_CLEARING_CENTER.x,
+    z - GOLF_CLUB_CLEARING_CENTER.z,
+  );
+  if (clubDistance < GOLF_CLUB_VEGETATION_CLEARANCE) {
+    return {
+      grassScale: smoothstep(
+        0.18,
+        GOLF_CLUB_VEGETATION_CLEARANCE,
+        clubDistance,
+      ),
+      flowers: false,
+    };
+  }
   const local = golfCourseLocalPoint(x, z);
   if (golfSurfaceAt(x, z) !== "rough") return { grassScale: 0, flowers: false };
 

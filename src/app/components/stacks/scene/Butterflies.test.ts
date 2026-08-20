@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
+import fs from "node:fs";
 
 import {
   BUTTERFLY_COUNT,
@@ -36,6 +37,7 @@ import {
   prepareInsectLandingTarget,
   registerInsectCollisionRoot,
 } from "./insectFlightWorld";
+import { insectOwnerIsDisturbed } from "./insectDisturbance";
 import {
   type InsectPerch,
   getInsectPerch,
@@ -56,7 +58,53 @@ import {
 } from "./insectResidency";
 import { registerSceneInteraction } from "./interactionRegistry";
 
+const butterflySource = fs.readFileSync(
+  new URL("./Butterflies.tsx", import.meta.url),
+  "utf8",
+);
+const wildlifeSource = fs.readFileSync(
+  new URL("./Wildlife.tsx", import.meta.url),
+  "utf8",
+);
+
 describe("butterfly roaming state", () => {
+  it("treats press and touch focus as direct prop disturbances for both species", () => {
+    expect(butterflySource).toContain("insectOwnerIsDisturbed");
+    expect(wildlifeSource).toContain("insectOwnerIsDisturbed");
+    expect(butterflySource).not.toContain(
+      "ownerId === stacks.hovered || ownerId === stacks.dragging",
+    );
+    expect(wildlifeSource).not.toContain(
+      "ownerId === stacks.hovered || ownerId === stacks.dragging",
+    );
+
+    const idle = {
+      hovered: null,
+      dragging: null,
+      pressedInteraction: null,
+      focusedInteraction: null,
+    };
+    expect(insectOwnerIsDisturbed("books:stack", idle)).toBe(false);
+    expect(
+      insectOwnerIsDisturbed("books:stack", {
+        ...idle,
+        pressedInteraction: "books:stack",
+      }),
+    ).toBe(true);
+    expect(
+      insectOwnerIsDisturbed("books:stack", {
+        ...idle,
+        focusedInteraction: "books:stack",
+      }),
+    ).toBe(true);
+    expect(
+      insectOwnerIsDisturbed("books:stack", {
+        ...idle,
+        pressedInteraction: "about:chair",
+      }),
+    ).toBe(false);
+  });
+
   it("reports only a sustained low-speed roam as a stall", () => {
     const observation = {
       lowSpeedSince: -1,

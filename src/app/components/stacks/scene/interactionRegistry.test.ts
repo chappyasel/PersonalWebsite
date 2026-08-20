@@ -69,6 +69,24 @@ describe("scene interaction registry", () => {
     release();
   });
 
+  it("allows physical controls to suppress their redundant label", () => {
+    const release = registerSceneInteraction({
+      id: "test:quiet-action",
+      root: new Group(),
+      activeUnits: [2],
+      showLabel: false,
+      activation: {
+        kind: "action",
+        label: "Swing club",
+        run: () => undefined,
+      },
+    });
+    expect(
+      doorLabelActivation(getSceneInteraction("test:quiet-action")),
+    ).toBeNull();
+    release();
+  });
+
   it("gives golf controls a cursor without registering a label capability", () => {
     expect(cursorForInteraction("golf-club:strike", null)).toBe("pointer");
     expect(cursorForInteraction("golf-ball:one", null)).toBe("pointer");

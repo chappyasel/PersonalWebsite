@@ -84,13 +84,13 @@ export const GOLF_UNIT_INDEX = UNITS.findIndex(
   (unit) => unit.slug === "training",
 );
 /** A narrow, rail-less camera stop between Books and Weightlifting. It sits
- * slightly toward Weightlifting so the green, rather than the club shaft,
- * owns the centre of the frame. */
-export const GOLF_STOP_POSITION = 1.6;
+ * slightly toward Books so the foreground club and balls land around the
+ * centre instead of bunching against the left edge. */
+export const GOLF_STOP_POSITION = 1.52;
 /** Golf enters after Books has clearly released and remains available until
  * just before Weightlifting reaches its authored centre. */
-export const GOLF_FOCUS_START = 1.4;
-export const GOLF_FOCUS_END = 1.8;
+export const GOLF_FOCUS_START = 1.36;
+export const GOLF_FOCUS_END = 1.78;
 
 export function unitIndexFromHash(hash: string): number | null {
   const slug = hash.replace(/^#/, "");

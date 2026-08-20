@@ -4,15 +4,13 @@ import {
   doorLabelActivation,
   getSceneInteraction,
   projectDoor,
+  runSceneInteractionActivation,
 } from "../scene/interactionRegistry";
 import { progressRef, useStacks } from "../store";
 import { ArrowUpRightIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import {
-  DOOR_LABEL_VIEWPORT_GUTTER,
-  clampDoorLabelX,
-} from "./doorLabelPlacement";
+import { clampDoorLabelX, clampDoorLabelY } from "./doorLabelPlacement";
 
 const INITIAL_DWELL_MS = 350;
 const TRANSITION_MS = 200;
@@ -31,6 +29,7 @@ function isFinePointer() {
 
 export default function DoorLabel() {
   const hovered = useStacks((s) => s.hovered);
+  const focused = useStacks((s) => s.focusedInteraction);
   const dragging = useStacks((s) => s.dragging);
   const modalOpen = useStacks((s) => s.modalOpen);
   const panelState = useStacks((s) => s.panelState);
@@ -80,10 +79,11 @@ export default function DoorLabel() {
   }, []);
 
   useEffect(() => {
-    const spec = getSceneInteraction(hovered);
+    const interactionId = focused ?? hovered;
+    const spec = getSceneInteraction(interactionId);
     const activation = doorLabelActivation(spec);
     const eligible =
-      isFinePointer() &&
+      (Boolean(focused) || isFinePointer()) &&
       activation &&
       !dragging &&
       !modalOpen &&
@@ -114,7 +114,11 @@ export default function DoorLabel() {
     }
     if (shownRef.current && shownRef.current.id !== spec.id)
       setLabelVisible(false);
-    const delay = hadDoor.current ? SWITCH_DWELL_MS : INITIAL_DWELL_MS;
+    const delay = focused
+      ? 0
+      : hadDoor.current
+        ? SWITCH_DWELL_MS
+        : INITIAL_DWELL_MS;
     hadDoor.current = true;
     const timeout = window.setTimeout(() => {
       const next = {
@@ -128,7 +132,7 @@ export default function DoorLabel() {
       setShown(next);
     }, delay);
     return () => window.clearTimeout(timeout);
-  }, [dragging, hovered, modalOpen, panelState, setLabelVisible]);
+  }, [dragging, focused, hovered, modalOpen, panelState, setLabelVisible]);
 
   useEffect(() => {
     if (!shown) return;
@@ -174,12 +178,19 @@ export default function DoorLabel() {
           window.innerWidth,
           dockRect,
         );
-        const y = Math.max(
-          DOOR_LABEL_VIEWPORT_GUTTER + element.offsetHeight,
-          Math.min(
-            window.innerHeight - DOOR_LABEL_VIEWPORT_GUTTER,
-            anchor.y - 10,
-          ),
+        const activeSheet = document.querySelector<HTMLElement>(
+          "[data-stacks-mobile-panel][data-stacks-panel]",
+        );
+        const desiredY = anchor.y - 10;
+        const y = clampDoorLabelY(
+          anchor.y,
+          element.offsetHeight,
+          window.innerHeight,
+          activeSheet?.getBoundingClientRect() ?? null,
+        );
+        element.toggleAttribute(
+          "data-docked",
+          focused !== null && Math.abs(y - desiredY) > 2,
         );
         // The positioned node is also the glass node. Keeping positioning on
         // a transformed parent made that parent the tooltip's compositing
@@ -218,7 +229,7 @@ export default function DoorLabel() {
       }
       positionedId.current = null;
     };
-  }, [setLabelVisible, shown]);
+  }, [focused, setLabelVisible, shown]);
 
   if (!shown) return null;
   return (
@@ -231,32 +242,50 @@ export default function DoorLabel() {
             "translate3d(var(--door-label-x, 0px), var(--door-label-y, 0px), 0) translate(-50%, -100%)",
         } as React.CSSProperties
       }
-      className="pointer-events-none fixed left-0 top-0 z-30 w-max max-w-[240px]"
+      className={`${focused ? "pointer-events-auto" : "pointer-events-none"} fixed left-0 top-0 z-30 w-max max-w-[240px]`}
     >
+      <style>{`
+        [data-door-tether] { opacity: 0; }
+        [data-stacks-door-label][data-docked] [data-door-tether] { opacity: 0.55; }
+      `}</style>
+      <span
+        aria-hidden
+        data-door-tether=""
+        className="pointer-events-none absolute left-1/2 top-full h-4 w-px -translate-x-1/2 bg-foreground transition-opacity"
+      />
       {/* Projection is written to the unanimated wrapper above. Entrance
           motion stays on this child, so a transform transition can never
           interpolate live screen coordinates from their 0px fallbacks. */}
-      <div
-        role="status"
-        aria-live="polite"
-        className={`stacks-glass-tooltip flex max-w-[240px] origin-bottom items-start gap-1 rounded-lg border px-2.5 py-1.5 text-left text-[13px] leading-[1.25] text-foreground transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none ${
+      <button
+        type="button"
+        disabled={!focused}
+        role={focused ? undefined : "status"}
+        aria-live={focused ? undefined : "polite"}
+        onClick={() => {
+          if (focused === shown.id) runSceneInteractionActivation(shown.id);
+        }}
+        className={`flex max-w-[240px] origin-bottom items-center justify-center border-0 bg-transparent p-0 text-left text-[13px] leading-[1.25] text-foreground transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none ${
+          focused ? "min-h-12 min-w-12" : "min-h-0"
+        } ${
           visible
             ? "translate-y-0 scale-100 opacity-100"
             : "translate-y-1.5 scale-[0.96] opacity-0"
         }`}
       >
-        <span className="min-w-0 whitespace-normal break-words">
-          {shown.label}
+        <span className="stacks-glass-tooltip flex min-w-0 items-start gap-1 rounded-lg border px-2.5 py-1.5">
+          <span className="min-w-0 whitespace-normal break-words">
+            {shown.label}
+          </span>
+          {shown.external ? (
+            <ArrowUpRightIcon
+              aria-hidden="true"
+              className="mt-px shrink-0"
+              size={13}
+              weight="bold"
+            />
+          ) : null}
         </span>
-        {shown.external ? (
-          <ArrowUpRightIcon
-            aria-hidden="true"
-            className="mt-px shrink-0"
-            size={13}
-            weight="bold"
-          />
-        ) : null}
-      </div>
+      </button>
     </div>
   );
 }

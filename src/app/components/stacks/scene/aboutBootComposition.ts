@@ -23,6 +23,10 @@ export type AboutBootLandmark = {
   glyph: AboutLandmarkGlyph;
   /** Simplified front elevation, in scene units. */
   profile: { width: number; height: number };
+  /** Exact visible photo plane inside a frame, in scene units. */
+  imageProfile?: { width: number; height: number };
+  /** Dominant front-elevation color used before the lit 3D material arrives. */
+  colorProfile?: { light: string; dark: string };
   /** Model scale where the live prop has one authored at its call site. */
   sceneScale?: number;
 };
@@ -37,6 +41,7 @@ export const ABOUT_BOOT_COMPOSITION = [
     x: -1.16,
     glyph: "globe",
     profile: { width: 0.32, height: 0.49 },
+    colorProfile: { light: "#5c7f9c", dark: "#3c5a72" },
     sceneScale: 1.75,
   },
   {
@@ -44,7 +49,8 @@ export const ABOUT_BOOT_COMPOSITION = [
     shelf: "top",
     x: -0.42,
     glyph: "portrait-frame",
-    profile: { width: 0.8, height: 0.97 },
+    profile: { width: 1.02 * 0.78, height: 1.24 * 0.78 },
+    imageProfile: { width: 0.86 * 0.78, height: 1.08 * 0.78 },
     sceneScale: 0.78,
   },
   {
@@ -52,7 +58,8 @@ export const ABOUT_BOOT_COMPOSITION = [
     shelf: "top",
     x: 0.48,
     glyph: "portrait-frame",
-    profile: { width: 0.25, height: 0.31 },
+    profile: { width: 0.264 * (769 / 1024) + 0.048, height: 0.312 },
+    imageProfile: { width: 0.264 * (769 / 1024), height: 0.264 },
   },
   {
     id: "succulent",
@@ -60,6 +67,7 @@ export const ABOUT_BOOT_COMPOSITION = [
     x: 0.72,
     glyph: "succulent",
     profile: { width: 0.27, height: 0.13 },
+    colorProfile: { light: "#5f7a48", dark: "#5a6a38" },
     sceneScale: 0.18,
   },
   {
@@ -67,7 +75,8 @@ export const ABOUT_BOOT_COMPOSITION = [
     shelf: "top",
     x: 1,
     glyph: "portrait-frame",
-    profile: { width: 0.19, height: 0.25 },
+    profile: { width: 0.228, height: 0.288 },
+    imageProfile: { width: 0.18, height: 0.24 },
   },
   {
     id: "large-plant",
@@ -75,6 +84,7 @@ export const ABOUT_BOOT_COMPOSITION = [
     x: 1.18,
     glyph: "plant",
     profile: { width: 0.27, height: 0.3 },
+    colorProfile: { light: "#5f7a48", dark: "#5a6a38" },
     sceneScale: 1.05,
   },
   {
@@ -83,6 +93,7 @@ export const ABOUT_BOOT_COMPOSITION = [
     x: -1.12,
     glyph: "cactus",
     profile: { width: 0.4, height: 0.35 },
+    colorProfile: { light: "#7a8f56", dark: "#6d7c42" },
     sceneScale: 0.34,
   },
   {
@@ -91,6 +102,7 @@ export const ABOUT_BOOT_COMPOSITION = [
     x: -0.72,
     glyph: "desk-lamp",
     profile: { width: 0.28, height: 0.63 },
+    colorProfile: { light: "#c2a377", dark: "#94795a" },
     sceneScale: 1.5,
   },
   {
@@ -98,14 +110,16 @@ export const ABOUT_BOOT_COMPOSITION = [
     shelf: "lower",
     x: -0.48,
     glyph: "collective-mark",
-    profile: { width: 0.21, height: 0.24 },
+    profile: { width: 0.205, height: 0.208 },
+    colorProfile: { light: "#ff9b50", dark: "#d77332" },
   },
   {
     id: "tj-medallion",
     shelf: "lower",
     x: -0.24,
     glyph: "medallion",
-    profile: { width: 0.22, height: 0.26 },
+    profile: { width: 0.3 * 0.72, height: 0.352 * 0.72 },
+    colorProfile: { light: "#b9ad98", dark: "#7d7468" },
     sceneScale: 0.72,
   },
   {
@@ -113,7 +127,8 @@ export const ABOUT_BOOT_COMPOSITION = [
     shelf: "lower",
     x: 0,
     glyph: "apple",
-    profile: { width: 0.16, height: 0.17 },
+    profile: { width: 0.152, height: 0.176 },
+    colorProfile: { light: "#c2c6ca", dark: "#9ba2a7" },
   },
   {
     id: "reading-stack",
@@ -127,7 +142,8 @@ export const ABOUT_BOOT_COMPOSITION = [
     shelf: "lower",
     x: 1.06,
     glyph: "landscape-frame",
-    profile: { width: 0.33, height: 0.21 },
+    profile: { width: 0.3552, height: 0.24 },
+    imageProfile: { width: 0.3072, height: 0.192 },
   },
 ] as const satisfies readonly AboutBootLandmark[];
 

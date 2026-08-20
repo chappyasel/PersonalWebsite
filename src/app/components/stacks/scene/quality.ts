@@ -6,6 +6,56 @@ export type SceneQualityProfile =
   | "efficient"
   | "safety";
 export type SceneQualityMode = "auto" | SceneQualityProfile;
+export type RendererCapability =
+  | "unknown"
+  | "constrained"
+  | "standard"
+  | "high";
+
+export function deriveRendererCapability({
+  webglVersion,
+  maxTextureSize,
+  maxSamples,
+  physicalPixels,
+  observed,
+}: {
+  webglVersion: 1 | 2;
+  maxTextureSize: number;
+  maxSamples: number;
+  physicalPixels: number;
+  observed?: Pick<
+    SceneQualityMetrics,
+    "p95" | "targetFrameMs" | "droppedFrameRatio" | "sampleCount"
+  > | null;
+}): RendererCapability {
+  if (
+    (observed &&
+      observed.sampleCount >= 60 &&
+      (observed.p95 > observed.targetFrameMs * 1.45 ||
+        observed.droppedFrameRatio > 0.25)) ||
+    webglVersion === 1 ||
+    maxTextureSize < 8192 ||
+    maxSamples < 2 ||
+    physicalPixels > 9_000_000
+  )
+    return "constrained";
+  if (
+    webglVersion === 2 &&
+    maxTextureSize >= 16384 &&
+    maxSamples >= 4 &&
+    physicalPixels <= 6_000_000
+  )
+    return "high";
+  return "standard";
+}
+
+export function bookCoverWidthForNeed(
+  projectedCssPixels: number,
+  profile: SceneQualityProfile,
+): 256 | 384 {
+  if (profile === "efficient" || profile === "safety") return 256;
+  return projectedCssPixels * 1.35 > 256 ? 384 : 256;
+}
 export type QualityTransitionReason =
   | "startup"
   | "decline"
@@ -289,6 +339,18 @@ export const SCENE_QUALITY_DEFINITIONS: Readonly<
   },
 });
 
+/** Narrow layouts share the mobile presentation seam, but this cap remains
+ * independent of pointer type and renderer classification. Cinematic is
+ * manual-only and deliberately keeps its capture-quality DPR policy. */
+export const NARROW_VIEWPORT_DPR_CAP_BY_PROFILE: Readonly<
+  Record<Exclude<SceneQualityProfile, "cinematic">, number>
+> = Object.freeze({
+  showcase: 2,
+  balanced: 1.75,
+  efficient: 1.5,
+  safety: 1.25,
+});
+
 export type SceneQualityAdvancedOverrides = Readonly<{
   effectiveDprLadder?: boolean;
   adaptiveSharpen?: boolean;
@@ -309,6 +371,7 @@ export function resolveSceneQualityPlan({
   cssHeight,
   deviceDpr,
   touch,
+  narrowViewport = false,
   directRender = false,
   overrides,
   hasCustomOverrides,
@@ -319,6 +382,7 @@ export function resolveSceneQualityPlan({
   cssHeight: number;
   deviceDpr: number;
   touch: boolean;
+  narrowViewport?: boolean;
   directRender?: boolean;
   overrides?: SceneQualityAdvancedOverrides;
   hasCustomOverrides?: boolean;
@@ -332,13 +396,18 @@ export function resolveSceneQualityPlan({
   const cssPixels = Math.max(1, cssWidth * cssHeight);
   const areaCap = Math.sqrt(pixelBudget / cssPixels);
   const minimumDpr = definition.minimumDpr;
+  const dprCap =
+    narrowViewport && profile !== "cinematic"
+      ? Math.min(
+          dprDefinition.dprCap,
+          NARROW_VIEWPORT_DPR_CAP_BY_PROFILE[
+            useProfileDpr ? profile : "showcase"
+          ],
+        )
+      : dprDefinition.dprCap;
   const dpr = Math.max(
     minimumDpr,
-    Math.min(
-      deviceDpr * dprDefinition.deviceDprScale,
-      dprDefinition.dprCap,
-      areaCap,
-    ),
+    Math.min(deviceDpr * dprDefinition.deviceDprScale, dprCap, areaCap),
   );
   const ambientOcclusion =
     overrides?.skipAmbientOcclusion == null
@@ -372,7 +441,7 @@ export function resolveSceneQualityPlan({
     legacyRung: LEGACY_RUNG_BY_PROFILE[profile],
     touch,
     dpr,
-    dprCap: dprDefinition.dprCap,
+    dprCap,
     pixelBudget,
     physicalPixels: Math.round(cssPixels * dpr * dpr),
     effects: {
@@ -444,7 +513,7 @@ export const QUALITY_DOWNGRADE_P95_IMPROVEMENT_RATIO = 0.9;
 export const QUALITY_DOWNGRADE_DROP_IMPROVEMENT = 0.03;
 // Policy semantics and large-viewport DPR floors changed in v3. Do not
 // restore a Safety decision learned by the former jitter-sensitive policy.
-const QUALITY_STORAGE_VERSION = 3;
+const QUALITY_STORAGE_VERSION = 4;
 
 export type SceneQualityMetrics = Readonly<{
   targetFrameMs: number;
@@ -824,12 +893,13 @@ export function forcedQualityFromSearch(
 }
 
 export function sceneQualityStorageBucket({
-  touch,
+  capability = "unknown",
   cssWidth,
   cssHeight,
   deviceDpr,
 }: {
-  touch: boolean;
+  touch?: boolean;
+  capability?: RendererCapability;
   cssWidth: number;
   cssHeight: number;
   deviceDpr: number;
@@ -837,7 +907,7 @@ export function sceneQualityStorageBucket({
   const pixels = cssWidth * cssHeight * deviceDpr * deviceDpr;
   const pixelBucket =
     pixels <= 3_000_000 ? "small" : pixels <= 6_000_000 ? "medium" : "large";
-  return `stacks-quality:v${QUALITY_STORAGE_VERSION}:${touch ? "coarse" : "fine"}:${pixelBucket}`;
+  return `stacks-quality:v${QUALITY_STORAGE_VERSION}:${capability}:${pixelBucket}`;
 }
 
 // Compatibility helpers retained for scripts and focused callers while the

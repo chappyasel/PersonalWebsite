@@ -13,22 +13,25 @@
 //
 // Everything else in the world now tilts too, and gets it WITHOUT asking: a
 // prop whose call site authored no rotation response of its own nods toward
-// the viewer about its own front-bottom edge. See TIP and hingeFor(). Rising
+// the viewer about the bottom edge that keeps it above its support. See TIP
+// and hingeFor(). Rising
 // and tipping are one gesture rather than two settings each call site has to
 // remember, which is the whole point — the complaint this answers is that the
 // response was arbitrary from prop to prop.
 import { useStacks } from "../store";
-import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { cameraFacingHoverTilt } from "./hoverTilt";
 import {
   type Hinge,
   InteractionClaim,
   TILT_MAX_SIZE,
   hingeFor,
+  hingePivotForTilt,
 } from "./interaction";
 import { scenePerformanceController } from "./scenePerformance";
+import { useUnitFrame } from "./unitActivity";
 
 /** ~95% of the travel in 300ms. Exported because ModelProp's universal hover
  * floor eases on the same curve — every hover in the world settles alike. */
@@ -43,7 +46,7 @@ export const HOVER_MOTION_SCALE = 2;
 /** Radians of automatic nod, for a prop whose call site authored no rotation
  * response of its own. The original 0.06-radian gesture was difficult to see
  * at shelf distance; the shared scale makes it ~6.9° while the hinge keeps the
- * front-bottom contact edge planted. Exported so Grabbable and ModelProp nod
+ * correct bottom contact edge planted. Exported so Grabbable and ModelProp nod
  * by exactly the same amount. */
 export const TIP = 0.06 * HOVER_MOTION_SCALE;
 
@@ -132,7 +135,7 @@ export default function Lift({
   settle?: number;
   /** Uniform scale while hovered. */
   grow?: number;
-  /** Radians of automatic nod about the prop's own front edge. Left unset it
+  /** Radians of automatic nod about the prop's supporting edge. Left unset it
    * decides for itself: a call site that already authored a rotation response
    * (a `rest` tilt that `settle` eases away) keeps only that one, everything
    * else nods by TIP. Pass 0 to refuse it outright. */
@@ -157,6 +160,19 @@ export default function Lift({
    * is the earliest moment the GLB is certainly there and the cheapest place
    * to pay for it — a prop nobody points at measures nothing, ever. */
   const hinge = useRef<Hinge | null | undefined>(undefined);
+  const cameraDirection = useMemo(() => new THREE.Vector3(), []);
+  const cameraWorld = useMemo(() => new THREE.Vector3(), []);
+  const nodeWorld = useMemo(() => new THREE.Vector3(), []);
+  const parentWorld = useMemo(() => new THREE.Quaternion(), []);
+  const restInverse = useMemo(
+    () =>
+      new THREE.Quaternion()
+        .setFromEuler(
+          new THREE.Euler(rest?.[0] ?? 0, rest?.[1] ?? 0, rest?.[2] ?? 0),
+        )
+        .invert(),
+    [rest],
+  );
   const still = useMemo(() => reducedMotion(), []);
   /** A caller-authored rotation response wins; `tip={0}` refuses outright. */
   const authored =
@@ -169,10 +185,15 @@ export default function Lift({
   );
   const wanted = still ? 0 : motion.tip;
 
-  useFrame((_, delta) => {
+  useUnitFrame(({ camera }, delta) => {
     const g = ref.current;
     if (!g) return;
-    const lifted = useStacks.getState().hovered === hoverKey;
+    const interaction = useStacks.getState();
+    const pressed = interaction.pressedInteraction === hoverKey;
+    const lifted =
+      interaction.hovered === hoverKey ||
+      interaction.focusedInteraction === hoverKey ||
+      pressed;
     if (lifted !== previousLifted.current) {
       previousLifted.current = lifted;
       settled.current = false;
@@ -201,16 +222,31 @@ export default function Lift({
         }
       }
     }
-    const pivot = hinge.current?.pivot ?? null;
+    const measuredHinge = hinge.current ?? null;
     const tx = base[0] + (lifted ? motion.offset[0] : 0);
     const ty = base[1] + (lifted ? motion.offset[1] : 0);
     const tz = base[2] + (lifted ? motion.offset[2] : 0);
     const by = lifted ? motion.settle : 0;
-    const rx =
-      (rest ? toward(rest[0], by) : 0) + (lifted && pivot ? wanted : 0);
+    const restX = rest ? toward(rest[0], by) : 0;
+    let cameraTip = 0;
+    if (lifted && measuredHinge && wanted > 0) {
+      camera.getWorldPosition(cameraWorld);
+      g.getWorldPosition(nodeWorld);
+      cameraDirection.copy(cameraWorld).sub(nodeWorld);
+      if (g.parent) {
+        g.parent.getWorldQuaternion(parentWorld).invert();
+        cameraDirection.applyQuaternion(parentWorld);
+      }
+      cameraDirection.applyQuaternion(restInverse);
+      cameraTip = cameraFacingHoverTilt(cameraDirection, wanted);
+    }
+    const pivot = measuredHinge
+      ? hingePivotForTilt(measuredHinge, cameraTip || g.rotation.x - restX)
+      : null;
+    const rx = restX + (lifted && pivot ? cameraTip : 0);
     const ry = rest ? toward(rest[1], by) : 0;
     const rz = rest ? toward(rest[2], by) : 0;
-    const ts = lifted ? motion.grow : 1;
+    const ts = pressed ? 0.965 : lifted ? motion.grow : 1;
     const r = g.rotation;
     const error =
       Math.abs(pos.x - tx) +

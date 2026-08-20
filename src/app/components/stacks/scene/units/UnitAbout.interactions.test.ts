@@ -5,8 +5,17 @@ const source = fs.readFileSync(
   new URL("./UnitAbout.tsx", import.meta.url),
   "utf8",
 );
+const authoredPropsSource = fs.readFileSync(
+  new URL("../AuthoredProps.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("About shelf throwable props", () => {
+  it("keeps the couch visual-only instead of turning a second tap into seating", () => {
+    expect(source).not.toContain('import SitChair from "../SitChair"');
+    expect(source).not.toContain("<SitChair");
+  });
+
   it("keeps the globe's spin egg on a grabbable carrier", () => {
     const start = source.indexOf('hoverKey="egg:globe"');
     const end = source.indexOf('id="portrait"', start);
@@ -35,6 +44,33 @@ describe("About shelf throwable props", () => {
     expect(start).toBeGreaterThanOrEqual(0);
     expect(hover).toContain("readingBookAtAuthoredPose");
     expect(hover).toContain("authoredBase");
+  });
+
+  it("keeps a stationary pointer target under each animated reading book", () => {
+    const start = source.indexOf("function ReadingBookHover");
+    const end = source.indexOf("const READING_BOARD_THICKNESS", start);
+    const hover = source.slice(start, end);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(hover).toContain('name="interaction-hit:reading-book"');
+    expect(hover).toContain("physicsIgnore: true");
+  });
+
+  it("gives all three desk metals the same shimmer and camera-facing tilt", () => {
+    const appleStart = source.indexOf('hoverKey="shimmer:apple"');
+    const appleEnd = source.indexOf("<ReadingStack", appleStart);
+    const deskMetals = source.slice(appleStart, appleEnd);
+    const tjStart = authoredPropsSource.indexOf("function TJMedallionBody");
+    const tjEnd = authoredPropsSource.indexOf(
+      "export function ShakerProp",
+      tjStart,
+    );
+    const tj = authoredPropsSource.slice(tjStart, tjEnd);
+
+    expect(appleStart).toBeGreaterThanOrEqual(0);
+    expect(deskMetals).not.toContain("tiltOnHover={false}");
+    expect(tjStart).toBeGreaterThanOrEqual(0);
+    expect(tj).toContain("useMetalShimmer");
   });
 
   it("gives the AIC mark a padded pointer target that physics ignores", () => {

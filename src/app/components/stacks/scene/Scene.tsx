@@ -24,6 +24,7 @@ import {
 } from "react";
 import type * as THREE from "three";
 
+import ArrivalBeats from "./ArrivalBeats";
 import CameraRig from "./CameraRig";
 import GroundPool, { FootPool } from "./GroundPool";
 import InsectPerchDiagnostics from "./InsectPerchDiagnostics";
@@ -43,6 +44,11 @@ import { V8_PHOTOS_BY_UNIT, scenePhotoManifestUrl } from "./photoTextures";
 import type { SceneQualityPlan } from "./quality";
 import { scenePrewarmDeferred } from "./scenePerformance";
 import { SHELF_GEOMETRY } from "./shelfGeometry";
+import {
+  SceneUnitActivityDriver,
+  UnitActivityProvider,
+  useUnitActivityRoot,
+} from "./unitActivity";
 import UnitAbout, { PORTRAIT_SRC } from "./units/UnitAbout";
 import UnitBlog from "./units/UnitBlog";
 import UnitBooks, { featuredBookPerchDefinitions } from "./units/UnitBooks";
@@ -51,7 +57,7 @@ import UnitSystems from "./units/UnitSystems";
 import UnitTalks from "./units/UnitTalks";
 import UnitTraining from "./units/UnitTraining";
 import { type UnitProps } from "./units/types";
-import { unitPose } from "./worldLayout";
+import { captureHeadOnFromSearch, unitPoseForCapture } from "./worldLayout";
 
 const UNIT_COMPONENTS: Record<UnitSlug, ComponentType<UnitProps>> = {
   about: UnitAbout,
@@ -77,10 +83,16 @@ const MONSTERA_ATLAS_DARK = {
 // no-op on every viewport: mobile scene taps belong to the 3D interactions,
 // while the sheet's grabber, header, and chip are its explicit controls.
 function onUnitTap(index: number, e: ThreeEvent<MouseEvent>) {
+  if ((e as unknown as { pointerType?: string }).pointerType === "touch")
+    return;
   if ((e.delta ?? 0) > 6) return; // swipe, not a tap
   e.stopPropagation();
   const state = useStacks.getState();
   if (state.panelState !== "closed" || state.modalOpen) return;
+  // Golf occupies the physical gap between Books and Weightlifting, directly
+  // over both units' invisible travel planes. A near-miss on the club or a
+  // ball must stay in Golf instead of activating whichever plane is behind it.
+  if (state.golfFocused) return;
   if (index === state.activeUnit) return;
   if (!state.travelTo) return;
   window.history.pushState(
@@ -93,13 +105,16 @@ function onUnitTap(index: number, e: ThreeEvent<MouseEvent>) {
 
 function CollisionIndexedUnit({
   index,
+  headOnCapture,
   children,
 }: {
   index: number;
+  headOnCapture: boolean;
   children: ReactNode;
 }) {
   const root = useRef<THREE.Group>(null);
   const physicsScene = usePhysicsScene();
+  useUnitActivityRoot(index, root);
   useEffect(() => {
     if (!root.current) return;
     const unregisterInsects = registerInsectCollisionRoot(index, root.current);
@@ -115,8 +130,8 @@ function CollisionIndexedUnit({
     };
   }, [index, physicsScene]);
   return (
-    <group ref={root} {...unitPose(index)}>
-      {children}
+    <group ref={root} {...unitPoseForCapture(index, headOnCapture)}>
+      <UnitActivityProvider index={index}>{children}</UnitActivityProvider>
     </group>
   );
 }
@@ -140,6 +155,7 @@ const SceneContent = memo(function SceneContent({
   palette,
   dark,
   coverWidth,
+  headOnCapture,
   onOpenBook,
   onOpenUrl,
 }: {
@@ -147,6 +163,7 @@ const SceneContent = memo(function SceneContent({
   palette: Palette;
   dark: boolean;
   coverWidth: 256 | 384;
+  headOnCapture: boolean;
   onOpenBook?: (bookId: string) => void;
   onOpenUrl?: (url: string) => void;
 }) {
@@ -297,7 +314,11 @@ const SceneContent = memo(function SceneContent({
       {UNITS.map((unit, i) => {
         const Unit = UNIT_COMPONENTS[unit.slug];
         return (
-          <CollisionIndexedUnit key={unit.slug} index={i}>
+          <CollisionIndexedUnit
+            key={unit.slug}
+            index={i}
+            headOnCapture={headOnCapture}
+          >
             <UnitInsectPerches
               unitIndex={i}
               definitions={i === 1 ? bookPerches : undefined}
@@ -367,17 +388,22 @@ function QualityLayer({
   palette,
   dark,
   quality,
+  headOnCapture,
 }: {
   palette: Palette;
   dark: boolean;
   quality: SceneQualityPlan;
+  headOnCapture: boolean;
 }) {
   return (
     <>
       <SceneEnvironment palette={palette} dark={dark} quality={quality} />
       {quality.environment.grounding &&
         UNITS.map((unit, i) => (
-          <group key={`pool-${unit.slug}`} {...unitPose(i)}>
+          <group
+            key={`pool-${unit.slug}`}
+            {...unitPoseForCapture(i, headOnCapture)}
+          >
             {/* Soft analytic grounding, isolated from the content units so a
                 quality transition cannot rebuild their private materials. */}
             <GroundPool color={palette.shadow} opacity={dark ? 0.55 : 0.4} />
@@ -404,19 +430,33 @@ function Scene({
   onOpenBook?: (bookId: string) => void;
   onOpenUrl?: (url: string) => void;
 }) {
+  const headOnCapture = useMemo(
+    () =>
+      typeof window !== "undefined" &&
+      captureHeadOnFromSearch(window.location.search),
+    [],
+  );
   return (
     <>
       {/* CameraRig FIRST. r3f executes useFrame callbacks in mount order; the
           environment and interactive content must read the camera after it
           has moved for this frame. */}
       <CameraRig />
+      <SceneUnitActivityDriver />
+      <ArrivalBeats />
       <PhysicsSceneProvider>
-        <QualityLayer palette={palette} dark={dark} quality={quality} />
+        <QualityLayer
+          palette={palette}
+          dark={dark}
+          quality={quality}
+          headOnCapture={headOnCapture}
+        />
         <SceneContent
           data={data}
           palette={palette}
           dark={dark}
           coverWidth={coverWidth}
+          headOnCapture={headOnCapture}
           onOpenBook={onOpenBook}
           onOpenUrl={onOpenUrl}
         />

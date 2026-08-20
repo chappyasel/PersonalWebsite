@@ -27,6 +27,22 @@ describe("boot presentation", () => {
     expect(component).not.toContain("updatePlaybackRate");
   });
 
+  it("does not turn boot photos into render-priority resources", () => {
+    expect(component).not.toContain("next/image");
+    expect(component).not.toContain("priority=");
+    expect(component).not.toContain('rel="preload"');
+  });
+
+  it("switches each object's authored material color with the page theme", () => {
+    expect(rule(".stacks-boot-item {")).toContain("--stacks-boot-object-light");
+    expect(rule(".dark .stacks-boot-item {")).toContain(
+      "--stacks-boot-object-dark",
+    );
+    expect(rule(".stacks-boot-model-silhouette {")).toContain(
+      "fill: var(--stacks-boot-object)",
+    );
+  });
+
   it("matches the compact top-left wordmark tracking", () => {
     const wordmark = rule(".stacks-boot-wordmark {");
     expect(wordmark).toContain("margin: 0 0 28px");

@@ -7,7 +7,6 @@
 import { useStacks } from "../store";
 import { PALETTES, type Palette, rand } from "../theme";
 import { RoundedBox } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
 import React, { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
@@ -25,6 +24,7 @@ import {
 } from "./bookInteractions";
 import { registerSceneInteraction } from "./interactionRegistry";
 import PropLink, { type PropDestination } from "./links";
+import { useUnitFrame } from "./unitActivity";
 import { MOTH_LIGHT_PROFILES, registerMeadowLamp } from "./meadowLights";
 import {
   practicalGlowHaloEnabled,
@@ -719,6 +719,7 @@ export function BookRowMesh({
   to = "books",
   grabbableCovers = false,
   grabbableVolumes = false,
+  firstCoverArrivalProgress,
 }: {
   items: RowItem[];
   palette: Palette;
@@ -740,6 +741,9 @@ export function BookRowMesh({
   /** Opt-in for packed spines, leaners, flat volumes, and featured risers.
    * Each volume keeps its tap destination through tap/drag arbitration. */
   grabbableVolumes?: boolean;
+  /** Optional Unit-authored Arrival Beat. Only the first cover participates;
+   * packed context and the rest of the featured rank remain still. */
+  firstCoverArrivalProgress?: () => number;
 }) {
   // Contact darkening under the row. No light in the scene casts a shadow and
   // N8AO runs at half resolution (and not at all on touch), so the line where
@@ -933,28 +937,47 @@ export function BookRowMesh({
             </group>
           </ShelfBook>
         ) : (
-          <FeaturedCover
+          <FirstCoverArrival
             key={item.key}
-            item={item}
-            palette={palette}
-            textured={textured}
-            coverWidth={coverWidth}
-            onCoverClick={onCoverClick}
-            linkUnit={linkUnit}
-            to={to}
-            grabbable={grabbableCovers}
-            grabbableRiser={grabbableVolumes}
-            riserColor={
-              item.color ??
-              palette.spines[
-                Math.floor(rand(i, salt + 14) * palette.spines.length)
-              ]!
-            }
-          />
+            progress={i === 0 ? firstCoverArrivalProgress : undefined}
+          >
+            <FeaturedCover
+              item={item}
+              palette={palette}
+              textured={textured}
+              coverWidth={coverWidth}
+              onCoverClick={onCoverClick}
+              linkUnit={linkUnit}
+              to={to}
+              grabbable={grabbableCovers}
+              grabbableRiser={grabbableVolumes}
+              riserColor={
+                item.color ??
+                palette.spines[
+                  Math.floor(rand(i, salt + 14) * palette.spines.length)
+                ]!
+              }
+            />
+          </FirstCoverArrival>
         ),
       )}
     </group>
   );
+}
+
+function FirstCoverArrival({
+  progress,
+  children,
+}: {
+  progress?: () => number;
+  children: React.ReactNode;
+}) {
+  const group = useRef<THREE.Group>(null);
+  useUnitFrame(() => {
+    if (group.current)
+      group.current.position.z = progress ? -0.11 * (1 - progress()) : 0;
+  });
+  return <group ref={group}>{children}</group>;
 }
 
 /** The two shelf surfaces in unit-local y. Both content groups sit AT the
@@ -1592,7 +1615,7 @@ export function ApertureHalo({
   // shoulder immediately.
   const opacity = visible ? baseOpacity * (bloomActive ? 0.38 : 1) : 0;
   const texture = useMemo(() => glowTexture(), []);
-  useFrame(() => {
+  useUnitFrame(() => {
     const halo = ref.current;
     if (!halo) return;
     halo.material.opacity = opacity * (factorRef?.current ?? 1);
@@ -1647,7 +1670,7 @@ export function GlowSprite({
   const opacity = visible ? baseOpacity * (postfx ? 0.45 : 1) : 0;
   const texture = useMemo(() => glowTexture(), []);
   const world = useMemo(() => new THREE.Vector3(), []);
-  useFrame(({ camera }) => {
+  useUnitFrame(({ camera }) => {
     const sprite = ref.current;
     if (!sprite || (!eased && !factorRef)) return;
     let value = opacity;

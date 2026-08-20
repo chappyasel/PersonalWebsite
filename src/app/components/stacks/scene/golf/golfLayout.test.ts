@@ -1,3 +1,4 @@
+import { SHELF_GEOMETRY } from "../shelfGeometry";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -45,7 +46,9 @@ describe("authored golf bay composition", () => {
     expect(
       ballXs.reduce((sum, x) => sum + x, 0) / ballXs.length,
     ).toBeGreaterThan(-2.2);
-    expect(GOLF_CLUB_REST_BASE.x).toBeGreaterThan(-2.7);
+    expect(GOLF_CLUB_REST_BASE.x).toBeCloseTo(-2.9);
+    expect(GOLF_CLUB_REST_BASE.y).toBeCloseTo(SHELF_GEOMETRY.groundY);
+    expect(GOLF_CLUB_REST_BASE.z).toBeCloseTo(0.02);
     expect(Math.min(...GOLF_TEE_STARTS.map(([, z]) => z))).toBeGreaterThan(
       Math.max(...GOLF_BALL_IDS.map((id) => GOLF_BALL_STARTS[id].z)) + 0.1,
     );

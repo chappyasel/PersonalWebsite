@@ -9,6 +9,8 @@
 // the canonical section name; a unit may opt into a shorter navigation-only
 // label without changing the title of the destination it opens.
 import { UNITS, UNIT_COUNT, unitUrlForLocation } from "../data";
+import { TOUCH_HORIZONTAL_DOMINANCE, TOUCH_SLOP_PX } from "../mobile/gesture";
+import { haptic } from "../mobile/liveness";
 import { closeStacksPanel, railRightPxRef, useStacks } from "../store";
 import { useLayoutEffect, useRef } from "react";
 
@@ -27,9 +29,21 @@ const INDICATOR_THICKNESS_REM = 0.25;
 export default function UnitRail() {
   const activeUnit = useStacks((s) => s.activeUnit);
   const golfFocused = useStacks((s) => s.golfFocused);
+  const unitMapPreview = useStacks((s) => s.unitMapPreview);
+  const displayedUnit = unitMapPreview ?? activeUnit;
   const railRef = useRef<HTMLElement>(null);
+  const mobileRailRef = useRef<HTMLElement>(null);
   const desktopButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const mobileButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const mobileScrub = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    target: number;
+    active: boolean;
+    cancelled: boolean;
+  } | null>(null);
+  const suppressNextMobileClick = useRef(false);
 
   // Publish the rail's measured right edge for CameraRig's About-stop solver:
   // the initial framing slides right until the shelf's projected left edge
@@ -54,9 +68,30 @@ export default function UnitRail() {
     };
   }, []);
 
+  useLayoutEffect(() => {
+    const rail = mobileRailRef.current;
+    if (!rail) return;
+    // The icon rail is DOM chrome layered above the WebGL element. iOS can
+    // create a zero-width selection around an SVG after a double tap, so the
+    // canvas-level guard cannot help here. Cancel it at the owning control.
+    const preventNativeSelection = (event: Event) => {
+      event.preventDefault();
+      window.getSelection()?.removeAllRanges();
+    };
+    rail.addEventListener("selectstart", preventNativeSelection);
+    rail.addEventListener("contextmenu", preventNativeSelection);
+    rail.addEventListener("dblclick", preventNativeSelection);
+    return () => {
+      rail.removeEventListener("selectstart", preventNativeSelection);
+      rail.removeEventListener("contextmenu", preventNativeSelection);
+      rail.removeEventListener("dblclick", preventNativeSelection);
+    };
+  }, []);
+
   const go = (index: number) => {
     const { travelTo, panelState, modalOpen } = useStacks.getState();
     if (!travelTo || modalOpen) return false;
+    useStacks.getState().setFocusedInteraction(null);
     const pushSectionHistory = () => {
       window.history.pushState(
         null,
@@ -127,6 +162,14 @@ export default function UnitRail() {
             top: calc(env(safe-area-inset-top, 0px) + 3.5rem);
             padding-left: env(safe-area-inset-left, 0px);
             padding-right: env(safe-area-inset-right, 0px);
+          }
+          .stacks-unit-rail-mobile,
+          .stacks-unit-rail-mobile * {
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-drag: none;
+            -webkit-user-select: none;
+            user-select: none;
           }
         }
         /* Inactive glyphs step back just enough to leave the full-opacity
@@ -237,51 +280,86 @@ export default function UnitRail() {
           })}
         </div>
       </nav>
-      {/* Mobile: unit row on its OWN row, centred, below the top chrome.
-
-          It used to sit at right-4 top-4, which put it in the same corner as
-          the theme toggle (right-4 top-3, a 40px button, so 12–52px down).
-          Both were absolutely positioned and neither knew about the other, so
-          the seventh mark landed under the moon glyph — reported from a 390px
-          portrait screenshot, and it gets worse as the viewport narrows
-          because the row grows rightward from a fixed right edge into the
-          toggle's box.
-
-          Giving the row the full width instead of the corner is what makes
-          the collision impossible rather than merely unlikely: the toggle
-          owns the strip above 52px, the name owns the left of it, and this
-          row starts at 56px, so no width can bring them together.
-
-          WHY IT IS NOW ICONS. The row was seven 3px dashes in a muted grey,
-          and over a sky whose luminance changes with every unit that is
-          genuinely hard to see — the owner's "the top nav should be larger /
-          easier to see". Two things were wrong and only one of them was
-          size: a 10x3px mark is small, but a mark with no contrast floor is
-          invisible at any size. So the marks are now the sections' own
-          glyphs at 22px in the stronger shared foreground, and a moving pill
-          survives underneath as the position indicator. A visitor gets to
-          see WHICH seven things the row is, which the dashes never told them.
-
-          Seven 2.75rem columns is 19.25rem, so the row still fits a 320px
-          screen with margin. The indicator animates its layout position rather
-          than a promoted transform on mobile: iOS Safari intermittently kept
-          old transform-layer raster tiles as a trail of tiny dashes. */}
-      {/* pointer-events on the BUTTONS, not the nav. The nav spans the full
-          width so the row can centre, and an interactive container that wide
-          would deaden a strip straight across the room — including the empty
-          space either side, where there is nothing to click but the scene
-          behind. */}
+      {/* Mobile: seven direct icon buttons. The row remains scrub-capable:
+          horizontal touch movement previews the travel-synced Placard and
+          commits one destination on release. Vertical movement stays native. */}
       <nav
+        ref={mobileRailRef}
         aria-label="Sections"
         className="stacks-unit-rail-mobile pointer-events-none absolute inset-x-0 z-30 flex justify-center min-[1200px]:hidden"
       >
-        <div className="relative flex">
+        <div
+          className="pointer-events-auto relative flex"
+          style={{ touchAction: "pan-y pinch-zoom" }}
+          onPointerDown={(event) => {
+            if (event.pointerType !== "touch") return;
+            suppressNextMobileClick.current = false;
+            mobileScrub.current = {
+              pointerId: event.pointerId,
+              startX: event.clientX,
+              startY: event.clientY,
+              target: activeUnit,
+              active: false,
+              cancelled: false,
+            };
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }}
+          onPointerMove={(event) => {
+            const scrub = mobileScrub.current;
+            if (scrub?.pointerId !== event.pointerId) return;
+            if (scrub.cancelled) return;
+
+            if (!scrub.active) {
+              const dx = event.clientX - scrub.startX;
+              const dy = event.clientY - scrub.startY;
+              if (Math.hypot(dx, dy) < TOUCH_SLOP_PX) return;
+              if (Math.abs(dx) <= Math.abs(dy) * TOUCH_HORIZONTAL_DOMINANCE) {
+                scrub.cancelled = true;
+                suppressNextMobileClick.current = true;
+                useStacks.getState().setUnitMapPreview(null);
+                return;
+              }
+              scrub.active = true;
+              suppressNextMobileClick.current = true;
+            }
+
+            event.preventDefault();
+            const rect = event.currentTarget.getBoundingClientRect();
+            const fraction = Math.min(
+              1,
+              Math.max(0, (event.clientX - rect.left) / rect.width),
+            );
+            const preview = Math.round(fraction * (UNIT_COUNT - 1));
+            if (preview === scrub.target) return;
+            scrub.target = preview;
+            useStacks.getState().setUnitMapPreview(preview);
+            haptic(6);
+          }}
+          onPointerUp={(event) => {
+            const scrub = mobileScrub.current;
+            if (scrub?.pointerId !== event.pointerId) return;
+            mobileScrub.current = null;
+            useStacks.getState().setUnitMapPreview(null);
+            if (scrub.active && scrub.target !== activeUnit) go(scrub.target);
+            if (scrub.active || scrub.cancelled) {
+              requestAnimationFrame(() => {
+                suppressNextMobileClick.current = false;
+              });
+            }
+          }}
+          onPointerCancel={(event) => {
+            if (mobileScrub.current?.pointerId !== event.pointerId) return;
+            mobileScrub.current = null;
+            suppressNextMobileClick.current = false;
+            useStacks.getState().setUnitMapPreview(null);
+          }}
+        >
           <span
             aria-hidden
             data-stacks-rail-indicator="mobile"
             className="stacks-on-background-mark pointer-events-none absolute bottom-1 rounded-full bg-foreground/85 transition-[left,width] duration-500 motion-reduce:transition-none"
             style={{
-              left: `calc(${activeUnit * MOBILE_STEP_REM}rem + 0.75rem)`,
+              left: `calc(${displayedUnit * MOBILE_STEP_REM}rem + 0.75rem)`,
               width: `${INDICATOR_LENGTH_REM}rem`,
               height: `${INDICATOR_THICKNESS_REM}rem`,
               transitionTimingFunction: "var(--stacks-ease)",
@@ -291,7 +369,8 @@ export default function UnitRail() {
           {UNITS.map((unit, i) => {
             const Icon = unit.icon;
             const current = i === activeUnit;
-            const active = !golfFocused && current;
+            const selected = i === displayedUnit;
+            const active = !golfFocused && selected;
             const railLabel = unit.railLabel ?? unit.label;
             return (
               <button
@@ -301,12 +380,18 @@ export default function UnitRail() {
                 }}
                 type="button"
                 aria-label={railLabel}
-                aria-current={active ? "page" : undefined}
+                aria-current={!golfFocused && current ? "page" : undefined}
                 tabIndex={current ? 0 : -1}
                 data-active={active || undefined}
-                onClick={() => go(i)}
+                onClick={() => {
+                  if (suppressNextMobileClick.current) {
+                    suppressNextMobileClick.current = false;
+                    return;
+                  }
+                  go(i);
+                }}
                 onKeyDown={(event) => onRailKeyDown(event, i, mobileButtonRefs)}
-                className="stacks-on-background-text stacks-rail-row pointer-events-auto relative flex h-12 items-center justify-center rounded-xl pb-1 text-foreground"
+                className="stacks-on-background-text stacks-rail-row relative flex h-12 items-center justify-center rounded-xl pb-1 text-foreground"
                 style={{ width: `${MOBILE_STEP_REM}rem` }}
               >
                 <Icon

@@ -21,8 +21,8 @@ import {
   photoDoorLabel,
 } from "../photos";
 import { BookRowMesh, ShelfUnit, packRow } from "../primitives";
+import { useUnitFrame } from "../unitActivity";
 import { useUnitLod } from "../useUnitLod";
-import { useFrame } from "@react-three/fiber";
 import React, { useMemo, useRef } from "react";
 import type * as THREE from "three";
 
@@ -168,7 +168,7 @@ function FloorClock({ unitIndex, dark }: { unitIndex: number; dark: boolean }) {
 
   usePropClick(unitIndex, "egg:clock:case", shove);
   usePropClick(unitIndex, "egg:clock:floor", shove);
-  useFrame((_, delta) => {
+  useUnitFrame((_, delta) => {
     const group = rock.current;
     if (!group || t.current < 0) return;
     t.current += Math.min(delta, 1 / 30);

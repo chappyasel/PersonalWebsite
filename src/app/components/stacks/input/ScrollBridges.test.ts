@@ -7,10 +7,27 @@ import {
   isInteractiveWorldNavigationTarget,
   isStacksScrollableTarget,
   shouldHandleWorldNavigationKey,
+  shouldMirrorWorldHistory,
   worldNavigationStep,
 } from "./ScrollBridges";
 
 describe("ScrollBridges interaction ownership", () => {
+  it("suppresses history during Unit Map preview", () => {
+    expect(
+      shouldMirrorWorldHistory({
+        modalOpen: false,
+        panelState: "closed",
+        unitMapPreview: 3,
+      }),
+    ).toBe(false);
+    expect(
+      shouldMirrorWorldHistory({
+        modalOpen: false,
+        panelState: "closed",
+        unitMapPreview: null,
+      }),
+    ).toBe(true);
+  });
   it("does not translate a touch while a prop owns the drag", () => {
     expect(
       blocksWorldTouchTravel({

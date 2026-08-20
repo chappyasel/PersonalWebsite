@@ -1,7 +1,7 @@
 import { useStacks } from "../store";
 import { useSyncExternalStore } from "react";
 
-export type PlacardGlassMode = "native" | "sampled" | "flat";
+export type PlacardGlassMode = "auto" | "native" | "paper";
 export type PracticalGlowMode = "aperture" | "halo" | "sprite";
 
 export type ScenePerformanceSettings = Readonly<{
@@ -15,9 +15,12 @@ export type ScenePerformanceSettings = Readonly<{
   activeNeighborhoodLights: boolean;
   /** Give the far tuft LOD a compile-time-cheaper motion shader. */
   simplifiedFarMeadow: boolean;
-  /** Native is the exact live CSS backdrop; sampled reuses a tiny settled
-   * scene color field; flat is the cheapest opaque-tint escape hatch. */
+  /** Auto selects opaque paper for compact coarse-touch use and native glass
+   * for fine pointers. Both remain explicit for performance comparisons. */
   placardGlassMode: PlacardGlassMode;
+  /** Keep every unit resident while hiding and suspending work outside the
+   * camera's active neighborhood. */
+  virtualizeUnitWork: boolean;
   /** Halo feathers the real aperture in its own plane. Aperture removes that
    * shoulder; sprite keeps the former camera-facing billboard for A/Bs. */
   practicalGlowMode: PracticalGlowMode;
@@ -47,7 +50,8 @@ export const DEFAULT_SCENE_PERFORMANCE_SETTINGS: ScenePerformanceSettings =
     pausePrewarmDuringTravel: true,
     activeNeighborhoodLights: true,
     simplifiedFarMeadow: true,
-    placardGlassMode: "native",
+    placardGlassMode: "auto",
+    virtualizeUnitWork: true,
     practicalGlowMode: "halo",
     effectiveDprLadder: true,
     adaptiveSharpen: true,
@@ -67,7 +71,8 @@ export function allScenePerformanceSettings(
     pausePrewarmDuringTravel: enabled,
     activeNeighborhoodLights: enabled,
     simplifiedFarMeadow: enabled,
-    placardGlassMode: enabled ? "sampled" : "native",
+    placardGlassMode: enabled ? "paper" : "native",
+    virtualizeUnitWork: enabled,
     practicalGlowMode: enabled ? "aperture" : "sprite",
     effectiveDprLadder: enabled,
     adaptiveSharpen: enabled,
@@ -105,6 +110,14 @@ export function postEffectEnabled(
 
 export function practicalGlowSpriteEnabled(settings: ScenePerformanceSettings) {
   return settings.practicalGlowMode === "sprite";
+}
+
+export function effectivePlacardGlassMode(
+  mode: PlacardGlassMode,
+  paperFallback: boolean,
+): Exclude<PlacardGlassMode, "auto"> {
+  if (mode === "paper" || mode === "native") return mode;
+  return paperFallback ? "paper" : "native";
 }
 
 export function practicalGlowHaloEnabled(settings: ScenePerformanceSettings) {

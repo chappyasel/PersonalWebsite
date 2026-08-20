@@ -10,12 +10,46 @@ import {
   mobileSheetHorizontalSwipeIntent,
   mobileSheetMaterialOverscan,
   mobileSheetMaxUpwardOverdrag,
+  mobileSheetPeekHeight,
+  mobileSheetRenderedHeight,
   mobileSheetRestY,
   mobileSheetRubberBandY,
   mobileSheetScrollIntent,
 } from "./mobileSheetGeometry";
 
 describe("mobile sheet transition geometry", () => {
+  it("does not reuse a short resident's measurement after its body mounts", () => {
+    const peekHeight = 253;
+    const systemsHeight = 780;
+    const contentlessMeasurement = {
+      requestedHeight: peekHeight,
+      renderedHeight: peekHeight,
+    };
+
+    expect(
+      mobileSheetRenderedHeight(systemsHeight, contentlessMeasurement),
+    ).toBe(systemsHeight);
+    expect(
+      mobileSheetRestY(
+        "peek",
+        mobileSheetRenderedHeight(systemsHeight, contentlessMeasurement),
+        peekHeight,
+      ),
+    ).toBe(systemsHeight - peekHeight);
+    expect(
+      mobileSheetRenderedHeight(systemsHeight, {
+        requestedHeight: systemsHeight,
+        renderedHeight: 760,
+      }),
+    ).toBe(760);
+  });
+
+  it("uses a bounded 30% resident detent and 64px short-landscape header", () => {
+    expect(mobileSheetPeekHeight(390, 844)).toBe(253);
+    expect(mobileSheetPeekHeight(320, 568)).toBe(170);
+    expect(mobileSheetPeekHeight(768, 1024)).toBe(280);
+    expect(mobileSheetPeekHeight(844, 390)).toBe(64);
+  });
   it("reveals the pill only after its dismissed sheet is physically parked", () => {
     expect(
       mobileSheetChipActive({
@@ -61,10 +95,10 @@ describe("mobile sheet transition geometry", () => {
     );
 
     expect(geometries.map((geometry) => geometry.grabberPx)).toEqual([
-      24, 24, 24, 24,
+      16, 16, 16, 16,
     ]);
     expect(geometries.map((geometry) => geometry.headerPx)).toEqual([
-      64, 64, 64, 64,
+      48, 48, 48, 48,
     ]);
     expect(geometries.map((geometry) => geometry.expanded)).toEqual([
       false,

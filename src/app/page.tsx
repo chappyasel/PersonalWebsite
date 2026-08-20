@@ -23,8 +23,11 @@ import Talks from "./components/Talks";
 import Weightlifting from "./components/Weightlifting";
 import StacksHome from "./components/stacks/StacksHome";
 import { type StacksData } from "./components/stacks/data";
-import BootScreen from "./components/stacks/dom/BootScreen";
+import BootScreen, {
+  BootReadingBooksBridge,
+} from "./components/stacks/dom/BootScreen";
 import { WARM_KEY, WARM_TTL_MS } from "./components/stacks/loading";
+import { proxiedBookCover } from "./components/stacks/scene/bookCoverTexture";
 import { WEBGL_CAPABILITY_KEY } from "./components/stacks/webglProbe";
 
 import { homepageMetadata } from "./homeMetadata";
@@ -248,5 +251,16 @@ async function HomePageContent() {
     quotes: <Quotes />,
   };
 
-  return <StacksHome data={data} slots={slots} />;
+  return (
+    <>
+      <BootReadingBooksBridge
+        readingBooks={readingBooks.map(({ id, coverUrl }) => ({
+          id,
+          coverSrc: coverUrl ? proxiedBookCover(coverUrl, 256) : null,
+        }))}
+        readingBookColors={readingBookColors}
+      />
+      <StacksHome data={data} slots={slots} />
+    </>
+  );
 }

@@ -236,6 +236,7 @@ function WorkoutStatsCard({ data }: { data: WeightliftingPlacardData }) {
         projectedRemainder: year.projectedRemainder,
       }))}
       yearUnit="workouts"
+      compactMobile
       stats={[
         {
           icon: SquaresFourIcon,
@@ -332,7 +333,11 @@ export default function Weightlifting({
         Weightlifting
       </h1>
       <div className="flex w-full flex-col gap-4 intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000">
-        <PlacardLinkCard href={href} label="Browse weightlifting statistics">
+        <PlacardLinkCard
+          href={href}
+          label="Browse weightlifting statistics"
+          mobileCompact
+        >
           <WorkoutStatsCard data={data} />
         </PlacardLinkCard>
         <PlacardLinkCard href={href} label="Browse featured lift records">

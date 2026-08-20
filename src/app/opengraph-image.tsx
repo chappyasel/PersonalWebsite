@@ -2,6 +2,10 @@ import { readFile } from "fs/promises";
 import { ImageResponse } from "next/og";
 import { join } from "path";
 
+import {
+  HOME_OG_BOTTOM_FADE,
+  HOME_OG_SIGNATURE_TEXT,
+} from "./homeOgPresentation";
 import { loadGeorgiaProBold } from "~/app/books/[bookId]/fonts";
 
 export const runtime = "nodejs";
@@ -64,39 +68,22 @@ export default async function Image() {
           }}
         />
 
-        <div
-          style={{
-            display: "flex",
-            position: "absolute",
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: 170,
-            background:
-              "linear-gradient(to bottom, rgba(10, 24, 20, 0), rgba(10, 24, 20, 0.82) 70%)",
-          }}
-        />
+        <div style={HOME_OG_BOTTOM_FADE} />
 
-        {/* Reserve the lower meadow as the signature zone. The dark fade
-            keeps the centered name stable as flowers and loose props evolve. */}
+        {/* The letterforms are the glass. Their translucent milk-white body,
+            pale upper edge, and darker lower edge suggest etched glass while
+            leaving the meadow completely unobstructed. */}
         <div
           style={{
             display: "flex",
             position: "absolute",
             left: 0,
             right: 0,
-            bottom: 26,
+            bottom: 24,
             justifyContent: "center",
-            fontSize: 65.28,
-            fontWeight: 700,
-            lineHeight: 1,
-            color: "#ffffff",
-            opacity: 0.95,
-            letterSpacing: "-0.035em",
-            textShadow: "0 2px 14px rgba(0, 0, 0, 0.38)",
           }}
         >
-          Chappy Asel
+          <div style={HOME_OG_SIGNATURE_TEXT}>Chappy Asel</div>
         </div>
       </div>
     ),

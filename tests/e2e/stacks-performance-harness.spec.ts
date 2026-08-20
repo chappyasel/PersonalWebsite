@@ -45,12 +45,11 @@ function collectRuntimeErrors(page: Page) {
   return errors;
 }
 
-test("preserves an iPhone 3x framebuffer at the highest quality rung", async ({
+test("caps an iPhone framebuffer at 2x on the showcase rung", async ({
   browser,
 }) => {
-  // SwiftShader is dramatically slower than an iPhone GPU at this pixel
-  // count, so this test verifies resolution/renderer state only. Frame-time
-  // sampling runs in the separate desktop lab below.
+  // This verifies the narrow-viewport DPR policy and renderer state only.
+  // Frame-time sampling runs in the separate desktop lab below.
   test.setTimeout(240_000);
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
@@ -65,17 +64,17 @@ test("preserves an iPhone 3x framebuffer at the highest quality rung", async ({
     () =>
       !!window.__stacks?.state().framebuffer &&
       window.__stacks.state().controlsReady === true &&
-      document.querySelector("canvas")?.width === 1170,
+      document.querySelector("canvas")?.width === 780,
     null,
     { timeout: 210_000 },
   );
 
   const state = await stacksState(page);
-  expect(state.dpr).toBe(3);
-  expect(state.framebuffer.buffer).toEqual([1170, 2532]);
+  expect(state.dpr).toBe(2);
+  expect(state.framebuffer.buffer).toEqual([780, 1688]);
   expect(state.quality).toMatchObject({
     durable: 0,
-    effectiveDpr: 3,
+    effectiveDpr: 2,
     postprocessing: "off",
   });
   expect(state.programs).toBeGreaterThan(0);

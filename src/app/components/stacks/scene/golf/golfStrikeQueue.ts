@@ -1,17 +1,17 @@
 import type { GolfBallId, GolfBallState } from "./golfTypes";
 
 export const GOLF_STRIKE_TIMING = {
-  address: 0.1,
-  backswing: 0.15,
-  downswing: 0.1,
-  recovery: 0.15,
+  address: 0.12,
+  backswing: 0.34,
+  downswing: 0.14,
+  recovery: 0.38,
 } as const;
 
-const IMPACT_AT =
+export const GOLF_IMPACT_AT =
   GOLF_STRIKE_TIMING.address +
   GOLF_STRIKE_TIMING.backswing +
   GOLF_STRIKE_TIMING.downswing;
-const COMPLETE_AT = IMPACT_AT + GOLF_STRIKE_TIMING.recovery;
+export const GOLF_COMPLETE_AT = GOLF_IMPACT_AT + GOLF_STRIKE_TIMING.recovery;
 
 export type GolfStrikeStage =
   | "idle"
@@ -74,11 +74,15 @@ export class GolfStrikeQueue {
     const before = this.elapsed;
     this.elapsed += Math.max(0, delta);
     let impact: GolfBallId | null = null;
-    if (!this.launched && before < IMPACT_AT && this.elapsed >= IMPACT_AT) {
+    if (
+      !this.launched &&
+      before < GOLF_IMPACT_AT &&
+      this.elapsed >= GOLF_IMPACT_AT
+    ) {
       this.launched = true;
       impact = this.current;
     }
-    if (this.elapsed >= COMPLETE_AT) {
+    if (this.elapsed >= GOLF_COMPLETE_AT) {
       this.current = null;
       this.elapsed = 0;
       this.launched = false;
@@ -115,7 +119,7 @@ export class GolfStrikeQueue {
       GOLF_STRIKE_TIMING.address + GOLF_STRIKE_TIMING.backswing
     )
       return "backswing";
-    if (this.elapsed < IMPACT_AT) return "downswing";
+    if (this.elapsed < GOLF_IMPACT_AT) return "downswing";
     return "recovery";
   }
 }

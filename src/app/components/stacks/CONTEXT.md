@@ -23,15 +23,17 @@ _Avoid_: Shrunken desktop unit, mobile fallback
 
 **Presentation Profile** — the World and Placard composition selected from
 available viewport geometry. It determines wide versus Portrait Composition
-without inferring how the visitor will interact. Short landscape screens reuse
-the responsive World with the Placard at its shortest detent; they do not have
-a separately authored Compact Landscape profile unless usage evidence later
+and dock versus Peek Sheet without inferring how the visitor will interact.
+Short landscape screens reuse the responsive World; they do not have a
+separately authored Compact Landscape profile unless usage evidence later
 justifies one.
 _Avoid_: Device class, input mode
 
 **Interaction Profile** — the interaction contract selected from the pointer
-actually in use. Fine pointers receive hover previews; coarse pointers receive
-Touch Focus, independently of the current Presentation Profile.
+actually in use. Fine pointers receive hover previews and wheel/trackpad
+travel; on a narrow screen their Peek Sheet uses native blur. Coarse pointers
+receive Touch Focus and direct swipes; their narrow Peek Sheet uses opaque
+paper. These choices remain independent of the current Presentation Profile.
 _Avoid_: Mobile mode, desktop mode, user-agent class
 
 **Capability Profile** — the rendering budget selected from observed runtime
@@ -203,8 +205,8 @@ _Avoid_: Departure Vector, escape target, launch waypoint
 
 **Placard** — the primary, readable content for a Unit (the museum-label
 metaphor): real section content in a screen-fixed panel, never rendered inside
-the 3D scene. On desktop it stands beside the World; on mobile it remains
-resident as a Peek Sheet and may expand for reading.
+the 3D scene. In a wide presentation it stands beside the World; in a narrow
+presentation it remains resident as a Peek Sheet and may expand for reading.
 
 **Travel-Synced Placard** — mobile behavior in which the resident Placard body
 changes as the Traverse crosses into each Unit, including intermediate Units
@@ -234,13 +236,12 @@ the fallback for reduced motion or missing WebGL, and what search engines see.
 **Rail** — the persistent labeled list of all units; the map of the traverse
 and the way to jump.
 
-**Unit Map** — the mobile form of the Rail: a compact active-Unit label and
-seven tactile notches. Tapping expands a fully labeled map; sliding across the
-notches previews Units through the Travel-Synced Placard and commits travel on
-release. Compression, resistance, and snapping provide the required feedback;
-brief haptic ticks are an optional enhancement on supporting devices. The Unit
-Map cedes touch during Ambient Reading.
-_Avoid_: Permanent icon row, hamburger navigation, haptic-only feedback
+**Mobile Rail** — seven permanently visible Unit buttons. Tapping a glyph
+travels directly to that Unit. Sliding horizontally across the row previews
+Units through the Travel-Synced Placard and commits travel on release. Brief
+haptic ticks may reinforce transitions on supporting devices. Vertical movement
+remains native, and the Rail cedes touch during Ambient Reading.
+_Avoid_: Hidden primary navigation, unlabeled notches, haptic-only feedback
 
 **Door** — a scene object with an honest destination that opens on a
 stationary activation. A Door may also be movable, but scenery with no
@@ -292,16 +293,9 @@ _Avoid_: Exact-mesh touch, permanent hotspot marker, oversized prop
 **Pickup Cue** — the world-native feedback that makes Touch Arbitration
 legible on a Movable Prop: immediate physical compression on contact, a subtle
 loaded lift as the hold threshold completes, then pickup. A light haptic may
-reinforce pickup where supported, and a one-time teaching hint may name the
-gesture on first encounter; neither is required for understanding it.
+reinforce pickup where supported; it is never explained with floating
+instruction copy.
 _Avoid_: Permanent drag badge, generic progress spinner
-
-**Discovery Cue** — a quiet, contextual hint that teaches one unfamiliar
-gesture at the moment it becomes relevant, then retires permanently once the
-visitor demonstrates that gesture. The opening may cue World Swipe, the Peek
-Sheet exposes its pull affordance, and the first Movable Prop may name tap and
-hold; none block entry into the World.
-_Avoid_: Tutorial screen, permanent gesture legend, repeated coach mark
 
 **Touch Wake** — the small, local disturbance created as a coarse pointer moves
 through exposed World space. Nearby environmental details may bend, stir,
@@ -322,6 +316,26 @@ its rearrangement persists while visible, then returns to its authored pose
 only after remaining outside the expanded camera frustum. Touch carrying keeps
 this desktop behavior unchanged.
 _Avoid_: Reset on travel, session-long disorder, touch-specific recovery
+
+**Resident Unit Activity** — the camera-derived runtime state for a mounted
+shelf unit. Hot units render and simulate normally; warm units remain ready and
+run ambient work at a lower cadence; cold units stay mounted but are hidden and
+skip expensive work. Carrying and other live interactions pin their unit hot,
+so virtualization never becomes state reconstruction.
+_Avoid_: Active-index-only culling, travel-time remount, state eviction
+
+**Resident Placard Content** — the lifetime policy for readable Unit content.
+The active Placard mounts immediately. After the World reveal, the remaining
+Placards mount nearest-first, one per idle slice, and stay resident so travel
+preserves scroll state and decoded media. Background preparation pauses while
+the World is moving; arrival must never compete with a speculative mount.
+_Avoid_: Travel-time mounting, idle work during travel, post-visit eviction
+
+**Paper Surface** — the narrow-layout placard material: an opaque, warm reading
+sheet with restrained fibers, edge highlights, and shadow. It intentionally
+hides the moving scene instead of approximating glass. Native browser blur
+remains an explicit diagnostic comparison and the wide-layout default.
+_Avoid_: Sampled scene copies, translucent fallback tint, live mobile blur
 
 **Ambient Reading** — the expanded Peek Sheet state in which readable content
 owns touch while the World remains visibly alive behind it. Insects, lighting,

@@ -36,7 +36,7 @@
 // it tracks the prop's x/z, stays on the wood, and spreads and fades as the
 // object rises, which is what a real contact shadow does.
 import { useStacks } from "../store";
-import { type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
+import { type ThreeEvent, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
@@ -47,7 +47,17 @@ import {
   usePhysicsScene,
 } from "./PhysicsSceneProvider";
 import { grabbablePhysicsEnabled } from "./grabbablePhysics";
-import { type Hinge, TILT_MAX_SIZE, hingeFor } from "./interaction";
+import { cameraFacingHoverTilt } from "./hoverTilt";
+import {
+  sceneUnitActivityController,
+  useUnitFrame,
+} from "./unitActivity";
+import {
+  type Hinge,
+  TILT_MAX_SIZE,
+  hingeFor,
+  hingePivotForTilt,
+} from "./interaction";
 import {
   MASS_HANDLING,
   destinationFor,
@@ -196,6 +206,10 @@ function entryForDown(event: PointerEvent): GrabEventEntry | null {
 }
 
 function onEventDown(event: PointerEvent) {
+  // Touch is owned exclusively by TouchInteractionLayer. Keeping this legacy
+  // dispatcher fine-only prevents one contact from becoming both a carry and
+  // an activation through independently ordered window listeners.
+  if (event.pointerType === "touch") return;
   if (activeEventEntry) return;
   const entry = entryForDown(event);
   if (!entry?.down(event, event.pointerType === "touch")) return;
@@ -272,11 +286,10 @@ function recordTap(key: string) {
     tapCounts.set(key, (tapCounts.get(key) ?? 0) + 1);
 }
 
-/** Carry simulation is a pointer capability, independent of the visual
- * quality ladder. Touch remains tap-only. */
+/** Carry simulation is independent of pointer type. Coarse contact begins the
+ * same lazy load; the authored path covers a pickup that wins the race. */
 function physicsAllowed(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+  return typeof window !== "undefined";
 }
 
 /** Fire-and-forget. The canvas schedules this after first paint on eligible
@@ -452,6 +465,10 @@ export default function Grabbable({
    * purely visual and the physics pose is untouched. */
   const nod = useRef<THREE.Group>(null);
   const nodAngle = useRef(0);
+  const nodCameraDirection = useMemo(() => new THREE.Vector3(), []);
+  const nodCameraWorld = useMemo(() => new THREE.Vector3(), []);
+  const nodWorld = useMemo(() => new THREE.Vector3(), []);
+  const nodParentWorld = useMemo(() => new THREE.Quaternion(), []);
   const hinge = useRef<Hinge | null | undefined>(undefined);
   const still = useMemo(() => reducedMotion(), []);
   const shade = useRef<THREE.Sprite>(null);
@@ -470,9 +487,10 @@ export default function Grabbable({
   const gl = useThree((s) => s.gl);
   const pointerId = useRef<number | null>(null);
   const pickupY = useRef(base[1]);
-  /** Touch can tap a prop but never carry it. This is latched for one gesture
-   * so a touch release cannot accidentally enter the desktop solver path. */
+  /** Legacy fine-pointer taps and the centralized touch controller share the
+   * same pending gesture without sharing activation dispatchers. */
   const tapOnly = useRef(false);
+  const touchPressedAt = useRef<number | null>(null);
   /** Where the current press started and whether it has travelled far enough
    * to be a carry rather than a click. Null between gestures. */
   const gesture = useRef<{ x: number; y: number; moved: boolean } | null>(null);
@@ -489,6 +507,7 @@ export default function Grabbable({
   const simulated = useRef(false);
   const authoredParked = useRef(false);
   const authoredOffscreenFor = useRef(0);
+  const activityUnpin = useRef<(() => void) | null>(null);
   /** Normalised device coords of the carrying pointer. Tracked from the
    * window rather than read off r3f's own pointer state: r3f only updates
    * that while the pointer is over the element it is connected to, so the
@@ -533,62 +552,14 @@ export default function Grabbable({
     diagnosticsScope = physicsScene;
     const unregister = physicsScene.registerHandle(entry);
     return () => {
+      activityUnpin.current?.();
+      activityUnpin.current = null;
       unregister();
       entry.world?.drop(entry);
       handle.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    const root = group.current;
-    if (!root) return;
-    const run = () => {
-      if (onTapRef.current) onTapRef.current();
-      else if (to !== undefined) open({ to });
-      else if (href !== undefined && doorLabel)
-        open({ href, label: doorLabel, external });
-    };
-    const activation = egg
-      ? ({ kind: "egg", run, reducedMotion: egg.reducedMotion } as const)
-      : to !== undefined
-        ? ({ kind: "door", ...destinationFor(to), run } as const)
-        : href !== undefined && doorLabel
-          ? ({ kind: "door", label: doorLabel, href, external, run } as const)
-          : onTap !== undefined && (actionLabel ?? doorLabel)
-            ? ({
-                kind: "action",
-                label: actionLabel ?? doorLabel!,
-                run,
-              } as const)
-            : undefined;
-    return registerSceneInteraction({
-      id: hoverKey,
-      root,
-      activeUnits: [unitIndex],
-      movable: draggable
-        ? { massKg: massKg ?? 1, massClass, colliderProfile }
-        : undefined,
-      activation,
-      hover: { kind: draggable && tiltOnHover ? "tilt" : "none" },
-    });
-  }, [
-    actionLabel,
-    doorLabel,
-    draggable,
-    egg,
-    external,
-    href,
-    hoverKey,
-    colliderProfile,
-    massClass,
-    massKg,
-    onTap,
-    open,
-    tiltOnHover,
-    to,
-    unitIndex,
-  ]);
 
   // Grab and release ride WINDOW pointer events keyed off the hover slot,
   // not r3f's per-object onPointerDown. Measured, not preferred: with the
@@ -602,31 +573,36 @@ export default function Grabbable({
   // prop's silhouette mid-drag — which it does immediately, since the prop
   // lags the cursor — cannot strand the drag. That also removes the need for
   // setPointerCapture entirely.
-  const release = useCallback(() => {
-    pointerId.current = null;
-    if (phase.current !== "held") return;
-    const entry = handle.current;
-    velocity.multiplyScalar(handling.throwTilt);
-    // Hand the throw to the solver if this gesture had one. The velocity is
-    // the prop's ACTUAL movement, not the gap to the cursor — using the gap
-    // made it a spring constant rather than a speed, and everything left the
-    // hand at the same 1.9 u/s no matter how gently you were moving.
-    if (!(simulated.current && entry?.world?.release(entry, velocity)))
-      phase.current = "settling";
-    simulated.current = false;
-    const store = useStacks.getState();
-    store.setDragging(null);
-    // Restore the scroll element by hand. drei's ScrollControls `enabled`
-    // flag only short-circuits its own handler — the DOM element keeps
-    // scrolling natively, and when the flag flips back the effect re-runs,
-    // swallows one event and resyncs from el.scrollLeft, which teleports the
-    // camera. Freezing the element itself is the only thing that prevents it.
-    const el = store.scrollEl;
-    if (el) {
-      el.style.touchAction = "pan-x";
-      el.style.overflowX = "auto";
-    }
-  }, [handling.throwTilt, velocity]);
+  const release = useCallback(
+    (velocityMultiplier = 1, velocityCap = Infinity) => {
+      pointerId.current = null;
+      if (phase.current !== "held") return;
+      const entry = handle.current;
+      velocity.multiplyScalar(handling.throwTilt);
+      velocity.multiplyScalar(velocityMultiplier);
+      if (velocity.length() > velocityCap) velocity.setLength(velocityCap);
+      // Hand the throw to the solver if this gesture had one. The velocity is
+      // the prop's ACTUAL movement, not the gap to the cursor — using the gap
+      // made it a spring constant rather than a speed, and everything left the
+      // hand at the same 1.9 u/s no matter how gently you were moving.
+      if (!(simulated.current && entry?.world?.release(entry, velocity)))
+        phase.current = "settling";
+      simulated.current = false;
+      const store = useStacks.getState();
+      store.setDragging(null);
+      // Restore the scroll element by hand. drei's ScrollControls `enabled`
+      // flag only short-circuits its own handler — the DOM element keeps
+      // scrolling natively, and when the flag flips back the effect re-runs,
+      // swallows one event and resyncs from el.scrollLeft, which teleports the
+      // camera. Freezing the element itself is the only thing that prevents it.
+      const el = store.scrollEl;
+      if (el) {
+        el.style.touchAction = "pan-x";
+        el.style.overflowX = "auto";
+      }
+    },
+    [handling.throwTilt, velocity],
+  );
 
   const beginCarry = useCallback(
     (event: PointerEvent) => {
@@ -664,6 +640,10 @@ export default function Grabbable({
           detail: physicsEnabled ? "module-loading" : "opted-out",
         });
       phase.current = "held";
+      activityUnpin.current ??= sceneUnitActivityController.pin(
+        unitIndex,
+        `grabbable:${hoverKey}`,
+      );
       if (preparedWorld && entry) simulated.current = preparedWorld.grab(entry);
       store.setDragging(hoverKey);
       // drei's ScrollControls `enabled` flag only short-circuits its own
@@ -677,11 +657,15 @@ export default function Grabbable({
         el.style.overflowX = "hidden";
       }
     },
-    [base, hoverKey, physicsEnabled, physicsScene, track, velocity],
+    [base, hoverKey, physicsEnabled, physicsScene, track, unitIndex, velocity],
   );
 
   const onGrabDown = useCallback(
-    (event: PointerEvent, touchTapOnly: boolean): boolean => {
+    (
+      event: PointerEvent,
+      touchTapOnly: boolean,
+      arbitrated = false,
+    ): boolean => {
       // Primary button of the primary pointer only — otherwise a right-click
       // starts a carry, and a second pointer's release ends someone else's.
       if (!event.isPrimary || event.button !== 0) return false;
@@ -689,7 +673,8 @@ export default function Grabbable({
       // `isPrimary` is per pointer TYPE, so a primary pen and a primary mouse
       // are both primary at once. One prop in hand at a time, always.
       if (store.dragging) return false;
-      if (!touchTapOnly && store.hovered !== hoverKey) return false;
+      if (!touchTapOnly && !arbitrated && store.hovered !== hoverKey)
+        return false;
 
       pointerId.current = event.pointerId;
       tapOnly.current = touchTapOnly || !draggable;
@@ -782,6 +767,90 @@ export default function Grabbable({
   }, []);
 
   useEffect(() => {
+    const root = group.current;
+    if (!root) return;
+    const run = () => {
+      if (onTapRef.current) onTapRef.current();
+      else if (to !== undefined) open({ to });
+      else if (href !== undefined && doorLabel)
+        open({ href, label: doorLabel, external });
+    };
+    const activation = egg
+      ? ({ kind: "egg", run, reducedMotion: egg.reducedMotion } as const)
+      : to !== undefined
+        ? ({ kind: "door", ...destinationFor(to), run } as const)
+        : href !== undefined && doorLabel
+          ? ({ kind: "door", label: doorLabel, href, external, run } as const)
+          : onTap !== undefined && (actionLabel ?? doorLabel)
+            ? ({
+                kind: "action",
+                label: actionLabel ?? doorLabel!,
+                run,
+              } as const)
+            : undefined;
+    return registerSceneInteraction({
+      id: hoverKey,
+      label: activation && "label" in activation ? activation.label : hoverKey,
+      root,
+      activeUnits: [unitIndex],
+      movable: draggable
+        ? { massKg: massKg ?? 1, massClass, colliderProfile }
+        : undefined,
+      movableController: draggable
+        ? {
+            press: (event) => {
+              prewarmGrabbablePhysics();
+              const accepted = onGrabDown(event, false, true);
+              touchPressedAt.current = accepted ? performance.now() : null;
+              return accepted;
+            },
+            pickup: (event) => {
+              if (event.pointerId === pointerId.current) {
+                touchPressedAt.current = null;
+                beginCarry(event);
+              }
+            },
+            move: onGrabMove,
+            release: (event, multiplier, cap) => {
+              if (event.pointerId !== pointerId.current) return;
+              touchPressedAt.current = null;
+              gesture.current = null;
+              tapOnly.current = false;
+              release(multiplier, cap);
+            },
+            cancel: (event) => {
+              touchPressedAt.current = null;
+              onGrabCancel(event);
+            },
+          }
+        : undefined,
+      activation,
+      hover: { kind: draggable && tiltOnHover ? "tilt" : "none" },
+    });
+  }, [
+    actionLabel,
+    beginCarry,
+    colliderProfile,
+    doorLabel,
+    draggable,
+    egg,
+    external,
+    href,
+    hoverKey,
+    massClass,
+    massKg,
+    onGrabCancel,
+    onGrabDown,
+    onGrabMove,
+    onTap,
+    open,
+    release,
+    tiltOnHover,
+    to,
+    unitIndex,
+  ]);
+
+  useEffect(() => {
     const g = group.current;
     if (!g) return;
     const entry: GrabEventEntry = {
@@ -815,7 +884,7 @@ export default function Grabbable({
     unitIndex,
   ]);
 
-  useFrame((_, rawDelta) => {
+  useUnitFrame(({ camera }, rawDelta) => {
     const g = group.current;
     if (!g) return;
     // A backgrounded tab hands back one enormous delta; integrating it would
@@ -992,10 +1061,13 @@ export default function Grabbable({
     // mid-tumble belongs to the solver.
     const n = nod.current;
     if (n) {
+      const interactionState = useStacks.getState();
+      const pressed = interactionState.pressedInteraction === hoverKey;
+      const focused = interactionState.focusedInteraction === hoverKey;
       const wants =
         phase.current === "rest" &&
         tiltOnHover &&
-        useStacks.getState().hovered === hoverKey &&
+        (interactionState.hovered === hoverKey || focused || pressed) &&
         !still;
       if (wants && hinge.current === undefined) {
         const measured = hingeFor(n, false, TILT_MAX_SIZE);
@@ -1017,7 +1089,23 @@ export default function Grabbable({
           }
         }
       }
-      const target = wants && hinge.current ? TIP : 0;
+      let target = 0;
+      if (wants && hinge.current) {
+        camera.getWorldPosition(nodCameraWorld);
+        n.getWorldPosition(nodWorld);
+        nodCameraDirection.copy(nodCameraWorld).sub(nodWorld);
+        if (n.parent) {
+          n.parent.getWorldQuaternion(nodParentWorld).invert();
+          nodCameraDirection.applyQuaternion(nodParentWorld);
+        }
+        target = cameraFacingHoverTilt(
+          nodCameraDirection,
+          TIP * (pressed ? 1.25 : 1),
+        );
+      }
+      const pivot = hinge.current
+        ? hingePivotForTilt(hinge.current, target || nodAngle.current)
+        : null;
       if (Math.abs(nodAngle.current - target) < 1e-4) nodAngle.current = target;
       else
         nodAngle.current = THREE.MathUtils.damp(
@@ -1027,8 +1115,21 @@ export default function Grabbable({
           delta,
         );
       n.rotation.x = nodAngle.current;
-      if (hinge.current)
-        n.position.copy(hingeShift(hinge.current.pivot, n.rotation, undefined));
+      const targetScale = pressed ? 0.965 : focused ? 1.015 : 1;
+      const scale = pressed
+        ? targetScale
+        : THREE.MathUtils.damp(n.scale.x, targetScale, LIFT_LAMBDA, delta);
+      n.scale.setScalar(scale);
+      if (pivot) n.position.copy(hingeShift(pivot, n.rotation, undefined));
+      else n.position.set(0, 0, 0);
+      if (pressed && touchPressedAt.current !== null) {
+        const loaded = THREE.MathUtils.clamp(
+          (performance.now() - touchPressedAt.current - 180) / 170,
+          0,
+          1,
+        );
+        n.position.y += loaded * 0.03;
+      }
     }
 
     // The shade stays on the wood under wherever the prop actually is, and
@@ -1053,7 +1154,15 @@ export default function Grabbable({
       s.scale.set(w, w * 0.32, 1);
       s.material.opacity = SHADE_OPACITY * (1 - 0.65 * spreadT);
     }
-  });
+    if (
+      phase.current === "rest" &&
+      !authoredParked.current &&
+      atAuthoredPose
+    ) {
+      activityUnpin.current?.();
+      activityUnpin.current = null;
+    }
+  }, "maintenance");
 
   return (
     <>

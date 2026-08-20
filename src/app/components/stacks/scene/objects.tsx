@@ -5,7 +5,6 @@
 import { useStacks } from "../store";
 import { type Palette, rand } from "../theme";
 import { RoundedBox } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
 import React, { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
@@ -14,6 +13,8 @@ import { ContactShade } from "./GroundPool";
 import Lift from "./Lift";
 import LitImage from "./LitImage";
 import ModelProp from "./ModelProp";
+import { APPLE_OUTLINE } from "./appleOutline";
+import { useUnitFrame } from "./unitActivity";
 
 /**
  * The only click path in this scene that actually fires under a real pointer.
@@ -353,38 +354,6 @@ export function CardStack({ palette }: { palette: Palette }) {
  * deep the stem notch cuts between the shoulders, and the leaf's lean — and
  * the eye gets all three wrong at once. Two outlines, because the leaf is
  * detached; ExtrudeGeometry takes them as one shape array. */
-const APPLE_OUTLINE: { start: [number, number]; curves: number[][] }[] = [
-  {
-    start: [0.3811, 0.6591],
-    curves: [
-      [0.3753, 0.6546, 0.2729, 0.5969, 0.2729, 0.4685],
-      [0.2729, 0.3201, 0.4032, 0.2676, 0.4071, 0.2663],
-      [0.4065, 0.2631, 0.3864, 0.1944, 0.3384, 0.1244],
-      [0.2956, 0.0628, 0.2509, 0.0013, 0.1829, 0.0013],
-      [0.1149, 0.0013, 0.0974, 0.0408, 0.0189, 0.0408],
-      [-0.0577, 0.0408, -0.0849, 0, -0.1471, 0],
-      [-0.2093, 0, -0.2527, 0.057, -0.3026, 0.127],
-      [-0.3604, 0.2092, -0.4071, 0.3369, -0.4071, 0.4581],
-      [-0.4071, 0.6526, -0.2807, 0.7557, -0.1563, 0.7557],
-      [-0.0902, 0.7557, -0.0351, 0.7123, 0.0065, 0.7123],
-      [0.046, 0.7123, 0.1076, 0.7583, 0.1828, 0.7583],
-      [0.2113, 0.7583, 0.3137, 0.7557, 0.3811, 0.6591],
-    ],
-  },
-  {
-    start: [0.1471, 0.8406],
-    curves: [
-      [0.1782, 0.8775, 0.2002, 0.9287, 0.2002, 0.9799],
-      [0.2002, 0.987, 0.1996, 0.9942, 0.1983, 1],
-      [0.1477, 0.9981, 0.0875, 0.9663, 0.0512, 0.9242],
-      [0.0227, 0.8918, -0.004, 0.8406, -0.004, 0.7887],
-      [-0.004, 0.7809, -0.0027, 0.7731, -0.0021, 0.7706],
-      [0.0012, 0.77, 0.0064, 0.7693, 0.0116, 0.7693],
-      [0.057, 0.7693, 0.1141, 0.7997, 0.1471, 0.8406],
-    ],
-  },
-];
-
 // Cached per height × depth, the plateGeometry idiom — the outline is 19
 // beziers and the cap needs triangulating, which is not work to redo on a
 // theme flip. The chamfer is a fat 3% of height on purpose: it is the only
@@ -401,12 +370,12 @@ function appleGeometry(height: number, depth: number): THREE.ExtrudeGeometry {
     shape.moveTo(start[0] * height, start[1] * height);
     for (const c of curves) {
       shape.bezierCurveTo(
-        c[0]! * height,
-        c[1]! * height,
-        c[2]! * height,
-        c[3]! * height,
-        c[4]! * height,
-        c[5]! * height,
+        c[0] * height,
+        c[1] * height,
+        c[2] * height,
+        c[3] * height,
+        c[4] * height,
+        c[5] * height,
       );
     }
     return shape;
@@ -490,9 +459,9 @@ function shimmerTexture(): THREE.CanvasTexture {
 const SHIMMER_S = 0.85;
 const SHIMMER_TRAVEL = 1;
 
-/** One metallic sweep shared by the Apple and AI Collective desk marks. Both
- * brands answer with the same motion curve, environment lift, click sweep and
- * reduced-motion behavior; only their underlying geometry differs. */
+/** One metallic sweep shared by the Apple, AI Collective, and TJ desk marks.
+ * All three answer with the same motion curve, environment lift, click sweep,
+ * and reduced-motion behavior; only their underlying geometry differs. */
 export function useMetalShimmer({
   unitIndex,
   hoverKey,
@@ -519,7 +488,7 @@ export function useMetalShimmer({
     if (still) return;
     sweep.current = 0;
   });
-  useFrame((_, delta) => {
+  useUnitFrame((_, delta) => {
     const hot = useStacks.getState().hovered === hoverKey ? 1 : 0;
     if (Math.abs(level.current - hot) < 1e-3) level.current = hot;
     else level.current = THREE.MathUtils.damp(level.current, hot, 5, delta);
@@ -1326,7 +1295,7 @@ export function ClockFace({
   useEffect(() => () => face.texture.dispose(), [face]);
   const last = useRef(face.mounted);
   const lastLiveDraw = useRef(performance.now());
-  useFrame(() => {
+  useUnitFrame(() => {
     const s = sweepRef?.current;
     let h: number;
     let m: number;

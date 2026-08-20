@@ -15,6 +15,7 @@ import {
   ThreeInsectFlightWorld,
   prepareInsectLandingTarget,
 } from "./insectFlightWorld";
+import { insectOwnerIsDisturbed } from "./insectDisturbance";
 import {
   type InsectLampCone,
   type LampConeLocal,
@@ -1018,8 +1019,7 @@ function LivingWildlife({
                   insectPerchAcceptsMoth(perch) &&
                   insectPerchMothLightIsOn(perch) &&
                   !insectPerchOccupant(perch.id) &&
-                  insectPerchOwnerId(perch) !== stacks.hovered &&
-                  insectPerchOwnerId(perch) !== stacks.dragging,
+                  !insectOwnerIsDisturbed(insectPerchOwnerId(perch), stacks),
               );
               // Rotated per attempt so a moth does not hammer the same site.
               // Taking `candidates[0]` every time meant one Perch absorbed every
@@ -1090,9 +1090,7 @@ function LivingWildlife({
               : null;
             if (pilot?.reservedPerchId && engagedPerch) {
               const ownerId = insectPerchOwnerId(engagedPerch);
-              direct =
-                Boolean(ownerId) &&
-                (ownerId === stacks.hovered || ownerId === stacks.dragging);
+              direct = insectOwnerIsDisturbed(ownerId, stacks);
               environmentalDrag =
                 Boolean(stacks.dragging) &&
                 engagedPerch.unitIndex === stacks.activeUnit;

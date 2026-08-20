@@ -36,13 +36,9 @@ const placards = fs.readFileSync(
   new URL("../dom/PlacardLayer.tsx", import.meta.url),
   "utf8",
 );
-const glassSampler = fs.readFileSync(
-  new URL("./SceneGlassSampler.tsx", import.meta.url),
-  "utf8",
-);
 const store = fs.readFileSync(new URL("../store.ts", import.meta.url), "utf8");
-const chrome = fs.readFileSync(
-  new URL("../dom/ChromeLayer.tsx", import.meta.url),
+const diagnostics = fs.readFileSync(
+  new URL("../dom/SceneDiagnostics.tsx", import.meta.url),
   "utf8",
 );
 const butterflies = fs.readFileSync(
@@ -134,7 +130,7 @@ describe("scene performance integration", () => {
 
   it("isolates browser glass and each expensive post effect", () => {
     expect(placards).toContain("data-stacks-glass-mode");
-    expect(placards).toContain('data-stacks-glass-mode="sampled"');
+    expect(placards).toContain('data-stacks-glass-mode="paper"');
     expect(placards).toContain("backdrop-filter: none !important");
     expect(effects).toContain("plan.ambientOcclusion");
     expect(effects).toContain("plan.bloom");
@@ -161,20 +157,30 @@ describe("scene performance integration", () => {
     expect(effects.indexOf("<Noise")).toBeLessThan(
       effects.indexOf("<AdaptiveSharpen"),
     );
-    expect(chrome).toContain("performanceSettings.adaptiveSharpen");
-    expect(chrome).toContain("Sharpen reduced-DPR output");
+    expect(diagnostics).toContain("performanceSettings.adaptiveSharpen");
+    expect(diagnostics).toContain("Sharpen reduced-DPR output");
   });
 
-  it("captures a tiny settled scene field without keeping a live blur", () => {
-    expect(canvas).toContain("<SceneGlassSampler");
-    expect(glassSampler).toContain("WebGLRenderTarget");
-    expect(glassSampler).toContain("readRenderTargetPixelsAsync");
-    expect(glassSampler).toContain("sceneGlassCaptureDimensions");
-    expect(placards).toContain("--stacks-glass-snapshot");
+  it("ships an opaque paper comparison without a scene-copy pipeline", () => {
+    expect(canvas).not.toContain("SceneGlassSampler");
+    expect(canvas).not.toContain("sceneGlassLiveController");
+    expect(placards).toContain("--sheet-fill: rgb(244 241 233)");
+    expect(placards).toContain("repeating-linear-gradient");
+    expect(placards).not.toContain("SceneGlassSurface");
+  });
+
+  it("keeps resident units behind one camera-driven activity boundary", () => {
+    expect(scene).toContain("<SceneUnitActivityDriver />");
+    expect(scene).toContain("<UnitActivityProvider index={index}>");
+    expect(scene).toContain("useUnitActivityRoot(index, root)");
+    expect(diagnostics).toContain("performanceSettings.virtualizeUnitWork");
   });
 
   it("resolves one complete policy and queues travel declines in its reducer", () => {
     expect(canvas).toContain("resolveSceneQualityPlan({");
+    expect(canvas).toContain(
+      "narrowViewport: viewport.width < STACKS_DESKTOP_MIN_WIDTH",
+    );
     expect(canvas).toContain("reduceSceneQualityAdaptation");
     expect(canvas).toContain(
       "<AdaptiveQualityProbe onSample={onQualitySample}",

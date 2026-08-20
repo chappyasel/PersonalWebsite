@@ -21,6 +21,7 @@ import {
   physicsDiagnosticsController,
 } from "./physicsDiagnostics";
 import { SHELF_GEOMETRY, SHELF_SURFACE } from "./shelfGeometry";
+import { sceneUnitActivityController } from "./unitActivity";
 
 type CannonModule = {
   World: typeof CANNON.World;
@@ -1359,6 +1360,11 @@ export class ScenePhysicsWorld {
     for (const handle of this.handles) {
       const body = handle.body;
       if (!body) continue;
+      if (
+        handle.parked &&
+        sceneUnitActivityController.stateFor(handle.unitIndex) === "cold"
+      )
+        continue;
       if (handle.phase.current === "sim") {
         if (body.sleepState !== sleeping) live = true;
         continue;
@@ -1381,6 +1387,11 @@ export class ScenePhysicsWorld {
     for (const handle of this.handles) {
       const body = handle.body;
       if (!body) continue;
+      if (
+        handle.parked &&
+        sceneUnitActivityController.stateFor(handle.unitIndex) === "cold"
+      )
+        continue;
       if (handle.phase.current === "sim") {
         if (!runtime.simulation) {
           handle.offscreenFor = 0;

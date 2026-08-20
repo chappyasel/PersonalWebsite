@@ -5,8 +5,8 @@ const overlaySource = fs.readFileSync(
   new URL("./PhysicsDiagnosticsOverlay.tsx", import.meta.url),
   "utf8",
 );
-const chromeSource = fs.readFileSync(
-  new URL("../dom/ChromeLayer.tsx", import.meta.url),
+const diagnosticsSource = fs.readFileSync(
+  new URL("../dom/SceneDiagnostics.tsx", import.meta.url),
   "utf8",
 );
 
@@ -18,17 +18,17 @@ describe("physics bounds debug mode", () => {
     expect(overlaySource).toContain("DYNAMIC_COLLIDER_HORIZONTAL_INSET");
   });
 
-  it("exposes a separate all-prop-bounds toggle in the development HUD", () => {
-    expect(chromeSource).toContain("showAllBounds");
-    expect(chromeSource).toContain("Show granular prop collider boxes");
+  it("exposes a separate all-prop-bounds toggle in the diagnostics console", () => {
+    expect(diagnosticsSource).toContain("showAllBounds");
+    expect(diagnosticsSource).toContain("Show granular prop collider boxes");
   });
 
   it("offers independent physics isolation controls and timing readouts", () => {
-    expect(chromeSource).toContain("Step free-body simulation");
-    expect(chromeSource).toContain("Probe held collisions");
-    expect(chromeSource).toContain("Use generated scene statics");
-    expect(chromeSource).toContain("Run off-screen resets");
-    expect(chromeSource).toContain("frameMs");
-    expect(chromeSource).toContain("stepMs");
+    expect(diagnosticsSource).toContain("Step free-body simulation");
+    expect(diagnosticsSource).toContain("Probe held collisions");
+    expect(diagnosticsSource).toContain("Use generated scene statics");
+    expect(diagnosticsSource).toContain("Run off-screen resets");
+    expect(diagnosticsSource).toContain("frameMs");
+    expect(diagnosticsSource).toContain("stepMs");
   });
 });

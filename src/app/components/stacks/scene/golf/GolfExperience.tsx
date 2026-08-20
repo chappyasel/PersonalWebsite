@@ -4,6 +4,7 @@ import { sceneAudio } from "../../audio/sceneAudio";
 import { useStacks } from "../../store";
 import ModelProp from "../ModelProp";
 import { InteractionClaim } from "../interaction";
+import { registerSceneInteraction } from "../interactionRegistry";
 import { meadowHeight } from "../meadowField";
 import {
   createDimpledGolfBallGeometry,
@@ -22,7 +23,7 @@ import React, {
 } from "react";
 import * as THREE from "three";
 
-import { golfClubPose } from "./golfClubRig";
+import { golfClubHintRotation, golfClubPose } from "./golfClubRig";
 import { GOLF_CUP, GOLF_FLAG_LOCAL, golfSurfaceAt } from "./golfCourse";
 import {
   GOLF_BALL_IDS,
@@ -43,6 +44,7 @@ import {
   GOLF_CLUB_FINISH,
   GOLF_CONFETTI_COLORS,
   GOLF_FOG_POLICY,
+  golfBallVisualScale,
   golfVisualSpinStep,
 } from "./golfPresentation";
 import {
@@ -273,6 +275,7 @@ export default function GolfExperience({
   );
   const club = useRef<THREE.Group>(null);
   const clubVisual = useRef<THREE.Group>(null);
+  const clubHint = useRef(0);
   const stepper = useRef(new GolfFixedStepper());
   const queue = useRef(new GolfStrikeQueue());
   const bag = useRef(
@@ -394,6 +397,57 @@ export default function GolfExperience({
     if (available) tapBall(available);
   }, [tapBall]);
 
+  useEffect(() => {
+    const unregister: Array<() => void> = [];
+    if (club.current) {
+      unregister.push(
+        registerSceneInteraction({
+          id: "golf-club:strike",
+          label: "Swing golf club",
+          showLabel: false,
+          root: club.current,
+          activeUnits: [index],
+          touchPriority: 30,
+          projectedLocalBounds: {
+            min: [-0.34, -GOLF_CLUB_GRIP_HEIGHT - 0.18, -0.34],
+            max: [0.4, 0.25, 0.4],
+          },
+          activation: {
+            kind: "action",
+            label: "Swing golf club",
+            run: tapClub,
+          },
+          hover: { kind: "none" },
+        }),
+      );
+    }
+    for (const id of GOLF_BALL_IDS) {
+      const root = ballGroups.current[id];
+      if (!root) continue;
+      unregister.push(
+        registerSceneInteraction({
+          id: `golf-ball:${id}`,
+          label: "Hit golf ball",
+          showLabel: false,
+          root,
+          activeUnits: [index],
+          touchPriority: 40,
+          projectedLocalBounds: {
+            min: [-0.22, -0.22, -0.22],
+            max: [0.22, 0.22, 0.22],
+          },
+          activation: {
+            kind: "action",
+            label: "Hit golf ball",
+            run: () => tapBall(id),
+          },
+          hover: { kind: "none" },
+        }),
+      );
+    }
+    return () => unregister.forEach((run) => run());
+  }, [index, tapBall, tapClub]);
+
   const restoreAuthoredState = useCallback(() => {
     resetGolfSession(balls.current, queue.current, stepper.current);
     setLabelVisible(false);
@@ -404,6 +458,7 @@ export default function GolfExperience({
       club.current.position.copy(CLUB_REST_PIVOT);
       club.current.rotation.set(-0.08, 0.04, 0, "YXZ");
     }
+    clubHint.current = 0;
     if (clubVisual.current)
       clubVisual.current.rotation.set(0, GOLF_CLUB_MODEL_YAW, 0);
   }, []);
@@ -446,8 +501,22 @@ export default function GolfExperience({
       stepper.current.clear();
       return;
     }
-    const active = useStacks.getState().golfFocused;
+    const stacks = useStacks.getState();
+    const active = stacks.golfFocused;
     const pendingStrike = queue.current.snapshot();
+    const hintedInteraction = stacks.focusedInteraction ?? stacks.hovered ?? "";
+    const hintRequested =
+      active &&
+      (hintedInteraction.startsWith("golf-club:") ||
+        hintedInteraction.startsWith("golf-ball:")) &&
+      pendingStrike.current === null &&
+      pendingStrike.queued.length === 0;
+    clubHint.current = THREE.MathUtils.damp(
+      clubHint.current,
+      hintRequested ? 1 : 0,
+      10,
+      Math.min(delta, 0.05),
+    );
     if (shouldAdvanceGolfStrike(active, pendingStrike)) {
       const impact = queue.current.advance(Math.min(delta, 0.1));
       const strike = queue.current.snapshot();
@@ -480,6 +549,18 @@ export default function GolfExperience({
         cup,
         !motion.clubSwing,
       );
+      if (
+        club.current &&
+        !strike.current &&
+        strike.queued.length === 0 &&
+        motion.clubSwing
+      ) {
+        const hint = golfClubHintRotation(clubHint.current);
+        club.current.rotation.x += hint.x;
+        club.current.rotation.y += hint.y;
+        club.current.rotation.z += hint.z;
+        club.current.position.y += hint.lift;
+      }
     }
     stepper.current.advance(delta, (dt) =>
       stepGolfWorld(balls.current, world, dt),
@@ -489,7 +570,13 @@ export default function GolfExperience({
       const group = ballGroups.current[ball.id];
       const material = ballMaterials.current[ball.id];
       if (group) {
-        group.position.set(ball.position.x, ball.position.y, ball.position.z);
+        const visualScale = golfBallVisualScale(ball, cup);
+        group.position.set(
+          ball.position.x,
+          ball.position.y - ball.radius * (1 - visualScale),
+          ball.position.z,
+        );
+        group.scale.setScalar(visualScale);
         const spin = ballSpins.current[ball.id];
         if (spin) {
           const step = golfVisualSpinStep(ball.angularVelocity, delta);
@@ -581,11 +668,11 @@ export default function GolfExperience({
           </InteractionClaim>
         </group>
         <mesh position={[0, -GOLF_CLUB_GRIP_HEIGHT / 2, 0]}>
-          <cylinderGeometry args={[0.075, 0.075, GOLF_CLUB_GRIP_HEIGHT, 8]} />
+          <cylinderGeometry args={[0.22, 0.22, GOLF_CLUB_GRIP_HEIGHT, 10]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
         <mesh position={[0, -GOLF_CLUB_GRIP_HEIGHT + 0.09, 0]}>
-          <boxGeometry args={[0.22, 0.18, 0.28]} />
+          <boxGeometry args={[0.34, 0.24, 0.38]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
       </group>
@@ -661,7 +748,7 @@ export default function GolfExperience({
             />
           </mesh>
           <mesh userData={{ physicsIgnore: true }}>
-            <sphereGeometry args={[0.105, 8, 8]} />
+            <sphereGeometry args={[0.18, 12, 12]} />
             <meshBasicMaterial transparent opacity={0} depthWrite={false} />
           </mesh>
         </group>

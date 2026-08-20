@@ -5,28 +5,48 @@ import {
   fallbackCoverEdgeColor,
   readingBookMaterialColors,
 } from "../../../../lib/books/coverEdgeColor";
-import type { Book } from "../../../../lib/books/types";
-import { markBootSequenceReady, resetBootSequenceReady } from "../loading";
+import {
+  markBootBookFaceSettled,
+  markBootSequenceReady,
+  resetBootSequenceReady,
+} from "../loading";
 import {
   ABOUT_BOOT_COMPOSITION,
   type AboutBootLandmark,
   type AboutLandmarkGlyph,
+  type AboutLandmarkId,
 } from "../scene/aboutBootComposition";
 import { ABOUT_BOOT_MODEL_SILHOUETTES } from "../scene/aboutBootSilhouettes";
+import { APPLE_OUTLINE } from "../scene/appleOutline";
 import {
   SHELF_GEOMETRY,
   SHELF_PLANKS,
   SHELF_SURFACE,
 } from "../scene/shelfGeometry";
-import { readingStackPoses } from "../scene/units/aboutReadingStack";
-import { PALETTES } from "../theme";
+import {
+  ABOUT_READING_BOOK,
+  readingBookPerspectiveElevation,
+  readingStackPoses,
+} from "../scene/units/aboutReadingStack";
+import { CAMERA } from "../scene/worldLayout";
+import { PALETTES, proxied } from "../theme";
 import {
   type CSSProperties,
   type ReactNode,
   type RefObject,
   useEffect,
   useRef,
+  useSyncExternalStore,
 } from "react";
+
+import {
+  type BootReadingBook,
+  bootReadingBookFaceKey,
+  getBootReadingBooks,
+  getServerBootReadingBooks,
+  publishBootReadingBooks,
+  subscribeBootReadingBooks,
+} from "./bootReadingBooks";
 
 export const SCENE_TO_BOOT_SVG = 100;
 export const BOOT_CADENCE_STEP_SECONDS = 0.12;
@@ -53,8 +73,6 @@ export function bootCadence(itemCount: number) {
   };
 }
 
-type BootReadingBook = Pick<Book, "id">;
-
 const DEFAULT_BOOT_READING_BOOKS: BootReadingBook[] = [
   { id: "boot-reading-one" },
   { id: "boot-reading-two" },
@@ -65,6 +83,24 @@ type BootScreenProps = {
   readingBooks?: BootReadingBook[];
   readingBookColors?: Record<string, ReadingBookEdgeColor>;
 };
+
+export function BootReadingBooksBridge({
+  readingBooks,
+  readingBookColors,
+}: {
+  readingBooks: BootReadingBook[];
+  readingBookColors: Record<string, ReadingBookEdgeColor>;
+}) {
+  useEffect(
+    () =>
+      publishBootReadingBooks({
+        books: readingBooks,
+        colors: readingBookColors,
+      }),
+    [readingBookColors, readingBooks],
+  );
+  return null;
+}
 
 type BootStyle = CSSProperties & Record<`--stacks-boot-${string}`, string>;
 
@@ -300,8 +336,50 @@ function assertNever(_glyph: never): never {
   throw new Error("Unhandled About boot glyph");
 }
 
-function FrameGlyph({ width, height }: { width: number; height: number }) {
-  const inset = Math.min(width, height) * 0.12;
+type BootFramePhoto = {
+  src: string;
+  preserveAspectRatio: "xMidYMid slice" | "xMidYMin slice";
+};
+
+/** These use the same right-sized sources as the first live unit. Browser
+ * image requests do not block HTML paint, so the vector frame appears first
+ * and the photo fills it when its scene asset decodes. */
+export const BOOT_FRAME_PHOTOS = {
+  portrait: {
+    src: proxied("/images/about/profile.jpg", 384),
+    preserveAspectRatio: "xMidYMin slice",
+  },
+  "family-frame": {
+    src: "/images/stacks/v8/512/about-family.webp",
+    preserveAspectRatio: "xMidYMid slice",
+  },
+  "profile-frame": {
+    src: "/images/stacks/v8/512/about-profile-full.webp",
+    preserveAspectRatio: "xMidYMid slice",
+  },
+  "collective-frame": {
+    src: "/images/stacks/v8/512/about-collective-group.webp",
+    preserveAspectRatio: "xMidYMid slice",
+  },
+} as const satisfies Partial<Record<AboutLandmarkId, BootFramePhoto>>;
+
+function FrameGlyph({
+  landmark,
+  width,
+  height,
+}: {
+  landmark: AboutBootLandmark;
+  width: number;
+  height: number;
+}) {
+  const landmarkId = landmark.id;
+  const photo = (BOOT_FRAME_PHOTOS as Partial<Record<string, BootFramePhoto>>)[
+    landmarkId
+  ];
+  const imageWidth = (landmark.imageProfile?.width ?? 0) * SCENE_TO_BOOT_SVG;
+  const imageHeight = (landmark.imageProfile?.height ?? 0) * SCENE_TO_BOOT_SVG;
+  const imageX = -imageWidth / 2;
+  const imageY = -height + (height - imageHeight) / 2;
   return (
     <>
       <rect
@@ -314,12 +392,24 @@ function FrameGlyph({ width, height }: { width: number; height: number }) {
       />
       <rect
         className="stacks-boot-frame-empty"
-        x={-width / 2 + inset}
-        y={-height + inset}
-        width={width - inset * 2}
-        height={height - inset * 2}
+        x={imageX}
+        y={imageY}
+        width={imageWidth}
+        height={imageHeight}
         rx="1"
       />
+      {photo && (
+        <image
+          className="stacks-boot-frame-photo"
+          data-boot-photo={landmarkId}
+          href={photo.src}
+          x={imageX}
+          y={imageY}
+          width={imageWidth}
+          height={imageHeight}
+          preserveAspectRatio={photo.preserveAspectRatio}
+        />
+      )}
     </>
   );
 }
@@ -335,11 +425,10 @@ function ReadingStackGlyph({
 }) {
   const visible = books.slice(0, 3);
   const poses = readingStackPoses();
-  const profiles = [
-    { width: 29, height: 50, skew: -1.2 },
-    { width: 27, height: 47, skew: 0.4 },
-    { width: 27, height: 49, skew: -0.5 },
-  ] as const;
+  const [firstPose] = poses;
+  const [, , fanAngle] = firstPose.rotation;
+  const edgeWidth =
+    Math.sin(fanAngle) * ABOUT_READING_BOOK.thickness * SCENE_TO_BOOT_SVG;
   return (
     <g>
       {visible.map((book, index) => {
@@ -357,15 +446,38 @@ function ReadingStackGlyph({
           PALETTES.dark.pages,
           true,
         );
-        const profile = profiles[index]!;
-        const centerX = (poses[index]!.base[0] - landmarkX) * SCENE_TO_BOOT_SVG;
-        const left = centerX - profile.width / 2;
-        const right = centerX + profile.width / 2;
-        const topLeft = left + profile.skew;
-        const topRight = right + profile.skew;
-        const cover = `${left},0 ${right},0 ${topRight},${-profile.height} ${topLeft},${-profile.height}`;
-        const edgeWidth = 2.6;
-        const foreEdge = `${right},0 ${right + edgeWidth},-1 ${topRight + edgeWidth},${-profile.height + 1} ${topRight},${-profile.height}`;
+        const coverPoints = readingBookPerspectiveElevation(
+          poses[index]!,
+          CAMERA.z,
+        ).map(([x, y]): [number, number] => [
+          (x - landmarkX) * SCENE_TO_BOOT_SVG,
+          -y * SCENE_TO_BOOT_SVG,
+        ]) as [
+          [number, number],
+          [number, number],
+          [number, number],
+          [number, number],
+        ];
+        const cover = coverPoints.map((point) => point.join(",")).join(" ");
+        const [bottomLeft, bottomRight, topRight, topLeft] = coverPoints;
+        const coverImageTransform = [
+          topRight[0] - topLeft[0],
+          topRight[1] - topLeft[1],
+          bottomLeft[0] - topLeft[0],
+          bottomLeft[1] - topLeft[1],
+          topLeft[0],
+          topLeft[1],
+        ].join(" ");
+        const clipId = `stacks-boot-reading-cover-${index}`;
+        const faceKey = bootReadingBookFaceKey(book);
+        const foreEdge = [
+          bottomRight,
+          [bottomRight[0] + edgeWidth, bottomRight[1]],
+          [topRight[0] + edgeWidth, topRight[1]],
+          topRight,
+        ]
+          .map((point) => point.join(","))
+          .join(" ");
         return (
           <g
             className="stacks-boot-reading-book"
@@ -384,14 +496,43 @@ function ReadingStackGlyph({
               } as BootStyle
             }
           >
-            <polygon className="stacks-boot-book-cover" points={cover} />
+            <defs>
+              <clipPath id={clipId}>
+                <polygon points={cover} />
+              </clipPath>
+            </defs>
+            <polygon
+              className="stacks-boot-book-cover"
+              data-boot-reading-cover={index}
+              points={cover}
+            />
+            {book.coverSrc && (
+              <image
+                className="stacks-boot-book-cover-photo"
+                clipPath={`url(#${clipId})`}
+                data-boot-book-face={book.id}
+                href={book.coverSrc}
+                height="1"
+                onError={() => {
+                  if (faceKey) markBootBookFaceSettled(faceKey);
+                }}
+                onLoad={() => {
+                  if (faceKey) markBootBookFaceSettled(faceKey);
+                }}
+                preserveAspectRatio="none"
+                transform={`matrix(${coverImageTransform})`}
+                width="1"
+                x="0"
+                y="0"
+              />
+            )}
             <polygon className="stacks-boot-book-edge" points={foreEdge} />
             <line
               className="stacks-boot-book-page-line"
-              x1={topLeft + 2}
-              x2={topRight - 1}
-              y1={-profile.height + 2.4}
-              y2={-profile.height + 2.4}
+              x1={topLeft[0] + 2}
+              x2={topRight[0] - 1}
+              y1={topLeft[1] + 2.4}
+              y2={topRight[1] + 2.4}
             />
           </g>
         );
@@ -422,16 +563,10 @@ function ModelSilhouetteGlyph({
   );
 }
 
-function CollectiveMarkGlyph({
-  width,
-  height,
-}: {
-  width: number;
-  height: number;
-}) {
-  const baseHeight = 2.5;
-  const gap = 1;
-  const markHeight = height - baseHeight - gap;
+function CollectiveMarkGlyph({ width }: { width: number }) {
+  const baseHeight = 0.024 * SCENE_TO_BOOT_SVG;
+  const gap = 0.004 * SCENE_TO_BOOT_SVG;
+  const markHeight = 0.18 * SCENE_TO_BOOT_SVG;
   const markWidth = markHeight * (700 / 844.38);
   return (
     <>
@@ -492,6 +627,20 @@ function TJMedallionGlyph({
   );
 }
 
+function appleGlyphPath(height: number, bottom: number): string {
+  const point = (x: number, y: number) =>
+    `${x * height} ${-(bottom + y * height)}`;
+  return APPLE_OUTLINE.map(({ start, curves }) => {
+    const segments = curves
+      .map(
+        ([x1, y1, x2, y2, x, y]) =>
+          `C ${point(x1, y1)} ${point(x2, y2)} ${point(x, y)}`,
+      )
+      .join(" ");
+    return `M ${point(start[0], start[1])} ${segments} Z`;
+  }).join(" ");
+}
+
 function LandmarkGlyph({
   landmark,
   readingBooks,
@@ -507,7 +656,7 @@ function LandmarkGlyph({
   switch (glyph) {
     case "portrait-frame":
     case "landscape-frame":
-      return <FrameGlyph width={width} height={height} />;
+      return <FrameGlyph landmark={landmark} width={width} height={height} />;
     case "globe":
       return <ModelSilhouetteGlyph id="globe" width={width} height={height} />;
     case "succulent":
@@ -525,28 +674,33 @@ function LandmarkGlyph({
         <ModelSilhouetteGlyph id="desk-lamp" width={width} height={height} />
       );
     case "collective-mark": {
-      return <CollectiveMarkGlyph width={width} height={height} />;
+      return <CollectiveMarkGlyph width={width} />;
     }
     case "medallion": {
       return <TJMedallionGlyph width={width} height={height} />;
     }
-    case "apple":
+    case "apple": {
+      const baseHeight = 0.021 * SCENE_TO_BOOT_SVG;
+      const markHeight = 0.15 * SCENE_TO_BOOT_SVG;
+      const markBottom = 0.017 * SCENE_TO_BOOT_SVG;
       return (
         <>
           <rect
             className="stacks-boot-metal-fill"
             x={-width / 2}
-            y="-3"
+            y={-baseHeight}
             width={width}
-            height="3"
+            height={baseHeight}
             rx="1"
           />
           <path
             className="stacks-boot-apple"
-            d={`M 0 -${height * 0.82} C -${width * 0.14} -${height}, -${width * 0.42} -${height * 0.78}, -${width * 0.34} -${height * 0.5} C -${width * 0.27} -${height * 0.25}, -${width * 0.1} -${height * 0.2}, 0 -${height * 0.27} C ${width * 0.1} -${height * 0.2}, ${width * 0.27} -${height * 0.25}, ${width * 0.34} -${height * 0.5} C ${width * 0.42} -${height * 0.78}, ${width * 0.14} -${height}, 0 -${height * 0.82} Z M 0 -${height * 0.85} Q ${width * 0.12} -${height} ${width * 0.25} -${height * 0.96}`}
+            data-boot-apple=""
+            d={appleGlyphPath(markHeight, markBottom)}
           />
         </>
       );
+    }
     case "reading-stack":
       return (
         <ReadingStackGlyph
@@ -561,9 +715,18 @@ function LandmarkGlyph({
 }
 
 export default function BootScreen({
-  readingBooks = DEFAULT_BOOT_READING_BOOKS,
-  readingBookColors = {},
+  readingBooks,
+  readingBookColors,
 }: BootScreenProps) {
+  const streamedReadingBooks = useSyncExternalStore(
+    subscribeBootReadingBooks,
+    getBootReadingBooks,
+    getServerBootReadingBooks,
+  );
+  const resolvedReadingBooks =
+    readingBooks ?? streamedReadingBooks?.books ?? DEFAULT_BOOT_READING_BOOKS;
+  const resolvedReadingBookColors =
+    readingBookColors ?? streamedReadingBooks?.colors ?? {};
   const cadence = ABOUT_BOOT_CADENCE;
   const keyframes = bootCssKeyframes(ABOUT_BOOT_COMPOSITION.length, cadence);
   const sceneRef = useRef<SVGSVGElement>(null);
@@ -641,6 +804,16 @@ export default function BootScreen({
                   data-shelf-id={landmark.shelf}
                   data-cadence-slot={index}
                   key={landmark.id}
+                  style={
+                    "colorProfile" in landmark
+                      ? ({
+                          "--stacks-boot-object-light":
+                            landmark.colorProfile.light,
+                          "--stacks-boot-object-dark":
+                            landmark.colorProfile.dark,
+                        } as BootStyle)
+                      : undefined
+                  }
                   transform={`translate(${landmark.x * SCENE_TO_BOOT_SVG} ${projectSceneY(SHELF_SURFACE[landmark.shelf])})`}
                 >
                   <g
@@ -651,8 +824,8 @@ export default function BootScreen({
                   >
                     <LandmarkGlyph
                       landmark={landmark}
-                      readingBooks={readingBooks}
-                      readingBookColors={readingBookColors}
+                      readingBooks={resolvedReadingBooks}
+                      readingBookColors={resolvedReadingBookColors}
                     />
                   </g>
                 </g>

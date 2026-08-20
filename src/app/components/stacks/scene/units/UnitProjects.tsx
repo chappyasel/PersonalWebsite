@@ -17,8 +17,8 @@ import {
 } from "../photos";
 import { FrameRow, ShelfUnit } from "../primitives";
 import { SHELF_GEOMETRY } from "../shelfGeometry";
+import { useUnitFrame } from "../unitActivity";
 import { useUnitLod } from "../useUnitLod";
-import { useFrame } from "@react-three/fiber";
 import React, { useMemo, useRef } from "react";
 import * as THREE from "three";
 
@@ -60,7 +60,7 @@ function Glint({
 }) {
   const group = useRef<THREE.Group>(null);
   const level = useRef(0);
-  useFrame((_, delta) => {
+  useUnitFrame((_, delta) => {
     const g = group.current;
     if (!g) return;
     const target = useStacks.getState().hovered === hoverKey ? 1 : 0;
@@ -167,7 +167,7 @@ function FinderMark({ unitIndex }: { unitIndex: number }) {
   const nextBlink = useRef(4.7);
   const blinkUntil = useRef(-1);
   const last = useRef({ x: 0, y: 0, blink: false });
-  useFrame((state) => {
+  useUnitFrame((state) => {
     if (still || useStacks.getState().activeUnit !== unitIndex) return;
     const now = state.clock.elapsedTime;
     if (now >= nextBlink.current) {

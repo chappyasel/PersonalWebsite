@@ -8,11 +8,14 @@ import {
   QUALITY_RECOVERY_SUSTAIN_MS,
   QUALITY_SAFETY_FALLBACK_MS,
   QUALITY_TRAVEL_VALIDATION_MS,
+  NARROW_VIEWPORT_DPR_CAP_BY_PROFILE,
   SCENE_QUALITY_DEFINITIONS,
   SCENE_QUALITY_PROFILES,
   type SceneQualityAdaptationState,
   type SceneQualityMetrics,
   type SceneQualityProfile,
+  bookCoverWidthForNeed,
+  deriveRendererCapability,
   initialSceneQualityAdaptationState,
   qualityModeFromSearch,
   qualityProfileFromValue,
@@ -65,6 +68,44 @@ function plan(profile: SceneQualityProfile, touch = false) {
 }
 
 describe("scene quality policy", () => {
+  it("derives capability from renderer evidence instead of pointer type", () => {
+    expect(
+      deriveRendererCapability({
+        webglVersion: 1,
+        maxTextureSize: 4096,
+        maxSamples: 0,
+        physicalPixels: 2_000_000,
+      }),
+    ).toBe("constrained");
+    expect(
+      deriveRendererCapability({
+        webglVersion: 2,
+        maxTextureSize: 16384,
+        maxSamples: 8,
+        physicalPixels: 4_000_000,
+      }),
+    ).toBe("high");
+    expect(
+      deriveRendererCapability({
+        webglVersion: 2,
+        maxTextureSize: 16384,
+        maxSamples: 8,
+        physicalPixels: 4_000_000,
+        observed: {
+          p95: 29,
+          targetFrameMs: 16.667,
+          droppedFrameRatio: 0.3,
+          sampleCount: 120,
+        },
+      }),
+    ).toBe("constrained");
+  });
+
+  it("chooses cover resolution from projected need and quality", () => {
+    expect(bookCoverWidthForNeed(220, "showcase")).toBe(384);
+    expect(bookCoverWidthForNeed(120, "showcase")).toBe(256);
+    expect(bookCoverWidthForNeed(400, "efficient")).toBe(256);
+  });
   it("maps every desktop and touch profile from one centralized table", () => {
     for (const profile of SCENE_QUALITY_PROFILES) {
       const desktop = plan(profile);
@@ -80,6 +121,61 @@ describe("scene quality policy", () => {
       }).toEqual(desktop.effects);
       expect(touch.effects.multisampling).toBe(0);
     }
+  });
+
+  it("uses a strict DPR ladder on narrow viewports", () => {
+    const input = {
+      cssWidth: 390,
+      cssHeight: 844,
+      deviceDpr: 3,
+      touch: true,
+      narrowViewport: true,
+    } as const;
+
+    for (const profile of AUTO_SCENE_QUALITY_PROFILES) {
+      const resolved = resolveSceneQualityPlan({
+        ...input,
+        mode: profile,
+        profile,
+      });
+      expect(resolved.dpr).toBe(
+        NARROW_VIEWPORT_DPR_CAP_BY_PROFILE[profile],
+      );
+      expect(resolved.dprCap).toBe(
+        NARROW_VIEWPORT_DPR_CAP_BY_PROFILE[profile],
+      );
+    }
+
+    expect(
+      resolveSceneQualityPlan({
+        ...input,
+        mode: "cinematic",
+        profile: "cinematic",
+      }),
+    ).toMatchObject({ dpr: 4, dprCap: 4 });
+
+    expect(
+      resolveSceneQualityPlan({
+        ...input,
+        mode: "safety",
+        profile: "safety",
+        overrides: { effectiveDprLadder: false },
+      }),
+    ).toMatchObject({ dpr: 2, dprCap: 2 });
+  });
+
+  it("keeps the desktop DPR policy on wide viewports", () => {
+    const balanced = resolveSceneQualityPlan({
+      mode: "balanced",
+      profile: "balanced",
+      cssWidth: 1200,
+      cssHeight: 400,
+      deviceDpr: 3,
+      touch: false,
+      narrowViewport: false,
+    });
+
+    expect(balanced).toMatchObject({ dpr: 2.75, dprCap: 2.75 });
   });
 
   it("implements the specified environment and finishing profiles", () => {
@@ -318,12 +414,12 @@ describe("scene quality policy", () => {
     ).toMatchObject({ profile: "efficient", transitionReason: "restored" });
     expect(
       sceneQualityStorageBucket({
-        touch: true,
+        capability: "constrained",
         cssWidth: 390,
         cssHeight: 844,
         deviceDpr: 3,
       }),
-    ).toBe("stacks-quality:v3:coarse:small");
+    ).toBe("stacks-quality:v4:constrained:small");
   });
 });
 

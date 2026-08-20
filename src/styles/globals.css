@@ -512,19 +512,27 @@ html[data-world="ready"] .stacks-boot-threshold {
   opacity: 0.24;
 }
 
+.stacks-boot-item {
+  --stacks-boot-object: var(
+    --stacks-boot-object-light,
+    var(--stacks-boot-metal)
+  );
+}
+
+.dark .stacks-boot-item {
+  --stacks-boot-object: var(
+    --stacks-boot-object-dark,
+    var(--stacks-boot-metal)
+  );
+}
+
 .stacks-boot-model-silhouette {
-  fill: var(--stacks-boot-metal);
+  fill: var(--stacks-boot-object);
   opacity: 0.9;
 }
 
-.stacks-boot-model-silhouette[data-model-silhouette="cactus"],
-.stacks-boot-model-silhouette[data-model-silhouette="succulent"],
-.stacks-boot-model-silhouette[data-model-silhouette="large-plant"] {
-  fill: var(--stacks-boot-leaf);
-}
-
 .stacks-boot-model-silhouette[data-model-silhouette="ai-collective"] {
-  fill: #ff7a2d;
+  fill: var(--stacks-boot-object);
 }
 
 .stacks-boot-mark-base {
@@ -586,6 +594,10 @@ html[data-world="ready"] .stacks-boot-threshold {
   opacity: 0.84;
 }
 
+.stacks-boot-frame-photo {
+  pointer-events: none;
+}
+
 .stacks-boot-globe {
   fill: color-mix(in srgb, var(--stacks-boot-metal) 28%, transparent);
   stroke: var(--stacks-boot-metal);
@@ -627,8 +639,17 @@ html[data-world="ready"] .stacks-boot-threshold {
 }
 
 .stacks-boot-apple {
-  fill: color-mix(in srgb, var(--stacks-boot-metal) 72%, transparent);
+  fill: var(--stacks-boot-object);
+  stroke: color-mix(in srgb, var(--stacks-boot-object) 76%, black);
   stroke-width: 1.6;
+}
+
+.stacks-boot-item[data-landmark-id="apple"] .stacks-boot-metal-fill {
+  fill: #5e6368;
+}
+
+.dark .stacks-boot-item[data-landmark-id="apple"] .stacks-boot-metal-fill {
+  fill: #444a4f;
 }
 
 .stacks-boot-leaf {
@@ -656,6 +677,10 @@ html[data-world="ready"] .stacks-boot-threshold {
   stroke: none;
 }
 
+.stacks-boot-book-cover-photo {
+  pointer-events: none;
+}
+
 .stacks-boot-book-page-line {
   fill: none;
   stroke: var(--stacks-boot-book-page);
@@ -677,11 +702,45 @@ html[data-world="ready"] .stacks-boot-threshold {
   background: hsl(var(--background));
 }
 
+/* WebKit can move a range that begins on the WebGL surface to nearby DOM,
+   leaving blue handles over the scene even though the canvas itself is
+   non-selectable. Make World chrome non-selectable, then opt its reading
+   surfaces back in. The document-level behavioral guard in StacksHome clears
+   ranges that Safari relocates outside this subtree. */
+html[data-world] .stacks-world-shell,
+html[data-world] .stacks-world-shell * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+
+html[data-world] .placard-scroll,
+html[data-world] .placard-scroll * {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+}
+
+html[data-world] input,
+html[data-world] textarea,
+html[data-world] [contenteditable="true"] {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+}
+
 /* The scene is a gesture surface, not document content. In particular,
    WebKit can begin a native selection during a horizontal swipe unless its
    prefixed form is set too. Keep this scoped below the canvas boundary so
    text in the sibling placards and modal remains selectable. */
 .stacks-canvas-shell {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Safari can treat a WebGL canvas like previewable image content even though
+   its parent is not selectable. Put the WebKit guard on the generated canvas
+   itself as well, so a hold or double tap stays a scene gesture. */
+.stacks-canvas-shell canvas {
+  -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
 }

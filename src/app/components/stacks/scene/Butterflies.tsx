@@ -31,6 +31,7 @@ import {
   insectCollisionIndexRevision,
   prepareInsectLandingTarget,
 } from "./insectFlightWorld";
+import { insectOwnerIsDisturbed } from "./insectDisturbance";
 import {
   INSECT_LANDING_YAW,
   LANDING_TIMING,
@@ -1312,8 +1313,7 @@ function Flight({
               // already said the residents were.
               perch.unitIndex === motion.currentUnit &&
               !insectPerchOccupant(perch.id) &&
-              insectPerchOwnerId(perch) !== stacks.hovered &&
-              insectPerchOwnerId(perch) !== stacks.dragging,
+              !insectOwnerIsDisturbed(insectPerchOwnerId(perch), stacks),
           );
           if (candidates.length) {
             const first = Math.floor(
@@ -1457,9 +1457,7 @@ function Flight({
             );
           }
           const ownerId = insectPerchOwnerId(perch);
-          direct =
-            Boolean(ownerId) &&
-            (ownerId === stacks.hovered || ownerId === stacks.dragging);
+          direct = insectOwnerIsDisturbed(ownerId, stacks);
           environmentalDrag =
             Boolean(stacks.dragging) && perch.unitIndex === stacks.activeUnit;
           motion.projected

@@ -37,11 +37,35 @@ export type HoverResponseSpec = {
   kind: "lift" | "tilt" | "shimmer" | "none";
 };
 
+export type ProjectedLocalBounds = Readonly<{
+  min: readonly [number, number, number];
+  max: readonly [number, number, number];
+}>;
+
+/** Imperative seam used by the coarse-pointer arbiter. Grabbable remains the
+ * owner of authored/solver motion; the DOM layer only decides when it begins. */
+export type MovableController = {
+  press: (event: PointerEvent) => boolean;
+  pickup: (event: PointerEvent) => void;
+  move: (event: PointerEvent) => void;
+  release: (
+    event: PointerEvent,
+    velocityMultiplier: number,
+    cap: number,
+  ) => void;
+  cancel: (event?: PointerEvent) => void;
+};
+
 export type SceneInteractionSpec = {
   id: string;
+  label?: string;
+  showLabel?: boolean;
   root: THREE.Object3D;
   activeUnits: number[];
+  touchPriority?: number;
+  projectedLocalBounds?: ProjectedLocalBounds;
   movable?: MovableSpec;
+  movableController?: MovableController;
   activation?: DoorSpec | ActionSpec | EggSpec;
   hover?: HoverResponseSpec;
 };
@@ -129,6 +153,16 @@ export const MASS_HANDLING = {
 } as const;
 
 const interactionParts = new Map<string, Map<symbol, SceneInteractionSpec>>();
+const registrySubscribers = new Set<() => void>();
+
+function publishRegistryChange() {
+  for (const subscriber of registrySubscribers) subscriber();
+}
+
+export function subscribeSceneInteractions(subscriber: () => void) {
+  registrySubscribers.add(subscriber);
+  return () => registrySubscribers.delete(subscriber);
+}
 
 function composeInteraction(id: string): SceneInteractionSpec | null {
   const parts = interactionParts.get(id);
@@ -139,12 +173,25 @@ function composeInteraction(id: string): SceneInteractionSpec | null {
   const hoverPart = all.find((part) => part.hover);
   return {
     id,
+    label:
+      all.find((part) => part.label)?.label ??
+      (activationPart?.activation?.kind === "door" ||
+      activationPart?.activation?.kind === "action"
+        ? activationPart.activation.label
+        : id),
+    showLabel: all.every((part) => part.showLabel !== false),
     // A carrier owns projection and touch hit-testing when a nested trigger
     // contributes activation separately (the alarm clock is the canonical
     // movable + egg case).
     root: movablePart?.root ?? activationPart?.root ?? all[0]!.root,
     activeUnits: [...new Set(all.flatMap((part) => part.activeUnits))],
+    touchPriority: Math.max(...all.map((part) => part.touchPriority ?? 0)),
+    projectedLocalBounds:
+      movablePart?.projectedLocalBounds ??
+      activationPart?.projectedLocalBounds ??
+      all[0]?.projectedLocalBounds,
     movable: movablePart?.movable,
+    movableController: movablePart?.movableController,
     activation: activationPart?.activation,
     hover: hoverPart?.hover,
   };
@@ -156,11 +203,25 @@ export function registerSceneInteraction(spec: SceneInteractionSpec) {
     interactionParts.get(spec.id) ?? new Map<symbol, SceneInteractionSpec>();
   parts.set(token, spec);
   interactionParts.set(spec.id, parts);
+  publishRegistryChange();
   return () => {
     const current = interactionParts.get(spec.id);
     current?.delete(token);
     if (!current?.size) interactionParts.delete(spec.id);
+    publishRegistryChange();
   };
+}
+
+export function runSceneInteractionActivation(id: string) {
+  const activation = getSceneInteraction(id)?.activation;
+  if (!activation) return false;
+  if (activation.kind === "door") {
+    if (!activation.run) return false;
+    activation.run();
+  } else {
+    activation.run();
+  }
+  return true;
 }
 
 export function getSceneInteraction(id: string | null) {
@@ -207,6 +268,7 @@ export function doorDisplayLabel(door: DoorSpec) {
 export function doorLabelActivation(
   spec: SceneInteractionSpec | null,
 ): DoorSpec | ActionSpec | null {
+  if (spec?.showLabel === false) return null;
   return spec?.activation?.kind === "door" ||
     spec?.activation?.kind === "action"
     ? spec.activation

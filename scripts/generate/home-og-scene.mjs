@@ -6,15 +6,18 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import sharp from "sharp";
 
-const WIDTH = 1200;
-const HEIGHT = 630;
-// The live desktop camera leaves the right third open for its placard. Capture
-// mode removes that UI, so crop the unused side and enlarge the focal shelf.
-// 900x472.5 is exactly the OG card's 40:21 aspect ratio.
-// Start the crop slightly lower in the framebuffer so the shelves land a
-// little higher in the finished card, leaving a quieter meadow band for the
-// overlaid name without changing the horizontal composition.
-const SCENE_CROP = { x: 70, y: 90, width: 900, height: 472.5 };
+import {
+  HOME_OG_CAMERA_Y,
+  HOME_OG_DEVICE_SCALE_FACTOR,
+  HOME_OG_FOV,
+  HOME_OG_LENS_CENTER,
+  HOME_OG_LOOK_Y,
+  HOME_OG_OUTPUT,
+  HOME_OG_SCENE_CROP,
+  HOME_OG_VIEWPORT,
+} from "./home-og-scene-config.mjs";
+
+const { width: WIDTH, height: HEIGHT } = HOME_OG_OUTPUT;
 const ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../..",
@@ -40,9 +43,18 @@ function captureUrl(rawUrl) {
     throw new Error("--url must use http or https");
   }
   url.searchParams.set("og-capture", "1");
-  // Keep the authored post-processing deterministic in software-rendered CI:
-  // rung 0 retains AO, bloom, depth of field, tilt shift, and the final grade.
-  url.searchParams.set("quality", "0");
+  // Capture with the scene's manual-only maximum-quality profile: full-resolution
+  // AO and depth of field, 10-level bloom, 8x MSAA, and maximum environment detail.
+  url.searchParams.set("quality", "cinematic");
+  url.searchParams.set("og-head-on", "1");
+  // A slightly narrower capture lens gives the shelf more of the finished
+  // card without changing the live homepage camera.
+  url.searchParams.set("og-fov", HOME_OG_FOV.toString());
+  url.searchParams.set("og-look-y", HOME_OG_LOOK_Y.toString());
+  url.searchParams.set("og-camera-y", HOME_OG_CAMERA_Y.toString());
+  // Keep the full cinematic side lens, but center its clear band on the crop
+  // instead of the hidden rail and reading dock.
+  url.searchParams.set("og-lens-center", HOME_OG_LENS_CENTER.toString());
   return url;
 }
 
@@ -69,10 +81,10 @@ const browser = await chromium.launch({
 
 try {
   const context = await browser.newContext({
-    viewport: { width: WIDTH, height: HEIGHT },
-    // Render at the card's native pixel density. Full AO, bloom, depth of
-    // field, and tilt shift exhaust SwiftShader at the former 1.5x setting.
-    deviceScaleFactor: 1,
+    viewport: HOME_OG_VIEWPORT,
+    // The 4:3 device scale turns the CSS crop into at least a native
+    // 1200x630 raster without changing the authored viewport composition.
+    deviceScaleFactor: HOME_OG_DEVICE_SCALE_FACTOR,
     colorScheme: "dark",
     reducedMotion: "no-preference",
   });
@@ -113,13 +125,20 @@ try {
       timeout: 120_000,
     },
   );
+  // `.stacks-og-ui` uses `display: contents`, so hiding only that wrapper is
+  // not enough in Chromium. Hide its descendants directly while retaining
+  // their layout measurements for the scene's authored camera composition.
+  await page.addStyleTag({
+    content:
+      "html[data-og-capture] .stacks-og-ui * { visibility: hidden !important; }",
+  });
   await page.evaluate(async () => document.fonts?.ready);
   const uiVisibility = await page
-    .locator(".stacks-og-ui")
+    .locator("[data-stacks-desktop-panel][data-stacks-active]")
     .evaluate((element) => getComputedStyle(element).visibility);
   if (uiVisibility !== "hidden") {
     throw new Error(
-      `Capture UI should be hidden; computed visibility is ${uiVisibility}`,
+      `Capture placard should be hidden; computed visibility is ${uiVisibility}`,
     );
   }
 
@@ -143,13 +162,20 @@ try {
   await page.screenshot({
     path: rawOutputPath,
     type: "png",
-    clip: SCENE_CROP,
+    clip: HOME_OG_SCENE_CROP,
     animations: "disabled",
     caret: "hide",
     fullPage: false,
     scale: "device",
     timeout: 120_000,
   });
+
+  const rawMetadata = await sharp(rawOutputPath).metadata();
+  if ((rawMetadata.width ?? 0) < WIDTH || (rawMetadata.height ?? 0) < HEIGHT) {
+    throw new Error(
+      `Raw capture must be at least ${WIDTH}x${HEIGHT}; received ${rawMetadata.width ?? "?"}x${rawMetadata.height ?? "?"}`,
+    );
+  }
 
   await sharp(rawOutputPath)
     .resize(WIDTH, HEIGHT, { fit: "fill" })

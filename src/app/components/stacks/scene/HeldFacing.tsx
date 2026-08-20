@@ -1,9 +1,10 @@
 "use client";
 
 import { useStacks } from "../store";
-import { useFrame } from "@react-three/fiber";
 import React, { useMemo, useRef } from "react";
 import * as THREE from "three";
+
+import { useUnitFrame } from "./unitActivity";
 
 type EulerTuple = [number, number, number];
 
@@ -56,7 +57,7 @@ export default function HeldFacing({
   const cameraWorld = useMemo(() => new THREE.Quaternion(), []);
   const target = useMemo(() => new THREE.Quaternion(), []);
 
-  useFrame(({ camera }, rawDelta) => {
+  useUnitFrame(({ camera }, rawDelta) => {
     const node = group.current;
     if (!node) return;
     const carried = useStacks.getState().dragging === hoverKey;

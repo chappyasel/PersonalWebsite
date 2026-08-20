@@ -11,12 +11,12 @@ describe("golf strike queue", () => {
     expect(
       shouldAdvanceGolfStrike(false, { current: null, queued: ["one"] }),
     ).toBe(true);
-    expect(
-      shouldAdvanceGolfStrike(false, { current: "one", queued: [] }),
-    ).toBe(true);
-    expect(
-      shouldAdvanceGolfStrike(false, { current: null, queued: [] }),
-    ).toBe(false);
+    expect(shouldAdvanceGolfStrike(false, { current: "one", queued: [] })).toBe(
+      true,
+    );
+    expect(shouldAdvanceGolfStrike(false, { current: null, queued: [] })).toBe(
+      false,
+    );
   });
   it("lets a club tap select the first genuinely available ball", () => {
     expect(
@@ -39,7 +39,7 @@ describe("golf strike queue", () => {
     expect(queue.tap("three")).toBe(true);
     expect(queue.tap("four")).toBe(true);
     const impacts: string[] = [];
-    for (let frame = 0; frame < 160; frame += 1) {
+    for (let frame = 0; frame < 320; frame += 1) {
       const impact = queue.advance(1 / 60);
       if (impact) impacts.push(impact);
     }
@@ -52,7 +52,7 @@ describe("golf strike queue", () => {
     queue.tap("two");
     // There is intentionally no celebration input: the club remains a pure
     // serial strike queue while cup effects run alongside it.
-    const impacts = Array.from({ length: 80 }, () =>
+    const impacts = Array.from({ length: 160 }, () =>
       queue.advance(1 / 60),
     ).filter(Boolean);
     expect(impacts).toEqual(["one", "two"]);

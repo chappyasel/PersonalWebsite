@@ -17,7 +17,7 @@ import {
   fallbackCoverEdgeColor,
   readingBookMaterialColors,
 } from "../../../../../lib/books/coverEdgeColor";
-import { useStacks } from "../../store";
+import { arrivalBeatRef, useStacks } from "../../store";
 import { rand } from "../../theme";
 import {
   type BookInteraction,
@@ -39,8 +39,8 @@ import {
 } from "../primitives";
 import { SHELF_SURFACE } from "../shelfGeometry";
 import { layoutShelfRow, splitShelfRows } from "../shelfSpacing";
+import { useUnitFrame } from "../unitActivity";
 import { useUnitLod } from "../useUnitLod";
-import { useFrame } from "@react-three/fiber";
 import React, { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
@@ -98,7 +98,7 @@ function BookInteractionProbe({
 }) {
   const box = useMemo(() => new THREE.Box3(), []);
   const center = useMemo(() => new THREE.Vector3(), []);
-  useFrame(({ camera, gl }) => {
+  useUnitFrame(({ camera, gl }) => {
     if (
       process.env.NODE_ENV === "production" ||
       useStacks.getState().activeUnit !== index ||
@@ -422,6 +422,23 @@ function BookendTarget() {
   );
 }
 
+function BooksArrivalBeat({
+  children,
+  enabled = true,
+}: {
+  children: React.ReactNode;
+  enabled?: boolean;
+}) {
+  const group = useRef<THREE.Group>(null);
+  useUnitFrame(() => {
+    if (group.current)
+      group.current.position.z = enabled
+        ? -0.11 * (1 - arrivalBeatRef.booksCoverProgress)
+        : 0;
+  });
+  return <group ref={group}>{children}</group>;
+}
+
 export default function UnitBooks({
   data,
   palette,
@@ -651,6 +668,9 @@ export default function UnitBooks({
                   linkUnit={index}
                   grabbableCovers
                   grabbableVolumes
+                  firstCoverArrivalProgress={() =>
+                    arrivalBeatRef.booksCoverProgress
+                  }
                 />
               </group>
             )}
@@ -667,17 +687,19 @@ export default function UnitBooks({
               />
               {/* Its twin on the top row, leaning the other way against the
                 packed spines. */}
-              <HoverProp
-                unitIndex={index}
-                hoverKey="bookend:books:top"
-                base={[-1.22, 0, 0]}
-                lift={[0, 0, 0.012]}
-                rest={[0, 0, 0.042]}
-                settle={0.042}
-              >
-                <Bookend palette={palette} />
-                <BookendTarget />
-              </HoverProp>
+              <BooksArrivalBeat enabled={topFeatured.length === 0}>
+                <HoverProp
+                  unitIndex={index}
+                  hoverKey="bookend:books:top"
+                  base={[-1.22, 0, 0]}
+                  lift={[0, 0, 0.012]}
+                  rest={[0, 0, 0.042]}
+                  settle={0.042}
+                >
+                  <Bookend palette={palette} />
+                  <BookendTarget />
+                </HoverProp>
+              </BooksArrivalBeat>
             </group>
           </ShelfUnit>
         </group>

@@ -25,6 +25,21 @@ describe("homepage first paint", () => {
     expect(stacksHomeSource).not.toContain("<BootScreen");
   });
 
+  it("updates that shell with exact books only after homepage data resolves", () => {
+    expect(source).toContain("<BootReadingBooksBridge");
+    expect(source.indexOf("<BootScreen />")).toBeLessThan(
+      source.indexOf("<React.Suspense"),
+    );
+    expect(source.indexOf("<BootReadingBooksBridge")).toBeGreaterThan(
+      source.indexOf("async function HomePageContent()"),
+    );
+    expect(source).toContain("readingBooks={readingBooks.map");
+    expect(source).toContain(
+      "coverSrc: coverUrl ? proxiedBookCover(coverUrl, 256) : null",
+    );
+    expect(source).toContain("readingBookColors={readingBookColors}");
+  });
+
   it("uses the same eligibility policy for world mount and preload", () => {
     expect(stacksHomeSource).toContain(
       'import { browserCanUseStacksWorld } from "./webglProbe";',

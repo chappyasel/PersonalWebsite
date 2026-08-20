@@ -6,13 +6,12 @@ test.use({
   colorScheme: "light",
 });
 
-test("renders the active home scene at native iPhone density", async ({
+test("caps the active home scene at the narrow balanced density", async ({
   page,
 }) => {
   test.setTimeout(90_000);
-  // SwiftShader at a native 3× phone DPR can spend the entire test budget
-  // rasterizing the 12k-tuft meadow. This assertion is about DPR, selection,
-  // and keyboard chrome, so exercise the supported degraded-render path.
+  // This assertion covers the default narrow DPR, selection, and keyboard
+  // chrome, so exercise the supported degraded-render path.
   await page.goto("/?nomeadow&nopostfx", { waitUntil: "domcontentloaded" });
   await page
     .locator(".stacks-world-shell[data-canvas-ready] canvas")
@@ -26,13 +25,12 @@ test("renders the active home scene at native iPhone density", async ({
     const boot = document.querySelector<HTMLElement>(".stacks-boot");
     return {
       actual: canvas.width / canvas.clientWidth,
-      expected: window.devicePixelRatio,
       selection: shell ? getComputedStyle(shell).userSelect : null,
       bootSelection: boot ? getComputedStyle(boot).userSelect : null,
     };
   });
   expect(density).not.toBeNull();
-  expect(density!.actual).toBeGreaterThanOrEqual(density!.expected - 0.1);
+  expect(density!.actual).toBeCloseTo(1.75, 1);
   expect(density!.selection).toBe("none");
   expect(density!.bootSelection).toBe("none");
 

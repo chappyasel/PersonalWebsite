@@ -7,9 +7,9 @@
 // useFrame + damp — zero React re-renders per frame; prefers-reduced-motion
 // skips the motion eggs (the lamp toggle stays — it's a state change, not
 // motion). This is a museum at dawn, not an arcade: no confetti, no sound.
-import { useStacks } from "../store";
+import { arrivalBeatRef, useStacks } from "../store";
 import { type Palette } from "../theme";
-import { type ThreeEvent, useFrame } from "@react-three/fiber";
+import { type ThreeEvent } from "@react-three/fiber";
 import React, { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
@@ -26,6 +26,7 @@ import { ClockFace, type ClockFaceStyle, type ClockSweep } from "./objects";
 import { LampGlow } from "./primitives";
 import { useUnitRealLights } from "./scenePerformance";
 import { type SteamSample, writeSteamSample } from "./steamMotion";
+import { useUnitFrame } from "./unitActivity";
 
 function reducedMotion(): boolean {
   return (
@@ -97,6 +98,8 @@ export function EggTrigger({
     <group
       ref={root}
       onClick={(e: ThreeEvent<MouseEvent>) => {
+        if ((e as unknown as { pointerType?: string }).pointerType === "touch")
+          return;
         if ((e.delta ?? 0) > 6) return; // swipe, not a tap
         const activation = getSceneInteraction(hoverKey)?.activation;
         if (activation?.kind !== "egg") return;
@@ -167,22 +170,29 @@ export function LampSwitch({
   const own = useRef(1);
   const lit = litRef ?? own;
   const glow = useRef<THREE.Group>(null);
-  useFrame((_, delta) => {
+  const previousArrivalScale = useRef(1);
+  useUnitFrame((_, delta) => {
     const g = glow.current;
     if (!g) return;
     let next = THREE.MathUtils.damp(lit.current, target.current, 9, delta);
     if (Math.abs(next - target.current) < 1e-3) next = target.current;
-    if (next === lit.current) return;
+    const arrivalScale =
+      unitIndex === 0 ? 1 + arrivalBeatRef.aboutLampBloom * 0.45 : 1;
+    if (
+      next === lit.current &&
+      Math.abs(arrivalScale - previousArrivalScale.current) < 0.001
+    )
+      return;
     // Leaving fully-lit re-captures every base: at factor 1 the current
     // values ARE the rig's own, including anything React rewrote while the
     // lamp sat ON (a theme flip changes palette-driven opacities).
-    const refresh = lit.current === 1;
+    const refresh = lit.current === 1 && next < 1;
     lit.current = next;
     g.traverse((o) => {
       if (o instanceof THREE.Light) {
         const data = o.userData as { eggBase?: number };
         if (refresh || data.eggBase === undefined) data.eggBase = o.intensity;
-        o.intensity = data.eggBase * next;
+        o.intensity = data.eggBase * next * arrivalScale;
         return;
       }
       // ApertureHalo owns an imperative opacity writer like GlowSprite. It is
@@ -204,14 +214,16 @@ export function LampSwitch({
       if (typeof material.emissiveIntensity === "number") {
         if (refresh || data.eggBaseEmissive === undefined)
           data.eggBaseEmissive = material.emissiveIntensity;
-        material.emissiveIntensity = data.eggBaseEmissive * next;
+        material.emissiveIntensity = data.eggBaseEmissive * next * arrivalScale;
       }
       if (material.transparent) {
         if (refresh || data.eggBaseOpacity === undefined)
           data.eggBaseOpacity = material.opacity;
-        material.opacity = data.eggBaseOpacity * next;
+        material.opacity =
+          data.eggBaseOpacity * next * Math.min(1.35, arrivalScale);
       }
     });
+    previousArrivalScale.current = arrivalScale;
   });
   return (
     <group>
@@ -342,7 +354,7 @@ export function SpinProp({
   const spinNode = useRef<THREE.Object3D | null>(null);
   const written = useRef<THREE.Object3D | null>(null);
   const still = useMemo(() => reducedMotion(), []);
-  useFrame((_, delta) => {
+  useUnitFrame((_, delta) => {
     const root = ref.current;
     if (!root) return;
     // The prop mounts behind Suspense and is rebuilt whenever ModelProp's memo
@@ -405,7 +417,7 @@ export function BounceProp({
   const ref = useRef<THREE.Group>(null);
   const vy = useRef(0);
   const airborne = useRef(false);
-  useFrame((_, delta) => {
+  useUnitFrame((_, delta) => {
     const g = ref.current;
     if (!g || !airborne.current) return;
     const dt = Math.min(delta, 1 / 30); // a tab-switch delta would tunnel
@@ -453,7 +465,7 @@ function SecondHand({
 }) {
   const ref = useRef<THREE.Group>(null);
   const still = useMemo(() => reducedMotion(), []);
-  useFrame((_, delta) => {
+  useUnitFrame((_, delta) => {
     const g = ref.current;
     if (!g) return;
     const s = still
@@ -515,7 +527,7 @@ export function Sway({
 }) {
   const ref = useRef<THREE.Group>(null);
   const still = useMemo(() => reducedMotion(), []);
-  useFrame(({ clock }) => {
+  useUnitFrame(({ clock }) => {
     const g = ref.current;
     if (!g || still || !nearActive(unitIndex)) return;
     const t = clock.elapsedTime * rate + phase;
@@ -719,7 +731,7 @@ export function Pendulum({
    * re-run the union-find every frame, and a rebuilt prop must re-run it. */
   const attempted = useRef<THREE.Object3D | null>(null);
   const still = useMemo(() => reducedMotion(), []);
-  useFrame(({ clock }) => {
+  useUnitFrame(({ clock }) => {
     const g = root.current;
     if (!g || still) return;
     if (unitIndex !== undefined && !nearActive(unitIndex)) return;
@@ -930,7 +942,7 @@ export function SteamCup({
   const emitterReady = useRef(false);
   const texture = useMemo(getSteamTexture, []);
   const still = useMemo(() => reducedMotion(), []);
-  useFrame((state, delta) => {
+  useUnitFrame((state, delta) => {
     const root = emitter.current;
     if (!root) return;
     const active = nearActive(unitIndex);
@@ -1124,7 +1136,7 @@ export function RollBall({
 }) {
   const ref = useRef<THREE.Group>(null);
   const out = useRef(false);
-  useFrame((_, delta) => {
+  useUnitFrame((_, delta) => {
     const g = ref.current;
     if (!g) return;
     const target = out.current ? 0.22 : 0;

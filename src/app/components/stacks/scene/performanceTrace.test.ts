@@ -91,7 +91,7 @@ describe("ScenePerformanceTrace", () => {
     expect(report.summary.travel.frameMs.p95).toBeGreaterThan(
       report.summary.settled.frameMs.p95 * 2,
     );
-    expect(report.version).toBe(2);
+    expect(report.version).toBe(3);
     expect(report.frames.at(-1)).toMatchObject({
       cameraYawDeg: 12,
       cameraLookLagX: 1.4,

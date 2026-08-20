@@ -6,7 +6,11 @@ import {
   GOLF_CLUB_MODEL_YAW,
   GOLF_CLUB_REST_BASE,
 } from "./golfLayout";
-import type { GolfStrikeSnapshot } from "./golfStrikeQueue";
+import {
+  GOLF_IMPACT_AT,
+  GOLF_STRIKE_TIMING,
+  type GolfStrikeSnapshot,
+} from "./golfStrikeQueue";
 import type { GolfVec3 } from "./golfTypes";
 
 export type GolfClubPose = {
@@ -15,9 +19,29 @@ export type GolfClubPose = {
   shaftTwist: number;
 };
 
+export function golfClubHintRotation(amount: number) {
+  const strength = THREE.MathUtils.clamp(amount, 0, 1);
+  return {
+    x: -0.028 * strength,
+    y: THREE.MathUtils.degToRad(20) * strength,
+    z: 0,
+    lift: 0.06 * strength,
+  };
+}
+
 const REST_LEAN = -0.08;
 const REST_YAW = 0.04;
 const BACKSWING = -1.02;
+const IMPACT_LEAN = THREE.MathUtils.degToRad(7);
+const SWING_PLANE_TILT = THREE.MathUtils.degToRad(12);
+const RELEASE_TILT = THREE.MathUtils.degToRad(-5);
+const HAND_PATH_RISE = 0.055;
+const FOLLOW_THROUGH_FRACTION = 0.25;
+const FOLLOW_THROUGH =
+  IMPACT_LEAN +
+  (IMPACT_LEAN - BACKSWING) *
+    ((GOLF_STRIKE_TIMING.recovery * FOLLOW_THROUGH_FRACTION) /
+      GOLF_STRIKE_TIMING.downswing);
 
 const restPivot = {
   x: GOLF_CLUB_REST_BASE.x,
@@ -49,7 +73,11 @@ export function golfClubPose(
   const dx = cup.x - ball.x;
   const dz = cup.z - ball.z;
   const shotYaw = Math.atan2(-dx, -dz);
-  const impactRotation = { x: 0, y: shotYaw, z: 0 };
+  const impactRotation = {
+    x: IMPACT_LEAN,
+    y: shotYaw,
+    z: SWING_PLANE_TILT,
+  };
   const rotatedContact = rotateContact(impactRotation, Math.PI);
   const impactPivot = {
     x: ball.x - rotatedContact.x,
@@ -58,42 +86,88 @@ export function golfClubPose(
   };
 
   if (strike.stage === "address") {
-    const t = ease(strike.elapsed / 0.1);
+    const t = ease(strike.elapsed / GOLF_STRIKE_TIMING.address);
     return {
       position: mixVec(restPivot, impactPivot, t),
       rotation: {
-        x: mix(REST_LEAN, 0, t),
+        x: mix(REST_LEAN, IMPACT_LEAN, t),
         y: mixAngle(REST_YAW, shotYaw, t),
-        z: 0,
+        z: mix(0, SWING_PLANE_TILT, t),
       },
       shaftTwist: mix(0, Math.PI, t),
     };
   }
   if (strike.stage === "backswing") {
-    const t = ease((strike.elapsed - 0.1) / 0.15);
+    const t = ease(
+      (strike.elapsed - GOLF_STRIKE_TIMING.address) /
+        GOLF_STRIKE_TIMING.backswing,
+    );
     return {
-      position: impactPivot,
-      rotation: { x: mix(0, BACKSWING, t), y: shotYaw, z: 0 },
+      position: {
+        ...impactPivot,
+        y: impactPivot.y + HAND_PATH_RISE * t,
+      },
+      rotation: {
+        x: mix(IMPACT_LEAN, BACKSWING, t),
+        y: shotYaw,
+        z: SWING_PLANE_TILT,
+      },
       shaftTwist: Math.PI,
     };
   }
   if (strike.stage === "downswing") {
-    const t = ease((strike.elapsed - 0.25) / 0.1);
+    const t = clamp01(
+      (strike.elapsed -
+        GOLF_STRIKE_TIMING.address -
+        GOLF_STRIKE_TIMING.backswing) /
+        GOLF_STRIKE_TIMING.downswing,
+    );
     return {
-      position: impactPivot,
-      rotation: { x: mix(BACKSWING, 0, t), y: shotYaw, z: 0 },
+      position: {
+        ...impactPivot,
+        y: impactPivot.y + HAND_PATH_RISE * ease(1 - t),
+      },
+      // A quarter cosine is the angular path of a pendulum released from
+      // rest: zero velocity at the top, maximum velocity through contact.
+      rotation: {
+        x:
+          IMPACT_LEAN + (BACKSWING - IMPACT_LEAN) * Math.cos((Math.PI / 2) * t),
+        y: shotYaw,
+        z: SWING_PLANE_TILT,
+      },
       shaftTwist: Math.PI,
     };
   }
-  const t = ease((strike.elapsed - 0.35) / 0.15);
+  const recovery = clamp01(
+    (strike.elapsed - GOLF_IMPACT_AT) / GOLF_STRIKE_TIMING.recovery,
+  );
+  if (recovery < FOLLOW_THROUGH_FRACTION) {
+    const t = recovery / FOLLOW_THROUGH_FRACTION;
+    return {
+      position: impactPivot,
+      // Match the downswing's non-zero impact velocity, then let the club
+      // decelerate naturally as it rises into the follow-through.
+      rotation: {
+        x:
+          IMPACT_LEAN +
+          (FOLLOW_THROUGH - IMPACT_LEAN) * Math.sin((Math.PI / 2) * t),
+        y: shotYaw,
+        z: mix(SWING_PLANE_TILT, RELEASE_TILT, ease(t)),
+      },
+      shaftTwist: Math.PI + THREE.MathUtils.degToRad(8) * ease(t),
+    };
+  }
+  const t = ease(
+    (recovery - FOLLOW_THROUGH_FRACTION) / (1 - FOLLOW_THROUGH_FRACTION),
+  );
   return {
     position: mixVec(impactPivot, restPivot, t),
     rotation: {
-      x: mix(0, REST_LEAN, t),
+      x: mix(FOLLOW_THROUGH, REST_LEAN, t),
       y: mixAngle(shotYaw, REST_YAW, t),
-      z: 0,
+      z: mix(RELEASE_TILT, 0, t),
     },
-    shaftTwist: mix(Math.PI, 0, t),
+    shaftTwist: mix(Math.PI + THREE.MathUtils.degToRad(8), 0, t),
   };
 }
 
@@ -146,6 +220,10 @@ function mixVec(a: GolfVec3, b: GolfVec3, t: number): GolfVec3 {
 }
 
 function ease(value: number) {
-  const t = THREE.MathUtils.clamp(value, 0, 1);
+  const t = clamp01(value);
   return t * t * (3 - 2 * t);
+}
+
+function clamp01(value: number) {
+  return THREE.MathUtils.clamp(value, 0, 1);
 }

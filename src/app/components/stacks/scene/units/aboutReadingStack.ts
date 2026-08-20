@@ -15,6 +15,20 @@ export type ReadingBookPose = {
   rotation: [number, number, number];
 };
 
+export type ReadingBookFrontCorners = [
+  [number, number, number],
+  [number, number, number],
+  [number, number, number],
+  [number, number, number],
+];
+
+export type ReadingBookElevation = [
+  [number, number],
+  [number, number],
+  [number, number],
+  [number, number],
+];
+
 type PositionLike = Pick<{ x: number; y: number; z: number }, "x" | "y" | "z">;
 type QuaternionLike = PositionLike & { w: number };
 
@@ -132,7 +146,19 @@ export function readingBookPoint3(
  * this projection instead of inventing a second stack of upright rectangles. */
 export function readingBookFrontElevation(
   pose: ReadingBookPose,
-): [number, number][] {
+): ReadingBookElevation {
+  return readingBookFrontCorners(pose).map(([x, y]): [number, number] => [
+    x,
+    y,
+  ]) as ReadingBookElevation;
+}
+
+/** The same cover corners before depth is discarded. The boot shelf applies
+ * its camera's mild perspective to these points, which produces the slight
+ * trapezoid visible in the live room without inventing a second book pose. */
+export function readingBookFrontCorners(
+  pose: ReadingBookPose,
+): ReadingBookFrontCorners {
   const halfW = ABOUT_READING_BOOK.width / 2;
   const halfD = ABOUT_READING_BOOK.depth / 2;
   return [
@@ -140,7 +166,17 @@ export function readingBookFrontElevation(
     point3(pose, halfW, 0, halfD),
     point3(pose, halfW, 0, -halfD),
     point3(pose, -halfW, 0, -halfD),
-  ].map(([x, y]) => [x, y]);
+  ];
+}
+
+export function readingBookPerspectiveElevation(
+  pose: ReadingBookPose,
+  cameraZ: number,
+): ReadingBookElevation {
+  return readingBookFrontCorners(pose).map(([x, y, z]) => {
+    const perspective = cameraZ / (cameraZ - z);
+    return [x * perspective, y * perspective] as [number, number];
+  }) as ReadingBookElevation;
 }
 
 export function readingStackBounds(poses: ReadingBookPose[]) {

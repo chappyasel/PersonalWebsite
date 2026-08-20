@@ -8,7 +8,6 @@ import { ContactShade, FootPool } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
 import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
-import SitChair from "../SitChair";
 import {
   ABOUT_BOOT_LANDMARKS,
   aboutLandmarkNodeName,
@@ -27,9 +26,10 @@ import {
 import { ShelfUnit } from "../primitives";
 import { ABOUT_COUCH } from "../seated";
 import { SHELF_GEOMETRY } from "../shelfGeometry";
+import { useUnitFrame } from "../unitActivity";
 import { useUnitLod } from "../useUnitLod";
 import { RoundedBox } from "@react-three/drei";
-import { useFrame, useLoader } from "@react-three/fiber";
+import { useLoader } from "@react-three/fiber";
 import React from "react";
 import * as THREE from "three";
 import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
@@ -299,6 +299,8 @@ function ReadingStack({
               hoverKey={`grab:reading:${book.id}`}
               index={i}
               authoredBase={pose.base}
+              rest={pose.rotation}
+              thickness={thickness}
             >
               <HeldReadingCover
                 hoverKey={`grab:reading:${book.id}`}
@@ -347,11 +349,15 @@ function ReadingBookHover({
   hoverKey,
   index,
   authoredBase,
+  rest,
+  thickness,
   children,
 }: {
   hoverKey: string;
   index: number;
   authoredBase: readonly [number, number, number];
+  rest: readonly [number, number, number];
+  thickness: number;
   children: React.ReactNode;
 }) {
   const group = React.useRef<THREE.Group>(null);
@@ -361,7 +367,7 @@ function ReadingBookHover({
   );
   const offset = READING_HOVER_OFFSETS[index] ?? READING_HOVER_OFFSETS[1];
 
-  useFrame((_, rawDelta) => {
+  useUnitFrame((_, rawDelta) => {
     const node = group.current;
     if (!node) return;
     const state = useStacks.getState();
@@ -397,7 +403,34 @@ function ReadingBookHover({
     );
   });
 
-  return <group ref={group}>{children}</group>;
+  return (
+    <>
+      {/* Hover motion must not move the surface that owns hover. Otherwise a
+          stationary cursor loses the translated jacket, sends it home, then
+          catches it again in a loop. This invisible authored-pose volume stays
+          put while the visible book moves and is excluded from physics. */}
+      <mesh
+        name="interaction-hit:reading-book"
+        rotation={[rest[0], rest[1], rest[2]]}
+        userData={{ physicsIgnore: true }}
+      >
+        <boxGeometry
+          args={[
+            ABOUT_READING_BOOK.width + 0.025,
+            thickness + 0.025,
+            ABOUT_READING_BOOK.depth + 0.025,
+          ]}
+        />
+        <meshBasicMaterial
+          transparent
+          opacity={0}
+          depthWrite={false}
+          colorWrite={false}
+        />
+      </mesh>
+      <group ref={group}>{children}</group>
+    </>
+  );
 }
 
 const READING_BOARD_THICKNESS = 0.007;
@@ -557,7 +590,6 @@ export default function UnitAbout({
               ]}
               shadeColor={palette.shadow}
               shadeWidth={0.26}
-              tiltOnHover={false}
               shape="box"
               massKg={0.35}
             >
@@ -578,7 +610,6 @@ export default function UnitAbout({
               ]}
               shadeColor={palette.shadow}
               shadeWidth={0.26}
-              tiltOnHover={false}
               shape="box"
               massKg={0.42}
               href="https://aicollective.com/"
@@ -860,21 +891,19 @@ export default function UnitAbout({
         position={[ABOUT_COUCH.x, SHELF_GEOMETRY.groundY, ABOUT_COUCH.z]}
         rotation={[0, ABOUT_COUCH.yaw, 0]}
       >
-        <SitChair unitIndex={index}>
-          <React.Suspense fallback={null}>
-            <ModelProp
-              url="/models/couch.glb"
-              dark={dark}
-              variant="tinted"
-              tints={{
-                Couch_Blue: dark ? "#394b61" : "#667d96",
-                Black: dark ? "#253447" : "#344a61",
-              }}
-              roughness={0.84}
-              scale={ABOUT_COUCH.scale}
-            />
-          </React.Suspense>
-        </SitChair>
+        <React.Suspense fallback={null}>
+          <ModelProp
+            url="/models/couch.glb"
+            dark={dark}
+            variant="tinted"
+            tints={{
+              Couch_Blue: dark ? "#394b61" : "#667d96",
+              Black: dark ? "#253447" : "#344a61",
+            }}
+            roughness={0.84}
+            scale={ABOUT_COUCH.scale}
+          />
+        </React.Suspense>
       </group>
       <FootPool
         color={palette.shadow}

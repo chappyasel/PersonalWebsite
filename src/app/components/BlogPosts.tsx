@@ -52,6 +52,7 @@ function BlogPostItem({ post }: { post: BlogPost }) {
           className="absolute inset-0 rounded-3xl border border-foreground/[0.06] bg-muted/40 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-lg transition-shadow duration-500 ease-out group-hover:shadow-[0px_8px_24px_0px_rgba(0,0,0,0.1)]"
         />
         <div
+          data-placard-media=""
           className="relative h-full sm:h-auto sm:basis-1/3"
           style={{ transform: "translateZ(30px)" }}
         >

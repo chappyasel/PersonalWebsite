@@ -35,7 +35,6 @@ import React, { useCallback, useEffect, useRef } from "react";
 import type * as THREE from "three";
 
 import Lift from "./Lift";
-import { doorAtPointer } from "./interactionProjection";
 import {
   type DoorSpec,
   type PropDestination,
@@ -144,16 +143,19 @@ function justOpened(): boolean {
 }
 
 function onWindowDown(e: PointerEvent) {
+  if (e.pointerType === "touch") {
+    down.ok = false;
+    down.touchDoor = null;
+    return;
+  }
   down.x = e.clientX;
   down.y = e.clientY;
   down.ok = e.isPrimary && e.button === 0;
-  down.touchDoor =
-    down.ok && e.pointerType === "touch"
-      ? doorAtPointer(e.clientX, e.clientY, useStacks.getState().activeUnit)
-      : null;
+  down.touchDoor = null;
 }
 
 function onWindowUp(e: PointerEvent) {
+  if (e.pointerType === "touch") return;
   if (!down.ok) return;
   down.ok = false;
   if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > DRAG_PX) return;
@@ -168,7 +170,7 @@ function onWindowUp(e: PointerEvent) {
   // whichever prop the pointer left behind.
   const el = s.scrollEl;
   if (el && e.target instanceof Node && !el.contains(e.target)) return;
-  const key = e.pointerType === "touch" ? down.touchDoor : s.hovered;
+  const key = s.hovered;
   down.touchDoor = null;
   const door = key ? doors.get(key) : undefined;
   if (!door) return;
@@ -264,6 +266,11 @@ function HoverShell({
       onClick={
         onSelect
           ? (e: ThreeEvent<MouseEvent>) => {
+              if (
+                (e as unknown as { pointerType?: string }).pointerType ===
+                "touch"
+              )
+                return;
               if ((e.delta ?? 0) > 6) return; // swipe, not a tap
               // Swallow it either way, so the tap cannot ALSO reach the unit
               // travel plane behind the prop…

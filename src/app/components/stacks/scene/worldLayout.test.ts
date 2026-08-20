@@ -2,12 +2,25 @@ import { describe, expect, it } from "vitest";
 
 import {
   CAMERA,
+  DEPTH_OF_FIELD_SHELF_Z,
+  SHELF_OVERVIEW_MAX_DISTANCE,
   TRAVEL_LEAD_IN,
   aboutStopShift,
+  apparentHeightScale,
+  cameraCompositionForViewport,
   cameraForAspect,
   cameraXForScrollOffset,
+  captureCameraYFromSearch,
+  captureFovFromSearch,
+  captureHeadOnFromSearch,
+  captureLookYFromSearch,
+  depthOfFieldTargetForUnit,
+  golfDollyForViewport,
+  golfLookYOffsetForViewport,
+  portraitShelfOverviewDistance,
   scrollOffsetForUnit,
   unitPose,
+  unitPoseForCapture,
 } from "./worldLayout";
 
 function projectionScale(pose: { z: number; fov: number }) {
@@ -15,6 +28,64 @@ function projectionScale(pose: { z: number; fov: number }) {
 }
 
 describe("mobile camera framing", () => {
+  it("uses proportional Golf dollies across mobile and desktop", () => {
+    expect(golfDollyForViewport(390, true)).toBe(1.4);
+    expect(golfDollyForViewport(1199, true)).toBe(1.4);
+    expect(golfDollyForViewport(1200, true)).toBe(0.45);
+    expect(golfDollyForViewport(1440, true)).toBe(0.45);
+    expect(golfDollyForViewport(390, false)).toBe(0);
+    expect(golfLookYOffsetForViewport(390, true)).toBe(-0.18);
+    expect(golfLookYOffsetForViewport(1200, true)).toBe(0);
+  });
+
+  it("frames every portrait shelf at one shelf-relative overview distance", () => {
+    const overview = portraitShelfOverviewDistance(390, 844);
+    expect(cameraCompositionForViewport(390, 844, 0)).toMatchObject({
+      y: 0.25,
+      z: overview,
+      fov: 33,
+      lookXOffset: 0,
+      lookY: -0.08,
+      lookZ: -0.2,
+    });
+    expect(cameraCompositionForViewport(390, 844, 1)).toMatchObject({
+      y: 0.25,
+      z: overview - 0.55,
+      fov: 33,
+      lookXOffset: 0,
+      lookY: -0.08,
+      lookZ: -0.75,
+    });
+    expect(cameraCompositionForViewport(390, 844, 0.5).z).toBeCloseTo(
+      overview - 0.275,
+    );
+
+    for (let unit = 0; unit < 7; unit += 1) {
+      const composition = cameraCompositionForViewport(390, 844, unit);
+      expect(composition.z - unitPose(unit).position[2]).toBeCloseTo(overview);
+    }
+  });
+
+  it("leaves the shelf barely inside the phone's horizontal frame", () => {
+    const width = 390;
+    const height = 844;
+    const distance = portraitShelfOverviewDistance(width, height);
+    const visibleWidth =
+      2 * distance * Math.tan((33 * Math.PI) / 360) * (width / height);
+
+    expect(visibleWidth).toBeGreaterThan(2.64);
+    expect(visibleWidth).toBeLessThan(2.9);
+    expect(apparentHeightScale(distance, 33)).toBeGreaterThan(0);
+  });
+
+  it("does not shrink the world in pathological tall portrait windows", () => {
+    expect(portraitShelfOverviewDistance(606, 2048)).toBe(
+      SHELF_OVERVIEW_MAX_DISTANCE,
+    );
+    expect(cameraCompositionForViewport(606, 2048, 0).z).toBe(
+      SHELF_OVERVIEW_MAX_DISTANCE,
+    );
+  });
   it("zooms phones modestly more than portrait tablets", () => {
     const phone = cameraForAspect(390 / 844);
     const tablet = cameraForAspect(768 / 1024);
@@ -69,6 +140,53 @@ describe("About lead-in", () => {
 });
 
 describe("alternating unit poses", () => {
+  it("places the depth-of-field target near the shelf's physical back edge", () => {
+    expect(DEPTH_OF_FIELD_SHELF_Z).toBeCloseTo(-0.375, 10);
+    for (let unit = 0; unit < 7; unit += 1) {
+      const composition = cameraCompositionForViewport(1200, 630, unit);
+      expect(depthOfFieldTargetForUnit(unit)).toEqual([
+        unitPose(unit).position[0],
+        composition.lookY,
+        unitPose(unit).position[2] + DEPTH_OF_FIELD_SHELF_Z,
+      ]);
+    }
+  });
+
+  it("accepts a bounded FOV override only for OG capture", () => {
+    expect(captureFovFromSearch("?og-capture=1&og-fov=30.5")).toBe(30.5);
+    expect(captureFovFromSearch("?og-fov=30.5")).toBeNull();
+    expect(captureFovFromSearch("?og-capture=1&og-fov=10")).toBeNull();
+    expect(captureFovFromSearch("?og-capture=1&og-fov=nope")).toBeNull();
+  });
+
+  it("accepts a small downward look override only for OG capture", () => {
+    expect(captureLookYFromSearch("?og-capture=1&og-look-y=-0.105")).toBe(
+      -0.105,
+    );
+    expect(captureLookYFromSearch("?og-look-y=-0.105")).toBeNull();
+    expect(captureLookYFromSearch("?og-capture=1&og-look-y=-1")).toBeNull();
+    expect(captureLookYFromSearch("?og-capture=1&og-look-y=nope")).toBeNull();
+  });
+
+  it("accepts a higher camera eye only for OG capture", () => {
+    expect(captureCameraYFromSearch("?og-capture=1&og-camera-y=0.4")).toBe(0.4);
+    expect(captureCameraYFromSearch("?og-camera-y=0.4")).toBeNull();
+    expect(captureCameraYFromSearch("?og-capture=1&og-camera-y=2")).toBeNull();
+    expect(
+      captureCameraYFromSearch("?og-capture=1&og-camera-y=nope"),
+    ).toBeNull();
+  });
+
+  it("removes unit yaw only for an explicit head-on OG capture", () => {
+    expect(captureHeadOnFromSearch("?og-capture=1&og-head-on=1")).toBe(true);
+    expect(captureHeadOnFromSearch("?og-head-on=1")).toBe(false);
+    expect(unitPoseForCapture(0, true)).toEqual({
+      position: unitPose(0).position,
+      rotation: [0, 0, 0],
+    });
+    expect(unitPoseForCapture(0, false)).toEqual(unitPose(0));
+  });
+
   it("recesses Systems in slot four and brings final Talks forward", () => {
     const systems = unitPose(3);
     const talks = unitPose(6);

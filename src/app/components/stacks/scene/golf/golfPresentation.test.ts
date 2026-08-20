@@ -5,9 +5,11 @@ import {
   GOLF_CONFETTI_COLORS,
   GOLF_DARK_GREEN_FINAL_CEILING,
   GOLF_FOG_POLICY,
+  GOLF_GREEN_BALL_SCALE,
   GOLF_GREEN_COLORS,
   GOLF_GREEN_FOG_SCALE,
   GOLF_SOUND_POLICY,
+  golfBallVisualScale,
   golfColorChroma,
   golfColorLuminance,
   golfLinearToSrgb,
@@ -63,5 +65,27 @@ describe("golf presentation policy", () => {
     expect(fast.x).toBeGreaterThan(0.5);
     expect(fast.x).toBeLessThan(1);
     expect(rolling.x).toBeCloseTo(20 / 60, 5);
+  });
+
+  it("shrinks the foreground ball to two-thirds size by the green", () => {
+    const start = { x: 0, y: 0.05, z: 0 };
+    const cup = { x: 0, y: 0, z: -12 };
+    const ball = {
+      phase: "flight" as const,
+      start,
+      position: { ...start },
+      impacts: 0,
+    };
+    expect(golfBallVisualScale(ball, cup)).toBe(1);
+    ball.position.z = -4.5;
+    expect(golfBallVisualScale(ball, cup)).toBeLessThan(1);
+    expect(golfBallVisualScale(ball, cup)).toBeGreaterThan(
+      GOLF_GREEN_BALL_SCALE,
+    );
+    ball.position.z = -9;
+    expect(golfBallVisualScale(ball, cup)).toBeCloseTo(GOLF_GREEN_BALL_SCALE);
+    ball.impacts = 1;
+    ball.position.z = -7;
+    expect(golfBallVisualScale(ball, cup)).toBeCloseTo(GOLF_GREEN_BALL_SCALE);
   });
 });

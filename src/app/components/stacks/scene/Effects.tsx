@@ -39,9 +39,12 @@ import {
 import { useMemo } from "react";
 import { MathUtils, Uniform } from "three";
 
-import { desktopLensLine } from "./lensGeometry";
+import {
+  captureLensCenterFromSearch,
+  sideLensPlan,
+} from "./lensGeometry";
 import { type SceneQualityPlan, tiltShiftEnabled } from "./quality";
-import { unitPose } from "./worldLayout";
+import { depthOfFieldTargetForUnit } from "./worldLayout";
 
 // The print grade — the last thing between ACES and the screen, and the
 // reason the room reads as one photograph rather than 37 correctly-lit
@@ -188,27 +191,35 @@ function AdaptiveSharpen({ amount }: { amount: number }) {
   return <primitive object={effect} dispose={null} />;
 }
 
-function SideLens({ seated }: { seated: boolean }) {
+function SideLens({
+  seated,
+  captureCenter,
+}: {
+  seated: boolean;
+  captureCenter: number | null;
+}) {
   const viewportWidth = useThree((state) => state.size.width);
   const navRightPx = useStacks((state) => state.desktopNavRightPx);
   const detailsLeftPx = useStacks((state) => state.desktopDetailsLeftPx);
-  const line = useMemo(
+  const lens = useMemo(
     () =>
-      desktopLensLine({
+      sideLensPlan({
         viewportWidth,
         navRightPx,
         detailsLeftPx,
+        seated,
+        captureCenter,
       }),
-    [detailsLeftPx, navRightPx, viewportWidth],
+    [captureCenter, detailsLeftPx, navRightPx, seated, viewportWidth],
   );
 
   return (
     <TiltShift2
-      key={`${line.start[0]}`}
-      start={line.start}
-      end={line.end}
-      blur={seated ? 0.018 : 0.105}
-      taper={seated ? 0.86 : 0.6}
+      key={`${lens.line.start[0]}`}
+      start={lens.line.start}
+      end={lens.line.end}
+      blur={lens.blur}
+      taper={lens.taper}
     />
   );
 }
@@ -244,10 +255,17 @@ export default function Effects({
   );
   const activeUnit = useStacks((state) => state.activeUnit);
   const seated = useStacks((state) => state.seated);
-  const focusTarget = useMemo<[number, number, number]>(() => {
-    const pose = unitPose(activeUnit);
-    return [pose.position[0], pose.position[1], pose.position[2]];
-  }, [activeUnit]);
+  const captureLensCenter = useMemo(
+    () =>
+      typeof window === "undefined"
+        ? null
+        : captureLensCenterFromSearch(window.location.search),
+    [],
+  );
+  const focusTarget = useMemo<[number, number, number]>(
+    () => [...depthOfFieldTargetForUnit(activeUnit)],
+    [activeUnit],
+  );
   const graded = useMemo(
     () =>
       typeof window === "undefined" ||
@@ -304,7 +322,9 @@ export default function Effects({
       )}
       {/* Vertical focus line with softness growing toward the screen edges.
           This is part of the approved look, so finish mode keeps it. */}
-      {tiltShift && <SideLens seated={seated} />}
+      {tiltShift && (
+        <SideLens seated={seated} captureCenter={captureLensCenter} />
+      )}
       {/* Light theme eases both finishing touches: premultiplied noise
           scales with luminance (a near-white sky grains hard), and dark
           corners read as grime against it. */}

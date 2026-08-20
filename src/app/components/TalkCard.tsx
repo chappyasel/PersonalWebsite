@@ -75,6 +75,7 @@ export default function TalkCard({ talk }: { talk: Talk }) {
         />
 
         <div
+          data-placard-media=""
           className="relative aspect-video w-full overflow-hidden rounded-2xl bg-muted shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)]"
           style={{ transform: "translateZ(30px)" }}
         >

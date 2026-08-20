@@ -13,6 +13,26 @@ import type { Book } from "~/lib/books/types";
 
 export const progressRef = { current: 0 };
 
+/** High-frequency coarse-pointer signals. Consumers sample these from their
+ * own animation frames; pointer movement never enters React state. */
+export const touchWorldRef = {
+  pointerX: 0,
+  pointerY: 0,
+  interactionPointerType: "unknown" as "unknown" | "touch" | "mouse" | "pen",
+  travelProgress: 0,
+  wakeStrength: 0,
+  /** Increments once per exposed-world touch down. Meadow consumes the latest
+   * revision in its frame loop so taps share the desktop pulse renderer. */
+  meadowPulseRevision: 0,
+  /** Visitor-controlled camera dolly. Positive values move closer. */
+  zoomOffset: 0,
+};
+
+export const arrivalBeatRef = {
+  aboutLampBloom: 0,
+  booksCoverProgress: 1,
+};
+
 /** Right edge of the desktop unit rail's widest row, in CSS px — written by
  * UnitRail's measurement effect (and re-written after font swaps/resizes),
  * read by CameraRig to solve the About stop so the projected shelf edge
@@ -46,6 +66,7 @@ type StacksState = {
   scrollEl: HTMLDivElement | null;
   modalOpen: boolean;
   panelState: PanelState;
+  sheetDismissed: boolean;
   pendingBook: Book | null;
   /** Infrequently changing DOM measurements that position the desktop lens.
    * These are reactive because the canvas must immediately observe sidebar
@@ -59,6 +80,12 @@ type StacksState = {
    * freeze while a prop is in hand, or dragging one sideways scrolls the
    * whole room out from under it. */
   dragging: string | null;
+  /** Coarse-pointer arbitration is discrete. Coordinates and progress remain
+   * in touchWorldRef so one finger move cannot fan out through React. */
+  focusedInteraction: string | null;
+  pressedInteraction: string | null;
+  settledUnit: number | null;
+  unitMapPreview: number | null;
   /** True while the visitor is sitting in the About reading chair. The module
    * `scene/seated.ts` is the source of truth — the camera and the sky read it
    * every frame and must never go through React — and SitChair mirrors it
@@ -91,11 +118,16 @@ type StacksState = {
   setScrollEl: (scrollEl: HTMLDivElement | null) => void;
   setModalOpen: (modalOpen: boolean) => void;
   setPanelState: (panelState: PanelState) => void;
+  setSheetDismissed: (sheetDismissed: boolean) => void;
   setPendingBook: (pendingBook: Book | null) => void;
   setDesktopNavRightPx: (desktopNavRightPx: number) => void;
   setDesktopDetailsLeftPx: (desktopDetailsLeftPx: number | null) => void;
   setHovered: (hovered: string | null) => void;
   setDragging: (dragging: string | null) => void;
+  setFocusedInteraction: (focusedInteraction: string | null) => void;
+  setPressedInteraction: (pressedInteraction: string | null) => void;
+  setSettledUnit: (settledUnit: number | null) => void;
+  setUnitMapPreview: (unitMapPreview: number | null) => void;
   setJumpTo: (jumpTo: ((unit: number) => void) | null) => void;
   setTravelTo: (travelTo: ((unit: number) => void) | null) => void;
 };
@@ -107,11 +139,16 @@ export const useStacks = create<StacksState>((set) => ({
   scrollEl: null,
   modalOpen: false,
   panelState: "closed",
+  sheetDismissed: false,
   pendingBook: null,
   desktopNavRightPx: 0,
   desktopDetailsLeftPx: null,
   hovered: null,
   dragging: null,
+  focusedInteraction: null,
+  pressedInteraction: null,
+  settledUnit: null,
+  unitMapPreview: null,
   seated: false,
   setSeated: (seated) => set({ seated }),
   postfx: false,
@@ -124,8 +161,19 @@ export const useStacks = create<StacksState>((set) => ({
   setActiveUnit: (activeUnit) => set({ activeUnit }),
   setGolfFocused: (golfFocused) => set({ golfFocused }),
   setScrollEl: (scrollEl) => set({ scrollEl }),
-  setModalOpen: (modalOpen) => set({ modalOpen }),
-  setPanelState: (panelState) => set({ panelState }),
+  setModalOpen: (modalOpen) =>
+    set(
+      modalOpen
+        ? { modalOpen, focusedInteraction: null, pressedInteraction: null }
+        : { modalOpen },
+    ),
+  setPanelState: (panelState) =>
+    set(
+      panelState === "opening" || panelState === "open"
+        ? { panelState, focusedInteraction: null, pressedInteraction: null }
+        : { panelState },
+    ),
+  setSheetDismissed: (sheetDismissed) => set({ sheetDismissed }),
   setPendingBook: (pendingBook) => set({ pendingBook }),
   setDesktopNavRightPx: (desktopNavRightPx) =>
     set((state) =>
@@ -141,6 +189,10 @@ export const useStacks = create<StacksState>((set) => ({
     ),
   setHovered: (hovered) => set({ hovered }),
   setDragging: (dragging) => set({ dragging }),
+  setFocusedInteraction: (focusedInteraction) => set({ focusedInteraction }),
+  setPressedInteraction: (pressedInteraction) => set({ pressedInteraction }),
+  setSettledUnit: (settledUnit) => set({ settledUnit }),
+  setUnitMapPreview: (unitMapPreview) => set({ unitMapPreview }),
   setJumpTo: (jumpTo) => set({ jumpTo }),
   setTravelTo: (travelTo) => set({ travelTo }),
 }));

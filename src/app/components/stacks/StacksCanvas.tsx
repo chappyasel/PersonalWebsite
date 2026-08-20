@@ -22,11 +22,11 @@ import type * as THREE from "three";
 
 import { sceneAudio } from "./audio/sceneAudio";
 import { type StacksData, UNIT_COUNT } from "./data";
-import { setLoadProgress } from "./loading";
+import { useCoarseTouchCapability } from "./input/useCoarseTouchCapability";
+import { reportAssetLoadState, setLoadProgress } from "./loading";
 import { cameraTravelDiagnostics } from "./scene/CameraRig";
 import { prewarmGrabbablePhysics } from "./scene/Grabbable";
 import Scene from "./scene/Scene";
-import SceneGlassSampler from "./scene/SceneGlassSampler";
 import type { GolfShotOutcome } from "./scene/golf/golfTypes";
 import { setInteractionProjectionContext } from "./scene/interactionProjection";
 import { sceneInteractionInventory } from "./scene/interactionRegistry";
@@ -49,10 +49,13 @@ import {
   QUALITY_RECOVERY_COOLDOWN_MS,
   QUALITY_SAMPLE_INTERVAL_MS,
   QUALITY_SAMPLE_WINDOW_MS,
+  type RendererCapability,
   type SceneQualityMetrics,
   type SceneQualityMode,
   type SceneQualityPlan,
   type SceneQualityProfile,
+  bookCoverWidthForNeed,
+  deriveRendererCapability,
   initialSceneQualityAdaptationState,
   qualityModeFromSearch,
   qualityProfileFromValue,
@@ -60,10 +63,10 @@ import {
   resolveSceneQualityPlan,
   sceneQualityStorageBucket,
 } from "./scene/quality";
-import { sceneGlassSnapshotController } from "./scene/sceneGlassSnapshot";
 import {
   DEFAULT_SCENE_PERFORMANCE_SETTINGS,
   adaptiveSharpenAmount,
+  effectivePlacardGlassMode,
   isSceneTraveling,
   scenePerformanceController,
   scenePerformanceSettingsEqual,
@@ -81,7 +84,8 @@ import {
   leaveSeat,
   requestSeat,
 } from "./scene/seated";
-import { CAMERA, unitPose } from "./scene/worldLayout";
+import { sceneUnitActivityController } from "./scene/unitActivity";
+import { CAMERA, STACKS_DESKTOP_MIN_WIDTH } from "./scene/worldLayout";
 import { progressRef, useStacks } from "./store";
 import { PALETTES } from "./theme";
 import { isWebGLContextUsable } from "./webglProbe";
@@ -398,10 +402,19 @@ function installDevHooks() {
  * Canvas — `useProgress` is a plain store, not a scene hook, and putting it
  * in the tree would re-render the scene on every asset. */
 function LoadReporter() {
-  const progress = useProgress((s) => s.progress);
   useEffect(() => {
-    setLoadProgress(progress / 100);
-  }, [progress]);
+    const publish = () => {
+      const { active, loaded, total, errors, progress } =
+        useProgress.getState();
+      setLoadProgress(progress / 100);
+      reportAssetLoadState(
+        { active, loaded, total, errors: errors.length },
+        performance.now(),
+      );
+    };
+    publish();
+    return useProgress.subscribe(publish);
+  }, []);
   return null;
 }
 
@@ -467,17 +480,9 @@ function ContextSafeEffects({
  * the start of the R3F frame instead so the HUD/harness see the whole
  * multi-pass frame. */
 function PerformanceProbe() {
+  const coarseTouchCapability = useCoarseTouchCapability();
   const gl = useThree((state) => state.gl);
   const camera = useThree((state) => state.camera);
-  const unitSamples = useMemo(
-    () =>
-      Array.from({ length: UNIT_COUNT }, () => [
-        camera.position.clone(),
-        camera.position.clone(),
-        camera.position.clone(),
-      ]),
-    [camera],
-  );
   useEffect(() => {
     const previous = gl.info.autoReset;
     gl.info.autoReset = false;
@@ -493,31 +498,7 @@ function PerformanceProbe() {
         profile?: unknown;
         effectiveDpr?: unknown;
       };
-      const visibleUnits: number[] = [];
-      for (let index = 0; index < UNIT_COUNT; index += 1) {
-        const pose = unitPose(index);
-        const [center, left, right] = unitSamples[index]!;
-        const yaw = pose.rotation[1];
-        const edgeX = Math.cos(yaw) * 1.9;
-        const edgeZ = -Math.sin(yaw) * 1.9;
-        center!.set(pose.position[0], 0.4, pose.position[2]).project(camera);
-        left!
-          .set(pose.position[0] - edgeX, 0.4, pose.position[2] - edgeZ)
-          .project(camera);
-        right!
-          .set(pose.position[0] + edgeX, 0.4, pose.position[2] + edgeZ)
-          .project(camera);
-        if (
-          [center, left, right].some(
-            (sample) =>
-              sample!.z >= -1 &&
-              sample!.z <= 1 &&
-              sample!.x >= -1.05 &&
-              sample!.x <= 1.05,
-          )
-        )
-          visibleUnits.push(index);
-      }
+      const activity = sceneUnitActivityController.snapshot();
       const matrix = camera.matrixWorld.elements;
       const viewX = -(matrix[8] ?? 0);
       const viewZ = -(matrix[10] ?? 1);
@@ -541,14 +522,20 @@ function PerformanceProbe() {
           ((Math.atan2(viewX, -viewZ) * 180) / Math.PI).toFixed(3),
         ),
         cameraLookLagX: Number(cameraTravelDiagnostics.lookLagX.toFixed(4)),
-        visibleUnits,
+        visibleUnits: activity.visible,
         qualityProfile:
           typeof quality.profile === "string" ? quality.profile : null,
         dpr:
           typeof quality.effectiveDpr === "number"
             ? quality.effectiveDpr
             : null,
-        glassMode: scenePerformanceController.getSnapshot().placardGlassMode,
+        glassMode: effectivePlacardGlassMode(
+          scenePerformanceController.getSnapshot().placardGlassMode,
+          coarseTouchCapability,
+        ),
+        unitActivity: activity.states,
+        unitWorkExecuted: activity.executed,
+        unitWorkSkipped: activity.skipped,
       });
     }
     gl.info.reset();
@@ -806,13 +793,15 @@ export default function StacksCanvas({
   // Travel freezes while the mobile panel or the book modal owns the screen.
   const panelState = useStacks((s) => s.panelState);
   const modalOpen = useStacks((s) => s.modalOpen);
-  const activeUnit = useStacks((s) => s.activeUnit);
-  const isTouch = useMemo(
-    () =>
-      typeof window !== "undefined" &&
-      window.matchMedia("(pointer: coarse)").matches,
-    [],
-  );
+  const canvasShellRef = useRef<HTMLDivElement>(null);
+  const [rendererCapability, setRendererCapability] =
+    useState<RendererCapability>("unknown");
+  const rendererEvidence = useRef<{
+    webglVersion: 1 | 2;
+    maxTextureSize: number;
+    maxSamples: number;
+    physicalPixels: number;
+  } | null>(null);
   const [viewport, setViewport] = useState(() => ({
     width: typeof window === "undefined" ? 1 : window.innerWidth,
     height: typeof window === "undefined" ? 1 : window.innerHeight,
@@ -831,7 +820,7 @@ export default function StacksCanvas({
   const storageBucket = useMemo(
     () =>
       sceneQualityStorageBucket({
-        touch: isTouch,
+        capability: rendererCapability,
         cssWidth: viewport.width,
         cssHeight: viewport.height,
         deviceDpr: viewport.deviceDpr,
@@ -839,7 +828,7 @@ export default function StacksCanvas({
     // The learned device class is intentionally fixed for this mount. A
     // resize pauses learning but does not turn the same device into a new one.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isTouch],
+    [rendererCapability],
   );
   const restoredProfile = useMemo<SceneQualityProfile | null>(() => {
     if (typeof window === "undefined" || queryMode !== "auto") return null;
@@ -870,6 +859,28 @@ export default function StacksCanvas({
   );
   const [learnedProfile, setLearnedProfile] =
     useState<SceneQualityProfile | null>(restoredProfile);
+
+  const previousCapabilityBucket = useRef(storageBucket);
+  useEffect(() => {
+    if (previousCapabilityBucket.current === storageBucket) return;
+    previousCapabilityBucket.current = storageBucket;
+    if (mode !== "auto" || rendererCapability === "unknown") return;
+    try {
+      const stored = qualityProfileFromValue(
+        window.sessionStorage.getItem(storageBucket) ?? "",
+      );
+      if (!stored) return;
+      setLearnedProfile(stored);
+      dispatchQuality({
+        type: "profile",
+        now: performance.now(),
+        profile: stored,
+        reason: "restored",
+      });
+    } catch {
+      // Capability learning remains optional when storage is unavailable.
+    }
+  }, [mode, rendererCapability, storageBucket]);
 
   useEffect(() => {
     if (queryMode !== "auto") sceneQualityController.setMode(queryMode);
@@ -1003,11 +1014,6 @@ export default function StacksCanvas({
         activeUnit: useStacks.getState().activeUnit,
       },
     });
-    if (
-      !moving &&
-      scenePerformanceController.getSnapshot().placardGlassMode === "sampled"
-    )
-      sceneGlassSnapshotController.request("travel-settled");
   }, []);
 
   useEffect(() => {
@@ -1046,7 +1052,10 @@ export default function StacksCanvas({
         cssWidth: viewport.width,
         cssHeight: viewport.height,
         deviceDpr: viewport.deviceDpr,
-        touch: isTouch,
+        narrowViewport: viewport.width < STACKS_DESKTOP_MIN_WIDTH,
+        touch:
+          rendererCapability === "unknown" ||
+          rendererCapability === "constrained",
         directRender: adaptation.directRender || noPostfx,
         overrides: {
           ...performanceSettings,
@@ -1076,7 +1085,7 @@ export default function StacksCanvas({
     [
       adaptation.directRender,
       adaptation.profile,
-      isTouch,
+      rendererCapability,
       mode,
       noPostfx,
       performanceSettings,
@@ -1144,6 +1153,13 @@ export default function StacksCanvas({
   const onQualitySample = useCallback(
     (metrics: SceneQualityMetrics) => {
       setLiveMetrics(metrics);
+      if (rendererEvidence.current)
+        setRendererCapability(
+          deriveRendererCapability({
+            ...rendererEvidence.current,
+            observed: metrics,
+          }),
+        );
       if (mode !== "auto") return;
       dispatchQuality({
         type: "sample",
@@ -1274,8 +1290,23 @@ export default function StacksCanvas({
     };
   }, [onOpenBook]);
 
+  useEffect(() => {
+    const shell = canvasShellRef.current;
+    if (!shell) return;
+    // iOS can still begin a selection or image-style callout on a canvas
+    // after honoring `user-select: none` during the first tap. Cancel the
+    // native events too, before Safari creates a selection range.
+    const preventNativeSelection = (event: Event) => event.preventDefault();
+    shell.addEventListener("selectstart", preventNativeSelection);
+    shell.addEventListener("contextmenu", preventNativeSelection);
+    return () => {
+      shell.removeEventListener("selectstart", preventNativeSelection);
+      shell.removeEventListener("contextmenu", preventNativeSelection);
+    };
+  }, []);
+
   return (
-    <div className="stacks-canvas-shell absolute inset-0">
+    <div ref={canvasShellRef} className="stacks-canvas-shell absolute inset-0">
       <LoadReporter />
       <Canvas
         shadows="soft"
@@ -1294,6 +1325,29 @@ export default function StacksCanvas({
           sceneRef = scene;
           cameraRef = camera;
           setInteractionProjectionContext(camera, gl.domElement);
+          const context = gl.getContext();
+          const webgl2 = gl.capabilities.isWebGL2;
+          rendererEvidence.current = {
+            webglVersion: webgl2 ? 2 : 1,
+            maxTextureSize: Number(
+              context.getParameter(context.MAX_TEXTURE_SIZE) ?? 0,
+            ),
+            maxSamples: webgl2
+              ? Number(
+                  (context as WebGL2RenderingContext).getParameter(
+                    (context as WebGL2RenderingContext).MAX_SAMPLES,
+                  ) ?? 0,
+                )
+              : 0,
+            physicalPixels:
+              viewport.width *
+              viewport.height *
+              viewport.deviceDpr *
+              viewport.deviceDpr,
+          };
+          setRendererCapability(
+            deriveRendererCapability(rendererEvidence.current),
+          );
           installDevHooks();
           if (onLost) {
             gl.domElement.addEventListener("webglcontextlost", () => onLost(), {
@@ -1319,12 +1373,6 @@ export default function StacksCanvas({
         <AdaptiveQualityProbe onSample={onQualitySample} />
         <SceneAudioBridge />
         <PhysicsPrewarm />
-        {performanceSettings.placardGlassMode === "sampled" && (
-          <SceneGlassSampler
-            variant={`${dark ? "dark" : "light"}-${activeUnit}`}
-            paused={adaptation.moving}
-          />
-        )}
         <MovementProbe onChange={onMovementChange} />
         <ShaderPrewarm
           variant={`${dark ? "dark" : "light"}-${plan.profile}-${postfxQuality}`}
@@ -1344,14 +1392,17 @@ export default function StacksCanvas({
           // re-renders clones a fresh material per tinted mesh and strands
           // the old one on the GPU.
           enabled={panelState === "closed" && !modalOpen}
-          style={{ scrollbarWidth: "none", touchAction: "pan-x" }}
+          style={{ scrollbarWidth: "none", touchAction: "pan-x pinch-zoom" }}
         >
           <ScrollRegionA11y />
           <Scene
             data={data}
             palette={palette}
             dark={dark}
-            coverWidth={isTouch ? 256 : 384}
+            coverWidth={bookCoverWidthForNeed(
+              Math.min(viewport.width * 0.5, viewport.height * 0.35),
+              plan.profile,
+            )}
             quality={plan}
             onOpenBook={onOpenBook}
             onOpenUrl={onOpenUrl}

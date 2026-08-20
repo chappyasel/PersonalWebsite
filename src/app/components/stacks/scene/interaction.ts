@@ -239,9 +239,10 @@ export function litByOwnRig(
  * the world size the gate was decided on (reported either way — it is what a
  * dev log is for). */
 export type Hinge = {
-  /** Local pivot. Rotating the group about this point is what keeps the prop's
-   * contact edge on the wood instead of driving one side into it. */
-  pivot: THREE.Vector3;
+  /** Local support edge for a positive X tilt. */
+  positiveTiltPivot: THREE.Vector3;
+  /** Local support edge for a negative X tilt. */
+  negativeTiltPivot: THREE.Vector3;
   /** Greatest world dimension, scene units. */
   size: number;
   /** Null when the prop may tilt; otherwise why it may not. */
@@ -254,10 +255,9 @@ export type Hinge = {
  * A rotation about the group ORIGIN is the wrong shape of motion and it is the
  * bug this scene keeps regrowing in a new place: half the object goes up and
  * the other half goes DOWN, through the plank it is standing on. Real objects
- * tip about the edge they are resting on. So the pivot is the FRONT-BOTTOM
- * edge of the prop's own geometry — front because the camera is at +z and a
- * prop should nod toward the viewer, bottom because that is the edge in
- * contact — and everything behind it rises clear of the wood.
+ * tip about the edge they are resting on. A positive X tilt uses the
+ * front-bottom edge so the rear rises. A negative X tilt uses the rear-bottom
+ * edge so the front rises. The live camera decides which tilt applies.
  *
  * `held` inverts the Y half of that. A print pinned to the corkboard hangs
  * from brass at its TOP corner; hinging it at the bottom would swing the pin
@@ -286,16 +286,19 @@ export function hingeFor(
     s.y * Math.abs(vecScratch.y),
     s.z * Math.abs(vecScratch.z),
   );
-  const pivot = new THREE.Vector3(
-    0,
-    held ? local.max.y : local.min.y,
-    local.max.z,
-  );
+  const supportY = held ? local.max.y : local.min.y;
+  const positiveTiltPivot = new THREE.Vector3(0, supportY, local.max.z);
+  const negativeTiltPivot = new THREE.Vector3(0, supportY, local.min.z);
   const worldBox = local.clone().applyMatrix4(group.matrixWorld);
   const reason = litByOwnRig(group, worldBox)
     ? "rig"
     : size > maxSize
       ? "furniture"
       : null;
-  return { pivot, size, reason };
+  return { positiveTiltPivot, negativeTiltPivot, size, reason };
+}
+
+/** Choose the support edge that makes the opposite side rise. */
+export function hingePivotForTilt(hinge: Hinge, tilt: number) {
+  return tilt < 0 ? hinge.negativeTiltPivot : hinge.positiveTiltPivot;
 }

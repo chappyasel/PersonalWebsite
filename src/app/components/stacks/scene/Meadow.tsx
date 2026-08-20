@@ -16,7 +16,7 @@
 // geometry/materials so Three can reject offscreen vegetation by frustum.
 import { sceneAudio } from "../audio/sceneAudio";
 import { markMeadowReady } from "../loading";
-import { progressRef } from "../store";
+import { progressRef, touchWorldRef } from "../store";
 import { PALETTES } from "../theme";
 import { useGLTF, useTexture } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
@@ -25,6 +25,8 @@ import * as THREE from "three";
 
 import {
   GOLF_COURSE_CENTER,
+  GOLF_CUP,
+  GOLF_CUP_WORLD_CENTER,
   GOLF_GREEN,
   golfSurfaceAt,
   suppressGolfVegetation,
@@ -102,8 +104,8 @@ const SUN_DIR = new THREE.Vector3(4, 7, 6).normalize();
 const FLOWER_HW = 0.024;
 const FLOWER_H = 0.048;
 
-/** Pointer-poke support: hover is a fine-pointer idea — on touch the last
- * tap would leave a frozen dent in the lawn. Evaluated once (SSR-safe). */
+/** Whether the primary device supports hover. Touch input can still take over
+ * this path on hybrid devices. Evaluated once (SSR-safe). */
 const finePointer =
   typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches;
 const pokeScratch = new THREE.Vector3();
@@ -480,6 +482,14 @@ const TERRAIN_FRAGMENT = /* glsl */ `
   varying vec3 vFogColor;
   ${NOISE_GLSL}
   void main() {
+    // The flag model supplies the recessed liner and bottom. Discarding the
+    // shared terrain only inside its lip lets that geometry read as a real
+    // opening instead of being buried beneath the meadow carpet.
+    float cupDistance = distance(
+      vWorld.xz,
+      vec2(${GOLF_CUP_WORLD_CENTER.x.toFixed(4)}, ${GOLF_CUP_WORLD_CENTER.z.toFixed(4)})
+    );
+    if (cupDistance < ${(GOLF_CUP.radius * 0.985).toFixed(4)}) discard;
     // The carpet: the ground must read as the grass mass's own depths, not
     // soil — mottled clumps in the SAME palette as the tufts, so coverage
     // gaps read as shadow between clumps. The finest octave fades with
@@ -1111,11 +1121,12 @@ export default function Meadow({
   const pokePreviousPointer = useRef(new THREE.Vector2());
   const pokeGestureDirection = useRef(new THREE.Vector2());
   const pokeHasPrevious = useRef(false);
+  const handledTouchPulseRevision = useRef(touchWorldRef.meadowPulseRevision);
   const bootAt = useRef(-1);
   const nextWindDiagnosticAt = useRef(0);
   useEffect(() => {
-    if (!finePointer) return;
-    const onDown = () => {
+    const onDown = (event: PointerEvent) => {
+      if (event.pointerType === "touch") return;
       const slot = claimEffectLayer(
         pokeClickAt.current,
         built.shared.uTime.value,
@@ -1152,11 +1163,29 @@ export default function Meadow({
     // Pointer → lawn: unproject the cursor and hit the base ground plane
     // analytically (no raycaster, no geometry walk). Movement brushes a
     // trailing patch in the stroke direction; a click launches its own
-    // outward ring. Fine pointers only — touch would leave a frozen trail.
-    if (finePointer) {
+    // outward ring. Coarse movement reuses these exact uniforms and draw
+    // calls through the rAF-bounded Touch Wake signal.
+    const touchWake = touchWorldRef.wakeStrength;
+    const touchPulsePending =
+      handledTouchPulseRevision.current !== touchWorldRef.meadowPulseRevision;
+    const touchMotionRunning =
+      pokeClickAt.current.some((startedAt) => startedAt >= 0) ||
+      shared.uPoke.value.w > 0.001 ||
+      shared.uPokeF.value.w > 0.001;
+    const touchInteractionActive =
+      touchWake > 0.01 ||
+      touchPulsePending ||
+      (touchWorldRef.interactionPointerType === "touch" && touchMotionRunning);
+    if (finePointer || touchInteractionActive) {
+      const pointerX = touchInteractionActive
+        ? touchWorldRef.pointerX
+        : pointer.x;
+      const pointerY = touchInteractionActive
+        ? touchWorldRef.pointerY
+        : pointer.y;
       const poke = shared.uPoke.value;
       pokeHitReach.current = 0;
-      pokeScratch.set(pointer.x, pointer.y, 0.5).unproject(camera);
+      pokeScratch.set(pointerX, pointerY, 0.5).unproject(camera);
       pokeScratch.sub(camera.position).normalize();
       let target = 0;
       if (pokeScratch.y < -1e-3) {
@@ -1169,10 +1198,11 @@ export default function Meadow({
           pokeHitReach.current = reach;
           if (reach > 0) {
             const pointerMoved =
+              !touchPulsePending &&
               pokeHasPrevious.current &&
               Math.hypot(
-                pointer.x - pokePreviousPointer.current.x,
-                pointer.y - pokePreviousPointer.current.y,
+                pointerX - pokePreviousPointer.current.x,
+                pointerY - pokePreviousPointer.current.y,
               ) >= MEADOW_POKE.pointerMoveEpsilon;
             if (pointerMoved) {
               const drag = meadowDragSample(
@@ -1189,7 +1219,7 @@ export default function Meadow({
                 drag.directionX,
                 drag.directionZ,
               );
-              target = drag.strength;
+              target = drag.strength * (touchInteractionActive ? touchWake : 1);
               shared.uPokeDir.value.x = THREE.MathUtils.damp(
                 shared.uPokeDir.value.x,
                 drag.directionX,
@@ -1230,13 +1260,27 @@ export default function Meadow({
             );
           }
           pokePreviousHit.current.set(hx, hz);
-          pokePreviousPointer.current.set(pointer.x, pointer.y);
+          pokePreviousPointer.current.set(pointerX, pointerY);
           pokeHasPrevious.current = true;
         } else {
           pokeHasPrevious.current = false;
         }
       } else {
         pokeHasPrevious.current = false;
+      }
+      if (touchPulsePending) {
+        handledTouchPulseRevision.current = touchWorldRef.meadowPulseRevision;
+        if (pokeHitReach.current > 0) {
+          const slot = claimEffectLayer(
+            pokeClickAt.current,
+            clock.elapsedTime,
+            MEADOW_POKE.pulseDuration,
+          );
+          const pulse = shared.uPulses.value[slot]!;
+          pulse.x = pokeHit.current.x;
+          pulse.y = pokeHit.current.y;
+          pokeClickReach.current[slot] = pokeHitReach.current;
+        }
       }
       poke.w = THREE.MathUtils.damp(
         poke.w,
@@ -1267,12 +1311,20 @@ export default function Meadow({
         const age = pulseAges[index]!;
         if (age < 0) {
           uniform.w = 0;
+          if (
+            pokeClickAt.current[index]! >= 0 &&
+            clock.elapsedTime - pokeClickAt.current[index]! >
+              MEADOW_POKE.pulseDuration
+          )
+            pokeClickAt.current[index] = -1;
           continue;
         }
         const pulse = meadowPulseState(age, pokeClickReach.current[index]!);
         uniform.z = pulse.radius;
         uniform.w = pulse.strength;
       }
+      if (touchInteractionActive)
+        touchWorldRef.wakeStrength = Math.max(0, touchWake - delta * 5);
     }
     shared.uDark.value = THREE.MathUtils.damp(
       shared.uDark.value,
