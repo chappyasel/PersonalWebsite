@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   MIN_CAMERA_TARGET_DISTANCE,
   TAP_FOCUS_ZOOM_MULTIPLIER,
+  cameraTravelState,
   clampCameraZoom,
   interactionZoomTarget,
   isGolfControlInteraction,
@@ -39,6 +40,20 @@ describe("interaction camera zoom", () => {
     expect(shouldResetCameraZoomForTravel(false, true)).toBe(true);
     expect(shouldResetCameraZoomForTravel(true, true)).toBe(false);
   });
+
+  it.each([1, 2, 3, 4, 5, 6])(
+    "allows object focus during the damping tail at shelf %i",
+    (shelf) => {
+      const travel = cameraTravelState({
+        scenePosition: shelf + 0.009,
+        previousScenePosition: shelf + 0.011,
+        alternateStop: 3.65,
+      });
+
+      expect(travel.traveling).toBe(true);
+      expect(travel.focusBlockedByTravel).toBe(false);
+    },
+  );
 
   it("does not apply automatic object zoom to mouse or pen input", () => {
     expect(

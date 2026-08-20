@@ -16,6 +16,33 @@ export function shouldResetCameraZoomForTravel(
   return traveling && !wasTraveling;
 }
 
+export function cameraTravelState({
+  scenePosition,
+  previousScenePosition,
+  alternateStop,
+}: {
+  scenePosition: number;
+  previousScenePosition: number;
+  alternateStop: number;
+}) {
+  const distanceFromAuthoredStop = Math.min(
+    Math.abs(scenePosition - Math.round(scenePosition)),
+    Math.abs(scenePosition - alternateStop),
+  );
+  const traveling =
+    distanceFromAuthoredStop > 0.015 ||
+    Math.abs(scenePosition - previousScenePosition) > 0.000_02;
+
+  return {
+    traveling,
+    // Drei's damping keeps changing the position for roughly half a second
+    // after the shelf looks settled. Keep travel cleanup active during that
+    // tail, but let an intentional object tap focus once the camera is within
+    // the authored stop's visual tolerance.
+    focusBlockedByTravel: distanceFromAuthoredStop > 0.015,
+  };
+}
+
 export function interactionZoomTarget({
   distance,
   focused,

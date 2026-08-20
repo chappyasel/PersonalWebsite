@@ -5,7 +5,13 @@ import { useStacks } from "../../store";
 import ModelProp from "../ModelProp";
 import { InteractionClaim } from "../interaction";
 import { registerSceneInteraction } from "../interactionRegistry";
+import { publishMeadowImpact } from "../meadowDisturbance";
 import { meadowHeight } from "../meadowField";
+import {
+  MEADOW_TRAIL,
+  meadowPhysicalResponse,
+  meadowTrailReady,
+} from "../meadowMotion";
 import {
   createDimpledGolfBallGeometry,
   createGolfBallBumpTexture,
@@ -34,6 +40,7 @@ import {
   GOLF_CLUB_SCALE,
 } from "./golfLayout";
 import {
+  GOLF_BALL_RADIUS,
   GolfFixedStepper,
   type GolfWorld,
   createGolfBallState,
@@ -74,6 +81,7 @@ const CLUB_REST_PIVOT = new THREE.Vector3(
   GOLF_CLUB_REST_BASE.z,
 );
 const CONFETTI_DUMMY = new THREE.Object3D();
+const GOLF_BALL_MASS_KG = 0.046;
 function reducedMotion() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
@@ -223,6 +231,14 @@ export default function GolfExperience({
     }),
     [c, pose.position, s],
   );
+  const toWorldDirection = useCallback(
+    (direction: GolfVec3): GolfVec3 => ({
+      x: direction.x * c + direction.z * s,
+      y: direction.y,
+      z: -direction.x * s + direction.z * c,
+    }),
+    [c, s],
+  );
   const cup = useMemo<GolfVec3>(() => {
     const world = toWorld({
       x: GOLF_FLAG_LOCAL[0],
@@ -237,6 +253,14 @@ export default function GolfExperience({
   }, [toWorld]);
   const balls = useRef<GolfBallState[]>(
     GOLF_BALL_IDS.map((id) => createGolfBallState(id, GOLF_BALL_STARTS[id])),
+  );
+  const ballTrails = useRef(
+    Object.fromEntries(
+      GOLF_BALL_IDS.map((id) => [
+        id,
+        { x: GOLF_BALL_STARTS[id].x, z: GOLF_BALL_STARTS[id].z, elapsed: 0 },
+      ]),
+    ) as Record<GolfBallId, { x: number; z: number; elapsed: number }>,
   );
   const ballGroups = useRef<Record<GolfBallId, THREE.Group | null>>({
     one: null,
@@ -347,6 +371,22 @@ export default function GolfExperience({
         event.type === "reset" ? null : toWorld(event.position);
       if (event.type === "first-impact") {
         sceneAudio.play("golf-turf", worldPosition!, 0.28);
+        const direction = toWorldDirection(event.velocity);
+        const horizontalSpeed = Math.hypot(direction.x, direction.z);
+        const response = meadowPhysicalResponse({
+          normalSpeed: event.impactSpeed,
+          tangentSpeed: horizontalSpeed,
+          massKg: GOLF_BALL_MASS_KG,
+          footprint: GOLF_BALL_RADIUS * 2,
+        });
+        publishMeadowImpact({
+          ...worldPosition!,
+          directionX:
+            horizontalSpeed > 1e-5 ? direction.x / horizontalSpeed : 0,
+          directionZ:
+            horizontalSpeed > 1e-5 ? direction.z / horizontalSpeed : 0,
+          ...response,
+        });
         if (motion.turfPuff) {
           const puff = puffs.current.find((candidate) => candidate.age >= 1.2);
           if (puff?.mesh) {
@@ -372,7 +412,7 @@ export default function GolfExperience({
         queue.current.release(event.ballId);
       }
     },
-    [celebrate, motion.turfPuff, toWorld],
+    [celebrate, motion.turfPuff, toWorld, toWorldDirection],
   );
 
   const world = useMemo<GolfWorld>(
@@ -538,6 +578,26 @@ export default function GolfExperience({
           Math.random,
           (x, z) => surfaceAt(x, z).height,
         );
+        const strikePosition = toWorld(ball.position);
+        const strikeDirection = toWorldDirection(trajectory.velocity);
+        const horizontalSpeed = Math.hypot(
+          strikeDirection.x,
+          strikeDirection.z,
+        );
+        const response = meadowPhysicalResponse({
+          normalSpeed: 0,
+          tangentSpeed: horizontalSpeed,
+          massKg: GOLF_BALL_MASS_KG,
+          footprint: GOLF_BALL_RADIUS * 2,
+        });
+        publishMeadowImpact({
+          ...strikePosition,
+          directionX:
+            horizontalSpeed > 1e-5 ? strikeDirection.x / horizontalSpeed : 0,
+          directionZ:
+            horizontalSpeed > 1e-5 ? strikeDirection.z / horizontalSpeed : 0,
+          ...response,
+        });
         launchGolfBall(ball, trajectory.velocity, outcome);
         sceneAudio.play("golf-strike", toWorld(ball.position), 0.9);
       }
@@ -567,6 +627,39 @@ export default function GolfExperience({
     );
 
     for (const ball of balls.current) {
+      const trail = ballTrails.current[ball.id];
+      const tangentSpeed = Math.hypot(ball.velocity.x, ball.velocity.z);
+      if (ball.phase === "roll" && tangentSpeed >= MEADOW_TRAIL.minSpeed) {
+        trail.elapsed += Math.min(delta, 0.1);
+        const distance = Math.hypot(
+          ball.position.x - trail.x,
+          ball.position.z - trail.z,
+        );
+        if (meadowTrailReady(trail.elapsed, distance, tangentSpeed)) {
+          const worldPosition = toWorld(ball.position);
+          const worldDirection = toWorldDirection(ball.velocity);
+          const response = meadowPhysicalResponse({
+            normalSpeed: 0,
+            tangentSpeed,
+            massKg: GOLF_BALL_MASS_KG,
+            footprint: ball.radius * 2,
+            trailing: true,
+          });
+          publishMeadowImpact({
+            ...worldPosition,
+            directionX: worldDirection.x / tangentSpeed,
+            directionZ: worldDirection.z / tangentSpeed,
+            ...response,
+          });
+          trail.x = ball.position.x;
+          trail.z = ball.position.z;
+          trail.elapsed = 0;
+        }
+      } else {
+        trail.x = ball.position.x;
+        trail.z = ball.position.z;
+        trail.elapsed = 0;
+      }
       const group = ballGroups.current[ball.id];
       const material = ballMaterials.current[ball.id];
       if (group) {

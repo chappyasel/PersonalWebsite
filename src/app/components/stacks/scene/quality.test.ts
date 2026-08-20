@@ -691,6 +691,28 @@ describe("constraint classification", () => {
     ).toBe("unknown");
   });
 
+  it("does not call a sub-threshold main thread CPU-bound by share alone", () => {
+    expect(
+      classifySceneFrameConstraint({
+        p95: 24,
+        droppedFrameRatio: 0.3,
+        cpuMs: 10,
+        gpuMs: null,
+      }),
+    ).toBe("unknown");
+  });
+
+  it("requires the ADR headroom drop ratio even when CPU cost is cheap", () => {
+    expect(
+      classifySceneFrameConstraint({
+        p95: 16.7,
+        droppedFrameRatio: 0.079,
+        cpuMs: 5,
+        gpuMs: null,
+      }),
+    ).toBe("unknown");
+  });
+
   it("substitutes measured GPU time for the interval, in the GPU test only", () => {
     const late = { p95: 30, droppedFrameRatio: 0.4, cpuMs: 4 };
     // The interval says late; a GPU timer showing a cheap GPU withdraws the
@@ -824,7 +846,7 @@ describe("the M5 Max window that read as Safety", () => {
   });
 
   it("climbs once the cost is what production actually pays", () => {
-    const production = { ...measured, cpuMs: 5 };
+    const production = { ...measured, cpuMs: 5, droppedFrameRatio: 0.01 };
     expect(classifySceneFrameConstraint(production)).toBe("headroom");
 
     let state = initialSceneQualityAdaptationState("balanced", 0);
@@ -834,7 +856,7 @@ describe("the M5 Max window that read as Safety", () => {
   });
 
   it("climbs the resolution axis back to full through the axis reducer", () => {
-    const production = { ...measured, cpuMs: 5 };
+    const production = { ...measured, cpuMs: 5, droppedFrameRatio: 0.01 };
     let state = initialSceneQualityAxisState("balanced", 0);
     state = reduceSceneQualityAxes(state, { type: "booted", now: 0 });
     state = { ...state, axes: { ...state.axes, resolutionStep: 6 } };
@@ -1140,14 +1162,15 @@ describe("the resolution axis inside the plan", () => {
   });
 
   it("lets the axis override the content tier in automatic mode", () => {
-    expect(
-      resolveSceneQualityPlan({
-        ...narrow,
-        mode: "auto",
-        profile: "balanced",
-        contentTier: "minimal",
-      }).environment.contentTier,
-    ).toBe("minimal");
+    const resolved = resolveSceneQualityPlan({
+      ...narrow,
+      mode: "auto",
+      profile: "balanced",
+      contentTier: "minimal",
+    });
+
+    expect(resolved.environment.contentTier).toBe("minimal");
+    expect(resolved.wildlife.suspendOffscreen).toBe(true);
   });
 });
 

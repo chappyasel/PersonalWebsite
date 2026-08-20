@@ -458,6 +458,23 @@ describe("Meadow.tsx wiring", () => {
     expect(nearMesh).toContain("built.farGrassMaterial");
   });
 
+  it("leans the tuft linearly from a planted footprint instead of curving it", () => {
+    const grassVertex = meadowSource.slice(
+      meadowSource.indexOf("const GRASS_VERTEX"),
+      meadowSource.indexOf("const GRASS_FRAGMENT"),
+    );
+
+    expect(grassVertex).toContain(
+      "float swayHeight = max(t, 0.0) * hScale;",
+    );
+    expect(grassVertex).toContain("vec2 disp = lean * swayHeight;");
+    expect(grassVertex).toContain(
+      "world.y -= 0.5 * dot(lean, lean) * swayHeight;",
+    );
+    expect(grassVertex).not.toContain("t * t");
+    expect(grassVertex).not.toContain("vec3 root = origin;");
+  });
+
   it("defaults the content tier so existing call sites keep their scene", () => {
     expect(meadowSource).toContain('contentTier = "full",');
     expect(meadowSource).toContain("contentTier?: SceneContentTier;");

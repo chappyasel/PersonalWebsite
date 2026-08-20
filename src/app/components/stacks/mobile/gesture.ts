@@ -1,4 +1,6 @@
-export const TOUCH_SLOP_PX = 8;
+/** A finger rarely lands and lifts on the same CSS pixel. Keep small contact
+ * drift a tap while still handing deliberate motion to travel. */
+export const TOUCH_SLOP_PX = 16;
 export const TOUCH_HORIZONTAL_DOMINANCE = 1.15;
 export const TOUCH_PICKUP_MS = 350;
 

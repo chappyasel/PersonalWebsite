@@ -5,6 +5,7 @@
  */
 
 export const MEADOW_DISTURBANCE_PULSES = 6;
+export const MEADOW_IMPACT_EVENTS = 8;
 
 export type MeadowDisturbancePulse = {
   x: number;
@@ -12,6 +13,18 @@ export type MeadowDisturbancePulse = {
   radius: number;
   strength: number;
   startedAt: number;
+};
+
+export type MeadowImpactEvent = {
+  x: number;
+  y: number;
+  z: number;
+  directionX: number;
+  directionZ: number;
+  strength: number;
+  radiusScale: number;
+  timeScale: number;
+  revision: number;
 };
 
 export type MeadowDisturbanceSnapshot = {
@@ -22,15 +35,10 @@ export type MeadowDisturbanceSnapshot = {
   directionX: number;
   directionZ: number;
   windAmplitude: number;
-  impact: {
-    x: number;
-    y: number;
-    z: number;
-    directionX: number;
-    directionZ: number;
-    strength: number;
-    revision: number;
-  };
+  /** Latest impact, retained for diagnostics and compatibility. Consumers
+   * should traverse `impacts` so same-frame contacts cannot overwrite. */
+  impact: MeadowImpactEvent;
+  impacts: MeadowImpactEvent[];
   pulses: MeadowDisturbancePulse[];
 };
 
@@ -49,8 +57,21 @@ const snapshot: MeadowDisturbanceSnapshot = {
     directionX: 0,
     directionZ: 0,
     strength: 0,
+    radiusScale: 1,
+    timeScale: 1,
     revision: 0,
   },
+  impacts: Array.from({ length: MEADOW_IMPACT_EVENTS }, () => ({
+    x: 0,
+    y: 0,
+    z: 0,
+    directionX: 0,
+    directionZ: 0,
+    strength: 0,
+    radiusScale: 1,
+    timeScale: 1,
+    revision: 0,
+  })),
   pulses: Array.from({ length: MEADOW_DISTURBANCE_PULSES }, () => ({
     x: 0,
     z: 0,
@@ -89,7 +110,7 @@ export function getMeadowDisturbance() {
   return snapshot;
 }
 
-/** One-shot event emitted by the physics world's existing first-contact hook. */
+/** Bounded event emitted by ground impacts and throttled grounded travel. */
 export function publishMeadowImpact(options: {
   x: number;
   y: number;
@@ -97,20 +118,52 @@ export function publishMeadowImpact(options: {
   directionX: number;
   directionZ: number;
   strength: number;
+  radiusScale?: number;
+  timeScale?: number;
 }) {
-  snapshot.impact.x = options.x;
-  snapshot.impact.y = options.y;
-  snapshot.impact.z = options.z;
-  snapshot.impact.directionX = options.directionX;
-  snapshot.impact.directionZ = options.directionZ;
-  snapshot.impact.strength = options.strength;
-  snapshot.impact.revision += 1;
+  const revision = snapshot.impact.revision + 1;
+  const event = snapshot.impacts[(revision - 1) % snapshot.impacts.length]!;
+  event.x = options.x;
+  event.y = options.y;
+  event.z = options.z;
+  event.directionX = options.directionX;
+  event.directionZ = options.directionZ;
+  event.strength = options.strength;
+  event.radiusScale = options.radiusScale ?? 1;
+  event.timeScale = options.timeScale ?? 1;
+  event.revision = revision;
+  Object.assign(snapshot.impact, event);
+}
+
+/** Visits every retained impact newer than `afterRevision` without allocating.
+ * If a stalled consumer falls behind the ring, it resumes at the oldest event
+ * that still exists. */
+export function visitMeadowImpactsSince(
+  afterRevision: number,
+  visit: (impact: MeadowImpactEvent) => void,
+) {
+  const latestRevision = snapshot.impact.revision;
+  const firstRevision = Math.max(
+    1,
+    afterRevision + 1,
+    latestRevision - snapshot.impacts.length + 1,
+  );
+  for (
+    let revision = firstRevision;
+    revision <= latestRevision;
+    revision += 1
+  ) {
+    const impact = snapshot.impacts[(revision - 1) % snapshot.impacts.length]!;
+    if (impact.revision === revision) visit(impact);
+  }
+  return latestRevision;
 }
 
 export function resetMeadowDisturbance() {
   snapshot.brushStrength = 0;
   snapshot.windAmplitude = 0;
   snapshot.impact.strength = 0;
+  for (const impact of snapshot.impacts) impact.strength = 0;
   for (const pulse of snapshot.pulses) {
     pulse.strength = 0;
     pulse.startedAt = -1;

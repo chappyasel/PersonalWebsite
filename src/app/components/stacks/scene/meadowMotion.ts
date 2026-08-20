@@ -31,6 +31,71 @@ export const MEADOW_POKE = {
   flowerReleaseLambda: 1.4,
 } as const;
 
+/** Physical contacts reuse the click pulse pool as a short, compact brush.
+ * Two offset radial pulses suggest travel direction without adding work to
+ * the meadow's per-vertex shader loop. */
+export const MEADOW_IMPACT = {
+  pulseStrengthScale: 1.4,
+  wakeStrengthScale: 0.75,
+  directionOffset: 0.12,
+  radiusScale: 0.34,
+  timeScale: 1.8,
+  groundTolerance: 0.18,
+} as const;
+
+export const MEADOW_TRAIL = {
+  minSpeed: 0.25,
+  minDistance: 0.1,
+  minInterval: 0.06,
+  maxGenericEmitters: 3,
+  timeScale: 2.35,
+} as const;
+
+export function meadowTrailReady(
+  elapsed: number,
+  distance: number,
+  speed: number,
+) {
+  return (
+    speed >= MEADOW_TRAIL.minSpeed &&
+    elapsed >= MEADOW_TRAIL.minInterval &&
+    distance >= MEADOW_TRAIL.minDistance
+  );
+}
+
+export function meadowPhysicalResponse(options: {
+  normalSpeed: number;
+  tangentSpeed: number;
+  massKg: number;
+  footprint: number;
+  trailing?: boolean;
+}) {
+  const massWeight = Math.min(
+    1.35,
+    0.85 + Math.log2(1 + Math.max(0, options.massKg)) * 0.08,
+  );
+  const strength = Math.min(
+    1,
+    Math.max(
+      0,
+      (Math.max(0, options.normalSpeed) / 4 +
+        Math.max(0, options.tangentSpeed) / 5.5) *
+        massWeight,
+    ),
+  );
+  const radius = Math.min(
+    0.72,
+    Math.max(0.22, 0.18 + Math.max(0, options.footprint) * 0.55),
+  );
+  return {
+    strength,
+    radiusScale: radius / MEADOW_POKE.pulseEndRadius,
+    timeScale: options.trailing
+      ? MEADOW_TRAIL.timeScale
+      : MEADOW_IMPACT.timeScale,
+  };
+}
+
 export function limitMeadowWind(magnitude: number): number {
   if (magnitude <= MEADOW_WIND.gustKnee) return magnitude;
   const span = MEADOW_WIND.gustCeiling - MEADOW_WIND.gustKnee;

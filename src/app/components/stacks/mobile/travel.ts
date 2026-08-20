@@ -36,6 +36,13 @@ export function projectedInertiaDistance(
   return (velocityPxMs * frameMs) / (1 - decay);
 }
 
+export function shouldSettleInterruptedInertia(
+  inertiaFrame: number | null,
+  reason: "new-contact" | "cleanup",
+) {
+  return inertiaFrame !== null && reason === "new-contact";
+}
+
 export function unitForScrollPosition(
   scrollLeft: number,
   scrollWidth: number,

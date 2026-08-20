@@ -75,17 +75,18 @@ function rootLocalBounds(spec: ReturnType<typeof getSceneInteraction>) {
   return bounds;
 }
 
-export function projectedInteractionBounds(
-  pointer?: { x: number; y: number },
-): ProjectedInteractionBounds[] {
+export function projectedInteractionBounds(pointer?: {
+  x: number;
+  y: number;
+}): ProjectedInteractionBounds[] {
   if (!projectionCamera || !projectionElement) return [];
   const rect = projectionElement.getBoundingClientRect();
   // `activeUnits` records which authored shelf owns an interaction. It is not
   // a visibility boundary: neighboring shelves remain on screen during
   // travel and at intermediate authored stops such as Golf. The camera and
   // the rendered hierarchy decide what touch can reach.
-  const specs = sceneInteractionInventory().filter((spec) =>
-    isEffectivelyVisible(spec.root),
+  const specs = sceneInteractionInventory().filter(
+    (spec) => spec.touchable !== false && isEffectivelyVisible(spec.root),
   );
   let exactId: string | null = null;
   if (pointer && rect.width > 0 && rect.height > 0) {
@@ -258,7 +259,7 @@ export function activationAtPointer(
     activation: "door" | "action" | "egg" | null;
   } | null = null;
   for (const spec of sceneInteractionInventory()) {
-    if (!isEffectivelyVisible(spec.root)) continue;
+    if (spec.touchable === false || !isEffectivelyVisible(spec.root)) continue;
     const hit = pointerRaycaster.intersectObject(spec.root, true)[0];
     if (!hit || (best && hit.distance >= best.distance)) continue;
     best = {
@@ -272,10 +273,7 @@ export function activationAtPointer(
 
 /** Doors share the general touch raycast while still failing closed when the
  * nearest object is an action, easter egg, or inert prop. */
-export function doorAtPointer(
-  clientX: number,
-  clientY: number,
-) {
+export function doorAtPointer(clientX: number, clientY: number) {
   const hit = activationAtPointer(clientX, clientY);
   return hit?.kind === "door" ? hit.id : null;
 }

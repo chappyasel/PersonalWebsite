@@ -2,8 +2,9 @@
 
 import { useSyncExternalStore } from "react";
 
-/** This capability selects touch input behavior and the paper fallback. It
- * does not select the narrow bottom-sheet presentation; viewport width does. */
+/** This capability selects touch input behavior. It does not select either
+ * the Placard surface or the narrow bottom-sheet presentation; the shipped
+ * surface is native glass, and viewport width selects the layout. */
 export const COARSE_TOUCH_QUERY =
   "(width < 1200px) and (hover: none) and (pointer: coarse)";
 

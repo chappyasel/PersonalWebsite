@@ -14,7 +14,10 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { golfSurfaceAt } from "./golf/golfCourse";
-import { getMeadowDisturbance } from "./meadowDisturbance";
+import {
+  getMeadowDisturbance,
+  visitMeadowImpactsSince,
+} from "./meadowDisturbance";
 import { buildFlowerPositions, meadowHeight } from "./meadowField";
 import { shelfBackEdgeAt } from "./meadowInteraction";
 import {
@@ -309,41 +312,42 @@ function PetalField({
       simulationTime.current += PETAL_FIXED_STEP;
       const time = simulationTime.current;
 
-      const impact = disturbance.impact;
-      if (impact.revision !== handledImpact.current) {
-        handledImpact.current = impact.revision;
-        const groundY = meadowHeight(impact.x, impact.z);
-        if (
-          visibleLimit > 7 &&
-          impact.strength > 0 &&
-          impact.y <= groundY + 0.18
-        ) {
-          const radius = 0.55 + impact.strength * 0.25;
-          const releaseCount = impact.strength >= 0.55 ? 2 : 1;
-          let first = -1;
-          for (let release = 0; release < releaseCount; release += 1) {
-            const index = nearestPassivePetal(
-              motions.current,
-              impact.x,
-              impact.z,
-              radius,
-              first,
-            );
-            if (index < 0) break;
-            if (first < 0) first = index;
-            disturbPetal(
-              motions.current[index]!,
-              time,
-              impact.x,
-              impact.z,
-              radius,
-              impact.directionX,
-              impact.directionZ,
-              Math.max(0.12, impact.strength * 0.2),
-            );
+      handledImpact.current = visitMeadowImpactsSince(
+        handledImpact.current,
+        (impact) => {
+          const groundY = meadowHeight(impact.x, impact.z);
+          if (
+            visibleLimit > 7 &&
+            impact.strength > 0 &&
+            impact.y <= groundY + 0.18
+          ) {
+            const radius = 0.55 + impact.strength * 0.25;
+            const releaseCount = impact.strength >= 0.55 ? 2 : 1;
+            let first = -1;
+            for (let release = 0; release < releaseCount; release += 1) {
+              const index = nearestPassivePetal(
+                motions.current,
+                impact.x,
+                impact.z,
+                radius,
+                first,
+              );
+              if (index < 0) break;
+              if (first < 0) first = index;
+              disturbPetal(
+                motions.current[index]!,
+                time,
+                impact.x,
+                impact.z,
+                radius,
+                impact.directionX,
+                impact.directionZ,
+                Math.max(0.12, impact.strength * 0.2),
+              );
+            }
           }
-        }
-      }
+        },
+      );
 
       // A click first lifts at most two nearby petals, then the meadow's real
       // expanding ring reaches every other petal once. This makes the flower

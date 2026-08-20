@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  MEADOW_IMPACT,
   MEADOW_POKE,
+  MEADOW_TRAIL,
   MEADOW_WIND,
   limitMeadowWind,
   meadowDragSample,
+  meadowPhysicalResponse,
   meadowPulseState,
+  meadowTrailReady,
   meadowWindAudioLevel,
   sampleMeadowWind,
 } from "./meadowMotion";
@@ -84,6 +88,56 @@ describe("meadow pointer motion", () => {
     );
     expect(start.radius).toBeLessThan(middle.radius);
     expect(middle.radius).toBeLessThan(end.radius);
+  });
+
+  it("keeps physical impacts compact while retaining sharp local force", () => {
+    expect(MEADOW_IMPACT.pulseStrengthScale).toBeGreaterThan(1);
+    expect(MEADOW_IMPACT.wakeStrengthScale).toBeLessThan(
+      MEADOW_IMPACT.pulseStrengthScale,
+    );
+    expect(MEADOW_IMPACT.directionOffset).toBeGreaterThan(0);
+    expect(MEADOW_IMPACT.radiusScale).toBeLessThan(0.5);
+    expect(MEADOW_IMPACT.timeScale).toBeGreaterThan(1);
+  });
+
+  it("scales physical response by contact energy and collider footprint", () => {
+    const golfBall = meadowPhysicalResponse({
+      normalSpeed: 8,
+      tangentSpeed: 6,
+      massKg: 0.046,
+      footprint: 0.1,
+    });
+    const rollingBall = meadowPhysicalResponse({
+      normalSpeed: 0,
+      tangentSpeed: 1,
+      massKg: 0.62,
+      footprint: 0.24,
+      trailing: true,
+    });
+    const kettlebell = meadowPhysicalResponse({
+      normalSpeed: 1,
+      tangentSpeed: 0.4,
+      massKg: 16,
+      footprint: 0.5,
+    });
+    expect(golfBall.strength).toBe(1);
+    expect(rollingBall.strength).toBeGreaterThan(0);
+    expect(rollingBall.strength).toBeLessThan(golfBall.strength);
+    expect(kettlebell.radiusScale).toBeGreaterThan(golfBall.radiusScale);
+    expect(rollingBall.timeScale).toBe(MEADOW_TRAIL.timeScale);
+  });
+
+  it("requires both travel and dwell before emitting another wake", () => {
+    expect(
+      meadowTrailReady(
+        MEADOW_TRAIL.minInterval,
+        MEADOW_TRAIL.minDistance,
+        MEADOW_TRAIL.minSpeed,
+      ),
+    ).toBe(true);
+    expect(meadowTrailReady(0, 1, 4)).toBe(false);
+    expect(meadowTrailReady(1, 0, 4)).toBe(false);
+    expect(meadowTrailReady(1, 1, MEADOW_TRAIL.minSpeed - 0.01)).toBe(false);
   });
 
   it("brushes grass in the mouse travel direction instead of repelling it", () => {

@@ -1,8 +1,6 @@
 import { type UnitSlug } from "../data";
 
-/** Local scene photographs reveal from role-sized previews. Their canonical
- * masters replace those previews after the WebGL handoff, outside the boot
- * screen's critical path. */
+/** Local scene photographs use role-sized assets throughout their lifetime. */
 export type ScenePhotoRole = "hero" | "feature" | "support";
 
 export const SCENE_PHOTO_EDGE: Record<ScenePhotoRole, 256 | 512 | 1024> = {
@@ -85,8 +83,4 @@ export const V8_PHOTOS_BY_UNIT: Record<
 
 export function scenePhotoManifestUrl(entry: PhotoManifestEntry): string {
   return scenePhotoUrl(`/images/stacks/v8/${entry.name}.webp`, entry.role);
-}
-
-export function scenePhotoManifestMasterUrl(entry: PhotoManifestEntry): string {
-  return `/images/stacks/v8/${entry.name}.webp`;
 }

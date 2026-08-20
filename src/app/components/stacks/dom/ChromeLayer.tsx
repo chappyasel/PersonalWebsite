@@ -49,32 +49,27 @@ function isEditableShortcutTarget(target: EventTarget | null) {
   );
 }
 
-/** Production ships only this activator. The diagnostics UI and its styles
- * stay off the network and main thread until D is pressed; ?debug=1 is the
- * deliberately invisible mobile entry point. */
+/** Development keeps the compact HUD visible without enabling the expensive
+ * scene probes. Production loads nothing until D or ?debug=1 requests it. */
 function SceneDiagnosticsLoader() {
-  const [request, setRequest] = useState<{ initiallyOpen: boolean } | null>(
-    () => {
-      // Asking for the diagnostics IS the opt-in. Installing the scene hooks
-      // here rather than from the URL is what stops the HUD rendering with
-      // every field empty when it was opened with the D key.
-      if (process.env.NODE_ENV !== "development") return null;
-      requestDevHooks();
-      return { initiallyOpen: false };
-    },
+  const [request, setRequest] = useState<{
+    initiallyOpen: boolean;
+  } | null>(() =>
+    process.env.NODE_ENV === "development" ? { initiallyOpen: false } : null,
   );
   const [Diagnostics, setDiagnostics] = useState<ComponentType<{
     initiallyOpen?: boolean;
   }> | null>(null);
 
   useEffect(() => {
-    if (request) return;
-
-    if (new URLSearchParams(window.location.search).get("debug") === "1") {
+    const debugRequested =
+      new URLSearchParams(window.location.search).get("debug") === "1";
+    if (debugRequested && request?.initiallyOpen !== true) {
       requestDevHooks();
       setRequest({ initiallyOpen: true });
       return;
     }
+    if (request) return;
 
     const onShortcut = (event: KeyboardEvent) => {
       if (

@@ -8,7 +8,11 @@ import type {
   SceneQualityPlan,
   SceneQualityProfile,
 } from "./quality";
-import { SCENE_RESOLUTION_MAX_STEP, type SceneQualityAxes } from "./qualityAxes";
+import {
+  SCENE_RESOLUTION_MAX_STEP,
+  type QualityAxisChange,
+  type SceneQualityAxes,
+} from "./qualityAxes";
 
 export type SceneQualityRuntimeSnapshot = Readonly<{
   plan: SceneQualityPlan;
@@ -25,7 +29,7 @@ export type SceneQualityRuntimeSnapshot = Readonly<{
   storageBucket: string;
   learnedProfile: string | null;
   cooldownRemainingMs: number;
-  transitionReason: QualityTransitionReason;
+  transitionReason: QualityTransitionReason | QualityAxisChange["reason"];
   fallbackStatus: "composer" | "direct-effects-error" | "direct-safety";
 }>;
 

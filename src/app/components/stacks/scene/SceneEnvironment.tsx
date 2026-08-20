@@ -23,6 +23,7 @@ import { claimEffectLayer, effectLayerAges } from "./layeredEffects";
 import { type SceneQualityPlan } from "./quality";
 import { getSeatAmount } from "./seated";
 import { SKY_LIGHTING } from "./skyLighting";
+import { updateManualWorldMatrix } from "./staticWorld";
 import { MID_X, STACKS_DESKTOP_MIN_WIDTH, TRAVEL_X } from "./worldLayout";
 
 const FIREWORK_LAYERS = 4;
@@ -2692,7 +2693,9 @@ function parkSkyTarget(
     z,
   );
   mesh.scale.set(2 * halfAz * distance, (e1 - e0) * distance, 1);
+  updateManualWorldMatrix(mesh);
   mesh.lookAt(camera.position);
+  updateManualWorldMatrix(mesh);
 }
 
 function SkyDome({
@@ -3067,7 +3070,10 @@ function SkyDome({
     // ANY axis. Copying only x left the dome fixed in y and z while the
     // camera bobs (CameraRig's idle sine plus pointer parallax) and dollies
     // back when a panel opens, so the horizon crept against the shelves.
-    if (domeRef.current) domeRef.current.position.copy(camera.position);
+    if (domeRef.current) {
+      domeRef.current.position.copy(camera.position);
+      updateManualWorldMatrix(domeRef.current);
+    }
   });
   // renderOrder 1: draw after opaque geometry so early-Z rejects the covered
   // sky fragments (its depth-sort position otherwise changes during traverse).
@@ -3075,6 +3081,8 @@ function SkyDome({
     <>
       <mesh
         ref={domeRef}
+        matrixAutoUpdate={false}
+        matrixWorldAutoUpdate={false}
         position={[MID_X, 0, 0]}
         material={material}
         renderOrder={1}
@@ -3086,6 +3094,8 @@ function SkyDome({
           `visible={false}`, which r3f's raycaster treats inconsistently). */}
       <mesh
         ref={hitRef}
+        matrixAutoUpdate={false}
+        matrixWorldAutoUpdate={false}
         onPointerOver={(e) => {
           e.stopPropagation();
           setHovered(GGB_HOVER);
@@ -3103,6 +3113,8 @@ function SkyDome({
           SF_AZ — so the two can never take each other's clicks. */}
       <mesh
         ref={sfHitRef}
+        matrixAutoUpdate={false}
+        matrixWorldAutoUpdate={false}
         onPointerOver={(e) => {
           e.stopPropagation();
           setHovered(SF_HOVER);
@@ -3118,6 +3130,8 @@ function SkyDome({
           shader's response remains confined to Chappy's floor-33 window. */}
       <mesh
         ref={jasperHitRef}
+        matrixAutoUpdate={false}
+        matrixWorldAutoUpdate={false}
         name={JASPER_HOVER}
         onPointerOver={(e) => {
           e.stopPropagation();

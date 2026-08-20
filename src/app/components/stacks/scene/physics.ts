@@ -9,6 +9,11 @@ import type {
 } from "./PhysicsSceneProvider";
 import { publishMeadowImpact } from "./meadowDisturbance";
 import {
+  MEADOW_TRAIL,
+  meadowPhysicalResponse,
+  meadowTrailReady,
+} from "./meadowMotion";
+import {
   DYNAMIC_COLLIDER_HORIZONTAL_INSET,
   type DynamicColliderProfile,
   MAX_STATIC_COLLIDER_SHAPES,
@@ -116,6 +121,11 @@ export type ShelfHandle = {
   gestureGeometryRevision?: string;
   offscreenFor?: number;
   settledFor?: number;
+  meadowImpactListener?: (event: { contact?: CANNON.ContactEquation }) => void;
+  meadowFootprint?: number;
+  meadowTrailX?: number;
+  meadowTrailZ?: number;
+  meadowTrailFor?: number;
 };
 
 export function ballReleaseSpin(
@@ -301,6 +311,14 @@ function updateBodyBounds(body: CANNON.Body) {
   body.updateAABB();
 }
 
+function horizontalFootprint(body: CANNON.Body) {
+  if (body.aabbNeedsUpdate) updateBodyBounds(body);
+  return Math.max(
+    body.aabb.upperBound.x - body.aabb.lowerBound.x,
+    body.aabb.upperBound.z - body.aabb.lowerBound.z,
+  );
+}
+
 function orientedColliderBounds(collider: OrientedBoxCollider) {
   const out = new THREE.Box3();
   for (const x of [-1, 1])
@@ -327,6 +345,7 @@ export class ScenePhysicsWorld {
   private readonly world: CANNON.World;
   private readonly balls = new Map<number, number>();
   private readonly bodyRestitution = new Map<number, number>();
+  private readonly groundedBodyIds = new Set<number>();
   private readonly rootStatics = new Map<string, RootStatics>();
   private readonly authoredStatics: CANNON.Body[] = [];
   private readonly authoredByRoot = new Map<string, AuthoredRootStatics>();
@@ -755,6 +774,8 @@ export class ScenePhysicsWorld {
     handle.acceptedVelocity = new THREE.Vector3();
     this.bodyRestitution.set(body.id, handle.restitution ?? 0);
     this.world.addBody(body);
+    updateBodyBounds(body);
+    handle.meadowFootprint = horizontalFootprint(body);
     this.park(handle);
   }
 
@@ -763,6 +784,9 @@ export class ScenePhysicsWorld {
     if (at >= 0) this.handles.splice(at, 1);
     if (handle.world !== this) return;
     if (handle.body) {
+      if (handle.meadowImpactListener)
+        handle.body.removeEventListener("collide", handle.meadowImpactListener);
+      handle.meadowImpactListener = undefined;
       this.world.removeBody(handle.body);
       this.balls.delete(handle.body.id);
       this.bodyRestitution.delete(handle.body.id);
@@ -1243,12 +1267,29 @@ export class ScenePhysicsWorld {
     this.push(handle, 0);
     body.type = this.C.Body.DYNAMIC;
     body.allowSleep = false;
-    const rearm = (event?: { contact?: CANNON.ContactEquation }) => {
+    if (handle.meadowImpactListener)
+      body.removeEventListener("collide", handle.meadowImpactListener);
+    let firstCollision = true;
+    const onImpact = (event?: { contact?: CANNON.ContactEquation }) => {
       const contact = event?.contact;
+      if (firstCollision) {
+        firstCollision = false;
+        body.allowSleep = true;
+      }
+      const other = contact
+        ? ((contact.bi === body ? contact.bj : contact.bi) as TaggedBody)
+        : null;
+      if (other?.rootId !== "scene:ground") return;
       const speed = body.velocity.length();
       if (contact && speed >= 0.3) {
         const offset = contact.bi === body ? contact.ri : contact.rj;
         const horizontalSpeed = Math.hypot(body.velocity.x, body.velocity.z);
+        const response = meadowPhysicalResponse({
+          normalSpeed: Math.abs(body.velocity.y),
+          tangentSpeed: horizontalSpeed,
+          massKg: handle.massKg ?? body.mass / SCENE_MASS_PER_KG,
+          footprint: handle.meadowFootprint ?? horizontalFootprint(body),
+        });
         publishMeadowImpact({
           x: body.position.x + offset.x,
           y: body.position.y + offset.y,
@@ -1256,14 +1297,19 @@ export class ScenePhysicsWorld {
           directionX:
             horizontalSpeed > 1e-5 ? body.velocity.x / horizontalSpeed : 0,
           directionZ:
-            horizontalSpeed > 1e-5 ? body.velocity.z / horizontalSpeed : -1,
-          strength: Math.min(1, Math.max(0, (speed - 0.25) / 2)),
+            horizontalSpeed > 1e-5 ? body.velocity.z / horizontalSpeed : 0,
+          ...response,
         });
       }
-      body.allowSleep = true;
-      body.removeEventListener("collide", rearm);
+      handle.meadowTrailX = body.position.x;
+      handle.meadowTrailZ = body.position.z;
+      handle.meadowTrailFor = 0;
+      body.removeEventListener("collide", onImpact);
+      if (handle.meadowImpactListener === onImpact)
+        handle.meadowImpactListener = undefined;
     };
-    body.addEventListener("collide", rearm);
+    handle.meadowImpactListener = onImpact;
+    body.addEventListener("collide", onImpact);
     body.wakeUp();
     const requestedSpeed = velocity.length();
     const maxSpeed = handle.maxThrowSpeed ?? DEFAULT_MAX_THROW;
@@ -1305,6 +1351,13 @@ export class ScenePhysicsWorld {
   park(handle: ShelfHandle, snapVisual = false) {
     const body = handle.body;
     if (!body || !handle.com) return;
+    if (handle.meadowImpactListener) {
+      body.removeEventListener("collide", handle.meadowImpactListener);
+      handle.meadowImpactListener = undefined;
+    }
+    handle.meadowTrailX = undefined;
+    handle.meadowTrailZ = undefined;
+    handle.meadowTrailFor = 0;
     if (snapVisual) {
       handle.group.position.copy(handle.base);
       handle.group.quaternion.identity();
@@ -1389,6 +1442,7 @@ export class ScenePhysicsWorld {
     if (live && runtime.simulation) this.world.step(1 / 60, delta, 4);
     const stepFinished =
       typeof performance === "undefined" ? Date.now() : performance.now();
+    if (live && runtime.simulation) this.updateMeadowTrails(delta);
     if (process.env.NODE_ENV !== "production" && live && runtime.simulation)
       this.logContacts();
     for (const handle of this.handles) {
@@ -1469,6 +1523,61 @@ export class ScenePhysicsWorld {
     this.generatedStaticsEnabled = enabled;
     for (const state of this.rootStatics.values())
       for (const body of state.bodies) body.collisionResponse = enabled;
+  }
+
+  private updateMeadowTrails(delta: number) {
+    this.groundedBodyIds.clear();
+    for (const contact of this.world.contacts) {
+      const first = contact.bi as TaggedBody;
+      const second = contact.bj as TaggedBody;
+      if (first.rootId === "scene:ground") this.groundedBodyIds.add(second.id);
+      else if (second.rootId === "scene:ground")
+        this.groundedBodyIds.add(first.id);
+    }
+    let emitters = 0;
+    for (const handle of this.handles) {
+      const body = handle.body;
+      if (!body || handle.phase.current !== "sim") continue;
+      const tangentSpeed = Math.hypot(body.velocity.x, body.velocity.z);
+      const grounded = this.groundedBodyIds.has(body.id);
+      if (!grounded || tangentSpeed < MEADOW_TRAIL.minSpeed) {
+        handle.meadowTrailX = body.position.x;
+        handle.meadowTrailZ = body.position.z;
+        handle.meadowTrailFor = 0;
+        continue;
+      }
+      handle.meadowTrailFor = (handle.meadowTrailFor ?? 0) + delta;
+      const lastX = handle.meadowTrailX ?? body.position.x;
+      const lastZ = handle.meadowTrailZ ?? body.position.z;
+      const distance = Math.hypot(
+        body.position.x - lastX,
+        body.position.z - lastZ,
+      );
+      if (
+        emitters >= MEADOW_TRAIL.maxGenericEmitters ||
+        !meadowTrailReady(handle.meadowTrailFor, distance, tangentSpeed)
+      )
+        continue;
+      const response = meadowPhysicalResponse({
+        normalSpeed: 0,
+        tangentSpeed,
+        massKg: handle.massKg ?? body.mass / SCENE_MASS_PER_KG,
+        footprint: handle.meadowFootprint ?? horizontalFootprint(body),
+        trailing: true,
+      });
+      publishMeadowImpact({
+        x: body.position.x,
+        y: SHELF_GEOMETRY.groundY,
+        z: body.position.z,
+        directionX: body.velocity.x / tangentSpeed,
+        directionZ: body.velocity.z / tangentSpeed,
+        ...response,
+      });
+      handle.meadowTrailX = body.position.x;
+      handle.meadowTrailZ = body.position.z;
+      handle.meadowTrailFor = 0;
+      emitters += 1;
+    }
   }
 
   private visible(body: CANNON.Body, camera: THREE.Camera) {

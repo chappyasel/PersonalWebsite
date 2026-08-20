@@ -9,7 +9,6 @@ import {
   type UnitSlug,
   unitUrlForLocation,
 } from "../data";
-import { isWorldRevealed, subscribeWorldPhase } from "../loading";
 import { useStacks } from "../store";
 import { type Palette, proxied } from "../theme";
 import { useTexture } from "@react-three/drei";
@@ -37,16 +36,12 @@ import {
   usePhysicsScene,
 } from "./PhysicsSceneProvider";
 import SceneEnvironment from "./SceneEnvironment";
+import TouchFocusTarget from "./TouchFocusTarget";
 import { proxiedBookCover } from "./bookCoverTexture";
 import { Sway } from "./eggs";
 import { registerInsectCollisionRoot } from "./insectFlightWorld";
 import { UnitInsectPerches } from "./insectPerches";
-import {
-  V8_PHOTOS_BY_UNIT,
-  sceneHdPhotosDisabled,
-  scenePhotoManifestMasterUrl,
-  scenePhotoManifestUrl,
-} from "./photoTextures";
+import { V8_PHOTOS_BY_UNIT, scenePhotoManifestUrl } from "./photoTextures";
 import type { SceneQualityPlan } from "./quality";
 import { scenePrewarmDeferred } from "./scenePerformance";
 import { SHELF_GEOMETRY } from "./shelfGeometry";
@@ -84,6 +79,7 @@ const MONSTERA_ATLAS_LIGHT = {
 const MONSTERA_ATLAS_DARK = {
   colorSwaps: [{ from: "#334d68", to: "#4e713d", tolerance: 6 }] as const,
 } as const;
+const MONSTERA_ACTIVE_UNITS = [0, 1] as const;
 
 // Tap the room behind a unit to travel there. Tapping the active unit is a
 // no-op on every viewport: mobile scene taps belong to the 3D interactions,
@@ -213,12 +209,11 @@ const SceneContent = memo(function SceneContent({
       if (idle && idleApi.cancelIdleCallback) idleApi.cancelIdleCallback(idle);
     };
   }, []);
-  // The hidden WebGL scene warms role-sized previews for the current unit and
-  // its neighbours. Those requests participate in the reveal gate. Mounted
-  // photos begin isolated master loads as soon as their previews resolve;
-  // this queue handles only distant compressed-byte prefetch after reveal.
+  // Warm role-sized previews for the current unit and its neighbours. Local
+  // photographs stay on these right-sized assets; loading all 27 masters in
+  // the background added decode work and texture uploads without helping the
+  // quality controller.
   useEffect(() => {
-    const detailsDisabled = sceneHdPhotosDisabled(window.location.search);
     const previewsByUnit = Object.fromEntries(
       UNITS.map(({ slug }) => [
         slug,
@@ -234,41 +229,11 @@ const SceneContent = memo(function SceneContent({
     previewsByUnit.projects.push(
       ...data.projects.map((project) => proxied(project.image, coverWidth)),
     );
-    const mastersByUnit = Object.fromEntries(
-      UNITS.map(({ slug }) => [
-        slug,
-        V8_PHOTOS_BY_UNIT[slug].map(scenePhotoManifestMasterUrl),
-      ]),
-    ) as Record<UnitSlug, string[]>;
-    mastersByUnit.about.unshift(proxied(PORTRAIT_SRC, 1080));
-    mastersByUnit.projects.push(
-      ...data.projects.map((project) => proxied(project.image, 750)),
-    );
-
     const warmed = new Set<UnitSlug>();
-    const prefetched = new Set<UnitSlug>();
-    const prefetchController = new AbortController();
     const warmSlug = (slug: UnitSlug) => {
       if (warmed.has(slug)) return;
       warmed.add(slug);
       for (const url of previewsByUnit[slug]) useTexture.preload(url);
-    };
-    const prefetchSlug = (slug: UnitSlug) => {
-      if (prefetched.has(slug)) return;
-      prefetched.add(slug);
-      for (const url of mastersByUnit[slug]) {
-        void fetch(url, {
-          cache: "force-cache",
-          signal: prefetchController.signal,
-        })
-          .then((response) =>
-            response.ok ? response.arrayBuffer() : undefined,
-          )
-          .catch(() => {
-            // Prefetch is optional. The mounted texture loader remains the
-            // retry path for a failed request or an interrupted navigation.
-          });
-      }
     };
     const warmUnit = (index: number) => {
       if (index < 0 || index >= UNIT_COUNT) return;
@@ -299,64 +264,10 @@ const SceneContent = memo(function SceneContent({
       flushNear();
     });
 
-    // After reveal, follow the canonical traverse while only filling the
-    // compressed HTTP cache. Save-data and 2G visitors keep previews unless a
-    // mounted LitImage explicitly asks for its master.
-    const idleQueue = UNITS.map((unit) => unit.slug);
-    const connection = (
-      navigator as Navigator & {
-        connection?: { effectiveType?: string; saveData?: boolean };
-      }
-    ).connection;
-    const backgroundPrefetch =
-      !detailsDisabled &&
-      connection?.saveData !== true &&
-      connection?.effectiveType !== "slow-2g" &&
-      connection?.effectiveType !== "2g";
-    let queueIndex = 0;
-    let idleHandle = 0;
-    let delayHandle = 0;
-    let backgroundStarted = false;
-    const idleApi = window as unknown as {
-      requestIdleCallback?: Window["requestIdleCallback"];
-      cancelIdleCallback?: Window["cancelIdleCallback"];
-    };
-    const scheduleNext = () => {
-      if (cancelled || !backgroundPrefetch || queueIndex >= idleQueue.length)
-        return;
-      const run = () => {
-        if (cancelled) return;
-        if (scenePrewarmDeferred()) {
-          delayHandle = window.setTimeout(scheduleNext, 250);
-          return;
-        }
-        prefetchSlug(idleQueue[queueIndex++]!);
-        delayHandle = window.setTimeout(scheduleNext, 650);
-      };
-      if (idleApi.requestIdleCallback) {
-        idleHandle = idleApi.requestIdleCallback(run, { timeout: 1200 });
-      } else {
-        delayHandle = window.setTimeout(run, 250);
-      }
-    };
-    const startBackgroundPrefetch = () => {
-      if (backgroundStarted || !isWorldRevealed()) return;
-      backgroundStarted = true;
-      delayHandle = window.setTimeout(scheduleNext, 250);
-    };
-    const unsubscribeWorldPhase = subscribeWorldPhase(startBackgroundPrefetch);
-    startBackgroundPrefetch();
-
     return () => {
       cancelled = true;
-      prefetchController.abort();
       unsubscribe();
-      unsubscribeWorldPhase();
-      window.clearTimeout(delayHandle);
       window.clearTimeout(nearDelayHandle);
-      if (idleHandle && idleApi.cancelIdleCallback) {
-        idleApi.cancelIdleCallback(idleHandle);
-      }
     };
   }, [data, coverWidth]);
   return (
@@ -407,21 +318,27 @@ const SceneContent = memo(function SceneContent({
           {/* Position outside Sway: its rotation now happens at the pot's local
               floor contact instead of orbiting the whole plant around world 0.
               FootPool stays fixed under that same contact point. */}
-          <Sway unitIndex={0} amount={0.016} rate={0.3} phase={0.7}>
-            <group name="stacks-monstera-sway-body">
-              <Suspense fallback={null}>
-                <ModelProp
-                  url="/models/monstera.glb"
-                  dark={dark}
-                  variant="recolor"
-                  atlasOverride={
-                    dark ? MONSTERA_ATLAS_DARK : MONSTERA_ATLAS_LIGHT
-                  }
-                  scale={0.92}
-                />
-              </Suspense>
-            </group>
-          </Sway>
+          <TouchFocusTarget
+            id="focus:monstera:about-books"
+            unitIndex={0}
+            activeUnitIndexes={MONSTERA_ACTIVE_UNITS}
+          >
+            <Sway unitIndex={0} amount={0.016} rate={0.3} phase={0.7}>
+              <group name="stacks-monstera-sway-body">
+                <Suspense fallback={null}>
+                  <ModelProp
+                    url="/models/monstera.glb"
+                    dark={dark}
+                    variant="recolor"
+                    atlasOverride={
+                      dark ? MONSTERA_ATLAS_DARK : MONSTERA_ATLAS_LIGHT
+                    }
+                    scale={0.92}
+                  />
+                </Suspense>
+              </group>
+            </Sway>
+          </TouchFocusTarget>
         </group>
       </SharedPhysicsRoot>
       <FootPool
@@ -469,6 +386,7 @@ function Scene({
   dark,
   coverWidth,
   quality,
+  diagnosticsRequested,
   onOpenBook,
   onOpenUrl,
 }: {
@@ -477,6 +395,7 @@ function Scene({
   dark: boolean;
   coverWidth: 256 | 384;
   quality: SceneQualityPlan;
+  diagnosticsRequested: boolean;
   onOpenBook?: (bookId: string) => void;
   onOpenUrl?: (url: string) => void;
 }) {
@@ -512,7 +431,7 @@ function Scene({
         />
         <PhysicsSceneFrameDriver />
       </PhysicsSceneProvider>
-      {process.env.NODE_ENV === "development" ? (
+      {process.env.NODE_ENV === "development" && diagnosticsRequested ? (
         <>
           <InsectPerchDiagnostics />
           <PhysicsDiagnosticsOverlay />

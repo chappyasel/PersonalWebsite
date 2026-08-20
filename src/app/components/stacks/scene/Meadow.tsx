@@ -43,8 +43,10 @@ import {
   meadowDiagnosticsController,
 } from "./meadowDiagnostics";
 import {
+  getMeadowDisturbance,
   publishMeadowDisturbance,
   resetMeadowDisturbance,
+  visitMeadowImpactsSince,
 } from "./meadowDisturbance";
 import {
   IDLE_TERRAIN_BUILD_GATE,
@@ -68,6 +70,7 @@ import {
 import { meadowPokeStrength } from "./meadowInteraction";
 import { MEADOW_LAMP_MAX, getMeadowLamps } from "./meadowLights";
 import {
+  MEADOW_IMPACT,
   MEADOW_POKE,
   MEADOW_WIND,
   meadowDragSample,
@@ -82,6 +85,7 @@ import {
   useScenePerformanceSettings,
 } from "./scenePerformance";
 import { getSeatAmount } from "./seated";
+import { StaticWorldRoot } from "./staticWorld";
 
 const TUFT_URL = "/models/grass-tuft.glb";
 const ALPHA_URL = "/images/stacks/grass-tuft-alpha.webp";
@@ -312,10 +316,6 @@ const GRASS_VERTEX = /* glsl */ `
     // Geometry is height-normalized: position.y IS the 0→1 wind/color gate.
     float t = position.y;
     vec4 world = modelMatrix * instanceMatrix * vec4(position, 1.0);
-    // Wind displaces in WORLD space, after the instance yaw — displacing in
-    // card space rotated every tuft's lean into a different direction and
-    // scrambled the traveling gust front. Quadratic height gate keeps the
-    // roots planted; magnitude scales with the tuft's world height.
     float hScale = length(vec3(instanceMatrix[1]));
     #ifdef FAR_SIMPLE
       vec2 w = farWindAt(origin.xz, uTime * uWindSpeed);
@@ -362,10 +362,15 @@ const GRASS_VERTEX = /* glsl */ `
     #endif
     float ll = max(length(lean), 1e-4);
     lean *= min(ll, ${MEADOW_WIND.maxLean.toFixed(2)}) / ll;
-    vec2 disp = lean * t * t * hScale;
+    // Apply one affine lean to the authored tuft. The former t² gate changed
+    // its curvature every frame, which read as growth and shrinkage. A linear
+    // height term keeps the complete footprint planted and approximates a
+    // rotation to second order without sin/cos or another matrix multiply.
+    float swayHeight = max(t, 0.0) * hScale;
+    vec2 disp = lean * swayHeight;
     world.x += disp.x;
     world.z += disp.y;
-    world.y -= 0.4 * dot(disp, disp) / max(hScale, 1e-3);
+    world.y -= 0.5 * dot(lean, lean) * swayHeight;
     vec4 mv = viewMatrix * world;
     vT = t;
     vSun = instanceColor.r;
@@ -819,8 +824,8 @@ function prepareTuftGeometry(
   return geometry;
 }
 
-/** Wind/poke bend happens in the vertex shader, after Three has computed the
- * instance bounds. 0.5 exceeds the grass's 0.42-radian maximum throw and the
+/** Wind/poke lean happens in the vertex shader, after Three has computed the
+ * instance bounds. 0.5 exceeds the grass's 0.28-radian maximum throw and the
  * flowers' two-pixel floor/wind displacement. */
 function padInstanceBounds(mesh: THREE.InstancedMesh) {
   mesh.computeBoundingBox();
@@ -1196,6 +1201,12 @@ export default function Meadow({
   // point is hidden behind it anyway.
   const pokeClickAt = useRef(new Array<number>(MEADOW_PULSE_LAYERS).fill(-1));
   const pokeClickReach = useRef(new Array<number>(MEADOW_PULSE_LAYERS).fill(0));
+  const pokeClickRadiusScale = useRef(
+    new Array<number>(MEADOW_PULSE_LAYERS).fill(1),
+  );
+  const pokeClickTimeScale = useRef(
+    new Array<number>(MEADOW_PULSE_LAYERS).fill(1),
+  );
   const pokeClickAges = useRef(new Array<number>(MEADOW_PULSE_LAYERS).fill(-1));
   const pokeHit = useRef(new THREE.Vector2());
   const pokeHitReach = useRef(0);
@@ -1204,6 +1215,7 @@ export default function Meadow({
   const pokeGestureDirection = useRef(new THREE.Vector2());
   const pokeHasPrevious = useRef(false);
   const handledTouchPulseRevision = useRef(touchWorldRef.meadowPulseRevision);
+  const handledImpactRevision = useRef(getMeadowDisturbance().impact.revision);
   const bootAt = useRef(-1);
   const nextWindDiagnosticAt = useRef(0);
   useEffect(() => {
@@ -1218,6 +1230,8 @@ export default function Meadow({
       pulse.x = pokeHit.current.x;
       pulse.y = pokeHit.current.y;
       pokeClickReach.current[slot] = pokeHitReach.current;
+      pokeClickRadiusScale.current[slot] = 1;
+      pokeClickTimeScale.current[slot] = 1;
     };
     window.addEventListener("pointerdown", onDown, { passive: true });
     return () => window.removeEventListener("pointerdown", onDown);
@@ -1247,6 +1261,53 @@ export default function Meadow({
     // outward ring. Coarse movement reuses these exact uniforms and draw
     // calls through the rAF-bounded Touch Wake signal.
     const touchWake = touchWorldRef.wakeStrength;
+    handledImpactRevision.current = visitMeadowImpactsSince(
+      handledImpactRevision.current,
+      (impact) => {
+        const groundY = meadowHeight(impact.x, impact.z);
+        if (
+          impact.strength > 0 &&
+          impact.y <= groundY + MEADOW_IMPACT.groundTolerance
+        ) {
+          const directionLength = Math.hypot(
+            impact.directionX,
+            impact.directionZ,
+          );
+          const directionX =
+            directionLength > 1e-5 ? impact.directionX / directionLength : 0;
+          const directionZ =
+            directionLength > 1e-5 ? impact.directionZ / directionLength : 0;
+          const stampImpactPulse = (
+            x: number,
+            z: number,
+            strengthScale: number,
+          ) => {
+            const slot = claimEffectLayer(
+              pokeClickAt.current,
+              clock.elapsedTime,
+              MEADOW_POKE.pulseDuration,
+            );
+            const pulse = shared.uPulses.value[slot]!;
+            pulse.x = x;
+            pulse.y = z;
+            pokeClickReach.current[slot] = impact.strength * strengthScale;
+            pokeClickRadiusScale.current[slot] = impact.radiusScale;
+            pokeClickTimeScale.current[slot] = impact.timeScale;
+          };
+          stampImpactPulse(
+            impact.x - directionX * MEADOW_IMPACT.directionOffset * 0.25,
+            impact.z - directionZ * MEADOW_IMPACT.directionOffset * 0.25,
+            MEADOW_IMPACT.pulseStrengthScale,
+          );
+          if (directionLength > 1e-5)
+            stampImpactPulse(
+              impact.x - directionX * MEADOW_IMPACT.directionOffset * 1.25,
+              impact.z - directionZ * MEADOW_IMPACT.directionOffset * 1.25,
+              MEADOW_IMPACT.wakeStrengthScale,
+            );
+        }
+      },
+    );
     const touchPulsePending =
       handledTouchPulseRevision.current !== touchWorldRef.meadowPulseRevision;
     const touchMotionRunning =
@@ -1361,6 +1422,8 @@ export default function Meadow({
           pulse.x = pokeHit.current.x;
           pulse.y = pokeHit.current.y;
           pokeClickReach.current[slot] = pokeHitReach.current;
+          pokeClickRadiusScale.current[slot] = 1;
+          pokeClickTimeScale.current[slot] = 1;
         }
       }
       poke.w = THREE.MathUtils.damp(
@@ -1381,31 +1444,34 @@ export default function Meadow({
           : MEADOW_POKE.flowerReleaseLambda,
         delta,
       );
-      const pulseAges = effectLayerAges(
-        pokeClickAt.current,
-        clock.elapsedTime,
-        MEADOW_POKE.pulseDuration,
-        pokeClickAges.current,
-      );
-      for (let index = 0; index < MEADOW_PULSE_LAYERS; index += 1) {
-        const uniform = shared.uPulses.value[index]!;
-        const age = pulseAges[index]!;
-        if (age < 0) {
-          uniform.w = 0;
-          if (
-            pokeClickAt.current[index]! >= 0 &&
-            clock.elapsedTime - pokeClickAt.current[index]! >
-              MEADOW_POKE.pulseDuration
-          )
-            pokeClickAt.current[index] = -1;
-          continue;
-        }
-        const pulse = meadowPulseState(age, pokeClickReach.current[index]!);
-        uniform.z = pulse.radius;
-        uniform.w = pulse.strength;
-      }
       if (touchInteractionActive)
         touchWorldRef.wakeStrength = Math.max(0, touchWake - delta * 5);
+    }
+    const pulseAges = effectLayerAges(
+      pokeClickAt.current,
+      clock.elapsedTime,
+      MEADOW_POKE.pulseDuration,
+      pokeClickAges.current,
+    );
+    for (let index = 0; index < MEADOW_PULSE_LAYERS; index += 1) {
+      const uniform = shared.uPulses.value[index]!;
+      const age = pulseAges[index]!;
+      if (age < 0) {
+        uniform.w = 0;
+        if (
+          pokeClickAt.current[index]! >= 0 &&
+          clock.elapsedTime - pokeClickAt.current[index]! >
+            MEADOW_POKE.pulseDuration
+        )
+          pokeClickAt.current[index] = -1;
+        continue;
+      }
+      const pulse = meadowPulseState(
+        age * pokeClickTimeScale.current[index]!,
+        pokeClickReach.current[index]!,
+      );
+      uniform.z = pulse.radius * pokeClickRadiusScale.current[index]!;
+      uniform.w = pulse.strength;
     }
     shared.uDark.value = THREE.MathUtils.damp(
       shared.uDark.value,
@@ -1493,7 +1559,7 @@ export default function Meadow({
 
   // Draw order terrain → grass → flowers.
   return (
-    <group>
+    <StaticWorldRoot id="meadow-geometry">
       <mesh geometry={terrainGeometry} material={built.terrainMaterial} />
       {tiles.near.map((tile, i) => (
         <instancedMesh
@@ -1542,7 +1608,7 @@ export default function Meadow({
           ]}
         />
       ))}
-    </group>
+    </StaticWorldRoot>
   );
 }
 

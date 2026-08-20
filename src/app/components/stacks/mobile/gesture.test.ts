@@ -35,6 +35,23 @@ describe("touch gesture arbitration", () => {
     ).toEqual([{ type: "activate", interactionId: "prop" }]);
   });
 
+  it("keeps ordinary finger jitter inside a tap", () => {
+    const initial = press().state;
+    const jittered = reduceTouchGesture(initial, {
+      type: "move",
+      pointerId: 1,
+      x: 104,
+      y: 111,
+      at: 40,
+    });
+
+    expect(jittered.state.phase).toBe("pressing");
+    expect(
+      reduceTouchGesture(jittered.state, { type: "release", pointerId: 1 })
+        .effects,
+    ).toEqual([{ type: "focus", interactionId: "prop" }]);
+  });
+
   it("transfers full horizontal displacement and cancels vertical motion", () => {
     const initial = press().state;
     const swipe = reduceTouchGesture(initial, {

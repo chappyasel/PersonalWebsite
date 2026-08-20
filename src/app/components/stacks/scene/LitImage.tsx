@@ -7,8 +7,8 @@
 // with repeat/offset; books get a real rounded-rect ShapeGeometry (opaque
 // queue — no transparent sorting), frames and portrait a plain plane.
 import { useTexture } from "@react-three/drei";
-import { type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ThreeEvent, useThree } from "@react-three/fiber";
+import { useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
 
 import {
@@ -117,13 +117,6 @@ type LitImageSourceProps = Omit<LitImageProps, "url" | "detailUrl" | "role"> & {
   detailTexture: THREE.Texture | null;
 };
 
-export const PHOTO_DETAIL_FADE_SECONDS = 0.32;
-
-export function detailFadeAlpha(progress: number) {
-  const t = Math.min(1, Math.max(0, progress));
-  return t * t * (3 - 2 * t);
-}
-
 function LitImageSource({
   previewTexture,
   detailTexture,
@@ -144,25 +137,18 @@ function LitImageSource({
   // point; mutating the cached texture made a second use of the same cover
   // retroactively recrop the first. Texture.clone shares the decoded image
   // bytes while isolating sampler state, so reuse remains cheap and safe.
-  const previewTex = useMemo(() => previewTexture.clone(), [previewTexture]);
-  const detailTex = useMemo(
-    () => (detailTexture ? detailTexture.clone() : null),
-    [detailTexture],
-  );
+  const sourceTexture = detailTexture ?? previewTexture;
+  const texture = useMemo(() => sourceTexture.clone(), [sourceTexture]);
   const maxAnisotropy = useThree((s) => s.gl.capabilities.getMaxAnisotropy());
   const fx = focus?.[0] ?? 0.5;
   const fy = focus?.[1] ?? 0.5;
   useMemo(() => {
-    for (const tex of [previewTex, detailTex]) {
-      if (!tex) continue;
-      if (grade > 0) warmGrade(tex, grade);
-      tex.anisotropy = maxAnisotropy;
-      fitCover(tex, width, height, zoom, [fx, fy]);
-      tex.needsUpdate = true;
-    }
+    if (grade > 0) warmGrade(texture, grade);
+    texture.anisotropy = maxAnisotropy;
+    fitCover(texture, width, height, zoom, [fx, fy]);
+    texture.needsUpdate = true;
   }, [
-    previewTex,
-    detailTex,
+    texture,
     maxAnisotropy,
     width,
     height,
@@ -171,13 +157,7 @@ function LitImageSource({
     fx,
     fy,
   ]);
-  useEffect(
-    () => () => {
-      previewTex.dispose();
-      detailTex?.dispose();
-    },
-    [previewTex, detailTex],
-  );
+  useEffect(() => () => texture.dispose(), [texture]);
   const geometry = useMemo(
     () =>
       radius > 0
@@ -187,57 +167,16 @@ function LitImageSource({
   );
   useEffect(() => () => geometry.dispose(), [geometry]);
 
-  const detailMaterial = useRef<THREE.MeshStandardMaterial>(null);
-  const detailFadeElapsed = useRef(0);
-  useEffect(() => {
-    detailFadeElapsed.current = 0;
-    if (detailMaterial.current) detailMaterial.current.opacity = 0;
-  }, [detailTexture]);
-  useFrame((_, delta) => {
-    const material = detailMaterial.current;
-    if (!detailTexture || !material || material.opacity >= 1) return;
-    detailFadeElapsed.current = Math.min(
-      PHOTO_DETAIL_FADE_SECONDS,
-      detailFadeElapsed.current + delta,
-    );
-    material.opacity = detailFadeAlpha(
-      detailFadeElapsed.current / PHOTO_DETAIL_FADE_SECONDS,
-    );
-  });
-
-  const detailPosition: [number, number, number] = position
-    ? [position[0], position[1], position[2] + 0.0002]
-    : [0, 0, 0.0002];
-
   return (
-    <>
-      <mesh
-        geometry={geometry}
-        position={position}
-        onPointerOver={onPointerOver}
-        onPointerOut={onPointerOut}
-        onClick={onClick}
-      >
-        <meshStandardMaterial map={previewTex} roughness={roughness} />
-      </mesh>
-      {detailTex && (
-        <mesh
-          key={detailTexture?.uuid}
-          geometry={geometry}
-          position={detailPosition}
-          raycast={() => undefined}
-        >
-          <meshStandardMaterial
-            ref={detailMaterial}
-            map={detailTex}
-            roughness={roughness}
-            transparent
-            opacity={0}
-            depthWrite={false}
-          />
-        </mesh>
-      )}
-    </>
+    <mesh
+      geometry={geometry}
+      position={position}
+      onPointerOver={onPointerOver}
+      onPointerOut={onPointerOut}
+      onClick={onClick}
+    >
+      <meshStandardMaterial map={texture} roughness={roughness} />
+    </mesh>
   );
 }
 
@@ -273,7 +212,6 @@ export default function LitImage({
   ...props
 }: LitImageProps) {
   const previewUrl = scenePhotoUrl(url, role);
-  const masterUrl = detailUrl ?? url;
   const previewTexture = useTexture(previewUrl);
   const detailsDisabled =
     typeof window !== "undefined" &&
@@ -285,10 +223,11 @@ export default function LitImage({
 
   useEffect(() => {
     let active = true;
-    if (detailsDisabled || masterUrl === previewUrl) return () => undefined;
-    void loadDetailTexture(masterUrl)
+    if (!detailUrl || detailsDisabled || detailUrl === previewUrl)
+      return () => undefined;
+    void loadDetailTexture(detailUrl)
       .then((texture) => {
-        if (active) setDetail({ url: masterUrl, texture });
+        if (active) setDetail({ url: detailUrl, texture });
       })
       .catch(() => {
         // The preview remains the durable fallback. A later mount retries a
@@ -297,13 +236,12 @@ export default function LitImage({
     return () => {
       active = false;
     };
-  }, [detailsDisabled, masterUrl, previewUrl]);
+  }, [detailUrl, detailsDisabled, previewUrl]);
 
-  const detailTexture = detail?.url === masterUrl ? detail.texture : null;
+  const detailTexture = detailUrl && detail?.url === detailUrl ? detail.texture : null;
 
-  // The preview remains mounted while the master fades over the same crop.
-  // Keeping the low-resolution pixels underneath makes the async quality
-  // upgrade continuous instead of exposing a one-frame map replacement.
+  // Only callers with a distinct authored detail URL request another decode.
+  // Local scene photos remain on their role-sized assets.
   return (
     <LitImageSource
       previewTexture={previewTexture}

@@ -2400,10 +2400,10 @@ export default function PlacardLayer({
           }
         }
         /* ── The sheet ────────────────────────────────────────────────
-           These are the authored native-glass values retained for the A/B.
-           Auto chooses the opaque paper override below on mobile. The sheet
-           remains the only possible mobile backdrop filter; nested cards do
-           not add another live blur. */
+           These are the shipped native-glass values on every input type. The
+           explicit diagnostic paper mode overrides them below. The sheet is
+           the only mobile backdrop filter; nested cards do not add another
+           live blur. */
         .stacks-sheet,
         .stacks-chip {
           --sheet-fill: rgb(255 255 255 / 0.16);

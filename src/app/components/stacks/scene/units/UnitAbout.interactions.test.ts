@@ -11,7 +11,11 @@ const authoredPropsSource = fs.readFileSync(
 );
 
 describe("About shelf throwable props", () => {
-  it("keeps the couch visual-only instead of turning a second tap into seating", () => {
+  it("gives the fixed couch Touch Focus without turning a second tap into seating", () => {
+    expect(source).toContain(
+      'import TouchFocusTarget from "../TouchFocusTarget"',
+    );
+    expect(source).toContain('id="focus:couch:about"');
     expect(source).not.toContain('import SitChair from "../SitChair"');
     expect(source).not.toContain("<SitChair");
   });

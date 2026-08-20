@@ -46,7 +46,13 @@ export type GolfSurfaceSample = {
 };
 
 export type GolfPhysicsEvent =
-  | { type: "first-impact"; ballId: GolfBallId; position: GolfVec3 }
+  | {
+      type: "first-impact";
+      ballId: GolfBallId;
+      position: GolfVec3;
+      velocity: GolfVec3;
+      impactSpeed: number;
+    }
   | { type: "flagstick"; ballId: GolfBallId; position: GolfVec3 }
   | { type: "ball-contact"; ballId: GolfBallId; position: GolfVec3 }
   | { type: "cup"; ballId: GolfBallId; position: GolfVec3 }

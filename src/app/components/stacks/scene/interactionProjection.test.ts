@@ -199,9 +199,7 @@ describe("scene interaction projection", () => {
 
     const before = projectedInteractionBounds()[0]!;
     const beforeCenter = (before.left + before.right) / 2;
-    expect(activationAtPointer(beforeCenter, 50)?.id).toBe(
-      "test:moved-prop",
-    );
+    expect(activationAtPointer(beforeCenter, 50)?.id).toBe("test:moved-prop");
 
     root.position.x = 2;
     const after = projectedInteractionBounds()[0]!;
@@ -232,6 +230,29 @@ describe("scene interaction projection", () => {
     expect(projectedInteractionBounds().map(({ id }) => id)).toContain(
       "book:visible-from-golf",
     );
+
+    release();
+  });
+
+  it("keeps registry-only structure out of Touch Focus hit testing", () => {
+    const camera = new PerspectiveCamera(50, 1, 0.1, 100);
+    camera.position.z = 5;
+    camera.lookAt(0, 0, 0);
+    camera.updateMatrixWorld(true);
+    setInteractionProjectionContext(camera, {
+      getBoundingClientRect: () => rect,
+    } as HTMLElement);
+
+    const release = registerSceneInteraction({
+      id: "shelf:perch-owner",
+      root: target(0),
+      activeUnits: [0],
+      touchable: false,
+      hover: { kind: "none" },
+    });
+
+    expect(projectedInteractionBounds()).toEqual([]);
+    expect(activationAtPointer(50, 50)).toBeNull();
 
     release();
   });

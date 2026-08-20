@@ -22,7 +22,6 @@ import {
   type SceneQualityAxisState,
   initialSceneQualityAxisState,
   reduceSceneQualityAxes,
-  requestContentTier,
   resolutionScaleForStep,
   resolutionStepForScale,
 } from "./qualityAxes";
@@ -303,6 +302,18 @@ describe("effects and content time constants", () => {
     expect(state.axes.content).toBe("full");
   });
 
+  it("answers CPU pressure with content and leaves effects and resolution alone", () => {
+    const state = hold(
+      start(),
+      cpuBound,
+      2_000,
+      QUALITY_CONTENT_FALL_MS + 500,
+    );
+    expect(state.axes.resolutionStep).toBe(SCENE_RESOLUTION_MAX_STEP);
+    expect(state.axes.effects).toBe("full");
+    expect(state.axes.content).toBe("reduced");
+  });
+
   it("does not move effects before the sustain elapses", () => {
     const state = hold(atFloor(), gpuBound, 2_000, QUALITY_EFFECTS_FALL_MS - 1_000);
     expect(state.axes.effects).toBe("full");
@@ -401,15 +412,16 @@ describe("travel", () => {
       type: "travel-start",
       now: 1_000,
     });
-    state = requestContentTier(state, "reduced");
+    state = hold(state, cpuBound, 1_500, QUALITY_CONTENT_FALL_MS + 500);
+    expect(state.deferredContent).toBe("reduced");
     expect(state.axes.content).toBe("full");
 
-    state = reduceSceneQualityAxes(state, { type: "travel-end", now: 4_000 });
+    state = reduceSceneQualityAxes(state, { type: "travel-end", now: 13_000 });
     // Still inside travel validation: not yet trustworthy.
-    state = hold(state, cpuBound, 4_100, 500);
+    state = hold(state, cpuBound, 13_100, 500);
     expect(state.axes.content).toBe("full");
 
-    state = hold(state, cpuBound, 8_000, 500);
+    state = hold(state, cpuBound, 16_000, 500);
     expect(state.axes.content).toBe("reduced");
   });
 
@@ -418,21 +430,21 @@ describe("travel", () => {
       type: "travel-start",
       now: 1_000,
     });
-    state = requestContentTier(state, "reduced");
-    state = reduceSceneQualityAxes(state, { type: "travel-end", now: 4_000 });
-    state = hold(state, headroom, 8_000, 500);
+    state = hold(state, cpuBound, 1_500, QUALITY_CONTENT_FALL_MS + 500);
+    state = reduceSceneQualityAxes(state, { type: "travel-end", now: 13_000 });
+    state = hold(state, headroom, 16_000, 500);
     expect(state.axes.content).toBe("full");
     expect(state.deferredContent).toBeNull();
   });
 
-  it("holds at most one deferred request, replacing rather than queueing", () => {
+  it("defers only the next content tier rather than queueing several", () => {
     let state = reduceSceneQualityAxes(start(), {
       type: "travel-start",
       now: 1_000,
     });
-    state = requestContentTier(state, "reduced");
-    state = requestContentTier(state, "minimal");
-    expect(state.deferredContent).toBe("minimal");
+    state = hold(state, cpuBound, 1_500, QUALITY_CONTENT_FALL_MS * 3);
+    expect(state.deferredContent).toBe("reduced");
+    expect(state.axes.content).toBe("full");
   });
 
   it("restores toward the remembered step and never above it", () => {
@@ -445,6 +457,27 @@ describe("travel", () => {
     expect(state.axes.resolutionStep).toBeLessThanOrEqual(
       SCENE_RESOLUTION_MAX_STEP,
     );
+  });
+
+  it("waits for travel validation and restores one resolution step per dwell", () => {
+    let state = start();
+    state = reduceSceneQualityAxes(state, { type: "travel-start", now: 1_000 });
+    const during = state.axes.resolutionStep;
+    state = reduceSceneQualityAxes(state, { type: "travel-end", now: 4_000 });
+
+    expect(state.axes.resolutionStep).toBe(during);
+    expect(state.preTravelStep).toBe(SCENE_RESOLUTION_MAX_STEP);
+
+    state = hold(state, headroom, 4_250, 1_500);
+    expect(state.axes.resolutionStep).toBe(during);
+
+    state = hold(state, headroom, 6_500, 0);
+    expect(state.axes.resolutionStep).toBe(during + 1);
+
+    state = hold(state, headroom, 6_750, 1_000);
+    expect(state.axes.resolutionStep).toBe(during + 1);
+    state = hold(state, headroom, 8_000, 0);
+    expect(state.axes.resolutionStep).toBe(during + 2);
   });
 });
 
@@ -683,10 +716,10 @@ describe("reachability from a cold start", () => {
   it("takes a main-thread-bound phone all the way to the cheapest geometry", () => {
     // The headline case. Three separate deadlocks used to stop this at
     // resolution step 10 with full geometry: an evidence-only boot guard, an
-    // evidence-only cross-axis block, and content gated behind an effects
-    // rung that only GPU pressure could move.
+    // evidence-only cross-axis block, and content gated behind GPU-only
+    // levers that could not relieve a main-thread bottleneck.
     const axes = soak(cpuBound).axes;
-    expect(axes.effects).toBe("minimal");
+    expect(axes.effects).toBe("full");
     expect(axes.content).toBe("minimal");
     // Resolution deliberately does NOT bottom out here: it was shown not to
     // help, so the scene keeps the pixels it cannot profit from spending.
@@ -710,14 +743,11 @@ describe("reachability from a cold start", () => {
     });
   });
 
-  it("spends the invisible lever first and the visible one last", () => {
-    // Ordering, not just destination: resolution must bottom out before
-    // effects moves, and effects before content.
+  it("routes CPU pressure directly to content", () => {
     let state = reduceSceneQualityAxes(
       initialSceneQualityAxisState("balanced", 0),
       { type: "booted", now: 0 },
     );
-    let effectsMovedAt: number | null = null;
     let contentMovedAt: number | null = null;
 
     for (let t = 1_000; t < 300_000; t += 250) {
@@ -727,17 +757,13 @@ describe("reachability from a cold start", () => {
         metrics: cpuBound,
         visible: true,
       });
-      if (effectsMovedAt == null && state.axes.effects !== "full")
-        effectsMovedAt = t;
       if (contentMovedAt == null && state.axes.content !== "full")
         contentMovedAt = t;
     }
-    expect(effectsMovedAt).not.toBeNull();
     expect(contentMovedAt).not.toBeNull();
-    // Effects before content is the ordering that survives: content is the
-    // visible one and must be last. Resolution is tried first but may bow out
-    // early under CPU pressure, so its floor is not part of the contract.
-    expect(effectsMovedAt!).toBeLessThan(contentMovedAt!);
+    expect(contentMovedAt!).toBeGreaterThanOrEqual(QUALITY_CONTENT_FALL_MS);
+    expect(state.axes.effects).toBe("full");
+    expect(state.axes.resolutionStep).toBe(SCENE_RESOLUTION_MAX_STEP);
   });
 });
 
@@ -822,6 +848,13 @@ describe("recovery", () => {
       now += 1_000;
       state = reduceSceneQualityAxes(state, { type: "travel-end", now });
       now += 6_000;
+      state = reduceSceneQualityAxes(state, {
+        type: "sample",
+        now,
+        metrics: cpuBound,
+        visible: true,
+      });
+      now += QUALITY_RESOLUTION_DWELL_MS;
       state = reduceSceneQualityAxes(state, {
         type: "sample",
         now,

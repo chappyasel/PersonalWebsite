@@ -100,6 +100,8 @@ function simulateAuthoredShot(
   let closestSpeed = Infinity;
   let closestPhase: GolfBallPhase = ball.phase;
   let closestImpacts = 0;
+  let rollingClosest = Infinity;
+  let rollingClosestSpeed = Infinity;
   let flagTaps = 0;
   let rolledWithinOneUnit = false;
   let backspinReversal = false;
@@ -139,7 +141,13 @@ function simulateAuthoredShot(
       ball.position.x - cup.x,
       ball.position.z - cup.z,
     );
-    if (ball.phase === "roll" && cupDistance < 1) rolledWithinOneUnit = true;
+    if (ball.phase === "roll") {
+      if (cupDistance < 1) rolledWithinOneUnit = true;
+      if (cupDistance < rollingClosest) {
+        rollingClosest = cupDistance;
+        rollingClosestSpeed = Math.hypot(ball.velocity.x, ball.velocity.z);
+      }
+    }
     if (
       ball.impacts > 0 &&
       ball.phase !== "cup" &&
@@ -165,6 +173,8 @@ function simulateAuthoredShot(
     closestSpeed,
     closestPhase,
     closestImpacts,
+    rollingClosest,
+    rollingClosestSpeed,
     flagTaps,
     rolledWithinOneUnit,
     backspinReversal,
@@ -183,10 +193,14 @@ describe("protected hole-bound shot on the authored Training course", () => {
             `impact=${JSON.stringify(trace.firstImpact)} closest=${trace.closest.toFixed(3)} ` +
             `impactVelocity=${JSON.stringify(trace.firstImpactVelocity)} ` +
             `closestSpeed=${trace.closestSpeed.toFixed(3)} ` +
+            `rolling=${trace.rollingClosest.toFixed(3)}@${trace.rollingClosestSpeed.toFixed(3)} ` +
             `closestPhase=${trace.closestPhase}/${trace.closestImpacts}impacts ` +
             `terminal=${JSON.stringify(trace.terminal)}`,
         ).toBe(true);
         expect(trace.rolledWithinOneUnit).toBe(true);
+        expect(
+          Math.hypot(trace.ball.velocity.x, trace.ball.velocity.z),
+        ).toBeLessThan(0.34);
         expect(trace.firstImpactBeyondCup).toBeGreaterThan(0.15);
         expect(trace.backspinReversal).toBe(true);
       }
@@ -196,9 +210,11 @@ describe("protected hole-bound shot on the authored Training course", () => {
   it("cannot tunnel past the authored cup at 30, 60 or 120 render Hz", () => {
     for (const renderHz of [30, 60, 120]) {
       const trace = simulateAuthoredShot("three", "hole-bound", 118, renderHz);
-      expect(trace.ball.holed, `${renderHz} Hz closest=${trace.closest}`).toBe(
-        true,
-      );
+      expect(
+        trace.ball.holed,
+        `${renderHz} Hz closest=${trace.closest} ` +
+          `rolling=${trace.rollingClosest}@${trace.rollingClosestSpeed}`,
+      ).toBe(true);
       expect(trace.rolledWithinOneUnit).toBe(true);
     }
   });

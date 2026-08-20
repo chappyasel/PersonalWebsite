@@ -11,6 +11,7 @@ import { expandAndClipTouchHalo, resolveTouchHalo } from "../mobile/halos";
 import { haptic } from "../mobile/liveness";
 import {
   authoredTravelStops,
+  shouldSettleInterruptedInertia,
   worldZoomFromVerticalDrag,
 } from "../mobile/travel";
 import { projectedInteractionBounds } from "../scene/interactionProjection";
@@ -19,8 +20,10 @@ import {
   runSceneInteractionActivation,
 } from "../scene/interactionRegistry";
 import { scrollOffsetForUnit } from "../scene/worldLayout";
-import { touchWorldRef, useStacks } from "../store";
+import { progressRef, touchWorldRef, useStacks } from "../store";
 import { useEffect, useRef } from "react";
+
+import { publishTouchFocusDiagnostic } from "./touchFocusDiagnostics";
 
 function activeSheetTop() {
   const sheet = document.querySelector<HTMLElement>(
@@ -68,10 +71,15 @@ export default function TouchInteractionLayer() {
         window.clearTimeout(pickupTimer.current);
       pickupTimer.current = null;
     };
-    const stopInertia = () => {
+    const stopInertia = (reason: "new-contact" | "cleanup") => {
+      const shouldSettle = shouldSettleInterruptedInertia(
+        inertiaFrame.current,
+        reason,
+      );
       if (inertiaFrame.current !== null)
         cancelAnimationFrame(inertiaFrame.current);
       inertiaFrame.current = null;
+      return shouldSettle;
     };
     const restoreTravel = () => {
       const element = useStacks.getState().scrollEl;
@@ -105,6 +113,11 @@ export default function TouchInteractionLayer() {
             spec?.movableController?.cancel(event);
             store.setPressedInteraction(null);
             store.setFocusedInteraction(effect.interactionId);
+            publishTouchFocusDiagnostic("focus-effect", {
+              interactionId: effect.interactionId,
+              activeUnit: store.activeUnit,
+              scenePosition: progressRef.current * (UNIT_COUNT - 1),
+            });
             restoreTravel();
             break;
           case "activate":
@@ -211,11 +224,27 @@ export default function TouchInteractionLayer() {
         event.button !== 0
       )
         return;
-      stopInertia();
+      // Camera zoom must not depend on CameraRig's separate pointer listener
+      // having mounted first. This arbiter owns the accepted touch contact.
+      touchWorldRef.interactionPointerType = "touch";
+      const settleInterruptedInertia = stopInertia("new-contact");
+      if (settleInterruptedInertia) settle(false);
       latestEvent.current = event;
       const store = useStacks.getState();
+      const exposed = exposedWorldEvent(event);
+      publishTouchFocusDiagnostic("pointerdown", {
+        x: Math.round(event.clientX),
+        y: Math.round(event.clientY),
+        exposed,
+        modalOpen: store.modalOpen,
+        panelState: store.panelState,
+        activeUnit: store.activeUnit,
+        settledUnit: store.settledUnit,
+        scenePosition: progressRef.current * (UNIT_COUNT - 1),
+        interruptedInertia: settleInterruptedInertia,
+      });
       if (
-        !exposedWorldEvent(event) ||
+        !exposed ||
         store.modalOpen ||
         store.panelState !== "closed"
       )
@@ -235,6 +264,12 @@ export default function TouchInteractionLayer() {
         )
         .filter((bounds) => bounds !== null);
       const hit = resolveTouchHalo(event.clientX, event.clientY, bounds);
+      publishTouchFocusDiagnostic("hit-test", {
+        hit: hit?.id ?? null,
+        candidates: bounds.length,
+        activeUnit: store.activeUnit,
+        scenePosition: progressRef.current * (UNIT_COUNT - 1),
+      });
       if (!hit) {
         store.setFocusedInteraction(null);
         backgroundGesture.current = {
@@ -351,7 +386,7 @@ export default function TouchInteractionLayer() {
     });
     return () => {
       clearPickup();
-      stopInertia();
+      stopInertia("cleanup");
       window.removeEventListener("pointerdown", onPointerDown, {
         capture: true,
       });

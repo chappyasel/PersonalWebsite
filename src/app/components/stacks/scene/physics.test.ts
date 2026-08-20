@@ -3,6 +3,11 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { PhysicsSceneScope } from "./PhysicsSceneProvider";
 import {
+  getMeadowDisturbance,
+  resetMeadowDisturbance,
+} from "./meadowDisturbance";
+import { MEADOW_TRAIL } from "./meadowMotion";
+import {
   GRAVITY,
   type ShelfHandle,
   prepareScenePhysics,
@@ -47,7 +52,10 @@ function handle(
 
 const fixtureScopes = new WeakMap<THREE.Object3D, PhysicsSceneScope>();
 
-afterEach(() => physicsDiagnosticsController.reset());
+afterEach(() => {
+  physicsDiagnosticsController.reset();
+  resetMeadowDisturbance();
+});
 
 function worldFor(group: THREE.Object3D, handles: ShelfHandle[]) {
   let root = group;
@@ -436,6 +444,7 @@ describe("shelf physics lifecycle and carrying", () => {
     await warm();
     const { prop } = topFixture();
     const entry = handle("drop", prop);
+    const impactRevision = getMeadowDisturbance().impact.revision;
     const prepared = worldFor(prop, [entry]);
     expect(prepared.status).toBe("ready");
     if (prepared.status !== "ready") return;
@@ -465,6 +474,7 @@ describe("shelf physics lifecycle and carrying", () => {
     for (let frame = 10; frame < 120; frame++)
       prepared.world.tick(1 / 60, frame + 1);
     expect(entry.body!.sleepState).toBe(2);
+    expect(getMeadowDisturbance().impact.revision).toBe(impactRevision);
   });
 
   it("honors an authored basketball restitution on a shelf landing", async () => {
@@ -546,6 +556,7 @@ describe("shelf physics lifecycle and carrying", () => {
     await warm();
     const { prop } = topFixture();
     const entry = handle("dragged-off", prop);
+    const impactRevision = getMeadowDisturbance().impact.revision;
     const prepared = worldFor(prop, [entry]);
     expect(prepared.status).toBe("ready");
     if (prepared.status !== "ready") return;
@@ -576,6 +587,11 @@ describe("shelf physics lifecycle and carrying", () => {
       prepared.world.tick(1 / 60, frame + 1);
     expect(entry.group.position.y).toBeLessThan(-1);
     expect(entry.group.position.x).toBeCloseTo(1.55, 1);
+    const impact = getMeadowDisturbance().impact;
+    expect(impact.revision).toBe(impactRevision + 1);
+    expect(impact.y).toBeLessThan(SHELF_GEOMETRY.groundY + 0.02);
+    expect(impact.y).toBeGreaterThan(SHELF_GEOMETRY.groundY - 0.15);
+    expect(impact.strength).toBeGreaterThan(0);
   });
 
   it("can throw a prop across the shelf edge", async () => {
@@ -632,6 +648,37 @@ function sceneHandle(
 }
 
 describe("scene-wide physics world", () => {
+  it("emits bounded travel wakes while a released prop crosses the ground", async () => {
+    await warm();
+    const unit = new THREE.Group();
+    const entry = sceneHandle("ground-trail", unit, "floor");
+    entry.shape = "sphere";
+    entry.massKg = 0.62;
+    const scope = new PhysicsSceneScope();
+    scope.registerRoot({
+      id: "unit:ground-trail",
+      kind: "unit",
+      unitIndex: 0,
+      root: unit,
+    });
+    scope.registerHandle(entry);
+    unit.updateWorldMatrix(true, true);
+    const prepared = prepareScenePhysics(scope, entry);
+    expect(prepared.status).toBe("ready");
+    if (prepared.status !== "ready") return;
+    const revision = getMeadowDisturbance().impact.revision;
+    prepared.world.grab(entry);
+    prepared.world.release(entry, new THREE.Vector3(4, 0, 0));
+    for (let frame = 0; frame < 90; frame += 1)
+      prepared.world.tick(1 / 120, frame + 1);
+
+    const impact = getMeadowDisturbance().impact;
+    expect(impact.revision).toBeGreaterThan(revision + 1);
+    expect(impact.directionX).toBeGreaterThan(0.9);
+    expect(impact.timeScale).toBe(MEADOW_TRAIL.timeScale);
+    expect(impact.radiusScale).toBeGreaterThan(0);
+  });
+
   it("resets every settled About reading-stack book after leaving it off-screen", async () => {
     await warm();
     const unit = new THREE.Group();

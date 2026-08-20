@@ -17,6 +17,7 @@ import {
   touchWorldRef,
   useStacks,
 } from "../store";
+import { publishTouchFocusDiagnostic } from "../input/touchFocusDiagnostics";
 import { useScroll } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
@@ -27,6 +28,7 @@ import {
   cameraDepthEffectEnabled,
 } from "./cameraDepthDiagnostics";
 import {
+  cameraTravelState,
   clampCameraZoom,
   interactionZoomTarget,
   isGolfControlInteraction,
@@ -179,6 +181,7 @@ export default function CameraRig() {
   const travelEye = useRef(new THREE.Vector3());
   const travelLook = useRef(new THREE.Vector3());
   const previousCameraDepthEnabled = useRef<boolean | null>(null);
+  const lastFocusDiagnostic = useRef("");
   // Walk-to-the-chair scratch: Bezier control point, the position along it,
   // and the point on the chair you keep your eyes on while approaching.
   const ctrl = useRef(new THREE.Vector3());
@@ -451,13 +454,11 @@ export default function CameraRig() {
     );
     const calm = 1 - lean.current;
     const state = useStacks.getState();
-    const distanceFromAuthoredStop = Math.min(
-      Math.abs(scenePosition - Math.round(scenePosition)),
-      Math.abs(scenePosition - GOLF_STOP_POSITION),
-    );
-    const traveling =
-      distanceFromAuthoredStop > 0.015 ||
-      Math.abs(scenePosition - previousScenePosition.current) > 0.000_02;
+    const { focusBlockedByTravel, traveling } = cameraTravelState({
+      scenePosition,
+      previousScenePosition: previousScenePosition.current,
+      alternateStop: GOLF_STOP_POSITION,
+    });
     if (shouldResetCameraZoomForTravel(wasTraveling.current, traveling)) {
       touchWorldRef.zoomOffset = 0;
       if (state.focusedInteraction) state.setFocusedInteraction(null);
@@ -472,10 +473,46 @@ export default function CameraRig() {
       focusSpec &&
         !golfControlFocused &&
         !state.dragging &&
-        !traveling &&
+        !focusBlockedByTravel &&
         !busy &&
         !isSeated(),
     );
+    const focusDiagnostic = {
+      interaction: state.focusedInteraction,
+      hasSpec: Boolean(focusSpec),
+      focusEnabled,
+      focusBlockedByTravel,
+      busy,
+      dragging: Boolean(state.dragging),
+      seated: isSeated(),
+      pointerType: touchWorldRef.interactionPointerType,
+      scenePosition: Number(scenePosition.toFixed(4)),
+      distanceFromStop: Number(
+        Math.min(
+          Math.abs(scenePosition - Math.round(scenePosition)),
+          Math.abs(scenePosition - GOLF_STOP_POSITION),
+        ).toFixed(4),
+      ),
+    };
+    const focusDiagnosticKey = JSON.stringify({
+      interaction: focusDiagnostic.interaction,
+      hasSpec: focusDiagnostic.hasSpec,
+      focusEnabled: focusDiagnostic.focusEnabled,
+      focusBlockedByTravel: focusDiagnostic.focusBlockedByTravel,
+      busy: focusDiagnostic.busy,
+      dragging: focusDiagnostic.dragging,
+      seated: focusDiagnostic.seated,
+      pointerType: focusDiagnostic.pointerType,
+    });
+    if (
+      state.focusedInteraction &&
+      focusDiagnosticKey !== lastFocusDiagnostic.current
+    ) {
+      lastFocusDiagnostic.current = focusDiagnosticKey;
+      publishTouchFocusDiagnostic("camera-gate", focusDiagnostic);
+    } else if (!state.focusedInteraction) {
+      lastFocusDiagnostic.current = "";
+    }
     let desiredFocusX = 0;
     let desiredFocusY = 0;
     if (focusEnabled && focusSpec) {
@@ -524,7 +561,7 @@ export default function CameraRig() {
         hovered:
           Boolean(state.hovered) && !isGolfControlInteraction(state.hovered),
         dragging: Boolean(state.dragging),
-        traveling,
+        traveling: focusBlockedByTravel,
         blocked: busy || isSeated(),
         touchInteraction: touchWorldRef.interactionPointerType === "touch",
       }),

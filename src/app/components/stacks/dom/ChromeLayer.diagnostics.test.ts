@@ -83,6 +83,10 @@ describe("development diagnostics chrome", () => {
     expect(diagnosticsSource).toContain("storageBucket");
     expect(diagnosticsSource).toContain("fallbackStatus");
     expect(diagnosticsSource).toContain("custom overrides");
+    expect(diagnosticsSource).toContain(': "Auto"');
+    expect(diagnosticsSource).not.toContain(
+      "runtime.forcedProfile ?? runtime.plan.profile",
+    );
   });
 
   it("keeps the compact HUD focused on policy decisions and their visual cost", () => {
@@ -173,6 +177,20 @@ describe("production diagnostics activation", () => {
     expect(chromeSource).toContain(
       "<Diagnostics initiallyOpen={request.initiallyOpen} />",
     );
+  });
+
+  it("loads the cheap HUD by default in development without starting instrumentation", () => {
+    const requestInitializer = chromeSource.slice(
+      chromeSource.indexOf("const [request, setRequest]"),
+      chromeSource.indexOf("const [Diagnostics, setDiagnostics]"),
+    );
+
+    expect(requestInitializer).toContain(
+      'process.env.NODE_ENV === "development"',
+    );
+    expect(requestInitializer).toContain("initiallyOpen: false");
+    expect(requestInitializer).not.toContain("requestDevHooks()");
+    expect(diagnosticsSource).toContain("requestDevHooks()");
   });
 
   it("offers a hidden mobile entry point without rendering a control", () => {

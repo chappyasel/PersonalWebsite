@@ -4,7 +4,12 @@
 // bundle (loaded via dynamic import from StacksHome). Canvas config carries
 // the approved prototype look; ScrollControls owns the real scroll container.
 import { ScrollControls, useProgress, useScroll } from "@react-three/drei";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import {
+  Canvas,
+  events as createPointerEvents,
+  useFrame,
+  useThree,
+} from "@react-three/fiber";
 import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
 import {
@@ -63,15 +68,14 @@ import {
 import {
   instrumentRendererFrameCost,
   instrumentSceneMatrixCost,
+  markSceneFrameInstrumented,
   markSceneFrameStart,
   readSceneFrameCpuMs,
   takeSceneFrameInstrumented,
 } from "./scene/sceneFrameCost";
 import {
-  LEGACY_RUNG_BY_PROFILE,
-  QUALITY_DECLINE_COOLDOWN_MS,
   QUALITY_PERSIST_STABLE_MS,
-  QUALITY_RECOVERY_COOLDOWN_MS,
+  SCENE_FRAME_BUDGET_MS,
   QUALITY_SAMPLE_INTERVAL_MS,
   QUALITY_SAMPLE_WINDOW_MS,
   QUALITY_TRAVEL_VALIDATION_MS,
@@ -80,16 +84,11 @@ import {
   type SceneQualityMode,
   type SceneQualityPlan,
   type SceneQualityProfile,
-  CONTENT_TIER_BY_PROFILE,
   bookCoverWidthForNeed,
-  cheaperContentTier,
   classifySceneFrameConstraint,
   deriveRendererCapability,
-  initialSceneQualityAdaptationState,
   qualityModeFromSearch,
   qualityProfileFromValue,
-  reduceSceneQualityAdaptation,
-  rendererLooksWeak,
   resolveSceneQualityPlan,
   sceneQualityStorageBucket,
   startingProfileForDevice,
@@ -116,6 +115,7 @@ import {
   leaveSeat,
   requestSeat,
 } from "./scene/seated";
+import { StaticWorldInvariantProbe } from "./scene/staticWorld";
 import { sceneUnitActivityController } from "./scene/unitActivity";
 import { CAMERA, STACKS_DESKTOP_MIN_WIDTH } from "./scene/worldLayout";
 import { progressRef, useStacks } from "./store";
@@ -130,6 +130,33 @@ const Effects = dynamic(() => import("./scene/Effects"), { ssr: false });
 const performanceSampler = new ScenePerformanceSampler();
 let qualitySnapshot: Record<string, unknown> = {};
 let forceQuality: ((value: SceneQualityMode | number) => void) | null = null;
+
+export function shouldSkipSceneHoverRaycast(
+  coarseTouch: boolean,
+  event: Event,
+) {
+  return (
+    coarseTouch &&
+    "pointerType" in event &&
+    (event as PointerEvent).pointerType === "touch"
+  );
+}
+
+function scenePointerEvents(coarseTouch: boolean) {
+  return (store: Parameters<typeof createPointerEvents>[0]) => {
+    const manager = createPointerEvents(store);
+    const handlers = manager.handlers;
+    if (!handlers) return manager;
+    const onPointerMove = handlers.onPointerMove;
+    handlers.onPointerMove = (
+      event: Parameters<typeof onPointerMove>[0],
+    ) => {
+      if (shouldSkipSceneHoverRaycast(coarseTouch, event)) return;
+      onPointerMove(event);
+    };
+    return manager;
+  };
+}
 
 /** Drei's overflow element is natively keyboard-focusable, so leaving it
  * unnamed makes the first Tab stop a full-viewport anonymous div. Name the
@@ -197,15 +224,15 @@ declare global {
   }
 }
 
-/** Either flag opts a production visit into the development hooks. */
+/** Either flag opts a production visit into development hooks. */
 function hasDevHookFlag(search: URLSearchParams) {
   return search.has("harness") || search.has("debug");
 }
 
 function installDevHooks() {
-  // Production measurements opt in explicitly. Keeping the hooks behind a
-  // query flag lets Playwright exercise the optimized build without exposing
-  // the control surface during ordinary visits.
+  // Production measurements opt in explicitly. Development keeps the cheap
+  // imperative hooks available for scene modules; the expensive diagnostic
+  // subscribers and sweeps are gated separately in the rendered tree.
   //
   // `debug` is here as well as `harness` because the compact HUD and the
   // diagnostics drawer both read `window.__stacks.state()`, and their own
@@ -555,6 +582,9 @@ function PerformanceProbe() {
     };
   }, [gl]);
   useFrame((_, delta) => {
+    // This probe exists only after diagnostics opt in. Exclude every such
+    // frame rather than teaching the controller to react to its observer.
+    markSceneFrameInstrumented();
     if (scenePerformanceTrace.isActive() && !document.hidden) {
       const state = useStacks.getState();
       const physics = physicsDiagnosticsController.getSnapshot();
@@ -641,15 +671,12 @@ function PerformanceTraceObservers() {
 function AdaptiveQualityProbe({
   onSample,
 }: {
-  onSample: (metrics: SceneQualityMetrics) => void;
+  onSample: (metrics: SceneQualityMetrics, instrumented: boolean) => void;
 }) {
-  const frames = useRef<Array<{ at: number; ms: number; cpuMs: number }>>([]);
+  const frames = useRef<
+    Array<{ at: number; ms: number; cpuMs: number; instrumented: boolean }>
+  >([]);
   const lastSampleAt = useRef(0);
-  const scene = useThree((state) => state.scene);
-
-  // Time the world-matrix traversal where the renderer already runs it, which
-  // is after every frame callback has moved whatever it moves.
-  useEffect(() => instrumentSceneMatrixCost(scene), [scene]);
 
   useFrame((_, delta) => {
     const now = performance.now();
@@ -657,19 +684,18 @@ function AdaptiveQualityProbe({
     // submitted before this callback ran, so it lags by one frame.
     const cpuMs = readSceneFrameCpuMs();
     // Development-only overlays make frames the production build never pays
-    // for. Counting them taught the controller to degrade a scene that was
-    // never slow.
+    // for. Keep those frames visible to the HUD and profiler, but mark the
+    // whole overlapping window as untrusted for automatic adaptation.
     const instrumented = takeSceneFrameInstrumented();
     markSceneFrameStart(now);
     const ms = delta * 1_000;
     if (
-      !instrumented &&
       !document.hidden &&
       Number.isFinite(ms) &&
       ms > 0 &&
       ms < 1_000
     )
-      frames.current.push({ at: now, ms, cpuMs });
+      frames.current.push({ at: now, ms, cpuMs, instrumented });
     while (
       frames.current.length > 0 &&
       now - frames.current[0]!.at > QUALITY_SAMPLE_WINDOW_MS
@@ -678,8 +704,20 @@ function AdaptiveQualityProbe({
     if (now - lastSampleAt.current < QUALITY_SAMPLE_INTERVAL_MS) return;
     lastSampleAt.current = now;
     const metrics = summariseSceneFrameWindow(frames.current);
-    if (metrics) onSample(metrics);
+    if (metrics)
+      onSample(
+        metrics,
+        frames.current.some((frame) => frame.instrumented),
+      );
   }, -999);
+  return null;
+}
+
+/** Matrix timing exists for diagnostics, not for the quality feedback loop.
+ * Install its renderer monkey-patch only after diagnostics are requested. */
+function SceneMatrixCostProbe() {
+  const scene = useThree((state) => state.scene);
+  useEffect(() => instrumentSceneMatrixCost(scene), [scene]);
   return null;
 }
 
@@ -727,24 +765,35 @@ function SceneAudioBridge() {
  * canonical progress ref catches all paths and emits React state only at the
  * beginning/end of movement, never per frame.
  */
-function MovementProbe({ onChange }: { onChange: (moving: boolean) => void }) {
+type TravelFrames = Readonly<{ total: number; late: number }>;
+
+function MovementProbe({
+  onChange,
+}: {
+  onChange: (moving: boolean, frames?: TravelFrames) => void;
+}) {
   const previous = useRef(progressRef.current);
   const moving = useRef(false);
   const lastMovedAt = useRef(-Infinity);
-  useFrame(() => {
+  const frames = useRef({ total: 0, late: 0 });
+  useFrame((_, delta) => {
     const now = performance.now();
     const progress = progressRef.current;
     if (Math.abs(progress - previous.current) > 0.000_002) {
       lastMovedAt.current = now;
       if (!moving.current) {
         moving.current = true;
+        frames.current = { total: 0, late: 0 };
         setSceneTraveling(true);
         onChange(true);
       }
+      frames.current.total += 1;
+      if (delta * 1_000 > SCENE_FRAME_BUDGET_MS * 1.5)
+        frames.current.late += 1;
     } else if (moving.current && now - lastMovedAt.current >= 650) {
       moving.current = false;
       setSceneTraveling(false);
-      onChange(false);
+      onChange(false, { ...frames.current });
     }
     previous.current = progress;
   });
@@ -899,11 +948,18 @@ export default function StacksCanvas({
   // any frame has been sampled, and a coarse pointer on a narrow viewport is
   // the most reliable pre-frame signal that this is a phone.
   const coarseTouch = useCoarseTouchCapability();
+  const [diagnosticsRequested, setDiagnosticsRequested] = useState(() => {
+    if (devHooksRequested()) return true;
+    if (typeof window === "undefined") return false;
+    return hasDevHookFlag(new URLSearchParams(window.location.search));
+  });
   // The HUD can be opened at any time, including long after the canvas was
-  // created. Re-run the installer when that happens so the panel never
-  // renders against hooks that do not exist.
+  // created. Install its hooks and diagnostics only after that opt-in.
   useEffect(() => {
-    const stop = onDevHooksRequested(() => installDevHooks());
+    const stop = onDevHooksRequested(() => {
+      setDiagnosticsRequested(true);
+      installDevHooks();
+    });
     return () => {
       stop();
     };
@@ -931,45 +987,28 @@ export default function StacksCanvas({
     return readLearnedQuality(storageBucket);
   }, [queryMode, storageBucket]);
   const restoredProfile = restoredLearning?.profile ?? null;
-  const initialProfile =
-    queryMode === "auto" ? (restoredProfile ?? "balanced") : queryMode;
-  const [adaptation, dispatchQuality] = useReducer(
-    reduceSceneQualityAdaptation,
-    undefined,
-    () =>
-      initialSceneQualityAdaptationState(
-        initialProfile,
-        typeof performance === "undefined" ? 0 : performance.now(),
-        restoredProfile ? "restored" : "startup",
-      ),
-  );
-  const adaptationRef = useRef(adaptation);
-  adaptationRef.current = adaptation;
-  // The three axes run alongside the profile ladder on the same evidence.
-  // The ladder still resolves the plan every consumer reads; the axes decide
-  // where on the three dials the scene should stand.
+  const logicalCores =
+    typeof navigator === "undefined" ? null : navigator.hardwareConcurrency;
+  const deviceMemory =
+    typeof navigator === "undefined"
+      ? null
+      : ((navigator as { deviceMemory?: number }).deviceMemory ?? null);
+  const initialAxisProfile = startingProfileForDevice({
+    // WebGL evidence arrives after the canvas exists. The navigator signals
+    // are available now and may only bias the starting point downward.
+    weakRenderer:
+      (typeof logicalCores === "number" && logicalCores < 4) ||
+      (typeof deviceMemory === "number" && deviceMemory <= 4),
+    touch: coarseTouch,
+    narrowViewport: viewport.width < STACKS_DESKTOP_MIN_WIDTH,
+  });
+  const [composerFailed, setComposerFailed] = useState(false);
   const [axisState, dispatchAxes] = useReducer(
     reduceSceneQualityAxes,
     undefined,
     () => {
-      // A phone must not begin at Balanced and spend its opening half-minute
-      // walking down the ladder in front of the visitor. Nothing is learned
-      // yet, so the starting guess is all we have.
       const base = initialSceneQualityAxisState(
-        queryMode === "auto"
-          ? (restoredProfile ??
-            startingProfileForDevice({
-              // Renderer evidence is not available this early — it is read in
-              // `onCreated` — so the opening guess rests on the viewport and
-              // the pointer, which ARE known. Measurement corrects it within
-              // seconds either way.
-              weakRenderer: rendererEvidence.current
-                ? rendererLooksWeak(rendererEvidence.current)
-                : false,
-              touch: coarseTouch,
-              narrowViewport: viewport.width < STACKS_DESKTOP_MIN_WIDTH,
-            }))
-          : initialProfile,
+        queryMode === "auto" ? initialAxisProfile : queryMode,
         typeof performance === "undefined" ? 0 : performance.now(),
         queryMode === "auto" ? null : queryMode,
       );
@@ -997,14 +1036,17 @@ export default function StacksCanvas({
     if (previousCapabilityBucket.current === storageBucket) return;
     previousCapabilityBucket.current = storageBucket;
     if (mode !== "auto" || rendererCapability === "unknown") return;
-    const stored = readLearnedQuality(storageBucket)?.profile ?? null;
+    const stored = readLearnedQuality(storageBucket);
     if (!stored) return;
-    setLearnedProfile(stored);
-    dispatchQuality({
-      type: "profile",
+    setLearnedProfile(stored.profile);
+    dispatchAxes({
+      type: "restore",
       now: performance.now(),
-      profile: stored,
-      reason: "restored",
+      axes: {
+        resolutionStep: stored.resolutionStep,
+        effects: stored.effects,
+        content: stored.content,
+      },
     });
   }, [mode, rendererCapability, storageBucket]);
 
@@ -1028,7 +1070,6 @@ export default function StacksCanvas({
         height: window.innerHeight,
         deviceDpr: window.devicePixelRatio,
       });
-      dispatchQuality({ type: "ignore", now: performance.now() });
     };
     window.addEventListener("resize", measure, { passive: true });
     return () => window.removeEventListener("resize", measure);
@@ -1038,26 +1079,12 @@ export default function StacksCanvas({
   useEffect(() => {
     if (previousMode.current === mode) return;
     previousMode.current = mode;
-    let profile: SceneQualityProfile;
-    if (mode === "auto") {
-      // Storage is an optional optimization; Balanced remains deterministic.
-      const stored = readLearnedQuality(storageBucket)?.profile ?? null;
-      profile = stored ?? "balanced";
-      setLearnedProfile(stored);
-    } else {
-      profile = mode;
-    }
-    dispatchQuality({
-      type: "profile",
+    dispatchAxes({
+      type: "force",
       now: performance.now(),
-      profile,
-      reason: "manual",
+      profile: mode === "auto" ? null : mode,
     });
-  }, [mode, storageBucket]);
-
-  useEffect(() => {
-    dispatchQuality({ type: "freeze", frozen: qualityControls.frozen });
-  }, [qualityControls.frozen]);
+  }, [mode]);
 
   const resetRequest = useRef(qualityControls.resetRequest);
   useEffect(() => {
@@ -1065,13 +1092,6 @@ export default function StacksCanvas({
     resetRequest.current = qualityControls.resetRequest;
     clearLearnedQuality(storageBucket);
     setLearnedProfile(null);
-    if (mode === "auto")
-      dispatchQuality({
-        type: "profile",
-        now: performance.now(),
-        profile: "balanced",
-        reason: "manual",
-      });
   }, [mode, qualityControls.resetRequest, storageBucket]);
 
   useEffect(() => {
@@ -1088,43 +1108,41 @@ export default function StacksCanvas({
     };
   }, []);
 
-  const previousDurable = useRef(LEGACY_RUNG_BY_PROFILE[adaptation.profile]);
+  const previousAxes = useRef(axisState.axes);
   useEffect(() => {
-    const durable = LEGACY_RUNG_BY_PROFILE[adaptation.profile];
-    if (durable === previousDurable.current) return;
+    const previous = previousAxes.current;
+    if (
+      previous.resolutionStep === axisState.axes.resolutionStep &&
+      previous.effects === axisState.axes.effects &&
+      previous.content === axisState.axes.content
+    )
+      return;
     const at = performance.now();
-    performanceSampler.transition({
-      at,
-      from: previousDurable.current,
-      to: durable,
-      reason: adaptation.transitionReason,
-    });
     scenePerformanceTrace.event({
       at,
       type: "quality-transition",
       detail: {
-        from: previousDurable.current,
-        to: durable,
-        profile: adaptation.profile,
-        reason: adaptation.transitionReason,
-        metrics: adaptation.metrics,
-        declineBaseline: adaptation.declineBaseline,
+        from: previous,
+        to: axisState.axes,
+        change: axisState.lastChange,
+        metrics: liveMetrics,
       },
     });
-    previousDurable.current = durable;
-  }, [
-    adaptation.declineBaseline,
-    adaptation.metrics,
-    adaptation.profile,
-    adaptation.transitionReason,
-  ]);
+    previousAxes.current = axisState.axes;
+  }, [axisState.axes, axisState.lastChange, liveMetrics]);
 
-  const onMovementChange = useCallback((moving: boolean) => {
+  const onMovementChange = useCallback((
+    moving: boolean,
+    frames?: TravelFrames,
+  ) => {
     const now = performance.now();
-    dispatchQuality({ type: "movement", moving, now });
     // Pre-emptive: the visitor initiated this, so the headroom is taken
     // before a frame is missed rather than after.
-    dispatchAxes({ type: moving ? "travel-start" : "travel-end", now });
+    dispatchAxes(
+      moving
+        ? { type: "travel-start", now }
+        : { type: "travel-end", now, frames },
+    );
     scenePerformanceTrace.event({
       at: now,
       type: moving ? "travel-start" : "travel-end",
@@ -1141,7 +1159,6 @@ export default function StacksCanvas({
       type: "theme-change",
       detail: { theme: dark ? "dark" : "light" },
     });
-    dispatchQuality({ type: "ignore", now: performance.now() });
   }, [dark]);
   useEffect(() => {
     const onVisibility = () => {
@@ -1150,8 +1167,6 @@ export default function StacksCanvas({
         type: "visibility-change",
         detail: { hidden: document.hidden },
       });
-      if (!document.hidden)
-        dispatchQuality({ type: "ignore", now: performance.now() });
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
@@ -1172,27 +1187,16 @@ export default function StacksCanvas({
       new URLSearchParams(window.location.search).has("harness"),
     [],
   );
+  const renderProfile: SceneQualityProfile =
+    mode === "auto" ? "showcase" : mode;
   const plan = useMemo(
     () =>
       resolveSceneQualityPlan({
         mode,
-        profile: adaptation.profile,
-        // Automatic mode drives content from the axis; a forced preset lets
-        // the plan resolve the preset's own tier.
-        // Believe whichever of the two systems is more worried. The profile
-        // ladder still resolves effects and the resolution cap, so a ladder
-        // sitting at Safety while geometry stayed full meant the scene was
-        // ignoring its own conclusion.
-        contentTier:
-          mode === "auto"
-            ? cheaperContentTier(
-                axisState.axes.content,
-                CONTENT_TIER_BY_PROFILE[adaptation.profile],
-              )
-            : undefined,
-        // The effects axis. Same shape as content: automatic mode drives it
-        // from the axis, a forced preset lets the plan resolve the preset's
-        // own tier. It caps the profile's block rather than replacing it.
+        profile: renderProfile,
+        // Automatic mode derives the rendered plan directly from this triple.
+        // A forced preset resolves its own authored tiers instead.
+        contentTier: mode === "auto" ? axisState.axes.content : undefined,
         effectsTier: mode === "auto" ? axisState.axes.effects : undefined,
         // Pinned under the harness so end-to-end tests that assert an exact
         // device pixel ratio are not racing a continuously adapting value.
@@ -1210,7 +1214,7 @@ export default function StacksCanvas({
         touch:
           rendererCapability === "unknown" ||
           rendererCapability === "constrained",
-        directRender: adaptation.directRender || noPostfx,
+        directRender: composerFailed || noPostfx,
         overrides: {
           ...performanceSettings,
           skipAmbientOcclusion: scenePerformanceController.isOverridden(
@@ -1237,8 +1241,7 @@ export default function StacksCanvas({
           ),
       }),
     [
-      adaptation.directRender,
-      adaptation.profile,
+      composerFailed,
       axisState.axes.content,
       axisState.axes.effects,
       axisState.axes.resolutionStep,
@@ -1248,6 +1251,7 @@ export default function StacksCanvas({
       mode,
       noPostfx,
       performanceSettings,
+      renderProfile,
       viewport,
     ],
   );
@@ -1269,7 +1273,6 @@ export default function StacksCanvas({
         pixelBudget: plan.pixelBudget,
       },
     });
-    dispatchQuality({ type: "ignore", now: performance.now() });
   }, [effectsVariant, plan]);
   const ownedRenderer = useRef<THREE.WebGLRenderer | null>(null);
 
@@ -1316,9 +1319,9 @@ export default function StacksCanvas({
   const bootReadySince = useRef<number | null>(null);
   const booted = useRef(false);
   const onQualitySample = useCallback(
-    (metrics: SceneQualityMetrics) => {
+    (metrics: SceneQualityMetrics, instrumented: boolean) => {
       setLiveMetrics(metrics);
-      if (!booted.current) {
+      if (!instrumented && !booted.current) {
         const now = performance.now();
         const ready =
           isWorldRevealed() && shaderPrecompileComplete && !isSceneTraveling();
@@ -1331,7 +1334,7 @@ export default function StacksCanvas({
           }
         }
       }
-      if (rendererEvidence.current)
+      if (!instrumented && rendererEvidence.current)
         setRendererCapability(
           deriveRendererCapability({
             ...rendererEvidence.current,
@@ -1342,81 +1345,65 @@ export default function StacksCanvas({
         type: "sample",
         now: performance.now(),
         metrics,
-        visible: !document.hidden,
-      });
-      if (mode !== "auto") return;
-      dispatchQuality({
-        type: "sample",
-        now: performance.now(),
-        metrics,
-        visible: !document.hidden,
+        visible:
+          !document.hidden && !qualityControls.frozen && !instrumented,
       });
     },
-    [mode],
+    [qualityControls.frozen],
   );
   const onComposerError = useCallback(() => {
     const now = performance.now();
     scenePerformanceTrace.event({ at: now, type: "effects-error" });
-    dispatchQuality({ type: "effects-error", now });
+    setComposerFailed(true);
   }, []);
 
   useEffect(() => {
     if (
       mode !== "auto" ||
-      adaptation.moving ||
-      adaptation.directRender ||
+      axisState.travelling ||
+      composerFailed ||
       document.hidden
     )
       return;
+    const stableSince = Math.max(
+      axisState.axisChangedAt.resolution,
+      axisState.axisChangedAt.effects,
+      axisState.axisChangedAt.content,
+    );
     const remaining = Math.max(
       0,
-      adaptation.stableSince + QUALITY_PERSIST_STABLE_MS - performance.now(),
+      stableSince + QUALITY_PERSIST_STABLE_MS - performance.now(),
     );
+    const scheduled = axisState.axes;
     const timeout = window.setTimeout(() => {
       if (
         document.hidden ||
-        adaptationRef.current.profile !== adaptation.profile ||
-        adaptationRef.current.moving ||
-        adaptationRef.current.directRender
+        isSceneTraveling() ||
+        axesRef.current.resolutionStep !== scheduled.resolutionStep ||
+        axesRef.current.effects !== scheduled.effects ||
+        axesRef.current.content !== scheduled.content
       )
         return;
-      // Learning is best-effort and never gates rendering. The axis triple is
-      // what the controller restores from; the profile name rides along for
-      // the overlay and for scripts that still speak in preset names.
-      writeLearnedQuality(
-        storageBucket,
-        axesRef.current,
-        adaptation.profile,
-      );
-      setLearnedProfile(adaptation.profile);
+      writeLearnedQuality(storageBucket, scheduled, renderProfile);
+      setLearnedProfile(renderProfile);
     }, remaining);
     return () => window.clearTimeout(timeout);
   }, [
-    adaptation.directRender,
-    adaptation.moving,
-    adaptation.profile,
-    adaptation.stableSince,
+    composerFailed,
+    axisState.axes,
+    axisState.axisChangedAt,
+    axisState.travelling,
     mode,
+    renderProfile,
     storageBucket,
   ]);
 
-  const cooldownMs = useMemo(() => {
-    // Recompute the displayed countdown on each 250 ms metrics publication.
-    void liveMetrics;
-    return Math.max(
-      0,
-      adaptation.lastTransitionAt +
-        (adaptation.transitionReason === "recovery"
-          ? QUALITY_RECOVERY_COOLDOWN_MS
-          : QUALITY_DECLINE_COOLDOWN_MS) -
-        performance.now(),
-    );
-  }, [adaptation.lastTransitionAt, adaptation.transitionReason, liveMetrics]);
-  const fallbackStatus = adaptation.directRender
-    ? adaptation.transitionReason === "effects-error"
-      ? "direct-effects-error"
-      : "direct-safety"
+  const cooldownMs = 0;
+  const fallbackStatus = composerFailed
+    ? "direct-effects-error"
     : "composer";
+  const transitionReason =
+    axisState.lastChange?.reason ?? (composerFailed ? "effects-error" : "startup");
   // Which resource the last window was short of. Published rather than only
   // acted on, so the overlay can show why the scene made its decision.
   const liveConstraint = liveMetrics
@@ -1426,8 +1413,8 @@ export default function StacksCanvas({
     mode,
     profile: plan.profile,
     durable: plan.legacyRung,
-    moving: adaptation.moving,
-    frozen: adaptation.frozen,
+    moving: axisState.travelling,
+    frozen: qualityControls.frozen,
     forced: mode !== "auto",
     effectiveDpr: plan.dpr,
     physicalPixels: plan.physicalPixels,
@@ -1436,8 +1423,8 @@ export default function StacksCanvas({
     meadowRung: plan.environment.meadowRung,
     contentTier: plan.environment.contentTier,
     cloudDetail: plan.environment.cloudDetail === "full",
-    transitionReason: adaptation.transitionReason,
-    declineBaseline: adaptation.declineBaseline,
+    transitionReason,
+    declineBaseline: axisState.pendingBaseline,
     storageBucket,
     learnedProfile,
     fallbackStatus,
@@ -1457,20 +1444,20 @@ export default function StacksCanvas({
       storageBucket,
       learnedProfile,
       cooldownRemainingMs: cooldownMs,
-      transitionReason: adaptation.transitionReason,
+      transitionReason,
       fallbackStatus,
     });
   }, [
     liveConstraint,
     axisState.axes,
     mode,
-    adaptation.transitionReason,
     cooldownMs,
     fallbackStatus,
     learnedProfile,
     liveMetrics,
     plan,
     storageBucket,
+    transitionReason,
   ]);
 
   const onOpenBook = useCallback(
@@ -1483,6 +1470,11 @@ export default function StacksCanvas({
   const onOpenUrl = useCallback((url: string) => {
     window.open(url, "_blank", "noopener,noreferrer");
   }, []);
+
+  const pointerEvents = useMemo(
+    () => scenePointerEvents(coarseTouch),
+    [coarseTouch],
+  );
 
   useEffect(() => {
     devOpenBook = onOpenBook;
@@ -1518,6 +1510,7 @@ export default function StacksCanvas({
       <LoadReporter />
       <TouchInteractionLayer />
       <Canvas
+        events={pointerEvents}
         shadows="soft"
         camera={{ position: [0, CAMERA.y, CAMERA.z], fov: CAMERA.fov }}
         dpr={dpr}
@@ -1592,8 +1585,14 @@ export default function StacksCanvas({
             onComposerError={onComposerError}
           />
         )}
-        <PerformanceProbe />
-        <PerformanceTraceObservers />
+        {diagnosticsRequested ? (
+          <>
+            <PerformanceProbe />
+            <PerformanceTraceObservers />
+            <SceneMatrixCostProbe />
+            <StaticWorldInvariantProbe />
+          </>
+        ) : null}
         <AdaptiveQualityProbe onSample={onQualitySample} />
         <SceneAudioBridge />
         <PhysicsPrewarm />
@@ -1628,6 +1627,7 @@ export default function StacksCanvas({
               plan.profile,
             )}
             quality={plan}
+            diagnosticsRequested={diagnosticsRequested}
             onOpenBook={onOpenBook}
             onOpenUrl={onOpenUrl}
           />

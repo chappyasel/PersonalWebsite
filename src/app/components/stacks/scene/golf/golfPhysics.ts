@@ -143,12 +143,14 @@ function stepGolfBall(ball: GolfBallState, world: GolfWorld, dt: number) {
 
   if (ball.phase === "cup") {
     ball.resetAge += dt;
-    // A captured ball drops below the lip and loses its last energy against
-    // the cup walls. The reset clock begins only after it has visibly rattled.
+    // Keep the centre moving across the opening as the ball tips over the
+    // lip. Pulling it straight down at capture reads as a teleport, while a
+    // shrinking wall gives the last bit of roll somewhere physical to go.
+    const previousY = ball.position.y;
     ball.velocity.y -= GOLF_GRAVITY * dt;
-    ball.velocity.x *= Math.exp(-7 * dt);
-    ball.velocity.z *= Math.exp(-7 * dt);
-    ball.velocity.y *= Math.exp(-3 * dt);
+    ball.velocity.x *= Math.exp(-4.2 * dt);
+    ball.velocity.z *= Math.exp(-4.2 * dt);
+    ball.velocity.y *= Math.exp(-1.8 * dt);
     ball.position.x += ball.velocity.x * dt;
     ball.position.y = Math.max(
       world.cup.y - GOLF_CUP.depth + ball.radius,
@@ -156,6 +158,15 @@ function stepGolfBall(ball: GolfBallState, world: GolfWorld, dt: number) {
     );
     ball.position.z += ball.velocity.z * dt;
     keepInsideCup(ball, world);
+    const spinDamping = Math.exp(-5.5 * dt);
+    ball.angularVelocity.x *= spinDamping;
+    ball.angularVelocity.y *= spinDamping;
+    ball.angularVelocity.z *= spinDamping;
+    const celebrationHeight =
+      world.cup.y - GOLF_CUP.depth + ball.radius + 0.005;
+    if (previousY > celebrationHeight && ball.position.y <= celebrationHeight) {
+      world.emit?.({ type: "cup", ballId: ball.id, position: copy(world.cup) });
+    }
     if (ball.resetAge >= 5.4) beginGolfBallReset(ball);
     return;
   }
@@ -207,9 +218,15 @@ function collideTerrain(
         type: "first-impact",
         ballId: ball.id,
         position: copy(ball.position),
+        velocity: copy(ball.velocity),
+        impactSpeed: -normalSpeed,
       });
     const restitution =
-      ball.outcome === "hole-bound" ? 0.32 : coefficient.restitution;
+      ball.outcome === "hole-bound"
+        ? ball.impacts === 1
+          ? 0.32
+          : 0.14
+        : coefficient.restitution;
     addScaled(ball.velocity, sample.normal, -(1 + restitution) * normalSpeed);
     // Resolve the velocity of the actual bottom contact patch. Strong wedge
     // backspin makes that patch skid forward on landing, so turf friction can
@@ -272,6 +289,25 @@ function collideTerrain(
     ball.velocity.z += slopeGravity.z * dt;
     const decel = coefficient.rolling * dt;
     dampHorizontal(ball.velocity, decel);
+    if (ball.outcome === "hole-bound") {
+      const cupDistance = Math.hypot(
+        ball.position.x - world.cup.x,
+        ball.position.z - world.cup.z,
+      );
+      if (cupDistance < 1.4) {
+        // Backspin checks the wedge, then the remaining roll dies continuously
+        // across the visible green. This avoids a speed change at an arbitrary
+        // distance from the cup.
+        const proximity = 1 - Math.min(1, cupDistance / 1.4);
+        const approachDrag = 110 + proximity * 16;
+        const horizontalSpeed = Math.hypot(ball.velocity.x, ball.velocity.z);
+        const excess = Math.max(0, horizontalSpeed - 0.3);
+        dampHorizontal(
+          ball.velocity,
+          excess * (1 - Math.exp(-approachDrag * dt)),
+        );
+      }
+    }
     ball.velocity.y =
       Math.max(0, ball.velocity.y) * Math.exp(-coefficient.friction * dt);
     ball.angularVelocity.x = ball.velocity.z / ball.radius;
@@ -350,12 +386,15 @@ function collideCup(ball: GolfBallState, world: GolfWorld) {
   const dz = ball.position.z - world.cup.z;
   const distance = Math.hypot(dx, dz);
   const horizontalSpeed = Math.hypot(ball.velocity.x, ball.velocity.z);
-  const captureRadius = GOLF_CUP.radius - ball.radius * 0.18;
+  const captureRadius =
+    ball.outcome === "hole-bound"
+      ? GOLF_CUP.radius + ball.radius * 0.2
+      : GOLF_CUP.radius - ball.radius * 0.18;
   // A protected winner arrives on the cup's centre line after its physical
   // check-and-roll. Let the flag-in cup retain that well-aimed roll while
   // ordinary and near-miss shots keep the stricter lip-out speed. The ball
   // still has to cross the real capture radius; no snapping or teleporting.
-  const captureSpeed = ball.outcome === "hole-bound" ? 4.5 : 1.35;
+  const captureSpeed = ball.outcome === "hole-bound" ? 0.48 : 1.35;
   if (
     ball.phase === "roll" &&
     distance <= captureRadius &&
@@ -364,14 +403,11 @@ function collideCup(ball: GolfBallState, world: GolfWorld) {
     ball.phase = "cup";
     ball.holed = true;
     ball.resetAge = 0;
-    ball.position.y = Math.min(
-      ball.position.y,
-      world.cup.y + ball.radius * 0.15,
-    );
-    ball.velocity.y = -Math.max(0.42, horizontalSpeed * 0.38);
-    ball.velocity.x *= 0.3;
-    ball.velocity.z *= 0.3;
-    world.emit?.({ type: "cup", ballId: ball.id, position: copy(world.cup) });
+    // Do not move the ball on the capture frame. It should remain on the lip
+    // for a beat, carry across the opening, and then disappear under gravity.
+    ball.velocity.y = -Math.max(0.08, horizontalSpeed * 0.12);
+    ball.velocity.x *= 0.7;
+    ball.velocity.z *= 0.7;
     return;
   }
   const lipBand = GOLF_CUP.radius + ball.radius * 0.45;
@@ -393,7 +429,12 @@ function collideCup(ball: GolfBallState, world: GolfWorld) {
 function keepInsideCup(ball: GolfBallState, world: GolfWorld) {
   const dx = ball.position.x - world.cup.x;
   const dz = ball.position.z - world.cup.z;
-  const limit = GOLF_CUP.radius - ball.radius * 0.7;
+  const lipHeight = world.cup.y + ball.radius;
+  const settledHeight = world.cup.y - ball.radius * 0.55;
+  const dropProgress = smoothstep(lipHeight, settledHeight, ball.position.y);
+  const lipLimit = GOLF_CUP.radius - ball.radius * 0.18;
+  const wallLimit = GOLF_CUP.radius - ball.radius;
+  const limit = lipLimit + (wallLimit - lipLimit) * dropProgress;
   const distance = Math.hypot(dx, dz);
   if (distance <= limit) return;
   const nx = dx / distance;
@@ -402,9 +443,14 @@ function keepInsideCup(ball: GolfBallState, world: GolfWorld) {
   ball.position.z = world.cup.z + nz * limit;
   const incoming = ball.velocity.x * nx + ball.velocity.z * nz;
   if (incoming > 0) {
-    ball.velocity.x -= 1.25 * incoming * nx;
-    ball.velocity.z -= 1.25 * incoming * nz;
+    ball.velocity.x -= 1.18 * incoming * nx;
+    ball.velocity.z -= 1.18 * incoming * nz;
   }
+}
+
+function smoothstep(edge0: number, edge1: number, value: number) {
+  const t = Math.min(1, Math.max(0, (value - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
 }
 
 function cross(a: GolfVec3, b: GolfVec3): GolfVec3 {

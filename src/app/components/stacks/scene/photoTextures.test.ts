@@ -7,7 +7,6 @@ import {
   SCENE_PHOTO_EDGE,
   V8_PHOTOS_BY_UNIT,
   sceneHdPhotosDisabled,
-  scenePhotoManifestMasterUrl,
   scenePhotoManifestUrl,
   scenePhotoUrl,
 } from "./photoTextures";
@@ -38,7 +37,7 @@ describe("scene photo resolution policy", () => {
     );
   });
 
-  it("keeps the per-unit preview and master manifests aligned", () => {
+  it("keeps the per-unit preview manifest aligned with its roles", () => {
     const entries = Object.values(V8_PHOTOS_BY_UNIT).flat();
     expect(entries).toHaveLength(27);
     expect(new Set(entries.map((entry) => entry.name))).toHaveLength(27);
@@ -48,22 +47,19 @@ describe("scene photo resolution policy", () => {
           `/images/stacks/v8/${SCENE_PHOTO_EDGE[entry.role]}/${entry.name}.webp`,
       ),
     );
-    expect(entries.map(scenePhotoManifestMasterUrl)).toEqual(
-      entries.map((entry) => `/images/stacks/v8/${entry.name}.webp`),
-    );
   });
 
-  it("ships every declared master within the hero edge", async () => {
+  it("ships every declared preview within its role edge", async () => {
     const entries = Object.values(V8_PHOTOS_BY_UNIT).flat();
     await Promise.all(
       entries.map(async (entry) => {
-        const relativeUrl = scenePhotoManifestMasterUrl(entry).slice(1);
+        const relativeUrl = scenePhotoManifestUrl(entry).slice(1);
         const file = path.join(process.cwd(), "public", relativeUrl);
         expect(fs.existsSync(file), relativeUrl).toBe(true);
         const metadata = await sharp(file).metadata();
         expect(
           Math.max(metadata.width ?? 0, metadata.height ?? 0),
-        ).toBeLessThanOrEqual(SCENE_PHOTO_EDGE.hero);
+        ).toBeLessThanOrEqual(SCENE_PHOTO_EDGE[entry.role]);
       }),
     );
   });

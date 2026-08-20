@@ -44,6 +44,7 @@ import remarkGfm from "remark-gfm";
 
 import { capture } from "~/lib/analytics";
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
+import { separateCachedQuoteBlocks } from "~/lib/books/markdown";
 import { selectBookNotice } from "~/lib/books/notices";
 import { getBookPath, getBooksPath } from "~/lib/books/paths";
 import type { BaseBook, Book } from "~/lib/books/types";
@@ -1189,7 +1190,9 @@ export function BookDetailContent({
                         } as Components
                       }
                     >
-                      {processDetailsBlocks(fullBook.notes)}
+                      {processDetailsBlocks(
+                        separateCachedQuoteBlocks(fullBook.notes),
+                      )}
                     </ReactMarkdown>
                   </PhotoProvider>
                 </div>

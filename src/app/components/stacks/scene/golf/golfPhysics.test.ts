@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { GOLF_CUP } from "./golfCourse";
 import {
   GOLF_GRAVITY,
   GolfFixedStepper,
@@ -49,7 +50,9 @@ describe("fixed-step golf physics", () => {
         }
         previousImpacts = ball.impacts;
       }
-      expect(airborneRebounds, outcome).toBe(2);
+      expect(airborneRebounds, outcome).toBe(
+        outcome === "hole-bound" ? 1 : 2,
+      );
       expect(ball.phase).toBe("roll");
     }
   });
@@ -105,12 +108,38 @@ describe("fixed-step golf physics", () => {
   });
 
   it("captures a real rolling ball at the cup", () => {
-    const world = flatWorld();
+    let cupEvents = 0;
+    const world: GolfWorld = {
+      ...flatWorld(),
+      emit: (event) => {
+        if (event.type === "cup") cupEvents += 1;
+      },
+    };
     const a = createGolfBallState("one", { x: 0.09, y: 0.05, z: -9.78 });
     launchGolfBall(a, { x: 0, y: 0, z: -0.35 }, "hole-bound");
     a.phase = "roll";
-    for (let i = 0; i < 240; i += 1) stepGolfWorld([a], world, 1 / 120);
+    // Read the phase through a call so control-flow analysis does not keep
+    // the narrowing from the assignment above: stepGolfWorld mutates it, and
+    // TypeScript cannot see a write made through a function.
+    const phaseOf = () => a.phase;
+    for (let step = 0; step < 240 && phaseOf() !== "cup"; step += 1) {
+      stepGolfWorld([a], world, 1 / 120);
+    }
+
     expect(a.holed).toBe(true);
+    expect(a.position.y).toBeCloseTo(world.cup.y + a.radius, 5);
+    expect(a.velocity.z).toBeLessThan(-0.1);
+    expect(cupEvents).toBe(0);
+
+    stepGolfWorld([a], world, 1 / 120);
+    expect(a.position.y).toBeLessThan(world.cup.y + a.radius);
+    expect(cupEvents).toBe(0);
+    for (let i = 0; i < 239; i += 1) stepGolfWorld([a], world, 1 / 120);
+    expect(cupEvents).toBe(1);
+    expect(a.position.y).toBeCloseTo(
+      world.cup.y - GOLF_CUP.depth + a.radius,
+      5,
+    );
   });
 
   it("requires five uninterrupted still seconds and fades through reset", () => {

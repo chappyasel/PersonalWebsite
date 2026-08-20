@@ -27,9 +27,8 @@ export function planGolfTrajectory(
     // Carry beyond the cup so a protected winner has to show a real wedge
     // bounce, backspin check and reverse roll. Direct fly-ins are deliberately
     // excluded from the normal winning cadence.
-    // The launch solver's drag-compensated wedge carries roughly 1.8 m beyond
-    // its ballistic target on the authored downslope. Aim short here so the
-    // measured first turf contact finishes about half a metre past the cup.
+    // Give the checked ball enough green to lose its reverse-roll speed in
+    // view. A landing too close to the flag needs an obvious last-second brake.
     along = 1.175 + random() * 0.08;
     // Clear the in-cup flagstick on the way down while staying inside the
     // capture radius on the reverse roll.

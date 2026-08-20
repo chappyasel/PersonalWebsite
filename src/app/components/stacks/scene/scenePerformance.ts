@@ -15,8 +15,8 @@ export type ScenePerformanceSettings = Readonly<{
   activeNeighborhoodLights: boolean;
   /** Give the far tuft LOD a compile-time-cheaper motion shader. */
   simplifiedFarMeadow: boolean;
-  /** Native glass is the shipped default. Auto retains the coarse-touch paper
-   * fallback for performance comparisons. */
+  /** Native glass is the shipped default on every input type. Auto retains
+   * the coarse-touch paper fallback only for performance comparisons. */
   placardGlassMode: PlacardGlassMode;
   /** Keep every unit resident while hiding and suspending work outside the
    * camera's active neighborhood. */

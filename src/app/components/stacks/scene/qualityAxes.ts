@@ -251,9 +251,14 @@ export type SceneQualityAxisEvent =
       visible: boolean;
     }>
   | Readonly<{ type: "travel-start"; now: number }>
-  | Readonly<{ type: "travel-end"; now: number }>
+  | Readonly<{
+      type: "travel-end";
+      now: number;
+      frames?: Readonly<{ total: number; late: number }>;
+    }>
   | Readonly<{ type: "travel-frame"; frameMs: number }>
   | Readonly<{ type: "force"; now: number; profile: SceneQualityProfile | null }>
+  | Readonly<{ type: "restore"; now: number; axes: SceneQualityAxes }>
   /** Every boot precondition has been met: the reveal completed, the shader
    * precompile returned, and the first settled window after initial camera
    * placement passed travel validation. */
@@ -325,6 +330,22 @@ export function reduceSceneQualityAxes(
   event: SceneQualityAxisEvent,
 ): SceneQualityAxisState {
   switch (event.type) {
+    case "restore":
+      return {
+        ...state,
+        axes: event.axes,
+        axisChangedAt: {
+          resolution: event.now,
+          effects: event.now,
+          content: event.now,
+        },
+        pendingBaseline: null,
+        pendingBaselineExpiresAt: null,
+        deferredContent: null,
+        lastChange: null,
+        ...clearedClocks,
+      };
+
     case "force": {
       if (!event.profile) return { ...state, forced: null };
       return {
@@ -392,31 +413,12 @@ export function reduceSceneQualityAxes(
     }
 
     case "travel-end": {
-      const { total, late } = state.travelFrames;
+      const { total, late } = event.frames ?? state.travelFrames;
       const overBudget =
         total > 0 && late / total > QUALITY_TRAVEL_DROPPED_RATIO;
-      // Give back what travel borrowed, here, rather than leaving it to the
-      // headroom climb.
-      //
-      // The drop at travel-start is unconditional and pre-emptive: two steps
-      // every navigation, no evidence required. The restore used to require a
-      // headroom verdict, which a main-thread-bound machine never produces —
-      // so every navigation cost two more steps permanently. Measured on an
-      // M5 Max at `res 3/11` while CPU bound, which is four travels' worth of
-      // borrowing and no repayment, on an axis that cannot help a main-thread
-      // problem in the first place.
-      //
-      // A travel that genuinely ran over budget is not ignored; it is counted,
-      // and three in a row still earn a content step at rest.
-      const restored =
-        state.preTravelStep == null
-          ? state.axes.resolutionStep
-          : Math.max(state.axes.resolutionStep, state.preTravelStep);
       return {
         ...state,
         travelling: false,
-        axes: { ...state.axes, resolutionStep: restored },
-        preTravelStep: null,
         // Evidence about travel is not evidence about rest, so the count only
         // earns the right to step content down once it repeats.
         consecutiveOverBudgetTravels: overBudget
@@ -424,10 +426,6 @@ export function reduceSceneQualityAxes(
           : 0,
         settledAt: event.now,
         travelFrames: { total: 0, late: 0 },
-        axisChangedAt:
-          restored === state.axes.resolutionStep
-            ? state.axisChangedAt
-            : { ...state.axisChangedAt, resolution: event.now },
         ...clearedClocks,
       };
     }
@@ -440,10 +438,11 @@ export function reduceSceneQualityAxes(
       // Neither is evidence, so neither is consumed.
       if (!state.booted) return state;
 
-      // A window that overlaps travel, or the validation delay after it, is
-      // not trustworthy evidence about rest.
-      if (state.travelling) return state;
+      // A window inside travel may lower effects or request a later content
+      // change, but it is never rest evidence. Once travel ends, wait until a
+      // complete clean window has replaced it before acting at rest.
       if (
+        !state.travelling &&
         state.settledAt != null &&
         now - state.settledAt < QUALITY_TRAVEL_VALIDATION_MS
       )
@@ -451,6 +450,41 @@ export function reduceSceneQualityAxes(
 
       const constraint = classifySceneFrameConstraint(metrics);
       let next = withClocks(state, constraint, now);
+
+      if (next.travelling) {
+        if (next.forced) return next;
+        if (
+          constraint === "gpu" &&
+          axisReady(
+            next,
+            "effects",
+            next.gpuSince,
+            now,
+            QUALITY_EFFECTS_FALL_MS,
+          )
+        ) {
+          const tier = lowerTier(SCENE_EFFECTS_TIERS, next.axes.effects);
+          if (tier)
+            return {
+              ...next,
+              axes: { ...next.axes, effects: tier },
+              axisChangedAt: moved(next, "effects", now),
+              lastChange: {
+                axis: "effects",
+                direction: "down",
+                reason: "pressure",
+              },
+            };
+        }
+        if (
+          constraint === "cpu" &&
+          axisReady(next, "content", next.cpuSince, now, QUALITY_CONTENT_FALL_MS)
+        ) {
+          const tier = lowerTier(SCENE_CONTENT_TIERS, next.axes.content);
+          if (tier) return { ...next, deferredContent: tier };
+        }
+        return next;
+      }
 
       // A settled window is the readiness test for applying a deferred
       // content change: a measurement question about whether the sample can
@@ -546,25 +580,36 @@ export function reduceSceneQualityAxes(
       const dwellElapsed =
         now - next.axisChangedAt.resolution >= QUALITY_RESOLUTION_DWELL_MS;
 
-      if (constraint === "gpu" || constraint === "cpu") {
-        // Resolution answers GPU pressure and nothing else.
-        //
-        // Not a heuristic — a pixel count cannot touch the main thread. Draw
-        // calls, matrix updates, culling, and every line of JS are identical
-        // at 0.6x and at 1.75x; only fragment work changes. The measurement
-        // agreed before the reasoning did: a 61 percent pixel cut bought
-        // 0.19 milliseconds on a main-thread-bound machine.
-        //
-        // It used to be spent on CPU pressure too, giving up after two
-        // unhelpful steps. Two steps is not free. Each one is a blurrier
-        // scene, and since the composer has to be resized to match (see
-        // ComposerPixelRatio in Effects.tsx) each one also reallocates every
-        // render target in the postprocessing chain — hundreds of megabytes
-        // at desktop resolution. Paying that twice to re-derive a number
-        // already known made the scene both worse-looking and slower.
-        const resolutionWorthTrying =
-          next.axes.resolutionStep > 0 && constraint === "gpu";
-        if (resolutionWorthTrying) {
+      // Travel borrowed resolution without evidence. Repay it after travel
+      // validation, one target reallocation per dwell. CPU pressure does not
+      // stop repayment because pixels cannot relieve it; GPU pressure does.
+      if (next.preTravelStep != null) {
+        const target = Math.min(
+          SCENE_RESOLUTION_MAX_STEP,
+          next.preTravelStep,
+        );
+        if (next.axes.resolutionStep >= target) {
+          next = { ...next, preTravelStep: null };
+        } else if (constraint === "gpu") {
+          next = { ...next, preTravelStep: null };
+        } else if (dwellElapsed) {
+          const step = Math.min(target, next.axes.resolutionStep + 1);
+          return {
+            ...next,
+            axes: { ...next.axes, resolutionStep: step },
+            axisChangedAt: moved(next, "resolution", now),
+            preTravelStep: step >= target ? null : target,
+            lastChange: {
+              axis: "resolution",
+              direction: "up",
+              reason: "travel-restore",
+            },
+          };
+        }
+      }
+
+      if (constraint === "gpu") {
+        if (next.axes.resolutionStep > 0) {
           if (blockedAxis("resolution")) return next;
           // A dwell that has not elapsed defers the whole decision rather
           // than passing the turn to a slower axis: a dwell is a short wait,
@@ -587,25 +632,16 @@ export function reduceSceneQualityAxes(
           };
         }
 
-        // Only resolution actually sitting at its floor passes the turn on.
+        // Only resolution actually sitting at its floor passes GPU pressure
+        // to the effects axis.
         if (next.forced) return next;
 
-        // Effects answer BOTH constraints, deliberately.
-        //
-        // Each composer pass is main-thread submission as well as GPU work,
-        // and draw submission measured about a quarter of busy main-thread
-        // time. More importantly, gating effects on GPU pressure alone made
-        // the content tier unreachable: content may only move once effects
-        // sit at their lowest, and a main-thread-bound phone never produces a
-        // GPU-bound window, so effects never fell and content never followed.
-        // The visible-lever ordering is the part worth keeping; the
-        // constraint-typing of this rung is not.
         if (
           !blockedAxis("effects") &&
           axisReady(
             next,
             "effects",
-            constraint === "gpu" ? next.gpuSince : next.cpuSince,
+            next.gpuSince,
             now,
             QUALITY_EFFECTS_FALL_MS,
           )
@@ -626,13 +662,14 @@ export function reduceSceneQualityAxes(
             };
         }
 
+        return next;
+      }
+
+      if (constraint === "cpu") {
+        if (next.forced || blockedAxis("content")) return next;
         if (
-          constraint === "cpu" &&
-          !blockedAxis("content") &&
           axisReady(next, "content", next.cpuSince, now, QUALITY_CONTENT_FALL_MS)
         ) {
-          // Effects at their lowest is what passes the turn to content.
-          if (next.axes.effects !== SCENE_EFFECTS_TIERS[0]) return next;
           const tier = lowerTier(SCENE_CONTENT_TIERS, next.axes.content);
           if (tier)
             return {
@@ -712,34 +749,15 @@ export function reduceSceneQualityAxes(
           dwellElapsed &&
           next.axes.resolutionStep < SCENE_RESOLUTION_MAX_STEP
         ) {
-          // Travel is evidence about travel, not about rest, so a restore
-          // after travel never climbs past the remembered step on its own.
-          const restoring = next.preTravelStep != null;
-          const cap = restoring
-            ? Math.min(SCENE_RESOLUTION_MAX_STEP, next.preTravelStep!)
-            : SCENE_RESOLUTION_MAX_STEP;
-          if (next.axes.resolutionStep >= cap)
-            return restoring ? { ...next, preTravelStep: null } : next;
-          // Restoring after travel jumps; climbing after pressure steps.
-          //
-          // The difference is whether the target is known good. A pre-travel
-          // step was sustainable seconds ago on this same scene, so walking
-          // back to it one rung at a time is a probe with nothing to learn —
-          // and every rung is a full composer reallocation, hundreds of
-          // megabytes at desktop resolution. Climbing out of real pressure
-          // has no such guarantee: the ceiling may be exactly what the device
-          // could not sustain, so it is approached a rung at a time and the
-          // descent stays available if a rung proves too expensive.
-          const step = restoring ? cap : next.axes.resolutionStep + 1;
+          const step = next.axes.resolutionStep + 1;
           return {
             ...next,
             axes: { ...next.axes, resolutionStep: step },
             axisChangedAt: moved(next, "resolution", now),
-            preTravelStep: step >= cap && restoring ? null : next.preTravelStep,
             lastChange: {
               axis: "resolution",
               direction: "up",
-              reason: restoring ? "travel-restore" : "headroom",
+              reason: "headroom",
             },
           };
         }
@@ -751,15 +769,4 @@ export function reduceSceneQualityAxes(
     default:
       return state;
   }
-}
-
-/** Request a content tier while travel may be in progress. Content never
- * changes mid-travel, but a change asked for during one is held rather than
- * discarded, and applied at the first settled window afterwards. */
-export function requestContentTier(
-  state: SceneQualityAxisState,
-  tier: SceneContentTier,
-): SceneQualityAxisState {
-  if (!state.travelling) return state;
-  return { ...state, deferredContent: tier };
 }

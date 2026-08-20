@@ -233,7 +233,6 @@ type ProfileDefinition = Readonly<{
   farGrassShader: "full" | "simplified";
   grounding: boolean;
   wingBlurSamples: 0 | 1 | 3 | 5;
-  suspendOffscreenWildlife: boolean;
   composer: "full" | "finish";
   bloom: boolean;
   bloomLevels: number;
@@ -270,7 +269,6 @@ export const SCENE_QUALITY_DEFINITIONS: Readonly<
     farGrassShader: "full",
     grounding: true,
     wingBlurSamples: 5,
-    suspendOffscreenWildlife: false,
     composer: "full",
     bloom: true,
     bloomLevels: 10,
@@ -299,7 +297,6 @@ export const SCENE_QUALITY_DEFINITIONS: Readonly<
     farGrassShader: "full",
     grounding: true,
     wingBlurSamples: 3,
-    suspendOffscreenWildlife: false,
     composer: "full",
     bloom: true,
     bloomLevels: 8,
@@ -328,7 +325,6 @@ export const SCENE_QUALITY_DEFINITIONS: Readonly<
     farGrassShader: "simplified",
     grounding: true,
     wingBlurSamples: 3,
-    suspendOffscreenWildlife: false,
     composer: "full",
     bloom: true,
     bloomLevels: 6,
@@ -357,7 +353,6 @@ export const SCENE_QUALITY_DEFINITIONS: Readonly<
     farGrassShader: "simplified",
     grounding: true,
     wingBlurSamples: 1,
-    suspendOffscreenWildlife: false,
     composer: "full",
     bloom: true,
     bloomLevels: 5,
@@ -386,7 +381,6 @@ export const SCENE_QUALITY_DEFINITIONS: Readonly<
     farGrassShader: "simplified",
     grounding: false,
     wingBlurSamples: 0,
-    suspendOffscreenWildlife: true,
     composer: "finish",
     bloom: true,
     bloomLevels: 4,
@@ -539,6 +533,9 @@ export function resolveSceneQualityPlan({
       ? effects.depthOfField
       : !overrides.skipDepthOfField;
   const bloom = effects.bloom && overrides?.skipBloom !== true;
+  const resolvedContentTier =
+    contentTier ?? CONTENT_TIER_BY_PROFILE[profile];
+  const content = SCENE_CONTENT_DEFINITIONS[resolvedContentTier];
   const customOverrides =
     hasCustomOverrides ??
     Boolean(
@@ -590,7 +587,7 @@ export function resolveSceneQualityPlan({
     environment: {
       meadowDensity: definition.meadowDensity,
       meadowRung: definition.meadowRung,
-      contentTier: contentTier ?? CONTENT_TIER_BY_PROFILE[profile],
+      contentTier: resolvedContentTier,
       petals: definition.petals,
       dust: definition.dust,
       cloudDetail: definition.cloudDetail,
@@ -603,7 +600,7 @@ export function resolveSceneQualityPlan({
       grounding: definition.grounding,
     },
     butterflies: { wingBlurSamples: definition.wingBlurSamples },
-    wildlife: { suspendOffscreen: definition.suspendOffscreenWildlife },
+    wildlife: { suspendOffscreen: content.suspendOffscreenWildlife },
     backgroundSimulation: {
       suspendSettledProps: overrides?.suspendSettledPropWork !== false,
       pausePrewarmDuringTravel: overrides?.pausePrewarmDuringTravel !== false,
@@ -633,17 +630,10 @@ export const QUALITY_CPU_BOUND_MS = SCENE_FRAME_BUDGET_MS * 0.7;
  * the bottleneck: under 40% of budget, while frames still arrive late. */
 export const QUALITY_GPU_BOUND_CPU_MS = SCENE_FRAME_BUDGET_MS * 0.4;
 export const QUALITY_GPU_BOUND_P95_MS = SCENE_FRAME_BUDGET_MS * 1.25;
-/** Headroom is evidence to climb on, so it is stricter than "not failing":
- * half the budget spent, and almost nothing missed. */
-/** Share of the frame on the main thread that reads as CPU-bound regardless
- * of absolute cost. Closes the band between the absolute CPU and GPU bounds,
- * where a frame dominated by JS used to get no verdict at all. */
-export const QUALITY_CPU_BOUND_SHARE = 0.6;
 /** The one dropped-frame line, used in both directions. Above it the scene is
- * under pressure and something should get cheaper; below it there is nothing
- * to fix and quality may climb. Deliberately a single number: every ratchet
- * this system has had came from a gap between a decline threshold and a
- * higher recovery bar. */
+ * under pressure and something may need to get cheaper. This is deliberately
+ * separate from the stricter headroom line: a small amount of scheduling
+ * noise is neither evidence to degrade nor evidence to recover. */
 export const QUALITY_PRESSURE_DROPPED_RATIO = 0.08;
 /** How far past the budget a frame interval must run before it is evidence of
  * pressure rather than of a refresh rate. A vsync-locked 60 Hz display sits
@@ -653,6 +643,7 @@ export const QUALITY_PRESSURE_P95_MULTIPLIER = 1.25;
 /** Main-thread cost below which a frame that is not failing has room to
  * spare. Cost, not interval: see classifySceneFrameConstraint. */
 export const QUALITY_HEADROOM_CPU_MS = SCENE_FRAME_BUDGET_MS * 0.5;
+export const QUALITY_HEADROOM_DROPPED_RATIO = 0.02;
 
 export const QUALITY_SAMPLE_WINDOW_MS = 2_000;
 export const QUALITY_SAMPLE_INTERVAL_MS = 250;
@@ -695,6 +686,20 @@ export type SceneQualityMetrics = Readonly<{
    * null. Null must leave every classification behaving exactly as it would
    * without the extension. */
   gpuMs: number | null;
+  /**
+   * Median frame interval and median main-thread cost over the same window.
+   *
+   * Optional so existing literals keep compiling, but always populated by
+   * `summariseSceneFrameWindow`. They exist because a 95th percentile cannot
+   * tell a scene that is uniformly slow from one that is fine with a brutal
+   * tail, and those want opposite responses: sustained load wants cheaper
+   * tiers, occasional hitches want the hitch found and removed. Measured on a
+   * phone: p95 323 ms with only 10.3 % of frames past the dropped line, which
+   * means roughly nine frames in ten were comfortable and the controller drove
+   * every axis to its floor anyway.
+   */
+  p50?: number;
+  cpuP50?: number;
 }>;
 
 /** The three axes quality moves on, each with its own time constant.
@@ -938,6 +943,8 @@ export function summariseSceneFrameWindow(
     sampleCount: sorted.length,
     cpuMs: percentileOf(sortedCpu, 0.95),
     gpuMs,
+    p50: percentileOf(sorted, 0.5),
+    cpuP50: percentileOf(sortedCpu, 0.5),
   };
 }
 
@@ -978,23 +985,15 @@ export function classifySceneFrameConstraint(
   // ever satisfy — it would have climbed on 120 Hz hardware and never once on
   // 60 Hz.
   if (!pressured)
-    return cpuMs < QUALITY_HEADROOM_CPU_MS ? "headroom" : "unknown";
+    return cpuMs < QUALITY_HEADROOM_CPU_MS &&
+      droppedFrameRatio < QUALITY_HEADROOM_DROPPED_RATIO
+      ? "headroom"
+      : "unknown";
 
   if (cpuMs > QUALITY_CPU_BOUND_MS) return "cpu";
   const gpuTerm = gpuMs ?? p95;
   if (cpuMs < QUALITY_GPU_BOUND_CPU_MS && gpuTerm > QUALITY_GPU_BOUND_P95_MS)
     return "gpu";
-  // Last, so this can only turn a former "unknown" into a verdict and never
-  // outrank the two absolute tests above.
-  //
-  // Absolute cost alone left a dead band, and real hardware sat in it: a
-  // measured frame of 11.0 ms carrying 9.7 ms of main thread is 88 % CPU and
-  // returned "unknown", because 9.7 is under the 11.67 ms CPU bound and over
-  // the 6.67 ms ceiling that would have called it GPU. With no verdict the
-  // controller could neither choose an axis nor arm the "resolution is not
-  // helping" give-up, so it went on buying pixels back from an idle GPU.
-  const frameMs = Math.max(p95, cpuMs);
-  if (frameMs > 0 && cpuMs / frameMs >= QUALITY_CPU_BOUND_SHARE) return "cpu";
   return "unknown";
 }
 

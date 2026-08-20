@@ -42,6 +42,9 @@ describe("coarse-pointer ownership", () => {
     expect(touchLayer).toContain("reduceTouchGesture");
     expect(touchLayer).toContain("runSceneInteractionActivation");
     expect(touchLayer).toContain(
+      'touchWorldRef.interactionPointerType = "touch"',
+    );
+    expect(touchLayer).toContain(
       'addEventListener("lostpointercapture", onPointerCancel',
     );
     expect(grabbable).toContain('if (event.pointerType === "touch") return;');
@@ -56,6 +59,13 @@ describe("coarse-pointer ownership", () => {
       'import TouchInteractionLayer from "./input/TouchInteractionLayer"',
     );
     expect(canvas.match(/<TouchInteractionLayer \/>/g) ?? []).toHaveLength(1);
+  });
+
+  it("skips scene-wide hover raycasts for coarse touch moves", () => {
+    expect(canvas).toContain("shouldSkipSceneHoverRaycast");
+    expect(canvas).toContain('event as PointerEvent).pointerType === "touch"');
+    expect(canvas).toContain("events={pointerEvents}");
+    expect(canvas).toContain("onPointerMove(event)");
   });
 
   it("does not cover the world with discovery-copy pills", () => {

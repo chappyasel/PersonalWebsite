@@ -57,6 +57,10 @@ const home = fs.readFileSync(
   new URL("../StacksHome.tsx", import.meta.url),
   "utf8",
 );
+const staticWorld = fs.readFileSync(
+  new URL("./staticWorld.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("scene performance integration", () => {
   it("hides only real lights while retaining every practical-light rig", () => {
@@ -125,33 +129,66 @@ describe("scene performance integration", () => {
     );
   });
 
-  it("guards background prewarming and the settled-prop fast path", () => {
+  it("freezes only explicit static roots and manually updates the moving sky", () => {
+    expect(primitives).toContain(
+      '<StaticWorldRoot id={`shelf-structure:${toneSeed ?? "shared"}`}>',
+    );
+    expect(meadow).toContain('<StaticWorldRoot id="meadow-geometry">');
+    expect(grabbable).not.toContain("StaticWorldRoot");
+    expect(staticWorld).toContain("object.matrixAutoUpdate = false");
+    expect(staticWorld).toContain("object.matrixWorldAutoUpdate = false");
+    expect(staticWorld).toContain("findFrozenStaticWorldMutation");
+    expect(environment).toContain("updateManualWorldMatrix(domeRef.current)");
+    expect(environment).toContain("matrixWorldAutoUpdate={false}");
+  });
+
+  it("mounts diagnostic sweeps only after an explicit request", () => {
+    expect(canvas).toContain("{diagnosticsRequested ? (");
+    expect(canvas).toContain("<StaticWorldInvariantProbe />");
+    expect(scene).toContain(
+      'process.env.NODE_ENV === "development" && diagnosticsRequested',
+    );
+  });
+
+  it("shows diagnostic timing without trusting it for automatic quality", () => {
+    expect(canvas).toContain("setLiveMetrics(metrics)");
+    expect(canvas).toContain(
+      "frames.current.some((frame) => frame.instrumented)",
+    );
+    expect(canvas).toContain(
+      "!document.hidden && !qualityControls.frozen && !instrumented",
+    );
+  });
+
+  it("guards preview warming and the settled-prop fast path", () => {
     expect(scene).toContain("scenePrewarmDeferred()");
-    expect(scene).toContain("prefetchSlug");
-    expect(scene).toContain('cache: "force-cache"');
-    expect(scene).toContain("isWorldRevealed()");
+    expect(scene).toContain("useTexture.preload(url)");
+    expect(scene).not.toContain("mastersByUnit");
+    expect(scene).not.toContain('cache: "force-cache"');
     expect(canvas).toContain("setSceneTraveling(true)");
     expect(canvas).toContain("scenePrewarmDeferred()");
     expect(grabbable).toContain("shouldSuspendSettledPropFrame");
   });
 
-  it("loads photo masters behind the boot screen without remounting previews", () => {
+  it("loads only explicitly authored photo details outside the boot manager", () => {
     expect(litImage).toContain("new THREE.LoadingManager()");
     expect(litImage).toContain("sceneHdPhotosDisabled(window.location.search)");
-    expect(scene).toContain("sceneHdPhotosDisabled(window.location.search)");
-    expect(scene).toContain("!detailsDisabled");
+    expect(litImage).toContain("if (!detailUrl || detailsDisabled");
+    expect(litImage).not.toContain("detailUrl ?? url");
+    expect(scene).not.toContain("scenePhotoManifestMasterUrl");
     expect(litImage).toContain("previewTexture={previewTexture}");
     expect(litImage).toContain("detailTexture={detailTexture}");
     expect(litImage).not.toContain("<Suspense fallback={preview}>");
     expect(litImage).not.toContain("subscribeWorldPhase");
   });
 
-  it("crossfades photo masters over previews instead of replacing the map", () => {
-    expect(litImage).toContain("PHOTO_DETAIL_FADE_SECONDS");
-    expect(litImage).toContain("detailFadeAlpha");
-    expect(litImage).toContain("useFrame");
-    expect(litImage).toContain("transparent");
-    expect(litImage).not.toContain("detailTexture ?? previewTexture");
+  it("uses one photo mesh and no per-photo frame subscriber", () => {
+    expect(litImage).toContain("detailTexture ?? previewTexture");
+    expect(litImage).not.toContain("useFrame");
+    expect(litImage).not.toMatch(
+      /<meshStandardMaterial[\s\S]*?\btransparent\b[\s\S]*?\/>/,
+    );
+    expect(litImage.match(/<mesh\b/g)).toHaveLength(1);
   });
 
   it("isolates browser glass and each expensive post effect", () => {
@@ -202,16 +239,19 @@ describe("scene performance integration", () => {
     expect(diagnostics).toContain("performanceSettings.virtualizeUnitWork");
   });
 
-  it("resolves one complete policy and queues travel declines in its reducer", () => {
+  it("resolves one axis-driven policy and records travel in its reducer", () => {
     expect(canvas).toContain("resolveSceneQualityPlan({");
     expect(canvas).toContain(
       "narrowViewport: viewport.width < STACKS_DESKTOP_MIN_WIDTH",
     );
-    expect(canvas).toContain("reduceSceneQualityAdaptation");
+    expect(canvas).toContain("reduceSceneQualityAxes");
     expect(canvas).toContain(
       "<AdaptiveQualityProbe onSample={onQualitySample}",
     );
-    expect(canvas).toContain('type: "movement"');
+    expect(canvas).toContain('{ type: "travel-start", now }');
+    expect(canvas).toContain(
+      'contentTier: mode === "auto" ? axisState.axes.content : undefined',
+    );
     expect(canvas).toContain("plan={plan}");
   });
 
@@ -224,7 +264,7 @@ describe("scene performance integration", () => {
     expect(canvas).toContain("cameraYawDeg");
     expect(canvas).toContain("cameraLookLagX");
     expect(canvas).toContain("visibleUnits");
-    expect(canvas).toContain("metrics: adaptation.metrics");
+    expect(canvas).toContain("metrics: liveMetrics");
     expect(canvas).toContain("physicalPixels: plan.physicalPixels");
     expect(home).toContain('<Profiler id="canvas-react"');
     expect(home).toContain('<Profiler id="placard"');

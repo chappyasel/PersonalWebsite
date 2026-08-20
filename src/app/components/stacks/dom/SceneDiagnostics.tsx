@@ -5,6 +5,7 @@ import {
   sceneDebugOverlayPatches,
   sceneDebugOverlayState,
 } from "../scene/diagnosticsOverlayControls";
+import { requestDevHooks } from "../scene/devHooks";
 import {
   insectDiagnosticsController,
   summarizeInsectPerchDiagnostics,
@@ -960,8 +961,10 @@ function DiagnosticsOverview({
               and hiding it makes a booting scene look like a broken one. */}
           <strong>
             {runtime
-              ? `${runtime.forcedProfile ?? runtime.plan.profile}${
-                  runtime.forcedProfile ? " (forced)" : ""
+              ? `${
+                  runtime.forcedProfile
+                    ? `${runtime.forcedProfile} (forced)`
+                    : "Auto"
                 } · res ${runtime.axes.resolutionStep}/11`
               : `${qualityControls.mode} · scene not mounted`}
           </strong>
@@ -1011,6 +1014,17 @@ function DiagnosticsOverview({
                     : ` · ${metrics.gpuMs.toFixed(1)} ms GPU`
                 } · ${CONSTRAINT_LABEL[runtime?.constraint ?? "unknown"]}`
               : "No main-thread cost yet"}
+          </small>
+          {/* The median beside the 95th percentile. A tail statistic alone
+              cannot tell uniform slowness from a comfortable scene with
+              occasional catastrophic frames, and the right response differs:
+              cheaper tiers for the first, finding the hitch for the second. */}
+          <small>
+            {metrics?.p50 == null
+              ? "No median yet"
+              : `median ${metrics.p50.toFixed(1)} ms frame · ${(
+                  metrics.cpuP50 ?? 0
+                ).toFixed(1)} ms main thread`}
           </small>
           {/* World-matrix traversal, broken out of main-thread cost. Three
               recomputes every object's matrixWorld each frame unless told
@@ -1176,6 +1190,7 @@ export default function SceneDiagnostics({
       )
         return;
       event.preventDefault();
+      if (!open) requestDevHooks();
       if (!open && traceStatus.active) window.__stacks?.trace("stop");
       setOpen((current) => {
         if (current) requestAnimationFrame(() => launcher.current?.focus());
@@ -1194,6 +1209,7 @@ export default function SceneDiagnostics({
   };
 
   const toggleConsole = () => {
+    if (!open) requestDevHooks();
     if (!open && traceStatus.active) window.__stacks?.trace("stop");
     setOpen((current) => !current);
   };

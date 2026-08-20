@@ -31,9 +31,9 @@ _Avoid_: Device class, input mode
 
 **Interaction Profile** — the interaction contract selected from the pointer
 actually in use. Fine pointers receive hover previews and wheel/trackpad
-travel; on a narrow screen their Peek Sheet uses native blur. Coarse pointers
-receive Touch Focus and direct swipes; their narrow Peek Sheet uses opaque
-paper. These choices remain independent of the current Presentation Profile.
+travel. Coarse pointers receive Touch Focus and direct swipes. Narrow Peek
+Sheets use native blur for both; surface treatment is not an input decision.
+These choices remain independent of the current Presentation Profile.
 _Avoid_: Mobile mode, desktop mode, user-agent class
 
 **Capability Profile** — the rendering budget selected from observed runtime
@@ -259,10 +259,13 @@ owner. Movable-only scenery and quiet easter eggs do not receive one.
 _Avoid_: Tooltip, hover label
 
 **Touch Focus** — the persistent mobile selection established by the first tap
-on an Identity Prop. It reveals the prop's outcome before any Door navigation
-or explicit local action occurs and gives a movable-only prop a persistent
-selected state without inventing a Door Label. A subsequent tap on either an
-actionable prop or its Door Label commits the same role-specific activation.
+on a discrete authored prop. Every standalone object participates, including
+fixed furniture and seam plants; structural systems such as shelves, ground,
+grass, and sky do not compete for focus. It reveals the prop's outcome before
+any Door navigation or explicit local action occurs and gives a movable-only
+prop a persistent selected state without inventing a Door Label. A subsequent
+tap on either an actionable prop or its Door Label commits the same
+role-specific activation.
 It has no timeout and clears when focus transfers or the visitor changes
 context through background touch, World travel, rail navigation, or Peek Sheet
 expansion. Carrying does not count as that first tap. Normal release or browser
@@ -278,10 +281,10 @@ Touch Arbitration or carrying.
 _Avoid_: Inspection mode, unit travel, pinch zoom
 
 **Touch Arbitration** — the coarse-pointer decision made when contact begins
-on an active Identity Prop. A quick release establishes Touch Focus; movement
+on a discrete authored prop. A quick release establishes Touch Focus; movement
 before the hold threshold becomes a World Swipe with its full displacement;
 a stationary hold on any Movable Prop promotes the same contact into carrying.
-The exposed World outside active Identity Props retains its native swipe
+The exposed World outside authored props retains its native swipe
 behavior.
 _Avoid_: Long-press mode, global scroll lock
 
@@ -333,11 +336,11 @@ preserves scroll state and decoded media. Background preparation pauses while
 the World is moving; arrival must never compete with a speculative mount.
 _Avoid_: Travel-time mounting, idle work during travel, post-visit eviction
 
-**Paper Surface** — the narrow-layout placard material: an opaque, warm reading
-sheet with restrained fibers, edge highlights, and shadow. It intentionally
-hides the moving scene instead of approximating glass. Native browser blur
-remains an explicit diagnostic comparison and the wide-layout default.
-_Avoid_: Sampled scene copies, translucent fallback tint, live mobile blur
+**Paper Surface** — an explicit diagnostic comparison for the Placard: an
+opaque, warm reading sheet with restrained fibers, edge highlights, and
+shadow. Shipped narrow and wide Placards use native browser blur regardless of
+pointer type.
+_Avoid_: Sampled scene copies, input-selected surface treatment
 
 **Ambient Reading** — the expanded Peek Sheet state in which readable content
 owns touch while the World remains visibly alive behind it. Insects, lighting,
