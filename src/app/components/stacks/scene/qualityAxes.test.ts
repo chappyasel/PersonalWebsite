@@ -365,9 +365,25 @@ describe("effects and content time constants", () => {
   });
 });
 
+/** Travel borrows resolution only on a device that has shown GPU pressure,
+ * so a test that expects the borrow has to establish it. Set directly rather
+ * than held, to keep these tests about travel instead of re-testing the
+ * sampling path that would also move the axis on the way in. */
+const gpuPressured = (state = start()): SceneQualityAxisState => ({
+  ...state,
+  gpuSince: 0,
+});
+
+/** The counterpart: a device whose constraint is the main thread, where a
+ * pixel cut buys effectively nothing. */
+const cpuPressured = (state = start()): SceneQualityAxisState => ({
+  ...state,
+  cpuSince: 0,
+});
+
 describe("travel", () => {
   it("drops resolution by exactly two steps at travel start, in the same tick", () => {
-    const before = start();
+    const before = gpuPressured();
     const state = reduceSceneQualityAxes(before, {
       type: "travel-start",
       now: 1_000,
@@ -375,6 +391,60 @@ describe("travel", () => {
     expect(state.axes.resolutionStep).toBe(
       before.axes.resolutionStep - QUALITY_TRAVEL_RESOLUTION_DROP_STEPS,
     );
+  });
+
+  it("does not borrow resolution when the main thread is the constraint", () => {
+    // Pixels cannot relieve a busy main thread — measured at 0.19 ms for a 61
+    // percent cut — and every change resizes the drawing buffer, which the
+    // compositor can flash while reallocating. Spending it here was the
+    // sampling path's own rule being broken by the one caller exempt from it.
+    const before = cpuPressured();
+    const state = reduceSceneQualityAxes(before, {
+      type: "travel-start",
+      now: 1_000,
+    });
+    expect(state.axes.resolutionStep).toBe(before.axes.resolutionStep);
+    expect(state.travelling).toBe(true);
+  });
+
+  it("does not borrow resolution on a device with no verdict yet", () => {
+    const before = start();
+    expect(before.gpuSince).toBeNull();
+    const state = reduceSceneQualityAxes(before, {
+      type: "travel-start",
+      now: 1_000,
+    });
+    expect(state.axes.resolutionStep).toBe(before.axes.resolutionStep);
+  });
+
+  it("records no debt and restarts no dwell when it does not borrow", () => {
+    // A repayment for a loan never taken would walk resolution upward on its
+    // own, and restarting the dwell on an axis that did not move would let
+    // repeated travel hold it still for as long as the travelling lasted.
+    const before = cpuPressured();
+    const state = reduceSceneQualityAxes(before, {
+      type: "travel-start",
+      now: 1_000,
+    });
+    expect(state.preTravelStep).toBeNull();
+    expect(state.axisChangedAt.resolution).toBe(
+      before.axisChangedAt.resolution,
+    );
+    expect(state.lastChange).toBe(before.lastChange);
+  });
+
+  it("still counts an over-budget travel it declined to prepare for", () => {
+    // The after-the-fact path is what makes declining safe: a travel that
+    // really is too expensive is caught by its own frames.
+    let state = cpuPressured();
+    state = reduceSceneQualityAxes(state, { type: "travel-start", now: 1_000 });
+    for (let i = 0; i < 100; i += 1)
+      state = reduceSceneQualityAxes(state, {
+        type: "travel-frame",
+        frameMs: i < 30 ? 40 : 10,
+      });
+    state = reduceSceneQualityAxes(state, { type: "travel-end", now: 3_000 });
+    expect(state.consecutiveOverBudgetTravels).toBe(1);
   });
 
   it("changes no other axis at travel start", () => {
@@ -448,7 +518,7 @@ describe("travel", () => {
   });
 
   it("restores toward the remembered step and never above it", () => {
-    let state = start();
+    let state = gpuPressured();
     state = reduceSceneQualityAxes(state, { type: "travel-start", now: 1_000 });
     const during = state.axes.resolutionStep;
     state = reduceSceneQualityAxes(state, { type: "travel-end", now: 4_000 });
@@ -460,7 +530,7 @@ describe("travel", () => {
   });
 
   it("waits for travel validation and restores one resolution step per dwell", () => {
-    let state = start();
+    let state = gpuPressured();
     state = reduceSceneQualityAxes(state, { type: "travel-start", now: 1_000 });
     const during = state.axes.resolutionStep;
     state = reduceSceneQualityAxes(state, { type: "travel-end", now: 4_000 });

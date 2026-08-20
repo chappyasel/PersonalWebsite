@@ -380,23 +380,52 @@ export function reduceSceneQualityAxes(
       // cross-axis block: this is a scheduled adjustment to a known event,
       // not a response to measured pressure, so it carries no evidence the
       // other axes should wait on.
-      const step = Math.max(
-        0,
-        state.axes.resolutionStep - QUALITY_TRAVEL_RESOLUTION_DROP_STEPS,
-      );
+      //
+      // Borrow pixels only when pixels are what is short. The sampling path
+      // already refuses to spend resolution on anything but GPU pressure,
+      // because a pixel count cannot touch the main thread; taking it here
+      // regardless contradicted that rule on exactly the devices that can
+      // least afford it. Measured on a main-thread-bound profile, a 61
+      // percent pixel cut bought 0.19 ms.
+      //
+      // It is not free, either. Every change resizes the drawing buffer, and
+      // the compositor can drop the canvas layer for a frame while its
+      // backing store is reallocated — which on this page shows the near
+      // white paper behind the canvas. A transition did that at least twice,
+      // once down and once on repayment.
+      //
+      // A travel that really is too expensive is still caught, after the
+      // fact, by travel-end counting over-budget travels and content
+      // stepping down once the pattern repeats. That path costs nothing when
+      // the guess would have been wrong.
+      const borrow = state.gpuSince != null;
+      const step = borrow
+        ? Math.max(
+            0,
+            state.axes.resolutionStep - QUALITY_TRAVEL_RESOLUTION_DROP_STEPS,
+          )
+        : state.axes.resolutionStep;
+      const moved = step !== state.axes.resolutionStep;
       return {
         ...state,
         travelling: true,
         settledAt: null,
-        preTravelStep: state.preTravelStep ?? state.axes.resolutionStep,
+        // Only record a debt that was actually taken on, so repayment has
+        // nothing to do when nothing was borrowed.
+        preTravelStep: moved
+          ? (state.preTravelStep ?? state.axes.resolutionStep)
+          : state.preTravelStep,
         travelFrames: { total: 0, late: 0 },
         axes: { ...state.axes, resolutionStep: step },
         ...clearedClocks,
-        axisChangedAt: { ...state.axisChangedAt, resolution: event.now },
-        lastChange:
-          step === state.axes.resolutionStep
-            ? state.lastChange
-            : { axis: "resolution", direction: "down", reason: "travel-start" },
+        // An axis that did not move must not have its dwell restarted, or
+        // travelling repeatedly would hold resolution still indefinitely.
+        axisChangedAt: moved
+          ? { ...state.axisChangedAt, resolution: event.now }
+          : state.axisChangedAt,
+        lastChange: moved
+          ? { axis: "resolution", direction: "down", reason: "travel-start" }
+          : state.lastChange,
       };
     }
 
