@@ -37,7 +37,6 @@ export function subscribeLoadProgress(listener: () => void): () => void {
 
 export type WorldRevealReadiness = {
   assetsReady: boolean;
-  bootBookFacesReady: boolean;
   meadowReady: boolean;
   bootSequenceReady: boolean;
 };
@@ -46,30 +45,10 @@ export type WorldRevealReadiness = {
  * without mounting WebGL. */
 export function canRevealWorld({
   assetsReady,
-  bootBookFacesReady,
   meadowReady,
   bootSequenceReady,
 }: WorldRevealReadiness): boolean {
-  return assetsReady && bootBookFacesReady && meadowReady && bootSequenceReady;
-}
-
-let expectedBootBookFaces = new Set<string>();
-let settledBootBookFaces = new Set<string>();
-
-/** The async data bridge calls this before it notifies BootScreen, so even a
- * memory-cached SVG image cannot finish before the reveal gate expects it. */
-export function setExpectedBootBookFaces(keys: readonly string[]): void {
-  expectedBootBookFaces = new Set(keys);
-  settledBootBookFaces = new Set();
-}
-
-export function markBootBookFaceSettled(key: string): void {
-  if (!expectedBootBookFaces.has(key)) return;
-  settledBootBookFaces.add(key);
-}
-
-export function areBootBookFacesReady(): boolean {
-  return settledBootBookFaces.size >= expectedBootBookFaces.size;
+  return assetsReady && meadowReady && bootSequenceReady;
 }
 
 export type AssetLoadState = {
@@ -169,6 +148,23 @@ export function setWorldPhase(
   const root = document.documentElement;
   if (phase === null) delete root.dataset.world;
   else root.dataset.world = phase;
+  for (const listener of worldPhaseListeners) listener();
+}
+
+const worldPhaseListeners = new Set<() => void>();
+
+export function subscribeWorldPhase(listener: () => void): () => void {
+  worldPhaseListeners.add(listener);
+  return () => worldPhaseListeners.delete(listener);
+}
+
+/** Has the boot-to-world handoff finished? Read from the attribute the
+ * handoff already sets, so no second source of truth appears. Adaptive
+ * quality uses this to refuse to grade a device by the seconds when it was
+ * still parsing models and compiling shaders. */
+export function isWorldRevealed(): boolean {
+  if (typeof document === "undefined") return false;
+  return document.documentElement.dataset.world === "ready";
 }
 
 /** Was this load predicted warm by the pre-paint script? Read the attribute

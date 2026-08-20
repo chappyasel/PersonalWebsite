@@ -7,6 +7,11 @@
 import { rand } from "../theme";
 
 import { GOLF_COURSE_CENTER, golfCourseHeight } from "./golf/golfCourse";
+import {
+  SCENE_CONTENT_DEFINITIONS,
+  SCENE_FRAME_BUDGET_MS,
+  type SceneContentTier,
+} from "./quality";
 import { SEAT_POSE } from "./seated";
 import { SHELF_GEOMETRY, SHELF_UNDERSIDE } from "./shelfGeometry";
 import {
@@ -441,6 +446,135 @@ export const MEADOW_RUNG_FLOWERS = [
   MEADOW_FLOWER_TOTAL,
   MEADOW_FLOWER_TOTAL,
 ] as const;
+
+/** Instances one tile draws this frame. The dev density override beats the
+ * rung while it is set; otherwise the rung table alone decides.
+ *
+ * A content tier appears nowhere in this signature, and that absence is the
+ * point: a tier changes the triangles inside an instance, never how many
+ * instances exist. Coverage is the one geometry change that reads as a
+ * different meadow rather than a cheaper one. */
+export function meadowTileDrawCount(
+  rungCounts: readonly number[],
+  rung: 0 | 1 | 2 | 3,
+  density: number | null,
+) {
+  return density === null
+    ? rungCounts[rung]!
+    : Math.round(rungCounts[3]! * Math.min(1, Math.max(0, density)));
+}
+
+// ---------------------------------------------------------------------------
+// Content tiers. The rung dial above answers "how many tufts"; a content tier
+// answers "how many triangles inside one", and the two must not be confused.
+
+/** The far lawn already draws the 32-triangle LOD, and fog eats most of what
+ * it draws. Every content tier leaves it exactly there and spends its cut on
+ * the near lawn's 66-triangle tufts instead. */
+export const MEADOW_FAR_TUFT_LOD = 1;
+
+export type MeadowContentPlan = Readonly<{
+  nearTuftLod: 0 | 1 | 2;
+  farTuftLod: typeof MEADOW_FAR_TUFT_LOD;
+  terrainSegmentsX: number;
+  terrainSegmentsZ: number;
+  /** True binds the far lawn's one-sample wind variant to the near tiles as
+   * well — a material swap, not a second shader. */
+  nearGrassSimplified: boolean;
+}>;
+
+/** Resolve a content tier into the meadow's own vocabulary. */
+export function meadowContentPlan(tier: SceneContentTier): MeadowContentPlan {
+  const definition = SCENE_CONTENT_DEFINITIONS[tier];
+  return {
+    nearTuftLod: definition.nearTuftLod,
+    farTuftLod: MEADOW_FAR_TUFT_LOD,
+    terrainSegmentsX: definition.terrainSegmentsX,
+    terrainSegmentsZ: definition.terrainSegmentsZ,
+    nearGrassSimplified: definition.nearGrassShader === "simplified",
+  };
+}
+
+export type TerrainGeometryCache<T> = Readonly<{
+  has(tier: SceneContentTier): boolean;
+  peek(tier: SceneContentTier): T | undefined;
+  get(tier: SceneContentTier): T;
+  clear(dispose: (value: T) => void): void;
+}>;
+
+/** Build each tier's terrain mesh at most once, then keep it for the mount.
+ *
+ * The build is a per-vertex height/shade loop over tens of thousands of
+ * vertices plus `computeVertexNormals`, so returning to a tier the visitor
+ * has already seen must cost a pointer swap rather than a second loop. */
+export function createTerrainGeometryCache<T>(
+  build: (segmentsX: number, segmentsZ: number) => T,
+): TerrainGeometryCache<T> {
+  const cache = new Map<SceneContentTier, T>();
+  return {
+    has: (tier) => cache.has(tier),
+    peek: (tier) => cache.get(tier),
+    get(tier) {
+      const existing = cache.get(tier);
+      if (existing !== undefined) return existing;
+      const plan = meadowContentPlan(tier);
+      const created = build(plan.terrainSegmentsX, plan.terrainSegmentsZ);
+      cache.set(tier, created);
+      return created;
+    },
+    clear(dispose) {
+      for (const value of cache.values()) dispose(value);
+      cache.clear();
+    },
+  };
+}
+
+/** Consecutive settled frames inside the frame budget before a terrain build
+ * may run. */
+export const TERRAIN_BUILD_SETTLED_FRAMES = 3;
+/** …and the point at which waiting for them stops being prudent. A device
+ * that never offers three good frames is exactly the device that asked for
+ * the cheaper terrain, so an unbounded wait inverts the intent. Measured
+ * across continuous rest: a travel restarts the clock. */
+export const TERRAIN_BUILD_MAX_WAIT_MS = 5_000;
+
+export type TerrainBuildGate = Readonly<{
+  goodFrames: number;
+  restingSince: number | null;
+}>;
+
+export const IDLE_TERRAIN_BUILD_GATE: TerrainBuildGate = Object.freeze({
+  goodFrames: 0,
+  restingSince: null,
+});
+
+/** When a queued terrain build is allowed to run. Travel disarms the gate
+ * outright rather than merely not counting: a multi-millisecond stall during
+ * a traverse is the one stall guaranteed to be seen. */
+export function nextTerrainBuildGate(
+  gate: TerrainBuildGate,
+  {
+    pending,
+    travelling,
+    frameMs,
+    now,
+  }: { pending: boolean; travelling: boolean; frameMs: number; now: number },
+): Readonly<{ gate: TerrainBuildGate; build: boolean }> {
+  if (!pending || travelling)
+    return { gate: IDLE_TERRAIN_BUILD_GATE, build: false };
+  const restingSince = gate.restingSince ?? now;
+  const goodFrames =
+    Number.isFinite(frameMs) && frameMs <= SCENE_FRAME_BUDGET_MS
+      ? gate.goodFrames + 1
+      : 0;
+  const build =
+    goodFrames >= TERRAIN_BUILD_SETTLED_FRAMES ||
+    now - restingSince >= TERRAIN_BUILD_MAX_WAIT_MS;
+  return {
+    gate: build ? IDLE_TERRAIN_BUILD_GATE : { goodFrames, restingSince },
+    build,
+  };
+}
 
 // Authored unmown areas preserve the same instance count and keep grass taller
 // beneath furniture, where a mower could not reach. Their crest is narrow:

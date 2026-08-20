@@ -1,3 +1,7 @@
+import {
+  SCENE_DROPPED_FRAME_MULTIPLIER,
+  SCENE_FRAME_BUDGET_MS,
+} from "./frameBudget";
 import type { DurableQualityRung, QualityTransitionReason } from "./quality";
 
 export type QualityTransition = {
@@ -85,11 +89,19 @@ export class ScenePerformanceSampler {
     }
     // The 10th percentile filters occasional long frames while estimating the
     // display cadence. Clamp to common browser refresh limits.
+    //
+    // This is the one place an observed percentile is still allowed, because
+    // it answers "what is this display's refresh rate", which can only be
+    // learned by looking. It reports `refreshHz` and nothing else: a device
+    // must never get to define what counts as a dropped frame, which is the
+    // defect that made a steady 40 Hz read as healthy.
     const cadenceMs = Math.min(
       16.667,
       Math.max(8.333, percentile(sorted, 0.1)),
     );
-    const dropped = sorted.filter((ms) => ms > cadenceMs * 1.5).length;
+    const dropped = sorted.filter(
+      (ms) => ms > SCENE_FRAME_BUDGET_MS * SCENE_DROPPED_FRAME_MULTIPLIER,
+    ).length;
     const totalFrameMs = sorted.reduce((sum, ms) => sum + ms, 0);
     return {
       active: this.active,

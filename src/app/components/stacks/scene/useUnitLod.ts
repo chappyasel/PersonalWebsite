@@ -1,19 +1,28 @@
 "use client";
 
-// Proximity LOD with a sticky latch: textured content mounts when the unit
-// is the active one or a direct neighbor, and then STAYS mounted. v3's
-// symmetric unmount blanked units to big black slabs mid-travel while they
-// were still fully on screen (audit §1.3) — decoded-texture memory for the
-// whole traverse (~25 small textures) is far cheaper than that.
+// Proximity LOD with a delayed release. Textured content mounts when the unit
+// is active or adjacent, then remains resident long enough to leave the frame.
+// The old permanent latch was cheap for 256/512 px variants but would retain
+// about 104 MiB of full-resolution photo textures after a complete traverse.
 import { useEffect, useState } from "react";
 
 import { useStacks } from "../store";
 
+export const UNIT_TEXTURE_RELEASE_MS = 3_000;
+
 export function useUnitLod(index: number): boolean {
   const near = useStacks((s) => Math.abs(s.activeUnit - index) <= 1);
-  const [latched, setLatched] = useState(false);
+  const [resident, setResident] = useState(near);
   useEffect(() => {
-    if (near) setLatched(true);
+    if (near) {
+      setResident(true);
+      return;
+    }
+    const release = window.setTimeout(
+      () => setResident(false),
+      UNIT_TEXTURE_RELEASE_MS,
+    );
+    return () => window.clearTimeout(release);
   }, [near]);
-  return near || latched;
+  return near || resident;
 }

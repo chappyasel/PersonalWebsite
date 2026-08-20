@@ -1,17 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  areBootBookFacesReady,
   assetLoadComplete,
   canRevealWorld,
   isAssetLoadReady,
   isMeadowReady,
-  markBootBookFaceSettled,
   markMeadowReady,
   reportAssetLoadState,
   resetAssetLoadReady,
   resetMeadowReady,
-  setExpectedBootBookFaces,
 } from "./loading";
 
 describe("homepage world reveal gate", () => {
@@ -19,7 +16,6 @@ describe("homepage world reveal gate", () => {
     expect(
       canRevealWorld({
         assetsReady: true,
-        bootBookFacesReady: true,
         meadowReady: true,
         bootSequenceReady: false,
       }),
@@ -30,7 +26,6 @@ describe("homepage world reveal gate", () => {
     expect(
       canRevealWorld({
         assetsReady: true,
-        bootBookFacesReady: true,
         meadowReady: true,
         bootSequenceReady: true,
       }),
@@ -41,7 +36,6 @@ describe("homepage world reveal gate", () => {
     expect(
       canRevealWorld({
         assetsReady: false,
-        bootBookFacesReady: true,
         meadowReady: true,
         bootSequenceReady: true,
       }),
@@ -52,31 +46,10 @@ describe("homepage world reveal gate", () => {
     expect(
       canRevealWorld({
         assetsReady: true,
-        bootBookFacesReady: true,
         meadowReady: false,
         bootSequenceReady: true,
       }),
     ).toBe(false);
-  });
-
-  it("waits for every streamed boot cover face to settle", () => {
-    setExpectedBootBookFaces(["one", "two"]);
-    expect(areBootBookFacesReady()).toBe(false);
-    expect(
-      canRevealWorld({
-        assetsReady: true,
-        bootBookFacesReady: areBootBookFacesReady(),
-        meadowReady: true,
-        bootSequenceReady: true,
-      }),
-    ).toBe(false);
-
-    markBootBookFaceSettled("one");
-    expect(areBootBookFacesReady()).toBe(false);
-
-    markBootBookFaceSettled("two");
-    expect(areBootBookFacesReady()).toBe(true);
-    setExpectedBootBookFaces([]);
   });
 });
 

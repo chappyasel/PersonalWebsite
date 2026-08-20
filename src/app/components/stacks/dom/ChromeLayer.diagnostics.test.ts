@@ -34,6 +34,7 @@ describe("development diagnostics chrome", () => {
     expect(diagnosticsSource).toContain('"inspect"');
     expect(diagnosticsSource).toContain("Scene health");
     expect(diagnosticsSource).toContain("Scene overlays");
+    expect(diagnosticsSource).toContain("Authored camera depth");
     expect(diagnosticsSource).toContain("Meadow wind");
     expect(diagnosticsSource).toContain("Insect behavior");
     expect(diagnosticsSource).toContain("Physics runtime");
@@ -118,6 +119,17 @@ describe("development diagnostics chrome", () => {
     expect(diagnosticsSource).toContain('id="stacks-wind-speed"');
     expect(diagnosticsSource).toContain("meadowDiagnosticsController.update");
     expect(diagnosticsSource).toContain("Reset wind");
+  });
+
+  it("toggles authored camera depth from the Simulate view", () => {
+    expect(diagnosticsSource).toContain(
+      "cameraDepthDiagnosticsController.subscribe",
+    );
+    expect(diagnosticsSource).toContain(
+      "cameraDepthDiagnosticsController.setEnabled",
+    );
+    expect(diagnosticsSource).toContain("Authored camera depth");
+    expect(diagnosticsSource).toContain("Changes apply on the next frame");
   });
 
   it("exposes every negligible-impact optimization as an independent control", () => {

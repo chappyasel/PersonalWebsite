@@ -54,9 +54,14 @@ function compactMegapixels(value: number | null) {
   return value == null ? "–" : (value / 1_000_000).toFixed(1);
 }
 
+/** A null profile means the scene hooks are not installed, which is a
+ * misconfiguration rather than a slow frame. "Waiting" read as "hold on a
+ * moment" and never resolved, which is the worst of both: it hid a broken
+ * data source behind something that looked transient. Name the actual
+ * condition and the way out of it. */
 function profileLabel(profile: string | null) {
   return profile == null
-    ? "Waiting"
+    ? "NO SCENE HOOKS"
     : `${profile.charAt(0).toUpperCase()}${profile.slice(1)}`;
 }
 

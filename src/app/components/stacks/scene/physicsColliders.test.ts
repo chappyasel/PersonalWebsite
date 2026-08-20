@@ -23,6 +23,52 @@ function mesh(
   return value;
 }
 
+function roundedPhotoMesh() {
+  const width = 0.246;
+  const height = 0.35;
+  const depth = 0.008;
+  const radius = 0.003;
+  const epsilon = 0.00001;
+  const roundedRadius = radius - epsilon;
+  const shape = new THREE.Shape();
+  shape.absarc(epsilon, epsilon, epsilon, -Math.PI / 2, -Math.PI, true);
+  shape.absarc(
+    epsilon,
+    height - roundedRadius * 2,
+    epsilon,
+    Math.PI,
+    Math.PI / 2,
+    true,
+  );
+  shape.absarc(
+    width - roundedRadius * 2,
+    height - roundedRadius * 2,
+    epsilon,
+    Math.PI / 2,
+    0,
+    true,
+  );
+  shape.absarc(
+    width - roundedRadius * 2,
+    epsilon,
+    epsilon,
+    0,
+    -Math.PI / 2,
+    true,
+  );
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth: depth - radius * 2,
+    bevelEnabled: true,
+    bevelSegments: 8,
+    steps: 1,
+    bevelSize: radius - epsilon,
+    bevelThickness: radius,
+    curveSegments: 2,
+  });
+  geometry.center();
+  return new THREE.Mesh(geometry);
+}
+
 async function loadModel(name: string) {
   const bytes = fs.readFileSync(
     path.resolve(process.cwd(), `public/models/${name}.glb`),
@@ -39,6 +85,16 @@ async function loadModel(name: string) {
 }
 
 describe("physics collider extraction", () => {
+  it("keeps a rounded photo authored at the minimum collider thickness", () => {
+    const root = new THREE.Group();
+    root.add(roundedPhotoMesh());
+
+    const result = extractDynamicColliderBoxes(root);
+
+    expect(result.boxes).toHaveLength(1);
+    expect(result.boxes[0]!.halfExtents.z * 2).toBeCloseTo(0.008);
+  });
+
   it("preserves the local orientation of a rotated book", () => {
     const root = new THREE.Group();
     const book = mesh([0.18, 0.42, 0.06]);

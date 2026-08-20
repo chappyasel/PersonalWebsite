@@ -24,7 +24,6 @@ import {
 } from "./bookInteractions";
 import { registerSceneInteraction } from "./interactionRegistry";
 import PropLink, { type PropDestination } from "./links";
-import { useUnitFrame } from "./unitActivity";
 import { MOTH_LIGHT_PROFILES, registerMeadowLamp } from "./meadowLights";
 import {
   practicalGlowHaloEnabled,
@@ -39,6 +38,7 @@ import {
   SHELF_UNDERSIDE,
   shelfPerchOwnerId,
 } from "./shelfGeometry";
+import { useUnitFrame } from "./unitActivity";
 
 export type RowItem =
   | { kind: "spine"; x: number; w: number; h: number; color: string }
@@ -2196,7 +2196,7 @@ export function FrameRow({
   imageGrade = 0.08,
   grabbable = false,
 }: {
-  frames: { src: string; key: string; href?: string }[];
+  frames: { src: string; detailSrc?: string; key: string; href?: string }[];
   width: number;
   palette: Palette;
   textured?: boolean;
@@ -2216,7 +2216,7 @@ export function FrameRow({
   const setHovered = useStacks((s) => s.setHovered);
   return (
     <group>
-      {frames.map(({ src, key, href }, i) => {
+      {frames.map(({ src, detailSrc, key, href }, i) => {
         // Frames at 0.76 wide on 2.6-row slots leave ~0.1 air between them;
         // per-frame yaw/roll jitter + a z-stagger kill the edge-to-edge
         // "thumbnail band" read. The roll drops one bottom corner, so the
@@ -2248,6 +2248,7 @@ export function FrameRow({
               <React.Suspense fallback={null}>
                 <LitImage
                   url={src}
+                  detailUrl={detailSrc}
                   width={0.68}
                   height={0.4}
                   roughness={0.5}

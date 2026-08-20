@@ -1,3 +1,5 @@
+import { SCENE_FRAME_BUDGET_MS } from "./frameBudget";
+
 export type PerformanceTraceSession = Record<string, unknown>;
 
 export type PerformanceTraceRenderer = Readonly<{
@@ -364,10 +366,10 @@ export class ScenePerformanceTrace {
 
   report(): PerformanceTraceReport {
     const frames = this.orderedFrames();
-    const cadence = frames.map(({ frameMs }) => frameMs).sort((a, b) => a - b);
-    const targetFrameMs = rounded(
-      Math.min(16.667, Math.max(8.333, percentile(cadence, 0.1) || 16.667)),
-    );
+    // Absolute, not observed. A trace that graded a device against its own
+    // cadence would report a steady 40 Hz as meeting target, and would then
+    // disagree with the controller about the same frames.
+    const targetFrameMs = rounded(SCENE_FRAME_BUDGET_MS);
     const settledFrames = frames.filter(({ moving }) => !moving);
     const travelFrames = frames.filter(({ moving }) => moving);
     const settled = distribution(settledFrames, targetFrameMs);

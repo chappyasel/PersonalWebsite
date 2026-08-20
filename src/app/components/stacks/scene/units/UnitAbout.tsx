@@ -729,6 +729,7 @@ export default function UnitAbout({
           >
             <PortraitFrame
               src={proxied(PORTRAIT_SRC, coverWidth)}
+              detailSrc={proxied(PORTRAIT_SRC, 1080)}
               palette={palette}
               textured={textured}
             />

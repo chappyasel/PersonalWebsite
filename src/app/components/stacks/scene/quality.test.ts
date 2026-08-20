@@ -4,17 +4,27 @@ import {
   AUTO_SCENE_QUALITY_PROFILES,
   QUALITY_DECLINE_COOLDOWN_MS,
   QUALITY_DECLINE_SUSTAIN_MS,
-  QUALITY_RECOVERY_COOLDOWN_MS,
+  QUALITY_IGNORE_AFTER_TRANSITION_MS,
   QUALITY_RECOVERY_SUSTAIN_MS,
   QUALITY_SAFETY_FALLBACK_MS,
+  QUALITY_SAMPLE_INTERVAL_MS,
   QUALITY_TRAVEL_VALIDATION_MS,
   NARROW_VIEWPORT_DPR_CAP_BY_PROFILE,
+  SAFETY_BUDGET,
+  SCENE_CONTENT_DEFINITIONS,
+  SCENE_RESOLUTION_SCALE_FLOOR,
+  CONTENT_TIER_BY_PROFILE,
+  SCENE_FRAME_BUDGET_HZ,
+  SCENE_FRAME_BUDGET_MS,
   SCENE_QUALITY_DEFINITIONS,
   SCENE_QUALITY_PROFILES,
+  type SceneFrameSample,
   type SceneQualityAdaptationState,
   type SceneQualityMetrics,
   type SceneQualityProfile,
   bookCoverWidthForNeed,
+  classifySceneFrameConstraint,
+  summariseSceneFrameWindow,
   deriveRendererCapability,
   initialSceneQualityAdaptationState,
   qualityModeFromSearch,
@@ -22,7 +32,14 @@ import {
   reduceSceneQualityAdaptation,
   resolveSceneQualityPlan,
   sceneQualityStorageBucket,
+  rendererLooksWeak,
+  startingProfileForDevice,
 } from "./quality";
+import {
+  initialSceneQualityAxisState,
+  reduceSceneQualityAxes,
+  SCENE_RESOLUTION_MAX_STEP,
+} from "./qualityAxes";
 
 const good: SceneQualityMetrics = {
   targetFrameMs: 16.667,
@@ -30,6 +47,8 @@ const good: SceneQualityMetrics = {
   p95: 17,
   droppedFrameRatio: 0.02,
   sampleCount: 120,
+  cpuMs: 6,
+  gpuMs: null,
 };
 const slow: SceneQualityMetrics = {
   ...good,
@@ -200,6 +219,7 @@ describe("scene quality policy", () => {
       environment: {
         meadowDensity: 1,
         meadowRung: 3,
+        contentTier: "full",
         petals: 49,
         dust: true,
         cloudDetail: "full",
@@ -211,6 +231,7 @@ describe("scene quality policy", () => {
     expect(plan("showcase").environment).toEqual({
       meadowDensity: 1,
       meadowRung: 3,
+      contentTier: "full",
       petals: 18,
       dust: true,
       cloudDetail: "full",
@@ -419,7 +440,7 @@ describe("scene quality policy", () => {
         cssHeight: 844,
         deviceDpr: 3,
       }),
-    ).toBe("stacks-quality:v4:constrained:small");
+    ).toBe("stacks-quality:v5:constrained:small");
   });
 });
 
@@ -458,79 +479,6 @@ describe("scene quality adaptation", () => {
     expect(state.profile).toBe("showcase");
   });
 
-  it("declines after sustained pressure and skips two tiers when severe", () => {
-    let state = initialSceneQualityAdaptationState("showcase", 0);
-    state = sample(state, 1_000, slow);
-    state = sample(state, 1_000 + QUALITY_DECLINE_SUSTAIN_MS, slow);
-    expect(state.profile).toBe("balanced");
-
-    state = sample(state, state.ignoreUntil, severe);
-    state = sample(
-      state,
-      Math.max(
-        state.ignoreUntil + QUALITY_DECLINE_SUSTAIN_MS,
-        state.lastTransitionAt + QUALITY_DECLINE_COOLDOWN_MS,
-      ),
-      severe,
-    );
-    expect(state.profile).toBe("safety");
-    expect(state.transitionReason).toBe("severe-decline");
-  });
-
-  it("blocks another decline when the previous downgrade did not improve the signal", () => {
-    let state = initialSceneQualityAdaptationState("showcase", 0);
-    state = sample(state, state.ignoreUntil, slow);
-    state = sample(state, state.ignoreUntil + QUALITY_DECLINE_SUSTAIN_MS, slow);
-    expect(state.profile).toBe("balanced");
-
-    state = sample(state, state.ignoreUntil, slow);
-    state = sample(
-      state,
-      Math.max(
-        state.ignoreUntil + QUALITY_DECLINE_SUSTAIN_MS,
-        state.lastTransitionAt + QUALITY_DECLINE_COOLDOWN_MS,
-      ),
-      slow,
-    );
-    expect(state.profile).toBe("balanced");
-  });
-
-  it("enforces decline cooldowns", () => {
-    let state = initialSceneQualityAdaptationState("showcase", 0);
-    state = sample(state, 1_000, slow);
-    state = sample(state, 1_000 + QUALITY_DECLINE_SUSTAIN_MS, slow);
-    expect(state.profile).toBe("balanced");
-    state = sample(state, state.ignoreUntil, slow);
-    state = sample(
-      state,
-      state.lastTransitionAt + QUALITY_DECLINE_COOLDOWN_MS - 1,
-      slow,
-    );
-    expect(state.profile).toBe("balanced");
-  });
-
-  it("queues sustained travel pressure and requires settled confirmation", () => {
-    let state = initialSceneQualityAdaptationState("showcase", 0);
-    state = reduceSceneQualityAdaptation(state, {
-      type: "movement",
-      moving: true,
-      now: 1_000,
-    });
-    state = sample(state, 1_000, slow);
-    state = sample(state, 1_000 + QUALITY_DECLINE_SUSTAIN_MS, severe);
-    expect(state.profile).toBe("showcase");
-    expect(state.queuedDeclineSteps).toBe(2);
-    state = reduceSceneQualityAdaptation(state, {
-      type: "movement",
-      moving: false,
-      now: 3_000,
-    });
-    expect(state.profile).toBe("showcase");
-    state = sample(state, 3_000 + QUALITY_TRAVEL_VALIDATION_MS, severe);
-    expect(state.profile).toBe("efficient");
-    expect(state.transitionReason).toBe("travel-decline");
-  });
-
   it("does not ratchet Balanced to Safety from transient travel frames", () => {
     let state = initialSceneQualityAdaptationState("balanced", 0);
     state = reduceSceneQualityAdaptation(state, {
@@ -563,47 +511,60 @@ describe("scene quality adaptation", () => {
     });
   });
 
-  it("disarms sustained travel pressure when the settled window is healthy", () => {
+  // ADR #19 moved runtime adaptation to the three axes. The profile is now a
+  // cold-start estimate and a manual override, and these guard the seam: the
+  // ladder ran alongside the axes for a while, on its own thresholds, and the
+  // two contradicted each other in the overlay — `safety` next to full
+  // effects and full geometry, because the ladder owned the pixel budget and
+  // never told the axes it had bailed.
+  it("does not move the profile on frame evidence, however bad", () => {
     let state = initialSceneQualityAdaptationState("balanced", 0);
-    state = reduceSceneQualityAdaptation(state, {
-      type: "movement",
-      moving: true,
-      now: 1_000,
-    });
-    state = sample(state, 1_000, slow);
-    state = sample(state, 1_000 + QUALITY_DECLINE_SUSTAIN_MS, slow);
-    expect(state.queuedDeclineSteps).toBe(1);
-    state = reduceSceneQualityAdaptation(state, {
-      type: "movement",
-      moving: false,
-      now: 3_000,
-    });
-    state = sample(state, 3_000 + QUALITY_TRAVEL_VALIDATION_MS, good);
-    expect(state).toMatchObject({
-      profile: "balanced",
-      queuedDeclineSteps: 0,
-    });
+    for (let now = 1_000; now <= 120_000; now += 1_000)
+      state = sample(state, now, severe);
+    expect(state.profile).toBe("balanced");
+    expect(state.directRender).toBe(false);
+    expect(state.metrics).toEqual(severe);
   });
 
-  it("recovers repeatedly after sustained headroom with a 20-second cadence", () => {
-    let state = initialSceneQualityAdaptationState("safety", 0);
-    state = sample(state, 1_000, good);
-    state = sample(
-      state,
-      Math.max(
-        1_000 + QUALITY_RECOVERY_SUSTAIN_MS,
-        QUALITY_RECOVERY_COOLDOWN_MS,
-      ),
-      good,
-    );
+  it("does not climb while the window is still missing the budget", () => {
+    // `good` sits just over the sixtieth of a second, which is not a reason
+    // to degrade and not a reason to promote either.
+    let state = initialSceneQualityAdaptationState("efficient", 0);
+    for (let now = 1_000; now <= 120_000; now += 1_000)
+      state = sample(state, now, good);
     expect(state.profile).toBe("efficient");
-    state = sample(state, state.ignoreUntil, good);
-    state = sample(
-      state,
-      state.lastTransitionAt + QUALITY_RECOVERY_COOLDOWN_MS,
-      good,
-    );
+  });
+
+  it("climbs no further than the top of the automatic range", () => {
+    const spare = { ...good, p95: 9, cpuMs: 4, droppedFrameRatio: 0 };
+    let state = initialSceneQualityAdaptationState("safety", 0);
+    for (let now = 1_000; now <= 600_000; now += 1_000)
+      state = sample(state, now, spare);
+    expect(state.profile).toBe("showcase");
+  });
+
+  it("cannot reproduce the asymmetry that pinned a fast machine to the floor", () => {
+    // Measured on an M5 Max: 11.0 ms p95, 9.7 ms of it main thread, 4.8 %
+    // dropped. Under the old rules that hovered between an 8 % decline
+    // trigger and a 5 % recovery gate whose clock reset on any single sample
+    // over the line, so it fell three rungs and stayed there.
+    const hovering = { ...good, p95: 11.0, cpuMs: 9.7, droppedFrameRatio: 0.048 };
+    const blip = { ...hovering, droppedFrameRatio: 0.09 };
+    let state = initialSceneQualityAdaptationState("balanced", 0);
+    for (let now = 1_000; now <= 180_000; now += 1_000)
+      state = sample(state, now, now % 17_000 === 0 ? blip : hovering);
     expect(state.profile).toBe("balanced");
+  });
+
+  it("still accepts a deliberate profile change", () => {
+    let state = initialSceneQualityAdaptationState("balanced", 0);
+    state = reduceSceneQualityAdaptation(state, {
+      type: "profile",
+      now: 1_000,
+      profile: "cinematic",
+      reason: "manual",
+    });
+    expect(state.profile).toBe("cinematic");
   });
 
   it("filters hidden samples and freezes adaptation while retaining metrics", () => {
@@ -651,5 +612,540 @@ describe("scene quality adaptation", () => {
     state = sample(state, 1_500, good);
     state = sample(state, 1_500 + QUALITY_RECOVERY_SUSTAIN_MS, good);
     expect(state).toMatchObject({ profile: "balanced", directRender: false });
+  });
+});
+
+/** A window of frames at a steady interval, with the small jitter any real
+ * display produces. Deterministic: no random source. */
+function steadyStream(
+  frameMs: number,
+  cpuMs: number,
+  count = 120,
+): SceneFrameSample[] {
+  return Array.from({ length: count }, (_, index) => ({
+    // ±2% sawtooth, so the window has a distribution rather than one value.
+    ms: frameMs * (1 + ((index % 5) - 2) * 0.01),
+    cpuMs: cpuMs * (1 + ((index % 5) - 2) * 0.01),
+  }));
+}
+
+describe("frame budget", () => {
+  it("grades against an absolute sixtieth of a second", () => {
+    expect(SCENE_FRAME_BUDGET_MS).toBeCloseTo(16.667, 3);
+    expect(SCENE_FRAME_BUDGET_HZ).toBe(60);
+  });
+
+  it("reports the absolute target no matter what the device is achieving", () => {
+    const fast = summariseSceneFrameWindow(steadyStream(8.3, 3));
+    const slow = summariseSceneFrameWindow(steadyStream(25, 20));
+    expect(fast?.targetFrameMs).toBe(SCENE_FRAME_BUDGET_MS);
+    expect(slow?.targetFrameMs).toBe(SCENE_FRAME_BUDGET_MS);
+    expect(fast?.targetHz).toBe(60);
+    expect(slow?.targetHz).toBe(60);
+  });
+
+  it("needs at least two frames to say anything", () => {
+    expect(summariseSceneFrameWindow([])).toBeNull();
+    expect(summariseSceneFrameWindow([{ ms: 16, cpuMs: 4 }])).toBeNull();
+  });
+
+  it("aggregates cost and interval the same way over the same frames", () => {
+    // Interval and cost are the same series here, so identical aggregation
+    // must produce identical numbers. Any divergence is an aggregation bug.
+    const frames = steadyStream(20, 20);
+    const metrics = summariseSceneFrameWindow(frames);
+    expect(metrics?.cpuMs).toBeCloseTo(metrics!.p95, 10);
+  });
+});
+
+describe("constraint classification", () => {
+  it("calls a window with high main-thread cost CPU-bound", () => {
+    const metrics = summariseSceneFrameWindow(steadyStream(24, 22));
+    expect(classifySceneFrameConstraint(metrics!)).toBe("cpu");
+  });
+
+  it("calls a window with a cheap main thread and late frames GPU-bound", () => {
+    const metrics = summariseSceneFrameWindow(steadyStream(24, 4));
+    expect(classifySceneFrameConstraint(metrics!)).toBe("gpu");
+  });
+
+  it("calls a window with a cheap main thread and almost no drops headroom", () => {
+    const metrics = summariseSceneFrameWindow(steadyStream(8.3, 3));
+    expect(metrics!.droppedFrameRatio).toBeLessThan(0.02);
+    expect(classifySceneFrameConstraint(metrics!)).toBe("headroom");
+  });
+
+  it("moves nothing when the evidence fits no category", () => {
+    // Cost sits between the headroom and CPU-bound lines while frames arrive
+    // on time, so no axis has grounds to act.
+    expect(
+      classifySceneFrameConstraint({
+        p95: 17,
+        droppedFrameRatio: 0.06,
+        cpuMs: 10,
+        gpuMs: null,
+      }),
+    ).toBe("unknown");
+  });
+
+  it("substitutes measured GPU time for the interval, in the GPU test only", () => {
+    const late = { p95: 30, droppedFrameRatio: 0.4, cpuMs: 4 };
+    // The interval says late; a GPU timer showing a cheap GPU withdraws the
+    // GPU verdict rather than blaming the axis that is not at fault.
+    expect(classifySceneFrameConstraint({ ...late, gpuMs: null })).toBe("gpu");
+    expect(classifySceneFrameConstraint({ ...late, gpuMs: 5 })).not.toBe("gpu");
+  });
+
+  it("leaves a cheap-GPU window classified exactly as it would be untimed", () => {
+    const window = { p95: 12, droppedFrameRatio: 0.01, cpuMs: 5 };
+    expect(classifySceneFrameConstraint({ ...window, gpuMs: null })).toBe(
+      classifySceneFrameConstraint({ ...window, gpuMs: 6 }),
+    );
+  });
+
+  it("lets main-thread cost outrank a GPU timer, since a timer says nothing about the CPU", () => {
+    expect(
+      classifySceneFrameConstraint({
+        p95: 30,
+        droppedFrameRatio: 0.4,
+        cpuMs: 14,
+        gpuMs: 28,
+      }),
+    ).toBe("cpu");
+  });
+});
+
+describe("a steady 40 frames per second device", () => {
+  // The defect this issue exists to fix: the budget used to be the device's
+  // own 10th-percentile frame time, so 40 Hz became its own definition of
+  // success and the controller upgraded it.
+  const metrics = summariseSceneFrameWindow(steadyStream(25, 6))!;
+
+  it("is graded against 60 Hz, not against its own cadence", () => {
+    expect(metrics.targetFrameMs).toBeCloseTo(16.667, 3);
+    expect(metrics.p95).toBeGreaterThan(metrics.targetFrameMs * 1.4);
+  });
+
+  it("counts its frames as dropped", () => {
+    expect(metrics.droppedFrameRatio).toBeGreaterThan(0.35);
+  });
+
+  it("does not classify as recovering", () => {
+    expect(metrics.p95 <= metrics.targetFrameMs * 1.1).toBe(false);
+  });
+
+  it("does not classify as having headroom", () => {
+    expect(classifySceneFrameConstraint(metrics)).not.toBe("headroom");
+  });
+
+  it("is degraded rather than left alone, when driven through the axes", () => {
+    // The profile ladder used to answer this. It no longer adapts, so the
+    // obligation moved to the axes: a device holding a steady 40 Hz must end
+    // up demonstrably cheaper than it started, on some axis.
+    let state = initialSceneQualityAxisState("showcase", 0);
+    state = reduceSceneQualityAxes(state, { type: "booted", now: 0 });
+    let now = QUALITY_IGNORE_AFTER_TRANSITION_MS + 1;
+    for (let step = 0; step < 200; step += 1) {
+      now += QUALITY_SAMPLE_INTERVAL_MS;
+      state = reduceSceneQualityAxes(state, {
+        type: "sample",
+        now,
+        metrics,
+        visible: true,
+      });
+    }
+    const start = initialSceneQualityAxisState("showcase", 0).axes;
+    expect(
+      state.axes.resolutionStep < start.resolutionStep ||
+        state.axes.effects !== start.effects ||
+        state.axes.content !== start.content,
+    ).toBe(true);
+  });
+
+  it("would have been read as healthy under a self-referential budget", () => {
+    // Kept as an executable record of the defect. Deriving the target from the
+    // 10th percentile puts p95 at roughly 1.0x "target" and drops at zero.
+    const derivedTarget = Math.max(1_000 / 60, 25 * 0.98);
+    expect(metrics.p95 <= derivedTarget * 1.1).toBe(true);
+    const droppedUnderDerived =
+      steadyStream(25, 6).filter((frame) => frame.ms > derivedTarget * 1.5)
+        .length / 120;
+    expect(droppedUnderDerived).toBeLessThan(0.05);
+  });
+});
+
+describe("the M5 Max window that read as Safety", () => {
+  // Captured from the dev overlay on an M5 Max: 11.0 ms p95, 9.7 ms of it on
+  // the main thread, 4.8 % of frames past the dropped line. The overlay
+  // showed `safety · res 6/11 · DPR 0.90 · 0.2/2.5 MP` beside `fx full · geo
+  // full` and `no verdict` — a machine meeting 60 Hz with room to spare,
+  // pinned to the bottom rung by a ladder the axes could not see.
+  const measured: SceneQualityMetrics = {
+    targetFrameMs: 16.667,
+    targetHz: 60,
+    p95: 11.0,
+    droppedFrameRatio: 0.048,
+    sampleCount: 120,
+    cpuMs: 9.7,
+    gpuMs: null,
+  };
+
+  it("is no longer a dead band in the classifier", () => {
+    expect(classifySceneFrameConstraint(measured)).not.toBe("unknown");
+  });
+
+  it("reads as room to spare, so quality may climb back", () => {
+    expect(classifySceneFrameConstraint(measured)).toBe("headroom");
+  });
+
+  it("climbs to the top of the automatic range instead of falling to the floor", () => {
+    let state = initialSceneQualityAdaptationState("balanced", 0);
+    for (let now = 1_000; now <= 300_000; now += 1_000)
+      state = sample(state, now, measured);
+    expect(state.profile).toBe("showcase");
+  });
+
+  it("never falls below the estimate on this window, however long it runs", () => {
+    let state = initialSceneQualityAdaptationState("balanced", 0);
+    const seen = new Set<string>();
+    for (let now = 1_000; now <= 300_000; now += 1_000) {
+      state = sample(state, now, measured);
+      seen.add(state.profile);
+    }
+    expect([...seen].sort()).toEqual(["balanced", "showcase"]);
+  });
+
+  it("climbs the resolution axis back to full through the axis reducer", () => {
+    let state = initialSceneQualityAxisState("balanced", 0);
+    state = reduceSceneQualityAxes(state, { type: "booted", now: 0 });
+    state = reduceSceneQualityAxes(state, {
+      type: "force",
+      now: 0,
+      profile: null,
+    });
+    state = { ...state, axes: { ...state.axes, resolutionStep: 6 } };
+    for (let now = 20_000; now <= 200_000; now += 1_000)
+      state = reduceSceneQualityAxes(state, {
+        type: "sample",
+        now,
+        metrics: measured,
+        visible: true,
+      });
+    expect(state.axes.resolutionStep).toBe(SCENE_RESOLUTION_MAX_STEP);
+  });
+
+  it("stops reading as room to spare the moment the budget is missed", () => {
+    const missing = { ...measured, p95: 26, droppedFrameRatio: 0.3 };
+    expect(classifySceneFrameConstraint(missing)).not.toBe("headroom");
+  });
+
+  it("names the main thread when the same machine is genuinely CPU-bound", () => {
+    // Same frame length, but now most of it is main thread rather than a
+    // third of it. 9.7 ms inside a 26 ms frame is not a CPU problem, and
+    // saying so would coarsen geometry to fix something else.
+    const mixed = { ...measured, p95: 26, droppedFrameRatio: 0.3 };
+    const cpuBound = { ...mixed, cpuMs: 20 };
+    expect(classifySceneFrameConstraint(mixed)).toBe("unknown");
+    expect(classifySceneFrameConstraint(cpuBound)).toBe("cpu");
+  });
+});
+
+describe("the cold-start capability estimate", () => {
+  const capable = {
+    webglVersion: 2 as const,
+    maxTextureSize: 16384,
+    maxSamples: 8,
+    physicalPixels: 4_000_000,
+  };
+
+  it("returns today's answer when the new signals are absent", () => {
+    // Every existing case must be unaffected: a missing signal costs nothing.
+    expect(deriveRendererCapability(capable)).toBe("high");
+    expect(
+      deriveRendererCapability({
+        ...capable,
+        logicalCores: undefined,
+        deviceMemoryGb: undefined,
+        unmaskedRenderer: undefined,
+      }),
+    ).toBe("high");
+    expect(
+      deriveRendererCapability({
+        ...capable,
+        logicalCores: null,
+        deviceMemoryGb: null,
+        unmaskedRenderer: null,
+      }),
+    ).toBe("high");
+  });
+
+  it("treats a low core count as constrained", () => {
+    expect(deriveRendererCapability({ ...capable, logicalCores: 2 })).toBe(
+      "constrained",
+    );
+  });
+
+  it("leaves a healthy core count alone", () => {
+    expect(deriveRendererCapability({ ...capable, logicalCores: 8 })).toBe(
+      "high",
+    );
+  });
+
+  it("treats low device memory as constrained", () => {
+    expect(deriveRendererCapability({ ...capable, deviceMemoryGb: 4 })).toBe(
+      "constrained",
+    );
+    expect(deriveRendererCapability({ ...capable, deviceMemoryGb: 8 })).toBe(
+      "high",
+    );
+  });
+
+  it("recognises unambiguously mobile GPU families by renderer string", () => {
+    for (const renderer of [
+      "Adreno (TM) 640",
+      "Mali-G78",
+      "PowerVR Rogue GE8320",
+    ])
+      expect(
+        deriveRendererCapability({ ...capable, unmaskedRenderer: renderer }),
+      ).toBe("constrained");
+  });
+
+  it("never classes Apple hardware from the renderer string alone", () => {
+    // Safari masks both iOS and macOS to the literal string "Apple GPU", so
+    // matching it would cost an M-series desktop a minute at reduced geometry
+    // for nothing. Apple hardware is separated at the starting-state seam
+    // instead, where a narrow touch viewport is honest evidence.
+    for (const renderer of ["Apple GPU", "Apple M3 Max", "Apple A15 GPU"])
+      expect(
+        deriveRendererCapability({ ...capable, unmaskedRenderer: renderer }),
+      ).toBe("high");
+  });
+
+  it("starts a narrow touch viewport low and a capable desktop high", () => {
+    expect(
+      startingProfileForDevice({ touch: true, narrowViewport: true }),
+    ).toBe("efficient");
+    expect(
+      startingProfileForDevice({ touch: false, narrowViewport: false }),
+    ).toBe("balanced");
+    expect(
+      startingProfileForDevice({
+        weakRenderer: true,
+        touch: false,
+        narrowViewport: false,
+      }),
+    ).toBe("efficient");
+    // A touch device on a WIDE viewport is a tablet or a touchscreen laptop,
+    // not a phone, and is not assumed weak. ADR 0017.
+    expect(
+      startingProfileForDevice({ touch: true, narrowViewport: false }),
+    ).toBe("balanced");
+  });
+
+  it("never calls a high-resolution desktop weak", () => {
+    // A 5K or 6K panel puts an M-series desktop past the 9 megapixel branch
+    // of the capability estimate. That is a reason to lower its pixel budget,
+    // which the plan already does, and the exact opposite of a reason to
+    // start it on reduced geometry.
+    const bigDisplay = {
+      webglVersion: 2 as const,
+      maxTextureSize: 16384,
+      maxSamples: 8,
+      logicalCores: 16,
+      deviceMemoryGb: 64,
+      unmaskedRenderer: "Apple GPU",
+    };
+    expect(rendererLooksWeak(bigDisplay)).toBe(false);
+    expect(
+      startingProfileForDevice({
+        weakRenderer: rendererLooksWeak(bigDisplay),
+        touch: false,
+        narrowViewport: false,
+      }),
+    ).toBe("balanced");
+    // The capability estimate still says constrained, for the pixel budget.
+    expect(
+      deriveRendererCapability({ ...bigDisplay, physicalPixels: 14_700_000 }),
+    ).toBe("constrained");
+  });
+
+  it("still calls a genuinely weak renderer weak", () => {
+    expect(
+      rendererLooksWeak({
+        webglVersion: 1,
+        maxTextureSize: 4096,
+        maxSamples: 0,
+      }),
+    ).toBe(true);
+  });
+
+  it("never promotes a device on the strength of a new signal", () => {
+    // A weak renderer stays constrained however many cores it reports.
+    expect(
+      deriveRendererCapability({
+        webglVersion: 1,
+        maxTextureSize: 4096,
+        maxSamples: 0,
+        physicalPixels: 2_000_000,
+        logicalCores: 32,
+        deviceMemoryGb: 64,
+        unmaskedRenderer: "NVIDIA GeForce RTX 4090",
+      }),
+    ).toBe("constrained");
+  });
+
+  it("ignores a nonsensical zero or negative signal", () => {
+    expect(
+      deriveRendererCapability({
+        ...capable,
+        logicalCores: 0,
+        deviceMemoryGb: 0,
+      }),
+    ).toBe("high");
+  });
+});
+
+describe("the resolution axis inside the plan", () => {
+  const narrow = {
+    cssWidth: 390,
+    cssHeight: 844,
+    deviceDpr: 3,
+    touch: true,
+    narrowViewport: true,
+  } as const;
+
+  it("leaves every preset's resolution exactly as it was at the top step", () => {
+    // This is the compatibility guarantee: introducing the axis must not move
+    // any resolution that is not under pressure.
+    for (const profile of AUTO_SCENE_QUALITY_PROFILES) {
+      const unaxed = resolveSceneQualityPlan({
+        ...narrow,
+        mode: profile,
+        profile,
+      });
+      const topStep = resolveSceneQualityPlan({
+        ...narrow,
+        mode: profile,
+        profile,
+        resolutionStep: 11,
+      });
+      expect(topStep.dpr).toBeCloseTo(unaxed.dpr, 10);
+    }
+  });
+
+  it("can only lower resolution, never raise it past the preset cap", () => {
+    for (const profile of AUTO_SCENE_QUALITY_PROFILES) {
+      const capped = resolveSceneQualityPlan({
+        ...narrow,
+        mode: profile,
+        profile,
+      }).dpr;
+      for (let step = 0; step <= 11; step += 1)
+        expect(
+          resolveSceneQualityPlan({
+            ...narrow,
+            mode: profile,
+            profile,
+            resolutionStep: step,
+          }).dpr,
+        ).toBeLessThanOrEqual(capped + 1e-9);
+    }
+  });
+
+  it("keeps the narrow-viewport caps intact at the top step", () => {
+    for (const profile of AUTO_SCENE_QUALITY_PROFILES)
+      expect(
+        resolveSceneQualityPlan({
+          ...narrow,
+          mode: profile,
+          profile,
+          resolutionStep: 11,
+        }).dpr,
+      ).toBe(NARROW_VIEWPORT_DPR_CAP_BY_PROFILE[profile]);
+  });
+
+  it("descends far enough for Safety to meet its pixel ceiling", () => {
+    // The contract is that pressure CAN take Safety below 500,000 physical
+    // pixels on the reference viewport, not that it always sits there.
+    const floor = resolveSceneQualityPlan({
+      cssWidth: SAFETY_BUDGET.referenceCssWidth,
+      cssHeight: SAFETY_BUDGET.referenceCssHeight,
+      deviceDpr: SAFETY_BUDGET.referenceDpr,
+      touch: true,
+      narrowViewport: true,
+      mode: "safety",
+      profile: "safety",
+      resolutionStep: 0,
+    });
+    const pixels =
+      SAFETY_BUDGET.referenceCssWidth *
+      SAFETY_BUDGET.referenceCssHeight *
+      floor.dpr *
+      floor.dpr;
+    expect(pixels).toBeLessThanOrEqual(SAFETY_BUDGET.maxPhysicalPixels);
+  });
+
+  it("resolves the content tier from the preset when the axis supplies none", () => {
+    expect(plan("safety").environment.contentTier).toBe("minimal");
+    expect(plan("efficient").environment.contentTier).toBe("reduced");
+    expect(plan("showcase").environment.contentTier).toBe("full");
+  });
+
+  it("lets the axis override the content tier in automatic mode", () => {
+    expect(
+      resolveSceneQualityPlan({
+        ...narrow,
+        mode: "auto",
+        profile: "balanced",
+        contentTier: "minimal",
+      }).environment.contentTier,
+    ).toBe("minimal");
+  });
+});
+
+describe("the Safety budget contract", () => {
+  it("states the ceilings as numbers rather than as knob positions", () => {
+    expect(SAFETY_BUDGET).toMatchObject({
+      maxTriangles: 250_000,
+      maxPhysicalPixels: 500_000,
+      referenceCssWidth: 393,
+      referenceCssHeight: 852,
+      referenceDpr: 3,
+    });
+  });
+
+  it("puts the projected minimal tier under the triangle ceiling", () => {
+    // Measured composition: 151,833 grass and flowers at the coarsest tuft,
+    // 15,840 terrain at 120x66, and 75,705 for everything else.
+    const projected = 151_833 + 15_840 + 75_705;
+    expect(projected).toBeLessThanOrEqual(SAFETY_BUDGET.maxTriangles);
+  });
+
+  it("leaves the pixel ceiling satisfiable rather than always satisfied", () => {
+    // Safety's narrow cap of 1.25 sits ABOVE the ceiling when unpressured,
+    // which is correct: the contract is that pressure can take it below.
+    const unpressured =
+      SAFETY_BUDGET.referenceCssWidth *
+      SAFETY_BUDGET.referenceCssHeight *
+      NARROW_VIEWPORT_DPR_CAP_BY_PROFILE.safety ** 2;
+    expect(unpressured).toBeGreaterThan(SAFETY_BUDGET.maxPhysicalPixels);
+
+    const atFloor =
+      SAFETY_BUDGET.referenceCssWidth *
+      SAFETY_BUDGET.referenceCssHeight *
+      SCENE_RESOLUTION_SCALE_FLOOR ** 2;
+    expect(atFloor).toBeLessThan(SAFETY_BUDGET.maxPhysicalPixels);
+  });
+
+  it("maps Safety to the tier the budget was computed for", () => {
+    expect(CONTENT_TIER_BY_PROFILE.safety).toBe("minimal");
+    expect(SCENE_CONTENT_DEFINITIONS.minimal).toMatchObject({
+      nearTuftLod: 2,
+      terrainSegmentsX: 120,
+      terrainSegmentsZ: 66,
+      nearGrassShader: "simplified",
+      suspendOffscreenWildlife: true,
+    });
   });
 });

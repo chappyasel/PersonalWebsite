@@ -19,6 +19,10 @@ const grabbable = fs.readFileSync(
   "utf8",
 );
 const scene = fs.readFileSync(new URL("./Scene.tsx", import.meta.url), "utf8");
+const litImage = fs.readFileSync(
+  new URL("./LitImage.tsx", import.meta.url),
+  "utf8",
+);
 const environment = fs.readFileSync(
   new URL("./SceneEnvironment.tsx", import.meta.url),
   "utf8",
@@ -123,9 +127,31 @@ describe("scene performance integration", () => {
 
   it("guards background prewarming and the settled-prop fast path", () => {
     expect(scene).toContain("scenePrewarmDeferred()");
+    expect(scene).toContain("prefetchSlug");
+    expect(scene).toContain('cache: "force-cache"');
+    expect(scene).toContain("isWorldRevealed()");
     expect(canvas).toContain("setSceneTraveling(true)");
     expect(canvas).toContain("scenePrewarmDeferred()");
     expect(grabbable).toContain("shouldSuspendSettledPropFrame");
+  });
+
+  it("loads photo masters behind the boot screen without remounting previews", () => {
+    expect(litImage).toContain("new THREE.LoadingManager()");
+    expect(litImage).toContain("sceneHdPhotosDisabled(window.location.search)");
+    expect(scene).toContain("sceneHdPhotosDisabled(window.location.search)");
+    expect(scene).toContain("!detailsDisabled");
+    expect(litImage).toContain("previewTexture={previewTexture}");
+    expect(litImage).toContain("detailTexture={detailTexture}");
+    expect(litImage).not.toContain("<Suspense fallback={preview}>");
+    expect(litImage).not.toContain("subscribeWorldPhase");
+  });
+
+  it("crossfades photo masters over previews instead of replacing the map", () => {
+    expect(litImage).toContain("PHOTO_DETAIL_FADE_SECONDS");
+    expect(litImage).toContain("detailFadeAlpha");
+    expect(litImage).toContain("useFrame");
+    expect(litImage).toContain("transparent");
+    expect(litImage).not.toContain("detailTexture ?? previewTexture");
   });
 
   it("isolates browser glass and each expensive post effect", () => {

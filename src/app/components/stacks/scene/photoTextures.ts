@@ -1,11 +1,8 @@
 import { type UnitSlug } from "../data";
 
-/**
- * Local scene photographs have canonical masters in `/v8` and build-time
- * variants sized to the role they actually play in the room. Keeping the
- * choice URL-based means `useTexture` never decodes the 768–1024 px master
- * only to show it on a 50–150 physical-pixel prop.
- */
+/** Local scene photographs reveal from role-sized previews. Their canonical
+ * masters replace those previews after the WebGL handoff, outside the boot
+ * screen's critical path. */
 export type ScenePhotoRole = "hero" | "feature" | "support";
 
 export const SCENE_PHOTO_EDGE: Record<ScenePhotoRole, 256 | 512 | 1024> = {
@@ -15,6 +12,12 @@ export const SCENE_PHOTO_EDGE: Record<ScenePhotoRole, 256 | 512 | 1024> = {
 };
 
 const V8_PHOTO_RE = /^\/images\/stacks\/v8\/([^/]+)\.webp$/;
+
+/** Diagnostic A/B switch. `?hdPhotos=0` keeps the scene on previews and must
+ * guard both mounted texture loads and the distant background prefetch. */
+export function sceneHdPhotosDisabled(search: string): boolean {
+  return new URLSearchParams(search).get("hdPhotos") === "0";
+}
 
 export function scenePhotoUrl(
   url: string,
@@ -32,8 +35,8 @@ type PhotoManifestEntry = {
 
 /**
  * The warming queue and the rendered props share this manifest. A new local
- * photograph therefore cannot accidentally preload its full-size master
- * while LitImage renders a right-sized variant.
+ * photograph therefore cannot preload a different preview URL than LitImage
+ * renders before the world reveal.
  */
 export const V8_PHOTOS_BY_UNIT: Record<
   UnitSlug,
@@ -82,4 +85,8 @@ export const V8_PHOTOS_BY_UNIT: Record<
 
 export function scenePhotoManifestUrl(entry: PhotoManifestEntry): string {
   return scenePhotoUrl(`/images/stacks/v8/${entry.name}.webp`, entry.role);
+}
+
+export function scenePhotoManifestMasterUrl(entry: PhotoManifestEntry): string {
+  return `/images/stacks/v8/${entry.name}.webp`;
 }

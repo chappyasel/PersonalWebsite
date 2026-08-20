@@ -101,6 +101,8 @@ export type ShelfHandle = {
   plane?: ShelfPlane;
   phase: { current: Phase };
   physicsEnabled?: boolean;
+  physicsActivation?: "detach";
+  physicsActivated?: boolean;
   world?: ScenePhysicsWorld;
   body?: CANNON.Body;
   com?: THREE.Vector3;
@@ -671,6 +673,8 @@ export class ScenePhysicsWorld {
       handle.world = this;
     }
     if (handle.physicsEnabled === false) return;
+    if (handle.physicsActivation === "detach" && !handle.physicsActivated)
+      return;
     const extraction = extractDynamicColliderBoxes(
       handle.group,
       handle.colliderProfile,
@@ -836,6 +840,9 @@ export class ScenePhysicsWorld {
     body.allowSleep = false;
     body.velocity.setZero();
     body.angularVelocity.setZero();
+    // A newly detached prop moved after its collider was measured. Sync the
+    // kinematic body to that cleared visual pose before collision probing.
+    this.push(handle, 0);
     const pose = this.bodyPose(handle, {
       position: handle.group.position,
       quaternion: handle.group.quaternion,

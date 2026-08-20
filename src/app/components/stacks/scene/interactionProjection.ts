@@ -25,6 +25,17 @@ const rootInverse = new Matrix4();
 const childToRoot = new Matrix4();
 const corner = new Vector3();
 
+/** `Object3D.visible` only describes the object itself. Three also hides an
+ * object when any ancestor is invisible, so touch projection must apply the
+ * same effective-visibility rule or a dormant presentation branch can leave
+ * an invisible Halo over a live prop. */
+function isEffectivelyVisible(root: THREE.Object3D) {
+  for (let node: THREE.Object3D | null = root; node; node = node.parent) {
+    if (!node.visible) return false;
+  }
+  return true;
+}
+
 function descendantCount(root: THREE.Object3D) {
   let count = 0;
   root.traverse(() => count++);
@@ -65,15 +76,16 @@ function rootLocalBounds(spec: ReturnType<typeof getSceneInteraction>) {
 }
 
 export function projectedInteractionBounds(
-  activeUnit: number,
   pointer?: { x: number; y: number },
 ): ProjectedInteractionBounds[] {
   if (!projectionCamera || !projectionElement) return [];
   const rect = projectionElement.getBoundingClientRect();
-  const specs = sceneInteractionInventory().filter(
-    (spec) =>
-      spec.root.visible &&
-      (spec.activeUnits.includes(activeUnit) || spec.activeUnits.includes(-1)),
+  // `activeUnits` records which authored shelf owns an interaction. It is not
+  // a visibility boundary: neighboring shelves remain on screen during
+  // travel and at intermediate authored stops such as Golf. The camera and
+  // the rendered hierarchy decide what touch can reach.
+  const specs = sceneInteractionInventory().filter((spec) =>
+    isEffectivelyVisible(spec.root),
   );
   let exactId: string | null = null;
   if (pointer && rect.width > 0 && rect.height > 0) {
@@ -134,7 +146,16 @@ export function projectedInteractionBounds(
           );
           depth = Math.min(depth, corner.z);
         }
-    if (depth < -1 || depth > 1 || !Number.isFinite(left)) continue;
+    if (
+      depth < -1 ||
+      depth > 1 ||
+      !Number.isFinite(left) ||
+      right < rect.left ||
+      left > rect.right ||
+      bottom < rect.top ||
+      top > rect.bottom
+    )
+      continue;
     results.push({
       id: spec.id,
       left,
@@ -156,7 +177,11 @@ function projectDoorWithContext(id: string): ProjectedDoor | null {
     (spec.activation?.kind !== "door" && spec.activation?.kind !== "action")
   )
     return null;
-  if (!projectionCamera || !projectionElement || !spec.root.visible)
+  if (
+    !projectionCamera ||
+    !projectionElement ||
+    !isEffectivelyVisible(spec.root)
+  )
     return null;
   // Registration often happens on a carrier Group while its visible model is
   // still loading. Keep that carrier's world transform current so it remains
@@ -210,7 +235,6 @@ export type PointerActivation = {
 export function activationAtPointer(
   clientX: number,
   clientY: number,
-  activeUnit: number,
 ): PointerActivation | null {
   if (!projectionCamera || !projectionElement) return null;
   const rect = projectionElement.getBoundingClientRect();
@@ -234,11 +258,7 @@ export function activationAtPointer(
     activation: "door" | "action" | "egg" | null;
   } | null = null;
   for (const spec of sceneInteractionInventory()) {
-    if (
-      !spec.root.visible ||
-      (!spec.activeUnits.includes(activeUnit) && !spec.activeUnits.includes(-1))
-    )
-      continue;
+    if (!isEffectivelyVisible(spec.root)) continue;
     const hit = pointerRaycaster.intersectObject(spec.root, true)[0];
     if (!hit || (best && hit.distance >= best.distance)) continue;
     best = {
@@ -255,8 +275,7 @@ export function activationAtPointer(
 export function doorAtPointer(
   clientX: number,
   clientY: number,
-  activeUnit: number,
 ) {
-  const hit = activationAtPointer(clientX, clientY, activeUnit);
+  const hit = activationAtPointer(clientX, clientY);
   return hit?.kind === "door" ? hit.id : null;
 }

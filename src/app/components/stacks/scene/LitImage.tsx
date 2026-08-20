@@ -7,11 +7,15 @@
 // with repeat/offset; books get a real rounded-rect ShapeGeometry (opaque
 // queue — no transparent sorting), frames and portrait a plain plane.
 import { useTexture } from "@react-three/drei";
-import { type ThreeEvent, useThree } from "@react-three/fiber";
-import { useEffect, useMemo } from "react";
+import { type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
-import { type ScenePhotoRole, scenePhotoUrl } from "./photoTextures";
+import {
+  type ScenePhotoRole,
+  sceneHdPhotosDisabled,
+  scenePhotoUrl,
+} from "./photoTextures";
 
 /** object-fit: cover with an optional zoom and focal point. `focus` is
  * CSS-object-position-like: [x from left, y from TOP], each 0..1. */
@@ -87,22 +91,10 @@ function warmGrade(tex: THREE.Texture, grade: number) {
   tex.needsUpdate = true;
 }
 
-export default function LitImage({
-  url,
-  role = "feature",
-  width,
-  height,
-  radius = 0,
-  roughness = 0.6,
-  grade = 0.08,
-  zoom = 1,
-  focus,
-  position,
-  onPointerOver,
-  onPointerOut,
-  onClick,
-}: {
+type LitImageProps = {
   url: string;
+  /** Optional master when `url` is already a right-sized remote preview. */
+  detailUrl?: string;
   /** Runtime resolution class for local v8 scene photography. */
   role?: ScenePhotoRole;
   width: number;
@@ -118,25 +110,74 @@ export default function LitImage({
   onPointerOver?: (e: ThreeEvent<PointerEvent>) => void;
   onPointerOut?: (e: ThreeEvent<PointerEvent>) => void;
   onClick?: (e: ThreeEvent<MouseEvent>) => void;
-}) {
-  const resolvedUrl = scenePhotoUrl(url, role);
-  const sourceTexture = useTexture(resolvedUrl);
+};
+
+type LitImageSourceProps = Omit<LitImageProps, "url" | "detailUrl" | "role"> & {
+  previewTexture: THREE.Texture;
+  detailTexture: THREE.Texture | null;
+};
+
+export const PHOTO_DETAIL_FADE_SECONDS = 0.32;
+
+export function detailFadeAlpha(progress: number) {
+  const t = Math.min(1, Math.max(0, progress));
+  return t * t * (3 - 2 * t);
+}
+
+function LitImageSource({
+  previewTexture,
+  detailTexture,
+  width,
+  height,
+  radius = 0,
+  roughness = 0.6,
+  grade = 0.08,
+  zoom = 1,
+  focus,
+  position,
+  onPointerOver,
+  onPointerOut,
+  onClick,
+}: LitImageSourceProps) {
   // drei caches useTexture by URL. Every print needs an instance-local
   // transform because repeat/offset encode this mesh's aspect and focal
   // point; mutating the cached texture made a second use of the same cover
   // retroactively recrop the first. Texture.clone shares the decoded image
   // bytes while isolating sampler state, so reuse remains cheap and safe.
-  const tex = useMemo(() => sourceTexture.clone(), [sourceTexture]);
+  const previewTex = useMemo(() => previewTexture.clone(), [previewTexture]);
+  const detailTex = useMemo(
+    () => (detailTexture ? detailTexture.clone() : null),
+    [detailTexture],
+  );
   const maxAnisotropy = useThree((s) => s.gl.capabilities.getMaxAnisotropy());
   const fx = focus?.[0] ?? 0.5;
   const fy = focus?.[1] ?? 0.5;
   useMemo(() => {
-    if (grade > 0) warmGrade(tex, grade);
-    tex.anisotropy = maxAnisotropy;
-    fitCover(tex, width, height, zoom, [fx, fy]);
-    tex.needsUpdate = true;
-  }, [tex, maxAnisotropy, width, height, grade, zoom, fx, fy]);
-  useEffect(() => () => tex.dispose(), [tex]);
+    for (const tex of [previewTex, detailTex]) {
+      if (!tex) continue;
+      if (grade > 0) warmGrade(tex, grade);
+      tex.anisotropy = maxAnisotropy;
+      fitCover(tex, width, height, zoom, [fx, fy]);
+      tex.needsUpdate = true;
+    }
+  }, [
+    previewTex,
+    detailTex,
+    maxAnisotropy,
+    width,
+    height,
+    grade,
+    zoom,
+    fx,
+    fy,
+  ]);
+  useEffect(
+    () => () => {
+      previewTex.dispose();
+      detailTex?.dispose();
+    },
+    [previewTex, detailTex],
+  );
   const geometry = useMemo(
     () =>
       radius > 0
@@ -145,15 +186,129 @@ export default function LitImage({
     [width, height, radius],
   );
   useEffect(() => () => geometry.dispose(), [geometry]);
+
+  const detailMaterial = useRef<THREE.MeshStandardMaterial>(null);
+  const detailFadeElapsed = useRef(0);
+  useEffect(() => {
+    detailFadeElapsed.current = 0;
+    if (detailMaterial.current) detailMaterial.current.opacity = 0;
+  }, [detailTexture]);
+  useFrame((_, delta) => {
+    const material = detailMaterial.current;
+    if (!detailTexture || !material || material.opacity >= 1) return;
+    detailFadeElapsed.current = Math.min(
+      PHOTO_DETAIL_FADE_SECONDS,
+      detailFadeElapsed.current + delta,
+    );
+    material.opacity = detailFadeAlpha(
+      detailFadeElapsed.current / PHOTO_DETAIL_FADE_SECONDS,
+    );
+  });
+
+  const detailPosition: [number, number, number] = position
+    ? [position[0], position[1], position[2] + 0.0002]
+    : [0, 0, 0.0002];
+
   return (
-    <mesh
-      geometry={geometry}
-      position={position}
-      onPointerOver={onPointerOver}
-      onPointerOut={onPointerOut}
-      onClick={onClick}
-    >
-      <meshStandardMaterial map={tex} roughness={roughness} />
-    </mesh>
+    <>
+      <mesh
+        geometry={geometry}
+        position={position}
+        onPointerOver={onPointerOver}
+        onPointerOut={onPointerOut}
+        onClick={onClick}
+      >
+        <meshStandardMaterial map={previewTex} roughness={roughness} />
+      </mesh>
+      {detailTex && (
+        <mesh
+          key={detailTexture?.uuid}
+          geometry={geometry}
+          position={detailPosition}
+          raycast={() => undefined}
+        >
+          <meshStandardMaterial
+            ref={detailMaterial}
+            map={detailTex}
+            roughness={roughness}
+            transparent
+            opacity={0}
+            depthWrite={false}
+          />
+        </mesh>
+      )}
+    </>
+  );
+}
+
+// Master textures deliberately use their own loading manager. The default
+// manager owns the boot reveal gate, so putting masters on it would turn an
+// optional quality upgrade back into blocking work. One promise per URL also
+// keeps duplicate prints from decoding the same source twice.
+const detailLoadingManager = new THREE.LoadingManager();
+const detailTextureLoader = new THREE.TextureLoader(detailLoadingManager);
+const detailTextureCache = new Map<string, Promise<THREE.Texture>>();
+
+function loadDetailTexture(url: string): Promise<THREE.Texture> {
+  const cached = detailTextureCache.get(url);
+  if (cached) return cached;
+  const pending = detailTextureLoader.loadAsync(url).then(
+    (texture) => {
+      texture.colorSpace = THREE.SRGBColorSpace;
+      return texture;
+    },
+    (error: unknown) => {
+      detailTextureCache.delete(url);
+      throw error;
+    },
+  );
+  detailTextureCache.set(url, pending);
+  return pending;
+}
+
+export default function LitImage({
+  url,
+  detailUrl,
+  role = "feature",
+  ...props
+}: LitImageProps) {
+  const previewUrl = scenePhotoUrl(url, role);
+  const masterUrl = detailUrl ?? url;
+  const previewTexture = useTexture(previewUrl);
+  const detailsDisabled =
+    typeof window !== "undefined" &&
+    sceneHdPhotosDisabled(window.location.search);
+  const [detail, setDetail] = useState<{
+    url: string;
+    texture: THREE.Texture;
+  } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    if (detailsDisabled || masterUrl === previewUrl) return () => undefined;
+    void loadDetailTexture(masterUrl)
+      .then((texture) => {
+        if (active) setDetail({ url: masterUrl, texture });
+      })
+      .catch(() => {
+        // The preview remains the durable fallback. A later mount retries a
+        // failed master because failed promises are removed from the cache.
+      });
+    return () => {
+      active = false;
+    };
+  }, [detailsDisabled, masterUrl, previewUrl]);
+
+  const detailTexture = detail?.url === masterUrl ? detail.texture : null;
+
+  // The preview remains mounted while the master fades over the same crop.
+  // Keeping the low-resolution pixels underneath makes the async quality
+  // upgrade continuous instead of exposing a one-frame map replacement.
+  return (
+    <LitImageSource
+      previewTexture={previewTexture}
+      detailTexture={detailTexture}
+      {...props}
+    />
   );
 }

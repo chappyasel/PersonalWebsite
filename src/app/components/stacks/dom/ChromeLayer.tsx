@@ -4,6 +4,7 @@
 // reveal), animated film grain, bottom vignette, the persistent name, and
 // the theme toggle island. Everything except the toggle island is
 // pointer-events-none; interactive layers manage their own events.
+import { requestDevHooks } from "../scene/devHooks";
 import { useStacks } from "../store";
 import { GRAIN_URI } from "../theme";
 import dynamic from "next/dynamic";
@@ -53,7 +54,14 @@ function isEditableShortcutTarget(target: EventTarget | null) {
  * deliberately invisible mobile entry point. */
 function SceneDiagnosticsLoader() {
   const [request, setRequest] = useState<{ initiallyOpen: boolean } | null>(
-    process.env.NODE_ENV === "development" ? { initiallyOpen: false } : null,
+    () => {
+      // Asking for the diagnostics IS the opt-in. Installing the scene hooks
+      // here rather than from the URL is what stops the HUD rendering with
+      // every field empty when it was opened with the D key.
+      if (process.env.NODE_ENV !== "development") return null;
+      requestDevHooks();
+      return { initiallyOpen: false };
+    },
   );
   const [Diagnostics, setDiagnostics] = useState<ComponentType<{
     initiallyOpen?: boolean;
@@ -63,6 +71,7 @@ function SceneDiagnosticsLoader() {
     if (request) return;
 
     if (new URLSearchParams(window.location.search).get("debug") === "1") {
+      requestDevHooks();
       setRequest({ initiallyOpen: true });
       return;
     }
@@ -80,6 +89,7 @@ function SceneDiagnosticsLoader() {
         return;
 
       event.preventDefault();
+      requestDevHooks();
       setRequest({ initiallyOpen: true });
     };
 

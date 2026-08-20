@@ -86,10 +86,12 @@ export function reducedMotion(): boolean {
  * with a blurry foreground hand (audit §3-About). */
 export function PortraitFrame({
   src,
+  detailSrc,
   palette,
   textured,
 }: {
   src: string;
+  detailSrc?: string;
   palette: Palette;
   textured: boolean;
 }) {
@@ -112,6 +114,7 @@ export function PortraitFrame({
         <React.Suspense fallback={null}>
           <LitImage
             url={src}
+            detailUrl={detailSrc}
             role="hero"
             width={0.86}
             height={1.08}

@@ -219,3 +219,96 @@ test("movement preserves visual quality and durable rungs are forceable", async 
   );
   expect(runtimeErrors).toEqual([]);
 });
+
+// The Safety contract.
+//
+// Safety used to be defined by which knobs were turned, which is why it drifted
+// to 422,831 triangles: a number that is not a "runs anywhere" number, with
+// nothing in the build failing when it moved. It is now a budget, expressed
+// against the reference viewport the mobile assertions already use.
+//
+// Triangles fail the build. Draw calls are recorded and reported but do not,
+// because non-meadow geometry alone accounts for roughly 139 of them: any
+// ceiling near 120 needs prop merging or prop levels of detail, which is
+// separate work. Recording without asserting keeps that gap visible instead of
+// letting it look closed.
+//
+// No frames-per-second figure is asserted anywhere here. Frame rate on shared
+// runner hardware is not reproducible, which is exactly why the contract is
+// triangles and pixels instead.
+test("holds the Safety triangle budget at every unit checkpoint", async ({
+  browser,
+}, testInfo) => {
+  test.setTimeout(240_000);
+  const MAX_TRIANGLES = 250_000;
+  const context = await browser.newContext({
+    viewport: { width: 393, height: 852 },
+    deviceScaleFactor: 3,
+    hasTouch: true,
+    isMobile: true,
+  });
+  const page = await context.newPage();
+  const runtimeErrors = collectRuntimeErrors(page);
+  await page.goto("/?quality=3&harness=1", { waitUntil: "commit" });
+  await page.waitForFunction(
+    () =>
+      !!window.__stacks?.state().framebuffer &&
+      window.__stacks.state().controlsReady === true,
+    null,
+    { timeout: 210_000 },
+  );
+
+  // First, middle and last of the traverse, so the shallowest and the deepest
+  // views into the meadow are both covered.
+  const observed: Array<{
+    unit: number;
+    triangles: number;
+    calls: number;
+    physicalPixels: number;
+    contentTier: unknown;
+  }> = [];
+  for (const unit of [0, 3, 6]) {
+    await page.evaluate((index) => {
+      window.__stacks!.scrollTo(index, { instant: true });
+    }, unit);
+    // SwiftShader on a 3x mobile framebuffer settles slowly; the default
+    // 5 second poll is not enough for the first checkpoint.
+    await expect
+      .poll(async () => (await stacksState(page)).activeUnit, {
+        timeout: 30_000,
+      })
+      .toBe(unit);
+    await page.waitForTimeout(1_000);
+    const state = await stacksState(page);
+    const quality = state.quality as unknown as {
+      contentTier?: unknown;
+      physicalPixels?: number;
+    };
+    observed.push({
+      unit,
+      triangles: state.triangles,
+      calls: state.calls,
+      physicalPixels: quality.physicalPixels ?? 0,
+      contentTier: quality.contentTier ?? null,
+    });
+  }
+
+  await testInfo.attach("stacks-safety-budget.json", {
+    body: Buffer.from(
+      JSON.stringify({ maxTriangles: MAX_TRIANGLES, observed }, null, 2),
+    ),
+    contentType: "application/json",
+  });
+
+  for (const checkpoint of observed) {
+    expect(checkpoint.triangles).toBeGreaterThan(0);
+    // The message carries the observed number so a regression reports its
+    // size rather than only its existence.
+    expect(
+      checkpoint.triangles,
+      `unit ${checkpoint.unit} drew ${checkpoint.triangles} triangles against a ${MAX_TRIANGLES} budget`,
+    ).toBeLessThanOrEqual(MAX_TRIANGLES);
+  }
+  expect(runtimeErrors).toEqual([]);
+  await context.close();
+});

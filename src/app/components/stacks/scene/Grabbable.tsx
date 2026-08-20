@@ -49,10 +49,6 @@ import {
 import { grabbablePhysicsEnabled } from "./grabbablePhysics";
 import { cameraFacingHoverTilt } from "./hoverTilt";
 import {
-  sceneUnitActivityController,
-  useUnitFrame,
-} from "./unitActivity";
-import {
   type Hinge,
   TILT_MAX_SIZE,
   hingeFor,
@@ -82,14 +78,11 @@ import {
   shouldSuspendSettledPropFrame,
 } from "./scenePerformance";
 import { SHELF_GEOMETRY } from "./shelfGeometry";
+import { sceneUnitActivityController, useUnitFrame } from "./unitActivity";
 
 /** Damping for the spring home — matches Lift's LAMBDA so a released prop
  * settles at the same rate the shelf's hover affordance moves. */
 const HOME_LAMBDA = 6;
-/** Deliberately under real gravity: a prop dropped 20cm at 9.81 lands in
- * under a fifth of a second, which reads as a glitch rather than a drop.
- * physics.ts carries the same number so both paths fall alike. */
-const GRAVITY = 9.81;
 /** Matches ContactShade's default so a grabbable prop grounds exactly like
  * its neighbours until the moment it is picked up. */
 const SHADE_OPACITY = 0.12;
@@ -97,13 +90,18 @@ const SHADE_OPACITY = 0.12;
  * than a click. The same 6 that r3f's own `event.delta` gate uses, so a prop
  * that is both a handle and a door answers a tap exactly as its neighbours do. */
 const TAP_PX = 6;
+/** Deliberately under real gravity: a prop dropped 20cm at 9.81 lands in
+ * under a fifth of a second, which reads as a glitch rather than a drop.
+ * physics.ts carries the same number so both paths fall alike. */
+const GRAVITY = 9.81;
 
 // --- the lazily-loaded solver -----------------------------------------------
 //
 // Module scope, not component state: the download is shared by every prop on
 // the page and must not re-render anything when it lands. `physics` stays
-// null until the chunk has actually parsed, and every read of it is a
-// synchronous "is it here yet" — nothing ever awaits it inside a gesture.
+// null until the chunk has parsed and Cannon has initialized. Ordinary props
+// may use authored motion while that happens; mounted props wait rather than
+// detaching without the body they require.
 
 /** The seam, written out: the only two things this file asks of the solver
  * chunk, so the chunk itself stays reachable ONLY through the dynamic import
@@ -117,7 +115,7 @@ type PhysicsModule = {
 };
 
 let physics: PhysicsModule | null = null;
-let fetching = false;
+let physicsLoad: Promise<PhysicsModule | null> | null = null;
 
 let diagnosticsScope: PhysicsSceneScope | null = null;
 
@@ -292,26 +290,34 @@ function physicsAllowed(): boolean {
   return typeof window !== "undefined";
 }
 
-/** Fire-and-forget. The canvas schedules this after first paint on eligible
- * desktop devices and hover retries it. */
-export function prewarmGrabbablePhysics() {
-  if (physics || fetching || !physicsAllowed()) return;
-  fetching = true;
+function loadGrabbablePhysics(): Promise<PhysicsModule | null> {
+  if (physics) return Promise.resolve(physics);
+  if (!physicsAllowed()) return Promise.resolve(null);
+  if (physicsLoad) return physicsLoad;
   physicsDiagnosticsController.update({ moduleState: "loading" });
-  void import("./physics")
+  physicsLoad = import("./physics")
     .then(async (mod) => {
       if (!(await mod.warm())) {
         physicsDiagnosticsController.update({ moduleState: "failed" });
-        return;
+        return null;
       }
       physics = mod;
       physicsDiagnosticsController.update({ moduleState: "ready" });
+      return physics;
     })
     .catch(() => {
       physicsDiagnosticsController.update({ moduleState: "failed" });
       // A solver that failed to download is not an error the visitor should
       // ever learn about — authored motion covers every drag.
+      return null;
     });
+  return physicsLoad;
+}
+
+/** Fire-and-forget. The canvas schedules this after first paint on eligible
+ * desktop devices and hover retries it. */
+export function prewarmGrabbablePhysics() {
+  void loadGrabbablePhysics();
 }
 
 if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
@@ -364,6 +370,7 @@ export default function Grabbable({
   unitIndex,
   hoverKey,
   base,
+  physicsDetachOffset,
   shadeWidth = 0.5,
   shadeColor,
   tiltOnHover = true,
@@ -392,6 +399,10 @@ export default function Grabbable({
   hoverKey: string;
   /** The authored pose the prop always returns to. */
   base: [number, number, number];
+  /** Local offset applied once when a mounted prop becomes a carry. The prop
+   * remains bodyless until this clears its mount, then joins ordinary held
+   * physics. */
+  physicsDetachOffset?: [number, number, number];
   shadeWidth?: number;
   shadeColor: string;
   /** Keep the authored facing angle fixed while still allowing hover/tap
@@ -453,6 +464,10 @@ export default function Grabbable({
 }) {
   const physicsEnabled =
     draggable && grabbablePhysicsEnabled(physicsPreference);
+  const detachesFromMount = physicsDetachOffset !== undefined;
+  const detachX = physicsDetachOffset?.[0] ?? 0;
+  const detachY = physicsDetachOffset?.[1] ?? 0;
+  const detachZ = physicsDetachOffset?.[2] ?? 0;
   const physicsScene = usePhysicsScene();
   const massClass = massClassFor(massKg ?? 1);
   const handling = MASS_HANDLING[massClass];
@@ -502,9 +517,15 @@ export default function Grabbable({
   /** The shared record this prop's rigid body hangs off. Null until mount,
    * and bodyless until a world has been built around it. */
   const handle = useRef<ShelfHandle | null>(null);
-  /** Did THIS gesture get a body? Decided once, at pointerdown: a module
-   * that lands mid-drag must not change the rules under the visitor's hand. */
+  /** Whether this carry owns a live solver body. */
   const simulated = useRef(false);
+  /** A mounted prop may begin following the pointer while the lazy solver
+   * finishes. Release is held at the carried pose until its body exists. */
+  const mountedPhysicsPending = useRef(false);
+  const pendingMountedRelease = useRef<{
+    velocityMultiplier: number;
+    velocityCap: number;
+  } | null>(null);
   const authoredParked = useRef(false);
   const authoredOffscreenFor = useRef(0);
   const activityUnpin = useRef<(() => void) | null>(null);
@@ -514,6 +535,12 @@ export default function Grabbable({
    * moment you dragged a prop across the DOM placard the prop froze in mid
    * air until the cursor came back. */
   const ndc = useMemo(() => new THREE.Vector2(), []);
+
+  // Mounted props cannot use the authored fallback, so start their solver
+  // load at mount rather than relying only on idle time or hover intent.
+  useEffect(() => {
+    if (detachesFromMount && physicsEnabled) prewarmGrabbablePhysics();
+  }, [detachesFromMount, physicsEnabled]);
 
   const track = useCallback(
     (e: PointerEvent) => {
@@ -547,6 +574,8 @@ export default function Grabbable({
       plane: standsOn,
       phase,
       physicsEnabled,
+      physicsActivation: detachesFromMount ? "detach" : undefined,
+      physicsActivated: !detachesFromMount,
     };
     handle.current = entry;
     diagnosticsScope = physicsScene;
@@ -573,10 +602,25 @@ export default function Grabbable({
   // prop's silhouette mid-drag — which it does immediately, since the prop
   // lags the cursor — cannot strand the drag. That also removes the need for
   // setPointerCapture entirely.
+  const finishDragUi = useCallback(() => {
+    const store = useStacks.getState();
+    store.setDragging(null);
+    const el = store.scrollEl;
+    if (el) {
+      el.style.touchAction = "pan-x";
+      el.style.overflowX = "auto";
+    }
+  }, []);
+
   const release = useCallback(
     (velocityMultiplier = 1, velocityCap = Infinity) => {
       pointerId.current = null;
       if (phase.current !== "held") return;
+      if (mountedPhysicsPending.current && !simulated.current) {
+        pendingMountedRelease.current = { velocityMultiplier, velocityCap };
+        finishDragUi();
+        return;
+      }
       const entry = handle.current;
       velocity.multiplyScalar(handling.throwTilt);
       velocity.multiplyScalar(velocityMultiplier);
@@ -588,36 +632,121 @@ export default function Grabbable({
       if (!(simulated.current && entry?.world?.release(entry, velocity)))
         phase.current = "settling";
       simulated.current = false;
-      const store = useStacks.getState();
-      store.setDragging(null);
-      // Restore the scroll element by hand. drei's ScrollControls `enabled`
-      // flag only short-circuits its own handler — the DOM element keeps
-      // scrolling natively, and when the flag flips back the effect re-runs,
-      // swallows one event and resyncs from el.scrollLeft, which teleports the
-      // camera. Freezing the element itself is the only thing that prevents it.
-      const el = store.scrollEl;
-      if (el) {
-        el.style.touchAction = "pan-x";
-        el.style.overflowX = "auto";
-      }
+      finishDragUi();
     },
-    [handling.throwTilt, velocity],
+    [finishDragUi, handling.throwTilt, velocity],
   );
 
   const beginCarry = useCallback(
     (event: PointerEvent) => {
       if (phase.current === "held") return;
-      const store = useStacks.getState();
       const entry = handle.current;
       const g = group.current;
+      const mountedActivation =
+        !!g && entry?.physicsActivation === "detach" && !entry.physicsActivated;
+
+      const store = useStacks.getState();
       authoredParked.current = false;
       authoredOffscreenFor.current = 0;
       velocity.set(0, 0, 0);
       pickupY.current = g?.position.y ?? base[1];
       track(event);
-      // Build (or join) the scene world while the prop is still standing
-      // exactly on its mark — collision boxes are measured at this boundary.
       simulated.current = false;
+      phase.current = "held";
+      activityUnpin.current ??= sceneUnitActivityController.pin(
+        unitIndex,
+        `grabbable:${hoverKey}`,
+      );
+      store.setDragging(hoverKey);
+      // drei's ScrollControls `enabled` flag only short-circuits its own
+      // handler — the DOM element keeps scrolling natively. Freezing the
+      // element is what actually stops travel; overflow hidden also means no
+      // scroll event ever fires, so drei has nothing to resync from and the
+      // camera cannot teleport when the drag ends.
+      const el = store.scrollEl;
+      if (el) {
+        el.style.touchAction = "none";
+        el.style.overflowX = "hidden";
+      }
+
+      const abortMountedCarry = () => {
+        mountedPhysicsPending.current = false;
+        pendingMountedRelease.current = null;
+        simulated.current = false;
+        if (entry) {
+          entry.physicsActivated = false;
+          if (entry.world) {
+            const activeWorld = entry.world;
+            activeWorld.drop(entry);
+          }
+          g?.position.copy(entry.base);
+          g?.quaternion.identity();
+        }
+        phase.current = "rest";
+        activityUnpin.current?.();
+        activityUnpin.current = null;
+        finishDragUi();
+      };
+
+      const activateMountedPhysics = () => {
+        if (!physics || !physicsEnabled || !entry || !g) return false;
+        entry.physicsActivated = true;
+        const preparation = physics.prepareScenePhysics(physicsScene, entry);
+        if (preparation.status !== "ready") {
+          physicsDiagnosticsController.publish({
+            code:
+              preparation.reason === "geometry-pending"
+                ? "geometry-pending"
+                : "authored-fallback",
+            handle: entry.key,
+            detail: preparation.reason,
+          });
+          abortMountedCarry();
+          return false;
+        }
+        simulated.current = preparation.world.grab(entry);
+        if (!simulated.current) {
+          abortMountedCarry();
+          return false;
+        }
+        mountedPhysicsPending.current = false;
+        return true;
+      };
+
+      // Mounted props have no body at rest. Move the visual clear first, then
+      // follow the hand immediately. If the lazy solver is still loading, a
+      // release waits at the carried pose rather than entering fallback.
+      if (mountedActivation && g && entry) {
+        mountedPhysicsPending.current = true;
+        g.position.x += detachX;
+        g.position.y += detachY;
+        g.position.z += detachZ;
+        if (physics) {
+          activateMountedPhysics();
+        } else {
+          const requestedEntry = entry;
+          void loadGrabbablePhysics().then((loaded) => {
+            if (
+              handle.current !== requestedEntry ||
+              !mountedPhysicsPending.current
+            )
+              return;
+            if (!loaded || !activateMountedPhysics()) {
+              abortMountedCarry();
+              return;
+            }
+            const queuedRelease = pendingMountedRelease.current;
+            pendingMountedRelease.current = null;
+            if (queuedRelease)
+              release(
+                queuedRelease.velocityMultiplier,
+                queuedRelease.velocityCap,
+              );
+          });
+        }
+        return;
+      }
+
       let preparedWorld: ScenePhysicsWorld | null = null;
       if (physicsEnabled && physics && entry && g) {
         // The provider supplies every mounted handle and registered static
@@ -639,25 +768,22 @@ export default function Grabbable({
           handle: entry.key,
           detail: physicsEnabled ? "module-loading" : "opted-out",
         });
-      phase.current = "held";
-      activityUnpin.current ??= sceneUnitActivityController.pin(
-        unitIndex,
-        `grabbable:${hoverKey}`,
-      );
       if (preparedWorld && entry) simulated.current = preparedWorld.grab(entry);
-      store.setDragging(hoverKey);
-      // drei's ScrollControls `enabled` flag only short-circuits its own
-      // handler — the DOM element keeps scrolling natively. Freezing the
-      // element is what actually stops travel; overflow hidden also means no
-      // scroll event ever fires, so drei has nothing to resync from and the
-      // camera cannot teleport when the drag ends.
-      const el = store.scrollEl;
-      if (el) {
-        el.style.touchAction = "none";
-        el.style.overflowX = "hidden";
-      }
     },
-    [base, hoverKey, physicsEnabled, physicsScene, track, unitIndex, velocity],
+    [
+      base,
+      detachX,
+      detachY,
+      detachZ,
+      finishDragUi,
+      hoverKey,
+      physicsEnabled,
+      physicsScene,
+      release,
+      track,
+      unitIndex,
+      velocity,
+    ],
   );
 
   const onGrabDown = useCallback(
@@ -921,7 +1047,7 @@ export default function Grabbable({
     )
       return;
 
-    if (phase.current === "held") {
+    if (phase.current === "held" && pointerId.current !== null) {
       // Drag plane: camera-facing, through the prop's current position, so
       // the object tracks the cursor at its own depth instead of sliding
       // along the shelf. Rebuilt each frame because the camera rig keeps
@@ -978,6 +1104,9 @@ export default function Grabbable({
         );
         velocity.copy(result.acceptedVelocity);
       }
+    } else if (phase.current === "held") {
+      // Pointer-up can beat the lazy solver on the first mounted carry. Hold
+      // the final hand pose until the queued rigid-body release is ready.
     } else if (phase.current === "sim") {
       // The solver owns this transform; the scene frame driver writes it.
     } else if (phase.current === "settling") {
@@ -1154,11 +1283,17 @@ export default function Grabbable({
       s.scale.set(w, w * 0.32, 1);
       s.material.opacity = SHADE_OPACITY * (1 - 0.65 * spreadT);
     }
-    if (
-      phase.current === "rest" &&
-      !authoredParked.current &&
-      atAuthoredPose
-    ) {
+    if (phase.current === "rest" && !authoredParked.current && atAuthoredPose) {
+      if (
+        entry?.physicsActivation === "detach" &&
+        entry.physicsActivated &&
+        entry.parked &&
+        entry.world
+      ) {
+        const activeWorld = entry.world;
+        entry.physicsActivated = false;
+        activeWorld.drop(entry);
+      }
       activityUnpin.current?.();
       activityUnpin.current = null;
     }

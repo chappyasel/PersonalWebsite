@@ -1558,24 +1558,21 @@ const SKY_FRAGMENT = `
     float ggbCable = 0.0;
     float ggbDeckY = 0.0;
     float gx = (a + 2.04) / 0.055;
-    if (abs(gx) < 1.10 && e > 0.024 && e < 0.078) {
+    if (abs(gx) < 1.58 && e > 0.024 && e < 0.078) {
       // The roadway crests at midspan, and the main cable is a PARABOLA
       // between the tower tops that comes down to touch the deck at the
       // centre — which is what the real cable does, and the same idiom the
       // Bay Bridge span already uses. The linear term tilts the curve
       // because the far tower is lower.
       float deckY = 0.0380 + 0.0022 * (1.0 - gx * gx);
-      float cableY = deckY + 0.0308 * gx * gx - 0.00325 * gx;
       float towerTop = mix(0.0720, 0.0655, step(0.0, gx));
-      // Art Deco portal towers. A solid tapered bar survives as a post, not
-      // as the Golden Gate, once DoF and bloom reach the skyline. Keep the
-      // four-stage taper, but build it from separated legs and crossbeams so
-      // the negative-space portals remain legible at OG scale.
-      float tt = clamp((e - deckY) / (towerTop - deckY), 0.0, 1.0);
-      float hw = 0.0041 - 0.00048 * min(floor(tt * 4.0), 3.0);
+      // The reference tower has two straight outside legs. Do not staircase
+      // or taper their outer edges: that turns the three open portals into a
+      // stack of unrelated blocks at skyline scale.
       float dTw = abs(abs(gx) - 1.0) * 0.055;
-      float legOffset = hw * 0.58;
-      float legHalfW = mix(0.00088, 0.00068, tt);
+      float towerHalfW = 0.00345;
+      float legOffset = 0.00245;
+      float legHalfW = 0.00074;
       float towerBand = step(0.0245, e) * step(e, towerTop);
       float towerLegs = step(abs(dTw - legOffset), legHalfW) * towerBand;
       float lowerBeamY = mix(deckY, towerTop, 0.34);
@@ -1585,31 +1582,52 @@ const SKY_FRAGMENT = `
         + step(abs(e - upperBeamY), 0.00085),
         0.0,
         1.0
-      ) * step(dTw, hw) * towerBand;
-      float tower = clamp(towerLegs + portalBeams, 0.0, 1.0);
-      float cable = step(abs(e - cableY), 0.00155) * step(abs(gx), 1.0);
-      ggbDeck = step(abs(e - deckY), 0.00115) * step(abs(gx), 1.06);
+      ) * step(dTw, towerHalfW) * towerBand;
+      // The real tower terminates in a broad, flat cap wider than the tapered
+      // legs. Keep it independent of the tapered half-width so the cable cannot turn the top
+      // into a pointed silhouette after antialiasing and bloom.
+      float towerCap = step(abs(e - towerTop), 0.00105)
+                     * step(dTw, 0.00375);
+      float tower = clamp(towerLegs + portalBeams + towerCap, 0.0, 1.0);
+      // One hairline cable crosses the main span; matching side cables carry
+      // the same curve from each tower down to its outside anchorage.
+      float cableY = deckY + 0.0308 * gx * gx - 0.00325 * gx;
+      float mainCable = step(abs(e - cableY), 0.00072)
+                      * step(abs(gx), 1.0);
+      float outsideT = clamp((abs(gx) - 1.0) / 0.55, 0.0, 1.0);
+      float outsideCableY = mix(towerTop, deckY + 0.0018, outsideT);
+      float outsideCable = step(abs(e - outsideCableY), 0.00072)
+                         * step(1.0, abs(gx)) * step(abs(gx), 1.55);
+      float cable = max(mainCable, outsideCable);
+      ggbDeck = step(abs(e - deckY), 0.00115) * step(abs(gx), 1.55);
       // The roadway lights own the upper chord. A second, unlit lower chord
       // and sparse verticals keep it reading as a bridge deck rather than a
       // marquee string, without adding more bloom to the horizon.
       float trussY = deckY - 0.0028;
-      float trussChord = step(abs(e - trussY), 0.00072) * step(abs(gx), 1.04);
-      float trussPosts = step(abs(fract((gx + 1.0) * 10.0) - 0.5), 0.060)
+      float trussChord = step(abs(e - trussY), 0.00072) * step(abs(gx), 1.53);
+      float trussPosts = step(abs(fract((gx + 1.55) * 10.0) - 0.5), 0.060)
                        * step(trussY, e) * step(e, deckY)
-                       * step(abs(gx), 1.0);
+                       * step(abs(gx), 1.52);
       float deckTruss = clamp(trussChord + trussPosts, 0.0, 1.0);
       // Suspender ropes. Only legible near the towers — which is exactly the
       // stretch of span the ridge is not covering.
       float sus = 0.0;
       if (uSimplify < 0.5) {
-        sus = step(abs(fract(gx * 9.0) - 0.5), 0.055)
-            * step(deckY, e) * step(e, cableY) * step(abs(gx), 0.98);
+        float mainSuspenders = step(abs(fract(gx * 9.0) - 0.5), 0.055)
+                             * step(deckY, e) * step(e, cableY)
+                             * step(abs(gx), 0.98);
+        float outerSuspenders = step(
+          abs(fract((abs(gx) - 1.0) * 14.0) - 0.5),
+          0.055
+        ) * step(deckY, e) * step(e, outsideCableY)
+          * step(1.01, abs(gx)) * step(abs(gx), 1.52);
+        sus = clamp(mainSuspenders + outerSuspenders, 0.0, 1.0);
       }
       ggbTower = tower;
       ggbDeckY = deckY;
       ggbCable = cable;
       ggb = clamp(
-        towerLegs + portalBeams + cable + ggbDeck + deckTruss + sus,
+        towerLegs + portalBeams + towerCap + cable + ggbDeck + deckTruss + sus,
         0.0,
         1.0
       );
@@ -1623,18 +1641,6 @@ const SKY_FRAGMENT = `
     ggbTower *= ggbVis;
     ggbDeck *= ggbVis;
     ggbCable *= ggbVis;
-
-    // Coit Tower on Telegraph Hill — slender shaft, gently flared arcade.
-    // Silhouette only (nightly floodlighting is unverified).
-    float coit = 0.0;
-    if (uSimplify < 0.5) {
-      float dCoit = a + 1.90;
-      if (abs(dCoit) < 0.008 && e < 0.048) {
-        float shaft = step(abs(dCoit), 0.0032) * step(0.010, e) * step(e, 0.040);
-        float cap = step(abs(dCoit), 0.0046) * step(0.040, e) * step(e, 0.046);
-        coit = max(shaft, cap);
-      }
-    }
 
     // ---- Transamerica Pyramid. The WINGS are what turn "a triangle" into THE
     // pyramid, and they were drawn wrong in the one way that reads: as two
@@ -1734,7 +1740,7 @@ const SKY_FRAGMENT = `
     }
 
     float ground = smoothstep(-0.10, -0.02, e);
-    float structures = clamp(city + sutro + coit + trans + sales + jasper + bridge + ggb, 0.0, 1.0) * ground;
+    float structures = clamp(city + sutro + trans + sales + jasper + bridge + ggb, 0.0, 1.0) * ground;
     hillMask *= ground;
 
     // Sparse warm window glints — the city is mostly asleep. Scrolling
@@ -2361,13 +2367,18 @@ const SKY_FRAGMENT = `
       if (abs(gx) < 1.12 && e > 0.020 && e < 0.080) {
         vec3 hps = vec3(1.00, 0.62, 0.24);
         col += hps * ggbDeck * (0.68 + 0.32 * sin(gx * 116.0)) * 0.17 * night;
-        col += hps * ggbCable * 0.055 * night;
+        col += hps * ggbCable * 0.012 * night;
         col += hps * ggbTower * exp(-max(e - ggbDeckY, 0.0) * 95.0) * 0.25 * night;
         float ggbFlash = step(fract(uTime * 0.4333), 0.13);
-        float dGa = length(vec2((gx + 1.0) * 0.055, e - 0.0720));
-        float dGb = length(vec2((gx - 1.0) * 0.055, e - 0.0655));
-        col += avRed * (smoothstep(0.0026, 0.0009, dGa)
-                      + smoothstep(0.0026, 0.0009, dGb))
+        float beaconOffset = 0.00215;
+        float dGaL = length(vec2((gx + 1.0) * 0.055 - beaconOffset, e - 0.0732));
+        float dGaR = length(vec2((gx + 1.0) * 0.055 + beaconOffset, e - 0.0732));
+        float dGbL = length(vec2((gx - 1.0) * 0.055 - beaconOffset, e - 0.0667));
+        float dGbR = length(vec2((gx - 1.0) * 0.055 + beaconOffset, e - 0.0667));
+        col += avRed * (smoothstep(0.0016, 0.0005, dGaL)
+                      + smoothstep(0.0016, 0.0005, dGaR)
+                      + smoothstep(0.0016, 0.0005, dGbL)
+                      + smoothstep(0.0016, 0.0005, dGbR))
              * (0.18 + 0.48 * ggbFlash) * ggbVis * night;
       }
 
@@ -3439,6 +3450,7 @@ export default function SceneEnvironment({
             dark={dark}
             rung={quality.environment.meadowRung}
             farGrassShader={quality.environment.farGrassShader}
+            contentTier={quality.environment.contentTier}
           />
           {/* Inside the same gate as the field they fly over: ?nomeadow must
               not leave three butterflies over a bare floor. */}

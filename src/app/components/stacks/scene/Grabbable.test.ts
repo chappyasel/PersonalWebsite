@@ -63,4 +63,40 @@ describe("Grabbable tap/carry arbitration", () => {
     expect(down).not.toContain('phase.current = "held"');
     expect(down).not.toContain("prepareScenePhysics");
   });
+
+  it("activates mounted physics after moving clear of the mount", () => {
+    const releaseStart = source.indexOf("const release");
+    const carryStart = source.indexOf("const beginCarry", releaseStart);
+    const moveStart = source.indexOf("const onGrabDown", carryStart);
+    const release = source.slice(releaseStart, carryStart);
+    const carry = source.slice(carryStart, moveStart);
+    const activationStart = carry.indexOf("const activateMountedPhysics");
+    const detachStart = carry.indexOf("// Mounted props have no body");
+    const activation = carry.slice(activationStart, detachStart);
+
+    expect(carry).toContain('entry?.physicsActivation === "detach"');
+    expect(carry).toContain("g.position.z += detachZ");
+    expect(activation).toContain("entry.physicsActivated = true");
+    expect(activation.indexOf("entry.physicsActivated = true")).toBeLessThan(
+      activation.indexOf("physics.prepareScenePhysics"),
+    );
+    expect(carry.indexOf("g.position.z += detachZ")).toBeLessThan(
+      carry.indexOf("activateMountedPhysics();", detachStart),
+    );
+    expect(release).not.toContain("physicsAfterPull");
+    expect(source).not.toContain("fallbackRestY");
+    expect(source).not.toContain("fallbackRestRotationX");
+  });
+
+  it("starts a mounted carry while physics is still loading", () => {
+    const carryStart = source.indexOf("const beginCarry");
+    const moveStart = source.indexOf("const onGrabDown", carryStart);
+    const carry = source.slice(carryStart, moveStart);
+
+    expect(carry).toContain("loadGrabbablePhysics().then");
+    expect(carry.indexOf('phase.current = "held"')).toBeLessThan(
+      carry.indexOf("loadGrabbablePhysics().then"),
+    );
+    expect(carry).toContain("mountedPhysicsPending.current = true");
+  });
 });

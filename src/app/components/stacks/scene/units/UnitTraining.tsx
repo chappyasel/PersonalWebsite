@@ -19,7 +19,6 @@ import { SodaCan } from "../objects";
 import {
   DeskFrame,
   PHOTO_LINKS,
-  PhotoMount,
   deskFrameHeight,
   photoDoorLabel,
 } from "../photos";
@@ -232,36 +231,70 @@ function TrainingBoard({
       </RoundedBox>
       {TRAINING_PINS.map((pin) => {
         const height = pin.width / pin.aspect;
+        const hoverKey = `grab:photo:${pin.id}`;
+        const href = PHOTO_LINKS[pin.id] ?? undefined;
+        const tackOffsetY = height / 2 - 0.012;
         return (
-          <PhotoMount
-            key={pin.id}
-            unitIndex={unitIndex}
-            id={pin.id}
-            position={[pin.x, pin.y - 0.396, 0.026]}
-            rotation={[0, 0, pin.roll]}
-            lift={[0, 0, 0.012]}
-          >
-            <RoundedBox
-              castShadow
-              args={[pin.width + 0.018, height + 0.018, 0.008]}
-              radius={0.003}
-              smoothness={2}
+          <React.Fragment key={pin.id}>
+            <Grabbable
+              unitIndex={unitIndex}
+              hoverKey={hoverKey}
+              base={[pin.x, pin.y - 0.396, 0.026]}
+              physicsDetachOffset={[0, 0, 0.08]}
+              shadeColor={palette.shadow}
+              shadeWidth={pin.width}
+              shape="box"
+              massKg={0.025}
+              href={href}
+              doorLabel={href ? photoDoorLabel(href) : undefined}
             >
-              <meshStandardMaterial color={palette.paper} roughness={0.9} />
-            </RoundedBox>
-            {textured && (
-              <React.Suspense fallback={null}>
-                <LitImage
-                  url={pin.src}
-                  role="support"
-                  width={pin.width}
-                  height={height}
-                  roughness={0.6}
-                  position={[0, 0, 0.006]}
-                />
-              </React.Suspense>
-            )}
-            <mesh position={[0, height / 2 - 0.012, 0.014]}>
+              <group rotation={[0, 0, pin.roll]}>
+                <RoundedBox
+                  castShadow
+                  args={[pin.width + 0.018, height + 0.018, 0.008]}
+                  radius={0.003}
+                  smoothness={2}
+                >
+                  <meshStandardMaterial color={palette.paper} roughness={0.9} />
+                </RoundedBox>
+                {textured && (
+                  <React.Suspense fallback={null}>
+                    <LitImage
+                      url={pin.src}
+                      role="support"
+                      width={pin.width}
+                      height={height}
+                      roughness={0.6}
+                      position={[0, 0, 0.006]}
+                    />
+                  </React.Suspense>
+                )}
+                {/* This plane sits in front of the print and owns its whole
+                    pointer area. It renders nothing, but unlike the tiny tack
+                    it travels with the photo and always reaches Grabbable. */}
+                <mesh name={`grab-surface:${pin.id}`} position={[0, 0, 0.024]}>
+                  <planeGeometry args={[pin.width + 0.018, height + 0.018]} />
+                  <meshBasicMaterial
+                    transparent
+                    opacity={0}
+                    depthWrite={false}
+                    colorWrite={false}
+                    side={THREE.DoubleSide}
+                  />
+                </mesh>
+              </group>
+            </Grabbable>
+            {/* Pull the print out from under its tack. The tack belongs to the
+                board and opts out of raycasting so it cannot steal the hit. */}
+            <mesh
+              position={[
+                pin.x - Math.sin(pin.roll) * tackOffsetY,
+                pin.y - 0.396 + Math.cos(pin.roll) * tackOffsetY,
+                0.04,
+              ]}
+              raycast={() => null}
+              userData={{ physicsIgnore: true }}
+            >
               <sphereGeometry args={[0.009, 10, 10]} />
               <meshStandardMaterial
                 color={palette.hub}
@@ -269,7 +302,7 @@ function TrainingBoard({
                 roughness={0.4}
               />
             </mesh>
-          </PhotoMount>
+          </React.Fragment>
         );
       })}
     </group>

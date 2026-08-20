@@ -41,10 +41,21 @@ describe("coarse-pointer ownership", () => {
   it("routes touch through one arbiter instead of legacy activators", () => {
     expect(touchLayer).toContain("reduceTouchGesture");
     expect(touchLayer).toContain("runSceneInteractionActivation");
+    expect(touchLayer).toContain(
+      'addEventListener("lostpointercapture", onPointerCancel',
+    );
     expect(grabbable).toContain('if (event.pointerType === "touch") return;');
     expect(links).toContain('if (e.pointerType === "touch")');
     expect(eggs).toContain('pointerType?: string }).pointerType === "touch"');
     expect(environment).toContain('if (e.pointerType === "touch")');
+  });
+
+  it("keeps the touch arbiter in the lazy canvas bundle", () => {
+    expect(home).not.toContain("TouchInteractionLayer");
+    expect(canvas).toContain(
+      'import TouchInteractionLayer from "./input/TouchInteractionLayer"',
+    );
+    expect(canvas.match(/<TouchInteractionLayer \/>/g) ?? []).toHaveLength(1);
   });
 
   it("does not cover the world with discovery-copy pills", () => {

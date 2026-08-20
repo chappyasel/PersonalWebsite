@@ -140,8 +140,17 @@ export type Palette = (typeof PALETTES)["light" | "dark"];
 export const GRAIN_URI =
   "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='1' stitchTiles='stitch'/%3E%3CfeColorMatrix values='1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")";
 
+export type OptimizedImageWidth =
+  | 48
+  | 256
+  | 384
+  | 640
+  | 750
+  | 828
+  | 1080;
+
 /** Route remote cover art through the Next image optimizer at a fixed width. */
-export function proxied(url: string, w: 48 | 256 | 384 = 384): string {
+export function proxied(url: string, w: OptimizedImageWidth = 384): string {
   return `/_next/image?url=${encodeURIComponent(url)}&w=${w}&q=75`;
 }
 

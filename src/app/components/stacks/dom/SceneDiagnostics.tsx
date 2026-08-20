@@ -1,5 +1,6 @@
 "use client";
 
+import { cameraDepthDiagnosticsController } from "../scene/cameraDepthDiagnostics";
 import {
   sceneDebugOverlayPatches,
   sceneDebugOverlayState,
@@ -24,6 +25,15 @@ import {
   sceneQualityController,
   useSceneQualityControls,
 } from "../scene/sceneQualityController";
+
+/** Plain words for the constraint, because "cpu"/"gpu" alone reads as a
+ * category rather than as a verdict about this window. */
+const CONSTRAINT_LABEL = {
+  cpu: "CPU bound",
+  gpu: "GPU bound",
+  headroom: "headroom",
+  unknown: "no verdict",
+} as const;
 import { useStacks } from "../store";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
@@ -930,9 +940,24 @@ function DiagnosticsOverview({
       <div className="stacks-diagnostics-metrics">
         <article>
           <span>Quality</span>
+          {/* In automatic mode the scene does not stand at a preset, so a
+              preset name here would misdescribe an independent axis state.
+              A forced preset shows its name and the axes it resolved to. */}
+          {/* Never collapse to a bare "Waiting": the profile name is known
+              from the control store before the canvas has published anything,
+              and hiding it makes a booting scene look like a broken one. */}
           <strong>
-            {runtime?.plan.profile ?? "Waiting"} / {qualityControls.mode}
+            {runtime
+              ? `${runtime.forcedProfile ?? runtime.plan.profile}${
+                  runtime.forcedProfile ? " (forced)" : ""
+                } · res ${runtime.axes.resolutionStep}/11`
+              : `${qualityControls.mode} · scene not mounted`}
           </strong>
+          <small>
+            {runtime
+              ? `fx ${runtime.axes.effects} · geo ${runtime.axes.content}`
+              : "no frame published yet"}
+          </small>
           <small>
             {runtime
               ? `${(runtime.plan.physicalPixels / 1_000_000).toFixed(1)}/${(
@@ -963,6 +988,17 @@ function DiagnosticsOverview({
             {metrics
               ? `${(metrics.droppedFrameRatio * 100).toFixed(1)}% dropped · ${metrics.targetHz} Hz target`
               : "Waiting for a valid frame window"}
+          </small>
+          {/* Main-thread cost beside the interval is what separates a
+              saturated CPU from a saturated GPU, so both are shown. */}
+          <small>
+            {metrics
+              ? `${metrics.cpuMs.toFixed(1)} ms main thread${
+                  metrics.gpuMs == null
+                    ? ""
+                    : ` · ${metrics.gpuMs.toFixed(1)} ms GPU`
+                } · ${CONSTRAINT_LABEL[runtime?.constraint ?? "unknown"]}`
+              : "No main-thread cost yet"}
           </small>
           <small>
             {runtime
@@ -1060,6 +1096,11 @@ export default function SceneDiagnostics({
     meadowDiagnosticsController.subscribe,
     meadowDiagnosticsController.getSnapshot,
     meadowDiagnosticsController.getSnapshot,
+  );
+  const cameraDepthSnapshot = useSyncExternalStore(
+    cameraDepthDiagnosticsController.subscribe,
+    cameraDepthDiagnosticsController.getSnapshot,
+    cameraDepthDiagnosticsController.getSnapshot,
   );
   const activeUnit = useStacks((state) => state.activeUnit);
   const summary = summarizeInsectPerchDiagnostics(snapshot.diagnostics);
@@ -1318,6 +1359,23 @@ export default function SceneDiagnostics({
           aria-labelledby="stacks-diagnostics-tab-simulate"
         >
           <fieldset className="stacks-diagnostics-section">
+            <legend>Camera</legend>
+            <label>
+              <input
+                type="checkbox"
+                checked={cameraDepthSnapshot.enabled}
+                onChange={(event) =>
+                  cameraDepthDiagnosticsController.setEnabled(
+                    event.currentTarget.checked,
+                  )
+                }
+              />{" "}
+              Authored camera depth
+            </label>
+            <small>Changes apply on the next frame and reset on reload.</small>
+          </fieldset>
+
+          <fieldset className="stacks-diagnostics-section">
             <legend>Meadow wind</legend>
             <label
               className="stacks-diagnostics-range"
@@ -1547,6 +1605,44 @@ export default function SceneDiagnostics({
                 <option value="safety">Safety</option>
               </select>
             </label>
+            {/* Resolution is a twelve-step ladder now, and the preset only
+                sets its ceiling. Pinning a step is the only way to compare
+                two render scales without waiting for the ladder to walk
+                between them. Auto hands it back to the controller. */}
+            <label>
+              Render scale
+              <select
+                className="ml-auto rounded border border-white/15 bg-black/40 px-1.5 py-1 text-white"
+                value={qualityControls.resolutionStep ?? "auto"}
+                onChange={(event) =>
+                  sceneQualityController.setResolutionStep(
+                    event.currentTarget.value === "auto"
+                      ? null
+                      : Number(event.currentTarget.value),
+                  )
+                }
+              >
+                <option value="auto">
+                  Auto
+                  {qualityControls.runtime
+                    ? ` (step ${qualityControls.runtime.axes.resolutionStep})`
+                    : ""}
+                </option>
+                {Array.from({ length: 12 }, (_, step) => (
+                  <option key={step} value={step}>
+                    {`step ${step}${step === 0 ? " · floor" : step === 11 ? " · cap" : ""}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {qualityControls.runtime ? (
+              <p className="text-[11px] text-white/50">
+                {`DPR ${qualityControls.runtime.plan.dpr.toFixed(2)} · ${(
+                  qualityControls.runtime.plan.physicalPixels / 1_000_000
+                ).toFixed(2)} MP`}
+                {qualityControls.resolutionStep != null ? " · pinned" : ""}
+              </p>
+            ) : null}
             <label>
               <input
                 type="checkbox"
@@ -1620,7 +1716,10 @@ export default function SceneDiagnostics({
                   </span>
                 </div>
               ) : (
-                <small>Waiting for the scene quality policy.</small>
+                <small>
+                  Scene not mounted yet — the canvas publishes this on its
+                  first frame.
+                </small>
               )}
             </details>
           </fieldset>

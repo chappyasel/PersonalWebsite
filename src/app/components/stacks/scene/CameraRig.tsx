@@ -23,6 +23,10 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import {
+  cameraDepthDiagnosticsController,
+  cameraDepthEffectEnabled,
+} from "./cameraDepthDiagnostics";
+import {
   clampCameraZoom,
   interactionZoomTarget,
   isGolfControlInteraction,
@@ -38,6 +42,7 @@ import {
   STACKS_DESKTOP_MIN_WIDTH,
   aboutStopShift,
   cameraCompositionForViewport,
+  cameraDepthOffsetsForViewport,
   cameraForAspect,
   cameraXForScrollOffset,
   captureCameraYFromSearch,
@@ -46,6 +51,7 @@ import {
   captureLookYFromSearch,
   golfDollyForViewport,
   golfLookYOffsetForViewport,
+  ogCaptureFromSearch,
   scrollOffsetForUnit,
   unitProgressForScrollOffset,
 } from "./worldLayout";
@@ -171,6 +177,8 @@ export default function CameraRig() {
   const initialAboutPending = useRef(true);
   const initialAboutFrames = useRef(0);
   const travelEye = useRef(new THREE.Vector3());
+  const travelLook = useRef(new THREE.Vector3());
+  const previousCameraDepthEnabled = useRef<boolean | null>(null);
   // Walk-to-the-chair scratch: Bezier control point, the position along it,
   // and the point on the chair you keep your eyes on while approaching.
   const ctrl = useRef(new THREE.Vector3());
@@ -207,6 +215,20 @@ export default function CameraRig() {
       typeof window === "undefined"
         ? null
         : captureCameraYFromSearch(window.location.search),
+    [],
+  );
+  const ogCapture = useMemo(
+    () =>
+      typeof window === "undefined"
+        ? false
+        : ogCaptureFromSearch(window.location.search),
+    [],
+  );
+  const reducedMotionQuery = useMemo(
+    () =>
+      typeof window === "undefined"
+        ? null
+        : window.matchMedia("(prefers-reduced-motion: reduce)"),
     [],
   );
 
@@ -529,14 +551,27 @@ export default function CameraRig() {
 
     // Travel pose, integrated whether or not it is the one being rendered —
     // standing up has to land on a live camera, not one frozen where it sat.
-    baseY.current = THREE.MathUtils.damp(
-      baseY.current,
+    const baselineEyeY =
       captureCameraY === null
         ? cameraY + (pointer.y * 0.08 + Math.sin(t * 0.4) * 0.03) * calm
-        : cameraY,
-      BASE_Y_LAMBDA,
-      dt,
+        : cameraY;
+    const baselineLookY =
+      lookY +
+      golfLookYOffsetForViewport(size.width, state.golfFocused) +
+      focusY.current +
+      pointer.y * 0.12 * calm;
+    const cameraDepthEnabled = cameraDepthEffectEnabled(
+      cameraDepthDiagnosticsController.getSnapshot().enabled,
+      reducedMotionQuery?.matches ?? false,
+      ogCapture,
     );
+    const snapCameraDepth =
+      previousCameraDepthEnabled.current !== null &&
+      previousCameraDepthEnabled.current !== cameraDepthEnabled;
+    previousCameraDepthEnabled.current = cameraDepthEnabled;
+    baseY.current = snapCameraDepth
+      ? baselineEyeY
+      : THREE.MathUtils.damp(baseY.current, baselineEyeY, BASE_Y_LAMBDA, dt);
     const cameraZoom = clampCameraZoom(
       0.6 * lean.current + interactionZoom.current + visitorZoom.current,
       cameraTargetDistance,
@@ -563,15 +598,9 @@ export default function CameraRig() {
       targetX - CAMERA_LOOK_X_MAX_LAG,
       targetX + CAMERA_LOOK_X_MAX_LAG,
     );
-    look.current.y = THREE.MathUtils.damp(
-      look.current.y,
-      lookY +
-        golfLookYOffsetForViewport(size.width, state.golfFocused) +
-        focusY.current +
-        pointer.y * 0.12 * calm,
-      LOOK_Y_LAMBDA,
-      dt,
-    );
+    look.current.y = snapCameraDepth
+      ? baselineLookY
+      : THREE.MathUtils.damp(look.current.y, baselineLookY, LOOK_Y_LAMBDA, dt);
     look.current.z = THREE.MathUtils.damp(
       look.current.z,
       composition.lookZ,
@@ -613,10 +642,39 @@ export default function CameraRig() {
       persp.clearViewOffset();
     }
 
+    // Horizontal framing, focus, Golf, pointer, idle, panel, and carrying
+    // corrections establish the baseline first. The authored pose then raises
+    // the eye and changes pitch around that finished composition. Keep the
+    // baseline look vector separate so toggling the experiment cannot feed its
+    // own offset back into the next damped frame.
+    const cameraDepth = cameraDepthOffsetsForViewport(
+      size.width,
+      size.height,
+      scenePosition,
+      cameraDepthEnabled,
+    );
+    let authoredEyeY = baseY.current;
+    let authoredLookY = look.current.y;
+    if (cameraDepth.eyeHeight !== 0 || cameraDepth.pitchRadians !== 0) {
+      authoredEyeY += cameraDepth.eyeHeight;
+      const horizontalDistance = Math.hypot(
+        look.current.x - targetX,
+        look.current.z - baseZ,
+      );
+      const baselinePitch = Math.atan2(
+        look.current.y - baseY.current,
+        horizontalDistance,
+      );
+      const authoredPitch = baselinePitch - cameraDepth.pitchRadians;
+      authoredLookY =
+        authoredEyeY + Math.tan(authoredPitch) * horizontalDistance;
+    }
+    travelLook.current.set(look.current.x, authoredLookY, look.current.z);
+
     let seatBlend = 0;
     if (s === 0) {
-      camera.position.set(targetX, baseY.current, baseZ);
-      camera.lookAt(look.current);
+      camera.position.set(targetX, authoredEyeY, baseZ);
+      camera.lookAt(travelLook.current);
     } else {
       // Seated pose keeps a breath and the pointer parallax: a camera that
       // stops dead reads as a still image rather than a place you are in.
@@ -667,7 +725,7 @@ export default function CameraRig() {
         ty + seatPointer.current.y * 0.45,
         tz,
       );
-      travelEye.current.set(targetX, baseY.current, baseZ);
+      travelEye.current.set(targetX, authoredEyeY, baseZ);
 
       // The walk, as a quadratic Bezier rather than a straight line. The
       // chair stands between the camera and the shelf, so a diagonal glide
@@ -678,7 +736,7 @@ export default function CameraRig() {
       const standZ = ez + STAND_BACK;
       ctrl.current.set(
         targetX + (ex - targetX) * 0.15,
-        baseY.current + APPROACH_LIFT * 0.5,
+        authoredEyeY + APPROACH_LIFT * 0.5,
         baseZ + (standZ - baseZ) * 0.55,
       );
       const iw = 1 - walk;
@@ -690,9 +748,9 @@ export default function CameraRig() {
       const gait = walk * (1 - walk) * 4;
       walkPos.current.set(
         b0 * targetX + b1 * ctrl.current.x + b2 * ex,
-        b0 * baseY.current +
+        b0 * authoredEyeY +
           b1 * ctrl.current.y +
-          b2 * (baseY.current + APPROACH_LIFT) +
+          b2 * (authoredEyeY + APPROACH_LIFT) +
           Math.sin(t * GAIT_RATE) * 0.018 * gait,
         b0 * baseZ + b1 * ctrl.current.z + b2 * standZ,
       );
@@ -717,7 +775,7 @@ export default function CameraRig() {
       // Keep the approach gaze on the upper cushion rather than the seat pan;
       // a low aim exaggerated the impression that the camera entered it.
       chairLook.current.set(ex, ey + 0.72, ez - 0.02);
-      orient.current.lookAt(travelEye.current, look.current, UP);
+      orient.current.lookAt(travelEye.current, travelLook.current, UP);
       qTravel.current.setFromRotationMatrix(orient.current);
       orient.current.lookAt(camera.position, chairLook.current, UP);
       qWalk.current.setFromRotationMatrix(orient.current);

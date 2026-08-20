@@ -30,6 +30,12 @@ const BOOKS = [
   { id: "bravo", coverSrc: "/covers/bravo.webp" },
   { id: "charlie", coverSrc: "/covers/charlie.webp" },
 ] as const;
+const FRAME_IDS = [
+  "portrait",
+  "family-frame",
+  "profile-frame",
+  "collective-frame",
+] as const;
 
 const COLORS = {
   alpha: { edge: "#a84f35", source: "edge" as const },
@@ -104,7 +110,7 @@ describe("Homepage entrance", () => {
     ]);
   });
 
-  it("fills the four real frames while retaining their immediate vector fallback", () => {
+  it("fills the four frames from small loading-screen sources", () => {
     const markup = renderBoot();
     const photos = [...markup.matchAll(/data-boot-photo="([^"]+)"/g)].map(
       (match) => match[1],
@@ -115,19 +121,18 @@ describe("Homepage entrance", () => {
     for (const photo of Object.values(BOOT_FRAME_PHOTOS)) {
       expect(markup).toContain(photo.src.replaceAll("&", "&amp;"));
     }
+    expect(BOOT_FRAME_PHOTOS.portrait.src).toContain("w=384");
   });
 
   it("uses each live frame's real photo-to-border ratio", () => {
     const markup = renderBoot();
 
-    for (const id of Object.keys(
-      BOOT_FRAME_PHOTOS,
-    ) as (keyof typeof BOOT_FRAME_PHOTOS)[]) {
+    for (const id of FRAME_IDS) {
       const landmark = ABOUT_BOOT_LANDMARKS[id];
       const image = landmark.imageProfile;
-      const tag = new RegExp(`<image[^>]*data-boot-photo="${id}"[^>]*>`).exec(
-        markup,
-      )?.[0];
+      const tag = new RegExp(
+        `data-landmark-id="${id}"[\\s\\S]*?<rect class="stacks-boot-frame-empty"[^>]*>`,
+      ).exec(markup)?.[0];
 
       expect(tag).toBeDefined();
       expect(tag).toContain(`width="${image.width * 100}"`);
@@ -158,7 +163,7 @@ describe("Homepage entrance", () => {
     });
   });
 
-  it("lays each real cover face over its colored decode fallback", () => {
+  it("lays each small cover face over its colored vector fallback", () => {
     const markup = renderBoot(3);
     const faces = [...markup.matchAll(/data-boot-book-face="([^"]+)"/g)].map(
       (match) => match[1],
@@ -169,11 +174,9 @@ describe("Homepage entrance", () => {
     for (const book of BOOKS) {
       expect(markup).toContain(`href="${book.coverSrc}"`);
     }
-    expect(markup.match(/preserveAspectRatio="none"/g)).toHaveLength(3);
-    expect(markup.match(/transform="matrix\([^)]*\)"/g)).toHaveLength(3);
     expect(
-      markup.match(/clip-path="url\(#stacks-boot-reading-cover-/g),
-    ).toHaveLength(3);
+      markup.match(/opacity:0;transition:opacity 160ms ease-out/g),
+    ).toHaveLength(7);
   });
 
   it("first-paints three deterministic colored jackets before book data streams", () => {

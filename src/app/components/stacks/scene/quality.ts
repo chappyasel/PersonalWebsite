@@ -1,3 +1,9 @@
+import {
+  SCENE_DROPPED_FRAME_MULTIPLIER,
+  SCENE_FRAME_BUDGET_HZ,
+  SCENE_FRAME_BUDGET_MS,
+} from "./frameBudget";
+
 export type DurableQualityRung = 0 | 1 | 2 | 3;
 export type SceneQualityProfile =
   | "cinematic"
@@ -12,12 +18,57 @@ export type RendererCapability =
   | "standard"
   | "high";
 
+/** GPU families that only ever appear in phones and tablets.
+ *
+ * Apple is deliberately NOT here. Recent Safari masks the renderer to the
+ * literal string "Apple GPU" on iOS and macOS alike, so matching it would
+ * class an M-series desktop as constrained and cost it a minute at reduced
+ * geometry before headroom climbed it back. An A-series pattern does not help
+ * either, because the masked string never contains the part number. Apple
+ * hardware is separated at the starting-state seam instead, where a narrow
+ * touch viewport is honest evidence of a phone. */
+const MOBILE_GPU_PATTERN = /adreno|mali|powervr/i;
+
+/**
+ * Bias the cold-start estimate toward `constrained` on evidence available
+ * before a single frame renders.
+ *
+ * Each signal may only push DOWN. A false positive costs a returning visitor
+ * some quality for a few seconds until measurement overrides it; a false
+ * negative costs them a janky first impression. Those are not symmetric.
+ *
+ * Both navigator fields are absent on some browsers, Safari included, so a
+ * missing signal must leave the estimate exactly as it was.
+ */
+function suggestsConstrainedDevice({
+  logicalCores,
+  deviceMemoryGb,
+  unmaskedRenderer,
+}: {
+  logicalCores?: number | null;
+  deviceMemoryGb?: number | null;
+  unmaskedRenderer?: string | null;
+}) {
+  if (typeof logicalCores === "number" && logicalCores > 0 && logicalCores < 4)
+    return true;
+  if (
+    typeof deviceMemoryGb === "number" &&
+    deviceMemoryGb > 0 &&
+    deviceMemoryGb <= 4
+  )
+    return true;
+  return Boolean(unmaskedRenderer && MOBILE_GPU_PATTERN.test(unmaskedRenderer));
+}
+
 export function deriveRendererCapability({
   webglVersion,
   maxTextureSize,
   maxSamples,
   physicalPixels,
   observed,
+  logicalCores,
+  deviceMemoryGb,
+  unmaskedRenderer,
 }: {
   webglVersion: 1 | 2;
   maxTextureSize: number;
@@ -27,6 +78,12 @@ export function deriveRendererCapability({
     SceneQualityMetrics,
     "p95" | "targetFrameMs" | "droppedFrameRatio" | "sampleCount"
   > | null;
+  /** `navigator.hardwareConcurrency`, absent on some browsers. */
+  logicalCores?: number | null;
+  /** `navigator.deviceMemory` in gigabytes, absent on some browsers. */
+  deviceMemoryGb?: number | null;
+  /** `UNMASKED_RENDERER_WEBGL`, absent where the extension is blocked. */
+  unmaskedRenderer?: string | null;
 }): RendererCapability {
   if (
     (observed &&
@@ -36,7 +93,12 @@ export function deriveRendererCapability({
     webglVersion === 1 ||
     maxTextureSize < 8192 ||
     maxSamples < 2 ||
-    physicalPixels > 9_000_000
+    physicalPixels > 9_000_000 ||
+    suggestsConstrainedDevice({
+      logicalCores,
+      deviceMemoryGb,
+      unmaskedRenderer,
+    })
   )
     return "constrained";
   if (
@@ -135,6 +197,9 @@ export type SceneQualityPlan = Readonly<{
   environment: Readonly<{
     meadowDensity: number;
     meadowRung: 0 | 1 | 2 | 3;
+    /** What the meadow actually draws. Automatic mode drives this from the
+     * content axis; a forced preset pins it to that preset's tier. */
+    contentTier: SceneContentTier;
     petals: number;
     dust: boolean;
     cloudDetail: "full" | "simplified";
@@ -375,6 +440,8 @@ export function resolveSceneQualityPlan({
   directRender = false,
   overrides,
   hasCustomOverrides,
+  contentTier,
+  resolutionStep,
 }: {
   mode: SceneQualityMode;
   profile: SceneQualityProfile;
@@ -386,6 +453,15 @@ export function resolveSceneQualityPlan({
   directRender?: boolean;
   overrides?: SceneQualityAdvancedOverrides;
   hasCustomOverrides?: boolean;
+  /** Supplied by the content axis in automatic mode. Falls back to the
+   * profile's own tier, which is what a forced preset resolves to. */
+  contentTier?: SceneContentTier;
+  /** Supplied by the resolution axis: 0 is the floor, 11 the ceiling. The
+   * ladder is computed against this plan's own cap, so the top step is
+   * exactly the resolution the profile would have chosen anyway. Null leaves
+   * resolution entirely to the profile, which is what the test harness pin
+   * and every forced-DPR assertion rely on. */
+  resolutionStep?: number | null;
 }): SceneQualityPlan {
   const definition = SCENE_QUALITY_DEFINITIONS[profile];
   const useProfileDpr = overrides?.effectiveDprLadder !== false;
@@ -405,10 +481,18 @@ export function resolveSceneQualityPlan({
           ],
         )
       : dprDefinition.dprCap;
-  const dpr = Math.max(
+  const profileDpr = Math.max(
     minimumDpr,
     Math.min(deviceDpr * dprDefinition.deviceDprScale, dprCap, areaCap),
   );
+  // The resolution axis may only take resolution DOWN from what the profile
+  // and the pixel budget already allow. It is a finer ladder inside the
+  // existing ceiling, never a way past it, so every preset cap survives
+  // untouched and so do the assertions that encode them.
+  const dpr =
+    resolutionStep == null
+      ? profileDpr
+      : sceneResolutionScale(resolutionStep, profileDpr);
   const ambientOcclusion =
     overrides?.skipAmbientOcclusion == null
       ? definition.ambientOcclusion
@@ -469,6 +553,7 @@ export function resolveSceneQualityPlan({
     environment: {
       meadowDensity: definition.meadowDensity,
       meadowRung: definition.meadowRung,
+      contentTier: contentTier ?? CONTENT_TIER_BY_PROFILE[profile],
       petals: definition.petals,
       dust: definition.dust,
       cloudDetail: definition.cloudDetail,
@@ -490,6 +575,42 @@ export function resolveSceneQualityPlan({
     customOverrides,
   };
 }
+
+/** Re-exported so existing consumers keep one import site. The values live in
+ * `frameBudget.ts`, which has no imports of its own, so a module that only
+ * needs the budget does not pull this policy table in with it. */
+export {
+  SCENE_DROPPED_FRAME_MULTIPLIER,
+  SCENE_FRAME_BUDGET_HZ,
+  SCENE_FRAME_BUDGET_MS,
+} from "./frameBudget";
+
+/** Which resource a sampling window was short of.
+ * `unknown` is a real answer: it moves nothing. */
+export type SceneFrameConstraint = "cpu" | "gpu" | "headroom" | "unknown";
+
+/** Main-thread cost above 70% of budget leaves too little room for the GPU to
+ * finish inside the frame, whatever the GPU is doing. */
+export const QUALITY_CPU_BOUND_MS = SCENE_FRAME_BUDGET_MS * 0.7;
+/** A frame is the GPU's fault only when the main thread demonstrably is not
+ * the bottleneck: under 40% of budget, while frames still arrive late. */
+export const QUALITY_GPU_BOUND_CPU_MS = SCENE_FRAME_BUDGET_MS * 0.4;
+export const QUALITY_GPU_BOUND_P95_MS = SCENE_FRAME_BUDGET_MS * 1.25;
+/** Headroom is evidence to climb on, so it is stricter than "not failing":
+ * half the budget spent, and almost nothing missed. */
+/** Share of the frame on the main thread that reads as CPU-bound regardless
+ * of absolute cost. Closes the band between the absolute CPU and GPU bounds,
+ * where a frame dominated by JS used to get no verdict at all. */
+export const QUALITY_CPU_BOUND_SHARE = 0.6;
+/** The one dropped-frame line, used in both directions. Above it the scene is
+ * under pressure and something should get cheaper; below it there is nothing
+ * to fix and quality may climb. Deliberately a single number: every ratchet
+ * this system has had came from a gap between a decline threshold and a
+ * higher recovery bar. */
+export const QUALITY_PRESSURE_DROPPED_RATIO = 0.08;
+/** Fraction of the budget a frame must fit inside to count as having room to
+ * spare, as opposed to merely not failing. */
+export const QUALITY_HEADROOM_BUDGET_RATIO = 0.8;
 
 export const QUALITY_SAMPLE_WINDOW_MS = 2_000;
 export const QUALITY_SAMPLE_INTERVAL_MS = 250;
@@ -513,7 +634,11 @@ export const QUALITY_DOWNGRADE_P95_IMPROVEMENT_RATIO = 0.9;
 export const QUALITY_DOWNGRADE_DROP_IMPROVEMENT = 0.03;
 // Policy semantics and large-viewport DPR floors changed in v3. Do not
 // restore a Safety decision learned by the former jitter-sensitive policy.
-const QUALITY_STORAGE_VERSION = 4;
+//
+// v5: quality became three independent axes graded against an absolute frame
+// budget. Every v4 entry was learned by a policy that could read a steady
+// 40 Hz as healthy, so those decisions are not evidence about anything.
+const QUALITY_STORAGE_VERSION = 5;
 
 export type SceneQualityMetrics = Readonly<{
   targetFrameMs: number;
@@ -521,7 +646,304 @@ export type SceneQualityMetrics = Readonly<{
   p95: number;
   droppedFrameRatio: number;
   sampleCount: number;
+  /** 95th percentile main-thread milliseconds per frame, aggregated over the
+   * same window as `p95` so the two terms stay comparable. */
+  cpuMs: number;
+  /** 95th percentile GPU milliseconds where a timer query is available, else
+   * null. Null must leave every classification behaving exactly as it would
+   * without the extension. */
+  gpuMs: number | null;
 }>;
+
+/** The three axes quality moves on, each with its own time constant.
+ *
+ * They are separate because they answer different questions. Resolution is
+ * cheap, reversible and invisible in motion, so it moves first and often.
+ * Effects are a GPU cost. Content is a main-thread and geometry cost, and it
+ * is the one people notice, so it is sticky. Collapsing them into one ladder
+ * is what made a phone shed pixels it did not have to spare while keeping
+ * every triangle it could not afford. */
+export type SceneEffectsTier = "cinematic" | "full" | "lean" | "minimal";
+export type SceneContentTier = "full" | "reduced" | "minimal";
+
+export const SCENE_EFFECTS_TIERS: readonly SceneEffectsTier[] = [
+  "minimal",
+  "lean",
+  "full",
+  "cinematic",
+] as const;
+export const SCENE_CONTENT_TIERS: readonly SceneContentTier[] = [
+  "minimal",
+  "reduced",
+  "full",
+] as const;
+
+export type SceneContentDefinition = Readonly<{
+  /** Index into the grass asset's levels of detail: 66, 32, then 16 triangles
+   * per tuft. The far lawn keeps level 1 at every tier. */
+  nearTuftLod: 0 | 1 | 2;
+  terrainSegmentsX: number;
+  terrainSegmentsZ: number;
+  /** The near lawn's wind shader. `simplified` binds the one-sample variant
+   * the far lawn already uses. */
+  nearGrassShader: "full" | "simplified";
+  suspendOffscreenWildlife: boolean;
+}>;
+
+/**
+ * What each content tier actually draws.
+ *
+ * Every tier holds grass instance count at full density and moves no prop,
+ * camera or colour. Only the triangles inside an instance, the terrain
+ * tessellation, the wind shader and offscreen wildlife residency change.
+ * Thinning coverage is the one geometry change that reads as a different
+ * scene rather than a cheaper one, so automatic mode never spends it.
+ *
+ * Projected scene triangles: 422,807 full, 297,949 reduced, 243,378 minimal.
+ */
+export const SCENE_CONTENT_DEFINITIONS: Readonly<
+  Record<SceneContentTier, SceneContentDefinition>
+> = {
+  full: {
+    nearTuftLod: 0,
+    terrainSegmentsX: 240,
+    terrainSegmentsZ: 132,
+    nearGrassShader: "full",
+    suspendOffscreenWildlife: false,
+  },
+  reduced: {
+    nearTuftLod: 1,
+    terrainSegmentsX: 160,
+    terrainSegmentsZ: 88,
+    nearGrassShader: "full",
+    suspendOffscreenWildlife: true,
+  },
+  minimal: {
+    nearTuftLod: 2,
+    terrainSegmentsX: 120,
+    terrainSegmentsZ: 66,
+    nearGrassShader: "simplified",
+    suspendOffscreenWildlife: true,
+  },
+};
+
+/** The lowest linear render scale the resolution axis may reach. Mirrored by
+ * `SCENE_RESOLUTION_FLOOR` in the axis controller, which imports from here so
+ * the two cannot drift. */
+export const SCENE_RESOLUTION_SCALE_FLOOR = 0.6;
+export const SCENE_RESOLUTION_STEPS = 12;
+export const SCENE_RESOLUTION_STEP_MAX = SCENE_RESOLUTION_STEPS - 1;
+
+/** Twelve geometrically spaced steps between the floor and a ceiling.
+ *
+ * Geometric rather than linear so a step feels the same size wherever the
+ * ceiling sits: on a device capped at 3 a linear ladder would make the top
+ * steps imperceptible and the bottom ones cliffs. The top step returns the
+ * ceiling exactly, which is what lets the axis be introduced without moving
+ * any resolution that is not under pressure.
+ */
+export function sceneResolutionScale(step: number, ceiling: number): number {
+  const top = Math.max(SCENE_RESOLUTION_SCALE_FLOOR, ceiling);
+  const clamped = Math.min(SCENE_RESOLUTION_STEP_MAX, Math.max(0, step));
+  // Both endpoints are returned exactly rather than computed. `pow` puts a
+  // 1.75 ceiling at 1.7500000000000002, and a framebuffer sized from that is
+  // a pixel off the one every existing resolution assertion encodes.
+  if (clamped >= SCENE_RESOLUTION_STEP_MAX) return top;
+  if (clamped <= 0 || top === SCENE_RESOLUTION_SCALE_FLOOR)
+    return SCENE_RESOLUTION_SCALE_FLOOR;
+  return (
+    SCENE_RESOLUTION_SCALE_FLOOR *
+    Math.pow(top / SCENE_RESOLUTION_SCALE_FLOOR, clamped / SCENE_RESOLUTION_STEP_MAX)
+  );
+}
+
+/**
+ * Where a device with no learned entry should START.
+ *
+ * A phone that begins at Balanced spends its opening half-minute walking down
+ * the ladder while the visitor watches. Most visitors are gone before it
+ * arrives, so the adaptation never reaches the person it was for. Starting a
+ * likely-constrained device lower costs a capable one a brief climb and costs
+ * a weak one nothing, and those are not symmetric.
+ *
+ * This is a starting point only, never a floor or a ceiling: the controller
+ * re-derives everything from measurement within seconds either way.
+ *
+ * Viewport and pointer are consulted HERE rather than inside the capability
+ * estimate. That keeps rendering capability free of input, which ADR 0017
+ * requires, while still letting an initial guess use the fact that a narrow
+ * touch viewport is a phone.
+ */
+export function startingProfileForDevice({
+  weakRenderer = false,
+  touch,
+  narrowViewport,
+}: {
+  /** Genuine weakness only. Deliberately NOT the `constrained` capability:
+   * that classification also fires on `physicalPixels > 9_000_000`, which is
+   * an M-series desktop driving a 5K or 6K panel. Lots of pixels to push is a
+   * reason to lower the pixel budget, which the plan already does, and the
+   * exact opposite of a reason to start it on reduced geometry. */
+  weakRenderer?: boolean;
+  touch: boolean;
+  narrowViewport: boolean;
+}): SceneQualityProfile {
+  if (weakRenderer || (touch && narrowViewport)) return "efficient";
+  return "balanced";
+}
+
+/**
+ * Whether the renderer itself looks weak, independent of how many pixels it
+ * has been asked to fill. Same signals as the capability estimate minus the
+ * pixel-count branch.
+ */
+export function rendererLooksWeak({
+  webglVersion,
+  maxTextureSize,
+  maxSamples,
+  logicalCores,
+  deviceMemoryGb,
+  unmaskedRenderer,
+}: {
+  webglVersion: 1 | 2;
+  maxTextureSize: number;
+  maxSamples: number;
+  logicalCores?: number | null;
+  deviceMemoryGb?: number | null;
+  unmaskedRenderer?: string | null;
+}) {
+  return (
+    webglVersion === 1 ||
+    maxTextureSize < 8192 ||
+    maxSamples < 2 ||
+    suggestsConstrainedDevice({
+      logicalCores,
+      deviceMemoryGb,
+      unmaskedRenderer,
+    })
+  );
+}
+
+/** Where each preset stands on the content axis. Lives here rather than with
+ * the axis controller so the plan can resolve a content tier without the
+ * policy module depending on the controller. */
+export const CONTENT_TIER_BY_PROFILE: Readonly<
+  Record<SceneQualityProfile, SceneContentTier>
+> = {
+  cinematic: "full",
+  showcase: "full",
+  balanced: "full",
+  efficient: "reduced",
+  safety: "minimal",
+};
+
+/**
+ * The cheaper of two content tiers.
+ *
+ * Two systems express pressure in automatic mode: the profile ladder, which
+ * still resolves effects and the resolution cap, and the content axis. They
+ * can disagree, and when they do the scene should believe the more worried
+ * one. Without this, a ladder that had ratcheted all the way to Safety still
+ * drew full geometry, because geometry had stopped listening to the profile.
+ */
+export function cheaperContentTier(
+  a: SceneContentTier,
+  b: SceneContentTier,
+): SceneContentTier {
+  return SCENE_CONTENT_TIERS.indexOf(a) <= SCENE_CONTENT_TIERS.indexOf(b)
+    ? a
+    : b;
+}
+
+/** Safety's contract, expressed as numbers a test can check rather than as a
+ * set of knob positions. The reference viewport is 393x852 at device pixel
+ * ratio 3, which is the harness context already used for mobile assertions. */
+export const SAFETY_BUDGET = {
+  maxTriangles: 250_000,
+  maxPhysicalPixels: 500_000,
+  referenceCssWidth: 393,
+  referenceCssHeight: 852,
+  referenceDpr: 3,
+} as const;
+
+export type SceneFrameSample = Readonly<{ ms: number; cpuMs: number }>;
+
+const percentileOf = (sorted: readonly number[], portion: number) =>
+  sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * portion) - 1)]!;
+
+/**
+ * Reduce a window of frames to the metrics the policy grades.
+ *
+ * Frame interval and main-thread cost are aggregated identically, as 95th
+ * percentiles over the same frames, so the two terms of every classification
+ * stay comparable. Nothing here is derived from the observed distribution:
+ * the budget is absolute, which is the whole point.
+ */
+export function summariseSceneFrameWindow(
+  frames: readonly SceneFrameSample[],
+  gpuMs: number | null = null,
+): SceneQualityMetrics | null {
+  if (frames.length < 2) return null;
+  const sorted = frames.map((frame) => frame.ms).sort((a, b) => a - b);
+  const sortedCpu = frames.map((frame) => frame.cpuMs).sort((a, b) => a - b);
+  return {
+    targetFrameMs: SCENE_FRAME_BUDGET_MS,
+    targetHz: SCENE_FRAME_BUDGET_HZ,
+    p95: percentileOf(sorted, 0.95),
+    droppedFrameRatio:
+      sorted.filter((ms) => ms > SCENE_FRAME_BUDGET_MS * SCENE_DROPPED_FRAME_MULTIPLIER).length /
+      sorted.length,
+    sampleCount: sorted.length,
+    cpuMs: percentileOf(sortedCpu, 0.95),
+    gpuMs,
+  };
+}
+
+/**
+ * Which resource this window was short of.
+ *
+ * The GPU test substitutes measured GPU time for the frame interval when a
+ * timer query supplied it, because the interval also contains work the GPU is
+ * not responsible for. The CPU and headroom tests never substitute: they
+ * describe the main thread, and a GPU timer says nothing about it.
+ */
+export function classifySceneFrameConstraint(
+  metrics: Pick<
+    SceneQualityMetrics,
+    "p95" | "droppedFrameRatio" | "cpuMs" | "gpuMs"
+  >,
+): SceneFrameConstraint {
+  const { cpuMs, p95, gpuMs, droppedFrameRatio } = metrics;
+  // Whether there is a problem is asked first, and asked of the whole frame.
+  // The composition of a frame says where the time went, not whether the time
+  // was affordable, and the two used to be conflated: a verdict of "cpu" made
+  // content coarsen after ten seconds even on a window comfortably inside
+  // budget, so a machine meeting 60 Hz could still be quietly degraded.
+  const pressured =
+    p95 > SCENE_FRAME_BUDGET_MS ||
+    droppedFrameRatio >= QUALITY_PRESSURE_DROPPED_RATIO;
+  if (!pressured)
+    return p95 <= SCENE_FRAME_BUDGET_MS * QUALITY_HEADROOM_BUDGET_RATIO
+      ? "headroom"
+      : "unknown";
+
+  if (cpuMs > QUALITY_CPU_BOUND_MS) return "cpu";
+  const gpuTerm = gpuMs ?? p95;
+  if (cpuMs < QUALITY_GPU_BOUND_CPU_MS && gpuTerm > QUALITY_GPU_BOUND_P95_MS)
+    return "gpu";
+  // Last, so this can only turn a former "unknown" into a verdict and never
+  // outrank the two absolute tests above.
+  //
+  // Absolute cost alone left a dead band, and real hardware sat in it: a
+  // measured frame of 11.0 ms carrying 9.7 ms of main thread is 88 % CPU and
+  // returned "unknown", because 9.7 is under the 11.67 ms CPU bound and over
+  // the 6.67 ms ceiling that would have called it GPU. With no verdict the
+  // controller could neither choose an axis nor arm the "resolution is not
+  // helping" give-up, so it went on buying pixels back from an idle GPU.
+  const frameMs = Math.max(p95, cpuMs);
+  if (frameMs > 0 && cpuMs / frameMs >= QUALITY_CPU_BOUND_SHARE) return "cpu";
+  return "unknown";
+}
 
 export type SceneQualityAdaptationState = Readonly<{
   profile: SceneQualityProfile;
@@ -586,17 +1008,15 @@ export function initialSceneQualityAdaptationState(
   };
 }
 
-function profileAtOffset(profile: SceneQualityProfile, offset: number) {
+/** One rung better, within the automatic range. There is deliberately no
+ * downward counterpart: the profile falls only by the cold-start estimate or
+ * a manual choice. */
+function nextProfileUp(profile: SceneQualityProfile): SceneQualityProfile {
   const index = AUTO_SCENE_QUALITY_PROFILES.indexOf(
     profile as (typeof AUTO_SCENE_QUALITY_PROFILES)[number],
   );
-  const autoIndex = index < 0 ? 1 : index;
-  return AUTO_SCENE_QUALITY_PROFILES[
-    Math.max(
-      0,
-      Math.min(AUTO_SCENE_QUALITY_PROFILES.length - 1, autoIndex + offset),
-    )
-  ]!;
+  if (index <= 0) return profile;
+  return AUTO_SCENE_QUALITY_PROFILES[index - 1]!;
 }
 
 function transitionProfile(
@@ -619,19 +1039,6 @@ function transitionProfile(
     stableSince: now,
     transitionReason: reason,
     declineBaseline: null,
-  };
-}
-
-function transitionForDecline(
-  state: SceneQualityAdaptationState,
-  profile: SceneQualityProfile,
-  now: number,
-  reason: QualityTransitionReason,
-  metrics: SceneQualityMetrics,
-) {
-  return {
-    ...transitionProfile(state, profile, now, reason),
-    declineBaseline: metrics,
   };
 }
 
@@ -698,171 +1105,82 @@ export function reduceSceneQualityAdaptation(
   let next: SceneQualityAdaptationState = { ...state, metrics };
   if (state.frozen || now < state.ignoreUntil) return next;
 
-  const severe =
-    metrics.p95 > metrics.targetFrameMs * 1.75 ||
-    metrics.droppedFrameRatio > 0.35;
-  const declining =
-    severe ||
-    metrics.droppedFrameRatio > QUALITY_DECLINE_DROPPED_RATIO ||
-    (metrics.p95 > metrics.targetFrameMs * QUALITY_DECLINE_P95_MULTIPLIER &&
-      metrics.droppedFrameRatio > QUALITY_DECLINE_P95_MIN_DROPPED_RATIO);
+  // The profile is a device estimate and a manual override. It is not a
+  // feedback loop, and it used to be one.
+  //
+  // ADR #19 gave runtime adaptation to three axes (see qualityAxes.ts):
+  // resolution, effects, and content, each moving on its own evidence. This
+  // ladder kept adapting alongside them on its own thresholds, and the two
+  // disagreed in public. A machine could sit at `safety` while the axes
+  // reported full effects and full geometry, because the ladder owned the
+  // pixel budget and nothing told the axes it had given up on the device.
+  //
+  // The asymmetry was the visible half. Decline needed 1.75 s above 8 %
+  // dropped; recovery needed 18 s unbroken below 5 %, and a single sample
+  // over the line reset the clock to zero. Anything that hovers near 5 % —
+  // a fast machine with periodic main-thread hitches — falls three rungs in
+  // about sixteen seconds and never climbs back.
+  //
+  // Everything the ladder did is covered: the axes drop resolution before
+  // anything visible, fall to lean and minimal effects under GPU pressure,
+  // coarsen content under CPU pressure, and carry their own travel handling.
+  // The one sample-driven transition left here is the composer fallback,
+  // because direct rendering has to be able to end.
+  if (!state.directRender) {
+    // The profile climbs, and only climbs. Showcase carries settings no axis
+    // owns — ambient-occlusion quality, bloom levels, the far-grass shader,
+    // petal count — so freezing the profile at the cold-start estimate would
+    // permanently deny a capable machine its best look. Promotion is safe
+    // where decline was not: it moves on the same headroom verdict the
+    // resolution axis climbs on, so the two cannot contradict each other, and
+    // an upward-only loop has no floor to ratchet down to.
+    if (classifySceneFrameConstraint(metrics) === "headroom") {
+      const promoted = nextProfileUp(state.profile);
+      const since = state.recoverySince ?? now;
+      if (
+        promoted !== state.profile &&
+        !state.moving &&
+        now - since >= QUALITY_RECOVERY_SUSTAIN_MS &&
+        now - state.lastTransitionAt >= QUALITY_RECOVERY_COOLDOWN_MS
+      )
+        return transitionProfile(next, promoted, now, "recovery");
+      return { ...next, recoverySince: since, severeSafetySince: null };
+    }
+    next = { ...next, recoverySince: null };
+
+    // One last resort survives, and only from the bottom rung. If a device
+    // that already opened at Safety is still severely over budget eight
+    // seconds later, the effect chain comes out entirely — the axes can thin
+    // effects but never remove the composer. This is the floor below the
+    // floor, not quality adaptation, and it cannot ratchet: nothing except
+    // the cold-start device estimate or a manual override puts a machine at
+    // Safety to begin with.
+    if (state.profile !== "safety") return next;
+    const severe =
+      metrics.p95 > metrics.targetFrameMs * 1.75 ||
+      metrics.droppedFrameRatio > 0.35;
+    const severeSince = severe ? (state.severeSafetySince ?? now) : null;
+    if (severeSince != null && now - severeSince >= QUALITY_SAFETY_FALLBACK_MS)
+      return {
+        ...next,
+        directRender: true,
+        severeSafetySince: null,
+        stableSince: now,
+        transitionReason: "safety-fallback",
+      };
+    return { ...next, severeSafetySince: severeSince };
+  }
   const recovering =
     metrics.p95 <= metrics.targetFrameMs * 1.1 &&
     metrics.droppedFrameRatio < 0.05;
-
-  if (state.declineBaseline && !severe) {
-    if (!declining) {
-      next = { ...next, declineBaseline: null };
-    } else {
-      const baseline = state.declineBaseline;
-      const improved =
-        metrics.p95 <= baseline.p95 * QUALITY_DOWNGRADE_P95_IMPROVEMENT_RATIO ||
-        metrics.droppedFrameRatio <=
-          Math.max(
-            0,
-            baseline.droppedFrameRatio - QUALITY_DOWNGRADE_DROP_IMPROVEMENT,
-          );
-      if (!improved)
-        return {
-          ...next,
-          declineSince: null,
-          recoverySince: null,
-          stableSince: now,
-        };
-      next = { ...next, declineBaseline: null };
-    }
-  }
-
-  if (state.queuedDeclineSteps > 0 && !state.moving) {
-    // Travel frames share a rolling window with the first settled frames.
-    // Never let that stale work become an unconditional downgrade: after the
-    // validation delay, the clean settled window must independently confirm
-    // pressure. A healthy window disarms the queued signal immediately.
-    if (!declining)
-      next = {
-        ...next,
-        queuedDeclineSteps: 0,
-      };
-    else if (now - state.lastTransitionAt >= QUALITY_DECLINE_COOLDOWN_MS) {
-      const confirmedSteps = severe ? 2 : 1;
-      const steps = Math.min(state.queuedDeclineSteps, confirmedSteps);
-      return transitionForDecline(
-        next,
-        profileAtOffset(state.profile, steps),
-        now,
-        "travel-decline",
-        metrics,
-      );
-    }
-  }
-
-  if (state.directRender) {
-    if (!recovering)
-      return { ...next, fallbackRecoverySince: null, stableSince: now };
-    const since = state.fallbackRecoverySince ?? now;
-    if (now - since < QUALITY_RECOVERY_SUSTAIN_MS)
-      return { ...next, fallbackRecoverySince: since };
-    return {
-      ...transitionProfile(
-        next,
-        state.transitionReason === "effects-error" ? state.profile : "safety",
-        now,
-        "fallback-recovery",
-      ),
-      directRender: false,
-    };
-  }
-
-  if (declining) {
-    const steps = severe ? 2 : 1;
-    if (state.moving) {
-      const declineSince = state.declineSince ?? now;
-      if (now - declineSince < QUALITY_DECLINE_SUSTAIN_MS)
-        return {
-          ...next,
-          declineSince,
-          recoverySince: null,
-          stableSince: now,
-        };
-      return {
-        ...next,
-        queuedDeclineSteps: Math.max(state.queuedDeclineSteps, steps) as
-          | 0
-          | 1
-          | 2,
-        declineSince,
-        recoverySince: null,
-        stableSince: now,
-      };
-    }
-    if (state.profile === "safety") {
-      const severeSince = severe ? (state.severeSafetySince ?? now) : null;
-      if (
-        severeSince != null &&
-        now - severeSince >= QUALITY_SAFETY_FALLBACK_MS
-      )
-        return {
-          ...next,
-          directRender: true,
-          severeSafetySince: null,
-          stableSince: now,
-          transitionReason: "safety-fallback",
-        };
-      return {
-        ...next,
-        declineSince: null,
-        recoverySince: null,
-        severeSafetySince: severeSince,
-        stableSince: now,
-      };
-    }
-    const declineSince = state.declineSince ?? now;
-    if (
-      now - declineSince >= QUALITY_DECLINE_SUSTAIN_MS &&
-      now - state.lastTransitionAt >= QUALITY_DECLINE_COOLDOWN_MS
-    )
-      return transitionForDecline(
-        next,
-        profileAtOffset(state.profile, steps),
-        now,
-        severe ? "severe-decline" : "decline",
-        metrics,
-      );
-    return {
-      ...next,
-      declineSince,
-      recoverySince: null,
-      severeSafetySince: null,
-      stableSince: now,
-    };
-  }
-
   if (!recovering)
-    return {
-      ...next,
-      declineSince: null,
-      recoverySince: null,
-      severeSafetySince: null,
-      stableSince: now,
-    };
-  if (state.profile === "showcase" || state.moving)
-    return { ...next, declineSince: null, severeSafetySince: null };
-  const recoverySince = state.recoverySince ?? now;
-  if (
-    now - recoverySince >= QUALITY_RECOVERY_SUSTAIN_MS &&
-    now - state.lastTransitionAt >= QUALITY_RECOVERY_COOLDOWN_MS
-  )
-    return transitionProfile(
-      next,
-      profileAtOffset(state.profile, -1),
-      now,
-      "recovery",
-    );
+    return { ...next, fallbackRecoverySince: null, stableSince: now };
+  const since = state.fallbackRecoverySince ?? now;
+  if (now - since < QUALITY_RECOVERY_SUSTAIN_MS)
+    return { ...next, fallbackRecoverySince: since };
   return {
-    ...next,
-    declineSince: null,
-    recoverySince,
-    severeSafetySince: null,
+    ...transitionProfile(next, state.profile, now, "fallback-recovery"),
+    directRender: false,
   };
 }
 

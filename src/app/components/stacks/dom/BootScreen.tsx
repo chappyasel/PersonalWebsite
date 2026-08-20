@@ -5,11 +5,7 @@ import {
   fallbackCoverEdgeColor,
   readingBookMaterialColors,
 } from "../../../../lib/books/coverEdgeColor";
-import {
-  markBootBookFaceSettled,
-  markBootSequenceReady,
-  resetBootSequenceReady,
-} from "../loading";
+import { markBootSequenceReady, resetBootSequenceReady } from "../loading";
 import {
   ABOUT_BOOT_COMPOSITION,
   type AboutBootLandmark,
@@ -34,14 +30,15 @@ import {
   type CSSProperties,
   type ReactNode,
   type RefObject,
+  type SVGProps,
   useEffect,
   useRef,
+  useState,
   useSyncExternalStore,
 } from "react";
 
 import {
   type BootReadingBook,
-  bootReadingBookFaceKey,
   getBootReadingBooks,
   getServerBootReadingBooks,
   publishBootReadingBooks,
@@ -341,9 +338,8 @@ type BootFramePhoto = {
   preserveAspectRatio: "xMidYMid slice" | "xMidYMin slice";
 };
 
-/** These use the same right-sized sources as the first live unit. Browser
- * image requests do not block HTML paint, so the vector frame appears first
- * and the photo fills it when its scene asset decodes. */
+/** Small loading-screen sources paint opportunistically. They are not part of
+ * the WebGL reveal gate; the live scene owns its own preview readiness. */
 export const BOOT_FRAME_PHOTOS = {
   portrait: {
     src: proxied("/images/about/profile.jpg", 384),
@@ -354,7 +350,7 @@ export const BOOT_FRAME_PHOTOS = {
     preserveAspectRatio: "xMidYMid slice",
   },
   "profile-frame": {
-    src: "/images/stacks/v8/512/about-profile-full.webp",
+    src: "/images/stacks/v8/256/about-profile-full.webp",
     preserveAspectRatio: "xMidYMid slice",
   },
   "collective-frame": {
@@ -362,6 +358,48 @@ export const BOOT_FRAME_PHOTOS = {
     preserveAspectRatio: "xMidYMid slice",
   },
 } as const satisfies Partial<Record<AboutLandmarkId, BootFramePhoto>>;
+
+function BootImage({
+  href,
+  onLoad,
+  onError,
+  style,
+  ...props
+}: SVGProps<SVGImageElement>) {
+  const [loaded, setLoaded] = useState(false);
+  const source = typeof href === "string" ? href : null;
+
+  useEffect(() => {
+    if (!source) return;
+    let active = true;
+    const probe = new window.Image();
+    probe.onload = () => {
+      if (active) setLoaded(true);
+    };
+    probe.src = source;
+    return () => {
+      active = false;
+      probe.onload = null;
+    };
+  }, [source]);
+
+  return (
+    <image
+      {...props}
+      href={href}
+      onLoad={(event) => {
+        setLoaded(true);
+        onLoad?.(event);
+      }}
+      onError={onError}
+      style={{
+        opacity: loaded ? 1 : 0,
+        transition: "opacity 160ms ease-out",
+        ...style,
+      }}
+    />
+  );
+}
 
 function FrameGlyph({
   landmark,
@@ -399,7 +437,7 @@ function FrameGlyph({
         rx="1"
       />
       {photo && (
-        <image
+        <BootImage
           className="stacks-boot-frame-photo"
           data-boot-photo={landmarkId}
           href={photo.src}
@@ -469,7 +507,6 @@ function ReadingStackGlyph({
           topLeft[1],
         ].join(" ");
         const clipId = `stacks-boot-reading-cover-${index}`;
-        const faceKey = bootReadingBookFaceKey(book);
         const foreEdge = [
           bottomRight,
           [bottomRight[0] + edgeWidth, bottomRight[1]],
@@ -507,18 +544,12 @@ function ReadingStackGlyph({
               points={cover}
             />
             {book.coverSrc && (
-              <image
+              <BootImage
                 className="stacks-boot-book-cover-photo"
                 clipPath={`url(#${clipId})`}
                 data-boot-book-face={book.id}
                 href={book.coverSrc}
                 height="1"
-                onError={() => {
-                  if (faceKey) markBootBookFaceSettled(faceKey);
-                }}
-                onLoad={() => {
-                  if (faceKey) markBootBookFaceSettled(faceKey);
-                }}
                 preserveAspectRatio="none"
                 transform={`matrix(${coverImageTransform})`}
                 width="1"

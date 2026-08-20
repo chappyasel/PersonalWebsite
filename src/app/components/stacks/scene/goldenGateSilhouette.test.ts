@@ -11,7 +11,30 @@ describe("Golden Gate silhouette", () => {
   it("keeps recognizable portal towers through cinematic blur", () => {
     expect(sceneEnvironment).toContain("float towerLegs");
     expect(sceneEnvironment).toContain("float portalBeams");
-    expect(sceneEnvironment).toContain("towerLegs + portalBeams");
+    expect(sceneEnvironment).toContain("float towerCap");
+    expect(sceneEnvironment).toContain("float towerHalfW = 0.00345");
+    expect(sceneEnvironment).toContain("float legOffset = 0.00245");
+    expect(sceneEnvironment).toContain("towerLegs + portalBeams + towerCap");
+  });
+
+  it("continues the suspension system beyond both towers", () => {
+    expect(sceneEnvironment.includes("float mainCable")).toBe(true);
+    expect(sceneEnvironment.includes("float outsideCable")).toBe(true);
+    expect(sceneEnvironment.includes("float outsideCableY")).toBe(true);
+    expect(sceneEnvironment.includes("float outerSuspenders")).toBe(true);
+    expect(sceneEnvironment.includes("abs(gx) < 1.58")).toBe(true);
+  });
+
+  it("uses two aviation beacons on each tower cap", () => {
+    expect(sceneEnvironment.includes("float dGaL")).toBe(true);
+    expect(sceneEnvironment.includes("float dGaR")).toBe(true);
+    expect(sceneEnvironment.includes("float dGbL")).toBe(true);
+    expect(sceneEnvironment.includes("float dGbR")).toBe(true);
+  });
+
+  it("omits the unreadable Coit Tower silhouette", () => {
+    expect(sceneEnvironment.includes("float coit =")).toBe(false);
+    expect(sceneEnvironment.includes("city + sutro + coit +")).toBe(false);
   });
 
   it("separates the lit roadway from a darker lower truss", () => {
@@ -25,7 +48,10 @@ describe("Golden Gate silhouette", () => {
   it("keeps the suspension arch visible at night without beading it", () => {
     expect(sceneEnvironment).toContain("float ggbCable = 0.0");
     expect(sceneEnvironment).toContain("ggbCable = cable");
-    expect(sceneEnvironment).toContain("hps * ggbCable * 0.055 * night");
+    expect(sceneEnvironment).toContain(
+      "step(abs(e - cableY), 0.00072)",
+    );
+    expect(sceneEnvironment).toContain("hps * ggbCable * 0.012 * night");
     expect(sceneEnvironment).not.toContain("sin(gx * 116.0) * ggbCable");
   });
 });

@@ -58,6 +58,7 @@ export type TouchGestureEffect =
   | { type: "focus"; interactionId: string }
   | { type: "activate"; interactionId: string }
   | { type: "carry-release"; interactionId: string }
+  | { type: "clear-focus"; interactionId: string }
   | { type: "swipe-release"; velocityX: number }
   | { type: "cancel"; interactionId?: string };
 
@@ -93,17 +94,16 @@ export function reduceTouchGesture(
   if (state.phase === "idle" || event.pointerId !== state.pointerId)
     return { state, effects: [] };
   if (event.type === "cancel") {
+    const interactionId =
+      state.phase === "pressing" || state.phase === "carrying"
+        ? state.interactionId
+        : undefined;
+    const effects: TouchGestureEffect[] = [{ type: "cancel", interactionId }];
+    if (state.phase === "carrying")
+      effects.push({ type: "clear-focus", interactionId: state.interactionId });
     return {
       state: { phase: "idle" },
-      effects: [
-        {
-          type: "cancel",
-          interactionId:
-            state.phase === "pressing" || state.phase === "carrying"
-              ? state.interactionId
-              : undefined,
-        },
-      ],
+      effects,
     };
   }
   if (event.type === "pickup") {
@@ -188,6 +188,7 @@ export function reduceTouchGesture(
         state: { phase: "idle" },
         effects: [
           { type: "carry-release", interactionId: state.interactionId },
+          { type: "clear-focus", interactionId: state.interactionId },
         ],
       };
     if (state.phase === "swiping")

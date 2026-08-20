@@ -2,12 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import {
   CAMERA,
+  CAMERA_DEPTH_MAX_EYE_HEIGHT,
+  CAMERA_DEPTH_MAX_PITCH_DEGREES,
   DEPTH_OF_FIELD_SHELF_Z,
   SHELF_OVERVIEW_MAX_DISTANCE,
   TRAVEL_LEAD_IN,
   aboutStopShift,
   apparentHeightScale,
   cameraCompositionForViewport,
+  cameraDepthOffsetsForViewport,
+  cameraDepthScaleForViewport,
   cameraForAspect,
   cameraXForScrollOffset,
   captureCameraYFromSearch,
@@ -17,11 +21,14 @@ import {
   depthOfFieldTargetForUnit,
   golfDollyForViewport,
   golfLookYOffsetForViewport,
+  ogCaptureFromSearch,
   portraitShelfOverviewDistance,
   scrollOffsetForUnit,
   unitPose,
   unitPoseForCapture,
 } from "./worldLayout";
+
+const toDegrees = (radians: number) => (radians * 180) / Math.PI;
 
 function projectionScale(pose: { z: number; fov: number }) {
   return 1 / (pose.z * Math.tan((pose.fov * Math.PI) / 360));
@@ -108,6 +115,110 @@ describe("mobile camera framing", () => {
   });
 });
 
+describe("authored camera depth", () => {
+  it("uses the seeded offsets at public stops and clamps outside travel", () => {
+    const stops = [
+      [0, 0.02, 0.1],
+      [1, -0.02, -0.1],
+      [2, 0.04, 0.3],
+      [3, -0.03, -0.2],
+      [4, 0.02, 0.15],
+      [5, -0.02, -0.15],
+      [6, 0.03, 0.2],
+    ] as const;
+
+    for (const [position, eyeHeight, pitchDegrees] of stops) {
+      const offsets = cameraDepthOffsetsForViewport(1440, 900, position);
+      expect(offsets.eyeHeight).toBeCloseTo(eyeHeight, 10);
+      expect(toDegrees(offsets.pitchRadians)).toBeCloseTo(pitchDegrees, 10);
+    }
+
+    expect(cameraDepthOffsetsForViewport(1440, 900, -10)).toEqual(
+      cameraDepthOffsetsForViewport(1440, 900, 0),
+    );
+    expect(cameraDepthOffsetsForViewport(1440, 900, 10)).toEqual(
+      cameraDepthOffsetsForViewport(1440, 900, 6),
+    );
+  });
+
+  it("lands on every seeded travel-arc peak", () => {
+    const peaks = [
+      [0.5, 0.1, 0.65],
+      [1.18, -0.05, 0.35],
+      [1.89, 0.08, 0.55],
+      [3.5, 0.09, -0.55],
+      [5.5, 0.07, 0.45],
+    ] as const;
+
+    for (const [position, eyeHeight, pitchDegrees] of peaks) {
+      const offsets = cameraDepthOffsetsForViewport(1440, 900, position);
+      expect(offsets.eyeHeight).toBeCloseTo(eyeHeight, 10);
+      expect(toDegrees(offsets.pitchRadians)).toBeCloseTo(pitchDegrees, 10);
+    }
+  });
+
+  it("uses smootherstep between stops without a travel arc", () => {
+    const t = 0.25;
+    const blend = t * t * t * (t * (t * 6 - 15) + 10);
+    const offsets = cameraDepthOffsetsForViewport(1440, 900, 2 + t);
+
+    expect(offsets.eyeHeight).toBeCloseTo(0.04 + (-0.03 - 0.04) * blend, 10);
+    expect(toDegrees(offsets.pitchRadians)).toBeCloseTo(
+      0.3 + (-0.2 - 0.3) * blend,
+      10,
+    );
+  });
+
+  it("holds all three Golf knots at exact zero", () => {
+    for (const position of [1.36, 1.52, 1.78]) {
+      expect(cameraDepthOffsetsForViewport(1440, 900, position)).toEqual({
+        eyeHeight: 0,
+        pitchRadians: 0,
+      });
+    }
+    expect(cameraDepthOffsetsForViewport(1440, 900, 1.44)).toEqual({
+      eyeHeight: 0,
+      pitchRadians: 0,
+    });
+    expect(cameraDepthOffsetsForViewport(1440, 900, 1.65)).toEqual({
+      eyeHeight: 0,
+      pitchRadians: 0,
+    });
+  });
+
+  it("scales wide, short-landscape, and portrait viewports", () => {
+    expect(cameraDepthScaleForViewport(1440, 900)).toBe(1);
+    expect(cameraDepthScaleForViewport(900, 500)).toBe(0.85);
+    expect(cameraDepthScaleForViewport(500, 1000)).toBeCloseTo(0.6, 10);
+    expect(cameraDepthScaleForViewport(625, 1000)).toBeCloseTo(0.7, 10);
+    expect(cameraDepthScaleForViewport(768, 1024)).toBeCloseTo(0.8, 10);
+    expect(cameraDepthScaleForViewport(390, 844)).toBeCloseTo(0.6, 10);
+
+    const wide = cameraDepthOffsetsForViewport(1440, 900, 0.5);
+    const short = cameraDepthOffsetsForViewport(900, 500, 0.5);
+    const portrait = cameraDepthOffsetsForViewport(500, 1000, 0.5);
+    expect(short.eyeHeight).toBeCloseTo(wide.eyeHeight * 0.85, 10);
+    expect(portrait.eyeHeight).toBeCloseTo(wide.eyeHeight * 0.6, 10);
+    expect(short.pitchRadians).toBeCloseTo(wide.pitchRadians * 0.85, 10);
+    expect(portrait.pitchRadians).toBeCloseTo(wide.pitchRadians * 0.6, 10);
+  });
+
+  it("returns exact zero when disabled and never exceeds authored caps", () => {
+    for (let position = -1; position <= 7; position += 0.01) {
+      expect(cameraDepthOffsetsForViewport(1440, 900, position, false)).toEqual(
+        { eyeHeight: 0, pitchRadians: 0 },
+      );
+      const offsets = cameraDepthOffsetsForViewport(1440, 900, position);
+      expect(Math.abs(offsets.eyeHeight)).toBeLessThanOrEqual(
+        CAMERA_DEPTH_MAX_EYE_HEIGHT,
+      );
+      expect(Math.abs(toDegrees(offsets.pitchRadians))).toBeLessThanOrEqual(
+        CAMERA_DEPTH_MAX_PITCH_DEGREES,
+      );
+    }
+  });
+});
+
 describe("About lead-in", () => {
   it("limits the far-left stop while preserving About's exact authored stop", () => {
     expect(TRAVEL_LEAD_IN).toBe(1.2);
@@ -153,6 +264,8 @@ describe("alternating unit poses", () => {
   });
 
   it("accepts a bounded FOV override only for OG capture", () => {
+    expect(ogCaptureFromSearch("?og-capture=1")).toBe(true);
+    expect(ogCaptureFromSearch("?og-fov=30.5")).toBe(false);
     expect(captureFovFromSearch("?og-capture=1&og-fov=30.5")).toBe(30.5);
     expect(captureFovFromSearch("?og-fov=30.5")).toBeNull();
     expect(captureFovFromSearch("?og-capture=1&og-fov=10")).toBeNull();

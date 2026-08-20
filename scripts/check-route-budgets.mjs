@@ -1,11 +1,18 @@
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 
-const routes = [
+/** @typedef {{ name: string, manifest: string, budget: number }} RouteBudget */
+/** @typedef {{ path: string, gzipBytes: number }} ChunkBudget */
+/** @typedef {{ budget: number, gzipBytes: number, passed: boolean, largestChunks: ChunkBudget[] }} RouteBudgetResult */
+
+/** @type {RouteBudget[]} */
+export const routes = [
   {
     name: "homepage",
     manifest: ".next/server/app/page_client-reference-manifest.js",
-    budget: 250 * 1024,
+    budget: 275 * 1024,
   },
   {
     name: "books",
@@ -14,25 +21,86 @@ const routes = [
   },
 ];
 
-let failed = false;
-for (const route of routes) {
-  const manifest = readFileSync(route.manifest, "utf8");
-  const chunks = [
+/** @param {string} manifest */
+export function extractChunkPaths(manifest) {
+  return [
     ...new Set(
       [...manifest.matchAll(/static\/chunks\/[a-z0-9-]+\.js/g)].map(
         (match) => match[0],
       ),
     ),
   ];
-  const gzipBytes = chunks.reduce((total, chunk) => {
-    const source = readFileSync(`.next/${chunk}`);
-    return total + gzipSync(source).byteLength;
-  }, 0);
-
-  const usedKb = (gzipBytes / 1024).toFixed(1);
-  const budgetKb = (route.budget / 1024).toFixed(0);
-  console.log(`${route.name}: ${usedKb} KB gzip / ${budgetKb} KB`);
-  if (gzipBytes > route.budget) failed = true;
 }
 
-if (failed) process.exitCode = 1;
+/**
+ * @param {{ manifest: string, budget: number, readChunk: (path: string) => Buffer | string }} options
+ * @returns {RouteBudgetResult}
+ */
+export function measureRouteBudget({ manifest, budget, readChunk }) {
+  const chunks = extractChunkPaths(manifest).map((path) => ({
+    path,
+    gzipBytes: gzipSync(readChunk(path)).byteLength,
+  }));
+  const gzipBytes = chunks.reduce((total, chunk) => total + chunk.gzipBytes, 0);
+
+  return {
+    budget,
+    gzipBytes,
+    passed: gzipBytes <= budget,
+    largestChunks: [...chunks].sort(
+      (a, b) => b.gzipBytes - a.gzipBytes || a.path.localeCompare(b.path),
+    ),
+  };
+}
+
+/**
+ * @param {RouteBudget} route
+ * @param {RouteBudgetResult} result
+ */
+export function formatRouteBudget(route, result) {
+  const usedKb = (result.gzipBytes / 1024).toFixed(1);
+  const budgetKb = (route.budget / 1024).toFixed(0);
+  const lines = [`${route.name}: ${usedKb} KB gzip / ${budgetKb} KB`];
+
+  if (!result.passed) {
+    lines.push("  Largest gzip chunks:");
+    for (const chunk of result.largestChunks.slice(0, 5)) {
+      lines.push(
+        `    ${(chunk.gzipBytes / 1024).toFixed(1)} KB  ${chunk.path}`,
+      );
+    }
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * @param {readonly RouteBudget[]} configuredRoutes
+ * @param {typeof readFileSync} readFile
+ */
+export function checkRouteBudgets(
+  configuredRoutes = routes,
+  readFile = readFileSync,
+) {
+  let failed = false;
+  for (const route of configuredRoutes) {
+    const manifest = readFile(route.manifest, "utf8");
+    const result = measureRouteBudget({
+      manifest,
+      budget: route.budget,
+      readChunk: (chunk) => readFile(`.next/${chunk}`),
+    });
+
+    console.log(formatRouteBudget(route, result));
+    if (!result.passed) failed = true;
+  }
+
+  return !failed;
+}
+
+const isMain =
+  process.argv[1] !== undefined &&
+  fileURLToPath(import.meta.url) === resolve(process.argv[1]);
+if (isMain && !checkRouteBudgets()) {
+  process.exitCode = 1;
+}

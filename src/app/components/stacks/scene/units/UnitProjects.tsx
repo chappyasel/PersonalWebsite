@@ -261,6 +261,7 @@ export default function UnitProjects({
     () =>
       data.projects.map((project) => ({
         src: proxied(project.image, coverWidth),
+        detailSrc: proxied(project.image, 750),
         key: project.name,
         href: project.link,
       })),

@@ -374,6 +374,36 @@ describe("shelf physics lifecycle and carrying", () => {
       expect(prepared.world.report().neighbours).toHaveLength(0);
   });
 
+  it("activates a pinned prop at its detached pose", async () => {
+    await warm();
+    const { shelf, prop } = topFixture();
+    const pinnedGroup = new THREE.Group();
+    pinnedGroup.position.x = 0.45;
+    pinnedGroup.add(box([0.2, 0.2, 0.03], [0, 0.1, 0]));
+    shelf.add(pinnedGroup);
+    shelf.updateWorldMatrix(true, true);
+
+    const moving = handle("moving-before-pin", prop);
+    const pinned = handle("pinned-until-carried", pinnedGroup);
+    pinned.physicsActivation = "detach";
+    pinned.physicsActivated = false;
+
+    const first = worldFor(prop, [moving, pinned]);
+    expect(first.status).toBe("ready");
+    expect(pinned.body).toBeUndefined();
+    expect(pinned.physicsActivated).toBe(false);
+
+    pinnedGroup.position.z += 0.08;
+    pinned.physicsActivated = true;
+    const second = worldFor(pinnedGroup, [moving, pinned]);
+    expect(second.status).toBe("ready");
+    if (second.status !== "ready") return;
+    expect(pinned.body).toBeDefined();
+    expect(second.world.grab(pinned)).toBe(true);
+    expect(pinned.body!.type).not.toBe(moving.body!.type);
+    expect(pinned.body!.position.z).toBeGreaterThan(0.05);
+  });
+
   it("pushes a dynamic blocker without accepting an overlapped pose", async () => {
     await warm();
     const { shelf, prop } = topFixture();

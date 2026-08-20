@@ -9,6 +9,7 @@ import {
   type UnitSlug,
   unitUrlForLocation,
 } from "../data";
+import { isWorldRevealed, subscribeWorldPhase } from "../loading";
 import { useStacks } from "../store";
 import { type Palette, proxied } from "../theme";
 import { useTexture } from "@react-three/drei";
@@ -40,7 +41,12 @@ import { proxiedBookCover } from "./bookCoverTexture";
 import { Sway } from "./eggs";
 import { registerInsectCollisionRoot } from "./insectFlightWorld";
 import { UnitInsectPerches } from "./insectPerches";
-import { V8_PHOTOS_BY_UNIT, scenePhotoManifestUrl } from "./photoTextures";
+import {
+  V8_PHOTOS_BY_UNIT,
+  sceneHdPhotosDisabled,
+  scenePhotoManifestMasterUrl,
+  scenePhotoManifestUrl,
+} from "./photoTextures";
 import type { SceneQualityPlan } from "./quality";
 import { scenePrewarmDeferred } from "./scenePerformance";
 import { SHELF_GEOMETRY } from "./shelfGeometry";
@@ -207,38 +213,62 @@ const SceneContent = memo(function SceneContent({
       if (idle && idleApi.cancelIdleCallback) idleApi.cancelIdleCallback(idle);
     };
   }, []);
-  // Warm the current/adjacent units immediately, then trickle the rest by
-  // unit during idle time. The old single 2.5 s timer launched every cover,
-  // talk still, project image, and all 27 physical photos at once. That made
-  // a short but needless decode/network spike. The sticky LOD latch still
-  // receives pre-decoded, role-sized textures before ordinary lateral travel
-  // without ever warming their 768–1024 px masters. A direct rail/deep-link
-  // jump promotes its destination and neighbours to the front of the queue.
+  // The hidden WebGL scene warms role-sized previews for the current unit and
+  // its neighbours. Those requests participate in the reveal gate. Mounted
+  // photos begin isolated master loads as soon as their previews resolve;
+  // this queue handles only distant compressed-byte prefetch after reveal.
   useEffect(() => {
-    const byUnit = Object.fromEntries(
+    const detailsDisabled = sceneHdPhotosDisabled(window.location.search);
+    const previewsByUnit = Object.fromEntries(
       UNITS.map(({ slug }) => [
         slug,
         V8_PHOTOS_BY_UNIT[slug].map(scenePhotoManifestUrl),
       ]),
     ) as Record<UnitSlug, string[]>;
-    byUnit.about.unshift(proxied(PORTRAIT_SRC, coverWidth));
-    byUnit.books.push(
+    previewsByUnit.about.unshift(proxied(PORTRAIT_SRC, coverWidth));
+    previewsByUnit.books.push(
       ...data.shelfBooks
         .filter((b) => b.coverUrl)
         .map((b) => proxiedBookCover(b.coverUrl!, coverWidth)),
     );
-    byUnit.talks.push(
-      ...data.talks.map((talk) => proxied(talk.still, coverWidth)),
-    );
-    byUnit.projects.push(
+    previewsByUnit.projects.push(
       ...data.projects.map((project) => proxied(project.image, coverWidth)),
+    );
+    const mastersByUnit = Object.fromEntries(
+      UNITS.map(({ slug }) => [
+        slug,
+        V8_PHOTOS_BY_UNIT[slug].map(scenePhotoManifestMasterUrl),
+      ]),
+    ) as Record<UnitSlug, string[]>;
+    mastersByUnit.about.unshift(proxied(PORTRAIT_SRC, 1080));
+    mastersByUnit.projects.push(
+      ...data.projects.map((project) => proxied(project.image, 750)),
     );
 
     const warmed = new Set<UnitSlug>();
+    const prefetched = new Set<UnitSlug>();
+    const prefetchController = new AbortController();
     const warmSlug = (slug: UnitSlug) => {
       if (warmed.has(slug)) return;
       warmed.add(slug);
-      for (const url of byUnit[slug]) useTexture.preload(url);
+      for (const url of previewsByUnit[slug]) useTexture.preload(url);
+    };
+    const prefetchSlug = (slug: UnitSlug) => {
+      if (prefetched.has(slug)) return;
+      prefetched.add(slug);
+      for (const url of mastersByUnit[slug]) {
+        void fetch(url, {
+          cache: "force-cache",
+          signal: prefetchController.signal,
+        })
+          .then((response) =>
+            response.ok ? response.arrayBuffer() : undefined,
+          )
+          .catch(() => {
+            // Prefetch is optional. The mounted texture loader remains the
+            // retry path for a failed request or an interrupted navigation.
+          });
+      }
     };
     const warmUnit = (index: number) => {
       if (index < 0 || index >= UNIT_COUNT) return;
@@ -269,26 +299,38 @@ const SceneContent = memo(function SceneContent({
       flushNear();
     });
 
-    // Follow the canonical traverse. Already-warmed current/adjacent units
-    // are cheap no-ops, and even media-empty units remain in the queue so the
-    // scheduler never acquires its own ordering knowledge.
+    // After reveal, follow the canonical traverse while only filling the
+    // compressed HTTP cache. Save-data and 2G visitors keep previews unless a
+    // mounted LitImage explicitly asks for its master.
     const idleQueue = UNITS.map((unit) => unit.slug);
+    const connection = (
+      navigator as Navigator & {
+        connection?: { effectiveType?: string; saveData?: boolean };
+      }
+    ).connection;
+    const backgroundPrefetch =
+      !detailsDisabled &&
+      connection?.saveData !== true &&
+      connection?.effectiveType !== "slow-2g" &&
+      connection?.effectiveType !== "2g";
     let queueIndex = 0;
     let idleHandle = 0;
     let delayHandle = 0;
+    let backgroundStarted = false;
     const idleApi = window as unknown as {
       requestIdleCallback?: Window["requestIdleCallback"];
       cancelIdleCallback?: Window["cancelIdleCallback"];
     };
     const scheduleNext = () => {
-      if (cancelled || queueIndex >= idleQueue.length) return;
+      if (cancelled || !backgroundPrefetch || queueIndex >= idleQueue.length)
+        return;
       const run = () => {
         if (cancelled) return;
         if (scenePrewarmDeferred()) {
           delayHandle = window.setTimeout(scheduleNext, 250);
           return;
         }
-        warmSlug(idleQueue[queueIndex++]!);
+        prefetchSlug(idleQueue[queueIndex++]!);
         delayHandle = window.setTimeout(scheduleNext, 650);
       };
       if (idleApi.requestIdleCallback) {
@@ -297,11 +339,19 @@ const SceneContent = memo(function SceneContent({
         delayHandle = window.setTimeout(run, 250);
       }
     };
-    delayHandle = window.setTimeout(scheduleNext, 1200);
+    const startBackgroundPrefetch = () => {
+      if (backgroundStarted || !isWorldRevealed()) return;
+      backgroundStarted = true;
+      delayHandle = window.setTimeout(scheduleNext, 250);
+    };
+    const unsubscribeWorldPhase = subscribeWorldPhase(startBackgroundPrefetch);
+    startBackgroundPrefetch();
 
     return () => {
       cancelled = true;
+      prefetchController.abort();
       unsubscribe();
+      unsubscribeWorldPhase();
       window.clearTimeout(delayHandle);
       window.clearTimeout(nearDelayHandle);
       if (idleHandle && idleApi.cancelIdleCallback) {

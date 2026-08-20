@@ -22,8 +22,13 @@ import type * as THREE from "three";
 
 import { sceneAudio } from "./audio/sceneAudio";
 import { type StacksData, UNIT_COUNT } from "./data";
+import TouchInteractionLayer from "./input/TouchInteractionLayer";
 import { useCoarseTouchCapability } from "./input/useCoarseTouchCapability";
-import { reportAssetLoadState, setLoadProgress } from "./loading";
+import {
+  isWorldRevealed,
+  reportAssetLoadState,
+  setLoadProgress,
+} from "./loading";
 import { cameraTravelDiagnostics } from "./scene/CameraRig";
 import { prewarmGrabbablePhysics } from "./scene/Grabbable";
 import Scene from "./scene/Scene";
@@ -42,6 +47,23 @@ import {
   scenePerformanceTrace,
 } from "./scene/performanceTrace";
 import { physicsDiagnosticsController } from "./scene/physicsDiagnostics";
+import { devHooksRequested, onDevHooksRequested } from "./scene/devHooks";
+import {
+  type SceneQualityAxes,
+  initialSceneQualityAxisState,
+  reduceSceneQualityAxes,
+} from "./scene/qualityAxes";
+import {
+  type LearnedQuality,
+  clearLearnedQuality,
+  readLearnedQuality,
+  writeLearnedQuality,
+} from "./scene/qualityLearning";
+import {
+  instrumentRendererFrameCost,
+  markSceneFrameStart,
+  readSceneFrameCpuMs,
+} from "./scene/sceneFrameCost";
 import {
   LEGACY_RUNG_BY_PROFILE,
   QUALITY_DECLINE_COOLDOWN_MS,
@@ -49,19 +71,26 @@ import {
   QUALITY_RECOVERY_COOLDOWN_MS,
   QUALITY_SAMPLE_INTERVAL_MS,
   QUALITY_SAMPLE_WINDOW_MS,
+  QUALITY_TRAVEL_VALIDATION_MS,
   type RendererCapability,
   type SceneQualityMetrics,
   type SceneQualityMode,
   type SceneQualityPlan,
   type SceneQualityProfile,
+  CONTENT_TIER_BY_PROFILE,
   bookCoverWidthForNeed,
+  cheaperContentTier,
+  classifySceneFrameConstraint,
   deriveRendererCapability,
   initialSceneQualityAdaptationState,
   qualityModeFromSearch,
   qualityProfileFromValue,
   reduceSceneQualityAdaptation,
+  rendererLooksWeak,
   resolveSceneQualityPlan,
   sceneQualityStorageBucket,
+  startingProfileForDevice,
+  summariseSceneFrameWindow,
 } from "./scene/quality";
 import {
   DEFAULT_SCENE_PERFORMANCE_SETTINGS,
@@ -115,6 +144,25 @@ function ScrollRegionA11y() {
   return null;
 }
 
+/** The unmasked renderer string, where the browser exposes it. Blocked in
+ * hardened modes and in some privacy configurations, so absence is normal and
+ * must cost nothing. */
+function readUnmaskedRenderer(context: WebGLRenderingContext | WebGL2RenderingContext) {
+  try {
+    const debug = context.getExtension("WEBGL_debug_renderer_info");
+    if (!debug) return null;
+    const value: unknown = context.getParameter(
+      debug.UNMASKED_RENDERER_WEBGL,
+    );
+    return typeof value === "string" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Set once the shader precompile has returned, successfully or not. */
+let shaderPrecompileComplete = false;
+
 let glRef: THREE.WebGLRenderer | null = null;
 let sceneRef: THREE.Scene | null = null;
 let cameraRef: THREE.Camera | null = null;
@@ -146,13 +194,26 @@ declare global {
   }
 }
 
+/** Either flag opts a production visit into the development hooks. */
+function hasDevHookFlag(search: URLSearchParams) {
+  return search.has("harness") || search.has("debug");
+}
+
 function installDevHooks() {
   // Production measurements opt in explicitly. Keeping the hooks behind a
   // query flag lets Playwright exercise the optimized build without exposing
   // the control surface during ordinary visits.
+  //
+  // `debug` is here as well as `harness` because the compact HUD and the
+  // diagnostics drawer both read `window.__stacks.state()`, and their own
+  // entry point is `?debug=1` (or the D key). Gating the hooks on `harness`
+  // alone rendered the whole HUD as em-dashes and a permanent "Waiting" on
+  // any production visit that opened it: the panel was live, its data source
+  // was never installed.
   if (
     process.env.NODE_ENV === "production" &&
-    !new URLSearchParams(window.location.search).has("harness")
+    !hasDevHookFlag(new URLSearchParams(window.location.search)) &&
+    !devHooksRequested()
   )
     return;
   window.__stacks = {
@@ -566,21 +627,30 @@ function PerformanceTraceObservers() {
   return null;
 }
 
-/** Two-second rolling window evaluated four times a second. The fastest
- * stable frames identify display cadence, capped at 60 Hz, while p95 and the
- * dropped-frame ratio drive the pure adaptation reducer. */
+/** Two-second rolling window evaluated four times a second, graded against an
+ * absolute 60 Hz budget. Frame interval and main-thread cost are aggregated
+ * the same way over the same window, so the ratio between them can say which
+ * resource the window was short of.
+ *
+ * This subscriber owns the only negative frame priority in the scene, so r3f
+ * runs it before any other frame work. That makes the top of this callback the
+ * frame's start; the renderer wrapper closes the measurement at submission. */
 function AdaptiveQualityProbe({
   onSample,
 }: {
   onSample: (metrics: SceneQualityMetrics) => void;
 }) {
-  const frames = useRef<Array<{ at: number; ms: number }>>([]);
+  const frames = useRef<Array<{ at: number; ms: number; cpuMs: number }>>([]);
   const lastSampleAt = useRef(0);
   useFrame((_, delta) => {
     const now = performance.now();
+    // The cost recorded by the renderer wrapper belongs to the frame that was
+    // submitted before this callback ran, so it lags by one frame.
+    const cpuMs = readSceneFrameCpuMs();
+    markSceneFrameStart(now);
     const ms = delta * 1_000;
     if (!document.hidden && Number.isFinite(ms) && ms > 0 && ms < 1_000)
-      frames.current.push({ at: now, ms });
+      frames.current.push({ at: now, ms, cpuMs });
     while (
       frames.current.length > 0 &&
       now - frames.current[0]!.at > QUALITY_SAMPLE_WINDOW_MS
@@ -588,24 +658,8 @@ function AdaptiveQualityProbe({
       frames.current.shift();
     if (now - lastSampleAt.current < QUALITY_SAMPLE_INTERVAL_MS) return;
     lastSampleAt.current = now;
-    const sorted = frames.current
-      .map((frame) => frame.ms)
-      .sort((a, b) => a - b);
-    if (sorted.length < 2) return;
-    const at = (portion: number) =>
-      sorted[
-        Math.min(sorted.length - 1, Math.ceil(sorted.length * portion) - 1)
-      ]!;
-    const targetFrameMs = Math.max(1_000 / 60, at(0.1));
-    onSample({
-      targetFrameMs,
-      targetHz: Math.min(60, Math.round(1_000 / targetFrameMs)),
-      p95: at(0.95),
-      droppedFrameRatio:
-        sorted.filter((frame) => frame > targetFrameMs * 1.5).length /
-        sorted.length,
-      sampleCount: sorted.length,
-    });
+    const metrics = summariseSceneFrameWindow(frames.current);
+    if (metrics) onSample(metrics);
   }, -999);
   return null;
 }
@@ -716,6 +770,11 @@ function ShaderPrewarm({ variant }: { variant: string }) {
         // Compilation remains an optimization. A driver that rejects the
         // prewarm path must never prevent the already-renderable world.
       }
+      // Either way the precompile is over, and frames after it are
+      // representative in a way frames during it are not. A driver that threw
+      // still stops the clock: waiting forever on it would mean never grading
+      // the device at all.
+      shaderPrecompileComplete = true;
     };
     const idleApi = window as unknown as {
       requestIdleCallback?: Window["requestIdleCallback"];
@@ -801,6 +860,9 @@ export default function StacksCanvas({
     maxTextureSize: number;
     maxSamples: number;
     physicalPixels: number;
+    logicalCores: number | null;
+    deviceMemoryGb: number | null;
+    unmaskedRenderer: string | null;
   } | null>(null);
   const [viewport, setViewport] = useState(() => ({
     width: typeof window === "undefined" ? 1 : window.innerWidth,
@@ -814,6 +876,19 @@ export default function StacksCanvas({
         : qualityModeFromSearch(window.location.search),
     [],
   );
+  // Read here as well as in the probe: the opening axis state needs it before
+  // any frame has been sampled, and a coarse pointer on a narrow viewport is
+  // the most reliable pre-frame signal that this is a phone.
+  const coarseTouch = useCoarseTouchCapability();
+  // The HUD can be opened at any time, including long after the canvas was
+  // created. Re-run the installer when that happens so the panel never
+  // renders against hooks that do not exist.
+  useEffect(() => {
+    const stop = onDevHooksRequested(() => installDevHooks());
+    return () => {
+      stop();
+    };
+  }, []);
   const qualityControls = useSceneQualityControls();
   const [querySynchronized, setQuerySynchronized] = useState(false);
   const mode = querySynchronized ? qualityControls.mode : queryMode;
@@ -830,16 +905,13 @@ export default function StacksCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [rendererCapability],
   );
-  const restoredProfile = useMemo<SceneQualityProfile | null>(() => {
+  // Restored as a STARTING POINT, never as a floor or a ceiling: the device
+  // that was thermally throttled last visit may not be this visit.
+  const restoredLearning = useMemo<LearnedQuality | null>(() => {
     if (typeof window === "undefined" || queryMode !== "auto") return null;
-    try {
-      return qualityProfileFromValue(
-        window.sessionStorage.getItem(storageBucket) ?? "",
-      );
-    } catch {
-      return null;
-    }
+    return readLearnedQuality(storageBucket);
   }, [queryMode, storageBucket]);
+  const restoredProfile = restoredLearning?.profile ?? null;
   const initialProfile =
     queryMode === "auto" ? (restoredProfile ?? "balanced") : queryMode;
   const [adaptation, dispatchQuality] = useReducer(
@@ -854,6 +926,47 @@ export default function StacksCanvas({
   );
   const adaptationRef = useRef(adaptation);
   adaptationRef.current = adaptation;
+  // The three axes run alongside the profile ladder on the same evidence.
+  // The ladder still resolves the plan every consumer reads; the axes decide
+  // where on the three dials the scene should stand.
+  const [axisState, dispatchAxes] = useReducer(
+    reduceSceneQualityAxes,
+    undefined,
+    () => {
+      // A phone must not begin at Balanced and spend its opening half-minute
+      // walking down the ladder in front of the visitor. Nothing is learned
+      // yet, so the starting guess is all we have.
+      const base = initialSceneQualityAxisState(
+        queryMode === "auto"
+          ? (restoredProfile ??
+            startingProfileForDevice({
+              // Renderer evidence is not available this early — it is read in
+              // `onCreated` — so the opening guess rests on the viewport and
+              // the pointer, which ARE known. Measurement corrects it within
+              // seconds either way.
+              weakRenderer: rendererEvidence.current
+                ? rendererLooksWeak(rendererEvidence.current)
+                : false,
+              touch: coarseTouch,
+              narrowViewport: viewport.width < STACKS_DESKTOP_MIN_WIDTH,
+            }))
+          : initialProfile,
+        typeof performance === "undefined" ? 0 : performance.now(),
+        queryMode === "auto" ? null : queryMode,
+      );
+      if (!restoredLearning) return base;
+      return {
+        ...base,
+        axes: {
+          resolutionStep: restoredLearning.resolutionStep,
+          effects: restoredLearning.effects,
+          content: restoredLearning.content,
+        },
+      };
+    },
+  );
+  const axesRef = useRef<SceneQualityAxes>(axisState.axes);
+  axesRef.current = axisState.axes;
   const [liveMetrics, setLiveMetrics] = useState<SceneQualityMetrics | null>(
     null,
   );
@@ -865,21 +978,15 @@ export default function StacksCanvas({
     if (previousCapabilityBucket.current === storageBucket) return;
     previousCapabilityBucket.current = storageBucket;
     if (mode !== "auto" || rendererCapability === "unknown") return;
-    try {
-      const stored = qualityProfileFromValue(
-        window.sessionStorage.getItem(storageBucket) ?? "",
-      );
-      if (!stored) return;
-      setLearnedProfile(stored);
-      dispatchQuality({
-        type: "profile",
-        now: performance.now(),
-        profile: stored,
-        reason: "restored",
-      });
-    } catch {
-      // Capability learning remains optional when storage is unavailable.
-    }
+    const stored = readLearnedQuality(storageBucket)?.profile ?? null;
+    if (!stored) return;
+    setLearnedProfile(stored);
+    dispatchQuality({
+      type: "profile",
+      now: performance.now(),
+      profile: stored,
+      reason: "restored",
+    });
   }, [mode, rendererCapability, storageBucket]);
 
   useEffect(() => {
@@ -914,14 +1021,8 @@ export default function StacksCanvas({
     previousMode.current = mode;
     let profile: SceneQualityProfile;
     if (mode === "auto") {
-      let stored: SceneQualityProfile | null = null;
-      try {
-        stored = qualityProfileFromValue(
-          window.sessionStorage.getItem(storageBucket) ?? "",
-        );
-      } catch {
-        // Storage is an optional optimization; Balanced remains deterministic.
-      }
+      // Storage is an optional optimization; Balanced remains deterministic.
+      const stored = readLearnedQuality(storageBucket)?.profile ?? null;
       profile = stored ?? "balanced";
       setLearnedProfile(stored);
     } else {
@@ -943,11 +1044,7 @@ export default function StacksCanvas({
   useEffect(() => {
     if (resetRequest.current === qualityControls.resetRequest) return;
     resetRequest.current = qualityControls.resetRequest;
-    try {
-      window.sessionStorage.removeItem(storageBucket);
-    } catch {
-      // Session storage can be unavailable in hardened browsing modes.
-    }
+    clearLearnedQuality(storageBucket);
     setLearnedProfile(null);
     if (mode === "auto")
       dispatchQuality({
@@ -1006,6 +1103,9 @@ export default function StacksCanvas({
   const onMovementChange = useCallback((moving: boolean) => {
     const now = performance.now();
     dispatchQuality({ type: "movement", moving, now });
+    // Pre-emptive: the visitor initiated this, so the headroom is taken
+    // before a frame is missed rather than after.
+    dispatchAxes({ type: moving ? "travel-start" : "travel-end", now });
     scenePerformanceTrace.event({
       at: now,
       type: moving ? "travel-start" : "travel-end",
@@ -1044,11 +1144,42 @@ export default function StacksCanvas({
       window.location.search.includes("nopostfx"),
     [],
   );
+  // A continuously adapting resolution makes an exact device-pixel-ratio
+  // assertion inherently racy. The harness flag already marks the runs that
+  // make those assertions, so it is also what holds the axis still.
+  const harnessPinnedResolution = useMemo(
+    () =>
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).has("harness"),
+    [],
+  );
   const plan = useMemo(
     () =>
       resolveSceneQualityPlan({
         mode,
         profile: adaptation.profile,
+        // Automatic mode drives content from the axis; a forced preset lets
+        // the plan resolve the preset's own tier.
+        // Believe whichever of the two systems is more worried. The profile
+        // ladder still resolves effects and the resolution cap, so a ladder
+        // sitting at Safety while geometry stayed full meant the scene was
+        // ignoring its own conclusion.
+        contentTier:
+          mode === "auto"
+            ? cheaperContentTier(
+                axisState.axes.content,
+                CONTENT_TIER_BY_PROFILE[adaptation.profile],
+              )
+            : undefined,
+        // Pinned under the harness so end-to-end tests that assert an exact
+        // device pixel ratio are not racing a continuously adapting value.
+        // Pinning is the correct fix there; loosening the assertion is not.
+        // An explicit manual pin outranks the harness pin: the harness flag
+        // exists to stop the AXIS drifting under an assertion, not to ignore
+        // a step someone deliberately selected.
+        resolutionStep:
+          qualityControls.resolutionStep ??
+          (harnessPinnedResolution ? null : axisState.axes.resolutionStep),
         cssWidth: viewport.width,
         cssHeight: viewport.height,
         deviceDpr: viewport.deviceDpr,
@@ -1085,6 +1216,10 @@ export default function StacksCanvas({
     [
       adaptation.directRender,
       adaptation.profile,
+      axisState.axes.content,
+      axisState.axes.resolutionStep,
+      qualityControls.resolutionStep,
+      harnessPinnedResolution,
       rendererCapability,
       mode,
       noPostfx,
@@ -1150,9 +1285,28 @@ export default function StacksCanvas({
   useEffect(() => {
     setBloomActive(bloomActive);
   }, [bloomActive, setBloomActive]);
+  // All three boot preconditions, checked where the samples arrive so the
+  // gate cannot drift out of step with them. The settled-window clock only
+  // starts once the reveal and the precompile are both done, because a window
+  // that straddles either is not evidence about steady state.
+  const bootReadySince = useRef<number | null>(null);
+  const booted = useRef(false);
   const onQualitySample = useCallback(
     (metrics: SceneQualityMetrics) => {
       setLiveMetrics(metrics);
+      if (!booted.current) {
+        const now = performance.now();
+        const ready =
+          isWorldRevealed() && shaderPrecompileComplete && !isSceneTraveling();
+        if (!ready) bootReadySince.current = null;
+        else {
+          bootReadySince.current ??= now;
+          if (now - bootReadySince.current >= QUALITY_TRAVEL_VALIDATION_MS) {
+            booted.current = true;
+            dispatchAxes({ type: "booted", now });
+          }
+        }
+      }
       if (rendererEvidence.current)
         setRendererCapability(
           deriveRendererCapability({
@@ -1160,6 +1314,12 @@ export default function StacksCanvas({
             observed: metrics,
           }),
         );
+      dispatchAxes({
+        type: "sample",
+        now: performance.now(),
+        metrics,
+        visible: !document.hidden,
+      });
       if (mode !== "auto") return;
       dispatchQuality({
         type: "sample",
@@ -1196,12 +1356,15 @@ export default function StacksCanvas({
         adaptationRef.current.directRender
       )
         return;
-      try {
-        window.sessionStorage.setItem(storageBucket, adaptation.profile);
-        setLearnedProfile(adaptation.profile);
-      } catch {
-        // Learning is best-effort and never gates rendering.
-      }
+      // Learning is best-effort and never gates rendering. The axis triple is
+      // what the controller restores from; the profile name rides along for
+      // the overlay and for scripts that still speak in preset names.
+      writeLearnedQuality(
+        storageBucket,
+        axesRef.current,
+        adaptation.profile,
+      );
+      setLearnedProfile(adaptation.profile);
     }, remaining);
     return () => window.clearTimeout(timeout);
   }, [
@@ -1230,6 +1393,11 @@ export default function StacksCanvas({
       ? "direct-effects-error"
       : "direct-safety"
     : "composer";
+  // Which resource the last window was short of. Published rather than only
+  // acted on, so the overlay can show why the scene made its decision.
+  const liveConstraint = liveMetrics
+    ? classifySceneFrameConstraint(liveMetrics)
+    : null;
   qualitySnapshot = {
     mode,
     profile: plan.profile,
@@ -1242,6 +1410,7 @@ export default function StacksCanvas({
     postprocessing: postfxQuality,
     sharpen: sharpenAmount,
     meadowRung: plan.environment.meadowRung,
+    contentTier: plan.environment.contentTier,
     cloudDetail: plan.environment.cloudDetail === "full",
     transitionReason: adaptation.transitionReason,
     declineBaseline: adaptation.declineBaseline,
@@ -1249,6 +1418,8 @@ export default function StacksCanvas({
     learnedProfile,
     fallbackStatus,
     metrics: liveMetrics,
+    constraint: liveConstraint,
+    axes: axisState.axes,
     customOverrides: plan.customOverrides,
     plan,
   };
@@ -1256,6 +1427,9 @@ export default function StacksCanvas({
     sceneQualityController.publishRuntime({
       plan,
       metrics: liveMetrics,
+      constraint: liveConstraint,
+      axes: axisState.axes,
+      forcedProfile: mode === "auto" ? null : mode,
       storageBucket,
       learnedProfile,
       cooldownRemainingMs: cooldownMs,
@@ -1263,6 +1437,9 @@ export default function StacksCanvas({
       fallbackStatus,
     });
   }, [
+    liveConstraint,
+    axisState.axes,
+    mode,
     adaptation.transitionReason,
     cooldownMs,
     fallbackStatus,
@@ -1308,6 +1485,7 @@ export default function StacksCanvas({
   return (
     <div ref={canvasShellRef} className="stacks-canvas-shell absolute inset-0">
       <LoadReporter />
+      <TouchInteractionLayer />
       <Canvas
         shadows="soft"
         camera={{ position: [0, CAMERA.y, CAMERA.z], fov: CAMERA.fov }}
@@ -1322,6 +1500,9 @@ export default function StacksCanvas({
           gl.toneMappingExposure = dark ? 1.25 : 1.12;
           glRef = gl;
           ownedRenderer.current = gl;
+          // Close the frame's main-thread measurement at submission. The
+          // composer submits several times per frame; the last call wins.
+          instrumentRendererFrameCost(gl);
           sceneRef = scene;
           cameraRef = camera;
           setInteractionProjectionContext(camera, gl.domElement);
@@ -1339,6 +1520,18 @@ export default function StacksCanvas({
                   ) ?? 0,
                 )
               : 0,
+            logicalCores:
+              typeof navigator.hardwareConcurrency === "number"
+                ? navigator.hardwareConcurrency
+                : null,
+            // Absent on Safari, which is why it may only sharpen the estimate
+            // and never be required by it.
+            deviceMemoryGb:
+              typeof (navigator as { deviceMemory?: number }).deviceMemory ===
+              "number"
+                ? (navigator as { deviceMemory?: number }).deviceMemory!
+                : null,
+            unmaskedRenderer: readUnmaskedRenderer(context),
             physicalPixels:
               viewport.width *
               viewport.height *

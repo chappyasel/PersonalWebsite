@@ -265,7 +265,9 @@ selected state without inventing a Door Label. A subsequent tap on either an
 actionable prop or its Door Label commits the same role-specific activation.
 It has no timeout and clears when focus transfers or the visitor changes
 context through background touch, World travel, rail navigation, or Peek Sheet
-expansion.
+expansion. Carrying does not count as that first tap. Normal release or browser
+cancellation clears the carried prop's prior focus, so its next quick tap
+focuses and reframes its new position before a later tap can activate it.
 _Avoid_: Hover emulation, instant touch navigation
 
 **Focus Lean** — the restrained, context-preserving camera reframe that begins

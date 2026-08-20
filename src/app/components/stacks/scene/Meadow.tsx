@@ -20,7 +20,7 @@ import { progressRef, touchWorldRef } from "../store";
 import { PALETTES } from "../theme";
 import { useGLTF, useTexture } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 import {
@@ -47,15 +47,22 @@ import {
   resetMeadowDisturbance,
 } from "./meadowDisturbance";
 import {
+  IDLE_TERRAIN_BUILD_GATE,
   MEADOW_BANK,
   MEADOW_FOG,
   MEADOW_GROUND_BASE,
   MEADOW_TERRAIN,
   type MeadowTile,
+  type TerrainBuildGate,
+  type TerrainGeometryCache,
   buildFlowerPositions,
   buildGrassInstances,
   buildMeadowTiles,
+  createTerrainGeometryCache,
+  meadowContentPlan,
   meadowHeight,
+  meadowTileDrawCount,
+  nextTerrainBuildGate,
   shadeScale,
 } from "./meadowField";
 import { meadowPokeStrength } from "./meadowInteraction";
@@ -68,7 +75,9 @@ import {
   meadowWindAudioLevel,
   sampleMeadowWind,
 } from "./meadowMotion";
+import { type SceneContentTier } from "./quality";
 import {
+  isSceneTraveling,
   meadowTilePopulationLimit,
   useScenePerformanceSettings,
 } from "./scenePerformance";
@@ -767,15 +776,15 @@ function makeFlowerGeometry(): THREE.BufferGeometry {
   return geometry;
 }
 
-function makeTerrainGeometry(): THREE.PlaneGeometry {
+/** The lawn's floor at a given tessellation. MEADOW_TERRAIN's own segment
+ * counts are the authored ceiling; content tiers pass coarser ones. */
+function makeTerrainGeometry(
+  segmentsX: number,
+  segmentsZ: number,
+): THREE.PlaneGeometry {
   const width = MEADOW_TERRAIN.maxX - MEADOW_TERRAIN.minX;
   const depth = MEADOW_TERRAIN.maxZ - MEADOW_TERRAIN.minZ;
-  const geometry = new THREE.PlaneGeometry(
-    width,
-    depth,
-    MEADOW_TERRAIN.segmentsX,
-    MEADOW_TERRAIN.segmentsZ,
-  );
+  const geometry = new THREE.PlaneGeometry(width, depth, segmentsX, segmentsZ);
   geometry.rotateX(-Math.PI / 2);
   geometry.translate(
     MEADOW_TERRAIN.minX + width / 2,
@@ -810,10 +819,79 @@ function prepareTuftGeometry(
   return geometry;
 }
 
+/** Wind/poke bend happens in the vertex shader, after Three has computed the
+ * instance bounds. 0.5 exceeds the grass's 0.42-radian maximum throw and the
+ * flowers' two-pixel floor/wind displacement. */
+function padInstanceBounds(mesh: THREE.InstancedMesh) {
+  mesh.computeBoundingBox();
+  mesh.computeBoundingSphere();
+  mesh.boundingBox?.expandByScalar(0.5);
+  if (mesh.boundingSphere) mesh.boundingSphere.radius += 0.5;
+}
+
+/**
+ * Terrain geometry, built at most once per content tier per mount.
+ *
+ * The first tier is built synchronously: there is no earlier floor to hold on
+ * to, and the meadow cannot draw without one. Every later tier is built off
+ * the critical path — never during a travel, and only once three consecutive
+ * settled frames have fit inside the frame budget — while the currently bound
+ * geometry stays on screen until the replacement exists. The five-second
+ * escape hatch inside `nextTerrainBuildGate` is the important half of that
+ * rule, and a tier already in the cache skips the gate entirely.
+ *
+ * It lives outside the component's `[]`-dep'd `built` memo on purpose: that
+ * memo exists so a theme change eases through `uDark` instead of remounting,
+ * and terrain LOD must not be able to give it a dependency.
+ */
+function useTerrainGeometry(tier: SceneContentTier) {
+  const cacheRef = useRef<TerrainGeometryCache<THREE.PlaneGeometry> | null>(
+    null,
+  );
+  cacheRef.current ??= createTerrainGeometryCache(makeTerrainGeometry);
+  const cache = cacheRef.current;
+  const [bound, setBound] = useState(() => ({
+    tier,
+    geometry: cache.get(tier),
+  }));
+  const gate = useRef<TerrainBuildGate>(IDLE_TERRAIN_BUILD_GATE);
+
+  useEffect(() => () => cache.clear((geometry) => geometry.dispose()), [cache]);
+
+  useFrame((_, delta) => {
+    if (bound.tier === tier) {
+      gate.current = IDLE_TERRAIN_BUILD_GATE;
+      return;
+    }
+    const swap = () => {
+      const geometry = cache.get(tier);
+      gate.current = IDLE_TERRAIN_BUILD_GATE;
+      setBound((current) =>
+        current.tier === tier ? current : { tier, geometry },
+      );
+    };
+    if (cache.has(tier)) {
+      swap();
+      return;
+    }
+    const step = nextTerrainBuildGate(gate.current, {
+      pending: true,
+      travelling: isSceneTraveling(),
+      frameMs: delta * 1000,
+      now: performance.now(),
+    });
+    gate.current = step.gate;
+    if (step.build) swap();
+  });
+
+  return bound.geometry;
+}
+
 export default function Meadow({
   dark,
   rung = 3,
   farGrassShader = "simplified",
+  contentTier = "full",
 }: {
   dark: boolean;
   /** Quality rung (3 = full). Maps 1:1 onto MEADOW_RUNG_* counts; the
@@ -823,9 +901,14 @@ export default function Meadow({
   /** Resolved visual policy. Performance experiments override the profile in
    * the quality resolver before this narrow scene slice reaches the meadow. */
   farGrassShader?: "full" | "simplified";
+  /** Content axis. Moves tuft LOD, terrain tessellation and the near lawn's
+   * wind shader — never the instance count, which stays at the rung. */
+  contentTier?: SceneContentTier;
 }) {
   const performanceSettings = useScenePerformanceSettings();
   const simplifiedFar = farGrassShader === "simplified";
+  const content = meadowContentPlan(contentTier);
+  const terrainGeometry = useTerrainGeometry(contentTier);
   const maxPopulation = meadowTilePopulationLimit(performanceSettings);
   const nearRefs = useRef<Array<THREE.InstancedMesh | null>>([]);
   const farRefs = useRef<Array<THREE.InstancedMesh | null>>([]);
@@ -945,7 +1028,6 @@ export default function Meadow({
       shared,
       grassOnly,
       flowerOnly,
-      terrainGeometry: makeTerrainGeometry(),
       flowerGeometry: makeFlowerGeometry(),
       terrainMaterial: new THREE.ShaderMaterial({
         uniforms: { ...shared, uSunDir: { value: SUN_DIR } },
@@ -978,24 +1060,26 @@ export default function Meadow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Tuft geometries: LOD00 for the near lawn, LOD01 for mid + seated.
-  const tuftGeometries = useMemo(() => {
-    let lod0: THREE.BufferGeometry | null = null;
-    let lod1: THREE.BufferGeometry | null = null;
+  // The GLB's three tuft LODs — 66, 32 and 16 triangles — prepared once and
+  // indexed by level. The near lawn picks by content tier; the mid + seated
+  // bands always draw MEADOW_FAR_TUFT_LOD, so at the reduced tier the two
+  // share one buffer rather than uploading the same mesh twice.
+  const tuftLods = useMemo(() => {
+    const sources: Array<THREE.BufferGeometry | null> = [null, null, null];
     gltf.scene.traverse((o) => {
       const mesh = o as THREE.Mesh;
       if (!mesh.isMesh) return;
-      if (o.name.includes("LOD00")) lod0 = mesh.geometry;
-      if (o.name.includes("LOD01")) lod1 = mesh.geometry;
+      if (o.name.includes("LOD00")) sources[0] = mesh.geometry;
+      if (o.name.includes("LOD01")) sources[1] = mesh.geometry;
+      if (o.name.includes("LOD02")) sources[2] = mesh.geometry;
     });
-    if (!lod0 || !lod1) {
-      throw new Error("grass-tuft.glb is missing its LOD00/LOD01 meshes");
+    if (sources.some((source) => source === null)) {
+      throw new Error("grass-tuft.glb is missing an LOD00/LOD01/LOD02 mesh");
     }
-    return {
-      near: prepareTuftGeometry(lod0),
-      far: prepareTuftGeometry(lod1),
-    };
+    return sources.map((source) => prepareTuftGeometry(source!));
   }, [gltf]);
+  const nearTuftGeometry = tuftLods[content.nearTuftLod]!;
+  const farTuftGeometry = tuftLods[content.farTuftLod]!;
 
   // The alpha mask is data, not color — keep it linear so the threshold
   // means the same thing the source texture authored.
@@ -1016,15 +1100,6 @@ export default function Meadow({
     const euler = new THREE.Euler();
     const position = new THREE.Vector3();
     const scale = new THREE.Vector3();
-    const padBounds = (mesh: THREE.InstancedMesh) => {
-      mesh.computeBoundingBox();
-      mesh.computeBoundingSphere();
-      // Wind/poke bend happens in the vertex shader after Three computes the
-      // instance bounds. 0.5 exceeds the grass's 0.42-radian maximum throw
-      // and the flowers' two-pixel floor/wind displacement.
-      mesh.boundingBox?.expandByScalar(0.5);
-      if (mesh.boundingSphere) mesh.boundingSphere.radius += 0.5;
-    };
     const fillGrassTile = (
       mesh: THREE.InstancedMesh | null,
       stream: typeof streams.near,
@@ -1050,7 +1125,7 @@ export default function Meadow({
         mesh.setMatrixAt(local, matrix);
       }
       mesh.instanceMatrix.needsUpdate = true;
-      padBounds(mesh);
+      padInstanceBounds(mesh);
     };
     tiles.near.forEach((tile, i) =>
       fillGrassTile(nearRefs.current[i] ?? null, streams.near, tile),
@@ -1074,12 +1149,19 @@ export default function Meadow({
         mesh.setMatrixAt(local, matrix);
       }
       mesh.instanceMatrix.needsUpdate = true;
-      padBounds(mesh);
+      padInstanceBounds(mesh);
     });
     // The buffers are filled and the GLB/alpha suspended above us, so the
     // next painted frame contains grass — tell the boot reveal gate.
     markMeadowReady();
   }, [streams, flowers, tiles]);
+
+  // Instance bounds are derived from the matrices AND the bound geometry, so
+  // a tuft LOD swap has to redo them. Refilling the matrices does not: the
+  // placements are identical at every tier.
+  useEffect(() => {
+    for (const mesh of nearRefs.current) if (mesh) padInstanceBounds(mesh);
+  }, [nearTuftGeometry]);
 
   // Live browse knobs on the house dev-hook object. Writes go straight into
   // the shared uniform holders, so every material follows at once; winning
@@ -1144,16 +1226,15 @@ export default function Meadow({
   useEffect(
     () => () => {
       resetMeadowDisturbance();
-      built.terrainGeometry.dispose();
       built.flowerGeometry.dispose();
       built.terrainMaterial.dispose();
       built.grassMaterial.dispose();
       built.farGrassMaterial.dispose();
       built.flowerMaterial.dispose();
-      tuftGeometries.near.dispose();
-      tuftGeometries.far.dispose();
+      // Terrain geometry belongs to the tier cache, which disposes its own.
+      for (const lod of tuftLods) lod.dispose();
     },
-    [built, tuftGeometries],
+    [built, tuftLods],
   );
 
   // The complete per-frame cost: shared uniform writes plus one cheap count
@@ -1395,9 +1476,7 @@ export default function Meadow({
     for (; li < MEADOW_LAMP_MAX; li++) shared.uLampGlow.value[li] = 0;
     const density = densityRef.current;
     const countFor = (table: readonly number[]) =>
-      density === null
-        ? table[rung]!
-        : Math.round(table[3]! * Math.min(1, Math.max(0, density)));
+      meadowTileDrawCount(table, rung, density);
     tiles.near.forEach((tile, i) => {
       const mesh = nearRefs.current[i];
       if (mesh) mesh.count = countFor(tile.rungCounts);
@@ -1415,7 +1494,7 @@ export default function Meadow({
   // Draw order terrain → grass → flowers.
   return (
     <group>
-      <mesh geometry={built.terrainGeometry} material={built.terrainMaterial} />
+      <mesh geometry={terrainGeometry} material={built.terrainMaterial} />
       {tiles.near.map((tile, i) => (
         <instancedMesh
           key={`near:${tile.key}`}
@@ -1423,7 +1502,16 @@ export default function Meadow({
             nearRefs.current[i] = mesh;
           }}
           instanceColor={tileAttributes.near[i]}
-          args={[tuftGeometries.near, built.grassMaterial, tile.indices.length]}
+          // Geometry and material are props, not constructor args: a content
+          // tier must swap them in place. Remounting would drop the filled
+          // instance matrices, which nothing refills.
+          geometry={nearTuftGeometry}
+          material={
+            content.nearGrassSimplified
+              ? built.farGrassMaterial
+              : built.grassMaterial
+          }
+          args={[undefined, undefined, tile.indices.length]}
         />
       ))}
       {tiles.far.map((tile, i) => (
@@ -1433,7 +1521,7 @@ export default function Meadow({
             farRefs.current[i] = mesh;
           }}
           instanceColor={tileAttributes.far[i]}
-          geometry={tuftGeometries.far}
+          geometry={farTuftGeometry}
           material={
             simplifiedFar ? built.farGrassMaterial : built.grassMaterial
           }

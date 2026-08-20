@@ -8,6 +8,9 @@ import { findIslands } from "./islands";
 export const MAX_DYNAMIC_COLLIDER_SHAPES = 24;
 export const MAX_STATIC_COLLIDER_SHAPES = 96;
 export const MIN_COLLIDER_EXTENT = 0.008;
+/** Generated bevel geometry can undershoot an authored dimension by a few
+ * floating-point ulps (the 0.008 photo frame becomes 0.00799999945). */
+const COLLIDER_EXTENT_EPSILON = 1e-6;
 /** Cannon uses a slight horizontal inset so visual edges do not snag. The
  * diagnostics overlay uses this same value and therefore draws the real hull. */
 export const DYNAMIC_COLLIDER_HORIZONTAL_INSET = 0.9;
@@ -193,7 +196,11 @@ export function extractColliderBoxes(
           .set(Math.abs(scale.x), Math.abs(scale.y), Math.abs(scale.z));
         geometryBoxes.forEach((geometryBox, index) => {
           geometryBox.getSize(size).multiply(absoluteScale);
-          if (Math.min(size.x, size.y, size.z) < MIN_COLLIDER_EXTENT) return;
+          if (
+            Math.min(size.x, size.y, size.z) <
+            MIN_COLLIDER_EXTENT - COLLIDER_EXTENT_EPSILON
+          )
+            return;
           geometryBox.getCenter(centre).applyMatrix4(matrix);
           boxes.push({
             halfExtents: size.clone().multiplyScalar(0.5),

@@ -34,6 +34,8 @@ describe("About shelf throwable props", () => {
     expect(start).toBeGreaterThanOrEqual(0);
     expect(portrait).toContain("<LoosePhoto");
     expect(portrait).not.toContain("<PhotoMount");
+    expect(portrait).toContain("proxied(PORTRAIT_SRC, coverWidth)");
+    expect(portrait).toContain("proxied(PORTRAIT_SRC, 1080)");
   });
 
   it("limits reading-book hover presentation to the authored shelf pose", () => {

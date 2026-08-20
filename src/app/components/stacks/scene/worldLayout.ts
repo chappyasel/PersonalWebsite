@@ -1,6 +1,11 @@
 // World-space layout for the homepage 3D scene — spacing, camera, and unit poses.
 // No three.js imports so DOM-side modules can share the math.
-import { UNIT_COUNT } from "../data";
+import {
+  GOLF_FOCUS_END,
+  GOLF_FOCUS_START,
+  GOLF_STOP_POSITION,
+  UNIT_COUNT,
+} from "../data";
 import { presentationProfileForViewport } from "../mobile/presentation";
 
 import { SHELF_GEOMETRY } from "./shelfGeometry";
@@ -98,6 +103,159 @@ export function cameraForAspect(aspect: number) {
   };
 }
 
+export type CameraDepthOffsets = Readonly<{
+  eyeHeight: number;
+  pitchRadians: number;
+}>;
+
+type CameraDepthKnot = Readonly<{
+  position: number;
+  eyeHeight: number;
+  pitchDegrees: number;
+  arcPeak?: Readonly<{
+    eyeHeight: number;
+    pitchDegrees: number;
+  }>;
+}>;
+
+export const CAMERA_DEPTH_MAX_EYE_HEIGHT = 0.1;
+export const CAMERA_DEPTH_MAX_PITCH_DEGREES = 0.65;
+
+const CAMERA_DEPTH_ZERO: CameraDepthOffsets = Object.freeze({
+  eyeHeight: 0,
+  pitchRadians: 0,
+});
+
+/** The Golf interaction owns three exact zero-offset knots. Its entrance and
+ * exit still get authored travel, but the original pose owns the playable
+ * interval. An arc peak is the complete offset at the midpoint, not an amount
+ * added to the interpolated stop values. */
+const CAMERA_DEPTH_KNOTS: readonly CameraDepthKnot[] = [
+  {
+    position: 0,
+    eyeHeight: 0.02,
+    pitchDegrees: 0.1,
+    arcPeak: { eyeHeight: 0.1, pitchDegrees: 0.65 },
+  },
+  {
+    position: 1,
+    eyeHeight: -0.02,
+    pitchDegrees: -0.1,
+    arcPeak: { eyeHeight: -0.05, pitchDegrees: 0.35 },
+  },
+  {
+    position: GOLF_FOCUS_START,
+    eyeHeight: 0,
+    pitchDegrees: 0,
+  },
+  {
+    position: GOLF_STOP_POSITION,
+    eyeHeight: 0,
+    pitchDegrees: 0,
+  },
+  {
+    position: GOLF_FOCUS_END,
+    eyeHeight: 0,
+    pitchDegrees: 0,
+    arcPeak: { eyeHeight: 0.08, pitchDegrees: 0.55 },
+  },
+  {
+    position: 2,
+    eyeHeight: 0.04,
+    pitchDegrees: 0.3,
+  },
+  {
+    position: 3,
+    eyeHeight: -0.03,
+    pitchDegrees: -0.2,
+    arcPeak: { eyeHeight: 0.09, pitchDegrees: -0.55 },
+  },
+  {
+    position: 4,
+    eyeHeight: 0.02,
+    pitchDegrees: 0.15,
+  },
+  {
+    position: 5,
+    eyeHeight: -0.02,
+    pitchDegrees: -0.15,
+    arcPeak: { eyeHeight: 0.07, pitchDegrees: 0.45 },
+  },
+  {
+    position: 6,
+    eyeHeight: 0.03,
+    pitchDegrees: 0.2,
+  },
+];
+
+const smootherstep = (value: number) => {
+  const t = Math.min(1, Math.max(0, value));
+  return t * t * t * (t * (t * 6 - 15) + 10);
+};
+
+const cameraDepthArc = (t: number) => 16 * t * t * (1 - t) * (1 - t);
+
+export function cameraDepthScaleForViewport(width: number, height: number) {
+  const profile = presentationProfileForViewport(width, height);
+  if (profile === "wide") return 1;
+  if (profile === "short-landscape") return 0.85;
+  const aspect = width / Math.max(1, height);
+  const portraitBlend = Math.min(1, Math.max(0, (aspect - 0.5) / 0.25));
+  return 0.6 + portraitBlend * 0.2;
+}
+
+/** Evaluate the authored vertical camera pose without consulting browser or
+ * React state. Disabled evaluation returns the shared exact-zero value so the
+ * original camera pipeline remains numerically unchanged. */
+export function cameraDepthOffsetsForViewport(
+  width: number,
+  height: number,
+  scenePosition: number,
+  enabled = true,
+): CameraDepthOffsets {
+  if (!enabled) return CAMERA_DEPTH_ZERO;
+
+  const finitePosition = Number.isFinite(scenePosition) ? scenePosition : 0;
+  const position = Math.min(
+    CAMERA_DEPTH_KNOTS[CAMERA_DEPTH_KNOTS.length - 1]!.position,
+    Math.max(CAMERA_DEPTH_KNOTS[0]!.position, finitePosition),
+  );
+  let lower = CAMERA_DEPTH_KNOTS[0]!;
+  let upper = lower;
+  for (let index = 1; index < CAMERA_DEPTH_KNOTS.length; index += 1) {
+    upper = CAMERA_DEPTH_KNOTS[index]!;
+    if (position <= upper.position) break;
+    lower = upper;
+  }
+
+  const span = upper.position - lower.position;
+  const t = span > 0 ? (position - lower.position) / span : 0;
+  const stopBlend = smootherstep(t);
+  let eyeHeight =
+    lower.eyeHeight + (upper.eyeHeight - lower.eyeHeight) * stopBlend;
+  let pitchDegrees =
+    lower.pitchDegrees + (upper.pitchDegrees - lower.pitchDegrees) * stopBlend;
+  if (lower.arcPeak) {
+    const arc = cameraDepthArc(t);
+    eyeHeight += (lower.arcPeak.eyeHeight - eyeHeight) * arc;
+    pitchDegrees += (lower.arcPeak.pitchDegrees - pitchDegrees) * arc;
+  }
+
+  const scale = cameraDepthScaleForViewport(width, height);
+  eyeHeight = Math.min(
+    CAMERA_DEPTH_MAX_EYE_HEIGHT,
+    Math.max(-CAMERA_DEPTH_MAX_EYE_HEIGHT, eyeHeight * scale),
+  );
+  pitchDegrees = Math.min(
+    CAMERA_DEPTH_MAX_PITCH_DEGREES,
+    Math.max(-CAMERA_DEPTH_MAX_PITCH_DEGREES, pitchDegrees * scale),
+  );
+  return {
+    eyeHeight,
+    pitchRadians: (pitchDegrees * Math.PI) / 180,
+  };
+}
+
 /** Offline OG capture may tighten the lens without altering visitor framing.
  * Keep the range narrow enough that a malformed query cannot create an
  * unusable camera. */
@@ -108,6 +266,10 @@ export function captureFovFromSearch(search: string): number | null {
   if (raw === null) return null;
   const fov = Number(raw);
   return Number.isFinite(fov) && fov >= 24 && fov <= 45 ? fov : null;
+}
+
+export function ogCaptureFromSearch(search: string): boolean {
+  return new URLSearchParams(search).has("og-capture");
 }
 
 export function captureHeadOnFromSearch(search: string): boolean {

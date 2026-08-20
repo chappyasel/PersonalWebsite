@@ -127,6 +127,10 @@ export default function TouchInteractionLayer() {
             spec?.movableController?.release(event, 0.55, 2.5);
             restoreTravel();
             break;
+          case "clear-focus":
+            if (store.focusedInteraction === effect.interactionId)
+              store.setFocusedInteraction(null);
+            break;
           case "swipe-start": {
             clearPickup();
             spec?.movableController?.cancel(event);
@@ -218,7 +222,7 @@ export default function TouchInteractionLayer() {
         return;
       publishWake(event);
       touchWorldRef.meadowPulseRevision += 1;
-      const bounds = projectedInteractionBounds(store.activeUnit, {
+      const bounds = projectedInteractionBounds({
         x: event.clientX,
         y: event.clientY,
       })
@@ -332,6 +336,9 @@ export default function TouchInteractionLayer() {
     window.addEventListener("pointercancel", onPointerCancel, {
       capture: true,
     });
+    window.addEventListener("lostpointercapture", onPointerCancel, {
+      capture: true,
+    });
     window.addEventListener("resize", clearFocusForContextChange);
     window.addEventListener("orientationchange", clearFocusForContextChange);
     const unsubscribe = useStacks.subscribe((state, previous) => {
@@ -353,6 +360,9 @@ export default function TouchInteractionLayer() {
       });
       window.removeEventListener("pointerup", onPointerUp, { capture: true });
       window.removeEventListener("pointercancel", onPointerCancel, {
+        capture: true,
+      });
+      window.removeEventListener("lostpointercapture", onPointerCancel, {
         capture: true,
       });
       window.removeEventListener("resize", clearFocusForContextChange);

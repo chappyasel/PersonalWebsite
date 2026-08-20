@@ -31,9 +31,7 @@ import ChromeLayer from "./dom/ChromeLayer";
 import PlacardLayer from "./dom/PlacardLayer";
 import UnitRail from "./dom/UnitRail";
 import ScrollBridges from "./input/ScrollBridges";
-import TouchInteractionLayer from "./input/TouchInteractionLayer";
 import {
-  areBootBookFacesReady,
   canRevealWorld,
   isAssetLoadReady,
   isBootSequenceReady,
@@ -195,7 +193,6 @@ export default function StacksHome({
       if (
         canRevealWorld({
           assetsReady: isAssetLoadReady(performance.now(), ASSET_SETTLE_MS),
-          bootBookFacesReady: areBootBookFacesReady(),
           meadowReady: isMeadowReady(),
           bootSequenceReady: isBootSequenceReady(),
         })
@@ -393,7 +390,6 @@ export default function StacksHome({
               />
             </Profiler>
             <ScrollBridges />
-            <TouchInteractionLayer />
           </div>
           {/* The canvas is allowed to finish behind an opaque curtain. The
               handoff can therefore be choreographed without filtering or

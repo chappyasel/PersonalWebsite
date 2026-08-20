@@ -76,6 +76,24 @@ describe("touch gesture arbitration", () => {
     } satisfies TouchGestureState);
     expect(cancelled.effects).toEqual([
       { type: "cancel", interactionId: "prop" },
+      { type: "clear-focus", interactionId: "prop" },
+    ]);
+  });
+
+  it("re-arms first-tap focus after carrying an actionable prop", () => {
+    const initial = press(true, true, true).state;
+    const pickup = reduceTouchGesture(initial, {
+      type: "pickup",
+      pointerId: 1,
+    });
+    const released = reduceTouchGesture(pickup.state, {
+      type: "release",
+      pointerId: 1,
+    });
+
+    expect(released.effects).toEqual([
+      { type: "carry-release", interactionId: "prop" },
+      { type: "clear-focus", interactionId: "prop" },
     ]);
   });
 });

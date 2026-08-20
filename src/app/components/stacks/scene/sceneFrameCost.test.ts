@@ -1,0 +1,113 @@
+/* eslint-disable @typescript-eslint/unbound-method --
+ * These tests assert method IDENTITY: that instrumenting twice leaves the same
+ * function in place, and that teardown puts the original back. Reading
+ * `renderer.render` without calling it is the assertion, not a mistake. */
+import { describe, expect, it, beforeEach } from "vitest";
+import type { Camera, Scene, WebGLRenderer } from "three";
+
+import {
+  instrumentRendererFrameCost,
+  markSceneFrameStart,
+  readSceneFrameCpuMs,
+  resetSceneFrameCost,
+} from "./sceneFrameCost";
+
+type RenderCall = { scene: unknown; camera: unknown; self: unknown };
+
+/** Minimal stand-in for the renderer: only `render` is instrumented, and the
+ * contract under test is that calling through is untouched. */
+function fakeRenderer(calls: RenderCall[]) {
+  const renderer = {
+    marker: "original",
+    render(scene: unknown, camera: unknown) {
+      calls.push({ scene, camera, self: this });
+      return "render-result" as unknown as void;
+    },
+  };
+  return renderer as unknown as WebGLRenderer & { marker: string };
+}
+
+const asScene = (value: string) => value as unknown as Scene;
+const asCamera = (value: string) => value as unknown as Camera;
+
+describe("sceneFrameCost", () => {
+  beforeEach(() => resetSceneFrameCost());
+
+  it("forwards every argument, the receiver, and the return value", () => {
+    const calls: RenderCall[] = [];
+    const renderer = fakeRenderer(calls);
+    instrumentRendererFrameCost(renderer);
+
+    const returned = renderer.render(asScene("scene"), asCamera("camera"));
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.scene).toBe("scene");
+    expect(calls[0]!.camera).toBe("camera");
+    expect(calls[0]!.self).toBe(renderer);
+    expect(returned).toBe("render-result");
+  });
+
+  it("measures from the marked frame start to the render return", () => {
+    const renderer = fakeRenderer([]);
+    instrumentRendererFrameCost(renderer);
+
+    markSceneFrameStart(performance.now());
+    renderer.render(asScene("scene"), asCamera("camera"));
+
+    expect(readSceneFrameCpuMs()).toBeGreaterThanOrEqual(0);
+    expect(Number.isFinite(readSceneFrameCpuMs())).toBe(true);
+  });
+
+  it("keeps the last submission of a multi-pass frame, not the first", () => {
+    const renderer = fakeRenderer([]);
+    instrumentRendererFrameCost(renderer);
+
+    markSceneFrameStart(performance.now());
+    renderer.render(asScene("pass-one"), asCamera("camera"));
+    const afterFirstPass = readSceneFrameCpuMs();
+    // Burn a little wall clock so the second pass cannot tie the first.
+    const spinUntil = performance.now() + 2;
+    while (performance.now() < spinUntil) {
+      /* deliberate busy wait */
+    }
+    renderer.render(asScene("pass-two"), asCamera("camera"));
+
+    expect(readSceneFrameCpuMs()).toBeGreaterThan(afterFirstPass);
+  });
+
+  it("reports nothing for a render with no marked frame start", () => {
+    const renderer = fakeRenderer([]);
+    instrumentRendererFrameCost(renderer);
+
+    renderer.render(asScene("offscreen-capture"), asCamera("camera"));
+
+    expect(readSceneFrameCpuMs()).toBe(0);
+  });
+
+  it("does not stack wrappers when instrumented twice", () => {
+    const calls: RenderCall[] = [];
+    const renderer = fakeRenderer(calls);
+    instrumentRendererFrameCost(renderer);
+    const first = renderer.render;
+    instrumentRendererFrameCost(renderer);
+
+    expect(renderer.render).toBe(first);
+    renderer.render(asScene("scene"), asCamera("camera"));
+    expect(calls).toHaveLength(1);
+  });
+
+  it("restores the original render on teardown", () => {
+    const calls: RenderCall[] = [];
+    const renderer = fakeRenderer(calls);
+    const original = renderer.render;
+
+    const restore = instrumentRendererFrameCost(renderer);
+    expect(renderer.render).not.toBe(original);
+    restore();
+
+    expect(renderer.render).toBe(original);
+    renderer.render(asScene("scene"), asCamera("camera"));
+    expect(calls).toHaveLength(1);
+    expect(readSceneFrameCpuMs()).toBe(0);
+  });
+});

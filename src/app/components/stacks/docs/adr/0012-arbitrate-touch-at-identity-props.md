@@ -15,3 +15,8 @@ behavior. Each active region is a Touch Halo large enough for dependable touch
 and tracks its Identity Prop through each Portrait Composition. Overlapping
 Halos resolve through visible proximity and authored interaction priority;
 Touch Focus makes the result reversible before any action commits.
+
+A normally released or browser-cancelled carry clears Touch Focus. The moved
+prop keeps its Touch Halo at its rendered position, and its next quick release
+establishes a new Focus Lean there instead of being mistaken for a second-tap
+activation.
