@@ -6,7 +6,7 @@
 // primitive" signal; perfect 90° corners are the strongest primitive tell.
 import { useStacks } from "../store";
 import { PALETTES, type Palette, rand } from "../theme";
-import { RoundedBox } from "@react-three/drei";
+import { RoundedBox } from "./RoundedBox";
 import React, { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
@@ -38,6 +38,7 @@ import {
   SHELF_UNDERSIDE,
   shelfPerchOwnerId,
 } from "./shelfGeometry";
+import { StaticWorldRoot } from "./staticWorld";
 import { useUnitFrame } from "./unitActivity";
 
 export type RowItem =
@@ -1237,6 +1238,7 @@ function RegisteredShelfPlank({
       id: shelfPerchOwnerId(activeUnit, plank.id),
       root: mesh.current,
       activeUnits: [activeUnit],
+      touchable: false,
       hover: { kind: "none" },
     });
   }, [activeUnit, plank.id]);
@@ -1303,75 +1305,74 @@ export function ShelfUnit({
           halfWidth={width / 2}
         />
       )}
-      {SHELF_PLANKS.map((plank) => (
-        <RegisteredShelfPlank
-          key={plank.id}
-          activeUnit={toneSeed ?? null}
-          palette={palette}
-          plank={plank}
-          tone={tone}
-          width={width}
-        />
-      ))}
-      {/* Straps run all the way to the shared ground plane with a small
-          plinth foot — the bookcase stands instead of hovering. 0.07² so the
-          straps are never thinner than the plank they carry, plus a cleat
-          block under each lower-plank end: the joinery that makes the plank
-          read as CARRIED (v3's 0.72-width plank touched nothing). */}
-      {[-1, 1].map((side) => (
-        <group
-          key={side}
-          position={[
-            side * (width / 2 - SHELF_GEOMETRY.strapInsetX),
-            0,
-            SHELF_GEOMETRY.strapZ,
-          ]}
-        >
-          <RoundedBox
-            castShadow
-            args={[
-              SHELF_GEOMETRY.support.width,
-              -SHELF_GEOMETRY.groundY,
-              SHELF_GEOMETRY.support.width,
+      <StaticWorldRoot id={`shelf-structure:${toneSeed ?? "shared"}`}>
+        {SHELF_PLANKS.map((plank) => (
+          <RegisteredShelfPlank
+            key={plank.id}
+            activeUnit={toneSeed ?? null}
+            palette={palette}
+            plank={plank}
+            tone={tone}
+            width={width}
+          />
+        ))}
+        {/* Straps run all the way to the shared ground plane with a small
+            plinth foot — the bookcase stands instead of hovering. */}
+        {[-1, 1].map((side) => (
+          <group
+            key={side}
+            position={[
+              side * (width / 2 - SHELF_GEOMETRY.strapInsetX),
+              0,
+              SHELF_GEOMETRY.strapZ,
             ]}
-            radius={0.012}
-            smoothness={4}
-            position={[0, SHELF_GEOMETRY.groundY / 2, 0]}
           >
-            <WoodMaterial
-              hex={palette.strap}
-              tone={tone}
-              vertical
-              repeat={[0.4, 3]}
-              roughness={0.68}
-            />
-          </RoundedBox>
-          <RoundedBox
-            args={[
-              SHELF_GEOMETRY.support.footWidth,
-              SHELF_GEOMETRY.support.footHeight,
-              SHELF_GEOMETRY.support.footDepth,
-            ]}
-            radius={0.008}
-            smoothness={4}
-            position={[0, SHELF_GEOMETRY.groundY + 0.025, 0]}
-          >
-            <meshStandardMaterial color={palette.strap} roughness={0.7} />
-          </RoundedBox>
-          <RoundedBox
-            args={[
-              SHELF_GEOMETRY.support.cleatWidth,
-              SHELF_GEOMETRY.support.cleatHeight,
-              SHELF_GEOMETRY.support.cleatDepth,
-            ]}
-            radius={0.008}
-            smoothness={4}
-            position={[0, SHELF_GEOMETRY.lower.centerY - 0.0575, 0]}
-          >
-            <meshStandardMaterial color={palette.strap} roughness={0.7} />
-          </RoundedBox>
-        </group>
-      ))}
+            <RoundedBox
+              castShadow
+              args={[
+                SHELF_GEOMETRY.support.width,
+                -SHELF_GEOMETRY.groundY,
+                SHELF_GEOMETRY.support.width,
+              ]}
+              radius={0.012}
+              smoothness={4}
+              position={[0, SHELF_GEOMETRY.groundY / 2, 0]}
+            >
+              <WoodMaterial
+                hex={palette.strap}
+                tone={tone}
+                vertical
+                repeat={[0.4, 3]}
+                roughness={0.68}
+              />
+            </RoundedBox>
+            <RoundedBox
+              args={[
+                SHELF_GEOMETRY.support.footWidth,
+                SHELF_GEOMETRY.support.footHeight,
+                SHELF_GEOMETRY.support.footDepth,
+              ]}
+              radius={0.008}
+              smoothness={4}
+              position={[0, SHELF_GEOMETRY.groundY + 0.025, 0]}
+            >
+              <meshStandardMaterial color={palette.strap} roughness={0.7} />
+            </RoundedBox>
+            <RoundedBox
+              args={[
+                SHELF_GEOMETRY.support.cleatWidth,
+                SHELF_GEOMETRY.support.cleatHeight,
+                SHELF_GEOMETRY.support.cleatDepth,
+              ]}
+              radius={0.008}
+              smoothness={4}
+              position={[0, SHELF_GEOMETRY.lower.centerY - 0.0575, 0]}
+            >
+              <meshStandardMaterial color={palette.strap} roughness={0.7} />
+            </RoundedBox>
+          </group>
+        ))}
+      </StaticWorldRoot>
       {/* One fixture per shelf, wired here rather than in the seven unit
           files so no shelf can be forgotten. Only ONE of the three owns a
           real light — the lower shelf, which is the darkest bay a visitor

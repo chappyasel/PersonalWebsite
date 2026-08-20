@@ -26,7 +26,7 @@ import { ShelfUnit } from "../primitives";
 import { SHELF_GEOMETRY } from "../shelfGeometry";
 import { useUnitLod } from "../useUnitLod";
 import { unitPose } from "../worldLayout";
-import { RoundedBox } from "@react-three/drei";
+import { RoundedBox } from "../RoundedBox";
 import React from "react";
 import * as THREE from "three";
 

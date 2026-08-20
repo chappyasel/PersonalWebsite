@@ -4,7 +4,7 @@
 // Box props use RoundedBox for edge highlights (see primitives.tsx).
 import { useStacks } from "../store";
 import { type Palette, rand } from "../theme";
-import { RoundedBox } from "@react-three/drei";
+import { RoundedBox } from "./RoundedBox";
 import React, { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 

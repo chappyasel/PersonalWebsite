@@ -16,7 +16,7 @@
 // silhouette and whichever file it was declared in, hangs from it.
 import { INERT_HOVER } from "../store";
 import { type Palette } from "../theme";
-import { RoundedBox } from "@react-three/drei";
+import { RoundedBox } from "./RoundedBox";
 import React from "react";
 
 import LitImage from "./LitImage";
