@@ -22,6 +22,7 @@ import {
   Bloom,
   DepthOfField,
   EffectComposer,
+  EffectComposerContext,
   N8AO,
   Noise,
   SMAA,
@@ -36,7 +37,7 @@ import {
   EffectAttribute,
   ToneMappingMode,
 } from "postprocessing";
-import { useMemo } from "react";
+import { useContext, useMemo, useRef } from "react";
 import { MathUtils, Uniform } from "three";
 
 import {
@@ -224,6 +225,44 @@ function SideLens({
   );
 }
 
+/**
+ * Resize the composer's render targets when the DEVICE PIXEL RATIO changes.
+ *
+ * `@react-three/postprocessing` only calls `composer.setSize` from an effect
+ * keyed on `useThree().size`, and that size is in CSS pixels. Changing `dpr`
+ * resizes the renderer's drawing buffer without touching it, so the composer
+ * goes on rendering into targets at the previous resolution and blits a
+ * mismatched buffer to the screen — visible as a flash.
+ *
+ * This never mattered while the pixel ratio moved only at profile
+ * transitions, which is what the "N8AO x adaptive-dpr is a known-bad pair"
+ * note at the top of this file is about. The resolution axis now steps it
+ * twelve ways, so the resize has to be wired up properly.
+ *
+ * Done in the frame loop rather than an effect, and read off the renderer
+ * rather than from React state, so no frame can be drawn between the ratio
+ * changing and the buffers following it. Priority stays at 0: the composer
+ * renders at 1, and r3f runs subscribers in ascending priority, so this lands
+ * before the frame it is correcting. `composer.setSize` takes CSS pixels and
+ * re-derives the rest via `getDrawingBufferSize`, so passing the unchanged
+ * size is both correct and what resizes every pass.
+ */
+function ComposerPixelRatio() {
+  const gl = useThree((state) => state.gl);
+  const size = useThree((state) => state.size);
+  const { composer } = useContext(EffectComposerContext);
+  const applied = useRef<number | null>(null);
+
+  useFrame(() => {
+    const ratio = gl.getPixelRatio();
+    if (!composer || ratio === applied.current) return;
+    applied.current = ratio;
+    composer.setSize(size.width, size.height);
+  });
+
+  return null;
+}
+
 export default function Effects({
   dark,
   plan,
@@ -334,6 +373,7 @@ export default function Effects({
       <Noise premultiply opacity={dark ? 0.22 : 0.07} />
       {sharpenAmount > 0 && <AdaptiveSharpen amount={sharpenAmount} />}
       <SMAA />
+      <ComposerPixelRatio />
     </EffectComposer>
   );
 }
