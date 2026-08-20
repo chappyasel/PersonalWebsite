@@ -29,6 +29,7 @@ import {
   insectDiagnosticsController,
   insectDiagnosticsEnabled,
 } from "./insectPerchDiagnostic";
+import { markSceneFrameInstrumented } from "./sceneFrameCost";
 import { getInsectPerches } from "./insectPerches";
 import {
   sceneInteractionInventory,
@@ -602,6 +603,9 @@ export default function InsectPerchDiagnostics() {
     const tick = Math.floor(clock.elapsedTime * 4);
     if (lastTick.current === tick) return;
     lastTick.current = tick;
+    // This frame is about to cost far more than any frame production pays
+    // for. Tell the quality sampler to throw it away rather than adapt to it.
+    markSceneFrameInstrumented();
     const filter = insectDiagnosticsController.getSnapshot().filter;
     // Evaluate every Perch, then filter for the HUD. The bridge below needs
     // the whole catalogue: `yarn check:perches` walks the room Unit by Unit

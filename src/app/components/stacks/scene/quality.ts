@@ -429,6 +429,38 @@ export type SceneQualityAdvancedOverrides = Readonly<{
   practicalGlowMode?: "aperture" | "halo" | "sprite";
 }>;
 
+/**
+ * Which profile's authored effect block a tier renders.
+ *
+ * The inverse of the effects column of `AXES_BY_PROFILE`, with one wrinkle:
+ * Showcase and Balanced both sit at `full` while their blocks differ —
+ * medium versus low ambient occlusion, eight bloom levels versus six. So a
+ * tier cannot simply replace the profile's block, or a Balanced device asked
+ * for `full` would be handed Showcase's, which is an upgrade nobody asked
+ * for. The tier is a CAP: the block comes from whichever of the two is
+ * cheaper, exactly as `cheaperContentTier` already does for content.
+ */
+const EFFECTS_SOURCE_PROFILE: Readonly<
+  Record<SceneEffectsTier, SceneQualityProfile>
+> = {
+  cinematic: "cinematic",
+  full: "showcase",
+  lean: "efficient",
+  minimal: "safety",
+};
+
+/** The profile whose effect block should be rendered, given the current
+ * profile and the effects axis. Never richer than the profile itself. */
+export function effectsProfileFor(
+  profile: SceneQualityProfile,
+  tier?: SceneEffectsTier,
+): SceneQualityProfile {
+  if (!tier) return profile;
+  const capped = EFFECTS_SOURCE_PROFILE[tier];
+  const order = SCENE_QUALITY_PROFILES;
+  return order.indexOf(capped) > order.indexOf(profile) ? capped : profile;
+}
+
 export function resolveSceneQualityPlan({
   mode,
   profile,
@@ -441,6 +473,7 @@ export function resolveSceneQualityPlan({
   overrides,
   hasCustomOverrides,
   contentTier,
+  effectsTier,
   resolutionStep,
 }: {
   mode: SceneQualityMode;
@@ -456,6 +489,7 @@ export function resolveSceneQualityPlan({
   /** Supplied by the content axis in automatic mode. Falls back to the
    * profile's own tier, which is what a forced preset resolves to. */
   contentTier?: SceneContentTier;
+  effectsTier?: SceneEffectsTier;
   /** Supplied by the resolution axis: 0 is the floor, 11 the ceiling. The
    * ladder is computed against this plan's own cap, so the top step is
    * exactly the resolution the profile would have chosen anyway. Null leaves
@@ -493,15 +527,18 @@ export function resolveSceneQualityPlan({
     resolutionStep == null
       ? profileDpr
       : sceneResolutionScale(resolutionStep, profileDpr);
+  // The effects axis selects which authored block renders. Everything else
+  // on the plan — pixel budget, meadow, petals — still comes from `profile`.
+  const effects = SCENE_QUALITY_DEFINITIONS[effectsProfileFor(profile, effectsTier)];
   const ambientOcclusion =
     overrides?.skipAmbientOcclusion == null
-      ? definition.ambientOcclusion
+      ? effects.ambientOcclusion
       : !overrides.skipAmbientOcclusion;
   const depthOfField =
     overrides?.skipDepthOfField == null
-      ? definition.depthOfField
+      ? effects.depthOfField
       : !overrides.skipDepthOfField;
-  const bloom = definition.bloom && overrides?.skipBloom !== true;
+  const bloom = effects.bloom && overrides?.skipBloom !== true;
   const customOverrides =
     hasCustomOverrides ??
     Boolean(
@@ -529,26 +566,26 @@ export function resolveSceneQualityPlan({
     pixelBudget,
     physicalPixels: Math.round(cssPixels * dpr * dpr),
     effects: {
-      composer: directRender ? "direct" : definition.composer,
+      composer: directRender ? "direct" : effects.composer,
       bloom: !directRender && bloom,
-      bloomLevels: !directRender && bloom ? definition.bloomLevels : 0,
-      bloomResolutionScale: definition.bloomResolutionScale,
-      bloomIntensity: definition.bloomIntensity,
-      bloomLuminanceThreshold: definition.bloomLuminanceThreshold,
-      bloomLuminanceSmoothing: definition.bloomLuminanceSmoothing,
+      bloomLevels: !directRender && bloom ? effects.bloomLevels : 0,
+      bloomResolutionScale: effects.bloomResolutionScale,
+      bloomIntensity: effects.bloomIntensity,
+      bloomLuminanceThreshold: effects.bloomLuminanceThreshold,
+      bloomLuminanceSmoothing: effects.bloomLuminanceSmoothing,
       ambientOcclusion: !directRender && ambientOcclusion,
-      ambientOcclusionHalfRes: definition.ambientOcclusionHalfRes,
-      ambientOcclusionQuality: definition.ambientOcclusionQuality,
+      ambientOcclusionHalfRes: effects.ambientOcclusionHalfRes,
+      ambientOcclusionQuality: effects.ambientOcclusionQuality,
       depthOfField: !directRender && depthOfField,
-      depthOfFieldResolutionScale: definition.depthOfFieldResolutionScale,
-      depthOfFieldBokehScale: definition.depthOfFieldBokehScale,
+      depthOfFieldResolutionScale: effects.depthOfFieldResolutionScale,
+      depthOfFieldBokehScale: effects.depthOfFieldBokehScale,
       finishing: !directRender,
       // Multisampled composer targets remain disabled on touch/iOS. The
       // desktop-only Cinematic tier combines 8× MSAA with SMAA for captures.
-      multisampling: touch ? 0 : definition.multisampling,
+      multisampling: touch ? 0 : effects.multisampling,
       adaptiveSharpen: overrides?.adaptiveSharpen !== false,
       analyticFixtureHalos:
-        profile === "safety" || overrides?.practicalGlowMode === "halo",
+        effectsProfileFor(profile, effectsTier) === "safety" || overrides?.practicalGlowMode === "halo",
     },
     environment: {
       meadowDensity: definition.meadowDensity,
@@ -608,9 +645,14 @@ export const QUALITY_CPU_BOUND_SHARE = 0.6;
  * this system has had came from a gap between a decline threshold and a
  * higher recovery bar. */
 export const QUALITY_PRESSURE_DROPPED_RATIO = 0.08;
-/** Fraction of the budget a frame must fit inside to count as having room to
- * spare, as opposed to merely not failing. */
-export const QUALITY_HEADROOM_BUDGET_RATIO = 0.8;
+/** How far past the budget a frame interval must run before it is evidence of
+ * pressure rather than of a refresh rate. A vsync-locked 60 Hz display sits
+ * at exactly the budget when it is completely idle, so the interval needs
+ * real margin before it means anything. */
+export const QUALITY_PRESSURE_P95_MULTIPLIER = 1.25;
+/** Main-thread cost below which a frame that is not failing has room to
+ * spare. Cost, not interval: see classifySceneFrameConstraint. */
+export const QUALITY_HEADROOM_CPU_MS = SCENE_FRAME_BUDGET_MS * 0.5;
 
 export const QUALITY_SAMPLE_WINDOW_MS = 2_000;
 export const QUALITY_SAMPLE_INTERVAL_MS = 250;
@@ -914,18 +956,29 @@ export function classifySceneFrameConstraint(
   >,
 ): SceneFrameConstraint {
   const { cpuMs, p95, gpuMs, droppedFrameRatio } = metrics;
-  // Whether there is a problem is asked first, and asked of the whole frame.
-  // The composition of a frame says where the time went, not whether the time
-  // was affordable, and the two used to be conflated: a verdict of "cpu" made
-  // content coarsen after ten seconds even on a window comfortably inside
-  // budget, so a machine meeting 60 Hz could still be quietly degraded.
+  // Whether there is a problem is asked first. The composition of a frame
+  // says where the time went, not whether the time was affordable, and the
+  // two used to be conflated: a verdict of "cpu" made content coarsen after
+  // ten seconds even on a window comfortably inside budget, so a machine
+  // meeting 60 Hz could still be quietly degraded.
+  //
+  // Pressure is read from drops and from an interval with real margin over
+  // the budget. Bare `p95 > budget` is not usable: on a vsync-locked display
+  // the interval IS the refresh period, so a completely idle 60 Hz machine
+  // reports 16.67 ms and floating-point noise decides whether it is in
+  // trouble.
   const pressured =
-    p95 > SCENE_FRAME_BUDGET_MS ||
-    droppedFrameRatio >= QUALITY_PRESSURE_DROPPED_RATIO;
+    droppedFrameRatio >= QUALITY_PRESSURE_DROPPED_RATIO ||
+    p95 > SCENE_FRAME_BUDGET_MS * QUALITY_PRESSURE_P95_MULTIPLIER;
+
+  // Room to spare is a question about COST, for the same reason. An interval
+  // cannot distinguish two milliseconds of work waiting for vsync from
+  // sixteen milliseconds of work. An earlier revision asked it anyway, with a
+  // p95 under 80 percent of the budget, which no healthy 60 Hz display can
+  // ever satisfy — it would have climbed on 120 Hz hardware and never once on
+  // 60 Hz.
   if (!pressured)
-    return p95 <= SCENE_FRAME_BUDGET_MS * QUALITY_HEADROOM_BUDGET_RATIO
-      ? "headroom"
-      : "unknown";
+    return cpuMs < QUALITY_HEADROOM_CPU_MS ? "headroom" : "unknown";
 
   if (cpuMs > QUALITY_CPU_BOUND_MS) return "cpu";
   const gpuTerm = gpuMs ?? p95;

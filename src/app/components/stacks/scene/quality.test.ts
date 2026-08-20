@@ -526,12 +526,15 @@ describe("scene quality adaptation", () => {
     expect(state.metrics).toEqual(severe);
   });
 
-  it("does not climb while the window is still missing the budget", () => {
-    // `good` sits just over the sixtieth of a second, which is not a reason
-    // to degrade and not a reason to promote either.
+  it("does not climb while the window is genuinely missing the budget", () => {
+    // An interval a hair over a sixtieth of a second is NOT missing the
+    // budget — on a vsync-locked 60 Hz display that is what perfect looks
+    // like. Real pressure is drops, or an interval with margin over the
+    // budget.
+    const missing = { ...good, p95: 26, droppedFrameRatio: 0.2, cpuMs: 20 };
     let state = initialSceneQualityAdaptationState("efficient", 0);
     for (let now = 1_000; now <= 120_000; now += 1_000)
-      state = sample(state, now, good);
+      state = sample(state, now, missing);
     expect(state.profile).toBe("efficient");
   });
 
@@ -778,8 +781,15 @@ describe("the M5 Max window that read as Safety", () => {
   // Captured from the dev overlay on an M5 Max: 11.0 ms p95, 9.7 ms of it on
   // the main thread, 4.8 % of frames past the dropped line. The overlay
   // showed `safety · res 6/11 · DPR 0.90 · 0.2/2.5 MP` beside `fx full · geo
-  // full` and `no verdict` — a machine meeting 60 Hz with room to spare,
-  // pinned to the bottom rung by a ladder the axes could not see.
+  // full` — a machine meeting 60 Hz comfortably, pinned to the bottom rung by
+  // a ladder the axes could not see.
+  //
+  // The 9.7 ms is largely instrumentation, not the scene: perch diagnostics
+  // run at 4 Hz in development only, evaluating every perch and searching
+  // over a hundred candidate curves. Eight expensive frames in a 120-frame
+  // window is 6.7 percent, which is exactly where p95 lands. These tests
+  // therefore assert what the controller must NOT do with such a window,
+  // and check a production-plausible cost separately.
   const measured: SceneQualityMetrics = {
     targetFrameMs: 16.667,
     targetHz: 60,
@@ -790,45 +800,49 @@ describe("the M5 Max window that read as Safety", () => {
     gpuMs: null,
   };
 
-  it("is no longer a dead band in the classifier", () => {
-    expect(classifySceneFrameConstraint(measured)).not.toBe("unknown");
+  it("is not under pressure, so nothing degrades", () => {
+    expect(classifySceneFrameConstraint(measured)).not.toBe("cpu");
+    expect(classifySceneFrameConstraint(measured)).not.toBe("gpu");
   });
 
-  it("reads as room to spare, so quality may climb back", () => {
-    expect(classifySceneFrameConstraint(measured)).toBe("headroom");
-  });
-
-  it("climbs to the top of the automatic range instead of falling to the floor", () => {
-    let state = initialSceneQualityAdaptationState("balanced", 0);
-    for (let now = 1_000; now <= 300_000; now += 1_000)
-      state = sample(state, now, measured);
-    expect(state.profile).toBe("showcase");
-  });
-
-  it("never falls below the estimate on this window, however long it runs", () => {
+  it("never falls below the cold-start estimate, however long it runs", () => {
     let state = initialSceneQualityAdaptationState("balanced", 0);
     const seen = new Set<string>();
     for (let now = 1_000; now <= 300_000; now += 1_000) {
       state = sample(state, now, measured);
       seen.add(state.profile);
     }
-    expect([...seen].sort()).toEqual(["balanced", "showcase"]);
+    expect([...seen]).toEqual(["balanced"]);
+  });
+
+  it("holds rather than climbing, since 9.7 ms is not obviously spare", () => {
+    // 58 percent of the budget on the main thread is not room to spare. Hold
+    // is the honest answer; an earlier revision called it headroom by asking
+    // the frame INTERVAL instead of the cost, which no 60 Hz display could
+    // ever satisfy.
+    expect(classifySceneFrameConstraint(measured)).toBe("unknown");
+  });
+
+  it("climbs once the cost is what production actually pays", () => {
+    const production = { ...measured, cpuMs: 5 };
+    expect(classifySceneFrameConstraint(production)).toBe("headroom");
+
+    let state = initialSceneQualityAdaptationState("balanced", 0);
+    for (let now = 1_000; now <= 300_000; now += 1_000)
+      state = sample(state, now, production);
+    expect(state.profile).toBe("showcase");
   });
 
   it("climbs the resolution axis back to full through the axis reducer", () => {
+    const production = { ...measured, cpuMs: 5 };
     let state = initialSceneQualityAxisState("balanced", 0);
     state = reduceSceneQualityAxes(state, { type: "booted", now: 0 });
-    state = reduceSceneQualityAxes(state, {
-      type: "force",
-      now: 0,
-      profile: null,
-    });
     state = { ...state, axes: { ...state.axes, resolutionStep: 6 } };
     for (let now = 20_000; now <= 200_000; now += 1_000)
       state = reduceSceneQualityAxes(state, {
         type: "sample",
         now,
-        metrics: measured,
+        metrics: production,
         visible: true,
       });
     expect(state.axes.resolutionStep).toBe(SCENE_RESOLUTION_MAX_STEP);
@@ -840,13 +854,46 @@ describe("the M5 Max window that read as Safety", () => {
   });
 
   it("names the main thread when the same machine is genuinely CPU-bound", () => {
-    // Same frame length, but now most of it is main thread rather than a
-    // third of it. 9.7 ms inside a 26 ms frame is not a CPU problem, and
-    // saying so would coarsen geometry to fix something else.
     const mixed = { ...measured, p95: 26, droppedFrameRatio: 0.3 };
     const cpuBound = { ...mixed, cpuMs: 20 };
     expect(classifySceneFrameConstraint(mixed)).toBe("unknown");
     expect(classifySceneFrameConstraint(cpuBound)).toBe("cpu");
+  });
+});
+
+describe("a healthy 60 Hz display", () => {
+  // A vsync-locked 60 Hz stream sits at the budget when it is doing nothing
+  // at all. Grading the INTERVAL against the budget therefore reads perfect
+  // as marginal, and an 80-percent-of-budget headroom test reads it as never
+  // having room to spare. Both were true of an earlier revision here.
+  const healthy: SceneQualityMetrics = {
+    targetFrameMs: 16.667,
+    targetHz: 60,
+    p95: 16.7,
+    droppedFrameRatio: 0.01,
+    sampleCount: 120,
+    cpuMs: 7,
+    gpuMs: null,
+  };
+
+  it("has room to spare rather than no verdict", () => {
+    expect(classifySceneFrameConstraint(healthy)).toBe("headroom");
+  });
+
+  it("is not called CPU-bound merely for spending most of a cheap frame", () => {
+    expect(classifySceneFrameConstraint({ ...healthy, cpuMs: 10.5 })).not.toBe(
+      "cpu",
+    );
+  });
+
+  it("still degrades once it actually starts dropping frames", () => {
+    expect(
+      classifySceneFrameConstraint({
+        ...healthy,
+        cpuMs: 14,
+        droppedFrameRatio: 0.2,
+      }),
+    ).toBe("cpu");
   });
 });
 

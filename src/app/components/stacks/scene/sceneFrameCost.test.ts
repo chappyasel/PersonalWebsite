@@ -9,7 +9,9 @@ import {
   instrumentRendererFrameCost,
   markSceneFrameStart,
   readSceneFrameCpuMs,
+  markSceneFrameInstrumented,
   resetSceneFrameCost,
+  takeSceneFrameInstrumented,
 } from "./sceneFrameCost";
 
 type RenderCall = { scene: unknown; camera: unknown; self: unknown };
@@ -109,5 +111,26 @@ describe("sceneFrameCost", () => {
     renderer.render(asScene("scene"), asCamera("camera"));
     expect(calls).toHaveLength(1);
     expect(readSceneFrameCpuMs()).toBe(0);
+  });
+});
+
+describe("diagnostic frames are not evidence", () => {
+  // Perch diagnostics sweep every perch at 4 Hz in development, searching
+  // over a hundred candidate landing curves. Eight expensive frames in a
+  // 120-frame window is 6.7 percent, which is exactly where p95 lands — so
+  // the controller was reading its own instrumentation as scene cost and
+  // degrading a build that never pays for it.
+  it("reports a marked frame once, then forgets it", () => {
+    resetSceneFrameCost();
+    expect(takeSceneFrameInstrumented()).toBe(false);
+    markSceneFrameInstrumented();
+    expect(takeSceneFrameInstrumented()).toBe(true);
+    expect(takeSceneFrameInstrumented()).toBe(false);
+  });
+
+  it("is cleared with the rest of the frame state", () => {
+    markSceneFrameInstrumented();
+    resetSceneFrameCost();
+    expect(takeSceneFrameInstrumented()).toBe(false);
   });
 });

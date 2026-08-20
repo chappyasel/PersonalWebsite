@@ -33,6 +33,7 @@ type InstrumentedScene = Object3D & { [MATRIX_WRAPPED]?: true };
 let frameStartedAt = 0;
 let lastFrameCpuMs = 0;
 let lastMatrixMs = 0;
+let frameWasInstrumented = false;
 
 /** Called by the earliest frame subscriber, before any scene work runs. */
 export function markSceneFrameStart(now: number) {
@@ -42,6 +43,34 @@ export function markSceneFrameStart(now: number) {
 /** Main-thread milliseconds for the most recently submitted frame. */
 export function readSceneFrameCpuMs() {
   return lastFrameCpuMs;
+}
+
+/**
+ * Declare that this frame carried development-only diagnostic work, so its
+ * cost is not evidence about the scene.
+ *
+ * The perch diagnostics sweep every perch at 4 Hz in development, searching
+ * over a hundred candidate landing curves. That is roughly eight expensive
+ * frames in a 120-frame window — 6.7 percent, which is precisely where p95
+ * lands. Measured through the real summariser, the same scene reads
+ * `p95 16 ms / cpu 5 ms / unknown` clean and `p95 32 ms / cpu 28 ms / cpu`
+ * with the sweep running. The controller was adapting to its own
+ * instrumentation, in a build where none of that code ships.
+ *
+ * Excluding the frames is better than disabling the overlay: the diagnostics
+ * keep working, `yarn check:perches` keeps its continuous catalogue, and any
+ * future dev-only overlay gets the same protection by calling this.
+ */
+export function markSceneFrameInstrumented() {
+  frameWasInstrumented = true;
+}
+
+/** Whether the frame just measured carried diagnostic work. Reading clears
+ * it, so each frame is judged on its own. Same one-frame lag as the cost. */
+export function takeSceneFrameInstrumented() {
+  const value = frameWasInstrumented;
+  frameWasInstrumented = false;
+  return value;
 }
 
 /** Milliseconds the last frame spent recomputing world matrices. */
@@ -99,6 +128,7 @@ export function resetSceneFrameCost() {
   frameStartedAt = 0;
   lastFrameCpuMs = 0;
   lastMatrixMs = 0;
+  frameWasInstrumented = false;
 }
 
 /**

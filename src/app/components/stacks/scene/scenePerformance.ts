@@ -15,8 +15,8 @@ export type ScenePerformanceSettings = Readonly<{
   activeNeighborhoodLights: boolean;
   /** Give the far tuft LOD a compile-time-cheaper motion shader. */
   simplifiedFarMeadow: boolean;
-  /** Auto selects opaque paper for compact coarse-touch use and native glass
-   * for fine pointers. Both remain explicit for performance comparisons. */
+  /** Native glass is the shipped default. Auto retains the coarse-touch paper
+   * fallback for performance comparisons. */
   placardGlassMode: PlacardGlassMode;
   /** Keep every unit resident while hiding and suspending work outside the
    * camera's active neighborhood. */
@@ -50,7 +50,7 @@ export const DEFAULT_SCENE_PERFORMANCE_SETTINGS: ScenePerformanceSettings =
     pausePrewarmDuringTravel: true,
     activeNeighborhoodLights: true,
     simplifiedFarMeadow: true,
-    placardGlassMode: "auto",
+    placardGlassMode: "native",
     virtualizeUnitWork: true,
     practicalGlowMode: "halo",
     effectiveDprLadder: true,

@@ -64,6 +64,7 @@ import {
   instrumentSceneMatrixCost,
   markSceneFrameStart,
   readSceneFrameCpuMs,
+  takeSceneFrameInstrumented,
 } from "./scene/sceneFrameCost";
 import {
   LEGACY_RUNG_BY_PROFILE,
@@ -654,9 +655,19 @@ function AdaptiveQualityProbe({
     // The cost recorded by the renderer wrapper belongs to the frame that was
     // submitted before this callback ran, so it lags by one frame.
     const cpuMs = readSceneFrameCpuMs();
+    // Development-only overlays make frames the production build never pays
+    // for. Counting them taught the controller to degrade a scene that was
+    // never slow.
+    const instrumented = takeSceneFrameInstrumented();
     markSceneFrameStart(now);
     const ms = delta * 1_000;
-    if (!document.hidden && Number.isFinite(ms) && ms > 0 && ms < 1_000)
+    if (
+      !instrumented &&
+      !document.hidden &&
+      Number.isFinite(ms) &&
+      ms > 0 &&
+      ms < 1_000
+    )
       frames.current.push({ at: now, ms, cpuMs });
     while (
       frames.current.length > 0 &&
@@ -1178,6 +1189,10 @@ export default function StacksCanvas({
                 CONTENT_TIER_BY_PROFILE[adaptation.profile],
               )
             : undefined,
+        // The effects axis. Same shape as content: automatic mode drives it
+        // from the axis, a forced preset lets the plan resolve the preset's
+        // own tier. It caps the profile's block rather than replacing it.
+        effectsTier: mode === "auto" ? axisState.axes.effects : undefined,
         // Pinned under the harness so end-to-end tests that assert an exact
         // device pixel ratio are not racing a continuously adapting value.
         // Pinning is the correct fix there; loosening the assertion is not.
@@ -1224,6 +1239,7 @@ export default function StacksCanvas({
       adaptation.directRender,
       adaptation.profile,
       axisState.axes.content,
+      axisState.axes.effects,
       axisState.axes.resolutionStep,
       qualityControls.resolutionStep,
       harnessPinnedResolution,
