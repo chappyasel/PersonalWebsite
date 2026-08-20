@@ -10,6 +10,7 @@ import {
   summarizeInsectPerchDiagnostics,
 } from "../scene/insectPerchDiagnostic";
 import { meadowDiagnosticsController } from "../scene/meadowDiagnostics";
+import { readSceneMatrixMs } from "../scene/sceneFrameCost";
 import { MEADOW_WIND } from "../scene/meadowMotion";
 import {
   downloadPerformanceTrace,
@@ -919,6 +920,17 @@ function DiagnosticsOverview({
     ? `DoF ${effects.depthOfFieldResolutionScale.toFixed(2)}×`
     : "DoF off";
 
+  // Share of main-thread cost spent on the world-matrix traversal. Read live
+  // rather than sampled: it informs a decision about whether to freeze
+  // matrices, and feeds nothing automatic.
+  const matrixMs = readSceneMatrixMs();
+  const matrixLabel =
+    metrics && matrixMs > 0
+      ? `${matrixMs.toFixed(2)} ms matrices · ${Math.round(
+          (matrixMs / Math.max(metrics.cpuMs, matrixMs)) * 100,
+        )}% of main thread`
+      : "matrix cost not measured";
+
   return (
     <div
       id="stacks-diagnostics-panel-overview"
@@ -1000,6 +1012,12 @@ function DiagnosticsOverview({
                 } · ${CONSTRAINT_LABEL[runtime?.constraint ?? "unknown"]}`
               : "No main-thread cost yet"}
           </small>
+          {/* World-matrix traversal, broken out of main-thread cost. Three
+              recomputes every object's matrixWorld each frame unless told
+              otherwise, and the issue's proposed freeze is only worth its
+              risk if this number is large. An instantaneous read: it is a
+              diagnostic, not an input to any decision. */}
+          <small>{matrixLabel}</small>
           <small>
             {runtime
               ? `${(runtime.cooldownRemainingMs / 1_000).toFixed(1)}s cooldown · ${runtime.fallbackStatus}`

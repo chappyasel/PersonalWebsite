@@ -1,4 +1,4 @@
-import type { WebGLRenderer } from "three";
+import type { Object3D, WebGLRenderer } from "three";
 
 // Main-thread cost of a frame, measured from the start of the animation frame
 // callback to the return of the last render submission.
@@ -30,6 +30,7 @@ type InstrumentedRenderer = WebGLRenderer & { [WRAPPED]?: true };
 
 let frameStartedAt = 0;
 let lastFrameCpuMs = 0;
+let lastMatrixMs = 0;
 
 /** Called by the earliest frame subscriber, before any scene work runs. */
 export function markSceneFrameStart(now: number) {
@@ -41,9 +42,34 @@ export function readSceneFrameCpuMs() {
   return lastFrameCpuMs;
 }
 
+/** Milliseconds the last frame spent recomputing world matrices. */
+export function readSceneMatrixMs() {
+  return lastMatrixMs;
+}
+
+/**
+ * Run the scene graph's world-matrix update here instead of inside the
+ * renderer, so its cost can be attributed.
+ *
+ * `WebGLRenderer.render` begins with `if (scene.matrixWorldAutoUpdate)
+ * scene.updateMatrixWorld()`. With that flag off and this called from the
+ * earliest frame subscriber, the same traversal happens in the same order at
+ * nearly the same moment — the only difference is that it is now timed.
+ *
+ * This is a measurement, not the freeze. Freezing means not doing the
+ * traversal at all for the static majority of the graph, and there is no
+ * point attempting that before knowing what the traversal costs.
+ */
+export function measureSceneMatrixCost(scene: Object3D) {
+  const started = performance.now();
+  scene.updateMatrixWorld();
+  lastMatrixMs = performance.now() - started;
+}
+
 export function resetSceneFrameCost() {
   frameStartedAt = 0;
   lastFrameCpuMs = 0;
+  lastMatrixMs = 0;
 }
 
 /**

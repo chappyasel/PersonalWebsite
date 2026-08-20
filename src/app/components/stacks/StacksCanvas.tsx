@@ -62,6 +62,7 @@ import {
 import {
   instrumentRendererFrameCost,
   markSceneFrameStart,
+  measureSceneMatrixCost,
   readSceneFrameCpuMs,
 } from "./scene/sceneFrameCost";
 import {
@@ -642,12 +643,27 @@ function AdaptiveQualityProbe({
 }) {
   const frames = useRef<Array<{ at: number; ms: number; cpuMs: number }>>([]);
   const lastSampleAt = useRef(0);
+  const scene = useThree((state) => state.scene);
+
+  // Take ownership of the world-matrix traversal so its cost is attributable.
+  // The renderer does exactly this at the top of `render` when the flag is on;
+  // running it from the earliest subscriber instead is the same work at
+  // nearly the same moment, with a timer around it.
+  useEffect(() => {
+    const previous = scene.matrixWorldAutoUpdate;
+    scene.matrixWorldAutoUpdate = false;
+    return () => {
+      scene.matrixWorldAutoUpdate = previous;
+    };
+  }, [scene]);
+
   useFrame((_, delta) => {
     const now = performance.now();
     // The cost recorded by the renderer wrapper belongs to the frame that was
     // submitted before this callback ran, so it lags by one frame.
     const cpuMs = readSceneFrameCpuMs();
     markSceneFrameStart(now);
+    measureSceneMatrixCost(scene);
     const ms = delta * 1_000;
     if (!document.hidden && Number.isFinite(ms) && ms > 0 && ms < 1_000)
       frames.current.push({ at: now, ms, cpuMs });
