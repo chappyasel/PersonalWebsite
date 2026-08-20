@@ -165,7 +165,10 @@ try {
     path: rawOutputPath,
     type: "png",
     clip: HOME_OG_SCENE_CROP,
-    animations: "disabled",
+    // The scene already reached its explicit painted-frame signal. Asking
+    // Playwright to disable every animation mutates the live page before the
+    // capture and has repeatedly deadlocked Chromium's screenshot step in CI.
+    animations: "allow",
     caret: "hide",
     fullPage: false,
     scale: "device",

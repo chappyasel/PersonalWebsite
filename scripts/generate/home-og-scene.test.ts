@@ -105,4 +105,9 @@ describe("home OG scene capture", () => {
       'locator("[data-stacks-desktop-panel][data-stacks-active]")',
     );
   });
+
+  it("captures the settled frame without mutating the scene animations", () => {
+    expect(generator).toContain('animations: "allow"');
+    expect(generator).not.toContain('animations: "disabled"');
+  });
 });
