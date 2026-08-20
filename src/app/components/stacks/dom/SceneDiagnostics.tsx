@@ -965,7 +965,9 @@ function DiagnosticsOverview({
                   runtime.forcedProfile
                     ? `${runtime.forcedProfile} (forced)`
                     : "Auto"
-                } · res ${runtime.axes.resolutionStep}/11`
+                } · res ${
+                  qualityControls.resolutionStep ?? runtime.axes.resolutionStep
+                }/11${qualityControls.resolutionStep != null ? " pinned" : ""}`
               : `${qualityControls.mode} · scene not mounted`}
           </strong>
           <small>
