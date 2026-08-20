@@ -26,12 +26,12 @@ const make = (): Fake => ({
 /** Review `times` times, one cadence apart. */
 function settle(objects: Fake[], state = createMatrixFreezeState(), times = MATRIX_FREEZE_SETTLED_REVIEWS) {
   let now = 0;
-  let last;
+  let last = reviewMatrixFreeze([], state, now);
   for (let i = 0; i < times; i += 1) {
     last = reviewMatrixFreeze(objects, state, now);
     now += MATRIX_FREEZE_REVIEW_MS;
   }
-  return { state, last: last!, now };
+  return { state, last, now };
 }
 
 describe("static matrix freeze", () => {
