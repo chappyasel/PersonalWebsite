@@ -25,8 +25,10 @@ import type { Object3D, WebGLRenderer } from "three";
 // decision.
 
 const WRAPPED = Symbol.for("stacks.sceneFrameCost.wrapped");
+const MATRIX_WRAPPED = Symbol.for("stacks.sceneMatrixCost.wrapped");
 
 type InstrumentedRenderer = WebGLRenderer & { [WRAPPED]?: true };
+type InstrumentedScene = Object3D & { [MATRIX_WRAPPED]?: true };
 
 let frameStartedAt = 0;
 let lastFrameCpuMs = 0;
@@ -48,22 +50,49 @@ export function readSceneMatrixMs() {
 }
 
 /**
- * Run the scene graph's world-matrix update here instead of inside the
- * renderer, so its cost can be attributed.
+ * Time the scene graph's world-matrix traversal by wrapping the method the
+ * renderer already calls.
  *
  * `WebGLRenderer.render` begins with `if (scene.matrixWorldAutoUpdate)
- * scene.updateMatrixWorld()`. With that flag off and this called from the
- * earliest frame subscriber, the same traversal happens in the same order at
- * nearly the same moment — the only difference is that it is now timed.
+ * scene.updateMatrixWorld()`, which is after every `useFrame` callback has
+ * moved whatever it moves. An earlier attempt measured this by turning the
+ * flag off and running the traversal from the earliest frame subscriber
+ * instead — which is BEFORE those callbacks, so everything that moved during
+ * a frame rendered with the previous frame's world matrix. Wrapping keeps
+ * three's own ordering and changes nothing but the timer.
  *
- * This is a measurement, not the freeze. Freezing means not doing the
- * traversal at all for the static majority of the graph, and there is no
- * point attempting that before knowing what the traversal costs.
+ * Only the scene's own call is wrapped. The recursion into children goes
+ * through `Object3D.prototype`, so one call still covers the whole traversal.
+ * Anything calling it a second time in a frame overwrites the reading, same
+ * last-write-wins rule as the render wrapper.
  */
-export function measureSceneMatrixCost(scene: Object3D) {
-  const started = performance.now();
-  scene.updateMatrixWorld();
-  lastMatrixMs = performance.now() - started;
+export function instrumentSceneMatrixCost(scene: Object3D) {
+  const target = scene as InstrumentedScene;
+  if (target[MATRIX_WRAPPED]) return noRestore;
+
+  // eslint-disable-next-line @typescript-eslint/unbound-method
+  const original = scene.updateMatrixWorld;
+  const ownProperty = Object.prototype.hasOwnProperty.call(
+    scene,
+    "updateMatrixWorld",
+  );
+
+  function wrapped(this: Object3D, force?: boolean) {
+    const started = performance.now();
+    original.call(this, force);
+    lastMatrixMs = performance.now() - started;
+  }
+
+  scene.updateMatrixWorld = wrapped;
+  target[MATRIX_WRAPPED] = true;
+
+  return () => {
+    if (!target[MATRIX_WRAPPED]) return;
+    if (ownProperty) scene.updateMatrixWorld = original;
+    else delete (scene as Partial<Object3D>).updateMatrixWorld;
+    delete target[MATRIX_WRAPPED];
+    lastMatrixMs = 0;
+  };
 }
 
 export function resetSceneFrameCost() {

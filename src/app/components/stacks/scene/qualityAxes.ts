@@ -395,9 +395,28 @@ export function reduceSceneQualityAxes(
       const { total, late } = state.travelFrames;
       const overBudget =
         total > 0 && late / total > QUALITY_TRAVEL_DROPPED_RATIO;
+      // Give back what travel borrowed, here, rather than leaving it to the
+      // headroom climb.
+      //
+      // The drop at travel-start is unconditional and pre-emptive: two steps
+      // every navigation, no evidence required. The restore used to require a
+      // headroom verdict, which a main-thread-bound machine never produces —
+      // so every navigation cost two more steps permanently. Measured on an
+      // M5 Max at `res 3/11` while CPU bound, which is four travels' worth of
+      // borrowing and no repayment, on an axis that cannot help a main-thread
+      // problem in the first place.
+      //
+      // A travel that genuinely ran over budget is not ignored; it is counted,
+      // and three in a row still earn a content step at rest.
+      const restored =
+        state.preTravelStep == null
+          ? state.axes.resolutionStep
+          : Math.max(state.axes.resolutionStep, state.preTravelStep);
       return {
         ...state,
         travelling: false,
+        axes: { ...state.axes, resolutionStep: restored },
+        preTravelStep: null,
         // Evidence about travel is not evidence about rest, so the count only
         // earns the right to step content down once it repeats.
         consecutiveOverBudgetTravels: overBudget
@@ -405,6 +424,10 @@ export function reduceSceneQualityAxes(
           : 0,
         settledAt: event.now,
         travelFrames: { total: 0, late: 0 },
+        axisChangedAt:
+          restored === state.axes.resolutionStep
+            ? state.axisChangedAt
+            : { ...state.axisChangedAt, resolution: event.now },
         ...clearedClocks,
       };
     }

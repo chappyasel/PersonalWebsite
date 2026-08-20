@@ -799,6 +799,40 @@ describe("recovery", () => {
     expect(recovered.axes.content).toBe("full");
   });
 
+  it("gives back what travel borrowed, without needing headroom to do it", () => {
+    // Measured on an M5 Max: `res 3/11` while CPU bound. Travel drops two
+    // steps unconditionally; the restore used to live only in the headroom
+    // branch, which a main-thread-bound machine never reaches. Every
+    // navigation cost two more steps, permanently, on an axis that cannot
+    // help a main-thread problem at all.
+    const cpuBound = {
+      targetFrameMs: 16.667,
+      targetHz: 60,
+      p95: 48,
+      droppedFrameRatio: 0.089,
+      sampleCount: 120,
+      cpuMs: 44,
+      gpuMs: null,
+    };
+    let state = initialSceneQualityAxisState("balanced", 0);
+    state = reduceSceneQualityAxes(state, { type: "booted", now: 0 });
+    let now = 20_000;
+    for (let trip = 0; trip < 4; trip += 1) {
+      state = reduceSceneQualityAxes(state, { type: "travel-start", now });
+      now += 1_000;
+      state = reduceSceneQualityAxes(state, { type: "travel-end", now });
+      now += 6_000;
+      state = reduceSceneQualityAxes(state, {
+        type: "sample",
+        now,
+        metrics: cpuBound,
+        visible: true,
+      });
+      now += 1_000;
+    }
+    expect(state.axes.resolutionStep).toBe(SCENE_RESOLUTION_MAX_STEP);
+  });
+
   it("never spends resolution on main-thread pressure", () => {
     // A pixel count cannot touch the main thread: draw calls, matrix
     // updates, culling and every line of JS are identical at 0.6x and at
