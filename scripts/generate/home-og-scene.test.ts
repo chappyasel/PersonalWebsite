@@ -29,6 +29,12 @@ const cameraRig = readFileSync(
   ),
   "utf8",
 );
+const stacksCanvas = readFileSync(
+  fileURLToPath(
+    new URL("../../src/app/components/stacks/StacksCanvas.tsx", import.meta.url),
+  ),
+  "utf8",
+);
 
 describe("home OG scene capture", () => {
   it("renders the canvas crop above the final card's native dimensions", () => {
@@ -109,5 +115,9 @@ describe("home OG scene capture", () => {
     expect(generator).toContain('canvas.toDataURL("image/png")');
     expect(generator).toContain(".extract(canvasCrop)");
     expect(generator).not.toContain("page.screenshot");
+    expect(stacksCanvas).toContain(
+      "preserveDrawingBuffer: preserveCaptureBuffer",
+    );
+    expect(stacksCanvas).toContain('.has("og-capture")');
   });
 });

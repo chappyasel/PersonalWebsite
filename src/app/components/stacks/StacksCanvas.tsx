@@ -1203,6 +1203,12 @@ export default function StacksCanvas({
       window.location.search.includes("nopostfx"),
     [],
   );
+  const preserveCaptureBuffer = useMemo(
+    () =>
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).has("og-capture"),
+    [],
+  );
   const grassDeformationOff = useMemo(
     () =>
       typeof window !== "undefined" &&
@@ -1585,7 +1591,7 @@ export default function StacksCanvas({
         // remains visible if WebKit misses a composite. Making the context
         // opaque only converted that fallback frame from white to black, and
         // preserving its drawing buffer did not make DPR reallocations atomic.
-        gl={{ antialias: true }}
+        gl={{ antialias: true, preserveDrawingBuffer: preserveCaptureBuffer }}
         onCreated={({ gl, scene, camera }) => {
           const colorGrade = sceneColorGradeFor(
             sceneColorGradeController.getSnapshot(),
