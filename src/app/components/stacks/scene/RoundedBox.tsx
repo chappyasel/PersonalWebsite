@@ -63,7 +63,11 @@ export const RoundedBox = forwardRef<Mesh, RoundedBoxProps>(
       [width, height, depth, radius, steps, smoothness, bevelSegments, creaseAngle],
     );
     return (
-      <mesh ref={ref} geometry={geometry} {...rest}>
+      // `dispose={null}` because the geometry is shared. r3f disposes what it
+      // owns when a mesh unmounts, and one book leaving the shelf must not
+      // take the geometry out from under every other box the same size. The
+      // cache owns these for the module's lifetime instead.
+      <mesh ref={ref} geometry={geometry} dispose={null} {...rest}>
         {children}
       </mesh>
     );
