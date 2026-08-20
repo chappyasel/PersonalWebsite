@@ -42,6 +42,9 @@ export type SceneQualityControlSnapshot = Readonly<{
    * controller drive it. Pinning is how you compare two render scales
    * without waiting for the ladder to walk between them. */
   resolutionStep: number | null;
+  /** Diagnostics-only render-scale ceiling that replaces the profile cap and
+   * the pixel budget. Null leaves the budget in charge. */
+  resolutionCeiling: number | null;
 }>;
 
 class SceneQualityController {
@@ -51,6 +54,7 @@ class SceneQualityController {
     resetRequest: 0,
     runtime: null,
     resolutionStep: null,
+    resolutionCeiling: null,
   };
   private listeners = new Set<() => void>();
 
@@ -82,6 +86,15 @@ class SceneQualityController {
     this.publish({ ...this.snapshot, resolutionStep: next });
   }
 
+  /** Set a manual render-scale ceiling, or null to hand the pixel budget
+   * back. Deliberately unclamped here: the plan clamps it against the actual
+   * viewport, which this store does not know. */
+  setResolutionCeiling(dpr: number | null) {
+    const next = dpr == null || !Number.isFinite(dpr) ? null : dpr;
+    if (this.snapshot.resolutionCeiling === next) return;
+    this.publish({ ...this.snapshot, resolutionCeiling: next });
+  }
+
   setFrozen(frozen: boolean) {
     if (this.snapshot.frozen === frozen) return;
     this.publish({ ...this.snapshot, frozen });
@@ -106,6 +119,7 @@ class SceneQualityController {
       resetRequest: 0,
       runtime: null,
       resolutionStep: null,
+      resolutionCeiling: null,
     };
   }
 }

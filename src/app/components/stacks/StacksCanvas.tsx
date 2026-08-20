@@ -97,6 +97,32 @@ import {
   summariseSceneFrameWindow,
 } from "./scene/quality";
 import {
+  SCENE_RESOLUTION_MAX_STEP,
+  type SceneQualityAxes,
+  initialSceneQualityAxisState,
+  reduceSceneQualityAxes,
+  resolutionStepForScale,
+} from "./scene/qualityAxes";
+import {
+  type LearnedQuality,
+  clearLearnedQuality,
+  readLearnedQuality,
+  writeLearnedQuality,
+} from "./scene/qualityLearning";
+import { sceneBackdropFor } from "./scene/sceneBackdrop";
+import {
+  sceneColorGradeController,
+  useSceneColorGradeSettings,
+} from "./scene/sceneColorGrade";
+import {
+  instrumentRendererFrameCost,
+  instrumentSceneMatrixCost,
+  markSceneFrameInstrumented,
+  markSceneFrameStart,
+  readSceneFrameCpuMs,
+  takeSceneFrameInstrumented,
+} from "./scene/sceneFrameCost";
+import {
   DEFAULT_SCENE_PERFORMANCE_SETTINGS,
   adaptiveSharpenAmount,
   effectivePlacardGlassMode,
@@ -1013,6 +1039,9 @@ export default function StacksCanvas({
         queryMode === "auto" ? initialAxisProfile : queryMode,
         typeof performance === "undefined" ? 0 : performance.now(),
         queryMode === "auto" ? null : queryMode,
+        queryMode === "auto"
+          ? initialAutoResolutionStep
+          : SCENE_RESOLUTION_MAX_STEP,
       );
       if (!restoredLearning) return base;
       return {
@@ -1208,7 +1237,21 @@ export default function StacksCanvas({
         // a step someone deliberately selected.
         resolutionStep:
           qualityControls.resolutionStep ??
-          (harnessPinnedResolution ? null : axisState.axes.resolutionStep),
+          // A manual ceiling means "show me this density". Landing on
+          // whatever rung the controller happened to be holding would answer
+          // a different question — asking for 3x and getting 2.592 because
+          // the ladder sat at step 10 reads as the control not working. An
+          // explicitly pinned step still wins, since that is someone asking
+          // for a rung rather than for a density.
+          (qualityControls.resolutionCeiling != null
+            ? SCENE_RESOLUTION_MAX_STEP
+            : harnessPinnedResolution
+              ? null
+              : axisState.axes.resolutionStep),
+        // Diagnostics-only, and never set by the controller: it replaces the
+        // pixel budget rather than joining it, so a large window can be shown
+        // at its display's real density.
+        resolutionCeiling: qualityControls.resolutionCeiling,
         cssWidth: viewport.width,
         cssHeight: viewport.height,
         deviceDpr: viewport.deviceDpr,
@@ -1248,10 +1291,11 @@ export default function StacksCanvas({
       axisState.axes.effects,
       axisState.axes.resolutionStep,
       qualityControls.resolutionStep,
+      qualityControls.resolutionCeiling,
       harnessPinnedResolution,
-      rendererCapability,
       mode,
       noPostfx,
+      grassDeformationOff,
       performanceSettings,
       renderProfile,
       viewport,

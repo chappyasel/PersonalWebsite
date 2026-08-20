@@ -1671,6 +1671,49 @@ export default function SceneDiagnostics({
                 ))}
               </select>
             </label>
+            {/* The pixel budget is the AUTOMATIC controller's constraint, and
+                on a large window it binds well below the display's density —
+                5.2 MP over a 1940x1021 window caps the ladder at DPR 1.62, so
+                no preset there can show what 3x looks like. This replaces the
+                budget rather than raising it: nothing automatic ever sets it,
+                and the readout below says when a frame is outside the
+                envelope the controller would choose for itself. */}
+            <label>
+              Scale ceiling
+              <select
+                className="ml-auto rounded border border-white/15 bg-black/40 px-1.5 py-1 text-white"
+                value={qualityControls.resolutionCeiling ?? "auto"}
+                onChange={(event) =>
+                  sceneQualityController.setResolutionCeiling(
+                    event.currentTarget.value === "auto"
+                      ? null
+                      : Number(event.currentTarget.value),
+                  )
+                }
+              >
+                <option value="auto">Auto (pixel budget)</option>
+                {[1, 1.5, 2, 2.5, 3, 4].map((dpr) => (
+                  <option key={dpr} value={dpr}>
+                    {`${dpr}x${
+                      typeof window !== "undefined" &&
+                      dpr === window.devicePixelRatio
+                        ? " · this display"
+                        : ""
+                    }`}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {qualityControls.runtime?.plan.resolutionCeilingOverridden ? (
+              <p className="text-[11px] text-amber-300/80">
+                {`Over budget: ${(
+                  qualityControls.runtime.plan.physicalPixels / 1_000_000
+                ).toFixed(2)} MP against a ${(
+                  qualityControls.runtime.plan.pixelBudget / 1_000_000
+                ).toFixed(2)} MP budget. Manual only — the controller will
+                never choose this.`}
+              </p>
+            ) : null}
             {qualityControls.runtime ? (
               <p className="text-[11px] text-white/50">
                 {`DPR ${qualityControls.runtime.plan.dpr.toFixed(2)} · ${(

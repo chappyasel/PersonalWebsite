@@ -168,6 +168,10 @@ export type SceneQualityPlan = Readonly<{
   touch: boolean;
   dpr: number;
   dprCap: number;
+  /** True when a diagnostics-only ceiling replaced the profile cap and the
+   * pixel budget, so the panel can say the frame is outside the envelope
+   * the automatic controller would ever choose. */
+  resolutionCeilingOverridden: boolean;
   pixelBudget: number;
   physicalPixels: number;
   effects: Readonly<{
@@ -488,6 +492,8 @@ export function resolveSceneQualityPlan({
   contentTier,
   effectsTier,
   resolutionStep,
+  resolutionCeiling = null,
+  grassDeformationOff = false,
 }: {
   mode: SceneQualityMode;
   profile: SceneQualityProfile;
@@ -509,6 +515,12 @@ export function resolveSceneQualityPlan({
    * resolution entirely to the profile, which is what the test harness pin
    * and every forced-DPR assertion rely on. */
   resolutionStep?: number | null;
+  /** Diagnostics-only ceiling that REPLACES the profile cap and the pixel
+   * budget, so a large window can be shown at its display's real density.
+   * Nothing automatic sets this; see overrideResolutionCeiling. */
+  resolutionCeiling?: number | null;
+  /** Reload-time benchmark and rollback switch. */
+  grassDeformationOff?: boolean;
 }): SceneQualityPlan {
   const definition = SCENE_QUALITY_DEFINITIONS[profile];
   const useProfileDpr = overrides?.effectiveDprLadder !== false;
@@ -528,10 +540,19 @@ export function resolveSceneQualityPlan({
           ],
         )
       : dprDefinition.dprCap;
-  const profileDpr = Math.max(
-    minimumDpr,
-    Math.min(deviceDpr * dprDefinition.deviceDprScale, dprCap, areaCap),
-  );
+  // A manual ceiling replaces the profile's outright rather than joining the
+  // `min`, because every term in that min is the budget reasoning it exists
+  // to step outside of.
+  const overriddenCeiling =
+    resolutionCeiling == null
+      ? null
+      : overrideResolutionCeiling(resolutionCeiling, cssWidth, cssHeight);
+  const profileDpr =
+    overriddenCeiling ??
+    Math.max(
+      minimumDpr,
+      Math.min(deviceDpr * dprDefinition.deviceDprScale, dprCap, areaCap),
+    );
   // The resolution axis may only take resolution DOWN from what the profile
   // and the pixel budget already allow. It is a finer ladder inside the
   // existing ceiling, never a way past it, so every preset cap survives
@@ -578,7 +599,10 @@ export function resolveSceneQualityPlan({
     legacyRung: LEGACY_RUNG_BY_PROFILE[profile],
     touch,
     dpr,
-    dprCap,
+    // Report the ceiling actually in force. A plan whose dpr sits above its
+    // own stated cap would be describing a state that cannot occur.
+    dprCap: overriddenCeiling ?? dprCap,
+    resolutionCeilingOverridden: overriddenCeiling != null,
     pixelBudget,
     physicalPixels: Math.round(cssPixels * dpr * dpr),
     effects: {
@@ -797,6 +821,46 @@ export const SCENE_CONTENT_DEFINITIONS: Readonly<
  * `SCENE_RESOLUTION_FLOOR` in the axis controller, which imports from here so
  * the two cannot drift. */
 export const SCENE_RESOLUTION_SCALE_FLOOR = 0.6;
+
+/**
+ * A manual escape from the pixel budget, for looking at something rather
+ * than for shipping it.
+ *
+ * The budget exists because the automatic controller must not choose a
+ * framebuffer the device cannot afford, and on a large desktop window it
+ * binds well below the display's real density: 5.2 MP over a 1940x1021
+ * window is a ceiling of DPR 1.62, so the top of the ladder there is 1.62
+ * and no preset can reach 3. That is correct for a controller deciding on
+ * its own, and wrong as an answer to "let me see what 3x looks like".
+ *
+ * So the override is deliberately NOT reachable by the controller. Nothing
+ * automatic sets it; it exists for the diagnostics drawer, the same way the
+ * forced preset does, and the plan reports that it is in force so the panel
+ * can say the frame is outside the sanctioned envelope.
+ *
+ * It is still bounded, because "unbounded" here means allocating a
+ * framebuffer plus every composer target at that size and losing the
+ * context. Twenty million pixels is above the largest budget the presets
+ * contemplate (cinematic desktop, 16.6 MP) and far below what would fail.
+ */
+export const RESOLUTION_OVERRIDE_MAX_DPR = 4;
+export const RESOLUTION_OVERRIDE_MAX_PIXELS = 20_000_000;
+
+/** Clamp a requested manual ceiling to something that can actually be
+ * allocated. Returns the DPR the ladder should run against. */
+export function overrideResolutionCeiling(
+  requested: number,
+  cssWidth: number,
+  cssHeight: number,
+): number {
+  if (!Number.isFinite(requested)) return SCENE_RESOLUTION_SCALE_FLOOR;
+  const cssPixels = Math.max(1, cssWidth * cssHeight);
+  const pixelLimited = Math.sqrt(RESOLUTION_OVERRIDE_MAX_PIXELS / cssPixels);
+  return Math.max(
+    SCENE_RESOLUTION_SCALE_FLOOR,
+    Math.min(requested, RESOLUTION_OVERRIDE_MAX_DPR, pixelLimited),
+  );
+}
 export const SCENE_RESOLUTION_STEPS = 12;
 export const SCENE_RESOLUTION_STEP_MAX = SCENE_RESOLUTION_STEPS - 1;
 
