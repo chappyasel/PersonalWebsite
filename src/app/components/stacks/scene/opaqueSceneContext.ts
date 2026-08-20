@@ -37,8 +37,28 @@
  * SMAA pass, and creating the context without it once cost the fallback path
  * all antialiasing.
  *
- * `preserveDrawingBuffer` stays off: keeping the buffer between frames is a
- * real cost, and nothing here reads the canvas back outside a frame.
+ * `preserveDrawingBuffer` is ON, and it is the flash fix rather than a
+ * readback convenience.
+ *
+ * With it off, the browser clears the drawing buffer after every composite.
+ * So a frame that draws nothing at all presents that cleared buffer — white
+ * paper while the canvas had an alpha channel, opaque black once it did not.
+ * Either way the world vanishes for a frame.
+ *
+ * Such frames exist. `@react-three/postprocessing` renders the composer from
+ * a frame subscriber that begins `if (!enabled || !composer) return`, and it
+ * holds the composer in state that is null before its effect runs and stale
+ * for a commit after any of its dependencies change. r3f will not render the
+ * scene itself while a priority subscriber is registered, so on those frames
+ * NOTHING is drawn: not the composer, not the fallback.
+ *
+ * Preserving the buffer makes that harmless. The previous frame is still
+ * sitting in it, so a frame that draws nothing shows the frame before it, and
+ * a dropped frame costs a repeat rather than a flash. This is the "show the
+ * last good frame" idea, done by the driver instead of by copying pixels.
+ *
+ * It is not free — some drivers keep a second copy of the buffer — so the
+ * cost is measured rather than assumed, and the note below records it.
  */
 export const OPAQUE_SCENE_CONTEXT_ATTRIBUTES: WebGLContextAttributes = {
   alpha: false,
@@ -46,7 +66,7 @@ export const OPAQUE_SCENE_CONTEXT_ATTRIBUTES: WebGLContextAttributes = {
   depth: true,
   stencil: false,
   premultipliedAlpha: true,
-  preserveDrawingBuffer: false,
+  preserveDrawingBuffer: true,
   powerPreference: "high-performance",
   failIfMajorPerformanceCaveat: false,
 };

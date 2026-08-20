@@ -22,8 +22,14 @@ describe("opaque scene context", () => {
     expect(OPAQUE_SCENE_CONTEXT_ATTRIBUTES.antialias).toBe(true);
   });
 
-  it("does not pay to preserve the drawing buffer", () => {
-    expect(OPAQUE_SCENE_CONTEXT_ATTRIBUTES.preserveDrawingBuffer).toBe(false);
+  // The other half of the fix. Without it the browser clears the drawing
+  // buffer after each composite, so a frame that draws nothing presents that
+  // cleared buffer. Such frames exist: the composer's own frame subscriber
+  // returns early whenever its composer state is null or stale, and r3f will
+  // not render the scene itself while that subscriber is registered.
+  // Preserving the buffer turns a dropped frame into a repeated one.
+  it("preserves the drawing buffer so a no-draw frame repeats the last", () => {
+    expect(OPAQUE_SCENE_CONTEXT_ATTRIBUTES.preserveDrawingBuffer).toBe(true);
   });
 
   it("requests webgl2 with exactly those attributes", () => {
