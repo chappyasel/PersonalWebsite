@@ -9,7 +9,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   HOME_OG_CAMERA_Y,
-  HOME_OG_DEVICE_SCALE_FACTOR,
   HOME_OG_FOV,
   HOME_OG_LOOK_Y,
   HOME_OG_OUTPUT,
@@ -32,12 +31,12 @@ const cameraRig = readFileSync(
 );
 
 describe("home OG scene capture", () => {
-  it("captures at least the final card's native pixel dimensions", () => {
+  it("renders the canvas crop above the final card's native dimensions", () => {
     expect(
-      HOME_OG_SCENE_CROP.width * HOME_OG_DEVICE_SCALE_FACTOR,
+      HOME_OG_SCENE_CROP.width * HOME_OG_RESOLUTION_CEILING,
     ).toBeGreaterThanOrEqual(HOME_OG_OUTPUT.width);
     expect(
-      HOME_OG_SCENE_CROP.height * HOME_OG_DEVICE_SCALE_FACTOR,
+      HOME_OG_SCENE_CROP.height * HOME_OG_RESOLUTION_CEILING,
     ).toBeGreaterThanOrEqual(HOME_OG_OUTPUT.height);
   });
 
@@ -106,8 +105,9 @@ describe("home OG scene capture", () => {
     );
   });
 
-  it("captures the settled frame without mutating the scene animations", () => {
-    expect(generator).toContain('animations: "allow"');
-    expect(generator).not.toContain('animations: "disabled"');
+  it("reads the preserved WebGL buffer instead of invoking Chromium screenshots", () => {
+    expect(generator).toContain('canvas.toDataURL("image/png")');
+    expect(generator).toContain(".extract(canvasCrop)");
+    expect(generator).not.toContain("page.screenshot");
   });
 });
