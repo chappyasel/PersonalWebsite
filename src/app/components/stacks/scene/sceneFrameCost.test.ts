@@ -2,7 +2,7 @@
  * These tests assert method IDENTITY: that instrumenting twice leaves the same
  * function in place, and that teardown puts the original back. Reading
  * `renderer.render` without calling it is the assertion, not a mistake. */
-import { describe, expect, it, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Camera, Scene, WebGLRenderer } from "three";
 
 import {
@@ -132,5 +132,41 @@ describe("diagnostic frames are not evidence", () => {
     markSceneFrameInstrumented();
     resetSceneFrameCost();
     expect(takeSceneFrameInstrumented()).toBe(false);
+  });
+});
+
+describe("state survives module duplication", () => {
+  // The bundler emits this module into more than one chunk, so the canvas and
+  // the diagnostics overlay can end up with separate copies. Re-importing
+  // after a module reset is the closest a unit test gets to that: a second
+  // copy of the module must observe what the first one wrote.
+  it("shares the matrix reading between two copies of the module", async () => {
+    const first = await import("./sceneFrameCost");
+    first.resetSceneFrameCost();
+    const scene = {
+      updateMatrixWorld() {
+        for (let i = 0; i < 5_000; i += 1) Math.sqrt(i);
+      },
+    } as unknown as Parameters<typeof first.instrumentSceneMatrixCost>[0];
+    first.instrumentSceneMatrixCost(scene);
+    (scene as { updateMatrixWorld: () => void }).updateMatrixWorld();
+
+    vi.resetModules();
+    const second = await import("./sceneFrameCost");
+    expect(second).not.toBe(first);
+    expect(second.readSceneMatrixMs()).toBe(first.readSceneMatrixMs());
+  });
+
+  it("shares the instrumented-frame flag between two copies", async () => {
+    // The perch diagnostics mark the frame; the canvas consumes the mark.
+    // Those are different chunks, and this crossing is the whole fix.
+    const writer = await import("./sceneFrameCost");
+    writer.resetSceneFrameCost();
+    writer.markSceneFrameInstrumented();
+
+    vi.resetModules();
+    const reader = await import("./sceneFrameCost");
+    expect(reader.takeSceneFrameInstrumented()).toBe(true);
+    expect(writer.takeSceneFrameInstrumented()).toBe(false);
   });
 });

@@ -30,19 +30,51 @@ const MATRIX_WRAPPED = Symbol.for("stacks.sceneMatrixCost.wrapped");
 type InstrumentedRenderer = WebGLRenderer & { [WRAPPED]?: true };
 type InstrumentedScene = Object3D & { [MATRIX_WRAPPED]?: true };
 
-let frameStartedAt = 0;
-let lastFrameCpuMs = 0;
-let lastMatrixMs = 0;
-let frameWasInstrumented = false;
+/**
+ * State lives on `globalThis`, not in module scope.
+ *
+ * This module is imported by the canvas chunk AND the diagnostics chunk, and
+ * the bundler emits its code into more than one chunk — `grep -l` on the
+ * built output finds the wrapper symbol in two of them. Module-scope `let`
+ * therefore risks giving each importer its own copy, where the writer and the
+ * reader never see each other.
+ *
+ * Two things depended on that crossing and were silently dead: the overlay
+ * read `readSceneMatrixMs()` and always got zero ("matrix cost not
+ * measured"), and `markSceneFrameInstrumented` is called from the perch
+ * diagnostics while `takeSceneFrameInstrumented` is called from the canvas —
+ * so the fix that stopped the controller adapting to its own instrumentation
+ * could never fire.
+ *
+ * A single well-known key makes duplication harmless: however many copies of
+ * this module exist, they all read and write one object.
+ */
+type FrameCostStore = {
+  frameStartedAt: number;
+  lastFrameCpuMs: number;
+  lastMatrixMs: number;
+  frameWasInstrumented: boolean;
+};
+
+const STORE_KEY = "__stacksSceneFrameCost";
+
+const store: FrameCostStore = ((
+  globalThis as unknown as Record<string, FrameCostStore | undefined>
+)[STORE_KEY] ??= {
+  frameStartedAt: 0,
+  lastFrameCpuMs: 0,
+  lastMatrixMs: 0,
+  frameWasInstrumented: false,
+});
 
 /** Called by the earliest frame subscriber, before any scene work runs. */
 export function markSceneFrameStart(now: number) {
-  frameStartedAt = now;
+  store.frameStartedAt = now;
 }
 
 /** Main-thread milliseconds for the most recently submitted frame. */
 export function readSceneFrameCpuMs() {
-  return lastFrameCpuMs;
+  return store.lastFrameCpuMs;
 }
 
 /**
@@ -62,20 +94,20 @@ export function readSceneFrameCpuMs() {
  * future dev-only overlay gets the same protection by calling this.
  */
 export function markSceneFrameInstrumented() {
-  frameWasInstrumented = true;
+  store.frameWasInstrumented = true;
 }
 
 /** Whether the frame just measured carried diagnostic work. Reading clears
  * it, so each frame is judged on its own. Same one-frame lag as the cost. */
 export function takeSceneFrameInstrumented() {
-  const value = frameWasInstrumented;
-  frameWasInstrumented = false;
+  const value = store.frameWasInstrumented;
+  store.frameWasInstrumented = false;
   return value;
 }
 
 /** Milliseconds the last frame spent recomputing world matrices. */
 export function readSceneMatrixMs() {
-  return lastMatrixMs;
+  return store.lastMatrixMs;
 }
 
 /**
@@ -109,7 +141,7 @@ export function instrumentSceneMatrixCost(scene: Object3D) {
   function wrapped(this: Object3D, force?: boolean) {
     const started = performance.now();
     original.call(this, force);
-    lastMatrixMs = performance.now() - started;
+    store.lastMatrixMs = performance.now() - started;
   }
 
   scene.updateMatrixWorld = wrapped;
@@ -120,15 +152,15 @@ export function instrumentSceneMatrixCost(scene: Object3D) {
     if (ownProperty) scene.updateMatrixWorld = original;
     else delete (scene as Partial<Object3D>).updateMatrixWorld;
     delete target[MATRIX_WRAPPED];
-    lastMatrixMs = 0;
+    store.lastMatrixMs = 0;
   };
 }
 
 export function resetSceneFrameCost() {
-  frameStartedAt = 0;
-  lastFrameCpuMs = 0;
-  lastMatrixMs = 0;
-  frameWasInstrumented = false;
+  store.frameStartedAt = 0;
+  store.lastFrameCpuMs = 0;
+  store.lastMatrixMs = 0;
+  store.frameWasInstrumented = false;
 }
 
 /**
@@ -162,7 +194,7 @@ export function instrumentRendererFrameCost(renderer: WebGLRenderer) {
     const result = original.apply(this, args);
     // A frame that never had its start marked (an off-loop render, such as a
     // manual capture) must not invent a cost from a stale timestamp.
-    if (frameStartedAt > 0) lastFrameCpuMs = performance.now() - frameStartedAt;
+    if (store.frameStartedAt > 0) store.lastFrameCpuMs = performance.now() - store.frameStartedAt;
     return result;
   }
 
