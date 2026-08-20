@@ -31,9 +31,21 @@ type StacksState = {
 };
 
 async function stacksState(page: Page) {
-  return page.evaluate(
-    () => window.__stacks!.state() as unknown as StacksState,
-  );
+  // A production alias can briefly reload while Vercel finishes promoting a
+  // deployment. Wait for the harness to return instead of dereferencing it in
+  // that transient gap and turning a healthy render into a CI failure.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await page.waitForFunction(
+      () => typeof window.__stacks?.state === "function",
+      null,
+      { timeout: 30_000 },
+    );
+    const state = await page.evaluate(
+      () => (window.__stacks?.state?.() ?? null) as unknown as StacksState,
+    );
+    if (state) return state;
+  }
+  throw new Error("Stacks performance hooks did not survive page reload");
 }
 
 function collectRuntimeErrors(page: Page) {
@@ -274,10 +286,19 @@ test("holds the Safety triangle budget at every unit checkpoint", async ({
     // SwiftShader on a 3x mobile framebuffer settles slowly; the default
     // 5 second poll is not enough for the first checkpoint.
     await expect
-      .poll(async () => (await stacksState(page)).activeUnit, {
-        timeout: 30_000,
-      })
-      .toBe(unit);
+      .poll(
+        async () => {
+          const state = await stacksState(page);
+          return {
+            activeUnit: state.activeUnit,
+            hasGeometry: state.triangles > 0,
+          };
+        },
+        {
+          timeout: 30_000,
+        },
+      )
+      .toEqual({ activeUnit: unit, hasGeometry: true });
     await page.waitForTimeout(1_000);
     const state = await stacksState(page);
     const quality = state.quality as unknown as {
