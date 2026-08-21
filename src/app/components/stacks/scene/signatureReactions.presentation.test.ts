@@ -258,7 +258,9 @@ describe("the basketball spins from its centre", () => {
     // A grab is not the only way it leaves the shelf. The solver owns the
     // carrier's rotation through the throw, the tumble and the landing.
     expect(eggs).toContain("HANDLED_ROTATION_EPSILON");
-    expect(eggs).toContain("state.hovered === hoverKey && !handled");
+    expect(eggs).toContain(
+      "propReactionIsEngaged(state, hoverKey) && !handled",
+    );
   });
 
   it("stops much faster than it coasts", () => {

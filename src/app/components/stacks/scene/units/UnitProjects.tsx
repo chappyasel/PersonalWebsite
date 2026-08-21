@@ -9,6 +9,7 @@ import HeldFacing from "../HeldFacing";
 import ModelProp from "../ModelProp";
 import { EggLamp, Sway } from "../eggs";
 import { reducedMotion } from "../objects";
+import { propReactionIsEngaged } from "../reactionEngagement";
 import {
   DeskFrame,
   PHOTO_LINKS,
@@ -73,7 +74,9 @@ function Glint({
   useUnitFrame((_, delta) => {
     const g = group.current;
     if (!g) return;
-    const target = useStacks.getState().hovered === hoverKey ? 1 : 0;
+    const target = propReactionIsEngaged(useStacks.getState(), hoverKey)
+      ? 1
+      : 0;
     if (Math.abs(level.current - target) < 1e-3) {
       if (level.current === target) return; // settled
       level.current = target;

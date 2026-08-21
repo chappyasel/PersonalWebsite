@@ -67,6 +67,7 @@ import {
 } from "./interactionRegistry";
 import { leanBudget } from "./leanClearance";
 import { type PropDestination, useOpenTarget } from "./links";
+import { propReactionIsEngaged } from "./reactionEngagement";
 import type {
   HeldMoveResult,
   HeldPose,
@@ -1200,7 +1201,7 @@ export default function Grabbable({
         phase: phase.current,
         unitIndex,
         activeUnit: stacksState.activeUnit,
-        hovered: stacksState.hovered === hoverKey,
+        hovered: propReactionIsEngaged(stacksState, hoverKey),
         authoredParked: authoredParked.current,
         physicsParked: !entry || !!entry.parked,
         atAuthoredPose,
@@ -1415,7 +1416,7 @@ export default function Grabbable({
       const wants =
         phase.current === "rest" &&
         tiltOnHover &&
-        (interactionState.hovered === hoverKey || focused || pressed) &&
+        propReactionIsEngaged(interactionState, hoverKey) &&
         !still;
       // Sway measures too, but with the furniture cutoff lifted: foliage
       // already won the archetype in `archetypeFor`, and letting size veto it
@@ -1478,7 +1479,7 @@ export default function Grabbable({
               Math.sign(bandMotion.lean) *
               cameraSideHoverTilt(
                 nodCameraDirection,
-                Math.abs(bandMotion.lean) * (pressed ? 1.25 : 1),
+                Math.abs(bandMotion.lean),
               )
             : cameraSideHoverTilt(nodCameraDirection, hoverTiltAngle);
         // A lean is only safe DOWNWARD, where hingeShift pins the contact

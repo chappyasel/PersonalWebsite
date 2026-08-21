@@ -1,9 +1,9 @@
 "use client";
 
 // Damped hover lift — wraps a hover target and eases the wrapper group
-// toward base or base+offset depending on whether `hoverKey` owns the
-// store's hovered slot. The store is read imperatively inside useFrame, so
-// hovering re-renders nothing (the old ternaries re-rendered the whole row
+// toward base or base+offset depending on whether `hoverKey` owns fine-pointer
+// hover or Touch Focus. The store is read imperatively inside useFrame, so an
+// interaction re-renders nothing (the old ternaries re-rendered the whole row
 // and its Suspense subtrees); the damp snaps and idles once settled.
 //
 // The photographs want two channels the props never did: they are placed at
@@ -32,6 +32,7 @@ import {
   hingePivotForTilt,
 } from "./interaction";
 import { leanBudget } from "./leanClearance";
+import { propReactionIsEngaged } from "./reactionEngagement";
 import { scenePerformanceController } from "./scenePerformance";
 import { useUnitFrame } from "./unitActivity";
 
@@ -155,7 +156,7 @@ export default function Lift({
 }) {
   const ref = useRef<THREE.Group>(null);
   const settled = useRef(true);
-  const previousLifted = useRef(false);
+  const previousInteractionState = useRef(0);
   /** Damped position with the hinge compensation taken back OUT, so the
    * compensation can be recomputed from the rotation the group actually has
    * this frame rather than from the one it is heading for. Mount-only state:
@@ -201,12 +202,13 @@ export default function Lift({
     if (!g) return;
     const interaction = useStacks.getState();
     const pressed = interaction.pressedInteraction === hoverKey;
-    const lifted =
-      interaction.hovered === hoverKey ||
-      interaction.focusedInteraction === hoverKey ||
-      pressed;
-    if (lifted !== previousLifted.current) {
-      previousLifted.current = lifted;
+    const lifted = propReactionIsEngaged(interaction, hoverKey);
+    // Keep the press and held-reaction bits separate. A long press may settle
+    // at its compressed scale before release; the press-to-focus handoff must
+    // still wake this frame loop so the full reaction can begin.
+    const interactionState = (lifted ? 1 : 0) | (pressed ? 2 : 0);
+    if (interactionState !== previousInteractionState.current) {
+      previousInteractionState.current = interactionState;
       settled.current = false;
     }
     if (

@@ -8,6 +8,7 @@ import * as THREE from "three";
 
 import Grabbable from "./Grabbable";
 import { useMetalShimmer } from "./objects";
+import { propReactionIsEngaged } from "./reactionEngagement";
 import { useUnitFrame } from "./unitActivity";
 
 function prefersReducedMotion() {
@@ -333,7 +334,9 @@ export function ShakerProp({
     // and running it slowly just looks like the same gesture in treacle. Two
     // slow sinusoids a fifth apart read as liquid finding its level.
     if (prefersReducedMotion()) return;
-    const target = useStacks.getState().hovered === hoverKey ? 1 : 0;
+    const target = propReactionIsEngaged(useStacks.getState(), hoverKey)
+      ? 1
+      : 0;
     if (Math.abs(slosh.current - target) < 1e-3) {
       if (slosh.current === target && target === 0) {
         if (group.rotation.z !== 0 || group.rotation.y !== 0)

@@ -26,6 +26,7 @@ import { getMeadowDisturbance } from "./meadowDisturbance";
 import { sampleMeadowWind } from "./meadowMotion";
 import { ClockFace, type ClockFaceStyle, type ClockSweep } from "./objects";
 import { LampGlow } from "./primitives";
+import { propReactionIsEngaged } from "./reactionEngagement";
 import {
   SCENE_IMPULSE_LIGHT_DURATION,
   getSceneImpulse,
@@ -499,7 +500,8 @@ export function SpinProp({
     // for a prop whose whole character is that it revolves, the state that
     // reads is the rate. Parking it at some angle instead would stop the one
     // thing it does. Eased in and out so it does not snap to a new speed.
-    const wantsHover = !still && useStacks.getState().hovered === hoverKey;
+    const wantsHover =
+      !still && propReactionIsEngaged(useStacks.getState(), hoverKey);
     hoverSpin.current =
       Math.abs(hoverSpin.current - (wantsHover ? 1 : 0)) < 1e-3
         ? wantsHover
@@ -632,7 +634,7 @@ export function RollProp({
           carrier.quaternion.y ** 2 +
           carrier.quaternion.z ** 2 >
           HANDLED_ROTATION_EPSILON ** 2);
-    const wants = state.hovered === hoverKey && !handled;
+    const wants = propReactionIsEngaged(state, hoverKey) && !handled;
     if (wants && !measured.current) {
       const box = meshBoxInLocal(g);
       if (box) {
@@ -1116,7 +1118,9 @@ export function EggClock({
   useUnitFrame((state, delta) => {
     const node = shiver.current;
     if (!node || !shivers) return;
-    const target = useStacks.getState().hovered === hoverKey ? 1 : 0;
+    const target = propReactionIsEngaged(useStacks.getState(), hoverKey)
+      ? 1
+      : 0;
     if (Math.abs(shiverLevel.current - target) < 1e-3) {
       if (shiverLevel.current === target && target === 0) {
         // Settled at rest: land exactly on zero and stop writing. A prop
@@ -1356,7 +1360,12 @@ export function SteamCup({
     // The Grabbable wrapping this cup carries `signature="steam"`, which
     // stands the shared nod down. Both halves share one hoverKey, so without
     // that the cup nodded and steamed off the same pointer.
-    const wantsHover = useStacks.getState().hovered === hoverKey ? 1 : 0;
+    const wantsHover = propReactionIsEngaged(
+      useStacks.getState(),
+      hoverKey,
+    )
+      ? 1
+      : 0;
     hoverSteam.current =
       Math.abs(hoverSteam.current - wantsHover) < 1e-3
         ? wantsHover

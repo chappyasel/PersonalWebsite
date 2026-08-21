@@ -20,6 +20,7 @@ import {
 } from "./aboutAwardGeometry";
 import { APPLE_OUTLINE } from "./appleOutline";
 import { MUSINGS_PAPER_STACK } from "./musingsShelfGeometry";
+import { propReactionIsEngaged } from "./reactionEngagement";
 import { useUnitFrame } from "./unitActivity";
 
 /**
@@ -498,7 +499,7 @@ export function useMetalShimmer({
     sweep.current = 0;
   });
   useUnitFrame((_, delta) => {
-    const hot = useStacks.getState().hovered === hoverKey ? 1 : 0;
+    const hot = propReactionIsEngaged(useStacks.getState(), hoverKey) ? 1 : 0;
     if (Math.abs(level.current - hot) < 1e-3) level.current = hot;
     else level.current = THREE.MathUtils.damp(level.current, hot, 5, delta);
     const v = level.current;

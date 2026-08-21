@@ -32,6 +32,7 @@ import { proxiedBookCover } from "../bookCoverTexture";
 import { EggLamp, SpinProp, Sway } from "../eggs";
 import { getSceneInteraction } from "../interactionRegistry";
 import { DeskApple, PortraitFrame, useMetalShimmer } from "../objects";
+import { propReactionIsEngaged } from "../reactionEngagement";
 import {
   DeskFrame,
   FlatPrint,
@@ -393,8 +394,7 @@ function ReadingBookHover({
     const state = useStacks.getState();
     const carrier = getSceneInteraction(hoverKey)?.root;
     const active =
-      state.hovered === hoverKey &&
-      state.dragging !== hoverKey &&
+      propReactionIsEngaged(state, hoverKey) &&
       carrier !== undefined &&
       readingBookAtAuthoredPose(
         carrier.position,
