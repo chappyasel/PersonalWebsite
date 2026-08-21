@@ -16,11 +16,12 @@
   position: relative;
   box-sizing: border-box;
   display: grid;
+  grid-template-rows: repeat(4, 1.12em);
   gap: 1px;
-  inline-size: 240px;
-  min-inline-size: 240px;
-  max-inline-size: 240px;
-  padding: 5px 19px 5px 7px;
+  inline-size: 168px;
+  min-inline-size: 168px;
+  max-inline-size: 168px;
+  padding: 5px 7px;
   border: 1px solid rgb(255 255 255 / 0.16);
   border-radius: 5px;
   appearance: none;
@@ -49,23 +50,9 @@
   outline: 1px solid rgb(125 220 255 / 0.58);
   outline-offset: 2px;
 }
-:global(.stacks-dev-hud)::after {
-  position: absolute;
-  top: 4px;
-  right: 5px;
-  display: grid;
-  width: 11px;
-  height: 11px;
-  place-items: center;
-  border: 1px solid rgb(255 255 255 / 0.18);
-  border-radius: 2px;
-  color: rgb(255 255 255 / 0.48);
-  content: "D";
-  font-size: 7px;
-  line-height: 1;
-  text-shadow: none;
-}
 :global(.stacks-dev-hud) > [data-row] {
+  display: block;
+  inline-size: 100%;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

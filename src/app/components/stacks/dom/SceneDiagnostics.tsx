@@ -23,6 +23,7 @@ import {
   DEPTH_OF_FIELD_BOKEH_MULTIPLIER_MIN,
   DEPTH_OF_FIELD_RESOLUTION_SCALE_MAX,
   DEPTH_OF_FIELD_RESOLUTION_SCALE_MIN,
+  QUALITY_SAMPLE_INTERVAL_MS,
 } from "../scene/quality";
 import {
   clearSceneFirstVisitStorage,
@@ -37,6 +38,7 @@ import {
 import {
   sceneQualityController,
   useSceneQualityControls,
+  useSceneQualityRuntime,
 } from "../scene/sceneQualityController";
 import { useStacks } from "../store";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -57,7 +59,8 @@ const CONSTRAINT_LABEL = {
 type DevHudSnapshot = DevHudInput;
 
 const EMPTY_DEV_HUD: DevHudSnapshot = {
-  fps: 0,
+  fps: null,
+  hooksStatus: "starting",
   profile: null,
   mode: null,
   moving: null,
@@ -67,6 +70,11 @@ const EMPTY_DEV_HUD: DevHudSnapshot = {
   p95: null,
   targetFrameMs: null,
   droppedFrameRatio: null,
+  resolutionStep: null,
+  effectsTier: null,
+  contentTier: null,
+  constraint: null,
+  lastTransition: null,
   dpr: null,
   physicalPixels: null,
   pixelBudget: null,
@@ -77,10 +85,6 @@ const EMPTY_DEV_HUD: DevHudSnapshot = {
   depthOfField: null,
   depthOfFieldResolutionScale: null,
   depthOfFieldBokehScale: null,
-  calls: null,
-  triangles: null,
-  textures: null,
-  programs: null,
 };
 
 function numeric(value: unknown): number | null {
@@ -93,13 +97,38 @@ function record(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function rendererSnapshot(): Omit<DevHudSnapshot, "fps"> {
+function lastQualityTransition(
+  value: unknown,
+  now: number,
+): DevHudSnapshot["lastTransition"] {
+  if (!Array.isArray(value) || value.length === 0) return null;
+  const transition = record(value[value.length - 1]);
+  const axis = transition?.axis;
+  const direction = transition?.direction;
+  const at = numeric(transition?.at);
+  if (
+    (axis !== "resolution" && axis !== "effects" && axis !== "content") ||
+    (direction !== "down" && direction !== "up") ||
+    at == null
+  )
+    return null;
+  return { axis, direction, ageMs: Math.max(0, now - at) };
+}
+
+function rendererSnapshot(): DevHudSnapshot {
+  const hooksAvailable = window.__stacks != null;
   const state = window.__stacks?.state();
   const quality = record(state?.quality);
   const metrics = record(quality?.metrics);
+  const axes = record(quality?.axes);
   const plan = record(quality?.plan);
   const effects = record(plan?.effects);
+  const effectsTier = axes?.effects;
+  const contentTier = axes?.content;
+  const constraint = quality?.constraint;
   return {
+    fps: numeric(metrics?.fps),
+    hooksStatus: hooksAvailable ? "ready" : "missing",
     profile: typeof quality?.profile === "string" ? quality.profile : null,
     mode: typeof quality?.mode === "string" ? quality.mode : null,
     moving: typeof quality?.moving === "boolean" ? quality.moving : null,
@@ -115,6 +144,31 @@ function rendererSnapshot(): Omit<DevHudSnapshot, "fps"> {
     p95: numeric(metrics?.p95),
     targetFrameMs: numeric(metrics?.targetFrameMs),
     droppedFrameRatio: numeric(metrics?.droppedFrameRatio),
+    resolutionStep: numeric(axes?.resolutionStep),
+    effectsTier:
+      effectsTier === "cinematic" ||
+      effectsTier === "full" ||
+      effectsTier === "lean" ||
+      effectsTier === "minimal"
+        ? effectsTier
+        : null,
+    contentTier:
+      contentTier === "full" ||
+      contentTier === "reduced" ||
+      contentTier === "minimal"
+        ? contentTier
+        : null,
+    constraint:
+      constraint === "cpu" ||
+      constraint === "gpu" ||
+      constraint === "headroom" ||
+      constraint === "unknown"
+        ? constraint
+        : null,
+    lastTransition: lastQualityTransition(
+      quality?.transitions,
+      performance.now(),
+    ),
     dpr: numeric(state?.dpr) ?? numeric(quality?.effectiveDpr),
     physicalPixels: numeric(quality?.physicalPixels),
     pixelBudget: numeric(plan?.pixelBudget),
@@ -135,16 +189,10 @@ function rendererSnapshot(): Omit<DevHudSnapshot, "fps"> {
       typeof effects?.depthOfField === "boolean" ? effects.depthOfField : null,
     depthOfFieldResolutionScale: numeric(effects?.depthOfFieldResolutionScale),
     depthOfFieldBokehScale: numeric(effects?.depthOfFieldBokehScale),
-    calls: numeric(state?.calls),
-    triangles: numeric(state?.triangles),
-    textures: numeric(state?.textures),
-    programs: numeric(state?.programs),
   };
 }
 
-/** A live, self-contained development readout. It deliberately samples RAF
- * cadence rather than the opt-in performance harness, so it remains useful
- * while visually inspecting ordinary navigation. */
+/** A live readout of the same rolling scene window that drives Auto. */
 function DevPerformanceHud({
   expanded,
   tracing,
@@ -157,39 +205,13 @@ function DevPerformanceHud({
   onToggle: () => void;
 }) {
   const [snapshot, setSnapshot] = useState(EMPTY_DEV_HUD);
-  const samples = useRef<number[]>([]);
 
   useEffect(() => {
-    let animationFrame = 0;
-    let previousFrame = performance.now();
-    let lastPublish = previousFrame;
-
-    const frame = (now: number) => {
-      const elapsed = now - previousFrame;
-      previousFrame = now;
-      // Ignore long background-tab pauses; they describe visibility, not the
-      // scene's steady rendering performance.
-      if (elapsed > 0 && elapsed < 1_000) {
-        samples.current.push(elapsed);
-        if (samples.current.length > 240) samples.current.shift();
-      }
-
-      if (now - lastPublish >= 500) {
-        const frameTimes = samples.current;
-        const mean =
-          frameTimes.reduce((total, value) => total + value, 0) /
-          Math.max(1, frameTimes.length);
-        setSnapshot({
-          fps: mean > 0 ? 1_000 / mean : 0,
-          ...rendererSnapshot(),
-        });
-        lastPublish = now;
-      }
-      animationFrame = requestAnimationFrame(frame);
-    };
-
-    animationFrame = requestAnimationFrame(frame);
-    return () => cancelAnimationFrame(animationFrame);
+    const interval = window.setInterval(
+      () => setSnapshot(rendererSnapshot()),
+      QUALITY_SAMPLE_INTERVAL_MS,
+    );
+    return () => window.clearInterval(interval);
   }, []);
 
   const rows = createDevHudRows(snapshot);
@@ -376,6 +398,41 @@ function PerformanceTraceControls({
   );
 }
 
+function QualityDecisionLogControls() {
+  const hooksAvailable =
+    typeof window !== "undefined" && window.__stacks != null;
+  const quality = hooksAvailable
+    ? record(window.__stacks?.state().quality)
+    : null;
+  const transitions = Array.isArray(quality?.transitions)
+    ? quality.transitions.length
+    : 0;
+
+  return (
+    <details className="stacks-diagnostics-details stacks-diagnostics-inline-details">
+      <summary>
+        Quality decisions · <strong>{transitions} retained</strong>
+      </summary>
+      <p>
+        Download after the measurement. Opening this console stops Auto from
+        consuming later frames, but decisions captured before it opened remain
+        intact. With `hud=1`, the log also keeps the last four minutes of
+        sampled cadence, renderer-resource counts, and focus or page-lifecycle
+        events.
+      </p>
+      <div className="stacks-diagnostics-actions">
+        <button
+          type="button"
+          disabled={!hooksAvailable}
+          onClick={() => window.__stacks?.qualityLog("download")}
+        >
+          Download quality log
+        </button>
+      </div>
+    </details>
+  );
+}
+
 function DiagnosticsOverview({
   activeSummary,
   stalledFlights,
@@ -391,7 +448,9 @@ function DiagnosticsOverview({
   visibleFlightCount: number;
   overlayState: ReturnType<typeof sceneDebugOverlayState>;
   physicsSnapshot: ReturnType<typeof physicsDiagnosticsController.getSnapshot>;
-  qualityControls: ReturnType<typeof useSceneQualityControls>;
+  qualityControls: ReturnType<typeof useSceneQualityControls> & {
+    runtime: ReturnType<typeof useSceneQualityRuntime>;
+  };
   onStartTrace: () => void;
   onNavigate: (panel: DiagnosticsPanel) => void;
 }) {
@@ -623,6 +682,7 @@ function DiagnosticsOverview({
         </article>
       </div>
 
+      <QualityDecisionLogControls />
       <PerformanceTraceControls onStartCapture={onStartTrace} />
     </div>
   );
@@ -641,6 +701,7 @@ export default function SceneDiagnostics({
 }: {
   initiallyOpen?: boolean;
 }) {
+  const [open, setOpen] = useState(initiallyOpen);
   const snapshot = useSyncExternalStore(
     insectDiagnosticsController.subscribe,
     insectDiagnosticsController.getSnapshot,
@@ -656,7 +717,12 @@ export default function SceneDiagnostics({
     scenePerformanceController.getSnapshot,
     scenePerformanceController.getSnapshot,
   );
-  const qualityControls = useSceneQualityControls();
+  const qualityControlState = useSceneQualityControls();
+  const qualityRuntime = useSceneQualityRuntime(open);
+  const qualityControls = {
+    ...qualityControlState,
+    runtime: qualityRuntime,
+  };
   const traceStatus = useSyncExternalStore(
     scenePerformanceTrace.subscribe,
     scenePerformanceTrace.getStatus,
@@ -689,7 +755,6 @@ export default function SceneDiagnostics({
   const hovered = snapshot.diagnostics.find(
     (diagnostic) => diagnostic.perchId === snapshot.hoveredPerchId,
   );
-  const [open, setOpen] = useState(initiallyOpen);
   const [panel, setPanel] = useState<DiagnosticsPanel>("overview");
   const launcher = useRef<HTMLButtonElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
@@ -1380,6 +1445,30 @@ export default function SceneDiagnostics({
                   }
                 />{" "}
                 Pause prewarming during travel
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={performanceSettings.prewarmAllUnitVisuals}
+                  onChange={(event) =>
+                    scenePerformanceController.update({
+                      prewarmAllUnitVisuals: event.currentTarget.checked,
+                    })
+                  }
+                />{" "}
+                Preload all shelf visuals
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={performanceSettings.stableNeighborhoodLightShape}
+                  onChange={(event) =>
+                    scenePerformanceController.update({
+                      stableNeighborhoodLightShape: event.currentTarget.checked,
+                    })
+                  }
+                />{" "}
+                Stabilize nearby-light shader count
               </label>
               <label>
                 <input

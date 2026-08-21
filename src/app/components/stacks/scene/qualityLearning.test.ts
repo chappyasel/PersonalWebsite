@@ -79,15 +79,15 @@ describe("cross-visit quality learning", () => {
   });
 
   it("keys the entry by the versioned bucket", () => {
-    expect(bucket()).toContain("stacks-quality:v9:");
+    expect(bucket()).toContain("stacks-quality:v10:");
   });
 
   it("ignores an entry written under the previous format version", () => {
-    // v8 could persist the same device under alternating renderer-capability
-    // buckets. Neither stale axis triple should survive the bucket fix.
-    const v8Key = bucket().replace(":v9:", ":v8:");
+    // v9 could persist a resolution floor learned while Safari's median
+    // cadence stayed unchanged across ineffective inferred-GPU cuts.
+    const v9Key = bucket().replace(":v10:", ":v9:");
     window.localStorage.setItem(
-      v8Key,
+      v9Key,
       JSON.stringify({
         resolutionStep: 2,
         effects: "lean",

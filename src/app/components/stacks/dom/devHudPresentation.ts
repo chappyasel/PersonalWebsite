@@ -13,12 +13,15 @@ export type DevHudSegment = Readonly<{
 }>;
 
 export type DevHudRow = Readonly<{
-  id: "frames" | "quality" | "effects" | "load";
+  id: "frames" | "quality" | "axes" | "effects";
   segments: readonly DevHudSegment[];
 }>;
 
+type QualityAxis = "resolution" | "effects" | "content";
+
 export type DevHudInput = Readonly<{
-  fps: number;
+  fps: number | null;
+  hooksStatus: "starting" | "ready" | "missing";
   profile: string | null;
   mode: string | null;
   moving: boolean | null;
@@ -28,6 +31,15 @@ export type DevHudInput = Readonly<{
   p95: number | null;
   targetFrameMs: number | null;
   droppedFrameRatio: number | null;
+  resolutionStep: number | null;
+  effectsTier: "cinematic" | "full" | "lean" | "minimal" | null;
+  contentTier: "full" | "reduced" | "minimal" | null;
+  constraint: "cpu" | "gpu" | "headroom" | "unknown" | null;
+  lastTransition: Readonly<{
+    axis: QualityAxis;
+    direction: "down" | "up";
+    ageMs: number;
+  }> | null;
   dpr: number | null;
   physicalPixels: number | null;
   pixelBudget: number | null;
@@ -38,170 +50,239 @@ export type DevHudInput = Readonly<{
   depthOfField: boolean | null;
   depthOfFieldResolutionScale: number | null;
   depthOfFieldBokehScale: number | null;
-  calls: number | null;
-  triangles: number | null;
-  textures: number | null;
-  programs: number | null;
 }>;
 
-function compactCount(value: number | null) {
-  if (value == null) return "–";
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}m`;
-  if (value >= 1_000) return `${Math.round(value / 1_000)}k`;
-  return String(Math.round(value));
-}
+const separator: DevHudSegment = { text: " · ", tone: "muted" };
 
 function compactMegapixels(value: number | null) {
   return value == null ? "–" : (value / 1_000_000).toFixed(1);
 }
 
-/** A null profile means the scene hooks are not installed, which is a
- * misconfiguration rather than a slow frame. "Waiting" read as "hold on a
- * moment" and never resolved, which is the worst of both: it hid a broken
- * data source behind something that looked transient. Name the actual
- * condition and the way out of it. */
-function profileLabel(profile: string | null) {
-  return profile == null
-    ? "NO SCENE HOOKS"
-    : `${profile.charAt(0).toUpperCase()}${profile.slice(1)}`;
-}
-
 function trimScale(value: number | null) {
   return value == null
     ? "–"
-    : value.toFixed(2).replace(/^0/, "").replace(/0$/, "");
+    : value.toFixed(2).replace(/^0/, "").replace(/0+$/, "").replace(/\.$/, "");
 }
 
-function aoQualityLabel(value: string | null) {
-  return (
+function profileLabel(input: DevHudInput): DevHudSegment {
+  if (input.hooksStatus === "starting")
+    return { text: "SCENE STARTING", tone: "muted", emphasis: true };
+  if (input.hooksStatus === "missing")
+    return { text: "NO SCENE HOOKS", tone: "danger", emphasis: true };
+  if (input.profile == null)
+    return { text: "CALIBRATING", tone: "warning", emphasis: true };
+  return {
+    text:
+      {
+        cinematic: "Cine",
+        showcase: "Show",
+        balanced: "Bal",
+        efficient: "Eff",
+        safety: "Safe",
+      }[input.profile] ??
+      `${input.profile.charAt(0).toUpperCase()}${input.profile.slice(1)}`,
+    tone: "accent",
+    emphasis: true,
+  };
+}
+
+function fpsTone(value: number | null): DevHudTone {
+  if (value == null) return "muted";
+  if (value < 50) return "danger";
+  if (value < 58) return "warning";
+  return "positive";
+}
+
+function p95Tone(value: number | null, target: number | null): DevHudTone {
+  if (value == null || target == null) return "muted";
+  if (value > target * 1.75) return "danger";
+  if (value > target * 1.25) return "warning";
+  return "positive";
+}
+
+function droppedTone(value: number | null): DevHudTone {
+  if (value == null) return "muted";
+  if (value >= 0.08) return "danger";
+  if (value >= 0.03) return "warning";
+  return "positive";
+}
+
+function aoLabel(input: DevHudInput) {
+  if (!input.ambientOcclusion) return "AO–";
+  const quality =
     {
       performance: "P",
       low: "L",
       medium: "M",
       high: "H",
       ultra: "U",
-    }[value ?? ""] ?? "–"
-  );
+    }[input.ambientOcclusionQuality ?? ""] ?? "–";
+  return `AO${input.ambientOcclusionHalfRes ? "½" : ""}${quality}`;
 }
 
-function frameTone(input: DevHudInput): DevHudTone {
-  if (
-    input.p95 == null ||
-    input.targetFrameMs == null ||
-    input.droppedFrameRatio == null
-  )
-    return "muted";
-  if (input.p95 > input.targetFrameMs * 1.75 || input.droppedFrameRatio > 0.35)
-    return "danger";
-  if (input.p95 > input.targetFrameMs * 1.25 || input.droppedFrameRatio > 0.15)
-    return "warning";
-  return "positive";
+function effectsTierLabel(value: DevHudInput["effectsTier"]) {
+  if (value == null) return "E–";
+  return {
+    cinematic: "EC",
+    full: "EF",
+    lean: "EL",
+    minimal: "EM",
+  }[value];
 }
 
-/** The compact HUD's sole presentation interface. Sampling and scene policy
- * stay outside; width-safe formatting, hierarchy, and semantic tone stay here. */
+function contentTierLabel(value: DevHudInput["contentTier"]) {
+  if (value == null) return "C–";
+  return {
+    full: "CF",
+    reduced: "CR",
+    minimal: "CM",
+  }[value];
+}
+
+function recentAxis(
+  base: string,
+  axis: QualityAxis,
+  transition: DevHudInput["lastTransition"],
+): DevHudSegment {
+  if (transition?.axis !== axis || transition.ageMs > 5_000)
+    return { text: base, tone: "accent", emphasis: true };
+  const arrow = transition.direction === "down" ? "↓" : "↑";
+  const seconds = Math.max(1, Math.ceil(transition.ageMs / 1_000));
+  return {
+    text: `${base}${arrow}${seconds}s`,
+    tone: transition.direction === "down" ? "warning" : "positive",
+    emphasis: true,
+  };
+}
+
+function constraintSegment(
+  value: DevHudInput["constraint"],
+): DevHudSegment {
+  if (value === "cpu" || value === "gpu")
+    return { text: value.toUpperCase(), tone: "danger", emphasis: true };
+  if (value === "headroom")
+    return { text: "HEAD", tone: "positive", emphasis: true };
+  if (value === "unknown")
+    return { text: "HOLD", tone: "warning", emphasis: true };
+  return { text: "WAIT", tone: "muted", emphasis: true };
+}
+
+function runtimeStatus(input: DevHudInput): DevHudSegment | null {
+  if (input.fallbackStatus?.startsWith("direct"))
+    return { text: "DIRECT", tone: "danger", emphasis: true };
+  if (input.frozen)
+    return { text: "FROZEN", tone: "warning", emphasis: true };
+  if (input.customOverrides)
+    return { text: "CUSTOM", tone: "accent", emphasis: true };
+  if (input.moving)
+    return { text: "TRAVEL", tone: "accent", emphasis: true };
+  return null;
+}
+
+/** Format the compact HUD into four width-bounded, position-stable rows. */
 export function createDevHudRows(input: DevHudInput): readonly DevHudRow[] {
-  const performanceTone = frameTone(input);
-  const p95 = input.p95?.toFixed(1) ?? "–";
-  const target = input.targetFrameMs?.toFixed(1) ?? "–";
-  const drops =
-    input.droppedFrameRatio == null
-      ? "–"
-      : `${Math.round(input.droppedFrameRatio * 100)}%`;
-  const mode =
-    input.mode == null ? "–" : input.mode === "auto" ? "Auto" : "Manual";
-  const bloom =
-    input.bloomLevels != null && input.bloomLevels > 0
-      ? `B${input.bloomLevels}`
-      : "B–";
-  const ao = input.ambientOcclusion
-    ? `AO${input.ambientOcclusionHalfRes ? "½" : ""}${aoQualityLabel(
-        input.ambientOcclusionQuality,
-      )}`
-    : "AO–";
-  const dof = input.depthOfField
-    ? `DoF q${trimScale(input.depthOfFieldResolutionScale)}/b${trimScale(
-        input.depthOfFieldBokehScale,
-      )}`
-    : "DoF–";
-  const statusCandidates: Array<DevHudSegment | null> = [
-    input.fallbackStatus?.startsWith("direct")
-      ? { text: "DIRECT", tone: "danger", emphasis: true }
-      : null,
-    input.frozen ? { text: "FROZEN", tone: "warning", emphasis: true } : null,
-    input.customOverrides
-      ? { text: "CUSTOM", tone: "accent", emphasis: true }
-      : null,
-    input.moving ? { text: "TRAVEL", tone: "accent", emphasis: true } : null,
+  const ready = input.hooksStatus === "ready";
+  const fps = ready ? input.fps : null;
+  const p95 = ready ? input.p95 : null;
+  const dropped = ready ? input.droppedFrameRatio : null;
+  const profile = profileLabel(input);
+  const status = runtimeStatus(input);
+  const qualitySegments: DevHudSegment[] = [profile];
+
+  if (ready && input.profile != null) {
+    qualitySegments.push(
+      {
+        text: ` ${input.mode === "auto" ? "A" : "M"}`,
+        tone: "accent",
+        emphasis: true,
+      },
+      separator,
+      {
+        text: `${trimScale(input.dpr)}×`,
+        emphasis: true,
+      },
+      separator,
+      {
+        text: `${compactMegapixels(input.physicalPixels)}/${compactMegapixels(input.pixelBudget)}MP`,
+        emphasis: true,
+      },
+    );
+  }
+
+  const effectSegments: DevHudSegment[] = [
+    {
+      text:
+        input.bloomLevels != null && input.bloomLevels > 0
+          ? `B${input.bloomLevels}`
+          : "B–",
+      tone: input.bloomLevels ? "accent" : "muted",
+      emphasis: true,
+    },
+    separator,
+    {
+      text: aoLabel(input),
+      tone: input.ambientOcclusion ? "accent" : "muted",
+      emphasis: true,
+    },
+    separator,
+    {
+      text: input.depthOfField
+        ? `D${trimScale(input.depthOfFieldResolutionScale)}/${trimScale(input.depthOfFieldBokehScale)}`
+        : "D–",
+      tone: input.depthOfField ? "accent" : "muted",
+      emphasis: true,
+    },
   ];
-  const statuses = statusCandidates.filter(
-    (segment): segment is DevHudSegment => segment != null,
-  );
-  const enabledTone = (enabled: boolean | null): DevHudTone =>
-    enabled ? "accent" : "muted";
+  if (status) effectSegments.push(separator, status);
 
   return [
     {
       id: "frames",
       segments: [
         {
-          text: `${Math.round(input.fps)} FPS`,
-          tone: performanceTone,
+          text: `${fps == null ? "–" : Math.round(fps)} FPS`,
+          tone: fpsTone(fps),
           emphasis: true,
         },
-        { text: " · p95 ", tone: "muted" },
-        { text: p95, tone: performanceTone, emphasis: true },
-        { text: `/${target}ms`, tone: "muted" },
-        { text: " · ", tone: "muted" },
-        { text: `${drops} drop`, tone: performanceTone, emphasis: true },
-      ],
-    },
-    {
-      id: "quality",
-      segments: [
+        separator,
         {
-          text: profileLabel(input.profile),
-          tone: "accent",
+          text: `${p95 == null ? "–" : p95.toFixed(1)}ms`,
+          tone: p95Tone(p95, input.targetFrameMs),
           emphasis: true,
         },
-        { text: `/${mode} · `, tone: "muted" },
+        separator,
         {
-          text: `${compactMegapixels(input.physicalPixels)}/${compactMegapixels(input.pixelBudget)}MP`,
+          text: `${dropped == null ? "–" : Math.round(dropped * 100)}%`,
+          tone: droppedTone(dropped),
           emphasis: true,
         },
-        { text: ` @${input.dpr?.toFixed(2) ?? "–"}×`, tone: "muted" },
       ],
     },
+    { id: "quality", segments: qualitySegments },
     {
-      id: "effects",
+      id: "axes",
       segments: [
-        {
-          text: bloom,
-          tone: input.bloomLevels ? "accent" : "muted",
-          emphasis: true,
-        },
-        { text: " · ", tone: "muted" },
-        { text: ao, tone: enabledTone(input.ambientOcclusion), emphasis: true },
-        { text: " · ", tone: "muted" },
-        { text: dof, tone: enabledTone(input.depthOfField), emphasis: true },
-        ...statuses.flatMap((status) => [
-          { text: " · ", tone: "muted" as const },
-          status,
-        ]),
+        recentAxis(
+          `R${input.resolutionStep ?? "–"}`,
+          "resolution",
+          input.lastTransition,
+        ),
+        separator,
+        recentAxis(
+          effectsTierLabel(input.effectsTier),
+          "effects",
+          input.lastTransition,
+        ),
+        separator,
+        recentAxis(
+          contentTierLabel(input.contentTier),
+          "content",
+          input.lastTransition,
+        ),
+        separator,
+        constraintSegment(input.constraint),
       ],
     },
-    {
-      id: "load",
-      segments: [
-        { text: compactCount(input.calls), emphasis: true },
-        { text: " calls · ", tone: "muted" },
-        { text: compactCount(input.triangles), emphasis: true },
-        { text: " tri · ", tone: "muted" },
-        { text: compactCount(input.textures), emphasis: true },
-        { text: " tex · ", tone: "muted" },
-        { text: compactCount(input.programs), emphasis: true },
-        { text: " prog", tone: "muted" },
-      ],
-    },
+    { id: "effects", segments: effectSegments },
   ];
 }

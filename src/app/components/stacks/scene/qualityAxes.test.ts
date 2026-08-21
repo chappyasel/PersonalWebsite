@@ -5,6 +5,7 @@ import {
   SCENE_FRAME_BUDGET_MS,
   SCENE_QUALITY_PROFILES,
   type SceneQualityMetrics,
+  type SceneQualityProfile,
   summariseSceneFrameWindow,
 } from "./quality";
 import {
@@ -79,12 +80,15 @@ function hold(
 /** A booted controller in steady state, past the one-shot boot decline guard.
  * Boot suppression and that guard have their own describe block below; every
  * other test here is about behaviour once the scene has settled. */
-const start = (profile = "balanced" as const): SceneQualityAxisState => ({
+const start = (
+  profile: SceneQualityProfile = "balanced",
+): SceneQualityAxisState => ({
   ...reduceSceneQualityAxes(initialSceneQualityAxisState(profile, 0), {
     type: "booted",
     now: 0,
   }),
   bootDeclineGuard: false,
+  foregroundReadyAt: 0,
 });
 
 describe("the resolution ladder", () => {
@@ -148,6 +152,29 @@ describe("the resolution ladder", () => {
   });
 });
 
+describe("sample identity", () => {
+  it("does not publish a new reducer state for an unchanged unknown verdict", () => {
+    const state = start("efficient");
+    const mixedTail = metrics({
+      p50: 26,
+      p95: 50,
+      droppedFrameRatio: 0.52,
+      cpuP50: 6,
+      cpuMs: 12,
+      windowMs: 1_980,
+    });
+
+    const next = reduceSceneQualityAxes(state, {
+      type: "sample",
+      now: 10_000,
+      metrics: mixedTail,
+      visible: true,
+    });
+
+    expect(next).toBe(state);
+  });
+});
+
 describe("preset mapping", () => {
   it("gives every profile a point in the axis space", () => {
     for (const profile of SCENE_QUALITY_PROFILES)
@@ -190,7 +217,228 @@ describe("preset mapping", () => {
   });
 });
 
+describe("the production quality transition journal", () => {
+  it("records boot, visibility, and travel boundaries separately from axes", () => {
+    let state = initialSceneQualityAxisState("balanced", 0);
+    state = reduceSceneQualityAxes(state, { type: "booted", now: 1_000 });
+    state = reduceSceneQualityAxes(state, {
+      type: "visibility-hidden",
+      now: 2_000,
+    });
+    state = reduceSceneQualityAxes(state, {
+      type: "visibility-visible",
+      now: 30_000,
+    });
+    state = reduceSceneQualityAxes(state, {
+      type: "travel-start",
+      now: 40_000,
+    });
+    state = reduceSceneQualityAxes(state, {
+      type: "travel-end",
+      now: 42_000,
+      frames: { total: 100, late: 30 },
+    });
+
+    expect(state.lifecycle).toEqual([
+      { type: "booted", at: 1_000 },
+      { type: "visibility-hidden", at: 2_000 },
+      { type: "visibility-visible", at: 30_000 },
+      { type: "travel-start", at: 40_000 },
+      {
+        type: "travel-end",
+        at: 42_000,
+        frames: { total: 100, late: 30 },
+      },
+    ]);
+    expect(state.transitions).toEqual([]);
+  });
+
+  it("starts empty and records the exact sample-driven resolution decision", () => {
+    const before = { ...start(), gpuSince: 0 };
+    const pressure = metrics({
+      p50: 20,
+      p95: 24,
+      droppedFrameRatio: 0.3,
+      cpuP50: 3,
+      cpuMs: 4,
+    });
+    const state = reduceSceneQualityAxes(before, {
+      type: "sample",
+      now: 2_000,
+      metrics: pressure,
+      visible: true,
+    });
+
+    expect(before.transitions).toEqual([]);
+    expect(state.transitions).toEqual([
+      {
+        at: 2_000,
+        axis: "resolution",
+        direction: "down",
+        reason: "sample-pressure",
+        fromValue: SCENE_RESOLUTION_MAX_STEP,
+        toValue: SCENE_RESOLUTION_MAX_STEP - 1,
+        metrics: {
+          targetFrameMs: SCENE_FRAME_BUDGET_MS,
+          sampleCount: 120,
+          windowMs: null,
+          p50: 20,
+          p95: 24,
+          droppedFrameRatio: 0.3,
+          cpuP50: 3,
+          cpuMs: 4,
+          gpuMs: null,
+          constraint: "gpu",
+        },
+      },
+    ]);
+  });
+
+  it("uses typed tier values and records every axis changed by a force", () => {
+    const state = reduceSceneQualityAxes(start(), {
+      type: "force",
+      now: 2_000,
+      profile: "safety",
+    });
+
+    expect(state.transitions).toEqual([
+      expect.objectContaining({
+        axis: "effects",
+        direction: "down",
+        reason: "force",
+        fromValue: "full",
+        toValue: "minimal",
+        metrics: null,
+      }),
+      expect.objectContaining({
+        axis: "content",
+        direction: "down",
+        reason: "force",
+        fromValue: "full",
+        toValue: "minimal",
+        metrics: null,
+      }),
+    ]);
+  });
+
+  it("identifies travel borrowing separately from sample pressure", () => {
+    const state = reduceSceneQualityAxes(
+      { ...start(), gpuSince: 500 },
+      { type: "travel-start", now: 2_000 },
+    );
+
+    expect(state.transitions.at(-1)).toMatchObject({
+      axis: "resolution",
+      direction: "down",
+      reason: "travel-borrow",
+      fromValue: SCENE_RESOLUTION_MAX_STEP,
+      toValue: SCENE_RESOLUTION_MAX_STEP - QUALITY_TRAVEL_RESOLUTION_DROP_STEPS,
+      metrics: null,
+    });
+  });
+
+  it("records restored axes and strict-headroom recovery", () => {
+    let state = reduceSceneQualityAxes(start(), {
+      type: "restore",
+      now: 1_000,
+      axes: {
+        resolutionStep: 10,
+        effects: "lean",
+        content: "reduced",
+      },
+    });
+
+    expect(
+      state.transitions.map(({ axis, reason }) => ({ axis, reason })),
+    ).toEqual([
+      { axis: "resolution", reason: "restore" },
+      { axis: "effects", reason: "restore" },
+      { axis: "content", reason: "restore" },
+    ]);
+
+    state = {
+      ...state,
+      axes: { ...state.axes, effects: "full", content: "full" },
+      headroomSince: 1_000,
+      resolutionRetryAt: null,
+    };
+    state = reduceSceneQualityAxes(state, {
+      type: "sample",
+      now: 5_000,
+      metrics: headroom,
+      visible: true,
+    });
+
+    expect(state.transitions.at(-1)).toMatchObject({
+      axis: "resolution",
+      direction: "up",
+      reason: "strict-headroom",
+      fromValue: 10,
+      toValue: 11,
+    });
+  });
+
+  it("does not journal reducer activity that leaves every axis unchanged", () => {
+    const before = start();
+    const state = reduceSceneQualityAxes(before, {
+      type: "sample",
+      now: 100,
+      metrics: headroom,
+      visible: true,
+    });
+
+    expect(state.transitions).toEqual([]);
+  });
+
+  it("retains only the latest sixteen axis transitions", () => {
+    let state = start();
+    for (let index = 0; index < 10; index += 1) {
+      state = reduceSceneQualityAxes(state, {
+        type: "force",
+        now: index * 2 + 1,
+        profile: "safety",
+      });
+      state = reduceSceneQualityAxes(state, {
+        type: "force",
+        now: index * 2 + 2,
+        profile: "showcase",
+      });
+    }
+
+    expect(state.transitions).toHaveLength(16);
+    expect(state.transitions[0]?.at).toBe(13);
+    expect(state.transitions.at(-1)?.at).toBe(20);
+  });
+});
+
 describe("axis independence", () => {
+  it("requires a sustained GPU run before the first resolution cut", () => {
+    let state = start();
+    state = reduceSceneQualityAxes(state, {
+      type: "sample",
+      now: 3_000,
+      metrics: gpuBound,
+      visible: true,
+    });
+    expect(state.axes.resolutionStep).toBe(SCENE_RESOLUTION_MAX_STEP);
+
+    state = reduceSceneQualityAxes(state, {
+      type: "sample",
+      now: 3_000 + QUALITY_RESOLUTION_DWELL_MS - 1,
+      metrics: gpuBound,
+      visible: true,
+    });
+    expect(state.axes.resolutionStep).toBe(SCENE_RESOLUTION_MAX_STEP);
+
+    state = reduceSceneQualityAxes(state, {
+      type: "sample",
+      now: 3_000 + QUALITY_RESOLUTION_DWELL_MS,
+      metrics: gpuBound,
+      visible: true,
+    });
+    expect(state.axes.resolutionStep).toBe(SCENE_RESOLUTION_MAX_STEP - 1);
+  });
+
   it("moves resolution and leaves content alone under GPU pressure", () => {
     const state = hold(start(), gpuBound, 2_000, QUALITY_EFFECTS_FALL_MS * 2);
     expect(state.axes.resolutionStep).toBeLessThan(SCENE_RESOLUTION_MAX_STEP);
@@ -287,12 +535,7 @@ describe("the resolution dwell", () => {
   });
 
   it("takes at most one step inside a single dwell", () => {
-    const state = hold(
-      start(),
-      gpuBound,
-      2_000,
-      QUALITY_RESOLUTION_DWELL_MS - 500,
-    );
+    const state = hold(start(), gpuBound, 2_000, QUALITY_RESOLUTION_DWELL_MS);
     expect(state.axes.resolutionStep).toBe(SCENE_RESOLUTION_MAX_STEP - 1);
   });
 
@@ -400,6 +643,10 @@ describe("effects and content time constants", () => {
     );
     expect(state.axes.effects).toBe("lean");
     expect(state.axes.content).toBe("full");
+    expect(state.transitions.at(-1)).toMatchObject({
+      axis: "effects",
+      reason: "sample-pressure",
+    });
   });
 
   it("answers CPU pressure with content and leaves effects and resolution alone", () => {
@@ -407,6 +654,10 @@ describe("effects and content time constants", () => {
     expect(state.axes.resolutionStep).toBe(SCENE_RESOLUTION_MAX_STEP);
     expect(state.axes.effects).toBe("full");
     expect(state.axes.content).toBe("reduced");
+    expect(state.transitions.at(-1)).toMatchObject({
+      axis: "content",
+      reason: "sample-pressure",
+    });
   });
 
   it("does not move effects before the sustain elapses", () => {
@@ -487,6 +738,24 @@ const cpuPressured = (state = start()): SceneQualityAxisState => ({
 });
 
 describe("travel", () => {
+  it("treats duplicate travel starts as one episode", () => {
+    const before = gpuPressured();
+    const first = reduceSceneQualityAxes(before, {
+      type: "travel-start",
+      now: 1_000,
+    });
+    const duplicate = reduceSceneQualityAxes(first, {
+      type: "travel-start",
+      now: 1_100,
+    });
+
+    expect(duplicate).toBe(first);
+    expect(duplicate.axes.resolutionStep).toBe(
+      before.axes.resolutionStep - QUALITY_TRAVEL_RESOLUTION_DROP_STEPS,
+    );
+    expect(duplicate.preTravelStep).toBe(before.axes.resolutionStep);
+  });
+
   it("drops resolution by exactly two steps at travel start, in the same tick", () => {
     const before = gpuPressured();
     const state = reduceSceneQualityAxes(before, {
@@ -609,6 +878,10 @@ describe("travel", () => {
 
     state = hold(state, cpuBound, 16_000, 500);
     expect(state.axes.content).toBe("reduced");
+    expect(state.transitions.at(-1)).toMatchObject({
+      axis: "content",
+      reason: "deferred",
+    });
   });
 
   it("discards a deferred request whose classification no longer holds", () => {
@@ -643,6 +916,9 @@ describe("travel", () => {
     expect(state.axes.resolutionStep).toBeLessThanOrEqual(
       SCENE_RESOLUTION_MAX_STEP,
     );
+    expect(
+      state.transitions.some(({ reason }) => reason === "travel-repay"),
+    ).toBe(true);
   });
 
   it("waits for travel validation and restores one resolution step per dwell", () => {
@@ -664,6 +940,31 @@ describe("travel", () => {
     expect(state.axes.resolutionStep).toBe(during + 1);
     state = hold(state, headroom, 8_000, 0);
     expect(state.axes.resolutionStep).toBe(during + 2);
+  });
+
+  it("pauses borrowed-resolution debt under GPU pressure and repays it later", () => {
+    let state = gpuPressured();
+    state = reduceSceneQualityAxes(state, { type: "travel-start", now: 1_000 });
+    const target = state.preTravelStep;
+    state = reduceSceneQualityAxes(state, { type: "travel-end", now: 4_000 });
+
+    state = reduceSceneQualityAxes(state, {
+      type: "sample",
+      now: 7_000,
+      metrics: gpuBound,
+      visible: true,
+    });
+    expect(state.preTravelStep).toBe(target);
+
+    const borrowedStep = state.axes.resolutionStep;
+    state = reduceSceneQualityAxes(state, {
+      type: "sample",
+      now: 9_000,
+      metrics: metrics({ p95: 17, droppedFrameRatio: 0.06, cpuMs: 10 }),
+      visible: true,
+    });
+    expect(state.axes.resolutionStep).toBe(borrowedStep + 1);
+    expect(state.preTravelStep).toBe(target);
   });
 });
 
@@ -710,6 +1011,10 @@ describe("the travel budget", () => {
     );
     state = hold(state, headroom, 40_000, 500);
     expect(state.axes.content).toBe("reduced");
+    expect(state.transitions.at(-1)).toMatchObject({
+      axis: "content",
+      reason: "travel-budget",
+    });
   });
 
   it("resets the count on any travel that meets its budget", () => {
@@ -789,6 +1094,25 @@ describe("a forced preset", () => {
 });
 
 describe("windows that prove nothing", () => {
+  it("ignores a production window that has not filled yet", () => {
+    const before = { ...start(), gpuSince: 0 };
+    const short = reduceSceneQualityAxes(before, {
+      type: "sample",
+      now: 3_000,
+      metrics: { ...gpuBound, windowMs: 250 },
+      visible: true,
+    });
+    expect(short.axes).toEqual(before.axes);
+
+    const complete = reduceSceneQualityAxes(before, {
+      type: "sample",
+      now: 3_000,
+      metrics: { ...gpuBound, windowMs: 1_900 },
+      visible: true,
+    });
+    expect(complete.axes.resolutionStep).toBe(before.axes.resolutionStep - 1);
+  });
+
   it("ignores a hidden window", () => {
     const state = reduceSceneQualityAxes(start(), {
       type: "sample",
@@ -813,6 +1137,331 @@ describe("windows that prove nothing", () => {
     const unknown = metrics({ p95: 17, droppedFrameRatio: 0.06, cpuMs: 10 });
     const state = hold(start(), unknown, 2_000, 60_000);
     expect(state.axes).toEqual(start().axes);
+  });
+
+  it("clears pre-suspension evidence and waits for fresh foreground time", () => {
+    const before: SceneQualityAxisState = {
+      ...start(),
+      gpuSince: 1_000,
+      pendingBaseline: gpuBound,
+      pendingBaselineExpiresAt: 10_000,
+      resolutionRetryAt: 20_000,
+    };
+    const hidden = reduceSceneQualityAxes(before, {
+      type: "visibility-hidden",
+      now: 2_000,
+    });
+
+    expect(hidden.axes).toEqual(before.axes);
+    expect(hidden.gpuSince).toBeNull();
+    expect(hidden.pendingBaseline).toBeNull();
+    expect(hidden.foregroundReadyAt).toBeNull();
+    expect(hidden.resolutionRetryAt).toBe(20_000);
+
+    let resumed = reduceSceneQualityAxes(hidden, {
+      type: "visibility-visible",
+      now: 60_000,
+    });
+    resumed = reduceSceneQualityAxes(resumed, {
+      type: "sample",
+      now: 60_250,
+      metrics: gpuBound,
+      visible: true,
+    });
+    expect(resumed.axes).toEqual(before.axes);
+    expect(resumed.gpuSince).toBeNull();
+  });
+
+  it("restarts an unfinished boot guard after foreground resume", () => {
+    const guarding: SceneQualityAxisState = {
+      ...start(),
+      bootDeclineGuard: true,
+      bootGuardExpiresAt: 5_000,
+    };
+    const hidden = reduceSceneQualityAxes(guarding, {
+      type: "visibility-hidden",
+      now: 2_000,
+    });
+    const resumed = reduceSceneQualityAxes(hidden, {
+      type: "visibility-visible",
+      now: 60_000,
+    });
+
+    expect(resumed.bootGuardExpiresAt).toBe(60_000 + QUALITY_BOOT_GUARD_MS);
+  });
+
+  it("validates healthy pacing and invalidates it across suspension", () => {
+    const validated = reduceSceneQualityAxes(start(), {
+      type: "sample",
+      now: 3_000,
+      metrics: headroom,
+      visible: true,
+    });
+    expect(validated.validation).toMatchObject({
+      at: 3_000,
+      reason: "acceptable-pacing",
+    });
+
+    const hidden = reduceSceneQualityAxes(validated, {
+      type: "visibility-hidden",
+      now: 4_000,
+    });
+    expect(hidden.validation).toBeNull();
+  });
+
+  it("keeps the first acceptable-pacing validation stable across identical headroom samples", () => {
+    const validated = reduceSceneQualityAxes(start(), {
+      type: "sample",
+      now: 3_000,
+      metrics: headroom,
+      visible: true,
+    });
+    const repeated = reduceSceneQualityAxes(validated, {
+      type: "sample",
+      now: 3_250,
+      metrics: headroom,
+      visible: true,
+    });
+
+    expect(repeated).toBe(validated);
+    expect(repeated.validation?.at).toBe(3_000);
+  });
+});
+
+describe("inferred GPU decline accounting", () => {
+  it("waits for a complete post-change window before judging a cut", () => {
+    const baseline = metrics({
+      p50: 24,
+      p95: 40,
+      droppedFrameRatio: 0.3,
+      cpuP50: 4,
+      cpuMs: 5,
+    });
+    let state = reduceSceneQualityAxes(
+      { ...start(), gpuSince: 0 },
+      {
+        type: "sample",
+        now: 2_000,
+        metrics: baseline,
+        visible: true,
+      },
+    );
+    const afterCut = state.axes.resolutionStep;
+
+    state = reduceSceneQualityAxes(state, {
+      type: "sample",
+      now: 2_000 + QUALITY_RESOLUTION_DWELL_MS,
+      metrics: metrics({
+        p50: 20,
+        p95: 32,
+        droppedFrameRatio: 0.2,
+        cpuP50: 4,
+        cpuMs: 5,
+      }),
+      visible: true,
+    });
+
+    expect(state.axes.resolutionStep).toBe(afterCut);
+    expect(state.pendingBaseline).toBe(baseline);
+  });
+
+  it("does not reopen the two-cut budget after one improving comparison", () => {
+    const baseline = metrics({
+      p50: 24,
+      p95: 40,
+      droppedFrameRatio: 0.3,
+      cpuP50: 4,
+      cpuMs: 5,
+    });
+    const state = reduceSceneQualityAxes(
+      {
+        ...start(),
+        axes: {
+          ...start().axes,
+          resolutionStep: SCENE_RESOLUTION_MAX_STEP - 1,
+        },
+        gpuSince: 1_000,
+        pendingBaseline: baseline,
+        pendingBaselineExpiresAt: 10_000,
+        lastChange: {
+          axis: "resolution",
+          direction: "down",
+          reason: "pressure",
+        },
+        unhelpfulResolutionSteps: 1,
+      },
+      {
+        type: "sample",
+        now: 5_000,
+        metrics: metrics({
+          p50: 20,
+          p95: 34,
+          droppedFrameRatio: 0.26,
+          cpuP50: 4,
+          cpuMs: 5,
+        }),
+        visible: true,
+      },
+    );
+
+    expect(state.unhelpfulResolutionSteps).toBe(1);
+  });
+
+  it("bounds a locally improving inferred-GPU staircase against its descent anchor", () => {
+    const byStep = new Map<number, SceneQualityMetrics>([
+      [
+        6,
+        metrics({
+          p50: 24,
+          p95: 38,
+          droppedFrameRatio: 0.337,
+          cpuP50: 6,
+          cpuMs: 6,
+        }),
+      ],
+      [
+        5,
+        metrics({
+          p50: 26,
+          p95: 49,
+          droppedFrameRatio: 0.534,
+          cpuP50: 6,
+          cpuMs: 6,
+        }),
+      ],
+      [
+        4,
+        metrics({
+          p50: 23,
+          p95: 50,
+          droppedFrameRatio: 0.338,
+          cpuP50: 6,
+          cpuMs: 6,
+        }),
+      ],
+      [
+        3,
+        metrics({
+          p50: 22,
+          p95: 49,
+          droppedFrameRatio: 0.291,
+          cpuP50: 6,
+          cpuMs: 6,
+        }),
+      ],
+      [
+        2,
+        metrics({
+          p50: 21,
+          p95: 45,
+          droppedFrameRatio: 0.198,
+          cpuP50: 6,
+          cpuMs: 6,
+        }),
+      ],
+      [
+        1,
+        metrics({
+          p50: 20,
+          p95: 47,
+          droppedFrameRatio: 0.101,
+          cpuP50: 6,
+          cpuMs: 6,
+        }),
+      ],
+    ]);
+    let state: SceneQualityAxisState = {
+      ...start("efficient"),
+      axes: { ...start("efficient").axes, resolutionStep: 6 },
+      axisChangedAt: { resolution: 0, effects: 0, content: 0 },
+    };
+
+    for (let now = 250; now <= 60_000; now += 250) {
+      const response = byStep.get(state.axes.resolutionStep) ?? byStep.get(4)!;
+      state = reduceSceneQualityAxes(state, {
+        type: "sample",
+        now,
+        metrics: response,
+        visible: true,
+      });
+    }
+
+    expect(state.axes.resolutionStep).toBeGreaterThanOrEqual(
+      6 - QUALITY_RESOLUTION_GIVE_UP_STEPS,
+    );
+    expect(state.unhelpfulResolutionSteps).toBe(
+      QUALITY_RESOLUTION_GIVE_UP_STEPS,
+    );
+  });
+
+  it("does not spend the remaining ladder when tail latency improves but median cadence does not", () => {
+    // Replays the iPhone interruption captured on 2026-08-20. Safari's
+    // presentation cadence stayed near 24–26 ms while p95 eased from 40 to
+    // 34 ms. Treating that tail-only change as proof that pixels were scarce
+    // walked a forced Efficient preset from R4 to R0 without restoring FPS.
+    const byStep = new Map<number, SceneQualityMetrics>([
+      [
+        4,
+        metrics({
+          p50: 25,
+          p95: 40,
+          droppedFrameRatio: 0.473,
+          cpuP50: 6,
+          cpuMs: 9,
+        }),
+      ],
+      [
+        3,
+        metrics({
+          p50: 26,
+          p95: 37,
+          droppedFrameRatio: 0.513,
+          cpuP50: 6,
+          cpuMs: 10,
+        }),
+      ],
+      [
+        2,
+        metrics({
+          p50: 24,
+          p95: 35,
+          droppedFrameRatio: 0.425,
+          cpuP50: 6,
+          cpuMs: 11,
+        }),
+      ],
+      [
+        1,
+        metrics({
+          p50: 24,
+          p95: 34,
+          droppedFrameRatio: 0.402,
+          cpuP50: 6,
+          cpuMs: 10,
+        }),
+      ],
+    ]);
+    let state: SceneQualityAxisState = {
+      ...start("efficient"),
+      forced: "efficient",
+      axes: { ...start("efficient").axes, resolutionStep: 4 },
+      axisChangedAt: { resolution: 0, effects: 0, content: 0 },
+    };
+
+    for (let now = 250; now <= 60_000; now += 250) {
+      const response = byStep.get(state.axes.resolutionStep) ?? byStep.get(1)!;
+      state = reduceSceneQualityAxes(state, {
+        type: "sample",
+        now,
+        metrics: response,
+        visible: true,
+      });
+    }
+
+    expect(state.axes.resolutionStep).toBe(2);
+    expect(state.unhelpfulResolutionSteps).toBe(
+      QUALITY_RESOLUTION_GIVE_UP_STEPS,
+    );
   });
 });
 

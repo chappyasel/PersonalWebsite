@@ -5,6 +5,7 @@
 // island is pointer-events-none; interactive layers manage their own events.
 import {
   requestDevHooks,
+  requestSceneHooks,
   sceneDiagnosticsQueryMode,
 } from "../scene/devHooks";
 import { useStacks } from "../store";
@@ -65,6 +66,8 @@ function SceneDiagnosticsLoader() {
 
   useEffect(() => {
     const queryMode = sceneDiagnosticsQueryMode(window.location.search);
+    if (process.env.NODE_ENV === "development" || queryMode === "hud")
+      requestSceneHooks();
     if (queryMode === "debug" && request?.initiallyOpen !== true) {
       requestDevHooks();
       setRequest({ initiallyOpen: true });

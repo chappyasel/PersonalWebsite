@@ -21,6 +21,7 @@ import {
   photoDoorLabel,
 } from "../photos";
 import { ApertureHalo, GlowSprite, ShelfUnit } from "../primitives";
+import { sceneUnitLightUserData } from "../sceneGpuPrewarm";
 import { useUnitRealLights } from "../scenePerformance";
 import { useUnitLod } from "../useUnitLod";
 import React, { useEffect, useMemo, useRef } from "react";
@@ -177,7 +178,15 @@ function ShadeFabric({ dark }: { dark: boolean }) {
  * backward across the whole traverse after it moved away from x=0. Keep a
  * real target in the same lamp group so the cone remains directly beneath
  * the shade at every world position and yaw. */
-function FloorLampSpot({ dark, visible }: { dark: boolean; visible: boolean }) {
+function FloorLampSpot({
+  dark,
+  visible,
+  unitIndex,
+}: {
+  dark: boolean;
+  visible: boolean;
+  unitIndex: number;
+}) {
   const light = useRef<THREE.SpotLight>(null);
   const target = useRef<THREE.Object3D>(null);
   useEffect(() => {
@@ -189,6 +198,7 @@ function FloorLampSpot({ dark, visible }: { dark: boolean; visible: boolean }) {
       <spotLight
         ref={light}
         visible={visible}
+        userData={sceneUnitLightUserData(unitIndex)}
         position={[0, SHADE_BOTTOM_Y - 0.017, 0]}
         color="#ffbe73"
         intensity={dark ? 10 : 5.6}
@@ -216,9 +226,10 @@ function FloorLampRealLights({
   const visible = useUnitRealLights(unitIndex);
   return (
     <>
-      <FloorLampSpot dark={dark} visible={visible} />
+      <FloorLampSpot dark={dark} visible={visible} unitIndex={unitIndex} />
       <pointLight
         visible={visible}
+        userData={sceneUnitLightUserData(unitIndex)}
         position={[0, SHADE_TOP_Y + 0.073, 0]}
         color="#ffcf96"
         intensity={dark ? 2 : 1}
@@ -227,6 +238,7 @@ function FloorLampRealLights({
       />
       <pointLight
         visible={visible}
+        userData={sceneUnitLightUserData(unitIndex)}
         position={[0, SHADE_BOTTOM_Y - 0.154, 0]}
         color="#ffcf96"
         intensity={dark ? 3 : 0.75}

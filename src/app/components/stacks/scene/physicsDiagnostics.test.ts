@@ -66,6 +66,35 @@ describe("physics diagnostics", () => {
     expect(controller.getSnapshot().runtime.heldCollisionProbes).toBe(true);
   });
 
+  it("keeps runtime controls and timing measurable in production without verbose diagnostics", () => {
+    const controller = new PhysicsDiagnosticsController("production");
+    const listener = vi.fn();
+    controller.subscribe(listener);
+
+    controller.update({ moduleState: "ready" });
+    controller.publish({ code: "held-safe" });
+    expect(controller.getSnapshot().moduleState).toBe("idle");
+    expect(controller.getSnapshot().events).toHaveLength(0);
+    expect(listener).not.toHaveBeenCalled();
+
+    controller.update({
+      runtime: {
+        ...controller.getSnapshot().runtime,
+        simulation: false,
+      },
+    });
+    expect(controller.getSnapshot().runtime.simulation).toBe(false);
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    controller.recordTiming(3.25, 2.5, 6.75);
+    expect(controller.getTimingSnapshot()).toEqual({
+      frameMs: 3.25,
+      stepMs: 2.5,
+      peakMs: 6.75,
+    });
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
   it("does not wake React subscribers for an unchanged diagnostic patch", () => {
     const controller = new PhysicsDiagnosticsController();
     const listener = vi.fn();

@@ -9,6 +9,37 @@ import {
 } from "./devHooks";
 
 describe("development hook requests", () => {
+  it("replays a cheap HUD hook request without enabling scene instrumentation", async () => {
+    vi.resetModules();
+    const hooks = await import("./devHooks");
+    const install = vi.fn();
+
+    hooks.requestSceneHooks();
+    const unsubscribe = hooks.onSceneHooksRequested(install);
+
+    expect(hooks.sceneHooksRequested()).toBe(true);
+    expect(hooks.devHooksRequested()).toBe(false);
+    expect(install).toHaveBeenCalledTimes(1);
+
+    unsubscribe();
+
+    const reinstall = vi.fn();
+    const unsubscribeReinstall = hooks.onSceneHooksRequested(reinstall);
+
+    expect(reinstall).toHaveBeenCalledTimes(1);
+    expect(hooks.devHooksRequested()).toBe(false);
+    unsubscribeReinstall();
+
+    const fullInstall = vi.fn(() => hooks.devHooksRequested());
+    const unsubscribeFull = hooks.onSceneHooksRequested(fullInstall);
+    fullInstall.mockClear();
+
+    hooks.requestDevHooks();
+
+    expect(fullInstall).toHaveReturnedWith(true);
+    unsubscribeFull();
+  });
+
   it("replays an existing request to late subscribers and allows reinstalls", () => {
     requestDevHooks();
 

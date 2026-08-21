@@ -644,7 +644,7 @@ describe("scene quality policy", () => {
         cssHeight: 844,
         deviceDpr: 3,
       }),
-    ).toBe("stacks-quality:v9:constrained:small");
+    ).toBe("stacks-quality:v10:constrained:small");
   });
 });
 
@@ -879,6 +879,20 @@ describe("constraint classification", () => {
   it("calls a window with a cheap main thread and late frames GPU-bound", () => {
     const metrics = summariseSceneFrameWindow(steadyStream(24, 4));
     expect(classifySceneFrameConstraint(metrics!)).toBe("gpu");
+  });
+
+  it("does not infer GPU pressure when the same window has a CPU-bound tail", () => {
+    const mixed = {
+      p50: 24,
+      p95: 47,
+      droppedFrameRatio: 0.3,
+      cpuP50: 6,
+      cpuMs: 13,
+    };
+    expect(classifySceneFrameConstraint({ ...mixed, gpuMs: null })).toBe(
+      "unknown",
+    );
+    expect(classifySceneFrameConstraint({ ...mixed, gpuMs: 47 })).toBe("gpu");
   });
 
   it("calls a window with a cheap main thread and almost no drops headroom", () => {

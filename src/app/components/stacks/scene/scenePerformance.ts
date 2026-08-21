@@ -10,6 +10,12 @@ export type ScenePerformanceSettings = Readonly<{
   suspendSettledPropWork: boolean;
   /** Keep best-effort decoding/compilation from competing with a traverse. */
   pausePrewarmDuringTravel: boolean;
+  /** Mount every role-sized unit visual before interaction so its textures,
+   * materials, and geometry can be initialized behind the boot screen. */
+  prewarmAllUnitVisuals: boolean;
+  /** Add zero-intensity lights only as needed to keep the nearby-light shader
+   * at one bounded point/spot count while the active shelf changes. */
+  stableNeighborhoodLightShape: boolean;
   /** Expose real lights only for the active unit and its immediate neighbours.
    * Emissive fixture geometry and analytic meadow pools remain unchanged. */
   activeNeighborhoodLights: boolean;
@@ -48,6 +54,8 @@ export const DEFAULT_SCENE_PERFORMANCE_SETTINGS: ScenePerformanceSettings =
   Object.freeze({
     suspendSettledPropWork: true,
     pausePrewarmDuringTravel: true,
+    prewarmAllUnitVisuals: true,
+    stableNeighborhoodLightShape: true,
     activeNeighborhoodLights: true,
     simplifiedFarMeadow: true,
     placardGlassMode: "native",
@@ -69,6 +77,8 @@ export function allScenePerformanceSettings(
   return {
     suspendSettledPropWork: enabled,
     pausePrewarmDuringTravel: enabled,
+    prewarmAllUnitVisuals: enabled,
+    stableNeighborhoodLightShape: enabled,
     activeNeighborhoodLights: enabled,
     simplifiedFarMeadow: enabled,
     placardGlassMode: enabled ? "paper" : "native",

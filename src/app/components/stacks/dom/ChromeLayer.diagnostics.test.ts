@@ -13,6 +13,10 @@ const chromeSource = fs.readFileSync(
   new URL("./ChromeLayer.tsx", import.meta.url),
   "utf8",
 );
+const canvasSource = fs.readFileSync(
+  new URL("../StacksCanvas.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("development diagnostics chrome", () => {
   it("uses one diagnostics drawer instead of separate perch and physics drawers", () => {
@@ -142,6 +146,13 @@ describe("development diagnostics chrome", () => {
     expect(diagnosticsSource).toContain("strongestSignals");
   });
 
+  it("downloads the cheap automatic-quality decision log after a device run", () => {
+    expect(diagnosticsSource).toContain("Download quality log");
+    expect(diagnosticsSource).toContain(
+      'window.__stacks?.qualityLog("download")',
+    );
+  });
+
   it("edits the live meadow wind strength and animation speed", () => {
     expect(diagnosticsSource).toContain(
       "meadowDiagnosticsController.subscribe",
@@ -255,6 +266,9 @@ describe("production diagnostics activation", () => {
     );
     expect(requestInitializer).toContain("initiallyOpen: false");
     expect(requestInitializer).not.toContain("requestDevHooks()");
+    expect(chromeSource).toContain("requestSceneHooks()");
+    expect(canvasSource).toContain("onSceneHooksRequested(() => {");
+    expect(canvasSource).toContain("installDevHooks();");
     expect(diagnosticsSource).toContain("requestDevHooks()");
   });
 
@@ -268,7 +282,7 @@ describe("production diagnostics activation", () => {
 
   it("loads a production HUD without requesting expensive scene probes", () => {
     const hudBranch = chromeSource.slice(
-      chromeSource.indexOf('queryMode === "hud"'),
+      chromeSource.indexOf('if (queryMode === "hud" && request === null)'),
       chromeSource.indexOf("if (request) return"),
     );
 

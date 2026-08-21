@@ -25,6 +25,7 @@ import {
 import { registerSceneInteraction } from "./interactionRegistry";
 import PropLink, { type PropDestination } from "./links";
 import { MOTH_LIGHT_PROFILES, registerMeadowLamp } from "./meadowLights";
+import { sceneUnitLightUserData } from "./sceneGpuPrewarm";
 import {
   practicalGlowHaloEnabled,
   practicalGlowSpriteEnabled,
@@ -1119,6 +1120,7 @@ export function ShelfLight({
   /** Adds ONE pointLight. Budgeted at one per unit, not one per shelf. */
   cast = false,
   realLightVisible = true,
+  lightUnitIndex,
   /** Scales the emissive, the glow and the light together. */
   intensity = 1,
 }: {
@@ -1130,6 +1132,7 @@ export function ShelfLight({
   z?: number;
   cast?: boolean;
   realLightVisible?: boolean;
+  lightUnitIndex?: number;
   intensity?: number;
 }) {
   const back = form === "back";
@@ -1207,6 +1210,11 @@ export function ShelfLight({
       {cast && (
         <pointLight
           visible={realLightVisible}
+          userData={
+            lightUnitIndex === undefined
+              ? undefined
+              : sceneUnitLightUserData(lightUnitIndex)
+          }
           position={[0, back ? y + 0.06 : y - 0.06, zz + 0.14]}
           color={FIXTURE_GLOW}
           intensity={lamp}
@@ -1385,6 +1393,7 @@ export function ShelfUnit({
         palette={palette}
         cast
         realLightVisible={toneSeed === undefined || unitRealLights}
+        lightUnitIndex={toneSeed}
       />
       <ShelfLight
         y={SHELF_UNDERSIDE.lower}
@@ -1903,6 +1912,7 @@ export function LampGlow({
   spillScale = 1,
   meadowId,
   realLights = true,
+  unitIndex,
 }: {
   palette: Palette;
   litRef?: { current: number };
@@ -1929,6 +1939,8 @@ export function LampGlow({
    * and moth volume remain mounted, so distant shelves lose no source
    * geometry. */
   realLights?: boolean;
+  /** Owning shelf stop for bounded shader-variant warm-up. */
+  unitIndex?: number;
 }) {
   const spotRef = useRef<THREE.SpotLight>(null);
   const targetRef = useRef<THREE.Object3D>(null);
@@ -2023,6 +2035,11 @@ export function LampGlow({
       <spotLight
         ref={spotRef}
         visible={realLights}
+        userData={
+          unitIndex === undefined
+            ? undefined
+            : sceneUnitLightUserData(unitIndex)
+        }
         position={along(-0.005)}
         color="#ffbe73"
         intensity={day ? 5.6 : 4.8}
@@ -2048,6 +2065,11 @@ export function LampGlow({
           blown speck. */}
       <pointLight
         visible={realLights}
+        userData={
+          unitIndex === undefined
+            ? undefined
+            : sceneUnitLightUserData(unitIndex)
+        }
         position={along(0.05)}
         color="#ffcf96"
         intensity={(day ? 0.82 : 0.66) * spillScale}
@@ -2059,6 +2081,11 @@ export function LampGlow({
           a lit lamp, which is the one thing a real desk lamp never does. */}
       <pointLight
         visible={realLights}
+        userData={
+          unitIndex === undefined
+            ? undefined
+            : sceneUnitLightUserData(unitIndex)
+        }
         position={along(0.16)}
         color="#ffbe73"
         intensity={(day ? 1.32 : 1.06) * spillScale}

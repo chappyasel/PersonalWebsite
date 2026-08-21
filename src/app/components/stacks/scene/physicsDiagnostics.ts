@@ -128,9 +128,13 @@ export function physicsDiagnosticsEnabled(environment = process.env.NODE_ENV) {
 
 export class PhysicsDiagnosticsController {
   private snapshot: PhysicsDiagnosticsSnapshot = INITIAL;
+  private readonly liveTiming: PhysicsTiming = { ...INITIAL.timing };
   private listeners = new Set<() => void>();
 
+  constructor(private readonly environment = process.env.NODE_ENV) {}
+
   readonly getSnapshot = () => this.snapshot;
+  readonly getTimingSnapshot = () => this.liveTiming;
 
   readonly subscribe = (listener: () => void) => {
     this.listeners.add(listener);
@@ -138,7 +142,10 @@ export class PhysicsDiagnosticsController {
   };
 
   update(patch: Partial<PhysicsDiagnosticsSnapshot>) {
-    if (!physicsDiagnosticsEnabled()) return;
+    const runtimeOnly =
+      Object.keys(patch).length > 0 &&
+      Object.keys(patch).every((key) => key === "runtime");
+    if (!physicsDiagnosticsEnabled(this.environment) && !runtimeOnly) return;
     if (
       Object.entries(patch).every(([key, value]) =>
         Object.is(
@@ -152,8 +159,16 @@ export class PhysicsDiagnosticsController {
     for (const listener of this.listeners) listener();
   }
 
+  /** Keep per-frame cost available to the performance trace without waking
+   * diagnostics subscribers or enabling verbose production instrumentation. */
+  recordTiming(frameMs: number, stepMs: number, peakMs: number) {
+    this.liveTiming.frameMs = frameMs;
+    this.liveTiming.stepMs = stepMs;
+    this.liveTiming.peakMs = peakMs;
+  }
+
   publish(event: Omit<PhysicsDiagnosticEvent, "at">) {
-    if (!physicsDiagnosticsEnabled()) return;
+    if (!physicsDiagnosticsEnabled(this.environment)) return;
     this.update({
       events: [...this.snapshot.events, { ...event, at: Date.now() }].slice(
         -24,
@@ -163,6 +178,7 @@ export class PhysicsDiagnosticsController {
 
   reset() {
     this.snapshot = INITIAL;
+    this.recordTiming(0, 0, 0);
     for (const listener of this.listeners) listener();
   }
 }

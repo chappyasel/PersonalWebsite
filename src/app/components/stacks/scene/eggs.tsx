@@ -316,6 +316,7 @@ export function EggLamp({
           // the reach has to be scaled by hand or a bigger lamp lights a
           // smaller pool.
           <LampGlow
+            unitIndex={unitIndex}
             palette={palette}
             litRef={lit}
             reach={scale}

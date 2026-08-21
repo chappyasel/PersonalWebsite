@@ -825,14 +825,23 @@ export const QUALITY_DOWNGRADE_DROP_IMPROVEMENT = 0.03;
 // v8 allowed live frame windows to change the renderer-capability bucket.
 // Oscillation between buckets could restore alternating full and floor axis
 // triples, and either polluted entry would otherwise survive the fix.
-const QUALITY_STORAGE_VERSION = 9;
+//
+// v9 accepted a lower p95 as proof that an inferred-GPU resolution cut helped
+// even when median cadence stayed at 35–40 FPS. A transient Safari cadence
+// loss could therefore persist an unnecessarily blurred resolution floor.
+const QUALITY_STORAGE_VERSION = 10;
 
 export type SceneQualityMetrics = Readonly<{
   targetFrameMs: number;
   targetHz: number;
+  /** Mean cadence over the same retained frames as every other HUD metric. */
+  fps?: number;
   p95: number;
   droppedFrameRatio: number;
   sampleCount: number;
+  /** Elapsed wall time represented by a production sampler window. Optional
+   * for deterministic policy fixtures that provide already-aggregated data. */
+  windowMs?: number;
   /** 95th percentile main-thread milliseconds per frame, aggregated over the
    * same window as `p95` so the two terms stay comparable. */
   cpuMs: number;
@@ -1146,9 +1155,12 @@ export function summariseSceneFrameWindow(
   if (frames.length < 2) return null;
   const sorted = frames.map((frame) => frame.ms).sort((a, b) => a - b);
   const sortedCpu = frames.map((frame) => frame.cpuMs).sort((a, b) => a - b);
+  const meanFrameMs =
+    frames.reduce((total, frame) => total + frame.ms, 0) / frames.length;
   return {
     targetFrameMs: SCENE_FRAME_BUDGET_MS,
     targetHz: SCENE_FRAME_BUDGET_HZ,
+    fps: 1_000 / meanFrameMs,
     p95: percentileOf(sorted, 0.95),
     droppedFrameRatio:
       sorted.filter(
@@ -1212,6 +1224,11 @@ export function classifySceneFrameConstraint(
   // it outranks the interval so scheduler stalls are not blamed on pixels.
   const gpuPressure =
     gpuMs == null ? sustainedLate : gpuMs > QUALITY_GPU_BOUND_P95_MS;
+  // A cheap median does not clear the main thread of a slow tail. Without a
+  // timer query, calling that mixed window GPU-bound would spend pixels to
+  // answer p95 stalls whose own CPU cost already crosses the CPU-pressure
+  // line. A measured GPU result remains direct evidence and keeps precedence.
+  if (gpuMs == null && cpuMs > QUALITY_CPU_BOUND_MS) return "unknown";
   if (sustainedCpuMs < QUALITY_GPU_BOUND_CPU_MS && gpuPressure) return "gpu";
 
   // Room to spare is a question about COST, for the same reason. An interval

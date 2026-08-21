@@ -47,7 +47,14 @@ const DENSITY = 90;
 const COM_FRACTION = 0.35;
 const DEFAULT_MAX_THROW = 4;
 const TUMBLE = 0.9;
+const SHOCKWAVE_MAX_SPEED = 2.4;
+const SHOCKWAVE_TOPPLE_SPEED = 6.2;
 const MIN_EXTENT = 0.008;
+/** Cannon has no continuous collision detection. Bodies thinner than this
+ * moving more than a metre per second need a smaller step so one integration
+ * cannot cross an authored shelf plank before the narrowphase sees contact. */
+const THIN_BODY_CCD_EXTENT = 0.03;
+const THIN_BODY_CCD_SPEED = 1;
 const SPHERICITY = 1.18;
 const BALL_LINEAR_DAMPING = 0.05;
 const BALL_ANGULAR_DAMPING = 0.9;
@@ -56,6 +63,16 @@ const OFFSCREEN_RESET_SECONDS = 1;
 const SETTLED_SLEEP_SECONDS = 0.5;
 const SETTLED_LINEAR_SPEED = 0.02;
 const SETTLED_ANGULAR_SPEED = 0.08;
+
+/** Keep collision accuracy independent from renderer cadence without allowing
+ * a late frame to schedule an unbounded solver catch-up. A fast thin body gets
+ * two half-size steps; every other body retains the ordinary 60 Hz step. */
+export function freeBodyStepPolicy(thinFastBody: boolean) {
+  return {
+    fixedStep: thinFastBody ? 1 / 120 : 1 / 60,
+    maxSubSteps: 2,
+  } as const;
+}
 const SAFETY_HORIZONTAL_MARGIN = 8;
 const SOLVER_ITERATIONS = 20;
 // Cannon's default contact correction is springy enough to launch a prop back
@@ -1353,6 +1370,39 @@ export class ScenePhysicsWorld {
     return true;
   }
 
+  /** Wake a parked prop with a mass-aware world-space impulse. Unlike a hand
+   * release, the hit lands above the centre of mass and guarantees enough
+   * angular speed for a standing plaque or medallion to topple visibly. */
+  knock(handle: ShelfHandle, requestedWorldVelocity: THREE.Vector3): boolean {
+    const worldVelocity = requestedWorldVelocity.clone();
+    if (worldVelocity.length() > SHOCKWAVE_MAX_SPEED)
+      worldVelocity.setLength(SHOCKWAVE_MAX_SPEED);
+    if (!this.release(handle, new THREE.Vector3())) return false;
+    const body = handle.body;
+    if (!body) return false;
+    const contactHeight = Math.max(
+      0.04,
+      (handle.smallestExtent ?? 0.12) * 0.45,
+    );
+    body.applyImpulse(
+      new this.C.Vec3(
+        worldVelocity.x * body.mass,
+        worldVelocity.y * body.mass,
+        worldVelocity.z * body.mass,
+      ),
+      new this.C.Vec3(0, contactHeight, 0),
+    );
+    const horizontal = Math.hypot(worldVelocity.x, worldVelocity.z);
+    if (horizontal > 1e-5) {
+      body.angularVelocity.x +=
+        (worldVelocity.z / horizontal) * SHOCKWAVE_TOPPLE_SPEED;
+      body.angularVelocity.z -=
+        (worldVelocity.x / horizontal) * SHOCKWAVE_TOPPLE_SPEED;
+    }
+    body.wakeUp();
+    return true;
+  }
+
   park(handle: ShelfHandle, snapVisual = false) {
     const body = handle.body;
     if (!body || !handle.com) return;
@@ -1444,7 +1494,17 @@ export class ScenePhysicsWorld {
     }
     const stepStarted =
       typeof performance === "undefined" ? Date.now() : performance.now();
-    if (live && runtime.simulation) this.world.step(1 / 60, delta, 4);
+    const thinFastBody = this.handles.some(
+      (handle) =>
+        handle.phase.current === "sim" &&
+        (handle.smallestExtent ?? Number.POSITIVE_INFINITY) <=
+          THIN_BODY_CCD_EXTENT &&
+        (handle.body?.velocity.length() ?? 0) >= THIN_BODY_CCD_SPEED,
+    );
+    if (live && runtime.simulation) {
+      const step = freeBodyStepPolicy(thinFastBody);
+      this.world.step(step.fixedStep, delta, step.maxSubSteps);
+    }
     const stepFinished =
       typeof performance === "undefined" ? Date.now() : performance.now();
     if (live && runtime.simulation) this.updateMeadowTrails(delta);
@@ -1509,12 +1569,14 @@ export class ScenePhysicsWorld {
     const finished =
       typeof performance === "undefined" ? Date.now() : performance.now();
     const frameMs = finished - started;
+    const stepMs = stepFinished - stepStarted;
     this.timingPeak = Math.max(this.timingPeak, frameMs);
+    physicsDiagnosticsController.recordTiming(frameMs, stepMs, this.timingPeak);
     if (finished - this.lastTimingPublish >= 500) {
       physicsDiagnosticsController.update({
         timing: {
           frameMs,
-          stepMs: stepFinished - stepStarted,
+          stepMs,
           peakMs: this.timingPeak,
         },
       });

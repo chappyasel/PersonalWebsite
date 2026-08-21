@@ -47,7 +47,6 @@ export type SceneQualityControlSnapshot = Readonly<{
   cinematicPlus: boolean;
   frozen: boolean;
   resetRequest: number;
-  runtime: SceneQualityRuntimeSnapshot | null;
   /** Manual pin for the resolution axis, 0 to 11, or null to let the
    * controller drive it. Pinning is how you compare two render scales
    * without waiting for the ladder to walk between them. */
@@ -66,18 +65,24 @@ class SceneQualityController {
     cinematicPlus: false,
     frozen: false,
     resetRequest: 0,
-    runtime: null,
     resolutionStep: null,
     resolutionCeiling: null,
     depthOfFieldBokehMultiplier: null,
     depthOfFieldResolutionScale: null,
   };
+  private runtime: SceneQualityRuntimeSnapshot | null = null;
   private listeners = new Set<() => void>();
+  private runtimeListeners = new Set<() => void>();
 
   readonly getSnapshot = () => this.snapshot;
   readonly subscribe = (listener: () => void) => {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  };
+  readonly getRuntimeSnapshot = () => this.runtime;
+  readonly subscribeRuntime = (listener: () => void) => {
+    this.runtimeListeners.add(listener);
+    return () => this.runtimeListeners.delete(listener);
   };
 
   private publish(next: SceneQualityControlSnapshot) {
@@ -171,7 +176,8 @@ class SceneQualityController {
   }
 
   publishRuntime(runtime: SceneQualityRuntimeSnapshot) {
-    this.publish({ ...this.snapshot, runtime });
+    this.runtime = runtime;
+    for (const listener of this.runtimeListeners) listener();
   }
 
   /** Manual controls are deliberately session-local and reset on reload. */
@@ -181,12 +187,12 @@ class SceneQualityController {
       cinematicPlus: false,
       frozen: false,
       resetRequest: 0,
-      runtime: null,
       resolutionStep: null,
       resolutionCeiling: null,
       depthOfFieldBokehMultiplier: null,
       depthOfFieldResolutionScale: null,
     };
+    this.runtime = null;
   }
 }
 
@@ -197,5 +203,18 @@ export function useSceneQualityControls() {
     sceneQualityController.subscribe,
     sceneQualityController.getSnapshot,
     sceneQualityController.getSnapshot,
+  );
+}
+
+/** Runtime metrics update four times per second. Keep them on a diagnostics-
+ * only channel so publishing a new sample cannot wake every scene component
+ * that subscribes to the much colder live-control state. */
+const subscribeToNothing = () => () => undefined;
+
+export function useSceneQualityRuntime(enabled = true) {
+  return useSyncExternalStore(
+    enabled ? sceneQualityController.subscribeRuntime : subscribeToNothing,
+    sceneQualityController.getRuntimeSnapshot,
+    sceneQualityController.getRuntimeSnapshot,
   );
 }

@@ -1,5 +1,6 @@
 import {
   QUALITY_SAMPLE_WINDOW_MS,
+  QUALITY_SUSTAINED_FRAME_P50_MULTIPLIER,
   QUALITY_TRAVEL_VALIDATION_MS,
   SCENE_CONTENT_TIERS,
   SCENE_EFFECTS_TIERS,
@@ -87,6 +88,9 @@ export const QUALITY_BOOT_GUARD_MS = 10_000;
  * move never produces the improvement the block waits for, and a change that
  * did not help is precisely the signal to try the next lever. */
 export const QUALITY_AXIS_BLOCK_MS = QUALITY_SAMPLE_WINDOW_MS * 2;
+/** Production windows may miss one sampling interval at either edge without
+ * becoming a cold-start fragment. */
+export const QUALITY_MIN_SAMPLE_WINDOW_MS = QUALITY_SAMPLE_WINDOW_MS * 0.9;
 
 export const QUALITY_TRAVEL_RESOLUTION_DROP_STEPS = 2;
 /** A travel is over budget on the same dropped-frame test the rest budget
@@ -99,6 +103,7 @@ export const QUALITY_TRAVEL_OVER_BUDGET_LIMIT = 3;
  * are the thresholds the existing decline-baseline guard already uses. */
 export const QUALITY_AXIS_P95_IMPROVEMENT_RATIO = 0.9;
 export const QUALITY_AXIS_DROP_IMPROVEMENT = 0.03;
+export const QUALITY_AXIS_P50_IMPROVEMENT_RATIO = 0.9;
 /** Severe pressure overrides the one-axis-at-a-time block, because waiting
  * for proof is a luxury a scene this far behind cannot afford. */
 export const QUALITY_SEVERE_P95_MULTIPLIER = 1.75;
@@ -125,6 +130,75 @@ export type QualityAxisChange = Readonly<{
     | "deferred";
 }>;
 
+export const QUALITY_TRANSITION_JOURNAL_LIMIT = 16;
+export const QUALITY_LIFECYCLE_JOURNAL_LIMIT = 16;
+
+export type SceneQualityLifecycleEvent =
+  | Readonly<{
+      type:
+        | "booted"
+        | "visibility-hidden"
+        | "visibility-visible"
+        | "travel-start";
+      at: number;
+    }>
+  | Readonly<{
+      type: "travel-end";
+      at: number;
+      frames: Readonly<{ total: number; late: number }>;
+    }>;
+
+export type SceneQualityTransitionMetrics = Readonly<{
+  targetFrameMs: number;
+  sampleCount: number;
+  windowMs: number | null;
+  p50: number | null;
+  p95: number;
+  droppedFrameRatio: number;
+  cpuP50: number | null;
+  cpuMs: number;
+  gpuMs: number | null;
+  constraint: SceneFrameConstraint;
+}>;
+
+export type SceneQualityTransitionReason =
+  | "sample-pressure"
+  | "travel-borrow"
+  | "travel-repay"
+  | "travel-budget"
+  | "deferred"
+  | "strict-headroom"
+  | "restore"
+  | "force"
+  | "unattributed";
+
+type SceneQualityTransitionBase = Readonly<{
+  at: number;
+  direction: "down" | "up";
+  reason: SceneQualityTransitionReason;
+  metrics: SceneQualityTransitionMetrics | null;
+}>;
+
+export type SceneQualityTransition =
+  | (SceneQualityTransitionBase &
+      Readonly<{
+        axis: "resolution";
+        fromValue: number;
+        toValue: number;
+      }>)
+  | (SceneQualityTransitionBase &
+      Readonly<{
+        axis: "effects";
+        fromValue: SceneEffectsTier;
+        toValue: SceneEffectsTier;
+      }>)
+  | (SceneQualityTransitionBase &
+      Readonly<{
+        axis: "content";
+        fromValue: SceneContentTier;
+        toValue: SceneContentTier;
+      }>);
+
 export type SceneQualityAxisState = Readonly<{
   axes: SceneQualityAxes;
   /** Pinned tiers when a preset is forced. Resolution stays free. */
@@ -136,6 +210,9 @@ export type SceneQualityAxisState = Readonly<{
   consecutiveOverBudgetTravels: number;
   /** Set when travel ends; sampling resumes as evidence only after it. */
   settledAt: number | null;
+  /** Earliest wall-clock time at which fresh foreground samples may act.
+   * Null means the document is suspended and all samples are blocked. */
+  foregroundReadyAt: number | null;
   /** When each axis last moved. An axis must re-earn its full sustain before
    * moving again, which is what paces one axis without freezing the others. */
   axisChangedAt: Readonly<Record<QualityAxisName, number>>;
@@ -160,8 +237,12 @@ export type SceneQualityAxisState = Readonly<{
   pendingBaselineExpiresAt: number | null;
   lastChange: QualityAxisChange | null;
   /** Consecutive resolution steps that expired their block without improving
-   * anything. Reset by any improvement, and by a rise. */
+   * the descent as a whole. Reset only by a rise or an explicit baseline. */
   unhelpfulResolutionSteps: number;
+  /** Metrics immediately before an inferred-GPU resolution descent began.
+   * Comparing every cut only with its predecessor lets small local gains form
+   * an unbounded staircase even when the full descent never fixes the tail. */
+  resolutionDescentAnchor: SceneQualityMetrics | null;
   /** At most one deferred content request. A deferral is a delayed decision,
    * not a promise: a later request replaces it, and it is discarded if the
    * classification that produced it no longer holds. */
@@ -178,6 +259,18 @@ export type SceneQualityAxisState = Readonly<{
    * offers an improved window is exactly the device that needs to keep
    * degrading, so the guard must not be able to pin it after one step. */
   bootGuardExpiresAt: number | null;
+  /** Bounded, production-safe decision history. Appended only when an axis
+   * changes, so observing Auto adds no per-frame measurement work. */
+  transitions: readonly SceneQualityTransition[];
+  /** Bounded non-axis boundaries needed to interpret foreground and travel
+   * evidence without enabling the expensive trace recorder. */
+  lifecycle: readonly SceneQualityLifecycleEvent[];
+  /** Fresh evidence that accepted the current axis triple for persistence. */
+  validation: Readonly<{
+    at: number;
+    reason: "improved-decline" | "acceptable-pacing";
+    metrics: SceneQualityMetrics;
+  }> | null;
 }>;
 
 const tierIndex = <T extends string>(tiers: readonly T[], value: T) =>
@@ -245,6 +338,7 @@ export function initialSceneQualityAxisState(
   now: number,
   forced: SceneQualityProfile | null = null,
   resolutionStep = SCENE_RESOLUTION_MAX_STEP,
+  documentVisible = true,
 ): SceneQualityAxisState {
   return {
     axes: {
@@ -257,6 +351,9 @@ export function initialSceneQualityAxisState(
     travelFrames: { total: 0, late: 0 },
     consecutiveOverBudgetTravels: 0,
     settledAt: null,
+    foregroundReadyAt: documentVisible
+      ? now + QUALITY_TRAVEL_VALIDATION_MS
+      : null,
     axisChangedAt: { resolution: now, effects: now, content: now },
     resolutionRetryAt: null,
     effectsRetryAt: null,
@@ -267,10 +364,14 @@ export function initialSceneQualityAxisState(
     pendingBaselineExpiresAt: null,
     lastChange: null,
     unhelpfulResolutionSteps: 0,
+    resolutionDescentAnchor: null,
     deferredContent: null,
     booted: false,
     bootDeclineGuard: true,
     bootGuardExpiresAt: null,
+    transitions: [],
+    lifecycle: [],
+    validation: null,
   };
 }
 
@@ -301,6 +402,8 @@ export type SceneQualityAxisEvent =
       profile: SceneQualityProfile | null;
     }>
   | Readonly<{ type: "restore"; now: number; axes: SceneQualityAxes }>
+  | Readonly<{ type: "visibility-hidden"; now: number }>
+  | Readonly<{ type: "visibility-visible"; now: number }>
   /** Every boot precondition has been met: the reveal completed, the shader
    * precompile returned, and the first settled window after initial camera
    * placement passed travel validation. */
@@ -318,6 +421,29 @@ const improvedOver = (
   baseline.droppedFrameRatio - metrics.droppedFrameRatio >=
     QUALITY_AXIS_DROP_IMPROVEMENT;
 
+/** Safari commonly exposes no timer query, so a cheap CPU plus late RAF is
+ * only circumstantial GPU evidence. When the median itself is late, lowering
+ * resolution has to improve that median (or restore the accepted cadence),
+ * not merely trim a few tail frames while the page stays at 35–40 FPS. */
+const improvedInferredGpuCut = (
+  metrics: SceneQualityMetrics,
+  baseline: SceneQualityMetrics,
+) => {
+  const baselineP50 = baseline.p50;
+  if (
+    baselineP50 == null ||
+    baselineP50 <=
+      baseline.targetFrameMs * QUALITY_SUSTAINED_FRAME_P50_MULTIPLIER
+  )
+    return improvedOver(metrics, baseline);
+  const p50 = metrics.p50;
+  return (
+    p50 != null &&
+    (p50 <= metrics.targetFrameMs * QUALITY_SUSTAINED_FRAME_P50_MULTIPLIER ||
+      p50 <= baselineP50 * QUALITY_AXIS_P50_IMPROVEMENT_RATIO)
+  );
+};
+
 /** Clocks advance only while their classification holds; anything else stops
  * them. `sustainedFor` reads how long the current run has lasted. */
 const sustainedFor = (since: number | null, now: number) =>
@@ -328,13 +454,17 @@ function withClocks(
   constraint: SceneFrameConstraint,
   now: number,
 ): SceneQualityAxisState {
-  return {
-    ...state,
-    gpuSince: constraint === "gpu" ? (state.gpuSince ?? now) : null,
-    cpuSince: constraint === "cpu" ? (state.cpuSince ?? now) : null,
-    headroomSince:
-      constraint === "headroom" ? (state.headroomSince ?? now) : null,
-  };
+  const gpuSince = constraint === "gpu" ? (state.gpuSince ?? now) : null;
+  const cpuSince = constraint === "cpu" ? (state.cpuSince ?? now) : null;
+  const headroomSince =
+    constraint === "headroom" ? (state.headroomSince ?? now) : null;
+  if (
+    gpuSince === state.gpuSince &&
+    cpuSince === state.cpuSince &&
+    headroomSince === state.headroomSince
+  )
+    return state;
+  return { ...state, gpuSince, cpuSince, headroomSince };
 }
 
 /** Reset every classification run. Used when the evidence stops applying at
@@ -367,11 +497,36 @@ const axisReady = (
   sustainedFor(since, now) >= sustainMs &&
   now - state.axisChangedAt[axis] >= sustainMs;
 
-export function reduceSceneQualityAxes(
+function reduceSceneQualityAxesCore(
   state: SceneQualityAxisState,
   event: SceneQualityAxisEvent,
 ): SceneQualityAxisState {
   switch (event.type) {
+    case "visibility-hidden":
+      return {
+        ...state,
+        foregroundReadyAt: null,
+        pendingBaseline: null,
+        pendingBaselineExpiresAt: null,
+        deferredContent: null,
+        validation: null,
+        ...clearedClocks,
+      };
+
+    case "visibility-visible":
+      return {
+        ...state,
+        foregroundReadyAt: event.now + QUALITY_TRAVEL_VALIDATION_MS,
+        pendingBaseline: null,
+        pendingBaselineExpiresAt: null,
+        deferredContent: null,
+        validation: null,
+        bootGuardExpiresAt: state.bootDeclineGuard
+          ? event.now + QUALITY_BOOT_GUARD_MS
+          : state.bootGuardExpiresAt,
+        ...clearedClocks,
+      };
+
     case "restore":
       return {
         ...state,
@@ -384,6 +539,7 @@ export function reduceSceneQualityAxes(
         pendingBaseline: null,
         pendingBaselineExpiresAt: null,
         unhelpfulResolutionSteps: 0,
+        resolutionDescentAnchor: null,
         resolutionRetryAt:
           event.axes.resolutionStep < SCENE_RESOLUTION_MAX_STEP
             ? event.now + QUALITY_RESOLUTION_RETRY_MS
@@ -394,11 +550,22 @@ export function reduceSceneQualityAxes(
             : null,
         deferredContent: null,
         lastChange: null,
+        validation: null,
         ...clearedClocks,
       };
 
     case "force": {
-      if (!event.profile) return { ...state, forced: null };
+      if (!event.profile)
+        return {
+          ...state,
+          forced: null,
+          pendingBaseline: null,
+          pendingBaselineExpiresAt: null,
+          unhelpfulResolutionSteps: 0,
+          resolutionDescentAnchor: null,
+          validation: null,
+          ...clearedClocks,
+        };
       return {
         ...state,
         forced: event.profile,
@@ -409,8 +576,10 @@ export function reduceSceneQualityAxes(
         pendingBaseline: null,
         pendingBaselineExpiresAt: null,
         unhelpfulResolutionSteps: 0,
+        resolutionDescentAnchor: null,
         effectsRetryAt: null,
         deferredContent: null,
+        validation: null,
       };
     }
 
@@ -420,6 +589,7 @@ export function reduceSceneQualityAxes(
         ...state,
         booted: true,
         bootGuardExpiresAt: event.now + QUALITY_BOOT_GUARD_MS,
+        validation: null,
         ...clearedClocks,
         axisChangedAt: {
           resolution: event.now,
@@ -430,6 +600,7 @@ export function reduceSceneQualityAxes(
     }
 
     case "travel-start": {
+      if (state.travelling) return state;
       // Pre-emptive, and deliberately exempt from the dwell and from the
       // cross-axis block: this is a scheduled adjustment to a known event,
       // not a response to measured pressure, so it carries no evidence the
@@ -481,6 +652,7 @@ export function reduceSceneQualityAxes(
         lastChange: moved
           ? { axis: "resolution", direction: "down", reason: "travel-start" }
           : state.lastChange,
+        validation: null,
       };
     }
 
@@ -497,6 +669,7 @@ export function reduceSceneQualityAxes(
     }
 
     case "travel-end": {
+      if (!state.travelling) return state;
       const { total, late } = event.frames ?? state.travelFrames;
       const overBudget =
         total > 0 && late / total > QUALITY_TRAVEL_DROPPED_RATIO;
@@ -510,6 +683,7 @@ export function reduceSceneQualityAxes(
           : 0,
         settledAt: event.now,
         travelFrames: { total: 0, late: 0 },
+        validation: null,
         ...clearedClocks,
       };
     }
@@ -519,9 +693,16 @@ export function reduceSceneQualityAxes(
       const allowResolutionChange = event.allowResolutionChange !== false;
       if (!visible || metrics.sampleCount < 2 || !Number.isFinite(metrics.p95))
         return state;
+      if (
+        metrics.windowMs != null &&
+        metrics.windowMs < QUALITY_MIN_SAMPLE_WINDOW_MS
+      )
+        return state;
       // A cold cache and a warm cache produce very different first seconds.
       // Neither is evidence, so neither is consumed.
       if (!state.booted) return state;
+      if (state.foregroundReadyAt == null || now < state.foregroundReadyAt)
+        return state;
 
       // A window inside travel may lower effects or request a later content
       // change, but it is never rest evidence. Once travel ends, wait until a
@@ -577,6 +758,18 @@ export function reduceSceneQualityAxes(
         }
         return next;
       }
+
+      // A rolling window that still contains frames from before an axis move
+      // cannot judge that move. Wait until the entire two-second window (plus
+      // one sample interval) has naturally been replaced before accepting an
+      // improvement or allowing another axis decision.
+      if (
+        next.pendingBaseline != null &&
+        next.lastChange != null &&
+        now - next.axisChangedAt[next.lastChange.axis] <
+          QUALITY_TRAVEL_VALIDATION_MS
+      )
+        return next;
 
       // A settled window is the readiness test for applying a deferred
       // content change: a measurement question about whether the sample can
@@ -642,13 +835,15 @@ export function reduceSceneQualityAxes(
         next.lastChange.reason === "pressure" &&
         next.pendingBaseline != null;
       if (assessingInferredGpuCut) {
-        if (improvedOver(metrics, next.pendingBaseline!)) {
+        const descentBaseline =
+          next.resolutionDescentAnchor ?? next.pendingBaseline!;
+        if (improvedInferredGpuCut(metrics, descentBaseline)) {
           next = {
             ...next,
             pendingBaseline: null,
             pendingBaselineExpiresAt: null,
-            unhelpfulResolutionSteps: 0,
             bootDeclineGuard: false,
+            validation: { at: now, reason: "improved-decline", metrics },
           };
         } else if (!blockExpired) {
           return next;
@@ -669,11 +864,12 @@ export function reduceSceneQualityAxes(
         if (next.lastChange?.axis === axis && !guarding) return false;
         return !improvedOver(metrics, next.pendingBaseline);
       };
+      const pendingImproved =
+        next.pendingBaseline != null &&
+        improvedOver(metrics, next.pendingBaseline);
       if (
         next.pendingBaseline &&
-        (severeOverrides ||
-          blockExpired ||
-          improvedOver(metrics, next.pendingBaseline))
+        (severeOverrides || blockExpired || pendingImproved)
       )
         // The first decline has now been answered by a later window, so the
         // guard has done its job and normal pacing resumes.
@@ -682,6 +878,9 @@ export function reduceSceneQualityAxes(
           pendingBaseline: null,
           pendingBaselineExpiresAt: null,
           bootDeclineGuard: false,
+          validation: pendingImproved
+            ? { at: now, reason: "improved-decline", metrics }
+            : next.validation,
         };
 
       // Three consecutive over-budget travels earn one content step at rest.
@@ -717,7 +916,8 @@ export function reduceSceneQualityAxes(
         if (next.axes.resolutionStep >= target) {
           next = { ...next, preTravelStep: null };
         } else if (constraint === "gpu") {
-          next = { ...next, preTravelStep: null };
+          // The borrowed steps remain a debt. GPU pressure pauses repayment,
+          // but does not relabel a temporary travel cut as an accepted floor.
         } else if (dwellElapsed) {
           const step = Math.min(target, next.axes.resolutionStep + 1);
           return {
@@ -725,6 +925,8 @@ export function reduceSceneQualityAxes(
             axes: { ...next.axes, resolutionStep: step },
             axisChangedAt: moved(next, "resolution", now),
             preTravelStep: step >= target ? null : target,
+            unhelpfulResolutionSteps: 0,
+            resolutionDescentAnchor: null,
             lastChange: {
               axis: "resolution",
               direction: "up",
@@ -747,7 +949,11 @@ export function reduceSceneQualityAxes(
           // A dwell that has not elapsed defers the whole decision rather
           // than passing the turn to a slower axis: a dwell is a short wait,
           // and spending a visible lever to avoid a short wait is backwards.
-          if (!dwellElapsed) return next;
+          if (
+            !dwellElapsed ||
+            sustainedFor(next.gpuSince, now) < QUALITY_RESOLUTION_DWELL_MS
+          )
+            return next;
           return {
             ...next,
             axes: {
@@ -757,6 +963,10 @@ export function reduceSceneQualityAxes(
             axisChangedAt: moved(next, "resolution", now),
             pendingBaseline: metrics,
             pendingBaselineExpiresAt: now + QUALITY_AXIS_BLOCK_MS,
+            resolutionDescentAnchor:
+              metrics.gpuMs == null
+                ? (next.resolutionDescentAnchor ?? metrics)
+                : next.resolutionDescentAnchor,
             resolutionRetryAt: now + QUALITY_RESOLUTION_RETRY_MS,
             lastChange: {
               axis: "resolution",
@@ -921,6 +1131,7 @@ export function reduceSceneQualityAxes(
             axisChangedAt: moved(next, "resolution", now),
             resolutionRetryAt: null,
             unhelpfulResolutionSteps: 0,
+            resolutionDescentAnchor: null,
             lastChange: {
               axis: "resolution",
               direction: "up",
@@ -928,6 +1139,11 @@ export function reduceSceneQualityAxes(
             },
           };
         }
+        if (next.validation != null) return next;
+        next = {
+          ...next,
+          validation: { at: now, reason: "acceptable-pacing", metrics },
+        };
       }
 
       return next;
@@ -936,4 +1152,164 @@ export function reduceSceneQualityAxes(
     default:
       return state;
   }
+}
+
+function transitionReasonFor(
+  event: SceneQualityAxisEvent,
+  next: SceneQualityAxisState,
+): SceneQualityTransitionReason {
+  if (event.type === "restore") return "restore";
+  if (event.type === "force") return "force";
+  if (event.type === "travel-start") return "travel-borrow";
+  if (event.type !== "sample") return "unattributed";
+
+  switch (next.lastChange?.reason) {
+    case "pressure":
+      return "sample-pressure";
+    case "headroom":
+      return "strict-headroom";
+    case "travel-restore":
+      return "travel-repay";
+    case "travel-budget":
+      return "travel-budget";
+    case "deferred":
+      return "deferred";
+    default:
+      return "unattributed";
+  }
+}
+
+function transitionMetricsFor(
+  event: SceneQualityAxisEvent,
+): SceneQualityTransitionMetrics | null {
+  if (event.type !== "sample") return null;
+  return {
+    targetFrameMs: event.metrics.targetFrameMs,
+    sampleCount: event.metrics.sampleCount,
+    windowMs: event.metrics.windowMs ?? null,
+    p50: event.metrics.p50 ?? null,
+    p95: event.metrics.p95,
+    droppedFrameRatio: event.metrics.droppedFrameRatio,
+    cpuP50: event.metrics.cpuP50 ?? null,
+    cpuMs: event.metrics.cpuMs,
+    gpuMs: event.metrics.gpuMs,
+    constraint: classifySceneFrameConstraint(event.metrics),
+  };
+}
+
+function directionForTier<T extends string>(
+  tiers: readonly T[],
+  fromValue: T,
+  toValue: T,
+): "down" | "up" {
+  return tierIndex(tiers, toValue) < tierIndex(tiers, fromValue)
+    ? "down"
+    : "up";
+}
+
+function transitionsForAxisChanges(
+  before: SceneQualityAxisState,
+  after: SceneQualityAxisState,
+  event: SceneQualityAxisEvent,
+): SceneQualityTransition[] {
+  if (!("now" in event)) return [];
+  const common = {
+    at: event.now,
+    reason: transitionReasonFor(event, after),
+    metrics: transitionMetricsFor(event),
+  } as const;
+  const transitions: SceneQualityTransition[] = [];
+
+  if (before.axes.resolutionStep !== after.axes.resolutionStep) {
+    transitions.push({
+      ...common,
+      axis: "resolution",
+      direction:
+        after.axes.resolutionStep < before.axes.resolutionStep ? "down" : "up",
+      fromValue: before.axes.resolutionStep,
+      toValue: after.axes.resolutionStep,
+    });
+  }
+  if (before.axes.effects !== after.axes.effects) {
+    transitions.push({
+      ...common,
+      axis: "effects",
+      direction: directionForTier(
+        SCENE_EFFECTS_TIERS,
+        before.axes.effects,
+        after.axes.effects,
+      ),
+      fromValue: before.axes.effects,
+      toValue: after.axes.effects,
+    });
+  }
+  if (before.axes.content !== after.axes.content) {
+    transitions.push({
+      ...common,
+      axis: "content",
+      direction: directionForTier(
+        SCENE_CONTENT_TIERS,
+        before.axes.content,
+        after.axes.content,
+      ),
+      fromValue: before.axes.content,
+      toValue: after.axes.content,
+    });
+  }
+
+  return transitions;
+}
+
+function lifecycleForEvent(
+  before: SceneQualityAxisState,
+  after: SceneQualityAxisState,
+  event: SceneQualityAxisEvent,
+): SceneQualityLifecycleEvent | null {
+  if (after === before || !("now" in event)) return null;
+  switch (event.type) {
+    case "booted":
+    case "visibility-hidden":
+    case "visibility-visible":
+    case "travel-start":
+      return { type: event.type, at: event.now };
+    case "travel-end":
+      return {
+        type: "travel-end",
+        at: event.now,
+        frames: { ...(event.frames ?? before.travelFrames) },
+      };
+    default:
+      return null;
+  }
+}
+
+/** Keep policy and observation separate. The core reducer computes the same
+ * next state it always has; this wrapper only records actual axis mutations. */
+export function reduceSceneQualityAxes(
+  state: SceneQualityAxisState,
+  event: SceneQualityAxisEvent,
+): SceneQualityAxisState {
+  const next = reduceSceneQualityAxesCore(state, event);
+  const additions = transitionsForAxisChanges(state, next, event);
+  const accepted =
+    additions.length > 0 && next.validation != null
+      ? { ...next, validation: null }
+      : next;
+  const lifecycle = lifecycleForEvent(state, accepted, event);
+  if (additions.length === 0 && lifecycle == null) return accepted;
+  return {
+    ...accepted,
+    transitions:
+      additions.length === 0
+        ? accepted.transitions
+        : [...(state.transitions ?? []), ...additions].slice(
+            -QUALITY_TRANSITION_JOURNAL_LIMIT,
+          ),
+    lifecycle:
+      lifecycle == null
+        ? accepted.lifecycle
+        : [...(state.lifecycle ?? []), lifecycle].slice(
+            -QUALITY_LIFECYCLE_JOURNAL_LIMIT,
+          ),
+  };
 }

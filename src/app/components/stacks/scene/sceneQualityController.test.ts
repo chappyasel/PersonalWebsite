@@ -5,6 +5,33 @@ import { sceneQualityController } from "./sceneQualityController";
 describe("scene quality debug controller", () => {
   afterEach(() => sceneQualityController.resetControls());
 
+  it("keeps high-frequency runtime telemetry off the scene-control channel", () => {
+    let controlNotifications = 0;
+    let runtimeNotifications = 0;
+    const unsubscribeControls = sceneQualityController.subscribe(() => {
+      controlNotifications += 1;
+    });
+    const unsubscribeRuntime = sceneQualityController.subscribeRuntime(() => {
+      runtimeNotifications += 1;
+    });
+    const runtime = {} as Parameters<
+      typeof sceneQualityController.publishRuntime
+    >[0];
+
+    sceneQualityController.publishRuntime(runtime);
+
+    expect(sceneQualityController.getRuntimeSnapshot()).toBe(runtime);
+    expect(controlNotifications).toBe(0);
+    expect(runtimeNotifications).toBe(1);
+
+    sceneQualityController.setFrozen(true);
+    expect(controlNotifications).toBe(1);
+    expect(runtimeNotifications).toBe(1);
+
+    unsubscribeControls();
+    unsubscribeRuntime();
+  });
+
   it("switches named modes, freezes Auto, and signals learned-profile reset", () => {
     let notifications = 0;
     const unsubscribe = sceneQualityController.subscribe(() => {

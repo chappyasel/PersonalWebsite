@@ -30,6 +30,7 @@ import { type StacksData, UNIT_COUNT } from "./data";
 import TouchInteractionLayer from "./input/TouchInteractionLayer";
 import { useCoarseTouchCapability } from "./input/useCoarseTouchCapability";
 import {
+  assetLoadComplete,
   isWorldRevealed,
   reportAssetLoadState,
   setLoadProgress,
@@ -40,6 +41,7 @@ import Scene from "./scene/Scene";
 import {
   devHooksRequested,
   onDevHooksRequested,
+  onSceneHooksRequested,
   sceneDevHooksRequestedBySearch,
   sceneInstrumentationRequestedBySearch,
 } from "./scene/devHooks";
@@ -59,9 +61,6 @@ import {
 } from "./scene/performanceTrace";
 import { physicsDiagnosticsController } from "./scene/physicsDiagnostics";
 import {
-  QUALITY_PERSIST_STABLE_MS,
-  QUALITY_SAMPLE_INTERVAL_MS,
-  QUALITY_SAMPLE_WINDOW_MS,
   QUALITY_TRAVEL_VALIDATION_MS,
   type RendererCapability,
   SCENE_FRAME_BUDGET_MS,
@@ -78,7 +77,6 @@ import {
   resolveSceneQualityPlan,
   sceneQualityStorageBucket,
   startingProfileForDevice,
-  summariseSceneFrameWindow,
 } from "./scene/quality";
 import {
   QUALITY_RESOLUTION_RETRY_MS,
@@ -88,12 +86,20 @@ import {
   reduceSceneQualityAxes,
   resolutionStepForScale,
 } from "./scene/qualityAxes";
+import { sceneQualityEvidence } from "./scene/qualityEvidence";
 import {
   type LearnedQuality,
   clearLearnedQuality,
   readLearnedQuality,
   writeLearnedQuality,
 } from "./scene/qualityLearning";
+import {
+  type SceneQualityLog,
+  createSceneQualityLog,
+  downloadSceneQualityLog,
+} from "./scene/qualityLog";
+import { sceneQualityPersistenceStatus } from "./scene/qualityPersistence";
+import { createSceneQualitySampler } from "./scene/qualitySampler";
 import { sceneBackdropFor } from "./scene/sceneBackdrop";
 import {
   sceneColorGradeController,
@@ -108,6 +114,12 @@ import {
   readSceneFrameCpuMs,
   takeSceneFrameInstrumented,
 } from "./scene/sceneFrameCost";
+import {
+  prewarmSceneGpuPrograms,
+  prewarmSceneGpuResources,
+  shouldWarmSceneGpuResources,
+} from "./scene/sceneGpuPrewarm";
+import SceneLightShapePadding from "./scene/sceneLightShape";
 import {
   DEFAULT_SCENE_PERFORMANCE_SETTINGS,
   adaptiveSharpenAmount,
@@ -218,6 +230,7 @@ declare global {
         forceNext: (outcome: GolfShotOutcome) => void;
       };
       quality: (value?: SceneQualityMode | number) => Record<string, unknown>;
+      qualityLog: (action?: "snapshot" | "download") => SceneQualityLog;
       measure: (action?: "start" | "stop" | "reset") => Record<string, unknown>;
       trace: (
         action?: "status" | "start" | "stop" | "reset" | "download",
@@ -425,6 +438,51 @@ function installDevHooks() {
       if (value != null) forceQuality?.(value);
       return { ...qualitySnapshot };
     },
+    qualityLog(action = "snapshot") {
+      const context = glRef?.getContext() ?? null;
+      const generatedAt = new Date().toISOString();
+      const memory = (navigator as { deviceMemory?: number }).deviceMemory;
+      const log = createSceneQualityLog({
+        generatedAt,
+        elapsedMs: Number(performance.now().toFixed(1)),
+        visibility: document.visibilityState,
+        queryFlags: [
+          ...new Set(new URLSearchParams(window.location.search).keys()),
+        ],
+        viewport: {
+          width: window.innerWidth,
+          height: window.innerHeight,
+          deviceDpr: window.devicePixelRatio,
+        },
+        device: {
+          userAgent: navigator.userAgent,
+          platform: navigator.platform,
+          hardwareConcurrency: Number.isFinite(navigator.hardwareConcurrency)
+            ? navigator.hardwareConcurrency
+            : null,
+          deviceMemoryGb:
+            typeof memory === "number" && Number.isFinite(memory)
+              ? memory
+              : null,
+        },
+        renderer: {
+          maxTextureSize: glRef?.capabilities.maxTextureSize ?? null,
+          maxSamples:
+            glRef && glRef.capabilities.isWebGL2 && context
+              ? Number(
+                  (context as WebGL2RenderingContext).getParameter(
+                    (context as WebGL2RenderingContext).MAX_SAMPLES,
+                  ),
+                )
+              : null,
+          unmaskedRenderer: context ? readUnmaskedRenderer(context) : null,
+        },
+        evidence: sceneQualityEvidence.snapshot(),
+        quality: { ...qualitySnapshot },
+      });
+      if (action === "download") downloadSceneQualityLog(log);
+      return log;
+    },
     measure(action) {
       if (action === "start") performanceSampler.start();
       if (action === "stop") performanceSampler.stop();
@@ -586,7 +644,6 @@ function PerformanceProbe() {
     markSceneFrameInstrumented();
     if (scenePerformanceTrace.isActive() && !document.hidden) {
       const state = useStacks.getState();
-      const physics = physicsDiagnosticsController.getSnapshot();
       const quality = qualitySnapshot as {
         profile?: unknown;
         effectiveDpr?: unknown;
@@ -610,7 +667,7 @@ function PerformanceProbe() {
           geometries: gl.info.memory.geometries,
           programs: gl.info.programs?.length ?? 0,
         },
-        physicsMs: physics.timing.frameMs,
+        physicsMs: physicsDiagnosticsController.getTimingSnapshot().frameMs,
         cameraYawDeg: Number(
           ((Math.atan2(viewX, -viewZ) * 180) / Math.PI).toFixed(3),
         ),
@@ -669,13 +726,83 @@ function PerformanceTraceObservers() {
  * frame's start; the renderer wrapper closes the measurement at submission. */
 function AdaptiveQualityProbe({
   onSample,
+  onVisibility,
+  recordEvidence,
 }: {
   onSample: (metrics: SceneQualityMetrics, instrumented: boolean) => void;
+  onVisibility: (visible: boolean, now: number) => void;
+  recordEvidence: boolean;
 }) {
-  const frames = useRef<
-    Array<{ at: number; ms: number; cpuMs: number; instrumented: boolean }>
-  >([]);
-  const lastSampleAt = useRef(0);
+  const sampler = useRef<ReturnType<typeof createSceneQualitySampler> | null>(
+    null,
+  );
+  sampler.current ??= createSceneQualitySampler({
+    now: performance.now(),
+    visible: !document.hidden,
+  });
+
+  useEffect(() => {
+    if (recordEvidence) sceneQualityEvidence.reset();
+    const recordLifecycle = (
+      type: Parameters<typeof sceneQualityEvidence.recordLifecycle>[0]["type"],
+      persisted: boolean | null = null,
+    ) =>
+      sceneQualityEvidence.recordLifecycle({
+        at: performance.now(),
+        type,
+        persisted,
+      });
+    const visibility = () => {
+      const now = performance.now();
+      const visible = !document.hidden;
+      if (recordEvidence)
+        sceneQualityEvidence.recordLifecycle({
+          at: now,
+          type: visible ? "visibility-visible" : "visibility-hidden",
+          persisted: null,
+        });
+      sampler.current?.setDocumentVisible(visible, now);
+      onVisibility(visible, now);
+    };
+    const pageShow = (event: PageTransitionEvent) => {
+      if (recordEvidence) recordLifecycle("pageshow", event.persisted);
+      if (!event.persisted) return;
+      const now = performance.now();
+      sampler.current?.resume(now);
+      onVisibility(true, now);
+    };
+    const pageHide = (event: PageTransitionEvent) => {
+      if (recordEvidence) recordLifecycle("pagehide", event.persisted);
+    };
+    const focus = () => {
+      if (recordEvidence) recordLifecycle("window-focus");
+    };
+    const blur = () => {
+      if (recordEvidence) recordLifecycle("window-blur");
+    };
+    const freeze = () => {
+      if (recordEvidence) recordLifecycle("freeze");
+    };
+    const resume = () => {
+      if (recordEvidence) recordLifecycle("resume");
+    };
+    document.addEventListener("visibilitychange", visibility);
+    window.addEventListener("pageshow", pageShow);
+    window.addEventListener("pagehide", pageHide);
+    window.addEventListener("focus", focus);
+    window.addEventListener("blur", blur);
+    document.addEventListener("freeze", freeze);
+    document.addEventListener("resume", resume);
+    return () => {
+      document.removeEventListener("visibilitychange", visibility);
+      window.removeEventListener("pageshow", pageShow);
+      window.removeEventListener("pagehide", pageHide);
+      window.removeEventListener("focus", focus);
+      window.removeEventListener("blur", blur);
+      document.removeEventListener("freeze", freeze);
+      document.removeEventListener("resume", resume);
+    };
+  }, [onVisibility, recordEvidence]);
 
   useFrame((_, delta) => {
     const now = performance.now();
@@ -687,22 +814,14 @@ function AdaptiveQualityProbe({
     // whole overlapping window as untrusted for automatic adaptation.
     const instrumented = takeSceneFrameInstrumented();
     markSceneFrameStart(now);
-    const ms = delta * 1_000;
-    if (!document.hidden && Number.isFinite(ms) && ms > 0 && ms < 1_000)
-      frames.current.push({ at: now, ms, cpuMs, instrumented });
-    while (
-      frames.current.length > 0 &&
-      now - frames.current[0]!.at > QUALITY_SAMPLE_WINDOW_MS
-    )
-      frames.current.shift();
-    if (now - lastSampleAt.current < QUALITY_SAMPLE_INTERVAL_MS) return;
-    lastSampleAt.current = now;
-    const metrics = summariseSceneFrameWindow(frames.current);
-    if (metrics)
-      onSample(
-        metrics,
-        frames.current.some((frame) => frame.instrumented),
-      );
+    const sample = sampler.current!.push({
+      now,
+      frameMs: delta * 1_000,
+      cpuMs,
+      instrumented,
+      visible: !document.hidden,
+    });
+    if (sample) onSample(sample.metrics, sample.instrumented);
   }, -999);
   return null;
 }
@@ -794,60 +913,110 @@ function MovementProbe({
   return null;
 }
 
-/** Idle-compile the scene after each real theme/quality variant is mounted. */
-function ShaderPrewarm({ variant }: { variant: string }) {
+/** Finish each mounted scene variant's one-time GPU work before interaction. */
+function ShaderPrewarm({
+  variant,
+  resourceVariant,
+}: {
+  variant: string;
+  resourceVariant: string;
+}) {
   const { gl, scene, camera } = useThree();
+  const warmedResourceVariant = useRef<string | null>(null);
   useEffect(() => {
+    shaderPrecompileComplete = false;
     let cancelled = false;
     let timeout = 0;
-    let idle = 0;
+    let firstFrame = 0;
+    let secondFrame = 0;
+    const cancelScheduled = () => {
+      window.clearTimeout(timeout);
+      cancelAnimationFrame(firstFrame);
+      cancelAnimationFrame(secondFrame);
+      timeout = 0;
+      firstFrame = 0;
+      secondFrame = 0;
+    };
+    const assetsReady = () => {
+      const { active, loaded, total, errors } = useProgress.getState();
+      return assetLoadComplete({
+        active,
+        loaded,
+        total,
+        errors: errors.length,
+      });
+    };
     const schedule = () => {
       if (cancelled) return;
+      cancelScheduled();
+      if (!assetsReady()) return;
       if (scenePrewarmDeferred()) {
         timeout = window.setTimeout(schedule, 250);
         return;
       }
-      if (idleApi.requestIdleCallback) {
-        idle = idleApi.requestIdleCallback(compile, { timeout: 1800 });
-      } else {
-        timeout = window.setTimeout(compile, 500);
-      }
+      // LoadingManager resolves before React necessarily commits the Suspense
+      // children that consumed the asset. Two frames keep the compile on the
+      // completed graph while remaining inside the boot gate's 250 ms quiet
+      // period. A new loading batch cancels this through the store listener.
+      firstFrame = requestAnimationFrame(() => {
+        secondFrame = requestAnimationFrame(() => {
+          if (cancelled) return;
+          if (!assetsReady()) {
+            schedule();
+            return;
+          }
+          if (scenePrewarmDeferred()) {
+            timeout = window.setTimeout(schedule, 250);
+            return;
+          }
+          // The synchronous offscreen draw is intentional instrumentation:
+          // it is hidden by the boot screen and must never teach Auto that a
+          // normal frame costs the same amount.
+          markSceneFrameInstrumented();
+          try {
+            if (
+              shouldWarmSceneGpuResources(
+                warmedResourceVariant.current,
+                resourceVariant,
+              )
+            ) {
+              prewarmSceneGpuResources({
+                renderer: gl,
+                scene,
+                camera,
+                withUnitRootsVisible: (run) =>
+                  sceneUnitActivityController.withAllRootsVisible(run),
+              });
+              warmedResourceVariant.current = resourceVariant;
+            } else {
+              // Theme, effects, and light-mode changes need every mounted
+              // program shape, not another synchronous upload of resources
+              // that are already resident.
+              prewarmSceneGpuPrograms({
+                renderer: gl,
+                scene,
+                camera,
+                withUnitRootsVisible: (run) =>
+                  sceneUnitActivityController.withAllRootsVisible(run),
+              });
+            }
+          } catch {
+            // Warming is an optimization. A driver that rejects the 1x1 path
+            // must not prevent the already-renderable world from starting.
+          }
+          shaderPrecompileComplete = true;
+        });
+      });
     };
-    const compile = () => {
-      if (cancelled) return;
-      // An idle callback may have been queued before travel began. Re-check at
-      // execution time so compilation cannot land in the middle of a jump.
-      if (scenePrewarmDeferred()) {
-        timeout = window.setTimeout(schedule, 250);
-        return;
-      }
-      try {
-        // Three's compileAsync polling can dereference an absent program on
-        // some WebGL drivers, throwing outside the returned promise. Running
-        // the ordinary compiler during idle keeps prewarming best-effort and
-        // contains every failure in this call stack.
-        gl.compile(scene, camera);
-      } catch {
-        // Compilation remains an optimization. A driver that rejects the
-        // prewarm path must never prevent the already-renderable world.
-      }
-      // Either way the precompile is over, and frames after it are
-      // representative in a way frames during it are not. A driver that threw
-      // still stops the clock: waiting forever on it would mean never grading
-      // the device at all.
-      shaderPrecompileComplete = true;
-    };
-    const idleApi = window as unknown as {
-      requestIdleCallback?: Window["requestIdleCallback"];
-      cancelIdleCallback?: Window["cancelIdleCallback"];
-    };
+    const unsubscribe = useProgress.subscribe(schedule);
     schedule();
     return () => {
       cancelled = true;
-      window.clearTimeout(timeout);
-      if (idle && idleApi.cancelIdleCallback) idleApi.cancelIdleCallback(idle);
+      unsubscribe();
+      cancelScheduled();
+      shaderPrecompileComplete = false;
     };
-  }, [camera, gl, scene, variant]);
+  }, [camera, gl, resourceVariant, scene, variant]);
   return null;
 }
 
@@ -937,15 +1106,23 @@ export default function StacksCanvas({
     if (typeof window === "undefined") return false;
     return sceneInstrumentationRequestedBySearch(window.location.search);
   });
+  const qualityEvidenceRequested =
+    process.env.NODE_ENV !== "production" ||
+    diagnosticsRequested ||
+    (typeof window !== "undefined" &&
+      sceneDevHooksRequestedBySearch(window.location.search));
   // The HUD can be opened at any time, including long after the canvas was
   // created. Install its hooks and diagnostics only after that opt-in.
   useEffect(() => {
-    const stop = onDevHooksRequested(() => {
-      setDiagnosticsRequested(true);
+    const stopHooks = onSceneHooksRequested(() => {
       installDevHooks();
     });
+    const stopDiagnostics = onDevHooksRequested(() => {
+      setDiagnosticsRequested(true);
+    });
     return () => {
-      stop();
+      stopHooks();
+      stopDiagnostics();
     };
   }, []);
   const qualityControls = useSceneQualityControls();
@@ -1025,27 +1202,38 @@ export default function StacksCanvas({
         queryMode === "auto"
           ? initialAutoResolutionStep
           : SCENE_RESOLUTION_MAX_STEP,
+        typeof document === "undefined" || !document.hidden,
       );
       if (!restoredLearning) return base;
-      return {
-        ...base,
+      const restored = reduceSceneQualityAxes(base, {
+        type: "restore",
+        now: startedAt,
         axes: {
           resolutionStep: restoredLearning.resolutionStep,
           effects: restoredLearning.effects,
           content: restoredLearning.content,
         },
+      });
+      return {
+        ...restored,
         // A persisted lower rung is a known-good result from an earlier
         // visit. Hold it before retrying; a fresh conservative starting rung
         // has no failed higher step and remains free to climb immediately.
         resolutionRetryAt: startedAt + QUALITY_RESOLUTION_RETRY_MS,
+        // Preserve first-mount behavior in this observability-only gate. The
+        // later reducer restore also holds effects, but the initializer did
+        // not do that before the journal existed.
+        effectsRetryAt: base.effectsRetryAt,
       };
     },
   );
   const axesRef = useRef<SceneQualityAxes>(axisState.axes);
   axesRef.current = axisState.axes;
-  const [liveMetrics, setLiveMetrics] = useState<SceneQualityMetrics | null>(
-    null,
-  );
+  // Sampling lands four times per second. Metrics are telemetry, not rendered
+  // scene state: putting each fresh object through React woke the whole Canvas
+  // subtree on the sampler cadence, including every model that subscribes to
+  // diagnostics controls. Axis changes still render through the reducer.
+  const liveMetricsRef = useRef<SceneQualityMetrics | null>(null);
   const [learnedProfile, setLearnedProfile] =
     useState<SceneQualityProfile | null>(restoredProfile);
 
@@ -1143,11 +1331,11 @@ export default function StacksCanvas({
         from: previous,
         to: axisState.axes,
         change: axisState.lastChange,
-        metrics: liveMetrics,
+        metrics: liveMetricsRef.current,
       },
     });
     previousAxes.current = axisState.axes;
-  }, [axisState.axes, axisState.lastChange, liveMetrics]);
+  }, [axisState.axes, axisState.lastChange]);
 
   const onMovementChange = useCallback(
     (moving: boolean, frames?: TravelFrames) => {
@@ -1375,11 +1563,47 @@ export default function StacksCanvas({
   // that straddles either is not evidence about steady state.
   const bootReadySince = useRef<number | null>(null);
   const booted = useRef(false);
+  const onQualityVisibility = useCallback((visible: boolean, now: number) => {
+    bootReadySince.current = null;
+    dispatchAxes({
+      type: visible ? "visibility-visible" : "visibility-hidden",
+      now,
+    });
+  }, []);
   const onQualitySample = useCallback(
     (metrics: SceneQualityMetrics, instrumented: boolean) => {
-      setLiveMetrics(metrics);
+      const now = performance.now();
+      const visible = !document.hidden;
+      const usable =
+        !document.hidden && !qualityControls.frozen && !instrumented;
+      liveMetricsRef.current = metrics;
+      const constraint = classifySceneFrameConstraint(metrics);
+      if (qualityEvidenceRequested)
+        sceneQualityEvidence.recordSample({
+          at: now,
+          instrumented,
+          visible,
+          focused: document.hasFocus(),
+          usable,
+          moving: isSceneTraveling(),
+          constraint,
+          axes: axesRef.current,
+          metrics,
+          renderer: {
+            programs: glRef?.info.programs?.length ?? null,
+            textures: glRef?.info.memory.textures ?? null,
+            geometries: glRef?.info.memory.geometries ?? null,
+          },
+        });
+      qualitySnapshot = { ...qualitySnapshot, metrics, constraint };
+      const runtime = sceneQualityController.getRuntimeSnapshot();
+      if (runtime)
+        sceneQualityController.publishRuntime({
+          ...runtime,
+          metrics,
+          constraint,
+        });
       if (!instrumented && !booted.current) {
-        const now = performance.now();
         const ready =
           isWorldRevealed() && shaderPrecompileComplete && !isSceneTraveling();
         if (!ready) bootReadySince.current = null;
@@ -1393,12 +1617,12 @@ export default function StacksCanvas({
       }
       dispatchAxes({
         type: "sample",
-        now: performance.now(),
+        now,
         metrics,
-        visible: !document.hidden && !qualityControls.frozen && !instrumented,
+        visible: usable,
       });
     },
-    [qualityControls.frozen],
+    [qualityControls.frozen, qualityEvidenceRequested],
   );
   const onComposerError = useCallback(() => {
     const now = performance.now();
@@ -1406,44 +1630,70 @@ export default function StacksCanvas({
     setComposerFailed(true);
   }, []);
 
+  const persistenceState = useMemo(
+    () => ({
+      axisChangedAt: axisState.axisChangedAt,
+      booted: axisState.booted,
+      foregroundReadyAt: axisState.foregroundReadyAt,
+      pendingBaseline: axisState.pendingBaseline,
+      preTravelStep: axisState.preTravelStep,
+      settledAt: axisState.settledAt,
+      travelling: axisState.travelling,
+      validation: axisState.validation,
+    }),
+    [
+      axisState.axisChangedAt,
+      axisState.booted,
+      axisState.foregroundReadyAt,
+      axisState.pendingBaseline,
+      axisState.preTravelStep,
+      axisState.settledAt,
+      axisState.travelling,
+      axisState.validation,
+    ],
+  );
+
   useEffect(() => {
-    if (
-      mode !== "auto" ||
-      axisState.travelling ||
-      composerFailed ||
-      document.hidden
-    )
-      return;
-    const stableSince = Math.max(
-      axisState.axisChangedAt.resolution,
-      axisState.axisChangedAt.effects,
-      axisState.axisChangedAt.content,
-    );
-    const remaining = Math.max(
-      0,
-      stableSince + QUALITY_PERSIST_STABLE_MS - performance.now(),
-    );
+    const now = performance.now();
+    const gates = {
+      automatic: mode === "auto",
+      documentVisible: !document.hidden,
+      samplesUsable: !qualityControls.frozen && !diagnosticsRequested,
+      composerHealthy: !composerFailed,
+      sceneTravelling: isSceneTraveling(),
+    };
+    const status = sceneQualityPersistenceStatus(persistenceState, gates, now);
+    if (status.readyAt == null) return;
+    const remaining = Math.max(0, status.readyAt - now);
     const scheduled = axisState.axes;
     const timeout = window.setTimeout(() => {
+      const currentStatus = sceneQualityPersistenceStatus(
+        persistenceState,
+        {
+          ...gates,
+          documentVisible: !document.hidden,
+          sceneTravelling: isSceneTraveling(),
+        },
+        performance.now(),
+      );
       if (
-        document.hidden ||
-        isSceneTraveling() ||
+        !currentStatus.eligible ||
         axesRef.current.resolutionStep !== scheduled.resolutionStep ||
         axesRef.current.effects !== scheduled.effects ||
         axesRef.current.content !== scheduled.content
       )
         return;
-      writeLearnedQuality(storageBucket, scheduled, renderProfile);
-      setLearnedProfile(renderProfile);
+      writeLearnedQuality(storageBucket, scheduled, null);
+      setLearnedProfile(null);
     }, remaining);
     return () => window.clearTimeout(timeout);
   }, [
     composerFailed,
     axisState.axes,
-    axisState.axisChangedAt,
-    axisState.travelling,
+    persistenceState,
     mode,
-    renderProfile,
+    diagnosticsRequested,
+    qualityControls.frozen,
     storageBucket,
   ]);
 
@@ -1452,11 +1702,24 @@ export default function StacksCanvas({
   const transitionReason =
     axisState.lastChange?.reason ??
     (composerFailed ? "effects-error" : "startup");
+  const liveMetrics = liveMetricsRef.current;
   // Which resource the last window was short of. Published rather than only
   // acted on, so the overlay can show why the scene made its decision.
   const liveConstraint = liveMetrics
     ? classifySceneFrameConstraint(liveMetrics)
     : null;
+  const persistence = sceneQualityPersistenceStatus(
+    persistenceState,
+    {
+      automatic: mode === "auto",
+      documentVisible:
+        typeof document === "undefined" ? true : !document.hidden,
+      samplesUsable: !qualityControls.frozen && !diagnosticsRequested,
+      composerHealthy: !composerFailed,
+      sceneTravelling: isSceneTraveling(),
+    },
+    typeof performance === "undefined" ? 0 : performance.now(),
+  );
   qualitySnapshot = {
     mode,
     profile: plan.profile,
@@ -1473,11 +1736,35 @@ export default function StacksCanvas({
     cloudDetail: plan.environment.cloudDetail === "full",
     transitionReason,
     declineBaseline: axisState.pendingBaseline,
+    booted: axisState.booted,
+    bootDeclineGuard: axisState.bootDeclineGuard,
+    bootGuardExpiresAt: axisState.bootGuardExpiresAt,
+    axisChangedAt: axisState.axisChangedAt,
+    resolutionRetryAt: axisState.resolutionRetryAt,
+    effectsRetryAt: axisState.effectsRetryAt,
+    gpuSince: axisState.gpuSince,
+    cpuSince: axisState.cpuSince,
+    headroomSince: axisState.headroomSince,
+    foregroundReadyAt: axisState.foregroundReadyAt,
+    validation: axisState.validation,
+    unhelpfulResolutionSteps: axisState.unhelpfulResolutionSteps,
+    resolutionDescentAnchor: axisState.resolutionDescentAnchor,
+    preTravelStep: axisState.preTravelStep,
+    consecutiveOverBudgetTravels: axisState.consecutiveOverBudgetTravels,
+    transitions: axisState.transitions.map((transition) => ({
+      ...transition,
+      metrics: transition.metrics ? { ...transition.metrics } : null,
+    })),
+    lifecycle: axisState.lifecycle.map((event) => ({
+      ...event,
+      ...(event.type === "travel-end" ? { frames: { ...event.frames } } : {}),
+    })),
     storageBucket,
     learnedProfile,
     fallbackStatus,
     metrics: liveMetrics,
     constraint: liveConstraint,
+    persistence,
     axes: axisState.axes,
     customOverrides: plan.customOverrides,
     plan,
@@ -1649,12 +1936,22 @@ export default function StacksCanvas({
             <StaticWorldInvariantProbe />
           </>
         ) : null}
-        <AdaptiveQualityProbe onSample={onQualitySample} />
+        <AdaptiveQualityProbe
+          onSample={onQualitySample}
+          onVisibility={onQualityVisibility}
+          recordEvidence={qualityEvidenceRequested}
+        />
         <SceneAudioBridge />
         <PhysicsPrewarm />
         <MovementProbe onChange={onMovementChange} />
+        <SceneLightShapePadding />
         <ShaderPrewarm
-          variant={`${dark ? "dark" : "light"}-${plan.profile}-${postfxQuality}-${plan.environment.farGrassShader}-${plan.environment.grassDeformation}`}
+          variant={`${dark ? "dark" : "light"}-${plan.profile}-${postfxQuality}-${plan.environment.farGrassShader}-${plan.environment.grassDeformation}-${performanceSettings.activeNeighborhoodLights ? "near-lights" : "all-lights"}-${performanceSettings.activeNeighborhoodLights && performanceSettings.stableNeighborhoodLightShape ? "stable-light-shape" : "variable-light-shape"}`}
+          resourceVariant={
+            performanceSettings.prewarmAllUnitVisuals
+              ? "all-units"
+              : "near-units"
+          }
         />
         <ScrollControls
           horizontal

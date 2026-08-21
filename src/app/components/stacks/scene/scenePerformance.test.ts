@@ -22,6 +22,8 @@ describe("reversible scene performance settings", () => {
     expect(DEFAULT_SCENE_PERFORMANCE_SETTINGS).toEqual({
       suspendSettledPropWork: true,
       pausePrewarmDuringTravel: true,
+      prewarmAllUnitVisuals: true,
+      stableNeighborhoodLightShape: true,
       activeNeighborhoodLights: true,
       simplifiedFarMeadow: true,
       placardGlassMode: "native",
@@ -39,6 +41,8 @@ describe("reversible scene performance settings", () => {
     expect(allScenePerformanceSettings(false)).toEqual({
       suspendSettledPropWork: false,
       pausePrewarmDuringTravel: false,
+      prewarmAllUnitVisuals: false,
+      stableNeighborhoodLightShape: false,
       activeNeighborhoodLights: false,
       simplifiedFarMeadow: false,
       placardGlassMode: "native",
@@ -55,6 +59,9 @@ describe("reversible scene performance settings", () => {
     });
     expect(allScenePerformanceSettings(true).practicalGlowMode).toBe(
       "aperture",
+    );
+    expect(allScenePerformanceSettings(true).stableNeighborhoodLightShape).toBe(
+      true,
     );
   });
 

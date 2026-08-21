@@ -1,16 +1,29 @@
 "use client";
 
-// Proximity LOD with a delayed release. Textured content mounts when the unit
-// is active or adjacent, then remains resident long enough to leave the frame.
-// The old permanent latch was cheap for 256/512 px variants but would retain
-// about 104 MiB of full-resolution photo textures after a complete traverse.
+// Role-sized visuals normally mount before interaction so Safari can upload
+// their textures and geometry behind the boot screen. The old proximity path
+// remains available as a live diagnostic comparison.
+import { useStacks } from "../store";
 import { useEffect, useState } from "react";
 
-import { useStacks } from "../store";
+import { useScenePerformanceSettings } from "./scenePerformance";
 
 export const UNIT_TEXTURE_RELEASE_MS = 3_000;
 
+export function resolveUnitVisualResidency({
+  prewarmAll,
+  near,
+  resident,
+}: Readonly<{
+  prewarmAll: boolean;
+  near: boolean;
+  resident: boolean;
+}>): boolean {
+  return prewarmAll || near || resident;
+}
+
 export function useUnitLod(index: number): boolean {
+  const { prewarmAllUnitVisuals } = useScenePerformanceSettings();
   const near = useStacks((s) => Math.abs(s.activeUnit - index) <= 1);
   const [resident, setResident] = useState(near);
   useEffect(() => {
@@ -24,5 +37,9 @@ export function useUnitLod(index: number): boolean {
     );
     return () => window.clearTimeout(release);
   }, [near]);
-  return near || resident;
+  return resolveUnitVisualResidency({
+    prewarmAll: prewarmAllUnitVisuals,
+    near,
+    resident,
+  });
 }

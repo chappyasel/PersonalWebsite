@@ -10,6 +10,7 @@ import { MEADOW_TRAIL } from "./meadowMotion";
 import {
   GRAVITY,
   type ShelfHandle,
+  freeBodyStepPolicy,
   prepareScenePhysics,
   resolveShelf,
   staticColliderSupportY,
@@ -117,6 +118,34 @@ describe("static collider support height", () => {
 describe("shelf physics lifecycle and carrying", () => {
   it("uses physical gravity", () => {
     expect(GRAVITY).toBe(9.81);
+  });
+
+  it("bounds thin-body collision stepping so a slow frame cannot multiply solver work", () => {
+    expect(freeBodyStepPolicy(false)).toEqual({
+      fixedStep: 1 / 60,
+      maxSubSteps: 2,
+    });
+    expect(freeBodyStepPolicy(true)).toEqual({
+      fixedStep: 1 / 120,
+      maxSubSteps: 2,
+    });
+  });
+
+  it("knocks a parked prop into dynamic motion with a toppling spin", async () => {
+    await warm();
+    const { prop } = topFixture();
+    const entry = handle("shockwave-neighbor", prop);
+    const prepared = worldFor(prop, [entry]);
+    expect(prepared.status).toBe("ready");
+    if (prepared.status !== "ready") return;
+
+    expect(prepared.world.knock(entry, new THREE.Vector3(1.4, 0.32, 0))).toBe(
+      true,
+    );
+    expect(entry.phase.current).toBe("sim");
+    expect(entry.parked).toBe(false);
+    expect(entry.body?.velocity.length()).toBeGreaterThan(1);
+    expect(entry.body?.angularVelocity.length()).toBeGreaterThan(5);
   });
 
   it("resolves top, lower, and floor handles from their shared support frame", () => {
@@ -926,6 +955,48 @@ describe("scene-wide physics world", () => {
     }
     expect(fellBelowTop).toBe(false);
     expect(ball.body!.position.y).toBeGreaterThan(SHELF_SURFACE.top + 0.05);
+  });
+
+  it("does not tunnel a fast thin prop with the bounded step policy", async () => {
+    await warm();
+    const unit = new THREE.Group();
+    const propParent = new THREE.Group();
+    propParent.position.y = SHELF_SURFACE.top;
+    unit.add(propParent);
+    const propGroup = new THREE.Group();
+    propGroup.add(box([0.2, 0.02, 0.2], [0, 0.01, 0]));
+    propParent.add(propGroup);
+    unit.updateWorldMatrix(true, true);
+    const prop = handle("fast-thin", propGroup);
+    prop.maxThrowSpeed = 4;
+    const scope = new PhysicsSceneScope();
+    scope.registerRoot({
+      id: "unit:fast-thin",
+      kind: "unit",
+      unitIndex: 0,
+      root: unit,
+    });
+    scope.registerHandle(prop);
+    const prepared = prepareScenePhysics(scope, prop);
+    expect(prepared.status).toBe("ready");
+    if (prepared.status !== "ready") return;
+    prepared.world.grab(prop);
+    prepared.world.moveHeld(
+      prop,
+      {
+        position: new THREE.Vector3(0, 0.25, 0),
+        quaternion: new THREE.Quaternion(),
+      },
+      1 / 60,
+    );
+    prepared.world.release(prop, new THREE.Vector3(0, -4, 0));
+    let fellBelowTop = false;
+    for (let frame = 0; frame < 120; frame++) {
+      prepared.world.tick(1 / 30, frame + 1);
+      fellBelowTop ||= prop.body!.position.y < SHELF_SURFACE.top - 0.02;
+    }
+    expect(fellBelowTop).toBe(false);
+    expect(prop.body!.position.y).toBeGreaterThan(SHELF_SURFACE.top);
   });
 
   it("adopts shelf colliders for roots registered after the world already exists", async () => {

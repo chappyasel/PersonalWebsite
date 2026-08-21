@@ -163,6 +163,21 @@ class SceneUnitActivityController {
     } as const;
   }
 
+  /** Temporarily expose every registered unit to an offscreen warm-up draw.
+   * Exact visibility is restored before the next browser frame. */
+  withAllRootsVisible(run: () => void) {
+    const roots = [...this.roots.values()].map((root) => ({
+      root,
+      visible: root.visible,
+    }));
+    for (const { root } of roots) root.visible = true;
+    try {
+      run();
+    } finally {
+      for (const { root, visible } of roots) root.visible = visible;
+    }
+  }
+
   allows(index: number | null, lane: UnitWorkLane) {
     if (index === null) return true;
     const allowed = this.allowed[index]?.[lane] ?? true;

@@ -29,6 +29,10 @@ resolution to its floor, then effects, and leaves content alone. When a GPU
 timer is unavailable, as on Safari, the controller treats low CPU cost plus
 late frames as an inference: after two resolution cuts fail to improve p95 or
 dropped frames, it preserves the remaining pixels and tries effects instead.
+When median cadence is continuously late, a cut only counts as helpful if p50
+improves by at least ten percent or returns to the accepted cadence. A smaller
+p95 tail by itself cannot justify continuing to blur a device that remains at
+the same sustained frame rate.
 Resolution has a 1.5-second dwell, effects fall after five sustained seconds
 and rise after 15, and content falls after ten sustained seconds and rises
 after 60. A resolution step that restores headroom is held for 20 seconds
@@ -54,6 +58,35 @@ per-instance triangles, terrain tessellation, shader complexity, and offscreen
 wildlife residency change. Local scene photographs stay on role-sized textures;
 automatic master decoding, duplicate photo meshes, and per-photo frame
 subscribers are not quality levers.
+
+Small identity graphics may rebudget their own marks against the renderer's
+actual physical-pixel count. The Coordination globe keeps its full-resolution
+presentation above one megapixel. Below that point it raises the resting web's
+contrast, gives nodes a larger sample footprint, narrows the dominant reveal
+chord, and reduces event-horizon dither cell size. This changes legibility, not
+composition or content count, and reverses continuously when resolution rises.
+
+All role-sized shelf visuals mount before interaction by default. Once the
+default loading manager is quiet and Suspense has committed its children, one
+1x1 offscreen draw initializes their geometry and texture resources while the
+boot screen is still present. The visible output-color shader variant compiles
+first, the upload draw freezes shadow-map updates, and every renderer and scene
+state touched by the warm-up is restored. Later theme or effects changes only
+compile their shader variant; they do not redraw the complete graph. Scene
+Diagnostics exposes `Preload all shelf visuals` as a live A/B switch, and its
+reload default remains the resolved production policy.
+
+Changing which real point and spot lights are visible changes Three.js's
+program key. Device traces show that first-travel shader creation can block an
+iPhone frame for seconds even after texture and geometry residency is stable.
+The production policy retains the active-unit-plus-neighbors lighting policy
+while filling missing light slots with zero-intensity lights up to the largest
+nearby neighborhood. This holds one bounded program shape without exposing
+every real light or compiling the entire material graph against every
+neighborhood. A fixed-profile iPhone trace reduced travel p95 from 2,099 ms to
+66 ms and the maximum frame from 3,588 ms to 212 ms, without a perceptible boot
+regression. `Stabilize nearby-light shader count` remains available as a live
+diagnostic rollback.
 
 Within a content tier, meadow topology stays fixed. Wind and local wakes use a
 linear, root-planted lean; they do not continuously reshape the tuft with a
@@ -82,21 +115,28 @@ and animated objects are excluded from the frozen subtree. An opt-in
 development assertion reports any allowlisted transform that changes.
 
 The compact HUD remains visible by default in development. Expensive
-diagnostics are opt-in: opening the console with `D`, using `?debug=1`, or
+diagnostics are opt-in: opening the console with `H`, using `?debug=1`, or
 running the performance harness mounts the trace subscribers, matrix timer,
 static-world assertion, insect perch sweep, and physics overlay. Their timing
 remains visible in the HUD and trace, but their frames are not evidence for the
 automatic controller. A production visit may use `?hud=1` to load only the
 compact monitor and its read-only scene hooks; it mounts none of those probes
-and leaves automatic adaptation active. Native Placard blur remains the
-shipped background surface on every pointer type and is outside the quality
-axes.
+and leaves automatic adaptation active. That opt-in also retains four minutes
+of quality sample windows and bounded focus or page-lifecycle events for the
+downloadable support log. Recording writes to a module-local bounded list, not
+React state, and remains disabled on ordinary production visits. Native
+Placard blur remains the shipped background surface on every pointer type and
+is outside the quality axes.
 
 Depth of field separates cost from appearance. Its resolution scale controls
 the effect buffer and remains part of the effects budget; it is not a blur
 amount. Bokeh strength follows the viewport presentation profile because the
 portrait camera and tighter composition make the same world-space blur read
-more strongly. The standard authored strength resolves to 1.15 in portrait,
+more strongly. The focal target sits at the middle of the shelf depth. A
+1.05-unit zero-blur radius covers the complete shelf volume before the normal
+background falloff begins; thin prop detail never enters the bokeh ramp merely
+because it sits toward the front or rear of a plank. The standard authored
+strength resolves to 1.15 in portrait,
 1.4 in short landscape, and 1.9 in wide presentation at the 2x reference DPR
 where the look was approved. The renderer multiplies that value by the current
 DPR divided by two because the postprocessing kernel is measured in physical
@@ -106,6 +146,20 @@ actual shader value as `DoF q…/b…`. Scene Diagnostics can temporarily multip
 the resolved bokeh strength from 0.25x to 3x or replace the effect-buffer scale
 from 0.25x to 1x. These controls reset on reload and never change the authored
 profile table.
+
+The composer retains a stencil attachment for scene-local visibility rules.
+The Coordination event horizon writes one bit only where it passes ordinary
+scene depth; its internal graph tests that bit while ignoring the horizon's own
+depth. The graph can therefore remain visible through the black surface
+without painting over shelves, grass, or other geometry in front of it.
+Its approved shockwave may also interrupt the shared sky material briefly.
+One scalar clock drives that uniform, the image-based environment intensity,
+the directional key, the hemisphere fill, and the meadow's analytic grass,
+terrain, and flower materials, so exposure cannot disagree between the vault,
+room, and custom-lit field. The response uses no render target or texture
+sample; reduced motion skips it, and disabling `Coordination singularity`
+recompiles the sky and meadow variants without the flicker fragment branch and
+stops processing its impulse clock.
 
 Optional visual effects also expose a live checkbox in Scene Diagnostics.
 Reload-time query switches remain useful for repeatable A/B measurements and
@@ -137,10 +191,15 @@ cannot switch buckets and restore a different triple during the same mount.
 Cold-start device signals bias all three axes: a narrow touch viewport starts
 from Efficient's resolved DPR as well as its effects and content tiers, instead
 of starting Efficient geometry under Showcase resolution and visibly walking
-down. Measurement remains free to move in either direction. Version 9 discards
-entries from the live-bucket policy, because they may contain either side of
-the resulting floor/full oscillation. Sampling begins only after reveal,
-shader precompile, and a settled validation window.
+down. Measurement remains free to move in either direction. Version 10
+discards version 9 entries, because they may contain a resolution floor learned
+from a p95 improvement that never restored median cadence. Sampling begins only
+after reveal, shader precompile, and a settled validation window. A current axis
+triple becomes persistable only after a post-transition headroom or improved-cut
+window accepts it and the scene then stays unchanged for ten seconds. Repeated
+acceptable samples retain the first validation timestamp, so ordinary sampling
+cannot postpone that deadline forever; pressure that still fails validation is
+intentionally not learned.
 
 The Safety contract has two checks. CI pins the tier mapping, projected
 triangle ceiling, physical-pixel floor, and every deterministic quality policy
