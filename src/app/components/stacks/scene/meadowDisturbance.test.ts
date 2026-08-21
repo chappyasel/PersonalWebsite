@@ -46,6 +46,23 @@ describe("meadow disturbance bridge", () => {
     });
   });
 
+  it("retains the stronger bounded impulse reserved for authored effects", () => {
+    publishMeadowPhysicalEvent({
+      kind: "impact",
+      startX: 0,
+      startZ: 0,
+      endX: 0,
+      endZ: 0,
+      y: -1.1,
+      directionX: 0,
+      directionZ: 0,
+      strength: 3,
+      radius: 1,
+      timeScale: 1,
+    });
+    expect(getMeadowDisturbance().physicalEvent.strength).toBe(2);
+  });
+
   it("retains eight events in revision order after overflow", () => {
     const revision = getMeadowDisturbance().physicalEvent.revision;
     for (let index = 0; index < MEADOW_PHYSICAL_EVENTS + 2; index += 1)

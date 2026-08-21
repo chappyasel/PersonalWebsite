@@ -408,7 +408,12 @@ export type InsectPilotOptions = {
  * strength dial: a grabbed prop yanks the insect off, a dragged neighbour
  * hurries it, and a passing cursor merely moves it along.
  */
-export type InsectEscapeCause = "grab" | "drag" | "pointer" | "calm";
+export type InsectEscapeCause =
+  | "impulse"
+  | "grab"
+  | "drag"
+  | "pointer"
+  | "calm";
 
 /** Acceleration in m/s²; speed as a multiple of the profile's ordinary
  * ceiling. `calm` is the unhurried end-of-rest departure, which is slower than
@@ -417,6 +422,7 @@ const ESCAPE_LIMITS: Record<
   InsectEscapeCause,
   { acceleration: number; speed: number }
 > = {
+  impulse: { acceleration: 12, speed: 2 },
   grab: { acceleration: 9, speed: 1.55 },
   drag: { acceleration: 6, speed: 1.25 },
   pointer: { acceleration: 4, speed: 1 },

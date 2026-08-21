@@ -15,6 +15,8 @@ import * as THREE from "three";
 
 import { FootPool } from "./GroundPool";
 import ModelProp, { SPIN_NODE } from "./ModelProp";
+import { DESK_LAMP_HEAD_PIVOT, type QuaternionTuple } from "./deskLampHead";
+import { clearanceAbove, meshBoxInLocal } from "./interaction";
 import {
   getSceneInteraction,
   registerSceneInteraction,
@@ -24,8 +26,15 @@ import { getMeadowDisturbance } from "./meadowDisturbance";
 import { sampleMeadowWind } from "./meadowMotion";
 import { ClockFace, type ClockFaceStyle, type ClockSweep } from "./objects";
 import { LampGlow } from "./primitives";
+import {
+  SCENE_IMPULSE_LIGHT_DURATION,
+  getSceneImpulse,
+  sceneImpulseLightScale,
+  sceneImpulseStrengthAt,
+} from "./sceneImpulse";
 import { useUnitRealLights } from "./scenePerformance";
 import { type SteamSample, writeSteamSample } from "./steamMotion";
+import { createSwaySpring, stepSway } from "./swayMotion";
 import { useUnitFrame } from "./unitActivity";
 
 function reducedMotion(): boolean {
@@ -140,10 +149,11 @@ export function EggTrigger({
  * click again and it comes back. Nothing is persisted — a reload lights it.
  *
  * The switch owns ALL the dimming: a damped 0..1 factor drives a traverse over
- * the `rig` subtree that scales every light's intensity, every emissive
+ * the lamp subtree that scales every light's intensity, every emissive
  * material, and every transparent mesh material's opacity (base values
- * captured on first touch) — so the toggle survives whatever the rig turns out
- * to be. That is why this is a wrapper rather than something baked into
+ * captured on first touch) — so the toggle survives whether a treatment lives
+ * on the exact lamp surface or in the sibling rig. That is why this is a
+ * wrapper rather than something baked into
  * EggLamp: the room has three lamps of three different constructions (a desk
  * lamp with LampGlow, a table lamp with a bare pointLight, a floor lamp with a
  * spot plus emissive discs plus a ground pool) and one dimmer covers all of
@@ -184,30 +194,67 @@ export function LampSwitch({
   const target = useRef(1);
   const own = useRef(1);
   const lit = litRef ?? own;
-  const glow = useRef<THREE.Group>(null);
+  const dimmed = useRef<THREE.Group>(null);
+  const dimmer = useRef(lit.current);
+  const previousOutput = useRef(lit.current);
   const previousArrivalScale = useRef(1);
+  const handledSceneImpulse = useRef(getSceneImpulse().revision);
+  const shockAge = useRef<number | null>(null);
+  const shockStrength = useRef(0);
+  const shockWorld = useMemo(() => new THREE.Vector3(), []);
   useUnitFrame((_, delta) => {
-    const g = glow.current;
+    const g = dimmed.current;
     if (!g) return;
-    let next = THREE.MathUtils.damp(lit.current, target.current, 9, delta);
+    let next = THREE.MathUtils.damp(dimmer.current, target.current, 9, delta);
     if (Math.abs(next - target.current) < 1e-3) next = target.current;
+    dimmer.current = next;
+    const sceneImpulse = getSceneImpulse();
+    if (handledSceneImpulse.current !== sceneImpulse.revision) {
+      handledSceneImpulse.current = sceneImpulse.revision;
+      if (sceneImpulse.palette === "coordination") {
+        g.getWorldPosition(shockWorld);
+        const strength = sceneImpulseStrengthAt(sceneImpulse, shockWorld);
+        if (strength > 0) {
+          shockStrength.current = Math.max(
+            shockStrength.current,
+            Math.min(1, strength * 1.35),
+          );
+          // Start at the bottom of the voltage drop so the response is visible
+          // on the same frame as the network burst, not one frame later.
+          shockAge.current = 0.025;
+        }
+      }
+    }
+    let shockScale = 1;
+    if (shockAge.current !== null) {
+      shockScale = sceneImpulseLightScale(
+        shockAge.current,
+        shockStrength.current,
+      );
+      shockAge.current += Math.min(delta, 1 / 30);
+      if (shockAge.current >= SCENE_IMPULSE_LIGHT_DURATION) {
+        shockAge.current = null;
+        shockStrength.current = 0;
+      }
+    }
+    const output = next * shockScale;
     const arrivalScale =
       unitIndex === 0 ? 1 + arrivalBeatRef.aboutLampBloom * 0.45 : 1;
     if (
-      next === lit.current &&
+      Math.abs(output - previousOutput.current) < 0.001 &&
       Math.abs(arrivalScale - previousArrivalScale.current) < 0.001
     )
       return;
     // Leaving fully-lit re-captures every base: at factor 1 the current
     // values ARE the rig's own, including anything React rewrote while the
     // lamp sat ON (a theme flip changes palette-driven opacities).
-    const refresh = lit.current === 1 && next < 1;
-    lit.current = next;
+    const refresh = previousOutput.current === 1 && output < 1;
+    lit.current = output;
     g.traverse((o) => {
       if (o instanceof THREE.Light) {
         const data = o.userData as { eggBase?: number };
         if (refresh || data.eggBase === undefined) data.eggBase = o.intensity;
-        o.intensity = data.eggBase * next * arrivalScale;
+        o.intensity = data.eggBase * output * arrivalScale;
         return;
       }
       // ApertureHalo owns an imperative opacity writer like GlowSprite. It is
@@ -229,19 +276,21 @@ export function LampSwitch({
       if (typeof material.emissiveIntensity === "number") {
         if (refresh || data.eggBaseEmissive === undefined)
           data.eggBaseEmissive = material.emissiveIntensity;
-        material.emissiveIntensity = data.eggBaseEmissive * next * arrivalScale;
+        material.emissiveIntensity =
+          data.eggBaseEmissive * output * arrivalScale;
       }
       if (material.transparent) {
         if (refresh || data.eggBaseOpacity === undefined)
           data.eggBaseOpacity = material.opacity;
         material.opacity =
-          data.eggBaseOpacity * next * Math.min(1.35, arrivalScale);
+          data.eggBaseOpacity * output * Math.min(1.35, arrivalScale);
       }
     });
+    previousOutput.current = output;
     previousArrivalScale.current = arrivalScale;
   });
   return (
-    <group>
+    <group ref={dimmed}>
       <EggTrigger
         unitIndex={unitIndex}
         activeUnitIndexes={activeUnitIndexes}
@@ -254,7 +303,7 @@ export function LampSwitch({
         {children}
       </EggTrigger>
       {/* Sibling of the trigger, never a child — see the note above. */}
-      <group ref={glow}>{rig}</group>
+      <group>{rig}</group>
     </group>
   );
 }
@@ -269,6 +318,7 @@ export function EggLamp({
   scale = 1.55,
   aimOffset,
   spillScale,
+  headQuaternion,
 }: {
   unitIndex: number;
   palette: Palette;
@@ -293,18 +343,23 @@ export function EggLamp({
    * light source stay registered; only the surface the cone aims at moves. */
   aimOffset?: [number, number, number];
   spillScale?: number;
+  /** Extra articulation around the measured arm/shade hinge. The same
+   * quaternion carries the recovered model head and every emitted light. */
+  headQuaternion?: QuaternionTuple;
 }) {
   const lit = useRef(1);
   const realLights = useUnitRealLights(unitIndex);
+  const postfx = useStacks((state) => state.postfx);
   return (
     // ONE group carries the scale AND the yaw, and both the model and the
     // light rig hang from it. That is the whole structural fix of v6: the yaw
     // used to be handed separately to the ModelProp and to LampGlow, so the
     // shade's orientation was written down twice and could disagree, and the
     // rig's measured mouth was registered to a pose the model did not
-    // necessarily hold. Nothing below this group may carry a transform of its
-    // own — a `position` or a second `scale` on either child is exactly how a
-    // lamp slides out of its own lighting.
+    // necessarily hold. The only child-space transform is the optional,
+    // measured head hinge below; it wraps the recovered shade and the entire
+    // light rig with the same quaternion. Independent position, yaw, or scale
+    // still has no place on either sibling.
     <group scale={scale} rotation={[0, yaw, 0]}>
       <LampSwitch
         unitIndex={unitIndex}
@@ -315,24 +370,51 @@ export function EggLamp({
           // `distance` — that is a world-space property, not a transform — so
           // the reach has to be scaled by hand or a bigger lamp lights a
           // smaller pool.
-          <LampGlow
-            unitIndex={unitIndex}
-            palette={palette}
-            litRef={lit}
-            reach={scale}
-            aimOffset={aimOffset}
-            spillScale={spillScale}
-            // Every desk lamp also spills into the meadow (owner round 2).
-            // LampGlow anchors the pool where its cone actually lands and
-            // rides the same lit ref, so clicking the lamp off darkens the
-            // grass with the shade.
-            meadowId={`desk-lamp-${unitIndex}`}
-            realLights={realLights}
-          />
+          headQuaternion ? (
+            <group position={DESK_LAMP_HEAD_PIVOT}>
+              <group quaternion={headQuaternion}>
+                <group
+                  position={[
+                    -DESK_LAMP_HEAD_PIVOT[0],
+                    -DESK_LAMP_HEAD_PIVOT[1],
+                    -DESK_LAMP_HEAD_PIVOT[2],
+                  ]}
+                >
+                  <LampGlow
+                    unitIndex={unitIndex}
+                    palette={palette}
+                    litRef={lit}
+                    reach={scale}
+                    aimOffset={aimOffset}
+                    spillScale={spillScale}
+                    meadowId={`desk-lamp-${unitIndex}`}
+                    realLights={realLights}
+                  />
+                </group>
+              </group>
+            </group>
+          ) : (
+            <LampGlow
+              unitIndex={unitIndex}
+              palette={palette}
+              litRef={lit}
+              reach={scale}
+              aimOffset={aimOffset}
+              spillScale={spillScale}
+              meadowId={`desk-lamp-${unitIndex}`}
+              realLights={realLights}
+            />
+          )
         }
       >
         <React.Suspense fallback={null}>
-          <ModelProp url="/models/desk-lamp.glb" dark={dark} />
+          <ModelProp
+            url="/models/desk-lamp.glb"
+            dark={dark}
+            deskLampHeadQuaternion={headQuaternion}
+            deskLampShadeGlowColor={postfx ? "#ffffff" : "#ffb26a"}
+            deskLampShadeGlowOpacity={(dark ? 0.94 : 1) * (postfx ? 0.78 : 0.7)}
+          />
         </React.Suspense>
       </LampSwitch>
     </group>
@@ -353,6 +435,22 @@ export function EggLamp({
  * rotating like a turntable. Everything else is unchanged: same damping, same
  * click-adds-a-lap, same idle drift, same reduced-motion and near-active
  * gates. Only the node being written to differs. */
+/**
+ * How much faster a spinning prop turns while you point at it.
+ *
+ * Nine times. The globe's authored drift is 0.11 rad/s — "slow enough that you
+ * notice it the second time you look" — which is the problem: a multiple of
+ * near-stillness is still near-stillness, and 4x (the first cut) drew "globe
+ * spin faster pls". At 9x it is 0.99 rad/s, a lap every six and a half
+ * seconds, which is a globe someone has just spun rather than one drifting.
+ *
+ * This is now genuinely near the click's gesture, and that is accepted: the
+ * click's whole point was a lap you asked for, and a hover that nearly matches
+ * it makes the click read as "again, harder" rather than as the only thing the
+ * globe does. The damp in and out is what keeps it from being a jump cut.
+ */
+const HOVER_SPIN_GAIN = 8;
+
 export function SpinProp({
   unitIndex,
   hoverKey,
@@ -367,6 +465,8 @@ export function SpinProp({
 }) {
   const ref = useRef<THREE.Group>(null);
   const target = useRef(0);
+  /** Damped 0..1 hover engagement, feeding HOVER_SPIN_GAIN. */
+  const hoverSpin = useRef(0);
   const spinNode = useRef<THREE.Object3D | null>(null);
   const written = useRef<THREE.Object3D | null>(null);
   const still = useMemo(() => reducedMotion(), []);
@@ -392,12 +492,29 @@ export function SpinProp({
     const previous = written.current;
     if (previous && previous !== g) previous.rotation.y = 0;
     written.current = g;
+    // SIGNATURE REACTION (ADR 0020): a globe answers by turning faster.
+    //
+    // A HELD RATE rather than a held pose. The glossary asks every archetype
+    // to resolve to a state that still reads as selected with no timeout, and
+    // for a prop whose whole character is that it revolves, the state that
+    // reads is the rate. Parking it at some angle instead would stop the one
+    // thing it does. Eased in and out so it does not snap to a new speed.
+    const wantsHover = !still && useStacks.getState().hovered === hoverKey;
+    hoverSpin.current =
+      Math.abs(hoverSpin.current - (wantsHover ? 1 : 0)) < 1e-3
+        ? wantsHover
+          ? 1
+          : 0
+        : THREE.MathUtils.damp(hoverSpin.current, wantsHover ? 1 : 0, 3, delta);
     // Advance the target rather than the rotation, so a click's extra lap
     // rides on top of the drift instead of fighting it — and don't advance
     // it at all off-screen, or coming back would spin up the difference in
     // one lurch.
     if (idleRate && !still && nearActive(unitIndex)) {
-      target.current += idleRate * Math.min(delta, 1 / 30);
+      target.current +=
+        idleRate *
+        (1 + hoverSpin.current * HOVER_SPIN_GAIN) *
+        Math.min(delta, 1 / 30);
     } else if (g.rotation.y === target.current) return;
     const next = THREE.MathUtils.damp(g.rotation.y, target.current, 1.4, delta);
     g.rotation.y =
@@ -416,6 +533,165 @@ export function SpinProp({
       <group ref={ref}>{children}</group>
     </EggTrigger>
   );
+}
+
+/**
+ * A ball that spins on the spot and hops when you point at it (the basketball).
+ *
+ * SIGNATURE REACTION (ADR 0020), and the one the design grill was sharpest
+ * about: the basketball is the ONLY prop in the scene with `shape="sphere"`,
+ * and the shared nod had it tilting about a front-bottom support edge that a
+ * sphere does not have. The gesture was not merely generic, it described the
+ * wrong solid.
+ *
+ * THE FIRST CUT ROTATED IT INTO THE SHELF. It turned about a canted HORIZONTAL
+ * axis, and the axis ran through the group's origin — which for a Grabbable is
+ * the prop's contact point on the plank, not the middle of the ball. So the
+ * ball did not roll in place, it swung on a 0.33-unit arm and buried itself in
+ * the wood below. Owner, 2026-08-20: "it just slowly rotates into the bottom
+ * shelf haha", and "should do a 360 spin from the center".
+ *
+ * Both halves of that are fixed here and they are separate fixes:
+ *
+ *  - FROM THE CENTER. The subtree's box is measured once and the pivot is its
+ *    middle, pinned by the same shift `hingeShift` uses. A vertical axis alone
+ *    would very nearly do it — the model sits directly over the origin — but
+ *    "very nearly" is how the first version was wrong, and measuring costs one
+ *    mesh walk on first hover.
+ *  - A 360, not a drift. Spinning about the vertical means every revolution
+ *    returns the ball exactly where it started, so continuous spin IS repeated
+ *    360s: legible while hovered and holding no strange pose when it stops.
+ *    It also cannot sweep the ball through anything, which a tumble can.
+ *
+ * The hop rides the scene's own spring at flutter damping, so it overshoots
+ * once and settles — a ball that eased up would read as a lift rather than a
+ * bounce. Its height is capped by `clearanceAbove`, the same measurement that
+ * keeps a stacked book out of its neighbour: whatever is over this ball, the
+ * hop stays under it.
+ *
+ * Deliberately NOT wrapped around the physics carrier. This writes a child
+ * node, so a ball in flight — where the solver owns the transform — is
+ * untouched, and the spin resumes when it comes to rest.
+ */
+/** Radians per second at full engagement: a revolution every 1.3 seconds. */
+const SPIN_RATE = 4.8;
+/** Spin-down when the pointer merely leaves: ~95% gone in 0.75 s, a coast. */
+const SPIN_COAST_LAMBDA = 4;
+/** Spin-down when a hand closes on it: ~95% gone in 0.17 s. */
+const SPIN_STOP_LAMBDA = 18;
+/** How far a carrier's quaternion may stray from identity and still count as
+ * sitting on its shelf. The solver writes the carrier for a carry, a throw and
+ * a tumble; the authored rest pose keeps rotation on the model below it. */
+const HANDLED_ROTATION_EPSILON = 0.02;
+/** Hop height as a share of the ball's own radius, before the headroom cap. */
+const HOP_RADIUS_SHARE = 0.26;
+
+export function RollProp({
+  hoverKey,
+  children,
+}: {
+  hoverKey: string;
+  children: React.ReactNode;
+}) {
+  const ref = useRef<THREE.Group>(null);
+  const angle = useRef(0);
+  const level = useRef(0);
+  const hop = useMemo(() => createSwaySpring(), []);
+  /** Measured once: [pivotX, pivotZ, hopHeight]. Null until the GLB is in. */
+  const measured = useRef<[number, number, number] | null>(null);
+  const still = useMemo(() => reducedMotion(), []);
+  const pivot = useMemo(() => new THREE.Vector3(), []);
+  const shifted = useMemo(() => new THREE.Vector3(), []);
+  useUnitFrame((_, delta) => {
+    const g = ref.current;
+    if (!g || still) return;
+    // HANDS OFF THE MOMENT IT IS PICKED UP. Owner, 2026-08-20: "the basketball
+    // should stop spinning pretty quickly once actually grabbed cuz it messes
+    // with the physics."
+    //
+    // The mechanism, and it is not merely cosmetic: this writes a CHILD of the
+    // Grabbable's carrier while the solver writes the carrier itself, and the
+    // collider is built by walking that subtree. A ball whose child node is
+    // turning while it is being carried is a ball whose hull is being remeasured
+    // mid-flight. The hop is worse — it is a vertical offset, so a spinning,
+    // hopping ball sits proud of the hand that is holding it.
+    //
+    // Two tests, because a grab is not the only way this prop leaves the shelf.
+    // `dragging` catches the carry. A carrier quaternion away from identity
+    // catches everything the solver owns after that: the throw, the tumble and
+    // wherever it comes to rest. That last one is a deliberate trade — a ball
+    // that has been thrown across the room and settled askew will not spin
+    // under the pointer again until it is parked. It is a physics object now,
+    // and this is the safe half of the trade rather than the pretty one.
+    const state = useStacks.getState();
+    const carrier = getSceneInteraction(hoverKey)?.root;
+    const handled =
+      state.dragging === hoverKey ||
+      (carrier !== undefined &&
+        carrier.quaternion.x ** 2 +
+          carrier.quaternion.y ** 2 +
+          carrier.quaternion.z ** 2 >
+          HANDLED_ROTATION_EPSILON ** 2);
+    const wants = state.hovered === hoverKey && !handled;
+    if (wants && !measured.current) {
+      const box = meshBoxInLocal(g);
+      if (box) {
+        const size = box.getSize(new THREE.Vector3());
+        const centre = box.getCenter(new THREE.Vector3());
+        const room = clearanceAbove(g, box);
+        measured.current = [
+          centre.x,
+          centre.z,
+          Math.min(
+            (size.y / 2) * HOP_RADIUS_SHARE,
+            Number.isFinite(room) ? Math.max(0, room - 0.01) : Infinity,
+          ),
+        ];
+      }
+    }
+    const target = wants ? 1 : 0;
+    // A pointer leaving is a ball coasting to a stop; a hand closing on it is
+    // a ball being stopped. Spinning down over three quarters of a second is
+    // right for the first and far too slow for the second, so the rate the
+    // spin decays at depends on WHY it is decaying. The spin angle itself is
+    // never unwound either way — only the rate goes to zero, which is what a
+    // caught ball actually does.
+    const lambda = handled ? SPIN_STOP_LAMBDA : SPIN_COAST_LAMBDA;
+    if (Math.abs(level.current - target) < 1e-3) level.current = target;
+    else
+      level.current = THREE.MathUtils.damp(
+        level.current,
+        target,
+        lambda,
+        delta,
+      );
+    // The hop drops without its bounce when the ball is in hand: overshooting
+    // back down through the palm is exactly the fight this is here to end.
+    const settled = stepSway(hop, target, delta, 340, handled ? 48 : 17);
+    // Nothing to do and nothing in flight: leave the ball exactly where it
+    // last came to rest. Unlike every other reaction in the scene this one
+    // does NOT rewind to its authored pose — a ball that snapped back to the
+    // same angle each time you looked away would be the one obviously fake
+    // thing on the shelf, and a sphere gives no clue that it moved.
+    if (level.current === 0 && settled) return;
+    const step = Math.min(delta, 1 / 30);
+    angle.current =
+      (angle.current + SPIN_RATE * level.current * step) % (Math.PI * 2);
+    g.rotation.y = angle.current;
+    const centre = measured.current;
+    if (!centre) return;
+    // Pin the ball's middle: rotate as usual, then undo the translation the
+    // rotation applied to that point. Same identity as `hingeShift`, with the
+    // middle of the solid instead of a contact edge.
+    pivot.set(centre[0], 0, centre[1]);
+    shifted.copy(pivot).applyEuler(g.rotation);
+    g.position.set(
+      pivot.x - shifted.x,
+      hop.angle * centre[2],
+      pivot.z - shifted.z,
+    );
+  });
+  return <group ref={ref}>{children}</group>;
 }
 
 /** One soft vertical bounce that lands exactly back at rest (the
@@ -820,6 +1096,67 @@ export function EggClock({
   children: React.ReactNode;
 }) {
   const sweep = useRef<ClockSweep | null>(null);
+  const shiver = useRef<THREE.Group>(null);
+  const shiverLevel = useRef(0);
+  const still = useMemo(() => reducedMotion(), []);
+  // SIGNATURE REACTION (ADR 0020): an alarm clock answers by looking like it
+  // is about to go off.
+  //
+  // Gated on `faceStyle` rather than on a new flag, because the question is
+  // "is this an alarm clock" and the component is already asked that. A
+  // grandfather clock shivering would be absurd — it is furniture, and it
+  // already has a pendulum and a case shove of its own.
+  //
+  // A held tremble rather than a burst. Touch Focus has no timeout, so a
+  // one-shot rattle would leave a selected clock looking unselected; and a
+  // clock trembling continuously would be idle motion, which the scene
+  // reserves for things that are genuinely always moving. Held only while
+  // pointed at is the third thing, and it is the one that reads.
+  const shivers = faceStyle === "alarm" && !still;
+  useUnitFrame((state, delta) => {
+    const node = shiver.current;
+    if (!node || !shivers) return;
+    const target = useStacks.getState().hovered === hoverKey ? 1 : 0;
+    if (Math.abs(shiverLevel.current - target) < 1e-3) {
+      if (shiverLevel.current === target && target === 0) {
+        // Settled at rest: land exactly on zero and stop writing. A prop
+        // nobody is pointing at must be EXACTLY where it was authored, or
+        // the physics collider and the contact shade drift off it.
+        if (
+          node.rotation.z !== 0 ||
+          node.position.x !== 0 ||
+          node.position.y !== 0
+        ) {
+          node.rotation.z = 0;
+          node.position.set(0, 0, 0);
+        }
+        return;
+      }
+      shiverLevel.current = target;
+    } else {
+      shiverLevel.current = THREE.MathUtils.damp(
+        shiverLevel.current,
+        target,
+        14,
+        delta,
+      );
+    }
+    // Three channels at frequencies that do not divide into each other, so it
+    // reads as a rattle rather than a wobble. The first cut used two at 0.011
+    // rad and 1.1 mm and drew "more buzz for alarm": two channels beat against
+    // each other into something closer to a slow swing, and the amplitude was
+    // chosen to be safe rather than to be seen.
+    //
+    // 0.026 rad is 1.5 degrees of roll and 2.6 mm of travel at the shelves'
+    // 2 units/m — roughly a millimetre in the room, which is what a bell
+    // housing on a hard surface actually does. The vertical channel is the
+    // one that sells it: a clock that only shakes sideways reads as sliding.
+    const t = state.clock.elapsedTime;
+    const v = shiverLevel.current;
+    node.rotation.z = Math.sin(t * 53) * 0.026 * v;
+    node.position.x = Math.sin(t * 71 + 1.3) * 0.0026 * v;
+    node.position.y = Math.abs(Math.sin(t * 37 + 0.6)) * 0.0018 * v;
+  });
   return (
     <EggTrigger
       unitIndex={unitIndex}
@@ -829,19 +1166,31 @@ export function EggClock({
         sweep.current = { start: performance.now() };
       }}
     >
-      {children}
-      <group position={facePosition}>
-        {faceStyle === "grandfather" ? (
-          <mesh position={[0, faceRadius * 0.12, -0.002]} scale={[1, 1.55, 1]}>
-            <circleGeometry args={[faceRadius * 1.18, 32]} />
-            <meshStandardMaterial color="#f4e5bf" roughness={0.82} />
-          </mesh>
-        ) : null}
-        <ClockFace radius={faceRadius} sweepRef={sweep} faceStyle={faceStyle} />
-        <SecondHand
-          radius={faceRadius}
-          color={faceStyle === "grandfather" ? "#8e6d2d" : undefined}
-        />
+      {/* The face rides INSIDE the shiver, not beside it. A case that
+          trembles while its dial hangs still is a broken prop, and the dial
+          is the part of a clock anyone is actually looking at. */}
+      <group ref={shiver}>
+        {children}
+        <group position={facePosition}>
+          {faceStyle === "grandfather" ? (
+            <mesh
+              position={[0, faceRadius * 0.12, -0.002]}
+              scale={[1, 1.55, 1]}
+            >
+              <circleGeometry args={[faceRadius * 1.18, 32]} />
+              <meshStandardMaterial color="#f4e5bf" roughness={0.82} />
+            </mesh>
+          ) : null}
+          <ClockFace
+            radius={faceRadius}
+            sweepRef={sweep}
+            faceStyle={faceStyle}
+          />
+          <SecondHand
+            radius={faceRadius}
+            color={faceStyle === "grandfather" ? "#8e6d2d" : undefined}
+          />
+        </group>
       </group>
     </EggTrigger>
   );
@@ -929,6 +1278,8 @@ export function SteamCup({
 }) {
   const started = useRef(0);
   const burst = useRef(0);
+  /** Damped 0..1 hover engagement. A plateau, not a decay — see the frame. */
+  const hoverSteam = useRef(0);
   const emitter = useRef<THREE.Group>(null);
   const sprites = useRef<(THREE.Sprite | null)[]>([]);
   const particles = useRef<SteamParticleState[]>(
@@ -995,8 +1346,37 @@ export function SteamCup({
       always && started.current
         ? Math.max(0, 1 - (nowMs - started.current) / 1600)
         : 0;
-    const peak = (dark ? 0.2 : 0.255) * (1 + boost * 0.7) * fade;
-    const sizeMul = (dark ? 1 : 1.32) * (1 + boost * 0.16);
+    // SIGNATURE REACTION (ADR 0020): a hot drink answers a pointer with more
+    // steam. Held rather than one-shot — Touch Focus has no timeout, so a cup
+    // that puffed once and settled would look unselected while still selected.
+    // It is a separate term from `boost` on purpose: that one is the click's
+    // decaying puff and this one is a plateau, and adding them lets a click
+    // land on top of a hover the way it does on the shelf.
+    //
+    // The Grabbable wrapping this cup carries `signature="steam"`, which
+    // stands the shared nod down. Both halves share one hoverKey, so without
+    // that the cup nodded and steamed off the same pointer.
+    const wantsHover = useStacks.getState().hovered === hoverKey ? 1 : 0;
+    hoverSteam.current =
+      Math.abs(hoverSteam.current - wantsHover) < 1e-3
+        ? wantsHover
+        : THREE.MathUtils.damp(hoverSteam.current, wantsHover, 4, delta);
+    const hover = hoverSteam.current;
+    // +55% / +20% was the first cut and the owner could not see it at all.
+    // The reason is structural rather than a bad number: this cup steams
+    // `always`, so the hover is a DELTA on something already in motion, and a
+    // half-again denser plume is invisible next to one that is already
+    // rolling. The click's `boost` gets away with 0.7 because it also arrives
+    // instantly, and an onset is legible where a level is not.
+    //
+    // MOST OF THE INCREASE GOES INTO SIZE RATHER THAN OPACITY, which is the
+    // opposite of the obvious move and is deliberate. These wisps blend
+    // ADDITIVELY in the dark theme and there are nine of them overlapping, so
+    // opacity is radiance that compounds — the same trap that had just turned
+    // the trophy into a white cut-out one file over. A bigger plume reads as
+    // more steam; a brighter one reads as a lamp, and then clips.
+    const peak = (dark ? 0.2 : 0.255) * (1 + boost * 0.7 + hover * 0.6) * fade;
+    const sizeMul = (dark ? 1 : 1.32) * (1 + boost * 0.16 + hover * 0.55);
 
     const renderParticle = (
       index: number,

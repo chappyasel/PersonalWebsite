@@ -3,11 +3,11 @@
 // Projects — framed app screenshots; reference books + the trophy below
 // (the homework-app acquisition earns it).
 import { useStacks } from "../../store";
-import { proxied } from "../../theme";
 import Grabbable from "../Grabbable";
+import { ContactShade } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
 import ModelProp from "../ModelProp";
-import { DAYLIGHT_RENDERING } from "../daylightRendering";
+import { EggLamp, Sway } from "../eggs";
 import { reducedMotion } from "../objects";
 import {
   DeskFrame,
@@ -15,15 +15,25 @@ import {
   deskFrameHeight,
   photoDoorLabel,
 } from "../photos";
-import { FrameRow, ShelfUnit } from "../primitives";
+import { ShelfUnit } from "../primitives";
 import { SHELF_GEOMETRY } from "../shelfGeometry";
 import { useUnitFrame } from "../unitActivity";
 import { useUnitLod } from "../useUnitLod";
 import React, { useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { DicePyramid, ProjectIcon } from "./ProjectArtifacts";
+import {
+  PROJECTS_LAMP_HEAD_QUATERNION,
+  PROJECTS_LAMP_ROOT_SCALE,
+  PROJECTS_LAMP_ROOT_YAW,
+} from "./projectsShelfLighting";
 import { type UnitProps } from "./types";
-import { REVIEWED_SHELF_LAYOUT } from "./unitShelfLayout";
+import {
+  PROJECT_APPLE_PHOTO_POSE,
+  PROJECT_PHOTO_DIMENSIONS,
+  REVIEWED_SHELF_LAYOUT,
+} from "./unitShelfLayout";
 
 // tiny-treats' themed atlas deliberately retains one cool blue foliage role.
 // The Yucca uses that role on half of its leaf clusters, where it reads as a
@@ -79,13 +89,30 @@ function Glint({
       // Never write to the atlas material every other prop is sharing —
       // atlasOverride clones it for this prop, and only that clone is ours.
       if (mat.userData.shared === true) return;
-      // 1 → 3.6 and 0.35 → 0.13, up from 1 → 2.5 / 0.35 → 0.19. The owner's
-      // "hovering + clicking the trophy doesn't seem to do anything" was half
-      // a real absence (there was no click at all) and half an amplitude
-      // problem: the prop is 0.45 units of dark brass against a bright sky,
-      // and a 1.5× swing in envMapIntensity on a surface that reflects a
-      // three-lightformer probe is a few levels of grey nobody sees. This is
-      // as far as it goes before the cup reads as chrome.
+      // 1 → 3.6 and 0.35 → 0.13. These are the owner-approved numbers and
+      // this is the SECOND time the file has arrived back at them.
+      //
+      // NO EMISSIVE, and the reason is worth keeping. A round of "i can't
+      // really tell there's glint" was answered here by adding emissive at
+      // 0.55/0.44/0.20 — light the prop makes itself, which owes nothing to
+      // what the environment probe happens to put behind it. It rendered the
+      // trophy as a flat cream cut-out ("wtf is this lmao", with a
+      // screenshot). Two separate mistakes, both of them predictable:
+      //
+      //  1. AMOUNT. Additive light COMPOUNDS in this scene's linear HDR
+      //     pipeline — the v4 bloom work landed on ×0.45 where ×1.3 had been
+      //     assumed — so 0.55 of added radiance is not a highlight, it is a
+      //     white clip after ACES.
+      //  2. CHANNEL. Emissive is added per-fragment regardless of the normal,
+      //     so it does not brighten a form, it ERASES one. Every bit of
+      //     shading that made the cup read as a solid went with it. Whatever
+      //     a glint is, it is not uniform.
+      //
+      // The legibility this was reaching for now comes from the nod instead:
+      // `signature="glint"` is classified as a SURFACE reaction, so the prop
+      // keeps its band and moves. That is the honest fix — the complaint was
+      // that the trophy did nothing, and reflectance was never the channel
+      // that was going to say otherwise against a green meadow.
       mat.envMapIntensity = 1 + 2.6 * v;
       mat.roughness = 0.35 - 0.22 * v;
     });
@@ -205,8 +232,10 @@ function FinderMark({ unitIndex }: { unitIndex: number }) {
 
 const PROJECT_COUCH_W = 0.372;
 const PROJECT_COUCH_H = PROJECT_COUCH_W * (819 / 1024);
-const PROJECT_WWDC_H = 0.336;
-const PROJECT_WWDC_W = PROJECT_WWDC_H * (824 / 1024);
+const PROJECT_WWDC_H = PROJECT_PHOTO_DIMENSIONS.apple.height;
+const PROJECT_WWDC_W = PROJECT_PHOTO_DIMENSIONS.apple.width;
+const PROJECT_FACEBOOK_W = PROJECT_PHOTO_DIMENSIONS.facebook.width;
+const PROJECT_FACEBOOK_H = PROJECT_PHOTO_DIMENSIONS.facebook.height;
 
 function ProjectPhoto({
   unitIndex,
@@ -248,25 +277,8 @@ function ProjectPhoto({
   );
 }
 
-export default function UnitProjects({
-  data,
-  palette,
-  dark,
-  index,
-  coverWidth,
-  onOpenUrl,
-}: UnitProps) {
+export default function UnitProjects({ palette, dark, index }: UnitProps) {
   const textured = useUnitLod(index);
-  const frames = useMemo(
-    () =>
-      data.projects.map((project) => ({
-        src: proxied(project.image, coverWidth),
-        detailSrc: proxied(project.image, 750),
-        key: project.name,
-        href: project.link,
-      })),
-    [data.projects, coverWidth],
-  );
   return (
     <group>
       <ShelfUnit
@@ -290,6 +302,12 @@ export default function UnitProjects({
               shadeWidth={0.28}
               shape="box"
               massKg={1.8}
+              // A SURFACE signature: the glint is character on top of the
+              // band, not instead of it. Standing the nod down here was tried
+              // and rejected on 2026-08-20 — "i can't really tell there's
+              // glint. I also want the nod" — because a prop whose whole
+              // reaction is reflectance has nothing to say in silhouette.
+              signature="glint"
             >
               <Glint hoverKey="grab:trophy">
                 <React.Suspense fallback={null}>
@@ -327,7 +345,11 @@ export default function UnitProjects({
             <Grabbable
               unitIndex={index}
               hoverKey="grab:notebook:projects"
-              base={[REVIEWED_SHELF_LAYOUT.projects.notebookX, 0, 0.09]}
+              base={[
+                REVIEWED_SHELF_LAYOUT.projects.notebookX,
+                0,
+                REVIEWED_SHELF_LAYOUT.projects.notebookZ,
+              ]}
               shadeColor={palette.shadow}
               shadeWidth={0.42}
               shape="box"
@@ -374,18 +396,18 @@ export default function UnitProjects({
             <ProjectPhoto
               unitIndex={index}
               palette={palette}
-              id="projects-wwdc-v8"
-              base={[REVIEWED_SHELF_LAYOUT.projects.wwdcPhotoX, 0, 0.11]}
-              seat={deskFrameHeight(PROJECT_WWDC_H) / 2}
+              id="projects-facebook-v8"
+              base={[REVIEWED_SHELF_LAYOUT.projects.facebookPhotoX, 0, 0.11]}
+              seat={deskFrameHeight(PROJECT_FACEBOOK_H) / 2}
               rotation={[-0.06, -0.13, 0]}
-              width={PROJECT_WWDC_W}
+              width={PROJECT_FACEBOOK_W}
             >
               <DeskFrame
-                src="/images/stacks/v8/projects-wwdc.webp"
+                src="/images/stacks/v8/projects-facebook.webp"
                 palette={palette}
                 textured={textured}
-                width={PROJECT_WWDC_W}
-                height={PROJECT_WWDC_H}
+                width={PROJECT_FACEBOOK_W}
+                height={PROJECT_FACEBOOK_H}
               />
             </ProjectPhoto>
             {/* The Mac, and the door to his GitHub.
@@ -471,20 +493,92 @@ export default function UnitProjects({
           </group>
         }
       >
-        {/* Three 0.76-wide frames keep a visible gap inside the narrowed plank.
-          The old negative row offset put the left yawed corner over the end. */}
-        <group position={[0, 0, 0]}>
-          <FrameRow
-            frames={frames}
-            width={2.5}
-            palette={palette}
-            textured={textured}
+        {/* The upper shelf is a row of project objects rather than framed UI.
+          The visible practical on the left supplies the warm reflection that
+          moves across the two polished icon faces. */}
+        <group position={[REVIEWED_SHELF_LAYOUT.projects.topLampX, 0, -0.08]}>
+          <EggLamp
             unitIndex={index}
-            onFrameClick={onOpenUrl}
-            imageGrade={dark ? undefined : DAYLIGHT_RENDERING.projectImageGrade}
-            grabbable
+            palette={palette}
+            dark={dark}
+            yaw={PROJECTS_LAMP_ROOT_YAW}
+            scale={PROJECTS_LAMP_ROOT_SCALE}
+            spillScale={0.58}
+            headQuaternion={PROJECTS_LAMP_HEAD_QUATERNION}
+          />
+          <ContactShade
+            color={palette.shadow}
+            width={0.32}
+            position={[0, 0.018, 0.02]}
           />
         </group>
+        <ProjectIcon
+          unitIndex={index}
+          palette={palette}
+          dark={dark}
+          hoverKey="link:projects:weightlifting-icon"
+          base={[REVIEWED_SHELF_LAYOUT.projects.topWeightliftingIconX, 0, 0.02]}
+          artwork="/images/stacks/v8/512/projects-weightlifting-icon.webp"
+          fallbackColor="#6961d8"
+          textured={textured}
+          yaw={0.07}
+          href="https://apps.apple.com/us/app/id1266077653"
+          doorLabel="Open Weightlifting App on the App Store"
+        />
+        <DicePyramid unitIndex={index} palette={palette} dark={dark} />
+        <ProjectIcon
+          unitIndex={index}
+          palette={palette}
+          dark={dark}
+          hoverKey="grab:projects:homework-icon"
+          base={[REVIEWED_SHELF_LAYOUT.projects.topHomeworkIconX, 0, 0.02]}
+          artwork="/images/stacks/v8/512/projects-homework-icon.webp"
+          fallbackColor="#12ace8"
+          textured={textured}
+          yaw={-0.07}
+        />
+        <ProjectPhoto
+          unitIndex={index}
+          palette={palette}
+          id="projects-wwdc-v8"
+          base={[
+            REVIEWED_SHELF_LAYOUT.projects.topApplePhotoX,
+            0,
+            PROJECT_APPLE_PHOTO_POSE.baseZ,
+          ]}
+          seat={deskFrameHeight(PROJECT_WWDC_H) / 2}
+          rotation={[...PROJECT_APPLE_PHOTO_POSE.rotation]}
+          width={PROJECT_WWDC_W}
+        >
+          <DeskFrame
+            src="/images/stacks/v8/projects-wwdc.webp"
+            palette={palette}
+            textured={textured}
+            width={PROJECT_WWDC_W}
+            height={PROJECT_WWDC_H}
+          />
+        </ProjectPhoto>
+        <Grabbable
+          unitIndex={index}
+          hoverKey="grab:plant:projects-small"
+          base={[REVIEWED_SHELF_LAYOUT.projects.topPlantX, 0, -0.02]}
+          shadeColor={palette.shadow}
+          shadeWidth={0.42}
+          shape="box"
+          colliderProfile="foliage-base"
+          massKg={1.4}
+        >
+          <Sway unitIndex={index} amount={0.022} rate={0.34} phase={1.8}>
+            <React.Suspense fallback={null}>
+              <ModelProp
+                url="/models/potted-plant.glb"
+                dark={dark}
+                rotation={[0, 0.45, 0]}
+                scale={0.78}
+              />
+            </React.Suspense>
+          </Sway>
+        </Grabbable>
       </ShelfUnit>
       {/* Owner-picked Yucca Plant (Isa Lousberg, CC0), grounded exactly at
           the halfway seam after Projects. It fills the otherwise empty floor

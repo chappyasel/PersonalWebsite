@@ -4,7 +4,7 @@
 // Box props use RoundedBox for edge highlights (see primitives.tsx).
 import { useStacks } from "../store";
 import { type Palette, rand } from "../theme";
-import { RoundedBox } from "./RoundedBox";
+import { useTexture } from "@react-three/drei";
 import React, { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
@@ -13,7 +13,13 @@ import { ContactShade } from "./GroundPool";
 import Lift from "./Lift";
 import LitImage from "./LitImage";
 import ModelProp from "./ModelProp";
+import { RoundedBox } from "./RoundedBox";
+import {
+  ABOUT_APPLE_BASE_WIDTH,
+  ABOUT_APPLE_MARK_HEIGHT,
+} from "./aboutAwardGeometry";
 import { APPLE_OUTLINE } from "./appleOutline";
+import { MUSINGS_PAPER_STACK } from "./musingsShelfGeometry";
 import { useUnitFrame } from "./unitActivity";
 
 /**
@@ -576,7 +582,7 @@ export function DeskApple({
           mark's lower half legible against its own stand. */}
       <RoundedBox
         castShadow
-        args={[0.152, 0.021, 0.054]}
+        args={[ABOUT_APPLE_BASE_WIDTH, 0.021, 0.054]}
         radius={0.004}
         smoothness={3}
         position={[0, 0.0105, 0]}
@@ -592,7 +598,7 @@ export function DeskApple({
           the mark appears to balance on. */}
       <mesh
         castShadow
-        geometry={appleGeometry(0.15, 0.015)}
+        geometry={appleGeometry(ABOUT_APPLE_MARK_HEIGHT, 0.015)}
         position={[0, 0.017, 0]}
       >
         <meshStandardMaterial
@@ -617,7 +623,7 @@ export function DeskApple({
           brighten metal and never paints a shape onto the sky behind it —
           the halo mistake, re-learned once already on the floor lamp. */}
       <mesh
-        geometry={appleGeometry(0.15, 0.015)}
+        geometry={appleGeometry(ABOUT_APPLE_MARK_HEIGHT, 0.015)}
         position={[0, 0.017, 0.0002]}
         scale={[1.002, 1.002, 1.06]}
         renderOrder={2}
@@ -916,8 +922,12 @@ export function NotebookLean({
   );
 }
 
-/** Paper stack + pen for the Blog lower shelf. `linkUnit` makes the stack —
- * pen included — a door to the writing. */
+const MUSINGS_PDF_PAGE_URLS = [5, 4, 3, 2, 1].map(
+  (page) => `/images/stacks/musings/gpt3-2021-page-${page}.webp?v=2`,
+);
+
+/** Five real pages from Chappy's 2021 GPT-3 paper plus a dimensioned pen.
+ * `linkUnit` makes the paper a door to Musings; the pen remains its own prop. */
 export function PaperStack({
   palette,
   linkUnit,
@@ -925,70 +935,181 @@ export function PaperStack({
   palette: Palette;
   linkUnit?: number;
 }) {
-  // 0.594 x 0.42 is A4 (0.297 x 0.210 m) at the shelves' 2.00 u/m. It was
-  // 0.42 x 0.30, and InboxTray's sheets on the Systems unit were 0.30 x 0.21:
-  // the same sheet of paper existed at two sizes 1.4x apart, neither right.
-  // The pen keeps its own dimensions — at 0.3 long it is already a 0.15 m
-  // pen, which is correct, and growing it with the paper would break it.
-  const sheets = [0, 1, 2].map((i) => (
-    <RoundedBox
-      key={i}
-      castShadow
-      args={[0.594, 0.016, 0.42]}
-      radius={0.004}
-      smoothness={4}
-      position={[i * 0.008, 0.008 + i * 0.017, i * -0.006]}
-      rotation={[0, rand(i, 61) * 0.3 - 0.15, 0]}
-    >
-      <meshStandardMaterial color={palette.paper} roughness={0.95} />
-    </RoundedBox>
-  ));
-  // The pen is a CHILD of the lift, not a sibling of it (owner: "the pen needs
-  // to move up with these papers"). It is lying ON the top sheet — its y 0.062
-  // is that sheet's surface — so when the stack rose under the pointer and the
-  // pen did not, the pen was left hanging in the gap the lift opened. Anything
-  // resting on a prop belongs inside that prop's lift; the ContactShade is the
-  // opposite case and stays outside, planted on the wood (the BookPile rule).
+  const pageTextures = useTexture(MUSINGS_PDF_PAGE_URLS);
+  useEffect(() => {
+    for (const texture of pageTextures) {
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.anisotropy = 8;
+      // The sheet lies landscape on the shelf. Rotate the portrait PDF page
+      // in UV space so its 11:8.5 aspect matches the paper instead of being
+      // stretched sideways into an almost blank-looking wash.
+      texture.center.set(0.5, 0.5);
+      texture.rotation = -Math.PI / 2;
+      texture.needsUpdate = true;
+    }
+  }, [pageTextures]);
+
+  // US Letter is 8.5 x 11 inches. At the shelf family's 2.00 units per metre
+  // that is 0.432 x 0.559 units. The old 0.016-unit slabs were 8 mm thick at
+  // this scale, closer to foam board than paper. These 0.0022-unit sheets are
+  // still exaggerated enough to survive antialiasing, but read as paper.
+  const paperWidth = MUSINGS_PAPER_STACK.width;
+  const paperDepth = MUSINGS_PAPER_STACK.depth;
+  const paperThickness = MUSINGS_PAPER_STACK.sheetThickness;
+  const sheetStep = MUSINGS_PAPER_STACK.sheetStep;
+  const sheets = pageTextures.map((texture, i) => {
+    const y = paperThickness / 2 + i * sheetStep;
+    const x = i * 0.006 - 0.012;
+    const z = i * -0.004 + 0.008;
+    const rotation = rand(i, 61) * 0.14 - 0.07;
+    return (
+      <group
+        key={MUSINGS_PDF_PAGE_URLS[i]}
+        position={[x, y, z]}
+        rotation={[0, rotation, 0]}
+      >
+        <RoundedBox
+          castShadow
+          args={[paperWidth, paperThickness, paperDepth]}
+          radius={0.0012}
+          smoothness={3}
+        >
+          <meshStandardMaterial color={palette.paper} roughness={0.96} />
+        </RoundedBox>
+        <mesh
+          position={[0, paperThickness / 2 + 0.0012, 0]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          renderOrder={2}
+        >
+          <planeGeometry args={[paperWidth - 0.012, paperDepth - 0.012]} />
+          <meshStandardMaterial
+            map={texture}
+            roughness={0.92}
+            side={THREE.DoubleSide}
+            polygonOffset
+            polygonOffsetFactor={-4}
+            polygonOffsetUnits={-4}
+          />
+        </mesh>
+      </group>
+    );
+  });
+  const penBase: [number, number, number] = [
+    0.105,
+    paperThickness + sheetStep * 4 + 0.009,
+    0.095,
+  ];
   const pen = (
-    <mesh
-      key="pen"
-      castShadow
-      position={[0.12, 0.062, 0.1]}
-      rotation={[0, 0.9, Math.PI / 2]}
-    >
-      <cylinderGeometry args={[0.012, 0.012, 0.3, 12]} />
-      <meshStandardMaterial
-        color={palette.hub}
-        roughness={0.4}
-        metalness={0.3}
-      />
-    </mesh>
+    <group key="pen" rotation={[0, -0.58, 0]}>
+      <mesh castShadow rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.0085, 0.0085, 0.272, 16]} />
+        <meshStandardMaterial
+          color="#25272b"
+          roughness={0.36}
+          metalness={0.22}
+        />
+      </mesh>
+      <mesh position={[0.144, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
+        <coneGeometry args={[0.0085, 0.028, 16]} />
+        <meshStandardMaterial
+          color={palette.metal}
+          roughness={0.3}
+          metalness={0.78}
+        />
+      </mesh>
+      <mesh position={[0.13, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.009, 0.009, 0.012, 16]} />
+        <meshStandardMaterial
+          color={palette.metal}
+          roughness={0.28}
+          metalness={0.74}
+        />
+      </mesh>
+      <mesh position={[-0.144, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.0092, 0.0092, 0.016, 16]} />
+        <meshStandardMaterial
+          color="#17191c"
+          roughness={0.4}
+          metalness={0.18}
+        />
+      </mesh>
+      <RoundedBox
+        args={[0.082, 0.0035, 0.005]}
+        radius={0.0015}
+        smoothness={3}
+        position={[-0.074, 0.009, -0.001]}
+      >
+        <meshStandardMaterial
+          color={palette.metal}
+          roughness={0.32}
+          metalness={0.72}
+        />
+      </RoundedBox>
+    </group>
   );
   return (
     <group>
       {linkUnit === undefined ? (
         <>
           {sheets}
-          {pen}
+          <group position={penBase}>{pen}</group>
         </>
       ) : (
-        <Grabbable
-          unitIndex={linkUnit}
-          to="blog"
-          hoverKey={`grab:paper:${linkUnit}`}
-          base={[0, 0, 0]}
-          shadeColor={palette.shadow}
-          shadeWidth={0.55}
-          shape="box"
-          massKg={0.38}
-        >
-          {sheets}
-          {pen}
-        </Grabbable>
+        <>
+          <Grabbable
+            unitIndex={linkUnit}
+            to="blog"
+            hoverKey={`grab:paper:${linkUnit}`}
+            base={[0, 0, 0]}
+            shadeColor={palette.shadow}
+            shadeWidth={0.55}
+            shape="box"
+            massKg={0.024}
+            tiltWhileHeld={false}
+            heldFacingRotation={[Math.PI / 2, 0, 0]}
+            heldMinRaise={MUSINGS_PAPER_STACK.heldClearance}
+          >
+            {/* The five visible sheets are thinner than the solver's 8 mm
+                scene-unit minimum. This broad, low backing gives them one
+                honest hull instead of borrowing the pen's geometry. */}
+            <mesh
+              name="physics:musings-paper-stack"
+              position={[0, MUSINGS_PAPER_STACK.colliderCenterY, 0]}
+            >
+              <boxGeometry
+                args={[
+                  MUSINGS_PAPER_STACK.colliderWidth,
+                  MUSINGS_PAPER_STACK.colliderHeight,
+                  MUSINGS_PAPER_STACK.colliderDepth,
+                ]}
+              />
+              <meshBasicMaterial
+                transparent
+                opacity={0}
+                depthWrite={false}
+                colorWrite={false}
+              />
+            </mesh>
+            {sheets}
+          </Grabbable>
+          <Grabbable
+            unitIndex={linkUnit}
+            hoverKey={`grab:pen:${linkUnit}`}
+            base={penBase}
+            shadeColor={palette.shadow}
+            shadeWidth={0.24}
+            shape="box"
+            massKg={0.012}
+          >
+            {pen}
+          </Grabbable>
+        </>
       )}
     </group>
   );
 }
+
+for (const url of MUSINGS_PDF_PAGE_URLS) useTexture.preload(url);
 
 /**
  * A drinks can, at the room's real scale, in whatever colour the shelf wants.

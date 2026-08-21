@@ -1,6 +1,6 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { useStacks } from "./store";
+import { setStacksSheetDismissed, useStacks } from "./store";
 
 type LensState = {
   desktopNavRightPx: number;
@@ -14,6 +14,23 @@ const lensState = () => useStacks.getState() as Partial<LensState>;
 afterEach(() => {
   lensState().setDesktopNavRightPx?.(0);
   lensState().setDesktopDetailsLeftPx?.(null);
+  useStacks.getState().setPanelState("closed");
+  useStacks.getState().setSheetDismissed(false);
+  vi.unstubAllGlobals();
+});
+
+describe("mobile sheet boundary state", () => {
+  it("dismisses the sheet and closes an expanded panel together", () => {
+    const back = vi.fn();
+    vi.stubGlobal("window", { history: { back } });
+    useStacks.getState().setPanelState("open");
+
+    setStacksSheetDismissed(true);
+
+    expect(useStacks.getState().sheetDismissed).toBe(true);
+    expect(useStacks.getState().panelState).toBe("closing");
+    expect(back).toHaveBeenCalledOnce();
+  });
 });
 
 describe("desktop lens boundary state", () => {

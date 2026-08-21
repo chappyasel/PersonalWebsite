@@ -118,7 +118,9 @@ function materialWritesVisibleColor(material: THREE.Material) {
 }
 
 function meshWritesVisibleColor(mesh: THREE.Mesh) {
-  if (!mesh.visible || !mesh.geometry) return false;
+  const data = mesh.userData as { physicsIgnore?: boolean };
+  if (!mesh.visible || !mesh.geometry || data.physicsIgnore === true)
+    return false;
   for (
     let current: THREE.Object3D | null = mesh;
     current;

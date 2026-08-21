@@ -334,6 +334,16 @@ const SceneContent = memo(function SceneContent({
                       dark ? MONSTERA_ATLAS_DARK : MONSTERA_ATLAS_LIGHT
                     }
                     scale={0.92}
+                    // Opted out of ADR 0020 entirely. This is the seam plant
+                    // between About and Books: it is scenery holding a corner
+                    // of the world together, it is the largest thing on screen
+                    // at 2.71 units, and it is the one prop whose atlasOverride
+                    // gives it a PRIVATE material — so it was the only piece of
+                    // furniture actually receiving the emissive half of glow
+                    // while the shared-atlas ones got only the swell. A tree
+                    // brightening because a pointer crossed it reads as a bug
+                    // rather than as an answer. Owner call, 2026-08-20.
+                    hover={false}
                   />
                 </Suspense>
               </group>

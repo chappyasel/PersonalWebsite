@@ -78,6 +78,7 @@ export type SceneInteractionSpec = {
 export type PropDestination =
   | "books"
   | "weightlifting"
+  | "liarsdice"
   | "manual"
   | "routine"
   | "blog";
@@ -100,6 +101,12 @@ export function destinationFor(to: PropDestination): Destination {
           ? "https://weightlifting.chappyasel.com"
           : devSubdomainUrl("weightlifting"),
         label: "Open Weightlifting",
+        external: false,
+      };
+    case "liarsdice":
+      return {
+        href: "/liarsdice",
+        label: "Open Liar's Dice",
         external: false,
       };
     case "manual":

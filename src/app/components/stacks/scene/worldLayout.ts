@@ -42,11 +42,11 @@ export function golfLookYOffsetForViewport(
 export const CAMERA = { z: 5.8, y: 0.25, fov: 33 };
 export const CAMERA_LOOK_Y = -0.08;
 export const CAMERA_LOOK_Z_OFFSET = -0.2;
-/** The DoF plane belongs to the shelf, not to the camera aim. Set it 50 mm
- * forward of the top plank's physical back edge so the books and objects
- * across the rear half of the shelf stay in the clear band. */
+/** The DoF target belongs in the middle of the shelf's physical depth. The
+ * postprocessing effect measures distance on both sides of this point, so a
+ * target near the rear edge would put almost every prop in the near blur. */
 export const DEPTH_OF_FIELD_SHELF_Z =
-  SHELF_GEOMETRY.top.centerZ - SHELF_GEOMETRY.top.depth / 2 + 0.05;
+  (SHELF_GEOMETRY.top.centerZ + SHELF_GEOMETRY.lower.centerZ) / 2;
 /** Authored fast-scroll look lag. The meadow's camera-side apron is derived
  * against this full value so coverage, rather than reduced camera motion,
  * hides the transient corners. */
@@ -417,6 +417,8 @@ const ABOUT_SHELF_LEFT = {
 
 /** Clear air between the rail's widest label and the projected shelf edge. */
 export const RAIL_SHELF_MARGIN_PX = 24;
+/** Maximum lateral camera displacement at the About stop. */
+export const ABOUT_STOP_MAX_SHIFT = 2;
 
 /** How far right of unit 0's shelf the ABOUT STOP rests — the "move the
  * initial scene" fix (owner round 2, item 8, refined at review). The nav
@@ -444,5 +446,5 @@ export function aboutStopShift(
   const frac = (railRightPx + RAIL_SHELF_MARGIN_PX) / vw;
   const camX =
     ABOUT_SHELF_LEFT.x - (frac - 0.5) * (cam.z - ABOUT_SHELF_LEFT.z) * 2 * tanH;
-  return Math.min(2.0, Math.max(0, camX));
+  return Math.min(ABOUT_STOP_MAX_SHIFT, Math.max(0, camX));
 }

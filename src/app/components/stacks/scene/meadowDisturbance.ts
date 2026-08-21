@@ -6,6 +6,7 @@
 
 export const MEADOW_DISTURBANCE_PULSES = 6;
 export const MEADOW_PHYSICAL_EVENTS = 8;
+const MAX_MEADOW_PHYSICAL_STRENGTH = 2;
 
 export type MeadowDisturbancePulse = {
   x: number;
@@ -133,7 +134,10 @@ export function publishMeadowPhysicalEvent(
     directionLength > 1e-5 ? options.directionX / directionLength : 0;
   event.directionZ =
     directionLength > 1e-5 ? options.directionZ / directionLength : 0;
-  event.strength = Math.max(0, Math.min(1, options.strength));
+  event.strength = Math.max(
+    0,
+    Math.min(MAX_MEADOW_PHYSICAL_STRENGTH, options.strength),
+  );
   event.radius = Math.max(0, options.radius);
   event.timeScale = Math.max(0, options.timeScale);
   event.revision = revision;

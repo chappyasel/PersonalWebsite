@@ -31,6 +31,10 @@ const canvas = fs.readFileSync(
   new URL("../StacksCanvas.tsx", import.meta.url),
   "utf8",
 );
+const qualitySampler = fs.readFileSync(
+  new URL("./qualitySampler.ts", import.meta.url),
+  "utf8",
+);
 const effects = fs.readFileSync(
   new URL("./Effects.tsx", import.meta.url),
   "utf8",
@@ -61,6 +65,14 @@ const staticWorld = fs.readFileSync(
   new URL("./staticWorld.tsx", import.meta.url),
   "utf8",
 );
+const modelProp = fs.readFileSync(
+  new URL("./ModelProp.tsx", import.meta.url),
+  "utf8",
+);
+const unitLod = fs.readFileSync(
+  new URL("./useUnitLod.ts", import.meta.url),
+  "utf8",
+);
 
 describe("scene performance integration", () => {
   it("hides only real lights while retaining every practical-light rig", () => {
@@ -69,7 +81,7 @@ describe("scene performance integration", () => {
     expect(eggs).toContain("realLights={realLights}");
     expect(talks).toContain("<FloorLampRealLights");
     expect(talks).toContain("visible={visible}");
-    expect(primitives).toContain("<ShadeGlow");
+    expect(modelProp).toContain("DESK_LAMP_SHADE_GLOW_NODE");
     expect(primitives).toContain("registerMeadowLamp");
   });
 
@@ -106,17 +118,12 @@ describe("scene performance integration", () => {
     expect(primitives).not.toContain("settings.skipBloom ? 1 : 0.38");
   });
 
-  it("keeps the inset desk-shade glow out of the opaque shade's depth competition", () => {
-    const shadeStart = primitives.indexOf("function ShadeGlow");
-    const shadeEnd = primitives.indexOf(
-      "/** The desk lamp's light.",
-      shadeStart,
-    );
-    const shadeGlow = primitives.slice(shadeStart, shadeEnd);
-
-    expect(shadeStart).toBeGreaterThanOrEqual(0);
-    expect(shadeGlow).toContain("depthTest={false}");
-    expect(shadeGlow).not.toContain("polygonOffset");
+  it("keeps the desk-shade glow behind opaque scene depth", () => {
+    expect(primitives).not.toContain("function ShadeGlow");
+    expect(modelProp).toContain("DESK_LAMP_SHADE_GLOW_NODE");
+    expect(modelProp).toContain("depthTest: true");
+    expect(modelProp).toContain("depthFunc: THREE.EqualDepth");
+    expect(modelProp).toContain("depthWrite: false");
   });
 
   it("uses a compile-time far shader without rebuilding the instanced mesh", () => {
@@ -151,9 +158,10 @@ describe("scene performance integration", () => {
   });
 
   it("shows diagnostic timing without trusting it for automatic quality", () => {
-    expect(canvas).toContain("setLiveMetrics(metrics)");
-    expect(canvas).toContain(
-      "frames.current.some((frame) => frame.instrumented)",
+    expect(canvas).toContain("liveMetricsRef.current = metrics");
+    expect(canvas).toContain("sample.instrumented");
+    expect(qualitySampler).toContain(
+      "frames.some((retained) => retained.instrumented)",
     );
     expect(canvas).toContain(
       "!document.hidden && !qualityControls.frozen && !instrumented",
@@ -181,6 +189,26 @@ describe("scene performance integration", () => {
     expect(canvas).toContain("setSceneTraveling(true)");
     expect(canvas).toContain("scenePrewarmDeferred()");
     expect(grabbable).toContain("shouldSuspendSettledPropFrame");
+  });
+
+  it("warms complete shelf resources before interaction with a live comparison switch", () => {
+    expect(unitLod).toContain("prewarmAllUnitVisuals");
+    expect(canvas).toContain("prewarmSceneGpuResources");
+    expect(canvas).toContain("prewarmSceneGpuPrograms");
+    expect(canvas).toContain("shouldWarmSceneGpuResources");
+    expect(canvas).toContain("resourceVariant");
+    expect(canvas).toContain("warmedResourceVariant");
+    expect(canvas).toContain("useProgress.subscribe");
+    expect(canvas).toContain("markSceneFrameInstrumented()");
+    expect(diagnostics).toContain("Preload all shelf visuals");
+    expect(diagnostics).toContain("prewarmAllUnitVisuals");
+    expect(canvas).toContain("SceneLightShapePadding");
+    expect(diagnostics).toContain("Stabilize nearby-light shader count");
+    expect(diagnostics).toContain("stableNeighborhoodLightShape");
+    expect(primitives).toContain("sceneUnitLightUserData(lightUnitIndex)");
+    expect(primitives).toContain("sceneUnitLightUserData(unitIndex)");
+    expect(eggs).toContain("unitIndex={unitIndex}");
+    expect(talks).toContain("sceneUnitLightUserData(unitIndex)");
   });
 
   it("loads only explicitly authored photo details outside the boot manager", () => {
@@ -275,9 +303,9 @@ describe("scene performance integration", () => {
       "narrowViewport: viewport.width < STACKS_DESKTOP_MIN_WIDTH",
     );
     expect(canvas).toContain("reduceSceneQualityAxes");
-    expect(canvas).toContain(
-      "<AdaptiveQualityProbe onSample={onQualitySample}",
-    );
+    expect(canvas).toContain("<AdaptiveQualityProbe");
+    expect(canvas).toContain("onSample={onQualitySample}");
+    expect(canvas).toContain("onVisibility={onQualityVisibility}");
     expect(canvas).toContain('type: "travel-start"');
     expect(canvas).not.toContain("allowsDynamicSceneResolution");
     expect(canvas).not.toContain("allowResolutionChange:");
@@ -305,11 +333,29 @@ describe("scene performance integration", () => {
     expect(canvas).toContain("cameraYawDeg");
     expect(canvas).toContain("cameraLookLagX");
     expect(canvas).toContain("visibleUnits");
-    expect(canvas).toContain("metrics: liveMetrics");
+    expect(canvas).toContain("metrics: liveMetricsRef.current");
     expect(canvas).toContain("physicalPixels: plan.physicalPixels");
     expect(home).toContain('<Profiler id="canvas-react"');
     expect(home).toContain('<Profiler id="placard"');
     expect(home).toContain("scenePerformanceTrace.reactCommit");
+  });
+
+  it("retains bounded quality samples and browser lifecycle evidence", () => {
+    expect(canvas).toContain("sceneQualityEvidence.recordSample");
+    expect(canvas).toContain("sceneQualityEvidence.recordLifecycle");
+    expect(canvas).toContain('window.addEventListener("blur"');
+    expect(canvas).toContain('window.addEventListener("focus"');
+    expect(canvas).toContain('window.addEventListener("pagehide"');
+    expect(canvas).toContain('document.addEventListener("freeze"');
+    expect(canvas).toContain("evidence: sceneQualityEvidence.snapshot()");
+    expect(canvas).toContain("qualityEvidenceRequested");
+    expect(canvas).toContain("recordEvidence={qualityEvidenceRequested}");
+  });
+
+  it("keeps sampled telemetry out of React scene state", () => {
+    expect(canvas).toContain("const liveMetricsRef = useRef<");
+    expect(canvas).toContain("liveMetricsRef.current = metrics");
+    expect(canvas).not.toContain("setLiveMetrics(metrics)");
   });
 
   it("keeps placard travel updates in lightweight desktop and mobile shells", () => {
@@ -340,7 +386,7 @@ describe("scene performance integration", () => {
     expect(canvas).toContain("EffectsErrorBoundary");
     expect(canvas).toContain('type: "effects-error"');
     expect(effects).toContain(
-      "<EffectComposer multisampling={plan.multisampling}>",
+      "<EffectComposer multisampling={plan.multisampling} stencilBuffer>",
     );
   });
 

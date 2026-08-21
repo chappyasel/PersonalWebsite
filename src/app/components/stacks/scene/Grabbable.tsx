@@ -41,13 +41,17 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
 import { poolTexture } from "./GroundPool";
-import { LIFT_LAMBDA, TIP, hingeShift } from "./Lift";
+import { LIFT_LAMBDA, hingeShift } from "./Lift";
 import {
   type PhysicsSceneScope,
   usePhysicsScene,
 } from "./PhysicsSceneProvider";
 import { grabbablePhysicsEnabled } from "./grabbablePhysics";
-import { cameraFacingHoverTilt } from "./hoverTilt";
+import {
+  localCameraFacingQuaternion,
+  tiltedFaceClearance,
+} from "./heldFacingMath";
+import { cameraSideHoverTilt, cameraSideSlide } from "./hoverTilt";
 import {
   type Hinge,
   TILT_MAX_SIZE,
@@ -56,10 +60,12 @@ import {
 } from "./interaction";
 import {
   MASS_HANDLING,
+  type ProjectedLocalBounds,
   destinationFor,
   massClassFor,
   registerSceneInteraction,
 } from "./interactionRegistry";
+import { leanBudget } from "./leanClearance";
 import { type PropDestination, useOpenTarget } from "./links";
 import type {
   HeldMoveResult,
@@ -74,10 +80,28 @@ import type {
 import type { DynamicColliderProfile } from "./physicsColliders";
 import { physicsDiagnosticsController } from "./physicsDiagnostics";
 import {
+  archetypeFor,
+  bandMotionFor,
+  recordArchetype,
+} from "./reactionArchetype";
+import {
+  applySceneImpulseKick,
+  createSceneImpulseMotion,
+  getSceneImpulse,
+  sceneImpulseKick,
+  stepSceneImpulseMotion,
+} from "./sceneImpulse";
+import {
   scenePerformanceController,
   shouldSuspendSettledPropFrame,
 } from "./scenePerformance";
 import { SHELF_GEOMETRY } from "./shelfGeometry";
+import {
+  type SwaySpring,
+  cameraSideSwayTwist,
+  createSwaySpring,
+  stepSway,
+} from "./swayMotion";
 import { sceneUnitActivityController, useUnitFrame } from "./unitActivity";
 
 /** Damping for the spring home — matches Lift's LAMBDA so a released prop
@@ -320,6 +344,32 @@ export function prewarmGrabbablePhysics() {
   void loadGrabbablePhysics();
 }
 
+function requestSceneImpulseKnockdown(
+  scope: PhysicsSceneScope,
+  entry: ShelfHandle,
+  kick: Readonly<{ x: number; y: number; z: number }>,
+) {
+  const worldVelocity = new THREE.Vector3(
+    kick.x * 2.35,
+    Math.max(0.32, kick.y * 2.35),
+    kick.z * 2.35,
+  );
+  void loadGrabbablePhysics().then((loaded) => {
+    if (!loaded) return;
+    const attempt = (remaining: number) => {
+      if (!entry.group.parent || entry.phase.current === "held") return;
+      const prepared = loaded.prepareScenePhysics(scope, entry);
+      if (prepared.status === "ready") {
+        prepared.world.knock(entry, worldVelocity);
+        return;
+      }
+      if (prepared.reason !== "geometry-pending" || remaining <= 0) return;
+      requestAnimationFrame(() => attempt(remaining - 1));
+    };
+    attempt(8);
+  });
+}
+
 if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
   // The harness cannot see any of this from the DOM: carrying deliberately
   // re-renders nothing, and "did it collide or did it spring back" is a
@@ -374,7 +424,12 @@ export default function Grabbable({
   shadeWidth = 0.5,
   shadeColor,
   tiltOnHover = true,
+  metal = false,
+  signature,
+  hoverTiltAngle,
   tiltWhileHeld = true,
+  heldFacingRotation,
+  heldMinRaise,
   spin = 0.9,
   shape,
   colliderProfile,
@@ -388,6 +443,9 @@ export default function Grabbable({
   actionLabel,
   external = true,
   onTap,
+  onDragIntent,
+  sceneImpulseReaction = "nudge",
+  projectedLocalBounds,
   egg,
   physics: physicsPreference,
   draggable = true,
@@ -409,10 +467,38 @@ export default function Grabbable({
    * behavior. Reflective marks use shimmer instead of the shared nod because
    * even a small pitch can move their environment highlight off the face. */
   tiltOnHover?: boolean;
+  /** This prop's polished-metal treatment owns its hover response. Resolves to
+   * the `shimmer` archetype, which suppresses the tilt: the whole point of a
+   * metal mark is the environment highlight sitting on its face, and pitching
+   * it toward the viewer is what slides that highlight off. A flag rather than
+   * a material scan because these props are bespoke components calling
+   * `useMetalShimmer`, not ModelProps whose materials could be sampled. */
+  metal?: boolean;
+  /**
+   * This prop owns a Signature Reaction, named — see SIGNATURE_REACTIONS.
+   *
+   * Setting it makes the shell stand down completely: no lean, no twist, no
+   * hinge measurement. The gesture lives in a component wrapped around the
+   * children (the trophy's `Glint`, the cup's `SteamCup`) and that component
+   * is now the WHOLE answer rather than a second one layered under the shared
+   * nod. Two effects at once is the thing ADR 0020 exists to remove.
+   */
+  signature?: string;
+  /** Exact hover opening angle. The sign follows the live camera so the
+   * camera-nearest support edge remains the hinge. Leave unset for the shared
+   * camera-facing nod. */
+  hoverTiltAngle?: number;
   /** Whether pointer velocity banks the prop during a carry. Broad books that
    * begin in contact with a supporting riser keep their facing stable until
    * release; the solver can still tumble them normally after a throw. */
   tiltWhileHeld?: boolean;
+  /** Rotate the physical carrier and its collider square to the camera while
+   * held. Use this instead of a visual-only HeldFacing wrapper when the rest
+   * and carried orientations differ enough to change the collision hull. */
+  heldFacingRotation?: [number, number, number];
+  /** Minimum rise above the pickup pose while physically facing the camera.
+   * Broad flat props need room for their lower edge to clear the shelf. */
+  heldMinRaise?: number;
   /** How much horizontal throw becomes yaw on the way down. Ignored for a
    * ball, which rolls at ω = v/r instead. */
   spin?: number;
@@ -453,6 +539,19 @@ export default function Grabbable({
   /** Local action for a press that never became a carry. Stateful objects
    * such as featured covers use this instead of pretending to be a route. */
   onTap?: () => void;
+  /** One-shot response when a press first crosses the drag threshold. This
+   * also fires for an anchored (`draggable={false}`) object, allowing a drag
+   * gesture to animate its contents without turning the object into a loose
+   * shelf prop. */
+  onDragIntent?: (
+    origin: Readonly<{ x: number; y: number; z: number }>,
+  ) => void;
+  /** A few hero props can enter the real rigid-body world when a scene
+   * shockwave reaches them. Everyone else keeps the short authored nudge. */
+  sceneImpulseReaction?: "nudge" | "knockdown";
+  /** Stable bounds for touch and Door projection when shader geometry does
+   * not describe its visible extent (wide screen-space lines are canonical). */
+  projectedLocalBounds?: ProjectedLocalBounds;
   /** Marks onTap as a quiet easter egg rather than a Door. */
   egg?: { reducedMotion: "skip" | "state-only" };
   /** Keep pointer carrying and tap arbitration but bypass free shelf physics,
@@ -472,6 +571,7 @@ export default function Grabbable({
   const massClass = massClassFor(massKg ?? 1);
   const handling = MASS_HANDLING[massClass];
   const group = useRef<THREE.Group>(null);
+  const impulse = useRef<THREE.Group>(null);
   /** The hover nod, on a child of the physics group rather than on the group
    * itself. Deliberate: the outer group's pose is the one the solver reads and
    * writes, and a few degrees of hover tilt held there would keep `settled`
@@ -484,8 +584,59 @@ export default function Grabbable({
   const nodCameraWorld = useMemo(() => new THREE.Vector3(), []);
   const nodWorld = useMemo(() => new THREE.Vector3(), []);
   const nodParentWorld = useMemo(() => new THREE.Quaternion(), []);
+  const impulseWorld = useMemo(() => new THREE.Vector3(), []);
+  const impulseLocal = useMemo(() => new THREE.Vector3(), []);
+  const impulseWorldQuaternion = useMemo(() => new THREE.Quaternion(), []);
+  const impulseWorldScale = useMemo(() => new THREE.Vector3(), []);
+  const impulseMotion = useRef(createSceneImpulseMotion());
+  const handledSceneImpulse = useRef(getSceneImpulse().revision);
   const hinge = useRef<Hinge | null | undefined>(undefined);
   const still = useMemo(() => reducedMotion(), []);
+  const heldFacingQuaternion = useMemo(
+    () =>
+      new THREE.Quaternion().setFromEuler(
+        new THREE.Euler(
+          heldFacingRotation?.[0] ?? 0,
+          heldFacingRotation?.[1] ?? 0,
+          heldFacingRotation?.[2] ?? 0,
+        ),
+      ),
+    [heldFacingRotation],
+  );
+  const heldParentWorld = useMemo(() => new THREE.Quaternion(), []);
+  const heldCameraWorld = useMemo(() => new THREE.Quaternion(), []);
+  const heldTarget = useMemo(() => new THREE.Quaternion(), []);
+  const faceUpRest = useMemo(() => new THREE.Quaternion(), []);
+  /** ADR 0020 band one. Foliage wins before mass is consulted, so a plant
+   * resolves here without waiting for the GLB to stream in and be measured —
+   * `colliderProfile` is authored, not discovered. Anything that is not a
+   * plant keeps the shared nod until the remaining bands land. */
+  const archetype = useMemo(
+    () => archetypeFor({ colliderProfile, metal, massKg, signature }),
+    [colliderProfile, metal, massKg, signature],
+  );
+  /** How far and how fast this band tips. `tip` resolves to the untouched
+   * shared constants, so the majority of the world is the gesture it always
+   * was and only the light and heavy ends moved. */
+  const bandMotion = useMemo(
+    () => bandMotionFor(archetype, massKg),
+    [archetype, massKg],
+  );
+  useEffect(() => {
+    recordArchetype({
+      id: hoverKey,
+      archetype,
+      source: "grabbable",
+      massKg,
+      signature,
+    });
+  }, [hoverKey, archetype, massKg, signature]);
+  const swaySpring = useMemo<SwaySpring>(() => createSwaySpring(), []);
+  /** The aim the lean and turn were last pointed at. Held across the release
+   * so the spring returns along the path it left by. */
+  const swayLean = useRef(0);
+  const swaySlide = useRef(0);
+  const swayTwist = useRef(0);
   const shade = useRef<THREE.Sprite>(null);
   const phase = useRef<Phase>("rest");
   const velocity = useMemo(() => new THREE.Vector3(), []);
@@ -513,6 +664,10 @@ export default function Grabbable({
   useEffect(() => {
     onTapRef.current = onTap;
   }, [onTap]);
+  const onDragIntentRef = useRef(onDragIntent);
+  useEffect(() => {
+    onDragIntentRef.current = onDragIntent;
+  }, [onDragIntent]);
   const open = useOpenTarget();
   /** The shared record this prop's rigid body hangs off. Null until mount,
    * and bodyless until a world has been built around it. */
@@ -828,11 +983,16 @@ export default function Grabbable({
           TAP_PX
       ) {
         current.moved = true;
+        const g = group.current;
+        if (g && onDragIntentRef.current) {
+          g.getWorldPosition(world);
+          onDragIntentRef.current({ x: world.x, y: world.y, z: world.z });
+        }
         if (!tapOnly.current) beginCarry(event);
       }
       if (!tapOnly.current && phase.current === "held") track(event);
     },
-    [beginCarry, track],
+    [beginCarry, track, world],
   );
 
   const onGrabUp = useCallback(
@@ -919,6 +1079,7 @@ export default function Grabbable({
       label: activation && "label" in activation ? activation.label : hoverKey,
       root,
       activeUnits: [unitIndex],
+      projectedLocalBounds,
       movable: draggable
         ? { massKg: massKg ?? 1, massClass, colliderProfile }
         : undefined,
@@ -970,6 +1131,7 @@ export default function Grabbable({
     onGrabMove,
     onTap,
     open,
+    projectedLocalBounds,
     release,
     tiltOnHover,
     to,
@@ -1064,7 +1226,9 @@ export default function Grabbable({
         g.parent?.worldToLocal(hit);
         hit.y = THREE.MathUtils.clamp(
           hit.y,
-          pickupY.current + handling.minDrop,
+          heldMinRaise === undefined
+            ? pickupY.current + handling.minDrop
+            : pickupY.current + heldMinRaise,
           pickupY.current + handling.maxRaise,
         );
         // Throw velocity is the prop's ACTUAL movement, not the gap to the
@@ -1081,18 +1245,32 @@ export default function Grabbable({
         step.subVectors(g.position, world).divideScalar(delta);
         velocity.lerp(step, 1 - Math.exp(-26 * delta));
       }
-      g.rotation.z = THREE.MathUtils.damp(
-        g.rotation.z,
-        tiltWhileHeld ? -velocity.x * 0.05 * handling.throwTilt : 0,
-        8,
-        delta,
-      );
-      g.rotation.x = THREE.MathUtils.damp(
-        g.rotation.x,
-        tiltWhileHeld ? velocity.z * 0.05 * handling.throwTilt : 0,
-        8,
-        delta,
-      );
+      if (heldFacingRotation) {
+        if (g.parent) g.parent.getWorldQuaternion(heldParentWorld);
+        else heldParentWorld.identity();
+        camera.getWorldQuaternion(heldCameraWorld);
+        localCameraFacingQuaternion(
+          heldParentWorld,
+          heldCameraWorld,
+          heldFacingQuaternion,
+          heldTarget,
+        );
+        if (still) g.quaternion.copy(heldTarget);
+        else g.quaternion.slerp(heldTarget, 1 - Math.exp(-10 * delta));
+      } else {
+        g.rotation.z = THREE.MathUtils.damp(
+          g.rotation.z,
+          tiltWhileHeld ? -velocity.x * 0.05 * handling.throwTilt : 0,
+          8,
+          delta,
+        );
+        g.rotation.x = THREE.MathUtils.damp(
+          g.rotation.x,
+          tiltWhileHeld ? velocity.z * 0.05 * handling.throwTilt : 0,
+          8,
+          delta,
+        );
+      }
       if (simulated.current && entry?.world) {
         const result: HeldMoveResult = entry.world.moveHeld(
           entry,
@@ -1110,15 +1288,25 @@ export default function Grabbable({
     } else if (phase.current === "sim") {
       // The solver owns this transform; the scene frame driver writes it.
     } else if (phase.current === "settling") {
+      if (heldFacingRotation)
+        g.quaternion.slerp(faceUpRest, 1 - Math.exp(-10 * delta));
       velocity.y -= GRAVITY * delta;
       g.position.addScaledVector(velocity, delta);
-      g.rotation.y += velocity.x * spin * delta;
-      if (g.position.y <= base[1]) {
-        g.position.y = base[1];
+      if (!heldFacingRotation) g.rotation.y += velocity.x * spin * delta;
+      const surfaceY =
+        heldFacingRotation && heldMinRaise !== undefined
+          ? base[1] + tiltedFaceClearance(g.quaternion, heldMinRaise)
+          : base[1];
+      if (g.position.y <= surfaceY) {
+        g.position.y = surfaceY;
         velocity.set(0, 0, 0);
-        phase.current = "rest";
-        authoredParked.current = true;
-        authoredOffscreenFor.current = 0;
+        if (surfaceY - base[1] < 1e-3) {
+          g.position.y = base[1];
+          g.quaternion.identity();
+          phase.current = "rest";
+          authoredParked.current = true;
+          authoredOffscreenFor.current = 0;
+        }
       }
     } else {
       const p = g.position;
@@ -1183,6 +1371,37 @@ export default function Grabbable({
       }
     }
 
+    const impulseGroup = impulse.current;
+    if (impulseGroup) {
+      const sceneImpulse = getSceneImpulse();
+      if (handledSceneImpulse.current !== sceneImpulse.revision) {
+        handledSceneImpulse.current = sceneImpulse.revision;
+        g.getWorldPosition(impulseWorld);
+        const kick = sceneImpulseKick(sceneImpulse, impulseWorld, hoverKey);
+        if (
+          sceneImpulseReaction === "knockdown" &&
+          Math.abs(kick.x) + Math.abs(kick.y) + Math.abs(kick.z) > 1e-5
+        ) {
+          const entry = handle.current;
+          if (entry) requestSceneImpulseKnockdown(physicsScene, entry, kick);
+        } else {
+          impulseLocal.set(kick.x, kick.y, kick.z);
+          g.getWorldQuaternion(impulseWorldQuaternion).invert();
+          impulseLocal.applyQuaternion(impulseWorldQuaternion);
+          g.getWorldScale(impulseWorldScale);
+          impulseLocal.set(
+            impulseLocal.x / Math.max(1e-5, impulseWorldScale.x),
+            impulseLocal.y / Math.max(1e-5, impulseWorldScale.y),
+            impulseLocal.z / Math.max(1e-5, impulseWorldScale.z),
+          );
+          applySceneImpulseKick(impulseMotion.current, impulseLocal);
+        }
+      }
+      const motion = stepSceneImpulseMotion(impulseMotion.current, delta);
+      impulseGroup.position.set(motion.x, motion.y, motion.z);
+      impulseGroup.rotation.set(motion.z * 1.8, 0, -motion.x * 1.8);
+    }
+
     // The hover nod. Same gesture, same curve and same hinge edge as every
     // other prop in the world (see Lift) — a prop you can pick up should not
     // be the one prop that ignores the pointer until you press. Only at REST:
@@ -1198,10 +1417,25 @@ export default function Grabbable({
         tiltOnHover &&
         (interactionState.hovered === hoverKey || focused || pressed) &&
         !still;
+      // Sway measures too, but with the furniture cutoff lifted: foliage
+      // already won the archetype in `archetypeFor`, and letting size veto it
+      // here would silence the monstera and the large plants, whose leaves are
+      // the ones that move most. The draggability warning below is still the
+      // size rule's job, so it stays keyed to TILT_MAX_SIZE.
       if (wants && hinge.current === undefined) {
-        const measured = hingeFor(n, false, TILT_MAX_SIZE);
+        const measured = hingeFor(
+          n,
+          false,
+          archetype === "sway" ? Number.POSITIVE_INFINITY : TILT_MAX_SIZE,
+        );
         if (measured) {
-          hinge.current = measured.reason ? null : measured;
+          // Sway takes the pivot whatever the reason says. With the cutoff
+          // lifted the only reason left is "rig", a light sitting inside the
+          // prop's own box, and shelf plants stand close enough to the
+          // practical lamps to trip that. A plant is not a lamp; refusing it
+          // there would silence exactly the props band one exists for.
+          hinge.current =
+            archetype === "sway" ? measured : measured.reason ? null : measured;
           if (
             process.env.NODE_ENV === "development" &&
             measured.reason === "furniture"
@@ -1218,7 +1452,12 @@ export default function Grabbable({
           }
         }
       }
-      let target = 0;
+      // ONE gesture for every band. The spring drives an unitless 0-to-1
+      // engagement that both rotation channels scale, so a lean and a twist
+      // arrive, overshoot and settle as a single motion; the band supplies how
+      // far each goes and how bouncy the arrival is. This replaced a pair of
+      // exponential damps because the plants' spring was the only one in the
+      // world and it read better than everything else. See reactionArchetype.
       if (wants && hinge.current) {
         camera.getWorldPosition(nodCameraWorld);
         n.getWorldPosition(nodWorld);
@@ -1227,23 +1466,51 @@ export default function Grabbable({
           n.parent.getWorldQuaternion(nodParentWorld).invert();
           nodCameraDirection.applyQuaternion(nodParentWorld);
         }
-        target = cameraFacingHoverTilt(
-          nodCameraDirection,
-          TIP * (pressed ? 1.25 : 1),
-        );
+        // The aim is held rather than recomputed on the way out, so a prop
+        // returns along the path it left by instead of snapping to wherever
+        // the camera happens to be as the pointer leaves.
+        const aimed =
+          hoverTiltAngle === undefined
+            ? // A negative band lean is a BACKWARD lean, and the sign has to
+              // survive the solver: `cameraSideHoverTilt` refuses a
+              // non-positive angle, so the magnitude goes in and the direction
+              // comes back out.
+              Math.sign(bandMotion.lean) *
+              cameraSideHoverTilt(
+                nodCameraDirection,
+                Math.abs(bandMotion.lean) * (pressed ? 1.25 : 1),
+              )
+            : cameraSideHoverTilt(nodCameraDirection, hoverTiltAngle);
+        // A lean is only safe DOWNWARD, where hingeShift pins the contact
+        // edge. Nothing was watching the rising end of the arc, and the props
+        // that stack have no room there: a book in a horizontal row carries
+        // its neighbour flat on its top face with a gap of exactly zero. A
+        // blocked lean becomes a pull toward the viewer, which is what the
+        // stack's own FLAT_LIFT and the About reading fan each chose by hand.
+        const budget = leanBudget(hinge.current, aimed);
+        swayLean.current = budget.lean;
+        swaySlide.current = cameraSideSlide(nodCameraDirection, budget.slide);
+        // A prop trading its lean for a slide is not leaning, so it has no
+        // business turning either: the twist is half of the plants' one
+        // gesture, not a channel of its own.
+        swayTwist.current =
+          budget.lean === 0
+            ? 0
+            : cameraSideSwayTwist(nodCameraDirection, bandMotion.twist);
       }
       const pivot = hinge.current
-        ? hingePivotForTilt(hinge.current, target || nodAngle.current)
+        ? hingePivotForTilt(hinge.current, swayLean.current || nodAngle.current)
         : null;
-      if (Math.abs(nodAngle.current - target) < 1e-4) nodAngle.current = target;
-      else
-        nodAngle.current = THREE.MathUtils.damp(
-          nodAngle.current,
-          target,
-          LIFT_LAMBDA,
-          delta,
-        );
-      n.rotation.x = nodAngle.current;
+      stepSway(
+        swaySpring,
+        wants ? 1 : 0,
+        delta,
+        bandMotion.stiffness,
+        bandMotion.damping,
+      );
+      n.rotation.x = swaySpring.angle * swayLean.current;
+      n.rotation.y = swaySpring.angle * swayTwist.current;
+      nodAngle.current = n.rotation.x;
       const targetScale = pressed ? 0.965 : focused ? 1.015 : 1;
       const scale = pressed
         ? targetScale
@@ -1251,6 +1518,10 @@ export default function Grabbable({
       n.scale.setScalar(scale);
       if (pivot) n.position.copy(hingeShift(pivot, n.rotation, undefined));
       else n.position.set(0, 0, 0);
+      // Rides the SAME spring as the lean it replaced, so a book pulled out of
+      // a stack overshoots and settles exactly as its neighbour standing in
+      // the open tips and settles. One gesture, two possible directions.
+      n.position.z += swaySpring.angle * swaySlide.current;
       if (pressed && touchPressedAt.current !== null) {
         const loaded = THREE.MathUtils.clamp(
           (performance.now() - touchPressedAt.current - 180) / 170,
@@ -1336,8 +1607,10 @@ export default function Grabbable({
         {/* Named for the same reason Lift's group and SPIN_NODE are: the nod
             is a few degrees on ONE object in a scene where the camera never
             stops moving, so a screenshot cannot tell you it happened. */}
-        <group ref={nod} name={`nod:${hoverKey}`}>
-          {children}
+        <group ref={impulse} name={`impulse:${hoverKey}`}>
+          <group ref={nod} name={`nod:${hoverKey}`}>
+            {children}
+          </group>
         </group>
       </group>
     </>

@@ -2,29 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   FOCUS_SESSION_KEY,
-  ignoresFocusShortcut,
-  isFocusModeShortcut,
   readFocusMode,
   writeFocusMode,
 } from "./focusMode";
 
 describe("desktop focus mode", () => {
-  it("uses bare H and rejects modified or repeated shortcuts", () => {
-    const event = {
-      key: "h",
-      repeat: false,
-      altKey: false,
-      metaKey: false,
-      ctrlKey: false,
-    };
-
-    expect(isFocusModeShortcut(event)).toBe(true);
-    expect(isFocusModeShortcut({ ...event, altKey: true })).toBe(false);
-    expect(isFocusModeShortcut({ ...event, ctrlKey: true })).toBe(false);
-    expect(isFocusModeShortcut({ ...event, metaKey: true })).toBe(false);
-    expect(isFocusModeShortcut({ ...event, repeat: true })).toBe(false);
-  });
-
   it("round-trips through session-shaped storage", () => {
     const values = new Map<string, string>();
     const storage = {
@@ -35,21 +17,5 @@ describe("desktop focus mode", () => {
     writeFocusMode(storage, true);
     expect(values.get(FOCUS_SESSION_KEY)).toBe("1");
     expect(readFocusMode(storage)).toBe(true);
-  });
-
-  it("guards form fields, buttons, and editable descendants", () => {
-    let receivedSelector = "";
-    const guarded = {
-      closest: (selector: string) => {
-        receivedSelector = selector;
-        return {};
-      },
-    } as unknown as EventTarget;
-    const ordinary = { closest: () => null } as unknown as EventTarget;
-    expect(ignoresFocusShortcut(guarded)).toBe(true);
-    expect(receivedSelector).toContain("input");
-    expect(receivedSelector).toContain("[contenteditable]");
-    expect(ignoresFocusShortcut(ordinary)).toBe(false);
-    expect(ignoresFocusShortcut(null)).toBe(false);
   });
 });

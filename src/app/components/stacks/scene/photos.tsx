@@ -16,13 +16,14 @@
 // silhouette and whichever file it was declared in, hangs from it.
 import { INERT_HOVER } from "../store";
 import { type Palette } from "../theme";
-import { RoundedBox } from "./RoundedBox";
 import React from "react";
 
 import LitImage from "./LitImage";
+import { RoundedBox } from "./RoundedBox";
 import PropLink, { HoverProp } from "./links";
+import { deskFrameHeight, deskFrameWidth } from "./photoGeometry";
 
-const FRAME_BORDER = 0.024;
+export { deskFrameHeight, deskFrameWidth } from "./photoGeometry";
 
 // ---------------------------------------------------------------------------
 // Where each photograph leads
@@ -105,6 +106,7 @@ export const PHOTO_LINKS: Record<string, string | null> = {
   "projects-couch": null,
   "projects-coding-couch-v8": null,
   "projects-wwdc-v8": null,
+  "projects-facebook-v8": null,
   // --- Musings -----------------------------------------------------------
   "musings-walk": null,
   // The four prints pinned to the corkboard, keyed by path because that is
@@ -211,11 +213,6 @@ export function PhotoMount({
   );
 }
 
-/** Total height of a DeskFrame — callers need it for the contact math. */
-export function deskFrameHeight(height: number) {
-  return height + FRAME_BORDER * 2;
-}
-
 /** A small standing frame: the grown-up sibling of the polaroid, for the
  * pictures that deserve to be framed rather than propped. Landscape by
  * default; pass a taller `height` for a portrait one. */
@@ -236,8 +233,8 @@ export function DeskFrame({
   zoom?: number;
   focus?: [number, number];
 }) {
-  const w = width + FRAME_BORDER * 2;
-  const h = height + FRAME_BORDER * 2;
+  const w = deskFrameWidth(width);
+  const h = deskFrameHeight(height);
   return (
     <group>
       <RoundedBox

@@ -230,6 +230,7 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
               shadeColor={palette.shadow}
               shadeWidth={0.36}
               shape="box"
+              colliderProfile="foliage-base"
               massKg={2.4}
             >
               <Sway unitIndex={index} amount={0.016} rate={0.31} phase={2.2}>
@@ -298,6 +299,9 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
           shadeWidth={0.3}
           shape="box"
           massKg={0.45}
+          // The carrier and the egg share this key on purpose (see above), so
+          // the shared nod and the shiver were both firing off one pointer.
+          signature="shiver"
         >
           <EggClock
             unitIndex={index}

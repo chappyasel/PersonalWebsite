@@ -89,6 +89,18 @@ export function launchGolfBall(
   ball.opacity = 1;
 }
 
+/** Move a ready ball to a new authored reset mark through the normal fade.
+ * Later shots keep returning to that mark. */
+export function retargetReadyGolfBall(
+  ball: GolfBallState,
+  start: GolfVec3,
+): boolean {
+  if (ball.phase !== "ready") return false;
+  ball.start = copy(start);
+  beginGolfBallReset(ball);
+  return true;
+}
+
 export function resetGolfBall(ball: GolfBallState) {
   ball.position = copy(ball.start);
   ball.velocity = vector();

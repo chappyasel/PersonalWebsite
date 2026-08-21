@@ -1,14 +1,18 @@
+import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import {
   MIN_CAMERA_TARGET_DISTANCE,
+  PORTRAIT_TOUCH_FOCUS_Y_LIMIT,
   TAP_FOCUS_ZOOM_MULTIPLIER,
   cameraTravelState,
   cameraTravelTransition,
   clampCameraZoom,
+  interactionFocusYOffset,
   interactionZoomTarget,
   isGolfControlInteraction,
 } from "./cameraZoom";
+import { SHELF_SURFACE } from "./shelfGeometry";
 
 const state = {
   distance: 10,
@@ -20,8 +24,40 @@ const state = {
   blocked: false,
   touchInteraction: true,
 };
+const cameraRigSource = fs.readFileSync(
+  new URL("./CameraRig.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("interaction camera zoom", () => {
+  it("aims a portrait Touch Focus far enough down to keep a lower-shelf globe in frame", () => {
+    const baselineLookY = -0.08;
+    const coordinationScale = 1.386;
+    const globeLocalCenterY = ((0.147 + 0.105) * coordinationScale) / 2;
+    const globeWorldCenterY = SHELF_SURFACE.lower + globeLocalCenterY;
+    const offset = interactionFocusYOffset({
+      centerY: globeWorldCenterY,
+      baselineLookY,
+      portrait: true,
+    });
+
+    expect(offset).toBeCloseTo(-PORTRAIT_TOUCH_FOCUS_Y_LIMIT);
+    expect(baselineLookY + offset).toBeLessThan(globeWorldCenterY + 0.1);
+    expect(
+      interactionFocusYOffset({
+        centerY: globeWorldCenterY,
+        baselineLookY,
+        portrait: false,
+      }),
+    ).toBe(-0.12);
+  });
+
+  it("uses authored interaction bounds in the live camera focus path", () => {
+    expect(cameraRigSource).toContain("focusSpec.projectedLocalBounds");
+    expect(cameraRigSource).toContain("interactionFocusYOffset({");
+    expect(cameraRigSource).toContain("presentationProfileForViewport(");
+  });
+
   it("uses progressively stronger hover, drag, and focus zoom", () => {
     const hover = interactionZoomTarget({ ...state, hovered: true });
     const drag = interactionZoomTarget({ ...state, dragging: true });

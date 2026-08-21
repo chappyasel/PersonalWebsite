@@ -59,4 +59,22 @@ describe("boot presentation", () => {
       "display: none",
     );
   });
+
+  it("rotates the boot orb network and freezes it for reduced motion", () => {
+    const network = rule(".stacks-boot-coordination-network {");
+
+    expect(network).toContain("animation: stacks-boot-coordination-rotate");
+    expect(network).toContain("transform-box: fill-box");
+    expect(css).toContain("@keyframes stacks-boot-coordination-rotate");
+    expect(css).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.stacks-boot-coordination-network,[\s\S]*animation: none/,
+    );
+  });
+
+  it("renders the orb fringe as crisp dither pixels", () => {
+    const dither = rule(".stacks-boot-coordination-dither {");
+
+    expect(dither).toContain("fill: #030507");
+    expect(dither).toContain("shape-rendering: crispEdges");
+  });
 });

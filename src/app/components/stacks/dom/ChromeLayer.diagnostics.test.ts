@@ -53,9 +53,41 @@ describe("development diagnostics chrome", () => {
   });
 
   it("keeps overview navigation contextual", () => {
-    expect(diagnosticsSource).toContain("notices.length > 0");
+    expect(diagnosticsSource).toContain(
+      "data-empty={notices.length === 0 || undefined}",
+    );
+    expect(diagnosticsSource).toContain("No active signals");
     expect(diagnosticsSource).not.toContain("Tune rendering");
     expect(diagnosticsSource).not.toContain("Inspect scene");
+  });
+
+  it("holds live overview geometry stable while health signals change", () => {
+    expect(diagnosticsStyles).toContain("block-size: 52px");
+    expect(diagnosticsStyles).toContain("block-size: 96px");
+    expect(diagnosticsStyles).toContain("overflow-y: auto");
+    expect(diagnosticsStyles).toContain(
+      "grid-template-rows: auto auto minmax(0, 1fr)",
+    );
+    expect(diagnosticsStyles).toContain(
+      "block-size: min(720px, calc(100dvh - 24px))",
+    );
+  });
+
+  it("turns the console into a touch-friendly fixed-height mobile sheet", () => {
+    expect(diagnosticsStyles).toContain("@media (width < 640px)");
+    expect(diagnosticsStyles).toContain("inset: auto 0 0");
+    expect(diagnosticsStyles).toContain("block-size: min(82svh, 720px)");
+    expect(diagnosticsStyles).toContain("border-radius: 14px 14px 0 0");
+    expect(diagnosticsStyles).toContain("min-block-size: 40px");
+    expect(diagnosticsStyles).toContain("grid-template-columns: 1fr");
+  });
+
+  it("uses a compact accessible close icon", () => {
+    expect(diagnosticsSource).toContain('aria-label="Close scene diagnostics"');
+    expect(diagnosticsSource).toContain(
+      '<XIcon aria-hidden="true" size={18} weight="bold" />',
+    );
+    expect(diagnosticsSource).not.toContain("          Close\n");
   });
 
   it("uses one semantic diagnostics palette", () => {
@@ -69,17 +101,22 @@ describe("development diagnostics chrome", () => {
   });
 
   it("uses fixed-width live chrome so changing metrics cannot shift layout", () => {
-    expect(diagnosticsStyles).toContain("inline-size: 240px");
-    expect(diagnosticsStyles).toContain("min-inline-size: 240px");
-    expect(diagnosticsStyles).toContain("max-inline-size: 240px");
+    expect(diagnosticsStyles).toContain("inline-size: 168px");
+    expect(diagnosticsStyles).toContain("min-inline-size: 168px");
+    expect(diagnosticsStyles).toContain("max-inline-size: 168px");
+    expect(diagnosticsStyles).toContain(
+      "grid-template-rows: repeat(4, 1.12em)",
+    );
+    expect(diagnosticsStyles).toContain("inline-size: 100%");
     expect(diagnosticsStyles).toContain("text-overflow: ellipsis");
     expect(diagnosticsStyles).not.toContain("min-width: max-content");
+    expect(diagnosticsStyles).not.toContain('content: "D"');
   });
 
-  it("uses the HUD as the only console trigger with a safe D shortcut", () => {
+  it("uses the HUD as the only console trigger with a safe H shortcut", () => {
     expect(diagnosticsSource).toContain("<DevPerformanceHud");
-    expect(diagnosticsSource).toContain('aria-keyshortcuts="d"');
-    expect(diagnosticsSource).toContain('event.key.toLowerCase() !== "d"');
+    expect(diagnosticsSource).toContain('aria-keyshortcuts="h"');
+    expect(diagnosticsSource).toContain('event.key.toLowerCase() !== "h"');
     expect(diagnosticsSource).toContain(
       "isEditableShortcutTarget(event.target)",
     );
@@ -178,6 +215,23 @@ describe("development diagnostics chrome", () => {
     expect(diagnosticsSource).toContain("Simulation controls");
   });
 
+  it("offers a reset-on-reload free-roam camera in the Simulate view", () => {
+    expect(diagnosticsSource).toContain(
+      "freeRoamDiagnosticsController.subscribe",
+    );
+    expect(diagnosticsSource).toContain(
+      "freeRoamDiagnosticsController.setEnabled",
+    );
+    expect(diagnosticsSource).toContain("Free-roam camera");
+    expect(diagnosticsSource).toContain("WASD");
+    expect(diagnosticsSource).toContain("Fog in free roam");
+    expect(diagnosticsSource).toContain('aria-keyshortcuts="F Shift+F"');
+    expect(diagnosticsSource).toContain("Q/E");
+    expect(diagnosticsSource).toContain("Shift for one-third");
+    expect(diagnosticsSource).toContain("Shift+F starts from");
+    expect(diagnosticsSource).toContain("captures the mouse on entry");
+  });
+
   it("keeps inspection scope with overlays and telemetry", () => {
     const inspectStart = diagnosticsSource.indexOf(
       'id="stacks-diagnostics-panel-inspect"',
@@ -246,9 +300,9 @@ describe("development diagnostics chrome", () => {
 });
 
 describe("production diagnostics activation", () => {
-  it("keeps a safe D listener in the always-loaded chrome", () => {
+  it("keeps a safe H listener in the always-loaded chrome", () => {
     expect(chromeSource).toContain('import("./SceneDiagnostics")');
-    expect(chromeSource).toContain('event.key.toLowerCase() !== "d"');
+    expect(chromeSource).toContain('event.key.toLowerCase() !== "h"');
     expect(chromeSource).toContain("isEditableShortcutTarget(event.target)");
     expect(chromeSource).toContain(
       "<Diagnostics initiallyOpen={request.initiallyOpen} />",

@@ -13,7 +13,6 @@ import {
 
 let projectionCamera: THREE.Camera | null = null;
 let projectionElement: HTMLElement | null = null;
-const projectionBox = new Box3();
 const projectionPoint = new Vector3();
 const pointerRaycaster = new Raycaster();
 const pointerNdc = new Vector2();
@@ -189,22 +188,19 @@ function projectDoorWithContext(id: string): ProjectedDoor | null {
   // a stable object-owned anchor even before (or without) measurable child
   // geometry.
   spec.root.updateWorldMatrix(true, true);
-  projectionBox.setFromObject(spec.root, true);
-  if (
-    projectionBox.isEmpty() ||
-    !Number.isFinite(projectionBox.min.x) ||
-    !Number.isFinite(projectionBox.max.y)
-  ) {
+  const localBounds = rootLocalBounds(spec);
+  if (!localBounds || localBounds.isEmpty()) {
     // An empty carrier is still the linked object. Its world origin is a much
     // better fallback than the live pointer: the tooltip stays attached while
     // the visitor moves between neighbouring links or the model streams in.
     spec.root.getWorldPosition(projectionPoint);
   } else {
     projectionPoint.set(
-      (projectionBox.min.x + projectionBox.max.x) / 2,
-      projectionBox.max.y,
-      (projectionBox.min.z + projectionBox.max.z) / 2,
+      (localBounds.min.x + localBounds.max.x) / 2,
+      localBounds.max.y,
+      (localBounds.min.z + localBounds.max.z) / 2,
     );
+    projectionPoint.applyMatrix4(spec.root.matrixWorld);
   }
   projectionPoint.project(projectionCamera);
   const rect = projectionElement.getBoundingClientRect();

@@ -4,6 +4,7 @@ import { useStacks } from "../store";
 import React, { useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { localCameraFacingQuaternion } from "./heldFacingMath";
 import { useUnitFrame } from "./unitActivity";
 
 type EulerTuple = [number, number, number];
@@ -62,9 +63,14 @@ export default function HeldFacing({
     if (!node) return;
     const carried = useStacks.getState().dragging === hoverKey;
     if (carried && node.parent) {
-      node.parent.getWorldQuaternion(parentWorld).invert();
+      node.parent.getWorldQuaternion(parentWorld);
       camera.getWorldQuaternion(cameraWorld);
-      target.copy(parentWorld).multiply(cameraWorld).multiply(facingQuaternion);
+      localCameraFacingQuaternion(
+        parentWorld,
+        cameraWorld,
+        facingQuaternion,
+        target,
+      );
     } else {
       target.copy(restQuaternion);
     }

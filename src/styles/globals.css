@@ -638,6 +638,85 @@ html[data-world="ready"] .stacks-boot-threshold {
   stroke: none;
 }
 
+.stacks-boot-coordination-base,
+.stacks-boot-coordination-stem,
+.stacks-boot-coordination-core {
+  fill: #030507;
+}
+
+.stacks-boot-coordination-link {
+  fill: none;
+  stroke: color-mix(in srgb, #78bba3 45%, transparent);
+  stroke-width: 0.65;
+}
+
+.stacks-boot-coordination-reveal {
+  fill: none;
+  stroke-width: 1.45;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0;
+  animation: stacks-boot-coordination-reveal 4.8s ease-out infinite;
+  animation-delay: var(--stacks-boot-coordination-reveal-delay);
+}
+
+.stacks-boot-coordination-reveal[data-theme="human"] {
+  stroke: #34d399;
+  filter: drop-shadow(0 0 1.2px #34d399);
+}
+
+.stacks-boot-coordination-reveal[data-theme="agent"] {
+  stroke: #4d9eff;
+  filter: drop-shadow(0 0 1.2px #4d9eff);
+}
+
+@keyframes stacks-boot-coordination-reveal {
+  0%,
+  100% {
+    stroke-dashoffset: 1;
+    opacity: 0;
+  }
+  3% {
+    stroke-dashoffset: 1;
+    opacity: 0.98;
+  }
+  16% {
+    stroke-dashoffset: 0;
+    opacity: 0.92;
+  }
+  25% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+
+.stacks-boot-coordination-network {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: stacks-boot-coordination-rotate 12s linear infinite;
+  will-change: transform;
+}
+
+@keyframes stacks-boot-coordination-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.stacks-boot-coordination-dither {
+  fill: #030507;
+  shape-rendering: crispEdges;
+}
+
+.stacks-boot-coordination-node[data-theme="human"] {
+  fill: #34d399;
+}
+
+.stacks-boot-coordination-node[data-theme="agent"] {
+  fill: #4d9eff;
+}
+
 .stacks-boot-apple {
   fill: var(--stacks-boot-object);
   stroke: color-mix(in srgb, var(--stacks-boot-object) 76%, black);
@@ -816,6 +895,8 @@ html[data-world] [contenteditable="true"] {
   .stacks-boot-threshold,
   .stacks-boot-entry,
   .stacks-boot-item-motion,
+  .stacks-boot-coordination-network,
+  .stacks-boot-coordination-reveal,
   .stacks-world-curtain {
     animation: none;
     transition: none;
@@ -829,6 +910,10 @@ html[data-world] [contenteditable="true"] {
   .stacks-boot-item-motion {
     opacity: 1;
     transform: none;
+    will-change: auto;
+  }
+
+  .stacks-boot-coordination-network {
     will-change: auto;
   }
 }

@@ -3,6 +3,11 @@
 import React, { useEffect, useState } from "react";
 import * as THREE from "three";
 
+import { ABOUT_BOOT_LANDMARKS } from "./aboutBootComposition";
+import {
+  ABOUT_AIC_SCALE,
+  ABOUT_LAMP_SHADE_PERCH,
+} from "./aboutCoordinationLayout";
 import { createInsectLampCone, lampConeContainsPoint } from "./insectLampCone";
 import type { InsectPerchRejectionCode } from "./insectPerchDiagnostic";
 import {
@@ -11,6 +16,23 @@ import {
   sceneInteractionRoots,
 } from "./interactionRegistry";
 import { type MeadowLamp, getMeadowLamps } from "./meadowLights";
+import { MUSINGS_LOWER_BOOK } from "./musingsShelfGeometry";
+import { deskFrameHeight } from "./photoGeometry";
+import { SHELF_GEOMETRY, SHELF_SURFACE } from "./shelfGeometry";
+import {
+  ABOUT_READING_BOOK,
+  readingStackPoses,
+} from "./units/aboutReadingStack";
+import {
+  MUSINGS_LAMP_SHADE_PERCH,
+  MUSINGS_OPEN_BOOK_PERCH_POSITION,
+  MUSINGS_TEA_RIM_POSITION,
+} from "./units/musingsShelfLighting";
+import {
+  PROJECT_APPLE_PHOTO_POSE,
+  PROJECT_PHOTO_DIMENSIONS,
+  REVIEWED_SHELF_LAYOUT,
+} from "./units/unitShelfLayout";
 
 export type InsectPerch = {
   id: string;
@@ -578,18 +600,43 @@ export function resolveInsectPerch(
  * Every site names a thing a visitor can point at — a medallion rim, a
  * masthead, the crown of an alarm clock — because a butterfly settling on an
  * anonymous ledge reads as a bug in the scene rather than a visitor to it. */
+const ABOUT_READING_POSES = readingStackPoses();
+const PROJECTS_APPLE_FRAME_PERCH = (() => {
+  const frameHeight = deskFrameHeight(PROJECT_PHOTO_DIMENSIONS.apple.height);
+  const rotation = new THREE.Euler(...PROJECT_APPLE_PHOTO_POSE.rotation);
+  const top = new THREE.Vector3(0, frameHeight / 2, -0.009).applyEuler(
+    rotation,
+  );
+  const normal = new THREE.Vector3(0, 1, 0).applyEuler(rotation);
+  const tangent = new THREE.Vector3(1, 0, 0).applyEuler(rotation);
+  return {
+    position: [
+      REVIEWED_SHELF_LAYOUT.projects.topApplePhotoX + top.x,
+      SHELF_SURFACE.top + frameHeight / 2 + top.y,
+      PROJECT_APPLE_PHOTO_POSE.baseZ + top.z,
+    ] as const,
+    normal: [normal.x, normal.y, normal.z] as const,
+    tangent: [tangent.x, tangent.y, tangent.z] as const,
+  };
+})();
+
 const UNIT_PERCHES: readonly (readonly PerchDefinition[])[] = [
   [
     {
       id: "about:aic-crown",
-      position: [-0.4747, -0.6345, -0.0753],
+      position: [
+        ABOUT_BOOT_LANDMARKS["ai-collective"].x +
+          0.0053 * ABOUT_AIC_SCALE,
+        SHELF_SURFACE.lower + 0.208 * ABOUT_AIC_SCALE,
+        SHELF_GEOMETRY.lower.centerZ + 0.0047 * ABOUT_AIC_SCALE,
+      ],
       normal: [0, 1, 0],
       tangent: [0.9928, 0, 0.1197],
       ownerId: "grab:ai-collective-mark",
     },
     {
       id: "about:portrait-frame-top",
-      position: [-0.4211, 1.0002, -0.1101],
+      position: [-0.2211, 1.0002, -0.1101],
       normal: [0, 0.9982, -0.06],
       tangent: [0.9982, -0.0036, -0.0599],
       // `LoosePhoto` in UnitAbout registers `grab:photo:<id>`. The
@@ -653,29 +700,42 @@ const UNIT_PERCHES: readonly (readonly PerchDefinition[])[] = [
       // The replacement is the reading stack's middle book, which is the same
       // kind of site as `about:other-minds-top` beside it.
       id: "about:behave-top",
-      position: [0.33, -0.347, 0.035],
+      position: [
+        ABOUT_READING_POSES[0].base[0],
+        SHELF_SURFACE.lower + ABOUT_READING_BOOK.depth,
+        ABOUT_READING_POSES[0].base[2],
+      ],
       normal: [0, 1, 0],
       tangent: [0.9682, 0, 0.2503],
       ownerId: "grab:reading:behave",
     },
     {
       id: "about:lamp-shade",
-      position: [-0.6848, -0.2193, -0.0106],
-      normal: [-0.2812, 0.9166, -0.2842],
-      tangent: [0.7109, 0, -0.7033],
+      position: ABOUT_LAMP_SHADE_PERCH.position,
+      normal: ABOUT_LAMP_SHADE_PERCH.normal,
+      tangent: ABOUT_LAMP_SHADE_PERCH.tangent,
       ownerId: "egg:lamp:0",
       lampId: "desk-lamp-0",
     },
     {
       id: "about:tj-medallion-rim",
-      position: [-0.24, -0.589, -0.08],
+      position: [
+        ABOUT_BOOT_LANDMARKS["tj-medallion"].x,
+        SHELF_SURFACE.lower +
+          0.2535 * (ABOUT_BOOT_LANDMARKS["tj-medallion"].sceneScale / 0.72),
+        SHELF_GEOMETRY.lower.centerZ,
+      ],
       normal: [0, 1, 0],
       tangent: [1, 0, 0],
       ownerId: "grab:tj-medallion:about",
     },
     {
       id: "about:other-minds-top",
-      position: [0.69, -0.347, 0.15],
+      position: [
+        ABOUT_READING_POSES[2].base[0],
+        SHELF_SURFACE.lower + ABOUT_READING_BOOK.depth,
+        ABOUT_READING_POSES[2].base[2],
+      ],
       normal: [0, 1, 0],
       tangent: [0.97, 0, 0.243],
       ownerId: "grab:reading:other-minds",
@@ -903,11 +963,9 @@ const UNIT_PERCHES: readonly (readonly PerchDefinition[])[] = [
       ownerId: "grab:trophy",
     },
     {
-      id: "projects:notebook-page",
-      position: [0.0231, -0.8245, -0.1475],
-      normal: [0, 1, 0],
-      tangent: [0.9759, 0, 0.2182],
-      ownerId: "grab:notebook:projects",
+      id: "projects:apple-portrait-frame-top",
+      ...PROJECTS_APPLE_FRAME_PERCH,
+      ownerId: "grab:photo:projects-wwdc-v8",
     },
     {
       id: "projects:phone-face",
@@ -939,67 +997,72 @@ const UNIT_PERCHES: readonly (readonly PerchDefinition[])[] = [
       clearance: 0.09,
     },
     {
-      id: "projects:weightlifting-frame-top",
-      position: [-0.8474, 0.5261, -0.1279],
-      normal: [0.0268, 0.9945, -0.1009],
-      tangent: [0.9996, -0.0266, 0.0027],
-      ownerId: "grab:frame:Weightlifting App",
+      id: "projects:weightlifting-icon-top",
+      position: [
+        REVIEWED_SHELF_LAYOUT.projects.topWeightliftingIconX,
+        0.355,
+        0.02,
+      ],
+      normal: [0, 1, 0],
+      tangent: [0.9976, 0, -0.0699],
+      ownerId: "link:projects:weightlifting-icon",
     },
     {
-      id: "projects:liars-dice-frame-top",
-      position: [0.005, 0.5205, -0.0875],
-      normal: [0.0114, 0.9949, -0.0998],
-      tangent: [0.9999, -0.0114, 0.0011],
-      ownerId: "grab:frame:Liar's Dice",
+      id: "projects:dice-pyramid-top",
+      position: [REVIEWED_SHELF_LAYOUT.projects.topDiceCenterX, 0.515, 0],
+      normal: [0, 1, 0],
+      tangent: [0.9992, 0, 0.04],
+      ownerId: "link:projects:dice:top",
     },
     {
-      id: "projects:homework-frame-top",
-      position: [0.8491, 0.5299, -0.1152],
-      normal: [-0.0326, 0.9943, -0.1017],
-      tangent: [0.9995, 0.0324, -0.0033],
-      ownerId: "grab:frame:Homework App (Acquired)",
+      id: "projects:homework-icon-top",
+      position: [REVIEWED_SHELF_LAYOUT.projects.topHomeworkIconX, 0.355, 0.02],
+      normal: [0, 1, 0],
+      tangent: [0.9976, 0, 0.0699],
+      ownerId: "grab:projects:homework-icon",
     },
   ],
   [
     {
       id: "musings:writing-paper",
-      position: [-0.48, -0.7925, -0.012],
+      position: [-0.46, -0.8291, -0.02],
       normal: [0, 1, 0],
       tangent: [0.9892, 0, -0.1463],
       ownerId: "grab:paper:5",
     },
     {
       id: "musings:book-pile-top",
-      position: [0.42, -0.6545, 0],
+      position: [
+        MUSINGS_LOWER_BOOK.x +
+          (MUSINGS_LOWER_BOOK.count - 1) * MUSINGS_LOWER_BOOK.staggerX,
+        SHELF_SURFACE.lower +
+          MUSINGS_LOWER_BOOK.count * MUSINGS_LOWER_BOOK.height,
+        0,
+      ],
       normal: [0, 1, 0],
-      tangent: [0.9964, 0, -0.0845],
-      ownerId: "grab:pile:5:47:2",
+      tangent: [1, 0, 0.0005],
+      ownerId: "link:row:5:47:0:2",
     },
     {
       id: "musings:open-book-page",
-      position: [0.6222, 0.1205, 0.1168],
+      position: MUSINGS_OPEN_BOOK_PERCH_POSITION,
       normal: [0, 1, 0],
       tangent: [0.9689, 0, 0.2474],
       ownerId: "grab:openbook",
     },
     {
       id: "musings:tea-rim",
-      position: [0.39, 0.1526, -0.08],
+      position: MUSINGS_TEA_RIM_POSITION,
       normal: [0, 1, 0],
       tangent: [0.8253, 0, -0.5646],
       ownerId: "egg:tea",
     },
     {
       id: "musings:lamp-shade",
-      // Measured contact, as with its Systems twin — see the note there. This
-      // shade sits at a steeper angle: the facet under the anchor is 81° off
-      // vertical, so a moth here clings to a near-vertical flank rather than
-      // standing on a crown. That is a real moth pose and the renderer orients
-      // from the resolved normal, so it needs no special case; it does mean the
-      // authored normal has to be the measured one, because nothing resembling
-      // "up" is within any usable tolerance of it.
-      position: [-1, 0.5674, 0.04],
-      normal: [0.9132, 0.1565, 0.3763],
+      // The shade now turns toward the open book and cup. Its authored contact
+      // follows the same recovered hinge as the rendered model and light rig.
+      position: MUSINGS_LAMP_SHADE_PERCH.position,
+      normal: MUSINGS_LAMP_SHADE_PERCH.normal,
       ownerId: "egg:lamp:5",
       lampId: "desk-lamp-5",
       normalTolerance: 0.9,

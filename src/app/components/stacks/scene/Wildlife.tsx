@@ -9,13 +9,20 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { coordinationGlobeDiagnosticsController } from "./coordinationGlobeDiagnostics";
+import {
+  COORDINATION_AGENT_COLOR,
+  COORDINATION_GLOBE_INTERACTION_ID,
+  COORDINATION_HUMAN_COLOR,
+  COORDINATION_INSECT_TIME_SCALE,
+} from "./coordinationNetwork";
 import { INSECT_ENVELOPES } from "./insectCollision";
 import type { InsectContainment } from "./insectContainment";
+import { insectOwnerIsDisturbed } from "./insectDisturbance";
 import {
   ThreeInsectFlightWorld,
   prepareInsectLandingTarget,
 } from "./insectFlightWorld";
-import { insectOwnerIsDisturbed } from "./insectDisturbance";
 import {
   type InsectLampCone,
   type LampConeLocal,
@@ -65,6 +72,7 @@ import {
 } from "./insectTrail";
 import { MEADOW_GROUND_BASE } from "./meadowField";
 import { type MeadowLamp, getMeadowLamps } from "./meadowLights";
+import { getSceneImpulse, sceneImpulseInsectDeparture } from "./sceneImpulse";
 import {
   type BatFrame,
   MOTH_COUNT,
@@ -81,6 +89,8 @@ const MOTH_ROLL_LAMBDA = 5;
 const MOTH_BANK_K = 0.55;
 const MOTH_BANK_MAX = 0.45;
 const INVISIBLE_OPACITY = 0.012;
+const COORDINATION_COLOR_LAMBDA = 9;
+const COORDINATION_NEON_INTENSITY = 2.4;
 export const WILDLIFE_PRESENTATION = {
   moth: {
     wingColor: "#342f2a",
@@ -568,6 +578,8 @@ function LivingWildlife({
   const bat = useRef<THREE.Group>(null);
   const batWings = useRef<(THREE.Group | null)[]>([]);
   const darkAmount = useRef(dark ? 1 : 0);
+  const coordinationColorMix = useRef(0);
+  const handledSceneImpulse = useRef(getSceneImpulse().revision);
   const settledAt = useRef<number | null>(null);
   const mothYaws = useRef(new Float32Array(MOTH_COUNT));
   const mothRolls = useRef(new Float32Array(MOTH_COUNT));
@@ -632,6 +644,15 @@ function LivingWildlife({
     [],
   );
   const mothColor = useMemo(() => new THREE.Color(), []);
+  const coordinationMothColors = useMemo(
+    () =>
+      Array.from({ length: MOTH_COUNT }, (_, index) =>
+        new THREE.Color(
+          index % 2 === 0 ? COORDINATION_AGENT_COLOR : COORDINATION_HUMAN_COLOR,
+        ).multiplyScalar(COORDINATION_NEON_INTENSITY),
+      ),
+    [],
+  );
   const geometries = useMemo(createWildlifeGeometrySet, []);
   const mothMaterial = useMemo(
     () =>
@@ -737,6 +758,46 @@ function LivingWildlife({
     mothBodyMaterial.opacity =
       darkAmount.current * WILDLIFE_PRESENTATION.moth.bodyOpacity;
     const stacks = useStacks.getState();
+    const sceneImpulse = getSceneImpulse();
+    if (handledSceneImpulse.current !== sceneImpulse.revision) {
+      handledSceneImpulse.current = sceneImpulse.revision;
+      for (const motion of mothPilots.current) {
+        const pilot = motion.pilot;
+        if (!pilot?.reservedPerchId) continue;
+        if (
+          !sceneImpulseInsectDeparture(
+            sceneImpulse,
+            pilot.position,
+            pilot.occupantId,
+            motion.departure,
+          )
+        )
+          continue;
+        if (
+          commandInsectPilot(
+            pilot,
+            { type: "depart", away: motion.departure, cause: "impulse" },
+            motion.world,
+          )
+        ) {
+          scheduleMothFlight(motion, t);
+          motion.nearSince = -1;
+        }
+      }
+    }
+    const coordinationEngaged =
+      coordinationGlobeDiagnosticsController.getSnapshot().effectEnabled &&
+      (stacks.hovered === COORDINATION_GLOBE_INTERACTION_ID ||
+        stacks.focusedInteraction === COORDINATION_GLOBE_INTERACTION_ID ||
+        stacks.dragging === COORDINATION_GLOBE_INTERACTION_ID);
+    const insectDelta =
+      delta * (coordinationEngaged ? COORDINATION_INSECT_TIME_SCALE : 1);
+    coordinationColorMix.current = THREE.MathUtils.damp(
+      coordinationColorMix.current,
+      coordinationEngaged ? 1 : 0,
+      COORDINATION_COLOR_LAMBDA,
+      delta,
+    );
     const automaticLandingsPaused =
       process.env.NODE_ENV === "development" &&
       insectDiagnosticsController.getSnapshot().pauseAutomaticLandings;
@@ -932,7 +993,7 @@ function LivingWildlife({
                 motion.evade.strength,
                 target,
                 MOTH_EVASION.lambda,
-                delta,
+                insectDelta,
               );
               pilot.roam.evade =
                 motion.evade.strength > 1e-3 ? motion.evade : null;
@@ -1189,7 +1250,7 @@ function LivingWildlife({
             }
 
             if (pilot && !initialized) {
-              advanceInsectPilot(pilot, delta, motion.world);
+              advanceInsectPilot(pilot, insectDelta, motion.world);
               recordInsectTrail(motion.trail, pilot.position, t);
               if (pilot.event === "landed") {
                 motion.restEndsAt =
@@ -1270,7 +1331,7 @@ function LivingWildlife({
             const velocityZ = velocity.z;
             const accelerationX = acceleration.x;
             const accelerationZ = acceleration.z;
-            const yawEase = 1 - Math.exp(-MOTH_YAW_LAMBDA * delta);
+            const yawEase = 1 - Math.exp(-MOTH_YAW_LAMBDA * insectDelta);
             const targetYaw = Math.atan2(velocityX, velocityZ);
             mothYaws.current[mothIndex] =
               mothYaws.current[mothIndex]! +
@@ -1292,7 +1353,7 @@ function LivingWildlife({
                 MOTH_BANK_MAX,
               ),
               MOTH_ROLL_LAMBDA,
-              delta,
+              insectDelta,
             );
             // Thorax pitch about the body's own lateral axis. The YXZ order on
             // `mothEuler` is what makes that true: the default XYZ would pitch
@@ -1394,6 +1455,10 @@ function LivingWildlife({
               mothWingColor,
               mothLitWingColor,
               mothSample.illumination,
+            );
+            mothColor.lerp(
+              coordinationMothColors[mothIndex]!,
+              coordinationColorMix.current,
             );
             leftMesh.setColorAt(mothIndex, mothColor);
             rightMesh.setColorAt(mothIndex, mothColor);

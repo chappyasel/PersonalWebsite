@@ -12,7 +12,7 @@ import { UNITS, UNIT_COUNT, unitUrlForLocation } from "../data";
 import { TOUCH_HORIZONTAL_DOMINANCE, TOUCH_SLOP_PX } from "../mobile/gesture";
 import { haptic } from "../mobile/liveness";
 import { closeStacksPanel, railRightPxRef, useStacks } from "../store";
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 /** Desktop row height, in rem. The rows are `h-9` and the travelling thumb
  * translates by this per unit, so the two must agree — one number, used
@@ -31,6 +31,7 @@ export default function UnitRail() {
   const golfFocused = useStacks((s) => s.golfFocused);
   const unitMapPreview = useStacks((s) => s.unitMapPreview);
   const displayedUnit = unitMapPreview ?? activeUnit;
+  const [initialActiveUnit] = useState(activeUnit);
   const railRef = useRef<HTMLElement>(null);
   const mobileRailRef = useRef<HTMLElement>(null);
   const desktopButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -171,6 +172,107 @@ export default function UnitRail() {
             -webkit-user-select: none;
             user-select: none;
           }
+          /* The curtain remains the main entrance. As it nears the edges,
+             establish the current section first, then resolve the remaining
+             destinations outward from it. Each button owns its transform so
+             the horizontal scrub surface and travelling thumb stay still. */
+          .stacks-unit-rail-mobile .stacks-rail-row {
+            opacity: 0;
+            transform: translateY(8px) scale(0.92);
+          }
+          .stacks-unit-rail-mobile [data-stacks-rail-indicator="mobile"] {
+            transform: scaleX(0);
+            transform-origin: center;
+          }
+          .stacks-world-shell[data-revealed]
+            .stacks-unit-rail-mobile
+            .stacks-rail-row {
+            animation: stacks-mobile-rail-item-in 400ms
+              var(--stacks-ease, ease-out) both;
+            animation-delay: calc(
+              480ms + var(--stacks-mobile-rail-delay, 0ms)
+            );
+          }
+          .stacks-world-shell[data-revealed]
+            .stacks-unit-rail-mobile
+            [data-stacks-rail-indicator="mobile"] {
+            animation: stacks-mobile-rail-indicator-in 360ms
+              var(--stacks-ease, ease-out) 560ms both;
+          }
+          .stacks-world-shell[data-load-path="warm"][data-revealed]
+            .stacks-unit-rail-mobile
+            .stacks-rail-row {
+            animation-duration: 300ms;
+            animation-delay: calc(
+              180ms + var(--stacks-mobile-rail-delay, 0ms)
+            );
+          }
+          .stacks-world-shell[data-load-path="warm"][data-revealed]
+            .stacks-unit-rail-mobile
+            [data-stacks-rail-indicator="mobile"] {
+            animation-duration: 280ms;
+            animation-delay: 240ms;
+          }
+        }
+        @keyframes stacks-mobile-rail-item-in {
+          from { opacity: 0; transform: translateY(8px) scale(0.92); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes stacks-mobile-rail-indicator-in {
+          from { transform: scaleX(0); }
+          to { transform: scaleX(1); }
+        }
+        @media (width >= 1200px) {
+          .stacks-unit-rail-desktop .stacks-rail-row {
+            opacity: 0;
+            transform: translateX(-8px);
+          }
+          .stacks-unit-rail-desktop [data-stacks-rail-indicator="desktop"] {
+            scale: 1 0;
+            transform-origin: center;
+          }
+          .stacks-world-shell[data-revealed]
+            .stacks-unit-rail-desktop
+            .stacks-rail-row {
+            animation: stacks-desktop-rail-item-in 420ms
+              var(--stacks-ease, ease-out) both;
+            animation-delay: calc(
+              520ms + var(--stacks-desktop-rail-delay, 0ms)
+            );
+          }
+          .stacks-world-shell[data-revealed]
+            .stacks-unit-rail-desktop
+            [data-stacks-rail-indicator="desktop"] {
+            animation: stacks-desktop-rail-indicator-in 360ms
+              var(--stacks-ease, ease-out) both;
+            animation-delay: calc(
+              600ms + var(--stacks-desktop-indicator-delay, 0ms)
+            );
+          }
+          .stacks-world-shell[data-load-path="warm"][data-revealed]
+            .stacks-unit-rail-desktop
+            .stacks-rail-row {
+            animation-duration: 300ms;
+            animation-delay: calc(
+              220ms + var(--stacks-desktop-rail-warm-delay, 0ms)
+            );
+          }
+          .stacks-world-shell[data-load-path="warm"][data-revealed]
+            .stacks-unit-rail-desktop
+            [data-stacks-rail-indicator="desktop"] {
+            animation-duration: 280ms;
+            animation-delay: calc(
+              280ms + var(--stacks-desktop-indicator-warm-delay, 0ms)
+            );
+          }
+        }
+        @keyframes stacks-desktop-rail-item-in {
+          from { opacity: 0; transform: translateX(-8px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes stacks-desktop-rail-indicator-in {
+          from { scale: 1 0; }
+          to { scale: 1 1; }
         }
         /* Inactive glyphs step back just enough to leave the full-opacity
            icon plus moving thumb as the current-position signal. They stay
@@ -216,6 +318,38 @@ export default function UnitRail() {
           outline: 2px solid hsl(var(--foreground) / 0.45);
           outline-offset: 2px;
         }
+        @media (prefers-reduced-motion: reduce) {
+          .stacks-unit-rail-mobile .stacks-rail-row,
+          .stacks-world-shell[data-revealed]
+            .stacks-unit-rail-mobile
+            .stacks-rail-row {
+            opacity: 1;
+            transform: none;
+            animation: none;
+          }
+          .stacks-unit-rail-mobile [data-stacks-rail-indicator="mobile"],
+          .stacks-world-shell[data-revealed]
+            .stacks-unit-rail-mobile
+            [data-stacks-rail-indicator="mobile"] {
+            transform: none;
+            animation: none;
+          }
+          .stacks-unit-rail-desktop .stacks-rail-row,
+          .stacks-world-shell[data-revealed]
+            .stacks-unit-rail-desktop
+            .stacks-rail-row {
+            opacity: 1;
+            transform: none;
+            animation: none;
+          }
+          .stacks-unit-rail-desktop [data-stacks-rail-indicator="desktop"],
+          .stacks-world-shell[data-revealed]
+            .stacks-unit-rail-desktop
+            [data-stacks-rail-indicator="desktop"] {
+            scale: 1;
+            animation: none;
+          }
+        }
       `}</style>
       {/* Desktop: vertical labeled rail */}
       <nav
@@ -231,13 +365,17 @@ export default function UnitRail() {
             aria-hidden
             data-stacks-rail-indicator="desktop"
             className="stacks-on-background-mark pointer-events-none absolute left-0 top-2 rounded-full bg-foreground/85 transition-transform duration-500 will-change-transform motion-reduce:transition-none"
-            style={{
-              width: `${INDICATOR_THICKNESS_REM}rem`,
-              height: `${INDICATOR_LENGTH_REM}rem`,
-              transform: `translateY(${activeUnit * ROW_REM}rem)`,
-              transitionTimingFunction: "var(--stacks-ease)",
-              opacity: golfFocused ? 0 : 1,
-            }}
+            style={
+              {
+                width: `${INDICATOR_THICKNESS_REM}rem`,
+                height: `${INDICATOR_LENGTH_REM}rem`,
+                transform: `translateY(${activeUnit * ROW_REM}rem)`,
+                transitionTimingFunction: "var(--stacks-ease)",
+                opacity: golfFocused ? 0 : 1,
+                "--stacks-desktop-indicator-delay": `${initialActiveUnit * 40}ms`,
+                "--stacks-desktop-indicator-warm-delay": `${initialActiveUnit * 24}ms`,
+              } as React.CSSProperties
+            }
           />
           {UNITS.map((unit, i) => {
             const Icon = unit.icon;
@@ -266,6 +404,12 @@ export default function UnitRail() {
                     ? "text-foreground"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
+                style={
+                  {
+                    "--stacks-desktop-rail-delay": `${i * 40}ms`,
+                    "--stacks-desktop-rail-warm-delay": `${i * 24}ms`,
+                  } as React.CSSProperties
+                }
               >
                 <span className="stacks-rail-inner flex items-center gap-2.5">
                   <Icon
@@ -392,7 +536,12 @@ export default function UnitRail() {
                 }}
                 onKeyDown={(event) => onRailKeyDown(event, i, mobileButtonRefs)}
                 className="stacks-on-background-text stacks-rail-row relative flex h-12 items-center justify-center rounded-xl pb-1 text-foreground"
-                style={{ width: `${MOBILE_STEP_REM}rem` }}
+                style={
+                  {
+                    width: `${MOBILE_STEP_REM}rem`,
+                    "--stacks-mobile-rail-delay": `${Math.abs(i - activeUnit) * 30}ms`,
+                  } as React.CSSProperties
+                }
               >
                 <Icon
                   aria-hidden

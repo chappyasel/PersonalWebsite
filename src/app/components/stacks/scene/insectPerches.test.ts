@@ -57,6 +57,28 @@ describe("authored insect Perches", () => {
         "ownerId" in perch ? perch.ownerId?.startsWith("shelf:") : false,
       ),
     ).toBe(false);
+    expect(
+      catalog
+        .filter((perch) => perch.id.startsWith("projects:"))
+        .map((perch) => ("ownerId" in perch ? perch.ownerId : null)),
+    ).toEqual(
+      expect.arrayContaining([
+        "link:projects:weightlifting-icon",
+        "link:projects:dice:top",
+        "grab:projects:homework-icon",
+        "grab:photo:projects-wwdc-v8",
+      ]),
+    );
+    expect(
+      catalog
+        .flatMap((perch) => ("ownerId" in perch ? [perch.ownerId] : []))
+        .includes("grab:notebook:projects"),
+    ).toBe(false);
+    expect(
+      catalog
+        .flatMap((perch) => ("ownerId" in perch ? [perch.ownerId] : []))
+        .some((ownerId) => ownerId?.startsWith("grab:frame:")),
+    ).toBe(false);
   });
 
   it("resolves actual mesh contact once and follows the owner transform", () => {

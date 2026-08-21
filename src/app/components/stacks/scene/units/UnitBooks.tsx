@@ -31,6 +31,7 @@ import {
   BookRowMesh,
   Bookend,
   COVER_H,
+  FEATURED_COVER_Z,
   type RowItem,
   ShelfUnit,
   coverExtent,
@@ -79,7 +80,13 @@ import { type UnitProps } from "./types";
 const EDGE_R = 1.24;
 const EDGE_L_TOP = -1.3;
 const EDGE_L_LOWER = -1.24;
-export const LOWER_FEATURED_ROW_Z = 0.15;
+/** The lower plank is shallower, so its two ranks sit farther back as a pair.
+ * Each rank keeps 0.19–0.20 units of separation while every complete book,
+ * including a featured-book riser, remains over wood. */
+export const TOP_PACKED_ROW_Z = -0.04;
+export const LOWER_PACKED_ROW_Z = -0.22;
+export const TOP_FEATURED_ROW_Z = 0.15;
+export const LOWER_FEATURED_ROW_Z = -0.02;
 
 /** Four enlarged covers preserve legibility and variable air across one row.
  * Source content may grow without changing this measured physical capacity. */
@@ -201,11 +208,10 @@ export function layoutFeatured(
   // makes a featured book legible as the wide mass on the shelf.
   //
   // `dz` never goes negative and that is a measurement, not a taste call: a
-  // packed spine is 0.26…0.34 deep with its BACK squared to the shelf, so the
-  // deepest fronts in the row behind reach z 0.19, against a cover's own front
-  // at 0.177 + dz. A cover set even slightly back from its neighbours ends up
-  // BEHIND a fat spine, and a featured book with a paperback standing in front
-  // of its corner is worse than no depth variation at all.
+  // packed spine is 0.24…0.34 deep with its BACK squared to the shelf. After
+  // PACKED_ROW_Z, the deepest front reaches z 0.15. A cover set even slightly
+  // back from its neighbours can therefore end up behind a fat spine; keeping
+  // dz positive preserves the visible gap across varying physical thicknesses.
   const pose: Pose[] = slice.map((_, i) => ({
     s: 0.88 + rand(i, salt) * 0.1,
     yaw: (rand(i, salt + 1) - 0.5) * 0.22,
@@ -360,13 +366,15 @@ export function featuredBookPerchDefinitions(
     ...layoutFeatured(rows.top, 16, EDGE_L_TOP).map((item) => ({
       item,
       shelfY: SHELF_SURFACE.top,
+      rowZ: TOP_FEATURED_ROW_Z,
     })),
     ...layoutFeatured(rows.lower, 41, EDGE_L_LOWER).map((item) => ({
       item,
       shelfY: SHELF_SURFACE.lower,
+      rowZ: LOWER_FEATURED_ROW_Z,
     })),
   ];
-  return placed.flatMap(({ item, shelfY }) => {
+  return placed.flatMap(({ item, shelfY, rowZ }) => {
     if (item.kind !== "cover") return [];
     const perchId = BOOK_PERCH_IDS.get(item.key);
     if (!perchId) return [];
@@ -387,7 +395,7 @@ export function featuredBookPerchDefinitions(
         new THREE.Vector3(
           item.x,
           shelfY + coverSeat(scale, lean, item.riser ?? 0),
-          0.18 + (item.dz ?? 0),
+          rowZ + FEATURED_COVER_Z + (item.dz ?? 0),
         ),
       );
     const normal = new THREE.Vector3(0, 1, 0)
@@ -499,13 +507,13 @@ export default function UnitBooks({
    * stand it in front of the row instead of in it.
    *
    * So the packed rows behind are now spines ONLY (packRow is given no covers),
-   * and the featured books stand as their own short row 0.12 forward of them,
+   * and the featured books stand as their own short row in front of them,
    * face to the viewer. Three things fall out of that and all three are what
    * makes it read at a 2.24° grazing camera:
    *   - a cover is 0.36 × 0.52 against a spine's 0.055…0.130 wide, so the
    *     featured books are the only wide masses on the shelf;
-   *   - standing 0.12 proud puts them clear of the stepped spine fronts (which
-   *     sit at about z 0.02) and under the top plank's own light fixture, so
+   *   - each featured rank sits 0.19–0.20 ahead of its packed rank; the lower
+   *     pair moves back together to fit the shallower lower plank;
    *     they are the lit objects and the row behind them is the dark one;
    *   - they are the only books on the unit that open a NOTE rather than the
    *     library, which the hover lift already advertises.
@@ -603,7 +611,7 @@ export default function UnitBooks({
             toneSeed={index}
             lower={
               <group>
-                <group position={[0, 0, 0]}>
+                <group position={[0, 0, LOWER_PACKED_ROW_Z]}>
                   <BookRowMesh
                     items={lowerRow}
                     palette={palette}
@@ -631,9 +639,8 @@ export default function UnitBooks({
                     <BookendTarget />
                   </HoverProp>
                 </group>
-                {/* The lower front rank needs another 3 cm over the top row:
-                  its deterministic leftmost cover otherwise begins 18 mm
-                  inside the deepest packed spine at the same x. */}
+                {/* Kept on the supported part of the shallower lower plank;
+                  clearance comes from moving the packed rank back. */}
                 {lowerFeatured.length > 0 && (
                   <group position={[0, 0, LOWER_FEATURED_ROW_Z]}>
                     <BookRowMesh
@@ -652,12 +659,12 @@ export default function UnitBooks({
               </group>
             }
           >
-            {/* The featured half of the shelf, standing 0.12 forward of the
+            {/* The featured half of the shelf, standing clear of the
               packed spines. It is a sibling of the packed row rather than a
               child of it, because the row's own group carries an x offset for
               the placard and the featured layout is solved in unit space. */}
             {topFeatured.length > 0 && (
-              <group position={[0, 0, 0.12]}>
+              <group position={[0, 0, TOP_FEATURED_ROW_Z]}>
                 <BookRowMesh
                   items={topFeatured}
                   palette={palette}
@@ -674,7 +681,7 @@ export default function UnitBooks({
                 />
               </group>
             )}
-            <group position={[-0.05, 0, 0]}>
+            <group position={[-0.05, 0, TOP_PACKED_ROW_Z]}>
               <BookRowMesh
                 items={topRow}
                 palette={palette}

@@ -2,11 +2,13 @@
 
 import { browserStorage } from "../mobile/liveness";
 import { cameraDepthDiagnosticsController } from "../scene/cameraDepthDiagnostics";
+import { coordinationGlobeDiagnosticsController } from "../scene/coordinationGlobeDiagnostics";
 import { requestDevHooks } from "../scene/devHooks";
 import {
   sceneDebugOverlayPatches,
   sceneDebugOverlayState,
 } from "../scene/diagnosticsOverlayControls";
+import { freeRoamDiagnosticsController } from "../scene/freeRoamDiagnostics";
 import {
   insectDiagnosticsController,
   summarizeInsectPerchDiagnostics,
@@ -41,6 +43,7 @@ import {
   useSceneQualityRuntime,
 } from "../scene/sceneQualityController";
 import { useStacks } from "../store";
+import { XIcon } from "@phosphor-icons/react/dist/ssr";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 
@@ -222,15 +225,15 @@ function DevPerformanceHud({
       type="button"
       className="stacks-dev-hud"
       aria-label="Open scene debug console"
-      aria-keyshortcuts="d"
+      aria-keyshortcuts="h"
       aria-expanded={expanded}
       aria-controls="stacks-scene-diagnostics"
       aria-haspopup="dialog"
       data-tracing={tracing || undefined}
       title={
         tracing
-          ? "Performance trace recording · press D to stop and review"
-          : "Scene debug · press D · FPS, policy, effects, and renderer load"
+          ? "Performance trace recording · press H to stop and review"
+          : "Scene debug · press H · FPS, policy, effects, and decisions"
       }
       onClick={onToggle}
     >
@@ -338,7 +341,7 @@ function PerformanceTraceControls({
         </strong>
       </summary>
       <p>
-        Start closes this console. Pause, pan across a few shelves, then press D
+        Start closes this console. Pause, pan across a few shelves, then press H
         to stop and review; attach the JSON for analysis.
       </p>
       <div className="stacks-diagnostics-actions">
@@ -566,13 +569,18 @@ function DiagnosticsOverview({
         <span>{runtime?.transitionReason ?? "calibrating"}</span>
       </section>
 
-      {notices.length > 0 ? (
-        <section
-          className="stacks-diagnostics-notices"
-          aria-label="Active signals"
-        >
-          <strong>Active signals</strong>
-          {notices.map((notice) => (
+      <section
+        className="stacks-diagnostics-notices"
+        aria-label="Active signals"
+        data-empty={notices.length === 0 || undefined}
+      >
+        <strong>Active signals</strong>
+        {notices.length === 0 ? (
+          <span className="stacks-diagnostics-notices-empty">
+            No active signals
+          </span>
+        ) : (
+          notices.map((notice) => (
             <button
               key={`${notice.title}:${notice.detail}`}
               type="button"
@@ -582,9 +590,9 @@ function DiagnosticsOverview({
               <span>{notice.title}</span>
               <small>{notice.detail}</small>
             </button>
-          ))}
-        </section>
-      ) : null}
+          ))
+        )}
+      </section>
 
       <div className="stacks-diagnostics-metrics">
         <article>
@@ -738,6 +746,16 @@ export default function SceneDiagnostics({
     cameraDepthDiagnosticsController.getSnapshot,
     cameraDepthDiagnosticsController.getSnapshot,
   );
+  const freeRoamSnapshot = useSyncExternalStore(
+    freeRoamDiagnosticsController.subscribe,
+    freeRoamDiagnosticsController.getSnapshot,
+    freeRoamDiagnosticsController.getSnapshot,
+  );
+  const coordinationGlobeSnapshot = useSyncExternalStore(
+    coordinationGlobeDiagnosticsController.subscribe,
+    coordinationGlobeDiagnosticsController.getSnapshot,
+    coordinationGlobeDiagnosticsController.getSnapshot,
+  );
   const activeUnit = useStacks((state) => state.activeUnit);
   const summary = summarizeInsectPerchDiagnostics(snapshot.diagnostics);
   const activeSummary = summarizeInsectPerchDiagnostics(
@@ -794,11 +812,12 @@ export default function SceneDiagnostics({
         event.metaKey ||
         event.ctrlKey ||
         event.altKey ||
-        event.key.toLowerCase() !== "d" ||
+        event.key.toLowerCase() !== "h" ||
         isEditableShortcutTarget(event.target)
       )
         return;
       event.preventDefault();
+      if (document.pointerLockElement !== null) document.exitPointerLock();
       if (!open) requestDevHooks();
       if (!open && traceStatus.active) window.__stacks?.trace("stop");
       setOpen((current) => {
@@ -870,7 +889,7 @@ export default function SceneDiagnostics({
             launcher.current?.focus();
           }}
         >
-          Close
+          <XIcon aria-hidden="true" size={18} weight="bold" />
         </button>
       </header>
       <DiagnosticsTabs active={panel} onChange={setPanel} />
@@ -910,6 +929,39 @@ export default function SceneDiagnostics({
               />{" "}
               Authored camera depth
             </label>
+            <label className="stacks-diagnostics-control">
+              <input
+                type="checkbox"
+                checked={freeRoamSnapshot.enabled}
+                aria-keyshortcuts="F Shift+F"
+                onChange={(event) =>
+                  freeRoamDiagnosticsController.setEnabled(
+                    event.currentTarget.checked,
+                  )
+                }
+              />{" "}
+              Free-roam camera
+            </label>
+            <label className="stacks-diagnostics-control">
+              <input
+                type="checkbox"
+                checked={freeRoamSnapshot.fogEnabled}
+                disabled={!freeRoamSnapshot.enabled}
+                onChange={(event) =>
+                  freeRoamDiagnosticsController.setFogEnabled(
+                    event.currentTarget.checked,
+                  )
+                }
+              />{" "}
+              Fog in free roam
+            </label>
+            <p className="stacks-diagnostics-note">
+              Free roam captures the mouse on entry. Look with the mouse, move
+              with WASD, use Q/E to move down/up, and hold Shift for one-third
+              speed. F resumes or exits free roam, Shift+F starts from the
+              current view, H opens debug, and Escape releases the mouse. Click
+              the scene to recapture it.
+            </p>
           </fieldset>
 
           <fieldset className="stacks-diagnostics-section">
@@ -1433,6 +1485,18 @@ export default function SceneDiagnostics({
                   }
                 />{" "}
                 Suspend settled distant props
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={coordinationGlobeSnapshot.effectEnabled}
+                  onChange={(event) =>
+                    coordinationGlobeDiagnosticsController.setEffectEnabled(
+                      event.currentTarget.checked,
+                    )
+                  }
+                />{" "}
+                Coordination singularity
               </label>
               <label>
                 <input
@@ -2026,6 +2090,12 @@ export default function SceneDiagnostics({
 
   return (
     <>
+      {freeRoamSnapshot.enabled ? (
+        <div className="stacks-free-roam-hint" role="status">
+          Free roam · WASD move · Q/E down/up · Shift ⅓× · H debug · F exit ·
+          Shift+F starts here · Esc release
+        </div>
+      ) : null}
       <div className="stacks-debug-launchers pointer-events-auto">
         <DevPerformanceHud
           expanded={open}

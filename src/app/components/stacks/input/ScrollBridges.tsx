@@ -2,7 +2,8 @@
 
 // Input bridges for the horizontal world. Vertical wheel/trackpad and vertical
 // touch swipes translate into lateral travel on drei's real scroll container;
-// keyboard arrows hop one unit. All bridges suspend while the book modal is
+// keyboard arrows hop one unit while A/D pan continuously. All bridges
+// suspend while the book modal is
 // open or when the pointer is inside an opted-in scrollable region
 // ([data-stacks-scrollable] — placard panels).
 //
@@ -70,6 +71,16 @@ export function worldNavigationStep(key: string): -1 | 1 | null {
   if (key === "ArrowRight" || key === "ArrowDown" || key === "PageDown")
     return 1;
   if (key === "ArrowLeft" || key === "ArrowUp" || key === "PageUp") return -1;
+  return null;
+}
+
+/** A/D follow the same left/right convention as free-roam controls, but pan
+ * the authored world while free roam is inactive. Unlike arrows, these keys
+ * remain continuous for as long as they are held. */
+export function worldPanDirection(key: string): -1 | 1 | null {
+  const normalized = key.toLowerCase();
+  if (normalized === "d") return 1;
+  if (normalized === "a") return -1;
   return null;
 }
 
@@ -345,12 +356,57 @@ export default function ScrollBridges() {
     scrollEl.addEventListener("scroll", onScroll, { passive: true });
     scrollEl.addEventListener("scrollend", settleTouchTravel);
 
+    const panKeys = new Set<"a" | "d">();
+    let panFrame = 0;
+    let previousPanFrame = 0;
+    const clearPanKeys = () => {
+      panKeys.clear();
+      previousPanFrame = 0;
+      if (panFrame) cancelAnimationFrame(panFrame);
+      panFrame = 0;
+    };
+    const panWorld = (now: number) => {
+      const state = useStacks.getState();
+      const direction =
+        Number(panKeys.has("d")) - Number(panKeys.has("a"));
+      const elapsed = previousPanFrame
+        ? Math.min(32, now - previousPanFrame)
+        : 0;
+      previousPanFrame = now;
+      if (
+        direction !== 0 &&
+        !state.modalOpen &&
+        state.panelState === "closed" &&
+        document.pointerLockElement === null
+      ) {
+        reconcileScrollRange();
+        // Roughly one shelf per second. ScrollControls supplies the camera's
+        // damping while this changes the real horizontal scroll position.
+        scrollEl.scrollLeft +=
+          direction * scrollEl.clientWidth * 0.85 * (elapsed / 1_000);
+      }
+      panFrame = requestAnimationFrame(panWorld);
+    };
+
     const onKey = (e: KeyboardEvent) => {
       if (!shouldHandleWorldNavigationKey(e)) return;
       const state = useStacks.getState();
       if (state.modalOpen || state.panelState !== "closed") return;
       const target = e.target as HTMLElement | null;
       if (isStacksScrollableTarget(target)) return;
+      const panDirection = worldPanDirection(e.key);
+      if (
+        panDirection !== null &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        document.pointerLockElement === null
+      ) {
+        e.preventDefault();
+        panKeys.add(panDirection < 0 ? "a" : "d");
+        if (!panFrame) panFrame = requestAnimationFrame(panWorld);
+        return;
+      }
       const step = worldNavigationStep(e.key);
       if (step === null) return;
       e.preventDefault();
@@ -361,7 +417,15 @@ export default function ScrollBridges() {
         : Math.min(UNIT_COUNT - 1, Math.max(0, state.activeUnit + step));
       state.travelTo?.(destination);
     };
+    const onKeyUp = (e: KeyboardEvent) => {
+      const direction = worldPanDirection(e.key);
+      if (direction === null) return;
+      panKeys.delete(direction < 0 ? "a" : "d");
+      if (panKeys.size === 0) clearPanKeys();
+    };
     window.addEventListener("keydown", onKey);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", clearPanKeys);
 
     return () => {
       window.removeEventListener("wheel", onWheel, { capture: true });
@@ -370,6 +434,9 @@ export default function ScrollBridges() {
       scrollEl.removeEventListener("scroll", onScroll);
       scrollEl.removeEventListener("scrollend", settleTouchTravel);
       window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", clearPanKeys);
+      clearPanKeys();
       window.clearTimeout(settleTimer);
     };
   }, [scrollEl]);

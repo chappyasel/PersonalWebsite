@@ -4,7 +4,7 @@
 // that needs them is the diagnostics UI, and the two are separate dynamic
 // chunks that cannot import each other. The canvas used to decide from the
 // URL alone, at creation time. That worked for `?debug=1` and not at all for
-// the D key: pressing D after load opened the whole HUD against hooks that
+// the H key: pressing H after load opened the whole HUD against hooks that
 // were never installed, so every field read null and the profile row said
 // "Waiting" forever. The request has to be a signal the canvas can hear
 // later, not a query parameter read once.

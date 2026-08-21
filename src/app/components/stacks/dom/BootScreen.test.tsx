@@ -1,8 +1,17 @@
 import { readingBookMaterialColors } from "../../../../lib/books/coverEdgeColor";
 import {
+  ABOUT_AIC_BASE_WIDTH,
+  ABOUT_APPLE_BASE_WIDTH,
+} from "../scene/aboutAwardGeometry";
+import {
   ABOUT_BOOT_COMPOSITION,
   ABOUT_BOOT_LANDMARKS,
+  ABOUT_BOOT_VISIBLE_COMPOSITION,
 } from "../scene/aboutBootComposition";
+import {
+  COORDINATION_NODE_COUNT,
+  createCoordinationNetwork,
+} from "../scene/coordinationNetwork";
 import { SHELF_GEOMETRY, SHELF_PLANKS } from "../scene/shelfGeometry";
 import {
   readingBookPerspectiveElevation,
@@ -20,6 +29,7 @@ import BootScreen, {
   bootCssKeyframes,
   bootItemKeyframes,
   bootItemPose,
+  bootRevealComplete,
   bootWaveIntroKeyframes,
   bootWaveKeyframes,
   bootWaveWindow,
@@ -30,12 +40,7 @@ const BOOKS = [
   { id: "bravo", coverSrc: "/covers/bravo.webp" },
   { id: "charlie", coverSrc: "/covers/charlie.webp" },
 ] as const;
-const FRAME_IDS = [
-  "portrait",
-  "family-frame",
-  "profile-frame",
-  "collective-frame",
-] as const;
+const FRAME_IDS = ["portrait", "family-frame", "profile-frame"] as const;
 
 const COLORS = {
   alpha: { edge: "#a84f35", source: "edge" as const },
@@ -84,11 +89,11 @@ describe("Homepage entrance", () => {
     }
   });
 
-  it("renders every real landmark exactly once on its declared shelf", () => {
+  it("renders every boot-visible landmark once on its declared shelf", () => {
     const landmarks = renderedLandmarks(renderBoot());
 
     expect(landmarks).toEqual(
-      ABOUT_BOOT_COMPOSITION.map((landmark, slot) => ({
+      ABOUT_BOOT_VISIBLE_COMPOSITION.map((landmark, slot) => ({
         id: landmark.id,
         shelf: landmark.shelf,
         slot,
@@ -110,18 +115,23 @@ describe("Homepage entrance", () => {
     ]);
   });
 
-  it("fills the four frames from small loading-screen sources", () => {
+  it("fills the three upright frames from small loading-screen sources", () => {
     const markup = renderBoot();
     const photos = [...markup.matchAll(/data-boot-photo="([^"]+)"/g)].map(
       (match) => match[1],
     );
 
-    expect(photos).toEqual(Object.keys(BOOT_FRAME_PHOTOS));
-    expect(markup.match(/class="stacks-boot-frame-empty"/g)).toHaveLength(4);
+    expect(photos).toEqual(
+      ABOUT_BOOT_VISIBLE_COMPOSITION.filter(
+        (landmark) => "imageProfile" in landmark,
+      ).map(({ id }) => id),
+    );
+    expect(markup.match(/class="stacks-boot-frame-empty"/g)).toHaveLength(3);
     for (const photo of Object.values(BOOT_FRAME_PHOTOS)) {
       expect(markup).toContain(photo.src.replaceAll("&", "&amp;"));
     }
     expect(BOOT_FRAME_PHOTOS.portrait.src).toContain("w=384");
+    expect(markup).not.toContain('data-landmark-id="collective-frame"');
   });
 
   it("uses each live frame's real photo-to-border ratio", () => {
@@ -176,7 +186,7 @@ describe("Homepage entrance", () => {
     }
     expect(
       markup.match(/opacity:0;transition:opacity 160ms ease-out/g),
-    ).toHaveLength(7);
+    ).toHaveLength(6);
   });
 
   it("first-paints three deterministic colored jackets before book data streams", () => {
@@ -199,19 +209,104 @@ describe("Homepage entrance", () => {
     expect(apple).toContain("C ");
   });
 
-  it("matches the live dimensions of the three metal keepsakes", () => {
+  it("applies the live uniform scales to the AIC and Apple boot glyphs", () => {
+    const markup = renderBoot();
+    const aicScale = Number(/data-boot-aic-scale="([^"]+)"/.exec(markup)?.[1]);
+    const appleScale = Number(
+      /data-boot-apple-scale="([^"]+)"/.exec(markup)?.[1],
+    );
+
+    expect(aicScale).toBeCloseTo(
+      ABOUT_BOOT_LANDMARKS["ai-collective"].profile.height / 0.208,
+    );
+    expect(appleScale).toBeCloseTo(
+      ABOUT_BOOT_LANDMARKS.apple.profile.height / 0.176,
+    );
+  });
+
+  it("seats the AIC billet slightly into the loading-screen shelf", () => {
+    const markup = renderBoot();
+    const seat = Number(/data-boot-aic-seat="([^"]+)"/.exec(markup)?.[1]);
+
+    expect(seat).toBeCloseTo(0.8);
+  });
+
+  it("matches the live dimensions of the four lower-shelf keepsakes", () => {
     expect(ABOUT_BOOT_LANDMARKS["ai-collective"].profile).toEqual({
-      width: 0.205,
-      height: 0.208,
+      width: ABOUT_AIC_BASE_WIDTH * 1.32 * 1.1 * 1.2,
+      height: 0.208 * 1.32 * 1.1 * 1.2,
     });
     expect(ABOUT_BOOT_LANDMARKS["tj-medallion"].profile).toEqual({
-      width: 0.216,
-      height: 0.25344,
+      width: 0.3 * 0.66 * 1.1,
+      height: 0.352 * 0.66 * 1.1,
+    });
+    expect(ABOUT_BOOT_LANDMARKS["coordination-globe"].profile).toEqual({
+      width: 0.21 * 1.386 * 1.1 * 1.2,
+      height: 0.255 * 1.386 * 1.1 * 1.2,
     });
     expect(ABOUT_BOOT_LANDMARKS.apple.profile).toEqual({
-      width: 0.152,
-      height: 0.176,
+      width: ABOUT_APPLE_BASE_WIDTH * 1.32 * 1.1,
+      height: 0.176 * 1.32 * 1.1,
     });
+  });
+
+  it("shrinks the lower-shelf cactus by thirty percent", () => {
+    expect(ABOUT_BOOT_LANDMARKS.cactus.sceneScale).toBeCloseTo(0.34 * 0.7);
+    expect(ABOUT_BOOT_LANDMARKS.cactus.profile).toEqual({
+      width: 0.4 * 0.7,
+      height: 0.35 * 0.7,
+    });
+  });
+
+  it("projects the complete live Coordination network into the boot orb", () => {
+    const markup = renderBoot();
+    const liveNetwork = createCoordinationNetwork();
+
+    expect(markup).toMatch(
+      /<circle class="stacks-boot-coordination-core"[^>]*>/,
+    );
+    expect(markup).not.toContain("stacks-boot-coordination-shell");
+    expect(markup).not.toContain("stacks-boot-coordination-horizon-ring");
+    expect(markup.match(/class="stacks-boot-coordination-node"/g)).toHaveLength(
+      COORDINATION_NODE_COUNT,
+    );
+    expect(markup).toContain(
+      `data-boot-coordination-edges="${liveNetwork.edges.length}"`,
+    );
+    expect(
+      markup.match(/class="stacks-boot-coordination-reveal"/g),
+    ).toHaveLength(liveNetwork.longConnections.length);
+    expect(markup).toContain(
+      `data-boot-coordination-reveals="${liveNetwork.longConnections.length}"`,
+    );
+    expect(markup).toContain('class="stacks-boot-coordination-network"');
+    const ditherPixels = markup.match(
+      /class="stacks-boot-coordination-dither"/g,
+    );
+    expect(ditherPixels?.length).toBeGreaterThan(100);
+    expect(markup).toContain('data-dither-grid="ordered-4x4"');
+  });
+
+  it("serializes Coordination network geometry at a canonical precision", () => {
+    const markup = renderBoot();
+    const edgePath =
+      /class="stacks-boot-coordination-link"[^>]*d="([^"]+)"/.exec(markup)?.[1];
+    const nodeTags = [
+      ...markup.matchAll(
+        /<circle class="stacks-boot-coordination-node"[^>]*>/g,
+      ),
+    ].map(([tag]) => tag);
+    const serializedNumbers = [
+      ...(edgePath?.matchAll(/-?\d+(?:\.\d+)?(?:e[+-]?\d+)?/gi) ?? []),
+      ...nodeTags.flatMap((tag) => [
+        ...tag.matchAll(/(?:cx|cy|r)="(-?\d+(?:\.\d+)?(?:e[+-]?\d+)?)"/gi),
+      ]),
+    ].map((match) => match[1] ?? match[0]);
+
+    expect(serializedNumbers.length).toBeGreaterThan(COORDINATION_NODE_COUNT);
+    for (const value of serializedNumbers) {
+      expect(value).toMatch(/^-?\d+(?:\.\d{1,6})?$/);
+    }
   });
 
   it("uses the live material families for every untextured boot object", () => {
@@ -223,6 +318,7 @@ describe("Homepage entrance", () => {
       "cactus",
       "desk-lamp",
       "ai-collective",
+      "coordination-globe",
       "tj-medallion",
       "apple",
     ] as const;
@@ -282,11 +378,11 @@ describe("Homepage entrance", () => {
     const first = renderBoot(3);
     const second = renderBoot(3);
     const landmarks = renderedLandmarks(first);
-    const cadence = bootCadence(ABOUT_BOOT_COMPOSITION.length);
+    const cadence = bootCadence(ABOUT_BOOT_VISIBLE_COMPOSITION.length);
 
     expect(first).toBe(second);
     expect(landmarks.map(({ slot }) => slot)).toEqual(
-      ABOUT_BOOT_COMPOSITION.map((_, index) => index),
+      ABOUT_BOOT_VISIBLE_COMPOSITION.map((_, index) => index),
     );
     expect(new Set(landmarks.map(({ slot }) => slot)).size).toBe(
       landmarks.length,
@@ -305,7 +401,7 @@ describe("Homepage entrance", () => {
   });
 
   it("continuously fades and settles each item from one shared progress", () => {
-    const cadence = bootCadence(ABOUT_BOOT_COMPOSITION.length);
+    const cadence = bootCadence(ABOUT_BOOT_VISIBLE_COMPOSITION.length);
     const index = 4;
     const start = cadence.delays[index]! / cadence.revealDuration;
     const end = start + BOOT_CADENCE_SETTLE_SECONDS / cadence.revealDuration;
@@ -324,7 +420,7 @@ describe("Homepage entrance", () => {
   });
 
   it("builds a compositor-only loop with a constant base rate", () => {
-    const cadence = bootCadence(ABOUT_BOOT_COMPOSITION.length);
+    const cadence = bootCadence(ABOUT_BOOT_VISIBLE_COMPOSITION.length);
     const keyframes = bootItemKeyframes(4, cadence);
 
     expect(keyframes).toHaveLength(4);
@@ -341,14 +437,14 @@ describe("Homepage entrance", () => {
       expect(keyframe).not.toHaveProperty("top");
     }
     expect(
-      bootCssKeyframes(ABOUT_BOOT_COMPOSITION.length, cadence),
+      bootCssKeyframes(ABOUT_BOOT_VISIBLE_COMPOSITION.length, cadence),
     ).not.toContain("left:");
   });
 
   it("reveals once and never resets the completed shelf to empty", () => {
-    const cadence = bootCadence(ABOUT_BOOT_COMPOSITION.length);
+    const cadence = bootCadence(ABOUT_BOOT_VISIBLE_COMPOSITION.length);
     const frames = bootItemKeyframes(
-      ABOUT_BOOT_COMPOSITION.length - 1,
+      ABOUT_BOOT_VISIBLE_COMPOSITION.length - 1,
       cadence,
     );
 
@@ -357,8 +453,19 @@ describe("Homepage entrance", () => {
     expect(frames.slice(2).every(({ opacity }) => opacity === 1)).toBe(true);
   });
 
+  it("accepts the CSS animation's terminal time as a completed reveal", () => {
+    const cadence = bootCadence(ABOUT_BOOT_VISIBLE_COMPOSITION.length);
+    const cssDurationMs = Number(cadence.revealDuration.toFixed(2)) * 1000;
+
+    expect(cssDurationMs).toBe(1760);
+    expect(cadence.revealDuration * 1000).toBeGreaterThanOrEqual(cssDurationMs);
+    expect(bootRevealComplete(0, cssDurationMs, cadence.revealDuration)).toBe(
+      true,
+    );
+  });
+
   it("moves one contiguous quarter-width window through the declared order", () => {
-    const count = ABOUT_BOOT_COMPOSITION.length;
+    const count = ABOUT_BOOT_VISIBLE_COMPOSITION.length;
     const waves = Array.from({ length: count }, (_, index) =>
       bootWaveKeyframes(index, count),
     );

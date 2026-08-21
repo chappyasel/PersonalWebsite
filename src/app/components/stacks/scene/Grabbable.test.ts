@@ -64,6 +64,19 @@ describe("Grabbable tap/carry arbitration", () => {
     expect(down).not.toContain("prepareScenePhysics");
   });
 
+  it("exposes the same movement threshold to anchored gesture effects", () => {
+    const moveStart = source.indexOf("const onGrabMove");
+    const moveEnd = source.indexOf("const onGrabUp", moveStart);
+    const move = source.slice(moveStart, moveEnd);
+
+    expect(source).toMatch(/onDragIntent\?:\s*\(\s*origin:/);
+    expect(move).toContain("current.moved = true");
+    expect(move).toContain("onDragIntentRef.current({");
+    expect(move.indexOf("current.moved = true")).toBeLessThan(
+      move.indexOf("onDragIntentRef.current({"),
+    );
+  });
+
   it("activates mounted physics after moving clear of the mount", () => {
     const releaseStart = source.indexOf("const release");
     const carryStart = source.indexOf("const beginCarry", releaseStart);

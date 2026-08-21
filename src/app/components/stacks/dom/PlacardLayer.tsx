@@ -29,6 +29,7 @@ import {
   closeStacksPanel,
   openStacksPanel,
   panelCoverageRef,
+  setStacksSheetDismissed,
   useStacks,
 } from "../store";
 import {
@@ -78,15 +79,10 @@ import {
   PlacardNestedLinkCard,
   PlacardStatsCard,
 } from "./PlacardStatsCard";
+import { readFocusMode, writeFocusMode } from "./focusMode";
 import {
-  ignoresFocusShortcut,
-  isFocusModeShortcut,
-  readFocusMode,
-  writeFocusMode,
-} from "./focusMode";
-import {
-  MOBILE_SHEET_WHEEL_COOLDOWN_MS,
   MOBILE_SHEET_HORIZONTAL_DOMINANCE,
+  MOBILE_SHEET_WHEEL_COOLDOWN_MS,
   type MobileSheetHeightMeasurement,
   type MobileSheetWheelIntentState,
   accumulateMobileSheetWheelIntent,
@@ -383,6 +379,7 @@ type PlacardBodies = Record<(typeof UNITS)[number]["slug"], React.ReactNode>;
  * then removes it from backdrop compositing until it is active again. */
 const DesktopUnitPanel = memo(function DesktopUnitPanel({
   active,
+  initial,
   mounted,
   label,
   slug,
@@ -392,6 +389,7 @@ const DesktopUnitPanel = memo(function DesktopUnitPanel({
   children,
 }: {
   active: boolean;
+  initial: boolean;
   mounted: boolean;
   label: string;
   slug: (typeof UNITS)[number]["slug"];
@@ -407,6 +405,7 @@ const DesktopUnitPanel = memo(function DesktopUnitPanel({
     <div
       data-stacks-desktop-panel={slug}
       data-stacks-active={active || undefined}
+      data-stacks-initial-panel={initial || undefined}
       data-swap-direction={direction > 0 ? "next" : "previous"}
       className="absolute inset-0"
       style={
@@ -462,6 +461,7 @@ function DesktopPanel({
   preparedUnits: ReadonlySet<number>;
 }) {
   const reduceMotion = useStacksReducedMotion();
+  const [initialActiveUnit] = useState(activeUnit);
   const previousRef = useRef(activeUnit);
   const direction: 1 | -1 =
     activeUnit === previousRef.current || activeUnit > previousRef.current
@@ -480,6 +480,7 @@ function DesktopPanel({
           <DesktopUnitPanel
             key={unit.slug}
             active={active}
+            initial={index === initialActiveUnit}
             mounted={index === activeUnit || preparedUnits.has(index)}
             label={unit.label}
             slug={unit.slug}
@@ -960,7 +961,7 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
   active: boolean;
   side: -1 | 0 | 1;
   dismissed: boolean;
-  setDismissed: React.Dispatch<React.SetStateAction<boolean>>;
+  setDismissed: (dismissed: boolean) => void;
 }) {
   const modalOpen = useStacks((s) => s.modalOpen);
   const panelState = useStacks((s) => s.panelState);
@@ -1954,6 +1955,7 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
         ref={materialRef}
         aria-hidden
         data-stacks-sheet-material=""
+        data-stacks-mobile-intro="sheet"
         data-stacks-panel-unit={shownSlug}
         style={{
           y,
@@ -1977,6 +1979,7 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
         <motion.div
           ref={panelRef}
           data-stacks-mobile-panel=""
+          data-stacks-mobile-intro="sheet"
           data-stacks-panel={active ? "" : undefined}
           data-stacks-panel-unit={shownSlug}
           data-sheet={expanded ? "expanded" : hidden ? "dismissed" : "peek"}
@@ -2054,7 +2057,10 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
                 }`}
               />
             </button>
-            <div className="relative z-10 flex h-[52px] translate-y-1 items-center justify-between px-2">
+            <div
+              data-stacks-mobile-intro="header"
+              className="relative z-10 flex h-[52px] translate-y-1 items-center justify-between px-2"
+            >
               {/* Hoisted out of the body — see the effect above. It fades with
               the body it names, so a section change never shows one
               placard's title over another's content. */}
@@ -2087,7 +2093,10 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
             {/* The mobile sheet keeps its masked-scroller dissolve. The sheet
             behind is the one blurred surface; cards above it use translucent
             fills rather than trying to sample an already-filtered backdrop. */}
-            <div className="relative min-h-0 flex-1">
+            <div
+              data-stacks-mobile-intro="body"
+              className="relative min-h-0 flex-1"
+            >
               <div
                 ref={scrollRef}
                 tabIndex={interactive ? 0 : -1}
@@ -2185,6 +2194,7 @@ export default function PlacardLayer({
   const golfFocused = useStacks((s) => s.golfFocused);
   const preparedUnits = usePreparedUnitSet(activeUnit, sceneRevealed);
   const modalOpen = useStacks((s) => s.modalOpen);
+  const mobileDismissed = useStacks((s) => s.sheetDismissed);
   const reduceMotion = useStacksReducedMotion();
   const performanceSettings = useScenePerformanceSettings();
   const coarseTouchCapability = useCoarseTouchCapability();
@@ -2207,17 +2217,6 @@ export default function PlacardLayer({
     }
     writeFocusMode(window.sessionStorage, detailsHidden);
   }, [detailsHidden]);
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (!isFocusModeShortcut(event)) return;
-      if (!window.matchMedia(STACKS_DESKTOP_QUERY).matches) return;
-      if (modalOpen || ignoresFocusShortcut(event.target)) return;
-      event.preventDefault();
-      setDetailsHidden((hidden) => !hidden);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [modalOpen]);
   useLayoutEffect(() => {
     const dock = desktopDockRef.current;
     const publish = useStacks.getState().setDesktopDetailsLeftPx;
@@ -2259,12 +2258,8 @@ export default function PlacardLayer({
   // Resident cards own content, measurement and scroll position. Their
   // three-position sheet pose remains one global preference, so dismissing
   // Book Notes and travelling to Weightlifting yields a Weightlifting chip,
-  // never a new sheet plus the stale Book Notes chip.
-  const [mobileDismissed, setMobileDismissed] = useState(false);
-  useEffect(() => {
-    useStacks.getState().setSheetDismissed(mobileDismissed);
-    return () => useStacks.getState().setSheetDismissed(false);
-  }, [mobileDismissed]);
+  // never a new sheet plus the stale Book Notes chip. Zustand owns this detent
+  // so free roam can control the same physical sheet.
   // The document library is immutable while the visitor travels. Keeping the
   // exact React elements stable lets the memoized desktop and mobile shells
   // update ownership without reconciling every card, chart and image again.
@@ -2424,6 +2419,68 @@ export default function PlacardLayer({
             0 -2px 6px rgb(28 25 23 / 0.08),
             0 -18px 40px -24px rgb(28 25 23 / 0.42) !important;
         }
+        /* Mobile's first resident sheet settles after the navigation begins.
+           The material and interaction layers move together, while the
+           header and body fade independently above the sibling glass. All
+           seven resident sheets run this once, so changing sections later
+           uses only the existing directional swap. */
+        @media (width < 1200px) {
+          [data-stacks-mobile-intro="sheet"] {
+            translate: 0 18px;
+          }
+          [data-stacks-mobile-intro="header"],
+          [data-stacks-mobile-intro="body"] {
+            opacity: 0;
+          }
+          [data-stacks-mobile-intro="header"] {
+            translate: 0 4px;
+          }
+          [data-stacks-mobile-intro="body"] {
+            translate: 0 6px;
+          }
+          .stacks-world-shell[data-revealed]
+            [data-stacks-mobile-intro="sheet"] {
+            animation: stacks-mobile-sheet-in 480ms
+              var(--stacks-ease, ease-out) 540ms both;
+          }
+          .stacks-world-shell[data-revealed]
+            [data-stacks-mobile-intro="header"] {
+            animation: stacks-mobile-sheet-header-in 360ms
+              var(--stacks-ease, ease-out) 610ms both;
+          }
+          .stacks-world-shell[data-revealed]
+            [data-stacks-mobile-intro="body"] {
+            animation: stacks-mobile-sheet-body-in 420ms
+              var(--stacks-ease, ease-out) 660ms both;
+          }
+          .stacks-world-shell[data-load-path="warm"][data-revealed]
+            [data-stacks-mobile-intro="sheet"] {
+            animation-duration: 340ms;
+            animation-delay: 220ms;
+          }
+          .stacks-world-shell[data-load-path="warm"][data-revealed]
+            [data-stacks-mobile-intro="header"] {
+            animation-duration: 260ms;
+            animation-delay: 270ms;
+          }
+          .stacks-world-shell[data-load-path="warm"][data-revealed]
+            [data-stacks-mobile-intro="body"] {
+            animation-duration: 300ms;
+            animation-delay: 310ms;
+          }
+        }
+        @keyframes stacks-mobile-sheet-in {
+          from { translate: 0 18px; }
+          to { translate: 0 0; }
+        }
+        @keyframes stacks-mobile-sheet-header-in {
+          from { opacity: 0; translate: 0 4px; }
+          to { opacity: 1; translate: 0 0; }
+        }
+        @keyframes stacks-mobile-sheet-body-in {
+          from { opacity: 0; translate: 0 6px; }
+          to { opacity: 1; translate: 0 0; }
+        }
         .stacks-chip {
           box-shadow:
             inset 0 1px 0 rgb(255 255 255 / 0.72),
@@ -2447,6 +2504,25 @@ export default function PlacardLayer({
             opacity: 1 !important;
             transform: none !important;
             transition: none !important;
+          }
+          [data-stacks-mobile-intro] {
+            opacity: 1 !important;
+            translate: 0 0 !important;
+            animation: none !important;
+          }
+          [data-stacks-desktop-panel][data-stacks-initial-panel]
+            .placard-section-heading,
+          [data-stacks-desktop-panel][data-stacks-initial-panel]
+            .placard-sections h1,
+          [data-stacks-desktop-panel][data-stacks-initial-panel]
+            .stacks-quotes > section,
+          [data-stacks-desktop-panel][data-stacks-initial-panel]
+            [data-placard-surface],
+          [data-stacks-desktop-panel][data-stacks-initial-panel]
+            :has(> [data-placard-surface]) > :not([data-placard-surface]) {
+            opacity: var(--stacks-panel-opacity) !important;
+            translate: 0 0 !important;
+            animation: none !important;
           }
         }
         .dark .stacks-sheet,
@@ -2606,32 +2682,7 @@ export default function PlacardLayer({
         .placard-scroll .placard-sections .sm\\:text-3xl,
         .placard-scroll .placard-sections .md\\:text-3xl { font-size: calc(var(--ps) * 1.286); line-height: 1.333; }
         .placard-scroll .placard-sections .text-lg { font-size: calc(var(--ps) * 1.143); line-height: 1.4; }
-        /* Three talks, three cards the same shape, stacked. sm:grid-cols-2
-           is a VIEWPORT breakpoint on a section that owns the full page
-           width elsewhere; in a reading column it made two ~200px cards sit
-           under a hero and read as an afterthought. And sm:col-span-2 in
-           a one-column grid does not mean "full width" — it opens an
-           implicit second column — so the hero's span has to go with it.
-           Talks is the only section on the page using either class. */
-        .placard-scroll .sm\\:grid-cols-2 { grid-template-columns: minmax(0, 1fr); }
-        .placard-scroll .sm\\:col-span-2 { grid-column: auto; }
-        /* Same width is not yet the same card: the hero also carried a
-           display tier of its own (title 20px over 18, excerpt 16 over 14),
-           which in a column this narrow reads as one card shouting. Every
-           card title in the placard gets one size, and the hero's excerpt
-           comes back to body size with the rest.
-
-           1.143 rather than 1.286, and the difference is not taste. The
-           non-hero titles carry text-lg, which the map above matches at
-           (0,3,0) — HIGHER than this rule's (0,2,1) — so a bigger value here
-           moved the hero UP and left its peers where they were, inverting
-           the mismatch instead of closing it. Measured at 1440: 18.65px
-           against 16.57px, when the whole point was one number. Matching the
-           size the other cards already resolve to closes it with one value
-           and no specificity games, and it leaves Projects and Musings
-           untouched. */
         .placard-scroll .placard-sections h3 { font-size: calc(var(--ps) * 1.143); line-height: 1.4; }
-        .placard-scroll .sm\\:col-span-2 .text-base { font-size: var(--ps); line-height: 1.429; }
         /* Mobile's sheet is the single backdrop-sampling surface. Its cards
            keep a stronger translucent fill for separation, but do not stack
            another expensive blur on top of the sheet. Desktop is deliberately
@@ -2907,6 +2958,60 @@ export default function PlacardLayer({
             transition-timing-function:
               var(--stacks-panel-fade-easing), ease-out, ease-out, ease-out;
           }
+          /* Only the document that owned the dock on first paint receives the
+             entrance. The marker stays on that resident panel, but backwards
+             fill releases opacity after the animation so later section swaps
+             continue to use the transition variables above. */
+          .stacks-world-shell[data-revealed]
+            [data-stacks-desktop-panel][data-stacks-initial-panel]
+            .placard-section-heading,
+          .stacks-world-shell[data-revealed]
+            [data-stacks-desktop-panel][data-stacks-initial-panel]
+            .placard-sections h1,
+          .stacks-world-shell[data-revealed]
+            [data-stacks-desktop-panel][data-stacks-initial-panel]
+            .stacks-quotes > section {
+            animation: stacks-desktop-placard-heading-in 400ms
+              var(--stacks-ease, ease-out) 640ms backwards;
+          }
+          .stacks-world-shell[data-revealed]
+            [data-stacks-desktop-panel][data-stacks-initial-panel]
+            [data-placard-surface],
+          .stacks-world-shell[data-revealed]
+            [data-stacks-desktop-panel][data-stacks-initial-panel]
+            :has(> [data-placard-surface]) > :not([data-placard-surface]) {
+            animation: stacks-desktop-placard-card-in 480ms
+              var(--stacks-ease, ease-out) 700ms backwards;
+          }
+          .stacks-world-shell[data-load-path="warm"][data-revealed]
+            [data-stacks-desktop-panel][data-stacks-initial-panel]
+            .placard-section-heading,
+          .stacks-world-shell[data-load-path="warm"][data-revealed]
+            [data-stacks-desktop-panel][data-stacks-initial-panel]
+            .placard-sections h1,
+          .stacks-world-shell[data-load-path="warm"][data-revealed]
+            [data-stacks-desktop-panel][data-stacks-initial-panel]
+            .stacks-quotes > section {
+            animation-duration: 280ms;
+            animation-delay: 280ms;
+          }
+          .stacks-world-shell[data-load-path="warm"][data-revealed]
+            [data-stacks-desktop-panel][data-stacks-initial-panel]
+            [data-placard-surface],
+          .stacks-world-shell[data-load-path="warm"][data-revealed]
+            [data-stacks-desktop-panel][data-stacks-initial-panel]
+            :has(> [data-placard-surface]) > :not([data-placard-surface]) {
+            animation-duration: 320ms;
+            animation-delay: 320ms;
+          }
+        }
+        @keyframes stacks-desktop-placard-heading-in {
+          from { opacity: 0; translate: 0 8px; }
+          to { opacity: 1; translate: 0 0; }
+        }
+        @keyframes stacks-desktop-placard-card-in {
+          from { opacity: 0; translate: 0 10px; }
+          to { opacity: 1; translate: 0 0; }
         }
         /* Kill the page-level scroll reveal inside the resident placards.
            Those bodies spend most of their life invisible/inert, so a
@@ -3035,7 +3140,6 @@ export default function PlacardLayer({
           aria-describedby="stacks-details-tooltip"
           aria-controls="stacks-desktop-details"
           aria-expanded={!detailsHidden}
-          aria-keyshortcuts="H"
           onClick={() => setDetailsHidden((hidden) => !hidden)}
           className="flex size-11 items-center justify-center text-white/65 transition-[color,transform] duration-300 hover:scale-[1.08] hover:text-white focus-visible:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 motion-reduce:transition-none"
         >
@@ -3071,7 +3175,7 @@ export default function PlacardLayer({
           active={!golfFocused && index === activeUnit}
           side={index < activeUnit ? -1 : index > activeUnit ? 1 : 0}
           dismissed={mobileDismissed}
-          setDismissed={setMobileDismissed}
+          setDismissed={setStacksSheetDismissed}
         />
       ))}
     </div>

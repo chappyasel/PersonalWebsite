@@ -1,18 +1,27 @@
 "use client";
 
-// Musings is a working shelf rather than a second photo wall: notebooks,
-// paper, an open book, headphones and tea, with plants softening both ends.
+// Musings is a working shelf rather than a second photo wall: books, paper,
+// an open book, headphones and tea, with plants softening both ends.
 import Grabbable from "../Grabbable";
 import { ContactShade } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
 import ModelProp from "../ModelProp";
-import { EggLamp, SteamCup, Sway } from "../eggs";
-import { NotebookLean, PaperStack } from "../objects";
-import { BookPile, Bookend, ShelfUnit } from "../primitives";
+import { EggLamp, SteamCup } from "../eggs";
+import { MUSINGS_LOWER_BOOK } from "../musingsShelfGeometry";
+import { PaperStack } from "../objects";
+import { BookRowMesh, type RowItem, ShelfUnit, packRow } from "../primitives";
 import { useTexture } from "@react-three/drei";
 import React, { useEffect, useMemo } from "react";
 import * as THREE from "three";
 
+import { ShelfSucculent } from "./ShelfSucculent";
+import {
+  MUSINGS_LAMP_HEAD_QUATERNION,
+  MUSINGS_LAMP_ROOT_SCALE,
+  MUSINGS_LAMP_ROOT_YAW,
+  MUSINGS_OPEN_BOOK_POSE,
+  MUSINGS_TEA_POSE,
+} from "./musingsShelfLighting";
 import { type UnitProps } from "./types";
 
 const VINEYARD_VINES_STICKER_URL =
@@ -67,10 +76,10 @@ function VineyardVinesSticker({
         </mesh>
         <mesh position={[0, 0, 0.0051]}>
           <planeGeometry args={[0.26, 0.113]} />
-          <meshBasicMaterial
+          <meshStandardMaterial
             map={texture}
-            transparent
             alphaTest={0.02}
+            roughness={0.94}
             polygonOffset
             polygonOffsetFactor={-2}
             side={THREE.DoubleSide}
@@ -81,16 +90,22 @@ function VineyardVinesSticker({
   );
 }
 
-export default function UnitBlog({
-  data,
-  palette,
-  dark,
-  index,
-  onOpenUrl,
-}: UnitProps) {
-  const clickKeys = useMemo(
-    () => data.blogPosts.map((post) => post.link),
-    [data.blogPosts],
+export default function UnitBlog({ palette, dark, index }: UnitProps) {
+  const uprightBooks = useMemo(() => packRow(0.96, [], palette, 75), [palette]);
+  const stackedBooks = useMemo<RowItem[]>(
+    () => [
+      {
+        kind: "flat",
+        x: MUSINGS_LOWER_BOOK.x,
+        n: MUSINGS_LOWER_BOOK.count,
+        colors: [palette.spines[6], palette.spines[3], palette.spines[1]],
+        width: MUSINGS_LOWER_BOOK.width,
+        height: MUSINGS_LOWER_BOOK.height,
+        depth: MUSINGS_LOWER_BOOK.depth,
+        staggerX: MUSINGS_LOWER_BOOK.staggerX,
+      },
+    ],
+    [palette],
   );
 
   return (
@@ -103,23 +118,14 @@ export default function UnitBlog({
             <Grabbable
               unitIndex={index}
               hoverKey="grab:plant:musings"
-              base={[-1.24, 0, -0.02]}
+              base={[-1.12, 0, -0.06]}
               shadeColor={palette.shadow}
-              shadeWidth={0.42}
+              shadeWidth={0.28}
               shape="box"
               colliderProfile="foliage-base"
-              massKg={1.4}
+              massKg={1.2}
             >
-              <Sway unitIndex={index} amount={0.022} rate={0.34} phase={1.8}>
-                <React.Suspense fallback={null}>
-                  <ModelProp
-                    url="/models/potted-plant.glb"
-                    dark={dark}
-                    rotation={[0, 0.45, 0]}
-                    scale={0.78}
-                  />
-                </React.Suspense>
-              </Sway>
+              <ShelfSucculent unitIndex={index} dark={dark} />
             </Grabbable>
 
             <Grabbable
@@ -143,12 +149,12 @@ export default function UnitBlog({
               <PaperStack palette={palette} linkUnit={index} />
             </group>
 
-            <BookPile
+            <BookRowMesh
+              items={stackedBooks}
               palette={palette}
-              x={0.38}
               salt={47}
               linkUnit={index}
-              grabbable
+              grabbableVolumes
             />
             <Grabbable
               unitIndex={index}
@@ -192,61 +198,33 @@ export default function UnitBlog({
             unitIndex={index}
             palette={palette}
             dark={dark}
-            yaw={-0.34}
-            scale={1.74}
-            aimOffset={[0.22, 0.01, 0.24]}
+            yaw={MUSINGS_LAMP_ROOT_YAW}
+            scale={MUSINGS_LAMP_ROOT_SCALE}
+            headQuaternion={MUSINGS_LAMP_HEAD_QUATERNION}
           />
           {/* Three measured feet from desk-lamp.glb, transformed by the same
-            1.74 scale and -0.34 yaw as EggLamp. Separate contact pools keep
+            1.74 scale and body yaw as EggLamp. Separate contact pools keep
             every leg visibly attached to the plank; the former single oval
             sat between them and made the rear foot read as airborne. */}
           <ContactShade
             color={palette.shadow}
             width={0.11}
             height={0.06}
-            position={[0.029, 0.012, -0.082]}
+            position={[-0.0832, 0.012, -0.0253]}
           />
           <ContactShade
             color={palette.shadow}
             width={0.11}
             height={0.06}
-            position={[-0.094, 0.012, 0.004]}
+            position={[0.0082, 0.012, 0.0937]}
           />
           <ContactShade
             color={palette.shadow}
             width={0.11}
             height={0.06}
-            position={[0.068, 0.012, 0.07]}
+            position={[0.0669, 0.012, -0.0711]}
           />
         </group>
-
-        <group position={[-0.55, 0, 0]}>
-          <NotebookLean
-            palette={palette}
-            clickKeys={clickKeys}
-            onNotebookClick={onOpenUrl}
-            linkUnit={index}
-          />
-          <ContactShade
-            color={palette.shadow}
-            width={0.74}
-            height={0.18}
-            position={[0, 0.03, 0.1]}
-          />
-        </group>
-        <Grabbable
-          unitIndex={index}
-          hoverKey="grab:bookend:blog"
-          base={[-0.24, 0, 0.02]}
-          shadeColor={palette.shadow}
-          shadeWidth={0.24}
-          shape="box"
-          massKg={0.7}
-        >
-          <group rotation={[0, 0, -0.045]}>
-            <Bookend palette={palette} flip />
-          </group>
-        </Grabbable>
 
         <Grabbable
           unitIndex={index}
@@ -268,11 +246,16 @@ export default function UnitBlog({
         <Grabbable
           unitIndex={index}
           hoverKey="egg:tea"
-          base={[0.39, 0, -0.08]}
+          base={[...MUSINGS_TEA_POSE.base]}
           shadeColor={palette.shadow}
           shadeWidth={0.28}
           shape="box"
           massKg={0.3}
+          // A SURFACE signature: the cup keeps its nod. The steam already
+          // runs `always`, so a hover that only thickens it is a delta on
+          // something already moving — "I can't tell the tea cup is doing
+          // anything", 2026-08-20 — and the nod is what says WHICH prop.
+          signature="steam"
         >
           <SteamCup
             unitIndex={index}
@@ -285,8 +268,8 @@ export default function UnitBlog({
               <ModelProp
                 url="/models/cup-tea.glb"
                 dark={dark}
-                rotation={[0, 0.6, 0]}
-                scale={2.4}
+                rotation={[...MUSINGS_TEA_POSE.rotation]}
+                scale={MUSINGS_TEA_POSE.scale}
               />
             </React.Suspense>
           </SteamCup>
@@ -296,7 +279,7 @@ export default function UnitBlog({
           unitIndex={index}
           to="books"
           hoverKey="grab:openbook"
-          base={[0.8, 0, 0.08]}
+          base={[...MUSINGS_OPEN_BOOK_POSE.base]}
           shadeColor={palette.shadow}
           shadeWidth={0.62}
           shape="box"
@@ -308,11 +291,21 @@ export default function UnitBlog({
               dark={dark}
               variant="tinted"
               tints={{ Beige: palette.pages, DarkRed: palette.spines[3] }}
-              rotation={[0, -0.25, 0]}
-              scale={0.7}
+              rotation={[...MUSINGS_OPEN_BOOK_POSE.rotation]}
+              scale={MUSINGS_OPEN_BOOK_POSE.scale}
             />
           </React.Suspense>
         </Grabbable>
+
+        <group position={[0.78, 0, 0.02]}>
+          <BookRowMesh
+            items={uprightBooks}
+            palette={palette}
+            salt={75}
+            linkUnit={index}
+            grabbableVolumes
+          />
+        </group>
       </ShelfUnit>
     </>
   );

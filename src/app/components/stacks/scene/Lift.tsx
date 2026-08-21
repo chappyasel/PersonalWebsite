@@ -22,33 +22,44 @@ import { useStacks } from "../store";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 
-import { cameraFacingHoverTilt } from "./hoverTilt";
+import { cameraSideHoverTilt, cameraSideSlide } from "./hoverTilt";
 import {
+  HOVER_MOTION_SCALE,
   type Hinge,
   InteractionClaim,
   TILT_MAX_SIZE,
   hingeFor,
   hingePivotForTilt,
 } from "./interaction";
+import { leanBudget } from "./leanClearance";
 import { scenePerformanceController } from "./scenePerformance";
 import { useUnitFrame } from "./unitActivity";
+
+/** Re-exported rather than moved in name only. The dial's definition sits in
+ * `interaction.ts` beside HOVER_MAX_SIZE and TILT_MAX_SIZE, the other two
+ * scene-wide hover constants, because `leanClearance` needs it and Lift needs
+ * `leanClearance` — a constant that lives in the shell cannot be read by the
+ * thing the shell depends on without an import cycle, which silently
+ * evaluates to NaN. Every call site still imports it from here. */
+export { HOVER_MOTION_SCALE };
 
 /** ~95% of the travel in 300ms. Exported because ModelProp's universal hover
  * floor eases on the same curve — every hover in the world settles alike. */
 export const LIFT_LAMBDA = 10;
 const LAMBDA = LIFT_LAMBDA;
 
-/** One scene-wide legibility control for hover distance. This intentionally
- * scales displacement, rotation and swell DELTA without changing the damping
- * curve: props move twice as far, not twice as abruptly. */
-export const HOVER_MOTION_SCALE = 2;
-
 /** Radians of automatic nod, for a prop whose call site authored no rotation
- * response of its own. The original 0.06-radian gesture was difficult to see
- * at shelf distance; the shared scale makes it ~6.9° while the hinge keeps the
- * correct bottom contact edge planted. Exported so Grabbable and ModelProp nod
- * by exactly the same amount. */
-export const TIP = 0.06 * HOVER_MOTION_SCALE;
+ * response of its own. Exported so Grabbable and ModelProp nod by exactly the
+ * same amount.
+ *
+ * The base has been raised twice for the same reason, and the reason is always
+ * that a nod is being judged from a camera sitting about 2° above the shelf
+ * line, where a rotation toward you foreshortens into almost nothing. 0.06 at
+ * scale 2 gave 6.9° and was still called too subtle; 0.09 at scale 2.5 gives
+ * 12.9°. The hinge keeps the correct bottom contact edge planted throughout,
+ * which is what makes a tilt this size safe when a translation would not
+ * be. */
+export const TIP = 0.09 * HOVER_MOTION_SCALE;
 
 /** Apply the global scale around the neutral value rather than multiplying
  * the value itself. In particular, 1.02 grows to 1.04, not 2.04. Exported for
@@ -223,12 +234,10 @@ export default function Lift({
       }
     }
     const measuredHinge = hinge.current ?? null;
-    const tx = base[0] + (lifted ? motion.offset[0] : 0);
-    const ty = base[1] + (lifted ? motion.offset[1] : 0);
-    const tz = base[2] + (lifted ? motion.offset[2] : 0);
     const by = lifted ? motion.settle : 0;
     const restX = rest ? toward(rest[0], by) : 0;
     let cameraTip = 0;
+    let slide = 0;
     if (lifted && measuredHinge && wanted > 0) {
       camera.getWorldPosition(cameraWorld);
       g.getWorldPosition(nodeWorld);
@@ -238,8 +247,24 @@ export default function Lift({
         cameraDirection.applyQuaternion(parentWorld);
       }
       cameraDirection.applyQuaternion(restInverse);
-      cameraTip = cameraFacingHoverTilt(cameraDirection, wanted);
+      // The hinge pins the contact edge, so a lean cannot go DOWN through the
+      // plank. Nothing pinned the rising end, and a prop with a neighbour
+      // resting on it has no room there — see leanClearance.ts. Where the
+      // lean will not fit, its travel is spent pulling toward the viewer,
+      // which is the one direction a prop on a shelf reliably has air in.
+      const budget = leanBudget(
+        measuredHinge,
+        cameraSideHoverTilt(cameraDirection, wanted),
+      );
+      cameraTip = budget.lean;
+      slide = cameraSideSlide(cameraDirection, budget.slide);
     }
+    const tx = base[0] + (lifted ? motion.offset[0] : 0);
+    const ty = base[1] + (lifted ? motion.offset[1] : 0);
+    // Added to the authored push rather than replacing it: a call site that
+    // already pulls its prop forward asked for that, and this only makes up
+    // for the rotation the stack took away.
+    const tz = base[2] + (lifted ? motion.offset[2] + slide : 0);
     const pivot = measuredHinge
       ? hingePivotForTilt(measuredHinge, cameraTip || g.rotation.x - restX)
       : null;

@@ -8,11 +8,13 @@ import { PALETTES, type Palette, rand } from "../theme";
 import { Environment, Lightformer } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import {
+  type MutableRefObject,
   type RefObject,
   Suspense,
   useEffect,
   useMemo,
   useRef,
+  useSyncExternalStore,
 } from "react";
 import * as THREE from "three";
 
@@ -21,7 +23,14 @@ import Meadow from "./Meadow";
 import Petals from "./Petals";
 import Wildlife from "./Wildlife";
 import { registerCinematicSun } from "./cinematicSun";
+import { coordinationGlobeDiagnosticsController } from "./coordinationGlobeDiagnostics";
+import {
+  COORDINATION_AGENT_COLOR,
+  COORDINATION_GLOBE_INTERACTION_ID,
+  COORDINATION_HUMAN_COLOR,
+} from "./coordinationNetwork";
 import { DAYLIGHT_RENDERING } from "./daylightRendering";
+import { freeRoamDiagnosticsController } from "./freeRoamDiagnostics";
 import {
   getSceneInteraction,
   registerSceneInteraction,
@@ -29,6 +38,11 @@ import {
 import { claimEffectLayer, effectLayerAges } from "./layeredEffects";
 import { MEADOW_LAYOUT_REVISION } from "./meadowField";
 import { type SceneQualityPlan } from "./quality";
+import {
+  SCENE_IMPULSE_SKY_DURATION,
+  getSceneImpulse,
+  sceneImpulseSkyScale,
+} from "./sceneImpulse";
 import { useSceneQualityControls } from "./sceneQualityController";
 import { getSeatAmount } from "./seated";
 import { SHELF_GEOMETRY } from "./shelfGeometry";
@@ -37,6 +51,7 @@ import { updateManualWorldMatrix } from "./staticWorld";
 import { MID_X, STACKS_DESKTOP_MIN_WIDTH, TRAVEL_X } from "./worldLayout";
 
 const FIREWORK_LAYERS = 4;
+type CoordinationFlickerSignal = MutableRefObject<number>;
 
 // The meadow ships — statically, since round 2. React.lazy put its JS fetch
 // AFTER first mount, where the boot reveal could not see it (the loading
@@ -181,6 +196,9 @@ const SKY_FRAGMENT = `
   uniform float uPan;      // azimuth the traverse has swept (see SkyDome)
   uniform float uHover;    // azimuth the pointer is over, or 99 for none
   uniform float uTime;
+#ifdef COORDINATION_SKY_FLICKER
+  uniform float uCoordinationFlicker;
+#endif
   uniform float uSimplify; // degrade rung: 1 = two bands, no city/stars/ember
   uniform float uPost;     // 1 = composer owns the frame
   uniform float uFires[${FIREWORK_LAYERS}]; // launch ages, < 0 idle
@@ -2589,6 +2607,20 @@ const SKY_FRAGMENT = `
       }
     }
 
+#ifdef COORDINATION_SKY_FLICKER
+    float coordinationFault = clamp(
+      abs(uCoordinationFlicker - 1.0) * 1.65,
+      0.0,
+      1.0
+    );
+    float interference = step(
+      0.12,
+      sin(e * 720.0 + a * 41.0 + uTime * 103.0)
+    );
+    float shutter = mix(0.72, 1.08, interference);
+    col *= uCoordinationFlicker
+      * mix(1.0, shutter, coordinationFault * 0.48);
+#endif
     gl_FragColor = vec4(col, 1.0);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
@@ -2717,16 +2749,68 @@ function parkSkyTarget(
   updateManualWorldMatrix(mesh);
 }
 
+/** One clock owns the impossible exposure change. Sky and room illumination
+ * read this same mutable scalar, so a blackout cannot leave lit props floating
+ * against a dead vault. Unmounting the approved effect removes this frame
+ * subscriber and restores neutral exposure. */
+function CoordinationEnvironmentFault({
+  coordinationFlickerSignal,
+}: {
+  coordinationFlickerSignal: CoordinationFlickerSignal;
+}) {
+  const handledSkyImpulse = useRef(getSceneImpulse().revision);
+  const skyImpulseAge = useRef(Number.POSITIVE_INFINITY);
+  const skyImpulseStrength = useRef(0);
+  const reducedMotion = useMemo(
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    [],
+  );
+  useEffect(
+    () => () => {
+      coordinationFlickerSignal.current = 1;
+    },
+    [coordinationFlickerSignal],
+  );
+  useFrame((_, delta) => {
+    const impulse = getSceneImpulse();
+    if (handledSkyImpulse.current !== impulse.revision) {
+      handledSkyImpulse.current = impulse.revision;
+      if (
+        !reducedMotion &&
+        impulse.palette === "coordination" &&
+        impulse.strength > 0
+      ) {
+        skyImpulseAge.current = 0;
+        skyImpulseStrength.current = impulse.strength;
+      }
+    }
+    if (skyImpulseAge.current < SCENE_IMPULSE_SKY_DURATION) {
+      coordinationFlickerSignal.current = sceneImpulseSkyScale(
+        skyImpulseAge.current,
+        skyImpulseStrength.current,
+      );
+      skyImpulseAge.current += Math.max(0, Math.min(delta, 0.1));
+    } else {
+      coordinationFlickerSignal.current = 1;
+    }
+  });
+  return null;
+}
+
 function SkyDome({
   dark,
   simplify,
   cloudDetail,
   cinematicPlus,
+  coordinationFlickerSignal,
 }: {
   dark: boolean;
   simplify: boolean;
   cloudDetail: boolean;
   cinematicPlus: boolean;
+  coordinationFlickerSignal: CoordinationFlickerSignal | null;
 }) {
   const domeRef = useRef<THREE.Mesh>(null);
   const hitRef = useRef<THREE.Mesh>(null);
@@ -2740,6 +2824,7 @@ function SkyDome({
   const pendingSf = useRef(false);
   const jasperStart = useRef(-1);
   const pendingJasper = useRef(false);
+  const coordinationFlickerEnabled = coordinationFlickerSignal !== null;
   const viewDirection = useRef(new THREE.Vector3());
   const setHovered = useStacks((s) => s.setHovered);
   const sky = useMemo(() => {
@@ -2755,6 +2840,7 @@ function SkyDome({
       // whole skyline on load.
       uHover: { value: -1.6 },
       uTime: { value: 0 },
+      uCoordinationFlicker: { value: 1 },
       uSimplify: { value: 0 },
       uPost: { value: 0 },
       uFires: {
@@ -2796,6 +2882,9 @@ function SkyDome({
         defines: {
           ...(detailed ? { SKY_CLOUD_DETAIL: 1 } : {}),
           ...(plus ? { CINEMATIC_PLUS: 1 } : {}),
+          ...(coordinationFlickerEnabled
+            ? { COORDINATION_SKY_FLICKER: 1 }
+            : {}),
         },
         vertexShader: SKY_VERTEX,
         fragmentShader: SKY_FRAGMENT,
@@ -2806,9 +2895,11 @@ function SkyDome({
       detailedPlus: create(true, true),
       simplePlus: create(false, true),
     };
-    // The material lives for the mount — theme flips crossfade via uDark.
+    // Theme flips still crossfade via uDark. The materials rebuild only when
+    // the live Coordination diagnostic changes, compiling the off path
+    // without the sky-flicker fragment work.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [coordinationFlickerEnabled]);
   const material = cloudDetail
     ? cinematicPlus
       ? sky.detailedPlus
@@ -2959,6 +3050,8 @@ function SkyDome({
       delta,
     );
     u.uTime!.value = clock.elapsedTime;
+    if (coordinationFlickerSignal)
+      u.uCoordinationFlicker!.value = coordinationFlickerSignal.current;
     u.uSimplify!.value = simplify ? 1 : 0;
     u.uPost!.value = useStacks.getState().postfx ? 1 : 0;
     // Seated cross-fade. CameraRig writes this every frame while it eases;
@@ -3186,58 +3279,107 @@ function SkyDome({
 // Image-based lighting from hand-placed emitters — no HDRI file, no CDN.
 // Gives the 37 standard materials something to reflect; intensity stays low
 // so the lamps keep reading as the light source.
-function RoomEnvironment({ dark }: { dark: boolean }) {
+function ImageBasedEnvironmentFlicker({
+  baseIntensity,
+  flickerSignal,
+}: {
+  baseIntensity: number;
+  flickerSignal: CoordinationFlickerSignal;
+}) {
+  const scene = useThree((state) => state.scene);
+  useEffect(
+    () => () => {
+      scene.environmentIntensity = baseIntensity;
+    },
+    [baseIntensity, scene],
+  );
+  useFrame(() => {
+    scene.environmentIntensity = baseIntensity * flickerSignal.current;
+  });
+  return null;
+}
+
+function RoomEnvironment({
+  dark,
+  flickerSignal,
+}: {
+  dark: boolean;
+  flickerSignal: CoordinationFlickerSignal | null;
+}) {
+  const baseIntensity = dark ? 0.45 : DAYLIGHT_RENDERING.environmentIntensity;
   return (
-    <Environment
-      frames={1}
-      resolution={256}
-      environmentIntensity={
-        dark ? 0.45 : DAYLIGHT_RENDERING.environmentIntensity
-      }
-    >
-      <Lightformer
-        form="rect"
-        color={dark ? "#ffc98f" : "#ffe4cb"}
-        intensity={dark ? 1.5 : DAYLIGHT_RENDERING.environmentWarmIntensity}
-        position={[4, 3, 4]}
-        scale={10}
-        target={[0, 0, 0]}
-      />
-      {/* The cool fill IS the sky reflected — it tracks the v5 zenith hexes
-          (#93a9c8 light, #1e2842 dark) so glass and metal report the same
-          sky the dome is painting. */}
-      <Lightformer
-        form="rect"
-        color={dark ? "#414f70" : "#8ca4bd"}
-        intensity={dark ? 1.3 : DAYLIGHT_RENDERING.environmentCoolIntensity}
-        position={[-5, 2, 1]}
-        scale={8}
-        target={[0, 0, 0]}
-      />
-      <Lightformer
-        form="circle"
-        color={dark ? "#5b432c" : "#aeb4bb"}
-        intensity={0.5}
-        position={[0, -4, 2]}
-        scale={8}
-        target={[0, 0, 0]}
-      />
-    </Environment>
+    <>
+      <Environment
+        frames={1}
+        resolution={256}
+        environmentIntensity={baseIntensity}
+      >
+        <Lightformer
+          form="rect"
+          color={dark ? "#ffc98f" : "#ffe4cb"}
+          intensity={dark ? 1.5 : DAYLIGHT_RENDERING.environmentWarmIntensity}
+          position={[4, 3, 4]}
+          scale={10}
+          target={[0, 0, 0]}
+        />
+        {/* The cool fill IS the sky reflected — it tracks the v5 zenith hexes
+            (#93a9c8 light, #1e2842 dark) so glass and metal report the same
+            sky the dome is painting. */}
+        <Lightformer
+          form="rect"
+          color={dark ? "#414f70" : "#8ca4bd"}
+          intensity={dark ? 1.3 : DAYLIGHT_RENDERING.environmentCoolIntensity}
+          position={[-5, 2, 1]}
+          scale={8}
+          target={[0, 0, 0]}
+        />
+        <Lightformer
+          form="circle"
+          color={dark ? "#5b432c" : "#aeb4bb"}
+          intensity={0.5}
+          position={[0, -4, 2]}
+          scale={8}
+          target={[0, 0, 0]}
+        />
+      </Environment>
+      {flickerSignal ? (
+        <ImageBasedEnvironmentFlicker
+          baseIntensity={baseIntensity}
+          flickerSignal={flickerSignal}
+        />
+      ) : null}
+    </>
   );
 }
 
 const DUST_VERTEX = `
   uniform float uTime;
   uniform float uViewportScale;
+  uniform vec3 uCoordinationOrigin;
+  uniform float uCoordinationRadius;
+  uniform float uCoordinationEnergy;
+  uniform float uCoordinationTravel;
   attribute vec4 aDust; // phase, apparent size, speed, warmth
   varying float vLife;
   varying float vWarmth;
   varying float vFocus;
+  varying float vCoordination;
+  varying float vCoordinationHue;
   #include <fog_pars_vertex>
 
   void main() {
     float phase = aDust.x;
-    float t = uTime * aDust.z;
+    float coordinationDistance = distance(position, uCoordinationOrigin);
+    float coordinationReach = 1.0 - smoothstep(
+      uCoordinationRadius * 0.18,
+      max(uCoordinationRadius, 0.001),
+      coordinationDistance
+    );
+    float coordinationGlobal = uCoordinationEnergy
+      * mix(0.68, 1.0, coordinationReach);
+    float t = (
+      uTime + uCoordinationTravel * mix(0.62, 1.0, coordinationReach)
+    ) * aDust.z;
     vec3 p = position;
 
     // A shared low-frequency current carries the field while two individual
@@ -3250,13 +3392,21 @@ const DUST_VERTEX = `
     p.y += sin(t * 0.23 + phase * 1.4) * (0.035 + 0.050 * aDust.y)
          + sin(t * 0.09 + position.x * 0.7) * 0.030;
     p.z += cos(t * 0.19 + phase * 1.9) * (0.035 + 0.060 * aDust.y);
+    vec3 coordinationOut = position - uCoordinationOrigin;
+    coordinationOut /= max(length(coordinationOut), 0.001);
+    p += coordinationOut
+       * coordinationReach
+       * uCoordinationEnergy
+       * (0.055 + 0.075 * aDust.y);
 
     vec4 mvPosition = modelViewMatrix * vec4(p, 1.0);
     gl_Position = projectionMatrix * mvPosition;
     gl_PointSize = max(
       1.0,
       0.070 * aDust.y * uViewportScale / max(-mvPosition.z, 0.1)
-    );
+    )
+      * mix(1.0, 1.24, coordinationGlobal)
+      * mix(1.0, 2.0, smoothstep(0.0, 0.68, coordinationGlobal));
 
     // Dust catches light intermittently as it tumbles. Most motes keep a high
     // floor and only shimmer; a deterministic 14% minority crosses much
@@ -3273,6 +3423,8 @@ const DUST_VERTEX = `
     float shaftLife = 0.02 + 0.98 * smoothstep(0.22, 0.78, shaftWave);
     vLife = mix(shimmer, shaftLife, shaftMote);
     vWarmth = aDust.w;
+    vCoordination = coordinationGlobal;
+    vCoordinationHue = fract(phase * 0.159 + aDust.w * 0.73);
     // Extreme foreground/background motes fade instead of clipping into
     // giant discs or becoming a hard one-pixel stipple.
     vFocus = smoothstep(3.8, 5.4, -mvPosition.z)
@@ -3284,10 +3436,14 @@ const DUST_VERTEX = `
 const DUST_FRAGMENT = `
   uniform vec3 uCoreColor;
   uniform vec3 uHaloColor;
+  uniform vec3 uCoordinationHuman;
+  uniform vec3 uCoordinationAgent;
   uniform float uOpacity;
   varying float vLife;
   varying float vWarmth;
   varying float vFocus;
+  varying float vCoordination;
+  varying float vCoordinationHue;
   #include <fog_pars_fragment>
 
   void main() {
@@ -3304,7 +3460,26 @@ const DUST_FRAGMENT = `
     vec3 temperature = mix(uHaloColor, uCoreColor, core);
     temperature = mix(temperature, temperature * vec3(1.05, 0.92, 0.76),
                       vWarmth * 0.18);
-    float alpha = (halo * 0.42 + core * 0.58) * vLife * vFocus * uOpacity;
+    vec3 coordinationColor = mix(
+      uCoordinationHuman,
+      uCoordinationAgent,
+      step(0.5, vCoordinationHue)
+    );
+    float coordinationBrightness = mix(
+      1.0,
+      2.15,
+      smoothstep(0.0, 0.75, vCoordination)
+    );
+    temperature = mix(
+      temperature,
+      coordinationColor * coordinationBrightness,
+      smoothstep(0.0, 0.48, vCoordination)
+    );
+    float alpha = (halo * 0.42 + core * 0.58)
+      * vLife
+      * vFocus
+      * uOpacity
+      * mix(1.0, 1.9, smoothstep(0.0, 0.7, vCoordination));
     gl_FragColor = vec4(temperature, alpha);
     #include <fog_fragment>
     #include <tonemapping_fragment>
@@ -3317,6 +3492,10 @@ function Dust({ palette, count = 380 }: { palette: Palette; count?: number }) {
   // read ~a third weaker there (audit §2.1 item 4).
   const postfx = useStacks((s) => s.postfx);
   const light = palette === PALETTES.light;
+  const handledImpulse = useRef(getSceneImpulse().revision);
+  const coordinationEnergy = useRef(0);
+  const coordinationTravel = useRef(0);
+  const dustTime = useRef<number | null>(null);
   const geometry = useMemo(() => {
     const positions = new Float32Array(count * 3);
     const dust = new Float32Array(count * 4);
@@ -3335,26 +3514,40 @@ function Dust({ palette, count = 380 }: { palette: Palette; count?: number }) {
     result.computeBoundingSphere();
     return result;
   }, [count]);
+  const uniforms = useMemo(
+    () => ({
+      uTime: { value: 0 },
+      uViewportScale: { value: 1 },
+      uCoreColor: { value: new THREE.Color(palette.dust) },
+      uHaloColor: {
+        value: new THREE.Color(light ? "#f2b63f" : "#ffe2bd"),
+      },
+      uOpacity: {
+        value: palette.dustOpacity * (postfx ? (light ? 1.2 : 1.35) : 1),
+      },
+      uCoordinationOrigin: { value: new THREE.Vector3() },
+      uCoordinationRadius: { value: 0 },
+      uCoordinationEnergy: { value: 0 },
+      uCoordinationTravel: { value: 0 },
+      uCoordinationHuman: {
+        value: new THREE.Color(COORDINATION_HUMAN_COLOR),
+      },
+      uCoordinationAgent: {
+        value: new THREE.Color(COORDINATION_AGENT_COLOR),
+      },
+    }),
+    [light, palette.dust, palette.dustOpacity, postfx],
+  );
   const material = useMemo(
     () =>
       new THREE.ShaderMaterial({
-        uniforms: {
-          uTime: { value: 0 },
-          uViewportScale: { value: 1 },
-          uCoreColor: { value: new THREE.Color(palette.dust) },
-          uHaloColor: {
-            value: new THREE.Color(light ? "#f2b63f" : "#ffe2bd"),
-          },
-          uOpacity: {
-            value: palette.dustOpacity * (postfx ? (light ? 1.2 : 1.35) : 1),
-          },
-        },
+        uniforms,
         vertexShader: DUST_VERTEX,
         fragmentShader: DUST_FRAGMENT,
         transparent: true,
         depthWrite: false,
       }),
-    [light, palette.dust, palette.dustOpacity, postfx],
+    [uniforms],
   );
   useEffect(
     () => () => {
@@ -3363,9 +3556,41 @@ function Dust({ palette, count = 380 }: { palette: Palette; count?: number }) {
     [geometry],
   );
   useEffect(() => () => material.dispose(), [material]);
-  useFrame(({ clock, size, viewport }) => {
-    material.uniforms.uTime!.value = clock.elapsedTime;
-    material.uniforms.uViewportScale!.value = size.height * viewport.dpr * 0.5;
+  useFrame(({ clock, size, viewport }, delta) => {
+    const impulse = getSceneImpulse();
+    if (handledImpulse.current !== impulse.revision) {
+      handledImpulse.current = impulse.revision;
+      if (impulse.palette === "coordination" && impulse.strength > 0) {
+        uniforms.uCoordinationOrigin.value.set(impulse.x, impulse.y, impulse.z);
+        uniforms.uCoordinationRadius.value = impulse.radius;
+        coordinationEnergy.current = Math.max(
+          coordinationEnergy.current,
+          impulse.strength,
+        );
+      }
+    }
+    const boundedDelta = Math.min(delta, 1 / 30);
+    const stacks = useStacks.getState();
+    const coordinationEngaged =
+      stacks.hovered === COORDINATION_GLOBE_INTERACTION_ID ||
+      stacks.focusedInteraction === COORDINATION_GLOBE_INTERACTION_ID ||
+      stacks.dragging === COORDINATION_GLOBE_INTERACTION_ID;
+    if (coordinationEngaged) coordinationEnergy.current = 1;
+    dustTime.current ??= clock.elapsedTime;
+    dustTime.current += boundedDelta * (1 + coordinationEnergy.current);
+    coordinationTravel.current +=
+      boundedDelta * coordinationEnergy.current * 24;
+    if (!coordinationEngaged)
+      coordinationEnergy.current = THREE.MathUtils.damp(
+        coordinationEnergy.current,
+        0,
+        1.55,
+        boundedDelta,
+      );
+    uniforms.uTime.value = dustTime.current;
+    uniforms.uViewportScale.value = size.height * viewport.dpr * 0.5;
+    uniforms.uCoordinationEnergy.value = coordinationEnergy.current;
+    uniforms.uCoordinationTravel.value = coordinationTravel.current;
   });
   return <points geometry={geometry} material={material} />;
 }
@@ -3458,9 +3683,11 @@ function CinematicSunShadowRig({
 function KeyLight({
   dark,
   cinematicPlus,
+  coordinationFlickerSignal,
 }: {
   dark: boolean;
   cinematicPlus: boolean;
+  coordinationFlickerSignal: CoordinationFlickerSignal | null;
 }) {
   const lightRef = useRef<THREE.DirectionalLight>(null);
   const hemiRef = useRef<THREE.HemisphereLight>(null);
@@ -3516,35 +3743,40 @@ function KeyLight({
       hemi.color.copy(dawnLight.skyDark);
       hemi.groundColor.copy(dawnLight.groundDark);
       hemi.intensity = 1.2;
-      return;
-    }
-    const dawn = THREE.MathUtils.smoothstep(progressRef.current, 0, 1);
-    if (cinematicPlus) {
-      light.position.y = 7.8;
-      light.position.z = 4.8;
-      light.color.set("#ffe1b8");
-      light.intensity = 1.48;
     } else {
-      light.position.y = 6.5;
-      light.position.z = 6;
-      light.color.lerpColors(dawnLight.keyEarly, dawnLight.keyLate, dawn);
-      light.intensity = THREE.MathUtils.lerp(
-        DAYLIGHT_RENDERING.directionalIntensity[0],
-        DAYLIGHT_RENDERING.directionalIntensity[1],
+      const dawn = THREE.MathUtils.smoothstep(progressRef.current, 0, 1);
+      if (cinematicPlus) {
+        light.position.y = 7.8;
+        light.position.z = 4.8;
+        light.color.set("#ffe1b8");
+        light.intensity = 1.48;
+      } else {
+        light.position.y = 6.5;
+        light.position.z = 6;
+        light.color.lerpColors(dawnLight.keyEarly, dawnLight.keyLate, dawn);
+        light.intensity = THREE.MathUtils.lerp(
+          DAYLIGHT_RENDERING.directionalIntensity[0],
+          DAYLIGHT_RENDERING.directionalIntensity[1],
+          dawn,
+        );
+      }
+      hemi.color.lerpColors(dawnLight.skyEarly, dawnLight.skyLate, dawn);
+      hemi.groundColor.lerpColors(
+        dawnLight.groundEarly,
+        dawnLight.groundLate,
+        dawn,
+      );
+      hemi.intensity = THREE.MathUtils.lerp(
+        DAYLIGHT_RENDERING.hemisphereIntensity[0],
+        DAYLIGHT_RENDERING.hemisphereIntensity[1],
         dawn,
       );
     }
-    hemi.color.lerpColors(dawnLight.skyEarly, dawnLight.skyLate, dawn);
-    hemi.groundColor.lerpColors(
-      dawnLight.groundEarly,
-      dawnLight.groundLate,
-      dawn,
-    );
-    hemi.intensity = THREE.MathUtils.lerp(
-      DAYLIGHT_RENDERING.hemisphereIntensity[0],
-      DAYLIGHT_RENDERING.hemisphereIntensity[1],
-      dawn,
-    );
+    if (coordinationFlickerSignal) {
+      const environmentScale = coordinationFlickerSignal.current;
+      light.intensity *= environmentScale;
+      hemi.intensity *= environmentScale;
+    }
   });
   return (
     <>
@@ -3581,6 +3813,20 @@ export default function SceneEnvironment({
   quality: Pick<SceneQualityPlan, "environment" | "butterflies" | "wildlife">;
 }) {
   const { cinematicPlus } = useSceneQualityControls();
+  const coordinationDiagnostics = useSyncExternalStore(
+    coordinationGlobeDiagnosticsController.subscribe,
+    coordinationGlobeDiagnosticsController.getSnapshot,
+    coordinationGlobeDiagnosticsController.getSnapshot,
+  );
+  const coordinationFlickerSignal = useRef(1);
+  const activeCoordinationFlickerSignal = coordinationDiagnostics.effectEnabled
+    ? coordinationFlickerSignal
+    : null;
+  const freeRoam = useSyncExternalStore(
+    freeRoamDiagnosticsController.subscribe,
+    freeRoamDiagnosticsController.getSnapshot,
+    freeRoamDiagnosticsController.getSnapshot,
+  );
   const daylightCinematicPlus = cinematicPlus && !dark;
   // ?nomeadow joins the existing query family (?nopostfx) as the live A/B
   // escape. Read once — the search string cannot change without a reload.
@@ -3600,12 +3846,20 @@ export default function SceneEnvironment({
   }, [meadow]);
   return (
     <>
-      <fog attach="fog" args={[palette.fog, 8, 24]} />
+      {activeCoordinationFlickerSignal ? (
+        <CoordinationEnvironmentFault
+          coordinationFlickerSignal={activeCoordinationFlickerSignal}
+        />
+      ) : null}
+      {!freeRoam.enabled || freeRoam.fogEnabled ? (
+        <fog attach="fog" args={[palette.fog, 8, 24]} />
+      ) : null}
       <SkyDome
         dark={dark}
         simplify={false}
         cloudDetail={quality.environment.cloudDetail === "full"}
         cinematicPlus={daylightCinematicPlus}
+        coordinationFlickerSignal={activeCoordinationFlickerSignal}
       />
       {meadow && (
         <Suspense fallback={null}>
@@ -3616,6 +3870,7 @@ export default function SceneEnvironment({
             farGrassShader={quality.environment.farGrassShader}
             grassDeformation={quality.environment.grassDeformation}
             contentTier={quality.environment.contentTier}
+            environmentFlickerSignal={activeCoordinationFlickerSignal}
           />
           {/* Inside the same gate as the field they fly over: ?nomeadow must
               not leave three butterflies over a bare floor. */}
@@ -3636,8 +3891,16 @@ export default function SceneEnvironment({
           />
         </Suspense>
       )}
-      <RoomEnvironment key={dark ? "env-d" : "env-l"} dark={dark} />
-      <KeyLight dark={dark} cinematicPlus={daylightCinematicPlus} />
+      <RoomEnvironment
+        key={dark ? "env-d" : "env-l"}
+        dark={dark}
+        flickerSignal={activeCoordinationFlickerSignal}
+      />
+      <KeyLight
+        dark={dark}
+        cinematicPlus={daylightCinematicPlus}
+        coordinationFlickerSignal={activeCoordinationFlickerSignal}
+      />
       {quality.environment.dust && <Dust palette={palette} />}
     </>
   );

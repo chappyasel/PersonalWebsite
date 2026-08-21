@@ -1,10 +1,23 @@
+import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
 import {
+  GOLF_CLUB_GRIP_HEIGHT,
+  GOLF_CLUB_PROJECTED_LOCAL_BOUNDS,
+  GOLF_CLUB_REST_BASE,
+} from "./golf/golfLayout";
+import {
   directionalUnitLookahead,
+  projectUnitActivityEnvelope,
   projectedUnitIntersects,
   resolveUnitActivityState,
 } from "./unitActivity";
+import {
+  CAMERA,
+  CAMERA_LOOK_Y,
+  CAMERA_LOOK_Z_OFFSET,
+  unitPose,
+} from "./worldLayout";
 
 describe("resident unit activity", () => {
   it("treats a unit spanning the viewport as visible even when both edges are outside", () => {
@@ -85,5 +98,87 @@ describe("resident unit activity", () => {
     expect(directionalUnitLookahead(2.4, 1, 7)).toBe(3);
     expect(directionalUnitLookahead(2.4, -1, 7)).toBe(1);
     expect(directionalUnitLookahead(6, 1, 7)).toBe(6);
+  });
+
+  it("does not hide Training while the edge of its golf club remains visible", () => {
+    const camera = new THREE.PerspectiveCamera(CAMERA.fov, 1, 0.1, 100);
+    camera.position.set(4.07, CAMERA.y, CAMERA.z);
+    camera.lookAt(4.07, CAMERA_LOOK_Y, CAMERA_LOOK_Z_OFFSET);
+    camera.updateMatrixWorld();
+
+    const projected = { inDepth: false, minX: Infinity, maxX: -Infinity };
+    projectUnitActivityEnvelope(2, camera, projected, [
+      new THREE.Vector3(),
+      new THREE.Vector3(),
+      new THREE.Vector3(),
+    ]);
+
+    const pose = unitPose(2);
+    const unit = new THREE.Group();
+    unit.position.fromArray(pose.position);
+    unit.rotation.set(...pose.rotation);
+    const club = new THREE.Group();
+    club.position.set(
+      GOLF_CLUB_REST_BASE.x,
+      GOLF_CLUB_REST_BASE.y + GOLF_CLUB_GRIP_HEIGHT,
+      GOLF_CLUB_REST_BASE.z,
+    );
+    club.rotation.set(-0.08, 0.04, 0, "YXZ");
+    unit.add(club);
+    unit.updateWorldMatrix(true, true);
+
+    const projectedClubX: number[] = [];
+    const { min, max } = GOLF_CLUB_PROJECTED_LOCAL_BOUNDS;
+    for (const x of [min[0], max[0]])
+      for (const y of [min[1], max[1]])
+        for (const z of [min[2], max[2]])
+          projectedClubX.push(
+            new THREE.Vector3(x, y, z)
+              .applyMatrix4(club.matrixWorld)
+              .project(camera).x,
+          );
+
+    expect(Math.min(...projectedClubX)).toBeLessThan(1);
+    expect(projectedUnitIntersects(projected, 1.6)).toBe(true);
+    expect(
+      resolveUnitActivityState({
+        projected,
+        previous: "warm",
+        active: false,
+        lookahead: false,
+        pinned: false,
+        enabled: true,
+        outsideSince: 0,
+        now: 251,
+      }).state,
+    ).not.toBe("cold");
+  });
+
+  it("still releases Training after its complete activity envelope leaves view", () => {
+    const camera = new THREE.PerspectiveCamera(CAMERA.fov, 1, 0.1, 100);
+    camera.position.set(-4, CAMERA.y, CAMERA.z);
+    camera.lookAt(-4, CAMERA_LOOK_Y, CAMERA_LOOK_Z_OFFSET);
+    camera.updateMatrixWorld();
+
+    const projected = { inDepth: false, minX: Infinity, maxX: -Infinity };
+    projectUnitActivityEnvelope(2, camera, projected, [
+      new THREE.Vector3(),
+      new THREE.Vector3(),
+      new THREE.Vector3(),
+    ]);
+
+    expect(projectedUnitIntersects(projected, 1.6)).toBe(false);
+    expect(
+      resolveUnitActivityState({
+        projected,
+        previous: "warm",
+        active: false,
+        lookahead: false,
+        pinned: false,
+        enabled: true,
+        outsideSince: 0,
+        now: 251,
+      }).state,
+    ).toBe("cold");
   });
 });

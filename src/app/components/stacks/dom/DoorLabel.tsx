@@ -65,13 +65,20 @@ export default function DoorLabel() {
   useEffect(() => {
     pointer.current = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     const track = (event: PointerEvent) => {
-      const scrollEl = useStacks.getState().scrollEl;
+      const state = useStacks.getState();
+      const scrollEl = state.scrollEl;
       if (
         scrollEl &&
         event.target instanceof Node &&
         !scrollEl.contains(event.target)
-      )
+      ) {
+        // R3F cannot dispatch pointerout after the pointer crosses onto DOM
+        // chrome above its event surface. Drop the scene's old owner here so
+        // a projected Door label cannot remain attached to a prop the cursor
+        // left behind.
+        if (state.hovered) state.setHovered(null);
         return;
+      }
       pointer.current = { x: event.clientX, y: event.clientY };
     };
     window.addEventListener("pointermove", track, { passive: true });

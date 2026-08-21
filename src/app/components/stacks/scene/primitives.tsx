@@ -6,7 +6,6 @@
 // primitive" signal; perfect 90° corners are the strongest primitive tell.
 import { useStacks } from "../store";
 import { PALETTES, type Palette, rand } from "../theme";
-import { RoundedBox } from "./RoundedBox";
 import React, { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
@@ -15,6 +14,7 @@ import { ContactShade } from "./GroundPool";
 import HeldFacing from "./HeldFacing";
 import Lift from "./Lift";
 import LitImage from "./LitImage";
+import { RoundedBox } from "./RoundedBox";
 import ShelfSpacingProbe from "./ShelfSpacingProbe";
 import { proxiedBookCover } from "./bookCoverTexture";
 import {
@@ -22,10 +22,22 @@ import {
   bookRowNodeName,
   featuredRiserHoverKey,
 } from "./bookInteractions";
+import {
+  DESK_LAMP_MOUTH,
+  DESK_LAMP_MOUTH_RADIUS,
+  DESK_LAMP_MOUTH_TILT,
+  deskLampPointAlongAxis,
+} from "./deskLampHead";
 import { registerSceneInteraction } from "./interactionRegistry";
 import PropLink, { type PropDestination } from "./links";
 import { MOTH_LIGHT_PROFILES, registerMeadowLamp } from "./meadowLights";
 import { sceneUnitLightUserData } from "./sceneGpuPrewarm";
+import {
+  SCENE_IMPULSE_LIGHT_DURATION,
+  getSceneImpulse,
+  sceneImpulseLightScale,
+  sceneImpulseStrengthAt,
+} from "./sceneImpulse";
 import {
   practicalGlowHaloEnabled,
   practicalGlowSpriteEnabled,
@@ -44,7 +56,16 @@ import { useUnitFrame } from "./unitActivity";
 
 export type RowItem =
   | { kind: "spine"; x: number; w: number; h: number; color: string }
-  | { kind: "flat"; x: number; n: number; colors: string[] }
+  | {
+      kind: "flat";
+      x: number;
+      n: number;
+      colors: string[];
+      width?: number;
+      height?: number;
+      depth?: number;
+      staggerX?: number;
+    }
   | { kind: "lean"; x: number; w: number; h: number; color: string }
   /** A face-out book. Everything past `key` is POSE, and every one of them
    * defaults to the old dead-upright cover, so a caller that only knows where
@@ -226,16 +247,30 @@ export function packRow(
     }
     i++;
   }
-  // One spine leaning against the row's end — the packed block otherwise
-  // terminates in a dead vertical edge.
-  items.push({
-    kind: "lean",
-    x: x + 0.05,
-    w: 0.06,
-    h: 0.4 + rand(i, salt + 3) * 0.1,
-    color:
-      palette.spines[Math.floor(rand(i, salt + 4) * palette.spines.length)]!,
-  });
+  const endHeight = 0.4 + rand(i, salt + 3) * 0.1;
+  const endColor =
+    palette.spines[Math.floor(rand(i, salt + 4) * palette.spines.length)]!;
+  // The end book may lean only when its upper-left edge has a tall neighbor
+  // to bear against. A flat stack or a preceding gap supports nothing at that
+  // height; appending the old unconditional leaner there produced the
+  // freestanding diagonal book on Musings. Keep those end books upright.
+  if (items.at(-1)?.kind === "spine") {
+    items.push({
+      kind: "lean",
+      x: x + 0.05,
+      w: 0.06,
+      h: endHeight,
+      color: endColor,
+    });
+  } else {
+    items.push({
+      kind: "spine",
+      x: x + 0.03,
+      w: 0.06,
+      h: endHeight,
+      color: endColor,
+    });
+  }
   return items;
 }
 
@@ -429,6 +464,203 @@ const FLAT_LIFT: [number, number, number] = [0, 0, 0.07];
 
 /** Name prefix for a spine's stable diagnostic node. */
 export const SPINE_NODE = "stacks-spine";
+export const FEATURED_COVER_Z = 0.06;
+
+const BOOK_PART_GEOMETRY = new THREE.BoxGeometry(1, 1, 1);
+const bookPartMaterialCache = new Map<string, THREE.MeshStandardMaterial>();
+const BOOK_BOARD = 0.006;
+const BOOK_PAGE_INSET = 0.016;
+
+/** A normal hardcover depth is roughly two-thirds of its height. Keeping the
+ * result inside the shelf's measured range prevents short books becoming
+ * square blocks and tall books becoming shallow tiles. */
+export function packedBookDepth(height: number, index: number, salt: number) {
+  const ratio = 0.6 + rand(index, salt + 11) * 0.08;
+  const raw = Math.max(0.24, height * ratio);
+  return 0.24 + 0.1 * Math.tanh((raw - 0.24) / 0.1);
+}
+
+function bookPartMaterial(color: string, roughness: number) {
+  // Five-point roughness buckets preserve variation without retaining one
+  // material per book when the shared geometry intentionally survives LOD
+  // remounts.
+  const resolvedRoughness = Math.round(roughness * 20) / 20;
+  const key = `${color}|${resolvedRoughness}`;
+  const cached = bookPartMaterialCache.get(key);
+  if (cached) return cached;
+  const material = new THREE.MeshStandardMaterial({
+    color,
+    roughness: resolvedRoughness,
+  });
+  bookPartMaterialCache.set(key, material);
+  return material;
+}
+
+function BookPart({
+  size,
+  position,
+  color,
+  roughness,
+  castShadow = false,
+}: {
+  size: [number, number, number];
+  position?: [number, number, number];
+  color: string;
+  roughness: number;
+  castShadow?: boolean;
+}) {
+  return (
+    <mesh
+      castShadow={castShadow}
+      geometry={BOOK_PART_GEOMETRY}
+      material={bookPartMaterial(color, roughness)}
+      dispose={null}
+      scale={size}
+      position={position}
+    />
+  );
+}
+
+/** Low-poly spine-out book: a recessed page block between two boards, with a
+ * real spine closing the front. Four boxes are enough to stop every oblique
+ * view from turning the library into a row of colored bricks. */
+function UprightBookVolume({
+  width,
+  height,
+  depth,
+  color,
+  pages,
+  roughness,
+}: {
+  width: number;
+  height: number;
+  depth: number;
+  color: string;
+  pages: string;
+  roughness: number;
+}) {
+  return (
+    <group>
+      <BookPart
+        size={[
+          Math.max(0.012, width - BOOK_BOARD * 2),
+          height - BOOK_PAGE_INSET,
+          depth - BOOK_PAGE_INSET,
+        ]}
+        position={[0, -0.002, -0.004]}
+        color={pages}
+        roughness={0.9}
+        castShadow
+      />
+      {[-1, 1].map((side) => (
+        <BookPart
+          key={side}
+          size={[BOOK_BOARD, height, depth]}
+          position={[side * (width / 2 - BOOK_BOARD / 2), 0, 0]}
+          color={color}
+          roughness={roughness}
+        />
+      ))}
+      <BookPart
+        size={[width, height, BOOK_BOARD]}
+        position={[0, 0, depth / 2 - BOOK_BOARD / 2]}
+        color={color}
+        roughness={roughness}
+      />
+    </group>
+  );
+}
+
+/** The same construction on its side for stacks and featured-book risers. */
+function FlatBookVolume({
+  width,
+  height,
+  depth,
+  color,
+  pages,
+}: {
+  width: number;
+  height: number;
+  depth: number;
+  color: string;
+  pages: string;
+}) {
+  return (
+    <group>
+      <BookPart
+        size={[
+          width - BOOK_PAGE_INSET,
+          Math.max(0.012, height - BOOK_BOARD * 2),
+          depth - BOOK_PAGE_INSET,
+        ]}
+        position={[0, 0, -0.004]}
+        color={pages}
+        roughness={0.9}
+        castShadow
+      />
+      {[-1, 1].map((side) => (
+        <BookPart
+          key={side}
+          size={[width, BOOK_BOARD, depth]}
+          position={[0, side * (height / 2 - BOOK_BOARD / 2), 0]}
+          color={color}
+          roughness={0.72}
+        />
+      ))}
+      <BookPart
+        size={[width, height, BOOK_BOARD]}
+        position={[0, 0, depth / 2 - BOOK_BOARD / 2]}
+        color={color}
+        roughness={0.72}
+      />
+    </group>
+  );
+}
+
+function FaceOutBookVolume({
+  thickness,
+  color,
+  pages,
+}: {
+  thickness: number;
+  color: string;
+  pages: string;
+}) {
+  return (
+    <>
+      <RoundedBox
+        castShadow
+        args={[COVER_W - 0.014, COVER_H - 0.014, thickness - 0.01]}
+        radius={0.005}
+        smoothness={3}
+        position={[0.005, 0, -thickness / 2 - 0.003]}
+      >
+        <meshStandardMaterial color={pages} roughness={0.88} />
+      </RoundedBox>
+      {[0, -thickness - 0.006].map((zBoard) => (
+        <RoundedBox
+          key={zBoard}
+          castShadow
+          args={[COVER_W, COVER_H, 0.006]}
+          radius={0.002}
+          smoothness={3}
+          position={[0, 0, zBoard]}
+        >
+          <meshStandardMaterial color={color} roughness={0.7} />
+        </RoundedBox>
+      ))}
+      <RoundedBox
+        castShadow
+        args={[0.014, COVER_H, thickness + 0.006]}
+        radius={0.004}
+        smoothness={3}
+        position={[-COVER_W / 2 + 0.007, 0, -thickness / 2 - 0.003]}
+      >
+        <meshStandardMaterial color={color} roughness={0.74} />
+      </RoundedBox>
+    </>
+  );
+}
 
 /** Stable named wrapper for diagnostics. Motion now belongs entirely to the
  * parent Lift, whose y-position can be compared without camera/parallax noise. */
@@ -509,7 +741,7 @@ function FeaturedCover({
   const thickness = item.thickness ?? 0.048;
   const lean = item.lean ?? 0;
   const riser = item.riser ?? 0;
-  const z = 0.06 + (item.dz ?? 0);
+  const z = FEATURED_COVER_Z + (item.dz ?? 0);
   const seat = coverSeat(s, lean, riser);
   /** Lean is on the INNER group, not on Lift's `rest`. `rest` is the channel a
    * hover eases away, and a book leaning on its neighbour that straightens
@@ -523,106 +755,65 @@ function FeaturedCover({
     0,
   ];
   const riserBook = (
-    <RoundedBox
-      castShadow
-      args={[COVER_W * s * 0.86, riser, 0.24]}
-      radius={0.006}
-      smoothness={3}
-    >
-      <meshStandardMaterial color={riserColor} roughness={0.78} />
-    </RoundedBox>
+    <FlatBookVolume
+      width={COVER_W * s * 0.86}
+      height={riser}
+      depth={0.24}
+      color={riserColor}
+      pages={palette.pages}
+    />
   );
   const cover = (draggable: boolean) => {
-    const contents = textured ? (
+    const contents = (
       <>
-        {/* Cream page block plus distinct front/back boards and spine: the
-            cover image is a jacket on a book, not a texture on a cuboid. */}
-        <RoundedBox
-          castShadow
-          args={[COVER_W - 0.014, COVER_H - 0.014, thickness - 0.01]}
-          radius={0.005}
-          smoothness={3}
-          position={[0.005, 0, -thickness / 2 - 0.003]}
-        >
-          <meshStandardMaterial color={palette.pages} roughness={0.88} />
-        </RoundedBox>
-        {[0, -thickness - 0.006].map((zBoard) => (
-          <RoundedBox
-            key={zBoard}
-            castShadow
-            args={[COVER_W, COVER_H, 0.006]}
-            radius={0.006}
-            smoothness={3}
-            position={[0, 0, zBoard]}
-          >
-            <meshStandardMaterial
-              color={item.color ?? palette.cover}
-              roughness={0.7}
-            />
-          </RoundedBox>
-        ))}
-        <RoundedBox
-          castShadow
-          args={[0.014, COVER_H, thickness + 0.006]}
-          radius={0.004}
-          smoothness={3}
-          position={[-COVER_W / 2 + 0.007, 0, -thickness / 2 - 0.003]}
-        >
-          <meshStandardMaterial
-            color={item.color ?? palette.cover}
-            roughness={0.74}
-          />
-        </RoundedBox>
+        <FaceOutBookVolume
+          thickness={thickness}
+          color={item.color ?? palette.cover}
+          pages={palette.pages}
+        />
         {/* A failed jacket texture degrades to the physical cover above, never
           to a replacement OUTSIDE Grabbable. The book therefore keeps its
           exact tap/carry contract even when an image CDN request fails. */}
-        <CoverBoundary fallback={null}>
-          <React.Suspense fallback={null}>
-            <LitImage
-              url={proxiedBookCover(item.url, coverWidth)}
-              width={0.34}
-              height={0.5}
-              radius={0.012}
-              roughness={0.6}
-              position={[0, 0, 0.004]}
-              onPointerOver={
-                draggable
-                  ? undefined
-                  : (e) => {
-                      e.stopPropagation();
-                      setHovered(hoverKey);
-                    }
-              }
-              onPointerOut={
-                draggable
-                  ? undefined
-                  : () => {
-                      if (useStacks.getState().hovered === hoverKey)
-                        setHovered(null);
-                    }
-              }
-              onClick={
-                !draggable && onCoverClick
-                  ? (e) => {
-                      if ((e.delta ?? 0) > 6) return;
-                      e.stopPropagation();
-                      onCoverClick(item.key);
-                    }
-                  : undefined
-              }
-            />
-          </React.Suspense>
-        </CoverBoundary>
+        {textured && (
+          <CoverBoundary fallback={null}>
+            <React.Suspense fallback={null}>
+              <LitImage
+                url={proxiedBookCover(item.url, coverWidth)}
+                width={0.34}
+                height={0.5}
+                radius={0.012}
+                roughness={0.6}
+                position={[0, 0, 0.004]}
+                onPointerOver={
+                  draggable
+                    ? undefined
+                    : (e) => {
+                        e.stopPropagation();
+                        setHovered(hoverKey);
+                      }
+                }
+                onPointerOut={
+                  draggable
+                    ? undefined
+                    : () => {
+                        if (useStacks.getState().hovered === hoverKey)
+                          setHovered(null);
+                      }
+                }
+                onClick={
+                  !draggable && onCoverClick
+                    ? (e) => {
+                        if ((e.delta ?? 0) > 6) return;
+                        e.stopPropagation();
+                        onCoverClick(item.key);
+                      }
+                    : undefined
+                }
+              />
+            </React.Suspense>
+          </CoverBoundary>
+        )}
       </>
-    ) : (
-      <RoundedBox
-        castShadow
-        args={[COVER_W, COVER_H, item.thickness ?? 0.048]}
-        radius={0.008}
-        smoothness={4}
-      >
-        <meshStandardMaterial color={palette.cover} roughness={0.7} />
-      </RoundedBox>
     );
     return draggable ? (
       <HeldFacing
@@ -686,17 +877,6 @@ function FeaturedCover({
         >
           {cover(true)}
         </Grabbable>
-      ) : !textured ? (
-        <group position={[item.x, seat, z]} rotation={pose} scale={s}>
-          <RoundedBox
-            castShadow
-            args={[COVER_W, COVER_H, item.thickness ?? 0.048]}
-            radius={0.008}
-            smoothness={4}
-          >
-            <meshStandardMaterial color={palette.cover} roughness={0.7} />
-          </RoundedBox>
-        </group>
       ) : (
         <Lift
           hoverKey={hoverKey}
@@ -752,9 +932,16 @@ export function BookRowMesh({
   // a spine meets the wood carries no occlusion at all. One billboard per
   // ~0.7 of row keeps the strip readable at the grazing camera angle without
   // paying a sprite per book.
-  // Per-spine depth, drawn once. 0.26…0.34 against the old flat 0.3.
+  // Depth follows height instead of being an independent random dimension.
+  // Short books therefore stay recognisably book-shaped while the taller
+  // hardbacks still fill the shelf's available depth.
   const depths = useMemo(
-    () => items.map((_, i) => 0.26 + rand(i, salt + 11) * 0.08),
+    () =>
+      items.map((item, i) =>
+        item.kind === "spine" || item.kind === "lean"
+          ? packedBookDepth(item.h, i, salt)
+          : 0.3,
+      ),
     [items, salt],
   );
   const contact = useMemo(() => {
@@ -764,7 +951,7 @@ export function BookRowMesh({
     for (const it of items) {
       const half =
         it.kind === "flat"
-          ? 0.17
+          ? (it.width ?? 0.32) / 2
           : it.kind === "cover"
             ? coverExtent(it.s ?? 1, it.lean ?? 0)
             : it.w / 2;
@@ -793,7 +980,7 @@ export function BookRowMesh({
           // exactly 0.3 deep at z 0, so all fourteen front faces were
           // coplanar — a row of books with one perfectly flat face is a
           // milled block, which is what the owner saw. Backs stay squared to
-          // the shelf and the fronts step by up to 8cm (~21px); hover rises
+          // the shelf and the fronts step by up to 10cm; hover rises
           // vertically without crossing the front rank.
           <ShelfBook
             key={i}
@@ -823,17 +1010,14 @@ export function BookRowMesh({
               height={item.h}
               depth={depths[i]!}
             >
-              <RoundedBox
-                castShadow
-                args={[item.w, item.h, depths[i]!]}
-                radius={0.012}
-                smoothness={4}
-              >
-                <meshStandardMaterial
-                  color={item.color}
-                  roughness={0.55 + rand(i, salt + 6) * 0.35}
-                />
-              </RoundedBox>
+              <UprightBookVolume
+                width={item.w}
+                height={item.h}
+                depth={depths[i]!}
+                color={item.color}
+                pages={palette.pages}
+                roughness={0.55 + rand(i, salt + 6) * 0.35}
+              />
               {/* Printing. DETAIL_MIN_W rather than the old 0.09: at 0.09
                   only the fat family carried any mark at all, so a row read as
                   two or three printed books standing in a block of blanks.
@@ -860,32 +1044,40 @@ export function BookRowMesh({
           // reason as BookPile: a shared hoverKey lifted the whole stack as
           // one slab.
           <group key={i}>
-            {item.colors.map((color, j) => (
-              <ShelfBook
-                key={j}
-                linkUnit={linkUnit}
-                to={to}
-                hoverKey={bookRowHoverKey(linkUnit, salt, i, j)}
-                // Step 0.052 = the book's own height, so the volumes touch;
-                // the old 0.054 left 2mm of daylight between every pair.
-                base={[item.x + j * 0.012, 0.022 + j * 0.052, 0]}
-                lift={FLAT_LIFT}
-                grabbable={grabbableVolumes}
-                shadeColor={palette.shadow}
-              >
-                <group name={bookRowNodeName("flat", linkUnit, salt, i, j)}>
-                  <RoundedBox
-                    castShadow
-                    args={[0.32, 0.052, 0.24]}
-                    radius={0.008}
-                    smoothness={4}
+            {item.colors.map((color, j) => {
+              const height = item.height ?? 0.052;
+              return (
+                <ShelfBook
+                  key={j}
+                  linkUnit={linkUnit}
+                  to={to}
+                  hoverKey={bookRowHoverKey(linkUnit, salt, i, j)}
+                  // The first centre is one exact half-height above the plank;
+                  // each height step then leaves adjacent boards touching.
+                  base={[
+                    item.x + j * (item.staggerX ?? 0.012),
+                    height / 2 + j * height,
+                    0,
+                  ]}
+                  lift={FLAT_LIFT}
+                  grabbable={grabbableVolumes}
+                  shadeColor={palette.shadow}
+                >
+                  <group
+                    name={bookRowNodeName("flat", linkUnit, salt, i, j)}
                     rotation={[0, rand(i + j, salt + 9) * 0.16 - 0.08, 0]}
                   >
-                    <meshStandardMaterial color={color} roughness={0.7} />
-                  </RoundedBox>
-                </group>
-              </ShelfBook>
-            ))}
+                    <FlatBookVolume
+                      width={item.width ?? 0.32}
+                      height={height}
+                      depth={item.depth ?? 0.24}
+                      color={color}
+                      pages={palette.pages}
+                    />
+                  </group>
+                </ShelfBook>
+              );
+            })}
           </group>
         ) : item.kind === "lean" ? (
           // Contact: rotZ drops one bottom corner — lift by the exact
@@ -898,7 +1090,7 @@ export function BookRowMesh({
             base={[
               item.x,
               (item.h / 2) * Math.cos(LEAN) + (item.w / 2) * Math.sin(LEAN),
-              0,
+              (depths[i]! - 0.3) / 2,
             ]}
             lift={SPINE_LIFT}
             grabbable={grabbableVolumes}
@@ -911,18 +1103,18 @@ export function BookRowMesh({
               <SpineTip
                 name={bookRowNodeName("lean", linkUnit, salt, i)}
                 height={item.h}
-                depth={0.3}
+                depth={depths[i]!}
               >
-                <RoundedBox
-                  castShadow
-                  args={[item.w, item.h, 0.3]}
-                  radius={0.012}
-                  smoothness={4}
-                >
-                  <meshStandardMaterial color={item.color} roughness={0.65} />
-                </RoundedBox>
+                <UprightBookVolume
+                  width={item.w}
+                  height={item.h}
+                  depth={depths[i]!}
+                  color={item.color}
+                  pages={palette.pages}
+                  roughness={0.65}
+                />
                 {item.w >= DETAIL_MIN_W && (
-                  <mesh position={[0, 0, 0.151]}>
+                  <mesh position={[0, 0, depths[i]! / 2 + 0.001]}>
                     <planeGeometry args={[item.w * 0.9, item.h * 0.94]} />
                     <meshStandardMaterial
                       map={spineDetailTexture(
@@ -1123,6 +1315,7 @@ export function ShelfLight({
   lightUnitIndex,
   /** Scales the emissive, the glow and the light together. */
   intensity = 1,
+  factorRef,
 }: {
   y: number;
   width: number;
@@ -1134,6 +1327,8 @@ export function ShelfLight({
   realLightVisible?: boolean;
   lightUnitIndex?: number;
   intensity?: number;
+  /** Imperative electrical factor owned by the shelf's shared shock bank. */
+  factorRef?: { current: number };
 }) {
   const back = form === "back";
   const zz = z ?? (back ? -0.402 : -0.2);
@@ -1204,7 +1399,7 @@ export function ShelfLight({
           // written to kill; squeezed onto the fixture it is a lit line.
           scale={[barW, back ? 0.17 : 0.42, 1]}
         >
-          <GlowSprite opacity={glow} scale={1} />
+          <GlowSprite opacity={glow} scale={1} factorRef={factorRef} />
         </group>
       )}
       {cast && (
@@ -1222,6 +1417,108 @@ export function ShelfLight({
           decay={2}
         />
       )}
+    </group>
+  );
+}
+
+function ShelfLightBank({
+  unitIndex,
+  width,
+  palette,
+  realLightVisible,
+}: {
+  unitIndex?: number;
+  width: number;
+  palette: Palette;
+  realLightVisible: boolean;
+}) {
+  const group = useRef<THREE.Group>(null);
+  const factor = useRef(1);
+  const previousFactor = useRef(1);
+  const handledSceneImpulse = useRef(getSceneImpulse().revision);
+  const shockAge = useRef<number | null>(null);
+  const shockStrength = useRef(0);
+  const world = useMemo(() => new THREE.Vector3(), []);
+  useUnitFrame((_, delta) => {
+    const lights = group.current;
+    if (!lights) return;
+    const sceneImpulse = getSceneImpulse();
+    if (handledSceneImpulse.current !== sceneImpulse.revision) {
+      handledSceneImpulse.current = sceneImpulse.revision;
+      if (sceneImpulse.palette === "coordination") {
+        lights.getWorldPosition(world);
+        const strength = sceneImpulseStrengthAt(sceneImpulse, world);
+        if (strength > 0) {
+          shockStrength.current = Math.min(1, strength * 1.35);
+          shockAge.current = 0.025;
+        }
+      }
+    }
+    let nextFactor = 1;
+    if (shockAge.current !== null) {
+      nextFactor = sceneImpulseLightScale(
+        shockAge.current,
+        shockStrength.current,
+      );
+      shockAge.current += Math.min(delta, 1 / 30);
+      if (shockAge.current >= SCENE_IMPULSE_LIGHT_DURATION) {
+        shockAge.current = null;
+        shockStrength.current = 0;
+      }
+    }
+    factor.current = nextFactor;
+    if (Math.abs(nextFactor - previousFactor.current) < 0.001) return;
+    const captureBase = previousFactor.current === 1 && nextFactor < 1;
+    lights.traverse((object) => {
+      if (object instanceof THREE.Light) {
+        const data = object.userData as { shelfShockBase?: number };
+        if (captureBase || data.shelfShockBase === undefined)
+          data.shelfShockBase = object.intensity;
+        object.intensity = data.shelfShockBase * nextFactor;
+        return;
+      }
+      if (!(object instanceof THREE.Mesh) || Array.isArray(object.material))
+        return;
+      const material: unknown = object.material;
+      if (
+        !(material instanceof THREE.MeshStandardMaterial) ||
+        (material.emissive.getHex() === 0 &&
+          material.userData.shelfShockBase === undefined)
+      )
+        return;
+      const data = material.userData as { shelfShockBase?: number };
+      if (captureBase || data.shelfShockBase === undefined)
+        data.shelfShockBase = material.emissiveIntensity;
+      material.emissiveIntensity = data.shelfShockBase * nextFactor;
+    });
+    previousFactor.current = nextFactor;
+  });
+  return (
+    <group ref={group} name={`shelf-light-bank:${unitIndex ?? "shared"}`}>
+      <ShelfLight
+        y={SHELF_UNDERSIDE.top}
+        width={width}
+        palette={palette}
+        cast
+        realLightVisible={realLightVisible}
+        lightUnitIndex={unitIndex}
+        factorRef={factor}
+      />
+      <ShelfLight
+        y={SHELF_UNDERSIDE.lower}
+        width={width}
+        palette={palette}
+        intensity={0.7}
+        factorRef={factor}
+      />
+      <ShelfLight
+        y={SHELF.top}
+        width={width}
+        palette={palette}
+        form="back"
+        intensity={0.85}
+        factorRef={factor}
+      />
     </group>
   );
 }
@@ -1387,26 +1684,11 @@ export function ShelfUnit({
           actually reads props off. The full-cost A/B has 21 scene lights;
           active-neighbour visibility keeps distant shelf lights out of the
           material shader without removing any visible fixture. */}
-      <ShelfLight
-        y={SHELF_UNDERSIDE.top}
+      <ShelfLightBank
+        unitIndex={toneSeed}
         width={width}
         palette={palette}
-        cast
         realLightVisible={toneSeed === undefined || unitRealLights}
-        lightUnitIndex={toneSeed}
-      />
-      <ShelfLight
-        y={SHELF_UNDERSIDE.lower}
-        width={width}
-        palette={palette}
-        intensity={0.7}
-      />
-      <ShelfLight
-        y={SHELF.top}
-        width={width}
-        palette={palette}
-        form="back"
-        intensity={0.85}
       />
       <group ref={topContents} position={[0, SHELF.top, 0]}>
         {children}
@@ -1742,134 +2024,20 @@ export function GlowSprite({
  * position in the rig reads as a distance out of (or back into) the opening
  * rather than as a literal, and moving one cannot leave the others behind.
  * ---------------------------------------------------------------------- */
-/** The vent at the narrow end — NOT the opening. Kept because it anchors the
- * measurement chain and because the next person to run a boundary-loop search
- * will find it and think they have found the mouth. */
-const SHADE_VENT: [number, number, number] = [0, 0.3989, 0.0107];
-const SHADE_VENT_R = 0.0336;
-/** Vent → mouth, i.e. the direction the shade points. */
-const AXIS: [number, number, number] = [0, -0.9167, 0.3996];
-/** Vent-plane to mouth-plane, along AXIS. */
-const SHADE_LEN = 0.11;
 /** The opening light actually leaves by — DERIVED from the vent and the axis
  * rather than written down again. The two ends of one cone are one
  * measurement, and this file's recurring bug is the second copy of a number
  * that stops agreeing with the first. */
-const MOUTH: [number, number, number] = [
-  SHADE_VENT[0] + AXIS[0] * SHADE_LEN,
-  SHADE_VENT[1] + AXIS[1] * SHADE_LEN,
-  SHADE_VENT[2] + AXIS[2] * SHADE_LEN,
-];
-const MOUTH_R = 0.0543;
+const MOUTH: [number, number, number] = [...DESK_LAMP_MOUTH];
+const MOUTH_R = DESK_LAMP_MOUTH_RADIUS;
 /** Rotation about X that lays circleGeometry's +Z normal onto AXIS. */
-const MOUTH_TILT = 1.1597;
-/** Rotation about X that lays cylinderGeometry's +Y onto −AXIS, so the cone's
- * `radiusTop` end is the vent and its `radiusBottom` end is the mouth. */
-const SHADE_TILT = -0.411;
+const MOUTH_TILT = DESK_LAMP_MOUTH_TILT;
 
 /** A point `t` out of the mouth along the shade's axis (negative = back up
  * inside the shade). Every position in the rig goes through this. */
 const along = (t: number): [number, number, number] => [
-  MOUTH[0] + AXIS[0] * t,
-  MOUTH[1] + AXIS[1] * t,
-  MOUTH[2] + AXIS[2] * t,
+  ...deskLampPointAlongAxis(t),
 ];
-
-/** The ramp painted onto the desk lamp's shade — see ShadeGlow.
- *
- * 4 × 128 because nothing varies around the circumference. v = 0 is the
- * cylinder's BOTTOM ring and CanvasTexture flips Y, so the gradient is written
- * from canvas-bottom upward and the stops read mouth-rim → vent-rim. The peak
- * sits at v 0.29, which is not a taste call: the bulb's island centre projects
- * to t 0.078 of the shade's 0.110, i.e. 0.032 back from the mouth, and
- * 0.032/0.110 = 0.29. Both ends arrive with a near-zero derivative for
- * GlowSprite's reason — a ramp that stops at a rim draws a line there, and a
- * line on a lampshade is a seam, not light. */
-let shadeTextureCache: THREE.CanvasTexture | null = null;
-function shadeTexture(): THREE.CanvasTexture {
-  if (shadeTextureCache) return shadeTextureCache;
-  const h = 128;
-  const canvas = document.createElement("canvas");
-  canvas.width = 4;
-  canvas.height = h;
-  const ctx = canvas.getContext("2d")!;
-  const grad = ctx.createLinearGradient(0, h, 0, 0);
-  for (const [stop, a] of [
-    [0, 0.06],
-    [0.1, 0.46],
-    [0.2, 0.84],
-    [0.29, 1],
-    [0.45, 0.8],
-    [0.62, 0.46],
-    [0.8, 0.18],
-    [0.92, 0.05],
-    [1, 0.02],
-  ] as const) {
-    grad.addColorStop(stop, `rgba(255, 201, 138, ${a})`);
-  }
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 4, h);
-  shadeTextureCache = new THREE.CanvasTexture(canvas);
-  return shadeTextureCache;
-}
-
-/** A lit lampshade is TRANSLUCENT, and this one is a flat opaque island of the
- * dark theme atlas — which is why it reads as black plastic however much glow
- * is piled around it. Same answer the floor lamp on Talks arrived at (see
- * ShadeFabric in UnitTalks.tsx): a second cone carrying an additive ramp,
- * brightest where the bulb is and falling to nothing at both rims, so the
- * fabric glows from within instead of being filled flat.
- *
- * The two non-obvious parts, both inherited from that lamp because both were
- * paid for there:
- *
- * - It sits safely INSIDE the measured outer silhouette: the overlay's mouth
- *   is 5.5% inside the GLB rim and its vent is 9% inside. It therefore renders
- *   as a depth-independent lighting layer instead of asking polygon offset to
- *   pull an inner cone through two opaque shade walls. The latter crossed the
- *   inner wall along the cone and intermittently lost that depth fight as a
- *   black longitudinal stripe. The inset keeps a real unlit rim and prevents
- *   the layer from touching the sky even with depth testing disabled.
- * - It is toneMapped, unlike the mouth disc. An additive layer this large held
- *   above the ACES shoulder is exactly what blows out once the composer mounts
- *   and Bloom compounds it. */
-function ShadeGlow({ day, postfx }: { day: boolean; postfx: boolean }) {
-  const texture = useMemo(() => shadeTexture(), []);
-  return (
-    <mesh position={along(-SHADE_LEN / 2)} rotation={[SHADE_TILT, 0, 0]}>
-      <cylinderGeometry
-        args={[
-          SHADE_VENT_R * 0.975,
-          MOUTH_R * 0.975,
-          SHADE_LEN * 0.985,
-          24,
-          1,
-          true,
-        ]}
-      />
-      <meshBasicMaterial
-        map={texture}
-        transparent
-        // Stronger than the floor lamp's 0.62/0.98 because it is fighting a
-        // dark shade rather than a cream one, and because this shade subtends
-        // about a fifth of the area on screen.
-        //
-        // Both paths are authored, not one scaled off the other, and the
-        // no-composer path is the MOBILE one — not just `?nopostfx`. Additive
-        // warm over a dark shade clips the red channel first and then the
-        // green, so at the strength that reads bright there it flattens to a
-        // WHITE shade with the warmth washed out (seen on a 390 px shot).
-        // Pulling the alpha back and pre-warming the colour holds the amber;
-        // the composited path has ACES doing that job and wants neither.
-        color={postfx ? "#ffffff" : "#ffb26a"}
-        opacity={(day ? 1 : 0.94) * (postfx ? 0.78 : 0.7)}
-        blending={THREE.AdditiveBlending}
-        depthTest={false}
-        depthWrite={false}
-      />
-    </mesh>
-  );
-}
 
 /** The desk lamp's light.
  *
@@ -1878,15 +2046,15 @@ function ShadeGlow({ day, postfx }: { day: boolean; postfx: boolean }) {
  * earlier versions FAKED it with geometry (a bulb sphere, a gradient beam
  * cone, a one-world-unit additive haze) and every fake read as a decal the
  * moment the camera moved off-axis. So: a SpotLight down the true cup axis
- * makes the pool, a small emissive disc seals the mouth so the source is
- * visibly hot, ShadeGlow lights the fabric, and two weak points put the lamp's
- * spill on the shelf and on the props beside it. The old camera-facing halo is
- * retained only as a diagnostics comparison; the shipped treatment feathers
- * the aperture in its own plane instead of drawing a separate light sphere.
+ * makes the pool, a small emissive disc seals the mouth, the ModelProp's exact
+ * shade surface carries the fabric glow, and two weak points put spill on the
+ * shelf and neighboring props. The old camera-facing halo is retained only as
+ * a diagnostics comparison; the shipped treatment feathers the aperture in
+ * its own plane instead of drawing a separate light sphere.
  *
  * The one light this rig no longer spends is the interior one. It used to sit
- * 0.03 back up the axis to make the cup glow — the job ShadeGlow now does far
- * better and for no light at all — and there is nowhere safe to put it anyway:
+ * 0.03 back up the axis to make the cup glow — the job the exact-surface shade
+ * treatment now does for no light at all — and there is nowhere safe to put it:
  * the bulb island fills t 0.045…0.111, so a point light inside this shade is
  * always a few millimetres from geometry, which is the blown-hotspot failure
  * the table lamp on Musings is currently exhibiting. It is respent on the
@@ -1894,7 +2062,7 @@ function ShadeGlow({ day, postfx }: { day: boolean; postfx: boolean }) {
  * counts into every program.
  *
  * `litRef` (the lamp-toggle egg's damped 0..1 factor) threads to the two
- * self-animating halo treatments. Lights, emissives, and the shade overlay are
+ * self-animating halo treatments. Lights, emissives, and the shade surface are
  * dimmed generically by the egg's traverse.
  *
  * NOTE ON STRUCTURE, and it is the point of the v6 pass: this rig no longer
@@ -1944,7 +2112,6 @@ export function LampGlow({
 }) {
   const spotRef = useRef<THREE.SpotLight>(null);
   const targetRef = useRef<THREE.Object3D>(null);
-  const postfx = useStacks((s) => s.postfx);
   const day = palette !== PALETTES.dark;
   useEffect(() => {
     if (spotRef.current && targetRef.current)
@@ -1982,8 +2149,6 @@ export function LampGlow({
   }, [meadowId, litRef]);
   return (
     <group>
-      {/* The fabric, lit from inside. */}
-      <ShadeGlow day={day} postfx={postfx} />
       {/* Reversible legacy comparison. Both current modes hide this
           camera-facing radial billboard; diagnostics can restore it at its
           last tuned size and position without disturbing the real rig. */}

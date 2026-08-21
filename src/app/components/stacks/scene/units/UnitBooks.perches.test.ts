@@ -4,13 +4,17 @@ import {
 } from "../insectFlightWorld";
 import { type InsectPerch, registerInsectPerch } from "../insectPerches";
 import { registerSceneInteraction } from "../interactionRegistry";
-import { COVER_H, COVER_W, coverSeat } from "../primitives";
+import { COVER_H, COVER_W, FEATURED_COVER_Z, coverSeat } from "../primitives";
 import { SHELF_SURFACE } from "../shelfGeometry";
 import { splitShelfRows } from "../shelfSpacing";
 import * as THREE from "three";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { featuredBookPerchDefinitions, layoutFeatured } from "./UnitBooks";
+import {
+  LOWER_FEATURED_ROW_Z,
+  featuredBookPerchDefinitions,
+  layoutFeatured,
+} from "./UnitBooks";
 import { featuredBookThickness } from "./featuredBookGeometry";
 
 const releases: Array<() => void> = [];
@@ -76,7 +80,11 @@ function mountLifeThreePointZero() {
   // This is the rendered Grabbable -> HeldFacing -> page-block transform from
   // FeaturedCover, without React or a WebGL canvas.
   const owner = new THREE.Group();
-  owner.position.set(item.x, SHELF_SURFACE.lower, 0.18 + (item.dz ?? 0));
+  owner.position.set(
+    item.x,
+    SHELF_SURFACE.lower,
+    LOWER_FEATURED_ROW_Z + FEATURED_COVER_Z + (item.dz ?? 0),
+  );
   unit.add(owner);
   const facing = new THREE.Group();
   const scale = item.s ?? 1;

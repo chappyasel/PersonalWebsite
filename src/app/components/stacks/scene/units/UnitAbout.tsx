@@ -3,6 +3,7 @@
 import { useStacks } from "../../store";
 import { proxied } from "../../theme";
 import { TJMedallionProp } from "../AuthoredProps";
+import { CoordinationGlobe } from "../CoordinationGlobe";
 import Grabbable from "../Grabbable";
 import { ContactShade, FootPool } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
@@ -11,9 +12,22 @@ import ModelProp from "../ModelProp";
 import { RoundedBox } from "../RoundedBox";
 import SitChair from "../SitChair";
 import {
+  ABOUT_AIC_BASE_WIDTH,
+  ABOUT_AIC_MARK_HEIGHT,
+} from "../aboutAwardGeometry";
+import {
   ABOUT_BOOT_LANDMARKS,
   aboutLandmarkNodeName,
 } from "../aboutBootComposition";
+import {
+  ABOUT_AIC_SCALE,
+  ABOUT_APPLE_LIGHT_YAW,
+  ABOUT_COORDINATION_GLOBE_SCALE,
+  ABOUT_LAMP_HEAD_QUATERNION,
+  ABOUT_LAMP_ROOT_YAW,
+  ABOUT_LOWER_AWARD_SCALE,
+  ABOUT_TJ_LIGHT_YAW,
+} from "../aboutCoordinationLayout";
 import { proxiedBookCover } from "../bookCoverTexture";
 import { EggLamp, SpinProp, Sway } from "../eggs";
 import { getSceneInteraction } from "../interactionRegistry";
@@ -40,6 +54,7 @@ import {
   readingBookMaterialColors,
 } from "~/lib/books/coverEdgeColor";
 
+import { ShelfSucculent } from "./ShelfSucculent";
 import {
   ABOUT_READING_BOOK,
   type ReadingBookPose,
@@ -52,6 +67,7 @@ import { type UnitProps } from "./types";
 import { REVIEWED_SHELF_LAYOUT } from "./unitShelfLayout";
 
 export const PORTRAIT_SRC = "/images/about/profile.jpg";
+const ABOUT_TOP_PHOTO_HOVER_ANGLE = Math.PI / 3;
 
 function CollectiveLogo({
   palette,
@@ -74,7 +90,7 @@ function CollectiveLogo({
     // winding and leaves the extruded front face lit like a flat backface.
     // A proper 180-degree rotation has a positive determinant, so the front,
     // bevel and side normals all survive the conversion.
-    const scale = 0.18 / 844.38;
+    const scale = ABOUT_AIC_MARK_HEIGHT / 844.38;
     geometry.scale(scale, scale, scale);
     geometry.rotateX(Math.PI);
     geometry.computeBoundingBox();
@@ -120,7 +136,7 @@ function CollectiveLogo({
       {/* Bead-blasted billet, matching DeskApple's material hierarchy. */}
       <RoundedBox
         castShadow
-        args={[0.205, 0.024, 0.07]}
+        args={[ABOUT_AIC_BASE_WIDTH, 0.024, 0.07]}
         radius={0.005}
         smoothness={3}
         position={[0, 0.012, 0]}
@@ -201,6 +217,7 @@ function LoosePhoto({
   seat = 0,
   rotation = [0, 0, 0],
   facingRotation = [0, 0, 0],
+  hingeOnHover = false,
   width,
   children,
 }: {
@@ -211,6 +228,7 @@ function LoosePhoto({
   seat?: number;
   rotation?: [number, number, number];
   facingRotation?: [number, number, number];
+  hingeOnHover?: boolean;
   width: number;
   children: React.ReactNode;
 }) {
@@ -223,6 +241,7 @@ function LoosePhoto({
       base={base}
       shadeColor={palette.shadow}
       shadeWidth={Math.max(0.28, width * 1.18)}
+      hoverTiltAngle={hingeOnHover ? ABOUT_TOP_PHOTO_HOVER_ANGLE : undefined}
       shape="box"
       massKg={0.48}
       href={href ?? undefined}
@@ -561,29 +580,10 @@ export default function UnitAbout({
               </group>
             </Grabbable>
 
-            <LoosePhoto
-              unitIndex={index}
-              palette={palette}
-              id="about-collective-group-v8"
-              base={[ABOUT_BOOT_LANDMARKS["collective-frame"].x, 0, 0.12]}
-              seat={deskFrameHeight(0.1922) / 2}
-              rotation={[-0.09, -0.14, 0.018]}
-              width={0.3072}
-            >
-              <group name={aboutLandmarkNodeName("collective-frame")}>
-                <DeskFrame
-                  src="/images/stacks/v8/about-collective-group.webp"
-                  palette={palette}
-                  textured={textured}
-                  width={0.3072}
-                  height={0.3072 * (640 / 1024)}
-                />
-              </group>
-            </LoosePhoto>
-
             <Grabbable
               unitIndex={index}
               hoverKey="shimmer:apple"
+              metal
               base={[
                 ABOUT_BOOT_LANDMARKS.apple.x,
                 0,
@@ -596,7 +596,8 @@ export default function UnitAbout({
             >
               <group
                 name={aboutLandmarkNodeName("apple")}
-                rotation={[0, -0.16, 0]}
+                rotation={[0, ABOUT_APPLE_LIGHT_YAW, 0]}
+                scale={ABOUT_LOWER_AWARD_SCALE}
               >
                 <DeskApple palette={palette} unitIndex={index} />
               </group>
@@ -604,6 +605,7 @@ export default function UnitAbout({
             <Grabbable
               unitIndex={index}
               hoverKey="grab:ai-collective-mark"
+              metal
               base={[
                 ABOUT_BOOT_LANDMARKS["ai-collective"].x,
                 0,
@@ -613,6 +615,7 @@ export default function UnitAbout({
               shadeWidth={0.26}
               shape="box"
               massKg={0.42}
+              sceneImpulseReaction="knockdown"
               href="https://aicollective.com/"
               doorLabel="Visit The AI Collective"
             >
@@ -620,6 +623,7 @@ export default function UnitAbout({
                 <group
                   name={aboutLandmarkNodeName("ai-collective")}
                   rotation={[0, -0.16, 0]}
+                  scale={ABOUT_AIC_SCALE}
                 >
                   {/* The open C and its thin billet are visually honest but
                       leave very few raycast pixels at this oblique shelf
@@ -643,6 +647,17 @@ export default function UnitAbout({
                 </group>
               </React.Suspense>
             </Grabbable>
+            <CoordinationGlobe
+              unitIndex={index}
+              palette={palette}
+              dark={dark}
+              base={[
+                ABOUT_BOOT_LANDMARKS["coordination-globe"].x,
+                0,
+                SHELF_GEOMETRY.lower.centerZ,
+              ]}
+              scale={ABOUT_COORDINATION_GLOBE_SCALE}
+            />
             <group name={aboutLandmarkNodeName("reading-stack")}>
               <ReadingStack
                 books={data.readingBooks}
@@ -667,6 +682,7 @@ export default function UnitAbout({
                 href="https://tjhsst.fcps.edu/"
                 name={aboutLandmarkNodeName("tj-medallion")}
                 scale={ABOUT_BOOT_LANDMARKS["tj-medallion"].sceneScale}
+                yaw={ABOUT_TJ_LIGHT_YAW}
               />
             </React.Suspense>
             {/* The warm practical from the original desk composition. The
@@ -678,10 +694,10 @@ export default function UnitAbout({
                   unitIndex={index}
                   palette={palette}
                   dark={dark}
-                  yaw={0.78}
+                  yaw={ABOUT_LAMP_ROOT_YAW}
                   scale={ABOUT_BOOT_LANDMARKS["desk-lamp"].sceneScale}
-                  aimOffset={[0.35, 0, 0]}
                   spillScale={0.3}
+                  headQuaternion={ABOUT_LAMP_HEAD_QUATERNION}
                 />
               </group>
               <ContactShade
@@ -701,6 +717,9 @@ export default function UnitAbout({
           shadeWidth={0.4}
           shape="box"
           massKg={1.4}
+          // The carrier and the SpinProp share this key, so the globe was
+          // being handed the shared nod as well. A globe turns.
+          signature="spin"
         >
           <group name={aboutLandmarkNodeName("globe")}>
             <SpinProp unitIndex={index} hoverKey="egg:globe" idleRate={0.11}>
@@ -716,6 +735,27 @@ export default function UnitAbout({
             </SpinProp>
           </group>
         </Grabbable>
+
+        <LoosePhoto
+          unitIndex={index}
+          palette={palette}
+          id="about-collective-group-v8"
+          base={[ABOUT_BOOT_LANDMARKS["collective-frame"].x, 0, 0.15]}
+          rotation={[0, 0, 0]}
+          facingRotation={[Math.PI / 2, 0, 0]}
+          hingeOnHover
+          width={0.3072}
+        >
+          <group name={aboutLandmarkNodeName("collective-frame")}>
+            <FlatPrint
+              src="/images/stacks/v8/about-collective-group.webp"
+              palette={palette}
+              textured={textured}
+              width={0.3072}
+              height={0.3072 * (640 / 1024)}
+            />
+          </group>
+        </LoosePhoto>
 
         <LoosePhoto
           unitIndex={index}
@@ -741,7 +781,7 @@ export default function UnitAbout({
           unitIndex={index}
           palette={palette}
           id="about-family-v8"
-          base={[ABOUT_BOOT_LANDMARKS["family-frame"].x, 0, 0.1]}
+          base={[ABOUT_BOOT_LANDMARKS["family-frame"].x, 0, 0]}
           seat={deskFrameHeight(0.264) / 2}
           rotation={[-0.08, 0.2, -0.025]}
           width={0.264 * (769 / 1024)}
@@ -762,8 +802,9 @@ export default function UnitAbout({
           palette={palette}
           id="about-speaking-candid-v8"
           base={[REVIEWED_SHELF_LAYOUT.about.speakingPrintX, 0, 0.15]}
-          rotation={[0, -0.22, 0]}
+          rotation={[0, 0, 0]}
           facingRotation={[Math.PI / 2, 0, 0]}
+          hingeOnHover
           width={0.306}
         >
           <FlatPrint
@@ -786,17 +827,7 @@ export default function UnitAbout({
           massKg={1.2}
         >
           <group name={aboutLandmarkNodeName("succulent")}>
-            <Sway unitIndex={index} amount={0.012} rate={0.28} phase={0.4}>
-              <React.Suspense fallback={null}>
-                <ModelProp
-                  url="/models/succulent-pot.glb"
-                  dark={dark}
-                  variant="recolor"
-                  rotation={[0, -0.4, 0]}
-                  scale={ABOUT_BOOT_LANDMARKS.succulent.sceneScale}
-                />
-              </React.Suspense>
-            </Sway>
+            <ShelfSucculent unitIndex={index} dark={dark} />
           </group>
         </Grabbable>
 
@@ -805,8 +836,9 @@ export default function UnitAbout({
           palette={palette}
           id="about-delicate-arch-v8"
           base={[REVIEWED_SHELF_LAYOUT.about.archPrintX, 0, 0.12]}
-          rotation={[0, -0.2, 0]}
+          rotation={[0, 0, 0]}
           facingRotation={[Math.PI / 2, 0, 0]}
+          hingeOnHover
           width={0.24}
         >
           <FlatPrint
@@ -826,7 +858,7 @@ export default function UnitAbout({
           unitIndex={index}
           palette={palette}
           id="about-profile-full-v8"
-          base={[ABOUT_BOOT_LANDMARKS["profile-frame"].x, 0, 0.13]}
+          base={[ABOUT_BOOT_LANDMARKS["profile-frame"].x, 0, 0]}
           seat={REVIEWED_SHELF_LAYOUT.about.profileSeat}
           rotation={[-Math.PI / 6, -0.08, 0]}
           width={0.18}

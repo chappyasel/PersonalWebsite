@@ -128,15 +128,15 @@ sign-off is recorded separately rather than invented by a headless test.
 
 ## Musings — unit 5
 
-| ID                          | Intended surface       | Anchor `[x, y, z]`            | Normal `[x, y, z]`         | Owner match                 | Lamp ID       | Clearance |
-| --------------------------- | ---------------------- | ----------------------------- | -------------------------- | --------------------------- | ------------- | --------: |
-| `musings:writing-paper`     | Writing-paper top      | `[-0.4800, -0.7925, -0.0120]` | `[0, 1, 0]`                | `id: grab:paper:5`          | —             |    `0.12` |
-| `musings:book-pile-top`     | Top book in pile       | `[0.4200, -0.6545, 0]`        | `[0, 1, 0]`                | `id: grab:pile:5:47:2`      | —             |    `0.12` |
-| `musings:open-book-page`    | Open-book page         | `[0.6222, 0.1205, 0.1168]`    | `[0, 1, 0]`                | `id: grab:openbook`         | —             |    `0.12` |
-| `musings:tea-rim`           | Teacup rim             | `[0.3900, 0.1526, -0.0800]`   | `[0, 1, 0]`                | `id: egg:tea`               | —             |    `0.12` |
-| `musings:lamp-shade`        | Sloped desk-lamp shade | `[-1.00, 0.48, 0.04]`         | `[0.30, 0.92, 0.20]`       | `id: egg:lamp:5`            | `desk-lamp-5` |    `0.12` |
-| `musings:headphone-band`    | Headphone band crown   | `[0.0400, 0.3870, 0.1400]`    | `[0, 1, 0]`                | `id: grab:headphones`       | —             |    `0.12` |
-| `musings:sailboat-masthead` | Sailboat rig top       | `[0.9295, -0.5023, -0.0597]`  | `[0.2844, 0.9581, 0.0343]` | `id: grab:sailboat:musings` | —             |    `0.12` |
+| ID                          | Intended surface       | Anchor `[x, y, z]`            | Normal `[x, y, z]`          | Owner match                 | Lamp ID       | Clearance |
+| --------------------------- | ---------------------- | ----------------------------- | --------------------------- | --------------------------- | ------------- | --------: |
+| `musings:writing-paper`     | Writing-paper top      | `[-0.4600, -0.8291, -0.0200]` | `[0, 1, 0]`                 | `id: grab:paper:5`          | —             |    `0.12` |
+| `musings:book-pile-top`     | Top book in pile       | `[0.4040, -0.6865, 0]`        | `[0, 1, 0]`                 | `id: link:row:5:47:0:2`     | —             |    `0.12` |
+| `musings:open-book-page`    | Open-book page         | `[-0.6378, 0.1205, -0.1232]`  | `[0, 1, 0]`                 | `id: grab:openbook`         | —             |    `0.12` |
+| `musings:tea-rim`           | Teacup rim             | `[-0.5600, 0.1526, 0.3100]`   | `[0, 1, 0]`                 | `id: egg:tea`               | —             |    `0.12` |
+| `musings:lamp-shade`        | Sloped desk-lamp shade | `[-0.9379, 0.6054, -0.1304]`  | `[0.2815, 0.1643, -0.9454]` | `id: egg:lamp:5`            | `desk-lamp-5` |    `0.12` |
+| `musings:headphone-band`    | Headphone band crown   | `[0.0400, 0.3870, 0.1400]`    | `[0, 1, 0]`                 | `id: grab:headphones`       | —             |    `0.12` |
+| `musings:sailboat-masthead` | Sailboat rig top       | `[0.9295, -0.5023, -0.0597]`  | `[0.2844, 0.9581, 0.0343]`  | `id: grab:sailboat:musings` | —             |    `0.12` |
 
 ## Talks — unit 6
 

@@ -1329,7 +1329,7 @@ describe("Escape", () => {
     const world = new PrimitiveFlightWorld();
     const ordinary = pilot(world);
     const base = insectPilotPhaseLimits(ordinary);
-    const causes = ["grab", "drag", "pointer", "calm"] as const;
+    const causes = ["impulse", "grab", "drag", "pointer", "calm"] as const;
     const accelerations = causes.map((cause) => {
       const value = resting(new PrimitiveFlightWorld());
       expect(
@@ -1342,11 +1342,12 @@ describe("Escape", () => {
       return insectPilotPhaseLimits(value).acceleration;
     });
 
-    // A grabbed prop throws the insect off; a passing cursor moves it along.
-    expect(accelerations).toEqual([9, 6, 4, base.acceleration]);
+    // A shockwave throws the insect hardest; a passing cursor moves it along.
+    expect(accelerations).toEqual([12, 9, 6, 4, base.acceleration]);
     expect(accelerations[0]).toBeGreaterThan(accelerations[1]!);
     expect(accelerations[1]).toBeGreaterThan(accelerations[2]!);
     expect(accelerations[2]).toBeGreaterThan(accelerations[3]!);
+    expect(accelerations[3]).toBeGreaterThan(accelerations[4]!);
   });
 
   it("always takes off, even when every swept corridor is blocked", () => {

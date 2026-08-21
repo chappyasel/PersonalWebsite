@@ -19,7 +19,15 @@ import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import { coordinationGlobeDiagnosticsController } from "./coordinationGlobeDiagnostics";
+import {
+  COORDINATION_AGENT_COLOR,
+  COORDINATION_GLOBE_INTERACTION_ID,
+  COORDINATION_HUMAN_COLOR,
+  COORDINATION_INSECT_TIME_SCALE,
+} from "./coordinationNetwork";
 import { INSECT_ENVELOPES } from "./insectCollision";
+import { insectOwnerIsDisturbed } from "./insectDisturbance";
 import {
   type InsectFlightVolume,
   insectFlightVolumePoint,
@@ -31,7 +39,6 @@ import {
   insectCollisionIndexRevision,
   prepareInsectLandingTarget,
 } from "./insectFlightWorld";
-import { insectOwnerIsDisturbed } from "./insectDisturbance";
 import {
   INSECT_LANDING_YAW,
   LANDING_TIMING,
@@ -82,6 +89,7 @@ import {
   recordInsectTrail,
 } from "./insectTrail";
 import { MEADOW_GROUND_BASE } from "./meadowField";
+import { getSceneImpulse, sceneImpulseInsectDeparture } from "./sceneImpulse";
 
 const TAU = Math.PI * 2;
 
@@ -174,6 +182,8 @@ const REST_HEADING_HOLD_SPEED = 0.08;
 const BANK_FADE_SPEED = 0.22;
 /** Theme crossfade, matching the meadow's own uDark damp. */
 const DARK_LAMBDA = 3.5;
+const COORDINATION_COLOR_LAMBDA = 9;
+const COORDINATION_NEON_INTENSITY = 2.4;
 
 // Wing colours are the meadow's three flower species (Meadow.tsx COLORS:
 // #5b76d6 cornflower, #e0862f poppy, #ece0c6 cream) lifted toward the light,
@@ -910,7 +920,22 @@ function Flight({
   // Start AT the current theme: a dark boot must not open with three
   // butterflies shrinking away.
   const darkAmt = useRef(dark ? 1 : 0);
+  const coordinationColorMix = useRef(0);
   const wingGeometry = useMemo(() => createWingGeometry(), []);
+  const authoredWingColors = useMemo(
+    () => FLIGHTS.map((flight) => new THREE.Color(flight.color)),
+    [],
+  );
+  const coordinationWingColors = useMemo(
+    () =>
+      FLIGHTS.map((_, index) =>
+        new THREE.Color(
+          index % 2 === 0 ? COORDINATION_AGENT_COLOR : COORDINATION_HUMAN_COLOR,
+        ).multiplyScalar(COORDINATION_NEON_INTENSITY),
+      ),
+    [],
+  );
+  const blendedWingColor = useMemo(() => new THREE.Color(), []);
   const wingBlurOpacity = useMemo(() => {
     const attribute = new THREE.InstancedBufferAttribute(
       new Float32Array(WING_BLUR_INSTANCE_COUNT),
@@ -973,6 +998,7 @@ function Flight({
   const cameraBack = useRef(new THREE.Vector3());
   const evadeVector = useRef(new THREE.Vector3());
   const handledForceRequest = useRef(0);
+  const handledSceneImpulse = useRef(getSceneImpulse().revision);
   const residencyPublishedAt = useRef(-1);
   useEffect(() => {
     const mesh = wingBlur.current;
@@ -1076,16 +1102,88 @@ function Flight({
       return;
     }
 
-    const ease = 1 - Math.exp(-YAW_LAMBDA * delta);
     const stacks = useStacks.getState();
+    const sceneImpulse = getSceneImpulse();
+    if (handledSceneImpulse.current !== sceneImpulse.revision) {
+      handledSceneImpulse.current = sceneImpulse.revision;
+      for (const motion of motions.current) {
+        const pilot = motion.pilot;
+        if (!pilot?.reservedPerchId || !motion.world) continue;
+        if (
+          !sceneImpulseInsectDeparture(
+            sceneImpulse,
+            pilot.position,
+            pilot.occupantId,
+            motion.departure,
+          )
+        )
+          continue;
+        if (
+          commandInsectPilot(
+            pilot,
+            { type: "depart", away: motion.departure, cause: "impulse" },
+            motion.world,
+          )
+        ) {
+          motion.nearSince = -1;
+          motion.restEndsAt = Number.POSITIVE_INFINITY;
+        }
+      }
+    }
     const diagnostics =
       process.env.NODE_ENV === "development"
         ? insectDiagnosticsController.getSnapshot()
         : null;
+    const wingBlurMesh = wingBlur.current;
+    const coordinationEngaged =
+      coordinationGlobeDiagnosticsController.getSnapshot().effectEnabled &&
+      (stacks.hovered === COORDINATION_GLOBE_INTERACTION_ID ||
+        stacks.focusedInteraction === COORDINATION_GLOBE_INTERACTION_ID ||
+        stacks.dragging === COORDINATION_GLOBE_INTERACTION_ID);
+    const insectDelta =
+      delta * (coordinationEngaged ? COORDINATION_INSECT_TIME_SCALE : 1);
+    const ease = 1 - Math.exp(-YAW_LAMBDA * insectDelta);
+    const previousCoordinationColorMix = coordinationColorMix.current;
+    coordinationColorMix.current = THREE.MathUtils.damp(
+      coordinationColorMix.current,
+      coordinationEngaged ? 1 : 0,
+      COORDINATION_COLOR_LAMBDA,
+      delta,
+    );
+    if (
+      Math.abs(coordinationColorMix.current - previousCoordinationColorMix) >
+      1e-4
+    ) {
+      for (let index = 0; index < wingMaterials.length; index += 1) {
+        wingMaterials[index]!.color.copy(authoredWingColors[index]!).lerp(
+          coordinationWingColors[index]!,
+          coordinationColorMix.current,
+        );
+      }
+      if (wingBlurMesh) {
+        for (let index = 0; index < BUTTERFLY_COUNT; index += 1) {
+          const colorIndex = index % FLIGHTS.length;
+          blendedWingColor
+            .copy(authoredWingColors[colorIndex]!)
+            .lerp(
+              coordinationWingColors[colorIndex]!,
+              coordinationColorMix.current,
+            );
+          for (let side = 0; side < 2; side++) {
+            for (let sample = 0; sample < WING_BLUR_SAMPLES; sample++) {
+              const instanceIndex =
+                (index * 2 + side) * WING_BLUR_SAMPLES + sample;
+              wingBlurMesh.setColorAt(instanceIndex, blendedWingColor);
+            }
+          }
+        }
+        if (wingBlurMesh.instanceColor)
+          wingBlurMesh.instanceColor.needsUpdate = true;
+      }
+    }
     const forceRequested = Boolean(
       diagnostics && diagnostics.forceRequest > handledForceRequest.current,
     );
-    const wingBlurMesh = wingBlur.current;
     if (wingBlurMesh) wingBlurOpacity.array.fill(0);
     const forcedResident = forceRequested
       ? selectForcedButterflyResident(
@@ -1219,7 +1317,7 @@ function Flight({
         residents,
         cameraX,
         rehomingMargin,
-        step: delta,
+        step: insectDelta,
         time: t,
       });
       if (residencyEvent !== "none" && pilot.roam) {
@@ -1274,7 +1372,7 @@ function Flight({
           motion.evade.strength,
           target,
           BUTTERFLY_EVASION.lambda,
-          delta,
+          insectDelta,
         );
         pilot.roam.evade = motion.evade.strength > 1e-3 ? motion.evade : null;
       }
@@ -1587,7 +1685,7 @@ function Flight({
         t,
       );
       const phaseBeforeAdvance = pilot.phase;
-      advanceInsectPilot(pilot, delta, world);
+      advanceInsectPilot(pilot, insectDelta, world);
       const flightSpeed = Math.hypot(
         pilot.velocity.x,
         pilot.velocity.y,
@@ -1825,7 +1923,7 @@ function Flight({
             BANK_MAX,
           ),
           ROLL_LAMBDA,
-          delta,
+          insectDelta,
         );
       }
 
@@ -1871,7 +1969,7 @@ function Flight({
         // tenth of the way across.
         b.quaternion.slerp(
           motion.surfaceQuaternion,
-          settling ? 1 - Math.exp(-6 * delta) : alignment,
+          settling ? 1 - Math.exp(-6 * insectDelta) : alignment,
         );
       }
 

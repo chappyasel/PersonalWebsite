@@ -27,6 +27,7 @@ import {
   unitPose,
   unitPoseForCapture,
 } from "./worldLayout";
+import { SHELF_GEOMETRY } from "./shelfGeometry";
 
 const toDegrees = (radians: number) => (radians * 180) / Math.PI;
 
@@ -251,8 +252,11 @@ describe("About lead-in", () => {
 });
 
 describe("alternating unit poses", () => {
-  it("places the depth-of-field target near the shelf's physical back edge", () => {
-    expect(DEPTH_OF_FIELD_SHELF_Z).toBeCloseTo(-0.375, 10);
+  it("centers the depth-of-field target inside the shelf's physical depth", () => {
+    expect(DEPTH_OF_FIELD_SHELF_Z).toBeCloseTo(
+      (SHELF_GEOMETRY.top.centerZ + SHELF_GEOMETRY.lower.centerZ) / 2,
+      10,
+    );
     for (let unit = 0; unit < 7; unit += 1) {
       const composition = cameraCompositionForViewport(1200, 630, unit);
       expect(depthOfFieldTargetForUnit(unit)).toEqual([

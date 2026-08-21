@@ -6,13 +6,15 @@ import { FootPool } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
 import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
+import { RoundedBox } from "../RoundedBox";
 import WavingGolfFlag from "../WavingGolfFlag";
+import { RollProp } from "../eggs";
 import GolfExperience from "../golf/GolfExperience";
 import { GOLF_FLAG_LOCAL } from "../golf/golfCourse";
 import {
   GOLF_CLUB_REST_BASE,
-  GOLF_TEE_ROTATIONS,
-  GOLF_TEE_STARTS,
+  GOLF_TEE_LAYOUT,
+  GOLF_TEE_SCALE,
 } from "../golf/golfLayout";
 import { meadowHeight } from "../meadowField";
 import { SodaCan } from "../objects";
@@ -26,7 +28,6 @@ import { ShelfUnit } from "../primitives";
 import { SHELF_GEOMETRY } from "../shelfGeometry";
 import { useUnitLod } from "../useUnitLod";
 import { unitPose } from "../worldLayout";
-import { RoundedBox } from "../RoundedBox";
 import React from "react";
 import * as THREE from "three";
 
@@ -306,6 +307,7 @@ function TrainingBoard({
 
 export default function UnitTraining({ palette, dark, index }: UnitProps) {
   const textured = useUnitLod(index);
+  const [plantedTeeRemoved, setPlantedTeeRemoved] = React.useState(false);
   const targetPosition = React.useMemo(() => golfFlagPosition(index), [index]);
   return (
     <group>
@@ -413,20 +415,26 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
               massKg={0.62}
               restitution={0.62}
               maxThrowSpeed={8}
+              // The one prop in the scene that is actually a sphere, and the
+              // shared nod was tilting it about a support edge it does not
+              // have. A ball rolls.
+              signature="roll"
             >
-              <React.Suspense fallback={null}>
-                <ModelProp
-                  url="/models/basketball.glb"
-                  dark={dark}
-                  variant="tinted"
-                  tintAll="#b77a4f"
-                  roughness={0.78}
-                  smoothNormals
-                  rotation={[0, 1.2, 0]}
-                  position={[0, -0.016, 0]}
-                  scale={0.435}
-                />
-              </React.Suspense>
+              <RollProp hoverKey="grab:basketball">
+                <React.Suspense fallback={null}>
+                  <ModelProp
+                    url="/models/basketball.glb"
+                    dark={dark}
+                    variant="tinted"
+                    tintAll="#b77a4f"
+                    roughness={0.78}
+                    smoothNormals
+                    rotation={[0, 1.2, 0]}
+                    position={[0, -0.016, 0]}
+                    scale={0.435}
+                  />
+                </React.Suspense>
+              </RollProp>
             </Grabbable>
           </group>
         }
@@ -559,24 +567,46 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
         </React.Suspense>
       </Grabbable>
 
-      <GolfExperience palette={palette} dark={dark} index={index} />
-      {GOLF_TEE_STARTS.map(([x, z], tee) => (
-        <group
-          key={`golf-tee:${tee}`}
-          position={[x, SHELF_GEOMETRY.groundY + 0.012, z]}
-          rotation={GOLF_TEE_ROTATIONS[tee]}
-        >
+      <GolfExperience
+        palette={palette}
+        dark={dark}
+        index={index}
+        plantedTeeRemoved={plantedTeeRemoved}
+      />
+      {GOLF_TEE_LAYOUT.map((tee) => {
+        const model = (
           <React.Suspense fallback={null}>
             <ModelProp
               url="/models/golf-tee.glb"
               dark={dark}
               variant="tinted"
-              tintAll={tee === 1 ? "#2d6da3" : "#f2ede2"}
-              scale={0.00036}
+              tintAll={tee.tint}
+              position={[...tee.modelPosition]}
+              rotation={[...tee.rotation]}
+              scale={GOLF_TEE_SCALE}
             />
           </React.Suspense>
-        </group>
-      ))}
+        );
+        return (
+          <Grabbable
+            key={`golf-tee:${tee.id}`}
+            unitIndex={index}
+            hoverKey={`grab:golf-tee:${tee.id}`}
+            base={[...tee.position]}
+            shadeColor={palette.shadow}
+            shadeWidth={0.16}
+            shape="box"
+            massKg={0.002}
+            standsOn="floor"
+            spin={1.4}
+            onDragIntent={
+              tee.id === "stand" ? () => setPlantedTeeRemoved(true) : undefined
+            }
+          >
+            {model}
+          </Grabbable>
+        );
+      })}
       <React.Suspense fallback={null}>
         <WavingGolfFlag dark={dark} position={targetPosition} />
       </React.Suspense>

@@ -1,5 +1,8 @@
+import { ABOUT_BOOT_LANDMARKS } from "../aboutBootComposition";
 import fs from "node:fs";
 import { describe, expect, it } from "vitest";
+
+import { REVIEWED_SHELF_LAYOUT } from "./unitShelfLayout";
 
 const source = fs.readFileSync(
   new URL("./UnitAbout.tsx", import.meta.url),
@@ -49,6 +52,60 @@ describe("About shelf throwable props", () => {
     expect(portrait).toContain("proxied(PORTRAIT_SRC, 1080)");
   });
 
+  it("renders the relocated Collective photo as a face-up print", () => {
+    const globe = source.indexOf('hoverKey="egg:globe"');
+    const collective = source.indexOf('id="about-collective-group-v8"');
+    const portrait = source.indexOf('id="portrait"', collective);
+    const photo = source.slice(collective, portrait);
+
+    expect(globe).toBeGreaterThanOrEqual(0);
+    expect(collective).toBeGreaterThan(globe);
+    expect(portrait).toBeGreaterThan(collective);
+    expect(photo).toContain("<LoosePhoto");
+    expect(photo).toContain("<FlatPrint");
+    expect(photo).not.toContain("<DeskFrame");
+    expect(photo).toContain(
+      'base={[ABOUT_BOOT_LANDMARKS["collective-frame"].x, 0, 0.15]}',
+    );
+    expect(photo).toContain('name={aboutLandmarkNodeName("collective-frame")}');
+  });
+
+  it("opens only the three face-up photos by 60 degrees", () => {
+    const start = source.indexOf("function LoosePhoto");
+    const end = source.indexOf("function ReadingStack", start);
+    const loosePhoto = source.slice(start, end);
+    const topShelf = source.slice(source.indexOf('hoverKey="egg:globe"'));
+
+    expect(loosePhoto).toContain(
+      "hingeOnHover ? ABOUT_TOP_PHOTO_HOVER_ANGLE : undefined",
+    );
+    expect(source).toContain("const ABOUT_TOP_PHOTO_HOVER_ANGLE = Math.PI / 3");
+    expect(topShelf.match(/hingeOnHover/g)).toHaveLength(3);
+    expect(topShelf.match(/<FlatPrint/g)).toHaveLength(3);
+  });
+
+  it("keeps the three standing frames in their authored poses", () => {
+    expect(source).toContain("seat={deskFrameHeight(0.264) / 2}");
+    expect(source).toContain("rotation={[-0.08, 0.2, -0.025]}");
+    expect(source).toContain("seat={REVIEWED_SHELF_LAYOUT.about.profileSeat}");
+    expect(source).toContain("rotation={[-Math.PI / 6, -0.08, 0]}");
+    expect(source).not.toContain('shelfPose="flat"');
+  });
+
+  it("aligns the smaller standing frames with the large portrait", () => {
+    expect(source).toContain(
+      'base={[ABOUT_BOOT_LANDMARKS["family-frame"].x, 0, 0]}',
+    );
+    expect(source).toContain(
+      'base={[ABOUT_BOOT_LANDMARKS["profile-frame"].x, 0, 0]}',
+    );
+  });
+
+  it("swaps the Arch and Collective frame positions", () => {
+    expect(ABOUT_BOOT_LANDMARKS["collective-frame"].x).toBe(0.5);
+    expect(REVIEWED_SHELF_LAYOUT.about.archPrintX).toBe(-0.81);
+  });
+
   it("limits reading-book hover presentation to the authored shelf pose", () => {
     const start = source.indexOf("function ReadingBookHover");
     const end = source.indexOf("const READING_BOARD_THICKNESS", start);
@@ -84,6 +141,13 @@ describe("About shelf throwable props", () => {
     expect(deskMetals).not.toContain("tiltOnHover={false}");
     expect(tjStart).toBeGreaterThanOrEqual(0);
     expect(tj).toContain("useMetalShimmer");
+  });
+
+  it("uses the authored sizes for the four lower-shelf awards", () => {
+    expect(source.match(/scale=\{ABOUT_LOWER_AWARD_SCALE\}/g)).toHaveLength(1);
+    expect(source).toContain("scale={ABOUT_AIC_SCALE}");
+    expect(source).toContain("scale={ABOUT_COORDINATION_GLOBE_SCALE}");
+    expect(ABOUT_BOOT_LANDMARKS["tj-medallion"].sceneScale).toBeCloseTo(0.726);
   });
 
   it("gives the AIC mark a padded pointer target that physics ignores", () => {

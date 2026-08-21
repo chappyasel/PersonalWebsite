@@ -3,12 +3,18 @@
 // Screen-fixed chrome over the world: shared styles, bottom vignette, the
 // persistent name, and the theme toggle island. Everything except the toggle
 // island is pointer-events-none; interactive layers manage their own events.
+import { browserStorage } from "../mobile/liveness";
 import {
   requestDevHooks,
   requestSceneHooks,
   sceneDiagnosticsQueryMode,
 } from "../scene/devHooks";
-import { useStacks } from "../store";
+import {
+  freeRoamDiagnosticsController,
+  readFreeRoamEnabled,
+  writeFreeRoamEnabled,
+} from "../scene/freeRoamDiagnostics";
+import { setStacksSheetDismissed, useStacks } from "../store";
 import dynamic from "next/dynamic";
 import { type ComponentType, useEffect, useState } from "react";
 
@@ -36,7 +42,11 @@ export function ChromeReveal({
   return (
     <div
       className={`stacks-reveal ${className ?? ""}`}
-      style={{ animationDelay: `${index * 130}ms` }}
+      style={
+        {
+          "--stacks-reveal-delay": `${index * 130}ms`,
+        } as React.CSSProperties
+      }
     >
       {children}
     </div>
@@ -52,7 +62,7 @@ function isEditableShortcutTarget(target: EventTarget | null) {
 }
 
 /** Development keeps the compact HUD visible without enabling the expensive
- * scene probes. Production loads the same cheap monitor for ?hud=1; D and
+ * scene probes. Production loads the same cheap monitor for ?hud=1; H and
  * ?debug=1 opt into the full instrumented console. */
 function SceneDiagnosticsLoader() {
   const [request, setRequest] = useState<{
@@ -63,6 +73,54 @@ function SceneDiagnosticsLoader() {
   const [Diagnostics, setDiagnostics] = useState<ComponentType<{
     initiallyOpen?: boolean;
   }> | null>(null);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development") return;
+
+    const storage = browserStorage("localStorage");
+    freeRoamDiagnosticsController.setEnabled(readFreeRoamEnabled(storage));
+    const syncFreeRoamPreference = () => {
+      const enabled = freeRoamDiagnosticsController.getSnapshot().enabled;
+      writeFreeRoamEnabled(storage, enabled);
+      if (enabled) setStacksSheetDismissed(true);
+    };
+    syncFreeRoamPreference();
+    const unsubscribe = freeRoamDiagnosticsController.subscribe(
+      syncFreeRoamPreference,
+    );
+    const onFreeRoamShortcut = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.repeat ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        event.key.toLowerCase() !== "f" ||
+        isEditableShortcutTarget(event.target)
+      )
+        return;
+
+      event.preventDefault();
+      const wasEnabled = freeRoamDiagnosticsController.getSnapshot().enabled;
+      if (event.shiftKey && !wasEnabled) {
+        freeRoamDiagnosticsController.startFromCurrentPose();
+      } else {
+        freeRoamDiagnosticsController.toggle();
+      }
+      if (!wasEnabled) {
+        const canvas = document.querySelector<HTMLCanvasElement>(
+          ".stacks-canvas-shell canvas",
+        );
+        void canvas?.requestPointerLock();
+      }
+    };
+
+    window.addEventListener("keydown", onFreeRoamShortcut);
+    return () => {
+      unsubscribe();
+      window.removeEventListener("keydown", onFreeRoamShortcut);
+    };
+  }, []);
 
   useEffect(() => {
     const queryMode = sceneDiagnosticsQueryMode(window.location.search);
@@ -89,12 +147,13 @@ function SceneDiagnosticsLoader() {
         event.metaKey ||
         event.ctrlKey ||
         event.altKey ||
-        event.key.toLowerCase() !== "d" ||
+        event.key.toLowerCase() !== "h" ||
         isEditableShortcutTarget(event.target)
       )
         return;
 
       event.preventDefault();
+      if (document.pointerLockElement !== null) document.exitPointerLock();
       requestDevHooks();
       setRequest({ initiallyOpen: true });
     };
@@ -112,7 +171,7 @@ function SceneDiagnosticsLoader() {
         if (!cancelled) setDiagnostics(() => Component);
       })
       .catch(() => {
-        // A later D press should be able to retry a transient chunk failure.
+        // A later H press should be able to retry a transient chunk failure.
         if (!cancelled) setRequest(null);
       });
 
@@ -213,9 +272,39 @@ export default function ChromeLayer() {
         }
         .stacks-world-shell[data-revealed] .stacks-reveal {
           animation: stacks-resolve 0.9s var(--stacks-ease) forwards;
+          animation-delay: var(--stacks-reveal-delay, 0ms);
         }
         .stacks-world-shell[data-load-path="warm"][data-revealed] .stacks-reveal {
           animation-duration: 0.58s;
+        }
+        @media (width >= 1200px) {
+          /* On desktop the name clears the left curtain first, the rail
+             follows, and the utility controls close the sequence. Mobile
+             keeps its existing compact timing. */
+          .stacks-world-shell[data-revealed]
+            .stacks-wordmark
+            .stacks-reveal {
+            animation-duration: 700ms;
+            animation-delay: 440ms;
+          }
+          .stacks-world-shell[data-revealed]
+            .stacks-theme-toggle
+            .stacks-reveal {
+            animation-duration: 560ms;
+            animation-delay: 800ms;
+          }
+          .stacks-world-shell[data-load-path="warm"][data-revealed]
+            .stacks-wordmark
+            .stacks-reveal {
+            animation-duration: 460ms;
+            animation-delay: 150ms;
+          }
+          .stacks-world-shell[data-load-path="warm"][data-revealed]
+            .stacks-theme-toggle
+            .stacks-reveal {
+            animation-duration: 400ms;
+            animation-delay: 360ms;
+          }
         }
         @keyframes stacks-resolve {
           from { opacity: 0; filter: blur(14px); transform: translateY(12px); }

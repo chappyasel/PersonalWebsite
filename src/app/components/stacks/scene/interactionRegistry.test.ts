@@ -20,6 +20,11 @@ describe("scene interaction registry", () => {
       href: "/manual",
       external: false,
     });
+    expect(destinationFor("liarsdice")).toMatchObject({
+      href: "/liarsdice",
+      label: "Open Liar's Dice",
+      external: false,
+    });
     expect(
       doorDisplayLabel({
         kind: "door",

@@ -13,6 +13,7 @@ import {
   extractColliderBoxes,
   extractDynamicColliderBoxes,
 } from "./physicsColliders";
+import { MUSINGS_PAPER_STACK } from "./musingsShelfGeometry";
 
 function mesh(
   size: [number, number, number] = [0.2, 0.2, 0.2],
@@ -93,6 +94,43 @@ describe("physics collider extraction", () => {
 
     expect(result.boxes).toHaveLength(1);
     expect(result.boxes[0]!.halfExtents.z * 2).toBeCloseTo(0.008);
+  });
+
+  it("gives the five-sheet Musings paper stack a shelf-sized dynamic hull", () => {
+    const root = new THREE.Group();
+    const paperWidth = MUSINGS_PAPER_STACK.width;
+    const paperDepth = MUSINGS_PAPER_STACK.depth;
+    const paperThickness = MUSINGS_PAPER_STACK.sheetThickness;
+    const sheetStep = MUSINGS_PAPER_STACK.sheetStep;
+    for (let index = 0; index < MUSINGS_PAPER_STACK.sheetCount; index++) {
+      const sheet = mesh(
+        [paperWidth, paperThickness, paperDepth],
+        [
+          index * 0.006 - 0.012,
+          paperThickness / 2 + index * sheetStep,
+          index * -0.004 + 0.008,
+        ],
+      );
+      sheet.rotation.y = ((index * 61.17) % 1) * 0.14 - 0.07;
+      root.add(sheet);
+    }
+    root.add(
+      mesh(
+        [
+          MUSINGS_PAPER_STACK.colliderWidth,
+          MUSINGS_PAPER_STACK.colliderHeight,
+          MUSINGS_PAPER_STACK.colliderDepth,
+        ],
+        [0, MUSINGS_PAPER_STACK.colliderCenterY, 0],
+      ),
+    );
+
+    const result = extractDynamicColliderBoxes(root);
+    const extent = result.bounds?.getSize(new THREE.Vector3());
+
+    expect(result.boxes.length).toBeGreaterThan(0);
+    expect(extent?.x).toBeGreaterThan(0.5);
+    expect(extent?.z).toBeGreaterThan(0.4);
   });
 
   it("preserves the local orientation of a rotated book", () => {

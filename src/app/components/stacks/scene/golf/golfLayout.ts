@@ -3,13 +3,21 @@ import { GOLF_BALL_RADIUS } from "../units/trainingGolfBall";
 
 import type { GolfBallId, GolfVec3 } from "./golfTypes";
 
+/** The source model is 341.72 units tall from its pointed tip to its cup. A
+ * little over half of the scaled tee is pushed into the meadow. */
+export const GOLF_TEE_SCALE = 0.00036;
+export const GOLF_TEE_MODEL_HEIGHT = 341.72 * GOLF_TEE_SCALE;
+export const GOLF_TEE_VISIBLE_HEIGHT = 0.04;
+export const GOLF_TEE_BURIED_DEPTH =
+  GOLF_TEE_MODEL_HEIGHT - GOLF_TEE_VISIBLE_HEIGHT;
+
 /** The golf bay sits in the open aisle between the Training shelf and its
  * neighbour. Balls are deliberately separated by at least 28 cm so their
  * interaction targets and physical colliders never begin overlapped. */
 export const GOLF_BALL_STARTS: Record<GolfBallId, GolfVec3> = {
   one: {
     x: -2.46,
-    y: SHELF_GEOMETRY.groundY + GOLF_BALL_RADIUS,
+    y: SHELF_GEOMETRY.groundY + GOLF_TEE_VISIBLE_HEIGHT + GOLF_BALL_RADIUS,
     z: 0.68,
   },
   two: {
@@ -29,19 +37,50 @@ export const GOLF_BALL_STARTS: Record<GolfBallId, GolfVec3> = {
   },
 };
 
-/** Loose tees are silent visual dressing, not launch stands. They lie in the
- * foreground grass, clear of both the clubhead and the four launch paths. */
-export const GOLF_TEE_STARTS = [
-  [-2.25, 0.98],
-  [-2.05, 0.9],
-  [-1.84, 0.84],
+/** Once its tee has been removed, ball one resets beside the empty tee hole
+ * at ordinary ground height. Keeping this authored avoids a physics-dependent
+ * reset mark and leaves enough room if the tee later returns home. */
+export const GOLF_BALL_UNTEED_START: GolfVec3 = {
+  x: GOLF_BALL_STARTS.one.x + 0.14,
+  y: SHELF_GEOMETRY.groundY + GOLF_BALL_RADIUS,
+  z: GOLF_BALL_STARTS.one.z,
+};
+
+/** One tee now explains why the first ball is elevated. The other two are
+ * loose spares, scattered within reach without forming a decorative row. */
+export const GOLF_TEE_LAYOUT = [
+  {
+    id: "stand",
+    position: [
+      GOLF_BALL_STARTS.one.x,
+      SHELF_GEOMETRY.groundY,
+      GOLF_BALL_STARTS.one.z,
+    ],
+    modelPosition: [0, -GOLF_TEE_BURIED_DEPTH, 0],
+    rotation: [0, 0.18, 0],
+    tint: "#f2ede2",
+    draggable: true,
+  },
+  {
+    id: "near-spare",
+    position: [-2.05, SHELF_GEOMETRY.groundY + 0.014, 0.91],
+    modelPosition: [0, 0, 0],
+    rotation: [Math.PI / 2, 1.31, 0.08],
+    tint: "#f2ede2",
+    draggable: true,
+  },
+  {
+    id: "white-spare",
+    position: [-1.78, SHELF_GEOMETRY.groundY + 0.014, 0.79],
+    modelPosition: [0, 0, 0],
+    rotation: [Math.PI / 2, 2.42, -0.06],
+    tint: "#f2ede2",
+    draggable: true,
+  },
 ] as const;
-export const GOLF_TEE_ROTATIONS = [
-  [Math.PI / 2, 0.24, -0.12],
-  [Math.PI / 2, 1.31, 0.08],
-  [Math.PI / 2, 2.18, -0.05],
-] as const;
-export const GOLF_TEES_INTERACTIVE = false;
+export const GOLF_TEES_INTERACTIVE = GOLF_TEE_LAYOUT.some(
+  (tee) => tee.draggable,
+);
 
 export const GOLF_CLUB_SCALE = 2.35;
 export const GOLF_CLUB_GRIP_HEIGHT = 0.76866675 * GOLF_CLUB_SCALE;
@@ -53,6 +92,13 @@ export const GOLF_CLUB_REST_BASE: GolfVec3 = {
   x: -2.9,
   y: SHELF_GEOMETRY.groundY,
   z: 0.02,
+};
+
+/** Conservative grip-pivot bounds shared by touch projection and unit
+ * visibility tests. The visual club lives inside this volume at rest. */
+export const GOLF_CLUB_PROJECTED_LOCAL_BOUNDS = {
+  min: [-0.34, -GOLF_CLUB_GRIP_HEIGHT - 0.18, -0.34] as const,
+  max: [0.4, 0.25, 0.4] as const,
 };
 
 export const GOLF_CLUB_HEAD_MODEL_BOUNDS = {

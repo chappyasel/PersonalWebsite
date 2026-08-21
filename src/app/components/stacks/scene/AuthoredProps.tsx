@@ -1,5 +1,6 @@
 "use client";
 
+import { useStacks } from "../store";
 import type { Palette } from "../theme";
 import { useLoader } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
@@ -244,6 +245,7 @@ export function TJMedallionProp({
   href,
   name,
   scale,
+  yaw = -0.16,
 }: {
   unitIndex: number;
   palette: Palette;
@@ -252,21 +254,25 @@ export function TJMedallionProp({
   href: string;
   name?: string;
   scale: number;
+  /** Face yaw; About uses this to catch its nearby desk practical. */
+  yaw?: number;
 }) {
   return (
     <Grabbable
       unitIndex={unitIndex}
       hoverKey={TJ_MEDALLION_HOVER}
+      metal
       base={base}
       shadeColor={palette.shadow}
       shadeWidth={0.34}
       shape="box"
       massKg={0.45}
+      sceneImpulseReaction="knockdown"
       href={href}
       doorLabel="Visit TJHSST"
       external
     >
-      <group name={name} rotation={[0, -0.16, 0]} scale={scale}>
+      <group name={name} rotation={[0, yaw, 0]} scale={scale}>
         <TJMedallionBody dark={dark} unitIndex={unitIndex} />
       </group>
     </Grabbable>
@@ -294,29 +300,70 @@ export function ShakerProp({
 }) {
   const motion = useRef<THREE.Group>(null);
   const startedAt = useRef<number | null>(null);
-  useUnitFrame(() => {
+  /** Damped 0..1 hover engagement driving the held slosh. */
+  const slosh = useRef(0);
+  const hoverKey = `grab:shaker:${id}`;
+  useUnitFrame((state, delta) => {
     const group = motion.current;
+    if (!group) return;
     const start = startedAt.current;
-    if (!group || start === null) return;
-    const elapsed = performance.now() - start;
-    if (elapsed >= 600) {
-      group.rotation.set(0, 0, 0);
-      startedAt.current = null;
+    if (start !== null) {
+      // The click's hard shake owns the group outright while it runs. Adding
+      // the slosh under it would read as a wobble on a wobble, and the two
+      // write the same two euler channels.
+      const elapsed = performance.now() - start;
+      if (elapsed >= 600) {
+        group.rotation.set(0, 0, 0);
+        startedAt.current = null;
+        slosh.current = 0;
+        return;
+      }
+      const pose = shakerPose(elapsed);
+      group.rotation.y = pose.yaw;
+      group.rotation.z = pose.roll;
       return;
     }
-    const pose = shakerPose(elapsed);
-    group.rotation.y = pose.yaw;
-    group.rotation.z = pose.roll;
+    // SIGNATURE REACTION (ADR 0020): a shaker answers with what is inside it
+    // moving. The 600 ms click shake was the only thing this prop did and it
+    // is a BURST, so under Touch Focus — which has no timeout — the shaker
+    // went still while still selected. This is the slow version of the same
+    // motion, held for as long as you point at it.
+    //
+    // Deliberately not `shakerPose`: that curve is a hand shaking a bottle,
+    // and running it slowly just looks like the same gesture in treacle. Two
+    // slow sinusoids a fifth apart read as liquid finding its level.
+    if (prefersReducedMotion()) return;
+    const target = useStacks.getState().hovered === hoverKey ? 1 : 0;
+    if (Math.abs(slosh.current - target) < 1e-3) {
+      if (slosh.current === target && target === 0) {
+        if (group.rotation.z !== 0 || group.rotation.y !== 0)
+          group.rotation.set(0, 0, 0);
+        return; // settled at the authored pose, and writing nothing
+      }
+      slosh.current = target;
+    } else {
+      slosh.current = THREE.MathUtils.damp(slosh.current, target, 5, delta);
+    }
+    const t = state.clock.elapsedTime;
+    const v = slosh.current;
+    // 0.045 rad is 2.6 degrees at the peak of the roll. A shaker is 0.22 wide
+    // and stands on a plank; anything past about 4 degrees starts to look
+    // like it is tipping over rather than sloshing.
+    group.rotation.z = Math.sin(t * 3.1) * 0.045 * v;
+    group.rotation.y = Math.sin(t * 2.05 + 0.9) * 0.03 * v;
   });
   return (
     <Grabbable
       unitIndex={unitIndex}
-      hoverKey={`grab:shaker:${id}`}
+      hoverKey={hoverKey}
       base={base}
       shadeColor={palette.shadow}
       shadeWidth={0.22}
       shape="box"
       massKg={0.25}
+      // A shaker's answer is what is inside it moving. The click already
+      // owned the hard shake; this is the slow one it makes when you nudge it.
+      signature="slosh"
       egg={interactiveEgg ? { reducedMotion: "skip" } : undefined}
       onTap={
         interactiveEgg

@@ -2,6 +2,24 @@ import { WORLD_ZOOM_MIN } from "../mobile/travel";
 
 export const MIN_CAMERA_TARGET_DISTANCE = 3.8;
 export const TAP_FOCUS_ZOOM_MULTIPLIER = 1.44;
+/** Portrait Composition can focus either shelf, so its target needs enough
+ * vertical travel to reach the lower shelf before the stronger tap dolly
+ * magnifies the remaining error. Wide layouts retain the restrained pan. */
+export const PORTRAIT_TOUCH_FOCUS_Y_LIMIT = 0.52;
+const WIDE_FOCUS_Y_LIMIT = 0.12;
+
+export function interactionFocusYOffset({
+  centerY,
+  baselineLookY,
+  portrait,
+}: {
+  centerY: number;
+  baselineLookY: number;
+  portrait: boolean;
+}) {
+  const limit = portrait ? PORTRAIT_TOUCH_FOCUS_Y_LIMIT : WIDE_FOCUS_Y_LIMIT;
+  return Math.max(-limit, Math.min(limit, centerY - baselineLookY));
+}
 
 export function isGolfControlInteraction(id: string | null) {
   return ["golf-club:", "golf-ball:"].some(

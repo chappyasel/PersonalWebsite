@@ -2,23 +2,17 @@
 
 // The semantic vertical home page — SEO baseline, reduced-motion, and
 // WebGL-failure fallback. Renders the server-rendered section slots in the
-// same order and shell as the pre-Stacks home page.
+// 3D world's canonical order.
 import { Fragment } from "react";
 
 import { GrainientBackground } from "~/components/ui/grainient-background";
 
-import { type StacksSlots } from "./data";
+import { type StacksSlots, UNITS } from "./data";
 
-const FLAT_ORDER = [
-  "about",
-  "books",
-  "training",
-  "systems",
-  "talks",
-  "blog",
-  "projects",
+const FLAT_ORDER: ReadonlyArray<keyof StacksSlots> = [
+  ...UNITS.map((unit) => unit.slug),
   "quotes",
-] as const;
+];
 
 export default function FlatHome({
   slots,

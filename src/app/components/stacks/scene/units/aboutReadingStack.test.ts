@@ -1,9 +1,11 @@
+import { ABOUT_BOOT_LANDMARKS } from "../aboutBootComposition";
+import { SHELF_GEOMETRY } from "../shelfGeometry";
 import { describe, expect, it } from "vitest";
 
 import {
-  ABOUT_LOWER_PHOTO_LEFT,
-  ABOUT_LOWER_PHOTO_X,
   ABOUT_READING_BOOK,
+  ABOUT_TOP_COLLECTIVE_PHOTO_LEFT,
+  ABOUT_TOP_COLLECTIVE_PHOTO_X,
   CURRENT_READING_BASE,
   CURRENT_READING_ROTATION,
   aboutReadingSnapshot,
@@ -45,13 +47,15 @@ describe("About recent-reading fan", () => {
       base: CURRENT_READING_BASE,
       rotation: CURRENT_READING_ROTATION,
     });
-    expect(poses[0].base[0]).toBe(0.33);
+    expect(poses[0].base[0]).toBeCloseTo(0.71, 10);
+    expect(poses[0].base[2]).toBeCloseTo(-0.155, 10);
     expect(readingCoverForward(poses[0].rotation)).toBeCloseTo(
       Math.cos((Math.PI * 2) / 9),
       8,
     );
     expect(readingCoverLampward(poses[0].rotation)).toBeLessThan(0);
-    expect(poses[1].base[0] - poses[0].base[0]).toBeCloseTo(0.18, 8);
+    expect(poses[1].base[0] - poses[0].base[0]).toBeCloseTo(0.21, 8);
+    expect(poses[1].base[2] - poses[0].base[2]).toBeCloseTo(0.075, 8);
     expect(poses[2].base[2]).toBeGreaterThan(poses[1].base[2]);
   });
 
@@ -80,6 +84,15 @@ describe("About recent-reading fan", () => {
     expect(bounds.right - bounds.left).toBeGreaterThan(
       ABOUT_READING_BOOK.width * 2,
     );
+  });
+
+  it("centers the widened fan on its shelf mark and shelf depth", () => {
+    const poses = readingStackPoses();
+    const mean = (axis: 0 | 2) =>
+      poses.reduce((sum, pose) => sum + pose.base[axis], 0) / poses.length;
+
+    expect(mean(0)).toBeCloseTo(ABOUT_BOOT_LANDMARKS["reading-stack"].x, 10);
+    expect(mean(2)).toBeCloseTo(SHELF_GEOMETRY.lower.centerZ, 2);
   });
 
   it("squares the jacket while carried and returns to the authored fan", () => {
@@ -120,13 +133,13 @@ describe("About recent-reading fan", () => {
     ).toBe(false);
   });
 
-  it("keeps the lower-right photograph fully supported by the plank", () => {
+  it("keeps the relocated collective photograph supported by the top plank", () => {
     const snapshot = aboutReadingSnapshot();
 
     expect(snapshot.poses).toHaveLength(3);
     expect(snapshot.contactError.shelf).toBeLessThan(1e-10);
-    expect(snapshot.lowerPhoto.x).toBe(ABOUT_LOWER_PHOTO_X);
-    expect(ABOUT_LOWER_PHOTO_LEFT).toBeGreaterThan(-1.6);
-    expect(snapshot.lowerPhoto.right).toBeLessThan(1.6);
+    expect(snapshot.topCollectivePhoto.x).toBe(ABOUT_TOP_COLLECTIVE_PHOTO_X);
+    expect(ABOUT_TOP_COLLECTIVE_PHOTO_LEFT).toBeGreaterThan(-1.6);
+    expect(snapshot.topCollectivePhoto.right).toBeLessThan(1.6);
   });
 });

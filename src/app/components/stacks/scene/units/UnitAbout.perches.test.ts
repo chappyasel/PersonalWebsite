@@ -1,4 +1,11 @@
+import { articulateDeskLampHead } from "../ModelProp";
 import { ABOUT_BOOT_LANDMARKS } from "../aboutBootComposition";
+import {
+  ABOUT_AIC_SCALE,
+  ABOUT_COORDINATION_GLOBE_SCALE,
+  ABOUT_LAMP_HEAD_QUATERNION,
+  ABOUT_LAMP_ROOT_YAW,
+} from "../aboutCoordinationLayout";
 import {
   diagnoseInsectPerch,
   registerInsectCollisionRoot,
@@ -218,6 +225,7 @@ async function mountAboutPerchFixture() {
   );
   const aicPose = new THREE.Group();
   aicPose.rotation.y = -0.16;
+  aicPose.scale.setScalar(ABOUT_AIC_SCALE);
   aicPose.add(box([0.205, 0.024, 0.07], [0, 0.012, 0]));
   const mark = new THREE.Mesh(collectiveMarkGeometry(), visibleMaterial());
   mark.position.set(0, 0.118, 0.004);
@@ -265,30 +273,89 @@ async function mountAboutPerchFixture() {
     -0.06,
   );
   const lampPose = new THREE.Group();
-  lampPose.rotation.y = 0.78;
+  lampPose.rotation.y = ABOUT_LAMP_ROOT_YAW;
   lampPose.scale.setScalar(ABOUT_BOOT_LANDMARKS["desk-lamp"].sceneScale);
   const lamp = new THREE.Group();
-  lamp.add(await loadModel("desk-lamp"));
+  const lampModel = await loadModel("desk-lamp");
+  if (!articulateDeskLampHead(lampModel, ABOUT_LAMP_HEAD_QUATERNION))
+    throw new Error("Desk-lamp fixture could not recover its articulated head");
+  lamp.add(lampModel);
   lampPose.add(lamp);
   lampCarrier.add(lampPose);
   unit.add(lampCarrier);
 
+  // The Coordination snow globe's visible geometry, without its transparent
+  // pointer-only hit box. These dimensions are the live procedural model's.
+  const coordination = new THREE.Group();
+  coordination.position.set(
+    ABOUT_BOOT_LANDMARKS["coordination-globe"].x,
+    SHELF_SURFACE.lower,
+    SHELF_GEOMETRY.lower.centerZ,
+  );
+  coordination.scale.setScalar(ABOUT_COORDINATION_GLOBE_SCALE);
+  const coordinationBase = new THREE.CylinderGeometry(0.071, 0.084, 0.036, 6);
+  const coordinationStem = new THREE.CylinderGeometry(0.027, 0.037, 0.045, 6);
+  const coordinationSphere = new THREE.SphereGeometry(0.105, 16, 12);
+  disposables.push(coordinationBase, coordinationStem, coordinationSphere);
+  const baseMesh = new THREE.Mesh(coordinationBase, visibleMaterial());
+  baseMesh.position.y = 0.018;
+  const stemMesh = new THREE.Mesh(coordinationStem, visibleMaterial());
+  stemMesh.position.y = 0.053;
+  const globeMesh = new THREE.Mesh(coordinationSphere, visibleMaterial());
+  globeMesh.position.y = 0.147;
+  const networkNodeGeometry = new THREE.IcosahedronGeometry(1, 1);
+  const networkNodeMaterial = visibleMaterial();
+  networkNodeMaterial.depthWrite = false;
+  const networkNodes = new THREE.InstancedMesh(
+    networkNodeGeometry,
+    networkNodeMaterial,
+    1,
+  );
+  networkNodes.name = "coordination-network-nodes";
+  networkNodes.userData.physicsIgnore = true;
+  networkNodes.setMatrixAt(
+    0,
+    new THREE.Matrix4().makeScale(0.002, 0.002, 0.002),
+  );
+  disposables.push(networkNodeGeometry);
+  coordination.add(baseMesh, stemMesh, globeMesh, networkNodes);
+  unit.add(coordination);
+
   // The TJ medallion: a disc standing on a small base, with the Perch on its
   // top rim. Bounds are the live collision index's, in Unit-local terms.
   const medallion = new THREE.Group();
-  medallion.add(box([0.144, 0.025, 0.176], [-0.24, -0.8295, -0.08]));
-  medallion.add(box([0.212, 0.216, 0.052], [-0.24, -0.697, -0.08]));
+  const medallionScale = ABOUT_BOOT_LANDMARKS["tj-medallion"].sceneScale / 0.72;
+  medallion.add(
+    box(
+      [0.144 * medallionScale, 0.025 * medallionScale, 0.176 * medallionScale],
+      [
+        ABOUT_BOOT_LANDMARKS["tj-medallion"].x,
+        SHELF_SURFACE.lower + 0.013 * medallionScale,
+        SHELF_GEOMETRY.lower.centerZ,
+      ],
+    ),
+  );
+  medallion.add(
+    box(
+      [0.212 * medallionScale, 0.216 * medallionScale, 0.052 * medallionScale],
+      [
+        ABOUT_BOOT_LANDMARKS["tj-medallion"].x,
+        SHELF_SURFACE.lower + 0.1455 * medallionScale,
+        SHELF_GEOMETRY.lower.centerZ,
+      ],
+    ),
+  );
   unit.add(medallion);
 
   // The frontmost book of the reading stack, stood on the lower shelf.
   const otherMinds = new THREE.Group();
-  otherMinds.add(box([0.272, 0.496, 0.242], [0.69, -0.595, 0.151]));
+  otherMinds.add(box([0.272, 0.496, 0.242], [1.08, -0.595, -0.005]));
   unit.add(otherMinds);
 
   // ...and the rearmost, which took over the About shelf's seventh Perch from
   // the globe crown. Bounds measured off the live scene like the rest.
   const behave = new THREE.Group();
-  behave.add(box([0.309, 0.495, 0.25], [0.33, -0.5945, 0.035]));
+  behave.add(box([0.309, 0.495, 0.25], [0.66, -0.5945, -0.155]));
   unit.add(behave);
 
   // The family frame, standing on the top plank. Bounds measured off the live
@@ -299,6 +366,7 @@ async function mountAboutPerchFixture() {
 
   const releases = [
     registerOwner("grab:ai-collective-mark", aic),
+    registerOwner("grab:coordination-research:about", coordination),
     // `LoosePhoto` registers `grab:photo:<id>`. This fixture used to register
     // `link:photo:portrait` — the id the Perch table named — which made the
     // suite agree with the catalog about an owner the real Unit has never

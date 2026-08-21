@@ -49,6 +49,16 @@ survive into its Unit's Portrait Composition, though its position and scale may
 change.
 _Avoid_: Required decoration, hero prop
 
+**Project Icon** — a physical shelf object that represents one of Chappy's
+apps through its original, recognizable icon artwork. It is an Identity Prop,
+not a screenshot mounted as wall art.
+_Avoid_: Project card, app screenshot
+
+**Dice Pyramid** — six separate Movable Props arranged three-two-one to
+represent Liar's Dice. The arrangement may collapse through interaction; the
+individual dice remain the objects rather than becoming one grouped sculpture.
+_Avoid_: Dice statue, grouped dice prop
+
 **Movable Prop** — an Identity Prop whose semantic role includes physical
 carrying through Weighted dragging. Every fine-pointer Movable Prop remains
 Movable under a coarse-pointer Interaction Profile; Portrait Composition may
@@ -59,6 +69,37 @@ _Avoid_: Desktop-only toy, decorative drag affordance
 composition without defining its identity or owning a meaningful action. A
 Portrait Composition may move, simplify, replace, or omit Set Dressing.
 _Avoid_: Identity Prop, required prop
+
+**Reaction Archetype** — the single named response a prop gives while a pointer
+rests on it. Every prop has exactly one, derived from what the prop already is:
+its foliage profile, its material, its measured size, then its authored mass.
+_Avoid_: Hover effect, hover style, animation preset
+
+**Signature Reaction** — a Reaction Archetype authored for one named prop
+because the gesture belongs to that object rather than to its class. The tea
+cup's steam and the basketball's roll are Signature Reactions; a book's nod is
+not, because the rule already reaches every book.
+_Avoid_: Custom hover, one-off animation, special case
+
+**Lean Clearance** — the air measured above a prop before a neighbour's
+geometry begins. A prop's lean is fitted into it, because the hinge pins only
+the contact edge underneath and says nothing about what is stacked on top. A
+lean with nowhere to go becomes a pull toward the viewer of the same travel,
+never silence.
+_Avoid_: Collision check, clipping fix, overlap guard
+
+**Held Pose** — the changed but static state a prop settles into and holds for
+as long as it is hovered or under Touch Focus. A Reaction Archetype may open
+with a one-shot flourish, but it always resolves to a Held Pose, so a prop that
+is still selected never looks unselected.
+_Avoid_: Hover loop, idle animation, sustained effect
+
+**Held Rate** — the Held Pose of a prop whose character is that it moves. A
+globe turning faster, a cup steaming harder, an alarm clock trembling: the
+changed state is the RATE, not a position. Parking such a prop at some angle
+would stop the one thing it does. Same contract as a Held Pose — it must still
+read as selected with no timeout.
+_Avoid_: Hover loop, idle animation (an idle runs whether or not you are there)
 
 **Traverse** — the full journey from the first Unit to the last. Desktop
 scrolling and mobile World Swipes advance it; the Traverse also advances the

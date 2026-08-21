@@ -8,6 +8,7 @@ import {
   beginGolfBallReset,
   createGolfBallState,
   launchGolfBall,
+  retargetReadyGolfBall,
   stepGolfWorld,
 } from "./golfPhysics";
 import { seededGolfRandom } from "./golfShotBag";
@@ -26,6 +27,27 @@ const flatWorld = (): GolfWorld => ({
 describe("fixed-step golf physics", () => {
   it("uses Earth gravity in metre-scaled scene units", () => {
     expect(GOLF_GRAVITY).toBe(9.81);
+  });
+
+  it("retargets a supported ball when its tee is pulled", () => {
+    const world = flatWorld();
+    const ball = createGolfBallState("one", { x: 0, y: 0.09, z: 0 });
+    const unteed = { x: 0.14, y: 0.05, z: 0 };
+
+    expect(retargetReadyGolfBall(ball, unteed)).toBe(true);
+    expect(ball.phase).toBe("fading-out");
+    for (let step = 0; step < 120 && ball.phase !== "ready"; step += 1)
+      stepGolfWorld([ball], world, 1 / 120);
+
+    expect(ball.phase).toBe("ready");
+    expect(ball.position).toEqual(unteed);
+    expect(ball.start).toEqual(unteed);
+
+    launchGolfBall(ball, { x: 1, y: 1, z: -1 }, "ordinary-green");
+    beginGolfBallReset(ball);
+    for (let step = 0; step < 120 && ball.phase !== "ready"; step += 1)
+      stepGolfWorld([ball], world, 1 / 120);
+    expect(ball.position).toEqual(unteed);
   });
 
   it("takes two visible turf bounces before settling into a roll", () => {
@@ -50,9 +72,7 @@ describe("fixed-step golf physics", () => {
         }
         previousImpacts = ball.impacts;
       }
-      expect(airborneRebounds, outcome).toBe(
-        outcome === "hole-bound" ? 1 : 2,
-      );
+      expect(airborneRebounds, outcome).toBe(outcome === "hole-bound" ? 1 : 2);
       expect(ball.phase).toBe("roll");
     }
   });

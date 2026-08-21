@@ -1,7 +1,7 @@
 import { MicrophoneStageIcon } from "@phosphor-icons/react/dist/ssr";
 import data from "public/data/speaking.json";
 
-import TalkCard, { type Talk } from "./TalkCard";
+import TalkListItem, { type Talk } from "./TalkCard";
 
 const TALKS: Talk[] = data.talks;
 
@@ -16,12 +16,11 @@ export default async function Talks() {
         Featured Talks
       </h1>
 
-      <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
+      <ul className="w-full divide-y divide-foreground/10 border-y border-foreground/10">
         {TALKS.map((talk) => (
-          <TalkCard key={talk.videoId} talk={talk} />
+          <TalkListItem key={talk.videoId} talk={talk} />
         ))}
-      </div>
-
+      </ul>
     </section>
   );
 }

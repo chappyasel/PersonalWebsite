@@ -229,3 +229,12 @@ export function closeStacksPanel() {
   s.setPanelState("closing");
   window.history.back();
 }
+
+/** Set the mobile sheet detent from controls outside PlacardLayer. Dismissing
+ * an expanded sheet must close its panel state too, or world travel stays
+ * frozen behind a sheet that is no longer visible. */
+export function setStacksSheetDismissed(dismissed: boolean) {
+  const state = useStacks.getState();
+  state.setSheetDismissed(dismissed);
+  if (dismissed) closeStacksPanel();
+}

@@ -7,13 +7,40 @@ import {
 } from "../../../../lib/books/coverEdgeColor";
 import { markBootSequenceReady, resetBootSequenceReady } from "../loading";
 import {
-  ABOUT_BOOT_COMPOSITION,
+  ABOUT_AIC_BASE_WIDTH,
+  ABOUT_AIC_MARK_HEIGHT,
+  ABOUT_AIC_MARK_WIDTH,
+  ABOUT_APPLE_BASE_WIDTH,
+  ABOUT_APPLE_MARK_HEIGHT,
+} from "../scene/aboutAwardGeometry";
+import {
+  ABOUT_BOOT_VISIBLE_COMPOSITION,
   type AboutBootLandmark,
   type AboutLandmarkGlyph,
   type AboutLandmarkId,
 } from "../scene/aboutBootComposition";
 import { ABOUT_BOOT_MODEL_SILHOUETTES } from "../scene/aboutBootSilhouettes";
 import { APPLE_OUTLINE } from "../scene/appleOutline";
+import {
+  COORDINATION_BASE_BOTTOM_RADIUS,
+  COORDINATION_BASE_HEIGHT,
+  COORDINATION_BASE_TOP_RADIUS,
+  COORDINATION_CORE_CENTER_Y,
+  COORDINATION_GLOBE_PROFILE_HEIGHT,
+  COORDINATION_HORIZON_SCALE,
+  COORDINATION_NECK_SCALE,
+  COORDINATION_NETWORK_SCALE,
+  COORDINATION_PLINTH_SCALE,
+  COORDINATION_STEM_BOTTOM_RADIUS,
+  COORDINATION_STEM_CENTER_Y,
+  COORDINATION_STEM_HEIGHT,
+  COORDINATION_STEM_TOP_RADIUS,
+} from "../scene/coordinationGlobeGeometry";
+import {
+  COORDINATION_CORE_RADIUS,
+  coordinationNodePosition,
+  createCoordinationNetwork,
+} from "../scene/coordinationNetwork";
 import {
   SHELF_GEOMETRY,
   SHELF_PLANKS,
@@ -51,6 +78,22 @@ export const BOOT_CADENCE_SETTLE_SECONDS = 0.32;
 export const BOOT_WAVE_INTRO_SECONDS = 0.36;
 export const BOOT_WAVE_DURATION_SECONDS = 3.6;
 const BOOT_WAVE_MIN_OPACITY = 0.18;
+const BOOT_AIC_SEAT_PX = 0.8;
+const BOOT_COORDINATION_NETWORK = createCoordinationNetwork();
+const BOOT_COORDINATION_POINTS = BOOT_COORDINATION_NETWORK.nodes.map((node) =>
+  coordinationNodePosition(node, 0, 0),
+);
+const BOOT_COORDINATION_DITHER_4X4 = [
+  0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5,
+] as const;
+
+/** Transcendental math can differ in its last bits across JS engines. React
+ * hydration needs the server and client SVG attribute strings to match. */
+function bootSvgNumber(value: number): string {
+  const rounded = value.toFixed(6);
+  if (rounded === "-0.000000") return "0";
+  return rounded.replace(/\.?0+$/, "");
+}
 
 export function projectSceneY(sceneY: number) {
   return -sceneY * SCENE_TO_BOOT_SVG;
@@ -148,7 +191,7 @@ export function bootItemKeyframes(
   ];
 }
 
-/** The exact contiguous window at a wave step. ABOUT_BOOT_COMPOSITION is
+/** The exact contiguous window at a wave step. The visible composition is
  * authored top-shelf left→right, then lower-shelf left→right, so incrementing
  * the step produces that same visible route. */
 export function bootWaveWindow(step: number, itemCount: number): number[] {
@@ -227,6 +270,15 @@ export function bootCssKeyframes(
   }).join("");
 }
 
+export function bootRevealComplete(
+  timelineTime: number,
+  animationTime: number,
+  revealDuration: number,
+): boolean {
+  const cssDurationMs = Number(revealDuration.toFixed(2)) * 1000;
+  return timelineTime >= cssDurationMs || animationTime >= cssDurationMs;
+}
+
 function useBootMotion(
   sceneRef: RefObject<SVGSVGElement | null>,
   cadence: ReturnType<typeof bootCadence>,
@@ -263,8 +315,11 @@ function useBootMotion(
       const observeFirstPass = () => {
         const animationTime = Number(animations[0]?.currentTime ?? 0);
         if (
-          timelineTime >= cadence.revealDuration * 1000 ||
-          animationTime >= cadence.revealDuration * 1000
+          bootRevealComplete(
+            timelineTime,
+            animationTime,
+            cadence.revealDuration,
+          )
         ) {
           markBootSequenceReady();
           return;
@@ -305,7 +360,7 @@ function useBootMotion(
   }, [cadence, sceneRef]);
 }
 
-const ABOUT_BOOT_CADENCE = bootCadence(ABOUT_BOOT_COMPOSITION.length);
+const ABOUT_BOOT_CADENCE = bootCadence(ABOUT_BOOT_VISIBLE_COMPOSITION.length);
 
 function paletteVariables(): BootStyle {
   const variables: Record<string, string> = {};
@@ -351,10 +406,6 @@ export const BOOT_FRAME_PHOTOS = {
   },
   "profile-frame": {
     src: "/images/stacks/v8/256/about-profile-full.webp",
-    preserveAspectRatio: "xMidYMid slice",
-  },
-  "collective-frame": {
-    src: "/images/stacks/v8/512/about-collective-group.webp",
     preserveAspectRatio: "xMidYMid slice",
   },
 } as const satisfies Partial<Record<AboutLandmarkId, BootFramePhoto>>;
@@ -594,29 +645,35 @@ function ModelSilhouetteGlyph({
   );
 }
 
-function CollectiveMarkGlyph({ width }: { width: number }) {
+function CollectiveMarkGlyph({ scale }: { scale: number }) {
+  const baseWidth = ABOUT_AIC_BASE_WIDTH * SCENE_TO_BOOT_SVG;
   const baseHeight = 0.024 * SCENE_TO_BOOT_SVG;
   const gap = 0.004 * SCENE_TO_BOOT_SVG;
-  const markHeight = 0.18 * SCENE_TO_BOOT_SVG;
-  const markWidth = markHeight * (700 / 844.38);
+  const markHeight = ABOUT_AIC_MARK_HEIGHT * SCENE_TO_BOOT_SVG;
+  const markWidth = ABOUT_AIC_MARK_WIDTH * SCENE_TO_BOOT_SVG;
   return (
-    <>
-      <rect
-        className="stacks-boot-mark-base"
-        x={-width / 2}
-        y={-baseHeight}
-        width={width}
-        height={baseHeight}
-        rx="1"
-      />
-      <g transform={`translate(0 ${-(baseHeight + gap)})`}>
-        <ModelSilhouetteGlyph
-          id="ai-collective"
-          width={markWidth}
-          height={markHeight}
+    <g
+      data-boot-aic-seat={BOOT_AIC_SEAT_PX}
+      transform={`translate(0 ${BOOT_AIC_SEAT_PX})`}
+    >
+      <g data-boot-aic-scale={scale} transform={`scale(${scale})`}>
+        <rect
+          className="stacks-boot-mark-base"
+          x={-baseWidth / 2}
+          y={-baseHeight}
+          width={baseWidth}
+          height={baseHeight}
+          rx="1"
         />
+        <g transform={`translate(0 ${-(baseHeight + gap)})`}>
+          <ModelSilhouetteGlyph
+            id="ai-collective"
+            width={markWidth}
+            height={markHeight}
+          />
+        </g>
       </g>
-    </>
+    </g>
   );
 }
 
@@ -654,6 +711,148 @@ function TJMedallionGlyph({
         className="stacks-boot-tj-detail"
         d={`M ${-radius * 0.46} ${centerY - radius * 0.34} L 0 ${centerY + radius * 0.52} L ${radius * 0.46} ${centerY - radius * 0.34} M ${-radius * 0.32} ${centerY - radius * 0.46} L ${radius * 0.38} ${centerY - radius * 0.32} L 0 ${centerY + radius * 0.52}`}
       />
+    </>
+  );
+}
+
+function CoordinationGlobeGlyph({ height }: { height: number }) {
+  const sceneScale =
+    height / (COORDINATION_GLOBE_PROFILE_HEIGHT * SCENE_TO_BOOT_SVG);
+  const pixels = SCENE_TO_BOOT_SVG * sceneScale;
+  const plinthPixels = pixels * COORDINATION_PLINTH_SCALE;
+  const neckPixels = pixels * COORDINATION_NECK_SCALE;
+  const baseBottomRadius = COORDINATION_BASE_BOTTOM_RADIUS * plinthPixels;
+  const baseTopRadius = COORDINATION_BASE_TOP_RADIUS * plinthPixels;
+  const baseHeight = COORDINATION_BASE_HEIGHT * plinthPixels;
+  const stemBottomRadius = COORDINATION_STEM_BOTTOM_RADIUS * neckPixels;
+  const stemTopRadius = COORDINATION_STEM_TOP_RADIUS * neckPixels;
+  const stemBottom =
+    -(COORDINATION_STEM_CENTER_Y - COORDINATION_STEM_HEIGHT / 2) * neckPixels;
+  const stemTop =
+    -(COORDINATION_STEM_CENTER_Y + COORDINATION_STEM_HEIGHT / 2) * neckPixels;
+  const globeRadius =
+    COORDINATION_CORE_RADIUS * COORDINATION_HORIZON_SCALE * pixels;
+  const centerY = -COORDINATION_CORE_CENTER_Y * pixels;
+  const point = ([x, y]: readonly [number, number, number]) =>
+    [
+      x * pixels * COORDINATION_NETWORK_SCALE,
+      centerY - y * pixels * COORDINATION_NETWORK_SCALE,
+    ] as const;
+  const edgePath = BOOT_COORDINATION_NETWORK.edges
+    .map(([from, to]) => {
+      const start = point(BOOT_COORDINATION_POINTS[from]!);
+      const end = point(BOOT_COORDINATION_POINTS[to]!);
+      return `M ${bootSvgNumber(start[0])} ${bootSvgNumber(start[1])} L ${bootSvgNumber(end[0])} ${bootSvgNumber(end[1])}`;
+    })
+    .join(" ");
+  const ditherCell = pixels * 0.0064;
+  const ditherExtent = Math.ceil((globeRadius * 1.06) / ditherCell);
+  const ditherPixels: Array<{ x: number; y: number }> = [];
+  for (let gridY = -ditherExtent; gridY <= ditherExtent; gridY += 1) {
+    for (let gridX = -ditherExtent; gridX <= ditherExtent; gridX += 1) {
+      const x = gridX * ditherCell;
+      const y = gridY * ditherCell;
+      const radius = Math.hypot(x, y) / globeRadius;
+      if (radius < 0.82 || radius > 1.06) continue;
+      const coverage = (1.06 - radius) / 0.24;
+      const bayerX = ((gridX % 4) + 4) % 4;
+      const bayerY = ((gridY % 4) + 4) % 4;
+      const threshold =
+        (BOOT_COORDINATION_DITHER_4X4[bayerY * 4 + bayerX]! + 0.5) / 16;
+      if (coverage < threshold) continue;
+      ditherPixels.push({
+        x: x - ditherCell / 2,
+        y: centerY + y - ditherCell / 2,
+      });
+    }
+  }
+  return (
+    <>
+      <polygon
+        className="stacks-boot-coordination-base"
+        points={`${-baseBottomRadius},0 ${baseBottomRadius},0 ${baseTopRadius},${-baseHeight} ${-baseTopRadius},${-baseHeight}`}
+      />
+      <polygon
+        className="stacks-boot-coordination-stem"
+        points={`${-stemBottomRadius},${stemBottom} ${stemBottomRadius},${stemBottom} ${stemTopRadius},${stemTop} ${-stemTopRadius},${stemTop}`}
+      />
+      <circle
+        className="stacks-boot-coordination-core"
+        cx="0"
+        cy={centerY}
+        r={globeRadius * 0.82}
+      />
+      <g data-dither-grid="ordered-4x4">
+        {ditherPixels.map((pixel, index) => (
+          <rect
+            className="stacks-boot-coordination-dither"
+            key={index}
+            x={pixel.x}
+            y={pixel.y}
+            width={ditherCell}
+            height={ditherCell}
+          />
+        ))}
+      </g>
+      <g className="stacks-boot-coordination-network">
+        <path
+          className="stacks-boot-coordination-link"
+          data-boot-coordination-edges={BOOT_COORDINATION_NETWORK.edges.length}
+          d={edgePath}
+        />
+        <g
+          data-boot-coordination-reveals={
+            BOOT_COORDINATION_NETWORK.longConnections.length
+          }
+        >
+          {BOOT_COORDINATION_NETWORK.longConnections.map(
+            ([from, to], index) => {
+              const start = point(BOOT_COORDINATION_POINTS[from]!);
+              const end = point(BOOT_COORDINATION_POINTS[to]!);
+              return (
+                <line
+                  className="stacks-boot-coordination-reveal"
+                  data-theme={BOOT_COORDINATION_NETWORK.nodes[from]!.theme}
+                  key={`${from}-${to}`}
+                  pathLength="1"
+                  style={
+                    {
+                      "--stacks-boot-coordination-reveal-delay": `${index * -0.6}s`,
+                    } as BootStyle
+                  }
+                  x1={bootSvgNumber(start[0])}
+                  y1={bootSvgNumber(start[1])}
+                  x2={bootSvgNumber(end[0])}
+                  y2={bootSvgNumber(end[1])}
+                />
+              );
+            },
+          )}
+        </g>
+        {BOOT_COORDINATION_NETWORK.nodes.map((node, index) => {
+          const position = BOOT_COORDINATION_POINTS[index]!;
+          const [cx, cy] = point(position);
+          const depth = Math.max(
+            0,
+            Math.min(1, 0.5 + position[2] / (COORDINATION_CORE_RADIUS * 2)),
+          );
+          const radius =
+            (0.00235 + (index % 4) * 0.00016) *
+            (0.84 + depth * 0.28) *
+            pixels *
+            COORDINATION_NETWORK_SCALE;
+          return (
+            <circle
+              className="stacks-boot-coordination-node"
+              data-theme={node.theme}
+              key={index}
+              cx={bootSvgNumber(cx)}
+              cy={bootSvgNumber(cy)}
+              r={bootSvgNumber(radius)}
+            />
+          );
+        })}
+      </g>
     </>
   );
 }
@@ -705,22 +904,27 @@ function LandmarkGlyph({
         <ModelSilhouetteGlyph id="desk-lamp" width={width} height={height} />
       );
     case "collective-mark": {
-      return <CollectiveMarkGlyph width={width} />;
+      return <CollectiveMarkGlyph scale={landmark.profile.height / 0.208} />;
+    }
+    case "coordination-globe": {
+      return <CoordinationGlobeGlyph height={height} />;
     }
     case "medallion": {
       return <TJMedallionGlyph width={width} height={height} />;
     }
     case "apple": {
+      const scale = landmark.profile.height / 0.176;
       const baseHeight = 0.021 * SCENE_TO_BOOT_SVG;
-      const markHeight = 0.15 * SCENE_TO_BOOT_SVG;
+      const baseWidth = ABOUT_APPLE_BASE_WIDTH * SCENE_TO_BOOT_SVG;
+      const markHeight = ABOUT_APPLE_MARK_HEIGHT * SCENE_TO_BOOT_SVG;
       const markBottom = 0.017 * SCENE_TO_BOOT_SVG;
       return (
-        <>
+        <g data-boot-apple-scale={scale} transform={`scale(${scale})`}>
           <rect
             className="stacks-boot-metal-fill"
-            x={-width / 2}
+            x={-baseWidth / 2}
             y={-baseHeight}
-            width={width}
+            width={baseWidth}
             height={baseHeight}
             rx="1"
           />
@@ -729,7 +933,7 @@ function LandmarkGlyph({
             data-boot-apple=""
             d={appleGlyphPath(markHeight, markBottom)}
           />
-        </>
+        </g>
       );
     }
     case "reading-stack":
@@ -759,7 +963,10 @@ export default function BootScreen({
   const resolvedReadingBookColors =
     readingBookColors ?? streamedReadingBooks?.colors ?? {};
   const cadence = ABOUT_BOOT_CADENCE;
-  const keyframes = bootCssKeyframes(ABOUT_BOOT_COMPOSITION.length, cadence);
+  const keyframes = bootCssKeyframes(
+    ABOUT_BOOT_VISIBLE_COMPOSITION.length,
+    cadence,
+  );
   const sceneRef = useRef<SVGSVGElement>(null);
   useBootMotion(sceneRef, cadence);
   const support = SHELF_GEOMETRY.support;
@@ -779,7 +986,7 @@ export default function BootScreen({
           <svg
             ref={sceneRef}
             className="stacks-boot-scene"
-            data-boot-item-count={ABOUT_BOOT_COMPOSITION.length}
+            data-boot-item-count={ABOUT_BOOT_VISIBLE_COMPOSITION.length}
             style={
               {
                 "--stacks-boot-reveal-duration": `${cadence.revealDuration.toFixed(2)}s`,
@@ -828,7 +1035,7 @@ export default function BootScreen({
               ))}
             </g>
             <g className="stacks-boot-landmarks">
-              {ABOUT_BOOT_COMPOSITION.map((landmark, index) => (
+              {ABOUT_BOOT_VISIBLE_COMPOSITION.map((landmark, index) => (
                 <g
                   className="stacks-boot-item"
                   data-landmark-id={landmark.id}

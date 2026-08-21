@@ -161,8 +161,11 @@ function tjMedallion() {
     [0, 0.202, 0],
     [Math.PI / 2, 0, 0],
   );
-  group.rotation.y = -0.16;
-  group.scale.setScalar(0.72);
+  // Match ABOUT_TJ_LIGHT_YAW and the current live scene scale. The scale is
+  // normalized by rasterize(), but retaining it here keeps this authored pose
+  // readable against UnitAbout.
+  group.rotation.y = -0.28;
+  group.scale.setScalar(0.726);
   return group;
 }
 

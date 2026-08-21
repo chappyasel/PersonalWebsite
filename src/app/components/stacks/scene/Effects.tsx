@@ -48,6 +48,10 @@ import {
   useSceneColorGradeSettings,
 } from "./sceneColorGrade";
 import { useSceneQualityControls } from "./sceneQualityController";
+import {
+  SHELF_DEPTH_OF_FIELD_FALLOFF_RANGE,
+  installShelfDepthOfFieldFocusBand,
+} from "./shelfDepthOfField";
 import { depthOfFieldTargetForUnit } from "./worldLayout";
 
 // The print grade — the last thing between ACES and the screen, and the
@@ -278,6 +282,7 @@ function LiveBokehDepthOfField({
 
   useLayoutEffect(() => {
     if (!effect.current) return;
+    installShelfDepthOfFieldFocusBand(effect.current);
     effect.current.bokehScale = bokehScale;
     effect.current.cocMaterial.focusRange = focusRange;
     effect.current.resolution.scale = resolutionScale;
@@ -388,7 +393,7 @@ export default function Effects({
     [],
   );
   return (
-    <EffectComposer multisampling={plan.multisampling}>
+    <EffectComposer multisampling={plan.multisampling} stencilBuffer>
       {plan.ambientOcclusion && (
         <N8AO
           halfRes={plan.ambientOcclusionHalfRes}
@@ -430,7 +435,9 @@ export default function Effects({
           // Golf owns a real tee-to-green action axis. Keep the static
           // focal plane (never rack focus during a shot), but broaden its
           // accepted range enough that the club and distant cup stay legible.
-          focusRange={golfFocused ? 16.5 : 2.2}
+          focusRange={
+            golfFocused ? 16.5 : SHELF_DEPTH_OF_FIELD_FALLOFF_RANGE
+          }
           bokehScale={plan.depthOfFieldBokehScale}
           resolutionScale={plan.depthOfFieldResolutionScale}
         />

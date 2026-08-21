@@ -22,6 +22,39 @@ export type ProjectedUnit = {
   maxX: number;
 };
 
+/** Conservative local-X envelope for unit virtualization. Shelf planks are
+ * only 1.32 units from center, but floor Identity Props extend farther: the
+ * Training golf club plus its complete interaction volume reaches 3.3. The
+ * extra 0.1 keeps the parent root resident until the last visible pixels leave
+ * the viewport, instead of relying on the hot/warm hysteresis to cover content
+ * that was never sampled. */
+export const UNIT_ACTIVITY_HALF_WIDTH = 3.4;
+
+export function projectUnitActivityEnvelope(
+  index: number,
+  camera: THREE.Camera,
+  projected: ProjectedUnit,
+  samples: readonly [THREE.Vector3, THREE.Vector3, THREE.Vector3],
+) {
+  const pose = unitPose(index);
+  const [center, left, right] = samples;
+  const yaw = pose.rotation[1];
+  const edgeX = Math.cos(yaw) * UNIT_ACTIVITY_HALF_WIDTH;
+  const edgeZ = -Math.sin(yaw) * UNIT_ACTIVITY_HALF_WIDTH;
+  center.set(pose.position[0], 0.4, pose.position[2]).project(camera);
+  left
+    .set(pose.position[0] - edgeX, 0.4, pose.position[2] - edgeZ)
+    .project(camera);
+  right
+    .set(pose.position[0] + edgeX, 0.4, pose.position[2] + edgeZ)
+    .project(camera);
+  projected.inDepth = [center, left, right].some(
+    (sample) => sample.z >= -1 && sample.z <= 1,
+  );
+  projected.minX = Math.min(center.x, left.x, right.x);
+  projected.maxX = Math.max(center.x, left.x, right.x);
+}
+
 export function projectedUnitIntersects(
   projected: ProjectedUnit,
   threshold: number,
@@ -209,25 +242,13 @@ class SceneUnitActivityController {
     );
 
     for (let index = 0; index < UNIT_COUNT; index += 1) {
-      const pose = unitPose(index);
-      const [center, left, right] = this.samples[index]!;
-      const yaw = pose.rotation[1];
-      const edgeX = Math.cos(yaw) * 1.9;
-      const edgeZ = -Math.sin(yaw) * 1.9;
-      center.set(pose.position[0], 0.4, pose.position[2]).project(camera);
-      left
-        .set(pose.position[0] - edgeX, 0.4, pose.position[2] - edgeZ)
-        .project(camera);
-      right
-        .set(pose.position[0] + edgeX, 0.4, pose.position[2] + edgeZ)
-        .project(camera);
       const projected = this.projected[index]!;
-      projected.inDepth =
-        (center.z >= -1 && center.z <= 1) ||
-        (left.z >= -1 && left.z <= 1) ||
-        (right.z >= -1 && right.z <= 1);
-      projected.minX = Math.min(center.x, left.x, right.x);
-      projected.maxX = Math.max(center.x, left.x, right.x);
+      projectUnitActivityEnvelope(
+        index,
+        camera,
+        projected,
+        this.samples[index]!,
+      );
 
       const resolution = resolveUnitActivityState({
         projected,

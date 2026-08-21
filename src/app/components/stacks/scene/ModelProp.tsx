@@ -22,8 +22,17 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { mergeVertices } from "three-stdlib";
 
-import { HOVER_MOTION_SCALE, LIFT_LAMBDA, TIP, hingeShift } from "./Lift";
-import { cameraFacingHoverTilt } from "./hoverTilt";
+import { HOVER_MOTION_SCALE, LIFT_LAMBDA, hingeShift } from "./Lift";
+import {
+  DESK_LAMP_HEAD_NODE,
+  DESK_LAMP_HEAD_PIVOT,
+  DESK_LAMP_MOUTH,
+  DESK_LAMP_SHADE_GLOW_NODE,
+  DESK_LAMP_SHADE_NODE,
+  DESK_LAMP_SHADE_VENT,
+  type QuaternionTuple,
+} from "./deskLampHead";
+import { cameraSideHoverTilt, cameraSideSlide } from "./hoverTilt";
 import {
   HOVER_MAX_SIZE,
   type Hinge,
@@ -39,10 +48,17 @@ import {
   findSpinAxis,
   partitionTrianglesByOctant,
 } from "./islands";
+import { LEAN_CLEARANCE_MARGIN, leanBudget } from "./leanClearance";
 import {
   filterTrianglesToHalfSpace,
   modelDetailHalfSpace,
 } from "./oneSidedDetailGeometry";
+import {
+  type ReactionArchetype,
+  archetypeFor,
+  bandMotionFor,
+  recordArchetype,
+} from "./reactionArchetype";
 import { useSceneQualityControls } from "./sceneQualityController";
 
 /** Name of the node `spinPart` isolates. Animators find it by traversing the
@@ -368,6 +384,190 @@ function splitSpinPart(root: THREE.Object3D): void {
   }
 }
 
+const DESK_LAMP_SHADE_GLOW_STOPS = [
+  [0, 0.06],
+  [0.1, 0.46],
+  [0.2, 0.84],
+  [0.29, 1],
+  [0.45, 0.8],
+  [0.62, 0.46],
+  [0.8, 0.18],
+  [0.92, 0.05],
+  [1, 0.02],
+] as const;
+
+export function deskLampShadeGlowStrength(distanceFromMouth: number) {
+  const t = THREE.MathUtils.clamp(distanceFromMouth, 0, 1);
+  for (let index = 1; index < DESK_LAMP_SHADE_GLOW_STOPS.length; index++) {
+    const left = DESK_LAMP_SHADE_GLOW_STOPS[index - 1]!;
+    const right = DESK_LAMP_SHADE_GLOW_STOPS[index]!;
+    if (t > right[0]) continue;
+    return THREE.MathUtils.lerp(
+      left[1],
+      right[1],
+      (t - left[0]) / (right[0] - left[0]),
+    );
+  }
+  return DESK_LAMP_SHADE_GLOW_STOPS.at(-1)![1];
+}
+
+/** The former shade shell carried this warm ramp in a canvas texture. Keep the
+ * same colour and alpha profile in a tiny shared data texture so the exact
+ * shade surface stays amber under the composer instead of becoming a
+ * grayscale overlay. */
+let deskLampShadeGlowTextureCache: THREE.DataTexture | null = null;
+function deskLampShadeGlowTexture() {
+  if (deskLampShadeGlowTextureCache) return deskLampShadeGlowTextureCache;
+  const width = 4;
+  const height = 128;
+  const data = new Uint8Array(width * height * 4);
+  for (let row = 0; row < height; row++) {
+    const fromMouth = row / (height - 1);
+    const alpha = Math.round(deskLampShadeGlowStrength(fromMouth) * 255);
+    for (let column = 0; column < width; column++) {
+      const offset = (row * width + column) * 4;
+      data[offset] = 255;
+      data[offset + 1] = 201;
+      data[offset + 2] = 138;
+      data[offset + 3] = alpha;
+    }
+  }
+  const texture = new THREE.DataTexture(data, width, height);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.magFilter = THREE.LinearFilter;
+  texture.minFilter = THREE.LinearFilter;
+  texture.generateMipmaps = false;
+  texture.needsUpdate = true;
+  deskLampShadeGlowTextureCache = texture;
+  return texture;
+}
+
+/** Recover the shade and bulb from the desk lamp's single source mesh, then
+ * hang them from the measured arm/shade seam. The arm remains in the rest
+ * mesh. */
+export function articulateDeskLampHead(
+  root: THREE.Object3D,
+  quaternion: QuaternionTuple,
+  shadeGlow?: { color: string; opacity: number },
+): boolean {
+  type PropMesh = THREE.Mesh<
+    THREE.BufferGeometry,
+    THREE.Material | THREE.Material[]
+  >;
+  const meshes: PropMesh[] = [];
+  root.traverse((object) => {
+    if (object instanceof THREE.Mesh) meshes.push(object as PropMesh);
+  });
+  const mesh = meshes[0];
+  if (meshes.length !== 1 || !mesh) return false;
+  const source = mesh.geometry;
+  const islands = findIslands(source);
+  const head = islands.filter(
+    (island) =>
+      island.min.y > 0.27 &&
+      (island.max.y > 0.39 || island.triangles.length > 120),
+  );
+  if (head.length !== 2) return false;
+  const shade = head.reduce((largest, island) =>
+    island.extent.lengthSq() > largest.extent.lengthSq() ? island : largest,
+  );
+  const selected = new Set(head);
+  const rest = islands
+    .filter((island) => !selected.has(island))
+    .flatMap((island) => island.triangles)
+    .sort((left, right) => left - right);
+  // The measurements are in the loaded model's root frame, while the source
+  // triangles are in the child mesh's accessor frame. desk-lamp.glb places
+  // that mesh at y=.2081 with a .2081 scale, so treating the two frames as
+  // interchangeable rotates the shade around the wrong point and leaves the
+  // separately authored emission visibly behind. Convert both the hinge and
+  // the extra rotation into mesh-local space before cutting the geometry.
+  root.updateWorldMatrix(true, true);
+  const meshToRoot = root.matrixWorld
+    .clone()
+    .invert()
+    .multiply(mesh.matrixWorld);
+  const rootToMesh = meshToRoot.clone().invert();
+  const pivot = new THREE.Vector3(...DESK_LAMP_HEAD_PIVOT).applyMatrix4(
+    rootToMesh,
+  );
+  const shadeVent = new THREE.Vector3(...DESK_LAMP_SHADE_VENT)
+    .applyMatrix4(rootToMesh)
+    .sub(pivot);
+  const shadeMouth = new THREE.Vector3(...DESK_LAMP_MOUTH)
+    .applyMatrix4(rootToMesh)
+    .sub(pivot);
+  const meshRotation = new THREE.Quaternion();
+  meshToRoot.decompose(new THREE.Vector3(), meshRotation, new THREE.Vector3());
+  const headRotation = new THREE.Quaternion(...quaternion);
+  const localRotation = meshRotation
+    .clone()
+    .invert()
+    .multiply(headRotation)
+    .multiply(meshRotation);
+  const mount = new THREE.Group();
+  mount.name = DESK_LAMP_HEAD_NODE;
+  mount.position.copy(pivot);
+  mount.quaternion.copy(localRotation);
+  for (const island of head) {
+    const geometry = extractTriangles(source, island.triangles, pivot);
+    const part = new THREE.Mesh(geometry, mesh.material);
+    part.castShadow = mesh.castShadow;
+    part.receiveShadow = mesh.receiveShadow;
+    if (island === shade) {
+      part.name = DESK_LAMP_SHADE_NODE;
+      if (shadeGlow) {
+        const glowGeometry = geometry.clone();
+        glowGeometry.userData = { ...glowGeometry.userData, owned: true };
+        const position = glowGeometry.getAttribute(
+          "position",
+        ) as THREE.BufferAttribute;
+        const uvs = new Float32Array(position.count * 2);
+        const axis = shadeMouth.clone().sub(shadeVent);
+        const axisLengthSq = axis.lengthSq();
+        const point = new THREE.Vector3();
+        for (let index = 0; index < position.count; index++) {
+          point.fromBufferAttribute(position, index);
+          const ventToPoint = point.sub(shadeVent);
+          const fromVent = THREE.MathUtils.clamp(
+            ventToPoint.dot(axis) / axisLengthSq,
+            0,
+            1,
+          );
+          const fromMouth = 1 - fromVent;
+          // A texture coordinate, rather than a vertex colour, preserves the
+          // bulb-weighted peak across the shade's long low-poly faces: the GPU
+          // interpolates v per fragment before sampling the 128-step ramp.
+          uvs[index * 2] = 0.5;
+          uvs[index * 2 + 1] = fromMouth;
+        }
+        glowGeometry.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+        const glowMaterial = new THREE.MeshBasicMaterial({
+          color: shadeGlow.color,
+          map: deskLampShadeGlowTexture(),
+          transparent: true,
+          opacity: shadeGlow.opacity,
+          blending: THREE.AdditiveBlending,
+          depthTest: true,
+          depthFunc: THREE.EqualDepth,
+          depthWrite: false,
+          toneMapped: true,
+        });
+        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+        glow.name = DESK_LAMP_SHADE_GLOW_NODE;
+        glow.castShadow = false;
+        glow.receiveShadow = false;
+        part.add(glow);
+      }
+    }
+    mount.add(part);
+  }
+  mesh.geometry = extractTriangles(source, rest);
+  mesh.add(mount);
+  mount.updateMatrixWorld(true);
+  return true;
+}
+
 /**
  * Preserve a model's rendered triangles while giving each disconnected part
  * its own mesh bound. The insect collision index is deliberately one AABB per
@@ -403,8 +603,19 @@ export function splitDisconnectedMeshIslands(root: THREE.Object3D): void {
  * line, which is why there is a rise at all. Both still sit UNDER a linked
  * prop's amplified motion on purpose — a prop that opens a page should
  * out-move one that only acknowledges you. */
-const FLOOR_LIFT = 0.022 * HOVER_MOTION_SCALE;
-const FLOOR_GROW = 1 + 0.015 * HOVER_MOTION_SCALE;
+const FLOOR_LIFT = 0.032 * HOVER_MOTION_SCALE;
+const FLOOR_GROW = 1 + 0.022 * HOVER_MOTION_SCALE;
+
+/** ADR 0020 band three. Furniture answers without displacing: it swells very
+ * slightly and, where its material is its own, brightens.
+ *
+ * Smaller than FLOOR_GROW even though these are the biggest props, because
+ * swell is proportional — 2% of a 2.4-unit grandfather clock moves its top
+ * five centimetres, where 2% of a mug moves nothing. The small props can
+ * afford a bigger number precisely because they are small. */
+const GLOW_GROW = 1 + 0.008 * HOVER_MOTION_SCALE;
+/** Added to `emissiveIntensity` at full hover, on private materials only. */
+const GLOW_EMISSIVE = 0.35;
 
 /** Twin of the helper in eggs.tsx (not exported there). */
 function reducedMotion(): boolean {
@@ -445,16 +656,22 @@ function ancestorHandlesHover(from: THREE.Object3D): boolean {
 }
 
 /** Whether a prop that asked for the floor gets it, and why not if it doesn't.
- * `size` is reported either way — it is what the dev log is for.
+ * `size` is reported either way — it is what the dev log is for, and since
+ * ADR 0020 it is also what picks the archetype.
  *
- * The size cutoff and the own-rig test both live in `interaction.ts` now, as
- * `HOVER_MAX_SIZE` and `litByOwnRig` — the floor and Lift's nod are one rule
- * about what the pointer may do to a prop, and two copies of it would drift.
- * The reasoning behind each is written out there. */
-function floorVerdict(
-  group: THREE.Object3D,
-  force: boolean,
-): { reason: string | null; size: number } {
+ * The own-rig test lives in `interaction.ts` as `litByOwnRig`. SIZE is no
+ * longer a refusal here: a prop too big to bob is furniture, and furniture now
+ * answers on the glow channel instead of being dropped from the raycast set.
+ * That change is half of "some things aren't reactive" — the couch, the floor
+ * lamp, the grandfather clock and the golf club are exactly the props a
+ * visitor points at first, and exactly the ones that used to do nothing at
+ * all. The cutoff
+ * still governs whether a prop may RISE, because a vertical bob is a thing
+ * furniture does not do; it just no longer governs whether it may ANSWER. */
+function floorVerdict(group: THREE.Object3D): {
+  reason: string | null;
+  size: number;
+} {
   // Measure before testing anything, so the dev log reports a size for every
   // prop in the world and not only the ones that survive the earlier gates —
   // the size cutoff below was chosen off exactly that census.
@@ -470,7 +687,6 @@ function floorVerdict(
   const size = Math.max(s.x, s.y, s.z);
   if (ancestorHandlesHover(group)) return { reason: "shell", size };
   if (litByOwnRig(group, box)) return { reason: "rig", size };
-  if (!force && size > HOVER_MAX_SIZE) return { reason: "furniture", size };
   return { reason: null, size };
 }
 
@@ -527,6 +743,10 @@ function HoverFloor({
    * and can measure an empty box, and a hinge edge derived from an empty box
    * is a hinge through the origin. */
   const hinge = useRef<Hinge | null | undefined>(undefined);
+  /** Signed local-Z pull that stands in for a lean the prop has no
+   * headroom for, and the damped value chasing it. See leanClearance.ts. */
+  const slideAim = useRef(0);
+  const slide = useRef(0);
   const still = useMemo(() => reducedMotion(), []);
   // Resolved once, after the tree has committed — the prop is attached and
   // measurable by then, every shell above it has its handlers, and a mounted
@@ -535,38 +755,77 @@ function HoverFloor({
   // leaves it out of the raycast set (furniture is big geometry to hit-test
   // for nothing) AND out of the bubble chain, so the shell above it is reached
   // exactly as it was before this component existed.
-  const [inert, setInert] = useState(false);
-  useEffect(() => {
-    const g = ref.current;
-    if (!g) return;
-    const { reason, size } = floorVerdict(g, force);
-    if (reason) setInert(true);
-    if (process.env.NODE_ENV === "development") {
-      console.info(
-        `[stacks] floor ${name} size=${size.toFixed(3)} → ${reason ?? "ON"}`,
-      );
-    }
-  }, [name, force]);
   // Claims the store's hover slot under the INERT prefix: the floor moves a
   // prop, it does not open anything, and a pointer finger over a prop with no
   // destination promises a click that never lands (see store.ts). The claim
   // still buys correct cursor arbitration against the props that DO open
   // something, and gives the harness something to read.
   const hoverKey = INERT_HOVER + useId();
+  const [inert, setInert] = useState(false);
+  /** The band this prop answers on, resolved from its MEASURED world size.
+   * `force` is a call site insisting on the small-prop treatment for something
+   * the tape would otherwise call furniture. */
+  const [archetype, setArchetype] = useState<ReactionArchetype>("tip");
+  /** Whether this prop may RISE, which is a stricter test than whether it may
+   * tip. See the two cutoffs in interaction.ts. */
+  const [canRise, setCanRise] = useState(true);
+  /** Materials this prop actually OWNS, collected on hover-start. Never
+   * collected across frames: `atlasOverride` rebuilds the clone on a parent
+   * re-render, and a cached list would point at freed materials — the same
+   * trap `Glint` documents in UnitProjects. */
+  const glowMaterials = useRef<THREE.MeshStandardMaterial[] | null>(null);
+  const glowLevel = useRef(0);
+  useEffect(() => {
+    const g = ref.current;
+    if (!g) return;
+    const { reason, size } = floorVerdict(g);
+    if (reason) setInert(true);
+    const resolved = archetypeFor({ size: force ? undefined : size });
+    setArchetype(resolved);
+    setCanRise(force || size <= HOVER_MAX_SIZE);
+    if (!reason) {
+      recordArchetype({
+        id: `${name}#${hoverKey}`,
+        archetype: resolved,
+        source: "floor",
+        size,
+      });
+    }
+    if (process.env.NODE_ENV === "development") {
+      console.info(
+        `[stacks] floor ${name} size=${size.toFixed(3)} → ${reason ?? resolved}`,
+      );
+    }
+  }, [name, force, hoverKey]);
   useFrame(({ camera }, delta) => {
     const g = ref.current;
     if (!g || inert) return;
-    const on = hovered.current && !still;
+    const glow = archetype === "glow";
+    // Reduced motion does not silence a prop, it moves it to the channel that
+    // does not displace anything. That is glow, so glow is the one band that
+    // still answers. See `reducedMotionArchetype`.
+    const on = hovered.current && (!still || glow);
     // Measured lazily, and only once the pointer is actually on the prop — by
     // then the GLB has certainly streamed in, and a prop nobody touches never
-    // pays for a bbox walk at all.
-    if (on && hinge.current === undefined) {
+    // pays for a bbox walk at all. Glow never tips, so it never measures.
+    if (on && !glow && hinge.current === undefined) {
       const measured = hingeFor(g, false, HOVER_MAX_SIZE);
       if (measured) hinge.current = measured.reason ? null : measured;
     }
-    const measuredHinge = hinge.current ?? null;
-    const ty = on ? lift : 0;
-    const ts = on ? grow : 1;
+    const measuredHinge = glow ? null : (hinge.current ?? null);
+    // A prop between HOVER_MAX_SIZE and TILT_MAX_SIZE may TIP but must not
+    // RISE: a nod about the edge a thing rests on is what a standing object
+    // does, while a vertical bob is not. The two cutoffs differ on purpose and
+    // the reasoning is written out in interaction.ts.
+    // Headroom gates the RISE for the same reason it gates the lean: a prop
+    // with a neighbour resting on it has nowhere to bob to. `FLAT_LIFT` has
+    // banned exactly this by hand since long before the floor existed.
+    const roomToRise =
+      (measuredHinge?.headroom ?? Number.POSITIVE_INFINITY) >
+      lift + LEAN_CLEARANCE_MARGIN;
+    const ty = on && !glow && canRise && roomToRise ? lift : 0;
+    const tSlide = on && measuredHinge ? slideAim.current : 0;
+    const ts = on ? (glow ? GLOW_GROW : grow) : 1;
     let tn = 0;
     if (on && measuredHinge) {
       camera.getWorldPosition(cameraWorld);
@@ -576,22 +835,50 @@ function HoverFloor({
         g.parent.getWorldQuaternion(parentWorld).invert();
         cameraDirection.applyQuaternion(parentWorld);
       }
-      tn = cameraFacingHoverTilt(cameraDirection, TIP);
+      // The floor rides the same band table as Grabbable, so an unshelled
+      // prop and a carryable one of the same weight answer alike.
+      const band = bandMotionFor(archetype);
+      // The hinge stops a lean going DOWN through the plank and nothing was
+      // stopping it going up into whatever is stacked on the prop. Where it
+      // does not fit, the travel is spent pulling toward the viewer instead.
+      const budget = leanBudget(
+        measuredHinge,
+        Math.sign(band.lean) *
+          cameraSideHoverTilt(cameraDirection, Math.abs(band.lean)),
+      );
+      tn = budget.lean;
+      slideAim.current = cameraSideSlide(cameraDirection, budget.slide);
     }
     const pivot = measuredHinge
       ? hingePivotForTilt(measuredHinge, tn || nod.current)
       : null;
+    // Glow is a fourth damped channel and has to be tested alongside the other
+    // three. Left out of the sum, the early return fires as soon as the SWELL
+    // lands — and the swell's travel is 0.02 where glow's is 1.0, so it always
+    // lands first — freezing the fade part-way and leaving every furniture
+    // prop permanently, faintly lit after one hover.
+    const tg = glow && on ? 1 : 0;
     if (
       Math.abs(rise.current - ty) +
         Math.abs(swell.current - ts) +
-        Math.abs(nod.current - tn) <
+        Math.abs(nod.current - tn) +
+        Math.abs(slide.current - tSlide) +
+        Math.abs(glowLevel.current - tg) <
       1e-4
     ) {
-      if (rise.current === ty && swell.current === ts && nod.current === tn)
+      if (
+        rise.current === ty &&
+        swell.current === ts &&
+        nod.current === tn &&
+        slide.current === tSlide &&
+        glowLevel.current === tg
+      )
         return; // settled
       rise.current = ty;
       swell.current = ts;
       nod.current = tn;
+      slide.current = tSlide;
+      glowLevel.current = tg;
     } else {
       rise.current = THREE.MathUtils.damp(rise.current, ty, LIFT_LAMBDA, delta);
       swell.current = THREE.MathUtils.damp(
@@ -601,6 +888,39 @@ function HoverFloor({
         delta,
       );
       nod.current = THREE.MathUtils.damp(nod.current, tn, LIFT_LAMBDA, delta);
+      slide.current = THREE.MathUtils.damp(
+        slide.current,
+        tSlide,
+        LIFT_LAMBDA,
+        delta,
+      );
+      glowLevel.current = THREE.MathUtils.damp(
+        glowLevel.current,
+        tg,
+        LIFT_LAMBDA,
+        delta,
+      );
+    }
+    // The glow channel. Emissive is written only to materials this prop owns:
+    // `atlasMaterial` hands ONE MeshStandardMaterial to every atlas prop in
+    // the scene, so brightening it would brighten the mugs, the clocks and
+    // every other prop sharing it. Props on the shared atlas therefore answer
+    // with the swell alone — see the work log, this is a known gap.
+    if (glow) {
+      if (on && !glowMaterials.current) {
+        const owned: THREE.MeshStandardMaterial[] = [];
+        g.traverse((o) => {
+          const mesh = o as THREE.Mesh;
+          const mat = mesh.material as THREE.MeshStandardMaterial | undefined;
+          if (!mat?.isMeshStandardMaterial) return;
+          if ((mat.userData as { shared?: boolean }).shared === true) return;
+          owned.push(mat);
+        });
+        glowMaterials.current = owned;
+      }
+      for (const mat of glowMaterials.current ?? [])
+        mat.emissiveIntensity = 1 + GLOW_EMISSIVE * glowLevel.current;
+      if (!on && glowLevel.current === 0) glowMaterials.current = null;
     }
     const base = g.children[0]?.position;
     const k = 1 - swell.current;
@@ -609,7 +929,7 @@ function HoverFloor({
     g.position.set(
       base ? base.x * k : 0,
       (base ? base.y * k : 0) + rise.current,
-      base ? base.z * k : 0,
+      (base ? base.z * k : 0) + slide.current,
     );
     // The hinge compensation, on top of the swell's own. Taken from the
     // rotation the group HAS this frame, not the one it is easing toward, so
@@ -653,6 +973,9 @@ export default function ModelProp({
   atlasOverride,
   smoothNormals,
   spinPart,
+  deskLampHeadQuaternion,
+  deskLampShadeGlowColor,
+  deskLampShadeGlowOpacity,
   hover = true,
   position,
   rotation,
@@ -692,6 +1015,13 @@ export default function ModelProp({
    * the memo deps below, and an object here would rebuild the model on every
    * parent render. */
   spinPart?: "sphere";
+  /** Isolate the desk-lamp shade and bulb at their measured arm/shade hinge,
+   * then apply this fixed local articulation without moving its base or arms. */
+  deskLampHeadQuaternion?: QuaternionTuple;
+  /** Exact-surface additive treatment for desk-lamp fabric. Both values must
+   * be present; other models and unlit lamp uses create no extra mesh. */
+  deskLampShadeGlowColor?: string;
+  deskLampShadeGlowOpacity?: number;
   /** Universal interaction floor, ON by default: a small prop with no other
    * answer still rises a little under the pointer.
    *
@@ -819,6 +1149,27 @@ export default function ModelProp({
     if (url === SAILBOAT_URL || url === BARBELL_URL)
       splitDisconnectedMeshIslands(clone);
     if (spinPart === "sphere") splitSpinPart(clone);
+    const deskLampHead =
+      deskLampHeadQuaternion ??
+      (url === "/models/desk-lamp.glb" ? ([0, 0, 0, 1] as const) : undefined);
+    if (
+      deskLampHead &&
+      !articulateDeskLampHead(
+        clone,
+        deskLampHead,
+        deskLampShadeGlowColor !== undefined &&
+          deskLampShadeGlowOpacity !== undefined
+          ? {
+              color: deskLampShadeGlowColor,
+              opacity: deskLampShadeGlowOpacity,
+            }
+          : undefined,
+      ) &&
+      process.env.NODE_ENV === "development"
+    )
+      console.error(
+        "[stacks] desk lamp head: expected the measured shade and bulb islands; model left whole.",
+      );
     if (smoothNormals) {
       clone.traverse((o) => {
         if (!(o instanceof THREE.Mesh)) return;
@@ -857,6 +1208,9 @@ export default function ModelProp({
     atlasOverride,
     smoothNormals,
     spinPart,
+    deskLampHeadQuaternion,
+    deskLampShadeGlowColor,
+    deskLampShadeGlowOpacity,
   ]);
 
   // GLTF nodes do not inherit the castShadow flags used by the hand-authored
@@ -927,7 +1281,8 @@ export default function ModelProp({
   // in here because the two motions fight: the wrapper would carry the stand
   // up with the ball, and the whole point of splitSpinPart is that the stand
   // holds still.
-  if (hover === false || claimed || spinPart) return model;
+  if (hover === false || claimed || spinPart || deskLampHeadQuaternion)
+    return model;
   const tune = hover === true ? null : hover;
   return (
     <HoverFloor

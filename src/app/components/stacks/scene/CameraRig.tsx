@@ -9,6 +9,8 @@ import {
   golfFocusedForScenePosition,
   initialScenePositionFromLocation,
 } from "../data";
+import { browserStorage } from "../mobile/liveness";
+import { presentationProfileForViewport } from "../mobile/presentation";
 import {
   INERT_HOVER,
   panelCoverageRef,
@@ -19,7 +21,7 @@ import {
 } from "../store";
 import { useScroll } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import * as THREE from "three";
 
 import {
@@ -30,9 +32,15 @@ import {
   cameraTravelState,
   cameraTravelTransition,
   clampCameraZoom,
+  interactionFocusYOffset,
   interactionZoomTarget,
   isGolfControlInteraction,
 } from "./cameraZoom";
+import {
+  freeRoamDiagnosticsController,
+  readFreeRoamPose,
+  writeFreeRoamPose,
+} from "./freeRoamDiagnostics";
 import {
   cursorForInteraction,
   getSceneInteraction,
@@ -105,6 +113,11 @@ const LOOK_X_LAMBDA = lambdaAt60Hz(0.045);
 const LOOK_Y_LAMBDA = lambdaAt60Hz(0.05);
 const FRAMING_LAMBDA = lambdaAt60Hz(0.12);
 const SEAT_POINTER_LAMBDA = 5.5;
+
+const FREE_ROAM_SPEED = 4;
+const FREE_ROAM_LOOK_SENSITIVITY = 0.0018;
+const FREE_ROAM_LOOK_LAMBDA = 18;
+const FREE_ROAM_MAX_PITCH = Math.PI / 2 - 0.01;
 
 const smoothstep = (x: number) => {
   const t = x < 0 ? 0 : x > 1 ? 1 : x;
@@ -191,8 +204,30 @@ export default function CameraRig() {
   const qApproach = useRef(new THREE.Quaternion());
   const qSeat = useRef(new THREE.Quaternion());
   const qMix = useRef(new THREE.Quaternion());
+  const freeRoamEuler = useRef(new THREE.Euler(0, 0, 0, "YXZ"));
+  const freeRoamTargetEuler = useRef(new THREE.Euler(0, 0, 0, "YXZ"));
+  const freeRoamKeys = useRef(new Set<string>());
+  const freeRoamMove = useRef(new THREE.Vector3());
+  const freeRoamForward = useRef(new THREE.Vector3());
+  const freeRoamRight = useRef(new THREE.Vector3());
+  const wasFreeRoaming = useRef(false);
+  const freeRoamLastPoseWrite = useRef(0);
   const size = useThree((s) => s.size);
   const camera = useThree((s) => s.camera);
+  const gl = useThree((s) => s.gl);
+  const freeRoam = useSyncExternalStore(
+    freeRoamDiagnosticsController.subscribe,
+    freeRoamDiagnosticsController.getSnapshot,
+    freeRoamDiagnosticsController.getSnapshot,
+  );
+  const freeRoamEnabled = freeRoam.enabled;
+  const freeRoamStorage = useMemo(
+    () =>
+      process.env.NODE_ENV === "development"
+        ? browserStorage("localStorage")
+        : null,
+    [],
+  );
   const pose = useMemo(
     () => cameraForAspect(size.width / size.height),
     [size.width, size.height],
@@ -384,7 +419,176 @@ export default function CameraRig() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scroll.el]);
 
+  useEffect(() => {
+    if (!freeRoamEnabled) {
+      freeRoamKeys.current.clear();
+      if (document.pointerLockElement === gl.domElement) {
+        document.exitPointerLock();
+      }
+      return;
+    }
+
+    const canvas = gl.domElement;
+    const scrollElement = scroll.el;
+    const movementCodes = new Set([
+      "KeyW",
+      "KeyA",
+      "KeyS",
+      "KeyD",
+      "KeyQ",
+      "KeyE",
+      "ShiftLeft",
+      "ShiftRight",
+    ]);
+    const pointerIsLocked = () => document.pointerLockElement === canvas;
+    const persistPose = () => {
+      if (!wasFreeRoaming.current) return;
+      writeFreeRoamPose(freeRoamStorage, {
+        position: [camera.position.x, camera.position.y, camera.position.z],
+        rotation: [
+          freeRoamEuler.current.x,
+          freeRoamEuler.current.y,
+          freeRoamEuler.current.z,
+        ],
+      });
+    };
+    const clearKeys = () => freeRoamKeys.current.clear();
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.button !== 0 || pointerIsLocked()) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      void canvas.requestPointerLock();
+    };
+    const onMouseMove = (event: MouseEvent) => {
+      if (!pointerIsLocked()) return;
+      freeRoamTargetEuler.current.y -=
+        event.movementX * FREE_ROAM_LOOK_SENSITIVITY;
+      freeRoamTargetEuler.current.x = THREE.MathUtils.clamp(
+        freeRoamTargetEuler.current.x -
+          event.movementY * FREE_ROAM_LOOK_SENSITIVITY,
+        -FREE_ROAM_MAX_PITCH,
+        FREE_ROAM_MAX_PITCH,
+      );
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!pointerIsLocked() || !movementCodes.has(event.code)) return;
+      event.preventDefault();
+      freeRoamKeys.current.add(event.code);
+    };
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (!movementCodes.has(event.code)) return;
+      freeRoamKeys.current.delete(event.code);
+    };
+    const onWheel = (event: WheelEvent) => {
+      if (!pointerIsLocked()) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+
+    scrollElement.addEventListener("pointerdown", onPointerDown, true);
+    scrollElement.addEventListener("wheel", onWheel, {
+      capture: true,
+      passive: false,
+    });
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("pointerlockchange", clearKeys);
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", clearKeys);
+    window.addEventListener("pagehide", persistPose);
+
+    return () => {
+      scrollElement.removeEventListener("pointerdown", onPointerDown, true);
+      scrollElement.removeEventListener("wheel", onWheel, true);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("pointerlockchange", clearKeys);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", clearKeys);
+      window.removeEventListener("pagehide", persistPose);
+      persistPose();
+      clearKeys();
+      if (pointerIsLocked()) document.exitPointerLock();
+    };
+  }, [camera, freeRoamEnabled, freeRoamStorage, gl.domElement, scroll.el]);
+
   useFrame(({ camera, pointer, clock }, delta) => {
+    if (freeRoamEnabled) {
+      if (!wasFreeRoaming.current) {
+        const storedPose = freeRoam.startFromCurrentPose
+          ? null
+          : readFreeRoamPose(freeRoamStorage);
+        if (storedPose) {
+          camera.position.fromArray(storedPose.position);
+          freeRoamEuler.current.set(...storedPose.rotation, "YXZ");
+          camera.rotation.copy(freeRoamEuler.current);
+        } else {
+          freeRoamEuler.current.setFromQuaternion(camera.quaternion, "YXZ");
+        }
+        freeRoamTargetEuler.current.copy(freeRoamEuler.current);
+        (camera as THREE.PerspectiveCamera).clearViewOffset();
+        wasFreeRoaming.current = true;
+        freeRoamLastPoseWrite.current = clock.elapsedTime;
+      }
+
+      const dt = Math.min(delta, 0.05);
+      freeRoamEuler.current.x = THREE.MathUtils.damp(
+        freeRoamEuler.current.x,
+        freeRoamTargetEuler.current.x,
+        FREE_ROAM_LOOK_LAMBDA,
+        dt,
+      );
+      freeRoamEuler.current.y = THREE.MathUtils.damp(
+        freeRoamEuler.current.y,
+        freeRoamTargetEuler.current.y,
+        FREE_ROAM_LOOK_LAMBDA,
+        dt,
+      );
+      camera.rotation.set(
+        freeRoamEuler.current.x,
+        freeRoamEuler.current.y,
+        0,
+        "YXZ",
+      );
+      if (document.pointerLockElement === gl.domElement) {
+        const keys = freeRoamKeys.current;
+        const forwardAmount =
+          Number(keys.has("KeyW")) - Number(keys.has("KeyS"));
+        const rightAmount = Number(keys.has("KeyD")) - Number(keys.has("KeyA"));
+        const verticalAmount =
+          Number(keys.has("KeyE")) - Number(keys.has("KeyQ"));
+        const speedMultiplier =
+          keys.has("ShiftLeft") || keys.has("ShiftRight") ? 1 / 3 : 1;
+        freeRoamForward.current
+          .set(0, 0, -1)
+          .applyQuaternion(camera.quaternion);
+        freeRoamRight.current.set(1, 0, 0).applyQuaternion(camera.quaternion);
+        freeRoamMove.current
+          .set(0, verticalAmount, 0)
+          .addScaledVector(freeRoamForward.current, forwardAmount)
+          .addScaledVector(freeRoamRight.current, rightAmount);
+        if (freeRoamMove.current.lengthSq() > 0) {
+          camera.position.addScaledVector(
+            freeRoamMove.current.normalize(),
+            FREE_ROAM_SPEED * speedMultiplier * dt,
+          );
+        }
+      }
+      if (clock.elapsedTime - freeRoamLastPoseWrite.current >= 0.25) {
+        freeRoamLastPoseWrite.current = clock.elapsedTime;
+        writeFreeRoamPose(freeRoamStorage, {
+          position: [camera.position.x, camera.position.y, camera.position.z],
+          rotation: [
+            freeRoamEuler.current.x,
+            freeRoamEuler.current.y,
+            freeRoamEuler.current.z,
+          ],
+        });
+      }
+      return;
+    }
+    wasFreeRoaming.current = false;
+
     // Drei installs its horizontal listener over multiple effects and ignores
     // the first native scroll event. On a narrow/touch viewport its event
     // connection is not observable through the same object identity as on
@@ -484,19 +688,33 @@ export default function CameraRig() {
     let desiredFocusY = 0;
     if (focusEnabled && focusSpec) {
       focusSpec.root.updateWorldMatrix(true, true);
-      focusBounds.current.setFromObject(focusSpec.root, true);
-      if (!focusBounds.current.isEmpty()) {
-        focusBounds.current.getCenter(focusCenter.current);
+      const authoredBounds = focusSpec.projectedLocalBounds;
+      if (authoredBounds) {
+        focusCenter.current
+          .set(
+            (authoredBounds.min[0] + authoredBounds.max[0]) * 0.5,
+            (authoredBounds.min[1] + authoredBounds.max[1]) * 0.5,
+            (authoredBounds.min[2] + authoredBounds.max[2]) * 0.5,
+          )
+          .applyMatrix4(focusSpec.root.matrixWorld);
+      } else {
+        focusBounds.current.setFromObject(focusSpec.root, true);
+        if (!focusBounds.current.isEmpty())
+          focusBounds.current.getCenter(focusCenter.current);
+      }
+      if (authoredBounds || !focusBounds.current.isEmpty()) {
         desiredFocusX = THREE.MathUtils.clamp(
           focusCenter.current.x - (targetX + composition.lookXOffset),
           -0.28,
           0.28,
         );
-        desiredFocusY = THREE.MathUtils.clamp(
-          focusCenter.current.y - lookY,
-          -0.12,
-          0.12,
-        );
+        desiredFocusY = interactionFocusYOffset({
+          centerY: focusCenter.current.y,
+          baselineLookY: lookY,
+          portrait:
+            presentationProfileForViewport(size.width, size.height) ===
+            "portrait",
+        });
       }
     }
     focusAmount.current = THREE.MathUtils.damp(

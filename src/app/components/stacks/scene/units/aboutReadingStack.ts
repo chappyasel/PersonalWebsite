@@ -57,8 +57,10 @@ export function readingBookAtAuthoredPose(
 export const ABOUT_SMALL_PLANT_X = ABOUT_BOOT_LANDMARKS.succulent.x;
 /** Measured GLB width 1.4887 × authored 0.18 scale ÷ 2, rounded outward. */
 export const ABOUT_SMALL_PLANT_ENVELOPE = 0.135;
-export const ABOUT_LOWER_PHOTO_X = ABOUT_BOOT_LANDMARKS["collective-frame"].x;
-export const ABOUT_LOWER_PHOTO_LEFT = ABOUT_LOWER_PHOTO_X - 0.3072 / 2;
+export const ABOUT_TOP_COLLECTIVE_PHOTO_X =
+  ABOUT_BOOT_LANDMARKS["collective-frame"].x;
+export const ABOUT_TOP_COLLECTIVE_PHOTO_LEFT =
+  ABOUT_TOP_COLLECTIVE_PHOTO_X - 0.3072 / 2;
 
 export const CURRENT_READING_ROTATION: [number, number, number] = [
   Math.PI / 2,
@@ -66,9 +68,9 @@ export const CURRENT_READING_ROTATION: [number, number, number] = [
   (Math.PI * 2) / 9,
 ];
 export const CURRENT_READING_BASE: [number, number, number] = [
-  ABOUT_BOOT_LANDMARKS["reading-stack"].x - 0.18,
+  ABOUT_BOOT_LANDMARKS["reading-stack"].x - 0.21,
   ABOUT_READING_BOOK.depth / 2,
-  0.035,
+  -0.155,
 ];
 
 /** Matches Three's default intrinsic XYZ Euler matrix. */
@@ -116,9 +118,9 @@ export function readingStackPoses(): [
   return ([0, 1, 2] as const).map((index) => ({
     index,
     base: [
-      CURRENT_READING_BASE[0] + index * 0.18,
+      CURRENT_READING_BASE[0] + index * 0.21,
       CURRENT_READING_BASE[1],
-      CURRENT_READING_BASE[2] + index * 0.058,
+      CURRENT_READING_BASE[2] + index * 0.075,
     ],
     rotation: [...CURRENT_READING_ROTATION],
   })) as [ReadingBookPose, ReadingBookPose, ReadingBookPose];
@@ -269,9 +271,9 @@ export function aboutReadingSnapshot() {
     contactError: {
       shelf: Math.max(...contacts.map((point) => Math.abs(point[1]))),
     },
-    lowerPhoto: {
-      x: ABOUT_LOWER_PHOTO_X,
-      right: ABOUT_LOWER_PHOTO_X + 0.3072 / 2,
+    topCollectivePhoto: {
+      x: ABOUT_TOP_COLLECTIVE_PHOTO_X,
+      right: ABOUT_TOP_COLLECTIVE_PHOTO_X + 0.3072 / 2,
     },
   };
 }

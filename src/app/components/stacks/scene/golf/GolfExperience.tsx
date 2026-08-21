@@ -29,13 +29,20 @@ import React, {
 } from "react";
 import * as THREE from "three";
 
-import { golfClubHintRotation, golfClubPose } from "./golfClubRig";
+import {
+  golfClubHintRotation,
+  golfClubIdleBlend,
+  golfClubPointerFollowRequested,
+  golfClubPose,
+} from "./golfClubRig";
 import { GOLF_CUP, GOLF_FLAG_LOCAL, golfSurfaceAt } from "./golfCourse";
 import {
   GOLF_BALL_IDS,
   GOLF_BALL_STARTS,
+  GOLF_BALL_UNTEED_START,
   GOLF_CLUB_GRIP_HEIGHT,
   GOLF_CLUB_MODEL_YAW,
+  GOLF_CLUB_PROJECTED_LOCAL_BOUNDS,
   GOLF_CLUB_REST_BASE,
   GOLF_CLUB_SCALE,
 } from "./golfLayout";
@@ -45,6 +52,7 @@ import {
   type GolfWorld,
   createGolfBallState,
   launchGolfBall,
+  retargetReadyGolfBall,
   stepGolfWorld,
 } from "./golfPhysics";
 import {
@@ -221,7 +229,10 @@ export default function GolfExperience({
   palette,
   dark,
   index,
-}: Pick<UnitProps, "palette" | "dark" | "index">) {
+  plantedTeeRemoved = false,
+}: Pick<UnitProps, "palette" | "dark" | "index"> & {
+  plantedTeeRemoved?: boolean;
+}) {
   const gl = useThree((state) => state.gl);
   const pose = unitPose(index);
   const yaw = pose.rotation[1];
@@ -258,6 +269,12 @@ export default function GolfExperience({
   const balls = useRef<GolfBallState[]>(
     GOLF_BALL_IDS.map((id) => createGolfBallState(id, GOLF_BALL_STARTS[id])),
   );
+  useEffect(() => {
+    if (!plantedTeeRemoved) return;
+    const supportedBall = balls.current.find((ball) => ball.id === "one");
+    if (supportedBall)
+      retargetReadyGolfBall(supportedBall, GOLF_BALL_UNTEED_START);
+  }, [plantedTeeRemoved]);
   const ballTrails = useRef(
     Object.fromEntries(
       GOLF_BALL_IDS.map((id) => [
@@ -304,6 +321,8 @@ export default function GolfExperience({
   const club = useRef<THREE.Group>(null);
   const clubVisual = useRef<THREE.Group>(null);
   const clubHint = useRef(0);
+  const clubPointer = useRef(new THREE.Vector2());
+  const clubPointerTarget = useRef(new THREE.Vector2());
   const stepper = useRef(new GolfFixedStepper());
   const queue = useRef(new GolfStrikeQueue());
   const bag = useRef(
@@ -318,6 +337,34 @@ export default function GolfExperience({
   const [confettiActive, setConfettiActive] = useState(false);
   const labelTimer = useRef(0);
   const confettiTimer = useRef(0);
+
+  useEffect(() => {
+    const trackPointer = (event: PointerEvent) => {
+      if (event.pointerType === "touch") return;
+      const rect = gl.domElement.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+      clubPointerTarget.current.set(
+        THREE.MathUtils.clamp(
+          ((event.clientX - rect.left) / rect.width) * 2 - 1,
+          -1,
+          1,
+        ),
+        THREE.MathUtils.clamp(
+          -((event.clientY - rect.top) / rect.height) * 2 + 1,
+          -1,
+          1,
+        ),
+      );
+    };
+    window.addEventListener("pointermove", trackPointer, {
+      capture: true,
+      passive: true,
+    });
+    return () =>
+      window.removeEventListener("pointermove", trackPointer, {
+        capture: true,
+      });
+  }, [gl]);
 
   const surfaceAt = useCallback(
     (x: number, z: number) => {
@@ -458,10 +505,7 @@ export default function GolfExperience({
           activeUnits: [index],
           touchPriority: 30,
           activateOnFirstTouch: true,
-          projectedLocalBounds: {
-            min: [-0.34, -GOLF_CLUB_GRIP_HEIGHT - 0.18, -0.34],
-            max: [0.4, 0.25, 0.4],
-          },
+          projectedLocalBounds: GOLF_CLUB_PROJECTED_LOCAL_BOUNDS,
           activation: {
             kind: "action",
             label: "Swing golf club",
@@ -551,17 +595,26 @@ export default function GolfExperience({
     const stacks = useStacks.getState();
     const active = stacks.golfFocused;
     const pendingStrike = queue.current.snapshot();
-    const hintedInteraction = stacks.focusedInteraction ?? stacks.hovered ?? "";
-    const hintRequested =
-      active &&
-      (hintedInteraction.startsWith("golf-club:") ||
-        hintedInteraction.startsWith("golf-ball:")) &&
-      pendingStrike.current === null &&
-      pendingStrike.queued.length === 0;
+    const followRequested = golfClubPointerFollowRequested(
+      active,
+      pendingStrike,
+    );
     clubHint.current = THREE.MathUtils.damp(
       clubHint.current,
-      hintRequested ? 1 : 0,
+      followRequested ? 1 : 0,
       10,
+      Math.min(delta, 0.05),
+    );
+    clubPointer.current.x = THREE.MathUtils.damp(
+      clubPointer.current.x,
+      followRequested ? clubPointerTarget.current.x : 0,
+      8,
+      Math.min(delta, 0.05),
+    );
+    clubPointer.current.y = THREE.MathUtils.damp(
+      clubPointer.current.y,
+      followRequested ? clubPointerTarget.current.y : 0,
+      8,
       Math.min(delta, 0.05),
     );
     if (shouldAdvanceGolfStrike(active, pendingStrike)) {
@@ -621,13 +674,13 @@ export default function GolfExperience({
         cup,
         !motion.clubSwing,
       );
-      if (
-        club.current &&
-        !strike.current &&
-        strike.queued.length === 0 &&
-        motion.clubSwing
-      ) {
-        const hint = golfClubHintRotation(clubHint.current);
+      const idleBlend = golfClubIdleBlend(strike);
+      if (club.current && idleBlend > 0 && motion.clubSwing) {
+        const hint = golfClubHintRotation(
+          clubHint.current * idleBlend,
+          clubPointer.current.x,
+          clubPointer.current.y,
+        );
         club.current.rotation.x += hint.x;
         club.current.rotation.y += hint.y;
         club.current.rotation.z += hint.z;

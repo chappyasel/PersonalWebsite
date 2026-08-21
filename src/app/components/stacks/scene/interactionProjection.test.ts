@@ -4,9 +4,15 @@ import {
   Mesh,
   MeshBasicMaterial,
   PerspectiveCamera,
+  SphereGeometry,
+  Vector3,
 } from "three";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
+import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { meshBoxInLocal } from "./interaction";
 import {
   activationAtPointer,
   doorAtPointer,
@@ -66,6 +72,67 @@ describe("scene interaction projection", () => {
     expect(projected!.y).toBeLessThan(50);
     expect(projected!.behind).toBe(false);
     release();
+  });
+
+  it("uses authored projection bounds instead of a wide-line shader quad", () => {
+    const camera = new PerspectiveCamera(50, 1, 0.1, 100);
+    camera.position.z = 5;
+    camera.lookAt(0, 0, 0);
+    camera.updateMatrixWorld(true);
+    setInteractionProjectionContext(camera, {
+      getBoundingClientRect: () => rect,
+    } as HTMLElement);
+
+    const root = new Group();
+    root.add(
+      new Mesh(new SphereGeometry(0.1), new MeshBasicMaterial()).translateY(
+        0.15,
+      ),
+    );
+    const lineGeometry = new LineSegmentsGeometry();
+    lineGeometry.setPositions([-0.05, 0.15, 0, 0.05, 0.15, 0]);
+    root.add(new LineSegments2(lineGeometry, new LineMaterial()));
+    const release = registerSceneInteraction({
+      id: "test:wide-line-door",
+      root,
+      activeUnits: [0],
+      projectedLocalBounds: {
+        min: [-0.1, 0.05, -0.1],
+        max: [0.1, 0.25, 0.1],
+      },
+      activation: {
+        kind: "action",
+        label: "Open wide-line prop",
+        run: () => undefined,
+      },
+    });
+
+    const projected = projectDoor("test:wide-line-door");
+    release();
+    lineGeometry.dispose();
+    expect(projected).not.toBeNull();
+    expect(projected!.y).toBeGreaterThan(40);
+    expect(projected!.y).toBeLessThan(50);
+  });
+
+  it("keeps shader-line helpers out of hover hinge measurements", () => {
+    const root = new Group();
+    root.add(
+      new Mesh(new SphereGeometry(0.1), new MeshBasicMaterial()).translateY(
+        0.15,
+      ),
+    );
+    const lineGeometry = new LineSegmentsGeometry();
+    lineGeometry.setPositions([-0.05, 0.15, 0, 0.05, 0.15, 0]);
+    const line = new LineSegments2(lineGeometry, new LineMaterial());
+    line.userData.physicsIgnore = true;
+    root.add(line);
+
+    const measured = meshBoxInLocal(root);
+    lineGeometry.dispose();
+
+    expect(measured).not.toBeNull();
+    expect(measured!.getSize(new Vector3()).y).toBeLessThan(0.25);
   });
 
   it("lets the nearest registered non-Door occlude a Door on touch", () => {

@@ -9,6 +9,7 @@ import {
   shouldHandleWorldNavigationKey,
   shouldMirrorWorldHistory,
   worldNavigationStep,
+  worldPanDirection,
 } from "./ScrollBridges";
 
 describe("ScrollBridges interaction ownership", () => {
@@ -61,6 +62,16 @@ describe("ScrollBridges interaction ownership", () => {
     expect(worldNavigationStep("ArrowLeft")).toBe(-1);
     expect(worldNavigationStep("ArrowUp")).toBe(-1);
     expect(worldNavigationStep("Enter")).toBeNull();
+  });
+
+  it("maps A/D to continuous horizontal panning without changing arrow jumps", () => {
+    expect(worldPanDirection("a")).toBe(-1);
+    expect(worldPanDirection("A")).toBe(-1);
+    expect(worldPanDirection("d")).toBe(1);
+    expect(worldPanDirection("D")).toBe(1);
+    expect(worldPanDirection("ArrowRight")).toBeNull();
+    expect(worldNavigationStep("a")).toBeNull();
+    expect(worldNavigationStep("d")).toBeNull();
   });
 
   it("leaves browser zoom gestures and focused controls alone", () => {

@@ -20,9 +20,18 @@ import { progressRef, touchWorldRef } from "../store";
 import { PALETTES } from "../theme";
 import { useGLTF, useTexture } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  type MutableRefObject,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import * as THREE from "three";
 
+import { freeRoamDiagnosticsController } from "./freeRoamDiagnostics";
 import {
   GOLF_COURSE_CENTER,
   GOLF_CUP,
@@ -249,6 +258,10 @@ const SHARED_UNIFORMS_GLSL = /* glsl */ `
   uniform float uSeat;
   uniform float uWindAmp;
   uniform float uWindSpeed;
+  uniform float uFogEnabled;
+  #ifdef COORDINATION_ENVIRONMENT_FLICKER
+    uniform float uEnvironmentFlicker;
+  #endif
   uniform vec3 uShadowL;
   uniform vec3 uShadowD;
   uniform vec3 uDcWaterL;
@@ -447,7 +460,7 @@ export const meadowGrassVertexShader = (deformation: boolean) => /* glsl */ `
     #endif
     vCloud = cloudAt(origin.xz);
     vUv = uv;
-    vFog = fogAmount(${GRASS_FOG}, world.xyz, -mv.z);
+    vFog = fogAmount(${GRASS_FOG}, world.xyz, -mv.z) * uFogEnabled;
     vFogColor = domeBelow(world.xyz);
     gl_Position = projectionMatrix * mv;
   }
@@ -518,6 +531,9 @@ const GRASS_FRAGMENT = /* glsl */ `
     // compounds under bloom, so the peak stays modest.
     col += ${LAMP_WARM} * vLamp * (0.3 + 0.7 * vT) * mix(0.10, 0.30, uDark);
     col = mix(col, vFogColor, vFog);
+    #ifdef COORDINATION_ENVIRONMENT_FLICKER
+      col *= uEnvironmentFlicker;
+    #endif
     gl_FragColor = vec4(col, 1.0);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
@@ -553,7 +569,7 @@ const TERRAIN_VERTEX = /* glsl */ `
     vDepth = -mv.z;
     vLamp = lampPool(position);
     vCloud = cloudAt(position.xz);
-    vFog = fogAmount(${TERRAIN_FOG}, position, -mv.z);
+    vFog = fogAmount(${TERRAIN_FOG}, position, -mv.z) * uFogEnabled;
     vFogColor = domeBelow(position);
     #ifdef CINEMATIC_PLUS_SHADOWS
       vec3 transformedNormal = normalize(normalMatrix * normal);
@@ -667,6 +683,9 @@ const TERRAIN_FRAGMENT = /* glsl */ `
       min(col, ${golfRgbGlsl(GOLF_DARK_GREEN_FINAL_CEILING)}),
       greenMask * uDark
     );
+    #ifdef COORDINATION_ENVIRONMENT_FLICKER
+      col *= uEnvironmentFlicker;
+    #endif
     gl_FragColor = vec4(col, 1.0);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
@@ -793,7 +812,7 @@ const FLOWER_VERTEX = /* glsl */ `
     // meant to find, and at full fog the hill drifts vanished entirely
     // (round 3). They never reach the terrain borders (clipped rectangle,
     // z ≥ −22.8), so the under-fogging cannot expose an edge.
-    vFog = fogAmount(${GRASS_FOG}, world.xyz, -mv.z) * 0.75;
+    vFog = fogAmount(${GRASS_FOG}, world.xyz, -mv.z) * 0.75 * uFogEnabled;
     vFogColor = domeBelow(world.xyz);
     gl_Position = projectionMatrix * mv;
   }
@@ -802,6 +821,10 @@ const FLOWER_VERTEX = /* glsl */ `
 const FLOWER_FRAGMENT = /* glsl */ `
   uniform float uDark;
   uniform float uSeat;
+  uniform float uFogEnabled;
+  #ifdef COORDINATION_ENVIRONMENT_FLICKER
+    uniform float uEnvironmentFlicker;
+  #endif
   uniform vec3 uFlowerA;
   uniform vec3 uFlowerB;
   uniform vec3 uFlowerC;
@@ -878,7 +901,10 @@ const FLOWER_FRAGMENT = /* glsl */ `
     vec3 stamen = mix(vec3(0.96, 0.80, 0.34), vec3(0.38, 0.37, 0.32), uDark * 0.94);
     col = mix(col, stamen, (1.0 - smoothstep(0.14, 0.30, r)) * shape);
     col += ${LAMP_WARM} * vLamp * mix(0.06, 0.20, uDark);
-    col = mix(col, vFogColor, max(vFog, vClamp * 0.85));
+    col = mix(col, vFogColor, max(vFog, vClamp * 0.85) * uFogEnabled);
+    #ifdef COORDINATION_ENVIRONMENT_FLICKER
+      col *= uEnvironmentFlicker;
+    #endif
     gl_FragColor = vec4(col, 1.0);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
@@ -1042,6 +1068,7 @@ export default function Meadow({
   farGrassShader = "simplified",
   grassDeformation = "off",
   contentTier = "full",
+  environmentFlickerSignal = null,
 }: {
   dark: boolean;
   /** Quality rung (3 = full). Maps 1:1 onto MEADOW_RUNG_* counts; the
@@ -1056,9 +1083,16 @@ export default function Meadow({
   /** Content axis. Moves tuft LOD, terrain tessellation and the near lawn's
    * wind shader — never the instance count, which stays at the rung. */
   contentTier?: SceneContentTier;
+  /** Shared Coordination exposure fault. Null compiles the fragment work out. */
+  environmentFlickerSignal?: MutableRefObject<number> | null;
 }) {
   const gl = useThree((state) => state.gl);
   const { cinematicPlus } = useSceneQualityControls();
+  const freeRoam = useSyncExternalStore(
+    freeRoamDiagnosticsController.subscribe,
+    freeRoamDiagnosticsController.getSnapshot,
+    freeRoamDiagnosticsController.getSnapshot,
+  );
   const daylightCinematicPlus = cinematicPlus && !dark;
   const performanceSettings = useScenePerformanceSettings();
   const simplifiedFar = farGrassShader === "simplified";
@@ -1163,6 +1197,8 @@ export default function Meadow({
       uSeat: { value: 0 },
       uWindAmp: { value: MEADOW_WIND.amplitude as number },
       uWindSpeed: { value: MEADOW_WIND.speed as number },
+      uFogEnabled: { value: 1 },
+      uEnvironmentFlicker: { value: 1 },
       // skyShadow/dcWater come from PALETTES — never a duplicated hex.
       uShadowL: { value: c(PALETTES.light.skyShadow) },
       uShadowD: { value: c(PALETTES.dark.skyShadow) },
@@ -1301,12 +1337,36 @@ export default function Meadow({
         continue;
       material.lights = daylightCinematicPlus;
       material.defines ??= {};
-      if (daylightCinematicPlus)
-        material.defines.CINEMATIC_PLUS_SHADOWS = 1;
+      if (daylightCinematicPlus) material.defines.CINEMATIC_PLUS_SHADOWS = 1;
       else delete material.defines.CINEMATIC_PLUS_SHADOWS;
       material.needsUpdate = true;
     }
   }, [built, daylightCinematicPlus]);
+
+  // The meadow is analytically lit, so Three's environment and room lights
+  // cannot dim it. Compile this multiplication only while the approved
+  // Coordination effect is live; the diagnostics-off shader has no branch or
+  // per-fragment work for it.
+  useLayoutEffect(() => {
+    const enabled = environmentFlickerSignal !== null;
+    const materials = [
+      built.terrainMaterial,
+      built.grassMaterial,
+      built.farGrassMaterial,
+      built.deformedGrassMaterial,
+      built.deformedFarGrassMaterial,
+      built.flowerMaterial,
+    ];
+    for (const material of materials) {
+      const defined = material.defines?.COORDINATION_ENVIRONMENT_FLICKER === 1;
+      if (defined === enabled) continue;
+      material.defines ??= {};
+      if (enabled) material.defines.COORDINATION_ENVIRONMENT_FLICKER = 1;
+      else delete material.defines.COORDINATION_ENVIRONMENT_FLICKER;
+      material.needsUpdate = true;
+    }
+    if (!enabled) built.shared.uEnvironmentFlicker.value = 1;
+  }, [built, environmentFlickerSignal]);
 
   // The GLB's three tuft LODs — 66, 32 and 16 triangles — prepared once and
   // indexed by level. The near lawn picks by content tier; the mid + seated
@@ -1337,6 +1397,11 @@ export default function Meadow({
     alphaMap.needsUpdate = true;
     built.grassOnly.uAlpha.value = alphaMap;
   }, [alphaMap, built]);
+
+  useEffect(() => {
+    built.shared.uFogEnabled.value =
+      freeRoam.enabled && !freeRoam.fogEnabled ? 0 : 1;
+  }, [built, freeRoam.enabled, freeRoam.fogEnabled]);
 
   useEffect(() => {
     deformation.setQuality(effectiveDeformationQuality);
@@ -1767,6 +1832,8 @@ export default function Meadow({
     // keeps React out of the loop, same as the dome.
     shared.uSeat.value = getSeatAmount();
     shared.uTime.value = clock.elapsedTime;
+    if (environmentFlickerSignal)
+      shared.uEnvironmentFlicker.value = environmentFlickerSignal.current;
     // Boot gust: one wind swell sweeps the lawn as the reveal lands (the
     // meadow's first frames sit just ahead of it), then the amplitude
     // settles to the authored baseline and stops being written — the dev wind
