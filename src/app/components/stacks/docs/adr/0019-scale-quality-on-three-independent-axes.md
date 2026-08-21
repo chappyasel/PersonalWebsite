@@ -24,13 +24,17 @@ requires p95 main-thread cost below half budget, fewer than two percent dropped
 frames, and neither sustained nor tail pressure. Everything else holds.
 
 Pressure moves the lever that can relieve it. CPU pressure moves content
-directly and leaves resolution and effects alone. GPU pressure moves resolution
-to its floor, then effects, and leaves content alone. Resolution has a
-1.5-second dwell, effects fall after five sustained seconds and rise after 15,
-and content falls after ten sustained seconds and rises after 60. A resolution
-step that restores headroom is held for 60 seconds before Auto retries the
-known-failing step above it; otherwise a boundary device alternates between the
-two steps and reallocates its drawing buffer indefinitely. An effects tier
+directly and leaves resolution and effects alone. Measured GPU pressure moves
+resolution to its floor, then effects, and leaves content alone. When a GPU
+timer is unavailable, as on Safari, the controller treats low CPU cost plus
+late frames as an inference: after two resolution cuts fail to improve p95 or
+dropped frames, it preserves the remaining pixels and tries effects instead.
+Resolution has a 1.5-second dwell, effects fall after five sustained seconds
+and rise after 15, and content falls after ten sustained seconds and rises
+after 60. A resolution step that restores headroom is held for 20 seconds
+before Auto retries the known-failing step above it; otherwise a boundary
+device alternates between the two steps and reallocates its drawing buffer
+indefinitely. An effects tier
 removed under pressure is also held for 60 seconds before retry, so spatial
 passes such as depth of field cannot cycle on the shorter fall/rise timers. A
 change on one axis blocks another until a later window demonstrates
@@ -127,14 +131,16 @@ sun, ray pass, and shadow rig; disposes their render targets; restores model
 flags; and returns to shaders compiled without the extra samples.
 
 Learned state stores the axis triple in versioned local storage and restores it
-as a starting point, never a floor or ceiling. Cold-start device signals bias
-all three axes: a narrow touch viewport starts from Efficient's resolved DPR as
-well as its effects and content tiers, instead of starting Efficient geometry
-under Showcase resolution and visibly walking down. Measurement remains free
-to move in either direction. Version 7 discards entries learned while iOS held
-resolution fixed, because those entries may encode effects reductions chosen
-only because the resolution lever was unavailable. Sampling begins only after
-reveal, shader precompile, and a settled validation window.
+as a starting point, never a floor or ceiling. Its capability bucket is derived
+once from renderer and device evidence; live frame windows adapt the axes but
+cannot switch buckets and restore a different triple during the same mount.
+Cold-start device signals bias all three axes: a narrow touch viewport starts
+from Efficient's resolved DPR as well as its effects and content tiers, instead
+of starting Efficient geometry under Showcase resolution and visibly walking
+down. Measurement remains free to move in either direction. Version 9 discards
+entries from the live-bucket policy, because they may contain either side of
+the resulting floor/full oscillation. Sampling begins only after reveal,
+shader precompile, and a settled validation window.
 
 The Safety contract is checked after each successful production deployment on
 the reference mobile viewport. The rendered triangle counts at the first,

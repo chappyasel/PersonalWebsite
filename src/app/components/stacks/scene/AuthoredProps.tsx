@@ -76,7 +76,10 @@ function ShakerBody({
           opacity={0.42}
           roughness={0.24}
           metalness={0}
-          transmission={0.12}
+          // Non-zero transmission makes Three allocate and resolve a
+          // full-viewport multisampled target. Safari has presented that
+          // target as a black tile for one frame on this shelf. Ordinary
+          // alpha blending already supplies the cup's smoky transparency.
           depthWrite={false}
         />
       </mesh>

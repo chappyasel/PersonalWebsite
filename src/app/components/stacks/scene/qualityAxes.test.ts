@@ -5,6 +5,7 @@ import {
   SCENE_FRAME_BUDGET_MS,
   SCENE_QUALITY_PROFILES,
   type SceneQualityMetrics,
+  summariseSceneFrameWindow,
 } from "./quality";
 import {
   AXES_BY_PROFILE,
@@ -15,6 +16,8 @@ import {
   QUALITY_EFFECTS_RETRY_MS,
   QUALITY_EFFECTS_RISE_MS,
   QUALITY_RESOLUTION_DWELL_MS,
+  QUALITY_RESOLUTION_GIVE_UP_STEPS,
+  QUALITY_RESOLUTION_RETRY_MS,
   QUALITY_TRAVEL_OVER_BUDGET_LIMIT,
   QUALITY_TRAVEL_RESOLUTION_DROP_STEPS,
   SCENE_RESOLUTION_FLOOR,
@@ -40,6 +43,13 @@ const metrics = (over: Partial<SceneQualityMetrics>): SceneQualityMetrics => ({
 
 /** Low main-thread cost with late frames: the GPU is the constraint. */
 const gpuBound = metrics({ p95: 24, droppedFrameRatio: 0.3, cpuMs: 4 });
+/** A timer query confirms the same constraint instead of inferring it. */
+const measuredGpuBound = metrics({
+  p95: 24,
+  droppedFrameRatio: 0.3,
+  cpuMs: 4,
+  gpuMs: 24,
+});
 /** High main-thread cost: the CPU is the constraint, whatever the GPU does. */
 const cpuBound = metrics({ p95: 24, droppedFrameRatio: 0.3, cpuMs: 14 });
 /** Cheap and on time. */
@@ -188,20 +198,34 @@ describe("axis independence", () => {
   });
 
   it("leaves effects alone while resolution still has room", () => {
-    const state = hold(start(), gpuBound, 2_000, QUALITY_EFFECTS_FALL_MS * 2);
+    const state = hold(
+      start(),
+      measuredGpuBound,
+      2_000,
+      QUALITY_EFFECTS_FALL_MS * 2,
+    );
     expect(state.axes.effects).toBe("full");
   });
 
-  it("walks resolution to the floor under GPU pressure", () => {
+  it("walks resolution to the floor under measured GPU pressure", () => {
     let state = start();
     for (let i = 0; i < SCENE_RESOLUTION_MAX_STEP + 2; i += 1)
       state = hold(
         state,
-        gpuBound,
+        measuredGpuBound,
         2_000 + i * (QUALITY_RESOLUTION_DWELL_MS + 500),
         QUALITY_RESOLUTION_DWELL_MS + 250,
       );
     expect(state.axes.resolutionStep).toBe(0);
+  });
+
+  it("stops spending resolution when inferred GPU cuts do not help", () => {
+    const state = hold(start(), gpuBound, 2_000, 30_000);
+
+    expect(state.axes.resolutionStep).toBe(
+      SCENE_RESOLUTION_MAX_STEP - QUALITY_RESOLUTION_GIVE_UP_STEPS,
+    );
+    expect(state.axes.effects).toBe("minimal");
   });
 
   it("stops spending resolution under CPU pressure once it is shown not to help", () => {
@@ -258,6 +282,10 @@ describe("axis independence", () => {
 });
 
 describe("the resolution dwell", () => {
+  it("holds a lower resolution for twenty seconds before retry", () => {
+    expect(QUALITY_RESOLUTION_RETRY_MS).toBe(20_000);
+  });
+
   it("takes at most one step inside a single dwell", () => {
     const state = hold(
       start(),
@@ -818,6 +846,24 @@ describe("the boot grace period", () => {
     expect(state.axes.resolutionStep).toBe(SCENE_RESOLUTION_MAX_STEP - 1);
   });
 
+  it("does not mistake an unchanged zero drop rate for boot improvement", () => {
+    // A 50 FPS phone misses the sustained-frame target without crossing the
+    // separate 25 ms dropped-frame line. The unchanged 0% drop rate must not
+    // retire the first-decline guard and walk resolution to its floor.
+    const steady50Fps = summariseSceneFrameWindow(
+      Array.from({ length: 100 }, () => ({ ms: 20, cpuMs: 4 })),
+    )!;
+    expect(steady50Fps.droppedFrameRatio).toBe(0);
+
+    let state = reduceSceneQualityAxes(
+      initialSceneQualityAxisState("efficient", 0, null, 6),
+      { type: "booted", now: 0 },
+    );
+    state = hold(state, steady50Fps, 250, QUALITY_BOOT_GUARD_MS - 500);
+
+    expect(state.axes.resolutionStep).toBe(5);
+  });
+
   it("lets the guard lapse on a device that never offers a better window", () => {
     // The cap must not become a permanent pin. An evidence-only exit
     // deadlocked here: identical windows never count as improvement, so a
@@ -890,9 +936,9 @@ describe("reachability from a cold start", () => {
     expect(axes.resolutionStep).toBeGreaterThan(0);
   });
 
-  it("takes a GPU-bound device to the cheapest pixels and effects, and no further", () => {
+  it("takes measured GPU pressure to the cheapest pixels and effects, and no further", () => {
     // Geometry is not the GPU's problem here, so content must not move.
-    expect(soak(gpuBound).axes).toEqual({
+    expect(soak(measuredGpuBound).axes).toEqual({
       resolutionStep: 0,
       effects: "minimal",
       content: "full",
@@ -942,7 +988,7 @@ describe("recovery", () => {
       state = reduceSceneQualityAxes(state, {
         type: "sample",
         now: t,
-        metrics: gpuBound,
+        metrics: measuredGpuBound,
         visible: true,
       });
     return state;
@@ -1009,7 +1055,7 @@ describe("recovery", () => {
     const bottom = bottomOut();
     const partly = recover(
       bottom,
-      (bottom.resolutionRetryAt ?? 60_000) + 10_000,
+      Math.max(60_000, bottom.resolutionRetryAt ?? 0) + 10_000,
     );
     expect(partly.axes.resolutionStep).toBeGreaterThan(0);
     expect(partly.axes.resolutionStep).toBeLessThan(SCENE_RESOLUTION_MAX_STEP);

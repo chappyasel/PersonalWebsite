@@ -8,7 +8,7 @@
     "node": "24.x"
   },
   "scripts": {
-    "prebuild": "bash scripts/fetch-dad-content.sh",
+    "prebuild": "bash scripts/fetch-dad-content.sh && node scripts/check-home-og-freshness.mjs",
     "build": "next build",
     "postbuild": "npm run check:budgets",
     "db:generate": "drizzle-kit generate",
@@ -30,6 +30,8 @@
     "test:performance:safety": "playwright test tests/e2e/stacks-performance-harness.spec.ts --grep 'holds the Safety triangle budget'",
     "generate:blog-posts": "npx tsx ./scripts/generate/blog-posts.ts",
     "generate:home-og": "node ./scripts/generate/home-og-scene.mjs",
+    "generate:home-og:local": "node ./scripts/generate/home-og-local.mjs",
+    "check:home-og": "node ./scripts/check-home-og-freshness.mjs",
     "generate:about-boot": "node ./scripts/generate-about-boot-silhouettes.mjs",
     "generate:stacks-photo-variants": "node ./scripts/stacks-photo-variants.mjs",
     "generate:manual": "npx tsx ./scripts/generate/manual.ts",

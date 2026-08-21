@@ -40,6 +40,14 @@ export const GOLF_CLUB_FINISH = {
   roughness: 0.28,
 } as const;
 
+export const GOLF_BALL_FINISH = {
+  dark: "#d8dfe2",
+  darkMark: "#34434b",
+  darkRoughness: 0.64,
+  lightRoughness: 0.56,
+  fog: false,
+} as const;
+
 export const GOLF_GREEN_FOG_SCALE = { light: 0.48, dark: 0.32 } as const;
 
 export const GOLF_FOG_POLICY = {
@@ -54,6 +62,36 @@ export const GOLF_SOUND_POLICY = {
 
 export const GOLF_VISUAL_SPIN_MAX = 42;
 export const GOLF_GREEN_BALL_SCALE = 2 / 3;
+export const GOLF_BALL_LOW_RES_DPR = 1;
+export const GOLF_BALL_LOW_RES_MAX_SCALE = 1.15;
+
+/** Soften the ball's authored travel shrink when adaptive resolution reaches
+ * its floor. Shots and collisions still use the regulation-sized ball. */
+export function golfBallResolutionScale(pixelRatio: number) {
+  if (!Number.isFinite(pixelRatio) || pixelRatio >= GOLF_BALL_LOW_RES_DPR)
+    return 1;
+  const floor = 0.6;
+  const progress = Math.min(
+    1,
+    Math.max(
+      0,
+      (GOLF_BALL_LOW_RES_DPR - pixelRatio) /
+        (GOLF_BALL_LOW_RES_DPR - floor),
+    ),
+  );
+  return 1 + (GOLF_BALL_LOW_RES_MAX_SCALE - 1) * progress;
+}
+
+export function golfBallRenderedScale(
+  authoredScale: number,
+  pixelRatio: number,
+) {
+  if (authoredScale >= 1) return authoredScale;
+  return Math.min(
+    1,
+    authoredScale * golfBallResolutionScale(pixelRatio),
+  );
+}
 
 /** The authored foreground ball is deliberately readable at interaction
  * distance. Ease it down as it travels so its settled size agrees with the

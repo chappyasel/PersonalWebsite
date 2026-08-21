@@ -79,15 +79,15 @@ describe("cross-visit quality learning", () => {
   });
 
   it("keys the entry by the versioned bucket", () => {
-    expect(bucket()).toContain("stacks-quality:v7:");
+    expect(bucket()).toContain("stacks-quality:v9:");
   });
 
   it("ignores an entry written under the previous format version", () => {
-    // v6 could learn minimal effects while the iOS resolution axis was
-    // locked. That stale compromise must not return after the axis is live.
-    const v6Key = bucket().replace(":v7:", ":v6:");
+    // v8 could persist the same device under alternating renderer-capability
+    // buckets. Neither stale axis triple should survive the bucket fix.
+    const v8Key = bucket().replace(":v9:", ":v8:");
     window.localStorage.setItem(
-      v6Key,
+      v8Key,
       JSON.stringify({
         resolutionStep: 2,
         effects: "lean",

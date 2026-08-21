@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-import { mkdir, rename, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, rename, rm, stat } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -17,6 +18,10 @@ import {
   HOME_OG_SCENE_CROP,
   HOME_OG_VIEWPORT,
 } from "./home-og-scene-config.mjs";
+import {
+  homeOgInputManifest,
+  writeHomeOgManifest,
+} from "./home-og-inputs.mjs";
 
 const { width: WIDTH, height: HEIGHT } = HOME_OG_OUTPUT;
 const ROOT = path.resolve(
@@ -66,19 +71,18 @@ const sourceUrl = captureUrl(
     "http://localhost:3000",
 );
 const outputPath = path.resolve(ROOT, valueAfter("--output") ?? DEFAULT_OUTPUT);
-const temporaryOutputPath = `${outputPath}.tmp-${process.pid}`;
-const rawOutputPath = `${outputPath}.raw-${process.pid}.png`;
+const temporaryOutputPath = path.join(
+  tmpdir(),
+  `home-og-scene-${process.pid}.jpg`,
+);
+const rawOutputPath = path.join(tmpdir(), `home-og-scene-${process.pid}.png`);
 
 await mkdir(path.dirname(outputPath), { recursive: true });
+const startingInputs = await homeOgInputManifest({ root: ROOT });
 
 const browser = await chromium.launch({
   headless: true,
-  args: [
-    "--enable-webgl",
-    "--ignore-gpu-blocklist",
-    "--use-angle=swiftshader",
-    "--enable-unsafe-swiftshader",
-  ],
+  args: ["--enable-webgl", "--ignore-gpu-blocklist"],
 });
 
 try {
@@ -122,8 +126,6 @@ try {
     "html[data-og-capture] .stacks-world-shell[data-canvas-ready]",
     {
       state: "attached",
-      // Full post-processing takes roughly 60–90 seconds to compile under
-      // SwiftShader on a cold runner before the canvas can paint its frame.
       timeout: 120_000,
     },
   );
@@ -144,11 +146,7 @@ try {
     );
   }
 
-  // Full post-processing takes long enough to compile under SwiftShader that
-  // secondary textures have already settled by the first painted frame. Keep
-  // this final pause short so a software renderer is not asked to sustain the
-  // expensive composer for several idle seconds before reading its framebuffer.
-  await page.waitForTimeout(1_000);
+  await page.waitForTimeout(3_000);
   await page.evaluate(() => {
     // `next dev` injects its launcher as a custom-element portal. It is not
     // present in production, but removing it makes local/manual regeneration
@@ -157,51 +155,28 @@ try {
       portal.remove();
     });
   });
-  await page.waitForSelector(
-    "html[data-og-capture] .stacks-world-shell[data-canvas-ready]",
-    { state: "attached", timeout: 5_000 },
-  );
-  // Chromium's screenshot command repeatedly deadlocks on the continuously
-  // painted software-WebGL surface in CI. The renderer preserves its drawing
-  // buffer, so read that buffer directly and let Sharp perform the crop.
-  const canvasCapture = await page
-    .locator("html[data-og-capture] .stacks-world-shell canvas")
-    .first()
-    .evaluate((canvas) => ({
-      dataUrl: canvas.toDataURL("image/png"),
-      height: canvas.height,
-      width: canvas.width,
-    }));
-  const pngPrefix = "data:image/png;base64,";
-  if (!canvasCapture.dataUrl.startsWith(pngPrefix)) {
-    throw new Error("WebGL canvas did not return a PNG capture");
-  }
-  await writeFile(
-    rawOutputPath,
-    Buffer.from(canvasCapture.dataUrl.slice(pngPrefix.length), "base64"),
-  );
-
-  const scaleX = canvasCapture.width / HOME_OG_VIEWPORT.width;
-  const scaleY = canvasCapture.height / HOME_OG_VIEWPORT.height;
-  const canvasCrop = {
-    left: Math.round(HOME_OG_SCENE_CROP.x * scaleX),
-    top: Math.round(HOME_OG_SCENE_CROP.y * scaleY),
-    width: Math.round(HOME_OG_SCENE_CROP.width * scaleX),
-    height: Math.round(HOME_OG_SCENE_CROP.height * scaleY),
-  };
+  await page.screenshot({
+    path: rawOutputPath,
+    type: "png",
+    clip: HOME_OG_SCENE_CROP,
+    animations: "allow",
+    caret: "hide",
+    fullPage: false,
+    scale: "device",
+    timeout: 120_000,
+  });
 
   const rawMetadata = await sharp(rawOutputPath).metadata();
   if (
-    (rawMetadata.width ?? 0) < canvasCrop.left + canvasCrop.width ||
-    (rawMetadata.height ?? 0) < canvasCrop.top + canvasCrop.height
+    (rawMetadata.width ?? 0) < WIDTH ||
+    (rawMetadata.height ?? 0) < HEIGHT
   ) {
     throw new Error(
-      `Raw canvas ${rawMetadata.width ?? "?"}x${rawMetadata.height ?? "?"} does not contain crop ${canvasCrop.left},${canvasCrop.top} ${canvasCrop.width}x${canvasCrop.height}`,
+      `Raw capture ${rawMetadata.width ?? "?"}x${rawMetadata.height ?? "?"} is smaller than ${WIDTH}x${HEIGHT}`,
     );
   }
 
   await sharp(rawOutputPath)
-    .extract(canvasCrop)
     .resize(WIDTH, HEIGHT, { fit: "fill" })
     .jpeg({ quality: 90, mozjpeg: true })
     .toFile(temporaryOutputPath);
@@ -214,7 +189,16 @@ try {
   }
 
   const { size } = await stat(temporaryOutputPath);
+  const finishedInputs = await homeOgInputManifest({ root: ROOT });
+  if (finishedInputs.digest !== startingInputs.digest) {
+    throw new Error(
+      "Homepage OG inputs changed during capture. Run the generator again.",
+    );
+  }
   await rename(temporaryOutputPath, outputPath);
+  if (outputPath === DEFAULT_OUTPUT) {
+    await writeHomeOgManifest({ root: ROOT });
+  }
   console.log(
     `Captured ${sourceUrl.origin} to ${path.relative(ROOT, outputPath)} (${Math.round(size / 1024)} KiB)`,
   );

@@ -9,6 +9,7 @@ import {
   GOLF_CONFETTI_COUNT,
   golfMotionPolicy,
   resetGolfSession,
+  shouldResetGolfSession,
 } from "./golfSession";
 import { GolfStrikeQueue } from "./golfStrikeQueue";
 
@@ -26,7 +27,12 @@ describe("golf session presentation and departure", () => {
     expect(GOLF_CONFETTI_COUNT).toBeGreaterThan(100);
   });
 
-  it("silently restores every ball and cancels queued strikes on departure", () => {
+  it("preserves ball state when the visitor scrolls away", () => {
+    expect(shouldResetGolfSession("section-departure")).toBe(false);
+    expect(shouldResetGolfSession("unmount")).toBe(true);
+  });
+
+  it("silently restores every ball and cancels queued strikes on unmount", () => {
     const ball = createGolfBallState("one", { x: -2, y: -1, z: 0 });
     launchGolfBall(ball, { x: 1, y: 2, z: -8 }, "hole-bound");
     const queue = new GolfStrikeQueue();

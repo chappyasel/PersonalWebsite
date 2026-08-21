@@ -818,7 +818,14 @@ export const QUALITY_DOWNGRADE_DROP_IMPROVEMENT = 0.03;
 // v6 could persist effects learned while iOS resolution was platform-locked.
 // Restoring one after enabling the iOS resolution axis can strand a phone at
 // the old starting DPR while repeatedly retrying a stale minimal-effects tier.
-const QUALITY_STORAGE_VERSION = 7;
+//
+// v7 could treat an unchanged zero dropped-frame ratio as an improvement and
+// persist the resolution floor after a steady 50 FPS opening window.
+//
+// v8 allowed live frame windows to change the renderer-capability bucket.
+// Oscillation between buckets could restore alternating full and floor axis
+// triples, and either polluted entry would otherwise survive the fix.
+const QUALITY_STORAGE_VERSION = 9;
 
 export type SceneQualityMetrics = Readonly<{
   targetFrameMs: number;
@@ -893,7 +900,7 @@ export type SceneContentDefinition = Readonly<{
  * Thinning coverage is the one geometry change that reads as a different
  * scene rather than a cheaper one, so automatic mode never spends it.
  *
- * Projected scene triangles: 422,807 full, 297,949 reduced, 243,378 minimal.
+ * Projected scene triangles: 422,807 full, 297,949 reduced, 236,638 minimal.
  */
 export const SCENE_CONTENT_DEFINITIONS: Readonly<
   Record<SceneContentTier, SceneContentDefinition>
@@ -914,8 +921,8 @@ export const SCENE_CONTENT_DEFINITIONS: Readonly<
   },
   minimal: {
     nearTuftLod: 2,
-    terrainSegmentsX: 120,
-    terrainSegmentsZ: 66,
+    terrainSegmentsX: 91,
+    terrainSegmentsZ: 50,
     nearGrassShader: "simplified",
     suspendOffscreenWildlife: true,
   },

@@ -19,7 +19,7 @@ import {
 import type { UnitProps } from "../units/types";
 import { unitPose } from "../worldLayout";
 import { Html } from "@react-three/drei";
-import { type ThreeEvent, useFrame } from "@react-three/fiber";
+import { type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
 import React, {
   useCallback,
   useEffect,
@@ -48,9 +48,11 @@ import {
   stepGolfWorld,
 } from "./golfPhysics";
 import {
+  GOLF_BALL_FINISH,
   GOLF_CLUB_FINISH,
   GOLF_CONFETTI_COLORS,
   GOLF_FOG_POLICY,
+  golfBallRenderedScale,
   golfBallVisualScale,
   golfVisualSpinStep,
 } from "./golfPresentation";
@@ -58,6 +60,7 @@ import {
   GOLF_CONFETTI_COUNT,
   golfMotionPolicy,
   resetGolfSession,
+  shouldResetGolfSession,
 } from "./golfSession";
 import { GolfShotBag, seededGolfRandom } from "./golfShotBag";
 import {
@@ -219,6 +222,7 @@ export default function GolfExperience({
   dark,
   index,
 }: Pick<UnitProps, "palette" | "dark" | "index">) {
+  const gl = useThree((state) => state.gl);
   const pose = unitPose(index);
   const yaw = pose.rotation[1];
   const c = Math.cos(yaw);
@@ -453,6 +457,7 @@ export default function GolfExperience({
           root: club.current,
           activeUnits: [index],
           touchPriority: 30,
+          activateOnFirstTouch: true,
           projectedLocalBounds: {
             min: [-0.34, -GOLF_CLUB_GRIP_HEIGHT - 0.18, -0.34],
             max: [0.4, 0.25, 0.4],
@@ -477,6 +482,7 @@ export default function GolfExperience({
           root,
           activeUnits: [index],
           touchPriority: 40,
+          activateOnFirstTouch: true,
           projectedLocalBounds: {
             min: [-0.22, -0.22, -0.22],
             max: [0.22, 0.22, 0.22],
@@ -509,12 +515,8 @@ export default function GolfExperience({
   }, []);
 
   useEffect(() => {
-    const unsubscribe = useStacks.subscribe((state, previous) => {
-      if (previous.golfFocused && !state.golfFocused) restoreAuthoredState();
-    });
     return () => {
-      unsubscribe();
-      restoreAuthoredState();
+      if (shouldResetGolfSession("unmount")) restoreAuthoredState();
     };
   }, [restoreAuthoredState]);
 
@@ -683,7 +685,10 @@ export default function GolfExperience({
       const group = ballGroups.current[ball.id];
       const material = ballMaterials.current[ball.id];
       if (group) {
-        const visualScale = golfBallVisualScale(ball, cup);
+        const visualScale = golfBallRenderedScale(
+          golfBallVisualScale(ball, cup),
+          gl.getPixelRatio(),
+        );
         group.position.set(
           ball.position.x,
           ball.position.y - ball.radius * (1 - visualScale),
@@ -824,10 +829,14 @@ export default function GolfExperience({
                 }}
                 bumpMap={BALL_BUMP}
                 bumpScale={0.01}
-                color={dark ? "#89949b" : palette.pages}
-                fog={dark}
+                color={dark ? GOLF_BALL_FINISH.dark : palette.pages}
+                fog={GOLF_BALL_FINISH.fog}
                 metalness={0}
-                roughness={dark ? 0.78 : 0.56}
+                roughness={
+                  dark
+                    ? GOLF_BALL_FINISH.darkRoughness
+                    : GOLF_BALL_FINISH.lightRoughness
+                }
                 transparent
               />
             </mesh>
@@ -837,9 +846,9 @@ export default function GolfExperience({
                 ref={(material) => {
                   ballMarks.current[id] = material;
                 }}
-                color={dark ? "#26343d" : "#33434e"}
-                fog={dark}
-                toneMapped={dark}
+                color={dark ? GOLF_BALL_FINISH.darkMark : "#33434e"}
+                fog={GOLF_BALL_FINISH.fog}
+                toneMapped={false}
                 transparent
               />
             </mesh>

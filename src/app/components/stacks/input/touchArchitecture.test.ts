@@ -20,6 +20,7 @@ const rail = read("../dom/UnitRail.tsx");
 const globals = read("../../../../styles/globals.css");
 const coarseCapability = read("./useCoarseTouchCapability.ts");
 const scenePointerEvents = read("./scenePointerEvents.ts");
+const golf = read("../scene/golf/GolfExperience.tsx");
 
 describe("coarse-pointer ownership", () => {
   it("has no vertical-to-horizontal Touch Events bridge", () => {
@@ -58,6 +59,24 @@ describe("coarse-pointer ownership", () => {
     expect(eggs).toContain("activateOnFirstTouch,");
     expect(touchLayer).toContain(
       "activateOnFirstTouch: Boolean(spec.activateOnFirstTouch)",
+    );
+  });
+
+  it("stands up from a seated touch before a shelf Halo can claim it", () => {
+    expect(touchLayer).toContain(
+      'import { isSeated, leaveSeat } from "../scene/seated"',
+    );
+    expect(touchLayer).toMatch(
+      /const onPointerDown = \(event: PointerEvent\)[\s\S]*?if \(isSeated\(\)\) \{[\s\S]*?leaveSeat\(\);[\s\S]*?return;[\s\S]*?const hit = touchHitAt/,
+    );
+  });
+
+  it("hits Golf balls and the club on the first stationary touch", () => {
+    expect(golf).toMatch(
+      /id: "golf-club:strike",[\s\S]*?activateOnFirstTouch: true,[\s\S]*?activation:/,
+    );
+    expect(golf).toMatch(
+      /id: `golf-ball:\$\{id\}`,[\s\S]*?activateOnFirstTouch: true,[\s\S]*?activation:/,
     );
   });
 

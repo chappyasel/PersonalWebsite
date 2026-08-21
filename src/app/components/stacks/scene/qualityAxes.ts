@@ -46,12 +46,18 @@ export const SCENE_RESOLUTION_FLOOR = SCENE_RESOLUTION_SCALE_FLOOR;
 
 export const QUALITY_RESOLUTION_DWELL_MS = 1_500;
 export const QUALITY_RESOLUTION_RISE_MS = 3_000;
+/** Safari does not expose the GPU timer query used by the controller, so low
+ * main-thread cost plus late frames is only an inference that pixels are the
+ * bottleneck. After two resolution cuts fail to improve either p95 or dropped
+ * frames, preserve the remaining pixels and try effects instead. Measured GPU
+ * pressure is definitive and may still use the whole resolution ladder. */
+export const QUALITY_RESOLUTION_GIVE_UP_STEPS = 2;
 /** A lower step that restored headroom is a known-good operating point. Do
  * not immediately revisit the step that just missed budget: that creates a
  * two-state DPR oscillator, and every reversal reallocates Safari's drawing
- * buffer. A minute still permits genuine thermal recovery without turning a
- * transient good window into visible flashing. */
-export const QUALITY_RESOLUTION_RETRY_MS = 60_000;
+ * buffer. Twenty seconds lets a recovered phone regain sharpness without
+ * reacting to a momentary good window. */
+export const QUALITY_RESOLUTION_RETRY_MS = 20_000;
 export const QUALITY_EFFECTS_FALL_MS = 5_000;
 export const QUALITY_EFFECTS_RISE_MS = 15_000;
 /** Re-enabling a spatial pass is a visible, allocative change. If the richer
@@ -155,6 +161,7 @@ export type SceneQualityAxisState = Readonly<{
   lastChange: QualityAxisChange | null;
   /** Consecutive resolution steps that expired their block without improving
    * anything. Reset by any improvement, and by a rise. */
+  unhelpfulResolutionSteps: number;
   /** At most one deferred content request. A deferral is a delayed decision,
    * not a promise: a later request replaces it, and it is discarded if the
    * classification that produced it no longer holds. */
@@ -259,6 +266,7 @@ export function initialSceneQualityAxisState(
     pendingBaseline: null,
     pendingBaselineExpiresAt: null,
     lastChange: null,
+    unhelpfulResolutionSteps: 0,
     deferredContent: null,
     booted: false,
     bootDeclineGuard: true,
@@ -307,8 +315,8 @@ const improvedOver = (
   baseline: SceneQualityMetrics,
 ) =>
   metrics.p95 <= baseline.p95 * QUALITY_AXIS_P95_IMPROVEMENT_RATIO ||
-  metrics.droppedFrameRatio <=
-    Math.max(0, baseline.droppedFrameRatio - QUALITY_AXIS_DROP_IMPROVEMENT);
+  baseline.droppedFrameRatio - metrics.droppedFrameRatio >=
+    QUALITY_AXIS_DROP_IMPROVEMENT;
 
 /** Clocks advance only while their classification holds; anything else stops
  * them. `sustainedFor` reads how long the current run has lasted. */
@@ -375,6 +383,7 @@ export function reduceSceneQualityAxes(
         },
         pendingBaseline: null,
         pendingBaselineExpiresAt: null,
+        unhelpfulResolutionSteps: 0,
         resolutionRetryAt:
           event.axes.resolutionStep < SCENE_RESOLUTION_MAX_STEP
             ? event.now + QUALITY_RESOLUTION_RETRY_MS
@@ -398,6 +407,8 @@ export function reduceSceneQualityAxes(
         axes: { ...state.axes, ...AXES_BY_PROFILE[event.profile] },
         ...clearedClocks,
         pendingBaseline: null,
+        pendingBaselineExpiresAt: null,
+        unhelpfulResolutionSteps: 0,
         effectsRetryAt: null,
         deferredContent: null,
       };
@@ -617,6 +628,41 @@ export function reduceSceneQualityAxes(
         !guarding &&
         next.pendingBaselineExpiresAt != null &&
         now >= next.pendingBaselineExpiresAt;
+
+      // Without a timer query, "GPU-bound" is an inference from cheap CPU
+      // submission plus late presentation. Give each DPR cut two complete
+      // sample windows to prove that inference. Identical late windows are
+      // evidence that pixels were not the bottleneck, even when their p95 is
+      // severe enough to bypass the normal cross-axis guard.
+      const assessingInferredGpuCut =
+        constraint === "gpu" &&
+        metrics.gpuMs == null &&
+        next.lastChange?.axis === "resolution" &&
+        next.lastChange.direction === "down" &&
+        next.lastChange.reason === "pressure" &&
+        next.pendingBaseline != null;
+      if (assessingInferredGpuCut) {
+        if (improvedOver(metrics, next.pendingBaseline!)) {
+          next = {
+            ...next,
+            pendingBaseline: null,
+            pendingBaselineExpiresAt: null,
+            unhelpfulResolutionSteps: 0,
+            bootDeclineGuard: false,
+          };
+        } else if (!blockExpired) {
+          return next;
+        } else {
+          next = {
+            ...next,
+            pendingBaseline: null,
+            pendingBaselineExpiresAt: null,
+            unhelpfulResolutionSteps: next.unhelpfulResolutionSteps + 1,
+            bootDeclineGuard: false,
+          };
+        }
+      }
+
       const blockedAxis = (axis: QualityAxisName) => {
         if (severeOverrides || !next.pendingBaseline || blockExpired)
           return false;
@@ -689,7 +735,14 @@ export function reduceSceneQualityAxes(
       }
 
       if (constraint === "gpu") {
-        if (allowResolutionChange && next.axes.resolutionStep > 0) {
+        const resolutionWorthTrying =
+          metrics.gpuMs != null ||
+          next.unhelpfulResolutionSteps < QUALITY_RESOLUTION_GIVE_UP_STEPS;
+        if (
+          allowResolutionChange &&
+          next.axes.resolutionStep > 0 &&
+          resolutionWorthTrying
+        ) {
           if (blockedAxis("resolution")) return next;
           // A dwell that has not elapsed defers the whole decision rather
           // than passing the turn to a slower axis: a dwell is a short wait,
@@ -713,9 +766,10 @@ export function reduceSceneQualityAxes(
           };
         }
 
-        // Normally only the resolution floor passes GPU pressure to effects.
-        // A platform-locked drawing buffer cannot spend that axis safely, so
-        // it bypasses the unavailable lever instead of stalling forever.
+        // The resolution floor, a platform-locked drawing buffer, or two
+        // ineffective inferred-GPU cuts pass pressure to effects. The latter
+        // matters on Safari, where there is no timer query to confirm that
+        // pixels are actually the scarce resource.
         if (next.forced) return next;
 
         if (
@@ -866,6 +920,7 @@ export function reduceSceneQualityAxes(
             axes: { ...next.axes, resolutionStep: step },
             axisChangedAt: moved(next, "resolution", now),
             resolutionRetryAt: null,
+            unhelpfulResolutionSteps: 0,
             lastChange: {
               axis: "resolution",
               direction: "up",

@@ -644,7 +644,7 @@ describe("scene quality policy", () => {
         cssHeight: 844,
         deviceDpr: 3,
       }),
-    ).toBe("stacks-quality:v7:constrained:small");
+    ).toBe("stacks-quality:v9:constrained:small");
   });
 });
 
@@ -1431,8 +1431,9 @@ describe("the Safety budget contract", () => {
 
   it("puts the projected minimal tier under the triangle ceiling", () => {
     // Measured composition: 151,833 grass and flowers at the coarsest tuft,
-    // 15,840 terrain at 120x66, and 75,705 for everything else.
-    const projected = 151_833 + 15_840 + 75_705;
+    // 9,100 terrain at 91x50, and 75,705 for everything else. The extra
+    // headroom covers visible wildlife at the first checkpoint.
+    const projected = 151_833 + 9_100 + 75_705;
     expect(projected).toBeLessThanOrEqual(SAFETY_BUDGET.maxTriangles);
   });
 
@@ -1456,8 +1457,8 @@ describe("the Safety budget contract", () => {
     expect(CONTENT_TIER_BY_PROFILE.safety).toBe("minimal");
     expect(SCENE_CONTENT_DEFINITIONS.minimal).toMatchObject({
       nearTuftLod: 2,
-      terrainSegmentsX: 120,
-      terrainSegmentsZ: 66,
+      terrainSegmentsX: 91,
+      terrainSegmentsZ: 50,
       nearGrassShader: "simplified",
       suspendOffscreenWildlife: true,
     });

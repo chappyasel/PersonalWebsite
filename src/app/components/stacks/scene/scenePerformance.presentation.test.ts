@@ -160,6 +160,19 @@ describe("scene performance integration", () => {
     );
   });
 
+  it("keeps the learned renderer bucket fixed after WebGL creation", () => {
+    const sampleStart = canvas.indexOf("const onQualitySample = useCallback");
+    const sampleEnd = canvas.indexOf(
+      "const onComposerError = useCallback",
+      sampleStart,
+    );
+    const sampleCallback = canvas.slice(sampleStart, sampleEnd);
+
+    expect(sampleStart).toBeGreaterThanOrEqual(0);
+    expect(sampleCallback).not.toContain("setRendererCapability");
+    expect(sampleCallback).not.toContain("observed: metrics");
+  });
+
   it("guards preview warming and the settled-prop fast path", () => {
     expect(scene).toContain("scenePrewarmDeferred()");
     expect(scene).toContain("useTexture.preload(url)");
@@ -215,9 +228,7 @@ describe("scene performance integration", () => {
     expect(effects).toContain(
       "effect.current.blurPass.resolution.scale = resolutionScale",
     );
-    expect(effects).toContain(
-      "[bokehScale, focusRange, resolutionScale]",
-    );
+    expect(effects).toContain("[bokehScale, focusRange, resolutionScale]");
     expect(effects).toContain("bokehScale={1}");
     expect(effects).toContain("focusRange={2.2}");
     expect(effects).toContain("resolutionScale={0.5}");

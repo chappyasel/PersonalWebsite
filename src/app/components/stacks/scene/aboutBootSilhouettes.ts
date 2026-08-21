@@ -75,7 +75,7 @@ export const ABOUT_BOOT_MODEL_SILHOUETTES = {
   "tj-medallion": {
     "source": "authored:TJMedallionBody",
     "sourceFile": "src/app/components/stacks/scene/AuthoredProps.tsx",
-    "sha256": "71252468f4ee75cf56ee25d9cead5d248343fe03ab808bdce451324cae8de866",
+    "sha256": "820a96ecc073846ecdae280284a285f22e1ee24596f3e0f9dba01f80e33f7392",
     "viewBox": [
       0,
       0,

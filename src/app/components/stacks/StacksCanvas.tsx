@@ -916,15 +916,6 @@ export default function StacksCanvas({
   const canvasShellRef = useRef<HTMLDivElement>(null);
   const [rendererCapability, setRendererCapability] =
     useState<RendererCapability>("unknown");
-  const rendererEvidence = useRef<{
-    webglVersion: 1 | 2;
-    maxTextureSize: number;
-    maxSamples: number;
-    physicalPixels: number;
-    logicalCores: number | null;
-    deviceMemoryGb: number | null;
-    unmaskedRenderer: string | null;
-  } | null>(null);
   const [viewport, setViewport] = useState(() => ({
     width: typeof window === "undefined" ? 1 : window.innerWidth,
     height: typeof window === "undefined" ? 1 : window.innerHeight,
@@ -968,8 +959,10 @@ export default function StacksCanvas({
         cssHeight: viewport.height,
         deviceDpr: viewport.deviceDpr,
       }),
-    // The learned device class is intentionally fixed for this mount. A
-    // resize pauses learning but does not turn the same device into a new one.
+    // Once WebGL evidence arrives, the learned device class stays fixed for
+    // this mount. Live frame windows adapt the axes; they must not switch the
+    // persistence bucket and restore a different axis triple underneath it.
+    // A resize likewise does not turn this into a new device.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [rendererCapability],
   );
@@ -1203,12 +1196,6 @@ export default function StacksCanvas({
       window.location.search.includes("nopostfx"),
     [],
   );
-  const preserveCaptureBuffer = useMemo(
-    () =>
-      typeof window !== "undefined" &&
-      new URLSearchParams(window.location.search).has("og-capture"),
-    [],
-  );
   const grassDeformationOff = useMemo(
     () =>
       typeof window !== "undefined" &&
@@ -1404,13 +1391,6 @@ export default function StacksCanvas({
           }
         }
       }
-      if (!instrumented && rendererEvidence.current)
-        setRendererCapability(
-          deriveRendererCapability({
-            ...rendererEvidence.current,
-            observed: metrics,
-          }),
-        );
       dispatchAxes({
         type: "sample",
         now: performance.now(),
@@ -1591,7 +1571,7 @@ export default function StacksCanvas({
         // remains visible if WebKit misses a composite. Making the context
         // opaque only converted that fallback frame from white to black, and
         // preserving its drawing buffer did not make DPR reallocations atomic.
-        gl={{ antialias: true, preserveDrawingBuffer: preserveCaptureBuffer }}
+        gl={{ antialias: true }}
         onCreated={({ gl, scene, camera }) => {
           const colorGrade = sceneColorGradeFor(
             sceneColorGradeController.getSnapshot(),
@@ -1610,8 +1590,8 @@ export default function StacksCanvas({
           setInteractionProjectionContext(camera, gl.domElement);
           const context = gl.getContext();
           const webgl2 = gl.capabilities.isWebGL2;
-          rendererEvidence.current = {
-            webglVersion: webgl2 ? 2 : 1,
+          const rendererEvidence = {
+            webglVersion: webgl2 ? (2 as const) : (1 as const),
             maxTextureSize: Number(
               context.getParameter(context.MAX_TEXTURE_SIZE) ?? 0,
             ),
@@ -1640,9 +1620,7 @@ export default function StacksCanvas({
               viewport.deviceDpr *
               viewport.deviceDpr,
           };
-          setRendererCapability(
-            deriveRendererCapability(rendererEvidence.current),
-          );
+          setRendererCapability(deriveRendererCapability(rendererEvidence));
           installDevHooks();
           if (onLost) {
             gl.domElement.addEventListener("webglcontextlost", () => onLost(), {

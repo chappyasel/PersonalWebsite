@@ -69,8 +69,8 @@ describe("content tier table", () => {
       terrainSegmentsZ: 88,
     });
     expect(meadowContentPlan("minimal")).toMatchObject({
-      terrainSegmentsX: 120,
-      terrainSegmentsZ: 66,
+      terrainSegmentsX: 91,
+      terrainSegmentsZ: 50,
     });
     // The full tier IS the authored terrain. If MEADOW_TERRAIN is retuned and
     // the table is not, the top tier silently stops being the authored one.

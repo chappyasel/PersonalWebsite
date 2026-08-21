@@ -24,6 +24,7 @@ import {
   getSceneInteraction,
   runSceneInteractionActivation,
 } from "../scene/interactionRegistry";
+import { isSeated, leaveSeat } from "../scene/seated";
 import { scrollOffsetForUnit } from "../scene/worldLayout";
 import { progressRef, touchWorldRef, useStacks } from "../store";
 import { useEffect, useRef } from "react";
@@ -295,6 +296,16 @@ export default function TouchInteractionLayer() {
       const store = useStacks.getState();
       const exposed = exposedWorldEvent(event);
       if (!exposed || store.modalOpen || store.panelState !== "closed") return;
+      if (isSeated()) {
+        clearPickup();
+        backgroundGesture.current = null;
+        store.setFocusedInteraction(null);
+        store.setPressedInteraction(null);
+        leaveSeat();
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
       publishWake(event);
       touchWorldRef.meadowPulseRevision += 1;
       const hit = touchHitAt(event.clientX, event.clientY);

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  GOLF_BALL_FINISH,
+  GOLF_BALL_LOW_RES_MAX_SCALE,
   GOLF_CLUB_FINISH,
   GOLF_CONFETTI_COLORS,
   GOLF_DARK_GREEN_FINAL_CEILING,
@@ -9,6 +11,8 @@ import {
   GOLF_GREEN_COLORS,
   GOLF_GREEN_FOG_SCALE,
   GOLF_SOUND_POLICY,
+  golfBallRenderedScale,
+  golfBallResolutionScale,
   golfBallVisualScale,
   golfColorChroma,
   golfColorLuminance,
@@ -46,6 +50,28 @@ describe("golf presentation policy", () => {
     expect(GOLF_CLUB_FINISH.dark).toBe("#87949e");
     expect(GOLF_CLUB_FINISH.metalness).toBeGreaterThan(0.7);
     expect(GOLF_CLUB_FINISH.roughness).toBeLessThan(0.35);
+  });
+
+  it("keeps dark golf balls bright and clear of scene fog", () => {
+    expect(GOLF_BALL_FINISH.dark).toBe("#d8dfe2");
+    expect(GOLF_BALL_FINISH.darkMark).toBe("#34434b");
+    expect(GOLF_BALL_FINISH.darkRoughness).toBeLessThan(0.7);
+    expect(GOLF_BALL_FINISH.fog).toBe(false);
+  });
+
+  it("softens the in-flight shrink only at low render resolution", () => {
+    expect(golfBallResolutionScale(2)).toBe(1);
+    expect(golfBallResolutionScale(1)).toBe(1);
+    expect(golfBallResolutionScale(0.8)).toBeCloseTo(1.075);
+    expect(golfBallResolutionScale(0.6)).toBe(GOLF_BALL_LOW_RES_MAX_SCALE);
+    expect(golfBallResolutionScale(0.4)).toBe(GOLF_BALL_LOW_RES_MAX_SCALE);
+    expect(golfBallRenderedScale(1, 0.6)).toBe(1);
+    expect(golfBallRenderedScale(GOLF_GREEN_BALL_SCALE, 1)).toBe(
+      GOLF_GREEN_BALL_SCALE,
+    );
+    expect(
+      golfBallRenderedScale(GOLF_GREEN_BALL_SCALE, 0.6),
+    ).toBeCloseTo(GOLF_GREEN_BALL_SCALE * GOLF_BALL_LOW_RES_MAX_SCALE);
   });
 
   it("does not let scene fog recolor the flag or pastel confetti", () => {
