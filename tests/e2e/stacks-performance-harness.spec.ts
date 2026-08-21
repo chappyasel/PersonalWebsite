@@ -261,7 +261,12 @@ test("holds the Safety triangle budget at every unit checkpoint", async ({
   });
   const page = await context.newPage();
   const runtimeErrors = collectRuntimeErrors(page);
-  await page.goto("/?quality=3&harness=1", { waitUntil: "commit" });
+  // This contract counts scene geometry. Keep GitHub's software WebGL runner
+  // out of the unrelated composer render targets so a context loss cannot
+  // erase the counters midway through the traverse.
+  await page.goto("/?quality=3&harness=1&nopostfx=1", {
+    waitUntil: "commit",
+  });
   await page.waitForFunction(
     () =>
       !!window.__stacks?.state().framebuffer &&
