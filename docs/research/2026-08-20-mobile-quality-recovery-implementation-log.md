@@ -556,6 +556,11 @@ catch up and worsening presentation latency.
 
 ## Shortcuts taken
 
+- The release changes diagnostics, quality policy, resource warm-up, light
+  visibility, and physics cadence without changing the authored OG camera or
+  scene composition. The existing homepage OG image was retained and its
+  deterministic source manifest was refreshed against the exact release
+  commit instead of recapturing an identical image.
 - The normal `yarn build` path includes a repository-wide typecheck currently
   blocked by unrelated active work. A Next compile-plus-generate build was used
   to verify production bundling without changing those files.
