@@ -50,17 +50,12 @@ function formatMonthYear(iso: string) {
 export default function TalkCard({ talk }: { talk: Talk }) {
   const featured = talk.featured ?? false;
 
-  const sizes = featured
-    ? "(max-width: 768px) 100vw, 736px"
-    : "(max-width: 640px) 100vw, 368px";
+  const sizes = "(max-width: 768px) 100vw, 736px";
 
   return (
     <TiltCard
       interactive
-      className={cn(
-        "w-full intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000",
-        featured && "sm:col-span-2",
-      )}
+      className="w-full intersect:motion-scale-in-90 intersect:motion-blur-in-sm intersect:motion-opacity-in-50 intersect:motion-duration-1000"
     >
       <Link
         href={talk.url}

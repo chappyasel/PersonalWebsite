@@ -16,7 +16,7 @@ export default async function Talks() {
         Featured Talks
       </h1>
 
-      <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="flex w-full flex-col gap-4">
         {TALKS.map((talk) => (
           <TalkCard key={talk.videoId} talk={talk} />
         ))}
