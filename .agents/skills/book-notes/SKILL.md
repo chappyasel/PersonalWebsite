@@ -22,7 +22,7 @@ If those files change the fields, filters, freshness, or query behavior describe
 
 ## READ ONLY — hard rule for direct SQL
 
-Never issue `INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `TRUNCATE`, `CREATE`, `GRANT`, or any other direct write against the Postgres cache. The `q.sh` script enforces `default_transaction_read_only = on` at the session level, so writes will error — but do not even attempt them. The PersonalWebsite application sync is the supported cache writer; invoke it only when an explicit maintenance workflow below calls for a refresh.
+Never issue `INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `TRUNCATE`, `CREATE`, `GRANT`, or any other direct write against the Postgres cache. The `q.sh` script wraps each query in `BEGIN TRANSACTION READ ONLY`, so writes will error without changing pooled-session defaults — but do not even attempt them. The PersonalWebsite application sync is the supported cache writer; invoke it only when an explicit maintenance workflow below calls for a refresh.
 
 **Important distinction:** Postgres is read-only, but creating an empty Book Notes page in Notion is allowed when Chappy explicitly asks for it (e.g. “create a new empty booknotes”, “make me a book notes skeleton”, “ready to fill out myself”). Use the Notion API path below — never try to write to Postgres.
 

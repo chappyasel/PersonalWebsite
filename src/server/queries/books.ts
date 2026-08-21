@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, asc, desc, eq, gte, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, or, sql } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
 import { z } from "zod";
 
@@ -11,6 +11,8 @@ import type {
 } from "~/lib/books/types";
 import { db } from "~/server/db";
 import { bookTags, books } from "~/server/db/schema";
+
+import { getBookOrderBy } from "./bookOrder";
 
 export const BOOKS_DATA_TAG = "books-data";
 export const BOOKS_REVALIDATE_SECONDS = 60 * 60 * 24;
@@ -56,36 +58,7 @@ export async function getBooks(input: BookCollectionInput): Promise<Book[]> {
     );
   }
 
-  let orderBy;
-  if (input.sortField === "finished") {
-    orderBy =
-      input.sortOrder === "desc"
-        ? desc(sql`COALESCE(${books.finished}, NOW())`)
-        : asc(sql`COALESCE(${books.finished}, NOW())`);
-  } else if (input.sortField === "publicationYear") {
-    const nullValue = input.sortOrder === "desc" ? -999999 : 999999;
-    orderBy =
-      input.sortOrder === "desc"
-        ? desc(sql`COALESCE(${books.publicationYear}, ${nullValue})`)
-        : asc(sql`COALESCE(${books.publicationYear}, ${nullValue})`);
-  } else if (input.sortField === "runtime") {
-    const nullValue = input.sortOrder === "desc" ? -999999 : 999999;
-    orderBy =
-      input.sortOrder === "desc"
-        ? desc(sql`COALESCE(${books.audioLengthMin}, ${nullValue})`)
-        : asc(sql`COALESCE(${books.audioLengthMin}, ${nullValue})`);
-  } else if (input.sortField === "pageCount") {
-    const nullValue = input.sortOrder === "desc" ? -999999 : 999999;
-    orderBy =
-      input.sortOrder === "desc"
-        ? desc(sql`COALESCE(${books.pageCount}, ${nullValue})`)
-        : asc(sql`COALESCE(${books.pageCount}, ${nullValue})`);
-  } else {
-    orderBy =
-      input.sortOrder === "desc"
-        ? desc(books[input.sortField])
-        : asc(books[input.sortField]);
-  }
+  const orderBy = getBookOrderBy(input.sortField, input.sortOrder);
 
   const results = await db.query.books.findMany({
     where: and(...conditions),

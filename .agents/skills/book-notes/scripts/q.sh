@@ -35,5 +35,6 @@ PSQL_BIN="${PSQL_BIN:-$(command -v psql || echo /opt/homebrew/opt/postgresql@17/
   -v ON_ERROR_STOP=1 \
   --csv \
   -c "SET statement_timeout = '10s';" \
-  -c "SET default_transaction_read_only = on;" \
-  -c "$SQL"
+  -c "BEGIN TRANSACTION READ ONLY;" \
+  -c "$SQL" \
+  -c "COMMIT;"

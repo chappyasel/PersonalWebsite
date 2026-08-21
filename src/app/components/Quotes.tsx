@@ -23,6 +23,11 @@ const Quotes: React.FC = () => {
           ~ Winston Churchill (whoops, twice haha)
         </footer>
       </blockquote>
+      <blockquote className="mx-auto max-w-2xl text-center">
+        &ldquo;The more voluntary suffering you build into your life, the less
+        involuntary suffering will affect your life.&rdquo;
+        <footer className="mt-2 text-muted-foreground">~ Tim Ferriss</footer>
+      </blockquote>
     </section>
   );
 };
