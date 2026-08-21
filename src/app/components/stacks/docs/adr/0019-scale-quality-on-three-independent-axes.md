@@ -142,11 +142,14 @@ entries from the live-bucket policy, because they may contain either side of
 the resulting floor/full oscillation. Sampling begins only after reveal,
 shader precompile, and a settled validation window.
 
-The Safety contract is checked after each successful production deployment on
-the reference mobile viewport. The rendered triangle counts at the first,
-middle, and last units fail the GitHub Actions check above 250,000 and are
-uploaded with draw-call and physical-pixel observations. The resolution-floor
-pixel contract remains a deterministic unit assertion.
+The Safety contract has two checks. CI pins the tier mapping, projected
+triangle ceiling, physical-pixel floor, and every deterministic quality policy
+on each commit. Before release, `yarn test:performance:safety` runs Playwright
+against a local production build and records the rendered first, middle, and
+last checkpoints; each must stay at or below 250,000 triangles. The browser
+check stays local because hosted runners expose only software WebGL, which can
+lose the context while compiling this scene. Frame rate remains outside the
+contract because machine timing is not reproducible.
 
 This replaces a policy that could only trade pixels, and that measured 61
 percent movement in framebuffer pixels against 4.7 percent in geometry. Phones

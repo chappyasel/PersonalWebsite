@@ -27,6 +27,12 @@ const INPUT_PATHS = Object.freeze([
 
 const EXCLUDED_INPUTS = new Set([HOME_OG_IMAGE, HOME_OG_MANIFEST]);
 
+/** @param {string} file */
+const isNonVisualSource = (file) =>
+  file.endsWith(".md") ||
+  file.endsWith(".test.ts") ||
+  file.endsWith(".test.tsx");
+
 /** @param {string} root */
 async function listInputs(root) {
   const { stdout } = await execFileAsync(
@@ -48,6 +54,7 @@ async function listInputs(root) {
     .split("\0")
     .filter(Boolean)
     .filter((file) => !EXCLUDED_INPUTS.has(file))
+    .filter((file) => !isNonVisualSource(file))
     .sort();
 }
 

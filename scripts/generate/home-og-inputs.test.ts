@@ -21,6 +21,11 @@ async function fixtureRoot() {
   });
   await mkdir(path.join(root, "public/images/stacks"), { recursive: true });
   await writeFile(path.join(root, "src/app/page.tsx"), "export default 1;\n");
+  await writeFile(path.join(root, "src/app/page.test.ts"), "test only\n");
+  await writeFile(
+    path.join(root, "src/app/components/stacks/CONTEXT.md"),
+    "docs\n",
+  );
   await writeFile(path.join(root, HOME_OG_IMAGE), "image-v1");
   await writeFile(path.join(root, HOME_OG_MANIFEST), "{}\n");
   execFileSync("git", ["init", "--quiet"], { cwd: root });
