@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import {
   HOME_OG_MANIFEST,
   homeOgImageDigest,
+  homeOgImageInputDigest,
   homeOgInputManifest,
 } from "./generate/home-og-inputs.mjs";
 
@@ -25,8 +26,10 @@ try {
 
 const current = await homeOgInputManifest({ root });
 let imageDigest;
+let capturedInputDigest;
 try {
   imageDigest = await homeOgImageDigest({ root });
+  capturedInputDigest = await homeOgImageInputDigest({ root });
 } catch (error) {
   const reason = error instanceof Error ? error.message : String(error);
   console.error(`Homepage OG image is missing or unreadable: ${reason}`);
@@ -37,7 +40,9 @@ if (
   committed.version !== current.version ||
   committed.algorithm !== current.algorithm ||
   committed.digest !== current.digest ||
-  committed.image?.digest !== imageDigest
+  committed.image?.digest !== imageDigest ||
+  committed.image?.inputDigest !== current.digest ||
+  capturedInputDigest !== current.digest
 ) {
   console.error("Homepage OG image or its source fingerprint is stale.");
   console.error("Run `yarn generate:home-og:local` and commit its outputs.");

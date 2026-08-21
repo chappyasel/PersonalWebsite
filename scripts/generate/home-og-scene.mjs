@@ -8,6 +8,11 @@ import { chromium } from "playwright";
 import sharp from "sharp";
 
 import {
+  homeOgInputManifest,
+  stampHomeOgImage,
+  writeHomeOgManifest,
+} from "./home-og-inputs.mjs";
+import {
   HOME_OG_CAMERA_Y,
   HOME_OG_DEVICE_SCALE_FACTOR,
   HOME_OG_FOV,
@@ -18,10 +23,6 @@ import {
   HOME_OG_SCENE_CROP,
   HOME_OG_VIEWPORT,
 } from "./home-og-scene-config.mjs";
-import {
-  homeOgInputManifest,
-  writeHomeOgManifest,
-} from "./home-og-inputs.mjs";
 
 const { width: WIDTH, height: HEIGHT } = HOME_OG_OUTPUT;
 const ROOT = path.resolve(
@@ -167,10 +168,7 @@ try {
   });
 
   const rawMetadata = await sharp(rawOutputPath).metadata();
-  if (
-    (rawMetadata.width ?? 0) < WIDTH ||
-    (rawMetadata.height ?? 0) < HEIGHT
-  ) {
+  if ((rawMetadata.width ?? 0) < WIDTH || (rawMetadata.height ?? 0) < HEIGHT) {
     throw new Error(
       `Raw capture ${rawMetadata.width ?? "?"}x${rawMetadata.height ?? "?"} is smaller than ${WIDTH}x${HEIGHT}`,
     );
@@ -195,6 +193,10 @@ try {
       "Homepage OG inputs changed during capture. Run the generator again.",
     );
   }
+  await stampHomeOgImage({
+    imagePath: temporaryOutputPath,
+    inputDigest: startingInputs.digest,
+  });
   await rename(temporaryOutputPath, outputPath);
   if (outputPath === DEFAULT_OUTPUT) {
     await writeHomeOgManifest({ root: ROOT });

@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -8,7 +8,10 @@ import {
   HOME_OG_IMAGE,
   HOME_OG_MANIFEST,
   homeOgImageDigest,
+  homeOgImageInputDigest,
   homeOgInputManifest,
+  stampHomeOgImage,
+  writeHomeOgManifest,
 } from "./home-og-inputs.mjs";
 
 const temporaryRoots: string[] = [];
@@ -35,7 +38,9 @@ async function fixtureRoot() {
 
 afterEach(async () => {
   await Promise.all(
-    temporaryRoots.splice(0).map((root) => rm(root, { force: true, recursive: true })),
+    temporaryRoots
+      .splice(0)
+      .map((root) => rm(root, { force: true, recursive: true })),
   );
 });
 
@@ -61,5 +66,22 @@ describe("home OG input manifest", () => {
     const after = await homeOgInputManifest({ root });
 
     expect(after.digest).not.toBe(before.digest);
+  });
+
+  it("refuses to bless an old image after its visual inputs change", async () => {
+    const root = await fixtureRoot();
+    const capturedInputs = await homeOgInputManifest({ root });
+    await stampHomeOgImage({
+      imagePath: path.join(root, HOME_OG_IMAGE),
+      inputDigest: capturedInputs.digest,
+    });
+    await writeHomeOgManifest({ root });
+    expect(await homeOgImageInputDigest({ root })).toBe(capturedInputs.digest);
+
+    await writeFile(path.join(root, "src/app/page.tsx"), "export default 2;\n");
+
+    await expect(writeHomeOgManifest({ root })).rejects.toThrow(
+      "Regenerate the homepage OG image",
+    );
   });
 });

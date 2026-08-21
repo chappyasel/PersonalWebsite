@@ -1,7 +1,7 @@
 {
   "version": 1,
   "algorithm": "sha256",
-  "digest": "d45954e7bb80ee11923b13460fa623f74d85fe79d21fb92067177601cf7a0789",
+  "digest": "096933535d5c6ad2342c189a0b7e273ebb6a7968a739aa0f0df0c05edda3c2e3",
   "files": [
     "public/data/blog-posts.json",
     "public/data/manual.json",
@@ -407,6 +407,7 @@
   ],
   "image": {
     "path": "public/images/stacks/home-og-scene.jpg",
-    "digest": "77bc7182376e26a12cfff7f36358a1c7f7bfa3eccf6bcbaf1cfdb2dae02720c2"
+    "digest": "0a7ffb1e62e503c258705d301c34403174359b953e678f3754a79c76c5b4c064",
+    "inputDigest": "096933535d5c6ad2342c189a0b7e273ebb6a7968a739aa0f0df0c05edda3c2e3"
   }
 }
