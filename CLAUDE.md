@@ -19,11 +19,26 @@ This repository uses a multi-context domain map. See `docs/agents/domain.md`.
 ### Development
 
 ```bash
+yarn verify           # Every check that does not need a production build
 yarn dev              # Start development server (http://localhost:3000)
 yarn build            # Build the application for production
 yarn fix              # Run ESLint with auto-fix (includes Prettier formatting)
 yarn lint             # Run ESLint
+yarn typecheck        # next typegen, then tsc --noEmit
+yarn typegen          # Write next-env.d.ts and .next/types without a build
 ```
+
+`yarn verify` is the entry point CI runs, and it covers types, lint, the unit
+suite, and homepage OG freshness. It does not cover route budgets: those read
+gzipped chunk sizes out of `.next`, so they only mean anything right after a
+build, which is where `postbuild` already runs them.
+
+Run `yarn typegen` before `yarn tsc --noEmit` or `yarn lint` in a fresh
+worktree. `next-env.d.ts` and `.next/types` are gitignored, and without them
+the `public/images/...` imports in About and Projects fail to resolve.
+TypeScript reports eight phantom TS2307s, and the type-aware lint rules turn
+the same imports into `no-unsafe-assignment` errors. `yarn verify` and
+`yarn typecheck` generate them first; `yarn tsc` on its own does not.
 
 ### Database Management
 

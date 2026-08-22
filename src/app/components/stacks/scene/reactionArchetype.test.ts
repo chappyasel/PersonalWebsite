@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { LIFT_LAMBDA, TIP } from "./Lift";
+import { TIP } from "./Lift";
 import { TILT_MAX_SIZE } from "./interaction";
 import {
   FLUTTER_MAX_KG,

@@ -1,6 +1,11 @@
 import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import {
+  SHELF_DEPTH_OF_FIELD_CLEAR_RADIUS,
+  SHELF_DEPTH_OF_FIELD_FALLOFF_RANGE,
+} from "./shelfDepthOfField";
+
 const primitives = fs.readFileSync(
   new URL("./primitives.tsx", import.meta.url),
   "utf8",
@@ -262,7 +267,16 @@ describe("scene performance integration", () => {
     expect(effects).toContain("resolutionScale={0.5}");
     expect(effects).toContain("<LiveBokehDepthOfField");
     expect(effects).toContain("bokehScale={plan.depthOfFieldBokehScale}");
-    expect(effects).toContain("focusRange={golfFocused ? 16.5 : 2.2}");
+    // The shelf falloff moved behind a named constant when the clear band
+    // landed. It still resolves to the same 2.2-unit distance to full blur,
+    // so assert the branch and let shelfDepthOfField.ts own the number.
+    expect(effects).toContain(
+      "golfFocused ? 16.5 : SHELF_DEPTH_OF_FIELD_FALLOFF_RANGE",
+    );
+    expect(SHELF_DEPTH_OF_FIELD_CLEAR_RADIUS).toBeCloseTo(1.05, 10);
+    expect(
+      SHELF_DEPTH_OF_FIELD_CLEAR_RADIUS + SHELF_DEPTH_OF_FIELD_FALLOFF_RANGE,
+    ).toBeCloseTo(2.2, 10);
     expect(effects).not.toContain("focusRange={activeUnit === 2");
   });
 

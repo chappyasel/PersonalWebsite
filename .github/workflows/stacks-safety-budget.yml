@@ -35,5 +35,8 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
+      # Same entry point developers run locally, so a green terminal and a
+      # green check mean the same thing. Types, lint, the unit suite, and OG
+      # freshness — everything that does not need a production build.
       - name: Check deterministic quality contracts
-        run: yarn test
+        run: yarn verify

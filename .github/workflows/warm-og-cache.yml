@@ -13,7 +13,12 @@ jobs:
   warm:
     runs-on: ubuntu-latest
     steps:
+      # A failed deploy is the deploy's own red mark. This job used to fail
+      # alongside it, which said "the OG warmer is broken" when the warmer had
+      # simply been given nothing to warm. Report the deploy's own statuses and
+      # stand down instead; a timeout still fails, because that one is ours.
       - name: Wait for Vercel production deploy
+        id: deploy
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -22,17 +27,22 @@ jobs:
             state=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/status" --jq '.state // "pending"')
             echo "[$i] Vercel status: $state"
             case "$state" in
-              success) exit 0 ;;
+              success)
+                echo "deployed=true" >> "$GITHUB_OUTPUT"
+                exit 0 ;;
               failure|error)
                 gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/status" --jq '.statuses[] | "\(.context): \(.description)"'
-                exit 1 ;;
+                echo "deployed=false" >> "$GITHUB_OUTPUT"
+                echo "::warning::Skipping the OG cache warm: the production deploy for ${{ github.sha }} did not succeed. Fix the deploy; this job is not the failure."
+                exit 0 ;;
             esac
             sleep 20
           done
-          echo "Timed out waiting for Vercel"
+          echo "::error::Timed out after 20 minutes waiting for a Vercel status on ${{ github.sha }}."
           exit 1
 
       - name: Fetch book slugs from production
+        if: steps.deploy.outputs.deployed == 'true'
         run: |
           set -euo pipefail
           # books.getAll is a public tRPC query — call with default input
@@ -44,6 +54,7 @@ jobs:
           echo "Found $(wc -l < /tmp/slugs.txt) books"
 
       - name: Warm OG images (8 in parallel)
+        if: steps.deploy.outputs.deployed == 'true'
         run: |
           set -uo pipefail
           xargs -P 8 -I {} curl -sS \
