@@ -67,3 +67,26 @@ export const SCENE_BACKDROP = {
 export function sceneBackdropFor(dark: boolean) {
   return dark ? SCENE_BACKDROP.dark : SCENE_BACKDROP.light;
 }
+
+/**
+ * The context attributes the scene's canvas is created with.
+ *
+ * These live next to the backdrop because they are the other half of the same
+ * decision. The backdrop only works as fallback pixels while the canvas stays
+ * a transparent layer, so nothing here may disable alpha, and physical iPhone
+ * testing disproved the opaque-context workaround anyway: the same missed
+ * frame simply became black instead of white, and preserving the drawing
+ * buffer did not make a DPR reallocation atomic.
+ *
+ * MSAA is the renderer's guaranteed edge-quality floor. Desktop normally adds
+ * SMAA in the composer, but the performance ladder unmounts that composer
+ * after a sustained decline; a context created without MSAA loses ALL
+ * antialiasing on that fallback path and the shelf silhouettes stair-step.
+ *
+ * The stencil buffer belongs to the composer, which requests stencil render
+ * targets and cannot get them from a context that has none.
+ */
+export const SCENE_CANVAS_CONTEXT = {
+  antialias: true,
+  stencil: true,
+} as const;

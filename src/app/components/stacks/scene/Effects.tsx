@@ -50,10 +50,10 @@ import {
 import { useScenePerformanceSettings } from "./scenePerformance";
 import { useSceneQualityControls } from "./sceneQualityController";
 import {
-  SHELF_DEPTH_OF_FIELD_FALLOFF_RANGE,
-  installShelfDepthOfFieldFocusBand,
+  type ShelfDepthOfFieldTuning,
+  applyShelfDepthOfFieldTuning,
+  resolveShelfDepthOfFieldTuning,
 } from "./shelfDepthOfField";
-import { depthOfFieldTargetForUnit } from "./worldLayout";
 
 // The print grade — the last thing between ACES and the screen, and the
 // reason the room reads as one photograph rather than 37 correctly-lit
@@ -264,30 +264,24 @@ function SideLens({
   );
 }
 
-/** Keep the DoF targets mounted while its live tuning changes. The React
- * wrapper reconstructs the whole effect whenever bokeh, focus, or resolution
- * props change, so pass stable constructor values and update the effect's two
- * resolution owners directly before the browser can paint the next frame. */
+/** Keep the DoF targets mounted while its live tuning changes. Stable
+ * constructor values here, live values through `applyShelfDepthOfFieldTuning`
+ * before the browser can paint the next frame. */
 function LiveBokehDepthOfField({
   target,
   focusRange,
   bokehScale,
   resolutionScale,
-}: {
-  target: [number, number, number];
-  focusRange: number;
-  bokehScale: number;
-  resolutionScale: number;
-}) {
+}: ShelfDepthOfFieldTuning) {
   const effect = useRef<DepthOfFieldEffect | null>(null);
 
   useLayoutEffect(() => {
     if (!effect.current) return;
-    installShelfDepthOfFieldFocusBand(effect.current);
-    effect.current.bokehScale = bokehScale;
-    effect.current.cocMaterial.focusRange = focusRange;
-    effect.current.resolution.scale = resolutionScale;
-    effect.current.blurPass.resolution.scale = resolutionScale;
+    applyShelfDepthOfFieldTuning(effect.current, {
+      focusRange,
+      bokehScale,
+      resolutionScale,
+    });
   }, [bokehScale, focusRange, resolutionScale]);
 
   return (
@@ -377,9 +371,33 @@ export default function Effects({
         : captureLensCenterFromSearch(window.location.search),
     [],
   );
-  const focusTarget = useMemo<[number, number, number]>(
-    () => [...depthOfFieldTargetForUnit(activeUnit)],
-    [activeUnit],
+  const {
+    depthOfField: planDepthOfField,
+    depthOfFieldBokehScale,
+    depthOfFieldResolutionScale,
+  } = plan;
+  const depthOfFieldTuning = useMemo(
+    () =>
+      resolveShelfDepthOfFieldTuning({
+        plan: {
+          depthOfField: planDepthOfField,
+          depthOfFieldBokehScale,
+          depthOfFieldResolutionScale,
+        },
+        activeUnit,
+        golfFocused,
+        seated,
+        isolated: !depthOfField,
+      }),
+    [
+      activeUnit,
+      depthOfField,
+      depthOfFieldBokehScale,
+      depthOfFieldResolutionScale,
+      golfFocused,
+      planDepthOfField,
+      seated,
+    ],
   );
   return (
     <EffectComposer multisampling={plan.multisampling} stencilBuffer>
@@ -417,18 +435,10 @@ export default function Effects({
           camera's 5.8-unit pose. Portrait layouts pull the camera back to 7.6;
           a fixed 6.05 focus distance put the focal plane in the foreground
           grass. The effect measures camera→target every frame, including the
-          alternating unit depths and the About stop's lateral offset. */}
-      {plan.depthOfField && !seated && (
-        <LiveBokehDepthOfField
-          target={focusTarget}
-          // Golf owns a real tee-to-green action axis. Keep the static
-          // focal plane (never rack focus during a shot), but broaden its
-          // accepted range enough that the club and distant cup stay legible.
-          focusRange={golfFocused ? 16.5 : SHELF_DEPTH_OF_FIELD_FALLOFF_RANGE}
-          bokehScale={plan.depthOfFieldBokehScale}
-          resolutionScale={plan.depthOfFieldResolutionScale}
-        />
-      )}
+          alternating unit depths and the About stop's lateral offset.
+          Whether it mounts at all, and at what tuning, is decided in
+          shelfDepthOfField.ts. */}
+      {depthOfFieldTuning && <LiveBokehDepthOfField {...depthOfFieldTuning} />}
       {/* Vertical focus line with softness growing toward the screen edges.
           This is part of the approved look, so finish mode keeps it. */}
       {tiltShift && (

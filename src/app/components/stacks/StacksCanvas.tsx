@@ -100,7 +100,7 @@ import {
 } from "./scene/qualityLog";
 import { sceneQualityPersistenceStatus } from "./scene/qualityPersistence";
 import { createSceneQualitySampler } from "./scene/qualitySampler";
-import { sceneBackdropFor } from "./scene/sceneBackdrop";
+import { SCENE_CANVAS_CONTEXT, sceneBackdropFor } from "./scene/sceneBackdrop";
 import {
   sceneColorGradeController,
   sceneColorGradeFor,
@@ -1834,16 +1834,9 @@ export default function StacksCanvas({
         shadows="soft"
         camera={{ position: [0, CAMERA.y, CAMERA.z], fov: CAMERA.fov }}
         dpr={dpr}
-        // Keep hardware MSAA as the renderer's guaranteed edge-quality floor.
-        // Desktop normally adds SMAA in the composer, but the performance
-        // ladder deliberately unmounts that composer after a sustained
-        // decline. Creating the context without MSAA made that fallback path
-        // lose ALL antialiasing and exposed stair-stepped shelf silhouettes.
-        // Keep the default alpha-capable context so the scene-shaped shell
-        // remains visible if WebKit misses a composite. Making the context
-        // opaque only converted that fallback frame from white to black, and
-        // preserving its drawing buffer did not make DPR reallocations atomic.
-        gl={{ antialias: true, stencil: true }}
+        // Authored in sceneBackdrop.ts, alongside the backdrop these
+        // attributes have to stay compatible with.
+        gl={SCENE_CANVAS_CONTEXT}
         onCreated={({ gl, scene, camera }) => {
           const colorGrade = sceneColorGradeFor(
             sceneColorGradeController.getSnapshot(),

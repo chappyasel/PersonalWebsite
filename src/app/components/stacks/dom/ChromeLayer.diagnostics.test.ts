@@ -157,10 +157,10 @@ describe("development diagnostics chrome", () => {
     expect(diagnosticsSource).toContain("storageBucket");
     expect(diagnosticsSource).toContain("fallbackStatus");
     expect(diagnosticsSource).toContain("custom overrides");
-    expect(diagnosticsSource).toContain('"Auto · adapting"');
-    expect(diagnosticsSource).not.toContain(
-      "runtime.forcedProfile ?? runtime.plan.profile",
-    );
+    // What the Rendering card says — who is driving, the step the frame was
+    // rendered at, and whether it is pinned — is asserted against the module
+    // that formats it in qualityReadout.test.ts.
+    expect(diagnosticsSource).toContain("qualityRenderingReadout");
   });
 
   it("keeps the compact HUD focused on policy decisions and their visual cost", () => {

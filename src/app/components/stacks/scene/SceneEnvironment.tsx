@@ -30,7 +30,10 @@ import {
   COORDINATION_HUMAN_COLOR,
 } from "./coordinationNetwork";
 import { DAYLIGHT_RENDERING } from "./daylightRendering";
-import { freeRoamDiagnosticsController } from "./freeRoamDiagnostics";
+import {
+  freeRoamDiagnosticsController,
+  freeRoamFogVisible,
+} from "./freeRoamDiagnostics";
 import {
   getSceneInteraction,
   registerSceneInteraction,
@@ -3843,7 +3846,7 @@ export default function SceneEnvironment({
           coordinationFlickerSignal={activeCoordinationFlickerSignal}
         />
       ) : null}
-      {!freeRoam.enabled || freeRoam.fogEnabled ? (
+      {freeRoamFogVisible(freeRoam) ? (
         <fog attach="fog" args={[palette.fog, 8, 24]} />
       ) : null}
       <SkyDome

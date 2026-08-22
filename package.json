@@ -29,6 +29,7 @@
     "start": "next start",
     "check:budgets": "node scripts/check-route-budgets.mjs",
     "check:node-version": "node scripts/check-node-version.mjs",
+    "check:test-source-reads": "node scripts/test-source-reads.mjs",
     "check:meadow": "npx tsx ./scripts/stacks-meadow-check.ts",
     "check:perches": "npx tsx ./scripts/stacks-perch-check.ts",
     "test:performance": "playwright test",

@@ -1,12 +1,10 @@
-import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { SCENE_BACKDROP, sceneBackdropFor } from "./sceneBackdrop";
-
-const canvas = fs.readFileSync(
-  new URL("../StacksCanvas.tsx", import.meta.url),
-  "utf8",
-);
+import {
+  SCENE_BACKDROP,
+  SCENE_CANVAS_CONTEXT,
+  sceneBackdropFor,
+} from "./sceneBackdrop";
 
 const stopsOf = (gradient: string) =>
   [...gradient.matchAll(/rgb\((\d+) (\d+) (\d+)\) (\d+)%/g)].map((m) => ({
@@ -15,11 +13,6 @@ const stopsOf = (gradient: string) =>
   }));
 
 describe("scene backdrop", () => {
-  it("is painted behind the canvas, not merely defined", () => {
-    expect(canvas).toContain("sceneBackdropFor");
-    expect(canvas).toMatch(/background: sceneBackdropFor\(dark\)/);
-  });
-
   it("follows the theme", () => {
     expect(sceneBackdropFor(false)).toBe(SCENE_BACKDROP.light);
     expect(sceneBackdropFor(true)).toBe(SCENE_BACKDROP.dark);
@@ -62,13 +55,17 @@ describe("scene backdrop", () => {
   // missed frame became black, and preserving the buffer did not make a DPR
   // reallocation atomic. Keep alpha so this backdrop is the fallback pixels.
   it("keeps the scene backdrop reachable through the canvas alpha channel", () => {
-    // Source-shape check: this reads StacksCanvas.tsx as text, so it proves
-    // the option is written, not that the context has it. Matched as a set
-    // rather than as one authored string, because the stencil buffer the
-    // composer needs was added inside this literal and broke an exact-text
-    // assertion that never cared about it.
-    expect(canvas).toMatch(/gl=\{\{[^}]*\bantialias:\s*true\b/);
-    expect(canvas).not.toContain("createOpaqueSceneContext(");
-    expect(canvas).not.toMatch(/alpha:\s*false/);
+    const attributes = SCENE_CANVAS_CONTEXT as Record<string, unknown>;
+
+    expect(attributes.alpha).not.toBe(false);
+    expect(attributes.preserveDrawingBuffer).not.toBe(true);
+  });
+
+  // Two independent fallback paths depend on these. The performance ladder
+  // unmounts the composer under sustained decline and MSAA is then the only
+  // antialiasing left; the composer itself asks for stencil render targets.
+  it("creates the context with the floors the fallback paths need", () => {
+    expect(SCENE_CANVAS_CONTEXT.antialias).toBe(true);
+    expect(SCENE_CANVAS_CONTEXT.stencil).toBe(true);
   });
 });

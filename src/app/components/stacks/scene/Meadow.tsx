@@ -31,7 +31,10 @@ import {
 } from "react";
 import * as THREE from "three";
 
-import { freeRoamDiagnosticsController } from "./freeRoamDiagnostics";
+import {
+  freeRoamDiagnosticsController,
+  freeRoamFogVisible,
+} from "./freeRoamDiagnostics";
 import {
   GOLF_COURSE_CENTER,
   GOLF_CUP,
@@ -1399,9 +1402,11 @@ export default function Meadow({
   }, [alphaMap, built]);
 
   useEffect(() => {
-    built.shared.uFogEnabled.value =
-      freeRoam.enabled && !freeRoam.fogEnabled ? 0 : 1;
-  }, [built, freeRoam.enabled, freeRoam.fogEnabled]);
+    built.shared.uFogEnabled.value = freeRoamFogVisible(freeRoam) ? 1 : 0;
+    // The controller publishes a frozen snapshot and reuses it when nothing
+    // moved, so depending on the object is as narrow as depending on its two
+    // fields, and it cannot drift out of step with the policy.
+  }, [built, freeRoam]);
 
   useEffect(() => {
     deformation.setQuality(effectiveDeformationQuality);

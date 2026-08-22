@@ -1,11 +1,6 @@
 import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import {
-  SHELF_DEPTH_OF_FIELD_CLEAR_RADIUS,
-  SHELF_DEPTH_OF_FIELD_FALLOFF_RANGE,
-} from "./shelfDepthOfField";
-
 const primitives = fs.readFileSync(
   new URL("./primitives.tsx", import.meta.url),
   "utf8",
@@ -42,10 +37,6 @@ const canvas = fs.readFileSync(
 );
 const qualitySampler = fs.readFileSync(
   new URL("./qualitySampler.ts", import.meta.url),
-  "utf8",
-);
-const effects = fs.readFileSync(
-  new URL("./Effects.tsx", import.meta.url),
   "utf8",
 );
 const lift = fs.readFileSync(new URL("./Lift.tsx", import.meta.url), "utf8");
@@ -158,6 +149,14 @@ describe("scene performance integration", () => {
     expect(environment).toContain("matrixWorldAutoUpdate={false}");
   });
 
+  // The backdrop's own tones, opacity, and ramp are asserted against the
+  // module in canvasCompositing.test.ts. This is the wiring fact that has no
+  // in-process interface: that the shell actually paints it.
+  it("paints the scene backdrop behind the canvas layer", () => {
+    expect(canvas).toMatch(/background: sceneBackdropFor\(dark\)/);
+    expect(canvas).toContain("gl={SCENE_CANVAS_CONTEXT}");
+  });
+
   it("mounts diagnostic sweeps only after an explicit request", () => {
     expect(canvas).toContain("{diagnosticsRequested ? (");
     expect(canvas).toContain("<StaticWorldInvariantProbe />");
@@ -250,71 +249,28 @@ describe("scene performance integration", () => {
     expect(litImage.match(/<mesh\b/g)).toHaveLength(1);
   });
 
-  it("isolates browser glass and each expensive post effect", () => {
-    expect(placards).toContain("data-stacks-glass-mode");
-    expect(placards).toContain('data-stacks-glass-mode="paper"');
-    expect(placards).toContain("backdrop-filter: none !important");
-    expect(effects).toContain("plan.ambientOcclusion");
-    expect(effects).toContain("plan.bloom");
-    expect(effects).toContain("resolutionScale={plan.bloomResolutionScale}");
-    expect(effects).toContain("plan.bloomLuminanceThreshold.dark");
-    expect(effects).toContain("plan.depthOfField");
-    expect(effects).toContain("halfRes={plan.ambientOcclusionHalfRes}");
-    expect(effects).toContain("quality={plan.ambientOcclusionQuality}");
-    expect(effects).toContain(
-      "resolutionScale={plan.depthOfFieldResolutionScale}",
-    );
-    expect(effects).toContain("effect.current.bokehScale = bokehScale");
-    expect(effects).toContain(
-      "effect.current.cocMaterial.focusRange = focusRange",
-    );
-    expect(effects).toContain(
-      "effect.current.resolution.scale = resolutionScale",
-    );
-    expect(effects).toContain(
-      "effect.current.blurPass.resolution.scale = resolutionScale",
-    );
-    expect(effects).toContain("[bokehScale, focusRange, resolutionScale]");
-    expect(effects).toContain("bokehScale={1}");
-    expect(effects).toContain("focusRange={2.2}");
-    expect(effects).toContain("resolutionScale={0.5}");
-    expect(effects).toContain("<LiveBokehDepthOfField");
-    expect(effects).toContain("bokehScale={plan.depthOfFieldBokehScale}");
-    // Source-shape check for the branch, real assertions for the numbers. The
-    // shelf falloff moved behind a named constant when the clear band landed,
-    // so the text check confirms Effects.tsx reads that constant and the two
-    // expectations below confirm what it resolves to.
-    expect(effects).toContain(
-      "golfFocused ? 16.5 : SHELF_DEPTH_OF_FIELD_FALLOFF_RANGE",
-    );
-    expect(SHELF_DEPTH_OF_FIELD_CLEAR_RADIUS).toBeCloseTo(1.05, 10);
-    expect(
-      SHELF_DEPTH_OF_FIELD_CLEAR_RADIUS + SHELF_DEPTH_OF_FIELD_FALLOFF_RANGE,
-    ).toBeCloseTo(2.2, 10);
-    expect(effects).not.toContain("focusRange={activeUnit === 2");
+  // The composer half of this — which passes mount, in what order, and at
+  // what values — is asserted against the rendered chain in
+  // Effects.contract.test.tsx and shelfDepthOfField.test.ts. What the paper
+  // mode declares is asserted in placardSurface.test.ts. This is the wiring
+  // fact: the resolved mode reaches the DOM as the attribute those rules and
+  // that policy both key on.
+  it("publishes the resolved glass mode where its stylesheet can see it", () => {
+    expect(placards).toContain("effectivePlacardGlassMode");
+    expect(placards).toContain("data-stacks-glass-mode={glassMode}");
+    expect(placards).toContain("PLACARD_PAPER_SURFACE_CSS");
   });
 
   it("runs reversible RCAS only for reduced-DPR composer frames", () => {
     expect(canvas).toContain("adaptiveSharpenAmount(");
     expect(canvas).toContain("sharpenAmount={sharpenAmount}");
-    expect(effects).toContain("AdaptiveSharpenEffect");
-    expect(effects).toContain("EffectAttribute.CONVOLUTION");
-    expect(effects).toContain("texture2D(inputBuffer");
-    expect(effects).toContain(
-      "sharpenAmount > 0 && <AdaptiveSharpen amount={sharpenAmount}",
-    );
-    expect(effects.indexOf("<ToneMapping")).toBeLessThan(
-      effects.indexOf("<AdaptiveSharpen"),
-    );
-    expect(diagnosticsRegistry).toContain('"adaptiveSharpen"');
-    expect(diagnosticsRegistry).toContain("Sharpen reduced-DPR output");
+    expect(diagnostics).toContain("performanceSettings.adaptiveSharpen");
+    expect(diagnostics).toContain("Sharpen reduced-DPR output");
   });
 
   it("ships an opaque paper comparison without a scene-copy pipeline", () => {
     expect(canvas).not.toContain("SceneGlassSampler");
     expect(canvas).not.toContain("sceneGlassLiveController");
-    expect(placards).toContain("--sheet-fill: rgb(244 241 233)");
-    expect(placards).toContain("repeating-linear-gradient");
     expect(placards).not.toContain("SceneGlassSurface");
   });
 
@@ -409,13 +365,10 @@ describe("scene performance integration", () => {
     expect(placards).toContain('visibility: active ? "visible" : "hidden"');
   });
 
-  it("keeps touch on the shared non-MSAA effects chain and contains composer failures", () => {
+  it("keeps touch on the shared effects chain and contains composer failures", () => {
     expect(canvas).toContain("Touch uses the same effect");
     expect(canvas).toContain("EffectsErrorBoundary");
     expect(canvas).toContain('type: "effects-error"');
-    expect(effects).toContain(
-      "<EffectComposer multisampling={plan.multisampling} stencilBuffer>",
-    );
   });
 
   it("reduces wing blur and suspends only provably distant wildlife in Safety", () => {

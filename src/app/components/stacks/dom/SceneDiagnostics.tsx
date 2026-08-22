@@ -36,6 +36,7 @@ import { createPortal } from "react-dom";
 
 import "./SceneDiagnostics.module.css";
 import { type DevHudInput, createDevHudRows } from "./devHudPresentation";
+import { qualityRenderingReadout } from "./qualityReadout";
 
 /** Plain words for the constraint, because "cpu"/"gpu" alone reads as a
  * category rather than as a verdict about this window. */
@@ -673,6 +674,21 @@ function DiagnosticsOverview({
 }) {
   const runtime = qualityControls.runtime;
   const metrics = runtime?.metrics;
+  const renderingReadout = qualityRenderingReadout({
+    cinematicPlus: qualityControls.cinematicPlus,
+    forcedProfile: runtime?.forcedProfile ?? null,
+    pinnedResolutionStep: qualityControls.resolutionStep,
+    runtime: runtime
+      ? {
+          profile: runtime.plan.profile,
+          axisResolutionStep: runtime.axes.resolutionStep,
+          dpr: runtime.plan.dpr,
+          physicalPixels: runtime.plan.physicalPixels,
+          effectsTier: runtime.axes.effects,
+          contentTier: runtime.axes.content,
+        }
+      : null,
+  });
   const direct = runtime?.fallbackStatus.startsWith("direct") ?? false;
   const failedPhysics = physicsSnapshot.moduleState === "failed";
   const framePressure = Boolean(
@@ -811,42 +827,11 @@ function DiagnosticsOverview({
       <div className="stacks-diagnostics-metrics">
         <article>
           <span>Rendering</span>
-          {/* In automatic mode the scene does not stand at a preset, so a
-              preset name here would misdescribe an independent axis state.
-              A forced preset shows its name and the axes it resolved to. */}
-          {/* Never collapse to a bare "Waiting": the profile name is known
-              from the control store before the canvas has published anything,
-              and hiding it makes a booting scene look like a broken one. */}
-          {/* Report the step the frame was RENDERED at, not the one the axis
-              controller is holding. Pinning a step leaves the controller
-              adapting underneath, so those two disagree exactly when someone
-              is watching to see whether their pin took effect — which is the
-              worst possible moment for the panel to describe the wrong one.
-              A pinned step says so, since an unmarked number that ignores the
-              control beside it reads as a broken control. */}
-          <strong>
-            {qualityControls.cinematicPlus
-              ? "Cinematic+ · manual"
-              : runtime?.forcedProfile
-                ? `${runtime.forcedProfile} · manual`
-                : "Auto · adapting"}
-          </strong>
-          <small>
-            {runtime
-              ? `Effective ${runtime.plan.profile} · res ${
-                  qualityControls.resolutionStep ?? runtime.axes.resolutionStep
-                }/11${qualityControls.resolutionStep != null ? " pinned" : ""}`
-              : "no frame published yet"}
-          </small>
-          <small>
-            {runtime
-              ? `DPR ${runtime.plan.dpr.toFixed(2)} · ${(
-                  runtime.plan.physicalPixels / 1_000_000
-                ).toFixed(
-                  1,
-                )} MP · fx ${runtime.axes.effects} · geo ${runtime.axes.content}`
-              : "Resolving render plan"}
-          </small>
+          {/* Every rule these three lines follow lives in qualityReadout.ts,
+              which is also where they are tested. */}
+          <strong>{renderingReadout.mode}</strong>
+          <small>{renderingReadout.effective}</small>
+          <small>{renderingReadout.plan}</small>
         </article>
         <article>
           <span>Frame signal</span>
