@@ -17,6 +17,13 @@
 // Two clocks, deliberately not mixed. `at` is monotonic elapsed milliseconds
 // (performance.now()). `warmRecordAgeMs` is a wall-clock age derived from
 // Date.now(), because the record it comes from has to survive a reload.
+//
+// Every boot has an EPOCH. A scene that is being torn down keeps firing for a
+// while — a queued requestAnimationFrame, a webglcontextlost on a dying
+// canvas, a loading manager draining its last batch — and on SPA re-entry
+// those land after the next boot has already started. Signals that belong to
+// one mounted world therefore carry the epoch they were produced under, and
+// the machine drops anything from an older one.
 import { WORLD_BOOT_POLICY, type WorldBootPolicy } from "./worldBootPolicy";
 
 /** The value of the document handshake attribute. `pending` hides the flat
@@ -81,7 +88,7 @@ export type WarmEvidence =
 export type WorldBootEvent =
   /** Initial capability: WebGL availability, motion preference, Save-Data,
    * warm cache, and whether this is an OG capture. Always legal — a second
-   * start is an SPA re-entry and begins a fresh boot. */
+   * start is an SPA re-entry and begins a fresh boot under a new epoch. */
   | {
       type: "start";
       at: number;
@@ -91,29 +98,42 @@ export type WorldBootEvent =
       saveData: boolean;
       ogCapture: boolean;
       warm: WarmEvidence;
+      /** The pre-paint backstop already fired for THIS document load, so the
+       * visitor has been reading the flat page for twenty seconds. Hydrating
+       * into a boot screen now would take it away again. */
+      prepaintTimedOut: boolean;
     }
   /** A frame has actually been painted by the world's renderer. */
-  | { type: "firstFrame"; at: number }
+  | { type: "firstFrame"; at: number; epoch: number }
   /** The loading manager published a new state. */
-  | { type: "assetLoad"; at: number; assets: AssetLoadState }
+  | { type: "assetLoad"; at: number; epoch: number; assets: AssetLoadState }
   /** The meadow filled its instance buffers, or reported immediately because
    * it is switched off. */
-  | { type: "meadowReady"; at: number }
-  /** The boot vignette began a fresh item-by-item pass. */
+  | { type: "meadowReady"; at: number; epoch: number }
+  /** The boot vignette began a fresh item-by-item pass. Not epoch-scoped: the
+   * vignette belongs to the page instance, and it is running before the
+   * world's owner has streamed in. */
   | { type: "bootVignetteStarted"; at: number }
   /** The boot vignette finished that pass. */
   | { type: "bootVignetteCompleted"; at: number }
   /** The chunk refused to load, or the scene threw during render. */
-  | { type: "runtimeError"; at: number }
+  | { type: "runtimeError"; at: number; epoch: number }
   /** The GL context was lost. */
-  | { type: "contextLost"; at: number }
+  | { type: "contextLost"; at: number; epoch: number }
   /** The homepage unmounted or the route changed. */
-  | { type: "exit"; at: number }
+  | { type: "exit"; at: number; epoch: number }
   /** Time passed. Fires whichever deadline is due and re-checks the reveal
-   * gate; the only event an adapter needs on a timer or a frame loop. */
+   * gate; the only event an adapter needs on a timer or a frame loop.
+   *
+   * Deliberately not epoch-scoped. Deadlines are absolute times held in the
+   * CURRENT state, so a tick left over from a previous boot can only ask
+   * "is anything due", which is always a fair question. */
   | { type: "tick"; at: number };
 
 export type WorldBootState = {
+  /** Increments on every start. Signals from a mounted world carry the epoch
+   * they were produced under; anything older is ignored. */
+  epoch: number;
   status: WorldBootStatus;
   origin: WorldBootOrigin | null;
   loadPath: LoadPath;
@@ -131,6 +151,9 @@ export type WorldBootState = {
 
 /** Everything an adapter needs to know, and nothing about how it renders. */
 export type WorldBootView = {
+  /** The generation a producer mounting right now must stamp its signals
+   * with. */
+  epoch: number;
   status: WorldBootStatus;
   /** What the handshake attribute should say. null removes it. */
   documentPhase: WorldPhase | null;
@@ -158,6 +181,7 @@ export type WorldBootView = {
 
 export function initialWorldBootState(): WorldBootState {
   return {
+    epoch: 0,
     status: "unstarted",
     origin: null,
     loadPath: "cold",
@@ -292,18 +316,35 @@ function startDeadline(
   return { kind: "hangBackstop", at: event.at + policy.hangBackstopMs };
 }
 
+/** Signals the boot vignette produces. They describe the vignette, not the
+ * world, so they outlive a failure and cross a route change: the vignette is
+ * already running its next pass before the next boot's owner has mounted. */
+function isVignetteSignal(event: WorldBootEvent): boolean {
+  return (
+    event.type === "bootVignetteStarted" ||
+    event.type === "bootVignetteCompleted"
+  );
+}
+
 export function reduceWorldBoot(
   state: WorldBootState,
   event: WorldBootEvent,
   policy: WorldBootPolicy = WORLD_BOOT_POLICY,
 ): WorldBootState {
-  // Once the world has been given up on or the route has been left, the
-  // signals still arriving from a tearing-down scene describe a world nobody
-  // is looking at. Recording them would only churn subscribers.
+  // A world that has been torn down keeps talking for a while. Anything
+  // stamped with an older generation is describing a scene nobody is looking
+  // at, and on SPA re-entry it would otherwise corrupt the live boot: a stale
+  // contextLost would demote a healthy world, a stale firstFrame would open
+  // the reveal gate on a canvas that has not painted.
+  if ("epoch" in event && event.epoch !== state.epoch) return state;
+
+  // Once the world has been given up on or the route has been left, the rest
+  // of the signals from a tearing-down scene would only churn subscribers.
   if (
     (state.status === "failed" || state.status === "exited") &&
     event.type !== "start" &&
-    event.type !== "exit"
+    event.type !== "exit" &&
+    !isVignetteSignal(event)
   ) {
     return state;
   }
@@ -313,13 +354,14 @@ export function reduceWorldBoot(
       const fresh = initialWorldBootState();
       const base: WorldBootState = {
         ...fresh,
+        epoch: state.epoch + 1,
         origin: event.origin,
         ogCapture: event.ogCapture,
-        // The vignette runs in the initial entry bundle and starts its pass
-        // before the world's own owner exists. Its producer resets it (see
-        // `bootVignetteStarted`); a start must not wipe a pass that already
-        // completed, or the reveal would wait for a signal nobody will send
-        // again and the hang backstop would take the room away.
+        // The vignette runs in the initial entry bundle and can finish its
+        // pass before the streamed homepage data resolves and the world's
+        // owner mounts. Clearing it here would leave the reveal waiting on a
+        // signal nobody will send again. `exit` is what ends a pass, because
+        // that is what ends the page instance the vignette belongs to.
         bootVignetteReady: state.bootVignetteReady,
       };
       if (
@@ -330,6 +372,12 @@ export function reduceWorldBoot(
         })
       ) {
         return { ...base, status: "ineligible" };
+      }
+      // The pre-paint backstop already handed this visitor the document. Do
+      // not put the boot screen back over it and start a second, longer wait
+      // — hydration that late is the same hang, seen from further along.
+      if (event.prepaintTimedOut) {
+        return { ...base, status: "failed", failure: "hang" };
       }
       return settle(
         {
@@ -345,14 +393,20 @@ export function reduceWorldBoot(
 
     case "exit":
       if (state.status === "exited") return state;
-      return { ...state, status: "exited", deadline: null };
+      // The vignette's completed pass belongs to the page instance that is
+      // leaving. Carrying it into the next boot would open that boot's reveal
+      // gate on a pass the visitor never saw.
+      return {
+        ...state,
+        status: "exited",
+        deadline: null,
+        bootVignetteReady: false,
+      };
 
     case "runtimeError":
-      if (state.status === "exited" || state.status === "failed") return state;
       return giveUp(state, "runtimeError");
 
     case "contextLost":
-      if (state.status === "exited" || state.status === "failed") return state;
       return giveUp(state, "contextLost");
 
     case "firstFrame":
@@ -391,6 +445,7 @@ export function worldBootView(state: WorldBootState): WorldBootView {
   const revealed = state.status === "revealing" || state.status === "live";
   const worldMounted = state.status === "booting" || revealed;
   return {
+    epoch: state.epoch,
     status: state.status,
     documentPhase: !worldMounted
       ? null

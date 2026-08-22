@@ -24,12 +24,38 @@ import {
 } from "./worldBootMachine";
 import { WORLD_BOOT_POLICY } from "./worldBootPolicy";
 
-/** Every event minus its timestamp, which the session stamps itself. */
 type Distribute<T, K extends keyof T> = T extends unknown ? Omit<T, K> : never;
-export type WorldBootSignal = Distribute<WorldBootEvent, "at">;
 
-/** The pre-paint script parks its backstop timer on these. */
-type BootWindow = Record<string, number | undefined>;
+/** Signals with no owning generation: time, and the boot vignette, which
+ * belongs to the page rather than to any one world. */
+export type WorldBootSignal = Distribute<
+  Extract<
+    WorldBootEvent,
+    { type: "tick" | "bootVignetteStarted" | "bootVignetteCompleted" }
+  >,
+  "at"
+>;
+
+/** Signals produced by one mounted world. A scope stamps the generation, so
+ * the type system will not let a producer publish one unscoped. */
+export type WorldBootScopedSignal = Distribute<
+  Extract<WorldBootEvent, { epoch: number }>,
+  "at" | "epoch"
+>;
+
+/** A sender bound to the boot generation that was live when it was taken.
+ * Every producer inside a mounted world holds one for its lifetime, so a
+ * queued frame or a dying canvas cannot speak for the next boot. */
+export type WorldBootScope = {
+  readonly epoch: number;
+  send(signal: WorldBootScopedSignal, at?: number): WorldBootView;
+};
+
+/** The pre-paint script parks its backstop timer and outcome on these. */
+type BootWindow = Record<string, unknown>;
+
+/** What the pre-paint backstop leaves behind when it fires. */
+type PrepaintOutcome = { token: number; timedOut: boolean };
 
 function readWorldPhaseAttribute(): WorldPhase | null {
   if (typeof document === "undefined") return null;
@@ -103,12 +129,33 @@ function rememberWarmBoot(): void {
 export function retirePrepaintBackstop(): void {
   const win = window as unknown as BootWindow;
   const timer = win[WORLD_BOOT_POLICY.prepaintTimerGlobal];
-  if (timer) {
+  if (typeof timer === "number" && timer) {
     window.clearTimeout(timer);
     win[WORLD_BOOT_POLICY.prepaintTimerGlobal] = 0;
   }
+  const token = win[WORLD_BOOT_POLICY.prepaintTokenGlobal];
   win[WORLD_BOOT_POLICY.prepaintTokenGlobal] =
-    (win[WORLD_BOOT_POLICY.prepaintTokenGlobal] ?? 0) + 1;
+    (typeof token === "number" ? token : 0) + 1;
+}
+
+/** Did the pre-paint backstop already fail this load open?
+ *
+ * Read once and cleared, and only believed while its token still matches the
+ * live one. A deliberate SPA re-entry bumps that token on its way out, so the
+ * next visit to the homepage is free to boot normally — this only speaks for
+ * the document load it fired on. */
+function consumePrepaintTimeout(): boolean {
+  if (typeof window === "undefined") return false;
+  const win = window as unknown as BootWindow;
+  const outcome = win[WORLD_BOOT_POLICY.prepaintOutcomeGlobal] as
+    | PrepaintOutcome
+    | undefined;
+  if (!outcome) return false;
+  delete win[WORLD_BOOT_POLICY.prepaintOutcomeGlobal];
+  return (
+    outcome.timedOut === true &&
+    outcome.token === win[WORLD_BOOT_POLICY.prepaintTokenGlobal]
+  );
 }
 
 function applyDocument(view: WorldBootView): void {
@@ -135,13 +182,23 @@ class WorldBootSession {
   private snapshot = SERVER_WORLD_BOOT_VIEW;
   private listeners = new Set<() => void>();
 
-  /** Publish one signal. Returns the resulting view so a caller that needs
-   * the answer now does not have to subscribe for it. */
+  /** Publish a signal that belongs to no particular world. */
   send(signal: WorldBootSignal, at = nowMs()): WorldBootView {
-    const next = reduceWorldBoot(this.state, {
-      ...signal,
-      at,
-    } as WorldBootEvent);
+    return this.dispatch({ ...signal, at } as WorldBootEvent);
+  }
+
+  /** Take a sender bound to a boot generation — by default the live one.
+   * Producers call this once at mount and keep the result. */
+  scope(epoch = this.state.epoch): WorldBootScope {
+    return {
+      epoch,
+      send: (signal, at = nowMs()) =>
+        this.dispatch({ ...signal, epoch, at } as WorldBootEvent),
+    };
+  }
+
+  private dispatch(event: WorldBootEvent): WorldBootView {
+    const next = reduceWorldBoot(this.state, event);
     if (next === this.state) return this.snapshot;
     const wasRevealed = this.snapshot.revealed;
     this.state = next;
@@ -158,14 +215,18 @@ class WorldBootSession {
   }
 
   /** Probe the live browser and begin a boot. Every signal the decision rests
-   * on is read here and passed to the machine as data. */
-  start(origin: "prepaint" | "hydrate"): WorldBootView {
+   * on is read here and passed to the machine as data. Returns the scope for
+   * the generation it opened, which is what the caller must stamp its own
+   * later signals — its exit above all — with. */
+  start(origin: "prepaint" | "hydrate"): WorldBootScope {
     const connection = (
       navigator as Navigator & { connection?: { saveData?: boolean } }
     ).connection;
-    return this.send({
+    this.dispatch({
       type: "start",
+      at: nowMs(),
       origin,
+      prepaintTimedOut: consumePrepaintTimeout(),
       webglAvailable: webglAvailable(),
       prefersReducedMotion: window.matchMedia(
         WORLD_BOOT_POLICY.reducedMotionQuery,
@@ -179,6 +240,7 @@ class WorldBootSession {
       // truthful answer to "is this load warm".
       warm: { source: "documentPhase", phase: readWorldPhaseAttribute() },
     });
+    return this.scope();
   }
 
   getView(): WorldBootView {

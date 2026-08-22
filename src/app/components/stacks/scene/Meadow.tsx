@@ -15,7 +15,7 @@
 // frame. Near lawn, far lawn, and flowers are spatially tiled over shared
 // geometry/materials so Three can reject offscreen vegetation by frustum.
 import { sceneAudio } from "../audio/sceneAudio";
-import { worldBoot } from "../boot/worldBootSession";
+import { useWorldBootScope } from "../boot/useWorldBoot";
 import { progressRef, touchWorldRef } from "../store";
 import { PALETTES } from "../theme";
 import { useGLTF, useTexture } from "@react-three/drei";
@@ -1427,6 +1427,7 @@ export default function Meadow({
   // tile keeps rung-major ordering locally and gets an actual instance
   // bound (plus shader-displacement padding), enabling normal frustum
   // culling without a per-frame CPU visibility walk.
+  const scope = useWorldBootScope();
   useEffect(() => {
     const matrix = new THREE.Matrix4();
     const quaternion = new THREE.Quaternion();
@@ -1487,8 +1488,8 @@ export default function Meadow({
     });
     // The buffers are filled and the GLB/alpha suspended above us, so the
     // next painted frame contains grass — tell the boot reveal gate.
-    worldBoot.send({ type: "meadowReady" });
-  }, [streams, flowers, tiles]);
+    scope.send({ type: "meadowReady" });
+  }, [scope, streams, flowers, tiles]);
 
   // Instance bounds are derived from the matrices AND the bound geometry, so
   // a tuft LOD swap has to redo them. Refilling the matrices does not: the

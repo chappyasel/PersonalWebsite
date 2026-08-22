@@ -2,11 +2,12 @@
 
 // The React adapter: three effects that do nothing but carry signals in and
 // time forward. No policy lives here.
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { type WorldBootView } from "./worldBootMachine";
 import {
   SERVER_WORLD_BOOT_VIEW,
+  type WorldBootScope,
   retirePrepaintBackstop,
   worldBoot,
 } from "./worldBootSession";
@@ -27,13 +28,16 @@ export function useWorldBoot(): WorldBootView {
     // Agrees with the pre-paint script, and also covers the case where the
     // script never ran (a bfcache restore, an extension stripping inline
     // scripts) — the boot screen still comes up rather than the document.
-    worldBoot.start("hydrate");
+    const scope = worldBoot.start("hydrate");
     // React owns failure recovery from here: the error boundary and the hang
     // backstop replace the parse-time timer.
     retirePrepaintBackstop();
     return () => {
       retirePrepaintBackstop();
-      worldBoot.send({ type: "exit" });
+      // Stamped with the generation this effect opened. A cleanup that lands
+      // after a newer boot has begun is describing a page that is already
+      // gone, and must not take the live one down with it.
+      scope.send({ type: "exit" });
     };
   }, []);
 
@@ -63,4 +67,13 @@ export function useWorldBoot(): WorldBootView {
   }, [awaitingReveal]);
 
   return view;
+}
+
+/** A sender bound to the boot generation live when this component first
+ * rendered. Everything that reports readiness or failure from inside a
+ * mounted world holds one, so a signal that arrives after a route change
+ * cannot be mistaken for the next boot's. */
+export function useWorldBootScope(): WorldBootScope {
+  const [scope] = useState(() => worldBoot.scope());
+  return scope;
 }

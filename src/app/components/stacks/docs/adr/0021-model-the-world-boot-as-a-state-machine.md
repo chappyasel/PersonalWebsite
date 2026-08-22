@@ -34,15 +34,42 @@ ready. It lives in `boot/worldBootMachine.ts` and is pure — time arrives as
 
 Everything that touches a browser is an adapter:
 
-| Adapter | Job |
-| --- | --- |
-| `boot/worldBootPrepaint.ts` | Generates the inline script from the policy record |
-| `boot/worldBootSession.ts` | One live instance, the browser probes, the document writes |
-| `boot/useWorldBoot.ts` | React: signals in, view out, one timer, one frame loop |
+| Adapter                     | Job                                                        |
+| --------------------------- | ---------------------------------------------------------- |
+| `boot/worldBootPrepaint.ts` | Generates the inline script from the policy record         |
+| `boot/worldBootSession.ts`  | One live instance, the browser probes, the document writes |
+| `boot/useWorldBoot.ts`      | React: signals in, view out, one timer, one frame loop     |
 
 `boot/worldBootPolicy.ts` holds every constant as one JSON-serializable record.
 The pre-paint script is generated from it rather than typed, so no timeout,
 storage key, attribute name, or window global can drift between the two paths.
+
+Every boot has an **epoch**. A world that is being torn down keeps talking for
+a while: a queued `requestAnimationFrame`, a `webglcontextlost` on a dying
+canvas, a loading manager draining its last batch. On SPA re-entry those land
+after the next boot has begun. Signals produced inside a mounted world
+therefore carry the epoch they were produced under, and the machine drops
+anything older. Producers take a scoped sender at mount (`useWorldBootScope`)
+rather than addressing the session directly, and the event types make an
+unscoped send a compile error.
+
+The pre-paint backstop **publishes its outcome** rather than only clearing the
+attribute. Without that, a bundle slow enough to trip the twenty-second
+fail-open would hand the visitor the document, and then hydration at, say,
+twenty-five seconds would find a bare attribute, read it as a cold start, and
+put the boot screen back over the page for up to forty seconds more. The timer
+now records `{ token, timedOut }` on a window global; hydration consumes it
+once, and only while the token still matches, so the outcome speaks for one
+document load. A later deliberate re-entry boots normally.
+
+The **boot vignette is scoped to the page instance, not to the epoch**. It
+ships in the initial entry bundle and can finish its pass before the streamed
+homepage data resolves and the world's owner mounts, so `start` preserves a
+completed pass. `exit` clears it, because that is what ends the page instance
+the pass belonged to. Its signals also bypass the terminal-state guard: after a
+route change the next pass is already running before the next boot exists, and
+dropping those signals would leave the new boot waiting on one nobody will
+send again.
 
 The machine's interface is a state, an event union, a reducer, and a view. The
 view names what a visitor can observe (which homepage is mounted, what the
@@ -71,3 +98,13 @@ signal. The loop only runs between the first painted frame and the reveal.
 `src/styles/globals.css` still selects on the literal `data-world` and
 `data-og-capture`. Those two names live in the policy record and the CSS
 mirrors them; changing one means changing the other.
+
+The scene store no longer carries a `mode`. It was written by the homepage and
+read by one line of the dev-hooks reporter, which now reads
+`worldBoot.getView().mode`. Anything that needs to know which homepage is on
+screen reads the boot view; nothing keeps a second copy.
+
+The epoch guard is proven at the machine's interface. That each adapter passes
+the right epoch is not: there is no DOM test environment in this repository, so
+`useWorldBoot`, `useWorldBootScope`, and the canvas cleanup are covered by
+review and manual checks only.

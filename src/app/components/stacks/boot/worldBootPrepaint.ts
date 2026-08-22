@@ -25,6 +25,7 @@ export function worldBootPrepaintScript(
   const q = (value: string | number) => JSON.stringify(value);
   const timer = `window[${q(policy.prepaintTimerGlobal)}]`;
   const token = `window[${q(policy.prepaintTokenGlobal)}]`;
+  const outcome = `window[${q(policy.prepaintOutcomeGlobal)}]`;
   return `
 try {
   var el = document.documentElement;
@@ -43,12 +44,21 @@ try {
 
   // Cache only the stable capability probe. Motion preference and Save-Data
   // are live visitor choices and must be evaluated on every document load.
-  var ok = sessionStorage.getItem(${q(policy.webglCapabilityKey)});
+  // Storage access gets its own guard. A browser that refuses it entirely
+  // must still reach the same answer hydration will: probe the canvas, skip
+  // the cache, run the world. Letting this throw to the outer catch used to
+  // hand those visitors the document pre-paint and the world a second later.
+  var ok = null;
+  try {
+    ok = sessionStorage.getItem(${q(policy.webglCapabilityKey)});
+  } catch (_) {}
   if (ok === null) {
     ok = "0";
     var c = document.createElement("canvas");
     if (c.getContext("webgl2") || c.getContext("webgl")) ok = "1";
-    sessionStorage.setItem(${q(policy.webglCapabilityKey)}, ok);
+    try {
+      sessionStorage.setItem(${q(policy.webglCapabilityKey)}, ok);
+    } catch (_) {}
   }
   var motionOK = !matchMedia(${q(policy.reducedMotionQuery)}).matches;
   var dataOK = !(navigator.connection && navigator.connection.saveData);
@@ -68,6 +78,9 @@ try {
       var w = el.getAttribute(${q(policy.worldAttribute)});
       if (w === "pending" || w === "warm") {
         el.removeAttribute(${q(policy.worldAttribute)});
+        // Tell hydration this load already failed open, so it continues the
+        // flat page instead of starting a second, longer wait over it.
+        ${outcome} = { token: bootToken, timedOut: true };
       }
     }, ${q(policy.prepaintBackstopMs)});
   } else {

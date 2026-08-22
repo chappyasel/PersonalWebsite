@@ -26,11 +26,12 @@ import {
 import type * as THREE from "three";
 
 import { sceneAudio } from "./audio/sceneAudio";
+import { useWorldBootScope } from "./boot/useWorldBoot";
+import { assetLoadComplete } from "./boot/worldBootMachine";
+import { isWorldRevealed, worldBoot } from "./boot/worldBootSession";
 import { type StacksData, UNIT_COUNT } from "./data";
 import TouchInteractionLayer from "./input/TouchInteractionLayer";
 import { useCoarseTouchCapability } from "./input/useCoarseTouchCapability";
-import { assetLoadComplete } from "./boot/worldBootMachine";
-import { isWorldRevealed, worldBoot } from "./boot/worldBootSession";
 import { setLoadProgress } from "./loading";
 import { cameraTravelDiagnostics } from "./scene/CameraRig";
 import { prewarmGrabbablePhysics } from "./scene/Grabbable";
@@ -347,19 +348,15 @@ function installDevHooks() {
       };
     },
     state() {
-      const {
-        activeUnit,
-        mode,
-        modalOpen,
-        panelState,
-        hovered,
-        dragging,
-        travelTo,
-      } = useStacks.getState();
+      const { activeUnit, modalOpen, panelState, hovered, dragging, travelTo } =
+        useStacks.getState();
       return {
         offset: progressRef.current,
         activeUnit,
-        mode,
+        // Straight from the boot machine. The scene store used to keep its own
+        // copy, which nothing but this line read and nothing but the homepage
+        // wrote — a second owner that could only ever be wrong.
+        mode: worldBoot.getView().mode,
         modalOpen,
         panelState,
         // The seat is a THREE-way handshake (SitChair writes it, CameraRig
@@ -543,19 +540,20 @@ function installDevHooks() {
  * Canvas — `useProgress` is a plain store, not a scene hook, and putting it
  * in the tree would re-render the scene on every asset. */
 function LoadReporter() {
+  const scope = useWorldBootScope();
   useEffect(() => {
     const publish = () => {
       const { active, loaded, total, errors, progress } =
         useProgress.getState();
       setLoadProgress(progress / 100);
-      worldBoot.send({
+      scope.send({
         type: "assetLoad",
         assets: { active, loaded, total, errors: errors.length },
       });
     };
     publish();
     return useProgress.subscribe(publish);
-  }, []);
+  }, [scope]);
   return null;
 }
 
@@ -1081,6 +1079,21 @@ export default function StacksCanvas({
   const panelState = useStacks((s) => s.panelState);
   const modalOpen = useStacks((s) => s.modalOpen);
   const canvasShellRef = useRef<HTMLDivElement>(null);
+  // Two things `onCreated` leaves running after it returns: the pair of queued
+  // frames that report the first paint, and the context-loss listener. Both
+  // report to the boot machine, and a route change disposes the renderer
+  // without unwinding either — so they are unwound here instead.
+  const retireReadyFrames = useRef<(() => void) | null>(null);
+  const retireContextLoss = useRef<(() => void) | null>(null);
+  useEffect(
+    () => () => {
+      retireReadyFrames.current?.();
+      retireReadyFrames.current = null;
+      retireContextLoss.current?.();
+      retireContextLoss.current = null;
+    },
+    [],
+  );
   const [rendererCapability, setRendererCapability] =
     useState<RendererCapability>("unknown");
   const [viewport, setViewport] = useState(() => ({
@@ -1884,14 +1897,28 @@ export default function StacksCanvas({
           };
           setRendererCapability(deriveRendererCapability(rendererEvidence));
           installDevHooks();
+          // Both of these outlive the callback, and both speak to the boot
+          // machine. A route change tears the canvas down without unwinding
+          // them: the queued frames would report a first paint for a canvas
+          // that is gone, and the listener would report a lost context for the
+          // same. The refs below are unwound by this component's unmount
+          // effect, and the boot machine drops anything that slips past it as
+          // a stale generation.
           if (onLost) {
-            gl.domElement.addEventListener("webglcontextlost", () => onLost(), {
+            const handleLost = () => onLost();
+            gl.domElement.addEventListener("webglcontextlost", handleLost, {
               once: true,
             });
+            retireContextLoss.current = () =>
+              gl.domElement.removeEventListener("webglcontextlost", handleLost);
           }
           // Signal readiness only after a frame has actually been painted so
           // the boot→world crossfade never reveals a blank canvas.
-          requestAnimationFrame(() => requestAnimationFrame(onReady));
+          const outerFrame = requestAnimationFrame(() => {
+            const innerFrame = requestAnimationFrame(onReady);
+            retireReadyFrames.current = () => cancelAnimationFrame(innerFrame);
+          });
+          retireReadyFrames.current = () => cancelAnimationFrame(outerFrame);
         }}
       >
         <Exposure dark={dark} />

@@ -5,6 +5,11 @@
 // document, over the whole input matrix, and assert it lands on exactly the
 // phase the machine's view asks for. No source file is read — the script under
 // test is the generator's own output.
+//
+// The harness keeps ONE window, document, and pair of storages across repeated
+// runs, because that is what a client-side navigation back to the homepage
+// looks like: the same globals, a bumped token, and the previous run's timer
+// still queued.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -27,8 +32,6 @@ type Env = {
   warmRecord: string | null;
   now: number;
   search: string;
-  /** Attribute already on <html> when the script runs. */
-  existingPhase: WorldPhase | null;
   storageThrows: boolean;
 };
 
@@ -40,20 +43,11 @@ const BASE: Env = {
   warmRecord: null,
   now: 1_000_000,
   search: "",
-  existingPhase: null,
   storageThrows: false,
 };
 
-type Timer = { fn: () => void; delayMs: number };
-
-type Outcome = {
-  phase: string | null;
-  ogCapture: boolean;
-  capabilityWritten: string | null;
-  timer: Timer | null;
-  fireTimer: () => string | null;
-  priorTimerCleared: boolean;
-};
+type Timer = { fn: () => void; delayMs: number; id: number };
+type PrepaintOutcome = { token: number; timedOut: boolean };
 
 function fakeStorage(seed: Record<string, string>, throws: boolean) {
   const map = new Map(Object.entries(seed));
@@ -72,19 +66,16 @@ function fakeStorage(seed: Record<string, string>, throws: boolean) {
   };
 }
 
-/** Execute the real generated script with every global it touches shadowed by
- * a fake, so nothing here needs a DOM implementation. */
-function runPrepaint(overrides: Partial<Env> = {}): Outcome {
+/** One document load's worth of globals, reusable across repeated script runs
+ * so stale-timer behaviour can actually be observed. */
+function harness(overrides: Partial<Env> = {}) {
   const env = { ...BASE, ...overrides };
   const attributes = new Map<string, string>();
-  if (env.existingPhase) attributes.set(P.worldAttribute, env.existingPhase);
-
   const el = {
     setAttribute: (name: string, value: string) => attributes.set(name, value),
     getAttribute: (name: string) => attributes.get(name) ?? null,
     removeAttribute: (name: string) => void attributes.delete(name),
   };
-
   const session = fakeStorage(
     env.cachedCapability === null
       ? {}
@@ -95,7 +86,6 @@ function runPrepaint(overrides: Partial<Env> = {}): Outcome {
     env.warmRecord === null ? {} : { [P.warmKey]: env.warmRecord },
     env.storageThrows,
   );
-
   const document = {
     documentElement: el,
     createElement: () => ({
@@ -103,22 +93,17 @@ function runPrepaint(overrides: Partial<Env> = {}): Outcome {
     }),
   };
 
-  let scheduled: Timer | null = null;
+  const timers: Timer[] = [];
+  const cleared: number[] = [];
   let nextTimerId = 1;
-  let priorTimerCleared = false;
-  const win: Record<string, unknown> = {
-    // A previous boot on this document left a live timer behind, exactly as a
-    // client-side navigation back to the homepage would.
-    [P.prepaintTimerGlobal]: 7,
-    [P.prepaintTokenGlobal]: 3,
-  };
+  const win: Record<string, unknown> = {};
 
   const body = worldBootPrepaintScript(P);
-  // The point of this test is that the SHIPPED script runs, not a transcription
-  // of it. Compiling the generator's own output is the only way to prove the
-  // pre-paint path and the machine agree.
+  // The point of this test is that the SHIPPED script runs, not a
+  // transcription of it. Compiling the generator's own output is the only way
+  // to prove the pre-paint path and the machine agree.
   // eslint-disable-next-line @typescript-eslint/no-implied-eval
-  const run = new Function(
+  const compiled = new Function(
     "window",
     "document",
     "location",
@@ -132,41 +117,50 @@ function runPrepaint(overrides: Partial<Env> = {}): Outcome {
     body,
   ) as (...args: unknown[]) => void;
 
-  run(
+  const api = {
+    env,
     win,
-    document,
-    { search: env.search },
-    session.api,
-    local.api,
-    (query: string) => ({
-      matches: query === P.reducedMotionQuery && env.reducedMotion,
-    }),
-    { connection: env.saveData ? { saveData: true } : undefined },
-    (fn: () => void, delayMs: number) => {
-      scheduled = { fn, delayMs };
-      return nextTimerId++;
+    timers,
+    cleared,
+    capabilityWritten: () => session.map.get(P.webglCapabilityKey) ?? null,
+    phase: () => el.getAttribute(P.worldAttribute),
+    ogCapture: () => el.getAttribute(P.ogCaptureAttribute) !== null,
+    outcome: () => win[P.prepaintOutcomeGlobal] as PrepaintOutcome | undefined,
+    token: () => win[P.prepaintTokenGlobal] as number | undefined,
+    setPhase: (phase: WorldPhase) => attributes.set(P.worldAttribute, phase),
+    /** Bump the token the way `retirePrepaintBackstop` does at hydration. */
+    retire: () => {
+      win[P.prepaintTokenGlobal] =
+        ((win[P.prepaintTokenGlobal] as number) ?? 0) + 1;
     },
-    (id: number) => {
-      if (id === 7) priorTimerCleared = true;
-    },
-    { now: () => env.now },
-  );
-
-  return {
-    phase: el.getAttribute(P.worldAttribute),
-    ogCapture: el.getAttribute(P.ogCaptureAttribute) !== null,
-    capabilityWritten: session.map.get(P.webglCapabilityKey) ?? null,
-    timer: scheduled,
-    priorTimerCleared,
-    fireTimer: () => {
-      scheduled?.fn();
-      return el.getAttribute(P.worldAttribute);
+    fire: (index = timers.length - 1) => timers[index]?.fn(),
+    run: () => {
+      compiled(
+        win,
+        document,
+        { search: env.search },
+        session.api,
+        local.api,
+        (query: string) => ({
+          matches: query === P.reducedMotionQuery && env.reducedMotion,
+        }),
+        { connection: env.saveData ? { saveData: true } : undefined },
+        (fn: () => void, delayMs: number) => {
+          const id = nextTimerId++;
+          timers.push({ fn, delayMs, id });
+          return id;
+        },
+        (id: number) => cleared.push(id),
+        { now: () => env.now },
+      );
+      return api;
     },
   };
+  return api;
 }
 
 /** What the machine says the handshake should be for the same inputs. */
-function machinePhase(env: Partial<Env> = {}) {
+function machineFor(env: Partial<Env> = {}) {
   const merged = { ...BASE, ...env };
   let record: { t?: number } | null = null;
   try {
@@ -174,21 +168,28 @@ function machinePhase(env: Partial<Env> = {}) {
   } catch {
     record = null;
   }
+  // Storage denial is not a capability answer. Both adapters fall back to
+  // probing the canvas and skip the cache entirely.
+  const webglAvailable = merged.storageThrows
+    ? merged.webgl !== null
+    : (merged.cachedCapability ?? (merged.webgl !== null ? "1" : "0")) === "1";
   const state = reduceWorldBoot(
     initialWorldBootState(),
     {
       type: "start",
       at: 0,
       origin: "prepaint",
-      webglAvailable:
-        (merged.cachedCapability ?? (merged.webgl !== null ? "1" : "0")) ===
-        "1",
+      prepaintTimedOut: false,
+      webglAvailable,
       prefersReducedMotion: merged.reducedMotion,
       saveData: merged.saveData,
       ogCapture: new URLSearchParams(merged.search).has(P.ogCaptureParam),
       warm: {
         source: "warmRecord",
-        ageMs: record ? merged.now - (record.t ?? NaN) : null,
+        ageMs:
+          record && !merged.storageThrows
+            ? merged.now - (record.t ?? NaN)
+            : null,
       },
     },
     P,
@@ -228,51 +229,67 @@ const MATRIX: [string, Partial<Env>][] = [
   ["a cached negative capability", { cachedCapability: "0" }],
   [
     "a cached positive capability on a broken canvas",
-    {
-      cachedCapability: "1",
-      webgl: null,
-    },
+    { cachedCapability: "1", webgl: null },
   ],
   ["an OG capture", { search: "?og-capture" }],
   [
     "an OG capture on an ineligible browser",
     { search: "?og-capture", webgl: null },
   ],
+  ["storage denied on a capable browser", { storageThrows: true }],
   [
-    "a client-side return with the attribute still set",
-    { existingPhase: "ready" },
+    "storage denied on a browser with no WebGL",
+    { storageThrows: true, webgl: null },
+  ],
+  [
+    "storage denied with reduced motion",
+    { storageThrows: true, reducedMotion: true },
   ],
 ];
 
 describe("pre-paint adapter", () => {
   it.each(MATRIX)("agrees with the machine on %s", (_label, env) => {
-    const script = runPrepaint(env);
-    const { view } = machinePhase(env);
-    expect(script.phase).toBe(view.documentPhase);
-    expect(script.ogCapture).toBe(view.ogCapture);
+    const script = harness(env).run();
+    const { view } = machineFor(env);
+    expect(script.phase()).toBe(view.documentPhase);
+    expect(script.ogCapture()).toBe(view.ogCapture);
   });
 
   it.each(MATRIX)(
     "arms the same backstop as the machine on %s",
     (_label, env) => {
-      const script = runPrepaint(env);
-      const { state } = machinePhase(env);
+      const script = harness(env).run();
+      const { state } = machineFor(env);
       if (state.deadline === null) {
-        expect(script.timer).toBe(null);
+        expect(script.timers).toHaveLength(0);
         return;
       }
       expect(state.deadline.kind).toBe("prepaintBackstop");
-      expect(script.timer?.delayMs).toBe(state.deadline.at);
-      expect(script.timer?.delayMs).toBe(P.prepaintBackstopMs);
+      expect(script.timers[0]?.delayMs).toBe(state.deadline.at);
+      expect(script.timers[0]?.delayMs).toBe(P.prepaintBackstopMs);
     },
   );
 
-  it("fails open to the document when the backstop comes due", () => {
-    const script = runPrepaint();
-    expect(script.phase).toBe("pending");
-    expect(script.fireTimer()).toBe(null);
+  it("runs the world for a capable browser that refuses storage", () => {
+    // Hydration probes the canvas directly when sessionStorage throws. The
+    // script used to let that throw reach its outer catch, hand the visitor
+    // the document, and then contradict itself a second later.
+    const script = harness({ storageThrows: true }).run();
+    expect(script.phase()).toBe("pending");
+    expect(script.timers).toHaveLength(1);
+    expect(script.capabilityWritten()).toBe(null);
+  });
+});
 
-    const { state } = machinePhase();
+describe("the fail-open backstop", () => {
+  it("hands the document back and records why", () => {
+    const script = harness().run();
+    expect(script.phase()).toBe("pending");
+    script.fire();
+    expect(script.phase()).toBe(null);
+    expect(script.outcome()).toEqual({ token: script.token(), timedOut: true });
+
+    const { state } = machineFor();
     const timedOut = reduceWorldBoot(
       state,
       { type: "tick", at: P.prepaintBackstopMs },
@@ -282,57 +299,83 @@ describe("pre-paint adapter", () => {
     expect(timedOut.failure).toBe("hang");
   });
 
-  it("leaves a revealed world alone when a stale backstop fires", () => {
-    // The token guard is the real protection, but the phase check is what
-    // stops an already-handed-off world from being yanked back to the flat
-    // document mid-visit.
-    const script = runPrepaint();
-    const revealed = runPrepaint({ existingPhase: "ready" });
-    expect(script.timer).not.toBe(null);
-    expect(revealed.phase).toBe("pending");
-    expect(revealed.fireTimer()).toBe(null);
+  it("leaves a revealed world alone and records nothing", () => {
+    // Same window, same timer: the world got there between scheduling and the
+    // backstop coming due. Retiring it now would yank the room out from under
+    // a visitor who is already reading it.
+    const script = harness().run();
+    script.setPhase("ready");
+    script.fire();
+    expect(script.phase()).toBe("ready");
+    expect(script.outcome()).toBeUndefined();
   });
 
-  it("retires a previous boot's backstop before arming its own", () => {
-    expect(runPrepaint().priorTimerCleared).toBe(true);
-    expect(runPrepaint({ webgl: null }).priorTimerCleared).toBe(true);
+  it("no-ops when a newer token has claimed the document", () => {
+    // Same window, run twice: the second run bumps the token, so the first
+    // run's timer must not touch the second run's handshake.
+    const script = harness().run();
+    const staleTimer = script.timers.length - 1;
+    script.run();
+    expect(script.timers).toHaveLength(2);
+    expect(script.phase()).toBe("pending");
+
+    script.fire(staleTimer);
+    expect(script.phase()).toBe("pending");
+    expect(script.outcome()).toBeUndefined();
+
+    // The live timer still works.
+    script.fire();
+    expect(script.phase()).toBe(null);
+    expect(script.outcome()?.timedOut).toBe(true);
   });
 
-  it("caches the capability probe once per tab and reuses the cached answer", () => {
-    expect(runPrepaint({ webgl: "webgl2" }).capabilityWritten).toBe("1");
-    expect(runPrepaint({ webgl: "webgl" }).capabilityWritten).toBe("1");
-    expect(runPrepaint({ webgl: null }).capabilityWritten).toBe("0");
+  it("no-ops after hydration has retired it", () => {
+    const script = harness().run();
+    script.retire();
+    script.fire();
+    expect(script.phase()).toBe("pending");
+    expect(script.outcome()).toBeUndefined();
+  });
+
+  it("clears the previous run's timer before arming its own", () => {
+    const script = harness().run();
+    const firstId = script.timers[0]?.id;
+    script.run();
+    expect(script.cleared).toContain(firstId);
+  });
+
+  it("clears a previous timer even when this load is not eligible", () => {
+    const ineligible = harness({ reducedMotion: true });
+    ineligible.win[P.prepaintTimerGlobal] = 41;
+    ineligible.run();
+    expect(ineligible.cleared).toContain(41);
+  });
+});
+
+describe("the capability cache", () => {
+  it("probes once per tab and reuses the cached answer", () => {
+    expect(harness({ webgl: "webgl2" }).run().capabilityWritten()).toBe("1");
+    expect(harness({ webgl: "webgl" }).run().capabilityWritten()).toBe("1");
+    expect(harness({ webgl: null }).run().capabilityWritten()).toBe("0");
     // A cached answer is never re-probed, so a canvas that has since started
     // failing cannot flip the decision mid-session.
-    expect(runPrepaint({ cachedCapability: "1", webgl: null }).phase).toBe(
+    expect(harness({ cachedCapability: "1", webgl: null }).run().phase()).toBe(
       "pending",
     );
   });
 
   it("never caches the two live visitor choices", () => {
-    const script = worldBootPrepaintScript(P);
-    // Motion and Save-Data are read from the browser on every document load;
-    // only the capability answer goes through storage.
-    expect(script.indexOf("sessionStorage")).toBeGreaterThan(-1);
-    expect(script).not.toContain('setItem("stacks-motion');
     expect(
-      runPrepaint({ reducedMotion: true, cachedCapability: "1" }).phase,
+      harness({ reducedMotion: true, cachedCapability: "1" }).run().phase(),
     ).toBe(null);
-    expect(runPrepaint({ saveData: true, cachedCapability: "1" }).phase).toBe(
-      null,
-    );
+    expect(
+      harness({ saveData: true, cachedCapability: "1" }).run().phase(),
+    ).toBe(null);
   });
+});
 
-  it("lands on the plain document when storage is blocked outright", () => {
-    // Private mode with storage disabled throws on the first getItem, before
-    // the phase is ever set. The visitor gets the document, not a page stuck
-    // behind a boot screen.
-    const script = runPrepaint({ storageThrows: true });
-    expect(script.phase).toBe(null);
-    expect(script.timer).toBe(null);
-  });
-
-  it("carries every policy constant instead of restating it", () => {
+describe("generated constants", () => {
+  it("carries every policy value instead of restating it", () => {
     const script = worldBootPrepaintScript({
       ...P,
       worldAttribute: "data-test-world",
@@ -342,6 +385,7 @@ describe("pre-paint adapter", () => {
       warmTtlMs: 5678,
       ogCaptureParam: "test-capture",
       ogCaptureAttribute: "data-test-capture",
+      prepaintOutcomeGlobal: "__testOutcome",
     });
     for (const literal of [
       "data-test-world",
@@ -351,11 +395,13 @@ describe("pre-paint adapter", () => {
       "5678",
       "test-capture",
       "data-test-capture",
+      "__testOutcome",
     ]) {
       expect(script).toContain(literal);
     }
     expect(script).not.toContain("data-world");
     expect(script).not.toContain(String(P.prepaintBackstopMs));
     expect(script).not.toContain(String(P.warmTtlMs));
+    expect(script).not.toContain(P.prepaintOutcomeGlobal);
   });
 });

@@ -19,6 +19,7 @@ import {
   type ProfilerOnRenderCallback,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
 } from "react";
 
@@ -32,7 +33,6 @@ import UnitRail from "./dom/UnitRail";
 import ScrollBridges from "./input/ScrollBridges";
 import StacksBookModal from "./modal/StacksBookModal";
 import { scenePerformanceTrace } from "./scene/performanceTrace";
-import { useStacks } from "./store";
 
 const StacksCanvas = dynamic(() => import("./StacksCanvas"), { ssr: false });
 
@@ -84,28 +84,25 @@ export default function StacksHome({
   slots: StacksSlots;
 }) {
   const boot = useWorldBoot();
-  const { mode, revealed, worldMounted } = boot;
-  const setMode = useStacks((s) => s.setMode);
+  const { epoch, mode, revealed, worldMounted } = boot;
   const worldShellRef = useRef<HTMLDivElement>(null);
 
+  // Bound to this boot's generation. The canvas can lose its context or throw
+  // while it is being torn down for a route change; without the stamp, that
+  // would demote whatever boot happens to be live by the time it lands.
+  const scope = useMemo(() => worldBoot.scope(epoch), [epoch]);
   const demote = useCallback(
-    () => void worldBoot.send({ type: "runtimeError" }),
-    [],
+    () => void scope.send({ type: "runtimeError" }),
+    [scope],
   );
   const reportLostContext = useCallback(
-    () => void worldBoot.send({ type: "contextLost" }),
-    [],
+    () => void scope.send({ type: "contextLost" }),
+    [scope],
   );
   const reportFirstFrame = useCallback(
-    () => void worldBoot.send({ type: "firstFrame" }),
-    [],
+    () => void scope.send({ type: "firstFrame" }),
+    [scope],
   );
-
-  // The scene store keeps its own copy of the mode so anything reading it sees
-  // the same answer the boot machine gave. Nothing else writes it.
-  useEffect(() => {
-    setMode(mode);
-  }, [mode, setMode]);
 
   // Nothing is downloading until the component that owns the import renders,
   // and the world only mounts one commit later. Kicking it here overlaps the
