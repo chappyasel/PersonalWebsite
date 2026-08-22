@@ -82,7 +82,7 @@ export const ABOUT_BOOT_MODEL_SILHOUETTES = {
     "source": "spec:TJ_MEDALLION_SOLIDS",
     "sourceKind": "spec",
     "sourceFile": "src/app/components/stacks/scene/tjMedallionGeometry.js",
-    "sha256": "abdd865b23c5b498119c60ff052f41b5355c4a0cd1e3c62777a16e4ad4237091",
+    "sha256": "bdffd4787710f6daf7735c4f524de20181075e5c8276b389a24a96d1bdc9f349",
     "viewBox": [
       0,
       0,

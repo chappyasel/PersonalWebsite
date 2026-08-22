@@ -152,6 +152,41 @@ signature, and a dedicated test asserts the medallion's digest is not a hash of
 The generator also self-checks: it throws if its rasterised envelope ever
 disagrees with the front elevation the shared module derives.
 
+### The pose was still duplicated
+
+Caught on the second review pass. Solids and faces were shared, and the pose
+was not. `ABOUT_TJ_LIGHT_YAW` in `aboutCoordinationLayout.ts` was its own
+`-0.28`, and the `tj-medallion` landmark's `sceneScale` was its own
+`0.66 * ABOUT_AWARD_SIZE_INCREASE`. `UnitAbout.tsx` reads both. So the scene
+could have been turned or resized with the outline still traced at the old
+pose, which is the same false contract in smaller print: signing a pose nothing
+in the runtime reads.
+
+They had already drifted. `0.66 * 1.1` is 0.7260000000000001 and the
+specification claimed 0.726, which is why the existing landmark assertion used
+`toBeCloseTo` rather than `toBe`.
+
+`TJ_MEDALLION_POSE` is now the single source. `ABOUT_TJ_LIGHT_YAW` is
+`TJ_MEDALLION_POSE.yaw` and the landmark's `sceneScale` is
+`TJ_MEDALLION_POSE.scale`. The scale keeps its award-group meaning: the
+specification carries the two factors, and a test pins the product to the live
+`ABOUT_AWARD_SIZE_INCREASE` with `toBe`, so resizing the award group fails there
+and forces a retrace rather than drifting quietly.
+
+Regenerating moved only the digest, from `abdd865b` to `bdffd478`, because the
+signed scale is now the exact runtime float. The traced path and viewBox are
+unchanged, as expected: the raster normalises to its own bounding box, so a
+uniform scale cancels. The yaw does not cancel, and a test shows that too.
+
+Four tests carry it, each verified by breaking the tie and watching them fail:
+
+| Perturbation | Result |
+| --- | --- |
+| `ABOUT_TJ_LIGHT_YAW` back to its own literal | "poses the scene from the same values the digest signs" fails |
+| Landmark `sceneScale` back to its own expression | same test fails |
+| `ABOUT_AWARD_SIZE_INCREASE` 1.1 to 1.2 | "keeps the medallion sized with the other lower-shelf awards" fails |
+| Either half of the pose changed in the signature | digest no longer matches the committed one |
+
 ## The physics bug
 
 The test releases the Musings paper stack downward at 4 u/s, the module's
@@ -325,10 +360,12 @@ branch-protection rule references moved.
 
 - `tjMedallionGeometry.js`: new shared shape specification, signature, and posed group builder.
 - `AuthoredProps.tsx`: renders the medallion from that spec; keeps only finishes.
+- `aboutCoordinationLayout.ts`: `ABOUT_TJ_LIGHT_YAW` derives from `TJ_MEDALLION_POSE.yaw`.
+- `aboutBootComposition.ts`: the `tj-medallion` landmark's `sceneScale` derives from `TJ_MEDALLION_POSE.scale`.
 - `generate-about-boot-silhouettes.mjs`: imports the builder, keys the digest to the signature, emits `sourceKind`, self-checks its raster envelope against the derived front elevation, and shares `viewBoxFor`.
 - `aboutBootSilhouettes.ts`: regenerated. Every traced path unchanged.
 - `aboutBootSilhouettes.test.ts`: branches on `sourceKind`; asserts the medallion is not keyed to `AuthoredProps.tsx`.
-- `tjMedallionGeometry.test.ts`: new. Envelope prediction, shape-change regression, face containment, signature coverage.
+- `tjMedallionGeometry.test.ts`: new. Envelope prediction, shape-change regression, face containment, signature coverage, and the runtime pose tie.
 - `physics.ts`: thin-body step 1/240 × 4 substeps, with the measurement in the comment.
 - `physics.test.ts`: new expected policy, plus an assertion on the catch-up ceiling.
 - `musingsPaperTunnelling.test.ts`: new. Eight poses × two frame deltas.
@@ -338,7 +375,7 @@ branch-protection rule references moved.
 - `reactionArchetype.test.ts`: dropped the unused `LIFT_LAMBDA` import.
 - `scripts/verify.mjs` plus `yarn verify`, `yarn verify:artifacts`, `yarn typegen`, `yarn typecheck`.
 - `yarn lint` gained `--max-warnings 0`.
-- `stacks-safety-budget.yml` runs `yarn verify` instead of `yarn test`.
+- `stacks-safety-budget.yml` runs `yarn verify` instead of `yarn test`, and its comment names what that covers: types, lint, unit suite, meadow.
 - `warm-og-cache.yml` reads the Vercel production deployment.
 - `CLAUDE.md` documents both gates and the typegen prerequisite.
 
@@ -436,8 +473,10 @@ package.json
 scripts/generate-about-boot-silhouettes.mjs
 scripts/verify.mjs
 src/app/components/stacks/scene/AuthoredProps.tsx
+src/app/components/stacks/scene/aboutBootComposition.ts
 src/app/components/stacks/scene/aboutBootSilhouettes.test.ts
 src/app/components/stacks/scene/aboutBootSilhouettes.ts
+src/app/components/stacks/scene/aboutCoordinationLayout.ts
 src/app/components/stacks/scene/canvasCompositing.test.ts
 src/app/components/stacks/scene/freeRoamControls.presentation.test.ts
 src/app/components/stacks/scene/musingsPaperPhysics.test.ts
@@ -463,14 +502,19 @@ checkout.
 | `yarn verify` → `next typegen` | pass |
 | `yarn verify` → `tsc --noEmit` | pass, no errors |
 | `yarn verify` → `eslint --max-warnings 0` | pass, no errors, no warnings |
-| `yarn verify` → `vitest run` | pass, 1560 tests, 197 files |
+| `yarn verify` → `vitest run` | pass, 1564 tests, 197 files |
 | `yarn verify` → `check:meadow` | pass, 115942 assertions, 0 failures |
 | `yarn verify:artifacts` | **fail**, stale capture, see above |
 | `yarn generate:about-boot` | pass; all seven traced paths byte-identical |
-| `npx prettier --check` on changed files | pass |
+| `npx prettier --check` on changed source files | pass |
 | `yarn build` | not run: no `.env` |
 | `yarn check:budgets` | not run: needs a fresh build |
 | `yarn test:performance:safety` | not run: needs a build and a browser |
+
+`aboutBootSilhouettes.ts` and this ledger are outside that check. The first is
+generated by `JSON.stringify` and carries a do-not-hand-edit banner, so
+formatting it would be undone on the next run; the second is prose. Both were
+already non-conforming before this branch.
 
 Targeted evidence, each measured rather than asserted:
 
@@ -480,6 +524,10 @@ Targeted evidence, each measured rather than asserted:
 | Spec perturbed, rim 0.15 to 0.19 | 3 tests fail; viewBox 187×222 to 211×222; path 271 to 223 chars |
 | Spec restored and regenerated | committed output reproduced exactly |
 | Spec reformatted by Prettier | digest unchanged |
+| Runtime yaw decoupled to its own literal | pose-tie test fails |
+| Landmark `sceneScale` decoupled to its own expression | pose-tie test fails |
+| `ABOUT_AWARD_SIZE_INCREASE` 1.1 to 1.2 | award-group test fails |
+| Pose change re-signed | digest no longer matches the committed one |
 | Tunnelling matrix at HEAD | 16 pass, 167 ms |
 | Tunnelling matrix against the old `1/120 × 2` policy | 15 of 16 fail |
 | Warmer selector replayed on `3055138` | production deployment 6028174564, state `failure` |
@@ -492,11 +540,12 @@ Targeted evidence, each measured rather than asserted:
 2. `yarn verify:artifacts`. Expect the stale-capture failure, and nothing else.
 3. Change a number in `TJ_MEDALLION_SOLIDS` and run `npx vitest run src/app/components/stacks/scene/tjMedallionGeometry.test.ts src/app/components/stacks/scene/aboutBootSilhouettes.test.ts`. Expect failures. Run `yarn generate:about-boot` and expect a different traced path. Revert both.
 4. Edit a comment in `AuthoredProps.tsx` and rerun the same tests. Expect no failures.
-5. Read the `freeBodyStepPolicy` diff against the sweep numbers above.
-6. Load the homepage, grab the Musings paper stack, and flick it straight down as hard as the throw ceiling allows. It should land on the shelf. Before this change it sometimes landed on the floor.
-7. Throw a few other props hard, say the golf ball, a book, and the medallion, and check nothing feels slower or stickier. Only bodies thinner than 0.03 moving above 1 u/s take the new path, but that is the claim to test.
-8. Look at the medallion in the About unit against `main`. The render is spec-driven now and should be pixel-identical.
-9. On the next `main` push after a failed deploy, confirm the OG warmer finishes with a warning instead of a red X.
+5. Replace `ABOUT_TJ_LIGHT_YAW` with a literal that differs from `TJ_MEDALLION_POSE.yaw` and rerun `tjMedallionGeometry.test.ts`. Expect the pose-tie test to fail. Revert.
+6. Read the `freeBodyStepPolicy` diff against the sweep numbers above.
+7. Load the homepage, grab the Musings paper stack, and flick it straight down as hard as the throw ceiling allows. It should land on the shelf. Before this change it sometimes landed on the floor.
+8. Throw a few other props hard, say the golf ball, a book, and the medallion, and check nothing feels slower or stickier. Only bodies thinner than 0.03 moving above 1 u/s take the new path, but that is the claim to test.
+9. Look at the medallion in the About unit against `main`. The render is spec-driven now and should be pixel-identical.
+10. On the next `main` push after a failed deploy, confirm the OG warmer finishes with a warning instead of a red X.
 
 ## Potential regressions and edge cases
 
@@ -513,7 +562,10 @@ bit-identical to `main`.
 
 **The medallion render.** `TJMedallionBody` now maps over an array instead of
 listing three meshes. Same geometry, same order, same finishes, and React keys
-moved from `-1`/`1` to part ids. Worth the visual glance in step 8.
+moved from `-1`/`1` to part ids. Its scene scale also moves by one float ulp,
+from 0.726 to 0.7260000000000001, because the runtime value is now the signed
+one; that is below any visible threshold but it is a real change. Worth the
+visual glance in step 9.
 
 **`--max-warnings 0`.** Any new ESLint warning now fails `yarn lint` and CI.
 Intended, and it will surprise someone.
@@ -530,7 +582,7 @@ noted because the sampling turned it up.
 ## Rollback notes
 
 - Physics only: revert `physics.ts`, `physics.test.ts`, and delete `musingsPaperTunnelling.test.ts`. `musingsPaperPhysics.test.ts` fails again, exactly as it did at `3055138`.
-- Silhouette contract only: revert `tjMedallionGeometry.*`, `AuthoredProps.tsx`, the generator, and `aboutBootSilhouettes.*`. The whole-file hash and its false trigger come back.
+- Silhouette contract only: revert `tjMedallionGeometry.*`, `AuthoredProps.tsx`, `aboutCoordinationLayout.ts`, `aboutBootComposition.ts`, the generator, and `aboutBootSilhouettes.*`. The whole-file hash and its false trigger come back, along with the duplicated pose.
 - Verification only: drop `scripts/verify.mjs`, revert the five `package.json` script lines, and put `yarn test` back in `stacks-safety-budget.yml`.
 - Lint strictness only: remove `--max-warnings 0` from the `lint` script.
 - Warmer only: revert `.github/workflows/warm-og-cache.yml`.

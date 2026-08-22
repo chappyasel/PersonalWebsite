@@ -7,6 +7,7 @@ import {
   COORDINATION_GLOBE_PROFILE_WIDTH,
 } from "./coordinationGlobeGeometry";
 import type { ShelfPlankId } from "./shelfGeometry";
+import { TJ_MEDALLION_POSE } from "./tjMedallionGeometry";
 
 export const ABOUT_LANDMARK_NODE_PREFIX = "stacks-about-landmark:";
 
@@ -182,7 +183,9 @@ export const ABOUT_BOOT_COMPOSITION = [
       height: 0.352 * 0.66 * ABOUT_AWARD_SIZE_INCREASE,
     },
     colorProfile: { light: "#b9ad98", dark: "#7d7468" },
-    sceneScale: 0.66 * ABOUT_AWARD_SIZE_INCREASE,
+    // 0.66 * ABOUT_AWARD_SIZE_INCREASE, held in the geometry specification the
+    // boot silhouette is traced from so the two cannot disagree.
+    sceneScale: TJ_MEDALLION_POSE.scale,
   },
   {
     id: "apple",

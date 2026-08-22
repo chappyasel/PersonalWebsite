@@ -11,6 +11,7 @@ import {
   deskLampHeadQuaternionForTarget,
 } from "./deskLampHead";
 import { SHELF_GEOMETRY, SHELF_SURFACE } from "./shelfGeometry";
+import { TJ_MEDALLION_POSE } from "./tjMedallionGeometry";
 
 export const ABOUT_LAMP_ROOT_YAW = 0.78;
 export const ABOUT_LOWER_AWARD_SCALE = 1.32 * ABOUT_AWARD_SIZE_INCREASE;
@@ -19,8 +20,12 @@ export const ABOUT_AIC_SCALE =
 export const ABOUT_COORDINATION_GLOBE_SCALE =
   ABOUT_LOWER_AWARD_SCALE * 1.05 * ABOUT_AIC_ORB_SIZE_INCREASE;
 /** Modest face yaws toward the practical at the left. Apple sits farther from
- * the source, so it takes the slightly stronger turn. */
-export const ABOUT_TJ_LIGHT_YAW = -0.28;
+ * the source, so it takes the slightly stronger turn.
+ *
+ * The medallion's yaw comes from its geometry specification rather than a
+ * literal here: the boot silhouette is traced at that yaw, so a second copy of
+ * it could be turned without the outline noticing. */
+export const ABOUT_TJ_LIGHT_YAW = TJ_MEDALLION_POSE.yaw;
 export const ABOUT_APPLE_LIGHT_YAW = -0.34;
 export const ABOUT_LAMP_ROOT_SCALE =
   ABOUT_BOOT_LANDMARKS["desk-lamp"].sceneScale;

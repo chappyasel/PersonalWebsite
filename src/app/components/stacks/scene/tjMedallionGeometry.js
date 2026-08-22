@@ -88,10 +88,24 @@ export const TJ_MEDALLION_FACES = Object.freeze([
   },
 ]);
 
-/** Matches ABOUT_TJ_LIGHT_YAW and the live scene scale. The scale cancels out
- * of the traced silhouette, which normalises to its own bounding box, but the
- * yaw does not: it is what the boot outline is drawn from. */
-export const TJ_MEDALLION_POSE = Object.freeze({ yaw: -0.28, scale: 0.726 });
+/** The pose the scene puts the medallion in, and therefore the pose the boot
+ * outline is traced from. `ABOUT_TJ_LIGHT_YAW` and the `tj-medallion` landmark's
+ * `sceneScale` both read from here, so there is one yaw and one scale rather
+ * than a copy on each side that can drift apart. They had already drifted: the
+ * runtime scale evaluates to 0.7260000000000001 and this used to claim 0.726.
+ *
+ * The yaw changes the outline. The scale does not, because the trace normalises
+ * to its own bounding box, but it is signed anyway so the pose cannot be
+ * changed on one side without the freshness check noticing.
+ *
+ * 0.66 is the medallion's own size against the other lower-shelf awards; 1.1 is
+ * `ABOUT_AWARD_SIZE_INCREASE`, which sizes that whole group together.
+ * `tjMedallionGeometry.test.ts` pins the product to the live constant, so
+ * resizing the award group fails there and forces a retrace. */
+export const TJ_MEDALLION_POSE = Object.freeze({
+  yaw: -0.28,
+  scale: 0.66 * 1.1,
+});
 
 /** Canonical text for the whole specification. The silhouette generator hashes
  * this and stores the digest, so a change to any number here fails the

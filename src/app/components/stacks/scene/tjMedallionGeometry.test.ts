@@ -1,7 +1,13 @@
+import crypto from "node:crypto";
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
+import {
+  ABOUT_AWARD_SIZE_INCREASE,
+  ABOUT_BOOT_LANDMARKS,
+} from "./aboutBootComposition";
 import { ABOUT_BOOT_MODEL_SILHOUETTES } from "./aboutBootSilhouettes";
+import { ABOUT_TJ_LIGHT_YAW } from "./aboutCoordinationLayout";
 import {
   TJ_MEDALLION_FACES,
   TJ_MEDALLION_POSE,
@@ -17,6 +23,9 @@ import {
  * scripts/generate-about-boot-silhouettes.mjs, and the generator throws if its
  * own raster ever disagrees with the front elevation this module derives. */
 const MAX_EDGE = 220;
+const sha256 = (input: string) =>
+  crypto.createHash("sha256").update(input).digest("hex");
+
 function viewBoxFor(width: number, height: number) {
   const scale = MAX_EDGE / Math.max(width, height);
   return [Math.ceil(width * scale) + 2, Math.ceil(height * scale) + 2] as const;
@@ -106,6 +115,68 @@ describe("TJ medallion geometry specification", () => {
       faces: TJ_MEDALLION_FACES,
       pose: TJ_MEDALLION_POSE,
     });
+  });
+
+  // Solids and faces were shared first; the pose was not, and a copy of it on
+  // each side is the same false contract in smaller print. The scene turns the
+  // medallion by ABOUT_TJ_LIGHT_YAW and sizes it by the landmark's sceneScale,
+  // and the outline is traced at exactly that yaw, so a second copy could be
+  // re-posed without the silhouette noticing.
+  it("poses the scene from the same values the digest signs", () => {
+    expect(ABOUT_TJ_LIGHT_YAW).toBe(TJ_MEDALLION_POSE.yaw);
+    expect(ABOUT_BOOT_LANDMARKS["tj-medallion"].sceneScale).toBe(
+      TJ_MEDALLION_POSE.scale,
+    );
+
+    // Not merely equal by coincidence: the signed pose is these two values, and
+    // the committed digest is a hash of the text containing them.
+    const signed = JSON.parse(tjMedallionSpecSignature()) as {
+      pose: { yaw: number; scale: number };
+    };
+    expect(signed.pose).toEqual({
+      yaw: ABOUT_TJ_LIGHT_YAW,
+      scale: ABOUT_BOOT_LANDMARKS["tj-medallion"].sceneScale,
+    });
+    expect(sha256(tjMedallionSpecSignature())).toBe(
+      ABOUT_BOOT_MODEL_SILHOUETTES["tj-medallion"].sha256,
+    );
+  });
+
+  it("moves the digest when either half of the pose moves", () => {
+    const committed = ABOUT_BOOT_MODEL_SILHOUETTES["tj-medallion"].sha256;
+    const signed = JSON.parse(tjMedallionSpecSignature()) as {
+      pose: { yaw: number; scale: number };
+    };
+
+    for (const repose of [
+      { ...signed.pose, yaw: signed.pose.yaw - 0.1 },
+      { ...signed.pose, scale: signed.pose.scale * 1.1 },
+    ]) {
+      expect(sha256(JSON.stringify({ ...signed, pose: repose }))).not.toBe(
+        committed,
+      );
+    }
+  });
+
+  // The scale is still the award group's, just held in one place. If the group
+  // is resized, this fails and the medallion has to be retraced with it.
+  it("keeps the medallion sized with the other lower-shelf awards", () => {
+    expect(TJ_MEDALLION_POSE.scale).toBe(0.66 * ABOUT_AWARD_SIZE_INCREASE);
+  });
+
+  // Yaw is the half that reaches the outline, which is why tying it matters.
+  it("traces a different envelope at a different yaw", () => {
+    const posed = tjMedallionSolidGroup(THREE);
+    const atSpecYaw = new THREE.Box3().setFromObject(posed);
+
+    posed.rotation.y = TJ_MEDALLION_POSE.yaw + 0.6;
+    posed.updateWorldMatrix(true, true);
+    const turned = new THREE.Box3().setFromObject(posed);
+
+    expect(turned.max.x - turned.min.x).not.toBeCloseTo(
+      atSpecYaw.max.x - atSpecYaw.min.x,
+      3,
+    );
   });
 
   it("builds the same solids the scene renders", () => {
