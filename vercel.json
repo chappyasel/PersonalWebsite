@@ -1,4 +1,9 @@
 {
+  "build": {
+    "env": {
+      "ENABLE_EXPERIMENTAL_COREPACK": "1"
+    }
+  },
   "functions": {
     "src/app/api/cron/sync-books/route.ts": {
       "maxDuration": 180

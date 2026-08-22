@@ -18,21 +18,21 @@
  *
  * Exit codes:
  *   0 = export confirmed queued, state flipped to `requested`
- *   1 = Google session cookies missing/expired — re-run `yarn takeout:login`
+ *   1 = Google session cookies missing/expired — re-run `pnpm takeout:login`
  *   2 = timed out waiting for the tap, or UI failure
  */
-
-import { spawnSync, spawn } from "child_process";
+import { spawn, spawnSync } from "child_process";
 import * as path from "path";
-import { getPage, close, hasGoogleSessionCookies } from "./browser";
+
+import { close, getPage, hasGoogleSessionCookies } from "./browser";
+import { getDrive } from "./drive";
 import {
-  fillExportForm,
-  clickCreateExport,
-  verifyExportQueued,
   AUTH_GATE_RE,
+  clickCreateExport,
+  fillExportForm,
+  verifyExportQueued,
 } from "./flow";
 import { readState, writeState } from "./state";
-import { getDrive } from "./drive";
 
 const DRY_RUN = process.argv.includes("--dry-run");
 const HEADED = !process.argv.includes("--no-headed");
@@ -97,7 +97,9 @@ async function freshYouTubeZipInDrive(sinceMs: number): Promise<boolean> {
 
 async function main() {
   if (!hasGoogleSessionCookies()) {
-    console.error("Google session cookies missing — run `yarn takeout:login` to sign in.");
+    console.error(
+      "Google session cookies missing — run `pnpm takeout:login` to sign in.",
+    );
     process.exit(1);
   }
 
@@ -111,7 +113,9 @@ async function main() {
   }
 
   await clickCreateExport(page);
-  console.log("[approve] WAITING_FOR_PASSKEY — complete the passkey in the browser window.");
+  console.log(
+    "[approve] WAITING_FOR_PASSKEY — complete the passkey in the browser window.",
+  );
   notifyMac(
     "Approve YouTube export",
     "Tap your passkey in the open browser window to queue this week's export.",
@@ -153,8 +157,13 @@ async function main() {
       consecutive_failures: 0,
       approval_pending_since: null,
     });
-    console.log("[approve] EXPORT_QUEUED — state flipped to `requested`. Kicking ingest now.");
-    notifyMac("YouTube export queued", "Approved — ingesting your watch history now.");
+    console.log(
+      "[approve] EXPORT_QUEUED — state flipped to `requested`. Kicking ingest now.",
+    );
+    notifyMac(
+      "YouTube export queued",
+      "Approved — ingesting your watch history now.",
+    );
     ingestNow();
     process.exit(0);
   }

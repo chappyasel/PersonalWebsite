@@ -50,14 +50,11 @@ export const railRightPxRef = { current: 0 };
  * only cares whether the sheet is up at all. */
 export const panelCoverageRef = { current: 0 };
 
-export type StacksMode = "flat" | "world";
-
 /** Mobile full-screen panel gesture state machine (Model B). Travel and all
  * input bridges freeze whenever this is not "closed". */
 export type PanelState = "closed" | "opening" | "open" | "closing";
 
 type StacksState = {
-  mode: StacksMode;
   activeUnit: number;
   /** True only while the camera occupies the hidden Golf stop between Books
    * and Weightlifting. It is separate from activeUnit because the Golf stop
@@ -112,7 +109,6 @@ type StacksState = {
    * a re-render that makes drei swallow the first scroll event after its
    * listener re-attaches, so single programmatic scrollLeft writes get lost. */
   travelTo: ((unit: number) => void) | null;
-  setMode: (mode: StacksMode) => void;
   setActiveUnit: (activeUnit: number) => void;
   setGolfFocused: (golfFocused: boolean) => void;
   setScrollEl: (scrollEl: HTMLDivElement | null) => void;
@@ -133,7 +129,6 @@ type StacksState = {
 };
 
 export const useStacks = create<StacksState>((set) => ({
-  mode: "flat",
   activeUnit: 0,
   golfFocused: false,
   scrollEl: null,
@@ -157,7 +152,6 @@ export const useStacks = create<StacksState>((set) => ({
   setBloomActive: (bloomActive) => set({ bloomActive }),
   jumpTo: null,
   travelTo: null,
-  setMode: (mode) => set({ mode }),
   setActiveUnit: (activeUnit) => set({ activeUnit }),
   setGolfFocused: (golfFocused) => set({ golfFocused }),
   setScrollEl: (scrollEl) => set({ scrollEl }),

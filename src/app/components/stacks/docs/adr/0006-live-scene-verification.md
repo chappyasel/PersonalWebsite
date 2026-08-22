@@ -24,7 +24,7 @@ comment in order to make a test pass.
 ## Decision
 
 Properties that are statistical, live and emergent are verified against a running
-scene, in a separate command from `yarn test` because they need a server. The
+scene, in a separate command from `pnpm test` because they need a server. The
 suite keeps what it is good at — pure functions, planner geometry, and the
 contract that every phase the planner forgives the support in is a phase the
 pilot flies with the same licence.
@@ -37,7 +37,7 @@ below its contact plane.
 
 ## Consequences
 
-It cannot run in `yarn test` and will not gate an ordinary commit, so it has to
+It cannot run in `pnpm test` and will not gate an ordinary commit, so it has to
 be run deliberately. That is the trade: a check that needs a browser and sixty
 seconds, against a class of defect that a green suite demonstrably cannot catch.
 

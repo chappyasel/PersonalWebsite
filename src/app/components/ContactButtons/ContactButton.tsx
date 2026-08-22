@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import React, { useState } from "react";
 
+import { type ContactMethod, capture } from "~/lib/analytics";
 import { cn } from "~/lib/util";
 
 export type Contact = {
@@ -11,6 +12,7 @@ export type Contact = {
   username: string;
   link: string;
   icon: React.ReactNode;
+  analyticsId: ContactMethod;
 };
 
 export function ContactButton({ contact }: { contact: Contact }) {
@@ -22,6 +24,9 @@ export function ContactButton({ contact }: { contact: Contact }) {
       href={contact.link}
       target="_blank"
       aria-label={contact.title}
+      onClick={() =>
+        capture("homepage_contact_selected", { method: contact.analyticsId })
+      }
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >

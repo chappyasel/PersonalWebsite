@@ -9,10 +9,6 @@ const models = fs.readFileSync(
   new URL("./ModelProp.tsx", import.meta.url),
   "utf8",
 );
-const effects = fs.readFileSync(
-  new URL("./Effects.tsx", import.meta.url),
-  "utf8",
-);
 const meadow = fs.readFileSync(
   new URL("./Meadow.tsx", import.meta.url),
   "utf8",
@@ -38,10 +34,12 @@ describe("Cinematic+ sunlight", () => {
     expect(models).toContain("mesh.castShadow = true");
   });
 
-  it("uses a physical sun and an occlusion-aware god-rays pass", () => {
+  // The composer half of this — that god rays mount only for light-mode
+  // Cinematic+ once a source is registered — is asserted against the rendered
+  // chain in Effects.contract.test.tsx.
+  it("publishes a physical sun for the composer to occlude", () => {
     expect(environment).toContain("<CinematicSunSource");
-    expect(effects).toContain("GodRays");
-    expect(effects).toMatch(/cinematicPlus\s*&&\s*!dark\s*&&\s*sun/);
+    expect(environment).toContain("registerCinematicSun");
   });
 
   it("makes the Cinematic+ meadow receive directional shadow maps", () => {

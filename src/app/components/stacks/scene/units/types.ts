@@ -6,6 +6,7 @@ export type UnitProps = {
   palette: Palette;
   dark: boolean;
   index: number;
+  headOnCapture: boolean;
   coverWidth: 256 | 384;
   onOpenBook?: (bookId: string) => void;
   onOpenUrl?: (url: string) => void;

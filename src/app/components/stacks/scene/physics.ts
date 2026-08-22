@@ -66,7 +66,15 @@ const SETTLED_ANGULAR_SPEED = 0.08;
 
 /** Keep collision accuracy independent from renderer cadence without allowing
  * a late frame to schedule an unbounded solver catch-up. A fast thin body gets
- * four quarter-size steps; every other body retains the ordinary 60 Hz step. */
+ * quarter-size steps; every other body retains the ordinary 60 Hz step.
+ *
+ * 120 Hz was not enough. At the 4 u/s release ceiling a body travels 0.033 per
+ * step, more than half the 0.055-thick lower plank, so the narrowphase saw one
+ * contact frame and the Musings paper stack landed on the room floor instead
+ * of the shelf. A measured sweep of 462 reachable release poses tunnelled 27
+ * of them at 1/120 and none at 1/240. The thin tier's catch-up ceiling is
+ * unchanged at 1/60 of simulated time per frame, so a late frame cannot
+ * spiral any further than it already could. */
 export function freeBodyStepPolicy(thinFastBody: boolean) {
   return {
     fixedStep: thinFastBody ? 1 / 240 : 1 / 60,

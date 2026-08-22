@@ -9,18 +9,16 @@
  * no Audible lookups — so it is cheap and safe to re-run.
  *
  * Usage:
- *   yarn backfill:book-flags --dry-run   # log what would change
- *   yarn backfill:book-flags             # write
+ *   pnpm backfill:book-flags --dry-run   # log what would change
+ *   pnpm backfill:book-flags             # write
  */
-
 // Env comes from the `dotenv -e .env --` wrapper in package.json rather than a
 // config() call here: this script imports ~/server/db, which validates env at
 // module-evaluation time, and ESM hoists imports above any statement body.
-import { eq } from "drizzle-orm";
-
 import { fetchBooksFromNotion } from "../src/lib/books/notion";
 import { db } from "../src/server/db";
 import { books } from "../src/server/db/schema";
+import { eq } from "drizzle-orm";
 
 const dryRun = process.argv.includes("--dry-run");
 
@@ -76,7 +74,9 @@ async function main() {
     ]
       .filter(Boolean)
       .join(", ");
-    console.log(`   ${dryRun ? "would update" : "updating"} ${book.title}: ${diff}`);
+    console.log(
+      `   ${dryRun ? "would update" : "updating"} ${book.title}: ${diff}`,
+    );
 
     if (!dryRun) {
       await db

@@ -3,17 +3,16 @@
 // Screen-fixed chrome over the world: shared styles, bottom vignette, the
 // persistent name, and the theme toggle island. Everything except the toggle
 // island is pointer-events-none; interactive layers manage their own events.
-import { browserStorage } from "../mobile/liveness";
 import {
   requestDevHooks,
   requestSceneHooks,
   sceneDiagnosticsQueryMode,
 } from "../scene/devHooks";
 import {
+  connectFreeRoamEntryObserver,
   freeRoamDiagnosticsController,
-  readFreeRoamEnabled,
-  writeFreeRoamEnabled,
 } from "../scene/freeRoamDiagnostics";
+import { freeRoamShortcutIntent } from "../scene/freeRoamShortcut";
 import { setStacksSheetDismissed, useStacks } from "../store";
 import dynamic from "next/dynamic";
 import { type ComponentType, useEffect, useState } from "react";
@@ -77,37 +76,35 @@ function SceneDiagnosticsLoader() {
   useEffect(() => {
     if (process.env.NODE_ENV !== "development") return;
 
-    const storage = browserStorage("localStorage");
-    freeRoamDiagnosticsController.setEnabled(readFreeRoamEnabled(storage));
-    const syncFreeRoamPreference = () => {
-      const enabled = freeRoamDiagnosticsController.getSnapshot().enabled;
-      writeFreeRoamEnabled(storage, enabled);
-      if (enabled) setStacksSheetDismissed(true);
-    };
-    syncFreeRoamPreference();
-    const unsubscribe = freeRoamDiagnosticsController.subscribe(
-      syncFreeRoamPreference,
-    );
+    const disconnectFreeRoamEntry = connectFreeRoamEntryObserver({
+      controller: freeRoamDiagnosticsController,
+      // A free-roam camera flies straight out of the mobile sheet's frame, so
+      // the sheet is only in the way once free roam owns the view.
+      onEnabled: () => setStacksSheetDismissed(true),
+    });
     const onFreeRoamShortcut = (event: KeyboardEvent) => {
-      if (
-        event.defaultPrevented ||
-        event.repeat ||
-        event.metaKey ||
-        event.ctrlKey ||
-        event.altKey ||
-        event.key.toLowerCase() !== "f" ||
-        isEditableShortcutTarget(event.target)
-      )
-        return;
+      const intent = freeRoamShortcutIntent(
+        {
+          key: event.key,
+          shiftKey: event.shiftKey,
+          metaKey: event.metaKey,
+          ctrlKey: event.ctrlKey,
+          altKey: event.altKey,
+          repeat: event.repeat,
+          defaultPrevented: event.defaultPrevented,
+          editableTarget: isEditableShortcutTarget(event.target),
+        },
+        freeRoamDiagnosticsController.getSnapshot(),
+      );
+      if (!intent) return;
 
       event.preventDefault();
-      const wasEnabled = freeRoamDiagnosticsController.getSnapshot().enabled;
-      if (event.shiftKey && !wasEnabled) {
+      if (intent.action === "start-from-current-pose") {
         freeRoamDiagnosticsController.startFromCurrentPose();
       } else {
         freeRoamDiagnosticsController.toggle();
       }
-      if (!wasEnabled) {
+      if (intent.requestPointerLock) {
         const canvas = document.querySelector<HTMLCanvasElement>(
           ".stacks-canvas-shell canvas",
         );
@@ -117,7 +114,7 @@ function SceneDiagnosticsLoader() {
 
     window.addEventListener("keydown", onFreeRoamShortcut);
     return () => {
-      unsubscribe();
+      disconnectFreeRoamEntry();
       window.removeEventListener("keydown", onFreeRoamShortcut);
     };
   }, []);

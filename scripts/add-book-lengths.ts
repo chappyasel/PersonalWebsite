@@ -4,23 +4,11 @@
  * dev/prod databases via the normal sync afterward.
  *
  * Usage:
- *   yarn add-book-lengths:dry-run          # log what would be written
- *   yarn add-book-lengths -- --limit 5     # sanity-check on 5 books
- *   yarn add-book-lengths                  # full pass
+ *   pnpm add-book-lengths:dry-run          # log what would be written
+ *   pnpm add-book-lengths --limit 5        # sanity-check on 5 books
+ *   pnpm add-book-lengths                  # full pass
  */
-
 // Load environment variables first
-import { config } from "dotenv";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-// Load .env file from project root
-config({ path: join(__dirname, "../.env") });
-
-import { Client, type PageObjectResponse } from "@notionhq/client";
 import {
   audibleUrlFromAsin,
   estimatePagesFromAudio,
@@ -29,6 +17,20 @@ import {
   hourDotMinutesToMinutes,
   minutesToHourDotMinutes,
 } from "../src/lib/books/lengthFetcher";
+import {
+  Client,
+  type PageObjectResponse,
+  type UpdateDataSourceParameters,
+} from "@notionhq/client";
+import { config } from "dotenv";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Load .env file from project root
+config({ path: join(__dirname, "../.env") });
 
 // Check required environment variables
 if (!process.env.NOTION_API_KEY) {
@@ -48,7 +50,9 @@ const LIMIT = (() => {
   if (idx === -1) return Infinity;
   const value = Number(process.argv[idx + 1]);
   if (!Number.isInteger(value) || value < 1) {
-    throw new Error(`--limit requires a positive integer, got: ${process.argv[idx + 1]}`);
+    throw new Error(
+      `--limit requires a positive integer, got: ${process.argv[idx + 1]}`,
+    );
   }
   return value;
 })();
@@ -84,13 +88,18 @@ async function ensureProperties(dataSourceId: string): Promise<void> {
   const existing =
     "properties" in dataSource ? Object.keys(dataSource.properties) : [];
 
-  const wanted: Record<string, { number: object } | { url: object }> = {
+  type DataSourceProperties = NonNullable<
+    UpdateDataSourceParameters["properties"]
+  >;
+  const wanted = {
     "Audio Length": { number: {} },
     Pages: { number: {} },
     Audible: { url: {} },
-  };
+  } satisfies DataSourceProperties;
 
-  const missing = Object.keys(wanted).filter((name) => !existing.includes(name));
+  const missing = (Object.keys(wanted) as Array<keyof typeof wanted>).filter(
+    (name) => !existing.includes(name),
+  );
 
   if (missing.length === 0) {
     console.log("✓ All length properties already exist in Notion");
@@ -104,12 +113,12 @@ async function ensureProperties(dataSourceId: string): Promise<void> {
     return;
   }
 
+  const properties: DataSourceProperties = {};
+  for (const name of missing) properties[name] = wanted[name];
+
   await notion.dataSources.update({
     data_source_id: dataSourceId,
-    properties: Object.fromEntries(
-      missing.map((name) => [name, wanted[name]!]),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ) as any,
+    properties,
   });
 
   console.log("✓ Properties created");
@@ -118,7 +127,9 @@ async function ensureProperties(dataSourceId: string): Promise<void> {
 /**
  * Fetch all book pages from the data source (same filter as sync)
  */
-async function fetchAllPages(dataSourceId: string): Promise<PageObjectResponse[]> {
+async function fetchAllPages(
+  dataSourceId: string,
+): Promise<PageObjectResponse[]> {
   const allPages: PageObjectResponse[] = [];
   let cursor: string | undefined = undefined;
   let hasMore = true;

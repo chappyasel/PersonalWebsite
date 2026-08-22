@@ -50,7 +50,7 @@ lantern floor while its only landable surface is the dome above. The
 out of the real GLB (`UnitBlog.landing.test.ts`), not a corner of any box;
 its gallery deck and plinth ledge both measured flat and both reject as
 `approach-blocked` because the approach passes through the tower. When adding
-a site, author it, read the HUD (or the diagnostics dump, or `yarn
+a site, author it, read the HUD (or the diagnostics dump, or `pnpm
 check:perches`), and copy the resolved contact back into both files. Every
 anchor added in the +13 round below was authored that way: a candidate near
 the prop, then the measured contact written back.

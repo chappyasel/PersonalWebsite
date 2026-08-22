@@ -47,6 +47,9 @@ describe("About recent-reading fan", () => {
       base: CURRENT_READING_BASE,
       rotation: CURRENT_READING_ROTATION,
     });
+    // 0.955 landmark minus the 0.21 half-span of the fan. The literal here
+    // was written against an interim landmark and never matched the shipped
+    // composition; the mean-x assertion below is what ties the two together.
     expect(poses[0].base[0]).toBeCloseTo(0.745, 10);
     expect(poses[0].base[2]).toBeCloseTo(-0.155, 10);
     expect(readingCoverForward(poses[0].rotation)).toBeCloseTo(

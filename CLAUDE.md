@@ -19,26 +19,65 @@ This repository uses a multi-context domain map. See `docs/agents/domain.md`.
 ### Development
 
 ```bash
-yarn dev              # Start development server (http://localhost:3000)
-yarn build            # Build the application for production
-yarn fix              # Run ESLint with auto-fix (includes Prettier formatting)
-yarn lint             # Run Next.js linter
+pnpm verify           # Code gate: types, lint, unit suite, meadow check
+pnpm verify:artifacts # Artifact gate: committed generated files still fresh
+pnpm dev              # Start development server (http://localhost:3000)
+pnpm build            # Build the application for production
+pnpm fix              # Run ESLint with auto-fix (includes Prettier formatting)
+pnpm lint             # Run ESLint
+pnpm typecheck        # next typegen, then tsc --noEmit
+pnpm typegen          # Write next-env.d.ts and .next/types without a build
 ```
+
+Two gates, because they fail for different reasons and want different fixes.
+
+`pnpm verify` is the code gate and the one CI runs: `next typegen`, `tsc`,
+`eslint --max-warnings 0`, the unit suite, and `pnpm check:meadow`. Everything
+in it is deterministic and needs no credentials, so red means someone broke the
+code.
+
+`pnpm verify:artifacts` strictly checks whether committed generated files still
+match the sources they were made from. Today that is the homepage OG capture,
+and regenerating it needs a production build with database credentials. The
+automatic Git hook and `.github/workflows/refresh-home-og.yml` report stale
+captures as warnings because a shared renderer source can change for an
+off-camera Unit without changing the About card. Keeping artifact freshness
+out of `pnpm verify` is deliberate: a code gate that can never go green is a
+code gate people learn to ignore.
+
+`pnpm install` configures `.githooks/pre-commit` unless another
+`core.hooksPath` is already in use. The hook checks the Git index, not the
+working tree, so partial commits are safe. Its warning is narrowed to the fixed
+About capture: other Unit-local sources and assets are excluded, while shared
+rendering sources remain watched. When the About frame intentionally changes,
+run `pnpm generate:home-og:local` and stage both outputs named by the warning. CI
+repeats the freshness check if a local hook is bypassed.
+
+Neither covers route budgets. Those read gzipped chunk sizes out of `.next`, so
+they only mean anything right after a build, which is where `postbuild` already
+runs them.
+
+Run `pnpm typegen` before `pnpm exec tsc --noEmit` or `pnpm lint` in a fresh
+worktree. `next-env.d.ts` and `.next/types` are gitignored, and without them
+the `public/images/...` imports in About and Projects fail to resolve.
+TypeScript reports eight phantom TS2307s, and the type-aware lint rules turn
+the same imports into `no-unsafe-assignment` errors. `pnpm verify` and
+`pnpm typecheck` generate them first; `pnpm exec tsc` on its own does not.
 
 ### Database Management
 
 ```bash
 ./start-database.sh   # Start local PostgreSQL in Docker
-yarn db:generate      # Generate Drizzle migrations from schema changes
-yarn db:migrate:dev   # Run migrations on local database
-yarn db:migrate:prod  # Run migrations on production database
+pnpm db:generate      # Generate Drizzle migrations from schema changes
+pnpm db:migrate:dev   # Run migrations on local database
+pnpm db:migrate:prod  # Run migrations on production database
 ```
 
 ## Architecture
 
 ### Tech Stack
 
-- **Next.js 14** with App Router and TypeScript, shadcn/ui
+- **Next.js 16** with App Router and TypeScript, shadcn/ui
 - **tRPC v11** for type-safe APIs with React Query
 - **Drizzle ORM** with PostgreSQL
 - **NextAuth.js** for authentication
@@ -83,8 +122,8 @@ Uses Drizzle ORM with PostgreSQL. Main tables:
 Schema changes workflow:
 
 1. Edit `src/server/db/schema.ts`
-2. Run `yarn db:generate` to create migration
-3. Run `yarn db:migrate:dev` to apply to local database
+2. Run `pnpm db:generate` to create a migration
+3. Run `pnpm db:migrate:dev` to apply it locally
 
 ### Styling
 
@@ -97,4 +136,4 @@ Schema changes workflow:
 
 - Worry minimally about backwards compatibility since this is a web app for our internal team
 - Remember to get IDE diagnostics if available to test for linter errors in your implementation
-- You may run `yarn dev` to reproduce bugs or verify changes. Prefer running it in the background and stopping the server when finished. Avoid `yarn build` unless explicitly requested (it's slow).
+- You may run `pnpm dev` to reproduce bugs or verify changes. Prefer running it in the background and stopping the server when finished. Avoid `pnpm build` unless explicitly requested because it is slow.

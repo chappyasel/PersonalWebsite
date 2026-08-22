@@ -15,7 +15,7 @@
 // frame. Near lawn, far lawn, and flowers are spatially tiled over shared
 // geometry/materials so Three can reject offscreen vegetation by frustum.
 import { sceneAudio } from "../audio/sceneAudio";
-import { markMeadowReady } from "../loading";
+import { useWorldBootScope } from "../boot/useWorldBoot";
 import { progressRef, touchWorldRef } from "../store";
 import { PALETTES } from "../theme";
 import { useGLTF, useTexture } from "@react-three/drei";
@@ -31,7 +31,10 @@ import {
 } from "react";
 import * as THREE from "three";
 
-import { freeRoamDiagnosticsController } from "./freeRoamDiagnostics";
+import {
+  freeRoamDiagnosticsController,
+  freeRoamFogVisible,
+} from "./freeRoamDiagnostics";
 import {
   GOLF_COURSE_CENTER,
   GOLF_CUP,
@@ -1399,9 +1402,11 @@ export default function Meadow({
   }, [alphaMap, built]);
 
   useEffect(() => {
-    built.shared.uFogEnabled.value =
-      freeRoam.enabled && !freeRoam.fogEnabled ? 0 : 1;
-  }, [built, freeRoam.enabled, freeRoam.fogEnabled]);
+    built.shared.uFogEnabled.value = freeRoamFogVisible(freeRoam) ? 1 : 0;
+    // The controller publishes a frozen snapshot and reuses it when nothing
+    // moved, so depending on the object is as narrow as depending on its two
+    // fields, and it cannot drift out of step with the policy.
+  }, [built, freeRoam]);
 
   useEffect(() => {
     deformation.setQuality(effectiveDeformationQuality);
@@ -1422,6 +1427,7 @@ export default function Meadow({
   // tile keeps rung-major ordering locally and gets an actual instance
   // bound (plus shader-displacement padding), enabling normal frustum
   // culling without a per-frame CPU visibility walk.
+  const scope = useWorldBootScope();
   useEffect(() => {
     const matrix = new THREE.Matrix4();
     const quaternion = new THREE.Quaternion();
@@ -1482,8 +1488,8 @@ export default function Meadow({
     });
     // The buffers are filled and the GLB/alpha suspended above us, so the
     // next painted frame contains grass — tell the boot reveal gate.
-    markMeadowReady();
-  }, [streams, flowers, tiles]);
+    scope.send({ type: "meadowReady" });
+  }, [scope, streams, flowers, tiles]);
 
   // Instance bounds are derived from the matrices AND the bound geometry, so
   // a tuft LOD swap has to redo them. Refilling the matrices does not: the

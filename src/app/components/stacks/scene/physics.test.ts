@@ -129,6 +129,12 @@ describe("shelf physics lifecycle and carrying", () => {
       fixedStep: 1 / 240,
       maxSubSteps: 4,
     });
+    // The thin tier buys narrowphase resolution, not solver catch-up time.
+    // Its ceiling is still 1/60 s of simulated time per frame, exactly what
+    // two 1/120 steps bought, so a late frame cannot spiral any further than
+    // it already could.
+    const thin = freeBodyStepPolicy(true);
+    expect(thin.fixedStep * thin.maxSubSteps).toBeCloseTo(1 / 60, 10);
   });
 
   it("knocks a parked prop into dynamic motion with a toppling spin", async () => {

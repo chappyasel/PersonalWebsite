@@ -7,7 +7,11 @@ import {
   formatSingleReadDate,
 } from "../lib/format";
 import { LinkIcon } from "@phosphor-icons/react";
-import { ArrowsClockwiseIcon, BookOpenIcon, FileTextIcon } from "@phosphor-icons/react";
+import {
+  ArrowsClockwiseIcon,
+  BookOpenIcon,
+  FileTextIcon,
+} from "@phosphor-icons/react";
 import { CheckIcon, StarIcon } from "@phosphor-icons/react/dist/ssr";
 import {
   type SpringOptions,
@@ -429,11 +433,12 @@ export const BookCard = memo(function BookCard({
                   </span>
                 </Badge>
               )}
-              {!isCurrentlyReading(book) && book.readNumber <= 1 && !book.hasNotes && (
+              {!book.hasNotes && (
                 <Badge
                   variant="secondary"
+                  data-book-badge="no-notes"
                   className={cn(
-                    `gap-1 bg-red-50/90 text-red-600/80 shadow-md dark:bg-red-950/90 dark:text-red-400/90`,
+                    `gap-1 bg-stone-50/95 text-stone-700/85 shadow-md ring-1 ring-stone-900/5 dark:bg-stone-900/95 dark:text-stone-200/85 dark:ring-white/10`,
                     sizeRadius[size],
                   )}
                 >

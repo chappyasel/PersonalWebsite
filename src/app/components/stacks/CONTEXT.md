@@ -43,6 +43,36 @@ feedback while progressively reducing scalable effects such as shadow detail,
 reflections, particles, and offscreen wildlife to protect frame pacing.
 _Avoid_: Mobile quality, coarse-pointer quality, visual identity downgrade
 
+**World Boot** — the whole path from a document load to the world owning the
+screen: the capability decision, the boot vignette, the four reveal gates, the
+handoff, and the fail-open return to the document. It is one state machine
+(ADR 0021), not a sequence of effects.
+_Avoid_: Loading sequence, startup flow
+
+**Handshake Phase** — the value of `data-world` on the document element:
+`pending`, `warm`, `ready`, or absent. It is what CSS acts on during the very
+first paint, before React exists, and it is the single published answer to
+"which homepage is on screen".
+_Avoid_: Loading state, world flag
+
+**Reveal Gate** — the four facts that must all hold before the boot screen is
+retired: a painted frame, an idle loading manager that has stayed quiet, filled
+meadow buffers, and one completed pass of the boot vignette. Time is never one
+of them.
+_Avoid_: Load percentage, loading threshold
+
+**Warm Boot** — a load predicted to find the chunk and its assets already in
+the browser cache, which selects the shorter handoff. Only ever a prediction:
+it never hides the boot vignette and never overrides reduced motion or
+Save-Data.
+_Avoid_: Cached load, fast path
+
+**Demotion** — giving the world up after it was already promised, because of a
+hang, a chunk or scene throw, or a lost GL context. The document comes back
+animated. Distinct from a visitor who was never eligible, who is not being
+given a fallback but the homepage.
+_Avoid_: Fallback, downgrade
+
 **Identity Prop** — a scene object whose presence communicates something
 meaningful about Chappy or owns a meaningful action. Every Identity Prop must
 survive into its Unit's Portrait Composition, though its position and scale may

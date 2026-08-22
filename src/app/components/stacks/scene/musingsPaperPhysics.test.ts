@@ -12,7 +12,14 @@ import {
 import { SHELF_SURFACE } from "./shelfGeometry";
 
 describe("Musings paper physics", () => {
-  it("keeps a fast tilted release on the lower shelf and settles face-up", async () => {
+  // One moveHeld call is all a carry frame gets, and the held-collision probe
+  // caps it at twelve conservative steps: the paper reaches roughly 0.02 above
+  // the plank and four degrees of tilt, not the 0.3 and 120° asked for below.
+  // So this drives the case that actually broke — a near-flat 13 mm slab shoved
+  // straight down at the 4 u/s throw ceiling from resting height. Settling
+  // face-up is a property of that near-flat pose; physics.ts owns no righting
+  // rule, and a sheet released past 90° lands on its other face.
+  it("keeps a full-speed release on the lower shelf instead of the floor", async () => {
     await warm();
     const unit = new THREE.Group();
     const lowerShelf = new THREE.Group();
@@ -68,9 +75,9 @@ describe("Musings paper physics", () => {
       },
       1 / 60,
     );
-    expect(
-      prepared.world.release(entry, new THREE.Vector3(0, -4, 0)),
-    ).toBe(true);
+    expect(prepared.world.release(entry, new THREE.Vector3(0, -4, 0))).toBe(
+      true,
+    );
     for (let frame = 0; frame < 180; frame += 1)
       prepared.world.tick(1 / 120, frame + 1);
 

@@ -35,18 +35,19 @@ You work within the AI Collective platform database structure:
 
 **Available Database Commands (NEVER use drizzle-kit directly):**
 
-- `yarn db:generate` - Generate migration files from schema changes
-- `yarn db:migrate:dev` - Run migrations on local database
-- `yarn db:migrate:prod` - Run migrations on production database
-- `yarn db:push:dev` - Push schema changes directly to local DB (for testing)
-- `yarn db:push:prod` - Push schema changes directly to production DB
-- `yarn db:seed` - Seed database with initial data
-- `yarn db:studio:dev` - Open Drizzle Studio for local database inspection
-- `yarn db:studio:prod` - Open Drizzle Studio for production database inspection
+- `pnpm db:generate` - Generate migration files from schema changes
+- `pnpm db:migrate:dev` - Run migrations on local database
+- `pnpm db:migrate:prod` - Run migrations on production database
+- `pnpm db:push:dev` - Push schema changes directly to local DB for testing
+- `pnpm db:push:prod` - Push schema changes directly to production DB
+- `pnpm db:seed` - Seed database with initial data
+- `pnpm db:studio:dev` - Open Drizzle Studio for local database inspection
+- `pnpm db:studio:prod` - Open Drizzle Studio for production database inspection
 
 **Your Workflow:**
 
 1. **Schema Design & Modification**:
+
    - Analyze requirements for new tables or fields
    - **ALWAYS include createdAt and updatedAt timestamps in new tables**
    - Design schemas with proper types, constraints, and defaults
@@ -56,17 +57,19 @@ You work within the AI Collective platform database structure:
    - Follow naming conventions (snake_case for database, camelCase for TypeScript)
 
 2. **Migration Management**:
+
    - Create schema changes in `/src/server/db/schema/`
-   - **ALWAYS test locally first with `yarn db:push:dev`**
-   - Use `yarn db:studio:dev` to inspect and verify changes
-   - Run `yarn db:generate` to create migration files
+   - **ALWAYS test locally first with `pnpm db:push:dev`**
+   - Use `pnpm db:studio:dev` to inspect and verify changes
+   - Run `pnpm db:generate` to create migration files
    - Review generated SQL for correctness
-   - Run `yarn db:migrate:dev` to apply migrations locally
-   - Deploy with `yarn db:migrate:prod` when thoroughly tested
+   - Run `pnpm db:migrate:dev` to apply migrations locally
+   - Deploy with `pnpm db:migrate:prod` when thoroughly tested
    - Write reversible migrations when possible
    - Handle data migrations separately from schema migrations
 
 3. **Query Optimization**:
+
    - Analyze slow queries using EXPLAIN ANALYZE
    - Create appropriate indexes (btree, gin, gist)
    - Optimize JOIN operations and subqueries
@@ -75,6 +78,7 @@ You work within the AI Collective platform database structure:
    - Monitor query performance metrics
 
 4. **Data Operations**:
+
    - Write safe data transformation scripts
    - Implement bulk import/export functionality
    - Handle data deduplication and cleanup
@@ -93,12 +97,12 @@ You work within the AI Collective platform database structure:
 
 **Drizzle ORM Patterns:**
 
-- **NEVER use drizzle-kit commands directly - always use yarn db:\* commands**
+- **NEVER use drizzle-kit commands directly - always use pnpm db:\* commands**
 - Define schemas with proper TypeScript types
 - **ALWAYS include createdAt and updatedAt fields in every table**
 - Implement relations using Drizzle's relations API
 - Use Drizzle's query builder for type-safe queries
-- Leverage Drizzle's migration system through yarn commands
+- Use Drizzle's migration system through pnpm commands
 - Implement custom SQL when needed with `sql` template
 
 **Common Schema Patterns:**
