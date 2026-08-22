@@ -10,6 +10,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // are replaced with recording adapters. Everything else — the quality plan,
 // the colour-grade store, the scene store, the Cinematic+ sun registry — is
 // the real module.
+//
+// WHAT THIS FILE CANNOT PROVE. `renderToStaticMarkup` runs no effects and
+// attaches no refs, so anything a component does in `useLayoutEffect` or
+// `useEffect` is invisible here. In practice that is the depth-of-field
+// wrapper's live tuning: these tests show the pass mounting and with which
+// resolved inputs, `shelfDepthOfField.test.ts` shows what the tuning does to
+// a real DepthOfFieldEffect, and `policyWiring.test.ts` shows the wrapper
+// calling it. No assertion below stands in for that chain.
 const harness = vi.hoisted(() => ({
   scene: {} as Record<string, unknown>,
   mounted: [] as Array<{ name: string; props: Record<string, unknown> }>,
@@ -95,10 +103,6 @@ const { resolveSceneQualityPlan } = await import("./quality");
 const { DEFAULT_SCENE_COLOR_GRADE, CINEMATIC_PLUS_SCENE_COLOR_GRADE } =
   await import("./sceneColorGrade");
 const { sceneQualityController } = await import("./sceneQualityController");
-const {
-  GOLF_DEPTH_OF_FIELD_FALLOFF_RANGE,
-  SHELF_DEPTH_OF_FIELD_FALLOFF_RANGE,
-} = await import("./shelfDepthOfField");
 
 const planFor = (profile: "cinematic" | "balanced" | "safety") =>
   resolveSceneQualityPlan({
@@ -296,23 +300,22 @@ describe("the scene's postprocessing chain", () => {
 });
 
 describe("depth of field", () => {
-  it("targets the active shelf and widens its range for a golf shot", async () => {
+  it("aims the mounted pass at the active shelf in world space", async () => {
     const { depthOfFieldTargetForUnit } = await import("./worldLayout");
-    const plan = planFor("cinematic");
 
     const shelf = render({ activeUnit: 3 }).props("DepthOfField");
-    harness.mounted.length = 0;
-    const golf = render({ activeUnit: 3, golfFocused: true });
 
+    // The target is a constructor prop, so it is one of the few DoF values a
+    // server render does see. Focus range, bokeh and resolution scale are not.
     expect(shelf?.target).toEqual([...depthOfFieldTargetForUnit(3)]);
-    expect(plan.depthOfField).toBe(true);
-    expect(golf.has("DepthOfField")).toBe(true);
-    // The mounted wrapper keeps stable constructor values; the live tuning is
-    // resolved by shelfDepthOfField.ts and covered by its own test. What this
-    // asserts is that the two ranges are genuinely different policies.
-    expect(GOLF_DEPTH_OF_FIELD_FALLOFF_RANGE).toBeGreaterThan(
-      SHELF_DEPTH_OF_FIELD_FALLOFF_RANGE,
-    );
+    expect(planFor("cinematic").depthOfField).toBe(true);
+  });
+
+  it("keeps the pass mounted while a golf shot is in focus", () => {
+    // What the widened range IS belongs to shelfDepthOfField.test.ts.
+    expect(
+      render({ activeUnit: 3, golfFocused: true }).has("DepthOfField"),
+    ).toBe(true);
   });
 
   it("leaves the pass out when the camera is seated", () => {

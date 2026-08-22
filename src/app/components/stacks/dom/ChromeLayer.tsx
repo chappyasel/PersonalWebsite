@@ -3,14 +3,13 @@
 // Screen-fixed chrome over the world: shared styles, bottom vignette, the
 // persistent name, and the theme toggle island. Everything except the toggle
 // island is pointer-events-none; interactive layers manage their own events.
-import { browserStorage } from "../mobile/liveness";
 import {
   requestDevHooks,
   requestSceneHooks,
   sceneDiagnosticsQueryMode,
 } from "../scene/devHooks";
 import {
-  connectFreeRoamPreference,
+  connectFreeRoamEntryObserver,
   freeRoamDiagnosticsController,
 } from "../scene/freeRoamDiagnostics";
 import { freeRoamShortcutIntent } from "../scene/freeRoamShortcut";
@@ -77,8 +76,7 @@ function SceneDiagnosticsLoader() {
   useEffect(() => {
     if (process.env.NODE_ENV !== "development") return;
 
-    const disconnectPreference = connectFreeRoamPreference({
-      storage: browserStorage("localStorage"),
+    const disconnectFreeRoamEntry = connectFreeRoamEntryObserver({
       controller: freeRoamDiagnosticsController,
       // A free-roam camera flies straight out of the mobile sheet's frame, so
       // the sheet is only in the way once free roam owns the view.
@@ -116,7 +114,7 @@ function SceneDiagnosticsLoader() {
 
     window.addEventListener("keydown", onFreeRoamShortcut);
     return () => {
-      disconnectPreference();
+      disconnectFreeRoamEntry();
       window.removeEventListener("keydown", onFreeRoamShortcut);
     };
   }, []);

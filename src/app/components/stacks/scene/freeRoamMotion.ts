@@ -3,23 +3,28 @@
 // CameraRig owns the r3f wiring — pointer lock, listener lifetimes, and the
 // per-frame call into three. Everything that decides where the camera ends up
 // lives here, so the rules can be exercised without a WebGL context.
+//
+// The exports are exactly what CameraRig calls. The speeds, sensitivities and
+// intervals below are deliberately NOT exported: a test that reads the same
+// constant it is checking proves only that a number equals itself, so the
+// tuning is pinned through the functions that apply it.
 import * as THREE from "three";
 
 /** Metres per second at full stick. */
-export const FREE_ROAM_SPEED = 4;
+const FREE_ROAM_SPEED = 4;
 /** Radians of yaw per pixel of raw mouse movement. */
-export const FREE_ROAM_LOOK_SENSITIVITY = 0.0018;
+const FREE_ROAM_LOOK_SENSITIVITY = 0.0018;
 /** Look damping rate. High enough to feel direct, low enough to hide jitter. */
-export const FREE_ROAM_LOOK_LAMBDA = 18;
+const FREE_ROAM_LOOK_LAMBDA = 18;
 /** Stop just short of straight up or down: at the pole, yaw becomes roll. */
-export const FREE_ROAM_MAX_PITCH = Math.PI / 2 - 0.01;
+const FREE_ROAM_MAX_PITCH = Math.PI / 2 - 0.01;
 /** Shift is a precision modifier, not a brake. One third is slow enough to
  * park the camera on a prop and fast enough to still cross the room. */
-export const FREE_ROAM_PRECISION_SPEED_MULTIPLIER = 1 / 3;
+const FREE_ROAM_PRECISION_SPEED_MULTIPLIER = 1 / 3;
 /** A long frame must not teleport the camera through a wall. */
-export const FREE_ROAM_MAX_STEP_SECONDS = 0.05;
+const FREE_ROAM_MAX_STEP_SECONDS = 0.05;
 /** Persist the pose four times a second, not every frame. */
-export const FREE_ROAM_POSE_WRITE_INTERVAL_SECONDS = 0.25;
+const FREE_ROAM_POSE_WRITE_INTERVAL_SECONDS = 0.25;
 
 /**
  * The keys free roam claims. Anything outside this set keeps its normal
@@ -37,7 +42,7 @@ export const FREE_ROAM_MOVEMENT_CODES: ReadonlySet<string> = new Set([
   "ShiftRight",
 ]);
 
-export type FreeRoamAxes = Readonly<{
+type FreeRoamAxes = Readonly<{
   forward: number;
   right: number;
   vertical: number;
@@ -49,7 +54,7 @@ export type FreeRoamLook = Readonly<{ pitch: number; yaw: number }>;
  * Held keys to a movement intent. Opposed keys cancel rather than fighting,
  * which is what keeps a stuck key from dragging the camera away.
  */
-export function freeRoamAxes(held: ReadonlySet<string>): FreeRoamAxes {
+function freeRoamAxes(held: ReadonlySet<string>): FreeRoamAxes {
   return {
     forward: Number(held.has("KeyW")) - Number(held.has("KeyS")),
     right: Number(held.has("KeyD")) - Number(held.has("KeyA")),
@@ -59,7 +64,7 @@ export function freeRoamAxes(held: ReadonlySet<string>): FreeRoamAxes {
   };
 }
 
-export function freeRoamSpeedMultiplier(held: ReadonlySet<string>): number {
+function freeRoamSpeedMultiplier(held: ReadonlySet<string>): number {
   return held.has("ShiftLeft") || held.has("ShiftRight")
     ? FREE_ROAM_PRECISION_SPEED_MULTIPLIER
     : 1;

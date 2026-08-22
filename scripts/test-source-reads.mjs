@@ -1,11 +1,25 @@
 #!/usr/bin/env node
-// Inventory of tests that read source files instead of calling them.
+// Report on tests that read source files instead of calling them.
 //
 // A test that reads a module's TEXT is pinned to how that module is written,
 // not to what it does: it breaks on a rename and passes on a behaviour
 // change. This script counts what is left, groups it into migration batches,
 // and prints the same answer every run so a batch can be closed and the
 // number checked.
+//
+// The counts are a HEURISTIC LOWER BOUND, not a measurement. Reads are matched
+// by pattern, not by type resolution, so a source string that crosses a file
+// boundary, or reaches `expect()` through a shape this script does not spell,
+// is not counted. It never over-counts: everything it reports is a real read.
+// Two files it cannot attribute are corrected by hand in
+// `docs/reviews/test-source-reading-inventory.md`, and the script names them
+// under "needs a hand check" rather than guessing. It always exits zero.
+//
+// An AST version was tried and reverted. Taint-following through the
+// TypeScript AST did resolve those two files, but a fixed-point pass over
+// every test in the tree ran long enough to stall a run, and a report nobody
+// waits for is worse than a lower bound everyone can read in a tenth of a
+// second.
 //
 //   node scripts/test-source-reads.mjs            markdown to stdout
 //   node scripts/test-source-reads.mjs --json     machine-readable

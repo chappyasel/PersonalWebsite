@@ -2,6 +2,10 @@
 
 Task `test-contracts`. Branch `site-test-contracts`. 2026-08-21.
 
+Amended the same day after review. What the amendment changed is in
+"Amendment after review" near the end; the sections above it describe the
+final state, not the first draft.
+
 ## Objective and scope
 
 Replace a first tranche of source-text tests with behavior contracts, and
@@ -129,17 +133,33 @@ behavior tests.
 matching formatted text, so it survives reformatting: no backdrop filter on
 any paper surface, an opaque fill with no alpha channel, a dark fill darker
 than the light one, two grain angles that differ, and every rule scoped to the
-mode attribute.
+mode attribute. The flat-CSS reader those questions go through lives in the
+test file. Production ships the stylesheet and never parses it back, so a
+parser exported from the module would have been interface nobody calls.
+
+Each of those checks fails closed. An empty or unparsed stylesheet yields no
+rules, and a test that iterates zero rules passes without asserting anything,
+so the reader's output is asserted non-empty before it is read, and the two
+fills are asserted to exist before they are compared. Reducing over an empty
+parse gives `-Infinity`, which would have let a deleted dark-mode rule pass.
 
 ### Inventory
 
-`scripts/test-source-reads.mjs` (also `yarn check:test-source-reads`) walks
+`scripts/test-source-reads.mjs` (also `yarn report:test-source-reads`) walks
 `src`, `scripts`, and `tests`, resolves which source files each test reads
 through three binding forms, counts assertions made against them, and groups
 tests into batches by the source file they lean on hardest. Output is fully
 sorted, so two runs over one tree are byte-identical.
 `docs/reviews/test-source-reading-inventory.md` is its output plus a
 recommended order and the reasoning for each batch.
+
+It is a report, not a check: it always exits zero and knows nothing about a
+budget or a previous run. Its counts are a heuristic LOWER BOUND. Pattern
+matching cannot see a source string that crosses a file boundary or reaches
+`expect()` through a form the patterns do not spell, so two files are corrected
+by hand in the inventory and named in the output under "needs a hand check".
+The script never over-counts, so the true figure is the printed one or higher.
+The command is named `report:` rather than `check:` for that reason.
 
 ## Shortcuts taken
 
@@ -162,9 +182,27 @@ recommended order and the reasoning for each batch.
   `scenePerformance.presentation.test.ts`, which the inventory already names
   as a later batch, and is labelled there as a wiring fact.
 - **`ChromeLayer.diagnostics.test.ts` was only touched where it broke.** It is
-  202 assertions of panel copy and belongs to the SceneDiagnostics batch,
+  201 assertions of panel copy and belongs to the SceneDiagnostics batch,
   which overlaps the diagnostics-registry task. Two assertions that moved into
   `qualityReadout.ts` were replaced by one pointing at the new module.
+
+- **An earlier attempt at this amendment was interrupted mid-edit and its
+  work was inspected rather than trusted.** The session before this one was
+  writing files through shell heredocs and stopped part-way, leaving a dirty
+  worktree with no commit and no note of what was finished. Everything in it
+  was re-read against the tests and the type checker before being kept, and
+  one file was thrown away entirely (see "Amendment after review"). Nothing
+  was carried forward on the strength of it having already been written. The
+  cost is that the amendment's history is one commit with no intermediate
+  steps, so a bisect inside it is not possible.
+
+- **`policyWiring.test.ts` reads source text on purpose.** It is the one place
+  the tranche adds source reads instead of removing them: 41 assertions that
+  `ChromeLayer` and `CameraRig` CALL the extracted policies. Neither component
+  can be reached in process, so the alternative was extractions that could be
+  silently unwired while every behavior test still passed. What it costs is
+  41 assertions that a rename at a call site will break. The file says to
+  delete itself once a DOM or r3f harness exists.
 
 Nothing else. No test was replaced with a snapshot, an existence check, or a
 smoke test.
@@ -259,6 +297,7 @@ New:
 - `src/app/components/stacks/dom/qualityReadout.test.ts`
 - `src/app/components/stacks/dom/placardSurface.ts`
 - `src/app/components/stacks/dom/placardSurface.test.ts`
+- `src/app/components/stacks/policyWiring.test.ts`
 
 Deleted:
 
@@ -279,7 +318,7 @@ Modified, production:
 - `src/app/components/stacks/dom/ChromeLayer.tsx`
 - `src/app/components/stacks/dom/SceneDiagnostics.tsx`
 - `src/app/components/stacks/dom/PlacardLayer.tsx`
-- `package.json` (adds `check:test-source-reads`)
+- `package.json` (adds `report:test-source-reads`)
 
 Modified, tests:
 
@@ -298,11 +337,17 @@ Run from the worktree after `yarn install --frozen-lockfile` and
 | command | outcome |
 | --- | --- |
 | `yarn test` (baseline, commit 3055138) | 6 failed, 189 passed (195 files) |
-| `yarn test` (final) | 3 failed, 193 passed (196 files); 3 failed, 1614 passed (1617 tests) |
+| `yarn test` (final) | 3 failed, 194 passed (197 files); 3 failed, 1632 passed (1635 tests) |
 | `npx tsc --noEmit` | clean, no output |
 | `yarn lint` | 0 errors, 1 warning (pre-existing, `reactionArchetype.test.ts:3`) |
 | `npx prettier --check` on changed files | clean |
-| `node scripts/test-source-reads.mjs` | 50 files read a file, 42 read source text, 1011 source-text assertions, 7 artifact checks |
+| `node scripts/test-source-reads.mjs` | 51 files read a file, 43 read source text, 1052 source-text assertions, 7 artifact checks; 0.07s |
+
+The three remaining failures are the same three as before this tranche, listed
+under "Issues found and not fixed". Every test this task wrote or rewrote
+passes. The 41 assertions `policyWiring.test.ts` adds to the report are
+deliberate and explained in the inventory under "Source reads kept on
+purpose"; without them the tranche's report figure is 1011.
 
 Per-file assertion movement, measured by running the same inventory script
 against both trees:
@@ -339,7 +384,9 @@ Someone reviewing this should:
    `SceneEnvironment` said `!enabled || fogEnabled`; `Meadow` said
    `enabled && !fogEnabled ? 0 : 1`. Those are the same predicate written two
    ways, which is why it moved.
-4. Load the scene in a browser and press F, then Shift+F, then F again. The
+4. Load the scene in a browser and press F, then Shift+F, then F again, then
+   toggle free-roam fog from the diagnostics panel. The mobile sheet should be
+   dismissed on each entry and left alone while the fog toggle moves. The
    free-roam refactor is the only change with no browser verification, and
    browser tooling was off-limits for this task.
 5. Toggle the placard glass mode in Scene Diagnostics and confirm paper still
@@ -367,10 +414,72 @@ Someone reviewing this should:
   that constant ever stops being 11, the panel text changes with it, which is
   the intent, but it is a visible string change nobody explicitly asked for.
 
+## Amendment after review
+
+Six findings, all about tests that could pass while the code was wrong.
+
+**Tests that compared a constant to itself.** `freeRoamControls.test.ts`
+imported `FREE_ROAM_SPEED`, `FREE_ROAM_MAX_PITCH` and five more, then asserted
+that the functions applying them produced those same values. Change the
+constant and the test follows it. The seven tuning constants in
+`freeRoamMotion.ts` and `GOLF_DEPTH_OF_FIELD_FALLOFF_RANGE` in
+`shelfDepthOfField.ts` are now module-private, and their tests write the
+authored numbers out: four metres per second, 0.0018 radians per pixel, a
+fifty-millisecond step clamp, 16.5 metres of golf falloff. `freeRoamAxes` and
+`freeRoamSpeedMultiplier` stopped being exported at the same time. Nothing
+outside the module called them, and testing them separately let the movement
+tests pass without ever moving a camera. Every movement assertion now goes
+through `freeRoamTranslation` and checks a world-space vector.
+
+**A test that asserted two constants were different.** `Effects.contract.test.tsx`
+proved `GOLF_DEPTH_OF_FIELD_FALLOFF_RANGE > SHELF_DEPTH_OF_FIELD_FALLOFF_RANGE`,
+which is arithmetic, not a contract about the render. It now asserts what the
+render can actually show: the pass mounts, and its world-space target is the
+active shelf. What the widened range IS belongs to `shelfDepthOfField.test.ts`,
+and the file's header now states plainly which chain covers the live tuning.
+
+**A CSS parser exported from production for a test's benefit.**
+`readCssRules` was in `placardSurface.ts`, where nothing called it: production
+ships the stylesheet and never parses it back. It moved into the test file.
+
+**Placard assertions that passed on an empty parse.** Iterating zero rules
+asserts nothing, and `Math.max()` over an empty list is `-Infinity`, so a
+deleted dark-mode rule would have compared as darker than the light one. The
+rule list is now asserted non-empty, every rule is asserted to have selectors,
+and both fills are asserted to parse as three opaque channels before they are
+compared.
+
+**Free roam announced an entry on every publication, not on entry.**
+`connectFreeRoamPreference` called `onEnabled` whenever the controller
+published while enabled, and it publishes for fog changes and pose changes
+too. The caller dismisses the mobile sheet, which closes an open panel and
+steps browser history back with it, so the repeat calls were not free. It now
+tracks the previous state and fires on the false-to-true edge only. A restored
+preference still counts as the session's first entry. Three tests cover the
+edge, the repeat, and the restore.
+
+**Nothing proved the extractions were wired in.** Added
+`policyWiring.test.ts`, described above and in the inventory.
+
+### Thrown away in the amendment
+
+An AST rewrite of `scripts/test-source-reads.mjs`. It replaced the regex passes
+with a taint analysis over the TypeScript AST, following a binding from a
+`readFileSync` through helpers and destructuring to the `expect()` that
+consumes it, and it did resolve the two files the regex version cannot
+attribute. It also ran a fixed-point pass over every test file in the tree and
+did not finish inside two minutes, against a report whose whole value is being
+cheap enough to rerun after every batch. Reverted to the committed version,
+which answers in 0.07 seconds. The counts it prints are documented as a lower
+bound instead, the npm script is `report:` rather than `check:`, and the six
+assertions it cannot see are corrected by hand in the inventory.
+
 ## Rollback notes
 
-Everything is one commit on `site-test-contracts`. `git revert` restores the
-baseline exactly, including its six failures.
+Two commits on `site-test-contracts`: the tranche, then the amendment.
+Reverting both restores the baseline exactly, including its six failures.
+Reverting only the amendment leaves the tranche as first written, which puts
+the tautological tests back; revert both or neither.
 
 Partial rollback by cluster, if that is ever wanted:
 
@@ -391,7 +500,7 @@ outside the repo.
 - **Diagnostics registry task.** `SceneDiagnostics.tsx` gained one import and
   lost an inline formatting block from `DiagnosticsOverview`.
   `ChromeLayer.diagnostics.test.ts` lost two assertions and gained one. The
-  202-assertion SceneDiagnostics batch is the next one worth doing and belongs
+  201-assertion SceneDiagnostics batch is the next one worth doing and belongs
   with that task, not against it.
 - **Boot-state task.** `ChromeLayer.tsx`'s development effect changed shape:
   the free-roam preference restore and persist moved into

@@ -25,7 +25,6 @@ export function freeRoamFogVisible(
   return !state.enabled || state.fogEnabled;
 }
 
-export const FREE_ROAM_STORAGE_KEY = "stacks-free-roam:v1";
 export const FREE_ROAM_POSE_STORAGE_KEY = "stacks-free-roam-pose:v1";
 
 function isFiniteTriplet(value: unknown): value is [number, number, number] {
@@ -135,38 +134,31 @@ export function createFreeRoamDiagnosticsController() {
 export const freeRoamDiagnosticsController =
   createFreeRoamDiagnosticsController();
 
-type FreeRoamPreferenceController = Readonly<{
+type FreeRoamEntryController = Readonly<{
   getSnapshot: () => FreeRoamDiagnosticsState;
-  setEnabled: (enabled: boolean) => unknown;
   subscribe: (listener: () => void) => () => unknown;
 }>;
 
 /**
- * Keep the free-roam preference, its storage, and the rest of the page in
- * agreement for one browsing session, and return the disconnect.
- *
- * Three things have to happen in one order and used to be spread across an
- * effect body: the stored preference is restored BEFORE anything subscribes,
- * every later change is written back, and entering free roam tells the caller
- * so it can get the mobile sheet out of the way. Doing the restore after
- * subscribing writes the default over the stored value on first mount, which
- * is the bug this ordering exists to prevent.
+ * Notify the caller once per entry into free roam and return the disconnect.
+ * Debug overrides deliberately reset on reload; only the inspection pose is
+ * persisted. Publications for fog and pose changes must not repeat the entry
+ * side effect because dismissing the mobile sheet also changes history.
  */
-export function connectFreeRoamPreference({
-  storage,
+export function connectFreeRoamEntryObserver({
   controller,
   onEnabled,
 }: {
-  storage: FreeRoamStorage | null;
-  controller: FreeRoamPreferenceController;
-  /** Called once per entry into free roam, including a restored one. */
+  controller: FreeRoamEntryController;
   onEnabled: () => void;
 }): () => void {
-  controller.setEnabled(readFreeRoamEnabled(storage));
+  let wasEnabled = controller.getSnapshot().enabled;
+  if (wasEnabled) onEnabled();
   const sync = () => {
     const { enabled } = controller.getSnapshot();
-    writeFreeRoamEnabled(storage, enabled);
-    if (enabled) onEnabled();
+    const entered = enabled && !wasEnabled;
+    wasEnabled = enabled;
+    if (entered) onEnabled();
   };
   sync();
   const unsubscribe = controller.subscribe(sync);

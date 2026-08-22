@@ -3,7 +3,6 @@ import { PerspectiveCamera } from "three";
 import { describe, expect, it } from "vitest";
 
 import {
-  GOLF_DEPTH_OF_FIELD_FALLOFF_RANGE,
   SHELF_DEPTH_OF_FIELD_CLEAR_RADIUS,
   SHELF_DEPTH_OF_FIELD_FALLOFF_RANGE,
   applyShelfDepthOfFieldTuning,
@@ -160,8 +159,11 @@ describe("shelf depth-of-field tuning", () => {
       seated: false,
     });
 
-    expect(golf?.focusRange).toBe(GOLF_DEPTH_OF_FIELD_FALLOFF_RANGE);
-    expect(golf?.focusRange).toBeGreaterThan(shelf!.focusRange);
+    // 16.5 metres is the authored tee-to-green range, written out rather than
+    // imported: reading the same constant back proves only that it is itself.
+    expect(golf?.focusRange).toBe(16.5);
+    expect(shelf?.focusRange).toBeCloseTo(1.15, 10);
+    expect(golf!.focusRange).toBeGreaterThan(shelf!.focusRange * 10);
     // The focal PLANE never racks during a shot; only the accepted band moves.
     expect(golf?.target).toEqual(shelf?.target);
   });

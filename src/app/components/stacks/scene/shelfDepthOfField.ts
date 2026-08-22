@@ -63,8 +63,12 @@ export function installShelfDepthOfFieldFocusBand(
  * Golf owns a real tee-to-green action axis. The focal plane stays put — a
  * shot must never rack focus — but the accepted range widens enough that the
  * club at address and the cup at the far end are both legible.
+ *
+ * Not exported. Nothing outside this module applies it, and a test that reads
+ * it back proves only that the number is itself; `shelfDepthOfField.test.ts`
+ * pins 16.5 through `resolveShelfDepthOfFieldTuning`.
  */
-export const GOLF_DEPTH_OF_FIELD_FALLOFF_RANGE = 16.5;
+const GOLF_DEPTH_OF_FIELD_FALLOFF_RANGE = 16.5;
 
 export type ShelfDepthOfFieldTuning = Readonly<{
   /** World-space point the effect measures camera distance against. */
