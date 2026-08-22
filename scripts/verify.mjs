@@ -4,7 +4,7 @@
 //
 // Two things are deliberately not here.
 //
-// Homepage OG freshness lives in `yarn verify:artifacts`. It asks whether a
+// Homepage OG freshness lives in `pnpm verify:artifacts`. It asks whether a
 // committed binary still matches the source it was captured from, which is a
 // question about an artifact rather than about the code, and answering it green
 // again needs a production build with database credentials. Folding it in here
@@ -25,7 +25,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const binary = (name) => path.join(root, "node_modules", ".bin", name);
 
 if (!existsSync(path.join(root, "node_modules"))) {
-  console.error("Dependencies are missing. Run `yarn install` first.");
+  console.error("Dependencies are missing. Run `pnpm install` first.");
   process.exit(1);
 }
 
@@ -109,7 +109,7 @@ for (const step of STEPS.slice(results.length)) {
   console.log(`skip  ${step.name.padEnd(width)}`);
 }
 console.log("\nNot covered here:");
-console.log("  generated-artifact freshness — `yarn verify:artifacts`");
-console.log("  route budgets — needs a fresh `yarn build`, runs on postbuild");
+console.log("  generated-artifact freshness — `pnpm verify:artifacts`");
+console.log("  route budgets — needs a fresh `pnpm build`, runs on postbuild");
 
 process.exit(results.every((result) => result.passed) ? 0 : 1);

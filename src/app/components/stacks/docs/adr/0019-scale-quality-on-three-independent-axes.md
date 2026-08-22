@@ -203,7 +203,7 @@ intentionally not learned.
 
 The Safety contract has two checks. CI pins the tier mapping, projected
 triangle ceiling, physical-pixel floor, and every deterministic quality policy
-on each commit. Before release, `yarn test:performance:safety` runs Playwright
+on each commit. Before release, `pnpm test:performance:safety` runs Playwright
 against a local production build and records the rendered first, middle, and
 last checkpoints; each must stay at or below 250,000 triangles. The browser
 check stays local because hosted runners expose only software WebGL, which can

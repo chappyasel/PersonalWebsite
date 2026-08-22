@@ -30,25 +30,44 @@ const INPUT_PATHS = Object.freeze([
 
 const EXCLUDED_INPUTS = new Set([HOME_OG_IMAGE, HOME_OG_MANIFEST]);
 
+const WORKING_TREE = "workingTree";
+const INDEX = "index";
+
+/** @param {unknown} snapshot */
+function assertSnapshot(snapshot) {
+  if (snapshot !== WORKING_TREE && snapshot !== INDEX) {
+    throw new Error(`Unknown homepage OG snapshot: ${String(snapshot)}`);
+  }
+}
+
+/** @param {string} root @param {string} file @param {"workingTree" | "index"} snapshot */
+async function readSnapshotFile(root, file, snapshot) {
+  assertSnapshot(snapshot);
+  if (snapshot === WORKING_TREE) return readFile(path.join(root, file));
+  const { stdout } = await execFileAsync("git", ["show", `:${file}`], {
+    cwd: root,
+    encoding: "buffer",
+    maxBuffer: 25 * 1024 * 1024,
+  });
+  return stdout;
+}
+
 /** @param {string} file */
 const isNonVisualSource = (file) =>
   file.endsWith(".md") ||
   file.endsWith(".test.ts") ||
   file.endsWith(".test.tsx");
 
-/** @param {string} root */
-async function listInputs(root) {
+/** @param {string} root @param {"workingTree" | "index"} snapshot */
+async function listInputs(root, snapshot) {
+  assertSnapshot(snapshot);
+  const sourceArgs =
+    snapshot === WORKING_TREE
+      ? ["--cached", "--others", "--exclude-standard"]
+      : ["--cached"];
   const { stdout } = await execFileAsync(
     "git",
-    [
-      "ls-files",
-      "-z",
-      "--cached",
-      "--others",
-      "--exclude-standard",
-      "--",
-      ...INPUT_PATHS,
-    ],
+    ["ls-files", "-z", ...sourceArgs, "--", ...INPUT_PATHS],
     { cwd: root, encoding: "buffer", maxBuffer: 10 * 1024 * 1024 },
   );
 
@@ -61,13 +80,13 @@ async function listInputs(root) {
     .sort();
 }
 
-/** @param {{ root: string }} options */
-export async function homeOgInputManifest({ root }) {
-  const files = await listInputs(root);
+/** @param {{ root: string, snapshot?: "workingTree" | "index" }} options */
+export async function homeOgInputManifest({ root, snapshot = WORKING_TREE }) {
+  const files = await listInputs(root, snapshot);
   const hash = createHash("sha256");
 
   for (const file of files) {
-    const content = await readFile(path.join(root, file));
+    const content = await readSnapshotFile(root, file, snapshot);
     hash.update(file);
     hash.update("\0");
     hash.update(String(content.byteLength));
@@ -84,25 +103,51 @@ export async function homeOgInputManifest({ root }) {
   };
 }
 
-/** @param {{ root: string }} options */
-export async function homeOgImageDigest({ root }) {
-  const image = await readFile(path.join(root, HOME_OG_IMAGE));
+/** @param {{ root: string, snapshot?: "workingTree" | "index" }} options */
+export async function homeOgImageDigest({ root, snapshot = WORKING_TREE }) {
+  const image = await readSnapshotFile(root, HOME_OG_IMAGE, snapshot);
   return createHash("sha256").update(image).digest("hex");
 }
 
 /** Read the visual-input digest embedded in the JPEG itself. Keeping this
  * provenance inside the generated artifact prevents a manifest-only refresh
  * from blessing an image captured from older scene code.
- * @param {{ root: string }} options
+ * @param {{ root: string, snapshot?: "workingTree" | "index" }} options
  */
-export async function homeOgImageInputDigest({ root }) {
-  const image = await readFile(path.join(root, HOME_OG_IMAGE));
+export async function homeOgImageInputDigest({
+  root,
+  snapshot = WORKING_TREE,
+}) {
+  const image = await readSnapshotFile(root, HOME_OG_IMAGE, snapshot);
   const marker = Buffer.from(HOME_OG_PROVENANCE_PREFIX);
   const markerAt = image.lastIndexOf(marker);
   if (markerAt === -1) return null;
   const digestAt = markerAt + marker.length;
   const digest = image.subarray(digestAt, digestAt + 64).toString("ascii");
   return SHA256_PATTERN.test(digest) ? digest : null;
+}
+
+/** Check one coherent repository snapshot. The index mode is what makes the
+ * pre-commit gate safe when a file has both staged and unstaged changes.
+ * @param {{ root: string, snapshot?: "workingTree" | "index" }} options
+ */
+export async function homeOgArtifactStatus({ root, snapshot = WORKING_TREE }) {
+  const committed = JSON.parse(
+    (await readSnapshotFile(root, HOME_OG_MANIFEST, snapshot)).toString("utf8"),
+  );
+  const current = await homeOgInputManifest({ root, snapshot });
+  const imageDigest = await homeOgImageDigest({ root, snapshot });
+  const capturedInputDigest = await homeOgImageInputDigest({ root, snapshot });
+  return {
+    fresh:
+      committed.version === current.version &&
+      committed.algorithm === current.algorithm &&
+      committed.digest === current.digest &&
+      committed.image?.digest === imageDigest &&
+      committed.image?.inputDigest === current.digest &&
+      capturedInputDigest === current.digest,
+    files: current.files,
+  };
 }
 
 /** Stamp a completed capture before it replaces the committed JPEG. JPEG

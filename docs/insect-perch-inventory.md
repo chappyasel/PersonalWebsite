@@ -47,7 +47,7 @@ material meshes, whose unsplit box top is 13 cm above anything a probe can
 hit. `ModelProp` now splits those disconnected islands for collision, but the
 `musings:sailboat-masthead` anchor remains the resolved triangle contact read
 back out of the running scene rather than a corner of either box. When adding
-a site, author it, read the HUD (or the diagnostics dump, or `yarn
+a site, author it, read the HUD (or the diagnostics dump, or `pnpm
 check:perches`), and copy the resolved contact back into both files. Every
 anchor added in the +13 round below was authored that way: a candidate near
 the prop, then the measured contact written back.

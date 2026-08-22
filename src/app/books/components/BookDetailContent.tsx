@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { formatLength, formatReadDates, getOrdinalSuffix } from "../lib/format";
@@ -58,11 +57,9 @@ import {
   TooltipTrigger,
 } from "~/components/ui/tooltip";
 
-import { AutomatedNotice, ReadingNowNotice } from "./BookNotices";
+import { AutomatedNotice, NoNotesState, ReadingNowNotice } from "./BookNotices";
 import { InlineMarkdown } from "./InlineMarkdown";
 import { TagBadge } from "./TagBadge";
-
-/* eslint-disable @next/next/no-img-element */
 
 // Animation configuration - overdamped to prevent oscillation
 const SPRING_CONFIG = {
@@ -588,6 +585,7 @@ export function BookDetailContent({
                   }}
                   className="h-full w-full overflow-hidden"
                 >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={coverUrl}
                     alt={`${book.title} cover`}
@@ -1105,7 +1103,7 @@ export function BookDetailContent({
          * whether or not any notes have made it onto the page yet, and it does
          * not have to wait on the notes fetch.
          */}
-        {notice === "reading" && <ReadingNowNotice />}
+        {notice === "reading" && book.hasNotes && <ReadingNowNotice />}
 
         {/* Notes section */}
         {book.hasNotes ? (
@@ -1153,6 +1151,7 @@ export function BookDetailContent({
                             if (!src) return null;
                             return (
                               <PhotoView src={src as string}>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                   src={src}
                                   alt={alt ?? ""}
@@ -1207,13 +1206,9 @@ export function BookDetailContent({
               </p>
             )}
           </div>
-        ) : !isModal ? (
-          <div className="border-t border-muted-foreground/10 pt-8 lg:pt-10">
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              No notes for this book.
-            </p>
-          </div>
-        ) : null}
+        ) : (
+          <NoNotesState isCurrentlyReading={notice === "reading"} />
+        )}
       </div>
     </div>
   );

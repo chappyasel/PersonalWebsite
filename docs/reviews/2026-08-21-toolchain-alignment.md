@@ -257,3 +257,182 @@ Final:
 5. Move to ESLint 10 and a newer TypeScript ESLint line only after the Next lint plugin set supports them and the preserved policy passes.
 6. Adopt React Compiler rules as a separate migration with product-code fixes and focused tests.
 7. Review Dependabot patch pull requests, then schedule minors and migration-heavy families individually from the deferred inventory.
+
+## pnpm 10 migration amendment, 2026-08-22
+
+This amendment supersedes the original decision to keep Yarn 1. The earlier
+Yarn commands and results above remain unchanged because they are evidence from
+the original toolchain review.
+
+### Outcome
+
+The repository now pins pnpm `10.34.5` in `packageManager` and
+`engines.pnpm`. On 2026-08-22, `10.34.5` was the current `latest-10` release.
+Its package metadata supports Node `>=18.12`, which includes the repository's
+Node 24 runtime. Vercel documents pnpm majors 6 through 10 as supported, so pnpm
+11 is deliberately excluded.
+
+`pnpm-lock.yaml` replaces `yarn.lock`. The lock was imported and finalized with
+pnpm `10.34.5` under Node `v24.19.0`. `pnpm-workspace.yaml` keeps every former
+resolution as an exact override, which makes the compatibility policy visible
+without nesting package-manager settings inside `package.json`.
+The migration also pins `@radix-ui/react-slot@1.2.4`, `zod@4.3.6`, and
+`postcss@8.4.47` at their prior lockfile versions so pnpm import cannot bundle
+unrelated range updates.
+
+Package scripts now use pnpm for nested calls and direct local binaries in
+place of `npx`. CI installs exact pnpm `10.34.5` with
+`pnpm/action-setup@v4`, restores the pnpm cache through `setup-node`, installs
+with `--frozen-lockfile`, and runs `pnpm verify`. Superset startup, current
+developer and agent guidance, Playwright server startup, generator invocations,
+and runtime help text use pnpm.
+
+Superset workspaces now run `.superset/setup.sh` on creation. It selects the
+`.nvmrc` runtime, enables Corepack, verifies the exact pnpm pin, copies missing
+ignored environment files from the checked-out `main` worktree without printing
+their contents, and performs a frozen install. `.superset/run.sh` repeats the
+Node selection before starting development so setup-shell state does not need to
+persist into the run terminal.
+
+### Shortcuts and constraints
+
+- No browser automation or visual inspection was run.
+- No production build or route-budget check was run because the existing build
+  path needs private content credentials and a populated database.
+- No Vercel dashboard or other external service was changed.
+- The stale homepage OG artifact was checked but not regenerated.
+- Historical review, research, and worklog commands were not mechanically
+  relabeled. Doing so would falsify which package manager produced those
+  recorded results.
+
+### Issues found
+
+- pnpm initially attached Drizzle's esbuild `0.19.12` to Vite `8.1.4`, outside
+  Vite's optional peer range. Exact `esbuild@0.27.7` is now a direct development
+  dependency, and `pnpm list` confirms that Vite resolves that peer.
+- pnpm's isolated layout exposed undeclared imports that Yarn's flat hoisting
+  had masked. The repository imports `three-stdlib` at runtime,
+  `meshoptimizer` in tests, and `google-auth-library` in a script. Their
+  previously resolved versions, `2.36.1`, `1.1.1`, and `10.6.2`, are now direct
+  declarations.
+- pnpm 10 blocks dependency build scripts unless the repository records a
+  policy. `esbuild` and `sharp` are allowed because their native tooling checks
+  are required. `core-js` and `es5-ext` are denied because their postinstalls
+  only emit optional project-support notices and do not prepare runtime files.
+- Coordinator review caught two commands that retained an unnecessary argument
+  separator. pnpm forwarded that separator to Next and the book-length script.
+  Playwright now uses `pnpm start -p 3111`, and the documented book-length
+  example uses `pnpm add-book-lengths --limit 5`.
+- The old Superset config had no setup command. A new worktree therefore
+  inherited the host's Node 25 and had no ignored environment files. `pnpm dev`
+  reached Next but stopped during environment validation. The setup and run
+  wrappers now select Node 24 and provision the missing local files.
+- A live homepage request emitted a macOS loader warning because Sharp packages
+  loaded libvips builds `1.0.4` and `1.2.4` in the same process. The route still
+  returned HTTP 200. Dependency alignment is outside the setup-script change and
+  remains an explicit pnpm follow-up rather than an asserted clean runtime.
+- While the server remained live, two Next image-optimizer requests for
+  OpenLibrary covers returned HTTP 500 because the upstream fetch failed TLS
+  validation with `wrong version number`. This is separate from workspace
+  bootstrap and remains unresolved.
+
+### Ambiguities and judgement calls
+
+- Lockfile version 9 can be produced by pnpm 9 or 10, so the lockfile alone does
+  not enforce the exact major and patch. The exact `packageManager` and
+  `engines.pnpm` fields handle repository drift. CI also installs the version
+  explicitly. Vercel needs Corepack enabled to honor the exact pin.
+- Direct declarations for the three hoisted imports and Vite's esbuild peer add
+  package manifest entries, but they do not introduce new code to the resolved
+  tree except esbuild `0.27.7`, which Vite requires. Leaving them transitive
+  would make verification depend on accidental hoisting.
+- The build-script allowlist uses package names rather than resolved versions so
+  every exact or transitive esbuild and sharp copy can perform its package-owned
+  install check after a lockfile update. It does not allow arbitrary scripts.
+- Environment files are copied only when missing. This preserves deliberate
+  workspace-specific overrides, but later credential rotation does not rewrite
+  an existing workspace. Creating a new workspace picks up the current files.
+- Setup locates the environment source through the worktree checked out on
+  `refs/heads/main`, rather than a user-specific absolute path. It fails with a
+  direct error if that worktree or nvm is unavailable.
+
+### Files changed by this amendment
+
+- Package manager and lock policy: `package.json`, `pnpm-lock.yaml`,
+  `pnpm-workspace.yaml`, and removal of `yarn.lock`.
+- CI and workspace startup: `.github/workflows/stacks-safety-budget.yml`,
+  `.superset/config.json`, `.superset/setup.sh`, and `.superset/run.sh`.
+- Current guidance and command policy: `README.md`, `CLAUDE.md`, `.gitignore`,
+  `.claude/agents/backend-engineer.md`, `.claude/agents/database-engineer.md`,
+  and `.claude/commands/ship.md`.
+- Tooling commands and help text: `playwright.config.ts`,
+  `scripts/add-book-lengths.ts`, `scripts/backfill-book-flags.ts`,
+  `scripts/check-home-og-freshness.mjs`, `scripts/check-node-version.mjs`,
+  `scripts/generate/home-og-local.mjs`, `scripts/stacks-meadow-check.ts`,
+  `scripts/stacks-perch-check.ts`, the four active Takeout scripts, and
+  `scripts/verify.mjs`.
+- Current command references: `docs/insect-perch-inventory.md`,
+  `docs/youtube-scoring-rollout.md`, two scene ADRs, and three scene source or
+  test comments.
+- Review records: this ledger and `2026-08-21-site-improvements.md`.
+
+### Verification
+
+All package-manager commands below ran with Node `v24.19.0` and pnpm
+`10.34.5`:
+
+- `pnpm install --frozen-lockfile` from an empty `node_modules`: passed with
+  1,001 packages and only the allowed esbuild and sharp install scripts.
+- `pnpm check:node-version`: passed; Node declarations agree on 24 and pnpm
+  declarations agree on `10.34.5`.
+- `pnpm verify`: passed `next typegen`, TypeScript, zero-warning ESLint, 206
+  Vitest files with 1,808 tests, and 115,942 meadow assertions.
+- `pnpm verify:artifacts`: failed only for the known stale homepage OG image or
+  source fingerprint.
+- `git diff --check main...HEAD`, `git diff --check`, and `git diff --check
+main`: passed. Separate no-index checks cover the two new untracked pnpm
+  files.
+- `pnpm start -p 3111`: reached Next on port 3111 and stopped at the expected
+  missing-local-environment validation, confirming that pnpm forwarded the port
+  option correctly.
+- Direct `.superset/setup.sh` execution in the combined worktree: passed, copied
+  `.env`, `.env.local`, and `.env.development.local` by name, selected Node
+  `v24.19.0` and pnpm `10.34.5`, and completed the frozen install.
+- A disposable Superset workspace created from the complete working-tree
+  snapshot: setup passed from an empty dependency tree with 1,002 packages, and
+  `.superset/run.sh` reached Next's ready state on port 3001. The disposable
+  workspace and its temporary verification branch were then deleted.
+- The combined workspace's `.superset/run.sh` reached Next's ready state on port 3000. A homepage request returned HTTP 200; the request took 30 seconds and
+  produced the duplicate-libvips warning recorded above.
+- The active-reference `rg` audit found no package-manager Yarn command. The
+  remaining nonhistorical matches are dependency engine metadata in
+  `pnpm-lock.yaml` and a cloth-texture variable named `yarn` in `ModelProp.tsx`.
+- A direct-dependency comparison confirmed that all 86 pre-existing direct
+  dependencies keep their prior Yarn-locked versions.
+- The scoped Prettier check still reports 14 changed files whose HEAD contents
+  also fail the same check. Those pre-existing formatting differences were not
+  rewritten as part of the migration.
+
+### Rollback
+
+Restore the pre-amendment `package.json` and `yarn.lock` together. Remove
+`pnpm-lock.yaml` and `pnpm-workspace.yaml`, then revert CI, Superset, scripts,
+and active documentation to the earlier commands in the same rollback. Remove
+the four direct declarations added for pnpm's isolated layout only when Yarn's
+lockfile and node_modules layout are restored.
+
+### Next steps
+
+1. An owner must set `ENABLE_EXPERIMENTAL_COREPACK=1` for Vercel Production,
+   Preview, and Development. Leave the project Install Command unset.
+2. Inspect the next Vercel build log and confirm Node 24 and pnpm `10.34.5`
+   before merging or promoting the deployment.
+3. Review the first Dependabot pnpm lockfile update for override and build-script
+   policy preservation.
+4. Refresh the homepage OG artifact only in the authorized browser-backed,
+   credentialed workflow already recorded by the combined review.
+5. Align the Sharp/libvips dependency family and repeat the live homepage
+   request before treating the pnpm runtime as warning-free.
+6. Reproduce the OpenLibrary image-proxy TLS failures outside Next, then inspect
+   local proxy configuration and Node 24 fetch behavior before changing image
+   handling.

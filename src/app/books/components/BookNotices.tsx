@@ -3,6 +3,7 @@
 import {
   BookOpenIcon,
   CaretRightIcon,
+  FileTextIcon,
   SparkleIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import { motion, useReducedMotion } from "framer-motion";
@@ -128,5 +129,37 @@ export function ReadingNowNotice() {
       Whatever notes are here are partial. The key points and summary come after
       I finish!
     </BookNotice>
+  );
+}
+
+export function NoNotesState({
+  isCurrentlyReading,
+}: {
+  isCurrentlyReading: boolean;
+}) {
+  const Icon = isCurrentlyReading ? BookOpenIcon : FileTextIcon;
+
+  return (
+    <section
+      data-book-notes-state="empty"
+      aria-label="Book notes status"
+      className="my-6 flex min-h-56 flex-col items-center justify-center rounded-2xl border border-dashed border-border/80 bg-muted/25 px-6 py-12 text-center"
+    >
+      <div className="mb-4 flex size-12 items-center justify-center rounded-full border border-border/70 bg-background text-muted-foreground shadow-sm">
+        <Icon size={24} weight="duotone" />
+      </div>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+        Book notes
+      </p>
+      <h2 className="mt-1 text-xl font-semibold tracking-tight text-foreground">
+        No notes for this one
+      </h2>
+      <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+        {isCurrentlyReading
+          ? "I'm reading this one without taking notes."
+          : "I read this one without taking notes."}{" "}
+        Not every book needs to become a project.
+      </p>
+    </section>
   );
 }

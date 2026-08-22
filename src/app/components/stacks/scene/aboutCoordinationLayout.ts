@@ -59,6 +59,28 @@ export const ABOUT_LAMP_HEAD_QUATERNION: QuaternionTuple =
     rootScale: ABOUT_LAMP_ROOT_SCALE,
   });
 
+/** The head-on social card needs less camera reveal than the moving scene.
+ * Aim lower and nearly parallel to the shelf so the shade clearly points at
+ * the two coordination marks instead of reading as camera-facing. */
+export const ABOUT_OG_LAMP_CAMERA_REVEAL = 0.08;
+export const ABOUT_OG_LAMP_HEAD_TARGET = [
+  ABOUT_COORDINATION_TARGET_X - ABOUT_BOOT_LANDMARKS["desk-lamp"].x,
+  0.09,
+  SHELF_GEOMETRY.lower.centerZ - -0.06 + ABOUT_OG_LAMP_CAMERA_REVEAL,
+] as const;
+export const ABOUT_OG_LAMP_HEAD_QUATERNION: QuaternionTuple =
+  deskLampHeadQuaternionForTarget({
+    target: ABOUT_OG_LAMP_HEAD_TARGET,
+    rootYaw: ABOUT_LAMP_ROOT_YAW,
+    rootScale: ABOUT_LAMP_ROOT_SCALE,
+  });
+
+export function aboutLampHeadQuaternion(headOnCapture: boolean) {
+  return headOnCapture
+    ? ABOUT_OG_LAMP_HEAD_QUATERNION
+    : ABOUT_LAMP_HEAD_QUATERNION;
+}
+
 const ABOUT_LAMP_PERCH_LOCAL = [-0.0065, 0.4155, 0.0399] as const;
 const ABOUT_LAMP_PERCH_NORMAL_LOCAL = [0, 0.9166, -0.3998] as const;
 const ABOUT_LAMP_PERCH_TANGENT_LOCAL = [1, 0, 0] as const;

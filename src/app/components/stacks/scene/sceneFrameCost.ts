@@ -90,7 +90,7 @@ export function readSceneFrameCpuMs() {
  * instrumentation, in a build where none of that code ships.
  *
  * Excluding the frames is better than disabling the overlay: the diagnostics
- * keep working, `yarn check:perches` keeps its continuous catalogue, and any
+ * keep working, `pnpm check:perches` keeps its continuous catalogue, and any
  * future dev-only overlay gets the same protection by calling this.
  */
 export function markSceneFrameInstrumented() {
@@ -194,7 +194,8 @@ export function instrumentRendererFrameCost(renderer: WebGLRenderer) {
     const result = original.apply(this, args);
     // A frame that never had its start marked (an off-loop render, such as a
     // manual capture) must not invent a cost from a stale timestamp.
-    if (store.frameStartedAt > 0) store.lastFrameCpuMs = performance.now() - store.frameStartedAt;
+    if (store.frameStartedAt > 0)
+      store.lastFrameCpuMs = performance.now() - store.frameStartedAt;
     return result;
   }
 

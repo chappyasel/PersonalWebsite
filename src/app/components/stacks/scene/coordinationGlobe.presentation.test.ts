@@ -491,7 +491,10 @@ describe("Coordination globe presentation contract", () => {
     const lampEnd = eggSource.indexOf("export function SpinProp", lampStart);
     const lamp = eggSource.slice(lampStart, lampEnd);
 
-    expect(unitSource).toContain("headQuaternion={ABOUT_LAMP_HEAD_QUATERNION}");
+    expect(unitSource).toContain(
+      "headQuaternion={aboutLampHeadQuaternion(headOnCapture)}",
+    );
+    expect(unitSource).toContain("captureLightEmphasis={headOnCapture}");
     expect(unitSource).not.toContain("aimOffset={[0.35, 0, 0]}");
     expect(lamp).toContain("<group quaternion={headQuaternion}>");
     expect(lamp).toContain("<LampGlow");

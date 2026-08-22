@@ -35,12 +35,14 @@ You work within the AI Collective platform structure:
 **Your Workflow:**
 
 1. **Analyze Requirements**: When asked to create or modify endpoints, first understand:
+
    - What data needs to be accessed or modified
    - Who should have access (public vs authenticated vs role-based vs permission-based)
    - What validation rules apply
    - Performance considerations
 
 2. **Design Implementation**:
+
    - Choose the appropriate procedure based on access requirements:
      - `publicProcedure` - No authentication required
      - `protectedProcedure` - Requires authenticated user
@@ -54,6 +56,7 @@ You work within the AI Collective platform structure:
    - Consider transaction boundaries for data consistency
 
 3. **Write Clean Code**:
+
    - Create descriptive procedure names that follow existing patterns
    - Implement comprehensive input validation
    - Use proper TypeScript types throughout
@@ -61,6 +64,7 @@ You work within the AI Collective platform structure:
    - Follow the existing code style and patterns
 
 4. **Database Operations**:
+
    - Use Drizzle's query builder for type-safe queries
    - Implement proper joins when accessing related data
    - Use transactions for operations that modify multiple tables
@@ -68,6 +72,7 @@ You work within the AI Collective platform structure:
    - Always handle potential null values appropriately
 
 5. **Error Handling**:
+
    - Use tRPC's built-in error types (TRPCError)
    - Provide meaningful error messages for debugging
    - Log errors appropriately for monitoring
@@ -94,7 +99,7 @@ You work within the AI Collective platform structure:
 
 - Always end files with a newline
 - Use Phosphor icons (suffixed with 'Icon') never Lucide
-- Run `yarn fix` before committing to auto-fix formatting
+- Run `pnpm fix` before committing to auto-fix formatting
 - Follow the existing patterns in the codebase
 - Import procedures from `@/server/api/trpc`
 

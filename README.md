@@ -19,14 +19,16 @@ Next.js · TypeScript · tRPC · Drizzle ORM · PostgreSQL · Tailwind CSS · Ve
 ### Prerequisites
 
 - Node.js 24.x, selected locally by `.nvmrc` and declared for CI and hosting in `package.json`
-- Yarn 1.x
+- pnpm 10.34.5, pinned by `package.json` and supported by Node 24 and Vercel
+- Corepack enabled for local package-manager selection
 - Docker (for the local database)
 
 ### Setup
 
 ```bash
 # Install dependencies
-yarn install
+corepack enable
+pnpm install --frozen-lockfile
 
 # Set up environment variables
 cp .env.example .env
@@ -36,10 +38,10 @@ cp .env.example .env
 ./start-database.sh
 
 # Run database migrations
-yarn db:migrate:dev
+pnpm db:migrate:dev
 
 # Start the dev server
-yarn dev
+pnpm dev
 ```
 
 The site will be available at [http://localhost:3000](http://localhost:3000).
@@ -47,3 +49,8 @@ The site will be available at [http://localhost:3000](http://localhost:3000).
 ## Deployment
 
 Deployed on Vercel with automated cron jobs for syncing books and weightlifting data.
+
+Vercel must have `ENABLE_EXPERIMENTAL_COREPACK=1` set for Production, Preview,
+and Development. Leave the Vercel Install Command unset. Corepack will then use
+the exact `pnpm@10.34.5` pin in `package.json`; the committed pnpm lockfile and
+`engines.pnpm` reject package-manager drift.

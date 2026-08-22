@@ -14,11 +14,11 @@
  *
  * Args: --requested-at <ISO>
  */
-
-import * as fs from "fs";
-import * as path from "path";
-import * as os from "os";
 import { execSync } from "child_process";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+
 import { getDrive } from "./drive";
 
 const DATA_ROOT = path.join(os.homedir(), ".local/share/youtube-takeout");
@@ -62,7 +62,9 @@ async function main() {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     if (/invalid_grant|unauthorized/i.test(msg)) {
-      console.error("Drive auth failed — refresh token may be revoked. Re-run `yarn takeout:drive-auth`.");
+      console.error(
+        "Drive auth failed — refresh token may be revoked. Re-run `pnpm takeout:drive-auth`.",
+      );
       process.exit(1);
     }
     console.error("Drive list failed:", msg);
@@ -82,7 +84,9 @@ async function main() {
   // watch-history.json.
   const marginMs = 60 * 60_000;
   const cutoff = new Date(requestedAt.getTime() - marginMs);
-  const fresh = files.filter((f) => f.createdTime && new Date(f.createdTime) >= cutoff);
+  const fresh = files.filter(
+    (f) => f.createdTime && new Date(f.createdTime) >= cutoff,
+  );
   if (fresh.length === 0) {
     console.log(
       `Newest Takeout zip in Drive (${files[0]?.createdTime}) is older than requested_at ${requestedAt.toISOString()}. Not ready yet.`,
@@ -113,20 +117,30 @@ async function main() {
       out.on("close", resolve);
       stream.data.pipe(out);
     });
-    console.log(`Downloaded → ${candidateZipPath} (${fs.statSync(candidateZipPath).size} bytes)`);
+    console.log(
+      `Downloaded → ${candidateZipPath} (${fs.statSync(candidateZipPath).size} bytes)`,
+    );
 
-    const candidateExtractDir = path.join(DOWNLOAD_DIR, `extract-${Date.now()}`);
+    const candidateExtractDir = path.join(
+      DOWNLOAD_DIR,
+      `extract-${Date.now()}`,
+    );
     fs.mkdirSync(candidateExtractDir, { recursive: true });
     try {
-      execSync(`unzip -j -o "${candidateZipPath}" "*/watch-history.json" -d "${candidateExtractDir}"`, {
-        stdio: "inherit",
-      });
+      execSync(
+        `unzip -j -o "${candidateZipPath}" "*/watch-history.json" -d "${candidateExtractDir}"`,
+        {
+          stdio: "inherit",
+        },
+      );
       zipPath = candidateZipPath;
       extractDir = candidateExtractDir;
       break;
     } catch {
       fs.rmSync(candidateExtractDir, { recursive: true, force: true });
-      console.log("No watch-history.json in this zip; trying next fresh Takeout zip.");
+      console.log(
+        "No watch-history.json in this zip; trying next fresh Takeout zip.",
+      );
     }
   }
 

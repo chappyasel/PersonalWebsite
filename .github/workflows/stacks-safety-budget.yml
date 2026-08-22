@@ -23,20 +23,26 @@ jobs:
       - name: Check out the revision
         uses: actions/checkout@v4
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+          run_install: false
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version-file: package.json
-          cache: yarn
+          cache: pnpm
 
       - name: Check Node version declarations
         run: node scripts/check-node-version.mjs
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       # Same code gate developers run locally: types, strict lint, unit tests,
       # and the deterministic meadow contract. Generated-artifact freshness
       # has its own workflow because regeneration needs production data.
       - name: Check deterministic quality contracts
-        run: yarn verify
+        run: pnpm verify

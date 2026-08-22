@@ -29,12 +29,12 @@ import {
   insectDiagnosticsController,
   insectDiagnosticsEnabled,
 } from "./insectPerchDiagnostic";
-import { markSceneFrameInstrumented } from "./sceneFrameCost";
 import { getInsectPerches } from "./insectPerches";
 import {
   sceneInteractionInventory,
   sceneInteractionRoots,
 } from "./interactionRegistry";
+import { markSceneFrameInstrumented } from "./sceneFrameCost";
 import { unitPose } from "./worldLayout";
 
 const NO_RAYCAST = () => null;
@@ -608,7 +608,7 @@ export default function InsectPerchDiagnostics() {
     markSceneFrameInstrumented();
     const filter = insectDiagnosticsController.getSnapshot().filter;
     // Evaluate every Perch, then filter for the HUD. The bridge below needs
-    // the whole catalogue: `yarn check:perches` walks the room Unit by Unit
+    // the whole catalogue: `pnpm check:perches` walks the room Unit by Unit
     // and would otherwise only ever see the shelf the HUD happens to be
     // showing.
     const all = [...getInsectPerches().values()].map((perch) =>

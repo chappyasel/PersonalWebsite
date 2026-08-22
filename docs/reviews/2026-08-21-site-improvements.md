@@ -26,9 +26,9 @@ database, Vercel deployment, or `main` branch was changed.
 
 ### 1. Green baseline
 
-- `yarn verify` is the deterministic code gate: route type generation, TypeScript,
+- `pnpm verify` is the deterministic code gate: route type generation, TypeScript,
   zero-warning ESLint, unit tests, and the meadow geometry check.
-- Generated homepage media is a separate `yarn verify:artifacts` gate, so a
+- Generated homepage media is a separate `pnpm verify:artifacts` gate, so a
   browser-backed capture cannot make ordinary code verification nondeterministic.
 - The TJ medallion runtime and boot trace now share geometry and pose policy;
   unrelated comments no longer invalidate the silhouette contract.
@@ -63,7 +63,7 @@ Review ledger: [journey analytics](./2026-08-21-journey-analytics.md).
   rendered behavior contracts.
 - Kept a small, explicit source-level wiring contract only where the repository
   lacks a DOM or r3f harness.
-- Added `yarn report:test-source-reads`, a deterministic heuristic inventory.
+- Added `pnpm report:test-source-reads`, a deterministic heuristic inventory.
   Its counts are lower bounds, not semantic proof.
 - On integration, free-roam entry remains edge-triggered while the debug enable
   toggle remains reload-reset; only the camera pose is persisted.
@@ -112,6 +112,8 @@ Review ledger: [boot state](./2026-08-21-boot-state.md).
   major upgrades manual and security updates eligible.
 - Vite is exact; environment and TanStack Query upgrades have focused smoke
   coverage.
+- pnpm `10.34.5` is exact in repository metadata and CI. The pnpm workspace
+  config preserves the dependency-family overrides and install-script policy.
 
 Review ledger: [toolchain alignment](./2026-08-21-toolchain-alignment.md).
 
@@ -134,6 +136,10 @@ Review ledger: [toolchain alignment](./2026-08-21-toolchain-alignment.md).
 - Analytics originally owned a second eligibility probe and duplicate boot
   state. The combined implementation derives delivery and failure facts from
   the boot machine and reads the scene store only for settled section arrival.
+- Shipping review moved homepage OG freshness out of `prebuild` and into a
+  repository-managed pre-commit hook. The checker reads the Git index, so an
+  unstaged edit cannot invalidate or falsely bless a partial commit. CI retains
+  the same gate for hook bypasses.
 
 ## Shortcuts and constraints
 
@@ -142,9 +148,9 @@ Review ledger: [toolchain alignment](./2026-08-21-toolchain-alignment.md).
   requested.
 - No production build or route-budget run was performed without the populated
   database and deployment credentials it requires.
-- The homepage OG artifact was not regenerated. Its capture path uses headless
-  Chromium and production-backed data, so it requires explicit browser-test
-  authorization and the right environment.
+- The homepage OG artifact uses an index-aware local commit hook and the
+  existing CI check. Its headless-Chromium regeneration remains explicit so
+  the resulting binary can be reviewed before commit.
 - `report:test-source-reads` is regex-based and includes documented manual
   corrections. It is useful as a trend line, not an AST inventory.
 
@@ -154,8 +160,9 @@ Review ledger: [toolchain alignment](./2026-08-21-toolchain-alignment.md).
    autocapture, dead/rage clicks, heatmaps, performance capture, and session
    recording, and changes person profiles to `identified_only`. Confirm that no
    current dashboard depends on those automatic events.
-2. **Homepage OG:** decide whether to authorize a production-backed browser
-   capture to refresh the stale artifact.
+2. **Homepage OG:** review the regenerated card whenever the local commit gate
+   reports stale visual inputs; regeneration deliberately does not rewrite a
+   binary during `git commit`.
 3. **Dependency owners:** review the pre-1.0 `@t3-oss/env-nextjs` update and the
    TanStack Query/persistence versions even though lint, types, and smoke tests
    pass.
@@ -169,18 +176,20 @@ Use Node 24 from the repository before every command:
 
 ```sh
 nvm use
-yarn install --frozen-lockfile
-yarn verify
-yarn verify:artifacts
-yarn report:test-source-reads
+corepack enable
+pnpm install --frozen-lockfile
+pnpm verify
+pnpm verify:artifacts
+pnpm report:test-source-reads
 git diff --check main...site-improvements-review
 ```
 
-Expected result: `yarn verify` and `git diff --check` pass. The artifact gate is
+Expected result: `pnpm verify` and `git diff --check` pass. The artifact gate is
 expected to report only the stale homepage OG capture until it is regenerated
 under an authorized browser-backed workflow.
 
-Combined verification on this branch:
+Pre-migration combined verification on this branch, retained as historical
+evidence:
 
 - `yarn verify`: passed route type generation, TypeScript, zero-warning ESLint,
   206 Vitest files / 1,808 tests, and 115,942 meadow assertions.
@@ -213,7 +222,7 @@ Manual checks, in priority order:
 8. Against a non-production analytics sink, verify one bounded delivery event,
    cold/warm boot duration, fallback causes, section dedupe in both modes, Door
    and contact events, deep-page events, and URL query/fragment removal.
-9. In a credentialed environment run `yarn build`, then `yarn check:budgets`
+9. In a credentialed environment run `pnpm build`, then `pnpm check:budgets`
    and the Playwright performance safety harness.
 10. Inspect the next Vercel deploy's Node version and the first Dependabot PR.
 
@@ -240,5 +249,149 @@ Manual checks, in priority order:
 
 The projects remain separable by their integration commits. Revert the newest
 project or integration-fix commit first; do not regenerate artifacts or reset
-the worktree. Restore `package.json` and `yarn.lock` together if rolling back
-toolchain changes.
+the worktree. For the package-manager amendment, restore the pre-migration
+`package.json` and `yarn.lock` together, remove `pnpm-lock.yaml` and
+`pnpm-workspace.yaml`, then revert the command and CI changes as one unit.
+
+## pnpm 10 migration amendment, 2026-08-22
+
+The combined branch now uses pnpm `10.34.5` under Node `24.x`. This was the
+current `latest-10` release during the migration, it supports Node 24, and pnpm
+10 is the newest major in Vercel's documented supported range. pnpm 11 was not
+used.
+
+The lockfile migration started with `pnpm import` against the resolved Yarn
+tree, then pnpm generated the final `pnpm-lock.yaml` under Node `v24.19.0`.
+`pnpm-workspace.yaml` carries the former resolution invariants as exact
+overrides. It permits install scripts only for `esbuild` and `sharp`; the inert
+`core-js` and `es5-ext` notification postinstalls are explicitly disabled.
+
+Two pnpm layout issues required judgement. Vite attached an incompatible
+transitive esbuild peer, so exact `esbuild@0.27.7` is now a direct development
+dependency within Vite's declared range. pnpm also exposed three imports that
+the old flat install had supplied through transitive hoisting. The already
+resolved versions of `three-stdlib`, `meshoptimizer`, and
+`google-auth-library` are now declared directly. No existing application
+dependency changed version for either fix.
+The manifest also pins `@radix-ui/react-slot@1.2.4`, `zod@4.3.6`, and
+`postcss@8.4.47` to stop the new lockfile from advancing those existing ranges.
+
+No browser, production build, route-budget check, deployment, or Vercel setting
+change was made during the pnpm migration. Older review and research records
+retain their Yarn commands because those commands describe work that happened
+before this amendment.
+
+Final verification used Node `v24.19.0` and pnpm `10.34.5`:
+
+- A from-empty `node_modules` `pnpm install --frozen-lockfile` passed and ran
+  only the approved esbuild and sharp install scripts.
+- `pnpm verify` passed type generation, TypeScript, zero-warning ESLint, 206
+  Vitest files with 1,808 tests, and 115,942 meadow assertions.
+- Before the shipping amendment, `pnpm verify:artifacts` failed only for the
+  already-known stale homepage OG image or source fingerprint. Its help text
+  prints the pnpm regeneration command.
+- The package-manager drift check passed for Node 24 and pnpm `10.34.5`.
+- `pnpm start -p 3111` reached Next on port 3111, then stopped at the expected
+  missing-local-environment validation. Coordinator review corrected an earlier
+  command that forwarded a literal `--` to Next.
+- All 86 pre-existing direct dependencies match their earlier locked versions.
+- Diff whitespace checks passed for the committed branch delta, the working
+  changes, their combined delta from `main`, and both new pnpm files.
+- The active-reference search found no package-manager Yarn command. Historical
+  ledgers and research records keep their original command evidence.
+
+The required owner action is to set `ENABLE_EXPERIMENTAL_COREPACK=1` in Vercel
+for Production, Preview, and Development, and to leave the Install Command
+unset. The next deployment should show Node 24 and pnpm `10.34.5` in its logs.
+
+### Superset workspace bootstrap follow-up, 2026-08-22
+
+The first manual `yarn dev` attempt exposed two local setup gaps rather than a
+corrupt manifest. Homebrew Yarn 1 rendered the valid `pnpm@10.34.5` field as the
+misleading string `yarn@pnpm@10.34.5`; Yarn is no longer a supported entry
+point. The worktree also inherited Node 25 and lacked ignored environment files.
+
+`.superset/setup.sh` now selects Node 24 through nvm, enables Corepack, verifies
+pnpm `10.34.5`, copies missing `.env`, `.env.local`, and
+`.env.development.local` files from the `main` worktree without printing their
+contents, and performs a frozen install. `.superset/run.sh` selects Node 24 again
+before `pnpm dev`. Copying only missing files preserves workspace overrides;
+credential rotation requires a new workspace or a deliberate local refresh.
+
+A disposable Superset workspace verified the actual lifecycle from an empty
+dependency tree: setup installed 1,002 packages, reported Node `v24.19.0` and
+pnpm `10.34.5`, and the run wrapper reached Next's ready state on port 3001. The
+workspace and temporary verification branch were deleted afterward. The
+combined workspace is running on port 3000, and its homepage returned HTTP 200.
+
+That request also exposed an unresolved pnpm runtime warning: Sharp dependencies
+loaded libvips builds `1.0.4` and `1.2.4` in the same process. It did not block
+the response, but package alignment should be reviewed before declaring the
+runtime warning-free. Two later Next image-optimizer requests for OpenLibrary
+covers returned HTTP 500 after upstream TLS failures with `wrong version
+number`; that network path also remains unresolved.
+
+### Book notes empty-state follow-up, 2026-08-22
+
+The book detail modal hid the no-notes message, even when `hasNotes` was false.
+Its reading notice also claimed that partial notes existed without checking that
+flag. The data was already correct; no Notion mapping, database schema, or sync
+change was needed.
+
+The modal and full page now use one intentional empty state whenever `hasNotes`
+is false. It frames the absence as a choice rather than unfinished work: "I'm
+reading this one without taking notes" for a current book and "I read this one
+without taking notes" for a completed book. Both close with "Not every book
+needs to become a project." The separate partial-notes notice appears only when
+notes exist.
+
+Book cards now treat reading progress, reread count, and note availability as
+independent facts. Children of Time therefore shows both `Reading` and
+`No Notes`; the latter uses a neutral treatment rather than the previous red
+error-like badge. Extra-small cards still suppress all overlays, but the normal
+books grid renders only S, M, and L cards.
+
+Server-rendered regression tests cover both detail presentations, current and
+completed empty-state copy, the current-book-with-notes case, and stacked card
+badges. `vitest.config.ts` resolves the repository's TypeScript path aliases so
+the tests import the real components rather than duplicate test-only versions.
+
+The structural fix passed the full gate under Node `v24.19.0` and pnpm
+`10.34.5`. After the copy clarification, both focused component files passed
+their five tests. An intermediate full run passed type generation,
+zero-warning ESLint, 208 Vitest files with 1,815 tests, and 115,942 meadow
+assertions. A concurrent OG composition edit briefly interrupted the separate
+TypeScript step; its missing prop was fixed before the final shipping gate.
+
+### Local OG gate and refreshed card, 2026-08-22
+
+Homepage OG freshness now blocks commits locally without running a browser in
+the hook. `pnpm install` configures `.githooks/pre-commit` unless the developer
+already owns `core.hooksPath`; CI remains the fallback for bypassed hooks. The
+checker reads image, manifest, and visual inputs from the Git index, so a file
+with both staged and unstaged changes is evaluated as the commit Git will
+actually create. A temporary-repository regression test covers clean, stale,
+and partial-staging states.
+
+The stale card was regenerated explicitly from a credentialed local production
+build. Visual review found the About lamp's live camera-reveal pose too
+camera-facing for the head-on social card. Capture mode now aims the same
+measured shade and complete light rig lower and farther right across the two
+coordination marks. It also strengthens the already-mounted aperture halo,
+source sprite, emissive shade, and real spotlight; the visitor-facing pose,
+allocations, and per-frame path are unchanged. The refreshed 1200×630 JPEG was
+inspected at native resolution.
+
+The first regeneration also exposed a flaky Playwright assertion: it asked a
+locator for an intentionally hidden placard to become actionable before reading
+its computed visibility. The generator now reads that hidden element directly
+from the DOM. Its capture contract and production-backed regeneration pass.
+
+Final shipping verification under Node `v24.19.0` and pnpm `10.34.5` passed:
+
+- `pnpm verify`: 208 Vitest files, 1,815 tests, zero-warning ESLint,
+  TypeScript, and 115,942 meadow assertions.
+- `pnpm verify:artifacts`: the regenerated image matches all 415 visual input
+  files in the working-tree snapshot.
+- `pnpm check:budgets`: homepage 257.5 KB gzip against 275 KB; books 253.3 KB
+  against 350 KB.

@@ -1939,6 +1939,7 @@ export function GlowSprite({
   scale = 1.6,
   factorRef,
   practical = false,
+  forceVisible = false,
 }: {
   opacity: number;
   /** Damp opacity by lateral camera distance — an additive sprite over the
@@ -1951,6 +1952,8 @@ export function GlowSprite({
   /** Practical fixtures default to a source-aligned analytic halo. This flag
    * lets diagnostics restore their former camera-facing billboard. */
   practical?: boolean;
+  /** Capture-only override for a sprite already present in the practical rig. */
+  forceVisible?: boolean;
 }) {
   const ref = useRef<THREE.Sprite>(null);
   // Additive glow COMPOUNDS in the composer's linear HDR target (pre-
@@ -1958,7 +1961,10 @@ export function GlowSprite({
   // reads as an orange searchlight.
   const postfx = useStacks((s) => s.postfx);
   const performanceSettings = useScenePerformanceSettings();
-  const visible = !practical || practicalGlowSpriteEnabled(performanceSettings);
+  const visible =
+    forceVisible ||
+    !practical ||
+    practicalGlowSpriteEnabled(performanceSettings);
   const opacity = visible ? baseOpacity * (postfx ? 0.45 : 1) : 0;
   const texture = useMemo(() => glowTexture(), []);
   const world = useMemo(() => new THREE.Vector3(), []);
@@ -2081,6 +2087,7 @@ export function LampGlow({
   meadowId,
   realLights = true,
   unitIndex,
+  captureLightEmphasis = false,
 }: {
   palette: Palette;
   litRef?: { current: number };
@@ -2109,6 +2116,9 @@ export function LampGlow({
   realLights?: boolean;
   /** Owning shelf stop for bounded shader-variant warm-up. */
   unitIndex?: number;
+  /** Offline social-card emphasis using only this rig's existing meshes and
+   * lights. Visitor rendering retains the authored values below. */
+  captureLightEmphasis?: boolean;
 }) {
   const spotRef = useRef<THREE.SpotLight>(null);
   const targetRef = useRef<THREE.Object3D>(null);
@@ -2152,22 +2162,34 @@ export function LampGlow({
       {/* Reversible legacy comparison. Both current modes hide this
           camera-facing radial billboard; diagnostics can restore it at its
           last tuned size and position without disturbing the real rig. */}
-      <group position={along(0.014)}>
+      <group position={along(captureLightEmphasis ? 0.032 : 0.014)}>
         <GlowSprite
           practical
-          opacity={palette.glowOpacity * (day ? 1.22 : 1.14)}
+          opacity={
+            palette.glowOpacity *
+            (day ? 1.22 : 1.14) *
+            (captureLightEmphasis ? 1.35 : 1)
+          }
           eased
-          scale={0.097}
+          scale={captureLightEmphasis ? 0.14 : 0.097}
           factorRef={litRef}
+          forceVisible={captureLightEmphasis}
         />
       </group>
       {/* Performance bloom: a feathered plane just beyond the actual opening.
           It inherits the measured mouth rotation, so the shoulder becomes an
           ellipse at this camera rather than turning to face it like a ball. */}
-      <group position={along(0.008)} rotation={[MOUTH_TILT, 0, 0]}>
+      <group
+        position={along(captureLightEmphasis ? 0.018 : 0.008)}
+        rotation={[MOUTH_TILT, 0, 0]}
+      >
         <ApertureHalo
-          diameter={MOUTH_R * 2 * 1.8}
-          opacity={palette.glowOpacity * (day ? 0.7 : 0.55)}
+          diameter={MOUTH_R * 2 * (captureLightEmphasis ? 2.35 : 1.8)}
+          opacity={
+            palette.glowOpacity *
+            (day ? 0.7 : 0.55) *
+            (captureLightEmphasis ? 1.35 : 1)
+          }
           factorRef={litRef}
         />
       </group>
@@ -2184,7 +2206,9 @@ export function LampGlow({
         <meshStandardMaterial
           color="#fff1d6"
           emissive="#ffc98a"
-          emissiveIntensity={day ? 1.7 : 2.5}
+          emissiveIntensity={
+            (day ? 1.7 : 2.5) * (captureLightEmphasis ? 1.22 : 1)
+          }
           roughness={0.4}
           side={THREE.DoubleSide}
           toneMapped={false}
@@ -2207,7 +2231,7 @@ export function LampGlow({
         }
         position={along(-0.005)}
         color="#ffbe73"
-        intensity={day ? 5.6 : 4.8}
+        intensity={(day ? 5.6 : 4.8) * (captureLightEmphasis ? 1.22 : 1)}
         angle={0.72}
         penumbra={0.95}
         distance={3.6 * reach}

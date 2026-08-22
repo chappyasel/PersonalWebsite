@@ -1,6 +1,6 @@
 // Headless meadow frustum + fog verifier — proves, with no GPU and no
 // browser, that the meadow's edges, silhouettes, and landmark clearances
-// hold for every supported camera. Run: `yarn check:meadow` (exit 1 on any
+// hold for every supported camera. Run: `pnpm check:meadow` (exit 1 on any
 // violation).
 //
 // WHY THIS EXISTS. The previous meadow shipped with a discoverable back
@@ -470,22 +470,14 @@ assertOk(
 // (a3) Fast flings keep their full authored yaw. The extra apron must cover
 // the ordinary front line without exposing a new camera-side or lateral edge.
 const apronEdges: Vec3[] = [];
-for (
-  let x = FLING_GRASS_APRON.minX;
-  x <= FLING_GRASS_APRON.maxX;
-  x += 0.5
-) {
+for (let x = FLING_GRASS_APRON.minX; x <= FLING_GRASS_APRON.maxX; x += 0.5) {
   apronEdges.push([
     x,
     meadowHeight(x, FLING_GRASS_APRON.maxZ),
     FLING_GRASS_APRON.maxZ,
   ]);
 }
-for (
-  let z = FLING_GRASS_APRON.minZ;
-  z <= FLING_GRASS_APRON.maxZ;
-  z += 0.2
-) {
+for (let z = FLING_GRASS_APRON.minZ; z <= FLING_GRASS_APRON.maxZ; z += 0.2) {
   for (const x of [FLING_GRASS_APRON.minX, FLING_GRASS_APRON.maxX]) {
     apronEdges.push([x, meadowHeight(x, z), z]);
   }
