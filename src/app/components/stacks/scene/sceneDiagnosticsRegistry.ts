@@ -12,8 +12,10 @@ import {
   DEPTH_OF_FIELD_RESOLUTION_SCALE_MIN,
 } from "./quality";
 import { SCENE_RESOLUTION_MAX_STEP } from "./qualityAxes";
+import { sceneDiagnosticsRuntime } from "./sceneDiagnosticsRuntime";
 import {
   DEFAULT_SCENE_PERFORMANCE_SETTINGS,
+  type ScenePerformanceBooleanSetting,
   type ScenePerformanceSettings,
   scenePerformanceController,
 } from "./scenePerformance";
@@ -35,6 +37,7 @@ export type DiagnosticAllowedValues =
       kind: "range";
       min: number;
       max: number;
+      /** UI increment only; programmatic updates accept any in-range value. */
       step: number;
       unit?: string;
       decimals: number;
@@ -76,6 +79,10 @@ export type DiagnosticControlDescriptor = Readonly<{
   performanceSetting?: keyof ScenePerformanceSettings;
   reloadInput?: string;
   productionCost?: DiagnosticProductionCost;
+  optimizationPreset?: Readonly<{
+    optimized: DiagnosticControlValue;
+    unoptimized: DiagnosticControlValue;
+  }>;
 }>;
 
 export type DiagnosticControlState = Readonly<{
@@ -95,20 +102,18 @@ export type DiagnosticControlGroup = Readonly<{
 }>;
 
 type Listener = () => void;
-type Store = Readonly<{
+export type DiagnosticRegistryStore = Readonly<{
   subscribe: (listener: Listener) => () => void;
 }>;
-type MutableDescriptor = DiagnosticControlDescriptor &
+export type DiagnosticRegistryEntry = DiagnosticControlDescriptor &
   Readonly<{
-    store: Store;
+    store: DiagnosticRegistryStore;
     read: () => DiagnosticControlValue;
     update?: (value: DiagnosticControlValue) => void;
     disabled?: () => boolean;
-    optimizationPreset?: Readonly<{
-      optimized: DiagnosticControlValue;
-      unoptimized: DiagnosticControlValue;
-    }>;
   }>;
+
+type MutableDescriptor = DiagnosticRegistryEntry;
 
 const BOOLEAN_VALUES = Object.freeze({
   kind: "set" as const,
@@ -202,23 +207,18 @@ function performanceBoolean(
     | "defaultValue"
   > &
     Readonly<{
-      key: keyof ScenePerformanceSettings;
-      optimized: boolean;
-      unoptimized: boolean;
+      key: ScenePerformanceBooleanSetting;
     }>,
 ): MutableDescriptor {
-  const { key, optimized, unoptimized, ...metadata } = descriptor;
+  const { key, ...metadata } = descriptor;
   return booleanDescriptor({
     ...metadata,
     performanceSetting: key,
-    defaultValue: DEFAULT_SCENE_PERFORMANCE_SETTINGS[key] as boolean,
+    defaultValue: DEFAULT_SCENE_PERFORMANCE_SETTINGS[key],
     store: scenePerformanceController,
-    read: () => scenePerformanceController.getSnapshot()[key] as boolean,
+    read: () => scenePerformanceController.getSnapshot()[key],
     update: (value) =>
-      scenePerformanceController.update({
-        [key]: value,
-      } as Partial<ScenePerformanceSettings>),
-    optimizationPreset: { optimized, unoptimized },
+      sceneDiagnosticsRuntime.updatePerformanceBoolean(key, Boolean(value)),
   });
 }
 
@@ -544,8 +544,6 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     label: "Post-processing composer",
     help: "Mount the shared finishing composer and its render targets.",
     key: "postprocessing",
-    optimized: false,
-    unoptimized: true,
     experimental: false,
     reloadInput: "nopostfx",
     productionCost: {
@@ -566,8 +564,6 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     label: "Side tilt shift",
     help: "Mount the approved side-focus finishing pass.",
     key: "sideTiltShift",
-    optimized: false,
-    unoptimized: true,
     experimental: false,
     reloadInput: "notiltshift",
     productionCost: {
@@ -587,8 +583,6 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     label: "Color grade",
     help: "Mount the shared scene color-grade pass.",
     key: "colorGrade",
-    optimized: false,
-    unoptimized: true,
     experimental: false,
     reloadInput: "nograde",
     productionCost: {
@@ -608,8 +602,6 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     label: "Meadow",
     help: "Mount meadow geometry, materials, animation, and interactions.",
     key: "meadow",
-    optimized: false,
-    unoptimized: true,
     experimental: false,
     reloadInput: "nomeadow",
     productionCost: {
@@ -630,8 +622,6 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     label: "High-resolution photos",
     help: "Load authored detail textures after role-sized previews.",
     key: "highResolutionPhotos",
-    optimized: false,
-    unoptimized: true,
     experimental: false,
     reloadInput: "hdPhotos=0",
     productionCost: {
@@ -652,8 +642,7 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     label: "Suspend settled distant props",
     help: "Skip frame work for distant props proven to be at rest.",
     key: "suspendSettledPropWork",
-    optimized: true,
-    unoptimized: false,
+    optimizationPreset: { optimized: true, unoptimized: false },
     experimental: false,
   }),
   booleanDescriptor({
@@ -686,8 +675,7 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     label: "Pause prewarming during travel",
     help: "Keep best-effort GPU warm-up work out of camera traversals.",
     key: "pausePrewarmDuringTravel",
-    optimized: true,
-    unoptimized: false,
+    optimizationPreset: { optimized: true, unoptimized: false },
     experimental: false,
   }),
   performanceBoolean({
@@ -697,8 +685,7 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     label: "Preload all shelf visuals",
     help: "Initialize all role-sized shelf resources behind the boot screen.",
     key: "prewarmAllUnitVisuals",
-    optimized: true,
-    unoptimized: false,
+    optimizationPreset: { optimized: true, unoptimized: false },
     experimental: false,
   }),
   performanceBoolean({
@@ -708,8 +695,7 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     label: "Stabilize nearby-light shader count",
     help: "Pad missing nearby light slots with zero-intensity lights.",
     key: "stableNeighborhoodLightShape",
-    optimized: true,
-    unoptimized: false,
+    optimizationPreset: { optimized: true, unoptimized: false },
     experimental: false,
   }),
   performanceBoolean({
@@ -719,8 +705,7 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     label: "Limit real lights to nearby shelves",
     help: "Keep real lights on the active shelf and its immediate neighbours.",
     key: "activeNeighborhoodLights",
-    optimized: true,
-    unoptimized: false,
+    optimizationPreset: { optimized: true, unoptimized: false },
     experimental: false,
   }),
   performanceBoolean({
@@ -730,8 +715,7 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     label: "Simplify far-grass shader",
     help: "Compile the cheaper far-tuft motion shader.",
     key: "simplifiedFarMeadow",
-    optimized: true,
-    unoptimized: false,
+    optimizationPreset: { optimized: true, unoptimized: false },
     experimental: false,
   }),
   mutableDescriptor({
@@ -839,8 +823,7 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
       label,
       help: `Use the live ${label.toLowerCase()} comparison for this mount.`,
       key,
-      optimized,
-      unoptimized,
+      optimizationPreset: { optimized, unoptimized },
       experimental: false,
       ...(key === "skipDepthOfField" ? { reloadInput: "nodof" } : {}),
       ...(enabledCost
@@ -943,8 +926,7 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
       label,
       help: `Use the live ${label.toLowerCase()} optimization for this mount.`,
       key,
-      optimized: true,
-      unoptimized: false,
+      optimizationPreset: { optimized: true, unoptimized: false },
       experimental: false,
     }),
   ),
@@ -1047,30 +1029,10 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
   ),
 ]);
 
-const descriptorById = new Map(
-  descriptors.map((descriptor) => [descriptor.id, descriptor]),
-);
-const stores = [...new Set(descriptors.map((descriptor) => descriptor.store))];
-const listeners = new Set<Listener>();
-let snapshot: DiagnosticRegistrySnapshot | null = null;
-let initializedSearch: string | null = null;
-let unsubscribeStores: readonly (() => void)[] | null = null;
-
-function invalidate() {
-  snapshot = null;
-  for (const listener of listeners) listener();
-}
-
-function descriptorFor(id: string) {
-  const descriptor = descriptorById.get(id);
-  if (!descriptor) throw new Error(`Unknown Scene Diagnostics control: ${id}`);
-  return descriptor;
-}
-
 function publicDescriptor(
   descriptor: MutableDescriptor,
 ): DiagnosticControlDescriptor {
-  return {
+  return Object.freeze({
     id: descriptor.id,
     panel: descriptor.panel,
     group: descriptor.group,
@@ -1088,7 +1050,8 @@ function publicDescriptor(
     performanceSetting: descriptor.performanceSetting,
     reloadInput: descriptor.reloadInput,
     productionCost: descriptor.productionCost,
-  };
+    optimizationPreset: descriptor.optimizationPreset,
+  });
 }
 
 function validValue(
@@ -1109,138 +1072,146 @@ function validValue(
   );
 }
 
-export function diagnosticReloadInputsFromSearch(
-  search: string | URLSearchParams,
-): Partial<ScenePerformanceSettings> &
-  Readonly<{ grassDeformation?: boolean }> {
-  const params =
-    typeof search === "string" ? new URLSearchParams(search) : search;
-  return {
-    ...(params.has("nopostfx") ? { postprocessing: false } : {}),
-    ...(params.has("notiltshift") ? { sideTiltShift: false } : {}),
-    ...(params.has("nograde") ? { colorGrade: false } : {}),
-    ...(params.has("nomeadow") ? { meadow: false } : {}),
-    ...(params.get("hdPhotos") === "0" ? { highResolutionPhotos: false } : {}),
-    ...(params.has("nodof") ? { skipDepthOfField: true } : {}),
-    ...(params.get("grassDeformation") === "off"
-      ? { grassDeformation: false }
-      : {}),
+export function createSceneDiagnosticsRegistry(
+  options: Readonly<{
+    entries: readonly DiagnosticRegistryEntry[];
+    sectionDefinitions: readonly Readonly<{
+      id: string;
+      panel: SceneDiagnosticsPanel;
+      label: string;
+    }>[];
+    subgroupLabels?: Readonly<Record<string, string>>;
+  }>,
+) {
+  const entries = Object.freeze([...options.entries]);
+  const descriptorById = new Map(
+    entries.map((descriptor) => [descriptor.id, descriptor]),
+  );
+  if (descriptorById.size !== entries.length)
+    throw new Error("Scene Diagnostics control IDs must be unique");
+  const stores = [...new Set(entries.map((descriptor) => descriptor.store))];
+  const listeners = new Set<Listener>();
+  let snapshot: DiagnosticRegistrySnapshot | null = null;
+  let unsubscribeStores: readonly (() => void)[] | null = null;
+
+  const invalidate = () => {
+    snapshot = null;
+    for (const listener of listeners) listener();
   };
+
+  const descriptorFor = (id: string) => {
+    const descriptor = descriptorById.get(id);
+    if (!descriptor)
+      throw new Error(`Unknown Scene Diagnostics control: ${id}`);
+    return descriptor;
+  };
+
+  return Object.freeze({
+    descriptors: Object.freeze(entries.map(publicDescriptor)),
+
+    sections(panel: SceneDiagnosticsPanel): readonly DiagnosticControlGroup[] {
+      return options.sectionDefinitions
+        .filter((section) => section.panel === panel)
+        .map((section) => ({
+          ...section,
+          controls: entries
+            .filter((descriptor) => descriptor.group === section.id)
+            .map(publicDescriptor),
+        }));
+    },
+
+    subgroupLabel(id: string) {
+      return options.subgroupLabels?.[id] ?? id;
+    },
+
+    read(id: string) {
+      return descriptorFor(id).read();
+    },
+
+    update(id: string, value: DiagnosticControlValue) {
+      const descriptor = descriptorFor(id);
+      if (!descriptor.update)
+        throw new Error(`Scene Diagnostics control is read-only: ${id}`);
+      if (!validValue(descriptor, value))
+        throw new Error(`Invalid value for Scene Diagnostics control ${id}`);
+      descriptor.update(value);
+    },
+
+    setGroup(group: string, value: boolean) {
+      for (const descriptor of entries)
+        if (
+          descriptor.group === group &&
+          descriptor.valueKind === "boolean" &&
+          descriptor.update
+        )
+          descriptor.update(value);
+    },
+
+    groupState(group: string) {
+      const values = entries
+        .filter(
+          (descriptor) =>
+            descriptor.group === group && descriptor.valueKind === "boolean",
+        )
+        .map((descriptor) => Boolean(descriptor.read()));
+      const enabled = values.filter(Boolean).length;
+      return {
+        enabled,
+        total: values.length,
+        any: enabled > 0,
+        all: values.length > 0 && enabled === values.length,
+      };
+    },
+
+    applyOptimizationPreset(preset: "optimized" | "unoptimized") {
+      for (const descriptor of entries)
+        if (descriptor.optimizationPreset && descriptor.update)
+          descriptor.update(descriptor.optimizationPreset[preset]);
+    },
+
+    matchesOptimizationPreset(preset: "optimized" | "unoptimized") {
+      const members = entries.filter(
+        (descriptor) => descriptor.optimizationPreset,
+      );
+      return members.every((descriptor) =>
+        Object.is(descriptor.read(), descriptor.optimizationPreset?.[preset]),
+      );
+    },
+
+    subscribe(listener: Listener) {
+      if (listeners.size === 0) {
+        snapshot = null;
+        unsubscribeStores = stores.map((store) => store.subscribe(invalidate));
+      }
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+        if (listeners.size > 0) return;
+        for (const unsubscribe of unsubscribeStores ?? []) unsubscribe();
+        unsubscribeStores = null;
+        snapshot = null;
+      };
+    },
+
+    getSnapshot(): DiagnosticRegistrySnapshot {
+      snapshot ??= Object.freeze(
+        Object.fromEntries(
+          entries.map((descriptor) => [
+            descriptor.id,
+            Object.freeze({
+              value: descriptor.read(),
+              disabled: descriptor.disabled?.() ?? false,
+            }),
+          ]),
+        ),
+      );
+      return snapshot;
+    },
+  });
 }
 
-export const sceneDiagnosticsRegistry = Object.freeze({
-  descriptors: Object.freeze(descriptors.map(publicDescriptor)),
-
-  sections(panel: SceneDiagnosticsPanel): readonly DiagnosticControlGroup[] {
-    return SECTION_DEFINITIONS.filter((section) => section.panel === panel).map(
-      (section) => ({
-        ...section,
-        controls: descriptors
-          .filter((descriptor) => descriptor.group === section.id)
-          .map(publicDescriptor),
-      }),
-    );
-  },
-
-  subgroupLabel(id: string) {
-    return SUBGROUP_LABELS[id] ?? id;
-  },
-
-  read(id: string) {
-    return descriptorFor(id).read();
-  },
-
-  update(id: string, value: DiagnosticControlValue) {
-    const descriptor = descriptorFor(id);
-    if (!descriptor.update)
-      throw new Error(`Scene Diagnostics control is read-only: ${id}`);
-    if (!validValue(descriptor, value))
-      throw new Error(`Invalid value for Scene Diagnostics control ${id}`);
-    descriptor.update(value);
-  },
-
-  setGroup(group: string, value: boolean) {
-    for (const descriptor of descriptors)
-      if (
-        descriptor.group === group &&
-        descriptor.valueKind === "boolean" &&
-        descriptor.update
-      )
-        descriptor.update(value);
-  },
-
-  groupState(group: string) {
-    const values = descriptors
-      .filter(
-        (descriptor) =>
-          descriptor.group === group && descriptor.valueKind === "boolean",
-      )
-      .map((descriptor) => Boolean(descriptor.read()));
-    const enabled = values.filter(Boolean).length;
-    return {
-      enabled,
-      total: values.length,
-      any: enabled > 0,
-      all: values.length > 0 && enabled === values.length,
-    };
-  },
-
-  applyOptimizationPreset(preset: "optimized" | "unoptimized") {
-    for (const descriptor of descriptors)
-      if (descriptor.optimizationPreset && descriptor.update)
-        descriptor.update(descriptor.optimizationPreset[preset]);
-  },
-
-  matchesOptimizationPreset(preset: "optimized" | "unoptimized") {
-    const members = descriptors.filter(
-      (descriptor) => descriptor.optimizationPreset,
-    );
-    return members.every((descriptor) =>
-      Object.is(descriptor.read(), descriptor.optimizationPreset?.[preset]),
-    );
-  },
-
-  initialize(search: string) {
-    if (initializedSearch !== null) return;
-    initializedSearch = search;
-    const { grassDeformation, ...performance } =
-      diagnosticReloadInputsFromSearch(search);
-    if (Object.keys(performance).length > 0)
-      scenePerformanceController.update(performance);
-    if (grassDeformation === false)
-      meadowDiagnosticsController.seed({ deformationEnabled: false });
-  },
-
-  subscribe(listener: Listener) {
-    if (listeners.size === 0) {
-      snapshot = null;
-      unsubscribeStores = stores.map((store) => store.subscribe(invalidate));
-    }
-    listeners.add(listener);
-    return () => {
-      listeners.delete(listener);
-      if (listeners.size > 0) return;
-      for (const unsubscribe of unsubscribeStores ?? []) unsubscribe();
-      unsubscribeStores = null;
-      snapshot = null;
-    };
-  },
-
-  getSnapshot(): DiagnosticRegistrySnapshot {
-    snapshot ??= Object.freeze(
-      Object.fromEntries(
-        descriptors.map((descriptor) => [
-          descriptor.id,
-          Object.freeze({
-            value: descriptor.read(),
-            disabled: descriptor.disabled?.() ?? false,
-          }),
-        ]),
-      ),
-    );
-    return snapshot;
-  },
+export const sceneDiagnosticsRegistry = createSceneDiagnosticsRegistry({
+  entries: descriptors,
+  sectionDefinitions: SECTION_DEFINITIONS,
+  subgroupLabels: SUBGROUP_LABELS,
 });
-
-if (typeof window !== "undefined")
-  sceneDiagnosticsRegistry.initialize(window.location.search);

@@ -5,8 +5,8 @@ import { describe, expect, it } from "vitest";
 const root = path.resolve(__dirname);
 const meadow = fs.readFileSync(path.join(root, "Meadow.tsx"), "utf8");
 const canvas = fs.readFileSync(path.join(root, "../StacksCanvas.tsx"), "utf8");
-const diagnosticsRegistry = fs.readFileSync(
-  path.join(root, "sceneDiagnosticsRegistry.ts"),
+const diagnosticsRuntime = fs.readFileSync(
+  path.join(root, "sceneDiagnosticsRuntime.ts"),
   "utf8",
 );
 const golf = fs.readFileSync(
@@ -44,10 +44,10 @@ describe("persistent meadow deformation presentation contract", () => {
     expect(meadow).toContain(
       "if (deformationEnabled) {\n      deformation.tick",
     );
-    expect(diagnosticsRegistry).toContain(
-      "sceneDiagnosticsRegistry.initialize(window.location.search)",
+    expect(diagnosticsRuntime).toContain(
+      "sceneDiagnosticsRuntime.initialize(window.location.search)",
     );
-    expect(diagnosticsRegistry).toContain(
+    expect(diagnosticsRuntime).toContain(
       'params.get("grassDeformation") === "off"',
     );
     expect(canvas).toContain("plan.environment.grassDeformation");

@@ -13,6 +13,7 @@ import * as THREE from "three";
 
 import { type ScenePhotoRole, scenePhotoUrl } from "./photoTextures";
 import { useScenePerformanceSettings } from "./scenePerformance";
+import { scenePhotoDetailTextures } from "./scenePhotoDetails";
 
 /** object-fit: cover with an optional zoom and focal point. `focus` is
  * CSS-object-position-like: [x from left, y from TOP], each 0..1. */
@@ -168,31 +169,6 @@ function LitImageSource({
   );
 }
 
-// Master textures deliberately use their own loading manager. The default
-// manager owns the boot reveal gate, so putting masters on it would turn an
-// optional quality upgrade back into blocking work. One promise per URL also
-// keeps duplicate prints from decoding the same source twice.
-const detailLoadingManager = new THREE.LoadingManager();
-const detailTextureLoader = new THREE.TextureLoader(detailLoadingManager);
-const detailTextureCache = new Map<string, Promise<THREE.Texture>>();
-
-function loadDetailTexture(url: string): Promise<THREE.Texture> {
-  const cached = detailTextureCache.get(url);
-  if (cached) return cached;
-  const pending = detailTextureLoader.loadAsync(url).then(
-    (texture) => {
-      texture.colorSpace = THREE.SRGBColorSpace;
-      return texture;
-    },
-    (error: unknown) => {
-      detailTextureCache.delete(url);
-      throw error;
-    },
-  );
-  detailTextureCache.set(url, pending);
-  return pending;
-}
-
 export default function LitImage({
   url,
   detailUrl,
@@ -212,7 +188,8 @@ export default function LitImage({
     let active = true;
     if (!detailUrl || detailsDisabled || detailUrl === previewUrl)
       return () => undefined;
-    void loadDetailTexture(detailUrl)
+    const lease = scenePhotoDetailTextures.request(detailUrl);
+    void lease.promise
       .then((texture) => {
         if (active) setDetail({ url: detailUrl, texture });
       })
@@ -222,6 +199,7 @@ export default function LitImage({
       });
     return () => {
       active = false;
+      lease.release();
     };
   }, [detailUrl, detailsDisabled, previewUrl]);
 

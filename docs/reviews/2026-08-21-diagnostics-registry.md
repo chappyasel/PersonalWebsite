@@ -43,6 +43,9 @@ merging.
   (`nograde`), meadow (`nomeadow`), and authored photo details (`hdPhotos=0`).
 - Depth of field already had a live skip control and `nodof`; persistent meadow
   deformation already had a live control and `grassDeformation=off`.
+- The optional-render query inventory therefore has six live switches: five
+  controls added by this task plus the pre-existing DoF control. Persistent
+  deformation is a separate experimental simulation switch.
 - The experimental persistent-deformation default was off. Cinematic+ was a
   diagnostics-only manual value and was not selected by default.
 - Free-roam enablement was the exception to the reload-reset rule: development
@@ -97,8 +100,11 @@ telemetry remain actions or observations rather than registry values.
 
 - Added `sceneDiagnosticsRegistry.ts` as the metadata and update seam. Its public
   interface exposes descriptors, generated sections, snapshots, validated
-  updates, group operations, optimization presets, and one-time reload-input
-  initialization. Store/controller details remain private.
+  updates, group operations, optimization presets, and a factory for isolated
+  behavior tests. Store/controller details remain private.
+- Split reload parsing and one-shot initialization into the 102-line
+  `sceneDiagnosticsRuntime.ts` module imported by `StacksCanvas`. The 50-control
+  inventory remains behind the existing lazy `SceneDiagnostics` import.
 - Store subscriptions are lazy: normal production rendering pays no registry
   invalidation work, and the registry detaches when the last Diagnostics
   observer leaves.
@@ -110,16 +116,18 @@ telemetry remain actions or observations rather than registry values.
 - Generated the existing Simulate, Render, and Inspect controls from generic
   checkbox, range, select, segmented-control, section, and subgroup renderers.
   The panel shell, tabs, status displays, actions, and CSS were not redesigned.
-- Moved overlay quick-toggle membership and optimization preset membership into
-  descriptors. Deleted `diagnosticsOverlayControls.ts`, its tests,
+- Moved overlay quick-toggle membership and explicit optimization-preset
+  membership into descriptors. The preset covers the 17 established
+  optimization/compositing/scheduling settings and does not alter the five core
+  optional-render paths. Deleted `diagnosticsOverlayControls.ts`, its tests,
   `allScenePerformanceSettings()`, the controller `replace()` method, and the
   photo-query helper.
 - Added five default-on scene-performance values for previously query-only
   optional paths. Their defaults preserve the shipped scene. Consumers now read
   those live values and branch before composer/pass/meadow/detail work.
 - Centralized `nopostfx`, `nodof`, `notiltshift`, `nograde`, `nomeadow`,
-  `hdPhotos=0`, and `grassDeformation=off` parsing. The registry reads them once
-  at browser module initialization; later live changes win for that mount.
+  `hdPhotos=0`, and `grassDeformation=off` parsing. The small runtime reads them
+  once at browser module initialization; later live changes win for that mount.
 - Removed the displaced `grassDeformationOff` quality-plan argument. The query
   switch now seeds the live meadow controller, while production quality still
   resolves deformation from its unchanged default and quality tiers.
@@ -127,9 +135,15 @@ telemetry remain actions or observations rather than registry values.
   when the registry initializes before Meadow connects.
 - Removed persisted free-roam enablement. Its optional saved camera pose remains,
   but the live override now starts off on every reload.
-- Gated high-resolution detail selection as well as loading. Turning the live
-  control off immediately returns to preview sampling; starting off avoids the
-  detail load and allocation.
+- Gated high-resolution detail selection as well as loading. Detail requests
+  are abortable, reference-counted leases. Disabling or unmounting releases the
+  lease; the last release aborts fetch and removes the cache entry, while a
+  result that wins the abort race is disposed instead of cached or sampled.
+- Meadow updates prepare boot readiness synchronously before publishing the
+  performance-store change: disabling marks the absent meadow ready, and an
+  off-to-on transition clears readiness before React can remount it.
+- Constrained `performanceBoolean` to boolean-valued performance keys and routed
+  it through the runtime without record casts.
 - Added registry integrity, default, complete performance-setting coverage,
   generated UI coverage, reload-input, experimental-status, cost metadata, and
   real zero-work deformation tests. Updated presentation contracts to inspect
@@ -156,6 +170,11 @@ telemetry remain actions or observations rather than registry values.
   zero failures/warnings. The fixes already exist in sibling commit `5504078`
   and were not copied into this task commit.
 - No other implementation shortcuts were taken.
+- The photo-detail fetch uses browser `AbortSignal` cancellation. Image decode
+  can finish concurrently with an abort, so the loader also disposes a late
+  bitmap/texture and removes it from the cache. Metadata does not claim zero
+  generic image or texture allocation; its numeric zero concerns render-target
+  allocation.
 
 ## Issues discovered but not fixed
 
@@ -194,9 +213,10 @@ telemetry remain actions or observations rather than registry values.
   their renderer-facing subscriptions would widen the change and mix UI
   metadata with frame-loop ownership; keeping them private to registry update
   adapters gives the module a small interface without duplicating lists.
-- Registry initialization occurs at browser module evaluation, before the first
+- Runtime initialization occurs at browser module evaluation, before the first
   canvas render. This preserves reload-only query semantics and lets an off seed
-  prevent construction rather than removing work after one frame.
+  prevent construction rather than removing work after one frame, without
+  constructing the diagnostics inventory for ordinary visitors.
 - Optional render switches live in `ScenePerformanceSettings` because consumers
   already subscribe to it. New defaults are all `true`, matching the prior
   absence of their rollback queries; no quality profile, tier, DPR policy, or
@@ -210,6 +230,13 @@ telemetry remain actions or observations rather than registry values.
 - The panel gained semantic registry sections for optional rendering,
   optimizations, compositing, and scheduling inside the existing Rendering
   experiments disclosure. No CSS or panel navigation was changed.
+- Range `step` is presentation metadata for slider and keyboard increments.
+  Programmatic updates accept any finite in-range value; enforcing step would
+  reject valid controller precision and couple registry validation to UI
+  rounding.
+- The existing Optimized/Unoptimized action retains its established scope.
+  Optional rendering is omitted so a performance comparison does not silently
+  remove the composer, meadow, grading, tilt shift, or photo details.
 
 ## Files changed
 
@@ -217,11 +244,18 @@ telemetry remain actions or observations rather than registry values.
 - `src/app/components/stacks/scene/sceneDiagnosticsRegistry.ts`: new deep
   registry module.
 - `src/app/components/stacks/scene/sceneDiagnosticsRegistry.test.ts`: registry
-  integrity, coverage, reload, default, and off-path tests.
+  integrity, coverage, factory behavior, bulk membership, readiness, default,
+  and off-path tests.
+- `src/app/components/stacks/scene/sceneDiagnosticsRuntime.ts` and
+  `sceneDiagnosticsRuntime.test.ts`: reload seed/live-update seam and first-call,
+  precedence, and meadow-readiness tests.
+- `src/app/components/stacks/scene/scenePhotoDetails.ts` and
+  `scenePhotoDetails.test.ts`: abortable shared detail loader and pending-disable
+  disposal coverage.
 - `src/app/components/stacks/dom/SceneDiagnostics.tsx`: registry-generated
   controls and bulk actions.
-- `src/app/components/stacks/StacksCanvas.tsx`: registry initialization import
-  and live composer control.
+- `src/app/components/stacks/StacksCanvas.tsx`: small runtime initialization
+  import and live composer control.
 - `src/app/components/stacks/scene/Effects.tsx`: live DoF, tilt-shift, and grade
   controls.
 - `src/app/components/stacks/scene/SceneEnvironment.tsx`: live meadow control.
@@ -263,6 +297,16 @@ not part of the change.
 
 ### Passing
 
+- Amendment focused run: 5 files and 50 tests passed (an earlier amendment run
+  passed the same 5 files / 49 tests before the lazy-inventory assertion).
+- Amendment strict changed-TypeScript-file ESLint with `--max-warnings 0`:
+  passed with no warnings in 5.89 seconds on the final run.
+- Amendment `SKIP_ENV_VALIDATION=1 yarn next typegen`: passed in 0.39 seconds;
+  generated `next-env.d.ts` remains ignored and uncommitted.
+- Amendment `yarn tsc --noEmit`: passed in 4.53 seconds on the final run after
+  type generation.
+- Amendment changed-file Prettier and `git diff --check`: passed.
+
 - `SKIP_ENV_VALIDATION=1 yarn next typegen`: passed; route types generated in
   0.52 seconds. `next-env.d.ts` remains ignored.
 - `yarn tsc --noEmit --pretty false`: passed after type generation in 3.98
@@ -281,6 +325,12 @@ not part of the change.
   passed 195 files and 1,537 tests at commit `5504078`.
 
 ### Failing or constrained
+
+- Amendment full `yarn test --reporter=dot`: 193 files and 1,549 tests passed;
+  four inherited files/tests failed. Total: 197 files and 1,553 tests. The four
+  failures are the baseline issues listed above.
+- Amendment full `yarn lint`: exited 0 with the one inherited
+  `reactionArchetype.test.ts` warning listed above.
 
 - First full `yarn test` after implementation: 11 failures. Six were stale
   presentation assertions moved to the registry and were corrected. The other
@@ -311,6 +361,13 @@ not part of the change.
   duplicate helper remains.
 - Reviewed generated panel source and existing CSS contracts. No interactive or
   browser review was performed, as required.
+- Traced registry Meadow updates through the runtime to readiness publication
+  and verified the off-to-on order with fake-runtime and real-registry tests.
+- Reviewed detail ownership across pending, shared, resolved, disabled, and
+  unmounted states. The final lease owns cancellation and disposal.
+- Compared the exact 17-member bulk preset against the five optional-render
+  controls and verified both optimized and unoptimized patches in behavior
+  tests.
 
 ## Potential regressions and edge cases
 
@@ -321,17 +378,20 @@ not part of the change.
   tests.
 - Reload inputs apply once. Client-side query-string mutation without a reload
   intentionally does nothing; live panel updates remain available.
-- Turning high-resolution photos off after a detail has loaded stops its
-  sampling but retains the shared cached texture for a later live re-enable.
-  Starting with the control/query off performs no detail fetch or allocation.
+- Turning high-resolution photos off releases that component's detail lease.
+  The last release aborts pending fetch and disposes a resolved detail, so a
+  later re-enable may fetch and decode it again. A decode already in flight may
+  finish, but its late result is immediately disposed and never cached/sampled.
 - Turning meadow or the composer off unmounts the optional subtree. React state
   below that subtree resets when it is re-enabled, matching the existing query
   rollback behavior.
-- Bulk optimization changes now include the five optional-render settings:
-  "optimized" disables those costs and "unoptimized" restores them. Defaults
-  are unchanged until a user presses a bulk action.
+- Bulk optimization does not include the five optional-render settings. Their
+  live values change only through their named controls or reload seeds.
 - Registry store subscriptions exist only while Diagnostics has an observer and
   remain bounded to one listener per underlying controller.
+- Toggling Meadow off and then on before reveal clears the readiness flag before
+  remount. If the lazy Meadow chunk or buffers never finish, reveal remains
+  blocked rather than exposing a meadow-less frame.
 
 ## Rollback notes
 

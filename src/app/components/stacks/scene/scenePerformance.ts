@@ -60,6 +60,15 @@ export type ScenePerformanceSettings = Readonly<{
   suspendSettledHoverWork: boolean;
 }>;
 
+type KeysWithValue<T, Value> = {
+  [Key in keyof T]-?: T[Key] extends Value ? Key : never;
+}[keyof T];
+
+export type ScenePerformanceBooleanSetting = KeysWithValue<
+  ScenePerformanceSettings,
+  boolean
+>;
+
 export const DEFAULT_SCENE_PERFORMANCE_SETTINGS: ScenePerformanceSettings =
   Object.freeze({
     postprocessing: true,
@@ -239,6 +248,13 @@ class ScenePerformanceController {
     )
       return;
     this.snapshot = next;
+    for (const listener of this.listeners) listener();
+  }
+
+  updateBoolean(key: ScenePerformanceBooleanSetting, value: boolean) {
+    this.overrides.add(key);
+    if (this.snapshot[key] === value) return;
+    this.snapshot = Object.freeze({ ...this.snapshot, [key]: value });
     for (const listener of this.listeners) listener();
   }
 

@@ -106,7 +106,7 @@ import {
   sceneColorGradeFor,
   useSceneColorGradeSettings,
 } from "./scene/sceneColorGrade";
-import "./scene/sceneDiagnosticsRegistry";
+import "./scene/sceneDiagnosticsRuntime";
 import {
   instrumentRendererFrameCost,
   instrumentSceneMatrixCost,

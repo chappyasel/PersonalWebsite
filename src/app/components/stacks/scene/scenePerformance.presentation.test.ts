@@ -28,6 +28,10 @@ const litImage = fs.readFileSync(
   new URL("./LitImage.tsx", import.meta.url),
   "utf8",
 );
+const photoDetails = fs.readFileSync(
+  new URL("./scenePhotoDetails.ts", import.meta.url),
+  "utf8",
+);
 const environment = fs.readFileSync(
   new URL("./SceneEnvironment.tsx", import.meta.url),
   "utf8",
@@ -221,7 +225,8 @@ describe("scene performance integration", () => {
   });
 
   it("loads only explicitly authored photo details outside the boot manager", () => {
-    expect(litImage).toContain("new THREE.LoadingManager()");
+    expect(photoDetails).toContain("fetch(url, { signal })");
+    expect(photoDetails).toContain("resource.dispose()");
     expect(litImage).toContain("!performanceSettings.highResolutionPhotos");
     expect(litImage).toContain("if (!detailUrl || detailsDisabled");
     expect(litImage).toContain(
@@ -233,6 +238,7 @@ describe("scene performance integration", () => {
     expect(litImage).toContain("detailTexture={detailTexture}");
     expect(litImage).not.toContain("<Suspense fallback={preview}>");
     expect(litImage).not.toContain("subscribeWorldPhase");
+    expect(litImage).toContain("lease.release()");
   });
 
   it("uses one photo mesh and no per-photo frame subscriber", () => {
