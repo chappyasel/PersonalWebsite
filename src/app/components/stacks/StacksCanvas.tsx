@@ -29,12 +29,9 @@ import { sceneAudio } from "./audio/sceneAudio";
 import { type StacksData, UNIT_COUNT } from "./data";
 import TouchInteractionLayer from "./input/TouchInteractionLayer";
 import { useCoarseTouchCapability } from "./input/useCoarseTouchCapability";
-import {
-  assetLoadComplete,
-  isWorldRevealed,
-  reportAssetLoadState,
-  setLoadProgress,
-} from "./loading";
+import { assetLoadComplete } from "./boot/worldBootMachine";
+import { isWorldRevealed, worldBoot } from "./boot/worldBootSession";
+import { setLoadProgress } from "./loading";
 import { cameraTravelDiagnostics } from "./scene/CameraRig";
 import { prewarmGrabbablePhysics } from "./scene/Grabbable";
 import Scene from "./scene/Scene";
@@ -551,10 +548,10 @@ function LoadReporter() {
       const { active, loaded, total, errors, progress } =
         useProgress.getState();
       setLoadProgress(progress / 100);
-      reportAssetLoadState(
-        { active, loaded, total, errors: errors.length },
-        performance.now(),
-      );
+      worldBoot.send({
+        type: "assetLoad",
+        assets: { active, loaded, total, errors: errors.length },
+      });
     };
     publish();
     return useProgress.subscribe(publish);

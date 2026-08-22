@@ -2,7 +2,7 @@
 
 // Atmosphere for the homepage 3D scene — gradient sky dome, fog-matched palette,
 // hemisphere fill, camera-tracking key light with soft shadows, and dust.
-import { markMeadowReady } from "../loading";
+import { worldBoot } from "../boot/worldBootSession";
 import { progressRef, useStacks } from "../store";
 import { PALETTES, type Palette, rand } from "../theme";
 import { Environment, Lightformer } from "@react-three/drei";
@@ -3837,7 +3837,7 @@ export default function SceneEnvironment({
   // No meadow, nothing for the reveal gate to wait on — report ready NOW so
   // a ?nomeadow (or flag-off) boot reveals at the pre-meadow timing.
   useEffect(() => {
-    if (!meadow) markMeadowReady();
+    if (!meadow) worldBoot.send({ type: "meadowReady" });
   }, [meadow]);
   return (
     <>

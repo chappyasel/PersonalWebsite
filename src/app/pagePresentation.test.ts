@@ -40,12 +40,23 @@ describe("homepage first paint", () => {
     expect(source).toContain("readingBookColors={readingBookColors}");
   });
 
-  it("uses the same eligibility policy for world mount and preload", () => {
+  it("takes its boot decisions from the shared world-boot machine", () => {
+    // Eligibility, the warm path, and the preload trigger used to be three
+    // separate re-probes that could disagree. They now read one view.
     expect(stacksHomeSource).toContain(
-      'import { browserCanUseStacksWorld } from "./webglProbe";',
+      'import { useWorldBoot } from "./boot/useWorldBoot";',
     );
-    expect(
-      stacksHomeSource.match(/browserCanUseStacksWorld\(\)/g),
-    ).toHaveLength(2);
+    expect(stacksHomeSource).not.toContain("browserCanUseStacksWorld");
+    expect(stacksHomeSource).not.toContain("setWorldPhase");
+  });
+
+  it("generates the pre-paint handshake from the shared boot policy", () => {
+    expect(source).toContain(
+      'import { worldBootPrepaintScript } from "./components/stacks/boot/worldBootPrepaint";',
+    );
+    expect(source).toContain("worldBootPrepaintScript()");
+    // No hand-typed copy of the handshake constants survives in the route.
+    expect(source).not.toContain("data-world");
+    expect(source).not.toContain("sessionStorage");
   });
 });

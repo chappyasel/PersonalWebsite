@@ -15,7 +15,7 @@
 // frame. Near lawn, far lawn, and flowers are spatially tiled over shared
 // geometry/materials so Three can reject offscreen vegetation by frustum.
 import { sceneAudio } from "../audio/sceneAudio";
-import { markMeadowReady } from "../loading";
+import { worldBoot } from "../boot/worldBootSession";
 import { progressRef, touchWorldRef } from "../store";
 import { PALETTES } from "../theme";
 import { useGLTF, useTexture } from "@react-three/drei";
@@ -1487,7 +1487,7 @@ export default function Meadow({
     });
     // The buffers are filled and the GLB/alpha suspended above us, so the
     // next painted frame contains grass — tell the boot reveal gate.
-    markMeadowReady();
+    worldBoot.send({ type: "meadowReady" });
   }, [streams, flowers, tiles]);
 
   // Instance bounds are derived from the matrices AND the bound geometry, so

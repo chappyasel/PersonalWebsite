@@ -1,4 +1,4 @@
-import { WARM_KEY } from "../loading";
+import { WARM_KEY } from "../boot/worldBootPolicy";
 
 import {
   SCENE_ARRIVAL_SESSION_KEY,
