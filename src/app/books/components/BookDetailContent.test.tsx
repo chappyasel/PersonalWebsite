@@ -56,8 +56,9 @@ describe("BookDetailContent note availability", () => {
       expect(markup).toContain('data-book-notes-state="empty"');
       expect(markup).toContain("No notes for this one");
       expect(markup).toContain(
-        "I&#x27;m reading this one without taking notes. Not every book needs to become a project.",
+        "I&#x27;m reading this one without taking notes!",
       );
+      expect(markup).not.toContain(">Book notes<");
       expect(markup).not.toContain("Whatever notes are here are partial.");
     },
   );
@@ -94,9 +95,7 @@ describe("BookDetailContent note availability", () => {
     );
 
     expect(markup).toContain("No notes for this one");
-    expect(markup).toContain(
-      "I read this one without taking notes. Not every book needs to become a project.",
-    );
+    expect(markup).toContain("I read this one without taking notes!");
     expect(markup).not.toContain("I&#x27;m reading this one");
   });
 });

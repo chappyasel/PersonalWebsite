@@ -339,11 +339,10 @@ flag. The data was already correct; no Notion mapping, database schema, or sync
 change was needed.
 
 The modal and full page now use one intentional empty state whenever `hasNotes`
-is false. It frames the absence as a choice rather than unfinished work: "I'm
-reading this one without taking notes" for a current book and "I read this one
-without taking notes" for a completed book. Both close with "Not every book
-needs to become a project." The separate partial-notes notice appears only when
-notes exist.
+is false. It says "I'm reading this one without taking notes!" for a current
+book and "I read this one without taking notes!" for a completed book. The
+empty state has no secondary `Book notes` label. The separate partial-notes
+notice appears only when notes exist.
 
 Book cards now treat reading progress, reread count, and note availability as
 independent facts. Children of Time therefore shows both `Reading` and
