@@ -43,7 +43,7 @@ tests)**.
    `0474b7333b1bee03d98da1aeae1224f0114b29c616de3cb44810710adebc40de`.
 2. `scene/canvasCompositing.test.ts` — expected StacksCanvas source to contain
    `gl={{ antialias: true }}`; the file said `gl={{ antialias: true, stencil:
-   true }}`.
+true }}`.
 3. `scene/freeRoamControls.presentation.test.ts` — "hides the mobile sheet on
    entry and lets H toggle it".
 4. `scene/musingsPaperPhysics.test.ts` — settled Y position
@@ -101,8 +101,9 @@ Two new modules, both pure:
 
 `freeRoamDiagnostics.ts` gained two things: `freeRoamFogVisible`, which
 replaces two opposite spellings of the same rule in `SceneEnvironment.tsx` and
-`Meadow.tsx`, and `connectFreeRoamPreference`, which owns the restore-then-
-subscribe-then-persist ordering that was spread across a ChromeLayer effect.
+`Meadow.tsx`, and `connectFreeRoamEntryObserver`, which owns the false-to-true
+entry edge used to dismiss the mobile sheet. The combined branch deliberately
+does not persist the debug enablement toggle; debug overrides reset on reload.
 
 `freeRoamControls.presentation.test.ts` (24 source-text assertions) is gone.
 `freeRoamControls.test.ts` has 38 behavior tests in its place.
@@ -164,7 +165,7 @@ The command is named `report:` rather than `check:` for that reason.
 ## Shortcuts taken
 
 - **The Effects contract test mocks the scene store's read hook.** React asks
-  an external store for its *server* snapshot during `renderToStaticMarkup`,
+  an external store for its _server_ snapshot during `renderToStaticMarkup`,
   and zustand answers that from a closure over the initial state that nothing
   outside the store can reach — `setState` has no effect on a rendered tree,
   and I confirmed that by trying. The mock reads the same state shape
@@ -209,19 +210,19 @@ smoke test.
 
 ## Issues found and not fixed
 
-- **Three baseline failures remain, all outside this task's scope.** Verbatim,
-  after the change:
+- **This isolated branch inherited three baseline failures.** The combined
+  review branch resolves them through the green-baseline work:
   - `scene/aboutBootSilhouettes.test.ts` — `authored:TJMedallionBody needs
-    silhouette regeneration: expected
-    '0474b7333b1bee03d98da1aeae1224f0114b29c616de3cb44810710adebc40de' to be
-    '99f03816559f8dba17594dd54318c97ddb4f3b466026d8924b14ecd2177c35b2'`. This
-    is a generated-artifact hash check doing its job: a source GLB changed and
-    the silhouette was not regenerated. Fix with
-    `yarn generate:about-boot`, not by editing the test.
+silhouette regeneration: expected
+'0474b7333b1bee03d98da1aeae1224f0114b29c616de3cb44810710adebc40de' to be
+'99f03816559f8dba17594dd54318c97ddb4f3b466026d8924b14ecd2177c35b2'`. This
+    was a false contract. The generator duplicated medallion geometry and
+    hashed the unrelated `AuthoredProps.tsx` file. Do not regenerate it on the
+    isolated test branch; integrate green-baseline's shared-geometry fix.
   - `scene/musingsPaperPhysics.test.ts` — `expected -0.2747187582970882 to be
-    greater than -0.01`. A paper sheet is falling through or off the shelf.
+greater than -0.01`. A paper sheet is falling through or off the shelf.
   - `scene/units/aboutReadingStack.test.ts` — `expected 0.745 to be close to
-    0.71`. An authored book pose moved 3.5cm.
+0.71`. An authored book pose moved 3.5cm.
 - **`reactionArchetype.test.ts:3` has an unused `LIFT_LAMBDA` import.**
   Pre-existing; `git diff HEAD` shows the file untouched. The only lint
   warning in the tree.
@@ -240,7 +241,7 @@ smoke test.
 - **How far to take PlacardLayer.** The cluster's real policy,
   `effectivePlacardGlassMode`, was already a tested pure function; what
   remained was a stylesheet. I read "wherever a stable in-process interface
-  can express the behavior" as covering a stylesheet the module *exports*,
+  can express the behavior" as covering a stylesheet the module _exports_,
   since CSS text is that module's output rather than its implementation. If
   the intent was a rendered-DOM assertion instead, that needs jsdom, which
   this repo does not have.
@@ -334,14 +335,14 @@ Modified, tests:
 Run from the worktree after `yarn install --frozen-lockfile` and
 `SKIP_ENV_VALIDATION=1 npx next typegen`.
 
-| command | outcome |
-| --- | --- |
-| `yarn test` (baseline, commit 3055138) | 6 failed, 189 passed (195 files) |
-| `yarn test` (final) | 3 failed, 194 passed (197 files); 3 failed, 1632 passed (1635 tests) |
-| `npx tsc --noEmit` | clean, no output |
-| `yarn lint` | 0 errors, 1 warning (pre-existing, `reactionArchetype.test.ts:3`) |
-| `npx prettier --check` on changed files | clean |
-| `node scripts/test-source-reads.mjs` | 51 files read a file, 43 read source text, 1052 source-text assertions, 7 artifact checks; 0.07s |
+| command                                 | outcome                                                                                                                                           |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `yarn test` (baseline, commit 3055138)  | 6 failed, 189 passed (195 files)                                                                                                                  |
+| `yarn test` (final)                     | 3 failed, 194 passed (197 files); 3 failed, 1632 passed (1635 tests)                                                                              |
+| `npx tsc --noEmit`                      | clean, no output                                                                                                                                  |
+| `yarn lint`                             | 0 errors, 1 warning (pre-existing, `reactionArchetype.test.ts:3`)                                                                                 |
+| `npx prettier --check` on changed files | clean                                                                                                                                             |
+| `node scripts/test-source-reads.mjs`    | Isolated branch: 51 files read a file, 43 read source text, 1052 source-text assertions, 7 artifact checks. Combined branch: 52, 44, 1058, and 7. |
 
 The three remaining failures are the same three as before this tranche, listed
 under "Issues found and not fixed". Every test this task wrote or rewrote
@@ -352,15 +353,15 @@ purpose"; without them the tranche's report figure is 1011.
 Per-file assertion movement, measured by running the same inventory script
 against both trees:
 
-| file | before | after |
-| --- | --- | --- |
-| `dom/SceneDiagnostics.resolution.test.ts` | 3 | deleted |
-| `scene/canvasCompositing.test.ts` | 5 | 0 |
-| `scene/composerPixelRatio.contract.test.ts` | not attributable | deleted |
-| `scene/freeRoamControls.presentation.test.ts` | 24 | deleted |
-| `scene/sceneCinematicPlus.presentation.test.ts` | 19 | 18 |
-| `scene/sceneColorGrade.presentation.test.ts` | 20 | 13 |
-| `scene/scenePerformance.presentation.test.ts` | 191 | 165 |
+| file                                            | before           | after   |
+| ----------------------------------------------- | ---------------- | ------- |
+| `dom/SceneDiagnostics.resolution.test.ts`       | 3                | deleted |
+| `scene/canvasCompositing.test.ts`               | 5                | 0       |
+| `scene/composerPixelRatio.contract.test.ts`     | not attributable | deleted |
+| `scene/freeRoamControls.presentation.test.ts`   | 24               | deleted |
+| `scene/sceneCinematicPlus.presentation.test.ts` | 19               | 18      |
+| `scene/sceneColorGrade.presentation.test.ts`    | 20               | 13      |
+| `scene/scenePerformance.presentation.test.ts`   | 191              | 165     |
 
 Net: 4 fewer files reading a file, 67 fewer source-text assertions, 93 new
 behavior tests (24 Effects, 38 free roam, 10 quality readout, 11 placard
@@ -450,13 +451,13 @@ and both fills are asserted to parse as three opaque channels before they are
 compared.
 
 **Free roam announced an entry on every publication, not on entry.**
-`connectFreeRoamPreference` called `onEnabled` whenever the controller
+`connectFreeRoamEntryObserver` called `onEnabled` whenever the controller
 published while enabled, and it publishes for fog changes and pose changes
 too. The caller dismisses the mobile sheet, which closes an open panel and
 steps browser history back with it, so the repeat calls were not free. It now
-tracks the previous state and fires on the false-to-true edge only. A restored
-preference still counts as the session's first entry. Three tests cover the
-edge, the repeat, and the restore.
+tracks the previous state and fires on the false-to-true edge only. An already
+enabled controller counts as the first entry. Tests cover the entry, repeat,
+re-entry, and disconnect cases.
 
 **Nothing proved the extractions were wired in.** Added
 `policyWiring.test.ts`, described above and in the inventory.
@@ -503,14 +504,15 @@ outside the repo.
   201-assertion SceneDiagnostics batch is the next one worth doing and belongs
   with that task, not against it.
 - **Boot-state task.** `ChromeLayer.tsx`'s development effect changed shape:
-  the free-roam preference restore and persist moved into
-  `connectFreeRoamPreference`. The diagnostics-loader state machine below it
-  is untouched. `StacksCanvas.tsx` changed only the `gl` prop and one import.
+  free-roam entry handling moved into `connectFreeRoamEntryObserver`. The
+  combined branch keeps debug enablement reload-reset while retaining pose
+  persistence. `StacksCanvas.tsx` changed only the `gl` prop and one import.
 
 ## Recommended next steps
 
-1. Regenerate the About boot silhouettes and fix the two authored-geometry
-   failures. All three are real signals about content, not about tests.
+1. Integrate the green-baseline shared medallion geometry and its two authored
+   geometry corrections. Do not regenerate the false silhouette contract in
+   isolation.
 2. Take the TouchInteractionLayer batch (70 assertions). It has the cleanest
    pure interface of anything left and no rendering dependency, so it is the
    best second tranche.

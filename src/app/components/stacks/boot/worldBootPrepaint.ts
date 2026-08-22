@@ -25,6 +25,7 @@ export function worldBootPrepaintScript(
   const q = (value: string | number) => JSON.stringify(value);
   const timer = `window[${q(policy.prepaintTimerGlobal)}]`;
   const token = `window[${q(policy.prepaintTokenGlobal)}]`;
+  const startedAt = `window[${q(policy.prepaintStartedAtGlobal)}]`;
   const outcome = `window[${q(policy.prepaintOutcomeGlobal)}]`;
   return `
 try {
@@ -41,6 +42,7 @@ try {
   }
   var bootToken = (${token} || 0) + 1;
   ${token} = bootToken;
+  ${startedAt} = performance.now();
 
   // Cache only the stable capability probe. Motion preference and Save-Data
   // are live visitor choices and must be evaluated on every document load.

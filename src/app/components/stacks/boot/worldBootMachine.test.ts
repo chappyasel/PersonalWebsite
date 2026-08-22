@@ -71,6 +71,11 @@ function gen(epoch: number) {
       at,
       epoch,
     }),
+    meadowPending: (at: number): WorldBootEvent => ({
+      type: "meadowPending",
+      at,
+      epoch,
+    }),
     runtimeError: (at: number): WorldBootEvent => ({
       type: "runtimeError",
       at,
@@ -198,6 +203,12 @@ describe("initial capability", () => {
     // assistive tech read it; CSS is what hides it from sighted visitors.
     expect(v.flatMounted).toBe(true);
     expect(v.flatAnimated).toBe(false);
+  });
+
+  it("carries the parse-time journey start without moving boot deadlines", () => {
+    const state = run([start({ at: 500, journeyStartedAt: 100 })]);
+    expect(state.startedAt).toBe(100);
+    expect(state.deadline?.at).toBe(500 + P.hangBackstopMs);
   });
 
   it("opens a new generation on every start", () => {
@@ -417,6 +428,14 @@ describe("reveal gate", () => {
     expect(view(painted).canvasReady).toBe(true);
     expect(view(bootedTo("revealing")).awaitingReveal).toBe(false);
   });
+
+  it("closes the meadow gate during a diagnostics off-to-on remount", () => {
+    const ready = run([start(), g1.meadow(10)]);
+    expect(ready.meadowReady).toBe(true);
+    const remounting = run([g1.meadowPending(20)], ready);
+    expect(remounting.meadowReady).toBe(false);
+    expect(run([g1.meadow(30)], remounting).meadowReady).toBe(true);
+  });
 });
 
 describe("boot vignette lifecycle", () => {
@@ -525,6 +544,7 @@ describe("stale signals from an older generation", () => {
     ["a painted frame", (at: number) => g1.firstFrame(at)],
     ["a completed asset batch", (at: number) => g1.assets(at, COMPLETE)],
     ["filled meadow buffers", (at: number) => g1.meadow(at)],
+    ["a meadow readiness reset", (at: number) => g1.meadowPending(at)],
   ])("ignores %s from the previous boot", (_label, event) => {
     // A queued frame or a draining loading manager from the world that was
     // just torn down. Accepting it would open the new boot's reveal gate on a
@@ -749,6 +769,7 @@ describe("route exit", () => {
     for (const event of [
       g1.firstFrame(1_100),
       g1.meadow(1_100),
+      g1.meadowPending(1_100),
       g1.assets(1_100, COMPLETE),
       g1.contextLost(1_100),
       g1.runtimeError(1_100),
@@ -795,6 +816,7 @@ describe("totality", () => {
       g.assets(7, COMPLETE),
       g.assets(7, LOADING),
       g.meadow(7),
+      g.meadowPending(7),
       vignetteStarted(7),
       vignetteDone(7),
       g.runtimeError(7),

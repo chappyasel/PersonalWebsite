@@ -5,10 +5,10 @@ import { FontProvider } from "~/lib/font-provider";
 import { ThemeProvider } from "~/lib/providers";
 import { THEME_COLOR, THEME_STORAGE_KEY } from "~/lib/theme";
 
-import "~/styles/globals.css";
-
 import AnalyticsRouteTracker from "./components/AnalyticsRouteTracker";
+
 import { HOMEPAGE_DESCRIPTION } from "./homeMetadata";
+import "~/styles/globals.css";
 
 const literata = Literata({
   subsets: ["latin"],

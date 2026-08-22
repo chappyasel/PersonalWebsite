@@ -67,7 +67,6 @@ import {
 } from "./interactionRegistry";
 import { leanBudget } from "./leanClearance";
 import { type PropDestination, useOpenTarget } from "./links";
-import { propReactionIsEngaged } from "./reactionEngagement";
 import type {
   HeldMoveResult,
   HeldPose,
@@ -85,6 +84,7 @@ import {
   bandMotionFor,
   recordArchetype,
 } from "./reactionArchetype";
+import { propReactionIsEngaged } from "./reactionEngagement";
 import {
   applySceneImpulseKick,
   createSceneImpulseMotion,
@@ -1481,10 +1481,7 @@ export default function Grabbable({
               // non-positive angle, so the magnitude goes in and the direction
               // comes back out.
               Math.sign(bandMotion.lean) *
-              cameraSideHoverTilt(
-                nodCameraDirection,
-                Math.abs(bandMotion.lean),
-              )
+              cameraSideHoverTilt(nodCameraDirection, Math.abs(bandMotion.lean))
             : cameraSideHoverTilt(nodCameraDirection, hoverTiltAngle);
         // A lean is only safe DOWNWARD, where hingeShift pins the contact
         // edge. Nothing was watching the rising end of the arc, and the props

@@ -139,9 +139,15 @@ telemetry remain actions or observations rather than registry values.
   are abortable, reference-counted leases. Disabling or unmounting releases the
   lease; the last release aborts fetch and removes the cache entry, while a
   result that wins the abort race is disposed instead of cached or sampled.
+  The integration review also marks the matching selected detail unselectable
+  synchronously before its lease disposes the ImageBitmap, so an immediate
+  off-to-on cannot resample it; a lease-record identity guard preserves a newer
+  lease record for the same URL and cached texture.
 - Meadow updates prepare boot readiness synchronously before publishing the
   performance-store change: disabling marks the absent meadow ready, and an
-  off-to-on transition clears readiness before React can remount it.
+  off-to-on transition clears readiness before React can remount it. On the
+  combined branch these signals go through the generation-scoped boot machine,
+  replacing the isolated branch's retired loading-module readiness helpers.
 - Constrained `performanceBoolean` to boolean-valued performance keys and routed
   it through the runtime without record casts.
 - Added registry integrity, default, complete performance-setting coverage,
@@ -382,6 +388,8 @@ not part of the change.
   The last release aborts pending fetch and disposes a resolved detail, so a
   later re-enable may fetch and decode it again. A decode already in flight may
   finish, but its late result is immediately disposed and never cached/sampled.
+  The selected detail's lease becomes synchronously ineligible before disposal;
+  state cleanup follows, and the preview remains until the replacement resolves.
 - Turning meadow or the composer off unmounts the optional subtree. React state
   below that subtree resets when it is re-enabled, matching the existing query
   rollback behavior.

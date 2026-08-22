@@ -32,9 +32,6 @@ const ROOT = path.resolve(import.meta.dirname, "..");
 const SEARCH_ROOTS = ["src", "scripts", "tests"];
 const TEST_FILE = /\.(test|spec)\.[cm]?[jt]sx?$/;
 
-/** Anything read here is an artifact, not a module's own source text. */
-const GENERATED_ARTIFACT =
-  /\.(glb|gltf|png|jpe?g|webp|avif|svg|mp3|wav|json|txt|md)$/i;
 const SOURCE_TEXT = /\.([cm]?[jt]sx?|css)$/i;
 const ENCODING = /^utf-?8$/i;
 const DYNAMIC_TARGET = "(resolved at run time)";

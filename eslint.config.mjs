@@ -1,6 +1,6 @@
-import { defineConfig } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import drizzle from "eslint-plugin-drizzle";
+import { defineConfig } from "eslint/config";
 import tseslint from "typescript-eslint";
 
 export default defineConfig([
@@ -72,6 +72,13 @@ export default defineConfig([
       "react-hooks/static-components": "off",
       "react-hooks/unsupported-syntax": "off",
       "react-hooks/use-memo": "off",
+    },
+  },
+  {
+    ...tseslint.configs.disableTypeChecked,
+    files: ["**/*.mjs"],
+    linterOptions: {
+      reportUnusedDisableDirectives: false,
     },
   },
 ]);

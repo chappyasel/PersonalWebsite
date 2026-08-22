@@ -20,56 +20,58 @@ tests now call it.
 
 ## Current state
 
-- Test files that read a file at all: 51
-- Test files reading source text: 43
-- Source-text assertions: 1052
+- Test files that read a file at all: 52
+- Test files reading source text: 44
+- Source-text assertions: 1058
 - Test files checking generated artifacts, which stay: 7
 
 Baseline at commit 3055138, before this tranche: 54 files read a file, 46 read
 source text, 1078 source-text assertions, 7 checked generated artifacts.
 
-Forty-one of the 1052 are `policyWiring.test.ts`, added by this tranche on
+Forty-one of the 1058 are `policyWiring.test.ts`, added by this tranche on
 purpose. It holds what is left after the decisions moved behind interfaces:
 that `ChromeLayer` and `CameraRig` actually CALL those interfaces. Neither
 component can be reached in process yet, so the count went up by 41 while the
 brittle surface went down. See "Source reads kept on purpose" below.
 
-## Batches
+## Isolated-branch batch snapshot
 
-Ordered by size.
+The table below records the test-contract branch before integration. On the
+combined branch, rerun `yarn report:test-source-reads` for the authoritative
+sorted table; diagnostics and boot integration changed several batch totals.
 
-| batch | assertions | test files |
-| --- | --- | --- |
-| SceneDiagnostics.tsx | 201 | src/app/components/stacks/dom/ChromeLayer.diagnostics.test.ts<br>src/app/components/stacks/scene/PhysicsDiagnosticsOverlay.presentation.test.ts<br>src/app/components/stacks/scene/sceneColorGrade.presentation.test.ts |
-| CoordinationGlobe.tsx | 166 | src/app/components/stacks/scene/coordinationGlobe.presentation.test.ts |
-| StacksCanvas.tsx | 165 | src/app/components/stacks/scene/frameBudget.contract.test.ts<br>src/app/components/stacks/scene/scenePerformance.presentation.test.ts |
-| TouchInteractionLayer.tsx | 70 | src/app/components/stacks/input/touchArchitecture.test.ts |
-| Meadow.tsx | 50 | src/app/components/stacks/scene/contentTier.test.ts<br>src/app/components/stacks/scene/meadowDeformation.presentation.test.ts |
-| CameraRig.tsx | 44 | src/app/components/stacks/policyWiring.test.ts<br>src/app/components/stacks/scene/cameraZoom.test.ts |
-| UnitAbout.tsx | 44 | src/app/components/stacks/scene/units/UnitAbout.interactions.test.ts |
-| SceneEnvironment.tsx | 43 | src/app/components/stacks/scene/goldenGateSilhouette.test.ts<br>src/app/components/stacks/scene/sceneCinematicPlus.presentation.test.ts |
-| PlacardLayer.tsx | 41 | src/app/components/stacks/dom/desktopEntrance.presentation.test.ts<br>src/app/components/stacks/dom/mobileEntrance.presentation.test.ts |
-| Grabbable.tsx | 32 | src/app/components/stacks/scene/Grabbable.test.ts<br>src/app/components/stacks/scene/Lift.test.ts<br>src/app/components/stacks/scene/reactionEngagement.presentation.test.ts |
-| UnitBlog.tsx | 31 | src/app/components/stacks/scene/units/musingsShelfLighting.test.ts |
-| home-og-scene.mjs | 22 | scripts/generate/home-og-scene.test.ts |
-| eggs.tsx | 18 | src/app/components/stacks/scene/eggs.interactions.test.ts<br>src/app/components/stacks/scene/signatureReactions.presentation.test.ts |
-| primitives.tsx | 18 | src/app/components/stacks/scene/stackedHover.presentation.test.ts<br>src/app/components/stacks/scene/units/UnitBooks.test.ts |
-| SoundToggle.tsx | 18 | src/app/components/stacks/dom/SoundToggle.presentation.test.ts |
-| page.tsx | 15 | src/app/pagePresentation.test.ts |
-| UnitProjects.tsx | 13 | src/app/components/stacks/scene/units/UnitProjects.interactions.test.ts |
-| UnitTraining.tsx | 11 | src/app/components/stacks/scene/units/UnitTraining.presentation.test.ts |
-| ProjectArtifacts.tsx | 8 | src/app/components/stacks/scene/units/ProjectArtifacts.test.ts |
-| ${name}.tsx | 7 | src/app/components/stacks/scene/units/ShelfSucculent.reuse.test.ts<br>src/app/components/stacks/scene/units/plantColliders.presentation.test.ts |
-| BootScreen.tsx | 7 | src/app/components/stacks/dom/bootPresentation.test.ts |
-| intersection-motion.tsx | 5 | src/lib/intersectionMotion.test.ts |
-| objects.tsx | 5 | src/app/components/stacks/scene/externalInteractions.test.ts |
-| Scene.tsx | 5 | src/app/components/stacks/scene/Scene.interactions.test.ts<br>src/app/components/stacks/scene/monsteraHover.presentation.test.ts |
-| Butterflies.tsx | 4 | src/app/components/stacks/scene/Butterflies.test.ts |
-| AuthoredProps.tsx | 3 | src/app/components/stacks/scene/AuthoredProps.test.ts |
-| opengraph-image.tsx | 3 | src/app/homeOgPresentation.test.ts |
-| UnitSystems.tsx | 2 | src/app/components/stacks/scene/units/UnitSystems.interactions.test.ts |
-| unresolved | 1 | src/app/components/stacks/scene/metalShimmerBand.presentation.test.ts |
-| About.tsx | 0 | src/app/components/About.presentation.test.ts |
+| batch                     | assertions | test files                                                                                                                                                                                                              |
+| ------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SceneDiagnostics.tsx      | 201        | src/app/components/stacks/dom/ChromeLayer.diagnostics.test.ts<br>src/app/components/stacks/scene/PhysicsDiagnosticsOverlay.presentation.test.ts<br>src/app/components/stacks/scene/sceneColorGrade.presentation.test.ts |
+| CoordinationGlobe.tsx     | 166        | src/app/components/stacks/scene/coordinationGlobe.presentation.test.ts                                                                                                                                                  |
+| StacksCanvas.tsx          | 165        | src/app/components/stacks/scene/frameBudget.contract.test.ts<br>src/app/components/stacks/scene/scenePerformance.presentation.test.ts                                                                                   |
+| TouchInteractionLayer.tsx | 70         | src/app/components/stacks/input/touchArchitecture.test.ts                                                                                                                                                               |
+| Meadow.tsx                | 50         | src/app/components/stacks/scene/contentTier.test.ts<br>src/app/components/stacks/scene/meadowDeformation.presentation.test.ts                                                                                           |
+| CameraRig.tsx             | 44         | src/app/components/stacks/policyWiring.test.ts<br>src/app/components/stacks/scene/cameraZoom.test.ts                                                                                                                    |
+| UnitAbout.tsx             | 44         | src/app/components/stacks/scene/units/UnitAbout.interactions.test.ts                                                                                                                                                    |
+| SceneEnvironment.tsx      | 43         | src/app/components/stacks/scene/goldenGateSilhouette.test.ts<br>src/app/components/stacks/scene/sceneCinematicPlus.presentation.test.ts                                                                                 |
+| PlacardLayer.tsx          | 41         | src/app/components/stacks/dom/desktopEntrance.presentation.test.ts<br>src/app/components/stacks/dom/mobileEntrance.presentation.test.ts                                                                                 |
+| Grabbable.tsx             | 32         | src/app/components/stacks/scene/Grabbable.test.ts<br>src/app/components/stacks/scene/Lift.test.ts<br>src/app/components/stacks/scene/reactionEngagement.presentation.test.ts                                            |
+| UnitBlog.tsx              | 31         | src/app/components/stacks/scene/units/musingsShelfLighting.test.ts                                                                                                                                                      |
+| home-og-scene.mjs         | 22         | scripts/generate/home-og-scene.test.ts                                                                                                                                                                                  |
+| eggs.tsx                  | 18         | src/app/components/stacks/scene/eggs.interactions.test.ts<br>src/app/components/stacks/scene/signatureReactions.presentation.test.ts                                                                                    |
+| primitives.tsx            | 18         | src/app/components/stacks/scene/stackedHover.presentation.test.ts<br>src/app/components/stacks/scene/units/UnitBooks.test.ts                                                                                            |
+| SoundToggle.tsx           | 18         | src/app/components/stacks/dom/SoundToggle.presentation.test.ts                                                                                                                                                          |
+| page.tsx                  | 15         | src/app/pagePresentation.test.ts                                                                                                                                                                                        |
+| UnitProjects.tsx          | 13         | src/app/components/stacks/scene/units/UnitProjects.interactions.test.ts                                                                                                                                                 |
+| UnitTraining.tsx          | 11         | src/app/components/stacks/scene/units/UnitTraining.presentation.test.ts                                                                                                                                                 |
+| ProjectArtifacts.tsx      | 8          | src/app/components/stacks/scene/units/ProjectArtifacts.test.ts                                                                                                                                                          |
+| ${name}.tsx               | 7          | src/app/components/stacks/scene/units/ShelfSucculent.reuse.test.ts<br>src/app/components/stacks/scene/units/plantColliders.presentation.test.ts                                                                         |
+| BootScreen.tsx            | 7          | src/app/components/stacks/dom/bootPresentation.test.ts                                                                                                                                                                  |
+| intersection-motion.tsx   | 5          | src/lib/intersectionMotion.test.ts                                                                                                                                                                                      |
+| objects.tsx               | 5          | src/app/components/stacks/scene/externalInteractions.test.ts                                                                                                                                                            |
+| Scene.tsx                 | 5          | src/app/components/stacks/scene/Scene.interactions.test.ts<br>src/app/components/stacks/scene/monsteraHover.presentation.test.ts                                                                                        |
+| Butterflies.tsx           | 4          | src/app/components/stacks/scene/Butterflies.test.ts                                                                                                                                                                     |
+| AuthoredProps.tsx         | 3          | src/app/components/stacks/scene/AuthoredProps.test.ts                                                                                                                                                                   |
+| opengraph-image.tsx       | 3          | src/app/homeOgPresentation.test.ts                                                                                                                                                                                      |
+| UnitSystems.tsx           | 2          | src/app/components/stacks/scene/units/UnitSystems.interactions.test.ts                                                                                                                                                  |
+| unresolved                | 1          | src/app/components/stacks/scene/metalShimmerBand.presentation.test.ts                                                                                                                                                   |
+| About.tsx                 | 0          | src/app/components/About.presentation.test.ts                                                                                                                                                                           |
 
 ## Recommended order
 
@@ -159,7 +161,7 @@ its paths at run time so the script cannot classify it automatically.
 This is where the lower bound comes from. The script prints these two files
 under "needs a hand check" rather than guessing at them, and their assertions
 are corrected here and are NOT in the totals above. Add 6 to the total for a
-true figure of 1058:
+true figure of 1064:
 
 - `src/app/components/About.presentation.test.ts`, 1 assertion, against a
   regex match over the file.

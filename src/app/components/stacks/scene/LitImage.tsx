@@ -11,6 +11,11 @@ import { type ThreeEvent, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
 
+import {
+  type LitImageDetail,
+  clearReleasedLitImageDetail,
+  liveLitImageDetailResource,
+} from "./litImageDetail";
 import { type ScenePhotoRole, scenePhotoUrl } from "./photoTextures";
 import { useScenePerformanceSettings } from "./scenePerformance";
 import { scenePhotoDetailTextures } from "./scenePhotoDetails";
@@ -179,19 +184,24 @@ export default function LitImage({
   const previewUrl = scenePhotoUrl(url, role);
   const previewTexture = useTexture(previewUrl);
   const detailsDisabled = !performanceSettings.highResolutionPhotos;
-  const [detail, setDetail] = useState<{
-    url: string;
-    texture: THREE.Texture;
-  } | null>(null);
+  const [detail, setDetail] = useState<LitImageDetail<THREE.Texture> | null>(
+    null,
+  );
 
   useEffect(() => {
     let active = true;
+    let leasedDetail: LitImageDetail<THREE.Texture> | null = null;
     if (!detailUrl || detailsDisabled || detailUrl === previewUrl)
       return () => undefined;
     const lease = scenePhotoDetailTextures.request(detailUrl);
     void lease.promise
       .then((texture) => {
-        if (active) setDetail({ url: detailUrl, texture });
+        leasedDetail = {
+          url: detailUrl,
+          resource: texture,
+          isReleased: () => lease.released,
+        };
+        if (active) setDetail(leasedDetail);
       })
       .catch(() => {
         // The preview remains the durable fallback. A later mount retries a
@@ -199,14 +209,18 @@ export default function LitImage({
       });
     return () => {
       active = false;
+      const released = leasedDetail;
       lease.release();
+      if (released)
+        setDetail((current) => clearReleasedLitImageDetail(current, released));
     };
   }, [detailUrl, detailsDisabled, previewUrl]);
 
-  const detailTexture =
-    !detailsDisabled && detailUrl && detail?.url === detailUrl
-      ? detail.texture
-      : null;
+  const detailTexture = liveLitImageDetailResource({
+    detail,
+    enabled: !detailsDisabled,
+    url: detailUrl,
+  });
 
   // Only callers with a distinct authored detail URL request another decode.
   // Local scene photos remain on their role-sized assets.

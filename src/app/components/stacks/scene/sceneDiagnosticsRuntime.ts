@@ -1,4 +1,4 @@
-import { markMeadowReady, resetMeadowReady } from "../loading";
+import { worldBoot } from "../boot/worldBootSession";
 
 import { meadowDiagnosticsController } from "./meadowDiagnostics";
 import {
@@ -94,8 +94,8 @@ export const sceneDiagnosticsRuntime = createSceneDiagnosticsRuntime({
     scenePerformanceController.updateBoolean(key, value),
   seedGrassDeformation: (enabled) =>
     meadowDiagnosticsController.seed({ deformationEnabled: enabled }),
-  markMeadowReady,
-  resetMeadowReady,
+  markMeadowReady: () => worldBoot.scope().send({ type: "meadowReady" }),
+  resetMeadowReady: () => worldBoot.scope().send({ type: "meadowPending" }),
 });
 
 if (typeof window !== "undefined")

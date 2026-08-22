@@ -386,6 +386,7 @@ describe("generated constants", () => {
       ogCaptureParam: "test-capture",
       ogCaptureAttribute: "data-test-capture",
       prepaintOutcomeGlobal: "__testOutcome",
+      prepaintStartedAtGlobal: "__testStartedAt",
     });
     for (const literal of [
       "data-test-world",
@@ -396,6 +397,7 @@ describe("generated constants", () => {
       "test-capture",
       "data-test-capture",
       "__testOutcome",
+      "__testStartedAt",
     ]) {
       expect(script).toContain(literal);
     }
@@ -403,5 +405,6 @@ describe("generated constants", () => {
     expect(script).not.toContain(String(P.prepaintBackstopMs));
     expect(script).not.toContain(String(P.warmTtlMs));
     expect(script).not.toContain(P.prepaintOutcomeGlobal);
+    expect(script).not.toContain(P.prepaintStartedAtGlobal);
   });
 });

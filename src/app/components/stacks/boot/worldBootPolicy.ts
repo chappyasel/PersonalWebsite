@@ -57,6 +57,8 @@ export type WorldBootPolicy = {
    * React. Named here so the script and the React adapter cannot drift. */
   prepaintTimerGlobal: string;
   prepaintTokenGlobal: string;
+  /** Monotonic start handed to analytics once hydration takes ownership. */
+  prepaintStartedAtGlobal: string;
   /** Where the pre-paint backstop records that it fired, so hydration can
    * find out. Without it, React arrives after the twenty-second fail-open,
    * sees a bare document, and starts a second forty-second wait on top of the
@@ -78,6 +80,7 @@ export const WORLD_BOOT_POLICY: WorldBootPolicy = {
   flatRetireMs: 420,
   prepaintTimerGlobal: "__stacksWorldBootTimer",
   prepaintTokenGlobal: "__stacksWorldBootToken",
+  prepaintStartedAtGlobal: "__stacksWorldBootStartedAt",
   prepaintOutcomeGlobal: "__stacksWorldBootOutcome",
 };
 

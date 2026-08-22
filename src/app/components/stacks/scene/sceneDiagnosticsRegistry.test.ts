@@ -1,4 +1,3 @@
-import { isMeadowReady, markMeadowReady, resetMeadowReady } from "../loading";
 import fs from "node:fs";
 import type * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
@@ -10,10 +9,7 @@ import {
   createSceneDiagnosticsRegistry,
   sceneDiagnosticsRegistry,
 } from "./sceneDiagnosticsRegistry";
-import {
-  DEFAULT_SCENE_PERFORMANCE_SETTINGS,
-  scenePerformanceController,
-} from "./scenePerformance";
+import { DEFAULT_SCENE_PERFORMANCE_SETTINGS } from "./scenePerformance";
 
 const diagnosticsSource = fs.readFileSync(
   new URL("../dom/SceneDiagnostics.tsx", import.meta.url),
@@ -134,22 +130,6 @@ describe("Scene Diagnostics registry", () => {
     expect(diagnosticsSource).toContain(
       'from "../scene/sceneDiagnosticsRegistry"',
     );
-  });
-
-  it("clears meadow readiness before the registry publishes an off-to-on remount", () => {
-    scenePerformanceController.reset();
-    resetMeadowReady();
-    try {
-      sceneDiagnosticsRegistry.update("render.meadow", false);
-      expect(isMeadowReady()).toBe(true);
-      markMeadowReady();
-
-      sceneDiagnosticsRegistry.update("render.meadow", true);
-      expect(isMeadowReady()).toBe(false);
-    } finally {
-      scenePerformanceController.reset();
-      resetMeadowReady();
-    }
   });
 
   it("declares the exact optimization preset without optional rendering", () => {

@@ -4,6 +4,8 @@ type Disposable = Readonly<{ dispose: () => void }>;
 
 export type DetailResourceLease<Resource> = Readonly<{
   promise: Promise<Resource>;
+  /** Flips synchronously before the final resource can be disposed. */
+  released: boolean;
   release: () => void;
 }>;
 
@@ -55,6 +57,9 @@ export function createDetailResourceLoader<Resource extends Disposable>(
       let released = false;
       return Object.freeze({
         promise: leased.promise,
+        get released() {
+          return released;
+        },
         release() {
           if (released) return;
           released = true;

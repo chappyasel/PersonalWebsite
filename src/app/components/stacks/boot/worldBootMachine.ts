@@ -106,6 +106,8 @@ export type WorldBootEvent =
        * visitor has been reading the flat page for twenty seconds. Hydrating
        * into a boot screen now would take it away again. */
       prepaintTimedOut: boolean;
+      /** Optional monotonic start from the parse-time adapter, for analytics. */
+      journeyStartedAt?: number;
     }
   /** A frame has actually been painted by the world's renderer. */
   | { type: "firstFrame"; at: number; epoch: number }
@@ -114,6 +116,8 @@ export type WorldBootEvent =
   /** The meadow filled its instance buffers, or reported immediately because
    * it is switched off. */
   | { type: "meadowReady"; at: number; epoch: number }
+  /** A live diagnostics off-to-on remount invalidated the old buffers. */
+  | { type: "meadowPending"; at: number; epoch: number }
   /** The boot vignette began a fresh item-by-item pass. Not epoch-scoped: the
    * vignette belongs to the page instance, and it is running before the
    * world's owner has streamed in. */
@@ -388,7 +392,7 @@ export function reduceWorldBoot(
         epoch: state.epoch + 1,
         origin: event.origin,
         ogCapture: event.ogCapture,
-        startedAt: event.at,
+        startedAt: event.journeyStartedAt ?? event.at,
         // The vignette runs in the initial entry bundle and can finish its
         // pass before the streamed homepage data resolves and the world's
         // owner mounts. Clearing it here would leave the reveal waiting on a
@@ -458,6 +462,10 @@ export function reduceWorldBoot(
     case "meadowReady":
       if (state.meadowReady) return settle(state, event.at, policy);
       return settle({ ...state, meadowReady: true }, event.at, policy);
+
+    case "meadowPending":
+      if (!state.meadowReady) return state;
+      return { ...state, meadowReady: false };
 
     case "bootVignetteStarted":
       if (!state.bootVignetteReady) return settle(state, event.at, policy);

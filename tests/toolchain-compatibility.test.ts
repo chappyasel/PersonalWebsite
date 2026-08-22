@@ -1,9 +1,9 @@
 import { QueryClient } from "@tanstack/react-query";
 import {
-  persistQueryClientRestore,
-  persistQueryClientSave,
   type PersistedClient,
   type Persister,
+  persistQueryClientRestore,
+  persistQueryClientSave,
 } from "@tanstack/react-query-persist-client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 

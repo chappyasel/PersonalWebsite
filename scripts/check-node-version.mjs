@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-
 import { readFile } from "node:fs/promises";
 
 const packageJson = JSON.parse(await readFile("package.json", "utf8"));

@@ -103,6 +103,10 @@ const { resolveSceneQualityPlan } = await import("./quality");
 const { DEFAULT_SCENE_COLOR_GRADE, CINEMATIC_PLUS_SCENE_COLOR_GRADE } =
   await import("./sceneColorGrade");
 const { sceneQualityController } = await import("./sceneQualityController");
+const { scenePerformanceController } = await import("./scenePerformance");
+const { diagnosticReloadSeedFromSearch } = await import(
+  "./sceneDiagnosticsRuntime"
+);
 
 const planFor = (profile: "cinematic" | "balanced" | "safety") =>
   resolveSceneQualityPlan({
@@ -132,12 +136,8 @@ function render({
   activeUnit?: number;
 } = {}) {
   harness.scene = { seated, golfFocused, activeUnit };
-  const previousWindow = (globalThis as { window?: unknown }).window;
-  if (search !== undefined) {
-    (globalThis as { window?: unknown }).window = {
-      location: { search },
-    };
-  }
+  if (search !== undefined)
+    scenePerformanceController.update(diagnosticReloadSeedFromSearch(search));
   try {
     renderToStaticMarkup(
       <Effects
@@ -147,11 +147,7 @@ function render({
       />,
     );
   } finally {
-    if (search !== undefined) {
-      if (previousWindow === undefined)
-        delete (globalThis as { window?: unknown }).window;
-      else (globalThis as { window?: unknown }).window = previousWindow;
-    }
+    scenePerformanceController.reset();
   }
   return {
     order: harness.mounted
@@ -169,11 +165,13 @@ beforeEach(() => {
   harness.composer.setSize.mockClear();
   harness.pixelRatio = 1;
   sceneQualityController.resetControls();
+  scenePerformanceController.reset();
 });
 
 afterEach(() => {
   harness.scene = {};
   sceneQualityController.resetControls();
+  scenePerformanceController.reset();
 });
 
 describe("the scene's postprocessing chain", () => {

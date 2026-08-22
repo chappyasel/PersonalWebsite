@@ -54,7 +54,10 @@ describe("homepage first paint", () => {
     // Failure and readiness callbacks are stamped with the boot generation,
     // so a canvas torn down by a route change cannot demote the next world.
     expect(stacksHomeSource).toContain("worldBoot.scope(epoch)");
-    expect(stacksHomeSource).not.toContain("useStacks");
+    expect(stacksHomeSource).not.toContain("setMode");
+    expect(stacksHomeSource).toContain(
+      "useStacks((state) => state.settledUnit)",
+    );
   });
 
   it("generates the pre-paint handshake from the shared boot policy", () => {

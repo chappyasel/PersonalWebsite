@@ -158,6 +158,18 @@ function consumePrepaintTimeout(): boolean {
   );
 }
 
+/** Consume the parse-time analytics clock exactly once. SPA re-entry in the
+ * same document must start a fresh duration at hydration time. */
+function consumePrepaintStartedAt(at: number): number | undefined {
+  if (typeof window === "undefined") return undefined;
+  const win = window as unknown as BootWindow;
+  const value = win[WORLD_BOOT_POLICY.prepaintStartedAtGlobal];
+  delete win[WORLD_BOOT_POLICY.prepaintStartedAtGlobal];
+  return typeof value === "number" && Number.isFinite(value) && value <= at
+    ? Math.max(0, value)
+    : undefined;
+}
+
 function applyDocument(view: WorldBootView): void {
   if (typeof document === "undefined" || !view.ownsDocument) return;
   const root = document.documentElement;
@@ -219,14 +231,16 @@ class WorldBootSession {
    * the generation it opened, which is what the caller must stamp its own
    * later signals — its exit above all — with. */
   start(origin: "prepaint" | "hydrate"): WorldBootScope {
+    const at = nowMs();
     const connection = (
       navigator as Navigator & { connection?: { saveData?: boolean } }
     ).connection;
     this.dispatch({
       type: "start",
-      at: nowMs(),
+      at,
       origin,
       prepaintTimedOut: consumePrepaintTimeout(),
+      journeyStartedAt: consumePrepaintStartedAt(at),
       webglAvailable: webglAvailable(),
       prefersReducedMotion: window.matchMedia(
         WORLD_BOOT_POLICY.reducedMotionQuery,

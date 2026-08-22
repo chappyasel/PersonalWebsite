@@ -22,14 +22,14 @@ that needs a production build to be honest.
 Reproduced in this worktree, not taken on trust. Fresh `yarn install
 --frozen-lockfile` first; the worktree had no `node_modules`.
 
-| Check | Result at `3055138` |
-| --- | --- |
-| `yarn test` | 6 failed, 1531 passed (195 files) |
-| `yarn tsc --noEmit` | 8 × TS2307 before typegen, clean after |
-| `yarn lint` | 8 errors before typegen, 1 warning after |
-| `yarn check:home-og` | fail: input digest moved |
-| `yarn check:meadow` | pass, 115942 assertions, 0 failures |
-| `yarn build` | cannot run here: no `.env` |
+| Check                | Result at `3055138`                      |
+| -------------------- | ---------------------------------------- |
+| `yarn test`          | 6 failed, 1531 passed (195 files)        |
+| `yarn tsc --noEmit`  | 8 × TS2307 before typegen, clean after   |
+| `yarn lint`          | 8 errors before typegen, 1 warning after |
+| `yarn check:home-og` | fail: input digest moved                 |
+| `yarn check:meadow`  | pass, 115942 assertions, 0 failures      |
+| `yarn build`         | cannot run here: no `.env`               |
 
 ### The eight TypeScript errors were an environment artifact, not a code defect
 
@@ -53,14 +53,14 @@ needs `SKIP_ENV_VALIDATION=1`.
 
 ### The six test failures
 
-| Suite | Test | Diagnosis |
-| --- | --- | --- |
-| `aboutBootSilhouettes` | stays synchronized with the exact source GLBs | False contract |
-| `canvasCompositing` | keeps the scene backdrop reachable through the canvas alpha channel | Brittle expectation |
-| `freeRoamControls` | hides the mobile sheet on entry and lets H toggle it | Brittle expectation |
-| `scenePerformance` | isolates browser glass and each expensive post effect | Brittle expectation |
-| `aboutReadingStack` | authors three grounded books turned 40 degrees toward the lamp | Wrong literal, committed wrong |
-| `musingsPaperPhysics` | fast tilted release on the lower shelf | Behavior drift, a real tunnelling bug |
+| Suite                  | Test                                                                | Diagnosis                             |
+| ---------------------- | ------------------------------------------------------------------- | ------------------------------------- |
+| `aboutBootSilhouettes` | stays synchronized with the exact source GLBs                       | False contract                        |
+| `canvasCompositing`    | keeps the scene backdrop reachable through the canvas alpha channel | Brittle expectation                   |
+| `freeRoamControls`     | hides the mobile sheet on entry and lets H toggle it                | Brittle expectation                   |
+| `scenePerformance`     | isolates browser glass and each expensive post effect               | Brittle expectation                   |
+| `aboutReadingStack`    | authors three grounded books turned 40 degrees toward the lamp      | Wrong literal, committed wrong        |
+| `musingsPaperPhysics`  | fast tilted release on the lower shelf                              | Behavior drift, a real tunnelling bug |
 
 Five of the six were introduced by one commit, `489c84e feat(stacks): ship
 complete scene update`. Four of those five have never passed: I checked out
@@ -180,12 +180,12 @@ uniform scale cancels. The yaw does not cancel, and a test shows that too.
 
 Four tests carry it, each verified by breaking the tie and watching them fail:
 
-| Perturbation | Result |
-| --- | --- |
-| `ABOUT_TJ_LIGHT_YAW` back to its own literal | "poses the scene from the same values the digest signs" fails |
-| Landmark `sceneScale` back to its own expression | same test fails |
-| `ABOUT_AWARD_SIZE_INCREASE` 1.1 to 1.2 | "keeps the medallion sized with the other lower-shelf awards" fails |
-| Either half of the pose changed in the signature | digest no longer matches the committed one |
+| Perturbation                                     | Result                                                              |
+| ------------------------------------------------ | ------------------------------------------------------------------- |
+| `ABOUT_TJ_LIGHT_YAW` back to its own literal     | "poses the scene from the same values the digest signs" fails       |
+| Landmark `sceneScale` back to its own expression | same test fails                                                     |
+| `ABOUT_AWARD_SIZE_INCREASE` 1.1 to 1.2           | "keeps the medallion sized with the other lower-shelf awards" fails |
+| Either half of the pose changed in the signature | digest no longer matches the committed one                          |
 
 ## The physics bug
 
@@ -495,21 +495,21 @@ src/app/components/stacks/scene/units/aboutReadingStack.test.ts
 Run after deleting `.next/` and `next-env.d.ts`, so the results describe a clean
 checkout.
 
-| Command | Outcome |
-| --- | --- |
-| `yarn install --frozen-lockfile` | pass |
-| `yarn verify` | **pass**, exit 0 |
-| `yarn verify` → `next typegen` | pass |
-| `yarn verify` → `tsc --noEmit` | pass, no errors |
-| `yarn verify` → `eslint --max-warnings 0` | pass, no errors, no warnings |
-| `yarn verify` → `vitest run` | pass, 1564 tests, 197 files |
-| `yarn verify` → `check:meadow` | pass, 115942 assertions, 0 failures |
-| `yarn verify:artifacts` | **fail**, stale capture, see above |
-| `yarn generate:about-boot` | pass; all seven traced paths byte-identical |
-| `npx prettier --check` on changed source files | pass |
-| `yarn build` | not run: no `.env` |
-| `yarn check:budgets` | not run: needs a fresh build |
-| `yarn test:performance:safety` | not run: needs a build and a browser |
+| Command                                        | Outcome                                     |
+| ---------------------------------------------- | ------------------------------------------- |
+| `yarn install --frozen-lockfile`               | pass                                        |
+| `yarn verify`                                  | **pass**, exit 0                            |
+| `yarn verify` → `next typegen`                 | pass                                        |
+| `yarn verify` → `tsc --noEmit`                 | pass, no errors                             |
+| `yarn verify` → `eslint --max-warnings 0`      | pass, no errors, no warnings                |
+| `yarn verify` → `vitest run`                   | pass, 1564 tests, 197 files                 |
+| `yarn verify` → `check:meadow`                 | pass, 115942 assertions, 0 failures         |
+| `yarn verify:artifacts`                        | **fail**, stale capture, see above          |
+| `yarn generate:about-boot`                     | pass; all seven traced paths byte-identical |
+| `npx prettier --check` on changed source files | pass                                        |
+| `yarn build`                                   | not run: no `.env`                          |
+| `yarn check:budgets`                           | not run: needs a fresh build                |
+| `yarn test:performance:safety`                 | not run: needs a build and a browser        |
 
 `aboutBootSilhouettes.ts` and this ledger are outside that check. The first is
 generated by `JSON.stringify` and carries a do-not-hand-edit banner, so
@@ -518,21 +518,21 @@ already non-conforming before this branch.
 
 Targeted evidence, each measured rather than asserted:
 
-| Probe | Outcome |
-| --- | --- |
-| Silhouette tests at HEAD | 8 pass |
-| Spec perturbed, rim 0.15 to 0.19 | 3 tests fail; viewBox 187×222 to 211×222; path 271 to 223 chars |
-| Spec restored and regenerated | committed output reproduced exactly |
-| Spec reformatted by Prettier | digest unchanged |
-| Runtime yaw decoupled to its own literal | pose-tie test fails |
-| Landmark `sceneScale` decoupled to its own expression | pose-tie test fails |
-| `ABOUT_AWARD_SIZE_INCREASE` 1.1 to 1.2 | award-group test fails |
-| Pose change re-signed | digest no longer matches the committed one |
-| Tunnelling matrix at HEAD | 16 pass, 167 ms |
-| Tunnelling matrix against the old `1/120 × 2` policy | 15 of 16 fail |
-| Warmer selector replayed on `3055138` | production deployment 6028174564, state `failure` |
-| Warmer selector replayed on `4ab4d70` | production deployment 6018523518, state `success`, preview skipped |
-| Status contexts across 20 `main` commits | `Vercel` only, or none |
+| Probe                                                 | Outcome                                                            |
+| ----------------------------------------------------- | ------------------------------------------------------------------ |
+| Silhouette tests at HEAD                              | 8 pass                                                             |
+| Spec perturbed, rim 0.15 to 0.19                      | 3 tests fail; viewBox 187×222 to 211×222; path 271 to 223 chars    |
+| Spec restored and regenerated                         | committed output reproduced exactly                                |
+| Spec reformatted by Prettier                          | digest unchanged                                                   |
+| Runtime yaw decoupled to its own literal              | pose-tie test fails                                                |
+| Landmark `sceneScale` decoupled to its own expression | pose-tie test fails                                                |
+| `ABOUT_AWARD_SIZE_INCREASE` 1.1 to 1.2                | award-group test fails                                             |
+| Pose change re-signed                                 | digest no longer matches the committed one                         |
+| Tunnelling matrix at HEAD                             | 16 pass, 167 ms                                                    |
+| Tunnelling matrix against the old `1/120 × 2` policy  | 15 of 16 fail                                                      |
+| Warmer selector replayed on `3055138`                 | production deployment 6028174564, state `failure`                  |
+| Warmer selector replayed on `4ab4d70`                 | production deployment 6018523518, state `success`, preview skipped |
+| Status contexts across 20 `main` commits              | `Vercel` only, or none                                             |
 
 ## Manual review steps
 

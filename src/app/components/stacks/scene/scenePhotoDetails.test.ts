@@ -21,7 +21,9 @@ describe("detail resource loader", () => {
     const detail = { dispose: vi.fn() };
     const lease = loader.request("detail.jpg");
 
+    expect(lease.released).toBe(false);
     lease.release();
+    expect(lease.released).toBe(true);
     expect(signal?.aborted).toBe(true);
     expect(loader.has("detail.jpg")).toBe(false);
     pending.resolve(detail);

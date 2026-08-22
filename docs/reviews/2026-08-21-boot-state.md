@@ -57,10 +57,11 @@ sits outside it as an adapter.
 
 `worldBootMachine.ts` is pure. Time arrives as `at` on every event, so the
 whole transition table runs on a fake clock. Seven states — `unstarted`,
-`ineligible`, `booting`, `revealing`, `live`, `failed`, `exited` — and ten
+`ineligible`, `booting`, `revealing`, `live`, `failed`, `exited` — and eleven
 events covering initial capability, reduced motion, Save-Data, WebGL
 availability, warm cache, world mount, asset/meadow/vignette readiness, first
-painted frame, hang timeout, runtime error, context loss, and route exit.
+painted frame, hang timeout, runtime error, context loss, readiness reset, and
+route exit.
 `worldBootView` projects the state onto what a visitor can observe: which
 homepage is mounted, what the handshake attribute says, whether the world is
 revealed, which deadline is armed.
@@ -105,12 +106,13 @@ than the machine. Every one is fixed here.
 batch would land after an SPA re-entry had already started the next boot. A
 stale `contextLost` demoted a healthy world; a stale `firstFrame` opened the
 reveal gate on a canvas that had not painted. Every boot now has an epoch.
-`firstFrame`, `assetLoad`, `meadowReady`, `runtimeError`, `contextLost`, and
-`exit` carry the generation they were produced under, and the machine drops
-anything older. Producers take a scoped sender at mount (`useWorldBootScope`);
-the event types make an unscoped send a compile error. `tick` is deliberately
-left unscoped — deadlines are absolute times in the current state, so a stale
-tick can only ask "is anything due", which is always a fair question.
+`firstFrame`, `assetLoad`, `meadowReady`, `meadowPending`, `runtimeError`,
+`contextLost`, and `exit` carry the generation they were produced under, and
+the machine drops anything older. Producers take a scoped sender at mount
+(`useWorldBootScope`); the event types make an unscoped send a compile error.
+`tick` is deliberately left unscoped — deadlines are absolute times in the
+current state, so a stale tick can only ask "is anything due", which is always
+a fair question.
 
 `exit` is scoped too, though the review did not ask for it: a cleanup that runs
 after a newer boot has begun would otherwise unmount the live world.
@@ -181,16 +183,12 @@ deviation and belongs here.
 1. `src/styles/globals.css` still selects on the literals `data-world` and
    `data-og-capture`. Those names now live in the policy record, but CSS cannot
    read it. A rename means editing both. ADR 0021 records this.
-2. The pre-paint script and the hydrated path diverge when storage throws
-   outright. The script's outer `try/catch` swallows the failure and leaves the
-   document; `webglAvailable()` in the session catches and probes the canvas
-   directly, so a capable browser with storage disabled still gets the world at
-   hydration. This is the behavior that was already shipping. It is now visible
-   in one file instead of two, but I did not change it.
-3. `scenePerformance.presentation.test.ts:223` still asserts `LitImage` does not
-   contain `subscribeWorldPhase`. That function no longer exists anywhere, so
-   the assertion is now vacuous. It passes; I left it for test-contracts.
-4. The six baseline failures above are untouched.
+2. Storage-denial divergence was fixed in the lifecycle amendment: both the
+   pre-paint adapter and hydration probe the canvas directly when storage is
+   unavailable.
+3. The vacuous `subscribeWorldPhase` assertion was removed during integration.
+4. The six inherited baseline failures were resolved by the green-baseline
+   project on the combined review branch.
 
 ## Ambiguities
 
@@ -287,7 +285,8 @@ Modified:
 - `src/app/components/stacks/StacksCanvas.tsx` — `assetLoad` signal, imports rerouted
 - `src/app/components/stacks/dom/BootScreen.tsx` — vignette signals, `isBootingPhase`
 - `src/app/components/stacks/scene/Meadow.tsx` — `meadowReady` signal
-- `src/app/components/stacks/scene/SceneEnvironment.tsx` — `meadowReady` signal
+- `src/app/components/stacks/scene/SceneEnvironment.tsx` — `meadowReady` and
+  `meadowPending` signals
 - `src/app/components/stacks/scene/Wildlife.tsx` — reads `isWorldRevealed()` instead of the raw attribute
 - `src/app/components/stacks/scene/sceneFirstVisitReset.ts` — `WARM_KEY` import moved
 - `src/app/components/stacks/CONTEXT.md` — five glossary terms
@@ -324,8 +323,8 @@ single eligibility case moved out of `webglProbe.test.ts`).
 New coverage added in the review round:
 
 - Stale readiness from an older generation: `firstFrame`, `assetLoad`,
-  `meadowReady` — each asserted to return the _same state object_, not merely
-  an equal one.
+  `meadowReady`, `meadowPending` — each asserted to return the _same state
+  object_, not merely an equal one.
 - Stale failure from an older generation: `contextLost`, `runtimeError`.
 - Stale `exit` from an older generation.
 - Signals stamped with a generation that does not exist yet.

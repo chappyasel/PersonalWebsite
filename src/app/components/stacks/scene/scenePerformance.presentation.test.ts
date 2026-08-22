@@ -228,15 +228,15 @@ describe("scene performance integration", () => {
     expect(photoDetails).toContain("resource.dispose()");
     expect(litImage).toContain("!performanceSettings.highResolutionPhotos");
     expect(litImage).toContain("if (!detailUrl || detailsDisabled");
+    expect(litImage).toContain("isReleased: () => lease.released");
     expect(litImage).toContain(
-      "!detailsDisabled && detailUrl && detail?.url === detailUrl",
+      "const detailTexture = liveLitImageDetailResource({",
     );
     expect(litImage).not.toContain("detailUrl ?? url");
     expect(scene).not.toContain("scenePhotoManifestMasterUrl");
     expect(litImage).toContain("previewTexture={previewTexture}");
     expect(litImage).toContain("detailTexture={detailTexture}");
     expect(litImage).not.toContain("<Suspense fallback={preview}>");
-    expect(litImage).not.toContain("subscribeWorldPhase");
     expect(litImage).toContain("lease.release()");
   });
 
@@ -264,8 +264,8 @@ describe("scene performance integration", () => {
   it("runs reversible RCAS only for reduced-DPR composer frames", () => {
     expect(canvas).toContain("adaptiveSharpenAmount(");
     expect(canvas).toContain("sharpenAmount={sharpenAmount}");
-    expect(diagnostics).toContain("performanceSettings.adaptiveSharpen");
-    expect(diagnostics).toContain("Sharpen reduced-DPR output");
+    expect(diagnosticsRegistry).toContain('"adaptiveSharpen"');
+    expect(diagnosticsRegistry).toContain("Sharpen reduced-DPR output");
   });
 
   it("ships an opaque paper comparison without a scene-copy pipeline", () => {
