@@ -3,8 +3,8 @@
 import { mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 import { dirname } from "path";
-import { fileURLToPath } from "url";
 import sharp from "sharp";
+import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -13,6 +13,28 @@ const RSS_URL =
   "https://api.rss2json.com/v1/api.json?rss_url=https://medium.com/feed/@chappyasel";
 const OUTPUT_PATH = join(__dirname, "../../public/data/blog-posts.json");
 const OUTPUT_DIR = join(__dirname, "../../public/data");
+
+/**
+ * Musings that did not go out through Medium and so never reach the RSS
+ * feed. Written ahead of the fetched items, newest first, so a regeneration
+ * cannot drop them. The first six items become the spines on the Musings
+ * shelf (src/app/page.tsx), which is why order matters here.
+ */
+const PINNED_POSTS = [
+  {
+    // Owner request 2026-08-22: #1 on the list and a booklet on the shelf.
+    title: "Trust in the Age of Acceleration",
+    pubDate: "2025-04-03 16:00:00",
+    link: "https://www.aicollective.com/trust",
+    guid: "https://www.aicollective.com/trust",
+    author: "Chappy Asel",
+    thumbnail: "https://www.aicollective.com/images/trust/opengraph-image.jpg",
+    thumbnailWidth: 1200,
+    thumbnailHeight: 630,
+    description:
+      "Holding Society Together When Everything Is Moving Faster Than We Can Understand. How to build and preserve social trust amid AI acceleration and transformative technological change.",
+  },
+];
 
 /**
  * Strips HTML tags and converts HTML entities to plain text.
@@ -103,7 +125,10 @@ async function fetchBlogPosts() {
   );
 
   mkdirSync(OUTPUT_DIR, { recursive: true });
-  writeFileSync(OUTPUT_PATH, JSON.stringify({ items }, null, 2));
+  writeFileSync(
+    OUTPUT_PATH,
+    JSON.stringify({ items: [...PINNED_POSTS, ...items] }, null, 2),
+  );
 }
 
 fetchBlogPosts()

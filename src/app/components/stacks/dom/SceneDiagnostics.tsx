@@ -13,6 +13,7 @@ import {
   insectDiagnosticsController,
   summarizeInsectPerchDiagnostics,
 } from "../scene/insectPerchDiagnostic";
+import { lighthouseBeaconDiagnosticsController } from "../scene/lighthouseBeaconDiagnostics";
 import { meadowDiagnosticsController } from "../scene/meadowDiagnostics";
 import { MEADOW_WIND } from "../scene/meadowMotion";
 import {
@@ -756,6 +757,11 @@ export default function SceneDiagnostics({
     coordinationGlobeDiagnosticsController.getSnapshot,
     coordinationGlobeDiagnosticsController.getSnapshot,
   );
+  const lighthouseBeaconSnapshot = useSyncExternalStore(
+    lighthouseBeaconDiagnosticsController.subscribe,
+    lighthouseBeaconDiagnosticsController.getSnapshot,
+    lighthouseBeaconDiagnosticsController.getSnapshot,
+  );
   const activeUnit = useStacks((state) => state.activeUnit);
   const summary = summarizeInsectPerchDiagnostics(snapshot.diagnostics);
   const activeSummary = summarizeInsectPerchDiagnostics(
@@ -1497,6 +1503,18 @@ export default function SceneDiagnostics({
                   }
                 />{" "}
                 Coordination singularity
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={lighthouseBeaconSnapshot.effectEnabled}
+                  onChange={(event) =>
+                    lighthouseBeaconDiagnosticsController.setEffectEnabled(
+                      event.currentTarget.checked,
+                    )
+                  }
+                />{" "}
+                Lighthouse beam
               </label>
               <label>
                 <input

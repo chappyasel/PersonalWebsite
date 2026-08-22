@@ -262,7 +262,9 @@ describe("scene performance integration", () => {
     expect(effects).toContain("resolutionScale={0.5}");
     expect(effects).toContain("<LiveBokehDepthOfField");
     expect(effects).toContain("bokehScale={plan.depthOfFieldBokehScale}");
-    expect(effects).toContain("focusRange={golfFocused ? 16.5 : 2.2}");
+    expect(effects).toContain(
+      "golfFocused ? 16.5 : SHELF_DEPTH_OF_FIELD_FALLOFF_RANGE",
+    );
     expect(effects).not.toContain("focusRange={activeUnit === 2");
   });
 

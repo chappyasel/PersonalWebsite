@@ -113,13 +113,17 @@ export const MODEL_URLS = [
   // their geometry is separate, their themed texture is already shared.
   "/models/succulent-pot.glb",
   "/models/yucca-plant.glb",
-  "/models/sailboat.glb",
+  "/models/kettle.glb",
+  // 2026-08-22: the Musings sailboat came out and the Gay Head lighthouse
+  // went in (owner's call). Same slot, same reason for being here: a
+  // placed prop that is not preloaded pops in on its own after first paint.
+  "/models/lighthouse.glb",
   "/models/phone.glb",
   "/models/notebook.glb",
   "/models/harmonica.glb",
 ];
 
-/** Isa Lousberg's houseplants are a second atlas set: every prop in it
+/** Isa Lousberg's tiny-treats props are a second atlas set: every prop in it
  * samples ONE shared texture, so the palette-remapped pair themes all of
  * them at once — same mechanism and same ~2KB as the CreativeTrio atlas.
  * The pipeline refuses to build a `recolor` prop that doesn't match it. */
@@ -134,7 +138,6 @@ const atlasMaterials = new Map<string, THREE.MeshStandardMaterial>();
 
 const ABOUT_CHAIR_URL = "/models/couch.glb";
 const BARBELL_URL = "/models/barbell.glb";
-const SAILBOAT_URL = "/models/sailboat.glb";
 let aboutChairFabric:
   | { color: THREE.DataTexture; roughness: THREE.DataTexture }
   | undefined;
@@ -572,8 +575,10 @@ export function articulateDeskLampHead(
  * Preserve a model's rendered triangles while giving each disconnected part
  * its own mesh bound. The insect collision index is deliberately one AABB per
  * mesh. Some assets group physically separate pieces into broad material
- * meshes: the sailboat's masthead otherwise inherits a hull-sized blocker,
- * while the barbell's shaft inherits a box spanning both plates.
+ * meshes: the barbell's shaft otherwise inherits a box spanning both plates
+ * (and the retired Musings sailboat's masthead inherited a hull-sized blocker
+ * the same way — the lighthouse that replaced it ships its parts as separate
+ * nodes, so it needs no split).
  */
 export function splitDisconnectedMeshIslands(root: THREE.Object3D): void {
   const meshes: THREE.Mesh<THREE.BufferGeometry, THREE.Material>[] = [];
@@ -987,10 +992,17 @@ export default function ModelProp({
   /** tinted only: material name → hex color remap. */
   tints?: Record<string, string>;
   /** tinted only: opt selected materials into physically metallic shading
-   * without making grips, pages, or other sibling materials metallic. */
+   * without making grips, pages, or other sibling materials metallic, or give
+   * one material its own glow (the lighthouse lantern's Glass) without
+   * touching its siblings. */
   materialProperties?: Record<
     string,
-    { metalness?: number; roughness?: number }
+    {
+      metalness?: number;
+      roughness?: number;
+      emissive?: string;
+      emissiveIntensity?: number;
+    }
   >;
   /** tinted only: multiply every material (and its texture) by this color. */
   tintAll?: string;
@@ -1094,6 +1106,10 @@ export default function ModelProp({
         const properties = materialProperties?.[src.name];
         mat.metalness = properties?.metalness ?? 0;
         mat.roughness = properties?.roughness ?? roughness;
+        if (properties?.emissive) {
+          mat.emissive.set(properties.emissive);
+          mat.emissiveIntensity = properties.emissiveIntensity ?? 1;
+        }
         const detailHalfSpace = modelDetailHalfSpace(url, src.name);
         if (detailHalfSpace)
           mesh.geometry = filterTrianglesToHalfSpace(
@@ -1146,8 +1162,7 @@ export default function ModelProp({
         mesh.material = mat;
       });
     }
-    if (url === SAILBOAT_URL || url === BARBELL_URL)
-      splitDisconnectedMeshIslands(clone);
+    if (url === BARBELL_URL) splitDisconnectedMeshIslands(clone);
     if (spinPart === "sphere") splitSpinPart(clone);
     const deskLampHead =
       deskLampHeadQuaternion ??

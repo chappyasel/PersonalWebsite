@@ -62,7 +62,7 @@ describe("scene backdrop", () => {
   // missed frame became black, and preserving the buffer did not make a DPR
   // reallocation atomic. Keep alpha so this backdrop is the fallback pixels.
   it("keeps the scene backdrop reachable through the canvas alpha channel", () => {
-    expect(canvas).toContain("gl={{ antialias: true }}");
+    expect(canvas).toContain("gl={{ antialias: true, stencil: true }}");
     expect(canvas).not.toContain("createOpaqueSceneContext(");
     expect(canvas).not.toMatch(/alpha:\s*false/);
   });

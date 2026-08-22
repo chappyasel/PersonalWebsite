@@ -43,7 +43,7 @@ test("desktop details focus mode persists and guards the H shortcut", async ({
     }>;
   });
   const sceneIds = sceneInteractions.map((item) => item.id);
-  expect(sceneIds).toContain("grab:sailboat:musings");
+  expect(sceneIds).toContain("grab:lighthouse:musings");
   expect(sceneIds).toContain("grab:tj-medallion:about");
   expect(sceneIds).toContain("grab:plant:about-succulent");
   expect(sceneIds).toContain("grab:plant:about-large");

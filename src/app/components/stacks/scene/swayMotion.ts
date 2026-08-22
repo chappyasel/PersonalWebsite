@@ -33,9 +33,9 @@ import { HOVER_MOTION_SCALE } from "./Lift";
  *
  * WHAT THIS DELIBERATELY IS NOT: a bend. Foliage really bends from the soil
  * line, and both routes to that were rejected. A vertex shader would have to
- * inject into a material FIVE of the nine plants share with the mugs, clocks
- * and headphones (see `atlasMaterial` and `userData.shared` in ModelProp), so
- * bending one plant would bend half the shelf. Splitting the foliage into its
+ * inject into a material several plants share with the mugs and clocks (see
+ * `atlasMaterial` and `userData.shared` in ModelProp), so bending one plant
+ * would bend half the shelf. Splitting the foliage into its
  * own node is possible (`articulateDeskLampHead` does exactly that shape of
  * thing) but bails on any multi-mesh GLB and takes the prop off ModelProp's
  * hover floor. Leaning the whole plant about the edge it rests on is what the

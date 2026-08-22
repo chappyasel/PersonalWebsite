@@ -126,8 +126,8 @@ describe("shelf physics lifecycle and carrying", () => {
       maxSubSteps: 2,
     });
     expect(freeBodyStepPolicy(true)).toEqual({
-      fixedStep: 1 / 120,
-      maxSubSteps: 2,
+      fixedStep: 1 / 240,
+      maxSubSteps: 4,
     });
   });
 

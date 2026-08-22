@@ -66,11 +66,11 @@ const SETTLED_ANGULAR_SPEED = 0.08;
 
 /** Keep collision accuracy independent from renderer cadence without allowing
  * a late frame to schedule an unbounded solver catch-up. A fast thin body gets
- * two half-size steps; every other body retains the ordinary 60 Hz step. */
+ * four quarter-size steps; every other body retains the ordinary 60 Hz step. */
 export function freeBodyStepPolicy(thinFastBody: boolean) {
   return {
-    fixedStep: thinFastBody ? 1 / 120 : 1 / 60,
-    maxSubSteps: 2,
+    fixedStep: thinFastBody ? 1 / 240 : 1 / 60,
+    maxSubSteps: thinFastBody ? 4 : 2,
   } as const;
 }
 const SAFETY_HORIZONTAL_MARGIN = 8;

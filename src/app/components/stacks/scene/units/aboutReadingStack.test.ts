@@ -47,7 +47,7 @@ describe("About recent-reading fan", () => {
       base: CURRENT_READING_BASE,
       rotation: CURRENT_READING_ROTATION,
     });
-    expect(poses[0].base[0]).toBeCloseTo(0.71, 10);
+    expect(poses[0].base[0]).toBeCloseTo(0.745, 10);
     expect(poses[0].base[2]).toBeCloseTo(-0.155, 10);
     expect(readingCoverForward(poses[0].rotation)).toBeCloseTo(
       Math.cos((Math.PI * 2) / 9),

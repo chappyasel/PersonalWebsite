@@ -52,7 +52,7 @@ a floating fallback.
 | Training | Protein-tub lid; basketball crown; kettlebell handle; dumbbell head; golf-flag finial                                                  |
 | Systems  | Sansevieria pot/leaf edge; alarm-clock crown; routine-board top edge; desk-lamp shade exterior; grandfather-clock crown                |
 | Projects | Trophy rim; notebook cover; phone case edge; compact Mac top; project-photo frame top                                                  |
-| Musings  | Mug rim; sailboat mast/cabin; headphones band; teacup rim; open-book center ridge                                                      |
+| Musings  | Mug rim; lighthouse lantern dome; Trust essay cover; headphones band; teacup rim; open-book center ridge                              |
 | Talks    | Microphone grille; harmonica top; pothos leaf/pot rim; portrait-frame top; floor-lamp shade exterior                                   |
 
 Safety rules: never place a perch inside a lamp shade or through a hot/light

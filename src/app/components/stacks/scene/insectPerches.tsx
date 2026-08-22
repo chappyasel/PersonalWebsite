@@ -16,7 +16,10 @@ import {
   sceneInteractionRoots,
 } from "./interactionRegistry";
 import { type MeadowLamp, getMeadowLamps } from "./meadowLights";
-import { MUSINGS_LOWER_BOOK } from "./musingsShelfGeometry";
+import {
+  MUSINGS_LOWER_LAYOUT,
+  MUSINGS_TRUST_COVER_PERCH,
+} from "./musingsShelfGeometry";
 import { deskFrameHeight } from "./photoGeometry";
 import { SHELF_GEOMETRY, SHELF_SURFACE } from "./shelfGeometry";
 import {
@@ -24,9 +27,10 @@ import {
   readingStackPoses,
 } from "./units/aboutReadingStack";
 import {
+  MUSINGS_HEADPHONE_PERCH_POSITION,
   MUSINGS_LAMP_SHADE_PERCH,
   MUSINGS_OPEN_BOOK_PERCH_POSITION,
-  MUSINGS_TEA_RIM_POSITION,
+  MUSINGS_TEA_HANDLE_POSITION,
 } from "./units/musingsShelfLighting";
 import {
   PROJECT_APPLE_PHOTO_POSE,
@@ -625,8 +629,7 @@ const UNIT_PERCHES: readonly (readonly PerchDefinition[])[] = [
     {
       id: "about:aic-crown",
       position: [
-        ABOUT_BOOT_LANDMARKS["ai-collective"].x +
-          0.0053 * ABOUT_AIC_SCALE,
+        ABOUT_BOOT_LANDMARKS["ai-collective"].x + 0.0053 * ABOUT_AIC_SCALE,
         SHELF_SURFACE.lower + 0.208 * ABOUT_AIC_SCALE,
         SHELF_GEOMETRY.lower.centerZ + 0.0047 * ABOUT_AIC_SCALE,
       ],
@@ -1025,23 +1028,22 @@ const UNIT_PERCHES: readonly (readonly PerchDefinition[])[] = [
   [
     {
       id: "musings:writing-paper",
-      position: [-0.46, -0.8291, -0.02],
+      position: [MUSINGS_LOWER_LAYOUT.paperX - 0.16, -0.8291, -0.02],
       normal: [0, 1, 0],
       tangent: [0.9892, 0, -0.1463],
       ownerId: "grab:paper:5",
     },
     {
-      id: "musings:book-pile-top",
-      position: [
-        MUSINGS_LOWER_BOOK.x +
-          (MUSINGS_LOWER_BOOK.count - 1) * MUSINGS_LOWER_BOOK.staggerX,
-        SHELF_SURFACE.lower +
-          MUSINGS_LOWER_BOOK.count * MUSINGS_LOWER_BOOK.height,
-        0,
-      ],
-      normal: [0, 1, 0],
-      tangent: [1, 0, 0.0005],
-      ownerId: "link:row:5:47:0:2",
+      // The reclined cover of the printed Trust essay on its reading stand,
+      // derived from the same constants the prop is built from; the lamp
+      // shade is the precedent for a Perch on a tilted face. Analytic rather
+      // than read back from the running scene — re-measure from the HUD the
+      // next time the scene is open and copy the contact back here.
+      id: "musings:trust-cover",
+      position: MUSINGS_TRUST_COVER_PERCH.position,
+      normal: MUSINGS_TRUST_COVER_PERCH.normal,
+      tangent: [1, 0, 0],
+      ownerId: "grab:trust-essay:musings",
     },
     {
       id: "musings:open-book-page",
@@ -1051,10 +1053,10 @@ const UNIT_PERCHES: readonly (readonly PerchDefinition[])[] = [
       ownerId: "grab:openbook",
     },
     {
-      id: "musings:tea-rim",
-      position: MUSINGS_TEA_RIM_POSITION,
+      id: "musings:tea-handle",
+      position: MUSINGS_TEA_HANDLE_POSITION,
       normal: [0, 1, 0],
-      tangent: [0.8253, 0, -0.5646],
+      tangent: [0.5646, 0, 0.8253],
       ownerId: "egg:tea",
     },
     {
@@ -1069,21 +1071,24 @@ const UNIT_PERCHES: readonly (readonly PerchDefinition[])[] = [
     },
     {
       id: "musings:headphone-band",
-      position: [0.04, 0.387, 0.14],
+      position: MUSINGS_HEADPHONE_PERCH_POSITION,
       normal: [0, 1, 0],
       tangent: [1, 0, 0],
       ownerId: "grab:headphones",
     },
     {
-      // The top of the rig, measured off the resolved contact rather than
-      // guessed from the source mesh's bounding box. ModelProp splits the
-      // sailboat's disconnected mast/hull islands for collision, but the
-      // triangle contact remains the only honest anchor.
-      id: "musings:sailboat-masthead",
-      position: [0.9295, -0.5023, -0.0597],
-      normal: [0.2844, 0.9581, 0.0343],
-      tangent: [0.9564, 0, -0.292],
-      ownerId: "grab:sailboat:musings",
+      // The lantern dome, camera side, copied back from the resolved
+      // triangle contact (UnitBlog.landing.test.ts lands five variations on
+      // it against the real GLB). Not the gallery deck or the plinth ledge:
+      // both measured as flat and both are blocked, because the brick tower,
+      // deck and drum weld into one collision island whose box reaches the
+      // lantern floor — the same hull-sized-blocker problem the sailboat's
+      // masthead had, now at the other end of the prop.
+      id: "musings:lighthouse-dome",
+      position: [MUSINGS_LOWER_LAYOUT.lighthouseX + 0.018, -0.2805, -0.062],
+      normal: [0.2631, 0.9037, 0.3377],
+      tangent: [0.7891, 0, -0.6143],
+      ownerId: "grab:lighthouse:musings",
     },
   ],
   [

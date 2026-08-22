@@ -69,7 +69,7 @@ describe("free-roam controls", () => {
 
   it("hides the mobile sheet on entry and lets H toggle it", () => {
     expect(chromeSource).toContain("setStacksSheetDismissed(true)");
-    expect(placardSource).toContain("setStacksSheetDismissed(");
+    expect(placardSource).toContain("setDismissed={setStacksSheetDismissed}");
     expect(placardSource).not.toContain(
       "const [mobileDismissed, setMobileDismissed] = useState(false)",
     );

@@ -2,10 +2,12 @@
   "generated": "scripts/stacks-models.mjs",
   "note": "Source models are CC0 except the credited CC-BY set and the vendored MIT FluffyGrass asset below.",
   "attributionRequired": [
+    "J-Toastie",
     "Poly by Google",
     "Arif",
     "Zsky",
     "Charlie",
+    "Robert Mirabelle",
     "Alex Safayan",
     "jeremy"
   ],
@@ -34,9 +36,9 @@
     {
       "file": "headphones.glb",
       "title": "headphones",
-      "author": "CreativeTrio",
-      "license": "CC0 1.0",
-      "source": "https://poly.pizza/m/PSsWSIAYIL"
+      "author": "J-Toastie",
+      "license": "CC-BY 3.0",
+      "source": "https://poly.pizza/m/EwlPidEswV"
     },
     {
       "file": "dumbbell.glb",
@@ -200,11 +202,18 @@
       "source": "https://poly.pizza/m/uKRTMhxfiu"
     },
     {
-      "file": "sailboat.glb",
-      "title": "Sail Boat",
-      "author": "Quaternius",
+      "file": "kettle.glb",
+      "title": "Kettle",
+      "author": "Isa Lousberg",
       "license": "CC0 1.0",
-      "source": "https://poly.pizza/m/BgSZXwmm7k"
+      "source": "https://poly.pizza/m/vhYEWaQZvT"
+    },
+    {
+      "file": "lighthouse.glb",
+      "title": "Lighthouse",
+      "author": "Robert Mirabelle",
+      "license": "CC-BY 3.0",
+      "source": "https://poly.pizza/m/3gEvVZoTN7e"
     },
     {
       "file": "phone.glb",

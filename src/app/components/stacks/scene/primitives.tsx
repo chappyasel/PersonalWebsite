@@ -143,6 +143,27 @@ export function coverExtent(s: number, lean: number): number {
   );
 }
 
+/** Exact occupied horizontal interval of a generated row. `packRow(width)`
+ * reserves margins and may finish with a narrow book, so its contents are
+ * not centered inside the nominal width. Consumers that align or neighbor a
+ * row must use this interval rather than `width / 2`. */
+export function bookRowXBounds(items: readonly RowItem[]) {
+  if (items.length === 0) return { min: 0, max: 0 } as const;
+  let min = Infinity;
+  let max = -Infinity;
+  for (const item of items) {
+    const halfWidth =
+      item.kind === "flat"
+        ? (item.width ?? 0.32) / 2
+        : item.kind === "cover"
+          ? coverExtent(item.s ?? 1, item.lean ?? 0)
+          : item.w / 2;
+    min = Math.min(min, item.x - halfWidth);
+    max = Math.max(max, item.x + halfWidth);
+  }
+  return { min, max } as const;
+}
+
 /** Width below which a spine gets no printed detail at all. Not every book on
  * a shelf has bands and a title block — a row where all fourteen do is a
  * wallpaper pattern, which is the other way to fail at "these are books". */
@@ -946,18 +967,7 @@ export function BookRowMesh({
   );
   const contact = useMemo(() => {
     if (items.length === 0) return [] as number[];
-    let lo = Infinity;
-    let hi = -Infinity;
-    for (const it of items) {
-      const half =
-        it.kind === "flat"
-          ? (it.width ?? 0.32) / 2
-          : it.kind === "cover"
-            ? coverExtent(it.s ?? 1, it.lean ?? 0)
-            : it.w / 2;
-      lo = Math.min(lo, it.x - half);
-      hi = Math.max(hi, it.x + half);
-    }
+    const { min: lo, max: hi } = bookRowXBounds(items);
     const span = hi - lo;
     const n = Math.max(1, Math.round(span / 0.7));
     return Array.from({ length: n }, (_, k) => lo + (span * (k + 0.5)) / n);
@@ -1242,8 +1252,11 @@ function woodGrainTexture(hex: string, vertical: boolean): THREE.CanvasTexture {
 }
 
 /** Plank/strap material with grain + per-unit tone jitter. The map carries
- * the palette hex, so `color` is just the ±4% scalar. */
-function WoodMaterial({
+ * the palette hex, so `color` is just the ±4% scalar. Exported for the one
+ * authored wooden prop that is not shelving (the Musings Vineyard cutout), so
+ * its grain is the shelf's grain in a paler tone rather than a second
+ * texture. */
+export function WoodMaterial({
   hex,
   tone = 1,
   vertical = false,
