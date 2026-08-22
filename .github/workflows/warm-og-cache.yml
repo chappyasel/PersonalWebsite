@@ -8,37 +8,54 @@ on:
 permissions:
   contents: read
   statuses: read
+  deployments: read
 
 jobs:
   warm:
     runs-on: ubuntu-latest
     steps:
-      # A failed deploy is the deploy's own red mark. This job used to fail
-      # alongside it, which said "the OG warmer is broken" when the warmer had
-      # simply been given nothing to warm. Report the deploy's own statuses and
-      # stand down instead; a timeout still fails, because that one is ours.
-      - name: Wait for Vercel production deploy
+      # This used to read the aggregate commit status and exit 1 on `failure`,
+      # which meant the warmer showed red for a broken deploy and would have
+      # shown red for any unrelated check that ever started reporting a status
+      # on main. Read the production deployment itself instead.
+      #
+      # Verified read-only against this repository on 2026-08-21: every push to
+      # main carries deployments created by vercel[bot] with environment
+      # "Production", and pushes that also have a preview carry a second
+      # deployment with environment "Preview" that this selector skips
+      # (4ab4d70 has both). The aggregate status has exactly one context today,
+      # "Vercel", so it cannot tell those two apart.
+      - name: Wait for the Vercel production deployment
         id: deploy
         env:
           GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           for i in $(seq 1 60); do
-            state=$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/status" --jq '.state // "pending"')
-            echo "[$i] Vercel status: $state"
+            id=$(gh api "repos/$REPO/deployments?sha=$SHA&per_page=30" \
+              --jq '[.[] | select((.environment // "") | ascii_downcase == "production")] | first | .id // empty')
+            if [ -z "$id" ]; then
+              echo "[$i] no production deployment for $SHA yet"
+              sleep 20
+              continue
+            fi
+            state=$(gh api "repos/$REPO/deployments/$id/statuses?per_page=1" --jq '.[0].state // "pending"')
+            echo "[$i] production deployment $id: $state"
             case "$state" in
               success)
                 echo "deployed=true" >> "$GITHUB_OUTPUT"
                 exit 0 ;;
               failure|error)
-                gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/status" --jq '.statuses[] | "\(.context): \(.description)"'
+                gh api "repos/$REPO/deployments/$id/statuses?per_page=1" --jq '.[0].description // "no description"'
                 echo "deployed=false" >> "$GITHUB_OUTPUT"
-                echo "::warning::Skipping the OG cache warm: the production deploy for ${{ github.sha }} did not succeed. Fix the deploy; this job is not the failure."
+                echo "::warning::Skipping the OG cache warm: the Vercel production deployment for $SHA finished $state. Fix the deploy; this job is not the failure."
                 exit 0 ;;
             esac
             sleep 20
           done
-          echo "::error::Timed out after 20 minutes waiting for a Vercel status on ${{ github.sha }}."
+          echo "::error::Timed out after 20 minutes waiting for a Vercel production deployment status on $SHA."
           exit 1
 
       - name: Fetch book slugs from production

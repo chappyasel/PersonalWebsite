@@ -1,12 +1,20 @@
 #!/usr/bin/env node
-// One command for every check that is honest without a production build.
+// The code gate. Everything here is deterministic, needs no credentials, and
+// no build output, so a red result means someone broke the code.
 //
-// Deliberately absent: `yarn check:budgets`. It measures gzipped chunk sizes
+// Two things are deliberately not here.
+//
+// Homepage OG freshness lives in `yarn verify:artifacts`. It asks whether a
+// committed binary still matches the source it was captured from, which is a
+// question about an artifact rather than about the code, and answering it green
+// again needs a production build with database credentials. Folding it in here
+// would mean the code gate could never go green on a correct branch.
+// `.github/workflows/refresh-home-og.yml` remains the precise signal for it.
+//
+// Route budgets stay on `postbuild`. `check:budgets` reads gzipped chunk sizes
 // from `.next/server/app/**/page_client-reference-manifest.js`, so it reports
-// whatever the last build left on disk — or nothing at all in a fresh
-// checkout. Running it here would let a stale or missing `.next` masquerade as
-// a passing budget, so it stays attached to `postbuild` where a fresh build
-// produced its input.
+// whatever the last build left on disk, or nothing at all in a fresh checkout.
+// Running it here would let a stale `.next` masquerade as a passing budget.
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -57,10 +65,10 @@ const STEPS = [
     args: ["run", "--exclude", "tests/e2e/**"],
   },
   {
-    name: "home-og freshness",
-    detail: "committed JPEG still matches its visual inputs",
-    command: process.execPath,
-    args: ["scripts/check-home-og-freshness.mjs"],
+    name: "meadow",
+    detail: "no reachable meadow boundary from any pose",
+    command: binary("tsx"),
+    args: ["scripts/stacks-meadow-check.ts"],
   },
 ];
 
@@ -100,8 +108,8 @@ for (const result of results) {
 for (const step of STEPS.slice(results.length)) {
   console.log(`skip  ${step.name.padEnd(width)}`);
 }
-console.log(
-  "n/a   route budgets — needs a fresh `yarn build`; `yarn check:budgets` runs on postbuild",
-);
+console.log("\nNot covered here:");
+console.log("  generated-artifact freshness — `yarn verify:artifacts`");
+console.log("  route budgets — needs a fresh `yarn build`, runs on postbuild");
 
 process.exit(results.every((result) => result.passed) ? 0 : 1);

@@ -2,6 +2,7 @@
 export const ABOUT_BOOT_MODEL_SILHOUETTES = {
   "globe": {
     "source": "/models/globe.glb",
+    "sourceKind": "file",
     "sourceFile": "public/models/globe.glb",
     "sha256": "16d3b6b74d4884e7e86780c4736834182c80431990877a17fe07bb4531e1a63c",
     "viewBox": [
@@ -14,6 +15,7 @@ export const ABOUT_BOOT_MODEL_SILHOUETTES = {
   },
   "cactus": {
     "source": "/models/cactus.glb",
+    "sourceKind": "file",
     "sourceFile": "public/models/cactus.glb",
     "sha256": "e25b0faec446692f17201122b7e3b5170d78d2f90433ba0140db31775607ada8",
     "viewBox": [
@@ -26,6 +28,7 @@ export const ABOUT_BOOT_MODEL_SILHOUETTES = {
   },
   "desk-lamp": {
     "source": "/models/desk-lamp.glb",
+    "sourceKind": "file",
     "sourceFile": "public/models/desk-lamp.glb",
     "sha256": "4b5b613b9d904ebb0df017eba417875b1057322d30a116d6c39b48c51f65619f",
     "viewBox": [
@@ -38,6 +41,7 @@ export const ABOUT_BOOT_MODEL_SILHOUETTES = {
   },
   "succulent": {
     "source": "/models/succulent-pot.glb",
+    "sourceKind": "file",
     "sourceFile": "public/models/succulent-pot.glb",
     "sha256": "67c82ffa80fb09e43341c4616e9ab615cbf69095db7febc358925b3effb038d4",
     "viewBox": [
@@ -50,6 +54,7 @@ export const ABOUT_BOOT_MODEL_SILHOUETTES = {
   },
   "large-plant": {
     "source": "/models/potted-plant.glb",
+    "sourceKind": "file",
     "sourceFile": "public/models/potted-plant.glb",
     "sha256": "b8c70bbccef96aadf311af4021b41ca5ee0c459565f4b34f88b321a2a89cfa46",
     "viewBox": [
@@ -62,6 +67,7 @@ export const ABOUT_BOOT_MODEL_SILHOUETTES = {
   },
   "ai-collective": {
     "source": "/images/stacks/v8/ai-collective-mark.svg",
+    "sourceKind": "file",
     "sourceFile": "public/images/stacks/v8/ai-collective-mark.svg",
     "sha256": "ae2d247170c65ec25d724ae01e2aa1ac948a88df8ab0d8f7990e01a3820a4aae",
     "viewBox": [
@@ -73,9 +79,10 @@ export const ABOUT_BOOT_MODEL_SILHOUETTES = {
     "path": "M184 35L183 42L142 79L133 79L118 68L98 64L79 66L64 72L59 72L57 71L57 65L61 61L71 55L87 50L113 51L138 62L162 40L158 34L149 28L123 18L112 16L87 16L73 19L52 28L34 42L23 59L18 78L19 98L24 113L33 127L49 141L69 150L97 153L113 150L134 139L140 139L184 178L183 185L176 191L153 206L132 215L104 221L81 221L60 217L44 211L22 198L8 185L2 175L2 170L5 168L10 169L18 178L32 188L50 197L71 203L97 205L115 203L133 198L163 182L163 180L138 157L123 165L108 169L94 170L75 168L49 159L35 150L23 139L13 126L5 109L2 96L2 74L12 46L29 26L48 13L67 5L87 1L110 1L132 5L153 13L167 21Z"
   },
   "tj-medallion": {
-    "source": "authored:TJMedallionBody",
-    "sourceFile": "src/app/components/stacks/scene/AuthoredProps.tsx",
-    "sha256": "0474b7333b1bee03d98da1aeae1224f0114b29c616de3cb44810710adebc40de",
+    "source": "spec:TJ_MEDALLION_SOLIDS",
+    "sourceKind": "spec",
+    "sourceFile": "src/app/components/stacks/scene/tjMedallionGeometry.js",
+    "sha256": "abdd865b23c5b498119c60ff052f41b5355c4a0cd1e3c62777a16e4ad4237091",
     "viewBox": [
       0,
       0,

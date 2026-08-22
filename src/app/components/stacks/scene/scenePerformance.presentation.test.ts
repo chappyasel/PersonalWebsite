@@ -267,9 +267,10 @@ describe("scene performance integration", () => {
     expect(effects).toContain("resolutionScale={0.5}");
     expect(effects).toContain("<LiveBokehDepthOfField");
     expect(effects).toContain("bokehScale={plan.depthOfFieldBokehScale}");
-    // The shelf falloff moved behind a named constant when the clear band
-    // landed. It still resolves to the same 2.2-unit distance to full blur,
-    // so assert the branch and let shelfDepthOfField.ts own the number.
+    // Source-shape check for the branch, real assertions for the numbers. The
+    // shelf falloff moved behind a named constant when the clear band landed,
+    // so the text check confirms Effects.tsx reads that constant and the two
+    // expectations below confirm what it resolves to.
     expect(effects).toContain(
       "golfFocused ? 16.5 : SHELF_DEPTH_OF_FIELD_FALLOFF_RANGE",
     );

@@ -25,6 +25,7 @@
     "typegen": "SKIP_ENV_VALIDATION=1 next typegen",
     "typecheck": "yarn typegen && tsc --noEmit",
     "verify": "node scripts/verify.mjs",
+    "verify:artifacts": "yarn check:home-og",
     "start": "next start",
     "check:budgets": "node scripts/check-route-budgets.mjs",
     "check:node-version": "node scripts/check-node-version.mjs",

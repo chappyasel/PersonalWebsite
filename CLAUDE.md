@@ -19,7 +19,8 @@ This repository uses a multi-context domain map. See `docs/agents/domain.md`.
 ### Development
 
 ```bash
-yarn verify           # Every check that does not need a production build
+yarn verify           # Code gate: types, lint, unit suite, meadow check
+yarn verify:artifacts # Artifact gate: committed generated files still fresh
 yarn dev              # Start development server (http://localhost:3000)
 yarn build            # Build the application for production
 yarn fix              # Run ESLint with auto-fix (includes Prettier formatting)
@@ -28,10 +29,23 @@ yarn typecheck        # next typegen, then tsc --noEmit
 yarn typegen          # Write next-env.d.ts and .next/types without a build
 ```
 
-`yarn verify` is the entry point CI runs, and it covers types, lint, the unit
-suite, and homepage OG freshness. It does not cover route budgets: those read
-gzipped chunk sizes out of `.next`, so they only mean anything right after a
-build, which is where `postbuild` already runs them.
+Two gates, because they fail for different reasons and want different fixes.
+
+`yarn verify` is the code gate and the one CI runs: `next typegen`, `tsc`,
+`eslint --max-warnings 0`, the unit suite, and `yarn check:meadow`. Everything
+in it is deterministic and needs no credentials, so red means someone broke the
+code.
+
+`yarn verify:artifacts` asks whether committed generated files still match the
+sources they were made from. Today that is the homepage OG capture, and
+regenerating it needs a production build with database credentials.
+`.github/workflows/refresh-home-og.yml` is the precise CI signal for it. Keeping
+it out of `yarn verify` is deliberate: a code gate that can never go green is a
+code gate people learn to ignore.
+
+Neither covers route budgets. Those read gzipped chunk sizes out of `.next`, so
+they only mean anything right after a build, which is where `postbuild` already
+runs them.
 
 Run `yarn typegen` before `yarn tsc --noEmit` or `yarn lint` in a fresh
 worktree. `next-env.d.ts` and `.next/types` are gitignored, and without them

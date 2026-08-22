@@ -69,9 +69,11 @@ describe("free-roam controls", () => {
 
   it("hides the mobile sheet on entry and lets H toggle it", () => {
     expect(chromeSource).toContain("setStacksSheetDismissed(true)");
-    // The placard layer hands the store setter straight to the sheet rather
-    // than calling it, so look for the wiring on both sides instead of an
-    // open paren that only matched the older call site.
+    // Source-shape check: these read component files as text, so they prove
+    // the wiring is written, not that the sheet hides. The placard layer hands
+    // the store setter straight to the sheet rather than calling it, so look
+    // for both sides of that wiring instead of an open paren that only matched
+    // the older call site.
     expect(placardSource).toContain("setStacksSheetDismissed");
     expect(placardSource).toContain("useStacks((s) => s.sheetDismissed)");
     expect(placardSource).not.toContain(
