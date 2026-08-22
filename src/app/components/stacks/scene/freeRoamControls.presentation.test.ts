@@ -13,8 +13,8 @@ const meadowSource = fs.readFileSync(
   new URL("./Meadow.tsx", import.meta.url),
   "utf8",
 );
-const diagnosticsSource = fs.readFileSync(
-  new URL("../dom/SceneDiagnostics.tsx", import.meta.url),
+const diagnosticsRegistrySource = fs.readFileSync(
+  new URL("./sceneDiagnosticsRegistry.ts", import.meta.url),
   "utf8",
 );
 const chromeSource = fs.readFileSync(
@@ -39,7 +39,7 @@ describe("free-roam controls", () => {
     expect(cameraRigSource).not.toContain(
       "freeRoamDiagnosticsController.toggleFog()",
     );
-    expect(diagnosticsSource).toContain(
+    expect(diagnosticsRegistrySource).toContain(
       "freeRoamDiagnosticsController.setFogEnabled(",
     );
     expect(environmentSource).toContain(
@@ -58,11 +58,10 @@ describe("free-roam controls", () => {
     expect(cameraRigSource).toContain("freeRoam.startFromCurrentPose");
   });
 
-  it("restores and persists free roam only in development", () => {
+  it("resets free-roam enablement on reload but retains the last pose", () => {
     expect(chromeSource).toContain('process.env.NODE_ENV !== "development"');
-    expect(chromeSource).toContain('browserStorage("localStorage")');
-    expect(chromeSource).toContain("readFreeRoamEnabled(storage)");
-    expect(chromeSource).toContain("writeFreeRoamEnabled(");
+    expect(chromeSource).not.toContain("readFreeRoamEnabled");
+    expect(chromeSource).not.toContain("writeFreeRoamEnabled");
     expect(cameraRigSource).toContain("readFreeRoamPose(");
     expect(cameraRigSource).toContain("writeFreeRoamPose(");
   });

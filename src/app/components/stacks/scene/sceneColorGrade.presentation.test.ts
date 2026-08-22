@@ -9,6 +9,10 @@ const diagnostics = fs.readFileSync(
   new URL("../dom/SceneDiagnostics.tsx", import.meta.url),
   "utf8",
 );
+const diagnosticsRegistry = fs.readFileSync(
+  new URL("./sceneDiagnosticsRegistry.ts", import.meta.url),
+  "utf8",
+);
 const chrome = fs.readFileSync(
   new URL("../dom/ChromeLayer.tsx", import.meta.url),
   "utf8",
@@ -35,10 +39,13 @@ describe("live scene color grading", () => {
   });
 
   it("offers Cinematic+ as a live diagnostics-only quality choice", () => {
-    expect(diagnostics).toContain('<option value="cinematic+">Cinematic+</option>');
-    expect(diagnostics).toContain('qualityControls.cinematicPlus');
-    expect(canvas).toContain('qualityControls.cinematicPlus');
-    expect(effects).toContain('cinematicPlus');
+    expect(diagnosticsRegistry).toContain(
+      '{ value: "cinematic+", label: "Cinematic+"',
+    );
+    expect(diagnosticsRegistry).toContain('experimentalValues: ["cinematic+"]');
+    expect(diagnostics).toContain("qualityControls.cinematicPlus");
+    expect(canvas).toContain("qualityControls.cinematicPlus");
+    expect(effects).toContain("cinematicPlus");
   });
 
   it("keeps color grading out of diagnostics without changing bloom", () => {

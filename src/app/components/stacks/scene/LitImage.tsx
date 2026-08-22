@@ -11,11 +11,8 @@ import { type ThreeEvent, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
 
-import {
-  type ScenePhotoRole,
-  sceneHdPhotosDisabled,
-  scenePhotoUrl,
-} from "./photoTextures";
+import { type ScenePhotoRole, scenePhotoUrl } from "./photoTextures";
+import { useScenePerformanceSettings } from "./scenePerformance";
 
 /** object-fit: cover with an optional zoom and focal point. `focus` is
  * CSS-object-position-like: [x from left, y from TOP], each 0..1. */
@@ -147,16 +144,7 @@ function LitImageSource({
     texture.anisotropy = maxAnisotropy;
     fitCover(texture, width, height, zoom, [fx, fy]);
     texture.needsUpdate = true;
-  }, [
-    texture,
-    maxAnisotropy,
-    width,
-    height,
-    grade,
-    zoom,
-    fx,
-    fy,
-  ]);
+  }, [texture, maxAnisotropy, width, height, grade, zoom, fx, fy]);
   useEffect(() => () => texture.dispose(), [texture]);
   const geometry = useMemo(
     () =>
@@ -211,11 +199,10 @@ export default function LitImage({
   role = "feature",
   ...props
 }: LitImageProps) {
+  const performanceSettings = useScenePerformanceSettings();
   const previewUrl = scenePhotoUrl(url, role);
   const previewTexture = useTexture(previewUrl);
-  const detailsDisabled =
-    typeof window !== "undefined" &&
-    sceneHdPhotosDisabled(window.location.search);
+  const detailsDisabled = !performanceSettings.highResolutionPhotos;
   const [detail, setDetail] = useState<{
     url: string;
     texture: THREE.Texture;
@@ -238,7 +225,10 @@ export default function LitImage({
     };
   }, [detailUrl, detailsDisabled, previewUrl]);
 
-  const detailTexture = detailUrl && detail?.url === detailUrl ? detail.texture : null;
+  const detailTexture =
+    !detailsDisabled && detailUrl && detail?.url === detailUrl
+      ? detail.texture
+      : null;
 
   // Only callers with a distinct authored detail URL request another decode.
   // Local scene photos remain on their role-sized assets.

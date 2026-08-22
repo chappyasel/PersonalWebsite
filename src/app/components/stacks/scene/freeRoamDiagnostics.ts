@@ -11,7 +11,6 @@ export type FreeRoamPose = Readonly<{
 
 type FreeRoamStorage = Pick<Storage, "getItem" | "setItem">;
 
-export const FREE_ROAM_STORAGE_KEY = "stacks-free-roam:v1";
 export const FREE_ROAM_POSE_STORAGE_KEY = "stacks-free-roam-pose:v1";
 
 function isFiniteTriplet(value: unknown): value is [number, number, number] {
@@ -22,25 +21,6 @@ function isFiniteTriplet(value: unknown): value is [number, number, number] {
       typeof component === "number" ? Number.isFinite(component) : false,
     )
   );
-}
-
-export function readFreeRoamEnabled(storage: FreeRoamStorage | null) {
-  try {
-    return storage?.getItem(FREE_ROAM_STORAGE_KEY) === "true";
-  } catch {
-    return false;
-  }
-}
-
-export function writeFreeRoamEnabled(
-  storage: FreeRoamStorage | null,
-  enabled: boolean,
-) {
-  try {
-    storage?.setItem(FREE_ROAM_STORAGE_KEY, String(enabled));
-  } catch {
-    // Dev convenience must not break the scene in hardened browser contexts.
-  }
 }
 
 export function readFreeRoamPose(

@@ -47,6 +47,7 @@ import {
   sceneColorGradeFor,
   useSceneColorGradeSettings,
 } from "./sceneColorGrade";
+import { useScenePerformanceSettings } from "./scenePerformance";
 import { useSceneQualityControls } from "./sceneQualityController";
 import {
   SHELF_DEPTH_OF_FIELD_FALLOFF_RANGE,
@@ -349,6 +350,7 @@ export default function Effects({
   sharpenAmount?: number;
 }) {
   const baseColorGrade = useSceneColorGradeSettings();
+  const performanceSettings = useScenePerformanceSettings();
   const { cinematicPlus } = useSceneQualityControls();
   const sun = useCinematicSun();
   const colorGrade = sceneColorGradeFor(baseColorGrade, cinematicPlus);
@@ -356,21 +358,14 @@ export default function Effects({
   // minimal effects tier. The
   // owner-approved side tilt shift is the cheaper compositional treatment;
   // it survives in finish mode and can still be isolated with ?notiltshift.
-  const depthOfField = useMemo(
-    () =>
-      typeof window === "undefined" ||
-      !window.location.search.includes("nodof"),
-    [],
-  );
   const tiltShift = useMemo(
     () =>
       tiltShiftEnabled(
         plan.composer === "direct" ? "off" : plan.composer,
-        depthOfField,
-        typeof window !== "undefined" &&
-          window.location.search.includes("notiltshift"),
+        plan.depthOfField,
+        !performanceSettings.sideTiltShift,
       ),
-    [depthOfField, plan.composer],
+    [performanceSettings.sideTiltShift, plan.composer, plan.depthOfField],
   );
   const activeUnit = useStacks((state) => state.activeUnit);
   const golfFocused = useStacks((state) => state.golfFocused);
@@ -385,12 +380,6 @@ export default function Effects({
   const focusTarget = useMemo<[number, number, number]>(
     () => [...depthOfFieldTargetForUnit(activeUnit)],
     [activeUnit],
-  );
-  const graded = useMemo(
-    () =>
-      typeof window === "undefined" ||
-      !window.location.search.includes("nograde"),
-    [],
   );
   return (
     <EffectComposer multisampling={plan.multisampling} stencilBuffer>
@@ -429,15 +418,13 @@ export default function Effects({
           a fixed 6.05 focus distance put the focal plane in the foreground
           grass. The effect measures camera→target every frame, including the
           alternating unit depths and the About stop's lateral offset. */}
-      {plan.depthOfField && depthOfField && !seated && (
+      {plan.depthOfField && !seated && (
         <LiveBokehDepthOfField
           target={focusTarget}
           // Golf owns a real tee-to-green action axis. Keep the static
           // focal plane (never rack focus during a shot), but broaden its
           // accepted range enough that the club and distant cup stay legible.
-          focusRange={
-            golfFocused ? 16.5 : SHELF_DEPTH_OF_FIELD_FALLOFF_RANGE
-          }
+          focusRange={golfFocused ? 16.5 : SHELF_DEPTH_OF_FIELD_FALLOFF_RANGE}
           bokehScale={plan.depthOfFieldBokehScale}
           resolutionScale={plan.depthOfFieldResolutionScale}
         />
@@ -472,7 +459,9 @@ export default function Effects({
         darkness={dark ? colorGrade.dark.vignette : colorGrade.light.vignette}
       />
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-      {graded && <Grade dark={dark} settings={colorGrade} />}
+      {performanceSettings.colorGrade && (
+        <Grade dark={dark} settings={colorGrade} />
+      )}
       {sharpenAmount > 0 && <AdaptiveSharpen amount={sharpenAmount} />}
       <SMAA />
       <ComposerPixelRatio />

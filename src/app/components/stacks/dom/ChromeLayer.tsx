@@ -3,17 +3,12 @@
 // Screen-fixed chrome over the world: shared styles, bottom vignette, the
 // persistent name, and the theme toggle island. Everything except the toggle
 // island is pointer-events-none; interactive layers manage their own events.
-import { browserStorage } from "../mobile/liveness";
 import {
   requestDevHooks,
   requestSceneHooks,
   sceneDiagnosticsQueryMode,
 } from "../scene/devHooks";
-import {
-  freeRoamDiagnosticsController,
-  readFreeRoamEnabled,
-  writeFreeRoamEnabled,
-} from "../scene/freeRoamDiagnostics";
+import { freeRoamDiagnosticsController } from "../scene/freeRoamDiagnostics";
 import { setStacksSheetDismissed, useStacks } from "../store";
 import dynamic from "next/dynamic";
 import { type ComponentType, useEffect, useState } from "react";
@@ -77,17 +72,13 @@ function SceneDiagnosticsLoader() {
   useEffect(() => {
     if (process.env.NODE_ENV !== "development") return;
 
-    const storage = browserStorage("localStorage");
-    freeRoamDiagnosticsController.setEnabled(readFreeRoamEnabled(storage));
-    const syncFreeRoamPreference = () => {
+    const syncFreeRoamSheet = () => {
       const enabled = freeRoamDiagnosticsController.getSnapshot().enabled;
-      writeFreeRoamEnabled(storage, enabled);
       if (enabled) setStacksSheetDismissed(true);
     };
-    syncFreeRoamPreference();
-    const unsubscribe = freeRoamDiagnosticsController.subscribe(
-      syncFreeRoamPreference,
-    );
+    syncFreeRoamSheet();
+    const unsubscribe =
+      freeRoamDiagnosticsController.subscribe(syncFreeRoamSheet);
     const onFreeRoamShortcut = (event: KeyboardEvent) => {
       if (
         event.defaultPrevented ||

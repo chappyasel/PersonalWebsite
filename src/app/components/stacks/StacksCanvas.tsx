@@ -106,6 +106,7 @@ import {
   sceneColorGradeFor,
   useSceneColorGradeSettings,
 } from "./scene/sceneColorGrade";
+import "./scene/sceneDiagnosticsRegistry";
 import {
   instrumentRendererFrameCost,
   instrumentSceneMatrixCost,
@@ -1378,19 +1379,6 @@ export default function StacksCanvas({
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, []);
 
-  const noPostfx = useMemo(
-    () =>
-      typeof window !== "undefined" &&
-      window.location.search.includes("nopostfx"),
-    [],
-  );
-  const grassDeformationOff = useMemo(
-    () =>
-      typeof window !== "undefined" &&
-      new URLSearchParams(window.location.search).get("grassDeformation") ===
-        "off",
-    [],
-  );
   // A continuously adapting resolution makes an exact device-pixel-ratio
   // assertion inherently racy. The harness flag already marks the runs that
   // make those assertions, so it is also what holds the axis still.
@@ -1448,8 +1436,7 @@ export default function StacksCanvas({
         deviceDpr: viewport.deviceDpr,
         narrowViewport: viewport.width < STACKS_DESKTOP_MIN_WIDTH,
         touch: coarseTouch,
-        directRender: composerFailed || noPostfx,
-        grassDeformationOff,
+        directRender: composerFailed || !performanceSettings.postprocessing,
         overrides: {
           ...performanceSettings,
           skipAmbientOcclusion: scenePerformanceController.isOverridden(
@@ -1493,8 +1480,6 @@ export default function StacksCanvas({
       resolutionCeiling,
       harnessPinnedResolution,
       mode,
-      noPostfx,
-      grassDeformationOff,
       performanceSettings,
       renderProfile,
       viewport,

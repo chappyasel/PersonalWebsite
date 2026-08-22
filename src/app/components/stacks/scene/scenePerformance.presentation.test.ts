@@ -50,8 +50,8 @@ const placards = fs.readFileSync(
   "utf8",
 );
 const store = fs.readFileSync(new URL("../store.ts", import.meta.url), "utf8");
-const diagnostics = fs.readFileSync(
-  new URL("../dom/SceneDiagnostics.tsx", import.meta.url),
+const diagnosticsRegistry = fs.readFileSync(
+  new URL("./sceneDiagnosticsRegistry.ts", import.meta.url),
   "utf8",
 );
 const butterflies = fs.readFileSync(
@@ -205,11 +205,15 @@ describe("scene performance integration", () => {
     expect(canvas).toContain("warmedResourceVariant");
     expect(canvas).toContain("useProgress.subscribe");
     expect(canvas).toContain("markSceneFrameInstrumented()");
-    expect(diagnostics).toContain("Preload all shelf visuals");
-    expect(diagnostics).toContain("prewarmAllUnitVisuals");
+    expect(diagnosticsRegistry).toContain("Preload all shelf visuals");
+    expect(diagnosticsRegistry).toContain('key: "prewarmAllUnitVisuals"');
     expect(canvas).toContain("SceneLightShapePadding");
-    expect(diagnostics).toContain("Stabilize nearby-light shader count");
-    expect(diagnostics).toContain("stableNeighborhoodLightShape");
+    expect(diagnosticsRegistry).toContain(
+      "Stabilize nearby-light shader count",
+    );
+    expect(diagnosticsRegistry).toContain(
+      'key: "stableNeighborhoodLightShape"',
+    );
     expect(primitives).toContain("sceneUnitLightUserData(lightUnitIndex)");
     expect(primitives).toContain("sceneUnitLightUserData(unitIndex)");
     expect(eggs).toContain("unitIndex={unitIndex}");
@@ -218,8 +222,11 @@ describe("scene performance integration", () => {
 
   it("loads only explicitly authored photo details outside the boot manager", () => {
     expect(litImage).toContain("new THREE.LoadingManager()");
-    expect(litImage).toContain("sceneHdPhotosDisabled(window.location.search)");
+    expect(litImage).toContain("!performanceSettings.highResolutionPhotos");
     expect(litImage).toContain("if (!detailUrl || detailsDisabled");
+    expect(litImage).toContain(
+      "!detailsDisabled && detailUrl && detail?.url === detailUrl",
+    );
     expect(litImage).not.toContain("detailUrl ?? url");
     expect(scene).not.toContain("scenePhotoManifestMasterUrl");
     expect(litImage).toContain("previewTexture={previewTexture}");
@@ -293,8 +300,8 @@ describe("scene performance integration", () => {
     expect(effects.indexOf("<ToneMapping")).toBeLessThan(
       effects.indexOf("<AdaptiveSharpen"),
     );
-    expect(diagnostics).toContain("performanceSettings.adaptiveSharpen");
-    expect(diagnostics).toContain("Sharpen reduced-DPR output");
+    expect(diagnosticsRegistry).toContain('"adaptiveSharpen"');
+    expect(diagnosticsRegistry).toContain("Sharpen reduced-DPR output");
   });
 
   it("ships an opaque paper comparison without a scene-copy pipeline", () => {
@@ -309,7 +316,7 @@ describe("scene performance integration", () => {
     expect(scene).toContain("<SceneUnitActivityDriver />");
     expect(scene).toContain("<UnitActivityProvider index={index}>");
     expect(scene).toContain("useUnitActivityRoot(index, root)");
-    expect(diagnostics).toContain("performanceSettings.virtualizeUnitWork");
+    expect(diagnosticsRegistry).toContain('"virtualizeUnitWork"');
   });
 
   it("resolves one axis-driven policy and records travel in its reducer", () => {

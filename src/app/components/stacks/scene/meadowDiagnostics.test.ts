@@ -14,6 +14,23 @@ describe("meadow diagnostics controls", () => {
     ).toBe(false);
   });
 
+  it("applies a reload seed before the renderer connects", () => {
+    const controller = createMeadowDiagnosticsController();
+    const driver = vi.fn((update: MeadowDiagnosticsUpdate = {}) => ({
+      wind: MEADOW_WIND.amplitude,
+      speed: MEADOW_WIND.speed,
+      density: null,
+      deformationEnabled: true,
+      ...update,
+    }));
+
+    controller.seed({ deformationEnabled: false });
+    controller.connect(driver);
+
+    expect(driver).toHaveBeenCalledWith({ deformationEnabled: false });
+    expect(controller.getSnapshot().deformationEnabled).toBe(false);
+  });
+
   it("reflects live driver values and sends edits back to the renderer", () => {
     const controller = createMeadowDiagnosticsController();
     const listener = vi.fn();

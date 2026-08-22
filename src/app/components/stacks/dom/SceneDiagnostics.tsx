@@ -1,42 +1,29 @@
 "use client";
 
 import { browserStorage } from "../mobile/liveness";
-import { cameraDepthDiagnosticsController } from "../scene/cameraDepthDiagnostics";
-import { coordinationGlobeDiagnosticsController } from "../scene/coordinationGlobeDiagnostics";
 import { requestDevHooks } from "../scene/devHooks";
-import {
-  sceneDebugOverlayPatches,
-  sceneDebugOverlayState,
-} from "../scene/diagnosticsOverlayControls";
 import { freeRoamDiagnosticsController } from "../scene/freeRoamDiagnostics";
 import {
   insectDiagnosticsController,
   summarizeInsectPerchDiagnostics,
 } from "../scene/insectPerchDiagnostic";
 import { meadowDiagnosticsController } from "../scene/meadowDiagnostics";
-import { MEADOW_WIND } from "../scene/meadowMotion";
 import {
   downloadPerformanceTrace,
   scenePerformanceTrace,
 } from "../scene/performanceTrace";
 import { physicsDiagnosticsController } from "../scene/physicsDiagnostics";
+import { QUALITY_SAMPLE_INTERVAL_MS } from "../scene/quality";
 import {
-  DEPTH_OF_FIELD_BOKEH_MULTIPLIER_MAX,
-  DEPTH_OF_FIELD_BOKEH_MULTIPLIER_MIN,
-  DEPTH_OF_FIELD_RESOLUTION_SCALE_MAX,
-  DEPTH_OF_FIELD_RESOLUTION_SCALE_MIN,
-  QUALITY_SAMPLE_INTERVAL_MS,
-} from "../scene/quality";
+  type DiagnosticControlDescriptor,
+  type DiagnosticRegistrySnapshot,
+  sceneDiagnosticsRegistry,
+} from "../scene/sceneDiagnosticsRegistry";
 import {
   clearSceneFirstVisitStorage,
   sceneFirstVisitUrl,
 } from "../scene/sceneFirstVisitReset";
 import { readSceneMatrixMs } from "../scene/sceneFrameCost";
-import {
-  allScenePerformanceSettings,
-  scenePerformanceController,
-  scenePerformanceSettingsEqual,
-} from "../scene/scenePerformance";
 import {
   sceneQualityController,
   useSceneQualityControls,
@@ -307,6 +294,233 @@ function DiagnosticsTabs({
   );
 }
 
+function diagnosticOptionValue(value: string | number | boolean | null) {
+  if (value === null) return "null";
+  return `${typeof value}:${String(value)}`;
+}
+
+function DiagnosticControl({
+  descriptor,
+  snapshot,
+  fallbackValue,
+}: {
+  descriptor: DiagnosticControlDescriptor;
+  snapshot: DiagnosticRegistrySnapshot;
+  fallbackValue?: number;
+}) {
+  const state = snapshot[descriptor.id];
+  if (!state) throw new Error(`Missing diagnostic state for ${descriptor.id}`);
+  const inputId =
+    descriptor.inputId ??
+    `stacks-diagnostic-${descriptor.id.replaceAll(".", "-")}`;
+  if (descriptor.valueKind === "boolean")
+    return (
+      <label className="stacks-diagnostics-control" title={descriptor.help}>
+        <input
+          id={inputId}
+          type="checkbox"
+          checked={Boolean(state.value)}
+          disabled={state.disabled}
+          aria-keyshortcuts={descriptor.ariaKeyShortcuts}
+          onChange={(event) =>
+            sceneDiagnosticsRegistry.update(
+              descriptor.id,
+              event.currentTarget.checked,
+            )
+          }
+        />{" "}
+        {descriptor.label}
+      </label>
+    );
+
+  if (descriptor.allowedValues.kind === "range") {
+    const allowed = descriptor.allowedValues;
+    const value =
+      typeof state.value === "number"
+        ? state.value
+        : (fallbackValue ?? allowed.min);
+    return (
+      <label
+        className="stacks-diagnostics-range"
+        htmlFor={inputId}
+        title={descriptor.help}
+      >
+        <span>{descriptor.label}</span>
+        <output htmlFor={inputId}>
+          {value.toFixed(allowed.decimals)}
+          {allowed.unit ?? ""}
+        </output>
+        <input
+          id={inputId}
+          type="range"
+          min={allowed.min}
+          max={allowed.max}
+          step={allowed.step}
+          value={value}
+          disabled={state.disabled}
+          onChange={(event) =>
+            sceneDiagnosticsRegistry.update(
+              descriptor.id,
+              event.currentTarget.valueAsNumber,
+            )
+          }
+        />
+      </label>
+    );
+  }
+
+  const options = descriptor.allowedValues.values;
+  const ungrouped = options.filter((option) => !option.optionGroup);
+  const optionGroups = [
+    ...new Set(options.flatMap((option) => option.optionGroup ?? [])),
+  ];
+  return (
+    <label className="stacks-diagnostics-control" title={descriptor.help}>
+      {descriptor.label}
+      <select
+        id={inputId}
+        className="ml-auto rounded border border-white/15 bg-black/40 px-1.5 py-1 text-white"
+        value={diagnosticOptionValue(state.value)}
+        disabled={state.disabled}
+        onChange={(event) => {
+          const selected = options.find(
+            (option) =>
+              diagnosticOptionValue(option.value) === event.currentTarget.value,
+          );
+          if (selected)
+            sceneDiagnosticsRegistry.update(descriptor.id, selected.value);
+        }}
+      >
+        {ungrouped.map((option) => (
+          <option
+            key={diagnosticOptionValue(option.value)}
+            value={diagnosticOptionValue(option.value)}
+          >
+            {option.label}
+          </option>
+        ))}
+        {optionGroups.map((group) => (
+          <optgroup key={group} label={group}>
+            {options
+              .filter((option) => option.optionGroup === group)
+              .map((option) => (
+                <option
+                  key={diagnosticOptionValue(option.value)}
+                  value={diagnosticOptionValue(option.value)}
+                >
+                  {option.label}
+                </option>
+              ))}
+          </optgroup>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function DiagnosticRegistrySection({
+  groupId,
+  snapshot,
+  fallbackValues = {},
+  beforeControls,
+  children,
+}: {
+  groupId: string;
+  snapshot: DiagnosticRegistrySnapshot;
+  fallbackValues?: Readonly<Record<string, number>>;
+  beforeControls?: React.ReactNode;
+  children?: React.ReactNode;
+}) {
+  const section = [
+    ...sceneDiagnosticsRegistry.sections("simulate"),
+    ...sceneDiagnosticsRegistry.sections("render"),
+    ...sceneDiagnosticsRegistry.sections("inspect"),
+  ].find((candidate) => candidate.id === groupId);
+  if (!section) throw new Error(`Missing diagnostic group ${groupId}`);
+  const direct = section.controls.filter((control) => !control.subgroup);
+  const subgroups = [
+    ...new Set(section.controls.flatMap((control) => control.subgroup ?? [])),
+  ];
+  return (
+    <fieldset className="stacks-diagnostics-section">
+      <legend>{section.label}</legend>
+      {beforeControls}
+      {direct.map((descriptor) => (
+        <DiagnosticControl
+          key={descriptor.id}
+          descriptor={descriptor}
+          snapshot={snapshot}
+          fallbackValue={fallbackValues[descriptor.id]}
+        />
+      ))}
+      {subgroups.length > 0 ? (
+        <div className="stacks-diagnostics-option-groups">
+          {subgroups.map((subgroup) => (
+            <div
+              className="stacks-diagnostics-option-group"
+              key={subgroup}
+              data-span={subgroup === "overlay.perches" ? "full" : undefined}
+            >
+              <strong>
+                {sceneDiagnosticsRegistry.subgroupLabel(subgroup)}
+              </strong>
+              {section.controls
+                .filter((control) => control.subgroup === subgroup)
+                .map((descriptor) => (
+                  <DiagnosticControl
+                    key={descriptor.id}
+                    descriptor={descriptor}
+                    snapshot={snapshot}
+                    fallbackValue={fallbackValues[descriptor.id]}
+                  />
+                ))}
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {children}
+    </fieldset>
+  );
+}
+
+function DiagnosticSegmentedControl({
+  id,
+  snapshot,
+}: {
+  id: string;
+  snapshot: DiagnosticRegistrySnapshot;
+}) {
+  const descriptor = sceneDiagnosticsRegistry.descriptors.find(
+    (control) => control.id === id,
+  );
+  const state = snapshot[id];
+  if (!descriptor || !state || descriptor.allowedValues.kind !== "set")
+    throw new Error(`Invalid segmented diagnostic control ${id}`);
+  return (
+    <div className="stacks-diagnostics-toolbar">
+      <span>{descriptor.label}</span>
+      <div
+        className="stacks-diagnostics-segmented"
+        role="group"
+        aria-label={descriptor.help}
+      >
+        {descriptor.allowedValues.values.map((option) => (
+          <button
+            key={diagnosticOptionValue(option.value)}
+            type="button"
+            onClick={() =>
+              sceneDiagnosticsRegistry.update(descriptor.id, option.value)
+            }
+            aria-pressed={Object.is(state.value, option.value)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function PerformanceTraceControls({
   onStartCapture,
 }: {
@@ -449,7 +663,7 @@ function DiagnosticsOverview({
   activeSummary: ReturnType<typeof summarizeInsectPerchDiagnostics>;
   stalledFlights: number;
   visibleFlightCount: number;
-  overlayState: ReturnType<typeof sceneDebugOverlayState>;
+  overlayState: ReturnType<typeof sceneDiagnosticsRegistry.groupState>;
   physicsSnapshot: ReturnType<typeof physicsDiagnosticsController.getSnapshot>;
   qualityControls: ReturnType<typeof useSceneQualityControls> & {
     runtime: ReturnType<typeof useSceneQualityRuntime>;
@@ -720,10 +934,10 @@ export default function SceneDiagnostics({
     physicsDiagnosticsController.getSnapshot,
     physicsDiagnosticsController.getSnapshot,
   );
-  const performanceSettings = useSyncExternalStore(
-    scenePerformanceController.subscribe,
-    scenePerformanceController.getSnapshot,
-    scenePerformanceController.getSnapshot,
+  const diagnosticSnapshot = useSyncExternalStore(
+    sceneDiagnosticsRegistry.subscribe,
+    sceneDiagnosticsRegistry.getSnapshot,
+    sceneDiagnosticsRegistry.getSnapshot,
   );
   const qualityControlState = useSceneQualityControls();
   const qualityRuntime = useSceneQualityRuntime(open);
@@ -741,20 +955,10 @@ export default function SceneDiagnostics({
     meadowDiagnosticsController.getSnapshot,
     meadowDiagnosticsController.getSnapshot,
   );
-  const cameraDepthSnapshot = useSyncExternalStore(
-    cameraDepthDiagnosticsController.subscribe,
-    cameraDepthDiagnosticsController.getSnapshot,
-    cameraDepthDiagnosticsController.getSnapshot,
-  );
   const freeRoamSnapshot = useSyncExternalStore(
     freeRoamDiagnosticsController.subscribe,
     freeRoamDiagnosticsController.getSnapshot,
     freeRoamDiagnosticsController.getSnapshot,
-  );
-  const coordinationGlobeSnapshot = useSyncExternalStore(
-    coordinationGlobeDiagnosticsController.subscribe,
-    coordinationGlobeDiagnosticsController.getSnapshot,
-    coordinationGlobeDiagnosticsController.getSnapshot,
   );
   const activeUnit = useStacks((state) => state.activeUnit);
   const summary = summarizeInsectPerchDiagnostics(snapshot.diagnostics);
@@ -776,9 +980,7 @@ export default function SceneDiagnostics({
   const [panel, setPanel] = useState<DiagnosticsPanel>("overview");
   const launcher = useRef<HTMLButtonElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
-  const overlayState = sceneDebugOverlayState(snapshot, physicsSnapshot);
-  const allOptimized = allScenePerformanceSettings(true);
-  const allUnoptimized = allScenePerformanceSettings(false);
+  const overlayState = sceneDiagnosticsRegistry.groupState("inspect.overlays");
   const depthOfFieldBokehMultiplier =
     qualityControls.depthOfFieldBokehMultiplier ?? 1;
   const depthOfFieldResolutionScale =
@@ -787,9 +989,7 @@ export default function SceneDiagnostics({
     0.6;
 
   const setAllOverlays = (enabled: boolean) => {
-    const patches = sceneDebugOverlayPatches(enabled);
-    insectDiagnosticsController.update(patches.perches);
-    physicsDiagnosticsController.update(patches.physics);
+    sceneDiagnosticsRegistry.setGroup("inspect.overlays", enabled);
   };
 
   useEffect(() => {
@@ -915,46 +1115,10 @@ export default function SceneDiagnostics({
           <header className="stacks-diagnostics-panel-heading">
             <strong>Simulation controls</strong>
           </header>
-          <fieldset className="stacks-diagnostics-section">
-            <legend>Camera</legend>
-            <label className="stacks-diagnostics-control">
-              <input
-                type="checkbox"
-                checked={cameraDepthSnapshot.enabled}
-                onChange={(event) =>
-                  cameraDepthDiagnosticsController.setEnabled(
-                    event.currentTarget.checked,
-                  )
-                }
-              />{" "}
-              Authored camera depth
-            </label>
-            <label className="stacks-diagnostics-control">
-              <input
-                type="checkbox"
-                checked={freeRoamSnapshot.enabled}
-                aria-keyshortcuts="F Shift+F"
-                onChange={(event) =>
-                  freeRoamDiagnosticsController.setEnabled(
-                    event.currentTarget.checked,
-                  )
-                }
-              />{" "}
-              Free-roam camera
-            </label>
-            <label className="stacks-diagnostics-control">
-              <input
-                type="checkbox"
-                checked={freeRoamSnapshot.fogEnabled}
-                disabled={!freeRoamSnapshot.enabled}
-                onChange={(event) =>
-                  freeRoamDiagnosticsController.setFogEnabled(
-                    event.currentTarget.checked,
-                  )
-                }
-              />{" "}
-              Fog in free roam
-            </label>
+          <DiagnosticRegistrySection
+            groupId="simulate.camera"
+            snapshot={diagnosticSnapshot}
+          >
             <p className="stacks-diagnostics-note">
               Free roam captures the mouse on entry. Look with the mouse, move
               with WASD, use Q/E to move down/up, and hold Shift for one-third
@@ -962,88 +1126,12 @@ export default function SceneDiagnostics({
               current view, H opens debug, and Escape releases the mouse. Click
               the scene to recapture it.
             </p>
-          </fieldset>
+          </DiagnosticRegistrySection>
 
-          <fieldset className="stacks-diagnostics-section">
-            <legend>Meadow wind</legend>
-            <label
-              className="stacks-diagnostics-range"
-              htmlFor="stacks-wind-strength"
-            >
-              <span>Base strength</span>
-              <output htmlFor="stacks-wind-strength">
-                {meadowSnapshot.wind.toFixed(2)}
-              </output>
-              <input
-                id="stacks-wind-strength"
-                type="range"
-                min="0"
-                max="0.3"
-                step="0.01"
-                value={meadowSnapshot.wind}
-                disabled={!meadowSnapshot.available}
-                onChange={(event) =>
-                  meadowDiagnosticsController.update({
-                    wind: event.currentTarget.valueAsNumber,
-                  })
-                }
-              />
-            </label>
-            <label
-              className="stacks-diagnostics-range"
-              htmlFor="stacks-wind-live"
-            >
-              <span>Live gust</span>
-              <output htmlFor="stacks-wind-live">
-                {meadowSnapshot.liveWind.toFixed(3)}
-              </output>
-              <input
-                id="stacks-wind-live"
-                type="range"
-                min="0"
-                max={MEADOW_WIND.gustCeiling}
-                step="0.001"
-                value={meadowSnapshot.liveWind}
-                disabled
-              />
-            </label>
-            <label
-              className="stacks-diagnostics-range"
-              htmlFor="stacks-wind-speed"
-            >
-              <span>Animation speed</span>
-              <output htmlFor="stacks-wind-speed">
-                {meadowSnapshot.speed.toFixed(2)}×
-              </output>
-              <input
-                id="stacks-wind-speed"
-                type="range"
-                min="0"
-                max="2"
-                step="0.01"
-                value={meadowSnapshot.speed}
-                disabled={!meadowSnapshot.available}
-                onChange={(event) =>
-                  meadowDiagnosticsController.update({
-                    speed: event.currentTarget.valueAsNumber,
-                  })
-                }
-              />
-            </label>
-            <label className="stacks-diagnostics-control">
-              <input
-                id="stacks-grass-deformation"
-                type="checkbox"
-                checked={meadowSnapshot.deformationEnabled}
-                disabled={!meadowSnapshot.available}
-                onChange={(event) =>
-                  meadowDiagnosticsController.update({
-                    deformationEnabled: event.currentTarget.checked,
-                  })
-                }
-              />{" "}
-              Persistent grass deformation
-            </label>
+          <DiagnosticRegistrySection
+            groupId="simulate.meadow"
+            snapshot={diagnosticSnapshot}
+          >
             <div className="stacks-diagnostics-actions">
               <button
                 type="button"
@@ -1090,22 +1178,12 @@ export default function SceneDiagnostics({
                 </span>
               </div>
             </details>
-          </fieldset>
+          </DiagnosticRegistrySection>
 
-          <fieldset className="stacks-diagnostics-section">
-            <legend>Insect behavior</legend>
-            <label className="stacks-diagnostics-control">
-              <input
-                type="checkbox"
-                checked={snapshot.pauseAutomaticLandings}
-                onChange={(event) =>
-                  insectDiagnosticsController.update({
-                    pauseAutomaticLandings: event.currentTarget.checked,
-                  })
-                }
-              />{" "}
-              Pause automatic landings
-            </label>
+          <DiagnosticRegistrySection
+            groupId="simulate.insects"
+            snapshot={diagnosticSnapshot}
+          >
             <div className="stacks-diagnostics-actions">
               <button
                 type="button"
@@ -1121,79 +1199,12 @@ export default function SceneDiagnostics({
                 </span>
               ) : null}
             </div>
-          </fieldset>
+          </DiagnosticRegistrySection>
 
-          <fieldset className="stacks-diagnostics-section">
-            <legend>Physics runtime</legend>
-            <div className="stacks-diagnostics-option-groups">
-              <div className="stacks-diagnostics-option-group">
-                <strong>Motion</strong>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={physicsSnapshot.runtime.simulation}
-                    onChange={(event) =>
-                      physicsDiagnosticsController.update({
-                        runtime: {
-                          ...physicsSnapshot.runtime,
-                          simulation: event.currentTarget.checked,
-                        },
-                      })
-                    }
-                  />{" "}
-                  Step free-body simulation
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={physicsSnapshot.runtime.visibilityResets}
-                    onChange={(event) =>
-                      physicsDiagnosticsController.update({
-                        runtime: {
-                          ...physicsSnapshot.runtime,
-                          visibilityResets: event.currentTarget.checked,
-                        },
-                      })
-                    }
-                  />{" "}
-                  Run off-screen resets
-                </label>
-              </div>
-              <div className="stacks-diagnostics-option-group">
-                <strong>Collision</strong>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={physicsSnapshot.runtime.heldCollisionProbes}
-                    onChange={(event) =>
-                      physicsDiagnosticsController.update({
-                        runtime: {
-                          ...physicsSnapshot.runtime,
-                          heldCollisionProbes: event.currentTarget.checked,
-                        },
-                      })
-                    }
-                  />{" "}
-                  Probe held collisions
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={physicsSnapshot.runtime.generatedStatics}
-                    onChange={(event) =>
-                      physicsDiagnosticsController.update({
-                        runtime: {
-                          ...physicsSnapshot.runtime,
-                          generatedStatics: event.currentTarget.checked,
-                        },
-                      })
-                    }
-                  />{" "}
-                  Use generated scene statics
-                </label>
-              </div>
-            </div>
-          </fieldset>
+          <DiagnosticRegistrySection
+            groupId="simulate.physics"
+            snapshot={diagnosticSnapshot}
+          />
         </div>
       ) : null}
       {panel === "render" ? (
@@ -1206,43 +1217,10 @@ export default function SceneDiagnostics({
           <header className="stacks-diagnostics-panel-heading">
             <strong>Scene quality</strong>
           </header>
-          <fieldset className="stacks-diagnostics-section">
-            <legend>Quality mode</legend>
-            <label className="stacks-diagnostics-control">
-              Mode
-              <select
-                className="ml-auto rounded border border-white/15 bg-black/40 px-1.5 py-1 text-white"
-                value={
-                  qualityControls.cinematicPlus
-                    ? "cinematic+"
-                    : qualityControls.mode
-                }
-                onChange={(event) =>
-                  sceneQualityController.setMode(
-                    event.currentTarget.value as
-                      | "auto"
-                      | "cinematic"
-                      | "cinematic+"
-                      | "showcase"
-                      | "balanced"
-                      | "efficient"
-                      | "safety",
-                  )
-                }
-              >
-                <optgroup label="Manual only">
-                  <option value="cinematic+">Cinematic+</option>
-                  <option value="cinematic">Cinematic</option>
-                </optgroup>
-                <optgroup label="Adaptive range">
-                  <option value="auto">Auto</option>
-                  <option value="showcase">Showcase</option>
-                  <option value="balanced">Balanced</option>
-                  <option value="efficient">Efficient</option>
-                  <option value="safety">Safety</option>
-                </optgroup>
-              </select>
-            </label>
+          <DiagnosticRegistrySection
+            groupId="render.quality"
+            snapshot={diagnosticSnapshot}
+          >
             <div className="stacks-diagnostics-current">
               <span>Now</span>
               <strong>
@@ -1258,73 +1236,12 @@ export default function SceneDiagnostics({
                   : "Waiting for the scene to publish its render plan"}
               </small>
             </div>
-          </fieldset>
+          </DiagnosticRegistrySection>
 
-          <fieldset className="stacks-diagnostics-section">
-            <legend>Resolution</legend>
-            {/* Resolution is a twelve-step ladder now, and the preset only
-                sets its ceiling. Pinning a step is the only way to compare
-                two render scales without waiting for the ladder to walk
-                between them. Auto hands it back to the controller. */}
-            <label className="stacks-diagnostics-control">
-              Render scale
-              <select
-                className="ml-auto rounded border border-white/15 bg-black/40 px-1.5 py-1 text-white"
-                value={qualityControls.resolutionStep ?? "auto"}
-                onChange={(event) =>
-                  sceneQualityController.setResolutionStep(
-                    event.currentTarget.value === "auto"
-                      ? null
-                      : Number(event.currentTarget.value),
-                  )
-                }
-              >
-                <option value="auto">
-                  Auto
-                  {qualityControls.runtime
-                    ? ` (step ${qualityControls.runtime.axes.resolutionStep})`
-                    : ""}
-                </option>
-                {Array.from({ length: 12 }, (_, step) => (
-                  <option key={step} value={step}>
-                    {`step ${step}${step === 0 ? " · floor" : step === 11 ? " · cap" : ""}`}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {/* The pixel budget is the AUTOMATIC controller's constraint, and
-                on a large window it binds well below the display's density —
-                5.2 MP over a 1940x1021 window caps the ladder at DPR 1.62, so
-                no preset there can show what 3x looks like. This replaces the
-                budget rather than raising it: nothing automatic ever sets it,
-                and the readout below says when a frame is outside the
-                envelope the controller would choose for itself. */}
-            <label className="stacks-diagnostics-control">
-              Scale ceiling
-              <select
-                className="ml-auto rounded border border-white/15 bg-black/40 px-1.5 py-1 text-white"
-                value={qualityControls.resolutionCeiling ?? "auto"}
-                onChange={(event) =>
-                  sceneQualityController.setResolutionCeiling(
-                    event.currentTarget.value === "auto"
-                      ? null
-                      : Number(event.currentTarget.value),
-                  )
-                }
-              >
-                <option value="auto">Auto (pixel budget)</option>
-                {[1, 1.5, 2, 2.5, 3, 4].map((dpr) => (
-                  <option key={dpr} value={dpr}>
-                    {`${dpr}x${
-                      typeof window !== "undefined" &&
-                      dpr === window.devicePixelRatio
-                        ? " · this display"
-                        : ""
-                    }`}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <DiagnosticRegistrySection
+            groupId="render.resolution"
+            snapshot={diagnosticSnapshot}
+          >
             {qualityControls.runtime?.plan.resolutionCeilingOverridden ? (
               <p className="text-[11px] text-amber-300/80">
                 {`Over budget: ${(
@@ -1343,24 +1260,12 @@ export default function SceneDiagnostics({
                 {qualityControls.resolutionStep != null ? " · pinned" : ""}
               </p>
             ) : null}
-          </fieldset>
+          </DiagnosticRegistrySection>
 
-          <fieldset
-            className="stacks-diagnostics-section"
-            data-disabled={qualityControls.mode !== "auto" || undefined}
+          <DiagnosticRegistrySection
+            groupId="render.automatic"
+            snapshot={diagnosticSnapshot}
           >
-            <legend>Automatic adaptation</legend>
-            <label>
-              <input
-                type="checkbox"
-                checked={qualityControls.frozen}
-                disabled={qualityControls.mode !== "auto"}
-                onChange={(event) =>
-                  sceneQualityController.setFrozen(event.currentTarget.checked)
-                }
-              />{" "}
-              Freeze Auto adaptation
-            </label>
             <div className="stacks-diagnostics-actions">
               <button
                 type="button"
@@ -1377,7 +1282,7 @@ export default function SceneDiagnostics({
               then reloads without render or diagnostics URL overrides. Theme
               and font preferences are preserved.
             </small>
-          </fieldset>
+          </DiagnosticRegistrySection>
           <details className="stacks-diagnostics-details stacks-diagnostics-inline-details">
             <summary>Policy internals</summary>
             {qualityControls.runtime ? (
@@ -1442,272 +1347,48 @@ export default function SceneDiagnostics({
                 ? "custom overrides active"
                 : "profile defaults"}
             </summary>
-            <fieldset className="stacks-diagnostics-section">
-              <legend>Overrides</legend>
-              <div className="stacks-diagnostics-actions">
-                <button
-                  type="button"
-                  onClick={() =>
-                    scenePerformanceController.replace(
-                      allScenePerformanceSettings(true),
-                    )
-                  }
-                  disabled={scenePerformanceSettingsEqual(
-                    performanceSettings,
-                    allOptimized,
-                  )}
-                >
-                  Enable all optimizations
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    scenePerformanceController.replace(
-                      allScenePerformanceSettings(false),
-                    )
-                  }
-                  disabled={scenePerformanceSettingsEqual(
-                    performanceSettings,
-                    allUnoptimized,
-                  )}
-                >
-                  Disable all optimizations
-                </button>
-              </div>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={performanceSettings.suspendSettledPropWork}
-                  onChange={(event) =>
-                    scenePerformanceController.update({
-                      suspendSettledPropWork: event.currentTarget.checked,
-                    })
-                  }
-                />{" "}
-                Suspend settled distant props
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={coordinationGlobeSnapshot.effectEnabled}
-                  onChange={(event) =>
-                    coordinationGlobeDiagnosticsController.setEffectEnabled(
-                      event.currentTarget.checked,
-                    )
-                  }
-                />{" "}
-                Coordination singularity
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={performanceSettings.pausePrewarmDuringTravel}
-                  onChange={(event) =>
-                    scenePerformanceController.update({
-                      pausePrewarmDuringTravel: event.currentTarget.checked,
-                    })
-                  }
-                />{" "}
-                Pause prewarming during travel
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={performanceSettings.prewarmAllUnitVisuals}
-                  onChange={(event) =>
-                    scenePerformanceController.update({
-                      prewarmAllUnitVisuals: event.currentTarget.checked,
-                    })
-                  }
-                />{" "}
-                Preload all shelf visuals
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={performanceSettings.stableNeighborhoodLightShape}
-                  onChange={(event) =>
-                    scenePerformanceController.update({
-                      stableNeighborhoodLightShape: event.currentTarget.checked,
-                    })
-                  }
-                />{" "}
-                Stabilize nearby-light shader count
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={performanceSettings.activeNeighborhoodLights}
-                  onChange={(event) =>
-                    scenePerformanceController.update({
-                      activeNeighborhoodLights: event.currentTarget.checked,
-                    })
-                  }
-                />{" "}
-                Limit real lights to nearby shelves
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={
-                    qualityControls.runtime?.plan.environment.farGrassShader ===
-                    "simplified"
-                  }
-                  onChange={(event) =>
-                    scenePerformanceController.update({
-                      simplifiedFarMeadow: event.currentTarget.checked,
-                    })
-                  }
-                />{" "}
-                Simplify far-grass shader
-              </label>
-              <strong className="stacks-diagnostics-subhead">
-                Compositing
-              </strong>
-              <label>
-                Practical glow
-                <select
-                  className="ml-auto rounded border border-white/15 bg-black/40 px-1.5 py-1 text-white"
-                  value={performanceSettings.practicalGlowMode}
-                  onChange={(event) =>
-                    scenePerformanceController.update({
-                      practicalGlowMode: event.currentTarget.value as
-                        | "aperture"
-                        | "halo"
-                        | "sprite",
-                    })
-                  }
-                >
-                  <option value="halo">Analytic halo</option>
-                  <option value="aperture">Aperture only</option>
-                  <option value="sprite">Legacy sprites</option>
-                </select>
-              </label>
-              <label>
-                Placard material
-                <select
-                  className="ml-auto rounded border border-white/15 bg-black/40 px-1.5 py-1 text-white"
-                  value={performanceSettings.placardGlassMode}
-                  onChange={(event) =>
-                    scenePerformanceController.update({
-                      placardGlassMode: event.currentTarget.value as
-                        | "auto"
-                        | "native"
-                        | "paper",
-                    })
-                  }
-                >
-                  <option value="auto">Auto (paper touch)</option>
-                  <option value="paper">Opaque paper</option>
-                  <option value="native">Native live blur</option>
-                </select>
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={performanceSettings.effectiveDprLadder}
-                  onChange={(event) =>
-                    scenePerformanceController.update({
-                      effectiveDprLadder: event.currentTarget.checked,
-                    })
-                  }
-                />{" "}
-                Use effective DPR rungs
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={performanceSettings.adaptiveSharpen}
-                  onChange={(event) =>
-                    scenePerformanceController.update({
-                      adaptiveSharpen: event.currentTarget.checked,
-                    })
-                  }
-                />{" "}
-                Sharpen reduced-DPR output
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={performanceSettings.skipAmbientOcclusion}
-                  onChange={(event) =>
-                    scenePerformanceController.update({
-                      skipAmbientOcclusion: event.currentTarget.checked,
-                    })
-                  }
-                />{" "}
-                Skip ambient occlusion
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={performanceSettings.skipBloom}
-                  onChange={(event) =>
-                    scenePerformanceController.update({
-                      skipBloom: event.currentTarget.checked,
-                    })
-                  }
-                />{" "}
-                Skip bloom
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={performanceSettings.skipDepthOfField}
-                  onChange={(event) =>
-                    scenePerformanceController.update({
-                      skipDepthOfField: event.currentTarget.checked,
-                    })
-                  }
-                />{" "}
-                Skip depth of field
-              </label>
-              <label
-                className="stacks-diagnostics-range"
-                htmlFor="stacks-dof-strength"
+            <div className="stacks-diagnostics-actions">
+              <button
+                type="button"
+                onClick={() =>
+                  sceneDiagnosticsRegistry.applyOptimizationPreset("optimized")
+                }
+                disabled={sceneDiagnosticsRegistry.matchesOptimizationPreset(
+                  "optimized",
+                )}
               >
-                <span>DoF strength</span>
-                <output htmlFor="stacks-dof-strength">
-                  {depthOfFieldBokehMultiplier.toFixed(2)}×
-                </output>
-                <input
-                  id="stacks-dof-strength"
-                  type="range"
-                  min={DEPTH_OF_FIELD_BOKEH_MULTIPLIER_MIN}
-                  max={DEPTH_OF_FIELD_BOKEH_MULTIPLIER_MAX}
-                  step="0.05"
-                  value={depthOfFieldBokehMultiplier}
-                  disabled={performanceSettings.skipDepthOfField}
-                  onChange={(event) =>
-                    sceneQualityController.setDepthOfFieldBokehMultiplier(
-                      event.currentTarget.valueAsNumber,
-                    )
-                  }
-                />
-              </label>
-              <label
-                className="stacks-diagnostics-range"
-                htmlFor="stacks-dof-quality"
+                Enable all optimizations
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  sceneDiagnosticsRegistry.applyOptimizationPreset(
+                    "unoptimized",
+                  )
+                }
+                disabled={sceneDiagnosticsRegistry.matchesOptimizationPreset(
+                  "unoptimized",
+                )}
               >
-                <span>DoF buffer quality</span>
-                <output htmlFor="stacks-dof-quality">
-                  {depthOfFieldResolutionScale.toFixed(2)}×
-                </output>
-                <input
-                  id="stacks-dof-quality"
-                  type="range"
-                  min={DEPTH_OF_FIELD_RESOLUTION_SCALE_MIN}
-                  max={DEPTH_OF_FIELD_RESOLUTION_SCALE_MAX}
-                  step="0.05"
-                  value={depthOfFieldResolutionScale}
-                  disabled={performanceSettings.skipDepthOfField}
-                  onChange={(event) =>
-                    sceneQualityController.setDepthOfFieldResolutionScale(
-                      event.currentTarget.valueAsNumber,
-                    )
-                  }
-                />
-              </label>
+                Disable all optimizations
+              </button>
+            </div>
+            <DiagnosticRegistrySection
+              groupId="render.optional"
+              snapshot={diagnosticSnapshot}
+            />
+            <DiagnosticRegistrySection
+              groupId="render.optimizations"
+              snapshot={diagnosticSnapshot}
+            />
+            <DiagnosticRegistrySection
+              groupId="render.compositing"
+              snapshot={diagnosticSnapshot}
+              fallbackValues={{
+                "render.dof-strength": depthOfFieldBokehMultiplier,
+                "render.dof-buffer-quality": depthOfFieldResolutionScale,
+              }}
+            >
               <div className="stacks-diagnostics-actions">
                 <button
                   type="button"
@@ -1720,57 +1401,11 @@ export default function SceneDiagnostics({
                   Reset DoF tuning
                 </button>
               </div>
-              <strong className="stacks-diagnostics-subhead">Scheduling</strong>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={performanceSettings.virtualizeUnitWork}
-                  onChange={(event) =>
-                    scenePerformanceController.update({
-                      virtualizeUnitWork: event.currentTarget.checked,
-                    })
-                  }
-                />{" "}
-                Virtualize distant unit work
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={performanceSettings.rememberTravelDeclines}
-                  onChange={(event) =>
-                    scenePerformanceController.update({
-                      rememberTravelDeclines: event.currentTarget.checked,
-                    })
-                  }
-                />{" "}
-                Remember slow travel frames
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={performanceSettings.populationBalancedMeadowTiles}
-                  onChange={(event) =>
-                    scenePerformanceController.update({
-                      populationBalancedMeadowTiles:
-                        event.currentTarget.checked,
-                    })
-                  }
-                />{" "}
-                Balance dense meadow tiles
-              </label>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={performanceSettings.suspendSettledHoverWork}
-                  onChange={(event) =>
-                    scenePerformanceController.update({
-                      suspendSettledHoverWork: event.currentTarget.checked,
-                    })
-                  }
-                />{" "}
-                Suspend settled hover work
-              </label>
-            </fieldset>
+            </DiagnosticRegistrySection>
+            <DiagnosticRegistrySection
+              groupId="render.scheduling"
+              snapshot={diagnosticSnapshot}
+            />
           </details>
         </div>
       ) : null}
@@ -1785,160 +1420,33 @@ export default function SceneDiagnostics({
             <strong>Scene inspection</strong>
           </header>
 
-          <div className="stacks-diagnostics-toolbar">
-            <span>Scope</span>
-            <div
-              className="stacks-diagnostics-segmented"
-              role="group"
-              aria-label="Inspection scope"
-            >
-              <button
-                type="button"
-                onClick={() =>
-                  insectDiagnosticsController.update({ filter: "active" })
-                }
-                aria-pressed={snapshot.filter === "active"}
-              >
-                Active shelf
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  insectDiagnosticsController.update({ filter: "all" })
-                }
-                aria-pressed={snapshot.filter === "all"}
-              >
-                All shelves
-              </button>
-            </div>
-          </div>
+          <DiagnosticSegmentedControl
+            id="inspect.scope"
+            snapshot={diagnosticSnapshot}
+          />
 
-          <fieldset className="stacks-diagnostics-section">
-            <legend>Scene overlays</legend>
-            <div className="stacks-diagnostics-actions">
-              <button
-                type="button"
-                onClick={() => setAllOverlays(true)}
-                disabled={overlayState.all}
-              >
-                Show all overlays
-              </button>
-              <button
-                type="button"
-                onClick={() => setAllOverlays(false)}
-                disabled={!overlayState.any}
-              >
-                Hide all overlays
-              </button>
-            </div>
-            <div className="stacks-diagnostics-option-groups">
-              <div className="stacks-diagnostics-option-group" data-span="full">
-                <strong>Perches and butterflies</strong>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={snapshot.showEnvelopes}
-                    onChange={(event) =>
-                      insectDiagnosticsController.update({
-                        showEnvelopes: event.currentTarget.checked,
-                      })
-                    }
-                  />{" "}
-                  Markers and wing envelopes
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={snapshot.showRoutes}
-                    onChange={(event) =>
-                      insectDiagnosticsController.update({
-                        showRoutes: event.currentTarget.checked,
-                      })
-                    }
-                  />{" "}
-                  Approach and departure routes
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={snapshot.showFlightVolumes}
-                    onChange={(event) =>
-                      insectDiagnosticsController.update({
-                        showFlightVolumes: event.currentTarget.checked,
-                      })
-                    }
-                  />{" "}
-                  Flight volumes
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={snapshot.showFlightTrails}
-                    onChange={(event) =>
-                      insectDiagnosticsController.update({
-                        showFlightTrails: event.currentTarget.checked,
-                      })
-                    }
-                  />{" "}
-                  Flight trails · 30 s
-                </label>
+          <DiagnosticRegistrySection
+            groupId="inspect.overlays"
+            snapshot={diagnosticSnapshot}
+            beforeControls={
+              <div className="stacks-diagnostics-actions">
+                <button
+                  type="button"
+                  onClick={() => setAllOverlays(true)}
+                  disabled={overlayState.all}
+                >
+                  Show all overlays
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAllOverlays(false)}
+                  disabled={!overlayState.any}
+                >
+                  Hide all overlays
+                </button>
               </div>
-              <div className="stacks-diagnostics-option-group">
-                <strong>Moths</strong>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={snapshot.showLampCones}
-                    onChange={(event) =>
-                      insectDiagnosticsController.update({
-                        showLampCones: event.currentTarget.checked,
-                      })
-                    }
-                  />{" "}
-                  Lamp cones
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={snapshot.showMothTrails}
-                    onChange={(event) =>
-                      insectDiagnosticsController.update({
-                        showMothTrails: event.currentTarget.checked,
-                      })
-                    }
-                  />{" "}
-                  Flight trails · 30 s
-                </label>
-              </div>
-              <div className="stacks-diagnostics-option-group">
-                <strong>Physics</strong>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={physicsSnapshot.showHelpers}
-                    onChange={(event) =>
-                      physicsDiagnosticsController.update({
-                        showHelpers: event.currentTarget.checked,
-                      })
-                    }
-                  />{" "}
-                  Hulls, poses, vectors, and contacts
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={physicsSnapshot.showAllBounds}
-                    onChange={(event) =>
-                      physicsDiagnosticsController.update({
-                        showAllBounds: event.currentTarget.checked,
-                      })
-                    }
-                  />{" "}
-                  Prop collider boxes
-                </label>
-              </div>
-            </div>
-          </fieldset>
+            }
+          />
 
           <details className="stacks-diagnostics-details">
             <summary>
