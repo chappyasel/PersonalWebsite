@@ -23,16 +23,19 @@ import {
   useRef,
 } from "react";
 
+import { type HomepageBootOutcome, captureOnce } from "~/lib/analytics";
+
 import FlatHome from "./FlatHome";
 import { useWorldBoot } from "./boot/useWorldBoot";
 import { worldBoot } from "./boot/worldBootSession";
-import { type StacksData, type StacksSlots } from "./data";
+import { type StacksData, type StacksSlots, UNITS } from "./data";
 import ChromeLayer from "./dom/ChromeLayer";
 import PlacardLayer from "./dom/PlacardLayer";
 import UnitRail from "./dom/UnitRail";
 import ScrollBridges from "./input/ScrollBridges";
 import StacksBookModal from "./modal/StacksBookModal";
 import { scenePerformanceTrace } from "./scene/performanceTrace";
+import { useStacks } from "./store";
 
 const StacksCanvas = dynamic(() => import("./StacksCanvas"), { ssr: false });
 
@@ -85,6 +88,7 @@ export default function StacksHome({
 }) {
   const boot = useWorldBoot();
   const { epoch, mode, revealed, worldMounted } = boot;
+  const settledUnit = useStacks((state) => state.settledUnit);
   const worldShellRef = useRef<HTMLDivElement>(null);
 
   // Bound to this boot's generation. The canvas can lose its context or throw
@@ -117,6 +121,77 @@ export default function StacksHome({
     ).render?.preload?.();
     void (StacksCanvas as unknown as { preload?: () => void }).preload?.();
   }, []);
+
+  useEffect(() => {
+    if (boot.status === "ineligible" && boot.ineligibility) {
+      captureOnce("homepage:delivery", "homepage_delivery", {
+        mode: "flat",
+        reason: boot.ineligibility,
+      });
+      return;
+    }
+
+    const durationMs = Math.max(
+      0,
+      Math.round(performance.now() - (boot.startedAt ?? performance.now())),
+    );
+    if (boot.revealed) {
+      captureOnce("homepage:delivery", "homepage_delivery", {
+        mode: "world",
+        reason: "world",
+      });
+      captureOnce("homepage:world-boot", "homepage_world_boot", {
+        outcome: "ready",
+        duration_ms: durationMs,
+        boot_path: boot.loadPath,
+      });
+      return;
+    }
+
+    if (boot.status !== "failed" || !boot.failure) return;
+    const outcome: Exclude<HomepageBootOutcome, "ready"> =
+      boot.failure === "contextLost"
+        ? "context_lost"
+        : boot.failure === "runtimeError"
+          ? "render_error"
+          : "timeout";
+    captureOnce("homepage:world-boot", "homepage_world_boot", {
+      outcome,
+      duration_ms: durationMs,
+      boot_path: boot.loadPath,
+    });
+    captureOnce("homepage:delivery", "homepage_delivery", {
+      mode: "flat",
+      reason: "runtime_fallback",
+    });
+    captureOnce(
+      "homepage:world-runtime-fallback",
+      "homepage_world_runtime_fallback",
+      {
+        mode: "flat",
+        reason: "runtime_fallback",
+        cause: outcome,
+        duration_ms: durationMs,
+      },
+    );
+  }, [
+    boot.failure,
+    boot.ineligibility,
+    boot.loadPath,
+    boot.revealed,
+    boot.startedAt,
+    boot.status,
+  ]);
+
+  useEffect(() => {
+    if (!revealed || settledUnit === null) return;
+    const section = UNITS[settledUnit]?.slug;
+    if (!section) return;
+    captureOnce(`homepage:section:${section}`, "homepage_section_arrived", {
+      section,
+      delivery_mode: "world",
+    });
+  }, [revealed, settledUnit]);
 
   useEffect(() => {
     const world = worldShellRef.current;
@@ -290,7 +365,13 @@ export default function StacksHome({
         </div>
       )}
       {boot.flatMounted && (
-        <FlatHome slots={slots} animated={boot.flatAnimated} />
+        <FlatHome
+          slots={slots}
+          animated={boot.flatAnimated}
+          journeyActive={
+            boot.status === "ineligible" || boot.status === "failed"
+          }
+        />
       )}
       {/* Books modal — mounted at the root, outside GrainientBackground's
           [contain:paint] and the world's transforms, so fixed positioning

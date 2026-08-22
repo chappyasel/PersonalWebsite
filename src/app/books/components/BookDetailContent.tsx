@@ -30,7 +30,6 @@ import {
   isValidElement,
   useEffect,
   useId,
-  useRef,
   useState,
 } from "react";
 import ReactMarkdown, {
@@ -42,7 +41,7 @@ import "react-photo-view/dist/react-photo-view.css";
 import rehypeRaw from "rehype-raw";
 import remarkGfm from "remark-gfm";
 
-import { capture } from "~/lib/analytics";
+import { capture, captureOnce } from "~/lib/analytics";
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import { separateCachedQuoteBlocks } from "~/lib/books/markdown";
 import { selectBookNotice } from "~/lib/books/notices";
@@ -249,22 +248,18 @@ export function BookDetailContent({
   modalBookCount,
 }: BookDetailContentProps) {
   const coverUrl = enhanceCoverUrl(book.coverUrl);
-  const hasTrackedView = useRef(false);
-
   const notice = selectBookNotice(book);
 
-  // Track book view on mount (only once per component instance)
+  // The analytics interface deduplicates Strict Mode remounts and modal/page
+  // coexistence for this book during the current document lifecycle.
   useEffect(() => {
-    if (!hasTrackedView.current) {
-      capture("book_viewed", {
-        book_id: book.id,
-        book_title: book.title,
-        author: book.author,
-        rating: book.rating,
-        tags: book.tags,
-      });
-      hasTrackedView.current = true;
-    }
+    captureOnce(`book-viewed:${book.id}`, "book_viewed", {
+      book_id: book.id,
+      book_title: book.title,
+      author: book.author,
+      rating: book.rating,
+      tags: book.tags,
+    });
   }, [book.id, book.title, book.author, book.rating, book.tags]);
 
   const handleNotionClick = () => {

@@ -57,6 +57,10 @@ export type WorldBootStatus =
 export type WorldBootOrigin = "prepaint" | "hydrate";
 
 export type WorldBootFailure = "hang" | "runtimeError" | "contextLost";
+export type WorldBootIneligibility =
+  | "reduced_motion"
+  | "save_data"
+  | "webgl_unavailable";
 
 export type WorldBootDeadline =
   | "prepaintBackstop"
@@ -139,6 +143,9 @@ export type WorldBootState = {
   loadPath: LoadPath;
   ogCapture: boolean;
   failure: WorldBootFailure | null;
+  ineligibility: WorldBootIneligibility | null;
+  /** Monotonic time when this machine generation began. */
+  startedAt: number | null;
   /** A frame has been painted by the renderer. */
   firstFrame: boolean;
   /** When the loading manager last became complete, or null while it is not.
@@ -177,6 +184,8 @@ export type WorldBootView = {
   deadlineAt: number | null;
   deadlineKind: WorldBootDeadline | null;
   failure: WorldBootFailure | null;
+  ineligibility: WorldBootIneligibility | null;
+  startedAt: number | null;
 };
 
 export function initialWorldBootState(): WorldBootState {
@@ -187,6 +196,8 @@ export function initialWorldBootState(): WorldBootState {
     loadPath: "cold",
     ogCapture: false,
     failure: null,
+    ineligibility: null,
+    startedAt: null,
     firstFrame: false,
     assetsCompleteSince: null,
     meadowReady: false,
@@ -228,7 +239,27 @@ export function worldEligible({
   prefersReducedMotion: boolean;
   saveData: boolean;
 }): boolean {
-  return webglAvailable && !prefersReducedMotion && !saveData;
+  return (
+    worldIneligibility({ webglAvailable, prefersReducedMotion, saveData }) ===
+    null
+  );
+}
+
+/** One ordered explanation for a flat delivery. Explicit visitor preferences
+ * take precedence when several constraints apply. */
+export function worldIneligibility({
+  webglAvailable,
+  prefersReducedMotion,
+  saveData,
+}: {
+  webglAvailable: boolean;
+  prefersReducedMotion: boolean;
+  saveData: boolean;
+}): WorldBootIneligibility | null {
+  if (prefersReducedMotion) return "reduced_motion";
+  if (saveData) return "save_data";
+  if (!webglAvailable) return "webgl_unavailable";
+  return null;
 }
 
 function assetsReady(
@@ -357,6 +388,7 @@ export function reduceWorldBoot(
         epoch: state.epoch + 1,
         origin: event.origin,
         ogCapture: event.ogCapture,
+        startedAt: event.at,
         // The vignette runs in the initial entry bundle and can finish its
         // pass before the streamed homepage data resolves and the world's
         // owner mounts. Clearing it here would leave the reveal waiting on a
@@ -364,14 +396,13 @@ export function reduceWorldBoot(
         // that is what ends the page instance the vignette belongs to.
         bootVignetteReady: state.bootVignetteReady,
       };
-      if (
-        !worldEligible({
-          webglAvailable: event.webglAvailable,
-          prefersReducedMotion: event.prefersReducedMotion,
-          saveData: event.saveData,
-        })
-      ) {
-        return { ...base, status: "ineligible" };
+      const ineligibility = worldIneligibility({
+        webglAvailable: event.webglAvailable,
+        prefersReducedMotion: event.prefersReducedMotion,
+        saveData: event.saveData,
+      });
+      if (ineligibility) {
+        return { ...base, status: "ineligible", ineligibility };
       }
       // The pre-paint backstop already handed this visitor the document. Do
       // not put the boot screen back over it and start a second, longer wait
@@ -469,6 +500,8 @@ export function worldBootView(state: WorldBootState): WorldBootView {
     deadlineAt: state.deadline?.at ?? null,
     deadlineKind: state.deadline?.kind ?? null,
     failure: state.failure,
+    ineligibility: state.ineligibility,
+    startedAt: state.startedAt,
   };
 }
 

@@ -7,6 +7,7 @@ import { THEME_COLOR, THEME_STORAGE_KEY } from "~/lib/theme";
 
 import "~/styles/globals.css";
 
+import AnalyticsRouteTracker from "./components/AnalyticsRouteTracker";
 import { HOMEPAGE_DESCRIPTION } from "./homeMetadata";
 
 const literata = Literata({
@@ -110,7 +111,10 @@ export default function RootLayout({
       </head>
       <body>
         <ThemeProvider>
-          <FontProvider>{children}</FontProvider>
+          <FontProvider>
+            <AnalyticsRouteTracker />
+            {children}
+          </FontProvider>
         </ThemeProvider>
       </body>
     </html>

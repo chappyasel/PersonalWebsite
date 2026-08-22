@@ -145,21 +145,26 @@ describe("initial capability", () => {
   });
 
   it.each([
-    ["no WebGL", { webglAvailable: false }],
-    ["reduced motion", { prefersReducedMotion: true }],
-    ["Save-Data", { saveData: true }],
+    ["no WebGL", { webglAvailable: false }, "webgl_unavailable"],
+    ["reduced motion", { prefersReducedMotion: true }, "reduced_motion"],
+    ["Save-Data", { saveData: true }, "save_data"],
     [
       "reduced motion and Save-Data together",
       { prefersReducedMotion: true, saveData: true },
+      "reduced_motion",
     ],
-  ])("keeps the document when the visitor has %s", (_label, overrides) => {
-    const v = view(run([start(overrides)]));
-    expect(v.status).toBe("ineligible");
-    expect(v.mode).toBe("flat");
-    expect(v.documentPhase).toBe(null);
-    expect(v.ownsDocument).toBe(true);
-    expect(v.deadlineAt).toBe(null);
-  });
+  ] as const)(
+    "keeps the document when the visitor has %s",
+    (_label, overrides, reason) => {
+      const v = view(run([start(overrides)]));
+      expect(v.status).toBe("ineligible");
+      expect(v.ineligibility).toBe(reason);
+      expect(v.mode).toBe("flat");
+      expect(v.documentPhase).toBe(null);
+      expect(v.ownsDocument).toBe(true);
+      expect(v.deadlineAt).toBe(null);
+    },
+  );
 
   it("mounts the world only when all three signals allow it", () => {
     for (const webglAvailable of [true, false])

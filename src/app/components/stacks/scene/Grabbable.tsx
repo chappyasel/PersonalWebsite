@@ -1019,11 +1019,12 @@ export default function Grabbable({
             href !== undefined
               ? { href, label: doorLabel ?? "Open link", external }
               : { to: to! },
+            { doorId: hoverKey, unitIndex },
           );
       }
       return true;
     },
-    [doorLabel, external, href, hoverKey, open, release, to],
+    [doorLabel, external, href, hoverKey, open, release, to, unitIndex],
   );
 
   const onGrabCancel = useCallback(
@@ -1058,9 +1059,12 @@ export default function Grabbable({
     if (!root) return;
     const run = () => {
       if (onTapRef.current) onTapRef.current();
-      else if (to !== undefined) open({ to });
+      else if (to !== undefined) open({ to }, { doorId: hoverKey, unitIndex });
       else if (href !== undefined && doorLabel)
-        open({ href, label: doorLabel, external });
+        open(
+          { href, label: doorLabel, external },
+          { doorId: hoverKey, unitIndex },
+        );
     };
     const activation = egg
       ? ({ kind: "egg", run, reducedMotion: egg.reducedMotion } as const)
