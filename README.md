@@ -2,7 +2,7 @@
 
 My personal website — a portfolio, book library, strength tracker, blog, and more.
 
-## What's on the Site
+## What's on the site
 
 - **[About & Personal Manual](https://chappyasel.com/manual)** — who I am, how I work, and my operating manual for collaboration
 - **[Book Notes](https://chappyasel.com/books)** — a searchable library of books I've read with ratings, notes, and reviews (synced from Notion)
@@ -10,16 +10,16 @@ My personal website — a portfolio, book library, strength tracker, blog, and m
 - **[Blog](https://chappyasel.com)** — links to Medium articles on AI, engineering, and building communities
 - **[Projects](https://chappyasel.com)** — apps and tools I've built (Weightlifting App, Homework App, Liar's Dice calculator, etc.)
 
-## Tech Stack
+## Tech stack
 
 Next.js · TypeScript · tRPC · Drizzle ORM · PostgreSQL · Tailwind CSS · Vercel
 
-## Local Development
+## Local development
 
 ### Prerequisites
 
-- Node.js 22+
-- Yarn
+- Node.js 24.x, selected locally by `.nvmrc` and declared for CI and hosting in `package.json`
+- Yarn 1.x
 - Docker (for the local database)
 
 ### Setup

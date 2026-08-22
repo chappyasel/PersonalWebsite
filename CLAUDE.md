@@ -22,7 +22,7 @@ This repository uses a multi-context domain map. See `docs/agents/domain.md`.
 yarn dev              # Start development server (http://localhost:3000)
 yarn build            # Build the application for production
 yarn fix              # Run ESLint with auto-fix (includes Prettier formatting)
-yarn lint             # Run Next.js linter
+yarn lint             # Run ESLint
 ```
 
 ### Database Management
@@ -38,7 +38,7 @@ yarn db:migrate:prod  # Run migrations on production database
 
 ### Tech Stack
 
-- **Next.js 14** with App Router and TypeScript, shadcn/ui
+- **Next.js 16** with App Router and TypeScript, shadcn/ui
 - **tRPC v11** for type-safe APIs with React Query
 - **Drizzle ORM** with PostgreSQL
 - **NextAuth.js** for authentication
