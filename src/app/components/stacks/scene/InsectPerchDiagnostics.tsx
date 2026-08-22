@@ -95,9 +95,11 @@ const OWNER_FRAMES = Array.from({ length: UNIT_COUNT }, (_, unitIndex) =>
  * This exists for one job: choosing WHICH prop a new Perch should sit on, and
  * roughly where. It is emphatically not a source of authored coordinates. A
  * bounding box is the wrong answer to "where can an insect stand": the
- * sailboat's mast shares one mesh with its hull, so its box top is 13 cm above
- * any surface a probe can actually hit. Author the candidate from this, then
- * copy back the contact the resolver measures.
+ * retired Musings sailboat's mast shared one mesh with its hull, so its box
+ * top sat 13 cm above any surface a probe could actually hit, and the
+ * lighthouse that replaced it has a tower box that reaches the lantern floor
+ * while its only landable surface is the dome above it. Author the candidate
+ * from this, then copy back the contact the resolver measures.
  */
 const PROBE_RAY = new THREE.Raycaster();
 const PROBE_DOWN = new THREE.Vector3(0, -1, 0);
@@ -676,8 +678,9 @@ export default function InsectPerchDiagnostics() {
         // The bounds are for CHOOSING a candidate anchor. They are never the
         // authored contact: the anchor is advisory, the resolver raycasts the
         // owner's real triangles, and the resolved contact is what gets copied
-        // back. The sailboat mast shares one mesh with the hull, so its box top
-        // is 13 cm above any surface a probe can hit.
+        // back. A box top can sit well above anything a probe can hit (the
+        // retired sailboat's mast shared a mesh with its hull; the lighthouse
+        // tower's box reaches its lantern floor).
         owners: (unit: number) =>
           sceneInteractionOwnerSites(unit).map((site) => ({
             ...site,

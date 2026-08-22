@@ -20,15 +20,64 @@ const INPUT_PATHS = Object.freeze([
   "src/styles",
   "scripts/generate/home-og-scene.mjs",
   "scripts/generate/home-og-scene-config.mjs",
-  "scripts/generate/home-og-inputs.mjs",
-  "public/data",
   "public/models",
   "public/images/about",
-  "public/images/projects",
   "public/images/stacks",
 ]);
 
 const EXCLUDED_INPUTS = new Set([HOME_OG_IMAGE, HOME_OG_MANIFEST]);
+
+/** The social card is a fixed, head-on capture of the About shelf. Keep its
+ * fingerprint tied to that frame rather than to every off-camera Unit that
+ * happens to share the homepage bundle. Shared scene and rendering sources
+ * remain watched; only Unit-local sources and assets are narrowed here. */
+const ABOUT_UNIT_INPUTS = new Set([
+  "src/app/components/stacks/scene/units/ShelfSucculent.tsx",
+  "src/app/components/stacks/scene/units/UnitAbout.tsx",
+  "src/app/components/stacks/scene/units/aboutReadingStack.ts",
+  "src/app/components/stacks/scene/units/featuredBookGeometry.ts",
+  "src/app/components/stacks/scene/units/types.ts",
+  "src/app/components/stacks/scene/units/unitShelfLayout.ts",
+]);
+
+const ABOUT_MODEL_INPUTS = new Set(
+  [
+    "cactus.glb",
+    "couch.glb",
+    "desk-lamp.glb",
+    "dumbbell.glb",
+    "globe.glb",
+    "potted-plant.glb",
+    "succulent-pot.glb",
+  ].map((file) => `public/models/${file}`),
+);
+
+const ABOUT_STACK_IMAGE_INPUTS = new Set([
+  "public/images/stacks/grass-tuft-alpha.webp",
+  "public/images/stacks/tj-medallion.jpg",
+]);
+
+const OFF_CAMERA_SCENE_INPUTS = new Set([
+  "src/app/components/stacks/scene/InsectPerchDiagnostics.tsx",
+  "src/app/components/stacks/scene/lighthouseBeaconDiagnostics.ts",
+  "src/app/components/stacks/scene/musingsShelfGeometry.ts",
+  "src/app/components/stacks/scene/sceneDiagnosticsRegistry.ts",
+]);
+
+/** @param {string} file */
+function belongsToAboutCapture(file) {
+  if (file.startsWith("src/app/components/stacks/scene/units/"))
+    return ABOUT_UNIT_INPUTS.has(file);
+  if (file.startsWith("public/models/")) return ABOUT_MODEL_INPUTS.has(file);
+  if (file.startsWith("public/images/stacks/v8/"))
+    return (
+      file.startsWith("public/images/stacks/v8/about-") ||
+      file === "public/images/stacks/v8/ai-collective-mark.svg"
+    );
+  if (file.startsWith("public/images/stacks/"))
+    return ABOUT_STACK_IMAGE_INPUTS.has(file);
+  return !OFF_CAMERA_SCENE_INPUTS.has(file);
+}
 
 const WORKING_TREE = "workingTree";
 const INDEX = "index";
@@ -77,6 +126,7 @@ async function listInputs(root, snapshot) {
     .filter(Boolean)
     .filter((file) => !EXCLUDED_INPUTS.has(file))
     .filter((file) => !isNonVisualSource(file))
+    .filter(belongsToAboutCapture)
     .sort();
 }
 

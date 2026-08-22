@@ -42,11 +42,14 @@ place the insect at that coordinate literally.
 
 An anchor within tolerance of a real triangle resolves; one that is not is
 rejected as `contact-too-distant` and the site is dead. Bounding boxes are a
-poor guide — the sailboat source groups mast and hull islands into broad
-material meshes, whose unsplit box top is 13 cm above anything a probe can
-hit. `ModelProp` now splits those disconnected islands for collision, but the
-`musings:sailboat-masthead` anchor remains the resolved triangle contact read
-back out of the running scene rather than a corner of either box. When adding
+poor guide — the retired Musings sailboat grouped mast and hull islands into
+broad material meshes whose unsplit box top was 13 cm above anything a probe
+could hit, and the lighthouse that replaced it has a tower box reaching its
+lantern floor while its only landable surface is the dome above. The
+`musings:lighthouse-dome` anchor is the resolved triangle contact read back
+out of the real GLB (`UnitBlog.landing.test.ts`), not a corner of any box;
+its gallery deck and plinth ledge both measured flat and both reject as
+`approach-blocked` because the approach passes through the tower. When adding
 a site, author it, read the HUD (or the diagnostics dump, or `pnpm
 check:perches`), and copy the resolved contact back into both files. Every
 anchor added in the +13 round below was authored that way: a candidate near
@@ -128,15 +131,15 @@ sign-off is recorded separately rather than invented by a headless test.
 
 ## Musings — unit 5
 
-| ID                          | Intended surface       | Anchor `[x, y, z]`            | Normal `[x, y, z]`          | Owner match                 | Lamp ID       | Clearance |
-| --------------------------- | ---------------------- | ----------------------------- | --------------------------- | --------------------------- | ------------- | --------: |
-| `musings:writing-paper`     | Writing-paper top      | `[-0.4600, -0.8291, -0.0200]` | `[0, 1, 0]`                 | `id: grab:paper:5`          | —             |    `0.12` |
-| `musings:book-pile-top`     | Top book in pile       | `[0.4040, -0.6865, 0]`        | `[0, 1, 0]`                 | `id: link:row:5:47:0:2`     | —             |    `0.12` |
-| `musings:open-book-page`    | Open-book page         | `[-0.6378, 0.1205, -0.1232]`  | `[0, 1, 0]`                 | `id: grab:openbook`         | —             |    `0.12` |
-| `musings:tea-rim`           | Teacup rim             | `[-0.5600, 0.1526, 0.3100]`   | `[0, 1, 0]`                 | `id: egg:tea`               | —             |    `0.12` |
-| `musings:lamp-shade`        | Sloped desk-lamp shade | `[-0.9379, 0.6054, -0.1304]`  | `[0.2815, 0.1643, -0.9454]` | `id: egg:lamp:5`            | `desk-lamp-5` |    `0.12` |
-| `musings:headphone-band`    | Headphone band crown   | `[0.0400, 0.3870, 0.1400]`    | `[0, 1, 0]`                 | `id: grab:headphones`       | —             |    `0.12` |
-| `musings:sailboat-masthead` | Sailboat rig top       | `[0.9295, -0.5023, -0.0597]`  | `[0.2844, 0.9581, 0.0343]`  | `id: grab:sailboat:musings` | —             |    `0.12` |
+| ID                        | Intended surface             | Anchor `[x, y, z]`            | Normal `[x, y, z]`          | Owner match                    | Lamp ID       | Clearance |
+| ------------------------- | ---------------------------- | ----------------------------- | --------------------------- | ------------------------------ | ------------- | --------: |
+| `musings:writing-paper`   | Writing-paper top            | `[-0.6110, -0.8291, -0.0200]` | `[0, 1, 0]`                 | `id: grab:paper:5`             | —             |    `0.12` |
+| `musings:trust-cover`     | Trust essay cover (reclined) | `[0.1370, -0.4727, -0.1184]`  | `[0, 0.3429, 0.9394]`       | `id: grab:trust-essay:musings` | —             |    `0.12` |
+| `musings:open-book-page`  | Open-book page               | `[-0.1426, 0.1205, -0.0632]`  | `[0, 1, 0]`                 | `id: grab:openbook`            | —             |    `0.12` |
+| `musings:tea-handle`      | Teacup handle crown          | `[-0.3814, 0.1557, 0.2114]`   | `[0, 1, 0]`                 | `id: egg:tea`                  | —             |    `0.12` |
+| `musings:lamp-shade`      | Sloped desk-lamp shade       | `[-1.0035, 0.6327, -0.1446]`  | `[0.1252, 0.1588, -0.9793]` | `id: egg:lamp:5`               | `desk-lamp-5` |    `0.12` |
+| `musings:headphone-band`  | Headphone band crown         | `[1.0120, 0.4910, 0.0200]`    | `[0, 1, 0]`                 | `id: grab:headphones`          | —             |    `0.12` |
+| `musings:lighthouse-dome` | Lantern dome, front right    | `[1.1920, -0.2805, -0.0620]`  | `[0.2631, 0.9037, 0.3377]`  | `id: grab:lighthouse:musings`  | —             |    `0.12` |
 
 ## Talks — unit 6
 

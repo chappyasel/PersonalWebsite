@@ -2,6 +2,7 @@ import { cameraDepthDiagnosticsController } from "./cameraDepthDiagnostics";
 import { coordinationGlobeDiagnosticsController } from "./coordinationGlobeDiagnostics";
 import { freeRoamDiagnosticsController } from "./freeRoamDiagnostics";
 import { insectDiagnosticsController } from "./insectPerchDiagnostic";
+import { lighthouseBeaconDiagnosticsController } from "./lighthouseBeaconDiagnostics";
 import { meadowDiagnosticsController } from "./meadowDiagnostics";
 import { MEADOW_WIND } from "./meadowMotion";
 import { physicsDiagnosticsController } from "./physicsDiagnostics";
@@ -164,6 +165,7 @@ const DEFAULT_COORDINATION =
   coordinationGlobeDiagnosticsController.getSnapshot();
 const DEFAULT_FREE_ROAM = freeRoamDiagnosticsController.getSnapshot();
 const DEFAULT_INSECTS = insectDiagnosticsController.getSnapshot();
+const DEFAULT_LIGHTHOUSE = lighthouseBeaconDiagnosticsController.getSnapshot();
 const DEFAULT_MEADOW = meadowDiagnosticsController.getSnapshot();
 const DEFAULT_PHYSICS = physicsDiagnosticsController.getSnapshot();
 const DEFAULT_QUALITY = sceneQualityController.getSnapshot();
@@ -634,6 +636,29 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
         perFrameWork: false,
       },
     },
+  }),
+  booleanDescriptor({
+    id: "render.lighthouse-beacon",
+    panel: "render",
+    group: "render.optional",
+    label: "Lighthouse beacon",
+    help: "Mount the Musings lighthouse beam, bloom source, and camera-facing flash.",
+    defaultValue: DEFAULT_LIGHTHOUSE.effectEnabled,
+    experimental: false,
+    productionCost: {
+      activeValues: [true],
+      enabled:
+        "Beacon geometry, animated materials, a real light, and camera-facing flare work.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+    store: lighthouseBeaconDiagnosticsController,
+    read: () => lighthouseBeaconDiagnosticsController.getSnapshot().effectEnabled,
+    update: (value) =>
+      lighthouseBeaconDiagnosticsController.setEffectEnabled(Boolean(value)),
   }),
   performanceBoolean({
     id: "render.suspend-settled-props",

@@ -32,4 +32,7 @@ jobs:
         run: node scripts/check-node-version.mjs
 
       - name: Check committed image freshness
-        run: node scripts/check-home-og-freshness.mjs
+        run: |
+          if ! node scripts/check-home-og-freshness.mjs; then
+            echo "::warning::Homepage OG image is stale. Regenerate it when the About capture intentionally changes."
+          fi

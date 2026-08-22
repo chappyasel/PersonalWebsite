@@ -1,4 +1,3 @@
-import { splitDisconnectedMeshIslands } from "../ModelProp";
 import {
   createInsectFlightVolume,
   createInsectFlightVolumeContainment,
@@ -33,7 +32,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { MUSINGS_SAILBOAT_POSE } from "./UnitBlog";
+import { MUSINGS_LIGHTHOUSE_POSE } from "./UnitBlog";
 
 const releases: Array<() => void> = [];
 const disposables: Array<{ dispose(): void }> = [];
@@ -56,9 +55,9 @@ function visibleBox(
   return mesh;
 }
 
-async function loadSailboat() {
+async function loadLighthouse() {
   const bytes = fs.readFileSync(
-    path.resolve(process.cwd(), "public/models/sailboat.glb"),
+    path.resolve(process.cwd(), "public/models/lighthouse.glb"),
   );
   const buffer = bytes.buffer.slice(
     bytes.byteOffset,
@@ -66,7 +65,6 @@ async function loadSailboat() {
   );
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const model = (await loader.parseAsync(buffer, "")).scene;
-  splitDisconnectedMeshIslands(model);
   model.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
     const mesh = object as THREE.Mesh<
@@ -82,7 +80,7 @@ async function loadSailboat() {
   return model;
 }
 
-async function mountSailboatPerch() {
+async function mountLighthousePerch() {
   const unitIndex = 5;
   const scene = new THREE.Scene();
   const unit = new THREE.Group();
@@ -101,20 +99,20 @@ async function mountSailboatPerch() {
 
   const owner = new THREE.Group();
   owner.position.set(
-    MUSINGS_SAILBOAT_POSE.base[0],
-    SHELF_SURFACE.lower + MUSINGS_SAILBOAT_POSE.base[1],
-    MUSINGS_SAILBOAT_POSE.base[2],
+    MUSINGS_LIGHTHOUSE_POSE.base[0],
+    SHELF_SURFACE.lower + MUSINGS_LIGHTHOUSE_POSE.base[1],
+    MUSINGS_LIGHTHOUSE_POSE.base[2],
   );
-  const model = await loadSailboat();
-  model.rotation.set(...MUSINGS_SAILBOAT_POSE.rotation);
-  model.scale.setScalar(MUSINGS_SAILBOAT_POSE.scale);
+  const model = await loadLighthouse();
+  model.rotation.set(...MUSINGS_LIGHTHOUSE_POSE.rotation);
+  model.scale.setScalar(MUSINGS_LIGHTHOUSE_POSE.scale);
   owner.add(model);
   unit.add(owner);
 
   const definition = insectPerchCatalog()[unitIndex]!.find(
-    (candidate) => candidate.id === "musings:sailboat-masthead",
+    (candidate) => candidate.id === "musings:lighthouse-dome",
   );
-  if (!definition?.ownerId) throw new Error("Sailboat Perch missing");
+  if (!definition?.ownerId) throw new Error("Lighthouse Perch missing");
   const anchor = new THREE.Object3D();
   anchor.position.set(...definition.position);
   unit.add(anchor);
@@ -161,18 +159,59 @@ async function mountSailboatPerch() {
   };
   insectFlightVolumePoint(volume, { x: 0, y: 0.42, z: 0.9 }, initial.position);
   const world = new ThreeInsectFlightWorld(
-    "butterfly:musings-sailboat",
+    "butterfly:musings-lighthouse",
     "butterfly",
   );
   world.setContext(unitIndex, now);
   if (insectCollisionIndexRevision(unitIndex, now, true) == null)
     throw new Error("Musings collision unavailable");
-  return { initial, now, volume, world, perchId: definition.id };
+  return { initial, now, volume, world, perchId: definition.id, perch, unit };
 }
 
-describe("Unit Musings sailboat Landing Plan", () => {
-  it("reaches the masthead despite the mast and hull sharing one collision mesh", async () => {
-    const { initial, now, volume, world, perchId } = await mountSailboatPerch();
+describe("Unit Musings lighthouse Landing Plan", () => {
+  it("resolves the dome contact the catalogue was authored from", async () => {
+    // The anchor is the contact copied back from this very resolution, so
+    // a model rebuild that moves the dome shows up here as drift rather
+    // than as a silently dead site. Tolerance is a few millimetres: meshopt
+    // quantisation alone moves triangles by less than that.
+    const { perch, unit, world } = await mountLighthousePerch();
+    try {
+      const target: InsectLandingTarget = {
+        id: "",
+        point: { x: 0, y: 0, z: 0 },
+        normal: { x: 0, y: 1, z: 0 },
+        tangent: { x: 1, y: 0, z: 0 },
+        clearance: 0,
+      };
+      expect(prepareInsectLandingTarget(perch.id, "butterfly", target, 0)).toBe(
+        true,
+      );
+      expect(perch.resolvedSurface).not.toBeNull();
+      const contact = unit.worldToLocal(
+        perch.resolvedSurface!.localToWorld(perch.localPosition.clone()),
+      );
+      expect(
+        contact.distanceTo(
+          new THREE.Vector3(
+            MUSINGS_LIGHTHOUSE_POSE.base[0] + 0.018,
+            -0.2805,
+            -0.062,
+          ),
+        ),
+      ).toBeLessThan(0.004);
+    } finally {
+      world.dispose();
+    }
+  });
+
+  it("reaches the lantern dome at every landing variation", async () => {
+    // The gallery deck measures flat and is blocked: the brick tower, deck
+    // and drum weld into one collision island whose box reaches the lantern
+    // floor, so an approach to it passes through the prop's own hull. The
+    // dome sits above every box. (The first build's plinth ledge was blocked
+    // the same way; the plinth is gone now.)
+    const { initial, now, volume, world, perchId } =
+      await mountLighthousePerch();
     try {
       for (const [index, variation] of [0, 0.25, 0.5, 0.75, 1].entries()) {
         const target: InsectLandingTarget = {
@@ -183,7 +222,7 @@ describe("Unit Musings sailboat Landing Plan", () => {
           clearance: 0,
         };
         const pilot = createInsectPilot({
-          occupantId: "butterfly:musings-sailboat",
+          occupantId: "butterfly:musings-lighthouse",
           flightId: index + 5,
           seed: index + 5,
           initialTime: now,
@@ -212,10 +251,10 @@ describe("Unit Musings sailboat Landing Plan", () => {
           pilot.phase,
           `Landing aborted at variation ${variation}: ${pilot.rejectionCode}.`,
         ).toBe("rest");
-        world.release(perchId, "butterfly:musings-sailboat");
+        world.release(perchId, "butterfly:musings-lighthouse");
       }
     } finally {
-      world.release(perchId, "butterfly:musings-sailboat");
+      world.release(perchId, "butterfly:musings-lighthouse");
       world.dispose();
     }
   });
