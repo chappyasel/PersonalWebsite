@@ -20,6 +20,7 @@ import {
   sceneUrlForLocation,
 } from "../data";
 import { haptic } from "../mobile/liveness";
+import { freeRoamDiagnosticsController } from "../scene/freeRoamDiagnostics";
 import {
   type TouchTravelStop,
   touchSwipeDestination,
@@ -377,7 +378,7 @@ export default function ScrollBridges() {
         direction !== 0 &&
         !state.modalOpen &&
         state.panelState === "closed" &&
-        document.pointerLockElement === null
+        !freeRoamDiagnosticsController.getSnapshot().enabled
       ) {
         reconcileScrollRange();
         // Roughly one shelf per second. ScrollControls supplies the camera's
@@ -395,12 +396,14 @@ export default function ScrollBridges() {
       const target = e.target as HTMLElement | null;
       if (isStacksScrollableTarget(target)) return;
       const panDirection = worldPanDirection(e.key);
+      // A and D belong to the free-roam camera while it owns the view; the
+      // authored traverse must not pan underneath it.
       if (
         panDirection !== null &&
         !e.metaKey &&
         !e.ctrlKey &&
         !e.altKey &&
-        document.pointerLockElement === null
+        !freeRoamDiagnosticsController.getSnapshot().enabled
       ) {
         e.preventDefault();
         panKeys.add(panDirection < 0 ? "a" : "d");

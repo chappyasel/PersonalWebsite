@@ -14,8 +14,6 @@ export type FreeRoamShortcutEvent = Readonly<{
 
 export type FreeRoamShortcutIntent = Readonly<{
   action: "toggle" | "start-from-current-pose";
-  /** Entering free roam captures the mouse; leaving it never does. */
-  requestPointerLock: boolean;
 }>;
 
 /**
@@ -48,6 +46,5 @@ export function freeRoamShortcutIntent(
   return {
     action:
       event.shiftKey && !state.enabled ? "start-from-current-pose" : "toggle",
-    requestPointerLock: !state.enabled,
   };
 }

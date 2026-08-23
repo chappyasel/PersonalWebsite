@@ -233,7 +233,8 @@ describe("development diagnostics chrome", () => {
     expect(diagnosticsSource).toContain("Q/E");
     expect(diagnosticsSource).toContain("Shift for one-third");
     expect(diagnosticsSource).toContain("Shift+F starts from");
-    expect(diagnosticsSource).toContain("Escape releases the mouse");
+    expect(diagnosticsSource).toContain("never captures the mouse");
+    expect(diagnosticsSource).toContain("Hold the right button");
     expect(diagnosticsSource).toContain("selects an editable prop");
   });
 

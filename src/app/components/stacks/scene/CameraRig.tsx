@@ -19,6 +19,7 @@ import {
   touchWorldRef,
   useStacks,
 } from "../store";
+import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
 import { useScroll } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
@@ -42,6 +43,7 @@ import {
   writeFreeRoamPose,
 } from "./freeRoamDiagnostics";
 import {
+  FREE_ROAM_LOOK_BUTTON,
   FREE_ROAM_MOVEMENT_CODES,
   dampFreeRoamLook,
   freeRoamLookAfterPointer,
@@ -216,7 +218,6 @@ export default function CameraRig() {
   const freeRoamLastPoseWrite = useRef(0);
   const size = useThree((s) => s.size);
   const camera = useThree((s) => s.camera);
-  const gl = useThree((s) => s.gl);
   const freeRoam = useSyncExternalStore(
     freeRoamDiagnosticsController.subscribe,
     freeRoamDiagnosticsController.getSnapshot,
@@ -424,15 +425,14 @@ export default function CameraRig() {
   useEffect(() => {
     if (!freeRoamEnabled) {
       freeRoamKeys.current.clear();
-      if (document.pointerLockElement === gl.domElement) {
-        document.exitPointerLock();
-      }
       return;
     }
 
-    const canvas = gl.domElement;
+    // The mouse is never captured. Looking is a right-button drag, so the
+    // left button still reaches the scene for the layout editor: a click
+    // selects a prop, and the gizmo is dragged with the pointer visible.
     const scrollElement = scroll.el;
-    const pointerIsLocked = () => document.pointerLockElement === canvas;
+    let lookPointerId: number | null = null;
     const persistPose = () => {
       if (!wasFreeRoaming.current) return;
       writeFreeRoamPose(freeRoamStorage, {
@@ -444,15 +444,18 @@ export default function CameraRig() {
         ],
       });
     };
-    const clearKeys = () => freeRoamKeys.current.clear();
+    const clearInput = () => {
+      freeRoamKeys.current.clear();
+      lookPointerId = null;
+    };
     const onPointerDown = (event: PointerEvent) => {
-      if (event.button !== 0 || pointerIsLocked()) return;
+      if (event.button !== FREE_ROAM_LOOK_BUTTON) return;
+      lookPointerId = event.pointerId;
       event.preventDefault();
       event.stopImmediatePropagation();
-      void canvas.requestPointerLock();
     };
-    const onMouseMove = (event: MouseEvent) => {
-      if (!pointerIsLocked()) return;
+    const onPointerMove = (event: PointerEvent) => {
+      if (event.pointerId !== lookPointerId) return;
       const look = freeRoamLookAfterPointer(
         {
           pitch: freeRoamTargetEuler.current.x,
@@ -464,8 +467,15 @@ export default function CameraRig() {
       freeRoamTargetEuler.current.x = look.pitch;
       freeRoamTargetEuler.current.y = look.yaw;
     };
+    const onPointerUp = (event: PointerEvent) => {
+      if (event.pointerId === lookPointerId) lookPointerId = null;
+    };
+    const onContextMenu = (event: MouseEvent) => event.preventDefault();
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!pointerIsLocked() || !FREE_ROAM_MOVEMENT_CODES.has(event.code))
+      if (
+        !FREE_ROAM_MOVEMENT_CODES.has(event.code) ||
+        isEditableShortcutTarget(event.target)
+      )
         return;
       event.preventDefault();
       freeRoamKeys.current.add(event.code);
@@ -474,38 +484,42 @@ export default function CameraRig() {
       if (!FREE_ROAM_MOVEMENT_CODES.has(event.code)) return;
       freeRoamKeys.current.delete(event.code);
     };
+    // The wheel would otherwise scroll the authored traverse underneath a
+    // camera that is no longer following it.
     const onWheel = (event: WheelEvent) => {
-      if (!pointerIsLocked()) return;
       event.preventDefault();
       event.stopImmediatePropagation();
     };
 
     scrollElement.addEventListener("pointerdown", onPointerDown, true);
+    scrollElement.addEventListener("contextmenu", onContextMenu);
     scrollElement.addEventListener("wheel", onWheel, {
       capture: true,
       passive: false,
     });
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("pointerlockchange", clearKeys);
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", onPointerUp);
+    document.addEventListener("pointercancel", onPointerUp);
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
-    window.addEventListener("blur", clearKeys);
+    window.addEventListener("blur", clearInput);
     window.addEventListener("pagehide", persistPose);
 
     return () => {
       scrollElement.removeEventListener("pointerdown", onPointerDown, true);
+      scrollElement.removeEventListener("contextmenu", onContextMenu);
       scrollElement.removeEventListener("wheel", onWheel, true);
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("pointerlockchange", clearKeys);
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerUp);
+      document.removeEventListener("pointercancel", onPointerUp);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
-      window.removeEventListener("blur", clearKeys);
+      window.removeEventListener("blur", clearInput);
       window.removeEventListener("pagehide", persistPose);
       persistPose();
-      clearKeys();
-      if (pointerIsLocked()) document.exitPointerLock();
+      clearInput();
     };
-  }, [camera, freeRoamEnabled, freeRoamStorage, gl.domElement, scroll.el]);
+  }, [camera, freeRoamEnabled, freeRoamStorage, scroll.el]);
 
   useFrame(({ camera, pointer, clock }, delta) => {
     if (freeRoamEnabled) {
@@ -541,16 +555,9 @@ export default function CameraRig() {
       freeRoamEuler.current.x = look.pitch;
       freeRoamEuler.current.y = look.yaw;
       camera.rotation.set(look.pitch, look.yaw, 0, "YXZ");
-      if (document.pointerLockElement === gl.domElement) {
-        camera.position.add(
-          freeRoamTranslation(
-            freeRoamKeys.current,
-            camera.quaternion,
-            dt,
-            freeRoamMove.current,
-          ),
-        );
-      }
+      camera.position.add(
+        freeRoamTranslation(freeRoamKeys.current, dt, freeRoamMove.current),
+      );
       if (
         shouldWriteFreeRoamPose(
           clock.elapsedTime,

@@ -452,6 +452,12 @@ book, last lift, local time). Every value on it must be real.
 
 ## Development layout editor
 
+Free roam is how the owner reaches props, and it never captures the mouse:
+the right button looks, the left button selects a prop and drags its gizmo.
+WASD moves along the room's axes whichever way the camera faces, so a key
+means the same direction as the gizmo's arrows and the keyboard nudges. The
+policy lives in `scene/freeRoamMotion.ts`; `CameraRig` only wires it.
+
 Layout changes made with the development editor are automatically written to
 `.next/stacks-layout-draft.json`. When Chappy asks to persist the layout, read
 that draft and apply each changed record's `preview` and `previewRotation` to

@@ -13,6 +13,7 @@ import {
   freeRoamDiagnosticsController,
 } from "../scene/freeRoamDiagnostics";
 import { freeRoamShortcutIntent } from "../scene/freeRoamShortcut";
+import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
 import {
   sceneLayoutEditorController,
   sceneLayoutNudgeForKeyboard,
@@ -53,14 +54,6 @@ export function ChromeReveal({
     >
       {children}
     </div>
-  );
-}
-
-function isEditableShortcutTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) return false;
-  return (
-    target.isContentEditable ||
-    target.matches("input, select, textarea, [role='textbox']")
   );
 }
 
@@ -111,12 +104,6 @@ function SceneDiagnosticsLoader() {
         freeRoamDiagnosticsController.startFromCurrentPose();
       } else {
         freeRoamDiagnosticsController.toggle();
-      }
-      if (intent.requestPointerLock) {
-        const canvas = document.querySelector<HTMLCanvasElement>(
-          ".stacks-canvas-shell canvas",
-        );
-        void canvas?.requestPointerLock();
       }
     };
     const onLayoutNudge = (event: KeyboardEvent) => {
@@ -189,7 +176,6 @@ function SceneDiagnosticsLoader() {
         return;
 
       event.preventDefault();
-      if (document.pointerLockElement !== null) document.exitPointerLock();
       requestDevHooks();
       setRequest({ initiallyOpen: true });
     };

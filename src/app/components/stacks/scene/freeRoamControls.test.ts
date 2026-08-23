@@ -7,6 +7,7 @@ import {
   freeRoamFogVisible,
 } from "./freeRoamDiagnostics";
 import {
+  FREE_ROAM_LOOK_BUTTON,
   FREE_ROAM_MOVEMENT_CODES,
   dampFreeRoamLook,
   freeRoamLookAfterPointer,
@@ -20,8 +21,6 @@ import { freeRoamShortcutIntent } from "./freeRoamShortcut";
 const FRAME = 1 / 60;
 
 const held = (...codes: string[]) => new Set(codes);
-const facing = (yaw: number, pitch = 0) =>
-  new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch, yaw, 0, "YXZ"));
 
 const shortcut = (
   overrides: Partial<Parameters<typeof freeRoamShortcutIntent>[0]> = {},
@@ -43,11 +42,11 @@ describe("free-roam movement", () => {
   const SPEED_METRES_PER_SECOND = 4;
   const STEP = SPEED_METRES_PER_SECOND * FRAME;
 
-  const move = (keys: ReadonlySet<string>, yaw = 0, pitch = 0, delta = FRAME) =>
-    freeRoamTranslation(keys, facing(yaw, pitch), delta);
+  const move = (keys: ReadonlySet<string>, delta = FRAME) =>
+    freeRoamTranslation(keys, delta);
 
   it("walks the camera forward at four metres per second", () => {
-    // At rest the camera looks down world minus-Z.
+    // Forward is world minus-Z, the way the shelves face the visitor.
     const forward = move(held("KeyW"));
 
     expect(forward.z).toBeCloseTo(-STEP, 12);
@@ -89,27 +88,18 @@ describe("free-roam movement", () => {
     expect(FREE_ROAM_MOVEMENT_CODES.size).toBe(8);
   });
 
-  it("moves along the camera's own facing, not along world axes", () => {
-    // Yawed a quarter turn left, forward is world minus-X.
-    const forward = move(held("KeyW"), Math.PI / 2);
+  it("moves along the room's axes, whichever way the camera faces", () => {
+    // The shelves stand on the world axes and the layout editor's gizmo and
+    // nudges move props along them; a key has to mean the same direction as
+    // those. The policy never sees the camera's orientation, so turning to
+    // look at a prop cannot bend what W does: held keys and the step are
+    // the only required inputs.
+    expect(freeRoamTranslation.length).toBe(2);
 
-    expect(forward.x).toBeCloseTo(-STEP, 12);
+    const forward = move(held("KeyW"));
+    expect(forward.x).toBeCloseTo(0, 12);
     expect(forward.y).toBeCloseTo(0, 12);
-    expect(forward.z).toBeCloseTo(0, 12);
-  });
-
-  it("follows a pitched camera downhill rather than along the ground", () => {
-    const forward = move(held("KeyW"), 0, -Math.PI / 4);
-
-    expect(forward.y).toBeCloseTo(-STEP * Math.SQRT1_2, 12);
-    expect(forward.z).toBeCloseTo(-STEP * Math.SQRT1_2, 12);
-  });
-
-  it("keeps Q/E vertical even when the camera is pitched down", () => {
-    const rise = move(held("KeyE"), 0, -Math.PI / 4);
-
-    expect(rise.y).toBeCloseTo(STEP, 12);
-    expect(Math.hypot(rise.x, rise.z)).toBeCloseTo(0, 12);
+    expect(forward.z).toBeCloseTo(-STEP, 12);
   });
 
   it("does not let a diagonal outrun a straight line", () => {
@@ -117,7 +107,7 @@ describe("free-roam movement", () => {
   });
 
   it("clamps a long frame to fifty milliseconds of travel", () => {
-    const stalled = move(held("KeyW"), 0, 0, 4);
+    const stalled = move(held("KeyW"), 4);
 
     expect(stalled.length()).toBeCloseTo(SPEED_METRES_PER_SECOND * 0.05, 12);
     expect(freeRoamStepSeconds(4)).toBe(0.05);
@@ -126,9 +116,16 @@ describe("free-roam movement", () => {
 
   it("reuses the caller's vector so the frame loop allocates nothing", () => {
     const scratch = new THREE.Vector3();
-    expect(freeRoamTranslation(held("KeyW"), facing(0), FRAME, scratch)).toBe(
-      scratch,
-    );
+    expect(freeRoamTranslation(held("KeyW"), FRAME, scratch)).toBe(scratch);
+  });
+});
+
+describe("free-roam look button", () => {
+  it("looks with the right button and leaves the left one to the scene", () => {
+    // The layout editor selects a prop with a left click and drags its gizmo;
+    // looking has to live on the other button, with no pointer lock anywhere.
+    expect(FREE_ROAM_LOOK_BUTTON).toBe(2);
+    expect(FREE_ROAM_LOOK_BUTTON).not.toBe(0);
   });
 });
 
@@ -213,24 +210,22 @@ describe("the F shortcut", () => {
   const off = { enabled: false };
   const on = { enabled: true };
 
-  it("enters free roam and captures the mouse", () => {
+  it("enters free roam, and asks for nothing else", () => {
+    // No pointer lock rides along: the mouse stays free for the scene.
     expect(freeRoamShortcutIntent(shortcut(), off)).toEqual({
       action: "toggle",
-      requestPointerLock: true,
     });
   });
 
-  it("leaves free roam without grabbing the mouse again", () => {
+  it("leaves free roam", () => {
     expect(freeRoamShortcutIntent(shortcut(), on)).toEqual({
       action: "toggle",
-      requestPointerLock: false,
     });
   });
 
   it("starts from the current pose on Shift+F", () => {
     expect(freeRoamShortcutIntent(shortcut({ shiftKey: true }), off)).toEqual({
       action: "start-from-current-pose",
-      requestPointerLock: true,
     });
   });
 
