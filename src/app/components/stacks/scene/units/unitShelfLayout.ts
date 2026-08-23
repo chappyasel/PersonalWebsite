@@ -142,17 +142,30 @@ export const REVIEWED_SHELF_LAYOUT = {
     facebookPhotoX: -0.405,
     facebookPhotoHalfX:
       deskFrameWidth(PROJECT_PHOTO_DIMENSIONS.facebook.width) / 2,
-    notebookX: 0.055,
-    notebookHalfX: 0.25,
-    notebookZ: SHELF_GEOMETRY.lower.centerZ,
-    phoneX: 0.54,
+    // 2026-08-23: the notebook went to the Systems shelf (where the lighthouse
+    // print used to be) and the phone slid left into its place, so the two
+    // circuit boards that switch the pixel-art finish could stand between the
+    // phone and the Mac. The Arduino lies flat mid-plank; the green card
+    // stands behind it, level with the Mac, so the two boards overlap in x
+    // but not in depth. Both sat 0.16 further forward at first ("shift both
+    // back further", 2026-08-23).
+    phoneX: -0.04,
     phoneHalfX: 0.132,
     phoneSeat: 0.025,
+    arduinoX: 0.22,
+    arduinoHalfX: 0.1,
+    arduinoZ: 0.02,
+    cardX: 0.46,
+    cardHalfX: 0.13,
+    cardZ: -0.15,
     // The GLB's visible case is offset to the right of its origin. At 0.64
     // its left foot overlapped the face-up phone; 0.95 leaves a deliberate
     // visual gap while retaining a visible edge beside the desktop placard.
     macX: 0.95,
     macHalfX: 0.567,
+    /** The case itself: the GLB's 0.0561 × 0.0548 footprint at scale 9.2 and
+     * yaw −0.34 projects to ±0.327 about the origin (stacks-render report). */
+    macCaseHalfX: 0.327,
     placardEdgeAt1280: 0.467,
   },
   training: {
@@ -211,14 +224,20 @@ export function reviewedShelfLayoutSnapshot() {
       projects.facebookPhotoX -
       projects.facebookPhotoHalfX -
       (projects.trophyX + projects.trophyHalfX),
-    projectsPhotoNotebookGap:
-      projects.notebookX -
-      projects.notebookHalfX -
-      (projects.facebookPhotoX + projects.facebookPhotoHalfX),
-    projectsNotebookPhoneGap:
+    projectsPhotoPhoneGap:
       projects.phoneX -
       projects.phoneHalfX -
-      (projects.notebookX + projects.notebookHalfX),
+      (projects.facebookPhotoX + projects.facebookPhotoHalfX),
+    projectsPhoneArduinoGap:
+      projects.arduinoX -
+      projects.arduinoHalfX -
+      (projects.phoneX + projects.phoneHalfX),
+    // The card stands behind the Arduino's right half, so this is measured
+    // to the Mac's visible case, not to the Arduino.
+    projectsCardMacGap:
+      projects.macX -
+      projects.macCaseHalfX -
+      (projects.cardX + projects.cardHalfX),
     projectsPhoneMacCenterGap: projects.macX - projects.phoneX,
     projectsMacVisibleWidth:
       projects.placardEdgeAt1280 - (projects.macX - projects.macHalfX),

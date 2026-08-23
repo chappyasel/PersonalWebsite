@@ -1,3 +1,5 @@
+import { universalSearchVisualEffects } from "~/lib/universal-search/visualEffects";
+
 import { cameraDepthDiagnosticsController } from "./cameraDepthDiagnostics";
 import { coordinationGlobeDiagnosticsController } from "./coordinationGlobeDiagnostics";
 import { freeRoamDiagnosticsController } from "./freeRoamDiagnostics";
@@ -685,6 +687,28 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
       modelArtifactDiagnosticsController.getSnapshot().rendererEnabled,
     update: (value) =>
       modelArtifactDiagnosticsController.setRendererEnabled(Boolean(value)),
+  }),
+  booleanDescriptor({
+    id: "render.universal-search-blur",
+    panel: "render",
+    group: "render.optional",
+    label: "Universal Search blur",
+    help: "Sample the page behind Universal Search for its approved live blur.",
+    defaultValue: universalSearchVisualEffects.defaultSnapshot.backdropBlur,
+    experimental: false,
+    productionCost: {
+      activeValues: [true],
+      enabled: "CSS backdrop sampling behind the palette and its scrim.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+    store: universalSearchVisualEffects,
+    read: () => universalSearchVisualEffects.getSnapshot().backdropBlur,
+    update: (value) =>
+      universalSearchVisualEffects.setBackdropBlur(Boolean(value)),
   }),
   performanceBoolean({
     id: "render.suspend-settled-props",

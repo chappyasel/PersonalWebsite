@@ -26,6 +26,7 @@ function TrackedFlatSection({
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const unit = UNITS.find((candidate) => candidate.slug === section)!;
 
   useEffect(() => {
     const element = ref.current;
@@ -51,7 +52,12 @@ function TrackedFlatSection({
   }, [active, section]);
 
   return (
-    <div ref={ref} data-homepage-section={section} className="w-full">
+    <div
+      ref={ref}
+      id={unit.urlSlug ?? section}
+      data-homepage-section={section}
+      className="w-full"
+    >
       {children}
     </div>
   );

@@ -1,12 +1,11 @@
 "use client";
 
+import { setDadAccessCookie } from "../actions";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { api } from "~/trpc/react";
-
-import { setDadAccessCookie } from "../actions";
 
 export function PasswordGate() {
   const router = useRouter();
@@ -16,8 +15,13 @@ export function PasswordGate() {
   const verify = api.dad.verifyPassword.useMutation({
     onSuccess: async (data) => {
       if (data.valid) {
-        await setDadAccessCookie();
-        router.refresh();
+        const saved = await setDadAccessCookie(password);
+        if (saved) {
+          router.refresh();
+        } else {
+          setError("Incorrect password");
+          setPassword("");
+        }
       } else {
         setError("Incorrect password");
         setPassword("");

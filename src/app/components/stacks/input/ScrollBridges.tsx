@@ -11,6 +11,10 @@
 // propagation: drei's ScrollControls attaches its own passive wheel handler
 // (scrollLeft += deltaY / 2) on the scroll element, and letting both run would
 // double-apply deltas at inconsistent rates.
+import { useEffect, useRef } from "react";
+
+import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
+
 import {
   GOLF_STOP_POSITION,
   UNIT_COUNT,
@@ -30,7 +34,6 @@ import { freeRoamDiagnosticsController } from "../scene/freeRoamDiagnostics";
 import { scrollLeftAfterResize } from "../scene/scrollResize";
 import { scrollOffsetForUnit } from "../scene/worldLayout";
 import { closeStacksPanel, useStacks } from "../store";
-import { useEffect, useRef } from "react";
 
 function wheelDeltaPx(e: WheelEvent, axisDelta: number): number {
   if (e.deltaMode === 1) return axisDelta * 33; // lines
@@ -104,17 +107,27 @@ export function isInteractiveWorldNavigationTarget(target: EventTarget | null) {
 
 export function shouldHandleWorldNavigationKey(
   event: Pick<KeyboardEvent, "defaultPrevented" | "target">,
+  universalSearchOpen = false,
 ) {
   return (
-    !event.defaultPrevented && !isInteractiveWorldNavigationTarget(event.target)
+    !universalSearchOpen &&
+    !event.defaultPrevented &&
+    !isInteractiveWorldNavigationTarget(event.target)
   );
 }
 
 export function backgroundWorldGesture(
   state: BridgeInteractionState,
   scrollableTarget: boolean,
+  universalSearchOpen = false,
 ): "blocked" | "collapse-and-travel" | "travel" {
-  if (state.modalOpen || state.dragging || scrollableTarget) return "blocked";
+  if (
+    universalSearchOpen ||
+    state.modalOpen ||
+    state.dragging ||
+    scrollableTarget
+  )
+    return "blocked";
   if (state.panelState === "open" || state.panelState === "opening")
     return "collapse-and-travel";
   // `closing` is deliberately travel-capable: the gesture that collapsed the
@@ -199,6 +212,25 @@ export default function ScrollBridges() {
       );
     });
 
+    const travelToLocation = () => {
+      const state = useStacks.getState();
+      const target = initialScenePositionFromLocation(
+        window.location.pathname,
+        window.location.hash,
+      );
+      const nextMirrored = {
+        activeUnit: Math.round(target),
+        golfFocused: golfFocusedForScenePosition(target),
+      };
+      if (
+        mirrored.activeUnit === nextMirrored.activeUnit &&
+        mirrored.golfFocused === nextMirrored.golfFocused
+      ) {
+        return;
+      }
+      mirrored = nextMirrored; // suppress the replaceState echo for this travel
+      state.travelTo?.(target);
+    };
     const onPopState = () => {
       const state = useStacks.getState();
       if (state.modalOpen) return;
@@ -209,21 +241,19 @@ export default function ScrollBridges() {
         return;
       }
       if (state.panelState === "closing") return; // our own history.back()
-      const target = initialScenePositionFromLocation(
-        window.location.pathname,
-        window.location.hash,
-      );
-      mirrored = {
-        activeUnit: Math.round(target),
-        golfFocused: golfFocusedForScenePosition(target),
-      }; // suppress the replaceState echo for this travel
-      state.travelTo?.(target);
+      travelToLocation();
     };
+    // Direct fragment navigation (including Universal Search) fires
+    // hashchange rather than popstate. It is an explicit destination, so it
+    // travels even if an overlaid panel is finishing its own close.
+    const onHashChange = () => travelToLocation();
     window.addEventListener("popstate", onPopState);
+    window.addEventListener("hashchange", onHashChange);
 
     return () => {
       unsubscribe();
       window.removeEventListener("popstate", onPopState);
+      window.removeEventListener("hashchange", onHashChange);
       window.history.scrollRestoration = previousRestoration;
     };
   }, [scrollEl, jumpTo]);
@@ -261,6 +291,7 @@ export default function ScrollBridges() {
       const action = backgroundWorldGesture(
         useStacks.getState(),
         isStacksScrollableTarget(e.target),
+        isUniversalSearchOpen(),
       );
       if (action === "blocked") return;
       if (isBrowserZoomWheel(e)) return;
@@ -322,6 +353,7 @@ export default function ScrollBridges() {
       const action = backgroundWorldGesture(
         useStacks.getState(),
         isStacksScrollableTarget(event.target),
+        isUniversalSearchOpen(),
       );
       coarseTravel = action === "travel";
       coarseStartScrollLeft = scrollEl.scrollLeft;
@@ -389,7 +421,7 @@ export default function ScrollBridges() {
     };
 
     const onKey = (e: KeyboardEvent) => {
-      if (!shouldHandleWorldNavigationKey(e)) return;
+      if (!shouldHandleWorldNavigationKey(e, isUniversalSearchOpen())) return;
       const state = useStacks.getState();
       if (state.modalOpen || state.panelState !== "closed") return;
       const target = e.target as HTMLElement | null;

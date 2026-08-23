@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 
 import { getBookPath, getBookShareUrl } from "~/lib/books/paths";
+import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
 import { api } from "~/trpc/react";
 
 import { Spinner } from "~/components/ui/spinner";
@@ -114,12 +115,14 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
     const photoViewerOpen = () =>
       document.querySelector(".PhotoView-Portal") !== null;
     const containFocus = (event: FocusEvent) => {
+      if (isUniversalSearchOpen()) return;
       const shell = shellRef.current;
       if (!shell || photoViewerOpen()) return;
       if (event.target instanceof Node && shell.contains(event.target)) return;
       shell.focus({ preventScroll: true });
     };
     const trapTab = (event: KeyboardEvent) => {
+      if (isUniversalSearchOpen()) return;
       if (event.key !== "Tab" || photoViewerOpen()) return;
       const shell = shellRef.current;
       if (!shell) return;
@@ -165,6 +168,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
     if (!isModalOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isUniversalSearchOpen()) return;
       // Check if photo viewer is open (react-photo-view adds this class to body)
       const photoViewOpen = document.querySelector(".PhotoView-Portal");
 

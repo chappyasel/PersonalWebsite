@@ -2,19 +2,47 @@ import { SHELF_SURFACE } from "./shelfGeometry";
 
 /** Evenly packed lower-shelf centers. Their measured front-view footprints,
  * including the lighthouse tray rather than only its tower, leave 0.022
- * units between every pair of neighbors. */
+ * units between every pair of neighbors.
+ *
+ * 2026-08-23: the succulent bowl left this row for the top plank (in front
+ * of the lamp) and the Systems shelf's lighthouse print arrived between the
+ * Vineyard cutout and the lighthouse it shows. Everything from the mug to
+ * the cutout slid 0.292 left, the bowl's footprint plus one gap, which is
+ * exactly the room a 0.22-wide print with its frame needs at the same
+ * spacing. The lighthouse itself cannot move: its tray already stops 2 cm
+ * short of the plank's end. */
 export const MUSINGS_LOWER_LAYOUT = {
-  plantX: -1.15,
-  mugX: -0.883,
-  paperX: -0.451,
-  trustX: 0.087,
-  signX: 0.435,
-  cutoutX: 0.797,
+  mugX: -1.175,
+  paperX: -0.743,
+  trustX: -0.205,
+  signX: 0.143,
+  cutoutX: 0.505,
+  photoX: 0.892,
   /** The lighthouse stands in a 0.125 sand tray (`units/SandTray.tsx`).
    * Farther right, the rim would overhang the plank's end. At 1.174 the rim
    * stops 2 cm short of it and leaves the same 0.022 gap as the rest of the
-   * row against the cutout's measured footprint. */
+   * row against the print's frame. */
   lighthouseX: 1.174,
+} as const;
+
+/** The Gay Head print (`/images/stacks/v8/systems-lighthouse.webp`, 819 ×
+ * 1024), narrower than it stood on Systems (0.27) so the row keeps its
+ * 0.022 gaps. Set back level with the tray, turned a little toward the
+ * camera like the lighthouse beside it. */
+export const MUSINGS_LIGHTHOUSE_PRINT = {
+  id: "systems-lighthouse-v8",
+  src: "/images/stacks/v8/systems-lighthouse.webp",
+  aspect: 819 / 1024,
+  width: 0.22,
+  base: [MUSINGS_LOWER_LAYOUT.photoX, 0, -0.08],
+  yaw: -0.18,
+} as const;
+
+/** The succulent bowl on the top plank, left end, in front of the lamp's
+ * foot: the lamp root is at x −1.12, z −0.07 and its head reaches right, so
+ * the front-left corner of the plank is the one clear patch up there. */
+export const MUSINGS_TOP_PLANT = {
+  base: [-1.13, 0, 0.24],
 } as const;
 
 /** Shared physical dimensions for the Musings shelf's authored paper stack. */

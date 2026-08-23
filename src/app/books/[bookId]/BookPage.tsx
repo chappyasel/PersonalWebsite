@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { getBookShareUrl } from "~/lib/books/paths";
 import type { BaseBook } from "~/lib/books/types";
+import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
 
 type BookPageProps = {
   bookId: string;
@@ -14,11 +15,7 @@ type BookPageProps = {
   bookshelfBookCount: number;
 };
 
-export function BookPage({
-  bookId,
-  book,
-  bookshelfBookCount,
-}: BookPageProps) {
+export function BookPage({ bookId, book, bookshelfBookCount }: BookPageProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
   const router = useRouter();
@@ -26,6 +23,7 @@ export function BookPage({
   // Handle Escape key to navigate back to books grid
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isUniversalSearchOpen()) return;
       if (e.key === "Escape") {
         e.preventDefault();
         router.push("/books");

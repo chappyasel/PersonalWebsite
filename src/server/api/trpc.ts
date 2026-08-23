@@ -10,6 +10,7 @@ import { TRPCError, initTRPC } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
 
+import { isValidDadAccessToken } from "~/lib/dad/access";
 import { isValidYoutubeAccessToken } from "~/lib/youtube/access";
 import { auth } from "~/server/auth";
 import { db } from "~/server/db";
@@ -162,7 +163,7 @@ export const cookieProtectedProcedure = t.procedure
     const valid =
       cookieName === "youtube-access"
         ? isValidYoutubeAccessToken(cookieValue, env.DAD_CONTENT_PASSWORD)
-        : Boolean(cookieValue);
+        : isValidDadAccessToken(cookieValue, env.DAD_CONTENT_PASSWORD);
     if (!valid) {
       throw new TRPCError({ code: "UNAUTHORIZED" });
     }

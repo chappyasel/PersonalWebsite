@@ -1,4 +1,4 @@
-import { MUSINGS_LOWER_LAYOUT } from "../musingsShelfGeometry";
+import { MUSINGS_TOP_PLANT } from "../musingsShelfGeometry";
 import { SHELF_GEOMETRY } from "../shelfGeometry";
 import fs from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -23,12 +23,17 @@ describe("shared shelf succulent", () => {
     );
   });
 
-  it("keeps the Musings bowl inside the left end of the lower plank", () => {
+  it("keeps the Musings bowl on the top plank, in front of the lamp's foot", () => {
     const source = readUnit("UnitBlog");
 
-    expect(source).toContain("base={[MUSINGS_LOWER_LAYOUT.plantX, 0, -0.06]}");
-    expect(MUSINGS_LOWER_LAYOUT.plantX - 0.27 / 2).toBeGreaterThan(
+    expect(source).toContain("base={[...MUSINGS_TOP_PLANT.base]}");
+    expect(MUSINGS_TOP_PLANT.base[0] - 0.27 / 2).toBeGreaterThan(
       -SHELF_GEOMETRY.width / 2,
+    );
+    // In front of the lamp root (x −1.12, z −0.07), not under its head.
+    expect(MUSINGS_TOP_PLANT.base[2]).toBeGreaterThan(0.15);
+    expect(MUSINGS_TOP_PLANT.base[2] + 0.27 / 2).toBeLessThan(
+      SHELF_GEOMETRY.top.depth / 2,
     );
   });
 });

@@ -46,12 +46,17 @@ describe("authored insect Perches", () => {
     expect(
       catalog.some((perch) => perch.id === "training:barbell-front-plate"),
     ).toBe(false);
+    // Four frame tops since the lighthouse print moved to Musings
+    // (2026-08-23); the notebook that replaced it carries the fifth site.
     expect(
       catalog.filter(
         (perch) =>
           perch.id.startsWith("systems:") && perch.id.endsWith("-frame"),
       ),
-    ).toHaveLength(5);
+    ).toHaveLength(4);
+    expect(catalog.some((perch) => perch.id === "systems:notebook-cover")).toBe(
+      true,
+    );
     expect(
       catalog.some((perch) =>
         "ownerId" in perch ? perch.ownerId?.startsWith("shelf:") : false,

@@ -9,7 +9,8 @@
     "Charlie",
     "Robert Mirabelle",
     "Alex Safayan",
-    "jeremy"
+    "jeremy",
+    "Mauricio Martínez González"
   ],
   "models": [
     {
@@ -284,6 +285,20 @@
       "author": "Kenney",
       "license": "CC0 1.0",
       "source": "https://poly.pizza/m/fLNcjJnsJi"
+    },
+    {
+      "file": "arduino.glb",
+      "title": "arduino",
+      "author": "Mauricio Martínez González",
+      "license": "CC-BY 3.0",
+      "source": "https://poly.pizza/m/fWRtJe-ZHR6"
+    },
+    {
+      "file": "circuit-board.glb",
+      "title": "Electronics Collectable",
+      "author": "iPoly3D",
+      "license": "CC0 1.0",
+      "source": "https://poly.pizza/m/qqRVRerNSu"
     },
     {
       "file": "grass-tuft.glb",

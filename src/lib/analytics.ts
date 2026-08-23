@@ -44,6 +44,29 @@ export type DeepPage =
   | "routine"
   | "liars_dice"
   | "golf";
+export type UniversalSearchProvider =
+  | "public-content"
+  | "server"
+  | "books"
+  | "weightlifting"
+  | "dad";
+export type UniversalSearchProviderOutcome = "success" | "error" | "aborted";
+export type UniversalSearchGroup =
+  | "destinations"
+  | "books"
+  | "public-writing"
+  | "weightlifting"
+  | "dad"
+  | "actions";
+export type UniversalSearchResultKind = "destination" | "content" | "action";
+export type UniversalSearchMatchKind =
+  | "exact"
+  | "prefix"
+  | "token-prefix"
+  | "substring"
+  | "alias"
+  | "metadata"
+  | "body";
 
 /** The complete first-party event contract. Add events here before capture. */
 export type AnalyticsEventProperties = {
@@ -96,7 +119,65 @@ export type AnalyticsEventProperties = {
     book_id: string;
     book_title: string;
   };
+  universal_search_opened: {
+    source: "keyboard";
+  };
+  universal_search_provider_settled: {
+    provider: UniversalSearchProvider;
+    duration_ms: number;
+    result_count: number;
+    outcome: UniversalSearchProviderOutcome;
+  };
+  universal_search_zero_results: {
+    eligible_provider_count: number;
+  };
+  universal_search_result_selected: {
+    group: UniversalSearchGroup;
+    kind: UniversalSearchResultKind;
+    rank: number;
+    match_kind: UniversalSearchMatchKind;
+  };
 };
+
+export function universalSearchOpenedProperties(): AnalyticsEventProperties["universal_search_opened"] {
+  return { source: "keyboard" };
+}
+
+export function universalSearchProviderSettledProperties(input: {
+  provider: UniversalSearchProvider;
+  durationMs: number;
+  resultCount: number;
+  outcome: UniversalSearchProviderOutcome;
+}): AnalyticsEventProperties["universal_search_provider_settled"] {
+  return {
+    provider: input.provider,
+    duration_ms: Math.max(0, Math.round(input.durationMs)),
+    result_count: Math.max(0, Math.floor(input.resultCount)),
+    outcome: input.outcome,
+  };
+}
+
+export function universalSearchZeroResultsProperties(
+  eligibleProviderCount: number,
+): AnalyticsEventProperties["universal_search_zero_results"] {
+  return {
+    eligible_provider_count: Math.max(0, Math.floor(eligibleProviderCount)),
+  };
+}
+
+export function universalSearchResultSelectedProperties(input: {
+  group: UniversalSearchGroup;
+  kind: UniversalSearchResultKind;
+  rank: number;
+  matchKind: UniversalSearchMatchKind;
+}): AnalyticsEventProperties["universal_search_result_selected"] {
+  return {
+    group: input.group,
+    kind: input.kind,
+    rank: Math.max(0, Math.floor(input.rank)),
+    match_kind: input.matchKind,
+  };
+}
 
 export type AnalyticsEvent = keyof AnalyticsEventProperties;
 export type AnalyticsCapture = <Event extends AnalyticsEvent>(

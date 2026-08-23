@@ -29,6 +29,7 @@ import {
   getCachedActivityMosaic,
   getCachedWeightliftingStats,
 } from "~/server/queries/weightlifting";
+import { getChartSelectableExercises } from "~/server/queries/weightliftingExercises";
 
 const getCachedPersonalRecords = unstable_cache(
   async () => {
@@ -149,47 +150,6 @@ const getCachedStrengthProgression = unstable_cache(
     }));
   },
   ["wl-strength-progression"],
-  { revalidate: WEIGHTLIFTING_REVALIDATE, tags: [WEIGHTLIFTING_TAG] },
-);
-
-const getCachedTopExercises = unstable_cache(
-  async (minSets: number) => {
-    const rows = await db.execute<{
-      display_name: string;
-      name: string;
-      category: string;
-      set_count: number;
-      best_one_rm: number;
-    }>(sql`
-      SELECT
-        CASE
-          WHEN e.iteration IS NOT NULL AND e.iteration != ''
-          THEN e.iteration || ' ' || e.name
-          ELSE e.name
-        END AS display_name,
-        e.name,
-        e.category,
-        COUNT(s.id) AS set_count,
-        MAX(s.one_rm) AS best_one_rm
-      FROM wl_sets s
-      INNER JOIN wl_exercises e ON s.exercise_id = e.id
-      WHERE s.one_rm IS NOT NULL
-        AND s.one_rm > 0
-        AND e.style = 'reps_weight'
-      GROUP BY display_name, e.name, e.category
-      HAVING COUNT(s.id) >= ${minSets}
-      ORDER BY best_one_rm DESC
-    `);
-
-    return rows.map((r) => ({
-      displayName: r.display_name,
-      name: r.name,
-      category: r.category,
-      setCount: Number(r.set_count),
-      bestOneRM: Number(r.best_one_rm),
-    }));
-  },
-  ["wl-top-exercises"],
   { revalidate: WEIGHTLIFTING_REVALIDATE, tags: [WEIGHTLIFTING_TAG] },
 );
 
@@ -330,7 +290,7 @@ export const weightliftingRouter = createTRPCRouter({
       }),
     )
     .query(async ({ input }) => {
-      return getCachedTopExercises(input.minSets);
+      return getChartSelectableExercises(input.minSets);
     }),
 
   /** Weekly/monthly/yearly training buckets + lifetime totals */
