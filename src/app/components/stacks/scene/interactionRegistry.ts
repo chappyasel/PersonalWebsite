@@ -45,6 +45,15 @@ export type EggSpec = {
   reducedMotion: "skip" | "state-only";
 };
 
+/** A scene object whose identity and context matter independently of its
+ * activation. Unlike a Door or Action, its label describes the object rather
+ * than promising an outcome. */
+export type ArtifactSpec = {
+  kind: "artifact";
+  label: string;
+  run: () => void;
+};
+
 export type HoverResponseSpec = {
   kind: "lift" | "tilt" | "shimmer" | "none";
 };
@@ -86,7 +95,7 @@ export type SceneInteractionSpec = {
   projectedLocalBounds?: ProjectedLocalBounds;
   movable?: MovableSpec;
   movableController?: MovableController;
-  activation?: DoorSpec | ActionSpec | EggSpec;
+  activation?: DoorSpec | ActionSpec | EggSpec | ArtifactSpec;
   hover?: HoverResponseSpec;
 };
 
@@ -206,7 +215,8 @@ function composeInteraction(id: string): SceneInteractionSpec | null {
     label:
       all.find((part) => part.label)?.label ??
       (activationPart?.activation?.kind === "door" ||
-      activationPart?.activation?.kind === "action"
+      activationPart?.activation?.kind === "action" ||
+      activationPart?.activation?.kind === "artifact"
         ? activationPart.activation.label
         : id),
     showLabel: all.every((part) => part.showLabel !== false),
@@ -310,12 +320,13 @@ export function doorLabelActivation(
 export function cursorForInteraction(
   id: string | null,
   dragging: string | null,
-): "" | "grab" | "grabbing" | "pointer" {
+): "" | "grab" | "grabbing" | "pointer" | "zoom-in" {
   if (dragging) return "grabbing";
   if (id?.startsWith("golf-club:") || id?.startsWith("golf-ball:"))
     return "pointer";
   const spec = getSceneInteraction(id);
   if (!spec) return "";
+  if (spec.activation?.kind === "artifact") return "zoom-in";
   if (spec.activation) return "pointer";
   if (spec.movable) return "grab";
   return "";
@@ -327,8 +338,20 @@ export type ProjectedDoor = {
   behind: boolean;
 };
 
+export type ProjectedSceneInteractionRect = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
 type DoorProjectionResolver = (id: string) => ProjectedDoor | null;
+type InteractionRectProjectionResolver = (
+  id: string,
+) => ProjectedSceneInteractionRect | null;
 let projectionResolver: DoorProjectionResolver | null = null;
+let interactionRectProjectionResolver: InteractionRectProjectionResolver | null =
+  null;
 
 /** The lazy scene installs its Three-dependent resolver after the renderer is
  * ready. This dependency-free bridge keeps `three` out of the DOM bundle. */
@@ -342,13 +365,25 @@ export function projectDoor(id: string): ProjectedDoor | null {
   return projectionResolver?.(id) ?? null;
 }
 
+export function setInteractionRectProjectionResolver(
+  resolver: InteractionRectProjectionResolver | null,
+) {
+  interactionRectProjectionResolver = resolver;
+}
+
+export function projectSceneInteractionRect(
+  id: string,
+): ProjectedSceneInteractionRect | null {
+  return interactionRectProjectionResolver?.(id) ?? null;
+}
+
 declare global {
   interface Window {
     __sceneInteractions?: () => Array<{
       id: string;
       units: number[];
       movable: boolean;
-      activation: "door" | "action" | "egg" | null;
+      activation: "door" | "action" | "egg" | "artifact" | null;
       label: string | null;
     }>;
   }
@@ -364,7 +399,8 @@ if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
       label:
         spec.activation?.kind === "door"
           ? doorDisplayLabel(spec.activation)
-          : spec.activation?.kind === "action"
+          : spec.activation?.kind === "action" ||
+              spec.activation?.kind === "artifact"
             ? spec.activation.label
             : null,
     }));

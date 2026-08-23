@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   GolfStrikeQueue,
+  nextReadyClubTarget,
   nextReadyGolfBall,
   shouldAdvanceGolfStrike,
 } from "./golfStrikeQueue";
@@ -30,6 +31,44 @@ describe("golf strike queue", () => {
         ["one", "two", "three", "four"],
       ),
     ).toBe("two");
+  });
+
+  it("lets a club tap target a ready tennis ball", () => {
+    expect(
+      nextReadyClubTarget(
+        [
+          {
+            id: "grab:ball:tennis",
+            golf: false,
+            phase: "ready",
+            position: { x: -2.2, z: 0.2 },
+          },
+        ],
+        { x: -3, z: 0 },
+      ),
+    ).toBe("grab:ball:tennis");
+  });
+
+  it("prioritizes a carried-in prop over the golf balls already in the bay", () => {
+    expect(
+      nextReadyClubTarget(
+        [
+          {
+            id: "golf-ball:one",
+            golf: true,
+            phase: "ready",
+            position: { x: -2.8, z: 0.1 },
+          },
+          {
+            id: "grab:ball:tennis",
+            golf: false,
+            phase: "ready",
+            position: { x: -1.7, z: 0.2 },
+          },
+        ],
+        { x: -3, z: 0 },
+      ),
+    ).toBe("grab:ball:tennis");
   });
   it("queues four unique balls and launches each at its impact frame", () => {
     const queue = new GolfStrikeQueue();

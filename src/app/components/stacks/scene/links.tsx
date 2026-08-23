@@ -12,9 +12,6 @@
 // actions add one restrained outcome label after dwell; inert scenery and
 // quiet eggs never do.
 //
-// Photographs share the shell (see PhotoMount): the ones whose source post is
-// known open it, the rest only want the affordance.
-//
 // WHY THE OPEN RIDES A WINDOW POINTERUP AND NOT r3f's onClick.
 // r3f gates every click-type event on the object having been in the hit list
 // captured at POINTERDOWN (`internal.initialHits`), and pointerdown does not

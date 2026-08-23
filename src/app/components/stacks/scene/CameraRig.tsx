@@ -9,6 +9,7 @@ import {
   golfFocusedForScenePosition,
   initialScenePositionFromLocation,
 } from "../data";
+import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
 import { browserStorage } from "../mobile/liveness";
 import { presentationProfileForViewport } from "../mobile/presentation";
 import {
@@ -19,7 +20,6 @@ import {
   touchWorldRef,
   useStacks,
 } from "../store";
-import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
 import { useScroll } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useSyncExternalStore } from "react";
@@ -55,6 +55,10 @@ import {
   cursorForInteraction,
   getSceneInteraction,
 } from "./interactionRegistry";
+import {
+  type SceneArtifactCameraLockState,
+  sceneArtifactCameraLockFrame,
+} from "./sceneArtifactCameraLock";
 import { sceneLayoutEditorController } from "./sceneLayoutEditor";
 import { SEAT_POSE, isSeated, leaveSeat, setSeatAmount } from "./seated";
 import {
@@ -216,6 +220,7 @@ export default function CameraRig() {
   const freeRoamMove = useRef(new THREE.Vector3());
   const wasFreeRoaming = useRef(false);
   const freeRoamLastPoseWrite = useRef(0);
+  const artifactCameraLock = useRef<SceneArtifactCameraLockState>("released");
   const size = useThree((s) => s.size);
   const camera = useThree((s) => s.camera);
   const freeRoam = useSyncExternalStore(
@@ -273,6 +278,7 @@ export default function CameraRig() {
 
   // Apply distance/fov when the pose changes (mount, resize, orientation).
   useEffect(() => {
+    if (useStacks.getState().modelArtifactHandoff) return;
     const initialY = captureCameraY ?? camera.position.y;
     baseY.current = initialY;
     camera.position.y = initialY;
@@ -522,6 +528,13 @@ export default function CameraRig() {
   }, [camera, freeRoamEnabled, freeRoamStorage, scroll.el]);
 
   useFrame(({ camera, pointer, clock }, delta) => {
+    const lockFrame = sceneArtifactCameraLockFrame(
+      artifactCameraLock.current,
+      useStacks.getState().modelArtifactHandoff?.phase ?? null,
+    );
+    artifactCameraLock.current = lockFrame.nextState;
+    if (lockFrame.locked) return;
+
     if (freeRoamEnabled) {
       if (!wasFreeRoaming.current) {
         const storedPose = freeRoam.startFromCurrentPose
@@ -625,7 +638,8 @@ export default function CameraRig() {
     const dt = delta > 0.05 ? 0.05 : delta;
     // A gizmo drag must not also steer the camera: while the layout editor
     // owns the pointer, the parallax reads a centred pointer instead.
-    const layoutGesture = sceneLayoutEditorController.getSnapshot().gestureActive;
+    const layoutGesture =
+      sceneLayoutEditorController.getSnapshot().gestureActive;
     const pointerX = layoutGesture ? 0 : pointer.x;
     const pointerY = layoutGesture ? 0 : pointer.y;
     const offset = scroll.offset;

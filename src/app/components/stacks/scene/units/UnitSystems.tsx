@@ -3,11 +3,12 @@
 // Systems pairs the operating manual and daily routine with six current-life
 // images. The photographs keep their source aspect ratios and sit in two loose
 // three-print ledges instead of becoming another rigid gallery grid.
+import type { PhotoArtifactId } from "../../sceneArtifacts";
 import FrozenBag from "../FrozenBag";
 import Grabbable from "../Grabbable";
-import MioBottle, { type MioFlavor } from "../MioBottle";
 import { ContactShade, FootPool } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
+import MioBottle, { type MioFlavor } from "../MioBottle";
 import ModelProp from "../ModelProp";
 import { EggClock, EggLamp, EggTrigger, Pendulum, Sway } from "../eggs";
 import {
@@ -16,13 +17,7 @@ import {
   routineBoardSeat,
   usePropClick,
 } from "../objects";
-import {
-  DeskFrame,
-  PHOTO_LINKS,
-  deskFrameHeight,
-  photoDoorDetail,
-  photoDoorLabel,
-} from "../photos";
+import { DeskFrame, deskFrameHeight } from "../photos";
 import { BookRowMesh, ShelfUnit, packRow } from "../primitives";
 import { useUnitFrame } from "../unitActivity";
 import { useUnitLod } from "../useUnitLod";
@@ -46,7 +41,7 @@ const NUDGE_AMP =
 export const CLOCK_CASE_NODE = "stacks-clock-case";
 
 type SystemPhotoSpec = {
-  id: string;
+  id: PhotoArtifactId;
   src: string;
   aspect: number;
   width: number;
@@ -59,7 +54,7 @@ type SystemPhotoSpec = {
 // 2026-08-22: the frozen chicken bags say "daily food system" already. Its
 // slot now holds the lighthouse and home-office prints, up from the lower
 // plank so the bags could stand next to the plant down there. The file and
-// its PHOTO_LINKS entry are untouched, so it can come back any time.
+// its artifact catalog entry are untouched, so it can come back any time.
 const TOP_PHOTOS: SystemPhotoSpec[] = [
   {
     id: "systems-working-session-v8",
@@ -162,9 +157,9 @@ function SystemPhoto({
   palette: UnitProps["palette"];
   textured: boolean;
 }) {
+  const { id } = photo;
   const height = photo.width / photo.aspect;
-  const hoverKey = `grab:photo:${photo.id}`;
-  const href = PHOTO_LINKS[photo.id] ?? null;
+  const hoverKey = `grab:photo:${id}`;
   return (
     <Grabbable
       unitIndex={unitIndex}
@@ -174,9 +169,7 @@ function SystemPhoto({
       shadeWidth={Math.max(0.3, photo.width * 1.15)}
       shape="box"
       massKg={0.45}
-      href={href ?? undefined}
-      doorLabel={href ? photoDoorLabel(href) : undefined}
-      doorDetail={href ? photoDoorDetail(href) : undefined}
+      artifact={id}
     >
       <HeldFacing
         hoverKey={hoverKey}

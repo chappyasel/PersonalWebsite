@@ -52,7 +52,50 @@ describe("scene physics frame ownership", () => {
   });
 });
 
+describe("golf strike delivery", () => {
+  it("launches through the authored path when lazy physics cannot take the strike", () => {
+    const strikeStart = source.indexOf("function requestSceneStrike");
+    const hooksStart = source.indexOf(
+      'if (process.env.NODE_ENV !== "production"',
+      strikeStart,
+    );
+    const strike = source.slice(strikeStart, hooksStart);
+
+    expect(strike).toContain("if (!loaded) {");
+    expect(strike).toContain("launchFallback();");
+    expect(strike).toContain("prepared.world.strike(entry, velocity)");
+    expect(strike).toContain("if (!finished) launchFallback();");
+    expect(source).toContain('phase.current = "settling"');
+    expect(source).toContain("authoredStrikeFloorY.current ??");
+  });
+});
+
 describe("Grabbable tap/carry arbitration", () => {
+  it("uses one stationary activation path for desktop and registered interactions", () => {
+    const upStart = source.indexOf("const onGrabUp");
+    const cancelStart = source.indexOf("const onGrabCancel", upStart);
+    const registrationStart = source.indexOf("useEffect(() => {", cancelStart);
+    const registrationEnd = source.indexOf("useEffect(() => {", registrationStart + 1);
+    const up = source.slice(upStart, cancelStart);
+    const registration = source.slice(registrationStart, registrationEnd);
+
+    expect(up).toContain("runStationaryActivation()");
+    expect(registration).toContain("run: runStationaryActivation");
+  });
+
+  it("allows anchored props to advertise their authored hover reaction", () => {
+    expect(source).toContain(
+      'hover: { kind: tiltOnHover ? "tilt" : "none" }',
+    );
+    expect(source).not.toContain("draggable && tiltOnHover");
+  });
+
+  it("treats an exact authored angle as an overlapping composition", () => {
+    expect(source).toContain(
+      "authoredAngle: hoverTiltAngle !== undefined",
+    );
+  });
+
   it("does not enter physics until pointer travel crosses the carry threshold", () => {
     const downStart = source.indexOf("const onGrabDown");
     const moveStart = source.indexOf("const onGrabMove", downStart);

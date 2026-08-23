@@ -2,6 +2,7 @@
 
 // Projects — framed app screenshots; reference books + the trophy below
 // (the homework-app acquisition earns it).
+import type { PhotoArtifactId } from "../../sceneArtifacts";
 import { useStacks } from "../../store";
 import Grabbable from "../Grabbable";
 import { ContactShade } from "../GroundPool";
@@ -9,15 +10,9 @@ import HeldFacing from "../HeldFacing";
 import ModelProp from "../ModelProp";
 import { EggLamp, Sway } from "../eggs";
 import { reducedMotion } from "../objects";
-import { propReactionIsEngaged } from "../reactionEngagement";
-import {
-  DeskFrame,
-  PHOTO_LINKS,
-  deskFrameHeight,
-  photoDoorDetail,
-  photoDoorLabel,
-} from "../photos";
+import { DeskFrame, deskFrameHeight } from "../photos";
 import { ShelfUnit } from "../primitives";
+import { propReactionIsEngaged } from "../reactionEngagement";
 import { SHELF_GEOMETRY } from "../shelfGeometry";
 import { useUnitFrame } from "../unitActivity";
 import { useUnitLod } from "../useUnitLod";
@@ -253,7 +248,7 @@ function ProjectPhoto({
 }: {
   unitIndex: number;
   palette: UnitProps["palette"];
-  id: string;
+  id: PhotoArtifactId;
   base: [number, number, number];
   seat: number;
   rotation: [number, number, number];
@@ -261,7 +256,6 @@ function ProjectPhoto({
   children: React.ReactNode;
 }) {
   const hoverKey = `grab:photo:${id}`;
-  const href = PHOTO_LINKS[id] ?? null;
   return (
     <Grabbable
       unitIndex={unitIndex}
@@ -271,9 +265,7 @@ function ProjectPhoto({
       shadeWidth={Math.max(0.3, width * 1.16)}
       shape="box"
       massKg={0.48}
-      href={href ?? undefined}
-      doorLabel={href ? photoDoorLabel(href) : undefined}
-      doorDetail={href ? photoDoorDetail(href) : undefined}
+      artifact={id}
     >
       <HeldFacing hoverKey={hoverKey} position={[0, seat, 0]} rest={rotation}>
         {children}
@@ -543,6 +535,7 @@ export default function UnitProjects({ palette, dark, index }: UnitProps) {
           fallbackColor="#12ace8"
           textured={textured}
           yaw={-0.07}
+          artifact="homework-app"
         />
         <ProjectPhoto
           unitIndex={index}

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "algorithm": "sha256",
-  "digest": "d1dc34dd4b5c7cb1b197cc21bbcd47c8e292467016e5d747e6b707f025f44a4c",
+  "digest": "afb547b8d3664326bad091aa6650e64f27290abe9d9bb889de538ceb162b9d58",
   "files": [
     "public/images/about/profile.jpg",
     "public/images/stacks/grass-tuft-alpha.webp",
@@ -63,8 +63,13 @@
     "src/app/components/stacks/mobile/presentation.ts",
     "src/app/components/stacks/mobile/swipeTravel.ts",
     "src/app/components/stacks/mobile/travel.ts",
+    "src/app/components/stacks/modal/ModelArtifactStage.tsx",
+    "src/app/components/stacks/modal/SceneArtifactInspector.tsx",
     "src/app/components/stacks/modal/StacksBookModal.tsx",
+    "src/app/components/stacks/modal/artifactPreviewFit.ts",
+    "src/app/components/stacks/modal/artifactPreviewMotion.ts",
     "src/app/components/stacks/modal/bookModalSync.ts",
+    "src/app/components/stacks/modal/modelArtifactHandoff.ts",
     "src/app/components/stacks/photoSources.ts",
     "src/app/components/stacks/scene/ArrivalBeats.tsx",
     "src/app/components/stacks/scene/AuthoredProps.tsx",
@@ -117,6 +122,7 @@
     "src/app/components/stacks/scene/freeRoamDiagnostics.ts",
     "src/app/components/stacks/scene/freeRoamMotion.ts",
     "src/app/components/stacks/scene/freeRoamShortcut.ts",
+    "src/app/components/stacks/scene/golf/GolfBallProp.tsx",
     "src/app/components/stacks/scene/golf/GolfExperience.tsx",
     "src/app/components/stacks/scene/golf/golfClubRig.ts",
     "src/app/components/stacks/scene/golf/golfCourse.ts",
@@ -128,6 +134,7 @@
     "src/app/components/stacks/scene/golf/golfStrikeQueue.ts",
     "src/app/components/stacks/scene/golf/golfTrajectory.ts",
     "src/app/components/stacks/scene/golf/golfTypes.ts",
+    "src/app/components/stacks/scene/golf/hittableBalls.ts",
     "src/app/components/stacks/scene/grabbablePhysics.ts",
     "src/app/components/stacks/scene/heldDepth.ts",
     "src/app/components/stacks/scene/heldFacingMath.ts",
@@ -163,6 +170,7 @@
     "src/app/components/stacks/scene/meadowLights.ts",
     "src/app/components/stacks/scene/meadowMotion.ts",
     "src/app/components/stacks/scene/mioBottleGeometry.ts",
+    "src/app/components/stacks/scene/modelArtifactDiagnostics.ts",
     "src/app/components/stacks/scene/objects.tsx",
     "src/app/components/stacks/scene/oneSidedDetailGeometry.ts",
     "src/app/components/stacks/scene/performanceMetrics.ts",
@@ -175,6 +183,7 @@
     "src/app/components/stacks/scene/physicsColliders.ts",
     "src/app/components/stacks/scene/physicsDiagnostics.ts",
     "src/app/components/stacks/scene/primitives.tsx",
+    "src/app/components/stacks/scene/projectArtifactLighting.ts",
     "src/app/components/stacks/scene/quality.ts",
     "src/app/components/stacks/scene/qualityAxes.ts",
     "src/app/components/stacks/scene/qualityEvidence.ts",
@@ -185,6 +194,7 @@
     "src/app/components/stacks/scene/reactionArchetype.ts",
     "src/app/components/stacks/scene/reactionEngagement.ts",
     "src/app/components/stacks/scene/roundedBoxGeometry.ts",
+    "src/app/components/stacks/scene/sceneArtifactCameraLock.ts",
     "src/app/components/stacks/scene/sceneBackdrop.ts",
     "src/app/components/stacks/scene/sceneColorGrade.ts",
     "src/app/components/stacks/scene/sceneDiagnosticsRuntime.ts",
@@ -220,6 +230,8 @@
     "src/app/components/stacks/scene/useUnitLod.ts",
     "src/app/components/stacks/scene/wildlifeBehavior.ts",
     "src/app/components/stacks/scene/worldLayout.ts",
+    "src/app/components/stacks/sceneArtifactState.ts",
+    "src/app/components/stacks/sceneArtifacts.ts",
     "src/app/components/stacks/store.ts",
     "src/app/components/stacks/theme.ts",
     "src/app/components/stacks/webglProbe.ts",
@@ -250,7 +262,7 @@
   ],
   "image": {
     "path": "public/images/stacks/home-og-scene.jpg",
-    "digest": "78ff58a16e9c3f3efc45e7d9d5eed28f58c4413863de0ffe9e9918d712d7501f",
-    "inputDigest": "d1dc34dd4b5c7cb1b197cc21bbcd47c8e292467016e5d747e6b707f025f44a4c"
+    "digest": "11454cffc236c7295cb3ddb7fcac66d172ce178c1dd720484523500bd6057d0d",
+    "inputDigest": "afb547b8d3664326bad091aa6650e64f27290abe9d9bb889de538ceb162b9d58"
   }
 }

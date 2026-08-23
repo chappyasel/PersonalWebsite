@@ -9,6 +9,7 @@ import {
   getSceneInteraction,
   sceneInteractionInventory,
   setDoorProjectionResolver,
+  setInteractionRectProjectionResolver,
 } from "./interactionRegistry";
 
 let projectionCamera: THREE.Camera | null = null;
@@ -211,6 +212,94 @@ function projectDoorWithContext(id: string): ProjectedDoor | null {
   };
 }
 
+/** Live projected bounds for a visual handoff into DOM. Unlike touch bounds,
+ * this deliberately bypasses the local-bounds cache so an artifact that has
+ * already tilted toward the pointer starts its preview from that rendered
+ * pose rather than from its authored rest pose. */
+function projectInteractionRectWithContext(id: string) {
+  const spec = getSceneInteraction(id);
+  if (
+    !spec ||
+    !projectionCamera ||
+    !projectionElement ||
+    !isEffectivelyVisible(spec.root)
+  )
+    return null;
+  spec.root.updateWorldMatrix(true, true);
+  const bounds = spec.projectedLocalBounds
+    ? new Box3(
+        new Vector3(...spec.projectedLocalBounds.min),
+        new Vector3(...spec.projectedLocalBounds.max),
+      )
+    : (() => {
+        rootInverse.copy(spec.root.matrixWorld).invert();
+        const live = new Box3().makeEmpty();
+        spec.root.traverse((node) => {
+          const mesh = node as THREE.Mesh;
+          if (
+            !mesh.geometry ||
+            !node.visible ||
+            (node.userData as { physicsIgnore?: boolean }).physicsIgnore ===
+              true
+          )
+            return;
+          if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+          const box = mesh.geometry.boundingBox;
+          if (!box || box.isEmpty()) return;
+          childToRoot.multiplyMatrices(rootInverse, node.matrixWorld);
+          for (const x of [box.min.x, box.max.x])
+            for (const y of [box.min.y, box.max.y])
+              for (const z of [box.min.z, box.max.z])
+                live.expandByPoint(
+                  corner.set(x, y, z).applyMatrix4(childToRoot),
+                );
+        });
+        return live;
+      })();
+  if (bounds.isEmpty()) return null;
+
+  const viewport = projectionElement.getBoundingClientRect();
+  let left = Infinity;
+  let right = -Infinity;
+  let top = Infinity;
+  let bottom = -Infinity;
+  let depth = Infinity;
+  for (const x of [bounds.min.x, bounds.max.x])
+    for (const y of [bounds.min.y, bounds.max.y])
+      for (const z of [bounds.min.z, bounds.max.z]) {
+        corner
+          .set(x, y, z)
+          .applyMatrix4(spec.root.matrixWorld)
+          .project(projectionCamera);
+        left = Math.min(
+          left,
+          viewport.left + (corner.x * 0.5 + 0.5) * viewport.width,
+        );
+        right = Math.max(
+          right,
+          viewport.left + (corner.x * 0.5 + 0.5) * viewport.width,
+        );
+        top = Math.min(
+          top,
+          viewport.top + (-corner.y * 0.5 + 0.5) * viewport.height,
+        );
+        bottom = Math.max(
+          bottom,
+          viewport.top + (-corner.y * 0.5 + 0.5) * viewport.height,
+        );
+        depth = Math.min(depth, corner.z);
+      }
+  if (
+    depth < -1 ||
+    depth > 1 ||
+    !Number.isFinite(left) ||
+    right <= left ||
+    bottom <= top
+  )
+    return null;
+  return { left, top, width: right - left, height: bottom - top };
+}
+
 export function setInteractionProjectionContext(
   camera: THREE.Camera | null,
   element: HTMLElement | null,
@@ -218,11 +307,14 @@ export function setInteractionProjectionContext(
   projectionCamera = camera;
   projectionElement = element;
   setDoorProjectionResolver(camera && element ? projectDoorWithContext : null);
+  setInteractionRectProjectionResolver(
+    camera && element ? projectInteractionRectWithContext : null,
+  );
 }
 
 export type PointerActivation = {
   id: string;
-  kind: "door" | "action" | "egg";
+  kind: "door" | "action" | "egg" | "artifact";
 };
 
 /** Touch has no hover state. Raycast every registered prop so an
@@ -252,7 +344,7 @@ export function activationAtPointer(
   let best: {
     id: string;
     distance: number;
-    activation: "door" | "action" | "egg" | null;
+    activation: "door" | "action" | "egg" | "artifact" | null;
   } | null = null;
   for (const spec of sceneInteractionInventory()) {
     if (spec.touchable === false || !isEffectivelyVisible(spec.root)) continue;

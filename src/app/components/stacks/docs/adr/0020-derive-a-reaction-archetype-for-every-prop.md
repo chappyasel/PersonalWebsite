@@ -58,6 +58,10 @@ stated reason.
 - Holding a static pose rather than animating is what preserves the settled
   hover suspension; an archetype that never settles would hold the frame loop
   open for every hovered prop.
+- Spring motion is asymmetric around the authored pose. Entry may overshoot
+  into open air according to the archetype. Return is critically damped because
+  negative engagement reverses the hinge and sends flush-mounted props through
+  their support plane.
 - Every band states its peak rotation as a base times `HOVER_MOTION_SCALE`.
   The scene has one legibility dial and a band written as a bare number
   silently opts out of it, which is a bug that has now happened twice: both

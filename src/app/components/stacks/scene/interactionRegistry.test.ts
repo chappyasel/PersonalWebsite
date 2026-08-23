@@ -109,6 +109,27 @@ describe("scene interaction registry", () => {
     release();
   });
 
+  it("keeps inspectable images out of Door labels", () => {
+    const release = registerSceneInteraction({
+      id: "test:artifact",
+      root: new Group(),
+      activeUnits: [2],
+      activation: {
+        kind: "artifact",
+        label: "Lift Table",
+        run: () => undefined,
+      },
+    });
+    const artifact = getSceneInteraction("test:artifact");
+    expect(cursorForInteraction("test:artifact", null)).toBe("zoom-in");
+    expect(doorLabelActivation(artifact)).toBeNull();
+    expect(artifact?.activation).toMatchObject({
+      kind: "artifact",
+      label: "Lift Table",
+    });
+    release();
+  });
+
   it("gives golf controls a cursor without registering a label capability", () => {
     expect(cursorForInteraction("golf-club:strike", null)).toBe("pointer");
     expect(cursorForInteraction("golf-ball:one", null)).toBe("pointer");

@@ -95,15 +95,15 @@ sign-off is recorded separately rather than invented by a headless test.
 
 ## Training — unit 2
 
-| ID                             | Intended surface         | Anchor `[x, y, z]`           | Normal `[x, y, z]`          | Owner match                            | Lamp ID | Clearance |
-| ------------------------------ | ------------------------ | ---------------------------- | --------------------------- | -------------------------------------- | ------- | --------: |
-| `training:barbell-bar`         | Barbell bar, mid-span    | `[1.9200, -0.8375, -1.0400]` | `[0, 1, 0]`                 | `id: grab:barbell`                     | —       |    `0.06` |
-| `training:protein-lid`         | Protein-tub lid          | `[0.3800, -0.2824, 0.0400]`  | `[0, 1, 0]`                 | `id: grab:protein`                     | —       |    `0.12` |
-| `training:dumbbell-left-plate` | Left dumbbell crown      | `[-1.1097, 0.2814, 0.3055]`  | `[0, 1, 0]`                 | `id: grab:dumbbell:training:left`      | —       |    `0.12` |
-| `training:navy-shaker-rim`     | Navy shaker lid ring     | `[1.0813, 0.4120, -0.0259]`  | `[0, 1, 0]`                 | `id: grab:shaker:training-navy`        | —       |    `0.02` |
-| `training:kettlebell-handle`   | Kettlebell handle crown  | `[0.4804, 0.5521, 0.0508]`   | `[0.1012, 0.9656, -0.2395]` | `id: grab:kettlebell`                  | —       |    `0.12` |
-| `training:golf-flag-frame-top` | Golf-flag frame top edge | `[-0.7395, -0.5564, 0.1039]` | `[0.0198, 0.9945, -0.1026]` | `id: grab:photo:training-golf-flag-v8` | —       |    `0.12` |
-| `training:mtn-dew-lid`         | Mtn Dew can lid          | `[0.0300, -0.6127, 0.1000]`  | `[0.0437, 0.9929, 0.1111]`  | `id: grab:can:mtn-dew-zero`            | —       |    `0.12` |
+| ID                              | Intended surface              | Anchor `[x, y, z]`           | Normal `[x, y, z]`          | Owner match                            | Lamp ID | Clearance |
+| ------------------------------- | ----------------------------- | ---------------------------- | --------------------------- | -------------------------------------- | ------- | --------: |
+| `training:barbell-bar`          | Barbell bar, mid-span         | `[1.9200, -0.8375, -1.0400]` | `[0, 1, 0]`                 | `id: grab:barbell`                     | —       |    `0.06` |
+| `training:protein-lid`          | Protein-tub lid               | `[0.4200, 0.5090, -0.2000]`  | `[0, 1, 0]`                 | `id: grab:protein`                     | —       |    `0.12` |
+| `training:dumbbell-left-plate`  | Left dumbbell crown           | `[0.2501, -0.5961, -0.1887]`  | `[0, 1, 0]`                 | `id: grab:dumbbell:training:left`      | —       |    `0.12` |
+| `training:navy-shaker-rim`      | Navy shaker lid ring          | `[1.1213, 0.4120, -0.0459]`  | `[0, 1, 0]`                 | `id: grab:shaker:training-navy`        | —       |    `0.02` |
+| `training:dumbbell-right-plate` | Right dumbbell inner plate    | `[-1.1645, 0.2608, 0.3314]`  | `[0, 1, 0]`                 | `id: grab:dumbbell:training:right`     | —       |    `0.12` |
+| `training:golf-flag-frame-top`  | Golf-flag frame top edge      | `[-0.6876, -0.4764, 0.1023]` | `[0.0198, 0.9945, -0.1026]` | `id: grab:photo:training-golf-flag-v8` | —       |    `0.12` |
+| `training:sunkist-lid`          | Sunkist can lid (pyramid top) | `[-0.0880, -0.3827, 0.0800]` | `[0.0184, 0.9929, 0.1179]`  | `id: grab:can:sunkist-zero`            | —       |    `0.12` |
 
 ## Systems — unit 3
 

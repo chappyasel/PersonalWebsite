@@ -7,10 +7,12 @@ import {
   mobileSheetCameraCoverage,
   mobileSheetChipActive,
   mobileSheetGeometry,
+  mobileSheetHidden,
   mobileSheetHorizontalSwipeIntent,
   mobileSheetMaterialOverscan,
   mobileSheetMaxUpwardOverdrag,
   mobileSheetPeekHeight,
+  mobileSheetPublishedCoverage,
   mobileSheetRenderedHeight,
   mobileSheetRestY,
   mobileSheetRubberBandY,
@@ -67,6 +69,44 @@ describe("mobile sheet transition geometry", () => {
         sheetParked: true,
       }),
     ).toBe(true);
+  });
+
+  it("returns during artifact close while ordinary modals remain hidden", () => {
+    expect(
+      mobileSheetHidden({
+        dismissed: false,
+        modalOpen: true,
+        artifactReturning: false,
+      }),
+    ).toBe(true);
+    expect(
+      mobileSheetHidden({
+        dismissed: false,
+        modalOpen: true,
+        artifactReturning: true,
+      }),
+    ).toBe(false);
+    expect(
+      mobileSheetHidden({
+        dismissed: true,
+        modalOpen: true,
+        artifactReturning: true,
+      }),
+    ).toBe(true);
+  });
+
+  it("keeps the camera fixed while the sheet returns behind a modal", () => {
+    const input = {
+      narrow: true,
+      viewportHeight: 844,
+      renderedHeight: 760,
+      sheetY: 507,
+      peekHeight: 253,
+    };
+    expect(mobileSheetPublishedCoverage({ ...input, modalOpen: true })).toBe(0);
+    expect(
+      mobileSheetPublishedCoverage({ ...input, modalOpen: false }),
+    ).toBeCloseTo(0.1499, 4);
   });
 
   it("commits deliberate horizontal swipes in physical room order", () => {
