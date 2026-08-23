@@ -215,15 +215,15 @@ function DevPerformanceHud({
       type="button"
       className="stacks-dev-hud"
       aria-label="Open scene debug console"
-      aria-keyshortcuts="h"
+      aria-keyshortcuts="`"
       aria-expanded={expanded}
       aria-controls="stacks-scene-diagnostics"
       aria-haspopup="dialog"
       data-tracing={tracing || undefined}
       title={
         tracing
-          ? "Performance trace recording · press H to stop and review"
-          : "Scene debug · press H · FPS, policy, effects, and decisions"
+          ? "Performance trace recording · press ` to stop and review"
+          : "Scene debug · press ` · FPS, policy, effects, and decisions"
       }
       onClick={onToggle}
     >
@@ -689,8 +689,8 @@ function PerformanceTraceControls({
         </strong>
       </summary>
       <p>
-        Start closes this console. Pause, pan across a few shelves, then press H
-        to stop and review; attach the JSON for analysis.
+        Start closes this console. Pause, pan across a few shelves, then press
+        ` to stop and review; attach the JSON for analysis.
       </p>
       <div className="stacks-diagnostics-actions">
         <button type="button" disabled={status.active} onClick={onStartCapture}>
@@ -1122,7 +1122,7 @@ export default function SceneDiagnostics({
         event.metaKey ||
         event.ctrlKey ||
         event.altKey ||
-        event.key.toLowerCase() !== "h" ||
+        event.key !== "`" ||
         isEditableShortcutTarget(event.target)
       )
         return;
@@ -1233,7 +1233,7 @@ export default function SceneDiagnostics({
               drag to look. WASD moves along the room&apos;s axes whichever way
               you face, Q/E moves down/up, and hold Shift for one-third speed.
               F resumes or exits free roam, Shift+F starts from the current
-              view, and H opens debug. Left click selects an editable prop: G
+              view, and ` opens debug. Left click selects an editable prop: G
               moves, R rotates, ⌘Z undoes; drag the gizmo or use arrows for
               X/Z and Page Up/Down for height.
             </p>

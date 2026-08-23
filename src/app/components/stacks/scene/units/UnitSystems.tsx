@@ -5,9 +5,9 @@
 // three-print ledges instead of becoming another rigid gallery grid.
 import FrozenBag from "../FrozenBag";
 import Grabbable from "../Grabbable";
-import MioBottle, { type MioFlavor } from "../MioBottle";
 import { ContactShade, FootPool } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
+import MioBottle, { type MioFlavor } from "../MioBottle";
 import ModelProp from "../ModelProp";
 import { EggClock, EggLamp, EggTrigger, Pendulum, Sway } from "../eggs";
 import {
@@ -128,18 +128,16 @@ const MIO_ROW: Array<{
   { flavor: "lemonade", x: -0.36, z: 0.03, yaw: -0.4, massKg: 0.12 },
 ];
 
-// Two prints left on the lower plank, spread between the bottles and the
-// lamp and set well back (level with the bags) rather than at the lip.
+// One print left on the lower plank, between the notebook and the lamp and
+// set well back (level with the bags) rather than at the lip. The lighthouse
+// print that stood beside it went to the Musings shelf on 2026-08-23, next to
+// the Gay Head souvenir it shows, and the Projects notebook took its place.
+const NOTEBOOK_POSE = {
+  base: [0.05, 0, -0.08],
+  rotation: [0, -0.22, 0],
+  scale: 0.052,
+} as const;
 const LOWER_PHOTOS: SystemPhotoSpec[] = [
-  {
-    id: "systems-lighthouse-v8",
-    src: "/images/stacks/v8/systems-lighthouse.webp",
-    aspect: 819 / 1024,
-    width: 0.27,
-    x: 0.12,
-    z: -0.08,
-    yaw: -0.2,
-  },
   {
     id: "systems-lake-v8",
     src: "/images/stacks/v8/systems-lake.webp",
@@ -325,6 +323,37 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
                 </React.Suspense>
               </Grabbable>
             ))}
+            {/* The notebook, over from Projects. A system is something you
+                write down; it belongs beside the routine board more than it
+                did beside the Mac. Its dark-theme tints are lighter than
+                they were on Projects: there it sat in the desk lamp's spill
+                beside a beige Mac, here it stands between near-white bags
+                and a lit print, and the old slate read as a hole in the
+                light ("why is the notebook so dark", 2026-08-23). */}
+            <Grabbable
+              unitIndex={index}
+              hoverKey="grab:notebook:systems"
+              base={[...NOTEBOOK_POSE.base]}
+              shadeColor={palette.shadow}
+              shadeWidth={0.42}
+              shape="box"
+              massKg={0.45}
+            >
+              <React.Suspense fallback={null}>
+                <ModelProp
+                  url="/models/notebook.glb"
+                  dark={dark}
+                  variant="tinted"
+                  tints={{
+                    FFEB3B: dark ? "#8299b2" : "#71869e",
+                    F44336: dark ? "#b08a63" : "#b68d62",
+                    "795548": dark ? "#5b493e" : "#5b493e",
+                  }}
+                  rotation={[...NOTEBOOK_POSE.rotation]}
+                  scale={NOTEBOOK_POSE.scale}
+                />
+              </React.Suspense>
+            </Grabbable>
             {LOWER_PHOTOS.map((photo) => (
               <SystemPhoto
                 key={photo.id}

@@ -3,6 +3,7 @@
 // Screen-fixed chrome over the world: shared styles, bottom vignette, the
 // persistent name, and the theme toggle island. Everything except the toggle
 // island is pointer-events-none; interactive layers manage their own events.
+import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
 import {
   requestDevHooks,
   requestSceneHooks,
@@ -13,7 +14,6 @@ import {
   freeRoamDiagnosticsController,
 } from "../scene/freeRoamDiagnostics";
 import { freeRoamShortcutIntent } from "../scene/freeRoamShortcut";
-import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
 import {
   sceneLayoutEditorController,
   sceneLayoutNudgeForKeyboard,
@@ -24,6 +24,7 @@ import { type ComponentType, useEffect, useState } from "react";
 
 import { ThemeToggle } from "~/components/ui/theme-toggle";
 
+import ChromeKeyboard from "./ChromeKeyboard";
 import DoorLabel from "./DoorLabel";
 
 const SoundToggle = dynamic(
@@ -58,8 +59,9 @@ export function ChromeReveal({
 }
 
 /** Development keeps the compact HUD visible without enabling the expensive
- * scene probes. Production loads the same cheap monitor for ?hud=1; H and
- * ?debug=1 opt into the full instrumented console. */
+ * scene probes. Production loads the same cheap monitor for ?hud=1; the
+ * backtick (where game consoles live; H is the visitor's hide-interface key)
+ * and ?debug=1 opt into the full instrumented console. */
 function SceneDiagnosticsLoader() {
   const [request, setRequest] = useState<{
     initiallyOpen: boolean;
@@ -170,7 +172,7 @@ function SceneDiagnosticsLoader() {
         event.metaKey ||
         event.ctrlKey ||
         event.altKey ||
-        event.key.toLowerCase() !== "h" ||
+        event.key !== "`" ||
         isEditableShortcutTarget(event.target)
       )
         return;
@@ -193,7 +195,7 @@ function SceneDiagnosticsLoader() {
         if (!cancelled) setDiagnostics(() => Component);
       })
       .catch(() => {
-        // A later H press should be able to retry a transient chunk failure.
+        // A later backtick should be able to retry a transient chunk failure.
         if (!cancelled) setRequest(null);
       });
 
@@ -214,6 +216,7 @@ export default function ChromeLayer() {
   return (
     <>
       <DoorLabel />
+      <ChromeKeyboard />
       <style>{`
         :root { --stacks-ease: cubic-bezier(0.16, 1, 0.3, 1); }
         .stacks-scroll { scrollbar-width: none; }

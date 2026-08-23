@@ -9,7 +9,6 @@ import HeldFacing from "../HeldFacing";
 import ModelProp from "../ModelProp";
 import { EggLamp, Sway } from "../eggs";
 import { reducedMotion } from "../objects";
-import { propReactionIsEngaged } from "../reactionEngagement";
 import {
   DeskFrame,
   PHOTO_LINKS,
@@ -17,7 +16,9 @@ import {
   photoDoorDetail,
   photoDoorLabel,
 } from "../photos";
+import { type PixelLook, nextPixelLook } from "../pixelArt";
 import { ShelfUnit } from "../primitives";
+import { propReactionIsEngaged } from "../reactionEngagement";
 import { SHELF_GEOMETRY } from "../shelfGeometry";
 import { useUnitFrame } from "../unitActivity";
 import { useUnitLod } from "../useUnitLod";
@@ -282,6 +283,73 @@ function ProjectPhoto({
   );
 }
 
+/**
+ * One circuit board, one pixel-art look. A tap toggles the store's look and
+ * records the board's world position so the Effect can wipe outward from it.
+ * The Door Label names the mode in both states ("8-bit mode" / "Photo mode"),
+ * because the two boards look like clutter until the label says otherwise.
+ */
+function PixelBoard({
+  unitIndex,
+  palette,
+  look,
+  hoverKey,
+  title,
+  base,
+  shadeWidth,
+  massKg,
+  children,
+}: {
+  unitIndex: number;
+  palette: UnitProps["palette"];
+  look: Exclude<PixelLook, "off">;
+  hoverKey: string;
+  title: string;
+  base: [number, number, number];
+  shadeWidth: number;
+  massKg: number;
+  children: React.ReactNode;
+}) {
+  const active = useStacks((state) => state.pixelLook === look);
+  const anchor = useRef<THREE.Group>(null);
+  const onTap = () => {
+    const state = useStacks.getState();
+    const origin = new THREE.Vector3();
+    anchor.current?.getWorldPosition(origin);
+    state.setPixelLook(nextPixelLook(state.pixelLook, look), [
+      origin.x,
+      origin.y,
+      origin.z,
+    ]);
+  };
+  return (
+    <Grabbable
+      unitIndex={unitIndex}
+      hoverKey={hoverKey}
+      base={base}
+      shadeColor={palette.shadow}
+      shadeWidth={shadeWidth}
+      shape="box"
+      massKg={massKg}
+      doorLabel={title}
+      actionLabel={active ? "Photo mode" : PIXEL_LOOK_ACTION_LABELS[look]}
+      onTap={onTap}
+    >
+      <group ref={anchor}>
+        <React.Suspense fallback={null}>{children}</React.Suspense>
+      </group>
+    </Grabbable>
+  );
+}
+
+/** The Arduino's ATmega is an 8-bit part, so its look is "8-bit"; the
+ * expansion card takes the next step up. Neither is a claim about colour
+ * depth, they are the names the two looks go by. */
+const PIXEL_LOOK_ACTION_LABELS: Record<Exclude<PixelLook, "off">, string> = {
+  levels: "8-bit mode",
+  palette: "16-bit mode",
+};
+
 export default function UnitProjects({ palette, dark, index }: UnitProps) {
   const textured = useUnitLod(index);
   return (
@@ -349,34 +417,6 @@ export default function UnitProjects({ palette, dark, index }: UnitProps) {
             </ProjectPhoto>
             <Grabbable
               unitIndex={index}
-              hoverKey="grab:notebook:projects"
-              base={[
-                REVIEWED_SHELF_LAYOUT.projects.notebookX,
-                0,
-                REVIEWED_SHELF_LAYOUT.projects.notebookZ,
-              ]}
-              shadeColor={palette.shadow}
-              shadeWidth={0.42}
-              shape="box"
-              massKg={0.45}
-            >
-              <React.Suspense fallback={null}>
-                <ModelProp
-                  url="/models/notebook.glb"
-                  dark={dark}
-                  variant="tinted"
-                  tints={{
-                    FFEB3B: dark ? "#52647a" : "#71869e",
-                    F44336: dark ? "#8c6d4f" : "#b68d62",
-                    "795548": dark ? "#3b302a" : "#5b493e",
-                  }}
-                  rotation={[0, -0.22, 0]}
-                  scale={0.052}
-                />
-              </React.Suspense>
-            </Grabbable>
-            <Grabbable
-              unitIndex={index}
               hoverKey="grab:phone:projects"
               base={[REVIEWED_SHELF_LAYOUT.projects.phoneX, 0, 0.13]}
               shadeColor={palette.shadow}
@@ -398,6 +438,58 @@ export default function UnitProjects({ palette, dark, index }: UnitProps) {
                 </React.Suspense>
               </group>
             </Grabbable>
+            {/* The pixel-art switches (scene/pixelArt.ts): two circuit
+                boards between the phone and the Mac. The Arduino lies flat at
+                the lip and redraws the room in eight levels a channel; the
+                green card stands behind it, nearer the Mac, and redraws it in
+                the 32-colour palette. Tapping the lit board turns the finish
+                off again. Both are ordinary movable props otherwise. */}
+            <PixelBoard
+              unitIndex={index}
+              palette={palette}
+              look="levels"
+              hoverKey="egg:pixel:arduino"
+              title="Arduino Uno"
+              base={[
+                REVIEWED_SHELF_LAYOUT.projects.arduinoX,
+                0,
+                REVIEWED_SHELF_LAYOUT.projects.arduinoZ,
+              ]}
+              shadeWidth={0.26}
+              massKg={0.03}
+            >
+              <ModelProp
+                url="/models/arduino.glb"
+                dark={dark}
+                variant="tinted"
+                rotation={[0, 0.3, 0]}
+                scale={0.19}
+              />
+            </PixelBoard>
+            <PixelBoard
+              unitIndex={index}
+              palette={palette}
+              look="palette"
+              hoverKey="egg:pixel:card"
+              title="Circuit board"
+              base={[
+                REVIEWED_SHELF_LAYOUT.projects.cardX,
+                0,
+                REVIEWED_SHELF_LAYOUT.projects.cardZ,
+              ]}
+              shadeWidth={0.3}
+              massKg={0.05}
+            >
+              {/* Upright in its own frame, gold fingers down. A hair of
+                  backward lean so the face catches the lamp. */}
+              <ModelProp
+                url="/models/circuit-board.glb"
+                dark={dark}
+                variant="tinted"
+                rotation={[-0.12, -0.22, 0]}
+                scale={0.065}
+              />
+            </PixelBoard>
             <ProjectPhoto
               unitIndex={index}
               palette={palette}

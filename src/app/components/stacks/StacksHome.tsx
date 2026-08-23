@@ -339,8 +339,15 @@ export default function StacksHome({
           </CanvasBoundary>
           <style>{`
             /* Keep the desktop chrome's geometry measurable so the capture
-               uses the same authored tilt-shift line as the live scene. */
+               uses the same authored tilt-shift line as the live scene. The
+               visitor's own "hide the interface" key (H, dom/chromeKeys)
+               blanks the same wrapper the same way. */
             html[data-og-capture] .stacks-og-ui { visibility: hidden !important; }
+            /* Descendants, not just the wrapper: it is display:contents, and
+               the placard chip sets its own inline visibility from a motion
+               value, which an inherited hidden cannot override. */
+            html[data-chrome-hidden] .stacks-og-ui,
+            html[data-chrome-hidden] .stacks-og-ui * { visibility: hidden !important; }
             html[data-og-capture] .stacks-world-curtain,
             html[data-og-capture] .stacks-boot,
             html[data-og-capture] .stacks-flat { display: none !important; }

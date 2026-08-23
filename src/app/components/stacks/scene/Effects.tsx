@@ -36,11 +36,21 @@ import {
   EffectAttribute,
   ToneMappingMode,
 } from "postprocessing";
-import { useContext, useLayoutEffect, useMemo, useRef } from "react";
-import { MathUtils, Uniform } from "three";
+import { useContext, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { MathUtils, Uniform, Vector2, Vector3, Vector4 } from "three";
 
 import { useCinematicSun } from "./cinematicSun";
 import { captureLensCenterFromSearch, sideLensPlan } from "./lensGeometry";
+import {
+  DB32_PALETTE,
+  PIXEL_WIPE_SECONDS,
+  type PixelArtPlan,
+  type PixelLook,
+  paletteGlsl,
+  pixelArtBlockPixels,
+  pixelArtPlanFor,
+  pixelWipeCoverRadius,
+} from "./pixelArt";
 import { type SceneQualityPlan, tiltShiftEnabled } from "./quality";
 import {
   type SceneColorGradeSettings,
@@ -231,6 +241,261 @@ function AdaptiveSharpen({ amount }: { amount: number }) {
   return <primitive object={effect} dispose={null} />;
 }
 
+// Pixel-art finish (see pixelArt.ts). Convolution because it samples the
+// input away from its own uv, which also keeps it in a pass of its own, LAST,
+// so SMAA has already run and nothing can re-soften the art grid.
+//
+// Everything happens in display space: the reference look is an 8-bit file,
+// and 8-bit files quantise perceptual values, not linear light. The composer's
+// buffers are still linear here, so step in, work, step out, same as Grade.
+//
+// Two looks are resident at once, OUTER and INNER, split by a circle that
+// grows from the clicked board: inside the circle is the look being switched
+// to, outside is the one being left. Either may be "off" (pass the input
+// through). At rest both are the same look and the radius is irrelevant. The
+// circle's edge is broken up by the same Bayer threshold the dither uses, so
+// the wipe front is a band of art pixels rather than an anti-aliased curve.
+// Each look has its own grid; the front is judged on the incoming grid, so
+// the new art pixels are what the edge is made of.
+const PIXEL_ART_FRAGMENT = `
+  uniform float uOuterBlock; // art pixel edge in framebuffer pixels, outside
+  uniform float uInnerBlock; // same, inside the circle
+  uniform vec4 uOuter;       // (on, levels, dither, palette) outside
+  uniform vec4 uInner;       // same, inside
+  uniform vec2 uOrigin;      // wipe centre, uv
+  uniform float uRadius;     // wipe radius, aspect-corrected uv units
+
+  const int PALETTE_SIZE = ${DB32_PALETTE.length};
+  const vec3 PALETTE[PALETTE_SIZE] = vec3[PALETTE_SIZE](
+    ${paletteGlsl(DB32_PALETTE)}
+  );
+
+  // 4x4 Bayer by bit twiddling, indexed by BLOCK so the pattern rides the art
+  // grid. Returns the threshold centred on zero.
+  float bayer4(const in vec2 cell) {
+    ivec2 i = ivec2(cell) & 3;
+    int a = i.x ^ i.y;
+    int v = ((a & 1) << 3) | ((i.y & 1) << 2) | (a & 2) | ((i.y & 2) >> 1);
+    return (float(v) + 0.5) / 16.0 - 0.5;
+  }
+
+  vec3 nearestPaletteColor(const in vec3 c) {
+    vec3 best = PALETTE[0];
+    float bestDistance = 1e9;
+    for (int i = 0; i < PALETTE_SIZE; i++) {
+      vec3 d = c - PALETTE[i];
+      // Perceptual-ish weights; plain Euclidean over-serves blue.
+      float distance = dot(d * d, vec3(0.30, 0.59, 0.11));
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = PALETTE[i];
+      }
+    }
+    return best;
+  }
+
+  vec3 finish(const in vec3 linearBoxed, const in float threshold, const in vec4 look) {
+    vec3 d = pow(max(linearBoxed, 0.0), vec3(0.4545454545));
+    float t = threshold * look.z;
+    if (look.w > 0.5) {
+      // One palette "step" is roughly a sixth of the range.
+      d = nearestPaletteColor(d + t / 6.0);
+    } else {
+      float steps = max(look.y - 1.0, 1.0);
+      d = floor((d + t / steps) * steps + 0.5) / steps;
+    }
+    return pow(clamp(d, 0.0, 1.0), vec3(2.2));
+  }
+
+  void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
+    // Which side of the wipe this pixel is on, judged on the incoming grid.
+    // The band is four art pixels wide and the threshold decides, per block,
+    // where inside it the front sits, which is what makes the edge read as
+    // dithered.
+    vec2 frontCell = floor(uv * resolution / uInnerBlock);
+    vec2 frontUv = (frontCell + 0.5) * uInnerBlock * texelSize;
+    float r = length((frontUv - uOrigin) * vec2(aspect, 1.0));
+    float band = uInnerBlock * texelSize.y * 4.0;
+    bool inside = r + bayer4(frontCell) * band < uRadius;
+    vec4 look = inside ? uInner : uOuter;
+    float block = inside ? uInnerBlock : uOuterBlock;
+
+    if (look.x < 0.5) {
+      outputColor = inputColor;
+      return;
+    }
+
+    vec2 cell = floor(uv * resolution / block);
+    float threshold = bayer4(cell);
+    vec2 center = (cell + 0.5) * block;
+    // Four bilinear taps a quarter-block off centre: a cheap box filter that
+    // covers the block, so thin geometry (railings, grass) fades rather than
+    // flickers as it crosses cells.
+    float o = block * 0.25;
+    vec3 c = texture2D(inputBuffer, (center + vec2(-o, -o)) * texelSize).rgb
+           + texture2D(inputBuffer, (center + vec2( o, -o)) * texelSize).rgb
+           + texture2D(inputBuffer, (center + vec2(-o,  o)) * texelSize).rgb
+           + texture2D(inputBuffer, (center + vec2( o,  o)) * texelSize).rgb;
+    outputColor = vec4(finish(c * 0.25, threshold, look), inputColor.a);
+  }
+`;
+
+const PIXEL_LOOK_OFF = new Vector4(0, 8, 0, 0);
+
+function pixelLookUniform(plan: PixelArtPlan | null, target: Vector4) {
+  if (!plan) return target.copy(PIXEL_LOOK_OFF);
+  return target.set(1, plan.levels, plan.dither, plan.palette ? 1 : 0);
+}
+
+class PixelArtEffect extends Effect {
+  constructor(blockPixels: number) {
+    super("PixelArtEffect", PIXEL_ART_FRAGMENT, {
+      attributes: EffectAttribute.CONVOLUTION,
+      blendFunction: BlendFunction.SRC,
+      uniforms: new Map<string, Uniform>([
+        ["uOuterBlock", new Uniform(blockPixels)],
+        ["uInnerBlock", new Uniform(blockPixels)],
+        ["uOuter", new Uniform(PIXEL_LOOK_OFF.clone())],
+        ["uInner", new Uniform(PIXEL_LOOK_OFF.clone())],
+        ["uOrigin", new Uniform(new Vector2(0.5, 0.5))],
+        ["uRadius", new Uniform(0)],
+      ]),
+    });
+  }
+}
+
+/**
+ * The wipe, in frame time. `look` is the store's target; the component keeps
+ * the look being left as OUTER until the circle has covered the frame, then
+ * promotes the target and, if the target is "off", asks to be unmounted.
+ * Re-targeting mid-wipe restarts the circle from the new origin with the old
+ * target as the new outside, which is honest about what is on screen at
+ * that instant everywhere except inside the unfinished circle.
+ */
+function PixelArt({
+  look,
+  origin,
+  onSettled,
+}: {
+  look: PixelLook;
+  origin: readonly [number, number, number] | null;
+  onSettled: (look: PixelLook) => void;
+}) {
+  const gl = useThree((state) => state.gl);
+  const camera = useThree((state) => state.camera);
+  const search = useMemo(
+    () => (typeof window === "undefined" ? "" : window.location.search),
+    [],
+  );
+  const effect = useMemo(
+    () =>
+      new PixelArtEffect(
+        pixelArtBlockPixels(
+          pixelArtPlanFor(look === "off" ? "levels" : look, search).blockCss,
+          gl.getPixelRatio(),
+        ),
+      ),
+    [], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  useDispose(effect);
+
+  const wipe = useRef<{
+    outer: PixelLook;
+    inner: PixelLook;
+    t: number;
+    originWorld: Vector3 | null;
+    originUv: [number, number];
+    settled: boolean;
+  }>({
+    // First mount: the look is already on (URL seed) or about to wipe in
+    // from nothing. Either way the frame starts as "off" outside.
+    outer: "off",
+    inner: look,
+    t: look === "off" ? 1 : 0,
+    originWorld: null,
+    originUv: [0.5, 0.5],
+    settled: false,
+  });
+  const lastLook = useRef<PixelLook | null>(null);
+  if (lastLook.current !== look) {
+    const w = wipe.current;
+    if (lastLook.current !== null) {
+      w.outer = w.inner;
+      w.inner = look;
+      w.t = 0;
+      w.settled = false;
+    }
+    w.originWorld = origin ? new Vector3(...origin) : null;
+    lastLook.current = look;
+  }
+  const onSettledRef = useRef(onSettled);
+  onSettledRef.current = onSettled;
+
+  const scratch = useMemo(
+    () => ({ ndc: new Vector3(), uniform: new Vector4() }),
+    [],
+  );
+
+  useFrame((state, delta) => {
+    const w = wipe.current;
+    const uniforms = effect.uniforms;
+    const outerPlan =
+      w.outer === "off" ? null : pixelArtPlanFor(w.outer, search);
+    const innerPlan =
+      w.inner === "off" ? null : pixelArtPlanFor(w.inner, search);
+    // Blocks are authored in CSS pixels; the ladder moves the framebuffer
+    // ratio underneath them, so re-derive every frame (cheap, and the only
+    // way the art grid holds still across a ratio step). A side that is off
+    // borrows the other's grid: the front is judged on the inner grid, and
+    // the outer value is never read for an "off" outside.
+    const ratio = gl.getPixelRatio();
+    uniforms.get("uInnerBlock")!.value = pixelArtBlockPixels(
+      (innerPlan ?? outerPlan)?.blockCss ?? 1,
+      ratio,
+    );
+    uniforms.get("uOuterBlock")!.value = pixelArtBlockPixels(
+      (outerPlan ?? innerPlan)?.blockCss ?? 1,
+      ratio,
+    );
+
+    // Project the clicked board each frame: the camera can move during the
+    // wipe and the circle should stay pinned to the board, not the screen.
+    if (w.originWorld) {
+      scratch.ndc.copy(w.originWorld).project(camera);
+      if (scratch.ndc.z < 1) {
+        w.originUv[0] = MathUtils.clamp(scratch.ndc.x * 0.5 + 0.5, -0.5, 1.5);
+        w.originUv[1] = MathUtils.clamp(scratch.ndc.y * 0.5 + 0.5, -0.5, 1.5);
+      }
+    } else {
+      w.originUv[0] = 0.5;
+      w.originUv[1] = 0.5;
+    }
+    (uniforms.get("uOrigin")!.value as Vector2).set(
+      w.originUv[0],
+      w.originUv[1],
+    );
+
+    const aspect = state.size.width / Math.max(1, state.size.height);
+    const cover = pixelWipeCoverRadius(w.originUv, aspect);
+    if (w.t < 1) {
+      w.t = Math.min(1, w.t + delta / PIXEL_WIPE_SECONDS);
+    }
+    // Ease-out: the front leaves the board fast and coasts to the corners.
+    const eased = 1 - (1 - w.t) * (1 - w.t);
+    uniforms.get("uRadius")!.value = eased * cover * 1.02;
+
+    pixelLookUniform(outerPlan, uniforms.get("uOuter")!.value as Vector4);
+    pixelLookUniform(innerPlan, uniforms.get("uInner")!.value as Vector4);
+
+    if (w.t >= 1 && !w.settled) {
+      w.settled = true;
+      w.outer = w.inner;
+      onSettledRef.current(w.inner);
+    }
+  });
+  return <primitive object={effect} dispose={null} />;
+}
+
 function SideLens({
   seated,
   captureCenter,
@@ -352,15 +617,6 @@ export default function Effects({
   // minimal effects tier. The
   // owner-approved side tilt shift is the cheaper compositional treatment;
   // it survives in finish mode and can still be isolated with ?notiltshift.
-  const tiltShift = useMemo(
-    () =>
-      tiltShiftEnabled(
-        plan.composer === "direct" ? "off" : plan.composer,
-        plan.depthOfField,
-        !performanceSettings.sideTiltShift,
-      ),
-    [performanceSettings.sideTiltShift, plan.composer, plan.depthOfField],
-  );
   const activeUnit = useStacks((state) => state.activeUnit);
   const golfFocused = useStacks((state) => state.golfFocused);
   const seated = useStacks((state) => state.seated);
@@ -370,6 +626,32 @@ export default function Effects({
         ? null
         : captureLensCenterFromSearch(window.location.search),
     [],
+  );
+  // The pixel finish. `pixelLook` is the store's target; `settledPixel` is
+  // the look the whole frame shows once the wipe is done, and it is what
+  // decides whether the bokeh and side lens stay mounted: a pixel grid over a
+  // defocus blur reads as mud, so both go the moment the wipe completes and
+  // come back the moment a wipe to "off" completes. The pass itself stays
+  // mounted until a wipe to "off" has finished, so the photograph is never
+  // cut back in under an unfinished circle.
+  const pixelLook = useStacks((state) => state.pixelLook);
+  const pixelOrigin = useStacks((state) => state.pixelOrigin);
+  const [settledPixel, setSettledPixel] = useState<PixelLook>(pixelLook);
+  const pixelMounted = pixelLook !== "off" || settledPixel !== "off";
+  const pixelBlurOff = settledPixel !== "off";
+  const tiltShift = useMemo(
+    () =>
+      tiltShiftEnabled(
+        plan.composer === "direct" ? "off" : plan.composer,
+        plan.depthOfField,
+        !performanceSettings.sideTiltShift || pixelBlurOff,
+      ),
+    [
+      performanceSettings.sideTiltShift,
+      pixelBlurOff,
+      plan.composer,
+      plan.depthOfField,
+    ],
   );
   const {
     depthOfField: planDepthOfField,
@@ -387,7 +669,7 @@ export default function Effects({
         activeUnit,
         golfFocused,
         seated,
-        isolated: performanceSettings.skipDepthOfField,
+        isolated: performanceSettings.skipDepthOfField || pixelBlurOff,
       }),
     [
       activeUnit,
@@ -395,6 +677,7 @@ export default function Effects({
       depthOfFieldResolutionScale,
       golfFocused,
       performanceSettings.skipDepthOfField,
+      pixelBlurOff,
       planDepthOfField,
       seated,
     ],
@@ -474,6 +757,14 @@ export default function Effects({
       )}
       {sharpenAmount > 0 && <AdaptiveSharpen amount={sharpenAmount} />}
       <SMAA />
+      {/* Last on purpose: the art grid must be the final thing drawn. */}
+      {pixelMounted && (
+        <PixelArt
+          look={pixelLook}
+          origin={pixelOrigin}
+          onSettled={setSettledPixel}
+        />
+      )}
       <ComposerPixelRatio />
     </EffectComposer>
   );

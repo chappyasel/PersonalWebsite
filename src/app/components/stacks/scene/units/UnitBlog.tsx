@@ -13,11 +13,21 @@ import HeldFacing from "../HeldFacing";
 import ModelProp from "../ModelProp";
 import { EggLamp, SteamCup } from "../eggs";
 import {
+  MUSINGS_LIGHTHOUSE_PRINT,
   MUSINGS_LOWER_LAYOUT,
   MUSINGS_PAPER_STACK,
+  MUSINGS_TOP_PLANT,
 } from "../musingsShelfGeometry";
 import { PaperStack } from "../objects";
+import { deskFrameHeight } from "../photoGeometry";
+import {
+  DeskFrame,
+  PHOTO_LINKS,
+  photoDoorDetail,
+  photoDoorLabel,
+} from "../photos";
 import { BookRowMesh, ShelfUnit, packRow } from "../primitives";
+import { useUnitLod } from "../useUnitLod";
 import { useTexture } from "@react-three/drei";
 import React, { useEffect, useMemo } from "react";
 import * as THREE from "three";
@@ -125,6 +135,51 @@ const HEADPHONE_MATERIALS = {
   GrayTone2: { roughness: 0.86 },
 } as const;
 
+/** The lighthouse print: a desk frame on a movable carrier, turned to the
+ * camera while held, the same carriage the Systems prints ride. */
+function MusingsPhoto({
+  unitIndex,
+  palette,
+  textured,
+}: {
+  unitIndex: number;
+  palette: UnitProps["palette"];
+  textured: boolean;
+}) {
+  const print = MUSINGS_LIGHTHOUSE_PRINT;
+  const height = print.width / print.aspect;
+  const hoverKey = `grab:photo:${print.id}`;
+  const href = PHOTO_LINKS[print.id] ?? null;
+  return (
+    <Grabbable
+      unitIndex={unitIndex}
+      hoverKey={hoverKey}
+      base={[...print.base]}
+      shadeColor={palette.shadow}
+      shadeWidth={Math.max(0.3, print.width * 1.15)}
+      shape="box"
+      massKg={0.45}
+      href={href ?? undefined}
+      doorLabel={href ? photoDoorLabel(href) : undefined}
+      doorDetail={href ? photoDoorDetail(href) : undefined}
+    >
+      <HeldFacing
+        hoverKey={hoverKey}
+        position={[0, deskFrameHeight(height) / 2, 0]}
+        rest={[0, print.yaw, 0]}
+      >
+        <DeskFrame
+          src={print.src}
+          palette={palette}
+          textured={textured}
+          width={print.width}
+          height={height}
+        />
+      </HeldFacing>
+    </Grabbable>
+  );
+}
+
 /** A thin, die-cut decal left flat on the wood in front of the lighthouse. */
 function VineyardVinesSticker({
   unitIndex,
@@ -181,6 +236,7 @@ function VineyardVinesSticker({
 }
 
 export default function UnitBlog({ palette, dark, index }: UnitProps) {
+  const textured = useUnitLod(index);
   const uprightBooks = useMemo(
     () => packRow(MUSINGS_BOOK_ROW_WIDTH, [], palette, MUSINGS_BOOK_ROW_SALT),
     [palette],
@@ -193,19 +249,6 @@ export default function UnitBlog({ palette, dark, index }: UnitProps) {
         toneSeed={index}
         lower={
           <group>
-            <Grabbable
-              unitIndex={index}
-              hoverKey="grab:plant:musings"
-              base={[MUSINGS_LOWER_LAYOUT.plantX, 0, -0.06]}
-              shadeColor={palette.shadow}
-              shadeWidth={0.28}
-              shape="box"
-              colliderProfile="foliage-base"
-              massKg={1.2}
-            >
-              <ShelfSucculent unitIndex={index} dark={dark} />
-            </Grabbable>
-
             <Grabbable
               unitIndex={index}
               hoverKey="grab:mug"
@@ -246,6 +289,13 @@ export default function UnitBlog({ palette, dark, index }: UnitProps) {
               unitIndex={index}
               dark={dark}
               shadeColor={palette.shadow}
+            />
+            {/* The Gay Head print, over from Systems, standing between the
+                island it was taken on and the souvenir of the light it shows. */}
+            <MusingsPhoto
+              unitIndex={index}
+              palette={palette}
+              textured={textured}
             />
             <Grabbable
               unitIndex={index}
@@ -290,6 +340,21 @@ export default function UnitBlog({ palette, dark, index }: UnitProps) {
           </group>
         }
       >
+        {/* The succulent bowl, up from the lower plank on 2026-08-23 to make
+            room for the lighthouse print. Front-left, in front of the lamp's
+            foot, where its head does not reach. */}
+        <Grabbable
+          unitIndex={index}
+          hoverKey="grab:plant:musings"
+          base={[...MUSINGS_TOP_PLANT.base]}
+          shadeColor={palette.shadow}
+          shadeWidth={0.28}
+          shape="box"
+          colliderProfile="foliage-base"
+          massKg={1.2}
+        >
+          <ShelfSucculent unitIndex={index} dark={dark} />
+        </Grabbable>
         {/* The top lamp is the shared measured angle-poise rig: its shade glow,
           hot mouth, spot and local spill all switch together. */}
         <group position={[...MUSINGS_LAMP_ROOT_BASE]}>

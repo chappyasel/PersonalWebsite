@@ -123,8 +123,8 @@ describe("development diagnostics chrome", () => {
 
   it("uses the HUD as the only console trigger with a safe H shortcut", () => {
     expect(diagnosticsSource).toContain("<DevPerformanceHud");
-    expect(diagnosticsSource).toContain('aria-keyshortcuts="h"');
-    expect(diagnosticsSource).toContain('event.key.toLowerCase() !== "h"');
+    expect(diagnosticsSource).toContain('aria-keyshortcuts="`"');
+    expect(diagnosticsSource).toContain('event.key !== "`"');
     expect(diagnosticsSource).toContain(
       "isEditableShortcutTarget(event.target)",
     );
@@ -308,7 +308,7 @@ describe("development diagnostics chrome", () => {
 describe("production diagnostics activation", () => {
   it("keeps a safe H listener in the always-loaded chrome", () => {
     expect(chromeSource).toContain('import("./SceneDiagnostics")');
-    expect(chromeSource).toContain('event.key.toLowerCase() !== "h"');
+    expect(chromeSource).toContain('event.key !== "`"');
     expect(chromeSource).toContain("isEditableShortcutTarget(event.target)");
     expect(chromeSource).toContain(
       "<Diagnostics initiallyOpen={request.initiallyOpen} />",

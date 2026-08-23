@@ -14,6 +14,7 @@ import {
   UNITS,
   unitUrlForLocation,
 } from "../data";
+import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
 import { useCoarseTouchCapability } from "../input/useCoarseTouchCapability";
 import { PHOTO_SOURCES } from "../photoSources";
 import {
@@ -79,6 +80,11 @@ import {
   PlacardNestedLinkCard,
   PlacardStatsCard,
 } from "./PlacardStatsCard";
+import {
+  chromeHidden,
+  chromeKeyEventFrom,
+  chromeKeyIntent,
+} from "./chromeKeys";
 import { readFocusMode, writeFocusMode } from "./focusMode";
 import {
   MOBILE_SHEET_HORIZONTAL_DOMINANCE,
@@ -2218,6 +2224,27 @@ export default function PlacardLayer({
     }
     writeFocusMode(window.sessionStorage, detailsHidden);
   }, [detailsHidden]);
+  // `\` is the same switch as the arrow at the column's edge (chromeKeys.ts).
+  // On the narrow layout, where there is no column, it dismisses and
+  // restores the sheet instead, which is what that layout calls hiding the
+  // details.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const intent = chromeKeyIntent(
+        chromeKeyEventFrom(event, isEditableShortcutTarget(event.target)),
+        chromeHidden(),
+      );
+      if (intent !== "details") return;
+      event.preventDefault();
+      if (window.matchMedia(STACKS_DESKTOP_QUERY).matches) {
+        setDetailsHidden((hidden) => !hidden);
+        return;
+      }
+      setStacksSheetDismissed(!useStacks.getState().sheetDismissed);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   useLayoutEffect(() => {
     const dock = desktopDockRef.current;
     const publish = useStacks.getState().setDesktopDetailsLeftPx;
@@ -3089,7 +3116,7 @@ export default function PlacardLayer({
           role="tooltip"
           className="stacks-glass-tooltip pointer-events-none absolute right-full top-1/2 -mr-1.5 -translate-y-1/2 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium tracking-[0.01em] text-stone-900 opacity-0 transition-[opacity,transform] duration-200 group-focus-within:opacity-100 group-hover:opacity-100 motion-reduce:transition-none dark:text-white"
         >
-          <span className="relative block h-4 w-[4.7rem] overflow-hidden whitespace-nowrap text-center leading-4">
+          <span className="relative block h-4 w-[6.1rem] overflow-hidden whitespace-nowrap text-center leading-4">
             <AnimatePresence initial={false} mode="popLayout">
               <motion.span
                 key={detailsHidden ? "show" : "hide"}
@@ -3102,7 +3129,7 @@ export default function PlacardLayer({
                   ease: [0.16, 1, 0.3, 1],
                 }}
               >
-                {detailsHidden ? "Show details" : "Hide details"}
+                {detailsHidden ? "Show details (\\)" : "Hide details (\\)"}
               </motion.span>
             </AnimatePresence>
           </span>

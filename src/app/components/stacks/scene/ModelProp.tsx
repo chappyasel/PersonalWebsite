@@ -125,6 +125,11 @@ export const MODEL_URLS = [
   // through ModelProp, but it belongs in the same warm batch for the same
   // reason as everything above — a late bag is a visible pop on arrival).
   "/models/bag.glb",
+  // 2026-08-23: the two circuit boards between the Projects phone and Mac.
+  // They are click targets (the pixel-art switch), so a late arrival is an
+  // interaction gap, same argument as the couch.
+  "/models/arduino.glb",
+  "/models/circuit-board.glb",
 ];
 
 /** Isa Lousberg's tiny-treats props are a second atlas set: every prop in it
