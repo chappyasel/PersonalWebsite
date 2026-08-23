@@ -69,6 +69,39 @@ export type WorldBootDeadline =
 
 export type LoadPath = "cold" | "warm";
 
+/** The first gate this boot has not passed, which is the only honest answer to
+ * "why am I still waiting".
+ *
+ * Deliberately ordinal and deliberately not a percentage. A loading manager's
+ * `loaded/total` cannot carry this: drei rebases it per batch, the denominator
+ * does not exist until the chunk has parsed, and the two slowest stretches of
+ * a cold boot (shader compile and the meadow's instance buffers) publish no
+ * load events at all, so a bar would sit at 100% through exactly the wait that
+ * makes a visitor reach for the tab close. */
+export type WorldBootWaitStage =
+  /** The lazy WebGL chunk has not reported a loading manager yet. */
+  | "starting"
+  /** The loading manager is fetching models and textures. */
+  | "assets"
+  /** Everything requested has arrived; nothing has been painted yet. This is
+   * where shader compilation and GPU upload live. */
+  | "firstFrame"
+  /** A frame is on screen; the meadow is still filling its instance buffers. */
+  | "meadow"
+  /** Every fact about the room is in. The vignette is closing its pass. */
+  | "opening";
+
+/** Ordinal order, and the reason the view latches: `meadowPending` and a late
+ * batch both legitimately move state backwards, and a wait message that
+ * reverses reads as a fault even when it is the truth. */
+const WAIT_STAGE_ORDER: readonly WorldBootWaitStage[] = [
+  "starting",
+  "assets",
+  "firstFrame",
+  "meadow",
+  "opening",
+];
+
 /** A snapshot of three's DefaultLoadingManager. */
 export type AssetLoadState = {
   active: boolean;
@@ -133,6 +166,17 @@ export type WorldBootEvent =
   | { type: "contextLost"; at: number; epoch: number }
   /** The homepage unmounted or the route changed. */
   | { type: "exit"; at: number; epoch: number }
+  /** The document became hidden or visible again. Not epoch-scoped: it is a
+   * fact about the tab, not about any one world.
+   *
+   * Deadlines do not run while nobody is looking. Both backstops exist to
+   * rescue a visitor stuck on a boot screen, and a hidden tab has no such
+   * visitor. It also closes a real demotion: the reveal gate's settle window
+   * is sampled on `requestAnimationFrame`, which a background tab freezes,
+   * while the deadline timer is a `setTimeout`, which a background tab still
+   * fires. Left alone, backgrounding a tab for forty seconds during boot
+   * hands it back a flat page. */
+  | { type: "visibility"; at: number; hidden: boolean }
   /** Time passed. Fires whichever deadline is due and re-checks the reveal
    * gate; the only event an adapter needs on a timer or a frame loop.
    *
@@ -156,11 +200,25 @@ export type WorldBootState = {
   startedAt: number | null;
   /** A frame has been painted by the renderer. */
   firstFrame: boolean;
+  /** A loading manager has published at least once, so the WebGL chunk is up.
+   * Separates "still fetching the chunk" from "fetching what it asked for". */
+  assetsSeen: boolean;
   /** When the loading manager last became complete, or null while it is not.
    * The settle window is measured from here. */
   assetsCompleteSince: number | null;
   meadowReady: boolean;
   bootVignetteReady: boolean;
+  /** When every reveal gate but the vignette's first held this generation, or
+   * null while that has not happened. Sticky on purpose: it tells the vignette
+   * the room is waiting on it, and a loading manager that wakes again
+   * afterwards is the gate's business, not the vignette's. It is also the
+   * clock the vignette ceiling is measured from. */
+  worldReadyAt: number | null;
+  /** The furthest gate this generation has reached, latched. */
+  waitStage: WorldBootWaitStage;
+  /** When the document became hidden, or null while it is visible. Deadlines
+   * are frozen for as long as this is set. */
+  hiddenSince: number | null;
   deadline: { kind: WorldBootDeadline; at: number } | null;
 };
 
@@ -188,6 +246,15 @@ export type WorldBootView = {
   flatAnimated: boolean;
   /** The reveal gate is being waited on; an adapter should tick every frame. */
   awaitingReveal: boolean;
+  /** The room has been ready and the vignette's pass is the only gate still
+   * shut. The boot screen reads this to bring its pass to a close early — the
+   * bookcase starts its glide onto the live shelf at once, so on a fast boot
+   * landmarks are still fading in while it travels. That is the owner's trade:
+   * the room as soon as it is ready, over one complete item-by-item read. */
+  awaitingVignette: boolean;
+  /** The first gate still shut, latched so it never reverses. The boot screen
+   * names it once the wait has gone on long enough to be worth explaining. */
+  waitStage: WorldBootWaitStage;
   ogCapture: boolean;
   deadlineAt: number | null;
   deadlineKind: WorldBootDeadline | null;
@@ -208,9 +275,13 @@ export function initialWorldBootState(): WorldBootState {
     ineligibility: null,
     startedAt: null,
     firstFrame: false,
+    assetsSeen: false,
     assetsCompleteSince: null,
     meadowReady: false,
     bootVignetteReady: false,
+    worldReadyAt: null,
+    waitStage: "starting",
+    hiddenSince: null,
     deadline: null,
   };
 }
@@ -225,6 +296,31 @@ export function assetLoadComplete({
   errors,
 }: AssetLoadState): boolean {
   return !active && total > 0 && loaded >= total && errors === 0;
+}
+
+/** Which evidence answers "is this load warm" for a given start.
+ *
+ * For the first start of a document the attribute wins, for the reason
+ * `WarmEvidence` gives: the pre-paint script owns that decision and its own
+ * backstop can revoke it. A later start is a different question. It is an SPA
+ * re-entry, and the attribute is absent only because our own `exit` cleared it
+ * on the way out, so reading it back would call every re-entry cold and hand a
+ * visitor returning from a subpage the long cold transition over a world whose
+ * chunk, models, and shaders are all still in memory. The stored record is
+ * what the pre-paint script would have read, and it is fresh precisely when a
+ * reveal has already happened. */
+export function warmEvidenceFor({
+  firstStartOfDocument,
+  phase,
+  warmRecordAgeMs,
+}: {
+  firstStartOfDocument: boolean;
+  phase: WorldPhase | null;
+  warmRecordAgeMs: number | null;
+}): WarmEvidence {
+  return firstStartOfDocument
+    ? { source: "documentPhase", phase }
+    : { source: "warmRecord", ageMs: warmRecordAgeMs };
 }
 
 /** Whether a start event's evidence says this load is warm. */
@@ -280,27 +376,73 @@ function assetsReady(
   return since !== null && at - since >= policy.assetSettleMs;
 }
 
+/** The three facts about the room itself. */
+function worldGatesOpen(
+  state: WorldBootState,
+  at: number,
+  policy: WorldBootPolicy,
+): boolean {
+  return (
+    state.firstFrame && assetsReady(state, at, policy) && state.meadowReady
+  );
+}
+
 /** Time is never treated as readiness. Every one of these is a fact about the
  * world, and the boot vignette's own pass is one of them so a cached boot
- * still gets one honest item-by-item read instead of an abrupt cut. */
+ * still gets one honest read instead of an abrupt cut. The vignette may close
+ * its pass early once the room is ready (see `awaitingVignette`), but it is
+ * still the vignette that says when it has finished.
+ *
+ * With one bound. The vignette is presentation, and presentation gets to
+ * lengthen a wait by a fixed cosmetic amount, never to hold a painted world
+ * hostage: past `vignetteCeilingMs` from the moment the room was ready, the
+ * reveal stops asking. The world facts are still required — the ceiling
+ * releases the vignette, never the room. */
+function vignetteGateOpen(
+  state: WorldBootState,
+  at: number,
+  policy: WorldBootPolicy,
+): boolean {
+  if (state.bootVignetteReady) return true;
+  const readyAt = state.worldReadyAt;
+  return readyAt !== null && at - readyAt >= policy.vignetteCeilingMs;
+}
+
 function revealGateOpen(
   state: WorldBootState,
   at: number,
   policy: WorldBootPolicy,
 ): boolean {
   return (
-    state.firstFrame &&
-    assetsReady(state, at, policy) &&
-    state.meadowReady &&
-    state.bootVignetteReady
+    worldGatesOpen(state, at, policy) && vignetteGateOpen(state, at, policy)
   );
+}
+
+/** The first gate that has not been passed, read straight off the live facts.
+ * Non-monotonic by nature; `latchWaitStage` is what the view reads. */
+function observedWaitStage(state: WorldBootState): WorldBootWaitStage {
+  if (!state.assetsSeen) return "starting";
+  if (state.assetsCompleteSince === null) return "assets";
+  if (!state.firstFrame) return "firstFrame";
+  if (!state.meadowReady) return "meadow";
+  return "opening";
+}
+
+function latchWaitStage(state: WorldBootState): WorldBootState {
+  const observed = observedWaitStage(state);
+  return WAIT_STAGE_ORDER.indexOf(observed) >
+    WAIT_STAGE_ORDER.indexOf(state.waitStage)
+    ? { ...state, waitStage: observed }
+    : state;
 }
 
 function deadlineDue(
   state: WorldBootState,
   at: number,
 ): WorldBootDeadline | null {
-  if (!state.deadline) return null;
+  // Frozen while the tab is hidden. `visibility` pushes the deadline forward
+  // by however long that lasted, but a throttled timer can fire in the gap.
+  if (!state.deadline || state.hiddenSince !== null) return null;
   return at >= state.deadline.at ? state.deadline.kind : null;
 }
 
@@ -325,14 +467,23 @@ function settle(
 ): WorldBootState {
   if (state.status === "booting") {
     if (state.holdBoot) return state;
-    if (revealGateOpen(state, at, policy)) {
+    const staged = latchWaitStage(state);
+    if (revealGateOpen(staged, at, policy)) {
       return {
-        ...state,
+        ...staged,
         status: "revealing",
         deadline: { kind: "flatRetire", at: at + policy.flatRetireMs },
       };
     }
-    return deadlineDue(state, at) ? giveUp(state, "hang") : state;
+    // The hang backstop asks "will this world ever be ready", and once it has
+    // been the question is answered for good. Disarming it here is what keeps
+    // a slow cold boot that finally lands at 39s from being thrown away at 40
+    // because the vignette was still gliding.
+    const waiting =
+      staged.worldReadyAt === null && worldGatesOpen(staged, at, policy)
+        ? { ...staged, worldReadyAt: at, deadline: null }
+        : staged;
+    return deadlineDue(waiting, at) ? giveUp(waiting, "hang") : waiting;
   }
   if (state.status === "revealing" && deadlineDue(state, at) === "flatRetire") {
     return { ...state, status: "live", deadline: null };
@@ -368,6 +519,34 @@ function isVignetteSignal(event: WorldBootEvent): boolean {
   );
 }
 
+/** Freeze every clock the boot arbitrates on for as long as the tab is hidden,
+ * then hand back the time that was taken. A boot that was thirty seconds from
+ * its backstop when the visitor switched tabs is still thirty seconds from it
+ * when they come back, whether that was one minute later or an hour. The
+ * vignette ceiling moves with it, so returning to a ready room still gets the
+ * glide rather than a bookcase that has already snapped into place. */
+function applyVisibility(
+  state: WorldBootState,
+  at: number,
+  hidden: boolean,
+): WorldBootState {
+  if (hidden) {
+    return state.hiddenSince === null ? { ...state, hiddenSince: at } : state;
+  }
+  const { hiddenSince } = state;
+  if (hiddenSince === null) return state;
+  const elapsed = Math.max(0, at - hiddenSince);
+  return {
+    ...state,
+    hiddenSince: null,
+    worldReadyAt:
+      state.worldReadyAt === null ? null : state.worldReadyAt + elapsed,
+    deadline: state.deadline
+      ? { ...state.deadline, at: state.deadline.at + elapsed }
+      : null,
+  };
+}
+
 export function reduceWorldBoot(
   state: WorldBootState,
   event: WorldBootEvent,
@@ -386,6 +565,7 @@ export function reduceWorldBoot(
     (state.status === "failed" || state.status === "exited") &&
     event.type !== "start" &&
     event.type !== "exit" &&
+    event.type !== "visibility" &&
     !isVignetteSignal(event)
   ) {
     return state;
@@ -407,6 +587,9 @@ export function reduceWorldBoot(
         // signal nobody will send again. `exit` is what ends a pass, because
         // that is what ends the page instance the vignette belongs to.
         bootVignetteReady: state.bootVignetteReady,
+        // Also a fact about the tab rather than the world. An SPA re-entry
+        // made in a background tab must start its backstop already frozen.
+        hiddenSince: state.hiddenSince,
       };
       const ineligibility = worldIneligibility({
         webglAvailable: event.webglAvailable,
@@ -461,10 +644,14 @@ export function reduceWorldBoot(
       // Monotonic while the manager stays complete: a later batch that starts
       // after an earlier one reached 100% restarts the settle window.
       const since = complete ? (state.assetsCompleteSince ?? event.at) : null;
-      if (since === state.assetsCompleteSince) {
+      if (since === state.assetsCompleteSince && state.assetsSeen) {
         return settle(state, event.at, policy);
       }
-      return settle({ ...state, assetsCompleteSince: since }, event.at, policy);
+      return settle(
+        { ...state, assetsSeen: true, assetsCompleteSince: since },
+        event.at,
+        policy,
+      );
     }
 
     case "meadowReady":
@@ -482,6 +669,11 @@ export function reduceWorldBoot(
     case "bootVignetteCompleted":
       if (state.bootVignetteReady) return settle(state, event.at, policy);
       return settle({ ...state, bootVignetteReady: true }, event.at, policy);
+
+    case "visibility": {
+      const next = applyVisibility(state, event.at, event.hidden);
+      return next === state ? state : settle(next, event.at, policy);
+    }
 
     case "tick":
       return settle(state, event.at, policy);
@@ -513,6 +705,11 @@ export function worldBootView(state: WorldBootState): WorldBootView {
     flatAnimated: !worldMounted,
     awaitingReveal:
       state.status === "booting" && state.firstFrame && !state.holdBoot,
+    awaitingVignette:
+      state.status === "booting" &&
+      state.worldReadyAt !== null &&
+      !state.bootVignetteReady,
+    waitStage: state.waitStage,
     ogCapture: state.ogCapture && state.status !== "exited",
     deadlineAt: state.deadline?.at ?? null,
     deadlineKind: state.deadline?.kind ?? null,

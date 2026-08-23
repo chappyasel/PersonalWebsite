@@ -8,11 +8,30 @@
 // Both form factors mark a unit with its section glyph. The rail normally uses
 // the canonical section name; a unit may opt into a shorter navigation-only
 // label without changing the title of the destination it opens.
-import { UNITS, UNIT_COUNT, unitUrlForLocation } from "../data";
+import { publishAboutBootStage } from "../boot/aboutBootStage";
+import {
+  GOLF_STOP_POSITION,
+  UNITS,
+  UNIT_COUNT,
+  unitUrlForLocation,
+} from "../data";
 import { TOUCH_HORIZONTAL_DOMINANCE, TOUCH_SLOP_PX } from "../mobile/gesture";
 import { haptic } from "../mobile/liveness";
 import { closeStacksPanel, railRightPxRef, useStacks } from "../store";
-import { useLayoutEffect, useRef, useState } from "react";
+import {
+  animate,
+  motion,
+  useMotionValue,
+  useReducedMotion,
+  useTransform,
+} from "framer-motion";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 /** Desktop row height, in rem. The rows are `h-9` and the travelling thumb
  * translates by this per unit, so the two must agree — one number, used
@@ -25,12 +44,177 @@ const MOBILE_STEP_REM = 2.75;
  * orientations of one control, not unrelated navigation treatments. */
 const INDICATOR_LENGTH_REM = 1.25;
 const INDICATOR_THICKNESS_REM = 0.25;
+const GOLF_BALL_DIAMETER_REM = 0.75;
+
+function subscribeToRailLocation(onChange: () => void) {
+  const unsubscribe = useStacks.subscribe(onChange);
+  window.addEventListener("hashchange", onChange);
+  window.addEventListener("popstate", onChange);
+  return () => {
+    unsubscribe();
+    window.removeEventListener("hashchange", onChange);
+    window.removeEventListener("popstate", onChange);
+  };
+}
+
+function currentRailHash() {
+  return window.location.hash;
+}
+
+/** Move the two ends of an indicator separately. The end facing the
+ * destination gets there first, stretching the mark along its rail; the other
+ * end catches up with a softer spring. */
+function useElasticIndicatorEdges({
+  displayedUnit,
+  inset,
+  length,
+  step,
+}: {
+  displayedUnit: number;
+  inset: number;
+  length: number;
+  step: number;
+}) {
+  const reduceMotion = useReducedMotion();
+  const initialStart = displayedUnit * step + inset;
+  const startEdge = useMotionValue(initialStart);
+  const endEdge = useMotionValue(initialStart + length);
+  const start = useTransform(startEdge, (value) => `${value}rem`);
+  const size = useTransform<number, string>(
+    [startEdge, endEdge],
+    ([start = 0, end = 0]) => `${Math.max(0, end - start)}rem`,
+  );
+
+  useEffect(() => {
+    const targetStart = displayedUnit * step + inset;
+    const targetEnd = targetStart + length;
+
+    if (reduceMotion) {
+      startEdge.set(targetStart);
+      endEdge.set(targetEnd);
+      return;
+    }
+
+    const movingForward = targetStart > (startEdge.get() + endEdge.get()) / 2;
+    const leadingEdge = movingForward ? endEdge : startEdge;
+    const trailingEdge = movingForward ? startEdge : endEdge;
+    const leadingTarget = movingForward ? targetEnd : targetStart;
+    const trailingTarget = movingForward ? targetStart : targetEnd;
+
+    const lead = animate(leadingEdge, leadingTarget, {
+      type: "spring",
+      stiffness: 510,
+      damping: 32,
+      mass: 0.62,
+    });
+    const trail = animate(trailingEdge, trailingTarget, {
+      type: "spring",
+      stiffness: 350,
+      damping: 28,
+      mass: 0.78,
+      delay: 0.035,
+    });
+
+    return () => {
+      lead.stop();
+      trail.stop();
+    };
+  }, [displayedUnit, endEdge, inset, length, reduceMotion, startEdge, step]);
+
+  return { size, start };
+}
+
+function ElasticDesktopIndicator({
+  displayedUnit,
+  golfBall,
+}: {
+  displayedUnit: number;
+  golfBall: boolean;
+}) {
+  const reduceMotion = useReducedMotion();
+  const length = golfBall ? GOLF_BALL_DIAMETER_REM : INDICATOR_LENGTH_REM;
+  const { size: height, start: top } = useElasticIndicatorEdges({
+    displayedUnit,
+    inset: (ROW_REM - length) / 2,
+    length,
+    step: ROW_REM,
+  });
+  const crossSize = golfBall ? GOLF_BALL_DIAMETER_REM : INDICATOR_THICKNESS_REM;
+
+  return (
+    <motion.span
+      aria-hidden
+      data-stacks-rail-indicator="desktop"
+      data-stacks-golf-ball={golfBall || undefined}
+      className="stacks-on-background-mark pointer-events-none absolute rounded-full bg-foreground/85"
+      animate={{
+        left: `${(INDICATOR_THICKNESS_REM - crossSize) / 2}rem`,
+        width: `${crossSize}rem`,
+      }}
+      transition={
+        reduceMotion
+          ? { duration: 0 }
+          : { type: "spring", stiffness: 430, damping: 30, mass: 0.68 }
+      }
+      style={{
+        top,
+        height,
+      }}
+    />
+  );
+}
+
+function ElasticMobileIndicator({
+  displayedUnit,
+  golfBall,
+}: {
+  displayedUnit: number;
+  golfBall: boolean;
+}) {
+  const reduceMotion = useReducedMotion();
+  const length = golfBall ? GOLF_BALL_DIAMETER_REM : INDICATOR_LENGTH_REM;
+  const { size: width, start: left } = useElasticIndicatorEdges({
+    displayedUnit,
+    inset: (MOBILE_STEP_REM - length) / 2,
+    length,
+    step: MOBILE_STEP_REM,
+  });
+  const crossSize = golfBall ? GOLF_BALL_DIAMETER_REM : INDICATOR_THICKNESS_REM;
+
+  return (
+    <motion.span
+      aria-hidden
+      data-stacks-rail-indicator="mobile"
+      data-stacks-golf-ball={golfBall || undefined}
+      className="stacks-on-background-mark pointer-events-none absolute rounded-full bg-foreground/85"
+      animate={{
+        bottom: `${0.25 - (crossSize - INDICATOR_THICKNESS_REM) / 2}rem`,
+        height: `${crossSize}rem`,
+      }}
+      transition={
+        reduceMotion
+          ? { duration: 0 }
+          : { type: "spring", stiffness: 430, damping: 30, mass: 0.68 }
+      }
+      style={{
+        left,
+        width,
+      }}
+    />
+  );
+}
 
 export default function UnitRail() {
   const activeUnit = useStacks((s) => s.activeUnit);
   const golfFocused = useStacks((s) => s.golfFocused);
   const unitMapPreview = useStacks((s) => s.unitMapPreview);
+  const currentHash = useSyncExternalStore(
+    subscribeToRailLocation,
+    currentRailHash,
+    () => "",
+  );
   const displayedUnit = unitMapPreview ?? activeUnit;
+  const showGolfBall = currentHash === "#golf" && unitMapPreview === null;
   const [initialActiveUnit] = useState(activeUnit);
   const railRef = useRef<HTMLElement>(null);
   const mobileRailRef = useRef<HTMLElement>(null);
@@ -49,7 +233,8 @@ export default function UnitRail() {
   // Publish the rail's measured right edge for CameraRig's About-stop solver:
   // the initial framing slides right until the shelf's projected left edge
   // clears this by a margin. Measured, not assumed — label widths move with
-  // the serif font's swap-in and root type-size changes.
+  // the serif font's swap-in and root type-size changes. The boot stage solves
+  // against the same edge, so it follows the shelf the measurement moves.
   useLayoutEffect(() => {
     const measure = () => {
       const nav = railRef.current;
@@ -58,6 +243,7 @@ export default function UnitRail() {
       const right = rect.width > 0 ? rect.right : 0;
       railRightPxRef.current = right;
       useStacks.getState().setDesktopNavRightPx(right);
+      publishAboutBootStage(right);
     };
     measure();
     window.addEventListener("resize", measure);
@@ -318,6 +504,14 @@ export default function UnitRail() {
           outline: 2px solid hsl(var(--foreground) / 0.45);
           outline-offset: 2px;
         }
+        /* At twelve pixels, three dimples are enough to read as a golf ball
+           without turning the navigation marker into a tiny illustration. */
+        [data-stacks-golf-ball] {
+          background-image:
+            radial-gradient(circle at 31% 30%, hsl(0 0% 0% / 0.34) 0 0.045rem, transparent 0.06rem),
+            radial-gradient(circle at 68% 40%, hsl(0 0% 0% / 0.3) 0 0.04rem, transparent 0.055rem),
+            radial-gradient(circle at 45% 70%, hsl(0 0% 0% / 0.28) 0 0.04rem, transparent 0.055rem);
+        }
         @media (prefers-reduced-motion: reduce) {
           .stacks-unit-rail-mobile .stacks-rail-row,
           .stacks-world-shell[data-revealed]
@@ -357,25 +551,21 @@ export default function UnitRail() {
         aria-label="Sections"
         className="stacks-unit-rail-desktop pointer-events-auto absolute left-5 top-1/2 z-30 hidden -translate-y-1/2 min-[1200px]:left-7 min-[1200px]:block"
       >
-        <div className="relative flex flex-col">
+        <div
+          className="relative flex flex-col"
+          style={
+            {
+              "--stacks-desktop-indicator-delay": `${initialActiveUnit * 40}ms`,
+              "--stacks-desktop-indicator-warm-delay": `${initialActiveUnit * 24}ms`,
+            } as React.CSSProperties
+          }
+        >
           {/* The same 20px × 4px pill used by mobile, rotated for the vertical
-              rail and kept left of the glyph. It moves from selected section
-              to selected section with the same duration/ease. */}
-          <span
-            aria-hidden
-            data-stacks-rail-indicator="desktop"
-            className="stacks-on-background-mark pointer-events-none absolute left-0 top-2 rounded-full bg-foreground/85 transition-transform duration-500 will-change-transform motion-reduce:transition-none"
-            style={
-              {
-                width: `${INDICATOR_THICKNESS_REM}rem`,
-                height: `${INDICATOR_LENGTH_REM}rem`,
-                transform: `translateY(${activeUnit * ROW_REM}rem)`,
-                transitionTimingFunction: "var(--stacks-ease)",
-                opacity: golfFocused ? 0 : 1,
-                "--stacks-desktop-indicator-delay": `${initialActiveUnit * 40}ms`,
-                "--stacks-desktop-indicator-warm-delay": `${initialActiveUnit * 24}ms`,
-              } as React.CSSProperties
-            }
+              rail and kept left of the glyph. Its two ends use the same
+              elastic travel as the mobile underline. */}
+          <ElasticDesktopIndicator
+            displayedUnit={showGolfBall ? GOLF_STOP_POSITION : activeUnit}
+            golfBall={showGolfBall}
           />
           {UNITS.map((unit, i) => {
             const Icon = unit.icon;
@@ -498,17 +688,9 @@ export default function UnitRail() {
             useStacks.getState().setUnitMapPreview(null);
           }}
         >
-          <span
-            aria-hidden
-            data-stacks-rail-indicator="mobile"
-            className="stacks-on-background-mark pointer-events-none absolute bottom-1 rounded-full bg-foreground/85 transition-[left,width] duration-500 motion-reduce:transition-none"
-            style={{
-              left: `calc(${displayedUnit * MOBILE_STEP_REM}rem + 0.75rem)`,
-              width: `${INDICATOR_LENGTH_REM}rem`,
-              height: `${INDICATOR_THICKNESS_REM}rem`,
-              transitionTimingFunction: "var(--stacks-ease)",
-              opacity: golfFocused ? 0 : 1,
-            }}
+          <ElasticMobileIndicator
+            displayedUnit={showGolfBall ? GOLF_STOP_POSITION : displayedUnit}
+            golfBall={showGolfBall}
           />
           {UNITS.map((unit, i) => {
             const Icon = unit.icon;

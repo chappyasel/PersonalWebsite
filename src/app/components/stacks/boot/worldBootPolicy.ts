@@ -52,6 +52,14 @@ export type WorldBootPolicy = {
    * believed. Closes the gap between one batch finishing and a Suspense child
    * queueing the next. */
   assetSettleMs: number;
+  /** Ceiling on how long a ready room may be held back by the boot vignette's
+   * closing glide. The glide is a 600ms CSS transition
+   * (`ABOUT_BOOT_STAGE_GLIDE`), so this is roughly twice the honest cost. It
+   * exists because the vignette is presentation and presentation must never be
+   * able to strand a world that has already painted: without it a transition
+   * that never settles turns a cosmetic bug into a hang, and the only way out
+   * is `hangBackstopMs` demoting a perfectly good world to the flat page. */
+  vignetteCeilingMs: number;
   /** How long the flat document stays mounted behind the revealed world so
    * the curtain can cross-fade over it. Matches the 360ms opacity transition
    * in globals.css plus a frame of slack. */
@@ -81,6 +89,7 @@ export const WORLD_BOOT_POLICY: WorldBootPolicy = {
   prepaintBackstopMs: 20000,
   hangBackstopMs: 40000,
   assetSettleMs: 250,
+  vignetteCeilingMs: 1200,
   flatRetireMs: 420,
   prepaintTimerGlobal: "__stacksWorldBootTimer",
   prepaintTokenGlobal: "__stacksWorldBootToken",

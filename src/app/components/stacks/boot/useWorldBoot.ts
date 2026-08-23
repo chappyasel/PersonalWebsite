@@ -1,6 +1,6 @@
 "use client";
 
-// The React adapter: three effects that do nothing but carry signals in and
+// The React adapter: four effects that do nothing but carry signals in and
 // time forward. No policy lives here.
 import { useEffect, useState, useSyncExternalStore } from "react";
 
@@ -39,6 +39,19 @@ export function useWorldBoot(): WorldBootView {
       // gone, and must not take the live one down with it.
       scope.send({ type: "exit" });
     };
+  }, []);
+
+  // Tab visibility, published once at mount and on every change. The machine
+  // freezes its deadlines while the document is hidden; without this a tab
+  // backgrounded during a boot comes back demoted, because the reveal gate is
+  // sampled on requestAnimationFrame (frozen) while the backstop below is a
+  // setTimeout (throttled, but still fires).
+  useEffect(() => {
+    const publish = () =>
+      worldBoot.send({ type: "visibility", hidden: document.hidden });
+    publish();
+    document.addEventListener("visibilitychange", publish);
+    return () => document.removeEventListener("visibilitychange", publish);
   }, []);
 
   // One timer for whichever deadline is armed: the hang backstop before the

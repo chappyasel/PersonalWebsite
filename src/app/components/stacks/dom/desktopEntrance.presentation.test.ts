@@ -37,6 +37,14 @@ describe("desktop first-load entrance", () => {
     expect(railSource).toContain("stacks-desktop-rail-indicator-in 360ms");
   });
 
+  it("stretches the desktop indicator along the shared spring", () => {
+    expect(railSource).toContain("function ElasticDesktopIndicator");
+    expect(railSource).toContain("function useElasticIndicatorEdges");
+    expect(railSource).toContain("step: ROW_REM");
+    expect(railSource).toContain("const leadingEdge = movingForward");
+    expect(railSource).toContain("const trailingEdge = movingForward");
+  });
+
   it("animates only the initial resident placard and releases normal swaps", () => {
     expect(placardSource).toContain(
       "const [initialActiveUnit] = useState(activeUnit)",

@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import { BOOT_WAIT_NOTE_FADE_MS } from "./bootVignette";
+
 const css = fs.readFileSync(
   new URL("../../../../styles/globals.css", import.meta.url),
   "utf8",
@@ -18,6 +20,39 @@ function rule(selector: string) {
 }
 
 describe("boot presentation", () => {
+  // React Fast Refresh only treats a module as a refresh boundary when every
+  // one of its exports is a component. A single exported constant here turns
+  // every saved edit into a full document reload, which tears down the live
+  // world and replays the entire boot behind the screen being tuned. The
+  // vignette's maths live in ./bootVignette for exactly this reason.
+  it("exports nothing but components, so a saved edit hot-swaps", () => {
+    const exported = Array.from(
+      component.matchAll(/^export (?:default )?(?:async )?(\w+) (\w+)/gm),
+    ).map(([, kind, name]) => ({ kind, name: name ?? "" }));
+
+    expect(exported.length).toBeGreaterThan(0);
+    for (const { kind, name } of exported) {
+      // Types are erased before the refresh boundary is decided.
+      if (kind === "type" || kind === "interface") continue;
+      expect(kind, `${name} is not a component declaration`).toBe("function");
+      expect(name.slice(0, 1), `${name} is not a component name`).toBe(
+        name.slice(0, 1).toUpperCase(),
+      );
+    }
+  });
+
+  // A boot screen returning after a reveal (SPA re-entry, or a dev remount)
+  // must become visible on the same frame the handshake asks for it. The flat
+  // document is hidden the instant `data-world` is set and the world's canvas
+  // has just been torn down, so any delay on the way back to visible is a
+  // window with nothing on screen at all.
+  it("delays the boot screen's visibility only while it is leaving", () => {
+    expect(rule(".stacks-boot {")).toContain("visibility 0s;");
+    expect(rule('html[data-world="ready"] .stacks-boot {')).toContain(
+      "visibility 0s linear 360ms",
+    );
+  });
+
   it("paints the bookcase immediately instead of fading the whole entry in", () => {
     expect(rule(".stacks-boot-entry {")).not.toContain("animation:");
   });
@@ -87,9 +122,17 @@ describe("boot presentation", () => {
     expect(wait).toContain("opacity: 0");
     expect(wait).toContain("stacks-boot-wait-arrive 2s");
     expect(wait).toContain("3s");
-    expect(css).toContain("@keyframes stacks-boot-wait-note");
+    // The notes cross-fade between machine states. Nothing about them runs on
+    // a timer, so there is no carousel keyframe and no cycle variable: a
+    // twenty-second loop is what made them fiction in the first place.
+    expect(css).not.toContain("@keyframes stacks-boot-wait-note");
+    expect(css).not.toContain("--stacks-boot-wait-cycle");
+    expect(css).not.toContain("--stacks-boot-wait-delay");
     expect(rule(".stacks-boot-wait-note {")).toContain(
-      "var(--stacks-boot-wait-cycle)",
+      `opacity ${BOOT_WAIT_NOTE_FADE_MS}ms ease`,
+    );
+    expect(rule('.stacks-boot-wait-note[data-boot-note="active"] {')).toContain(
+      "opacity: 1",
     );
     expect(component).toContain("createBootDustDrift(");
     expect(component).toContain("iterations: Number.POSITIVE_INFINITY");

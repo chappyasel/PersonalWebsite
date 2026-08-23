@@ -5,8 +5,18 @@ import {
   fallbackCoverEdgeColor,
   readingBookMaterialColors,
 } from "../../../../lib/books/coverEdgeColor";
+import {
+  ABOUT_BOOT_STAGE_GLIDE,
+  aboutBootStageScript,
+  publishAboutBootStage,
+  setAboutBootStagePhase,
+} from "../boot/aboutBootStage";
 import { isBootingPhase } from "../boot/worldBootMachine";
-import { documentWorldPhase, worldBoot } from "../boot/worldBootSession";
+import {
+  SERVER_WORLD_BOOT_VIEW,
+  documentWorldPhase,
+  worldBoot,
+} from "../boot/worldBootSession";
 import {
   ABOUT_AIC_BASE_WIDTH,
   ABOUT_AIC_MARK_HEIGHT,
@@ -18,7 +28,6 @@ import {
   ABOUT_BOOT_VISIBLE_COMPOSITION,
   type AboutBootLandmark,
   type AboutLandmarkGlyph,
-  type AboutLandmarkId,
 } from "../scene/aboutBootComposition";
 import { ABOUT_BOOT_MODEL_SILHOUETTES } from "../scene/aboutBootSilhouettes";
 import {
@@ -58,7 +67,7 @@ import {
   readingStackPoses,
 } from "../scene/units/aboutReadingStack";
 import { CAMERA } from "../scene/worldLayout";
-import { PALETTES, proxied } from "../theme";
+import { PALETTES } from "../theme";
 import {
   type CSSProperties,
   type ReactNode,
@@ -77,13 +86,24 @@ import {
   publishBootReadingBooks,
   subscribeBootReadingBooks,
 } from "./bootReadingBooks";
+import {
+  BOOT_DUST_COUNTS,
+  BOOT_DUST_SPAWN_DELAY_MS,
+  BOOT_DUST_SPAWN_WINDOW_MS,
+  BOOT_FRAME_PHOTOS,
+  BOOT_WAIT_NOTES,
+  BOOT_WAIT_NOTE_INTERVAL_MS,
+  BOOT_WAIT_NOTE_LINES,
+  BOOT_WAVE_INTRO_SECONDS,
+  type BootFramePhoto,
+  SCENE_TO_BOOT_SVG,
+  bootCadence,
+  bootCssKeyframes,
+  bootRevealComplete,
+  createBootDustDrift,
+  projectSceneY,
+} from "./bootVignette";
 
-export const SCENE_TO_BOOT_SVG = 100;
-export const BOOT_CADENCE_STEP_SECONDS = 0.12;
-export const BOOT_CADENCE_SETTLE_SECONDS = 0.32;
-export const BOOT_WAVE_INTRO_SECONDS = 0.36;
-export const BOOT_WAVE_DURATION_SECONDS = 3.6;
-const BOOT_WAVE_MIN_OPACITY = 0.18;
 const BOOT_AIC_SEAT_PX = 0.8;
 const BOOT_COORDINATION_NETWORK = createCoordinationNetwork();
 const BOOT_COORDINATION_POINTS = BOOT_COORDINATION_NETWORK.nodes.map((node) =>
@@ -101,102 +121,11 @@ function bootSvgNumber(value: number): string {
   return rounded.replace(/\.?0+$/, "");
 }
 
-export function projectSceneY(sceneY: number) {
-  return -sceneY * SCENE_TO_BOOT_SVG;
-}
-
-export function bootCadence(itemCount: number) {
-  const lastSlot = Math.max(0, itemCount - 1);
-  const revealDuration =
-    lastSlot * BOOT_CADENCE_STEP_SECONDS + BOOT_CADENCE_SETTLE_SECONDS;
-  return {
-    delays: Array.from(
-      { length: itemCount },
-      (_, index) => index * BOOT_CADENCE_STEP_SECONDS,
-    ),
-    revealDuration,
-    waveDuration: BOOT_WAVE_DURATION_SECONDS,
-  };
-}
-
 const DEFAULT_BOOT_READING_BOOKS: BootReadingBook[] = [
   { id: "boot-reading-one" },
   { id: "boot-reading-two" },
   { id: "boot-reading-three" },
 ];
-
-export const BOOT_WAIT_NOTES = [
-  "Waiting for first light.",
-  "Warming the room.",
-  "Growing the meadow.",
-  "Turning on the lighthouse.",
-  "Lighting the little lamp.",
-  "Setting out the books.",
-  "Unfolding the map.",
-  "Giving the globe a turn.",
-  "Letting the moths wander.",
-  "Opening the room.",
-] as const;
-export const BOOT_WAIT_NOTE_INTERVAL_SECONDS = 2;
-export const BOOT_DUST_COUNTS = {
-  light: { initial: 8, maximum: 12 },
-  dark: { initial: 3, maximum: 7 },
-} as const;
-export const BOOT_DUST_SPAWN_WINDOW_MS = 30_000;
-export const BOOT_DUST_SPAWN_DELAY_MS = { minimum: 2_000, maximum: 4_000 };
-export const BOOT_DUST_TRAVEL_MULTIPLIER = 2;
-
-type BootMotePosition = { x: number; y: number };
-
-export type BootDustDrift = {
-  durationMs: number;
-  keyframes: Keyframe[];
-};
-
-/** Samples the same low-frequency current, individual eddies, and intermittent
- * shimmer used by the WebGL room dust. The path loops analytically, so motes
- * drift rather than choosing conspicuous waypoint-to-waypoint routes. */
-export function createBootDustDrift(
-  origin: BootMotePosition,
-  phase: number,
-  speed: number,
-  shaftMote = false,
-): BootDustDrift {
-  const sampleCount = 32;
-  const durationMs = Math.round(22_000 / speed);
-  const travel = BOOT_DUST_TRAVEL_MULTIPLIER;
-  return {
-    durationMs,
-    keyframes: Array.from({ length: sampleCount + 1 }, (_, index) => {
-      const progress = index / sampleCount;
-      const time = progress * Math.PI * 2;
-      const current = Math.sin(time + origin.y * 0.018);
-      const x =
-        origin.x +
-        current * 4.2 * travel +
-        Math.sin(time * 2 + phase) * 7.4 * travel +
-        Math.sin(time + phase * 2.7) * 3.2 * travel;
-      const y =
-        origin.y +
-        Math.sin(time * 2 + phase * 1.4) * 5.8 * travel +
-        Math.sin(time + origin.x * 0.012) * 3.4 * travel;
-      const envelope = 0.5 + 0.5 * Math.sin(time * 2 + phase * 3.1);
-      const glint = 0.5 + 0.5 * Math.sin(time * 5 + phase * 5.7);
-      const shaftWave =
-        0.5 +
-        0.5 *
-          Math.sin(time + phase * 2.3 + 0.34 * Math.sin(time + phase * 4.1));
-      const opacity = shaftMote
-        ? 0.08 + 0.92 * Math.max(0, Math.min(1, (shaftWave - 0.22) / 0.56))
-        : 0.64 + 0.28 * envelope + 0.08 * glint;
-      return {
-        offset: progress,
-        opacity: Number(opacity.toFixed(2)),
-        transform: `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) scale(${(0.84 + glint * 0.22).toFixed(2)})`,
-      };
-    }),
-  };
-}
 
 type BootScreenProps = {
   readingBooks?: BootReadingBook[];
@@ -223,139 +152,67 @@ export function BootReadingBooksBridge({
 
 type BootStyle = CSSProperties & Record<`--stacks-boot-${string}`, string>;
 
-export function bootItemPose(
-  progress: number,
-  index: number,
-  cadence: ReturnType<typeof bootCadence>,
-) {
-  const start = cadence.delays[index]! / cadence.revealDuration;
-  const linear = Math.min(
-    1,
-    Math.max(
-      0,
-      (progress - start) *
-        (cadence.revealDuration / BOOT_CADENCE_SETTLE_SECONDS),
-    ),
+const subscribeWorldBoot = (listener: () => void) =>
+  worldBoot.subscribe(listener);
+const getWaitStage = () => worldBoot.getView().waitStage;
+const getServerWaitStage = () => SERVER_WORLD_BOOT_VIEW.waitStage;
+const getBootRevealed = () => worldBoot.getView().revealed;
+const getServerBootRevealed = () => SERVER_WORLD_BOOT_VIEW.revealed;
+
+/** The delayed wait strip's second line. Its own component so that a stage
+ * change re-renders one span and not the whole vignette: the reveal animations
+ * are adopted compositor timelines held by ref, and there is no reason to walk
+ * two thousand nodes of SVG to swap five words.
+ *
+ * No live region, deliberately. The whole boot screen is `aria-hidden`, and
+ * the flat document underneath it is the homepage as far as assistive tech is
+ * concerned. Narrating a loading screen over content that is already readable
+ * would be an interruption, not a service. */
+function BootWaitNotes() {
+  const stage = useSyncExternalStore(
+    subscribeWorldBoot,
+    getWaitStage,
+    getServerWaitStage,
   );
-  const visible = linear * linear * (3 - 2 * linear);
-  return { opacity: visible, offsetY: (1 - visible) * 7 };
-}
-
-export function bootItemKeyframes(
-  index: number,
-  cadence: ReturnType<typeof bootCadence>,
-): Keyframe[] {
-  const hidden = {
-    opacity: 0,
-    transform: "translate3d(0, 7px, 0)",
-  };
-  const visible = {
-    opacity: 1,
-    transform: "translate3d(0, 0, 0)",
-  };
-  const revealStart = cadence.delays[index]! / cadence.revealDuration;
-  const revealEnd =
-    (cadence.delays[index]! + BOOT_CADENCE_SETTLE_SECONDS) /
-    cadence.revealDuration;
-
-  return [
-    { ...hidden, offset: 0 },
-    {
-      ...hidden,
-      offset: revealStart,
-      easing: "cubic-bezier(0.16, 1, 0.3, 1)",
-    },
-    { ...visible, offset: revealEnd },
-    { ...visible, offset: 1 },
-  ];
-}
-
-/** The exact contiguous window at a wave step. The visible composition is
- * authored top-shelf left→right, then lower-shelf left→right, so incrementing
- * the step produces that same visible route. */
-export function bootWaveWindow(step: number, itemCount: number): number[] {
-  if (itemCount <= 0) return [];
-  const width = Math.max(1, Math.round(itemCount / 4));
-  const start = ((step % itemCount) + itemCount) % itemCount;
-  return Array.from(
-    { length: width },
-    (_, offset) => (start + offset) % itemCount,
+  const revealed = useSyncExternalStore(
+    subscribeWorldBoot,
+    getBootRevealed,
+    getServerBootRevealed,
   );
-}
+  const [turn, setTurn] = useState(0);
 
-/** Smoothly establishes the first window after every object has appeared. */
-export function bootWaveIntroKeyframes(
-  index: number,
-  itemCount: number,
-): Keyframe[] {
-  const dimmed = bootWaveWindow(0, itemCount).includes(index);
-  return [
-    { opacity: 1, offset: 0 },
-    { opacity: dimmed ? BOOT_WAVE_MIN_OPACITY : 1, offset: 1 },
-  ];
-}
+  // The turn resets with the gate, so every stage opens on its first line
+  // rather than wherever the previous stage's rotation happened to leave off.
+  // A gate holding one line needs no timer at all, and neither does a boot
+  // screen the world has already replaced: the strip is only hidden by CSS, so
+  // without the reveal check this would re-render it every 2.4s for the life of
+  // the page, behind a running 3D scene.
+  useEffect(() => {
+    setTurn(0);
+    if (revealed || BOOT_WAIT_NOTES[stage].length < 2) return;
+    const timer = window.setInterval(
+      () => setTurn((previous) => previous + 1),
+      BOOT_WAIT_NOTE_INTERVAL_MS,
+    );
+    return () => window.clearInterval(timer);
+  }, [revealed, stage]);
 
-/** After the one-shot reveal and intro, a fixed-width window advances one
- * landmark per step. CSS interpolates between steps, fading the outgoing
- * landmark in while the next one fades out. */
-export function bootWaveKeyframes(
-  index: number,
-  itemCount: number,
-): Keyframe[] {
-  if (itemCount <= 0) return [];
-  return Array.from({ length: itemCount + 1 }, (_, step) => ({
-    opacity: bootWaveWindow(step, itemCount).includes(index)
-      ? BOOT_WAVE_MIN_OPACITY
-      : 1,
-    offset: step / itemCount,
-  }));
-}
-
-function cssKeyframes(name: string, frames: Keyframe[]) {
-  const body = frames
-    .map(({ offset, opacity, transform, easing }) => {
-      const percentage = Number((Number(offset) * 100).toFixed(5));
-      const alpha = opacity === undefined ? "" : `opacity:${String(opacity)};`;
-      const translation =
-        transform === undefined ? "" : `transform:${String(transform)};`;
-      const timing = easing
-        ? `animation-timing-function:${String(easing)};`
-        : "";
-      return `${percentage}%{${alpha}${translation}${timing}}`;
-    })
-    .join("");
-  return `@keyframes ${name}{${body}}`;
-}
-
-export function bootCssKeyframes(
-  itemCount: number,
-  cadence: ReturnType<typeof bootCadence>,
-) {
-  return Array.from({ length: itemCount }, (_, index) => {
-    return [
-      cssKeyframes(
-        `stacks-boot-reveal-${index}`,
-        bootItemKeyframes(index, cadence),
-      ),
-      cssKeyframes(
-        `stacks-boot-wave-intro-${index}`,
-        bootWaveIntroKeyframes(index, itemCount),
-      ),
-      cssKeyframes(
-        `stacks-boot-wave-${index}`,
-        bootWaveKeyframes(index, itemCount),
-      ),
-    ].join("");
-  }).join("");
-}
-
-export function bootRevealComplete(
-  timelineTime: number,
-  animationTime: number,
-  revealDuration: number,
-): boolean {
-  const cssDurationMs = Number(revealDuration.toFixed(2)) * 1000;
-  return timelineTime >= cssDurationMs || animationTime >= cssDurationMs;
+  const active = turn % BOOT_WAIT_NOTES[stage].length;
+  return (
+    <div className="stacks-boot-wait-notes">
+      {BOOT_WAIT_NOTE_LINES.map((line) => (
+        <span
+          className="stacks-boot-wait-note"
+          data-boot-note={
+            line.stage === stage && line.index === active ? "active" : "waiting"
+          }
+          key={line.text}
+        >
+          {line.text}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 function useBootMotion(
@@ -368,17 +225,62 @@ function useBootMotion(
     worldBoot.send({ type: "bootVignetteStarted" });
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       scene.dataset.bootMotion = "reduced";
+      setAboutBootStagePhase("placed");
       worldBoot.send({ type: "bootVignetteCompleted" });
       return;
     }
     let animations: Animation[] = [];
     let readinessFrame = 0;
     let retireTimer = 0;
+    let glideToken = 0;
+    const threshold = scene.closest<HTMLElement>(".stacks-boot-threshold");
+    const gliders = threshold
+      ? Array.from(
+          threshold.querySelectorAll<HTMLElement>(
+            ".stacks-boot-entry, .stacks-boot-wordmark",
+          ),
+        )
+      : [];
+
+    // The pass ends when the bookcase has settled on the live shelf, not when
+    // the last landmark has appeared: the reveal gate must never hand off to
+    // the world with the stage still in flight. The glide is a CSS transition,
+    // so its own timeline is awaited; when nothing moves (no transition ran,
+    // or the start and placed boxes coincide) the pass completes at once.
+    const glide = () => {
+      const token = ++glideToken;
+      const complete = () => {
+        if (token !== glideToken) return;
+        worldBoot.send({ type: "bootVignetteCompleted" });
+      };
+      if (!setAboutBootStagePhase("placed")) {
+        complete();
+        return;
+      }
+      const transitions = gliders.flatMap((glider) => {
+        // Reading a computed style flushes the attribute change into real
+        // transitions before they are listed.
+        void getComputedStyle(glider).transform;
+        return glider
+          .getAnimations()
+          .filter((animation) => animation instanceof CSSTransition);
+      });
+      if (transitions.length === 0) {
+        complete();
+        return;
+      }
+      void Promise.allSettled(
+        transitions.map((transition) => transition.finished),
+      ).then(complete);
+    };
 
     const start = () => {
       if (animations.length) return;
       if (!isBootingPhase(documentWorldPhase())) return;
 
+      // Every pass opens on the centred bookcase. Re-entry reuses the
+      // document element, and the last pass left it placed.
+      setAboutBootStagePhase("start");
       const motions = Array.from(
         scene.querySelectorAll<SVGGElement>(".stacks-boot-item-motion"),
       );
@@ -390,16 +292,22 @@ function useBootMotion(
       animations = motions.flatMap((motion) => motion.getAnimations());
       scene.dataset.bootMotion = "compositor";
 
+      // The glide begins at whichever comes first: the last landmark settling,
+      // or the room reporting that the vignette is the only thing it is still
+      // waiting on. On a fast boot, then, a few landmarks are still fading in
+      // while the bookcase travels — by the owner's call, the room as soon as
+      // it is ready beats one complete read of the shelf.
       const observeFirstPass = () => {
         const animationTime = Number(animations[0]?.currentTime ?? 0);
         if (
+          worldBoot.getView().awaitingVignette ||
           bootRevealComplete(
             timelineTime,
             animationTime,
             cadence.revealDuration,
           )
         ) {
-          worldBoot.send({ type: "bootVignetteCompleted" });
+          glide();
           return;
         }
         readinessFrame = requestAnimationFrame(observeFirstPass);
@@ -414,12 +322,16 @@ function useBootMotion(
         return;
       }
       cancelAnimationFrame(readinessFrame);
+      glideToken += 1;
       // Let the boot wrapper finish its 360ms opacity transition before
       // retiring the compositor timelines. Cancelling immediately snaps every
-      // landmark back to its hidden base style during the handoff.
+      // landmark back to its hidden base style during the handoff. The stage
+      // returns to its opening box here too, while nothing can see it, so the
+      // next pass never flashes a placed bookcase before its reveal.
       retireTimer = window.setTimeout(() => {
         for (const animation of animations) animation.cancel();
         animations = [];
+        setAboutBootStagePhase("start");
       }, 420);
       observer.disconnect();
     });
@@ -431,6 +343,7 @@ function useBootMotion(
     return () => {
       observer.disconnect();
       cancelAnimationFrame(readinessFrame);
+      glideToken += 1;
       window.clearTimeout(retireTimer);
       for (const animation of animations) animation.cancel();
     };
@@ -573,7 +486,27 @@ function useBootMotes(motesRef: RefObject<HTMLDivElement | null>) {
   }, [motesRef]);
 }
 
+/** When the document opens on About, keep the boot stage under the live shelf
+ * through viewport and history changes. Other destinations clear the stage. */
+function useBootStage() {
+  useEffect(() => {
+    const republish = () => publishAboutBootStage();
+    republish();
+    window.addEventListener("resize", republish);
+    window.addEventListener("orientationchange", republish);
+    window.addEventListener("hashchange", republish);
+    window.addEventListener("popstate", republish);
+    return () => {
+      window.removeEventListener("resize", republish);
+      window.removeEventListener("orientationchange", republish);
+      window.removeEventListener("hashchange", republish);
+      window.removeEventListener("popstate", republish);
+    };
+  }, []);
+}
+
 const ABOUT_BOOT_CADENCE = bootCadence(ABOUT_BOOT_VISIBLE_COMPOSITION.length);
+const ABOUT_BOOT_STAGE_SCRIPT = aboutBootStageScript();
 
 function paletteVariables(): BootStyle {
   const variables: Record<string, string> = {};
@@ -603,28 +536,6 @@ function paletteVariables(): BootStyle {
 function assertNever(_glyph: never): never {
   throw new Error("Unhandled About boot glyph");
 }
-
-type BootFramePhoto = {
-  src: string;
-  preserveAspectRatio: "xMidYMid slice" | "xMidYMin slice";
-};
-
-/** Small loading-screen sources paint opportunistically. They are not part of
- * the WebGL reveal gate; the live scene owns its own preview readiness. */
-export const BOOT_FRAME_PHOTOS = {
-  portrait: {
-    src: proxied("/images/about/profile.jpg", 384),
-    preserveAspectRatio: "xMidYMin slice",
-  },
-  "family-frame": {
-    src: "/images/stacks/v8/512/about-family.webp",
-    preserveAspectRatio: "xMidYMid slice",
-  },
-  "profile-frame": {
-    src: "/images/stacks/v8/256/about-profile-full.webp",
-    preserveAspectRatio: "xMidYMid slice",
-  },
-} as const satisfies Partial<Record<AboutLandmarkId, BootFramePhoto>>;
 
 function BootImage({
   href,
@@ -1221,6 +1132,7 @@ export default function BootScreen({
   const motesRef = useRef<HTMLDivElement>(null);
   useBootMotion(sceneRef, cadence);
   useBootMotes(motesRef);
+  useBootStage();
   const support = SHELF_GEOMETRY.support;
   const groundY = projectSceneY(SHELF_GEOMETRY.groundY);
   const strapTopY = projectSceneY(
@@ -1230,174 +1142,173 @@ export default function BootScreen({
   const supportX =
     (SHELF_GEOMETRY.width / 2 - SHELF_GEOMETRY.strapInsetX) * SCENE_TO_BOOT_SVG;
   return (
-    <div className="stacks-boot" aria-hidden style={paletteVariables()}>
-      <style>{keyframes}</style>
-      <div className="stacks-boot-threshold">
-        <div className="stacks-boot-entry">
-          <div className="stacks-boot-scene-stage">
-            <svg
-              ref={sceneRef}
-              className="stacks-boot-scene"
-              data-boot-item-count={ABOUT_BOOT_VISIBLE_COMPOSITION.length}
-              style={
-                {
-                  "--stacks-boot-reveal-duration": `${cadence.revealDuration.toFixed(2)}s`,
-                  "--stacks-boot-wave-intro-duration": `${BOOT_WAVE_INTRO_SECONDS.toFixed(2)}s`,
-                  "--stacks-boot-wave-duration": `${cadence.waveDuration.toFixed(2)}s`,
-                } as BootStyle
-              }
-              viewBox="-150 -108 300 230"
-              role="presentation"
-            >
-              <g className="stacks-boot-supports">
-                {[-1, 1].map((side) => (
-                  <g data-boot-support={side} key={side}>
-                    <rect
-                      x={
-                        side * supportX -
-                        (support.width * SCENE_TO_BOOT_SVG) / 2
-                      }
-                      y={strapTopY}
-                      width={support.width * SCENE_TO_BOOT_SVG}
-                      height={strapHeight}
-                      rx="2"
-                    />
-                    <rect
-                      x={
-                        side * supportX -
-                        (support.footWidth * SCENE_TO_BOOT_SVG) / 2
-                      }
-                      y={groundY - support.footHeight * SCENE_TO_BOOT_SVG}
-                      width={support.footWidth * SCENE_TO_BOOT_SVG}
-                      height={support.footHeight * SCENE_TO_BOOT_SVG}
-                      rx="1.5"
-                    />
-                    <rect
-                      x={
-                        side * supportX -
-                        (support.cleatWidth * SCENE_TO_BOOT_SVG) / 2
-                      }
-                      y={projectSceneY(
-                        SHELF_GEOMETRY.lower.centerY - support.cleatHeight / 2,
-                      )}
-                      width={support.cleatWidth * SCENE_TO_BOOT_SVG}
-                      height={support.cleatHeight * SCENE_TO_BOOT_SVG}
-                      rx="1.5"
-                    />
-                  </g>
-                ))}
-              </g>
-              <g className="stacks-boot-landmarks">
-                {ABOUT_BOOT_VISIBLE_COMPOSITION.map((landmark, index) => (
-                  <g
-                    className="stacks-boot-item"
-                    data-landmark-id={landmark.id}
-                    data-shelf-id={landmark.shelf}
-                    data-cadence-slot={index}
-                    key={landmark.id}
-                    style={
-                      "colorProfile" in landmark
-                        ? ({
-                            "--stacks-boot-object-light":
-                              landmark.colorProfile.light,
-                            "--stacks-boot-object-dark":
-                              landmark.colorProfile.dark,
-                          } as BootStyle)
-                        : undefined
-                    }
-                    transform={`translate(${landmark.x * SCENE_TO_BOOT_SVG} ${projectSceneY(SHELF_SURFACE[landmark.shelf])})`}
-                  >
-                    <g
-                      className="stacks-boot-item-motion"
-                      style={{
-                        animationName: `stacks-boot-reveal-${index}, stacks-boot-wave-intro-${index}, stacks-boot-wave-${index}`,
-                      }}
-                    >
-                      <LandmarkGlyph
-                        landmark={landmark}
-                        readingBooks={resolvedReadingBooks}
-                        readingBookColors={resolvedReadingBookColors}
-                      />
-                    </g>
-                  </g>
-                ))}
-              </g>
-              <g className="stacks-boot-planks">
-                {SHELF_PLANKS.map((plank) => (
-                  <rect
-                    data-boot-plank=""
-                    data-shelf-id={plank.id}
-                    data-depth={plank.depth}
-                    key={plank.id}
-                    x={(-plank.width / 2) * SCENE_TO_BOOT_SVG}
-                    y={projectSceneY(plank.centerY + plank.thickness / 2)}
-                    width={plank.width * SCENE_TO_BOOT_SVG}
-                    height={plank.thickness * SCENE_TO_BOOT_SVG}
-                    rx="2"
-                  />
-                ))}
-              </g>
-            </svg>
-            <div ref={motesRef} className="stacks-boot-motes" aria-hidden>
-              {Array.from(
-                { length: BOOT_DUST_COUNTS.light.maximum },
-                (_, mote) => (
-                  <span
-                    className="stacks-boot-mote-slot"
-                    data-boot-mote="dust"
-                    key={`dust-${mote}`}
-                  >
-                    <span className="stacks-boot-mote" />
-                  </span>
-                ),
-              )}
-            </div>
-          </div>
-          <p className="stacks-boot-wordmark">Chappy Asel</p>
-        </div>
-      </div>
-      <div className="stacks-boot-wait" data-boot-wait="">
-        <p className="stacks-boot-wait-label">
-          Loading
-          <span className="stacks-boot-wait-dots" aria-hidden>
-            {[0, 1, 2].map((dot) => (
-              <span
-                className="stacks-boot-wait-dot"
-                key={dot}
+    <>
+      {/* Lays the bookcase over the spot the camera will put the real shelf,
+          from the same rest-pose math, before this markup's first paint. It
+          has to be rendered from here: the layout math reaches the unit
+          registry, which the server page cannot import. */}
+      <script dangerouslySetInnerHTML={{ __html: ABOUT_BOOT_STAGE_SCRIPT }} />
+      <div
+        className="stacks-boot"
+        aria-hidden
+        style={
+          {
+            ...paletteVariables(),
+            "--stacks-boot-glide-duration": `${ABOUT_BOOT_STAGE_GLIDE.durationSeconds.toFixed(2)}s`,
+            "--stacks-boot-glide-ease": ABOUT_BOOT_STAGE_GLIDE.easing,
+          } as BootStyle
+        }
+      >
+        <style>{keyframes}</style>
+        <div className="stacks-boot-threshold">
+          <div className="stacks-boot-entry">
+            <div className="stacks-boot-scene-stage">
+              <svg
+                ref={sceneRef}
+                className="stacks-boot-scene"
+                data-boot-item-count={ABOUT_BOOT_VISIBLE_COMPOSITION.length}
                 style={
                   {
-                    "--stacks-boot-dot-delay": `${dot * 0.18}s`,
+                    "--stacks-boot-reveal-duration": `${cadence.revealDuration.toFixed(2)}s`,
+                    "--stacks-boot-wave-intro-duration": `${BOOT_WAVE_INTRO_SECONDS.toFixed(2)}s`,
+                    "--stacks-boot-wave-duration": `${cadence.waveDuration.toFixed(2)}s`,
                   } as BootStyle
                 }
+                viewBox="-150 -108 300 230"
+                role="presentation"
               >
-                .
-              </span>
-            ))}
-          </span>
-        </p>
-        <div
-          className="stacks-boot-wait-notes"
-          style={
-            {
-              "--stacks-boot-wait-cycle": `${BOOT_WAIT_NOTES.length * BOOT_WAIT_NOTE_INTERVAL_SECONDS}s`,
-            } as BootStyle
-          }
-        >
-          {BOOT_WAIT_NOTES.map((note, index) => (
-            <span
-              className="stacks-boot-wait-note"
-              key={note}
-              style={
-                {
-                  "--stacks-boot-wait-delay": `${5 + index * BOOT_WAIT_NOTE_INTERVAL_SECONDS}s`,
-                } as BootStyle
-              }
-            >
-              {note}
+                <g className="stacks-boot-supports">
+                  {[-1, 1].map((side) => (
+                    <g data-boot-support={side} key={side}>
+                      <rect
+                        x={
+                          side * supportX -
+                          (support.width * SCENE_TO_BOOT_SVG) / 2
+                        }
+                        y={strapTopY}
+                        width={support.width * SCENE_TO_BOOT_SVG}
+                        height={strapHeight}
+                        rx="2"
+                      />
+                      <rect
+                        x={
+                          side * supportX -
+                          (support.footWidth * SCENE_TO_BOOT_SVG) / 2
+                        }
+                        y={groundY - support.footHeight * SCENE_TO_BOOT_SVG}
+                        width={support.footWidth * SCENE_TO_BOOT_SVG}
+                        height={support.footHeight * SCENE_TO_BOOT_SVG}
+                        rx="1.5"
+                      />
+                      <rect
+                        x={
+                          side * supportX -
+                          (support.cleatWidth * SCENE_TO_BOOT_SVG) / 2
+                        }
+                        y={projectSceneY(
+                          SHELF_GEOMETRY.lower.centerY -
+                            support.cleatHeight / 2,
+                        )}
+                        width={support.cleatWidth * SCENE_TO_BOOT_SVG}
+                        height={support.cleatHeight * SCENE_TO_BOOT_SVG}
+                        rx="1.5"
+                      />
+                    </g>
+                  ))}
+                </g>
+                <g className="stacks-boot-landmarks">
+                  {ABOUT_BOOT_VISIBLE_COMPOSITION.map((landmark, index) => (
+                    <g
+                      className="stacks-boot-item"
+                      data-landmark-id={landmark.id}
+                      data-shelf-id={landmark.shelf}
+                      data-cadence-slot={index}
+                      key={landmark.id}
+                      style={
+                        "colorProfile" in landmark
+                          ? ({
+                              "--stacks-boot-object-light":
+                                landmark.colorProfile.light,
+                              "--stacks-boot-object-dark":
+                                landmark.colorProfile.dark,
+                            } as BootStyle)
+                          : undefined
+                      }
+                      transform={`translate(${landmark.x * SCENE_TO_BOOT_SVG} ${projectSceneY(SHELF_SURFACE[landmark.shelf])})`}
+                    >
+                      <g
+                        className="stacks-boot-item-motion"
+                        style={{
+                          animationName: `stacks-boot-reveal-${index}, stacks-boot-wave-intro-${index}, stacks-boot-wave-${index}`,
+                        }}
+                      >
+                        <LandmarkGlyph
+                          landmark={landmark}
+                          readingBooks={resolvedReadingBooks}
+                          readingBookColors={resolvedReadingBookColors}
+                        />
+                      </g>
+                    </g>
+                  ))}
+                </g>
+                <g className="stacks-boot-planks">
+                  {SHELF_PLANKS.map((plank) => (
+                    <rect
+                      data-boot-plank=""
+                      data-shelf-id={plank.id}
+                      data-depth={plank.depth}
+                      key={plank.id}
+                      x={(-plank.width / 2) * SCENE_TO_BOOT_SVG}
+                      y={projectSceneY(plank.centerY + plank.thickness / 2)}
+                      width={plank.width * SCENE_TO_BOOT_SVG}
+                      height={plank.thickness * SCENE_TO_BOOT_SVG}
+                      rx="2"
+                    />
+                  ))}
+                </g>
+              </svg>
+              <div ref={motesRef} className="stacks-boot-motes" aria-hidden>
+                {Array.from(
+                  { length: BOOT_DUST_COUNTS.light.maximum },
+                  (_, mote) => (
+                    <span
+                      className="stacks-boot-mote-slot"
+                      data-boot-mote="dust"
+                      key={`dust-${mote}`}
+                    >
+                      <span className="stacks-boot-mote" />
+                    </span>
+                  ),
+                )}
+              </div>
+            </div>
+          </div>
+          {/* A sibling of the entry, not a child: the entry carries the glide's
+              scale and the name must not grow with the bookcase. */}
+          <p className="stacks-boot-wordmark">Chappy Asel</p>
+        </div>
+        <div className="stacks-boot-wait" data-boot-wait="">
+          <p className="stacks-boot-wait-label">
+            Loading
+            <span className="stacks-boot-wait-dots" aria-hidden>
+              {[0, 1, 2].map((dot) => (
+                <span
+                  className="stacks-boot-wait-dot"
+                  key={dot}
+                  style={
+                    {
+                      "--stacks-boot-dot-delay": `${dot * 0.18}s`,
+                    } as BootStyle
+                  }
+                >
+                  .
+                </span>
+              ))}
             </span>
-          ))}
+          </p>
+          <BootWaitNotes />
         </div>
       </div>
-    </div>
+    </>
   );
 }

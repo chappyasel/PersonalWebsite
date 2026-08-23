@@ -23,7 +23,8 @@ import { PALETTES } from "../theme";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import BootScreen, {
+import BootScreen from "./BootScreen";
+import {
   BOOT_CADENCE_SETTLE_SECONDS,
   BOOT_DUST_COUNTS,
   BOOT_DUST_SPAWN_DELAY_MS,
@@ -31,7 +32,10 @@ import BootScreen, {
   BOOT_DUST_TRAVEL_MULTIPLIER,
   BOOT_FRAME_PHOTOS,
   BOOT_WAIT_NOTES,
-  BOOT_WAIT_NOTE_INTERVAL_SECONDS,
+  BOOT_WAIT_NOTE_FADE_MS,
+  BOOT_WAIT_NOTE_INTERVAL_MS,
+  BOOT_WAIT_NOTE_LINES,
+  BOOT_WAIT_STAGES,
   bootCadence,
   bootCssKeyframes,
   bootItemKeyframes,
@@ -41,7 +45,7 @@ import BootScreen, {
   bootWaveKeyframes,
   bootWaveWindow,
   createBootDustDrift,
-} from "./BootScreen";
+} from "./bootVignette";
 
 const BOOKS = [
   { id: "alpha", coverSrc: "/covers/alpha.webp" },
@@ -378,27 +382,45 @@ describe("Homepage entrance", () => {
   it("renders one restrained delayed wait message with authored room copy", () => {
     const markup = renderBoot();
 
-    expect(BOOT_WAIT_NOTES).toEqual([
-      "Waiting for first light.",
-      "Warming the room.",
-      "Growing the meadow.",
-      "Turning on the lighthouse.",
-      "Lighting the little lamp.",
-      "Setting out the books.",
-      "Unfolding the map.",
-      "Giving the globe a turn.",
-      "Letting the moths wander.",
-      "Opening the room.",
+    // The gates, in the order they are passed.
+    expect(BOOT_WAIT_STAGES).toEqual([
+      "starting",
+      "assets",
+      "firstFrame",
+      "meadow",
+      "opening",
     ]);
-    expect(BOOT_WAIT_NOTES).toHaveLength(10);
-    expect(BOOT_WAIT_NOTE_INTERVAL_SECONDS).toBe(2);
-    expect(markup).toContain(
-      `--stacks-boot-wait-cycle:${BOOT_WAIT_NOTES.length * BOOT_WAIT_NOTE_INTERVAL_SECONDS}s`,
-    );
+    // All ten authored lines survive; each sits under the gate it is true of,
+    // and the lines within a gate take turns.
+    expect(BOOT_WAIT_NOTES).toEqual({
+      starting: ["Waiting for first light."],
+      assets: ["Setting out the books.", "Unfolding the map."],
+      firstFrame: [
+        "Warming the room.",
+        "Lighting the little lamp.",
+        "Turning on the lighthouse.",
+      ],
+      meadow: ["Growing the meadow.", "Letting the moths wander."],
+      opening: ["Giving the globe a turn.", "Opening the room."],
+    });
+    expect(BOOT_WAIT_NOTE_LINES).toHaveLength(10);
+    expect(new Set(BOOT_WAIT_NOTE_LINES.map((l) => l.text)).size).toBe(10);
+    expect(BOOT_WAIT_NOTE_FADE_MS).toBe(420);
+    expect(BOOT_WAIT_NOTE_INTERVAL_MS).toBe(2_400);
+    // The rotation is per-gate state, not a CSS carousel: nothing in the strip
+    // advances through the gates on a timer.
+    expect(markup).not.toContain("--stacks-boot-wait-cycle");
+    expect(markup).not.toContain("--stacks-boot-wait-delay");
     expect(markup.match(/data-boot-wait=""/g)).toHaveLength(1);
     expect(markup).toContain("Loading");
     expect(markup.match(/class="stacks-boot-wait-dot"/g)).toHaveLength(3);
-    for (const note of BOOT_WAIT_NOTES) expect(markup).toContain(note);
+    for (const line of BOOT_WAIT_NOTE_LINES) expect(markup).toContain(line.text);
+    // The server render is the first gate's first line, because on the server
+    // nothing has loaded. Exactly one note is ever active.
+    expect(markup.match(/data-boot-note="active"/g)).toHaveLength(1);
+    expect(markup).toContain(
+      `data-boot-note="active">${BOOT_WAIT_NOTES.starting[0]!}`,
+    );
     expect(BOOT_DUST_COUNTS).toEqual({
       light: { initial: 8, maximum: 12 },
       dark: { initial: 3, maximum: 7 },
