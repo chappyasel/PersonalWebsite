@@ -80,16 +80,27 @@ WHERE t.tag_name IN ('AI', 'Philosophy', 'Sociology')
 ORDER BY b.rating DESC NULLS LAST;
 ```
 
-## Full-text-ish search inside notes
+## Search inside notes
+
+Migration `0015_book_search_vector` adds a GIN expression index over the same
+weighted English `tsvector` used by Universal Search. Keep its indexed
+full-text branch separate from wildcard identity or tag branches; combining
+them in one `OR` prevents Postgres from using the GIN index.
 
 ```sql
--- Find books whose notes mention a concept
+-- Fast full-text search across title, author, and notes. Keep this expression
+-- identical to src/lib/universal-search/server/books.ts.
 SELECT id, title, author
 FROM books
-WHERE notes ILIKE '%attention is all you need%'
+WHERE (
+  setweight(to_tsvector('english', coalesce(title, '')), 'A') ||
+  setweight(to_tsvector('english', coalesce(author, '')), 'B') ||
+  setweight(to_tsvector('english', coalesce(notes, '')), 'D')
+) @@ plainto_tsquery('english', 'attention is all you need')
 LIMIT 20;
 
--- Pull a snippet with context around a case-insensitive match
+-- Pull literal snippet context when exact wording matters. This ILIKE query
+-- does not use the GIN expression index.
 SELECT title,
        SUBSTRING(
          notes

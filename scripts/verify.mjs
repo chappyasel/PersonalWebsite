@@ -65,6 +65,12 @@ const STEPS = [
     args: ["run", "--exclude", "tests/e2e/**"],
   },
   {
+    name: "search index",
+    detail: "generated Universal Search asset is fresh",
+    command: binary("tsx"),
+    args: ["scripts/generate/universal-search-index.ts", "--check"],
+  },
+  {
     name: "meadow",
     detail: "no reachable meadow boundary from any pose",
     command: binary("tsx"),
@@ -109,7 +115,7 @@ for (const step of STEPS.slice(results.length)) {
   console.log(`skip  ${step.name.padEnd(width)}`);
 }
 console.log("\nNot covered here:");
-console.log("  generated-artifact freshness — `pnpm verify:artifacts`");
+console.log("  homepage OG freshness — `pnpm verify:artifacts`");
 console.log("  route budgets — needs a fresh `pnpm build`, runs on postbuild");
 
 process.exit(results.every((result) => result.passed) ? 0 : 1);

@@ -1,14 +1,18 @@
 import { type NextRequest, NextResponse } from "next/server";
 
+import {
+  DAD_ACCESS_COOKIE_NAME,
+  isValidDadAccessToken,
+} from "~/lib/dad/access";
+
+import { env } from "~/env";
+
 export async function proxy(req: NextRequest) {
-  // Protect /dad/* and /youtube/* sub-routes with cookie check
+  // Protect Dad sub-routes with the same signed token used by the layout and API.
   const { pathname } = req.nextUrl;
-  if (
-    pathname.startsWith("/dad/") &&
-    !pathname.startsWith("/dad/api")
-  ) {
-    const token = req.cookies.get("dad-access")?.value;
-    if (!token) {
+  if (pathname.startsWith("/dad/") && !pathname.startsWith("/dad/api")) {
+    const token = req.cookies.get(DAD_ACCESS_COOKIE_NAME)?.value;
+    if (!isValidDadAccessToken(token, env.DAD_CONTENT_PASSWORD)) {
       return NextResponse.redirect(new URL("/dad", req.url));
     }
   }

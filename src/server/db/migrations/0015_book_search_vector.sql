@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS "book_search_vector_idx" ON "books" USING gin ((setweight(to_tsvector('english', coalesce(title, '')), 'A') || setweight(to_tsvector('english', coalesce(author, '')), 'B') || setweight(to_tsvector('english', coalesce(notes, '')), 'D')));

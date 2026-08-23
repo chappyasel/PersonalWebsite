@@ -138,4 +138,20 @@ describe("ScrollBridges interaction ownership", () => {
       ),
     ).toBe("blocked");
   });
+
+  it("yields wheel and keyboard ownership while Universal Search is open", () => {
+    expect(
+      backgroundWorldGesture(
+        { dragging: null, modalOpen: false, panelState: "closed" },
+        false,
+        true,
+      ),
+    ).toBe("blocked");
+    expect(
+      shouldHandleWorldNavigationKey(
+        { defaultPrevented: false, target: null },
+        true,
+      ),
+    ).toBe(false);
+  });
 });

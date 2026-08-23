@@ -12,6 +12,9 @@ const config = {
   // Production is unaffected by Strict effects; opting out keeps the local
   // WebGL lifecycle equivalent to production.
   reactStrictMode: false,
+  outputFileTracingIncludes: {
+    "/api/search": ["./content/dad-search-index.json"],
+  },
   images: {
     remotePatterns: [
       {
