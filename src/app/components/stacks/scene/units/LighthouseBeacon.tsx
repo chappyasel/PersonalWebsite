@@ -6,6 +6,7 @@
 // soft cone. The cards share one material and contain no sampled texture.
 // A small radial sprite supplies the short flash seen when either beam points
 // at the camera.
+import { useCoarseTouchCapability } from "../../input/useCoarseTouchCapability";
 import { useStacks } from "../../store";
 import { lighthouseBeaconDiagnosticsController } from "../lighthouseBeaconDiagnostics";
 import { useUnitFrame } from "../unitActivity";
@@ -489,8 +490,14 @@ export function LighthouseBeacon({
     lighthouseBeaconDiagnosticsController.getSnapshot,
     lighthouseBeaconDiagnosticsController.getSnapshot,
   );
+  // Phones keep the lit lantern (the Glass material's emissive) and skip the
+  // beam: sixteen double-sided additive shader planes and three additive
+  // sprites are the same class of transparency work that broke the shaker
+  // cups on Safari, and the composer already refuses multisampled targets on
+  // touch for the same reason (quality.ts, Effects.tsx).
+  const touch = useCoarseTouchCapability();
 
-  return diagnostics.effectEnabled ? (
+  return diagnostics.effectEnabled && !touch ? (
     <LighthouseBeamEffect dark={dark} height={height} radius={radius} />
   ) : null;
 }
