@@ -7,7 +7,11 @@ import {
   runSceneInteractionActivation,
 } from "../scene/interactionRegistry";
 import { progressRef, useStacks } from "../store";
-import { ArrowRightIcon, ArrowUpRightIcon } from "@phosphor-icons/react";
+import {
+  ArrowRightIcon,
+  ArrowUpRightIcon,
+  CursorClickIcon,
+} from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { clampDoorLabelX, clampDoorLabelY } from "./doorLabelPlacement";
@@ -304,8 +308,10 @@ export default function DoorLabel() {
             local action. A Door's title names where it goes, so its arrow sits
             on that line (↗ off-site, → on-site) and is the whole "this is a
             link" signal; details describe the object and never wrap around
-            the glyph. An action has no arrow; its last line says what
-            happens. A plain one-line label renders exactly as before. */}
+            the glyph. An action wears a pointer instead of an arrow, on its
+            last line (or on its only line when it is a bare verb), because
+            it happens here rather than taking you somewhere. A plain
+            one-line label renders exactly as before. */}
         <span className="stacks-glass-tooltip flex min-w-0 flex-col rounded-lg border px-2.5 py-1.5">
           <span className="flex min-w-0 items-start gap-1">
             <span
@@ -322,8 +328,15 @@ export default function DoorLabel() {
                 size={13}
                 weight="bold"
               />
-            ) : shown.arrow === "internal" || shown.arrow === "action" ? (
+            ) : shown.arrow === "internal" ? (
               <ArrowRightIcon
+                aria-hidden="true"
+                className="mt-px shrink-0"
+                size={13}
+                weight="bold"
+              />
+            ) : shown.arrow === "action" ? (
+              <CursorClickIcon
                 aria-hidden="true"
                 className="mt-px shrink-0"
                 size={13}
@@ -341,9 +354,11 @@ export default function DoorLabel() {
             </span>
           ))}
           {shown.action ? (
-            // The verb line gets the same → an on-site Door wears, so the
-            // line that says what a tap does also looks like the thing you
-            // tap (owner, on the book labels: "this doesn't have an arrow").
+            // The verb line wears a pointer, not an arrow: an arrow says
+            // "this goes somewhere" and an action stays right here. It still
+            // marks the line as the thing you tap (owner, on the book labels:
+            // "this doesn't have an arrow"; later: "actions should be some
+            // icon besides an arrow").
             <span
               data-door-action=""
               className="mt-1 flex min-w-0 items-start gap-1 text-[12px] leading-[1.3]"
@@ -351,7 +366,7 @@ export default function DoorLabel() {
               <span className="min-w-0 whitespace-normal break-words">
                 {shown.action}
               </span>
-              <ArrowRightIcon
+              <CursorClickIcon
                 aria-hidden="true"
                 className="mt-px shrink-0"
                 size={12}

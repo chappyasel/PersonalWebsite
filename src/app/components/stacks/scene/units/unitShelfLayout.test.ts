@@ -1,5 +1,4 @@
 import { deskFrameWidth } from "../photoGeometry";
-import { SHELF_GEOMETRY } from "../shelfGeometry";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -13,15 +12,17 @@ import {
 describe("reviewed authored shelf rows", () => {
   it("keeps the Projects devices separated and the Mac reachable", () => {
     const snapshot = reviewedShelfLayoutSnapshot();
-    expect(snapshot.projectsPhotoNotebookGap).toBeGreaterThanOrEqual(0);
-    expect(snapshot.projectsNotebookPhoneGap).toBeGreaterThanOrEqual(0.1);
+    expect(snapshot.projectsPhotoPhoneGap).toBeGreaterThanOrEqual(0.02);
+    expect(snapshot.projectsPhoneArduinoGap).toBeGreaterThanOrEqual(0.02);
+    expect(snapshot.projectsCardMacGap).toBeGreaterThanOrEqual(0);
     expect(snapshot.projectsPhoneMacCenterGap).toBeGreaterThanOrEqual(0.35);
     expect(snapshot.projectsMacVisibleWidth).toBeGreaterThanOrEqual(0.08);
     expect(REVIEWED_SHELF_LAYOUT.projects.phoneSeat).toBeGreaterThanOrEqual(
       0.0247,
     );
-    expect(REVIEWED_SHELF_LAYOUT.projects.notebookZ).toBe(
-      SHELF_GEOMETRY.lower.centerZ,
+    // The card stands behind the Arduino: they may share x, never depth.
+    expect(REVIEWED_SHELF_LAYOUT.projects.cardZ).toBeLessThan(
+      REVIEWED_SHELF_LAYOUT.projects.arduinoZ - 0.1,
     );
   });
 

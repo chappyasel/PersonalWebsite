@@ -643,6 +643,40 @@ const MANIFEST = [
     author: "Kenney",
     license: "CC0 1.0",
   },
+  // Owner picks 2026-08-23: the two circuit boards that sit between the phone
+  // and the Mac on the Projects shelf and switch the pixel-art finish on and
+  // off (scene/pixelArt.ts). Both are plain untextured materials, so both
+  // take the "tinted" path and keep their own colours; noAo because a flat
+  // board has nothing for the bake to find.
+  //
+  // arduino: Mauricio Martínez González, CC-BY 3.0 — credit line required and
+  // carried by LICENSES.json. 1,768 tris, lies flat in its own frame
+  // (1.01 × 0.27 × 0.72), eight anonymous materials (mat5…mat23).
+  {
+    name: "arduino",
+    title: "arduino",
+    id: "fWRtJe-ZHR6",
+    url: "https://static.poly.pizza/20f6ffbf-8647-4f8d-892d-173c2501dafb.glb",
+    noAo: true,
+    unit: "projects",
+    author: "Mauricio Martínez González",
+    license: "CC-BY 3.0",
+    page: "https://poly.pizza/m/fWRtJe-ZHR6",
+  },
+  // circuit-board: iPoly3D's "Electronics Collectable", CC0. 916 tris, stands
+  // upright in its own frame (3.89 wide × 2.59 tall × 0.08 deep) with the
+  // edge connector along the bottom. Materials: Green (board), black (chips),
+  // conduct (the gold fingers), Material.003.
+  {
+    name: "circuit-board",
+    title: "Electronics Collectable",
+    id: "qqRVRerNSu",
+    url: "https://static.poly.pizza/982b2cd0-d650-45ce-a5a5-b7d66ce17a8a.glb",
+    noAo: true,
+    unit: "projects",
+    author: "iPoly3D",
+    license: "CC0 1.0",
+  },
 ];
 
 // Assets adapted directly from open-source repositories rather than fetched

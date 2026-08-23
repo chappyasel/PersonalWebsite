@@ -967,11 +967,16 @@ const UNIT_PERCHES: readonly (readonly PerchDefinition[])[] = [
       ownerId: "egg:clock:alarm",
     },
     {
-      id: "systems:lighthouse-frame",
-      position: [0.2218, -0.4569, 0.1312],
+      // The notebook's cover, over from Projects with the notebook on
+      // 2026-08-23 when the lighthouse print (and its frame-top Perch) left
+      // for Musings. The pad is 0.018 thick at its 0.052 scale, so the
+      // contact is one cover height over the plank, a little right of and
+      // behind its centre so the resident sits on the pages, not the spine.
+      id: "systems:notebook-cover",
+      position: [0.1, SHELF_SURFACE.lower + 0.018, -0.04],
       normal: [0, 1, 0],
-      tangent: [1, 0, 0],
-      ownerId: "grab:photo:systems-lighthouse-v8",
+      tangent: [0.976, 0, 0.218],
+      ownerId: "grab:notebook:systems",
     },
   ],
   [
@@ -988,8 +993,15 @@ const UNIT_PERCHES: readonly (readonly PerchDefinition[])[] = [
       ownerId: "grab:photo:projects-wwdc-v8",
     },
     {
+      // Measured at phoneX 0.54 as [0.4118, −0.7928, −0.0724]; the phone
+      // slid to −0.04 on 2026-08-23 when the notebook left, so the anchor
+      // rides the layout constant by the same offset.
       id: "projects:phone-face",
-      position: [0.4118, -0.7928, -0.0724],
+      position: [
+        REVIEWED_SHELF_LAYOUT.projects.phoneX - 0.1282,
+        -0.7928,
+        -0.0724,
+      ],
       normal: [0, 1, 0],
       tangent: [0.9611, 0, -0.2764],
       ownerId: "grab:phone:projects",

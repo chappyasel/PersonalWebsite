@@ -9,6 +9,8 @@
 //   handful of times per traverse, everything else on discrete user actions.
 import { create } from "zustand";
 
+import { type PixelLook, pixelLookFromSearch } from "./scene/pixelArt";
+
 import type { Book } from "~/lib/books/types";
 
 import {
@@ -111,6 +113,16 @@ type StacksState = {
    * emergency direct renderer removes bloom. */
   bloomActive: boolean;
   setBloomActive: (bloomActive: boolean) => void;
+  /** The pixel-art finish (scene/pixelArt.ts). "off" is the photograph. The
+   * two circuit boards on the Projects shelf switch it, and the Effect in
+   * scene/Effects.tsx wipes between looks outward from `pixelOrigin`, the
+   * world-space point of the board that was clicked. */
+  pixelLook: PixelLook;
+  pixelOrigin: readonly [number, number, number] | null;
+  setPixelLook: (
+    pixelLook: PixelLook,
+    pixelOrigin?: readonly [number, number, number] | null,
+  ) => void;
   /** Instant (undamped) jump to a unit — registered by CameraRig while the
    * canvas is mounted. Deep-links and the dev hooks use it. */
   jumpTo: ((unit: number) => void) | null;
@@ -168,6 +180,13 @@ export const useStacks = create<StacksState>((set) => ({
   setPostfx: (postfx) => set({ postfx }),
   bloomActive: false,
   setBloomActive: (bloomActive) => set({ bloomActive }),
+  pixelLook:
+    typeof window === "undefined"
+      ? "off"
+      : pixelLookFromSearch(window.location.search),
+  pixelOrigin: null,
+  setPixelLook: (pixelLook, pixelOrigin = null) =>
+    set({ pixelLook, pixelOrigin }),
   jumpTo: null,
   travelTo: null,
   setActiveUnit: (activeUnit) => set({ activeUnit }),

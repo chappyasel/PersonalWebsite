@@ -8,10 +8,12 @@ import {
 } from "../deskLampHead";
 import { localCameraFacingQuaternion } from "../heldFacingMath";
 import {
+  MUSINGS_LIGHTHOUSE_PRINT,
   MUSINGS_LOWER_LAYOUT,
   MUSINGS_PAPER_STACK,
   MUSINGS_TRUST_ESSAY,
 } from "../musingsShelfGeometry";
+import { deskFrameWidth } from "../photoGeometry";
 import { bookRowXBounds, packRow } from "../primitives";
 import { SHELF_GEOMETRY, SHELF_SURFACE } from "../shelfGeometry";
 import { MeshoptDecoder } from "meshoptimizer";
@@ -370,12 +372,15 @@ describe("Musings shelf composition", () => {
 
   it("spaces every lower-shelf footprint without overlaps or dead gaps", () => {
     const footprints = [
-      [MUSINGS_LOWER_LAYOUT.plantX, 0.27],
       [MUSINGS_LOWER_LAYOUT.mugX, 0.22],
       [MUSINGS_LOWER_LAYOUT.paperX, MUSINGS_PAPER_STACK.colliderWidth],
       [MUSINGS_LOWER_LAYOUT.trustX, MUSINGS_TRUST_ESSAY.width],
       [MUSINGS_LOWER_LAYOUT.signX, 0.22],
       [MUSINGS_LOWER_LAYOUT.cutoutX, 0.46],
+      [
+        MUSINGS_LOWER_LAYOUT.photoX,
+        deskFrameWidth(MUSINGS_LIGHTHOUSE_PRINT.width),
+      ],
       [MUSINGS_LOWER_LAYOUT.lighthouseX, MUSINGS_SAND_TRAY.radius * 2],
     ] as const;
     const leftEdge = -SHELF_GEOMETRY.width / 2;
