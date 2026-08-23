@@ -3,7 +3,9 @@
 // Systems pairs the operating manual and daily routine with six current-life
 // images. The photographs keep their source aspect ratios and sit in two loose
 // three-print ledges instead of becoming another rigid gallery grid.
+import FrozenBag from "../FrozenBag";
 import Grabbable from "../Grabbable";
+import MioBottle, { type MioFlavor } from "../MioBottle";
 import { ContactShade, FootPool } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
 import ModelProp from "../ModelProp";
@@ -53,63 +55,99 @@ type SystemPhotoSpec = {
   yaw: number;
 };
 
+// The supplements print (systems-supplements-v8) came off this shelf on
+// 2026-08-22: the frozen chicken bags say "daily food system" already. Its
+// slot now holds the lighthouse and home-office prints, up from the lower
+// plank so the bags could stand next to the plant down there. The file and
+// its PHOTO_LINKS entry are untouched, so it can come back any time.
 const TOP_PHOTOS: SystemPhotoSpec[] = [
   {
     id: "systems-working-session-v8",
     src: "/images/stacks/v8/systems-working-session.webp",
     aspect: 1024 / 536,
     width: 0.5,
-    x: -0.22,
+    x: -0.27,
     z: 0.09,
     yaw: 0.11,
-  },
-  {
-    id: "systems-supplements-v8",
-    src: "/images/stacks/v8/systems-supplements.webp",
-    aspect: 1024 / 511,
-    width: 0.49,
-    x: 0.36,
-    z: 0.14,
-    yaw: -0.11,
-  },
-];
-
-const LOWER_PHOTOS: SystemPhotoSpec[] = [
-  {
-    id: "systems-sf-dusk-v8",
-    src: "/images/stacks/v8/systems-sf-dusk.webp",
-    aspect: 4 / 3,
-    width: 0.38,
-    x: -0.64,
-    z: 0.13,
-    yaw: -0.17,
-  },
-  {
-    id: "systems-lake-v8",
-    src: "/images/stacks/v8/systems-lake.webp",
-    aspect: 4 / 3,
-    width: 0.38,
-    x: -0.19,
-    z: 0.13,
-    yaw: 0.1,
-  },
-  {
-    id: "systems-lighthouse-v8",
-    src: "/images/stacks/v8/systems-lighthouse.webp",
-    aspect: 819 / 1024,
-    width: 0.27,
-    x: 0.22,
-    z: 0.14,
-    yaw: -0.2,
   },
   {
     id: "systems-home-office-v8",
     src: "/images/stacks/v8/systems-home-office.webp",
     aspect: 4 / 3,
     width: 0.38,
-    x: 0.6,
+    x: 0.2,
     z: 0.08,
     yaw: 0.16,
+  },
+  {
+    id: "systems-sf-dusk-v8",
+    src: "/images/stacks/v8/systems-sf-dusk.webp",
+    aspect: 4 / 3,
+    width: 0.38,
+    x: 0.65,
+    z: 0.13,
+    yaw: -0.17,
+  },
+];
+
+/** Three frozen 3 lb bags, each its own prop, in a shallow arc beside the
+ * plant on the lower plank: the outer two turned ~16° inward and brought a
+ * little forward, the middle one square and a little back, so the three
+ * face a point just in front of the shelf. Kenney's bag is 0.41 × 0.6 × 0.22
+ * in its own units; at this scale each is ~0.26 wide × 0.38 tall × 0.14
+ * deep world. Spaced so the yawed boxes still clear each other by ~2 cm (a
+ * fan that intersects reads as one object from any angle). */
+const BAG_SCALE = 0.63;
+const BAG_MASS_KG = 1.361;
+// Toward the back of the plank (the prints sit at z ≈ 0.13), so they stand
+// in the plank's shadow like stock on a shelf rather than out front.
+const BAG_ROW: Array<{ x: number; z: number; yaw: number }> = [
+  { x: -0.92, z: -0.1, yaw: 0.28 },
+  { x: -0.62, z: -0.16, yaw: 0 },
+  { x: -0.32, z: -0.1, yaw: -0.28 },
+];
+
+/** The MiO bottles he goes through: four Hydrate (Berry Blast, 1.62 oz) and
+ * two Lemonade (the 3.24 oz "2X" bottle), in front of the bags the way they
+ * land when you put them down — flavours mixed, gaps uneven, some forward
+ * and some back, each turned its own way. Nothing in a line. Real masses:
+ * ~70 g and ~120 g full. Centres stay ≥ 0.11 apart in x so no two
+ * bottles (max width 0.09) touch. */
+const MIO_ROW: Array<{
+  flavor: MioFlavor;
+  x: number;
+  z: number;
+  yaw: number;
+  massKg: number;
+}> = [
+  { flavor: "hydrate", x: -0.98, z: 0.09, yaw: 0.45, massKg: 0.07 },
+  { flavor: "hydrate", x: -0.87, z: 0.02, yaw: -0.3, massKg: 0.07 },
+  { flavor: "lemonade", x: -0.73, z: 0.1, yaw: 0.6, massKg: 0.12 },
+  { flavor: "hydrate", x: -0.62, z: 0.04, yaw: -0.55, massKg: 0.07 },
+  { flavor: "hydrate", x: -0.5, z: 0.11, yaw: 0.2, massKg: 0.07 },
+  { flavor: "lemonade", x: -0.36, z: 0.03, yaw: -0.4, massKg: 0.12 },
+];
+
+// Two prints left on the lower plank, spread between the bottles and the
+// lamp and set well back (level with the bags) rather than at the lip.
+const LOWER_PHOTOS: SystemPhotoSpec[] = [
+  {
+    id: "systems-lighthouse-v8",
+    src: "/images/stacks/v8/systems-lighthouse.webp",
+    aspect: 819 / 1024,
+    width: 0.27,
+    x: 0.12,
+    z: -0.08,
+    yaw: -0.2,
+  },
+  {
+    id: "systems-lake-v8",
+    src: "/images/stacks/v8/systems-lake.webp",
+    aspect: 4 / 3,
+    width: 0.38,
+    x: 0.58,
+    z: -0.1,
+    yaw: 0.1,
   },
 ];
 
@@ -251,6 +289,42 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
                 </mesh>
               </Sway>
             </Grabbable>
+            {/* The daily food system made physical: three frozen chicken
+                bags in a shallow arc beside the plant. Each is its own
+                movable prop with no Door — there is nowhere honest for a bag
+                of chicken to go. */}
+            {BAG_ROW.map((bag, i) => (
+              <Grabbable
+                key={i}
+                unitIndex={index}
+                hoverKey={`grab:bag:realgood:${i}`}
+                base={[bag.x, 0, bag.z]}
+                shadeColor={palette.shadow}
+                shadeWidth={0.3}
+                shape="box"
+                massKg={BAG_MASS_KG}
+              >
+                <React.Suspense fallback={null}>
+                  <FrozenBag scale={BAG_SCALE} yaw={bag.yaw} />
+                </React.Suspense>
+              </Grabbable>
+            ))}
+            {MIO_ROW.map((bottle, i) => (
+              <Grabbable
+                key={`${bottle.flavor}-${i}`}
+                unitIndex={index}
+                hoverKey={`grab:mio:${bottle.flavor}:${i}`}
+                base={[bottle.x, 0, bottle.z]}
+                shadeColor={palette.shadow}
+                shadeWidth={bottle.flavor === "lemonade" ? 0.13 : 0.11}
+                shape="box"
+                massKg={bottle.massKg}
+              >
+                <React.Suspense fallback={null}>
+                  <MioBottle flavor={bottle.flavor} yaw={bottle.yaw} />
+                </React.Suspense>
+              </Grabbable>
+            ))}
             {LOWER_PHOTOS.map((photo) => (
               <SystemPhoto
                 key={photo.id}
@@ -334,7 +408,7 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
         <Grabbable
           unitIndex={index}
           hoverKey="link:routineboard"
-          base={[0.98, routineBoardSeat(TILT_ROUTINE), -0.02]}
+          base={[1.08, routineBoardSeat(TILT_ROUTINE), -0.02]}
           shadeColor={palette.shadow}
           shadeWidth={0.42}
           shape="box"

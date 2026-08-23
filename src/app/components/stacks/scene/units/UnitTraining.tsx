@@ -1,11 +1,14 @@
 "use client";
 
+import { useGLTF, useTexture } from "@react-three/drei";
+
 import { ShakerProp } from "../AuthoredProps";
 import Grabbable from "../Grabbable";
 import { FootPool } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
 import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
+import { labelShellGeometry, wallFootprint } from "../labelShell";
 import { RoundedBox } from "../RoundedBox";
 import WavingGolfFlag from "../WavingGolfFlag";
 import { RollProp } from "../eggs";
@@ -90,50 +93,52 @@ function TrainingPhoto({
   );
 }
 
-let proteinLabelCache: THREE.CanvasTexture | null = null;
-function proteinLabelTexture(): THREE.CanvasTexture {
-  if (proteinLabelCache) return proteinLabelCache;
-  const canvas = document.createElement("canvas");
-  canvas.width = 768;
-  canvas.height = 512;
-  const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = "#f7f3e9";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "#1262b6";
-  ctx.fillRect(0, 0, canvas.width, 72);
-  ctx.font = "700 43px Arial, sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillStyle = "#ffffff";
-  ctx.fillText("nutricost", canvas.width / 2, 50);
-  ctx.fillStyle = "#17191d";
-  ctx.font = "800 56px Arial, sans-serif";
-  ctx.fillText("WHEY PROTEIN", canvas.width / 2, 170);
-  ctx.font = "800 66px Arial, sans-serif";
-  ctx.fillText("ISOLATE", canvas.width / 2, 235);
-  ctx.fillStyle = "#1262b6";
-  ctx.beginPath();
-  ctx.moveTo(0, 320);
-  ctx.quadraticCurveTo(360, 250, 768, 345);
-  ctx.lineTo(768, 430);
-  ctx.quadraticCurveTo(360, 330, 0, 420);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = "#ef7f24";
-  ctx.beginPath();
-  ctx.moveTo(0, 405);
-  ctx.quadraticCurveTo(380, 330, 768, 440);
-  ctx.lineTo(768, 512);
-  ctx.lineTo(0, 512);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "700 38px Arial, sans-serif";
-  ctx.fillText("CHOCOLATE PB", canvas.width / 2, 470);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.wrapS = THREE.RepeatWrapping;
-  proteinLabelCache = texture;
-  return texture;
+const PROTEIN_URL = "/models/protein-powder.glb";
+const PROTEIN_SCALE = 2.082;
+const PROTEIN_YAW = 0.3;
+/** Baked from scripts/stacks-labels/nutricost.svg (the real tub's layout:
+ * wordmark and underline, title, 30G / 58 / 5LB, orange band, blue swoosh,
+ * nutrition panel on the back). One wrap = one trip around the tub. */
+const TUB_LABEL_URL = "/images/stacks/labels/nutricost.webp";
+useTexture.preload(TUB_LABEL_URL);
+
+/** The tub's label, on a strip that follows the tub. The model is a rounded
+ * square in plan, so a plain cylinder was either hidden inside the wall or
+ * poking through the flats (blue squares and orange blocks per facet, which is
+ * what the shelf showed). The strip is measured from the loaded mesh, a hair
+ * proud of the wall, with u wrapped once around the perimeter (see
+ * ../labelShell). Same GLB drei already has cached for the ModelProp beside
+ * it, so this costs no second fetch. */
+function TubLabel() {
+  const { scene } = useGLTF(PROTEIN_URL, false);
+  const label = useTexture(TUB_LABEL_URL, (tex) => {
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = THREE.ClampToEdgeWrapping;
+    tex.anisotropy = 4;
+    tex.needsUpdate = true;
+  });
+  const geometry = React.useMemo(() => {
+    const { points, yMin, yMax } = wallFootprint(scene, {
+      scale: PROTEIN_SCALE,
+      materialName: "Plastic1Protein1",
+      from: 0.3,
+      to: 0.7,
+    });
+    const h = yMax - yMin;
+    // The straight part of the wall: above the foot chamfer, below the
+    // shoulder that meets the lid.
+    return labelShellGeometry(points, yMin + 0.12 * h, yMin + 0.8 * h, 1.015);
+  }, [scene]);
+  React.useEffect(() => () => geometry.dispose(), [geometry]);
+  return (
+    <mesh geometry={geometry} rotation={[0, PROTEIN_YAW, 0]}>
+      <meshStandardMaterial
+        map={label}
+        roughness={0.58}
+        side={THREE.DoubleSide}
+      />
+    </mesh>
+  );
 }
 
 type Pin = {
@@ -388,25 +393,18 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
             >
               <React.Suspense fallback={null}>
                 <ModelProp
-                  url="/models/protein-powder.glb"
+                  url={PROTEIN_URL}
                   dark={dark}
                   variant="tinted"
                   tints={{
                     Plastic1Protein1: "#f5f0e6",
                     Lid1Protein1: "#1262b6",
                   }}
-                  rotation={[0, 0.3, 0]}
-                  scale={2.082}
+                  rotation={[0, PROTEIN_YAW, 0]}
+                  scale={PROTEIN_SCALE}
                 />
+                <TubLabel />
               </React.Suspense>
-              <mesh position={[0, 0.26, 0]} rotation={[0, 0.3, 0]}>
-                <cylinderGeometry args={[0.159, 0.159, 0.32, 40, 1, true]} />
-                <meshStandardMaterial
-                  map={proteinLabelTexture()}
-                  roughness={0.58}
-                  side={THREE.DoubleSide}
-                />
-              </mesh>
             </Grabbable>
             <Grabbable
               unitIndex={index}

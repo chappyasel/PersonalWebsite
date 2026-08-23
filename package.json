@@ -43,6 +43,7 @@
     "check:home-og:staged": "node ./scripts/check-home-og-freshness.mjs --staged",
     "generate:about-boot": "node ./scripts/generate-about-boot-silhouettes.mjs",
     "generate:stacks-photo-variants": "node ./scripts/stacks-photo-variants.mjs",
+    "generate:stacks-labels": "node ./scripts/stacks-labels.mjs",
     "generate:manual": "tsx ./scripts/generate/manual.ts",
     "generate:routine": "tsx ./scripts/generate/routine.ts",
     "add-book-covers": "tsx ./scripts/add-book-covers.ts",

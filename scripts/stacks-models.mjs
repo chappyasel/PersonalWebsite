@@ -597,6 +597,24 @@ const MANIFEST = [
     author: "Poly by Google",
     license: "CC-BY 3.0",
   },
+  // Owner pick 2026-08-22: Kenney's "Bag" — a standing gusseted bag, 46 tris,
+  // one flat material, big faces on ±x (0.41 wide × 0.6 tall × 0.22 deep in
+  // its own units). Placed three times on the Systems shelf as the frozen
+  // chicken bags; the scene ignores its palette UVs and projects an
+  // owner-drawn label straight onto the front face at load
+  // (scene/bagLabelUvs.ts). noAo: six flat faces, nothing for a bake to
+  // find. CC0, no credit line. (Replaced the Quaternius three-sack pile,
+  // which read as one small cushion rather than three bags.)
+  {
+    name: "bag",
+    title: "Bag",
+    id: "fLNcjJnsJi",
+    url: "https://static.poly.pizza/4473a789-f73a-47d4-b73a-0e015b643325.glb",
+    noAo: true,
+    unit: "systems",
+    author: "Kenney",
+    license: "CC0 1.0",
+  },
 ];
 
 // Assets adapted directly from open-source repositories rather than fetched
