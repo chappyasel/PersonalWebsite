@@ -33,6 +33,7 @@ import ChromeLayer from "./dom/ChromeLayer";
 import PlacardLayer from "./dom/PlacardLayer";
 import UnitRail from "./dom/UnitRail";
 import ScrollBridges from "./input/ScrollBridges";
+import SceneArtifactInspector from "./modal/SceneArtifactInspector";
 import StacksBookModal from "./modal/StacksBookModal";
 import { scenePerformanceTrace } from "./scene/performanceTrace";
 import { useStacks } from "./store";
@@ -206,7 +207,7 @@ export default function StacksHome({
             : null;
       return (
         element?.closest(
-          '.placard-scroll, [data-book-modal-shell], input, textarea, [contenteditable="true"]',
+          '.placard-scroll, [data-book-modal-shell], [data-scene-artifact-inspector], input, textarea, [contenteditable="true"]',
         ) ?? null
       );
     };
@@ -377,6 +378,7 @@ export default function StacksHome({
           [contain:paint] and the world's transforms, so fixed positioning
           resolves to the viewport. */}
       <StacksBookModal bookCount={data.bookStats.total} />
+      <SceneArtifactInspector />
     </>
   );
 }

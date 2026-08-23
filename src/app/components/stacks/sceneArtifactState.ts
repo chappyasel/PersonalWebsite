@@ -1,0 +1,180 @@
+"use client";
+
+import {
+  type ProjectedSceneInteractionRect,
+  projectSceneInteractionRect,
+} from "./scene/interactionRegistry";
+import {
+  type SceneArtifact,
+  type SceneArtifactId,
+  sceneArtifactById,
+  sceneArtifactCollection,
+} from "./sceneArtifacts";
+import { useStacks } from "./store";
+
+const HISTORY_KEY = "stacksSceneArtifact";
+
+type SceneArtifactPreviewViewport = Readonly<{
+  width: number;
+  height: number;
+}>;
+
+export type SceneArtifactPreviewOriginSession = Readonly<{
+  collection: SceneArtifact["collection"];
+  viewport: SceneArtifactPreviewViewport;
+  origins: ReadonlyMap<SceneArtifactId, ProjectedSceneInteractionRect>;
+}>;
+
+let sceneArtifactPreviewOriginSession: SceneArtifactPreviewOriginSession | null =
+  null;
+
+function currentPreviewViewport(): SceneArtifactPreviewViewport {
+  return typeof window === "undefined"
+    ? { width: 0, height: 0 }
+    : { width: window.innerWidth, height: window.innerHeight };
+}
+
+export function readSceneArtifactPreviewOriginSession() {
+  return sceneArtifactPreviewOriginSession;
+}
+
+export function sceneArtifactPreviewOriginSessionMatchesViewport(
+  session: SceneArtifactPreviewOriginSession | null,
+  viewport: SceneArtifactPreviewViewport,
+) {
+  return Boolean(
+    session?.viewport.width === viewport.width &&
+      session?.viewport.height === viewport.height,
+  );
+}
+
+export function imageRatioPreviewOrigin(
+  origin: ProjectedSceneInteractionRect,
+  imageWidth: number,
+  imageHeight: number,
+): ProjectedSceneInteractionRect {
+  const imageRatio = imageWidth / imageHeight;
+  const originRatio = origin.width / origin.height;
+  const width =
+    originRatio > imageRatio ? origin.height * imageRatio : origin.width;
+  const height =
+    originRatio > imageRatio ? origin.height : origin.width / imageRatio;
+
+  return {
+    left: origin.left + (origin.width - width) / 2,
+    top: origin.top + (origin.height - height) / 2,
+    width,
+    height,
+  };
+}
+
+function projectSceneArtifactPreviewOrigin(id: SceneArtifactId) {
+  const artifact = sceneArtifactById(id);
+  if (!artifact || artifact.kind !== "image") return null;
+  const origin = projectSceneInteractionRect(artifact.interactionId);
+  return origin
+    ? imageRatioPreviewOrigin(origin, artifact.width, artifact.height)
+    : null;
+}
+
+export function beginSceneArtifactPreviewOriginSession(id: SceneArtifactId) {
+  const artifact = sceneArtifactById(id);
+  const origins = new Map<SceneArtifactId, ProjectedSceneInteractionRect>();
+  if (artifact) {
+    for (const entry of sceneArtifactCollection(artifact.id)) {
+      const origin = projectSceneArtifactPreviewOrigin(entry.id);
+      if (origin) origins.set(entry.id, origin);
+    }
+  }
+  sceneArtifactPreviewOriginSession = artifact
+    ? {
+        collection: artifact.collection,
+        viewport: currentPreviewViewport(),
+        origins,
+      }
+    : null;
+}
+
+export function ensureSceneArtifactPreviewOrigin(id: SceneArtifactId) {
+  const session = sceneArtifactPreviewOriginSession;
+  const artifact = sceneArtifactById(id);
+  if (
+    !session ||
+    !artifact ||
+    artifact.collection !== session.collection ||
+    session.origins.has(id)
+  )
+    return;
+  const origin = projectSceneArtifactPreviewOrigin(id);
+  if (!origin) return;
+  const origins = new Map(session.origins);
+  origins.set(id, origin);
+  sceneArtifactPreviewOriginSession = { ...session, origins };
+}
+
+function currentHistoryState(): Record<string, unknown> {
+  return window.history.state && typeof window.history.state === "object"
+    ? (window.history.state as Record<string, unknown>)
+    : {};
+}
+
+function activateSceneArtifact(id: SceneArtifactId) {
+  const artifact = sceneArtifactById(id);
+  const state = useStacks.getState();
+  const reduceMotion = window.matchMedia(
+    "(prefers-reduced-motion: reduce)",
+  ).matches;
+  if (artifact?.kind === "model")
+    state.openModelSceneArtifact(id, reduceMotion);
+  else state.openSceneArtifact(id, reduceMotion);
+}
+
+export function openSceneArtifact(id: SceneArtifactId) {
+  const state = useStacks.getState();
+  if (state.modalOpen || state.panelState !== "closed") return;
+  beginSceneArtifactPreviewOriginSession(id);
+  window.history.pushState(
+    { ...currentHistoryState(), [HISTORY_KEY]: id },
+    "",
+    window.location.href,
+  );
+  activateSceneArtifact(id);
+}
+
+export function restoreSceneArtifact(id: SceneArtifactId) {
+  beginSceneArtifactPreviewOriginSession(id);
+  activateSceneArtifact(id);
+}
+
+export function selectSceneArtifact(id: SceneArtifactId) {
+  const state = useStacks.getState();
+  if (!state.inspectedArtifact) return;
+  ensureSceneArtifactPreviewOrigin(id);
+  window.history.replaceState(
+    { ...currentHistoryState(), [HISTORY_KEY]: id },
+    "",
+    window.location.href,
+  );
+  state.selectImageSceneArtifact(id);
+}
+
+export function closeSceneArtifact() {
+  const state = useStacks.getState();
+  if (!state.inspectedArtifact) return;
+  if (sceneArtifactFromHistoryState(window.history.state)) {
+    window.history.back();
+  } else state.closeSceneArtifact();
+}
+
+export function sceneArtifactFromHistoryState(
+  state: unknown,
+): SceneArtifactId | null {
+  if (!state || typeof state !== "object" || !(HISTORY_KEY in state)) {
+    return null;
+  }
+  const value = (state as Record<string, unknown>)[HISTORY_KEY];
+  return typeof value === "string" &&
+    sceneArtifactById(value as SceneArtifactId)
+    ? (value as SceneArtifactId)
+    : null;
+}

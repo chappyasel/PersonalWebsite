@@ -1,5 +1,6 @@
 "use client";
 
+import type { PhotoArtifactId } from "../../sceneArtifacts";
 import { useStacks } from "../../store";
 import { proxied } from "../../theme";
 import { TJMedallionProp } from "../AuthoredProps";
@@ -37,14 +38,7 @@ import { proxiedBookCover } from "../bookCoverTexture";
 import { EggLamp, SpinProp, Sway } from "../eggs";
 import { getSceneInteraction } from "../interactionRegistry";
 import { DeskApple, PortraitFrame, useMetalShimmer } from "../objects";
-import {
-  DeskFrame,
-  FlatPrint,
-  PHOTO_LINKS,
-  deskFrameHeight,
-  photoDoorDetail,
-  photoDoorLabel,
-} from "../photos";
+import { DeskFrame, FlatPrint, deskFrameHeight } from "../photos";
 import { ShelfUnit } from "../primitives";
 import { propReactionIsEngaged } from "../reactionEngagement";
 import { ABOUT_COUCH } from "../seated";
@@ -233,8 +227,8 @@ function LoosePhoto({
 }: {
   unitIndex: number;
   palette: UnitProps["palette"];
-  id: string;
   layoutLabel: string;
+  id: PhotoArtifactId;
   base: [number, number, number];
   seat?: number;
   rotation?: [number, number, number];
@@ -244,7 +238,6 @@ function LoosePhoto({
   children: React.ReactNode;
 }) {
   const hoverKey = `grab:photo:${id}`;
-  const href = PHOTO_LINKS[id] ?? null;
   return (
     <Grabbable
       unitIndex={unitIndex}
@@ -257,9 +250,7 @@ function LoosePhoto({
       hoverLift={hingeOnHover ? ABOUT_TOP_PHOTO_HOVER_LIFT : undefined}
       shape="box"
       massKg={0.48}
-      href={href ?? undefined}
-      doorLabel={href ? photoDoorLabel(href) : undefined}
-      doorDetail={href ? photoDoorDetail(href) : undefined}
+      artifact={id}
     >
       <HeldFacing
         hoverKey={hoverKey}

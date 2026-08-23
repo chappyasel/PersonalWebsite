@@ -142,3 +142,28 @@ export function golfClubContactBeforeModelYaw(): GolfVec3 {
 }
 
 export const GOLF_BALL_IDS = Object.keys(GOLF_BALL_STARTS) as GolfBallId[];
+
+/** Where a loose ball counts as teed up: the aisle left of the shelf, from
+ * just past the club's rest to just short of the plank, on the floor. The
+ * basketball, baseball and tennis balls are ordinary Grabbables; carried
+ * here and left still, one becomes the next thing the club swings at. A tap
+ * on a ball anywhere else does nothing. Measured on the ball's bottom, the
+ * carrier origin, so the check is the same for every radius. */
+export const GOLF_HITTING_BAY = {
+  x: [-3.3, -1.45],
+  z: [-0.45, 1.2],
+  /** How far a ball's bottom may sit above the floor and still count: a
+   * ball resting on a tee or a clump of grass, not one held in the air. */
+  lift: 0.3,
+} as const;
+
+export function inGolfHittingBay(bottom: GolfVec3) {
+  return (
+    bottom.x >= GOLF_HITTING_BAY.x[0] &&
+    bottom.x <= GOLF_HITTING_BAY.x[1] &&
+    bottom.z >= GOLF_HITTING_BAY.z[0] &&
+    bottom.z <= GOLF_HITTING_BAY.z[1] &&
+    bottom.y >= SHELF_GEOMETRY.groundY - 0.05 &&
+    bottom.y <= SHELF_GEOMETRY.groundY + GOLF_HITTING_BAY.lift
+  );
+}

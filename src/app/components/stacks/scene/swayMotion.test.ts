@@ -91,6 +91,20 @@ describe("sway spring", () => {
     expect(spring.velocity).toBe(0);
   });
 
+  it("never crosses behind the authored plane while returning to rest", () => {
+    const spring = createSwaySpring();
+    for (let frame = 0; frame < 45; frame += 1)
+      stepSway(spring, 1, 1 / 60);
+
+    let minimum = spring.angle;
+    for (let frame = 0; frame < 90; frame += 1) {
+      stepSway(spring, 0, 1 / 60);
+      minimum = Math.min(minimum, spring.angle);
+    }
+
+    expect(minimum).toBeGreaterThanOrEqual(0);
+  });
+
   it("does not wind itself up over a long hover", () => {
     // Explicit Euler adds energy to a spring every step. Semi-implicit does
     // not, and a plant hovered for a minute must not be vibrating.

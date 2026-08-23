@@ -1,5 +1,6 @@
 "use client";
 
+import { type SceneArtifactId } from "../../sceneArtifacts";
 import { type Palette } from "../../theme";
 import Grabbable from "../Grabbable";
 import { RoundedBox } from "../RoundedBox";
@@ -17,7 +18,9 @@ import {
 /** Billet proportions for an icon of any edge. The Projects shelf uses the
  * full 0.32 icon; the About Role Icons are the same object at half the edge,
  * so depth, corner radius and face inset all scale with it. */
-export function projectIconBody(size: number = PROJECT_ARTIFACT_DIMENSIONS.icon) {
+export function projectIconBody(
+  size: number = PROJECT_ARTIFACT_DIMENSIONS.icon,
+) {
   return {
     size,
     // RoundedBox uses one radius for the 2D corner and front/back bevel. The
@@ -64,12 +67,12 @@ function roundedFaceGeometry(size: number, radius: number) {
 
 function ProjectIconArtwork({
   artwork,
-  hoverKey,
+  interactionKey,
   unitIndex,
   body,
 }: {
   artwork: string;
-  hoverKey: string;
+  interactionKey: string;
   unitIndex: number;
   body: ReturnType<typeof projectIconBody>;
 }) {
@@ -105,7 +108,7 @@ function ProjectIconArtwork({
     texture: shimmerTexture,
   } = useMetalShimmer({
     unitIndex,
-    hoverKey,
+    hoverKey: interactionKey,
     idleRoughness: 0.28,
     idleEnv: 2.9,
   });
@@ -149,6 +152,132 @@ function ProjectIconArtwork({
   );
 }
 
+function StaticProjectIconArtwork({
+  artwork,
+  body,
+  onReady,
+}: {
+  artwork: string;
+  body: ReturnType<typeof projectIconBody>;
+  onReady?: () => void;
+}) {
+  const iconSize = body.size;
+  const faceSize = iconSize - body.faceInset * 2;
+  const artworkTexture = useLoader(THREE.TextureLoader, artwork);
+  artworkTexture.colorSpace = THREE.SRGBColorSpace;
+  const face = useMemo(
+    () => roundedFaceGeometry(faceSize, iconSize * 0.18),
+    [faceSize, iconSize],
+  );
+  useEffect(() => () => face.dispose(), [face]);
+  useEffect(() => onReady?.(), [onReady]);
+  return (
+    <mesh
+      geometry={face}
+      dispose={null}
+      position={[0, iconSize / 2, body.depth / 2 + 0.001]}
+    >
+      <meshPhysicalMaterial
+        map={artworkTexture}
+        metalness={0.14}
+        roughness={0.28}
+        envMapIntensity={2.9}
+        clearcoat={0.82}
+        clearcoatRoughness={0.1}
+        reflectivity={1}
+      />
+    </mesh>
+  );
+}
+
+export function ProjectIconVisual({
+  unitIndex,
+  dark,
+  hoverKey,
+  artwork,
+  fallbackColor,
+  textured,
+  yaw,
+  interactive = true,
+  onReady,
+  size = PROJECT_ARTIFACT_DIMENSIONS.icon,
+}: {
+  unitIndex: number;
+  dark: boolean;
+  hoverKey: string;
+  artwork: string;
+  fallbackColor: string;
+  textured: boolean;
+  yaw: number;
+  interactive?: boolean;
+  onReady?: () => void;
+  size?: number;
+}) {
+  const body = projectIconBody(size);
+  const iconSize = body.size;
+  return (
+    <group rotation={[0, yaw, 0]}>
+      <RoundedBox
+        castShadow
+        args={[iconSize, iconSize, body.depth]}
+        radius={body.radius}
+        smoothness={6}
+        position={[0, iconSize / 2, 0]}
+      >
+        <meshPhysicalMaterial
+          color={dark ? "#858b92" : "#d5d9de"}
+          metalness={0.88}
+          roughness={0.2}
+          envMapIntensity={3.1}
+          clearcoat={0.55}
+          clearcoatRoughness={0.14}
+          reflectivity={1}
+        />
+      </RoundedBox>
+      {textured ? (
+        <React.Suspense fallback={null}>
+          {interactive ? (
+            <ProjectIconArtwork
+              artwork={artwork}
+              interactionKey={hoverKey}
+              unitIndex={unitIndex}
+              body={body}
+            />
+          ) : (
+            <StaticProjectIconArtwork
+              artwork={artwork}
+              body={body}
+              onReady={onReady}
+            />
+          )}
+        </React.Suspense>
+      ) : (
+        <RoundedBox
+          args={[
+            iconSize - body.faceInset * 2,
+            iconSize - body.faceInset * 2,
+            body.fallbackFaceDepth,
+          ]}
+          radius={body.fallbackFaceRadius}
+          smoothness={5}
+          position={[
+            0,
+            iconSize / 2,
+            body.depth / 2 + body.fallbackFaceDepth / 2,
+          ]}
+        >
+          <meshPhysicalMaterial
+            color={fallbackColor}
+            metalness={0.28}
+            roughness={0.32}
+            clearcoat={0.48}
+          />
+        </RoundedBox>
+      )}
+    </group>
+  );
+}
+
 export function ProjectIcon({
   unitIndex,
   palette,
@@ -164,6 +293,7 @@ export function ProjectIcon({
   doorDetail,
   size = PROJECT_ARTIFACT_DIMENSIONS.icon,
   massKg = 0.62,
+  artifact,
 }: {
   unitIndex: number;
   palette: Palette;
@@ -182,11 +312,10 @@ export function ProjectIcon({
   size?: number;
   /** Real mass; a half-edge tile is an eighth of the volume. */
   massKg?: number;
+  artifact?: SceneArtifactId;
 }) {
   const body = projectIconBody(size);
   const iconSize = body.size;
-  const ICON_DEPTH = body.depth;
-  const ICON_FACE_INSET = body.faceInset;
   return (
     <Grabbable
       unitIndex={unitIndex}
@@ -201,58 +330,18 @@ export function ProjectIcon({
       doorLabel={doorLabel}
       doorDetail={doorDetail}
       external
+      artifact={artifact}
     >
-      <group rotation={[0, yaw, 0]}>
-        <RoundedBox
-          castShadow
-          args={[iconSize, iconSize, ICON_DEPTH]}
-          radius={body.radius}
-          smoothness={6}
-          position={[0, iconSize / 2, 0]}
-        >
-          <meshPhysicalMaterial
-            color={dark ? "#858b92" : "#d5d9de"}
-            metalness={0.88}
-            roughness={0.2}
-            envMapIntensity={3.1}
-            clearcoat={0.55}
-            clearcoatRoughness={0.14}
-            reflectivity={1}
-          />
-        </RoundedBox>
-        {textured ? (
-          <React.Suspense fallback={null}>
-            <ProjectIconArtwork
-              artwork={artwork}
-              hoverKey={hoverKey}
-              unitIndex={unitIndex}
-              body={body}
-            />
-          </React.Suspense>
-        ) : (
-          <RoundedBox
-            args={[
-              iconSize - ICON_FACE_INSET * 2,
-              iconSize - ICON_FACE_INSET * 2,
-              body.fallbackFaceDepth,
-            ]}
-            radius={body.fallbackFaceRadius}
-            smoothness={5}
-            position={[
-              0,
-              iconSize / 2,
-              ICON_DEPTH / 2 + body.fallbackFaceDepth / 2,
-            ]}
-          >
-            <meshPhysicalMaterial
-              color={fallbackColor}
-              metalness={0.28}
-              roughness={0.32}
-              clearcoat={0.48}
-            />
-          </RoundedBox>
-        )}
-      </group>
+      <ProjectIconVisual
+        unitIndex={unitIndex}
+        dark={dark}
+        hoverKey={hoverKey}
+        artwork={artwork}
+        fallbackColor={fallbackColor}
+        textured={textured}
+        yaw={yaw}
+        size={size}
+      />
     </Grabbable>
   );
 }

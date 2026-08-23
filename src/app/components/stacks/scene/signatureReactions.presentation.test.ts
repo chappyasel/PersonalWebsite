@@ -68,17 +68,25 @@ describe("signature reactions", () => {
       // stood the universal floor down — so there is nothing to pass, and
       // requiring it there would be requiring a no-op.
       const wired = sources.some(([, text]) => {
-        const at = text.indexOf(`signature="${gesture}"`);
-        if (at < 0) return false;
-        // The enclosing component, not the props block: ShakerProp builds its
-        // key into a const, so `grab:shaker:` never appears in the JSX. A
-        // component is still narrow enough that one signature prop cannot
-        // vouch for another in the same unit.
-        const start = Math.max(
-          text.lastIndexOf("\nfunction ", at),
-          text.lastIndexOf("\nexport function ", at),
-        );
-        return text.slice(start < 0 ? 0 : start, at).includes(hoverKey);
+        // Every occurrence, not the first: two props in one file can share a
+        // gesture (the loose balls and the basketball both roll).
+        for (
+          let at = text.indexOf(`signature="${gesture}"`);
+          at >= 0;
+          at = text.indexOf(`signature="${gesture}"`, at + 1)
+        ) {
+          // The enclosing component, not the props block: ShakerProp builds
+          // its key into a const, so `grab:shaker:` never appears in the JSX.
+          // A component is still narrow enough that one signature prop
+          // cannot vouch for another in the same unit.
+          const start = Math.max(
+            text.lastIndexOf("\nfunction ", at),
+            text.lastIndexOf("\nexport function ", at),
+          );
+          if (text.slice(start < 0 ? 0 : start, at).includes(hoverKey))
+            return true;
+        }
+        return false;
       });
       expect(wired, `${hoverKey} never passes signature="${gesture}"`).toBe(
         true,

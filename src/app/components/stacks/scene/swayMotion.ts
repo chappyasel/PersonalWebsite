@@ -14,9 +14,11 @@ import { HOVER_MOTION_SCALE } from "./Lift";
  *     so they arrive, overshoot and settle as a single motion rather than as
  *     two effects that happen to fire at the same time.
  *  2. THE CURVE. `THREE.MathUtils.damp` is a pure exponential: it approaches
- *     and never passes. Leaves overshoot. A plant that eases into a lean the
- *     way a book does reads as the stiff plastic prop several of these models
- *     are already fighting, so this rides an underdamped spring instead.
+ *     and never passes. Entry needs overshoot. A plant that eases into a lean
+ *     the way a book does reads as the stiff plastic prop several of these
+ *     models are already fighting, so entry rides an underdamped spring. The
+ *     return is critically damped because passing rest reverses the hinge and
+ *     sends a flush-mounted prop behind its support plane.
  *  3. THE PIVOT SURVIVES THE SIZE GATE. `hingeFor` refuses anything over
  *     TILT_MAX_SIZE as furniture, which would silence the monstera and the
  *     large plants — the props whose foliage moves most. Foliage already won
@@ -63,8 +65,8 @@ export const SWAY_TWIST = 0.029 * HOVER_MOTION_SCALE;
 /**
  * Spring constants, as (stiffness, damping) for unit mass.
  *
- * Damping ratio is 20 / (2 * sqrt(300)) = 0.577, which passes the target once
- * by ~11% and is settled inside ~0.7s. Both numbers are chosen against the
+ * On entry, damping ratio is 20 / (2 * sqrt(300)) = 0.577, which passes the
+ * target once by ~11% and is settled inside ~0.7s. Both numbers are chosen against the
  * shared nod rather than in a vacuum: LIFT_LAMBDA reaches ~95% of its travel
  * in 300ms, so a plant that took several seconds to stop swinging would read
  * as a different scene rather than a different material. One visible bounce, a
@@ -110,10 +112,11 @@ export function createSwaySpring(): SwaySpring {
 /**
  * Advance one spring toward `target` by `delta` seconds.
  *
- * Stiffness and damping are per-BAND since 2026-08-20: the plants' spring was
- * the only one in the world and it read better than the exponential everything
- * else used, so every band rides one now. They differ because bounce is a
- * material property — paper overshoots, iron does not.
+ * Stiffness and entry damping are per-BAND since 2026-08-20: the plants'
+ * spring was the only one in the world and it read better than the exponential
+ * everything else used, so every band rides one now. They differ because
+ * bounce is a material property. Paper overshoots; iron does not. Return uses
+ * at least critical damping so no band crosses behind its authored rest plane.
  *
  * `target` is an engagement value, normally 1 while the pointer rests on the
  * prop and 0 once it leaves, NOT an angle. The caller multiplies the settled
@@ -138,13 +141,19 @@ export function stepSway(
   // equality is safe because settling SNAPS onto the target below.
   if (spring.angle === target && spring.velocity === 0) return true;
   let remaining = Math.min(Math.max(delta, 0), SWAY_MAX_DELTA);
+  // Bounce is legible on arrival, where the prop has open air beyond its
+  // authored pose. It is not safe on return: negative engagement reverses the
+  // hinge shift and can bury a flush-mounted prop in its support. Critical
+  // damping is the fastest non-overshooting return for a unit-mass spring.
+  const activeDamping =
+    target === 0 ? Math.max(damping, 2 * Math.sqrt(stiffness)) : damping;
   for (let step = 0; remaining > 1e-9 && step < SWAY_MAX_STEPS; step += 1) {
     const dt = Math.min(SWAY_STEP, remaining);
     // Semi-implicit Euler: velocity first, then position from the NEW
     // velocity. Explicit Euler adds energy to a spring, and this one would
     // slowly wind itself up over a long hover.
     const acceleration =
-      (target - spring.angle) * stiffness - spring.velocity * damping;
+      (target - spring.angle) * stiffness - spring.velocity * activeDamping;
     spring.velocity += acceleration * dt;
     spring.angle += spring.velocity * dt;
     remaining -= dt;
