@@ -6,6 +6,7 @@ import { ThemeProvider } from "~/lib/providers";
 import { THEME_COLOR, THEME_STORAGE_KEY } from "~/lib/theme";
 
 import AnalyticsRouteTracker from "./components/AnalyticsRouteTracker";
+import { UniversalSearchController } from "~/components/universal-search/UniversalSearchController";
 
 import { HOMEPAGE_DESCRIPTION } from "./homeMetadata";
 import "~/styles/globals.css";
@@ -112,6 +113,7 @@ export default function RootLayout({
       <body>
         <ThemeProvider>
           <FontProvider>
+            <UniversalSearchController enabled={false} />
             <AnalyticsRouteTracker />
             {children}
           </FontProvider>

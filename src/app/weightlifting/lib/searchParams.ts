@@ -1,5 +1,6 @@
 import {
   createSearchParamsCache,
+  createSerializer,
   parseAsArrayOf,
   parseAsInteger,
   parseAsString,
@@ -35,3 +36,4 @@ export const wlSearchParams = {
 };
 
 export const wlSearchParamsCache = createSearchParamsCache(wlSearchParams);
+export const wlSearchParamsSerializer = createSerializer(wlSearchParams);

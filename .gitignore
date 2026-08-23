@@ -48,6 +48,7 @@ npm-debug.log*
 
 # dad journal content (fetched from GCS at build time)
 /content/dad/
+/content/dad-search-index.json
 
 # youtube takeout data
 /data/youtube/

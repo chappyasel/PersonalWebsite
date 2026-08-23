@@ -1,5 +1,6 @@
 "use client";
 
+import { categoryColor, formatDuration, formatVolume } from "../lib/utils";
 import {
   BarbellIcon,
   LinkSimpleIcon,
@@ -10,9 +11,11 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef } from "react";
 
+import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
+import { type RouterOutputs, api } from "~/trpc/react";
+
 import { Spinner } from "~/components/ui/spinner";
-import { api, type RouterOutputs } from "~/trpc/react";
-import { categoryColor, formatDuration, formatVolume } from "../lib/utils";
+
 import { QueryErrorFallback } from "./QueryErrorFallback";
 
 type Workout = RouterOutputs["weightlifting"]["getWorkouts"][number];
@@ -25,7 +28,8 @@ function formatSet(set: {
   distance: number | null;
   custom: string | null;
 }) {
-  if (set.reps != null && set.weight != null) return `${set.reps}x${set.weight}`;
+  if (set.reps != null && set.weight != null)
+    return `${set.reps}x${set.weight}`;
   if (set.reps != null) return `${set.reps} reps`;
   if (set.durationSeconds != null) return formatDuration(set.durationSeconds);
   if (set.distance != null) return `${set.distance}mi`;
@@ -182,6 +186,7 @@ export function WorkoutDetailModal({
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isUniversalSearchOpen()) return;
       if (e.key === "Escape") handleClose();
       if (e.key === "Tab") {
         const modal = modalRef.current;
@@ -297,10 +302,7 @@ export function WorkoutDetailModal({
                         const totalVolume = workout.exercises.reduce(
                           (sum, e) =>
                             sum +
-                            e.sets.reduce(
-                              (s, set) => s + (set.volume ?? 0),
-                              0,
-                            ),
+                            e.sets.reduce((s, set) => s + (set.volume ?? 0), 0),
                           0,
                         );
 
@@ -311,9 +313,7 @@ export function WorkoutDetailModal({
                                 {workout.name}
                               </h3>
                               <p className="text-base text-neutral-500 dark:text-neutral-400">
-                                {addOrdinalSuffix(
-                                  formatDateLong(workout.date),
-                                )}
+                                {addOrdinalSuffix(formatDateLong(workout.date))}
                               </p>
                             </div>
 
@@ -323,7 +323,10 @@ export function WorkoutDetailModal({
                                   {totalSets}
                                 </p>
                                 <p className="flex items-center justify-center gap-1 text-xs text-neutral-500 dark:text-neutral-400">
-                                  <SquaresFourIcon className="h-3 w-3" weight="bold" />
+                                  <SquaresFourIcon
+                                    className="h-3 w-3"
+                                    weight="bold"
+                                  />
                                   Sets
                                 </p>
                               </div>
@@ -332,7 +335,10 @@ export function WorkoutDetailModal({
                                   {formatVolume(totalVolume)}
                                 </p>
                                 <p className="flex items-center justify-center gap-1 text-xs text-neutral-500 dark:text-neutral-400">
-                                  <BarbellIcon className="h-3 w-3" weight="bold" />
+                                  <BarbellIcon
+                                    className="h-3 w-3"
+                                    weight="bold"
+                                  />
                                   Volume
                                 </p>
                               </div>
@@ -341,7 +347,10 @@ export function WorkoutDetailModal({
                                   {formatDuration(workout.durationSeconds)}
                                 </p>
                                 <p className="flex items-center justify-center gap-1 text-xs text-neutral-500 dark:text-neutral-400">
-                                  <TimerIcon className="h-3 w-3" weight="bold" />
+                                  <TimerIcon
+                                    className="h-3 w-3"
+                                    weight="bold"
+                                  />
                                   Duration
                                 </p>
                               </div>
