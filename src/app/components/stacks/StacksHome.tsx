@@ -33,12 +33,15 @@ import ChromeLayer from "./dom/ChromeLayer";
 import PlacardLayer from "./dom/PlacardLayer";
 import UnitRail from "./dom/UnitRail";
 import ScrollBridges from "./input/ScrollBridges";
-import SceneArtifactInspector from "./modal/SceneArtifactInspector";
 import StacksBookModal from "./modal/StacksBookModal";
 import { scenePerformanceTrace } from "./scene/performanceTrace";
 import { useStacks } from "./store";
 
 const StacksCanvas = dynamic(() => import("./StacksCanvas"), { ssr: false });
+const SceneArtifactInspector = dynamic(
+  () => import("./modal/SceneArtifactInspector"),
+  { ssr: false },
+);
 
 const recordPerformanceCommit: ProfilerOnRenderCallback = (
   id,

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "algorithm": "sha256",
-  "digest": "f9280c169c968996cb7abf2221a73292ff5b5c61b28ba651a11029d8b9932814",
+  "digest": "afb547b8d3664326bad091aa6650e64f27290abe9d9bb889de538ceb162b9d58",
   "files": [
     "public/images/about/profile.jpg",
     "public/images/stacks/grass-tuft-alpha.webp",
@@ -262,7 +262,7 @@
   ],
   "image": {
     "path": "public/images/stacks/home-og-scene.jpg",
-    "digest": "dc6d04024f72aaaff76ac0fad7bb7a10d4ab808027b7d39cffe33c9bf5ba90e4",
-    "inputDigest": "f9280c169c968996cb7abf2221a73292ff5b5c61b28ba651a11029d8b9932814"
+    "digest": "11454cffc236c7295cb3ddb7fcac66d172ce178c1dd720484523500bd6057d0d",
+    "inputDigest": "afb547b8d3664326bad091aa6650e64f27290abe9d9bb889de538ceb162b9d58"
   }
 }
