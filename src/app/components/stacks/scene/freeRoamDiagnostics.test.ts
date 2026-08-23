@@ -1,44 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  FREE_ROAM_STORAGE_KEY,
   createFreeRoamDiagnosticsController,
-  readFreeRoamEnabled,
   readFreeRoamPose,
-  writeFreeRoamEnabled,
   writeFreeRoamPose,
 } from "./freeRoamDiagnostics";
 
 describe("free-roam diagnostics", () => {
-  it("reads and writes the persisted free-roam preference", () => {
-    const values = new Map<string, string>();
-    const storage = {
-      getItem: (key: string) => values.get(key) ?? null,
-      setItem: (key: string, value: string) => values.set(key, value),
-    };
-
-    expect(readFreeRoamEnabled(storage)).toBe(false);
-    writeFreeRoamEnabled(storage, true);
-    expect(values.get(FREE_ROAM_STORAGE_KEY)).toBe("true");
-    expect(readFreeRoamEnabled(storage)).toBe(true);
-    writeFreeRoamEnabled(storage, false);
-    expect(readFreeRoamEnabled(storage)).toBe(false);
-  });
-
-  it("treats blocked storage as an unavailable preference", () => {
-    const storage = {
-      getItem: () => {
-        throw new Error("blocked");
-      },
-      setItem: () => {
-        throw new Error("blocked");
-      },
-    };
-
-    expect(readFreeRoamEnabled(storage)).toBe(false);
-    expect(() => writeFreeRoamEnabled(storage, true)).not.toThrow();
-  });
-
   it("round-trips the free-roam camera pose across reloads", () => {
     const values = new Map<string, string>();
     const storage = {

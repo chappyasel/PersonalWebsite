@@ -289,6 +289,7 @@ const SceneContent = memo(function SceneContent({
               palette={palette}
               dark={dark}
               index={i}
+              headOnCapture={headOnCapture}
               coverWidth={coverWidth}
               onOpenBook={onOpenBook}
               onOpenUrl={onOpenUrl}

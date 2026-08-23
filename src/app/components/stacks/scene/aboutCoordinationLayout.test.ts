@@ -18,7 +18,11 @@ import {
   ABOUT_LAMP_ROOT_SCALE,
   ABOUT_LAMP_ROOT_YAW,
   ABOUT_LOWER_AWARD_SCALE,
+  ABOUT_OG_LAMP_CAMERA_REVEAL,
+  ABOUT_OG_LAMP_HEAD_QUATERNION,
+  ABOUT_OG_LAMP_HEAD_TARGET,
   ABOUT_TJ_LIGHT_YAW,
+  aboutLampHeadQuaternion,
   aboutShelfIntervals,
 } from "./aboutCoordinationLayout";
 import {
@@ -134,6 +138,40 @@ describe("About Coordination composition", () => {
     expect(cameraFacing).toBeGreaterThan(0.2);
     expect(cameraFacing).toBeLessThan(0.24);
     expect(ABOUT_LAMP_HEAD_QUATERNION).not.toEqual([0, 0, 0, 1]);
+  });
+
+  it("turns the OG lamp away from the camera while retaining the authored target", () => {
+    const mouth = new THREE.Vector3(
+      ...articulatedDeskLampPoint({
+        point: DESK_LAMP_MOUTH,
+        headQuaternion: ABOUT_OG_LAMP_HEAD_QUATERNION,
+        rootPosition: ABOUT_LAMP_ROOT_POSITION,
+        rootYaw: ABOUT_LAMP_ROOT_YAW,
+        rootScale: ABOUT_LAMP_ROOT_SCALE,
+      }),
+    );
+    const target = new THREE.Vector3(
+      ABOUT_LAMP_ROOT_POSITION[0] + ABOUT_OG_LAMP_HEAD_TARGET[0],
+      ABOUT_LAMP_ROOT_POSITION[1] + ABOUT_OG_LAMP_HEAD_TARGET[1],
+      ABOUT_LAMP_ROOT_POSITION[2] + ABOUT_OG_LAMP_HEAD_TARGET[2],
+    );
+    const actual = new THREE.Vector3(
+      ...articulatedDeskLampDirection({
+        direction: DESK_LAMP_HEAD_AXIS,
+        headQuaternion: ABOUT_OG_LAMP_HEAD_QUATERNION,
+        rootYaw: ABOUT_LAMP_ROOT_YAW,
+      }),
+    );
+    const cameraFacing = actual.dot(
+      new THREE.Vector3(0, CAMERA.y, CAMERA.z).sub(mouth).normalize(),
+    );
+
+    expect(actual.dot(target.sub(mouth).normalize())).toBeCloseTo(1, 10);
+    expect(ABOUT_OG_LAMP_CAMERA_REVEAL).toBe(0.08);
+    expect(cameraFacing).toBeGreaterThan(0.07);
+    expect(cameraFacing).toBeLessThan(0.09);
+    expect(aboutLampHeadQuaternion(true)).toBe(ABOUT_OG_LAMP_HEAD_QUATERNION);
+    expect(aboutLampHeadQuaternion(false)).toBe(ABOUT_LAMP_HEAD_QUATERNION);
   });
 
   it("turns the TJ and Apple metal faces modestly toward the lamp", () => {

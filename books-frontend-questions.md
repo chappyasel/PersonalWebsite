@@ -156,7 +156,7 @@ No
 
 **Q7.1: Framework**
 
-- Your main site uses Next.js 14. Should this:
+- Your main site uses Next.js 16. Should this:
   - [x] Be part of the same Next.js app (new route)
   - [ ] Be a separate Next.js deployment
   - [ ] Use a different framework

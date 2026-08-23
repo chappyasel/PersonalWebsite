@@ -1,4 +1,4 @@
-import { WARM_KEY } from "../loading";
+import { WARM_KEY } from "../boot/worldBootPolicy";
 
 import {
   SCENE_ARRIVAL_SESSION_KEY,
@@ -23,6 +23,11 @@ export const SCENE_QUERY_OVERRIDE_KEYS = [
   "hud",
   "harness",
   "quality",
+  "nopostfx",
+  "nodof",
+  "notiltshift",
+  "nograde",
+  "nomeadow",
   "grassDeformation",
   "hdPhotos",
   "og-capture",

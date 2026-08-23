@@ -12,10 +12,13 @@ import { useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
 
 import {
-  type ScenePhotoRole,
-  sceneHdPhotosDisabled,
-  scenePhotoUrl,
-} from "./photoTextures";
+  type LitImageDetail,
+  clearReleasedLitImageDetail,
+  liveLitImageDetailResource,
+} from "./litImageDetail";
+import { type ScenePhotoRole, scenePhotoUrl } from "./photoTextures";
+import { useScenePerformanceSettings } from "./scenePerformance";
+import { scenePhotoDetailTextures } from "./scenePhotoDetails";
 
 /** object-fit: cover with an optional zoom and focal point. `focus` is
  * CSS-object-position-like: [x from left, y from TOP], each 0..1. */
@@ -147,16 +150,7 @@ function LitImageSource({
     texture.anisotropy = maxAnisotropy;
     fitCover(texture, width, height, zoom, [fx, fy]);
     texture.needsUpdate = true;
-  }, [
-    texture,
-    maxAnisotropy,
-    width,
-    height,
-    grade,
-    zoom,
-    fx,
-    fy,
-  ]);
+  }, [texture, maxAnisotropy, width, height, grade, zoom, fx, fy]);
   useEffect(() => () => texture.dispose(), [texture]);
   const geometry = useMemo(
     () =>
@@ -180,54 +174,34 @@ function LitImageSource({
   );
 }
 
-// Master textures deliberately use their own loading manager. The default
-// manager owns the boot reveal gate, so putting masters on it would turn an
-// optional quality upgrade back into blocking work. One promise per URL also
-// keeps duplicate prints from decoding the same source twice.
-const detailLoadingManager = new THREE.LoadingManager();
-const detailTextureLoader = new THREE.TextureLoader(detailLoadingManager);
-const detailTextureCache = new Map<string, Promise<THREE.Texture>>();
-
-function loadDetailTexture(url: string): Promise<THREE.Texture> {
-  const cached = detailTextureCache.get(url);
-  if (cached) return cached;
-  const pending = detailTextureLoader.loadAsync(url).then(
-    (texture) => {
-      texture.colorSpace = THREE.SRGBColorSpace;
-      return texture;
-    },
-    (error: unknown) => {
-      detailTextureCache.delete(url);
-      throw error;
-    },
-  );
-  detailTextureCache.set(url, pending);
-  return pending;
-}
-
 export default function LitImage({
   url,
   detailUrl,
   role = "feature",
   ...props
 }: LitImageProps) {
+  const performanceSettings = useScenePerformanceSettings();
   const previewUrl = scenePhotoUrl(url, role);
   const previewTexture = useTexture(previewUrl);
-  const detailsDisabled =
-    typeof window !== "undefined" &&
-    sceneHdPhotosDisabled(window.location.search);
-  const [detail, setDetail] = useState<{
-    url: string;
-    texture: THREE.Texture;
-  } | null>(null);
+  const detailsDisabled = !performanceSettings.highResolutionPhotos;
+  const [detail, setDetail] = useState<LitImageDetail<THREE.Texture> | null>(
+    null,
+  );
 
   useEffect(() => {
     let active = true;
+    let leasedDetail: LitImageDetail<THREE.Texture> | null = null;
     if (!detailUrl || detailsDisabled || detailUrl === previewUrl)
       return () => undefined;
-    void loadDetailTexture(detailUrl)
+    const lease = scenePhotoDetailTextures.request(detailUrl);
+    void lease.promise
       .then((texture) => {
-        if (active) setDetail({ url: detailUrl, texture });
+        leasedDetail = {
+          url: detailUrl,
+          resource: texture,
+          isReleased: () => lease.released,
+        };
+        if (active) setDetail(leasedDetail);
       })
       .catch(() => {
         // The preview remains the durable fallback. A later mount retries a
@@ -235,10 +209,18 @@ export default function LitImage({
       });
     return () => {
       active = false;
+      const released = leasedDetail;
+      lease.release();
+      if (released)
+        setDetail((current) => clearReleasedLitImageDetail(current, released));
     };
   }, [detailUrl, detailsDisabled, previewUrl]);
 
-  const detailTexture = detailUrl && detail?.url === detailUrl ? detail.texture : null;
+  const detailTexture = liveLitImageDetailResource({
+    detail,
+    enabled: !detailsDisabled,
+    url: detailUrl,
+  });
 
   // Only callers with a distinct authored detail URL request another decode.
   // Local scene photos remain on their role-sized assets.

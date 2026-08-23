@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   HOME_OG_IMAGE,
   HOME_OG_MANIFEST,
+  homeOgArtifactStatus,
   homeOgImageDigest,
   homeOgImageInputDigest,
   homeOgInputManifest,
@@ -83,5 +84,33 @@ describe("home OG input manifest", () => {
     await expect(writeHomeOgManifest({ root })).rejects.toThrow(
       "Regenerate the homepage OG image",
     );
+  });
+
+  it("checks the staged snapshot independently of unstaged changes", async () => {
+    const root = await fixtureRoot();
+    const capturedInputs = await homeOgInputManifest({ root });
+    await stampHomeOgImage({
+      imagePath: path.join(root, HOME_OG_IMAGE),
+      inputDigest: capturedInputs.digest,
+    });
+    await writeHomeOgManifest({ root });
+    execFileSync("git", ["add", "."], { cwd: root });
+
+    expect(
+      await homeOgArtifactStatus({ root, snapshot: "index" }),
+    ).toMatchObject({ fresh: true });
+
+    await writeFile(path.join(root, "src/app/page.tsx"), "export default 2;\n");
+    expect(
+      await homeOgArtifactStatus({ root, snapshot: "workingTree" }),
+    ).toMatchObject({ fresh: false });
+    expect(
+      await homeOgArtifactStatus({ root, snapshot: "index" }),
+    ).toMatchObject({ fresh: true });
+
+    execFileSync("git", ["add", "src/app/page.tsx"], { cwd: root });
+    expect(
+      await homeOgArtifactStatus({ root, snapshot: "index" }),
+    ).toMatchObject({ fresh: false });
   });
 });

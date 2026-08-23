@@ -39,7 +39,9 @@ async function waitForServer(child) {
   const deadline = Date.now() + 120_000;
   while (Date.now() < deadline) {
     if (child.exitCode !== null) {
-      throw new Error("The local production server exited before it was ready.");
+      throw new Error(
+        "The local production server exited before it was ready.",
+      );
     }
     try {
       const response = await fetch(sourceUrl);
@@ -64,7 +66,7 @@ async function stopServer(child) {
 
 console.log("Building the local production site for OG capture...");
 const inputsBeforeBuild = await homeOgInputManifest({ root });
-await run("yarn", ["next", "build"]);
+await run("pnpm", ["exec", "next", "build"]);
 const inputsAfterBuild = await homeOgInputManifest({ root });
 if (inputsAfterBuild.digest !== inputsBeforeBuild.digest) {
   throw new Error(
@@ -73,8 +75,8 @@ if (inputsAfterBuild.digest !== inputsBeforeBuild.digest) {
 }
 
 const server = spawn(
-  "yarn",
-  ["next", "start", "--hostname", "127.0.0.1", "--port", String(port)],
+  "pnpm",
+  ["exec", "next", "start", "--hostname", "127.0.0.1", "--port", String(port)],
   { cwd: root, stdio: "inherit" },
 );
 

@@ -194,7 +194,7 @@ describe("what a coarser terrain does to the hills", () => {
   };
 
   /** A fence, not a proof. The full silhouette contract is decided by
-   * `yarn check:meadow` against every pose; this bounds how far any tier's
+   * `pnpm check:meadow` against every pose; this bounds how far any tier's
    * mesh may drift from the authored height field, so a future tier cannot
    * quietly coarsen past the point where that check's own margins
    * (max column e 0.033 against a 0.036 cap) would still hold. Measured

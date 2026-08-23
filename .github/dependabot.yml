@@ -1,0 +1,122 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "10:00"
+      timezone: America/Los_Angeles
+    open-pull-requests-limit: 5
+    versioning-strategy: increase
+    groups:
+      next-toolchain:
+        patterns:
+          - next
+          - eslint-config-next
+        update-types:
+          - patch
+      development-toolchain:
+        dependency-type: development
+        patterns:
+          - "*"
+        exclude-patterns:
+          - eslint-config-next
+        update-types:
+          - patch
+      production-patches:
+        dependency-type: production
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "@ai-sdk/*"
+          - "@react-three/*"
+          - "@t3-oss/env-nextjs"
+          - "@trpc/*"
+          - ai
+          - drizzle-orm
+          - next
+          - next-auth
+          - postprocessing
+          - react
+          - react-dom
+          - recharts
+          - three
+          - zod
+        update-types:
+          - patch
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-major
+      - dependency-name: "@ai-sdk/*"
+        update-types:
+          - version-update:semver-patch
+          - version-update:semver-minor
+          - version-update:semver-major
+      - dependency-name: "@react-three/*"
+        update-types:
+          - version-update:semver-patch
+          - version-update:semver-minor
+          - version-update:semver-major
+      - dependency-name: "@t3-oss/env-nextjs"
+        update-types:
+          - version-update:semver-patch
+          - version-update:semver-minor
+          - version-update:semver-major
+      - dependency-name: "@trpc/*"
+        update-types:
+          - version-update:semver-patch
+          - version-update:semver-minor
+          - version-update:semver-major
+      - dependency-name: ai
+        update-types:
+          - version-update:semver-patch
+          - version-update:semver-minor
+          - version-update:semver-major
+      - dependency-name: drizzle-kit
+        update-types:
+          - version-update:semver-patch
+          - version-update:semver-minor
+          - version-update:semver-major
+      - dependency-name: drizzle-orm
+        update-types:
+          - version-update:semver-patch
+          - version-update:semver-minor
+          - version-update:semver-major
+      - dependency-name: next-auth
+        update-types:
+          - version-update:semver-patch
+          - version-update:semver-minor
+          - version-update:semver-major
+      - dependency-name: postprocessing
+        update-types:
+          - version-update:semver-patch
+          - version-update:semver-minor
+          - version-update:semver-major
+      - dependency-name: react
+        update-types:
+          - version-update:semver-patch
+          - version-update:semver-minor
+          - version-update:semver-major
+      - dependency-name: react-dom
+        update-types:
+          - version-update:semver-patch
+          - version-update:semver-minor
+          - version-update:semver-major
+      - dependency-name: recharts
+        update-types:
+          - version-update:semver-patch
+          - version-update:semver-minor
+          - version-update:semver-major
+      - dependency-name: three
+        update-types:
+          - version-update:semver-patch
+          - version-update:semver-minor
+          - version-update:semver-major
+      - dependency-name: zod
+        update-types:
+          - version-update:semver-patch
+          - version-update:semver-minor
+          - version-update:semver-major

@@ -13,9 +13,9 @@
 // So the properties that are statistical, live and emergent are checked here,
 // against a running scene, and the vitest suite keeps what it is good at.
 //
-// Run:  yarn dev            (in another terminal — this needs the DEV server,
+// Run:  pnpm dev            (in another terminal — this needs the DEV server,
 //                            because the diagnostics bridge is development-only)
-//       yarn check:perches
+//       pnpm check:perches
 //
 // Env:  STACKS_URL       page to open           (default http://localhost:3000)
 //       STACKS_DWELL     seconds per Unit       (default 14)
@@ -139,7 +139,7 @@ async function main() {
       })
       .catch(() => {
         throw new Error(
-          `no window.__stacksInsects at ${URL} — the diagnostics bridge is development-only, so this needs \`yarn dev\`, not \`yarn start\`.`,
+          `no window.__stacksInsects at ${URL} — the diagnostics bridge is development-only, so this needs \`pnpm dev\`, not \`pnpm start\`.`,
         );
       });
 

@@ -17,6 +17,11 @@ const canvasSource = fs.readFileSync(
   new URL("../StacksCanvas.tsx", import.meta.url),
   "utf8",
 );
+const registrySource = fs.readFileSync(
+  new URL("../scene/sceneDiagnosticsRegistry.ts", import.meta.url),
+  "utf8",
+);
+const controlSources = `${diagnosticsSource}\n${registrySource}`;
 
 describe("development diagnostics chrome", () => {
   it("uses one diagnostics drawer instead of separate perch and physics drawers", () => {
@@ -31,7 +36,9 @@ describe("development diagnostics chrome", () => {
     expect(diagnosticsSource).toContain("Show all overlays");
     expect(diagnosticsSource).toContain("Hide all overlays");
     expect(diagnosticsSource).not.toContain("stacks-debug-quick");
-    expect(diagnosticsSource).toContain("sceneDebugOverlayPatches");
+    expect(diagnosticsSource).toContain(
+      'sceneDiagnosticsRegistry.setGroup("inspect.overlays", enabled)',
+    );
   });
 
   it("organizes the console by diagnostic intent", () => {
@@ -41,11 +48,11 @@ describe("development diagnostics chrome", () => {
     expect(diagnosticsSource).toContain('"simulate"');
     expect(diagnosticsSource).toContain('"inspect"');
     expect(diagnosticsSource).toContain("Scene health");
-    expect(diagnosticsSource).toContain("Scene overlays");
-    expect(diagnosticsSource).toContain("Authored camera depth");
-    expect(diagnosticsSource).toContain("Meadow wind");
-    expect(diagnosticsSource).toContain("Insect behavior");
-    expect(diagnosticsSource).toContain("Physics runtime");
+    expect(registrySource).toContain("Scene overlays");
+    expect(registrySource).toContain("Authored camera depth");
+    expect(registrySource).toContain("Meadow wind");
+    expect(registrySource).toContain("Insect behavior");
+    expect(registrySource).toContain("Physics runtime");
     expect(diagnosticsSource).toContain("Scene quality");
     expect(diagnosticsSource).toContain("Rendering experiments");
     expect(diagnosticsSource).toContain("Policy internals");
@@ -133,29 +140,27 @@ describe("development diagnostics chrome", () => {
   });
 
   it("exposes adaptive quality controls and the full live policy status", () => {
-    expect(diagnosticsSource).toContain("Quality mode");
-    expect(diagnosticsSource).toContain('<optgroup label="Manual only">');
-    expect(diagnosticsSource).toContain('<optgroup label="Adaptive range">');
-    expect(
-      diagnosticsSource.indexOf('<option value="cinematic+">'),
-    ).toBeLessThan(diagnosticsSource.indexOf('<option value="cinematic">'));
-    expect(diagnosticsSource).toContain(
-      '<option value="cinematic+">Cinematic+</option>',
+    expect(registrySource).toContain("Quality mode");
+    expect(registrySource).toContain('optionGroup: "Manual only"');
+    expect(registrySource).toContain('optionGroup: "Adaptive range"');
+    expect(registrySource.indexOf('value: "cinematic+"')).toBeLessThan(
+      registrySource.indexOf('value: "cinematic"'),
     );
-    expect(diagnosticsSource).toContain(
-      '<option value="cinematic">Cinematic</option>',
+    expect(registrySource).toContain(
+      'value: "cinematic+", label: "Cinematic+"',
     );
-    expect(diagnosticsSource).toContain("Freeze Auto adaptation");
+    expect(registrySource).toContain('value: "cinematic", label: "Cinematic"');
+    expect(registrySource).toContain("Freeze Auto adaptation");
     expect(diagnosticsSource).toContain("Reset learned profile");
     expect(diagnosticsSource).toContain("Effective");
     expect(diagnosticsSource).toContain("cooldownRemainingMs");
     expect(diagnosticsSource).toContain("storageBucket");
     expect(diagnosticsSource).toContain("fallbackStatus");
     expect(diagnosticsSource).toContain("custom overrides");
-    expect(diagnosticsSource).toContain('"Auto · adapting"');
-    expect(diagnosticsSource).not.toContain(
-      "runtime.forcedProfile ?? runtime.plan.profile",
-    );
+    // What the Rendering card says — who is driving, the step the frame was
+    // rendered at, and whether it is pinned — is asserted against the module
+    // that formats it in qualityReadout.test.ts.
+    expect(diagnosticsSource).toContain("qualityRenderingReadout");
   });
 
   it("keeps the compact HUD focused on policy decisions and their visual cost", () => {
@@ -194,24 +199,22 @@ describe("development diagnostics chrome", () => {
     expect(diagnosticsSource).toContain(
       "meadowDiagnosticsController.subscribe",
     );
-    expect(diagnosticsSource).toContain('id="stacks-wind-strength"');
-    expect(diagnosticsSource).toContain('id="stacks-wind-live"');
-    expect(diagnosticsSource).toContain('id="stacks-wind-speed"');
-    expect(diagnosticsSource).toContain("meadowDiagnosticsController.update");
+    expect(registrySource).toContain('inputId: "stacks-wind-strength"');
+    expect(registrySource).toContain('inputId: "stacks-wind-live"');
+    expect(registrySource).toContain('inputId: "stacks-wind-speed"');
+    expect(registrySource).toContain("meadowDiagnosticsController.update");
     expect(diagnosticsSource).toContain("Reset wind");
-    expect(diagnosticsSource).toContain('id="stacks-grass-deformation"');
-    expect(diagnosticsSource).toContain("Persistent grass deformation");
-    expect(diagnosticsSource).toContain("deformationEnabled");
+    expect(registrySource).toContain('inputId: "stacks-grass-deformation"');
+    expect(registrySource).toContain("Persistent grass deformation");
+    expect(registrySource).toContain("deformationEnabled");
   });
 
   it("toggles authored camera depth from the Simulate view", () => {
-    expect(diagnosticsSource).toContain(
-      "cameraDepthDiagnosticsController.subscribe",
-    );
-    expect(diagnosticsSource).toContain(
+    expect(registrySource).toContain("store: cameraDepthDiagnosticsController");
+    expect(registrySource).toContain(
       "cameraDepthDiagnosticsController.setEnabled",
     );
-    expect(diagnosticsSource).toContain("Authored camera depth");
+    expect(registrySource).toContain("Authored camera depth");
     expect(diagnosticsSource).toContain("Simulation controls");
   });
 
@@ -219,13 +222,13 @@ describe("development diagnostics chrome", () => {
     expect(diagnosticsSource).toContain(
       "freeRoamDiagnosticsController.subscribe",
     );
-    expect(diagnosticsSource).toContain(
+    expect(registrySource).toContain(
       "freeRoamDiagnosticsController.setEnabled",
     );
-    expect(diagnosticsSource).toContain("Free-roam camera");
+    expect(registrySource).toContain("Free-roam camera");
     expect(diagnosticsSource).toContain("WASD");
-    expect(diagnosticsSource).toContain("Fog in free roam");
-    expect(diagnosticsSource).toContain('aria-keyshortcuts="F Shift+F"');
+    expect(registrySource).toContain("Fog in free roam");
+    expect(registrySource).toContain('ariaKeyShortcuts: "F Shift+F"');
     expect(diagnosticsSource).toContain("Q/E");
     expect(diagnosticsSource).toContain("Shift for one-third");
     expect(diagnosticsSource).toContain("Shift+F starts from");
@@ -238,43 +241,43 @@ describe("development diagnostics chrome", () => {
     );
     const inspectSource = diagnosticsSource.slice(inspectStart);
 
-    expect(inspectSource).toContain('aria-label="Inspection scope"');
-    expect(inspectSource).toContain("Active shelf");
-    expect(inspectSource).toContain("All shelves");
-    expect(inspectSource).toContain("Scene overlays");
+    expect(inspectSource).toContain("<DiagnosticSegmentedControl");
+    expect(registrySource).toContain("Active shelf");
+    expect(registrySource).toContain("All shelves");
+    expect(registrySource).toContain("Scene overlays");
     expect(inspectSource).toContain("Perches ·");
     expect(inspectSource).toContain("Flights ·");
     expect(inspectSource).toContain("<PhysicsDiagnosticsDetails");
   });
 
   it("exposes every negligible-impact optimization as an independent control", () => {
-    expect(diagnosticsSource).toContain("Suspend settled distant props");
-    expect(diagnosticsSource).toContain("Pause prewarming during travel");
-    expect(diagnosticsSource).toContain("Limit real lights to nearby shelves");
-    expect(diagnosticsSource).toContain("Simplify far-grass shader");
-    expect(diagnosticsSource).toContain("Opaque paper");
-    expect(diagnosticsSource).toContain("Native live blur");
-    expect(diagnosticsSource).toContain("Aperture only");
-    expect(diagnosticsSource).toContain("Analytic halo");
-    expect(diagnosticsSource).toContain("Legacy sprites");
-    expect(diagnosticsSource).toContain("Use effective DPR rungs");
-    expect(diagnosticsSource).toContain("Skip ambient occlusion");
-    expect(diagnosticsSource).toContain("Skip bloom");
-    expect(diagnosticsSource).toContain("Skip depth of field");
-    expect(diagnosticsSource).toContain('id="stacks-dof-strength"');
-    expect(diagnosticsSource).toContain('id="stacks-dof-quality"');
-    expect(diagnosticsSource).toContain(
+    expect(controlSources).toContain("Suspend settled distant props");
+    expect(controlSources).toContain("Pause prewarming during travel");
+    expect(controlSources).toContain("Limit real lights to nearby shelves");
+    expect(controlSources).toContain("Simplify far-grass shader");
+    expect(controlSources).toContain("Opaque paper");
+    expect(controlSources).toContain("Native live blur");
+    expect(controlSources).toContain("Aperture only");
+    expect(controlSources).toContain("Analytic halo");
+    expect(controlSources).toContain("Legacy sprites");
+    expect(controlSources).toContain("Use effective DPR rungs");
+    expect(controlSources).toContain("Skip ambient occlusion");
+    expect(controlSources).toContain("Skip bloom");
+    expect(controlSources).toContain("Skip depth of field");
+    expect(registrySource).toContain('inputId: "stacks-dof-strength"');
+    expect(registrySource).toContain('inputId: "stacks-dof-quality"');
+    expect(registrySource).toContain(
       "sceneQualityController.setDepthOfFieldBokehMultiplier",
     );
-    expect(diagnosticsSource).toContain(
+    expect(registrySource).toContain(
       "sceneQualityController.setDepthOfFieldResolutionScale",
     );
     expect(diagnosticsSource).toContain(
       "sceneQualityController.resetDepthOfField",
     );
-    expect(diagnosticsSource).toContain("Remember slow travel frames");
-    expect(diagnosticsSource).toContain("Balance dense meadow tiles");
-    expect(diagnosticsSource).toContain("Suspend settled hover work");
+    expect(registrySource).toContain("Remember slow travel frames");
+    expect(registrySource).toContain("Balance dense meadow tiles");
+    expect(registrySource).toContain("Suspend settled hover work");
     expect(diagnosticsSource).toContain("Enable all optimizations");
     expect(diagnosticsSource).toContain("Disable all optimizations");
   });

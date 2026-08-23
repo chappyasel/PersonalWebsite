@@ -100,8 +100,9 @@ describe("home OG scene capture", () => {
       ".stacks-og-ui * { visibility: hidden !important; }",
     );
     expect(generator).toContain(
-      'locator("[data-stacks-desktop-panel][data-stacks-active]")',
+      'document.querySelector(\n      "[data-stacks-desktop-panel][data-stacks-active]",',
     );
+    expect(generator).toContain("getComputedStyle(element).visibility");
   });
 
   it("captures the settled page locally without changing WebGL buffer semantics", () => {

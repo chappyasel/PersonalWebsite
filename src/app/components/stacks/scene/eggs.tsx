@@ -320,6 +320,7 @@ export function EggLamp({
   aimOffset,
   spillScale,
   headQuaternion,
+  captureLightEmphasis = false,
 }: {
   unitIndex: number;
   palette: Palette;
@@ -347,6 +348,9 @@ export function EggLamp({
   /** Extra articulation around the measured arm/shade hinge. The same
    * quaternion carries the recovered model head and every emitted light. */
   headQuaternion?: QuaternionTuple;
+  /** Offline social-card emphasis. Reuses the mounted practical rig; it does
+   * not allocate another effect or change the visitor-facing lamp. */
+  captureLightEmphasis?: boolean;
 }) {
   const lit = useRef(1);
   const realLights = useUnitRealLights(unitIndex);
@@ -390,6 +394,7 @@ export function EggLamp({
                     spillScale={spillScale}
                     meadowId={`desk-lamp-${unitIndex}`}
                     realLights={realLights}
+                    captureLightEmphasis={captureLightEmphasis}
                   />
                 </group>
               </group>
@@ -404,6 +409,7 @@ export function EggLamp({
               spillScale={spillScale}
               meadowId={`desk-lamp-${unitIndex}`}
               realLights={realLights}
+              captureLightEmphasis={captureLightEmphasis}
             />
           )
         }
@@ -414,7 +420,11 @@ export function EggLamp({
             dark={dark}
             deskLampHeadQuaternion={headQuaternion}
             deskLampShadeGlowColor={postfx ? "#ffffff" : "#ffb26a"}
-            deskLampShadeGlowOpacity={(dark ? 0.94 : 1) * (postfx ? 0.78 : 0.7)}
+            deskLampShadeGlowOpacity={
+              (dark ? 0.94 : 1) *
+              (postfx ? 0.78 : 0.7) *
+              (captureLightEmphasis ? 1.18 : 1)
+            }
           />
         </React.Suspense>
       </LampSwitch>
@@ -1360,10 +1370,7 @@ export function SteamCup({
     // The Grabbable wrapping this cup carries `signature="steam"`, which
     // stands the shared nod down. Both halves share one hoverKey, so without
     // that the cup nodded and steamed off the same pointer.
-    const wantsHover = propReactionIsEngaged(
-      useStacks.getState(),
-      hoverKey,
-    )
+    const wantsHover = propReactionIsEngaged(useStacks.getState(), hoverKey)
       ? 1
       : 0;
     hoverSteam.current =

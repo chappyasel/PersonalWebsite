@@ -6,19 +6,11 @@ import { describe, expect, it } from "vitest";
 import {
   SCENE_PHOTO_EDGE,
   V8_PHOTOS_BY_UNIT,
-  sceneHdPhotosDisabled,
   scenePhotoManifestUrl,
   scenePhotoUrl,
 } from "./photoTextures";
 
 describe("scene photo resolution policy", () => {
-  it("supports a preview-only URL mode for clean A/B tests", () => {
-    expect(sceneHdPhotosDisabled("?hdPhotos=0")).toBe(true);
-    expect(sceneHdPhotosDisabled("?debug=1&hdPhotos=0")).toBe(true);
-    expect(sceneHdPhotosDisabled("?hdPhotos=1")).toBe(false);
-    expect(sceneHdPhotosDisabled("")).toBe(false);
-  });
-
   it("uses role-sized local previews without rewriting other image sources", () => {
     expect(
       scenePhotoUrl("/images/stacks/v8/about-family.webp", "feature"),

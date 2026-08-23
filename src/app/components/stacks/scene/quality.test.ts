@@ -518,17 +518,6 @@ describe("scene quality policy", () => {
         touch: false,
       }).environment.grassDeformation,
     ).toBe("off");
-    expect(
-      resolveSceneQualityPlan({
-        mode: "showcase",
-        profile: "showcase",
-        cssWidth: 1200,
-        cssHeight: 800,
-        deviceDpr: 2,
-        touch: false,
-        grassDeformationOff: true,
-      }).environment.grassDeformation,
-    ).toBe("off");
   });
 
   it("lets manual Cinematic supersample above native DPR without exceeding its capture budget", () => {

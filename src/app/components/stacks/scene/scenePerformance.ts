@@ -5,6 +5,16 @@ export type PlacardGlassMode = "auto" | "native" | "paper";
 export type PracticalGlowMode = "aperture" | "halo" | "sprite";
 
 export type ScenePerformanceSettings = Readonly<{
+  /** Mount the shared effect composer. The reload-time `nopostfx` switch may
+   * seed this off, but Scene Diagnostics remains the live control. */
+  postprocessing: boolean;
+  /** Keep the approved side-focus and color treatments in the composer. */
+  sideTiltShift: boolean;
+  colorGrade: boolean;
+  /** Mount the complete meadow scene. */
+  meadow: boolean;
+  /** Allow authored full-resolution photo details to load after previews. */
+  highResolutionPhotos: boolean;
   /** Skip the expensive half of Grabbable's frame work only after a distant
    * prop is provably back at its authored, non-hovered resting pose. */
   suspendSettledPropWork: boolean;
@@ -50,8 +60,22 @@ export type ScenePerformanceSettings = Readonly<{
   suspendSettledHoverWork: boolean;
 }>;
 
+type KeysWithValue<T, Value> = {
+  [Key in keyof T]-?: T[Key] extends Value ? Key : never;
+}[keyof T];
+
+export type ScenePerformanceBooleanSetting = KeysWithValue<
+  ScenePerformanceSettings,
+  boolean
+>;
+
 export const DEFAULT_SCENE_PERFORMANCE_SETTINGS: ScenePerformanceSettings =
   Object.freeze({
+    postprocessing: true,
+    sideTiltShift: true,
+    colorGrade: true,
+    meadow: true,
+    highResolutionPhotos: true,
     suspendSettledPropWork: true,
     pausePrewarmDuringTravel: true,
     prewarmAllUnitVisuals: true,
@@ -70,30 +94,6 @@ export const DEFAULT_SCENE_PERFORMANCE_SETTINGS: ScenePerformanceSettings =
     populationBalancedMeadowTiles: true,
     suspendSettledHoverWork: true,
   });
-
-export function allScenePerformanceSettings(
-  enabled: boolean,
-): ScenePerformanceSettings {
-  return {
-    suspendSettledPropWork: enabled,
-    pausePrewarmDuringTravel: enabled,
-    prewarmAllUnitVisuals: enabled,
-    stableNeighborhoodLightShape: enabled,
-    activeNeighborhoodLights: enabled,
-    simplifiedFarMeadow: enabled,
-    placardGlassMode: enabled ? "paper" : "native",
-    virtualizeUnitWork: enabled,
-    practicalGlowMode: enabled ? "aperture" : "sprite",
-    effectiveDprLadder: enabled,
-    adaptiveSharpen: enabled,
-    skipAmbientOcclusion: enabled,
-    skipBloom: enabled,
-    skipDepthOfField: enabled,
-    rememberTravelDeclines: enabled,
-    populationBalancedMeadowTiles: enabled,
-    suspendSettledHoverWork: enabled,
-  };
-}
 
 export function scenePerformanceSettingsEqual(
   left: ScenePerformanceSettings,
@@ -251,12 +251,11 @@ class ScenePerformanceController {
     for (const listener of this.listeners) listener();
   }
 
-  replace(settings: ScenePerformanceSettings) {
-    for (const key of Object.keys(settings) as Array<
-      keyof ScenePerformanceSettings
-    >)
-      this.overrides.add(key);
-    this.update(settings);
+  updateBoolean(key: ScenePerformanceBooleanSetting, value: boolean) {
+    this.overrides.add(key);
+    if (this.snapshot[key] === value) return;
+    this.snapshot = Object.freeze({ ...this.snapshot, [key]: value });
+    for (const listener of this.listeners) listener();
   }
 
   isOverridden(key: keyof ScenePerformanceSettings) {

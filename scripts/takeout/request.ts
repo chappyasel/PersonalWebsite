@@ -15,19 +15,20 @@
  * Exit codes:
  *   0 = export confirmed queued
  *   4 = passkey/reauth step-up required — session is valid, needs a human tap
- *   1 = Google session cookies missing/expired — re-run `yarn takeout:login`
+ *   1 = Google session cookies missing/expired — re-run `pnpm takeout:login`
  *   2 = UI failure or unconfirmed submission
  */
-
-import { getPage, close, hasGoogleSessionCookies } from "./browser";
-import { fillExportForm, clickCreateExport, verifyExportQueued } from "./flow";
+import { close, getPage, hasGoogleSessionCookies } from "./browser";
+import { clickCreateExport, fillExportForm, verifyExportQueued } from "./flow";
 
 const DEBUG = process.argv.includes("--debug");
 const DRY_RUN = process.argv.includes("--dry-run");
 
 async function main() {
   if (!hasGoogleSessionCookies()) {
-    console.error("Google session cookies missing — run `yarn takeout:login` to sign in.");
+    console.error(
+      "Google session cookies missing — run `pnpm takeout:login` to sign in.",
+    );
     process.exit(1);
   }
   const page = await getPage({ headless: !DEBUG });
@@ -41,7 +42,9 @@ async function main() {
   }
 
   await clickCreateExport(page);
-  await page.waitForURL(/exports|progress|manage/, { timeout: 30_000 }).catch(() => undefined);
+  await page
+    .waitForURL(/exports|progress|manage/, { timeout: 30_000 })
+    .catch(() => undefined);
   await page.waitForTimeout(2000);
   console.log(`[request] Clicked Create export (URL now: ${page.url()})`);
 

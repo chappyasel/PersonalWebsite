@@ -9,6 +9,10 @@ const diagnosticsSource = fs.readFileSync(
   new URL("../dom/SceneDiagnostics.tsx", import.meta.url),
   "utf8",
 );
+const diagnosticsRegistrySource = fs.readFileSync(
+  new URL("./sceneDiagnosticsRegistry.ts", import.meta.url),
+  "utf8",
+);
 
 describe("physics bounds debug mode", () => {
   it("draws granular collider parts for the complete interaction inventory", () => {
@@ -19,15 +23,15 @@ describe("physics bounds debug mode", () => {
   });
 
   it("exposes a separate all-prop-bounds toggle in the diagnostics console", () => {
-    expect(diagnosticsSource).toContain("showAllBounds");
-    expect(diagnosticsSource).toContain("Prop collider boxes");
+    expect(diagnosticsRegistrySource).toContain("showAllBounds");
+    expect(diagnosticsRegistrySource).toContain("Prop collider boxes");
   });
 
   it("offers independent physics isolation controls and timing readouts", () => {
-    expect(diagnosticsSource).toContain("Step free-body simulation");
-    expect(diagnosticsSource).toContain("Probe held collisions");
-    expect(diagnosticsSource).toContain("Use generated scene statics");
-    expect(diagnosticsSource).toContain("Run off-screen resets");
+    expect(diagnosticsRegistrySource).toContain("Step free-body simulation");
+    expect(diagnosticsRegistrySource).toContain("Probe held collisions");
+    expect(diagnosticsRegistrySource).toContain("Use generated scene statics");
+    expect(diagnosticsRegistrySource).toContain("Run off-screen resets");
     expect(diagnosticsSource).toContain("frameMs");
     expect(diagnosticsSource).toContain("stepMs");
   });

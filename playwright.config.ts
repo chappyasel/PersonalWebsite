@@ -13,7 +13,7 @@ export default defineConfig({
   webServer: remoteBaseUrl
     ? undefined
     : {
-        command: "yarn start -p 3111",
+        command: "pnpm start -p 3111",
         url: "http://localhost:3111",
         env: {
           AUTH_TRUST_HOST: "true",
