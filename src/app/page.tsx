@@ -7,7 +7,10 @@ import React from "react";
 import { readingBookEdgeColors } from "~/lib/books/coverEdgeColor.server";
 import { buildHomepageBookPlacard } from "~/lib/books/homepagePlacard";
 import { getDefaultBooks } from "~/server/queries/books";
+import { orEmpty } from "~/server/queries/degrade";
 import {
+  EMPTY_WEIGHTLIFTING_PLACARD,
+  emptyActivityMosaic,
   getCachedActivityMosaic,
   getCachedWeightliftingPlacard,
 } from "~/server/queries/weightlifting";
@@ -76,11 +79,25 @@ export default function HomePage() {
   );
 }
 
+/**
+ * Everything the homepage reads from the database is decoration: covers on a
+ * shelf, counts on a placard. A dead query should cost the scene those, not
+ * the whole document. Each loader degrades on its own so one failure cannot
+ * take the other two down with it, and the world still boots.
+ */
 async function HomePageContent() {
   const [allBooks, activity, liftingPlacard] = await Promise.all([
-    getDefaultBooks(),
-    getCachedActivityMosaic(12),
-    getCachedWeightliftingPlacard(),
+    orEmpty("home:books", getDefaultBooks, []),
+    orEmpty(
+      "home:activity",
+      () => getCachedActivityMosaic(12),
+      emptyActivityMosaic(12),
+    ),
+    orEmpty(
+      "home:lifting",
+      getCachedWeightliftingPlacard,
+      EMPTY_WEIGHTLIFTING_PLACARD,
+    ),
   ]);
   const bookPlacard = buildHomepageBookPlacard(allBooks);
   const bookStats = bookPlacard.stats;
