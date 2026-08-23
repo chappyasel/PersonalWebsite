@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="768" height="640" viewBox="0 0 768 640">
+  <!--
+    MiO Hydrate Berry Blast (1.62 fl oz) skin for scene/MioBottle.tsx.
+    u once around (front at x = 384), v = height (top edge = top of the cap).
+
+    Layout is measured off the packshot (scratch measure_mio.py), as height
+    fractions from the base -> y = (1 - f) * 640:
+      cap           0.87..1.00  -> y   0..83
+      drop          0.64..0.70  -> y 192..230
+      "mio"         0.45..0.60  -> y 256..352, 61% of the seen width ≈ 24% of u
+      HYDRATE       0.38..0.42  -> y 371..397
+      ELECTROLYTES  ~0.355      -> y ~413
+      band top      0.29        -> y 454
+      BERRY BLAST   0.19..0.23  -> y 493..518
+      1.62 FL OZ    0.10..0.15  -> y 544..576
+    The seen width of the bottle is the front half of the wrap (u 0.25..0.75),
+    so front text is sized to those arc fractions, not to the sheet width.
+    Rasterised by scripts/stacks-labels.mjs.
+  -->
+  <rect width="768" height="640" fill="#23b8a4"/>
+  <!-- cap -->
+  <rect width="768" height="83" fill="#1f1f8c"/>
+  <rect y="80" width="768" height="5" fill="#18176e"/>
+  <!-- lower band with a gentle wave -->
+  <path d="M0 462 Q192 446 384 456 Q576 466 768 450 L768 640 L0 640 Z" fill="#58b4ea"/>
+  <!-- base rim -->
+  <rect y="618" width="768" height="22" fill="#d8e6ee"/>
+  <!-- back panel (seam side) -->
+  <g transform="translate(40 150)">
+    <rect width="150" height="280" rx="10" fill="#ffffff"/>
+    <g fill="#1f1f8c">
+      <rect x="14" y="16" width="122" height="16"/>
+      <rect x="14" y="46" width="90" height="5"/><rect x="14" y="60" width="110" height="5"/><rect x="14" y="74" width="70" height="5"/>
+      <rect x="14" y="96" width="122" height="3"/>
+      <rect x="14" y="110" width="100" height="5"/><rect x="14" y="124" width="120" height="5"/><rect x="14" y="138" width="80" height="5"/>
+      <rect x="14" y="160" width="122" height="3"/>
+      <rect x="14" y="174" width="110" height="5"/><rect x="14" y="188" width="60" height="5"/><rect x="14" y="202" width="100" height="5"/>
+      <rect x="14" y="224" width="122" height="5"/>
+      <rect x="14" y="244" width="90" height="5"/><rect x="14" y="258" width="110" height="5"/>
+    </g>
+  </g>
+  <!-- front: drop -->
+  <path d="M384 192 C376 206 371 214 371 221 A13 13 0 0 0 397 221 C397 214 392 206 384 192 Z" fill="#ffffff"/>
+  <!-- mio wordmark -->
+  <text x="384" y="340" text-anchor="middle" font-family="Arial Rounded MT Bold, Arial" font-weight="700" font-size="100" fill="#1f1f8c" letter-spacing="-3">mio</text>
+  <!-- HYDRATE / electrolytes -->
+  <text x="384" y="396" text-anchor="middle" font-family="Impact, Arial Black, Arial" font-size="36" fill="#ffffff" letter-spacing="1.5">HYDRATE</text>
+  <text x="384" y="416" text-anchor="middle" font-family="Impact, Arial Black, Arial" font-size="13" fill="#ffffff" letter-spacing="1">ELECTROLYTES &amp; B VITAMINS</text>
+  <!-- band copy -->
+  <text x="384" y="517" text-anchor="middle" font-family="Impact, Arial Black, Arial" font-size="29" fill="#1f1f8c" letter-spacing="1.5">BERRY BLAST</text>
+  <text x="352" y="570" text-anchor="end" font-family="Impact, Arial Black, Arial" font-size="30" fill="#1f1f8c">1.62</text>
+  <text x="352" y="584" text-anchor="end" font-family="Impact, Arial Black, Arial" font-size="12" fill="#1f1f8c" letter-spacing="1">FL OZ</text>
+  <g fill="#1f1f8c"><rect x="358" y="548" width="2" height="6"/><rect x="358" y="562" width="2" height="6"/><rect x="358" y="576" width="2" height="6"/></g>
+  <g font-family="Impact, Arial Black, Arial" fill="#1f1f8c" letter-spacing="0.5">
+    <text x="366" y="556" font-size="11">NATURAL FLAVOR WITH</text>
+    <text x="366" y="570" font-size="11">OTHER NATURAL FLAVOR</text>
+    <text x="366" y="584" font-size="10">LIQUID WATER ENHANCER</text>
+  </g>
+</svg>

@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1536" height="576" viewBox="0 0 1536 576">
+  <!--
+    Nutricost Whey Protein Isolate (Chocolate PB, 5 lb) for the Training tub
+    (scene/units/UnitTraining.tsx TubLabel). Laid out after the real tub:
+    blue wordmark with the orange underline, the two black title lines, the
+    30G / 58 / 5LB row, orange band bottom-left with CHOCOLATE PB, the blue
+    swoosh up the right side with its orange edge, a PB-and-chocolate swatch,
+    three seals, and a nutrition panel on the back.
+
+    One wrap = one trip around the tub: u 0 and 1 meet at the BACK, u 0.5 is
+    the front (scene/labelShell.ts orderForLabel). The strip is about 2.7:1,
+    so 1536 x 576 keeps the art unstretched. The visible front is roughly
+    x 480..1056. Rasterised by scripts/stacks-labels.mjs.
+  -->
+  <defs>
+    <clipPath id="strip"><rect width="1536" height="576"/></clipPath>
+  </defs>
+  <rect width="1536" height="576" fill="#f7f5f0"/>
+
+  <!-- orange band, bottom-left, ending under the swoosh -->
+  <path d="M0 470 L1010 470 Q1060 470 1040 576 L0 576 Z" fill="#e98a2b"/>
+  <!-- blue swoosh up the right side, orange leading edge -->
+  <path d="M1108 0 Q980 250 1052 576 L1536 576 L1536 0 Z" fill="#1257a8"/>
+  <path d="M1108 0 Q980 250 1052 576 L1080 576 Q1008 250 1136 0 Z" fill="#e98a2b"/>
+  <!-- back: nutrition panel -->
+  <g transform="translate(1260 70)">
+    <rect x="0" y="0" width="220" height="440" rx="8" fill="#ffffff" stroke="#cfd6e3" stroke-width="3"/>
+    <rect x="16" y="16" width="188" height="26" fill="#1a1a1a"/>
+    <g fill="#1a1a1a">
+      <rect x="16" y="58" width="110" height="6"/><rect x="16" y="80" width="150" height="4"/><rect x="16" y="96" width="120" height="4"/>
+      <rect x="16" y="112" width="188" height="3"/>
+      <rect x="16" y="130" width="90" height="6"/><rect x="16" y="150" width="160" height="4"/><rect x="16" y="166" width="130" height="4"/>
+      <rect x="16" y="182" width="188" height="3"/>
+      <rect x="16" y="200" width="100" height="6"/><rect x="16" y="220" width="140" height="4"/><rect x="16" y="236" width="170" height="4"/>
+      <rect x="16" y="252" width="188" height="3"/>
+      <rect x="16" y="270" width="120" height="4"/><rect x="16" y="286" width="150" height="4"/><rect x="16" y="302" width="100" height="4"/>
+      <rect x="16" y="318" width="188" height="6"/>
+      <rect x="16" y="340" width="160" height="4"/><rect x="16" y="356" width="130" height="4"/><rect x="16" y="372" width="170" height="4"/>
+      <rect x="16" y="388" width="110" height="4"/><rect x="16" y="404" width="150" height="4"/>
+    </g>
+  </g>
+
+  <!-- front panel -->
+  <g clip-path="url(#strip)">
+    <!-- nutricost wordmark + orange underline -->
+    <text x="768" y="118" text-anchor="middle" font-family="Arial Rounded MT Bold, Arial" font-weight="700" font-size="78" fill="#1257a8" letter-spacing="-1">nutricost</text>
+    <circle cx="974" cy="66" r="5" fill="#e98a2b"/>
+    <path d="M604 134 Q768 168 932 134 Q768 152 604 134 Z" fill="#e98a2b"/>
+    <!-- title -->
+    <text x="520" y="250" font-family="Arial Black, Arial" font-weight="900" font-size="80" fill="#141414" letter-spacing="-2">Whey Protein</text>
+    <text x="520" y="334" font-family="Arial Black, Arial" font-weight="900" font-size="80" fill="#141414" letter-spacing="-2">Isolate</text>
+    <!-- stats row -->
+    <text x="522" y="420" font-family="Arial Black, Arial" font-weight="900" font-size="58" fill="#141414">30<tspan font-size="34">G</tspan></text>
+    <rect x="666" y="374" width="3" height="80" fill="#bfc3c9"/>
+    <text x="686" y="420" font-family="Arial Black, Arial" font-weight="900" font-size="58" fill="#141414">58</text>
+    <rect x="790" y="374" width="3" height="80" fill="#bfc3c9"/>
+    <text x="810" y="420" font-family="Arial Black, Arial" font-weight="900" font-size="58" fill="#141414">5<tspan font-size="34">LB</tspan></text>
+    <g font-family="Arial" font-weight="700" font-size="13" fill="#3a3a3a">
+      <text x="522" y="444">Protein Per Serving</text>
+      <text x="686" y="444">Servings</text>
+      <text x="810" y="444">Per Container</text>
+    </g>
+    <!-- band copy -->
+    <text x="522" y="518" font-family="Arial Black, Arial" font-weight="900" font-size="34" fill="#ffffff">CHOCOLATE PB</text>
+    <text x="522" y="540" font-family="Arial" font-weight="700" font-size="12" fill="#ffffff" letter-spacing="1">NATURALLY &amp; ARTIFICIALLY FLAVORED</text>
+    <text x="522" y="562" font-family="Arial" font-weight="700" font-size="14" fill="#ffffff">NET WT. 5 LB (2,268 G)</text>
+    <!-- peanut butter swatch + chocolate curls -->
+    <g transform="translate(992 436) scale(0.92)">
+      <path d="M-70 60 C-80 10 -40 -40 10 -44 C60 -48 90 -6 72 40 C58 76 -50 96 -70 60 Z" fill="#d9a25c"/>
+      <path d="M-40 46 C-46 16 -14 -20 18 -22 C44 -24 60 0 50 26 C40 50 -30 70 -40 46 Z" fill="#e6b774" opacity="0.85"/>
+      <path d="M-4 -6 L30 -70 L40 -62 L16 -2 Z" fill="#5a2e14"/>
+      <path d="M18 8 L62 -48 L70 -38 L34 12 Z" fill="#6b3818"/>
+      <path d="M-22 -2 L2 -58 L10 -54 L-10 0 Z" fill="#4a250f"/>
+    </g>
+    <!-- three seals on the swoosh -->
+    <g stroke="#ffffff" stroke-width="4" fill="#1257a8">
+      <circle cx="1068" cy="520" r="24"/><circle cx="1118" cy="520" r="24"/><circle cx="1168" cy="520" r="24"/>
+    </g>
+    <g fill="#ffffff">
+      <circle cx="1068" cy="520" r="8"/><rect x="1110" y="512" width="16" height="16" rx="2"/><circle cx="1168" cy="520" r="8"/>
+    </g>
+  </g>
+</svg>
