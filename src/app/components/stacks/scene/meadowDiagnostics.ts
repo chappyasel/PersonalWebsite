@@ -54,6 +54,7 @@ function settingsFromSnapshot(
 export function createMeadowDiagnosticsController() {
   let snapshot = INITIAL;
   let driver: MeadowDiagnosticsDriver | null = null;
+  let pendingSeed: MeadowDiagnosticsUpdate | null = null;
   const listeners = new Set<() => void>();
 
   const publish = (settings: MeadowDiagnosticsSettings, available: boolean) => {
@@ -94,7 +95,9 @@ export function createMeadowDiagnosticsController() {
 
     connect: (nextDriver: MeadowDiagnosticsDriver) => {
       driver = nextDriver;
-      publish(nextDriver(), true);
+      const seed = pendingSeed;
+      pendingSeed = null;
+      publish(nextDriver(seed ?? undefined), true);
     },
 
     disconnect: (previousDriver: MeadowDiagnosticsDriver) => {
@@ -104,6 +107,13 @@ export function createMeadowDiagnosticsController() {
     },
 
     update,
+
+    seed: (patch: MeadowDiagnosticsUpdate) => {
+      if (driver) return update(patch);
+      pendingSeed = { ...pendingSeed, ...patch };
+      publish({ ...settingsFromSnapshot(snapshot), ...patch }, false);
+      return settingsFromSnapshot(snapshot);
+    },
 
     publishLiveWind: (liveWind: number) => {
       if (!driver || Math.abs(liveWind - snapshot.liveWind) < 0.001) return;

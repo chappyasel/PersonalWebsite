@@ -67,7 +67,6 @@ import {
 } from "./interactionRegistry";
 import { leanBudget } from "./leanClearance";
 import { type PropDestination, useOpenTarget } from "./links";
-import { propReactionIsEngaged } from "./reactionEngagement";
 import type {
   HeldMoveResult,
   HeldPose,
@@ -85,6 +84,7 @@ import {
   bandMotionFor,
   recordArchetype,
 } from "./reactionArchetype";
+import { propReactionIsEngaged } from "./reactionEngagement";
 import {
   applySceneImpulseKick,
   createSceneImpulseMotion,
@@ -1041,11 +1041,12 @@ export default function Grabbable({
             href !== undefined
               ? { href, label: doorLabel ?? "Open link", external }
               : { to: to! },
+            { doorId: hoverKey, unitIndex },
           );
       }
       return true;
     },
-    [doorLabel, external, href, hoverKey, open, release, to],
+    [doorLabel, external, href, hoverKey, open, release, to, unitIndex],
   );
 
   const onGrabCancel = useCallback(
@@ -1081,9 +1082,12 @@ export default function Grabbable({
     const run = () => {
       if (sceneLayoutEditorController.owns(hoverKey)) return;
       if (onTapRef.current) onTapRef.current();
-      else if (to !== undefined) open({ to });
+      else if (to !== undefined) open({ to }, { doorId: hoverKey, unitIndex });
       else if (href !== undefined && doorLabel)
-        open({ href, label: doorLabel, external });
+        open(
+          { href, label: doorLabel, external },
+          { doorId: hoverKey, unitIndex },
+        );
     };
     const activation = egg
       ? ({ kind: "egg", run, reducedMotion: egg.reducedMotion } as const)
@@ -1585,10 +1589,7 @@ export default function Grabbable({
               // non-positive angle, so the magnitude goes in and the direction
               // comes back out.
               Math.sign(bandMotion.lean) *
-              cameraSideHoverTilt(
-                nodCameraDirection,
-                Math.abs(bandMotion.lean),
-              )
+              cameraSideHoverTilt(nodCameraDirection, Math.abs(bandMotion.lean))
             : cameraSideHoverTilt(nodCameraDirection, hoverTiltAngle);
         // A lean is only safe DOWNWARD, where hingeShift pins the contact
         // edge. Nothing was watching the rising end of the arc, and the props

@@ -543,7 +543,6 @@ export function resolveSceneQualityPlan({
   effectsTier,
   resolutionStep,
   resolutionCeiling = null,
-  grassDeformationOff = false,
 }: {
   mode: SceneQualityMode;
   profile: SceneQualityProfile;
@@ -569,8 +568,6 @@ export function resolveSceneQualityPlan({
    * budget, so a large window can be shown at its display's real density.
    * Nothing automatic sets this; see overrideResolutionCeiling. */
   resolutionCeiling?: number | null;
-  /** Reload-time benchmark and rollback switch. */
-  grassDeformationOff?: boolean;
 }): SceneQualityPlan {
   const definition = SCENE_QUALITY_DEFINITIONS[profile];
   const useProfileDpr = overrides?.effectiveDprLadder !== false;
@@ -652,15 +649,14 @@ export function resolveSceneQualityPlan({
   const resolvedContentTier = contentTier ?? CONTENT_TIER_BY_PROFILE[profile];
   const content = SCENE_CONTENT_DEFINITIONS[resolvedContentTier];
   const resolvedEffectsProfile = effectsProfileFor(profile, effectsTier);
-  const grassDeformation =
-    grassDeformationOff || !DEFAULT_GRASS_DEFORMATION_ENABLED
+  const grassDeformation = !DEFAULT_GRASS_DEFORMATION_ENABLED
+    ? "off"
+    : resolvedContentTier === "minimal" || resolvedEffectsProfile === "safety"
       ? "off"
-      : resolvedContentTier === "minimal" || resolvedEffectsProfile === "safety"
-        ? "off"
-        : resolvedContentTier === "reduced" ||
-            resolvedEffectsProfile === "efficient"
-          ? "lean"
-          : "full";
+      : resolvedContentTier === "reduced" ||
+          resolvedEffectsProfile === "efficient"
+        ? "lean"
+        : "full";
   const customOverrides =
     hasCustomOverrides ??
     Boolean(
@@ -1584,9 +1580,9 @@ export function landmarkDetailEnabled(_cloudSimplify: boolean) {
 export function tiltShiftEnabled(
   postprocessing: "full" | "finish" | "off",
   _depthOfField: boolean,
-  disabledBySearch: boolean,
+  disabled: boolean,
 ) {
-  return postprocessing !== "off" && !disabledBySearch;
+  return postprocessing !== "off" && !disabled;
 }
 export function postprocessingQuality(durable: DurableQualityRung) {
   return SCENE_QUALITY_DEFINITIONS[PROFILE_BY_LEGACY_RUNG[durable]].composer;

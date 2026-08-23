@@ -22,13 +22,12 @@ import Quotes from "./components/Quotes";
 import Talks from "./components/Talks";
 import Weightlifting from "./components/Weightlifting";
 import StacksHome from "./components/stacks/StacksHome";
+import { worldBootPrepaintScript } from "./components/stacks/boot/worldBootPrepaint";
 import { type StacksData } from "./components/stacks/data";
 import BootScreen, {
   BootReadingBooksBridge,
 } from "./components/stacks/dom/BootScreen";
-import { WARM_KEY, WARM_TTL_MS } from "./components/stacks/loading";
 import { proxiedBookCover } from "./components/stacks/scene/bookCoverTexture";
-import { WEBGL_CAPABILITY_KEY } from "./components/stacks/webglProbe";
 
 import { homepageMetadata } from "./homeMetadata";
 
@@ -61,71 +60,6 @@ const SCENE_TALK_STILLS: Record<number, string> = {
   1: "/images/stacks/talk-consensus.jpg",
 };
 
-// Probes exactly what StacksHome's own effect probes, so the two can never
-// disagree about whether the world is viable. Save-Data is honoured here and
-// nowhere else: a visitor who has asked their browser to conserve should get
-// the document, not a megabyte of room. Costs about a millisecond, and the
-// answer is cached for the tab so repeat navigations skip the context
-// creation entirely.
-//
-// Second decision, second store. The viability probe is per-tab because it
-// answers "can this browser run it". The WARM record is per-profile because
-// it answers "is the chunk already on this disk" — and the HTTP cache that
-// makes a reload fast is shared across tabs. Warm only shortens the final
-// handoff into the cached room; it never hides the boot vignette or overrides
-// reduced-motion / Save-Data, both of which are settled before it is read.
-//
-// The timeout is the safety net for the case this whole mechanism creates: if
-// the JS bundle never boots, the flat page is hidden behind a loading screen
-// that nothing will ever retire. Twenty seconds and the document comes back —
-// from either phase.
-const WORLD_BOOT_SCRIPT = `
-try {
-  var el = document.documentElement;
-  // The automated OG renderer asks for the same live scene with its DOM
-  // controls removed. Set this during parsing so not even the first paint can
-  // leak homepage chrome into the capture.
-  if (new URLSearchParams(location.search).has("og-capture")) {
-    el.dataset.ogCapture = "";
-  }
-  if (window.__stacksWorldBootTimer) {
-    clearTimeout(window.__stacksWorldBootTimer);
-    window.__stacksWorldBootTimer = 0;
-  }
-  var bootToken = (window.__stacksWorldBootToken || 0) + 1;
-  window.__stacksWorldBootToken = bootToken;
-
-  // Cache only the stable capability probe. Motion preference and Save-Data
-  // are live visitor choices and must be evaluated on every document load.
-  var ok = sessionStorage.getItem(${JSON.stringify(WEBGL_CAPABILITY_KEY)});
-  if (ok === null) {
-    ok = "0";
-    var c = document.createElement("canvas");
-    if (c.getContext("webgl2") || c.getContext("webgl")) ok = "1";
-    sessionStorage.setItem(${JSON.stringify(WEBGL_CAPABILITY_KEY)}, ok);
-  }
-  var motionOK = !matchMedia("(prefers-reduced-motion: reduce)").matches;
-  var dataOK = !(navigator.connection && navigator.connection.saveData);
-  if (ok === "1" && motionOK && dataOK) {
-    var warm = false;
-    try {
-      var rec = JSON.parse(localStorage.getItem(${JSON.stringify(WARM_KEY)}) || "null");
-      var age = rec ? Date.now() - rec.t : Infinity;
-      if (age >= 0 && age < ${WARM_TTL_MS}) warm = true;
-    } catch (_) {}
-    el.dataset.world = warm ? "warm" : "pending";
-    window.__stacksWorldBootTimer = setTimeout(function () {
-      if (window.__stacksWorldBootToken !== bootToken) return;
-      window.__stacksWorldBootTimer = 0;
-      var w = el.dataset.world;
-      if (w === "pending" || w === "warm") delete el.dataset.world;
-    }, 20000);
-  } else {
-    delete el.dataset.world;
-  }
-} catch (_) {}
-`;
-
 export default function HomePage() {
   return (
     <>
@@ -133,7 +67,7 @@ export default function HomePage() {
           suspends, so the capability decision and the bookcase both exist on
           the first eligible paint instead of leaving the layout background
           alone while books and training data resolve. */}
-      <script dangerouslySetInnerHTML={{ __html: WORLD_BOOT_SCRIPT }} />
+      <script dangerouslySetInnerHTML={{ __html: worldBootPrepaintScript() }} />
       <BootScreen />
       <React.Suspense fallback={null}>
         <HomePageContent />

@@ -138,9 +138,12 @@ try {
       "html[data-og-capture] .stacks-og-ui * { visibility: hidden !important; }",
   });
   await page.evaluate(async () => document.fonts?.ready);
-  const uiVisibility = await page
-    .locator("[data-stacks-desktop-panel][data-stacks-active]")
-    .evaluate((element) => getComputedStyle(element).visibility);
+  const uiVisibility = await page.evaluate(() => {
+    const element = document.querySelector(
+      "[data-stacks-desktop-panel][data-stacks-active]",
+    );
+    return element ? getComputedStyle(element).visibility : null;
+  });
   if (uiVisibility !== "hidden") {
     throw new Error(
       `Capture placard should be hidden; computed visibility is ${uiVisibility}`,

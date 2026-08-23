@@ -23,10 +23,10 @@ import {
   ABOUT_AIC_SCALE,
   ABOUT_APPLE_LIGHT_YAW,
   ABOUT_COORDINATION_GLOBE_SCALE,
-  ABOUT_LAMP_HEAD_QUATERNION,
   ABOUT_LAMP_ROOT_YAW,
   ABOUT_LOWER_AWARD_SCALE,
   ABOUT_TJ_LIGHT_YAW,
+  aboutLampHeadQuaternion,
 } from "../aboutCoordinationLayout";
 import {
   ABOUT_ROLES,
@@ -37,7 +37,6 @@ import { proxiedBookCover } from "../bookCoverTexture";
 import { EggLamp, SpinProp, Sway } from "../eggs";
 import { getSceneInteraction } from "../interactionRegistry";
 import { DeskApple, PortraitFrame, useMetalShimmer } from "../objects";
-import { propReactionIsEngaged } from "../reactionEngagement";
 import {
   DeskFrame,
   FlatPrint,
@@ -47,6 +46,7 @@ import {
   photoDoorLabel,
 } from "../photos";
 import { ShelfUnit } from "../primitives";
+import { propReactionIsEngaged } from "../reactionEngagement";
 import { ABOUT_COUCH } from "../seated";
 import { SHELF_GEOMETRY } from "../shelfGeometry";
 import { useUnitFrame } from "../unitActivity";
@@ -561,6 +561,7 @@ export default function UnitAbout({
   palette,
   dark,
   index,
+  headOnCapture,
   coverWidth,
   data,
   onOpenBook,
@@ -734,7 +735,8 @@ export default function UnitAbout({
                   yaw={ABOUT_LAMP_ROOT_YAW}
                   scale={ABOUT_BOOT_LANDMARKS["desk-lamp"].sceneScale}
                   spillScale={0.3}
-                  headQuaternion={ABOUT_LAMP_HEAD_QUATERNION}
+                  headQuaternion={aboutLampHeadQuaternion(headOnCapture)}
+                  captureLightEmphasis={headOnCapture}
                 />
               </group>
               <ContactShade

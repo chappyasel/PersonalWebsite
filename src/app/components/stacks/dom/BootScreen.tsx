@@ -5,7 +5,8 @@ import {
   fallbackCoverEdgeColor,
   readingBookMaterialColors,
 } from "../../../../lib/books/coverEdgeColor";
-import { markBootSequenceReady, resetBootSequenceReady } from "../loading";
+import { isBootingPhase } from "../boot/worldBootMachine";
+import { documentWorldPhase, worldBoot } from "../boot/worldBootSession";
 import {
   ABOUT_AIC_BASE_WIDTH,
   ABOUT_AIC_MARK_HEIGHT,
@@ -291,10 +292,10 @@ function useBootMotion(
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
-    resetBootSequenceReady();
+    worldBoot.send({ type: "bootVignetteStarted" });
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       scene.dataset.bootMotion = "reduced";
-      markBootSequenceReady();
+      worldBoot.send({ type: "bootVignetteCompleted" });
       return;
     }
     let animations: Animation[] = [];
@@ -303,8 +304,7 @@ function useBootMotion(
 
     const start = () => {
       if (animations.length) return;
-      const phase = document.documentElement.dataset.world;
-      if (phase !== "pending" && phase !== "warm") return;
+      if (!isBootingPhase(documentWorldPhase())) return;
 
       const motions = Array.from(
         scene.querySelectorAll<SVGGElement>(".stacks-boot-item-motion"),
@@ -326,7 +326,7 @@ function useBootMotion(
             cadence.revealDuration,
           )
         ) {
-          markBootSequenceReady();
+          worldBoot.send({ type: "bootVignetteCompleted" });
           return;
         }
         readinessFrame = requestAnimationFrame(observeFirstPass);
@@ -336,8 +336,7 @@ function useBootMotion(
 
     start();
     const observer = new MutationObserver(() => {
-      const phase = document.documentElement.dataset.world;
-      if (phase === "pending" || phase === "warm") {
+      if (isBootingPhase(documentWorldPhase())) {
         start();
         return;
       }

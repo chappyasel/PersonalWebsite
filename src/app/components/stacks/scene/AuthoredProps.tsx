@@ -9,6 +9,7 @@ import * as THREE from "three";
 import Grabbable from "./Grabbable";
 import { useMetalShimmer } from "./objects";
 import { propReactionIsEngaged } from "./reactionEngagement";
+import { TJ_MEDALLION_FACES, TJ_MEDALLION_SOLIDS } from "./tjMedallionGeometry";
 import { useUnitFrame } from "./unitActivity";
 
 function prefersReducedMotion() {
@@ -148,6 +149,26 @@ function ShakerBody({
 
 const TJ_MEDALLION_HOVER = "grab:tj-medallion:about";
 
+/** Shape lives in tjMedallionGeometry.js, which the boot-silhouette generator
+ * reads too. Only the finishes are the scene's own. */
+const TJ_MEDALLION_FINISH = {
+  barrel: {
+    light: "#8a765b",
+    dark: "#655746",
+    metalness: 0.72,
+    roughness: 0.42,
+  },
+  strut: { light: "#a7977d", dark: "#817563", metalness: 0.82, roughness: 0.3 },
+  rim: { light: "#b9ad98", dark: "#7d7468", metalness: 0.76, roughness: 0.3 },
+} as const;
+
+const TJ_MEDALLION_ARTWORK_FACE = TJ_MEDALLION_FACES.find(
+  (face) => face.id === "artwork-face",
+)!;
+const TJ_MEDALLION_SHIMMER_FACE = TJ_MEDALLION_FACES.find(
+  (face) => face.id === "shimmer-face",
+)!;
+
 function TJMedallionBody({
   dark,
   unitIndex,
@@ -161,7 +182,10 @@ function TJMedallionBody({
   );
   artwork.colorSpace = THREE.SRGBColorSpace;
   const shimmerFace = useMemo(() => {
-    const geometry = new THREE.CircleGeometry(0.143, 32);
+    const geometry = new THREE.CircleGeometry(
+      TJ_MEDALLION_SHIMMER_FACE.radius,
+      TJ_MEDALLION_SHIMMER_FACE.segments,
+    );
     const position = geometry.getAttribute("position") as THREE.BufferAttribute;
     const uv = geometry.getAttribute("uv") as THREE.BufferAttribute;
     for (let index = 0; index < position.count; index++) {
@@ -179,38 +203,43 @@ function TJMedallionBody({
   });
   return (
     <group>
-      <mesh position={[0, 0.018, 0]}>
-        <cylinderGeometry args={[0.095, 0.105, 0.036, 16]} />
-        <meshStandardMaterial
-          color={dark ? "#655746" : "#8a765b"}
-          metalness={0.72}
-          roughness={0.42}
+      {TJ_MEDALLION_SOLIDS.map((solid) => {
+        const finish = TJ_MEDALLION_FINISH[solid.finish];
+        return (
+          <mesh
+            key={solid.id}
+            position={solid.position}
+            rotation={solid.rotation}
+          >
+            {solid.shape === "cylinder" ? (
+              <cylinderGeometry
+                args={[
+                  solid.args[0]!,
+                  solid.args[1]!,
+                  solid.args[2]!,
+                  solid.args[3]!,
+                ]}
+              />
+            ) : (
+              <boxGeometry
+                args={[solid.args[0]!, solid.args[1]!, solid.args[2]!]}
+              />
+            )}
+            <meshStandardMaterial
+              color={dark ? finish.dark : finish.light}
+              metalness={finish.metalness}
+              roughness={finish.roughness}
+            />
+          </mesh>
+        );
+      })}
+      <mesh position={TJ_MEDALLION_ARTWORK_FACE.position}>
+        <circleGeometry
+          args={[
+            TJ_MEDALLION_ARTWORK_FACE.radius,
+            TJ_MEDALLION_ARTWORK_FACE.segments,
+          ]}
         />
-      </mesh>
-      {[-1, 1].map((side) => (
-        <mesh
-          key={side}
-          position={[side * 0.057, 0.074, -0.002]}
-          rotation={[0, 0, side * -0.32]}
-        >
-          <boxGeometry args={[0.018, 0.12, 0.022]} />
-          <meshStandardMaterial
-            color={dark ? "#817563" : "#a7977d"}
-            metalness={0.82}
-            roughness={0.3}
-          />
-        </mesh>
-      ))}
-      <mesh position={[0, 0.202, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[0.15, 0.15, 0.025, 32]} />
-        <meshStandardMaterial
-          color={dark ? "#7d7468" : "#b9ad98"}
-          metalness={0.76}
-          roughness={0.3}
-        />
-      </mesh>
-      <mesh position={[0, 0.202, 0.013]}>
-        <circleGeometry args={[0.143, 32]} />
         <meshPhysicalMaterial
           ref={mark}
           map={artwork}
@@ -221,7 +250,10 @@ function TJMedallionBody({
           clearcoatRoughness={0.2}
         />
       </mesh>
-      <mesh geometry={shimmerFace} position={[0, 0.202, 0.014]}>
+      <mesh
+        geometry={shimmerFace}
+        position={TJ_MEDALLION_SHIMMER_FACE.position}
+      >
         <meshBasicMaterial
           ref={band}
           map={texture}

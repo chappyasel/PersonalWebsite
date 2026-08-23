@@ -3,6 +3,11 @@
 // projected orthographically, raster-unioned, boundary-traced, and simplified.
 // Run from the repository root:
 //   node scripts/generate-about-boot-silhouettes.mjs
+import {
+  tjMedallionFrontElevation,
+  tjMedallionSolidGroup,
+  tjMedallionSpecSignature,
+} from "../src/app/components/stacks/scene/tjMedallionGeometry.js";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -31,7 +36,7 @@ const MODELS = {
 };
 
 const AI_MARK_SOURCE = "public/images/stacks/v8/ai-collective-mark.svg";
-const TJ_SOURCE = "src/app/components/stacks/scene/AuthoredProps.tsx";
+const TJ_SPEC_SOURCE = "src/app/components/stacks/scene/tjMedallionGeometry.js";
 
 function triangles(scene, yaw) {
   scene.updateWorldMatrix(true, true);
@@ -58,6 +63,19 @@ function triangles(scene, yaw) {
   return output;
 }
 
+/** The raster envelope for a source bounding box, longest edge normalised to
+ * MAX_EDGE with a one-pixel margin on every side. Exported shape so a test can
+ * predict a silhouette's viewBox from its specification. */
+export function viewBoxFor(sourceWidth, sourceHeight) {
+  const scale = MAX_EDGE / Math.max(sourceWidth, sourceHeight);
+  return [
+    0,
+    0,
+    Math.ceil(sourceWidth * scale) + 2,
+    Math.ceil(sourceHeight * scale) + 2,
+  ];
+}
+
 function pointInTriangle(px, py, [a, b, c]) {
   const area = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1]);
   if (Math.abs(area) < 1e-8) return false;
@@ -75,8 +93,7 @@ function rasterize(sourceTriangles) {
   const sourceWidth = maxX - minX;
   const sourceHeight = maxY - minY;
   const scale = MAX_EDGE / Math.max(sourceWidth, sourceHeight);
-  const width = Math.ceil(sourceWidth * scale) + 2;
-  const height = Math.ceil(sourceHeight * scale) + 2;
+  const [, , width, height] = viewBoxFor(sourceWidth, sourceHeight);
   const mask = new Uint8Array(width * height);
   const projected = sourceTriangles.map((triangle) =>
     triangle.map(([x, y]) => [1 + (x - minX) * scale, 1 + (maxY - y) * scale]),
@@ -138,35 +155,6 @@ async function rasterizeCollectiveMark(source) {
     }
   }
   return { width, height, mask };
-}
-
-function tjMedallion() {
-  const group = new THREE.Group();
-  const add = (geometry, position, rotation = [0, 0, 0]) => {
-    const mesh = new THREE.Mesh(geometry);
-    mesh.position.fromArray(position);
-    mesh.rotation.fromArray(rotation);
-    group.add(mesh);
-  };
-  add(new THREE.CylinderGeometry(0.095, 0.105, 0.036, 16), [0, 0.018, 0]);
-  for (const side of [-1, 1]) {
-    add(
-      new THREE.BoxGeometry(0.018, 0.12, 0.022),
-      [side * 0.057, 0.074, -0.002],
-      [0, 0, side * -0.32],
-    );
-  }
-  add(
-    new THREE.CylinderGeometry(0.15, 0.15, 0.025, 32),
-    [0, 0.202, 0],
-    [Math.PI / 2, 0, 0],
-  );
-  // Match ABOUT_TJ_LIGHT_YAW and the current live scene scale. The scale is
-  // normalized by rasterize(), but retaining it here keeps this authored pose
-  // readable against UnitAbout.
-  group.rotation.y = -0.28;
-  group.scale.setScalar(0.726);
-  return group;
 }
 
 function distanceToLine(point, start, end) {
@@ -306,6 +294,7 @@ for (const [id, model] of Object.entries(MODELS)) {
   const raster = rasterize(triangles(gltf.scene, model.yaw));
   generated[id] = {
     source: `/models/${model.file}`,
+    sourceKind: "file",
     sourceFile,
     sha256: crypto.createHash("sha256").update(source).digest("hex"),
     viewBox: [0, 0, raster.width, raster.height],
@@ -317,18 +306,33 @@ const aiSource = fs.readFileSync(path.join(ROOT, AI_MARK_SOURCE));
 const aiRaster = await rasterizeCollectiveMark(aiSource);
 generated["ai-collective"] = {
   source: "/images/stacks/v8/ai-collective-mark.svg",
+  sourceKind: "file",
   sourceFile: AI_MARK_SOURCE,
   sha256: crypto.createHash("sha256").update(aiSource).digest("hex"),
   viewBox: [0, 0, aiRaster.width, aiRaster.height],
   path: trace(aiRaster),
 };
 
-const tjSource = fs.readFileSync(path.join(ROOT, TJ_SOURCE));
-const tjRaster = rasterize(triangles(tjMedallion(), 0));
+// Derived from the same specification the scene renders, not from a copy of
+// its numbers. The digest covers that specification, so the freshness test
+// fires when the shape changes and stays quiet when a neighbouring prop in
+// AuthoredProps.tsx does not.
+const tjRaster = rasterize(triangles(tjMedallionSolidGroup(THREE), 0));
+const tjElevation = tjMedallionFrontElevation(THREE);
+const tjExpected = viewBoxFor(tjElevation.width, tjElevation.height);
+if (tjRaster.width !== tjExpected[2] || tjRaster.height !== tjExpected[3]) {
+  throw new Error(
+    `TJ medallion raster ${tjRaster.width}x${tjRaster.height} disagrees with the specification's front elevation ${tjExpected[2]}x${tjExpected[3]}.`,
+  );
+}
 generated["tj-medallion"] = {
-  source: "authored:TJMedallionBody",
-  sourceFile: TJ_SOURCE,
-  sha256: crypto.createHash("sha256").update(tjSource).digest("hex"),
+  source: "spec:TJ_MEDALLION_SOLIDS",
+  sourceKind: "spec",
+  sourceFile: TJ_SPEC_SOURCE,
+  sha256: crypto
+    .createHash("sha256")
+    .update(tjMedallionSpecSignature())
+    .digest("hex"),
   viewBox: [0, 0, tjRaster.width, tjRaster.height],
   path: trace(tjRaster),
 };

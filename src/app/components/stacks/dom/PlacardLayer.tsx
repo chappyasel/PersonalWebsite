@@ -98,6 +98,7 @@ import {
   mobileSheetScrollIntent,
 } from "./mobileSheetGeometry";
 import { nextPlacardToPrepare } from "./placardResidency";
+import { PLACARD_PAPER_SURFACE_CSS } from "./placardSurface";
 import {
   formatLength,
   formatReadDates,
@@ -3034,34 +3035,7 @@ export default function PlacardLayer({
         .placard-scroll [class*="intersect:motion-"] {
           transform: none !important;
         }
-        /* Native retains the authored browser backdrop. Paper is a genuinely
-           opaque reading material, not a translucent glass approximation, so
-           detailed foliage can never color or texture the sheet. */
-        [data-stacks-glass-mode="paper"] [data-stacks-desktop-panel] [data-placard-surface],
-        [data-stacks-glass-mode="paper"] .stacks-sheet,
-        [data-stacks-glass-mode="paper"] .stacks-chip {
-          backdrop-filter: none !important;
-          -webkit-backdrop-filter: none !important;
-        }
-        [data-stacks-glass-mode="paper"] [data-stacks-desktop-panel] [data-placard-surface],
-        [data-stacks-glass-mode="paper"] .stacks-sheet,
-        [data-stacks-glass-mode="paper"] .stacks-chip {
-          --sheet-fill: rgb(244 241 233);
-          background-color: var(--sheet-fill) !important;
-          background-image:
-            linear-gradient(180deg, rgb(255 255 255 / 0.56), transparent 22%),
-            repeating-linear-gradient(97deg, rgb(92 70 43 / 0.018) 0 1px, transparent 1px 5px),
-            repeating-linear-gradient(7deg, rgb(92 70 43 / 0.012) 0 1px, transparent 1px 7px) !important;
-        }
-        .dark [data-stacks-glass-mode="paper"] [data-stacks-desktop-panel] [data-placard-surface],
-        .dark [data-stacks-glass-mode="paper"] .stacks-sheet,
-        .dark [data-stacks-glass-mode="paper"] .stacks-chip {
-          --sheet-fill: rgb(35 33 30);
-          background-image:
-            linear-gradient(180deg, rgb(255 255 255 / 0.055), transparent 22%),
-            repeating-linear-gradient(97deg, rgb(255 244 224 / 0.018) 0 1px, transparent 1px 5px),
-            repeating-linear-gradient(7deg, rgb(255 244 224 / 0.012) 0 1px, transparent 1px 7px) !important;
-        }
+        ${PLACARD_PAPER_SURFACE_CSS}
       `}</style>
       {/* Desktop: resident right dock, crossfaded by activeUnit. Wider now
           that no container has to look comfortable at that width — the

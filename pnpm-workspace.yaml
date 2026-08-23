@@ -1,0 +1,27 @@
+packages:
+  - "."
+
+# Native tooling needs its install checks. The two notification-only scripts do
+# not affect runtime behavior and stay disabled.
+allowBuilds:
+  core-js: false
+  es5-ext: false
+  esbuild: true
+  sharp: true
+
+# Keep compatibility families on one reviewed version. These preserve the
+# dependency-alignment invariants from the previous package manager.
+overrides:
+  "@tanstack/query-core": 5.90.16
+  "@typescript-eslint/eslint-plugin": 8.52.0
+  "@typescript-eslint/parser": 8.52.0
+  "@typescript-eslint/project-service": 8.52.0
+  "@typescript-eslint/scope-manager": 8.52.0
+  "@typescript-eslint/tsconfig-utils": 8.52.0
+  "@typescript-eslint/type-utils": 8.52.0
+  "@typescript-eslint/types": 8.52.0
+  "@typescript-eslint/typescript-estree": 8.52.0
+  "@typescript-eslint/utils": 8.52.0
+  "@typescript-eslint/visitor-keys": 8.52.0
+  typescript-eslint: 8.52.0
+  vite: 8.1.4

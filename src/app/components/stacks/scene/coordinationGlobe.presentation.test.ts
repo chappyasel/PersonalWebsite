@@ -17,6 +17,10 @@ const diagnosticsSource = fs.readFileSync(
   new URL("../dom/SceneDiagnostics.tsx", import.meta.url),
   "utf8",
 );
+const diagnosticsRegistrySource = fs.readFileSync(
+  new URL("./sceneDiagnosticsRegistry.ts", import.meta.url),
+  "utf8",
+);
 const unitSource = fs.readFileSync(
   new URL("./units/UnitAbout.tsx", import.meta.url),
   "utf8",
@@ -473,8 +477,8 @@ describe("Coordination globe presentation contract", () => {
   });
 
   it("exposes a live diagnostics switch without touching quality policy", () => {
-    expect(diagnosticsSource).toContain("Coordination singularity");
-    expect(diagnosticsSource).toContain(
+    expect(diagnosticsRegistrySource).toContain("Coordination singularity");
+    expect(diagnosticsRegistrySource).toContain(
       "coordinationGlobeDiagnosticsController.setEffectEnabled",
     );
     expect(diagnosticsSource).not.toContain(
@@ -487,7 +491,10 @@ describe("Coordination globe presentation contract", () => {
     const lampEnd = eggSource.indexOf("export function SpinProp", lampStart);
     const lamp = eggSource.slice(lampStart, lampEnd);
 
-    expect(unitSource).toContain("headQuaternion={ABOUT_LAMP_HEAD_QUATERNION}");
+    expect(unitSource).toContain(
+      "headQuaternion={aboutLampHeadQuaternion(headOnCapture)}",
+    );
+    expect(unitSource).toContain("captureLightEmphasis={headOnCapture}");
     expect(unitSource).not.toContain("aimOffset={[0.35, 0, 0]}");
     expect(lamp).toContain("<group quaternion={headQuaternion}>");
     expect(lamp).toContain("<LampGlow");

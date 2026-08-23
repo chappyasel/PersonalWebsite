@@ -2,7 +2,7 @@
 
 // Atmosphere for the homepage 3D scene — gradient sky dome, fog-matched palette,
 // hemisphere fill, camera-tracking key light with soft shadows, and dust.
-import { markMeadowReady } from "../loading";
+import { useWorldBootScope } from "../boot/useWorldBoot";
 import { progressRef, useStacks } from "../store";
 import { PALETTES, type Palette, rand } from "../theme";
 import { Environment, Lightformer } from "@react-three/drei";
@@ -30,7 +30,10 @@ import {
   COORDINATION_HUMAN_COLOR,
 } from "./coordinationNetwork";
 import { DAYLIGHT_RENDERING } from "./daylightRendering";
-import { freeRoamDiagnosticsController } from "./freeRoamDiagnostics";
+import {
+  freeRoamDiagnosticsController,
+  freeRoamFogVisible,
+} from "./freeRoamDiagnostics";
 import {
   getSceneInteraction,
   registerSceneInteraction,
@@ -43,6 +46,7 @@ import {
   getSceneImpulse,
   sceneImpulseSkyScale,
 } from "./sceneImpulse";
+import { useScenePerformanceSettings } from "./scenePerformance";
 import { useSceneQualityControls } from "./sceneQualityController";
 import { getSeatAmount } from "./seated";
 import { SHELF_GEOMETRY } from "./shelfGeometry";
@@ -59,8 +63,8 @@ type CoordinationFlickerSignal = MutableRefObject<number>;
 // lifted. A static import folds it into the StacksCanvas async chunk, which
 // the route budget does not measure (the manifest lists only StacksHome), so
 // the homepage entry stays untouched. Flipping this to false still re-parks
-// the feature at zero cost — the rejection path is this one line — and
-// `?nomeadow` gives the same A/B per visit.
+// the feature at zero cost. The diagnostics registry also accepts
+// `?nomeadow` as a reload-time seed for its live Meadow control.
 const MEADOW_ENABLED = true;
 
 // Chappy's morning, painted truthfully. Dark theme is 3:45am San Francisco —
@@ -3813,6 +3817,7 @@ export default function SceneEnvironment({
   quality: Pick<SceneQualityPlan, "environment" | "butterflies" | "wildlife">;
 }) {
   const { cinematicPlus } = useSceneQualityControls();
+  const performanceSettings = useScenePerformanceSettings();
   const coordinationDiagnostics = useSyncExternalStore(
     coordinationGlobeDiagnosticsController.subscribe,
     coordinationGlobeDiagnosticsController.getSnapshot,
@@ -3828,22 +3833,13 @@ export default function SceneEnvironment({
     freeRoamDiagnosticsController.getSnapshot,
   );
   const daylightCinematicPlus = cinematicPlus && !dark;
-  // ?nomeadow joins the existing query family (?nopostfx) as the live A/B
-  // escape. Read once — the search string cannot change without a reload.
-  const meadow = useMemo(
-    () =>
-      MEADOW_ENABLED &&
-      !(
-        typeof window !== "undefined" &&
-        window.location.search.includes("nomeadow")
-      ),
-    [],
-  );
+  const meadow = MEADOW_ENABLED && performanceSettings.meadow;
+  const scope = useWorldBootScope();
   // No meadow, nothing for the reveal gate to wait on — report ready NOW so
   // a ?nomeadow (or flag-off) boot reveals at the pre-meadow timing.
   useEffect(() => {
-    if (!meadow) markMeadowReady();
-  }, [meadow]);
+    if (!meadow) scope.send({ type: "meadowReady" });
+  }, [meadow, scope]);
   return (
     <>
       {activeCoordinationFlickerSignal ? (
@@ -3851,7 +3847,7 @@ export default function SceneEnvironment({
           coordinationFlickerSignal={activeCoordinationFlickerSignal}
         />
       ) : null}
-      {!freeRoam.enabled || freeRoam.fogEnabled ? (
+      {freeRoamFogVisible(freeRoam) ? (
         <fog attach="fog" args={[palette.fog, 8, 24]} />
       ) : null}
       <SkyDome

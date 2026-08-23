@@ -1,6 +1,6 @@
 ---
 description: Build, commit, and push to main
-allowed-tools: Bash(git:*), Bash(yarn:*), Bash(npx:*), Read, Grep, Glob
+allowed-tools: Bash(git:*), Bash(pnpm:*), Read, Grep, Glob
 ---
 
 # /ship - Build, Commit & Push
@@ -19,7 +19,7 @@ Summarize what will be shipped.
 ## Step 2: Build
 
 ```bash
-yarn build
+pnpm build
 ```
 
 If the build fails, stop and show the errors. Do NOT proceed.
@@ -27,7 +27,7 @@ If the build fails, stop and show the errors. Do NOT proceed.
 ## Step 3: Lint & Fix
 
 ```bash
-yarn fix
+pnpm fix
 ```
 
 If linting produces additional changes, include them in the commit.
@@ -35,6 +35,7 @@ If linting produces additional changes, include them in the commit.
 ## Step 4: Commit
 
 Stage all changed files and create a commit:
+
 - Use conventional commit format (e.g., `feat:`, `fix:`, `chore:`)
 - Write a concise message summarizing the changes
 - End with `Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>`

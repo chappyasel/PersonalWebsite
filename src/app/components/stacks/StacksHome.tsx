@@ -9,11 +9,9 @@
 // hides the flat document and reveals BootScreen during that first paint, and
 // this component takes the attribute over the moment it is alive.
 //
-// The old rig demoted to flat on a twelve-second wall clock. That punished
-// exactly the wrong people — a slow connection is not a broken one, and the
-// visitor who waited longest got the consolation page. Demotion is now driven
-// by real failure signals (the chunk refusing to load, the context refusing to
-// create, the context being lost) with a long backstop for a genuine hang.
+// The whole of that policy — capability, warm cache, the four reveal gates,
+// the hang backstop, demotion, and route cleanup — lives in ./boot as one
+// state machine. What is left here is the seam: signals in, view out.
 import dynamic from "next/dynamic";
 import {
   Component,
@@ -21,41 +19,25 @@ import {
   type ProfilerOnRenderCallback,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
-  useState,
 } from "react";
 
+import { type HomepageBootOutcome, captureOnce } from "~/lib/analytics";
+
 import FlatHome from "./FlatHome";
-import { type StacksData, type StacksSlots } from "./data";
+import { useWorldBoot } from "./boot/useWorldBoot";
+import { worldBoot } from "./boot/worldBootSession";
+import { type StacksData, type StacksSlots, UNITS } from "./data";
 import ChromeLayer from "./dom/ChromeLayer";
 import PlacardLayer from "./dom/PlacardLayer";
 import UnitRail from "./dom/UnitRail";
 import ScrollBridges from "./input/ScrollBridges";
-import {
-  canRevealWorld,
-  isAssetLoadReady,
-  isBootSequenceReady,
-  isMeadowReady,
-  isWarmBoot,
-  rememberWarmBoot,
-  resetAssetLoadReady,
-  resetMeadowReady,
-  setLoadProgress,
-  setWorldPhase,
-} from "./loading";
 import StacksBookModal from "./modal/StacksBookModal";
 import { scenePerformanceTrace } from "./scene/performanceTrace";
 import { useStacks } from "./store";
-import { browserCanUseStacksWorld } from "./webglProbe";
 
 const StacksCanvas = dynamic(() => import("./StacksCanvas"), { ssr: false });
-
-/** Long enough that no real network trips it, short enough that a genuinely
- * wedged tab still gets a readable page. */
-const HANG_BACKSTOP_MS = 40000;
-/** A brief idle window closes the gap between one loading-manager batch
- * completing and a Suspense child queuing the next one. */
-const ASSET_SETTLE_MS = 250;
 
 const recordPerformanceCommit: ProfilerOnRenderCallback = (
   id,
@@ -72,11 +54,6 @@ const recordPerformanceCommit: ProfilerOnRenderCallback = (
     durationMs: actualDuration,
     baseDurationMs: baseDuration,
   });
-};
-
-type WindowWithStacksBoot = Window & {
-  __stacksWorldBootTimer?: number;
-  __stacksWorldBootToken?: number;
 };
 
 /** A chunk that fails to load throws during render, which would blank the
@@ -109,123 +86,112 @@ export default function StacksHome({
   data: StacksData;
   slots: StacksSlots;
 }) {
-  const mode = useStacks((s) => s.mode);
-  const setMode = useStacks((s) => s.setMode);
-  const [worldReady, setWorldReady] = useState(false);
-  const [revealed, setRevealed] = useState(false);
-  const [flatGone, setFlatGone] = useState(false);
-  const [bootPath, setBootPath] = useState<"cold" | "warm">("cold");
+  const boot = useWorldBoot();
+  const { epoch, mode, revealed, worldMounted } = boot;
+  const settledUnit = useStacks((state) => state.settledUnit);
   const worldShellRef = useRef<HTMLDivElement>(null);
 
-  const demote = useCallback(() => {
-    setWorldPhase(null);
-    setMode("flat");
-  }, [setMode]);
-
-  useEffect(() => {
-    if (!browserCanUseStacksWorld()) {
-      setWorldPhase(null);
-      setMode("flat");
-      return;
-    }
-    resetAssetLoadReady();
-    resetMeadowReady();
-    // Agrees with the pre-paint script, and also covers the case where the
-    // script never ran (a bfcache restore, an extension stripping inline
-    // scripts) — the boot screen still comes up rather than the document.
-    // A warm phase is carried through rather than overwritten: writing
-    // "pending" here would slam the loading animation on screen at hydration,
-    // which is precisely the thing the warm path exists to avoid.
-    const warm = isWarmBoot();
-    setBootPath(warm ? "warm" : "cold");
-    setWorldPhase(warm ? "warm" : "pending");
-    setMode("world");
-  }, [setMode]);
-
-  // `data-world` is a pre-paint handshake, not route state. Clear it when
-  // this homepage unmounts so SPA navigation cannot carry the world's
-  // overscroll lock onto /books, /manual, or another document route.
-  useEffect(() => {
-    const bootWindow = window as WindowWithStacksBoot;
-    const captureMode = new URLSearchParams(window.location.search).has(
-      "og-capture",
-    );
-    document.documentElement.toggleAttribute("data-og-capture", captureMode);
-    const retirePrepaintBackstop = () => {
-      if (bootWindow.__stacksWorldBootTimer) {
-        window.clearTimeout(bootWindow.__stacksWorldBootTimer);
-        bootWindow.__stacksWorldBootTimer = 0;
-      }
-      bootWindow.__stacksWorldBootToken =
-        (bootWindow.__stacksWorldBootToken ?? 0) + 1;
-    };
-    // React owns failure recovery from this point (CanvasBoundary plus the
-    // longer hang backstop), so the parse-time timer must not survive this
-    // boot and later clear a newer SPA visit's attribute.
-    retirePrepaintBackstop();
-    return () => {
-      retirePrepaintBackstop();
-      setWorldPhase(null);
-      setMode("flat");
-      document.documentElement.removeAttribute("data-og-capture");
-    };
-  }, [setMode]);
+  // Bound to this boot's generation. The canvas can lose its context or throw
+  // while it is being torn down for a route change; without the stamp, that
+  // would demote whatever boot happens to be live by the time it lands.
+  const scope = useMemo(() => worldBoot.scope(epoch), [epoch]);
+  const demote = useCallback(
+    () => void scope.send({ type: "runtimeError" }),
+    [scope],
+  );
+  const reportLostContext = useCallback(
+    () => void scope.send({ type: "contextLost" }),
+    [scope],
+  );
+  const reportFirstFrame = useCallback(
+    () => void scope.send({ type: "firstFrame" }),
+    [scope],
+  );
 
   // Nothing is downloading until the component that owns the import renders,
-  // and `mode` only flips one tick later. Kicking it here overlaps the chunk
-  // fetch with the rest of hydration instead of queueing behind it.
+  // and the world only mounts one commit later. Kicking it here overlaps the
+  // chunk fetch with the rest of hydration instead of queueing behind it.
+  // Read the session rather than `boot`: useWorldBoot starts the boot in its
+  // own mount effect, which has already run by the time this one does, but the
+  // render that carried `boot` here happened before it.
   useEffect(() => {
-    if (!browserCanUseStacksWorld()) return;
+    if (!worldBoot.getView().worldMounted) return;
     void (
       StacksCanvas as unknown as { render?: { preload?: () => void } }
     ).render?.preload?.();
     void (StacksCanvas as unknown as { preload?: () => void }).preload?.();
   }, []);
 
-  // Hold the boot screen until a frame has painted, all requested assets have
-  // loaded and stayed idle briefly, the meadow buffers exist, and the boot
-  // vignette has completed its first pass. Time is never treated as scene
-  // readiness. The hang backstop below chooses the flat page instead of
-  // exposing an unfinished room when an asset genuinely wedges.
   useEffect(() => {
-    if (!worldReady || revealed) return;
-    const check = () => {
-      if (
-        canRevealWorld({
-          assetsReady: isAssetLoadReady(performance.now(), ASSET_SETTLE_MS),
-          meadowReady: isMeadowReady(),
-          bootSequenceReady: isBootSequenceReady(),
-        })
-      ) {
-        setRevealed(true);
-        return;
-      }
-      raf = requestAnimationFrame(check);
-    };
-    let raf = requestAnimationFrame(check);
-    return () => cancelAnimationFrame(raf);
-  }, [worldReady, revealed]);
+    if (boot.status === "ineligible" && boot.ineligibility) {
+      captureOnce("homepage:delivery", "homepage_delivery", {
+        mode: "flat",
+        reason: boot.ineligibility,
+      });
+      return;
+    }
+
+    const durationMs = Math.max(
+      0,
+      Math.round(performance.now() - (boot.startedAt ?? performance.now())),
+    );
+    if (boot.revealed) {
+      captureOnce("homepage:delivery", "homepage_delivery", {
+        mode: "world",
+        reason: "world",
+      });
+      captureOnce("homepage:world-boot", "homepage_world_boot", {
+        outcome: "ready",
+        duration_ms: durationMs,
+        boot_path: boot.loadPath,
+      });
+      return;
+    }
+
+    if (boot.status !== "failed" || !boot.failure) return;
+    const outcome: Exclude<HomepageBootOutcome, "ready"> =
+      boot.failure === "contextLost"
+        ? "context_lost"
+        : boot.failure === "runtimeError"
+          ? "render_error"
+          : "timeout";
+    captureOnce("homepage:world-boot", "homepage_world_boot", {
+      outcome,
+      duration_ms: durationMs,
+      boot_path: boot.loadPath,
+    });
+    captureOnce("homepage:delivery", "homepage_delivery", {
+      mode: "flat",
+      reason: "runtime_fallback",
+    });
+    captureOnce(
+      "homepage:world-runtime-fallback",
+      "homepage_world_runtime_fallback",
+      {
+        mode: "flat",
+        reason: "runtime_fallback",
+        cause: outcome,
+        duration_ms: durationMs,
+      },
+    );
+  }, [
+    boot.failure,
+    boot.ineligibility,
+    boot.loadPath,
+    boot.revealed,
+    boot.startedAt,
+    boot.status,
+  ]);
 
   useEffect(() => {
-    if (!revealed) return;
-    setWorldPhase("ready");
-    // The world got here. The next load can use the shorter cached-world
-    // transition, while still painting this loader immediately.
-    rememberWarmBoot();
-    // Normalize the published progress after the fully-ready handoff. The
-    // value is only presentation state now; readiness comes from the live
-    // loading-manager state above.
-    setLoadProgress(1);
-    const timeout = setTimeout(() => setFlatGone(true), 420);
-    return () => clearTimeout(timeout);
-  }, [revealed]);
-
-  useEffect(() => {
-    if (mode !== "world" || revealed) return;
-    if (document.documentElement.hasAttribute("data-og-capture")) return;
-    const timeout = setTimeout(demote, HANG_BACKSTOP_MS);
-    return () => clearTimeout(timeout);
-  }, [mode, revealed, demote]);
+    if (!revealed || settledUnit === null) return;
+    const section = UNITS[settledUnit]?.slug;
+    if (!section) return;
+    captureOnce(`homepage:section:${section}`, "homepage_section_arrived", {
+      section,
+      delivery_mode: "world",
+    });
+  }, [revealed, settledUnit]);
 
   useEffect(() => {
     const world = worldShellRef.current;
@@ -352,11 +318,11 @@ export default function StacksHome({
 
   return (
     <>
-      {mode === "world" && (
+      {worldMounted && (
         <div
           ref={worldShellRef}
-          data-load-path={bootPath}
-          data-canvas-ready={worldReady ? "" : undefined}
+          data-load-path={boot.loadPath}
+          data-canvas-ready={boot.canvasReady ? "" : undefined}
           data-revealed={revealed ? "" : undefined}
           className={`stacks-world-shell fixed inset-0 z-10 ${
             revealed ? "pointer-events-auto" : "pointer-events-none"
@@ -366,8 +332,8 @@ export default function StacksHome({
             <Profiler id="canvas-react" onRender={recordPerformanceCommit}>
               <StacksCanvas
                 data={data}
-                onReady={() => setWorldReady(true)}
-                onLost={demote}
+                onReady={reportFirstFrame}
+                onLost={reportLostContext}
               />
             </Profiler>
           </CanvasBoundary>
@@ -398,8 +364,14 @@ export default function StacksHome({
           <div aria-hidden className="stacks-world-curtain" />
         </div>
       )}
-      {(mode === "flat" || !flatGone) && (
-        <FlatHome slots={slots} animated={mode === "flat"} />
+      {boot.flatMounted && (
+        <FlatHome
+          slots={slots}
+          animated={boot.flatAnimated}
+          journeyActive={
+            boot.status === "ineligible" || boot.status === "failed"
+          }
+        />
       )}
       {/* Books modal — mounted at the root, outside GrainientBackground's
           [contain:paint] and the world's transforms, so fixed positioning

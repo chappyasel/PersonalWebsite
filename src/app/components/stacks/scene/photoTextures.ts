@@ -11,12 +11,6 @@ export const SCENE_PHOTO_EDGE: Record<ScenePhotoRole, 256 | 512 | 1024> = {
 
 const V8_PHOTO_RE = /^\/images\/stacks\/v8\/([^/]+)\.webp$/;
 
-/** Diagnostic A/B switch. `?hdPhotos=0` keeps the scene on previews and must
- * guard both mounted texture loads and the distant background prefetch. */
-export function sceneHdPhotosDisabled(search: string): boolean {
-  return new URLSearchParams(search).get("hdPhotos") === "0";
-}
-
 export function scenePhotoUrl(
   url: string,
   role: ScenePhotoRole = "feature",

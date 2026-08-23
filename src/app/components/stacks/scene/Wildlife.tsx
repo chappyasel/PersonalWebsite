@@ -4,6 +4,7 @@
 // practical; the bat is a camera-relative global sky event. Perch resolution
 // and collision snapshots are occasional planning work; the frame loop keeps
 // using the shared allocation-free pilot.
+import { isWorldRevealed } from "../boot/worldBootSession";
 import { useStacks } from "../store";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
@@ -721,10 +722,7 @@ function LivingWildlife({
 
   useFrame(({ clock, camera, pointer, size }, delta) => {
     const clockTime = clock.elapsedTime;
-    if (
-      settledAt.current === null &&
-      document.documentElement.dataset.world === "ready"
-    ) {
+    if (settledAt.current === null && isWorldRevealed()) {
       settledAt.current = clockTime;
     }
     const t = Math.max(0, clockTime - (settledAt.current ?? clockTime));

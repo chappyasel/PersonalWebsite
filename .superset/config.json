@@ -1,7 +1,5 @@
 {
-  "setup": [],
+  "setup": ["./.superset/setup.sh"],
   "teardown": [],
-  "run": [
-    "yarn dev"
-  ]
+  "run": ["./.superset/run.sh"]
 }

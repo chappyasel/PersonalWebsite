@@ -11,6 +11,7 @@ import {
   deskLampHeadQuaternionForTarget,
 } from "./deskLampHead";
 import { SHELF_GEOMETRY, SHELF_SURFACE } from "./shelfGeometry";
+import { TJ_MEDALLION_POSE } from "./tjMedallionGeometry";
 
 export const ABOUT_LAMP_ROOT_YAW = 0.78;
 export const ABOUT_LOWER_AWARD_SCALE = 1.32 * ABOUT_AWARD_SIZE_INCREASE;
@@ -19,8 +20,12 @@ export const ABOUT_AIC_SCALE =
 export const ABOUT_COORDINATION_GLOBE_SCALE =
   ABOUT_LOWER_AWARD_SCALE * 1.05 * ABOUT_AIC_ORB_SIZE_INCREASE;
 /** Modest face yaws toward the practical at the left. Apple sits farther from
- * the source, so it takes the slightly stronger turn. */
-export const ABOUT_TJ_LIGHT_YAW = -0.28;
+ * the source, so it takes the slightly stronger turn.
+ *
+ * The medallion's yaw comes from its geometry specification rather than a
+ * literal here: the boot silhouette is traced at that yaw, so a second copy of
+ * it could be turned without the outline noticing. */
+export const ABOUT_TJ_LIGHT_YAW = TJ_MEDALLION_POSE.yaw;
 export const ABOUT_APPLE_LIGHT_YAW = -0.34;
 export const ABOUT_LAMP_ROOT_SCALE =
   ABOUT_BOOT_LANDMARKS["desk-lamp"].sceneScale;
@@ -55,6 +60,30 @@ export const ABOUT_LAMP_HEAD_QUATERNION: QuaternionTuple =
     rootYaw: ABOUT_LAMP_ROOT_YAW,
     rootScale: ABOUT_LAMP_ROOT_SCALE,
   });
+
+/** The head-on social card needs less camera reveal than the moving scene.
+ * Aim lower and nearly parallel to the shelf so the shade clearly points at
+ * the two coordination marks instead of reading as camera-facing. */
+/** 0.08 when the lamp stood at x -0.87; at -1.16 the camera already sees
+ * more of the mouth, so 0.056 keeps the capture's camera-facing at 0.08. */
+export const ABOUT_OG_LAMP_CAMERA_REVEAL = 0.056;
+export const ABOUT_OG_LAMP_HEAD_TARGET = [
+  ABOUT_COORDINATION_TARGET_X - ABOUT_BOOT_LANDMARKS["desk-lamp"].x,
+  0.09,
+  SHELF_GEOMETRY.lower.centerZ - -0.06 + ABOUT_OG_LAMP_CAMERA_REVEAL,
+] as const;
+export const ABOUT_OG_LAMP_HEAD_QUATERNION: QuaternionTuple =
+  deskLampHeadQuaternionForTarget({
+    target: ABOUT_OG_LAMP_HEAD_TARGET,
+    rootYaw: ABOUT_LAMP_ROOT_YAW,
+    rootScale: ABOUT_LAMP_ROOT_SCALE,
+  });
+
+export function aboutLampHeadQuaternion(headOnCapture: boolean) {
+  return headOnCapture
+    ? ABOUT_OG_LAMP_HEAD_QUATERNION
+    : ABOUT_LAMP_HEAD_QUATERNION;
+}
 
 const ABOUT_LAMP_PERCH_LOCAL = [-0.0065, 0.4155, 0.0399] as const;
 const ABOUT_LAMP_PERCH_NORMAL_LOCAL = [0, 0.9166, -0.3998] as const;

@@ -4,8 +4,9 @@
 // The box is never the anchor. Perch anchors are authored from measured
 // contacts — a raycast onto the owner's real triangles, read back off the dev
 // bridge — because a box top can sit well above any surface a probe can hit
-// (the sailboat mast shares one mesh with the hull and its box top is 13 cm
-// proud of the mast). This only narrows the search.
+// (the retired sailboat's mast shared one mesh with its hull and its box top
+// was 13 cm proud of the mast; the lighthouse tower's box reaches its lantern
+// floor). This only narrows the search.
 import { chromium } from "playwright";
 
 const URL = process.env.STACKS_URL ?? "http://localhost:3000";

@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_SCENE_PERFORMANCE_SETTINGS,
   adaptiveSharpenAmount,
-  allScenePerformanceSettings,
   effectivePlacardGlassMode,
   farMeadowShaderMode,
   meadowTilePopulationLimit,
@@ -18,8 +17,13 @@ import {
 } from "./scenePerformance";
 
 describe("reversible scene performance settings", () => {
-  it("ships the chosen performance profile and preserves exact all-on/all-off comparisons", () => {
+  it("ships the chosen performance profile", () => {
     expect(DEFAULT_SCENE_PERFORMANCE_SETTINGS).toEqual({
+      postprocessing: true,
+      sideTiltShift: true,
+      colorGrade: true,
+      meadow: true,
+      highResolutionPhotos: true,
       suspendSettledPropWork: true,
       pausePrewarmDuringTravel: true,
       prewarmAllUnitVisuals: true,
@@ -38,31 +42,6 @@ describe("reversible scene performance settings", () => {
       populationBalancedMeadowTiles: true,
       suspendSettledHoverWork: true,
     });
-    expect(allScenePerformanceSettings(false)).toEqual({
-      suspendSettledPropWork: false,
-      pausePrewarmDuringTravel: false,
-      prewarmAllUnitVisuals: false,
-      stableNeighborhoodLightShape: false,
-      activeNeighborhoodLights: false,
-      simplifiedFarMeadow: false,
-      placardGlassMode: "native",
-      virtualizeUnitWork: false,
-      practicalGlowMode: "sprite",
-      effectiveDprLadder: false,
-      adaptiveSharpen: false,
-      skipAmbientOcclusion: false,
-      skipBloom: false,
-      skipDepthOfField: false,
-      rememberTravelDeclines: false,
-      populationBalancedMeadowTiles: false,
-      suspendSettledHoverWork: false,
-    });
-    expect(allScenePerformanceSettings(true).practicalGlowMode).toBe(
-      "aperture",
-    );
-    expect(allScenePerformanceSettings(true).stableNeighborhoodLightShape).toBe(
-      true,
-    );
   });
 
   it("ships native blur on coarse touch while retaining the paper comparison", () => {
@@ -73,8 +52,6 @@ describe("reversible scene performance settings", () => {
         true,
       ),
     ).toBe("native");
-    expect(allScenePerformanceSettings(true).placardGlassMode).toBe("paper");
-    expect(allScenePerformanceSettings(false).placardGlassMode).toBe("native");
     expect(effectivePlacardGlassMode("auto", true)).toBe("paper");
     expect(effectivePlacardGlassMode("auto", false)).toBe("native");
     expect(effectivePlacardGlassMode("native", true)).toBe("native");

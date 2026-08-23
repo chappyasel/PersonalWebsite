@@ -11,7 +11,20 @@ export type FreeRoamPose = Readonly<{
 
 type FreeRoamStorage = Pick<Storage, "getItem" | "setItem">;
 
-export const FREE_ROAM_STORAGE_KEY = "stacks-free-roam:v1";
+/**
+ * Fog is on for everyone except a free-roam camera that has switched it off.
+ *
+ * Free roam exists to inspect geometry, and full fog hides exactly what it is
+ * flown out there to look at. The scene dome and the meadow shader each own a
+ * separate expression of this and had drifted into opposite spellings of the
+ * same rule, so they read it from here instead.
+ */
+export function freeRoamFogVisible(
+  state: Pick<FreeRoamDiagnosticsState, "enabled" | "fogEnabled">,
+): boolean {
+  return !state.enabled || state.fogEnabled;
+}
+
 export const FREE_ROAM_POSE_STORAGE_KEY = "stacks-free-roam-pose:v1";
 
 function isFiniteTriplet(value: unknown): value is [number, number, number] {
@@ -22,25 +35,6 @@ function isFiniteTriplet(value: unknown): value is [number, number, number] {
       typeof component === "number" ? Number.isFinite(component) : false,
     )
   );
-}
-
-export function readFreeRoamEnabled(storage: FreeRoamStorage | null) {
-  try {
-    return storage?.getItem(FREE_ROAM_STORAGE_KEY) === "true";
-  } catch {
-    return false;
-  }
-}
-
-export function writeFreeRoamEnabled(
-  storage: FreeRoamStorage | null,
-  enabled: boolean,
-) {
-  try {
-    storage?.setItem(FREE_ROAM_STORAGE_KEY, String(enabled));
-  } catch {
-    // Dev convenience must not break the scene in hardened browser contexts.
-  }
 }
 
 export function readFreeRoamPose(
@@ -139,3 +133,36 @@ export function createFreeRoamDiagnosticsController() {
 
 export const freeRoamDiagnosticsController =
   createFreeRoamDiagnosticsController();
+
+type FreeRoamEntryController = Readonly<{
+  getSnapshot: () => FreeRoamDiagnosticsState;
+  subscribe: (listener: () => void) => () => unknown;
+}>;
+
+/**
+ * Notify the caller once per entry into free roam and return the disconnect.
+ * Debug overrides deliberately reset on reload; only the inspection pose is
+ * persisted. Publications for fog and pose changes must not repeat the entry
+ * side effect because dismissing the mobile sheet also changes history.
+ */
+export function connectFreeRoamEntryObserver({
+  controller,
+  onEnabled,
+}: {
+  controller: FreeRoamEntryController;
+  onEnabled: () => void;
+}): () => void {
+  let wasEnabled = controller.getSnapshot().enabled;
+  if (wasEnabled) onEnabled();
+  const sync = () => {
+    const { enabled } = controller.getSnapshot();
+    const entered = enabled && !wasEnabled;
+    wasEnabled = enabled;
+    if (entered) onEnabled();
+  };
+  sync();
+  const unsubscribe = controller.subscribe(sync);
+  return () => {
+    unsubscribe();
+  };
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { LIFT_LAMBDA, TIP } from "./Lift";
+import { TIP } from "./Lift";
 import { TILT_MAX_SIZE } from "./interaction";
 import {
   FLUTTER_MAX_KG,
@@ -89,7 +89,9 @@ describe("reaction archetype derivation", () => {
     const population: Array<[string, number, string]> = [
       ["vineyard-vines sticker", 0.006, "flutter"],
       ["liars dice die", 0.025, "flutter"],
+      ["vineyard cutout", 0.14, "tip"],
       ["harmonica", 0.18, "tip"],
+      ["trust essay", 0.2, "tip"],
       ["phone", 0.19, "tip"],
       ["shaker", 0.25, "tip"],
       ["tea cup", 0.3, "tip"],
@@ -108,7 +110,7 @@ describe("reaction archetype derivation", () => {
       ["book pile volume", 0.72, "tip"],
       ["photo frame", 0.82, "tip"],
       ["protein tub", 0.9, "tip"],
-      ["sailboat", 0.9, "tip"],
+      ["lighthouse", 1.1, "tip"],
       ["globe", 1.4, "tip"],
       ["trophy", 1.8, "tip"],
       ["mac", 7.5, "strain"],

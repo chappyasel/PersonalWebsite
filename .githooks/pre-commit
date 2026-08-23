@@ -1,0 +1,4 @@
+#!/bin/sh
+if ! node scripts/check-home-og-freshness.mjs --staged; then
+  echo "Homepage OG freshness is advisory; the commit will continue."
+fi

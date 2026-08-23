@@ -28,6 +28,8 @@
 // while being dead under a real trackpad. A window listener keyed off the
 // store's hover slot consults none of that machinery. The r3f handler stays,
 // but only to swallow the tap so it cannot also reach the unit travel plane.
+import { capture } from "../../../../lib/analytics";
+import { UNITS } from "../data";
 import { useStacks } from "../store";
 import { type ThreeEvent } from "@react-three/fiber";
 import { useRouter } from "next/navigation";
@@ -70,6 +72,11 @@ export function propHref(to: PropDestination): string {
   return destinationFor(to).href;
 }
 
+type DoorAnalyticsContext = {
+  doorId: string;
+  unitIndex: number;
+};
+
 function doorFor(target: PropTarget, run: () => void): DoorSpec {
   if (target.href !== undefined) {
     return {
@@ -91,13 +98,24 @@ const DEFAULT_LIFT: [number, number, number] = [0, 0.03, 0.02];
  * doors from a prop you can also pick up — a press that never moved is a
  * click, and a prop should not have to choose between being a handle and
  * being a door. */
-export function useOpenTarget(): (target: PropTarget) => void {
+export function useOpenTarget(): (
+  target: PropTarget,
+  analyticsContext: DoorAnalyticsContext,
+) => void {
   const router = useRouter();
   // Stable across renders: Grabbable holds it in a window-listener effect, and
   // a fresh closure per render would tear the whole gesture down and rebuild
   // it on every parent re-render.
   return useCallback(
-    (target: PropTarget) => {
+    (target: PropTarget, analyticsContext: DoorAnalyticsContext) => {
+      const section = UNITS[analyticsContext.unitIndex]?.slug;
+      if (section) {
+        capture("homepage_door_activated", {
+          door_id: analyticsContext.doorId,
+          section,
+          destination: target.href !== undefined ? "external" : target.to,
+        });
+      }
       // A raw href is somebody else's site by definition — always a new tab,
       // and it wins over `to` because the two never coexist.
       if (target.href !== undefined) {
@@ -316,7 +334,14 @@ export function HoverProp(props: HoverProps) {
 
 export default function PropLink(props: HoverProps & PropTarget) {
   const open = useOpenTarget();
-  const select = useCallback(() => open(props as PropTarget), [open, props]);
+  const select = useCallback(
+    () =>
+      open(props as PropTarget, {
+        doorId: props.hoverKey,
+        unitIndex: props.unitIndex,
+      }),
+    [open, props],
+  );
   return (
     <HoverShell {...props} onSelect={select} doorTarget={props as PropTarget} />
   );
