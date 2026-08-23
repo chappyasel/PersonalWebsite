@@ -40,6 +40,7 @@ import {
 } from "./interactionRegistry";
 import { claimEffectLayer, effectLayerAges } from "./layeredEffects";
 import { MEADOW_LAYOUT_REVISION } from "./meadowField";
+import { projectArtifactRoomLighting } from "./projectArtifactLighting";
 import { type SceneQualityPlan } from "./quality";
 import {
   SCENE_IMPULSE_SKY_DURATION,
@@ -3310,7 +3311,8 @@ function RoomEnvironment({
   dark: boolean;
   flickerSignal: CoordinationFlickerSignal | null;
 }) {
-  const baseIntensity = dark ? 0.45 : DAYLIGHT_RENDERING.environmentIntensity;
+  const lighting = projectArtifactRoomLighting(dark);
+  const baseIntensity = lighting.environmentIntensity;
   return (
     <>
       <Environment
@@ -3320,9 +3322,9 @@ function RoomEnvironment({
       >
         <Lightformer
           form="rect"
-          color={dark ? "#ffc98f" : "#ffe4cb"}
-          intensity={dark ? 1.5 : DAYLIGHT_RENDERING.environmentWarmIntensity}
-          position={[4, 3, 4]}
+          color={lighting.warmEnvironment.color}
+          intensity={lighting.warmEnvironment.intensity}
+          position={lighting.warmEnvironment.position}
           scale={10}
           target={[0, 0, 0]}
         />
@@ -3331,17 +3333,17 @@ function RoomEnvironment({
             sky the dome is painting. */}
         <Lightformer
           form="rect"
-          color={dark ? "#414f70" : "#8ca4bd"}
-          intensity={dark ? 1.3 : DAYLIGHT_RENDERING.environmentCoolIntensity}
-          position={[-5, 2, 1]}
+          color={lighting.coolEnvironment.color}
+          intensity={lighting.coolEnvironment.intensity}
+          position={lighting.coolEnvironment.position}
           scale={8}
           target={[0, 0, 0]}
         />
         <Lightformer
           form="circle"
-          color={dark ? "#5b432c" : "#aeb4bb"}
-          intensity={0.5}
-          position={[0, -4, 2]}
+          color={lighting.groundEnvironment.color}
+          intensity={lighting.groundEnvironment.intensity}
+          position={lighting.groundEnvironment.position}
           scale={8}
           target={[0, 0, 0]}
         />
@@ -3696,25 +3698,27 @@ function KeyLight({
   const lightRef = useRef<THREE.DirectionalLight>(null);
   const hemiRef = useRef<THREE.HemisphereLight>(null);
   const scene = useThree((s) => s.scene);
-  const dawnLight = useMemo(
-    () => ({
-      keyEarly: new THREE.Color("#fff3e6"),
+  const lighting = projectArtifactRoomLighting(dark);
+  const dawnLight = useMemo(() => {
+    const light = projectArtifactRoomLighting(false);
+    const night = projectArtifactRoomLighting(true);
+    return {
+      keyEarly: new THREE.Color(light.key.color),
       keyLate: new THREE.Color("#ffe5c8"),
-      skyEarly: new THREE.Color("#eaf3ff"),
+      skyEarly: new THREE.Color(light.hemisphere.color),
       skyLate: new THREE.Color("#fff0df"),
-      groundEarly: new THREE.Color("#a8b2bf"),
+      groundEarly: new THREE.Color(light.hemisphere.groundColor),
       groundLate: new THREE.Color("#b8aea7"),
       // Night still has a warm frontal key, but its broad fill comes from the
       // blue hour sky.  The old ochre hemisphere multiplied every dark-theme
       // albedo toward the same brown and left low-facing props nearly black.
       // These sources touch lit materials only: the authored sky dome, moon,
       // skyline and DOM chrome are all outside this lighting path.
-      keyDark: new THREE.Color("#efd0b1"),
-      skyDark: new THREE.Color("#91a6c9"),
-      groundDark: new THREE.Color("#33291f"),
-    }),
-    [],
-  );
+      keyDark: new THREE.Color(night.key.color),
+      skyDark: new THREE.Color(night.hemisphere.color),
+      groundDark: new THREE.Color(night.hemisphere.groundColor),
+    };
+  }, []);
   useEffect(() => {
     const light = lightRef.current;
     if (!light) return;
@@ -3786,9 +3790,9 @@ function KeyLight({
     <>
       <hemisphereLight
         ref={hemiRef}
-        color={dark ? "#91a6c9" : "#eaf3ff"}
-        groundColor={dark ? "#33291f" : "#a8b2bf"}
-        intensity={dark ? 1.2 : DAYLIGHT_RENDERING.hemisphereIntensity[0]}
+        color={lighting.hemisphere.color}
+        groundColor={lighting.hemisphere.groundColor}
+        intensity={lighting.hemisphere.intensity}
       />
       {cinematicPlus ? (
         <CinematicSunShadowRig lightRef={lightRef} />
@@ -3796,11 +3800,11 @@ function KeyLight({
         <directionalLight
           key="production-key"
           ref={lightRef}
-          position={[4, 6.5, 6]}
-          intensity={dark ? 1.35 : DAYLIGHT_RENDERING.directionalIntensity[0]}
+          position={lighting.key.position}
+          intensity={lighting.key.intensity}
           // Dark key remains unchanged. The light key starts neutral-warm and
           // follows the scroll-driven morning in useFrame above.
-          color={dark ? "#efd0b1" : "#fff3e6"}
+          color={lighting.key.color}
         />
       )}
     </>

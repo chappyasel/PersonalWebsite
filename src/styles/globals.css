@@ -318,6 +318,230 @@ html[data-font="literata"] {
   transform: scale(0.95);
 }
 
+/* Artifact previews render one count-and-arrows control in their overlay so
+ * the same 44px targets exist on touch and fine-pointer layouts. The library's
+ * built-in arrows are desktop-only and would duplicate that control. */
+.stacks-artifact-preview .PhotoView-Slider__ArrowLeft,
+.stacks-artifact-preview .PhotoView-Slider__ArrowRight {
+  display: none;
+}
+
+/* Keep the room present behind an inspected artifact without competing with
+ * the image. The viewer owns the transition; this layer only supplies the
+ * same warm, translucent material used by the scene's placards and cards. */
+.stacks-artifact-preview-mask {
+  background: radial-gradient(
+    ellipse at 50% 38%,
+    rgb(184 153 107 / 0.2) 0%,
+    rgb(64 52 39 / 0.68) 54%,
+    rgb(23 19 15 / 0.9) 100%
+  ) !important;
+  backdrop-filter: blur(24px) saturate(0.5) brightness(0.72);
+  -webkit-backdrop-filter: blur(24px) saturate(0.5) brightness(0.72);
+}
+
+.dark .stacks-artifact-preview-mask {
+  background: radial-gradient(
+    ellipse at 50% 38%,
+    rgb(78 87 105 / 0.2) 0%,
+    rgb(23 27 35 / 0.76) 56%,
+    rgb(8 10 14 / 0.92) 100%
+  ) !important;
+  backdrop-filter: blur(24px) saturate(0.42) brightness(0.58);
+  -webkit-backdrop-filter: blur(24px) saturate(0.42) brightness(0.58);
+}
+
+/* Keep the source and its DOM clone solid at both ends of the morph. Their
+ * complementary opacity handoff happens only through the middle 40%. */
+@keyframes stacks-artifact-preview-fade-in {
+  from,
+  30% {
+    opacity: 0;
+  }
+  70%,
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes stacks-artifact-preview-fade-out {
+  from,
+  30% {
+    opacity: 1;
+  }
+  70%,
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes stacks-artifact-preview-mask-in {
+  from,
+  30% {
+    opacity: 0;
+  }
+  70%,
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes stacks-artifact-preview-mask-out {
+  from,
+  30% {
+    opacity: 1;
+  }
+  70%,
+  to {
+    opacity: 0;
+  }
+}
+
+.stacks-artifact-preview-mask.PhotoView-Slider__fadeIn {
+  animation: stacks-artifact-preview-mask-in 360ms linear both;
+}
+
+.stacks-artifact-preview-mask.PhotoView-Slider__fadeOut {
+  animation: stacks-artifact-preview-mask-out 360ms linear both;
+}
+
+[data-scene-artifact-preview-image][data-scene-artifact-preview-opening] {
+  animation: stacks-artifact-preview-fade-in 360ms linear both;
+}
+
+[data-scene-artifact-preview-image][data-scene-artifact-preview-closing] {
+  animation: stacks-artifact-preview-fade-out 360ms linear both;
+}
+
+/* Index changes are a plain directional slide. Once the origin handoff has
+ * finished, the viewer must not reapply its image-load opacity transition. */
+[data-scene-artifact-preview-image]:not(
+    [data-scene-artifact-preview-opening]
+  ):not([data-scene-artifact-preview-closing]) {
+  opacity: 1 !important;
+}
+
+/* The photo viewer keeps its own image morph and backdrop fade. Preview chrome
+ * follows the viewer's overlay state so controls leave before the reverse
+ * morph begins and return only when the enlarged image has settled. */
+[data-scene-artifact-inspector] [data-artifact-preview-scrim] {
+  opacity: 0;
+  transition: opacity 160ms ease-out;
+}
+
+[data-scene-artifact-inspector] [data-artifact-preview-control],
+[data-scene-artifact-inspector] [data-artifact-preview-caption] {
+  opacity: 0;
+  transform: translate3d(0, 7px, 0) scale(0.97);
+  transition:
+    opacity 150ms ease-out,
+    transform 150ms cubic-bezier(0.4, 0, 1, 1),
+    background-color 150ms ease-out,
+    border-color 150ms ease-out,
+    color 150ms ease-out;
+}
+
+[data-scene-artifact-inspector] [data-artifact-preview-control] {
+  pointer-events: none;
+}
+
+[data-scene-artifact-inspector] [data-artifact-preview-control="close"] {
+  transform: translate3d(0, -6px, 0) scale(0.97);
+}
+
+[data-scene-artifact-inspector][data-preview-chrome-visible]
+  [data-artifact-preview-scrim] {
+  opacity: 1;
+  transition-duration: 240ms;
+}
+
+[data-scene-artifact-inspector][data-preview-chrome-visible]
+  [data-artifact-preview-control],
+[data-scene-artifact-inspector][data-preview-chrome-visible]
+  [data-artifact-preview-caption] {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+  transition-duration: 260ms;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: 45ms;
+}
+
+[data-scene-artifact-inspector][data-preview-chrome-visible]
+  [data-artifact-preview-control] {
+  pointer-events: auto;
+}
+
+[data-model-artifact-backdrop] {
+  opacity: 0;
+  transition: opacity 400ms ease-out;
+}
+
+[data-model-artifact-stage-shell] {
+  opacity: 0;
+  pointer-events: none;
+  cursor: grab;
+  transition: opacity 420ms ease-in-out;
+}
+
+[data-model-artifact-phase="lifting"] [data-model-artifact-stage-shell],
+[data-model-artifact-phase="waiting-for-preview"]
+  [data-model-artifact-stage-shell],
+[data-model-artifact-phase="crossfading-in"] [data-model-artifact-stage-shell],
+[data-model-artifact-phase="inspecting"] [data-model-artifact-stage-shell] {
+  pointer-events: auto;
+}
+
+[data-model-artifact-visible] [data-model-artifact-backdrop] {
+  opacity: 1;
+  transition-duration: 440ms;
+}
+
+[data-model-artifact-visible] [data-model-artifact-stage-shell] {
+  opacity: 1;
+}
+
+[data-model-artifact-fallback] {
+  opacity: 1;
+  transition: opacity 180ms ease-out;
+}
+
+[data-model-artifact-stage] {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stacks-artifact-preview-mask.PhotoView-Slider__fadeIn,
+  .stacks-artifact-preview-mask.PhotoView-Slider__fadeOut {
+    animation-duration: 0ms;
+  }
+
+  [data-scene-artifact-preview-image][data-scene-artifact-preview-opening] {
+    animation: none;
+    opacity: 1 !important;
+  }
+
+  [data-scene-artifact-preview-image][data-scene-artifact-preview-closing] {
+    animation: none;
+    opacity: 0 !important;
+  }
+
+  [data-scene-artifact-inspector] [data-artifact-preview-scrim],
+  [data-scene-artifact-inspector] [data-artifact-preview-control],
+  [data-scene-artifact-inspector] [data-artifact-preview-caption] {
+    transform: none;
+    transition-duration: 0ms;
+    transition-delay: 0ms;
+  }
+
+  [data-model-artifact-backdrop],
+  [data-model-artifact-stage-shell],
+  [data-model-artifact-fallback],
+  [data-model-artifact-stage] {
+    transition-duration: 0ms !important;
+    transition-delay: 0ms !important;
+  }
+}
+
 /*
  * Deep-link expand, zero JS: when a collapsible routine section is the URL
  * fragment target (e.g. /routine#supp-stacks), the browser expands it at first

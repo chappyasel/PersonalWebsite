@@ -33,6 +33,7 @@ function boundsColor(spec: SceneInteractionSpec) {
   if (spec.activation?.kind === "door") return "#ff4dc4";
   if (spec.activation?.kind === "action") return "#b48cff";
   if (spec.activation?.kind === "egg") return "#ff9d4d";
+  if (spec.activation?.kind === "artifact") return "#58d5a7";
   if (spec.movable) return "#44d7ff";
   return "#d8e0e8";
 }

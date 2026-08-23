@@ -8,11 +8,13 @@ import {
   GOLF_BALL_UNTEED_START,
   GOLF_CLUB_HEAD_MODEL_BOUNDS,
   GOLF_CLUB_REST_BASE,
+  GOLF_HITTING_BAY,
   GOLF_TEES_INTERACTIVE,
   GOLF_TEE_LAYOUT,
   GOLF_TEE_MODEL_HEIGHT,
   GOLF_TEE_VISIBLE_HEIGHT,
   golfClubContactBeforeModelYaw,
+  inGolfHittingBay,
 } from "./golfLayout";
 
 describe("authored golf bay composition", () => {
@@ -81,5 +83,30 @@ describe("authored golf bay composition", () => {
       new Set(["#f2ede2"]),
     );
     expect(GOLF_TEES_INTERACTIVE).toBe(true);
+  });
+});
+
+describe("the loose-ball hitting bay", () => {
+  it("covers every authored golf ball and the club's rest", () => {
+    for (const id of GOLF_BALL_IDS) {
+      const start = GOLF_BALL_STARTS[id];
+      expect(
+        inGolfHittingBay({ ...start, y: start.y - GOLF_BALL_RADIUS }),
+      ).toBe(true);
+    }
+    expect(inGolfHittingBay(GOLF_CLUB_REST_BASE)).toBe(true);
+  });
+
+  it("stops short of the shelf and ignores a ball held in the air", () => {
+    const floor = SHELF_GEOMETRY.groundY;
+    // The plank's left edge is x -1.32; a ball dropped beside the strap is
+    // on the floor but not teed up.
+    expect(inGolfHittingBay({ x: -1.3, y: floor, z: 0.2 })).toBe(false);
+    expect(GOLF_HITTING_BAY.x[1]).toBeLessThan(-SHELF_GEOMETRY.width / 2);
+    // The barbell's bay behind the unit is not the hitting bay.
+    expect(inGolfHittingBay({ x: 1.92, y: floor, z: -1.04 })).toBe(false);
+    // Same spot, carried: not still on the floor.
+    expect(inGolfHittingBay({ x: -2.2, y: floor + 0.8, z: 0.4 })).toBe(false);
+    expect(inGolfHittingBay({ x: -2.2, y: floor + 0.1, z: 0.4 })).toBe(true);
   });
 });

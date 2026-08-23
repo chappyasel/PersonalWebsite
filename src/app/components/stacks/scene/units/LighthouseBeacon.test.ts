@@ -53,6 +53,12 @@ describe("lighthouse beacon motion", () => {
     expect(beaconSource).toContain("uPower");
   });
 
+  it("never writes a NaN pixel for bloom to smear into a black block", () => {
+    expect(beaconSource).toContain("vec2 beamUv = clamp(vBeamUv, 0.0, 1.0);");
+    expect(beaconSource).toContain("if (!(alpha >= 0.002)) discard;");
+    expect(beaconSource).not.toMatch(/pow\(vBeamUv/);
+  });
+
   it("feeds an HDR source to bloom and keeps a direct-render fallback", () => {
     expect(beaconSource).toContain("state.bloomActive");
     expect(beaconSource).toContain("multiplyScalar(sourceGain)");

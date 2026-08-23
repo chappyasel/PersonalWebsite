@@ -3,6 +3,7 @@
 // Featured talks — five candid event photographs, foliage, books, and a floor
 // lamp. The stills keep their native aspect ratios instead of being recropped
 // into one repeated thumbnail shape.
+import type { PhotoArtifactId } from "../../sceneArtifacts";
 import { useStacks } from "../../store";
 import Grabbable from "../Grabbable";
 import { FootPool } from "../GroundPool";
@@ -14,13 +15,7 @@ import {
   TALKS_FLOOR_SHADE_RADIUS,
   registerMeadowLamp,
 } from "../meadowLights";
-import {
-  DeskFrame,
-  PHOTO_LINKS,
-  deskFrameHeight,
-  photoDoorDetail,
-  photoDoorLabel,
-} from "../photos";
+import { DeskFrame, deskFrameHeight } from "../photos";
 import { ApertureHalo, GlowSprite, ShelfUnit } from "../primitives";
 import { sceneUnitLightUserData } from "../sceneGpuPrewarm";
 import { useUnitRealLights } from "../scenePerformance";
@@ -283,7 +278,7 @@ function TalkPhoto({
 }: {
   unitIndex: number;
   palette: UnitProps["palette"];
-  id: string;
+  id: PhotoArtifactId;
   base: [number, number, number];
   seat: number;
   rotation: [number, number, number];
@@ -291,7 +286,6 @@ function TalkPhoto({
   children: React.ReactNode;
 }) {
   const hoverKey = `grab:photo:${id}`;
-  const href = PHOTO_LINKS[id] ?? null;
   return (
     <Grabbable
       unitIndex={unitIndex}
@@ -301,9 +295,7 @@ function TalkPhoto({
       shadeWidth={Math.max(0.34, width * 1.08)}
       shape="box"
       massKg={0.58}
-      href={href ?? undefined}
-      doorLabel={href ? photoDoorLabel(href) : undefined}
-      doorDetail={href ? photoDoorDetail(href) : undefined}
+      artifact={id}
     >
       <HeldFacing hoverKey={hoverKey} position={[0, seat, 0]} rest={rotation}>
         {children}

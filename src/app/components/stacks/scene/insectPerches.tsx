@@ -833,17 +833,22 @@ const UNIT_PERCHES: readonly (readonly PerchDefinition[])[] = [
       contactDistanceTolerance: 0.06,
     },
     {
+      // The tub moved up to the top shelf's back row; same lid, translated.
       id: "training:protein-lid",
-      position: [0.38, -0.2824, 0.04],
+      position: [0.42, 0.509, -0.2],
       normal: [0, 1, 0],
       tangent: [0.9553, 0, -0.2955],
       ownerId: "grab:protein",
     },
     {
+      // The dumbbell came down to the lower shelf and lies across it at an
+      // angle; this is the same measured point on the plate, carried through
+      // that rigid move (yaw 1.18 to -0.45, base to [0.4, lower, -0.09]; the
+      // plank surfaces are 0.8775 apart).
       id: "training:dumbbell-left-plate",
-      position: [-1.1097, 0.2814, 0.3055],
+      position: [0.2501, -0.5961, -0.1887],
       normal: [0, 1, 0],
-      tangent: [0.3809, 0, -0.9246],
+      tangent: [0.9005, 0, 0.435],
       ownerId: "grab:dumbbell:training:left",
     },
     {
@@ -864,32 +869,44 @@ const UNIT_PERCHES: readonly (readonly PerchDefinition[])[] = [
       // shaker, and as far out in z as the ring goes — z is the only axis with
       // open air on both sides.
       id: "training:navy-shaker-rim",
-      position: [1.0813, 0.412, -0.0259],
+      position: [1.1213, 0.412, -0.0459],
       normal: [0, 1, 0],
       tangent: [1, 0, 0],
       ownerId: "grab:shaker:training-navy",
       contactDistanceTolerance: 0.02,
     },
     {
-      id: "training:kettlebell-handle",
-      position: [0.4804, 0.5521, 0.0508],
-      normal: [0.1012, 0.9656, -0.2395],
-      tangent: [0.9949, -0.0983, 0.0244],
-      ownerId: "grab:kettlebell",
+      // The kettlebell moved to the floor and the compact dumbbell took its
+      // place on the top shelf, so this is the inner plate of that dumbbell:
+      // the same flat plate top the left dumbbell offers, on the other side
+      // of the board.
+      // This dumbbell now stands front-to-back at the top-left, in the pose
+      // the left one used to hold, at scale 1.42 instead of 1.55 and yaw
+      // 1.3: the left dumbbell's measured plate point, scaled by 1.42/1.55
+      // and carried to base [-1.1, 0, 0.18].
+      id: "training:dumbbell-right-plate",
+      position: [-1.1645, 0.2608, 0.3314],
+      normal: [0, 1, 0],
+      tangent: [0.2675, 0, -0.9636],
+      ownerId: "grab:dumbbell:training:right",
     },
     {
       id: "training:golf-flag-frame-top",
-      position: [-0.7395, -0.5564, 0.1039],
+      position: [-0.6876, -0.4764, 0.1023],
       normal: [0.0198, 0.9945, -0.1026],
       tangent: [0.9998, -0.0197, 0.002],
       ownerId: "grab:photo:training-golf-flag-v8",
     },
     {
-      id: "training:mtn-dew-lid",
-      position: [0.03, -0.6127, 0.1],
-      normal: [0.0437, 0.9929, 0.1111],
-      tangent: [0.999, -0.0434, -0.0049],
-      ownerId: "grab:can:mtn-dew-zero",
+      // The cans stack two-and-one now, Sunkist on top, so its lid is the
+      // one can top with open air above it; the two below are half covered.
+      // The pyramid stands on the lower shelf between the golf balls and the
+      // dumbbell.
+      id: "training:sunkist-lid",
+      position: [-0.088, -0.3827, 0.08],
+      normal: [0.0184, 0.9929, 0.1179],
+      tangent: [0.9998, -0.0183, -0.0022],
+      ownerId: "grab:can:sunkist-zero",
     },
   ],
   [

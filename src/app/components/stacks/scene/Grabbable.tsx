@@ -35,6 +35,14 @@
 // and its contact stays behind on the wood, which instantly reads as broken.
 // Grabbable therefore owns its own shade and drives it: it tracks the prop's
 // x/z, stays on the wood, and spreads and fades as the object rises.
+import {
+  ARTIFACT_PREVIEW_CROSSFADE_START,
+  ARTIFACT_PREVIEW_DURATION_MS,
+  artifactPreviewCrossfade,
+  artifactPreviewEase,
+} from "../modal/artifactPreviewMotion";
+import { openSceneArtifact } from "../sceneArtifactState";
+import { type SceneArtifactId, sceneArtifactById } from "../sceneArtifacts";
 import { useStacks } from "../store";
 import { type ThreeEvent, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useMemo, useRef } from "react";
@@ -46,6 +54,7 @@ import {
   type PhysicsSceneScope,
   usePhysicsScene,
 } from "./PhysicsSceneProvider";
+import { registerHittableBall, tapHittableBall } from "./golf/hittableBalls";
 import { grabbablePhysicsEnabled } from "./grabbablePhysics";
 import {
   heldDepthBounds,
@@ -73,6 +82,7 @@ import {
 } from "./interactionRegistry";
 import { leanBudget } from "./leanClearance";
 import { type PropDestination, useOpenTarget } from "./links";
+import { modelArtifactDiagnosticsController } from "./modelArtifactDiagnostics";
 import type {
   HeldMoveResult,
   HeldPose,
@@ -98,11 +108,11 @@ import {
   sceneImpulseKick,
   stepSceneImpulseMotion,
 } from "./sceneImpulse";
+import { sceneLayoutEditorController } from "./sceneLayoutEditor";
 import {
   scenePerformanceController,
   shouldSuspendSettledPropFrame,
 } from "./scenePerformance";
-import { sceneLayoutEditorController } from "./sceneLayoutEditor";
 import { SHELF_GEOMETRY } from "./shelfGeometry";
 import {
   type SwaySpring,
@@ -115,6 +125,9 @@ import { sceneUnitActivityController, useUnitFrame } from "./unitActivity";
 /** Damping for the spring home — matches Lift's LAMBDA so a released prop
  * settles at the same rate the shelf's hover affordance moves. */
 const HOME_LAMBDA = 6;
+const ARTIFACT_HANDOFF_LAMBDA = 7.5;
+const ARTIFACT_CROSSFADE_LAMBDA = 10;
+const ARTIFACT_CROSSFADE_TRAVEL = 0.68;
 /** Matches ContactShade's default so a grabbable prop grounds exactly like
  * its neighbours until the moment it is picked up. */
 const SHADE_OPACITY = 0.12;
@@ -126,6 +139,73 @@ const TAP_PX = 6;
  * under a fifth of a second, which reads as a glitch rather than a drop.
  * physics.ts carries the same number so both paths fall alike. */
 const GRAVITY = 9.81;
+
+type ArtifactMaterialState = Readonly<{
+  material: THREE.Material;
+  opacity: number;
+  transparent: boolean;
+  depthWrite: boolean;
+}>;
+
+function captureArtifactMaterials(root: THREE.Object3D) {
+  const captured: ArtifactMaterialState[] = [];
+  const seen = new Set<THREE.Material>();
+  root.traverse((node) => {
+    const mesh = node as THREE.Mesh;
+    if (!mesh.material) return;
+    const materials = Array.isArray(mesh.material)
+      ? mesh.material
+      : [mesh.material];
+    for (const material of materials) {
+      if (seen.has(material)) continue;
+      seen.add(material);
+      captured.push({
+        material,
+        opacity: material.opacity,
+        transparent: material.transparent,
+        depthWrite: material.depthWrite,
+      });
+    }
+  });
+  return captured;
+}
+
+function setArtifactOpacity(
+  captured: readonly ArtifactMaterialState[],
+  opacity: number,
+) {
+  for (const original of captured) {
+    const transparent = original.transparent || opacity < 0.999;
+    if (original.material.transparent !== transparent) {
+      original.material.transparent = transparent;
+      original.material.needsUpdate = true;
+    }
+    original.material.opacity = original.opacity * opacity;
+    original.material.depthWrite = original.depthWrite && opacity > 0.98;
+  }
+}
+
+function restoreArtifactMaterials(captured: readonly ArtifactMaterialState[]) {
+  for (const original of captured) {
+    original.material.opacity = original.opacity;
+    original.material.transparent = original.transparent;
+    original.material.depthWrite = original.depthWrite;
+    original.material.needsUpdate = true;
+  }
+}
+
+let modelArtifactPreviewWarmup: Promise<unknown> | null = null;
+
+function prewarmModelArtifactPreview(artwork: string) {
+  if (
+    !modelArtifactDiagnosticsController.getSnapshot().rendererEnabled ||
+    typeof window === "undefined"
+  )
+    return;
+  modelArtifactPreviewWarmup ??= import("../modal/ModelArtifactStage");
+  const image = new window.Image();
+  image.src = artwork;
+}
 
 // --- the lazily-loaded solver -----------------------------------------------
 //
@@ -378,6 +458,51 @@ function requestSceneImpulseKnockdown(
   });
 }
 
+/** A prop the golf bay has hidden sits on this layer: off every raycaster
+ * and off the camera until it shows again. */
+const BAY_HIDDEN_LAYER = 31;
+
+/** The golf bay striking a loose ball. Same solver handshake as the
+ * knockdown above, but the velocity goes through untouched: the bay has
+ * already sized it for the ball. */
+function requestSceneStrike(
+  scope: PhysicsSceneScope,
+  entry: ShelfHandle,
+  worldVelocity: THREE.Vector3,
+  fallback: (worldVelocity: THREE.Vector3) => void,
+) {
+  const velocity = worldVelocity.clone();
+  let finished = false;
+  const launchFallback = () => {
+    if (finished || !entry.group.parent || entry.phase.current === "held")
+      return;
+    finished = true;
+    fallback(velocity);
+  };
+  void loadGrabbablePhysics().then((loaded) => {
+    if (!loaded) {
+      launchFallback();
+      return;
+    }
+    const attempt = (remaining: number) => {
+      if (finished || !entry.group.parent || entry.phase.current === "held")
+        return;
+      const prepared = loaded.prepareScenePhysics(scope, entry);
+      if (prepared.status === "ready") {
+        finished = prepared.world.strike(entry, velocity);
+        if (!finished) launchFallback();
+        return;
+      }
+      if (prepared.reason !== "geometry-pending" || remaining <= 0) {
+        launchFallback();
+        return;
+      }
+      requestAnimationFrame(() => attempt(remaining - 1));
+    };
+    attempt(12);
+  });
+}
+
 if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
   // The harness cannot see any of this from the DOM: carrying deliberately
   // re-renders nothing, and "did it collide or did it spring back" is a
@@ -452,8 +577,11 @@ export default function Grabbable({
   doorLabel,
   doorDetail,
   actionLabel,
+  artifact,
+  activateOnFirstTouch = false,
   external = true,
   onTap,
+  hittable,
   onDragIntent,
   sceneImpulseReaction = "nudge",
   projectedLocalBounds,
@@ -556,10 +684,22 @@ export default function Grabbable({
    * for (a role, a year) rather than where it goes. One string per line. */
   doorDetail?: string | readonly string[];
   actionLabel?: string;
+  /** Inspectable scene object. The catalog owns its identity, caption, touch
+   * policy, reader media, and outbound actions. Mutually exclusive with
+   * `to`, `href`, `onTap`, and `egg`. */
+  artifact?: SceneArtifactId;
+  /** Run a stationary coarse-pointer tap immediately instead of requiring a
+   * focus tap first. Use for anchored controls whose only job is activation. */
+  activateOnFirstTouch?: boolean;
   external?: boolean;
   /** Local action for a press that never became a carry. Stateful objects
    * such as featured covers use this instead of pretending to be a route. */
   onTap?: () => void;
+  /** A ball the golf club can strike once it is carried into the bay and
+   * left still. The radius is the ball's, in world units; the carrier origin
+   * is its bottom. A tap on the ball asks the bay first and falls through to
+   * the ordinary activation only if the bay declines. */
+  hittable?: { radius: number; contactHeight?: number; golf?: boolean };
   /** One-shot response when a press first crosses the drag threshold. This
    * also fires for an anchored (`draggable={false}`) object, allowing a drag
    * gesture to animate its contents without turning the object into a loose
@@ -584,6 +724,7 @@ export default function Grabbable({
 }) {
   const physicsEnabled =
     draggable && grabbablePhysicsEnabled(physicsPreference);
+  const artifactEntry = artifact ? sceneArtifactById(artifact) : null;
   const detachesFromMount = physicsDetachOffset !== undefined;
   const detachX = physicsDetachOffset?.[0] ?? 0;
   const detachY = physicsDetachOffset?.[1] ?? 0;
@@ -592,9 +733,61 @@ export default function Grabbable({
   const layoutBaseY = base[1];
   const layoutBaseZ = base[2];
   const physicsScene = usePhysicsScene();
+  const hittableRadius = hittable?.radius;
+  const hittableContactHeight = hittable?.contactHeight ?? hittableRadius;
+  const hittableGolf = hittable?.golf === true;
   const massClass = massClassFor(massKg ?? 1);
   const handling = MASS_HANDLING[massClass];
   const group = useRef<THREE.Group>(null);
+  const artifactHandoffId = useRef<SceneArtifactId | null>(null);
+  const artifactHandoffTravel = useRef(0);
+  const artifactHandoffTravelGoal = useRef(0);
+  const artifactHandoffTravelStart = useRef(0);
+  const artifactHandoffTravelElapsed = useRef(0);
+  const artifactHandoffOpacity = useRef(1);
+  const artifactHandoffStartPosition = useMemo(() => new THREE.Vector3(), []);
+  const artifactHandoffStartQuaternion = useMemo(
+    () => new THREE.Quaternion(),
+    [],
+  );
+  const artifactHandoffStartScale = useMemo(
+    () => new THREE.Vector3(1, 1, 1),
+    [],
+  );
+  const artifactHandoffLocalCenter = useMemo(() => new THREE.Vector3(), []);
+  const artifactHandoffWorldScale = useMemo(
+    () => new THREE.Vector3(1, 1, 1),
+    [],
+  );
+  const artifactHandoffWorldSize = useMemo(() => new THREE.Vector3(), []);
+  const artifactHandoffBounds = useMemo(() => new THREE.Box3(), []);
+  const artifactHandoffMaterials = useRef<ArtifactMaterialState[]>([]);
+  const artifactTargetNdc = useMemo(() => new THREE.Vector3(), []);
+  const artifactCameraPosition = useMemo(() => new THREE.Vector3(), []);
+  const artifactCameraDirection = useMemo(() => new THREE.Vector3(), []);
+  const artifactCameraUp = useMemo(() => new THREE.Vector3(), []);
+  const artifactTargetWorldPosition = useMemo(() => new THREE.Vector3(), []);
+  const artifactTargetLocalPosition = useMemo(() => new THREE.Vector3(), []);
+  const artifactCenterOffset = useMemo(() => new THREE.Vector3(), []);
+  const artifactArcLocal = useMemo(() => new THREE.Vector3(), []);
+  const artifactCameraQuaternion = useMemo(() => new THREE.Quaternion(), []);
+  const artifactRelativeQuaternion = useMemo(() => new THREE.Quaternion(), []);
+  const artifactTargetWorldQuaternion = useMemo(
+    () => new THREE.Quaternion(),
+    [],
+  );
+  const artifactTargetLocalQuaternion = useMemo(
+    () => new THREE.Quaternion(),
+    [],
+  );
+  const artifactTargetLocalScale = useMemo(
+    () => new THREE.Vector3(1, 1, 1),
+    [],
+  );
+  const artifactParentWorldQuaternion = useMemo(
+    () => new THREE.Quaternion(),
+    [],
+  );
   const impulse = useRef<THREE.Group>(null);
   /** The hover nod, on a child of the physics group rather than on the group
    * itself. Deliberate: the outer group's pose is the one the solver reads and
@@ -616,6 +809,10 @@ export default function Grabbable({
   const handledSceneImpulse = useRef(getSceneImpulse().revision);
   const hinge = useRef<Hinge | null | undefined>(undefined);
   const still = useMemo(() => reducedMotion(), []);
+  useEffect(
+    () => () => restoreArtifactMaterials(artifactHandoffMaterials.current),
+    [],
+  );
   const heldFacingQuaternion = useMemo(
     () =>
       new THREE.Quaternion().setFromEuler(
@@ -712,6 +909,10 @@ export default function Grabbable({
     velocityCap: number;
   } | null>(null);
   const authoredParked = useRef(false);
+  /** Local support height for a solver-independent golf strike. A hit must
+   * still launch if the lazy physics module or the asset collider misses its
+   * impact-frame deadline. */
+  const authoredStrikeFloorY = useRef<number | null>(null);
   const authoredOffscreenFor = useRef(0);
   const activityUnpin = useRef<(() => void) | null>(null);
   /** Normalised device coords of the carrying pointer. Tracked from the
@@ -806,6 +1007,71 @@ export default function Grabbable({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Balls the golf bay may strike. Registered after the handle exists so the
+  // bay reads the same carrier the solver writes.
+  useEffect(() => {
+    if (hittableRadius === undefined) return;
+    const entry = handle.current;
+    if (!entry) return;
+    return registerHittableBall({
+      key: hoverKey,
+      unitIndex,
+      radius: hittableRadius,
+      contactHeight: hittableContactHeight ?? hittableRadius,
+      massKg: massKg ?? 0.2,
+      bottom: (out) => entry.group.getWorldPosition(out),
+      still: () =>
+        entry.group.visible &&
+        (entry.phase.current === "rest" ||
+          (entry.phase.current === "sim" &&
+            !!entry.body &&
+            entry.body.velocity.lengthSquared() < 0.0025)),
+      strike: (worldVelocity) =>
+        requestSceneStrike(physicsScene, entry, worldVelocity, (launch) => {
+          const parent = entry.group.parent;
+          if (!parent) return;
+          const parentRotation = parent.getWorldQuaternion(
+            new THREE.Quaternion(),
+          );
+          velocity.copy(launch).applyQuaternion(parentRotation.invert());
+          const floor = entry.group.getWorldPosition(new THREE.Vector3());
+          floor.y = SHELF_GEOMETRY.groundY;
+          parent.worldToLocal(floor);
+          authoredStrikeFloorY.current = floor.y;
+          authoredParked.current = false;
+          phase.current = "settling";
+        }),
+      golf: hittableGolf,
+      // Hidden while a ghost flies its shot. Parked home first so the prop
+      // is where the shot's reset expects it when it shows again. The shade
+      // is a sibling sprite, not a child, so it is hidden by hand.
+      // Neither raycaster (r3f's or the gesture dispatcher's) skips an
+      // invisible object, so the subtree also leaves layer 0 while hidden:
+      // no hover, no tap, no render, until the ghost resets.
+      hide: () => {
+        entry.world?.park(entry, true);
+        entry.group.visible = false;
+        entry.group.traverse((node) => node.layers.set(BAY_HIDDEN_LAYER));
+        if (shade.current) shade.current.visible = false;
+      },
+      show: () => {
+        entry.world?.park(entry, true);
+        entry.group.traverse((node) => node.layers.set(0));
+        entry.group.visible = true;
+        if (shade.current) shade.current.visible = true;
+      },
+    });
+  }, [
+    hittableContactHeight,
+    hittableGolf,
+    hittableRadius,
+    hoverKey,
+    massKg,
+    physicsScene,
+    unitIndex,
+    velocity,
+  ]);
 
   // Grab and release ride WINDOW pointer events keyed off the hover slot,
   // not r3f's per-object onPointerDown. Measured, not preferred: with the
@@ -1067,6 +1333,29 @@ export default function Grabbable({
     [beginCarry, track, world],
   );
 
+  const runStationaryActivation = useCallback(() => {
+    if (sceneLayoutEditorController.owns(hoverKey)) return;
+    if (hittableRadius !== undefined && tapHittableBall(hoverKey)) return;
+    if (artifact) openSceneArtifact(artifact);
+    else if (onTapRef.current) onTapRef.current();
+    else if (to !== undefined) open({ to }, { doorId: hoverKey, unitIndex });
+    else if (href !== undefined)
+      open(
+        { href, label: doorLabel ?? "Open link", external },
+        { doorId: hoverKey, unitIndex },
+      );
+  }, [
+    artifact,
+    doorLabel,
+    external,
+    hittableRadius,
+    href,
+    hoverKey,
+    open,
+    to,
+    unitIndex,
+  ]);
+
   const onGrabUp = useCallback(
     (event: PointerEvent): boolean => {
       if (event.pointerId !== pointerId.current) return false;
@@ -1084,18 +1373,11 @@ export default function Grabbable({
       // (see the note above). A window pointerup consults none of that.
       if (tapped) {
         recordTap(hoverKey);
-        if (onTapRef.current) onTapRef.current();
-        else if (to !== undefined || href !== undefined)
-          open(
-            href !== undefined
-              ? { href, label: doorLabel ?? "Open link", external }
-              : { to: to! },
-            { doorId: hoverKey, unitIndex },
-          );
+        runStationaryActivation();
       }
       return true;
     },
-    [doorLabel, external, href, hoverKey, open, release, to, unitIndex],
+    [hoverKey, release, runStationaryActivation],
   );
 
   const onGrabCancel = useCallback(
@@ -1143,56 +1425,58 @@ export default function Grabbable({
   useEffect(() => {
     const root = group.current;
     if (!root) return;
-    const run = () => {
-      if (sceneLayoutEditorController.owns(hoverKey)) return;
-      if (onTapRef.current) onTapRef.current();
-      else if (to !== undefined) open({ to }, { doorId: hoverKey, unitIndex });
-      else if (href !== undefined && doorLabel)
-        open(
-          { href, label: doorLabel, external },
-          { doorId: hoverKey, unitIndex },
-        );
-    };
-    const activation = egg
-      ? ({ kind: "egg", run, reducedMotion: egg.reducedMotion } as const)
-      : to !== undefined
-        ? ({ kind: "door", ...destinationFor(to), run } as const)
-        : href !== undefined && doorLabel
+    const activation = artifactEntry
+      ? ({
+          kind: "artifact",
+          label: artifactEntry.title,
+          run: runStationaryActivation,
+        } as const)
+      : egg
+        ? ({
+            kind: "egg",
+            run: runStationaryActivation,
+            reducedMotion: egg.reducedMotion,
+          } as const)
+        : to !== undefined
           ? ({
               kind: "door",
-              label: doorLabel,
-              detail:
-                doorDetail === undefined
-                  ? undefined
-                  : typeof doorDetail === "string"
-                    ? [doorDetail]
-                    : doorDetail,
-              href,
-              external,
-              run,
+              ...destinationFor(to),
+              run: runStationaryActivation,
             } as const)
-          : onTap !== undefined && (actionLabel ?? doorLabel)
+          : href !== undefined && doorLabel
             ? ({
-                kind: "action",
-                label: actionLabel ?? doorLabel!,
-                // With both set, doorLabel names the object and actionLabel
-                // is the verb line under it ("Thinking, Fast and Slow" /
-                // "Daniel Kahneman" / "Read book notes").
-                title: actionLabel && doorLabel ? doorLabel : undefined,
+                kind: "door",
+                label: doorLabel,
                 detail:
                   doorDetail === undefined
                     ? undefined
                     : typeof doorDetail === "string"
                       ? [doorDetail]
                       : doorDetail,
-                run,
+                href,
+                external,
+                run: runStationaryActivation,
               } as const)
-            : undefined;
+            : onTap !== undefined && (actionLabel ?? doorLabel)
+              ? ({
+                  kind: "action",
+                  label: actionLabel ?? doorLabel!,
+                  title: actionLabel && doorLabel ? doorLabel : undefined,
+                  detail:
+                    doorDetail === undefined
+                      ? undefined
+                      : typeof doorDetail === "string"
+                        ? [doorDetail]
+                        : doorDetail,
+                  run: runStationaryActivation,
+                } as const)
+              : undefined;
     return registerSceneInteraction({
       id: hoverKey,
       label: activation && "label" in activation ? activation.label : hoverKey,
       root,
       activeUnits: [unitIndex],
+      activateOnFirstTouch: Boolean(artifactEntry) || activateOnFirstTouch,
       projectedLocalBounds,
       movable: draggable
         ? { massKg: massKg ?? 1, massClass, colliderProfile }
@@ -1229,10 +1513,13 @@ export default function Grabbable({
           }
         : undefined,
       activation,
-      hover: { kind: draggable && tiltOnHover ? "tilt" : "none" },
+      hover: { kind: tiltOnHover ? "tilt" : "none" },
     });
   }, [
+    activateOnFirstTouch,
     actionLabel,
+    artifact,
+    artifactEntry,
     beginCarry,
     colliderProfile,
     doorDetail,
@@ -1249,11 +1536,11 @@ export default function Grabbable({
     onGrabDown,
     onGrabMove,
     onTap,
-    open,
     projectedLocalBounds,
     release,
     startDepthGesture,
     endDepthGesture,
+    runStationaryActivation,
     tiltOnHover,
     to,
     unitIndex,
@@ -1377,13 +1664,19 @@ export default function Grabbable({
         Math.abs(g.rotation.z) <
       1e-4;
     const stacksState = useStacks.getState();
+    const artifactHandoff =
+      artifactEntry && stacksState.modelArtifactHandoff?.artifactId === artifact
+        ? stacksState.modelArtifactHandoff
+        : null;
     if (
       shouldSuspendSettledPropFrame({
         settings: scenePerformanceController.getSnapshot(),
         phase: phase.current,
         unitIndex,
         activeUnit: stacksState.activeUnit,
-        hovered: propReactionIsEngaged(stacksState, hoverKey),
+        hovered:
+          Boolean(artifactHandoff) ||
+          propReactionIsEngaged(stacksState, hoverKey),
         authoredParked: authoredParked.current,
         physicsParked: !entry || !!entry.parked,
         atAuthoredPose,
@@ -1392,7 +1685,247 @@ export default function Grabbable({
     )
       return;
 
-    if (phase.current === "held" && pointerId.current !== null) {
+    if (artifactHandoff && artifact) {
+      if (artifactHandoffId.current !== artifact) {
+        restoreArtifactMaterials(artifactHandoffMaterials.current);
+        artifactHandoffId.current = artifact;
+        artifactHandoffTravel.current = 0;
+        artifactHandoffTravelGoal.current = 0;
+        artifactHandoffTravelStart.current = 0;
+        artifactHandoffTravelElapsed.current = 0;
+        artifactHandoffOpacity.current = 1;
+        artifactHandoffStartPosition.copy(g.position);
+        artifactHandoffStartQuaternion.copy(g.quaternion);
+        artifactHandoffStartScale.copy(g.scale);
+        g.updateWorldMatrix(true, true);
+        artifactHandoffBounds.setFromObject(g);
+        artifactHandoffBounds.getCenter(artifactHandoffLocalCenter);
+        g.worldToLocal(artifactHandoffLocalCenter);
+        artifactHandoffBounds.getSize(artifactHandoffWorldSize);
+        g.getWorldScale(artifactHandoffWorldScale);
+        artifactHandoffMaterials.current = captureArtifactMaterials(g);
+      }
+
+      const target = artifactHandoff.target;
+      if (target && (camera as THREE.PerspectiveCamera).isPerspectiveCamera) {
+        const viewport = gl.domElement.getBoundingClientRect();
+        const perspective = camera as THREE.PerspectiveCamera;
+        const sourceBounds = target.sourceBounds;
+        const targetScaleFactor = sourceBounds
+          ? THREE.MathUtils.clamp(
+              Math.min(
+                target.bounds.width / Math.max(1, sourceBounds.width),
+                target.bounds.height / Math.max(1, sourceBounds.height),
+              ),
+              1,
+              4,
+            )
+          : 1;
+        artifactTargetLocalScale
+          .copy(artifactHandoffStartScale)
+          .multiplyScalar(targetScaleFactor);
+        const verticalFov = THREE.MathUtils.degToRad(perspective.fov);
+        const horizontalFov =
+          2 * Math.atan(Math.tan(verticalFov / 2) * perspective.aspect);
+        const distanceForHeight =
+          (artifactHandoffWorldSize.y * targetScaleFactor * viewport.height) /
+          (2 * Math.tan(verticalFov / 2) * target.bounds.height);
+        const distanceForWidth =
+          (artifactHandoffWorldSize.x * targetScaleFactor * viewport.width) /
+          (2 * Math.tan(horizontalFov / 2) * target.bounds.width);
+        const distance = THREE.MathUtils.clamp(
+          Math.max(distanceForHeight, distanceForWidth),
+          perspective.near + 0.2,
+          3.5,
+        );
+        artifactTargetNdc
+          .set(
+            ((target.bounds.left + target.bounds.width / 2 - viewport.left) /
+              viewport.width) *
+              2 -
+              1,
+            -(
+              ((target.bounds.top + target.bounds.height / 2 - viewport.top) /
+                viewport.height) *
+                2 -
+              1
+            ),
+            0.5,
+          )
+          .unproject(camera);
+        camera.getWorldPosition(artifactCameraPosition);
+        artifactCameraDirection
+          .subVectors(artifactTargetNdc, artifactCameraPosition)
+          .normalize();
+        camera.getWorldQuaternion(artifactCameraQuaternion);
+        artifactRelativeQuaternion.fromArray(target.cameraRelativeQuaternion);
+        artifactTargetWorldQuaternion
+          .copy(artifactCameraQuaternion)
+          .multiply(artifactRelativeQuaternion);
+        artifactCenterOffset
+          .copy(artifactHandoffLocalCenter)
+          .multiply(artifactHandoffWorldScale)
+          .multiplyScalar(targetScaleFactor)
+          .applyQuaternion(artifactTargetWorldQuaternion);
+        artifactTargetWorldPosition
+          .copy(artifactCameraPosition)
+          .addScaledVector(artifactCameraDirection, distance)
+          .sub(artifactCenterOffset);
+        artifactTargetLocalPosition.copy(artifactTargetWorldPosition);
+        artifactTargetLocalQuaternion.copy(artifactTargetWorldQuaternion);
+        artifactCameraUp.set(0, 1, 0).applyQuaternion(artifactCameraQuaternion);
+        artifactArcLocal.copy(artifactCameraUp);
+        if (g.parent) {
+          g.parent.worldToLocal(artifactTargetLocalPosition);
+          g.parent.getWorldQuaternion(artifactParentWorldQuaternion).invert();
+          artifactTargetLocalQuaternion.premultiply(
+            artifactParentWorldQuaternion,
+          );
+          artifactArcLocal.applyQuaternion(artifactParentWorldQuaternion);
+        }
+      }
+
+      const travelGoal =
+        artifactHandoff.phase === "returning" ? 0 : target ? 1 : 0;
+      let artifactHandoffTimelineProgress = artifactHandoff.reducedMotion
+        ? 1
+        : 0;
+      if (artifactHandoff.reducedMotion) {
+        artifactHandoffTravel.current = travelGoal;
+      } else if (target?.sourceBounds) {
+        // The DOM image uses the same 360ms ease-out duration. Driving the
+        // physical transform from elapsed time keeps its scale and position
+        // alongside that morph instead of letting a spring lag behind it.
+        if (artifactHandoffTravelGoal.current !== travelGoal) {
+          artifactHandoffTravelGoal.current = travelGoal;
+          artifactHandoffTravelStart.current = artifactHandoffTravel.current;
+          artifactHandoffTravelElapsed.current = 0;
+        }
+        artifactHandoffTravelElapsed.current += delta;
+        const linear = THREE.MathUtils.clamp(
+          artifactHandoffTravelElapsed.current /
+            (ARTIFACT_PREVIEW_DURATION_MS / 1000),
+          0,
+          1,
+        );
+        artifactHandoffTimelineProgress = linear;
+        const eased = artifactPreviewEase(linear);
+        artifactHandoffTravel.current = THREE.MathUtils.lerp(
+          artifactHandoffTravelStart.current,
+          travelGoal,
+          eased,
+        );
+      } else {
+        artifactHandoffTravel.current = THREE.MathUtils.damp(
+          artifactHandoffTravel.current,
+          travelGoal,
+          ARTIFACT_HANDOFF_LAMBDA,
+          delta,
+        );
+      }
+      const travel = artifactHandoffTravel.current;
+      if (target) {
+        g.position
+          .lerpVectors(
+            artifactHandoffStartPosition,
+            artifactTargetLocalPosition,
+            travel,
+          )
+          .addScaledVector(
+            artifactArcLocal,
+            target.sourceBounds ? 0 : Math.sin(Math.PI * travel) * 0.07,
+          );
+        g.quaternion.slerpQuaternions(
+          artifactHandoffStartQuaternion,
+          artifactTargetLocalQuaternion,
+          travel,
+        );
+        g.scale.lerpVectors(
+          artifactHandoffStartScale,
+          artifactTargetLocalScale,
+          travel,
+        );
+      }
+
+      const opacityGoal =
+        artifactHandoff.phase === "crossfading-in" ||
+        artifactHandoff.phase === "inspecting"
+          ? 0
+          : 1;
+      if (artifactHandoff.reducedMotion) {
+        artifactHandoffOpacity.current = opacityGoal;
+      } else if (target?.sourceBounds) {
+        if (artifactHandoff.phase === "returning")
+          artifactHandoffOpacity.current = artifactPreviewCrossfade(
+            artifactHandoffTimelineProgress,
+          );
+        else if (artifactHandoff.phase === "crossfading-in")
+          artifactHandoffOpacity.current =
+            1 - artifactPreviewCrossfade(artifactHandoffTimelineProgress);
+        else artifactHandoffOpacity.current = opacityGoal;
+      } else {
+        artifactHandoffOpacity.current = THREE.MathUtils.damp(
+          artifactHandoffOpacity.current,
+          opacityGoal,
+          ARTIFACT_CROSSFADE_LAMBDA,
+          delta,
+        );
+      }
+      setArtifactOpacity(
+        artifactHandoffMaterials.current,
+        artifactHandoffOpacity.current,
+      );
+
+      if (
+        artifactHandoff.phase === "lifting" &&
+        target &&
+        (target.sourceBounds
+          ? artifactHandoffTimelineProgress >= ARTIFACT_PREVIEW_CROSSFADE_START
+          : travel >= ARTIFACT_CROSSFADE_TRAVEL)
+      )
+        stacksState.dispatchModelArtifactHandoff({
+          type: "source-crossfade-point",
+        });
+      else if (
+        artifactHandoff.phase === "crossfading-in" &&
+        !artifactHandoff.sourceAtTarget &&
+        travel > 0.995
+      )
+        stacksState.dispatchModelArtifactHandoff({ type: "source-at-target" });
+      else if (
+        artifactHandoff.phase === "crossfading-in" &&
+        artifactHandoff.sourceAtTarget &&
+        artifactHandoffOpacity.current < 0.01
+      )
+        stacksState.dispatchModelArtifactHandoff({ type: "source-hidden" });
+      else if (
+        artifactHandoff.phase === "crossfading-out" &&
+        artifactHandoffOpacity.current > 0.99
+      )
+        stacksState.dispatchModelArtifactHandoff({ type: "source-visible" });
+      else if (
+        artifactHandoff.phase === "returning" &&
+        (target?.sourceBounds
+          ? artifactHandoffTravelElapsed.current >=
+            ARTIFACT_PREVIEW_DURATION_MS / 1000
+          : travel < 0.005)
+      ) {
+        g.position.copy(artifactHandoffStartPosition);
+        g.quaternion.copy(artifactHandoffStartQuaternion);
+        g.scale.copy(artifactHandoffStartScale);
+        restoreArtifactMaterials(artifactHandoffMaterials.current);
+        artifactHandoffMaterials.current = [];
+        artifactHandoffId.current = null;
+        stacksState.dispatchModelArtifactHandoff({ type: "source-home" });
+      }
+    } else if (artifactHandoffId.current) {
+      g.position.copy(artifactHandoffStartPosition);
+      g.quaternion.copy(artifactHandoffStartQuaternion);
+      g.scale.copy(artifactHandoffStartScale);
+      restoreArtifactMaterials(artifactHandoffMaterials.current);
+      artifactHandoffMaterials.current = [];
+      artifactHandoffId.current = null;
+    } else if (phase.current === "held" && pointerId.current !== null) {
       // Drag plane: camera-facing at the visitor-controlled hold depth, so
       // the pointer moves the object laterally while the wheel moves it along
       // the view ray. Rebuilt each frame because the camera rig keeps
@@ -1480,13 +2013,19 @@ export default function Grabbable({
       g.position.addScaledVector(velocity, delta);
       if (!heldFacingRotation) g.rotation.y += velocity.x * spin * delta;
       const surfaceY =
-        heldFacingRotation && heldMinRaise !== undefined
+        authoredStrikeFloorY.current ??
+        (heldFacingRotation && heldMinRaise !== undefined
           ? base[1] + tiltedFaceClearance(g.quaternion, heldMinRaise)
-          : base[1];
+          : base[1]);
       if (g.position.y <= surfaceY) {
         g.position.y = surfaceY;
         velocity.set(0, 0, 0);
-        if (surfaceY - base[1] < 1e-3) {
+        if (authoredStrikeFloorY.current !== null) {
+          authoredStrikeFloorY.current = null;
+          phase.current = "rest";
+          authoredParked.current = true;
+          authoredOffscreenFor.current = 0;
+        } else if (surfaceY - base[1] < 1e-3) {
           g.position.y = base[1];
           g.quaternion.identity();
           phase.current = "rest";
@@ -1640,8 +2179,10 @@ export default function Grabbable({
       }
       // ONE gesture for every band. The spring drives an unitless 0-to-1
       // engagement that both rotation channels scale, so a lean and a twist
-      // arrive, overshoot and settle as a single motion; the band supplies how
-      // far each goes and how bouncy the arrival is. This replaced a pair of
+      // arrive, overshoot and settle as a single motion. The band supplies how
+      // far each goes and how bouncy the arrival is; return is critically
+      // damped so engagement never reverses the hinge behind its rest plane.
+      // This replaced a pair of
       // exponential damps because the plants' spring was the only one in the
       // world and it read better than everything else. See reactionArchetype.
       if (wants && hinge.current) {
@@ -1673,7 +2214,9 @@ export default function Grabbable({
         const budget =
           hoverLift > 0
             ? { lean: aimed, slide: 0 }
-            : leanBudget(hinge.current, aimed);
+            : leanBudget(hinge.current, aimed, {
+                authoredAngle: hoverTiltAngle !== undefined,
+              });
         swayLean.current = budget.lean;
         swaySlide.current = cameraSideSlide(nodCameraDirection, budget.slide);
         // A prop trading its lean for a slide is not leaning, so it has no
@@ -1706,8 +2249,8 @@ export default function Grabbable({
       else n.position.set(0, 0, 0);
       n.position.y += swaySpring.angle * hoverLift;
       // Rides the SAME spring as the lean it replaced, so a book pulled out of
-      // a stack overshoots and settles exactly as its neighbour standing in
-      // the open tips and settles. One gesture, two possible directions.
+      // a stack overshoots on arrival exactly as its neighbour standing in the
+      // open does. Both return to rest without crossing the support plane.
       n.position.z += swaySpring.angle * swaySlide.current;
       if (pressed && touchPressedAt.current !== null) {
         const loaded = THREE.MathUtils.clamp(
@@ -1740,6 +2283,8 @@ export default function Grabbable({
       const w = shadeWidth * (1 + spreadT * 0.7);
       s.scale.set(w, w * 0.32, 1);
       s.material.opacity = SHADE_OPACITY * (1 - 0.65 * spreadT);
+      if (artifactHandoffId.current)
+        s.material.opacity *= 1 - artifactHandoffTravel.current;
     }
     if (phase.current === "rest" && !authoredParked.current && atAuthoredPose) {
       if (
@@ -1791,6 +2336,8 @@ export default function Grabbable({
           // something you can pick up, several hundred milliseconds before the
           // press. Idempotent, and a no-op on touch or a degraded machine.
           if (physicsEnabled) prewarmGrabbablePhysics();
+          if (artifactEntry?.kind === "model")
+            prewarmModelArtifactPreview(artifactEntry.fallbackImage);
         }}
         onPointerOut={() => {
           if (useStacks.getState().hovered === hoverKey)

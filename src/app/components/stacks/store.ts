@@ -11,6 +11,14 @@ import { create } from "zustand";
 
 import type { Book } from "~/lib/books/types";
 
+import {
+  type ModelArtifactHandoffEvent,
+  type ModelArtifactHandoffState,
+  beginModelArtifactHandoff,
+  reduceModelArtifactHandoff,
+} from "./modal/modelArtifactHandoff";
+import { type SceneArtifactId, sceneArtifactById } from "./sceneArtifacts";
+
 export const progressRef = { current: 0 };
 
 /** High-frequency coarse-pointer signals. Consumers sample these from their
@@ -62,6 +70,8 @@ type StacksState = {
   golfFocused: boolean;
   scrollEl: HTMLDivElement | null;
   modalOpen: boolean;
+  inspectedArtifact: SceneArtifactId | null;
+  modelArtifactHandoff: ModelArtifactHandoffState | null;
   panelState: PanelState;
   sheetDismissed: boolean;
   pendingBook: Book | null;
@@ -113,6 +123,12 @@ type StacksState = {
   setGolfFocused: (golfFocused: boolean) => void;
   setScrollEl: (scrollEl: HTMLDivElement | null) => void;
   setModalOpen: (modalOpen: boolean) => void;
+  openSceneArtifact: (id: SceneArtifactId, reducedMotion?: boolean) => void;
+  openModelSceneArtifact: (id: SceneArtifactId, reducedMotion: boolean) => void;
+  selectImageSceneArtifact: (id: SceneArtifactId) => void;
+  dispatchModelArtifactHandoff: (event: ModelArtifactHandoffEvent) => void;
+  closeSceneArtifact: () => void;
+  finishSceneArtifactClose: () => void;
   setPanelState: (panelState: PanelState) => void;
   setSheetDismissed: (sheetDismissed: boolean) => void;
   setPendingBook: (pendingBook: Book | null) => void;
@@ -133,6 +149,8 @@ export const useStacks = create<StacksState>((set) => ({
   golfFocused: false,
   scrollEl: null,
   modalOpen: false,
+  inspectedArtifact: null,
+  modelArtifactHandoff: null,
   panelState: "closed",
   sheetDismissed: false,
   pendingBook: null,
@@ -160,6 +178,96 @@ export const useStacks = create<StacksState>((set) => ({
       modalOpen
         ? { modalOpen, focusedInteraction: null, pressedInteraction: null }
         : { modalOpen },
+    ),
+  openSceneArtifact: (inspectedArtifact, reducedMotion = false) =>
+    set((state) => ({
+      inspectedArtifact,
+      modelArtifactHandoff: {
+        ...beginModelArtifactHandoff(inspectedArtifact, reducedMotion),
+        target:
+          state.modelArtifactHandoff?.artifactId === inspectedArtifact
+            ? state.modelArtifactHandoff.target
+            : null,
+      },
+      modalOpen: true,
+      focusedInteraction: null,
+      pressedInteraction: null,
+    })),
+  openModelSceneArtifact: (inspectedArtifact, reducedMotion) =>
+    set((state) => ({
+      inspectedArtifact,
+      modelArtifactHandoff: {
+        ...beginModelArtifactHandoff(inspectedArtifact, reducedMotion),
+        target:
+          state.modelArtifactHandoff?.artifactId === inspectedArtifact
+            ? state.modelArtifactHandoff.target
+            : null,
+      },
+      modalOpen: true,
+      focusedInteraction: null,
+      pressedInteraction: null,
+    })),
+  selectImageSceneArtifact: (inspectedArtifact) =>
+    set((state) => ({
+      inspectedArtifact,
+      modelArtifactHandoff: state.modelArtifactHandoff
+        ? {
+            ...state.modelArtifactHandoff,
+            artifactId: inspectedArtifact,
+            phase: "inspecting",
+            target: null,
+            sourceAtTarget: true,
+          }
+        : null,
+    })),
+  dispatchModelArtifactHandoff: (event) =>
+    set((state) => {
+      if (!state.modelArtifactHandoff) return state;
+      const modelArtifactHandoff = reduceModelArtifactHandoff(
+        state.modelArtifactHandoff,
+        event,
+      );
+      return modelArtifactHandoff
+        ? { modelArtifactHandoff }
+        : {
+            modelArtifactHandoff: null,
+            inspectedArtifact: null,
+            modalOpen: false,
+          };
+    }),
+  closeSceneArtifact: () =>
+    set((state) => {
+      if (!state.modelArtifactHandoff)
+        return { inspectedArtifact: null };
+      const artifact = sceneArtifactById(
+        state.modelArtifactHandoff.artifactId,
+      );
+      let modelArtifactHandoff = reduceModelArtifactHandoff(
+        state.modelArtifactHandoff,
+        { type: "close" },
+      );
+      // A photo's DOM clone is already shrinking back to its origin. Reveal
+      // and return the live scene source during that same interval so there
+      // is no dead beat after the overlay disappears.
+      if (
+        artifact?.kind === "image" &&
+        modelArtifactHandoff?.phase === "crossfading-out"
+      )
+        modelArtifactHandoff = reduceModelArtifactHandoff(
+          modelArtifactHandoff,
+          { type: "source-visible" },
+        );
+      return {
+        inspectedArtifact:
+          artifact?.kind === "image" ? null : state.inspectedArtifact,
+        modelArtifactHandoff,
+      };
+    }),
+  finishSceneArtifactClose: () =>
+    set((state) =>
+      state.inspectedArtifact || state.modelArtifactHandoff
+        ? state
+        : { modalOpen: false },
     ),
   setPanelState: (panelState) =>
     set(

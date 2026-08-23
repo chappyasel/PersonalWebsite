@@ -18,6 +18,20 @@ export type MobileSheetHeightMeasurement = {
   renderedHeight: number;
 };
 
+/** Keep the sheet parked behind an open modal, then let it begin returning
+ * while an artifact viewer is still animating its source back into place. */
+export function mobileSheetHidden({
+  dismissed,
+  modalOpen,
+  artifactReturning,
+}: {
+  dismissed: boolean;
+  modalOpen: boolean;
+  artifactReturning: boolean;
+}) {
+  return dismissed || (modalOpen && !artifactReturning);
+}
+
 /** Use a frame measurement only for the requested height that produced it.
  * A resident may mount its body between renders; its previous peek-height
  * measurement must not position the newly tall frame at the expanded detent. */
@@ -231,5 +245,31 @@ export function mobileSheetCameraCoverage(
   return Math.min(
     1,
     Math.max(0, (covered - peekHeight * 0.5) / viewportHeight),
+  );
+}
+
+/** The sheet may move behind an artifact viewer during its return, but that
+ * motion must not recenter the live scene under the viewer's fixed origin. */
+export function mobileSheetPublishedCoverage({
+  narrow,
+  viewportHeight,
+  renderedHeight,
+  sheetY,
+  peekHeight,
+  modalOpen,
+}: {
+  narrow: boolean;
+  viewportHeight: number;
+  renderedHeight: number;
+  sheetY: number;
+  peekHeight: number;
+  modalOpen: boolean;
+}) {
+  if (modalOpen || !narrow || !viewportHeight) return 0;
+  return mobileSheetCameraCoverage(
+    renderedHeight,
+    sheetY,
+    peekHeight,
+    viewportHeight,
   );
 }

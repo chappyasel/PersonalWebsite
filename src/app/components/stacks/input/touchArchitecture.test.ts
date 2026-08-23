@@ -21,6 +21,7 @@ const globals = read("../../../../styles/globals.css");
 const coarseCapability = read("./useCoarseTouchCapability.ts");
 const scenePointerEvents = read("./scenePointerEvents.ts");
 const golf = read("../scene/golf/GolfExperience.tsx");
+const golfBall = read("../scene/golf/GolfBallProp.tsx");
 
 describe("coarse-pointer ownership", () => {
   it("has no vertical-to-horizontal Touch Events bridge", () => {
@@ -90,8 +91,10 @@ describe("coarse-pointer ownership", () => {
     expect(golf).toMatch(
       /id: "golf-club:strike",[\s\S]*?activateOnFirstTouch: true,[\s\S]*?activation:/,
     );
-    expect(golf).toMatch(
-      /id: `golf-ball:\$\{id\}`,[\s\S]*?activateOnFirstTouch: true,[\s\S]*?activation:/,
+    // The balls are Grabbables now; the prop opts into the first-touch
+    // arbiter and the bay claims the tap through `hittable`.
+    expect(golfBall).toMatch(
+      /hoverKey=\{`golf-ball:\$\{id\}`\}[\s\S]*?activateOnFirstTouch[\s\S]*?hittable=\{\{ radius: GOLF_BALL_RADIUS, golf: true \}\}/,
     );
   });
 

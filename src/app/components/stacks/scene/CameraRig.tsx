@@ -55,6 +55,10 @@ import {
   cursorForInteraction,
   getSceneInteraction,
 } from "./interactionRegistry";
+import {
+  type SceneArtifactCameraLockState,
+  sceneArtifactCameraLockFrame,
+} from "./sceneArtifactCameraLock";
 import { sceneLayoutEditorController } from "./sceneLayoutEditor";
 import { SEAT_POSE, isSeated, leaveSeat, setSeatAmount } from "./seated";
 import {
@@ -218,6 +222,7 @@ export default function CameraRig() {
   const freeRoamMove = useRef(new THREE.Vector3());
   const wasFreeRoaming = useRef(false);
   const freeRoamLastPoseWrite = useRef(0);
+  const artifactCameraLock = useRef<SceneArtifactCameraLockState>("released");
   const size = useThree((s) => s.size);
   const camera = useThree((s) => s.camera);
   const freeRoam = useSyncExternalStore(
@@ -275,6 +280,7 @@ export default function CameraRig() {
 
   // Apply distance/fov when the pose changes (mount, resize, orientation).
   useEffect(() => {
+    if (useStacks.getState().modelArtifactHandoff) return;
     const initialY = captureCameraY ?? camera.position.y;
     baseY.current = initialY;
     camera.position.y = initialY;
@@ -527,6 +533,13 @@ export default function CameraRig() {
   }, [camera, freeRoamEnabled, freeRoamStorage, scroll.el]);
 
   useFrame(({ camera, pointer, clock }, delta) => {
+    const lockFrame = sceneArtifactCameraLockFrame(
+      artifactCameraLock.current,
+      useStacks.getState().modelArtifactHandoff?.phase ?? null,
+    );
+    artifactCameraLock.current = lockFrame.nextState;
+    if (lockFrame.locked) return;
+
     if (freeRoamEnabled) {
       if (!wasFreeRoaming.current) {
         const storedPose = freeRoam.startFromCurrentPose

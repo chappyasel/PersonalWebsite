@@ -110,6 +110,14 @@ describe("lean budget", () => {
     expect(budget.slide).toBeCloseTo(leanRise(h, TIP), 6);
   });
 
+  it("keeps an exact authored opening for an overlapping photo composition", () => {
+    const h = hinge({ ...FLAT_BOOK, headroom: 0 });
+    expect(leanBudget(h, Math.PI / 3, { authoredAngle: true })).toEqual({
+      lean: Math.PI / 3,
+      slide: 0,
+    });
+  });
+
   it("never leans AND slides, so the answer stays one gesture", () => {
     for (const headroom of [0, 0.002, 0.01, 0.03, 0.08, 0.4, Infinity])
       for (const wanted of [TIP, -TIP, FLUTTER_MOTION.lean, SWAY_MOTION.lean]) {

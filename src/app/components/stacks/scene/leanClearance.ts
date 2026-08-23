@@ -145,7 +145,17 @@ export type LeanBudget = {
  * prop that leans AND slides reads as two effects rather than one gesture,
  * which is the failure the single sway spring was built to avoid.
  */
-export function leanBudget(hinge: Hinge, wanted: number): LeanBudget {
+export function leanBudget(
+  hinge: Hinge,
+  wanted: number,
+  { authoredAngle = false }: { authoredAngle?: boolean } = {},
+): LeanBudget {
+  // An exact authored angle is the choreography for an overlap composition,
+  // currently the loose shelf photographs. Their staggered corners are
+  // intentionally within each other's measured footprints, so treating the
+  // adjacent sheet as a stacked solid cancels the hinge the call site chose.
+  // Ordinary derived reactions still use the clearance policy below.
+  if (authoredAngle) return { lean: wanted, slide: 0 };
   if (wanted === 0 || !Number.isFinite(hinge.headroom))
     return { lean: wanted, slide: 0 };
   const magnitude = Math.abs(wanted);

@@ -151,6 +151,10 @@ export type ShelfHandle = {
   meadowTrailX?: number;
   meadowTrailZ?: number;
   meadowTrailFor?: number;
+  /** Linear damping to put back once a struck prop has come to rest. Boxes
+   * carry 0.5/s so a tossed tub settles, but that halves a can's horizontal
+   * speed over one flight; a strike lends it the ball's damping instead. */
+  strikeDampingRestore?: number;
 };
 
 export function ballReleaseSpin(
@@ -1411,6 +1415,37 @@ export class ScenePhysicsWorld {
     return true;
   }
 
+  /** Something struck by the golf club. Unlike `knock` this is the swing's
+   * full launch velocity, with no shockwave cap: the bay sizes it per prop.
+   * A sphere gets the rolling spin the strike implies, since it has no
+   * support edge to topple about; anything else (a can) tumbles end over
+   * end about the same axis, the way a can leaves a clubface. */
+  strike(handle: ShelfHandle, worldVelocity: THREE.Vector3): boolean {
+    if (!this.release(handle, new THREE.Vector3())) return false;
+    const body = handle.body;
+    if (!body) return false;
+    body.velocity.set(worldVelocity.x, worldVelocity.y, worldVelocity.z);
+    if (body.linearDamping > BALL_LINEAR_DAMPING) {
+      handle.strikeDampingRestore ??= body.linearDamping;
+      body.linearDamping = BALL_LINEAR_DAMPING;
+    }
+    const horizontal = Math.hypot(worldVelocity.x, worldVelocity.z);
+    if (horizontal > 1e-5) {
+      const radius = Math.max(0.02, (handle.smallestExtent ?? 0.1) / 2);
+      const spin =
+        handle.shape === "sphere"
+          ? (horizontal / radius) * 0.5
+          : SHOCKWAVE_TOPPLE_SPEED * 1.4;
+      body.angularVelocity.set(
+        (worldVelocity.z / horizontal) * spin,
+        handle.shape === "sphere" ? 0 : spin * 0.25,
+        (-worldVelocity.x / horizontal) * spin,
+      );
+    }
+    body.wakeUp();
+    return true;
+  }
+
   park(handle: ShelfHandle, snapVisual = false) {
     const body = handle.body;
     if (!body || !handle.com) return;
@@ -1468,7 +1503,13 @@ export class ScenePhysicsWorld {
       return;
     }
     handle.settledFor = (handle.settledFor ?? 0) + delta;
-    if (handle.settledFor >= SETTLED_SLEEP_SECONDS) body.sleep();
+    if (handle.settledFor >= SETTLED_SLEEP_SECONDS) {
+      body.sleep();
+      if (handle.strikeDampingRestore !== undefined) {
+        body.linearDamping = handle.strikeDampingRestore;
+        handle.strikeDampingRestore = undefined;
+      }
+    }
   }
 
   tick(delta: number, stamp: number, camera?: THREE.Camera) {
