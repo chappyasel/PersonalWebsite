@@ -38,6 +38,16 @@ export const MUSINGS_VINEYARD_CUTOUT_POSE = {
   roll: -0.14,
 } as const;
 
+export const KATAMA_HOME_DOOR = Object.freeze({
+  href: "https://maps.app.goo.gl/Hw3CoQwEEiswVNPK6",
+  doorLabel: "Open 490 Katama Road in Google Maps",
+});
+
+/** 490 Katama Road projected into the same normalized island bounds used by
+ * the owner-supplied coastline. The source map resolves to
+ * 41.3526453, -70.5120655; this lands just inland from South Beach. */
+export const KATAMA_HOME_ISLAND_POINT = [0.3421, -0.1332] as const;
+
 const VINEYARD_CUTOUT_HOVER_KEY = "grab:vineyard-cutout";
 /** 8 mm plywood at the shelf scale. */
 const SLAB_THICKNESS = 0.016;
@@ -48,6 +58,37 @@ const BEVEL = 0.0025;
 const FOOT = { width: 0.46, height: 0.05, depth: 0.07 } as const;
 /** How far the slab's lowest point sits below the foot's top surface. */
 const SLOT_DEPTH = 0.03;
+
+function rotatedPoint([x, y]: readonly [number, number], roll: number) {
+  const cos = Math.cos(roll);
+  const sin = Math.sin(roll);
+  return [x * cos - y * sin, x * sin + y * cos] as const;
+}
+
+/** Match the rotation, scaling, and bounding-box translation applied to the
+ * extruded coastline so a geographic marker stays attached to the right spot
+ * when the cutout dimensions change. */
+export function vineyardSurfacePoint(
+  point: readonly [number, number],
+  width: number,
+  roll: number,
+) {
+  const outline = VINEYARD_OUTLINE.map((candidate) =>
+    rotatedPoint(candidate, roll),
+  );
+  const xs = outline.map(([x]) => x);
+  const ys = outline.map(([, y]) => y);
+  const centerX = (Math.min(...xs) + Math.max(...xs)) / 2;
+  const floorY = Math.min(...ys);
+  const [x, y] = rotatedPoint(point, roll);
+  return [(x - centerX) * width, (y - floorY) * width] as const;
+}
+
+export const KATAMA_HOME_CUTOUT_POINT = vineyardSurfacePoint(
+  KATAMA_HOME_ISLAND_POINT,
+  MUSINGS_VINEYARD_CUTOUT_POSE.width,
+  MUSINGS_VINEYARD_CUTOUT_POSE.roll,
+);
 
 /** Pale, sun-bleached oak for the Musings keepsakes: the cutout's face and
  * foot, and the Trust essay's reading stand, so the two read as one order of
@@ -117,6 +158,8 @@ export function VineyardCutout({
       shadeWidth={0.48}
       shape="box"
       massKg={0.16}
+      href={KATAMA_HOME_DOOR.href}
+      doorLabel={KATAMA_HOME_DOOR.doorLabel}
     >
       {/* Carried, the island turns square to the camera like the sticker and
           the framed photos do: a silhouette seen edge-on is a stick. */}
@@ -147,6 +190,39 @@ export function VineyardCutout({
               roughness={0.78}
             />
           </mesh>
+          <group
+            name="490-katama-road-pin"
+            position={[
+              KATAMA_HOME_CUTOUT_POINT[0],
+              KATAMA_HOME_CUTOUT_POINT[1],
+              SLAB_THICKNESS / 2 + 0.003,
+            ]}
+          >
+            <mesh
+              position={[0, 0.008, 0]}
+              rotation={[0, 0, Math.PI]}
+              scale={[1, 1, 0.35]}
+            >
+              <coneGeometry args={[0.009, 0.024, 18]} />
+              <meshStandardMaterial
+                color="#b9372e"
+                roughness={0.42}
+                metalness={0.08}
+              />
+            </mesh>
+            <mesh position={[0, 0.022, 0]} scale={[1, 1, 0.3]}>
+              <sphereGeometry args={[0.014, 20, 12]} />
+              <meshStandardMaterial
+                color="#d94c40"
+                roughness={0.36}
+                metalness={0.1}
+              />
+            </mesh>
+            <mesh position={[0, 0.022, 0.0045]}>
+              <circleGeometry args={[0.0048, 18]} />
+              <meshStandardMaterial color="#f7dfca" roughness={0.7} />
+            </mesh>
+          </group>
         </group>
       </HeldFacing>
     </Grabbable>
