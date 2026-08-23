@@ -49,11 +49,17 @@ const RECOLOR_ATLAS = "tiny-treats";
 
 // name → output file; strip = remove the shared palette atlas; recolor =
 // remap own texture per theme + strip; keepNodes = drop every other scene
-// node (prune removes their meshes); fixMime = rewrite image/unknown →
-// image/jpeg; simplify = decimation error as a fraction of mesh extent
-// (optimize's own default, 0.0001, keeps every vertex). scale/unit are
-// placement notes — the components own the live numbers. license/author/page
-// feed public/models/LICENSES.json.
+// node (prune removes their meshes); dropNodes = the complement, remove the
+// named nodes and keep the rest; rematerial = regroup every surviving mesh
+// under NEW role-named plain materials ({ Role: { nodes, color, roughness?,
+// blend? } }) for a prop whose source material names do not follow its
+// parts; nodeTransforms = per-node { scale?, translation? } written into
+// the glTF node TRS before optimize's flatten bakes them into the vertices
+// (reproportioning a prop without re-modelling it); fixMime = rewrite
+// image/unknown → image/jpeg; simplify = decimation
+// error as a fraction of mesh extent (optimize's own default, 0.0001, keeps
+// every vertex). scale/unit are placement notes — the components own the
+// live numbers. license/author/page feed public/models/LICENSES.json.
 const MANIFEST = [
   {
     name: "desk-lamp",
@@ -84,12 +90,12 @@ const MANIFEST = [
   },
   {
     name: "headphones",
-    id: "PSsWSIAYIL",
-    url: "https://static.poly.pizza/b72a848f-b4c6-40fb-ada7-69c4c524bd27.glb",
-    strip: true,
+    id: "EwlPidEswV",
+    url: "https://static.poly.pizza/ce8d4d17-d31e-4594-a511-a46129b43a8f.glb",
+    noAo: true,
     unit: "blog",
-    author: "CreativeTrio",
-    license: "CC0 1.0",
+    author: "J-Toastie",
+    license: "CC-BY 3.0",
   },
   {
     name: "dumbbell",
@@ -364,19 +370,124 @@ const MANIFEST = [
     author: "Isa Lousberg",
     license: "CC0 1.0",
   },
-  // Owner-approved 2026-08-15 after the three-angle source/scene-ready review.
-  // Plain untextured materials remain named, so UnitAbout owns the restrained
-  // dawn palette through ModelProp's tinted variant. 1,020 triangles is the
-  // inspected 20-triangle exception recorded in the approval ledger.
+  // The Musings tea cue. Keep Isa Lousberg's own white-and-grey texture: the
+  // shared tiny-treats theme remap turns its enamel cream under the warm lamp
+  // and loses the silver handle/knob contrast the owner selected it for.
   {
-    name: "sailboat",
-    title: "Sail Boat",
-    id: "BgSZXwmm7k",
-    url: "https://static.poly.pizza/b1d42c7e-152a-4d56-a754-cca000a5abad.glb",
+    name: "kettle",
+    title: "Kettle",
+    id: "vhYEWaQZvT",
+    url: "https://static.poly.pizza/40fe822f-4f0d-4361-b313-d84219ba511c.glb",
+    noAo: true,
+    texMax: 128,
+    unit: "musings",
+    author: "Isa Lousberg",
+    license: "CC0 1.0",
+  },
+  // ---- 2026-08-22: the Musings sailboat (Quaternius "Sail Boat", BgSZXwmm7k,
+  // approved 2026-08-15) was retired on the owner's request and this lighthouse
+  // took its spot. Entry removed rather than left dangling, same as the ladder
+  // and the eames-chair: the pipeline is what decides what ships, and a stale
+  // entry keeps getting downloaded, built and preloaded for nothing.
+  //
+  // Robert Mirabelle's Poly-by-Google-era lighthouse, dressed as Gay Head Light
+  // (Aquinnah, Martha's Vineyard): red brick tower, brownstone corbel band
+  // under the gallery, black iron railings, black lantern and dome. The source
+  // is grey plain-material geometry with six materials whose NAMES do not
+  // follow the parts ("white" is mid grey and is the tower; "black-2" is both
+  // the railings and the plinth), so `rematerial` regroups every mesh under
+  // role-named materials the runtime tinted variant can theme — Brick, Stone,
+  // Base, Iron, Glass. The placeholder colours below are DELIBERATELY
+  // DISTINCT: gltf-transform's dedup merges byte-identical materials into
+  // one, which silently collapsed five roles into "Brick" on the first
+  // attempt. They are also roughly right, so stacks-render reads true.
+  //
+  // 11,762 source triangles, 4,224 of them the two railings. `simplify`
+  // 0.003 is the measured ceiling: at 0.004 meshopt starts eating the
+  // railing posts and the rails read as dashes; 0.003 keeps them whole.
+  // The interior lamp (llight, 998 tris, hidden behind the panes) and two
+  // line flourishes (the horizontal pane bar and the dome ribs, 1,248 tris
+  // between them) are dropped; the lantern is lit by the Glass material's
+  // emissive instead. noAo: thin iron members and a dark tint where the
+  // bake never reads.
+  //
+  // Owner feedback on the first build (2026-08-22): "get rid of that bottom
+  // brown part and make the head bigger and bottom a little shorter". Gay
+  // Head's brick meets the grass with no plinth, its tower is stout and its
+  // lantern is large for it. So the octagonal plinth and its ring are
+  // dropped (the tower's own rim becomes the contact), the tower is squashed
+  // to 0.8 of its height about its foot, everything above rides down by the
+  // 42.5 source units that frees, and the lantern group (floor plate, upper
+  // rail, glass, frame, dome, ball, spire) grows 1.3× about the lantern
+  // floor (y 359.924) — its floor plate ends up r 51, the photo's lantern
+  // deck overhanging the drum. Proportions tower : gallery : head go from
+  // 43 : 18 : 25 to 47 : 23 : 29 of the height, against the photo's roughly
+  // 38 : 21 : 24 plus ground. Optimize's flatten bakes these node TRS into
+  // the vertices, so the shipped GLB is one flat scene like the others.
+  {
+    name: "lighthouse",
+    title: "Lighthouse",
+    id: "3gEvVZoTN7e",
+    url: "https://static.poly.pizza/8200c7f5-9b4b-4f92-a9aa-0ca5d8ff9121.glb",
+    dropNodes: [
+      "llight",
+      "glass_frame_horiz",
+      "roof_lines",
+      "Cylinder001",
+      "base_ring_white",
+    ],
+    nodeTransforms: {
+      main_body: { scale: [1, 0.8, 1], translation: [0, 12.984, 0] },
+      black_body: { translation: [0, -42.512, 0] },
+      support: { translation: [0, -42.512, 0] },
+      under_brace_body: { translation: [0, -42.512, 0] },
+      poles: { translation: [0, -42.512, 0] },
+      bottom_walk_bar: { translation: [0, -42.512, 0] },
+      top_walk_bar: { translation: [0, -42.512, 0] },
+      light_base: { scale: [1.3, 1.3, 1.3], translation: [0, -150.489, 0] },
+      poles001: { scale: [1.3, 1.3, 1.3], translation: [0, -150.489, 0] },
+      upper_walk: { scale: [1.3, 1.3, 1.3], translation: [0, -150.489, 0] },
+      glass: { scale: [1.3, 1.3, 1.3], translation: [0, -150.489, 0] },
+      glass_frame: { scale: [1.3, 1.3, 1.3], translation: [0, -150.489, 0] },
+      roof: { scale: [1.3, 1.3, 1.3], translation: [0, -150.489, 0] },
+      top_sphere: { scale: [1.3, 1.3, 1.3], translation: [0, -150.489, 0] },
+      spire: { scale: [1.3, 1.3, 1.3], translation: [0, -150.489, 0] },
+    },
+    rematerial: {
+      Brick: {
+        nodes: ["main_body", "black_body", "under_brace_body"],
+        color: [0.42, 0.17, 0.12, 1],
+      },
+      Stone: { nodes: ["support"], color: [0.38, 0.29, 0.2, 1] },
+      Iron: {
+        nodes: [
+          "bottom_walk_bar",
+          "top_walk_bar",
+          "poles",
+          "poles001",
+          "upper_walk",
+          "light_base",
+          "glass_frame",
+          "roof",
+          "top_sphere",
+          "spire",
+        ],
+        color: [0.02, 0.02, 0.02, 1],
+        roughness: 0.6,
+      },
+      Glass: {
+        nodes: ["glass"],
+        color: [0.8, 0.9, 0.95, 0.55],
+        roughness: 0.2,
+        blend: true,
+      },
+    },
+    simplify: 0.003,
     noAo: true,
     unit: "musings",
-    author: "Quaternius",
-    license: "CC0 1.0",
+    author: "Robert Mirabelle",
+    license: "CC-BY 3.0",
+    page: "https://poly.pizza/m/3gEvVZoTN7e",
   },
   // Owner-requested 2026-08-15 shelf props. Each source page identifies the
   // model as CC-BY and the pipeline keeps the original geometry/materials;
@@ -549,7 +660,15 @@ function buildGlb(json, bin) {
 
 async function download(url, name) {
   fs.mkdirSync(CACHE, { recursive: true });
-  const cached = path.join(CACHE, `${name}.glb`);
+  // A prop can keep its output name while its curated source changes. Include
+  // the URL in the cache key so a source replacement cannot rebuild the old
+  // download from a previous pipeline run.
+  const sourceKey = crypto
+    .createHash("sha1")
+    .update(url)
+    .digest("hex")
+    .slice(0, 12);
+  const cached = path.join(CACHE, `${name}-${sourceKey}.glb`);
   if (fs.existsSync(cached)) return fs.readFileSync(cached);
   const res = await fetch(url);
   if (!res.ok) throw new Error(`${url} -> HTTP ${res.status}`);
@@ -592,6 +711,88 @@ function surgery(buf, spec) {
   if (spec.fixMime) {
     for (const img of json.images ?? []) {
       if (img.mimeType === "image/unknown") img.mimeType = "image/jpeg";
+    }
+  }
+  if (spec.dropNodes) {
+    // Detach the named nodes from their parents and scenes; optimize's prune
+    // drops the orphaned meshes. Names are checked so a typo cannot ship the
+    // full prop and read as "the drop did nothing".
+    const drop = new Set(spec.dropNodes);
+    const dropped = new Set();
+    (json.nodes ?? []).forEach((n, i) => {
+      if (drop.has(n.name)) dropped.add(i);
+    });
+    const missing = spec.dropNodes.filter(
+      (name) => !(json.nodes ?? []).some((n) => n.name === name),
+    );
+    if (missing.length)
+      throw new Error(`${spec.name}: dropNodes matched nothing: ${missing}`);
+    for (const n of json.nodes ?? []) {
+      if (n.children) n.children = n.children.filter((c) => !dropped.has(c));
+    }
+    for (const scene of json.scenes ?? []) {
+      scene.nodes = scene.nodes.filter((i) => !dropped.has(i));
+    }
+  }
+  if (spec.rematerial) {
+    // One fresh material per role, every listed node's primitives pointed at
+    // it, the source materials discarded. Every surviving primitive must be
+    // claimed by some role — an unlisted mesh would otherwise keep a source
+    // material the runtime tint table knows nothing about and ship grey.
+    const byName = new Map((json.nodes ?? []).map((n, i) => [n.name, i]));
+    const materials = [];
+    const claimed = new Set();
+    for (const [role, def] of Object.entries(spec.rematerial)) {
+      const index = materials.length;
+      materials.push({
+        name: role,
+        pbrMetallicRoughness: {
+          baseColorFactor: def.color,
+          metallicFactor: 0,
+          roughnessFactor: def.roughness ?? 0.8,
+        },
+        ...(def.blend ? { alphaMode: "BLEND", doubleSided: true } : {}),
+      });
+      for (const nodeName of def.nodes) {
+        const ni = byName.get(nodeName);
+        if (ni === undefined)
+          throw new Error(
+            `${spec.name}: rematerial ${role} names no node "${nodeName}"`,
+          );
+        const mesh = json.meshes[json.nodes[ni].mesh];
+        for (const prim of mesh.primitives) {
+          prim.material = index;
+          claimed.add(prim);
+        }
+      }
+    }
+    const dropped = new Set(spec.dropNodes ?? []);
+    const orphaned = [];
+    for (const n of json.nodes ?? []) {
+      if (n.mesh === undefined || dropped.has(n.name)) continue;
+      for (const prim of json.meshes[n.mesh].primitives)
+        if (!claimed.has(prim)) orphaned.push(n.name);
+    }
+    if (orphaned.length)
+      throw new Error(
+        `${spec.name}: rematerial leaves meshes unclaimed: ${[...new Set(orphaned)]}`,
+      );
+    json.materials = materials;
+  }
+  if (spec.nodeTransforms) {
+    // Source nodes here carry no TRS of their own (obj2gltf exports flat), so
+    // the transform is written rather than composed; a node that already has
+    // one fails loudly instead of being silently overwritten.
+    for (const [name, t] of Object.entries(spec.nodeTransforms)) {
+      const node = (json.nodes ?? []).find((n) => n.name === name);
+      if (!node)
+        throw new Error(`${spec.name}: nodeTransforms names no node "${name}"`);
+      if (node.matrix || node.scale || node.translation || node.rotation)
+        throw new Error(
+          `${spec.name}: node "${name}" already carries a transform`,
+        );
+      if (t.scale) node.scale = t.scale;
+      if (t.translation) node.translation = t.translation;
     }
   }
   if (spec.keepNodes) {

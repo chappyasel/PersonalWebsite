@@ -1,3 +1,5 @@
+import { MUSINGS_LOWER_LAYOUT } from "../musingsShelfGeometry";
+import { SHELF_GEOMETRY } from "../shelfGeometry";
 import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 
@@ -24,7 +26,9 @@ describe("shared shelf succulent", () => {
   it("keeps the Musings bowl inside the left end of the lower plank", () => {
     const source = readUnit("UnitBlog");
 
-    expect(source).toContain("base={[-1.12, 0, -0.06]}");
-    expect(source).not.toContain("base={[-1.24, 0, -0.02]}");
+    expect(source).toContain("base={[MUSINGS_LOWER_LAYOUT.plantX, 0, -0.06]}");
+    expect(MUSINGS_LOWER_LAYOUT.plantX - 0.27 / 2).toBeGreaterThan(
+      -SHELF_GEOMETRY.width / 2,
+    );
   });
 });

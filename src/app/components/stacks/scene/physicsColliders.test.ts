@@ -175,7 +175,7 @@ describe("physics collider extraction", () => {
     expect(result.reasons).toEqual([]);
   });
 
-  it.each(["potted-plant", "barbell", "headphones", "sailboat", "desk-lamp"])(
+  it.each(["potted-plant", "barbell", "headphones", "desk-lamp"])(
     "splits the real %s model into a bounded compound",
     async (name) => {
       const root = await loadModel(name);
@@ -189,6 +189,28 @@ describe("physics collider extraction", () => {
       ).toBe(false);
     },
   );
+
+  it("splits the lighthouse into a bounded compound at its shelf scale", async () => {
+    // At source scale (397 units tall) the lighthouse is dozens of islands
+    // and falls back to one box. At the 0.0016 it ships at, every railing post
+    // and pane bar is thinner than MIN_COLLIDER_EXTENT and drops out, and
+    // what remains is the honest compound: tower, plinth, lantern, rails.
+    // Extraction measures relative to the root it is handed, so the scale
+    // has to sit BELOW that root, the way ModelProp's primitive sits under
+    // the Grabbable carrier in the scene.
+    const model = await loadModel("lighthouse");
+    model.scale.setScalar(0.0016);
+    const owner = new THREE.Group();
+    owner.add(model);
+    const result = extractDynamicColliderBoxes(owner);
+    expect(result.boxes.length).toBeGreaterThan(1);
+    expect(result.boxes.length).toBeLessThanOrEqual(
+      MAX_DYNAMIC_COLLIDER_SHAPES,
+    );
+    expect(
+      result.boxes.some((box) => box.source === "root-aabb-fallback"),
+    ).toBe(false);
+  });
 
   it.each(["potted-plant", "succulent-pot", "pothos", "cactus", "yucca-plant"])(
     "reduces leafy %s collision to its solid planter base",

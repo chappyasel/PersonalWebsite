@@ -2,6 +2,12 @@
 
 Status: **sailboat, TJ medallion, phone, notebook, and harmonica approved and live**.
 
+Update 2026-08-22: the sailboat was retired on the owner's request and its
+Musings spot went to a Gay Head lighthouse with a wooden Martha's Vineyard
+cutout beside it. See
+[2026-08-22-lighthouse-and-vineyard-cutout.md](2026-08-22-lighthouse-and-vineyard-cutout.md).
+The sailboat sections below are kept as the record of that approval.
+
 This sheet is the gate between a Source Asset and a Scene-ready Prop. The
 sailboat is now in `public/models`, the model manifest, the preload list, and
 Musings. The owner-supplied TJ crop is now in the authored medallion in About.

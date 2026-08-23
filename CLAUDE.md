@@ -36,17 +36,21 @@ Two gates, because they fail for different reasons and want different fixes.
 in it is deterministic and needs no credentials, so red means someone broke the
 code.
 
-`pnpm verify:artifacts` asks whether committed generated files still match the
-sources they were made from. Today that is the homepage OG capture, and
-regenerating it needs a production build with database credentials.
-`.github/workflows/refresh-home-og.yml` is the precise CI signal for it. Keeping
-it out of `pnpm verify` is deliberate: a code gate that can never go green is a
+`pnpm verify:artifacts` strictly checks whether committed generated files still
+match the sources they were made from. Today that is the homepage OG capture,
+and regenerating it needs a production build with database credentials. The
+automatic Git hook and `.github/workflows/refresh-home-og.yml` report stale
+captures as warnings because a shared renderer source can change for an
+off-camera Unit without changing the About card. Keeping artifact freshness
+out of `pnpm verify` is deliberate: a code gate that can never go green is a
 code gate people learn to ignore.
 
 `pnpm install` configures `.githooks/pre-commit` unless another
 `core.hooksPath` is already in use. The hook checks the Git index, not the
-working tree, so partial commits are safe. When homepage visual inputs change,
-run `pnpm generate:home-og:local` and stage both outputs named by the error. CI
+working tree, so partial commits are safe. Its warning is narrowed to the fixed
+About capture: other Unit-local sources and assets are excluded, while shared
+rendering sources remain watched. When the About frame intentionally changes,
+run `pnpm generate:home-og:local` and stage both outputs named by the warning. CI
 repeats the freshness check if a local hook is bypassed.
 
 Neither covers route budgets. Those read gzipped chunk sizes out of `.next`, so

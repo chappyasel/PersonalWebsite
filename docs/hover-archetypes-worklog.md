@@ -20,7 +20,7 @@ review together. Newest sections at the bottom.
 - [x] 13. Backward lean for the medals
 - [x] 14. Stacked props: measured lean clearance, slide substitution
 - [x] 10a. Signature overrides, first six (the ones that own machinery)
-- [ ] 10b. Signature overrides, remaining four (sailboat, harmonica, microphone, phone) — each is design work, not wiring
+- [ ] 10b. Signature overrides, remaining four (lighthouse, harmonica, microphone, phone) — each is design work, not wiring. The sailboat's planned heel retired with the sailboat on 2026-08-22; the lighthouse's candidate is a beam sweep.
 
 ## Judgement calls made without asking
 
@@ -238,7 +238,7 @@ already owns to build from:
 | shakers ×3  | slosh   | `shakerPose(elapsed)`                |
 | alarm clock | tick    | `EggClock` winds to 3:45             |
 | globe       | spin    | `SpinProp` / `SPIN_NODE`             |
-| sailboat    | heel    | —                                    |
+| lighthouse  | beam    | — (replaced the sailboat's heel, 2026-08-22) |
 | harmonica   | breath  | —                                    |
 | microphone  | live    | —                                    |
 | phone       | wake    | —                                    |
@@ -271,7 +271,7 @@ reference gives the real set:
 alarm-clock barbell basketball cactus couch cup-tea desk-lamp dumbbell globe
 golf-club golf-tee grandfather-clock harmonica headphones kettlebell lamp-floor
 mac microphone monstera mug notebook open-book phone pothos potted-plant
-protein-powder sailboat sansevieria soda-can succulent-pot trophy yucca-plant
+protein-powder lighthouse sansevieria soda-can succulent-pot trophy yucca-plant
 ```
 
 `couch`, not eames chair. No ladder at all. I repeated that comment as current
@@ -588,8 +588,8 @@ trembled — and the dial is the part of a clock anyone looks at.
 ### Open
 
 - None of the six has been seen running. Six gestures, all tuned by argument.
-- The remaining four (sailboat heel, harmonica breath, microphone live, phone
-  wake) own no machinery. Each is design work rather than wiring, and worth
+- The remaining four (lighthouse beam — formerly the sailboat's heel —,
+  harmonica breath, microphone live, phone wake) own no machinery. Each is design work rather than wiring, and worth
   doing only after these six are judged.
 - `RollProp` rotates a child node, so a ball the physics solver is carrying is
   untouched and the roll resumes at rest. Untested against a live throw.

@@ -55,6 +55,7 @@ describe("development diagnostics chrome", () => {
     expect(registrySource).toContain("Physics runtime");
     expect(diagnosticsSource).toContain("Scene quality");
     expect(diagnosticsSource).toContain("Rendering experiments");
+    expect(registrySource).toContain("Lighthouse beacon");
     expect(diagnosticsSource).toContain("Policy internals");
     expect(diagnosticsSource).toContain('role="tabpanel"');
   });

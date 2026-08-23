@@ -37,6 +37,11 @@ async function fixtureRoot() {
   return root;
 }
 
+async function writeFixtureFile(root: string, file: string, contents: string) {
+  await mkdir(path.dirname(path.join(root, file)), { recursive: true });
+  await writeFile(path.join(root, file), contents);
+}
+
 afterEach(async () => {
   await Promise.all(
     temporaryRoots
@@ -67,6 +72,51 @@ describe("home OG input manifest", () => {
     const after = await homeOgInputManifest({ root });
 
     expect(after.digest).not.toBe(before.digest);
+  });
+
+  it("does not fingerprint units and assets outside the About capture", async () => {
+    const root = await fixtureRoot();
+    const aboutInputs = {
+      "src/app/components/stacks/scene/SceneEnvironment.tsx":
+        "environment-v1\n",
+      "src/app/components/stacks/scene/units/UnitAbout.tsx": "about-v1\n",
+      "public/models/globe.glb": "globe-v1\n",
+      "public/images/stacks/v8/about-family.webp": "family-v1\n",
+    };
+    const musingsInputs = {
+      "src/app/components/stacks/scene/units/UnitBlog.tsx": "musings-v1\n",
+      "src/app/components/stacks/scene/lighthouseBeaconDiagnostics.ts":
+        "diagnostics-v1\n",
+      "public/models/lighthouse.glb": "lighthouse-v1\n",
+      "public/images/stacks/musings/vineyard-sign.webp": "sign-v1\n",
+    };
+    for (const [file, contents] of Object.entries({
+      ...aboutInputs,
+      ...musingsInputs,
+    }))
+      await writeFixtureFile(root, file, contents);
+    execFileSync("git", ["add", "."], { cwd: root });
+
+    const before = await homeOgInputManifest({ root });
+    expect(before.files).toEqual(
+      expect.arrayContaining(Object.keys(aboutInputs)),
+    );
+    expect(before.files).not.toEqual(
+      expect.arrayContaining(Object.keys(musingsInputs)),
+    );
+
+    for (const file of Object.keys(musingsInputs))
+      await writeFixtureFile(root, file, "musings-v2\n");
+    expect((await homeOgInputManifest({ root })).digest).toBe(before.digest);
+
+    await writeFixtureFile(
+      root,
+      "src/app/components/stacks/scene/SceneEnvironment.tsx",
+      "environment-v2\n",
+    );
+    expect((await homeOgInputManifest({ root })).digest).not.toBe(
+      before.digest,
+    );
   });
 
   it("refuses to bless an old image after its visual inputs change", async () => {
