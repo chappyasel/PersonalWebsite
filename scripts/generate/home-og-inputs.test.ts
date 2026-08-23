@@ -8,6 +8,7 @@ import {
   HOME_OG_IMAGE,
   HOME_OG_MANIFEST,
   homeOgArtifactStatus,
+  homeOgChangedInputs,
   homeOgImageDigest,
   homeOgImageInputDigest,
   homeOgInputManifest,
@@ -162,5 +163,86 @@ describe("home OG input manifest", () => {
     expect(
       await homeOgArtifactStatus({ root, snapshot: "index" }),
     ).toMatchObject({ fresh: false });
+  });
+});
+
+const currentManifest = (fileDigests: Record<string, string>) => ({
+  files: Object.keys(fileDigests).sort(),
+  fileDigests,
+});
+
+describe("homeOgChangedInputs", () => {
+  it("names the files whose contents moved", () => {
+    expect(
+      homeOgChangedInputs(
+        { fileDigests: { "a.ts": "1111", "b.ts": "2222" } },
+        currentManifest({ "a.ts": "1111", "b.ts": "9999" }),
+      ),
+    ).toEqual([{ file: "b.ts", change: "changed" }]);
+  });
+
+  it("counts an added or removed watched file as a change", () => {
+    expect(
+      homeOgChangedInputs(
+        { fileDigests: { "a.ts": "1111", "gone.ts": "3333" } },
+        currentManifest({ "a.ts": "1111", "new.ts": "4444" }),
+      ),
+    ).toEqual([
+      { file: "gone.ts", change: "removed" },
+      { file: "new.ts", change: "added" },
+    ]);
+  });
+
+  it("reports nothing when every watched file matches", () => {
+    expect(
+      homeOgChangedInputs(
+        { fileDigests: { "a.ts": "1111" } },
+        currentManifest({ "a.ts": "1111" }),
+      ),
+    ).toEqual([]);
+  });
+
+  // The gate has to stay usable across the format bump rather than crash or,
+  // worse, claim nothing changed. The check prints an explanation in place of
+  // a file list when it sees this.
+  it("returns null for a manifest written before per-file digests", () => {
+    expect(
+      homeOgChangedInputs({}, currentManifest({ "a.ts": "1" })),
+    ).toBeNull();
+    expect(
+      homeOgChangedInputs(undefined, currentManifest({ "a.ts": "1" })),
+    ).toBeNull();
+  });
+});
+
+describe("capture-removed inputs", () => {
+  // The boot screen and the flat page are display:none during capture, so the
+  // manifest stops watching the files that only render them. home-og-scene.mjs
+  // asserts that at capture time, which is what keeps this honest.
+  it("stops watching the surfaces the capture removes", async () => {
+    const root = await fixtureRoot();
+    await writeFixtureFile(
+      root,
+      "src/app/components/stacks/dom/BootScreen.tsx",
+      "boot\n",
+    );
+    await writeFixtureFile(
+      root,
+      "src/app/components/stacks/FlatHome.tsx",
+      "flat\n",
+    );
+    await writeFixtureFile(
+      root,
+      "src/app/components/stacks/dom/ChromeLayer.tsx",
+      "chrome\n",
+    );
+
+    const { files } = await homeOgInputManifest({ root });
+
+    expect(files).not.toContain("src/app/components/stacks/dom/BootScreen.tsx");
+    expect(files).not.toContain("src/app/components/stacks/FlatHome.tsx");
+    // Everything else the homepage renders is only visibility:hidden, and the
+    // rail's measured width still moves the camera's About stop.
+    expect(files).toContain("src/app/components/stacks/dom/ChromeLayer.tsx");
   });
 });
