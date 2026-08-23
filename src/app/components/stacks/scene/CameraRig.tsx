@@ -63,6 +63,7 @@ import { sceneLayoutEditorController } from "./sceneLayoutEditor";
 import { SEAT_POSE, isSeated, leaveSeat, setSeatAmount } from "./seated";
 import {
   CAMERA_LOOK_X_MAX_LAG,
+  RAIL_RIGHT_PX_FALLBACK,
   STACKS_DESKTOP_MIN_WIDTH,
   aboutStopShift,
   cameraCompositionForViewport,
@@ -154,8 +155,9 @@ export const cameraTravelDiagnostics = {
  * from the live window and railRightPxRef each call rather than captured —
  * the scroll-element effect outlives resizes and font swaps. Mobile chrome
  * has no left rail, so below the desktop seam the stop stays on the
- * shelf's centre line. 210px stands in until UnitRail's first measurement
- * lands (its layout effect runs before this frame in practice). */
+ * shelf's centre line. RAIL_RIGHT_PX_FALLBACK stands in until UnitRail's
+ * first measurement lands (its layout effect runs before this frame in
+ * practice). */
 function currentAboutShift(): number {
   if (typeof window === "undefined") return 0;
   if (captureHeadOnFromSearch(window.location.search)) return 0;
@@ -163,7 +165,7 @@ function currentAboutShift(): number {
   return aboutStopShift(
     window.innerWidth,
     window.innerHeight,
-    railRightPxRef.current || 210,
+    railRightPxRef.current || RAIL_RIGHT_PX_FALLBACK,
   );
 }
 
@@ -383,11 +385,14 @@ export default function CameraRig() {
       const current = useStacks.getState();
       current.setActiveUnit(active);
       current.setGolfFocused(golfFocused);
+      current.setSettledUnit(null);
     });
     // Damped travel: write the damp target directly (plus scrollLeft so the
     // native element agrees) — never depends on the scroll event.
     state.setTravelTo((unit: number) => {
       cancelInitialSync(`travel:${unit}`);
+      const current = useStacks.getState();
+      current.setSettledUnit(null);
       const max = el.scrollWidth - el.clientWidth;
       const offset = clampedOffset(unit);
       el.scrollLeft = offset * max;

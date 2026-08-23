@@ -56,11 +56,36 @@ first paint, before React exists, and it is the single published answer to
 "which homepage is on screen".
 _Avoid_: Loading state, world flag
 
+**Boot Stage** — where the boot vignette's bookcase stands on screen. It opens
+in its centred box, as it always has. When the URL opens the world on About,
+it then glides onto the live shelf at unit 0's origin and scale. The pre-paint
+script derives both values from the camera's About rest pose for the current
+viewport. The glide begins when the room is ready or the last reveal object
+lands, whichever happens first. The vignette pass completes only after the
+glide lands, so the handoff dissolves in place. A section hash or pathname that
+opens on another stop leaves the boot stage centred and completes without a
+glide. The same URL predicate and projection run before paint and after
+hydration.
+_Avoid_: Centered loader, loading box
+
 **Reveal Gate** — the four facts that must all hold before the boot screen is
 retired: a painted frame, an idle loading manager that has stayed quiet, filled
-meadow buffers, and one completed pass of the boot vignette. Time is never one
-of them.
+meadow buffers, and one completed pass of the boot vignette. Time never opens
+one of the three world facts. It only ever releases the fourth: past the
+vignette ceiling the reveal stops waiting on the pass, because presentation may
+delay a painted room by a fixed cosmetic budget and never hold it (ADR 0022).
 _Avoid_: Load percentage, loading threshold
+
+**Wait Stage** — the first reveal gate this boot has not passed: chunk,
+assets, first frame, meadow, opening. It decides which of the room's ten wait
+lines are eligible to show, since each line is grouped under the gate it is
+true of; within a gate the lines take turns, but a timer never advances the
+gate itself. Latched, so the line never moves backwards when a late batch or a
+meadow remount reopens a gate. It is ordinal on purpose; there is no
+percentage anywhere in the boot, because a loading manager's `loaded/total`
+rebases per batch and the slowest stretches of a cold boot publish no load
+events at all.
+_Avoid_: Progress, loading percent, boot step
 
 **Warm Boot** — a load predicted to find the chunk and its assets already in
 the browser cache, which selects the shorter handoff. Only ever a prediction:
@@ -71,7 +96,10 @@ _Avoid_: Cached load, fast path
 **Demotion** — giving the world up after it was already promised, because of a
 hang, a chunk or scene throw, or a lost GL context. The document comes back
 animated. Distinct from a visitor who was never eligible, who is not being
-given a fallback but the homepage.
+given a fallback but the homepage. A room that has once been ready can no
+longer be demoted for a hang, and no boot can be demoted while its tab is
+hidden: both backstops exist to rescue a visitor stuck on a boot screen, and
+neither case has one (ADR 0022).
 _Avoid_: Fallback, downgrade
 
 **Identity Prop** — a scene object whose presence communicates something

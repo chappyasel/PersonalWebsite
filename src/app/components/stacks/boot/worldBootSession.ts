@@ -20,18 +20,25 @@ import {
   type WorldPhase,
   initialWorldBootState,
   reduceWorldBoot,
+  warmEvidenceFor,
   worldBootView,
 } from "./worldBootMachine";
 import { WORLD_BOOT_POLICY } from "./worldBootPolicy";
 
 type Distribute<T, K extends keyof T> = T extends unknown ? Omit<T, K> : never;
 
-/** Signals with no owning generation: time, and the boot vignette, which
- * belongs to the page rather than to any one world. */
+/** Signals with no owning generation: time, tab visibility, and the boot
+ * vignette, which belongs to the page rather than to any one world. */
 export type WorldBootSignal = Distribute<
   Extract<
     WorldBootEvent,
-    { type: "tick" | "bootVignetteStarted" | "bootVignetteCompleted" }
+    {
+      type:
+        | "tick"
+        | "visibility"
+        | "bootVignetteStarted"
+        | "bootVignetteCompleted";
+    }
   >,
   "at"
 >;
@@ -107,6 +114,27 @@ function webglAvailable(): boolean {
   } catch {
     // Storage blocked. Probe directly rather than demoting a capable browser.
     return probeWebGLSupport();
+  }
+}
+
+/** How long ago the world last reached the screen on this profile, or null if
+ * it never has (or the record is unreadable). Only consulted for a second
+ * start in the same document; the pre-paint script reads it for the first. */
+function warmRecordAgeMs(): number | null {
+  try {
+    const raw = localStorage.getItem(WORLD_BOOT_POLICY.warmKey);
+    if (!raw) return null;
+    const record: unknown = JSON.parse(raw);
+    const at =
+      typeof record === "object" && record !== null && "t" in record
+        ? (record as { t: unknown }).t
+        : null;
+    return typeof at === "number" && Number.isFinite(at)
+      ? Date.now() - at
+      : null;
+  } catch {
+    // Private mode, quota, storage disabled, or a record from an older shape.
+    return null;
   }
 }
 
@@ -252,10 +280,13 @@ class WorldBootSession {
       holdBoot: new URLSearchParams(window.location.search).has(
         WORLD_BOOT_POLICY.holdBootParam,
       ),
-      // Not the stored record: the pre-paint script owns that decision and its
-      // own backstop can revoke it, so by hydration the attribute is the more
-      // truthful answer to "is this load warm".
-      warm: { source: "documentPhase", phase: readWorldPhaseAttribute() },
+      // The attribute for a document's first start, the stored record for an
+      // SPA re-entry, which cleared that attribute itself on the way out.
+      warm: warmEvidenceFor({
+        firstStartOfDocument: this.state.epoch === 0,
+        phase: readWorldPhaseAttribute(),
+        warmRecordAgeMs: warmRecordAgeMs(),
+      }),
     });
     return this.scope();
   }

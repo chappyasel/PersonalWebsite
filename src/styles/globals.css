@@ -590,8 +590,19 @@ html:not([data-world="pending"]):not([data-world="warm"]) .stacks-boot {
   opacity: 0;
   pointer-events: none;
 }
+/* Hiding only. The delay must not apply in the other direction: a boot screen
+   coming BACK (an SPA re-entry, or a dev remount) would spend those 360ms
+   still `visibility: hidden` while its opacity animated up, and since the
+   handshake attribute hides the flat document immediately and the world's
+   canvas has just been torn down, nothing at all would be on screen. That
+   reads as the site going black before the loading screen appears.
+   Transitions are read from the destination state, so the delay belongs here
+   rather than on `.stacks-boot`. */
 html[data-world="ready"] .stacks-boot {
   visibility: hidden;
+  transition:
+    opacity 360ms ease,
+    visibility 0s linear 360ms;
 }
 
 .stacks-boot {
@@ -615,6 +626,9 @@ html[data-world="ready"] .stacks-boot {
   z-index: 20;
   display: grid;
   place-items: center;
+  /* A placed stage can run past a narrow viewport's edges, as the live
+     shelf does; clip it here rather than letting it reach the document. */
+  overflow: hidden;
   -webkit-user-select: none;
   user-select: none;
   background: hsl(var(--background));
@@ -635,7 +649,7 @@ html[data-world="ready"] .stacks-boot {
     );
   transition:
     opacity 360ms ease,
-    visibility 0s linear 360ms;
+    visibility 0s;
 }
 
 .dark .stacks-boot {
@@ -673,9 +687,51 @@ html[data-world="ready"] .stacks-boot {
     transform 560ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* The Boot Stage. The threshold's box is where the camera will put the real
+   shelf: the pre-paint script projects unit 0 from the About rest pose into
+   the three box variables. While the phase is "start" the entry and the
+   wordmark carry a transform that shows them in the centred opening box, so
+   the first paint looks exactly as the centred fallback above does; "placed"
+   drops the transform and the bookcase glides onto the live shelf in one
+   composited transition. The start phase has no transitions at all, so a
+   late rail measurement that moves both the box and the shift (which cancel
+   on screen) cannot wobble it. Left, top, and width ease in the placed phase
+   for the same nudge. */
+html[data-boot-stage] .stacks-boot-threshold {
+  position: absolute;
+  top: var(--stacks-boot-stage-top);
+  left: var(--stacks-boot-stage-left);
+  width: var(--stacks-boot-stage-width);
+  transition:
+    opacity 360ms ease,
+    transform 560ms cubic-bezier(0.16, 1, 0.3, 1),
+    top 360ms ease,
+    left 360ms ease,
+    width 360ms ease;
+}
+
+html[data-boot-stage="start"] .stacks-boot-threshold {
+  transition: opacity 360ms ease;
+}
+
 .stacks-boot-entry {
   position: relative;
   isolation: isolate;
+}
+
+html[data-boot-stage] .stacks-boot-entry {
+  transform-origin: 0 0;
+  transition: transform var(--stacks-boot-glide-duration, 600ms)
+    var(--stacks-boot-glide-ease, ease);
+}
+
+html[data-boot-stage="start"] .stacks-boot-entry {
+  transform: translate(
+      var(--stacks-boot-stage-shift-x),
+      var(--stacks-boot-stage-shift-y)
+    )
+    scale(var(--stacks-boot-stage-shift-scale));
+  transition: none;
 }
 
 .stacks-boot-scene-stage {
@@ -717,9 +773,28 @@ html[data-world="ready"] .stacks-boot {
   text-align: center;
 }
 
+/* The name sits beneath the placed bookcase's feet, which on a short desktop
+   viewport land close to the bottom: the script tightens the gap toward 8px to
+   keep clear of the loading strip. In the start phase it is shifted to where
+   it has always been, 28px under the centred bookcase, and glides with it. */
+html[data-boot-stage] .stacks-boot-wordmark {
+  margin-top: var(--stacks-boot-stage-wordmark-gap);
+  transition: transform var(--stacks-boot-glide-duration, 600ms)
+    var(--stacks-boot-glide-ease, ease);
+}
+
+html[data-boot-stage="start"] .stacks-boot-wordmark {
+  transform: translate(
+    var(--stacks-boot-stage-wordmark-shift-x),
+    var(--stacks-boot-stage-wordmark-shift-y)
+  );
+  transition: none;
+}
+
 /* Three seconds is long enough that a fast boot never advertises itself.
-   After that, the room names the real work still happening without pretending
-   to know which asynchronous gate will finish next. */
+   After that, the room names the gate it is actually still waiting on. The
+   line comes from the boot machine's latched wait stage, so it changes when
+   the boot changes and holds still when the boot is genuinely stuck. */
 .stacks-boot-wait {
   position: absolute;
   z-index: 2;
@@ -767,13 +842,22 @@ html[data-world="ready"] .stacks-boot {
   line-height: 16px;
 }
 
+/* Stacked in one box and cross-faded, so the strip never reflows between
+   notes. Which one is active is the machine's answer to what the boot is still
+   waiting on, not a timer, so this is a transition rather than a carousel. */
 .stacks-boot-wait-note {
   position: absolute;
   inset: 0;
   opacity: 0;
   transform: translateY(2px);
-  animation: stacks-boot-wait-note var(--stacks-boot-wait-cycle) ease-in-out
-    var(--stacks-boot-wait-delay) infinite both;
+  transition:
+    opacity 420ms ease,
+    transform 420ms ease;
+}
+
+.stacks-boot-wait-note[data-boot-note="active"] {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* The loader borrows the room's own dust language: a broad field of tiny warm
@@ -895,23 +979,15 @@ html[data-world="ready"] .stacks-boot {
   }
 }
 
-@keyframes stacks-boot-wait-note {
-  0%,
-  10%,
-  100% {
-    opacity: 0;
-    transform: translateY(2px);
-  }
-  1.25%,
-  7.5% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 html[data-world="ready"] .stacks-boot-threshold {
   opacity: 0;
   transform: translateY(4px) scale(1.055);
+}
+
+/* Once the bookcase already stands on the live shelf, any scale at the
+   handoff reads as the room jumping. A placed stage simply dissolves. */
+html[data-world="ready"][data-boot-stage] .stacks-boot-threshold {
+  transform: none;
 }
 
 .stacks-boot-scene {
@@ -1324,6 +1400,7 @@ html[data-world] [contenteditable="true"] {
   .stacks-boot,
   .stacks-boot-threshold,
   .stacks-boot-entry,
+  .stacks-boot-wordmark,
   .stacks-boot-item-motion,
   .stacks-boot-coordination-network,
   .stacks-boot-coordination-reveal,

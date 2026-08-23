@@ -24,13 +24,13 @@ import {
   sceneUrlForLocation,
 } from "../data";
 import { haptic } from "../mobile/liveness";
-import { freeRoamDiagnosticsController } from "../scene/freeRoamDiagnostics";
 import {
   type TouchTravelStop,
   touchSwipeDestination,
   touchSwipeScrollBounds,
 } from "../mobile/swipeTravel";
 import { authoredTravelStops } from "../mobile/travel";
+import { freeRoamDiagnosticsController } from "../scene/freeRoamDiagnostics";
 import { scrollLeftAfterResize } from "../scene/scrollResize";
 import { scrollOffsetForUnit } from "../scene/worldLayout";
 import { closeStacksPanel, useStacks } from "../store";

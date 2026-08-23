@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { ABOUT_BOOT_STAGE_GLIDE } from "./aboutBootStage";
 import {
   type AssetLoadState,
   type WarmEvidence,
@@ -11,6 +12,7 @@ import {
   isBootingPhase,
   isWarmStart,
   reduceWorldBoot,
+  warmEvidenceFor,
   worldBootView,
   worldEligible,
 } from "./worldBootMachine";
@@ -103,6 +105,16 @@ const vignetteDone = (at: number): WorldBootEvent => ({
   at,
 });
 const tick = (at: number): WorldBootEvent => ({ type: "tick", at });
+const hidden = (at: number): WorldBootEvent => ({
+  type: "visibility",
+  at,
+  hidden: true,
+});
+const shown = (at: number): WorldBootEvent => ({
+  type: "visibility",
+  at,
+  hidden: false,
+});
 
 /** Drive the machine with an explicit script of events. Every `at` is a fake
  * clock reading, so nothing here depends on real time passing. */
@@ -277,6 +289,78 @@ describe("warm cache", () => {
     expect(view(run([start({ warm, saveData: true })])).status).toBe(
       "ineligible",
     );
+  });
+
+  it("answers a document's first start from the handshake attribute", () => {
+    expect(
+      warmEvidenceFor({
+        firstStartOfDocument: true,
+        phase: "warm",
+        warmRecordAgeMs: null,
+      }),
+    ).toEqual({ source: "documentPhase", phase: "warm" });
+    // The pre-paint backstop revoked the attribute. A fresh record must not
+    // talk the visitor back into a warm transition they already waited out.
+    expect(
+      isWarmStart(
+        warmEvidenceFor({
+          firstStartOfDocument: true,
+          phase: null,
+          warmRecordAgeMs: 0,
+        }),
+        P,
+      ),
+    ).toBe(false);
+  });
+
+  it("answers an SPA re-entry from the stored record, not the attribute exit cleared", () => {
+    const reEntry = (warmRecordAgeMs: number | null) =>
+      warmEvidenceFor({
+        firstStartOfDocument: false,
+        phase: null,
+        warmRecordAgeMs,
+      });
+
+    expect(isWarmStart(reEntry(0), P)).toBe(true);
+    expect(isWarmStart(reEntry(P.warmTtlMs), P)).toBe(false);
+    expect(isWarmStart(reEntry(null), P)).toBe(false);
+    expect(view(run([start({ warm: reEntry(0) })])).loadPath).toBe("warm");
+  });
+
+  it("boots a route change away and back warm from end to end", () => {
+    const revealed = run([
+      start({ warm: { source: "documentPhase", phase: "pending" } }),
+      g1.firstFrame(1_000),
+      g1.meadow(1_000),
+      vignetteDone(1_000),
+      g1.assets(1_000, COMPLETE),
+      tick(1_000 + P.assetSettleMs),
+      tick(2_000),
+    ]);
+    expect(view(revealed).revealed).toBe(true);
+
+    // Leaving clears the handshake, which is why the attribute cannot answer
+    // the next start. A reveal just happened here, so the record is fresh.
+    const left = reduceWorldBoot(revealed, {
+      type: "exit",
+      at: 3_000,
+      epoch: revealed.epoch,
+    });
+    expect(worldBootView(left).documentPhase).toBe(null);
+
+    const returned = reduceWorldBoot(
+      left,
+      start({
+        at: 4_000,
+        warm: warmEvidenceFor({
+          firstStartOfDocument: false,
+          phase: worldBootView(left).documentPhase,
+          warmRecordAgeMs: 1_000,
+        }),
+      }),
+    );
+    expect(returned.loadPath).toBe("warm");
+    expect(worldBootView(returned).documentPhase).toBe("warm");
   });
 });
 
@@ -891,5 +975,274 @@ describe("totality", () => {
     expect(isBootingPhase("warm")).toBe(true);
     expect(isBootingPhase("ready")).toBe(false);
     expect(isBootingPhase(null)).toBe(false);
+  });
+});
+
+describe("room ready ahead of the vignette", () => {
+  /** Every gate but the vignette's, settled. */
+  function roomReady(t = 0) {
+    return run(
+      [
+        g1.firstFrame(t + 10),
+        g1.assets(t + 10, COMPLETE),
+        g1.meadow(t + 10),
+        tick(t + 10 + P.assetSettleMs),
+      ],
+      bootedTo("booting", t),
+    );
+  }
+
+  it("tells the vignette the room is waiting on it, and on nothing else", () => {
+    const booting = bootedTo("booting");
+    expect(view(booting).awaitingVignette).toBe(false);
+    const painted = run([g1.firstFrame(10), g1.meadow(10)], booting);
+    expect(view(painted).awaitingVignette).toBe(false);
+    const settling = run([g1.assets(10, COMPLETE)], painted);
+    expect(view(settling).awaitingVignette).toBe(false);
+    const ready = run([tick(10 + P.assetSettleMs)], settling);
+    expect(ready.status).toBe("booting");
+    expect(view(ready).awaitingVignette).toBe(true);
+    expect(view(ready).revealed).toBe(false);
+  });
+
+  it("still reveals only when the vignette says its pass is done", () => {
+    const ready = roomReady();
+    const readyAt = ready.worldReadyAt!;
+    const later = run([tick(readyAt + P.vignetteCeilingMs - 1)], ready);
+    expect(later.status).toBe("booting");
+    const revealed = run([vignetteDone(readyAt + P.vignetteCeilingMs - 1)], later);
+    expect(revealed.status).toBe("revealing");
+    expect(view(revealed).awaitingVignette).toBe(false);
+  });
+
+  // The claim the ceiling rests on, asserted rather than assumed. Slowing the
+  // bookcase's glide without raising the ceiling would start revealing the
+  // world over a stage still in flight, which is the one thing the vignette
+  // gate exists to prevent. A comment in worldBootPolicy.ts is the only other
+  // thing holding these two numbers together.
+  it("clears the glide it is meant to outlast", () => {
+    const glideMs = ABOUT_BOOT_STAGE_GLIDE.durationSeconds * 1_000;
+    // The glide starts a frame after the room is ready and completes a
+    // microtask after its transition ends, so the margin has to be more than a
+    // rounding error.
+    expect(P.vignetteCeilingMs).toBeGreaterThanOrEqual(glideMs * 1.5);
+  });
+
+  it("caps how long the vignette may hold a room that has already painted", () => {
+    const ready = roomReady();
+    const readyAt = ready.worldReadyAt!;
+    // The glide is 600ms, so nothing legitimate is being cut short here.
+    const waiting = run([tick(readyAt + P.vignetteCeilingMs - 1)], ready);
+    expect(waiting.status).toBe("booting");
+    const released = run([tick(readyAt + P.vignetteCeilingMs)], waiting);
+    expect(released.status).toBe("revealing");
+    // Never signalled. The ceiling releases the vignette, it does not finish
+    // its pass for it.
+    expect(released.bootVignetteReady).toBe(false);
+  });
+
+  it("will not let the ceiling reveal a room that is no longer ready", () => {
+    const ready = roomReady();
+    const readyAt = ready.worldReadyAt!;
+    const reloading = run([g1.assets(readyAt + 1, LOADING)], ready);
+    const late = run([tick(readyAt + P.vignetteCeilingMs + 5_000)], reloading);
+    expect(late.status).toBe("booting");
+    const settled = run(
+      [
+        g1.assets(readyAt + 6_000, COMPLETE),
+        tick(readyAt + 6_000 + P.assetSettleMs),
+      ],
+      late,
+    );
+    // The world facts are back, and the ceiling has long since passed.
+    expect(settled.status).toBe("revealing");
+  });
+
+  it("disarms the hang backstop the moment the room is ready", () => {
+    // A cold boot that lands one second before the backstop, with the glide
+    // still in flight. The old order threw this world away.
+    const late = P.hangBackstopMs - 1_000;
+    const ready = run(
+      [
+        g1.firstFrame(late),
+        g1.assets(late, COMPLETE),
+        g1.meadow(late),
+        tick(late + P.assetSettleMs),
+      ],
+      bootedTo("booting"),
+    );
+    expect(ready.status).toBe("booting");
+    expect(ready.deadline).toBeNull();
+    const past = run([tick(P.hangBackstopMs + 1)], ready);
+    expect(past.status).toBe("booting");
+    expect(past.failure).toBeNull();
+    expect(run([vignetteDone(P.hangBackstopMs + 2)], past).status).toBe(
+      "revealing",
+    );
+  });
+
+  it("is not raised while the vignette has already finished", () => {
+    const finished = run([vignetteDone(5)], bootedTo("booting"));
+    const ready = run(
+      [
+        g1.firstFrame(10),
+        g1.assets(10, COMPLETE),
+        g1.meadow(10),
+        tick(10 + P.assetSettleMs),
+      ],
+      finished,
+    );
+    expect(ready.status).toBe("revealing");
+    expect(view(ready).awaitingVignette).toBe(false);
+  });
+
+  it("stays raised if the room goes un-ready again underneath the glide", () => {
+    const ready = roomReady();
+    const reloading = run([g1.assets(400, LOADING)], ready);
+    expect(view(reloading).awaitingVignette).toBe(true);
+    // The reveal itself still waits on the live facts.
+    const done = run([vignetteDone(401)], reloading);
+    expect(done.status).toBe("booting");
+    const settled = run(
+      [g1.assets(500, COMPLETE), tick(500 + P.assetSettleMs)],
+      done,
+    );
+    expect(settled.status).toBe("revealing");
+  });
+
+  it("does not allocate on the no-op ticks the frame loop sends", () => {
+    const ready = roomReady();
+    expect(reduceWorldBoot(ready, tick(1_000), P)).toBe(ready);
+  });
+
+  it("is held back with the boot, and cleared by a new generation", () => {
+    const held = run([
+      start({ holdBoot: true }),
+      g1.firstFrame(10),
+      g1.assets(10, COMPLETE),
+      g1.meadow(10),
+      tick(10 + P.assetSettleMs),
+    ]);
+    expect(view(held).awaitingVignette).toBe(false);
+    const restarted = run([start({ at: 9_000 })], roomReady());
+    expect(restarted.worldReadyAt).toBeNull();
+    expect(view(restarted).awaitingVignette).toBe(false);
+  });
+});
+
+describe("what the boot is waiting on", () => {
+  it("names the first gate still shut, and never a percentage", () => {
+    const booting = bootedTo("booting");
+    // Nothing has reported: the WebGL chunk itself is still on the wire.
+    expect(view(booting).waitStage).toBe("starting");
+
+    const fetching = run([g1.assets(10, LOADING)], booting);
+    expect(view(fetching).waitStage).toBe("assets");
+
+    // Everything requested has arrived, but nothing is on screen. This is
+    // where shader compilation lives, and where a load-driven bar would sit
+    // pinned at 100%.
+    const compiling = run([g1.assets(20, COMPLETE)], fetching);
+    expect(view(compiling).waitStage).toBe("firstFrame");
+
+    const painted = run([g1.firstFrame(30)], compiling);
+    expect(view(painted).waitStage).toBe("meadow");
+
+    const planted = run([g1.meadow(40)], painted);
+    expect(view(planted).waitStage).toBe("opening");
+  });
+
+  it("latches, because a wait message that reverses reads as a fault", () => {
+    const planted = run(
+      [g1.assets(10, LOADING), g1.assets(20, COMPLETE), g1.firstFrame(30)],
+      bootedTo("booting"),
+    );
+    expect(view(planted).waitStage).toBe("meadow");
+
+    // A Suspense child queues another batch after the manager went quiet.
+    const reloading = run([g1.assets(40, LOADING)], planted);
+    expect(reloading.assetsCompleteSince).toBeNull();
+    expect(view(reloading).waitStage).toBe("meadow");
+
+    // The reveal gate is not fooled by the latch: it reads the live facts.
+    expect(view(reloading).revealed).toBe(false);
+  });
+
+  it("starts over with a new generation", () => {
+    const planted = run(
+      [g1.assets(10, COMPLETE), g1.firstFrame(20), g1.meadow(20)],
+      bootedTo("booting"),
+    );
+    expect(view(planted).waitStage).toBe("opening");
+    const restarted = run([start({ at: 9_000 })], planted);
+    expect(view(restarted).waitStage).toBe("starting");
+    expect(restarted.assetsSeen).toBe(false);
+  });
+
+  it("is the server's answer before any adapter has started a boot", () => {
+    expect(view(initialWorldBootState()).waitStage).toBe("starting");
+  });
+});
+
+describe("a tab nobody is looking at", () => {
+  it("freezes the hang backstop while the document is hidden", () => {
+    const booting = run([hidden(1_000)], bootedTo("booting"));
+    expect(booting.hiddenSince).toBe(1_000);
+
+    // The deadline timer is a setTimeout, so it still fires in a background
+    // tab. The reveal gate's sampling is requestAnimationFrame, which does
+    // not. Firing here would demote a world nobody had a chance to see.
+    const past = run([tick(P.hangBackstopMs + 1)], booting);
+    expect(past.status).toBe("booting");
+    expect(past.failure).toBeNull();
+
+    // The wait resumes with exactly the budget it had left.
+    const back = run([shown(P.hangBackstopMs + 1)], past);
+    expect(back.deadline).toEqual({
+      kind: "hangBackstop",
+      at: P.hangBackstopMs + (P.hangBackstopMs + 1 - 1_000),
+    });
+    expect(run([tick(back.deadline!.at - 1)], back).status).toBe("booting");
+    expect(run([tick(back.deadline!.at)], back).failure).toBe("hang");
+  });
+
+  it("does not restart the clock when hidden twice without a wake", () => {
+    const twice = run([hidden(1_000), hidden(5_000)], bootedTo("booting"));
+    expect(twice.hiddenSince).toBe(1_000);
+    expect(reduceWorldBoot(twice, hidden(9_000), P)).toBe(twice);
+  });
+
+  it("carries the vignette ceiling through the pause", () => {
+    // A room that went ready and then lost the tab must still get its glide
+    // on the way back, not a bookcase that has already snapped into place.
+    const ready = run([shown(0)], bootedTo("booting"));
+    const painted = run(
+      [
+        g1.firstFrame(10),
+        g1.assets(10, COMPLETE),
+        g1.meadow(10),
+        tick(10 + P.assetSettleMs),
+      ],
+      ready,
+    );
+    const readyAt = painted.worldReadyAt!;
+    const away = run([hidden(readyAt + 100), shown(readyAt + 600_000)], painted);
+    expect(away.worldReadyAt).toBe(readyAt + 600_000 - 100);
+    expect(away.status).toBe("booting");
+    const glided = run([tick(away.worldReadyAt! + P.vignetteCeilingMs)], away);
+    expect(glided.status).toBe("revealing");
+  });
+
+  it("is a fact about the tab, so it survives a new generation", () => {
+    const reentry = run([hidden(1_000), start({ at: 2_000 })], bootedTo("booting"));
+    expect(reentry.hiddenSince).toBe(1_000);
+    expect(run([tick(2_000 + P.hangBackstopMs + 1)], reentry).status).toBe(
+      "booting",
+    );
+  });
+
+  it("does not allocate when visibility has not actually changed", () => {
+    const booting = bootedTo("booting");
+    expect(reduceWorldBoot(booting, shown(500), P)).toBe(booting);
   });
 });

@@ -56,9 +56,9 @@ export const CAMERA_LOOK_X_MAX_LAG = 6;
 export const CAMERA_NARROW = { z: 7.6, y: 0.3, fov: 40.5 };
 // tan(38.5° / 2) / tan(32.5° / 2) = 1.20: the requested twenty-percent
 // tighter phone composition, without changing camera distance or parallax.
-const CAMERA_PHONE = { ...CAMERA_NARROW, fov: 32.5 };
-const PHONE_ASPECT = 0.5;
-const TABLET_PORTRAIT_ASPECT = 0.75;
+export const CAMERA_PHONE = { ...CAMERA_NARROW, fov: 32.5 };
+export const PHONE_ASPECT = 0.5;
+export const TABLET_PORTRAIT_ASPECT = 0.75;
 export const MID_X = ((UNIT_COUNT - 1) * UNIT_SPACING) / 2;
 export const TRAVEL_X = (UNIT_COUNT - 1) * UNIT_SPACING;
 /** A short, real scrollable lead-in before About. The seat now rests farther
@@ -130,7 +130,7 @@ const CAMERA_DEPTH_ZERO: CameraDepthOffsets = Object.freeze({
  * exit still get authored travel, but the original pose owns the playable
  * interval. An arc peak is the complete offset at the midpoint, not an amount
  * added to the interpolated stop values. */
-const CAMERA_DEPTH_KNOTS: readonly CameraDepthKnot[] = [
+export const CAMERA_DEPTH_KNOTS: readonly CameraDepthKnot[] = [
   {
     position: 0,
     eyeHeight: 0.02,
@@ -306,7 +306,7 @@ export type CameraComposition = {
   lookZ: number;
 };
 
-const PORTRAIT_FOV = 33;
+export const PORTRAIT_FOV = 33;
 export const SHELF_OVERVIEW_MARGIN = 1.06;
 export const SHELF_OVERVIEW_MIN_DISTANCE = 6.4;
 /** Very tall windows must not pull farther back than the canonical phone
@@ -410,13 +410,18 @@ export function depthOfFieldTargetForUnit(unit: number) {
 // Left edge of unit 0's shelf in world space: (−width/2, 0) through the
 // unit's +0.10 yaw. The one scene anchor the About stop is solved against.
 const aboutYaw = unitPose(0).rotation[1];
-const ABOUT_SHELF_LEFT = {
+export const ABOUT_SHELF_LEFT = {
   x: (-SHELF_GEOMETRY.width / 2) * Math.cos(aboutYaw),
   z: (SHELF_GEOMETRY.width / 2) * Math.sin(aboutYaw),
 } as const;
 
 /** Clear air between the rail's widest label and the projected shelf edge. */
 export const RAIL_SHELF_MARGIN_PX = 24;
+/** The desktop rail's right edge before UnitRail has measured it: 28px of
+ * inset plus the widest label in Georgia. The camera's first frames and the
+ * pre-paint boot stage both solve against this, so a measurement that lands
+ * close to it moves nothing visibly. */
+export const RAIL_RIGHT_PX_FALLBACK = 179;
 /** Maximum lateral camera displacement at the About stop. */
 export const ABOUT_STOP_MAX_SHIFT = 2;
 

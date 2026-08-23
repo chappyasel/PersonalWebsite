@@ -49,9 +49,25 @@ export function mobileSheetRenderedHeight(
 
 /** Resident detent: 30% of usable height, bounded for readable and scenic
  * balance. Short landscape keeps only the fixed header detent. */
+export const MOBILE_SHEET_PEEK = {
+  shortLandscape: 64,
+  min: 168,
+  max: 280,
+  fraction: 0.3,
+} as const;
+
 export function mobileSheetPeekHeight(width: number, usableHeight: number) {
-  if (width < 1200 && width > usableHeight && usableHeight < 600) return 64;
-  return Math.round(Math.min(280, Math.max(168, usableHeight * 0.3)));
+  if (width < 1200 && width > usableHeight && usableHeight < 600)
+    return MOBILE_SHEET_PEEK.shortLandscape;
+  return Math.round(
+    Math.min(
+      MOBILE_SHEET_PEEK.max,
+      Math.max(
+        MOBILE_SHEET_PEEK.min,
+        usableHeight * MOBILE_SHEET_PEEK.fraction,
+      ),
+    ),
+  );
 }
 
 /** The pill replaces a physically parked sheet. It must never be derived

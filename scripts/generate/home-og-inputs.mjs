@@ -64,8 +64,36 @@ const OFF_CAMERA_SCENE_INPUTS = new Set([
   "src/app/components/stacks/scene/sceneDiagnosticsRegistry.ts",
 ]);
 
+/** Surfaces the capture removes outright rather than merely hiding.
+ *
+ * StacksHome sets `display: none` on `.stacks-boot` and `.stacks-flat` under
+ * `html[data-og-capture]`, so neither contributes a pixel or a layout box to
+ * the card, and a file whose only job is to render one of them cannot change
+ * what is captured. This is deliberately narrower than "hidden": the rest of
+ * the homepage chrome is `visibility: hidden`, which still occupies layout —
+ * and the rail's measured width feeds the camera's About stop, so UnitRail
+ * stays watched.
+ *
+ * `home-og-scene.mjs` asserts both selectors compute to `display: none` at
+ * capture time, so this list fails loudly instead of silently rotting.
+ *
+ * `boot/aboutBootStage.ts` is here on a different footing. It renders nothing;
+ * it writes `data-boot-stage` and the `--stacks-boot-stage-*` properties onto
+ * documentElement, which capture mode does NOT remove, and it has a live
+ * importer in UnitRail, which stays watched. What makes it inert for the card
+ * is that everything it writes is read only inside `.stacks-boot`, so the
+ * capture asserts that separately by scanning the stylesheet. */
+const CAPTURE_REMOVED_INPUTS = new Set([
+  "src/app/components/stacks/FlatHome.tsx",
+  "src/app/components/stacks/boot/aboutBootStage.ts",
+  "src/app/components/stacks/dom/BootScreen.tsx",
+  "src/app/components/stacks/dom/bootReadingBooks.ts",
+  "src/app/components/stacks/dom/bootVignette.ts",
+]);
+
 /** @param {string} file */
 function belongsToAboutCapture(file) {
+  if (CAPTURE_REMOVED_INPUTS.has(file)) return false;
   if (file.startsWith("src/app/components/stacks/scene/units/"))
     return ABOUT_UNIT_INPUTS.has(file);
   if (file.startsWith("public/models/")) return ABOUT_MODEL_INPUTS.has(file);
@@ -134,9 +162,19 @@ async function listInputs(root, snapshot) {
 export async function homeOgInputManifest({ root, snapshot = WORKING_TREE }) {
   const files = await listInputs(root, snapshot);
   const hash = createHash("sha256");
+  /** Per-file digests so a stale report can name the files that moved instead
+   * of sending someone to a three-minute build to find out. Truncated because
+   * this detects change, it does not defend against forgery — the whole-input
+   * `digest` below stays a full SHA-256.
+   * @type {Record<string, string>} */
+  const fileDigests = {};
 
   for (const file of files) {
     const content = await readSnapshotFile(root, file, snapshot);
+    fileDigests[file] = createHash("sha256")
+      .update(content)
+      .digest("hex")
+      .slice(0, 16);
     hash.update(file);
     hash.update("\0");
     hash.update(String(content.byteLength));
@@ -146,11 +184,36 @@ export async function homeOgInputManifest({ root, snapshot = WORKING_TREE }) {
   }
 
   return {
-    version: 1,
+    version: 2,
     algorithm: "sha256",
     digest: hash.digest("hex"),
     files,
+    fileDigests,
   };
+}
+
+/** Which watched files differ from the ones the committed capture was made
+ * from. Added and removed files count: either changes what renders.
+ * @param {{ fileDigests?: Record<string, string> } | undefined} committed
+ * @param {{ files: string[], fileDigests: Record<string, string> }} current
+ * @returns {{ file: string, change: string }[] | null}
+ */
+export function homeOgChangedInputs(committed, current) {
+  const before = committed?.fileDigests;
+  if (!before || typeof before !== "object") return null;
+  /** @type {{ file: string, change: string }[]} */
+  const changed = [];
+  for (const file of current.files) {
+    if (!(file in before)) changed.push({ file, change: "added" });
+    else if (before[file] !== current.fileDigests[file]) {
+      changed.push({ file, change: "changed" });
+    }
+  }
+  for (const file of Object.keys(before)) {
+    if (!(file in current.fileDigests))
+      changed.push({ file, change: "removed" });
+  }
+  return changed.sort((a, b) => a.file.localeCompare(b.file));
 }
 
 /** @param {{ root: string, snapshot?: "workingTree" | "index" }} options */
@@ -188,15 +251,23 @@ export async function homeOgArtifactStatus({ root, snapshot = WORKING_TREE }) {
   const current = await homeOgInputManifest({ root, snapshot });
   const imageDigest = await homeOgImageDigest({ root, snapshot });
   const capturedInputDigest = await homeOgImageInputDigest({ root, snapshot });
+  const inputsMatch =
+    committed.version === current.version &&
+    committed.algorithm === current.algorithm &&
+    committed.digest === current.digest;
   return {
     fresh:
-      committed.version === current.version &&
-      committed.algorithm === current.algorithm &&
-      committed.digest === current.digest &&
+      inputsMatch &&
       committed.image?.digest === imageDigest &&
       committed.image?.inputDigest === current.digest &&
       capturedInputDigest === current.digest,
     files: current.files,
+    /** Null when the committed manifest predates per-file digests. */
+    changed: inputsMatch ? [] : homeOgChangedInputs(committed, current),
+    /** The image itself was edited or replaced without a capture. */
+    imageDrifted:
+      committed.image?.digest !== imageDigest ||
+      capturedInputDigest !== committed.image?.inputDigest,
   };
 }
 
