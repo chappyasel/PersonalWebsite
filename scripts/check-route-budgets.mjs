@@ -12,7 +12,19 @@ export const routes = [
   {
     name: "homepage",
     manifest: ".next/server/app/page_client-reference-manifest.js",
-    budget: 275 * 1024,
+    // Re-baselined rather than quietly stepped over. main at 99be503 measured
+    // 275.1 KB against the old 275 KB line, so the budget was already breached
+    // before the boot work landed; that work then added 4.9 KB, all of it in
+    // the entry chunk (51.0 to 55.1 KB gzip, every other chunk byte-identical).
+    // The boot vignette ships in the initial entry deliberately, because it has
+    // to paint before the lazy WebGL chunk exists, so there is no lazy boundary
+    // to hide it behind.
+    //
+    // Nothing automated enforces this. `pnpm verify` excludes route budgets
+    // because they need a fresh `.next`, and the quality-contracts workflow runs
+    // only `pnpm verify`, so the sole place this fails is a local `pnpm build`.
+    // That is why it drifted over the line unnoticed in the first place.
+    budget: 285 * 1024,
   },
   {
     name: "books",
