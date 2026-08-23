@@ -1,6 +1,6 @@
+import { cameraTravelState } from "../scene/cameraZoom";
 import { describe, expect, it } from "vitest";
 
-import { cameraTravelState } from "../scene/cameraZoom";
 import {
   authoredTravelStops,
   clampWorldZoom,
@@ -9,6 +9,7 @@ import {
   projectedInertiaDistance,
   shouldSettleInterruptedTravel,
   unitForScrollPosition,
+  worldZoomFromPinch,
   worldZoomFromVerticalDrag,
 } from "./travel";
 
@@ -59,9 +60,9 @@ describe("kinetic snapping", () => {
     });
 
     expect(captured.focusBlockedByTravel).toBe(true);
-    expect(shouldSettleInterruptedTravel(null, null, false, "new-contact")).toBe(
-      true,
-    );
+    expect(
+      shouldSettleInterruptedTravel(null, null, false, "new-contact"),
+    ).toBe(true);
   });
 
   it("does not restart travel at the captured near-stop iPhone position", () => {
@@ -70,12 +71,7 @@ describe("kinetic snapping", () => {
 
     expect(atAuthoredStop).toBe(true);
     expect(
-      shouldSettleInterruptedTravel(
-        null,
-        null,
-        atAuthoredStop,
-        "new-contact",
-      ),
+      shouldSettleInterruptedTravel(null, null, atAuthoredStop, "new-contact"),
     ).toBe(false);
   });
 
@@ -84,5 +80,11 @@ describe("kinetic snapping", () => {
     expect(worldZoomFromVerticalDrag(0, -100)).toBe(0.65);
     expect(worldZoomFromVerticalDrag(0, -1000)).toBe(5.5);
     expect(clampWorldZoom(-10)).toBe(-0.75);
+  });
+
+  it("zooms the world in as fingers spread and out as they pinch", () => {
+    expect(worldZoomFromPinch(0, 100, 200)).toBeCloseTo(2.7726, 4);
+    expect(worldZoomFromPinch(2, 100, 50)).toBeCloseTo(-0.75);
+    expect(worldZoomFromPinch(4, 100, 200)).toBe(5.5);
   });
 });

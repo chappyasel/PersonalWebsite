@@ -60,6 +60,9 @@ export type MovableController = {
   press: (event: PointerEvent) => boolean;
   pickup: (event: PointerEvent) => void;
   move: (event: PointerEvent) => void;
+  startDepthGesture: (spanPx: number) => void;
+  moveDepthGesture: (spanPx: number) => void;
+  endDepthGesture: () => void;
   release: (
     event: PointerEvent,
     velocityMultiplier: number,

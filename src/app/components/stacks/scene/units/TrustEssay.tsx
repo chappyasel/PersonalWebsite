@@ -6,10 +6,10 @@
 // is "trust is the invisible thread that holds the world together", so the
 // binding thread is the one detail here that is not plain stationery: a
 // stab-sewn booklet in a warm cord, the thread made visible. The cover is
-// page one of the real PDF (the beam artwork and the title block),
-// rasterised to 512 px the way the GPT-3 pages in PaperStack are. The booklet
-// is the same full Letter size as those loose pages. No redraw, no invented
-// mark. The booklet is a Door to the essay.
+// page one of the real PDF (the beam artwork and the title block), rasterised
+// at 2x Letter resolution so its type survives a close carry. The booklet is
+// the same full Letter size as those loose pages. No redraw, no invented mark.
+// The booklet is a Door to the essay.
 import { type Palette } from "../../theme";
 import Grabbable from "../Grabbable";
 import HeldFacing from "../HeldFacing";
@@ -21,7 +21,7 @@ import * as THREE from "three";
 
 import { MUSINGS_OAK } from "./VineyardCutout";
 
-const TRUST_COVER_URL = "/images/stacks/musings/trust-2025-cover.webp";
+const TRUST_COVER_URL = "/images/stacks/musings/trust-2025-cover.webp?v=2";
 const TRUST_ESSAY_HOVER_KEY = "grab:trust-essay:musings";
 export const TRUST_ESSAY_HREF = "https://www.aicollective.com/trust";
 

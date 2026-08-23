@@ -129,6 +129,21 @@ describe("touch gesture arbitration", () => {
     ]);
   });
 
+  it("leaves a primary carry intact when a secondary finger lifts", () => {
+    const initial = press().state;
+    const carrying = reduceTouchGesture(initial, {
+      type: "pickup",
+      pointerId: 1,
+    });
+    const secondaryRelease = reduceTouchGesture(carrying.state, {
+      type: "release",
+      pointerId: 2,
+    });
+
+    expect(secondaryRelease.state).toBe(carrying.state);
+    expect(secondaryRelease.effects).toEqual([]);
+  });
+
   it("retains total travel when releasing a swipe over a prop", () => {
     const initial = press().state;
     const swiping = reduceTouchGesture(initial, {

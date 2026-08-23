@@ -31,8 +31,9 @@ _Avoid_: Device class, input mode
 
 **Interaction Profile** — the interaction contract selected from the pointer
 actually in use. Fine pointers receive hover previews and wheel/trackpad
-travel. Coarse pointers receive Touch Focus and direct swipes. Narrow Peek
-Sheets use native blur for both; surface treatment is not an input decision.
+travel. Coarse pointers receive Touch Focus, direct swipes, and two-finger
+framing. Narrow Peek Sheets use native blur for both; surface treatment is not
+an input decision.
 These choices remain independent of the current Presentation Profile.
 _Avoid_: Mobile mode, desktop mode, user-agent class
 
@@ -145,6 +146,12 @@ morning (see Sky).
 reversing the Traverse through the exposed World. Vertical gestures belong to
 the Peek Sheet and readable Placard content, never to lateral World travel.
 _Avoid_: Vertical world scroll, omnidirectional travel swipe
+
+**World Pinch** — a two-finger gesture on exposed World background that moves
+the visitor camera closer or farther without changing Units. During carrying,
+the same gesture changes the Movable Prop's hold depth instead; the original
+contact continues to own its screen position and release.
+_Avoid_: Browser page zoom, scale transform, pinch-to-travel
 
 **Kinetic Snap** — the candidate mobile settling behavior in which the World
 follows a World Swipe continuously, release momentum may carry it across
@@ -361,8 +368,9 @@ _Avoid_: Inspection mode, unit travel, pinch zoom
 on a discrete authored prop. A quick release establishes Touch Focus; movement
 before the hold threshold becomes a World Swipe with its full displacement;
 a stationary hold on any Movable Prop promotes the same contact into carrying.
-The exposed World outside authored props retains its native swipe
-behavior.
+A second contact then adjusts hold depth without taking release ownership from
+the first. The exposed World outside authored props retains its native
+one-finger swipe behavior and reserves a two-finger World Pinch for framing.
 _Avoid_: Long-press mode, global scroll lock
 
 **Touch Halo** — the invisible, projected coarse-pointer target that expands

@@ -25,7 +25,22 @@ const golf = read("../scene/golf/GolfExperience.tsx");
 describe("coarse-pointer ownership", () => {
   it("has no vertical-to-horizontal Touch Events bridge", () => {
     expect(bridges).not.toContain('addEventListener("touchmove"');
-    expect(bridges).toContain('touchAction = "pan-x pinch-zoom"');
+    expect(bridges).toContain('touchAction = "pan-x"');
+  });
+
+  it("reserves a two-finger carry gesture for prop depth", () => {
+    expect(canvas).toContain('touchAction: "pan-x"');
+    expect(touchLayer).toContain("startDepthGesture(");
+    expect(touchLayer).toContain("moveDepthGesture(");
+    expect(touchLayer).toContain("finishDepthGesture();");
+    expect(touchLayer).toContain("secondaryPointerId");
+    expect(grabbable).toContain("heldDepthFromPinch(");
+  });
+
+  it("uses a background pinch for visitor-controlled world zoom", () => {
+    expect(touchLayer).toContain("startWorldPinch(");
+    expect(touchLayer).toContain("updateWorldPinch();");
+    expect(touchLayer).toContain("worldZoomFromPinch(");
   });
 
   it("separates narrow presentation from pointer behavior and material", () => {

@@ -450,7 +450,7 @@ describe("Musings shelf composition", () => {
     // The booklet is a Door to the essay, and the perch rides the cover.
     expect(trustSource).toContain("href={TRUST_ESSAY_HREF}");
     expect(trustSource).toContain(
-      "/images/stacks/musings/trust-2025-cover.webp",
+      "/images/stacks/musings/trust-2025-cover.webp?v=2",
     );
     expect(perchSource).toContain('id: "musings:trust-cover"');
   });

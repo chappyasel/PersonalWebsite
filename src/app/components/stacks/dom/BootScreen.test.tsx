@@ -25,7 +25,13 @@ import { describe, expect, it } from "vitest";
 
 import BootScreen, {
   BOOT_CADENCE_SETTLE_SECONDS,
+  BOOT_DUST_COUNTS,
+  BOOT_DUST_SPAWN_DELAY_MS,
+  BOOT_DUST_SPAWN_WINDOW_MS,
+  BOOT_DUST_TRAVEL_MULTIPLIER,
   BOOT_FRAME_PHOTOS,
+  BOOT_WAIT_NOTES,
+  BOOT_WAIT_NOTE_INTERVAL_SECONDS,
   bootCadence,
   bootCssKeyframes,
   bootItemKeyframes,
@@ -34,6 +40,7 @@ import BootScreen, {
   bootWaveIntroKeyframes,
   bootWaveKeyframes,
   bootWaveWindow,
+  createBootDustDrift,
 } from "./BootScreen";
 
 const BOOKS = [
@@ -357,14 +364,74 @@ describe("Homepage entrance", () => {
     }
   });
 
-  it("contains no legacy placeholder rows, books, labels, or progress copy", () => {
+  it("contains no legacy placeholder rows, books, or progress copy", () => {
     const markup = renderBoot();
 
     expect(markup).toContain("Chappy Asel");
     expect(markup).not.toContain("data-book=");
     expect(markup).not.toContain("stacks-boot-bookcase");
     expect(markup).not.toContain("stacks-boot-shelf");
-    expect(markup).not.toMatch(/progress|loading|status/i);
+    expect(markup).not.toContain("stacks-boot-ground");
+    expect(markup).not.toMatch(/progress|status/i);
+  });
+
+  it("renders one restrained delayed wait message with authored room copy", () => {
+    const markup = renderBoot();
+
+    expect(BOOT_WAIT_NOTES).toEqual([
+      "Waiting for first light.",
+      "Warming the room.",
+      "Growing the meadow.",
+      "Turning on the lighthouse.",
+      "Lighting the little lamp.",
+      "Setting out the books.",
+      "Unfolding the map.",
+      "Giving the globe a turn.",
+      "Letting the moths wander.",
+      "Opening the room.",
+    ]);
+    expect(BOOT_WAIT_NOTES).toHaveLength(10);
+    expect(BOOT_WAIT_NOTE_INTERVAL_SECONDS).toBe(2);
+    expect(markup).toContain(
+      `--stacks-boot-wait-cycle:${BOOT_WAIT_NOTES.length * BOOT_WAIT_NOTE_INTERVAL_SECONDS}s`,
+    );
+    expect(markup.match(/data-boot-wait=""/g)).toHaveLength(1);
+    expect(markup).toContain("Loading");
+    expect(markup.match(/class="stacks-boot-wait-dot"/g)).toHaveLength(3);
+    for (const note of BOOT_WAIT_NOTES) expect(markup).toContain(note);
+    expect(BOOT_DUST_COUNTS).toEqual({
+      light: { initial: 8, maximum: 12 },
+      dark: { initial: 3, maximum: 7 },
+    });
+    expect(BOOT_DUST_SPAWN_DELAY_MS).toEqual({
+      minimum: 2_000,
+      maximum: 4_000,
+    });
+    expect(BOOT_DUST_SPAWN_WINDOW_MS).toBe(30_000);
+    expect(BOOT_DUST_TRAVEL_MULTIPLIER).toBe(2);
+    expect(markup.match(/data-boot-mote="dust"/g)).toHaveLength(12);
+    expect(markup).toContain("--stacks-boot-dust-light:#b76a0b");
+    expect(markup).toContain("--stacks-boot-dust-halo-light:#f2b63f");
+    expect(markup).not.toContain("data-boot-lamp-light");
+    expect(markup).not.toContain("stacks-boot-butterfly");
+    expect(markup.indexOf("stacks-boot-motes")).toBeLessThan(
+      markup.indexOf("stacks-boot-wordmark"),
+    );
+  });
+
+  it("authors a slow, seamless dust drift with intermittent light catches", () => {
+    const drift = createBootDustDrift({ x: 20, y: -12 }, 1.7, 0.9, true);
+    const opacities = drift.keyframes.map(({ opacity }) => Number(opacity));
+
+    expect(drift.keyframes).toHaveLength(33);
+    expect(drift.durationMs).toBeGreaterThan(20_000);
+    expect(drift.durationMs).toBeLessThan(25_000);
+    expect(drift.keyframes[0]?.transform).toBe(
+      drift.keyframes.at(-1)?.transform,
+    );
+    expect(drift.keyframes[0]?.opacity).toBe(drift.keyframes.at(-1)?.opacity);
+    expect(Math.min(...opacities)).toBeLessThan(0.2);
+    expect(Math.max(...opacities)).toBeGreaterThan(0.9);
   });
 
   it.each([0, 1, 2, 3])(

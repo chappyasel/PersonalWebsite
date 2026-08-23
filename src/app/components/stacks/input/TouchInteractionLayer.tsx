@@ -17,6 +17,7 @@ import {
   authoredTravelStops,
   isAtAuthoredTravelStop,
   shouldSettleInterruptedTravel,
+  worldZoomFromPinch,
   worldZoomFromVerticalDrag,
 } from "../mobile/travel";
 import { projectedInteractionBounds } from "../scene/interactionProjection";
@@ -53,23 +54,45 @@ function nearestStopForElement(element: HTMLElement) {
   return best;
 }
 
+type TrackedTouch = Readonly<{ x: number; y: number }>;
+
+function touchSpan(a: TrackedTouch, b: TrackedTouch) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
 /** The one coarse-pointer arbiter over the exposed World. It owns no visual
  * geometry and installs one capture path, leaving fine-pointer r3f handlers
- * and native page/zoom behavior outside localized interaction Halos intact. */
+ * intact and leaving native page behavior outside the World untouched. */
 export default function TouchInteractionLayer() {
   const gesture = useRef<TouchGestureState>({ phase: "idle" });
   const pickupTimer = useRef<number | null>(null);
   const inertiaFrame = useRef<number | null>(null);
   const latestEvent = useRef<PointerEvent | null>(null);
+  const touchPoints = useRef(new Map<number, TrackedTouch>());
+  const depthGesture = useRef<{
+    interactionId: string;
+    primaryPointerId: number;
+    secondaryPointerId: number;
+  } | null>(null);
+  const worldPinch = useRef<{
+    primaryPointerId: number;
+    secondaryPointerId: number;
+    initialSpan: number;
+    initialZoom: number;
+  } | null>(null);
   const backgroundGesture = useRef<{
     pointerId: number;
     startX: number;
     startY: number;
     startZoom: number;
-    mode: "pending" | "zoom" | "travel";
+    mode: "pending" | "pinch" | "zoom" | "travel";
   } | null>(null);
 
   useEffect(() => {
+    // Captured once for the cleanup below: the ref's Map identity is stable
+    // for the component's life, but reading `.current` from cleanup is what
+    // react-hooks/exhaustive-deps flags.
+    const points = touchPoints.current;
     const clearPickup = () => {
       if (pickupTimer.current !== null)
         window.clearTimeout(pickupTimer.current);
@@ -94,9 +117,90 @@ export default function TouchInteractionLayer() {
     const restoreTravel = () => {
       const element = useStacks.getState().scrollEl;
       if (element && !useStacks.getState().dragging) {
-        element.style.touchAction = "pan-x pinch-zoom";
+        element.style.touchAction = "pan-x";
         element.style.overflowX = "auto";
       }
+    };
+    const finishDepthGesture = () => {
+      const active = depthGesture.current;
+      if (!active) return;
+      getSceneInteraction(
+        active.interactionId,
+      )?.movableController?.endDepthGesture();
+      depthGesture.current = null;
+    };
+    const startDepthGesture = (
+      interactionId: string,
+      primaryPointerId: number,
+      secondaryPointerId: number,
+    ) => {
+      if (depthGesture.current) return;
+      const primary = touchPoints.current.get(primaryPointerId);
+      const secondary = touchPoints.current.get(secondaryPointerId);
+      const controller = getSceneInteraction(interactionId)?.movableController;
+      if (!primary || !secondary || !controller) return;
+      depthGesture.current = {
+        interactionId,
+        primaryPointerId,
+        secondaryPointerId,
+      };
+      controller.startDepthGesture(touchSpan(primary, secondary));
+      haptic(6);
+    };
+    const updateDepthGesture = () => {
+      const active = depthGesture.current;
+      if (!active) return;
+      const primary = touchPoints.current.get(active.primaryPointerId);
+      const secondary = touchPoints.current.get(active.secondaryPointerId);
+      if (!primary || !secondary) return;
+      getSceneInteraction(
+        active.interactionId,
+      )?.movableController?.moveDepthGesture(touchSpan(primary, secondary));
+    };
+    const finishWorldPinch = () => {
+      const active = worldPinch.current;
+      if (!active) return;
+      worldPinch.current = null;
+      const primary = touchPoints.current.get(active.primaryPointerId);
+      if (primary)
+        backgroundGesture.current = {
+          pointerId: active.primaryPointerId,
+          startX: primary.x,
+          startY: primary.y,
+          startZoom: touchWorldRef.zoomOffset,
+          mode: "pending",
+        };
+      else backgroundGesture.current = null;
+    };
+    const startWorldPinch = (
+      primaryPointerId: number,
+      secondaryPointerId: number,
+    ) => {
+      if (worldPinch.current) return;
+      const primary = touchPoints.current.get(primaryPointerId);
+      const secondary = touchPoints.current.get(secondaryPointerId);
+      if (!primary || !secondary) return;
+      const initialSpan = touchSpan(primary, secondary);
+      worldPinch.current = {
+        primaryPointerId,
+        secondaryPointerId,
+        initialSpan,
+        initialZoom: touchWorldRef.zoomOffset,
+      };
+      if (backgroundGesture.current) backgroundGesture.current.mode = "pinch";
+      haptic(6);
+    };
+    const updateWorldPinch = () => {
+      const active = worldPinch.current;
+      if (!active) return;
+      const primary = touchPoints.current.get(active.primaryPointerId);
+      const secondary = touchPoints.current.get(active.secondaryPointerId);
+      if (!primary || !secondary) return;
+      touchWorldRef.zoomOffset = worldZoomFromPinch(
+        active.initialZoom,
+        active.initialSpan,
+        touchSpan(primary, secondary),
+      );
     };
     const settle = (userInitiated: boolean, swipeStartScrollLeft?: number) => {
       const state = useStacks.getState();
@@ -150,12 +254,22 @@ export default function TouchInteractionLayer() {
             store.setPressedInteraction(null);
             store.setFocusedInteraction(effect.interactionId);
             spec?.movableController?.pickup(event);
+            for (const secondaryPointerId of touchPoints.current.keys()) {
+              if (secondaryPointerId === event.pointerId) continue;
+              startDepthGesture(
+                effect.interactionId,
+                event.pointerId,
+                secondaryPointerId,
+              );
+              break;
+            }
             haptic(12);
             break;
           case "carry-move":
             spec?.movableController?.move(event);
             break;
           case "carry-release":
+            finishDepthGesture();
             spec?.movableController?.release(event, 0.55, 2.5);
             restoreTravel();
             break;
@@ -229,6 +343,7 @@ export default function TouchInteractionLayer() {
           }
           case "cancel":
             clearPickup();
+            finishDepthGesture();
             store.setPressedInteraction(null);
             if (effect.interactionId)
               getSceneInteraction(
@@ -281,12 +396,42 @@ export default function TouchInteractionLayer() {
       touchWorldRef.wakeStrength = 1;
     };
     const onPointerDown = (event: PointerEvent) => {
-      if (
-        event.pointerType !== "touch" ||
-        !event.isPrimary ||
-        event.button !== 0
-      )
+      if (event.pointerType !== "touch" || event.button !== 0) return;
+      touchPoints.current.set(event.pointerId, {
+        x: event.clientX,
+        y: event.clientY,
+      });
+      if (!event.isPrimary) {
+        const current = gesture.current;
+        if (
+          current.phase === "carrying" &&
+          exposedWorldEvent(event) &&
+          !depthGesture.current
+        ) {
+          event.preventDefault();
+          event.stopPropagation();
+          useStacks.getState().scrollEl?.setPointerCapture?.(event.pointerId);
+          startDepthGesture(
+            current.interactionId,
+            current.pointerId,
+            event.pointerId,
+          );
+        } else if (
+          current.phase === "idle" &&
+          backgroundGesture.current &&
+          exposedWorldEvent(event) &&
+          !worldPinch.current
+        ) {
+          event.preventDefault();
+          event.stopPropagation();
+          const primaryPointerId = backgroundGesture.current.pointerId;
+          const element = useStacks.getState().scrollEl;
+          element?.setPointerCapture?.(primaryPointerId);
+          element?.setPointerCapture?.(event.pointerId);
+          startWorldPinch(primaryPointerId, event.pointerId);
+        }
         return;
+      }
       // Camera zoom must not depend on CameraRig's separate pointer listener
       // having mounted first. This arbiter owns the accepted touch contact.
       touchWorldRef.interactionPointerType = "touch";
@@ -349,7 +494,32 @@ export default function TouchInteractionLayer() {
       }, TOUCH_PICKUP_MS);
     };
     const onPointerMove = (event: PointerEvent) => {
-      if (event.pointerType !== "touch" || !event.isPrimary) return;
+      if (event.pointerType !== "touch") return;
+      touchPoints.current.set(event.pointerId, {
+        x: event.clientX,
+        y: event.clientY,
+      });
+      const activeDepth = depthGesture.current;
+      if (
+        activeDepth &&
+        (event.pointerId === activeDepth.primaryPointerId ||
+          event.pointerId === activeDepth.secondaryPointerId)
+      ) {
+        event.preventDefault();
+        updateDepthGesture();
+        if (event.pointerId === activeDepth.secondaryPointerId) return;
+      }
+      const activeWorldPinch = worldPinch.current;
+      if (
+        activeWorldPinch &&
+        (event.pointerId === activeWorldPinch.primaryPointerId ||
+          event.pointerId === activeWorldPinch.secondaryPointerId)
+      ) {
+        event.preventDefault();
+        updateWorldPinch();
+        return;
+      }
+      if (!event.isPrimary) return;
       latestEvent.current = event;
       if (exposedWorldEvent(event)) publishWake(event);
       if (gesture.current.phase === "idle") {
@@ -383,7 +553,19 @@ export default function TouchInteractionLayer() {
       );
     };
     const onTouchStart = (event: TouchEvent) => {
-      if (!event.cancelable || event.touches.length !== 1) return;
+      if (!event.cancelable) return;
+      if (
+        gesture.current.phase === "pressing" ||
+        gesture.current.phase === "carrying"
+      ) {
+        event.preventDefault();
+        return;
+      }
+      if (event.touches.length >= 2 && backgroundGesture.current) {
+        event.preventDefault();
+        return;
+      }
+      if (event.touches.length !== 1) return;
       const touch = event.touches[0];
       if (!touch || !exposedWorldContact(event.target, touch.clientY)) return;
       const store = useStacks.getState();
@@ -393,11 +575,26 @@ export default function TouchInteractionLayer() {
       // `touch-action` is locked before pointerdown handlers run. Cancel the
       // legacy touch default at gesture start only inside a live Touch Halo,
       // so the browser cannot replace this carry with a native horizontal pan.
-      // Background World travel and pinch zoom keep their native behavior.
+      // Background World travel remains native. Pinch is reserved for prop
+      // depth, so the browser cannot replace a carry with viewport zoom.
       event.preventDefault();
     };
     const onPointerUp = (event: PointerEvent) => {
       if (event.pointerType !== "touch") return;
+      const activeDepth = depthGesture.current;
+      if (!event.isPrimary) {
+        if (activeDepth?.secondaryPointerId === event.pointerId)
+          finishDepthGesture();
+        if (worldPinch.current?.secondaryPointerId === event.pointerId)
+          finishWorldPinch();
+        touchPoints.current.delete(event.pointerId);
+        return;
+      }
+      if (activeDepth?.primaryPointerId === event.pointerId)
+        finishDepthGesture();
+      if (worldPinch.current?.primaryPointerId === event.pointerId)
+        finishWorldPinch();
+      touchPoints.current.delete(event.pointerId);
       clearPickup();
       if (backgroundGesture.current?.pointerId === event.pointerId)
         backgroundGesture.current = null;
@@ -405,6 +602,20 @@ export default function TouchInteractionLayer() {
     };
     const onPointerCancel = (event: PointerEvent) => {
       if (event.pointerType !== "touch") return;
+      const activeDepth = depthGesture.current;
+      if (!event.isPrimary) {
+        if (activeDepth?.secondaryPointerId === event.pointerId)
+          finishDepthGesture();
+        if (worldPinch.current?.secondaryPointerId === event.pointerId)
+          finishWorldPinch();
+        touchPoints.current.delete(event.pointerId);
+        return;
+      }
+      if (activeDepth?.primaryPointerId === event.pointerId)
+        finishDepthGesture();
+      if (worldPinch.current?.primaryPointerId === event.pointerId)
+        finishWorldPinch();
+      touchPoints.current.delete(event.pointerId);
       clearPickup();
       if (backgroundGesture.current?.pointerId === event.pointerId)
         backgroundGesture.current = null;
@@ -443,6 +654,9 @@ export default function TouchInteractionLayer() {
     });
     return () => {
       clearPickup();
+      finishDepthGesture();
+      finishWorldPinch();
+      points.clear();
       stopInertia("cleanup");
       window.removeEventListener("pointerdown", onPointerDown, {
         capture: true,

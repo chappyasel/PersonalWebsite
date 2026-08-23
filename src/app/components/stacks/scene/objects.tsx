@@ -924,7 +924,8 @@ export function NotebookLean({
 }
 
 const MUSINGS_PDF_PAGE_URLS = [5, 4, 3, 2, 1].map(
-  (page) => `/images/stacks/musings/gpt3-2021-page-${page}.webp?v=2`,
+  (page) =>
+    `/images/stacks/musings/gpt3-2021-page-${page}.webp?v=${page === 1 ? 3 : 2}`,
 );
 
 /** Five real pages from Chappy's 2021 GPT-3 paper plus a dimensioned pen.

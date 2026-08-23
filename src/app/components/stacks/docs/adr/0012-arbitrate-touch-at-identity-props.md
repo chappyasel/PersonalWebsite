@@ -20,3 +20,10 @@ A normally released or browser-cancelled carry clears Touch Focus. The moved
 prop keeps its Touch Halo at its rendered position, and its next quick release
 establishes a new Focus Lean there instead of being mistaken for a second-tap
 activation.
+
+The World reserves two-finger pinch from native viewport zoom. A pinch that
+begins on exposed background adjusts visitor-camera framing; once a Movable
+Prop is carried, it adjusts that prop's camera-relative hold depth instead.
+The first contact remains the carry owner, so releasing the second finger ends
+only depth adjustment while releasing the first drops the prop. Native
+one-finger horizontal travel remains unchanged.

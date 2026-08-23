@@ -101,6 +101,9 @@ export type WorldBootEvent =
       prefersReducedMotion: boolean;
       saveData: boolean;
       ogCapture: boolean;
+      /** A URL-scoped presentation aid. It deliberately disables both the
+       * reveal gate and hang deadline while leaving the world free to load. */
+      holdBoot?: boolean;
       warm: WarmEvidence;
       /** The pre-paint backstop already fired for THIS document load, so the
        * visitor has been reading the flat page for twenty seconds. Hydrating
@@ -146,6 +149,7 @@ export type WorldBootState = {
   origin: WorldBootOrigin | null;
   loadPath: LoadPath;
   ogCapture: boolean;
+  holdBoot: boolean;
   failure: WorldBootFailure | null;
   ineligibility: WorldBootIneligibility | null;
   /** Monotonic time when this machine generation began. */
@@ -199,6 +203,7 @@ export function initialWorldBootState(): WorldBootState {
     origin: null,
     loadPath: "cold",
     ogCapture: false,
+    holdBoot: false,
     failure: null,
     ineligibility: null,
     startedAt: null,
@@ -319,6 +324,7 @@ function settle(
   policy: WorldBootPolicy,
 ): WorldBootState {
   if (state.status === "booting") {
+    if (state.holdBoot) return state;
     if (revealGateOpen(state, at, policy)) {
       return {
         ...state,
@@ -338,6 +344,7 @@ function startDeadline(
   event: Extract<WorldBootEvent, { type: "start" }>,
   policy: WorldBootPolicy,
 ): WorldBootState["deadline"] {
+  if (event.holdBoot) return null;
   if (event.origin === "prepaint") {
     return {
       kind: "prepaintBackstop",
@@ -392,6 +399,7 @@ export function reduceWorldBoot(
         epoch: state.epoch + 1,
         origin: event.origin,
         ogCapture: event.ogCapture,
+        holdBoot: event.holdBoot ?? false,
         startedAt: event.journeyStartedAt ?? event.at,
         // The vignette runs in the initial entry bundle and can finish its
         // pass before the streamed homepage data resolves and the world's
@@ -503,7 +511,8 @@ export function worldBootView(state: WorldBootState): WorldBootView {
     // until the world genuinely owns the screen.
     flatMounted: state.status !== "live",
     flatAnimated: !worldMounted,
-    awaitingReveal: state.status === "booting" && state.firstFrame,
+    awaitingReveal:
+      state.status === "booting" && state.firstFrame && !state.holdBoot,
     ogCapture: state.ogCapture && state.status !== "exited",
     deadlineAt: state.deadline?.at ?? null,
     deadlineKind: state.deadline?.kind ?? null,
