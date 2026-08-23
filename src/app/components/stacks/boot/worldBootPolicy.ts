@@ -22,6 +22,9 @@ export type WorldBootPolicy = {
   ogCaptureAttribute: string;
   /** Query parameter the OG renderer appends. */
   ogCaptureParam: string;
+  /** Debug-only query parameter that keeps the authored boot screen visible
+   * after the world is ready, so its delayed presentation can be inspected. */
+  holdBootParam: string;
   /** Media query for the visitor's motion preference. Evaluated on every
    * document load — it is a live choice, never cached. */
   reducedMotionQuery: string;
@@ -70,6 +73,7 @@ export const WORLD_BOOT_POLICY: WorldBootPolicy = {
   worldAttribute: "data-world",
   ogCaptureAttribute: "data-og-capture",
   ogCaptureParam: "og-capture",
+  holdBootParam: "hold-boot",
   reducedMotionQuery: "(prefers-reduced-motion: reduce)",
   webglCapabilityKey: SCENE_WEBGL_CAPABILITY_SESSION_KEY,
   warmKey: "stacks-warm",

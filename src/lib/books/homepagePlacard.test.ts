@@ -93,4 +93,21 @@ describe("buildHomepageBookPlacard", () => {
     expect(result.subjects).toHaveLength(8);
     expect(result.subjects[0]).toEqual({ name: "Shared", count: 10 });
   });
+  // The homepage degrades to an empty library when the database is
+  // unreachable, so the placard has to survive input it never sees in
+  // production: no finished dates to take a min over, and no elapsed-year
+  // fraction to divide the projection by.
+  it("builds a zeroed placard from an empty library", () => {
+    const result = buildHomepageBookPlacard([], new Date("2026-08-15T12:00:00Z"));
+
+    expect(result.stats.total).toBe(0);
+    expect(result.stats.perYear).toBeNull();
+    expect(result.stats.trackedSince).toBeNull();
+    expect(result.subjects).toEqual([]);
+    expect(result.current).toEqual([]);
+    expect(result.recent).toEqual([]);
+    expect(result.yearly).toEqual([
+      { year: 2026, books: 0, projectedRemainder: 0 },
+    ]);
+  });
 });

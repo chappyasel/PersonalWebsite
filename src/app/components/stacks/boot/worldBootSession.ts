@@ -249,6 +249,9 @@ class WorldBootSession {
       ogCapture: new URLSearchParams(window.location.search).has(
         WORLD_BOOT_POLICY.ogCaptureParam,
       ),
+      holdBoot: new URLSearchParams(window.location.search).has(
+        WORLD_BOOT_POLICY.holdBootParam,
+      ),
       // Not the stored record: the pre-paint script owns that decision and its
       // own backstop can revoke it, so by hydration the attribute is the more
       // truthful answer to "is this load warm".

@@ -43,19 +43,22 @@ describe("boot presentation", () => {
     );
   });
 
-  it("matches the compact top-left wordmark tracking", () => {
+  it("places the wordmark beneath the shelf with compact tracking", () => {
     const wordmark = rule(".stacks-boot-wordmark {");
-    expect(wordmark).toContain("margin: 0 0 28px");
+    expect(wordmark).toContain("margin: 28px 0 0");
     expect(wordmark).toContain("color: hsl(var(--foreground) / 0.95)");
     expect(wordmark).toContain("font-size: clamp(28.56px, 3.162vw, 44.88px)");
     expect(wordmark).toContain("letter-spacing: -0.025em");
+    expect(
+      component.indexOf('className="stacks-boot-wordmark"'),
+    ).toBeGreaterThan(component.indexOf("</svg>"));
   });
 
   it("uses no radial background treatment in dark mode", () => {
     const darkRule = rule(".dark .stacks-boot {");
     expect(darkRule).toContain("background: linear-gradient(");
     expect(darkRule).not.toContain("radial-gradient(");
-    expect(rule(".dark .stacks-boot-entry::before {")).toContain(
+    expect(rule(".dark .stacks-boot-scene-stage::before {")).toContain(
       "display: none",
     );
   });
@@ -76,5 +79,64 @@ describe("boot presentation", () => {
 
     expect(dither).toContain("fill: #030507");
     expect(dither).toContain("shape-rendering: crispEdges");
+  });
+
+  it("waits three seconds, then fades the loading copy in over two", () => {
+    const wait = rule(".stacks-boot-wait {");
+
+    expect(wait).toContain("opacity: 0");
+    expect(wait).toContain("stacks-boot-wait-arrive 2s");
+    expect(wait).toContain("3s");
+    expect(css).toContain("@keyframes stacks-boot-wait-note");
+    expect(rule(".stacks-boot-wait-note {")).toContain(
+      "var(--stacks-boot-wait-cycle)",
+    );
+    expect(component).toContain("createBootDustDrift(");
+    expect(component).toContain("iterations: Number.POSITIVE_INFINITY");
+    expect(css).not.toContain("@keyframes stacks-boot-firefly-wander");
+    expect(rule(".stacks-boot-motes {")).toContain(
+      "stacks-boot-motes-arrive 3s ease-out 2s forwards",
+    );
+  });
+
+  it("gives Loading more weight than the supporting notes", () => {
+    const label = rule(".stacks-boot-wait-label {");
+
+    expect(label).toContain("font-size: clamp(15px, 1.35vw, 17px)");
+    expect(label).toContain("font-weight: 500");
+    expect(css).toContain("@keyframes stacks-boot-wait-dot");
+    expect(rule(".stacks-boot-wait-dot {")).toContain(
+      "stacks-boot-wait-dot 1.08s",
+    );
+  });
+
+  it("progressively adds room dust by day and brighter motes at night", () => {
+    expect(component).toContain('data-boot-mote="dust"');
+    expect(component).not.toContain("BootButterfly");
+    expect(component).not.toContain("data-boot-lamp-light");
+    expect(rule(".stacks-boot-mote {")).toContain(
+      "--stacks-boot-mote-size: 6px",
+    );
+    expect(rule(".stacks-boot-mote {")).toContain(
+      "var(--stacks-boot-dust) 0 16%",
+    );
+    expect(rule(".dark .stacks-boot-mote {")).toContain(
+      "--stacks-boot-mote-size: 7px",
+    );
+    expect(rule(".stacks-boot-mote-slot[data-boot-active] {")).toContain(
+      "stacks-boot-mote-arrive 1.5s",
+    );
+    expect(component).toContain("BOOT_DUST_SPAWN_WINDOW_MS");
+    expect(component).toContain("BOOT_DUST_SPAWN_DELAY_MS.minimum");
+    expect(component).toContain("replace(replacementIndex)");
+  });
+
+  it("reduces the delayed state to static Loading copy", () => {
+    expect(css).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.stacks-boot-wait \{[\s\S]*stacks-boot-wait-reduced 1ms step-end 3s forwards/,
+    );
+    expect(css).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.stacks-boot-wait-notes,[\s\S]*\.stacks-boot-motes \{[\s\S]*display: none/,
+    );
   });
 });

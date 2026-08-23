@@ -284,7 +284,7 @@ export default function ScrollBridges() {
     // Coarse World travel is native horizontal pan + browser momentum. The
     // browser owns the stream until it ends; then every path shares one
     // authored-stop snap. Vertical motion is intentionally untouched.
-    scrollEl.style.touchAction = "pan-x pinch-zoom";
+    scrollEl.style.touchAction = "pan-x";
     let coarseTravel = false;
     let settleTimer = 0;
     let coarseTravelStops: TouchTravelStop[] = [];
@@ -368,8 +368,7 @@ export default function ScrollBridges() {
     };
     const panWorld = (now: number) => {
       const state = useStacks.getState();
-      const direction =
-        Number(panKeys.has("d")) - Number(panKeys.has("a"));
+      const direction = Number(panKeys.has("d")) - Number(panKeys.has("a"));
       const elapsed = previousPanFrame
         ? Math.min(32, now - previousPanFrame)
         : 0;

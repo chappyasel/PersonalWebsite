@@ -2,6 +2,7 @@ import rawData from "../../../public/data/routine.json";
 import { inArray } from "drizzle-orm";
 
 import { db } from "~/server/db";
+import { orEmpty } from "~/server/queries/degrade";
 import { books } from "~/server/db/schema";
 
 import RoutineHero from "./components/RoutineHero";
@@ -28,20 +29,28 @@ function extractBookSlugs(obj: unknown): string[] {
   return [...slugs];
 }
 
+/**
+ * The page itself is static JSON. The database only supplies titles and cover
+ * thumbnails for inline book links, so an outage should drop the thumbnails
+ * and leave every word on the page readable.
+ */
+async function lookupBookRows(slugs: string[]) {
+  if (slugs.length === 0) return [];
+  return orEmpty(
+    "routine:books",
+    () =>
+      db
+        .select({ id: books.id, title: books.title, coverUrl: books.coverUrl })
+        .from(books)
+        .where(inArray(books.id, slugs)),
+    [],
+  );
+}
+
 export default async function RoutinePage() {
   // Fetch book metadata for all referenced books
   const slugs = extractBookSlugs(data);
-  const bookRows =
-    slugs.length > 0
-      ? await db
-          .select({
-            id: books.id,
-            title: books.title,
-            coverUrl: books.coverUrl,
-          })
-          .from(books)
-          .where(inArray(books.id, slugs))
-      : [];
+  const bookRows = await lookupBookRows(slugs);
 
   const bookLookup: BookLookup = {};
   for (const b of bookRows) {

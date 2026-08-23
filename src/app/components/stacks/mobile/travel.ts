@@ -17,6 +17,19 @@ export function worldZoomFromVerticalDrag(start: number, deltaY: number) {
   return clampWorldZoom(start - deltaY * 0.0065);
 }
 
+/** Two-finger framing follows the same visual convention as the held prop:
+ * spreading makes the subject larger. Logarithmic response makes equal pinch
+ * ratios feel equal regardless of the fingers' starting separation. */
+export function worldZoomFromPinch(
+  start: number,
+  initialSpanPx: number,
+  spanPx: number,
+) {
+  const initialSpan = Math.max(24, initialSpanPx);
+  const span = Math.max(24, spanPx);
+  return clampWorldZoom(start + Math.log(span / initialSpan) * 4);
+}
+
 export function authoredTravelStops(
   unitCount: number,
   additionalStops: readonly number[] = [],

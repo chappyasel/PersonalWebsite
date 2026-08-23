@@ -289,3 +289,35 @@ export type WeightliftingStatsData = Awaited<
 export type WeightliftingPlacardData = Awaited<
   ReturnType<typeof getCachedWeightliftingPlacard>
 >;
+
+/**
+ * Neutral values for callers that would rather render without training data
+ * than fail. Both mirror what the queries return against an empty database,
+ * so the placard and mosaic take their own no-data paths instead of meeting a
+ * shape they were never typed for. They are typed against the query returns,
+ * so a column added above breaks these until they are updated too.
+ */
+export function emptyActivityMosaic(months: number): ActivityMosaicData {
+  return {
+    months,
+    startDate: null,
+    endDate: null,
+    days: [],
+    activeDays: 0,
+    totalWorkouts: 0,
+    maxVolume: 0,
+    topCategory: null,
+  };
+}
+
+export const EMPTY_WEIGHTLIFTING_PLACARD: WeightliftingPlacardData = {
+  stats: {
+    totalWorkouts: 0,
+    totalSets: 0,
+    totalVolume: 0,
+    totalDurationSeconds: 0,
+    earliestWorkout: null,
+  },
+  yearly: [],
+  records: [],
+};

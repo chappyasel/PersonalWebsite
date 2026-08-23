@@ -125,6 +125,79 @@ const DEFAULT_BOOT_READING_BOOKS: BootReadingBook[] = [
   { id: "boot-reading-three" },
 ];
 
+export const BOOT_WAIT_NOTES = [
+  "Waiting for first light.",
+  "Warming the room.",
+  "Growing the meadow.",
+  "Turning on the lighthouse.",
+  "Lighting the little lamp.",
+  "Setting out the books.",
+  "Unfolding the map.",
+  "Giving the globe a turn.",
+  "Letting the moths wander.",
+  "Opening the room.",
+] as const;
+export const BOOT_WAIT_NOTE_INTERVAL_SECONDS = 2;
+export const BOOT_DUST_COUNTS = {
+  light: { initial: 8, maximum: 12 },
+  dark: { initial: 3, maximum: 7 },
+} as const;
+export const BOOT_DUST_SPAWN_WINDOW_MS = 30_000;
+export const BOOT_DUST_SPAWN_DELAY_MS = { minimum: 2_000, maximum: 4_000 };
+export const BOOT_DUST_TRAVEL_MULTIPLIER = 2;
+
+type BootMotePosition = { x: number; y: number };
+
+export type BootDustDrift = {
+  durationMs: number;
+  keyframes: Keyframe[];
+};
+
+/** Samples the same low-frequency current, individual eddies, and intermittent
+ * shimmer used by the WebGL room dust. The path loops analytically, so motes
+ * drift rather than choosing conspicuous waypoint-to-waypoint routes. */
+export function createBootDustDrift(
+  origin: BootMotePosition,
+  phase: number,
+  speed: number,
+  shaftMote = false,
+): BootDustDrift {
+  const sampleCount = 32;
+  const durationMs = Math.round(22_000 / speed);
+  const travel = BOOT_DUST_TRAVEL_MULTIPLIER;
+  return {
+    durationMs,
+    keyframes: Array.from({ length: sampleCount + 1 }, (_, index) => {
+      const progress = index / sampleCount;
+      const time = progress * Math.PI * 2;
+      const current = Math.sin(time + origin.y * 0.018);
+      const x =
+        origin.x +
+        current * 4.2 * travel +
+        Math.sin(time * 2 + phase) * 7.4 * travel +
+        Math.sin(time + phase * 2.7) * 3.2 * travel;
+      const y =
+        origin.y +
+        Math.sin(time * 2 + phase * 1.4) * 5.8 * travel +
+        Math.sin(time + origin.x * 0.012) * 3.4 * travel;
+      const envelope = 0.5 + 0.5 * Math.sin(time * 2 + phase * 3.1);
+      const glint = 0.5 + 0.5 * Math.sin(time * 5 + phase * 5.7);
+      const shaftWave =
+        0.5 +
+        0.5 *
+          Math.sin(time + phase * 2.3 + 0.34 * Math.sin(time + phase * 4.1));
+      const opacity = shaftMote
+        ? 0.08 + 0.92 * Math.max(0, Math.min(1, (shaftWave - 0.22) / 0.56))
+        : 0.64 + 0.28 * envelope + 0.08 * glint;
+      return {
+        offset: progress,
+        opacity: Number(opacity.toFixed(2)),
+        transform: `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) scale(${(0.84 + glint * 0.22).toFixed(2)})`,
+      };
+    }),
+  };
+}
+
 type BootScreenProps = {
   readingBooks?: BootReadingBook[];
   readingBookColors?: Record<string, ReadingBookEdgeColor>;
@@ -364,6 +437,142 @@ function useBootMotion(
   }, [cadence, sceneRef]);
 }
 
+function useBootMotes(motesRef: RefObject<HTMLDivElement | null>) {
+  useEffect(() => {
+    const motes = motesRef.current;
+    if (
+      !motes ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+
+    let stopped = false;
+    const animations = new Set<Animation>();
+    const timers = new Set<number>();
+    const moteSlots = Array.from(
+      motes.querySelectorAll<HTMLSpanElement>("[data-boot-mote]"),
+    );
+    const stage = motes.parentElement?.getBoundingClientRect();
+    const stageWidth = stage?.width ?? 560;
+    const stageHeight = stage?.height ?? 430;
+    const origins = [
+      [-0.36, -0.14],
+      [0.03, 0.18],
+      [0.34, -0.04],
+      [-0.2, 0.08],
+      [0.4, 0.16],
+      [-0.08, -0.23],
+      [0.19, -0.19],
+      [-0.32, 0.22],
+      [0.27, 0.25],
+      [-0.43, -0.02],
+      [0.11, -0.04],
+      [-0.16, 0.27],
+    ] as const;
+    const theme = document.documentElement.classList.contains("dark")
+      ? "dark"
+      : "light";
+    const counts = BOOT_DUST_COUNTS[theme];
+    const spawnDeadline = performance.now() + BOOT_DUST_SPAWN_WINDOW_MS;
+    let visibleCount = counts.initial;
+    let replacementIndex = 0;
+
+    const stop = () => {
+      stopped = true;
+      for (const timer of timers) window.clearTimeout(timer);
+      timers.clear();
+      for (const animation of animations) animation.cancel();
+      animations.clear();
+    };
+
+    moteSlots.forEach((slot, index) => {
+      const mote = slot.querySelector<HTMLSpanElement>(".stacks-boot-mote");
+      if (!mote) return;
+      const seed = origins[index % origins.length]!;
+      const drift = createBootDustDrift(
+        { x: seed[0] * stageWidth, y: seed[1] * stageHeight },
+        0.73 + index * 1.91,
+        0.78 + (index % 4) * 0.11,
+        index === 2 || index === 6,
+      );
+      const animation = mote.animate(drift.keyframes, {
+        duration: drift.durationMs,
+        iterations: Number.POSITIVE_INFINITY,
+        easing: "linear",
+      });
+      animation.currentTime = (index * 2_713) % drift.durationMs;
+      animations.add(animation);
+    });
+
+    const activate = (index: number) => {
+      moteSlots[index]?.setAttribute("data-boot-active", "");
+    };
+    for (let index = 0; index < visibleCount; index += 1) activate(index);
+
+    const replace = (index: number) => {
+      const slot = moteSlots[index];
+      const drift = slot?.querySelector<HTMLSpanElement>(".stacks-boot-mote");
+      if (!slot || !drift) return;
+      const fade = slot.animate([{ opacity: 1 }, { opacity: 0 }], {
+        duration: 900,
+        easing: "ease-in",
+        fill: "forwards",
+      });
+      animations.add(fade);
+      fade.onfinish = () => {
+        animations.delete(fade);
+        fade.cancel();
+        if (stopped) return;
+        slot.removeAttribute("data-boot-active");
+        drift.getAnimations().forEach((animation) => {
+          const duration = Number(animation.effect?.getTiming().duration ?? 0);
+          if (duration > 0) animation.currentTime = Math.random() * duration;
+        });
+        requestAnimationFrame(() => {
+          if (!stopped) activate(index);
+        });
+      };
+    };
+
+    const scheduleArrival = () => {
+      const delay =
+        BOOT_DUST_SPAWN_DELAY_MS.minimum +
+        Math.random() *
+          (BOOT_DUST_SPAWN_DELAY_MS.maximum - BOOT_DUST_SPAWN_DELAY_MS.minimum);
+      if (performance.now() + delay > spawnDeadline) return;
+      const timer = window.setTimeout(() => {
+        timers.delete(timer);
+        if (stopped) return;
+        if (visibleCount < counts.maximum) {
+          activate(visibleCount);
+          visibleCount += 1;
+        } else {
+          replace(replacementIndex);
+          replacementIndex = (replacementIndex + 1) % counts.maximum;
+        }
+        scheduleArrival();
+      }, delay);
+      timers.add(timer);
+    };
+    scheduleArrival();
+
+    const observer = new MutationObserver(() => {
+      const phase = documentWorldPhase();
+      if (phase === "ready" || phase === null) stop();
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-world"],
+    });
+
+    return () => {
+      observer.disconnect();
+      stop();
+    };
+  }, [motesRef]);
+}
+
 const ABOUT_BOOT_CADENCE = bootCadence(ABOUT_BOOT_VISIBLE_COMPOSITION.length);
 
 function paletteVariables(): BootStyle {
@@ -377,6 +586,9 @@ function paletteVariables(): BootStyle {
     variables[`--stacks-boot-haze${suffix}`] = palette.skyShadow;
     variables[`--stacks-boot-meadow${suffix}`] = palette.meadowTipA;
     variables[`--stacks-boot-glow${suffix}`] = palette.skyEmber;
+    variables[`--stacks-boot-dust${suffix}`] = palette.dust;
+    variables[`--stacks-boot-dust-halo${suffix}`] =
+      theme === "light" ? "#f2b63f" : "#ffe2bd";
     variables[`--stacks-boot-strap${suffix}`] = palette.strap;
     variables[`--stacks-boot-frame${suffix}`] = palette.frame;
     variables[`--stacks-boot-page${suffix}`] = palette.pages;
@@ -1006,7 +1218,9 @@ export default function BootScreen({
     cadence,
   );
   const sceneRef = useRef<SVGSVGElement>(null);
+  const motesRef = useRef<HTMLDivElement>(null);
   useBootMotion(sceneRef, cadence);
+  useBootMotes(motesRef);
   const support = SHELF_GEOMETRY.support;
   const groundY = projectSceneY(SHELF_GEOMETRY.groundY);
   const strapTopY = projectSceneY(
@@ -1020,116 +1234,168 @@ export default function BootScreen({
       <style>{keyframes}</style>
       <div className="stacks-boot-threshold">
         <div className="stacks-boot-entry">
-          <p className="stacks-boot-wordmark">Chappy Asel</p>
-          <svg
-            ref={sceneRef}
-            className="stacks-boot-scene"
-            data-boot-item-count={ABOUT_BOOT_VISIBLE_COMPOSITION.length}
-            style={
-              {
-                "--stacks-boot-reveal-duration": `${cadence.revealDuration.toFixed(2)}s`,
-                "--stacks-boot-wave-intro-duration": `${BOOT_WAVE_INTRO_SECONDS.toFixed(2)}s`,
-                "--stacks-boot-wave-duration": `${cadence.waveDuration.toFixed(2)}s`,
-              } as BootStyle
-            }
-            viewBox="-150 -108 300 230"
-            role="presentation"
-          >
-            <g className="stacks-boot-supports">
-              {[-1, 1].map((side) => (
-                <g data-boot-support={side} key={side}>
-                  <rect
-                    x={
-                      side * supportX - (support.width * SCENE_TO_BOOT_SVG) / 2
-                    }
-                    y={strapTopY}
-                    width={support.width * SCENE_TO_BOOT_SVG}
-                    height={strapHeight}
-                    rx="2"
-                  />
-                  <rect
-                    x={
-                      side * supportX -
-                      (support.footWidth * SCENE_TO_BOOT_SVG) / 2
-                    }
-                    y={groundY - support.footHeight * SCENE_TO_BOOT_SVG}
-                    width={support.footWidth * SCENE_TO_BOOT_SVG}
-                    height={support.footHeight * SCENE_TO_BOOT_SVG}
-                    rx="1.5"
-                  />
-                  <rect
-                    x={
-                      side * supportX -
-                      (support.cleatWidth * SCENE_TO_BOOT_SVG) / 2
-                    }
-                    y={projectSceneY(
-                      SHELF_GEOMETRY.lower.centerY - support.cleatHeight / 2,
-                    )}
-                    width={support.cleatWidth * SCENE_TO_BOOT_SVG}
-                    height={support.cleatHeight * SCENE_TO_BOOT_SVG}
-                    rx="1.5"
-                  />
-                </g>
-              ))}
-            </g>
-            <g className="stacks-boot-landmarks">
-              {ABOUT_BOOT_VISIBLE_COMPOSITION.map((landmark, index) => (
-                <g
-                  className="stacks-boot-item"
-                  data-landmark-id={landmark.id}
-                  data-shelf-id={landmark.shelf}
-                  data-cadence-slot={index}
-                  key={landmark.id}
-                  style={
-                    "colorProfile" in landmark
-                      ? ({
-                          "--stacks-boot-object-light":
-                            landmark.colorProfile.light,
-                          "--stacks-boot-object-dark":
-                            landmark.colorProfile.dark,
-                        } as BootStyle)
-                      : undefined
-                  }
-                  transform={`translate(${landmark.x * SCENE_TO_BOOT_SVG} ${projectSceneY(SHELF_SURFACE[landmark.shelf])})`}
-                >
-                  <g
-                    className="stacks-boot-item-motion"
-                    style={{
-                      animationName: `stacks-boot-reveal-${index}, stacks-boot-wave-intro-${index}, stacks-boot-wave-${index}`,
-                    }}
-                  >
-                    <LandmarkGlyph
-                      landmark={landmark}
-                      readingBooks={resolvedReadingBooks}
-                      readingBookColors={resolvedReadingBookColors}
+          <div className="stacks-boot-scene-stage">
+            <svg
+              ref={sceneRef}
+              className="stacks-boot-scene"
+              data-boot-item-count={ABOUT_BOOT_VISIBLE_COMPOSITION.length}
+              style={
+                {
+                  "--stacks-boot-reveal-duration": `${cadence.revealDuration.toFixed(2)}s`,
+                  "--stacks-boot-wave-intro-duration": `${BOOT_WAVE_INTRO_SECONDS.toFixed(2)}s`,
+                  "--stacks-boot-wave-duration": `${cadence.waveDuration.toFixed(2)}s`,
+                } as BootStyle
+              }
+              viewBox="-150 -108 300 230"
+              role="presentation"
+            >
+              <g className="stacks-boot-supports">
+                {[-1, 1].map((side) => (
+                  <g data-boot-support={side} key={side}>
+                    <rect
+                      x={
+                        side * supportX -
+                        (support.width * SCENE_TO_BOOT_SVG) / 2
+                      }
+                      y={strapTopY}
+                      width={support.width * SCENE_TO_BOOT_SVG}
+                      height={strapHeight}
+                      rx="2"
+                    />
+                    <rect
+                      x={
+                        side * supportX -
+                        (support.footWidth * SCENE_TO_BOOT_SVG) / 2
+                      }
+                      y={groundY - support.footHeight * SCENE_TO_BOOT_SVG}
+                      width={support.footWidth * SCENE_TO_BOOT_SVG}
+                      height={support.footHeight * SCENE_TO_BOOT_SVG}
+                      rx="1.5"
+                    />
+                    <rect
+                      x={
+                        side * supportX -
+                        (support.cleatWidth * SCENE_TO_BOOT_SVG) / 2
+                      }
+                      y={projectSceneY(
+                        SHELF_GEOMETRY.lower.centerY - support.cleatHeight / 2,
+                      )}
+                      width={support.cleatWidth * SCENE_TO_BOOT_SVG}
+                      height={support.cleatHeight * SCENE_TO_BOOT_SVG}
+                      rx="1.5"
                     />
                   </g>
-                </g>
-              ))}
-            </g>
-            <g className="stacks-boot-planks">
-              {SHELF_PLANKS.map((plank) => (
-                <rect
-                  data-boot-plank=""
-                  data-shelf-id={plank.id}
-                  data-depth={plank.depth}
-                  key={plank.id}
-                  x={(-plank.width / 2) * SCENE_TO_BOOT_SVG}
-                  y={projectSceneY(plank.centerY + plank.thickness / 2)}
-                  width={plank.width * SCENE_TO_BOOT_SVG}
-                  height={plank.thickness * SCENE_TO_BOOT_SVG}
-                  rx="2"
-                />
-              ))}
-            </g>
-            <line
-              className="stacks-boot-ground"
-              x1={-SHELF_GEOMETRY.width * 55}
-              x2={SHELF_GEOMETRY.width * 55}
-              y1={groundY}
-              y2={groundY}
-            />
-          </svg>
+                ))}
+              </g>
+              <g className="stacks-boot-landmarks">
+                {ABOUT_BOOT_VISIBLE_COMPOSITION.map((landmark, index) => (
+                  <g
+                    className="stacks-boot-item"
+                    data-landmark-id={landmark.id}
+                    data-shelf-id={landmark.shelf}
+                    data-cadence-slot={index}
+                    key={landmark.id}
+                    style={
+                      "colorProfile" in landmark
+                        ? ({
+                            "--stacks-boot-object-light":
+                              landmark.colorProfile.light,
+                            "--stacks-boot-object-dark":
+                              landmark.colorProfile.dark,
+                          } as BootStyle)
+                        : undefined
+                    }
+                    transform={`translate(${landmark.x * SCENE_TO_BOOT_SVG} ${projectSceneY(SHELF_SURFACE[landmark.shelf])})`}
+                  >
+                    <g
+                      className="stacks-boot-item-motion"
+                      style={{
+                        animationName: `stacks-boot-reveal-${index}, stacks-boot-wave-intro-${index}, stacks-boot-wave-${index}`,
+                      }}
+                    >
+                      <LandmarkGlyph
+                        landmark={landmark}
+                        readingBooks={resolvedReadingBooks}
+                        readingBookColors={resolvedReadingBookColors}
+                      />
+                    </g>
+                  </g>
+                ))}
+              </g>
+              <g className="stacks-boot-planks">
+                {SHELF_PLANKS.map((plank) => (
+                  <rect
+                    data-boot-plank=""
+                    data-shelf-id={plank.id}
+                    data-depth={plank.depth}
+                    key={plank.id}
+                    x={(-plank.width / 2) * SCENE_TO_BOOT_SVG}
+                    y={projectSceneY(plank.centerY + plank.thickness / 2)}
+                    width={plank.width * SCENE_TO_BOOT_SVG}
+                    height={plank.thickness * SCENE_TO_BOOT_SVG}
+                    rx="2"
+                  />
+                ))}
+              </g>
+            </svg>
+            <div ref={motesRef} className="stacks-boot-motes" aria-hidden>
+              {Array.from(
+                { length: BOOT_DUST_COUNTS.light.maximum },
+                (_, mote) => (
+                  <span
+                    className="stacks-boot-mote-slot"
+                    data-boot-mote="dust"
+                    key={`dust-${mote}`}
+                  >
+                    <span className="stacks-boot-mote" />
+                  </span>
+                ),
+              )}
+            </div>
+          </div>
+          <p className="stacks-boot-wordmark">Chappy Asel</p>
+        </div>
+      </div>
+      <div className="stacks-boot-wait" data-boot-wait="">
+        <p className="stacks-boot-wait-label">
+          Loading
+          <span className="stacks-boot-wait-dots" aria-hidden>
+            {[0, 1, 2].map((dot) => (
+              <span
+                className="stacks-boot-wait-dot"
+                key={dot}
+                style={
+                  {
+                    "--stacks-boot-dot-delay": `${dot * 0.18}s`,
+                  } as BootStyle
+                }
+              >
+                .
+              </span>
+            ))}
+          </span>
+        </p>
+        <div
+          className="stacks-boot-wait-notes"
+          style={
+            {
+              "--stacks-boot-wait-cycle": `${BOOT_WAIT_NOTES.length * BOOT_WAIT_NOTE_INTERVAL_SECONDS}s`,
+            } as BootStyle
+          }
+        >
+          {BOOT_WAIT_NOTES.map((note, index) => (
+            <span
+              className="stacks-boot-wait-note"
+              key={note}
+              style={
+                {
+                  "--stacks-boot-wait-delay": `${5 + index * BOOT_WAIT_NOTE_INTERVAL_SECONDS}s`,
+                } as BootStyle
+              }
+            >
+              {note}
+            </span>
+          ))}
         </div>
       </div>
     </div>

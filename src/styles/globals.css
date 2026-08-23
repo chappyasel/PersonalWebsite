@@ -377,6 +377,8 @@ html[data-world="ready"] .stacks-boot {
   --stacks-boot-haze: var(--stacks-boot-haze-light);
   --stacks-boot-meadow: var(--stacks-boot-meadow-light);
   --stacks-boot-glow: var(--stacks-boot-glow-light);
+  --stacks-boot-dust: var(--stacks-boot-dust-light);
+  --stacks-boot-dust-halo: var(--stacks-boot-dust-halo-light);
   --stacks-boot-strap: var(--stacks-boot-strap-light);
   --stacks-boot-frame: var(--stacks-boot-frame-light);
   --stacks-boot-page: var(--stacks-boot-page-light);
@@ -419,6 +421,8 @@ html[data-world="ready"] .stacks-boot {
   --stacks-boot-haze: var(--stacks-boot-haze-dark);
   --stacks-boot-meadow: var(--stacks-boot-meadow-dark);
   --stacks-boot-glow: var(--stacks-boot-glow-dark);
+  --stacks-boot-dust: var(--stacks-boot-dust-dark);
+  --stacks-boot-dust-halo: var(--stacks-boot-dust-halo-dark);
   --stacks-boot-strap: var(--stacks-boot-strap-dark);
   --stacks-boot-frame: var(--stacks-boot-frame-dark);
   --stacks-boot-page: var(--stacks-boot-page-dark);
@@ -450,9 +454,14 @@ html[data-world="ready"] .stacks-boot {
   isolation: isolate;
 }
 
+.stacks-boot-scene-stage {
+  position: relative;
+  isolation: isolate;
+}
+
 /* A narrow pool of light belongs to this room's visual language. It grounds
    the little bookcase without turning it into a software indicator. */
-.stacks-boot-entry::before {
+.stacks-boot-scene-stage::before {
   content: "";
   position: absolute;
   z-index: -1;
@@ -470,18 +479,210 @@ html[data-world="ready"] .stacks-boot {
   transform: translateX(-50%);
 }
 
-.dark .stacks-boot-entry::before {
+.dark .stacks-boot-scene-stage::before {
   display: none;
 }
 
 .stacks-boot-wordmark {
-  margin: 0 0 28px;
+  margin: 28px 0 0;
   color: hsl(var(--foreground) / 0.95);
   font-family: var(--font-serif), Georgia, serif;
   font-size: clamp(28.56px, 3.162vw, 44.88px);
   line-height: 1;
   letter-spacing: -0.025em;
   text-align: center;
+}
+
+/* Three seconds is long enough that a fast boot never advertises itself.
+   After that, the room names the real work still happening without pretending
+   to know which asynchronous gate will finish next. */
+.stacks-boot-wait {
+  position: absolute;
+  z-index: 2;
+  right: 20px;
+  bottom: max(20px, calc(env(safe-area-inset-bottom) + 14px));
+  left: 20px;
+  height: 44px;
+  color: hsl(var(--foreground) / 0.66);
+  pointer-events: none;
+  text-align: center;
+  opacity: 0;
+  animation: stacks-boot-wait-arrive 2s cubic-bezier(0.22, 1, 0.36, 1) 3s
+    forwards;
+}
+
+.stacks-boot-wait-label {
+  margin: 0;
+  font-family: var(--font-sans), sans-serif;
+  font-size: clamp(15px, 1.35vw, 17px);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.012em;
+}
+
+.stacks-boot-wait-dots {
+  display: inline-block;
+  width: 0.95em;
+  text-align: left;
+}
+
+.stacks-boot-wait-dot {
+  display: inline-block;
+  opacity: 0.24;
+  animation: stacks-boot-wait-dot 1.08s ease-in-out var(--stacks-boot-dot-delay)
+    infinite;
+}
+
+.stacks-boot-wait-notes {
+  position: relative;
+  height: 16px;
+  margin-top: 7px;
+  color: hsl(var(--foreground) / 0.46);
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.stacks-boot-wait-note {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: translateY(2px);
+  animation: stacks-boot-wait-note var(--stacks-boot-wait-cycle) ease-in-out
+    var(--stacks-boot-wait-delay) infinite both;
+}
+
+/* The loader borrows the room's own dust language: a broad field of tiny warm
+   motes in daylight and three brighter registrations at night. The drift is
+   already underway when this layer begins its slow reveal. */
+.stacks-boot-motes {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  left: 50%;
+  opacity: 0;
+  pointer-events: none;
+  animation: stacks-boot-motes-arrive 3s ease-out 2s forwards;
+}
+
+.stacks-boot-mote-slot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: none;
+  opacity: 0;
+}
+
+.stacks-boot-mote-slot[data-boot-active] {
+  display: block;
+  animation: stacks-boot-mote-arrive 1.5s ease-out forwards;
+}
+
+.stacks-boot-mote {
+  --stacks-boot-mote-size: 6px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--stacks-boot-mote-size);
+  height: var(--stacks-boot-mote-size);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    var(--stacks-boot-dust) 0 16%,
+    color-mix(
+        in srgb,
+        var(--stacks-boot-dust) 72%,
+        var(--stacks-boot-dust-halo)
+      )
+      28%,
+    color-mix(in srgb, var(--stacks-boot-dust-halo) 48%, transparent) 48%,
+    transparent 76%
+  );
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+.stacks-boot-mote-slot:nth-child(3n) .stacks-boot-mote {
+  --stacks-boot-mote-size: 5px;
+}
+
+.stacks-boot-mote-slot:nth-child(4n) .stacks-boot-mote {
+  --stacks-boot-mote-size: 7px;
+}
+
+.dark .stacks-boot-mote {
+  --stacks-boot-mote-size: 7px;
+  box-shadow:
+    0 0 5px color-mix(in srgb, var(--stacks-boot-dust) 64%, transparent),
+    0 0 10px color-mix(in srgb, var(--stacks-boot-dust-halo) 32%, transparent);
+}
+
+.dark .stacks-boot-mote::before {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--stacks-boot-dust-halo) 34%, transparent),
+    transparent 70%
+  );
+}
+
+@keyframes stacks-boot-wait-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes stacks-boot-wait-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.24;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes stacks-boot-motes-arrive {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes stacks-boot-mote-arrive {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes stacks-boot-wait-note {
+  0%,
+  10%,
+  100% {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  1.25%,
+  7.5% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 html[data-world="ready"] .stacks-boot-threshold {
@@ -504,12 +705,6 @@ html[data-world="ready"] .stacks-boot-threshold {
   fill: var(--stacks-boot-wood);
   stroke: var(--stacks-boot-wood-edge);
   stroke-width: 1;
-}
-
-.stacks-boot-ground {
-  stroke: var(--stacks-boot-strap);
-  stroke-width: 0.8;
-  opacity: 0.24;
 }
 
 .stacks-boot-item {
@@ -926,5 +1121,27 @@ html[data-world] [contenteditable="true"] {
 
   .stacks-boot-coordination-network {
     will-change: auto;
+  }
+
+  .stacks-boot-wait {
+    animation: stacks-boot-wait-reduced 1ms step-end 3s forwards;
+  }
+
+  .stacks-boot-wait-notes,
+  .stacks-boot-motes {
+    display: none;
+  }
+
+  .stacks-boot-wait-dot {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes stacks-boot-wait-reduced {
+  to {
+    opacity: 1;
+    transform: none;
   }
 }

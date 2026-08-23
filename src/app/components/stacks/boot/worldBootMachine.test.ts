@@ -44,6 +44,7 @@ function start(overrides: StartOverrides = {}): WorldBootEvent {
     prefersReducedMotion: false,
     saveData: false,
     ogCapture: false,
+    holdBoot: false,
     prepaintTimedOut: false,
     warm: { source: "documentPhase", phase: null },
     ...overrides,
@@ -276,6 +277,27 @@ describe("warm cache", () => {
     expect(view(run([start({ warm, saveData: true })])).status).toBe(
       "ineligible",
     );
+  });
+});
+
+describe("held boot presentation", () => {
+  it("keeps a fully loaded world behind the boot screen without polling", () => {
+    const held = run([
+      start({ holdBoot: true }),
+      g1.firstFrame(1_000),
+      g1.meadow(1_000),
+      vignetteDone(1_000),
+      g1.assets(1_000, COMPLETE),
+      tick(1_000 + P.assetSettleMs),
+      tick(100_000),
+    ]);
+    const heldView = view(held);
+
+    expect(held.status).toBe("booting");
+    expect(held.deadline).toBe(null);
+    expect(heldView.documentPhase).toBe("pending");
+    expect(heldView.revealed).toBe(false);
+    expect(heldView.awaitingReveal).toBe(false);
   });
 });
 

@@ -184,6 +184,7 @@ function machineFor(env: Partial<Env> = {}) {
       prefersReducedMotion: merged.reducedMotion,
       saveData: merged.saveData,
       ogCapture: new URLSearchParams(merged.search).has(P.ogCaptureParam),
+      holdBoot: new URLSearchParams(merged.search).has(P.holdBootParam),
       warm: {
         source: "warmRecord",
         ageMs:
@@ -232,6 +233,7 @@ const MATRIX: [string, Partial<Env>][] = [
     { cachedCapability: "1", webgl: null },
   ],
   ["an OG capture", { search: "?og-capture" }],
+  ["a held boot", { search: "?hold-boot" }],
   [
     "an OG capture on an ineligible browser",
     { search: "?og-capture", webgl: null },
@@ -384,6 +386,7 @@ describe("generated constants", () => {
       prepaintBackstopMs: 1234,
       warmTtlMs: 5678,
       ogCaptureParam: "test-capture",
+      holdBootParam: "test-hold",
       ogCaptureAttribute: "data-test-capture",
       prepaintOutcomeGlobal: "__testOutcome",
       prepaintStartedAtGlobal: "__testStartedAt",
@@ -395,6 +398,7 @@ describe("generated constants", () => {
       "1234",
       "5678",
       "test-capture",
+      "test-hold",
       "data-test-capture",
       "__testOutcome",
       "__testStartedAt",

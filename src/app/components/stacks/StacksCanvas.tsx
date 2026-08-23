@@ -1979,7 +1979,7 @@ export default function StacksCanvas({
           // re-renders clones a fresh material per tinted mesh and strands
           // the old one on the GPU.
           enabled={panelState === "closed" && !modalOpen}
-          style={{ scrollbarWidth: "none", touchAction: "pan-x pinch-zoom" }}
+          style={{ scrollbarWidth: "none", touchAction: "pan-x" }}
         >
           <ScrollRegionA11y />
           <Scene

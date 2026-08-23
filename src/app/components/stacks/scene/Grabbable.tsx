@@ -48,6 +48,12 @@ import {
 } from "./PhysicsSceneProvider";
 import { grabbablePhysicsEnabled } from "./grabbablePhysics";
 import {
+  heldDepthBounds,
+  heldDepthFromPinch,
+  heldDepthWheelPixels,
+  nextHeldDepth,
+} from "./heldDepth";
+import {
   localCameraFacingQuaternion,
   tiltedFaceClearance,
 } from "./heldFacingMath";
@@ -662,6 +668,8 @@ export default function Grabbable({
   const plane = useMemo(() => new THREE.Plane(), []);
   const hit = useMemo(() => new THREE.Vector3(), []);
   const world = useMemo(() => new THREE.Vector3(), []);
+  const cameraForward = useMemo(() => new THREE.Vector3(), []);
+  const heldPlanePoint = useMemo(() => new THREE.Vector3(), []);
   const shadeGround = useMemo(() => new THREE.Vector3(), []);
   const visibilityPoint = useMemo(() => new THREE.Vector3(), []);
   const visibilityMatrix = useMemo(() => new THREE.Matrix4(), []);
@@ -671,6 +679,10 @@ export default function Grabbable({
   const gl = useThree((s) => s.gl);
   const pointerId = useRef<number | null>(null);
   const pickupY = useRef(base[1]);
+  const heldDepth = useRef(0);
+  const heldDepthRange = useRef(heldDepthBounds(0));
+  const pinchStartDepth = useRef(0);
+  const pinchStartSpan = useRef(0);
   /** Legacy fine-pointer taps and the centralized touch controller share the
    * same pending gesture without sharing activation dispatchers. */
   const tapOnly = useRef(false);
@@ -725,6 +737,38 @@ export default function Grabbable({
     },
     [gl, ndc],
   );
+
+  const captureHeldDepth = useCallback(() => {
+    const g = group.current;
+    if (!g) return;
+    camera.getWorldDirection(cameraForward);
+    g.getWorldPosition(world);
+    heldDepth.current = Math.max(
+      camera.near * 2,
+      world.sub(camera.position).dot(cameraForward),
+    );
+    heldDepthRange.current = heldDepthBounds(heldDepth.current);
+  }, [camera, cameraForward, world]);
+
+  const startDepthGesture = useCallback((spanPx: number) => {
+    if (phase.current !== "held") return;
+    pinchStartDepth.current = heldDepth.current;
+    pinchStartSpan.current = spanPx;
+  }, []);
+
+  const moveDepthGesture = useCallback((spanPx: number) => {
+    if (phase.current !== "held" || pinchStartSpan.current <= 0) return;
+    heldDepth.current = heldDepthFromPinch(
+      pinchStartDepth.current,
+      pinchStartSpan.current,
+      spanPx,
+      heldDepthRange.current,
+    );
+  }, []);
+
+  const endDepthGesture = useCallback(() => {
+    pinchStartSpan.current = 0;
+  }, []);
 
   // Register with the scene-wide set once, on mount. Mount-only on purpose:
   // the handle is the identity a rigid body is attached to, so re-creating it
@@ -788,6 +832,7 @@ export default function Grabbable({
   const release = useCallback(
     (velocityMultiplier = 1, velocityCap = Infinity) => {
       pointerId.current = null;
+      endDepthGesture();
       if (phase.current !== "held") return;
       if (mountedPhysicsPending.current && !simulated.current) {
         pendingMountedRelease.current = { velocityMultiplier, velocityCap };
@@ -807,7 +852,7 @@ export default function Grabbable({
       simulated.current = false;
       finishDragUi();
     },
-    [finishDragUi, handling.throwTilt, velocity],
+    [endDepthGesture, finishDragUi, handling.throwTilt, velocity],
   );
 
   const beginCarry = useCallback(
@@ -894,6 +939,7 @@ export default function Grabbable({
         g.position.x += detachX;
         g.position.y += detachY;
         g.position.z += detachZ;
+        captureHeldDepth();
         if (physics) {
           activateMountedPhysics();
         } else {
@@ -920,6 +966,8 @@ export default function Grabbable({
         return;
       }
 
+      captureHeldDepth();
+
       let preparedWorld: ScenePhysicsWorld | null = null;
       if (physicsEnabled && physics && entry && g) {
         // The provider supplies every mounted handle and registered static
@@ -945,6 +993,7 @@ export default function Grabbable({
     },
     [
       base,
+      captureHeldDepth,
       detachX,
       detachY,
       detachZ,
@@ -1063,18 +1112,33 @@ export default function Grabbable({
     [release],
   );
 
-  const onGrabWheel = useCallback((event: WheelEvent) => {
-    if (phase.current !== "held") return;
-    // The placard is a real scroll container sitting over the scene, and
-    // carrying a prop is no reason to freeze someone's reading. Only swallow
-    // the wheel when it isn't headed there.
-    const target = event.target;
-    if (target instanceof Element && target.closest("[data-stacks-scrollable]"))
-      return;
-    event.preventDefault();
-    // Capture-phase on window runs before drei's scroll-element handler.
-    event.stopPropagation();
-  }, []);
+  const onGrabWheel = useCallback(
+    (event: WheelEvent) => {
+      if (phase.current !== "held") return;
+      // The placard is a real scroll container sitting over the scene, and
+      // carrying a prop is no reason to freeze someone's reading. Only claim
+      // the wheel when it is aimed at the world.
+      const target = event.target;
+      if (
+        target instanceof Element &&
+        target.closest("[data-stacks-scrollable]")
+      )
+        return;
+      event.preventDefault();
+      // Capture-phase on window runs before drei's scroll-element handler.
+      event.stopPropagation();
+      heldDepth.current = nextHeldDepth(
+        heldDepth.current,
+        heldDepthWheelPixels(
+          event.deltaY,
+          event.deltaMode,
+          gl.domElement.clientHeight || window.innerHeight,
+        ),
+        heldDepthRange.current,
+      );
+    },
+    [gl],
+  );
 
   useEffect(() => {
     const root = group.current;
@@ -1148,6 +1212,9 @@ export default function Grabbable({
               }
             },
             move: onGrabMove,
+            startDepthGesture,
+            moveDepthGesture,
+            endDepthGesture,
             release: (event, multiplier, cap) => {
               if (event.pointerId !== pointerId.current) return;
               touchPressedAt.current = null;
@@ -1177,6 +1244,7 @@ export default function Grabbable({
     hoverKey,
     massClass,
     massKg,
+    moveDepthGesture,
     onGrabCancel,
     onGrabDown,
     onGrabMove,
@@ -1184,6 +1252,8 @@ export default function Grabbable({
     open,
     projectedLocalBounds,
     release,
+    startDepthGesture,
+    endDepthGesture,
     tiltOnHover,
     to,
     unitIndex,
@@ -1323,13 +1393,16 @@ export default function Grabbable({
       return;
 
     if (phase.current === "held" && pointerId.current !== null) {
-      // Drag plane: camera-facing, through the prop's current position, so
-      // the object tracks the cursor at its own depth instead of sliding
-      // along the shelf. Rebuilt each frame because the camera rig keeps
+      // Drag plane: camera-facing at the visitor-controlled hold depth, so
+      // the pointer moves the object laterally while the wheel moves it along
+      // the view ray. Rebuilt each frame because the camera rig keeps
       // breathing (a slow bob plus pointer parallax) even while you drag.
-      camera.getWorldDirection(plane.normal).negate();
-      g.getWorldPosition(world);
-      plane.setFromNormalAndCoplanarPoint(plane.normal, world);
+      camera.getWorldDirection(cameraForward);
+      plane.normal.copy(cameraForward).negate();
+      heldPlanePoint
+        .copy(camera.position)
+        .addScaledVector(cameraForward, heldDepth.current);
+      plane.setFromNormalAndCoplanarPoint(plane.normal, heldPlanePoint);
       // Re-cast every frame from the tracked NDC. r3f only refreshes the
       // shared raycaster during its own event pass, and this camera never
       // stops moving (a slow bob plus pointer parallax), so a stale ray

@@ -27,6 +27,7 @@ export function worldBootPrepaintScript(
   const token = `window[${q(policy.prepaintTokenGlobal)}]`;
   const startedAt = `window[${q(policy.prepaintStartedAtGlobal)}]`;
   const outcome = `window[${q(policy.prepaintOutcomeGlobal)}]`;
+  const holdBoot = `new URLSearchParams(location.search).has(${q(policy.holdBootParam)})`;
   return `
 try {
   var el = document.documentElement;
@@ -74,17 +75,19 @@ try {
     el.setAttribute(${q(policy.worldAttribute)}, warm ? "warm" : "pending");
     // Fail open. If the bundle never boots, the flat page is hidden behind a
     // loading screen nothing else will ever retire.
-    ${timer} = setTimeout(function () {
-      if (${token} !== bootToken) return;
-      ${timer} = 0;
-      var w = el.getAttribute(${q(policy.worldAttribute)});
-      if (w === "pending" || w === "warm") {
-        el.removeAttribute(${q(policy.worldAttribute)});
-        // Tell hydration this load already failed open, so it continues the
-        // flat page instead of starting a second, longer wait over it.
-        ${outcome} = { token: bootToken, timedOut: true };
-      }
-    }, ${q(policy.prepaintBackstopMs)});
+    if (!${holdBoot}) {
+      ${timer} = setTimeout(function () {
+        if (${token} !== bootToken) return;
+        ${timer} = 0;
+        var w = el.getAttribute(${q(policy.worldAttribute)});
+        if (w === "pending" || w === "warm") {
+          el.removeAttribute(${q(policy.worldAttribute)});
+          // Tell hydration this load already failed open, so it continues the
+          // flat page instead of starting a second, longer wait over it.
+          ${outcome} = { token: bootToken, timedOut: true };
+        }
+      }, ${q(policy.prepaintBackstopMs)});
+    }
   } else {
     el.removeAttribute(${q(policy.worldAttribute)});
   }
