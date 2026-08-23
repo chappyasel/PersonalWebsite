@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   KATAMA_HOME_CUTOUT_POINT,
-  KATAMA_HOME_DOOR,
   KATAMA_HOME_ISLAND_POINT,
   MUSINGS_VINEYARD_CUTOUT_POSE,
   vineyardSurfacePoint,
@@ -30,7 +29,7 @@ function pointInsideOutline(point: readonly [number, number]) {
 }
 
 describe("Martha's Vineyard home pin", () => {
-  it("places 490 Katama Road inside the southeast coast", () => {
+  it("places the Katama home pin inside the southeast coast", () => {
     expect(pointInsideOutline(KATAMA_HOME_ISLAND_POINT)).toBe(true);
     expect(KATAMA_HOME_ISLAND_POINT[0]).toBeGreaterThan(0.3);
     expect(KATAMA_HOME_ISLAND_POINT[1]).toBeLessThan(-0.1);
@@ -46,12 +45,5 @@ describe("Martha's Vineyard home pin", () => {
     );
     expect(KATAMA_HOME_CUTOUT_POINT[0]).toBeCloseTo(0.138, 3);
     expect(KATAMA_HOME_CUTOUT_POINT[1]).toBeCloseTo(0.0325, 3);
-  });
-
-  it("opens the supplied Google Maps place", () => {
-    expect(KATAMA_HOME_DOOR).toEqual({
-      href: "https://maps.app.goo.gl/Hw3CoQwEEiswVNPK6",
-      doorLabel: "Open 490 Katama Road in Google Maps",
-    });
   });
 });

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "algorithm": "sha256",
-  "digest": "b3348779cc0e1f2af1d10b8a4e3f1ac697e538de2d930283227b953a4d925d64",
+  "digest": "d1dc34dd4b5c7cb1b197cc21bbcd47c8e292467016e5d747e6b707f025f44a4c",
   "files": [
     "public/images/about/profile.jpg",
     "public/images/stacks/grass-tuft-alpha.webp",
@@ -129,6 +129,7 @@
     "src/app/components/stacks/scene/golf/golfTrajectory.ts",
     "src/app/components/stacks/scene/golf/golfTypes.ts",
     "src/app/components/stacks/scene/grabbablePhysics.ts",
+    "src/app/components/stacks/scene/heldDepth.ts",
     "src/app/components/stacks/scene/heldFacingMath.ts",
     "src/app/components/stacks/scene/hoverTilt.ts",
     "src/app/components/stacks/scene/insectCollision.ts",
@@ -249,7 +250,7 @@
   ],
   "image": {
     "path": "public/images/stacks/home-og-scene.jpg",
-    "digest": "0392445e6b51d1d7b731e7a08de560fdc138388f10d2f0c07e79dc983789c340",
-    "inputDigest": "b3348779cc0e1f2af1d10b8a4e3f1ac697e538de2d930283227b953a4d925d64"
+    "digest": "78ff58a16e9c3f3efc45e7d9d5eed28f58c4413863de0ffe9e9918d712d7501f",
+    "inputDigest": "d1dc34dd4b5c7cb1b197cc21bbcd47c8e292467016e5d747e6b707f025f44a4c"
   }
 }
