@@ -1,7 +1,7 @@
 {
   "version": 1,
   "algorithm": "sha256",
-  "digest": "0e59ea31bc5cba903b84ee34b5eafc05dc0c8427c4a82979307407782ede0544",
+  "digest": "321cc10ac47d1e0f7e443794cbff8a21265826291a9c819db78087f9813f912e",
   "files": [
     "public/data/blog-posts.json",
     "public/data/manual.json",
@@ -27,6 +27,10 @@
     "public/images/stacks/grass-tuft-alpha.webp",
     "public/images/stacks/gym-mirror.jpg",
     "public/images/stacks/home-og-scene.before-cinematic.jpg",
+    "public/images/stacks/labels/mio-hydrate.webp",
+    "public/images/stacks/labels/mio-lemonade.webp",
+    "public/images/stacks/labels/nutricost.webp",
+    "public/images/stacks/labels/realgood.webp",
     "public/images/stacks/musings-shore.jpg",
     "public/images/stacks/musings-walk.jpg",
     "public/images/stacks/musings/gpt3-2021-page-1.webp",
@@ -153,6 +157,7 @@
     "public/models/alarm-clock.glb",
     "public/models/atlas-dark.png",
     "public/models/atlas-light.png",
+    "public/models/bag.glb",
     "public/models/barbell.glb",
     "public/models/basketball.glb",
     "public/models/cactus.glb",
@@ -240,6 +245,7 @@
     "src/app/components/stacks/scene/CameraRig.tsx",
     "src/app/components/stacks/scene/CoordinationGlobe.tsx",
     "src/app/components/stacks/scene/Effects.tsx",
+    "src/app/components/stacks/scene/FrozenBag.tsx",
     "src/app/components/stacks/scene/Grabbable.tsx",
     "src/app/components/stacks/scene/GroundPool.tsx",
     "src/app/components/stacks/scene/HeldFacing.tsx",
@@ -247,6 +253,7 @@
     "src/app/components/stacks/scene/Lift.tsx",
     "src/app/components/stacks/scene/LitImage.tsx",
     "src/app/components/stacks/scene/Meadow.tsx",
+    "src/app/components/stacks/scene/MioBottle.tsx",
     "src/app/components/stacks/scene/ModelProp.tsx",
     "src/app/components/stacks/scene/Petals.tsx",
     "src/app/components/stacks/scene/PhysicsDiagnosticsOverlay.tsx",
@@ -264,6 +271,7 @@
     "src/app/components/stacks/scene/aboutBootSilhouettes.ts",
     "src/app/components/stacks/scene/aboutCoordinationLayout.ts",
     "src/app/components/stacks/scene/appleOutline.ts",
+    "src/app/components/stacks/scene/bagLabelUvs.ts",
     "src/app/components/stacks/scene/bookCoverTexture.ts",
     "src/app/components/stacks/scene/bookInteractions.ts",
     "src/app/components/stacks/scene/cameraDepthDiagnostics.ts",
@@ -312,6 +320,7 @@
     "src/app/components/stacks/scene/interactionProjection.ts",
     "src/app/components/stacks/scene/interactionRegistry.ts",
     "src/app/components/stacks/scene/islands.ts",
+    "src/app/components/stacks/scene/labelShell.ts",
     "src/app/components/stacks/scene/layeredEffects.ts",
     "src/app/components/stacks/scene/leanClearance.ts",
     "src/app/components/stacks/scene/lensGeometry.ts",
@@ -324,6 +333,7 @@
     "src/app/components/stacks/scene/meadowInteraction.ts",
     "src/app/components/stacks/scene/meadowLights.ts",
     "src/app/components/stacks/scene/meadowMotion.ts",
+    "src/app/components/stacks/scene/mioBottleGeometry.ts",
     "src/app/components/stacks/scene/musingsShelfGeometry.ts",
     "src/app/components/stacks/scene/objects.tsx",
     "src/app/components/stacks/scene/oneSidedDetailGeometry.ts",
@@ -421,7 +431,7 @@
   ],
   "image": {
     "path": "public/images/stacks/home-og-scene.jpg",
-    "digest": "f0da2e41849a92a67b58175c9b4f490e72586b25649aacede42a68c3b9e19886",
-    "inputDigest": "0e59ea31bc5cba903b84ee34b5eafc05dc0c8427c4a82979307407782ede0544"
+    "digest": "89e1560f3c45f2788c3a23df763e70a39af3322198701e841c6cb64849c1b5b7",
+    "inputDigest": "321cc10ac47d1e0f7e443794cbff8a21265826291a9c819db78087f9813f912e"
   }
 }
