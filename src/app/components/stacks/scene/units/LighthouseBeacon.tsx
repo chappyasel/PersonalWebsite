@@ -6,7 +6,6 @@
 // soft cone. The cards share one material and contain no sampled texture.
 // A small radial sprite supplies the short flash seen when either beam points
 // at the camera.
-import { useCoarseTouchCapability } from "../../input/useCoarseTouchCapability";
 import { useStacks } from "../../store";
 import { lighthouseBeaconDiagnosticsController } from "../lighthouseBeaconDiagnostics";
 import { useUnitFrame } from "../unitActivity";
@@ -61,8 +60,13 @@ const BEAM_FRAGMENT = /* glsl */ `
   }
 
   void main() {
-    float distanceAlong = vBeamUv.x;
-    float distanceFromAxis = abs(vBeamUv.y - 0.5) * 2.0;
+    // Interpolated uv can land a hair outside [0, 1] at the card's edges
+    // (more often on mobile interpolators). pow() of a negative is NaN,
+    // 0.0 * NaN stays NaN, and one NaN pixel in the HDR buffer comes back
+    // out of bloom's mip chain as a black block. Clamp before any pow.
+    vec2 beamUv = clamp(vBeamUv, 0.0, 1.0);
+    float distanceAlong = beamUv.x;
+    float distanceFromAxis = abs(beamUv.y - 0.5) * 2.0;
     float coneRadius = mix(
       0.14,
       1.0,
@@ -79,7 +83,7 @@ const BEAM_FRAGMENT = /* glsl */ `
     float particulate = mix(
       0.82,
       1.08,
-      noise(vec2(distanceAlong * 6.5, vBeamUv.y * 3.0))
+      noise(vec2(distanceAlong * 6.5, beamUv.y * 3.0))
     );
     float alpha =
       uBeamOpacity *
@@ -90,7 +94,8 @@ const BEAM_FRAGMENT = /* glsl */ `
       particulate *
       uPower;
 
-    if (alpha < 0.002) discard;
+    // Negated so a NaN alpha is discarded too, never written.
+    if (!(alpha >= 0.002)) discard;
     vec3 colour = uBeamColor * mix(1.3, 0.72, distanceAlong);
     gl_FragColor = vec4(colour, alpha);
   }
@@ -490,14 +495,8 @@ export function LighthouseBeacon({
     lighthouseBeaconDiagnosticsController.getSnapshot,
     lighthouseBeaconDiagnosticsController.getSnapshot,
   );
-  // Phones keep the lit lantern (the Glass material's emissive) and skip the
-  // beam: sixteen double-sided additive shader planes and three additive
-  // sprites are the same class of transparency work that broke the shaker
-  // cups on Safari, and the composer already refuses multisampled targets on
-  // touch for the same reason (quality.ts, Effects.tsx).
-  const touch = useCoarseTouchCapability();
 
-  return diagnostics.effectEnabled && !touch ? (
+  return diagnostics.effectEnabled ? (
     <LighthouseBeamEffect dark={dark} height={height} radius={radius} />
   ) : null;
 }
