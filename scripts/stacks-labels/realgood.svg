@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="736" viewBox="0 0 512 736">
+  <!--
+    Frozen chicken bag label for the Systems shelf (scene/FrozenBag.tsx).
+    Owner-drawn, in-the-know abstraction: a white pouch, an orange cursive
+    word-shape, the 21g | 3g pair, a dark seal, a pile of breaded strips with
+    a sauce cup, and an orange band at the bottom. No logotype, no photo.
+
+    Projected onto the standing bag's front face (scene/bagLabelUvs.ts):
+    u across the face, v up it. Portrait 512 x 736 matches the face's
+    0.41 x 0.6 proportions so nothing stretches. The bag's sides sample the
+    left/right edge columns (plain pouch white), the bottom samples the band,
+    the folded top samples the crimp row. Rasterised by scripts/stacks-labels.mjs.
+  -->
+  <rect width="512" height="736" fill="#f8f6f1"/>
+  <!-- crimp along the top fold -->
+  <rect x="0" y="0" width="512" height="40" fill="#ebe8e1"/>
+  <g fill="#d6d1c6">
+    <rect x="14" y="8" width="3" height="24"/><rect x="40" y="8" width="3" height="24"/><rect x="66" y="8" width="3" height="24"/>
+    <rect x="92" y="8" width="3" height="24"/><rect x="118" y="8" width="3" height="24"/><rect x="144" y="8" width="3" height="24"/>
+    <rect x="170" y="8" width="3" height="24"/><rect x="196" y="8" width="3" height="24"/><rect x="222" y="8" width="3" height="24"/>
+    <rect x="248" y="8" width="3" height="24"/><rect x="274" y="8" width="3" height="24"/><rect x="300" y="8" width="3" height="24"/>
+    <rect x="326" y="8" width="3" height="24"/><rect x="352" y="8" width="3" height="24"/><rect x="378" y="8" width="3" height="24"/>
+    <rect x="404" y="8" width="3" height="24"/><rect x="430" y="8" width="3" height="24"/><rect x="456" y="8" width="3" height="24"/>
+    <rect x="482" y="8" width="3" height="24"/>
+  </g>
+  <!-- tagline bar -->
+  <rect x="146" y="92" width="220" height="6" rx="3" fill="#e87622"/>
+  <!-- cursive word-shape: looping R, baseline wave, two ascenders, one descender -->
+  <g transform="translate(0 40)">
+    <path d="M100 158 C92 124 110 104 126 118 C136 130 118 150 102 142 C120 138 136 146 140 158 Q148 142 158 154 Q166 162 174 152 C176 126 182 116 184 126 Q184 144 186 158 Q192 166 200 156 Q208 146 216 156 Q224 166 232 156 Q240 146 248 156 Q254 164 262 154 Q264 170 258 186 Q252 198 246 188 Q262 162 274 154 Q282 148 290 156 C292 132 298 120 300 130 Q300 148 302 160 Q308 168 316 156"
+          fill="none" stroke="#e87622" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- thumbs up -->
+    <g transform="translate(328 118)">
+      <rect x="0" y="12" width="13" height="24" rx="3" fill="#e87622"/>
+      <path d="M15 36 v-21 l9 -16 q6 -3 6 4 v12 h13 q6 0 4 8 l-4 13 q-1 3 -5 3 z" fill="#e87622"/>
+    </g>
+  </g>
+  <!-- seal -->
+  <circle cx="418" cy="176" r="34" fill="none" stroke="#3a3a3a" stroke-width="6"/>
+  <circle cx="418" cy="176" r="14" fill="#3a3a3a"/>
+  <!-- 21g | 3g -->
+  <text x="90" y="318" font-family="Arial" font-weight="700" font-size="74" fill="#e87622">21g</text>
+  <rect x="238" y="258" width="4" height="74" fill="#bdb7ab"/>
+  <text x="260" y="318" font-family="Arial" font-weight="700" font-size="74" fill="#e87622">3g</text>
+  <rect x="92" y="332" width="84" height="9" rx="4.5" fill="#3a3a3a"/>
+  <rect x="262" y="332" width="102" height="9" rx="4.5" fill="#3a3a3a"/>
+  <!-- title bars -->
+  <rect x="92" y="388" width="124" height="12" rx="6" fill="#e87622"/>
+  <rect x="92" y="412" width="166" height="26" rx="8" fill="#e87622"/>
+  <rect x="92" y="448" width="134" height="26" rx="8" fill="#e87622"/>
+  <!-- plate shadow + three breaded strips + cut piece + sauce cup -->
+  <ellipse cx="356" cy="556" rx="112" ry="20" fill="#e9e4da"/>
+  <g transform="translate(350 446) rotate(-24)">
+    <path d="M-74 -18 C-62 -37 -16 -35 16 -28 C46 -22 74 -18 76 0 C80 18 46 28 12 25 C-20 23 -62 28 -74 9 Z" fill="#d38a36" stroke="#a85f1c" stroke-width="5" stroke-linejoin="round"/>
+    <g fill="#f0c27a"><circle cx="-46" cy="-11" r="3.5"/><circle cx="12" cy="-9" r="3.5"/><circle cx="55" cy="-11" r="3.5"/><circle cx="-32" cy="11" r="3.5"/></g>
+    <g fill="#a85f1c"><circle cx="-18" cy="6" r="3.5"/><circle cx="39" cy="3" r="3.5"/><circle cx="28" cy="13" r="3.5"/></g>
+  </g>
+  <g transform="translate(300 494) rotate(12)">
+    <path d="M-74 -18 C-62 -37 -16 -35 16 -28 C46 -22 74 -18 76 0 C80 18 46 28 12 25 C-20 23 -62 28 -74 9 Z" fill="#e09a44" stroke="#b2681f" stroke-width="5" stroke-linejoin="round"/>
+    <g fill="#f3cc8a"><circle cx="-46" cy="-11" r="3.5"/><circle cx="12" cy="-9" r="3.5"/><circle cx="55" cy="-11" r="3.5"/><circle cx="-32" cy="11" r="3.5"/></g>
+    <g fill="#a85f1c"><circle cx="-18" cy="6" r="3.5"/><circle cx="39" cy="3" r="3.5"/><circle cx="28" cy="13" r="3.5"/></g>
+  </g>
+  <g transform="translate(382 512) rotate(-38) scale(0.92)">
+    <path d="M-74 -18 C-62 -37 -16 -35 16 -28 C46 -22 74 -18 76 0 C80 18 46 28 12 25 C-20 23 -62 28 -74 9 Z" fill="#c97f2d" stroke="#9c561a" stroke-width="5" stroke-linejoin="round"/>
+    <g fill="#f0c27a"><circle cx="-46" cy="-11" r="3.5"/><circle cx="12" cy="-9" r="3.5"/><circle cx="55" cy="-11" r="3.5"/></g>
+    <g fill="#9c561a"><circle cx="-18" cy="6" r="3.5"/><circle cx="39" cy="3" r="3.5"/></g>
+  </g>
+  <ellipse cx="330" cy="488" rx="26" ry="17" transform="rotate(-10 330 488)" fill="#f7ead6" stroke="#d9a25c" stroke-width="5"/>
+  <ellipse cx="330" cy="488" rx="13" ry="7" transform="rotate(-10 330 488)" fill="#fbf4e8"/>
+  <circle cx="426" cy="548" r="28" fill="#6a2418" stroke="#cfc9bd" stroke-width="5"/>
+  <ellipse cx="417" cy="539" rx="9" ry="5" fill="#8a3a2a" opacity="0.9"/>
+  <!-- band along the bottom; the bag's underside samples this row too -->
+  <rect x="0" y="648" width="512" height="88" fill="#e87622"/>
+  <rect x="290" y="684" width="130" height="8" rx="4" fill="#ffffff"/>
+  <g fill="#ffffff"><rect x="96" y="676" width="44" height="6" rx="3"/><rect x="96" y="690" width="60" height="6" rx="3"/></g>
+</svg>

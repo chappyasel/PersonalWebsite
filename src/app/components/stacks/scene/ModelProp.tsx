@@ -117,6 +117,10 @@ export const MODEL_URLS = [
   "/models/phone.glb",
   "/models/notebook.glb",
   "/models/harmonica.glb",
+  // Systems: the frozen chicken bags (FrozenBag.tsx loads this directly, not
+  // through ModelProp, but it belongs in the same warm batch for the same
+  // reason as everything above — a late bag is a visible pop on arrival).
+  "/models/bag.glb",
 ];
 
 /** Isa Lousberg's houseplants are a second atlas set: every prop in it

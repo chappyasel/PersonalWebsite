@@ -34,6 +34,7 @@
     "check:home-og": "node ./scripts/check-home-og-freshness.mjs",
     "generate:about-boot": "node ./scripts/generate-about-boot-silhouettes.mjs",
     "generate:stacks-photo-variants": "node ./scripts/stacks-photo-variants.mjs",
+    "generate:stacks-labels": "node ./scripts/stacks-labels.mjs",
     "generate:manual": "npx tsx ./scripts/generate/manual.ts",
     "generate:routine": "npx tsx ./scripts/generate/routine.ts",
     "add-book-covers": "npx tsx ./scripts/add-book-covers.ts",
