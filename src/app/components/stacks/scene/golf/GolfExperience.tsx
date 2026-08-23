@@ -12,10 +12,7 @@ import {
   meadowPhysicalResponse,
   meadowTrailReady,
 } from "../meadowMotion";
-import {
-  createDimpledGolfBallGeometry,
-  createGolfBallBumpTexture,
-} from "../units/trainingGolfBall";
+import { SHELF_GEOMETRY } from "../shelfGeometry";
 import type { UnitProps } from "../units/types";
 import { unitPose } from "../worldLayout";
 import { Html } from "@react-three/drei";
@@ -45,14 +42,15 @@ import {
   GOLF_CLUB_PROJECTED_LOCAL_BOUNDS,
   GOLF_CLUB_REST_BASE,
   GOLF_CLUB_SCALE,
+  inGolfHittingBay,
 } from "./golfLayout";
 import {
+  GOLF_GRAVITY,
   GOLF_BALL_RADIUS,
   GolfFixedStepper,
   type GolfWorld,
   createGolfBallState,
   launchGolfBall,
-  retargetReadyGolfBall,
   stepGolfWorld,
 } from "./golfPhysics";
 import {
@@ -73,19 +71,31 @@ import {
 import { GolfShotBag, seededGolfRandom } from "./golfShotBag";
 import {
   GolfStrikeQueue,
-  nextReadyGolfBall,
+  nextReadyClubTarget,
   shouldAdvanceGolfStrike,
 } from "./golfStrikeQueue";
+import {
+  GOLF_BALL_BUMP,
+  GOLF_BALL_GEOMETRY,
+  GolfBallProp,
+} from "./GolfBallProp";
 import { planGolfTrajectory } from "./golfTrajectory";
+import {
+  type HittableBall,
+  hittableContactPoint,
+  hittableBallsFor,
+  setHittableBallTapHandler,
+} from "./hittableBalls";
 import type {
   GolfBallId,
+  GolfBallPhase,
   GolfBallState,
   GolfPhysicsEvent,
   GolfVec3,
 } from "./golfTypes";
 
-const BALL_GEOMETRY = createDimpledGolfBallGeometry();
-const BALL_BUMP = createGolfBallBumpTexture();
+const BALL_GEOMETRY = GOLF_BALL_GEOMETRY;
+const BALL_BUMP = GOLF_BALL_BUMP;
 const CLUB_REST_PIVOT = new THREE.Vector3(
   GOLF_CLUB_REST_BASE.x,
   GOLF_CLUB_REST_BASE.y + GOLF_CLUB_GRIP_HEIGHT,
@@ -93,6 +103,32 @@ const CLUB_REST_PIVOT = new THREE.Vector3(
 );
 const CONFETTI_DUMMY = new THREE.Object3D();
 const GOLF_BALL_MASS_KG = 0.046;
+/** The ghosts only exist in the air and on the green. At rest the visible
+ * ball is the GolfBallProp the visitor can pick up. */
+const GHOST_HIDDEN_PHASES = new Set<GolfBallPhase>([
+  "ready",
+  "queued",
+  "addressed",
+  "resetting",
+  "fading-in",
+]);
+
+/** A Grabbable sphere the bay is watching. `away` is anywhere but the bay,
+ * or moving; `ready` is still on the bay floor; `struck` waits for the
+ * solver to carry it off before the ball can be teed up again. A golf ball
+ * that has been struck also holds the ghost `slot` flying its shot until
+ * that ghost resets and the prop shows again at home. */
+type LooseBall = {
+  id: string;
+  ball: HittableBall;
+  golf: boolean;
+  slot: GolfBallId | null;
+  phase: "away" | "ready" | "queued" | "struck";
+  /** Unit-local contact point. Balls use their centre; upright cans use
+   * half-height, so the iron cannot drive either prop into the floor. */
+  position: GolfVec3;
+  struckFor: number;
+};
 function reducedMotion() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
@@ -254,6 +290,14 @@ export default function GolfExperience({
     }),
     [c, s],
   );
+  const toLocal = useCallback(
+    (point: { x: number; y: number; z: number }): GolfVec3 => {
+      const dx = point.x - pose.position[0];
+      const dz = point.z - pose.position[2];
+      return { x: dx * c - dz * s, y: point.y, z: dx * s + dz * c };
+    },
+    [c, pose.position, s],
+  );
   const cup = useMemo<GolfVec3>(() => {
     const world = toWorld({
       x: GOLF_FLAG_LOCAL[0],
@@ -269,12 +313,6 @@ export default function GolfExperience({
   const balls = useRef<GolfBallState[]>(
     GOLF_BALL_IDS.map((id) => createGolfBallState(id, GOLF_BALL_STARTS[id])),
   );
-  useEffect(() => {
-    if (!plantedTeeRemoved) return;
-    const supportedBall = balls.current.find((ball) => ball.id === "one");
-    if (supportedBall)
-      retargetReadyGolfBall(supportedBall, GOLF_BALL_UNTEED_START);
-  }, [plantedTeeRemoved]);
   const ballTrails = useRef(
     Object.fromEntries(
       GOLF_BALL_IDS.map((id) => [
@@ -325,6 +363,8 @@ export default function GolfExperience({
   const clubPointerTarget = useRef(new THREE.Vector2());
   const stepper = useRef(new GolfFixedStepper());
   const queue = useRef(new GolfStrikeQueue());
+  const looseBalls = useRef(new Map<string, LooseBall>());
+  const looseWorld = useMemo(() => new THREE.Vector3(), []);
   const bag = useRef(
     new GolfShotBag(
       process.env.NODE_ENV === "development" ? "development" : "production",
@@ -466,6 +506,11 @@ export default function GolfExperience({
         if (ball?.outcome === "hole-bound" && !event.holed)
           bag.current.retryWinner();
         queue.current.release(event.ballId);
+        for (const loose of looseBalls.current.values())
+          if (loose.slot === event.ballId) {
+            loose.slot = null;
+            loose.ball.show();
+          }
       }
     },
     [celebrate, motion.turfPuff, toWorld, toWorldDirection],
@@ -481,17 +526,161 @@ export default function GolfExperience({
     [cup, onPhysicsEvent, surfaceAt],
   );
 
-  const tapBall = useCallback((id: GolfBallId) => {
-    if (!useStacks.getState().golfFocused) return;
-    const ball = balls.current.find((candidate) => candidate.id === id);
-    if (ball?.phase !== "ready" || !queue.current.tap(id)) return;
-    ball.phase = "queued";
+  /** A tap on a loose ball. Only a ball that is still on the bay floor is
+   * teed up; a tap on one anywhere else falls through to the Grabbable. Not
+   * gated on the camera: the bay is the aisle between the shelves, and a
+   * ball carried there from #weightlifting should answer where it lies. */
+  const tapLooseBall = useCallback((key: string) => {
+    const loose = looseBalls.current.get(key);
+    if (loose?.phase !== "ready") return false;
+    // Four ghosts: a fifth golf ball in the air has nothing to fly it.
+    if (loose.golf && !balls.current.some((ball) => ball.phase === "ready"))
+      return false;
+    if (!queue.current.tap(key)) return false;
+    loose.phase = "queued";
+    return true;
   }, []);
+  useEffect(
+    () => setHittableBallTapHandler(index, tapLooseBall),
+    [index, tapLooseBall],
+  );
 
+  /** Tapping the club swings at the nearest teed-up ball. */
   const tapClub = useCallback(() => {
-    const available = nextReadyGolfBall(balls.current, GOLF_BALL_IDS);
-    if (available) tapBall(available);
-  }, [tapBall]);
+    const target = nextReadyClubTarget(
+      [...looseBalls.current.values()],
+      CLUB_REST_PIVOT,
+    );
+    if (target) tapLooseBall(target);
+  }, [tapLooseBall]);
+
+  /** The impact frame for a loose ball: the same planned wedge a golf ball
+   * gets, scaled down by mass so a basketball hops and a tennis ball flies,
+   * then handed to the rigid body world. Loose balls never draw from the
+   * shot bag; the winner cadence belongs to the golf balls. */
+  const strikeLooseBall = useCallback(
+    (loose: LooseBall) => {
+      queue.current.release(loose.id);
+      const bottom = {
+        ...loose.position,
+        y: loose.position.y - loose.ball.contactHeight,
+      };
+      if (!loose.ball.still() || !inGolfHittingBay(bottom)) {
+        // Picked up or rolled off while the club was swinging: a whiff.
+        loose.phase = "away";
+        return;
+      }
+      if (loose.golf) {
+        // Hand the shot to a ghost: the prop hides at home, the ghost flies
+        // the authored trajectory from where the prop lay, with the shot
+        // bag's outcome, the cup and the confetti, and the prop shows again
+        // when the ghost resets.
+        const ghost = balls.current.find((ball) => ball.phase === "ready");
+        if (!ghost) {
+          loose.phase = "away";
+          return;
+        }
+        const outcome = bag.current.next();
+        const trajectory = planGolfTrajectory(
+          loose.position,
+          cup,
+          outcome,
+          Math.random,
+          (x, z) => surfaceAt(x, z).height,
+        );
+        ghost.position = { ...loose.position };
+        ghost.start = { ...loose.position };
+        const strikePosition = toWorld(loose.position);
+        const strikeDirection = toWorldDirection(trajectory.velocity);
+        const horizontalSpeed = Math.hypot(
+          strikeDirection.x,
+          strikeDirection.z,
+        );
+        const response = meadowPhysicalResponse({
+          normalSpeed: 0,
+          tangentSpeed: horizontalSpeed,
+          massKg: GOLF_BALL_MASS_KG,
+          footprint: GOLF_BALL_RADIUS * 2,
+        });
+        publishMeadowPhysicalEvent({
+          kind: "impact",
+          startX: strikePosition.x,
+          startZ: strikePosition.z,
+          endX: strikePosition.x,
+          endZ: strikePosition.z,
+          y: strikePosition.y,
+          directionX:
+            horizontalSpeed > 1e-5 ? strikeDirection.x / horizontalSpeed : 0,
+          directionZ:
+            horizontalSpeed > 1e-5 ? strikeDirection.z / horizontalSpeed : 0,
+          ...response,
+        });
+        launchGolfBall(ghost, trajectory.velocity, outcome);
+        sceneAudio.play("golf-strike", strikePosition, 0.9);
+        loose.ball.hide();
+        loose.slot = ghost.id;
+        loose.phase = "struck";
+        loose.struckFor = 0;
+        return;
+      }
+      // Not the golf trajectory scaled down. These props live in the rigid
+      // body world, whose floor is flat at ground height, while the meadow
+      // climbs half a metre toward the green; a can carried 17 m would land
+      // under the grass. So a struck prop gets a chip toward the cup: a
+      // carry of 3.5 to 7 m by mass (a tennis ball takes the whole swing, a
+      // can or the basketball about half), landing where the meadow still
+      // meets the floor, and rolling on from there.
+      const toCup = { x: cup.x - loose.position.x, z: cup.z - loose.position.z };
+      const cupDistance = Math.max(0.001, Math.hypot(toCup.x, toCup.z));
+      const scatter = (Math.random() - 0.5) * 0.24;
+      const dir = {
+        x: (toCup.x / cupDistance) * Math.cos(scatter) -
+          (toCup.z / cupDistance) * Math.sin(scatter),
+        z: (toCup.x / cupDistance) * Math.sin(scatter) +
+          (toCup.z / cupDistance) * Math.cos(scatter),
+      };
+      const massFactor = Math.min(
+        1,
+        Math.max(0.55, Math.sqrt(GOLF_BALL_MASS_KG / loose.ball.massKg) * 1.4),
+      );
+      const carry = Math.min(7, Math.max(3.5, cupDistance * 0.38 * massFactor));
+      const flightTime = 0.9 + carry / 14;
+      const landingY = SHELF_GEOMETRY.groundY + loose.ball.contactHeight;
+      const launch = toWorldDirection({
+        x: (dir.x * carry) / flightTime,
+        y:
+          (landingY -
+            loose.position.y +
+            0.5 * GOLF_GRAVITY * flightTime * flightTime) /
+          flightTime,
+        z: (dir.z * carry) / flightTime,
+      });
+      const strikePosition = toWorld(loose.position);
+      const horizontalSpeed = Math.hypot(launch.x, launch.z);
+      const response = meadowPhysicalResponse({
+        normalSpeed: 0,
+        tangentSpeed: horizontalSpeed,
+        massKg: loose.ball.massKg,
+        footprint: loose.ball.radius * 2,
+      });
+      publishMeadowPhysicalEvent({
+        kind: "impact",
+        startX: strikePosition.x,
+        startZ: strikePosition.z,
+        endX: strikePosition.x,
+        endZ: strikePosition.z,
+        y: strikePosition.y,
+        directionX: horizontalSpeed > 1e-5 ? launch.x / horizontalSpeed : 0,
+        directionZ: horizontalSpeed > 1e-5 ? launch.z / horizontalSpeed : 0,
+        ...response,
+      });
+      loose.ball.strike(new THREE.Vector3(launch.x, launch.y, launch.z));
+      sceneAudio.play("golf-strike", strikePosition, 0.9);
+      loose.phase = "struck";
+      loose.struckFor = 0;
+    },
+    [cup, surfaceAt, toWorld, toWorldDirection],
+  );
 
   useEffect(() => {
     const unregister: Array<() => void> = [];
@@ -515,36 +704,16 @@ export default function GolfExperience({
         }),
       );
     }
-    for (const id of GOLF_BALL_IDS) {
-      const root = ballGroups.current[id];
-      if (!root) continue;
-      unregister.push(
-        registerSceneInteraction({
-          id: `golf-ball:${id}`,
-          label: "Hit golf ball",
-          showLabel: false,
-          root,
-          activeUnits: [index],
-          touchPriority: 40,
-          activateOnFirstTouch: true,
-          projectedLocalBounds: {
-            min: [-0.22, -0.22, -0.22],
-            max: [0.22, 0.22, 0.22],
-          },
-          activation: {
-            kind: "action",
-            label: "Hit golf ball",
-            run: () => tapBall(id),
-          },
-          hover: { kind: "none" },
-        }),
-      );
-    }
     return () => unregister.forEach((run) => run());
-  }, [index, tapBall, tapClub]);
+  }, [index, tapClub]);
 
   const restoreAuthoredState = useCallback(() => {
     resetGolfSession(balls.current, queue.current, stepper.current);
+    for (const loose of looseBalls.current.values()) {
+      if (loose.slot) loose.ball.show();
+      loose.slot = null;
+      loose.phase = "away";
+    }
     setLabelVisible(false);
     setConfettiActive(false);
     window.clearTimeout(labelTimer.current);
@@ -581,11 +750,31 @@ export default function GolfExperience({
         reducedMotion: !motion.clubSwing,
       }),
       forceNext: (outcome) => bag.current.force(outcome),
+      // The loose props the bay is watching, and a way to tap one without a
+      // pointer, so a headless run can prove the handoff end to end.
+      loose: () =>
+        [...looseBalls.current.values()].map((loose) => {
+          const bottom = {
+            ...loose.position,
+            y: loose.position.y - loose.ball.contactHeight,
+          };
+          return {
+            id: loose.id,
+            golf: loose.golf,
+            slot: loose.slot,
+            phase: loose.phase,
+            position: { ...loose.position },
+            world: toWorld(loose.position),
+            still: loose.ball.still(),
+            teed: inGolfHittingBay(bottom),
+          };
+        }),
+      tapLoose: (key) => tapLooseBall(key),
     };
     return () => {
       if (window.__stacks) delete window.__stacks.golf;
     };
-  }, [motion.clubSwing]);
+  }, [motion.clubSwing, tapLooseBall, toWorld]);
 
   useFrame((_, delta) => {
     if (document.hidden) {
@@ -594,6 +783,43 @@ export default function GolfExperience({
     }
     const stacks = useStacks.getState();
     const active = stacks.golfFocused;
+
+    // Which of the Grabbable spheres are teed up in the bay this frame.
+    const registered = hittableBallsFor(index);
+    for (const key of looseBalls.current.keys())
+      if (!registered.some((ball) => ball.key === key))
+        looseBalls.current.delete(key);
+    for (const ball of registered) {
+      let loose = looseBalls.current.get(ball.key);
+      if (!loose) {
+        loose = {
+          id: ball.key,
+          ball,
+          golf: ball.golf === true,
+          slot: null,
+          phase: "away",
+          position: { x: 0, y: 0, z: 0 },
+          struckFor: 0,
+        };
+        looseBalls.current.set(ball.key, loose);
+      }
+      loose.ball = ball;
+      const bottom = toLocal(ball.bottom(looseWorld));
+      loose.position = hittableContactPoint(bottom, ball.contactHeight);
+      const still = ball.still();
+      const teed = still && inGolfHittingBay(bottom);
+      if (loose.phase === "away") {
+        if (teed) loose.phase = "ready";
+      } else if (loose.phase === "ready") {
+        if (!teed) loose.phase = "away";
+      } else if (loose.phase === "struck") {
+        loose.struckFor += delta;
+        // Away once it has actually left, or after a second if the solver
+        // never took the strike, so a ball cannot get stuck unhittable.
+        if (!still || loose.struckFor > 1) loose.phase = "away";
+      }
+    }
+
     const pendingStrike = queue.current.snapshot();
     const followRequested = golfClubPointerFollowRequested(
       active,
@@ -620,57 +846,13 @@ export default function GolfExperience({
     if (shouldAdvanceGolfStrike(active, pendingStrike)) {
       const impact = queue.current.advance(Math.min(delta, 0.1));
       const strike = queue.current.snapshot();
-      if (strike.current) {
-        const ball = balls.current.find(
-          (candidate) => candidate.id === strike.current,
-        )!;
-        if (ball.phase === "queued") ball.phase = "addressed";
-      }
-      if (impact) {
-        const ball = balls.current.find(
-          (candidate) => candidate.id === impact,
-        )!;
-        const outcome = bag.current.next();
-        const trajectory = planGolfTrajectory(
-          ball.position,
-          cup,
-          outcome,
-          Math.random,
-          (x, z) => surfaceAt(x, z).height,
-        );
-        const strikePosition = toWorld(ball.position);
-        const strikeDirection = toWorldDirection(trajectory.velocity);
-        const horizontalSpeed = Math.hypot(
-          strikeDirection.x,
-          strikeDirection.z,
-        );
-        const response = meadowPhysicalResponse({
-          normalSpeed: 0,
-          tangentSpeed: horizontalSpeed,
-          massKg: GOLF_BALL_MASS_KG,
-          footprint: GOLF_BALL_RADIUS * 2,
-        });
-        publishMeadowPhysicalEvent({
-          kind: "impact",
-          startX: strikePosition.x,
-          startZ: strikePosition.z,
-          endX: strikePosition.x,
-          endZ: strikePosition.z,
-          y: strikePosition.y,
-          directionX:
-            horizontalSpeed > 1e-5 ? strikeDirection.x / horizontalSpeed : 0,
-          directionZ:
-            horizontalSpeed > 1e-5 ? strikeDirection.z / horizontalSpeed : 0,
-          ...response,
-        });
-        launchGolfBall(ball, trajectory.velocity, outcome);
-        sceneAudio.play("golf-strike", toWorld(ball.position), 0.9);
-      }
+      const struckLoose = impact ? looseBalls.current.get(impact) : undefined;
+      if (struckLoose) strikeLooseBall(struckLoose);
       animateClub(
         club.current,
         clubVisual.current,
         strike,
-        balls.current,
+        [...balls.current, ...looseBalls.current.values()],
         cup,
         !motion.clubSwing,
       );
@@ -738,6 +920,7 @@ export default function GolfExperience({
       const group = ballGroups.current[ball.id];
       const material = ballMaterials.current[ball.id];
       if (group) {
+        group.visible = !GHOST_HIDDEN_PHASES.has(ball.phase);
         const visualScale = golfBallRenderedScale(
           golfBallVisualScale(ball, cup),
           gl.getPixelRatio(),
@@ -859,16 +1042,10 @@ export default function GolfExperience({
             GOLF_BALL_STARTS[id].y,
             GOLF_BALL_STARTS[id].z,
           ]}
-          onClick={(event: ThreeEvent<MouseEvent>) => {
-            if ((event.delta ?? 0) > 6) return;
-            event.stopPropagation();
-            tapBall(id);
-          }}
-          onPointerOver={(event) => {
-            event.stopPropagation();
-            useStacks.getState().setHovered(`golf-ball:${id}`);
-          }}
-          onPointerOut={() => useStacks.getState().setHovered(null)}
+          visible={false}
+          // The ghost: rendered only in flight and on the green. It owns no
+          // pointer handling; the GolfBallProp below is what you touch.
+          raycast={() => null}
         >
           <group
             ref={(group) => {
@@ -922,12 +1099,28 @@ export default function GolfExperience({
               toneMapped={false}
             />
           </mesh>
-          <mesh userData={{ physicsIgnore: true }}>
-            <sphereGeometry args={[0.18, 12, 12]} />
-            <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-          </mesh>
         </group>
       ))}
+
+      {/* The golf balls you can pick up. Ball one rests on the planted tee
+          until that tee is pulled, then settles to the ground beside it. */}
+      {GOLF_BALL_IDS.map((id) => {
+        const start =
+          id === "one" && plantedTeeRemoved
+            ? GOLF_BALL_UNTEED_START
+            : GOLF_BALL_STARTS[id];
+        return (
+          <GolfBallProp
+            key={id}
+            unitIndex={index}
+            palette={palette}
+            dark={dark}
+            id={id}
+            base={[start.x, start.y - GOLF_BALL_RADIUS, start.z]}
+            standsOn="floor"
+          />
+        );
+      })}
 
       {puffs.current.map((_, index) => (
         <mesh
@@ -993,7 +1186,7 @@ function animateClub(
   group: THREE.Group | null,
   visual: THREE.Group | null,
   strike: ReturnType<GolfStrikeQueue["snapshot"]>,
-  balls: GolfBallState[],
+  balls: ReadonlyArray<{ id: string; position: GolfVec3 }>,
   cup: GolfVec3,
   still: boolean,
 ) {

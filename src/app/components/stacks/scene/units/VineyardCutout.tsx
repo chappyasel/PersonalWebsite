@@ -38,14 +38,10 @@ export const MUSINGS_VINEYARD_CUTOUT_POSE = {
   roll: -0.14,
 } as const;
 
-export const KATAMA_HOME_DOOR = Object.freeze({
-  href: "https://maps.app.goo.gl/Hw3CoQwEEiswVNPK6",
-  doorLabel: "Open 490 Katama Road in Google Maps",
-});
-
-/** 490 Katama Road projected into the same normalized island bounds used by
- * the owner-supplied coastline. The source map resolves to
- * 41.3526453, -70.5120655; this lands just inland from South Beach. */
+/** The Katama home, projected into the same normalized island bounds used
+ * by the owner-supplied coastline. It lands just inland from South Beach.
+ * The pin is a marker only: the Google Maps Door that once opened the
+ * street address was removed on the owner's request (2026-08-23). */
 export const KATAMA_HOME_ISLAND_POINT = [0.3421, -0.1332] as const;
 
 const VINEYARD_CUTOUT_HOVER_KEY = "grab:vineyard-cutout";
@@ -158,8 +154,6 @@ export function VineyardCutout({
       shadeWidth={0.48}
       shape="box"
       massKg={0.16}
-      href={KATAMA_HOME_DOOR.href}
-      doorLabel={KATAMA_HOME_DOOR.doorLabel}
     >
       {/* Carried, the island turns square to the camera like the sticker and
           the framed photos do: a silhouette seen edge-on is a stick. */}
@@ -191,7 +185,7 @@ export function VineyardCutout({
             />
           </mesh>
           <group
-            name="490-katama-road-pin"
+            name="katama-home-pin"
             position={[
               KATAMA_HOME_CUTOUT_POINT[0],
               KATAMA_HOME_CUTOUT_POINT[1],

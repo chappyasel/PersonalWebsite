@@ -1126,25 +1126,41 @@ for (const url of MUSINGS_PDF_PAGE_URLS) useTexture.preload(url);
  * is 0.230 world, so the scale is 0.230 / 10.0583 = 0.02287 and it lands
  * 0.140 across against a real 0.132.
  *
- * `F44336` is the body — the ONE colour slot. The base ring (78909C) and the
- * tab (FFFFFF) are deliberately left alone: tint those and the can stops being
- * aluminium and becomes a painted cylinder.
+ * `F44336` is the body — the ONE colour slot for a palette can. The rim slot
+ * (78909C) is the can's top, base and ring together, so a branded can gives it
+ * brushed aluminium and a metal finish rather than a brand colour: tint it
+ * like paint and the can stops being aluminium and becomes a painted
+ * cylinder. The tab (FFFFFF) is left alone.
  */
 export const SODA_CAN_SCALE = 0.02287;
+/** 10.0583 model units tall, so a can stacked on another starts here. */
+export const SODA_CAN_HEIGHT = 10.0583 * SODA_CAN_SCALE;
 
 export type SodaBrand = "diet-dr-pepper" | "sunkist-zero" | "mtn-dew-zero";
 
+/** Brushed aluminium for the rim slot (78909C), which is the can's top and
+ * base as well as the ring. Every brand gets the same metal there; the body
+ * band and the label carry the identity, the way the real cans do. */
+const SODA_RIM = "#b8bcc0";
+const SODA_RIM_FINISH = { "78909C": { metalness: 0.45, roughness: 0.4 } };
+
 const SODA_BRAND_COLORS: Record<SodaBrand, { body: string; ring: string }> = {
-  "diet-dr-pepper": { body: "#111315", ring: "#a91524" },
-  "sunkist-zero": { body: "#f5f1e8", ring: "#ef741d" },
-  "mtn-dew-zero": { body: "#101512", ring: "#6fbe44" },
+  "diet-dr-pepper": { body: "#f2efe9", ring: SODA_RIM },
+  "sunkist-zero": { body: "#f6f5f1", ring: SODA_RIM },
+  "mtn-dew-zero": { body: "#11271b", ring: SODA_RIM },
 };
 
 const canLabelCache = new Map<SodaBrand, THREE.CanvasTexture>();
 
 /** Original low-poly label art: recognizable product colour/word-shape cues,
  * never copied packaging artwork. Drawn twice around the circumference so a
- * can remains identifiable after a visitor rotates or throws it. */
+ * can remains identifiable after a visitor rotates or throws it.
+ *
+ * Checked against the current 12 oz cans: Diet Dr Pepper is a white can with
+ * the maroon oval and "Diet" in script beneath it; Sunkist Zero Sugar is a
+ * white can with an orange sunburst behind the blue wordmark and a blue
+ * ZERO SUGAR band; Mountain Dew Zero Sugar is a dark green can with white
+ * MOUNTAIN on a green band over a red DEW. */
 function canLabelTexture(brand: SodaBrand): THREE.CanvasTexture {
   const cached = canLabelCache.get(brand);
   if (cached) return cached;
@@ -1154,81 +1170,145 @@ function canLabelTexture(brand: SodaBrand): THREE.CanvasTexture {
   const ctx = canvas.getContext("2d")!;
 
   const drawDietPepper = (x: number) => {
-    ctx.fillStyle = "#111315";
+    ctx.fillStyle = "#f2efe9";
     ctx.fillRect(x, 0, 256, 256);
     ctx.save();
-    ctx.translate(x + 128, 132);
-    ctx.rotate(-0.14);
-    ctx.fillStyle = "#b21d2e";
+    ctx.translate(x + 128, 104);
+    ctx.rotate(-0.16);
+    ctx.fillStyle = "#8c1a2b";
     ctx.beginPath();
-    ctx.ellipse(0, 0, 92, 62, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, 100, 64, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = "#dc5260";
-    ctx.lineWidth = 7;
+    ctx.strokeStyle = "#f2efe9";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 90, 55, 0, 0, Math.PI * 2);
     ctx.stroke();
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#f6f1ea";
+    ctx.font = "italic 800 34px Georgia, serif";
+    ctx.fillText("Dr", -28, -6);
+    ctx.font = "italic 800 40px Georgia, serif";
+    ctx.fillText("Pepper", 6, 32);
     ctx.restore();
     ctx.textAlign = "center";
-    ctx.fillStyle = "#f4eee7";
-    ctx.font = "700 31px Arial, sans-serif";
-    ctx.fillText("DIET", x + 128, 72);
-    ctx.font = "italic 800 38px Georgia, serif";
-    ctx.fillText("Dr Pepper", x + 128, 144);
-    ctx.font = "700 15px Arial, sans-serif";
-    ctx.fillText("ZERO SUGAR", x + 128, 187);
+    ctx.fillStyle = "#8c1a2b";
+    ctx.font = "italic 800 30px Georgia, serif";
+    ctx.fillText("Diet", x + 128, 206);
+    // The flourish that trails the word on the real can.
+    ctx.strokeStyle = "#8c1a2b";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(x + 176, 200, 12, Math.PI * 0.9, Math.PI * 2.2);
+    ctx.stroke();
   };
   const drawSunkist = (x: number) => {
-    ctx.fillStyle = "#f6f1e7";
+    ctx.fillStyle = "#f6f5f1";
     ctx.fillRect(x, 0, 256, 256);
+    const glow = ctx.createRadialGradient(x + 128, 96, 6, x + 128, 96, 112);
+    glow.addColorStop(0, "#ffd24a");
+    glow.addColorStop(0.45, "#f7941d");
+    glow.addColorStop(0.8, "rgba(247,148,29,0.35)");
+    glow.addColorStop(1, "rgba(247,148,29,0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(x, 0, 256, 208);
     ctx.save();
-    ctx.translate(x + 128, 112);
-    ctx.fillStyle = "#f27a1b";
-    for (let i = 0; i < 12; i++) {
-      ctx.rotate(Math.PI / 6);
-      ctx.fillRect(-4, -102, 8, 44);
+    ctx.translate(x + 128, 96);
+    ctx.fillStyle = "rgba(255,236,170,0.45)";
+    for (let i = 0; i < 10; i++) {
+      ctx.rotate(Math.PI / 5);
+      ctx.beginPath();
+      ctx.moveTo(-5, -40);
+      ctx.lineTo(5, -40);
+      ctx.lineTo(1.5, -118);
+      ctx.lineTo(-1.5, -118);
+      ctx.closePath();
+      ctx.fill();
     }
-    ctx.beginPath();
-    ctx.arc(0, 0, 73, 0, Math.PI * 2);
-    ctx.fill();
     ctx.restore();
+    ctx.save();
+    ctx.translate(x + 128, 108);
+    ctx.rotate(-0.2);
     ctx.textAlign = "center";
-    ctx.fillStyle = "#153f70";
-    ctx.font = "italic 900 39px Arial, sans-serif";
-    ctx.fillText("SUNKIST", x + 128, 124);
-    ctx.fillStyle = "#1f4367";
-    ctx.font = "800 19px Arial, sans-serif";
+    ctx.lineJoin = "round";
+    ctx.font = "italic 900 46px Georgia, serif";
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 7;
+    ctx.strokeText("Sunkist", 0, 0);
+    ctx.fillStyle = "#1d4f9c";
+    ctx.fillText("Sunkist", 0, 0);
+    ctx.fillStyle = "#3f9b3a";
+    ctx.beginPath();
+    ctx.ellipse(30, -40, 9, 4, -0.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#f47b20";
+    ctx.font = "italic 800 20px Arial, sans-serif";
+    ctx.fillText("Orange", 46, 30);
+    ctx.restore();
+    ctx.fillStyle = "#1d4f9c";
+    ctx.fillRect(x, 160, 256, 34);
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "800 22px Arial, sans-serif";
     ctx.fillText("ZERO SUGAR", x + 128, 185);
-    ctx.fillStyle = "#ef741d";
-    ctx.font = "700 14px Arial, sans-serif";
-    ctx.fillText("ORANGE", x + 128, 211);
+    ctx.fillStyle = "#f47b20";
+    ctx.font = "800 17px Arial, sans-serif";
+    ctx.fillText("ORANGE SODA", x + 128, 218);
+    ctx.fillStyle = "#6b6b6b";
+    ctx.font = "700 13px Arial, sans-serif";
+    ctx.fillText("12 FL OZ", x + 128, 240);
   };
   const drawDew = (x: number) => {
-    ctx.fillStyle = "#101512";
+    const bg = ctx.createLinearGradient(0, 0, 0, 256);
+    bg.addColorStop(0, "#0b1a12");
+    bg.addColorStop(1, "#17402a");
+    ctx.fillStyle = bg;
     ctx.fillRect(x, 0, 256, 256);
-    ctx.fillStyle = "#66bd3d";
+    // The can's forest-and-mountain backdrop, reduced to three light streaks.
+    ctx.fillStyle = "rgba(110,190,70,0.22)";
+    for (const [sx, w] of [
+      [30, 18],
+      [96, 10],
+      [190, 24],
+    ] as const) {
+      ctx.beginPath();
+      ctx.moveTo(x + sx, 256);
+      ctx.lineTo(x + sx + w, 256);
+      ctx.lineTo(x + sx + w + 40, 0);
+      ctx.lineTo(x + sx + 40, 0);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.save();
+    ctx.translate(x + 128, 128);
+    ctx.rotate(-0.14);
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#f2f4ee";
+    ctx.font = "italic 900 22px Arial, sans-serif";
+    ctx.fillText("ZERO SUGAR", 0, -66);
+    ctx.fillStyle = "#47a935";
     ctx.beginPath();
-    ctx.moveTo(x + 24, 152);
-    ctx.lineTo(x + 69, 62);
-    ctx.lineTo(x + 226, 91);
-    ctx.lineTo(x + 181, 190);
+    ctx.moveTo(-104, -50);
+    ctx.lineTo(108, -50);
+    ctx.lineTo(100, -14);
+    ctx.lineTo(-112, -14);
     ctx.closePath();
     ctx.fill();
-    ctx.strokeStyle = "#b6da63";
-    ctx.lineWidth = 7;
-    ctx.stroke();
-    ctx.save();
-    ctx.translate(x + 127, 128);
-    ctx.rotate(-0.12);
-    ctx.textAlign = "center";
-    ctx.fillStyle = "#f4f1e9";
-    ctx.font = "900 26px Arial, sans-serif";
-    ctx.fillText("MTN", -45, -2);
-    ctx.fillStyle = "#173b22";
-    ctx.font = "italic 900 43px Arial, sans-serif";
-    ctx.fillText("DEW", 37, 18);
-    ctx.fillStyle = "#d82732";
-    ctx.font = "900 17px Arial, sans-serif";
-    ctx.fillText("ZERO", 1, 56);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "italic 900 28px Arial, sans-serif";
+    ctx.fillText("MOUNTAIN", 0, -22);
+    ctx.font = "italic 900 66px Arial, sans-serif";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 8;
+    ctx.strokeText("DEW", 0, 42);
+    ctx.fillStyle = "#d8232a";
+    ctx.fillText("DEW", 0, 42);
     ctx.restore();
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#d9e0cf";
+    ctx.font = "700 12px Arial, sans-serif";
+    ctx.fillText("ZERO SUGAR DEW", x + 128, 232);
   };
 
   for (const x of [0, 256]) {
@@ -1275,6 +1355,7 @@ export function SodaCan({
               ? { "78909C": accent ?? brandColors!.ring }
               : {}),
           }}
+          materialProperties={brand ? SODA_RIM_FINISH : undefined}
           scale={SODA_CAN_SCALE}
         />
       </React.Suspense>

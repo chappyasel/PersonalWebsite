@@ -204,14 +204,16 @@ export function reducedMotionArchetype(
  *   TWIST     a slight yaw riding on the same spring. Only foliage uses it;
  *             it is what makes a plant read as a living thing rather than a
  *             hinged board.
- *   STIFFNESS how it arrives. Every band rides an underdamped spring rather
- *   /DAMPING  than an exponential damp, because the plants' spring was the only
- *             one in the world and it read better than everything else. They
- *             differ per band because bounce is a MATERIAL property: paper
+ *   STIFFNESS how it arrives. Every band rides a spring rather than an
+ *   /DAMPING  exponential damp, because the plants' spring was the only one in
+ *             the world and it read better than everything else. Entry
+ *             differs per band because bounce is a MATERIAL property: paper
  *             overshoots hard, a book settles with one bounce, iron does not
- *             bounce at all. `MASS_HANDLING` already made this call for
- *             carrying, where followLambda runs 22 down to 9 across the same
- *             classes; this is that gradient, for hover.
+ *             bounce at all. Return is critically damped for every band so it
+ *             cannot cross behind the authored support plane. `MASS_HANDLING`
+ *             already made this call for carrying, where followLambda runs 22
+ *             down to 9 across the same classes; this is that gradient, for
+ *             hover.
  *
  * Every lean is a base times `HOVER_MOTION_SCALE`, the same form TIP uses. The
  * scene has ONE legibility dial and a band written as a bare number silently
@@ -423,6 +425,14 @@ export const SIGNATURE_REACTIONS: readonly SignatureReaction[] = [
   },
   {
     hoverKey: "grab:basketball",
+    gesture: "roll",
+    channel: "motion",
+    owner: "RollProp in eggs.tsx",
+    replaces: "nod",
+  },
+  {
+    // The baseball and the tennis balls: the same RollProp, the same reason.
+    hoverKey: "grab:ball:",
     gesture: "roll",
     channel: "motion",
     owner: "RollProp in eggs.tsx",

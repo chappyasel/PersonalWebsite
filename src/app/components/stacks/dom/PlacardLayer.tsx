@@ -92,12 +92,13 @@ import {
   type MobileSheetHeightMeasurement,
   type MobileSheetWheelIntentState,
   accumulateMobileSheetWheelIntent,
-  mobileSheetCameraCoverage,
   mobileSheetChipActive,
   mobileSheetGeometry,
+  mobileSheetHidden,
   mobileSheetHorizontalSwipeIntent,
   mobileSheetMaterialOverscan,
   mobileSheetPeekHeight,
+  mobileSheetPublishedCoverage,
   mobileSheetRenderedHeight,
   mobileSheetRestY,
   mobileSheetRubberBandY,
@@ -971,6 +972,9 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
   setDismissed: (dismissed: boolean) => void;
 }) {
   const modalOpen = useStacks((s) => s.modalOpen);
+  const artifactHandoffPhase = useStacks(
+    (s) => s.modelArtifactHandoff?.phase ?? null,
+  );
   const panelState = useStacks((s) => s.panelState);
   const unit = UNITS[unitIndex]!;
   const sheetGeometry = mobileSheetGeometry(panelState);
@@ -1135,8 +1139,17 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
   // over it made the finished room look like background decoration. Unlike a
   // user dismissal, this temporary hide does not leave a chip behind; closing
   // the case restores the exact sheet detent the visitor had before.
-  const hidden = dismissed || modalOpen;
-  const interactive = active && !hidden;
+  const artifactReturning =
+    artifactHandoffPhase === "crossfading-out" ||
+    artifactHandoffPhase === "returning";
+  const hidden = mobileSheetHidden({
+    dismissed,
+    modalOpen,
+    artifactReturning,
+  });
+  // The sheet may be visible behind the outgoing viewer, but the modal keeps
+  // ownership of input until its return animation has fully completed.
+  const interactive = active && !hidden && !modalOpen;
   // The collapsed chip is resident for the same reason as the sheet. Framer's
   // declarative entrance briefly reapplied its `initial` opacity on the render
   // where the sheet became parked (measured as 1 → 0 → 1 on one frame). A
@@ -1311,10 +1324,14 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
   useEffect(() => {
     if (!active) return;
     const publish = (value: number) => {
-      panelCoverageRef.current =
-        narrow && vh
-          ? mobileSheetCameraCoverage(renderedHeight, value, peek, vh)
-          : 0;
+      panelCoverageRef.current = mobileSheetPublishedCoverage({
+        narrow,
+        viewportHeight: vh,
+        renderedHeight,
+        sheetY: value,
+        peekHeight: peek,
+        modalOpen,
+      });
     };
     publish(y.get());
     const unsubscribe = y.on("change", publish);
@@ -1322,7 +1339,7 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
       unsubscribe();
       panelCoverageRef.current = 0;
     };
-  }, [active, y, vh, narrow, peek, renderedHeight]);
+  }, [active, modalOpen, y, vh, narrow, peek, renderedHeight]);
 
   // Opening from anywhere lands on expanded, so a unit tapped in the room
   // while the sheet was dismissed comes back to peek when it closes rather

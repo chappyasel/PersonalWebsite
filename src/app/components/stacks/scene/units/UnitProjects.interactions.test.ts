@@ -25,6 +25,7 @@ describe("Projects shelf movable props", () => {
     expect(source).toContain("<EggLamp");
     expect(source).toContain("projects-weightlifting-icon.webp");
     expect(source).toContain("projects-homework-icon.webp");
+    expect(source).toContain('artifact="homework-app"');
     expect(source).toContain('hoverKey="grab:plant:projects-small"');
     expect(source).toContain('url="/models/potted-plant.glb"');
     // The notebook moved to the Systems shelf on 2026-08-23; the pixel-art

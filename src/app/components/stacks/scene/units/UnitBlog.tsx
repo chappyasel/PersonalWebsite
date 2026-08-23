@@ -20,12 +20,7 @@ import {
 } from "../musingsShelfGeometry";
 import { PaperStack } from "../objects";
 import { deskFrameHeight } from "../photoGeometry";
-import {
-  DeskFrame,
-  PHOTO_LINKS,
-  photoDoorDetail,
-  photoDoorLabel,
-} from "../photos";
+import { DeskFrame } from "../photos";
 import { BookRowMesh, ShelfUnit, packRow } from "../primitives";
 import { useUnitLod } from "../useUnitLod";
 import { useTexture } from "@react-three/drei";
@@ -149,7 +144,6 @@ function MusingsPhoto({
   const print = MUSINGS_LIGHTHOUSE_PRINT;
   const height = print.width / print.aspect;
   const hoverKey = `grab:photo:${print.id}`;
-  const href = PHOTO_LINKS[print.id] ?? null;
   return (
     <Grabbable
       unitIndex={unitIndex}
@@ -159,9 +153,7 @@ function MusingsPhoto({
       shadeWidth={Math.max(0.3, print.width * 1.15)}
       shape="box"
       massKg={0.45}
-      href={href ?? undefined}
-      doorLabel={href ? photoDoorLabel(href) : undefined}
-      doorDetail={href ? photoDoorDetail(href) : undefined}
+      artifact={print.id}
     >
       <HeldFacing
         hoverKey={hoverKey}

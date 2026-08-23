@@ -33,6 +33,7 @@ import { type StacksData, UNIT_COUNT } from "./data";
 import TouchInteractionLayer from "./input/TouchInteractionLayer";
 import { useCoarseTouchCapability } from "./input/useCoarseTouchCapability";
 import { setLoadProgress } from "./loading";
+import { modelArtifactRoomShouldFreeze } from "./modal/modelArtifactHandoff";
 import { cameraTravelDiagnostics } from "./scene/CameraRig";
 import { prewarmGrabbablePhysics } from "./scene/Grabbable";
 import Scene from "./scene/Scene";
@@ -226,12 +227,21 @@ declare global {
       state: () => Record<string, unknown>;
       node: (name: string) => Record<string, unknown> | null;
       bbox: (name: string) => Record<string, unknown> | null;
+      /** World point to CSS pixels on the page, so a headless run can aim
+       * a real pointer at a prop. */
+      project: (
+        x: number,
+        y: number,
+        z: number,
+      ) => { x: number; y: number; depth: number } | null;
       /** Registered by Meadow in dev: live wind/density knobs.
        * No-arg call returns the current values. */
       meadow?: (opts?: MeadowDiagnosticsUpdate) => MeadowDiagnosticsSettings;
       golf?: {
         state: () => Record<string, unknown>;
         forceNext: (outcome: GolfShotOutcome) => void;
+        loose: () => Record<string, unknown>[];
+        tapLoose: (key: string) => boolean;
       };
       quality: (value?: SceneQualityMode | number) => Record<string, unknown>;
       qualityLog: (action?: "snapshot" | "download") => SceneQualityLog;
@@ -351,6 +361,20 @@ function installDevHooks() {
         max: hi.map(r),
         size: hi.map((h, i) => r(h - lo[i]!)),
         center: hi.map((h, i) => r((h + lo[i]!) / 2)),
+      };
+    },
+    project(x, y, z) {
+      const c = cameraRef;
+      const gl = glRef;
+      if (!c || !gl) return null;
+      c.updateMatrixWorld(true);
+      // Cloned off the camera's own position: `three` is type-only here.
+      const v = c.position.clone().set(x, y, z).project(c);
+      const r = gl.domElement.getBoundingClientRect();
+      return {
+        x: r.left + ((v.x + 1) / 2) * r.width,
+        y: r.top + ((1 - v.y) / 2) * r.height,
+        depth: v.z,
       };
     },
     state() {
@@ -1087,6 +1111,13 @@ export default function StacksCanvas({
   // Travel freezes while the mobile panel or the book modal owns the screen.
   const panelState = useStacks((s) => s.panelState);
   const modalOpen = useStacks((s) => s.modalOpen);
+  const modelArtifactPhase = useStacks(
+    (s) => s.modelArtifactHandoff?.phase ?? null,
+  );
+  const freezeRoom =
+    modalOpen &&
+    (modelArtifactPhase === null ||
+      modelArtifactRoomShouldFreeze(modelArtifactPhase));
   const canvasShellRef = useRef<HTMLDivElement>(null);
   // Two things `onCreated` leaves running after it returns: the pair of queued
   // frames that report the first paint, and the context-loss listener. Both
@@ -1851,6 +1882,10 @@ export default function StacksCanvas({
       <Canvas
         events={pointerEvents}
         shadows="soft"
+        // Image and book viewers freeze immediately. A model handoff keeps the
+        // room alive until the real shelf object reaches the camera and the
+        // inspection renderer finishes replacing it.
+        frameloop={freezeRoom ? "never" : "always"}
         camera={{ position: [0, CAMERA.y, CAMERA.z], fov: CAMERA.fov }}
         dpr={dpr}
         // Authored in sceneBackdrop.ts, alongside the backdrop these

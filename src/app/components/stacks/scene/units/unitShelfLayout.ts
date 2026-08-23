@@ -169,7 +169,7 @@ export const REVIEWED_SHELF_LAYOUT = {
     placardEdgeAt1280: 0.467,
   },
   training: {
-    shakerX: [0.86, 1.06, 1.24] as const,
+    shakerX: [0.94, 1.1, 1.24] as const,
     shakerRadius: 0.077,
   },
   about: {

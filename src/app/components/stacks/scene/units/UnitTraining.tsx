@@ -1,40 +1,36 @@
 "use client";
 
-import { useGLTF, useTexture } from "@react-three/drei";
-
+import type { PhotoArtifactId } from "../../sceneArtifacts";
 import { ShakerProp } from "../AuthoredProps";
 import Grabbable from "../Grabbable";
 import { FootPool } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
 import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
-import { labelShellGeometry, wallFootprint } from "../labelShell";
 import { RoundedBox } from "../RoundedBox";
 import WavingGolfFlag from "../WavingGolfFlag";
 import { RollProp } from "../eggs";
+import { GolfBallProp } from "../golf/GolfBallProp";
 import GolfExperience from "../golf/GolfExperience";
 import { GOLF_FLAG_LOCAL } from "../golf/golfCourse";
 import {
   GOLF_CLUB_REST_BASE,
   GOLF_TEE_LAYOUT,
+  GOLF_TEE_MODEL_HEIGHT,
   GOLF_TEE_SCALE,
 } from "../golf/golfLayout";
 import { meadowHeight } from "../meadowField";
-import { SodaCan } from "../objects";
-import {
-  DeskFrame,
-  PHOTO_LINKS,
-  deskFrameHeight,
-  photoDoorDetail,
-  photoDoorLabel,
-} from "../photos";
+import { SODA_CAN_HEIGHT, SodaCan } from "../objects";
+import { DeskFrame, FlatPrint, deskFrameHeight } from "../photos";
 import { ShelfUnit } from "../primitives";
-import { SHELF_GEOMETRY } from "../shelfGeometry";
 import { useUnitLod } from "../useUnitLod";
 import { unitPose } from "../worldLayout";
 import React from "react";
 import * as THREE from "three";
 
+import { TrainingFigureCards } from "./TrainingFigureCards";
+import { TRAINING_BOARD_SIZE, TRAINING_PINS } from "./trainingBoardLayout";
+import { GorillaModeTub, PreXTub, ProteinTub } from "./trainingTubs";
 import type { UnitProps } from "./types";
 import {
   REVIEWED_SHELF_LAYOUT,
@@ -59,20 +55,23 @@ function TrainingPhoto({
   base,
   seat,
   rotation,
+  facingRotation,
+  hingeOnHover = false,
   width,
   children,
 }: {
   unitIndex: number;
   palette: UnitProps["palette"];
-  id: string;
+  id: PhotoArtifactId;
   base: [number, number, number];
   seat: number;
   rotation: [number, number, number];
+  facingRotation?: [number, number, number];
+  hingeOnHover?: boolean;
   width: number;
   children: React.ReactNode;
 }) {
   const hoverKey = `grab:photo:${id}`;
-  const href = PHOTO_LINKS[id] ?? null;
   return (
     <Grabbable
       unitIndex={unitIndex}
@@ -82,175 +81,174 @@ function TrainingPhoto({
       shadeWidth={Math.max(0.3, width * 1.18)}
       shape="box"
       massKg={0.45}
-      href={href ?? undefined}
-      doorLabel={href ? photoDoorLabel(href) : undefined}
-      doorDetail={href ? photoDoorDetail(href) : undefined}
+      hoverTiltAngle={hingeOnHover ? Math.PI / 3 : undefined}
+      artifact={id}
     >
-      <HeldFacing hoverKey={hoverKey} position={[0, seat, 0]} rest={rotation}>
+      <HeldFacing
+        hoverKey={hoverKey}
+        position={[0, seat, 0]}
+        rest={rotation}
+        facingRotation={facingRotation}
+      >
         {children}
       </HeldFacing>
     </Grabbable>
   );
 }
 
-const PROTEIN_URL = "/models/protein-powder.glb";
-const PROTEIN_SCALE = 2.082;
-const PROTEIN_YAW = 0.3;
-/** Baked from scripts/stacks-labels/nutricost.svg (the real tub's layout:
- * wordmark and underline, title, 30G / 58 / 5LB, orange band, blue swoosh,
- * nutrition panel on the back). One wrap = one trip around the tub. */
-const TUB_LABEL_URL = "/images/stacks/labels/nutricost.webp";
-useTexture.preload(TUB_LABEL_URL);
+/** The two golf prints on the lower shelf. Sized with the other shelves'
+ * desk frames in mind (Talks runs 0.53 to 0.72 wide, About's portraits are
+ * 0.18 to 0.2 by 0.24 to 0.26): a third bigger than the v8 placement, so
+ * they read as photographs rather than thumbnails next to the cans. */
+const TRAINING_GOLF_PRINTS = {
+  group: { base: [-1.1, 0, 0.1], width: 0.36, height: 0.27 },
+  flag: { base: [-0.69, 0, 0.13], width: 0.24, height: 0.32 },
+} as const;
 
-/** The tub's label, on a strip that follows the tub. The model is a rounded
- * square in plan, so a plain cylinder was either hidden inside the wall or
- * poking through the flats (blue squares and orange blocks per facet, which is
- * what the shelf showed). The strip is measured from the loaded mesh, a hair
- * proud of the wall, with u wrapped once around the perimeter (see
- * ../labelShell). Same GLB drei already has cached for the ModelProp beside
- * it, so this costs no second fetch. */
-function TubLabel() {
-  const { scene } = useGLTF(PROTEIN_URL, false);
-  const label = useTexture(TUB_LABEL_URL, (tex) => {
-    tex.colorSpace = THREE.SRGBColorSpace;
-    tex.wrapS = THREE.ClampToEdgeWrapping;
-    tex.anisotropy = 4;
-    tex.needsUpdate = true;
-  });
-  const geometry = React.useMemo(() => {
-    const { points, yMin, yMax } = wallFootprint(scene, {
-      scale: PROTEIN_SCALE,
-      materialName: "Plastic1Protein1",
-      from: 0.3,
-      to: 0.7,
-    });
-    const h = yMax - yMin;
-    // The straight part of the wall: above the foot chamfer, below the
-    // shoulder that meets the lid.
-    return labelShellGeometry(points, yMin + 0.12 * h, yMin + 0.8 * h, 1.015);
-  }, [scene]);
-  React.useEffect(() => () => geometry.dispose(), [geometry]);
+/** Three tees lying loose at the foot of the golf prints, as if tipped out
+ * of a pocket: three yaws, not a row. Each lies centred on its base, tip
+ * touching the wood, cup end lifted by its own radius. */
+const TRAINING_SHELF_TEES = [
+  { id: "shelf-left", x: -1.14, z: 0.185, yaw: 0.28, tint: "#f2ede2" },
+  { id: "shelf-middle", x: -0.93, z: 0.18, yaw: 0.5, tint: "#e8d7a8" },
+  { id: "shelf-right", x: -0.66, z: 0.18, yaw: -0.16, tint: "#f2ede2" },
+] as const;
+
+/** Two cans on the wood a few millimetres apart, Sunkist resting on both of
+ * their rims. The top can's base is exactly one can height up. They stand on
+ * the lower shelf between the golf balls and the dumbbell. Carried into the
+ * golf bay they can be struck too; a can tumbles where a ball rolls. */
+const TRAINING_CAN_PYRAMID = [
+  { id: "diet-dr-pepper", x: -0.16, y: 0, yaw: 0.18, shade: 0.18 },
+  { id: "mtn-dew-zero", x: -0.016, y: 0, yaw: -0.22, shade: 0.18 },
+  // The shade is a sprite at the base; keep it narrower than the can so it
+  // stays hidden inside the body rather than smudging the cans below.
+  { id: "sunkist-zero", x: -0.088, y: SODA_CAN_HEIGHT, yaw: 0.06, shade: 0.12 },
+] as const;
+const TRAINING_CAN_Z = 0.08;
+/** 6.114 model units across at the can's 0.02287 scale. */
+const SODA_CAN_RADIUS = 0.07;
+
+/** Real sizes at the shelves' 2.00 world units per metre: a 24 cm
+ * basketball, a 7.4 cm baseball, 6.7 cm tennis balls. Every GLB stands
+ * bottom-at-origin with the diameter stacks-render measured (0.8785 for the
+ * baseball, 0.1172 for the tennis ball), so scale is the wanted diameter
+ * over the measured one. */
+export const TRAINING_BALLS = {
+  basketball: { radius: 0.24, scale: 0.435, massKg: 0.62 },
+  baseball: { radius: 0.074, scale: 0.148 / 0.8785, massKg: 0.145 },
+  tennis: { radius: 0.067, scale: 0.134 / 0.1172, massKg: 0.058 },
+} as const;
+
+/** Loose balls on the lower shelf: a tennis ball behind the golf prints,
+ * the baseball in front of the basketball. Every ball on the shelf, these,
+ * the basketball and the two golf balls, can be carried into the golf bay
+ * and struck. */
+const TRAINING_LOOSE_BALLS = [
+  // In front of the flag print's corner, not behind it: at z -0.1 the print
+  // hid all but its crown from the camera.
+  { id: "tennis", kind: "tennis", x: -0.49, z: 0.12, yaw: 0.4 },
+  { id: "baseball", kind: "baseball", x: 0.88, z: 0.14, yaw: 1.3 },
+] as const;
+
+/** Two golf balls at the foot of the golf prints. The same GolfBallProp as
+ * the four in the bay: carry one over and the club will play it. */
+const TRAINING_SHELF_GOLF_BALLS = [
+  { id: "shelf-a", x: -0.42, z: 0.0, yaw: 0.7 },
+  { id: "shelf-b", x: -0.34, z: -0.12, yaw: 2.4 },
+] as const;
+
+function LooseBall({
+  unitIndex,
+  palette,
+  dark,
+  id,
+  kind,
+  x,
+  z,
+  yaw,
+}: Pick<UnitProps, "palette" | "dark"> & {
+  unitIndex: number;
+  id: string;
+  kind: "tennis" | "baseball";
+  x: number;
+  z: number;
+  yaw: number;
+}) {
+  const spec = TRAINING_BALLS[kind];
+  const hoverKey = `grab:ball:${id}`;
   return (
-    <mesh geometry={geometry} rotation={[0, PROTEIN_YAW, 0]}>
-      <meshStandardMaterial
-        map={label}
-        roughness={0.58}
-        side={THREE.DoubleSide}
-      />
-    </mesh>
+    <Grabbable
+      unitIndex={unitIndex}
+      hoverKey={hoverKey}
+      base={[x, 0, z]}
+      shadeColor={palette.shadow}
+      shadeWidth={spec.radius * 1.9}
+      shape="sphere"
+      massKg={spec.massKg}
+      restitution={kind === "tennis" ? 0.72 : 0.45}
+      maxThrowSpeed={9}
+      signature="roll"
+      hittable={{ radius: spec.radius }}
+    >
+      <RollProp hoverKey={hoverKey}>
+        <React.Suspense fallback={null}>
+          <ModelProp
+            url={
+              kind === "tennis"
+                ? "/models/tennis-ball.glb"
+                : "/models/baseball.glb"
+            }
+            dark={dark}
+            variant="tinted"
+            // Both ship their own base colour texture (felt, leather and
+            // stitching); the tint only takes the edge off pure white.
+            tintAll={kind === "tennis" ? "#eef0d8" : "#f3efe6"}
+            roughness={kind === "tennis" ? 0.96 : 0.62}
+            smoothNormals={kind === "baseball"}
+            rotation={[0, yaw, 0]}
+            scale={spec.scale}
+          />
+        </React.Suspense>
+      </RollProp>
+    </Grabbable>
   );
 }
-
-type Pin = {
-  id: string;
-  src: string;
-  aspect: number;
-  x: number;
-  y: number;
-  width: number;
-  roll: number;
-};
-
-const TRAINING_PINS: Pin[] = [
-  {
-    id: "training-trophy-side-v8",
-    src: "/images/stacks/v8/training-trophy-side.webp",
-    aspect: 820 / 1024,
-    x: -0.408,
-    y: 0.588,
-    width: 0.228,
-    roll: -0.045,
-  },
-  {
-    id: "training-stage-kneeling-v8",
-    src: "/images/stacks/v8/training-stage-kneeling.webp",
-    aspect: 819 / 1024,
-    x: -0.12,
-    y: 0.6,
-    width: 0.192,
-    roll: 0.035,
-  },
-  {
-    id: "training-stage-side-v8",
-    src: "/images/stacks/v8/training-stage-side.webp",
-    aspect: 819 / 1024,
-    x: 0.132,
-    y: 0.588,
-    width: 0.192,
-    roll: -0.03,
-  },
-  {
-    id: "training-trophy-front-v8",
-    src: "/images/stacks/v8/training-trophy-front.webp",
-    aspect: 819 / 1024,
-    x: 0.384,
-    y: 0.576,
-    width: 0.204,
-    roll: 0.045,
-  },
-  {
-    id: "training-gym-pose-v8",
-    src: "/images/stacks/v8/training-gym-pose.webp",
-    aspect: 768 / 1024,
-    x: -0.324,
-    y: 0.288,
-    width: 0.192,
-    roll: 0.035,
-  },
-  {
-    id: "training-deadlift-v8",
-    src: "/images/stacks/v8/training-deadlift.webp",
-    aspect: 1024 / 969,
-    x: 0.012,
-    y: 0.288,
-    width: 0.24,
-    roll: -0.035,
-  },
-  {
-    id: "training-bench-v8",
-    src: "/images/stacks/v8/training-bench.webp",
-    aspect: 1024 / 996,
-    x: 0.348,
-    y: 0.288,
-    width: 0.228,
-    roll: 0.025,
-  },
-];
 
 function TrainingBoard({
   palette,
   textured,
   unitIndex,
-}: Pick<UnitProps, "palette"> & { textured: boolean; unitIndex: number }) {
+}: Pick<UnitProps, "palette"> & {
+  textured: boolean;
+  unitIndex: number;
+}) {
   return (
     <group position={[0, 0.396, 0]}>
       <RoundedBox
         castShadow
-        args={[1.128, 0.792, 0.035]}
+        args={[TRAINING_BOARD_SIZE.width, TRAINING_BOARD_SIZE.height, 0.035]}
         radius={0.018}
         smoothness={4}
       >
         <meshStandardMaterial color={palette.woodDark} roughness={0.92} />
       </RoundedBox>
       {TRAINING_PINS.map((pin) => {
-        const height = pin.width / pin.aspect;
+        const height = pin.height;
         const hoverKey = `grab:photo:${pin.id}`;
-        const href = PHOTO_LINKS[pin.id] ?? undefined;
         const tackOffsetY = height / 2 - 0.012;
         return (
           <React.Fragment key={pin.id}>
             <Grabbable
               unitIndex={unitIndex}
               hoverKey={hoverKey}
-              base={[pin.x, pin.y - 0.396, 0.026]}
+              base={[pin.x, pin.y, 0.026]}
               physicsDetachOffset={[0, 0, 0.08]}
               shadeColor={palette.shadow}
               shadeWidth={pin.width}
               shape="box"
               massKg={0.025}
-              href={href}
-              doorLabel={href ? photoDoorLabel(href) : undefined}
-      doorDetail={href ? photoDoorDetail(href) : undefined}
+              artifact={pin.id}
             >
               <group rotation={[0, 0, pin.roll]}>
                 <RoundedBox
@@ -293,7 +291,7 @@ function TrainingBoard({
             <mesh
               position={[
                 pin.x - Math.sin(pin.roll) * tackOffsetY,
-                pin.y - 0.396 + Math.cos(pin.roll) * tackOffsetY,
+                pin.y + Math.cos(pin.roll) * tackOffsetY,
                 0.04,
               ]}
               raycast={() => null}
@@ -309,6 +307,7 @@ function TrainingBoard({
           </React.Fragment>
         );
       })}
+      <TrainingFigureCards unitIndex={unitIndex} />
     </group>
   );
 }
@@ -328,98 +327,147 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
               unitIndex={index}
               palette={palette}
               id="training-golf-group-v8"
-              base={[-1.08, 0, 0.1]}
-              seat={deskFrameHeight(0.204) / 2}
+              base={[...TRAINING_GOLF_PRINTS.group.base]}
+              seat={deskFrameHeight(TRAINING_GOLF_PRINTS.group.height) / 2}
               rotation={[-0.09, -0.17, 0.02]}
-              width={0.272}
+              width={TRAINING_GOLF_PRINTS.group.width}
             >
               <DeskFrame
                 src="/images/stacks/v8/training-golf-group.webp"
                 palette={palette}
                 textured={textured}
-                width={0.272}
-                height={0.204}
+                width={TRAINING_GOLF_PRINTS.group.width}
+                height={TRAINING_GOLF_PRINTS.group.height}
               />
             </TrainingPhoto>
             <TrainingPhoto
               unitIndex={index}
               palette={palette}
               id="training-golf-flag-v8"
-              base={[-0.74, 0, 0.13]}
-              seat={deskFrameHeight(0.24) / 2}
+              base={[...TRAINING_GOLF_PRINTS.flag.base]}
+              seat={deskFrameHeight(TRAINING_GOLF_PRINTS.flag.height) / 2}
               rotation={[-0.1, 0.14, -0.02]}
-              width={0.18}
+              width={TRAINING_GOLF_PRINTS.flag.width}
             >
               <DeskFrame
                 src="/images/stacks/v8/training-golf-flag.webp"
                 palette={palette}
                 textured={textured}
-                width={0.18}
-                height={0.24}
+                width={TRAINING_GOLF_PRINTS.flag.width}
+                height={TRAINING_GOLF_PRINTS.flag.height}
               />
             </TrainingPhoto>
-            {(
-              [
-                { id: "diet-dr-pepper", x: -0.39 },
-                { id: "sunkist-zero", x: -0.18 },
-                { id: "mtn-dew-zero", x: 0.03 },
-              ] as const
-            ).map((can, i) => (
+            {TRAINING_SHELF_TEES.map((tee) => (
+              <Grabbable
+                key={`golf-tee:${tee.id}`}
+                unitIndex={index}
+                hoverKey={`grab:golf-tee:${tee.id}`}
+                base={[tee.x, 0.002, tee.z]}
+                shadeColor={palette.shadow}
+                shadeWidth={0.16}
+                shape="box"
+                massKg={0.002}
+                spin={1.4}
+              >
+                <group rotation={[0, tee.yaw, 0]}>
+                  <React.Suspense fallback={null}>
+                    {/* The model stands tip-down at its origin. Rolled onto
+                        its side along local x (tip at +x, cup at -x), the cup
+                        end lifted by its own radius so the tip meets the
+                        wood; the outer group then turns each tee. */}
+                    <ModelProp
+                      url="/models/golf-tee.glb"
+                      dark={dark}
+                      variant="tinted"
+                      tintAll={tee.tint}
+                      position={[GOLF_TEE_MODEL_HEIGHT / 2, 0, 0]}
+                      rotation={[0, 0, Math.PI / 2 - 0.1]}
+                      scale={GOLF_TEE_SCALE}
+                    />
+                  </React.Suspense>
+                </group>
+              </Grabbable>
+            ))}
+            {TRAINING_LOOSE_BALLS.map((ball) => (
+              <LooseBall
+                key={ball.id}
+                unitIndex={index}
+                palette={palette}
+                dark={dark}
+                {...ball}
+              />
+            ))}
+            {TRAINING_SHELF_GOLF_BALLS.map((ball) => (
+              <GolfBallProp
+                key={ball.id}
+                unitIndex={index}
+                palette={palette}
+                dark={dark}
+                id={ball.id}
+                base={[ball.x, 0, ball.z]}
+                yaw={ball.yaw}
+              />
+            ))}
+            {TRAINING_CAN_PYRAMID.map((can) => (
               <Grabbable
                 key={can.id}
                 unitIndex={index}
                 hoverKey={`grab:can:${can.id}`}
-                base={[can.x, 0, 0.1]}
+                base={[can.x, can.y, TRAINING_CAN_Z]}
                 shadeColor={palette.shadow}
-                shadeWidth={0.18}
+                shadeWidth={can.shade}
                 shape="box"
                 massKg={0.36}
+                hittable={{
+                  radius: SODA_CAN_RADIUS,
+                  contactHeight: SODA_CAN_HEIGHT / 2,
+                }}
               >
                 <SodaCan
                   dark={dark}
                   brand={can.id}
-                  rotation={[0, [0.18, -0.2, 0.38][i] ?? 0, 0]}
+                  rotation={[0, can.yaw, 0]}
                 />
               </Grabbable>
             ))}
+            {/* The heavier dumbbell lies across the back of the lower shelf
+                at an angle, one plate toward the cans and the other toward
+                the front; its lighter partner stands front-to-back at the
+                top-left. Set down, not squared up. */}
             <Grabbable
               unitIndex={index}
-              hoverKey="grab:protein"
-              base={[0.38, 0, 0.04]}
+              hoverKey="grab:dumbbell:training:left"
+              base={[0.4, 0, -0.09]}
               shadeColor={palette.shadow}
-              shadeWidth={0.4}
+              shadeWidth={0.74}
               shape="box"
-              massKg={0.9}
+              massKg={12}
+              to="weightlifting"
             >
               <React.Suspense fallback={null}>
                 <ModelProp
-                  url={PROTEIN_URL}
+                  url="/models/dumbbell.glb"
                   dark={dark}
-                  variant="tinted"
-                  tints={{
-                    Plastic1Protein1: "#f5f0e6",
-                    Lid1Protein1: "#1262b6",
-                  }}
-                  rotation={[0, PROTEIN_YAW, 0]}
-                  scale={PROTEIN_SCALE}
+                  atlasOverride={{ tint: "#76716d", roughness: 0.55 }}
+                  rotation={[0, -0.45, 0]}
+                  scale={1.55}
                 />
-                <TubLabel />
               </React.Suspense>
             </Grabbable>
             <Grabbable
               unitIndex={index}
               hoverKey="grab:basketball"
-              base={[0.88, 0, -0.035]}
+              base={[1.06, 0, -0.08]}
               shadeColor={palette.shadow}
               shadeWidth={0.45}
               shape="sphere"
-              massKg={0.62}
+              massKg={TRAINING_BALLS.basketball.massKg}
               restitution={0.62}
               maxThrowSpeed={8}
-              // The one prop in the scene that is actually a sphere, and the
-              // shared nod was tilting it about a support edge it does not
-              // have. A ball rolls.
+              // A sphere, and the shared nod was tilting it about a support
+              // edge it does not have. A ball rolls.
               signature="roll"
+              hittable={{ radius: TRAINING_BALLS.basketball.radius }}
             >
               <RollProp hoverKey="grab:basketball">
                 <React.Suspense fallback={null}>
@@ -440,60 +488,154 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
           </group>
         }
       >
-        <group position={[-0.44, 0.009, -0.17]} rotation={[-0.1, 0.08, 0.015]}>
+        {/* The board sits 14 cm right of where it used to: the dumbbell's
+            back plate at the left end was passing through its lower-left
+            corner. */}
+        <group position={[-0.3, 0.009, -0.17]} rotation={[-0.1, 0.08, 0.015]}>
           <TrainingBoard
             palette={palette}
             textured={textured}
             unitIndex={index}
           />
         </group>
+        <TrainingPhoto
+          unitIndex={index}
+          palette={palette}
+          id="training-gym-pose-v8"
+          base={[-0.79, 0.006, 0.2]}
+          seat={0}
+          rotation={[0, -0.05, 0]}
+          facingRotation={[Math.PI / 2, 0, 0]}
+          hingeOnHover
+          width={0.24}
+        >
+          <FlatPrint
+            src="/images/stacks/v8/training-gym-pose.webp"
+            palette={palette}
+            textured={textured}
+            width={0.24}
+            height={0.32}
+          />
+        </TrainingPhoto>
+        <TrainingPhoto
+          unitIndex={index}
+          palette={palette}
+          id="training-deadlift-v8"
+          base={[-0.43, 0.006, 0.2]}
+          seat={0}
+          rotation={[0, 0.04, 0]}
+          facingRotation={[Math.PI / 2, 0, 0]}
+          hingeOnHover
+          width={0.285}
+        >
+          <FlatPrint
+            src="/images/stacks/v8/training-deadlift.webp"
+            palette={palette}
+            textured={textured}
+            width={0.285}
+            height={0.27}
+          />
+        </TrainingPhoto>
+        <TrainingPhoto
+          unitIndex={index}
+          palette={palette}
+          id="training-bench-v8"
+          base={[-0.05, 0.006, 0.19]}
+          seat={0}
+          rotation={[0, -0.03, 0]}
+          facingRotation={[Math.PI / 2, 0, 0]}
+          hingeOnHover
+          width={0.275}
+        >
+          <FlatPrint
+            src="/images/stacks/v8/training-bench.webp"
+            palette={palette}
+            textured={textured}
+            width={0.275}
+            height={0.267}
+          />
+        </TrainingPhoto>
         <Grabbable
           unitIndex={index}
-          hoverKey="grab:dumbbell:training:left"
-          base={[-1.02, 0, 0.15]}
+          hoverKey="artifact:lift-table"
+          artifact="lift-table"
+          base={[0.29, 0.006, 0.17]}
+          shadeColor={palette.shadow}
+          shadeWidth={0.28}
+          shape="box"
+          massKg={0.08}
+          physics={false}
+          draggable={false}
+          hoverTiltAngle={Math.PI / 3}
+        >
+          <HeldFacing
+            hoverKey="artifact:lift-table"
+            rest={[0, 0.05, 0]}
+            facingRotation={[Math.PI / 2, 0, 0]}
+          >
+            {/* A letter page, the same paper as the three prints beside it
+                and a touch larger than the photos: the four lie in one row,
+                flat, 5 to 7 cm apart with their 14 mm borders counted. */}
+            <FlatPrint
+              src="/images/stacks/artifacts/lift-table.png"
+              palette={palette}
+              textured={textured}
+              width={0.245}
+              height={0.317}
+            />
+          </HeldFacing>
+        </Grabbable>
+        {/* The lighter dumbbell runs front-to-back at the left end of the
+            top shelf, beside the board; the heavier one lies along the lower
+            shelf. Two dumbbells set down at different moments, not a pair on
+            display. */}
+        <Grabbable
+          unitIndex={index}
+          hoverKey="grab:dumbbell:training:right"
+          base={[-1.1, 0, 0.18]}
           shadeColor={palette.shadow}
           shadeWidth={0.52}
           shape="box"
-          massKg={12}
+          massKg={10}
           to="weightlifting"
         >
           <React.Suspense fallback={null}>
             <ModelProp
               url="/models/dumbbell.glb"
               dark={dark}
-              atlasOverride={{ tint: "#76716d", roughness: 0.55 }}
-              rotation={[0, 1.18, 0]}
-              scale={1.55}
+              atlasOverride={{ tint: "#8c8781", roughness: 0.58 }}
+              rotation={[0, 1.3, 0]}
+              scale={1.42}
             />
           </React.Suspense>
         </Grabbable>
-        <Grabbable
+        {/* Protein and PRE-X stand in a back row; Gorilla Mode, the one
+            taken first, stands in front of them with the shakers. */}
+        <ProteinTub
           unitIndex={index}
-          hoverKey="grab:kettlebell"
-          base={[0.48, 0, 0.05]}
-          shadeColor={palette.shadow}
-          shadeWidth={0.32}
-          shape="box"
-          massKg={16}
-          to="weightlifting"
-        >
-          <React.Suspense fallback={null}>
-            <ModelProp
-              url="/models/kettlebell.glb"
-              dark={dark}
-              variant="tinted"
-              tints={{ phong1SG: palette.hub }}
-              roughness={0.5}
-              rotation={[0, -0.4, 0]}
-              scale={1.85}
-            />
-          </React.Suspense>
-        </Grabbable>
+          palette={palette}
+          dark={dark}
+          base={[0.47, 0, -0.2]}
+        />
+        <GorillaModeTub
+          unitIndex={index}
+          palette={palette}
+          dark={dark}
+          base={[0.62, 0, 0.2]}
+        />
+        <PreXTub
+          unitIndex={index}
+          palette={palette}
+          dark={dark}
+          base={[0.8, 0, -0.2]}
+        />
+        {/* The shakers fan in depth rather than standing in a rank, and the
+            front one tucks in ahead of the PRE-X tub. */}
         <ShakerProp
           unitIndex={index}
           palette={palette}
           dark={dark}
-          base={[REVIEWED_SHELF_LAYOUT.training.shakerX[0], 0, 0.045]}
+          base={[REVIEWED_SHELF_LAYOUT.training.shakerX[0], 0, 0.22]}
         />
         <ShakerProp
           unitIndex={index}
@@ -502,7 +644,7 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
           id="training-navy"
           cupColor={dark ? "#46647a" : "#7596aa"}
           lidColor="#263a52"
-          base={[REVIEWED_SHELF_LAYOUT.training.shakerX[1], 0, 0]}
+          base={[REVIEWED_SHELF_LAYOUT.training.shakerX[1], 0, -0.02]}
         />
         <ShakerProp
           unitIndex={index}
@@ -511,7 +653,7 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
           id="training-amber"
           cupColor={dark ? "#8b6044" : "#c78e65"}
           lidColor="#633a2b"
-          base={[REVIEWED_SHELF_LAYOUT.training.shakerX[2], 0, 0.025]}
+          base={[REVIEWED_SHELF_LAYOUT.training.shakerX[2], 0, 0.12]}
         />
       </ShelfUnit>
 
@@ -539,31 +681,6 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
             roughness={0.45}
             rotation={TRAINING_BARBELL_POSE.rotation}
             scale={TRAINING_BARBELL_POSE.scale}
-          />
-        </React.Suspense>
-      </Grabbable>
-
-      {/* A second compact dumbbell belongs to the floor exercise bay. Keeping
-          it on a different plane prevents two handles and four heads from
-          collapsing into a fake loaded bar across the top shelf. */}
-      <Grabbable
-        unitIndex={index}
-        hoverKey="grab:dumbbell:training:right"
-        base={[-0.98, SHELF_GEOMETRY.groundY, 0.72]}
-        shadeColor={palette.shadow}
-        shadeWidth={0.64}
-        shape="box"
-        massKg={10}
-        standsOn="floor"
-        to="weightlifting"
-      >
-        <React.Suspense fallback={null}>
-          <ModelProp
-            url="/models/dumbbell.glb"
-            dark={dark}
-            atlasOverride={{ tint: "#8c8781", roughness: 0.58 }}
-            rotation={[0, -0.54, 0]}
-            scale={1.42}
           />
         </React.Suspense>
       </Grabbable>

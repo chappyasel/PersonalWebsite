@@ -274,6 +274,34 @@ const MANIFEST = [
     author: "Poly by Google",
     license: "CC-BY 3.0",
   },
+  // The two loose balls that join the basketball on the Training shelves.
+  // Both are Poly by Google, already a credited CC-BY author, so the credits
+  // line does not change. They keep their own materials (white leather and
+  // red stitching; felt yellow) rather than taking the palette atlas.
+  {
+    name: "baseball",
+    id: "689iUPvWl4y",
+    url: "https://static.poly.pizza/d2eaa59d-ca27-414a-b71d-a36ce37bb0b0.glb",
+    // The raw file is 250 KB of JPEG for a 7 cm ball; 256 px keeps the red
+    // stitching legible at the shelf's viewing distance.
+    texMax: 256,
+    noAo: true,
+    unit: "training",
+    author: "Poly by Google",
+    license: "CC-BY 3.0",
+    page: "https://poly.pizza/m/689iUPvWl4y",
+  },
+  {
+    name: "tennis-ball",
+    id: "0aPpwgcBbk1",
+    url: "https://static.poly.pizza/4c6ff1da-4263-42d6-8a74-926d2b4c3d62.glb",
+    texMax: 128,
+    noAo: true,
+    unit: "training",
+    author: "Poly by Google",
+    license: "CC-BY 3.0",
+    page: "https://poly.pizza/m/0aPpwgcBbk1",
+  },
   // ---- v4 round 4: the owner's named asks (Eames / Mac / +2 lamps / +2 plants).
   // eames-chair is the honest near-miss: poly.pizza has NO Eames lounge (no
   // plywood shells, no ottoman, no star base). This is the site's top

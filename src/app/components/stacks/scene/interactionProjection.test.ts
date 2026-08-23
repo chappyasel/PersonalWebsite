@@ -19,7 +19,11 @@ import {
   projectedInteractionBounds,
   setInteractionProjectionContext,
 } from "./interactionProjection";
-import { projectDoor, registerSceneInteraction } from "./interactionRegistry";
+import {
+  projectDoor,
+  projectSceneInteractionRect,
+  registerSceneInteraction,
+} from "./interactionRegistry";
 
 const rect = {
   x: 0,
@@ -113,6 +117,36 @@ describe("scene interaction projection", () => {
     expect(projected).not.toBeNull();
     expect(projected!.y).toBeGreaterThan(40);
     expect(projected!.y).toBeLessThan(50);
+  });
+
+  it("projects a live artifact rectangle for the image-preview handoff", () => {
+    const camera = new PerspectiveCamera(50, 1, 0.1, 100);
+    camera.position.z = 5;
+    camera.lookAt(0, 0, 0);
+    camera.updateMatrixWorld(true);
+    setInteractionProjectionContext(camera, {
+      getBoundingClientRect: () => rect,
+    } as HTMLElement);
+
+    const root = target(0);
+    const release = registerSceneInteraction({
+      id: "test:artifact-preview",
+      root,
+      activeUnits: [2],
+      activation: {
+        kind: "artifact",
+        label: "Test chart",
+        run: () => undefined,
+      },
+    });
+
+    const projected = projectSceneInteractionRect("test:artifact-preview");
+    release();
+    expect(projected).not.toBeNull();
+    expect(projected!.left).toBeLessThan(50);
+    expect(projected!.top).toBeLessThan(50);
+    expect(projected!.width).toBeGreaterThan(0);
+    expect(projected!.height).toBeGreaterThan(0);
   });
 
   it("keeps shader-line helpers out of hover hinge measurements", () => {

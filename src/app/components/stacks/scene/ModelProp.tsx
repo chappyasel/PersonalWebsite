@@ -109,6 +109,9 @@ export const MODEL_URLS = [
   "/models/microphone.glb",
   "/models/soda-can.glb",
   "/models/protein-powder.glb",
+  // The two loose balls beside the basketball on the Training shelves.
+  "/models/baseball.glb",
+  "/models/tennis-ball.glb",
   // Owner-selected CC0 plants from the same tiny-treats atlas as pothos;
   // their geometry is separate, their themed texture is already shared.
   "/models/succulent-pot.glb",
