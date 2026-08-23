@@ -1,7 +1,7 @@
 {
   "version": 1,
   "algorithm": "sha256",
-  "digest": "aead285f8d470ffe9482fa7bcf7ca482498b622322dbf1b5e44da6c03e0dd2b1",
+  "digest": "b3348779cc0e1f2af1d10b8a4e3f1ac697e538de2d930283227b953a4d925d64",
   "files": [
     "public/images/about/profile.jpg",
     "public/images/stacks/grass-tuft-alpha.webp",
@@ -9,8 +9,11 @@
     "public/images/stacks/v8/about-collective-group.webp",
     "public/images/stacks/v8/about-delicate-arch.webp",
     "public/images/stacks/v8/about-family.webp",
+    "public/images/stacks/v8/about-madrona-icon.webp",
     "public/images/stacks/v8/about-profile-full.webp",
+    "public/images/stacks/v8/about-roam-icon.webp",
     "public/images/stacks/v8/about-speaking-candid.webp",
+    "public/images/stacks/v8/about-susa-icon.webp",
     "public/images/stacks/v8/ai-collective-mark.svg",
     "public/models/cactus.glb",
     "public/models/couch.glb",
@@ -50,6 +53,7 @@
     "src/app/components/stacks/dom/qualityReadout.ts",
     "src/app/components/stacks/input/ScrollBridges.tsx",
     "src/app/components/stacks/input/TouchInteractionLayer.tsx",
+    "src/app/components/stacks/input/editableShortcutTarget.ts",
     "src/app/components/stacks/input/scenePointerEvents.ts",
     "src/app/components/stacks/input/useCoarseTouchCapability.ts",
     "src/app/components/stacks/loading.ts",
@@ -83,6 +87,7 @@
     "src/app/components/stacks/scene/RoundedBox.tsx",
     "src/app/components/stacks/scene/Scene.tsx",
     "src/app/components/stacks/scene/SceneEnvironment.tsx",
+    "src/app/components/stacks/scene/SceneLayoutEditorGizmo.tsx",
     "src/app/components/stacks/scene/ShelfSpacingProbe.tsx",
     "src/app/components/stacks/scene/SitChair.tsx",
     "src/app/components/stacks/scene/TouchFocusTarget.tsx",
@@ -92,6 +97,7 @@
     "src/app/components/stacks/scene/aboutBootComposition.ts",
     "src/app/components/stacks/scene/aboutBootSilhouettes.ts",
     "src/app/components/stacks/scene/aboutCoordinationLayout.ts",
+    "src/app/components/stacks/scene/aboutRoleIcons.ts",
     "src/app/components/stacks/scene/appleOutline.ts",
     "src/app/components/stacks/scene/bagLabelUvs.ts",
     "src/app/components/stacks/scene/bookCoverTexture.ts",
@@ -185,6 +191,8 @@
     "src/app/components/stacks/scene/sceneFrameCost.ts",
     "src/app/components/stacks/scene/sceneGpuPrewarm.ts",
     "src/app/components/stacks/scene/sceneImpulse.ts",
+    "src/app/components/stacks/scene/sceneLayoutDraft.ts",
+    "src/app/components/stacks/scene/sceneLayoutEditor.ts",
     "src/app/components/stacks/scene/sceneLightShape.tsx",
     "src/app/components/stacks/scene/scenePerformance.ts",
     "src/app/components/stacks/scene/scenePhotoDetails.ts",
@@ -241,7 +249,7 @@
   ],
   "image": {
     "path": "public/images/stacks/home-og-scene.jpg",
-    "digest": "a089a52c056ba3655cf06e86df53d26aa2a85a3738e2cf2a5c9fdc74dac0d4ab",
-    "inputDigest": "aead285f8d470ffe9482fa7bcf7ca482498b622322dbf1b5e44da6c03e0dd2b1"
+    "digest": "0392445e6b51d1d7b731e7a08de560fdc138388f10d2f0c07e79dc983789c340",
+    "inputDigest": "b3348779cc0e1f2af1d10b8a4e3f1ac697e538de2d930283227b953a4d925d64"
   }
 }
