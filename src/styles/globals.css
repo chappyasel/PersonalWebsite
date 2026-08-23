@@ -535,6 +535,17 @@ html[data-world="ready"] .stacks-boot-threshold {
   fill: var(--stacks-boot-object);
 }
 
+/* Role Icon tiles carry their own brand pair per rect, because the
+   item-level object color can only describe one object. */
+.stacks-boot-role-icon {
+  fill: var(--stacks-boot-role-light, var(--stacks-boot-metal));
+  opacity: 0.9;
+}
+
+.dark .stacks-boot-role-icon {
+  fill: var(--stacks-boot-role-dark, var(--stacks-boot-metal));
+}
+
 .stacks-boot-mark-base {
   fill: color-mix(in srgb, var(--stacks-boot-metal) 72%, black);
 }

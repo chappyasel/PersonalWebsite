@@ -47,15 +47,39 @@ describe("free-roam wiring", () => {
     expect(chromeLayer).not.toContain('event.key.toLowerCase() !== "f"');
   });
 
-  it("captures the mouse only when the policy asks for it", () => {
-    expect(chromeLayer).toContain("if (intent.requestPointerLock)");
-    expect(chromeLayer).toContain("canvas?.requestPointerLock()");
+  it("never captures the mouse, so the left button still reaches the scene", () => {
+    // The layout editor selects a prop with a click and drags its gizmo with
+    // the pointer visible. A pointer lock anywhere on the free-roam path
+    // would take both away.
+    expect(chromeLayer).not.toContain("requestPointerLock");
+    expect(cameraRig).not.toContain("requestPointerLock");
+    expect(cameraRig).not.toContain("pointerLockElement");
+  });
+
+  it("looks only while the right button is held, and ignores its menu", () => {
+    expect(cameraRig).toContain("event.button !== FREE_ROAM_LOOK_BUTTON");
+    expect(cameraRig).toContain("lookPointerId = event.pointerId");
+    expect(cameraRig).toContain("if (event.pointerId !== lookPointerId) return;");
+    expect(cameraRig).toContain('addEventListener("contextmenu", onContextMenu)');
+    // Releasing or losing the pointer ends the look; so does losing focus.
+    expect(cameraRig).toContain('addEventListener("pointerup", onPointerUp)');
+    expect(cameraRig).toContain(
+      'addEventListener("pointercancel", onPointerUp)',
+    );
+    expect(cameraRig).toContain('addEventListener("blur", clearInput)');
   });
 
   it("observes free-roam entry through one connector", () => {
-    expect(chromeLayer).toContain("connectFreeRoamEntryObserver({");
-    expect(chromeLayer).toContain(
-      "onEnabled: () => setStacksSheetDismissed(true)",
+    expect(chromeLayer.match(/connectFreeRoamEntryObserver\(\{/g)).toHaveLength(
+      1,
+    );
+    // Entry dismisses the sheet and wakes the layout editor from the same
+    // connector; neither may grow a second observer or touch storage.
+    expect(chromeLayer).toMatch(
+      /onEnabled: \(\) => \{[\s\S]*?setStacksSheetDismissed\(true\)/,
+    );
+    expect(chromeLayer).toMatch(
+      /onEnabled: \(\) => \{[\s\S]*?sceneLayoutEditorController\.setEnabled\(true\)/,
     );
     expect(chromeLayer).not.toContain("localStorage");
   });
@@ -64,6 +88,8 @@ describe("free-roam wiring", () => {
     expect(
       cameraRig.match(/FREE_ROAM_MOVEMENT_CODES\.has\(event\.code\)/g),
     ).toHaveLength(2);
+    // Someone typing into a diagnostics field is not flying.
+    expect(cameraRig).toContain("isEditableShortcutTarget(event.target)");
   });
 
   it("turns raw pointer movement into a look target through the policy", () => {
@@ -76,10 +102,12 @@ describe("free-roam wiring", () => {
   it("damps the look and translates the camera from the same clamped step", () => {
     expect(cameraRig).toContain("const dt = freeRoamStepSeconds(delta);");
     expect(cameraRig).toContain("dampFreeRoamLook(");
-    expect(cameraRig).toContain("freeRoamTranslation(");
-    expect(cameraRig).toContain("camera.quaternion");
-    // The scratch vector reaches the policy, so the frame loop allocates none.
-    expect(cameraRig).toContain("freeRoamMove.current");
+    // Held keys, the clamped step and the scratch vector, and nothing else:
+    // no camera orientation reaches the policy, so WASD cannot follow the
+    // view. The scratch vector means the frame loop allocates none.
+    expect(cameraRig).toMatch(
+      /freeRoamTranslation\(\s*freeRoamKeys\.current,\s*dt,\s*freeRoamMove\.current,?\s*\)/,
+    );
     expect(cameraRig).not.toContain("Math.min(delta, 0.05)");
   });
 

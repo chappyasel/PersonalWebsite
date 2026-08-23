@@ -84,6 +84,12 @@ apps through its original, recognizable icon artwork. It is an Identity Prop,
 not a screenshot mounted as wall art.
 _Avoid_: Project card, app screenshot
 
+**Role Icon** — a Project Icon billet on the About shelf carrying the mark of
+an organization Chappy currently works with, and a Door to it. The four stand
+two by two beside the Apple mark at half the Projects edge; each is its own
+Movable Prop.
+_Avoid_: Logo wall, sponsor badge, client list
+
 **Dice Pyramid** — six separate Movable Props arranged three-two-one to
 represent Liar's Dice. The arrangement may collapse through interaction; the
 individual dice remain the objects rather than becoming one grouped sculpture.
@@ -443,3 +449,17 @@ consistent across both.
 
 **Now Strip** — the one-line live readout of present-tense facts (current
 book, last lift, local time). Every value on it must be real.
+
+## Development layout editor
+
+Free roam is how the owner reaches props, and it never captures the mouse:
+the right button looks, the left button selects a prop and drags its gizmo.
+WASD moves along the room's axes whichever way the camera faces, so a key
+means the same direction as the gizmo's arrows and the keyboard nudges. The
+policy lives in `scene/freeRoamMotion.ts`; `CameraRig` only wires it.
+
+Layout changes made with the development editor are automatically written to
+`.next/stacks-layout-draft.json`. When Chappy asks to persist the layout, read
+that draft and apply each changed record's `preview` and `previewRotation` to
+the authored scene props. The draft is a handoff artifact only. It must never
+restore debug overrides when the page reloads.

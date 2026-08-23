@@ -28,6 +28,11 @@ import {
   ABOUT_TJ_LIGHT_YAW,
   aboutLampHeadQuaternion,
 } from "../aboutCoordinationLayout";
+import {
+  ABOUT_ROLES,
+  ABOUT_ROLE_ICON_SIZE,
+  aboutRoleIconOffset,
+} from "../aboutRoleIcons";
 import { proxiedBookCover } from "../bookCoverTexture";
 import { EggLamp, SpinProp, Sway } from "../eggs";
 import { getSceneInteraction } from "../interactionRegistry";
@@ -37,6 +42,7 @@ import {
   FlatPrint,
   PHOTO_LINKS,
   deskFrameHeight,
+  photoDoorDetail,
   photoDoorLabel,
 } from "../photos";
 import { ShelfUnit } from "../primitives";
@@ -55,6 +61,7 @@ import {
   readingBookMaterialColors,
 } from "~/lib/books/coverEdgeColor";
 
+import { ProjectIcon } from "./ProjectArtifacts";
 import { ShelfSucculent } from "./ShelfSucculent";
 import {
   ABOUT_READING_BOOK,
@@ -69,6 +76,7 @@ import { REVIEWED_SHELF_LAYOUT } from "./unitShelfLayout";
 
 export const PORTRAIT_SRC = "/images/about/profile.jpg";
 const ABOUT_TOP_PHOTO_HOVER_ANGLE = Math.PI / 3;
+const ABOUT_TOP_PHOTO_HOVER_LIFT = 0.025;
 
 function CollectiveLogo({
   palette,
@@ -214,6 +222,7 @@ function LoosePhoto({
   unitIndex,
   palette,
   id,
+  layoutLabel,
   base,
   seat = 0,
   rotation = [0, 0, 0],
@@ -225,6 +234,7 @@ function LoosePhoto({
   unitIndex: number;
   palette: UnitProps["palette"];
   id: string;
+  layoutLabel: string;
   base: [number, number, number];
   seat?: number;
   rotation?: [number, number, number];
@@ -239,14 +249,17 @@ function LoosePhoto({
     <Grabbable
       unitIndex={unitIndex}
       hoverKey={hoverKey}
+      layoutLabel={layoutLabel}
       base={base}
       shadeColor={palette.shadow}
       shadeWidth={Math.max(0.28, width * 1.18)}
       hoverTiltAngle={hingeOnHover ? ABOUT_TOP_PHOTO_HOVER_ANGLE : undefined}
+      hoverLift={hingeOnHover ? ABOUT_TOP_PHOTO_HOVER_LIFT : undefined}
       shape="box"
       massKg={0.48}
       href={href ?? undefined}
       doorLabel={href ? photoDoorLabel(href) : undefined}
+      doorDetail={href ? photoDoorDetail(href) : undefined}
     >
       <HeldFacing
         hoverKey={hoverKey}
@@ -314,7 +327,12 @@ function ReadingStack({
             massKg={0.62}
             tiltOnHover={false}
             onTap={() => onOpenBook?.(book.id)}
-            actionLabel={`Read ${book.title}`}
+            // Title, author, then the verb: the label describes the book
+            // before it says what a tap does. "Preview", because the tap
+            // opens the in-room book modal, not the full notes page.
+            doorLabel={book.title}
+            doorDetail={book.author ? [book.author] : undefined}
+            actionLabel="Preview book notes"
           >
             <ReadingBookHover
               hoverKey={`grab:reading:${book.id}`}
@@ -558,31 +576,6 @@ export default function UnitAbout({
           <group>
             <Grabbable
               unitIndex={index}
-              hoverKey="grab:plant:about-cactus"
-              base={[ABOUT_BOOT_LANDMARKS.cactus.x, 0, -0.04]}
-              shadeColor={palette.shadow}
-              shadeWidth={0.28}
-              shape="box"
-              colliderProfile="foliage-base"
-              massKg={1.6}
-            >
-              <group name={aboutLandmarkNodeName("cactus")}>
-                <Sway unitIndex={index} amount={0.014} rate={0.34}>
-                  <React.Suspense fallback={null}>
-                    <ModelProp
-                      url="/models/cactus.glb"
-                      dark={dark}
-                      variant="recolor"
-                      rotation={[0, -0.35, 0]}
-                      scale={ABOUT_BOOT_LANDMARKS.cactus.sceneScale}
-                    />
-                  </React.Suspense>
-                </Sway>
-              </group>
-            </Grabbable>
-
-            <Grabbable
-              unitIndex={index}
               hoverKey="shimmer:apple"
               metal
               base={[
@@ -594,6 +587,12 @@ export default function UnitAbout({
               shadeWidth={0.26}
               shape="box"
               massKg={0.35}
+              // A Door like the TJ medallion and the AIC mark beside it, so
+              // the label can say what the object stands for (owner: make the
+              // tooltips describe). The click still fires the mark's sweep.
+              href="https://www.apple.com/"
+              doorLabel="Apple"
+              doorDetail={["Former AR/VR Software Engineer"]}
             >
               <group
                 name={aboutLandmarkNodeName("apple")}
@@ -603,6 +602,38 @@ export default function UnitAbout({
                 <DeskApple palette={palette} unitIndex={index} />
               </group>
             </Grabbable>
+            {/* The Role Icons: where he works now, beside the mark of where
+                he worked. Four Project Icon billets at half the Projects
+                edge, stacked two by two like the dice; each is a Door to its
+                organization and every tile is its own Movable Prop. */}
+            <group name={aboutLandmarkNodeName("role-icons")}>
+              {ABOUT_ROLES.map((role) => {
+                const [dx, dy] = aboutRoleIconOffset(role);
+                return (
+                  <ProjectIcon
+                    key={role.id}
+                    unitIndex={index}
+                    palette={palette}
+                    dark={dark}
+                    hoverKey={`link:about:role:${role.id}`}
+                    base={[
+                      ABOUT_BOOT_LANDMARKS["role-icons"].x + dx,
+                      dy,
+                      SHELF_GEOMETRY.lower.centerZ,
+                    ]}
+                    artwork={role.artwork}
+                    fallbackColor={role.fallbackColor}
+                    textured={textured}
+                    yaw={role.yaw}
+                    href={role.href}
+                    doorLabel={role.doorLabel}
+                    doorDetail={role.doorDetail}
+                    size={ABOUT_ROLE_ICON_SIZE}
+                    massKg={0.08}
+                  />
+                );
+              })}
+            </group>
             <Grabbable
               unitIndex={index}
               hoverKey="grab:ai-collective-mark"
@@ -618,7 +649,8 @@ export default function UnitAbout({
               massKg={0.42}
               sceneImpulseReaction="knockdown"
               href="https://aicollective.com/"
-              doorLabel="Visit The AI Collective"
+              doorLabel="The AI Collective"
+              doorDetail={["Co-founder"]}
             >
               <React.Suspense fallback={null}>
                 <group
@@ -681,6 +713,11 @@ export default function UnitAbout({
                   SHELF_GEOMETRY.lower.centerZ,
                 ]}
                 href="https://tjhsst.fcps.edu/"
+                doorLabel="TJHSST"
+                doorDetail={[
+                  "Class of 2017",
+                  "Alumni Director, TJ Partnership Fund board",
+                ]}
                 name={aboutLandmarkNodeName("tj-medallion")}
                 scale={ABOUT_BOOT_LANDMARKS["tj-medallion"].sceneScale}
                 yaw={ABOUT_TJ_LIGHT_YAW}
@@ -738,11 +775,40 @@ export default function UnitAbout({
           </group>
         </Grabbable>
 
+        {/* Set Dressing, opposite the succulent after the top plants swapped
+            places. */}
+        <Grabbable
+          unitIndex={index}
+          hoverKey="grab:plant:about-cactus"
+          layoutLabel="About · Cactus"
+          base={[ABOUT_BOOT_LANDMARKS.cactus.x, 0, -0.122]}
+          shadeColor={palette.shadow}
+          shadeWidth={0.28}
+          shape="box"
+          colliderProfile="foliage-base"
+          massKg={1.6}
+        >
+          <group name={aboutLandmarkNodeName("cactus")}>
+            <Sway unitIndex={index} amount={0.014} rate={0.34}>
+              <React.Suspense fallback={null}>
+                <ModelProp
+                  url="/models/cactus.glb"
+                  dark={dark}
+                  variant="recolor"
+                  rotation={[0, -0.35, 0]}
+                  scale={ABOUT_BOOT_LANDMARKS.cactus.sceneScale}
+                />
+              </React.Suspense>
+            </Sway>
+          </group>
+        </Grabbable>
+
         <LoosePhoto
           unitIndex={index}
           palette={palette}
           id="about-collective-group-v8"
-          base={[ABOUT_BOOT_LANDMARKS["collective-frame"].x, 0, 0.15]}
+          layoutLabel="About · Collective print"
+          base={[ABOUT_BOOT_LANDMARKS["collective-frame"].x, 0, 0.255]}
           rotation={[0, 0, 0]}
           facingRotation={[Math.PI / 2, 0, 0]}
           hingeOnHover
@@ -763,7 +829,11 @@ export default function UnitAbout({
           unitIndex={index}
           palette={palette}
           id="portrait"
+          layoutLabel="About · Large portrait"
           base={[ABOUT_BOOT_LANDMARKS.portrait.x, 0, 0]}
+          // Owner placement via the scene layout editor, 2026-08-22: a
+          // slight turn toward the lamp side.
+          rotation={[0, -0.125, 0]}
           width={ABOUT_BOOT_LANDMARKS.portrait.profile.width}
         >
           <group
@@ -783,9 +853,12 @@ export default function UnitAbout({
           unitIndex={index}
           palette={palette}
           id="about-family-v8"
+          layoutLabel="About · Family frame"
           base={[ABOUT_BOOT_LANDMARKS["family-frame"].x, 0, 0]}
           seat={deskFrameHeight(0.264) / 2}
-          rotation={[-0.08, 0.2, -0.025]}
+          // Owner placement via the scene layout editor, 2026-08-22: the
+          // editor's carrier rotation composed onto the old authored tilt.
+          rotation={[-0.172, -0.251, -0.102]}
           width={0.264 * (769 / 1024)}
         >
           <group name={aboutLandmarkNodeName("family-frame")}>
@@ -803,7 +876,8 @@ export default function UnitAbout({
           unitIndex={index}
           palette={palette}
           id="about-speaking-candid-v8"
-          base={[REVIEWED_SHELF_LAYOUT.about.speakingPrintX, 0, 0.15]}
+          layoutLabel="About · Speaking print"
+          base={[REVIEWED_SHELF_LAYOUT.about.speakingPrintX, 0, 0.239]}
           rotation={[0, 0, 0]}
           facingRotation={[Math.PI / 2, 0, 0]}
           hingeOnHover
@@ -821,7 +895,8 @@ export default function UnitAbout({
         <Grabbable
           unitIndex={index}
           hoverKey="grab:plant:about-succulent"
-          base={[ABOUT_BOOT_LANDMARKS.succulent.x, 0, -0.08]}
+          layoutLabel="About · Succulent"
+          base={[ABOUT_BOOT_LANDMARKS.succulent.x, 0, -0.1]}
           shadeColor={palette.shadow}
           shadeWidth={0.28}
           shape="box"
@@ -837,7 +912,8 @@ export default function UnitAbout({
           unitIndex={index}
           palette={palette}
           id="about-delicate-arch-v8"
-          base={[REVIEWED_SHELF_LAYOUT.about.archPrintX, 0, 0.12]}
+          layoutLabel="About · Arch print"
+          base={[REVIEWED_SHELF_LAYOUT.about.archPrintX, 0, 0.231]}
           rotation={[0, 0, 0]}
           facingRotation={[Math.PI / 2, 0, 0]}
           hingeOnHover
@@ -860,7 +936,8 @@ export default function UnitAbout({
           unitIndex={index}
           palette={palette}
           id="about-profile-full-v8"
-          base={[ABOUT_BOOT_LANDMARKS["profile-frame"].x, 0, 0]}
+          layoutLabel="About · Profile frame"
+          base={[ABOUT_BOOT_LANDMARKS["profile-frame"].x, 0, -0.045]}
           seat={REVIEWED_SHELF_LAYOUT.about.profileSeat}
           rotation={[-Math.PI / 6, -0.08, 0]}
           width={0.18}

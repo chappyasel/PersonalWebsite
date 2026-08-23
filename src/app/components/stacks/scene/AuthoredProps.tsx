@@ -276,6 +276,8 @@ export function TJMedallionProp({
   dark,
   base,
   href,
+  doorLabel = "Visit TJHSST",
+  doorDetail,
   name,
   scale,
   yaw = -0.16,
@@ -285,6 +287,10 @@ export function TJMedallionProp({
   dark: boolean;
   base: [number, number, number];
   href: string;
+  /** Door Label copy. About passes what the medallion stands for. */
+  doorLabel?: string;
+  /** Lines under the Door Label title; see Grabbable. */
+  doorDetail?: string | readonly string[];
   name?: string;
   scale: number;
   /** Face yaw; About uses this to catch its nearby desk practical. */
@@ -302,7 +308,8 @@ export function TJMedallionProp({
       massKg={0.45}
       sceneImpulseReaction="knockdown"
       href={href}
-      doorLabel="Visit TJHSST"
+      doorLabel={doorLabel}
+      doorDetail={doorDetail}
       external
     >
       <group name={name} rotation={[0, yaw, 0]} scale={scale}>

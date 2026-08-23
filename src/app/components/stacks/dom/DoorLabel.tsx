@@ -7,7 +7,7 @@ import {
   runSceneInteractionActivation,
 } from "../scene/interactionRegistry";
 import { progressRef, useStacks } from "../store";
-import { ArrowUpRightIcon } from "@phosphor-icons/react";
+import { ArrowRightIcon, ArrowUpRightIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { clampDoorLabelX, clampDoorLabelY } from "./doorLabelPlacement";
@@ -35,8 +35,14 @@ export default function DoorLabel() {
   const panelState = useStacks((s) => s.panelState);
   const [shown, setShown] = useState<{
     id: string;
+    /** Title line: the destination of a Door, or the object of an action. */
     label: string;
-    external: boolean;
+    detail: readonly string[];
+    /** Verb line for a local action that also has a title. */
+    action: string | null;
+    /** Title-line glyph: ↗ for a Door off the site, → for one on it or for a
+     * bare-verb action; null when the verb line below carries the →. */
+    arrow: "external" | "internal" | "action" | null;
   } | null>(null);
   const [visible, setVisible] = useState(false);
   const visibleRef = useRef(false);
@@ -128,11 +134,26 @@ export default function DoorLabel() {
         : INITIAL_DWELL_MS;
     hadDoor.current = true;
     const timeout = window.setTimeout(() => {
-      const next = {
-        id: spec.id,
-        label: activation.label.replace(/\s*↗\s*$/, ""),
-        external: activation.kind === "door" && activation.external,
-      };
+      const next =
+        activation.kind === "door"
+          ? {
+              id: spec.id,
+              label: activation.label.replace(/\s*↗\s*$/, ""),
+              detail: activation.detail ?? [],
+              action: null,
+              arrow: activation.external
+                ? ("external" as const)
+                : ("internal" as const),
+            }
+          : {
+              id: spec.id,
+              label: activation.title ?? activation.label,
+              detail: activation.detail ?? [],
+              action: activation.title ? activation.label : null,
+              // A bare verb ("Hit golf ball") is its own title, so the →
+              // sits on that line; with a title the verb line carries it.
+              arrow: activation.title ? null : ("action" as const),
+            };
       positionedId.current = null;
       setLabelVisible(false);
       shownRef.current = next;
@@ -279,17 +300,64 @@ export default function DoorLabel() {
             : "translate-y-1.5 scale-[0.96] opacity-0"
         }`}
       >
-        <span className="stacks-glass-tooltip flex min-w-0 items-start gap-1 rounded-lg border px-2.5 py-1.5">
-          <span className="min-w-0 whitespace-normal break-words">
-            {shown.label}
+        {/* Title line, then one line per detail, then the verb line of a
+            local action. A Door's title names where it goes, so its arrow sits
+            on that line (↗ off-site, → on-site) and is the whole "this is a
+            link" signal; details describe the object and never wrap around
+            the glyph. An action has no arrow; its last line says what
+            happens. A plain one-line label renders exactly as before. */}
+        <span className="stacks-glass-tooltip flex min-w-0 flex-col rounded-lg border px-2.5 py-1.5">
+          <span className="flex min-w-0 items-start gap-1">
+            <span
+              className={`min-w-0 whitespace-normal break-words ${
+                shown.detail.length || shown.action ? "font-medium" : ""
+              }`}
+            >
+              {shown.label}
+            </span>
+            {shown.arrow === "external" ? (
+              <ArrowUpRightIcon
+                aria-hidden="true"
+                className="mt-px shrink-0"
+                size={13}
+                weight="bold"
+              />
+            ) : shown.arrow === "internal" || shown.arrow === "action" ? (
+              <ArrowRightIcon
+                aria-hidden="true"
+                className="mt-px shrink-0"
+                size={13}
+                weight="bold"
+              />
+            ) : null}
           </span>
-          {shown.external ? (
-            <ArrowUpRightIcon
-              aria-hidden="true"
-              className="mt-px shrink-0"
-              size={13}
-              weight="bold"
-            />
+          {shown.detail.map((line) => (
+            <span
+              key={line}
+              data-door-detail=""
+              className="mt-0.5 min-w-0 whitespace-normal break-words text-[12px] leading-[1.3] text-muted-foreground"
+            >
+              {line}
+            </span>
+          ))}
+          {shown.action ? (
+            // The verb line gets the same → an on-site Door wears, so the
+            // line that says what a tap does also looks like the thing you
+            // tap (owner, on the book labels: "this doesn't have an arrow").
+            <span
+              data-door-action=""
+              className="mt-1 flex min-w-0 items-start gap-1 text-[12px] leading-[1.3]"
+            >
+              <span className="min-w-0 whitespace-normal break-words">
+                {shown.action}
+              </span>
+              <ArrowRightIcon
+                aria-hidden="true"
+                className="mt-px shrink-0"
+                size={12}
+                weight="bold"
+              />
+            </span>
           ) : null}
         </span>
       </button>

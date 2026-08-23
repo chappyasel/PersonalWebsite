@@ -96,6 +96,7 @@ import {
   scenePerformanceController,
   shouldSuspendSettledPropFrame,
 } from "./scenePerformance";
+import { sceneLayoutEditorController } from "./sceneLayoutEditor";
 import { SHELF_GEOMETRY } from "./shelfGeometry";
 import {
   type SwaySpring,
@@ -420,6 +421,7 @@ declare global {
 export default function Grabbable({
   unitIndex,
   hoverKey,
+  layoutLabel,
   base,
   physicsDetachOffset,
   shadeWidth = 0.5,
@@ -428,6 +430,7 @@ export default function Grabbable({
   metal = false,
   signature,
   hoverTiltAngle,
+  hoverLift = 0,
   tiltWhileHeld = true,
   heldFacingRotation,
   heldMinRaise,
@@ -441,6 +444,7 @@ export default function Grabbable({
   to,
   href,
   doorLabel,
+  doorDetail,
   actionLabel,
   external = true,
   onTap,
@@ -456,6 +460,9 @@ export default function Grabbable({
   unitIndex: number;
   /** Unique across the scene; owns the store's single hover slot. */
   hoverKey: string;
+  /** Development-only label that makes this carrier available to the live
+   * layout editor. Omit for ordinary visitor-movable props. */
+  layoutLabel?: string;
   /** The authored pose the prop always returns to. */
   base: [number, number, number];
   /** Local offset applied once when a mounted prop becomes a carry. The prop
@@ -489,6 +496,10 @@ export default function Grabbable({
    * camera-nearest support edge remains the hinge. Leave unset for the shared
    * camera-facing nod. */
   hoverTiltAngle?: number;
+  /** Raise the prop while its hover tilt opens. This is for loose, face-up
+   * objects that need to clear the surface around them instead of trading a
+   * blocked tilt for the shared forward slide. */
+  hoverLift?: number;
   /** Whether pointer velocity banks the prop during a carry. Broad books that
    * begin in contact with a supporting riser keep their facing stable until
    * release; the solver can still tumble them normally after a throw. */
@@ -535,6 +546,9 @@ export default function Grabbable({
   /** Required outcome copy for arbitrary URLs or local-action Doors. Route
    * destinations inherit their exact copy from the destination table. */
   doorLabel?: string;
+  /** Optional lines under the Door Label's title, for what the object stands
+   * for (a role, a year) rather than where it goes. One string per line. */
+  doorDetail?: string | readonly string[];
   actionLabel?: string;
   external?: boolean;
   /** Local action for a press that never became a carry. Stateful objects
@@ -568,6 +582,9 @@ export default function Grabbable({
   const detachX = physicsDetachOffset?.[0] ?? 0;
   const detachY = physicsDetachOffset?.[1] ?? 0;
   const detachZ = physicsDetachOffset?.[2] ?? 0;
+  const layoutBaseX = base[0];
+  const layoutBaseY = base[1];
+  const layoutBaseZ = base[2];
   const physicsScene = usePhysicsScene();
   const massClass = massClassFor(massKg ?? 1);
   const handling = MASS_HANDLING[massClass];
@@ -948,6 +965,11 @@ export default function Grabbable({
       touchTapOnly: boolean,
       arbitrated = false,
     ): boolean => {
+      if (sceneLayoutEditorController.canSelect(hoverKey)) {
+        sceneLayoutEditorController.select(hoverKey);
+        return false;
+      }
+      if (sceneLayoutEditorController.owns(hoverKey)) return false;
       // Primary button of the primary pointer only — otherwise a right-click
       // starts a carry, and a second pointer's release ends someone else's.
       if (!event.isPrimary || event.button !== 0) return false;
@@ -1058,6 +1080,7 @@ export default function Grabbable({
     const root = group.current;
     if (!root) return;
     const run = () => {
+      if (sceneLayoutEditorController.owns(hoverKey)) return;
       if (onTapRef.current) onTapRef.current();
       else if (to !== undefined) open({ to }, { doorId: hoverKey, unitIndex });
       else if (href !== undefined && doorLabel)
@@ -1071,11 +1094,33 @@ export default function Grabbable({
       : to !== undefined
         ? ({ kind: "door", ...destinationFor(to), run } as const)
         : href !== undefined && doorLabel
-          ? ({ kind: "door", label: doorLabel, href, external, run } as const)
+          ? ({
+              kind: "door",
+              label: doorLabel,
+              detail:
+                doorDetail === undefined
+                  ? undefined
+                  : typeof doorDetail === "string"
+                    ? [doorDetail]
+                    : doorDetail,
+              href,
+              external,
+              run,
+            } as const)
           : onTap !== undefined && (actionLabel ?? doorLabel)
             ? ({
                 kind: "action",
                 label: actionLabel ?? doorLabel!,
+                // With both set, doorLabel names the object and actionLabel
+                // is the verb line under it ("Thinking, Fast and Slow" /
+                // "Daniel Kahneman" / "Read book notes").
+                title: actionLabel && doorLabel ? doorLabel : undefined,
+                detail:
+                  doorDetail === undefined
+                    ? undefined
+                    : typeof doorDetail === "string"
+                      ? [doorDetail]
+                      : doorDetail,
                 run,
               } as const)
             : undefined;
@@ -1123,6 +1168,7 @@ export default function Grabbable({
     actionLabel,
     beginCarry,
     colliderProfile,
+    doorDetail,
     doorLabel,
     draggable,
     egg,
@@ -1140,6 +1186,31 @@ export default function Grabbable({
     release,
     tiltOnHover,
     to,
+    unitIndex,
+  ]);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development" || !layoutLabel) return;
+    const root = group.current;
+    if (!root) return;
+    return sceneLayoutEditorController.register({
+      id: hoverKey,
+      label: layoutLabel,
+      unitIndex,
+      authored: [layoutBaseX, layoutBaseY, layoutBaseZ],
+      authoredRotation: [0, 0, 0],
+      root,
+      cancelInteraction: () => {
+        onGrabCancel();
+      },
+    });
+  }, [
+    hoverKey,
+    layoutBaseX,
+    layoutBaseY,
+    layoutBaseZ,
+    layoutLabel,
+    onGrabCancel,
     unitIndex,
   ]);
 
@@ -1185,6 +1256,43 @@ export default function Grabbable({
     const delta = Math.min(rawDelta, 1 / 30);
     const entry = handle.current;
     if (entry) entry.base.set(base[0], base[1], base[2]);
+    const layoutPosition = layoutLabel
+      ? sceneLayoutEditorController.positionFor(hoverKey)
+      : null;
+    const layoutRotation = layoutLabel
+      ? sceneLayoutEditorController.rotationFor(hoverKey)
+      : null;
+    if (layoutPosition) {
+      if (entry?.world) entry.world.drop(entry);
+      simulated.current = false;
+      mountedPhysicsPending.current = false;
+      pendingMountedRelease.current = null;
+      phase.current = "rest";
+      velocity.set(0, 0, 0);
+      g.position.fromArray(layoutPosition);
+      g.rotation.set(
+        layoutRotation?.[0] ?? 0,
+        layoutRotation?.[1] ?? 0,
+        layoutRotation?.[2] ?? 0,
+      );
+      const n = nod.current;
+      if (n) {
+        n.position.set(0, 0, 0);
+        n.rotation.set(0, 0, 0);
+        n.scale.setScalar(1);
+      }
+      const s = shade.current;
+      if (s) {
+        const lift = Math.max(0, g.position.y - base[1]);
+        const spreadT = Math.min(1, lift / 0.45);
+        s.position.set(g.position.x, base[1] + 0.02, g.position.z + 0.02);
+        const width = shadeWidth * (1 + spreadT * 0.7);
+        s.scale.set(width, width * 0.32, 1);
+        s.material.opacity = SHADE_OPACITY * (1 - 0.65 * spreadT);
+      }
+      g.updateWorldMatrix(true, true);
+      return;
+    }
     const shelf: ScenePhysicsWorld | null = entry?.world ?? null;
     // Distant props that are completely back at rest have nothing left to
     // integrate, reset, tilt, or re-ground. Keep the callback subscribed so a
@@ -1489,7 +1597,10 @@ export default function Grabbable({
         // its neighbour flat on its top face with a gap of exactly zero. A
         // blocked lean becomes a pull toward the viewer, which is what the
         // stack's own FLAT_LIFT and the About reading fan each chose by hand.
-        const budget = leanBudget(hinge.current, aimed);
+        const budget =
+          hoverLift > 0
+            ? { lean: aimed, slide: 0 }
+            : leanBudget(hinge.current, aimed);
         swayLean.current = budget.lean;
         swaySlide.current = cameraSideSlide(nodCameraDirection, budget.slide);
         // A prop trading its lean for a slide is not leaning, so it has no
@@ -1520,6 +1631,7 @@ export default function Grabbable({
       n.scale.setScalar(scale);
       if (pivot) n.position.copy(hingeShift(pivot, n.rotation, undefined));
       else n.position.set(0, 0, 0);
+      n.position.y += swaySpring.angle * hoverLift;
       // Rides the SAME spring as the lean it replaced, so a book pulled out of
       // a stack overshoots and settles exactly as its neighbour standing in
       // the open tips and settles. One gesture, two possible directions.
@@ -1593,8 +1705,14 @@ export default function Grabbable({
         onClick={(event) => {
           event.stopPropagation();
         }}
+        onPointerDown={(event: ThreeEvent<PointerEvent>) => {
+          if (!sceneLayoutEditorController.canSelect(hoverKey)) return;
+          event.stopPropagation();
+          sceneLayoutEditorController.select(hoverKey);
+        }}
         onPointerOver={(e: ThreeEvent<PointerEvent>) => {
           e.stopPropagation();
+          if (sceneLayoutEditorController.owns(hoverKey)) return;
           useStacks.getState().setHovered(hoverKey);
           // The one honest moment to start the download: a pointer resting on
           // something you can pick up, several hundred milliseconds before the

@@ -42,8 +42,10 @@ export const ABOUT_COORDINATION_TARGET_X =
 
 /** Pull the task target just toward the camera so the shade mouth presents a
  * narrow glowing ellipse instead of disappearing edge-on. The world target
- * remains well inside the lower plank's front edge. */
-export const ABOUT_LAMP_CAMERA_REVEAL = 0.176;
+ * remains well inside the lower plank's front edge. 0.176 when the lamp stood
+ * at −0.87; at −1.16 the camera already sees more of the mouth, so 0.145
+ * keeps the same camera-facing amount (about 0.22) the review accepted. */
+export const ABOUT_LAMP_CAMERA_REVEAL = 0.145;
 
 /** Carrier-local target across the visual center between the two marks. */
 export const ABOUT_LAMP_HEAD_TARGET = [
@@ -62,7 +64,9 @@ export const ABOUT_LAMP_HEAD_QUATERNION: QuaternionTuple =
 /** The head-on social card needs less camera reveal than the moving scene.
  * Aim lower and nearly parallel to the shelf so the shade clearly points at
  * the two coordination marks instead of reading as camera-facing. */
-export const ABOUT_OG_LAMP_CAMERA_REVEAL = 0.08;
+/** 0.08 when the lamp stood at x -0.87; at -1.16 the camera already sees
+ * more of the mouth, so 0.056 keeps the capture's camera-facing at 0.08. */
+export const ABOUT_OG_LAMP_CAMERA_REVEAL = 0.056;
 export const ABOUT_OG_LAMP_HEAD_TARGET = [
   ABOUT_COORDINATION_TARGET_X - ABOUT_BOOT_LANDMARKS["desk-lamp"].x,
   0.09,

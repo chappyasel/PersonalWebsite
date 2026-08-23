@@ -1,8 +1,12 @@
 // Movement and look policy for the development free-roam camera.
 //
-// CameraRig owns the r3f wiring — pointer lock, listener lifetimes, and the
-// per-frame call into three. Everything that decides where the camera ends up
-// lives here, so the rules can be exercised without a WebGL context.
+// CameraRig owns the r3f wiring: the pointer and key listeners, their
+// lifetimes, and the per-frame call into three. Everything that decides where
+// the camera ends up lives here, so the rules can be exercised without a WebGL
+// context.
+//
+// The mouse is never captured. The right button looks; the left button stays
+// with the scene, where the layout editor selects a prop and drags its gizmo.
 //
 // The exports are exactly what CameraRig calls. The speeds, sensitivities and
 // intervals below are deliberately NOT exported: a test that reads the same
@@ -27,9 +31,18 @@ const FREE_ROAM_MAX_STEP_SECONDS = 0.05;
 const FREE_ROAM_POSE_WRITE_INTERVAL_SECONDS = 0.25;
 
 /**
+ * The pointer button that looks: the secondary (right) button. The primary
+ * button is left alone so a click still reaches the scene, which is how the
+ * layout editor selects a prop and how the gizmo is dragged. Holding the
+ * right button and moving turns the camera; releasing it stops. The context
+ * menu that button would open is suppressed for the duration.
+ */
+export const FREE_ROAM_LOOK_BUTTON = 2;
+
+/**
  * The keys free roam claims. Anything outside this set keeps its normal
- * meaning while the pointer is locked, so H still opens diagnostics and F
- * still leaves.
+ * meaning while the camera roams, so H still opens diagnostics and F still
+ * leaves.
  */
 export const FREE_ROAM_MOVEMENT_CODES: ReadonlySet<string> = new Set([
   "KeyW",
@@ -58,8 +71,6 @@ function freeRoamAxes(held: ReadonlySet<string>): FreeRoamAxes {
   return {
     forward: Number(held.has("KeyW")) - Number(held.has("KeyS")),
     right: Number(held.has("KeyD")) - Number(held.has("KeyA")),
-    // Q/E are world-vertical on purpose: pitching down and pressing E should
-    // still rise, otherwise fine positioning becomes a two-hand job.
     vertical: Number(held.has("KeyE")) - Number(held.has("KeyQ")),
   };
 }
@@ -115,33 +126,24 @@ export function freeRoamStepSeconds(delta: number): number {
   return Math.min(delta, FREE_ROAM_MAX_STEP_SECONDS);
 }
 
-// Reused across calls. This runs once a frame while free roam owns the
-// camera, and the function is synchronous, so a shared basis costs nothing
-// and allocates nothing.
-const scratchForward = new THREE.Vector3();
-const scratchRight = new THREE.Vector3();
-
 /**
  * The per-frame translation, in world space, for the keys currently held.
  *
- * Forward and right come from the camera's own basis so movement follows the
- * look direction, including pitch. Vertical does not: it stays on world Y.
- * The combined direction is normalised before the speed is applied, so moving
- * diagonally is not faster than moving straight.
+ * The axes are the room's, not the camera's: W/S run along world Z, A/D
+ * along world X, Q/E along world Y, whichever way the camera is looking. The
+ * shelves stand on those axes and the layout editor's gizmo and arrow nudges
+ * move props along them, so a key means the same direction in the room as it
+ * does on the prop being placed, and turning to look at something never
+ * changes what D does. The combined direction is normalised before the speed
+ * is applied, so moving diagonally is not faster than moving straight.
  */
 export function freeRoamTranslation(
   held: ReadonlySet<string>,
-  orientation: THREE.Quaternion,
   delta: number,
   target = new THREE.Vector3(),
 ): THREE.Vector3 {
   const axes = freeRoamAxes(held);
-  const forward = scratchForward.set(0, 0, -1).applyQuaternion(orientation);
-  const right = scratchRight.set(1, 0, 0).applyQuaternion(orientation);
-  target
-    .set(0, axes.vertical, 0)
-    .addScaledVector(forward, axes.forward)
-    .addScaledVector(right, axes.right);
+  target.set(axes.right, axes.vertical, -axes.forward);
   if (target.lengthSq() === 0) return target;
   return target
     .normalize()

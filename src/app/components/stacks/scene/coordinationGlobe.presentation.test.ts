@@ -93,7 +93,7 @@ const eggSourceWithLighting = fs.readFileSync(
 describe("Coordination globe presentation contract", () => {
   it("registers the requested external Door destination", () => {
     expect(globeSource).toContain('href="https://coordination.sh/"');
-    expect(globeSource).toContain('doorLabel="Visit Coordination Research"');
+    expect(globeSource).toContain('doorLabel="Coordination Research"');
     expect(globeSource).toContain("external");
   });
 

@@ -141,11 +141,25 @@ const PHOTO_LIFT: [number, number, number] = [0, 0.012, 0.016];
 const PHOTO_SETTLE = 0.05;
 const PHOTO_GROW = 1.02;
 
+/** Door Label title for a linked photograph: the destination, nothing else.
+ * The label's ↗ arrow already says it goes somewhere. */
 export function photoDoorLabel(href: string) {
-  if (href.includes("linkedin.com")) return "Open LinkedIn";
-  if (href.includes("instagram.com")) return "Open Instagram";
-  if (href.includes("x.com")) return "View on X";
-  return "View photo source";
+  if (href.includes("linkedin.com")) return "LinkedIn";
+  if (href.includes("instagram.com")) return "Instagram";
+  if (href.includes("x.com")) return "X";
+  return "Photo source";
+}
+
+/** Door Label detail for a linked photograph: whether the link is the
+ * original post this photo came from or his profile there. */
+export function photoDoorDetail(href: string): readonly string[] {
+  const post =
+    href.includes("/posts/") ||
+    href.includes("/p/") ||
+    href.includes("/reel/") ||
+    href.includes("/status/") ||
+    href.includes("/feed/update/");
+  return [post ? "Original post" : "Profile"];
 }
 
 /** Every photograph in the room mounts through here. It owns the print's

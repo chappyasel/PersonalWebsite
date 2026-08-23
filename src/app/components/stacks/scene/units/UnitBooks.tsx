@@ -192,6 +192,7 @@ export function layoutFeatured(
     url: string;
     key: string;
     label: string;
+    author?: string;
     color: string;
     thickness: number;
   }[],
@@ -294,6 +295,7 @@ export function layoutFeatured(
       url: cover.url,
       key: cover.key,
       label: cover.label,
+      author: cover.author,
       color: cover.color,
       thickness: cover.thickness,
       s: p.s,
@@ -308,6 +310,8 @@ export function layoutFeatured(
 export type FeaturedBookPerchInput = Readonly<{
   id: string;
   title: string;
+  /** Door Label detail line; perch fixtures may omit it. */
+  author?: string;
   coverUrl: string | null;
   pageCount: number | null;
   audioLengthMin: number | null;
@@ -358,6 +362,7 @@ export function featuredBookPerchDefinitions(
       url: book.coverUrl,
       key: book.id,
       label: book.title,
+      author: book.author,
       color: "#000000",
       thickness: featuredBookThickness(book.pageCount, book.audioLengthMin),
     }));
@@ -486,6 +491,7 @@ export default function UnitBooks({
             url: book.coverUrl!,
             key: book.id,
             label: book.title,
+            author: book.author,
             color: readingBookMaterialColors(sampled.edge, palette.pages, dark)
               .cover,
             thickness: featuredBookThickness(

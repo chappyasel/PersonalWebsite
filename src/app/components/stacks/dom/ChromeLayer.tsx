@@ -13,6 +13,11 @@ import {
   freeRoamDiagnosticsController,
 } from "../scene/freeRoamDiagnostics";
 import { freeRoamShortcutIntent } from "../scene/freeRoamShortcut";
+import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
+import {
+  sceneLayoutEditorController,
+  sceneLayoutNudgeForKeyboard,
+} from "../scene/sceneLayoutEditor";
 import { setStacksSheetDismissed, useStacks } from "../store";
 import dynamic from "next/dynamic";
 import { type ComponentType, useEffect, useState } from "react";
@@ -52,14 +57,6 @@ export function ChromeReveal({
   );
 }
 
-function isEditableShortcutTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) return false;
-  return (
-    target.isContentEditable ||
-    target.matches("input, select, textarea, [role='textbox']")
-  );
-}
-
 /** Development keeps the compact HUD visible without enabling the expensive
  * scene probes. Production loads the same cheap monitor for ?hud=1; H and
  * ?debug=1 opt into the full instrumented console. */
@@ -79,8 +76,12 @@ function SceneDiagnosticsLoader() {
     const disconnectFreeRoamEntry = connectFreeRoamEntryObserver({
       controller: freeRoamDiagnosticsController,
       // A free-roam camera flies straight out of the mobile sheet's frame, so
-      // the sheet is only in the way once free roam owns the view.
-      onEnabled: () => setStacksSheetDismissed(true),
+      // the sheet is only in the way once free roam owns the view. The layout
+      // editor rides along with it: free roam is how the owner reaches props.
+      onEnabled: () => {
+        sceneLayoutEditorController.setEnabled(true);
+        setStacksSheetDismissed(true);
+      },
     });
     const onFreeRoamShortcut = (event: KeyboardEvent) => {
       const intent = freeRoamShortcutIntent(
@@ -104,18 +105,43 @@ function SceneDiagnosticsLoader() {
       } else {
         freeRoamDiagnosticsController.toggle();
       }
-      if (intent.requestPointerLock) {
-        const canvas = document.querySelector<HTMLCanvasElement>(
-          ".stacks-canvas-shell canvas",
-        );
-        void canvas?.requestPointerLock();
+    };
+    const onLayoutNudge = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || isEditableShortcutTarget(event.target))
+        return;
+      if (
+        !event.altKey &&
+        (event.metaKey || event.ctrlKey) &&
+        event.key.toLowerCase() === "z"
+      ) {
+        const changed = event.shiftKey
+          ? sceneLayoutEditorController.redo()
+          : sceneLayoutEditorController.undo();
+        if (changed) event.preventDefault();
+        return;
       }
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (event.key.toLowerCase() === "r") {
+        if (sceneLayoutEditorController.setMode("rotate"))
+          event.preventDefault();
+        return;
+      }
+      if (event.key.toLowerCase() === "g") {
+        if (sceneLayoutEditorController.setMode("translate"))
+          event.preventDefault();
+        return;
+      }
+      const delta = sceneLayoutNudgeForKeyboard(event);
+      if (!delta || !sceneLayoutEditorController.nudgeSelected(delta)) return;
+      event.preventDefault();
     };
 
     window.addEventListener("keydown", onFreeRoamShortcut);
+    window.addEventListener("keydown", onLayoutNudge);
     return () => {
       disconnectFreeRoamEntry();
       window.removeEventListener("keydown", onFreeRoamShortcut);
+      window.removeEventListener("keydown", onLayoutNudge);
     };
   }, []);
 
@@ -150,7 +176,6 @@ function SceneDiagnosticsLoader() {
         return;
 
       event.preventDefault();
-      if (document.pointerLockElement !== null) document.exitPointerLock();
       requestDevHooks();
       setRequest({ initiallyOpen: true });
     };

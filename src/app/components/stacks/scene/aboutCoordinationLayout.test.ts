@@ -31,6 +31,7 @@ import {
   articulatedDeskLampDirection,
   articulatedDeskLampPoint,
 } from "./deskLampHead";
+import { SHELF_GEOMETRY } from "./shelfGeometry";
 import { CAMERA } from "./worldLayout";
 
 function expectGap(shelf: "top" | "lower", leftId: string, rightId: string) {
@@ -49,18 +50,44 @@ function gap(shelf: "top" | "lower", leftId: string, rightId: string) {
 
 describe("About Coordination composition", () => {
   it("leaves honest shelf gaps around every relocated object", () => {
-    expectGap("lower", "cactus", "desk-lamp");
+    // The succulent took the globe-to-portrait span when it and the cactus
+    // swapped planks; the cactus now stands behind the family frame's plane
+    // at the owner's layout-editor position, so it is not gap-checked here.
+    expectGap("top", "globe", "succulent");
+    expectGap("top", "succulent", "portrait");
     expectGap("lower", "desk-lamp", "ai-collective");
     expectGap("lower", "ai-collective", "coordination-globe");
     expectGap("lower", "coordination-globe", "tj-medallion");
     expectGap("lower", "tj-medallion", "apple");
-    expectGap("lower", "apple", "reading-stack");
+    expectGap("lower", "apple", "role-icons");
+    expectGap("lower", "role-icons", "reading-stack");
 
     expect(ABOUT_BOOT_LANDMARKS["collective-frame"].shelf).toBe("top");
-    expect(ABOUT_BOOT_LANDMARKS["collective-frame"].x).toBe(0.5);
-    expect(ABOUT_BOOT_LANDMARKS["reading-stack"].x).toBeGreaterThan(
+    expect(ABOUT_BOOT_LANDMARKS["collective-frame"].x).toBe(0.785);
+    expect(ABOUT_BOOT_LANDMARKS["role-icons"].x).toBeGreaterThan(
       ABOUT_BOOT_LANDMARKS.apple.x,
     );
+    expect(ABOUT_BOOT_LANDMARKS["reading-stack"].x).toBeGreaterThan(
+      ABOUT_BOOT_LANDMARKS["role-icons"].x,
+    );
+  });
+
+  it("fills the only empty top-plank span with the succulent", () => {
+    expect(ABOUT_BOOT_LANDMARKS.cactus.shelf).toBe("top");
+    expect(ABOUT_BOOT_LANDMARKS.succulent.shelf).toBe("top");
+    expect(gap("top", "globe", "succulent")).toBeGreaterThan(0.04);
+    expect(gap("top", "succulent", "portrait")).toBeGreaterThan(0.04);
+  });
+
+  it("keeps the lower row inside the plank after shifting it left", () => {
+    const lamp = aboutShelfIntervals("lower").find(
+      ({ id }) => id === "desk-lamp",
+    )!;
+    const reading = aboutShelfIntervals("lower").find(
+      ({ id }) => id === "reading-stack",
+    )!;
+    expect(lamp.left).toBeGreaterThan(-SHELF_GEOMETRY.width / 2);
+    expect(reading.right).toBeLessThan(SHELF_GEOMETRY.width / 2);
   });
 
   it("preserves clearance after tightening the AIC and Apple bases", () => {
@@ -72,7 +99,8 @@ describe("About Coordination composition", () => {
       2,
     );
     expect(gap("lower", "tj-medallion", "apple")).toBeGreaterThan(0.04);
-    expect(gap("lower", "apple", "reading-stack")).toBeGreaterThan(0.05);
+    expect(gap("lower", "apple", "role-icons")).toBeGreaterThan(0.04);
+    expect(gap("lower", "role-icons", "reading-stack")).toBeGreaterThan(0.04);
   });
 
   it("keeps TJ and Apple at their requested ten-percent increase", () => {
@@ -134,7 +162,7 @@ describe("About Coordination composition", () => {
     );
 
     expect(actual.dot(expected)).toBeCloseTo(1, 10);
-    expect(ABOUT_LAMP_CAMERA_REVEAL).toBe(0.176);
+    expect(ABOUT_LAMP_CAMERA_REVEAL).toBe(0.145);
     expect(cameraFacing).toBeGreaterThan(0.2);
     expect(cameraFacing).toBeLessThan(0.24);
     expect(ABOUT_LAMP_HEAD_QUATERNION).not.toEqual([0, 0, 0, 1]);
@@ -167,7 +195,7 @@ describe("About Coordination composition", () => {
     );
 
     expect(actual.dot(target.sub(mouth).normalize())).toBeCloseTo(1, 10);
-    expect(ABOUT_OG_LAMP_CAMERA_REVEAL).toBe(0.08);
+    expect(ABOUT_OG_LAMP_CAMERA_REVEAL).toBe(0.056);
     expect(cameraFacing).toBeGreaterThan(0.07);
     expect(cameraFacing).toBeLessThan(0.09);
     expect(aboutLampHeadQuaternion(true)).toBe(ABOUT_OG_LAMP_HEAD_QUATERNION);

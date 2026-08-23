@@ -8,6 +8,8 @@ import {
   ABOUT_TOP_COLLECTIVE_PHOTO_X,
   CURRENT_READING_BASE,
   CURRENT_READING_ROTATION,
+  READING_FAN_SPACING_X,
+  READING_FAN_SPACING_Z,
   aboutReadingSnapshot,
   readingBookAtAuthoredPose,
   readingBookFrontElevation,
@@ -47,19 +49,37 @@ describe("About recent-reading fan", () => {
       base: CURRENT_READING_BASE,
       rotation: CURRENT_READING_ROTATION,
     });
-    // 0.955 landmark minus the 0.21 half-span of the fan. The literal here
-    // was written against an interim landmark and never matched the shipped
-    // composition; the mean-x assertion below is what ties the two together.
-    expect(poses[0].base[0]).toBeCloseTo(0.745, 10);
-    expect(poses[0].base[2]).toBeCloseTo(-0.155, 10);
+    expect(poses[0].base[0]).toBeCloseTo(
+      ABOUT_BOOT_LANDMARKS["reading-stack"].x - READING_FAN_SPACING_X,
+      10,
+    );
+    expect(poses[0].base[2]).toBeCloseTo(-0.13, 10);
     expect(readingCoverForward(poses[0].rotation)).toBeCloseTo(
       Math.cos((Math.PI * 2) / 9),
       8,
     );
     expect(readingCoverLampward(poses[0].rotation)).toBeLessThan(0);
-    expect(poses[1].base[0] - poses[0].base[0]).toBeCloseTo(0.21, 8);
-    expect(poses[1].base[2] - poses[0].base[2]).toBeCloseTo(0.075, 8);
+    expect(poses[1].base[0] - poses[0].base[0]).toBeCloseTo(
+      READING_FAN_SPACING_X,
+      8,
+    );
+    expect(poses[1].base[2] - poses[0].base[2]).toBeCloseTo(
+      READING_FAN_SPACING_Z,
+      8,
+    );
     expect(poses[2].base[2]).toBeGreaterThan(poses[1].base[2]);
+  });
+
+  it("keeps the tighter fan's jackets as far apart as the 0.21 fan's", () => {
+    // Perpendicular distance between neighbouring cover planes, which is what
+    // decides whether a thick jacket intersects the next one.
+    const yaw = (Math.PI * 2) / 9;
+    const separation = (dx: number, dz: number) =>
+      Math.abs(-Math.sin(yaw) * dx + Math.cos(yaw) * dz);
+    expect(
+      separation(READING_FAN_SPACING_X, READING_FAN_SPACING_Z),
+    ).toBeGreaterThanOrEqual(separation(0.21, 0.075) - 0.002);
+    expect(READING_FAN_SPACING_X).toBeGreaterThan(ABOUT_READING_BOOK.width / 2);
   });
 
   it("rests its complete bottom edge directly on the shelf", () => {

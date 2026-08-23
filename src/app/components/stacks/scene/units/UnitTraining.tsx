@@ -25,6 +25,7 @@ import {
   DeskFrame,
   PHOTO_LINKS,
   deskFrameHeight,
+  photoDoorDetail,
   photoDoorLabel,
 } from "../photos";
 import { ShelfUnit } from "../primitives";
@@ -83,6 +84,7 @@ function TrainingPhoto({
       massKg={0.45}
       href={href ?? undefined}
       doorLabel={href ? photoDoorLabel(href) : undefined}
+      doorDetail={href ? photoDoorDetail(href) : undefined}
     >
       <HeldFacing hoverKey={hoverKey} position={[0, seat, 0]} rest={rotation}>
         {children}
@@ -248,6 +250,7 @@ function TrainingBoard({
               massKg={0.025}
               href={href}
               doorLabel={href ? photoDoorLabel(href) : undefined}
+      doorDetail={href ? photoDoorDetail(href) : undefined}
             >
               <group rotation={[0, 0, pin.roll]}>
                 <RoundedBox

@@ -378,6 +378,27 @@
 :global(.stacks-diagnostics-control) select {
   min-width: 148px;
 }
+:global(.stacks-layout-editor-coordinates) {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+:global(.stacks-layout-editor-coordinates) label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 5px;
+}
+:global(.stacks-layout-editor-coordinates) input {
+  min-width: 0;
+  border: 1px solid var(--diagnostics-border);
+  border-radius: 4px;
+  padding: 4px 5px;
+  color: inherit;
+  background: rgb(255 255 255 / 0.045);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
 :global(.stacks-diagnostics-current) {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
