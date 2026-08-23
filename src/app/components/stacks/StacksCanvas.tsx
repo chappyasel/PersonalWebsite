@@ -38,6 +38,7 @@ import {
 import { cameraTravelDiagnostics } from "./scene/CameraRig";
 import { prewarmGrabbablePhysics } from "./scene/Grabbable";
 import Scene from "./scene/Scene";
+import SceneLayoutEditorGizmo from "./scene/SceneLayoutEditorGizmo";
 import {
   devHooksRequested,
   onDevHooksRequested,
@@ -48,6 +49,10 @@ import {
 import type { GolfShotOutcome } from "./scene/golf/golfTypes";
 import { setInteractionProjectionContext } from "./scene/interactionProjection";
 import { sceneInteractionInventory } from "./scene/interactionRegistry";
+import {
+  type SceneLayoutExportRecord,
+  sceneLayoutEditorController,
+} from "./scene/sceneLayoutEditor";
 import type {
   MeadowDiagnosticsSettings,
   MeadowDiagnosticsUpdate,
@@ -235,6 +240,7 @@ declare global {
       trace: (
         action?: "status" | "start" | "stop" | "reset" | "download",
       ) => unknown;
+      layout?: () => SceneLayoutExportRecord[];
     };
   }
 }
@@ -537,6 +543,9 @@ function installDevHooks() {
       return scenePerformanceTrace.getStatus();
     },
   };
+  if (process.env.NODE_ENV === "development") {
+    window.__stacks.layout = () => sceneLayoutEditorController.export();
+  }
 }
 
 /** Republishes three's DefaultLoadingManager progress to the boot screen,
@@ -1985,6 +1994,9 @@ export default function StacksCanvas({
             onOpenUrl={onOpenUrl}
           />
         </ScrollControls>
+        {process.env.NODE_ENV === "development" ? (
+          <SceneLayoutEditorGizmo />
+        ) : null}
       </Canvas>
     </div>
   );

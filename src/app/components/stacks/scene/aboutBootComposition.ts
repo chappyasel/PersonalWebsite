@@ -3,6 +3,10 @@ import {
   ABOUT_APPLE_BASE_WIDTH,
 } from "./aboutAwardGeometry";
 import {
+  ABOUT_ROLE_STACK_HEIGHT,
+  ABOUT_ROLE_STACK_WIDTH,
+} from "./aboutRoleIcons";
+import {
   COORDINATION_GLOBE_PROFILE_HEIGHT,
   COORDINATION_GLOBE_PROFILE_WIDTH,
 } from "./coordinationGlobeGeometry";
@@ -22,6 +26,7 @@ export type AboutLandmarkGlyph =
   | "coordination-globe"
   | "medallion"
   | "apple"
+  | "role-icons"
   | "reading-stack";
 
 export type AboutBootLandmark = {
@@ -63,6 +68,18 @@ export const ABOUT_BOOT_COMPOSITION = [
     sceneScale: 1.75,
   },
   {
+    // Moved up from the lower shelf's left end when the Role Icons arrived:
+    // it is Set Dressing, and the span between the globe and the portrait was
+    // the one stretch of plank in the unit with nothing on it.
+    id: "succulent",
+    shelf: "top",
+    x: -0.81,
+    glyph: "succulent",
+    profile: { width: 0.27, height: 0.13 },
+    colorProfile: { light: "#5f7a48", dark: "#5a6a38" },
+    sceneScale: 0.18,
+  },
+  {
     id: "portrait",
     shelf: "top",
     x: -0.22,
@@ -80,9 +97,26 @@ export const ABOUT_BOOT_COMPOSITION = [
     imageProfile: { width: 0.264 * (769 / 1024), height: 0.264 },
   },
   {
+    id: "cactus",
+    shelf: "top",
+    // Owner placement via the scene layout editor, 2026-08-22. It stands
+    // behind the family frame's plane, so their front elevations overlap a
+    // little without the objects meeting in 3D.
+    x: 0.686,
+    glyph: "cactus",
+    profile: {
+      width: 0.4 * ABOUT_CACTUS_SIZE_REDUCTION,
+      height: 0.35 * ABOUT_CACTUS_SIZE_REDUCTION,
+    },
+    colorProfile: { light: "#7a8f56", dark: "#6d7c42" },
+    sceneScale: 0.34 * ABOUT_CACTUS_SIZE_REDUCTION,
+  },
+  {
     id: "collective-frame",
     shelf: "top",
-    x: 0.5,
+    // Owner placement via the scene layout editor, 2026-08-22: lying flat at
+    // the plank's front edge, right of the cactus.
+    x: 0.785,
     glyph: "landscape-frame",
     // The live frame lies almost face-up. This is its shallow front
     // projection, not the standing height it used on the lower shelf.
@@ -91,18 +125,10 @@ export const ABOUT_BOOT_COMPOSITION = [
     bootVisible: false,
   },
   {
-    id: "succulent",
-    shelf: "top",
-    x: 0.72,
-    glyph: "succulent",
-    profile: { width: 0.27, height: 0.13 },
-    colorProfile: { light: "#5f7a48", dark: "#5a6a38" },
-    sceneScale: 0.18,
-  },
-  {
     id: "profile-frame",
     shelf: "top",
-    x: 1,
+    // Owner placement via the scene layout editor, 2026-08-22.
+    x: 1.032,
     glyph: "portrait-frame",
     profile: { width: 0.228, height: 0.288 },
     imageProfile: { width: 0.18, height: 0.24 },
@@ -116,22 +142,14 @@ export const ABOUT_BOOT_COMPOSITION = [
     colorProfile: { light: "#5f7a48", dark: "#5a6a38" },
     sceneScale: 1.05,
   },
-  {
-    id: "cactus",
-    shelf: "lower",
-    x: -1.16,
-    glyph: "cactus",
-    profile: {
-      width: 0.4 * ABOUT_CACTUS_SIZE_REDUCTION,
-      height: 0.35 * ABOUT_CACTUS_SIZE_REDUCTION,
-    },
-    colorProfile: { light: "#7a8f56", dark: "#6d7c42" },
-    sceneScale: 0.34 * ABOUT_CACTUS_SIZE_REDUCTION,
-  },
+  // The whole lower row below moved 0.29 left, into the cactus's old slot,
+  // to open honest air beside the Apple mark for the Role Icons. Every gap
+  // between the lamp and the four awards is unchanged; only the reading fan
+  // tightened.
   {
     id: "desk-lamp",
     shelf: "lower",
-    x: -0.87,
+    x: -1.16,
     glyph: "desk-lamp",
     profile: { width: 0.28, height: 0.63 },
     colorProfile: { light: "#c2a377", dark: "#94795a" },
@@ -140,7 +158,7 @@ export const ABOUT_BOOT_COMPOSITION = [
   {
     id: "ai-collective",
     shelf: "lower",
-    x: -0.53,
+    x: -0.82,
     glyph: "collective-mark",
     profile: {
       width:
@@ -156,7 +174,7 @@ export const ABOUT_BOOT_COMPOSITION = [
   {
     id: "coordination-globe",
     shelf: "lower",
-    x: -0.139,
+    x: -0.429,
     glyph: "coordination-globe",
     profile: {
       width:
@@ -175,7 +193,7 @@ export const ABOUT_BOOT_COMPOSITION = [
   {
     id: "tj-medallion",
     shelf: "lower",
-    x: 0.183,
+    x: -0.107,
     glyph: "medallion",
     profile: {
       width: 0.3 * 0.66 * ABOUT_AWARD_SIZE_INCREASE,
@@ -187,7 +205,7 @@ export const ABOUT_BOOT_COMPOSITION = [
   {
     id: "apple",
     shelf: "lower",
-    x: 0.424,
+    x: 0.134,
     glyph: "apple",
     profile: {
       width: ABOUT_APPLE_BASE_WIDTH * 1.32 * ABOUT_AWARD_SIZE_INCREASE,
@@ -196,11 +214,21 @@ export const ABOUT_BOOT_COMPOSITION = [
     colorProfile: { light: "#c2c6ca", dark: "#9ba2a7" },
   },
   {
+    // Four Role Icons, two by two, beside the Apple mark. The tiles carry
+    // their own brand colors, so this landmark has no single colorProfile.
+    id: "role-icons",
+    shelf: "lower",
+    x: 0.439,
+    glyph: "role-icons",
+    profile: { width: ABOUT_ROLE_STACK_WIDTH, height: ABOUT_ROLE_STACK_HEIGHT },
+  },
+  {
+    // Three covers at 0.18 spacing, fanned from the same right edge as before.
     id: "reading-stack",
     shelf: "lower",
-    x: 0.955,
+    x: 0.985,
     glyph: "reading-stack",
-    profile: { width: 0.72, height: 0.5 },
+    profile: { width: 0.66, height: 0.5 },
   },
 ] as const satisfies readonly AboutBootLandmark[];
 

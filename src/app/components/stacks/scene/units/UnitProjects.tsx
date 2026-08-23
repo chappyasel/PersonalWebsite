@@ -14,6 +14,7 @@ import {
   DeskFrame,
   PHOTO_LINKS,
   deskFrameHeight,
+  photoDoorDetail,
   photoDoorLabel,
 } from "../photos";
 import { ShelfUnit } from "../primitives";
@@ -272,6 +273,7 @@ function ProjectPhoto({
       massKg={0.48}
       href={href ?? undefined}
       doorLabel={href ? photoDoorLabel(href) : undefined}
+      doorDetail={href ? photoDoorDetail(href) : undefined}
     >
       <HeldFacing hoverKey={hoverKey} position={[0, seat, 0]} rest={rotation}>
         {children}
@@ -465,7 +467,8 @@ export default function UnitProjects({ palette, dark, index }: UnitProps) {
               massKg={7.5}
               tiltWhileHeld={false}
               href="https://github.com/chappyasel"
-              doorLabel="View Chappy on GitHub"
+              doorLabel="GitHub"
+              doorDetail={["chappyasel"]}
             >
               <React.Suspense fallback={null}>
                 <ModelProp
@@ -526,7 +529,8 @@ export default function UnitProjects({ palette, dark, index }: UnitProps) {
           textured={textured}
           yaw={0.07}
           href="https://apps.apple.com/us/app/id1266077653"
-          doorLabel="Open Weightlifting App on the App Store"
+          doorLabel="Weightlifting App"
+          doorDetail={["App Store"]}
         />
         <DicePyramid unitIndex={index} palette={palette} dark={dark} />
         <ProjectIcon

@@ -20,6 +20,11 @@ import {
   type AboutLandmarkId,
 } from "../scene/aboutBootComposition";
 import { ABOUT_BOOT_MODEL_SILHOUETTES } from "../scene/aboutBootSilhouettes";
+import {
+  ABOUT_ROLES,
+  ABOUT_ROLE_ICON_SIZE,
+  aboutRoleIconOffset,
+} from "../scene/aboutRoleIcons";
 import { APPLE_OUTLINE } from "../scene/appleOutline";
 import {
   COORDINATION_BASE_BOTTOM_RADIUS,
@@ -871,6 +876,38 @@ function appleGlyphPath(height: number, bottom: number): string {
   }).join(" ");
 }
 
+/** Four flat tiles in their own brand colors, at the exact offsets the live
+ * Role Icons stand at, so the silhouette hands off to the billets in place.
+ * Each rect carries its own light/dark pair: the item-level object color
+ * cannot express four different tiles. */
+function RoleIconStackGlyph() {
+  const size = ABOUT_ROLE_ICON_SIZE * SCENE_TO_BOOT_SVG;
+  // The live tiles stand flush; half a unit of inset keeps a seam between the
+  // silhouettes so four colors do not fuse into one block.
+  const inset = 0.5;
+  return ABOUT_ROLES.map((role) => {
+    const [dx, dy] = aboutRoleIconOffset(role);
+    return (
+      <rect
+        key={role.id}
+        className="stacks-boot-role-icon"
+        data-boot-role={role.id}
+        x={dx * SCENE_TO_BOOT_SVG - size / 2 + inset}
+        y={-(dy * SCENE_TO_BOOT_SVG + size) + inset}
+        width={size - inset * 2}
+        height={size - inset * 2}
+        rx={size * 0.16}
+        style={
+          {
+            "--stacks-boot-role-light": role.bootColor.light,
+            "--stacks-boot-role-dark": role.bootColor.dark,
+          } as BootStyle
+        }
+      />
+    );
+  });
+}
+
 function LandmarkGlyph({
   landmark,
   readingBooks,
@@ -936,6 +973,8 @@ function LandmarkGlyph({
         </g>
       );
     }
+    case "role-icons":
+      return <RoleIconStackGlyph />;
     case "reading-stack":
       return (
         <ReadingStackGlyph

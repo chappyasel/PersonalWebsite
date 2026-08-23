@@ -35,6 +35,15 @@ describe("free-roam controls", () => {
     expect(cameraRigSource).toContain("freeRoamTargetEuler");
   });
 
+  it("moves WASD along the fixed world axes regardless of camera rotation", () => {
+    expect(cameraRigSource).toContain(
+      "freeRoamMove.current.set(rightAmount, verticalAmount, -forwardAmount)",
+    );
+    expect(cameraRigSource).not.toContain(
+      ".applyQuaternion(camera.quaternion)",
+    );
+  });
+
   it("keeps fog available in diagnostics while F owns the camera toggle", () => {
     expect(cameraRigSource).not.toContain(
       "freeRoamDiagnosticsController.toggleFog()",
@@ -54,7 +63,9 @@ describe("free-roam controls", () => {
     expect(chromeSource).toContain(
       "freeRoamDiagnosticsController.startFromCurrentPose()",
     );
-    expect(chromeSource).toContain("canvas?.requestPointerLock()");
+    expect(cameraRigSource).toContain('event.button !== 2');
+    expect(cameraRigSource).toContain('addEventListener("contextmenu"');
+    expect(cameraRigSource).not.toContain("requestPointerLock()");
     expect(cameraRigSource).toContain("freeRoam.startFromCurrentPose");
   });
 

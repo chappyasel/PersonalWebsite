@@ -160,7 +160,8 @@ export const REVIEWED_SHELF_LAYOUT = {
     shakerRadius: 0.077,
   },
   about: {
-    speakingPrintX: 0.16,
+    // Owner placement via the scene layout editor, 2026-08-22.
+    speakingPrintX: 0.274,
     speakingPrintHalfX: 0.167,
     archPrintX: -0.81,
     archPrintHalfX: 0.134,

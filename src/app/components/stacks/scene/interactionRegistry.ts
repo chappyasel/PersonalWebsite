@@ -15,7 +15,12 @@ export type MovableSpec = {
 
 export type DoorSpec = {
   kind: "door";
+  /** The title line: where the Door goes, or what the object is. */
   label: string;
+  /** Optional lines under the title: what the object stands for (a role, a
+   * year). Each entry is its own line in the Door Label; the title alone
+   * still names the destination. */
+  detail?: readonly string[];
   href?: string;
   run?: () => void;
   external: boolean;
@@ -23,7 +28,14 @@ export type DoorSpec = {
 
 export type ActionSpec = {
   kind: "action";
+  /** What the stationary activation does, as a verb phrase ("Read book
+   * notes", "Hit golf ball"). With a `title` it is the label's last line;
+   * without one it is the whole label. */
   label: string;
+  /** Optional title line naming the object the action concerns (a book's
+   * title), with `detail` lines (its author) between it and the verb. */
+  title?: string;
+  detail?: readonly string[];
   run: () => void;
 };
 
@@ -85,14 +97,17 @@ export type PropDestination =
 
 type Destination = Pick<DoorSpec, "label" | "external"> & { href: string };
 
-/** One destination table owns route hrefs, wording, and external treatment. */
+/** One destination table owns route hrefs, wording, and external treatment.
+ * A Door Label names the destination and nothing else: the label's arrow (→
+ * inside the site, ↗ out of it) already says it goes somewhere, so "Open" and
+ * "Visit" were filler (owner, 2026-08-22). */
 export function destinationFor(to: PropDestination): Destination {
   const prod = process.env.NODE_ENV === "production";
   switch (to) {
     case "books":
       return {
         href: prod ? "https://books.chappyasel.com" : devSubdomainUrl("books"),
-        label: "Open Book Notes",
+        label: "Book Notes",
         external: false,
       };
     case "weightlifting":
@@ -100,31 +115,31 @@ export function destinationFor(to: PropDestination): Destination {
         href: prod
           ? "https://weightlifting.chappyasel.com"
           : devSubdomainUrl("weightlifting"),
-        label: "Open Weightlifting",
+        label: "Weightlifting",
         external: false,
       };
     case "liarsdice":
       return {
         href: "/liarsdice",
-        label: "Open Liar's Dice",
+        label: "Liar's Dice",
         external: false,
       };
     case "manual":
       return {
         href: "/manual",
-        label: "Open Personal Manual",
+        label: "Personal Manual",
         external: false,
       };
     case "routine":
       return {
         href: "/routine",
-        label: "Open Core Daily Routine",
+        label: "Core Daily Routine",
         external: false,
       };
     case "blog":
       return {
         href: "https://medium.com/@chappyasel",
-        label: "Open Medium",
+        label: "Medium",
         external: true,
       };
   }

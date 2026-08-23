@@ -229,7 +229,10 @@ describe("development diagnostics chrome", () => {
     expect(diagnosticsSource).toContain("Q/E");
     expect(diagnosticsSource).toContain("Shift for one-third");
     expect(diagnosticsSource).toContain("Shift+F starts from");
-    expect(diagnosticsSource).toContain("captures the mouse on entry");
+    expect(diagnosticsSource).toContain("Right-drag to look");
+    expect(diagnosticsSource).toContain(
+      "editable prop and never moves the camera",
+    );
   });
 
   it("keeps inspection scope with overlays and telemetry", () => {

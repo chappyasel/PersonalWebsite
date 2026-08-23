@@ -37,6 +37,7 @@ import {
   scenePerformanceController,
   scenePerformanceSettingsEqual,
 } from "../scene/scenePerformance";
+import { sceneLayoutEditorController } from "../scene/sceneLayoutEditor";
 import {
   sceneQualityController,
   useSceneQualityControls,
@@ -304,6 +305,137 @@ function DiagnosticsTabs({
         </button>
       ))}
     </div>
+  );
+}
+
+function LayoutEditorControls() {
+  const snapshot = useSyncExternalStore(
+    sceneLayoutEditorController.subscribe,
+    sceneLayoutEditorController.getSnapshot,
+    sceneLayoutEditorController.getSnapshot,
+  );
+  const selected = snapshot.records.find(
+    (record) => record.id === snapshot.selectedId,
+  );
+  const changed = snapshot.records.filter((record) => record.changed).length;
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">(
+    "idle",
+  );
+
+  const copySnapshot = async () => {
+    try {
+      await navigator.clipboard.writeText(
+        JSON.stringify(sceneLayoutEditorController.export(), null, 2),
+      );
+      setCopyStatus("copied");
+    } catch {
+      setCopyStatus("error");
+    }
+  };
+
+  return (
+    <fieldset className="stacks-diagnostics-section">
+      <legend>Layout editor</legend>
+      <label className="stacks-diagnostics-control">
+        <input
+          type="checkbox"
+          checked={snapshot.enabled}
+          onChange={(event) =>
+            sceneLayoutEditorController.setEnabled(event.currentTarget.checked)
+          }
+        />{" "}
+        Enable layout editing
+      </label>
+      <label className="stacks-diagnostics-control">
+        Prop
+        <select
+          value={snapshot.selectedId ?? ""}
+          disabled={!snapshot.enabled}
+          onChange={(event) =>
+            sceneLayoutEditorController.select(event.currentTarget.value || null)
+          }
+        >
+          <option value="">Select a prop</option>
+          {snapshot.records.map((record) => (
+            <option
+              key={record.id}
+              value={record.id}
+              disabled={!record.available}
+            >
+              {record.label}
+              {record.changed ? " · edited" : ""}
+              {!record.available ? " · unavailable" : ""}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="stacks-diagnostics-control">
+        Gizmo
+        <select
+          value={snapshot.mode}
+          disabled={!snapshot.enabled || !selected}
+          onChange={(event) =>
+            sceneLayoutEditorController.setMode(
+              event.currentTarget.value === "rotate" ? "rotate" : "translate",
+            )
+          }
+        >
+          <option value="translate">Move (G)</option>
+          <option value="rotate">Rotate (R)</option>
+        </select>
+      </label>
+      {selected ? (
+        <div className="stacks-layout-editor-coordinates">
+          {(["X", "Y", "Z"] as const).map((axis, index) => (
+            <label key={axis}>
+              <span>{axis}</span>
+              <input
+                type="number"
+                min={-10}
+                max={10}
+                step={0.01}
+                value={selected.preview[index]!.toFixed(3)}
+                onChange={(event) => {
+                  const value = Number(event.currentTarget.value);
+                  if (!Number.isFinite(value)) return;
+                  const next = [...selected.preview] as [number, number, number];
+                  next[index] = value;
+                  sceneLayoutEditorController.update(selected.id, next);
+                }}
+              />
+            </label>
+          ))}
+        </div>
+      ) : null}
+      <div className="stacks-diagnostics-actions">
+        <button
+          type="button"
+          disabled={!selected?.changed}
+          onClick={() =>
+            selected && sceneLayoutEditorController.reset(selected.id)
+          }
+        >
+          Reset selected
+        </button>
+        <button
+          type="button"
+          disabled={changed === 0}
+          onClick={() => sceneLayoutEditorController.resetAll()}
+        >
+          Reset all
+        </button>
+        <button type="button" disabled={changed === 0} onClick={copySnapshot}>
+          Copy layout snapshot
+        </button>
+      </div>
+      <p className="stacks-diagnostics-note" aria-live="polite">
+        {copyStatus === "copied"
+          ? "Copied layout JSON."
+          : copyStatus === "error"
+            ? "Clipboard unavailable. Read window.__stacks.layout() instead."
+            : `${changed} edited · G move · R rotate · ⌘Z undo · ⌘⇧Z redo`}
+      </p>
+    </fieldset>
   );
 }
 
@@ -934,11 +1066,13 @@ export default function SceneDiagnostics({
                 type="checkbox"
                 checked={freeRoamSnapshot.enabled}
                 aria-keyshortcuts="F Shift+F"
-                onChange={(event) =>
+                onChange={(event) => {
+                  if (event.currentTarget.checked)
+                    sceneLayoutEditorController.setEnabled(true);
                   freeRoamDiagnosticsController.setEnabled(
                     event.currentTarget.checked,
-                  )
-                }
+                  );
+                }}
               />{" "}
               Free-roam camera
             </label>
@@ -956,11 +1090,12 @@ export default function SceneDiagnostics({
               Fog in free roam
             </label>
             <p className="stacks-diagnostics-note">
-              Free roam captures the mouse on entry. Look with the mouse, move
-              with WASD, use Q/E to move down/up, and hold Shift for one-third
-              speed. F resumes or exits free roam, Shift+F starts from the
-              current view, H opens debug, and Escape releases the mouse. Click
-              the scene to recapture it.
+              Right-drag to look, move with WASD, use Q/E to move down/up, and
+              hold Shift for one-third speed. F resumes or exits free roam, and
+              Shift+F starts from the current view. Left click selects an
+              editable prop and never moves the camera. Press G to move, R to
+              rotate, and ⌘Z to undo; drag the gizmo or use arrows for X/Z and
+              Page Up/Down for height.
             </p>
           </fieldset>
 
@@ -1785,6 +1920,10 @@ export default function SceneDiagnostics({
             <strong>Scene inspection</strong>
           </header>
 
+          {process.env.NODE_ENV === "development" ? (
+            <LayoutEditorControls />
+          ) : null}
+
           <div className="stacks-diagnostics-toolbar">
             <span>Scope</span>
             <div
@@ -2092,8 +2231,8 @@ export default function SceneDiagnostics({
     <>
       {freeRoamSnapshot.enabled ? (
         <div className="stacks-free-roam-hint" role="status">
-          Free roam · WASD move · Q/E down/up · Shift ⅓× · H debug · F exit ·
-          Shift+F starts here · Esc release
+          Free roam · left-drag prop · right-drag look · arrows X/Z · PgUp/PgDn
+          Y · WASD camera · Q/E camera Y · F exit
         </div>
       ) : null}
       <div className="stacks-debug-launchers pointer-events-auto">

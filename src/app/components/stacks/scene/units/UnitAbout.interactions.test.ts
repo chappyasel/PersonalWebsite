@@ -1,8 +1,12 @@
 import { ABOUT_BOOT_LANDMARKS } from "../aboutBootComposition";
+import { ABOUT_ROLES, ABOUT_ROLE_ICON_SIZE } from "../aboutRoleIcons";
 import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { REVIEWED_SHELF_LAYOUT } from "./unitShelfLayout";
+import {
+  PROJECT_ARTIFACT_DIMENSIONS,
+  REVIEWED_SHELF_LAYOUT,
+} from "./unitShelfLayout";
 
 const source = fs.readFileSync(
   new URL("./UnitAbout.tsx", import.meta.url),
@@ -65,12 +69,12 @@ describe("About shelf throwable props", () => {
     expect(photo).toContain("<FlatPrint");
     expect(photo).not.toContain("<DeskFrame");
     expect(photo).toContain(
-      'base={[ABOUT_BOOT_LANDMARKS["collective-frame"].x, 0, 0.15]}',
+      'base={[ABOUT_BOOT_LANDMARKS["collective-frame"].x, 0, 0.255]}',
     );
     expect(photo).toContain('name={aboutLandmarkNodeName("collective-frame")}');
   });
 
-  it("opens only the three face-up photos by 60 degrees", () => {
+  it("lifts and opens only the three face-up photos", () => {
     const start = source.indexOf("function LoosePhoto");
     const end = source.indexOf("function ReadingStack", start);
     const loosePhoto = source.slice(start, end);
@@ -79,14 +83,20 @@ describe("About shelf throwable props", () => {
     expect(loosePhoto).toContain(
       "hingeOnHover ? ABOUT_TOP_PHOTO_HOVER_ANGLE : undefined",
     );
+    expect(loosePhoto).toContain(
+      "hingeOnHover ? ABOUT_TOP_PHOTO_HOVER_LIFT : undefined",
+    );
     expect(source).toContain("const ABOUT_TOP_PHOTO_HOVER_ANGLE = Math.PI / 3");
+    expect(source).toContain("const ABOUT_TOP_PHOTO_HOVER_LIFT = 0.025");
     expect(topShelf.match(/hingeOnHover/g)).toHaveLength(3);
     expect(topShelf.match(/<FlatPrint/g)).toHaveLength(3);
   });
 
   it("keeps the three standing frames in their authored poses", () => {
     expect(source).toContain("seat={deskFrameHeight(0.264) / 2}");
-    expect(source).toContain("rotation={[-0.08, 0.2, -0.025]}");
+    // Family frame: the 2026-08-22 layout-editor placement, the editor's
+    // carrier rotation composed onto the earlier authored tilt.
+    expect(source).toContain("rotation={[-0.172, -0.251, -0.102]}");
     expect(source).toContain("seat={REVIEWED_SHELF_LAYOUT.about.profileSeat}");
     expect(source).toContain("rotation={[-Math.PI / 6, -0.08, 0]}");
     expect(source).not.toContain('shelfPose="flat"');
@@ -97,12 +107,12 @@ describe("About shelf throwable props", () => {
       'base={[ABOUT_BOOT_LANDMARKS["family-frame"].x, 0, 0]}',
     );
     expect(source).toContain(
-      'base={[ABOUT_BOOT_LANDMARKS["profile-frame"].x, 0, 0]}',
+      'base={[ABOUT_BOOT_LANDMARKS["profile-frame"].x, 0, -0.045]}',
     );
   });
 
   it("swaps the Arch and Collective frame positions", () => {
-    expect(ABOUT_BOOT_LANDMARKS["collective-frame"].x).toBe(0.5);
+    expect(ABOUT_BOOT_LANDMARKS["collective-frame"].x).toBe(0.785);
     expect(REVIEWED_SHELF_LAYOUT.about.archPrintX).toBe(-0.81);
   });
 
@@ -162,5 +172,61 @@ describe("About shelf throwable props", () => {
 
   it("simplifies every About plant to its solid planter collision", () => {
     expect(source.match(/colliderProfile="foliage-base"/g)).toHaveLength(3);
+  });
+
+  it("stacks the four Role Icons beside the Apple as half-size Doors", () => {
+    const start = source.indexOf('name={aboutLandmarkNodeName("role-icons")}');
+    const end = source.indexOf('hoverKey="grab:ai-collective-mark"', start);
+    const stack = source.slice(start, end);
+
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(stack).toContain("ABOUT_ROLES.map");
+    expect(stack).toContain("<ProjectIcon");
+    expect(stack).toContain("hoverKey={`link:about:role:${role.id}`}");
+    expect(stack).toContain("href={role.href}");
+    expect(stack).toContain("doorLabel={role.doorLabel}");
+    expect(stack).toContain("size={ABOUT_ROLE_ICON_SIZE}");
+    expect(stack).toContain('ABOUT_BOOT_LANDMARKS["role-icons"].x + dx');
+    // Four roles, each a distinct organization with its own artwork and Door.
+    expect(new Set(ABOUT_ROLES.map((role) => role.id)).size).toBe(4);
+    expect(new Set(ABOUT_ROLES.map((role) => role.href)).size).toBe(4);
+    expect(new Set(ABOUT_ROLES.map((role) => role.artwork)).size).toBe(4);
+    expect(ABOUT_ROLE_ICON_SIZE).toBe(PROJECT_ARTIFACT_DIMENSIONS.icon / 2);
+  });
+
+  it("keeps the cactus on top and swaps its position with the succulent", () => {
+    const lowerStart = source.indexOf("lower={");
+    const lowerEnd = source.indexOf("        }\n      >", lowerStart);
+    const lower = source.slice(lowerStart, lowerEnd);
+    const cactus = source.indexOf('hoverKey="grab:plant:about-cactus"');
+
+    expect(cactus).toBeGreaterThan(lowerEnd);
+    expect(lower).not.toContain("about-cactus");
+    expect(ABOUT_BOOT_LANDMARKS.cactus.shelf).toBe("top");
+    // 0.686 / -0.122: the owner's 2026-08-22 layout-editor placement.
+    expect(ABOUT_BOOT_LANDMARKS.cactus.x).toBe(0.686);
+    expect(ABOUT_BOOT_LANDMARKS.succulent.x).toBe(-0.81);
+    expect(source).toContain(
+      "base={[ABOUT_BOOT_LANDMARKS.cactus.x, 0, -0.122]}",
+    );
+    expect(source).toContain(
+      "base={[ABOUT_BOOT_LANDMARKS.succulent.x, 0, -0.1]}",
+    );
+  });
+
+  it("keeps the three face-up prints at their layout-editor depths", () => {
+    // Owner placement, 2026-08-22: each print pulled toward the plank's
+    // front edge by a different amount; the x's live in the landmark table
+    // and REVIEWED_SHELF_LAYOUT.about.
+    expect(source).toContain(
+      'base={[ABOUT_BOOT_LANDMARKS["collective-frame"].x, 0, 0.255]}',
+    );
+    expect(source).toContain(
+      "base={[REVIEWED_SHELF_LAYOUT.about.speakingPrintX, 0, 0.239]}",
+    );
+    expect(source).toContain(
+      "base={[REVIEWED_SHELF_LAYOUT.about.archPrintX, 0, 0.231]}",
+    );
+    expect(REVIEWED_SHELF_LAYOUT.about.speakingPrintX).toBe(0.274);
   });
 });

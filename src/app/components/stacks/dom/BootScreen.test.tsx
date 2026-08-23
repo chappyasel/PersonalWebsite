@@ -8,6 +8,7 @@ import {
   ABOUT_BOOT_LANDMARKS,
   ABOUT_BOOT_VISIBLE_COMPOSITION,
 } from "../scene/aboutBootComposition";
+import { ABOUT_ROLES } from "../scene/aboutRoleIcons";
 import {
   COORDINATION_NODE_COUNT,
   createCoordinationNetwork,
@@ -107,8 +108,8 @@ describe("Homepage entrance", () => {
     ).toEqual([
       "globe",
       "succulent",
-      "large-plant",
       "cactus",
+      "large-plant",
       "desk-lamp",
       "ai-collective",
       "tj-medallion",
@@ -250,7 +251,27 @@ describe("Homepage entrance", () => {
     });
   });
 
-  it("shrinks the lower-shelf cactus by thirty percent", () => {
+  it("draws the four Role Icons as brand-colored tiles beside the Apple", () => {
+    const markup = renderBoot();
+    const tiles = [...markup.matchAll(/data-boot-role="([^"]+)"/g)].map(
+      (match) => match[1],
+    );
+
+    expect(tiles).toEqual(ABOUT_ROLES.map((role) => role.id));
+    for (const role of ABOUT_ROLES) {
+      expect(markup).toContain(
+        `--stacks-boot-role-light:${role.bootColor.light}`,
+      );
+      expect(markup).toContain(`--stacks-boot-role-dark:${role.bootColor.dark}`);
+    }
+    expect(ABOUT_BOOT_LANDMARKS["role-icons"].shelf).toBe("lower");
+    expect(ABOUT_BOOT_LANDMARKS["role-icons"].x).toBeGreaterThan(
+      ABOUT_BOOT_LANDMARKS.apple.x,
+    );
+  });
+
+  it("keeps the cactus at its thirty-percent reduction on the top plank", () => {
+    expect(ABOUT_BOOT_LANDMARKS.cactus.shelf).toBe("top");
     expect(ABOUT_BOOT_LANDMARKS.cactus.sceneScale).toBeCloseTo(0.34 * 0.7);
     expect(ABOUT_BOOT_LANDMARKS.cactus.profile).toEqual({
       width: 0.4 * 0.7,
@@ -457,7 +478,10 @@ describe("Homepage entrance", () => {
     const cadence = bootCadence(ABOUT_BOOT_VISIBLE_COMPOSITION.length);
     const cssDurationMs = Number(cadence.revealDuration.toFixed(2)) * 1000;
 
-    expect(cssDurationMs).toBe(1760);
+    // Fourteen boot-visible landmarks since the Role Icons joined the shelf:
+    // thirteen 0.12 s steps plus the 0.32 s settle.
+    expect(ABOUT_BOOT_VISIBLE_COMPOSITION).toHaveLength(14);
+    expect(cssDurationMs).toBe(1880);
     expect(cadence.revealDuration * 1000).toBeGreaterThanOrEqual(cssDurationMs);
     expect(bootRevealComplete(0, cssDurationMs, cadence.revealDuration)).toBe(
       true,
@@ -470,10 +494,11 @@ describe("Homepage entrance", () => {
       bootWaveKeyframes(index, count),
     );
 
-    expect(bootWaveWindow(0, count)).toEqual([0, 1, 2]);
-    expect(bootWaveWindow(1, count)).toEqual([1, 2, 3]);
-    expect(bootWaveWindow(5, count)).toEqual([5, 6, 7]);
-    expect(bootWaveWindow(12, count)).toEqual([12, 0, 1]);
+    // A quarter of fourteen landmarks rounds up to a four-wide window.
+    expect(bootWaveWindow(0, count)).toEqual([0, 1, 2, 3]);
+    expect(bootWaveWindow(1, count)).toEqual([1, 2, 3, 4]);
+    expect(bootWaveWindow(5, count)).toEqual([5, 6, 7, 8]);
+    expect(bootWaveWindow(12, count)).toEqual([12, 13, 0, 1]);
     for (let step = 0; step <= count; step += 1) {
       const dimmed = waves.flatMap((frames, index) =>
         Number(frames[step]?.opacity) === 0.18 ? [index] : [],
@@ -487,7 +512,11 @@ describe("Homepage entrance", () => {
       { opacity: 1, offset: 0 },
       { opacity: 0.18, offset: 1 },
     ]);
+    // Index 4 is the first landmark outside the four-wide opening window.
     expect(bootWaveIntroKeyframes(3, count).at(-1)).toMatchObject({
+      opacity: 0.18,
+    });
+    expect(bootWaveIntroKeyframes(4, count).at(-1)).toMatchObject({
       opacity: 1,
     });
 

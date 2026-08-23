@@ -37,8 +37,10 @@ export const ABOUT_COORDINATION_TARGET_X =
 
 /** Pull the task target just toward the camera so the shade mouth presents a
  * narrow glowing ellipse instead of disappearing edge-on. The world target
- * remains well inside the lower plank's front edge. */
-export const ABOUT_LAMP_CAMERA_REVEAL = 0.176;
+ * remains well inside the lower plank's front edge. 0.176 when the lamp stood
+ * at −0.87; at −1.16 the camera already sees more of the mouth, so 0.145
+ * keeps the same camera-facing amount (about 0.22) the review accepted. */
+export const ABOUT_LAMP_CAMERA_REVEAL = 0.145;
 
 /** Carrier-local target across the visual center between the two marks. */
 export const ABOUT_LAMP_HEAD_TARGET = [

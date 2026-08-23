@@ -14,6 +14,10 @@ import {
   readFreeRoamEnabled,
   writeFreeRoamEnabled,
 } from "../scene/freeRoamDiagnostics";
+import {
+  sceneLayoutEditorController,
+  sceneLayoutNudgeForKeyboard,
+} from "../scene/sceneLayoutEditor";
 import { setStacksSheetDismissed, useStacks } from "../store";
 import dynamic from "next/dynamic";
 import { type ComponentType, useEffect, useState } from "react";
@@ -82,7 +86,10 @@ function SceneDiagnosticsLoader() {
     const syncFreeRoamPreference = () => {
       const enabled = freeRoamDiagnosticsController.getSnapshot().enabled;
       writeFreeRoamEnabled(storage, enabled);
-      if (enabled) setStacksSheetDismissed(true);
+      if (enabled) {
+        sceneLayoutEditorController.setEnabled(true);
+        setStacksSheetDismissed(true);
+      }
     };
     syncFreeRoamPreference();
     const unsubscribe = freeRoamDiagnosticsController.subscribe(
@@ -102,23 +109,49 @@ function SceneDiagnosticsLoader() {
 
       event.preventDefault();
       const wasEnabled = freeRoamDiagnosticsController.getSnapshot().enabled;
+      if (!wasEnabled) sceneLayoutEditorController.setEnabled(true);
       if (event.shiftKey && !wasEnabled) {
         freeRoamDiagnosticsController.startFromCurrentPose();
       } else {
         freeRoamDiagnosticsController.toggle();
       }
-      if (!wasEnabled) {
-        const canvas = document.querySelector<HTMLCanvasElement>(
-          ".stacks-canvas-shell canvas",
-        );
-        void canvas?.requestPointerLock();
+    };
+    const onLayoutNudge = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || isEditableShortcutTarget(event.target))
+        return;
+      if (
+        !event.altKey &&
+        (event.metaKey || event.ctrlKey) &&
+        event.key.toLowerCase() === "z"
+      ) {
+        const changed = event.shiftKey
+          ? sceneLayoutEditorController.redo()
+          : sceneLayoutEditorController.undo();
+        if (changed) event.preventDefault();
+        return;
       }
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (event.key.toLowerCase() === "r") {
+        if (sceneLayoutEditorController.setMode("rotate"))
+          event.preventDefault();
+        return;
+      }
+      if (event.key.toLowerCase() === "g") {
+        if (sceneLayoutEditorController.setMode("translate"))
+          event.preventDefault();
+        return;
+      }
+      const delta = sceneLayoutNudgeForKeyboard(event);
+      if (!delta || !sceneLayoutEditorController.nudgeSelected(delta)) return;
+      event.preventDefault();
     };
 
     window.addEventListener("keydown", onFreeRoamShortcut);
+    window.addEventListener("keydown", onLayoutNudge);
     return () => {
       unsubscribe();
       window.removeEventListener("keydown", onFreeRoamShortcut);
+      window.removeEventListener("keydown", onLayoutNudge);
     };
   }, []);
 

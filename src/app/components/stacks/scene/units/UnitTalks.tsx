@@ -18,6 +18,7 @@ import {
   DeskFrame,
   PHOTO_LINKS,
   deskFrameHeight,
+  photoDoorDetail,
   photoDoorLabel,
 } from "../photos";
 import { ApertureHalo, GlowSprite, ShelfUnit } from "../primitives";
@@ -302,6 +303,7 @@ function TalkPhoto({
       massKg={0.58}
       href={href ?? undefined}
       doorLabel={href ? photoDoorLabel(href) : undefined}
+      doorDetail={href ? photoDoorDetail(href) : undefined}
     >
       <HeldFacing hoverKey={hoverKey} position={[0, seat, 0]} rest={rotation}>
         {children}

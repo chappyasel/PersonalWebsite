@@ -45,6 +45,7 @@ import {
   cursorForInteraction,
   getSceneInteraction,
 } from "./interactionRegistry";
+import { sceneLayoutEditorController } from "./sceneLayoutEditor";
 import { SEAT_POSE, isSeated, leaveSeat, setSeatAmount } from "./seated";
 import {
   CAMERA_LOOK_X_MAX_LAG,
@@ -208,8 +209,6 @@ export default function CameraRig() {
   const freeRoamTargetEuler = useRef(new THREE.Euler(0, 0, 0, "YXZ"));
   const freeRoamKeys = useRef(new Set<string>());
   const freeRoamMove = useRef(new THREE.Vector3());
-  const freeRoamForward = useRef(new THREE.Vector3());
-  const freeRoamRight = useRef(new THREE.Vector3());
   const wasFreeRoaming = useRef(false);
   const freeRoamLastPoseWrite = useRef(0);
   const size = useThree((s) => s.size);
@@ -440,7 +439,8 @@ export default function CameraRig() {
       "ShiftLeft",
       "ShiftRight",
     ]);
-    const pointerIsLocked = () => document.pointerLockElement === canvas;
+    let lookPointerId: number | null = null;
+    if (document.pointerLockElement === canvas) document.exitPointerLock();
     const persistPose = () => {
       if (!wasFreeRoaming.current) return;
       writeFreeRoamPose(freeRoamStorage, {
@@ -452,15 +452,18 @@ export default function CameraRig() {
         ],
       });
     };
-    const clearKeys = () => freeRoamKeys.current.clear();
+    const clearInput = () => {
+      freeRoamKeys.current.clear();
+      lookPointerId = null;
+    };
     const onPointerDown = (event: PointerEvent) => {
-      if (event.button !== 0 || pointerIsLocked()) return;
+      if (event.button !== 2) return;
+      lookPointerId = event.pointerId;
       event.preventDefault();
       event.stopImmediatePropagation();
-      void canvas.requestPointerLock();
     };
-    const onMouseMove = (event: MouseEvent) => {
-      if (!pointerIsLocked()) return;
+    const onPointerMove = (event: PointerEvent) => {
+      if (event.pointerId !== lookPointerId) return;
       freeRoamTargetEuler.current.y -=
         event.movementX * FREE_ROAM_LOOK_SENSITIVITY;
       freeRoamTargetEuler.current.x = THREE.MathUtils.clamp(
@@ -470,8 +473,19 @@ export default function CameraRig() {
         FREE_ROAM_MAX_PITCH,
       );
     };
+    const onPointerUp = (event: PointerEvent) => {
+      if (event.pointerId === lookPointerId) lookPointerId = null;
+    };
+    const onContextMenu = (event: MouseEvent) => event.preventDefault();
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!pointerIsLocked() || !movementCodes.has(event.code)) return;
+      if (!movementCodes.has(event.code)) return;
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target.matches("input, select, textarea, [role='textbox']"))
+      )
+        return;
       event.preventDefault();
       freeRoamKeys.current.add(event.code);
     };
@@ -480,35 +494,37 @@ export default function CameraRig() {
       freeRoamKeys.current.delete(event.code);
     };
     const onWheel = (event: WheelEvent) => {
-      if (!pointerIsLocked()) return;
       event.preventDefault();
       event.stopImmediatePropagation();
     };
 
     scrollElement.addEventListener("pointerdown", onPointerDown, true);
+    scrollElement.addEventListener("contextmenu", onContextMenu);
     scrollElement.addEventListener("wheel", onWheel, {
       capture: true,
       passive: false,
     });
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("pointerlockchange", clearKeys);
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", onPointerUp);
+    document.addEventListener("pointercancel", onPointerUp);
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
-    window.addEventListener("blur", clearKeys);
+    window.addEventListener("blur", clearInput);
     window.addEventListener("pagehide", persistPose);
 
     return () => {
       scrollElement.removeEventListener("pointerdown", onPointerDown, true);
+      scrollElement.removeEventListener("contextmenu", onContextMenu);
       scrollElement.removeEventListener("wheel", onWheel, true);
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("pointerlockchange", clearKeys);
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerUp);
+      document.removeEventListener("pointercancel", onPointerUp);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
-      window.removeEventListener("blur", clearKeys);
+      window.removeEventListener("blur", clearInput);
       window.removeEventListener("pagehide", persistPose);
       persistPose();
-      clearKeys();
-      if (pointerIsLocked()) document.exitPointerLock();
+      clearInput();
     };
   }, [camera, freeRoamEnabled, freeRoamStorage, gl.domElement, scroll.el]);
 
@@ -550,29 +566,20 @@ export default function CameraRig() {
         0,
         "YXZ",
       );
-      if (document.pointerLockElement === gl.domElement) {
-        const keys = freeRoamKeys.current;
-        const forwardAmount =
-          Number(keys.has("KeyW")) - Number(keys.has("KeyS"));
-        const rightAmount = Number(keys.has("KeyD")) - Number(keys.has("KeyA"));
-        const verticalAmount =
-          Number(keys.has("KeyE")) - Number(keys.has("KeyQ"));
-        const speedMultiplier =
-          keys.has("ShiftLeft") || keys.has("ShiftRight") ? 1 / 3 : 1;
-        freeRoamForward.current
-          .set(0, 0, -1)
-          .applyQuaternion(camera.quaternion);
-        freeRoamRight.current.set(1, 0, 0).applyQuaternion(camera.quaternion);
-        freeRoamMove.current
-          .set(0, verticalAmount, 0)
-          .addScaledVector(freeRoamForward.current, forwardAmount)
-          .addScaledVector(freeRoamRight.current, rightAmount);
-        if (freeRoamMove.current.lengthSq() > 0) {
-          camera.position.addScaledVector(
-            freeRoamMove.current.normalize(),
-            FREE_ROAM_SPEED * speedMultiplier * dt,
-          );
-        }
+      const keys = freeRoamKeys.current;
+      const forwardAmount =
+        Number(keys.has("KeyW")) - Number(keys.has("KeyS"));
+      const rightAmount = Number(keys.has("KeyD")) - Number(keys.has("KeyA"));
+      const verticalAmount =
+        Number(keys.has("KeyE")) - Number(keys.has("KeyQ"));
+      const speedMultiplier =
+        keys.has("ShiftLeft") || keys.has("ShiftRight") ? 1 / 3 : 1;
+      freeRoamMove.current.set(rightAmount, verticalAmount, -forwardAmount);
+      if (freeRoamMove.current.lengthSq() > 0) {
+        camera.position.addScaledVector(
+          freeRoamMove.current.normalize(),
+          FREE_ROAM_SPEED * speedMultiplier * dt,
+        );
       }
       if (clock.elapsedTime - freeRoamLastPoseWrite.current >= 0.25) {
         freeRoamLastPoseWrite.current = clock.elapsedTime;
@@ -634,6 +641,9 @@ export default function CameraRig() {
     // A backgrounded tab hands back one enormous delta on return. All camera
     // damping uses the same cap so resuming cannot snap any one subsystem.
     const dt = delta > 0.05 ? 0.05 : delta;
+    const layoutGesture = sceneLayoutEditorController.getSnapshot().gestureActive;
+    const pointerX = layoutGesture ? 0 : pointer.x;
+    const pointerY = layoutGesture ? 0 : pointer.y;
     const offset = scroll.offset;
     const progress = unitProgressForScrollOffset(offset);
     progressRef.current = progress;
@@ -775,13 +785,13 @@ export default function CameraRig() {
     // standing up has to land on a live camera, not one frozen where it sat.
     const baselineEyeY =
       captureCameraY === null
-        ? cameraY + (pointer.y * 0.08 + Math.sin(t * 0.4) * 0.03) * calm
+        ? cameraY + (pointerY * 0.08 + Math.sin(t * 0.4) * 0.03) * calm
         : cameraY;
     const baselineLookY =
       lookY +
       golfLookYOffsetForViewport(size.width, state.golfFocused) +
       focusY.current +
-      pointer.y * 0.12 * calm;
+      pointerY * 0.12 * calm;
     const cameraDepthEnabled = cameraDepthEffectEnabled(
       cameraDepthDiagnosticsController.getSnapshot().enabled,
       reducedMotionQuery?.matches ?? false,
@@ -804,7 +814,7 @@ export default function CameraRig() {
       targetX +
         composition.lookXOffset +
         focusX.current +
-        pointer.x * 0.45 * calm,
+        pointerX * 0.45 * calm,
       LOOK_X_LAMBDA,
       dt,
     );
@@ -904,13 +914,13 @@ export default function CameraRig() {
       const [tx, ty, tz] = SEAT_POSE.target;
       seatPointer.current.x = THREE.MathUtils.damp(
         seatPointer.current.x,
-        pointer.x,
+        pointerX,
         SEAT_POINTER_LAMBDA,
         dt,
       );
       seatPointer.current.y = THREE.MathUtils.damp(
         seatPointer.current.y,
-        pointer.y,
+        pointerY,
         SEAT_POINTER_LAMBDA,
         dt,
       );

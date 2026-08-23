@@ -14,17 +14,30 @@ import {
 
 describe("scene interaction registry", () => {
   it("derives route labels, hrefs, and external treatment together", () => {
-    expect(destinationFor("weightlifting").label).toBe("Open Weightlifting");
-    expect(destinationFor("blog").label).toBe("Open Medium");
+    // Labels name the destination only; the Door Label's arrow carries the
+    // "this goes somewhere", so no "Open" / "Visit" verbs.
+    expect(destinationFor("weightlifting").label).toBe("Weightlifting");
+    expect(destinationFor("blog").label).toBe("Medium");
     expect(destinationFor("manual")).toMatchObject({
       href: "/manual",
+      label: "Personal Manual",
       external: false,
     });
     expect(destinationFor("liarsdice")).toMatchObject({
       href: "/liarsdice",
-      label: "Open Liar's Dice",
+      label: "Liar's Dice",
       external: false,
     });
+    for (const to of [
+      "books",
+      "weightlifting",
+      "liarsdice",
+      "manual",
+      "routine",
+      "blog",
+    ] as const) {
+      expect(destinationFor(to).label).not.toMatch(/^(Open|Visit|View|Go to)\b/);
+    }
     expect(
       doorDisplayLabel({
         kind: "door",

@@ -14,17 +14,23 @@ import {
   REVIEWED_SHELF_LAYOUT,
 } from "./unitShelfLayout";
 
-export const PROJECT_ICON_BODY = {
-  // RoundedBox uses one radius for the 2D corner and front/back bevel. The
-  // billet must therefore be thicker than twice that radius or its extrusion
-  // depth becomes negative.
-  depth: 0.12,
-  radius: PROJECT_ARTIFACT_DIMENSIONS.icon * 0.16,
-  fallbackFaceDepth: 0.012,
-  fallbackFaceRadius: 0.005,
-} as const;
-const ICON_DEPTH = PROJECT_ICON_BODY.depth;
-const ICON_FACE_INSET = 0.014;
+/** Billet proportions for an icon of any edge. The Projects shelf uses the
+ * full 0.32 icon; the About Role Icons are the same object at half the edge,
+ * so depth, corner radius and face inset all scale with it. */
+export function projectIconBody(size: number = PROJECT_ARTIFACT_DIMENSIONS.icon) {
+  return {
+    size,
+    // RoundedBox uses one radius for the 2D corner and front/back bevel. The
+    // billet must therefore be thicker than twice that radius or its
+    // extrusion depth becomes negative.
+    depth: size * 0.375,
+    radius: size * 0.16,
+    faceInset: size * 0.04375,
+    fallbackFaceDepth: 0.012,
+    fallbackFaceRadius: 0.005,
+  } as const;
+}
+export const PROJECT_ICON_BODY = projectIconBody();
 const PIP_GEOMETRY = new THREE.CircleGeometry(0.0105, 12);
 const PIP_MATERIAL = new THREE.MeshStandardMaterial({
   color: "#25231f",
@@ -60,13 +66,16 @@ function ProjectIconArtwork({
   artwork,
   hoverKey,
   unitIndex,
+  body,
 }: {
   artwork: string;
   hoverKey: string;
   unitIndex: number;
+  body: ReturnType<typeof projectIconBody>;
 }) {
-  const iconSize = PROJECT_ARTIFACT_DIMENSIONS.icon;
-  const faceSize = iconSize - ICON_FACE_INSET * 2;
+  const iconSize = body.size;
+  const ICON_DEPTH = body.depth;
+  const faceSize = iconSize - body.faceInset * 2;
   const artworkTexture = useLoader(THREE.TextureLoader, artwork);
   artworkTexture.colorSpace = THREE.SRGBColorSpace;
   const face = useMemo(
@@ -152,6 +161,9 @@ export function ProjectIcon({
   yaw,
   href,
   doorLabel,
+  doorDetail,
+  size = PROJECT_ARTIFACT_DIMENSIONS.icon,
+  massKg = 0.62,
 }: {
   unitIndex: number;
   palette: Palette;
@@ -164,8 +176,17 @@ export function ProjectIcon({
   yaw: number;
   href?: string;
   doorLabel?: string;
+  /** Lines under the Door Label title; see Grabbable. */
+  doorDetail?: string | readonly string[];
+  /** Billet edge. Defaults to the Projects shelf icon. */
+  size?: number;
+  /** Real mass; a half-edge tile is an eighth of the volume. */
+  massKg?: number;
 }) {
-  const iconSize = PROJECT_ARTIFACT_DIMENSIONS.icon;
+  const body = projectIconBody(size);
+  const iconSize = body.size;
+  const ICON_DEPTH = body.depth;
+  const ICON_FACE_INSET = body.faceInset;
   return (
     <Grabbable
       unitIndex={unitIndex}
@@ -174,17 +195,18 @@ export function ProjectIcon({
       shadeColor={palette.shadow}
       shadeWidth={iconSize * 1.08}
       shape="box"
-      massKg={0.62}
+      massKg={massKg}
       metal
       href={href}
       doorLabel={doorLabel}
+      doorDetail={doorDetail}
       external
     >
       <group rotation={[0, yaw, 0]}>
         <RoundedBox
           castShadow
           args={[iconSize, iconSize, ICON_DEPTH]}
-          radius={PROJECT_ICON_BODY.radius}
+          radius={body.radius}
           smoothness={6}
           position={[0, iconSize / 2, 0]}
         >
@@ -204,6 +226,7 @@ export function ProjectIcon({
               artwork={artwork}
               hoverKey={hoverKey}
               unitIndex={unitIndex}
+              body={body}
             />
           </React.Suspense>
         ) : (
@@ -211,14 +234,14 @@ export function ProjectIcon({
             args={[
               iconSize - ICON_FACE_INSET * 2,
               iconSize - ICON_FACE_INSET * 2,
-              PROJECT_ICON_BODY.fallbackFaceDepth,
+              body.fallbackFaceDepth,
             ]}
-            radius={PROJECT_ICON_BODY.fallbackFaceRadius}
+            radius={body.fallbackFaceRadius}
             smoothness={5}
             position={[
               0,
               iconSize / 2,
-              ICON_DEPTH / 2 + PROJECT_ICON_BODY.fallbackFaceDepth / 2,
+              ICON_DEPTH / 2 + body.fallbackFaceDepth / 2,
             ]}
           >
             <meshPhysicalMaterial

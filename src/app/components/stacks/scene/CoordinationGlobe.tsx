@@ -931,7 +931,7 @@ export function CoordinationGlobe({
       onDragIntent={emitShockwave}
       projectedLocalBounds={projectedLocalBounds}
       href="https://coordination.sh/"
-      doorLabel="Visit Coordination Research"
+      doorLabel="Coordination Research"
       external
     >
       <group ref={shockwaveOrigin} scale={scale}>

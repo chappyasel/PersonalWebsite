@@ -83,6 +83,8 @@ export type RowItem =
       key: string;
       /** Human title used by the Door Label; never reconstructed from a slug. */
       label?: string;
+      /** Author, the Door Label's detail line under the title. */
+      author?: string;
       /** Server-sampled jacket perimeter color for this physical shell. */
       color?: string;
       /** Physical fore-edge thickness derived from the book's page/runtime
@@ -871,9 +873,12 @@ function FeaturedCover({
           massKg={0.65}
           tiltWhileHeld={false}
           onTap={onCoverClick ? () => onCoverClick(item.key) : undefined}
-          doorLabel={
-            onCoverClick ? `Read ${item.label ?? "book notes"}` : undefined
-          }
+          // Title, author, then the verb. "Preview", because the tap opens
+          // the in-room book modal, not the full notes page; a cover with no
+          // known title keeps the verb as its whole label.
+          doorLabel={onCoverClick ? item.label : undefined}
+          doorDetail={onCoverClick && item.author ? [item.author] : undefined}
+          actionLabel={onCoverClick ? "Preview book notes" : undefined}
         >
           {cover(true)}
         </Grabbable>

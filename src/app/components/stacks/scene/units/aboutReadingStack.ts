@@ -67,10 +67,22 @@ export const CURRENT_READING_ROTATION: [number, number, number] = [
   0,
   (Math.PI * 2) / 9,
 ];
+/** Cover-to-cover step along the shelf. 0.21 until the Role Icons needed the
+ * air to the fan's left; at 0.18 each rear jacket still shows more than half
+ * its width. */
+export const READING_FAN_SPACING_X = 0.18;
+/** Depth step per cover. Chosen with the x step so the perpendicular gap
+ * between neighbouring jackets stays what it was at 0.21 / 0.075: the jacket
+ * normal at 40° is (-sin 40°, 0, cos 40°), and 0.643·0.18 − 0.766·0.05 ≈
+ * 0.643·0.21 − 0.766·0.075. */
+export const READING_FAN_SPACING_Z = 0.05;
+
 export const CURRENT_READING_BASE: [number, number, number] = [
-  ABOUT_BOOT_LANDMARKS["reading-stack"].x - 0.21,
+  ABOUT_BOOT_LANDMARKS["reading-stack"].x - READING_FAN_SPACING_X,
   ABOUT_READING_BOOK.depth / 2,
-  -0.155,
+  // One depth step behind the lower plank's centre (−0.08), so the middle
+  // cover sits on it and the fan's mean depth stays where it was.
+  -0.13,
 ];
 
 /** Matches Three's default intrinsic XYZ Euler matrix. */
@@ -118,9 +130,9 @@ export function readingStackPoses(): [
   return ([0, 1, 2] as const).map((index) => ({
     index,
     base: [
-      CURRENT_READING_BASE[0] + index * 0.21,
+      CURRENT_READING_BASE[0] + index * READING_FAN_SPACING_X,
       CURRENT_READING_BASE[1],
-      CURRENT_READING_BASE[2] + index * 0.075,
+      CURRENT_READING_BASE[2] + index * READING_FAN_SPACING_Z,
     ],
     rotation: [...CURRENT_READING_ROTATION],
   })) as [ReadingBookPose, ReadingBookPose, ReadingBookPose];

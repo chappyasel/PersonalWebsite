@@ -18,6 +18,7 @@ import {
   DeskFrame,
   PHOTO_LINKS,
   deskFrameHeight,
+  photoDoorDetail,
   photoDoorLabel,
 } from "../photos";
 import { BookRowMesh, ShelfUnit, packRow } from "../primitives";
@@ -137,6 +138,7 @@ function SystemPhoto({
       massKg={0.45}
       href={href ?? undefined}
       doorLabel={href ? photoDoorLabel(href) : undefined}
+      doorDetail={href ? photoDoorDetail(href) : undefined}
     >
       <HeldFacing
         hoverKey={hoverKey}
