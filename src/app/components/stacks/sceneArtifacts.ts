@@ -3,6 +3,12 @@ import type { PropDestination } from "./scene/interactionRegistry";
 export const ANALYZE_DATA_REPOSITORY =
   "https://github.com/WeightliftingApp/WeightliftingApp-AnalyzeData";
 
+/** Whether clicking a model artifact (the Homework icon) opens the 3D
+ * inspector. Switched off 2026-08-23 because the lift-and-orbit preview was
+ * regressing; the artifact, its viewer, and the handoff stay in place so
+ * flipping this back re-enables the whole path. */
+export const MODEL_ARTIFACT_PREVIEWS_ENABLED = false as boolean;
+
 type ArtifactAction =
   | Readonly<{
       kind: "external";
@@ -467,6 +473,11 @@ export function isSceneModelArtifact(
   artifact: SceneArtifact,
 ): artifact is SceneModelArtifact {
   return artifact.kind === "model";
+}
+
+/** Whether this artifact opens a preview at all right now. */
+export function sceneArtifactPreviewEnabled(artifact: SceneArtifact) {
+  return artifact.kind !== "model" || MODEL_ARTIFACT_PREVIEWS_ENABLED;
 }
 
 const TRAINING_BOARD_PHOTO_IDS: ReadonlySet<PhotoArtifactId> = new Set([

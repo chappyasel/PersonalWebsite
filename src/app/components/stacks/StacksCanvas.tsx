@@ -1837,6 +1837,12 @@ export default function StacksCanvas({
     },
     [data.shelfBooks],
   );
+  // A packed spine is a real read that the homepage deliberately does not
+  // carry a whole `Book` for — only its title, author and length. The modal
+  // resolves it by id, the same fetch a #book- deep link performs.
+  const onOpenBookId = useCallback((id: string) => {
+    useStacks.getState().setPendingBookId(id);
+  }, []);
   const onOpenUrl = useCallback((url: string) => {
     window.open(url, "_blank", "noopener,noreferrer");
   }, []);
@@ -2028,6 +2034,7 @@ export default function StacksCanvas({
             quality={plan}
             diagnosticsRequested={diagnosticsRequested}
             onOpenBook={onOpenBook}
+            onOpenBookId={onOpenBookId}
             onOpenUrl={onOpenUrl}
           />
         </ScrollControls>

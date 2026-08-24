@@ -1,20 +1,40 @@
 import { readingBookMaterialColors } from "../../../../lib/books/coverEdgeColor";
 import {
+  ABOUT_AIC_BASE_DEPTH,
   ABOUT_AIC_BASE_WIDTH,
+  ABOUT_AIC_MARK_DEPTH,
+  ABOUT_AIC_MARK_WIDTH,
+  ABOUT_APPLE_BASE_DEPTH,
   ABOUT_APPLE_BASE_WIDTH,
+  ABOUT_APPLE_MARK_DEPTH,
+  ABOUT_APPLE_MARK_WIDTH,
 } from "../scene/aboutAwardGeometry";
 import {
   ABOUT_BOOT_COMPOSITION,
   ABOUT_BOOT_LANDMARKS,
+  ABOUT_BOOT_PAINT_COMPOSITION,
   ABOUT_BOOT_VISIBLE_COMPOSITION,
+  aboutProjectedBoxWidth,
 } from "../scene/aboutBootComposition";
+import { aboutBootFrameProjection } from "../scene/aboutBootFrameProjection";
+import { ABOUT_BOOT_MODEL_SILHOUETTES } from "../scene/aboutBootSilhouettes";
 import { ABOUT_ROLES } from "../scene/aboutRoleIcons";
+import {
+  ABOUT_AIC_MARK_YAW,
+  ABOUT_AIC_ROOT_YAW,
+  ABOUT_APPLE_MARK_YAW,
+  ABOUT_APPLE_ROOT_YAW,
+  ABOUT_MODEL_POSES,
+} from "../scene/aboutScenePose";
 import {
   COORDINATION_NODE_COUNT,
   createCoordinationNetwork,
 } from "../scene/coordinationNetwork";
 import { SHELF_GEOMETRY, SHELF_PLANKS } from "../scene/shelfGeometry";
 import {
+  ABOUT_READING_BOOK,
+  ABOUT_READING_COVER_IMAGE,
+  readingBookImagePerspectiveElevation,
   readingBookPerspectiveElevation,
   readingStackPoses,
 } from "../scene/units/aboutReadingStack";
@@ -23,7 +43,7 @@ import { PALETTES } from "../theme";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import BootScreen from "./BootScreen";
+import BootScreen, { BootReadingBooksBridge } from "./BootScreen";
 import {
   BOOT_CADENCE_SETTLE_SECONDS,
   BOOT_DUST_COUNTS,
@@ -45,6 +65,7 @@ import {
   bootWaveKeyframes,
   bootWaveWindow,
   createBootDustDrift,
+  projectSceneY,
 } from "./bootVignette";
 
 const BOOKS = [
@@ -105,26 +126,29 @@ describe("Homepage entrance", () => {
     const landmarks = renderedLandmarks(renderBoot());
 
     expect(landmarks).toEqual(
-      ABOUT_BOOT_VISIBLE_COMPOSITION.map((landmark, slot) => ({
+      ABOUT_BOOT_PAINT_COMPOSITION.map(({ landmark, cadenceSlot }) => ({
         id: landmark.id,
         shelf: landmark.shelf,
-        slot,
+        slot: cadenceSlot,
       })),
     );
     expect(new Set(landmarks.map(({ id }) => id)).size).toBe(landmarks.length);
     expect(
-      [...renderBoot().matchAll(/data-model-silhouette="([^"]+)"/g)].map(
-        (match) => match[1],
-      ),
-    ).toEqual([
-      "globe",
-      "succulent",
-      "cactus",
-      "large-plant",
-      "desk-lamp",
-      "ai-collective",
-      "tj-medallion",
-    ]);
+      [...renderBoot().matchAll(/data-model-silhouette="([^"]+)"/g)]
+        .map((match) => match[1])
+        .sort(),
+    ).toEqual(
+      [
+        "globe",
+        "succulent",
+        "cactus",
+        "large-plant",
+        "desk-lamp",
+        "dumbbell",
+        "ai-collective",
+        "tj-medallion",
+      ].sort(),
+    );
   });
 
   it("fills the three upright frames from small loading-screen sources", () => {
@@ -134,14 +158,15 @@ describe("Homepage entrance", () => {
     );
 
     expect(photos).toEqual(
-      ABOUT_BOOT_VISIBLE_COMPOSITION.filter(
-        (landmark) => "imageProfile" in landmark,
-      ).map(({ id }) => id),
+      ABOUT_BOOT_PAINT_COMPOSITION.map(({ landmark }) => landmark)
+        .filter((landmark) => "imageProfile" in landmark)
+        .map(({ id }) => id),
     );
     expect(markup.match(/class="stacks-boot-frame-empty"/g)).toHaveLength(3);
     for (const photo of Object.values(BOOT_FRAME_PHOTOS)) {
       expect(markup).toContain(photo.src.replaceAll("&", "&amp;"));
     }
+    expect(markup).not.toContain("opacity:0;transition:opacity 160ms ease-out");
     expect(BOOT_FRAME_PHOTOS.portrait.src).toContain("w=384");
     expect(markup).not.toContain('data-landmark-id="collective-frame"');
   });
@@ -152,17 +177,60 @@ describe("Homepage entrance", () => {
     for (const id of FRAME_IDS) {
       const landmark = ABOUT_BOOT_LANDMARKS[id];
       const image = landmark.imageProfile;
+      const projection = aboutBootFrameProjection(id);
+      const points = projection.image
+        .map(([x, y]) => `${x * 100},${y * 100}`)
+        .join(" ");
       const tag = new RegExp(
-        `data-landmark-id="${id}"[\\s\\S]*?<rect class="stacks-boot-frame-empty"[^>]*>`,
+        `<polygon class="stacks-boot-frame-empty" data-boot-frame-image="${id}"[^>]*>`,
       ).exec(markup)?.[0];
 
       expect(tag).toBeDefined();
-      expect(tag).toContain(`width="${image.width * 100}"`);
-      expect(tag).toContain(`height="${image.height * 100}"`);
+      expect(tag).toContain(`points="${points}"`);
+      const matPoints = projection.mat
+        .map(([x, y]) => `${x * 100},${y * 100}`)
+        .join(" ");
+      const matTag = new RegExp(
+        `<polygon class="stacks-boot-frame-inner" data-boot-frame-inner="${id}"[^>]*>`,
+      ).exec(markup)?.[0];
+      expect(matTag).toContain(`points="${matPoints}"`);
+      const photoTag = new RegExp(
+        `<image class="stacks-boot-frame-photo"[^>]*data-boot-photo="${id}"[^>]*>`,
+      ).exec(markup)?.[0];
+      expect(photoTag).toContain(`width="${image.width}"`);
+      expect(photoTag).toContain(`height="${image.height}"`);
+      expect(photoTag).not.toContain("clip-path");
       expect((landmark.profile.width - image.width) / 2).toBeCloseTo(
         id === "portrait" ? 0.0624 : 0.024,
         8,
       );
+    }
+  });
+
+  it("keeps the standing photos' inner trim separate from the outer frame", () => {
+    const markup = renderBoot();
+
+    for (const id of FRAME_IDS) {
+      const outer = markup.indexOf(`data-boot-frame-outline="${id}"`);
+      const inner = markup.indexOf(`data-boot-frame-inner="${id}"`);
+      const photo = markup.indexOf(`data-boot-photo="${id}"`);
+
+      expect(outer).toBeGreaterThan(-1);
+      expect(inner).toBeGreaterThan(outer);
+      expect(photo).toBeGreaterThan(inner);
+    }
+  });
+
+  it("projects all three standing frames at their complete live rest poses", () => {
+    const markup = renderBoot();
+
+    for (const id of FRAME_IDS) {
+      const outline = aboutBootFrameProjection(id).outer;
+      const points = outline.map(([x, y]) => `${x * 100},${y * 100}`).join(" ");
+      expect(markup).toContain(
+        `data-boot-frame-outline="${id}" points="${points}"`,
+      );
+      expect(new Set(outline.map(([, y]) => y)).size).toBeGreaterThan(2);
     }
   });
 
@@ -182,6 +250,27 @@ describe("Homepage entrance", () => {
       const rightHeight = Math.abs(elevation[2][1] - elevation[1][1]);
       expect(Math.abs(leftHeight - rightHeight)).toBeGreaterThan(0);
       expect(Math.abs(leftHeight - rightHeight)).toBeLessThan(0.02);
+      expect(elevation[2][1]).not.toBeCloseTo(elevation[3][1], 10);
+    });
+  });
+
+  it("projects each cover image at the live inset instead of filling its board", () => {
+    const markup = renderBoot(3);
+    const landmarkX = ABOUT_BOOT_LANDMARKS["reading-stack"].x;
+
+    readingStackPoses().forEach((pose, index) => {
+      const image = readingBookImagePerspectiveElevation(
+        pose,
+        CAMERA.z,
+        ABOUT_READING_BOOK.thickness,
+      );
+      const points = image
+        .map(([x, y]) => `${(x - landmarkX) * 100},${-y * 100}`)
+        .join(" ");
+      const projectionTag = new RegExp(
+        `<polygon data-boot-reading-image="${index}"[^>]*>`,
+      ).exec(markup)?.[0];
+      expect(projectionTag).toContain(`points="${points}"`);
     });
   });
 
@@ -191,14 +280,118 @@ describe("Homepage entrance", () => {
       (match) => match[1],
     );
 
-    expect(faces).toEqual(BOOKS.map(({ id }) => id));
+    expect(faces).toEqual(BOOKS.map(({ id }) => id).reverse());
     expect(markup.match(/class="stacks-boot-book-cover"/g)).toHaveLength(3);
     for (const book of BOOKS) {
       expect(markup).toContain(`href="${book.coverSrc}"`);
     }
-    expect(
-      markup.match(/opacity:0;transition:opacity 160ms ease-out/g),
-    ).toHaveLength(6);
+    for (const book of BOOKS) {
+      const tag = new RegExp(
+        `<image class="stacks-boot-book-cover-photo"[^>]*data-boot-book-face="${book.id}"[^>]*>`,
+      ).exec(markup)?.[0];
+      expect(tag).toBeDefined();
+      expect(tag).not.toContain("opacity:");
+      expect(tag).not.toContain("clip-path");
+      expect(tag).toContain(`width="${ABOUT_READING_COVER_IMAGE.width}"`);
+      expect(tag).toContain(`height="${ABOUT_READING_COVER_IMAGE.height}"`);
+      expect(tag).toContain('preserveAspectRatio="xMidYMid slice"');
+    }
+    expect(markup.indexOf('data-boot-book-face="alpha"')).toBeGreaterThan(
+      markup.indexOf('data-boot-book-face="bravo"'),
+    );
+    expect(markup.indexOf('data-boot-book-face="bravo"')).toBeGreaterThan(
+      markup.indexOf('data-boot-book-face="charlie"'),
+    );
+  });
+
+  it("includes the ground dumbbell from the exact live pose", () => {
+    const markup = renderBoot();
+    const pose = ABOUT_MODEL_POSES.dumbbell;
+
+    expect(markup).toContain('data-boot-ground-prop="dumbbell"');
+    expect(markup).toContain('data-model-silhouette="dumbbell"');
+    expect(markup).toContain(
+      `translate(${pose.base[0] * 100} ${projectSceneY(pose.base[1])})`,
+    );
+  });
+
+  it("derives both shelf uprights, feet, and cleats from ShelfUnit geometry", () => {
+    const markup = renderBoot();
+    const support = SHELF_GEOMETRY.support;
+    const groundY = -SHELF_GEOMETRY.groundY * 100;
+    const topY =
+      -(SHELF_GEOMETRY.top.centerY - SHELF_GEOMETRY.top.thickness / 2) * 100;
+    const supportX = SHELF_GEOMETRY.width / 2 - SHELF_GEOMETRY.strapInsetX;
+    const projectedX = (side: number, width: number, depth: number) => {
+      const xs = [-width / 2, width / 2].flatMap((dx) =>
+        [-depth / 2, depth / 2].map((dz) => {
+          const z = SHELF_GEOMETRY.strapZ + dz;
+          return (side * supportX + dx) * (CAMERA.z / (CAMERA.z - z)) * 100;
+        }),
+      );
+      const left = Math.min(...xs);
+      return { left, width: Math.max(...xs) - left };
+    };
+    const attribute = (tag: string | undefined, name: string) =>
+      Number(new RegExp(`${name}="([^"]+)"`).exec(tag ?? "")?.[1]);
+
+    for (const side of [-1, 1]) {
+      const upright = new RegExp(
+        `<rect data-boot-support-upright="${side}"[^>]*>`,
+      ).exec(markup)?.[0];
+      const foot = new RegExp(
+        `<rect data-boot-support-foot="${side}"[^>]*>`,
+      ).exec(markup)?.[0];
+      const cleat = new RegExp(
+        `<rect data-boot-support-cleat="${side}"[^>]*>`,
+      ).exec(markup)?.[0];
+
+      const uprightX = projectedX(side, support.width, support.width);
+      const footX = projectedX(side, support.footWidth, support.footDepth);
+      const cleatX = projectedX(side, support.cleatWidth, support.cleatDepth);
+
+      expect(attribute(upright, "x")).toBeCloseTo(uprightX.left, 10);
+      expect(attribute(upright, "y")).toBeCloseTo(topY, 10);
+      expect(attribute(upright, "width")).toBeCloseTo(uprightX.width, 10);
+      expect(attribute(upright, "height")).toBeCloseTo(groundY - topY, 10);
+      expect(attribute(foot, "x")).toBeCloseTo(footX.left, 10);
+      expect(attribute(foot, "width")).toBeCloseTo(footX.width, 10);
+      expect(attribute(foot, "height")).toBeCloseTo(
+        support.footHeight * 100,
+        10,
+      );
+      expect(attribute(cleat, "x")).toBeCloseTo(cleatX.left, 10);
+      expect(attribute(cleat, "width")).toBeCloseTo(cleatX.width, 10);
+      expect(attribute(cleat, "height")).toBeCloseTo(
+        support.cleatHeight * 100,
+        10,
+      );
+    }
+  });
+
+  it("paints top-shelf plants behind the standing photos", () => {
+    const markup = renderBoot();
+
+    expect(markup.indexOf('data-landmark-id="cactus"')).toBeLessThan(
+      markup.indexOf('data-landmark-id="family-frame"'),
+    );
+    expect(markup.indexOf('data-landmark-id="large-plant"')).toBeLessThan(
+      markup.indexOf('data-landmark-id="profile-frame"'),
+    );
+  });
+
+  it("streams preload requests for the exact covers before the bridge hydrates", () => {
+    const markup = renderToStaticMarkup(
+      <BootReadingBooksBridge
+        readingBooks={[...BOOKS]}
+        readingBookColors={COLORS}
+      />,
+    );
+
+    for (const book of BOOKS) {
+      expect(markup).toContain(`data-boot-reading-cover-preload="${book.id}"`);
+      expect(markup).toContain(`href="${book.coverSrc}"`);
+    }
   });
 
   it("first-paints three deterministic colored jackets before book data streams", () => {
@@ -212,13 +405,21 @@ describe("Homepage entrance", () => {
     expect(markup).not.toContain("data-boot-book-face");
   });
 
-  it("keeps the Apple mark's traced aspect ratio", () => {
+  it("keeps the Apple mark's traced shape at its complete live yaw", () => {
     const markup = renderBoot();
     const apple = /<path[^>]*data-boot-apple=""[^>]*>/.exec(markup)?.[0];
 
     expect(apple).toBeDefined();
-    expect(apple).not.toContain("transform=");
+    expect(apple).toContain(
+      `transform="matrix(${Math.cos(ABOUT_APPLE_ROOT_YAW + ABOUT_APPLE_MARK_YAW)}`,
+    );
     expect(apple).toContain("C ");
+    expect(markup).toContain(
+      `data-boot-apple-root-yaw="${ABOUT_APPLE_ROOT_YAW}"`,
+    );
+    expect(markup).toContain(
+      `data-boot-apple-mark-yaw="${ABOUT_APPLE_MARK_YAW}"`,
+    );
   });
 
   it("applies the live uniform scales to the AIC and Apple boot glyphs", () => {
@@ -234,6 +435,8 @@ describe("Homepage entrance", () => {
     expect(appleScale).toBeCloseTo(
       ABOUT_BOOT_LANDMARKS.apple.profile.height / 0.176,
     );
+    expect(markup).toContain(`data-boot-aic-root-yaw="${ABOUT_AIC_ROOT_YAW}"`);
+    expect(markup).toContain(`data-boot-aic-mark-yaw="${ABOUT_AIC_MARK_YAW}"`);
   });
 
   it("seats the AIC billet slightly into the loading-screen shelf", () => {
@@ -245,24 +448,53 @@ describe("Homepage entrance", () => {
 
   it("matches the live dimensions of the four lower-shelf keepsakes", () => {
     expect(ABOUT_BOOT_LANDMARKS["ai-collective"].profile).toEqual({
-      width: ABOUT_AIC_BASE_WIDTH * 1.32 * 1.1 * 1.2,
+      width:
+        Math.max(
+          aboutProjectedBoxWidth(
+            ABOUT_AIC_BASE_WIDTH,
+            ABOUT_AIC_BASE_DEPTH,
+            ABOUT_AIC_ROOT_YAW,
+          ),
+          aboutProjectedBoxWidth(
+            ABOUT_AIC_MARK_WIDTH,
+            ABOUT_AIC_MARK_DEPTH,
+            ABOUT_AIC_ROOT_YAW + ABOUT_AIC_MARK_YAW,
+          ),
+        ) *
+        1.32 *
+        1.1 *
+        1.2,
       height: 0.208 * 1.32 * 1.1 * 1.2,
     });
     expect(ABOUT_BOOT_LANDMARKS["tj-medallion"].profile).toEqual({
-      width: 0.3 * 0.66 * 1.1,
-      height: 0.352 * 0.66 * 1.1,
+      width: ABOUT_BOOT_MODEL_SILHOUETTES["tj-medallion"].profile[0],
+      height: ABOUT_BOOT_MODEL_SILHOUETTES["tj-medallion"].profile[1],
     });
     expect(ABOUT_BOOT_LANDMARKS["coordination-globe"].profile).toEqual({
       width: 0.21 * 1.386 * 1.1 * 1.2,
       height: 0.255 * 1.386 * 1.1 * 1.2,
     });
     expect(ABOUT_BOOT_LANDMARKS.apple.profile).toEqual({
-      width: ABOUT_APPLE_BASE_WIDTH * 1.32 * 1.1,
+      width:
+        Math.max(
+          aboutProjectedBoxWidth(
+            ABOUT_APPLE_BASE_WIDTH,
+            ABOUT_APPLE_BASE_DEPTH,
+            ABOUT_APPLE_ROOT_YAW + ABOUT_APPLE_MARK_YAW,
+          ),
+          aboutProjectedBoxWidth(
+            ABOUT_APPLE_MARK_WIDTH,
+            ABOUT_APPLE_MARK_DEPTH,
+            ABOUT_APPLE_ROOT_YAW + ABOUT_APPLE_MARK_YAW,
+          ),
+        ) *
+        1.32 *
+        1.1,
       height: 0.176 * 1.32 * 1.1,
     });
   });
 
-  it("draws the four Role Icons as brand-colored tiles beside the Apple", () => {
+  it("draws the four Role Icons with their live yaw and artwork", () => {
     const markup = renderBoot();
     const tiles = [...markup.matchAll(/data-boot-role="([^"]+)"/g)].map(
       (match) => match[1],
@@ -273,7 +505,16 @@ describe("Homepage entrance", () => {
       expect(markup).toContain(
         `--stacks-boot-role-light:${role.bootColor.light}`,
       );
-      expect(markup).toContain(`--stacks-boot-role-dark:${role.bootColor.dark}`);
+      expect(markup).toContain(
+        `--stacks-boot-role-dark:${role.bootColor.dark}`,
+      );
+      expect(markup).toContain(`data-boot-role-yaw="${role.yaw}"`);
+      expect(markup).toContain(`data-boot-role-artwork="${role.id}"`);
+      expect(markup).toContain(`href="${role.artwork}"`);
+      const artwork = new RegExp(
+        `<image class="stacks-boot-role-artwork"[^>]*data-boot-role-artwork="${role.id}"[^>]*>`,
+      ).exec(markup)?.[0];
+      expect(artwork).not.toContain("clip-path");
     }
     expect(ABOUT_BOOT_LANDMARKS["role-icons"].shelf).toBe("lower");
     expect(ABOUT_BOOT_LANDMARKS["role-icons"].x).toBeGreaterThan(
@@ -285,9 +526,24 @@ describe("Homepage entrance", () => {
     expect(ABOUT_BOOT_LANDMARKS.cactus.shelf).toBe("top");
     expect(ABOUT_BOOT_LANDMARKS.cactus.sceneScale).toBeCloseTo(0.34 * 0.7);
     expect(ABOUT_BOOT_LANDMARKS.cactus.profile).toEqual({
-      width: 0.4 * 0.7,
-      height: 0.35 * 0.7,
+      width: ABOUT_BOOT_MODEL_SILHOUETTES.cactus.profile[0],
+      height: ABOUT_BOOT_MODEL_SILHOUETTES.cactus.profile[1],
     });
+  });
+
+  it("sizes every GLB silhouette from its generated live-pose bounds", () => {
+    for (const id of [
+      "globe",
+      "succulent",
+      "cactus",
+      "large-plant",
+      "desk-lamp",
+    ] as const) {
+      expect(ABOUT_BOOT_LANDMARKS[id].profile).toEqual({
+        width: ABOUT_BOOT_MODEL_SILHOUETTES[id].profile[0],
+        height: ABOUT_BOOT_MODEL_SILHOUETTES[id].profile[1],
+      });
+    }
   });
 
   it("projects the complete live Coordination network into the boot orb", () => {
@@ -414,7 +670,8 @@ describe("Homepage entrance", () => {
     expect(markup.match(/data-boot-wait=""/g)).toHaveLength(1);
     expect(markup).toContain("Loading");
     expect(markup.match(/class="stacks-boot-wait-dot"/g)).toHaveLength(3);
-    for (const line of BOOT_WAIT_NOTE_LINES) expect(markup).toContain(line.text);
+    for (const line of BOOT_WAIT_NOTE_LINES)
+      expect(markup).toContain(line.text);
     // The server render is the first gate's first line, because on the server
     // nothing has loaded. Exactly one note is ever active.
     expect(markup.match(/data-boot-note="active"/g)).toHaveLength(1);
@@ -463,7 +720,9 @@ describe("Homepage entrance", () => {
       const rendered = [...markup.matchAll(/data-reading-book="([^"]+)"/g)];
 
       expect(rendered.map((match) => match[1])).toEqual(
-        BOOKS.slice(0, bookCount).map((book) => book.id),
+        BOOKS.slice(0, bookCount)
+          .map((book) => book.id)
+          .reverse(),
       );
       for (const book of BOOKS.slice(0, bookCount)) {
         const sampled = COLORS[book.id];
@@ -492,7 +751,7 @@ describe("Homepage entrance", () => {
 
     expect(first).toBe(second);
     expect(landmarks.map(({ slot }) => slot)).toEqual(
-      ABOUT_BOOT_VISIBLE_COMPOSITION.map((_, index) => index),
+      ABOUT_BOOT_PAINT_COMPOSITION.map(({ cadenceSlot }) => cadenceSlot),
     );
     expect(new Set(landmarks.map(({ slot }) => slot)).size).toBe(
       landmarks.length,
@@ -621,16 +880,19 @@ describe("Homepage entrance", () => {
     );
   });
 
-  it("keeps every declared silhouette supported by its full-width shelf", () => {
+  it("keeps every landmark origin supported and limits silhouette overhang", () => {
     const shelfLeft = -SHELF_GEOMETRY.width / 2;
     const shelfRight = SHELF_GEOMETRY.width / 2;
+    const maximumOverhang = 0.03;
 
     for (const landmark of ABOUT_BOOT_COMPOSITION) {
-      expect(landmark.x - landmark.profile.width / 2).toBeGreaterThanOrEqual(
-        shelfLeft,
-      );
-      expect(landmark.x + landmark.profile.width / 2).toBeLessThanOrEqual(
-        shelfRight,
+      expect(landmark.x).toBeGreaterThanOrEqual(shelfLeft);
+      expect(landmark.x).toBeLessThanOrEqual(shelfRight);
+      expect(
+        shelfLeft - (landmark.x - landmark.profile.width / 2),
+      ).toBeLessThan(maximumOverhang);
+      expect(landmark.x + landmark.profile.width / 2 - shelfRight).toBeLessThan(
+        maximumOverhang,
       );
     }
   });

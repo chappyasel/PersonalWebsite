@@ -1,6 +1,9 @@
 import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import { SCENE_PHOTOS } from "../../sceneArtifacts";
+import { TRAINING_PINS } from "./trainingBoardLayout";
+
 const source = fs.readFileSync(
   new URL("./UnitTraining.tsx", import.meta.url),
   "utf8",
@@ -27,7 +30,9 @@ describe("Training shelf prop destinations", () => {
   });
 
   it("makes each board photo independently grabbable without waking the rest", () => {
-    const start = source.indexOf("function TrainingBoard");
+    // PinnedPrint (the mount, photo and grab surface) sits just above
+    // TrainingBoard, which pins one per Grabbable.
+    const start = source.indexOf("function PinnedPrint");
     const end = source.indexOf("export default function UnitTraining", start);
     const board = source.slice(start, end);
 
@@ -50,10 +55,17 @@ describe("Training shelf prop destinations", () => {
 
   it("uses one large portrait beside a three-column photo and figure grid", () => {
     expect(boardLayout).toContain("width: 0.36");
-    expect(boardLayout).toContain("height: 0.64");
     expect(boardLayout.match(/width: 0\.17/g)).toHaveLength(3);
-    expect(boardLayout.match(/height: 0\.25/g)).toHaveLength(3);
     expect(source).toContain("<TrainingFigureCards");
+  });
+
+  it("cuts every pinned print to its photo's own aspect, so nothing is cropped", () => {
+    expect(TRAINING_PINS).toHaveLength(4);
+    for (const pin of TRAINING_PINS) {
+      const photo = SCENE_PHOTOS.find((entry) => entry.id === pin.id)!;
+      expect(pin.src).toBe(photo.image);
+      expect(pin.height / pin.width).toBeCloseTo(photo.height / photo.width, 6);
+    }
   });
 
   it("keeps the three displaced board photos as loose top-shelf prints", () => {

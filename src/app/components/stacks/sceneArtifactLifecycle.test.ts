@@ -7,6 +7,10 @@ import {
 } from "three";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  registerArtifactPreviewFrame,
+  resetArtifactPreviewFramesForTests,
+} from "./scene/artifactPreviewFrames";
 import { setInteractionProjectionContext } from "./scene/interactionProjection";
 import { registerSceneInteraction } from "./scene/interactionRegistry";
 import {
@@ -14,10 +18,13 @@ import {
   closeSceneArtifact,
   ensureSceneArtifactPreviewOrigin,
   imageRatioPreviewOrigin,
+  openSceneArtifact,
   readSceneArtifactPreviewOriginSession,
+  sceneArtifactFromHistoryState,
   sceneArtifactPreviewOriginSessionMatchesViewport,
   selectSceneArtifact,
 } from "./sceneArtifactState";
+import { MODEL_ARTIFACT_PREVIEWS_ENABLED } from "./sceneArtifacts";
 import { useStacks } from "./store";
 
 const viewport = {
@@ -82,6 +89,7 @@ describe("scene artifact lifecycle", () => {
 
   afterEach(() => {
     setInteractionProjectionContext(null, null);
+    resetArtifactPreviewFramesForTests();
     vi.unstubAllGlobals();
   });
 
@@ -359,4 +367,95 @@ describe("scene artifact lifecycle", () => {
     ).toEqual(origin);
     release();
   });
+
+  it("captures the print's projected face alongside the axis-aligned origin", () => {
+    stubWindow();
+    const camera = new PerspectiveCamera(50, 1, 0.1, 100);
+    camera.position.z = 5;
+    camera.lookAt(0, 0, 0);
+    camera.updateMatrixWorld(true);
+    setInteractionProjectionContext(camera, {
+      getBoundingClientRect: () => viewport,
+    } as HTMLElement);
+    const root = photoRoot(-1);
+    root.rotation.z = 0.2;
+    root.updateMatrixWorld(true);
+    const release = registerSceneInteraction({
+      id: "grab:photo:portrait",
+      root,
+      activeUnits: [0],
+    });
+
+    beginSceneArtifactPreviewOriginSession("portrait");
+    const origin =
+      readSceneArtifactPreviewOriginSession()?.origins.get("portrait");
+    expect(origin?.quad).toHaveLength(4);
+    const [topLeft, topRight] = origin!.quad!;
+    // The roll survives into the quad: the top edge is not horizontal.
+    expect(Math.abs(topRight[1] - topLeft[1])).toBeGreaterThan(1);
+    for (const [x, y] of origin!.quad!) {
+      expect(Number.isFinite(x)).toBe(true);
+      expect(Number.isFinite(y)).toBe(true);
+    }
+    release();
+  });
+
+  it("starts the morph from a box with the registered FRAMED aspect", () => {
+    stubWindow();
+    const camera = new PerspectiveCamera(50, 1, 0.1, 100);
+    camera.position.z = 5;
+    camera.lookAt(0, 0, 0);
+    camera.updateMatrixWorld(true);
+    setInteractionProjectionContext(camera, {
+      getBoundingClientRect: () => viewport,
+    } as HTMLElement);
+    const root = photoRoot(-1);
+    const release = registerSceneInteraction({
+      id: "grab:photo:about-family-v8",
+      root,
+      activeUnits: [0],
+    });
+    // The family photo is 769x1024. Its desk frame's 0.024 border on a
+    // 0.198-wide plane widens the framed aspect to about 0.789.
+    const releaseFrame = registerArtifactPreviewFrame("about-family-v8", {
+      image: { width: 0.198, height: 0.264 },
+      layers: [
+        { inset: 0.006, tone: "pages", radius: 0 },
+        { inset: 0.024, tone: "frame", radius: 0.005 },
+      ],
+    });
+
+    beginSceneArtifactPreviewOriginSession("about-family-v8");
+    const origin =
+      readSceneArtifactPreviewOriginSession()?.origins.get("about-family-v8");
+    expect(origin).toBeDefined();
+    expect(origin!.width / origin!.height).toBeCloseTo(
+      (769 + 2 * 0.024 * (769 / 0.198)) / (1024 + 2 * 0.024 * (769 / 0.198)),
+      6,
+    );
+    expect(origin!.width / origin!.height).not.toBeCloseTo(769 / 1024, 3);
+
+    releaseFrame();
+    release();
+  });
+
+  it.skipIf(MODEL_ARTIFACT_PREVIEWS_ENABLED)(
+    "keeps the model artifact shut while its previews are switched off",
+    () => {
+      stubWindow();
+      openSceneArtifact("homework-app");
+      expect(useStacks.getState()).toMatchObject({
+        inspectedArtifact: null,
+        modelArtifactHandoff: null,
+      });
+      // A history entry written while the switch was on reads as no artifact,
+      // so back-navigation onto it closes instead of reopening the viewer.
+      expect(
+        sceneArtifactFromHistoryState({ stacksSceneArtifact: "homework-app" }),
+      ).toBeNull();
+      expect(
+        sceneArtifactFromHistoryState({ stacksSceneArtifact: "portrait" }),
+      ).toBe("portrait");
+    },
+  );
 });

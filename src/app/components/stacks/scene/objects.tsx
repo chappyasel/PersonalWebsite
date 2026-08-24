@@ -2,6 +2,7 @@
 
 // New scene props for the About, Blog, and Systems units.
 // Box props use RoundedBox for edge highlights (see primitives.tsx).
+import type { ArtifactPreviewFrameLayer } from "../modal/artifactPreviewFrame";
 import { useStacks } from "../store";
 import { type Palette, rand } from "../theme";
 import { useTexture } from "@react-three/drei";
@@ -15,11 +16,23 @@ import LitImage from "./LitImage";
 import ModelProp from "./ModelProp";
 import { RoundedBox } from "./RoundedBox";
 import {
+  ABOUT_APPLE_BASE_DEPTH,
   ABOUT_APPLE_BASE_WIDTH,
+  ABOUT_APPLE_MARK_DEPTH,
   ABOUT_APPLE_MARK_HEIGHT,
 } from "./aboutAwardGeometry";
 import { APPLE_OUTLINE } from "./appleOutline";
+import { useRegisterArtifactPreviewFrame } from "./artifactPreviewFrames";
 import { MUSINGS_PAPER_STACK } from "./musingsShelfGeometry";
+import {
+  PORTRAIT_FRAME_INSET,
+  PORTRAIT_FRAME_POSE,
+  PORTRAIT_FRAME_RADIUS,
+  PORTRAIT_FRAME_SIZE,
+  PORTRAIT_IMAGE,
+  PORTRAIT_MAT_INSET,
+  PORTRAIT_MAT_SIZE,
+} from "./portraitFrameGeometry";
 import { propReactionIsEngaged } from "./reactionEngagement";
 import { useUnitFrame } from "./unitActivity";
 
@@ -88,9 +101,15 @@ export function reducedMotion(): boolean {
   );
 }
 
-/** Framed standing portrait — the identity anchor of the About unit.
- * Zoom/focus re-crops toward the face; the source square otherwise leads
- * with a blurry foreground hand (audit §3-About). */
+/** The edges the preview redraws around the enlarged portrait: mat, then
+ * frame, in the geometry's own scene units (portraitFrameGeometry.ts). */
+const PORTRAIT_PREVIEW_LAYERS: readonly ArtifactPreviewFrameLayer[] = [
+  { inset: PORTRAIT_MAT_INSET, tone: "pages", radius: 0 },
+  { inset: PORTRAIT_FRAME_INSET, tone: "frame", radius: PORTRAIT_FRAME_RADIUS },
+];
+
+/** Framed standing portrait — the identity anchor of the About unit. Shows
+ * the whole square photo; see portraitFrameGeometry.ts for why. */
 export function PortraitFrame({
   src,
   detailSrc,
@@ -102,19 +121,33 @@ export function PortraitFrame({
   palette: Palette;
   textured: boolean;
 }) {
+  useRegisterArtifactPreviewFrame(
+    PORTRAIT_IMAGE.width,
+    PORTRAIT_IMAGE.height,
+    PORTRAIT_PREVIEW_LAYERS,
+  );
   return (
-    <group position={[0, 0.62, -0.08]} rotation={[-0.06, 0.06, 0]}>
+    <group
+      position={[...PORTRAIT_FRAME_POSE.position]}
+      rotation={[...PORTRAIT_FRAME_POSE.rotation]}
+    >
       <RoundedBox
         castShadow
-        args={[1.02, 1.24, 0.04]}
-        radius={0.012}
+        args={[
+          PORTRAIT_FRAME_SIZE.width,
+          PORTRAIT_FRAME_SIZE.height,
+          PORTRAIT_FRAME_POSE.frameDepth,
+        ]}
+        radius={PORTRAIT_FRAME_RADIUS}
         smoothness={4}
         position={[0, 0, -0.024]}
       >
         <meshStandardMaterial color={palette.frame} roughness={0.6} />
       </RoundedBox>
       <mesh position={[0, 0, -0.002]}>
-        <planeGeometry args={[0.94, 1.16]} />
+        <planeGeometry
+          args={[PORTRAIT_MAT_SIZE.width, PORTRAIT_MAT_SIZE.height]}
+        />
         <meshStandardMaterial color={palette.pages} roughness={0.9} />
       </mesh>
       {textured && (
@@ -123,11 +156,12 @@ export function PortraitFrame({
             url={src}
             detailUrl={detailSrc}
             role="hero"
-            width={0.86}
-            height={1.08}
+            width={PORTRAIT_IMAGE.width}
+            height={PORTRAIT_IMAGE.height}
             roughness={0.5}
-            zoom={1.35}
-            focus={[0.52, 0.3]}
+            // Ungraded, like every preview-openable photo: the enlargement
+            // shows the raw file, and the crossfade must not shift colour.
+            grade={0}
           />
         </React.Suspense>
       )}
@@ -583,7 +617,7 @@ export function DeskApple({
           mark's lower half legible against its own stand. */}
       <RoundedBox
         castShadow
-        args={[ABOUT_APPLE_BASE_WIDTH, 0.021, 0.054]}
+        args={[ABOUT_APPLE_BASE_WIDTH, 0.021, ABOUT_APPLE_BASE_DEPTH]}
         radius={0.004}
         smoothness={3}
         position={[0, 0.0105, 0]}
@@ -599,7 +633,10 @@ export function DeskApple({
           the mark appears to balance on. */}
       <mesh
         castShadow
-        geometry={appleGeometry(ABOUT_APPLE_MARK_HEIGHT, 0.015)}
+        geometry={appleGeometry(
+          ABOUT_APPLE_MARK_HEIGHT,
+          ABOUT_APPLE_MARK_DEPTH,
+        )}
         position={[0, 0.017, 0]}
       >
         <meshStandardMaterial
@@ -624,7 +661,10 @@ export function DeskApple({
           brighten metal and never paints a shape onto the sky behind it —
           the halo mistake, re-learned once already on the floor lamp. */}
       <mesh
-        geometry={appleGeometry(ABOUT_APPLE_MARK_HEIGHT, 0.015)}
+        geometry={appleGeometry(
+          ABOUT_APPLE_MARK_HEIGHT,
+          ABOUT_APPLE_MARK_DEPTH,
+        )}
         position={[0, 0.017, 0.0002]}
         scale={[1.002, 1.002, 1.06]}
         renderOrder={2}

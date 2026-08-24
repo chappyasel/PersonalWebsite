@@ -38,8 +38,11 @@
 import {
   ARTIFACT_PREVIEW_CROSSFADE_START,
   ARTIFACT_PREVIEW_DURATION_MS,
-  artifactPreviewCrossfade,
+  ARTIFACT_PREVIEW_SOURCE_IN_END,
+  ARTIFACT_PREVIEW_SOURCE_OUT_END,
+  ARTIFACT_PREVIEW_SOURCE_OUT_START,
   artifactPreviewEase,
+  artifactPreviewRamp,
 } from "../modal/artifactPreviewMotion";
 import { openSceneArtifact } from "../sceneArtifactState";
 import { type SceneArtifactId, sceneArtifactById } from "../sceneArtifacts";
@@ -54,6 +57,10 @@ import {
   type PhysicsSceneScope,
   usePhysicsScene,
 } from "./PhysicsSceneProvider";
+import { artifactFaceCameraFrame } from "./artifactFacePose";
+import { SceneArtifactIdContext } from "./artifactPreviewFrames";
+import { probeArtifactShade } from "./artifactShadeProbe";
+import { publishArtifactShadeSample } from "./artifactShadeSamples";
 import { registerHittableBall, tapHittableBall } from "./golf/hittableBalls";
 import { grabbablePhysicsEnabled } from "./grabbablePhysics";
 import {
@@ -73,11 +80,13 @@ import {
   hingeFor,
   hingePivotForTilt,
 } from "./interaction";
+import { artifactFaceBasis } from "./interactionProjection";
 import {
   MASS_HANDLING,
   type ProjectedLocalBounds,
   destinationFor,
   massClassFor,
+  projectSceneInteractionRect,
   registerSceneInteraction,
 } from "./interactionRegistry";
 import { leanBudget } from "./leanClearance";
@@ -192,6 +201,43 @@ function restoreArtifactMaterials(captured: readonly ArtifactMaterialState[]) {
     original.material.depthWrite = original.depthWrite;
     original.material.needsUpdate = true;
   }
+}
+
+const faceRootInverse = new THREE.Matrix4();
+const faceChildToRoot = new THREE.Matrix4();
+const faceCorner = new THREE.Vector3();
+const faceBounds = new THREE.Box3();
+
+/** The subtree's bounds in the root's OWN frame, written to `size` in local
+ * units. This is the face the artifact shows once it turns camera-facing at
+ * the preview target; the world AABB of the tilted rest pose is bigger.
+ * Skips the same nodes the interaction projection skips, so the size agrees
+ * with the sourceBounds the preview measured. Leaves `size` zeroed when no
+ * geometry is found. */
+function measureArtifactFaceSize(root: THREE.Object3D, size: THREE.Vector3) {
+  faceRootInverse.copy(root.matrixWorld).invert();
+  faceBounds.makeEmpty();
+  root.traverse((node) => {
+    const mesh = node as THREE.Mesh;
+    if (
+      !mesh.geometry ||
+      !node.visible ||
+      (node.userData as { physicsIgnore?: boolean }).physicsIgnore === true
+    )
+      return;
+    if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+    const box = mesh.geometry.boundingBox;
+    if (!box || box.isEmpty()) return;
+    faceChildToRoot.multiplyMatrices(faceRootInverse, node.matrixWorld);
+    for (const x of [box.min.x, box.max.x])
+      for (const y of [box.min.y, box.max.y])
+        for (const z of [box.min.z, box.max.z])
+          faceBounds.expandByPoint(
+            faceCorner.set(x, y, z).applyMatrix4(faceChildToRoot),
+          );
+  });
+  if (faceBounds.isEmpty()) size.set(0, 0, 0);
+  else faceBounds.getSize(size);
 }
 
 let modelArtifactPreviewWarmup: Promise<unknown> | null = null;
@@ -745,6 +791,7 @@ export default function Grabbable({
   const artifactHandoffTravelStart = useRef(0);
   const artifactHandoffTravelElapsed = useRef(0);
   const artifactHandoffOpacity = useRef(1);
+  const artifactHandoffScaleCorrection = useRef(1);
   const artifactHandoffStartPosition = useMemo(() => new THREE.Vector3(), []);
   const artifactHandoffStartQuaternion = useMemo(
     () => new THREE.Quaternion(),
@@ -785,6 +832,18 @@ export default function Grabbable({
     [],
   );
   const artifactParentWorldQuaternion = useMemo(
+    () => new THREE.Quaternion(),
+    [],
+  );
+  /** gWorld_target = camera x relative x THIS. Identity for a model; for a
+   * print it is the inverse of the face's orientation within the group, so
+   * the FACE arrives camera-facing even when the flat/pinned pose that
+   * tilted it is authored on children inside the group. Recomputed every
+   * frame because the hover tilt keeps decaying inside the group mid-flight. */
+  const artifactHandoffFaceCounter = useMemo(() => new THREE.Quaternion(), []);
+  const artifactFaceMatrix = useMemo(() => new THREE.Matrix4(), []);
+  const artifactFaceQuaternion = useMemo(() => new THREE.Quaternion(), []);
+  const artifactGroupWorldQuaternion = useMemo(
     () => new THREE.Quaternion(),
     [],
   );
@@ -874,6 +933,7 @@ export default function Grabbable({
   const raycaster = useThree((s) => s.raycaster);
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
   const pointerId = useRef<number | null>(null);
   const pickupY = useRef(base[1]);
   const heldDepth = useRef(0);
@@ -1694,6 +1754,7 @@ export default function Grabbable({
         artifactHandoffTravelStart.current = 0;
         artifactHandoffTravelElapsed.current = 0;
         artifactHandoffOpacity.current = 1;
+        artifactHandoffScaleCorrection.current = 1;
         artifactHandoffStartPosition.copy(g.position);
         artifactHandoffStartQuaternion.copy(g.quaternion);
         artifactHandoffStartScale.copy(g.scale);
@@ -1701,8 +1762,53 @@ export default function Grabbable({
         artifactHandoffBounds.setFromObject(g);
         artifactHandoffBounds.getCenter(artifactHandoffLocalCenter);
         g.worldToLocal(artifactHandoffLocalCenter);
-        artifactHandoffBounds.getSize(artifactHandoffWorldSize);
         g.getWorldScale(artifactHandoffWorldScale);
+        // The size the camera will actually see at the target, where the
+        // object turns to face it: the print's face-plane extent, in world
+        // units, from the same basis the projected quad uses. The rotated
+        // world AABB overestimates that face — a print hover-tilted at click
+        // reads taller than it is — and the distance solved from it parked
+        // the portrait ~7% smaller than its preview. The local x/y extent
+        // stays as the fallback for subtrees with no flat carrier.
+        const sizeBasis = artifactFaceBasis(g);
+        const sizeFrame = sizeBasis
+          ? artifactFaceCameraFrame(
+              sizeBasis,
+              camera.getWorldQuaternion(artifactCameraQuaternion),
+              camera.getWorldPosition(artifactCameraPosition),
+            )
+          : null;
+        if (sizeFrame) {
+          artifactHandoffWorldSize.set(sizeFrame.width, sizeFrame.height, 0);
+        } else {
+          measureArtifactFaceSize(g, artifactHandoffWorldSize);
+          if (artifactHandoffWorldSize.lengthSq() > 0)
+            artifactHandoffWorldSize.multiply(artifactHandoffWorldScale);
+          else artifactHandoffBounds.getSize(artifactHandoffWorldSize);
+        }
+        // Measure the room's effect on THIS print before its materials are
+        // touched, while it still stands in the pose the click found it in.
+        // The preview holds the answer through the swap (see
+        // artifactShadeProbe.ts).
+        if (
+          artifactEntry &&
+          (camera as THREE.PerspectiveCamera).isPerspectiveCamera
+        ) {
+          const live = projectSceneInteractionRect(artifactEntry.interactionId);
+          publishArtifactShadeSample(
+            artifact,
+            live
+              ? probeArtifactShade({
+                  gl,
+                  scene,
+                  camera: camera as THREE.PerspectiveCamera,
+                  root: g,
+                  rect: live,
+                  viewport: gl.domElement.getBoundingClientRect(),
+                })
+              : null,
+          );
+        }
         artifactHandoffMaterials.current = captureArtifactMaterials(g);
       }
 
@@ -1711,7 +1817,7 @@ export default function Grabbable({
         const viewport = gl.domElement.getBoundingClientRect();
         const perspective = camera as THREE.PerspectiveCamera;
         const sourceBounds = target.sourceBounds;
-        const targetScaleFactor = sourceBounds
+        const requestedScaleFactor = sourceBounds
           ? THREE.MathUtils.clamp(
               Math.min(
                 target.bounds.width / Math.max(1, sourceBounds.width),
@@ -1721,23 +1827,43 @@ export default function Grabbable({
               4,
             )
           : 1;
-        artifactTargetLocalScale
-          .copy(artifactHandoffStartScale)
-          .multiplyScalar(targetScaleFactor);
         const verticalFov = THREE.MathUtils.degToRad(perspective.fov);
-        const horizontalFov =
-          2 * Math.atan(Math.tan(verticalFov / 2) * perspective.aspect);
-        const distanceForHeight =
-          (artifactHandoffWorldSize.y * targetScaleFactor * viewport.height) /
-          (2 * Math.tan(verticalFov / 2) * target.bounds.height);
-        const distanceForWidth =
-          (artifactHandoffWorldSize.x * targetScaleFactor * viewport.width) /
-          (2 * Math.tan(horizontalFov / 2) * target.bounds.width);
+        // The distance at which the scaled object projects to exactly
+        // target.bounds. Distance is proportional to scale, so when the
+        // clamp moves the object off that distance, the scale follows by the
+        // same ratio and the projection still lands on the preview box. The
+        // portrait shipped 44% oversized at the crossfade without this: big
+        // print, narrow fov, required distance ~5 against the 3.5 cap.
+        //
+        // For an image print, width only, on purpose: bounds has the print's
+        // framed aspect, so the width and height solves agree by
+        // construction — and the local WIDTH is the one measurement the
+        // captured pose cannot corrupt. A print hover-tilted or lying flat
+        // at click spreads its local y and z, while x stays the print's
+        // edge-to-edge width. A model artifact's bounds is not aspect-tied
+        // to the object, so it keeps the fit-inside solve on both axes.
+        const focalPixels = viewport.height / (2 * Math.tan(verticalFov / 2));
+        const requestedDistance = sourceBounds
+          ? (artifactHandoffWorldSize.x * requestedScaleFactor * focalPixels) /
+            target.bounds.width
+          : Math.max(
+              (artifactHandoffWorldSize.y * focalPixels) / target.bounds.height,
+              (artifactHandoffWorldSize.x * focalPixels) / target.bounds.width,
+            );
         const distance = THREE.MathUtils.clamp(
-          Math.max(distanceForHeight, distanceForWidth),
+          requestedDistance,
           perspective.near + 0.2,
           3.5,
         );
+        const targetScaleFactor =
+          requestedDistance > 0
+            ? requestedScaleFactor * (distance / requestedDistance)
+            : requestedScaleFactor;
+        artifactTargetLocalScale
+          .copy(artifactHandoffStartScale)
+          .multiplyScalar(
+            targetScaleFactor * artifactHandoffScaleCorrection.current,
+          );
         artifactTargetNdc
           .set(
             ((target.bounds.left + target.bounds.width / 2 - viewport.left) /
@@ -1759,13 +1885,55 @@ export default function Grabbable({
           .normalize();
         camera.getWorldQuaternion(artifactCameraQuaternion);
         artifactRelativeQuaternion.fromArray(target.cameraRelativeQuaternion);
+        // Aim the print's FACE at the camera, not the group. A lying-flat or
+        // pinned print's tilt is authored on children inside this group;
+        // slerping the group alone to the camera leaves the print edge-on
+        // for the whole flight. The basis signs are arbitrary, so first keep
+        // v world-up (prints are never rendered upside down), then point the
+        // normal at the camera — each fix flips TWO axes so handedness
+        // survives — and fold the face-in-group delta into the target.
+        artifactHandoffFaceCounter.identity();
+        if (target.sourceBounds) {
+          // One consistent frame for both reads: getWorldQuaternion refreshes
+          // ancestors but NOT children, so mixing it with child matrices left
+          // over from last frame would fold this frame's own rotation into
+          // the delta and make the target chase itself.
+          g.updateWorldMatrix(true, true);
+          const faceBasis = artifactFaceBasis(g);
+          const faceFrame = faceBasis
+            ? artifactFaceCameraFrame(
+                faceBasis,
+                artifactCameraQuaternion,
+                camera.getWorldPosition(artifactCameraPosition),
+              )
+            : null;
+          if (faceFrame) {
+            artifactFaceMatrix.makeBasis(
+              faceFrame.u,
+              faceFrame.v,
+              faceFrame.normal,
+            );
+            artifactFaceQuaternion.setFromRotationMatrix(artifactFaceMatrix);
+            g.getWorldQuaternion(artifactGroupWorldQuaternion);
+            // face-in-group delta R = G^-1 F, invariant under the group's own
+            // rotation; the target that puts the FACE at D is D · R^-1.
+            artifactHandoffFaceCounter
+              .copy(artifactGroupWorldQuaternion)
+              .invert()
+              .multiply(artifactFaceQuaternion)
+              .invert();
+          }
+        }
         artifactTargetWorldQuaternion
           .copy(artifactCameraQuaternion)
-          .multiply(artifactRelativeQuaternion);
+          .multiply(artifactRelativeQuaternion)
+          .multiply(artifactHandoffFaceCounter);
         artifactCenterOffset
           .copy(artifactHandoffLocalCenter)
           .multiply(artifactHandoffWorldScale)
-          .multiplyScalar(targetScaleFactor)
+          .multiplyScalar(
+            targetScaleFactor * artifactHandoffScaleCorrection.current,
+          )
           .applyQuaternion(artifactTargetWorldQuaternion);
         artifactTargetWorldPosition
           .copy(artifactCameraPosition)
@@ -1845,6 +2013,34 @@ export default function Grabbable({
           artifactTargetLocalScale,
           travel,
         );
+        // Closed-loop size match. The solve above models the print's face
+        // from a pose captured at click, and live inner poses (hover tilt
+        // easing off mid-flight) leave a few percent of error no model
+        // catches. So once the flight is mostly done, measure the print as
+        // RENDERED and damp a multiplicative correction toward the preview
+        // box; it converges while the print is still covered by the solid
+        // DOM clone, and the returning leg reuses the settled value.
+        if (
+          target.sourceBounds &&
+          artifactHandoff.phase !== "returning" &&
+          travel > 0.6 &&
+          artifactEntry
+        ) {
+          const live = projectSceneInteractionRect(artifactEntry.interactionId);
+          if (live && live.width > 1) {
+            const ratio = THREE.MathUtils.clamp(
+              target.bounds.width / live.width,
+              0.8,
+              1.25,
+            );
+            artifactHandoffScaleCorrection.current = THREE.MathUtils.clamp(
+              artifactHandoffScaleCorrection.current *
+                Math.pow(ratio, Math.min(1, delta * 12)),
+              0.8,
+              1.25,
+            );
+          }
+        }
       }
 
       const opacityGoal =
@@ -1855,13 +2051,26 @@ export default function Grabbable({
       if (artifactHandoff.reducedMotion) {
         artifactHandoffOpacity.current = opacityGoal;
       } else if (target?.sourceBounds) {
+        // Staggered with the DOM print's own windows so one of the two is
+        // fully opaque at every frame (see artifactPreviewMotion.ts). The
+        // close mirrors the open's windows around the timeline's middle.
         if (artifactHandoff.phase === "returning")
-          artifactHandoffOpacity.current = artifactPreviewCrossfade(
+          // Straight back up, not the mirror of the open. The DOM clone
+          // cannot rotate convincingly, so the room takes the close back
+          // immediately and the visitor watches the real print turn home.
+          artifactHandoffOpacity.current = artifactPreviewRamp(
             artifactHandoffTimelineProgress,
+            0,
+            ARTIFACT_PREVIEW_SOURCE_IN_END,
           );
         else if (artifactHandoff.phase === "crossfading-in")
           artifactHandoffOpacity.current =
-            1 - artifactPreviewCrossfade(artifactHandoffTimelineProgress);
+            1 -
+            artifactPreviewRamp(
+              artifactHandoffTimelineProgress,
+              ARTIFACT_PREVIEW_SOURCE_OUT_START,
+              ARTIFACT_PREVIEW_SOURCE_OUT_END,
+            );
         else artifactHandoffOpacity.current = opacityGoal;
       } else {
         artifactHandoffOpacity.current = THREE.MathUtils.damp(
@@ -2349,7 +2558,11 @@ export default function Grabbable({
             stops moving, so a screenshot cannot tell you it happened. */}
         <group ref={impulse} name={`impulse:${hoverKey}`}>
           <group ref={nod} name={`nod:${hoverKey}`}>
-            {children}
+            {/* The physical form underneath registers its edges against this
+                artifact so the fullscreen preview can draw the same print. */}
+            <SceneArtifactIdContext.Provider value={artifact ?? null}>
+              {children}
+            </SceneArtifactIdContext.Provider>
           </group>
         </group>
       </group>

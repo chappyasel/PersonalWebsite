@@ -9,14 +9,39 @@
 // One shared caveat: LitImage's texture cache is keyed by URL and each
 // instance mutates repeat/offset, so a given photo may appear EXACTLY ONCE
 // in the scene. Reuse needs a clone first.
+import type { ArtifactPreviewFrameLayer } from "../modal/artifactPreviewFrame";
 import { type Palette } from "../theme";
 import React from "react";
 
 import LitImage from "./LitImage";
 import { RoundedBox } from "./RoundedBox";
-import { deskFrameHeight, deskFrameWidth } from "./photoGeometry";
+import { useRegisterArtifactPreviewFrame } from "./artifactPreviewFrames";
+import {
+  DESK_FRAME_BORDER,
+  DESK_FRAME_MAT_INSET,
+  deskFrameHeight,
+  deskFrameWidth,
+} from "./photoGeometry";
 
 export { deskFrameHeight, deskFrameWidth } from "./photoGeometry";
+
+/** Photos that open in the fullscreen preview carry no warm grade. The
+ * preview shows the raw file, and a graded shelf print would visibly shift
+ * saturation as it crossfades into its own enlargement. Decorative prints
+ * (Polaroid, PostcardPrint) keep the room's default grade. */
+const ARTIFACT_PHOTO_GRADE = 0;
+
+/** The edges the fullscreen preview redraws around each form, inner to
+ * outer, in the same scene units as the geometry below. Module constants so
+ * the registration effect keys on image size alone. */
+const DESK_FRAME_PREVIEW_LAYERS: readonly ArtifactPreviewFrameLayer[] = [
+  { inset: DESK_FRAME_MAT_INSET, tone: "pages", radius: 0 },
+  { inset: DESK_FRAME_BORDER, tone: "frame", radius: 0.005 },
+];
+const FLAT_PRINT_BORDER = 0.014;
+const FLAT_PRINT_PREVIEW_LAYERS: readonly ArtifactPreviewFrameLayer[] = [
+  { inset: FLAT_PRINT_BORDER, tone: "paper", radius: 0.002 },
+];
 
 /** A small standing frame: the grown-up sibling of the polaroid, for the
  * pictures that deserve to be framed rather than propped. Landscape by
@@ -40,6 +65,7 @@ export function DeskFrame({
 }) {
   const w = deskFrameWidth(width);
   const h = deskFrameHeight(height);
+  useRegisterArtifactPreviewFrame(width, height, DESK_FRAME_PREVIEW_LAYERS);
   return (
     <group>
       <RoundedBox
@@ -53,7 +79,12 @@ export function DeskFrame({
       </RoundedBox>
       {/* Mat, so the photo never runs to the frame's inner edge. */}
       <mesh position={[0, 0, -0.0008]}>
-        <planeGeometry args={[width + 0.012, height + 0.012]} />
+        <planeGeometry
+          args={[
+            width + DESK_FRAME_MAT_INSET * 2,
+            height + DESK_FRAME_MAT_INSET * 2,
+          ]}
+        />
         <meshStandardMaterial color={palette.pages} roughness={0.9} />
       </mesh>
       {textured && (
@@ -64,6 +95,7 @@ export function DeskFrame({
             width={width}
             height={height}
             roughness={0.55}
+            grade={ARTIFACT_PHOTO_GRADE}
             zoom={zoom}
             focus={focus}
             position={[0, 0, 0.001]}
@@ -91,7 +123,8 @@ export function FlatPrint({
   width?: number;
   height?: number;
 }) {
-  const border = 0.014;
+  const border = FLAT_PRINT_BORDER;
+  useRegisterArtifactPreviewFrame(width, height, FLAT_PRINT_PREVIEW_LAYERS);
   return (
     <group rotation={[-Math.PI / 2, 0, 0]}>
       <RoundedBox
@@ -111,6 +144,7 @@ export function FlatPrint({
             width={width}
             height={height}
             roughness={0.6}
+            grade={ARTIFACT_PHOTO_GRADE}
             position={[0, 0, 0.0055]}
           />
         </React.Suspense>

@@ -2,10 +2,15 @@ import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
 import {
+  ABOUT_AIC_BASE_DEPTH,
   ABOUT_AIC_BASE_WIDTH,
+  ABOUT_APPLE_BASE_DEPTH,
   ABOUT_APPLE_BASE_WIDTH,
 } from "./aboutAwardGeometry";
-import { ABOUT_BOOT_LANDMARKS } from "./aboutBootComposition";
+import {
+  ABOUT_BOOT_LANDMARKS,
+  aboutProjectedBoxWidth,
+} from "./aboutBootComposition";
 import {
   ABOUT_AIC_SCALE,
   ABOUT_APPLE_LIGHT_YAW,
@@ -25,6 +30,11 @@ import {
   aboutLampHeadQuaternion,
   aboutShelfIntervals,
 } from "./aboutCoordinationLayout";
+import {
+  ABOUT_AIC_ROOT_YAW,
+  ABOUT_APPLE_MARK_YAW,
+  ABOUT_APPLE_ROOT_YAW,
+} from "./aboutScenePose";
 import {
   DESK_LAMP_HEAD_AXIS,
   DESK_LAMP_MOUTH,
@@ -98,7 +108,9 @@ describe("About Coordination composition", () => {
       0.02,
       2,
     );
-    expect(gap("lower", "tj-medallion", "apple")).toBeGreaterThan(0.04);
+    // The rotated Apple billet exposes a little of its depth. Its old
+    // axis-aligned width overstated this gap by several millimetres.
+    expect(gap("lower", "tj-medallion", "apple")).toBeGreaterThan(0.03);
     expect(gap("lower", "apple", "role-icons")).toBeGreaterThan(0.04);
     expect(gap("lower", "role-icons", "reading-stack")).toBeGreaterThan(0.04);
   });
@@ -110,11 +122,26 @@ describe("About Coordination composition", () => {
       10,
     );
     expect(ABOUT_BOOT_LANDMARKS.apple.profile.width).toBeCloseTo(
-      ABOUT_APPLE_BASE_WIDTH * 1.1 * 1.2 * 1.1,
+      aboutProjectedBoxWidth(
+        ABOUT_APPLE_BASE_WIDTH,
+        ABOUT_APPLE_BASE_DEPTH,
+        ABOUT_APPLE_ROOT_YAW + ABOUT_APPLE_MARK_YAW,
+      ) *
+        1.1 *
+        1.2 *
+        1.1,
       10,
     );
     expect(ABOUT_BOOT_LANDMARKS["ai-collective"].profile.width).toBeCloseTo(
-      ABOUT_AIC_BASE_WIDTH * 1.1 * 1.2 * 1.1 * 1.2,
+      aboutProjectedBoxWidth(
+        ABOUT_AIC_BASE_WIDTH,
+        ABOUT_AIC_BASE_DEPTH,
+        ABOUT_AIC_ROOT_YAW,
+      ) *
+        1.1 *
+        1.2 *
+        1.1 *
+        1.2,
       10,
     );
   });

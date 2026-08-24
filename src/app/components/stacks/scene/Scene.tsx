@@ -159,6 +159,7 @@ const SceneContent = memo(function SceneContent({
   coverWidth,
   headOnCapture,
   onOpenBook,
+  onOpenBookId,
   onOpenUrl,
 }: {
   data: StacksData;
@@ -167,6 +168,7 @@ const SceneContent = memo(function SceneContent({
   coverWidth: 256 | 384;
   headOnCapture: boolean;
   onOpenBook?: (bookId: string) => void;
+  onOpenBookId?: (bookId: string) => void;
   onOpenUrl?: (url: string) => void;
 }) {
   const bookPerches = useMemo(
@@ -292,6 +294,7 @@ const SceneContent = memo(function SceneContent({
               headOnCapture={headOnCapture}
               coverWidth={coverWidth}
               onOpenBook={onOpenBook}
+              onOpenBookId={onOpenBookId}
               onOpenUrl={onOpenUrl}
             />
             {/* Invisible raycast plane BEHIND the interactive props (covers
@@ -399,6 +402,7 @@ function Scene({
   quality,
   diagnosticsRequested,
   onOpenBook,
+  onOpenBookId,
   onOpenUrl,
 }: {
   data: StacksData;
@@ -408,6 +412,7 @@ function Scene({
   quality: SceneQualityPlan;
   diagnosticsRequested: boolean;
   onOpenBook?: (bookId: string) => void;
+  onOpenBookId?: (bookId: string) => void;
   onOpenUrl?: (url: string) => void;
 }) {
   const headOnCapture = useMemo(
@@ -438,6 +443,7 @@ function Scene({
           coverWidth={coverWidth}
           headOnCapture={headOnCapture}
           onOpenBook={onOpenBook}
+          onOpenBookId={onOpenBookId}
           onOpenUrl={onOpenUrl}
         />
         <PhysicsSceneFrameDriver />

@@ -8,6 +8,14 @@ export const ABOUT_READING_BOOK = {
   radius: 0.008,
 } as const;
 
+/** The printed cover plane inside the cloth boards. Shared by WebGL and the
+ * boot projection so the loading image keeps the same inset. */
+export const ABOUT_READING_COVER_IMAGE = {
+  width: 0.2893,
+  height: 0.4576,
+  lift: 0.001,
+} as const;
+
 export type ReadingBookPose = {
   /** Newest first; the three jackets form a shallow camera-overlapped fan. */
   index: number;
@@ -191,6 +199,46 @@ export function readingBookPerspectiveElevation(
     const perspective = cameraZ / (cameraZ - z);
     return [x * perspective, y * perspective] as [number, number];
   }) as ReadingBookElevation;
+}
+
+/** Exact four corners of the live LitImage after its face-up inner rotation,
+ * the book's authored fan rotation, and the boot camera's mild perspective. */
+export function readingBookImagePerspectiveElevation(
+  pose: ReadingBookPose,
+  cameraZ: number,
+  thickness: number,
+): ReadingBookElevation {
+  const halfWidth = ABOUT_READING_COVER_IMAGE.width / 2;
+  const halfHeight = ABOUT_READING_COVER_IMAGE.height / 2;
+  const coverY = thickness / 2 + ABOUT_READING_COVER_IMAGE.lift;
+  const corners = [
+    point3(pose, -halfWidth, coverY, halfHeight),
+    point3(pose, halfWidth, coverY, halfHeight),
+    point3(pose, halfWidth, coverY, -halfHeight),
+    point3(pose, -halfWidth, coverY, -halfHeight),
+  ] as const;
+  return corners.map(([x, y, z]) => {
+    const perspective = cameraZ / (cameraZ - z);
+    return [x * perspective, y * perspective] as [number, number];
+  }) as ReadingBookElevation;
+}
+
+/** Orthographic front elevation of the printed cover. The loading vignette
+ * deliberately uses this rectangular form: it preserves the live pose and
+ * inset while avoiding a tiny perspective trapezoid at loading-screen scale. */
+export function readingBookImageFrontElevation(
+  pose: ReadingBookPose,
+  thickness: number,
+): ReadingBookElevation {
+  const halfWidth = ABOUT_READING_COVER_IMAGE.width / 2;
+  const halfHeight = ABOUT_READING_COVER_IMAGE.height / 2;
+  const coverY = thickness / 2 + ABOUT_READING_COVER_IMAGE.lift;
+  return [
+    point3(pose, -halfWidth, coverY, halfHeight),
+    point3(pose, halfWidth, coverY, halfHeight),
+    point3(pose, halfWidth, coverY, -halfHeight),
+    point3(pose, -halfWidth, coverY, -halfHeight),
+  ].map(([x, y]): [number, number] => [x, y]) as ReadingBookElevation;
 }
 
 export function readingStackBounds(poses: ReadingBookPose[]) {

@@ -4,6 +4,8 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { ABOUT_BOOT_MODEL_SILHOUETTES } from "./aboutBootSilhouettes";
+import { ABOUT_LAMP_HEAD_QUATERNION } from "./aboutLampPose";
+import { ABOUT_MODEL_POSES, type AboutModelPoseId } from "./aboutScenePose";
 import { tjMedallionSpecSignature } from "./tjMedallionGeometry";
 
 const sha256 = (input: crypto.BinaryLike) =>
@@ -35,6 +37,32 @@ describe("generated About boot silhouettes", () => {
   it("names a source kind for every entry", () => {
     for (const silhouette of Object.values(ABOUT_BOOT_MODEL_SILHOUETTES)) {
       expect(["file", "spec"]).toContain(silhouette.sourceKind);
+    }
+  });
+
+  it("stays synchronized with each live model pose", () => {
+    for (const [id, silhouette] of Object.entries(
+      ABOUT_BOOT_MODEL_SILHOUETTES,
+    )) {
+      if (!("poseSha256" in silhouette)) continue;
+      const pose = ABOUT_MODEL_POSES[id as AboutModelPoseId];
+      expect(pose, `${id} needs a canonical live pose`).toBeDefined();
+      expect(
+        sha256(
+          JSON.stringify({
+            version: 1,
+            pose,
+            headQuaternion:
+              id === "desk-lamp" ? ABOUT_LAMP_HEAD_QUATERNION : undefined,
+          }),
+        ),
+        `${id} needs silhouette regeneration after its pose changed`,
+      ).toBe(silhouette.poseSha256);
+      expect(silhouette.profile[0]).toBeGreaterThan(0);
+      expect(silhouette.profile[1]).toBeGreaterThan(0);
+      expect(silhouette.projection[0]).toBe(silhouette.projection[3]);
+      expect(silhouette.projection[1]).toBe(0);
+      expect(silhouette.projection[2]).toBe(0);
     }
   });
 

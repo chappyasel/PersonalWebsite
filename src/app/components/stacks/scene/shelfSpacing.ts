@@ -98,6 +98,32 @@ export function layoutShelfRow<T>(
   });
 }
 
+/**
+ * The widest stretch of bare surface INSIDE a laid-out row, as a span.
+ *
+ * The packed row behind a front rank is mostly hidden by it, and the horizontal
+ * stack it lays down is the one flat display surface on the shelf — so the
+ * stack has to land where the rank in front has a hole, or it and anything
+ * resting on it are simply not in the picture. This finds that hole.
+ *
+ * Only the interior counts. The two outer margins are what pins the rank to
+ * its authored edges, and treating those as holes would undo the framing.
+ *
+ * Items must be ordered left to right, which is what `layoutShelfRow` returns.
+ */
+export function widestRowGap(
+  items: readonly { x: number; halfWidth: number }[],
+): ShelfSpan | null {
+  let widest: ShelfSpan | null = null;
+  for (let i = 1; i < items.length; i++) {
+    const left = items[i - 1]!.x + items[i - 1]!.halfWidth;
+    const right = items[i]!.x - items[i]!.halfWidth;
+    if (right > left && (!widest || right - left > widest.right - widest.left))
+      widest = { left, right };
+  }
+  return widest;
+}
+
 /** Keep authored front ranks bounded even when a source-of-truth checkbox
  * list grows. Newest items win; overflow remains available to the DOM/library
  * without turning a content edit into a canvas exception. */

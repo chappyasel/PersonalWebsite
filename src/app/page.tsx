@@ -31,6 +31,7 @@ import BootScreen, {
   BootReadingBooksBridge,
 } from "./components/stacks/dom/BootScreen";
 import { proxiedBookCover } from "./components/stacks/scene/bookCoverTexture";
+import { featuredBookThickness } from "./components/stacks/scene/units/featuredBookGeometry";
 
 import { homepageMetadata } from "./homeMetadata";
 
@@ -63,17 +64,56 @@ const SCENE_TALK_STILLS: Record<number, string> = {
   1: "/images/stacks/talk-consensus.jpg",
 };
 
-export default function HomePage() {
+type HomepageBooks = Awaited<ReturnType<typeof getDefaultBooks>>;
+type HomepageReadingBooks = ReturnType<typeof selectHomepageReadingBooks>;
+type HomepageReadingColors = Awaited<ReturnType<typeof readingBookEdgeColors>>;
+
+/** Unfinished rows share a synthetic finish date in the library query. Sort
+ * current reads by their real start date, then backfill from recent covered
+ * books so the loading and live shelves always receive the same trio. */
+function selectHomepageReadingBooks(allBooks: HomepageBooks) {
+  const currentReads = allBooks
+    .filter((book) => book.started && !book.finished && book.coverUrl)
+    .sort((a, b) => (b.started ?? "").localeCompare(a.started ?? ""))
+    .slice(0, 3);
+  const currentReadIds = new Set(currentReads.map((book) => book.id));
+  return [
+    ...currentReads,
+    ...allBooks.filter((book) => book.coverUrl && !currentReadIds.has(book.id)),
+  ].slice(0, 3);
+}
+
+function toBootReadingBooks(readingBooks: HomepageReadingBooks) {
+  return readingBooks.map(({ id, coverUrl, pageCount, audioLengthMin }) => ({
+    id,
+    coverSrc: coverUrl ? proxiedBookCover(coverUrl, 256) : null,
+    thickness: 1.1 * featuredBookThickness(pageCount, audioLengthMin),
+  }));
+}
+
+export default async function HomePage() {
+  const allBooks = await orEmpty("home:books", getDefaultBooks, []);
+  const readingBooks = selectHomepageReadingBooks(allBooks);
+  // Sampling is server-side and time-boxed, avoiding remote-cover CORS work in
+  // the client while giving the first SVG the same jacket colors as WebGL.
+  const readingBookColors = await readingBookEdgeColors(readingBooks);
+  const bootReadingBooks = toBootReadingBooks(readingBooks);
   return (
     <>
-      {/* This synchronous shell is flushed before the data-backed homepage
-          suspends, so the capability decision and the bookcase both exist on
-          the first eligible paint instead of leaving the layout background
-          alone while books and training data resolve. */}
+      {/* Book identity is part of the vignette, not late decoration. Resolve
+          the cached book selection before this shell so its first SVG already
+          contains the real jackets; the heavier activity data still streams. */}
       <script dangerouslySetInnerHTML={{ __html: worldBootPrepaintScript() }} />
-      <BootScreen />
+      <BootScreen
+        readingBooks={bootReadingBooks}
+        readingBookColors={readingBookColors}
+      />
       <React.Suspense fallback={null}>
-        <HomePageContent />
+        <HomePageContent
+          allBooks={allBooks}
+          readingBooks={readingBooks}
+          readingBookColors={readingBookColors}
+        />
       </React.Suspense>
     </>
   );
@@ -85,9 +125,21 @@ export default function HomePage() {
  * the whole document. Each loader degrades on its own so one failure cannot
  * take the other two down with it, and the world still boots.
  */
-async function HomePageContent() {
-  const [allBooks, activity, liftingPlacard] = await Promise.all([
-    orEmpty("home:books", getDefaultBooks, []),
+async function HomePageContent({
+  allBooks,
+  readingBooks,
+  readingBookColors,
+}: {
+  allBooks: HomepageBooks;
+  readingBooks: HomepageReadingBooks;
+  readingBookColors: HomepageReadingColors;
+}) {
+  // Chappy's "Featured?" ticks, in the collection's own finished-desc order.
+  // A featured book without a cover cannot occupy a cover-out shelf slot.
+  const featuredBooks = allBooks.filter(
+    (book) => book.isFeatured && book.coverUrl,
+  );
+  const [activity, liftingPlacard, featuredBookColors] = await Promise.all([
     orEmpty(
       "home:activity",
       () => getCachedActivityMosaic(12),
@@ -98,6 +150,7 @@ async function HomePageContent() {
       getCachedWeightliftingPlacard,
       EMPTY_WEIGHTLIFTING_PLACARD,
     ),
+    readingBookEdgeColors(featuredBooks),
   ]);
   const bookPlacard = buildHomepageBookPlacard(allBooks);
   const bookStats = bookPlacard.stats;
@@ -107,34 +160,6 @@ async function HomePageContent() {
     author: book.author,
     coverUrl: book.coverUrl,
   }));
-  // The About shelf is a small, live reading stack. Unfinished rows share a
-  // synthetic finish date in the library query, so sort current reads by their
-  // real started date here, then backfill from recent covered books so a quiet
-  // reading spell does not leave an unexplained hole in the scene.
-  const currentReads = allBooks
-    .filter((book) => book.started && !book.finished && book.coverUrl)
-    .sort((a, b) => (b.started ?? "").localeCompare(a.started ?? ""))
-    .slice(0, 3);
-  const currentReadIds = new Set(currentReads.map((book) => book.id));
-  const readingBooks = [
-    ...currentReads,
-    ...allBooks.filter((book) => book.coverUrl && !currentReadIds.has(book.id)),
-  ].slice(0, 3);
-
-  // Chappy's "Featured?" ticks, in the collection's own finished-desc order.
-  // A featured book with no cover would render as a blank slab, so it is held
-  // to the same bar as any other shelf cover.
-  const featuredBooks = allBooks.filter(
-    (book) => book.isFeatured && book.coverUrl,
-  );
-  // Perimeter sampling is server-side and time-boxed, so the client never
-  // reads image pixels (or inherits remote-cover CORS hazards). Both the
-  // current book and every featured book receive their own physical board
-  // color; a stable id color is only the cold-fetch fallback.
-  const [readingBookColors, featuredBookColors] = await Promise.all([
-    readingBookEdgeColors(readingBooks),
-    readingBookEdgeColors(featuredBooks),
-  ]);
   // Featured books lead `shelfBooks` so they are guaranteed a slot in the 16
   // the scene knows about: `onOpenBook` resolves clicks out of this array and
   // `Scene` warms only these covers. Without the union, a featured cover could
@@ -150,9 +175,26 @@ async function HomePageContent() {
     ),
   ].slice(0, 16);
 
+  // The packed rows are the rest of the library, physically: real finished
+  // reads (newest first), minus the featured books already standing cover-out
+  // in front of them. Slim on purpose — a spine renders no cover, so this
+  // must not grow the image-warming set or ship full Book serializations.
+  // 64 comfortably overfills the two rows' measured spine capacity (~48).
+  const spineBooks = allBooks
+    .filter((book) => book.finished && !featuredIds.has(book.id))
+    .slice(0, 64)
+    .map((book) => ({
+      id: book.id,
+      title: book.title,
+      author: book.author,
+      pageCount: book.pageCount,
+      audioLengthMin: book.audioLengthMin,
+    }));
+
   const data: StacksData = {
     covers: bookCovers,
     shelfBooks,
+    spineBooks,
     featuredBooks,
     featuredBookColors,
     readingBooks,
@@ -205,10 +247,7 @@ async function HomePageContent() {
   return (
     <>
       <BootReadingBooksBridge
-        readingBooks={readingBooks.map(({ id, coverUrl }) => ({
-          id,
-          coverSrc: coverUrl ? proxiedBookCover(coverUrl, 256) : null,
-        }))}
+        readingBooks={toBootReadingBooks(readingBooks)}
         readingBookColors={readingBookColors}
       />
       <StacksHome data={data} slots={slots} />

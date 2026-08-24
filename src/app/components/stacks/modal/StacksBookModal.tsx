@@ -36,6 +36,8 @@ function booksBaseUrl(): string {
 function ModalBridge() {
   const pendingBook = useStacks((s) => s.pendingBook);
   const setPendingBook = useStacks((s) => s.setPendingBook);
+  const pendingBookId = useStacks((s) => s.pendingBookId);
+  const setPendingBookId = useStacks((s) => s.setPendingBookId);
   const setModalOpen = useStacks((s) => s.setModalOpen);
   const { openModal, openModalById } = useModalActions();
   const { isModalOpen, selectedBookId } = useModalState();
@@ -47,6 +49,16 @@ function ModalBridge() {
     openModal(pendingBook);
     setPendingBook(null);
   }, [pendingBook, openModal, setPendingBook]);
+
+  // Packed-row spine click → open by id, the same resolution a #book- deep
+  // link uses. Spine books stay out of `shelfBooks` on purpose (no cover to
+  // warm, no full Book on the payload), so the books app fetches this one.
+  useEffect(() => {
+    if (!pendingBookId) return;
+    window.history.pushState(null, "", `#book-${pendingBookId}`);
+    openModalById(pendingBookId);
+    setPendingBookId(null);
+  }, [pendingBookId, openModalById, setPendingBookId]);
 
   // Mirror open state so bridges/placards can suspend themselves.
   useEffect(() => {

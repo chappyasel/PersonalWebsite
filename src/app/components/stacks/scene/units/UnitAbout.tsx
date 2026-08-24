@@ -13,8 +13,10 @@ import ModelProp from "../ModelProp";
 import { RoundedBox } from "../RoundedBox";
 import SitChair from "../SitChair";
 import {
+  ABOUT_AIC_BASE_DEPTH,
   ABOUT_AIC_BASE_WIDTH,
   ABOUT_AIC_MARK_HEIGHT,
+  ABOUT_AIC_MARK_SOURCE_DEPTH,
 } from "../aboutAwardGeometry";
 import {
   ABOUT_BOOT_LANDMARKS,
@@ -34,6 +36,13 @@ import {
   ABOUT_ROLE_ICON_SIZE,
   aboutRoleIconOffset,
 } from "../aboutRoleIcons";
+import {
+  ABOUT_AIC_MARK_YAW,
+  ABOUT_AIC_ROOT_YAW,
+  ABOUT_MODEL_POSES,
+  ABOUT_PHOTO_POSES,
+  ABOUT_TOP_LANDMARK_Z,
+} from "../aboutScenePose";
 import { proxiedBookCover } from "../bookCoverTexture";
 import { EggLamp, SpinProp, Sway } from "../eggs";
 import { getSceneInteraction } from "../interactionRegistry";
@@ -59,6 +68,7 @@ import { ProjectIcon } from "./ProjectArtifacts";
 import { ShelfSucculent } from "./ShelfSucculent";
 import {
   ABOUT_READING_BOOK,
+  ABOUT_READING_COVER_IMAGE,
   type ReadingBookPose,
   readingBookAtAuthoredPose,
   readingStackPoses,
@@ -80,7 +90,7 @@ function CollectiveLogo({
   const mark = React.useMemo(() => {
     const shapes = svg.paths.flatMap((path) => SVGLoader.createShapes(path));
     const geometry = new THREE.ExtrudeGeometry(shapes, {
-      depth: 72,
+      depth: ABOUT_AIC_MARK_SOURCE_DEPTH,
       bevelEnabled: true,
       bevelSegments: 3,
       bevelSize: 9,
@@ -139,7 +149,7 @@ function CollectiveLogo({
       {/* Bead-blasted billet, matching DeskApple's material hierarchy. */}
       <RoundedBox
         castShadow
-        args={[ABOUT_AIC_BASE_WIDTH, 0.024, 0.07]}
+        args={[ABOUT_AIC_BASE_WIDTH, 0.024, ABOUT_AIC_BASE_DEPTH]}
         radius={0.005}
         smoothness={3}
         position={[0, 0.012, 0]}
@@ -160,7 +170,7 @@ function CollectiveLogo({
         // Keep the face nearly square to the environment probe (like the
         // DeskApple) so the anodized front catches the broad light form,
         // while a small yaw still reveals the extruded copper-orange edge.
-        rotation={[0, 0.04, 0]}
+        rotation={[0, ABOUT_AIC_MARK_YAW, 0]}
       >
         <meshPhysicalMaterial
           ref={front}
@@ -194,7 +204,7 @@ function CollectiveLogo({
       <mesh
         geometry={shimmerMark}
         position={[0, 0.118, 0.005]}
-        rotation={[0, 0.04, 0]}
+        rotation={[0, ABOUT_AIC_MARK_YAW, 0]}
         scale={1.003}
       >
         <meshBasicMaterial
@@ -345,13 +355,17 @@ function ReadingStack({
                 {book.coverUrl && (
                   <React.Suspense fallback={null}>
                     <group
-                      position={[0, thickness / 2 + 0.001, 0]}
+                      position={[
+                        0,
+                        thickness / 2 + ABOUT_READING_COVER_IMAGE.lift,
+                        0,
+                      ]}
                       rotation={[-Math.PI / 2, 0, 0]}
                     >
                       <LitImage
                         url={proxiedBookCover(book.coverUrl, coverWidth)}
-                        width={0.2893}
-                        height={0.4576}
+                        width={ABOUT_READING_COVER_IMAGE.width}
+                        height={ABOUT_READING_COVER_IMAGE.height}
                         roughness={0.64}
                       />
                     </group>
@@ -646,7 +660,7 @@ export default function UnitAbout({
               <React.Suspense fallback={null}>
                 <group
                   name={aboutLandmarkNodeName("ai-collective")}
-                  rotation={[0, -0.16, 0]}
+                  rotation={[0, ABOUT_AIC_ROOT_YAW, 0]}
                   scale={ABOUT_AIC_SCALE}
                 >
                   {/* The open C and its thin billet are visually honest but
@@ -742,7 +756,7 @@ export default function UnitAbout({
         <Grabbable
           unitIndex={index}
           hoverKey="egg:globe"
-          base={[ABOUT_BOOT_LANDMARKS.globe.x, 0, 0.02]}
+          base={[ABOUT_BOOT_LANDMARKS.globe.x, 0, ABOUT_TOP_LANDMARK_Z.globe]}
           shadeColor={palette.shadow}
           shadeWidth={0.4}
           shape="box"
@@ -757,7 +771,7 @@ export default function UnitAbout({
                 <ModelProp
                   url="/models/globe.glb"
                   dark={dark}
-                  rotation={[0, -0.7, 0]}
+                  rotation={[...ABOUT_MODEL_POSES.globe.rotation]}
                   scale={ABOUT_BOOT_LANDMARKS.globe.sceneScale}
                   spinPart="sphere"
                 />
@@ -772,7 +786,7 @@ export default function UnitAbout({
           unitIndex={index}
           hoverKey="grab:plant:about-cactus"
           layoutLabel="About · Cactus"
-          base={[ABOUT_BOOT_LANDMARKS.cactus.x, 0, -0.122]}
+          base={[ABOUT_BOOT_LANDMARKS.cactus.x, 0, ABOUT_TOP_LANDMARK_Z.cactus]}
           shadeColor={palette.shadow}
           shadeWidth={0.28}
           shape="box"
@@ -786,7 +800,7 @@ export default function UnitAbout({
                   url="/models/cactus.glb"
                   dark={dark}
                   variant="recolor"
-                  rotation={[0, -0.35, 0]}
+                  rotation={[...ABOUT_MODEL_POSES.cactus.rotation]}
                   scale={ABOUT_BOOT_LANDMARKS.cactus.sceneScale}
                 />
               </React.Suspense>
@@ -799,7 +813,11 @@ export default function UnitAbout({
           palette={palette}
           id="about-collective-group-v8"
           layoutLabel="About · Collective print"
-          base={[ABOUT_BOOT_LANDMARKS["collective-frame"].x, 0, 0.255]}
+          base={[
+            ABOUT_BOOT_LANDMARKS["collective-frame"].x,
+            0,
+            ABOUT_TOP_LANDMARK_Z["collective-frame"],
+          ]}
           rotation={[0, 0, 0]}
           facingRotation={[Math.PI / 2, 0, 0]}
           hingeOnHover
@@ -821,10 +839,14 @@ export default function UnitAbout({
           palette={palette}
           id="portrait"
           layoutLabel="About · Large portrait"
-          base={[ABOUT_BOOT_LANDMARKS.portrait.x, 0, 0]}
+          base={[
+            ABOUT_BOOT_LANDMARKS.portrait.x,
+            0,
+            ABOUT_PHOTO_POSES.portrait.baseZ,
+          ]}
           // Owner placement via the scene layout editor, 2026-08-22: a
           // slight turn toward the lamp side.
-          rotation={[0, -0.125, 0]}
+          rotation={[...ABOUT_PHOTO_POSES.portrait.rotation]}
           width={ABOUT_BOOT_LANDMARKS.portrait.profile.width}
         >
           <group
@@ -845,11 +867,15 @@ export default function UnitAbout({
           palette={palette}
           id="about-family-v8"
           layoutLabel="About · Family frame"
-          base={[ABOUT_BOOT_LANDMARKS["family-frame"].x, 0, 0]}
+          base={[
+            ABOUT_BOOT_LANDMARKS["family-frame"].x,
+            0,
+            ABOUT_PHOTO_POSES.family.baseZ,
+          ]}
           seat={deskFrameHeight(0.264) / 2}
           // Owner placement via the scene layout editor, 2026-08-22: the
           // editor's carrier rotation composed onto the old authored tilt.
-          rotation={[-0.172, -0.251, -0.102]}
+          rotation={[...ABOUT_PHOTO_POSES.family.rotation]}
           width={0.264 * (769 / 1024)}
         >
           <group name={aboutLandmarkNodeName("family-frame")}>
@@ -887,7 +913,11 @@ export default function UnitAbout({
           unitIndex={index}
           hoverKey="grab:plant:about-succulent"
           layoutLabel="About · Succulent"
-          base={[ABOUT_BOOT_LANDMARKS.succulent.x, 0, -0.1]}
+          base={[
+            ABOUT_BOOT_LANDMARKS.succulent.x,
+            0,
+            ABOUT_TOP_LANDMARK_Z.succulent,
+          ]}
           shadeColor={palette.shadow}
           shadeWidth={0.28}
           shape="box"
@@ -928,9 +958,13 @@ export default function UnitAbout({
           palette={palette}
           id="about-profile-full-v8"
           layoutLabel="About · Profile frame"
-          base={[ABOUT_BOOT_LANDMARKS["profile-frame"].x, 0, -0.045]}
+          base={[
+            ABOUT_BOOT_LANDMARKS["profile-frame"].x,
+            0,
+            ABOUT_PHOTO_POSES.profile.baseZ,
+          ]}
           seat={REVIEWED_SHELF_LAYOUT.about.profileSeat}
-          rotation={[-Math.PI / 6, -0.08, 0]}
+          rotation={[...ABOUT_PHOTO_POSES.profile.rotation]}
           width={0.18}
         >
           <group name={aboutLandmarkNodeName("profile-frame")}>
@@ -947,7 +981,11 @@ export default function UnitAbout({
         <Grabbable
           unitIndex={index}
           hoverKey="grab:plant:about-large"
-          base={[ABOUT_BOOT_LANDMARKS["large-plant"].x, 0, -0.23]}
+          base={[
+            ABOUT_BOOT_LANDMARKS["large-plant"].x,
+            0,
+            ABOUT_TOP_LANDMARK_Z["large-plant"],
+          ]}
           shadeColor={palette.shadow}
           shadeWidth={0.34}
           shape="box"
@@ -960,7 +998,7 @@ export default function UnitAbout({
                 <ModelProp
                   url="/models/potted-plant.glb"
                   dark={dark}
-                  rotation={[0, 0.5, 0]}
+                  rotation={[...ABOUT_MODEL_POSES["large-plant"].rotation]}
                   scale={ABOUT_BOOT_LANDMARKS["large-plant"].sceneScale}
                 />
               </React.Suspense>
@@ -972,7 +1010,7 @@ export default function UnitAbout({
       <Grabbable
         unitIndex={index}
         hoverKey="grab:dumbbell:about"
-        base={[1.05, SHELF_GEOMETRY.groundY, 0.62]}
+        base={[...ABOUT_MODEL_POSES.dumbbell.base]}
         shadeColor={palette.shadow}
         shadeWidth={0.58}
         shape="box"
@@ -982,11 +1020,11 @@ export default function UnitAbout({
       >
         <React.Suspense fallback={null}>
           <ModelProp
-            url="/models/dumbbell.glb"
+            url={ABOUT_MODEL_POSES.dumbbell.source}
             dark={dark}
             atlasOverride={{ tint: "#76716d", roughness: 0.55 }}
-            rotation={[0, -0.42, 0]}
-            scale={1.5}
+            rotation={[...ABOUT_MODEL_POSES.dumbbell.rotation]}
+            scale={ABOUT_MODEL_POSES.dumbbell.scale}
           />
         </React.Suspense>
       </Grabbable>

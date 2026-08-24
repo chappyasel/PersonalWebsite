@@ -5,6 +5,7 @@ import { type Palette } from "../../theme";
 import Grabbable from "../Grabbable";
 import { RoundedBox } from "../RoundedBox";
 import { useMetalShimmer } from "../objects";
+import { projectIconBody } from "../projectIconGeometry";
 import { useLoader } from "@react-three/fiber";
 import React, { useEffect, useMemo } from "react";
 import * as THREE from "three";
@@ -15,25 +16,7 @@ import {
   REVIEWED_SHELF_LAYOUT,
 } from "./unitShelfLayout";
 
-/** Billet proportions for an icon of any edge. The Projects shelf uses the
- * full 0.32 icon; the About Role Icons are the same object at half the edge,
- * so depth, corner radius and face inset all scale with it. */
-export function projectIconBody(
-  size: number = PROJECT_ARTIFACT_DIMENSIONS.icon,
-) {
-  return {
-    size,
-    // RoundedBox uses one radius for the 2D corner and front/back bevel. The
-    // billet must therefore be thicker than twice that radius or its
-    // extrusion depth becomes negative.
-    depth: size * 0.375,
-    radius: size * 0.16,
-    faceInset: size * 0.04375,
-    fallbackFaceDepth: 0.012,
-    fallbackFaceRadius: 0.005,
-  } as const;
-}
-export const PROJECT_ICON_BODY = projectIconBody();
+export { PROJECT_ICON_BODY, projectIconBody } from "../projectIconGeometry";
 const PIP_GEOMETRY = new THREE.CircleGeometry(0.0105, 12);
 const PIP_MATERIAL = new THREE.MeshStandardMaterial({
   color: "#25231f",

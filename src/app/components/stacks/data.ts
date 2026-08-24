@@ -186,10 +186,27 @@ export type StacksBlogPost = {
   pubDate: string;
 };
 
+/** One packed-row spine's worth of a real library book. Deliberately slim:
+ * the spine needs a width (from length metadata), a Door Label (title/author)
+ * and a click id — never the cover image, so carrying full Book objects here
+ * would put the whole library's serialization on the homepage payload for
+ * fields no spine reads. Clicks resolve through the books-app modal by id. */
+export type StacksSpineBook = {
+  id: string;
+  title: string;
+  author: string;
+  pageCount: number | null;
+  audioLengthMin: number | null;
+};
+
 export type StacksData = {
   covers: HomepageBookCover[];
   /** Full Book objects for the covers rendered in-scene — instant modal open. */
   shelfBooks: Book[];
+  /** The packed rows behind the featured rank, oldest last: real finished
+   * reads (newest first, featured excluded — those already stand cover-out).
+   * The scene consumes as many as its two rows physically hold. */
+  spineBooks: StacksSpineBook[];
   /** The books Chappy ticked "Featured?" on in Notion, newest finish first.
    *
    * Owner-curated, so the length is whatever he has checked — eight today. Do

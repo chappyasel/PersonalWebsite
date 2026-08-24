@@ -17,7 +17,9 @@ describe("shared shelf succulent", () => {
 
     expect(source).toContain('url="/models/succulent-pot.glb"');
     expect(source).toContain('variant="recolor"');
-    expect(source).toContain("rotation={[0, -0.4, 0]}");
+    expect(source).toContain(
+      "rotation={[...ABOUT_MODEL_POSES.succulent.rotation]}",
+    );
     expect(source).toContain(
       "scale={ABOUT_BOOT_LANDMARKS.succulent.sceneScale}",
     );

@@ -25,7 +25,11 @@ describe("Projects shelf movable props", () => {
     expect(source).toContain("<EggLamp");
     expect(source).toContain("projects-weightlifting-icon.webp");
     expect(source).toContain("projects-homework-icon.webp");
-    expect(source).toContain('artifact="homework-app"');
+    // The 3D inspector is behind a switch (off since 2026-08-23), but the
+    // icon keeps its artifact wiring so flipping the switch is the whole job.
+    expect(source).toContain(
+      'artifact={MODEL_ARTIFACT_PREVIEWS_ENABLED ? "homework-app" : undefined}',
+    );
     expect(source).toContain('hoverKey="grab:plant:projects-small"');
     expect(source).toContain('url="/models/potted-plant.glb"');
     // The notebook moved to the Systems shelf on 2026-08-23; the pixel-art

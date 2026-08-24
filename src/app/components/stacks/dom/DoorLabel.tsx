@@ -8,9 +8,8 @@ import {
 } from "../scene/interactionRegistry";
 import { progressRef, useStacks } from "../store";
 import {
-  ArrowRightIcon,
-  ArrowUpRightIcon,
-  CursorClickIcon,
+  ArrowSquareOutIcon,
+  ArrowsOutIcon,
 } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -44,8 +43,9 @@ export default function DoorLabel() {
     detail: readonly string[];
     /** Verb line for a local action that also has a title. */
     action: string | null;
-    /** Title-line glyph: ↗ for a Door off the site, → for one on it or for a
-     * bare-verb action; null when the verb line below carries the →. */
+    /** Title-line glyph: square-out for a Door off the site, arrows-out for
+     * one on it or for a bare-verb action; null when the verb line below
+     * carries the arrows-out icon. */
     arrow: "external" | "internal" | "action" | null;
   } | null>(null);
   const [visible, setVisible] = useState(false);
@@ -305,12 +305,11 @@ export default function DoorLabel() {
         }`}
       >
         {/* Title line, then one line per detail, then the verb line of a
-            local action. A Door's title names where it goes, so its arrow sits
-            on that line (↗ off-site, → on-site) and is the whole "this is a
-            link" signal; details describe the object and never wrap around
-            the glyph. An action wears a pointer instead of an arrow, on its
-            last line (or on its only line when it is a bare verb), because
-            it happens here rather than taking you somewhere. A plain
+            local action. A Door's title names where it goes, so its icon sits
+            on that line (square-out off-site, arrows-out on-site) and is the
+            whole "this is a link" signal; details describe the object and
+            never wrap around the glyph. An action wears an arrows-out icon on
+            its last line (or on its only line when it is a bare verb). A plain
             one-line label renders exactly as before. */}
         <span className="stacks-glass-tooltip flex min-w-0 flex-col rounded-lg border px-2.5 py-1.5">
           <span className="flex min-w-0 items-start gap-1">
@@ -322,21 +321,21 @@ export default function DoorLabel() {
               {shown.label}
             </span>
             {shown.arrow === "external" ? (
-              <ArrowUpRightIcon
+              <ArrowSquareOutIcon
                 aria-hidden="true"
                 className="mt-px shrink-0"
                 size={13}
                 weight="bold"
               />
             ) : shown.arrow === "internal" ? (
-              <ArrowRightIcon
+              <ArrowsOutIcon
                 aria-hidden="true"
                 className="mt-px shrink-0"
                 size={13}
                 weight="bold"
               />
             ) : shown.arrow === "action" ? (
-              <CursorClickIcon
+              <ArrowsOutIcon
                 aria-hidden="true"
                 className="mt-px shrink-0"
                 size={13}
@@ -354,11 +353,8 @@ export default function DoorLabel() {
             </span>
           ))}
           {shown.action ? (
-            // The verb line wears a pointer, not an arrow: an arrow says
-            // "this goes somewhere" and an action stays right here. It still
-            // marks the line as the thing you tap (owner, on the book labels:
-            // "this doesn't have an arrow"; later: "actions should be some
-            // icon besides an arrow").
+            // Keep the action indicator on the verb line when a separate
+            // title and detail describe the object above it.
             <span
               data-door-action=""
               className="mt-1 flex min-w-0 items-start gap-1 text-[12px] leading-[1.3]"
@@ -366,7 +362,7 @@ export default function DoorLabel() {
               <span className="min-w-0 whitespace-normal break-words">
                 {shown.action}
               </span>
-              <CursorClickIcon
+              <ArrowsOutIcon
                 aria-hidden="true"
                 className="mt-px shrink-0"
                 size={12}

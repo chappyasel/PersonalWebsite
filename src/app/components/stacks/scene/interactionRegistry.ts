@@ -119,7 +119,7 @@ export function destinationFor(to: PropDestination): Destination {
     case "books":
       return {
         href: prod ? "https://books.chappyasel.com" : devSubdomainUrl("books"),
-        label: "Book Notes",
+        label: "Chappy's Book Notes",
         external: false,
       };
     case "weightlifting":
@@ -127,7 +127,7 @@ export function destinationFor(to: PropDestination): Destination {
         href: prod
           ? "https://weightlifting.chappyasel.com"
           : devSubdomainUrl("weightlifting"),
-        label: "Weightlifting",
+        label: "Chappy's Weightlifting",
         external: false,
       };
     case "liarsdice":
@@ -338,11 +338,24 @@ export type ProjectedDoor = {
   behind: boolean;
 };
 
+export type ProjectedScreenPoint = readonly [number, number];
+
 export type ProjectedSceneInteractionRect = {
   left: number;
   top: number;
   width: number;
   height: number;
+  /** The object's front plane projected corner by corner, in the object's
+   * own orientation: top-left, top-right, bottom-right, bottom-left. The
+   * rect above is this quad's axis-aligned bounds; the quad carries the
+   * rotation and perspective the rect flattens away, so a preview can
+   * open FROM the pose the print is actually rendered in. */
+  quad?: readonly [
+    ProjectedScreenPoint,
+    ProjectedScreenPoint,
+    ProjectedScreenPoint,
+    ProjectedScreenPoint,
+  ];
 };
 
 type DoorProjectionResolver = (id: string) => ProjectedDoor | null;

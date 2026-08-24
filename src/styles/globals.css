@@ -328,7 +328,12 @@ html[data-font="literata"] {
 
 /* Keep the room present behind an inspected artifact without competing with
  * the image. The viewer owns the transition; this layer only supplies the
- * same warm, translucent material used by the scene's placards and cards. */
+ * same warm, translucent material used by the scene's placards and cards.
+ *
+ * No backdrop blur, on purpose. The first cut declared one, but the CSS
+ * minifier kept only the -webkit- copy, so Chrome never blurred and Safari
+ * did; the owner preferred Chrome's plain darkened room, so this is now the
+ * one look everywhere. */
 .stacks-artifact-preview-mask {
   background: radial-gradient(
     ellipse at 50% 38%,
@@ -336,8 +341,6 @@ html[data-font="literata"] {
     rgb(64 52 39 / 0.68) 54%,
     rgb(23 19 15 / 0.9) 100%
   ) !important;
-  backdrop-filter: blur(24px) saturate(0.5) brightness(0.72);
-  -webkit-backdrop-filter: blur(24px) saturate(0.5) brightness(0.72);
 }
 
 .dark .stacks-artifact-preview-mask {
@@ -347,18 +350,143 @@ html[data-font="literata"] {
     rgb(23 27 35 / 0.76) 56%,
     rgb(8 10 14 / 0.92) 100%
   ) !important;
-  backdrop-filter: blur(24px) saturate(0.42) brightness(0.58);
-  -webkit-backdrop-filter: blur(24px) saturate(0.42) brightness(0.58);
 }
 
-/* Keep the source and its DOM clone solid at both ends of the morph. Their
- * complementary opacity handoff happens only through the middle 40%. */
+/* The enlarged photo is drawn as the print it is on the shelf (its paper,
+ * mat, or frame are children of this box), and it casts a shadow onto the
+ * darkened room. The shadow lives on the box, so the viewer's morph scales it
+ * with the print instead of leaving a full-size shadow under a small image. */
+.stacks-artifact-preview-print {
+  box-shadow:
+    0 30px 70px -14px rgb(0 0 0 / 0.6),
+    0 12px 26px -10px rgb(0 0 0 / 0.4);
+}
+
+/* Weathering for the preview's edges. Each layer's base colour comes from
+ * the scene palette inline; these add what a flat fill lacks: a top-lit
+ * sheen, a warm vignette where paper ages first, paper grain (feTurbulence,
+ * self-contained), and hairline bevels. Tones other than "frame" read as
+ * paper stock; the frame reads as finished moulding with a lip. */
+[data-scene-artifact-preview-edge] {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 0.32 0 0 0 0 0.26 0 0 0 0 0.18 0 0 0 0.09 0'/></filter><rect width='160' height='160' filter='url(%23g)'/></svg>"),
+    linear-gradient(
+      164deg,
+      rgb(255 255 255 / 0.16) 0%,
+      rgb(255 255 255 / 0) 34%,
+      rgb(0 0 0 / 0) 62%,
+      rgb(62 46 26 / 0.1) 100%
+    );
+  background-size:
+    160px 160px,
+    100% 100%;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.32),
+    inset 0 -1px 0 rgb(0 0 0 / 0.1),
+    inset 0 0 22px rgb(96 72 40 / 0.16);
+}
+
+[data-scene-artifact-preview-edge="frame"] {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 0.32 0 0 0 0 0.26 0 0 0 0 0.18 0 0 0 0.09 0'/></filter><rect width='160' height='160' filter='url(%23g)'/></svg>"),
+    linear-gradient(
+      168deg,
+      rgb(255 255 255 / 0.2) 0%,
+      rgb(255 255 255 / 0.02) 30%,
+      rgb(0 0 0 / 0.05) 68%,
+      rgb(0 0 0 / 0.14) 100%
+    );
+  background-size:
+    160px 160px,
+    100% 100%;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.38),
+    inset 0 -1px 0 rgb(0 0 0 / 0.28),
+    inset 0 0 0 1px rgb(0 0 0 / 0.08);
+}
+
+[data-scene-artifact-preview-edge-finish="gilt"] {
+  background-image: linear-gradient(
+      112deg,
+      rgb(255 244 176 / 0.34) 0%,
+      rgb(255 229 130 / 0.06) 28%,
+      rgb(72 48 11 / 0.18) 62%,
+      rgb(255 232 145 / 0.2) 100%
+    ),
+    repeating-linear-gradient(
+      94deg,
+      rgb(255 255 255 / 0.08) 0 1px,
+      rgb(66 43 8 / 0.06) 1px 4px
+    );
+  box-shadow:
+    inset 0 2px 1px rgb(255 244 180 / 0.34),
+    inset 0 -2px 2px rgb(56 35 6 / 0.32),
+    inset 0 0 0 1px rgb(69 43 6 / 0.16);
+}
+
+[data-scene-artifact-preview-edge-finish="metal"] {
+  background-image: linear-gradient(
+    145deg,
+    rgb(255 255 255 / 0.34),
+    rgb(255 255 255 / 0.04) 36%,
+    rgb(0 0 0 / 0.22) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.46),
+    inset 0 -1px 0 rgb(0 0 0 / 0.34);
+}
+
+[data-scene-artifact-preview-accent="corner-block"] {
+  background-image: radial-gradient(
+    circle at 34% 28%,
+    rgb(255 242 164 / 0.45),
+    rgb(255 220 108 / 0.06) 42%,
+    rgb(57 37 6 / 0.28) 100%
+  );
+  box-shadow:
+    inset 1px 1px 1px rgb(255 244 182 / 0.3),
+    inset -1px -1px 2px rgb(53 33 5 / 0.38),
+    0 1px 2px rgb(0 0 0 / 0.3);
+}
+
+[data-scene-artifact-preview-accent="eyelet"] {
+  border-style: solid;
+  box-shadow:
+    inset 0 0 1px rgb(255 246 189 / 0.72),
+    0 1px 2px rgb(0 0 0 / 0.38);
+}
+
+/* The photo sits a step below its surround, so the inner cut casts onto it. */
+[data-scene-artifact-preview-well] {
+  box-shadow:
+    inset 0 1px 4px rgb(0 0 0 / 0.3),
+    inset 0 0 1px rgb(0 0 0 / 0.28);
+}
+
+.dark [data-scene-artifact-preview-edge] {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.14),
+    inset 0 -1px 0 rgb(0 0 0 / 0.3),
+    inset 0 0 22px rgb(0 0 0 / 0.24);
+}
+
+.dark [data-scene-artifact-preview-edge="frame"] {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.12),
+    inset 0 -1px 0 rgb(0 0 0 / 0.45),
+    inset 0 0 0 1px rgb(0 0 0 / 0.22);
+}
+
+/* The DOM print's half of the staggered handoff (artifactPreviewMotion.ts):
+ * on open it becomes solid at 62% BEFORE the physical print starts leaving
+ * at 68-86%, and on close it stays solid until 38-52% while the physical
+ * print has already returned under it. One of the two layers is fully
+ * opaque at every frame, so the swap never dims. These percentages mirror
+ * ARTIFACT_PREVIEW_DOM_IN_START/END; a test holds them together. */
 @keyframes stacks-artifact-preview-fade-in {
   from,
-  30% {
+  48% {
     opacity: 0;
   }
-  70%,
+  62%,
   to {
     opacity: 1;
   }
@@ -366,13 +494,106 @@ html[data-font="literata"] {
 
 @keyframes stacks-artifact-preview-fade-out {
   from,
-  30% {
+  10% {
     opacity: 1;
   }
-  70%,
+  24%,
   to {
     opacity: 0;
   }
+}
+
+/* The lighting shade over the preview photo, released INSIDE the morph.
+ *
+ * It used to hold at full strength for the whole open and then ease off in a
+ * separate 240ms beat once the `opening` attribute dropped — which is after
+ * the physical print has gone, i.e. after the image has already settled. On a
+ * photograph that reads as a gentle warm-up. On a near-white subject (the
+ * DEXA chart is rgb(230,228,222)) it is a full-size pink page that then turns
+ * white, and it looks like a bug because it is one: nothing should still be
+ * changing colour once the motion has stopped.
+ *
+ * So the release rides the same 360ms clock as everything else. It holds
+ * through 40%, covering the 48-62% swap where matching the lit print is what
+ * the shade is FOR, and reaches true colour at 80% — before `opening` drops,
+ * so the attribute leaving cannot snap it. The last fifth of the morph
+ * settles in the photo's own colour. */
+@keyframes stacks-artifact-preview-shade-out {
+  from,
+  40% {
+    opacity: 1;
+  }
+  80%,
+  to {
+    opacity: 0;
+  }
+}
+
+/* Closing re-acquires the room's light before the clone dissolves at 10-24%,
+ * so the chart does not flash white over a warm-lit print on the way out. */
+@keyframes stacks-artifact-preview-shade-in {
+  from {
+    opacity: 0;
+  }
+  8%,
+  to {
+    opacity: 1;
+  }
+}
+
+[data-scene-artifact-preview-shade] {
+  opacity: 0;
+}
+
+[data-scene-artifact-preview-image][data-scene-artifact-preview-opening]
+  [data-scene-artifact-preview-shade] {
+  animation: stacks-artifact-preview-shade-out 360ms linear both;
+}
+
+[data-scene-artifact-preview-image][data-scene-artifact-preview-closing]
+  [data-scene-artifact-preview-shade] {
+  animation: stacks-artifact-preview-shade-in 360ms linear both;
+}
+
+/* The other half of the same correction, on the same beats. A multiply layer
+ * can only darken, and the room renders several prints BRIGHTER than their
+ * file, so the scalar and the saturation ACES pulled ride a filter instead.
+ * The function list is identical in both states so the release interpolates
+ * rather than snapping. The custom property is set per print by the
+ * inspector, from the probe's measurement. */
+@keyframes stacks-artifact-preview-photo-shade-out {
+  from,
+  40% {
+    filter: var(--stacks-preview-shade-filter, brightness(1));
+  }
+  80%,
+  to {
+    filter: brightness(1);
+  }
+}
+
+@keyframes stacks-artifact-preview-photo-shade-in {
+  from {
+    filter: brightness(1);
+  }
+  8%,
+  to {
+    filter: var(--stacks-preview-shade-filter, brightness(1));
+  }
+}
+
+[data-scene-artifact-preview-photo] {
+  filter: brightness(1);
+}
+
+[data-scene-artifact-preview-image][data-scene-artifact-preview-opening]
+  [data-scene-artifact-preview-photo] {
+  animation: stacks-artifact-preview-photo-shade-out 360ms linear both;
+}
+
+[data-scene-artifact-preview-image][data-scene-artifact-preview-closing]
+  [data-scene-artifact-preview-photo] {
+  animation: stacks-artifact-preview-photo-shade-in 360ms linear both;
 }
 
 @keyframes stacks-artifact-preview-mask-in {
@@ -523,6 +744,12 @@ html[data-font="literata"] {
   [data-scene-artifact-preview-image][data-scene-artifact-preview-closing] {
     animation: none;
     opacity: 0 !important;
+  }
+
+  /* No brighten beat under reduced motion: the shade snaps with the rest. */
+  [data-scene-artifact-preview-shade],
+  [data-scene-artifact-preview-photo] {
+    animation: none;
   }
 
   [data-scene-artifact-inspector] [data-artifact-preview-scrim],
@@ -1037,6 +1264,15 @@ html[data-world="ready"][data-boot-stage] .stacks-boot-threshold {
   opacity: 0.9;
 }
 
+.stacks-boot-role-icon-body {
+  fill: var(--stacks-boot-metal);
+  opacity: 0.94;
+}
+
+.stacks-boot-role-artwork {
+  pointer-events: none;
+}
+
 .dark .stacks-boot-role-icon {
   fill: var(--stacks-boot-role-dark, var(--stacks-boot-metal));
 }
@@ -1091,6 +1327,10 @@ html[data-world="ready"][data-boot-stage] .stacks-boot-threshold {
 
 .stacks-boot-frame {
   fill: var(--stacks-boot-frame);
+}
+
+.stacks-boot-frame-inner {
+  fill: var(--stacks-boot-page);
 }
 
 .stacks-boot-frame-empty {

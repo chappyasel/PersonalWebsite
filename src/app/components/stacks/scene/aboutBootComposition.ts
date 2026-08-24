@@ -1,17 +1,43 @@
 import {
+  ABOUT_AIC_BASE_DEPTH,
   ABOUT_AIC_BASE_WIDTH,
+  ABOUT_AIC_MARK_DEPTH,
+  ABOUT_AIC_MARK_WIDTH,
+  ABOUT_APPLE_BASE_DEPTH,
   ABOUT_APPLE_BASE_WIDTH,
+  ABOUT_APPLE_MARK_DEPTH,
+  ABOUT_APPLE_MARK_WIDTH,
 } from "./aboutAwardGeometry";
+import { ABOUT_BOOT_MODEL_SILHOUETTES } from "./aboutBootSilhouettes";
 import {
   ABOUT_ROLE_STACK_HEIGHT,
   ABOUT_ROLE_STACK_WIDTH,
 } from "./aboutRoleIcons";
 import {
+  ABOUT_AIC_MARK_YAW,
+  ABOUT_AIC_ORB_SIZE_INCREASE,
+  ABOUT_AIC_ROOT_YAW,
+  ABOUT_APPLE_MARK_YAW,
+  ABOUT_APPLE_ROOT_YAW,
+  ABOUT_AWARD_SIZE_INCREASE,
+  ABOUT_LANDMARK_X,
+  ABOUT_MODEL_POSES,
+  ABOUT_PHOTO_POSES,
+  ABOUT_TOP_LANDMARK_Z,
+} from "./aboutScenePose";
+import {
   COORDINATION_GLOBE_PROFILE_HEIGHT,
   COORDINATION_GLOBE_PROFILE_WIDTH,
 } from "./coordinationGlobeGeometry";
+import { PORTRAIT_FRAME_SIZE, PORTRAIT_IMAGE } from "./portraitFrameGeometry";
 import type { ShelfPlankId } from "./shelfGeometry";
 import { TJ_MEDALLION_POSE } from "./tjMedallionGeometry";
+
+export {
+  ABOUT_AIC_ORB_SIZE_INCREASE,
+  ABOUT_AWARD_SIZE_INCREASE,
+  ABOUT_CACTUS_SIZE_REDUCTION,
+} from "./aboutScenePose";
 
 export const ABOUT_LANDMARK_NODE_PREFIX = "stacks-about-landmark:";
 
@@ -29,6 +55,14 @@ export type AboutLandmarkGlyph =
   | "apple"
   | "role-icons"
   | "reading-stack";
+
+export function aboutProjectedBoxWidth(
+  width: number,
+  depth: number,
+  yaw: number,
+) {
+  return Math.abs(Math.cos(yaw)) * width + Math.abs(Math.sin(yaw)) * depth;
+}
 
 export type AboutBootLandmark = {
   id: string;
@@ -49,24 +83,20 @@ export type AboutBootLandmark = {
   bootVisible?: boolean;
 };
 
-/** Owner-requested increase from the reviewed lower-award composition. */
-export const ABOUT_AWARD_SIZE_INCREASE = 1.1;
-/** Additional owner-requested increase for the AIC mark and orb only. */
-export const ABOUT_AIC_ORB_SIZE_INCREASE = 1.2;
-/** Owner-requested reduction to open space beside the lower-shelf lamp. */
-export const ABOUT_CACTUS_SIZE_REDUCTION = 0.7;
-
 /** Every live About landmark, in shelf order. BootScreen filters the few
  * objects whose front projection would be misleading. */
 export const ABOUT_BOOT_COMPOSITION = [
   {
     id: "globe",
     shelf: "top",
-    x: -1.16,
+    x: ABOUT_LANDMARK_X.globe,
     glyph: "globe",
-    profile: { width: 0.32, height: 0.49 },
+    profile: {
+      width: ABOUT_BOOT_MODEL_SILHOUETTES.globe.profile[0],
+      height: ABOUT_BOOT_MODEL_SILHOUETTES.globe.profile[1],
+    },
     colorProfile: { light: "#5c7f9c", dark: "#3c5a72" },
-    sceneScale: 1.75,
+    sceneScale: ABOUT_MODEL_POSES.globe.scale,
   },
   {
     // Moved up from the lower shelf's left end when the Role Icons arrived:
@@ -74,25 +104,35 @@ export const ABOUT_BOOT_COMPOSITION = [
     // the one stretch of plank in the unit with nothing on it.
     id: "succulent",
     shelf: "top",
-    x: -0.81,
+    x: ABOUT_LANDMARK_X.succulent,
     glyph: "succulent",
-    profile: { width: 0.27, height: 0.13 },
+    profile: {
+      width: ABOUT_BOOT_MODEL_SILHOUETTES.succulent.profile[0],
+      height: ABOUT_BOOT_MODEL_SILHOUETTES.succulent.profile[1],
+    },
     colorProfile: { light: "#5f7a48", dark: "#5a6a38" },
-    sceneScale: 0.18,
+    sceneScale: ABOUT_MODEL_POSES.succulent.scale,
   },
   {
     id: "portrait",
     shelf: "top",
-    x: -0.22,
+    x: ABOUT_LANDMARK_X.portrait,
     glyph: "portrait-frame",
-    profile: { width: 1.02 * 0.78, height: 1.24 * 0.78 },
-    imageProfile: { width: 0.86 * 0.78, height: 1.08 * 0.78 },
-    sceneScale: 0.78,
+    // The live PortraitFrame's own geometry at its scene scale.
+    profile: {
+      width: PORTRAIT_FRAME_SIZE.width * ABOUT_PHOTO_POSES.portrait.scale,
+      height: PORTRAIT_FRAME_SIZE.height * ABOUT_PHOTO_POSES.portrait.scale,
+    },
+    imageProfile: {
+      width: PORTRAIT_IMAGE.width * ABOUT_PHOTO_POSES.portrait.scale,
+      height: PORTRAIT_IMAGE.height * ABOUT_PHOTO_POSES.portrait.scale,
+    },
+    sceneScale: ABOUT_PHOTO_POSES.portrait.scale,
   },
   {
     id: "family-frame",
     shelf: "top",
-    x: 0.48,
+    x: ABOUT_LANDMARK_X["family-frame"],
     glyph: "portrait-frame",
     profile: { width: 0.264 * (769 / 1024) + 0.048, height: 0.312 },
     imageProfile: { width: 0.264 * (769 / 1024), height: 0.264 },
@@ -103,21 +143,21 @@ export const ABOUT_BOOT_COMPOSITION = [
     // Owner placement via the scene layout editor, 2026-08-22. It stands
     // behind the family frame's plane, so their front elevations overlap a
     // little without the objects meeting in 3D.
-    x: 0.686,
+    x: ABOUT_LANDMARK_X.cactus,
     glyph: "cactus",
     profile: {
-      width: 0.4 * ABOUT_CACTUS_SIZE_REDUCTION,
-      height: 0.35 * ABOUT_CACTUS_SIZE_REDUCTION,
+      width: ABOUT_BOOT_MODEL_SILHOUETTES.cactus.profile[0],
+      height: ABOUT_BOOT_MODEL_SILHOUETTES.cactus.profile[1],
     },
     colorProfile: { light: "#7a8f56", dark: "#6d7c42" },
-    sceneScale: 0.34 * ABOUT_CACTUS_SIZE_REDUCTION,
+    sceneScale: ABOUT_MODEL_POSES.cactus.scale,
   },
   {
     id: "collective-frame",
     shelf: "top",
     // Owner placement via the scene layout editor, 2026-08-22: lying flat at
     // the plank's front edge, right of the cactus.
-    x: 0.785,
+    x: ABOUT_LANDMARK_X["collective-frame"],
     glyph: "landscape-frame",
     // The live frame lies almost face-up. This is its shallow front
     // projection, not the standing height it used on the lower shelf.
@@ -129,7 +169,7 @@ export const ABOUT_BOOT_COMPOSITION = [
     id: "profile-frame",
     shelf: "top",
     // Owner placement via the scene layout editor, 2026-08-22.
-    x: 1.032,
+    x: ABOUT_LANDMARK_X["profile-frame"],
     glyph: "portrait-frame",
     profile: { width: 0.228, height: 0.288 },
     imageProfile: { width: 0.18, height: 0.24 },
@@ -137,11 +177,14 @@ export const ABOUT_BOOT_COMPOSITION = [
   {
     id: "large-plant",
     shelf: "top",
-    x: 1.18,
+    x: ABOUT_LANDMARK_X["large-plant"],
     glyph: "plant",
-    profile: { width: 0.27, height: 0.3 },
+    profile: {
+      width: ABOUT_BOOT_MODEL_SILHOUETTES["large-plant"].profile[0],
+      height: ABOUT_BOOT_MODEL_SILHOUETTES["large-plant"].profile[1],
+    },
     colorProfile: { light: "#5f7a48", dark: "#5a6a38" },
-    sceneScale: 1.05,
+    sceneScale: ABOUT_MODEL_POSES["large-plant"].scale,
   },
   // The whole lower row below moved 0.29 left, into the cactus's old slot,
   // to open honest air beside the Apple mark for the Role Icons. Every gap
@@ -150,20 +193,34 @@ export const ABOUT_BOOT_COMPOSITION = [
   {
     id: "desk-lamp",
     shelf: "lower",
-    x: -1.16,
+    x: ABOUT_LANDMARK_X["desk-lamp"],
     glyph: "desk-lamp",
-    profile: { width: 0.28, height: 0.63 },
+    profile: {
+      width: ABOUT_BOOT_MODEL_SILHOUETTES["desk-lamp"].profile[0],
+      height: ABOUT_BOOT_MODEL_SILHOUETTES["desk-lamp"].profile[1],
+    },
     colorProfile: { light: "#c2a377", dark: "#94795a" },
-    sceneScale: 1.5,
+    sceneScale: ABOUT_MODEL_POSES["desk-lamp"].scale,
   },
   {
     id: "ai-collective",
     shelf: "lower",
-    x: -0.82,
+    x: ABOUT_LANDMARK_X["ai-collective"],
     glyph: "collective-mark",
     profile: {
       width:
-        ABOUT_AIC_BASE_WIDTH *
+        Math.max(
+          aboutProjectedBoxWidth(
+            ABOUT_AIC_BASE_WIDTH,
+            ABOUT_AIC_BASE_DEPTH,
+            ABOUT_AIC_ROOT_YAW,
+          ),
+          aboutProjectedBoxWidth(
+            ABOUT_AIC_MARK_WIDTH,
+            ABOUT_AIC_MARK_DEPTH,
+            ABOUT_AIC_ROOT_YAW + ABOUT_AIC_MARK_YAW,
+          ),
+        ) *
         1.32 *
         ABOUT_AWARD_SIZE_INCREASE *
         ABOUT_AIC_ORB_SIZE_INCREASE,
@@ -175,7 +232,7 @@ export const ABOUT_BOOT_COMPOSITION = [
   {
     id: "coordination-globe",
     shelf: "lower",
-    x: -0.429,
+    x: ABOUT_LANDMARK_X["coordination-globe"],
     glyph: "coordination-globe",
     profile: {
       width:
@@ -194,11 +251,11 @@ export const ABOUT_BOOT_COMPOSITION = [
   {
     id: "tj-medallion",
     shelf: "lower",
-    x: -0.107,
+    x: ABOUT_LANDMARK_X["tj-medallion"],
     glyph: "medallion",
     profile: {
-      width: 0.3 * 0.66 * ABOUT_AWARD_SIZE_INCREASE,
-      height: 0.352 * 0.66 * ABOUT_AWARD_SIZE_INCREASE,
+      width: ABOUT_BOOT_MODEL_SILHOUETTES["tj-medallion"].profile[0],
+      height: ABOUT_BOOT_MODEL_SILHOUETTES["tj-medallion"].profile[1],
     },
     colorProfile: { light: "#b9ad98", dark: "#7d7468" },
     // 0.66 * ABOUT_AWARD_SIZE_INCREASE, held in the geometry specification the
@@ -208,10 +265,24 @@ export const ABOUT_BOOT_COMPOSITION = [
   {
     id: "apple",
     shelf: "lower",
-    x: 0.134,
+    x: ABOUT_LANDMARK_X.apple,
     glyph: "apple",
     profile: {
-      width: ABOUT_APPLE_BASE_WIDTH * 1.32 * ABOUT_AWARD_SIZE_INCREASE,
+      width:
+        Math.max(
+          aboutProjectedBoxWidth(
+            ABOUT_APPLE_BASE_WIDTH,
+            ABOUT_APPLE_BASE_DEPTH,
+            ABOUT_APPLE_ROOT_YAW + ABOUT_APPLE_MARK_YAW,
+          ),
+          aboutProjectedBoxWidth(
+            ABOUT_APPLE_MARK_WIDTH,
+            ABOUT_APPLE_MARK_DEPTH,
+            ABOUT_APPLE_ROOT_YAW + ABOUT_APPLE_MARK_YAW,
+          ),
+        ) *
+        1.32 *
+        ABOUT_AWARD_SIZE_INCREASE,
       height: 0.176 * 1.32 * ABOUT_AWARD_SIZE_INCREASE,
     },
     colorProfile: { light: "#c2c6ca", dark: "#9ba2a7" },
@@ -221,7 +292,7 @@ export const ABOUT_BOOT_COMPOSITION = [
     // their own brand colors, so this landmark has no single colorProfile.
     id: "role-icons",
     shelf: "lower",
-    x: 0.439,
+    x: ABOUT_LANDMARK_X["role-icons"],
     glyph: "role-icons",
     profile: { width: ABOUT_ROLE_STACK_WIDTH, height: ABOUT_ROLE_STACK_HEIGHT },
   },
@@ -229,7 +300,7 @@ export const ABOUT_BOOT_COMPOSITION = [
     // Three covers at 0.18 spacing, fanned from the same right edge as before.
     id: "reading-stack",
     shelf: "lower",
-    x: 0.985,
+    x: ABOUT_LANDMARK_X["reading-stack"],
     glyph: "reading-stack",
     profile: { width: 0.66, height: 0.5 },
   },
@@ -238,6 +309,23 @@ export const ABOUT_BOOT_COMPOSITION = [
 export const ABOUT_BOOT_VISIBLE_COMPOSITION = ABOUT_BOOT_COMPOSITION.filter(
   (landmark) => !("bootVisible" in landmark) || landmark.bootVisible !== false,
 );
+
+/** SVG has no depth buffer. Preserve the live scene's top-shelf occlusion by
+ * sorting those landmarks by the same camera-depth positions WebGL uses,
+ * while keeping the authored cadence slot independent from paint order. */
+export const ABOUT_BOOT_PAINT_COMPOSITION = ABOUT_BOOT_VISIBLE_COMPOSITION.map(
+  (landmark, cadenceSlot) => ({ landmark, cadenceSlot }),
+).sort((a, b) => {
+  if (a.landmark.shelf !== b.landmark.shelf) {
+    return a.landmark.shelf === "top" ? -1 : 1;
+  }
+  if (a.landmark.shelf === "lower") {
+    return a.cadenceSlot - b.cadenceSlot;
+  }
+  const depth = (landmark: AboutBootLandmark) =>
+    ABOUT_TOP_LANDMARK_Z[landmark.id as keyof typeof ABOUT_TOP_LANDMARK_Z] ?? 0;
+  return depth(a.landmark) - depth(b.landmark);
+});
 
 export type AboutLandmarkId = (typeof ABOUT_BOOT_COMPOSITION)[number]["id"];
 

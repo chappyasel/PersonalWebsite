@@ -464,15 +464,17 @@ describe("Coordination globe presentation contract", () => {
     expect(awardGeometrySource).toContain(
       "ABOUT_APPLE_BASE_WIDTH = ABOUT_APPLE_MARK_WIDTH",
     );
-    expect(unitSource).toContain("args={[ABOUT_AIC_BASE_WIDTH, 0.024, 0.07]}");
+    expect(unitSource).toContain(
+      "args={[ABOUT_AIC_BASE_WIDTH, 0.024, ABOUT_AIC_BASE_DEPTH]}",
+    );
     expect(objectsSource).toContain(
-      "args={[ABOUT_APPLE_BASE_WIDTH, 0.021, 0.054]}",
+      "args={[ABOUT_APPLE_BASE_WIDTH, 0.021, ABOUT_APPLE_BASE_DEPTH]}",
     );
     expect(bootSource).toContain(
-      "const baseWidth = ABOUT_AIC_BASE_WIDTH * SCENE_TO_BOOT_SVG",
+      "Math.abs(Math.sin(ABOUT_AIC_ROOT_YAW)) * ABOUT_AIC_BASE_DEPTH",
     );
     expect(bootSource).toContain(
-      "const baseWidth = ABOUT_APPLE_BASE_WIDTH * SCENE_TO_BOOT_SVG",
+      "Math.abs(Math.sin(appleYaw)) * ABOUT_APPLE_BASE_DEPTH",
     );
   });
 
