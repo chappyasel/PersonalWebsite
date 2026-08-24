@@ -918,10 +918,14 @@ const UNIT_PERCHES: readonly (readonly PerchDefinition[])[] = [
       ownerId: "grab:photo:systems-working-session-v8",
     },
     {
+      // The print came back to the shelf on 2026-08-23 — on the lower plank
+      // now, standing behind the pill cases it shows — so the anchor moved
+      // down with it. Exact ownerId keeps the anchor advisory; the resolver
+      // finds the frame's real top from the prop itself.
       id: "systems:supplements-frame",
-      position: [0.361, 0.3275, 0.1311],
+      position: [0.66, -0.57, -0.15],
       normal: [0, 1, 0],
-      tangent: [0.994, 0, 0.1098],
+      tangent: [0.995, 0, -0.0998],
       ownerId: "grab:photo:systems-supplements-v8",
     },
     {
@@ -932,11 +936,15 @@ const UNIT_PERCHES: readonly (readonly PerchDefinition[])[] = [
       ownerId: "grab:photo:systems-sf-dusk-v8",
     },
     {
-      id: "systems:lake-frame",
-      position: [-0.1909, -0.5095, 0.121],
+      // The lake print left the plank on 2026-08-23 when the supplements
+      // print returned, taking its perch's owner with it; the home-office
+      // frame on the top shelf had never carried a site and inherits the
+      // fourth frame-top slot.
+      id: "systems:home-office-frame",
+      position: [0.27, 0.368, 0.09],
       normal: [0, 1, 0],
-      tangent: [0.995, 0, -0.0998],
-      ownerId: "grab:photo:systems-lake-v8",
+      tangent: [0.9872, 0, -0.1593],
+      ownerId: "grab:photo:systems-home-office-v8",
     },
     {
       id: "systems:lamp-shade",

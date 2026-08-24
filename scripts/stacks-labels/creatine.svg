@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="736" viewBox="0 0 512 736">
+  <!--
+    Creatine monohydrate pouch for the Systems shelf (scene/FrozenBag.tsx,
+    which now takes a label). Same 512 x 736 portrait as realgood.svg,
+    projected onto the standing bag's front face by scene/bagLabelUvs.ts:
+    u across the face, v up it, side columns sampling plain pouch white and
+    the bottom row sampling the band.
+
+    Owner-drawn, same in-the-know rule as the chicken bag: no logotype and no
+    photograph. What identifies this pouch across a room is the big orange
+    figure with one arm up, the two-line ingredient name in dark grey, and
+    the orange rounded strip of serving numbers along the bottom — so those
+    are drawn, and the brand's wordmark is not. "CREATINE MONOHYDRATE" is set
+    as real text because it names an ingredient rather than a brand; at the
+    ~40 px this bag subtends it reads as a two-line dark block, which is the
+    right amount of information at that size.
+  -->
+  <rect width="512" height="736" fill="#f8f6f1"/>
+  <!-- crimp along the top fold -->
+  <rect x="0" y="0" width="512" height="40" fill="#ebe8e1"/>
+  <g fill="#d6d1c6">
+    <rect x="14" y="8" width="3" height="24"/><rect x="40" y="8" width="3" height="24"/><rect x="66" y="8" width="3" height="24"/>
+    <rect x="92" y="8" width="3" height="24"/><rect x="118" y="8" width="3" height="24"/><rect x="144" y="8" width="3" height="24"/>
+    <rect x="170" y="8" width="3" height="24"/><rect x="196" y="8" width="3" height="24"/><rect x="222" y="8" width="3" height="24"/>
+    <rect x="248" y="8" width="3" height="24"/><rect x="274" y="8" width="3" height="24"/><rect x="300" y="8" width="3" height="24"/>
+    <rect x="326" y="8" width="3" height="24"/><rect x="352" y="8" width="3" height="24"/><rect x="378" y="8" width="3" height="24"/>
+    <rect x="404" y="8" width="3" height="24"/><rect x="430" y="8" width="3" height="24"/><rect x="456" y="8" width="3" height="24"/>
+    <rect x="482" y="8" width="3" height="24"/>
+  </g>
+
+  <!-- The figure: one arm raised, head clear of it, a long stride. Drawn as
+       body + separate head so the head reads as a disc at any blur. -->
+  <g fill="#f07d1a">
+    <circle cx="408" cy="222" r="42"/>
+    <path d="M352 284
+             q34 -18 66 -14
+             q30 4 44 26
+             l10 -118
+             q3 -30 26 -28
+             q22 2 20 32
+             l-14 152
+             q-4 34 -34 44
+             l-46 16
+             l30 130
+             q6 26 -16 34
+             q-22 8 -32 -18
+             l-32 -96
+             l-38 96
+             q-10 26 -32 18
+             q-22 -8 -16 -34z"/>
+  </g>
+
+  <!-- Ingredient name, two lines, in the room's ink grey. -->
+  <g fill="#4a4a4a" font-family="Arial Black, Arial, Helvetica, sans-serif" font-weight="900">
+    <text x="46" y="372" font-size="54" letter-spacing="-1">CREATINE</text>
+    <text x="46" y="428" font-size="38" letter-spacing="-1">MONOHYDRATE</text>
+  </g>
+  <text x="46" y="468" fill="#7a7a7a" font-family="Arial, Helvetica, sans-serif"
+        font-size="24" letter-spacing="1">MICRONIZED POWDER</text>
+
+  <!-- Serving strip: orange rounded bar, two dividers, three number groups. -->
+  <g transform="translate(46 596)">
+    <rect width="420" height="98" rx="49" fill="#f07d1a" stroke="#4a4a4a" stroke-width="7"/>
+    <g stroke="#4a4a4a" stroke-width="6" stroke-linecap="round">
+      <line x1="140" y1="20" x2="140" y2="78"/>
+      <line x1="280" y1="20" x2="280" y2="78"/>
+    </g>
+    <g fill="#ffffff" font-family="Arial Black, Arial, Helvetica, sans-serif" font-weight="900" text-anchor="middle">
+      <text x="70" y="58" font-size="46">5g</text>
+      <text x="210" y="58" font-size="46">1kg</text>
+      <text x="350" y="58" font-size="46">200</text>
+    </g>
+    <g fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="17" text-anchor="middle" letter-spacing="1">
+      <text x="70" y="80">PER SERVING</text>
+      <text x="210" y="80">WEIGHT</text>
+      <text x="350" y="80">SERVINGS</text>
+    </g>
+  </g>
+</svg>

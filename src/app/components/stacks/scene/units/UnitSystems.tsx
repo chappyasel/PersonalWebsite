@@ -10,6 +10,14 @@ import { ContactShade, FootPool } from "../GroundPool";
 import HeldFacing from "../HeldFacing";
 import MioBottle, { type MioFlavor } from "../MioBottle";
 import ModelProp from "../ModelProp";
+import PillBottle from "../PillBottle";
+import PillOrganizer from "../PillOrganizer";
+import {
+  PILL_BOTTLES,
+  PILL_BOTTLE_MASS_KG,
+  PILL_ORGANIZER_MASS_KG,
+  PILL_ORGANIZER_ROW,
+} from "../systemsPillLayout";
 import { EggClock, EggLamp, EggTrigger, Pendulum, Sway } from "../eggs";
 import {
   RoutineBoard,
@@ -51,10 +59,10 @@ type SystemPhotoSpec = {
 };
 
 // The supplements print (systems-supplements-v8) came off this shelf on
-// 2026-08-22: the frozen chicken bags say "daily food system" already. Its
-// slot now holds the lighthouse and home-office prints, up from the lower
-// plank so the bags could stand next to the plant down there. The file and
-// its artifact catalog entry are untouched, so it can come back any time.
+// 2026-08-22 — the frozen chicken bags said "daily food system" already —
+// and came back on 2026-08-23, to the lower plank this time, standing over
+// the two physical pill cases it shows. The lake print handed it that slot
+// and waits in the artifact catalog exactly the way this one did.
 const TOP_PHOTOS: SystemPhotoSpec[] = [
   {
     id: "systems-working-session-v8",
@@ -94,6 +102,20 @@ const TOP_PHOTOS: SystemPhotoSpec[] = [
  * fan that intersects reads as one object from any angle). */
 const BAG_SCALE = 0.63;
 const BAG_MASS_KG = 1.361;
+
+/** The 1 kg creatine pouch, wearing its own baked label on the same Kenney
+ * bag. It stands at the back of the supplement corner rather than with the
+ * frozen chicken: the three bags over on the left are the food system, this
+ * one is the first line of the supplement stack and belongs with the pill
+ * cases and the bottles. A 1 kg pouch is a little squatter than a 3 lb bag
+ * of chicken, hence the shorter scale. */
+const CREATINE_BAG = {
+  x: 0.05,
+  z: -0.27,
+  yaw: 0.22,
+  scale: 0.56,
+  massKg: 1,
+} as const;
 // Toward the back of the plank (the prints sit at z ≈ 0.13), so they stand
 // in the plank's shadow like stock on a shelf rather than out front.
 const BAG_ROW: Array<{ x: number; z: number; yaw: number }> = [
@@ -124,9 +146,11 @@ const MIO_ROW: Array<{
 ];
 
 // One print left on the lower plank, between the notebook and the lamp and
-// set well back (level with the bags) rather than at the lip. The lighthouse
-// print that stood beside it went to the Musings shelf on 2026-08-23, next to
-// the Gay Head souvenir it shows, and the Projects notebook took its place.
+// set well back rather than at the lip. The lighthouse print that stood
+// beside it went to the Musings shelf on 2026-08-23, next to the Gay Head
+// souvenir it shows, and the Projects notebook took its place. Later the
+// same day the lake print here gave way to the returning supplements print,
+// so the photo stands directly behind the pill cases it pictures.
 const NOTEBOOK_POSE = {
   base: [0.05, 0, -0.08],
   rotation: [0, -0.22, 0],
@@ -134,12 +158,15 @@ const NOTEBOOK_POSE = {
 } as const;
 const LOWER_PHOTOS: SystemPhotoSpec[] = [
   {
-    id: "systems-lake-v8",
-    src: "/images/stacks/v8/systems-lake.webp",
-    aspect: 4 / 3,
-    width: 0.38,
+    id: "systems-supplements-v8",
+    src: "/images/stacks/v8/systems-supplements.webp",
+    aspect: 1024 / 511,
+    width: 0.44,
     x: 0.58,
-    z: -0.1,
+    // Right back against the plank's rear edge. The four real-size cases in
+    // front of it are 0.45 long and need the depth: at the print's old
+    // z -0.16 the back pair stood inside the frame.
+    z: -0.345,
     yaw: 0.1,
   },
 ];
@@ -284,6 +311,23 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
                 bags in a shallow arc beside the plant. Each is its own
                 movable prop with no Door — there is nowhere honest for a bag
                 of chicken to go. */}
+            <Grabbable
+              unitIndex={index}
+              hoverKey="grab:bag:creatine"
+              base={[CREATINE_BAG.x, 0, CREATINE_BAG.z]}
+              shadeColor={palette.shadow}
+              shadeWidth={0.28}
+              shape="box"
+              massKg={CREATINE_BAG.massKg}
+            >
+              <React.Suspense fallback={null}>
+                <FrozenBag
+                  label="creatine"
+                  scale={CREATINE_BAG.scale}
+                  yaw={CREATINE_BAG.yaw}
+                />
+              </React.Suspense>
+            </Grabbable>
             {BAG_ROW.map((bag, i) => (
               <Grabbable
                 key={i}
@@ -355,6 +399,49 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
                 palette={palette}
                 textured={textured}
               />
+            ))}
+            {/* The supplements photo made physical: the print's two seven-day
+                cases stacked in front of it, and the supplement stack itself
+                as fifteen bottles packed either side of the picture. Sizes,
+                poses and the packing rule live in `systemsPillLayout`, which
+                the unit suite checks for overlaps. Grabbable like the bags
+                and with no Door, for the same reason: there is nowhere
+                honest for a pill case to go. */}
+            {PILL_ORGANIZER_ROW.map((organizer) => (
+              <Grabbable
+                key={organizer.id}
+                unitIndex={index}
+                hoverKey={`grab:pills:organizer:${organizer.id}`}
+                base={[organizer.x, organizer.y, organizer.z]}
+                shadeColor={palette.shadow}
+                shadeWidth={organizer.shade}
+                shape="box"
+                massKg={PILL_ORGANIZER_MASS_KG}
+              >
+                <PillOrganizer
+                  variant={organizer.variant}
+                  yaw={organizer.yaw}
+                />
+              </Grabbable>
+            ))}
+            {PILL_BOTTLES.map((bottle) => (
+              <Grabbable
+                key={bottle.key}
+                unitIndex={index}
+                hoverKey={`grab:pills:bottle:${bottle.key}`}
+                base={[bottle.x, bottle.y, bottle.z]}
+                shadeColor={palette.shadow}
+                shadeWidth={bottle.shade}
+                shape="box"
+                massKg={PILL_BOTTLE_MASS_KG[bottle.size]}
+              >
+                <PillBottle
+                  tone={bottle.tone}
+                  size={bottle.size}
+                  cap={bottle.cap}
+                  yaw={bottle.yaw}
+                />
+              </Grabbable>
             ))}
             <group position={[1.08, 0, -0.04]}>
               <EggLamp
