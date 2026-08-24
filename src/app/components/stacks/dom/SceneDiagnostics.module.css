@@ -15,6 +15,11 @@
 
 :global(.stacks-free-roam-hint) {
   position: fixed;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
   inset-block-start: 1rem;
   inset-inline-start: 50%;
   z-index: 60;

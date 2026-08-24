@@ -1,9 +1,9 @@
 "use client";
 
+import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
 import { browserStorage } from "../mobile/liveness";
 import { requestDevHooks } from "../scene/devHooks";
 import { freeRoamDiagnosticsController } from "../scene/freeRoamDiagnostics";
-import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
 import {
   insectDiagnosticsController,
   summarizeInsectPerchDiagnostics,
@@ -35,6 +35,8 @@ import { useStacks } from "../store";
 import { XIcon } from "@phosphor-icons/react/dist/ssr";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
+
+import { KeycapSequence } from "~/components/ui/keycap";
 
 import "./SceneDiagnostics.module.css";
 import { type DevHudInput, createDevHudRows } from "./devHudPresentation";
@@ -341,7 +343,9 @@ function LayoutEditorControls() {
           value={snapshot.selectedId ?? ""}
           disabled={!snapshot.enabled}
           onChange={(event) =>
-            sceneLayoutEditorController.select(event.currentTarget.value || null)
+            sceneLayoutEditorController.select(
+              event.currentTarget.value || null,
+            )
           }
         >
           <option value="">Select a prop</option>
@@ -358,43 +362,53 @@ function LayoutEditorControls() {
           ))}
         </select>
       </label>
-      <label className="stacks-diagnostics-control">
-        Gizmo
-        <select
-          value={snapshot.mode}
-          disabled={!snapshot.enabled || !selected}
-          onChange={(event) =>
-            sceneLayoutEditorController.setMode(
-              event.currentTarget.value === "rotate" ? "rotate" : "translate",
-            )
-          }
-        >
-          <option value="translate">Move (G)</option>
-          <option value="rotate">Rotate (R)</option>
-        </select>
-      </label>
       {selected ? (
-        <div className="stacks-layout-editor-coordinates">
-          {(["X", "Y", "Z"] as const).map((axis, index) => (
-            <label key={axis}>
-              <span>{axis}</span>
+        <>
+          <small>Position</small>
+          <div className="stacks-layout-editor-coordinates">
+            {(["X", "Y", "Z"] as const).map((axis, index) => (
+              <label key={axis}>
+                <span>{axis}</span>
+                <input
+                  type="number"
+                  min={-10}
+                  max={10}
+                  step={0.01}
+                  value={selected.preview[index]!.toFixed(3)}
+                  onChange={(event) => {
+                    const value = Number(event.currentTarget.value);
+                    if (!Number.isFinite(value)) return;
+                    const next = [...selected.preview] as [
+                      number,
+                      number,
+                      number,
+                    ];
+                    next[index] = value;
+                    sceneLayoutEditorController.update(selected.id, next);
+                  }}
+                />
+              </label>
+            ))}
+          </div>
+          <small>Uniform scale</small>
+          <div className="stacks-layout-editor-coordinates">
+            <label>
+              <span>All</span>
               <input
                 type="number"
-                min={-10}
+                min={0.05}
                 max={10}
                 step={0.01}
-                value={selected.preview[index]!.toFixed(3)}
+                value={selected.previewScale.toFixed(3)}
                 onChange={(event) => {
                   const value = Number(event.currentTarget.value);
                   if (!Number.isFinite(value)) return;
-                  const next = [...selected.preview] as [number, number, number];
-                  next[index] = value;
-                  sceneLayoutEditorController.update(selected.id, next);
+                  sceneLayoutEditorController.updateScale(selected.id, value);
                 }}
               />
             </label>
-          ))}
-        </div>
+          </div>
+        </>
       ) : null}
       <div className="stacks-diagnostics-actions">
         <button
@@ -422,7 +436,7 @@ function LayoutEditorControls() {
           ? "Copied layout JSON."
           : copyStatus === "error"
             ? "Clipboard unavailable. Read window.__stacks.layout() instead."
-            : `${changed} edited · G move · R rotate · ⌘Z undo · ⌘⇧Z redo`}
+            : `${changed} edited · Move, rotate, and scale with one gizmo · ⌘Z undo · ⌘⇧Z redo`}
       </p>
     </fieldset>
   );
@@ -689,8 +703,8 @@ function PerformanceTraceControls({
         </strong>
       </summary>
       <p>
-        Start closes this console. Pause, pan across a few shelves, then press
-        ` to stop and review; attach the JSON for analysis.
+        Start closes this console. Pause, pan across a few shelves, then press `
+        to stop and review; attach the JSON for analysis.
       </p>
       <div className="stacks-diagnostics-actions">
         <button type="button" disabled={status.active} onClick={onStartCapture}>
@@ -1229,13 +1243,13 @@ export default function SceneDiagnostics({
             snapshot={diagnosticSnapshot}
           >
             <p className="stacks-diagnostics-note">
-              Free roam never captures the mouse. Hold the right button and
-              drag to look. WASD moves along the room&apos;s axes whichever way
-              you face, Q/E moves down/up, and hold Shift for one-third speed.
-              F resumes or exits free roam, Shift+F starts from the current
-              view, and ` opens debug. Left click selects an editable prop: G
-              moves, R rotates, ⌘Z undoes; drag the gizmo or use arrows for
-              X/Z and Page Up/Down for height.
+              Free roam never captures the mouse. Hold the right button and drag
+              to look. WASD moves along the room&apos;s axes whichever way you
+              face, Q/E moves down/up, and hold Shift for one-third speed. F
+              resumes or exits free roam, Shift+F starts from the current view,
+              and ` opens debug. Left click selects an editable prop. The same
+              gizmo moves, rotates, and scales it; ⌘Z undoes. Arrows move on
+              X/Z; use Page Up/Down for height.
             </p>
           </DiagnosticRegistrySection>
 
@@ -1715,8 +1729,26 @@ export default function SceneDiagnostics({
     <>
       {freeRoamSnapshot.enabled ? (
         <div className="stacks-free-roam-hint" role="status">
-          Free roam · left-drag prop · right-drag look · arrows X/Z · PgUp/PgDn
-          Y · WASD camera · Q/E camera Y · F exit
+          <span>Free roam</span>
+          <span aria-hidden="true">·</span>
+          <span>select prop to move, rotate, or scale</span>
+          <span aria-hidden="true">·</span>
+          <span>right-drag to look</span>
+          <span aria-hidden="true">·</span>
+          <KeycapSequence keys={["←", "→", "↑", "↓"]} label="Arrow keys" />
+          <span>move X/Z</span>
+          <span aria-hidden="true">·</span>
+          <KeycapSequence keys={["⇞", "⇟"]} label="Page Up or Page Down" />
+          <span>move Y</span>
+          <span aria-hidden="true">·</span>
+          <KeycapSequence keys={["W", "A", "S", "D"]} label="W A S D" />
+          <span>camera</span>
+          <span aria-hidden="true">·</span>
+          <KeycapSequence keys={["Q", "E"]} label="Q or E" />
+          <span>camera Y</span>
+          <span aria-hidden="true">·</span>
+          <KeycapSequence keys={["F"]} label="F" />
+          <span>exit</span>
         </div>
       ) : null}
       <div className="stacks-debug-launchers pointer-events-auto">

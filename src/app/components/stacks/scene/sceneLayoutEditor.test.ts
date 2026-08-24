@@ -5,6 +5,10 @@ import {
   sceneLayoutEditorController as editor,
   sceneLayoutNudgeForKeyboard,
 } from "./sceneLayoutEditor";
+import {
+  connectFreeRoamEntryObserver,
+  createFreeRoamDiagnosticsController,
+} from "./freeRoamDiagnostics";
 
 afterEach(() => editor.resetForTests());
 
@@ -21,6 +25,7 @@ function register(
     unitIndex: 0,
     authored,
     authoredRotation: [0, 0, 0],
+    authoredScale: [1, 1, 1],
     root,
     cancelInteraction,
   });
@@ -48,14 +53,21 @@ describe("scene layout editor", () => {
         authoredRotation: [0, 0, 0],
         previewRotation: [0, 0, 0],
         rotationDelta: [0, 0, 0],
+        authoredScale: [1, 1, 1],
+        previewScale: 1,
+        scaleRatio: 1,
       },
     ]);
     expect(second.root.position.toArray()).toEqual([0.1235, 0, 0.35]);
 
     editor.setEnabled(false);
-    expect(editor.export()).toEqual([]);
+    expect(editor.export()).toHaveLength(1);
+    expect(editor.positionFor("b")).toBeNull();
     expect(editor.getSnapshot().selectedId).toBeNull();
     expect(second.root.position.toArray()).toEqual([0.1, 0, 0.2]);
+
+    editor.setEnabled(true);
+    expect(second.root.position.toArray()).toEqual([0.1235, 0, 0.35]);
   });
 
   it("retains an unavailable edited record until reset", () => {
@@ -119,6 +131,42 @@ describe("scene layout editor", () => {
     expect(target.root.position.toArray()).toEqual([0.1, 0, 0.2]);
     expect(editor.redo()).toBe(true);
     expect(target.root.position.toArray()).toEqual([0.2, 0, 0.3]);
+  });
+
+  it("scales a prop, exports the scale ratio, and restores its authored scale", () => {
+    const target = register("photo");
+    editor.setEnabled(true);
+    editor.select("photo");
+
+    expect(editor.updateScale("photo", 1.25)).toBe(true);
+    expect(target.root.scale.toArray()).toEqual([1.25, 1.25, 1.25]);
+    expect(editor.export()[0]).toMatchObject({
+      authoredScale: [1, 1, 1],
+      previewScale: 1.25,
+      scaleRatio: 1.25,
+    });
+
+    editor.setEnabled(false);
+    expect(target.root.scale.toArray()).toEqual([1, 1, 1]);
+  });
+
+  it("releases edited props back to physics when free roam exits", () => {
+    const target = register("photo");
+    const freeRoam = createFreeRoamDiagnosticsController();
+    connectFreeRoamEntryObserver({
+      controller: freeRoam,
+      onEnabled: () => editor.setEnabled(true),
+      onDisabled: () => editor.setEnabled(false),
+    });
+
+    freeRoam.setEnabled(true);
+    editor.select("photo");
+    editor.update("photo", [0.2, 0, 0]);
+    expect(editor.positionFor("photo")).toEqual([0.2, 0, 0]);
+
+    freeRoam.setEnabled(false);
+    expect(editor.positionFor("photo")).toBeNull();
+    expect(target.root.position.toArray()).toEqual([0, 0, 0]);
   });
 
   it("coalesces a gizmo drag into one undo step", () => {

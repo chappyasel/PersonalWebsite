@@ -16,6 +16,9 @@ const record = {
   authoredRotation: [0, 0, 0] as const,
   previewRotation: [0, 0.2, 0] as const,
   rotationDelta: [0, 0.2, 0] as const,
+  authoredScale: [1, 1, 1] as const,
+  previewScale: 1.25,
+  scaleRatio: 1.25,
 };
 
 describe("scene layout draft", () => {
@@ -36,7 +39,7 @@ describe("scene layout draft", () => {
     expect(
       isSceneLayoutDraft({
         ...draft,
-        records: Array.from({ length: 33 }, () => record),
+        records: Array.from({ length: 257 }, () => record),
       }),
     ).toBe(false);
     expect(

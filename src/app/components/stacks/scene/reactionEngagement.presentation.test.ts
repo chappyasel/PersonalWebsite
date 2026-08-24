@@ -41,6 +41,12 @@ describe("Touch Focus reaction wiring", () => {
     expect(grabbable).toContain("const targetScale = pressed ? 0.965");
   });
 
+  it("suppresses ModelProp's local hover channel with the shared free-roam gate", () => {
+    expect(source("ModelProp.tsx")).toContain(
+      "hovered.current && !propReactionsSuppressed()",
+    );
+  });
+
   it.each([
     ["globe spin", "eggs.tsx", "export function SpinProp"],
     ["basketball roll", "eggs.tsx", "export function RollProp"],

@@ -640,8 +640,8 @@ export default function Grabbable({
   unitIndex: number;
   /** Unique across the scene; owns the store's single hover slot. */
   hoverKey: string;
-  /** Development-only label that makes this carrier available to the live
-   * layout editor. Omit for ordinary visitor-movable props. */
+  /** Optional friendly name for the development layout editor. Every
+   * Grabbable registers automatically; the hover key is humanized otherwise. */
   layoutLabel?: string;
   /** The authored pose the prop always returns to. */
   base: [number, number, number];
@@ -1607,15 +1607,16 @@ export default function Grabbable({
   ]);
 
   useEffect(() => {
-    if (process.env.NODE_ENV !== "development" || !layoutLabel) return;
+    if (process.env.NODE_ENV !== "development") return;
     const root = group.current;
     if (!root) return;
     return sceneLayoutEditorController.register({
       id: hoverKey,
-      label: layoutLabel,
+      label: layoutLabel ?? defaultLayoutEditorLabel(hoverKey, unitIndex),
       unitIndex,
       authored: [layoutBaseX, layoutBaseY, layoutBaseZ],
       authoredRotation: [0, 0, 0],
+      authoredScale: [1, 1, 1],
       root,
       cancelInteraction: () => {
         onGrabCancel();
@@ -1673,11 +1674,17 @@ export default function Grabbable({
     const delta = Math.min(rawDelta, 1 / 30);
     const entry = handle.current;
     if (entry) entry.base.set(base[0], base[1], base[2]);
-    const layoutPosition = layoutLabel
+    const layoutPosition =
+      process.env.NODE_ENV === "development"
       ? sceneLayoutEditorController.positionFor(hoverKey)
       : null;
-    const layoutRotation = layoutLabel
+    const layoutRotation =
+      process.env.NODE_ENV === "development"
       ? sceneLayoutEditorController.rotationFor(hoverKey)
+      : null;
+    const layoutScale =
+      process.env.NODE_ENV === "development"
+      ? sceneLayoutEditorController.scaleFor(hoverKey)
       : null;
     if (layoutPosition) {
       if (entry?.world) entry.world.drop(entry);
@@ -1692,6 +1699,7 @@ export default function Grabbable({
         layoutRotation?.[1] ?? 0,
         layoutRotation?.[2] ?? 0,
       );
+      g.scale.setScalar(layoutScale ?? 1);
       const n = nod.current;
       if (n) {
         n.position.set(0, 0, 0);
@@ -2568,6 +2576,15 @@ export default function Grabbable({
       </group>
     </>
   );
+}
+
+function defaultLayoutEditorLabel(hoverKey: string, unitIndex: number) {
+  const words = hoverKey
+    .replace(/^grab:/, "")
+    .split(/[:/_-]+/)
+    .filter(Boolean)
+    .join(" ");
+  return `Unit ${unitIndex + 1} · ${words || hoverKey}`;
 }
 
 /** Twin of the helper in Lift/ModelProp (not exported there). */

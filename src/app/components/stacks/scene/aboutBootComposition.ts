@@ -285,7 +285,7 @@ export const ABOUT_BOOT_COMPOSITION = [
         ABOUT_AWARD_SIZE_INCREASE,
       height: 0.176 * 1.32 * ABOUT_AWARD_SIZE_INCREASE,
     },
-    colorProfile: { light: "#c2c6ca", dark: "#9ba2a7" },
+    colorProfile: { light: "#545a60", dark: "#3b4045" },
   },
   {
     // Four Role Icons, two by two, beside the Apple mark. The tiles carry

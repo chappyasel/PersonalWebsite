@@ -326,6 +326,22 @@ describe("the free-roam entry observer", () => {
     expect(entries).toHaveLength(2);
   });
 
+  it("announces exit once so free-roam dependents can resume", () => {
+    const controller = createFreeRoamDiagnosticsController();
+    const exits: number[] = [];
+
+    connectFreeRoamEntryObserver({
+      controller,
+      onEnabled: () => undefined,
+      onDisabled: () => exits.push(1),
+    });
+    controller.setEnabled(true);
+    controller.setFogEnabled(true);
+    controller.setEnabled(false);
+
+    expect(exits).toHaveLength(1);
+  });
+
   it("counts an already-enabled controller as the first entry", () => {
     const controller = createFreeRoamDiagnosticsController();
     const entries: number[] = [];

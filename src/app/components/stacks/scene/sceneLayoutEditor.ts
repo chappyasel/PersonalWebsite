@@ -10,7 +10,6 @@ import {
 export { SCENE_LAYOUT_EDITOR_SENTINEL } from "./sceneLayoutDraft";
 
 export type SceneLayoutPosition = readonly [number, number, number];
-export type SceneLayoutMode = "translate" | "rotate";
 
 type SceneLayoutTarget = Readonly<{
   id: string;
@@ -18,6 +17,7 @@ type SceneLayoutTarget = Readonly<{
   unitIndex: number;
   authored: SceneLayoutPosition;
   authoredRotation: SceneLayoutPosition;
+  authoredScale: SceneLayoutPosition;
   root: Object3D;
   cancelInteraction: () => void;
 }>;
@@ -30,6 +30,8 @@ type SceneLayoutRecord = Readonly<{
   preview: SceneLayoutPosition;
   authoredRotation: SceneLayoutPosition;
   previewRotation: SceneLayoutPosition;
+  authoredScale: SceneLayoutPosition;
+  previewScale: number;
   available: boolean;
   changed: boolean;
 }>;
@@ -38,7 +40,6 @@ export type SceneLayoutSnapshot = Readonly<{
   enabled: boolean;
   selectedId: string | null;
   gestureActive: boolean;
-  mode: SceneLayoutMode;
   canUndo: boolean;
   canRedo: boolean;
   records: readonly SceneLayoutRecord[];
@@ -68,6 +69,8 @@ type MutableRecord = {
   preview: SceneLayoutPosition | null;
   authoredRotation: SceneLayoutPosition;
   previewRotation: SceneLayoutPosition | null;
+  authoredScale: SceneLayoutPosition;
+  previewScale: number | null;
   root: Object3D | null;
   cancelInteraction: (() => void) | null;
 };
@@ -77,12 +80,12 @@ const listeners = new Set<() => void>();
 let enabled = false;
 let selectedId: string | null = null;
 let gestureActive = false;
-let mode: SceneLayoutMode = "translate";
 let draftWriteEligible = false;
 
 type HistoryValue = Readonly<{
   preview: SceneLayoutPosition | null;
   previewRotation: SceneLayoutPosition | null;
+  previewScale: number | null;
 }>;
 type HistoryState = Map<string, HistoryValue>;
 
@@ -115,6 +118,7 @@ const captureHistory = (): HistoryState =>
         previewRotation: record.previewRotation
           ? tuple(record.previewRotation)
           : null,
+        previewScale: record.previewScale,
       },
     ]),
   );
@@ -125,7 +129,8 @@ const historyMatchesCurrent = (state: HistoryState) =>
     return (
       value !== undefined &&
       sameOptionalPosition(value.preview, record.preview) &&
-      sameOptionalPosition(value.previewRotation, record.previewRotation)
+      sameOptionalPosition(value.previewRotation, record.previewRotation) &&
+      value.previewScale === record.previewScale
     );
   });
 
@@ -134,6 +139,25 @@ const applyRootTransform = (record: MutableRecord) => {
   record.root.position.fromArray(record.preview ?? record.authored);
   const rotation = record.previewRotation ?? record.authoredRotation;
   record.root.rotation.set(rotation[0], rotation[1], rotation[2]);
+  const scale = record.previewScale ?? 1;
+  record.root.scale.set(
+    record.authoredScale[0] * scale,
+    record.authoredScale[1] * scale,
+    record.authoredScale[2] * scale,
+  );
+  record.root.updateMatrix();
+};
+
+const applyAuthoredRootTransform = (record: MutableRecord) => {
+  if (!record.root) return;
+  record.root.position.fromArray(record.authored);
+  record.root.rotation.set(
+    record.authoredRotation[0],
+    record.authoredRotation[1],
+    record.authoredRotation[2],
+  );
+  record.root.scale.fromArray(record.authoredScale);
+  record.root.updateMatrix();
 };
 
 const applyHistory = (state: HistoryState) => {
@@ -142,6 +166,7 @@ const applyHistory = (state: HistoryState) => {
     if (!value) continue;
     record.preview = value.preview;
     record.previewRotation = value.previewRotation;
+    record.previewScale = value.previewScale;
     applyRootTransform(record);
   }
 };
@@ -155,6 +180,7 @@ const commitHistory = (before: HistoryState) => {
 const publicRecord = (record: MutableRecord): SceneLayoutRecord => {
   const preview = record.preview ?? record.authored;
   const previewRotation = record.previewRotation ?? record.authoredRotation;
+  const previewScale = record.previewScale ?? 1;
   return Object.freeze({
     id: record.id,
     label: record.label,
@@ -163,10 +189,13 @@ const publicRecord = (record: MutableRecord): SceneLayoutRecord => {
     preview,
     authoredRotation: record.authoredRotation,
     previewRotation,
+    authoredScale: record.authoredScale,
+    previewScale,
     available: record.root !== null,
     changed:
       !samePosition(record.authored, preview) ||
-      !samePosition(record.authoredRotation, previewRotation),
+      !samePosition(record.authoredRotation, previewRotation) ||
+      previewScale !== 1,
   });
 };
 
@@ -175,7 +204,6 @@ const snapshot = (): SceneLayoutSnapshot =>
     enabled,
     selectedId,
     gestureActive,
-    mode,
     canUndo: undoStates.length > 0,
     canRedo: redoStates.length > 0,
     records: Object.freeze(
@@ -230,6 +258,8 @@ export const sceneLayoutEditorController = {
       preview: existing?.preview ?? null,
       authoredRotation: tuple(target.authoredRotation),
       previewRotation: existing?.previewRotation ?? null,
+      authoredScale: tuple(target.authoredScale),
+      previewScale: existing?.previewScale ?? null,
       root: target.root,
       cancelInteraction: target.cancelInteraction,
     });
@@ -248,20 +278,17 @@ export const sceneLayoutEditorController = {
   setEnabled(next: boolean) {
     if (enabled === next) return;
     if (!next) {
-      for (const record of records.values()) {
-        record.preview = null;
-        record.previewRotation = null;
-        applyRootTransform(record);
-      }
+      for (const record of records.values()) applyAuthoredRootTransform(record);
       selectedId = null;
       gestureActive = false;
       gestureBaseline = null;
-      mode = "translate";
       undoStates.length = 0;
       redoStates.length = 0;
       restoreScrollInput();
     }
     enabled = next;
+    if (next)
+      for (const record of records.values()) applyRootTransform(record);
     publish();
   },
 
@@ -292,13 +319,6 @@ export const sceneLayoutEditorController = {
       gestureBaseline = null;
     }
     publish();
-  },
-
-  setMode(next: SceneLayoutMode) {
-    if (!enabled || mode === next) return false;
-    mode = next;
-    publish();
-    return true;
   },
 
   update(id: string, value: SceneLayoutPosition) {
@@ -337,6 +357,56 @@ export const sceneLayoutEditorController = {
     return true;
   },
 
+  updateScale(id: string, value: number) {
+    const record = records.get(id);
+    if (!enabled || !record) return false;
+    if (!Number.isFinite(value)) return false;
+    const before = gestureActive ? null : captureHistory();
+    const next = normalized(Math.max(0.05, Math.min(10, value)));
+    record.previewScale = next === 1 ? null : next;
+    draftWriteEligible = true;
+    applyRootTransform(record);
+    if (before) commitHistory(before);
+    publish();
+    return true;
+  },
+
+  updateTransform(
+    id: string,
+    value: Readonly<{
+      position: SceneLayoutPosition;
+      rotation: SceneLayoutPosition;
+    }>,
+  ) {
+    const record = records.get(id);
+    if (!enabled || !record) return false;
+    const components = [...value.position, ...value.rotation];
+    if (!components.every((component) => Number.isFinite(component)))
+      return false;
+    const before = gestureActive ? null : captureHistory();
+    const clampPosition = (component: number) =>
+      normalized(Math.max(-10, Math.min(10, component)));
+    const position = tuple([
+      clampPosition(value.position[0]),
+      clampPosition(value.position[1]),
+      clampPosition(value.position[2]),
+    ]);
+    const rotation = tuple([
+      normalized(value.rotation[0]),
+      normalized(value.rotation[1]),
+      normalized(value.rotation[2]),
+    ]);
+    record.preview = samePosition(record.authored, position) ? null : position;
+    record.previewRotation = samePosition(record.authoredRotation, rotation)
+      ? null
+      : rotation;
+    draftWriteEligible = true;
+    applyRootTransform(record);
+    if (before) commitHistory(before);
+    publish();
+    return true;
+  },
+
   nudgeSelected(delta: SceneLayoutPosition) {
     if (!selectedId) return false;
     const record = records.get(selectedId);
@@ -355,6 +425,7 @@ export const sceneLayoutEditorController = {
     const before = captureHistory();
     record.preview = null;
     record.previewRotation = null;
+    record.previewScale = null;
     draftWriteEligible = true;
     applyRootTransform(record);
     commitHistory(before);
@@ -367,6 +438,7 @@ export const sceneLayoutEditorController = {
     for (const record of records.values()) {
       record.preview = null;
       record.previewRotation = null;
+      record.previewScale = null;
       applyRootTransform(record);
     }
     draftWriteEligible = true;
@@ -404,7 +476,8 @@ export const sceneLayoutEditorController = {
     return (
       selectedId === id ||
       record?.preview !== null ||
-      record?.previewRotation !== null
+      record?.previewRotation !== null ||
+      record?.previewScale !== null
     );
   },
 
@@ -424,6 +497,12 @@ export const sceneLayoutEditorController = {
     return record.previewRotation ?? record.authoredRotation;
   },
 
+  scaleFor(id: string): number | null {
+    const record = records.get(id);
+    if (!record || !this.owns(id)) return null;
+    return record.previewScale ?? 1;
+  },
+
   selectedRoot() {
     return selectedId ? (records.get(selectedId)?.root ?? null) : null;
   },
@@ -431,13 +510,17 @@ export const sceneLayoutEditorController = {
   export(): SceneLayoutExportRecord[] {
     return [...records.values()]
       .filter(
-        (record) => record.preview !== null || record.previewRotation !== null,
+        (record) =>
+          record.preview !== null ||
+          record.previewRotation !== null ||
+          record.previewScale !== null,
       )
       .sort((a, b) => a.id.localeCompare(b.id))
       .map((record) => {
         const preview = record.preview ?? record.authored;
         const previewRotation =
           record.previewRotation ?? record.authoredRotation;
+        const previewScale = record.previewScale ?? 1;
         return {
           id: record.id,
           unitIndex: record.unitIndex,
@@ -456,6 +539,9 @@ export const sceneLayoutEditorController = {
             normalized(previewRotation[1] - record.authoredRotation[1]),
             normalized(previewRotation[2] - record.authoredRotation[2]),
           ]),
+          authoredScale: tuple(record.authoredScale),
+          previewScale,
+          scaleRatio: previewScale,
         };
       });
   },
@@ -466,7 +552,6 @@ export const sceneLayoutEditorController = {
     selectedId = null;
     gestureActive = false;
     gestureBaseline = null;
-    mode = "translate";
     draftWriteEligible = false;
     undoStates.length = 0;
     redoStates.length = 0;

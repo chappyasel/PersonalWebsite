@@ -59,6 +59,7 @@ import {
   bandMotionFor,
   recordArchetype,
 } from "./reactionArchetype";
+import { propReactionsSuppressed } from "./reactionEngagement";
 import { useSceneQualityControls } from "./sceneQualityController";
 
 /** Name of the node `spinPart` isolates. Animators find it by traversing the
@@ -821,7 +822,8 @@ function HoverFloor({
     // Reduced motion does not silence a prop, it moves it to the channel that
     // does not displace anything. That is glow, so glow is the one band that
     // still answers. See `reducedMotionArchetype`.
-    const on = hovered.current && (!still || glow);
+    const on =
+      hovered.current && !propReactionsSuppressed() && (!still || glow);
     // Measured lazily, and only once the pointer is actually on the prop — by
     // then the GLB has certainly streamed in, and a prop nobody touches never
     // pays for a bbox walk at all. Glow never tips, so it never measures.

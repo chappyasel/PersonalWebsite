@@ -494,8 +494,20 @@ WASD moves along the room's axes whichever way the camera faces, so a key
 means the same direction as the gizmo's arrows and the keyboard nudges. The
 policy lives in `scene/freeRoamMotion.ts`; `CameraRig` only wires it.
 
+Entering free roam hides the DOM interface and suppresses prop hover reactions
+so selection and transform work stay visually stable. Escape or H reveals the
+interface without leaving free roam. Every `Grabbable` registers with the
+editor automatically across all seven Units; shelves, walls, terrain, and
+other structural geometry do not.
+
 Layout changes made with the development editor are automatically written to
 `.next/stacks-layout-draft.json`. When Chappy asks to persist the layout, read
-that draft and apply each changed record's `preview` and `previewRotation` to
-the authored scene props. The draft is a handoff artifact only. It must never
-restore debug overrides when the page reloads.
+that draft and apply each changed record's `preview`, `previewRotation`, and
+`scaleRatio` to the authored scene props. Translation arrows and rotation rings
+stay visible together at 60% opacity. One neutral handle applies uniform scale
+to the whole prop. The draft is a handoff artifact only. It must never restore
+debug overrides when the page reloads.
+
+Leaving free roam disables the layout editor. That releases editor-owned props
+back to their authored transforms and normal physics; the autosaved draft keeps
+the proposed layout changes for later source edits.

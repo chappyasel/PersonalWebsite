@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { chromeKeyIntent, shortcutGroups } from "./chromeKeys";
+import {
+  chromeKeyIntent,
+  createFreeRoamChromeVisibility,
+  shortcutGroups,
+} from "./chromeKeys";
 
 const base = {
   key: "h",
@@ -47,10 +51,38 @@ describe("chrome keyboard", () => {
     const visitor = shortcutGroups(false);
     expect(visitor).toHaveLength(1);
     const keys = visitor[0]!.rows.flatMap((row) => row.keys);
-    expect(keys).toEqual(expect.arrayContaining(["\\", "H", "?", "Esc", "←"]));
+    expect(keys).toEqual(
+      expect.arrayContaining(["\\", "H", "M", "?", "Esc", "←"]),
+    );
     expect(shortcutGroups(true).map((group) => group.title)).toEqual([
       "Keyboard",
       "Owner",
     ]);
+  });
+
+  it("hides chrome on free-roam entry and restores only its own hide", () => {
+    let hidden = false;
+    const visibility = createFreeRoamChromeVisibility({
+      isHidden: () => hidden,
+      setHidden: (next) => {
+        hidden = next;
+      },
+    });
+
+    visibility.enter();
+    expect(hidden).toBe(true);
+    visibility.exit();
+    expect(hidden).toBe(false);
+
+    hidden = true;
+    visibility.enter();
+    visibility.exit();
+    expect(hidden).toBe(true);
+
+    hidden = false;
+    visibility.enter();
+    hidden = false;
+    visibility.exit();
+    expect(hidden).toBe(false);
   });
 });

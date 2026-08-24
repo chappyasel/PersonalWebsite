@@ -81,6 +81,14 @@ describe("free-roam wiring", () => {
     expect(chromeLayer).toMatch(
       /onEnabled: \(\) => \{[\s\S]*?sceneLayoutEditorController\.setEnabled\(true\)/,
     );
+    expect(chromeLayer).toContain(
+      "freeRoamChromeVisibility.enter()",
+    );
+    expect(chromeLayer).toContain(
+      "freeRoamChromeVisibility.exit()",
+    );
+    expect(chromeLayer).toContain("setPropReactionsSuppressed(true)");
+    expect(chromeLayer).toContain("setPropReactionsSuppressed(false)");
     expect(chromeLayer).not.toContain("localStorage");
   });
 

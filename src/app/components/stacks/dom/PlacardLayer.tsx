@@ -74,6 +74,8 @@ import type {
 } from "~/lib/books/types";
 import { devSubdomainUrl } from "~/lib/util";
 
+import { Keycap } from "~/components/ui/keycap";
+
 import {
   PlacardCardHeading,
   PlacardLinkCard,
@@ -3133,11 +3135,11 @@ export default function PlacardLayer({
           role="tooltip"
           className="stacks-glass-tooltip pointer-events-none absolute right-full top-1/2 -mr-1.5 -translate-y-1/2 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium tracking-[0.01em] text-stone-900 opacity-0 transition-[opacity,transform] duration-200 group-focus-within:opacity-100 group-hover:opacity-100 motion-reduce:transition-none dark:text-white"
         >
-          <span className="relative block h-4 w-[6.1rem] overflow-hidden whitespace-nowrap text-center leading-4">
+          <span className="relative block h-5 w-[6.8rem] overflow-hidden whitespace-nowrap text-center leading-5">
             <AnimatePresence initial={false} mode="popLayout">
               <motion.span
                 key={detailsHidden ? "show" : "hide"}
-                className="absolute inset-0"
+                className="absolute inset-0 flex items-center justify-center gap-1.5"
                 initial={{ opacity: 0, y: detailsHidden ? 5 : -5 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: detailsHidden ? -5 : 5 }}
@@ -3146,7 +3148,8 @@ export default function PlacardLayer({
                   ease: [0.16, 1, 0.3, 1],
                 }}
               >
-                {detailsHidden ? "Show details (\\)" : "Hide details (\\)"}
+                <span>{detailsHidden ? "Show details" : "Hide details"}</span>
+                <Keycap aria-hidden="true">{"\\"}</Keycap>
               </motion.span>
             </AnimatePresence>
           </span>

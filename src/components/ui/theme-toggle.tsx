@@ -18,6 +18,7 @@ import {
 } from "~/lib/theme";
 import { cn } from "~/lib/utils";
 
+import { KeycapSequence } from "~/components/ui/keycap";
 import {
   Popover,
   PopoverAnchor,
@@ -124,10 +125,14 @@ export function ThemeToggle({ className }: { className?: string }) {
           </PopoverAnchor>
           <TooltipContent>
             <p className="text-center">
-              <span className="block">
-                Switch to {THEME_LABEL[nextVisibleTheme]} (⌘⌥L)
+              <span className="flex items-center justify-center gap-1.5">
+                <span>Switch to {THEME_LABEL[nextVisibleTheme]}</span>
+                <KeycapSequence
+                  keys={["⌘", "⌥", "L"]}
+                  label="Command Option L"
+                />
               </span>
-              <span className="block">Hold for options</span>
+              <span className="mt-1.5 block">Hold for options</span>
             </p>
           </TooltipContent>
         </Tooltip>

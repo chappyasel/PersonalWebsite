@@ -38,6 +38,9 @@ describe("scene layout editor presentation", () => {
     expect(grabbableSource).toContain(
       "sceneLayoutEditorController.rotationFor(hoverKey)",
     );
+    expect(grabbableSource).toContain(
+      "sceneLayoutEditorController.scaleFor(hoverKey)",
+    );
     expect(grabbableSource).toContain("g.position.fromArray(layoutPosition)");
     expect(grabbableSource).toContain(
       "s.position.set(g.position.x, base[1] + 0.02, g.position.z + 0.02)",
@@ -58,13 +61,45 @@ describe("scene layout editor presentation", () => {
     expect(diagnosticsSource).toContain("Enable layout editing");
     expect(diagnosticsSource).toContain("Copy layout snapshot");
     expect(diagnosticsSource).toContain("Page Up/Down for height");
-    expect(diagnosticsSource).toContain("Rotate (R)");
+    expect(diagnosticsSource).toContain("Move, rotate, and scale");
+    expect(diagnosticsSource).toContain("Uniform scale");
     expect(diagnosticsSource).toContain("⌘Z undo");
-    expect(gizmoSource).toContain("mode={snapshot.mode}");
+    expect(gizmoSource).toContain("<PivotControls");
+    expect(gizmoSource.match(/<PivotControls/g)).toHaveLength(2);
+    expect(gizmoSource).toContain("const GIZMO_SIZE = 108");
+    expect(gizmoSource).not.toContain("scale={0.72}");
+    expect(gizmoSource).toContain("const GIZMO_OPACITY = 0.4");
+    expect(gizmoSource.match(/scale=\{GIZMO_SIZE\}/g)).toHaveLength(3);
+    expect(gizmoSource.match(/opacity=\{GIZMO_OPACITY\}/g)).toHaveLength(2);
+    expect(gizmoSource).toContain("const ALIGNMENT_GUIDE_EXTENT = 10_000");
+    expect(gizmoSource).toContain("const ROTATION_GUIDE_RADIUS = 0.65");
+    expect(gizmoSource).toContain("const PLANE_GRID_STEP = 0.25");
+    expect(gizmoSource).toContain("hoveredControl(directionControls.current)");
+    expect(gizmoSource).toContain(
+      "points={ALIGNMENT_GUIDE_POINTS[activeHoverGuide.axis]}",
+    );
+    expect(gizmoSource).toContain(
+      "points={ROTATION_GUIDE_POINTS[activeHoverGuide.axis]}",
+    );
+    expect(gizmoSource).toContain(
+      "points={PLANE_GRID_POINTS[activeHoverGuide.axis]}",
+    );
+    expect(gizmoSource).toContain('<ScreenSizer scale={GIZMO_SIZE}>');
+    expect(gizmoSource).toContain("segments");
+    expect(gizmoSource).toContain("raycast={() => null}");
+    expect(gizmoSource).toContain("disableScaling");
+    expect(gizmoSource).toContain("activeAxes={[true, false, false]}");
+    expect(gizmoSource).not.toContain("mode={snapshot.mode}");
   });
 
-  it("registers the eight movable About props", () => {
+  it("registers every movable prop and keeps friendly About labels", () => {
     expect(aboutSource.match(/layoutLabel="About ·/g)).toHaveLength(8);
+    expect(grabbableSource).toContain(
+      "layoutLabel ?? defaultLayoutEditorLabel(hoverKey, unitIndex)",
+    );
+    expect(grabbableSource).not.toContain(
+      'process.env.NODE_ENV !== "development" || !layoutLabel',
+    );
   });
 
   it("autosaves an atomic development handoff without restoring it", () => {

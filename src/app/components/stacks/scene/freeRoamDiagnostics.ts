@@ -148,17 +148,21 @@ type FreeRoamEntryController = Readonly<{
 export function connectFreeRoamEntryObserver({
   controller,
   onEnabled,
+  onDisabled,
 }: {
   controller: FreeRoamEntryController;
   onEnabled: () => void;
+  onDisabled?: () => void;
 }): () => void {
   let wasEnabled = controller.getSnapshot().enabled;
   if (wasEnabled) onEnabled();
   const sync = () => {
     const { enabled } = controller.getSnapshot();
     const entered = enabled && !wasEnabled;
+    const exited = !enabled && wasEnabled;
     wasEnabled = enabled;
     if (entered) onEnabled();
+    if (exited) onDisabled?.();
   };
   sync();
   const unsubscribe = controller.subscribe(sync);

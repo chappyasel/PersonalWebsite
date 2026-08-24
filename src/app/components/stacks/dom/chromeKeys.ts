@@ -13,6 +13,7 @@
  *         brings it back. The games' photo-mode key. Not Tab: a web page
  *         cannot take Tab without breaking keyboard focus.
  *  - `?`  the shortcut sheet, where every web app with shortcuts keeps it.
+ *  - `M`  mutes or unmutes the scene through the resident sound control.
  *
  * Hide-all is a single attribute on `<html>` (`data-chrome-hidden`) and a
  * rule in StacksHome that blanks the `.stacks-og-ui` wrapper and its
@@ -22,9 +23,8 @@
  * measured from it) and the input bridges, which are window-level
  * listeners, keep travelling between shelves.
  *
- * Owner-only keys (development builds): F free roam, backtick debug console,
- * G/R in the layout editor. Those live with their features; the sheet lists
- * them when it is running in development.
+ * Owner-only controls live with their features. Development builds add F for
+ * free roam, backtick for the debug console, and the combined prop gizmo.
  */
 
 export const CHROME_HIDDEN_ATTRIBUTE = "data-chrome-hidden";
@@ -72,6 +72,39 @@ export function setChromeHidden(hidden: boolean) {
   document.documentElement.toggleAttribute(CHROME_HIDDEN_ATTRIBUTE, hidden);
 }
 
+/**
+ * Free roam starts with the scene unobstructed, but it only owns the hide it
+ * introduced. An interface that was already hidden stays hidden on exit, and
+ * revealing it manually while roaming prevents a stale exit from hiding it
+ * again.
+ */
+export function createFreeRoamChromeVisibility({
+  isHidden = chromeHidden,
+  setHidden = setChromeHidden,
+}: {
+  isHidden?: () => boolean;
+  setHidden?: (hidden: boolean) => void;
+} = {}) {
+  let active = false;
+  let autoHid = false;
+
+  return {
+    enter() {
+      if (active) return;
+      active = true;
+      autoHid = !isHidden();
+      setHidden(true);
+    },
+
+    exit() {
+      if (!active) return;
+      active = false;
+      if (autoHid && isHidden()) setHidden(false);
+      autoHid = false;
+    },
+  };
+}
+
 /** Read a DOM keydown into the shape the intent function takes. */
 export function chromeKeyEventFrom(
   event: KeyboardEvent,
@@ -105,6 +138,7 @@ export function shortcutGroups(development: boolean): readonly ShortcutGroup[] {
       { keys: ["Home", "End"], does: "First or last shelf" },
       { keys: ["\\"], does: "Hide or show details" },
       { keys: ["H"], does: "Hide or show the interface" },
+      { keys: ["M"], does: "Mute or unmute scene sound" },
       { keys: ["?"], does: "This sheet" },
       { keys: ["Esc"], does: "Close" },
     ],
@@ -118,7 +152,10 @@ export function shortcutGroups(development: boolean): readonly ShortcutGroup[] {
         { keys: ["F"], does: "Free roam (WASD, Q/E, right-drag)" },
         { keys: ["Shift", "F"], does: "Free roam from the current view" },
         { keys: ["`"], does: "Debug console" },
-        { keys: ["G", "R"], does: "Move or rotate the selected prop" },
+        {
+          keys: ["Click"],
+          does: "Select a prop; gizmo moves, rotates, and scales",
+        },
         { keys: ["⌘", "Z"], does: "Undo a layout edit" },
       ],
     },

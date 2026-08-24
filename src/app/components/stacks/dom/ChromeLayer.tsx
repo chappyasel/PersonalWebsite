@@ -14,6 +14,7 @@ import {
   freeRoamDiagnosticsController,
 } from "../scene/freeRoamDiagnostics";
 import { freeRoamShortcutIntent } from "../scene/freeRoamShortcut";
+import { setPropReactionsSuppressed } from "../scene/reactionEngagement";
 import {
   sceneLayoutEditorController,
   sceneLayoutNudgeForKeyboard,
@@ -22,10 +23,12 @@ import { setStacksSheetDismissed, useStacks } from "../store";
 import dynamic from "next/dynamic";
 import { type ComponentType, useEffect, useState } from "react";
 
+import { Keycap } from "~/components/ui/keycap";
 import { ThemeToggle } from "~/components/ui/theme-toggle";
 
 import ChromeKeyboard from "./ChromeKeyboard";
 import DoorLabel from "./DoorLabel";
+import { createFreeRoamChromeVisibility } from "./chromeKeys";
 
 const SoundToggle = dynamic(
   () => import("./SoundToggle").then((module) => module.SoundToggle),
@@ -75,14 +78,29 @@ function SceneDiagnosticsLoader() {
   useEffect(() => {
     if (process.env.NODE_ENV !== "development") return;
 
+    const freeRoamChromeVisibility = createFreeRoamChromeVisibility();
     const disconnectFreeRoamEntry = connectFreeRoamEntryObserver({
       controller: freeRoamDiagnosticsController,
       // A free-roam camera flies straight out of the mobile sheet's frame, so
       // the sheet is only in the way once free roam owns the view. The layout
       // editor rides along with it: free roam is how the owner reaches props.
       onEnabled: () => {
+        freeRoamChromeVisibility.enter();
+        setPropReactionsSuppressed(true);
+        const state = useStacks.getState();
+        state.setHovered(null);
+        state.setFocusedInteraction(null);
+        state.setPressedInteraction(null);
         sceneLayoutEditorController.setEnabled(true);
         setStacksSheetDismissed(true);
+      },
+      // Edited props leave the physics world while the layout editor owns
+      // them. Releasing that ownership on exit restores their authored pose
+      // and lets the ordinary physics frame path take over again.
+      onDisabled: () => {
+        sceneLayoutEditorController.setEnabled(false);
+        setPropReactionsSuppressed(false);
+        freeRoamChromeVisibility.exit();
       },
     });
     const onFreeRoamShortcut = (event: KeyboardEvent) => {
@@ -123,16 +141,6 @@ function SceneDiagnosticsLoader() {
         return;
       }
       if (event.metaKey || event.ctrlKey || event.altKey) return;
-      if (event.key.toLowerCase() === "r") {
-        if (sceneLayoutEditorController.setMode("rotate"))
-          event.preventDefault();
-        return;
-      }
-      if (event.key.toLowerCase() === "g") {
-        if (sceneLayoutEditorController.setMode("translate"))
-          event.preventDefault();
-        return;
-      }
       const delta = sceneLayoutNudgeForKeyboard(event);
       if (!delta || !sceneLayoutEditorController.nudgeSelected(delta)) return;
       event.preventDefault();
@@ -142,6 +150,8 @@ function SceneDiagnosticsLoader() {
     window.addEventListener("keydown", onLayoutNudge);
     return () => {
       disconnectFreeRoamEntry();
+      setPropReactionsSuppressed(false);
+      freeRoamChromeVisibility.exit();
       window.removeEventListener("keydown", onFreeRoamShortcut);
       window.removeEventListener("keydown", onLayoutNudge);
     };
@@ -213,10 +223,11 @@ export default function ChromeLayer() {
   // The composer's Vignette owns edge darkening while active — stacking the
   // DOM bottom fade on top double-darkens the floor (audit §2.1).
   const postfx = useStacks((s) => s.postfx);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
   return (
     <>
       <DoorLabel />
-      <ChromeKeyboard />
+      <ChromeKeyboard open={keyboardOpen} onOpenChange={setKeyboardOpen} />
       <style>{`
         :root { --stacks-ease: cubic-bezier(0.16, 1, 0.3, 1); }
         .stacks-scroll { scrollbar-width: none; }
@@ -224,6 +235,23 @@ export default function ChromeLayer() {
         .stacks-wordmark {
           left: max(1.25rem, env(safe-area-inset-left, 0px));
           top: max(1rem, env(safe-area-inset-top, 0px));
+        }
+        .stacks-wordmark-shortcuts {
+          opacity: 0;
+          transform: translateY(-3px);
+          transition:
+            opacity 180ms var(--stacks-ease),
+            transform 180ms var(--stacks-ease);
+        }
+        .stacks-world-shell[data-load-path="cold"][data-revealed]
+          .stacks-wordmark-shortcuts {
+          animation: stacks-wordmark-shortcuts-intro 4.2s var(--stacks-ease) 1.1s both;
+        }
+        .stacks-wordmark:hover .stacks-wordmark-shortcuts,
+        .stacks-wordmark:focus-within .stacks-wordmark-shortcuts {
+          animation: none;
+          opacity: 1;
+          transform: translateY(0);
         }
         .stacks-theme-toggle {
           right: max(1rem, env(safe-area-inset-right, 0px));
@@ -335,6 +363,10 @@ export default function ChromeLayer() {
           from { opacity: 0; filter: blur(14px); transform: translateY(12px); }
           to { opacity: 1; filter: blur(0); transform: translateY(0); }
         }
+        @keyframes stacks-wordmark-shortcuts-intro {
+          0%, 100% { opacity: 0; transform: translateY(-3px); }
+          14%, 72% { opacity: 1; transform: translateY(0); }
+        }
         @media (prefers-reduced-motion: reduce) {
           .stacks-reveal,
           .stacks-world-shell[data-revealed] .stacks-reveal {
@@ -342,6 +374,10 @@ export default function ChromeLayer() {
             animation: none;
             filter: none;
             transform: none;
+          }
+          .stacks-world-shell[data-load-path="cold"][data-revealed]
+            .stacks-wordmark-shortcuts {
+            animation: none;
           }
         }
       `}</style>
@@ -351,12 +387,32 @@ export default function ChromeLayer() {
       {!postfx && (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[6] h-[12dvh] bg-gradient-to-t from-black/45 to-transparent" />
       )}
-      <div className="stacks-wordmark pointer-events-none absolute z-20">
+      <div className="stacks-wordmark pointer-events-auto absolute z-20">
         <div className="flex items-start gap-2.5">
           <ChromeReveal index={0}>
-            <p className="stacks-on-background-text whitespace-nowrap font-serif text-base tracking-tight text-foreground min-[1200px]:text-lg">
-              Chappy Asel
-            </p>
+            <div>
+              <p className="stacks-on-background-text whitespace-nowrap font-serif text-base tracking-tight text-foreground min-[1200px]:text-lg">
+                Chappy Asel
+              </p>
+              <div className="stacks-wordmark-shortcuts stacks-on-background-text mt-1 flex items-center gap-1.5 whitespace-nowrap font-sans text-[9px] font-medium tracking-[0.01em]">
+                <button
+                  type="button"
+                  aria-label="Open keyboard shortcuts"
+                  aria-controls="stacks-keyboard-shortcuts"
+                  aria-expanded={keyboardOpen}
+                  onClick={() => setKeyboardOpen(true)}
+                  className="flex items-center gap-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                >
+                  <Keycap aria-hidden="true">?</Keycap>
+                  <span>Shortcuts</span>
+                </button>
+                <span aria-hidden="true">·</span>
+                <span className="flex items-center gap-1">
+                  <Keycap aria-hidden="true">H</Keycap>
+                  <span>Hide UI</span>
+                </span>
+              </div>
+            </div>
           </ChromeReveal>
           <SceneDiagnosticsLoader />
         </div>

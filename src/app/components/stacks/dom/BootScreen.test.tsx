@@ -361,7 +361,7 @@ describe("Homepage entrance", () => {
     );
   });
 
-  it("derives both shelf uprights, feet, and cleats from ShelfUnit geometry", () => {
+  it("derives both shelf uprights and feet without exposed lower cleats", () => {
     const markup = renderBoot();
     const support = SHELF_GEOMETRY.support;
     const groundY = -SHELF_GEOMETRY.groundY * 100;
@@ -388,13 +388,8 @@ describe("Homepage entrance", () => {
       const foot = new RegExp(
         `<rect data-boot-support-foot="${side}"[^>]*>`,
       ).exec(markup)?.[0];
-      const cleat = new RegExp(
-        `<rect data-boot-support-cleat="${side}"[^>]*>`,
-      ).exec(markup)?.[0];
-
       const uprightX = projectedX(side, support.width, support.width);
       const footX = projectedX(side, support.footWidth, support.footDepth);
-      const cleatX = projectedX(side, support.cleatWidth, support.cleatDepth);
 
       expect(attribute(upright, "x")).toBeCloseTo(uprightX.left, 10);
       expect(attribute(upright, "y")).toBeCloseTo(topY, 10);
@@ -406,13 +401,8 @@ describe("Homepage entrance", () => {
         support.footHeight * 100,
         10,
       );
-      expect(attribute(cleat, "x")).toBeCloseTo(cleatX.left, 10);
-      expect(attribute(cleat, "width")).toBeCloseTo(cleatX.width, 10);
-      expect(attribute(cleat, "height")).toBeCloseTo(
-        support.cleatHeight * 100,
-        10,
-      );
     }
+    expect(markup).not.toContain("data-boot-support-cleat");
   });
 
   it("paints top-shelf plants behind the standing photos", () => {
@@ -466,6 +456,29 @@ describe("Homepage entrance", () => {
     expect(markup).toContain(
       `data-boot-apple-mark-yaw="${ABOUT_APPLE_MARK_YAW}"`,
     );
+  });
+
+  it("gives both metal marks a directional shine and seats the Apple behind its base", () => {
+    const markup = renderBoot();
+    const appleStart = markup.indexOf("data-boot-apple-root-yaw");
+    const appleEnd = markup.indexOf("</g>", appleStart);
+    const apple = markup.slice(appleStart, appleEnd);
+
+    expect(markup).toContain('id="stacks-boot-aic-shine"');
+    expect(apple).toContain('id="stacks-boot-apple-shine"');
+    expect(apple.indexOf('data-boot-apple=""')).toBeLessThan(
+      apple.indexOf('data-boot-apple-base=""'),
+    );
+  });
+
+  it("uses the live TJ medallion artwork instead of an approximate boot mark", () => {
+    const markup = renderBoot();
+
+    expect(markup).toContain('data-boot-tj-artwork=""');
+    expect(markup).toContain('href="/images/stacks/tj-medallion.jpg"');
+    expect(markup).toContain("clip-path:ellipse(50% 50% at center) fill-box");
+    expect(markup).not.toContain("stacks-boot-tj-artwork-pattern");
+    expect(markup).not.toContain('class="stacks-boot-tj-detail"');
   });
 
   it("applies the live uniform scales to the AIC and Apple boot glyphs", () => {

@@ -1,9 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
   type PropReactionInteractionState,
   propReactionIsEngaged,
+  setPropReactionsSuppressed,
 } from "./reactionEngagement";
+import { useStacks } from "../store";
 
 const idle: PropReactionInteractionState = {
   hovered: null,
@@ -11,6 +13,11 @@ const idle: PropReactionInteractionState = {
   pressedInteraction: null,
   dragging: null,
 };
+
+afterEach(() => {
+  setPropReactionsSuppressed(false);
+  useStacks.getState().setHovered(null);
+});
 
 describe("prop reaction engagement", () => {
   it("uses fine-pointer hover", () => {
@@ -72,5 +79,15 @@ describe("prop reaction engagement", () => {
         "prop",
       ),
     ).toBe(false);
+  });
+
+  it("suppresses hover reactions and new hover claims during free roam", () => {
+    setPropReactionsSuppressed(true);
+    expect(propReactionIsEngaged({ ...idle, hovered: "prop" }, "prop")).toBe(
+      false,
+    );
+
+    useStacks.getState().setHovered("prop");
+    expect(useStacks.getState().hovered).toBeNull();
   });
 });

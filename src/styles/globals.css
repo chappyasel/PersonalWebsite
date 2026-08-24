@@ -18,8 +18,10 @@
 .stacks-glass-tooltip {
   border-color: rgb(87 83 78 / 0.18);
   background-color: rgb(244 243 240 / 0.9);
+  /* Do not add a manual -webkit copy here. Next's CSS transform collapses an
+     authored pair to only the prefixed declaration, which disables the blur
+     in Chrome. It generates the compatibility copy from this declaration. */
   backdrop-filter: blur(28px) saturate(0.4) brightness(1.16);
-  -webkit-backdrop-filter: blur(28px) saturate(0.4) brightness(1.16);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.74),
     inset 0 -1px 0 rgb(255 255 255 / 0.12),
@@ -33,6 +35,19 @@
     inset 0 1px 0 rgb(255 255 255 / 0.24),
     inset 0 -1px 0 rgb(255 255 255 / 0.06),
     0 6px 16px -12px rgb(0 0 0 / 0.72);
+}
+
+/* The shortcut sheet is portaled outside the scene chrome's compositor tree,
+   so this filter samples the room itself. It blurs only what sits directly
+   behind the card; the rest of the room remains sharp. */
+.stacks-keyboard-sheet {
+  background-color: rgb(255 255 255 / 0.18);
+  backdrop-filter: blur(80px) saturate(0.28) brightness(1.4);
+}
+
+.dark .stacks-keyboard-sheet {
+  background-color: rgb(0 0 0 / 0.05);
+  backdrop-filter: blur(80px) saturate(0.22) brightness(0.6);
 }
 
 @font-face {
@@ -1254,7 +1269,20 @@ html[data-world="ready"][data-boot-stage] .stacks-boot-threshold {
 }
 
 .stacks-boot-model-silhouette[data-model-silhouette="ai-collective"] {
-  fill: var(--stacks-boot-object);
+  fill: url("#stacks-boot-aic-shine");
+  opacity: 1;
+}
+
+.stacks-boot-shine-base {
+  stop-color: var(--stacks-boot-object);
+}
+
+.stacks-boot-shine-shadow {
+  stop-color: color-mix(in srgb, var(--stacks-boot-object) 78%, black);
+}
+
+.stacks-boot-shine-highlight {
+  stop-color: color-mix(in srgb, var(--stacks-boot-object) 38%, white);
 }
 
 /* Role Icon tiles carry their own brand pair per rect, because the
@@ -1279,24 +1307,6 @@ html[data-world="ready"][data-boot-stage] .stacks-boot-threshold {
 
 .stacks-boot-mark-base {
   fill: color-mix(in srgb, var(--stacks-boot-metal) 72%, black);
-}
-
-.stacks-boot-tj-ring {
-  fill: #2b59a2;
-  stroke: color-mix(in srgb, #2b59a2 70%, var(--stacks-boot-metal));
-  stroke-width: 0.7;
-}
-
-.stacks-boot-tj-face {
-  fill: var(--stacks-boot-page);
-}
-
-.stacks-boot-tj-detail {
-  fill: none;
-  stroke: var(--stacks-boot-metal);
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 1.05;
 }
 
 .stacks-boot-item-motion {
@@ -1352,8 +1362,7 @@ html[data-world="ready"][data-boot-stage] .stacks-boot-threshold {
 
 .stacks-boot-detail,
 .stacks-boot-metal,
-.stacks-boot-collective,
-.stacks-boot-apple {
+.stacks-boot-collective {
   fill: none;
   stroke: var(--stacks-boot-metal);
   stroke-width: 2.2;
@@ -1464,9 +1473,11 @@ html[data-world="ready"][data-boot-stage] .stacks-boot-threshold {
 }
 
 .stacks-boot-apple {
-  fill: var(--stacks-boot-object);
-  stroke: color-mix(in srgb, var(--stacks-boot-object) 76%, black);
-  stroke-width: 1.6;
+  fill: url("#stacks-boot-apple-shine");
+  stroke: color-mix(in srgb, var(--stacks-boot-object) 72%, white);
+  stroke-width: 0.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .stacks-boot-item[data-landmark-id="apple"] .stacks-boot-metal-fill {

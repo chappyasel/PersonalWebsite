@@ -83,7 +83,6 @@ import {
 import {
   TJ_MEDALLION_FACES,
   TJ_MEDALLION_POSE,
-  TJ_MEDALLION_SOLIDS,
 } from "../scene/tjMedallionGeometry";
 import {
   ABOUT_READING_BOOK,
@@ -828,6 +827,18 @@ function ModelSilhouetteGlyph({
   );
 }
 
+function DirectionalShineGradient({ id }: { id: string }) {
+  return (
+    <linearGradient id={id} x1="0" y1="1" x2="1" y2="0">
+      <stop className="stacks-boot-shine-shadow" offset="0" />
+      <stop className="stacks-boot-shine-base" offset="0.34" />
+      <stop className="stacks-boot-shine-highlight" offset="0.5" />
+      <stop className="stacks-boot-shine-base" offset="0.64" />
+      <stop className="stacks-boot-shine-shadow" offset="1" />
+    </linearGradient>
+  );
+}
+
 function CollectiveMarkGlyph({ scale }: { scale: number }) {
   const baseWidth =
     (Math.abs(Math.cos(ABOUT_AIC_ROOT_YAW)) * ABOUT_AIC_BASE_WIDTH +
@@ -853,6 +864,9 @@ function CollectiveMarkGlyph({ scale }: { scale: number }) {
         data-boot-aic-scale={scale}
         transform={`scale(${scale})`}
       >
+        <defs>
+          <DirectionalShineGradient id="stacks-boot-aic-shine" />
+        </defs>
         <rect
           className="stacks-boot-mark-base"
           x={-baseWidth / 2}
@@ -880,45 +894,31 @@ function TJMedallionGlyph({
   width: number;
   height: number;
 }) {
-  const rim = TJ_MEDALLION_SOLIDS.find((solid) => solid.id === "rim")!;
   const artwork = TJ_MEDALLION_FACES.find(
     (face) => face.id === "artwork-face",
   )!;
   const yaw = TJ_MEDALLION_POSE.yaw;
   const scale = TJ_MEDALLION_POSE.scale * SCENE_TO_BOOT_SVG;
-  const rimRadius = rim.args[0]! * scale;
-  const rimCenterX = Math.sin(yaw) * (rim.args[2]! / 2) * scale;
-  const centerY = -rim.position[1] * scale;
+  const centerY = -artwork.position[1] * scale;
   const faceRadius = artwork.radius * scale;
   const faceCenterX = Math.sin(yaw) * artwork.position[2] * scale;
   const xScale = Math.abs(Math.cos(yaw));
+  const artworkX = faceCenterX - faceRadius * xScale;
+  const artworkY = centerY - faceRadius;
+  const artworkWidth = faceRadius * xScale * 2;
+  const artworkHeight = faceRadius * 2;
   return (
     <>
       <ModelSilhouetteGlyph id="tj-medallion" width={width} height={height} />
-      <ellipse
-        className="stacks-boot-tj-ring"
-        cx={rimCenterX}
-        cy={centerY}
-        rx={rimRadius * xScale}
-        ry={rimRadius}
-      />
-      <ellipse
-        className="stacks-boot-tj-face"
-        cx={faceCenterX}
-        cy={centerY}
-        rx={faceRadius * xScale}
-        ry={faceRadius}
-      />
-      <ellipse
-        className="stacks-boot-tj-detail"
-        cx={faceCenterX}
-        cy={centerY + faceRadius * 0.11}
-        rx={faceRadius * xScale * 0.53}
-        ry={faceRadius * 0.53}
-      />
-      <path
-        className="stacks-boot-tj-detail"
-        d={`M ${faceCenterX - faceRadius * xScale * 0.66} ${centerY - faceRadius * 0.49} L ${faceCenterX} ${centerY + faceRadius * 0.74} L ${faceCenterX + faceRadius * xScale * 0.66} ${centerY - faceRadius * 0.49} M ${faceCenterX - faceRadius * xScale * 0.46} ${centerY - faceRadius * 0.66} L ${faceCenterX + faceRadius * xScale * 0.54} ${centerY - faceRadius * 0.46} L ${faceCenterX} ${centerY + faceRadius * 0.74}`}
+      <image
+        data-boot-tj-artwork=""
+        href="/images/stacks/tj-medallion.jpg"
+        x={artworkX}
+        y={artworkY}
+        width={artworkWidth}
+        height={artworkHeight}
+        preserveAspectRatio="none"
+        style={{ clipPath: "ellipse(50% 50% at center) fill-box" }}
       />
     </>
   );
@@ -1201,19 +1201,23 @@ function LandmarkGlyph({
           data-boot-apple-scale={scale}
           transform={`scale(${scale})`}
         >
-          <rect
-            className="stacks-boot-metal-fill"
-            x={-baseWidth / 2}
-            y={-baseHeight}
-            width={baseWidth}
-            height={baseHeight}
-            rx="1"
-          />
+          <defs>
+            <DirectionalShineGradient id="stacks-boot-apple-shine" />
+          </defs>
           <path
             className="stacks-boot-apple"
             data-boot-apple=""
             d={appleGlyphPath(markHeight, markBottom)}
             transform={`matrix(${Math.cos(appleYaw)} 0 0 1 ${markShiftX} 0)`}
+          />
+          <rect
+            className="stacks-boot-metal-fill"
+            data-boot-apple-base=""
+            x={-baseWidth / 2}
+            y={-baseHeight}
+            width={baseWidth}
+            height={baseHeight}
+            rx="1"
           />
         </g>
       );
@@ -1317,17 +1321,6 @@ export default function BootScreen({
                           y={groundY - support.footHeight * SCENE_TO_BOOT_SVG}
                           width={projection.foot.width * SCENE_TO_BOOT_SVG}
                           height={support.footHeight * SCENE_TO_BOOT_SVG}
-                          rx="1.5"
-                        />
-                        <rect
-                          data-boot-support-cleat={side}
-                          x={projection.cleat.x * SCENE_TO_BOOT_SVG}
-                          y={projectSceneY(
-                            SHELF_GEOMETRY.lower.centerY -
-                              support.cleatHeight / 2,
-                          )}
-                          width={projection.cleat.width * SCENE_TO_BOOT_SVG}
-                          height={support.cleatHeight * SCENE_TO_BOOT_SVG}
                           rx="1.5"
                         />
                       </g>

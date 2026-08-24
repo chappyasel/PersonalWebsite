@@ -32,6 +32,8 @@ describe("scene sound control", () => {
     expect(toggle).toContain("sceneAudio.subscribe(setAudio)");
     expect(toggle).toContain("sceneAudio.setMuted(next)");
     expect(toggle).toContain("sceneAudio.unlock()");
+    expect(toggle).toContain('event.key.toLowerCase() !== "m"');
+    expect(toggle).toContain("isEditableShortcutTarget(event.target)");
     expect(toggle).toContain(
       "aria-pressed={audio.unlocked ? muted : undefined}",
     );

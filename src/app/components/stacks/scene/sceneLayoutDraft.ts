@@ -1,4 +1,4 @@
-export const SCENE_LAYOUT_EDITOR_SENTINEL = "stacks-layout-editor-v1";
+export const SCENE_LAYOUT_EDITOR_SENTINEL = "stacks-layout-editor-v2";
 export const SCENE_LAYOUT_DRAFT_ENDPOINT = "/api/stacks-layout-draft";
 
 export type SceneLayoutDraftPosition = readonly [number, number, number];
@@ -13,6 +13,9 @@ export type SceneLayoutDraftRecord = Readonly<{
   authoredRotation: SceneLayoutDraftPosition;
   previewRotation: SceneLayoutDraftPosition;
   rotationDelta: SceneLayoutDraftPosition;
+  authoredScale: SceneLayoutDraftPosition;
+  previewScale: number;
+  scaleRatio: number;
 }>;
 
 export type SceneLayoutDraft = Readonly<{
@@ -41,7 +44,15 @@ const isRecord = (value: unknown): value is SceneLayoutDraftRecord => {
     isFiniteTriplet(record.delta) &&
     isFiniteTriplet(record.authoredRotation) &&
     isFiniteTriplet(record.previewRotation) &&
-    isFiniteTriplet(record.rotationDelta)
+    isFiniteTriplet(record.rotationDelta) &&
+    isFiniteTriplet(record.authoredScale) &&
+    record.authoredScale.every((component) => component > 0) &&
+    typeof record.previewScale === "number" &&
+    Number.isFinite(record.previewScale) &&
+    record.previewScale > 0 &&
+    typeof record.scaleRatio === "number" &&
+    Number.isFinite(record.scaleRatio) &&
+    record.scaleRatio > 0
   );
 };
 
@@ -64,7 +75,7 @@ export const isSceneLayoutDraft = (
     typeof draft.savedAt === "string" &&
     !Number.isNaN(Date.parse(draft.savedAt)) &&
     Array.isArray(draft.records) &&
-    draft.records.length <= 32 &&
+    draft.records.length <= 256 &&
     draft.records.every(isRecord)
   );
 };

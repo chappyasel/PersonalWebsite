@@ -79,6 +79,29 @@ describe("boot presentation", () => {
     );
   });
 
+  it("keeps the Apple edge subordinate to the filled mark", () => {
+    const apple = rule(".stacks-boot-apple {");
+
+    expect(apple).toContain("stroke-width: 0.6");
+    expect(apple).toContain(
+      "stroke: color-mix(in srgb, var(--stacks-boot-object) 72%, white)",
+    );
+  });
+
+  it("paints directional highlights across the AIC and Apple marks", () => {
+    expect(
+      rule(
+        '.stacks-boot-model-silhouette[data-model-silhouette="ai-collective"] {',
+      ),
+    ).toContain('fill: url("#stacks-boot-aic-shine")');
+    expect(rule(".stacks-boot-apple {")).toContain(
+      'fill: url("#stacks-boot-apple-shine")',
+    );
+    expect(rule(".stacks-boot-shine-highlight {")).toContain(
+      "var(--stacks-boot-object) 38%, white",
+    );
+  });
+
   it("places the wordmark beneath the shelf with compact tracking", () => {
     const wordmark = rule(".stacks-boot-wordmark {");
     expect(wordmark).toContain("margin: 28px 0 0");

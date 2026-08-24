@@ -1,16 +1,18 @@
 "use client";
 
 import { sceneAudio } from "../audio/sceneAudio";
+import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
 import { SCENE_SOUND_STORAGE_KEY } from "../scene/sceneVisitStorage";
 import {
   SpeakerHighIcon,
   SpeakerNoneIcon,
   SpeakerSlashIcon,
 } from "@phosphor-icons/react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { cn } from "~/lib/utils";
 
+import { Keycap } from "~/components/ui/keycap";
 import {
   Tooltip,
   TooltipContent,
@@ -24,6 +26,17 @@ export function SoundToggle({ className }: { className?: string }) {
   const [audio, setAudio] = useState(sceneAudio.snapshot);
   const [mounted, setMounted] = useState(false);
 
+  const toggleMute = useCallback(() => {
+    const next = !sceneAudio.snapshot().muted;
+    sceneAudio.setMuted(next);
+    if (!next) sceneAudio.unlock();
+    try {
+      window.localStorage.setItem(SCENE_SOUND_STORAGE_KEY, String(next));
+    } catch {
+      // Session state remains authoritative when persistence is unavailable.
+    }
+  }, []);
+
   useEffect(() => {
     const unsubscribe = sceneAudio.subscribe(setAudio);
     setMounted(true);
@@ -36,6 +49,26 @@ export function SoundToggle({ className }: { className?: string }) {
     }
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    const onMuteShortcut = (event: KeyboardEvent) => {
+      if (
+        event.key.toLowerCase() !== "m" ||
+        event.shiftKey ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        event.repeat ||
+        event.defaultPrevented ||
+        isEditableShortcutTarget(event.target)
+      )
+        return;
+      event.preventDefault();
+      toggleMute();
+    };
+    window.addEventListener("keydown", onMuteShortcut);
+    return () => window.removeEventListener("keydown", onMuteShortcut);
+  }, [toggleMute]);
 
   if (!mounted) return <div className="size-10 rounded-md bg-transparent" />;
 
@@ -57,16 +90,9 @@ export function SoundToggle({ className }: { className?: string }) {
       sceneAudio.unlock();
       return;
     }
-    const next = !muted;
-    sceneAudio.setMuted(next);
-    // The button click is an autoplay-safe user gesture. Unlock only when
-    // enabling; choosing mute must never initialize or download audio.
-    if (!next) sceneAudio.unlock();
-    try {
-      window.localStorage.setItem(SCENE_SOUND_STORAGE_KEY, String(next));
-    } catch {
-      // Session state remains authoritative when persistence is unavailable.
-    }
+    // The button click is an autoplay-safe user gesture. `toggleMute` unlocks
+    // only when enabling; choosing mute never initializes or downloads audio.
+    toggleMute();
   };
 
   return (
@@ -92,7 +118,10 @@ export function SoundToggle({ className }: { className?: string }) {
           </button>
         </TooltipTrigger>
         <TooltipContent>
-          <p>{action}</p>
+          <p className="flex items-center gap-1.5">
+            <span>{action}</span>
+            <Keycap aria-hidden="true">M</Keycap>
+          </p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

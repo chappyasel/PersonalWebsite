@@ -20,6 +20,7 @@ import {
   reduceModelArtifactHandoff,
 } from "./modal/modelArtifactHandoff";
 import { type SceneArtifactId, sceneArtifactById } from "./sceneArtifacts";
+import { propReactionsSuppressed } from "./scene/reactionEngagement";
 
 export const progressRef = { current: 0 };
 
@@ -315,7 +316,8 @@ export const useStacks = create<StacksState>((set) => ({
         ? state
         : { desktopDetailsLeftPx },
     ),
-  setHovered: (hovered) => set({ hovered }),
+  setHovered: (hovered) =>
+    set({ hovered: propReactionsSuppressed() ? null : hovered }),
   setDragging: (dragging) => set({ dragging }),
   setFocusedInteraction: (focusedInteraction) => set({ focusedInteraction }),
   setPressedInteraction: (pressedInteraction) => set({ pressedInteraction }),

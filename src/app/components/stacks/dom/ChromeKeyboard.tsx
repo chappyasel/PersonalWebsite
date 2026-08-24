@@ -5,7 +5,16 @@
 // listeners are development-only and these keys have to work in production.
 // See chromeKeys.ts for the map and the reasoning behind each key.
 import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
-import { useEffect, useRef, useState } from "react";
+import { useCoarseTouchCapability } from "../input/useCoarseTouchCapability";
+import {
+  effectivePlacardGlassMode,
+  useScenePerformanceSettings,
+} from "../scene/scenePerformance";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+
+import { Keycap } from "~/components/ui/keycap";
 
 import {
   chromeHidden,
@@ -15,10 +24,22 @@ import {
   shortcutGroups,
 } from "./chromeKeys";
 
-export default function ChromeKeyboard() {
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const sheetOpenRef = useRef(sheetOpen);
-  sheetOpenRef.current = sheetOpen;
+export default function ChromeKeyboard({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const reduceMotion = useReducedMotion();
+  const performanceSettings = useScenePerformanceSettings();
+  const coarseTouchCapability = useCoarseTouchCapability();
+  const glassMode = effectivePlacardGlassMode(
+    performanceSettings.placardGlassMode,
+    coarseTouchCapability,
+  );
+  const sheetOpenRef = useRef(open);
+  sheetOpenRef.current = open;
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -32,7 +53,7 @@ export default function ChromeKeyboard() {
         !event.defaultPrevented
       ) {
         event.preventDefault();
-        setSheetOpen(false);
+        onOpenChange(false);
         return;
       }
       const intent = chromeKeyIntent(
@@ -42,16 +63,16 @@ export default function ChromeKeyboard() {
       if (intent === "hide-all") {
         event.preventDefault();
         setChromeHidden(!chromeHidden());
-        setSheetOpen(false);
+        onOpenChange(false);
       } else if (intent === "show-all") {
         event.preventDefault();
         setChromeHidden(false);
       } else if (intent === "sheet") {
         event.preventDefault();
-        // The sheet lives inside the hidden wrapper, so asking for it while
-        // the interface is hidden brings the interface back with it.
+        // This shortcut also recovers hidden scene chrome, so opening the
+        // portaled sheet brings the rest of the interface back with it.
         setChromeHidden(false);
-        setSheetOpen((open) => !open);
+        onOpenChange(!sheetOpenRef.current);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -59,50 +80,68 @@ export default function ChromeKeyboard() {
       window.removeEventListener("keydown", onKey);
       setChromeHidden(false);
     };
-  }, []);
+  }, [onOpenChange]);
 
-  if (!sheetOpen) return null;
+  if (typeof document === "undefined") return null;
+
   const groups = shortcutGroups(process.env.NODE_ENV === "development");
-  return (
-    // Absolute, not fixed: the world shell is a transformed, paint-contained
-    // ancestor, so fixed would resolve against it anyway and clip. The shell
-    // is the viewport.
+  return createPortal(
+    // Render true overlays at the document root. Scene chrome may acquire a
+    // filter, opacity, or transform during its own transitions; any one of
+    // those can become a backdrop root and cut this card off from the WebGL
+    // room it needs to sample.
     <div
-      className="absolute inset-0 z-50 flex items-center justify-center p-6"
-      onClick={() => setSheetOpen(false)}
+      data-stacks-glass-mode={glassMode}
+      data-stacks-glass-preference={performanceSettings.placardGlassMode}
+      className={`fixed inset-0 z-[1000] flex items-center justify-center p-6 ${
+        open ? "pointer-events-auto" : "pointer-events-none"
+      }`}
+      onClick={() => onOpenChange(false)}
     >
-      <div
-        role="dialog"
-        aria-modal="false"
-        aria-label="Keyboard shortcuts"
-        onClick={(event) => event.stopPropagation()}
-        className="stacks-glass-tooltip w-full max-w-xs rounded-xl border px-5 py-4 font-serif text-sm text-foreground shadow-lg"
-      >
-        {groups.map((group, index) => (
-          <section key={group.title} className={index ? "mt-4" : ""}>
-            <h2 className="mb-2 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-              {group.title}
-            </h2>
-            <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-4 gap-y-1.5">
-              {group.rows.map((row) => (
-                <div key={row.does} className="contents">
-                  <dt className="flex items-center gap-1">
-                    {row.keys.map((key) => (
-                      <kbd
-                        key={key}
-                        className="rounded border border-foreground/20 bg-foreground/5 px-1.5 py-px font-sans text-[11px] leading-5 text-foreground"
-                      >
-                        {key}
-                      </kbd>
-                    ))}
-                  </dt>
-                  <dd className="text-[13px] leading-5">{row.does}</dd>
-                </div>
-              ))}
-            </dl>
-          </section>
-        ))}
-      </div>
-    </div>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            id="stacks-keyboard-shortcuts"
+            role="dialog"
+            aria-modal="false"
+            aria-label="Keyboard shortcuts"
+            onClick={(event) => event.stopPropagation()}
+            className="stacks-glass-tooltip stacks-keyboard-sheet relative w-full max-w-xs rounded-xl border px-5 py-4 font-serif text-sm text-foreground shadow-lg"
+            initial={reduceMotion ? false : { opacity: 0, scale: 0.97, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={
+              reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.985, y: 5 }
+            }
+            transition={{
+              duration: reduceMotion ? 0 : open ? 0.22 : 0.18,
+              ease: [0.16, 1, 0.3, 1],
+            }}
+          >
+            {groups.map((group, index) => (
+              <section key={group.title} className={index ? "mt-4" : ""}>
+                <h2 className="mb-2 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
+                  {group.title}
+                </h2>
+                <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-4 gap-y-1.5">
+                  {group.rows.map((row) => (
+                    <div key={row.does} className="contents">
+                      <dt className="flex items-center gap-1">
+                        {row.keys.map((key) => (
+                          <Keycap key={key} width="fit">
+                            {key}
+                          </Keycap>
+                        ))}
+                      </dt>
+                      <dd className="text-[13px] leading-5">{row.does}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>,
+    document.body,
   );
 }
