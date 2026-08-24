@@ -2,6 +2,7 @@
 
 import type { ArtifactPreviewFrameLayer } from "../../modal/artifactPreviewFrame";
 import type { PhotoArtifactId } from "../../sceneArtifacts";
+import { rand } from "../../theme";
 import { ShakerProp } from "../AuthoredProps";
 import Grabbable from "../Grabbable";
 import { FootPool } from "../GroundPool";
@@ -24,7 +25,7 @@ import {
 import { meadowHeight } from "../meadowField";
 import { SODA_CAN_HEIGHT, SodaCan } from "../objects";
 import { DeskFrame, FlatPrint, deskFrameHeight } from "../photos";
-import { ShelfUnit } from "../primitives";
+import { ShelfUnit, WoodMaterial } from "../primitives";
 import { useUnitLod } from "../useUnitLod";
 import { unitPose } from "../worldLayout";
 import React from "react";
@@ -292,24 +293,145 @@ function PinnedPrint({
   );
 }
 
+let corkTextureCache: THREE.DataTexture | null = null;
+
+/**
+ * A small shared cork grain. The board needs a material cue at shelf scale,
+ * but loose fleck geometry would spend dozens of draw calls on marks that are
+ * only a pixel or two wide. This one texture supplies the colour breakup,
+ * roughness, and shallow pits instead.
+ */
+function corkGrainTexture(): THREE.DataTexture {
+  if (corkTextureCache) return corkTextureCache;
+
+  const size = 128;
+  const data = new Uint8Array(size * size * 4);
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const index = y * size + x;
+      const patch = rand(Math.floor(x / 5) + Math.floor(y / 5) * 26, 721);
+      const grain = rand(index, 722);
+      const pore = rand(index, 723);
+      const value = Math.round(
+        pore > 0.982 ? 142 + grain * 28 : 218 + patch * 20 + grain * 15,
+      );
+      const offset = index * 4;
+      data[offset] = value;
+      data[offset + 1] = value;
+      data[offset + 2] = value;
+      data[offset + 3] = 255;
+    }
+  }
+
+  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(3, 2.2);
+  texture.anisotropy = 4;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+  corkTextureCache = texture;
+  return texture;
+}
+
+function CorkBoardBody({
+  palette,
+  dark,
+  textured,
+}: Pick<UnitProps, "palette" | "dark"> & { textured: boolean }) {
+  const { width, height, frameInset } = TRAINING_BOARD_SIZE;
+  const innerWidth = width - frameInset * 2;
+  const innerHeight = height - frameInset * 2;
+  const cork = textured ? corkGrainTexture() : null;
+
+  return (
+    <group>
+      {/* The dark backing remains visible in the narrow seams between cork
+          and frame, giving the inset a real edge instead of a painted line. */}
+      <RoundedBox
+        castShadow
+        args={[width, height, 0.035]}
+        radius={0.018}
+        smoothness={4}
+      >
+        <meshStandardMaterial color={palette.woodDark} roughness={0.88} />
+      </RoundedBox>
+      <RoundedBox
+        receiveShadow
+        args={[innerWidth, innerHeight, 0.01]}
+        position={[0, 0, 0.015]}
+        radius={0.008}
+        smoothness={3}
+      >
+        <meshStandardMaterial
+          color={dark ? "#8f6040" : "#c18a5e"}
+          map={cork ?? undefined}
+          bumpMap={cork ?? undefined}
+          bumpScale={0.0035}
+          roughnessMap={cork ?? undefined}
+          roughness={0.96}
+        />
+      </RoundedBox>
+
+      {/* Four slim rails are enough to read as a framed pinboard. Keeping the
+          vertical rails between the horizontal ones avoids chunky corners. */}
+      {([-1, 1] as const).map((side) => (
+        <RoundedBox
+          key={`board-frame-horizontal:${side}`}
+          castShadow
+          args={[width, frameInset, 0.021]}
+          position={[0, side * (height / 2 - frameInset / 2), 0.015]}
+          radius={0.009}
+          smoothness={3}
+        >
+          {textured ? (
+            <WoodMaterial
+              hex={palette.wood}
+              repeat={[2.4, 1]}
+              roughness={0.74}
+            />
+          ) : (
+            <meshStandardMaterial color={palette.wood} roughness={0.74} />
+          )}
+        </RoundedBox>
+      ))}
+      {([-1, 1] as const).map((side) => (
+        <RoundedBox
+          key={`board-frame-vertical:${side}`}
+          castShadow
+          args={[frameInset, innerHeight, 0.021]}
+          position={[side * (width / 2 - frameInset / 2), 0, 0.015]}
+          radius={0.009}
+          smoothness={3}
+        >
+          {textured ? (
+            <WoodMaterial
+              hex={palette.wood}
+              vertical
+              repeat={[1.7, 1]}
+              roughness={0.74}
+            />
+          ) : (
+            <meshStandardMaterial color={palette.wood} roughness={0.74} />
+          )}
+        </RoundedBox>
+      ))}
+    </group>
+  );
+}
+
 function TrainingBoard({
   palette,
+  dark,
   textured,
   unitIndex,
-}: Pick<UnitProps, "palette"> & {
+}: Pick<UnitProps, "palette" | "dark"> & {
   textured: boolean;
   unitIndex: number;
 }) {
   return (
     <group position={[0, 0.396, 0]}>
-      <RoundedBox
-        castShadow
-        args={[TRAINING_BOARD_SIZE.width, TRAINING_BOARD_SIZE.height, 0.035]}
-        radius={0.018}
-        smoothness={4}
-      >
-        <meshStandardMaterial color={palette.woodDark} roughness={0.92} />
-      </RoundedBox>
+      <CorkBoardBody palette={palette} dark={dark} textured={textured} />
       {TRAINING_PINS.map((pin) => {
         const height = pin.height;
         const hoverKey = `grab:photo:${pin.id}`;
@@ -537,6 +659,7 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
         <group position={[-0.3, 0.009, -0.17]} rotation={[-0.1, 0.08, 0.015]}>
           <TrainingBoard
             palette={palette}
+            dark={dark}
             textured={textured}
             unitIndex={index}
           />
