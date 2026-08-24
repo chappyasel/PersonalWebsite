@@ -21,7 +21,9 @@ export type BookInteraction = {
   hoverMotion: BookHoverMotion;
   draggable: boolean;
   shimmer: boolean;
-  /** Present only for a real, data-backed featured cover. */
+  /** The library book this volume opens. Present for a featured cover and for
+   * any packed volume that carries a real read; absent for pure scenery,
+   * which opens the library index instead. */
   detailId?: string;
 };
 
@@ -119,6 +121,7 @@ function inventoryForRow(
           itemIndex,
           volumeIndex,
         );
+        const book = item.books?.[volumeIndex];
         return {
           id: `flat:${row.shelf}:${row.salt}:${itemIndex}:${volumeIndex}`,
           shelf: row.shelf,
@@ -131,15 +134,20 @@ function inventoryForRow(
             itemIndex,
             volumeIndex,
           ),
-          response: "library-or-carry",
+          response: book ? "details-or-carry" : "library-or-carry",
           hoverMotion: "carry",
           draggable: true,
           shimmer: false,
+          ...(book ? { detailId: book.id } : {}),
         };
       });
     }
 
     const hoverKey = bookRowHoverKey(unitIndex, row.salt, itemIndex);
+    // A packed volume holding a real read opens THAT read. The row behind the
+    // featured rank is the rest of the library rather than a picture of one,
+    // so "library-or-carry" is now the fallback for leftover scenery only.
+    const book = item.book;
     return [
       {
         id: `${item.kind}:${row.shelf}:${row.salt}:${itemIndex}`,
@@ -147,10 +155,11 @@ function inventoryForRow(
         role: item.kind,
         hoverKey,
         nodeName: bookRowNodeName(item.kind, unitIndex, row.salt, itemIndex),
-        response: "library-or-carry",
+        response: book ? "details-or-carry" : "library-or-carry",
         hoverMotion: "carry",
         draggable: true,
         shimmer: false,
+        ...(book ? { detailId: book.id } : {}),
       },
     ];
   });
@@ -215,9 +224,26 @@ export function auditBookInteractions(
   if (extraFeatured.length)
     errors.push(`unexpected featured targets: ${extraFeatured.length}`);
 
+  // ONE BOOK, ONE DOOR. Packed volumes carry real reads now, so "has a detail
+  // target" no longer means "is a featured cover" — but a book appearing both
+  // cover-out in front and spine-out behind is two doors onto one book, and
+  // the shelf would be lying about how many books are on it. That is the
+  // invariant this replaces the old role check with, and it is the one the
+  // row builder can actually get wrong.
+  const seenDetail = new Set<string>();
   for (const item of inventory) {
-    if (item.role !== "featured" && item.detailId !== undefined)
-      errors.push(`decorative volume ${item.id} invents a detail target`);
+    if (item.detailId !== undefined) {
+      if (seenDetail.has(item.detailId))
+        errors.push(`book ${item.detailId} is shelved twice`);
+      seenDetail.add(item.detailId);
+    }
+    // A volume promises its outcome through its response. Details without a
+    // book to open, or a book with no way to open it, are both dead taps.
+    if (
+      (item.response === "details-or-carry") !==
+      (item.detailId !== undefined)
+    )
+      errors.push(`${item.id} promises a response it cannot perform`);
     if (item.draggable && item.hoverMotion !== "carry")
       errors.push(`${item.id} does not expose its carry response`);
   }

@@ -77,6 +77,10 @@ type StacksState = {
   panelState: PanelState;
   sheetDismissed: boolean;
   pendingBook: Book | null;
+  /** A book the scene wants opened that is NOT in `shelfBooks` — a packed-row
+   * spine. The modal bridge resolves it through the books app by id, the same
+   * path a #book- deep link takes. */
+  pendingBookId: string | null;
   /** Infrequently changing DOM measurements that position the desktop lens.
    * These are reactive because the canvas must immediately observe sidebar
    * hide/show and resize changes across its separate React root. */
@@ -144,6 +148,7 @@ type StacksState = {
   setPanelState: (panelState: PanelState) => void;
   setSheetDismissed: (sheetDismissed: boolean) => void;
   setPendingBook: (pendingBook: Book | null) => void;
+  setPendingBookId: (pendingBookId: string | null) => void;
   setDesktopNavRightPx: (desktopNavRightPx: number) => void;
   setDesktopDetailsLeftPx: (desktopDetailsLeftPx: number | null) => void;
   setHovered: (hovered: string | null) => void;
@@ -166,6 +171,7 @@ export const useStacks = create<StacksState>((set) => ({
   panelState: "closed",
   sheetDismissed: false,
   pendingBook: null,
+  pendingBookId: null,
   desktopNavRightPx: 0,
   desktopDetailsLeftPx: null,
   hovered: null,
@@ -296,6 +302,7 @@ export const useStacks = create<StacksState>((set) => ({
     ),
   setSheetDismissed: (sheetDismissed) => set({ sheetDismissed }),
   setPendingBook: (pendingBook) => set({ pendingBook }),
+  setPendingBookId: (pendingBookId) => set({ pendingBookId }),
   setDesktopNavRightPx: (desktopNavRightPx) =>
     set((state) =>
       state.desktopNavRightPx === desktopNavRightPx

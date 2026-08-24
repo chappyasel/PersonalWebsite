@@ -8,10 +8,12 @@ const stacksHomeSource = fs.readFileSync(
 );
 
 describe("homepage first paint", () => {
-  it("streams the boot vignette before homepage data has resolved", () => {
-    expect(source).toContain("export default function HomePage()");
-    expect(source).toContain("async function HomePageContent()");
-    expect(source).toContain("<BootScreen />");
+  it("server-renders the boot vignette with its real book covers", () => {
+    expect(source).toContain("export default async function HomePage()");
+    expect(source).toContain("async function HomePageContent({");
+    expect(source).toContain("<BootScreen");
+    expect(source).toContain("readingBooks={bootReadingBooks}");
+    expect(source).toContain("readingBookColors={readingBookColors}");
     expect(source).toContain("<React.Suspense fallback={null}>");
     // `indexOf` returns -1 for a needle that is not there, and -1 is less
     // than every real index — so this ordering check is only worth anything
@@ -28,15 +30,15 @@ describe("homepage first paint", () => {
     expect(stacksHomeSource).not.toContain("<BootScreen");
   });
 
-  it("updates that shell with exact books only after homepage data resolves", () => {
+  it("keeps the streamed bridge on the same exact book projection", () => {
     expect(source).toContain("<BootReadingBooksBridge");
-    expect(source.indexOf("<BootScreen />")).toBeLessThan(
+    expect(source.indexOf("<BootScreen")).toBeLessThan(
       source.indexOf("<React.Suspense"),
     );
     expect(source.indexOf("<BootReadingBooksBridge")).toBeGreaterThan(
-      source.indexOf("async function HomePageContent()"),
+      source.indexOf("async function HomePageContent({"),
     );
-    expect(source).toContain("readingBooks={readingBooks.map");
+    expect(source).toContain("readingBooks={toBootReadingBooks(readingBooks)}");
     expect(source).toContain(
       "coverSrc: coverUrl ? proxiedBookCover(coverUrl, 256) : null",
     );

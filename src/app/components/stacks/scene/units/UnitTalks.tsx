@@ -1,7 +1,9 @@
 "use client";
 
-// Featured talks — five candid event photographs, foliage, books, and a floor
-// lamp. The stills keep their native aspect ratios instead of being recropped
+// Featured talks — five event photographs, foliage, and a floor lamp. Each
+// photograph is displayed on its own support (a post lean, a tabletop easel,
+// a kickstand, binder clips, a book-stack lean — see talkGalleryLayout.ts),
+// and every still keeps its native aspect ratio instead of being recropped
 // into one repeated thumbnail shape.
 import type { PhotoArtifactId } from "../../sceneArtifacts";
 import { useStacks } from "../../store";
@@ -15,7 +17,6 @@ import {
   TALKS_FLOOR_SHADE_RADIUS,
   registerMeadowLamp,
 } from "../meadowLights";
-import { DeskFrame, deskFrameHeight } from "../photos";
 import { ApertureHalo, GlowSprite, ShelfUnit } from "../primitives";
 import { sceneUnitLightUserData } from "../sceneGpuPrewarm";
 import { useUnitRealLights } from "../scenePerformance";
@@ -23,6 +24,24 @@ import { useUnitLod } from "../useUnitLod";
 import React, { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 
+import StickerCamera, { STICKER_CAMERA } from "./StickerCamera";
+import {
+  TALK_SETUPS,
+  type TalkSetupId,
+  talkFramedSize,
+  talkSeat,
+} from "./talkGalleryLayout";
+import {
+  TalkBezelPanel,
+  TalkDeckledPrint,
+  TalkEaselFrame,
+  TalkGiltFrame,
+  TalkHangingWires,
+  TalkHungBoard,
+  TalkMonitorArm,
+  TalkStonePlinth,
+  TalkTableEasel,
+} from "./talkPhotoSetups";
 import { type UnitProps } from "./types";
 
 /** Floor lamp, measured from lamp-floor.glb by material island rather than
@@ -245,59 +264,46 @@ function FloorLampRealLights({
   );
 }
 
-const ANN_W = 0.528;
-const ANN_H = ANN_W * (640 / 1024);
-const CONSENSUS_W = 0.648;
-const CONSENSUS_H = CONSENSUS_W * (576 / 1024);
-const PANEL_W = 0.552;
-const PANEL_H = PANEL_W * (576 / 1024);
-const DEMO_W = 0.696;
-const DEMO_H = DEMO_W * (640 / 1024);
-const DC_W = 0.72;
-const DC_H = DC_W * (576 / 1024);
+/** Where the two cameras stand. Both sit in the clear span between the gilt
+ * frame's right edge (-0.51) and the microphone (0.43), on the wood beneath
+ * the hung board — which floats at y 0.315 and so leaves that shelf free. */
+const STICKER_CAMERA_MARKS = [
+  { key: "talks-a", x: -0.3, z: 0.06, yaw: 0.42, tone: 1 },
+  { key: "talks-b", x: 0.19, z: -0.02, yaw: -0.55, tone: 0.96 },
+] as const;
 
-/** Centre height that keeps a rolled frame's lowest corner on local shelf y=0. */
-function frameSeat(width: number, height: number, roll: number) {
-  const framedWidth = width + 0.048;
-  const framedHeight = deskFrameHeight(height);
-  return (
-    (framedHeight / 2) * Math.cos(Math.abs(roll)) +
-    (framedWidth / 2) * Math.sin(Math.abs(roll))
-  );
-}
-
+/** The shared carry/preview wiring for one talk photo. Pose, seat, mass and
+ * shade width all come off the setup's layout entry, so the Grabbable and
+ * the rendered form cannot disagree about where the print rests. */
 function TalkPhoto({
   unitIndex,
   palette,
   id,
-  base,
-  seat,
-  rotation,
-  width,
   children,
 }: {
   unitIndex: number;
   palette: UnitProps["palette"];
-  id: PhotoArtifactId;
-  base: [number, number, number];
-  seat: number;
-  rotation: [number, number, number];
-  width: number;
+  id: TalkSetupId & PhotoArtifactId;
   children: React.ReactNode;
 }) {
+  const setup = TALK_SETUPS[id];
   const hoverKey = `grab:photo:${id}`;
   return (
     <Grabbable
       unitIndex={unitIndex}
       hoverKey={hoverKey}
-      base={base}
+      base={[setup.base[0], setup.base[1], setup.base[2]]}
       shadeColor={palette.shadow}
-      shadeWidth={Math.max(0.34, width * 1.08)}
+      shadeWidth={Math.max(0.34, talkFramedSize(setup).width * 1.08)}
       shape="box"
-      massKg={0.58}
+      massKg={setup.massKg}
       artifact={id}
     >
-      <HeldFacing hoverKey={hoverKey} position={[0, seat, 0]} rest={rotation}>
+      <HeldFacing
+        hoverKey={hoverKey}
+        position={[0, talkSeat(setup), 0]}
+        rest={[setup.rest[0], setup.rest[1], setup.rest[2]]}
+      >
         {children}
       </HeldFacing>
     </Grabbable>
@@ -349,48 +355,65 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
         toneSeed={index}
         lower={
           <group>
-            {/* Two lower-shelf photographs, deliberately different widths and
-                depth offsets. Their frame apertures use the source ratios
-                exactly, so LitImage has no reason to crop either file. */}
+            {/* The lower bay takes the two mounts that need real height: the
+                gilt frame tipped back into the bookcase's own left post, and
+                the Consensus board hanging on wires from the underside of
+                the shelf above — the only photograph in the room that never
+                touches anything it stands on. */}
             <TalkPhoto
               unitIndex={index}
               palette={palette}
               id="talk-demo-night-v8"
-              base={[-0.91, 0, -0.01]}
-              seat={frameSeat(DEMO_W, DEMO_H, -0.018)}
-              rotation={[-0.07, 0.11, -0.018]}
-              width={DEMO_W}
             >
-              <DeskFrame
+              <TalkGiltFrame
                 src="/images/stacks/v8/talk-demo-night.webp"
                 palette={palette}
                 textured={textured}
-                width={DEMO_W}
-                height={DEMO_H}
               />
             </TalkPhoto>
+            <TalkHangingWires />
             <TalkPhoto
               unitIndex={index}
               palette={palette}
-              id="talk-dc-policy-v8"
-              base={[-0.14, 0, 0.035]}
-              seat={frameSeat(DC_W, DC_H, 0.014)}
-              rotation={[-0.05, -0.12, 0.014]}
-              width={DC_W}
+              id="talk-consensus-phone-v8"
             >
-              <DeskFrame
-                src="/images/stacks/v8/talk-dc-policy.webp"
+              <TalkHungBoard
+                src="/images/stacks/v8/talk-consensus-phone.webp"
                 palette={palette}
                 textured={textured}
-                width={DC_W}
-                height={DC_H}
               />
             </TalkPhoto>
+
+            {/* Two Sticker Cameras, on the wood under the hung board. The
+                one shelf in the room where a camera is not decoration: it is
+                what took everything hanging around it. Both stand on their
+                own base — a 1.35"-deep body on a 2.90" footprint is stable
+                well past these yaws — and they are turned differently so the
+                pair does not read as one object copied. */}
+            {STICKER_CAMERA_MARKS.map((mark) => (
+              <Grabbable
+                key={mark.key}
+                unitIndex={index}
+                hoverKey={`grab:sticker-camera:${mark.key}`}
+                base={[mark.x, 0, mark.z]}
+                shadeColor={palette.shadow}
+                shadeWidth={0.26}
+                shape="box"
+                massKg={0.26}
+              >
+                <group
+                  position={[0, STICKER_CAMERA.height / 2, 0]}
+                  rotation={[0, mark.yaw, 0]}
+                >
+                  <StickerCamera tone={mark.tone} />
+                </group>
+              </Grabbable>
+            ))}
 
             <Grabbable
               unitIndex={index}
               hoverKey="grab:microphone"
-              base={[0.34, 0, 0.08]}
+              base={[0.42, 0, 0.08]}
               shadeColor={palette.shadow}
               shadeWidth={0.5}
               shape="box"
@@ -438,58 +461,35 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
           </group>
         }
       >
-        {/* Three top-shelf moments form a loose gallery rather than a uniform
-            frame row: different widths, yaws, rolls and depths, but all five
-            photographs in this unit retain the raw file's own ratio. */}
+        {/* Three top-shelf moments, three more mechanisms: the studio panel
+            carried out on a clamped monitor arm, the formal frame standing
+            on an ornate easel, and the deckled print gripped in a stone
+            plinth. All five photographs retain the raw file's own ratio. */}
+        <TalkMonitorArm palette={palette} />
         <TalkPhoto
           unitIndex={index}
           palette={palette}
           id="talk-ann-interview-v8"
-          base={[-1.02, 0, -0.055]}
-          seat={frameSeat(ANN_W, ANN_H, -0.022)}
-          rotation={[-0.06, 0.13, -0.022]}
-          width={ANN_W}
         >
-          <DeskFrame
+          <TalkBezelPanel
             src="/images/stacks/v8/talk-ann-interview.webp"
-            palette={palette}
             textured={textured}
-            width={ANN_W}
-            height={ANN_H}
           />
         </TalkPhoto>
-        <TalkPhoto
-          unitIndex={index}
-          palette={palette}
-          id="talk-consensus-phone-v8"
-          base={[-0.37, 0, -0.02]}
-          seat={frameSeat(CONSENSUS_W, CONSENSUS_H, 0.012)}
-          rotation={[-0.08, -0.04, 0.012]}
-          width={CONSENSUS_W}
-        >
-          <DeskFrame
-            src="/images/stacks/v8/talk-consensus-phone.webp"
+        <TalkTableEasel palette={palette} />
+        <TalkPhoto unitIndex={index} palette={palette} id="talk-dc-policy-v8">
+          <TalkEaselFrame
+            src="/images/stacks/v8/talk-dc-policy.webp"
             palette={palette}
             textured={textured}
-            width={CONSENSUS_W}
-            height={CONSENSUS_H}
           />
         </TalkPhoto>
-        <TalkPhoto
-          unitIndex={index}
-          palette={palette}
-          id="talk-panel-v8"
-          base={[0.3, 0, 0.03]}
-          seat={frameSeat(PANEL_W, PANEL_H, 0.026)}
-          rotation={[-0.05, -0.14, 0.026]}
-          width={PANEL_W}
-        >
-          <DeskFrame
+        <TalkStonePlinth />
+        <TalkPhoto unitIndex={index} palette={palette} id="talk-panel-v8">
+          <TalkDeckledPrint
             src="/images/stacks/v8/talk-panel.webp"
             palette={palette}
             textured={textured}
-            width={PANEL_W}
-            height={PANEL_H}
           />
         </TalkPhoto>
 
@@ -498,7 +498,10 @@ export default function UnitTalks({ palette, dark, index }: UnitProps) {
         <Grabbable
           unitIndex={index}
           hoverKey="grab:harmonica:talks"
-          base={[0.82, 0, 0.08]}
+          // 0.82 → 0.97: the plinth moved the panel print's right edge out to
+          // 0.794, which left the harmonica's Perch 2.6cm from a static
+          // island and permanently `resting-pose-blocked`.
+          base={[0.97, 0, 0.08]}
           shadeColor={palette.shadow}
           shadeWidth={0.5}
           shape="box"

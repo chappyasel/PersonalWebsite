@@ -18,23 +18,41 @@ import {
   worldBoot,
 } from "../boot/worldBootSession";
 import {
+  ABOUT_AIC_BASE_DEPTH,
   ABOUT_AIC_BASE_WIDTH,
+  ABOUT_AIC_MARK_DEPTH,
   ABOUT_AIC_MARK_HEIGHT,
   ABOUT_AIC_MARK_WIDTH,
+  ABOUT_APPLE_BASE_DEPTH,
   ABOUT_APPLE_BASE_WIDTH,
+  ABOUT_APPLE_MARK_DEPTH,
   ABOUT_APPLE_MARK_HEIGHT,
 } from "../scene/aboutAwardGeometry";
 import {
+  ABOUT_BOOT_PAINT_COMPOSITION,
   ABOUT_BOOT_VISIBLE_COMPOSITION,
   type AboutBootLandmark,
   type AboutLandmarkGlyph,
 } from "../scene/aboutBootComposition";
+import {
+  type AboutBootFrameId,
+  type AboutBootQuad,
+  aboutBootFrameProjection,
+} from "../scene/aboutBootFrameProjection";
 import { ABOUT_BOOT_MODEL_SILHOUETTES } from "../scene/aboutBootSilhouettes";
+import { aboutBootShelfSupportProjection } from "../scene/aboutBootSupportProjection";
 import {
   ABOUT_ROLES,
   ABOUT_ROLE_ICON_SIZE,
   aboutRoleIconOffset,
 } from "../scene/aboutRoleIcons";
+import {
+  ABOUT_AIC_MARK_YAW,
+  ABOUT_AIC_ROOT_YAW,
+  ABOUT_APPLE_MARK_YAW,
+  ABOUT_APPLE_ROOT_YAW,
+  ABOUT_MODEL_POSES,
+} from "../scene/aboutScenePose";
 import { APPLE_OUTLINE } from "../scene/appleOutline";
 import {
   COORDINATION_BASE_BOTTOM_RADIUS,
@@ -56,14 +74,24 @@ import {
   coordinationNodePosition,
   createCoordinationNetwork,
 } from "../scene/coordinationNetwork";
+import { projectIconBody } from "../scene/projectIconGeometry";
 import {
   SHELF_GEOMETRY,
   SHELF_PLANKS,
   SHELF_SURFACE,
 } from "../scene/shelfGeometry";
 import {
+  TJ_MEDALLION_FACES,
+  TJ_MEDALLION_POSE,
+  TJ_MEDALLION_SOLIDS,
+} from "../scene/tjMedallionGeometry";
+import {
   ABOUT_READING_BOOK,
-  readingBookPerspectiveElevation,
+  ABOUT_READING_COVER_IMAGE,
+  readingBookCoverPerspectiveElevation,
+  readingBookForeEdgePerspectiveElevation,
+  readingBookImagePerspectiveElevation,
+  readingBookPageCorePerspectiveElevation,
   readingStackPoses,
 } from "../scene/units/aboutReadingStack";
 import { CAMERA } from "../scene/worldLayout";
@@ -72,7 +100,6 @@ import {
   type CSSProperties,
   type ReactNode,
   type RefObject,
-  type SVGProps,
   useEffect,
   useRef,
   useState,
@@ -83,8 +110,10 @@ import {
   type BootReadingBook,
   getBootReadingBooks,
   getServerBootReadingBooks,
+  preloadBootReadingBookCovers,
   publishBootReadingBooks,
   subscribeBootReadingBooks,
+  waitForBootReadingBooks,
 } from "./bootReadingBooks";
 import {
   BOOT_DUST_COUNTS,
@@ -147,7 +176,20 @@ export function BootReadingBooksBridge({
       }),
     [readingBookColors, readingBooks],
   );
-  return null;
+  // React hoists preload links into the document head as soon as this streamed
+  // subtree arrives. The request therefore starts before hydration publishes
+  // the same URLs into the already-mounted boot SVG.
+  return readingBooks.map((book) =>
+    book.coverSrc ? (
+      <link
+        as="image"
+        data-boot-reading-cover-preload={book.id}
+        href={book.coverSrc}
+        key={book.id}
+        rel="preload"
+      />
+    ) : null,
+  );
 }
 
 type BootStyle = CSSProperties & Record<`--stacks-boot-${string}`, string>;
@@ -218,6 +260,7 @@ function BootWaitNotes() {
 function useBootMotion(
   sceneRef: RefObject<SVGSVGElement | null>,
   cadence: ReturnType<typeof bootCadence>,
+  firstPaintBooks?: readonly BootReadingBook[],
 ) {
   useEffect(() => {
     const scene = sceneRef.current;
@@ -233,6 +276,14 @@ function useBootMotion(
     let readinessFrame = 0;
     let retireTimer = 0;
     let glideToken = 0;
+    const readingAbort = new AbortController();
+    const readingCoversReady = (
+      firstPaintBooks
+        ? preloadBootReadingBookCovers(firstPaintBooks)
+        : waitForBootReadingBooks(readingAbort.signal).then(({ books }) =>
+            preloadBootReadingBookCovers(books),
+          )
+    ).catch(() => undefined);
     const threshold = scene.closest<HTMLElement>(".stacks-boot-threshold");
     const gliders = threshold
       ? Array.from(
@@ -250,8 +301,10 @@ function useBootMotion(
     const glide = () => {
       const token = ++glideToken;
       const complete = () => {
-        if (token !== glideToken) return;
-        worldBoot.send({ type: "bootVignetteCompleted" });
+        void readingCoversReady.then(() => {
+          if (token !== glideToken) return;
+          worldBoot.send({ type: "bootVignetteCompleted" });
+        });
       };
       if (!setAboutBootStagePhase("placed")) {
         complete();
@@ -344,10 +397,11 @@ function useBootMotion(
       observer.disconnect();
       cancelAnimationFrame(readinessFrame);
       glideToken += 1;
+      readingAbort.abort();
       window.clearTimeout(retireTimer);
       for (const animation of animations) animation.cancel();
     };
-  }, [cadence, sceneRef]);
+  }, [cadence, firstPaintBooks, sceneRef]);
 }
 
 function useBootMotes(motesRef: RefObject<HTMLDivElement | null>) {
@@ -537,92 +591,59 @@ function assertNever(_glyph: never): never {
   throw new Error("Unhandled About boot glyph");
 }
 
-function BootImage({
-  href,
-  onLoad,
-  onError,
-  style,
-  ...props
-}: SVGProps<SVGImageElement>) {
-  const [loaded, setLoaded] = useState(false);
-  const source = typeof href === "string" ? href : null;
-
-  useEffect(() => {
-    if (!source) return;
-    let active = true;
-    const probe = new window.Image();
-    probe.onload = () => {
-      if (active) setLoaded(true);
-    };
-    probe.src = source;
-    return () => {
-      active = false;
-      probe.onload = null;
-    };
-  }, [source]);
-
-  return (
-    <image
-      {...props}
-      href={href}
-      onLoad={(event) => {
-        setLoaded(true);
-        onLoad?.(event);
-      }}
-      onError={onError}
-      style={{
-        opacity: loaded ? 1 : 0,
-        transition: "opacity 160ms ease-out",
-        ...style,
-      }}
-    />
-  );
-}
-
-function FrameGlyph({
-  landmark,
-  width,
-  height,
-}: {
-  landmark: AboutBootLandmark;
-  width: number;
-  height: number;
-}) {
+function FrameGlyph({ landmark }: { landmark: AboutBootLandmark }) {
   const landmarkId = landmark.id;
+  const imageProfile = landmark.imageProfile;
+  if (!imageProfile) {
+    throw new Error(`Boot frame ${landmarkId} has no image profile`);
+  }
+  const projection = aboutBootFrameProjection(landmarkId as AboutBootFrameId);
   const photo = (BOOT_FRAME_PHOTOS as Partial<Record<string, BootFramePhoto>>)[
     landmarkId
   ];
-  const imageWidth = (landmark.imageProfile?.width ?? 0) * SCENE_TO_BOOT_SVG;
-  const imageHeight = (landmark.imageProfile?.height ?? 0) * SCENE_TO_BOOT_SVG;
-  const imageX = -imageWidth / 2;
-  const imageY = -height + (height - imageHeight) / 2;
+  const points = (quad: typeof projection.outer) =>
+    quad
+      .map(([x, y]) => `${x * SCENE_TO_BOOT_SVG},${y * SCENE_TO_BOOT_SVG}`)
+      .join(" ");
+  const imagePoints = projection.image.map(
+    ([x, y]) => [x * SCENE_TO_BOOT_SVG, y * SCENE_TO_BOOT_SVG] as const,
+  ) as unknown as AboutBootQuad;
+  const [bottomLeft, , topRight, topLeft] = imagePoints;
+  const imageTransform = [
+    (topRight[0] - topLeft[0]) / imageProfile.width,
+    (topRight[1] - topLeft[1]) / imageProfile.width,
+    (bottomLeft[0] - topLeft[0]) / imageProfile.height,
+    (bottomLeft[1] - topLeft[1]) / imageProfile.height,
+    topLeft[0],
+    topLeft[1],
+  ].join(" ");
   return (
     <>
-      <rect
+      <polygon
         className="stacks-boot-frame"
-        x={-width / 2}
-        y={-height}
-        width={width}
-        height={height}
-        rx="2"
+        data-boot-frame-outline={landmarkId}
+        points={points(projection.outer)}
       />
-      <rect
+      <polygon
+        className="stacks-boot-frame-inner"
+        data-boot-frame-inner={landmarkId}
+        points={points(projection.mat)}
+      />
+      <polygon
         className="stacks-boot-frame-empty"
-        x={imageX}
-        y={imageY}
-        width={imageWidth}
-        height={imageHeight}
-        rx="1"
+        data-boot-frame-image={landmarkId}
+        points={points(projection.image)}
       />
       {photo && (
-        <BootImage
+        <image
           className="stacks-boot-frame-photo"
           data-boot-photo={landmarkId}
           href={photo.src}
-          x={imageX}
-          y={imageY}
-          width={imageWidth}
-          height={imageHeight}
+          x="0"
+          y="0"
+          width={imageProfile.width}
+          height={imageProfile.height}
+          transform={`matrix(${imageTransform})`}
           preserveAspectRatio={photo.preserveAspectRatio}
         />
       )}
@@ -640,112 +661,143 @@ function ReadingStackGlyph({
   landmarkX: number;
 }) {
   const visible = books.slice(0, 3);
-  const poses = readingStackPoses();
-  const [firstPose] = poses;
-  const [, , fanAngle] = firstPose.rotation;
-  const edgeWidth =
-    Math.sin(fanAngle) * ABOUT_READING_BOOK.thickness * SCENE_TO_BOOT_SVG;
+  const thicknesses = visible.map(
+    (book) => book.thickness ?? ABOUT_READING_BOOK.thickness,
+  );
+  const poses = readingStackPoses(thicknesses);
   return (
     <g>
-      {visible.map((book, index) => {
-        const sampled = colors[book.id] ?? {
-          edge: fallbackCoverEdgeColor(book.id),
-          source: "fallback" as const,
-        };
-        const light = readingBookMaterialColors(
-          sampled.edge,
-          PALETTES.light.pages,
-          false,
-        );
-        const dark = readingBookMaterialColors(
-          sampled.edge,
-          PALETTES.dark.pages,
-          true,
-        );
-        const coverPoints = readingBookPerspectiveElevation(
-          poses[index]!,
-          CAMERA.z,
-        ).map(([x, y]): [number, number] => [
-          (x - landmarkX) * SCENE_TO_BOOT_SVG,
-          -y * SCENE_TO_BOOT_SVG,
-        ]) as [
-          [number, number],
-          [number, number],
-          [number, number],
-          [number, number],
-        ];
-        const cover = coverPoints.map((point) => point.join(",")).join(" ");
-        const [bottomLeft, bottomRight, topRight, topLeft] = coverPoints;
-        const coverImageTransform = [
-          topRight[0] - topLeft[0],
-          topRight[1] - topLeft[1],
-          bottomLeft[0] - topLeft[0],
-          bottomLeft[1] - topLeft[1],
-          topLeft[0],
-          topLeft[1],
-        ].join(" ");
-        const clipId = `stacks-boot-reading-cover-${index}`;
-        const foreEdge = [
-          bottomRight,
-          [bottomRight[0] + edgeWidth, bottomRight[1]],
-          [topRight[0] + edgeWidth, topRight[1]],
-          topRight,
-        ]
-          .map((point) => point.join(","))
-          .join(" ");
-        return (
-          <g
-            className="stacks-boot-reading-book"
-            data-reading-book={book.id}
-            data-edge-color={sampled.edge}
-            data-book-color-light={light.cover}
-            data-book-color-dark={dark.cover}
-            key={book.id}
-            style={
-              {
-                "--stacks-boot-book": `var(--stacks-boot-book-light)`,
-                "--stacks-boot-book-light": light.cover,
-                "--stacks-boot-book-dark": dark.cover,
-                "--stacks-boot-book-page-light": light.pages,
-                "--stacks-boot-book-page-dark": dark.pages,
-              } as BootStyle
-            }
-          >
-            <defs>
-              <clipPath id={clipId}>
-                <polygon points={cover} />
-              </clipPath>
-            </defs>
-            <polygon
-              className="stacks-boot-book-cover"
-              data-boot-reading-cover={index}
-              points={cover}
-            />
-            {book.coverSrc && (
-              <BootImage
-                className="stacks-boot-book-cover-photo"
-                clipPath={`url(#${clipId})`}
-                data-boot-book-face={book.id}
-                href={book.coverSrc}
-                height="1"
-                preserveAspectRatio="none"
-                transform={`matrix(${coverImageTransform})`}
-                width="1"
-                x="0"
-                y="0"
+      {visible
+        .map((book, index) => ({ book, index }))
+        .reverse()
+        .map(({ book, index }) => {
+          const sampled = colors[book.id] ?? {
+            edge: fallbackCoverEdgeColor(book.id),
+            source: "fallback" as const,
+          };
+          const light = readingBookMaterialColors(
+            sampled.edge,
+            PALETTES.light.pages,
+            false,
+          );
+          const dark = readingBookMaterialColors(
+            sampled.edge,
+            PALETTES.dark.pages,
+            true,
+          );
+          const thickness = book.thickness ?? ABOUT_READING_BOOK.thickness;
+          const toBootPoints = (
+            points: ReturnType<typeof readingBookCoverPerspectiveElevation>,
+          ) =>
+            points.map(([x, y]): [number, number] => [
+              (x - landmarkX) * SCENE_TO_BOOT_SVG,
+              -y * SCENE_TO_BOOT_SVG,
+            ]) as [
+              [number, number],
+              [number, number],
+              [number, number],
+              [number, number],
+            ];
+          const coverPoints = toBootPoints(
+            readingBookCoverPerspectiveElevation(
+              poses[index]!,
+              CAMERA.z,
+              thickness,
+            ),
+          );
+          const edgePoints = toBootPoints(
+            readingBookForeEdgePerspectiveElevation(
+              poses[index]!,
+              CAMERA.z,
+              thickness,
+            ),
+          );
+          const pageCorePoints = toBootPoints(
+            readingBookPageCorePerspectiveElevation(
+              poses[index]!,
+              CAMERA.z,
+              thickness,
+            ),
+          );
+          const imagePoints = toBootPoints(
+            readingBookImagePerspectiveElevation(
+              poses[index]!,
+              CAMERA.z,
+              thickness,
+            ),
+          );
+          const cover = coverPoints.map((point) => point.join(",")).join(" ");
+          const edge = edgePoints.map((point) => point.join(",")).join(" ");
+          const pageCore = pageCorePoints
+            .map((point) => point.join(","))
+            .join(" ");
+          const imagePolygon = imagePoints
+            .map((point) => point.join(","))
+            .join(" ");
+          const [imageBottomLeft, , imageTopRight, imageTopLeft] = imagePoints;
+          const coverImageTransform = [
+            (imageTopRight[0] - imageTopLeft[0]) /
+              ABOUT_READING_COVER_IMAGE.width,
+            (imageTopRight[1] - imageTopLeft[1]) /
+              ABOUT_READING_COVER_IMAGE.width,
+            (imageBottomLeft[0] - imageTopLeft[0]) /
+              ABOUT_READING_COVER_IMAGE.height,
+            (imageBottomLeft[1] - imageTopLeft[1]) /
+              ABOUT_READING_COVER_IMAGE.height,
+            imageTopLeft[0],
+            imageTopLeft[1],
+          ].join(" ");
+          return (
+            <g
+              className="stacks-boot-reading-book"
+              data-reading-book={book.id}
+              data-edge-color={sampled.edge}
+              data-book-color-light={light.cover}
+              data-book-color-dark={dark.cover}
+              key={book.id}
+              style={
+                {
+                  "--stacks-boot-book": `var(--stacks-boot-book-light)`,
+                  "--stacks-boot-book-light": light.cover,
+                  "--stacks-boot-book-dark": dark.cover,
+                  "--stacks-boot-book-page-light": light.pages,
+                  "--stacks-boot-book-page-dark": dark.pages,
+                } as BootStyle
+              }
+            >
+              <polygon
+                data-boot-reading-image={index}
+                fill="none"
+                points={imagePolygon}
+                stroke="none"
               />
-            )}
-            <polygon className="stacks-boot-book-edge" points={foreEdge} />
-            <line
-              className="stacks-boot-book-page-line"
-              x1={topLeft[0] + 2}
-              x2={topRight[0] - 1}
-              y1={topLeft[1] + 2.4}
-              y2={topRight[1] + 2.4}
-            />
-          </g>
-        );
-      })}
+              <polygon
+                className="stacks-boot-book-cover"
+                data-boot-reading-cover={index}
+                points={cover}
+              />
+              {book.coverSrc && (
+                <image
+                  className="stacks-boot-book-cover-photo"
+                  data-boot-book-face={book.id}
+                  href={book.coverSrc}
+                  height={ABOUT_READING_COVER_IMAGE.height}
+                  preserveAspectRatio="xMidYMid slice"
+                  transform={`matrix(${coverImageTransform})`}
+                  width={ABOUT_READING_COVER_IMAGE.width}
+                  x="0"
+                  y="0"
+                />
+              )}
+              <polygon className="stacks-boot-book-edge" points={edge} />
+              <polygon
+                className="stacks-boot-book-page-core"
+                data-boot-reading-page-core={index}
+                points={pageCore}
+              />
+            </g>
+          );
+        })}
     </g>
   );
 }
@@ -761,29 +813,46 @@ function ModelSilhouetteGlyph({
 }) {
   const silhouette = ABOUT_BOOT_MODEL_SILHOUETTES[id];
   const [, , sourceWidth, sourceHeight] = silhouette.viewBox;
+  const transform =
+    "projection" in silhouette
+      ? `matrix(${silhouette.projection.map((value) => value * SCENE_TO_BOOT_SVG).join(" ")})`
+      : `translate(${-width / 2} ${-height}) scale(${width / sourceWidth} ${height / sourceHeight})`;
   return (
     <path
       className="stacks-boot-model-silhouette"
       data-model-silhouette={id}
       d={silhouette.path}
       fillRule="evenodd"
-      transform={`translate(${-width / 2} ${-height}) scale(${width / sourceWidth} ${height / sourceHeight})`}
+      transform={transform}
     />
   );
 }
 
 function CollectiveMarkGlyph({ scale }: { scale: number }) {
-  const baseWidth = ABOUT_AIC_BASE_WIDTH * SCENE_TO_BOOT_SVG;
+  const baseWidth =
+    (Math.abs(Math.cos(ABOUT_AIC_ROOT_YAW)) * ABOUT_AIC_BASE_WIDTH +
+      Math.abs(Math.sin(ABOUT_AIC_ROOT_YAW)) * ABOUT_AIC_BASE_DEPTH) *
+    SCENE_TO_BOOT_SVG;
   const baseHeight = 0.024 * SCENE_TO_BOOT_SVG;
   const gap = 0.004 * SCENE_TO_BOOT_SVG;
   const markHeight = ABOUT_AIC_MARK_HEIGHT * SCENE_TO_BOOT_SVG;
-  const markWidth = ABOUT_AIC_MARK_WIDTH * SCENE_TO_BOOT_SVG;
+  const markYaw = ABOUT_AIC_ROOT_YAW + ABOUT_AIC_MARK_YAW;
+  const markWidth =
+    (Math.abs(Math.cos(markYaw)) * ABOUT_AIC_MARK_WIDTH +
+      Math.abs(Math.sin(markYaw)) * ABOUT_AIC_MARK_DEPTH) *
+    SCENE_TO_BOOT_SVG;
+  const markShiftX = Math.sin(ABOUT_AIC_ROOT_YAW) * 0.004 * SCENE_TO_BOOT_SVG;
   return (
     <g
       data-boot-aic-seat={BOOT_AIC_SEAT_PX}
       transform={`translate(0 ${BOOT_AIC_SEAT_PX})`}
     >
-      <g data-boot-aic-scale={scale} transform={`scale(${scale})`}>
+      <g
+        data-boot-aic-root-yaw={ABOUT_AIC_ROOT_YAW}
+        data-boot-aic-mark-yaw={ABOUT_AIC_MARK_YAW}
+        data-boot-aic-scale={scale}
+        transform={`scale(${scale})`}
+      >
         <rect
           className="stacks-boot-mark-base"
           x={-baseWidth / 2}
@@ -792,7 +861,7 @@ function CollectiveMarkGlyph({ scale }: { scale: number }) {
           height={baseHeight}
           rx="1"
         />
-        <g transform={`translate(0 ${-(baseHeight + gap)})`}>
+        <g transform={`translate(${markShiftX} ${-(baseHeight + gap)})`}>
           <ModelSilhouetteGlyph
             id="ai-collective"
             width={markWidth}
@@ -811,32 +880,45 @@ function TJMedallionGlyph({
   width: number;
   height: number;
 }) {
-  const radius = width / 2;
-  const centerY = -height + radius;
+  const rim = TJ_MEDALLION_SOLIDS.find((solid) => solid.id === "rim")!;
+  const artwork = TJ_MEDALLION_FACES.find(
+    (face) => face.id === "artwork-face",
+  )!;
+  const yaw = TJ_MEDALLION_POSE.yaw;
+  const scale = TJ_MEDALLION_POSE.scale * SCENE_TO_BOOT_SVG;
+  const rimRadius = rim.args[0]! * scale;
+  const rimCenterX = Math.sin(yaw) * (rim.args[2]! / 2) * scale;
+  const centerY = -rim.position[1] * scale;
+  const faceRadius = artwork.radius * scale;
+  const faceCenterX = Math.sin(yaw) * artwork.position[2] * scale;
+  const xScale = Math.abs(Math.cos(yaw));
   return (
     <>
       <ModelSilhouetteGlyph id="tj-medallion" width={width} height={height} />
-      <circle
+      <ellipse
         className="stacks-boot-tj-ring"
-        cx="0"
+        cx={rimCenterX}
         cy={centerY}
-        r={radius * 0.94}
+        rx={rimRadius * xScale}
+        ry={rimRadius}
       />
-      <circle
+      <ellipse
         className="stacks-boot-tj-face"
-        cx="0"
+        cx={faceCenterX}
         cy={centerY}
-        r={radius * 0.7}
+        rx={faceRadius * xScale}
+        ry={faceRadius}
       />
-      <circle
+      <ellipse
         className="stacks-boot-tj-detail"
-        cx="0"
-        cy={centerY + radius * 0.08}
-        r={radius * 0.37}
+        cx={faceCenterX}
+        cy={centerY + faceRadius * 0.11}
+        rx={faceRadius * xScale * 0.53}
+        ry={faceRadius * 0.53}
       />
       <path
         className="stacks-boot-tj-detail"
-        d={`M ${-radius * 0.46} ${centerY - radius * 0.34} L 0 ${centerY + radius * 0.52} L ${radius * 0.46} ${centerY - radius * 0.34} M ${-radius * 0.32} ${centerY - radius * 0.46} L ${radius * 0.38} ${centerY - radius * 0.32} L 0 ${centerY + radius * 0.52}`}
+        d={`M ${faceCenterX - faceRadius * xScale * 0.66} ${centerY - faceRadius * 0.49} L ${faceCenterX} ${centerY + faceRadius * 0.74} L ${faceCenterX + faceRadius * xScale * 0.66} ${centerY - faceRadius * 0.49} M ${faceCenterX - faceRadius * xScale * 0.46} ${centerY - faceRadius * 0.66} L ${faceCenterX + faceRadius * xScale * 0.54} ${centerY - faceRadius * 0.46} L ${faceCenterX} ${centerY + faceRadius * 0.74}`}
       />
     </>
   );
@@ -1004,28 +1086,57 @@ function appleGlyphPath(height: number, bottom: number): string {
  * cannot express four different tiles. */
 function RoleIconStackGlyph() {
   const size = ABOUT_ROLE_ICON_SIZE * SCENE_TO_BOOT_SVG;
-  // The live tiles stand flush; half a unit of inset keeps a seam between the
-  // silhouettes so four colors do not fuse into one block.
-  const inset = 0.5;
+  const body = projectIconBody(ABOUT_ROLE_ICON_SIZE);
   return ABOUT_ROLES.map((role) => {
     const [dx, dy] = aboutRoleIconOffset(role);
+    const projectedBodyWidth =
+      (Math.abs(Math.cos(role.yaw)) * body.size +
+        Math.abs(Math.sin(role.yaw)) * body.depth) *
+      SCENE_TO_BOOT_SVG;
+    const faceSize = body.size - body.faceInset * 2;
+    const projectedFaceWidth =
+      Math.abs(Math.cos(role.yaw)) * faceSize * SCENE_TO_BOOT_SVG;
+    const faceShiftX =
+      Math.sin(role.yaw) * (body.depth / 2) * SCENE_TO_BOOT_SVG;
+    const centerX = dx * SCENE_TO_BOOT_SVG;
+    const topY = -(dy * SCENE_TO_BOOT_SVG + size);
+    const faceTop = topY + body.faceInset * SCENE_TO_BOOT_SVG;
+    const faceHeight = faceSize * SCENE_TO_BOOT_SVG;
     return (
-      <rect
-        key={role.id}
-        className="stacks-boot-role-icon"
-        data-boot-role={role.id}
-        x={dx * SCENE_TO_BOOT_SVG - size / 2 + inset}
-        y={-(dy * SCENE_TO_BOOT_SVG + size) + inset}
-        width={size - inset * 2}
-        height={size - inset * 2}
-        rx={size * 0.16}
-        style={
-          {
-            "--stacks-boot-role-light": role.bootColor.light,
-            "--stacks-boot-role-dark": role.bootColor.dark,
-          } as BootStyle
-        }
-      />
+      <g key={role.id} data-boot-role={role.id} data-boot-role-yaw={role.yaw}>
+        <rect
+          className="stacks-boot-role-icon-body"
+          x={centerX - projectedBodyWidth / 2}
+          y={topY}
+          width={projectedBodyWidth}
+          height={size}
+          rx={size * 0.16}
+        />
+        <rect
+          className="stacks-boot-role-icon"
+          x={centerX + faceShiftX - projectedFaceWidth / 2}
+          y={faceTop}
+          width={projectedFaceWidth}
+          height={faceHeight}
+          rx={body.fallbackFaceRadius * SCENE_TO_BOOT_SVG}
+          style={
+            {
+              "--stacks-boot-role-light": role.bootColor.light,
+              "--stacks-boot-role-dark": role.bootColor.dark,
+            } as BootStyle
+          }
+        />
+        <image
+          className="stacks-boot-role-artwork"
+          data-boot-role-artwork={role.id}
+          href={role.artwork}
+          x={centerX + faceShiftX - projectedFaceWidth / 2}
+          y={faceTop}
+          width={projectedFaceWidth}
+          height={faceHeight}
+          preserveAspectRatio="xMidYMid slice"
+        />
+      </g>
     );
   });
 }
@@ -1045,7 +1156,7 @@ function LandmarkGlyph({
   switch (glyph) {
     case "portrait-frame":
     case "landscape-frame":
-      return <FrameGlyph landmark={landmark} width={width} height={height} />;
+      return <FrameGlyph landmark={landmark} />;
     case "globe":
       return <ModelSilhouetteGlyph id="globe" width={width} height={height} />;
     case "succulent":
@@ -1074,11 +1185,22 @@ function LandmarkGlyph({
     case "apple": {
       const scale = landmark.profile.height / 0.176;
       const baseHeight = 0.021 * SCENE_TO_BOOT_SVG;
-      const baseWidth = ABOUT_APPLE_BASE_WIDTH * SCENE_TO_BOOT_SVG;
+      const appleYaw = ABOUT_APPLE_ROOT_YAW + ABOUT_APPLE_MARK_YAW;
+      const baseWidth =
+        (Math.abs(Math.cos(appleYaw)) * ABOUT_APPLE_BASE_WIDTH +
+          Math.abs(Math.sin(appleYaw)) * ABOUT_APPLE_BASE_DEPTH) *
+        SCENE_TO_BOOT_SVG;
       const markHeight = ABOUT_APPLE_MARK_HEIGHT * SCENE_TO_BOOT_SVG;
       const markBottom = 0.017 * SCENE_TO_BOOT_SVG;
+      const markShiftX =
+        Math.sin(appleYaw) * (ABOUT_APPLE_MARK_DEPTH / 2) * SCENE_TO_BOOT_SVG;
       return (
-        <g data-boot-apple-scale={scale} transform={`scale(${scale})`}>
+        <g
+          data-boot-apple-root-yaw={ABOUT_APPLE_ROOT_YAW}
+          data-boot-apple-mark-yaw={ABOUT_APPLE_MARK_YAW}
+          data-boot-apple-scale={scale}
+          transform={`scale(${scale})`}
+        >
           <rect
             className="stacks-boot-metal-fill"
             x={-baseWidth / 2}
@@ -1091,6 +1213,7 @@ function LandmarkGlyph({
             className="stacks-boot-apple"
             data-boot-apple=""
             d={appleGlyphPath(markHeight, markBottom)}
+            transform={`matrix(${Math.cos(appleYaw)} 0 0 1 ${markShiftX} 0)`}
           />
         </g>
       );
@@ -1130,7 +1253,7 @@ export default function BootScreen({
   );
   const sceneRef = useRef<SVGSVGElement>(null);
   const motesRef = useRef<HTMLDivElement>(null);
-  useBootMotion(sceneRef, cadence);
+  useBootMotion(sceneRef, cadence, readingBooks);
   useBootMotes(motesRef);
   useBootStage();
   const support = SHELF_GEOMETRY.support;
@@ -1139,8 +1262,6 @@ export default function BootScreen({
     SHELF_GEOMETRY.top.centerY - SHELF_GEOMETRY.top.thickness / 2,
   );
   const strapHeight = groundY - strapTopY;
-  const supportX =
-    (SHELF_GEOMETRY.width / 2 - SHELF_GEOMETRY.strapInsetX) * SCENE_TO_BOOT_SVG;
   return (
     <>
       {/* Lays the bookcase over the spot the camera will put the real shelf,
@@ -1178,78 +1299,100 @@ export default function BootScreen({
                 role="presentation"
               >
                 <g className="stacks-boot-supports">
-                  {[-1, 1].map((side) => (
-                    <g data-boot-support={side} key={side}>
-                      <rect
-                        x={
-                          side * supportX -
-                          (support.width * SCENE_TO_BOOT_SVG) / 2
-                        }
-                        y={strapTopY}
-                        width={support.width * SCENE_TO_BOOT_SVG}
-                        height={strapHeight}
-                        rx="2"
-                      />
-                      <rect
-                        x={
-                          side * supportX -
-                          (support.footWidth * SCENE_TO_BOOT_SVG) / 2
-                        }
-                        y={groundY - support.footHeight * SCENE_TO_BOOT_SVG}
-                        width={support.footWidth * SCENE_TO_BOOT_SVG}
-                        height={support.footHeight * SCENE_TO_BOOT_SVG}
-                        rx="1.5"
-                      />
-                      <rect
-                        x={
-                          side * supportX -
-                          (support.cleatWidth * SCENE_TO_BOOT_SVG) / 2
-                        }
-                        y={projectSceneY(
-                          SHELF_GEOMETRY.lower.centerY -
-                            support.cleatHeight / 2,
-                        )}
-                        width={support.cleatWidth * SCENE_TO_BOOT_SVG}
-                        height={support.cleatHeight * SCENE_TO_BOOT_SVG}
-                        rx="1.5"
-                      />
-                    </g>
-                  ))}
-                </g>
-                <g className="stacks-boot-landmarks">
-                  {ABOUT_BOOT_VISIBLE_COMPOSITION.map((landmark, index) => (
-                    <g
-                      className="stacks-boot-item"
-                      data-landmark-id={landmark.id}
-                      data-shelf-id={landmark.shelf}
-                      data-cadence-slot={index}
-                      key={landmark.id}
-                      style={
-                        "colorProfile" in landmark
-                          ? ({
-                              "--stacks-boot-object-light":
-                                landmark.colorProfile.light,
-                              "--stacks-boot-object-dark":
-                                landmark.colorProfile.dark,
-                            } as BootStyle)
-                          : undefined
-                      }
-                      transform={`translate(${landmark.x * SCENE_TO_BOOT_SVG} ${projectSceneY(SHELF_SURFACE[landmark.shelf])})`}
-                    >
-                      <g
-                        className="stacks-boot-item-motion"
-                        style={{
-                          animationName: `stacks-boot-reveal-${index}, stacks-boot-wave-intro-${index}, stacks-boot-wave-${index}`,
-                        }}
-                      >
-                        <LandmarkGlyph
-                          landmark={landmark}
-                          readingBooks={resolvedReadingBooks}
-                          readingBookColors={resolvedReadingBookColors}
+                  {([-1, 1] as const).map((side) => {
+                    const projection = aboutBootShelfSupportProjection(side);
+                    return (
+                      <g data-boot-support={side} key={side}>
+                        <rect
+                          data-boot-support-upright={side}
+                          x={projection.upright.x * SCENE_TO_BOOT_SVG}
+                          y={strapTopY}
+                          width={projection.upright.width * SCENE_TO_BOOT_SVG}
+                          height={strapHeight}
+                          rx="2"
+                        />
+                        <rect
+                          data-boot-support-foot={side}
+                          x={projection.foot.x * SCENE_TO_BOOT_SVG}
+                          y={groundY - support.footHeight * SCENE_TO_BOOT_SVG}
+                          width={projection.foot.width * SCENE_TO_BOOT_SVG}
+                          height={support.footHeight * SCENE_TO_BOOT_SVG}
+                          rx="1.5"
+                        />
+                        <rect
+                          data-boot-support-cleat={side}
+                          x={projection.cleat.x * SCENE_TO_BOOT_SVG}
+                          y={projectSceneY(
+                            SHELF_GEOMETRY.lower.centerY -
+                              support.cleatHeight / 2,
+                          )}
+                          width={projection.cleat.width * SCENE_TO_BOOT_SVG}
+                          height={support.cleatHeight * SCENE_TO_BOOT_SVG}
+                          rx="1.5"
                         />
                       </g>
-                    </g>
-                  ))}
+                    );
+                  })}
+                </g>
+                <g className="stacks-boot-landmarks">
+                  {ABOUT_BOOT_PAINT_COMPOSITION.map(
+                    ({ landmark, cadenceSlot }) => (
+                      <g
+                        className="stacks-boot-item"
+                        data-landmark-id={landmark.id}
+                        data-shelf-id={landmark.shelf}
+                        data-cadence-slot={cadenceSlot}
+                        key={landmark.id}
+                        style={
+                          "colorProfile" in landmark
+                            ? ({
+                                "--stacks-boot-object-light":
+                                  landmark.colorProfile.light,
+                                "--stacks-boot-object-dark":
+                                  landmark.colorProfile.dark,
+                              } as BootStyle)
+                            : undefined
+                        }
+                        transform={`translate(${landmark.x * SCENE_TO_BOOT_SVG} ${projectSceneY(SHELF_SURFACE[landmark.shelf])})`}
+                      >
+                        <g
+                          className="stacks-boot-item-motion"
+                          style={{
+                            animationName: `stacks-boot-reveal-${cadenceSlot}, stacks-boot-wave-intro-${cadenceSlot}, stacks-boot-wave-${cadenceSlot}`,
+                          }}
+                        >
+                          <LandmarkGlyph
+                            landmark={landmark}
+                            readingBooks={resolvedReadingBooks}
+                            readingBookColors={resolvedReadingBookColors}
+                          />
+                        </g>
+                      </g>
+                    ),
+                  )}
+                </g>
+                <g
+                  className="stacks-boot-item stacks-boot-floor-prop"
+                  data-boot-ground-prop="dumbbell"
+                  style={
+                    {
+                      "--stacks-boot-object-light": "#76716d",
+                      "--stacks-boot-object-dark": "#595653",
+                    } as BootStyle
+                  }
+                  transform={`translate(${ABOUT_MODEL_POSES.dumbbell.base[0] * SCENE_TO_BOOT_SVG} ${projectSceneY(ABOUT_MODEL_POSES.dumbbell.base[1])})`}
+                >
+                  <ModelSilhouetteGlyph
+                    id="dumbbell"
+                    width={
+                      ABOUT_BOOT_MODEL_SILHOUETTES.dumbbell.profile[0] *
+                      SCENE_TO_BOOT_SVG
+                    }
+                    height={
+                      ABOUT_BOOT_MODEL_SILHOUETTES.dumbbell.profile[1] *
+                      SCENE_TO_BOOT_SVG
+                    }
+                  />
                 </g>
                 <g className="stacks-boot-planks">
                   {SHELF_PLANKS.map((plank) => (

@@ -24,6 +24,11 @@ import {
   partitionTrianglesByOctant,
 } from "../islands";
 import { registerMeadowLamp } from "../meadowLights";
+import {
+  PORTRAIT_FRAME_POSE,
+  PORTRAIT_FRAME_SIZE,
+  PORTRAIT_MAT_SIZE,
+} from "../portraitFrameGeometry";
 import { SHELF_GEOMETRY, SHELF_SURFACE } from "../shelfGeometry";
 import { unitPose } from "../worldLayout";
 import { MeshoptDecoder } from "meshoptimizer";
@@ -249,10 +254,24 @@ async function mountAboutPerchFixture() {
   const portraitScale = new THREE.Group();
   portraitScale.scale.setScalar(ABOUT_BOOT_LANDMARKS.portrait.sceneScale);
   const portraitPose = new THREE.Group();
-  portraitPose.position.set(0, 0.62, -0.08);
-  portraitPose.rotation.set(-0.06, 0.06, 0);
-  portraitPose.add(box([1.02, 1.24, 0.04], [0, 0, -0.024]));
-  portraitPose.add(box([0.94, 1.16, 0.0002], [0, 0, -0.002]));
+  portraitPose.position.set(...PORTRAIT_FRAME_POSE.position);
+  portraitPose.rotation.set(...PORTRAIT_FRAME_POSE.rotation);
+  portraitPose.add(
+    box(
+      [
+        PORTRAIT_FRAME_SIZE.width,
+        PORTRAIT_FRAME_SIZE.height,
+        PORTRAIT_FRAME_POSE.frameDepth,
+      ],
+      [0, 0, -0.024],
+    ),
+  );
+  portraitPose.add(
+    box(
+      [PORTRAIT_MAT_SIZE.width, PORTRAIT_MAT_SIZE.height, 0.0002],
+      [0, 0, -0.002],
+    ),
+  );
   portraitScale.add(portraitPose);
   portrait.add(portraitScale);
   unit.add(portrait);

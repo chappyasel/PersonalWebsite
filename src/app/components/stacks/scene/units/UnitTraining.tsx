@@ -1,5 +1,6 @@
 "use client";
 
+import type { ArtifactPreviewFrameLayer } from "../../modal/artifactPreviewFrame";
 import type { PhotoArtifactId } from "../../sceneArtifacts";
 import { ShakerProp } from "../AuthoredProps";
 import Grabbable from "../Grabbable";
@@ -9,6 +10,7 @@ import LitImage from "../LitImage";
 import ModelProp from "../ModelProp";
 import { RoundedBox } from "../RoundedBox";
 import WavingGolfFlag from "../WavingGolfFlag";
+import { useRegisterArtifactPreviewFrame } from "../artifactPreviewFrames";
 import { RollProp } from "../eggs";
 import { GolfBallProp } from "../golf/GolfBallProp";
 import GolfExperience from "../golf/GolfExperience";
@@ -29,7 +31,11 @@ import React from "react";
 import * as THREE from "three";
 
 import { TrainingFigureCards } from "./TrainingFigureCards";
-import { TRAINING_BOARD_SIZE, TRAINING_PINS } from "./trainingBoardLayout";
+import {
+  TRAINING_BOARD_SIZE,
+  TRAINING_PINS,
+  type TrainingBoardPin,
+} from "./trainingBoardLayout";
 import { GorillaModeTub, PreXTub, ProteinTub } from "./trainingTubs";
 import type { UnitProps } from "./types";
 import {
@@ -215,6 +221,77 @@ function LooseBall({
   );
 }
 
+/** The white mount under each pinned print, 9 mm a side. The preview redraws
+ * the same mount around the enlarged photo. */
+const PIN_MOUNT_BORDER = 0.009;
+const PIN_MOUNT_RADIUS = 0.003;
+const PIN_PREVIEW_LAYERS: readonly ArtifactPreviewFrameLayer[] = [
+  { inset: PIN_MOUNT_BORDER, tone: "paper", radius: PIN_MOUNT_RADIUS },
+];
+
+/** One print on its mount. A component rather than inline JSX so it can
+ * register its edges for the preview from under the pin's Grabbable. */
+function PinnedPrint({
+  pin,
+  palette,
+  textured,
+}: {
+  pin: TrainingBoardPin;
+  palette: UnitProps["palette"];
+  textured: boolean;
+}) {
+  const height = pin.height;
+  useRegisterArtifactPreviewFrame(pin.width, height, PIN_PREVIEW_LAYERS);
+  return (
+    <group rotation={[0, 0, pin.roll]}>
+      <RoundedBox
+        castShadow
+        args={[
+          pin.width + PIN_MOUNT_BORDER * 2,
+          height + PIN_MOUNT_BORDER * 2,
+          0.008,
+        ]}
+        radius={PIN_MOUNT_RADIUS}
+        smoothness={2}
+      >
+        <meshStandardMaterial color={palette.paper} roughness={0.9} />
+      </RoundedBox>
+      {textured && (
+        <React.Suspense fallback={null}>
+          <LitImage
+            url={pin.src}
+            role="support"
+            width={pin.width}
+            height={height}
+            roughness={0.6}
+            // Ungraded, like every preview-openable photo (see photos.tsx).
+            grade={0}
+            position={[0, 0, 0.006]}
+          />
+        </React.Suspense>
+      )}
+      {/* This plane sits in front of the print and owns its whole
+          pointer area. It renders nothing, but unlike the tiny tack
+          it travels with the photo and always reaches Grabbable. */}
+      <mesh name={`grab-surface:${pin.id}`} position={[0, 0, 0.024]}>
+        <planeGeometry
+          args={[
+            pin.width + PIN_MOUNT_BORDER * 2,
+            height + PIN_MOUNT_BORDER * 2,
+          ]}
+        />
+        <meshBasicMaterial
+          transparent
+          opacity={0}
+          depthWrite={false}
+          colorWrite={false}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+    </group>
+  );
+}
+
 function TrainingBoard({
   palette,
   textured,
@@ -250,41 +327,7 @@ function TrainingBoard({
               massKg={0.025}
               artifact={pin.id}
             >
-              <group rotation={[0, 0, pin.roll]}>
-                <RoundedBox
-                  castShadow
-                  args={[pin.width + 0.018, height + 0.018, 0.008]}
-                  radius={0.003}
-                  smoothness={2}
-                >
-                  <meshStandardMaterial color={palette.paper} roughness={0.9} />
-                </RoundedBox>
-                {textured && (
-                  <React.Suspense fallback={null}>
-                    <LitImage
-                      url={pin.src}
-                      role="support"
-                      width={pin.width}
-                      height={height}
-                      roughness={0.6}
-                      position={[0, 0, 0.006]}
-                    />
-                  </React.Suspense>
-                )}
-                {/* This plane sits in front of the print and owns its whole
-                    pointer area. It renders nothing, but unlike the tiny tack
-                    it travels with the photo and always reaches Grabbable. */}
-                <mesh name={`grab-surface:${pin.id}`} position={[0, 0, 0.024]}>
-                  <planeGeometry args={[pin.width + 0.018, height + 0.018]} />
-                  <meshBasicMaterial
-                    transparent
-                    opacity={0}
-                    depthWrite={false}
-                    colorWrite={false}
-                    side={THREE.DoubleSide}
-                  />
-                </mesh>
-              </group>
+              <PinnedPrint pin={pin} palette={palette} textured={textured} />
             </Grabbable>
             {/* Pull the print out from under its tack. The tack belongs to the
                 board and opts out of raycasting so it cannot steal the hit. */}

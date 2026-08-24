@@ -3,6 +3,9 @@
 // projected orthographically, raster-unioned, boundary-traced, and simplified.
 // Run from the repository root:
 //   node scripts/generate-about-boot-silhouettes.mjs
+import { articulateDeskLampHead } from "../src/app/components/stacks/scene/ModelProp.tsx";
+import { ABOUT_LAMP_HEAD_QUATERNION } from "../src/app/components/stacks/scene/aboutLampPose.ts";
+import { ABOUT_MODEL_POSES } from "../src/app/components/stacks/scene/aboutScenePose.ts";
 import {
   tjMedallionFrontElevation,
   tjMedallionSolidGroup,
@@ -11,6 +14,7 @@ import {
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import prettier from "prettier";
 import sharp from "sharp";
 import * as THREE from "three";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
@@ -27,26 +31,30 @@ const OUTPUT = path.join(
 const MAX_EDGE = 220;
 const SIMPLIFY_TOLERANCE = 1.35;
 
-const MODELS = {
-  globe: { file: "globe.glb", yaw: -0.7 },
-  cactus: { file: "cactus.glb", yaw: -0.35 },
-  "desk-lamp": { file: "desk-lamp.glb", yaw: 0.78 },
-  succulent: { file: "succulent-pot.glb", yaw: -0.4 },
-  "large-plant": { file: "potted-plant.glb", yaw: 0.5 },
-};
+const MODELS = Object.fromEntries(
+  Object.entries(ABOUT_MODEL_POSES).map(([id, pose]) => [
+    id,
+    {
+      file: pose.source.replace("/models/", ""),
+      pose,
+    },
+  ]),
+);
 
 const AI_MARK_SOURCE = "public/images/stacks/v8/ai-collective-mark.svg";
 const TJ_SPEC_SOURCE = "src/app/components/stacks/scene/tjMedallionGeometry.js";
 
-function triangles(scene, yaw) {
+function triangles(scene, rotation) {
   scene.updateWorldMatrix(true, true);
-  const rotation = new THREE.Matrix4().makeRotationY(yaw);
+  const pose = new THREE.Matrix4().makeRotationFromEuler(
+    new THREE.Euler(...rotation),
+  );
   const output = [];
   scene.traverse((object) => {
     if (!object.isMesh) return;
     const position = object.geometry.getAttribute("position");
     const index = object.geometry.index;
-    const matrix = rotation.clone().multiply(object.matrixWorld);
+    const matrix = pose.clone().multiply(object.matrixWorld);
     const count = index ? index.count : position.count;
     for (let offset = 0; offset < count; offset += 3) {
       output.push(
@@ -128,7 +136,16 @@ function rasterize(sourceTriangles) {
       }
     }
   }
-  return { width, height, mask };
+  return {
+    width,
+    height,
+    mask,
+    minX,
+    maxY,
+    sourceWidth,
+    sourceHeight,
+    rasterScale: scale,
+  };
 }
 
 async function rasterizeCollectiveMark(source) {
@@ -291,12 +308,36 @@ for (const [id, model] of Object.entries(MODELS)) {
   const gltf = await new Promise((resolve, reject) =>
     loader.parse(buffer, "", resolve, reject),
   );
-  const raster = rasterize(triangles(gltf.scene, model.yaw));
+  const headQuaternion =
+    id === "desk-lamp" ? ABOUT_LAMP_HEAD_QUATERNION : undefined;
+  if (headQuaternion && !articulateDeskLampHead(gltf.scene, headQuaternion)) {
+    throw new Error("Could not articulate the About desk-lamp head");
+  }
+  const raster = rasterize(triangles(gltf.scene, model.pose.rotation));
+  const poseSignature = JSON.stringify({
+    version: 1,
+    pose: model.pose,
+    headQuaternion,
+  });
+  const sceneUnitsPerPixel = model.pose.scale / raster.rasterScale;
   generated[id] = {
     source: `/models/${model.file}`,
     sourceKind: "file",
     sourceFile,
     sha256: crypto.createHash("sha256").update(source).digest("hex"),
+    poseSha256: crypto.createHash("sha256").update(poseSignature).digest("hex"),
+    profile: [
+      raster.sourceWidth * model.pose.scale,
+      raster.sourceHeight * model.pose.scale,
+    ],
+    projection: [
+      sceneUnitsPerPixel,
+      0,
+      0,
+      sceneUnitsPerPixel,
+      raster.minX * model.pose.scale - sceneUnitsPerPixel,
+      -raster.maxY * model.pose.scale - sceneUnitsPerPixel,
+    ],
     viewBox: [0, 0, raster.width, raster.height],
     path: trace(raster),
   };
@@ -317,7 +358,7 @@ generated["ai-collective"] = {
 // its numbers. The digest covers that specification, so the freshness test
 // fires when the shape changes and stays quiet when a neighbouring prop in
 // AuthoredProps.tsx does not.
-const tjRaster = rasterize(triangles(tjMedallionSolidGroup(THREE), 0));
+const tjRaster = rasterize(triangles(tjMedallionSolidGroup(THREE), [0, 0, 0]));
 const tjElevation = tjMedallionFrontElevation(THREE);
 const tjExpected = viewBoxFor(tjElevation.width, tjElevation.height);
 if (tjRaster.width !== tjExpected[2] || tjRaster.height !== tjExpected[3]) {
@@ -333,12 +374,34 @@ generated["tj-medallion"] = {
     .createHash("sha256")
     .update(tjMedallionSpecSignature())
     .digest("hex"),
+  profile: [tjRaster.sourceWidth, tjRaster.sourceHeight],
+  projection: [
+    1 / tjRaster.rasterScale,
+    0,
+    0,
+    1 / tjRaster.rasterScale,
+    tjRaster.minX - 1 / tjRaster.rasterScale,
+    -tjRaster.maxY - 1 / tjRaster.rasterScale,
+  ],
   viewBox: [0, 0, tjRaster.width, tjRaster.height],
   path: trace(tjRaster),
 };
 
-const moduleSource =
+const rawModuleSource =
   `// Generated by scripts/generate-about-boot-silhouettes.mjs. Do not hand-edit.\n` +
   `export const ABOUT_BOOT_MODEL_SILHOUETTES = ${JSON.stringify(generated, null, 2)} as const;\n`;
-fs.writeFileSync(OUTPUT, moduleSource);
-console.log(`Wrote ${path.relative(ROOT, OUTPUT)}`);
+const moduleSource = await prettier.format(rawModuleSource, {
+  parser: "typescript",
+});
+if (process.argv.includes("--check")) {
+  const committed = fs.readFileSync(OUTPUT, "utf8");
+  if (committed !== moduleSource) {
+    throw new Error(
+      `${path.relative(ROOT, OUTPUT)} is stale. Run pnpm generate:about-boot.`,
+    );
+  }
+  console.log(`${path.relative(ROOT, OUTPUT)} is current`);
+} else {
+  fs.writeFileSync(OUTPUT, moduleSource);
+  console.log(`Wrote ${path.relative(ROOT, OUTPUT)}`);
+}

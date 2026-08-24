@@ -6,6 +6,7 @@ import { Box3, Matrix4, Raycaster, Vector2, Vector3 } from "three";
 
 import {
   type ProjectedDoor,
+  type ProjectedScreenPoint,
   getSceneInteraction,
   sceneInteractionInventory,
   setDoorProjectionResolver,
@@ -297,7 +298,195 @@ function projectInteractionRectWithContext(id: string) {
     bottom <= top
   )
     return null;
-  return { left, top, width: right - left, height: bottom - top };
+
+  // The print's own face, corner by corner (TL, TR, BR, BL), in whatever
+  // pose it is rendered: lying flat, hover-hinged, rolled. The root's local
+  // x/y plane is NOT that face — a flat print's rest rotation and the hover
+  // hinge live INSIDE the root — so the face is found from the geometry:
+  // the photo plane is the subtree's largest flat mesh, its world matrix is
+  // the face's basis, and the whole subtree's extent in that basis is the
+  // framed print. A preview opening from anything less snaps an angled
+  // print upright on its first frame.
+  const face = faceQuadForSubtree(spec.root, viewport);
+  return {
+    left,
+    top,
+    width: right - left,
+    height: bottom - top,
+    ...(face ? { quad: face } : {}),
+  };
+}
+
+const facePosition = new Vector3();
+const faceU = new Vector3();
+const faceV = new Vector3();
+const faceOrigin = new Vector3();
+const faceCandidateSize = new Vector3();
+const faceDelta = new Vector3();
+
+/** A framed print's face plane, in world space: the two in-plane axes (v the
+ * more world-vertical one), a point on the plane, and the whole subtree's
+ * extent in that basis (world units). The Grabbable handoff aims THIS at the
+ * camera — a flat print's tilt is authored on children inside the
+ * interaction root, so the root's own axes say nothing about the face. */
+export type ArtifactFaceBasis = {
+  u: THREE.Vector3;
+  v: THREE.Vector3;
+  origin: THREE.Vector3;
+  uMin: number;
+  uMax: number;
+  vMin: number;
+  vMax: number;
+};
+
+export function artifactFaceBasis(
+  root: THREE.Object3D,
+): ArtifactFaceBasis | null {
+  // The face carrier: the largest mesh that is flat (thin in one local
+  // axis). The photo plane wins where textures are mounted; the mount or
+  // frame box wins on the low tier that skips textures.
+  let carrier: THREE.Mesh | null = null;
+  let carrierArea = 0;
+  root.traverse((node) => {
+    const mesh = node as THREE.Mesh;
+    if (
+      !mesh.geometry ||
+      !node.visible ||
+      (node.userData as { physicsIgnore?: boolean }).physicsIgnore === true
+    )
+      return;
+    if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+    const box = mesh.geometry.boundingBox;
+    if (!box || box.isEmpty()) return;
+    box.getSize(faceCandidateSize);
+    const { x, y, z } = faceCandidateSize;
+    const thin = Math.min(x, y, z);
+    const spans = [x, y, z].sort((a, b) => a - b);
+    // Flat: at most a tenth as thick as its second dimension.
+    if (thin > spans[1]! * 0.1) return;
+    const area = spans[1]! * spans[2]!;
+    if (area <= carrierArea) return;
+    carrier = mesh;
+    carrierArea = area;
+  });
+  if (!carrier) return null;
+
+  // The carrier's own basis, with its thin axis as the normal: u and v are
+  // the two in-plane world directions, faceOrigin a point on the plane.
+  const flat: THREE.Mesh = carrier;
+  const box = flat.geometry.boundingBox!;
+  box.getSize(faceCandidateSize);
+  const axes: ["x", "y", "z"] = ["x", "y", "z"];
+  const thinAxis = axes.reduce((thinnest, axis) =>
+    faceCandidateSize[axis] < faceCandidateSize[thinnest] ? axis : thinnest,
+  );
+  const inPlane = axes.filter((axis) => axis !== thinAxis);
+  faceU.setFromMatrixColumn(flat.matrixWorld, axes.indexOf(inPlane[0]!));
+  faceV.setFromMatrixColumn(flat.matrixWorld, axes.indexOf(inPlane[1]!));
+  if (faceU.lengthSq() === 0 || faceV.lengthSq() === 0) return null;
+  faceU.normalize();
+  faceV.normalize();
+  // v must be the face's screen-up; image planes author +y up, but a face
+  // carried on x/z (a print lying flat) has no authored up. Keep whichever
+  // of the two axes is more vertical in WORLD as v so TL really is top-left.
+  if (Math.abs(faceV.y) < Math.abs(faceU.y)) {
+    const swap = faceU.clone();
+    faceU.copy(faceV);
+    faceV.copy(swap);
+  }
+  flat.getWorldPosition(faceOrigin);
+
+  // The framed print's extent in that basis: every geometry corner of the
+  // subtree, projected onto the plane.
+  let uMin = Infinity;
+  let uMax = -Infinity;
+  let vMin = Infinity;
+  let vMax = -Infinity;
+  root.updateWorldMatrix(true, true);
+  root.traverse((node) => {
+    const mesh = node as THREE.Mesh;
+    if (
+      !mesh.geometry ||
+      !node.visible ||
+      (node.userData as { physicsIgnore?: boolean }).physicsIgnore === true
+    )
+      return;
+    const box = mesh.geometry.boundingBox;
+    if (!box || box.isEmpty()) return;
+    for (const x of [box.min.x, box.max.x])
+      for (const y of [box.min.y, box.max.y])
+        for (const z of [box.min.z, box.max.z]) {
+          faceDelta.set(x, y, z).applyMatrix4(node.matrixWorld).sub(faceOrigin);
+          const u = faceDelta.dot(faceU);
+          const v = faceDelta.dot(faceV);
+          uMin = Math.min(uMin, u);
+          uMax = Math.max(uMax, u);
+          vMin = Math.min(vMin, v);
+          vMax = Math.max(vMax, v);
+        }
+  });
+  if (!Number.isFinite(uMin) || uMax - uMin <= 0 || vMax - vMin <= 0)
+    return null;
+
+  return {
+    u: faceU.clone(),
+    v: faceV.clone(),
+    origin: faceOrigin.clone(),
+    uMin,
+    uMax,
+    vMin,
+    vMax,
+  };
+}
+
+function faceQuadForSubtree(
+  root: THREE.Object3D,
+  viewport: DOMRect,
+):
+  | readonly [
+      ProjectedScreenPoint,
+      ProjectedScreenPoint,
+      ProjectedScreenPoint,
+      ProjectedScreenPoint,
+    ]
+  | null {
+  if (!projectionCamera) return null;
+  const basis = artifactFaceBasis(root);
+  if (!basis) return null;
+  const { u: basisU, v: basisV, origin, uMin, uMax, vMin, vMax } = basis;
+
+  const quad: ProjectedScreenPoint[] = [];
+  for (const [u, v] of [
+    [uMin, vMax],
+    [uMax, vMax],
+    [uMax, vMin],
+    [uMin, vMin],
+  ] as const) {
+    facePosition
+      .copy(origin)
+      .addScaledVector(basisU, u)
+      .addScaledVector(basisV, v)
+      .project(projectionCamera);
+    if (facePosition.z < -1 || facePosition.z > 1) return null;
+    quad.push([
+      viewport.left + (facePosition.x * 0.5 + 0.5) * viewport.width,
+      viewport.top + (-facePosition.y * 0.5 + 0.5) * viewport.height,
+    ]);
+  }
+  // The basis vectors carry no promise about which way they point on
+  // screen. The preview maps its image's top-left onto the first corner, so
+  // normalize in screen space: top edge left-to-right, left edge
+  // top-to-bottom. Prints are never rendered upside down; this only
+  // untangles the basis signs.
+  let [tl, tr, br, bl] = quad as [
+    ProjectedScreenPoint,
+    ProjectedScreenPoint,
+    ProjectedScreenPoint,
+    ProjectedScreenPoint,
+  ];
+  if (tl[0] > tr[0]) [tl, tr, br, bl] = [tr, tl, bl, br];
+  if (tl[1] > bl[1]) [tl, tr, br, bl] = [bl, br, tr, tl];
+  return [tl, tr, br, bl] as const;
 }
 
 export function setInteractionProjectionContext(

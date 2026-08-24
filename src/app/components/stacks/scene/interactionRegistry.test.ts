@@ -14,9 +14,12 @@ import {
 
 describe("scene interaction registry", () => {
   it("derives route labels, hrefs, and external treatment together", () => {
-    // Labels name the destination only; the Door Label's arrow carries the
+    // Labels name the destination only; the Door Label's icon carries the
     // "this goes somewhere", so no "Open" / "Visit" verbs.
-    expect(destinationFor("weightlifting").label).toBe("Weightlifting");
+    expect(destinationFor("books").label).toBe("Chappy's Book Notes");
+    expect(destinationFor("weightlifting").label).toBe(
+      "Chappy's Weightlifting",
+    );
     expect(destinationFor("blog").label).toBe("Medium");
     expect(destinationFor("manual")).toMatchObject({
       href: "/manual",

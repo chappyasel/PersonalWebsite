@@ -1,3 +1,8 @@
+import {
+  SCENE_PHOTOS,
+  type TrainingBoardPhotoId,
+} from "../../sceneArtifacts";
+
 export const TRAINING_BOARD_SIZE = {
   width: 1.128,
   height: 0.792,
@@ -13,54 +18,56 @@ export type TrainingBoardCard = {
 };
 
 export type TrainingBoardPin = TrainingBoardCard & {
-  id:
-    | "training-trophy-side-v8"
-    | "training-stage-kneeling-v8"
-    | "training-stage-side-v8"
-    | "training-trophy-front-v8";
+  id: TrainingBoardPhotoId;
   src: string;
 };
+
+/** A pin's height follows its photo's own aspect. The pins used to be cut
+ * taller than their sources (0.36 x 0.64 and 0.17 x 0.25 over 0.80-aspect
+ * photos), which the print's cover fit hid by cropping the sides. The
+ * fullscreen preview shows the whole photo, so the shelf does too. */
+function pin(
+  id: TrainingBoardPhotoId,
+  placement: Readonly<{ x: number; y: number; width: number; roll: number }>,
+): TrainingBoardPin {
+  const photo = SCENE_PHOTOS.find((entry) => entry.id === id);
+  if (!photo) throw new Error(`No scene photo registered for ${id}`);
+  return {
+    id,
+    src: photo.image,
+    height: placement.width * (photo.height / photo.width),
+    ...placement,
+  };
+}
 
 /** The portrait anchors the left side. The smaller prints wander a little in
  * height and angle, while retaining enough space for their white mounts and
  * the board frame. Coordinates are local to the center of the corkboard. */
 export const TRAINING_PINS: readonly TrainingBoardPin[] = [
-  {
-    id: "training-trophy-side-v8",
-    src: "/images/stacks/v8/training-trophy-side.webp",
+  pin("training-trophy-side-v8", {
     x: -0.325,
     y: -0.006,
     width: 0.36,
-    height: 0.64,
     roll: -0.024,
-  },
-  {
-    id: "training-stage-kneeling-v8",
-    src: "/images/stacks/v8/training-stage-kneeling.webp",
+  }),
+  pin("training-stage-kneeling-v8", {
     x: -0.02,
     y: 0.184,
     width: 0.17,
-    height: 0.25,
     roll: 0.036,
-  },
-  {
-    id: "training-stage-side-v8",
-    src: "/images/stacks/v8/training-stage-side.webp",
+  }),
+  pin("training-stage-side-v8", {
     x: 0.18,
     y: 0.162,
     width: 0.17,
-    height: 0.25,
     roll: -0.028,
-  },
-  {
-    id: "training-trophy-front-v8",
-    src: "/images/stacks/v8/training-trophy-front.webp",
+  }),
+  pin("training-trophy-front-v8", {
     x: 0.41,
     y: 0.181,
     width: 0.17,
-    height: 0.25,
     roll: 0.044,
-  },
+  }),
 ];
 
 export const TRAINING_FIGURE_CARD_LAYOUT = [

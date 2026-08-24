@@ -639,7 +639,9 @@ const UNIT_PERCHES: readonly (readonly PerchDefinition[])[] = [
     },
     {
       id: "about:portrait-frame-top",
-      position: [-0.2211, 1.0002, -0.1101],
+      // Top face centre of the frame; re-derived 2026-08-23 when the frame
+      // went square (1.02 tall, was 1.24) so the whole portrait shows.
+      position: [-0.2211, 0.8288, -0.1049],
       normal: [0, 0.9982, -0.06],
       tangent: [0.9982, -0.0036, -0.0599],
       // `LoosePhoto` in UnitAbout registers `grab:photo:<id>`. The
@@ -1142,31 +1144,39 @@ const UNIT_PERCHES: readonly (readonly PerchDefinition[])[] = [
       // would be lying about where its leaves are. The Perch moves instead:
       // 18 cm along the mic, which is still the microphone and is no longer
       // inside a houseplant.
+      // The mic moved +0.08 with the easel's arrival; the crown Perch rides
+      // along. Still 0.16 clear of the pothos collider at local x 0.7766,
+      // three envelope-lengths from the failure the note above measured.
       id: "talks:microphone-crown",
-      position: [0.5311, -0.7721, 0.1237],
+      position: [0.6111, -0.7721, 0.1237],
       normal: [-0.095, 0.922, 0.374],
       tangent: [0.9759, 0, 0.2182],
       ownerId: "grab:microphone",
     },
     {
       id: "talks:harmonica-deck",
-      position: [0.82, 0.0903, 0.08],
+      position: [0.97, 0.0903, 0.08],
       normal: [0, 1, 0],
       tangent: [0.9801, 0, 0.1987],
       ownerId: "grab:harmonica:talks",
     },
     {
+      // Frame-top Perches in this unit are generated, not probed: the talk
+      // gallery's poses are solved in talkGalleryLayout.ts, so each top edge
+      // and its normal come from the same math the renderer uses (see
+      // scripts note in that module's test). Re-run the numbers after any
+      // repose: top edge centre, normal/tangent = rest-rotated ŷ/x̂.
       id: "talks:consensus-frame-top",
-      position: [-0.3721, 0.4503, -0.0455],
-      normal: [-0.012, 0.9967, -0.0804],
-      tangent: [0.9991, 0.0152, 0.0389],
+      position: [0.0411, -0.19, 0.0121],
+      normal: [0, 1, 0],
+      tangent: [0.9902, 0, 0.1395],
       ownerId: "grab:photo:talk-consensus-phone-v8",
     },
     {
       id: "talks:demo-night-frame-top",
-      position: [-0.9067, -0.3541, -0.0363],
-      normal: [0.0179, 0.9973, -0.0719],
-      tangent: [0.9938, -0.0256, -0.1082],
+      position: [-0.8984, -0.3437, -0.2793],
+      normal: [0.012, 0.9126, -0.4086],
+      tangent: [0.9967, -0.0435, -0.0681],
       ownerId: "grab:photo:talk-demo-night-v8",
     },
     {
@@ -1199,16 +1209,16 @@ const UNIT_PERCHES: readonly (readonly PerchDefinition[])[] = [
     },
     {
       id: "talks:panel-frame-top",
-      position: [0.3023, 0.4006, 0.011],
-      normal: [-0.0257, 0.9982, -0.0536],
-      tangent: [0.9997, 0.0257, -0.0014],
+      position: [0.4992, 0.4511, -0.0577],
+      normal: [-0.0099, 0.9711, -0.2387],
+      tangent: [0.995, 0.0334, 0.0946],
       ownerId: "grab:photo:talk-panel-v8",
     },
     {
       id: "talks:dc-policy-frame-top",
-      position: [-0.138, -0.3847, 0.0166],
-      normal: [-0.0139, 0.9986, -0.0516],
-      tangent: [0.9999, 0.0139, -0.0007],
+      position: [-0.2759, 0.6868, -0.0081],
+      normal: [0.0127, 0.9839, -0.1781],
+      tangent: [0.9975, 0, 0.0711],
       ownerId: "grab:photo:talk-dc-policy-v8",
     },
   ],

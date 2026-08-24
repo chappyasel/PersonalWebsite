@@ -7,6 +7,7 @@
 // useFrame + damp — zero React re-renders per frame; prefers-reduced-motion
 // skips the motion eggs (the lamp toggle stays — it's a state change, not
 // motion). This is a museum at dawn, not an arcade: no confetti, no sound.
+import { isWorldRevealed } from "../boot/worldBootSession";
 import { arrivalBeatRef, useStacks } from "../store";
 import { type Palette } from "../theme";
 import { type ThreeEvent } from "@react-three/fiber";
@@ -484,6 +485,7 @@ export function SpinProp({
   useUnitFrame((_, delta) => {
     const root = ref.current;
     if (!root) return;
+    if (!isWorldRevealed()) return;
     // The prop mounts behind Suspense and is rebuilt whenever ModelProp's memo
     // re-runs (a theme flip clones a fresh scene), so a cached node can go
     // stale. Re-resolve only when the cache is empty or detached; the subtree
@@ -834,6 +836,11 @@ export function Sway({
   useUnitFrame(({ clock }) => {
     const g = ref.current;
     if (!g || still || !nearActive(unitIndex)) return;
+    if (!isWorldRevealed()) {
+      g.rotation.x = 0;
+      g.rotation.z = 0;
+      return;
+    }
     const t = clock.elapsedTime * rate + phase;
     // Two incommensurate rates on each axis, so the path is a slow wander
     // rather than a metronome. The x term is the smaller of the two — a

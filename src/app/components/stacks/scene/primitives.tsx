@@ -53,20 +53,63 @@ import {
 } from "./shelfGeometry";
 import { StaticWorldRoot } from "./staticWorld";
 import { useUnitFrame } from "./unitActivity";
+import { spineBookHeight, spineBookWidth } from "./units/featuredBookGeometry";
+
+/**
+ * The library book a packed volume actually IS.
+ *
+ * A packed row used to be invented scenery: rolled widths, rolled colors, and
+ * every one of them opening the library index because none of them was a
+ * particular book. Given this, the volume is a real read — its width comes
+ * from the book's own length, and a tap opens that book's notes instead of
+ * the index. Optional throughout: a row with no books left to place still
+ * generates scenery, which is what keeps the Systems manual row and the empty
+ * -library case working unchanged.
+ */
+export type SpineBookRef = {
+  id: string;
+  title: string;
+  author: string;
+};
 
 export type RowItem =
-  | { kind: "spine"; x: number; w: number; h: number; color: string }
+  | {
+      kind: "spine";
+      x: number;
+      w: number;
+      h: number;
+      color: string;
+      book?: SpineBookRef;
+    }
   | {
       kind: "flat";
       x: number;
       n: number;
       colors: string[];
+      /** Parallel to `colors`, bottom volume first. Sparse by design: a stack
+       * may run past the end of the supplied books. */
+      books?: (SpineBookRef | undefined)[];
       width?: number;
+      /** One thickness for every volume. Scenery only — a stack of real books
+       * uses `heights`, because a book lying down is as thick as it is long. */
       height?: number;
+      /** Per-volume thickness, parallel to `colors`, bottom first. This is the
+       * SAME physical dimension as a spine's width, just seen from a different
+       * axis: a stack whose volumes are all one thickness says every book in
+       * it is the same length, which on this shelf made a 550-page book look
+       * identical to a 224-page one. */
+      heights?: number[];
       depth?: number;
       staggerX?: number;
     }
-  | { kind: "lean"; x: number; w: number; h: number; color: string }
+  | {
+      kind: "lean";
+      x: number;
+      w: number;
+      h: number;
+      color: string;
+      book?: SpineBookRef;
+    }
   /** A face-out book. Everything past `key` is POSE, and every one of them
    * defaults to the old dead-upright cover, so a caller that only knows where
    * it wants the book still gets what it always got. They exist because eight
@@ -145,6 +188,33 @@ export function coverExtent(s: number, lean: number): number {
   );
 }
 
+/** Every volume's thickness in a horizontal stack, bottom first. One helper
+ * so the renderer, the stack's total height, and anything resting on top of
+ * it cannot disagree about how tall the pile is. */
+export function flatVolumeHeights(
+  item: Extract<RowItem, { kind: "flat" }>,
+): number[] {
+  const fallback = item.height ?? 0.052;
+  return Array.from(
+    { length: item.n },
+    (_, j) => item.heights?.[j] ?? fallback,
+  );
+}
+
+/** Centre height of each volume in a horizontal stack — the running sum of
+ * everything under it plus half of itself. */
+export function flatVolumeSeats(
+  item: Extract<RowItem, { kind: "flat" }>,
+): number[] {
+  const heights = flatVolumeHeights(item);
+  let below = 0;
+  return heights.map((height) => {
+    const seat = below + height / 2;
+    below += height;
+    return seat;
+  });
+}
+
 /** Exact occupied horizontal interval of a generated row. `packRow(width)`
  * reserves margins and may finish with a narrow book, so its contents are
  * not centered inside the nominal width. Consumers that align or neighbor a
@@ -176,18 +246,95 @@ const DETAIL_MIN_W = 0.068;
  * keeps regrowing. */
 const LEAN = 0.17;
 
+/** A real book's slot in the theme's spine palette. Hashed from the id rather
+ * than rolled from the row position, so a book keeps its board color when the
+ * row recomposes around it, and keeps the same slot in both themes. */
+function spineBookColor(id: string, palette: Palette): string {
+  let hash = 2166136261;
+  for (let i = 0; i < id.length; i++) {
+    hash ^= id.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return palette.spines[(hash >>> 0) % palette.spines.length]!;
+}
+
+/** Books the row has not placed yet, handed out in order. Kept as a closure
+ * rather than an index into the caller's array because three different item
+ * kinds draw from it and a stack draws several at once. `peek` exists because
+ * one slot (the leaner) can only accept a book narrow enough to clear its
+ * neighbour: it has to look before committing, or a rejected book is dropped
+ * from the shelf entirely rather than placed in the next upright slot. */
+function bookDealer(books: readonly SpineBookLength[]) {
+  const pool = [...books];
+  return {
+    peek: () => pool[0],
+    take: () => pool.shift(),
+    /**
+     * The `n` SHORTEST books left, thickest first so the pile is stable.
+     *
+     * A stack is the one place on the shelf where length cannot be read: a
+     * book lying face-down shows its edge, and at this camera that edge is a
+     * few pixels whatever the page count. Dealing the stack in shelf order put
+     * Barbarians at the Gate — 550 pages, among the longest reads here — flat
+     * on its face, where the whole point of sizing books by length is lost.
+     * So the pile takes the books that have the least to show, and every long
+     * read stands up as the wide spine it earns.
+     */
+    takeShortest: (n: number) => {
+      const picked = pool
+        .map((book, index) => ({
+          book,
+          index,
+          width: spineBookWidth(book.pageCount, book.audioLengthMin),
+        }))
+        .sort((a, b) => a.width - b.width)
+        .slice(0, n);
+      const taken = new Set(picked.map((entry) => entry.index));
+      for (let i = pool.length - 1; i >= 0; i--)
+        if (taken.has(i)) pool.splice(i, 1);
+      return picked.map((entry) => entry.book).reverse();
+    },
+  };
+}
+
+/** What `packRow` needs to size and label one real book. */
+export type SpineBookLength = SpineBookRef & {
+  pageCount: number | null;
+  audioLengthMin: number | null;
+};
+
 export function packRow(
   width: number,
   covers: { url: string; key: string; label?: string }[],
   palette: Palette,
   salt: number,
+  /** Real library books to build this row out of, in shelf order. Run out and
+   * the remainder of the row falls back to generated scenery, so a short list
+   * shortens the run of real books rather than shortening the shelf. */
+  books: readonly SpineBookLength[] = [],
+  /**
+   * Where the row's horizontal stack should land, in this row's own frame.
+   *
+   * Left to the roll, a stack goes wherever the walker happens to be when the
+   * die comes up — which on this shelf put both of them directly behind a
+   * featured cover, where the stack and everything resting on it are invisible.
+   * The stack is the only flat display surface the row has, so the caller that
+   * knows what stands in FRONT of the row gets to say where the hole is.
+   */
+  flatWindow?: { left: number; right: number },
 ): RowItem[] {
   const items: RowItem[] = [];
+  const dealer = bookDealer(books);
   let x = -width / 2 + 0.1;
   let coverIdx = 0;
   let i = 0;
   let flats = 0;
   let leaned = false;
+  /** Stack footprint: the 0.34 block plus the 0.03 the walker steps after it. */
+  const FLAT_RUN = 0.37;
+  const flatMark = flatWindow
+    ? (flatWindow.left + flatWindow.right) / 2 - FLAT_RUN / 2
+    : null;
   // Two stacks on a long row, one on a short one. A single flat stack on a
   // 2.9 row is one incident in three feet of upright spines.
   const maxFlats = width > 2.4 ? 2 : 1;
@@ -196,9 +343,50 @@ export function packRow(
   // reserve for, and reserving anyway left a spine-only row a quarter of a
   // unit short of the width it was asked for.
   const tail = covers.length ? 0.25 : 0.1;
+  /** One horizontal stack at the walker's current x, read bottom-up. It takes
+   * the SHORTEST books left rather than the next ones in shelf order — see
+   * `takeShortest` — so no long read is buried face-down, and the pile sits
+   * thickest-first the way a real one does. */
+  const pushFlatStack = () => {
+    const n = 2 + Math.round(rand(i, salt + 6));
+    const stacked = dealer.takeShortest(n);
+    items.push({
+      kind: "flat",
+      x: x + 0.17,
+      n,
+      colors: Array.from({ length: n }, (_, j) => {
+        const book = stacked[j];
+        return book
+          ? spineBookColor(book.id, palette)
+          : palette.spines[
+              Math.floor(rand(i + j, salt + 7) * palette.spines.length)
+            ]!;
+      }),
+      // A book lying down is as thick as it is long — the same dimension a
+      // standing book spends on its spine width. Scenery keeps the flat 0.052.
+      heights: stacked.map((source) =>
+        source
+          ? spineBookWidth(source.pageCount, source.audioLengthMin)
+          : 0.052,
+      ),
+      books: stacked,
+    });
+    x += FLAT_RUN;
+    flats++;
+  };
   while (x < width / 2 - tail) {
     const roll = rand(i, salt);
-    if (roll > 0.7 && coverIdx < covers.length) {
+    // The authored stack position wins over the roll. Checked before the roll
+    // branches so a gap or a cover cannot consume the one x where the stack is
+    // both visible and still has room to finish inside its window.
+    const stackHere =
+      flatMark !== null &&
+      flats < maxFlats &&
+      x >= flatMark &&
+      x + FLAT_RUN <= flatWindow!.right;
+    if (stackHere) {
+      pushFlatStack();
+    } else if (roll > 0.7 && coverIdx < covers.length) {
       const w = 0.34;
       items.push({ kind: "cover", x: x + w / 2, ...covers[coverIdx]! });
       x += w + 0.04;
@@ -217,15 +405,32 @@ export function packRow(
       // interpenetration and layering look identical from one camera.
       if (!leaned && x > -width / 2 + 0.5 && x < width / 2 - 0.6) {
         x += 0.105;
+        // A leaner is width-critical: the 0.105 gap above clears a book up to
+        // 0.085 wide at this lean and no more, so a real doorstopper leaning
+        // here would pass through the book behind it. Only books that fit
+        // lean; the rest stay upright and keep their true width.
+        const candidate = dealer.peek();
+        const leanW = candidate
+          ? spineBookWidth(candidate.pageCount, candidate.audioLengthMin)
+          : 0;
+        const book = candidate && leanW <= 0.085 ? dealer.take() : undefined;
         items.push({
           kind: "lean",
           x,
-          w: 0.055 + rand(i, salt + 2) * 0.03,
-          h: 0.4 + rand(i, salt + 3) * 0.18,
-          color:
-            palette.spines[
-              Math.floor(rand(i, salt + 4) * palette.spines.length)
-            ]!,
+          w: book ? leanW : 0.055 + rand(i, salt + 2) * 0.03,
+          h: book
+            ? spineBookHeight(
+                book.pageCount,
+                book.audioLengthMin,
+                rand(i, salt + 3),
+              )
+            : 0.4 + rand(i, salt + 3) * 0.18,
+          color: book
+            ? spineBookColor(book.id, palette)
+            : palette.spines[
+                Math.floor(rand(i, salt + 4) * palette.spines.length)
+              ]!,
+          book,
         });
         x += 0.075;
         leaned = true;
@@ -235,44 +440,59 @@ export function packRow(
     } else if (flats < maxFlats && roll >= 0.04 && roll < 0.1) {
       // A horizontal stack lying on the row — real shelves are never all
       // vertical (audit §3-Books).
-      const n = 2 + Math.round(rand(i, salt + 6));
-      items.push({
-        kind: "flat",
-        x: x + 0.17,
-        n,
-        colors: Array.from(
-          { length: n },
-          (_, j) =>
-            palette.spines[
-              Math.floor(rand(i + j, salt + 7) * palette.spines.length)
-            ]!,
-        ),
-      });
-      x += 0.34 + 0.03;
-      flats++;
+      pushFlatStack();
     } else {
       // Widths are drawn from two families rather than one flat range: most
       // books on a shelf are 20–30 mm and a few are 45+ (an atlas, a monograph,
       // the one hardback nobody finishes). A uniform 0.055…0.130 puts an even
       // spread of intermediate thicknesses on the shelf, which is what makes a
       // packed row read as extruded rather than collected.
-      const fat = rand(i, salt + 12) > 0.78;
-      const w = fat
-        ? 0.098 + rand(i, salt + 2) * 0.042
-        : 0.048 + rand(i, salt + 2) * 0.036;
-      // Tall books tend to be the fat ones, so the two correlate rather than
-      // being rolled independently.
-      const h = (fat ? 0.5 : 0.4) + rand(i, salt + 3) * 0.16;
-      const color =
-        palette.spines[Math.floor(rand(i, salt + 4) * palette.spines.length)]!;
-      items.push({ kind: "spine", x: x + w / 2, w, h, color });
+      const book = dealer.take();
+      // Given a real book BOTH dimensions are its LENGTH, not a roll — that is
+      // the whole point of the row knowing what it is holding. Depth follows
+      // height a few lines down in `packedBookDepth`, so a long book ends up
+      // bigger in all three axes rather than only fatter.
+      const w = book
+        ? spineBookWidth(book.pageCount, book.audioLengthMin)
+        : rand(i, salt + 12) > 0.78
+          ? 0.098 + rand(i, salt + 2) * 0.042
+          : 0.048 + rand(i, salt + 2) * 0.036;
+      // Scenery keeps the old two-family roll, where tall books ARE the fat
+      // ones. It has no length to consult, and an independent roll there would
+      // put short-fat and tall-thin books on the shelf.
+      const h = book
+        ? spineBookHeight(
+            book.pageCount,
+            book.audioLengthMin,
+            rand(i, salt + 3),
+          )
+        : (w > 0.09 ? 0.5 : 0.4) + rand(i, salt + 3) * 0.16;
+      const color = book
+        ? spineBookColor(book.id, palette)
+        : palette.spines[
+            Math.floor(rand(i, salt + 4) * palette.spines.length)
+          ]!;
+      items.push({ kind: "spine", x: x + w / 2, w, h, color, book });
       x += w + 0.012;
     }
     i++;
   }
-  const endHeight = 0.4 + rand(i, salt + 3) * 0.1;
-  const endColor =
-    palette.spines[Math.floor(rand(i, salt + 4) * palette.spines.length)]!;
+  // The end book keeps its authored 0.06 WIDTH in both branches below — it is
+  // the piece that closes the row against the bookend, and that width is a
+  // composition decision rather than a measurement. Its height is free, so a
+  // real book gets its own; the jitter is damped because this one also has to
+  // sit under the bookend's shoulder.
+  const endBook = dealer.take();
+  const endHeight = endBook
+    ? spineBookHeight(
+        endBook.pageCount,
+        endBook.audioLengthMin,
+        rand(i, salt + 3) * 0.6,
+      )
+    : 0.4 + rand(i, salt + 3) * 0.1;
+  const endColor = endBook
+    ? spineBookColor(endBook.id, palette)
+    : palette.spines[Math.floor(rand(i, salt + 4) * palette.spines.length)]!;
   // The end book may lean only when its upper-left edge has a tall neighbor
   // to bear against. A flat stack or a preceding gap supports nothing at that
   // height; appending the old unconditional leaner there produced the
@@ -284,6 +504,7 @@ export function packRow(
       w: 0.06,
       h: endHeight,
       color: endColor,
+      book: endBook,
     });
   } else {
     items.push({
@@ -292,6 +513,7 @@ export function packRow(
       w: 0.06,
       h: endHeight,
       color: endColor,
+      book: endBook,
     });
   }
   return items;
@@ -389,8 +611,9 @@ export class CoverBoundary extends React.Component<
 
 /** A scenery book in a packed row: a plain positioned group, or — when the
  * row knows its unit — a door into the library with the standard hover lift.
- * The five featured covers keep their own modal; everything else on the
- * shelf is the rest of the library, so it opens the library. */
+ * The featured covers keep their own modal; a packed volume that is a REAL
+ * book opens that book's notes, and one that is only scenery still opens the
+ * library index behind it. */
 function ShelfBook({
   linkUnit,
   to = "books",
@@ -401,6 +624,8 @@ function ShelfBook({
   settle,
   grabbable = false,
   shadeColor,
+  book,
+  onOpenBookId,
   children,
 }: {
   linkUnit?: number;
@@ -415,14 +640,41 @@ function ShelfBook({
   /** Carry this individual volume while retaining its tap destination. */
   grabbable?: boolean;
   shadeColor?: string;
+  /** The library book this volume is, when it is one. */
+  book?: SpineBookRef;
+  onOpenBookId?: (id: string) => void;
   children: React.ReactNode;
 }) {
+  /**
+   * A real book's own notes, in place of the library index. `onTap` rather
+   * than a route for the same reason the featured covers use one: the target
+   * is a modal over this scene, not a page to navigate to.
+   *
+   * Both are memoized, and that is load-bearing rather than hygiene.
+   * Grabbable re-registers its scene interaction whenever `onTap` or
+   * `doorDetail` changes identity, and a packed row is forty-odd of these —
+   * so an inline closure and a fresh `[author]` array would tear down and
+   * rebuild every door on the shelf on every re-render of the Unit.
+   *
+   * Declared ABOVE the scenery early-return on purpose: hooks cannot sit
+   * behind a conditional, and the plain-group branch below is a real one.
+   */
+  const bookId = book?.id;
+  const bookAuthor = book?.author;
+  const openOwnNotes = React.useCallback(() => {
+    if (bookId) onOpenBookId?.(bookId);
+  }, [bookId, onOpenBookId]);
+  const doorDetail = useMemo(
+    () => (bookAuthor ? [bookAuthor] : undefined),
+    [bookAuthor],
+  );
   if (linkUnit === undefined)
     return (
       <group position={base} rotation={rest}>
         {children}
       </group>
     );
+  const opensOwnNotes = book && onOpenBookId;
   if (grabbable && shadeColor)
     return (
       <Grabbable
@@ -435,7 +687,14 @@ function ShelfBook({
         shadeWidth={0}
         shape="box"
         massKg={0.65}
-        to={to}
+        {...(opensOwnNotes
+          ? {
+              onTap: openOwnNotes,
+              doorLabel: book.title,
+              doorDetail,
+              actionLabel: "Preview book notes",
+            }
+          : { to })}
       >
         <group rotation={rest}>{children}</group>
       </Grabbable>
@@ -916,6 +1175,73 @@ function FeaturedCover({
   );
 }
 
+/**
+ * A horizontal stack of books lying on the row.
+ *
+ * Each volume is its own door, for the same reason as BookPile: a shared
+ * hoverKey lifted the whole stack as one slab. It is a component rather than
+ * an inlined branch because the pile's thicknesses and the seats derived from
+ * them are needed once for the whole stack, not once per volume — and because
+ * a real book lying down is as thick as it is LONG, so those two arrays are no
+ * longer the constant they used to be.
+ */
+function FlatStack({
+  item,
+  index,
+  palette,
+  salt,
+  linkUnit,
+  to,
+  grabbableVolumes,
+  onOpenBookId,
+}: {
+  item: Extract<RowItem, { kind: "flat" }>;
+  index: number;
+  palette: Palette;
+  salt: number;
+  linkUnit?: number;
+  to: PropDestination;
+  grabbableVolumes: boolean;
+  onOpenBookId?: (id: string) => void;
+}) {
+  const heights = useMemo(() => flatVolumeHeights(item), [item]);
+  const seats = useMemo(() => flatVolumeSeats(item), [item]);
+  return (
+    <group>
+      {item.colors.map((color, j) => (
+        <ShelfBook
+          key={j}
+          linkUnit={linkUnit}
+          to={to}
+          hoverKey={bookRowHoverKey(linkUnit, salt, index, j)}
+          // The seat is the running sum of everything underneath plus half of
+          // this volume. It was `j × height`, which silently assumed a uniform
+          // pile; with real thicknesses that buries the upper books.
+          base={[item.x + j * (item.staggerX ?? 0.012), seats[j]!, 0]}
+          lift={FLAT_LIFT}
+          grabbable={grabbableVolumes}
+          shadeColor={palette.shadow}
+          book={item.books?.[j]}
+          onOpenBookId={onOpenBookId}
+        >
+          <group
+            name={bookRowNodeName("flat", linkUnit, salt, index, j)}
+            rotation={[0, rand(index + j, salt + 9) * 0.16 - 0.08, 0]}
+          >
+            <FlatBookVolume
+              width={item.width ?? 0.32}
+              height={heights[j]!}
+              depth={item.depth ?? 0.24}
+              color={color}
+              pages={palette.pages}
+            />
+          </group>
+        </ShelfBook>
+      ))}
+    </group>
+  );
+}
+
 export function BookRowMesh({
   items,
   palette,
@@ -923,6 +1249,7 @@ export function BookRowMesh({
   textured = true,
   coverWidth = 384,
   onCoverClick,
+  onOpenBookId,
   linkUnit,
   to = "books",
   grabbableCovers = false,
@@ -937,6 +1264,9 @@ export function BookRowMesh({
   textured?: boolean;
   coverWidth?: 256 | 384;
   onCoverClick?: (key: string) => void;
+  /** Opens a packed volume that carries a real book, by id. A row whose items
+   * have no `book` never calls this, so a scenery row needs no handler. */
+  onOpenBookId?: (id: string) => void;
   /** Unit index — set it and every non-cover book in the row becomes a door
    * into the library. */
   linkUnit?: number;
@@ -1019,6 +1349,8 @@ export function BookRowMesh({
             settle={SPINE_SETTLE}
             grabbable={grabbableVolumes}
             shadeColor={palette.shadow}
+            book={item.book}
+            onOpenBookId={onOpenBookId}
           >
             <SpineTip
               name={bookRowNodeName("spine", linkUnit, salt, i)}
@@ -1055,45 +1387,17 @@ export function BookRowMesh({
             </SpineTip>
           </ShelfBook>
         ) : item.kind === "flat" ? (
-          // Each volume in the horizontal stack is its own door, for the same
-          // reason as BookPile: a shared hoverKey lifted the whole stack as
-          // one slab.
-          <group key={i}>
-            {item.colors.map((color, j) => {
-              const height = item.height ?? 0.052;
-              return (
-                <ShelfBook
-                  key={j}
-                  linkUnit={linkUnit}
-                  to={to}
-                  hoverKey={bookRowHoverKey(linkUnit, salt, i, j)}
-                  // The first centre is one exact half-height above the plank;
-                  // each height step then leaves adjacent boards touching.
-                  base={[
-                    item.x + j * (item.staggerX ?? 0.012),
-                    height / 2 + j * height,
-                    0,
-                  ]}
-                  lift={FLAT_LIFT}
-                  grabbable={grabbableVolumes}
-                  shadeColor={palette.shadow}
-                >
-                  <group
-                    name={bookRowNodeName("flat", linkUnit, salt, i, j)}
-                    rotation={[0, rand(i + j, salt + 9) * 0.16 - 0.08, 0]}
-                  >
-                    <FlatBookVolume
-                      width={item.width ?? 0.32}
-                      height={height}
-                      depth={item.depth ?? 0.24}
-                      color={color}
-                      pages={palette.pages}
-                    />
-                  </group>
-                </ShelfBook>
-              );
-            })}
-          </group>
+          <FlatStack
+            key={i}
+            item={item}
+            index={i}
+            palette={palette}
+            salt={salt}
+            linkUnit={linkUnit}
+            to={to}
+            grabbableVolumes={grabbableVolumes}
+            onOpenBookId={onOpenBookId}
+          />
         ) : item.kind === "lean" ? (
           // Contact: rotZ drops one bottom corner — lift by the exact
           // h/2·cos + w/2·sin so the corner stays on the wood.
@@ -1110,6 +1414,8 @@ export function BookRowMesh({
             lift={SPINE_LIFT}
             grabbable={grabbableVolumes}
             shadeColor={palette.shadow}
+            book={item.book}
+            onOpenBookId={onOpenBookId}
           >
             {/* The authored lean lives on a wrapping group so the named inner
                 node stays useful to the interaction probe. The parent Lift

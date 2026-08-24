@@ -1,6 +1,11 @@
 "use client";
 
 import {
+  BARE_ARTIFACT_PREVIEW_FRAME,
+  framedArtifactPreviewSize,
+} from "./modal/artifactPreviewFrame";
+import { artifactPreviewFrameFor } from "./scene/artifactPreviewFrames";
+import {
   type ProjectedSceneInteractionRect,
   projectSceneInteractionRect,
 } from "./scene/interactionRegistry";
@@ -9,6 +14,7 @@ import {
   type SceneArtifactId,
   sceneArtifactById,
   sceneArtifactCollection,
+  sceneArtifactPreviewEnabled,
 } from "./sceneArtifacts";
 import { useStacks } from "./store";
 
@@ -61,6 +67,9 @@ export function imageRatioPreviewOrigin(
     originRatio > imageRatio ? origin.height : origin.width / imageRatio;
 
   return {
+    // The projected face travels with the rect: the fit only recenters the
+    // axis-aligned box, while the quad keeps describing the rendered pose.
+    ...origin,
     left: origin.left + (origin.width - width) / 2,
     top: origin.top + (origin.height - height) / 2,
     width,
@@ -68,13 +77,19 @@ export function imageRatioPreviewOrigin(
   };
 }
 
+/** The projected interaction rect covers the whole physical print, so the
+ * morph starts from a box with the FRAMED aspect inside it, not the bare
+ * image's. Without a registered form the two are the same. */
 function projectSceneArtifactPreviewOrigin(id: SceneArtifactId) {
   const artifact = sceneArtifactById(id);
   if (!artifact || artifact.kind !== "image") return null;
   const origin = projectSceneInteractionRect(artifact.interactionId);
-  return origin
-    ? imageRatioPreviewOrigin(origin, artifact.width, artifact.height)
-    : null;
+  if (!origin) return null;
+  const framed = framedArtifactPreviewSize(
+    artifactPreviewFrameFor(id) ?? BARE_ARTIFACT_PREVIEW_FRAME,
+    artifact,
+  );
+  return imageRatioPreviewOrigin(origin, framed.width, framed.height);
 }
 
 export function beginSceneArtifactPreviewOriginSession(id: SceneArtifactId) {
@@ -132,6 +147,8 @@ function activateSceneArtifact(id: SceneArtifactId) {
 export function openSceneArtifact(id: SceneArtifactId) {
   const state = useStacks.getState();
   if (state.modalOpen || state.panelState !== "closed") return;
+  const artifact = sceneArtifactById(id);
+  if (!artifact || !sceneArtifactPreviewEnabled(artifact)) return;
   beginSceneArtifactPreviewOriginSession(id);
   window.history.pushState(
     { ...currentHistoryState(), [HISTORY_KEY]: id },
@@ -173,8 +190,11 @@ export function sceneArtifactFromHistoryState(
     return null;
   }
   const value = (state as Record<string, unknown>)[HISTORY_KEY];
-  return typeof value === "string" &&
-    sceneArtifactById(value as SceneArtifactId)
+  if (typeof value !== "string") return null;
+  // An entry written while a now-disabled preview was on reads as no
+  // artifact, so navigating back onto it closes rather than reopens.
+  const artifact = sceneArtifactById(value as SceneArtifactId);
+  return artifact && sceneArtifactPreviewEnabled(artifact)
     ? (value as SceneArtifactId)
     : null;
 }

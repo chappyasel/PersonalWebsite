@@ -1,5 +1,6 @@
 import { ABOUT_BOOT_LANDMARKS } from "../aboutBootComposition";
 import { ABOUT_ROLES, ABOUT_ROLE_ICON_SIZE } from "../aboutRoleIcons";
+import { ABOUT_PHOTO_POSES, ABOUT_TOP_LANDMARK_Z } from "../aboutScenePose";
 import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 
@@ -68,9 +69,8 @@ describe("About shelf throwable props", () => {
     expect(photo).toContain("<LoosePhoto");
     expect(photo).toContain("<FlatPrint");
     expect(photo).not.toContain("<DeskFrame");
-    expect(photo).toContain(
-      'base={[ABOUT_BOOT_LANDMARKS["collective-frame"].x, 0, 0.255]}',
-    );
+    expect(photo).toContain('ABOUT_TOP_LANDMARK_Z["collective-frame"]');
+    expect(ABOUT_TOP_LANDMARK_Z["collective-frame"]).toBe(0.255);
     expect(photo).toContain('name={aboutLandmarkNodeName("collective-frame")}');
   });
 
@@ -96,19 +96,27 @@ describe("About shelf throwable props", () => {
     expect(source).toContain("seat={deskFrameHeight(0.264) / 2}");
     // Family frame: the 2026-08-22 layout-editor placement, the editor's
     // carrier rotation composed onto the earlier authored tilt.
-    expect(source).toContain("rotation={[-0.172, -0.251, -0.102]}");
+    expect(source).toContain(
+      "rotation={[...ABOUT_PHOTO_POSES.family.rotation]}",
+    );
+    expect(ABOUT_PHOTO_POSES.family.rotation).toEqual([-0.172, -0.251, -0.102]);
     expect(source).toContain("seat={REVIEWED_SHELF_LAYOUT.about.profileSeat}");
-    expect(source).toContain("rotation={[-Math.PI / 6, -0.08, 0]}");
+    expect(source).toContain(
+      "rotation={[...ABOUT_PHOTO_POSES.profile.rotation]}",
+    );
+    expect(ABOUT_PHOTO_POSES.profile.rotation).toEqual([
+      -Math.PI / 6,
+      -0.08,
+      0,
+    ]);
     expect(source).not.toContain('shelfPose="flat"');
   });
 
   it("aligns the smaller standing frames with the large portrait", () => {
-    expect(source).toContain(
-      'base={[ABOUT_BOOT_LANDMARKS["family-frame"].x, 0, 0]}',
-    );
-    expect(source).toContain(
-      'base={[ABOUT_BOOT_LANDMARKS["profile-frame"].x, 0, -0.045]}',
-    );
+    expect(source).toContain("ABOUT_PHOTO_POSES.family.baseZ");
+    expect(source).toContain("ABOUT_PHOTO_POSES.profile.baseZ");
+    expect(ABOUT_PHOTO_POSES.family.baseZ).toBe(0);
+    expect(ABOUT_PHOTO_POSES.profile.baseZ).toBe(-0.045);
   });
 
   it("swaps the Arch and Collective frame positions", () => {
@@ -206,21 +214,18 @@ describe("About shelf throwable props", () => {
     // 0.686 / -0.122: the owner's 2026-08-22 layout-editor placement.
     expect(ABOUT_BOOT_LANDMARKS.cactus.x).toBe(0.686);
     expect(ABOUT_BOOT_LANDMARKS.succulent.x).toBe(-0.81);
-    expect(source).toContain(
-      "base={[ABOUT_BOOT_LANDMARKS.cactus.x, 0, -0.122]}",
-    );
-    expect(source).toContain(
-      "base={[ABOUT_BOOT_LANDMARKS.succulent.x, 0, -0.1]}",
-    );
+    expect(source).toContain("ABOUT_TOP_LANDMARK_Z.cactus");
+    expect(source).toContain("ABOUT_TOP_LANDMARK_Z.succulent");
+    expect(ABOUT_TOP_LANDMARK_Z.cactus).toBe(-0.122);
+    expect(ABOUT_TOP_LANDMARK_Z.succulent).toBe(-0.1);
   });
 
   it("keeps the three face-up prints at their layout-editor depths", () => {
     // Owner placement, 2026-08-22: each print pulled toward the plank's
     // front edge by a different amount; the x's live in the landmark table
     // and REVIEWED_SHELF_LAYOUT.about.
-    expect(source).toContain(
-      'base={[ABOUT_BOOT_LANDMARKS["collective-frame"].x, 0, 0.255]}',
-    );
+    expect(source).toContain('ABOUT_TOP_LANDMARK_Z["collective-frame"]');
+    expect(ABOUT_TOP_LANDMARK_Z["collective-frame"]).toBe(0.255);
     expect(source).toContain(
       "base={[REVIEWED_SHELF_LAYOUT.about.speakingPrintX, 0, 0.239]}",
     );

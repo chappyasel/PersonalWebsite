@@ -1,5 +1,7 @@
 "use client";
 
+import { useArtifactPreviewFrames } from "../scene/artifactPreviewFrames";
+import { useArtifactShadeSamples } from "../scene/artifactShadeSamples";
 import { destinationFor } from "../scene/interactionRegistry";
 import { useModelArtifactRendererEnabled } from "../scene/modelArtifactDiagnostics";
 import {
@@ -20,6 +22,7 @@ import {
   sceneArtifactCollection,
 } from "../sceneArtifacts";
 import { useStacks } from "../store";
+import { PALETTES, type Palette } from "../theme";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
@@ -30,13 +33,15 @@ import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import {
+  type CSSProperties,
   Component,
   type ErrorInfo,
-  type ImgHTMLAttributes,
+  type HTMLAttributes,
   type ReactNode,
   createRef,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -44,13 +49,32 @@ import {
 import { createPortal } from "react-dom";
 import { PhotoSlider } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
-import type { DataType as PhotoSliderItem } from "react-photo-view/dist/types";
+import type {
+  PhotoRenderParams,
+  DataType as PhotoSliderItem,
+} from "react-photo-view/dist/types";
 
 import { fitArtifactPreviewToViewport } from "./artifactPreviewFit";
 import {
+  type ArtifactPreviewFrame,
+  type ArtifactPreviewFrameAccentLayout,
+  BARE_ARTIFACT_PREVIEW_FRAME,
+  artifactPreviewFrameLayout,
+  framedArtifactPreviewSize,
+  resolveArtifactPreviewFrameTone,
+} from "./artifactPreviewFrame";
+import {
+  ARTIFACT_PREVIEW_DURATION_MS,
+  ARTIFACT_PREVIEW_EASING,
   artifactPreviewDuration,
   artifactPreviewEasing,
 } from "./artifactPreviewMotion";
+import { artifactPreviewPoseTransform } from "./artifactPreviewPose";
+import {
+  type ArtifactPreviewShade,
+  artifactPreviewShade,
+  artifactPreviewShadeFilter,
+} from "./artifactPreviewShading";
 import {
   type ModelArtifactCameraTarget,
   modelArtifactPreviewVisible,
@@ -196,6 +220,242 @@ function PreviewChrome({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function pixelLength(value: CSSProperties["width"]) {
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+}
+
+type PreviewPrintProps = Readonly<{
+  attrs: PhotoRenderParams["attrs"];
+  frame: ArtifactPreviewFrame;
+  palette: Palette;
+  src: string;
+  visible: boolean;
+  opening: boolean;
+  closing: boolean;
+  /** matrix3d putting this element over the print's rendered pose while the
+   * viewer sits in its start box; null when no pose was captured. */
+  pose: string | null;
+  /** How the room renders this print, measured on the print itself, so the
+   * handoff swaps between two identically-graded layers. */
+  shade: ArtifactPreviewShade;
+}>;
+
+function reducedMotionPreferred() {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+function PreviewFrameAccents({
+  accents,
+  palette,
+}: {
+  accents: readonly ArtifactPreviewFrameAccentLayout[];
+  palette: Palette;
+}) {
+  return accents.flatMap((accent, accentIndex) => {
+    const color = resolveArtifactPreviewFrameTone(accent.tone, palette);
+    if (accent.kind === "eyelets")
+      return [-1, 1].map((side) => (
+        <div
+          key={`${accentIndex}:eyelet:${side}`}
+          aria-hidden
+          data-scene-artifact-preview-accent="eyelet"
+          className="pointer-events-none absolute box-border rounded-full"
+          style={{
+            left: `${50 + side * accent.spread * 50}%`,
+            top: accent.radius,
+            width: accent.radius * 2,
+            height: accent.radius * 2,
+            borderColor: color,
+            borderWidth: accent.stroke,
+            transform: "translate(-50%, -50%)",
+          }}
+        />
+      ));
+
+    return [-1, 1].flatMap((xSide) =>
+      [-1, 1].map((ySide) => (
+        <div
+          key={`${accentIndex}:block:${xSide}:${ySide}`}
+          aria-hidden
+          data-scene-artifact-preview-accent="corner-block"
+          className="pointer-events-none absolute"
+          style={{
+            left:
+              xSide < 0
+                ? accent.edgeInset
+                : `calc(100% - ${accent.edgeInset}px)`,
+            top:
+              ySide < 0
+                ? accent.edgeInset
+                : `calc(100% - ${accent.edgeInset}px)`,
+            width: accent.size,
+            height: accent.size,
+            borderRadius: accent.radius,
+            backgroundColor: color,
+            transform: "translate(-50%, -50%)",
+          }}
+        />
+      )),
+    );
+  });
+}
+
+/** The enlarged photo drawn as the print it is in the room: the image inside
+ * the same paper, mat, or frame the scene built around it, so the morph out
+ * of the shelf never sheds its edges on the way up.
+ *
+ * The viewer hands over its box as `attrs` (size, opacity, transitions, the
+ * drag handlers). The edges are laid out from that box's WIDTH alone because
+ * the viewer animates height separately while it morphs from the scene's
+ * aspect, and the edges must stay proportional to the print, not the box. */
+function PreviewPrint({
+  attrs,
+  frame,
+  palette,
+  src,
+  visible,
+  opening,
+  closing,
+  pose,
+  shade,
+}: PreviewPrintProps) {
+  const element = useRef<HTMLDivElement>(null);
+  const style = attrs.style ?? {};
+  const layout = artifactPreviewFrameLayout(frame, pixelLength(style.width));
+  const imageSize = `calc(100% - ${layout.imageInset * 2}px)`;
+
+  // Spatial rotation. The viewer can only translate and scale its box, so
+  // the roll, yaw, and perspective of the rendered print are restored here:
+  // the element opens under the captured pose matrix and eases to identity
+  // on the viewer's own clock, and closing eases back onto the pose while
+  // the box shrinks home. Layout effect, so the pose is on before the first
+  // painted frame.
+  useLayoutEffect(() => {
+    const node = element.current;
+    if (!node || !pose || reducedMotionPreferred()) return;
+    if (!opening && !closing) return;
+    node.style.transformOrigin = "0 0";
+    if (closing) {
+      node.style.transition = `transform ${ARTIFACT_PREVIEW_DURATION_MS}ms ${ARTIFACT_PREVIEW_EASING}`;
+      node.style.transform = pose;
+      return;
+    }
+    node.style.transition = "none";
+    node.style.transform = pose;
+    let release = 0;
+    const settle = requestAnimationFrame(() => {
+      release = requestAnimationFrame(() => {
+        node.style.transition = `transform ${ARTIFACT_PREVIEW_DURATION_MS}ms ${ARTIFACT_PREVIEW_EASING}`;
+        node.style.transform = "";
+      });
+    });
+    return () => {
+      cancelAnimationFrame(settle);
+      cancelAnimationFrame(release);
+    };
+  }, [closing, opening, pose]);
+
+  return (
+    <div
+      ref={element}
+      {...(attrs as HTMLAttributes<HTMLDivElement>)}
+      className={[
+        "PhotoView__Photo",
+        "stacks-artifact-preview-print",
+        attrs.className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      style={{
+        ...style,
+        position: "relative",
+        // Contain the shade's multiply blend to this print's own layers.
+        isolation: "isolate",
+        borderRadius: layout.radius,
+        opacity: visible ? style.opacity : 0,
+        // The half of the correction a multiply layer cannot carry: the room
+        // renders some prints BRIGHTER than their file, and ACES pulls
+        // saturation on all of them. globals.css releases it on the same beat
+        // as the tint.
+        ["--stacks-preview-shade-filter" as string]:
+          artifactPreviewShadeFilter(shade),
+      }}
+      data-scene-artifact-preview-image
+      data-scene-artifact-preview-opening={opening ? "" : undefined}
+      data-scene-artifact-preview-closing={closing ? "" : undefined}
+    >
+      {layout.layers.map((layer, index) => (
+        <div
+          key={index}
+          aria-hidden
+          data-scene-artifact-preview-edge={layer.tone}
+          data-scene-artifact-preview-edge-finish={layer.finish}
+          className="pointer-events-none absolute"
+          style={{
+            inset: layer.offset,
+            borderRadius: layer.radius,
+            backgroundColor: resolveArtifactPreviewFrameTone(
+              layer.tone,
+              palette,
+            ),
+          }}
+        />
+      ))}
+      {/* This must reuse the exact URL already decoded for the Three.js
+          texture. Next/Image would introduce a second lazy optimized URL,
+          making the pixels arrive after the morph instead of during it. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt=""
+        draggable={false}
+        loading="eager"
+        decoding="sync"
+        className="pointer-events-none absolute max-w-none select-none"
+        style={{
+          left: layout.imageInset,
+          top: layout.imageInset,
+          width: imageSize,
+          height: imageSize,
+          objectFit: "contain",
+        }}
+        data-scene-artifact-preview-photo
+      />
+      {/* The room's lighting, as one multiply layer: held solid while the
+          physical and DOM prints swap, then eased away to the true photo.
+          Its opacity choreography lives with the fade keyframes in
+          globals.css. */}
+      <div
+        aria-hidden
+        data-scene-artifact-preview-shade
+        className="pointer-events-none absolute"
+        style={{
+          inset: layout.imageInset,
+          backgroundColor: shade.tint,
+          mixBlendMode: "multiply",
+        }}
+      />
+      {layout.layers.length > 0 && (
+        <div
+          aria-hidden
+          data-scene-artifact-preview-well
+          className="pointer-events-none absolute"
+          style={{ inset: layout.imageInset }}
+        />
+      )}
+      <PreviewFrameAccents accents={layout.accents} palette={palette} />
     </div>
   );
 }
@@ -429,61 +689,64 @@ export default function SceneArtifactInspector() {
   const imagePreviewOpening = Boolean(
     selectedId && artifactHandoffPhase && artifactHandoffPhase !== "inspecting",
   );
+  // Each photo's physical form registers its edges from the scene.
+  const frames = useArtifactPreviewFrames();
+  const { resolvedTheme } = useTheme();
+  const dark = resolvedTheme === "dark";
+  const palette = PALETTES[dark ? "dark" : "light"];
+  const shadeSamples = useArtifactShadeSamples();
   const images = useMemo<PhotoSliderItem[]>(
     () =>
       imageCollection.map((entry) => {
-        const originElement = projectedOrigins.has(entry.id)
-          ? originElements.get(entry.id)
-          : undefined;
+        const origin = projectedOrigins.get(entry.id);
+        const originElement = origin ? originElements.get(entry.id) : undefined;
+        const frame = frames.get(entry.id) ?? BARE_ARTIFACT_PREVIEW_FRAME;
+        const framed = framedArtifactPreviewSize(frame, entry);
+        const fitted = fitArtifactPreviewToViewport(
+          framed,
+          previewViewport.width > 0
+            ? previewViewport
+            : { width: framed.width + 48, height: framed.height + 144 },
+        );
+        const pose = origin?.quad
+          ? artifactPreviewPoseTransform(fitted, origin, origin.quad)
+          : null;
+        // Per print, not per theme: the probe measured this one.
+        const shade = artifactPreviewShade(shadeSamples.get(entry.id), dark);
         return {
           key: `${entry.id}:${previewViewport.width}x${previewViewport.height}`,
-          ...fitArtifactPreviewToViewport(
-            { width: entry.width, height: entry.height },
-            previewViewport.width > 0
-              ? previewViewport
-              : { width: entry.width + 48, height: entry.height + 144 },
-          ),
+          ...fitted,
           ...(originElement ? { originRef: originElement } : {}),
           // Supplying `src` makes react-photo-view wait for an image onLoad and
           // abandon its origin transition after 250 ms. The custom renderer
           // keeps its geometry ready immediately while the browser decodes.
           render: ({ attrs }) => (
-            // This must reuse the exact URL already decoded for the Three.js
-            // texture. Next/Image would introduce a second lazy optimized URL,
-            // making the pixels arrive after the morph instead of during it.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              {...(attrs as ImgHTMLAttributes<HTMLImageElement>)}
-              className={["PhotoView__Photo", attrs.className]
-                .filter(Boolean)
-                .join(" ")}
-              style={{
-                ...attrs.style,
-                objectFit: "contain",
-                opacity: imagePreviewVisible ? attrs.style?.opacity : 0,
-              }}
+            <PreviewPrint
+              attrs={attrs}
+              frame={frame}
+              palette={palette}
               src={entry.image}
-              alt=""
-              draggable={false}
-              loading="eager"
-              decoding="sync"
-              data-scene-artifact-preview-image
-              data-scene-artifact-preview-opening={
-                imagePreviewOpening ? "" : undefined
-              }
-              data-scene-artifact-preview-closing={selectedId ? undefined : ""}
+              visible={imagePreviewVisible}
+              opening={imagePreviewOpening}
+              closing={!selectedId}
+              pose={pose}
+              shade={shade}
             />
           ),
         };
       }),
     [
+      frames,
       imageCollection,
       imagePreviewOpening,
       imagePreviewVisible,
       originElements,
+      palette,
       previewViewport,
       projectedOrigins,
       selectedId,
+      shadeSamples,
+      dark,
     ],
   );
 
@@ -508,8 +771,13 @@ export default function SceneArtifactInspector() {
     const sourceBounds = previewOriginsValid
       ? previewOriginSession?.origins.get(selectedId)
       : undefined;
+    // Framed, like the origin: the scene scales the real print by the ratio
+    // of these two boxes, and both must measure the same object.
     const fitted = fitArtifactPreviewToViewport(
-      { width: artifact.width, height: artifact.height },
+      framedArtifactPreviewSize(
+        frames.get(selectedId) ?? BARE_ARTIFACT_PREVIEW_FRAME,
+        artifact,
+      ),
       previewViewport,
     );
     dispatchHandoff({
@@ -527,6 +795,7 @@ export default function SceneArtifactInspector() {
   }, [
     artifact,
     dispatchHandoff,
+    frames,
     previewOriginSession,
     previewOriginsValid,
     previewViewport,

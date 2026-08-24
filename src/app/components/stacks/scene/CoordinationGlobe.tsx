@@ -1,5 +1,6 @@
 "use client";
 
+import { isWorldRevealed } from "../boot/worldBootSession";
 import { useStacks } from "../store";
 import { type Palette } from "../theme";
 import { useThree } from "@react-three/fiber";
@@ -588,6 +589,16 @@ function LiveCoordinationNetwork({
   const connectionPool = useRef(createCoordinationConnectionPool());
   const nextConnectionIn = useRef(0);
   useUnitFrame(({ clock }, delta) => {
+    // The boot SVG projects the network at t=0. Keep the hidden WebGL graph at
+    // that same pose until the handoff begins, then advance its private clock
+    // from zero. Canvas compile time can no longer decide the first visible
+    // network arrangement.
+    if (!isWorldRevealed()) {
+      const timeUniform = horizonMaterial.current?.uniforms.uTime;
+      if (timeUniform) timeUniform.value = 0;
+      scene.draw(0, 0, 0, []);
+      return;
+    }
     const boundedDelta = Math.min(delta, 1 / 30);
     const motionDelta = Math.max(0, Math.min(delta, 0.1));
     const timeUniform = horizonMaterial.current?.uniforms.uTime;

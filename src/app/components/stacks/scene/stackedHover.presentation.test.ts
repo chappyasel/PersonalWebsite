@@ -45,11 +45,15 @@ describe("props with something stacked on them", () => {
     // If this changes, the numbers below are stale and the test that uses them
     // is not measuring the scene any more.
     const text = source("./primitives.tsx");
-    expect(text).toContain("const height = item.height ?? 0.052;");
+    expect(text).toContain("const fallback = item.height ?? 0.052;");
+    expect(text).toContain("(_, j) => item.heights?.[j] ?? fallback,");
     expect(text).toContain("depth={item.depth ?? 0.24}");
-    // "The first centre is one exact half-height above the plank; each height
-    // step then leaves adjacent boards touching."
-    expect(text).toContain("height / 2 + j * height,");
+    // Seats are the running sum of every thickness below each volume. This is
+    // the variable-height form of the same touching-stack invariant.
+    expect(text).toContain("const seats = useMemo(() => flatVolumeSeats(item)");
+    expect(text).toContain(
+      "base={[item.x + j * (item.staggerX ?? 0.012), seats[j]!, 0]}",
+    );
   });
 
   it("refuses to swing a stacked book through the one above it", () => {

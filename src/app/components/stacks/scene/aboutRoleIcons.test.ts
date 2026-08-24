@@ -10,8 +10,8 @@ import {
   ABOUT_ROLE_STACK_WIDTH,
   aboutRoleIconOffset,
 } from "./aboutRoleIcons";
+import { projectIconBody } from "./projectIconGeometry";
 import { LOWER_SHELF_HEADROOM, SHELF_GEOMETRY } from "./shelfGeometry";
-import { projectIconBody } from "./units/ProjectArtifacts";
 import { PROJECT_ARTIFACT_DIMENSIONS } from "./units/unitShelfLayout";
 
 describe("About Role Icons", () => {

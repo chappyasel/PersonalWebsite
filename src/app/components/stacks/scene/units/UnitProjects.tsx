@@ -2,7 +2,10 @@
 
 // Projects — framed app screenshots; reference books + the trophy below
 // (the homework-app acquisition earns it).
-import type { PhotoArtifactId } from "../../sceneArtifacts";
+import {
+  MODEL_ARTIFACT_PREVIEWS_ENABLED,
+  type PhotoArtifactId,
+} from "../../sceneArtifacts";
 import { useStacks } from "../../store";
 import Grabbable from "../Grabbable";
 import { ContactShade } from "../GroundPool";
@@ -627,7 +630,9 @@ export default function UnitProjects({ palette, dark, index }: UnitProps) {
           fallbackColor="#12ace8"
           textured={textured}
           yaw={-0.07}
-          artifact="homework-app"
+          // The 3D inspector is switched off in sceneArtifacts; the icon
+          // stays a plain grabbable until it comes back.
+          artifact={MODEL_ARTIFACT_PREVIEWS_ENABLED ? "homework-app" : undefined}
         />
         <ProjectPhoto
           unitIndex={index}

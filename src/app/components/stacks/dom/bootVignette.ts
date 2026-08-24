@@ -297,11 +297,11 @@ export const BOOT_FRAME_PHOTOS = {
     preserveAspectRatio: "xMidYMin slice",
   },
   "family-frame": {
-    src: "/images/stacks/v8/512/about-family.webp",
+    src: "/images/stacks/v8/512/about-family.jpg",
     preserveAspectRatio: "xMidYMid slice",
   },
   "profile-frame": {
-    src: "/images/stacks/v8/256/about-profile-full.webp",
+    src: "/images/stacks/v8/256/about-profile-full.jpg",
     preserveAspectRatio: "xMidYMid slice",
   },
 } as const satisfies Partial<Record<AboutLandmarkId, BootFramePhoto>>;

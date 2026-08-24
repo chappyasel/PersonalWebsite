@@ -65,7 +65,8 @@ describe("boot presentation", () => {
   it("does not turn boot photos into render-priority resources", () => {
     expect(component).not.toContain("next/image");
     expect(component).not.toContain("priority=");
-    expect(component).not.toContain('rel="preload"');
+    expect(component.match(/rel="preload"/g)).toHaveLength(1);
+    expect(component).toContain("data-boot-reading-cover-preload");
   });
 
   it("switches each object's authored material color with the page theme", () => {

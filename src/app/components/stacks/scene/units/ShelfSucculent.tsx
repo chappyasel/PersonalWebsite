@@ -2,6 +2,7 @@
 
 import ModelProp from "../ModelProp";
 import { ABOUT_BOOT_LANDMARKS } from "../aboutBootComposition";
+import { ABOUT_MODEL_POSES } from "../aboutScenePose";
 import { Sway } from "../eggs";
 import React from "react";
 
@@ -19,7 +20,7 @@ export function ShelfSucculent({
           url="/models/succulent-pot.glb"
           dark={dark}
           variant="recolor"
-          rotation={[0, -0.4, 0]}
+          rotation={[...ABOUT_MODEL_POSES.succulent.rotation]}
           scale={ABOUT_BOOT_LANDMARKS.succulent.sceneScale}
         />
       </React.Suspense>

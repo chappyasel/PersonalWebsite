@@ -19,6 +19,8 @@ import {
 } from "../../../../../lib/books/coverEdgeColor";
 import { arrivalBeatRef, useStacks } from "../../store";
 import { rand } from "../../theme";
+import Grabbable from "../Grabbable";
+import ModelProp from "../ModelProp";
 import {
   type BookInteraction,
   type BookInteractionInput,
@@ -36,10 +38,11 @@ import {
   ShelfUnit,
   coverExtent,
   coverSeat,
+  flatVolumeHeights,
   packRow,
 } from "../primitives";
 import { SHELF_SURFACE } from "../shelfGeometry";
-import { layoutShelfRow, splitShelfRows } from "../shelfSpacing";
+import { layoutShelfRow, splitShelfRows, widestRowGap } from "../shelfSpacing";
 import { useUnitFrame } from "../unitActivity";
 import { useUnitLod } from "../useUnitLod";
 import React, { useEffect, useMemo, useRef } from "react";
@@ -80,6 +83,11 @@ import { type UnitProps } from "./types";
 const EDGE_R = 1.24;
 const EDGE_L_TOP = -1.3;
 const EDGE_L_LOWER = -1.24;
+/** The top packed row is nudged left of unit origin to clear the placard. It
+ * is a named constant rather than a number typed into the group below because
+ * anything measured against the FEATURED rank has to be shifted by it to land
+ * in this row's frame. */
+export const TOP_PACKED_ROW_OFFSET_X = -0.05;
 /** The lower plank is shallower, so its two ranks sit farther back as a pair.
  * Each rank keeps 0.19–0.20 units of separation while every complete book,
  * including a featured-book riser, remains over wood. */
@@ -307,6 +315,144 @@ export function layoutFeatured(
   });
 }
 
+/**
+ * WHAT IS LYING ON THE FLAT STACK.
+ *
+ * Every packed row puts down one horizontal stack of two or three books, and
+ * the top of that stack is the one flat surface on this Unit that is not the
+ * plank itself — which is exactly where these two things end up in real life.
+ * They sit ON the books rather than beside them: a pair of headphones and a
+ * face-down phone left on top of the pile is a person's shelf, and standing
+ * either of them on bare wood in a gap is a display.
+ *
+ * Neither x is authored. The stack's position is `packRow`'s output and moves
+ * whenever the shelf recomposes, so both props read it back out of the
+ * rendered row and stand down if that row has no stack.
+ *
+ * They mount INSIDE the packed row's own group, so the row's x offset and its
+ * z both come for free and cannot drift from the books they rest on.
+ */
+const BOOKS_HEADPHONES = {
+  /** Front view — the band arcing over two cups. The GLB's narrow axis is X,
+   * so the pair needs a quarter turn to face the room at all
+   * (`stacks-render headphones --yaws 0,90` shows both views). Off 90° by a
+   * few degrees so they were set down, not squared up. */
+  yaw: 1.44,
+  /** X 0.9046 × Z 0.5294 at unit scale → 0.262 × 0.153 here, which sits
+   * inside the flat book's own 0.32 × 0.24 top face with a margin all round.
+   * Anything bigger overhangs the pile it is supposed to be resting on. */
+  scale: 0.29,
+} as const;
+
+/** The Beats red from Musings. Same pair, carried in here and dropped on the
+ * books — the room already reuses the desk lamp and the mug across two Units
+ * each, and a second colourway would read as a second pair of headphones. */
+const BOOKS_HEADPHONE_TINTS = {
+  light: {
+    GrayTone1: "#aa1630",
+    GrayTone3: "#9a9da2",
+    GrayTone2: "#211316",
+  },
+  dark: {
+    GrayTone1: "#aa1630",
+    GrayTone3: "#777b82",
+    GrayTone2: "#140b0d",
+  },
+} as const;
+const BOOKS_HEADPHONE_MATERIALS = {
+  GrayTone1: { roughness: 0.72 },
+  GrayTone3: { metalness: 0.55, roughness: 0.3 },
+  GrayTone2: { roughness: 0.86 },
+} as const;
+
+const BOOKS_PHONE = {
+  /** Face DOWN, the way a phone gets put down on a book. `[−π/2, 0, θ]` is
+   * the room's existing form for this (Projects uses the same): the Z term is
+   * an in-plane spin applied before the phone is laid over, so it becomes the
+   * flat yaw once it is down. Turned a few degrees off the book's own edge so
+   * it was dropped there rather than aligned to it. */
+  rotation: [-Math.PI / 2, 0, 1.42] as [number, number, number],
+  /** X 0.7599 × Y 1.5042 × Z 0.1761 → 0.167 × 0.331 × 0.039 laid flat. The
+   * long axis runs across the stack at 0.331 against the book's 0.32, so it
+   * overhangs by a millimetre either end, which is what a phone on a book
+   * does. */
+  scale: 0.22,
+  /** Half the flat thickness: 0.1761 × 0.22 / 2. */
+  seat: 0.0194,
+} as const;
+
+/**
+ * Where the laid-over phone has to be mounted for it to REST ON the stack
+ * rather than hang off it.
+ *
+ * Every prop GLB in /models is normalized bottom-at-origin, so the phone's
+ * length runs 0 → 1.5042 up from its origin instead of straddling it. Stood
+ * up that is exactly what you want; laid over it means the body extends a
+ * full length sideways FROM the mount point, and the phone ends up beside the
+ * books with nothing underneath it. It is a real overhang, not a trick of the
+ * camera — the first capture had two thirds of the phone off the pile.
+ *
+ * The correction is half a length back along wherever the length axis now
+ * points. `THREE.Euler`'s default XYZ order applies the Z term FIRST, so the
+ * model's +Y maps to (−sin θ, 0, −cos θ) after the lay-over, and the offset is
+ * the negative half of that. Derived rather than typed in, so changing the
+ * yaw or the scale cannot silently strand the phone again.
+ */
+const PHONE_FLAT_LENGTH = 1.5042 * BOOKS_PHONE.scale;
+const BOOKS_PHONE_MOUNT: [number, number, number] = [
+  (PHONE_FLAT_LENGTH / 2) * Math.sin(BOOKS_PHONE.rotation[2]),
+  BOOKS_PHONE.seat,
+  (PHONE_FLAT_LENGTH / 2) * Math.cos(BOOKS_PHONE.rotation[2]),
+];
+
+/**
+ * The visible hole in a front rank, expressed in the PACKED row's frame.
+ *
+ * The two rows do not share an origin — the top packed row carries a −0.05
+ * offset for the placard — so a gap measured against the covers has to be
+ * shifted before the row behind can be told where it is. Getting this wrong
+ * moves the stack by 5cm, which is most of a book.
+ */
+function featuredGapInRowFrame(featured: RowItem[], rowOffsetX: number) {
+  const gap = widestRowGap(
+    featured.flatMap((item) =>
+      item.kind === "cover"
+        ? [{ x: item.x, halfWidth: coverExtent(item.s ?? 1, item.lean ?? 0) }]
+        : [],
+    ),
+  );
+  return gap
+    ? { left: gap.left - rowOffsetX, right: gap.right - rowOffsetX }
+    : undefined;
+}
+
+/** The top face of a packed row's horizontal stack, in the ROW's own frame —
+ * or null for a row that generated no stack. `packRow` steps each volume up
+ * by its own height and staggers it, so the resting surface is the top of the
+ * last volume, not of the item's origin.
+ *
+ * A wide row is allowed two stacks and only the one in `window` is the one
+ * standing in the open, so the window picks which stack a prop rests on. */
+function flatStackTop(
+  row: RowItem[],
+  window?: { left: number; right: number },
+): { x: number; y: number } | null {
+  const stacks = row.filter((item) => item.kind === "flat");
+  const stack =
+    (window &&
+      stacks.find((item) => item.x >= window.left && item.x <= window.right)) ??
+    stacks[0];
+  if (stack?.kind !== "flat") return null;
+  return {
+    x: stack.x + (stack.n - 1) * (stack.staggerX ?? 0.012),
+    // Volumes carry their own thickness now — a book lying down is as thick as
+    // it is long — so the pile's height is a SUM. `n × height` was right only
+    // while every book in it was the same size, and it would leave the props
+    // floating above a thin stack or sunk into a fat one.
+    y: flatVolumeHeights(stack).reduce((total, h) => total + h, 0),
+  };
+}
+
 export type FeaturedBookPerchInput = Readonly<{
   id: string;
   title: string;
@@ -459,6 +605,7 @@ export default function UnitBooks({
   index,
   coverWidth,
   onOpenBook,
+  onOpenBookId,
 }: UnitProps) {
   const textured = useUnitLod(index);
   /**
@@ -543,13 +690,74 @@ export default function UnitBooks({
     ];
   }, [featured]);
 
-  /** The rows BEHIND the featured books. No covers at all now — the packed
-   * block is scenery, and giving it covers put a second, competing face-out
-   * book in a row whose whole job is to be the quiet backdrop the featured
-   * ones stand against. Passing `[]` also retires the old coupling where the
-   * number of featured books was an OUTPUT of packRow's salt. */
-  const topRow = useMemo(() => packRow(2.42, [], palette, 15), [palette]);
-  const lowerRow = useMemo(() => packRow(2.28, [], palette, 40), [palette]);
+  /**
+   * The rows BEHIND the featured books — the rest of the library, and now
+   * literally so.
+   *
+   * No covers at all: giving this block covers put a second, competing
+   * face-out book in a row whose whole job is to be the quiet backdrop the
+   * featured ones stand against. What it DOES carry is `data.spineBooks` —
+   * real finished reads, newest first — so every width on the shelf is a real
+   * page count and every volume opens its own notes rather than the index.
+   *
+   * The top row is dealt first and the lower row continues where it stopped,
+   * so the shelf reads newest-at-top rather than restarting halfway down.
+   * Both rows still generate scenery past the end of the list, which is what
+   * keeps an empty or failed library query rendering a full bookcase.
+   *
+   * Each row is also told where the rank in FRONT of it has a hole, so its
+   * horizontal stack lands somewhere you can see. Left to the roll both stacks
+   * came out directly behind a featured cover, which hides the stack and
+   * anything resting on it — measured, not guessed: the headphones were
+   * invisible in the first capture.
+   */
+  const [topRow, lowerRow] = useMemo(() => {
+    const top = packRow(
+      2.42,
+      [],
+      palette,
+      15,
+      data.spineBooks,
+      featuredGapInRowFrame(topFeatured, TOP_PACKED_ROW_OFFSET_X),
+    );
+    const placed = new Set(
+      top.flatMap((item) =>
+        item.kind === "flat"
+          ? (item.books ?? []).flatMap((book) => (book ? [book.id] : []))
+          : item.kind === "spine" || item.kind === "lean"
+            ? item.book
+              ? [item.book.id]
+              : []
+            : [],
+      ),
+    );
+    return [
+      top,
+      packRow(
+        2.28,
+        [],
+        palette,
+        40,
+        data.spineBooks.filter((book) => !placed.has(book.id)),
+        featuredGapInRowFrame(lowerFeatured, 0),
+      ),
+    ];
+  }, [palette, data.spineBooks, topFeatured, lowerFeatured]);
+
+  // The two flat stacks these props rest on, read back out of the packed rows
+  // so the props follow the books rather than a typed-in mark.
+  const topStack = useMemo(
+    () =>
+      flatStackTop(
+        topRow,
+        featuredGapInRowFrame(topFeatured, TOP_PACKED_ROW_OFFSET_X),
+      ),
+    [topRow, topFeatured],
+  );
+  const lowerStack = useMemo(
+    () => flatStackTop(lowerRow, featuredGapInRowFrame(lowerFeatured, 0)),
+    [lowerRow, lowerFeatured],
+  );
 
   const interactionInput = useMemo(
     () =>
@@ -625,6 +833,7 @@ export default function UnitBooks({
                     textured={textured}
                     coverWidth={coverWidth}
                     onCoverClick={onOpenBook}
+                    onOpenBookId={onOpenBookId}
                     linkUnit={index}
                     grabbableVolumes
                   />
@@ -644,6 +853,39 @@ export default function UnitBooks({
                     <Bookend palette={palette} />
                     <BookendTarget />
                   </HoverProp>
+                  {/* Face down on top of the flat stack, the way a phone gets
+                    put down mid-chapter. Doorless on purpose: the headphones
+                    carry the library, and a second door onto the same place is
+                    two names for one thing. It stays a real movable prop —
+                    pick it up and throw it like any other. */}
+                  {lowerStack && (
+                    <Grabbable
+                      unitIndex={index}
+                      hoverKey="grab:phone:books"
+                      base={[lowerStack.x, lowerStack.y, 0]}
+                      shadeColor={palette.shadow}
+                      // The stack under it already carries the row's contact
+                      // shade; a second pool on top of a book is a shadow with
+                      // nothing to fall on.
+                      shadeWidth={0}
+                      shape="box"
+                      massKg={0.19}
+                    >
+                      <group
+                        position={BOOKS_PHONE_MOUNT}
+                        rotation={BOOKS_PHONE.rotation}
+                      >
+                        <React.Suspense fallback={null}>
+                          <ModelProp
+                            url="/models/phone.glb"
+                            dark={dark}
+                            variant="tinted"
+                            scale={BOOKS_PHONE.scale}
+                          />
+                        </React.Suspense>
+                      </group>
+                    </Grabbable>
+                  )}
                 </group>
                 {/* Kept on the supported part of the shallower lower plank;
                   clearance comes from moving the packed rank back. */}
@@ -687,7 +929,7 @@ export default function UnitBooks({
                 />
               </group>
             )}
-            <group position={[-0.05, 0, TOP_PACKED_ROW_Z]}>
+            <group position={[TOP_PACKED_ROW_OFFSET_X, 0, TOP_PACKED_ROW_Z]}>
               <BookRowMesh
                 items={topRow}
                 palette={palette}
@@ -695,9 +937,39 @@ export default function UnitBooks({
                 textured={textured}
                 coverWidth={coverWidth}
                 onCoverClick={onOpenBook}
+                onOpenBookId={onOpenBookId}
                 linkUnit={index}
                 grabbableVolumes
               />
+              {/* Left on top of the flat stack. Also THE WAY INTO THE LIBRARY,
+                and now the only one on this Unit: every packed volume behind
+                used to open the index because none of them was a particular
+                book, and they are real reads now that open their own notes.
+                Hence the plain `to="books"` copy from the destination table
+                rather than a label of its own. */}
+              {topStack && (
+                <Grabbable
+                  unitIndex={index}
+                  hoverKey="grab:headphones:books"
+                  base={[topStack.x, topStack.y, 0]}
+                  shadeColor={palette.shadow}
+                  // The books underneath carry the row's contact shade already.
+                  shadeWidth={0}
+                  to="books"
+                >
+                  <React.Suspense fallback={null}>
+                    <ModelProp
+                      url="/models/headphones.glb"
+                      dark={dark}
+                      variant="tinted"
+                      tints={BOOKS_HEADPHONE_TINTS[dark ? "dark" : "light"]}
+                      materialProperties={BOOKS_HEADPHONE_MATERIALS}
+                      rotation={[0, BOOKS_HEADPHONES.yaw, 0]}
+                      scale={BOOKS_HEADPHONES.scale}
+                    />
+                  </React.Suspense>
+                </Grabbable>
+              )}
               {/* Its twin on the top row, leaning the other way against the
                 packed spines. */}
               <BooksArrivalBeat enabled={topFeatured.length === 0}>

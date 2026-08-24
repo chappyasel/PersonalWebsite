@@ -119,6 +119,88 @@ describe("Book Notes interaction inventory", () => {
     );
   });
 
+  it("gives a packed volume holding a real read that book's own door", () => {
+    const withBooks: BookInteractionInput = {
+      ...input,
+      rows: [
+        ...input.rows.slice(0, 2),
+        {
+          shelf: "top",
+          salt: 15,
+          role: "packed",
+          items: [
+            {
+              kind: "spine",
+              x: -0.8,
+              w: 0.08,
+              h: 0.5,
+              color: "#765",
+              book: { id: "behave", title: "Behave", author: "Sapolsky" },
+            },
+            {
+              kind: "flat",
+              x: -0.4,
+              n: 2,
+              colors: ["#765", "#876"],
+              books: [
+                { id: "other-minds", title: "Other Minds", author: "GS" },
+                undefined,
+              ],
+            },
+            { kind: "lean", x: 0.1, w: 0.07, h: 0.44, color: "#654" },
+          ],
+        },
+      ],
+    };
+    const inventory = buildBookInteractions(withBooks);
+    const byId = (id: string) => inventory.find((item) => item.id === id)!;
+
+    expect(byId("spine:top:15:0").detailId).toBe("behave");
+    expect(byId("spine:top:15:0").response).toBe("details-or-carry");
+    expect(byId("flat:top:15:1:0").detailId).toBe("other-minds");
+    // Scenery in the same row keeps the library index.
+    expect(byId("flat:top:15:1:1").detailId).toBeUndefined();
+    expect(byId("lean:top:15:2").response).toBe("library-or-carry");
+    expect(
+      auditBookInteractions(inventory, withBooks.expectedFeaturedIds),
+    ).toEqual({ ok: true, errors: [] });
+  });
+
+  it("fails closed when one book is shelved in two places", () => {
+    // A featured cover ALSO packed into the row behind it: two doors onto one
+    // book, and a shelf claiming to hold a copy it does not have.
+    const duplicated: BookInteractionInput = {
+      ...input,
+      rows: [
+        ...input.rows.slice(0, 2),
+        {
+          shelf: "top",
+          salt: 15,
+          role: "packed",
+          items: [
+            {
+              kind: "spine",
+              x: -0.8,
+              w: 0.08,
+              h: 0.5,
+              color: "#765",
+              book: { id: "book-0", title: "Book 0", author: "A" },
+            },
+          ],
+        },
+      ],
+    };
+
+    const audit = auditBookInteractions(
+      buildBookInteractions(duplicated),
+      duplicated.expectedFeaturedIds,
+    );
+    expect(audit.ok).toBe(false);
+    expect(audit.errors).toEqual(
+      expect.arrayContaining([expect.stringContaining("shelved twice")]),
+    );
+  });
+
   it("publishes measured screen centres for a real-pointer harness", () => {
     setBookInteractionInventory(input);
     setBookInteractionScreens({
