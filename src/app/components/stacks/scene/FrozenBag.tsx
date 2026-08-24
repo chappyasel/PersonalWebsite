@@ -15,12 +15,25 @@ import * as THREE from "three";
 import { projectStandingBagUvs } from "./bagLabelUvs";
 
 export const BAG_MODEL_URL = "/models/bag.glb";
-export const BAG_LABEL_URL = "/images/stacks/labels/realgood.webp";
 
-// The GLB rides the shared MODEL_URLS warm batch; the label is this file's
-// own asset, so it warms here the way the golf flag's logo does. Without it
+/** The pouches this shape wears. One mesh, one projection, one label each:
+ * the frozen chicken the food system runs on, and the creatine that starts
+ * the supplement stack. Both are baked from scripts/stacks-labels. */
+export const BAG_LABEL_URLS = {
+  realgood: "/images/stacks/labels/realgood.webp",
+  creatine: "/images/stacks/labels/creatine.webp",
+} as const;
+
+export type BagLabel = keyof typeof BAG_LABEL_URLS;
+
+/** @deprecated Kept as the default for callers that predate the creatine
+ * pouch; prefer naming a label. */
+export const BAG_LABEL_URL = BAG_LABEL_URLS.realgood;
+
+// The GLB rides the shared MODEL_URLS warm batch; the labels are this file's
+// own assets, so they warm here the way the golf flag's logo does. Without it
 // the bags suspend on a small webp and pop in after the shelf has settled.
-useTexture.preload(BAG_LABEL_URL);
+for (const url of Object.values(BAG_LABEL_URLS)) useTexture.preload(url);
 
 /** The model's printed face is +x; this yaw turns it to the viewer (+z). */
 export const BAG_FACE_YAW = -Math.PI / 2;
@@ -50,10 +63,13 @@ function bakedGeometry(scene: THREE.Group): THREE.BufferGeometry | null {
 const BAG_TINT = "#e6dfd2";
 
 export default function FrozenBag({
+  label = "realgood",
   scale = 1,
   yaw = 0,
   roughness = 0.78,
 }: {
+  /** Which baked pouch front to wear. */
+  label?: BagLabel;
   scale?: number;
   /** Extra yaw on top of the face-to-viewer turn, for fanning a row. */
   yaw?: number;
@@ -62,7 +78,7 @@ export default function FrozenBag({
   roughness?: number;
 }) {
   const { scene } = useGLTF(BAG_MODEL_URL, false);
-  const label = useTexture(BAG_LABEL_URL, (tex) => {
+  const skin = useTexture(BAG_LABEL_URLS[label], (tex) => {
     // Runs once per cached URL. A colour texture must be sRGB or the orange
     // band prints as a washed peach after tone mapping.
     tex.colorSpace = THREE.SRGBColorSpace;
@@ -87,7 +103,7 @@ export default function FrozenBag({
       receiveShadow
     >
       <meshStandardMaterial
-        map={label}
+        map={skin}
         color={BAG_TINT}
         roughness={roughness}
         metalness={0}
