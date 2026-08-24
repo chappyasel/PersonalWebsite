@@ -4,10 +4,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   ABOUT_READING_BOOK,
+  ABOUT_READING_COVER_IMAGE,
   ABOUT_TOP_COLLECTIVE_PHOTO_LEFT,
   ABOUT_TOP_COLLECTIVE_PHOTO_X,
   CURRENT_READING_BASE,
   CURRENT_READING_ROTATION,
+  READING_FAN_CLEARANCE,
   READING_FAN_SPACING_X,
   READING_FAN_SPACING_Z,
   aboutReadingSnapshot,
@@ -22,6 +24,16 @@ import {
 } from "./aboutReadingStack";
 
 describe("About recent-reading fan", () => {
+  it("gives the cover art less margin above and below than at its sides", () => {
+    const horizontalMargin =
+      (ABOUT_READING_BOOK.width - ABOUT_READING_COVER_IMAGE.width) / 2;
+    const verticalMargin =
+      (ABOUT_READING_BOOK.depth - ABOUT_READING_COVER_IMAGE.height) / 2;
+
+    expect(verticalMargin).toBeCloseTo(0.01, 8);
+    expect(verticalMargin).toBeLessThan(horizontalMargin);
+  });
+
   it("projects the exact three live covers into the boot front elevation", () => {
     const elevations = readingStackPoses().map(readingBookFrontElevation);
 
@@ -44,11 +56,11 @@ describe("About recent-reading fan", () => {
     const poses = readingStackPoses();
 
     expect(poses).toHaveLength(3);
-    expect(poses[0]).toEqual({
-      index: 0,
-      base: CURRENT_READING_BASE,
-      rotation: CURRENT_READING_ROTATION,
-    });
+    expect(poses[0].index).toBe(0);
+    poses[0].base.forEach((coordinate, axis) =>
+      expect(coordinate).toBeCloseTo(CURRENT_READING_BASE[axis]!, 12),
+    );
+    expect(poses[0].rotation).toEqual(CURRENT_READING_ROTATION);
     expect(poses[0].base[0]).toBeCloseTo(
       ABOUT_BOOT_LANDMARKS["reading-stack"].x - READING_FAN_SPACING_X,
       10,
@@ -80,6 +92,26 @@ describe("About recent-reading fan", () => {
       separation(READING_FAN_SPACING_X, READING_FAN_SPACING_Z),
     ).toBeGreaterThanOrEqual(separation(0.21, 0.075) - 0.002);
     expect(READING_FAN_SPACING_X).toBeGreaterThan(ABOUT_READING_BOOK.width / 2);
+  });
+
+  it("keeps the same clear air between books of different thicknesses", () => {
+    const thicknesses = [0.04, 0.099, 0.066];
+    const poses = readingStackPoses(thicknesses);
+    const yaw = CURRENT_READING_ROTATION[2];
+    const normal = [-Math.sin(yaw), Math.cos(yaw)] as const;
+
+    for (let index = 0; index < poses.length - 1; index += 1) {
+      const left = poses[index]!;
+      const right = poses[index + 1]!;
+      const centerSeparation = Math.abs(
+        (right.base[0] - left.base[0]) * normal[0] +
+          (right.base[2] - left.base[2]) * normal[1],
+      );
+      const clearance =
+        centerSeparation - (thicknesses[index]! + thicknesses[index + 1]!) / 2;
+
+      expect(clearance).toBeCloseTo(READING_FAN_CLEARANCE, 10);
+    }
   });
 
   it("rests its complete bottom edge directly on the shelf", () => {

@@ -4,7 +4,7 @@ export const ABOUT_READING_BOOK = {
   width: 0.3135,
   /** Default/fallback only; live books derive their fore-edge from length. */
   thickness: 0.0528,
-  depth: 0.495,
+  depth: 0.4776,
   radius: 0.008,
 } as const;
 
@@ -14,6 +14,13 @@ export const ABOUT_READING_COVER_IMAGE = {
   width: 0.2893,
   height: 0.4576,
   lift: 0.001,
+} as const;
+
+export const ABOUT_READING_BOARD_THICKNESS = 0.007;
+
+export const ABOUT_READING_PAGE_BLOCK = {
+  width: ABOUT_READING_BOOK.width - 0.016,
+  depth: ABOUT_READING_BOOK.depth - 0.022,
 } as const;
 
 export type ReadingBookPose = {
@@ -85,6 +92,28 @@ export const READING_FAN_SPACING_X = 0.18;
  * 0.643·0.21 − 0.766·0.075. */
 export const READING_FAN_SPACING_Z = 0.05;
 
+const READING_FAN_YAW = CURRENT_READING_ROTATION[2];
+const READING_FAN_NORMAL = [
+  -Math.sin(READING_FAN_YAW),
+  Math.cos(READING_FAN_YAW),
+] as const;
+const READING_FAN_TANGENT = [
+  Math.cos(READING_FAN_YAW),
+  Math.sin(READING_FAN_YAW),
+] as const;
+const READING_FAN_TANGENT_STEP =
+  READING_FAN_SPACING_X * READING_FAN_TANGENT[0] +
+  READING_FAN_SPACING_Z * READING_FAN_TANGENT[1];
+const READING_FAN_CENTER_SEPARATION = Math.abs(
+  READING_FAN_SPACING_X * READING_FAN_NORMAL[0] +
+    READING_FAN_SPACING_Z * READING_FAN_NORMAL[1],
+);
+
+/** Empty air measured perpendicular to two neighbouring covers. Their center
+ * spacing adds half of each live thickness to this value. */
+export const READING_FAN_CLEARANCE =
+  READING_FAN_CENTER_SEPARATION - ABOUT_READING_BOOK.thickness;
+
 export const CURRENT_READING_BASE: [number, number, number] = [
   ABOUT_BOOT_LANDMARKS["reading-stack"].x - READING_FAN_SPACING_X,
   ABOUT_READING_BOOK.depth / 2,
@@ -128,19 +157,61 @@ function point3(
   ];
 }
 
-/** Three grounded books turned 40° toward the About practical. Their shallow
- * x/depth cadence overlaps in camera space without intersecting in 3D. */
-export function readingStackPoses(): [
-  ReadingBookPose,
-  ReadingBookPose,
-  ReadingBookPose,
-] {
-  return ([0, 1, 2] as const).map((index) => ({
+function readingThicknessAt(thicknesses: readonly number[], index: number) {
+  const thickness = thicknesses[index];
+  return thickness !== undefined && Number.isFinite(thickness) && thickness > 0
+    ? thickness
+    : ABOUT_READING_BOOK.thickness;
+}
+
+function readingFanStep(leftThickness: number, rightThickness: number) {
+  const normalSeparation =
+    READING_FAN_CLEARANCE + (leftThickness + rightThickness) / 2;
+  return [
+    READING_FAN_TANGENT[0] * READING_FAN_TANGENT_STEP -
+      READING_FAN_NORMAL[0] * normalSeparation,
+    READING_FAN_TANGENT[1] * READING_FAN_TANGENT_STEP -
+      READING_FAN_NORMAL[1] * normalSeparation,
+  ] as const;
+}
+
+/** Three grounded books turned 40° toward the About practical. The cadence
+ * keeps the same camera overlap while live book thickness controls the clear
+ * air between adjacent covers. */
+export function readingStackPoses(
+  thicknesses: readonly number[] = [],
+): [ReadingBookPose, ReadingBookPose, ReadingBookPose] {
+  const resolvedThicknesses = [
+    readingThicknessAt(thicknesses, 0),
+    readingThicknessAt(thicknesses, 1),
+    readingThicknessAt(thicknesses, 2),
+  ] as const;
+  const firstStep = readingFanStep(
+    resolvedThicknesses[0],
+    resolvedThicknesses[1],
+  );
+  const secondStep = readingFanStep(
+    resolvedThicknesses[1],
+    resolvedThicknesses[2],
+  );
+  const offsets = [
+    [0, 0],
+    firstStep,
+    [firstStep[0] + secondStep[0], firstStep[1] + secondStep[1]],
+  ] as const;
+  const meanOffsetX =
+    offsets.reduce((sum, offset) => sum + offset[0], 0) / offsets.length;
+  const meanOffsetZ =
+    offsets.reduce((sum, offset) => sum + offset[1], 0) / offsets.length;
+  const centerX = ABOUT_BOOT_LANDMARKS["reading-stack"].x;
+  const centerZ = CURRENT_READING_BASE[2] + READING_FAN_SPACING_Z;
+
+  return offsets.map((offset, index) => ({
     index,
     base: [
-      CURRENT_READING_BASE[0] + index * READING_FAN_SPACING_X,
+      centerX + offset[0] - meanOffsetX,
       CURRENT_READING_BASE[1],
-      CURRENT_READING_BASE[2] + index * READING_FAN_SPACING_Z,
+      centerZ + offset[1] - meanOffsetZ,
     ],
     rotation: [...CURRENT_READING_ROTATION],
   })) as [ReadingBookPose, ReadingBookPose, ReadingBookPose];
@@ -201,6 +272,80 @@ export function readingBookPerspectiveElevation(
   }) as ReadingBookElevation;
 }
 
+function perspectiveElevation(
+  corners: readonly [number, number, number][],
+  cameraZ: number,
+): ReadingBookElevation {
+  return corners.map(([x, y, z]) => {
+    const perspective = cameraZ / (cameraZ - z);
+    return [x * perspective, y * perspective] as [number, number];
+  }) as ReadingBookElevation;
+}
+
+/** The cloth board's visible face. Unlike the book's center-plane elevation,
+ * this includes half the real shell thickness so cover art centers on it. */
+export function readingBookCoverPerspectiveElevation(
+  pose: ReadingBookPose,
+  cameraZ: number,
+  thickness: number,
+): ReadingBookElevation {
+  const halfWidth = ABOUT_READING_BOOK.width / 2;
+  const halfHeight = ABOUT_READING_BOOK.depth / 2;
+  const coverY = thickness / 2;
+  return perspectiveElevation(
+    [
+      point3(pose, -halfWidth, coverY, halfHeight),
+      point3(pose, halfWidth, coverY, halfHeight),
+      point3(pose, halfWidth, coverY, -halfHeight),
+      point3(pose, -halfWidth, coverY, -halfHeight),
+    ],
+    cameraZ,
+  );
+}
+
+/** Complete cover-colored fore-edge, from the front board to the back board. */
+export function readingBookForeEdgePerspectiveElevation(
+  pose: ReadingBookPose,
+  cameraZ: number,
+  thickness: number,
+): ReadingBookElevation {
+  const x = ABOUT_READING_BOOK.width / 2;
+  const halfHeight = ABOUT_READING_BOOK.depth / 2;
+  const halfThickness = thickness / 2;
+  return perspectiveElevation(
+    [
+      point3(pose, x, halfThickness, halfHeight),
+      point3(pose, x, -halfThickness, halfHeight),
+      point3(pose, x, -halfThickness, -halfHeight),
+      point3(pose, x, halfThickness, -halfHeight),
+    ],
+    cameraZ,
+  );
+}
+
+/** Cream page block inset inside the two cloth boards and their overhang. */
+export function readingBookPageCorePerspectiveElevation(
+  pose: ReadingBookPose,
+  cameraZ: number,
+  thickness: number,
+): ReadingBookElevation {
+  const x = ABOUT_READING_PAGE_BLOCK.width / 2;
+  const halfHeight = ABOUT_READING_PAGE_BLOCK.depth / 2;
+  const halfThickness = Math.max(
+    0,
+    thickness / 2 - ABOUT_READING_BOARD_THICKNESS,
+  );
+  return perspectiveElevation(
+    [
+      point3(pose, x, halfThickness, halfHeight),
+      point3(pose, x, -halfThickness, halfHeight),
+      point3(pose, x, -halfThickness, -halfHeight),
+      point3(pose, x, halfThickness, -halfHeight),
+    ],
+    cameraZ,
+  );
+}
+
 /** Exact four corners of the live LitImage after its face-up inner rotation,
  * the book's authored fan rotation, and the boot camera's mild perspective. */
 export function readingBookImagePerspectiveElevation(
@@ -217,10 +362,7 @@ export function readingBookImagePerspectiveElevation(
     point3(pose, halfWidth, coverY, -halfHeight),
     point3(pose, -halfWidth, coverY, -halfHeight),
   ] as const;
-  return corners.map(([x, y, z]) => {
-    const perspective = cameraZ / (cameraZ - z);
-    return [x * perspective, y * perspective] as [number, number];
-  }) as ReadingBookElevation;
+  return perspectiveElevation(corners, cameraZ);
 }
 
 /** Orthographic front elevation of the printed cover. The loading vignette

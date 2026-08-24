@@ -1493,8 +1493,6 @@ html[data-world="ready"][data-boot-stage] .stacks-boot-threshold {
   --stacks-boot-book: var(--stacks-boot-book-light);
   --stacks-boot-book-page: var(--stacks-boot-book-page-light);
   fill: var(--stacks-boot-book);
-  stroke: var(--stacks-boot-book-page);
-  stroke-width: 1.2;
 }
 
 .stacks-boot-book-edge {
@@ -1502,15 +1500,13 @@ html[data-world="ready"][data-boot-stage] .stacks-boot-threshold {
   stroke: none;
 }
 
-.stacks-boot-book-cover-photo {
-  pointer-events: none;
+.stacks-boot-book-page-core {
+  fill: var(--stacks-boot-book-page);
+  stroke: none;
 }
 
-.stacks-boot-book-page-line {
-  fill: none;
-  stroke: var(--stacks-boot-book-page);
-  stroke-width: 1.2;
-  opacity: 0.86;
+.stacks-boot-book-cover-photo {
+  pointer-events: none;
 }
 
 .dark .stacks-boot-reading-book {

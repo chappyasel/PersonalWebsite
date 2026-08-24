@@ -88,8 +88,10 @@ import {
 import {
   ABOUT_READING_BOOK,
   ABOUT_READING_COVER_IMAGE,
+  readingBookCoverPerspectiveElevation,
+  readingBookForeEdgePerspectiveElevation,
   readingBookImagePerspectiveElevation,
-  readingBookPerspectiveElevation,
+  readingBookPageCorePerspectiveElevation,
   readingStackPoses,
 } from "../scene/units/aboutReadingStack";
 import { CAMERA } from "../scene/worldLayout";
@@ -659,9 +661,10 @@ function ReadingStackGlyph({
   landmarkX: number;
 }) {
   const visible = books.slice(0, 3);
-  const poses = readingStackPoses();
-  const [firstPose] = poses;
-  const [, , fanAngle] = firstPose.rotation;
+  const thicknesses = visible.map(
+    (book) => book.thickness ?? ABOUT_READING_BOOK.thickness,
+  );
+  const poses = readingStackPoses(thicknesses);
   return (
     <g>
       {visible
@@ -683,34 +686,51 @@ function ReadingStackGlyph({
             true,
           );
           const thickness = book.thickness ?? ABOUT_READING_BOOK.thickness;
-          const edgeWidth = Math.sin(fanAngle) * thickness * SCENE_TO_BOOT_SVG;
-          const coverPoints = readingBookPerspectiveElevation(
-            poses[index]!,
-            CAMERA.z,
-          ).map(([x, y]): [number, number] => [
-            (x - landmarkX) * SCENE_TO_BOOT_SVG,
-            -y * SCENE_TO_BOOT_SVG,
-          ]) as [
-            [number, number],
-            [number, number],
-            [number, number],
-            [number, number],
-          ];
+          const toBootPoints = (
+            points: ReturnType<typeof readingBookCoverPerspectiveElevation>,
+          ) =>
+            points.map(([x, y]): [number, number] => [
+              (x - landmarkX) * SCENE_TO_BOOT_SVG,
+              -y * SCENE_TO_BOOT_SVG,
+            ]) as [
+              [number, number],
+              [number, number],
+              [number, number],
+              [number, number],
+            ];
+          const coverPoints = toBootPoints(
+            readingBookCoverPerspectiveElevation(
+              poses[index]!,
+              CAMERA.z,
+              thickness,
+            ),
+          );
+          const edgePoints = toBootPoints(
+            readingBookForeEdgePerspectiveElevation(
+              poses[index]!,
+              CAMERA.z,
+              thickness,
+            ),
+          );
+          const pageCorePoints = toBootPoints(
+            readingBookPageCorePerspectiveElevation(
+              poses[index]!,
+              CAMERA.z,
+              thickness,
+            ),
+          );
+          const imagePoints = toBootPoints(
+            readingBookImagePerspectiveElevation(
+              poses[index]!,
+              CAMERA.z,
+              thickness,
+            ),
+          );
           const cover = coverPoints.map((point) => point.join(",")).join(" ");
-          const [, bottomRight, topRight, topLeft] = coverPoints;
-          const imagePoints = readingBookImagePerspectiveElevation(
-            poses[index]!,
-            CAMERA.z,
-            thickness,
-          ).map(([x, y]): [number, number] => [
-            (x - landmarkX) * SCENE_TO_BOOT_SVG,
-            -y * SCENE_TO_BOOT_SVG,
-          ]) as [
-            [number, number],
-            [number, number],
-            [number, number],
-            [number, number],
-          ];
+          const edge = edgePoints.map((point) => point.join(",")).join(" ");
+          const pageCore = pageCorePoints
+            .map((point) => point.join(","))
+            .join(" ");
           const imagePolygon = imagePoints
             .map((point) => point.join(","))
             .join(" ");
@@ -727,14 +747,6 @@ function ReadingStackGlyph({
             imageTopLeft[0],
             imageTopLeft[1],
           ].join(" ");
-          const foreEdge = [
-            bottomRight,
-            [bottomRight[0] + edgeWidth, bottomRight[1]],
-            [topRight[0] + edgeWidth, topRight[1]],
-            topRight,
-          ]
-            .map((point) => point.join(","))
-            .join(" ");
           return (
             <g
               className="stacks-boot-reading-book"
@@ -777,13 +789,11 @@ function ReadingStackGlyph({
                   y="0"
                 />
               )}
-              <polygon className="stacks-boot-book-edge" points={foreEdge} />
-              <line
-                className="stacks-boot-book-page-line"
-                x1={topLeft[0] + 2}
-                x2={topRight[0] - 1}
-                y1={topLeft[1] + 2.4}
-                y2={topRight[1] + 2.4}
+              <polygon className="stacks-boot-book-edge" points={edge} />
+              <polygon
+                className="stacks-boot-book-page-core"
+                data-boot-reading-page-core={index}
+                points={pageCore}
               />
             </g>
           );

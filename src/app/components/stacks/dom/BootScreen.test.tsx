@@ -34,8 +34,10 @@ import { SHELF_GEOMETRY, SHELF_PLANKS } from "../scene/shelfGeometry";
 import {
   ABOUT_READING_BOOK,
   ABOUT_READING_COVER_IMAGE,
+  readingBookCoverPerspectiveElevation,
+  readingBookForeEdgePerspectiveElevation,
   readingBookImagePerspectiveElevation,
-  readingBookPerspectiveElevation,
+  readingBookPageCorePerspectiveElevation,
   readingStackPoses,
 } from "../scene/units/aboutReadingStack";
 import { CAMERA } from "../scene/worldLayout";
@@ -239,7 +241,11 @@ describe("Homepage entrance", () => {
     const landmarkX = ABOUT_BOOT_LANDMARKS["reading-stack"].x;
 
     readingStackPoses().forEach((pose, index) => {
-      const elevation = readingBookPerspectiveElevation(pose, CAMERA.z);
+      const elevation = readingBookCoverPerspectiveElevation(
+        pose,
+        CAMERA.z,
+        ABOUT_READING_BOOK.thickness,
+      );
       const points = elevation
         .map(([x, y]) => `${(x - landmarkX) * 100},${-y * 100}`)
         .join(" ");
@@ -254,6 +260,36 @@ describe("Homepage entrance", () => {
     });
   });
 
+  it("projects a cream page block inside each colored book edge", () => {
+    const markup = renderBoot(3);
+    const landmarkX = ABOUT_BOOT_LANDMARKS["reading-stack"].x;
+
+    readingStackPoses().forEach((pose, index) => {
+      const edge = readingBookForeEdgePerspectiveElevation(
+        pose,
+        CAMERA.z,
+        ABOUT_READING_BOOK.thickness,
+      )
+        .map(([x, y]) => `${(x - landmarkX) * 100},${-y * 100}`)
+        .join(" ");
+      const pageCore = readingBookPageCorePerspectiveElevation(
+        pose,
+        CAMERA.z,
+        ABOUT_READING_BOOK.thickness,
+      )
+        .map(([x, y]) => `${(x - landmarkX) * 100},${-y * 100}`)
+        .join(" ");
+      const group = new RegExp(
+        `<g class="stacks-boot-reading-book"[^>]*data-reading-book="${BOOKS[index]!.id}"[\\s\\S]*?</g>`,
+      ).exec(markup)?.[0];
+
+      expect(group).toContain(`class="stacks-boot-book-edge" points="${edge}"`);
+      expect(group).toContain(
+        `data-boot-reading-page-core="${index}" points="${pageCore}"`,
+      );
+    });
+  });
+
   it("projects each cover image at the live inset instead of filling its board", () => {
     const markup = renderBoot(3);
     const landmarkX = ABOUT_BOOT_LANDMARKS["reading-stack"].x;
@@ -264,6 +300,13 @@ describe("Homepage entrance", () => {
         CAMERA.z,
         ABOUT_READING_BOOK.thickness,
       );
+      const board = readingBookCoverPerspectiveElevation(
+        pose,
+        CAMERA.z,
+        ABOUT_READING_BOOK.thickness,
+      );
+      const centerX = (quad: typeof image) =>
+        quad.reduce((sum, [x]) => sum + x, 0) / quad.length;
       const points = image
         .map(([x, y]) => `${(x - landmarkX) * 100},${-y * 100}`)
         .join(" ");
@@ -271,6 +314,7 @@ describe("Homepage entrance", () => {
         `<polygon data-boot-reading-image="${index}"[^>]*>`,
       ).exec(markup)?.[0];
       expect(projectionTag).toContain(`points="${points}"`);
+      expect(Math.abs(centerX(image) - centerX(board))).toBeLessThan(0.001);
     });
   });
 
@@ -282,6 +326,8 @@ describe("Homepage entrance", () => {
 
     expect(faces).toEqual(BOOKS.map(({ id }) => id).reverse());
     expect(markup.match(/class="stacks-boot-book-cover"/g)).toHaveLength(3);
+    expect(markup.match(/class="stacks-boot-book-page-core"/g)).toHaveLength(3);
+    expect(markup).not.toContain("stacks-boot-book-page-line");
     for (const book of BOOKS) {
       expect(markup).toContain(`href="${book.coverSrc}"`);
     }

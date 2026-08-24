@@ -67,6 +67,7 @@ import {
 import { ProjectIcon } from "./ProjectArtifacts";
 import { ShelfSucculent } from "./ShelfSucculent";
 import {
+  ABOUT_READING_BOARD_THICKNESS,
   ABOUT_READING_BOOK,
   ABOUT_READING_COVER_IMAGE,
   type ReadingBookPose,
@@ -291,7 +292,20 @@ function ReadingStack({
   unitIndex: number;
   onOpenBook?: (id: string) => void;
 }) {
-  const poses = React.useMemo(() => readingStackPoses(), []);
+  const thicknesses = React.useMemo(
+    () =>
+      books
+        .slice(0, 3)
+        .map(
+          (book) =>
+            1.1 * featuredBookThickness(book.pageCount, book.audioLengthMin),
+        ),
+    [books],
+  );
+  const poses = React.useMemo(
+    () => readingStackPoses(thicknesses),
+    [thicknesses],
+  );
   const materials = React.useMemo(
     () =>
       books.slice(0, 3).map((book) => {
@@ -314,8 +328,7 @@ function ReadingStack({
       {books.slice(0, 3).map((book, i) => {
         const pose = poses[i]!;
         const material = materials[i]!;
-        const thickness =
-          1.1 * featuredBookThickness(book.pageCount, book.audioLengthMin);
+        const thickness = thicknesses[i]!;
         return (
           <Grabbable
             key={book.id}
@@ -476,8 +489,6 @@ function ReadingBookHover({
   );
 }
 
-const READING_BOARD_THICKNESS = 0.007;
-
 /** A book rather than a colored brick: cream page block, two jacket-matched
  * cloth boards, and a wrapped spine. The slight board overhang is what makes
  * the two horizontal books read as overlapping volumes in the reference. */
@@ -490,8 +501,8 @@ function ReadingBookShell({
   pages: string;
   thickness: number;
 }) {
-  const pageThickness = thickness - READING_BOARD_THICKNESS * 2;
-  const boardY = thickness / 2 - READING_BOARD_THICKNESS / 2;
+  const pageThickness = thickness - ABOUT_READING_BOARD_THICKNESS * 2;
+  const boardY = thickness / 2 - ABOUT_READING_BOARD_THICKNESS / 2;
   return (
     <group>
       <RoundedBox
@@ -513,7 +524,7 @@ function ReadingBookShell({
           position={[0, y, 0]}
           args={[
             ABOUT_READING_BOOK.width,
-            READING_BOARD_THICKNESS,
+            ABOUT_READING_BOARD_THICKNESS,
             ABOUT_READING_BOOK.depth,
           ]}
           radius={0.002}
