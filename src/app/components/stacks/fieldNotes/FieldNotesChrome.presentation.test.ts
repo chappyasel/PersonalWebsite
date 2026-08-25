@@ -2,10 +2,6 @@ import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const source = fs.readFileSync(
-  new URL("./FieldNotesPrototype.tsx", import.meta.url),
-  "utf8",
-);
-const productionSource = fs.readFileSync(
   new URL("./FieldNotesChrome.tsx", import.meta.url),
   "utf8",
 );
@@ -40,7 +36,7 @@ const mobileAward = source.slice(
 );
 const awardNotice = source.slice(
   source.indexOf("function AwardNotice"),
-  source.indexOf("export default function FieldNotesPrototype"),
+  source.indexOf("export default function FieldNotesChrome"),
 );
 const pageTurnKeyframes = source.slice(
   source.indexOf("@keyframes field-notes-turn-next"),
@@ -211,14 +207,12 @@ describe("Field Notes stamp tooltip presentation", () => {
   });
 
   it("keeps Radix's modal focus trap without leaving the page pointer-locked", () => {
-    for (const fieldNotesSource of [source, productionSource]) {
-      expect(fieldNotesSource).toContain("html[data-field-notes-open] body {");
-      expect(fieldNotesSource).toContain("pointer-events: auto !important;");
-      expect(fieldNotesSource).toContain(
-        "<Dialog.Root open={open} onOpenChange={setOpen}>",
-      );
-      expect(fieldNotesSource).not.toContain("<Dialog.Root modal={false}");
-    }
+    expect(source).toContain("html[data-field-notes-open] body {");
+    expect(source).toContain("pointer-events: auto !important;");
+    expect(source).toContain(
+      "<Dialog.Root open={open} onOpenChange={setOpenWithUrl}>",
+    );
+    expect(source).not.toContain("<Dialog.Root modal={false}");
   });
 
   it("places pages above the cover and lets a turning leaf clear the page block", () => {

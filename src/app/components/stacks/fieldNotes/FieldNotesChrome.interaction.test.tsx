@@ -13,7 +13,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { TooltipProvider } from "~/components/ui/tooltip";
 
-import { CompactAlbum, PostageStamp } from "./FieldNotesPrototype";
+import FieldNotesChrome, {
+  CompactAlbum,
+  PostageStamp,
+} from "./FieldNotesChrome";
 import { FIELD_NOTE_BY_ID } from "./catalog";
 import {
   FIELD_NOTE_PLACEMENT_STORAGE_KEY,
@@ -25,7 +28,99 @@ describe("Field Notes stamp interactions", () => {
   afterEach(() => {
     cleanup();
     vi.useRealTimers();
+    vi.unstubAllEnvs();
     window.localStorage.clear();
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("renders the new Field Notes album in production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+
+    render(<FieldNotesChrome />);
+
+    expect(
+      screen.getByRole("button", {
+        name: `Open Field Notes, 0 of ${FIELD_NOTE_BY_ID.size} found`,
+      }),
+    ).toBeTruthy();
+  });
+
+  it("opens from the canonical Field Notes URL parameter", () => {
+    window.history.replaceState(null, "", "/?fieldNotes=open");
+
+    render(<FieldNotesChrome />);
+
+    expect(
+      screen.getByRole("dialog", { name: "Field Notes album" }),
+    ).toBeTruthy();
+  });
+
+  it("adds the Field Notes URL parameter when opened", () => {
+    render(<FieldNotesChrome />);
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: `Open Field Notes, 0 of ${FIELD_NOTE_BY_ID.size} found`,
+      }),
+    );
+
+    expect(new URL(window.location.href).searchParams.get("fieldNotes")).toBe(
+      "open",
+    );
+  });
+
+  it("removes the Field Notes URL parameter when closed", () => {
+    window.history.replaceState(null, "", "/?fieldNotes=open");
+    render(<FieldNotesChrome />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Close Field Notes" }));
+
+    expect(new URL(window.location.href).searchParams.has("fieldNotes")).toBe(
+      false,
+    );
+  });
+
+  it("preserves unrelated query parameters, the hash, and history state", () => {
+    const state = { from: "field-map" };
+    window.history.replaceState(state, "", "/?debug=1&view=map#books");
+    render(<FieldNotesChrome />);
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: `Open Field Notes, 0 of ${FIELD_NOTE_BY_ID.size} found`,
+      }),
+    );
+
+    const url = new URL(window.location.href);
+    expect(url.searchParams.get("debug")).toBe("1");
+    expect(url.searchParams.get("view")).toBe("map");
+    expect(url.searchParams.get("fieldNotes")).toBe("open");
+    expect(url.hash).toBe("#books");
+    expect(window.history.state).toEqual(state);
+
+    fireEvent.click(screen.getByRole("button", { name: "Close Field Notes" }));
+    const closedUrl = new URL(window.location.href);
+    expect(closedUrl.searchParams.get("debug")).toBe("1");
+    expect(closedUrl.searchParams.get("view")).toBe("map");
+    expect(closedUrl.searchParams.has("fieldNotes")).toBe(false);
+    expect(closedUrl.hash).toBe("#books");
+    expect(window.history.state).toEqual(state);
+  });
+
+  it("follows Field Notes URL state during back and forward navigation", () => {
+    render(<FieldNotesChrome />);
+
+    window.history.pushState(null, "", "/?fieldNotes=open");
+    fireEvent(window, new PopStateEvent("popstate"));
+    expect(
+      screen.getByRole("dialog", { name: "Field Notes album" }),
+    ).toBeTruthy();
+
+    window.history.pushState(null, "", "/");
+    fireEvent(window, new PopStateEvent("popstate"));
+    expect(
+      screen.queryByRole("dialog", { name: "Field Notes album" }),
+    ).toBeNull();
   });
 
   it("shows the stamp title and hint when its mount is hovered", async () => {

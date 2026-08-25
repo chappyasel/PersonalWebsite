@@ -4,6 +4,7 @@
 // persistent name, and the theme toggle island. Everything except the toggle
 // island is pointer-events-none; interactive layers manage their own events.
 import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
+import { useCoarseTouchCapability } from "../input/useCoarseTouchCapability";
 import {
   requestDevHooks,
   requestSceneHooks,
@@ -23,10 +24,10 @@ import { setStacksSheetDismissed, useStacks } from "../store";
 import dynamic from "next/dynamic";
 import { type ComponentType, useEffect, useState } from "react";
 
-import { Keycap } from "~/components/ui/keycap";
 import { ThemeToggle } from "~/components/ui/theme-toggle";
 
 import ChromeKeyboard from "./ChromeKeyboard";
+import ChromeKeyboardHelp from "./ChromeKeyboardHelp";
 import PortalLabel from "./PortalLabel";
 import { createFreeRoamChromeVisibility } from "./chromeKeys";
 
@@ -229,10 +230,18 @@ export default function ChromeLayer() {
   // DOM bottom fade on top double-darkens the floor (audit §2.1).
   const postfx = useStacks((s) => s.postfx);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const tapFirst = useCoarseTouchCapability();
+
+  useEffect(() => {
+    if (tapFirst) setKeyboardOpen(false);
+  }, [tapFirst]);
+
   return (
     <>
       <PortalLabel />
-      <ChromeKeyboard open={keyboardOpen} onOpenChange={setKeyboardOpen} />
+      {!tapFirst && (
+        <ChromeKeyboard open={keyboardOpen} onOpenChange={setKeyboardOpen} />
+      )}
       <style>{`
         :root { --stacks-ease: cubic-bezier(0.16, 1, 0.3, 1); }
         .stacks-scroll { scrollbar-width: none; }
@@ -395,37 +404,12 @@ export default function ChromeLayer() {
       <div className="stacks-wordmark pointer-events-auto absolute z-20">
         <div className="flex items-start gap-2.5">
           <ChromeReveal index={0}>
-            <div>
-              <div className="flex items-center gap-0.5">
-                {/* The name doubles as the help control: hover (or focus)
-                    reveals the hint row below, and a tap — the only gesture a
-                    touch screen has for it — opens the sheet directly. */}
-                <button
-                  type="button"
-                  aria-label="Open keyboard shortcuts"
-                  aria-controls="stacks-keyboard-shortcuts"
-                  aria-expanded={keyboardOpen}
-                  onClick={() => setKeyboardOpen(true)}
-                  className="stacks-on-background-text whitespace-nowrap rounded-sm font-serif text-base tracking-tight text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 min-[1200px]:text-lg"
-                >
-                  Chappy Asel
-                </button>
-                <FieldNotesChrome />
-              </div>
-              <div className="stacks-wordmark-shortcuts stacks-on-background-text mt-1 flex items-center gap-1.5 whitespace-nowrap font-serif text-[10px] tracking-[0.01em]">
-                <button
-                  type="button"
-                  aria-label="Open keyboard shortcuts"
-                  aria-controls="stacks-keyboard-shortcuts"
-                  aria-expanded={keyboardOpen}
-                  onClick={() => setKeyboardOpen(true)}
-                  className="flex items-center gap-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-                >
-                  <Keycap aria-hidden="true">?</Keycap>
-                  <span>Shortcuts</span>
-                </button>
-              </div>
-            </div>
+            <ChromeKeyboardHelp
+              open={keyboardOpen}
+              onOpen={() => setKeyboardOpen(true)}
+              tapFirst={tapFirst}
+              fieldNotes={<FieldNotesChrome />}
+            />
           </ChromeReveal>
           <SceneDiagnosticsLoader />
         </div>

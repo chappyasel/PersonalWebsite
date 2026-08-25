@@ -9,7 +9,7 @@ const primitive = read("../../../../components/ui/tooltip.tsx");
 const sound = read("./SoundToggle.tsx");
 const details = read("./PlacardLayer.tsx");
 const objects = read("./PortalLabel.tsx");
-const fieldNotes = read("../fieldNotes/FieldNotesPrototype.tsx");
+const fieldNotes = read("../fieldNotes/FieldNotesChrome.tsx");
 const rail = read("./UnitRail.tsx");
 const home = read("../StacksHome.tsx");
 
