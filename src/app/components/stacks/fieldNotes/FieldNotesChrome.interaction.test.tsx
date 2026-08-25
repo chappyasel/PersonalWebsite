@@ -19,17 +19,61 @@ import FieldNotesChrome, {
 } from "./FieldNotesChrome";
 import { FIELD_NOTE_BY_ID } from "./catalog";
 import {
+  FIELD_NOTE_OVERVIEW_PLACEMENT_STORAGE_KEY,
   FIELD_NOTE_PLACEMENT_STORAGE_KEY,
   resetFieldNotePlacements,
 } from "./placement";
 import {
   EMPTY_FIELD_NOTES_PROGRESS,
+  FIELD_NOTES_STORAGE_KEY,
+  type FieldNotesProgress,
   recordFieldNoteEvent,
   resetFieldNotes,
 } from "./progress";
 
 function earnFindingBeforeMount() {
   recordFieldNoteEvent({ type: "photo-mode-entered" });
+}
+
+function touchPointer(
+  type: string,
+  pointerId: number,
+  clientX: number,
+  clientY: number,
+) {
+  const event = new MouseEvent(type, { bubbles: true, clientX, clientY });
+  Object.defineProperties(event, {
+    pointerId: { value: pointerId },
+    pointerType: { value: "touch" },
+  });
+  return event;
+}
+
+function domRect(x: number, y: number, width: number, height: number) {
+  return {
+    x,
+    y,
+    width,
+    height,
+    top: y,
+    left: x,
+    right: x + width,
+    bottom: y + height,
+    toJSON: () => undefined,
+  };
+}
+
+/** jsdom lays out nothing, so stamp drags need concrete geometry: a 100px
+ * stamp near the top-left of a 400x500 loose layer. */
+function mockDragRects(stamp: HTMLElement, layer?: Element | null) {
+  vi.spyOn(stamp, "getBoundingClientRect").mockReturnValue(
+    domRect(150, 100, 100, 100),
+  );
+  const page = (layer ??
+    stamp.closest(".field-notes-loose-stamp-layer")) as HTMLElement;
+  vi.spyOn(page, "getBoundingClientRect").mockReturnValue(
+    domRect(100, 50, 400, 500),
+  );
 }
 
 describe("Field Notes stamp interactions", () => {
@@ -265,9 +309,9 @@ describe("Field Notes stamp interactions", () => {
     });
     observer.disconnect();
 
-    const stamps = within(stage).getAllByRole("button", {
-      name: /Early Alarm\. Found\./,
-    });
+    const stamps = within(stage)
+      .getAllByRole("button", { name: /Early Alarm\. Found\./ })
+      .filter((stamp) => stamp.closest(".field-notes-stamp-page") !== null);
     expect(stamps.length).toBeGreaterThan(0);
     for (const stamp of stamps)
       expect(stamp.style.getPropertyValue("--stamp-page-left")).toBe("80%");
@@ -423,7 +467,11 @@ describe("Field Notes stamp interactions", () => {
     )!;
     const beacon = within(desktopStage)
       .getAllByRole("button", { name: /Beacon\. Found\./ })
-      .find((stamp) => stamp.getAttribute("data-movable") === "true")!;
+      .find(
+        (stamp) =>
+          stamp.getAttribute("data-movable") === "true" &&
+          stamp.closest(".field-notes-stamp-page") !== null,
+      )!;
     expect(beacon.getAttribute("data-placed")).toBe("true");
 
     fireEvent.click(
@@ -456,6 +504,252 @@ describe("Field Notes stamp interactions", () => {
       y: 0.17,
       tilt: 2,
     });
+  });
+
+  it("records a stamp placement toward the philatelist finding", () => {
+    const note = FIELD_NOTE_BY_ID.get("beacon")!;
+    const progress = {
+      ...EMPTY_FIELD_NOTES_PROGRESS,
+      earned: { beacon: 1 },
+    };
+    render(
+      <TooltipProvider>
+        <section className="field-notes-stamp-page">
+          <div className="field-notes-loose-stamp-layer">
+            <PostageStamp note={note} progress={progress} movable />
+          </div>
+        </section>
+      </TooltipProvider>,
+    );
+
+    const stamp = screen.getByRole("button", { name: /Beacon\. Found\./ });
+    mockDragRects(stamp);
+
+    fireEvent(stamp, touchPointer("pointerdown", 3, 180, 120));
+    fireEvent(stamp, touchPointer("pointermove", 3, 260, 160));
+    fireEvent(stamp, touchPointer("pointerup", 3, 260, 160));
+
+    const persisted = JSON.parse(
+      window.localStorage.getItem(FIELD_NOTES_STORAGE_KEY)!,
+    ) as FieldNotesProgress;
+    expect(persisted.placedStamps).toEqual(["beacon"]);
+  });
+
+  it("keeps the newest-findings tray movable in its own overview scope", () => {
+    const progress = {
+      ...EMPTY_FIELD_NOTES_PROGRESS,
+      earned: { beacon: 1, "early-alarm": 2, "tea-time": 3, "old-time": 4 },
+    };
+    render(
+      <Dialog.Root open>
+        <CompactAlbum open progress={progress} onClose={() => undefined} />
+      </Dialog.Root>,
+    );
+
+    const trays = document.querySelectorAll<HTMLElement>(
+      ".field-notes-latest-tray",
+    );
+    expect(trays.length).toBeGreaterThan(0);
+    const tray = trays[0]!;
+    // Three newest by earned time, the fourth-oldest left on its page.
+    const trayStamps = within(tray).getAllByRole("button", { name: /Found\./ });
+    expect(
+      trayStamps.map(
+        (stamp) => stamp.getAttribute("aria-label")?.split(".")[0],
+      ),
+    ).toEqual(["Old Time", "Tea Time", "Early Alarm"]);
+    for (const stamp of trayStamps)
+      expect(stamp.getAttribute("data-movable")).toBe("true");
+
+    const oldTime = trayStamps[0]!;
+    mockDragRects(
+      oldTime,
+      tray.querySelector(".field-notes-loose-stamp-layer"),
+    );
+
+    fireEvent(oldTime, touchPointer("pointerdown", 5, 180, 120));
+    fireEvent(oldTime, touchPointer("pointermove", 5, 280, 130));
+    fireEvent(oldTime, touchPointer("pointerup", 5, 280, 130));
+
+    const overview = JSON.parse(
+      window.localStorage.getItem(FIELD_NOTE_OVERVIEW_PLACEMENT_STORAGE_KEY)!,
+    ) as Record<string, { placed: boolean }>;
+    expect(overview["old-time"]?.placed).toBe(true);
+    expect(
+      window.localStorage.getItem(FIELD_NOTE_PLACEMENT_STORAGE_KEY),
+    ).toBeNull();
+  });
+
+  it("shows fewer newest findings gracefully at low counts", () => {
+    const progress = {
+      ...EMPTY_FIELD_NOTES_PROGRESS,
+      earned: { beacon: 1 },
+    };
+    render(
+      <Dialog.Root open>
+        <CompactAlbum open progress={progress} onClose={() => undefined} />
+      </Dialog.Root>,
+    );
+
+    const tray = document.querySelector<HTMLElement>(
+      ".field-notes-latest-tray",
+    )!;
+    expect(
+      within(tray).getAllByRole("button", { name: /Found\./ }),
+    ).toHaveLength(1);
+    expect(
+      tray.querySelectorAll(".field-notes-empty-stamp-mount"),
+    ).toHaveLength(3);
+  });
+
+  it("pages forward and back from horizontal touch swipes", async () => {
+    vi.useFakeTimers();
+    render(
+      <Dialog.Root open>
+        <CompactAlbum
+          open
+          progress={EMPTY_FIELD_NOTES_PROGRESS}
+          onClose={() => undefined}
+        />
+      </Dialog.Root>,
+    );
+
+    const stage = document.querySelector<HTMLElement>(
+      ".field-notes-mobile-stage",
+    )!;
+    fireEvent(stage, touchPointer("pointerdown", 11, 240, 300));
+    fireEvent(stage, touchPointer("pointermove", 11, 180, 302));
+    fireEvent(stage, touchPointer("pointerup", 11, 150, 302));
+
+    expect(stage.getAttribute("aria-busy")).toBe("true");
+    const leaf = stage.querySelector(".field-notes-mobile-turn-leaf");
+    expect(leaf?.getAttribute("data-direction")).toBe("next");
+
+    await act(async () => vi.advanceTimersByTime(1200));
+    expect(stage.getAttribute("aria-busy")).toBe("false");
+    // The settled page remains: page 2's heading is in the static block.
+    expect(within(stage).getAllByText("Findings 01 to 12")).not.toHaveLength(0);
+
+    fireEvent(stage, touchPointer("pointerdown", 12, 150, 300));
+    fireEvent(stage, touchPointer("pointermove", 12, 220, 302));
+    fireEvent(stage, touchPointer("pointerup", 12, 240, 302));
+
+    expect(
+      stage
+        .querySelector(".field-notes-mobile-turn-leaf")
+        ?.getAttribute("data-direction"),
+    ).toBe("previous");
+    await act(async () => vi.advanceTimersByTime(1200));
+    expect(within(stage).getAllByText("Field Notes")).not.toHaveLength(0);
+  });
+
+  it("ignores a backward swipe on the first page and taps inside the slop", () => {
+    render(
+      <Dialog.Root open>
+        <CompactAlbum
+          open
+          progress={EMPTY_FIELD_NOTES_PROGRESS}
+          onClose={() => undefined}
+        />
+      </Dialog.Root>,
+    );
+
+    const stage = document.querySelector<HTMLElement>(
+      ".field-notes-mobile-stage",
+    )!;
+    fireEvent(stage, touchPointer("pointerdown", 13, 150, 300));
+    fireEvent(stage, touchPointer("pointermove", 13, 260, 300));
+    fireEvent(stage, touchPointer("pointerup", 13, 260, 300));
+    expect(stage.getAttribute("aria-busy")).toBe("false");
+
+    fireEvent(stage, touchPointer("pointerdown", 14, 200, 300));
+    fireEvent(stage, touchPointer("pointermove", 14, 206, 302));
+    fireEvent(stage, touchPointer("pointerup", 14, 206, 302));
+    expect(stage.getAttribute("aria-busy")).toBe("false");
+  });
+
+  it("dismisses the album on a downward swipe but never on an upward one", () => {
+    const onClose = vi.fn();
+    render(
+      <Dialog.Root open>
+        <CompactAlbum
+          open
+          progress={EMPTY_FIELD_NOTES_PROGRESS}
+          onClose={onClose}
+        />
+      </Dialog.Root>,
+    );
+
+    const stage = document.querySelector<HTMLElement>(
+      ".field-notes-mobile-stage",
+    )!;
+    fireEvent(stage, touchPointer("pointerdown", 15, 200, 200));
+    fireEvent(stage, touchPointer("pointermove", 15, 202, 260));
+    fireEvent(stage, touchPointer("pointerup", 15, 204, 160));
+    expect(onClose).not.toHaveBeenCalled();
+
+    fireEvent(stage, touchPointer("pointerdown", 16, 200, 200));
+    fireEvent(stage, touchPointer("pointermove", 16, 202, 260));
+    fireEvent(stage, touchPointer("pointerup", 16, 204, 320));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a swipe that starts on a movable stamp with the stamp", () => {
+    const progress = {
+      ...EMPTY_FIELD_NOTES_PROGRESS,
+      earned: { beacon: 1 },
+    };
+    render(
+      <Dialog.Root open>
+        <CompactAlbum open progress={progress} onClose={() => undefined} />
+      </Dialog.Root>,
+    );
+
+    const stage = document.querySelector<HTMLElement>(
+      ".field-notes-mobile-stage",
+    )!;
+    const trayStamp = within(stage).getAllByRole("button", {
+      name: /Beacon\. Found\./,
+    })[0]!;
+
+    fireEvent(trayStamp, touchPointer("pointerdown", 17, 200, 300));
+    fireEvent(trayStamp, touchPointer("pointermove", 17, 120, 300));
+    fireEvent(trayStamp, touchPointer("pointerup", 17, 120, 300));
+
+    expect(stage.getAttribute("aria-busy")).toBe("false");
+    expect(stage.querySelector(".field-notes-mobile-turn-leaf")).toBeNull();
+  });
+
+  it("absorbs rapid repeated swipes into one clean page turn", async () => {
+    vi.useFakeTimers();
+    render(
+      <Dialog.Root open>
+        <CompactAlbum
+          open
+          progress={EMPTY_FIELD_NOTES_PROGRESS}
+          onClose={() => undefined}
+        />
+      </Dialog.Root>,
+    );
+
+    const stage = document.querySelector<HTMLElement>(
+      ".field-notes-mobile-stage",
+    )!;
+    for (const pointerId of [21, 22, 23]) {
+      fireEvent(stage, touchPointer("pointerdown", pointerId, 240, 300));
+      fireEvent(stage, touchPointer("pointermove", pointerId, 160, 300));
+      fireEvent(stage, touchPointer("pointerup", pointerId, 150, 300));
+    }
+
+    expect(
+      stage.querySelectorAll(".field-notes-mobile-turn-leaf"),
+    ).toHaveLength(1);
+    await act(async () => vi.advanceTimersByTime(1200));
+
+    expect(stage.getAttribute("aria-busy")).toBe("false");
+    // One swipe advanced one page, not three.
+    expect(within(stage).getAllByText("Findings 01 to 12")).not.toHaveLength(0);
+    expect(within(stage).queryAllByText("Findings 13 to 24")).toHaveLength(0);
   });
 
   it("keeps touch hints working for stamps that cannot move", async () => {

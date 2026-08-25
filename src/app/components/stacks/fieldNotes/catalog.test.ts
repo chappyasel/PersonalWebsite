@@ -13,7 +13,7 @@ describe("Field Notes catalog", () => {
 
     expect(counts).toEqual({
       Common: 12,
-      Uncommon: 9,
+      Uncommon: 10,
       Rare: 6,
       Legendary: 4,
     });
@@ -24,12 +24,24 @@ describe("Field Notes catalog", () => {
       FIELD_NOTES.filter((note) => note.rarity === "Legendary").map(
         (note) => note.id,
       ),
-    ).toEqual([
-      "around-the-room",
-      "hole-in-one",
-      "full-stack",
-      "full-journal",
-    ]);
+    ).toEqual(["around-the-room", "hole-in-one", "full-stack", "full-journal"]);
+  });
+
+  it("keeps the album-side discovery in the deliberate-habit tier", () => {
+    const philatelist = FIELD_NOTES.find((note) => note.id === "philatelist");
+
+    expect(philatelist).toMatchObject({
+      title: "Philatelist",
+      rarity: "Uncommon",
+      artwork: "stamp",
+      hidden: false,
+      hint: "Even these stamps aren't glued down.",
+      foundCopy: "Rearranged five stamps in this album.",
+    });
+  });
+
+  it("keeps the capstone as the final catalog entry", () => {
+    expect(FIELD_NOTES.at(-1)?.id).toBe("full-journal");
   });
 
   it("keeps unusual one-off interactions below the completion tier", () => {

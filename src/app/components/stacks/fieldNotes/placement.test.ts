@@ -1,8 +1,14 @@
-import { describe, expect, it } from "vitest";
+// @vitest-environment jsdom
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  FIELD_NOTE_OVERVIEW_PLACEMENT_STORAGE_KEY,
+  FIELD_NOTE_PLACEMENT_STORAGE_KEY,
   normalizeFieldNotePlacement,
   parseFieldNotePlacements,
+  readFieldNotePlacement,
+  resetFieldNotePlacements,
+  saveFieldNotePlacement,
 } from "./placement";
 
 describe("Field Notes stamp placement", () => {
@@ -44,5 +50,56 @@ describe("Field Notes stamp placement", () => {
 
   it("falls back to an empty arrangement when storage is corrupt", () => {
     expect(parseFieldNotePlacements("not json")).toEqual({});
+  });
+
+  describe("placement scopes", () => {
+    afterEach(() => window.localStorage.clear());
+
+    it("keeps catalog-page and overview-tray arrangements independent", () => {
+      saveFieldNotePlacement(
+        "beacon",
+        { placed: true, x: 0.8, y: 0.2, tilt: 1 },
+        "overview",
+      );
+
+      expect(
+        window.localStorage.getItem(FIELD_NOTE_PLACEMENT_STORAGE_KEY),
+      ).toBeNull();
+      expect(readFieldNotePlacement("beacon", "overview")).toEqual({
+        placed: true,
+        x: 0.8,
+        y: 0.2,
+        tilt: 1,
+      });
+      expect(readFieldNotePlacement("beacon")).toEqual({
+        placed: false,
+        x: 0,
+        y: 0,
+        tilt: 0,
+      });
+    });
+
+    it("clears both scopes on a full placement reset", () => {
+      saveFieldNotePlacement("beacon", {
+        placed: true,
+        x: 0.5,
+        y: 0.5,
+        tilt: 0,
+      });
+      saveFieldNotePlacement(
+        "beacon",
+        { placed: true, x: 0.1, y: 0.9, tilt: -1 },
+        "overview",
+      );
+
+      resetFieldNotePlacements();
+
+      expect(
+        window.localStorage.getItem(FIELD_NOTE_PLACEMENT_STORAGE_KEY),
+      ).toBeNull();
+      expect(
+        window.localStorage.getItem(FIELD_NOTE_OVERVIEW_PLACEMENT_STORAGE_KEY),
+      ).toBeNull();
+    });
   });
 });

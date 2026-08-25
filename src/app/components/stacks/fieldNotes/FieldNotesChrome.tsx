@@ -36,6 +36,12 @@ import {
 
 import FieldNoteArtworkIcon, { FieldNoteAccentIcon } from "./FieldNoteArtwork";
 import {
+  type AlbumSwipeState,
+  beginAlbumSwipe,
+  moveAlbumSwipe,
+  releaseAlbumSwipe,
+} from "./albumGestures";
+import {
   FIELD_NOTES,
   FIELD_NOTE_BY_ID,
   FIELD_NOTE_RARITIES,
@@ -49,6 +55,8 @@ import {
   FIELD_NOTE_PLACEMENT_CHANGE_EVENT,
   FIELD_NOTE_PLACEMENT_STORAGE_KEY,
   type FieldNotePlacement,
+  type FieldNotePlacementScope,
+  fieldNotePlacementStorageKey,
   normalizeFieldNotePlacement,
   readFieldNotePlacement,
   readFieldNotePlacements,
@@ -58,6 +66,7 @@ import {
 } from "./placement";
 import {
   type FieldNotesProgress,
+  recordFieldNoteEvent,
   startFieldNotes,
   subscribeFieldNoteAwards,
   useFieldNotesProgress,
@@ -205,6 +214,7 @@ const STAMP_DESIGNS = {
   path: { palette: 9, frame: 3, layout: 3, pattern: 6 },
   calendar: { palette: 4, frame: 2, layout: 5, pattern: 7 },
   dice: { palette: 0, frame: 1, layout: 3, pattern: 8 },
+  stamp: { palette: 7, frame: 1, layout: 2, pattern: 3 },
   journal: { palette: 5, frame: 0, layout: 2, pattern: 10 },
 } as const satisfies Record<FieldNoteArtwork, StampDesign>;
 
@@ -415,6 +425,12 @@ const STAMP_LETTERING = {
     secondary: "Tower issue",
     denomination: "6",
   },
+  stamp: {
+    style: "denomination",
+    primary: "Moved with care",
+    secondary: "Album issue",
+    denomination: "5¢",
+  },
   journal: {
     style: "seal",
     primary: "Every page",
@@ -517,6 +533,14 @@ const STAMP_ICON_TREATMENTS = {
     echo: false,
   },
   dice: { weight: "duotone", scale: 1.16, x: 4, y: 6, rotate: 9, echo: true },
+  stamp: {
+    weight: "duotone",
+    scale: 1.1,
+    x: 3,
+    y: 4,
+    rotate: -6,
+    echo: false,
+  },
   journal: {
     weight: "fill",
     scale: 1.02,
@@ -674,9 +698,9 @@ function StampHint({
           if (state === "closing" && event.target === event.currentTarget)
             onExited();
         }}
-        className="field-notes-paper-slip field-notes-stamp-tooltip relative w-56 overflow-hidden px-4 py-3 pr-11 text-left animate-in fade-in-0 zoom-in-95 data-[side=bottom]:origin-top data-[side=top]:origin-bottom data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 motion-reduce:animate-none"
+        className="field-notes-paper-slip field-notes-stamp-tooltip relative w-56 overflow-hidden px-4 pr-11 text-left animate-in fade-in-0 zoom-in-95 data-[side=bottom]:origin-top data-[side=top]:origin-bottom data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 motion-reduce:animate-none"
       >
-        <p className="field-notes-hand field-notes-strong text-lg leading-6 text-[#362518]">
+        <p className="field-notes-hand field-notes-strong text-lg text-[#362518]">
           {headingFor(note, found)}
         </p>
         {rarity && (
@@ -684,10 +708,10 @@ function StampHint({
             role="img"
             aria-label={`${rarity} rarity`}
             data-rarity={rarity.toLowerCase()}
-            className="field-notes-rarity-swatch absolute right-3.5 top-3.5 size-5"
+            className="field-notes-rarity-swatch absolute right-3 top-2.5 size-5"
           />
         )}
-        <p className="field-notes-fine field-notes-strong text-[15px] leading-6 text-[#5b402a]">
+        <p className="field-notes-fine field-notes-strong text-[15px] text-[#5b402a]">
           {copyFor(note, found)}
         </p>
       </div>
@@ -862,11 +886,13 @@ export function PostageStamp({
   progress,
   movable = false,
   slotIndex = 0,
+  placementScope = "page",
 }: {
   note: FieldNoteDefinition;
   progress: FieldNotesProgress;
   movable?: boolean;
   slotIndex?: number;
+  placementScope?: FieldNotePlacementScope;
 }) {
   const found = isFound(note, progress);
   const canMove = found && movable;
@@ -876,7 +902,7 @@ export function PostageStamp({
   const [dragging, setDragging] = useState(false);
   const [placement, setPlacement] = useState<FieldNotePlacement>(() =>
     movable
-      ? readFieldNotePlacement(note.id as FieldNoteId)
+      ? readFieldNotePlacement(note.id as FieldNoteId, placementScope)
       : CENTERED_FIELD_NOTE_PLACEMENT,
   );
   const [hintPosition, setHintPosition] = useState<{
@@ -952,9 +978,12 @@ export function PostageStamp({
     }
 
     const syncPlacement = () =>
-      setPlacement(readFieldNotePlacement(note.id as FieldNoteId));
+      setPlacement(
+        readFieldNotePlacement(note.id as FieldNoteId, placementScope),
+      );
     const syncStoredPlacement = (event: StorageEvent) => {
-      if (event.key === FIELD_NOTE_PLACEMENT_STORAGE_KEY) syncPlacement();
+      if (event.key === fieldNotePlacementStorageKey(placementScope))
+        syncPlacement();
     };
     window.addEventListener(FIELD_NOTE_PLACEMENT_CHANGE_EVENT, syncPlacement);
     window.addEventListener("storage", syncStoredPlacement);
@@ -965,7 +994,7 @@ export function PostageStamp({
       );
       window.removeEventListener("storage", syncStoredPlacement);
     };
-  }, [movable, note.id]);
+  }, [movable, note.id, placementScope]);
 
   const finishPointerCapture = useCallback((pointerId: number) => {
     const trigger = triggerRef.current;
@@ -1068,14 +1097,23 @@ export function PostageStamp({
         saveFieldNotePlacement(
           note.id as FieldNoteId,
           session.currentPlacement,
+          placementScope,
         );
+        recordFieldNoteEvent({ type: "stamp-placed", noteId: note.id });
         return;
       }
       if (event.pointerType !== "touch") return;
       if (hintPhase === "open") closeHint();
       else openHint();
     },
-    [closeHint, finishPointerCapture, hintPhase, note.id, openHint],
+    [
+      closeHint,
+      finishPointerCapture,
+      hintPhase,
+      note.id,
+      openHint,
+      placementScope,
+    ],
   );
 
   const cancelDrag = useCallback(
@@ -1292,14 +1330,14 @@ function OverviewPage({ progress }: { progress: FieldNotesProgress }) {
         return earnedAt === undefined ? [] : [{ note, earnedAt }];
       })
         .sort((a, b) => b.earnedAt - a.earnedAt)
-        .slice(0, 2),
+        .slice(0, 3),
     [progress.earned],
   );
 
   return (
     <section
       data-milestone={milestone}
-      className="field-notes-overview-page field-notes-page field-notes-album-paper relative flex h-[var(--field-notes-page-height)] flex-col bg-[#f2e7cf] px-4 pb-4 pt-6 text-[#3f2c1c] shadow-[inset_0_0_32px_rgba(91,63,32,0.08)] md:px-7 md:pb-6"
+      className="field-notes-overview-page field-notes-page field-notes-album-paper relative flex h-[var(--field-notes-page-height)] flex-col bg-[#f2e7cf] px-4 pb-4 text-[#3f2c1c] shadow-[inset_0_0_32px_rgba(91,63,32,0.08)] md:px-7 md:pb-6"
     >
       <PageFolio number={1} side="left" />
       <FieldNotesBotanicalSketch milestone={milestone} />
@@ -1307,7 +1345,7 @@ function OverviewPage({ progress }: { progress: FieldNotesProgress }) {
         Field Notes
       </h2>
 
-      <div className="mt-10 flex items-center gap-5 md:mt-12 md:gap-6">
+      <div className="field-notes-overview-hero flex items-center gap-5 md:gap-6">
         <div className="field-notes-count-medallion relative grid size-28 shrink-0 place-items-center rounded-full text-center">
           {milestone === "complete" && (
             <span
@@ -1344,8 +1382,8 @@ function OverviewPage({ progress }: { progress: FieldNotesProgress }) {
             </span>
           </span>
         </div>
-        <div className="grid max-w-44 gap-2">
-          <p className="field-notes-overview-copy text-base leading-[22px] text-[#4b3524]/90 md:text-lg">
+        <div className="field-notes-overview-copy-column grid max-w-44 gap-2 self-start">
+          <p className="field-notes-overview-copy text-base text-[#4b3524]/90 md:text-lg">
             Look closer. Each discovery earns a stamp!
           </p>
           {milestone === "complete" && (
@@ -1356,7 +1394,7 @@ function OverviewPage({ progress }: { progress: FieldNotesProgress }) {
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-x-5 gap-y-0 py-3 md:mt-5 md:py-3.5">
+      <div className="field-notes-rarity-grid grid grid-cols-2 gap-x-5 gap-y-0">
         {FIELD_NOTE_RARITIES.map((rarity) => (
           <div
             key={rarity}
@@ -1379,28 +1417,35 @@ function OverviewPage({ progress }: { progress: FieldNotesProgress }) {
         ))}
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col justify-center py-4 md:py-5">
+      <div className="field-notes-latest-block flex min-h-0 flex-1 flex-col">
         <div className="mb-2 h-6">
           <span className="field-notes-latest-heading field-notes-fine field-notes-strong inline-block text-[#4b3524]/80">
-            newest stamps
+            newest findings
           </span>
         </div>
-        <div className="field-notes-latest-grid grid justify-center gap-2.5">
-          {Array.from({ length: 2 }, (_, index) => {
-            const entry = recent[index];
-            return (
+        <div className="field-notes-latest-tray relative py-2">
+          <div className="field-notes-latest-grid grid justify-center">
+            {Array.from({ length: 3 }, (_, index) => (
               <div
-                key={entry?.note.id ?? `empty:${index}`}
+                key={recent[index]?.note.id ?? `empty:${index}`}
                 className="field-notes-stamp-slot"
               >
-                {entry ? (
-                  <PostageStamp note={entry.note} progress={progress} />
-                ) : (
-                  <EmptyStampMount />
-                )}
+                <EmptyStampMount />
               </div>
-            );
-          })}
+            ))}
+          </div>
+          <div className="field-notes-loose-stamp-layer pointer-events-none absolute inset-0 z-[2]">
+            {recent.map((entry, index) => (
+              <PostageStamp
+                key={entry.note.id}
+                note={entry.note}
+                progress={progress}
+                movable
+                placementScope="overview"
+                slotIndex={index}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </section>
@@ -1472,7 +1517,7 @@ function StampPage({
   }, [undoPlacements]);
 
   return (
-    <section className="field-notes-stamp-page field-notes-page field-notes-album-paper relative h-[var(--field-notes-page-height)] bg-[#f2e7cf] px-2 pb-4 pt-5 text-[#3f2c1c] shadow-[inset_0_0_32px_rgba(91,63,32,0.08)] md:px-6 md:pb-7">
+    <section className="field-notes-stamp-page field-notes-page field-notes-album-paper relative h-[var(--field-notes-page-height)] bg-[#f2e7cf] px-2 pb-4 text-[#3f2c1c] shadow-[inset_0_0_32px_rgba(91,63,32,0.08)] md:px-6 md:pb-7">
       <PageFolio
         number={pageIndex + 1}
         side={(pageIndex + 1) % 2 === 0 ? "right" : "left"}
@@ -1503,7 +1548,7 @@ function StampPage({
           </button>
         ) : null}
       </PageFolio>
-      <div className="field-notes-stamp-page-heading mx-auto mb-3 pb-2">
+      <div className="field-notes-stamp-page-heading mx-auto">
         <h2 className="field-notes-hand text-lg leading-6">
           Findings {String(start + 1).padStart(2, "0")} to{" "}
           {String(start + stampsPerPage).padStart(2, "0")}
@@ -1665,6 +1710,7 @@ function MobileBookStage({
   onTurnEnd,
   onPrevious,
   onNext,
+  onDismiss,
 }: {
   pages: ReactNode[];
   page: number;
@@ -1672,8 +1718,26 @@ function MobileBookStage({
   onTurnEnd: () => void;
   onPrevious: () => void;
   onNext: () => void;
+  onDismiss: () => void;
 }) {
-  const visiblePage = turn?.to ?? page;
+  // The settled page always lives in the static block: paging forward
+  // reveals the target beneath the lifting leaf, while paging back keeps
+  // the current page beneath the leaf folding down over it. Either way a
+  // finished (or dropped) animation can never leave the album blank.
+  const visiblePage = turn
+    ? turn.direction === "next"
+      ? turn.to
+      : turn.from
+    : page;
+  const leafPage = turn
+    ? turn.direction === "next"
+      ? turn.from
+      : turn.to
+    : null;
+  const swipeRef = useRef<{
+    pointerId: number;
+    state: AlbumSwipeState;
+  } | null>(null);
   const [entryReady, setEntryReady] = useState(
     () =>
       typeof window !== "undefined" &&
@@ -1693,30 +1757,76 @@ function MobileBookStage({
     };
   }, [entryReady]);
 
+  const releaseSwipeCapture = (target: HTMLElement, pointerId: number) => {
+    if (target.hasPointerCapture?.(pointerId))
+      target.releasePointerCapture(pointerId);
+  };
+
   return (
     <div
       aria-busy={turn !== null}
       data-mobile-entry={entryReady ? "open" : "preparing"}
       className={`field-notes-mobile-stage relative ${turn ? "pointer-events-none" : ""}`}
+      onPointerDown={(event) => {
+        // Touch-only swipes: mouse users keep the buttons and arrow keys.
+        // A drag that starts on a movable stamp belongs to that stamp, and
+        // a leaf mid-turn absorbs gestures until it settles.
+        if (event.pointerType === "mouse" || swipeRef.current || turn) return;
+        const target = event.target as Element | null;
+        if (target?.closest?.('.field-notes-postage[data-movable="true"]'))
+          return;
+        swipeRef.current = {
+          pointerId: event.pointerId,
+          state: beginAlbumSwipe(event.clientX, event.clientY),
+        };
+      }}
+      onPointerMove={(event) => {
+        const session = swipeRef.current;
+        if (session?.pointerId !== event.pointerId) return;
+        const { state, claimed } = moveAlbumSwipe(
+          session.state,
+          event.clientX,
+          event.clientY,
+        );
+        session.state = state;
+        // Claiming captures the pointer, so a swipe that crosses a page
+        // control or a stamp mount cannot also fire that control's tap.
+        if (claimed) event.currentTarget.setPointerCapture?.(event.pointerId);
+      }}
+      onPointerUp={(event) => {
+        const session = swipeRef.current;
+        if (session?.pointerId !== event.pointerId) return;
+        swipeRef.current = null;
+        releaseSwipeCapture(event.currentTarget, event.pointerId);
+        const action = releaseAlbumSwipe(
+          session.state,
+          event.clientX,
+          event.clientY,
+        );
+        if (action === "next") onNext();
+        else if (action === "previous") onPrevious();
+        else if (action === "dismiss") onDismiss();
+      }}
+      onPointerCancel={(event) => {
+        const session = swipeRef.current;
+        if (session?.pointerId !== event.pointerId) return;
+        swipeRef.current = null;
+        releaseSwipeCapture(event.currentTarget, event.pointerId);
+      }}
     >
       <div className="field-notes-page-block overflow-hidden rounded-md border border-[#b9a789]">
         {pages[visiblePage]}
       </div>
-      {turn && (
+      {turn && leafPage !== null && (
         <div
           aria-hidden
           data-direction={turn.direction}
-          className="field-notes-mobile-turn-leaf absolute inset-0 z-20"
+          className="field-notes-mobile-turn-leaf absolute inset-0 z-20 overflow-hidden rounded-md border border-[#b9a789]"
           onAnimationEnd={(event) => {
             if (event.currentTarget === event.target) onTurnEnd();
           }}
         >
-          <div className="field-notes-turn-face field-notes-turn-front">
-            {pages[turn.from]}
-          </div>
-          <div className="field-notes-turn-face field-notes-turn-back">
-            {pages[turn.to]}
-          </div>
+          {pages[leafPage]}
         </div>
       )}
       <div className="field-notes-in-page-controls pointer-events-none absolute inset-x-0 bottom-2 z-40 text-[#5b402a]/65">
@@ -1885,6 +1995,7 @@ export function CompactAlbum({
               onTurnEnd={finishMobileTurn}
               onPrevious={() => beginMobileTurn("previous")}
               onNext={() => beginMobileTurn("next")}
+              onDismiss={onClose}
             />
           </div>
         </Dialog.Content>
@@ -2023,7 +2134,7 @@ function MobileAwardNotice({
   return createPortal(
     <div
       data-rarity={note.rarity.toLowerCase()}
-      className="field-notes-mobile-award-shell pointer-events-none fixed z-[2100]"
+      className="field-notes-mobile-award-shell pointer-events-none fixed z-[6100]"
       style={flightStyle}
     >
       <button
@@ -2098,7 +2209,7 @@ function AwardNotice({
       role="status"
       aria-live="polite"
       data-rarity={note.rarity.toLowerCase()}
-      className="field-notes-award-scene pointer-events-none fixed z-[2100]"
+      className="field-notes-award-scene pointer-events-none fixed z-[6100]"
       style={flightStyle}
     >
       <div className="field-notes-award-composite field-notes-desktop-award-composite pointer-events-none absolute inline-flex items-start">
@@ -2261,11 +2372,12 @@ export default function FieldNotesChrome() {
           font-synthesis: none;
         }
         .field-notes-album {
+          --field-notes-line: 24px;
           --field-notes-page-height: min(34rem, calc(100dvh - 4.75rem));
           --field-notes-stamp-size: clamp(3.5rem, min(calc((100vw - 3.75rem) / 3), calc((100dvh - 13.5rem) / 4)), 6rem);
           --field-notes-stamp-gap-x: .375rem;
           --field-notes-stamp-gap-y: .625rem;
-          --field-notes-stamp-grid-top: 4rem;
+          --field-notes-stamp-grid-top: calc(var(--field-notes-line) * 3);
           --field-notes-book-shadow-entry: 0 2px 4px rgba(23,12,7,.28), 0 8px 24px rgba(18,27,33,.22);
           --field-notes-book-shadow-peak: 0 4px 7px rgba(23,12,7,.38), 0 24px 54px rgba(18,27,33,.38);
           --field-notes-book-shadow-rest: 0 3px 6px rgba(23,12,7,.34), 0 18px 44px rgba(18,27,33,.34);
@@ -2286,11 +2398,20 @@ export default function FieldNotesChrome() {
             inset 0 0 26px rgba(25,12,7,.42),
             var(--field-notes-book-shadow-rest);
         }
+        /* The ruled-paper contract. Every ruled surface derives its rule
+           spacing from its line unit and its rule offset from where its
+           first line box starts, so type and rules share one grid instead
+           of per-surface, per-breakpoint tuning. A rule is inked
+           --field-notes-rule-gap above the bottom of each line box. */
         .field-notes-stamp-tooltip,
         .field-notes-album-paper,
         .field-notes-award-copy,
         .field-notes-mobile-award-copy {
-          --field-notes-rule-step: 24px;
+          --field-notes-line: 24px;
+          --field-notes-content-top: var(--field-notes-line);
+          --field-notes-rule-gap: 6px;
+          --field-notes-rule-step: var(--field-notes-line);
+          --field-notes-rule-offset: calc(var(--field-notes-content-top) - var(--field-notes-rule-gap) + 1px - var(--field-notes-line));
           --field-notes-rule-color: rgba(63,126,140,.08);
           --field-notes-rules: repeating-linear-gradient(
             180deg,
@@ -2300,9 +2421,14 @@ export default function FieldNotesChrome() {
           );
         }
         .field-notes-stamp-tooltip {
-          --field-notes-rule-offset: 7px;
+          --field-notes-line: 20px;
+          --field-notes-content-top: 8px;
+          padding-block: var(--field-notes-content-top);
           background-image: var(--field-notes-rules);
           background-position: 0 var(--field-notes-rule-offset);
+        }
+        .field-notes-stamp-tooltip p {
+          line-height: var(--field-notes-line);
         }
         /* Fully opaque: the slip floats over the busy stamp grid, and the
            shared paper-slip's 95% alpha lets the stamps ghost through.
@@ -2320,7 +2446,9 @@ export default function FieldNotesChrome() {
         }
         .field-notes-award-copy,
         .field-notes-mobile-award-copy {
-          --field-notes-rule-step: 16px;
+          --field-notes-line: 16px;
+          /* The award slip keeps its shipped ink position; its copy nudges
+             down via .field-notes-award-text rather than the shared gap. */
           --field-notes-rule-offset: 5px;
           box-sizing: border-box;
           inline-size: max-content;
@@ -2406,7 +2534,7 @@ export default function FieldNotesChrome() {
         }
         .field-notes-overview-page .field-notes-fine {
           font-size: 20px;
-          line-height: 24px;
+          line-height: var(--field-notes-line);
         }
         .field-notes-title {
           position: relative;
@@ -2415,11 +2543,7 @@ export default function FieldNotesChrome() {
         }
         .field-notes-overview-copy {
           font-size: 22px;
-          line-height: 24px;
-          transform: translateY(2px);
-        }
-        .field-notes-latest-heading {
-          transform: translateY(1px);
+          line-height: var(--field-notes-line);
         }
         .field-notes-title::after {
           content: "";
@@ -3306,7 +3430,6 @@ export default function FieldNotesChrome() {
           transform: rotate(var(--cancel-tilt));
         }
         .field-notes-album-paper {
-          --field-notes-rule-offset: -5px;
           background-color: #f2e7cf;
           background-image:
             var(--field-notes-rules),
@@ -3315,8 +3438,32 @@ export default function FieldNotesChrome() {
           background-position: 0 var(--field-notes-rule-offset), 0 0, 0 0;
           background-size: auto;
         }
-        .field-notes-overview-page {
-          --field-notes-rule-offset: -1px;
+        /* Vertical rhythm: page flow spacing counts in whole line units on
+           every breakpoint, so each text block's line boxes stay on the
+           painted rules regardless of viewport. */
+        .field-notes-page {
+          padding-top: var(--field-notes-content-top);
+        }
+        .field-notes-overview-hero {
+          margin-top: calc(var(--field-notes-line) * 2);
+          min-height: calc(var(--field-notes-line) * 5);
+        }
+        .field-notes-overview-copy-column {
+          margin-top: var(--field-notes-line);
+        }
+        .field-notes-rarity-grid {
+          margin-top: var(--field-notes-line);
+        }
+        .field-notes-rarity-grid > div {
+          /* Baseline-aligning the swatch stretches a row past one line and
+             pushes everything below off the rules; pin rows to the grid. */
+          height: var(--field-notes-line);
+        }
+        .field-notes-latest-block {
+          margin-top: var(--field-notes-line);
+        }
+        .field-notes-stamp-page-heading {
+          margin-bottom: var(--field-notes-line);
         }
         .field-notes-page::after {
           content: "";
@@ -3357,18 +3504,31 @@ export default function FieldNotesChrome() {
           .field-notes-discovery-mount::before { inset: 3px; }
         }
         .field-notes-latest-grid {
-          grid-template-columns: repeat(2, var(--field-notes-stamp-size));
+          /* Columns and gap mirror the stamp pages so the shared loose-layer
+             home formulas position tray stamps over their mounts. */
+          grid-template-columns: repeat(3, var(--field-notes-stamp-size));
+          column-gap: var(--field-notes-stamp-gap-x);
         }
         .field-notes-latest-grid .field-notes-stamp-slot {
           aspect-ratio: 1;
           contain: size;
+        }
+        .field-notes-latest-tray {
+          /* py-2 above the grid puts the row's home centers at
+             8px + stamp-size / 2 inside the tray's own loose layer. */
+          --field-notes-stamp-grid-top: 8px;
+        }
+        .field-notes-latest-tray .field-notes-loose-stamp-layer {
+          /* The tray is one shallow row; clipping would shear tilted
+             corners, so let arranged stamps overhang onto the page. */
+          overflow: visible;
         }
         .field-notes-stamp-page-heading {
           width: calc(3 * var(--field-notes-stamp-size) + .75rem);
         }
         .field-notes-stamp-page-heading h2 {
           font-size: 22px;
-          line-height: 24px;
+          line-height: var(--field-notes-line);
         }
         .field-notes-stamp-grid {
           grid-template-columns: repeat(3, var(--field-notes-stamp-size));
@@ -3458,13 +3618,34 @@ export default function FieldNotesChrome() {
           transform-origin: right center;
           animation: field-notes-turn-previous 880ms linear both;
         }
-        .field-notes-mobile-turn-leaf[data-direction="next"] {
+        /* The one-page mobile album folds every leaf over the same left
+           spine edge and stops at edge-on: a desktop-style 180-degree turn
+           would land the leaf outside a single-page viewport, which is why
+           the old flip appeared to float off the book and vanish. Forward
+           lifts the outgoing page toward the spine (revealing the settled
+           target beneath); backward folds the previous page down over the
+           current one and hands off at exactly 0deg. See the PR notes for
+           the page-flip research this follows. */
+        .field-notes-mobile-turn-leaf {
           transform-origin: left center;
-          animation: field-notes-turn-next 880ms linear both;
+          background-color: #f2e7cf;
+          will-change: transform, opacity;
+        }
+        .field-notes-mobile-turn-leaf::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background: linear-gradient(90deg, rgba(58,37,20,.16), transparent 26%, transparent 82%, rgba(255,255,255,.1));
+        }
+        .field-notes-mobile-turn-leaf[data-direction="next"] {
+          animation: field-notes-mobile-turn-next 460ms cubic-bezier(.5,.1,.65,.3) both;
         }
         .field-notes-mobile-turn-leaf[data-direction="previous"] {
-          transform-origin: right center;
-          animation: field-notes-turn-previous 880ms linear both;
+          animation: field-notes-mobile-turn-previous 460ms cubic-bezier(.25,.6,.3,1) both;
+        }
+        .field-notes-mobile-stage {
+          touch-action: none;
         }
         .field-notes-turn-face {
           position: absolute;
@@ -4024,6 +4205,16 @@ export default function FieldNotesChrome() {
           72% { opacity: .34; }
           88% { opacity: .06; }
           100% { opacity: 0; }
+        }
+        @keyframes field-notes-mobile-turn-next {
+          0% { opacity: 1; transform: rotateY(0deg); }
+          76% { opacity: 1; }
+          100% { opacity: 0; transform: rotateY(-88deg); }
+        }
+        @keyframes field-notes-mobile-turn-previous {
+          0% { opacity: 0; transform: rotateY(-88deg); }
+          24% { opacity: 1; }
+          100% { opacity: 1; transform: rotateY(0deg); }
         }
         @keyframes field-notes-award-rays-clockwise {
           0% { opacity: 0; transform: translate(-50%,-50%) rotate(-24deg) scale(.58); }

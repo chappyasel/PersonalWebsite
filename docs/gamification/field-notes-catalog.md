@@ -1,7 +1,7 @@
 # Field Notes discovery catalog
 
 Status: working draft for feedback
-Scope: the main 3D world only
+Scope: the main 3D world, plus one album-side discovery (Philatelist)
 
 ## Vocabulary proposal
 
@@ -322,7 +322,16 @@ the completed state until the visitor finds the new entry.
     - First hint: The dice know a taller formation than the pyramid.
     - Notes:
 
-31. [ ] **Full Journal** `◇`
+31. [ ] **Philatelist** `◇`
+
+    - Rarity: Uncommon.
+    - Earned by: Drag five distinct earned stamps to new spots inside the
+      album — the one discovery earned in the journal rather than the 3D
+      world. Catalog-page and newest-findings-tray arrangements both count.
+    - First hint: Even these stamps aren't glued down.
+    - Notes:
+
+32. [ ] **Full Journal** `◇`
     - Rarity: Legendary.
     - Earned by: Earn every other Field Note. Awarded in the same moment as
       the final other discovery.

@@ -239,6 +239,49 @@ describe("Field Notes progress", () => {
     expect(spread.earned["open-house"]).toBeDefined();
   });
 
+  it("earns the philatelist after five distinct stamps are rearranged", () => {
+    const fourStamps = apply(
+      ["beacon", "beacon", "tea-time", "old-time", "task-light"].map(
+        (noteId) => ({ type: "stamp-placed" as const, noteId }),
+      ),
+    );
+    expect(fourStamps.placedStamps).toEqual([
+      "beacon",
+      "tea-time",
+      "old-time",
+      "task-light",
+    ]);
+    expect(fourStamps.earned.philatelist).toBeUndefined();
+
+    const fifth = reduceFieldNotesProgress(
+      fourStamps,
+      { type: "stamp-placed", noteId: "early-alarm" },
+      2_000,
+    );
+    expect(fifth.awarded).toEqual(["philatelist"]);
+    expect(fifth.progress.earned.philatelist).toBe(2_000);
+  });
+
+  it("ignores stamp placements for unknown discovery IDs", () => {
+    const progress = apply([
+      { type: "stamp-placed", noteId: "invented" },
+      { type: "stamp-placed", noteId: "beacon" },
+    ]);
+
+    expect(progress.placedStamps).toEqual(["beacon"]);
+  });
+
+  it("drops unknown persisted placed stamps", () => {
+    const progress = parseFieldNotesProgress(
+      JSON.stringify({
+        version: 1,
+        placedStamps: ["beacon", "invented", 7],
+      }),
+    );
+
+    expect(progress.placedStamps).toEqual(["beacon"]);
+  });
+
   it("earns the regular on a later local day, never the first", () => {
     const firstDay = apply([
       { type: "session-started", day: "2026-08-25" },

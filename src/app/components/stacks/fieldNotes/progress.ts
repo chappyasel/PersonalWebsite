@@ -58,7 +58,8 @@ export type FieldNoteEvent =
   | Readonly<{ type: "golf-prop-struck" }>
   | Readonly<{ type: "session-started"; day: string }>
   | Readonly<{ type: "prop-carried-far"; propId: string }>
-  | Readonly<{ type: "dice-stacked" }>;
+  | Readonly<{ type: "dice-stacked" }>
+  | Readonly<{ type: "stamp-placed"; noteId: string }>;
 
 /** Distinct portal destinations behind Open House. The room holds roughly
  * eighteen; eight keeps the stamp about breadth without demanding a census. */
@@ -68,6 +69,11 @@ export const OPEN_HOUSE_DESTINATIONS = 8;
  * Grabbable reports it carried far. 26.2 for the marathon, at a scale where a
  * full sweep across one shelf is about three units. */
 export const LONG_HAUL_CARRY_UNITS = 26.2;
+
+/** Distinct earned stamps a visitor must drag to a new spot in the album
+ * before Philatelist is granted. Five asks for a deliberate arranging habit
+ * without demanding the whole collection move. */
+export const PHILATELIST_STAMPS = 5;
 
 /** Local calendar day for The Regular. Local rather than UTC because "come
  * back tomorrow" means the visitor's tomorrow. */
@@ -87,6 +93,7 @@ export type FieldNotesProgress = Readonly<{
   activatedInteractions: readonly string[];
   pixelLooks: readonly ("levels" | "palette")[];
   artifactCollections: readonly SceneArtifactCollection[];
+  placedStamps: readonly string[];
   firstVisitDay: string | null;
 }>;
 
@@ -105,6 +112,7 @@ export const EMPTY_FIELD_NOTES_PROGRESS: FieldNotesProgress = Object.freeze({
   activatedInteractions: Object.freeze([]),
   pixelLooks: Object.freeze([]),
   artifactCollections: Object.freeze([]),
+  placedStamps: Object.freeze([]),
   firstVisitDay: null,
 });
 
@@ -151,6 +159,7 @@ export function reduceFieldNotesProgress(
   let activatedInteractions = current.activatedInteractions;
   let pixelLooks = current.pixelLooks;
   let artifactCollections = current.artifactCollections;
+  let placedStamps = current.placedStamps;
   let firstVisitDay = current.firstVisitDay;
   const earned = { ...current.earned };
   const awarded: FieldNoteId[] = [];
@@ -267,6 +276,12 @@ export function reduceFieldNotesProgress(
     case "dice-stacked":
       award(earned, awarded, "full-stack", now);
       break;
+    case "stamp-placed":
+      if (FIELD_NOTE_BY_ID.has(event.noteId as FieldNoteId))
+        placedStamps = unique(placedStamps, event.noteId);
+      if (placedStamps.length >= PHILATELIST_STAMPS)
+        award(earned, awarded, "philatelist", now);
+      break;
   }
 
   // The capstone only needs re-checking when this event awarded something:
@@ -288,6 +303,7 @@ export function reduceFieldNotesProgress(
     activatedInteractions === current.activatedInteractions &&
     pixelLooks === current.pixelLooks &&
     artifactCollections === current.artifactCollections &&
+    placedStamps === current.placedStamps &&
     firstVisitDay === current.firstVisitDay
   ) {
     return { progress: current, awarded };
@@ -304,6 +320,7 @@ export function reduceFieldNotesProgress(
       activatedInteractions,
       pixelLooks,
       artifactCollections,
+      placedStamps,
       firstVisitDay,
     },
     awarded,
@@ -369,6 +386,9 @@ export function parseFieldNotesProgress(raw: string | null) {
       activatedInteractions: stringArray(value.activatedInteractions),
       pixelLooks,
       artifactCollections,
+      placedStamps: stringArray(value.placedStamps).filter((id) =>
+        FIELD_NOTE_BY_ID.has(id as FieldNoteId),
+      ),
       firstVisitDay:
         typeof value.firstVisitDay === "string" ? value.firstVisitDay : null,
     } satisfies FieldNotesProgress;
