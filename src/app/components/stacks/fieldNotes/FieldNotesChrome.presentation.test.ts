@@ -154,69 +154,109 @@ describe("Field Notes stamp tooltip presentation", () => {
       /\.field-notes-award-copy,\s*\.field-notes-mobile-award-copy \{[\s\S]*?inline-size: max-content;[\s\S]*?min-inline-size: var\(--field-notes-award-copy-min\);[\s\S]*?max-inline-size: var\(--field-notes-award-copy-max\);[\s\S]*?overflow-wrap: anywhere;/,
     );
     expect(source).toMatch(
-      /\.field-notes-award-copy \{[\s\S]*?--field-notes-award-copy-min: min\(9rem, calc\(100vw - 7rem\)\);[\s\S]*?--field-notes-award-copy-max: min\(20rem, calc\(100vw - 7rem\)\);/,
+      /\.field-notes-award-copy \{[\s\S]*?--field-notes-award-copy-min: min\(9rem, var\(--field-notes-award-paper-viewport-max\)\);[\s\S]*?--field-notes-award-copy-max: min\(20rem, var\(--field-notes-award-paper-viewport-max\)\);/,
     );
     expect(source).toMatch(
-      /\.field-notes-mobile-award-copy \{[\s\S]*?--field-notes-award-copy-min: min\(8rem, calc\(100vw - 5\.25rem\)\);[\s\S]*?--field-notes-award-copy-max: min\(15rem, calc\(100vw - 5\.25rem\)\);/,
+      /\.field-notes-mobile-award-copy \{[\s\S]*?--field-notes-award-copy-min: min\(8rem, var\(--field-notes-award-paper-viewport-max\)\);[\s\S]*?--field-notes-award-copy-max: min\(15rem, var\(--field-notes-award-paper-viewport-max\)\);/,
+    );
+    expect(source).toContain(
+      "--field-notes-award-paper-viewport-max: calc(100vw - var(--field-notes-award-stamp-slot) - 2rem);",
     );
 
-    // These shells are stable flight lanes; the visible slips alone hug copy.
+    // These shells remain stable flight lanes; the composite owns presentation.
     expect(source).toContain("width: min(15rem, calc(100vw - 2rem));");
     expect(source).toContain("width: min(16rem, calc(100vw - 3.25rem));");
   });
 
-  it("centers every intrinsic award slip on the fixed lane anchor", () => {
-    expect(mobileAward).not.toContain("relative ml-11 inline-flex");
-    expect(awardNotice).not.toContain("left-[4.65rem]");
+  it("centers the stamp-and-paper union for every intrinsic title width", () => {
+    expect(mobileAward).toContain("field-notes-award-composite");
+    expect(mobileAward).toContain("field-notes-mobile-award-stamp-slot");
+    expect(awardNotice).toContain("field-notes-award-composite");
+    expect(awardNotice).toContain("field-notes-desktop-award-stamp-slot");
     expect(source).toMatch(
-      /\.field-notes-award-scene,\s*\.field-notes-mobile-award-shell \{[\s\S]*?--field-notes-award-copy-anchor-x: 50%;/,
+      /\.field-notes-award-composite \{[\s\S]*?inline-size: max-content;[\s\S]*?inset-inline-start: 50%;[\s\S]*?translate: -50% 0;/,
     );
-    expect(source).toMatch(
-      /\.field-notes-award-copy,\s*\.field-notes-mobile-award-copy \{[\s\S]*?inset-inline-start: var\(--field-notes-award-copy-anchor-x\);[\s\S]*?translate: -50% 0;/,
-    );
+    expect(source).not.toContain("--field-notes-award-copy-anchor-x");
 
-    // Individual translate remains composed with the animated transform, so
-    // the paper stays centered through motion and reduced-motion rendering.
-    expect(source).toMatch(
-      /@keyframes field-notes-award-copy[\s\S]*?transform: translate3d/,
-    );
-    const reducedMotion = source.slice(
-      source.indexOf("@media (prefers-reduced-motion: reduce)"),
-    );
-    expect(reducedMotion).not.toMatch(
-      /\.field-notes-award-copy,\s*\.field-notes-award-copy\[data-ready="true"\] \{[^}]*left: 0;/,
-    );
+    const unionBounds = ({
+      anchor,
+      paperWidth,
+      stampAdvance,
+      stampWidth,
+    }: {
+      anchor: number;
+      paperWidth: number;
+      stampAdvance: number;
+      stampWidth: number;
+    }) => {
+      const compositeWidth = stampAdvance + paperWidth;
+      const compositeLeft = anchor - compositeWidth / 2;
+      const stampLeft = compositeLeft;
+      const stampRight = stampLeft + stampWidth;
+      const paperLeft = compositeLeft + stampAdvance;
+      const paperRight = paperLeft + paperWidth;
+      return {
+        left: Math.min(stampLeft, paperLeft),
+        right: Math.max(stampRight, paperRight),
+        gap: paperLeft - stampRight,
+      };
+    };
 
-    const mobileLaneWidth = 16 * 16;
-    const mobileViewportWidth = 320;
-    const mobileWidths = [
-      8 * 16,
-      11.5 * 16,
-      mobileViewportWidth - 5.25 * 16,
+    const geometries = [
+      {
+        name: "mobile",
+        viewport: 320,
+        stampWidth: 2.52 * 16,
+        stampAdvance: (2.52 + 0.625) * 16,
+        paperWidths: [8 * 16, 11.5 * 16, 320 - (2.52 + 0.625) * 16 - 2 * 16],
+      },
+      {
+        name: "desktop",
+        viewport: 1200,
+        stampWidth: 3.72 * 16,
+        stampAdvance: (3.72 + 0.625) * 16,
+        paperWidths: [9 * 16, 14 * 16, 20 * 16],
+      },
     ];
-    for (const width of mobileWidths) {
-      const left = mobileViewportWidth / 2 - width / 2;
-      expect(left + width / 2).toBe(mobileViewportWidth / 2);
-      expect(left).toBeGreaterThanOrEqual(
-        (mobileViewportWidth - mobileLaneWidth) / 2,
-      );
-      expect(left + width).toBeLessThanOrEqual(
-        mobileViewportWidth - (mobileViewportWidth - mobileLaneWidth) / 2,
-      );
+
+    for (const geometry of geometries) {
+      const anchor = geometry.viewport / 2;
+      for (const paperWidth of geometry.paperWidths) {
+        const union = unionBounds({
+          anchor,
+          paperWidth,
+          stampAdvance: geometry.stampAdvance,
+          stampWidth: geometry.stampWidth,
+        });
+        expect(
+          (union.left + union.right) / 2,
+          `${geometry.name} ${paperWidth}px paper`,
+        ).toBe(anchor);
+        expect(union.left).toBeGreaterThanOrEqual(16);
+        expect(union.right).toBeLessThanOrEqual(geometry.viewport - 16);
+        expect(union.gap).toBeGreaterThanOrEqual(8);
+        expect(union.gap).toBeLessThanOrEqual(12);
+      }
     }
 
-    const desktopLaneWidth = 15 * 16;
-    const desktopAnchor = desktopLaneWidth / 2;
-    for (const width of [9 * 16, 14 * 16, 20 * 16]) {
-      const left = desktopAnchor - width / 2;
-      expect(left + width / 2).toBe(desktopAnchor);
-    }
-
-    expect(mobileAward).toContain(
-      "field-notes-mobile-award-stamp absolute z-[2] size-24",
+    expect(source).toContain("--field-notes-award-stamp-paper-gap: .625rem;");
+    expect(source).toContain(
+      "--field-notes-award-stamp-slot: calc(var(--field-notes-award-stamp-visible-width) + var(--field-notes-award-stamp-paper-gap));",
     );
-    expect(awardNotice).toContain(
-      "field-notes-award-stamp absolute left-0 top-0 size-24",
+    expect(mobileAward).toContain("field-notes-award-text block");
+    expect(awardNotice).toContain("field-notes-award-text");
+    expect(source).toMatch(
+      /\.field-notes-award-text \{[\s\S]*?translate: 0 \.1875rem;/,
+    );
+
+    // The implementation being replaced centers only the paper and leaves the
+    // stamp at the lane edge; its union midpoint cannot equal the anchor.
+    const currentMobileUnion = {
+      left: 320 / 2 - (16 * 16) / 2 - 1.75 * 16,
+      right: 320 / 2 + (8 * 16) / 2,
+    };
+    expect((currentMobileUnion.left + currentMobileUnion.right) / 2).not.toBe(
+      320 / 2,
     );
   });
 
@@ -249,10 +289,10 @@ describe("Field Notes stamp tooltip presentation", () => {
     expect(source).not.toContain("filter: blur(6px)");
     expect(source).not.toContain("drop-shadow(0 0 12px");
     expect(source).toMatch(
-      /\.field-notes-award-scene::before,[\s\S]*?width: 8rem;[\s\S]*?height: 8rem;[\s\S]*?transparent 6deg 21deg[\s\S]*?mask: radial-gradient\(circle, #000 0 30%[\s\S]*?transparent 68%\);[\s\S]*?field-notes-award-rays-clockwise/,
+      /\.field-notes-award-composite::before \{[\s\S]*?width: 8rem;[\s\S]*?height: 8rem;[\s\S]*?transparent 6deg 21deg[\s\S]*?mask: radial-gradient\(circle, #000 0 30%[\s\S]*?transparent 68%\);[\s\S]*?field-notes-award-rays-clockwise/,
     );
     expect(source).toMatch(
-      /\.field-notes-award-scene::after,[\s\S]*?width: 9\.5rem;[\s\S]*?height: 9\.5rem;[\s\S]*?transparent 10deg 40deg[\s\S]*?mask: radial-gradient\(circle, #000 0 27%[\s\S]*?transparent 67%\);[\s\S]*?field-notes-award-rays-counterclockwise/,
+      /\.field-notes-award-composite::after \{[\s\S]*?width: 9\.5rem;[\s\S]*?height: 9\.5rem;[\s\S]*?transparent 10deg 40deg[\s\S]*?mask: radial-gradient\(circle, #000 0 27%[\s\S]*?transparent 67%\);[\s\S]*?field-notes-award-rays-counterclockwise/,
     );
     expect(source).toMatch(
       /@keyframes field-notes-award-rays-clockwise[\s\S]*?52%, 100%[\s\S]*?rotate\(106deg\)/,
@@ -261,13 +301,13 @@ describe("Field Notes stamp tooltip presentation", () => {
       /@keyframes field-notes-award-rays-counterclockwise[\s\S]*?52%, 100%[\s\S]*?rotate\(-82deg\)/,
     );
     expect(source).toMatch(
-      /\[data-rarity="common"\]::before,[\s\S]*?\[data-rarity="common"\]::after \{[\s\S]*?content: none;[\s\S]*?animation: none;/,
+      /\[data-rarity="common"\] \.field-notes-award-composite::before,[\s\S]*?\[data-rarity="common"\] \.field-notes-award-composite::after \{[\s\S]*?content: none;[\s\S]*?animation: none;/,
     );
     expect(source).toMatch(
       /\[data-rarity="uncommon"\] \{[\s\S]*?--field-notes-award-ray-peak: \.22;[\s\S]*?--field-notes-award-ray-rest: \.07;/,
     );
     expect(source).toMatch(
-      /\[data-rarity="legendary"\]::before \{[\s\S]*?width: 11rem;[\s\S]*?\[data-rarity="legendary"\]::after \{[\s\S]*?width: 13rem;/,
+      /\[data-rarity="legendary"\] \.field-notes-award-composite::before \{[\s\S]*?width: 11rem;[\s\S]*?\[data-rarity="legendary"\] \.field-notes-award-composite::after \{[\s\S]*?width: 13rem;/,
     );
   });
 
@@ -370,15 +410,9 @@ describe("Field Notes stamp tooltip presentation", () => {
     expect(source).toContain(
       "animation: field-notes-album-close 280ms cubic-bezier(.55,.02,.78,.28) both",
     );
-    expect(source).toContain(
-      "animation: field-notes-mobile-overlay-in 700ms",
-    );
-    expect(source).toContain(
-      "animation: field-notes-mobile-album-open 760ms",
-    );
-    expect(source).toContain(
-      "animation: field-notes-mobile-album-close 380ms",
-    );
+    expect(source).toContain("animation: field-notes-mobile-overlay-in 700ms");
+    expect(source).toContain("animation: field-notes-mobile-album-open 760ms");
+    expect(source).toContain("animation: field-notes-mobile-album-close 380ms");
   });
 
   it("keeps Radix's modal focus trap without leaving the page pointer-locked", () => {
