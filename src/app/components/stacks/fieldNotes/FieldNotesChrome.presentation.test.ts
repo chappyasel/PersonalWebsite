@@ -139,6 +139,32 @@ describe("Field Notes stamp tooltip presentation", () => {
     );
   });
 
+  it("sizes both award paper slips intrinsically within viewport-safe clamps", () => {
+    expect(mobileAward).toContain("field-notes-mobile-award-copy");
+    expect(mobileAward).not.toContain(
+      "field-notes-mobile-award-copy absolute bottom-0 left-11 right-0",
+    );
+    expect(mobileAward).not.toContain("truncate");
+    expect(mobileAward).toContain("inline-flex min-h-10");
+    expect(awardNotice).toContain("field-notes-award-copy");
+    expect(awardNotice).not.toContain("min-w-40");
+    expect(awardNotice).not.toContain("truncate");
+
+    expect(source).toMatch(
+      /\.field-notes-award-copy,\s*\.field-notes-mobile-award-copy \{[\s\S]*?inline-size: max-content;[\s\S]*?min-inline-size: var\(--field-notes-award-copy-min\);[\s\S]*?max-inline-size: var\(--field-notes-award-copy-max\);[\s\S]*?overflow-wrap: anywhere;/,
+    );
+    expect(source).toMatch(
+      /\.field-notes-award-copy \{[\s\S]*?--field-notes-award-copy-min: min\(9rem, calc\(100vw - 7rem\)\);[\s\S]*?--field-notes-award-copy-max: min\(20rem, calc\(100vw - 7rem\)\);/,
+    );
+    expect(source).toMatch(
+      /\.field-notes-mobile-award-copy \{[\s\S]*?--field-notes-award-copy-min: min\(8rem, calc\(100vw - 5\.25rem\)\);[\s\S]*?--field-notes-award-copy-max: min\(15rem, calc\(100vw - 5\.25rem\)\);/,
+    );
+
+    // These shells are stable flight lanes; the visible slips alone hug copy.
+    expect(source).toContain("width: min(15rem, calc(100vw - 2rem));");
+    expect(source).toContain("width: min(16rem, calc(100vw - 3.25rem));");
+  });
+
   it("renders two counter-rotating rarity sunray layers", () => {
     expect(mobileAward).toContain("data-rarity={note.rarity.toLowerCase()}");
     expect(awardNotice).toContain("data-rarity={note.rarity.toLowerCase()}");
@@ -218,17 +244,17 @@ describe("Field Notes stamp tooltip presentation", () => {
     const closeDuration = Number(
       /field-notes-mobile-stage-close (\d+)ms/.exec(source)?.[1],
     );
-    expect(openDuration).toBe(640);
-    expect(closeDuration).toBe(320);
+    expect(openDuration).toBe(720);
+    expect(closeDuration).toBe(360);
     expect(closeDuration).toBeLessThan(openDuration);
     expect(source).toMatch(
       /\.field-notes-mobile-stage\[data-mobile-entry="preparing"\] \{[\s\S]*?opacity: \.46;[\s\S]*?translateY\(10px\)/,
     );
     expect(source).toMatch(
-      /@keyframes field-notes-mobile-stage-open[\s\S]*?0% \{ opacity: \.46;[\s\S]*?38% \{ opacity: \.78;[\s\S]*?74% \{ opacity: 1;[\s\S]*?100% \{ opacity: 1;/,
+      /@keyframes field-notes-mobile-stage-open[\s\S]*?0% \{ opacity: \.46;[\s\S]*?38% \{ opacity: \.78;[\s\S]*?74% \{ opacity: \.96;[\s\S]*?90% \{ opacity: \.994;[\s\S]*?100% \{ opacity: 1;/,
     );
     expect(source).toMatch(
-      /@keyframes field-notes-mobile-stage-close[\s\S]*?0% \{ opacity: 1;[\s\S]*?58% \{ opacity: \.72;[\s\S]*?100% \{ opacity: \.18;/,
+      /@keyframes field-notes-mobile-stage-close[\s\S]*?0% \{ opacity: 1;[\s\S]*?58% \{ opacity: \.72;[\s\S]*?82% \{ opacity: \.38;[\s\S]*?94% \{ opacity: \.22;[\s\S]*?100% \{ opacity: \.18;/,
     );
     expect(source).toContain(
       '.field-notes-mobile-stage[data-mobile-entry="preparing"]',
@@ -257,16 +283,16 @@ describe("Field Notes stamp tooltip presentation", () => {
       "background-color: rgba(87,69,53,.14) !important;",
     );
     expect(source).toMatch(
-      /@keyframes field-notes-mobile-overlay-in[\s\S]*?0% \{ opacity: 0; \}[\s\S]*?42% \{ opacity: \.46; \}[\s\S]*?100% \{ opacity: 1; \}/,
+      /@keyframes field-notes-mobile-overlay-in[\s\S]*?0% \{ opacity: 0; \}[\s\S]*?42% \{ opacity: \.46; \}[\s\S]*?82% \{ opacity: \.9; \}[\s\S]*?94% \{ opacity: \.98; \}[\s\S]*?100% \{ opacity: 1; \}/,
     );
     expect(source).toMatch(
-      /@keyframes field-notes-mobile-album-open[\s\S]*?0% \{[\s\S]*?opacity: \.42;[\s\S]*?38% \{[\s\S]*?opacity: \.82;[\s\S]*?72% \{[\s\S]*?opacity: 1;/,
+      /@keyframes field-notes-mobile-album-open[\s\S]*?0% \{[\s\S]*?opacity: \.42;[\s\S]*?38% \{[\s\S]*?opacity: \.82;[\s\S]*?72% \{[\s\S]*?opacity: \.96;[\s\S]*?90% \{[\s\S]*?opacity: \.992;[\s\S]*?100% \{[\s\S]*?opacity: 1;/,
     );
     expect(source).toMatch(
-      /@keyframes field-notes-mobile-album-close[\s\S]*?0% \{[\s\S]*?opacity: 1;[\s\S]*?58% \{[\s\S]*?opacity: \.74;[\s\S]*?100% \{[\s\S]*?opacity: \.14;/,
+      /@keyframes field-notes-mobile-album-close[\s\S]*?0% \{[\s\S]*?opacity: 1;[\s\S]*?58% \{[\s\S]*?opacity: \.74;[\s\S]*?82% \{[\s\S]*?opacity: \.34;[\s\S]*?94% \{[\s\S]*?opacity: \.18;[\s\S]*?100% \{[\s\S]*?opacity: \.14;/,
     );
     expect(source).toMatch(
-      /@keyframes field-notes-mobile-overlay-out[\s\S]*?0% \{ opacity: 1; \}[\s\S]*?55% \{ opacity: \.36; \}[\s\S]*?100% \{ opacity: 0; \}/,
+      /@keyframes field-notes-mobile-overlay-out[\s\S]*?0% \{ opacity: 1; \}[\s\S]*?55% \{ opacity: \.42; \}[\s\S]*?82% \{ opacity: \.14; \}[\s\S]*?94% \{ opacity: \.04; \}[\s\S]*?100% \{ opacity: 0; \}/,
     );
     expect(source.indexOf("<Dialog.Overlay")).toBeLessThan(
       source.indexOf("<Dialog.Content"),
@@ -290,13 +316,13 @@ describe("Field Notes stamp tooltip presentation", () => {
       "animation: field-notes-album-close 280ms cubic-bezier(.55,.02,.78,.28) both",
     );
     expect(source).toContain(
-      "animation: field-notes-mobile-overlay-in 620ms",
+      "animation: field-notes-mobile-overlay-in 700ms",
     );
     expect(source).toContain(
-      "animation: field-notes-mobile-album-open 680ms",
+      "animation: field-notes-mobile-album-open 760ms",
     );
     expect(source).toContain(
-      "animation: field-notes-mobile-album-close 340ms",
+      "animation: field-notes-mobile-album-close 380ms",
     );
   });
 

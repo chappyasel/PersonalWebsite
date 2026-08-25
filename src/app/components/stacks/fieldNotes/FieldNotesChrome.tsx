@@ -2031,7 +2031,7 @@ function MobileAwardNotice({
         aria-label={`Open Field Notes to view ${note.title}`}
         onClick={onOpen}
         data-ready={flightStyle ? "true" : "false"}
-        className="field-notes-mobile-award pointer-events-auto relative block h-10 w-full text-left text-[#6e382d] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f6e6c8]"
+        className="field-notes-mobile-award pointer-events-auto relative block min-h-10 w-full text-left text-[#6e382d] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f6e6c8]"
       >
         <span
           ref={stampRef}
@@ -2042,11 +2042,11 @@ function MobileAwardNotice({
         >
           <StampPaper note={note} />
         </span>
-        <span className="field-notes-paper-slip field-notes-mobile-award-copy absolute bottom-0 left-11 right-0 top-0 flex min-w-0 flex-col justify-center px-2 py-1">
-          <span className="field-notes-award-kicker field-notes-hand field-notes-strong block truncate leading-4 tracking-[0.02em] opacity-55">
+        <span className="field-notes-paper-slip field-notes-mobile-award-copy relative ml-11 inline-flex min-h-10 flex-col justify-center px-2 py-1">
+          <span className="field-notes-award-kicker field-notes-hand field-notes-strong block leading-4 tracking-[0.02em] opacity-55">
             Field note found
           </span>
-          <span className="field-notes-award-title field-notes-hand block truncate font-bold leading-4">
+          <span className="field-notes-award-title field-notes-hand block font-bold leading-4">
             {note.title}
           </span>
         </span>
@@ -2111,7 +2111,7 @@ function AwardNotice({
         aria-label={`Open Field Notes to view ${note.title}`}
         onClick={onOpen}
         data-ready={flightStyle ? "true" : "false"}
-        className="field-notes-paper-slip field-notes-award-copy absolute left-[4.65rem] top-2 min-w-40 -rotate-1 cursor-pointer px-3 py-2 text-left text-[#6e382d] transition-[background-color,border-color] hover:border-[#8e4f3b]/45 hover:bg-[#f9ebcf] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f6e6c8]"
+        className="field-notes-paper-slip field-notes-award-copy absolute left-[4.65rem] top-2 -rotate-1 cursor-pointer px-3 py-2 text-left text-[#6e382d] transition-[background-color,border-color] hover:border-[#8e4f3b]/45 hover:bg-[#f9ebcf] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f6e6c8]"
       >
         <span
           aria-hidden
@@ -2312,8 +2312,22 @@ export default function FieldNotesChrome() {
         .field-notes-mobile-award-copy {
           --field-notes-rule-step: 16px;
           --field-notes-rule-offset: 5px;
+          box-sizing: border-box;
+          inline-size: max-content;
+          min-inline-size: var(--field-notes-award-copy-min);
+          max-inline-size: var(--field-notes-award-copy-max);
           background-image: var(--field-notes-rules);
           background-position: 0 var(--field-notes-rule-offset);
+          white-space: normal;
+          overflow-wrap: anywhere;
+        }
+        .field-notes-award-copy {
+          --field-notes-award-copy-min: min(9rem, calc(100vw - 7rem));
+          --field-notes-award-copy-max: min(20rem, calc(100vw - 7rem));
+        }
+        .field-notes-mobile-award-copy {
+          --field-notes-award-copy-min: min(8rem, calc(100vw - 5.25rem));
+          --field-notes-award-copy-max: min(15rem, calc(100vw - 5.25rem));
         }
         .field-notes-album-overlay[data-state="open"] {
           animation: field-notes-album-overlay-in 360ms ease-out both;
@@ -2339,10 +2353,10 @@ export default function FieldNotesChrome() {
           transform: translateY(10px) rotateX(2.4deg) scale(.965);
         }
         .field-notes-mobile-stage[data-mobile-entry="open"] {
-          animation: field-notes-mobile-stage-open 640ms cubic-bezier(.22,.74,.2,1) both;
+          animation: field-notes-mobile-stage-open 720ms cubic-bezier(.2,.68,.2,1) both;
         }
         .field-notes-album[data-state="closed"] .field-notes-mobile-stage {
-          animation: field-notes-mobile-stage-close 320ms cubic-bezier(.4,0,.55,1) both;
+          animation: field-notes-mobile-stage-close 360ms cubic-bezier(.32,0,.28,1) both;
         }
         .field-notes-album[data-state="open"] .field-notes-close-motion {
           animation: field-notes-close-control-in 320ms 190ms cubic-bezier(.16,1,.3,1) both;
@@ -2355,16 +2369,16 @@ export default function FieldNotesChrome() {
             background-color: rgba(87,69,53,.14) !important;
           }
           .field-notes-album-overlay[data-state="open"] {
-            animation: field-notes-mobile-overlay-in 620ms cubic-bezier(.22,.72,.2,1) both;
+            animation: field-notes-mobile-overlay-in 700ms cubic-bezier(.2,.68,.2,1) both;
           }
           .field-notes-album-overlay[data-state="closed"] {
-            animation: field-notes-mobile-overlay-out 360ms cubic-bezier(.4,0,.55,1) both;
+            animation: field-notes-mobile-overlay-out 400ms cubic-bezier(.32,0,.28,1) both;
           }
           .field-notes-album[data-state="open"] {
-            animation: field-notes-mobile-album-open 680ms cubic-bezier(.22,.74,.2,1) both;
+            animation: field-notes-mobile-album-open 760ms cubic-bezier(.2,.68,.2,1) both;
           }
           .field-notes-album[data-state="closed"] {
-            animation: field-notes-mobile-album-close 340ms cubic-bezier(.4,0,.55,1) both;
+            animation: field-notes-mobile-album-close 380ms cubic-bezier(.32,0,.28,1) both;
           }
         }
         .field-notes-book-count {
@@ -3826,11 +3840,15 @@ export default function FieldNotesChrome() {
         @keyframes field-notes-mobile-overlay-in {
           0% { opacity: 0; }
           42% { opacity: .46; }
+          82% { opacity: .9; }
+          94% { opacity: .98; }
           100% { opacity: 1; }
         }
         @keyframes field-notes-mobile-overlay-out {
           0% { opacity: 1; }
-          55% { opacity: .36; }
+          55% { opacity: .42; }
+          82% { opacity: .14; }
+          94% { opacity: .04; }
           100% { opacity: 0; }
         }
         @keyframes field-notes-album-open {
@@ -3876,9 +3894,14 @@ export default function FieldNotesChrome() {
             box-shadow: inset 0 0 0 2px rgba(231,190,122,.09), inset 0 0 26px rgba(25,12,7,.42), var(--field-notes-book-shadow-entry);
           }
           72% {
-            opacity: 1;
+            opacity: .96;
             transform: perspective(1200px) translate3d(-50%,-50%,0) rotateX(-.12deg) rotateZ(.04deg) scale(1.003);
             box-shadow: inset 0 0 0 2px rgba(231,190,122,.1), inset 0 0 26px rgba(25,12,7,.42), var(--field-notes-book-shadow-peak);
+          }
+          90% {
+            opacity: .992;
+            transform: perspective(1200px) translate3d(-50%,-50%,0) rotateX(-.03deg) rotateZ(.01deg) scale(1.0006);
+            box-shadow: inset 0 0 0 2px rgba(231,190,122,.1), inset 0 0 26px rgba(25,12,7,.42), var(--field-notes-book-shadow-rest);
           }
           100% {
             opacity: 1;
@@ -3894,6 +3917,14 @@ export default function FieldNotesChrome() {
           58% {
             opacity: .74;
             transform: perspective(1200px) translate3d(-50%,-49.35%,0) rotateX(.6deg) rotateZ(-.08deg) scale(.988);
+          }
+          82% {
+            opacity: .34;
+            transform: perspective(1200px) translate3d(-50%,-48.45%,0) rotateX(1.65deg) rotateZ(-.25deg) scale(.974);
+          }
+          94% {
+            opacity: .18;
+            transform: perspective(1200px) translate3d(-50%,-48.08%,0) rotateX(2.08deg) rotateZ(-.33deg) scale(.969);
           }
           100% {
             opacity: .14;
@@ -3913,12 +3944,15 @@ export default function FieldNotesChrome() {
         @keyframes field-notes-mobile-stage-open {
           0% { opacity: .46; transform: translateY(10px) rotateX(2.4deg) scale(.965); }
           38% { opacity: .78; transform: translateY(3px) rotateX(.5deg) scale(.988); }
-          74% { opacity: 1; transform: translateY(-1px) rotateX(-.12deg) scale(1.003); }
+          74% { opacity: .96; transform: translateY(-1px) rotateX(-.12deg) scale(1.003); }
+          90% { opacity: .994; transform: translateY(-.2px) rotateX(-.03deg) scale(1.0005); }
           100% { opacity: 1; transform: translateY(0) rotateX(0deg) scale(1); }
         }
         @keyframes field-notes-mobile-stage-close {
           0% { opacity: 1; transform: translateY(0) rotateX(0deg) scale(1); }
           58% { opacity: .72; transform: translateY(3px) rotateX(.65deg) scale(.988); }
+          82% { opacity: .38; transform: translateY(6.5px) rotateX(1.45deg) scale(.976); }
+          94% { opacity: .22; transform: translateY(8.4px) rotateX(1.88deg) scale(.971); }
           100% { opacity: .18; transform: translateY(9px) rotateX(2deg) scale(.97); }
         }
         @keyframes field-notes-close-control-in {
