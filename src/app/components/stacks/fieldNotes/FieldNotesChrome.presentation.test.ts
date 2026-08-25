@@ -165,6 +165,61 @@ describe("Field Notes stamp tooltip presentation", () => {
     expect(source).toContain("width: min(16rem, calc(100vw - 3.25rem));");
   });
 
+  it("centers every intrinsic award slip on the fixed lane anchor", () => {
+    expect(mobileAward).not.toContain("relative ml-11 inline-flex");
+    expect(awardNotice).not.toContain("left-[4.65rem]");
+    expect(source).toMatch(
+      /\.field-notes-award-scene,\s*\.field-notes-mobile-award-shell \{[\s\S]*?--field-notes-award-copy-anchor-x: 50%;/,
+    );
+    expect(source).toMatch(
+      /\.field-notes-award-copy,\s*\.field-notes-mobile-award-copy \{[\s\S]*?inset-inline-start: var\(--field-notes-award-copy-anchor-x\);[\s\S]*?translate: -50% 0;/,
+    );
+
+    // Individual translate remains composed with the animated transform, so
+    // the paper stays centered through motion and reduced-motion rendering.
+    expect(source).toMatch(
+      /@keyframes field-notes-award-copy[\s\S]*?transform: translate3d/,
+    );
+    const reducedMotion = source.slice(
+      source.indexOf("@media (prefers-reduced-motion: reduce)"),
+    );
+    expect(reducedMotion).not.toMatch(
+      /\.field-notes-award-copy,\s*\.field-notes-award-copy\[data-ready="true"\] \{[^}]*left: 0;/,
+    );
+
+    const mobileLaneWidth = 16 * 16;
+    const mobileViewportWidth = 320;
+    const mobileWidths = [
+      8 * 16,
+      11.5 * 16,
+      mobileViewportWidth - 5.25 * 16,
+    ];
+    for (const width of mobileWidths) {
+      const left = mobileViewportWidth / 2 - width / 2;
+      expect(left + width / 2).toBe(mobileViewportWidth / 2);
+      expect(left).toBeGreaterThanOrEqual(
+        (mobileViewportWidth - mobileLaneWidth) / 2,
+      );
+      expect(left + width).toBeLessThanOrEqual(
+        mobileViewportWidth - (mobileViewportWidth - mobileLaneWidth) / 2,
+      );
+    }
+
+    const desktopLaneWidth = 15 * 16;
+    const desktopAnchor = desktopLaneWidth / 2;
+    for (const width of [9 * 16, 14 * 16, 20 * 16]) {
+      const left = desktopAnchor - width / 2;
+      expect(left + width / 2).toBe(desktopAnchor);
+    }
+
+    expect(mobileAward).toContain(
+      "field-notes-mobile-award-stamp absolute z-[2] size-24",
+    );
+    expect(awardNotice).toContain(
+      "field-notes-award-stamp absolute left-0 top-0 size-24",
+    );
+  });
+
   it("renders two counter-rotating rarity sunray layers", () => {
     expect(mobileAward).toContain("data-rarity={note.rarity.toLowerCase()}");
     expect(awardNotice).toContain("data-rarity={note.rarity.toLowerCase()}");

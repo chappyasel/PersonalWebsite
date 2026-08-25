@@ -2042,7 +2042,7 @@ function MobileAwardNotice({
         >
           <StampPaper note={note} />
         </span>
-        <span className="field-notes-paper-slip field-notes-mobile-award-copy relative ml-11 inline-flex min-h-10 flex-col justify-center px-2 py-1">
+        <span className="field-notes-paper-slip field-notes-mobile-award-copy relative inline-flex min-h-10 flex-col justify-center px-2 py-1">
           <span className="field-notes-award-kicker field-notes-hand field-notes-strong block leading-4 tracking-[0.02em] opacity-55">
             Field note found
           </span>
@@ -2111,7 +2111,7 @@ function AwardNotice({
         aria-label={`Open Field Notes to view ${note.title}`}
         onClick={onOpen}
         data-ready={flightStyle ? "true" : "false"}
-        className="field-notes-paper-slip field-notes-award-copy absolute left-[4.65rem] top-2 -rotate-1 cursor-pointer px-3 py-2 text-left text-[#6e382d] transition-[background-color,border-color] hover:border-[#8e4f3b]/45 hover:bg-[#f9ebcf] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f6e6c8]"
+        className="field-notes-paper-slip field-notes-award-copy absolute top-2 -rotate-1 cursor-pointer px-3 py-2 text-left text-[#6e382d] transition-[background-color,border-color] hover:border-[#8e4f3b]/45 hover:bg-[#f9ebcf] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f6e6c8]"
       >
         <span
           aria-hidden
@@ -2316,6 +2316,8 @@ export default function FieldNotesChrome() {
           inline-size: max-content;
           min-inline-size: var(--field-notes-award-copy-min);
           max-inline-size: var(--field-notes-award-copy-max);
+          inset-inline-start: var(--field-notes-award-copy-anchor-x);
+          translate: -50% 0;
           background-image: var(--field-notes-rules);
           background-position: 0 var(--field-notes-rule-offset);
           white-space: normal;
@@ -3509,6 +3511,7 @@ export default function FieldNotesChrome() {
         }
         .field-notes-award-scene,
         .field-notes-mobile-award-shell {
+          --field-notes-award-copy-anchor-x: 50%;
           --field-notes-award-ray-inner: rgba(255,244,205,.58);
           --field-notes-award-ray-outer: rgba(225,184,111,.3);
           --field-notes-award-ray-peak: .5;
@@ -4275,7 +4278,6 @@ export default function FieldNotesChrome() {
           }
           .field-notes-award-copy,
           .field-notes-award-copy[data-ready="true"] {
-            left: 0;
             opacity: 1;
             pointer-events: auto;
             transform: none;
