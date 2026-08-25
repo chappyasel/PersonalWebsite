@@ -1,7 +1,7 @@
 import { Keycap } from "~/components/ui/keycap";
 
 const labelClassName =
-  "stacks-on-background-text whitespace-nowrap rounded-sm font-serif text-base tracking-tight text-foreground min-[1200px]:text-lg";
+  "stacks-mobile-secondary-chrome stacks-on-background-text whitespace-nowrap rounded-sm font-serif text-base tracking-tight text-foreground min-[1200px]:text-lg";
 
 export default function ChromeKeyboardHelp({
   open,

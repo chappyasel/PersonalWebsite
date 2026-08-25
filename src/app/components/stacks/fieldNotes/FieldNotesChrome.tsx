@@ -1960,7 +1960,7 @@ function FieldNotesTrigger({
             aria-label={`Open Field Notes, ${status}`}
             aria-keyshortcuts="F"
             onClick={openFieldNotes}
-            className={`field-notes-trigger stacks-on-background-text pointer-events-auto grid size-9 place-items-center rounded-full text-foreground transition-[color,transform,background-color] hover:bg-foreground/[0.09] hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current active:scale-95 active:bg-foreground/[0.14] motion-reduce:transition-none ${collecting ? "bg-foreground/[0.07] text-foreground" : "text-foreground/75"}`}
+            className={`field-notes-trigger stacks-mobile-secondary-chrome stacks-on-background-text pointer-events-auto grid size-9 place-items-center rounded-full text-foreground transition-[color,transform,background-color] hover:bg-foreground/[0.09] hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current active:scale-95 active:bg-foreground/[0.14] motion-reduce:transition-none ${collecting ? "bg-foreground/[0.07] text-foreground" : "text-foreground/75"}`}
           >
             <CollectionGlyph
               key={awardId ?? "idle"}
@@ -3721,7 +3721,7 @@ export default function FieldNotesChrome() {
           border-radius: .6rem .48rem .56rem .44rem;
         }
         .field-notes-trigger-cluster[data-first-reveal="true"] .field-notes-trigger {
-          animation: field-notes-trigger-reveal 360ms cubic-bezier(.16,1,.3,1) both;
+          animation: field-notes-trigger-reveal 360ms cubic-bezier(.16,1,.3,1);
         }
         .field-notes-trigger-title {
           display: inline-block;
@@ -3901,7 +3901,7 @@ export default function FieldNotesChrome() {
         }
         @keyframes field-notes-trigger-reveal {
           from { opacity: 0; transform: translateY(-3px) scale(.72); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
+          to { opacity: var(--stacks-secondary-chrome-idle-opacity, 1); transform: translateY(0) scale(1); }
         }
         @keyframes field-notes-award-rays-counterclockwise {
           0% { opacity: 0; transform: translate(-50%,-50%) rotate(18deg) scale(.44); }
