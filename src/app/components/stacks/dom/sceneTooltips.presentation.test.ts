@@ -12,6 +12,7 @@ const objects = read("./PortalLabel.tsx");
 const fieldNotes = read("../fieldNotes/FieldNotesChrome.tsx");
 const rail = read("./UnitRail.tsx");
 const home = read("../StacksHome.tsx");
+const capability = read("../../../../lib/useTapFirstCapability.ts");
 
 describe("tooltip presentation", () => {
   it("uses the Field Notes glass as the global tooltip surface", () => {
@@ -40,15 +41,30 @@ describe("tooltip presentation", () => {
     );
   });
 
-  it("names compact navigation icons on hover and keyboard focus", () => {
+  it("names compact navigation icons on desktop hover and keyboard focus", () => {
+    expect(rail).toContain("const tapFirst = useTapFirstCapability();");
     expect(rail).toContain('role="tooltip"');
     expect(rail).toContain(
-      "aria-describedby={`stacks-rail-tooltip-${unit.slug}`}",
+      "tapFirst ? undefined : `stacks-rail-tooltip-${unit.slug}`",
     );
+    expect(rail).toContain("{!tapFirst && (");
     expect(rail).toContain(
       ".stacks-rail-row:focus-visible .stacks-rail-tooltip",
     );
     expect(rail).toContain(".stacks-rail-row:hover .stacks-rail-tooltip");
+  });
+
+  it("does not mount scene tooltip or keycap content for tap-first input", () => {
+    expect(capability).toContain('"(hover: none) and (pointer: coarse)"');
+    expect(capability).not.toContain("width < 1200px");
+    expect(primitive).toContain(
+      "if (tooltip && !tooltip.enabled) return null;",
+    );
+    expect(primitive).toContain("if (!enabled && next) return;");
+    expect(details).toContain("{!coarseTouchCapability && (");
+    expect(details).toContain(
+      'coarseTouchCapability ? undefined : "stacks-details-tooltip"',
+    );
   });
 
   it("keeps typography out of the shared surface", () => {

@@ -5,7 +5,6 @@
 // listeners are development-only and these keys have to work in production.
 // See chromeKeys.ts for the map and the reasoning behind each key.
 import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
-import { useCoarseTouchCapability } from "../input/useCoarseTouchCapability";
 import {
   effectivePlacardGlassMode,
   useScenePerformanceSettings,
@@ -13,6 +12,8 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Fragment, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+
+import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
 
 import { Keycap } from "~/components/ui/keycap";
 
@@ -33,7 +34,7 @@ export default function ChromeKeyboard({
 }) {
   const reduceMotion = useReducedMotion();
   const performanceSettings = useScenePerformanceSettings();
-  const coarseTouchCapability = useCoarseTouchCapability();
+  const coarseTouchCapability = useTapFirstCapability();
   const glassMode = effectivePlacardGlassMode(
     performanceSettings.placardGlassMode,
     coarseTouchCapability,

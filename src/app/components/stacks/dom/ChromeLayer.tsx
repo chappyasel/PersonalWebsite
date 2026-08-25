@@ -4,7 +4,6 @@
 // persistent name, and the theme toggle island. Everything except the toggle
 // island is pointer-events-none; interactive layers manage their own events.
 import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
-import { useCoarseTouchCapability } from "../input/useCoarseTouchCapability";
 import {
   requestDevHooks,
   requestSceneHooks,
@@ -23,6 +22,8 @@ import {
 import { setStacksSheetDismissed, useStacks } from "../store";
 import dynamic from "next/dynamic";
 import { type ComponentType, useEffect, useState } from "react";
+
+import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
 
 import { ThemeToggle } from "~/components/ui/theme-toggle";
 
@@ -230,7 +231,7 @@ export default function ChromeLayer() {
   // DOM bottom fade on top double-darkens the floor (audit §2.1).
   const postfx = useStacks((s) => s.postfx);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
-  const tapFirst = useCoarseTouchCapability();
+  const tapFirst = useTapFirstCapability();
 
   useEffect(() => {
     if (tapFirst) setKeyboardOpen(false);

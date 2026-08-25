@@ -76,6 +76,7 @@ const MOBILE_STAMP_PAGE_COUNT = Math.ceil(
 const DESKTOP_SPREAD_COUNT = Math.ceil((DESKTOP_STAMP_PAGE_COUNT + 1) / 2);
 const MOBILE_PAGE_COUNT = MOBILE_STAMP_PAGE_COUNT + 1;
 const AWARD_ANIMATION_MS = 5600;
+const FIRST_TRIGGER_REVEAL_MS = 420;
 
 const STAMP_PALETTES = [
   {
@@ -1673,10 +1674,29 @@ function MobileBookStage({
   onNext: () => void;
 }) {
   const visiblePage = turn?.to ?? page;
+  const [entryReady, setEntryReady] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
+
+  useEffect(() => {
+    if (entryReady) return;
+    let secondFrame = 0;
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => setEntryReady(true));
+    });
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+    };
+  }, [entryReady]);
 
   return (
     <div
       aria-busy={turn !== null}
+      data-mobile-entry={entryReady ? "open" : "preparing"}
       className={`field-notes-mobile-stage relative ${turn ? "pointer-events-none" : ""}`}
     >
       <div className="field-notes-page-block overflow-hidden rounded-md border border-[#b9a789]">
@@ -1913,7 +1933,7 @@ function CollectionGlyph({
   );
 }
 
-function PrototypeTrigger({
+function FieldNotesTrigger({
   awardId,
   foundCount,
   onOpen,
@@ -2111,6 +2131,8 @@ function AwardNotice({
 
 export default function FieldNotesChrome() {
   const progress = useFieldNotesProgress();
+  const foundCount = totalFound(progress);
+  const showTrigger = foundCount > 0;
   const [open, setOpen] = useState(() =>
     typeof window === "undefined"
       ? false
@@ -2118,6 +2140,8 @@ export default function FieldNotesChrome() {
   );
   const openRef = useRef(open);
   const [awardQueue, setAwardQueue] = useState<FieldNoteId[]>([]);
+  const [firstAwardReleased, setFirstAwardReleased] = useState(false);
+  const triggerWasVisible = useRef(showTrigger);
   const triggerRef = useRef<HTMLSpanElement>(null);
   const setOpenWithUrl = useCallback((nextState: SetStateAction<boolean>) => {
     const next =
@@ -2152,14 +2176,45 @@ export default function FieldNotesChrome() {
       ),
     [],
   );
+  const firstTriggerRevealPending =
+    showTrigger && awardQueue.length > 0 && !triggerWasVisible.current;
   useEffect(() => {
-    if (!awardQueue.length) return;
+    if (!showTrigger) {
+      triggerWasVisible.current = false;
+      setFirstAwardReleased(false);
+      return;
+    }
+    if (awardQueue.length === 0) triggerWasVisible.current = true;
+  }, [awardQueue.length, showTrigger]);
+  useEffect(() => {
+    if (!firstTriggerRevealPending) return;
+    const reduceMotion =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const timeout = window.setTimeout(
+      () => {
+        triggerWasVisible.current = true;
+        setFirstAwardReleased(true);
+      },
+      reduceMotion ? 0 : FIRST_TRIGGER_REVEAL_MS,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [firstTriggerRevealPending]);
+  const activeAwardId =
+    firstTriggerRevealPending && !firstAwardReleased
+      ? undefined
+      : awardQueue[0];
+  const activeAward = activeAwardId
+    ? FIELD_NOTE_BY_ID.get(activeAwardId)
+    : undefined;
+  useEffect(() => {
+    if (!activeAward) return;
     const timeout = window.setTimeout(
       () => setAwardQueue((queue) => queue.slice(1)),
       AWARD_ANIMATION_MS,
     );
     return () => window.clearTimeout(timeout);
-  }, [awardQueue]);
+  }, [activeAward]);
   useEffect(() => {
     if (open) {
       document.documentElement.setAttribute("data-field-notes-open", "");
@@ -2177,10 +2232,6 @@ export default function FieldNotesChrome() {
     [],
   );
 
-  const activeAward = awardQueue[0]
-    ? FIELD_NOTE_BY_ID.get(awardQueue[0])
-    : undefined;
-  const foundCount = totalFound(progress);
   const openAward = () => {
     setAwardQueue([]);
     setOpenWithUrl(true);
@@ -2283,11 +2334,15 @@ export default function FieldNotesChrome() {
         .field-notes-album[data-state="closed"] .field-notes-book-stage {
           animation: field-notes-pages-close 250ms cubic-bezier(.55,.02,.78,.28) both;
         }
-        .field-notes-album[data-state="open"] .field-notes-mobile-stage {
-          animation: field-notes-page-lift-in 520ms cubic-bezier(.18,.82,.22,1) both;
+        .field-notes-mobile-stage[data-mobile-entry="preparing"] {
+          opacity: 0;
+          transform: translateY(18px) rotateX(5deg) scale(.92);
+        }
+        .field-notes-mobile-stage[data-mobile-entry="open"] {
+          animation: field-notes-mobile-stage-open 520ms cubic-bezier(.18,.82,.22,1) both;
         }
         .field-notes-album[data-state="closed"] .field-notes-mobile-stage {
-          animation: field-notes-page-lift-out 240ms cubic-bezier(.55,.02,.78,.28) both;
+          animation: field-notes-mobile-stage-close 240ms cubic-bezier(.55,.02,.78,.28) both;
         }
         .field-notes-album[data-state="open"] .field-notes-close-motion {
           animation: field-notes-close-control-in 320ms 190ms cubic-bezier(.16,1,.3,1) both;
@@ -3665,6 +3720,9 @@ export default function FieldNotesChrome() {
         .field-notes-trigger-tooltip {
           border-radius: .6rem .48rem .56rem .44rem;
         }
+        .field-notes-trigger-cluster[data-first-reveal="true"] .field-notes-trigger {
+          animation: field-notes-trigger-reveal 360ms cubic-bezier(.16,1,.3,1) both;
+        }
         .field-notes-trigger-title {
           display: inline-block;
           letter-spacing: .015em;
@@ -3789,14 +3847,14 @@ export default function FieldNotesChrome() {
           0% { opacity: 1; transform: rotateX(0deg) scaleX(1); }
           100% { opacity: .18; transform: rotateX(3deg) scaleX(.78); }
         }
-        @keyframes field-notes-page-lift-in {
-          0% { opacity: .18; transform: translateY(7px) rotateX(4deg) scale(.96); }
-          62% { opacity: 1; transform: translateY(-1px) rotateX(-.2deg) scale(1.004); }
+        @keyframes field-notes-mobile-stage-open {
+          0% { opacity: 0; transform: translateY(18px) rotateX(5deg) scale(.92); }
+          62% { opacity: 1; transform: translateY(-2px) rotateX(-.35deg) scale(1.008); }
           100% { opacity: 1; transform: translateY(0) rotateX(0deg) scale(1); }
         }
-        @keyframes field-notes-page-lift-out {
+        @keyframes field-notes-mobile-stage-close {
           0% { opacity: 1; transform: translateY(0) rotateX(0deg) scale(1); }
-          100% { opacity: .18; transform: translateY(6px) rotateX(3deg) scale(.96); }
+          100% { opacity: 0; transform: translateY(12px) rotateX(3deg) scale(.95); }
         }
         @keyframes field-notes-close-control-in {
           0% { opacity: 0; transform: translate3d(5px,-5px,0) scale(.72) rotate(12deg); }
@@ -3840,6 +3898,10 @@ export default function FieldNotesChrome() {
           34% { opacity: var(--field-notes-award-ray-rest); transform: translate(-50%,-50%) rotate(62deg) scale(1.03); }
           44% { opacity: var(--field-notes-award-ray-exit); transform: translate(-50%,-50%) rotate(86deg) scale(.96); }
           52%, 100% { opacity: 0; transform: translate(-50%,-50%) rotate(106deg) scale(.76); }
+        }
+        @keyframes field-notes-trigger-reveal {
+          from { opacity: 0; transform: translateY(-3px) scale(.72); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
         }
         @keyframes field-notes-award-rays-counterclockwise {
           0% { opacity: 0; transform: translate(-50%,-50%) rotate(18deg) scale(.44); }
@@ -4084,6 +4146,9 @@ export default function FieldNotesChrome() {
             animation: none;
             transition: none;
           }
+          .field-notes-trigger-cluster[data-first-reveal="true"] .field-notes-trigger {
+            animation: none;
+          }
           .field-notes-completion-foil::after {
             transform: translateX(0);
             opacity: .28;
@@ -4162,20 +4227,25 @@ export default function FieldNotesChrome() {
         }
       `}</style>
       <Dialog.Root open={open} onOpenChange={setOpenWithUrl}>
-        <div className="field-notes-trigger-cluster relative flex items-center">
-          <PrototypeTrigger
-            awardId={activeAward?.id}
-            foundCount={foundCount}
-            onOpen={() => setOpenWithUrl(true)}
-            targetRef={triggerRef}
-          />
-          <MobileAwardNotice
-            key={activeAward?.id ?? "idle"}
-            note={activeAward}
-            onOpen={openAward}
-            triggerRef={triggerRef}
-          />
-        </div>
+        {showTrigger && (
+          <div
+            data-first-reveal={firstTriggerRevealPending ? "true" : undefined}
+            className="field-notes-trigger-cluster relative flex items-center"
+          >
+            <FieldNotesTrigger
+              awardId={activeAward?.id}
+              foundCount={foundCount}
+              onOpen={() => setOpenWithUrl(true)}
+              targetRef={triggerRef}
+            />
+            <MobileAwardNotice
+              key={activeAward?.id ?? "idle"}
+              note={activeAward}
+              onOpen={openAward}
+              triggerRef={triggerRef}
+            />
+          </div>
+        )}
         <AwardNotice
           key={activeAward?.id ?? "idle"}
           note={activeAward}

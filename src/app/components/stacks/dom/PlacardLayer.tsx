@@ -15,7 +15,6 @@ import {
   unitUrlForLocation,
 } from "../data";
 import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
-import { useCoarseTouchCapability } from "../input/useCoarseTouchCapability";
 import { PHOTO_SOURCES } from "../photoSources";
 import {
   effectivePlacardGlassMode,
@@ -72,6 +71,7 @@ import type {
   HomepageBookPlacard,
   HomepageBookPreview,
 } from "~/lib/books/types";
+import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
 import { devSubdomainUrl } from "~/lib/util";
 
 import { Keycap } from "~/components/ui/keycap";
@@ -2224,7 +2224,7 @@ export default function PlacardLayer({
   const mobileDismissed = useStacks((s) => s.sheetDismissed);
   const reduceMotion = useStacksReducedMotion();
   const performanceSettings = useScenePerformanceSettings();
-  const coarseTouchCapability = useCoarseTouchCapability();
+  const coarseTouchCapability = useTapFirstCapability();
   const glassMode = effectivePlacardGlassMode(
     performanceSettings.placardGlassMode,
     coarseTouchCapability,
@@ -3132,35 +3132,39 @@ export default function PlacardLayer({
         }`}
         style={{ top: "calc(50% - 1.375rem)" }}
       >
-        <span
-          id="stacks-details-tooltip"
-          role="tooltip"
-          className="field-notes-glass-tooltip pointer-events-none absolute right-full top-1/2 -mr-1.5 -translate-y-1/2 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium tracking-[0.01em] opacity-0 backdrop-blur-xl backdrop-saturate-150 transition-[opacity,transform] duration-200 group-focus-within:opacity-100 group-hover:opacity-100 motion-reduce:transition-none"
-        >
-          <span className="relative block h-5 w-[6.8rem] overflow-hidden whitespace-nowrap text-center leading-5">
-            <AnimatePresence initial={false} mode="popLayout">
-              <motion.span
-                key={detailsHidden ? "show" : "hide"}
-                className="absolute inset-0 flex items-center justify-center gap-1.5"
-                initial={{ opacity: 0, y: detailsHidden ? 5 : -5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: detailsHidden ? -5 : 5 }}
-                transition={{
-                  duration: reduceMotion ? 0 : 0.18,
-                  ease: [0.16, 1, 0.3, 1],
-                }}
-              >
-                <span>{detailsHidden ? "Show details" : "Hide details"}</span>
-                <Keycap aria-hidden="true">{"\\"}</Keycap>
-              </motion.span>
-            </AnimatePresence>
+        {!coarseTouchCapability && (
+          <span
+            id="stacks-details-tooltip"
+            role="tooltip"
+            className="field-notes-glass-tooltip pointer-events-none absolute right-full top-1/2 -mr-1.5 -translate-y-1/2 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium tracking-[0.01em] opacity-0 backdrop-blur-xl backdrop-saturate-150 transition-[opacity,transform] duration-200 group-focus-within:opacity-100 group-hover:opacity-100 motion-reduce:transition-none"
+          >
+            <span className="relative block h-5 w-[6.8rem] overflow-hidden whitespace-nowrap text-center leading-5">
+              <AnimatePresence initial={false} mode="popLayout">
+                <motion.span
+                  key={detailsHidden ? "show" : "hide"}
+                  className="absolute inset-0 flex items-center justify-center gap-1.5"
+                  initial={{ opacity: 0, y: detailsHidden ? 5 : -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: detailsHidden ? -5 : 5 }}
+                  transition={{
+                    duration: reduceMotion ? 0 : 0.18,
+                    ease: [0.16, 1, 0.3, 1],
+                  }}
+                >
+                  <span>{detailsHidden ? "Show details" : "Hide details"}</span>
+                  <Keycap aria-hidden="true">{"\\"}</Keycap>
+                </motion.span>
+              </AnimatePresence>
+            </span>
           </span>
-        </span>
+        )}
         <button
           type="button"
           data-stacks-details-toggle=""
           aria-label={detailsHidden ? "Show details" : "Hide details"}
-          aria-describedby="stacks-details-tooltip"
+          aria-describedby={
+            coarseTouchCapability ? undefined : "stacks-details-tooltip"
+          }
           aria-controls="stacks-desktop-details"
           aria-expanded={!detailsHidden}
           onClick={() => setDetailsHidden((hidden) => !hidden)}

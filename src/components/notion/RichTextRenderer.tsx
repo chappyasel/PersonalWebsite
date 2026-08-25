@@ -2,14 +2,13 @@ import Image from "next/image";
 import Link from "next/link";
 import React from "react";
 
+import type { BookLookup, RichText } from "~/components/notion/types";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "~/components/ui/tooltip";
-
-import type { BookLookup, RichText } from "~/components/notion/types";
 
 const customEmojiMap: Record<string, { src: string; alt: string }> = {
   ":weightlifting-app:": {
@@ -78,7 +77,7 @@ function renderMBTIInline(text: string): React.ReactNode {
     <TooltipProvider delayDuration={200}>
       {before}
       {letters.split("").map((char, i) => (
-        <Tooltip key={i}>
+        <Tooltip key={i} allowTapFirst>
           <TooltipTrigger asChild>
             <span
               className={`cursor-help font-semibold ${mbtiColors[char] ?? ""}`}
@@ -92,7 +91,7 @@ function renderMBTIInline(text: string): React.ReactNode {
         </Tooltip>
       ))}
       <span className="text-muted-foreground/40">-</span>
-      <Tooltip>
+      <Tooltip allowTapFirst>
         <TooltipTrigger asChild>
           <span
             className={`cursor-help font-semibold ${mbtiColors[variant] ?? ""}`}
@@ -110,7 +109,9 @@ function renderMBTIInline(text: string): React.ReactNode {
 }
 
 function extractBookSlug(text: string): string | null {
-  const match = /^https?:\/\/books\.chappyasel\.com\/([a-z0-9-]+)\/?$/.exec(text);
+  const match = /^https?:\/\/books\.chappyasel\.com\/([a-z0-9-]+)\/?$/.exec(
+    text,
+  );
   return match?.[1] ?? null;
 }
 
@@ -118,7 +119,19 @@ function humanizeSlug(slug: string): string {
   return slug
     .split("-")
     .map((w) =>
-      ["a", "an", "the", "of", "and", "for", "in", "on", "to", "with", "is"].includes(w)
+      [
+        "a",
+        "an",
+        "the",
+        "of",
+        "and",
+        "for",
+        "in",
+        "on",
+        "to",
+        "with",
+        "is",
+      ].includes(w)
         ? w
         : w.charAt(0).toUpperCase() + w.slice(1),
     )

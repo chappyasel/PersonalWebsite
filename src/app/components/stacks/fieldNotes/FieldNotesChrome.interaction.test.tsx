@@ -9,7 +9,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TooltipProvider } from "~/components/ui/tooltip";
 
@@ -22,27 +22,39 @@ import {
   FIELD_NOTE_PLACEMENT_STORAGE_KEY,
   resetFieldNotePlacements,
 } from "./placement";
-import { EMPTY_FIELD_NOTES_PROGRESS } from "./progress";
+import {
+  EMPTY_FIELD_NOTES_PROGRESS,
+  recordFieldNoteEvent,
+  resetFieldNotes,
+} from "./progress";
+
+function earnFindingBeforeMount() {
+  recordFieldNoteEvent({ type: "photo-mode-entered" });
+}
 
 describe("Field Notes stamp interactions", () => {
+  beforeEach(() => resetFieldNotes());
+
   afterEach(() => {
     cleanup();
+    resetFieldNotes();
     vi.useRealTimers();
     vi.unstubAllEnvs();
     window.localStorage.clear();
     window.history.replaceState(null, "", "/");
   });
 
-  it("renders the new Field Notes album in production", () => {
+  it("keeps the zero-count trigger and all zero-count copy out of production", () => {
     vi.stubEnv("NODE_ENV", "production");
 
     render(<FieldNotesChrome />);
 
     expect(
-      screen.getByRole("button", {
-        name: `Open Field Notes, 0 of ${FIELD_NOTE_BY_ID.size} found`,
-      }),
-    ).toBeTruthy();
+      screen.queryByRole("button", { name: /Open Field Notes/ }),
+    ).toBeNull();
+    expect(document.querySelector('[aria-label*="0 of"]')).toBeNull();
+    expect(screen.queryByText(/0 of \d+ found/)).toBeNull();
+    expect(screen.queryByRole("tooltip")).toBeNull();
   });
 
   it("opens from the canonical Field Notes URL parameter", () => {
@@ -56,11 +68,12 @@ describe("Field Notes stamp interactions", () => {
   });
 
   it("adds the Field Notes URL parameter when opened", () => {
+    earnFindingBeforeMount();
     render(<FieldNotesChrome />);
 
     fireEvent.click(
       screen.getByRole("button", {
-        name: `Open Field Notes, 0 of ${FIELD_NOTE_BY_ID.size} found`,
+        name: `Open Field Notes, 1 of ${FIELD_NOTE_BY_ID.size} found`,
       }),
     );
 
@@ -83,11 +96,12 @@ describe("Field Notes stamp interactions", () => {
   it("preserves unrelated query parameters, the hash, and history state", () => {
     const state = { from: "field-map" };
     window.history.replaceState(state, "", "/?debug=1&view=map#books");
+    earnFindingBeforeMount();
     render(<FieldNotesChrome />);
 
     fireEvent.click(
       screen.getByRole("button", {
-        name: `Open Field Notes, 0 of ${FIELD_NOTE_BY_ID.size} found`,
+        name: `Open Field Notes, 1 of ${FIELD_NOTE_BY_ID.size} found`,
       }),
     );
 
@@ -121,6 +135,43 @@ describe("Field Notes stamp interactions", () => {
     expect(
       screen.queryByRole("dialog", { name: "Field Notes album" }),
     ).toBeNull();
+  });
+
+  it("establishes the first trigger before starting its award sequence", async () => {
+    vi.useFakeTimers();
+    render(<FieldNotesChrome />);
+
+    await act(async () => {
+      recordFieldNoteEvent({ type: "photo-mode-entered" });
+      await Promise.resolve();
+    });
+
+    const trigger = screen.getByRole("button", {
+      name: `Open Field Notes, 1 of ${FIELD_NOTE_BY_ID.size} found`,
+    });
+    expect(
+      trigger.closest("[data-first-reveal]")?.getAttribute("data-first-reveal"),
+    ).toBe("true");
+    expect(
+      screen.queryAllByRole("button", {
+        name: "Open Field Notes to view Photo Finish",
+      }),
+    ).toHaveLength(0);
+
+    await act(async () => vi.advanceTimersByTime(419));
+    expect(
+      screen.queryAllByRole("button", {
+        name: "Open Field Notes to view Photo Finish",
+      }),
+    ).toHaveLength(0);
+
+    await act(async () => vi.advanceTimersByTime(1));
+    expect(
+      screen.getAllByRole("button", {
+        name: "Open Field Notes to view Photo Finish",
+      }).length,
+    ).toBeGreaterThan(0);
+    expect(trigger.closest("[data-first-reveal]")).toBeNull();
   });
 
   it("shows the stamp title and hint when its mount is hovered", async () => {

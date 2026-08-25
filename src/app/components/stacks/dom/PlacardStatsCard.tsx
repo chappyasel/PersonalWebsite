@@ -3,6 +3,7 @@ import type { Icon } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
 import { cn } from "~/lib/util";
 
 import { tooltipSurfaceClassName } from "~/components/ui/tooltip";
@@ -120,6 +121,7 @@ function PlacardYearBars({
   unit: string;
   compactMobile?: boolean;
 }) {
+  const tapFirst = useTapFirstCapability();
   const [touchedYear, setTouchedYear] = useState<number | null>(null);
   const max = Math.max(
     1,
@@ -155,10 +157,7 @@ function PlacardYearBars({
               );
             }}
             onClick={(event) => {
-              if (
-                typeof window !== "undefined" &&
-                window.matchMedia("(hover: none)").matches
-              ) {
+              if (tapFirst) {
                 event.preventDefault();
                 event.stopPropagation();
               }

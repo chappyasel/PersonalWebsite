@@ -6,16 +6,14 @@ const layerSource = fs.readFileSync(
   "utf8",
 );
 const capabilitySource = fs.readFileSync(
-  new URL("../input/useCoarseTouchCapability.ts", import.meta.url),
+  new URL("../../../../lib/useTapFirstCapability.ts", import.meta.url),
   "utf8",
 );
 
 describe("keyboard help input policy", () => {
   it("removes the help sheet and affordances on tap-first screens", () => {
     expect(capabilitySource).toContain("(hover: none) and (pointer: coarse)");
-    expect(layerSource).toContain(
-      "const tapFirst = useCoarseTouchCapability();",
-    );
+    expect(layerSource).toContain("const tapFirst = useTapFirstCapability();");
     expect(layerSource).toContain("{!tapFirst && (");
     expect(layerSource).toContain(
       "<ChromeKeyboard open={keyboardOpen} onOpenChange={setKeyboardOpen} />",

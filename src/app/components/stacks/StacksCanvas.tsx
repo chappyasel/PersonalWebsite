@@ -25,13 +25,14 @@ import {
 } from "react";
 import type * as THREE from "three";
 
+import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
+
 import { sceneAudio } from "./audio/sceneAudio";
 import { useWorldBootScope } from "./boot/useWorldBoot";
 import { assetLoadComplete } from "./boot/worldBootMachine";
 import { isWorldRevealed, worldBoot } from "./boot/worldBootSession";
 import { type StacksData, UNIT_COUNT } from "./data";
 import TouchInteractionLayer from "./input/TouchInteractionLayer";
-import { useCoarseTouchCapability } from "./input/useCoarseTouchCapability";
 import { setLoadProgress } from "./loading";
 import { modelArtifactRoomShouldFreeze } from "./modal/modelArtifactHandoff";
 import { cameraTravelDiagnostics } from "./scene/CameraRig";
@@ -658,7 +659,7 @@ function ContextSafeEffects({
  * the start of the R3F frame instead so the HUD/harness see the whole
  * multi-pass frame. */
 function PerformanceProbe() {
-  const coarseTouchCapability = useCoarseTouchCapability();
+  const coarseTouchCapability = useTapFirstCapability();
   const gl = useThree((state) => state.gl);
   const camera = useThree((state) => state.camera);
   useEffect(() => {
@@ -1156,7 +1157,7 @@ export default function StacksCanvas({
   // Read here as well as in the probe: the opening axis state needs it before
   // any frame has been sampled, and a coarse pointer on a narrow viewport is
   // the most reliable pre-frame signal that this is a phone.
-  const coarseTouch = useCoarseTouchCapability();
+  const coarseTouch = useTapFirstCapability();
   const [diagnosticsRequested, setDiagnosticsRequested] = useState(() => {
     if (devHooksRequested()) return true;
     if (typeof window === "undefined") return false;

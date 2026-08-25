@@ -196,6 +196,34 @@ describe("Field Notes stamp tooltip presentation", () => {
     );
   });
 
+  it("gives the mounted mobile stage a real enter phase distinct from close", () => {
+    const mobileStage = source.slice(
+      source.indexOf("function MobileBookStage"),
+      source.indexOf("export function CompactAlbum"),
+    );
+
+    expect(mobileStage).toContain(
+      'data-mobile-entry={entryReady ? "open" : "preparing"}',
+    );
+    expect(source).toContain(
+      '.field-notes-mobile-stage[data-mobile-entry="open"]',
+    );
+    expect(source).toContain("animation: field-notes-mobile-stage-open 520ms");
+    expect(source).toContain("animation: field-notes-mobile-stage-close 240ms");
+    expect(source).toMatch(
+      /@keyframes field-notes-mobile-stage-open[\s\S]*?opacity: 0;[\s\S]*?translateY\(18px\)[\s\S]*?opacity: 1;/,
+    );
+    expect(source).toMatch(
+      /@keyframes field-notes-mobile-stage-close[\s\S]*?opacity: 1;[\s\S]*?opacity: 0;/,
+    );
+    expect(source).toContain(
+      '.field-notes-mobile-stage[data-mobile-entry="preparing"]',
+    );
+    expect(source).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.field-notes-album\[data-state\] \.field-notes-mobile-stage/,
+    );
+  });
+
   it("layers the album above the development diagnostics drawer", () => {
     expect(source).toContain(
       "field-notes-album-overlay bg-[#17212a]/16 fixed inset-0 z-[5000]",

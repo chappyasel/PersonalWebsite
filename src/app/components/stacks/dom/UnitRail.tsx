@@ -33,6 +33,8 @@ import {
   useSyncExternalStore,
 } from "react";
 
+import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
+
 /** Desktop row height, in rem. The rows are `h-9` and the travelling thumb
  * translates by this per unit, so the two must agree — one number, used
  * twice, rather than a class and a magic multiplier that drift apart. */
@@ -205,6 +207,7 @@ function ElasticMobileIndicator({
 }
 
 export default function UnitRail() {
+  const tapFirst = useTapFirstCapability();
   const activeUnit = useStacks((s) => s.activeUnit);
   const golfFocused = useStacks((s) => s.golfFocused);
   const unitMapPreview = useStacks((s) => s.unitMapPreview);
@@ -732,7 +735,9 @@ export default function UnitRail() {
                 }}
                 type="button"
                 aria-label={railLabel}
-                aria-describedby={`stacks-rail-tooltip-${unit.slug}`}
+                aria-describedby={
+                  tapFirst ? undefined : `stacks-rail-tooltip-${unit.slug}`
+                }
                 aria-current={!golfFocused && current ? "page" : undefined}
                 tabIndex={current ? 0 : -1}
                 data-active={active || undefined}
@@ -757,13 +762,15 @@ export default function UnitRail() {
                   weight="bold"
                   className="stacks-rail-icon size-[22px] shrink-0 text-foreground"
                 />
-                <span
-                  id={`stacks-rail-tooltip-${unit.slug}`}
-                  role="tooltip"
-                  className="field-notes-glass-tooltip stacks-rail-tooltip pointer-events-none absolute left-1/2 top-[calc(100%_-_0.1rem)] z-40 w-max max-w-40 rounded-md border px-2.5 py-1.5 font-serif text-xs leading-none backdrop-blur-xl backdrop-saturate-150"
-                >
-                  {railLabel}
-                </span>
+                {!tapFirst && (
+                  <span
+                    id={`stacks-rail-tooltip-${unit.slug}`}
+                    role="tooltip"
+                    className="field-notes-glass-tooltip stacks-rail-tooltip pointer-events-none absolute left-1/2 top-[calc(100%_-_0.1rem)] z-40 w-max max-w-40 rounded-md border px-2.5 py-1.5 font-serif text-xs leading-none backdrop-blur-xl backdrop-saturate-150"
+                  >
+                    {railLabel}
+                  </span>
+                )}
               </button>
             );
           })}

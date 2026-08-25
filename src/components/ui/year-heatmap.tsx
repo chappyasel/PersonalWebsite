@@ -105,7 +105,7 @@ export function YearHeatmap<D extends { date: string }>({
             cell === null ? (
               <div key={i} className="aspect-square w-full" />
             ) : (
-              <Tooltip key={i}>
+              <Tooltip key={i} allowTapFirst>
                 <TooltipTrigger asChild>
                   <div
                     className="aspect-square w-full rounded-[1px]"
