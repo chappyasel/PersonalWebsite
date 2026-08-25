@@ -2,10 +2,23 @@ import { FIELD_NOTE_BY_ID, type FieldNoteId } from "./catalog";
 
 export const FIELD_NOTE_PLACEMENT_STORAGE_KEY =
   "stacks:field-notes:placements:v2";
+export const FIELD_NOTE_OVERVIEW_PLACEMENT_STORAGE_KEY =
+  "stacks:field-notes:overview-placements:v1";
 export const FIELD_NOTE_PLACEMENT_CHANGE_EVENT =
   "stacks:field-notes:placements-changed";
 const LEGACY_FIELD_NOTE_PLACEMENT_STORAGE_KEY =
   "stacks:field-notes:placements:v1";
+
+/** A stamp arranged on its catalog page and the same stamp arranged in the
+ * overview's newest-findings tray are separate compositions. Each scope keeps
+ * its own store so one drag never teleports the other copy. */
+export type FieldNotePlacementScope = "page" | "overview";
+
+export function fieldNotePlacementStorageKey(scope: FieldNotePlacementScope) {
+  return scope === "overview"
+    ? FIELD_NOTE_OVERVIEW_PLACEMENT_STORAGE_KEY
+    : FIELD_NOTE_PLACEMENT_STORAGE_KEY;
+}
 
 export type FieldNotePlacement = Readonly<{
   placed: boolean;
@@ -67,12 +80,15 @@ export function parseFieldNotePlacements(raw: string | null) {
   return placements;
 }
 
-export function readFieldNotePlacement(id: FieldNoteId) {
+export function readFieldNotePlacement(
+  id: FieldNoteId,
+  scope: FieldNotePlacementScope = "page",
+) {
   if (typeof window === "undefined") return CENTERED_FIELD_NOTE_PLACEMENT;
   try {
     return (
       parseFieldNotePlacements(
-        window.localStorage.getItem(FIELD_NOTE_PLACEMENT_STORAGE_KEY),
+        window.localStorage.getItem(fieldNotePlacementStorageKey(scope)),
       )[id] ?? CENTERED_FIELD_NOTE_PLACEMENT
     );
   } catch {
@@ -80,12 +96,14 @@ export function readFieldNotePlacement(id: FieldNoteId) {
   }
 }
 
-export function readFieldNotePlacements() {
+export function readFieldNotePlacements(
+  scope: FieldNotePlacementScope = "page",
+) {
   if (typeof window === "undefined")
     return {} as Partial<Record<FieldNoteId, FieldNotePlacement>>;
   try {
     return parseFieldNotePlacements(
-      window.localStorage.getItem(FIELD_NOTE_PLACEMENT_STORAGE_KEY),
+      window.localStorage.getItem(fieldNotePlacementStorageKey(scope)),
     );
   } catch {
     return {} as Partial<Record<FieldNoteId, FieldNotePlacement>>;
@@ -95,17 +113,16 @@ export function readFieldNotePlacements() {
 export function saveFieldNotePlacement(
   id: FieldNoteId,
   placement: FieldNotePlacement,
+  scope: FieldNotePlacementScope = "page",
 ) {
   if (typeof window === "undefined") return;
   try {
+    const storageKey = fieldNotePlacementStorageKey(scope);
     const placements = parseFieldNotePlacements(
-      window.localStorage.getItem(FIELD_NOTE_PLACEMENT_STORAGE_KEY),
+      window.localStorage.getItem(storageKey),
     );
     placements[id] = normalizeFieldNotePlacement(placement);
-    window.localStorage.setItem(
-      FIELD_NOTE_PLACEMENT_STORAGE_KEY,
-      JSON.stringify(placements),
-    );
+    window.localStorage.setItem(storageKey, JSON.stringify(placements));
     window.dispatchEvent?.(new Event(FIELD_NOTE_PLACEMENT_CHANGE_EVENT));
   } catch {
     // Placement is decorative. Keep dragging usable for this render when
@@ -117,6 +134,7 @@ export function resetFieldNotePlacements() {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.removeItem(FIELD_NOTE_PLACEMENT_STORAGE_KEY);
+    window.localStorage.removeItem(FIELD_NOTE_OVERVIEW_PLACEMENT_STORAGE_KEY);
     window.localStorage.removeItem(LEGACY_FIELD_NOTE_PLACEMENT_STORAGE_KEY);
   } catch {
     // A reset still applies to progress when browser storage is unavailable.

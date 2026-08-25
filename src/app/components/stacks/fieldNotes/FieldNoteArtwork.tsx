@@ -20,6 +20,7 @@ import {
   FootprintsIcon,
   GlobeHemisphereWestIcon,
   GolfIcon,
+  HandGrabbingIcon,
   HandIcon,
   type Icon,
   type IconProps,
@@ -33,6 +34,7 @@ import {
   SparkleIcon,
   SquaresFourIcon,
   StackIcon,
+  StampIcon,
   WaveSineIcon,
 } from "@phosphor-icons/react";
 
@@ -69,6 +71,7 @@ const ARTWORK: Record<FieldNoteArtwork, Icon> = {
   path: PathIcon,
   calendar: CalendarCheckIcon,
   dice: DiceSixIcon,
+  stamp: StampIcon,
   journal: NotebookIcon,
 };
 
@@ -103,6 +106,7 @@ const ACCENT_ARTWORK: Record<FieldNoteArtwork, Icon> = {
   path: FootprintsIcon,
   calendar: CoffeeIcon,
   dice: StackIcon,
+  stamp: HandGrabbingIcon,
   journal: CrownIcon,
 };
 

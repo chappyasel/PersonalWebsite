@@ -59,7 +59,7 @@ describe("Field Notes stamp tooltip presentation", () => {
       ),
     ].map((match) => match.slice(1).join(":"));
 
-    expect(recipes).toHaveLength(31);
+    expect(recipes).toHaveLength(32);
     expect(new Set(recipes).size).toBe(recipes.length);
     expect(designBlock).toContain(
       "camera: { palette: 11, frame: 0, layout: 4, pattern: 9 }",
@@ -77,7 +77,7 @@ describe("Field Notes stamp tooltip presentation", () => {
     const letteringStyles = [
       ...letteringBlock.matchAll(/style: "([^"]+)"/g),
     ].map((match) => match[1]);
-    expect(letteringStyles).toHaveLength(31);
+    expect(letteringStyles).toHaveLength(32);
     expect(new Set(letteringStyles).size).toBe(8);
     expect(letteringBlock).toContain('denomination: "360°"');
     expect(letteringBlock).toContain('primary: "Heavy mail"');
@@ -92,7 +92,7 @@ describe("Field Notes stamp tooltip presentation", () => {
     const iconWeights = [...iconBlock.matchAll(/weight: "([^"]+)"/g)].map(
       (match) => match[1],
     );
-    expect(iconWeights).toHaveLength(31);
+    expect(iconWeights).toHaveLength(32);
     expect(new Set(iconWeights).size).toBe(6);
     expect(iconBlock).toContain("scale: 1.34");
     expect(iconBlock.match(/echo: true/g)).toHaveLength(16);
@@ -107,10 +107,10 @@ describe("Field Notes stamp tooltip presentation", () => {
 
   it("keeps awards top-center, clears mobile nav, and fades copy before flight", () => {
     expect(mobileAward).toContain(
-      'className="field-notes-mobile-award-shell pointer-events-none fixed z-[2100]"',
+      'className="field-notes-mobile-award-shell pointer-events-none fixed z-[6100]"',
     );
     expect(awardNotice).toContain(
-      'className="field-notes-award-scene pointer-events-none fixed z-[2100]"',
+      'className="field-notes-award-scene pointer-events-none fixed z-[6100]"',
     );
     expect(mobileAward).toContain("return createPortal(");
     expect(mobileAward).toContain("document.body");
@@ -480,8 +480,10 @@ describe("Field Notes stamp tooltip presentation", () => {
     expect(source).toContain('"right-7 md:right-10"');
     expect(source).toContain("bottom-0 left-1/4 -translate-x-1/2");
     expect(source).toContain("bottom-0 left-3/4 -translate-x-1/2");
-    expect(stampPage).toContain("px-2 pb-4 pt-5");
-    expect(stampPage).toContain("mx-auto mb-3 pb-2");
+    expect(stampPage).toContain("px-2 pb-4");
+    expect(stampPage).toContain(
+      'className="field-notes-stamp-page-heading mx-auto"',
+    );
     expect(source).not.toContain("field-notes-desktop-controls");
     expect(source).not.toContain("field-notes-mobile-controls");
     expect(source).not.toContain("field-notes-page-controls-in");
@@ -658,7 +660,7 @@ describe("Field Notes stamp tooltip presentation", () => {
 
   it("uses the album rarity mark instead of a word badge", () => {
     expect(hint).toContain("field-notes-rarity-swatch");
-    expect(hint).toContain("absolute right-3.5 top-3.5");
+    expect(hint).toContain("absolute right-3 top-2.5");
     expect(hint).not.toContain("TOOLTIP_RARITY_STYLES");
   });
 
@@ -682,24 +684,128 @@ describe("Field Notes stamp tooltip presentation", () => {
     expect(source).not.toContain("radial-gradient(circle at 19% 31%");
   });
 
-  it("uses explicit baseline rhythms and aligned handwritten copy", () => {
-    expect(source).toContain("--field-notes-rule-step: 24px");
-    expect(source).toContain("--field-notes-rule-offset: -5px");
-    expect(source).toContain("--field-notes-rule-step: 16px");
+  it("derives every ruled surface from shared line tokens", () => {
+    // The shared block defines the tokens once; surfaces only override
+    // their line unit and content top, never a hand-tuned rule offset.
+    expect(source).toMatch(
+      /\.field-notes-stamp-tooltip,\s*\.field-notes-album-paper,\s*\.field-notes-award-copy,\s*\.field-notes-mobile-award-copy \{[\s\S]*?--field-notes-line: 24px;[\s\S]*?--field-notes-content-top: var\(--field-notes-line\);[\s\S]*?--field-notes-rule-gap: 6px;[\s\S]*?--field-notes-rule-step: var\(--field-notes-line\);[\s\S]*?--field-notes-rule-offset: calc\(var\(--field-notes-content-top\) - var\(--field-notes-rule-gap\) \+ 1px - var\(--field-notes-line\)\);/,
+    );
+    expect(source).not.toContain("--field-notes-rule-step: 24px");
+    expect(source).not.toContain("--field-notes-rule-step: 16px");
+    expect(source).not.toContain("--field-notes-rule-offset: -5px");
+    expect(source).not.toContain("--field-notes-rule-offset: -1px");
     expect(source).toContain('className="field-notes-hand text-lg leading-6"');
     expect(source).toContain("leading-[48px]");
     expect(source).not.toContain("leading-relaxed");
+
+    // The derived offset must ink each rule exactly rule-gap above the
+    // bottom of every line box that starts at content-top.
+    const ruleSitsOnGrid = (line: number, contentTop: number, gap: number) => {
+      const offset = contentTop - gap + 1 - line;
+      const boxBottom = contentTop + line;
+      return (((boxBottom - gap - (offset - 1)) % line) + line) % line;
+    };
+    expect(ruleSitsOnGrid(24, 24, 6)).toBe(0);
+    expect(ruleSitsOnGrid(20, 8, 6)).toBe(0);
+  });
+
+  it("hugs one ruled line per line of tooltip copy", () => {
+    // Tooltip geometry: pad + heading line + copy lines + pad, all in the
+    // tooltip's own 20px rhythm. One-line hints hug two lines of type in a
+    // 56px slip instead of inheriting the page's 24px rhythm plus py-3.
+    const TOOLTIP_LINE = 20;
+    const TOOLTIP_PAD = 8;
+    const tooltipHeight = (copyLines: number) =>
+      TOOLTIP_PAD * 2 + TOOLTIP_LINE * (1 + copyLines);
+    expect(tooltipHeight(1)).toBe(56);
+    expect(tooltipHeight(3)).toBe(96);
+    // The replaced geometry: 24px lines with 12px padding on both ends.
+    expect(tooltipHeight(1)).toBeLessThan(24 * 2 + 12 * 2);
+    expect(tooltipHeight(3)).toBeLessThan(24 * 4 + 12 * 2);
+
+    expect(source).toMatch(
+      /\.field-notes-stamp-tooltip \{[\s\S]*?--field-notes-line: 20px;[\s\S]*?--field-notes-content-top: 8px;[\s\S]*?padding-block: var\(--field-notes-content-top\);[\s\S]*?background-image: var\(--field-notes-rules\);/,
+    );
+    expect(source).toMatch(
+      /\.field-notes-stamp-tooltip p \{[\s\S]*?line-height: var\(--field-notes-line\);/,
+    );
+    // The slip must not reintroduce fixed heights or the page rhythm.
+    expect(hint).not.toContain("py-3");
+    expect(hint).not.toContain("leading-6");
+    expect(hint).not.toContain("min-h");
+  });
+
+  it("keeps the album page flow on whole line units at every breakpoint", () => {
+    const LINE = 24;
+    // Mirrors the tokenized flow: page top pad, then each block's height
+    // and margin, all expressed in --field-notes-line units and identical
+    // on mobile and desktop.
+    const pageTop = LINE; // .field-notes-page padding-top
+    const titleLines = 2; // leading-[48px]
+    const heroMargin = 2 * LINE; // .field-notes-overview-hero margin-top
+    const heroHeight = 5 * LINE; // .field-notes-overview-hero min-height
+    const rarityMargin = LINE; // .field-notes-rarity-grid margin-top
+    const rarityRows = 2 * LINE; // two rows of 24px .field-notes-fine
+    const latestMargin = LINE; // .field-notes-latest-block margin-top
+
+    const titleStart = pageTop;
+    const heroStart = titleStart + titleLines * LINE + heroMargin;
+    const heroCopyStart = heroStart + LINE; // .field-notes-overview-copy-column
+    const rarityStart = heroStart + heroHeight + rarityMargin;
+    const latestHeadingStart = rarityStart + rarityRows + latestMargin;
+    for (const offset of [
+      titleStart,
+      heroStart,
+      heroCopyStart,
+      rarityStart,
+      latestHeadingStart,
+    ])
+      expect(offset % LINE).toBe(0);
+
+    // Stamp pages: top pad + heading line + heading margin = grid top.
+    const stampGridTop = pageTop + LINE + LINE;
+    expect(stampGridTop).toBe(3 * LINE);
+
+    expect(source).toMatch(
+      /\.field-notes-page \{[\s\S]*?padding-top: var\(--field-notes-content-top\);/,
+    );
+    expect(source).toMatch(
+      /\.field-notes-overview-hero \{[\s\S]*?margin-top: calc\(var\(--field-notes-line\) \* 2\);[\s\S]*?min-height: calc\(var\(--field-notes-line\) \* 5\);/,
+    );
+    expect(source).toMatch(
+      /\.field-notes-overview-copy-column \{[\s\S]*?margin-top: var\(--field-notes-line\);/,
+    );
+    expect(source).toMatch(
+      /\.field-notes-rarity-grid \{[\s\S]*?margin-top: var\(--field-notes-line\);/,
+    );
+    expect(source).toMatch(
+      /\.field-notes-latest-block \{[\s\S]*?margin-top: var\(--field-notes-line\);/,
+    );
+    expect(source).toMatch(
+      /\.field-notes-stamp-page-heading \{[\s\S]*?margin-bottom: var\(--field-notes-line\);/,
+    );
+    expect(source).toContain(
+      "--field-notes-stamp-grid-top: calc(var(--field-notes-line) * 3);",
+    );
+    // Breakpoint-diverging spacers were the mobile drift: none may return.
+    expect(source).not.toContain("mt-10");
+    expect(source).not.toContain("md:mt-12");
+    expect(source).not.toContain("md:mt-5");
+    expect(source).not.toContain("md:py-3.5");
+    expect(source).not.toContain('md:py-5"');
+    expect(source).not.toContain("pt-5 ");
+    expect(source).not.toContain("pt-6 ");
   });
 
   it("scales page copy while keeping it on the notebook rhythm", () => {
     expect(source).toMatch(
-      /\.field-notes-overview-page \.field-notes-fine \{[\s\S]*?font-size: 20px;[\s\S]*?line-height: 24px;/,
+      /\.field-notes-overview-page \.field-notes-fine \{[\s\S]*?font-size: 20px;[\s\S]*?line-height: var\(--field-notes-line\);/,
     );
     expect(source).toMatch(
-      /\.field-notes-overview-copy \{[\s\S]*?font-size: 22px;[\s\S]*?line-height: 24px;/,
+      /\.field-notes-overview-copy \{[\s\S]*?font-size: 22px;[\s\S]*?line-height: var\(--field-notes-line\);/,
     );
     expect(source).toMatch(
-      /\.field-notes-stamp-page-heading h2 \{[\s\S]*?font-size: 22px;[\s\S]*?line-height: 24px;/,
+      /\.field-notes-stamp-page-heading h2 \{[\s\S]*?font-size: 22px;[\s\S]*?line-height: var\(--field-notes-line\);/,
     );
     expect(source).toMatch(
       /\.field-notes-count-number \{[\s\S]*?font-size: 60px;[\s\S]*?translateY\(3px\)/,
@@ -721,7 +827,6 @@ describe("Field Notes stamp tooltip presentation", () => {
   });
 
   it("aligns overview copy and stamp-page headings to their content", () => {
-    expect(source).toContain("--field-notes-rule-offset: -1px");
     expect(source).toContain("field-notes-stamp-page-heading");
     expect(source).toContain(
       "width: calc(3 * var(--field-notes-stamp-size) + .75rem)",
@@ -733,9 +838,9 @@ describe("Field Notes stamp tooltip presentation", () => {
       /\.field-notes-title \{[\s\S]*?translateY\(10px\) rotate\(-1deg\)/,
     );
     expect(source).toContain(".field-notes-overview-copy {");
-    expect(source).toContain("transform: translateY(2px)");
-    expect(source).toContain(".field-notes-latest-heading {");
-    expect(source).toContain("transform: translateY(1px)");
+    // The grid contract replaced the old per-block translateY nudges.
+    expect(source).not.toContain("transform: translateY(2px)");
+    expect(source).not.toContain("transform: translateY(1px)");
     expect(stampPage).not.toContain("border-b");
   });
 
@@ -756,12 +861,12 @@ describe("Field Notes stamp tooltip presentation", () => {
       'data-rustling={rustling ? "true" : "false"}',
     );
     expect(overviewPage).toContain(
-      "mt-10 flex items-center gap-5 md:mt-12 md:gap-6",
+      "field-notes-overview-hero flex items-center gap-5 md:gap-6",
     );
-    expect(overviewPage).toContain("leading-[22px]");
+    expect(overviewPage).toContain("field-notes-overview-copy");
     expect(overviewPage).toContain('pathLength="1"');
     expect(overviewPage).toContain(
-      "flex min-h-0 flex-1 flex-col justify-center py-4 md:py-5",
+      "field-notes-latest-block flex min-h-0 flex-1 flex-col",
     );
     expect(source).toContain("@keyframes field-notes-botanical-draw-hover");
     expect(source).toContain("@keyframes field-notes-botanical-draw-click");
@@ -789,5 +894,92 @@ describe("Field Notes stamp tooltip presentation", () => {
     expect(source).toMatch(
       /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.field-notes-completion-foil::after/,
     );
+  });
+
+  it("shows three movable newest findings over stamp-page-identical mounts", () => {
+    expect(overviewPage).toContain("newest findings");
+    expect(source).not.toContain("newest stamps");
+    expect(overviewPage).toContain(".slice(0, 3)");
+    expect(overviewPage).toContain("Array.from({ length: 3 }");
+    expect(overviewPage).toContain('placementScope="overview"');
+    expect(overviewPage).toContain(
+      "field-notes-loose-stamp-layer pointer-events-none absolute inset-0 z-[2]",
+    );
+    // The tray reuses the stamp pages' home-position formulas, so its grid
+    // must share their column and gap metrics and pin its own grid top.
+    expect(source).toMatch(
+      /\.field-notes-latest-grid \{[\s\S]*?grid-template-columns: repeat\(3, var\(--field-notes-stamp-size\)\);[\s\S]*?column-gap: var\(--field-notes-stamp-gap-x\);/,
+    );
+    expect(source).toMatch(
+      /\.field-notes-latest-tray \{[\s\S]*?--field-notes-stamp-grid-top: 8px;/,
+    );
+    expect(overviewPage).toContain("field-notes-latest-tray relative py-2");
+    expect(source).toMatch(
+      /\.field-notes-latest-tray \.field-notes-loose-stamp-layer \{[\s\S]*?overflow: visible;/,
+    );
+  });
+
+  it("folds mobile pages over one spine edge and keeps the settled page", () => {
+    const mobileStage = source.slice(
+      source.indexOf("function MobileBookStage"),
+      source.indexOf("export function CompactAlbum"),
+    );
+
+    // The settled page always lives in the static block: forward turns
+    // reveal the target beneath the lifting leaf; backward turns keep the
+    // outgoing page beneath the leaf folding down over it.
+    expect(mobileStage).toMatch(
+      /const visiblePage = turn\s*\? turn\.direction === "next"\s*\? turn\.to\s*: turn\.from\s*: page;/,
+    );
+    expect(mobileStage).toMatch(
+      /const leafPage = turn\s*\? turn\.direction === "next"\s*\? turn\.from\s*: turn\.to\s*: null;/,
+    );
+    expect(mobileStage).not.toContain("field-notes-turn-face");
+
+    // One consistent edge: both directions rotate about the left spine.
+    expect(source).toMatch(
+      /\.field-notes-mobile-turn-leaf \{[\s\S]*?transform-origin: left center;/,
+    );
+    expect(source).not.toMatch(
+      /\.field-notes-mobile-turn-leaf\[data-direction="previous"\] \{[^}]*transform-origin/,
+    );
+    expect(source).toContain(
+      "animation: field-notes-mobile-turn-next 460ms cubic-bezier(.5,.1,.65,.3) both;",
+    );
+    expect(source).toContain(
+      "animation: field-notes-mobile-turn-previous 460ms cubic-bezier(.25,.6,.3,1) both;",
+    );
+
+    // The fold stops edge-on rather than sweeping 180deg outside the
+    // one-page viewport, and the previous leaf hands off at exactly 0deg.
+    expect(source).toMatch(
+      /@keyframes field-notes-mobile-turn-next \{[\s\S]*?0% \{ opacity: 1; transform: rotateY\(0deg\); \}[\s\S]*?100% \{ opacity: 0; transform: rotateY\(-88deg\); \}/,
+    );
+    expect(source).toMatch(
+      /@keyframes field-notes-mobile-turn-previous \{[\s\S]*?0% \{ opacity: 0; transform: rotateY\(-88deg\); \}[\s\S]*?100% \{ opacity: 1; transform: rotateY\(0deg\); \}/,
+    );
+    expect(source).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.field-notes-mobile-turn-leaf \{[\s\S]*?animation-duration: 1ms;/,
+    );
+  });
+
+  it("owns mobile touch gestures without stealing stamp drags", () => {
+    const mobileStage = source.slice(
+      source.indexOf("function MobileBookStage"),
+      source.indexOf("export function CompactAlbum"),
+    );
+
+    expect(source).toMatch(
+      /\.field-notes-mobile-stage \{[\s\S]*?touch-action: none;/,
+    );
+    expect(mobileStage).toContain('if (event.pointerType === "mouse"');
+    expect(mobileStage).toContain(
+      "closest?.('.field-notes-postage[data-movable=\"true\"]')",
+    );
+    expect(mobileStage).toContain(
+      "event.currentTarget.setPointerCapture?.(event.pointerId)",
+    );
+    expect(mobileStage).toContain("releaseAlbumSwipe");
+    expect(mobileStage).toContain("onDismiss");
   });
 });

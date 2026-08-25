@@ -38,6 +38,7 @@ export type FieldNoteArtwork =
   | "path"
   | "calendar"
   | "dice"
+  | "stamp"
   | "journal";
 
 export type FieldNoteDefinition = Readonly<{
@@ -324,6 +325,15 @@ export const FIELD_NOTES = [
     hidden: false,
     hint: "The dice know a taller formation than the pyramid.",
     foundCopy: "Restacked all six dice into a single tower.",
+  },
+  {
+    id: "philatelist",
+    title: "Philatelist",
+    rarity: "Uncommon",
+    artwork: "stamp",
+    hidden: false,
+    hint: "Even these stamps aren't glued down.",
+    foundCopy: "Rearranged five stamps in this album.",
   },
   {
     id: "full-journal",
