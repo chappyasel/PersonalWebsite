@@ -13,6 +13,10 @@
   --diagnostics-border: rgb(var(--diagnostics-fg-rgb) / 0.12);
 }
 
+/* Portaled to document.body like the debug drawer: scene chrome can acquire
+   a transform or filter during its transitions, and either one silently
+   reparents position: fixed. Frame recipe matches .stacks-perch-drawer so the
+   two read as one instrument. */
 :global(.stacks-free-roam-hint) {
   position: fixed;
   display: flex;
@@ -20,22 +24,27 @@
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
-  inset-block-start: 1rem;
+  inset-block-start: max(12px, env(safe-area-inset-top, 0px));
   inset-inline-start: 50%;
   z-index: 60;
   max-inline-size: calc(100vw - 2rem);
   transform: translateX(-50%);
-  border: 1px solid rgb(255 255 255 / 0.16);
-  border-radius: 999px;
-  padding: 0.45rem 0.75rem;
-  color: rgb(255 255 255 / 0.9);
-  background: rgb(4 10 18 / 0.72);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.2);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.72rem;
-  line-height: 1.25;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: 8px;
+  padding: 7px 10px;
+  color: rgb(255 255 255 / 0.92);
+  background: rgb(4 10 18 / 0.96);
+  box-shadow: 0 12px 42px rgb(0 0 0 / 0.52);
+  font:
+    500 10px/1.35 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
   pointer-events: none;
-  backdrop-filter: blur(12px);
+}
+:global(.stacks-dev-hud-shell) {
+  position: relative;
+  inline-size: 168px;
 }
 :global(.stacks-dev-hud) {
   position: relative;
@@ -64,6 +73,40 @@
   text-shadow: 0 1px 2px rgb(0 0 0 / 0.75);
   white-space: nowrap;
   backdrop-filter: blur(4px);
+}
+:global(.stacks-dev-hud-dismiss) {
+  position: absolute;
+  inset-block-start: 3px;
+  inset-inline-end: 3px;
+  display: grid;
+  inline-size: 14px;
+  block-size: 14px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  place-items: center;
+  color: rgb(255 255 255 / 0.72);
+  background: rgb(4 10 18 / 0.9);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.12);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 100ms ease,
+    background-color 100ms ease;
+}
+:global(.stacks-dev-hud-shell):hover :global(.stacks-dev-hud-dismiss),
+:global(.stacks-dev-hud-shell):focus-within :global(.stacks-dev-hud-dismiss) {
+  opacity: 1;
+  pointer-events: auto;
+}
+:global(.stacks-dev-hud-dismiss):hover {
+  color: rgb(255 255 255 / 0.96);
+  background: rgb(38 48 61 / 0.96);
+}
+:global(.stacks-dev-hud-dismiss):focus-visible {
+  outline: 1px solid rgb(125 220 255 / 0.7);
+  outline-offset: 1px;
 }
 :global(.stacks-dev-hud):hover,
 :global(.stacks-dev-hud):focus-visible,
@@ -114,7 +157,7 @@
 :global(.stacks-perch-drawer) {
   position: fixed;
   box-sizing: border-box;
-  z-index: 1000;
+  z-index: 4000;
   top: max(12px, env(safe-area-inset-top, 0px));
   right: max(12px, env(safe-area-inset-right, 0px));
   display: grid;
@@ -136,6 +179,11 @@
     Menlo,
     monospace;
   overscroll-behavior: contain;
+}
+:global(html[data-field-notes-open] .stacks-perch-drawer) {
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
 }
 :global(.stacks-perch-drawer-header) {
   display: flex;
@@ -382,6 +430,26 @@
 }
 :global(.stacks-diagnostics-control) select {
   min-width: 148px;
+}
+:global(.stacks-perch-drawer) select {
+  min-height: 25px;
+  max-width: 100%;
+  padding: 3px 7px;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: 4px;
+  color: rgb(255 255 255 / 0.9);
+  background-color: rgb(10 18 28 / 0.96);
+  color-scheme: dark;
+  font: inherit;
+}
+:global(.stacks-perch-drawer) select:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+:global(.stacks-perch-drawer) option,
+:global(.stacks-perch-drawer) optgroup {
+  color: rgb(255 255 255 / 0.9);
+  background: rgb(10 18 28);
 }
 :global(.stacks-layout-editor-coordinates) {
   display: grid;

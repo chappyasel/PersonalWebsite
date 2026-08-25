@@ -14,6 +14,7 @@
 // provably off screen. Population follows the camera; no insect ever does
 // (see `insectResidency.ts` and ADR 0004).
 import { UNIT_COUNT } from "../data";
+import { recordFieldNoteEvent } from "../fieldNotes/progress";
 import { useStacks } from "../store";
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
@@ -27,7 +28,10 @@ import {
   COORDINATION_INSECT_TIME_SCALE,
 } from "./coordinationNetwork";
 import { INSECT_ENVELOPES } from "./insectCollision";
-import { insectOwnerIsDisturbed } from "./insectDisturbance";
+import {
+  type InsectInteractionState,
+  insectOwnerIsDisturbed,
+} from "./insectDisturbance";
 import {
   type InsectFlightVolume,
   insectFlightVolumePoint,
@@ -647,6 +651,17 @@ export function butterflyMayBeginLanding(occupancy: {
     occupancy.engaged < BUTTERFLY_OCCUPANCY.engaged &&
     occupancy.approaching < BUTTERFLY_OCCUPANCY.approaching
   );
+}
+
+/** While a visitor carries a prop, that prop is the only useful landing
+ * candidate. The shelf-wide drag response rejects every other Perch. */
+export function butterflyPerchCanReceiveLanding(
+  ownerId: string | null,
+  interaction: InsectInteractionState,
+) {
+  if (interaction.dragging)
+    return ownerId !== null && ownerId === interaction.dragging;
+  return !insectOwnerIsDisturbed(ownerId, interaction);
 }
 
 export function butterflyPerchFailureMessage(
@@ -1398,20 +1413,24 @@ function Flight({
         };
         if (butterflyMayBeginLanding(occupancy)) {
           const candidates = [...getInsectPerches().values()].filter(
-            (perch) =>
-              // The resident's OWN shelf, never merely the active one.
-              //
-              // Residents are home-unit residents, but their Flight Volume is
-              // their home Unit's while this filter let them land anywhere on
-              // the active shelf — up to 4.4 m away. The moment such a landing
-              // released back into roam, volume containment's last-resort
-              // clamp projected the insect back inside its home extent, which
-              // is a hard position write: the butterfly TELEPORTED across the
-              // room. Landing at home is also what the standing constraint
-              // already said the residents were.
-              perch.unitIndex === motion.currentUnit &&
-              !insectPerchOccupant(perch.id) &&
-              !insectOwnerIsDisturbed(insectPerchOwnerId(perch), stacks),
+            (perch) => {
+              const ownerId = insectPerchOwnerId(perch);
+              return (
+                // The resident's OWN shelf, never merely the active one.
+                //
+                // Residents are home-unit residents, but their Flight Volume is
+                // their home Unit's while this filter let them land anywhere on
+                // the active shelf — up to 4.4 m away. The moment such a landing
+                // released back into roam, volume containment's last-resort
+                // clamp projected the insect back inside its home extent, which
+                // is a hard position write: the butterfly TELEPORTED across the
+                // room. Landing at home is also what the standing constraint
+                // already said the residents were.
+                perch.unitIndex === motion.currentUnit &&
+                !insectPerchOccupant(perch.id) &&
+                butterflyPerchCanReceiveLanding(ownerId, stacks)
+              );
+            },
           );
           if (candidates.length) {
             const first = Math.floor(
@@ -1525,6 +1544,7 @@ function Flight({
       let perch = getInsectPerch(pilot.reservedPerchId);
       let direct = false;
       let environmentalDrag = false;
+      let ownerIsHeld = false;
       let distancePx = Number.POSITIVE_INFINITY;
       if (perch) {
         const prepared = prepareInsectLandingTarget(
@@ -1555,9 +1575,12 @@ function Flight({
             );
           }
           const ownerId = insectPerchOwnerId(perch);
-          direct = insectOwnerIsDisturbed(ownerId, stacks);
+          ownerIsHeld = ownerId !== null && ownerId === stacks.dragging;
+          direct = !ownerIsHeld && insectOwnerIsDisturbed(ownerId, stacks);
           environmentalDrag =
-            Boolean(stacks.dragging) && perch.unitIndex === stacks.activeUnit;
+            Boolean(stacks.dragging) &&
+            perch.unitIndex === stacks.activeUnit &&
+            !ownerIsHeld;
           motion.projected
             .set(
               motion.landingTarget.point.x,
@@ -1601,7 +1624,7 @@ function Flight({
       }
 
       let proximity = false;
-      if (pointerIsTouch.current) {
+      if (pointerIsTouch.current || ownerIsHeld) {
         motion.nearSince = -1;
       } else if (
         performance.now() > pointerActiveUntil.current ||
@@ -1765,6 +1788,12 @@ function Flight({
         });
       }
       if (pilot.event === "landed") {
+        const landedPerch = getInsectPerch(pilot.reservedPerchId);
+        const landedOwnerId = landedPerch
+          ? insectPerchOwnerId(landedPerch)
+          : null;
+        if (landedOwnerId !== null && landedOwnerId === stacks.dragging)
+          recordFieldNoteEvent({ type: "butterfly-landed-on-held-prop" });
         motion.restEndsAt =
           t +
           LANDING_TIMING.butterflyRest[0] +

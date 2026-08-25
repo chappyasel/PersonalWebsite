@@ -1,17 +1,25 @@
 "use client";
 
-import {
-  CaretLeftIcon,
-  CaretRightIcon,
-} from "@phosphor-icons/react/dist/ssr";
+import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react/dist/ssr";
 import { useState } from "react";
 
-import { Skeleton } from "~/components/ui/skeleton";
 import { api } from "~/trpc/react";
 
+import { Skeleton } from "~/components/ui/skeleton";
+
 const MONTH_NAMES = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ];
 const DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -47,7 +55,7 @@ function DayCell({
       className={`flex h-8 flex-col items-center justify-center ${
         !isCurrentMonth ? "opacity-0" : ""
       }`}
-      title={
+      aria-label={
         hours > 0
           ? `${dateStr}: ${hours.toFixed(1)}h (${videoCount} videos)`
           : dateStr
@@ -148,10 +156,7 @@ export function YearCalendar() {
     ? new Date(stats.earliestWatch).getFullYear()
     : currentYear;
 
-  const dayMap: Record<
-    string,
-    { totalHours: number; videoCount: number }
-  > = {};
+  const dayMap: Record<string, { totalHours: number; videoCount: number }> = {};
   if (calendarData) {
     for (const entry of calendarData) {
       dayMap[entry.date] = {

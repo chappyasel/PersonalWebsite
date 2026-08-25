@@ -272,8 +272,8 @@ export function ProjectIcon({
   textured,
   yaw,
   href,
-  doorLabel,
-  doorDetail,
+  portalLabel,
+  portalDetail,
   size = PROJECT_ARTIFACT_DIMENSIONS.icon,
   massKg = 0.62,
   artifact,
@@ -288,9 +288,9 @@ export function ProjectIcon({
   textured: boolean;
   yaw: number;
   href?: string;
-  doorLabel?: string;
-  /** Lines under the Door Label title; see Grabbable. */
-  doorDetail?: string | readonly string[];
+  portalLabel?: string;
+  /** Lines under the Portal Label title; see Grabbable. */
+  portalDetail?: string | readonly string[];
   /** Billet edge. Defaults to the Projects shelf icon. */
   size?: number;
   /** Real mass; a half-edge tile is an eighth of the volume. */
@@ -310,8 +310,8 @@ export function ProjectIcon({
       massKg={massKg}
       metal
       href={href}
-      doorLabel={doorLabel}
-      doorDetail={doorDetail}
+      portalLabel={portalLabel}
+      portalDetail={portalDetail}
       external
       artifact={artifact}
     >

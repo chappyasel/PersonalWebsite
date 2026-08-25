@@ -119,7 +119,7 @@ describe("Book Notes interaction inventory", () => {
     );
   });
 
-  it("gives a packed volume holding a real read that book's own door", () => {
+  it("gives a packed volume holding a real read that book's own Portal", () => {
     const withBooks: BookInteractionInput = {
       ...input,
       rows: [
@@ -167,7 +167,7 @@ describe("Book Notes interaction inventory", () => {
   });
 
   it("fails closed when one book is shelved in two places", () => {
-    // A featured cover ALSO packed into the row behind it: two doors onto one
+    // A featured cover ALSO packed into the row behind it: two Portals onto one
     // book, and a shelf claiming to hold a copy it does not have.
     const duplicated: BookInteractionInput = {
       ...input,

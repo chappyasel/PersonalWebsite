@@ -43,7 +43,7 @@ Review ledger: [green baseline](./2026-08-21-green-baseline.md).
 ### 2. Typed visitor journey analytics
 
 - A closed event catalog covers delivery mode, boot outcome, section arrival,
-  Doors, contact methods, deep pages, and the existing Book Notes events.
+  Portals, contact methods, deep pages, and the existing Book Notes events.
 - Analytics initializes lazily behind a bounded 100-event FIFO with safe retry
   and delivery-aware once keys.
 - URL properties are sanitized; anonymous person profiles and PostHog automatic
@@ -220,7 +220,7 @@ Manual checks, in priority order:
 7. Compare the About medallion with `main`; the render should be visually
    unchanged.
 8. Against a non-production analytics sink, verify one bounded delivery event,
-   cold/warm boot duration, fallback causes, section dedupe in both modes, Door
+   cold/warm boot duration, fallback causes, section dedupe in both modes, Portal
    and contact events, deep-page events, and URL query/fragment removal.
 9. In a credentialed environment run `pnpm build`, then `pnpm check:budgets`
    and the Playwright performance safety harness.

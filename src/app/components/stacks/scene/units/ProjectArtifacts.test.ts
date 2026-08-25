@@ -10,7 +10,7 @@ const source = fs.readFileSync(
 );
 
 describe("Projects shelf artifacts", () => {
-  it("builds each die as its own movable Liar's Dice door", () => {
+  it("builds each die as its own movable Liar's Dice Portal", () => {
     const start = source.indexOf("export function DicePyramid");
     const pyramid = source.slice(start);
 

@@ -60,6 +60,37 @@ describe("development diagnostics chrome", () => {
     expect(diagnosticsSource).toContain('role="tabpanel"');
   });
 
+  it("keeps Field Notes test controls in the Simulate view", () => {
+    expect(diagnosticsSource).toContain(
+      "function FieldNotesDiagnosticsControls",
+    );
+    expect(diagnosticsSource).toContain("Preview notification");
+    expect(diagnosticsSource).toContain("Mark all found");
+    expect(diagnosticsSource).toContain("Reset progress");
+    expect(diagnosticsSource).toContain("Reset stamp layout");
+    expect(diagnosticsSource).toContain("previewFieldNoteAward(selectedId)");
+    expect(diagnosticsSource).toContain("setAllFieldNotesFound");
+    expect(
+      diagnosticsSource.indexOf("<FieldNotesDiagnosticsControls />"),
+    ).toBeGreaterThan(
+      diagnosticsSource.indexOf('id="stacks-diagnostics-panel-simulate"'),
+    );
+  });
+
+  it("uses dark native selects and keeps the console above Field Notes", () => {
+    expect(diagnosticsStyles).toContain(
+      ":global(.stacks-perch-drawer) select {",
+    );
+    expect(diagnosticsStyles).toContain("color-scheme: dark");
+    expect(diagnosticsStyles).toContain(
+      "background-color: rgb(10 18 28 / 0.96)",
+    );
+    expect(diagnosticsStyles).toContain("z-index: 4000");
+    expect(diagnosticsStyles).toMatch(
+      /:global\(html\[data-field-notes-open\] \.stacks-perch-drawer\)[\s\S]*?pointer-events: none;[\s\S]*?visibility: hidden;/,
+    );
+  });
+
   it("keeps overview navigation contextual", () => {
     expect(diagnosticsSource).toContain(
       "data-empty={notices.length === 0 || undefined}",
@@ -129,6 +160,20 @@ describe("development diagnostics chrome", () => {
       "isEditableShortcutTarget(event.target)",
     );
     expect(diagnosticsSource).not.toContain("stacks-perch-hud");
+  });
+
+  it("lets the owner hide the compact HUD until reload", () => {
+    expect(diagnosticsSource).toContain("const [hudVisible, setHudVisible]");
+    expect(diagnosticsSource).toContain(
+      'aria-label="Hide performance HUD until reload"',
+    );
+    expect(diagnosticsSource).toContain(
+      "onDismiss={() => setHudVisible(false)}",
+    );
+    expect(diagnosticsStyles).toContain(
+      ".stacks-dev-hud-shell):hover :global(.stacks-dev-hud-dismiss)",
+    );
+    expect(diagnosticsStyles).toContain("pointer-events: none");
   });
 
   it("renders declarative semantic HUD segments", () => {
@@ -229,10 +274,10 @@ describe("development diagnostics chrome", () => {
     expect(registrySource).toContain("Free-roam camera");
     expect(diagnosticsSource).toContain("WASD");
     expect(registrySource).toContain("Fog in free roam");
-    expect(registrySource).toContain('ariaKeyShortcuts: "F Shift+F"');
+    expect(registrySource).toContain('ariaKeyShortcuts: "R Shift+R"');
     expect(diagnosticsSource).toContain("Q/E");
     expect(diagnosticsSource).toContain("Shift for one-third");
-    expect(diagnosticsSource).toContain("Shift+F starts from");
+    expect(diagnosticsSource).toContain("Shift+R starts from");
     expect(diagnosticsSource).toContain("never captures the mouse");
     expect(diagnosticsSource).toContain("Hold the right button");
     expect(diagnosticsSource).toContain("selects an editable prop");

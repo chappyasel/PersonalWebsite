@@ -5,12 +5,12 @@ import type * as THREE from "three";
 import { Box3, Matrix4, Raycaster, Vector2, Vector3 } from "three";
 
 import {
-  type ProjectedDoor,
+  type ProjectedPortal,
   type ProjectedScreenPoint,
   getSceneInteraction,
   sceneInteractionInventory,
-  setDoorProjectionResolver,
   setInteractionRectProjectionResolver,
+  setPortalProjectionResolver,
 } from "./interactionRegistry";
 
 let projectionCamera: THREE.Camera | null = null;
@@ -172,11 +172,11 @@ export function projectedInteractionBounds(pointer?: {
   return results;
 }
 
-function projectDoorWithContext(id: string): ProjectedDoor | null {
+function projectPortalWithContext(id: string): ProjectedPortal | null {
   const spec = getSceneInteraction(id);
   if (
     !spec ||
-    (spec.activation?.kind !== "door" && spec.activation?.kind !== "action")
+    (spec.activation?.kind !== "portal" && spec.activation?.kind !== "action")
   )
     return null;
   if (
@@ -495,7 +495,9 @@ export function setInteractionProjectionContext(
 ) {
   projectionCamera = camera;
   projectionElement = element;
-  setDoorProjectionResolver(camera && element ? projectDoorWithContext : null);
+  setPortalProjectionResolver(
+    camera && element ? projectPortalWithContext : null,
+  );
   setInteractionRectProjectionResolver(
     camera && element ? projectInteractionRectWithContext : null,
   );
@@ -503,7 +505,7 @@ export function setInteractionProjectionContext(
 
 export type PointerActivation = {
   id: string;
-  kind: "door" | "action" | "egg" | "artifact";
+  kind: "portal" | "action" | "egg" | "artifact";
 };
 
 /** Touch has no hover state. Raycast every registered prop so an
@@ -533,7 +535,7 @@ export function activationAtPointer(
   let best: {
     id: string;
     distance: number;
-    activation: "door" | "action" | "egg" | "artifact" | null;
+    activation: "portal" | "action" | "egg" | "artifact" | null;
   } | null = null;
   for (const spec of sceneInteractionInventory()) {
     if (spec.touchable === false || !isEffectivelyVisible(spec.root)) continue;
@@ -548,9 +550,9 @@ export function activationAtPointer(
   return best?.activation ? { id: best.id, kind: best.activation } : null;
 }
 
-/** Doors share the general touch raycast while still failing closed when the
+/** Portals share the general touch raycast while still failing closed when the
  * nearest object is an action, easter egg, or inert prop. */
-export function doorAtPointer(clientX: number, clientY: number) {
+export function portalAtPointer(clientX: number, clientY: number) {
   const hit = activationAtPointer(clientX, clientY);
-  return hit?.kind === "door" ? hit.id : null;
+  return hit?.kind === "portal" ? hit.id : null;
 }

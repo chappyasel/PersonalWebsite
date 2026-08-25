@@ -27,8 +27,8 @@ describe("Projects shelf movable props", () => {
     expect(source).toContain("projects-homework-icon.webp");
     // The 3D inspector is behind a switch (off since 2026-08-23), but the
     // icon keeps its artifact wiring so flipping the switch is the whole job.
-    expect(source).toContain(
-      'artifact={MODEL_ARTIFACT_PREVIEWS_ENABLED ? "homework-app" : undefined}',
+    expect(source).toMatch(
+      /artifact=\{\s*MODEL_ARTIFACT_PREVIEWS_ENABLED\s*\?\s*"homework-app"\s*:\s*undefined\s*\}/,
     );
     expect(source).toContain('hoverKey="grab:plant:projects-small"');
     expect(source).toContain('url="/models/potted-plant.glb"');

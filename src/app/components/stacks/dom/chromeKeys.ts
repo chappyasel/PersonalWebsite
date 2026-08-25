@@ -14,18 +14,23 @@
  *         cannot take Tab without breaking keyboard focus.
  *  - `?`  the shortcut sheet, where every web app with shortcuts keeps it.
  *  - `M`  mutes or unmutes the scene through the resident sound control.
+ *  - `F`  Field Notes. Handled where the collection's open state lives
+ *         (fieldNotes/shortcut.ts), listed here so the sheet stays honest.
+ *  - `1–7` jump straight to a shelf, in the rail's order. Handled with the
+ *         other travel keys in ScrollBridges.
  *
  * Hide-all is a single attribute on `<html>` (`data-chrome-hidden`) and a
  * rule in StacksHome that blanks the `.stacks-og-ui` wrapper and its
  * descendants: the same wrapper the OG capture hides, so "no UI" means the
- * same thing to a visitor and to the capture script. Visibility, not
- * display, so the desktop chrome keeps its geometry (the side lens is
- * measured from it) and the input bridges, which are window-level
- * listeners, keep travelling between shelves.
+ * same thing to a visitor and to the capture script. Visibility preserves the
+ * desktop chrome's geometry, which the side lens measures. Field Notes and
+ * photo previews animate the wrapper's visible children instead. The canvas
+ * remains outside it.
  *
- * Owner-only controls live with their features. Development builds add F for
+ * Owner-only controls live with their features. Development builds add R for
  * free roam, backtick for the debug console, and the combined prop gizmo.
  */
+import { recordFieldNoteEvent } from "../fieldNotes/progress";
 
 export const CHROME_HIDDEN_ATTRIBUTE = "data-chrome-hidden";
 
@@ -70,6 +75,7 @@ export function chromeHidden() {
 export function setChromeHidden(hidden: boolean) {
   if (typeof document === "undefined") return;
   document.documentElement.toggleAttribute(CHROME_HIDDEN_ATTRIBUTE, hidden);
+  if (hidden) recordFieldNoteEvent({ type: "photo-mode-entered" });
 }
 
 /**
@@ -122,7 +128,13 @@ export function chromeKeyEventFrom(
   };
 }
 
-export type ShortcutRow = Readonly<{ keys: readonly string[]; does: string }>;
+export type ShortcutRow = Readonly<{
+  keys: readonly string[];
+  /** Rendered between the keycaps: "↔" reads as a range; absent, the keys
+   * sit side by side as a chord or an either/or pair. */
+  join?: string;
+  does: string;
+}>;
 export type ShortcutGroup = Readonly<{
   title: string;
   rows: readonly ShortcutRow[];
@@ -135,7 +147,8 @@ export function shortcutGroups(development: boolean): readonly ShortcutGroup[] {
     rows: [
       { keys: ["←", "→"], does: "Previous or next shelf" },
       { keys: ["A", "D"], does: "Pan the room" },
-      { keys: ["Home", "End"], does: "First or last shelf" },
+      { keys: ["1", "7"], join: "↔", does: "Jump to a shelf" },
+      { keys: ["F"], does: "Open or close Field Notes" },
       { keys: ["\\"], does: "Hide or show details" },
       { keys: ["H"], does: "Hide or show the interface" },
       { keys: ["M"], does: "Mute or unmute scene sound" },
@@ -149,8 +162,8 @@ export function shortcutGroups(development: boolean): readonly ShortcutGroup[] {
     {
       title: "Owner",
       rows: [
-        { keys: ["F"], does: "Free roam (WASD, Q/E, right-drag)" },
-        { keys: ["Shift", "F"], does: "Free roam from the current view" },
+        { keys: ["R"], does: "Free roam (WASD, Q/E, right-drag)" },
+        { keys: ["Shift", "R"], does: "Free roam from the current view" },
         { keys: ["`"], does: "Debug console" },
         {
           keys: ["Click"],

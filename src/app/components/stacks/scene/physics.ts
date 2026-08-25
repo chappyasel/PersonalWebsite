@@ -3,10 +3,16 @@
 import type * as CANNON from "cannon-es";
 import * as THREE from "three";
 
+import { recordFieldNoteEvent } from "../fieldNotes/progress";
 import type {
   PhysicsSceneScope,
   PhysicsStaticRoot,
 } from "./PhysicsSceneProvider";
+import {
+  DICE_PROP_KEY_PREFIX,
+  type DiceTowerCandidate,
+  isDiceTower,
+} from "./diceTower";
 import { publishMeadowPhysicalEvent } from "./meadowDisturbance";
 import {
   MEADOW_TRAIL,
@@ -393,6 +399,7 @@ export class ScenePhysicsWorld {
   private generatedStaticsEnabled = true;
   private lastTimingPublish = Number.NEGATIVE_INFINITY;
   private timingPeak = 0;
+  private diceTowerCooldown = 0;
   private safetyBounds = new THREE.Box3(
     new THREE.Vector3(-SAFETY_HORIZONTAL_MARGIN, -5, -SAFETY_HORIZONTAL_MARGIN),
     new THREE.Vector3(SAFETY_HORIZONTAL_MARGIN, 12, SAFETY_HORIZONTAL_MARGIN),
@@ -1605,6 +1612,7 @@ export class ScenePhysicsWorld {
       }
       this.push(handle, 0);
     }
+    this.checkDiceTower(delta);
     const pendingReset = this.handles.find(
       (handle) => (handle.offscreenFor ?? 0) > 0,
     );
@@ -1632,6 +1640,34 @@ export class ScenePhysicsWorld {
       this.lastTimingPublish = finished;
       this.timingPeak = 0;
     }
+  }
+
+  /** Full Stack watcher. Half-second cadence over at most six bodies, so the
+   * cost is a handful of comparisons; recordFieldNoteEvent already ignores a
+   * discovery that has been earned. */
+  private checkDiceTower(delta: number) {
+    this.diceTowerCooldown -= delta;
+    if (this.diceTowerCooldown > 0) return;
+    this.diceTowerCooldown = 0.5;
+    const sleeping = this.C.Body.SLEEPING;
+    const candidates: DiceTowerCandidate[] = [];
+    for (const handle of this.handles) {
+      if (!handle.key.startsWith(DICE_PROP_KEY_PREFIX)) continue;
+      const body = handle.body;
+      if (!body) continue;
+      candidates.push({
+        key: handle.key,
+        x: body.position.x,
+        y: body.position.y,
+        z: body.position.z,
+        size: handle.smallestExtent ?? 0,
+        resting:
+          handle.phase.current === "sim" &&
+          !handle.parked &&
+          body.sleepState === sleeping,
+      });
+    }
+    if (isDiceTower(candidates)) recordFieldNoteEvent({ type: "dice-stacked" });
   }
 
   private applyGeneratedStatics(enabled: boolean) {

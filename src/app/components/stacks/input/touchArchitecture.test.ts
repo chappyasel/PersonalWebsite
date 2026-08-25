@@ -18,7 +18,7 @@ const store = read("../store.ts");
 const sheet = read("../dom/PlacardLayer.tsx");
 const rail = read("../dom/UnitRail.tsx");
 const globals = read("../../../../styles/globals.css");
-const coarseCapability = read("./useCoarseTouchCapability.ts");
+const tapFirstCapability = read("../../../../lib/useTapFirstCapability.ts");
 const scenePointerEvents = read("./scenePointerEvents.ts");
 const golf = read("../scene/golf/GolfExperience.tsx");
 const golfBall = read("../scene/golf/GolfBallProp.tsx");
@@ -45,15 +45,18 @@ describe("coarse-pointer ownership", () => {
   });
 
   it("separates narrow presentation from pointer behavior and material", () => {
-    expect(coarseCapability).toContain("(hover: none) and (pointer: coarse)");
+    expect(tapFirstCapability).toContain(
+      '"(hover: none) and (pointer: coarse)"',
+    );
+    expect(tapFirstCapability).not.toContain("width < 1200px");
     expect(bridges).toContain("A wheel or trackpad is fine-pointer intent");
     expect(bridges).not.toContain("window.innerWidth < 1200");
     expect(bridges).not.toContain("touchWorldRef.zoomOffset - wheelDeltaPx");
-    expect(sheet).toContain("useCoarseTouchCapability()");
+    expect(sheet).toContain("useTapFirstCapability()");
     expect(sheet).toContain("performanceSettings.placardGlassMode");
     expect(sheet).toContain('className="min-[1200px]:hidden"');
     expect(sheet).toContain("min-[1200px]:block");
-    expect(rail).not.toContain("useCoarseTouchCapability");
+    expect(rail).toContain("useTapFirstCapability()");
   });
 
   it("routes touch through one arbiter instead of legacy activators", () => {

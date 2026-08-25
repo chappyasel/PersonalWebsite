@@ -23,7 +23,7 @@ export type HomepageSection =
   | "projects"
   | "blog"
   | "talks";
-export type HomepageDoorDestination =
+export type HomepagePortalDestination =
   | "books"
   | "weightlifting"
   | "liarsdice"
@@ -68,6 +68,14 @@ export type UniversalSearchMatchKind =
   | "metadata"
   | "body";
 
+/**
+ * Historical PostHog contract. Portal activations keep the original event and
+ * property names so existing funnels continue without a dual-write transition
+ * that would count one activation twice.
+ */
+export const HOMEPAGE_PORTAL_ACTIVATED_EVENT =
+  "homepage_door_activated" as const;
+
 /** The complete first-party event contract. Add events here before capture. */
 export type AnalyticsEventProperties = {
   homepage_delivery: {
@@ -89,10 +97,10 @@ export type AnalyticsEventProperties = {
     section: HomepageSection;
     delivery_mode: HomepageDeliveryMode;
   };
-  homepage_door_activated: {
+  [HOMEPAGE_PORTAL_ACTIVATED_EVENT]: {
     door_id: string;
     section: HomepageSection;
-    destination: HomepageDoorDestination;
+    destination: HomepagePortalDestination;
   };
   homepage_contact_selected: {
     method: ContactMethod;

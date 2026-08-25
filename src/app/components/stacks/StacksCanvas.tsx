@@ -25,13 +25,14 @@ import {
 } from "react";
 import type * as THREE from "three";
 
+import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
+
 import { sceneAudio } from "./audio/sceneAudio";
 import { useWorldBootScope } from "./boot/useWorldBoot";
 import { assetLoadComplete } from "./boot/worldBootMachine";
 import { isWorldRevealed, worldBoot } from "./boot/worldBootSession";
 import { type StacksData, UNIT_COUNT } from "./data";
 import TouchInteractionLayer from "./input/TouchInteractionLayer";
-import { useCoarseTouchCapability } from "./input/useCoarseTouchCapability";
 import { setLoadProgress } from "./loading";
 import { modelArtifactRoomShouldFreeze } from "./modal/modelArtifactHandoff";
 import { cameraTravelDiagnostics } from "./scene/CameraRig";
@@ -48,10 +49,6 @@ import {
 import type { GolfShotOutcome } from "./scene/golf/golfTypes";
 import { setInteractionProjectionContext } from "./scene/interactionProjection";
 import { sceneInteractionInventory } from "./scene/interactionRegistry";
-import {
-  type SceneLayoutExportRecord,
-  sceneLayoutEditorController,
-} from "./scene/sceneLayoutEditor";
 import type {
   MeadowDiagnosticsSettings,
   MeadowDiagnosticsUpdate,
@@ -124,6 +121,10 @@ import {
   prewarmSceneGpuResources,
   shouldWarmSceneGpuResources,
 } from "./scene/sceneGpuPrewarm";
+import {
+  type SceneLayoutExportRecord,
+  sceneLayoutEditorController,
+} from "./scene/sceneLayoutEditor";
 import SceneLightShapePadding from "./scene/sceneLightShape";
 import {
   DEFAULT_SCENE_PERFORMANCE_SETTINGS,
@@ -149,6 +150,7 @@ import {
 import { StaticWorldInvariantProbe } from "./scene/staticWorld";
 import { sceneUnitActivityController } from "./scene/unitActivity";
 import { CAMERA, STACKS_DESKTOP_MIN_WIDTH } from "./scene/worldLayout";
+import { sceneArtifactById } from "./sceneArtifacts";
 import { progressRef, useStacks } from "./store";
 import { PALETTES } from "./theme";
 import { isWebGLContextUsable } from "./webglProbe";
@@ -657,7 +659,7 @@ function ContextSafeEffects({
  * the start of the R3F frame instead so the HUD/harness see the whole
  * multi-pass frame. */
 function PerformanceProbe() {
-  const coarseTouchCapability = useCoarseTouchCapability();
+  const coarseTouchCapability = useTapFirstCapability();
   const gl = useThree((state) => state.gl);
   const camera = useThree((state) => state.camera);
   useEffect(() => {
@@ -1108,14 +1110,18 @@ export default function StacksCanvas({
   const dark = resolvedTheme === "dark";
   const palette = PALETTES[dark ? "dark" : "light"];
   const performanceSettings = useScenePerformanceSettings();
-  // Travel freezes while the mobile panel or the book modal owns the screen.
+  // Book and model inspection freeze the room. Photo inspection leaves it
+  // alive behind the same translucent treatment as Field Notes.
   const panelState = useStacks((s) => s.panelState);
   const modalOpen = useStacks((s) => s.modalOpen);
-  const modelArtifactPhase = useStacks(
-    (s) => s.modelArtifactHandoff?.phase ?? null,
+  const artifactHandoff = useStacks((s) => s.modelArtifactHandoff);
+  const modelArtifactPhase = artifactHandoff?.phase ?? null;
+  const inspectedArtifact = sceneArtifactById(
+    artifactHandoff?.artifactId ?? null,
   );
   const freezeRoom =
     modalOpen &&
+    inspectedArtifact?.kind !== "image" &&
     (modelArtifactPhase === null ||
       modelArtifactRoomShouldFreeze(modelArtifactPhase));
   const canvasShellRef = useRef<HTMLDivElement>(null);
@@ -1151,7 +1157,7 @@ export default function StacksCanvas({
   // Read here as well as in the probe: the opening axis state needs it before
   // any frame has been sampled, and a coarse pointer on a narrow viewport is
   // the most reliable pre-frame signal that this is a phone.
-  const coarseTouch = useCoarseTouchCapability();
+  const coarseTouch = useTapFirstCapability();
   const [diagnosticsRequested, setDiagnosticsRequested] = useState(() => {
     if (devHooksRequested()) return true;
     if (typeof window === "undefined") return false;
@@ -1888,9 +1894,8 @@ export default function StacksCanvas({
       <Canvas
         events={pointerEvents}
         shadows="soft"
-        // Image and book viewers freeze immediately. A model handoff keeps the
-        // room alive until the real shelf object reaches the camera and the
-        // inspection renderer finishes replacing it.
+        // Books freeze immediately. Models freeze after the real shelf object
+        // reaches the camera. Photos keep the room alive throughout.
         frameloop={freezeRoom ? "never" : "always"}
         camera={{ position: [0, CAMERA.y, CAMERA.z], fov: CAMERA.fov }}
         dpr={dpr}

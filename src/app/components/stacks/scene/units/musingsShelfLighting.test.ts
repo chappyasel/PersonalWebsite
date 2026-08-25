@@ -452,7 +452,7 @@ describe("Musings shelf composition", () => {
     expect(geometrySource).toContain("lean: 0.35");
     expect(unitSource).toContain("<TrustEssay");
     expect(unitSource).not.toContain("MUSINGS_LOWER_BOOK");
-    // The booklet is a Door to the essay, and the perch rides the cover.
+    // The booklet is a Portal to the essay, and the perch rides the cover.
     expect(trustSource).toContain("href={TRUST_ESSAY_HREF}");
     expect(trustSource).toContain(
       "/images/stacks/musings/trust-2025-cover.webp?v=2",

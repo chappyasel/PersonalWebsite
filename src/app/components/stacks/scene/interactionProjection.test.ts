@@ -15,12 +15,12 @@ import { afterEach, describe, expect, it } from "vitest";
 import { meshBoxInLocal } from "./interaction";
 import {
   activationAtPointer,
-  doorAtPointer,
+  portalAtPointer,
   projectedInteractionBounds,
   setInteractionProjectionContext,
 } from "./interactionProjection";
 import {
-  projectDoor,
+  projectPortal,
   projectSceneInteractionRect,
   registerSceneInteraction,
 } from "./interactionRegistry";
@@ -70,7 +70,7 @@ describe("scene interaction projection", () => {
       },
     });
 
-    const projected = projectDoor("test:empty-linked-carrier");
+    const projected = projectPortal("test:empty-linked-carrier");
     expect(projected).not.toBeNull();
     expect(projected!.x).toBeGreaterThan(50);
     expect(projected!.y).toBeLessThan(50);
@@ -97,7 +97,7 @@ describe("scene interaction projection", () => {
     lineGeometry.setPositions([-0.05, 0.15, 0, 0.05, 0.15, 0]);
     root.add(new LineSegments2(lineGeometry, new LineMaterial()));
     const release = registerSceneInteraction({
-      id: "test:wide-line-door",
+      id: "test:wide-line-portal",
       root,
       activeUnits: [0],
       projectedLocalBounds: {
@@ -111,7 +111,7 @@ describe("scene interaction projection", () => {
       },
     });
 
-    const projected = projectDoor("test:wide-line-door");
+    const projected = projectPortal("test:wide-line-portal");
     release();
     lineGeometry.dispose();
     expect(projected).not.toBeNull();
@@ -169,7 +169,7 @@ describe("scene interaction projection", () => {
     expect(measured!.getSize(new Vector3()).y).toBeLessThan(0.25);
   });
 
-  it("lets the nearest registered non-Door occlude a Door on touch", () => {
+  it("lets the nearest registered non-Portal occlude a Portal on touch", () => {
     const camera = new PerspectiveCamera(50, 1, 0.1, 100);
     camera.position.z = 5;
     camera.lookAt(0, 0, 0);
@@ -178,12 +178,12 @@ describe("scene interaction projection", () => {
       getBoundingClientRect: () => rect,
     } as HTMLElement);
 
-    const releaseDoor = registerSceneInteraction({
-      id: "test:back-door",
+    const releasePortal = registerSceneInteraction({
+      id: "test:back-portal",
       root: target(0),
       activeUnits: [0],
       activation: {
-        kind: "door",
+        kind: "portal",
         label: "Open test",
         external: false,
       },
@@ -195,10 +195,10 @@ describe("scene interaction projection", () => {
       movable: { massKg: 1, massClass: "light" },
     });
 
-    expect(doorAtPointer(50, 50)).toBeNull();
+    expect(portalAtPointer(50, 50)).toBeNull();
     releaseOccluder();
-    expect(doorAtPointer(50, 50)).toBe("test:back-door");
-    releaseDoor();
+    expect(portalAtPointer(50, 50)).toBe("test:back-portal");
+    releasePortal();
   });
 
   it("resolves a registered easter egg directly from touch coordinates", () => {

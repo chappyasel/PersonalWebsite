@@ -39,7 +39,7 @@ test("desktop details focus mode persists and guards the H shortcut", async ({
     const state = window.__stacks?.state();
     return (state?.interactions ?? []) as Array<{
       id: string;
-      activation: "door" | "action" | "egg" | null;
+      activation: "portal" | "action" | "egg" | null;
     }>;
   });
   const sceneIds = sceneInteractions.map((item) => item.id);
@@ -63,8 +63,7 @@ test("desktop details focus mode persists and guards the H shortcut", async ({
     );
   }
   expect(
-    sceneInteractions.find((item) => item.id === "grab:basketball")
-      ?.activation,
+    sceneInteractions.find((item) => item.id === "grab:basketball")?.activation,
   ).toBeNull();
 
   const dock = page.locator("[data-stacks-desktop-dock]");

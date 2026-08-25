@@ -2,11 +2,34 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   type AnalyticsEvent,
+  HOMEPAGE_PORTAL_ACTIVATED_EVENT,
   createAnalyticsInterface,
   sanitizeAnalyticsProperties,
 } from "./analytics";
 
 describe("analytics interface", () => {
+  it("keeps Portal activation on one legacy analytics contract", async () => {
+    const deliver = vi.fn();
+    const analytics = createAnalyticsInterface({
+      loadTransport: async () => deliver,
+    });
+
+    analytics.capture(HOMEPAGE_PORTAL_ACTIVATED_EVENT, {
+      door_id: "grab:ai-collective-mark",
+      section: "about",
+      destination: "external",
+    });
+    await analytics.start();
+
+    expect(HOMEPAGE_PORTAL_ACTIVATED_EVENT).toBe("homepage_door_activated");
+    expect(deliver).toHaveBeenCalledOnce();
+    expect(deliver).toHaveBeenCalledWith("homepage_door_activated", {
+      door_id: "grab:ai-collective-mark",
+      section: "about",
+      destination: "external",
+    });
+  });
+
   it("defers transport loading and flushes queued events in order", async () => {
     const delivered: Array<{ event: AnalyticsEvent; properties: unknown }> = [];
     const loadTransport = vi.fn(async () => {

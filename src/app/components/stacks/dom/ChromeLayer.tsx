@@ -23,11 +23,13 @@ import { setStacksSheetDismissed, useStacks } from "../store";
 import dynamic from "next/dynamic";
 import { type ComponentType, useEffect, useState } from "react";
 
-import { Keycap } from "~/components/ui/keycap";
+import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
+
 import { ThemeToggle } from "~/components/ui/theme-toggle";
 
 import ChromeKeyboard from "./ChromeKeyboard";
-import DoorLabel from "./DoorLabel";
+import ChromeKeyboardHelp from "./ChromeKeyboardHelp";
+import PortalLabel from "./PortalLabel";
 import { createFreeRoamChromeVisibility } from "./chromeKeys";
 
 const SoundToggle = dynamic(
@@ -36,6 +38,11 @@ const SoundToggle = dynamic(
     ssr: false,
     loading: () => <div aria-hidden className="size-10" />,
   },
+);
+
+const FieldNotesChrome = dynamic(
+  () => import("../fieldNotes/FieldNotesChrome"),
+  { ssr: false },
 );
 
 export function ChromeReveal({
@@ -224,17 +231,28 @@ export default function ChromeLayer() {
   // DOM bottom fade on top double-darkens the floor (audit §2.1).
   const postfx = useStacks((s) => s.postfx);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const tapFirst = useTapFirstCapability();
+
+  useEffect(() => {
+    if (tapFirst) setKeyboardOpen(false);
+  }, [tapFirst]);
+
   return (
     <>
-      <DoorLabel />
-      <ChromeKeyboard open={keyboardOpen} onOpenChange={setKeyboardOpen} />
+      <PortalLabel />
+      {!tapFirst && (
+        <ChromeKeyboard open={keyboardOpen} onOpenChange={setKeyboardOpen} />
+      )}
       <style>{`
-        :root { --stacks-ease: cubic-bezier(0.16, 1, 0.3, 1); }
+        :root {
+          --stacks-ease: cubic-bezier(0.16, 1, 0.3, 1);
+          --stacks-mobile-top-strip-start: max(0.75rem, env(safe-area-inset-top, 0px));
+          --stacks-mobile-top-strip-height: 2.5rem;
+        }
         .stacks-scroll { scrollbar-width: none; }
         .stacks-scroll::-webkit-scrollbar { display: none; }
         .stacks-wordmark {
           left: max(1.25rem, env(safe-area-inset-left, 0px));
-          top: max(1rem, env(safe-area-inset-top, 0px));
         }
         .stacks-wordmark-shortcuts {
           opacity: 0;
@@ -255,7 +273,6 @@ export default function ChromeLayer() {
         }
         .stacks-theme-toggle {
           right: max(1rem, env(safe-area-inset-right, 0px));
-          top: max(0.75rem, env(safe-area-inset-top, 0px));
         }
         .stacks-scene-controls {
           display: flex;
@@ -278,6 +295,24 @@ export default function ChromeLayer() {
           background-color: rgb(255 255 255 / 0.9) !important;
         }
         @media (width < 1200px) {
+          .stacks-wordmark,
+          .stacks-theme-toggle {
+            top: var(--stacks-mobile-top-strip-start);
+            min-height: var(--stacks-mobile-top-strip-height);
+            display: flex;
+            align-items: center;
+          }
+          .stacks-wordmark[data-tap-first],
+          .stacks-theme-toggle[data-tap-first] {
+            --stacks-secondary-chrome-idle-opacity: 0.6;
+          }
+          .stacks-mobile-secondary-chrome {
+            opacity: var(--stacks-secondary-chrome-idle-opacity, 1);
+          }
+          .stacks-mobile-secondary-chrome:focus-visible,
+          .stacks-mobile-secondary-chrome:active {
+            opacity: 1;
+          }
           .stacks-wordmark .stacks-on-background-text,
           .stacks-unit-rail-mobile .stacks-on-background-text,
           .stacks-theme-toggle .stacks-on-background-text {
@@ -385,34 +420,20 @@ export default function ChromeLayer() {
           white light-mode version read as ground fog over the meadow) and
           half the old strength — a grounding shadow, not a fog bank. */}
       {!postfx && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[6] h-[12dvh] bg-gradient-to-t from-black/45 to-transparent" />
+        <div className="stacks-chrome-vignette pointer-events-none absolute inset-x-0 bottom-0 z-[6] h-[12dvh] bg-gradient-to-t from-black/45 to-transparent" />
       )}
-      <div className="stacks-wordmark pointer-events-auto absolute z-20">
+      <div
+        className="stacks-wordmark pointer-events-auto absolute z-20"
+        data-tap-first={tapFirst || undefined}
+      >
         <div className="flex items-start gap-2.5">
           <ChromeReveal index={0}>
-            <div>
-              <p className="stacks-on-background-text whitespace-nowrap font-serif text-base tracking-tight text-foreground min-[1200px]:text-lg">
-                Chappy Asel
-              </p>
-              <div className="stacks-wordmark-shortcuts stacks-on-background-text mt-1 flex items-center gap-1.5 whitespace-nowrap font-sans text-[9px] font-medium tracking-[0.01em]">
-                <button
-                  type="button"
-                  aria-label="Open keyboard shortcuts"
-                  aria-controls="stacks-keyboard-shortcuts"
-                  aria-expanded={keyboardOpen}
-                  onClick={() => setKeyboardOpen(true)}
-                  className="flex items-center gap-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-                >
-                  <Keycap aria-hidden="true">?</Keycap>
-                  <span>Shortcuts</span>
-                </button>
-                <span aria-hidden="true">·</span>
-                <span className="flex items-center gap-1">
-                  <Keycap aria-hidden="true">H</Keycap>
-                  <span>Hide UI</span>
-                </span>
-              </div>
-            </div>
+            <ChromeKeyboardHelp
+              open={keyboardOpen}
+              onOpen={() => setKeyboardOpen(true)}
+              tapFirst={tapFirst}
+              fieldNotes={<FieldNotesChrome />}
+            />
           </ChromeReveal>
           <SceneDiagnosticsLoader />
         </div>
@@ -424,12 +445,11 @@ export default function ChromeLayer() {
           the glyph until you reach for it (owner call at browse) — the round
           hover/press wash is the whole affordance.
 
-          MOBILE: this button owns the top-right corner outright. It is a 40px
-          box at top-3, so it occupies 12–52px down from the top edge, and the
-          name opposite it owns the left of the same strip. Nothing else may
-          be placed there. The unit row used to be, at right-4 top-4, and the
-          seventh mark sat under this glyph on a 390px phone; it now takes its
-          own centred row below 56px (see UnitRail).
+          MOBILE: the wordmark and these 40px controls share one top-strip
+          start and height, so their visual centers cannot drift apart. The
+          name owns the left and the controls own the right. Nothing else may
+          be placed there. The unit row takes its own centred row below 56px
+          (see UnitRail).
 
           DESKTOP: bottom-left, because top-right is the placard's. The dock
           runs `inset-y-0 right-5` and is 27–31rem wide, so a control in that
@@ -450,10 +470,13 @@ export default function ChromeLayer() {
           this corner, at roughly 25–55px x, 846–876px y on a 900px window. It
           is not ours, it does not ship, and nothing here is laid out around
           it — but it does sit on top of this glyph in a dev screenshot. */}
-      <div className="stacks-theme-toggle pointer-events-auto absolute z-30">
+      <div
+        className="stacks-theme-toggle pointer-events-auto absolute z-30"
+        data-tap-first={tapFirst || undefined}
+      >
         <ChromeReveal index={2} className="stacks-scene-controls">
-          <ThemeToggle className="stacks-on-background-text !rounded-full hover:!bg-foreground/[0.09] active:!bg-foreground/[0.14]" />
-          <SoundToggle className="stacks-on-background-text !rounded-full hover:!bg-foreground/[0.09] active:!bg-foreground/[0.14]" />
+          <ThemeToggle className="stacks-on-background-text !rounded-full stacks-mobile-secondary-chrome hover:!bg-foreground/[0.09] active:!bg-foreground/[0.14]" />
+          <SoundToggle className="stacks-on-background-text !rounded-full stacks-mobile-secondary-chrome hover:!bg-foreground/[0.09] active:!bg-foreground/[0.14]" />
         </ChromeReveal>
       </div>
     </>

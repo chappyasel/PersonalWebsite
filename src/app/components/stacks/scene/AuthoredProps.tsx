@@ -276,8 +276,8 @@ export function TJMedallionProp({
   dark,
   base,
   href,
-  doorLabel = "Visit TJHSST",
-  doorDetail,
+  portalLabel = "Visit TJHSST",
+  portalDetail,
   name,
   scale,
   yaw = -0.16,
@@ -287,10 +287,10 @@ export function TJMedallionProp({
   dark: boolean;
   base: [number, number, number];
   href: string;
-  /** Door Label copy. About passes what the medallion stands for. */
-  doorLabel?: string;
-  /** Lines under the Door Label title; see Grabbable. */
-  doorDetail?: string | readonly string[];
+  /** Portal Label copy. About passes what the medallion stands for. */
+  portalLabel?: string;
+  /** Lines under the Portal Label title; see Grabbable. */
+  portalDetail?: string | readonly string[];
   name?: string;
   scale: number;
   /** Face yaw; About uses this to catch its nearby desk practical. */
@@ -308,8 +308,8 @@ export function TJMedallionProp({
       massKg={0.45}
       sceneImpulseReaction="knockdown"
       href={href}
-      doorLabel={doorLabel}
-      doorDetail={doorDetail}
+      portalLabel={portalLabel}
+      portalDetail={portalDetail}
       external
     >
       <group name={name} rotation={[0, yaw, 0]} scale={scale}>

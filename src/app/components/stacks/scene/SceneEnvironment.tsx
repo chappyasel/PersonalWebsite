@@ -35,8 +35,8 @@ import {
   freeRoamFogVisible,
 } from "./freeRoamDiagnostics";
 import {
-  getSceneInteraction,
   registerSceneInteraction,
+  runSceneInteractionActivation,
 } from "./interactionRegistry";
 import { claimEffectLayer, effectLayerAges } from "./layeredEffects";
 import { MEADOW_LAYOUT_REVISION } from "./meadowField";
@@ -3019,8 +3019,7 @@ function SkyDome({
         tappedEgg !== JASPER_HOVER
       )
         return;
-      const interaction = getSceneInteraction(tappedEgg);
-      if (interaction?.activation?.kind === "egg") interaction.activation.run();
+      runSceneInteractionActivation(tappedEgg);
     };
     window.addEventListener("pointerdown", onDown);
     window.addEventListener("pointerup", onUp);

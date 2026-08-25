@@ -9,7 +9,7 @@
 // page one of the real PDF (the beam artwork and the title block), rasterised
 // at 2x Letter resolution so its type survives a close carry. The booklet is
 // the same full Letter size as those loose pages. No redraw, no invented mark.
-// The booklet is a Door to the essay.
+// The booklet is a Portal to the essay.
 import { type Palette } from "../../theme";
 import Grabbable from "../Grabbable";
 import HeldFacing from "../HeldFacing";
@@ -68,7 +68,7 @@ export function TrustEssay({
       shape="box"
       massKg={0.2}
       href={TRUST_ESSAY_HREF}
-      doorLabel="Read Trust in the Age of Acceleration"
+      portalLabel="Read Trust in the Age of Acceleration"
       external
     >
       {/* Carried, the cover turns square to the camera like the sticker and

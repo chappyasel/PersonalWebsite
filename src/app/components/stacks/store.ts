@@ -9,18 +9,28 @@
 //   handful of times per traverse, everything else on discrete user actions.
 import { create } from "zustand";
 
-import { type PixelLook, pixelLookFromSearch } from "./scene/pixelArt";
-
 import type { Book } from "~/lib/books/types";
 
+import { recordFieldNoteEvent } from "./fieldNotes/progress";
 import {
   type ModelArtifactHandoffEvent,
   type ModelArtifactHandoffState,
   beginModelArtifactHandoff,
   reduceModelArtifactHandoff,
 } from "./modal/modelArtifactHandoff";
+import { type PixelLook, pixelLookFromSearch } from "./scene/pixelArt";
 import { type SceneArtifactId, sceneArtifactById } from "./sceneArtifacts";
 import { propReactionsSuppressed } from "./scene/reactionEngagement";
+
+function recordArtifactFieldNote(id: SceneArtifactId) {
+  const artifact = sceneArtifactById(id);
+  if (!artifact) return;
+  recordFieldNoteEvent({
+    type: "artifact-opened",
+    artifactId: artifact.id,
+    collection: artifact.collection,
+  });
+}
 
 export const progressRef = { current: 0 };
 
@@ -192,8 +202,11 @@ export const useStacks = create<StacksState>((set) => ({
       ? "off"
       : pixelLookFromSearch(window.location.search),
   pixelOrigin: null,
-  setPixelLook: (pixelLook, pixelOrigin = null) =>
-    set({ pixelLook, pixelOrigin }),
+  setPixelLook: (pixelLook, pixelOrigin = null) => {
+    if (pixelLook !== "off")
+      recordFieldNoteEvent({ type: "pixel-look-entered", look: pixelLook });
+    set({ pixelLook, pixelOrigin });
+  },
   jumpTo: null,
   travelTo: null,
   setActiveUnit: (activeUnit) => set({ activeUnit }),
@@ -205,7 +218,8 @@ export const useStacks = create<StacksState>((set) => ({
         ? { modalOpen, focusedInteraction: null, pressedInteraction: null }
         : { modalOpen },
     ),
-  openSceneArtifact: (inspectedArtifact, reducedMotion = false) =>
+  openSceneArtifact: (inspectedArtifact, reducedMotion = false) => {
+    recordArtifactFieldNote(inspectedArtifact);
     set((state) => ({
       inspectedArtifact,
       modelArtifactHandoff: {
@@ -218,8 +232,10 @@ export const useStacks = create<StacksState>((set) => ({
       modalOpen: true,
       focusedInteraction: null,
       pressedInteraction: null,
-    })),
-  openModelSceneArtifact: (inspectedArtifact, reducedMotion) =>
+    }));
+  },
+  openModelSceneArtifact: (inspectedArtifact, reducedMotion) => {
+    recordArtifactFieldNote(inspectedArtifact);
     set((state) => ({
       inspectedArtifact,
       modelArtifactHandoff: {
@@ -232,7 +248,8 @@ export const useStacks = create<StacksState>((set) => ({
       modalOpen: true,
       focusedInteraction: null,
       pressedInteraction: null,
-    })),
+    }));
+  },
   selectImageSceneArtifact: (inspectedArtifact) =>
     set((state) => ({
       inspectedArtifact,
@@ -263,11 +280,8 @@ export const useStacks = create<StacksState>((set) => ({
     }),
   closeSceneArtifact: () =>
     set((state) => {
-      if (!state.modelArtifactHandoff)
-        return { inspectedArtifact: null };
-      const artifact = sceneArtifactById(
-        state.modelArtifactHandoff.artifactId,
-      );
+      if (!state.modelArtifactHandoff) return { inspectedArtifact: null };
+      const artifact = sceneArtifactById(state.modelArtifactHandoff.artifactId);
       let modelArtifactHandoff = reduceModelArtifactHandoff(
         state.modelArtifactHandoff,
         { type: "close" },
@@ -302,8 +316,14 @@ export const useStacks = create<StacksState>((set) => ({
         : { panelState },
     ),
   setSheetDismissed: (sheetDismissed) => set({ sheetDismissed }),
-  setPendingBook: (pendingBook) => set({ pendingBook }),
-  setPendingBookId: (pendingBookId) => set({ pendingBookId }),
+  setPendingBook: (pendingBook) => {
+    if (pendingBook) recordFieldNoteEvent({ type: "book-preview-opened" });
+    set({ pendingBook });
+  },
+  setPendingBookId: (pendingBookId) => {
+    if (pendingBookId) recordFieldNoteEvent({ type: "book-preview-opened" });
+    set({ pendingBookId });
+  },
   setDesktopNavRightPx: (desktopNavRightPx) =>
     set((state) =>
       state.desktopNavRightPx === desktopNavRightPx

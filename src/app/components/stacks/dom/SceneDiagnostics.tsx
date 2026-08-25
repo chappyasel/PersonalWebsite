@@ -1,5 +1,13 @@
 "use client";
 
+import { FIELD_NOTES, type FieldNoteId } from "../fieldNotes/catalog";
+import { resetFieldNotePlacements } from "../fieldNotes/placement";
+import {
+  previewFieldNoteAward,
+  resetFieldNotes,
+  setAllFieldNotesFound,
+  useFieldNotesProgress,
+} from "../fieldNotes/progress";
 import { isEditableShortcutTarget } from "../input/editableShortcutTarget";
 import { browserStorage } from "../mobile/liveness";
 import { requestDevHooks } from "../scene/devHooks";
@@ -192,11 +200,13 @@ function DevPerformanceHud({
   expanded,
   tracing,
   launcher,
+  onDismiss,
   onToggle,
 }: {
   expanded: boolean;
   tracing: boolean;
   launcher: React.RefObject<HTMLButtonElement | null>;
+  onDismiss: () => void;
   onToggle: () => void;
 }) {
   const [snapshot, setSnapshot] = useState(EMPTY_DEV_HUD);
@@ -210,39 +220,51 @@ function DevPerformanceHud({
   }, []);
 
   const rows = createDevHudRows(snapshot);
+  const launcherDescription = tracing
+    ? "Performance trace recording. Press ` to stop and review."
+    : "Press ` to open FPS, policy, effects, and rendering decisions.";
 
   return (
-    <button
-      ref={launcher}
-      type="button"
-      className="stacks-dev-hud"
-      aria-label="Open scene debug console"
-      aria-keyshortcuts="`"
-      aria-expanded={expanded}
-      aria-controls="stacks-scene-diagnostics"
-      aria-haspopup="dialog"
-      data-tracing={tracing || undefined}
-      title={
-        tracing
-          ? "Performance trace recording · press ` to stop and review"
-          : "Scene debug · press ` · FPS, policy, effects, and decisions"
-      }
-      onClick={onToggle}
-    >
-      {rows.map((row) => (
-        <span key={row.id} data-row={row.id}>
-          {row.segments.map((segment, index) => (
-            <span
-              key={`${row.id}:${index}`}
-              data-tone={segment.tone ?? "normal"}
-              data-emphasis={segment.emphasis ? true : undefined}
-            >
-              {segment.text}
-            </span>
-          ))}
-        </span>
-      ))}
-    </button>
+    <div className="stacks-dev-hud-shell">
+      <button
+        ref={launcher}
+        type="button"
+        className="stacks-dev-hud"
+        aria-label="Open scene debug console"
+        aria-keyshortcuts="`"
+        aria-expanded={expanded}
+        aria-controls="stacks-scene-diagnostics"
+        aria-describedby="stacks-dev-hud-description"
+        aria-haspopup="dialog"
+        data-tracing={tracing || undefined}
+        onClick={onToggle}
+      >
+        {rows.map((row) => (
+          <span key={row.id} data-row={row.id}>
+            {row.segments.map((segment, index) => (
+              <span
+                key={`${row.id}:${index}`}
+                data-tone={segment.tone ?? "normal"}
+                data-emphasis={segment.emphasis ? true : undefined}
+              >
+                {segment.text}
+              </span>
+            ))}
+          </span>
+        ))}
+      </button>
+      <span id="stacks-dev-hud-description" className="sr-only">
+        {launcherDescription}
+      </span>
+      <button
+        type="button"
+        className="stacks-dev-hud-dismiss"
+        aria-label="Hide performance HUD until reload"
+        onClick={onDismiss}
+      >
+        <XIcon aria-hidden="true" size={9} weight="bold" />
+      </button>
+    </div>
   );
 }
 
@@ -442,6 +464,71 @@ function LayoutEditorControls() {
   );
 }
 
+function FieldNotesDiagnosticsControls() {
+  const progress = useFieldNotesProgress();
+  const [selectedId, setSelectedId] = useState<FieldNoteId>(FIELD_NOTES[0].id);
+  const foundCount = FIELD_NOTES.filter(
+    (note) => progress.earned[note.id] !== undefined,
+  ).length;
+  const allFound = foundCount === FIELD_NOTES.length;
+
+  return (
+    <fieldset className="stacks-diagnostics-section">
+      <legend>Field Notes</legend>
+      <div className="stacks-diagnostics-current">
+        <span>Progress</span>
+        <strong>
+          {foundCount} / {FIELD_NOTES.length} found
+        </strong>
+        <small>
+          Preview notifications without saving, or override local progress.
+        </small>
+      </div>
+      <label className="stacks-diagnostics-control">
+        Notification
+        <select
+          value={selectedId}
+          onChange={(event) =>
+            setSelectedId(event.currentTarget.value as FieldNoteId)
+          }
+        >
+          {FIELD_NOTES.map((note) => (
+            <option key={note.id} value={note.id}>
+              {note.title} · {note.rarity}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="stacks-diagnostics-actions">
+        <button type="button" onClick={() => previewFieldNoteAward(selectedId)}>
+          Preview notification
+        </button>
+        <button
+          type="button"
+          disabled={allFound}
+          onClick={() => setAllFieldNotesFound(true)}
+        >
+          Mark all found
+        </button>
+        <button
+          type="button"
+          disabled={foundCount === 0}
+          onClick={resetFieldNotes}
+        >
+          Reset progress
+        </button>
+        <button type="button" onClick={resetFieldNotePlacements}>
+          Reset stamp layout
+        </button>
+      </div>
+      <p className="stacks-diagnostics-note">
+        Progress and stamp layout persist in this browser. Resetting the layout
+        does not clear discoveries. Notification previews do not persist.
+      </p>
+    </fieldset>
+  );
+}
+
 function diagnosticOptionValue(value: string | number | boolean | null) {
   if (value === null) return "null";
   return `${typeof value}:${String(value)}`;
@@ -463,7 +550,10 @@ function DiagnosticControl({
     `stacks-diagnostic-${descriptor.id.replaceAll(".", "-")}`;
   if (descriptor.valueKind === "boolean")
     return (
-      <label className="stacks-diagnostics-control" title={descriptor.help}>
+      <label
+        className="stacks-diagnostics-control"
+        aria-description={descriptor.help}
+      >
         <input
           id={inputId}
           type="checkbox"
@@ -491,7 +581,7 @@ function DiagnosticControl({
       <label
         className="stacks-diagnostics-range"
         htmlFor={inputId}
-        title={descriptor.help}
+        aria-description={descriptor.help}
       >
         <span>{descriptor.label}</span>
         <output htmlFor={inputId}>
@@ -523,7 +613,10 @@ function DiagnosticControl({
     ...new Set(options.flatMap((option) => option.optionGroup ?? [])),
   ];
   return (
-    <label className="stacks-diagnostics-control" title={descriptor.help}>
+    <label
+      className="stacks-diagnostics-control"
+      aria-description={descriptor.help}
+    >
       {descriptor.label}
       <select
         id={inputId}
@@ -1048,6 +1141,7 @@ export default function SceneDiagnostics({
   initiallyOpen?: boolean;
 }) {
   const [open, setOpen] = useState(initiallyOpen);
+  const [hudVisible, setHudVisible] = useState(true);
   const snapshot = useSyncExternalStore(
     insectDiagnosticsController.subscribe,
     insectDiagnosticsController.getSnapshot,
@@ -1238,6 +1332,7 @@ export default function SceneDiagnostics({
           <header className="stacks-diagnostics-panel-heading">
             <strong>Simulation controls</strong>
           </header>
+          <FieldNotesDiagnosticsControls />
           <DiagnosticRegistrySection
             groupId="simulate.camera"
             snapshot={diagnosticSnapshot}
@@ -1245,8 +1340,8 @@ export default function SceneDiagnostics({
             <p className="stacks-diagnostics-note">
               Free roam never captures the mouse. Hold the right button and drag
               to look. WASD moves along the room&apos;s axes whichever way you
-              face, Q/E moves down/up, and hold Shift for one-third speed. F
-              resumes or exits free roam, Shift+F starts from the current view,
+              face, Q/E moves down/up, and hold Shift for one-third speed. R
+              resumes or exits free roam, Shift+R starts from the current view,
               and ` opens debug. Left click selects an editable prop. The same
               gizmo moves, rotates, and scales it; ⌘Z undoes. Arrows move on
               X/Z; use Page Up/Down for height.
@@ -1727,37 +1822,46 @@ export default function SceneDiagnostics({
 
   return (
     <>
-      {freeRoamSnapshot.enabled ? (
-        <div className="stacks-free-roam-hint" role="status">
-          <span>Free roam</span>
-          <span aria-hidden="true">·</span>
-          <span>select prop to move, rotate, or scale</span>
-          <span aria-hidden="true">·</span>
-          <span>right-drag to look</span>
-          <span aria-hidden="true">·</span>
-          <KeycapSequence keys={["←", "→", "↑", "↓"]} label="Arrow keys" />
-          <span>move X/Z</span>
-          <span aria-hidden="true">·</span>
-          <KeycapSequence keys={["⇞", "⇟"]} label="Page Up or Page Down" />
-          <span>move Y</span>
-          <span aria-hidden="true">·</span>
-          <KeycapSequence keys={["W", "A", "S", "D"]} label="W A S D" />
-          <span>camera</span>
-          <span aria-hidden="true">·</span>
-          <KeycapSequence keys={["Q", "E"]} label="Q or E" />
-          <span>camera Y</span>
-          <span aria-hidden="true">·</span>
-          <KeycapSequence keys={["F"]} label="F" />
-          <span>exit</span>
-        </div>
-      ) : null}
+      {freeRoamSnapshot.enabled && typeof document !== "undefined"
+        ? createPortal(
+            // At the document root like the drawer: chrome transitions can
+            // give an ancestor a transform or filter, which quietly turns
+            // position: fixed into position-inside-the-wordmark.
+            <div className="stacks-free-roam-hint" role="status">
+              <span>Free roam</span>
+              <span aria-hidden="true">·</span>
+              <span>select prop to move, rotate, or scale</span>
+              <span aria-hidden="true">·</span>
+              <span>right-drag to look</span>
+              <span aria-hidden="true">·</span>
+              <KeycapSequence keys={["←", "→", "↑", "↓"]} label="Arrow keys" />
+              <span>move X/Z</span>
+              <span aria-hidden="true">·</span>
+              <KeycapSequence keys={["⇞", "⇟"]} label="Page Up or Page Down" />
+              <span>move Y</span>
+              <span aria-hidden="true">·</span>
+              <KeycapSequence keys={["W", "A", "S", "D"]} label="W A S D" />
+              <span>camera</span>
+              <span aria-hidden="true">·</span>
+              <KeycapSequence keys={["Q", "E"]} label="Q or E" />
+              <span>camera Y</span>
+              <span aria-hidden="true">·</span>
+              <KeycapSequence keys={["R"]} label="R" />
+              <span>exit</span>
+            </div>,
+            document.body,
+          )
+        : null}
       <div className="stacks-debug-launchers pointer-events-auto">
-        <DevPerformanceHud
-          expanded={open}
-          tracing={traceStatus.active}
-          launcher={launcher}
-          onToggle={toggleConsole}
-        />
+        {hudVisible ? (
+          <DevPerformanceHud
+            expanded={open}
+            tracing={traceStatus.active}
+            launcher={launcher}
+            onDismiss={() => setHudVisible(false)}
+            onToggle={toggleConsole}
+          />
+        ) : null}
         {drawer && typeof document !== "undefined"
           ? createPortal(drawer, document.body)
           : null}

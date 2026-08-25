@@ -52,7 +52,7 @@ describe("chrome keyboard", () => {
     expect(visitor).toHaveLength(1);
     const keys = visitor[0]!.rows.flatMap((row) => row.keys);
     expect(keys).toEqual(
-      expect.arrayContaining(["\\", "H", "M", "?", "Esc", "←"]),
+      expect.arrayContaining(["\\", "H", "M", "F", "1", "7", "?", "Esc", "←"]),
     );
     expect(shortcutGroups(true).map((group) => group.title)).toEqual([
       "Keyboard",

@@ -46,6 +46,15 @@ export default defineConfig([
           },
         },
       ],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "JSXOpeningElement[name.name=/^[a-z]/] > JSXAttribute[name.name='title']",
+          message:
+            "Do not use native title attributes. They create delayed browser tooltips. Use visible UI copy or an accessible name instead.",
+        },
+      ],
       "drizzle/enforce-delete-with-where": [
         "error",
         {

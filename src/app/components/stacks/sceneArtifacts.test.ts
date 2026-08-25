@@ -246,10 +246,9 @@ describe("Scene artifact inspector", () => {
     expect(globalStyles).toContain(
       ".stacks-artifact-preview-mask.PhotoView-Slider__fadeOut",
     );
-    // A plain darkened room, no backdrop blur: the minifier only ever
-    // shipped the -webkit- copy, so Chrome never blurred and Safari did.
-    // The owner chose the unblurred look for both.
-    expect(globalStyles).not.toContain("backdrop-filter: blur(24px)");
+    expect(globalStyles).toContain(".stacks-photo-preview-mask {");
+    expect(globalStyles).toContain("background: rgb(23 33 42 / 0.16)");
+    expect(globalStyles).toContain("backdrop-filter: blur(1px)");
     expect(globalStyles).toContain(".stacks-artifact-preview-print {");
     expect(globalStyles).toContain("box-shadow:");
     expect(globalStyles).toContain("30% {");
@@ -266,7 +265,7 @@ describe("Scene artifact inspector", () => {
     expect(inspector).toContain("selectSceneArtifact(next.id)");
     expect(inspector).toContain("photoClosable={false}");
     expect(inspector).toContain("maskOpacity={null}");
-    expect(inspector).toContain('maskClassName="stacks-artifact-preview-mask"');
+    expect(inspector).toContain("stacks-photo-preview-mask--blurred");
     expect(inspector).toContain("backdrop-blur-xl");
     expect(inspector).not.toContain("bg-black/50");
     expect(inspector.match(/sm:size-10/g)).toHaveLength(3);
@@ -278,6 +277,8 @@ describe("Scene artifact inspector", () => {
     expect(inspector).toContain('data-artifact-preview-control="actions"');
     expect(inspector).toContain("data-artifact-preview-scrim");
     expect(inspector).toContain("data-artifact-preview-caption");
+    expect(inspector).not.toContain("bg-gradient-to-t");
+    expect(inspector).toContain("bg-[#f2e7cf]/85");
     expect(inspector).toContain("ArrowUpRightIcon");
     expect(inspector).not.toContain("ArrowSquareOutIcon");
     expect(inspector).toContain(
@@ -340,6 +341,7 @@ describe("Scene artifact inspector", () => {
     );
     expect(modelStage).toContain("enabled={interactive}");
     expect(stacksCanvas).toContain("modelArtifactRoomShouldFreeze");
+    expect(stacksCanvas).toContain('inspectedArtifact?.kind !== "image"');
     expect(stacksCanvas).toContain(
       'frameloop={freezeRoom ? "never" : "always"}',
     );

@@ -75,25 +75,24 @@ describe("Grabbable tap/carry arbitration", () => {
     const upStart = source.indexOf("const onGrabUp");
     const cancelStart = source.indexOf("const onGrabCancel", upStart);
     const registrationStart = source.indexOf("useEffect(() => {", cancelStart);
-    const registrationEnd = source.indexOf("useEffect(() => {", registrationStart + 1);
+    const registrationEnd = source.indexOf(
+      "useEffect(() => {",
+      registrationStart + 1,
+    );
     const up = source.slice(upStart, cancelStart);
     const registration = source.slice(registrationStart, registrationEnd);
 
-    expect(up).toContain("runStationaryActivation()");
+    expect(up).toContain("runSceneInteractionActivation(hoverKey)");
     expect(registration).toContain("run: runStationaryActivation");
   });
 
   it("allows anchored props to advertise their authored hover reaction", () => {
-    expect(source).toContain(
-      'hover: { kind: tiltOnHover ? "tilt" : "none" }',
-    );
+    expect(source).toContain('hover: { kind: tiltOnHover ? "tilt" : "none" }');
     expect(source).not.toContain("draggable && tiltOnHover");
   });
 
   it("treats an exact authored angle as an overlapping composition", () => {
-    expect(source).toContain(
-      "authoredAngle: hoverTiltAngle !== undefined",
-    );
+    expect(source).toContain("authoredAngle: hoverTiltAngle !== undefined");
   });
 
   it("does not enter physics until pointer travel crosses the carry threshold", () => {

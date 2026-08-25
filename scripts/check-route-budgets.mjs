@@ -24,7 +24,11 @@ export const routes = [
     // because they need a fresh `.next`, and the quality-contracts workflow runs
     // only `pnpm verify`, so the sole place this fails is a local `pnpm build`.
     // That is why it drifted over the line unnoticed in the first place.
-    budget: 285 * 1024,
+    // Field Notes adds semantic discovery tracking throughout the world. Its
+    // 2,100-line development prototype and production album are lazy chunks;
+    // the event reducer and call sites account for the measured increase from
+    // 282.7 KB on main to 289.6 KB on this branch.
+    budget: 292 * 1024,
   },
   {
     name: "books",

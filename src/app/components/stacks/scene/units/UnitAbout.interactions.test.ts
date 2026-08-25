@@ -182,7 +182,7 @@ describe("About shelf throwable props", () => {
     expect(source.match(/colliderProfile="foliage-base"/g)).toHaveLength(3);
   });
 
-  it("stacks the four Role Icons beside the Apple as half-size Doors", () => {
+  it("stacks the four Role Icons beside the Apple as half-size Portals", () => {
     const start = source.indexOf('name={aboutLandmarkNodeName("role-icons")}');
     const end = source.indexOf('hoverKey="grab:ai-collective-mark"', start);
     const stack = source.slice(start, end);
@@ -192,10 +192,10 @@ describe("About shelf throwable props", () => {
     expect(stack).toContain("<ProjectIcon");
     expect(stack).toContain("hoverKey={`link:about:role:${role.id}`}");
     expect(stack).toContain("href={role.href}");
-    expect(stack).toContain("doorLabel={role.doorLabel}");
+    expect(stack).toContain("portalLabel={role.portalLabel}");
     expect(stack).toContain("size={ABOUT_ROLE_ICON_SIZE}");
     expect(stack).toContain('ABOUT_BOOT_LANDMARKS["role-icons"].x + dx');
-    // Four roles, each a distinct organization with its own artwork and Door.
+    // Four roles, each a distinct organization with its own artwork and Portal.
     expect(new Set(ABOUT_ROLES.map((role) => role.id)).size).toBe(4);
     expect(new Set(ABOUT_ROLES.map((role) => role.href)).size).toBe(4);
     expect(new Set(ABOUT_ROLES.map((role) => role.artwork)).size).toBe(4);

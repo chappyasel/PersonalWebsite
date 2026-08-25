@@ -1,6 +1,7 @@
 "use client";
 
 import { isWorldRevealed } from "../boot/worldBootSession";
+import { recordFieldNoteEvent } from "../fieldNotes/progress";
 import { useStacks } from "../store";
 import { type Palette } from "../theme";
 import { useThree } from "@react-three/fiber";
@@ -885,8 +886,12 @@ export function CoordinationGlobe({
     if (!effectEnabled) burstSignal.current = createCoordinationBurst();
   }, [effectEnabled]);
   const emitShockwave = useCallback(
-    (origin: Readonly<{ x: number; y: number; z: number }>) => {
+    (
+      origin: Readonly<{ x: number; y: number; z: number }>,
+      discovered = false,
+    ) => {
       if (!effectEnabled || still) return;
+      if (discovered) recordFieldNoteEvent({ type: "coordination-shockwave" });
       const now = performance.now();
       if (now - lastShockwaveAt.current < 900) return;
       lastShockwaveAt.current = now;
@@ -922,11 +927,14 @@ export function CoordinationGlobe({
     const origin = shockwaveOrigin.current;
     if (!entered || !origin) return;
     origin.getWorldPosition(shockwaveWorld);
-    emitShockwave({
-      x: shockwaveWorld.x,
-      y: shockwaveWorld.y,
-      z: shockwaveWorld.z,
-    });
+    emitShockwave(
+      {
+        x: shockwaveWorld.x,
+        y: shockwaveWorld.y,
+        z: shockwaveWorld.z,
+      },
+      true,
+    );
   }, [coordinationEngaged, emitShockwave, shockwaveWorld]);
   return (
     <Grabbable
@@ -939,10 +947,10 @@ export function CoordinationGlobe({
       massKg={0.85}
       restitution={0.1}
       maxThrowSpeed={2.2}
-      onDragIntent={emitShockwave}
+      onDragIntent={(origin) => emitShockwave(origin, true)}
       projectedLocalBounds={projectedLocalBounds}
       href="https://coordination.sh/"
-      doorLabel="Coordination Research"
+      portalLabel="Coordination Research"
       external
     >
       <group ref={shockwaveOrigin} scale={scale}>

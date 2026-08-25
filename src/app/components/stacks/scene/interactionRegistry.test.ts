@@ -5,16 +5,16 @@ import {
   MASS_HANDLING,
   cursorForInteraction,
   destinationFor,
-  doorDisplayLabel,
-  doorLabelActivation,
   getSceneInteraction,
   massClassFor,
+  portalDisplayLabel,
+  portalLabelActivation,
   registerSceneInteraction,
 } from "./interactionRegistry";
 
 describe("scene interaction registry", () => {
   it("derives route labels, hrefs, and external treatment together", () => {
-    // Labels name the destination only; the Door Label's icon carries the
+    // Labels name the destination only; the Portal Label's icon carries the
     // "this goes somewhere", so no "Open" / "Visit" verbs.
     expect(destinationFor("books").label).toBe("Chappy's Book Notes");
     expect(destinationFor("weightlifting").label).toBe(
@@ -39,35 +39,37 @@ describe("scene interaction registry", () => {
       "routine",
       "blog",
     ] as const) {
-      expect(destinationFor(to).label).not.toMatch(/^(Open|Visit|View|Go to)\b/);
+      expect(destinationFor(to).label).not.toMatch(
+        /^(Open|Visit|View|Go to)\b/,
+      );
     }
     expect(
-      doorDisplayLabel({
-        kind: "door",
+      portalDisplayLabel({
+        kind: "portal",
         label: "View on LinkedIn ↗",
         external: true,
       }),
     ).toBe("View on LinkedIn ↗");
   });
 
-  it("gives a movable Door its higher-priority click cursor", () => {
+  it("gives a movable Portal its higher-priority click cursor", () => {
     const release = registerSceneInteraction({
-      id: "test:movable-door",
+      id: "test:movable-portal",
       root: new Group(),
       activeUnits: [2],
       movable: { massKg: 0.9, massClass: "light" },
       activation: {
-        kind: "door",
+        kind: "portal",
         label: "Open Weightlifting",
         external: false,
       },
     });
-    expect(cursorForInteraction("test:movable-door", null)).toBe("pointer");
-    expect(cursorForInteraction("test:movable-door", "test:movable-door")).toBe(
-      "grabbing",
-    );
+    expect(cursorForInteraction("test:movable-portal", null)).toBe("pointer");
+    expect(
+      cursorForInteraction("test:movable-portal", "test:movable-portal"),
+    ).toBe("grabbing");
     release();
-    expect(cursorForInteraction("test:movable-door", null)).toBe("");
+    expect(cursorForInteraction("test:movable-portal", null)).toBe("");
   });
 
   it("gives local actions the same label and cursor priority as clicks", () => {
@@ -89,7 +91,7 @@ describe("scene interaction registry", () => {
     });
     expect(cursorForInteraction("test:action", null)).toBe("pointer");
     expect(
-      doorLabelActivation(getSceneInteraction("test:action")),
+      portalLabelActivation(getSceneInteraction("test:action")),
     ).toMatchObject({ kind: "action", label: "Launch golf ball" });
     release();
   });
@@ -107,12 +109,12 @@ describe("scene interaction registry", () => {
       },
     });
     expect(
-      doorLabelActivation(getSceneInteraction("test:quiet-action")),
+      portalLabelActivation(getSceneInteraction("test:quiet-action")),
     ).toBeNull();
     release();
   });
 
-  it("keeps inspectable images out of Door labels", () => {
+  it("gives expandable artifacts a pointer while keeping them out of Portal Labels", () => {
     const release = registerSceneInteraction({
       id: "test:artifact",
       root: new Group(),
@@ -124,8 +126,8 @@ describe("scene interaction registry", () => {
       },
     });
     const artifact = getSceneInteraction("test:artifact");
-    expect(cursorForInteraction("test:artifact", null)).toBe("zoom-in");
-    expect(doorLabelActivation(artifact)).toBeNull();
+    expect(cursorForInteraction("test:artifact", null)).toBe("pointer");
+    expect(portalLabelActivation(artifact)).toBeNull();
     expect(artifact?.activation).toMatchObject({
       kind: "artifact",
       label: "Lift Table",

@@ -1,23 +1,20 @@
 "use client";
 
 import {
-  doorLabelActivation,
   getSceneInteraction,
-  projectDoor,
+  portalLabelActivation,
+  projectPortal,
   runSceneInteractionActivation,
 } from "../scene/interactionRegistry";
 import { progressRef, useStacks } from "../store";
-import {
-  ArrowSquareOutIcon,
-  ArrowsOutIcon,
-} from "@phosphor-icons/react";
+import { ArrowSquareOutIcon, ArrowsOutIcon } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { clampDoorLabelX, clampDoorLabelY } from "./doorLabelPlacement";
+import { clampPortalLabelX, clampPortalLabelY } from "./portalLabelPlacement";
 
 const INITIAL_DWELL_MS = 350;
-const TRANSITION_MS = 200;
-/** A door-to-door change must let the old label finish fading before its
+const TRANSITION_MS = 320;
+/** A portal-to-portal change must let the old label finish fading before its
  * contents are replaced, and a full exit must stay mounted through the last
  * transition frame. */
 const SWITCH_DWELL_MS = TRANSITION_MS + 20;
@@ -30,7 +27,7 @@ function isFinePointer() {
   return window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 }
 
-export default function DoorLabel() {
+export default function PortalLabel() {
   const hovered = useStacks((s) => s.hovered);
   const focused = useStacks((s) => s.focusedInteraction);
   const dragging = useStacks((s) => s.dragging);
@@ -38,12 +35,12 @@ export default function DoorLabel() {
   const panelState = useStacks((s) => s.panelState);
   const [shown, setShown] = useState<{
     id: string;
-    /** Title line: the destination of a Door, or the object of an action. */
+    /** Title line: the destination of a Portal, or the object of an action. */
     label: string;
     detail: readonly string[];
     /** Verb line for a local action that also has a title. */
     action: string | null;
-    /** Title-line glyph: square-out for a Door off the site, arrows-out for
+    /** Title-line glyph: square-out for a Portal off the site, arrows-out for
      * one on it or for a bare-verb action; null when the verb line below
      * carries the arrows-out icon. */
     arrow: "external" | "internal" | "action" | null;
@@ -57,7 +54,7 @@ export default function DoorLabel() {
   const shownRef = useRef<typeof shown>(null);
   const node = useRef<HTMLDivElement>(null);
   const pointer = useRef({ x: 0, y: 0 });
-  const hadDoor = useRef(false);
+  const hadPortal = useRef(false);
   const eligibleRef = useRef(false);
   const desiredIdRef = useRef<string | null>(null);
   const exitTimer = useRef<number | null>(null);
@@ -84,7 +81,7 @@ export default function DoorLabel() {
       ) {
         // R3F cannot dispatch pointerout after the pointer crosses onto DOM
         // chrome above its event surface. Drop the scene's old owner here so
-        // a projected Door label cannot remain attached to a prop the cursor
+        // a projected Portal Label cannot remain attached to a prop the cursor
         // left behind.
         if (state.hovered) state.setHovered(null);
         return;
@@ -98,7 +95,7 @@ export default function DoorLabel() {
   useEffect(() => {
     const interactionId = focused ?? hovered;
     const spec = getSceneInteraction(interactionId);
-    const activation = doorLabelActivation(spec);
+    const activation = portalLabelActivation(spec);
     const eligible =
       (Boolean(focused) || isFinePointer()) &&
       activation &&
@@ -120,7 +117,7 @@ export default function DoorLabel() {
         shownRef.current = null;
         setShown(null);
       }, EXIT_MS);
-      hadDoor.current = false;
+      hadPortal.current = false;
       return;
     }
     eligibleRef.current = true;
@@ -133,13 +130,13 @@ export default function DoorLabel() {
       setLabelVisible(false);
     const delay = focused
       ? 0
-      : hadDoor.current
+      : hadPortal.current
         ? SWITCH_DWELL_MS
         : INITIAL_DWELL_MS;
-    hadDoor.current = true;
+    hadPortal.current = true;
     const timeout = window.setTimeout(() => {
       const next =
-        activation.kind === "door"
+        activation.kind === "portal"
           ? {
               id: spec.id,
               label: activation.label.replace(/\s*↗\s*$/, ""),
@@ -188,7 +185,7 @@ export default function DoorLabel() {
       }
       previousProgress = progressRef.current;
       const element = node.current;
-      const projected = projectDoor(shown.id);
+      const projected = projectPortal(shown.id);
       if (element) {
         // Projection normally resolves from the object's geometry or carrier
         // origin. Pointer position remains an emergency fallback only when the
@@ -204,7 +201,7 @@ export default function DoorLabel() {
           '[data-stacks-desktop-dock]:not([data-hidden="true"])',
         );
         const dockRect = dock?.getBoundingClientRect() ?? null;
-        const x = clampDoorLabelX(
+        const x = clampPortalLabelX(
           anchor.x,
           element.offsetWidth,
           window.innerWidth,
@@ -214,7 +211,7 @@ export default function DoorLabel() {
           "[data-stacks-mobile-panel][data-stacks-panel]",
         );
         const desiredY = anchor.y - 10;
-        const y = clampDoorLabelY(
+        const y = clampPortalLabelY(
           anchor.y,
           element.offsetHeight,
           window.innerHeight,
@@ -227,8 +224,8 @@ export default function DoorLabel() {
         // The positioned node is also the glass node. Keeping positioning on
         // a transformed parent made that parent the tooltip's compositing
         // boundary in Chromium, so its child could not blur the scene.
-        element.style.setProperty("--door-label-x", `${x}px`);
-        element.style.setProperty("--door-label-y", `${y}px`);
+        element.style.setProperty("--portal-label-x", `${x}px`);
+        element.style.setProperty("--portal-label-y", `${y}px`);
         element.style.visibility = "visible";
         if (positionedId.current !== shown.id) positionedId.current = shown.id;
         if (
@@ -267,27 +264,32 @@ export default function DoorLabel() {
   return (
     <div
       ref={node}
-      data-stacks-door-label
+      data-stacks-portal-label
       style={
         {
-          transform:
-            "translate3d(var(--door-label-x, 0px), var(--door-label-y, 0px), 0) translate(-50%, -100%)",
+          left: "var(--portal-label-x, -10000px)",
+          top: "var(--portal-label-y, -10000px)",
+          transform: visible
+            ? "translate(-50%, -100%) scale(1)"
+            : "translate(-50%, calc(-100% + 6px)) scale(0.96)",
+          transformOrigin: "bottom center",
+          "--portal-label-opacity": visible ? "1" : "0",
         } as React.CSSProperties
       }
-      className={`${focused ? "pointer-events-auto" : "pointer-events-none"} fixed left-0 top-0 z-30 w-max max-w-[240px]`}
+      className={`${focused ? "pointer-events-auto" : "pointer-events-none"} field-notes-glass-tooltip fixed z-30 w-max max-w-[240px] rounded-lg border px-2.5 py-1.5 backdrop-blur-xl backdrop-saturate-150`}
     >
       <style>{`
-        [data-door-tether] { opacity: 0; }
-        [data-stacks-door-label][data-docked] [data-door-tether] { opacity: 0.55; }
+        [data-portal-tether] { opacity: 0; }
+        [data-stacks-portal-label][data-docked] [data-portal-tether] { opacity: 0.55; }
       `}</style>
       <span
         aria-hidden
-        data-door-tether=""
-        className="pointer-events-none absolute left-1/2 top-full h-4 w-px -translate-x-1/2 bg-foreground transition-opacity"
+        data-portal-tether=""
+        className="pointer-events-none absolute left-1/2 top-full h-4 w-px -translate-x-1/2 bg-white/60 transition-opacity"
       />
-      {/* Projection is written to the unanimated wrapper above. Entrance
-          motion stays on this child, so a transform transition can never
-          interpolate live screen coordinates from their 0px fallbacks. */}
+      {/* `left` and `top` own the live screen position. `transform` only owns
+          entrance motion, so projection updates cannot become transition
+          endpoints. The glass remains on this same compositing node. */}
       <button
         type="button"
         disabled={!focused}
@@ -296,22 +298,18 @@ export default function DoorLabel() {
         onClick={() => {
           if (focused === shown.id) runSceneInteractionActivation(shown.id);
         }}
-        className={`flex max-w-[240px] origin-bottom items-center justify-center border-0 bg-transparent p-0 text-left text-[13px] leading-[1.25] text-foreground transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none ${
+        className={`flex max-w-[240px] items-center justify-center border-0 bg-transparent p-0 text-left text-[13px] leading-[1.25] ${
           focused ? "min-h-12 min-w-12" : "min-h-0"
-        } ${
-          visible
-            ? "translate-y-0 scale-100 opacity-100"
-            : "translate-y-1.5 scale-[0.96] opacity-0"
         }`}
       >
         {/* Title line, then one line per detail, then the verb line of a
-            local action. A Door's title names where it goes, so its icon sits
+            local action. A Portal's title names where it goes, so its icon sits
             on that line (square-out off-site, arrows-out on-site) and is the
             whole "this is a link" signal; details describe the object and
             never wrap around the glyph. An action wears an arrows-out icon on
             its last line (or on its only line when it is a bare verb). A plain
             one-line label renders exactly as before. */}
-        <span className="stacks-glass-tooltip flex min-w-0 flex-col rounded-lg border px-2.5 py-1.5">
+        <span className="flex min-w-0 flex-col">
           <span className="flex min-w-0 items-start gap-1">
             <span
               className={`min-w-0 whitespace-normal break-words ${
@@ -346,8 +344,8 @@ export default function DoorLabel() {
           {shown.detail.map((line) => (
             <span
               key={line}
-              data-door-detail=""
-              className="mt-0.5 min-w-0 whitespace-normal break-words text-[12px] leading-[1.3] text-muted-foreground"
+              data-portal-detail=""
+              className="mt-0.5 min-w-0 whitespace-normal break-words text-[12px] leading-[1.3] text-white/60"
             >
               {line}
             </span>
@@ -356,7 +354,7 @@ export default function DoorLabel() {
             // Keep the action indicator on the verb line when a separate
             // title and detail describe the object above it.
             <span
-              data-door-action=""
+              data-portal-action=""
               className="mt-1 flex min-w-0 items-start gap-1 text-[12px] leading-[1.3]"
             >
               <span className="min-w-0 whitespace-normal break-words">

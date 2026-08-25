@@ -34,8 +34,8 @@ vi.mock("framer-motion", () => ({
   useReducedMotion: () => false,
 }));
 
-vi.mock("../input/useCoarseTouchCapability", () => ({
-  useCoarseTouchCapability: () => false,
+vi.mock("~/lib/useTapFirstCapability", () => ({
+  useTapFirstCapability: () => false,
 }));
 
 afterEach(() => {

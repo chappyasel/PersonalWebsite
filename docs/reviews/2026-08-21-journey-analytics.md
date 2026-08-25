@@ -4,7 +4,7 @@
 
 Add a typed, privacy-conscious measurement layer for homepage delivery and the
 main visitor journey. The work covers homepage delivery mode, world boot,
-section arrival, Door activation, contact selection, and entry into primary
+section arrival, Portal activation, contact selection, and entry into primary
 deep pages. It does not change PostHog dashboards, project settings, or other
 external state. The separate boot-state branch owns transition coverage; this
 branch does not duplicate that refactor.
@@ -27,7 +27,7 @@ Facts:
 - `StacksHome` owns the client eligibility check, world reveal, render-error
   boundary, context-loss fallback, and 40-second hang fallback.
 - `FlatHome` and the world can coexist in the DOM during handoff.
-- `PropLink` and `Grabbable` both route Door activation through
+- `PropLink` and `Grabbable` both route Portal activation through
   `useOpenTarget`.
 - The homepage unit registry has seven bounded section slugs in `data.ts`.
 
@@ -79,8 +79,8 @@ Facts:
 - World section arrival waits for a settled Unit. Flat section arrival waits
   for a section to cross the middle fifth of the viewport. Both modes share the
   same per-section dedupe key.
-- Door activation records a source-authored Door ID, owning section, and closed
-  destination class. It does not record an href.
+- Portal activation records a source-authored Portal ID, owning section, and
+  closed destination class. It does not record an href.
 - Contact selection records one of five closed method values.
 - The root route tracker records Book Notes, Weightlifting, Personal Manual,
   Core Daily Routine, Liar's Dice, and Golf. It handles both path routes and
@@ -119,7 +119,7 @@ Facts:
   full reload starts a new lifecycle; Strict Mode effect replay, hydration, and
   SPA revisits in the same document do not.
 - "Primary deep pages" is interpreted as the bounded local destinations linked
-  by homepage Doors, plus the homepage's dedicated Golf route: Book Notes,
+  by homepage Portals, plus the homepage's dedicated Golf route: Book Notes,
   Weightlifting, Personal Manual, Core Daily Routine, Liar's Dice, and Golf.
 
 ## Judgement calls and rationale
@@ -127,7 +127,7 @@ Facts:
 - Journey deduplication lives at the analytics interface so every caller gets
   the same document-lifecycle rule. Action events remain repeatable because a
   second explicit selection is a second action.
-- Door properties use source-authored IDs and a closed destination class. They
+- Portal properties use source-authored IDs and a closed destination class. They
   do not include hrefs.
 - Homepage section arrival means entry into the center viewport band in flat
   mode and a settled Unit after world reveal in world mode. Camera frames and
@@ -225,7 +225,7 @@ Checks from the initial implementation, before this amendment:
 - Focused scene import regression run covering `AuthoredProps`,
   `ProjectArtifacts`, `UnitBlog`, `UnitBooks`, `UnitTraining`, and Musings shelf
   tests: passed, 10 files and 45 tests after replacing a test-runner-incompatible
-  alias in the shared Door module.
+  alias in the shared Portal module.
 - `yarn test`: failed with 6 tests in 6 untouched files. A JSON reporter check
   counted 197 files, 1,548 tests, 1,542 passing tests, and 6 failing tests. The
   failing files are listed under issues discovered but not fixed. The full
@@ -246,9 +246,9 @@ shipping, use a non-production PostHog project or local capture stub to check:
 4. Traverse several Units, reverse direction, and revisit them. Confirm each
    section appears once per reload. Repeat in flat mode by scrolling sections
    through the middle viewport band.
-5. Activate a Door from a normal prop, a Movable Prop, and a Touch Focus Door
-   Label. Confirm one event per activation and no URL property from application
-   code.
+5. Activate a Portal from a normal prop, a Movable Prop, and a Touch Focus
+   Portal Label. Confirm one event per activation and no URL property from
+   application code.
 6. Select each contact method and enter each primary deep page through both
    root-domain paths and subdomains.
 7. Load a page with arbitrary query and fragment values. Inspect the outgoing
@@ -381,21 +381,27 @@ ORDER BY
     END
 ```
 
-### Door activation
+### Portal activation
 
 Visualization: table, then duplicate as a time series if volume justifies it.
+
+The deployed PostHog event remains `homepage_door_activated`, with `door_id`,
+as a historical contract. Product and source code call the interaction a
+Portal, but the client emits only this legacy event. It does not dual-write a
+second Portal-named event, so existing funnels keep their history and one
+activation still produces one count.
 
 ```sql
 SELECT
     properties.section AS section,
     properties.destination AS destination,
-    properties.door_id AS door_id,
+    properties.door_id AS portal_id,
     count() AS activations,
     uniq(distinct_id) AS unique_visitors
 FROM events
 WHERE event = 'homepage_door_activated'
   AND {filters}
-GROUP BY section, destination, door_id
+GROUP BY section, destination, portal_id
 ORDER BY activations DESC
 LIMIT 100
 ```
@@ -457,7 +463,7 @@ Create `Homepage to primary deep page` with these exact settings:
 
 Use ordered steps, unique users, a 30-minute conversion window, first-touch
 attribution, and breakdown by step 2's `destination`. This measures navigation
-arrival, not whether the destination values match row by row. Use the Door SQL
+arrival, not whether the destination values match row by row. Use the Portal SQL
 table to investigate any mismatch.
 
 Create `Homepage to contact` as a two-step ordered funnel from

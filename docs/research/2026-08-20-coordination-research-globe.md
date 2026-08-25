@@ -98,7 +98,7 @@ shelf into a science-fiction display.
 - [x] Limit the authored fine-pointer hit geometry to a sphere matching the
       visible black hole. Do not use a box spanning the full stand, and clear
       stale hover ownership when the cursor leaves the scene surface.
-- [x] Project the Door tooltip from explicit keepsake bounds. Shader-line proxy
+- [x] Project the Portal Label from explicit keepsake bounds. Shader-line proxy
       geometry must not pull the label to the top of the viewport, enlarge the
       collider, or disable hover tilt.
 - [x] Keep the globe and its thin internal lines inside the scene's physical
@@ -110,7 +110,7 @@ shelf into a science-fiction display.
       depth-tested stencil mask: they remain visible through the black hole
       but shelves, the plinth, and grass in front clip them normally.
 - [x] A stationary click opens `https://coordination.sh/` in a new tab with
-      the Door label `Visit Coordination Research`.
+      the Portal Label `Visit Coordination Research`.
 - [x] Reduced motion shows a deliberate still network.
 - [x] Do not place a transmission or glass mesh behind the event horizon. The
       organic dither is a real silhouette cutout, so its holes show the scene
@@ -133,7 +133,7 @@ shelf into a science-fiction display.
       pairs, with restrained staggered reveal pulses instead of pretending the
       loading screen is hovered.
 - [x] Add focused tests for layout clearances, the network's static and active
-      policies, the diagnostics reset/off contract, the external Door, and the
+      policies, the diagnostics reset/off contract, the external Portal, and the
       articulated lamp transform. Include regression checks for hit geometry,
       authored tooltip projection, spherical rotation, concurrent connection
       reveals, idle activity, burst return, rigid-body knockdown, practical

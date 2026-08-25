@@ -21,6 +21,7 @@ import { clearanceAbove, meshBoxInLocal } from "./interaction";
 import {
   getSceneInteraction,
   registerSceneInteraction,
+  runSceneInteractionActivation,
 } from "./interactionRegistry";
 import { type Island, extractTriangles, findIslands } from "./islands";
 import { getMeadowDisturbance } from "./meadowDisturbance";
@@ -127,10 +128,8 @@ export function EggTrigger({
         if ((e as unknown as { pointerType?: string }).pointerType === "touch")
           return;
         if ((e.delta ?? 0) > 6) return; // swipe, not a tap
-        const activation = getSceneInteraction(hoverKey)?.activation;
-        if (activation?.kind !== "egg") return;
+        if (!runSceneInteractionActivation(hoverKey)) return;
         e.stopPropagation();
-        activation.run();
       }}
       onPointerOver={(e: ThreeEvent<PointerEvent>) => {
         e.stopPropagation();

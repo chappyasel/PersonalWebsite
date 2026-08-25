@@ -15,7 +15,7 @@ import { LOWER_SHELF_HEADROOM, SHELF_GEOMETRY } from "./shelfGeometry";
 import { PROJECT_ARTIFACT_DIMENSIONS } from "./units/unitShelfLayout";
 
 describe("About Role Icons", () => {
-  it("names four distinct organizations, each with its own Door and artwork", () => {
+  it("names four distinct organizations, each with a Portal and artwork", () => {
     expect(ABOUT_ROLES.map((role) => role.id)).toEqual([
       "madrona",
       "roam",
@@ -26,7 +26,7 @@ describe("About Role Icons", () => {
     expect(new Set(ABOUT_ROLES.map((role) => role.artwork)).size).toBe(4);
     for (const role of ABOUT_ROLES) {
       expect(role.href).toMatch(/^https:\/\//);
-      expect(role.doorLabel.length).toBeGreaterThan(0);
+      expect(role.portalLabel.length).toBeGreaterThan(0);
       expect(role.artwork).toMatch(/^\/images\/stacks\/v8\/512\/.+\.webp$/);
       expect(role.fallbackColor).toMatch(/^#[\da-f]{6}$/i);
       expect(role.bootColor.light).toMatch(/^#[\da-f]{6}$/i);

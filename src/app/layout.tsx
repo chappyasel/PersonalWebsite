@@ -93,6 +93,7 @@ export default function RootLayout({
       data-font="georgia"
     >
       <head>
+        <link rel="stylesheet" href="https://use.typekit.net/uvz5cfn.css" />
         <link
           rel="preload"
           href="/fonts/v1/GeorgiaPro-Regular.woff2"
