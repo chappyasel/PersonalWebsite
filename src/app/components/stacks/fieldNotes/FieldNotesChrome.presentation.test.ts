@@ -5,6 +5,10 @@ const source = fs.readFileSync(
   new URL("./FieldNotesChrome.tsx", import.meta.url),
   "utf8",
 );
+const homeSource = fs.readFileSync(
+  new URL("../StacksHome.tsx", import.meta.url),
+  "utf8",
+);
 
 const hint = source.slice(
   source.indexOf("function StampHint"),
@@ -208,13 +212,23 @@ describe("Field Notes stamp tooltip presentation", () => {
     expect(source).toContain(
       '.field-notes-mobile-stage[data-mobile-entry="open"]',
     );
-    expect(source).toContain("animation: field-notes-mobile-stage-open 520ms");
-    expect(source).toContain("animation: field-notes-mobile-stage-close 240ms");
+    const openDuration = Number(
+      /field-notes-mobile-stage-open (\d+)ms/.exec(source)?.[1],
+    );
+    const closeDuration = Number(
+      /field-notes-mobile-stage-close (\d+)ms/.exec(source)?.[1],
+    );
+    expect(openDuration).toBe(640);
+    expect(closeDuration).toBe(320);
+    expect(closeDuration).toBeLessThan(openDuration);
     expect(source).toMatch(
-      /@keyframes field-notes-mobile-stage-open[\s\S]*?opacity: 0;[\s\S]*?translateY\(18px\)[\s\S]*?opacity: 1;/,
+      /\.field-notes-mobile-stage\[data-mobile-entry="preparing"\] \{[\s\S]*?opacity: \.46;[\s\S]*?translateY\(10px\)/,
     );
     expect(source).toMatch(
-      /@keyframes field-notes-mobile-stage-close[\s\S]*?opacity: 1;[\s\S]*?opacity: 0;/,
+      /@keyframes field-notes-mobile-stage-open[\s\S]*?0% \{ opacity: \.46;[\s\S]*?38% \{ opacity: \.78;[\s\S]*?74% \{ opacity: 1;[\s\S]*?100% \{ opacity: 1;/,
+    );
+    expect(source).toMatch(
+      /@keyframes field-notes-mobile-stage-close[\s\S]*?0% \{ opacity: 1;[\s\S]*?58% \{ opacity: \.72;[\s\S]*?100% \{ opacity: \.18;/,
     );
     expect(source).toContain(
       '.field-notes-mobile-stage[data-mobile-entry="preparing"]',
@@ -232,6 +246,58 @@ describe("Field Notes stamp tooltip presentation", () => {
       "field-notes-album fixed left-1/2 top-1/2 z-[5001]",
     );
     expect(postageStamp).toContain("zIndex: 6000");
+  });
+
+  it("keeps a non-black scrim and album material in every mobile handoff frame", () => {
+    expect(source).toContain(
+      "field-notes-album-overlay bg-[#17212a]/16 fixed inset-0 z-[5000]",
+    );
+    expect(source).not.toContain("field-notes-album-overlay bg-black");
+    expect(source).toContain(
+      "background-color: rgba(87,69,53,.14) !important;",
+    );
+    expect(source).toMatch(
+      /@keyframes field-notes-mobile-overlay-in[\s\S]*?0% \{ opacity: 0; \}[\s\S]*?42% \{ opacity: \.46; \}[\s\S]*?100% \{ opacity: 1; \}/,
+    );
+    expect(source).toMatch(
+      /@keyframes field-notes-mobile-album-open[\s\S]*?0% \{[\s\S]*?opacity: \.42;[\s\S]*?38% \{[\s\S]*?opacity: \.82;[\s\S]*?72% \{[\s\S]*?opacity: 1;/,
+    );
+    expect(source).toMatch(
+      /@keyframes field-notes-mobile-album-close[\s\S]*?0% \{[\s\S]*?opacity: 1;[\s\S]*?58% \{[\s\S]*?opacity: \.74;[\s\S]*?100% \{[\s\S]*?opacity: \.14;/,
+    );
+    expect(source).toMatch(
+      /@keyframes field-notes-mobile-overlay-out[\s\S]*?0% \{ opacity: 1; \}[\s\S]*?55% \{ opacity: \.36; \}[\s\S]*?100% \{ opacity: 0; \}/,
+    );
+    expect(source.indexOf("<Dialog.Overlay")).toBeLessThan(
+      source.indexOf("<Dialog.Content"),
+    );
+    expect(homeSource).toMatch(
+      /@media \(width < 768px\)[\s\S]*?html\[data-field-notes-open\] \.stacks-unit-rail-mobile[\s\S]*?transition-duration: 260ms, 300ms, 240ms;/,
+    );
+    expect(homeSource).not.toContain(
+      "html[data-field-notes-open] .stacks-world-shell",
+    );
+  });
+
+  it("keeps desktop motion unchanged while mobile open is slower than close", () => {
+    expect(source).toContain(
+      "animation: field-notes-album-overlay-in 360ms ease-out both",
+    );
+    expect(source).toContain(
+      "animation: field-notes-album-open 560ms cubic-bezier(.18,.82,.22,1) both",
+    );
+    expect(source).toContain(
+      "animation: field-notes-album-close 280ms cubic-bezier(.55,.02,.78,.28) both",
+    );
+    expect(source).toContain(
+      "animation: field-notes-mobile-overlay-in 620ms",
+    );
+    expect(source).toContain(
+      "animation: field-notes-mobile-album-open 680ms",
+    );
+    expect(source).toContain(
+      "animation: field-notes-mobile-album-close 340ms",
+    );
   });
 
   it("keeps Radix's modal focus trap without leaving the page pointer-locked", () => {

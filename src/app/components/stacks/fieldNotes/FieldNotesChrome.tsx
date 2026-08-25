@@ -2335,20 +2335,37 @@ export default function FieldNotesChrome() {
           animation: field-notes-pages-close 250ms cubic-bezier(.55,.02,.78,.28) both;
         }
         .field-notes-mobile-stage[data-mobile-entry="preparing"] {
-          opacity: 0;
-          transform: translateY(18px) rotateX(5deg) scale(.92);
+          opacity: .46;
+          transform: translateY(10px) rotateX(2.4deg) scale(.965);
         }
         .field-notes-mobile-stage[data-mobile-entry="open"] {
-          animation: field-notes-mobile-stage-open 520ms cubic-bezier(.18,.82,.22,1) both;
+          animation: field-notes-mobile-stage-open 640ms cubic-bezier(.22,.74,.2,1) both;
         }
         .field-notes-album[data-state="closed"] .field-notes-mobile-stage {
-          animation: field-notes-mobile-stage-close 240ms cubic-bezier(.55,.02,.78,.28) both;
+          animation: field-notes-mobile-stage-close 320ms cubic-bezier(.4,0,.55,1) both;
         }
         .field-notes-album[data-state="open"] .field-notes-close-motion {
           animation: field-notes-close-control-in 320ms 190ms cubic-bezier(.16,1,.3,1) both;
         }
         .field-notes-album[data-state="closed"] .field-notes-close-motion {
           animation: field-notes-close-control-out 140ms ease-in both;
+        }
+        @media (max-width: 767px) {
+          .field-notes-album-overlay {
+            background-color: rgba(87,69,53,.14) !important;
+          }
+          .field-notes-album-overlay[data-state="open"] {
+            animation: field-notes-mobile-overlay-in 620ms cubic-bezier(.22,.72,.2,1) both;
+          }
+          .field-notes-album-overlay[data-state="closed"] {
+            animation: field-notes-mobile-overlay-out 360ms cubic-bezier(.4,0,.55,1) both;
+          }
+          .field-notes-album[data-state="open"] {
+            animation: field-notes-mobile-album-open 680ms cubic-bezier(.22,.74,.2,1) both;
+          }
+          .field-notes-album[data-state="closed"] {
+            animation: field-notes-mobile-album-close 340ms cubic-bezier(.4,0,.55,1) both;
+          }
         }
         .field-notes-book-count {
           left: 56%;
@@ -3806,6 +3823,16 @@ export default function FieldNotesChrome() {
           from { opacity: 1; }
           to { opacity: 0; }
         }
+        @keyframes field-notes-mobile-overlay-in {
+          0% { opacity: 0; }
+          42% { opacity: .46; }
+          100% { opacity: 1; }
+        }
+        @keyframes field-notes-mobile-overlay-out {
+          0% { opacity: 1; }
+          55% { opacity: .36; }
+          100% { opacity: 0; }
+        }
         @keyframes field-notes-album-open {
           0% {
             opacity: 0;
@@ -3837,6 +3864,42 @@ export default function FieldNotesChrome() {
             transform: perspective(1200px) translate3d(-50%,-47%,0) rotateX(4deg) rotateZ(-.7deg) scale(.94);
           }
         }
+        @keyframes field-notes-mobile-album-open {
+          0% {
+            opacity: .42;
+            transform: perspective(1200px) translate3d(-50%,-48%,0) rotateX(2.2deg) rotateZ(-.45deg) scale(.965);
+            box-shadow: inset 0 0 0 2px rgba(231,190,122,.08), inset 0 0 26px rgba(25,12,7,.42), var(--field-notes-book-shadow-entry);
+          }
+          38% {
+            opacity: .82;
+            transform: perspective(1200px) translate3d(-50%,-49.4%,0) rotateX(.3deg) rotateZ(-.08deg) scale(.992);
+            box-shadow: inset 0 0 0 2px rgba(231,190,122,.09), inset 0 0 26px rgba(25,12,7,.42), var(--field-notes-book-shadow-entry);
+          }
+          72% {
+            opacity: 1;
+            transform: perspective(1200px) translate3d(-50%,-50%,0) rotateX(-.12deg) rotateZ(.04deg) scale(1.003);
+            box-shadow: inset 0 0 0 2px rgba(231,190,122,.1), inset 0 0 26px rgba(25,12,7,.42), var(--field-notes-book-shadow-peak);
+          }
+          100% {
+            opacity: 1;
+            transform: perspective(1200px) translate3d(-50%,-50%,0) rotateX(0deg) rotateZ(0deg) scale(1);
+            box-shadow: inset 0 0 0 2px rgba(231,190,122,.1), inset 0 0 26px rgba(25,12,7,.42), var(--field-notes-book-shadow-rest);
+          }
+        }
+        @keyframes field-notes-mobile-album-close {
+          0% {
+            opacity: 1;
+            transform: perspective(1200px) translate3d(-50%,-50%,0) rotateX(0deg) rotateZ(0deg) scale(1);
+          }
+          58% {
+            opacity: .74;
+            transform: perspective(1200px) translate3d(-50%,-49.35%,0) rotateX(.6deg) rotateZ(-.08deg) scale(.988);
+          }
+          100% {
+            opacity: .14;
+            transform: perspective(1200px) translate3d(-50%,-48%,0) rotateX(2.2deg) rotateZ(-.35deg) scale(.968);
+          }
+        }
         @keyframes field-notes-pages-open {
           0% { opacity: .18; transform: rotateX(4deg) scaleX(.72); }
           46% { opacity: 1; transform: rotateX(-.3deg) scaleX(.99); }
@@ -3848,13 +3911,15 @@ export default function FieldNotesChrome() {
           100% { opacity: .18; transform: rotateX(3deg) scaleX(.78); }
         }
         @keyframes field-notes-mobile-stage-open {
-          0% { opacity: 0; transform: translateY(18px) rotateX(5deg) scale(.92); }
-          62% { opacity: 1; transform: translateY(-2px) rotateX(-.35deg) scale(1.008); }
+          0% { opacity: .46; transform: translateY(10px) rotateX(2.4deg) scale(.965); }
+          38% { opacity: .78; transform: translateY(3px) rotateX(.5deg) scale(.988); }
+          74% { opacity: 1; transform: translateY(-1px) rotateX(-.12deg) scale(1.003); }
           100% { opacity: 1; transform: translateY(0) rotateX(0deg) scale(1); }
         }
         @keyframes field-notes-mobile-stage-close {
           0% { opacity: 1; transform: translateY(0) rotateX(0deg) scale(1); }
-          100% { opacity: 0; transform: translateY(12px) rotateX(3deg) scale(.95); }
+          58% { opacity: .72; transform: translateY(3px) rotateX(.65deg) scale(.988); }
+          100% { opacity: .18; transform: translateY(9px) rotateX(2deg) scale(.97); }
         }
         @keyframes field-notes-close-control-in {
           0% { opacity: 0; transform: translate3d(5px,-5px,0) scale(.72) rotate(12deg); }

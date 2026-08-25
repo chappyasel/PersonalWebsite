@@ -489,6 +489,36 @@ export default function StacksHome({
             html[data-field-notes-open] .stacks-og-ui *,
             html:has(.PhotoView-Portal) .stacks-og-ui,
             html:has(.PhotoView-Portal) .stacks-og-ui * { pointer-events: none !important; }
+            @media (width < 768px) {
+              /* Field Notes keeps the room mounted and hands it to the paper
+                 progressively. Its material is already visible while these
+                 supporting controls recede; PhotoView keeps its existing
+                 faster suppression. */
+              html[data-field-notes-open] .stacks-wordmark,
+              html[data-field-notes-open] .stacks-theme-toggle,
+              html[data-field-notes-open] .stacks-unit-rail-mobile {
+                transition-delay: 0ms;
+                transition-duration: 260ms, 300ms, 240ms;
+                transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1), cubic-bezier(0.4, 0, 0.2, 1), ease-out;
+              }
+              html[data-field-notes-open] [data-stacks-sheet-material],
+              html[data-field-notes-open] [data-stacks-mobile-panel] {
+                transition-delay: 0ms;
+                transition-duration: 280ms, 320ms;
+                transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1), cubic-bezier(0.4, 0, 0.2, 1);
+              }
+              html[data-field-notes-open] [data-stacks-mobile-panel-dim],
+              html[data-field-notes-open] .stacks-chrome-vignette {
+                transition-delay: 0ms;
+                transition-duration: 260ms;
+                transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+              }
+              html[data-field-notes-open] [data-stacks-portal-label] {
+                transition-delay: 0ms;
+                transition-duration: 220ms, 260ms;
+                transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1), cubic-bezier(0.4, 0, 0.2, 1);
+              }
+            }
             @media (width >= 1200px) {
               html[data-field-notes-open] .stacks-theme-toggle,
               html:has(.PhotoView-Portal) .stacks-theme-toggle {
