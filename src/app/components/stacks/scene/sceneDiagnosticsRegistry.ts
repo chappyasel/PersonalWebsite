@@ -1,5 +1,6 @@
 import { universalSearchVisualEffects } from "~/lib/universal-search/visualEffects";
 
+import { artifactPreviewVisualEffects } from "./artifactPreviewVisualEffects";
 import { cameraDepthDiagnosticsController } from "./cameraDepthDiagnostics";
 import { coordinationGlobeDiagnosticsController } from "./coordinationGlobeDiagnostics";
 import { freeRoamDiagnosticsController } from "./freeRoamDiagnostics";
@@ -282,7 +283,7 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     group: "simulate.camera",
     label: "Free-roam camera",
     help: "Detach the camera from the authored traverse until reload.",
-    ariaKeyShortcuts: "F Shift+F",
+    ariaKeyShortcuts: "R Shift+R",
     defaultValue: DEFAULT_FREE_ROAM.enabled,
     experimental: false,
     store: freeRoamDiagnosticsController,
@@ -687,6 +688,28 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
       modelArtifactDiagnosticsController.getSnapshot().rendererEnabled,
     update: (value) =>
       modelArtifactDiagnosticsController.setRendererEnabled(Boolean(value)),
+  }),
+  booleanDescriptor({
+    id: "render.artifact-preview-blur",
+    panel: "render",
+    group: "render.optional",
+    label: "Photo preview blur",
+    help: "Sample the room behind an enlarged photo with the Field Notes blur.",
+    defaultValue: artifactPreviewVisualEffects.defaultSnapshot.backdropBlur,
+    experimental: false,
+    productionCost: {
+      activeValues: [true],
+      enabled: "One full-viewport CSS backdrop blur while a photo is open.",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+    store: artifactPreviewVisualEffects,
+    read: () => artifactPreviewVisualEffects.getSnapshot().backdropBlur,
+    update: (value) =>
+      artifactPreviewVisualEffects.setBackdropBlur(Boolean(value)),
   }),
   booleanDescriptor({
     id: "render.universal-search-blur",

@@ -281,7 +281,7 @@ function ProjectPhoto({
 /**
  * One circuit board, one pixel-art look. A tap toggles the store's look and
  * records the board's world position so the Effect can wipe outward from it.
- * The Door Label names the mode in both states ("8-bit mode" / "Photo mode"),
+ * The Portal Label names the mode in both states ("8-bit mode" / "Photo mode"),
  * because the two boards look like clutter until the label says otherwise.
  */
 function PixelBoard({
@@ -326,7 +326,7 @@ function PixelBoard({
       shadeWidth={shadeWidth}
       shape="box"
       massKg={massKg}
-      doorLabel={title}
+      portalLabel={title}
       actionLabel={active ? "Photo mode" : PIXEL_LOOK_ACTION_LABELS[look]}
       onTap={onTap}
     >
@@ -502,7 +502,7 @@ export default function UnitProjects({ palette, dark, index }: UnitProps) {
                 height={PROJECT_FACEBOOK_H}
               />
             </ProjectPhoto>
-            {/* The Mac, and the door to his GitHub.
+            {/* The Mac, and the portal to his GitHub.
               It is a compact Macintosh rather than a modern laptop, and that
               is the whole reason it works: at the ~25px this subtends on
               screen a MacBook is a grey wedge, while the beige box with the
@@ -554,8 +554,8 @@ export default function UnitProjects({ palette, dark, index }: UnitProps) {
               massKg={7.5}
               tiltWhileHeld={false}
               href="https://github.com/chappyasel"
-              doorLabel="GitHub"
-              doorDetail={["chappyasel"]}
+              portalLabel="GitHub"
+              portalDetail={["chappyasel"]}
             >
               <React.Suspense fallback={null}>
                 <ModelProp
@@ -616,8 +616,8 @@ export default function UnitProjects({ palette, dark, index }: UnitProps) {
           textured={textured}
           yaw={0.07}
           href="https://apps.apple.com/us/app/id1266077653"
-          doorLabel="Weightlifting App"
-          doorDetail={["App Store"]}
+          portalLabel="Weightlifting App"
+          portalDetail={["App Store"]}
         />
         <DicePyramid unitIndex={index} palette={palette} dark={dark} />
         <ProjectIcon
@@ -632,7 +632,9 @@ export default function UnitProjects({ palette, dark, index }: UnitProps) {
           yaw={-0.07}
           // The 3D inspector is switched off in sceneArtifacts; the icon
           // stays a plain grabbable until it comes back.
-          artifact={MODEL_ARTIFACT_PREVIEWS_ENABLED ? "homework-app" : undefined}
+          artifact={
+            MODEL_ARTIFACT_PREVIEWS_ENABLED ? "homework-app" : undefined
+          }
         />
         <ProjectPhoto
           unitIndex={index}

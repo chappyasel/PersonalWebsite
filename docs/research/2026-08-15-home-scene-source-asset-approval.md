@@ -26,7 +26,7 @@ Musings. The owner-supplied TJ crop is now in the authored medallion in About.
   (`LightWood`), off-white sail (`Sail`), restrained navy hardware accent
   (`Steel`). No texture, logo, decal, or invented brand detail.
 - Intended behavior: movable keepsake, 0.9 kg/light handling, box collision,
-  gravity 3.4, no Door and no egg; touch remains stationary-only and does not
+  gravity 3.4, no Portal and no egg; touch remains stationary-only and does not
   carry.
 - Pipeline result: 18.5 KiB after production optimization, still 1,020 triangles. This
   exceeds the normal 1,000-triangle target by 20 triangles, but is within the
@@ -65,7 +65,7 @@ Decision: **approved by owner feedback on 2026-08-15 and enabled in Musings**.
   the JPEG is applied unchanged—no
   redraw, vectorization, cleanup, generated pixels, or invented logo detail.
 - Behavior: movable, 0.45 kg/light handling, box collision,
-  gravity 3.4; Door label
+  gravity 3.4; Portal Label
   `Watch Principles for Living in the Age of Acceleration ↗` opening the
   existing talk URL; no egg.
 - Budget: authored geometry remains below 1,000 triangles; the exact crop was
@@ -91,11 +91,11 @@ and explicitly requested their placement. That request is the source approval;
 the pipeline still applies the geometry, license, support, and visual gates
 before the models enter the preload list or scene.
 
-| Prop | Source / license | Raw | Scene-ready | Placement / behavior |
-| --- | --- | ---: | ---: | --- |
-| Phone | [Phone by Alex Safayan](https://poly.pizza/m/1L9oJAw6nY2), CC-BY 3.0 | 728 tris / 78.3 KiB | 704 tris / 27.2 KiB | Projects lower shelf, face-up, 0.19 kg, movable, no Door/egg |
-| Notebook | [Notebook by jeremy](https://poly.pizza/m/9Ptsg_xZt6B), CC-BY 3.0 | 568 tris / 23.6 KiB | 321 tris / 6.4 KiB | Projects lower shelf, lying flat, 0.45 kg, movable, no Door/egg |
-| Harmonica | [Harmonica by Poly by Google](https://poly.pizza/m/8Aw334FnDZE), CC-BY 3.0 | 968 tris / 1,367.8 KiB | 870 tris / 29.6 KiB | Talks upper shelf, 0.18 kg, movable, no Door/egg |
+| Prop      | Source / license                                                           |                    Raw |         Scene-ready | Placement / behavior                                              |
+| --------- | -------------------------------------------------------------------------- | ---------------------: | ------------------: | ----------------------------------------------------------------- |
+| Phone     | [Phone by Alex Safayan](https://poly.pizza/m/1L9oJAw6nY2), CC-BY 3.0       |    728 tris / 78.3 KiB | 704 tris / 27.2 KiB | Projects lower shelf, face-up, 0.19 kg, movable, no Portal/egg    |
+| Notebook  | [Notebook by jeremy](https://poly.pizza/m/9Ptsg_xZt6B), CC-BY 3.0          |    568 tris / 23.6 KiB |  321 tris / 6.4 KiB | Projects lower shelf, lying flat, 0.45 kg, movable, no Portal/egg |
+| Harmonica | [Harmonica by Poly by Google](https://poly.pizza/m/8Aw334FnDZE), CC-BY 3.0 | 968 tris / 1,367.8 KiB | 870 tris / 29.6 KiB | Talks upper shelf, 0.18 kg, movable, no Portal/egg                |
 
 The phone and notebook are plain-material models. The notebook's three named
 materials are mapped into the dawn palette without adding marks or branding.

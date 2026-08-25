@@ -1,7 +1,7 @@
+import { SCENE_PHOTOS } from "../../sceneArtifacts";
 import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { SCENE_PHOTOS } from "../../sceneArtifacts";
 import { TRAINING_PINS } from "./trainingBoardLayout";
 
 const source = fs.readFileSync(
@@ -19,7 +19,7 @@ const boardLayout = fs.readFileSync(
 
 describe("Training shelf prop destinations", () => {
   it("keeps the protein powder grabbable without opening Weightlifting", () => {
-    // The tubs share one authored shell; its Grabbable carries no Door, so
+    // The tubs share one authored shell; its Grabbable carries no Portal, so
     // none of the three tubs can quietly become a route.
     expect(tubs).toContain('hoverKey="grab:protein"');
     const start = tubs.indexOf("function SupplementTub");
@@ -42,7 +42,7 @@ describe("Training shelf prop destinations", () => {
     expect(board).toContain("<Grabbable");
     expect(board).toContain("artifact={pin.id}");
     expect(board).not.toContain("href={href}");
-    expect(board).not.toContain("doorLabel={href");
+    expect(board).not.toContain("portalLabel={href");
     expect(board).toContain("physicsDetachOffset={[0, 0, 0.08]}");
     expect(board).not.toContain("physicsAfterPull");
     expect(board).not.toContain("collisionMode");

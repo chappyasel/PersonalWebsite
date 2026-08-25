@@ -62,7 +62,7 @@ const TooltipTrigger = React.forwardRef<
 TooltipTrigger.displayName = TooltipPrimitive.Trigger.displayName;
 
 export const tooltipSurfaceClassName =
-  "rounded-md border border-border bg-background/80 px-3 py-1.5 font-serif text-xs text-foreground shadow-md backdrop-blur-md";
+  "field-notes-glass-tooltip rounded-md border px-3 py-1.5 font-serif text-xs backdrop-blur-xl backdrop-saturate-150";
 
 const TooltipContent = React.forwardRef<
   React.ElementRef<typeof TooltipPrimitive.Content>,

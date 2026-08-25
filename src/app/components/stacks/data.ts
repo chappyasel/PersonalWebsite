@@ -187,7 +187,7 @@ export type StacksBlogPost = {
 };
 
 /** One packed-row spine's worth of a real library book. Deliberately slim:
- * the spine needs a width (from length metadata), a Door Label (title/author)
+ * the spine needs a width (from length metadata), a Portal Label (title/author)
  * and a click id — never the cover image, so carrying full Book objects here
  * would put the whole library's serialization on the homepage payload for
  * fields no spine reads. Clicks resolve through the books-app modal by id. */

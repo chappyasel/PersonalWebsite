@@ -456,7 +456,7 @@ function flatStackTop(
 export type FeaturedBookPerchInput = Readonly<{
   id: string;
   title: string;
-  /** Door Label detail line; perch fixtures may omit it. */
+  /** Portal Label detail line; perch fixtures may omit it. */
   author?: string;
   coverUrl: string | null;
   pageCount: number | null;
@@ -854,8 +854,8 @@ export default function UnitBooks({
                     <BookendTarget />
                   </HoverProp>
                   {/* Face down on top of the flat stack, the way a phone gets
-                    put down mid-chapter. Doorless on purpose: the headphones
-                    carry the library, and a second door onto the same place is
+                    put down mid-chapter. Portal-free on purpose: the headphones
+                    carry the library, and a second portal onto the same place is
                     two names for one thing. It stays a real movable prop —
                     pick it up and throw it like any other. */}
                   {lowerStack && (

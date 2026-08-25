@@ -1,11 +1,10 @@
 "use client";
 
+import type { PersonalityData } from "../types";
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 
 import TiltCard from "~/app/components/TiltCard";
-
-import type { PersonalityData } from "../types";
 
 const domainColors: Record<
   string,
@@ -15,19 +14,22 @@ const domainColors: Record<
     bg: "bg-purple-50/60 dark:bg-purple-950/20",
     border: "border-purple-300/40 dark:border-purple-500/20",
     text: "text-purple-700 dark:text-purple-300",
-    badge: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
+    badge:
+      "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
   },
   Influencing: {
     bg: "bg-amber-50/60 dark:bg-amber-950/20",
     border: "border-amber-300/40 dark:border-amber-500/20",
     text: "text-amber-700 dark:text-amber-300",
-    badge: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+    badge:
+      "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
   },
   "Strategic Thinking": {
     bg: "bg-emerald-50/60 dark:bg-emerald-950/20",
     border: "border-emerald-300/40 dark:border-emerald-500/20",
     text: "text-emerald-700 dark:text-emerald-300",
-    badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+    badge:
+      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
   },
   "Relationship Building": {
     bg: "bg-blue-50/60 dark:bg-blue-950/20",
@@ -48,10 +50,7 @@ export default function StrengthCards({
   const isInView = useInView(ref, { once: true, margin: "-50px" });
 
   // Group by domain
-  const domains = new Map<
-    string,
-    PersonalityData["cliftonStrengths"]
-  >();
+  const domains = new Map<string, PersonalityData["cliftonStrengths"]>();
   for (const s of strengths) {
     const existing = domains.get(s.domain) ?? [];
     existing.push(s);
@@ -87,7 +86,7 @@ export default function StrengthCards({
                       <span
                         key={s.rank}
                         className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${colors.badge}`}
-                        title={s.description}
+                        aria-label={`${s.name}, rank ${s.rank}. ${s.description}`}
                       >
                         <span className="opacity-50">#{s.rank}</span>
                         {s.name}

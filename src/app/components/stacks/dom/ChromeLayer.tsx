@@ -27,7 +27,7 @@ import { Keycap } from "~/components/ui/keycap";
 import { ThemeToggle } from "~/components/ui/theme-toggle";
 
 import ChromeKeyboard from "./ChromeKeyboard";
-import DoorLabel from "./DoorLabel";
+import PortalLabel from "./PortalLabel";
 import { createFreeRoamChromeVisibility } from "./chromeKeys";
 
 const SoundToggle = dynamic(
@@ -36,6 +36,11 @@ const SoundToggle = dynamic(
     ssr: false,
     loading: () => <div aria-hidden className="size-10" />,
   },
+);
+
+const FieldNotesChrome = dynamic(
+  () => import("../fieldNotes/FieldNotesChrome"),
+  { ssr: false },
 );
 
 export function ChromeReveal({
@@ -226,7 +231,7 @@ export default function ChromeLayer() {
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   return (
     <>
-      <DoorLabel />
+      <PortalLabel />
       <ChromeKeyboard open={keyboardOpen} onOpenChange={setKeyboardOpen} />
       <style>{`
         :root { --stacks-ease: cubic-bezier(0.16, 1, 0.3, 1); }
@@ -385,16 +390,29 @@ export default function ChromeLayer() {
           white light-mode version read as ground fog over the meadow) and
           half the old strength — a grounding shadow, not a fog bank. */}
       {!postfx && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[6] h-[12dvh] bg-gradient-to-t from-black/45 to-transparent" />
+        <div className="stacks-chrome-vignette pointer-events-none absolute inset-x-0 bottom-0 z-[6] h-[12dvh] bg-gradient-to-t from-black/45 to-transparent" />
       )}
       <div className="stacks-wordmark pointer-events-auto absolute z-20">
         <div className="flex items-start gap-2.5">
           <ChromeReveal index={0}>
             <div>
-              <p className="stacks-on-background-text whitespace-nowrap font-serif text-base tracking-tight text-foreground min-[1200px]:text-lg">
-                Chappy Asel
-              </p>
-              <div className="stacks-wordmark-shortcuts stacks-on-background-text mt-1 flex items-center gap-1.5 whitespace-nowrap font-sans text-[9px] font-medium tracking-[0.01em]">
+              <div className="flex items-center gap-0.5">
+                {/* The name doubles as the help control: hover (or focus)
+                    reveals the hint row below, and a tap — the only gesture a
+                    touch screen has for it — opens the sheet directly. */}
+                <button
+                  type="button"
+                  aria-label="Open keyboard shortcuts"
+                  aria-controls="stacks-keyboard-shortcuts"
+                  aria-expanded={keyboardOpen}
+                  onClick={() => setKeyboardOpen(true)}
+                  className="stacks-on-background-text whitespace-nowrap rounded-sm font-serif text-base tracking-tight text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 min-[1200px]:text-lg"
+                >
+                  Chappy Asel
+                </button>
+                <FieldNotesChrome />
+              </div>
+              <div className="stacks-wordmark-shortcuts stacks-on-background-text mt-1 flex items-center gap-1.5 whitespace-nowrap font-serif text-[10px] tracking-[0.01em]">
                 <button
                   type="button"
                   aria-label="Open keyboard shortcuts"
@@ -406,11 +424,6 @@ export default function ChromeLayer() {
                   <Keycap aria-hidden="true">?</Keycap>
                   <span>Shortcuts</span>
                 </button>
-                <span aria-hidden="true">·</span>
-                <span className="flex items-center gap-1">
-                  <Keycap aria-hidden="true">H</Keycap>
-                  <span>Hide UI</span>
-                </span>
               </div>
             </div>
           </ChromeReveal>

@@ -62,7 +62,7 @@ function Score({
 }) {
   return (
     <span
-      title={`${label}: ${value?.toFixed(1) ?? "Unscored"}${coverage == null ? "" : ` (${Math.round(coverage * 100)}% coverage)`}`}
+      aria-label={`${label}: ${value?.toFixed(1) ?? "Unscored"}${coverage == null ? "" : ` (${Math.round(coverage * 100)}% coverage)`}`}
       className={"w-9 text-right text-xs tabular-nums " + scoreTextClass(value)}
     >
       {value?.toFixed(1) ?? "—"}

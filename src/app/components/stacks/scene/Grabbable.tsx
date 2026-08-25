@@ -36,6 +36,10 @@
 // Grabbable therefore owns its own shade and drives it: it tracks the prop's
 // x/z, stays on the wood, and spreads and fades as the object rises.
 import {
+  LONG_HAUL_CARRY_UNITS,
+  recordFieldNoteEvent,
+} from "../fieldNotes/progress";
+import {
   ARTIFACT_PREVIEW_CROSSFADE_START,
   ARTIFACT_PREVIEW_DURATION_MS,
   ARTIFACT_PREVIEW_SOURCE_IN_END,
@@ -88,6 +92,7 @@ import {
   massClassFor,
   projectSceneInteractionRect,
   registerSceneInteraction,
+  runSceneInteractionActivation,
 } from "./interactionRegistry";
 import { leanBudget } from "./leanClearance";
 import { type PropDestination, useOpenTarget } from "./links";
@@ -142,7 +147,7 @@ const ARTIFACT_CROSSFADE_TRAVEL = 0.68;
 const SHADE_OPACITY = 0.12;
 /** Pointer travel, in screen pixels, above which a press is a CARRY rather
  * than a click. The same 6 that r3f's own `event.delta` gate uses, so a prop
- * that is both a handle and a door answers a tap exactly as its neighbours do. */
+ * that is both a handle and a portal answers a tap exactly as its neighbours do. */
 const TAP_PX = 6;
 /** Deliberately under real gravity: a prop dropped 20cm at 9.81 lands in
  * under a fifth of a second, which reads as a glitch rather than a drop.
@@ -620,8 +625,8 @@ export default function Grabbable({
   standsOn,
   to,
   href,
-  doorLabel,
-  doorDetail,
+  portalLabel,
+  portalDetail,
   actionLabel,
   artifact,
   activateOnFirstTouch = false,
@@ -716,19 +721,19 @@ export default function Grabbable({
    * shelf, putting the floor 1.1 units too high. */
   standsOn?: ShelfPlane;
   /** Where this prop leads, if anywhere. A prop should not have to choose
-   * between being a handle and being a door: a press that never MOVED is a
+   * between being a handle and being a portal: a press that never MOVED is a
    * click and opens this, a press that moved is a carry. Same 6px gate r3f's
    * own `event.delta` uses, and the same destinations PropLink offers — the
    * two wrappers were the reason a shelf full of similar objects behaved
    * three different ways depending on which one you reached for. */
   to?: PropDestination;
   href?: string;
-  /** Required outcome copy for arbitrary URLs or local-action Doors. Route
+  /** Required outcome copy for arbitrary URLs or local-action Portals. Route
    * destinations inherit their exact copy from the destination table. */
-  doorLabel?: string;
-  /** Optional lines under the Door Label's title, for what the object stands
+  portalLabel?: string;
+  /** Optional lines under the Portal Label's title, for what the object stands
    * for (a role, a year) rather than where it goes. One string per line. */
-  doorDetail?: string | readonly string[];
+  portalDetail?: string | readonly string[];
   actionLabel?: string;
   /** Inspectable scene object. The catalog owns its identity, caption, touch
    * policy, reader media, and outbound actions. Mutually exclusive with
@@ -756,10 +761,10 @@ export default function Grabbable({
   /** A few hero props can enter the real rigid-body world when a scene
    * shockwave reaches them. Everyone else keeps the short authored nudge. */
   sceneImpulseReaction?: "nudge" | "knockdown";
-  /** Stable bounds for touch and Door projection when shader geometry does
+  /** Stable bounds for touch and Portal projection when shader geometry does
    * not describe its visible extent (wide screen-space lines are canonical). */
   projectedLocalBounds?: ProjectedLocalBounds;
-  /** Marks onTap as a quiet easter egg rather than a Door. */
+  /** Marks onTap as a quiet easter egg rather than a Portal. */
   egg?: { reducedMotion: "skip" | "state-only" };
   /** Keep pointer carrying and tap arbitration but bypass free shelf physics,
    * returning to the authored base after release. Defaults to true. */
@@ -936,6 +941,10 @@ export default function Grabbable({
   const scene = useThree((s) => s.scene);
   const pointerId = useRef<number | null>(null);
   const pickupY = useRef(base[1]);
+  /** Distance the prop has actually moved during the current hold. Long Haul
+   * reports once when a single hold crosses the marathon threshold. */
+  const carryDistance = useRef(0);
+  const carryFarSent = useRef(false);
   const heldDepth = useRef(0);
   const heldDepthRange = useRef(heldDepthBounds(0));
   const pinchStartDepth = useRef(0);
@@ -1193,6 +1202,8 @@ export default function Grabbable({
       authoredParked.current = false;
       authoredOffscreenFor.current = 0;
       velocity.set(0, 0, 0);
+      carryDistance.current = 0;
+      carryFarSent.current = false;
       pickupY.current = g?.position.y ?? base[1];
       track(event);
       simulated.current = false;
@@ -1202,6 +1213,12 @@ export default function Grabbable({
         `grabbable:${hoverKey}`,
       );
       store.setDragging(hoverKey);
+      recordFieldNoteEvent({
+        type: "prop-carried",
+        propId: hoverKey,
+        unitIndex,
+        massKg: massKg ?? 1,
+      });
       // drei's ScrollControls `enabled` flag only short-circuits its own
       // handler — the DOM element keeps scrolling natively. Freezing the
       // element is what actually stops travel; overflow hidden also means no
@@ -1325,6 +1342,7 @@ export default function Grabbable({
       detachZ,
       finishDragUi,
       hoverKey,
+      massKg,
       physicsEnabled,
       physicsScene,
       release,
@@ -1398,15 +1416,15 @@ export default function Grabbable({
     if (hittableRadius !== undefined && tapHittableBall(hoverKey)) return;
     if (artifact) openSceneArtifact(artifact);
     else if (onTapRef.current) onTapRef.current();
-    else if (to !== undefined) open({ to }, { doorId: hoverKey, unitIndex });
+    else if (to !== undefined) open({ to }, { portalId: hoverKey, unitIndex });
     else if (href !== undefined)
       open(
-        { href, label: doorLabel ?? "Open link", external },
-        { doorId: hoverKey, unitIndex },
+        { href, label: portalLabel ?? "Open link", external },
+        { portalId: hoverKey, unitIndex },
       );
   }, [
     artifact,
-    doorLabel,
+    portalLabel,
     external,
     hittableRadius,
     href,
@@ -1433,11 +1451,11 @@ export default function Grabbable({
       // (see the note above). A window pointerup consults none of that.
       if (tapped) {
         recordTap(hoverKey);
-        runStationaryActivation();
+        runSceneInteractionActivation(hoverKey);
       }
       return true;
     },
-    [hoverKey, release, runStationaryActivation],
+    [hoverKey, release],
   );
 
   const onGrabCancel = useCallback(
@@ -1499,35 +1517,35 @@ export default function Grabbable({
           } as const)
         : to !== undefined
           ? ({
-              kind: "door",
+              kind: "portal",
               ...destinationFor(to),
               run: runStationaryActivation,
             } as const)
-          : href !== undefined && doorLabel
+          : href !== undefined && portalLabel
             ? ({
-                kind: "door",
-                label: doorLabel,
+                kind: "portal",
+                label: portalLabel,
                 detail:
-                  doorDetail === undefined
+                  portalDetail === undefined
                     ? undefined
-                    : typeof doorDetail === "string"
-                      ? [doorDetail]
-                      : doorDetail,
+                    : typeof portalDetail === "string"
+                      ? [portalDetail]
+                      : portalDetail,
                 href,
                 external,
                 run: runStationaryActivation,
               } as const)
-            : onTap !== undefined && (actionLabel ?? doorLabel)
+            : onTap !== undefined && (actionLabel ?? portalLabel)
               ? ({
                   kind: "action",
-                  label: actionLabel ?? doorLabel!,
-                  title: actionLabel && doorLabel ? doorLabel : undefined,
+                  label: actionLabel ?? portalLabel!,
+                  title: actionLabel && portalLabel ? portalLabel : undefined,
                   detail:
-                    doorDetail === undefined
+                    portalDetail === undefined
                       ? undefined
-                      : typeof doorDetail === "string"
-                        ? [doorDetail]
-                        : doorDetail,
+                      : typeof portalDetail === "string"
+                        ? [portalDetail]
+                        : portalDetail,
                   run: runStationaryActivation,
                 } as const)
               : undefined;
@@ -1582,8 +1600,8 @@ export default function Grabbable({
     artifactEntry,
     beginCarry,
     colliderProfile,
-    doorDetail,
-    doorLabel,
+    portalDetail,
+    portalLabel,
     draggable,
     egg,
     external,
@@ -2178,6 +2196,14 @@ export default function Grabbable({
         // 4 u/s fling the visitor never performed.
         world.copy(g.position);
         g.position.lerp(hit, 1 - Math.exp(-handling.followLambda * delta));
+        carryDistance.current += world.distanceTo(g.position);
+        if (
+          !carryFarSent.current &&
+          carryDistance.current >= LONG_HAUL_CARRY_UNITS
+        ) {
+          carryFarSent.current = true;
+          recordFieldNoteEvent({ type: "prop-carried-far", propId: hoverKey });
+        }
         step.subVectors(g.position, world).divideScalar(delta);
         velocity.lerp(step, 1 - Math.exp(-26 * delta));
       }

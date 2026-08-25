@@ -1,6 +1,6 @@
+import fs from "node:fs";
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
-import fs from "node:fs";
 
 import {
   BUTTERFLY_COUNT,
@@ -15,6 +15,7 @@ import {
   butterflyIsActiveNeighbor,
   butterflyMayBeginLanding,
   butterflyNextAttemptAt,
+  butterflyPerchCanReceiveLanding,
   butterflyPerchFailureMessage,
   butterflyStartPosition,
   butterflyTrailPoints,
@@ -25,6 +26,7 @@ import {
   updateButterflyResidency,
   updateButterflyStallState,
 } from "./Butterflies";
+import { insectOwnerIsDisturbed } from "./insectDisturbance";
 import {
   BUTTERFLY_FLIGHT_VOLUME_EXTENT,
   clampToInsectFlightVolume,
@@ -37,7 +39,6 @@ import {
   prepareInsectLandingTarget,
   registerInsectCollisionRoot,
 } from "./insectFlightWorld";
-import { insectOwnerIsDisturbed } from "./insectDisturbance";
 import {
   type InsectPerch,
   getInsectPerch,
@@ -68,6 +69,45 @@ const wildlifeSource = fs.readFileSync(
 );
 
 describe("butterfly roaming state", () => {
+  it("lets a butterfly land on a held prop and records that landing", () => {
+    expect(butterflySource).toContain(
+      "ownerId !== null && ownerId === stacks.dragging",
+    );
+    expect(butterflySource).toContain(
+      "if (pointerIsTouch.current || ownerIsHeld)",
+    );
+    expect(butterflySource).toContain(
+      'recordFieldNoteEvent({ type: "butterfly-landed-on-held-prop" })',
+    );
+    expect(butterflySource).not.toContain("butterfly-perch-disturbed");
+
+    const idle = {
+      hovered: null,
+      dragging: null,
+      pressedInteraction: null,
+      focusedInteraction: null,
+    };
+    expect(butterflyPerchCanReceiveLanding("grab:trophy", idle)).toBe(true);
+    expect(
+      butterflyPerchCanReceiveLanding("grab:trophy", {
+        ...idle,
+        dragging: "grab:trophy",
+      }),
+    ).toBe(true);
+    expect(
+      butterflyPerchCanReceiveLanding("grab:trophy", {
+        ...idle,
+        dragging: "grab:barbell",
+      }),
+    ).toBe(false);
+    expect(
+      butterflyPerchCanReceiveLanding("grab:trophy", {
+        ...idle,
+        hovered: "grab:trophy",
+      }),
+    ).toBe(false);
+  });
+
   it("treats press and touch focus as direct prop disturbances for both species", () => {
     expect(butterflySource).toContain("insectOwnerIsDisturbed");
     expect(wildlifeSource).toContain("insectOwnerIsDisturbed");

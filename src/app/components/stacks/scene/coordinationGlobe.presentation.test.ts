@@ -45,8 +45,8 @@ const authoredPropsSource = fs.readFileSync(
   new URL("./AuthoredProps.tsx", import.meta.url),
   "utf8",
 );
-const doorLabelSource = fs.readFileSync(
-  new URL("../dom/DoorLabel.tsx", import.meta.url),
+const portalLabelSource = fs.readFileSync(
+  new URL("../dom/PortalLabel.tsx", import.meta.url),
   "utf8",
 );
 const environmentSource = fs.readFileSync(
@@ -91,9 +91,9 @@ const eggSourceWithLighting = fs.readFileSync(
 );
 
 describe("Coordination globe presentation contract", () => {
-  it("registers the requested external Door destination", () => {
+  it("registers the requested external Portal destination", () => {
     expect(globeSource).toContain('href="https://coordination.sh/"');
-    expect(globeSource).toContain('doorLabel="Coordination Research"');
+    expect(globeSource).toContain('portalLabel="Coordination Research"');
     expect(globeSource).toContain("external");
   });
 
@@ -125,13 +125,28 @@ describe("Coordination globe presentation contract", () => {
     expect(globeSource).not.toContain("draggable={false}");
     expect(globeSource).toContain('shape="box"');
     expect(globeSource).toContain("massKg=");
-    expect(globeSource).toContain("onDragIntent={emitShockwave}");
+    expect(globeSource).toContain(
+      "onDragIntent={(origin) => emitShockwave(origin, true)}",
+    );
     expect(globeSource).toContain("triggerCoordinationBurst(");
     expect(globeSource).toContain("stepCoordinationBurst(");
     expect(move).toContain("onDragIntentRef.current({");
     expect(move.indexOf("onDragIntentRef.current({")).toBeLessThan(
       move.indexOf("beginCarry(event)"),
     );
+  });
+
+  it("discovers the shockwave when hover triggers the globe", () => {
+    const engagementStart = globeSource.indexOf(
+      "const entered = coordinationEngaged",
+    );
+    const engagementEnd = globeSource.indexOf(
+      "}, [coordinationEngaged",
+      engagementStart,
+    );
+    const engagement = globeSource.slice(engagementStart, engagementEnd);
+
+    expect(engagement).toMatch(/emitShockwave\(\s*\{[\s\S]*?\},\s*true,?\s*\)/);
   });
 
   it("limits the pointer hit to the visible singularity", () => {
@@ -153,12 +168,12 @@ describe("Coordination globe presentation contract", () => {
   });
 
   it("drops stale hover ownership when the pointer leaves the scene surface", () => {
-    const trackStart = doorLabelSource.indexOf("const track =");
-    const trackEnd = doorLabelSource.indexOf(
+    const trackStart = portalLabelSource.indexOf("const track =");
+    const trackEnd = portalLabelSource.indexOf(
       'window.addEventListener("pointermove"',
       trackStart,
     );
-    const track = doorLabelSource.slice(trackStart, trackEnd);
+    const track = portalLabelSource.slice(trackStart, trackEnd);
 
     expect(trackStart).toBeGreaterThan(-1);
     expect(track).toContain("state.setHovered(null)");

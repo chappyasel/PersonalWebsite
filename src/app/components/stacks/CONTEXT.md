@@ -114,7 +114,7 @@ not a screenshot mounted as wall art.
 _Avoid_: Project card, app screenshot
 
 **Role Icon** — a Project Icon billet on the About shelf carrying the mark of
-an organization Chappy currently works with, and a Door to it. The four stand
+an organization Chappy currently works with, and a Portal to it. The four stand
 two by two beside the Apple mark at half the Projects edge; each is its own
 Movable Prop.
 _Avoid_: Logo wall, sponsor badge, client list
@@ -355,12 +355,12 @@ haptic ticks may reinforce transitions on supporting devices. Vertical movement
 remains native, and the Rail cedes touch during Ambient Reading.
 _Avoid_: Hidden primary navigation, unlabeled notches, haptic-only feedback
 
-**Door** — a scene object with an honest destination that opens on a
-stationary activation. A Door may also be movable, but scenery with no
-destination and easter eggs are not Doors.
+**Portal** — a scene object with an honest destination that opens on a
+stationary activation. A Portal may also be movable, but scenery with no
+destination and easter eggs are not Portals.
 _Avoid_: Link, linked prop, clickable object
 
-**Door Label** — the compact outcome label a Door or explicit local action
+**Portal Label** — the compact outcome label a Portal or explicit local action
 reveals when a visitor dwells with a fine pointer or establishes Touch Focus.
 Navigation labels name the destination; local-action labels name what the
 stationary activation does. Under Touch Focus the label is also a large,
@@ -374,9 +374,9 @@ _Avoid_: Tooltip, hover label
 on a discrete authored prop. Every standalone object participates, including
 fixed furniture and seam plants; structural systems such as shelves, ground,
 grass, and sky do not compete for focus. It reveals the prop's outcome before
-any Door navigation or explicit local action occurs and gives a movable-only
-prop a persistent selected state without inventing a Door Label. A subsequent
-tap on either an actionable prop or its Door Label commits the same
+any Portal navigation or explicit local action occurs and gives a movable-only
+prop a persistent selected state without inventing a Portal Label. A subsequent
+tap on either an actionable prop or its Portal Label commits the same
 role-specific activation.
 It has no timeout and clears when focus transfers or the visitor changes
 context through background touch, World travel, rail navigation, or Peek Sheet

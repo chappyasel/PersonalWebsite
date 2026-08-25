@@ -1963,6 +1963,7 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
         {active && expanded && (
           <motion.div
             key="dim"
+            data-stacks-mobile-panel-dim=""
             className="pointer-events-none fixed inset-0 z-30 bg-background/10"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -2413,7 +2414,7 @@ export default function PlacardLayer({
 
   return (
     <div
-      className="font-serif text-muted-foreground"
+      className="stacks-placard-layer font-serif text-muted-foreground"
       data-stacks-glass-mode={glassMode}
       data-stacks-glass-preference={performanceSettings.placardGlassMode}
       data-stacks-glass-status={glassMode}
@@ -3125,6 +3126,7 @@ export default function PlacardLayer({
           Backdrop filters sample only within their nearest compositing root;
           nesting it under the scaling button left the text behind it sharp. */}
       <div
+        data-stacks-details-toggle-shell=""
         className={`group absolute right-1.5 z-30 hidden size-11 min-[1200px]:block ${
           golfFocused ? "pointer-events-none opacity-0" : ""
         }`}
@@ -3133,7 +3135,7 @@ export default function PlacardLayer({
         <span
           id="stacks-details-tooltip"
           role="tooltip"
-          className="stacks-glass-tooltip pointer-events-none absolute right-full top-1/2 -mr-1.5 -translate-y-1/2 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium tracking-[0.01em] text-stone-900 opacity-0 transition-[opacity,transform] duration-200 group-focus-within:opacity-100 group-hover:opacity-100 motion-reduce:transition-none dark:text-white"
+          className="field-notes-glass-tooltip pointer-events-none absolute right-full top-1/2 -mr-1.5 -translate-y-1/2 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium tracking-[0.01em] opacity-0 backdrop-blur-xl backdrop-saturate-150 transition-[opacity,transform] duration-200 group-focus-within:opacity-100 group-hover:opacity-100 motion-reduce:transition-none"
         >
           <span className="relative block h-5 w-[6.8rem] overflow-hidden whitespace-nowrap text-center leading-5">
             <AnimatePresence initial={false} mode="popLayout">

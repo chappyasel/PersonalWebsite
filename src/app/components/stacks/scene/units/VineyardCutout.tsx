@@ -40,7 +40,7 @@ export const MUSINGS_VINEYARD_CUTOUT_POSE = {
 
 /** The Katama home, projected into the same normalized island bounds used
  * by the owner-supplied coastline. It lands just inland from South Beach.
- * The pin is a marker only: the Google Maps Door that once opened the
+ * The pin is a marker only: the Google Maps Portal that once opened the
  * street address was removed on the owner's request (2026-08-23). */
 export const KATAMA_HOME_ISLAND_POINT = [0.3421, -0.1332] as const;
 

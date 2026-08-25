@@ -498,6 +498,29 @@ export default function UnitRail() {
         @media (hover: hover) {
           .stacks-rail-row:hover .stacks-rail-label { opacity: 1; }
         }
+        .stacks-rail-tooltip {
+          visibility: hidden;
+          opacity: 0;
+          transform: translate(-50%, -4px) scale(0.96);
+          transition:
+            visibility 0s linear 140ms,
+            opacity 140ms ease-out,
+            transform 180ms var(--stacks-ease, ease-out);
+        }
+        .stacks-rail-row:focus-visible .stacks-rail-tooltip {
+          visibility: visible;
+          opacity: 1;
+          transform: translate(-50%, 0) scale(1);
+          transition-delay: 0s;
+        }
+        @media (hover: hover) {
+          .stacks-rail-row:hover .stacks-rail-tooltip {
+            visibility: visible;
+            opacity: 1;
+            transform: translate(-50%, 0) scale(1);
+            transition-delay: 180ms;
+          }
+        }
         /* One shared focus treatment. The button's responsive border radius
            remains intact instead of being replaced by a second ring shape. */
         .stacks-rail-row:focus-visible {
@@ -542,6 +565,9 @@ export default function UnitRail() {
             [data-stacks-rail-indicator="desktop"] {
             scale: 1;
             animation: none;
+          }
+          .stacks-rail-tooltip {
+            transition: none;
           }
         }
       `}</style>
@@ -706,6 +732,7 @@ export default function UnitRail() {
                 }}
                 type="button"
                 aria-label={railLabel}
+                aria-describedby={`stacks-rail-tooltip-${unit.slug}`}
                 aria-current={!golfFocused && current ? "page" : undefined}
                 tabIndex={current ? 0 : -1}
                 data-active={active || undefined}
@@ -730,6 +757,13 @@ export default function UnitRail() {
                   weight="bold"
                   className="stacks-rail-icon size-[22px] shrink-0 text-foreground"
                 />
+                <span
+                  id={`stacks-rail-tooltip-${unit.slug}`}
+                  role="tooltip"
+                  className="field-notes-glass-tooltip stacks-rail-tooltip pointer-events-none absolute left-1/2 top-[calc(100%_-_0.1rem)] z-40 w-max max-w-40 rounded-md border px-2.5 py-1.5 font-serif text-xs leading-none backdrop-blur-xl backdrop-saturate-150"
+                >
+                  {railLabel}
+                </span>
               </button>
             );
           })}

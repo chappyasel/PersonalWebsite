@@ -763,7 +763,7 @@ function routineSheetTexture(ink: string): THREE.CanvasTexture {
 }
 
 /**
- * The daily checklist on a clipboard, standing up — the door to /routine.
+ * The daily checklist on a clipboard, standing up — the portal to /routine.
  *
  * It replaces `InboxTray` (owner, of the tray: "wtf is this? Replace it with
  * something better"). The tray was not badly built; it was badly ORIENTED. A
@@ -856,7 +856,7 @@ export function NotebookLean({
   count?: number;
   clickKeys?: string[];
   onNotebookClick?: (key: string) => void;
-  /** Unit index — the spines that aren't a specific post become doors to the
+  /** Unit index — the spines that aren't a specific post become portals to the
    * blog as a whole. */
   linkUnit?: number;
 }) {
@@ -931,7 +931,7 @@ export function NotebookLean({
               massKg={0.45}
               onTap={key ? () => onNotebookClick?.(key) : undefined}
               href={key}
-              doorLabel={key ? "Read this musing" : undefined}
+              portalLabel={key ? "Read this musing" : undefined}
               to={key ? undefined : "blog"}
               external
             >
@@ -969,7 +969,7 @@ const MUSINGS_PDF_PAGE_URLS = [5, 4, 3, 2, 1].map(
 );
 
 /** Five real pages from Chappy's 2021 GPT-3 paper plus a dimensioned pen.
- * `linkUnit` makes the paper a door to Musings; the pen remains its own prop. */
+ * `linkUnit` makes the paper a portal to Musings; the pen remains its own prop. */
 export function PaperStack({
   palette,
   linkUnit,

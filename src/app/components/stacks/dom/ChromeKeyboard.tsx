@@ -11,7 +11,7 @@ import {
   useScenePerformanceSettings,
 } from "../scene/scenePerformance";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { useEffect, useRef } from "react";
+import { Fragment, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
 import { Keycap } from "~/components/ui/keycap";
@@ -43,6 +43,8 @@ export default function ChromeKeyboard({
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      if (document.documentElement.hasAttribute("data-field-notes-open"))
+        return;
       const editable = isEditableShortcutTarget(event.target);
       // An open sheet takes Escape first; with the sheet closed Escape is
       // only ours while the interface is hidden.
@@ -126,10 +128,15 @@ export default function ChromeKeyboard({
                   {group.rows.map((row) => (
                     <div key={row.does} className="contents">
                       <dt className="flex items-center gap-1">
-                        {row.keys.map((key) => (
-                          <Keycap key={key} width="fit">
-                            {key}
-                          </Keycap>
+                        {row.keys.map((key, index) => (
+                          <Fragment key={key}>
+                            {index > 0 && row.join ? (
+                              <span aria-hidden="true" className="text-[10px]">
+                                {row.join}
+                              </span>
+                            ) : null}
+                            <Keycap width="fit">{key}</Keycap>
+                          </Fragment>
                         ))}
                       </dt>
                       <dd className="text-[13px] leading-5">{row.does}</dd>

@@ -63,7 +63,7 @@ room.
 20. As a visitor, I want the animals rendered in simplified low-poly naturalism, so that they belong with the authored scene rather than looking like imported realism.
 21. As a visitor, I do not want mascot faces, exaggerated proportions, or cute gestures, so that the wildlife stays on brand.
 22. As a visitor, I do not want wildlife to be clickable, draggable, collectible, or scored, so that ambient life remains ambience rather than a minigame.
-23. As a visitor, I want wildlife to ignore pointer hover and clicks, so that props and Doors retain the interaction language.
+23. As a visitor, I want wildlife to ignore pointer hover and clicks, so that props and Portals retain the interaction language.
 24. As a dark-mode visitor, I want a few dark moths to fly below each practical inside its real light-cone direction, with density and range proportional to lamp size and a slower flap than the butterflies, so that warm light feels connected to the meadow without turning moths into mini-lights.
 25. As a visitor who turns a practical off, I want its moth activity to disappear with that light, so that the effect remains motivated.
 26. As a dark-mode visitor, I want an occasional bat silhouette to cross the sky, so that the pre-dawn world contains distant life.
@@ -183,7 +183,7 @@ room.
 - Predation, reproduction, procedural ecology, weather response, flock AI, or
   skeletal animation.
 - Wildlife in Flat mode or additional explanatory UI.
-- Changes to the existing butterflies, petals, Doors, placards, golf game, or
+- Changes to the existing butterflies, petals, Portals, placards, golf game, or
   navigation.
 - Browser automation or screenshot-based approval in this implementation pass.
 

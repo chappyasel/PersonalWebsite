@@ -1,6 +1,7 @@
 "use client";
 
 import { devSubdomainUrl } from "../../../../lib/util";
+import { recordFieldNoteEvent } from "../fieldNotes/progress";
 import type * as THREE from "three";
 
 import type { DynamicColliderProfile } from "./physicsColliders";
@@ -13,12 +14,12 @@ export type MovableSpec = {
   colliderProfile?: DynamicColliderProfile;
 };
 
-export type DoorSpec = {
-  kind: "door";
-  /** The title line: where the Door goes, or what the object is. */
+export type PortalSpec = {
+  kind: "portal";
+  /** The title line: where the Portal goes, or what the object is. */
   label: string;
   /** Optional lines under the title: what the object stands for (a role, a
-   * year). Each entry is its own line in the Door Label; the title alone
+   * year). Each entry is its own line in the Portal Label; the title alone
    * still names the destination. */
   detail?: readonly string[];
   href?: string;
@@ -46,7 +47,7 @@ export type EggSpec = {
 };
 
 /** A scene object whose identity and context matter independently of its
- * activation. Unlike a Door or Action, its label describes the object rather
+ * activation. Unlike a Portal or Action, its label describes the object rather
  * than promising an outcome. */
 export type ArtifactSpec = {
   kind: "artifact";
@@ -95,7 +96,7 @@ export type SceneInteractionSpec = {
   projectedLocalBounds?: ProjectedLocalBounds;
   movable?: MovableSpec;
   movableController?: MovableController;
-  activation?: DoorSpec | ActionSpec | EggSpec | ArtifactSpec;
+  activation?: PortalSpec | ActionSpec | EggSpec | ArtifactSpec;
   hover?: HoverResponseSpec;
 };
 
@@ -107,10 +108,10 @@ export type PropDestination =
   | "routine"
   | "blog";
 
-type Destination = Pick<DoorSpec, "label" | "external"> & { href: string };
+type Destination = Pick<PortalSpec, "label" | "external"> & { href: string };
 
 /** One destination table owns route hrefs, wording, and external treatment.
- * A Door Label names the destination and nothing else: the label's arrow (→
+ * A Portal Label names the destination and nothing else: the label's arrow (→
  * inside the site, ↗ out of it) already says it goes somewhere, so "Open" and
  * "Visit" were filler (owner, 2026-08-22). */
 export function destinationFor(to: PropDestination): Destination {
@@ -214,7 +215,7 @@ function composeInteraction(id: string): SceneInteractionSpec | null {
     id,
     label:
       all.find((part) => part.label)?.label ??
-      (activationPart?.activation?.kind === "door" ||
+      (activationPart?.activation?.kind === "portal" ||
       activationPart?.activation?.kind === "action" ||
       activationPart?.activation?.kind === "artifact"
         ? activationPart.activation.label
@@ -255,13 +256,26 @@ export function registerSceneInteraction(spec: SceneInteractionSpec) {
 }
 
 export function runSceneInteractionActivation(id: string) {
-  const activation = getSceneInteraction(id)?.activation;
-  if (!activation) return false;
-  if (activation.kind === "door") {
+  const interaction = getSceneInteraction(id);
+  const activation = interaction?.activation;
+  if (!activation || !interaction) return false;
+  const motionSkipped =
+    activation.kind === "egg" &&
+    activation.reducedMotion === "skip" &&
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (activation.kind === "portal") {
     if (!activation.run) return false;
     activation.run();
   } else {
     activation.run();
+  }
+  if (!motionSkipped) {
+    recordFieldNoteEvent({
+      type: "interaction-activated",
+      interactionId: id,
+      unitIndex: interaction.activeUnits[0] ?? null,
+    });
   }
   return true;
 }
@@ -299,19 +313,19 @@ export function sceneInteractionInventory() {
     .filter((spec): spec is SceneInteractionSpec => spec !== null);
 }
 
-export function doorDisplayLabel(door: DoorSpec) {
-  const base = door.label.replace(/\s*↗\s*$/, "");
-  return door.external ? `${base} ↗` : base;
+export function portalDisplayLabel(portal: PortalSpec) {
+  const base = portal.label.replace(/\s*↗\s*$/, "");
+  return portal.external ? `${base} ↗` : base;
 }
 
 /** A label describes the primary stationary activation. Quiet eggs stay
  * undisclosed, but a local action is just as clickable as navigation and must
  * not lose its authored outcome merely because the same prop is movable. */
-export function doorLabelActivation(
+export function portalLabelActivation(
   spec: SceneInteractionSpec | null,
-): DoorSpec | ActionSpec | null {
+): PortalSpec | ActionSpec | null {
   if (spec?.showLabel === false) return null;
-  return spec?.activation?.kind === "door" ||
+  return spec?.activation?.kind === "portal" ||
     spec?.activation?.kind === "action"
     ? spec.activation
     : null;
@@ -320,19 +334,18 @@ export function doorLabelActivation(
 export function cursorForInteraction(
   id: string | null,
   dragging: string | null,
-): "" | "grab" | "grabbing" | "pointer" | "zoom-in" {
+): "" | "grab" | "grabbing" | "pointer" {
   if (dragging) return "grabbing";
   if (id?.startsWith("golf-club:") || id?.startsWith("golf-ball:"))
     return "pointer";
   const spec = getSceneInteraction(id);
   if (!spec) return "";
-  if (spec.activation?.kind === "artifact") return "zoom-in";
   if (spec.activation) return "pointer";
   if (spec.movable) return "grab";
   return "";
 }
 
-export type ProjectedDoor = {
+export type ProjectedPortal = {
   x: number;
   y: number;
   behind: boolean;
@@ -358,23 +371,23 @@ export type ProjectedSceneInteractionRect = {
   ];
 };
 
-type DoorProjectionResolver = (id: string) => ProjectedDoor | null;
+type PortalProjectionResolver = (id: string) => ProjectedPortal | null;
 type InteractionRectProjectionResolver = (
   id: string,
 ) => ProjectedSceneInteractionRect | null;
-let projectionResolver: DoorProjectionResolver | null = null;
+let projectionResolver: PortalProjectionResolver | null = null;
 let interactionRectProjectionResolver: InteractionRectProjectionResolver | null =
   null;
 
 /** The lazy scene installs its Three-dependent resolver after the renderer is
  * ready. This dependency-free bridge keeps `three` out of the DOM bundle. */
-export function setDoorProjectionResolver(
-  resolver: DoorProjectionResolver | null,
+export function setPortalProjectionResolver(
+  resolver: PortalProjectionResolver | null,
 ) {
   projectionResolver = resolver;
 }
 
-export function projectDoor(id: string): ProjectedDoor | null {
+export function projectPortal(id: string): ProjectedPortal | null {
   return projectionResolver?.(id) ?? null;
 }
 
@@ -396,7 +409,7 @@ declare global {
       id: string;
       units: number[];
       movable: boolean;
-      activation: "door" | "action" | "egg" | "artifact" | null;
+      activation: "portal" | "action" | "egg" | "artifact" | null;
       label: string | null;
     }>;
   }
@@ -410,8 +423,8 @@ if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
       movable: Boolean(spec.movable),
       activation: spec.activation?.kind ?? null,
       label:
-        spec.activation?.kind === "door"
-          ? doorDisplayLabel(spec.activation)
+        spec.activation?.kind === "portal"
+          ? portalDisplayLabel(spec.activation)
           : spec.activation?.kind === "action" ||
               spec.activation?.kind === "artifact"
             ? spec.activation.label

@@ -23,7 +23,7 @@ describe("edge-visible egg interactions", () => {
 
   it("does not reject a nearest-hit touch egg by rounded active unit", () => {
     const start = environmentSource.indexOf(
-      "const interaction = getSceneInteraction(tappedEgg)",
+      "runSceneInteractionActivation(tappedEgg)",
     );
     const dispatcher = environmentSource.slice(start, start + 500);
 

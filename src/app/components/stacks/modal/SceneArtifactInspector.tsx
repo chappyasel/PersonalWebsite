@@ -1,6 +1,7 @@
 "use client";
 
 import { useArtifactPreviewFrames } from "../scene/artifactPreviewFrames";
+import { artifactPreviewVisualEffects } from "../scene/artifactPreviewVisualEffects";
 import { useArtifactShadeSamples } from "../scene/artifactShadeSamples";
 import { destinationFor } from "../scene/interactionRegistry";
 import { useModelArtifactRendererEnabled } from "../scene/modelArtifactDiagnostics";
@@ -45,6 +46,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
 import { PhotoSlider } from "react-photo-view";
@@ -128,7 +130,7 @@ function PreviewChrome({
 
       <div
         data-artifact-preview-scrim
-        className="dark:from-[#090b0f]/92 absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#17130f]/90 via-[#211b14]/55 to-transparent px-[max(16px,env(safe-area-inset-left))] pb-[max(16px,env(safe-area-inset-bottom))] pt-16 dark:via-[#10131a]/55 sm:px-6 sm:pb-5"
+        className="absolute inset-x-0 bottom-0 px-[max(16px,env(safe-area-inset-left))] pb-[max(16px,env(safe-area-inset-bottom))] sm:px-6 sm:pb-5"
       >
         <div
           className={`mx-auto flex max-w-[1500px] flex-col gap-2 ${model ? "sm:items-end" : "sm:flex-row sm:items-center"}`}
@@ -168,9 +170,11 @@ function PreviewChrome({
           {artifact.kind === "image" && artifact.caption && (
             <p
               data-artifact-preview-caption
-              className="min-w-0 flex-1 text-center text-sm text-white/60 sm:text-left"
+              className="min-w-0 flex-1 text-center text-sm sm:text-left"
             >
-              {artifact.caption}
+              <span className="inline-block max-w-2xl rounded-xl border border-[#725536]/20 bg-[#f2e7cf]/85 px-4 py-2 text-[#493721]/80 shadow-[0_8px_24px_rgba(22,14,8,0.14)] backdrop-blur-[2px]">
+                {artifact.caption}
+              </span>
             </p>
           )}
 
@@ -637,6 +641,11 @@ export default function SceneArtifactInspector() {
     width: typeof window === "undefined" ? 0 : window.innerWidth,
     height: typeof window === "undefined" ? 0 : window.innerHeight,
   }));
+  const visualEffects = useSyncExternalStore(
+    artifactPreviewVisualEffects.subscribe,
+    artifactPreviewVisualEffects.getSnapshot,
+    () => artifactPreviewVisualEffects.defaultSnapshot,
+  );
   const clearLastSelected = useCallback(() => {
     setLastSelectedId(null);
     finishArtifactClose();
@@ -866,7 +875,11 @@ export default function SceneArtifactInspector() {
           ]
             .filter(Boolean)
             .join(" ")}
-          maskClassName="stacks-artifact-preview-mask"
+          maskClassName={`stacks-artifact-preview-mask stacks-photo-preview-mask${
+            visualEffects.backdropBlur
+              ? " stacks-photo-preview-mask--blurred"
+              : ""
+          }`}
           overlayRender={(props) => (
             <PreviewChrome
               artifact={artifact}

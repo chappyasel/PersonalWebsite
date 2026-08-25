@@ -12,12 +12,6 @@ import MioBottle, { type MioFlavor } from "../MioBottle";
 import ModelProp from "../ModelProp";
 import PillBottle from "../PillBottle";
 import PillOrganizer from "../PillOrganizer";
-import {
-  PILL_BOTTLES,
-  PILL_BOTTLE_MASS_KG,
-  PILL_ORGANIZER_MASS_KG,
-  PILL_ORGANIZER_ROW,
-} from "../systemsPillLayout";
 import { EggClock, EggLamp, EggTrigger, Pendulum, Sway } from "../eggs";
 import {
   RoutineBoard,
@@ -27,6 +21,12 @@ import {
 } from "../objects";
 import { DeskFrame, deskFrameHeight } from "../photos";
 import { BookRowMesh, ShelfUnit, packRow } from "../primitives";
+import {
+  PILL_BOTTLES,
+  PILL_BOTTLE_MASS_KG,
+  PILL_ORGANIZER_MASS_KG,
+  PILL_ORGANIZER_ROW,
+} from "../systemsPillLayout";
 import { useUnitFrame } from "../unitActivity";
 import { useUnitLod } from "../useUnitLod";
 import React, { useMemo, useRef } from "react";
@@ -309,7 +309,7 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
             </Grabbable>
             {/* The daily food system made physical: three frozen chicken
                 bags in a shallow arc beside the plant. Each is its own
-                movable prop with no Door — there is nowhere honest for a bag
+                movable prop with no Portal — there is nowhere honest for a bag
                 of chicken to go. */}
             <Grabbable
               unitIndex={index}
@@ -405,7 +405,7 @@ export default function UnitSystems({ palette, dark, index }: UnitProps) {
                 as fifteen bottles packed either side of the picture. Sizes,
                 poses and the packing rule live in `systemsPillLayout`, which
                 the unit suite checks for overlaps. Grabbable like the bags
-                and with no Door, for the same reason: there is nowhere
+                and with no Portal, for the same reason: there is nowhere
                 honest for a pill case to go. */}
             {PILL_ORGANIZER_ROW.map((organizer) => (
               <Grabbable

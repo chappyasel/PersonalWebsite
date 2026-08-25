@@ -224,9 +224,9 @@ export function auditBookInteractions(
   if (extraFeatured.length)
     errors.push(`unexpected featured targets: ${extraFeatured.length}`);
 
-  // ONE BOOK, ONE DOOR. Packed volumes carry real reads now, so "has a detail
+  // ONE BOOK, ONE PORTAL. Packed volumes carry real reads now, so "has a detail
   // target" no longer means "is a featured cover" — but a book appearing both
-  // cover-out in front and spine-out behind is two doors onto one book, and
+  // cover-out in front and spine-out behind is two portals onto one book, and
   // the shelf would be lying about how many books are on it. That is the
   // invariant this replaces the old role check with, and it is the one the
   // row builder can actually get wrong.

@@ -25,7 +25,7 @@ const held = (...codes: string[]) => new Set(codes);
 const shortcut = (
   overrides: Partial<Parameters<typeof freeRoamShortcutIntent>[0]> = {},
 ) => ({
-  key: "f",
+  key: "r",
   shiftKey: false,
   metaKey: false,
   ctrlKey: false,
@@ -206,7 +206,7 @@ describe("free-roam pose persistence", () => {
   });
 });
 
-describe("the F shortcut", () => {
+describe("the R shortcut", () => {
   const off = { enabled: false };
   const on = { enabled: true };
 
@@ -223,22 +223,22 @@ describe("the F shortcut", () => {
     });
   });
 
-  it("starts from the current pose on Shift+F", () => {
+  it("starts from the current pose on Shift+R", () => {
     expect(freeRoamShortcutIntent(shortcut({ shiftKey: true }), off)).toEqual({
       action: "start-from-current-pose",
     });
   });
 
-  it("treats Shift+F as an exit once free roam is already running", () => {
-    // Shift+F is an entry style, not a second toggle: pressing F to leave has
+  it("treats Shift+R as an exit once free roam is already running", () => {
+    // Shift+R is an entry style, not a second toggle: pressing R to leave has
     // to work whether or not a thumb is still on Shift.
     expect(
       freeRoamShortcutIntent(shortcut({ shiftKey: true }), on)?.action,
     ).toBe("toggle");
   });
 
-  it("accepts an uppercase key, which is what Shift+F actually delivers", () => {
-    expect(freeRoamShortcutIntent(shortcut({ key: "F" }), off)).not.toBeNull();
+  it("accepts an uppercase key, which is what Shift+R actually delivers", () => {
+    expect(freeRoamShortcutIntent(shortcut({ key: "R" }), off)).not.toBeNull();
   });
 
   it.each([
@@ -247,8 +247,8 @@ describe("the F shortcut", () => {
     ["it is a browser shortcut", { metaKey: true }],
     ["it is a browser shortcut", { ctrlKey: true }],
     ["it is a browser shortcut", { altKey: true }],
-    ["someone is typing the letter f", { editableTarget: true }],
-    ["it is not the f key", { key: "g" }],
+    ["someone is typing the letter r", { editableTarget: true }],
+    ["it is not the r key", { key: "g" }],
   ])("ignores the keystroke when %s", (_reason, overrides) => {
     expect(freeRoamShortcutIntent(shortcut(overrides), off)).toBeNull();
   });

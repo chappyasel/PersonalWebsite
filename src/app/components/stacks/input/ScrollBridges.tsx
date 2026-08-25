@@ -78,6 +78,14 @@ export function worldNavigationStep(key: string): -1 | 1 | null {
   return null;
 }
 
+/** The number row jumps straight to a shelf, in the rail's order: 1 is About,
+ * 7 is the last unit. Digits above the unit count stay with the page. */
+export function worldNavigationUnit(key: string): number | null {
+  if (!/^[1-9]$/.test(key)) return null;
+  const unit = Number(key) - 1;
+  return unit < UNIT_COUNT ? unit : null;
+}
+
 /** A/D follow the same left/right convention as free-roam controls, but pan
  * the authored world while free roam is inactive. Unlike arrows, these keys
  * remain continuous for as long as they are held. */
@@ -439,6 +447,21 @@ export default function ScrollBridges() {
         e.preventDefault();
         panKeys.add(panDirection < 0 ? "a" : "d");
         if (!panFrame) panFrame = requestAnimationFrame(panWorld);
+        return;
+      }
+      // Digits with a modifier belong to the browser (tab switching); digits
+      // under a free-roam camera would travel the world out from under it.
+      const unit = worldNavigationUnit(e.key);
+      if (
+        unit !== null &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !e.shiftKey &&
+        !freeRoamDiagnosticsController.getSnapshot().enabled
+      ) {
+        e.preventDefault();
+        state.travelTo?.(unit);
         return;
       }
       const step = worldNavigationStep(e.key);

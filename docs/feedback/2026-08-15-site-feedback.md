@@ -36,7 +36,7 @@ Implementation checklist for the August 15 visual, interaction, and physics pass
 
 - [x] Remove the desktop panel's bottom overflow gradient.
 - [x] Move the Show/Hide details tooltip closer to its control.
-- [x] Make scene-door tooltips fade out, reopen reliably, and crossfade in place instead of jumping between objects.
+- [x] Make Portal Labels fade out, reopen reliably, and crossfade in place instead of jumping between objects.
 - [x] Use the shared tooltip treatment for weightlifting and books bar charts.
 - [x] Use the shared tooltip treatment for workout history.
 - [x] Make shared and year-bar tooltips tap-accessible above the mobile sheet.

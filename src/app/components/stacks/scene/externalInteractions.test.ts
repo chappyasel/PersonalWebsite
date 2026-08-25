@@ -11,7 +11,7 @@ const objectsSource = fs.readFileSync(
 );
 
 describe("graspable external destinations", () => {
-  it("registers project frames as external Doors while retaining onTap", () => {
+  it("registers project frames as external Portals while retaining onTap", () => {
     const start = primitivesSource.indexOf("hoverKey={`grab:frame:${key}`}");
     const carrier = primitivesSource.slice(start, start + 500);
 
@@ -21,7 +21,7 @@ describe("graspable external destinations", () => {
     expect(carrier).toContain("external");
   });
 
-  it("registers linked notebooks as external Doors while retaining onTap", () => {
+  it("registers linked notebooks as external Portals while retaining onTap", () => {
     const start = objectsSource.indexOf("onTap={key ?");
     const carrier = objectsSource.slice(Math.max(0, start - 300), start + 500);
 

@@ -16,7 +16,7 @@ hover behavior into touch input.
 - An already focused prop keeps its reaction during the second activation tap.
 - Carrying suppresses the prop reaction so animation transforms do not compete
   with the carry or physics paths.
-- Environmental easter eggs, wildlife disturbance, Door Labels, cursor
+- Environmental easter eggs, wildlife disturbance, Portal Labels, cursor
   feedback, and pointer arbitration keep their existing behavior.
 
 The Stacks glossary and ADR 0020 already define Touch Focus, Reaction
@@ -38,23 +38,23 @@ these decisions. No new domain term or ADR is needed.
 
 ## Audit inventory
 
-| Area | Classification | Intended change |
-| --- | --- | --- |
-| `Lift` | Generic prop Reaction Archetype | Use hover or Touch Focus; keep press as scale compression only |
-| `Grabbable` reaction bands | Generic prop Reaction Archetype | Use hover or Touch Focus at rest; keep Pickup Cue separate |
-| Trophy glint | Signature Reaction | Add Touch Focus |
-| Tea steam | Signature Reaction | Add Touch Focus |
-| Shaker slosh | Signature Reaction | Add Touch Focus |
-| Basketball roll | Signature Reaction | Add Touch Focus while preserving its carry and solver guards |
-| Globe spin | Signature Reaction | Add Touch Focus and suppress while carried |
-| Alarm clock shiver | Signature Reaction | Add Touch Focus |
-| Metal desk-mark shimmer | Authored prop reaction | Add Touch Focus |
-| About reading-book fan | Authored prop reaction | Add Touch Focus while preserving authored-pose and carry guards |
-| Coordination globe | Existing bespoke prop system | Already supports hover and Touch Focus; leave its deliberate carry behavior intact |
-| Skyline eggs | Environmental easter eggs | Excluded |
-| Butterflies and wildlife | Ambient dependent response | Excluded |
-| Pointer-over/out and click arbitration | Input ownership | Excluded |
-| Door Labels and cursor changes | Outcome and pointer feedback | Excluded |
+| Area                                   | Classification                  | Intended change                                                                    |
+| -------------------------------------- | ------------------------------- | ---------------------------------------------------------------------------------- |
+| `Lift`                                 | Generic prop Reaction Archetype | Use hover or Touch Focus; keep press as scale compression only                     |
+| `Grabbable` reaction bands             | Generic prop Reaction Archetype | Use hover or Touch Focus at rest; keep Pickup Cue separate                         |
+| Trophy glint                           | Signature Reaction              | Add Touch Focus                                                                    |
+| Tea steam                              | Signature Reaction              | Add Touch Focus                                                                    |
+| Shaker slosh                           | Signature Reaction              | Add Touch Focus                                                                    |
+| Basketball roll                        | Signature Reaction              | Add Touch Focus while preserving its carry and solver guards                       |
+| Globe spin                             | Signature Reaction              | Add Touch Focus and suppress while carried                                         |
+| Alarm clock shiver                     | Signature Reaction              | Add Touch Focus                                                                    |
+| Metal desk-mark shimmer                | Authored prop reaction          | Add Touch Focus                                                                    |
+| About reading-book fan                 | Authored prop reaction          | Add Touch Focus while preserving authored-pose and carry guards                    |
+| Coordination globe                     | Existing bespoke prop system    | Already supports hover and Touch Focus; leave its deliberate carry behavior intact |
+| Skyline eggs                           | Environmental easter eggs       | Excluded                                                                           |
+| Butterflies and wildlife               | Ambient dependent response      | Excluded                                                                           |
+| Pointer-over/out and click arbitration | Input ownership                 | Excluded                                                                           |
+| Portal Labels and cursor changes       | Outcome and pointer feedback    | Excluded                                                                           |
 
 ## Judgement calls
 

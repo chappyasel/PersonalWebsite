@@ -17,16 +17,17 @@ export type FreeRoamShortcutIntent = Readonly<{
 }>;
 
 /**
- * What F should do right now, or null for "not ours".
+ * What R should do right now, or null for "not ours". (F used to be this key;
+ * it now belongs to the visitor-facing Field Notes toggle.)
  *
  * The guards matter more than the two actions. A held key repeats at the OS
  * rate, and a repeating toggle turns free roam into a strobe; a modifier
  * combination belongs to the browser; a keystroke inside a diagnostics text
- * field is someone typing the letter f.
+ * field is someone typing the letter r.
  *
- * Shift+F is not a second toggle. It only means "enter from where the camera
+ * Shift+R is not a second toggle. It only means "enter from where the camera
  * is standing", so on an already-enabled camera it falls back to leaving,
- * which is what the muscle memory of pressing F expects.
+ * which is what the muscle memory of pressing R expects.
  */
 export function freeRoamShortcutIntent(
   event: FreeRoamShortcutEvent,
@@ -38,7 +39,7 @@ export function freeRoamShortcutIntent(
     event.metaKey ||
     event.ctrlKey ||
     event.altKey ||
-    event.key.toLowerCase() !== "f" ||
+    event.key.toLowerCase() !== "r" ||
     event.editableTarget
   )
     return null;

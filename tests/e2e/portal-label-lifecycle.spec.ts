@@ -7,13 +7,13 @@ test.use({
   hasTouch: false,
 });
 
-test("door labels reopen after the first hover", async ({ page }) => {
+test("portal labels reopen after the first hover", async ({ page }) => {
   test.setTimeout(90_000);
   await page.addInitScript(() => {
     sessionStorage.setItem("stacks-webgl-v1", "1");
   });
   await page.goto(
-    process.env.DOOR_LABEL_TEST_URL ?? "/?nomeadow&nopostfx&harness=1",
+    process.env.PORTAL_LABEL_TEST_URL ?? "/?nomeadow&nopostfx&harness=1",
     {
       waitUntil: "domcontentloaded",
     },
@@ -45,11 +45,11 @@ test("door labels reopen after the first hover", async ({ page }) => {
       { timeout: 30_000 },
     )
     .toEqual([
-      ["grab:ai-collective-mark", "door"],
-      ["grab:tj-medallion:about", "door"],
+      ["grab:ai-collective-mark", "portal"],
+      ["grab:tj-medallion:about", "portal"],
     ]);
 
-  const label = page.locator("[data-stacks-door-label]");
+  const label = page.locator("[data-stacks-portal-label]");
   const readingId = await page.evaluate(() => {
     const interactions = window.__stacks?.state().interactions as
       | Array<{

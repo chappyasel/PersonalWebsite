@@ -9,6 +9,7 @@ import {
   shouldHandleWorldNavigationKey,
   shouldMirrorWorldHistory,
   worldNavigationStep,
+  worldNavigationUnit,
   worldPanDirection,
 } from "./ScrollBridges";
 
@@ -62,6 +63,17 @@ describe("ScrollBridges interaction ownership", () => {
     expect(worldNavigationStep("ArrowLeft")).toBe(-1);
     expect(worldNavigationStep("ArrowUp")).toBe(-1);
     expect(worldNavigationStep("Enter")).toBeNull();
+  });
+
+  it("maps the number row straight onto shelves, 1-indexed like the rail", () => {
+    expect(worldNavigationUnit("1")).toBe(0);
+    expect(worldNavigationUnit("7")).toBe(6);
+    // Digits past the last unit, zero, and non-digits stay with the page.
+    expect(worldNavigationUnit("8")).toBeNull();
+    expect(worldNavigationUnit("9")).toBeNull();
+    expect(worldNavigationUnit("0")).toBeNull();
+    expect(worldNavigationUnit("!")).toBeNull();
+    expect(worldNavigationUnit("11")).toBeNull();
   });
 
   it("maps A/D to continuous horizontal panning without changing arrow jumps", () => {

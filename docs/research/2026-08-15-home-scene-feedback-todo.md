@@ -3,7 +3,7 @@
 - [x] Replace the single About reading book with the three most recent books, correctly proportioned, angled toward the lamp, slightly overlapped, and centered in the available shelf space.
 - [x] Recompose the About upper photographs: swap the first two, lay the landscape photograph flat, and tilt the fourth photograph against the plant.
 - [x] Enlarge Book Notes featured books by about 20%, distribute them more organically, derive shell color from each cover edge, add book-like geometry, and scale thickness from book length.
-- [x] Fix Door Label descender clipping without weakening its viewport clamping.
+- [x] Fix Portal Label descender clipping without weakening its viewport clamping.
 - [x] Add two differently colored Blender bottles to the Training upper shelf.
 - [x] Ground the Training basketball on its shelf.
 - [x] Enlarge and redistribute Systems photographs, including moving one to the lower shelf.
@@ -22,19 +22,19 @@
 - [x] Shift the Systems photograph groups slightly right while preserving their internal spacing.
 - [x] Shift the Projects notebook and phone left and guarantee a visible gap between their bounds.
 - [x] Reduce the Talks harmonica by about 30%, move the microphone left, and move the plant right so their bounds do not intersect.
-- [x] Prevent Door Labels from clamping to the left gutter when the CSS-hidden desktop dock reports a zero-sized rectangle below 1200 px.
+- [x] Prevent Portal Labels from clamping to the left gutter when the CSS-hidden desktop dock reports a zero-sized rectangle below 1200 px.
 - [x] Run focused and repository-wide verification: 49 files / 236 unit tests, TypeScript, lint, production build, model inspection, 30,893 meadow assertions, and final OG visual inspection. The exhaustive browser matrix was explicitly deferred at closeout.
 - [x] Run Claude Code review over the complete workstream diff and report findings before applying them.
 
 ## Accepted Claude review fixes
 
-- [x] Make touch Door resolution respect the nearest registered prop so an occluded Door cannot activate.
+- [x] Make touch Portal resolution respect the nearest registered prop so an occluded Portal cannot activate.
 - [x] Restore the touch-device hover guard for `TiltCard`.
-- [x] Keep the Projects Mac Door reachable beside the default-open desktop placard.
+- [x] Keep the Projects Mac Portal reachable beside the default-open desktop placard.
 - [x] Add a local Suspense boundary around the TJ medallion texture.
 - [x] Make the featured-book layout safe when Notion supplies more books than the authored shelf capacity.
 - [x] Ignore modified `H` keyboard chords and reset detached placard scroll-edge cues.
-- [x] Split Door projection from the DOM-facing interaction registry so `three` stays in the lazy scene bundle.
+- [x] Split Portal projection from the DOM-facing interaction registry so `three` stays in the lazy scene bundle.
 - [x] Restore the shipped grass-tuft model's MIT attribution in the generated license roster.
 - [x] Land the requested featured-book enlargement and make leaning books contact their neighbors.
 - [x] Add durable spacing/contact assertions for the Projects phone/notebook, Training shakers, and About photographs.

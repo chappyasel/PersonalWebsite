@@ -1,6 +1,7 @@
 "use client";
 
 import { sceneAudio } from "../../audio/sceneAudio";
+import { recordFieldNoteEvent } from "../../fieldNotes/progress";
 import { useStacks } from "../../store";
 import ModelProp from "../ModelProp";
 import { InteractionClaim } from "../interaction";
@@ -27,6 +28,11 @@ import React, {
 import * as THREE from "three";
 
 import {
+  GOLF_BALL_BUMP,
+  GOLF_BALL_GEOMETRY,
+  GolfBallProp,
+} from "./GolfBallProp";
+import {
   golfClubHintRotation,
   golfClubIdleBlend,
   golfClubPointerFollowRequested,
@@ -45,8 +51,8 @@ import {
   inGolfHittingBay,
 } from "./golfLayout";
 import {
-  GOLF_GRAVITY,
   GOLF_BALL_RADIUS,
+  GOLF_GRAVITY,
   GolfFixedStepper,
   type GolfWorld,
   createGolfBallState,
@@ -74,18 +80,7 @@ import {
   nextReadyClubTarget,
   shouldAdvanceGolfStrike,
 } from "./golfStrikeQueue";
-import {
-  GOLF_BALL_BUMP,
-  GOLF_BALL_GEOMETRY,
-  GolfBallProp,
-} from "./GolfBallProp";
 import { planGolfTrajectory } from "./golfTrajectory";
-import {
-  type HittableBall,
-  hittableContactPoint,
-  hittableBallsFor,
-  setHittableBallTapHandler,
-} from "./hittableBalls";
 import type {
   GolfBallId,
   GolfBallPhase,
@@ -93,6 +88,12 @@ import type {
   GolfPhysicsEvent,
   GolfVec3,
 } from "./golfTypes";
+import {
+  type HittableBall,
+  hittableBallsFor,
+  hittableContactPoint,
+  setHittableBallTapHandler,
+} from "./hittableBalls";
 
 const BALL_GEOMETRY = GOLF_BALL_GEOMETRY;
 const BALL_BUMP = GOLF_BALL_BUMP;
@@ -364,6 +365,8 @@ export default function GolfExperience({
   const stepper = useRef(new GolfFixedStepper());
   const queue = useRef(new GolfStrikeQueue());
   const looseBalls = useRef(new Map<string, LooseBall>());
+  const golfAttempts = useRef(new Map<string, number>());
+  const firstShotByGhost = useRef(new Map<GolfBallId, boolean>());
   const looseWorld = useMemo(() => new THREE.Vector3(), []);
   const bag = useRef(
     new GolfShotBag(
@@ -498,8 +501,13 @@ export default function GolfExperience({
       } else if (event.type === "flagstick") {
         sceneAudio.play("flagstick", worldPosition!, 0.68);
       } else if (event.type === "cup") {
+        recordFieldNoteEvent({
+          type: "golf-ball-holed",
+          firstShot: firstShotByGhost.current.get(event.ballId) === true,
+        });
         celebrate(event.position);
       } else if (event.type === "reset") {
+        firstShotByGhost.current.delete(event.ballId);
         const ball = balls.current.find(
           (candidate) => candidate.id === event.ballId,
         );
@@ -581,6 +589,9 @@ export default function GolfExperience({
           return;
         }
         const outcome = bag.current.next();
+        const previousAttempts = golfAttempts.current.get(loose.id) ?? 0;
+        golfAttempts.current.set(loose.id, previousAttempts + 1);
+        firstShotByGhost.current.set(ghost.id, previousAttempts === 0);
         const trajectory = planGolfTrajectory(
           loose.position,
           cup,
@@ -623,6 +634,7 @@ export default function GolfExperience({
         loose.struckFor = 0;
         return;
       }
+      recordFieldNoteEvent({ type: "golf-prop-struck" });
       // Not the golf trajectory scaled down. These props live in the rigid
       // body world, whose floor is flat at ground height, while the meadow
       // climbs half a metre toward the green; a can carried 17 m would land
@@ -630,13 +642,18 @@ export default function GolfExperience({
       // carry of 3.5 to 7 m by mass (a tennis ball takes the whole swing, a
       // can or the basketball about half), landing where the meadow still
       // meets the floor, and rolling on from there.
-      const toCup = { x: cup.x - loose.position.x, z: cup.z - loose.position.z };
+      const toCup = {
+        x: cup.x - loose.position.x,
+        z: cup.z - loose.position.z,
+      };
       const cupDistance = Math.max(0.001, Math.hypot(toCup.x, toCup.z));
       const scatter = (Math.random() - 0.5) * 0.24;
       const dir = {
-        x: (toCup.x / cupDistance) * Math.cos(scatter) -
+        x:
+          (toCup.x / cupDistance) * Math.cos(scatter) -
           (toCup.z / cupDistance) * Math.sin(scatter),
-        z: (toCup.x / cupDistance) * Math.sin(scatter) +
+        z:
+          (toCup.x / cupDistance) * Math.sin(scatter) +
           (toCup.z / cupDistance) * Math.cos(scatter),
       };
       const massFactor = Math.min(

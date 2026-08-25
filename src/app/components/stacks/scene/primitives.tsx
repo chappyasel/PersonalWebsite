@@ -124,9 +124,9 @@ export type RowItem =
       x: number;
       url: string;
       key: string;
-      /** Human title used by the Door Label; never reconstructed from a slug. */
+      /** Human title used by the Portal Label; never reconstructed from a slug. */
       label?: string;
-      /** Author, the Door Label's detail line under the title. */
+      /** Author, the Portal Label's detail line under the title. */
       author?: string;
       /** Server-sampled jacket perimeter color for this physical shell. */
       color?: string;
@@ -610,7 +610,7 @@ export class CoverBoundary extends React.Component<
 }
 
 /** A scenery book in a packed row: a plain positioned group, or — when the
- * row knows its unit — a door into the library with the standard hover lift.
+ * row knows its unit — a portal into the library with the standard hover lift.
  * The featured covers keep their own modal; a packed volume that is a REAL
  * book opens that book's notes, and one that is only scenery still opens the
  * library index behind it. */
@@ -652,9 +652,9 @@ function ShelfBook({
    *
    * Both are memoized, and that is load-bearing rather than hygiene.
    * Grabbable re-registers its scene interaction whenever `onTap` or
-   * `doorDetail` changes identity, and a packed row is forty-odd of these —
+   * `portalDetail` changes identity, and a packed row is forty-odd of these —
    * so an inline closure and a fresh `[author]` array would tear down and
-   * rebuild every door on the shelf on every re-render of the Unit.
+   * rebuild every portal on the shelf on every re-render of the Unit.
    *
    * Declared ABOVE the scenery early-return on purpose: hooks cannot sit
    * behind a conditional, and the plain-group branch below is a real one.
@@ -664,7 +664,7 @@ function ShelfBook({
   const openOwnNotes = React.useCallback(() => {
     if (bookId) onOpenBookId?.(bookId);
   }, [bookId, onOpenBookId]);
-  const doorDetail = useMemo(
+  const portalDetail = useMemo(
     () => (bookAuthor ? [bookAuthor] : undefined),
     [bookAuthor],
   );
@@ -690,8 +690,8 @@ function ShelfBook({
         {...(opensOwnNotes
           ? {
               onTap: openOwnNotes,
-              doorLabel: book.title,
-              doorDetail,
+              portalLabel: book.title,
+              portalDetail,
               actionLabel: "Preview book notes",
             }
           : { to })}
@@ -715,7 +715,7 @@ function ShelfBook({
   );
 }
 
-/** Background volumes advertise their Door by lifting vertically. They never
+/** Background volumes advertise their Portal by lifting vertically. They never
  * move toward the camera: that path crosses the front-rank cover plane and
  * produces exactly the z-fighting the owner reported. The global hover scale
  * turns 0.025 into a restrained 0.05-unit rise. */
@@ -1121,7 +1121,7 @@ function FeaturedCover({
     <group name={`stacks-cover:${item.key}`}>
       {/* The flat book it stands on stays OUTSIDE the cover's carry group, but
           it is still a real visible volume. Its exposed fore-edge owns a
-          distinct door into the library and pulls only toward the viewer, so
+          distinct portal into the library and pulls only toward the viewer, so
           it neither steals the face-out cover nor rises through it. */}
       {riser > 0 &&
         (linkUnit === undefined ? (
@@ -1156,8 +1156,8 @@ function FeaturedCover({
           // Title, author, then the verb. "Preview", because the tap opens
           // the in-room book modal, not the full notes page; a cover with no
           // known title keeps the verb as its whole label.
-          doorLabel={onCoverClick ? item.label : undefined}
-          doorDetail={onCoverClick && item.author ? [item.author] : undefined}
+          portalLabel={onCoverClick ? item.label : undefined}
+          portalDetail={onCoverClick && item.author ? [item.author] : undefined}
           actionLabel={onCoverClick ? "Preview book notes" : undefined}
         >
           {cover(true)}
@@ -1178,7 +1178,7 @@ function FeaturedCover({
 /**
  * A horizontal stack of books lying on the row.
  *
- * Each volume is its own door, for the same reason as BookPile: a shared
+ * Each volume is its own portal, for the same reason as BookPile: a shared
  * hoverKey lifted the whole stack as one slab. It is a component rather than
  * an inlined branch because the pile's thicknesses and the seats derived from
  * them are needed once for the whole stack, not once per volume — and because
@@ -1267,10 +1267,10 @@ export function BookRowMesh({
   /** Opens a packed volume that carries a real book, by id. A row whose items
    * have no `book` never calls this, so a scenery row needs no handler. */
   onOpenBookId?: (id: string) => void;
-  /** Unit index — set it and every non-cover book in the row becomes a door
+  /** Unit index — set it and every non-cover book in the row becomes a portal
    * into the library. */
   linkUnit?: number;
-  /** Where those doors lead. The library for a row of books; Systems' row is
+  /** Where those portals lead. The library for a row of books; Systems' row is
    * the operating manual, and points at that instead. */
   to?: PropDestination;
   /** Opt-in for curated face-out books: carry on drag, keep the existing
@@ -2040,7 +2040,7 @@ export function BookPile({
   x?: number;
   salt?: number;
   /** Unit index — set it and the stack (never its contact shade, which stays
-   * planted on the wood) becomes a door into the library. */
+   * planted on the wood) becomes a portal into the library. */
   linkUnit?: number;
   /** Loose display books can be carried while a clean tap still enters Book
    * Notes. Rows that physically support other books keep the fixed default. */
@@ -2640,7 +2640,7 @@ function plateGeometry(r: number, depth: number): THREE.ExtrudeGeometry {
  * rings around the bore. Disc face lies in the extrude's xy plane, so
  * standing them up is the default orientation plus a lean. Rubber keeps
  * its albedo across themes, so the colors are constants, not palette.
- * `linkUnit` turns the pair into a door to the weightlifting log. */
+ * `linkUnit` turns the pair into a portal to the weightlifting log. */
 export function BumperPlates({ linkUnit }: { linkUnit?: number }) {
   return (
     <group>
@@ -2843,7 +2843,7 @@ export function FrameRow({
             massKg={0.82}
             onTap={onFrameClick && href ? () => onFrameClick(href) : undefined}
             href={href}
-            doorLabel={href ? `View ${key}` : undefined}
+            portalLabel={href ? `View ${key}` : undefined}
             external
           >
             {frame}

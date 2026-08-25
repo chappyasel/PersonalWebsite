@@ -50,6 +50,19 @@
   backdrop-filter: blur(80px) saturate(0.22) brightness(0.6);
 }
 
+/* Every tooltip uses the original Field Notes launcher glass in both themes.
+   Typography stays local to each caller, so handwritten, serif, sans, and
+   object labels keep their current type. */
+.field-notes-glass-tooltip {
+  border-color: rgb(255 255 255 / 0.24);
+  background-color: rgb(24 32 36 / 0.38);
+  color: rgb(255 255 255 / 0.96);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.16),
+    inset 0 -1px 0 rgb(255 255 255 / 0.05),
+    0 8px 24px rgb(0 0 0 / 0.2);
+}
+
 @font-face {
   font-family: "Georgia Pro";
   src: url("/fonts/v1/GeorgiaPro-Light.woff2") format("woff2");
@@ -341,14 +354,9 @@ html[data-font="literata"] {
   display: none;
 }
 
-/* Keep the room present behind an inspected artifact without competing with
- * the image. The viewer owns the transition; this layer only supplies the
- * same warm, translucent material used by the scene's placards and cards.
- *
- * No backdrop blur, on purpose. The first cut declared one, but the CSS
- * minifier kept only the -webkit- copy, so Chrome never blurred and Safari
- * did; the owner preferred Chrome's plain darkened room, so this is now the
- * one look everywhere. */
+/* The base mask keeps the room present behind inspected 3D artifacts without
+ * competing with them. Photo previews override this below to match the
+ * lighter Field Notes treatment. */
 .stacks-artifact-preview-mask {
   background: radial-gradient(
     ellipse at 50% 38%,
@@ -365,6 +373,17 @@ html[data-font="literata"] {
     rgb(23 27 35 / 0.76) 56%,
     rgb(8 10 14 / 0.92) 100%
   ) !important;
+}
+
+/* Photos and Field Notes use the same quiet separation from the room. Blur is
+ * a live diagnostics override because it samples the full viewport. */
+.stacks-photo-preview-mask {
+  background: rgb(23 33 42 / 0.16) !important;
+}
+
+.stacks-photo-preview-mask--blurred {
+  backdrop-filter: blur(1px);
+  -webkit-backdrop-filter: blur(1px);
 }
 
 /* The enlarged photo is drawn as the print it is on the shelf (its paper,
@@ -657,9 +676,10 @@ html[data-font="literata"] {
   opacity: 1 !important;
 }
 
-/* The photo viewer keeps its own image morph and backdrop fade. Preview chrome
- * follows the viewer's overlay state so controls leave before the reverse
- * morph begins and return only when the enlarged image has settled. */
+/* The photo viewer keeps its own image morph and backdrop fade. The bottom
+ * dock is transparent; only its caption and controls carry local surfaces.
+ * Preview chrome leaves before the reverse morph and returns once the enlarged
+ * image has settled. */
 [data-scene-artifact-inspector] [data-artifact-preview-scrim] {
   opacity: 0;
   transition: opacity 160ms ease-out;

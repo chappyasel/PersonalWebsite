@@ -178,7 +178,12 @@ export default function ModelArtifactStage({
         if (interactive) reset();
       }}
       onKeyDown={(event) => {
-        if (interactive && event.key.toLowerCase() === "r") reset();
+        if (interactive && event.key.toLowerCase() === "r") {
+          // Claim the key: R also toggles the owner's free-roam camera, and
+          // the intent honors defaultPrevented as "someone else's key".
+          event.preventDefault();
+          reset();
+        }
       }}
       onPointerDown={(event) => {
         if (!interactive) return;

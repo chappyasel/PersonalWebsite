@@ -1,6 +1,6 @@
 "use client";
 
-// Prop navigation — scenery props with an honest destination become Doors
+// Prop navigation — scenery props with an honest destination become Portals
 // into the matching page of the site. A visible nearest-hit prop answers even
 // while the traverse is rounding into its neighboring unit; `activeUnits`
 // remains ownership metadata, not an interaction partition. Swipes are not
@@ -8,7 +8,7 @@
 //
 // The affordance is the scene's own damped Lift: the prop rises a few
 // millimetres under the pointer and nods toward you, the same idiom the
-// clickable book covers and talk frames already use. Doors and explicit local
+// clickable book covers and talk frames already use. Portals and explicit local
 // actions add one restrained outcome label after dwell; inert scenery and
 // quiet eggs never do.
 //
@@ -25,8 +25,12 @@
 // while being dead under a real trackpad. A window listener keyed off the
 // store's hover slot consults none of that machinery. The r3f handler stays,
 // but only to swallow the tap so it cannot also reach the unit travel plane.
-import { capture } from "../../../../lib/analytics";
+import {
+  HOMEPAGE_PORTAL_ACTIVATED_EVENT,
+  capture,
+} from "../../../../lib/analytics";
 import { UNITS } from "../data";
+import { recordFieldNoteEvent } from "../fieldNotes/progress";
 import { useStacks } from "../store";
 import { type ThreeEvent } from "@react-three/fiber";
 import { useRouter } from "next/navigation";
@@ -35,13 +39,13 @@ import type * as THREE from "three";
 
 import Lift from "./Lift";
 import {
-  type DoorSpec,
+  type PortalSpec,
   type PropDestination,
   destinationFor,
   registerSceneInteraction,
 } from "./interactionRegistry";
 
-/** The doors the shelf world can open. Books and Weightlifting live on their
+/** The portals the shelf world can open. Books and Weightlifting live on their
  * own subdomains in production — the exact hrefs the placard and the flat
  * sections already link to; the manual and the routine are same-origin
  * routes; "blog" is the Medium profile the Musings posts come from. */
@@ -52,7 +56,7 @@ export type { PropDestination } from "./interactionRegistry";
  * navigates in place. */
 const NEW_TAB: PropDestination[] = ["blog"];
 
-/** Where a prop leads: one of the site's own doors, or an arbitrary URL for
+/** Where a prop leads: one of the site's own portals, or an arbitrary URL for
  * the photographs whose source post is known. Exactly one of the two — a prop
  * with both would have an ambiguous destination. */
 export type PropTarget =
@@ -69,15 +73,15 @@ export function propHref(to: PropDestination): string {
   return destinationFor(to).href;
 }
 
-type DoorAnalyticsContext = {
-  doorId: string;
+type PortalAnalyticsContext = {
+  portalId: string;
   unitIndex: number;
 };
 
-function doorFor(target: PropTarget, run: () => void): DoorSpec {
+function portalFor(target: PropTarget, run: () => void): PortalSpec {
   if (target.href !== undefined) {
     return {
-      kind: "door",
+      kind: "portal",
       label: target.label,
       href: target.href,
       external: target.external ?? true,
@@ -85,30 +89,40 @@ function doorFor(target: PropTarget, run: () => void): DoorSpec {
     };
   }
   const destination = destinationFor(target.to);
-  return { kind: "door", ...destination, run };
+  return { kind: "portal", ...destination, run };
 }
 
 const ORIGIN: [number, number, number] = [0, 0, 0];
 const DEFAULT_LIFT: [number, number, number] = [0, 0.03, 0.02];
 
 /** Open a prop's destination. Shared with Grabbable, which offers the same
- * doors from a prop you can also pick up — a press that never moved is a
+ * portals from a prop you can also pick up — a press that never moved is a
  * click, and a prop should not have to choose between being a handle and
- * being a door. */
+ * being a portal. */
 export function useOpenTarget(): (
   target: PropTarget,
-  analyticsContext: DoorAnalyticsContext,
+  analyticsContext: PortalAnalyticsContext,
 ) => void {
   const router = useRouter();
   // Stable across renders: Grabbable holds it in a window-listener effect, and
   // a fresh closure per render would tear the whole gesture down and rebuild
   // it on every parent re-render.
   return useCallback(
-    (target: PropTarget, analyticsContext: DoorAnalyticsContext) => {
+    (target: PropTarget, analyticsContext: PortalAnalyticsContext) => {
       const section = UNITS[analyticsContext.unitIndex]?.slug;
+      recordFieldNoteEvent({
+        type: "portal-activated",
+        portalId: analyticsContext.portalId,
+        unitIndex: analyticsContext.unitIndex,
+        // Route names for the site's own portals so Open House counts the
+        // same destination identically across dev and production hosts.
+        destination: target.href ?? target.to,
+      });
       if (section) {
-        capture("homepage_door_activated", {
-          door_id: analyticsContext.doorId,
+        // Keep the original PostHog event and property names as one historical
+        // contract. Emitting only this event avoids duplicate activation counts.
+        capture(HOMEPAGE_PORTAL_ACTIVATED_EVENT, {
+          door_id: analyticsContext.portalId,
           section,
           destination: target.href !== undefined ? "external" : target.to,
         });
@@ -139,16 +153,16 @@ export function useOpenTarget(): (
 /** Every mounted shell that has somewhere to go, by hoverKey. One shared pair
  * of window listeners rather than a pair per prop: there are several dozen of
  * these in the world and they all ask the same three questions. */
-const doors = new Map<string, { unitIndex: number; open: () => void }>();
+const portals = new Map<string, { unitIndex: number; open: () => void }>();
 
 /** Pointerdown position, so a drag across a prop is not a click on it. The
  * same 6px gate r3f's own `event.delta` uses. */
-const down = { x: 0, y: 0, ok: false, touchDoor: null as string | null };
+const down = { x: 0, y: 0, ok: false, touchPortal: null as string | null };
 const DRAG_PX = 6;
 
 /** When the window path last opened something. r3f's `click` is dispatched
  * from the DOM click event, which fires AFTER pointerup — so by the time the
- * scene handler runs, the door may already be open, and its only remaining
+ * scene handler runs, the portal may already be open, and its only remaining
  * job is to stop the tap reaching the unit travel plane behind it. */
 let opened = 0;
 
@@ -160,13 +174,13 @@ function justOpened(): boolean {
 function onWindowDown(e: PointerEvent) {
   if (e.pointerType === "touch") {
     down.ok = false;
-    down.touchDoor = null;
+    down.touchPortal = null;
     return;
   }
   down.x = e.clientX;
   down.y = e.clientY;
   down.ok = e.isPrimary && e.button === 0;
-  down.touchDoor = null;
+  down.touchPortal = null;
 }
 
 function onWindowUp(e: PointerEvent) {
@@ -186,11 +200,11 @@ function onWindowUp(e: PointerEvent) {
   const el = s.scrollEl;
   if (el && e.target instanceof Node && !el.contains(e.target)) return;
   const key = s.hovered;
-  down.touchDoor = null;
-  const door = key ? doors.get(key) : undefined;
-  if (!door) return;
+  down.touchPortal = null;
+  const portal = key ? portals.get(key) : undefined;
+  if (!portal) return;
   opened = performance.now();
-  door.open();
+  portal.open();
 }
 
 let listenerOwners = 0;
@@ -242,9 +256,9 @@ function HoverShell({
   grow,
   tip,
   onSelect,
-  doorTarget,
+  portalTarget,
   children,
-}: HoverProps & { onSelect?: () => void; doorTarget?: PropTarget }) {
+}: HoverProps & { onSelect?: () => void; portalTarget?: PropTarget }) {
   const root = useRef<THREE.Group>(null);
   const setHovered = useStacks((s) => s.setHovered);
   // The handler is re-created on every render (callers pass inline closures),
@@ -252,29 +266,29 @@ function HoverShell({
   // itself mount-stable while the behaviour stays current.
   const select = useRef(onSelect);
   select.current = onSelect;
-  const hasDoor = !!onSelect;
+  const hasPortal = !!onSelect;
   useEffect(() => {
-    if (!hasDoor) return;
+    if (!hasPortal) return;
     const releaseListeners = retainWindowListeners();
     const entry = { unitIndex, open: () => select.current?.() };
-    doors.set(hoverKey, entry);
+    portals.set(hoverKey, entry);
     return () => {
       // Only if it is still ours: a remount can register the replacement
       // before the outgoing effect tears down.
-      if (doors.get(hoverKey) === entry) doors.delete(hoverKey);
+      if (portals.get(hoverKey) === entry) portals.delete(hoverKey);
       releaseListeners?.();
     };
-  }, [hoverKey, unitIndex, hasDoor]);
+  }, [hoverKey, unitIndex, hasPortal]);
   useEffect(() => {
-    if (!onSelect || !doorTarget || !root.current) return;
+    if (!onSelect || !portalTarget || !root.current) return;
     return registerSceneInteraction({
       id: hoverKey,
       root: root.current,
       activeUnits: [unitIndex],
-      activation: doorFor(doorTarget, () => select.current?.()),
+      activation: portalFor(portalTarget, () => select.current?.()),
       hover: { kind: "lift" },
     });
-  }, [doorTarget, hoverKey, onSelect, unitIndex]);
+  }, [portalTarget, hoverKey, onSelect, unitIndex]);
   return (
     <group
       ref={root}
@@ -291,7 +305,7 @@ function HoverShell({
               // travel plane behind the prop…
               e.stopPropagation();
               // …but the window pointerup above has usually already opened
-              // the door by now, and opening it twice is two tabs.
+              // the portal by now, and opening it twice is two tabs.
               if (justOpened()) return;
               onSelect();
             }
@@ -322,7 +336,7 @@ function HoverShell({
   );
 }
 
-/** The affordance without the door: the photographs that can't be traced to
+/** The affordance without the portal: the photographs that can't be traced to
  * a post still answer the cursor, because a shelf where three of twenty-odd
  * prints move is a shelf with three loose prints on it. */
 export function HoverProp(props: HoverProps) {
@@ -334,22 +348,26 @@ export default function PropLink(props: HoverProps & PropTarget) {
   const select = useCallback(
     () =>
       open(props as PropTarget, {
-        doorId: props.hoverKey,
+        portalId: props.hoverKey,
         unitIndex: props.unitIndex,
       }),
     [open, props],
   );
   return (
-    <HoverShell {...props} onSelect={select} doorTarget={props as PropTarget} />
+    <HoverShell
+      {...props}
+      onSelect={select}
+      portalTarget={props as PropTarget}
+    />
   );
 }
 
 if (process.env.NODE_ENV !== "production" && typeof window !== "undefined") {
-  // Which props actually have a door, and under which hover key. The DOM says
+  // Which props actually have a portal, and under which hover key. The DOM says
   // nothing about any of this — the shells deliberately re-render nothing —
   // and "is this prop clickable" is otherwise only answerable by clicking it.
   window.__links = () =>
-    [...doors].map(([key, d]) => ({ key, unit: d.unitIndex }));
+    [...portals].map(([key, d]) => ({ key, unit: d.unitIndex }));
 }
 
 declare global {

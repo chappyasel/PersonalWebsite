@@ -23,7 +23,7 @@ The module interface remains one artifact ID at the physical call site. Catalog 
 
 - The former figure-only catalog, state, and dialog are now the `sceneArtifacts` catalog, scene-artifact history state, and shared artifact reader.
 - `Grabbable` accepts an `artifact` ID. It resolves a distinct `artifact` registry activation rather than disguising the object as a local Action.
-- Artifact activations use a `zoom-in` cursor. `DoorLabel` ignores them and the rejected `ArtifactCaption` component has been removed.
+- Artifact activations use a `zoom-in` cursor. `PortalLabel` ignores them and the rejected `ArtifactCaption` component has been removed.
 - Every inspectable image opens on the first stationary tap. Lift Table no longer has an invisible caption-first state.
 - Each catalog entry owns the interaction ID of its physical scene object. That lets activation capture the correct live 3D bounds before the scene freezes.
 - Lift Table is a singleton collection, so it does not appear while paging through the three AnalyzeData figures. It is reached through its physical scene object.

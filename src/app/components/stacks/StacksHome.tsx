@@ -32,6 +32,7 @@ import { type StacksData, type StacksSlots, UNITS } from "./data";
 import ChromeLayer from "./dom/ChromeLayer";
 import PlacardLayer from "./dom/PlacardLayer";
 import UnitRail from "./dom/UnitRail";
+import { recordFieldNoteEvent } from "./fieldNotes/progress";
 import ScrollBridges from "./input/ScrollBridges";
 import StacksBookModal from "./modal/StacksBookModal";
 import { scenePerformanceTrace } from "./scene/performanceTrace";
@@ -93,6 +94,7 @@ export default function StacksHome({
   const boot = useWorldBoot();
   const { epoch, mode, revealed, worldMounted } = boot;
   const settledUnit = useStacks((state) => state.settledUnit);
+  const seated = useStacks((state) => state.seated);
   const worldShellRef = useRef<HTMLDivElement>(null);
 
   // Bound to this boot's generation. The canvas can lose its context or throw
@@ -191,11 +193,16 @@ export default function StacksHome({
     if (!revealed || settledUnit === null) return;
     const section = UNITS[settledUnit]?.slug;
     if (!section) return;
+    recordFieldNoteEvent({ type: "unit-arrived", unitIndex: settledUnit });
     captureOnce(`homepage:section:${section}`, "homepage_section_arrived", {
       section,
       delivery_mode: "world",
     });
   }, [revealed, settledUnit]);
+
+  useEffect(() => {
+    if (revealed && seated) recordFieldNoteEvent({ type: "seat-entered" });
+  }, [revealed, seated]);
 
   useEffect(() => {
     const world = worldShellRef.current;
@@ -347,11 +354,184 @@ export default function StacksHome({
                visitor's own "hide the interface" key (H, dom/chromeKeys)
                blanks the same wrapper the same way. */
             html[data-og-capture] .stacks-og-ui { visibility: hidden !important; }
-            /* Descendants, not just the wrapper: it is display:contents, and
-               the placard chip sets its own inline visibility from a motion
-               value, which an inherited hidden cannot override. */
+            /* Hide-all remains instant because it is a screenshot control. */
             html[data-chrome-hidden] .stacks-og-ui,
             html[data-chrome-hidden] .stacks-og-ui * { visibility: hidden !important; }
+            /* Modal presentations leave the live room alone. Each part of the
+               interface exits toward its nearest edge, then returns in a short
+               stagger after the presentation closes. Longhand translate
+               composes with the authored transforms used by the rail, sheet,
+               and projected labels. */
+            .stacks-wordmark,
+            .stacks-theme-toggle,
+            .stacks-unit-rail-desktop,
+            .stacks-unit-rail-mobile {
+              opacity: 1;
+              translate: 0 0;
+              transition:
+                opacity 280ms ease-out var(--stacks-chrome-return-delay, 0ms),
+                translate 420ms cubic-bezier(0.16, 1, 0.3, 1) var(--stacks-chrome-return-delay, 0ms),
+                filter 280ms ease-out var(--stacks-chrome-return-delay, 0ms);
+            }
+            [data-stacks-portal-label] {
+              opacity: var(--portal-label-opacity, 0);
+              translate: 0 0;
+              transition:
+                opacity 320ms cubic-bezier(0.16, 1, 0.3, 1),
+                transform 210ms cubic-bezier(0.16, 1, 0.3, 1),
+                translate 420ms cubic-bezier(0.16, 1, 0.3, 1),
+                filter 280ms ease-out;
+            }
+            [data-stacks-desktop-dock],
+            [data-stacks-details-toggle-shell],
+            [data-stacks-sheet-material],
+            [data-stacks-mobile-panel] {
+              opacity: 1;
+              translate: 0 0;
+              transition:
+                opacity 280ms ease-out 20ms,
+                translate 420ms cubic-bezier(0.16, 1, 0.3, 1) 20ms;
+            }
+            [data-stacks-desktop-dock] {
+              transition:
+                opacity 280ms ease-out 20ms,
+                translate 420ms cubic-bezier(0.16, 1, 0.3, 1) 20ms,
+                transform 200ms ease;
+            }
+            [data-stacks-mobile-panel-dim] {
+              transition: opacity 220ms ease-out 20ms;
+            }
+            .stacks-unit-rail-desktop,
+            .stacks-unit-rail-mobile { --stacks-chrome-return-delay: 55ms; }
+            .stacks-wordmark { --stacks-chrome-return-delay: 90ms; }
+            .stacks-theme-toggle { --stacks-chrome-return-delay: 120ms; }
+            .stacks-chrome-vignette {
+              opacity: 1;
+              transition: opacity 220ms ease-out 20ms;
+            }
+            html[data-field-notes-open] .stacks-wordmark,
+            html:has(.PhotoView-Portal) .stacks-wordmark {
+              opacity: 0;
+              translate: 0 -12px;
+              filter: blur(2px);
+              transition-delay: 30ms;
+              transition-duration: 170ms, 220ms, 170ms;
+              transition-timing-function: ease-in, cubic-bezier(0.4, 0, 1, 1), ease-in;
+            }
+            html[data-field-notes-open] .stacks-theme-toggle,
+            html:has(.PhotoView-Portal) .stacks-theme-toggle {
+              opacity: 0;
+              translate: 8px -10px;
+              filter: blur(2px);
+              transition-delay: 45ms;
+              transition-duration: 170ms, 220ms, 170ms;
+              transition-timing-function: ease-in, cubic-bezier(0.4, 0, 1, 1), ease-in;
+            }
+            html[data-field-notes-open] .stacks-unit-rail-desktop,
+            html:has(.PhotoView-Portal) .stacks-unit-rail-desktop {
+              opacity: 0;
+              translate: -22px 0;
+              filter: blur(2px);
+              transition-delay: 15ms;
+              transition-duration: 180ms, 230ms, 180ms;
+              transition-timing-function: ease-in, cubic-bezier(0.4, 0, 1, 1), ease-in;
+            }
+            html[data-field-notes-open] .stacks-unit-rail-mobile,
+            html:has(.PhotoView-Portal) .stacks-unit-rail-mobile {
+              opacity: 0;
+              translate: 0 -14px;
+              filter: blur(2px);
+              transition-delay: 15ms;
+              transition-duration: 180ms, 230ms, 180ms;
+              transition-timing-function: ease-in, cubic-bezier(0.4, 0, 1, 1), ease-in;
+            }
+            html[data-field-notes-open] [data-stacks-desktop-dock],
+            html[data-field-notes-open] [data-stacks-details-toggle-shell],
+            html:has(.PhotoView-Portal) [data-stacks-desktop-dock],
+            html:has(.PhotoView-Portal) [data-stacks-details-toggle-shell] {
+              opacity: 0;
+              translate: 26px 0;
+              transition-delay: 0ms;
+              transition-duration: 180ms, 240ms;
+              transition-timing-function: ease-in, cubic-bezier(0.4, 0, 1, 1);
+            }
+            html[data-field-notes-open] [data-stacks-sheet-material],
+            html[data-field-notes-open] [data-stacks-mobile-panel],
+            html:has(.PhotoView-Portal) [data-stacks-sheet-material],
+            html:has(.PhotoView-Portal) [data-stacks-mobile-panel] {
+              opacity: 0 !important;
+              translate: 0 24px;
+              transition-delay: 0ms;
+              transition-duration: 180ms, 240ms;
+              transition-timing-function: ease-in, cubic-bezier(0.4, 0, 1, 1);
+            }
+            html[data-field-notes-open] [data-stacks-mobile-panel-dim],
+            html:has(.PhotoView-Portal) [data-stacks-mobile-panel-dim] {
+              opacity: 0 !important;
+              transition-delay: 0ms;
+              transition-duration: 160ms;
+            }
+            html[data-field-notes-open] [data-stacks-portal-label],
+            html:has(.PhotoView-Portal) [data-stacks-portal-label] {
+              opacity: 0;
+              translate: 0 8px;
+              transition-delay: 0ms;
+              transition-duration: 140ms, 180ms;
+              transition-timing-function: ease-in, cubic-bezier(0.4, 0, 1, 1);
+            }
+            html[data-field-notes-open] .stacks-chrome-vignette,
+            html:has(.PhotoView-Portal) .stacks-chrome-vignette {
+              opacity: 0;
+              transition-delay: 0ms;
+              transition-duration: 180ms;
+            }
+            html[data-field-notes-open] .stacks-og-ui,
+            html[data-field-notes-open] .stacks-og-ui *,
+            html:has(.PhotoView-Portal) .stacks-og-ui,
+            html:has(.PhotoView-Portal) .stacks-og-ui * { pointer-events: none !important; }
+            @media (width >= 1200px) {
+              html[data-field-notes-open] .stacks-theme-toggle,
+              html:has(.PhotoView-Portal) .stacks-theme-toggle {
+                translate: -10px 10px;
+              }
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .stacks-wordmark,
+              .stacks-theme-toggle,
+              .stacks-unit-rail-desktop,
+              .stacks-unit-rail-mobile,
+              [data-stacks-desktop-dock],
+              [data-stacks-details-toggle-shell],
+              [data-stacks-sheet-material],
+              [data-stacks-mobile-panel],
+              [data-stacks-mobile-panel-dim],
+              [data-stacks-portal-label],
+              .stacks-chrome-vignette {
+                transition-duration: 1ms !important;
+                transition-delay: 0ms !important;
+              }
+              html[data-field-notes-open] .stacks-wordmark,
+              html[data-field-notes-open] .stacks-theme-toggle,
+              html[data-field-notes-open] .stacks-unit-rail-desktop,
+              html[data-field-notes-open] .stacks-unit-rail-mobile,
+              html[data-field-notes-open] [data-stacks-desktop-dock],
+              html[data-field-notes-open] [data-stacks-details-toggle-shell],
+              html[data-field-notes-open] [data-stacks-sheet-material],
+              html[data-field-notes-open] [data-stacks-mobile-panel],
+              html[data-field-notes-open] [data-stacks-portal-label],
+              html:has(.PhotoView-Portal) .stacks-wordmark,
+              html:has(.PhotoView-Portal) .stacks-theme-toggle,
+              html:has(.PhotoView-Portal) .stacks-unit-rail-desktop,
+              html:has(.PhotoView-Portal) .stacks-unit-rail-mobile,
+              html:has(.PhotoView-Portal) [data-stacks-desktop-dock],
+              html:has(.PhotoView-Portal) [data-stacks-details-toggle-shell],
+              html:has(.PhotoView-Portal) [data-stacks-sheet-material],
+              html:has(.PhotoView-Portal) [data-stacks-mobile-panel],
+              html:has(.PhotoView-Portal) [data-stacks-portal-label] {
+                translate: 0 0;
+                filter: none;
+              }
+            }
             html[data-og-capture] .stacks-world-curtain,
             html[data-og-capture] .stacks-boot,
             html[data-og-capture] .stacks-flat { display: none !important; }

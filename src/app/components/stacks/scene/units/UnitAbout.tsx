@@ -344,8 +344,8 @@ function ReadingStack({
             // Title, author, then the verb: the label describes the book
             // before it says what a tap does. "Preview", because the tap
             // opens the in-room book modal, not the full notes page.
-            doorLabel={book.title}
-            doorDetail={book.author ? [book.author] : undefined}
+            portalLabel={book.title}
+            portalDetail={book.author ? [book.author] : undefined}
             actionLabel="Preview book notes"
           >
             <ReadingBookHover
@@ -603,12 +603,12 @@ export default function UnitAbout({
               shadeWidth={0.26}
               shape="box"
               massKg={0.35}
-              // A Door like the TJ medallion and the AIC mark beside it, so
+              // A Portal like the TJ medallion and the AIC mark beside it, so
               // the label can say what the object stands for (owner: make the
               // tooltips describe). The click still fires the mark's sweep.
               href="https://www.apple.com/"
-              doorLabel="Apple"
-              doorDetail={["Former AR/VR Software Engineer"]}
+              portalLabel="Apple"
+              portalDetail={["Former AR/VR Software Engineer"]}
             >
               <group
                 name={aboutLandmarkNodeName("apple")}
@@ -620,7 +620,7 @@ export default function UnitAbout({
             </Grabbable>
             {/* The Role Icons: where he works now, beside the mark of where
                 he worked. Four Project Icon billets at half the Projects
-                edge, stacked two by two like the dice; each is a Door to its
+                edge, stacked two by two like the dice; each is a Portal to its
                 organization and every tile is its own Movable Prop. */}
             <group name={aboutLandmarkNodeName("role-icons")}>
               {ABOUT_ROLES.map((role) => {
@@ -642,8 +642,8 @@ export default function UnitAbout({
                     textured={textured}
                     yaw={role.yaw}
                     href={role.href}
-                    doorLabel={role.doorLabel}
-                    doorDetail={role.doorDetail}
+                    portalLabel={role.portalLabel}
+                    portalDetail={role.portalDetail}
                     size={ABOUT_ROLE_ICON_SIZE}
                     massKg={0.08}
                   />
@@ -665,8 +665,8 @@ export default function UnitAbout({
               massKg={0.42}
               sceneImpulseReaction="knockdown"
               href="https://aicollective.com/"
-              doorLabel="The AI Collective"
-              doorDetail={["Co-founder"]}
+              portalLabel="The AI Collective"
+              portalDetail={["Co-founder"]}
             >
               <React.Suspense fallback={null}>
                 <group
@@ -729,8 +729,8 @@ export default function UnitAbout({
                   SHELF_GEOMETRY.lower.centerZ,
                 ]}
                 href="https://tjhsst.fcps.edu/"
-                doorLabel="TJHSST"
-                doorDetail={[
+                portalLabel="TJHSST"
+                portalDetail={[
                   "Class of 2017",
                   "Alumni Director, TJ Partnership Fund board",
                 ]}

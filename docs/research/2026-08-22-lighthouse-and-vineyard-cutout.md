@@ -115,7 +115,7 @@ owed; this records what was built from the owner's file.
   the foot's top; the concave middle arches about 1 cm real above it, which
   is what a cutout resting on its two low points does.
 - Behavior: movable, 0.16 kg (the `tip` band), box collision, turns square to
-  the camera while carried (the sticker's `HeldFacing`). No Door, no egg.
+  the camera while carried (the sticker's `HeldFacing`). No Portal, no egg.
 
 ![Simplified outline, 121 points](assets/2026-08-22-vineyard-cutout/vineyard-cutout-outline.png)
 
@@ -141,7 +141,7 @@ Musings list.
   deliberately fat (3 mm) for the same legibility reason the paper sheets are
   2.2 mm thick.
 - Behavior: movable, 0.2 kg (`tip`), box collision, turns square to the
-  camera while carried, Door `Read Trust in the Age of Acceleration` to the
+  camera while carried, Portal `Read Trust in the Age of Acceleration` to the
   essay.
 - Perch: `musings:trust-cover` on the reclined cover, derived from the same
   constants as the geometry (`musingsShelfGeometry.ts`). Validated once
@@ -175,7 +175,7 @@ committed) and asked to "extract the sign and include it as well".
   foot, 0.22 wide (an 11 cm souvenir), between the Trust booklet and the
   island at x 0.48. A second plane faces backwards with the image mirrored
   in UV so the text reads the right way round from behind when carried.
-  Movable, 0.12 kg, turns to the camera while carried. No Door.
+  Movable, 0.12 kg, turns to the camera while carried. No Portal.
 
 ## Sand tray and the turning light
 
@@ -211,7 +211,7 @@ the flash takes the colour of whichever faces you. The motion rides
 `useUnitFrame`, so an off-screen unit does not spin. Dark is the show; light
 keeps a faint version so the lantern reads as lit.
 
-## Headphones Door
+## Headphones Portal
 
 The Musings headphones now open <https://soundcloud.com/chappyasel>
 (`Listen to Chappy on SoundCloud`). No geometry change.
