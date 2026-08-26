@@ -146,6 +146,22 @@ export function WeightliftingDashboard() {
         </TrainingStatsPopover>
       </div>
 
+      {/* Story */}
+      <p className="-mt-4 max-w-2xl text-sm leading-relaxed text-neutral-500 dark:text-neutral-400">
+        Every workout and every set since 2017 &ndash; all logged in{" "}
+        <a
+          href="https://apps.apple.com/us/app/id1266077653"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline decoration-neutral-300 underline-offset-2 transition-colors hover:text-neutral-700 dark:decoration-neutral-600 dark:hover:text-neutral-200"
+        >
+          an app I originally built in high school
+        </a>
+        ! I&apos;m a competitive natural bodybuilder and nerding out over the
+        data is half the fun: everything on this page comes straight from that
+        log and learnings over the years!
+      </p>
+
       {/* Stats */}
       <section>
         <StatsCards />

@@ -16,7 +16,7 @@ export type ChartSelectableExercise = {
   bestOneRM: number;
 };
 
-const loadChartSelectableExercises = async (minSets: number) => {
+export const loadChartSelectableExercises = async (minSets: number) => {
   const rows = await db.transaction(async (transaction) => {
     await transaction.execute(sql`SET LOCAL statement_timeout = '1200ms'`);
     return transaction.execute<{

@@ -10,6 +10,12 @@ import type { Icon } from "@phosphor-icons/react";
 
 import { Skeleton } from "~/components/ui/skeleton";
 import { api } from "~/trpc/react";
+import {
+  daysInGymLine,
+  eiffelTowersLine,
+  setsPerWorkoutLine,
+  workoutsPerWeekLine,
+} from "../lib/statTranslations";
 import { formatVolume, QUERY_STALE_TIME } from "../lib/utils";
 import { QueryErrorFallback } from "./QueryErrorFallback";
 
@@ -41,11 +47,31 @@ export function StatsCards() {
 
   const totalHours = Math.round(stats.totalDurationSeconds / 3600);
 
-  const cards: { label: string; value: string; icon: Icon }[] = [
-    { label: "Workouts", value: stats.totalWorkouts.toLocaleString(), icon: HashIcon },
-    { label: "Total Sets", value: stats.totalSets.toLocaleString(), icon: SquaresFourIcon },
-    { label: "Total Volume", value: formatVolume(stats.totalVolume), icon: BarbellIcon },
-    { label: "Total Duration", value: `${totalHours.toLocaleString()} hrs`, icon: ClockIcon },
+  const cards: { label: string; value: string; sub: string | null; icon: Icon }[] = [
+    {
+      label: "Workouts",
+      value: stats.totalWorkouts.toLocaleString(),
+      sub: workoutsPerWeekLine(stats.totalWorkouts, stats.earliestWorkout),
+      icon: HashIcon,
+    },
+    {
+      label: "Total Sets",
+      value: stats.totalSets.toLocaleString(),
+      sub: setsPerWorkoutLine(stats.totalSets, stats.totalWorkouts),
+      icon: SquaresFourIcon,
+    },
+    {
+      label: "Total Volume",
+      value: formatVolume(stats.totalVolume),
+      sub: eiffelTowersLine(stats.totalVolume),
+      icon: BarbellIcon,
+    },
+    {
+      label: "Total Duration",
+      value: `${totalHours.toLocaleString()} hrs`,
+      sub: daysInGymLine(stats.totalDurationSeconds),
+      icon: ClockIcon,
+    },
   ];
 
   return (
@@ -62,6 +88,11 @@ export function StatsCards() {
           <p className="mt-1 font-rounded text-xl font-semibold text-neutral-800 dark:text-neutral-100">
             {card.value}
           </p>
+          {card.sub && (
+            <p className="mt-0.5 text-xs text-neutral-400 dark:text-neutral-500">
+              {card.sub}
+            </p>
+          )}
         </div>
       ))}
     </div>

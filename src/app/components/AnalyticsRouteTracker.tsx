@@ -10,7 +10,7 @@ const DEEP_PAGE_ROUTES: ReadonlyArray<{
   includeChildren?: boolean;
 }> = [
   { route: "/books", page: "books", includeChildren: true },
-  { route: "/weightlifting", page: "weightlifting" },
+  { route: "/weightlifting", page: "weightlifting", includeChildren: true },
   { route: "/manual", page: "manual" },
   { route: "/routine", page: "routine" },
   { route: "/liarsdice", page: "liars_dice" },

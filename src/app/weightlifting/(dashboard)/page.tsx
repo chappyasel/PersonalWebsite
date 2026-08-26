@@ -1,8 +1,8 @@
 import { type SearchParams } from "nuqs/server";
 
 import { api, HydrateClient } from "~/trpc/server";
-import { WeightliftingDashboard } from "./components/WeightliftingDashboard";
-import { wlSearchParamsCache } from "./lib/searchParams";
+import { WeightliftingDashboard } from "../components/WeightliftingDashboard";
+import { wlSearchParamsCache } from "../lib/searchParams";
 
 export default async function WeightliftingPage({
   searchParams,

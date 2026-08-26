@@ -29,6 +29,7 @@ import {
   getCachedActivityMosaic,
   getCachedWeightliftingStats,
 } from "~/server/queries/weightlifting";
+import { getCachedExerciseIndex } from "~/server/queries/weightliftingExercise";
 import { getChartSelectableExercises } from "~/server/queries/weightliftingExercises";
 
 const getCachedPersonalRecords = unstable_cache(
@@ -57,9 +58,22 @@ const getCachedPersonalRecords = unstable_cache(
            AND COALESCE(e2.iteration, '') = COALESCE(e.iteration, '')) AS instance_count
       FROM wl_sets s
       INNER JOIN wl_exercises e ON s.exercise_id = e.id
+      INNER JOIN wl_workouts w ON e.workout_id = w.id
       WHERE s.one_rm IS NOT NULL AND s.one_rm > 0
-      ORDER BY display_name, s.one_rm DESC
+      -- newest wins equal 1RMs, matching the exercise pages' podium
+      ORDER BY display_name, s.one_rm DESC, w.date DESC
     `);
+
+    // Link each record to its exercise page where one exists (the index
+    // covers reps×weight lifts with 10+ sets; anything else gets no link).
+    // An index failure only drops the links — never the whole records card
+    let slugByName = new Map<string, string>();
+    try {
+      const index = await getCachedExerciseIndex();
+      slugByName = new Map(index.map((e) => [e.displayName, e.slug]));
+    } catch (error) {
+      console.error("exercise index unavailable for PR links:", error);
+    }
 
     return rows.map((r) => ({
       exerciseName: r.display_name,
@@ -68,6 +82,7 @@ const getCachedPersonalRecords = unstable_cache(
       reps: Number(r.best_reps),
       weight: Number(r.best_weight),
       instanceCount: Number(r.instance_count),
+      slug: slugByName.get(r.display_name) ?? null,
     }));
   },
   ["wl-personal-records"],
