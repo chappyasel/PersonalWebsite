@@ -10,6 +10,7 @@ import { LinkIcon } from "@phosphor-icons/react";
 import {
   ArrowsClockwiseIcon,
   BookOpenIcon,
+  BookmarkSimpleIcon,
   FileTextIcon,
 } from "@phosphor-icons/react";
 import { CheckIcon, StarIcon } from "@phosphor-icons/react/dist/ssr";
@@ -26,7 +27,11 @@ import { memo, useEffect, useRef, useState } from "react";
 import { capture } from "~/lib/analytics";
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import { getBookPath } from "~/lib/books/paths";
-import { isCurrentlyReading } from "~/lib/books/types";
+import {
+  abandonedPercent,
+  isCurrentlyReading,
+  readingStatus,
+} from "~/lib/books/types";
 import type { Book } from "~/lib/books/types";
 import { api } from "~/trpc/react";
 
@@ -149,10 +154,15 @@ export const BookCard = memo(function BookCard({
 }: BookCardProps) {
   const coverUrl = enhanceCoverUrl(book.coverUrl);
   const styles = sizeStyles[size];
-  const readDates = isCurrentlyReading(book)
-    ? `Started ${formatSingleReadDate(book.started!)}`
-    : (formatReadDates(book.started, book.finished) ??
-      (book.finished ? formatSingleReadDate(book.finished) : null));
+  const status = readingStatus(book);
+  const readDates =
+    status === "reading"
+      ? `Started ${formatSingleReadDate(book.started!)}`
+      : status === "abandoned"
+        ? (formatReadDates(book.started, book.abandoned) ??
+          (book.abandoned ? formatSingleReadDate(book.abandoned) : null))
+        : (formatReadDates(book.started, book.finished) ??
+          (book.finished ? formatSingleReadDate(book.finished) : null));
   const length = formatLength(book.audioLengthMin, book.pageCount);
   const actions = useModalActions();
   const { openModal } = actions;
@@ -413,6 +423,22 @@ export const BookCard = memo(function BookCard({
                 >
                   <BookOpenIcon className={styles.badgeIcon} />
                   <span className={styles.badgeText}>Reading</span>
+                </Badge>
+              )}
+              {status === "abandoned" && (
+                <Badge
+                  variant="secondary"
+                  className={cn(
+                    `gap-1 bg-stone-50/95 text-stone-700/85 shadow-md ring-1 ring-stone-900/5 dark:bg-stone-900/95 dark:text-stone-200/85 dark:ring-white/10`,
+                    sizeRadius[size],
+                  )}
+                >
+                  <BookmarkSimpleIcon className={styles.badgeIcon} />
+                  <span className={styles.badgeText}>
+                    {abandonedPercent(book) != null
+                      ? `Abandoned ${abandonedPercent(book)}%`
+                      : "Abandoned"}
+                  </span>
                 </Badge>
               )}
               {book.readNumber > 1 && (

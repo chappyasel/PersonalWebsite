@@ -11,6 +11,8 @@ import {
 const book = (overrides: Partial<AnalyticsRow>): AnalyticsRow => ({
   started: null,
   finished: null,
+  abandoned: null,
+  abandonedAtMin: null,
   audioLengthMin: null,
   pageCount: null,
   ...overrides,
@@ -180,5 +182,69 @@ describe("computeDailyReading", () => {
         2020,
       ),
     ).toEqual([]);
+  });
+});
+
+describe("abandoned books", () => {
+  it("credits only the listened position, spread to the abandoned date, without counting a finish", () => {
+    const result = computeReadingAnalytics([
+      book({
+        started: new Date("2024-03-14"),
+        abandoned: new Date("2024-03-15"),
+        abandonedAtMin: 120,
+        audioLengthMin: 480,
+        pageCount: 400,
+      }),
+    ]);
+
+    expect(result.totals.books).toBe(0);
+    expect(result.totals.contentHours).toBe(2);
+    expect(result.totals.wallClockHours).toBe(2 / LISTENING_SPEED);
+    // Pages scale by the listened fraction: 120/480 of 400
+    expect(result.totals.pages).toBe(100);
+    expect(result.monthly).toHaveLength(1);
+    expect(result.monthly[0]!.books).toBe(0);
+    expect(result.excludedCount).toBe(0);
+  });
+
+  it("clamps a position past the runtime to the whole book", () => {
+    const result = computeReadingAnalytics([
+      book({
+        abandoned: new Date("2024-03-15"),
+        abandonedAtMin: 600,
+        audioLengthMin: 480,
+      }),
+    ]);
+
+    expect(result.totals.contentHours).toBe(8);
+  });
+
+  it("skips an abandoned book with no recorded position without flagging it excluded", () => {
+    const result = computeReadingAnalytics([
+      book({ abandoned: new Date("2024-03-15"), audioLengthMin: 480 }),
+    ]);
+
+    expect(result.totals.contentHours).toBe(0);
+    expect(result.excludedCount).toBe(0);
+  });
+
+  it("puts abandoned listening hours on the daily heatmap without a finish", () => {
+    const days = computeDailyReading(
+      [
+        book({
+          started: new Date("2024-03-14"),
+          abandoned: new Date("2024-03-15"),
+          abandonedAtMin: 120,
+          audioLengthMin: 480,
+        }),
+      ],
+      2024,
+    );
+
+    expect(days).toHaveLength(2);
+    expect(days[1]!.finishes).toBe(0);
+    expect(days[0]!.wallClockHours + days[1]!.wallClockHours).toBeCloseTo(
+      2 / LISTENING_SPEED,
+    );
   });
 });

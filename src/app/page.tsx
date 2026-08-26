@@ -92,7 +92,11 @@ function toBootReadingBooks(readingBooks: HomepageReadingBooks) {
 }
 
 export default async function HomePage() {
-  const allBooks = await orEmpty("home:books", getDefaultBooks, []);
+  // Abandoned books are hidden by default site-wide: no homepage surface
+  // (boot trio, shelf, cover wall, placard) should ever show one.
+  const allBooks = (await orEmpty("home:books", getDefaultBooks, [])).filter(
+    (book) => !book.abandoned,
+  );
   const readingBooks = selectHomepageReadingBooks(allBooks);
   // Sampling is server-side and time-boxed, avoiding remote-cover CORS work in
   // the client while giving the first SVG the same jacket colors as WebGL.

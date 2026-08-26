@@ -13,6 +13,8 @@ function book(overrides: Partial<Book> & Pick<Book, "id">): Book {
     publicationYear: null,
     started: null,
     finished: null,
+    abandoned: null,
+    abandonedAtMin: null,
     rating: null,
     audioLengthMin: null,
     pageCount: null,

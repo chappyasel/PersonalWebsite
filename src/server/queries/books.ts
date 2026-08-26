@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, desc, eq, gte, ilike, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, isNull, or, sql } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
 import { z } from "zod";
 
@@ -86,6 +86,8 @@ export async function getBooks(input: BookCollectionInput): Promise<Book[]> {
       publicationYear: book.publicationYear ?? null,
       started: book.started?.toISOString() ?? null,
       finished: book.finished?.toISOString() ?? null,
+      abandoned: book.abandoned?.toISOString() ?? null,
+      abandonedAtMin: book.abandonedAtMin ?? null,
       rating: book.rating ?? null,
       audioLengthMin: book.audioLengthMin ?? null,
       pageCount: book.pageCount ?? null,
@@ -112,18 +114,34 @@ export async function getBooks(input: BookCollectionInput): Promise<Book[]> {
   }
 
   for (const group of readGroups.values()) {
-    if (group.length <= 1) continue;
+    if (group.length <= 1) {
+      // A lone abandoned attempt is not a first read
+      if (group[0]?.abandoned) {
+        group[0].readNumber = 0;
+        group[0].totalReads = 0;
+      }
+      continue;
+    }
+    // Timeline position is when the attempt ended: finish date, or abandoned
+    // date for drops. In-progress reads (neither) sort last.
     group.sort((a, b) =>
-      (a.finished ?? "9999").localeCompare(b.finished ?? "9999"),
+      (a.finished ?? a.abandoned ?? "9999").localeCompare(
+        b.finished ?? b.abandoned ?? "9999",
+      ),
     );
     const allReadings: BookReading[] = group.map((book) => ({
       started: book.started,
       finished: book.finished,
+      abandoned: book.abandoned,
+      abandonedAtMin: book.abandonedAtMin,
       rating: book.rating,
     }));
-    group.forEach((book, index) => {
-      book.readNumber = index + 1;
-      book.totalReads = group.length;
+    // Abandoned attempts show in the reading history but never claim a read
+    // number — "2nd Read" means the book was actually read twice.
+    const completed = group.filter((book) => !book.abandoned);
+    group.forEach((book) => {
+      book.readNumber = book.abandoned ? 0 : completed.indexOf(book) + 1;
+      book.totalReads = completed.length;
       book.otherReadings = allReadings;
     });
   }
@@ -132,12 +150,16 @@ export async function getBooks(input: BookCollectionInput): Promise<Book[]> {
 }
 
 export async function getBookStats(): Promise<BookStats> {
+  // Tag counts back the filter sidebar, which describes the default shelf —
+  // abandoned books are hidden there, so their tags don't count either.
   const result = await db
     .select({
       tag: bookTags.tagName,
       count: sql<number>`COUNT(*)`,
     })
     .from(bookTags)
+    .innerJoin(books, eq(bookTags.bookId, books.id))
+    .where(isNull(books.abandoned))
     .groupBy(bookTags.tagName)
     .orderBy(desc(sql`COUNT(*)`));
 
@@ -149,12 +171,16 @@ export async function getBookStats(): Promise<BookStats> {
 }
 
 export async function getBookTags(): Promise<string[]> {
+  // Same exclusion as getBookStats: a tag carried only by abandoned books
+  // would otherwise offer a filter with nothing behind it.
   const result = await db
     .select({
       tag: bookTags.tagName,
       count: sql<number>`COUNT(*)`,
     })
     .from(bookTags)
+    .innerJoin(books, eq(bookTags.bookId, books.id))
+    .where(isNull(books.abandoned))
     .groupBy(bookTags.tagName)
     .orderBy(desc(sql`COUNT(*)`));
 

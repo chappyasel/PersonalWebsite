@@ -136,6 +136,10 @@ export const books = pgTable(
     publicationYear: integer("publication_year"),
     started: timestamp("started", { mode: "date", withTimezone: true }),
     finished: timestamp("finished", { mode: "date", withTimezone: true }),
+    // Abandoned books keep finished NULL — this date alone marks the drop.
+    // Finished wins if both are somehow set (sync warns on that contradiction).
+    abandoned: timestamp("abandoned", { mode: "date", withTimezone: true }),
+    abandonedAtMin: integer("abandoned_at_min"), // Audible position at abandonment, raw minutes
     rating: integer("rating"), // 1-5
     audioLengthMin: integer("audio_length_min"), // Raw Audible runtime in minutes
     pageCount: integer("page_count"),

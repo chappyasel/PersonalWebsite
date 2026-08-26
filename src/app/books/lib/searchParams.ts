@@ -12,6 +12,8 @@ export const searchParamsParsers = {
   hasNotes: parseAsBoolean,
   hasSummary: parseAsBoolean,
   isReread: parseAsBoolean,
+  // Abandoned books are hidden by default; true includes them in the shelf
+  abandoned: parseAsBoolean,
 
   // Search
   search: parseAsString.withDefault(""),

@@ -167,6 +167,9 @@ describe("book search migration", () => {
     expect(provider).toContain("UNION ALL");
     expect(provider).toContain("regexp_replace");
     expect(snapshot.prevId).toBe(previousSnapshot.id);
-    expect(journal.entries.at(-1)?.tag).toBe("0015_book_search_vector");
+    // Registered in the journal; later migrations may follow it
+    expect(
+      journal.entries.some((entry) => entry.tag === "0015_book_search_vector"),
+    ).toBe(true);
   });
 });

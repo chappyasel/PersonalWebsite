@@ -87,6 +87,7 @@ export async function syncBooksFromNotion(
         author: b.author || null,
         publicationYear: b.publicationYear,
         finished: b.finished,
+        abandoned: b.abandoned,
       })),
     );
 
@@ -370,6 +371,12 @@ async function upsertBooksToDatabase(
 
     const book = result.book;
 
+    if (book.finished && book.abandoned) {
+      console.warn(
+        `"${book.title}" has both Finished and Abandoned dates set in Notion — finished wins; clear one of them.`,
+      );
+    }
+
     // Validate covers from Notion before sending them to an <img>. This also
     // repairs existing books whose Cover property contains a product page.
     const originalCoverUrl = book.coverUrl;
@@ -468,6 +475,8 @@ async function upsertBooksToDatabase(
         publicationYear: book.publicationYear,
         started: book.started ? new Date(book.started) : null,
         finished: book.finished ? new Date(book.finished) : null,
+        abandoned: book.abandoned ? new Date(book.abandoned) : null,
+        abandonedAtMin: book.abandonedAtMin,
         rating: book.rating,
         audioLengthMin: book.audioLengthMin,
         pageCount: book.pageCount,
@@ -491,6 +500,8 @@ async function upsertBooksToDatabase(
           publicationYear: book.publicationYear,
           started: book.started ? new Date(book.started) : null,
           finished: book.finished ? new Date(book.finished) : null,
+          abandoned: book.abandoned ? new Date(book.abandoned) : null,
+          abandonedAtMin: book.abandonedAtMin,
           rating: book.rating,
           audioLengthMin: book.audioLengthMin,
           pageCount: book.pageCount,

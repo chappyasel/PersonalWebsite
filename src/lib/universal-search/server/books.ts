@@ -5,8 +5,14 @@ import { sql } from "drizzle-orm";
 
 import { createServerExcerpt } from "./excerpt";
 
-export const BOOK_SEARCH_VECTOR_SQL =
-  "setweight(to_tsvector('english', coalesce(title, '')), 'A') || setweight(to_tsvector('english', coalesce(author, '')), 'B') || setweight(to_tsvector('english', coalesce(notes, '')), 'D')";
+// Notes embed base64 data: URIs (synced images), which push some books past
+// Postgres's 1MB tsvector cap — the-changing-world-order is 6.4MB raw and
+// 11KB of actual prose. Strip the URIs and cap what's left so the index
+// builds and the same expression stays evaluable at query time.
+// String.raw so the \s survives verbatim: the migration test checks this
+// exact text appears in both this file and the migration SQL, and the
+// expression must match the deployed index character-for-character.
+export const BOOK_SEARCH_VECTOR_SQL = String.raw`setweight(to_tsvector('english', coalesce(title, '')), 'A') || setweight(to_tsvector('english', coalesce(author, '')), 'B') || setweight(to_tsvector('english', left(regexp_replace(coalesce(notes, ''), 'data:[^\s)]+', ' ', 'g'), 500000)), 'D')`;
 
 export type BookSearchRow = {
   id: string;
