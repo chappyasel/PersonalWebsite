@@ -7,10 +7,12 @@ import { fileURLToPath } from "url";
 import { Client } from "@notionhq/client";
 
 import {
+  collectBlockIds,
   downloadFile,
   extractEmojiAndTitle,
   getImageExtension,
   rewriteNotionPageLinks,
+  rewriteNotionSelfLinks,
   richTextToPlain,
   slugify,
   transformBlocks,
@@ -104,42 +106,11 @@ function parseTimeFromTitle(titleText: string): { time: string; title: string } 
 }
 
 // ─── Notion Link Rewriting ───
-// Map Notion self-page mention links to local section anchors
-
-const ROUTINE_PAGE_ID = "151c5ab0d88d80f3a0efcf2e04f18a56";
-
-// Maps Notion block IDs (from mention-page fragments) to local section anchors
-const notionIdToAnchor: Record<string, string> = {
-  "151c5ab0d88d80a693c5c86b9ab57e41": "#caffeine",
-  "151c5ab0d88d808a8e27d0e762cbada8": "#supp-stacks",
-  "17ac5ab0d88d806badf0cc6528875515": "#sleep-duration",
-};
-
-function rewriteNotionLinks(obj: any): any {
-  if (typeof obj === "string") return obj;
-  if (Array.isArray(obj)) return obj.map(rewriteNotionLinks);
-  if (obj && typeof obj === "object") {
-    const result: any = {};
-    for (const [key, value] of Object.entries(obj)) {
-      if (key === "link" && typeof value === "string") {
-        // Check if it's a self-referencing Notion link
-        const selfPagePattern = new RegExp(
-          `https://www\\.notion\\.so/${ROUTINE_PAGE_ID}#([a-f0-9]+)`,
-        );
-        const match = (value as string).match(selfPagePattern);
-        if (match && match[1] && notionIdToAnchor[match[1]]) {
-          result[key] = notionIdToAnchor[match[1]];
-        } else {
-          result[key] = value;
-        }
-      } else {
-        result[key] = rewriteNotionLinks(value);
-      }
-    }
-    return result;
-  }
-  return obj;
-}
+//
+// Self-page mention links (Notion fragments) are rewritten to local section
+// anchors via an anchor map built during processing: every heading that
+// becomes a section registers its own block ID and all descendant block IDs,
+// so a fragment pointing anywhere inside a section lands on that section.
 
 // ─── Image Handling ───
 
@@ -193,6 +164,12 @@ async function processPage(rawBlocks: any[]) {
   const pmSupplements: any[] = [];
   const rants: any[] = [];
 
+  // Notion block ID (no dashes) → local anchor, for self-link rewriting
+  const anchorMap: Record<string, string> = {};
+  function registerAnchor(block: any, anchor: string) {
+    for (const id of collectBlockIds(block)) anchorMap[id] = anchor;
+  }
+
   let currentSection = "intro"; // intro | why-early | routine | rants
   let currentSubSection = "am"; // am | pm (within routine)
   let currentRantTitle = "";
@@ -220,6 +197,8 @@ async function processPage(rawBlocks: any[]) {
 
       if (titleText.toLowerCase().includes("why so early")) {
         currentSection = "why-early";
+        // The page renders this section as id="why-early" (see page.tsx)
+        registerAnchor(block, "#why-early");
         // This is a toggleable heading — its children ARE the content
         if (block._children) {
           const transformed = await transformBlocks(
@@ -252,11 +231,13 @@ async function processPage(rawBlocks: any[]) {
       const titleText = richTextToPlain(block.heading_2.rich_text);
 
       if (currentSection === "routine") {
-        // AM/PM markers
+        // AM/PM markers; RoutineTimeline renders them as id="morning"/"evening"
         if (titleText.includes("AM")) {
           currentSubSection = "am";
+          registerAnchor(block, "#morning");
         } else if (titleText.includes("PM")) {
           currentSubSection = "pm";
+          registerAnchor(block, "#evening");
         }
         continue;
       }
@@ -267,6 +248,7 @@ async function processPage(rawBlocks: any[]) {
         const { icon, title } = extractEmojiAndTitle(titleText);
         currentRantTitle = title;
         currentRantIcon = icon;
+        registerAnchor(block, `#${slugify(title)}`);
 
         if (block._children) {
           const transformed = await transformBlocks(
@@ -309,6 +291,10 @@ async function processPage(rawBlocks: any[]) {
 
     // ── toggle: timeline entries (flat siblings under routine) ──
     if (block.type === "toggle" && currentSection === "routine") {
+      registerAnchor(
+        block,
+        currentSubSection === "pm" ? "#evening" : "#morning",
+      );
       const titleText = richTextToPlain(block.toggle.rich_text);
       const { time, title } = parseTimeFromTitle(titleText);
 
@@ -336,11 +322,14 @@ async function processPage(rawBlocks: any[]) {
   flushRant();
 
   return {
-    intro,
-    whyEarly: whyEarlyBlocks,
-    timeline: { am: amEntries, pm: pmEntries },
-    supplements: { am: amSupplements, pm: pmSupplements },
-    rants,
+    result: {
+      intro,
+      whyEarly: whyEarlyBlocks,
+      timeline: { am: amEntries, pm: pmEntries },
+      supplements: { am: amSupplements, pm: pmSupplements },
+      rants,
+    },
+    anchorMap,
   };
 }
 
@@ -362,7 +351,7 @@ async function main() {
   // 3. Process into structured data
   console.log("Processing blocks...");
   mkdirSync(IMAGES_DIR, { recursive: true });
-  const result = await processPage(rawBlocks);
+  const { result, anchorMap } = await processPage(rawBlocks);
 
   console.log(`\nIntro: ${result.intro ? "yes" : "no"}`);
   console.log(`Why Early: ${result.whyEarly.length} blocks`);
@@ -383,7 +372,9 @@ async function main() {
   }
 
   // 4. Rewrite Notion self-links to local anchors, then cross-page links to public URLs
-  const rewritten = rewriteNotionPageLinks(rewriteNotionLinks(result));
+  const rewritten = rewriteNotionPageLinks(
+    rewriteNotionSelfLinks(result, PAGE_ID, anchorMap),
+  );
 
   // 5. Assemble & write
   const output = { lastUpdated, ...rewritten };

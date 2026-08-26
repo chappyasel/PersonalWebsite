@@ -11,7 +11,6 @@ export type ManualData = {
     goldenRule: string;
     quickLinks: { label: string; url: string }[];
   };
-  personality: PersonalityData;
   sections: ManualSection[];
 };
 
@@ -20,15 +19,4 @@ export type ManualSection = {
   title: string;
   icon: string;
   blocks: NotionBlock[];
-};
-
-export type PersonalityData = {
-  mbti: string;
-  bigFive: { trait: string; score: number; max: number }[];
-  cliftonStrengths: {
-    rank: number;
-    name: string;
-    domain: string;
-    description: string;
-  }[];
 };
