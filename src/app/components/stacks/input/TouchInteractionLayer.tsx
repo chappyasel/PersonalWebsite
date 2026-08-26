@@ -20,6 +20,10 @@ import {
   worldZoomFromPinch,
   worldZoomFromVerticalDrag,
 } from "../mobile/travel";
+import {
+  isHittableBall,
+  tapHittableBall,
+} from "../scene/golf/hittableBalls";
 import { projectedInteractionBounds } from "../scene/interactionProjection";
 import {
   getSceneInteraction,
@@ -247,7 +251,18 @@ export default function TouchInteractionLayer() {
             clearPickup();
             spec?.movableController?.cancel(event);
             store.setPressedInteraction(null);
-            runSceneInteractionActivation(effect.interactionId);
+            // Same order as Grabbable's window dispatcher: the registry
+            // answers for registered activations; a bare hittable ball's tap
+            // belongs to the bay. A declined tap (the ball is not teed)
+            // degrades to Touch Focus, so a shelf ball still answers its
+            // first touch instead of going dead.
+            if (
+              !runSceneInteractionActivation(effect.interactionId) &&
+              !tapHittableBall(effect.interactionId)
+            ) {
+              store.setFocusedInteraction(effect.interactionId);
+              restoreTravel();
+            }
             break;
           case "pickup":
             clearPickup();
@@ -482,7 +497,7 @@ export default function TouchInteractionLayer() {
           at: performance.now(),
           wasFocused: store.focusedInteraction === hit.id,
           movable: Boolean(spec.movableController),
-          activatable: Boolean(spec.activation),
+          activatable: Boolean(spec.activation) || isHittableBall(hit.id),
           activateOnFirstTouch: Boolean(spec.activateOnFirstTouch),
         },
         event,

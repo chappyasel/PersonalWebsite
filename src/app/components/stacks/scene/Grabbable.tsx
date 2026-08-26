@@ -1449,13 +1449,19 @@ export default function Grabbable({
       // events on the object having been in the hit list captured at
       // POINTERDOWN, and pointerdown does not dispatch on this scene at all
       // (see the note above). A window pointerup consults none of that.
+      //
+      // The registry only answers for a REGISTERED activation (portal, action,
+      // egg, artifact). A bare movable — a golf ball, a can carried into the
+      // bay — registers none: its whole tap behaviour is the `hittable`
+      // fall-through inside runStationaryActivation, so a registry miss must
+      // fall back there or teed balls stop answering taps.
       if (tapped) {
         recordTap(hoverKey);
-        runSceneInteractionActivation(hoverKey);
+        if (!runSceneInteractionActivation(hoverKey)) runStationaryActivation();
       }
       return true;
     },
-    [hoverKey, release],
+    [hoverKey, release, runStationaryActivation],
   );
 
   const onGrabCancel = useCallback(

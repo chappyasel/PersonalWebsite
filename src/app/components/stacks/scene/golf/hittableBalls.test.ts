@@ -5,6 +5,7 @@ import {
   type HittableBall,
   hittableContactPoint,
   hittableBallsFor,
+  isHittableBall,
   registerHittableBall,
   resetHittableBalls,
   setHittableBallTapHandler,
@@ -57,6 +58,14 @@ describe("the hittable ball registry", () => {
     expect(bay).toHaveBeenCalledTimes(1);
     off();
     expect(tapHittableBall("grab:ball:a")).toBe(false);
+  });
+
+  it("tells input dispatchers which keys are hittable", () => {
+    const off = registerHittableBall(ball("golf-ball:one"));
+    expect(isHittableBall("golf-ball:one")).toBe(true);
+    expect(isHittableBall("grab:basketball")).toBe(false);
+    off();
+    expect(isHittableBall("golf-ball:one")).toBe(false);
   });
 
   it("hands the bay a world position through the caller's vector", () => {

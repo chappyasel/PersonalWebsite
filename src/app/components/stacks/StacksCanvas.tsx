@@ -380,8 +380,15 @@ function installDevHooks() {
       };
     },
     state() {
-      const { activeUnit, modalOpen, panelState, hovered, dragging, travelTo } =
-        useStacks.getState();
+      const {
+        activeUnit,
+        modalOpen,
+        panelState,
+        hovered,
+        focusedInteraction,
+        dragging,
+        travelTo,
+      } = useStacks.getState();
       return {
         offset: progressRef.current,
         activeUnit,
@@ -426,10 +433,11 @@ function installDevHooks() {
             fov: Number(((c as { fov?: number }).fov ?? 0).toFixed(2)),
           };
         })(),
-        // Hover and carry are scene-internal (they deliberately never
-        // re-render React), so the harness has no other way to observe
+        // Hover, Touch Focus and carry are scene-internal (they deliberately
+        // never re-render React), so the harness has no other way to observe
         // which prop the pointer owns or whether one is in hand.
         hovered,
+        focusedInteraction,
         dragging,
         interactions: sceneInteractionInventory().map((interaction) => ({
           id: interaction.id,

@@ -77,6 +77,13 @@ export function tapHittableBall(key: string): boolean {
   return bays.get(ball.unitIndex)?.(key) ?? false;
 }
 
+/** Whether a registered ball answers to this key. Input dispatchers use this
+ * to treat a bare hittable Grabbable as tappable even though it registers no
+ * activation — its tap belongs to the bay, not the interaction registry. */
+export function isHittableBall(key: string): boolean {
+  return balls.has(key);
+}
+
 /** Test seam. */
 export function resetHittableBalls() {
   balls.clear();

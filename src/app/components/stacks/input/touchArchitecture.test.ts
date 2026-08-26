@@ -99,6 +99,16 @@ describe("coarse-pointer ownership", () => {
     expect(golfBall).toMatch(
       /hoverKey=\{`golf-ball:\$\{id\}`\}[\s\S]*?activateOnFirstTouch[\s\S]*?hittable=\{\{ radius: GOLF_BALL_RADIUS, golf: true \}\}/,
     );
+    // A hittable ball registers no activation, so both halves of the claim
+    // are load-bearing: the arbiter must treat it as activatable, and the
+    // activate effect must offer the tap to the bay when the registry
+    // declines. A declined tap degrades to Touch Focus, not to nothing.
+    expect(touchLayer).toContain(
+      "activatable: Boolean(spec.activation) || isHittableBall(hit.id)",
+    );
+    expect(touchLayer).toMatch(
+      /!runSceneInteractionActivation\(effect\.interactionId\) &&\s*!tapHittableBall\(effect\.interactionId\)/,
+    );
   });
 
   it("claims a prop touch before the browser can turn its first move into native travel", () => {

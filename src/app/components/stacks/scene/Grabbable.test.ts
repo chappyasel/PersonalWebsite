@@ -86,6 +86,20 @@ describe("Grabbable tap/carry arbitration", () => {
     expect(registration).toContain("run: runStationaryActivation");
   });
 
+  it("falls back to the stationary activation when the registry has none", () => {
+    // A bare movable — a golf ball, a can carried into the bay — registers no
+    // activation: its whole tap behaviour is the `hittable` fall-through
+    // inside runStationaryActivation. Routing desktop taps only through the
+    // registry silently disarmed every teed ball once (PR #31).
+    const upStart = source.indexOf("const onGrabUp");
+    const cancelStart = source.indexOf("const onGrabCancel", upStart);
+    const up = source.slice(upStart, cancelStart);
+
+    expect(up).toContain(
+      "if (!runSceneInteractionActivation(hoverKey)) runStationaryActivation();",
+    );
+  });
+
   it("allows anchored props to advertise their authored hover reaction", () => {
     expect(source).toContain('hover: { kind: tiltOnHover ? "tilt" : "none" }');
     expect(source).not.toContain("draggable && tiltOnHover");
