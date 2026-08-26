@@ -1,7 +1,7 @@
 {
   "version": 2,
   "algorithm": "sha256",
-  "digest": "cf5c0a1f41f886971d8be7aef4a39a0415e7f3ff56ce43d21aa394d09fb8e567",
+  "digest": "811b619c465fd6a06ddad7806b76e787c2a581b06dd6cea7d907952a8d88bc71",
   "files": [
     "public/images/about/profile.jpg",
     "public/images/stacks/grass-tuft-alpha.webp",
@@ -309,7 +309,7 @@
     "public/models/succulent-pot.glb": "67c82ffa80fb09e4",
     "scripts/generate/home-og-scene-config.mjs": "5e1ed6c6d4bc3e81",
     "scripts/generate/home-og-scene.mjs": "1f6371d522058090",
-    "src/app/components/stacks/StacksCanvas.tsx": "d3cbccdbfd6a4159",
+    "src/app/components/stacks/StacksCanvas.tsx": "892fe834dff19f51",
     "src/app/components/stacks/StacksHome.tsx": "3893435b5feb197c",
     "src/app/components/stacks/audio/sceneAudio.ts": "1f9b202d40309592",
     "src/app/components/stacks/boot/useWorldBoot.ts": "32b41c094f5be972",
@@ -345,7 +345,7 @@
     "src/app/components/stacks/fieldNotes/shortcut.ts": "f42a10bdd05911f6",
     "src/app/components/stacks/fieldNotes/urlState.ts": "8f2ff921384175c6",
     "src/app/components/stacks/input/ScrollBridges.tsx": "39c26e37a5d0c82c",
-    "src/app/components/stacks/input/TouchInteractionLayer.tsx": "34e2492d16c0a635",
+    "src/app/components/stacks/input/TouchInteractionLayer.tsx": "c43e15c30aa823f1",
     "src/app/components/stacks/input/editableShortcutTarget.ts": "0683fcc9f550c421",
     "src/app/components/stacks/input/scenePointerEvents.ts": "d4c571e99d0d7854",
     "src/app/components/stacks/loading.ts": "027e53cc7183b474",
@@ -373,7 +373,7 @@
     "src/app/components/stacks/scene/CoordinationGlobe.tsx": "d5a91b29d5757b96",
     "src/app/components/stacks/scene/Effects.tsx": "9f928f2771268e45",
     "src/app/components/stacks/scene/FrozenBag.tsx": "98496aa83f2f1cbe",
-    "src/app/components/stacks/scene/Grabbable.tsx": "85aec2d348b36b01",
+    "src/app/components/stacks/scene/Grabbable.tsx": "a1a5ae72b2a23591",
     "src/app/components/stacks/scene/GroundPool.tsx": "9965471650a5dbbc",
     "src/app/components/stacks/scene/HeldFacing.tsx": "685dcab2198a4493",
     "src/app/components/stacks/scene/Lift.tsx": "e2e8642fd3a81187",
@@ -441,7 +441,7 @@
     "src/app/components/stacks/scene/golf/golfStrikeQueue.ts": "fac932cd5cc2a2aa",
     "src/app/components/stacks/scene/golf/golfTrajectory.ts": "c81b0334efa6fed8",
     "src/app/components/stacks/scene/golf/golfTypes.ts": "9accb2e1cf13f935",
-    "src/app/components/stacks/scene/golf/hittableBalls.ts": "0a2a1a5fb9cb6025",
+    "src/app/components/stacks/scene/golf/hittableBalls.ts": "671ef8b359ef8b33",
     "src/app/components/stacks/scene/grabbablePhysics.ts": "053414a717991479",
     "src/app/components/stacks/scene/heldDepth.ts": "99b2b9bab8e46d65",
     "src/app/components/stacks/scene/heldFacingMath.ts": "cae4edd0b991dc59",
@@ -547,7 +547,7 @@
     "src/app/components/stacks/theme.ts": "a82bcf45786bcfae",
     "src/app/components/stacks/webglProbe.ts": "22429698219a939d",
     "src/app/layout.tsx": "7c19e9b3643a982b",
-    "src/app/page.tsx": "298fbadd1d272826",
+    "src/app/page.tsx": "ad4365f8093d4119",
     "src/components/ui/accordion.tsx": "ccdbe7f1d38f6b07",
     "src/components/ui/badge.tsx": "2fde384c4dfb932a",
     "src/components/ui/button.tsx": "da63ff2e1f457fd3",
@@ -574,7 +574,7 @@
   },
   "image": {
     "path": "public/images/stacks/home-og-scene.jpg",
-    "digest": "770b8ed0f12ca7e303f8816ca8617a2e9475afaac0f6a6d1052147f34d2d4735",
-    "inputDigest": "cf5c0a1f41f886971d8be7aef4a39a0415e7f3ff56ce43d21aa394d09fb8e567"
+    "digest": "38b8c9ccd18056debf153d2f445b721ad568b1bdea1e957a2414ae3cbc800df5",
+    "inputDigest": "811b619c465fd6a06ddad7806b76e787c2a581b06dd6cea7d907952a8d88bc71"
   }
 }
