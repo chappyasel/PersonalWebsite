@@ -65,6 +65,7 @@ export function BooksGrid({
     params.hasNotes,
     params.hasSummary,
     params.isReread,
+    params.abandoned,
     params.search,
     params.sort,
     params.order,
@@ -106,6 +107,7 @@ export function BooksGrid({
       hasNotes: null,
       hasSummary: null,
       isReread: null,
+      abandoned: null,
       search: "",
     });
   };
@@ -116,6 +118,13 @@ export function BooksGrid({
 
     // In zoom-out mode, skip filtering (show all books)
     let filteredBooks = allBooks;
+
+    // Abandoned books are hidden by default (even in zoom-out); the toggle
+    // includes them alongside everything else. Not an ordinary narrowing
+    // filter, so it sits outside the zoom-out skip.
+    if (!params.abandoned) {
+      filteredBooks = filteredBooks.filter((book) => book.abandoned === null);
+    }
 
     if (!isZoomOut) {
       // Filter by tags
@@ -168,10 +177,11 @@ export function BooksGrid({
       let bValue: string | number | null;
 
       if (sortField === "finished") {
-        // Treat null finished (currently reading) as today
+        // End date is finished, or abandoned for drops; currently reading
+        // (neither) counts as today
         const today = new Date().toISOString();
-        aValue = a.finished ?? today;
-        bValue = b.finished ?? today;
+        aValue = a.finished ?? a.abandoned ?? today;
+        bValue = b.finished ?? b.abandoned ?? today;
       } else if (sortField === "rating") {
         aValue = a.rating ?? 0;
         bValue = b.rating ?? 0;
@@ -213,6 +223,7 @@ export function BooksGrid({
     params.hasNotes,
     params.hasSummary,
     params.isReread,
+    params.abandoned,
     params.search,
     sortField,
     sortOrder,
@@ -299,8 +310,10 @@ export function BooksGrid({
       let groupKey: string;
 
       if (sortField === "finished") {
-        // Group by year - currently reading books go in current year
-        const date = book.finished ? new Date(book.finished) : new Date();
+        // Group by end-date year (abandoned counts as the end for drops);
+        // currently reading books go in the current year
+        const endDate = book.finished ?? book.abandoned;
+        const date = endDate ? new Date(endDate) : new Date();
         const year = date.getFullYear();
         groupKey = year.toString();
       } else if (sortField === "rating" && book.rating) {

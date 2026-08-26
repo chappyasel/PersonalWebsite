@@ -31,6 +31,8 @@ const CURRENT_BOOK_WITHOUT_NOTES: Book = {
   publicationYear: 2015,
   started: "2026-08-20",
   finished: null,
+  abandoned: null,
+  abandonedAtMin: null,
   rating: null,
   audioLengthMin: 991,
   pageCount: 640,

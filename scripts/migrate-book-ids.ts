@@ -29,6 +29,7 @@ async function migrateBookIds() {
       author: true,
       publicationYear: true,
       finished: true,
+      abandoned: true,
     },
   });
   console.log(`Found ${allBooks.length} books\n`);
@@ -54,6 +55,7 @@ async function migrateBookIds() {
       author: b.author || null,
       publicationYear: b.publicationYear,
       finished: b.finished?.toISOString() ?? null,
+      abandoned: b.abandoned?.toISOString() ?? null,
     })),
   );
 

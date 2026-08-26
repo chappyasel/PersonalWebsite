@@ -3,7 +3,9 @@ import type {
   HomepageBookStats,
 } from "~/lib/books/types";
 
-export function computeHomepageBookStats(books: Book[]): HomepageBookStats {
+export function computeHomepageBookStats(allBooks: Book[]): HomepageBookStats {
+  // "N books" means books read or in progress — abandoned ones don't count
+  const books = allBooks.filter((book) => !book.abandoned);
   const finishedDates = books
     .map((book) => book.finished)
     .filter((date): date is string => date !== null)

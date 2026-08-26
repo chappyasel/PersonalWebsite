@@ -20,9 +20,70 @@ export const PAGES_PER_HOUR = 35;
 export type AnalyticsRow = {
   started: Date | null;
   finished: Date | null;
+  abandoned: Date | null;
+  abandonedAtMin: number | null;
   audioLengthMin: number | null;
   pageCount: number | null;
 };
+
+/**
+ * Reduce a row to the span and volume that actually happened: a finished
+ * book contributes its full length ending on the finish date; an abandoned
+ * book contributes only the listened position (and a proportional slice of
+ * its pages), ending on the abandoned date. Returns null for rows with
+ * nothing to count — still in progress, no usable length, or abandoned
+ * with no recorded position.
+ */
+function readContribution(row: AnalyticsRow): {
+  endDate: Date;
+  contentHours: number;
+  wallClockHours: number;
+  pages: number;
+  isFinish: boolean;
+} | null {
+  if (row.finished) {
+    const contentHours =
+      row.audioLengthMin != null
+        ? row.audioLengthMin / 60
+        : row.pageCount != null
+          ? row.pageCount / PAGES_PER_HOUR
+          : null;
+    if (contentHours == null) return null;
+    return {
+      endDate: row.finished,
+      contentHours,
+      wallClockHours:
+        row.audioLengthMin != null
+          ? contentHours / LISTENING_SPEED
+          : contentHours,
+      pages: row.pageCount ?? 0,
+      isFinish: true,
+    };
+  }
+
+  if (row.abandoned && row.abandonedAtMin != null) {
+    // A position is inherently an audio bookmark; clamp it so a stale
+    // runtime or typo can't credit more than the whole book.
+    const listenedMin =
+      row.audioLengthMin != null
+        ? Math.min(row.abandonedAtMin, row.audioLengthMin)
+        : row.abandonedAtMin;
+    const contentHours = listenedMin / 60;
+    const fraction =
+      row.audioLengthMin != null && row.audioLengthMin > 0
+        ? listenedMin / row.audioLengthMin
+        : 0;
+    return {
+      endDate: row.abandoned,
+      contentHours,
+      wallClockHours: contentHours / LISTENING_SPEED,
+      pages: Math.round((row.pageCount ?? 0) * fraction),
+      isFinish: false,
+    };
+  }
+
+  return null;
+}
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -64,9 +125,11 @@ function round(hours: number): number {
  *   (reported via excludedCount).
  * - Wall-clock hours: audio runtime / LISTENING_SPEED; page-based
  *   estimates are already wall-clock.
- * - Hours are spread evenly per day across started → finished. Missing
- *   started (or started > finished) attributes everything to the finish
- *   date. Unfinished books contribute nothing.
+ * - Hours are spread evenly per day across started → end date (finished,
+ *   or abandoned for drops). Missing started (or started > end) attributes
+ *   everything to the end date. In-progress books contribute nothing.
+ * - Abandoned books contribute only their listened position — the hours
+ *   were real — but never count as finishes, in bucket `books` or totals.
  * - Bucket `books` counts finishes in that bucket.
  */
 export function computeReadingAnalytics(
@@ -102,46 +165,37 @@ export function computeReadingAnalytics(
   };
 
   for (const row of rows) {
-    if (!row.finished) continue; // In-progress books contribute zero
-
-    const contentHours =
-      row.audioLengthMin != null
-        ? row.audioLengthMin / 60
-        : row.pageCount != null
-          ? row.pageCount / PAGES_PER_HOUR
-          : null;
-
-    if (contentHours == null) {
-      excludedCount++;
+    const contribution = readContribution(row);
+    if (contribution == null) {
+      // Only a finished book with no usable length is missing data worth
+      // reporting; in-progress rows and position-less abandonments simply
+      // have nothing to count yet.
+      if (row.finished) excludedCount++;
       continue;
     }
 
-    const wallClockHours =
-      row.audioLengthMin != null
-        ? contentHours / LISTENING_SPEED
-        : contentHours;
+    const { endDate, contentHours, wallClockHours, pages, isFinish } =
+      contribution;
 
-    const pages = row.pageCount ?? 0;
-
-    const finishDay = utcDay(row.finished);
+    const endDay = utcDay(endDate);
     const startDay =
-      row.started && utcDay(row.started) <= finishDay
+      row.started && utcDay(row.started) <= endDay
         ? utcDay(row.started)
-        : finishDay;
+        : endDay;
 
-    const spanDays = Math.round((finishDay - startDay) / MS_PER_DAY) + 1;
+    const spanDays = Math.round((endDay - startDay) / MS_PER_DAY) + 1;
     const wallClockPerDay = wallClockHours / spanDays;
     const contentPerDay = contentHours / spanDays;
     const pagesPerDay = pages / spanDays;
 
-    for (let day = startDay; day <= finishDay; day += MS_PER_DAY) {
-      const finishes = day === finishDay ? 1 : 0;
+    for (let day = startDay; day <= endDay; day += MS_PER_DAY) {
+      const finishes = isFinish && day === endDay ? 1 : 0;
       accumulate(weekly, weekKey(day), wallClockPerDay, contentPerDay, pagesPerDay, finishes);
       accumulate(monthly, monthKey(day), wallClockPerDay, contentPerDay, pagesPerDay, finishes);
       accumulate(yearly, yearKey(day), wallClockPerDay, contentPerDay, pagesPerDay, finishes);
     }
 
-    totals.books++;
+    if (isFinish) totals.books++;
     totals.wallClockHours += wallClockHours;
     totals.contentHours += contentHours;
     totals.pages += pages;
@@ -174,8 +228,8 @@ export function computeReadingAnalytics(
 /**
  * Per-day wall-clock reading hours for one year (heatmap data). Same spread
  * model as computeReadingAnalytics: hours distributed evenly across
- * started → finished, clipped to the requested year. Days with no reading
- * are omitted.
+ * started → end date (finished, or abandoned for drops), clipped to the
+ * requested year. Days with no reading are omitted.
  */
 export function computeDailyReading(
   rows: AnalyticsRow[],
@@ -186,34 +240,24 @@ export function computeDailyReading(
   const yearEnd = Date.UTC(year + 1, 0, 1); // exclusive
 
   for (const row of rows) {
-    if (!row.finished) continue;
+    const contribution = readContribution(row);
+    if (contribution == null) continue;
 
-    const contentHours =
-      row.audioLengthMin != null
-        ? row.audioLengthMin / 60
-        : row.pageCount != null
-          ? row.pageCount / PAGES_PER_HOUR
-          : null;
-    if (contentHours == null) continue;
+    const { endDate, wallClockHours, isFinish } = contribution;
 
-    const wallClockHours =
-      row.audioLengthMin != null
-        ? contentHours / LISTENING_SPEED
-        : contentHours;
-
-    const finishDay = utcDay(row.finished);
+    const endDay = utcDay(endDate);
     const startDay =
-      row.started && utcDay(row.started) <= finishDay
+      row.started && utcDay(row.started) <= endDay
         ? utcDay(row.started)
-        : finishDay;
+        : endDay;
 
-    if (finishDay < yearStart || startDay >= yearEnd) continue;
+    if (endDay < yearStart || startDay >= yearEnd) continue;
 
-    const spanDays = Math.round((finishDay - startDay) / MS_PER_DAY) + 1;
+    const spanDays = Math.round((endDay - startDay) / MS_PER_DAY) + 1;
     const perDay = wallClockHours / spanDays;
 
     const from = Math.max(startDay, yearStart);
-    const to = Math.min(finishDay, yearEnd - MS_PER_DAY);
+    const to = Math.min(endDay, yearEnd - MS_PER_DAY);
     for (let day = from; day <= to; day += MS_PER_DAY) {
       const key = new Date(day).toISOString().slice(0, 10);
       const bucket = days.get(key) ?? {
@@ -222,7 +266,7 @@ export function computeDailyReading(
         finishes: 0,
       };
       bucket.wallClockHours += perDay;
-      bucket.finishes += day === finishDay ? 1 : 0;
+      bucket.finishes += isFinish && day === endDay ? 1 : 0;
       days.set(key, bucket);
     }
   }

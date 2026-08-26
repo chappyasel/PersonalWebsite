@@ -13,6 +13,7 @@ type BookForSlug = {
   author: string | null;
   publicationYear: number | null;
   finished: string | null;
+  abandoned: string | null;
 };
 
 /**
@@ -55,11 +56,13 @@ function getAuthorLastName(author: string): string {
 export function generateAllBookIds(
   books: BookForSlug[],
 ): Map<string, string> {
-  // Sort by finished date descending so the most recent read claims the clean slug.
+  // Sort by end date (finished, or abandoned for drops) descending so the
+  // most recent completed read claims the clean slug — a completed read's
+  // finish date beats an earlier abandoned attempt's drop date.
   // Fall back to notionId for deterministic ordering when dates match or are null.
   const sortedBooks = [...books].sort((a, b) => {
-    const aDate = a.finished ?? "";
-    const bDate = b.finished ?? "";
+    const aDate = a.finished ?? a.abandoned ?? "";
+    const bDate = b.finished ?? b.abandoned ?? "";
     if (aDate !== bDate) return bDate.localeCompare(aDate); // desc
     return a.notionId.localeCompare(b.notionId);
   });

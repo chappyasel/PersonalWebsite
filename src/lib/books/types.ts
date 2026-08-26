@@ -1,6 +1,8 @@
 export type BookReading = {
   started: string | null;
   finished: string | null;
+  abandoned: string | null;
+  abandonedAtMin: number | null;
   rating: number | null;
 };
 
@@ -13,6 +15,10 @@ export type BaseBook = {
   publicationYear: number | null;
   started: string | null; // ISO date string
   finished: string | null; // ISO date string
+  /** Abandoned books keep `finished` null; this date alone marks the drop. */
+  abandoned: string | null; // ISO date string
+  /** Audible position at abandonment, raw minutes (Notion enters H.MM). */
+  abandonedAtMin: number | null;
   rating: number | null; // 1-5
   audioLengthMin: number | null; // Raw Audible runtime in minutes
   pageCount: number | null;
@@ -134,11 +140,45 @@ export type BookCoverCache = {
   fetchedAt: Date;
 };
 
+export type ReadingStatus = "reading" | "finished" | "abandoned";
+
 /**
- * Check if a book is currently being read (has started but not finished)
+ * Derive a book's reading status from its dates. Finished wins over
+ * abandoned so a contradictory Notion page (both dates set) degrades to the
+ * safer claim; abandoned wins over reading so a drop never renders as
+ * still-in-progress.
+ */
+export function readingStatus(
+  book: Pick<Book, "started" | "finished" | "abandoned">,
+): ReadingStatus | null {
+  if (book.finished !== null) return "finished";
+  if (book.abandoned !== null) return "abandoned";
+  if (book.started !== null) return "reading";
+  return null;
+}
+
+/**
+ * Check if a book is currently being read (started, neither finished nor
+ * abandoned)
  */
 export function isCurrentlyReading(
-  book: Pick<Book, "started" | "finished">,
+  book: Pick<Book, "started" | "finished" | "abandoned">,
 ): boolean {
-  return book.started !== null && book.finished === null;
+  return readingStatus(book) === "reading";
+}
+
+/**
+ * How far through an abandoned book the reading got, as a whole percent.
+ * Null when either the position or the runtime is missing; clamped to 100
+ * when the recorded position overshoots the runtime (stale runtime or typo).
+ */
+export function abandonedPercent(
+  book: Pick<Book, "abandonedAtMin" | "audioLengthMin">,
+): number | null {
+  if (book.abandonedAtMin == null) return null;
+  if (book.audioLengthMin == null || book.audioLengthMin <= 0) return null;
+  return Math.min(
+    100,
+    Math.round((book.abandonedAtMin / book.audioLengthMin) * 100),
+  );
 }

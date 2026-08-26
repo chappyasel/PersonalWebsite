@@ -3,6 +3,7 @@
 import { searchParamsParsers } from "../lib/searchParams";
 import {
   ArrowsClockwiseIcon,
+  BookmarkSimpleIcon,
   HashIcon,
   ListIcon,
   NotebookIcon,
@@ -94,6 +95,7 @@ export function BookFilters({
       hasNotes: null,
       hasSummary: null,
       isReread: null,
+      abandoned: null,
     });
   };
 
@@ -110,7 +112,8 @@ export function BookFilters({
     filters.minRating !== null ||
     filters.hasNotes !== null ||
     filters.hasSummary !== null ||
-    filters.isReread !== null;
+    filters.isReread !== null ||
+    filters.abandoned !== null;
 
   return (
     <div className="flex flex-col gap-5 rounded-3xl py-2">
@@ -285,6 +288,24 @@ export function BookFilters({
           checked={filters.isReread ?? false}
           onCheckedChange={(checked) =>
             void setFilters({ isReread: checked ? true : null })
+          }
+        />
+      </div>
+
+      {/* Abandoned books are hidden from the shelf unless toggled in */}
+      <div className="flex items-center justify-between pr-2">
+        <label
+          htmlFor="abandoned"
+          className="flex items-center gap-1.5 text-sm font-semibold text-foreground"
+        >
+          <BookmarkSimpleIcon className="h-4 w-4" weight="bold" />
+          Show Abandoned
+        </label>
+        <Switch
+          id="abandoned"
+          checked={filters.abandoned ?? false}
+          onCheckedChange={(checked) =>
+            void setFilters({ abandoned: checked ? true : null })
           }
         />
       </div>

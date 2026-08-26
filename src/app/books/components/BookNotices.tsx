@@ -2,6 +2,7 @@
 
 import {
   BookOpenIcon,
+  BookmarkSimpleIcon,
   CaretRightIcon,
   FileTextIcon,
   SparkleIcon,
@@ -132,12 +133,35 @@ export function ReadingNowNotice() {
   );
 }
 
+/**
+ * Shown on books with an Abandoned date: the notes stop at the drop point
+ * and no key points or summary are coming.
+ */
+export function AbandonedNotice({ percent }: { percent: number | null }) {
+  return (
+    <BookNotice icon={<BookmarkSimpleIcon size={18} weight="thin" />}>
+      <strong className="font-semibold">
+        {percent != null
+          ? `I abandoned this one ${percent}% in.`
+          : "I abandoned this one partway through."}
+      </strong>{" "}
+      Whatever notes are here stop where I did. No key points or summary for
+      this one.
+    </BookNotice>
+  );
+}
+
 export function NoNotesState({
-  isCurrentlyReading,
+  status,
 }: {
-  isCurrentlyReading: boolean;
+  status: "reading" | "abandoned" | "read";
 }) {
-  const Icon = isCurrentlyReading ? BookOpenIcon : FileTextIcon;
+  const Icon =
+    status === "reading"
+      ? BookOpenIcon
+      : status === "abandoned"
+        ? BookmarkSimpleIcon
+        : FileTextIcon;
 
   return (
     <section
@@ -152,9 +176,11 @@ export function NoNotesState({
         No notes for this one
       </h2>
       <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-        {isCurrentlyReading
+        {status === "reading"
           ? "I'm reading this one without taking notes!"
-          : "I read this one without taking notes!"}
+          : status === "abandoned"
+            ? "I put this one down without taking notes!"
+            : "I read this one without taking notes!"}
       </p>
     </section>
   );

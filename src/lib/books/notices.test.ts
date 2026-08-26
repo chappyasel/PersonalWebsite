@@ -2,9 +2,18 @@ import { describe, expect, it } from "vitest";
 
 import { selectBookNotice } from "./notices";
 
-const FINISHED = { started: "2026-01-01", finished: "2026-01-10" };
-const IN_PROGRESS = { started: "2026-08-02", finished: null };
-const UNREAD = { started: null, finished: null };
+const FINISHED = {
+  started: "2026-01-01",
+  finished: "2026-01-10",
+  abandoned: null,
+};
+const IN_PROGRESS = { started: "2026-08-02", finished: null, abandoned: null };
+const UNREAD = { started: null, finished: null, abandoned: null };
+const ABANDONED = {
+  started: "2026-08-21",
+  finished: null,
+  abandoned: "2026-08-25",
+};
 
 describe("selectBookNotice", () => {
   it("shows the automated notice on a finished, summarized, automated book", () => {
@@ -48,9 +57,34 @@ describe("selectBookNotice", () => {
       selectBookNotice({
         started: null,
         finished: "2026-01-10",
+        abandoned: null,
         isAutomated: true,
         hasSummary: true,
       }),
     ).toBe("automated");
+  });
+
+  it("shows the abandoned notice on a dropped book", () => {
+    expect(
+      selectBookNotice({ ...ABANDONED, isAutomated: false, hasSummary: false }),
+    ).toBe("abandoned");
+  });
+
+  it("prefers the abandoned notice over the automated one", () => {
+    expect(
+      selectBookNotice({ ...ABANDONED, isAutomated: true, hasSummary: true }),
+    ).toBe("abandoned");
+  });
+
+  it("treats a contradictory finished+abandoned book as finished", () => {
+    expect(
+      selectBookNotice({
+        started: "2026-01-01",
+        finished: "2026-01-10",
+        abandoned: "2026-01-10",
+        isAutomated: false,
+        hasSummary: false,
+      }),
+    ).toBeNull();
   });
 });

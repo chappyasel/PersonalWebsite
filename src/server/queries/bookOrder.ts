@@ -17,23 +17,24 @@ export function getBookOrderBy(
   sortOrder: BookSortOrder,
 ): SQL[] {
   if (sortField === "finished") {
+    // A book's place in the timeline is when it left the pile: finished date,
+    // or abandoned date for drops. Only truly-in-progress books (neither date)
+    // pin to the currently-reading group.
+    const endDate = sql`COALESCE(${books.finished}, ${books.abandoned})`;
+
     if (sortOrder === "desc") {
       return [
-        asc(sql`CASE WHEN ${books.finished} IS NULL THEN 0 ELSE 1 END`),
-        desc(
-          sql`CASE WHEN ${books.finished} IS NULL THEN ${books.hasNotes} END`,
-        ),
-        desc(
-          sql`CASE WHEN ${books.finished} IS NULL THEN ${books.started} END`,
-        ),
-        desc(books.finished),
+        asc(sql`CASE WHEN ${endDate} IS NULL THEN 0 ELSE 1 END`),
+        desc(sql`CASE WHEN ${endDate} IS NULL THEN ${books.hasNotes} END`),
+        desc(sql`CASE WHEN ${endDate} IS NULL THEN ${books.started} END`),
+        desc(endDate),
         asc(books.title),
         asc(books.id),
       ];
     }
 
     return [
-      asc(sql`COALESCE(${books.finished}, NOW())`),
+      asc(sql`COALESCE(${books.finished}, ${books.abandoned}, NOW())`),
       asc(books.title),
       asc(books.id),
     ];

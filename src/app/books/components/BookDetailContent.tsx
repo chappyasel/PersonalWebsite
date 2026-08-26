@@ -5,8 +5,10 @@ import { PlayIcon } from "@phosphor-icons/react";
 import {
   ArrowLeftIcon,
   ArrowSquareOutIcon,
+  ArrowUpRightIcon,
   ArrowsClockwiseIcon,
   ArrowsOutSimpleIcon,
+  BookmarkSimpleIcon,
   BooksIcon,
   CalendarIcon,
   HeadphonesIcon,
@@ -45,7 +47,8 @@ import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import { separateCachedQuoteBlocks } from "~/lib/books/markdown";
 import { selectBookNotice } from "~/lib/books/notices";
 import { getBookPath, getBooksPath } from "~/lib/books/paths";
-import type { BaseBook, Book } from "~/lib/books/types";
+import type { BaseBook, Book, BookReading } from "~/lib/books/types";
+import { abandonedPercent } from "~/lib/books/types";
 import { cn } from "~/lib/util";
 
 import { Button } from "~/components/ui/button";
@@ -57,7 +60,12 @@ import {
   TooltipTrigger,
 } from "~/components/ui/tooltip";
 
-import { AutomatedNotice, NoNotesState, ReadingNowNotice } from "./BookNotices";
+import {
+  AbandonedNotice,
+  AutomatedNotice,
+  NoNotesState,
+  ReadingNowNotice,
+} from "./BookNotices";
 import { InlineMarkdown } from "./InlineMarkdown";
 import { TagBadge } from "./TagBadge";
 
@@ -193,6 +201,26 @@ function AnimatedDetails({
 /**
  * Calculate reading duration in days
  */
+/**
+ * Label for one entry in a multi-attempt reading history. Abandoned attempts
+ * are labeled as such and never consume a read number — "2nd Read" counts
+ * only completed reads before and including this one.
+ */
+function readingLabel(readings: BookReading[], index: number): string {
+  const reading = readings[index]!;
+  if (reading.abandoned && !reading.finished) return "Abandoned:";
+  const readNumber = readings
+    .slice(0, index + 1)
+    .filter((r) => !r.abandoned || r.finished).length;
+  return readNumber === 1
+    ? "Read:"
+    : readNumber === 2
+      ? "2nd Read:"
+      : readNumber === 3
+        ? "3rd Read:"
+        : `${readNumber}th Read:`;
+}
+
 function getReadingDays(
   started: string | null,
   finished: string | null,
@@ -434,12 +462,15 @@ export function BookDetailContent({
         {/* Container for content with max-w-3xl */}
         <div className="relative mx-auto w-full max-w-3xl">
           {/* Standalone pages keep their library-count breadcrumb. A modal
-              opened over the 3D homepage gets a shorter return trail to the
-              dedicated Books site; modals already on Books get neither, so
-              the same navigation is never repeated in its own app. */}
+              opened over the 3D homepage gets a single outbound link to the
+              dedicated Books site — no back arrow, since inside a modal that
+              reads as dismiss; modals already on Books get neither, so the
+              same navigation is never repeated in its own app. */}
           {(!isModal || modalBreadcrumbHref) && (
             <motion.nav
-              aria-label="Breadcrumb"
+              aria-label={
+                modalBreadcrumbHref ? "Chappy's Book Notes" : "Breadcrumb"
+              }
               data-stacks-book-breadcrumb={
                 modalBreadcrumbHref ? "external" : undefined
               }
@@ -450,46 +481,34 @@ export function BookDetailContent({
               style={{ marginBottom: breadcrumbMarginBottom }}
             >
               {modalBreadcrumbHref ? (
-                <ol className="flex min-w-0 items-center gap-2">
-                  <li className="shrink-0">
-                    <a
-                      href={modalBreadcrumbHref}
-                      className="inline-flex items-center gap-1.5 font-medium transition-colors hover:text-foreground"
-                    >
-                      <ArrowLeftIcon
-                        aria-hidden
-                        size={16}
-                        weight="bold"
-                        className="shrink-0"
-                      />
-                      <span className="xs:hidden">Book Notes</span>
-                      <span className="hidden xs:inline">
-                        Chappy&apos;s Book Notes
-                      </span>
-                    </a>
-                  </li>
-                  <li
-                    aria-hidden="true"
-                    className="hidden text-border xs:block"
-                  >
-                    /
-                  </li>
-                  <li className="shrink-0 tabular-nums">
-                    <a
-                      href={modalBreadcrumbHref}
-                      className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground"
-                      aria-label={`${modalBookCount?.toLocaleString() ?? "All"} books`}
-                    >
-                      <BooksIcon size={16} weight="duotone" />
-                      <span className="xs:hidden">
-                        {modalBookCount?.toLocaleString() ?? "All"}
-                      </span>
-                      <span className="hidden xs:inline">
-                        {modalBookCount?.toLocaleString() ?? "All"} books
-                      </span>
-                    </a>
-                  </li>
-                </ol>
+                <a
+                  href={modalBreadcrumbHref}
+                  className="inline-flex min-w-0 items-center gap-1.5 font-medium transition-colors hover:text-foreground"
+                >
+                  <BooksIcon
+                    aria-hidden
+                    size={16}
+                    weight="duotone"
+                    className="shrink-0"
+                  />
+                  <span className="xs:hidden">Book Notes</span>
+                  <span className="hidden xs:inline">
+                    Chappy&apos;s Book Notes
+                  </span>
+                  <span aria-hidden="true" className="text-border">
+                    ·
+                  </span>
+                  <span className="shrink-0 tabular-nums">
+                    {modalBookCount?.toLocaleString() ?? "All"}
+                    <span className="hidden xs:inline"> books</span>
+                  </span>
+                  <ArrowUpRightIcon
+                    aria-hidden
+                    size={14}
+                    weight="bold"
+                    className="shrink-0"
+                  />
+                </a>
               ) : (
                 <ol className="flex min-w-0 items-center gap-2">
                   <li className="shrink-0">
@@ -694,15 +713,21 @@ export function BookDetailContent({
                           </span>
                         </div>
                       )}
-                      {(book.totalReads ?? 1) > 1 ? (
-                        /* Multiple readings */
+                      {(book.otherReadings ?? []).length > 1 ? (
+                        /* Multiple readings (abandoned attempts included) */
                         (book.otherReadings ?? []).map((reading, i) => (
                           <TooltipProvider key={i}>
                             <Tooltip delayDuration={200}>
                               <TooltipTrigger asChild>
                                 <div className="flex cursor-default items-center gap-1">
                                   <div className="flex items-center gap-1 font-medium">
-                                    {i > 0 ? (
+                                    {reading.abandoned &&
+                                    !reading.finished ? (
+                                      <BookmarkSimpleIcon
+                                        size={12}
+                                        weight="bold"
+                                      />
+                                    ) : i > 0 ? (
                                       <ArrowsClockwiseIcon
                                         size={12}
                                         weight="bold"
@@ -711,20 +736,19 @@ export function BookDetailContent({
                                       <CalendarIcon size={12} weight="bold" />
                                     )}
                                     <span>
-                                      {i === 0
-                                        ? "Read:"
-                                        : i === 1
-                                          ? "2nd Read:"
-                                          : i === 2
-                                            ? "3rd Read:"
-                                            : `${i + 1}th Read:`}
+                                      {readingLabel(
+                                        book.otherReadings ?? [],
+                                        i,
+                                      )}
                                     </span>
                                   </div>
                                   <span className="font-semibold">
-                                    {reading.started && reading.finished
+                                    {reading.started &&
+                                    (reading.finished ?? reading.abandoned)
                                       ? formatReadDates(
                                           reading.started,
-                                          reading.finished,
+                                          reading.finished ??
+                                            reading.abandoned,
                                         )
                                       : reading.started
                                         ? (() => {
@@ -744,17 +768,18 @@ export function BookDetailContent({
                                   </span>
                                 </div>
                               </TooltipTrigger>
-                              {reading.started && reading.finished && (
-                                <TooltipContent>
-                                  <p>
-                                    {getReadingDays(
-                                      reading.started,
-                                      reading.finished,
-                                    )}{" "}
-                                    days
-                                  </p>
-                                </TooltipContent>
-                              )}
+                              {reading.started &&
+                                (reading.finished ?? reading.abandoned) && (
+                                  <TooltipContent>
+                                    <p>
+                                      {getReadingDays(
+                                        reading.started,
+                                        reading.finished ?? reading.abandoned,
+                                      )}{" "}
+                                      days
+                                    </p>
+                                  </TooltipContent>
+                                )}
                             </Tooltip>
                           </TooltipProvider>
                         ))
@@ -776,6 +801,37 @@ export function BookDetailContent({
                               <p>
                                 {getReadingDays(book.started, book.finished)}{" "}
                                 days
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      ) : book.abandoned ? (
+                        <TooltipProvider>
+                          <Tooltip delayDuration={200}>
+                            <TooltipTrigger asChild>
+                              <div className="flex cursor-default items-center gap-1">
+                                <div className="flex items-center gap-1 font-medium">
+                                  <BookmarkSimpleIcon
+                                    size={12}
+                                    weight="bold"
+                                  />
+                                  <span>Abandoned:</span>
+                                </div>
+                                <span className="font-semibold">
+                                  {formatReadDates(
+                                    book.started,
+                                    book.abandoned,
+                                  )}
+                                </span>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>
+                                {getReadingDays(book.started, book.abandoned)}{" "}
+                                days
+                                {abandonedPercent(book) != null
+                                  ? ` · stopped ${abandonedPercent(book)}% in`
+                                  : ""}
                               </p>
                             </TooltipContent>
                           </Tooltip>
@@ -939,34 +995,31 @@ export function BookDetailContent({
                     </span>
                   </div>
                 )}
-                {(book.totalReads ?? 1) > 1 ? (
-                  /* Multiple readings */
+                {(book.otherReadings ?? []).length > 1 ? (
+                  /* Multiple readings (abandoned attempts included) */
                   (book.otherReadings ?? []).map((reading, i) => (
                     <TooltipProvider key={i}>
                       <Tooltip delayDuration={200}>
                         <TooltipTrigger asChild>
                           <div className="flex cursor-default items-center gap-1">
                             <div className="flex items-center gap-1 font-medium">
-                              {i > 0 ? (
+                              {reading.abandoned && !reading.finished ? (
+                                <BookmarkSimpleIcon size={12} weight="bold" />
+                              ) : i > 0 ? (
                                 <ArrowsClockwiseIcon size={12} weight="bold" />
                               ) : (
                                 <CalendarIcon size={12} weight="bold" />
                               )}
                               <span>
-                                {i === 0
-                                  ? "Read:"
-                                  : i === 1
-                                    ? "2nd Read:"
-                                    : i === 2
-                                      ? "3rd Read:"
-                                      : `${i + 1}th Read:`}
+                                {readingLabel(book.otherReadings ?? [], i)}
                               </span>
                             </div>
                             <span className="font-semibold">
-                              {reading.started && reading.finished
+                              {reading.started &&
+                              (reading.finished ?? reading.abandoned)
                                 ? formatReadDates(
                                     reading.started,
-                                    reading.finished,
+                                    reading.finished ?? reading.abandoned,
                                   )
                                 : reading.started
                                   ? (() => {
@@ -986,17 +1039,18 @@ export function BookDetailContent({
                             </span>
                           </div>
                         </TooltipTrigger>
-                        {reading.started && reading.finished && (
-                          <TooltipContent>
-                            <p>
-                              {getReadingDays(
-                                reading.started,
-                                reading.finished,
-                              )}{" "}
-                              days
-                            </p>
-                          </TooltipContent>
-                        )}
+                        {reading.started &&
+                          (reading.finished ?? reading.abandoned) && (
+                            <TooltipContent>
+                              <p>
+                                {getReadingDays(
+                                  reading.started,
+                                  reading.finished ?? reading.abandoned,
+                                )}{" "}
+                                days
+                              </p>
+                            </TooltipContent>
+                          )}
                       </Tooltip>
                     </TooltipProvider>
                   ))
@@ -1017,6 +1071,30 @@ export function BookDetailContent({
                       <TooltipContent>
                         <p>
                           {getReadingDays(book.started, book.finished)} days
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : book.abandoned ? (
+                  <TooltipProvider>
+                    <Tooltip delayDuration={200}>
+                      <TooltipTrigger asChild>
+                        <div className="flex cursor-default items-center gap-1">
+                          <div className="flex items-center gap-1 font-medium">
+                            <BookmarkSimpleIcon size={12} weight="bold" />
+                            <span>Abandoned:</span>
+                          </div>
+                          <span className="font-semibold">
+                            {formatReadDates(book.started, book.abandoned)}
+                          </span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>
+                          {getReadingDays(book.started, book.abandoned)} days
+                          {abandonedPercent(book) != null
+                            ? ` · stopped ${abandonedPercent(book)}% in`
+                            : ""}
                         </p>
                       </TooltipContent>
                     </Tooltip>
@@ -1104,6 +1182,9 @@ export function BookDetailContent({
          * not have to wait on the notes fetch.
          */}
         {notice === "reading" && book.hasNotes && <ReadingNowNotice />}
+        {notice === "abandoned" && book.hasNotes && (
+          <AbandonedNotice percent={abandonedPercent(book)} />
+        )}
 
         {/* Notes section */}
         {book.hasNotes ? (
@@ -1207,7 +1288,11 @@ export function BookDetailContent({
             )}
           </div>
         ) : (
-          <NoNotesState isCurrentlyReading={notice === "reading"} />
+          <NoNotesState
+            status={
+              notice === "reading" || notice === "abandoned" ? notice : "read"
+            }
+          />
         )}
       </div>
     </div>

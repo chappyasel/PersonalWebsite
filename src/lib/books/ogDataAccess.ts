@@ -37,6 +37,8 @@ export async function getBookForOG(bookId: string): Promise<BaseBook> {
     publicationYear: book.publicationYear,
     started: book.started?.toISOString() ?? null,
     finished: book.finished?.toISOString() ?? null,
+    abandoned: book.abandoned?.toISOString() ?? null,
+    abandonedAtMin: book.abandonedAtMin,
     rating: book.rating,
     audioLengthMin: book.audioLengthMin,
     pageCount: book.pageCount,
@@ -81,6 +83,8 @@ export async function getBookWithNotes(
     publicationYear: book.publicationYear,
     started: book.started?.toISOString() ?? null,
     finished: book.finished?.toISOString() ?? null,
+    abandoned: book.abandoned?.toISOString() ?? null,
+    abandonedAtMin: book.abandonedAtMin,
     rating: book.rating,
     audioLengthMin: book.audioLengthMin,
     pageCount: book.pageCount,
@@ -98,16 +102,20 @@ export async function getBookWithNotes(
 
 /**
  * Return the number of books represented on the main bookshelf.
- * This mirrors the inclusion rules used by the books.getAll query.
+ * This mirrors the books page's default view: finished or in-progress
+ * books, with abandoned ones hidden.
  */
 export async function getBookshelfBookCount(): Promise<number> {
   const [result] = await db
     .select({ count: sql<number>`COUNT(*)` })
     .from(books)
     .where(
-      or(
-        isNotNull(books.finished),
-        and(isNotNull(books.started), isNull(books.finished)),
+      and(
+        isNull(books.abandoned),
+        or(
+          isNotNull(books.finished),
+          and(isNotNull(books.started), isNull(books.finished)),
+        ),
       ),
     );
 

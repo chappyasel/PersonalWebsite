@@ -159,6 +159,20 @@ function transformNotionPageToBook(page: PageObjectResponse): BaseBook {
       props.Finished && "date" in props.Finished && props.Finished.date
         ? (props.Finished.date.start ?? null)
         : null,
+    abandoned:
+      props.Abandoned && "date" in props.Abandoned && props.Abandoned.date
+        ? (props.Abandoned.date.start ?? null)
+        : null,
+    // Notion's Abandoned At is H.MM like Audio Length (8.21 = 8h 21m)
+    abandonedAtMin:
+      props["Abandoned At"] &&
+      "number" in props["Abandoned At"] &&
+      props["Abandoned At"].number != null
+        ? abandonedPositionToMinutes(
+            props["Abandoned At"].number,
+            extractTitle(props.Title),
+          )
+        : null,
     rating:
       props.Rating && "number" in props.Rating
         ? (props.Rating.number ?? null)
@@ -211,6 +225,21 @@ function transformNotionPageToBook(page: PageObjectResponse): BaseBook {
         : null,
     notionUrl: "url" in page ? page.url : "",
   };
+}
+
+/**
+ * Parse a hand-entered Abandoned At position, warning on values the H.MM
+ * convention can't mean: a fractional part above .59 is 60+ minutes, which
+ * is almost always the "4.5 means 4h 50m, not 4h 30m" entry mistake.
+ */
+function abandonedPositionToMinutes(value: number, title: string): number {
+  const minuteDigits = Math.round((value - Math.trunc(value)) * 100);
+  if (minuteDigits > 59) {
+    console.warn(
+      `Abandoned At for "${title}" is ${value} — the fractional part reads as ${minuteDigits} minutes. H.MM expects minutes 00-59.`,
+    );
+  }
+  return hourDotMinutesToMinutes(value);
 }
 
 /**

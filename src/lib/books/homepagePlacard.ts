@@ -27,9 +27,12 @@ function toPreview(book: Book): HomepageBookPreview {
  * cross the server/client boundary for this view.
  */
 export function buildHomepageBookPlacard(
-  books: Book[],
+  allBooks: Book[],
   now = new Date(),
 ): HomepageBookPlacard {
+  // Abandoned books are hidden by default site-wide; the homepage placard
+  // (stats, subjects, current shelf) never shows them.
+  const books = allBooks.filter((book) => !book.abandoned);
   const finished = books
     .filter((book): book is Book & { finished: string } =>
       Boolean(book.finished),

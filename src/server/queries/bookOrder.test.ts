@@ -12,12 +12,15 @@ function compileOrderBy(sortField: Parameters<typeof getBookOrderBy>[0], sortOrd
 }
 
 describe("getBookOrderBy", () => {
+  // The pin group is COALESCE(finished, abandoned) IS NULL: abandoned books
+  // take their drop date as their place in the timeline instead of sitting
+  // in the currently-reading group forever.
   it("orders in-progress books with notes first, then by start date", () => {
     expect(compileOrderBy("finished", "desc")).toEqual([
-      "CASE WHEN \"books\".\"finished\" IS NULL THEN 0 ELSE 1 END asc",
-      "CASE WHEN \"books\".\"finished\" IS NULL THEN \"books\".\"has_notes\" END desc",
-      "CASE WHEN \"books\".\"finished\" IS NULL THEN \"books\".\"started\" END desc",
-      "\"books\".\"finished\" desc",
+      "CASE WHEN COALESCE(\"books\".\"finished\", \"books\".\"abandoned\") IS NULL THEN 0 ELSE 1 END asc",
+      "CASE WHEN COALESCE(\"books\".\"finished\", \"books\".\"abandoned\") IS NULL THEN \"books\".\"has_notes\" END desc",
+      "CASE WHEN COALESCE(\"books\".\"finished\", \"books\".\"abandoned\") IS NULL THEN \"books\".\"started\" END desc",
+      "COALESCE(\"books\".\"finished\", \"books\".\"abandoned\") desc",
       "\"books\".\"title\" asc",
       "\"books\".\"id\" asc",
     ]);
@@ -25,7 +28,7 @@ describe("getBookOrderBy", () => {
 
   it("keeps ascending finished-date behavior deterministic", () => {
     expect(compileOrderBy("finished", "asc")).toEqual([
-      "COALESCE(\"books\".\"finished\", NOW()) asc",
+      "COALESCE(\"books\".\"finished\", \"books\".\"abandoned\", NOW()) asc",
       "\"books\".\"title\" asc",
       "\"books\".\"id\" asc",
     ]);

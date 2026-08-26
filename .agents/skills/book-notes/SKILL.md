@@ -90,6 +90,15 @@ Reference detail: `references/tag-taxonomy-cleanup.md` captures the proven audit
 
 The Drizzle definitions in `/Users/chappyasel/Desktop/Repos/PersonalWebsite/src/server/db/schema.ts` are the source of truth. Inspect the `books` and `bookTags` definitions before using a field not shown in the bundled examples; TypeScript camelCase names map to snake_case SQL columns. One book has many tags through `book_tags.book_id = books.id`.
 
+### Abandoned books
+
+A book Chappy dropped has `abandoned` (timestamp) set and `finished` NULL; `abandoned_at_min` holds the Audible position in raw minutes (percent = `abandoned_at_min / audio_length_min`). In Notion these are the `Abandoned` date and `Abandoned At` (H.MM, like Audio Length) properties. Consequences for queries:
+
+- `finished IS NOT NULL` still means "actually read" — abandoned books never satisfy it, so books-read counts and rating queries need no change.
+- "Currently reading" must exclude drops: `started IS NOT NULL AND finished IS NULL AND abandoned IS NULL`. The old two-clause idiom silently includes abandoned books.
+- The website hides abandoned books by default (an "Abandoned" filter shows them); match that framing when answering "what is Chappy reading/has read" — mention abandoned books only when the question is about them.
+- Reading-time analytics credit an abandoned book's listened hours (position spread across started → abandoned) but never count it as a finish.
+
 See `references/schema.md` for stable example queries covering common use cases (top-rated, by tag, reading pace, full-text search in notes, re-reads). Update those examples whenever the authoritative schema changes.
 
 ## External book-recommendation personalization

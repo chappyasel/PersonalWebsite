@@ -25,11 +25,19 @@ WHERE rating IS NOT NULL AND finished IS NOT NULL
 ORDER BY rating DESC, finished DESC
 LIMIT 25;
 
--- Currently reading (started but not finished)
+-- Currently reading (started, neither finished nor abandoned)
 SELECT title, author, started
 FROM books
-WHERE started IS NOT NULL AND finished IS NULL
+WHERE started IS NOT NULL AND finished IS NULL AND abandoned IS NULL
 ORDER BY started DESC;
+
+-- Abandoned books, with how far the listen got
+-- (abandoned_at_min is the Audible position in raw minutes)
+SELECT title, author, abandoned,
+       ROUND(100.0 * abandoned_at_min / NULLIF(audio_length_min, 0)) AS pct
+FROM books
+WHERE abandoned IS NOT NULL
+ORDER BY abandoned DESC;
 
 -- Recently finished
 SELECT title, author, rating, finished

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNotNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import {
@@ -61,24 +61,33 @@ export const booksRouter = createTRPCRouter({
         columns: {
           started: true,
           finished: true,
+          abandoned: true,
+          abandonedAtMin: true,
           rating: true,
         },
-        orderBy: asc(sql`COALESCE(${books.finished}, NOW())`),
+        orderBy: asc(
+          sql`COALESCE(${books.finished}, ${books.abandoned}, NOW())`,
+        ),
       });
 
       const allReadings: BookReading[] = otherReads.map((r) => ({
         started: r.started?.toISOString() ?? null,
         finished: r.finished?.toISOString() ?? null,
+        abandoned: r.abandoned?.toISOString() ?? null,
+        abandonedAtMin: r.abandonedAtMin ?? null,
         rating: r.rating ?? null,
       }));
 
-      // Determine this book's read number
-      const readNumber =
-        allReadings.findIndex(
-          (r) =>
-            r.started === (book.started?.toISOString() ?? null) &&
-            r.finished === (book.finished?.toISOString() ?? null),
-        ) + 1 || 1;
+      // Abandoned attempts never claim a read number — mirrors the getAll
+      // grouping, where "2nd Read" means the book was actually read twice.
+      const completedReadings = allReadings.filter((r) => !r.abandoned);
+      const readNumber = book.abandoned
+        ? 0
+        : completedReadings.findIndex(
+            (r) =>
+              r.started === (book.started?.toISOString() ?? null) &&
+              r.finished === (book.finished?.toISOString() ?? null),
+          ) + 1 || 1;
 
       const result: BookWithNotes = {
         id: book.id,
@@ -88,6 +97,8 @@ export const booksRouter = createTRPCRouter({
         publicationYear: book.publicationYear ?? null,
         started: book.started?.toISOString() ?? null,
         finished: book.finished?.toISOString() ?? null,
+        abandoned: book.abandoned?.toISOString() ?? null,
+        abandonedAtMin: book.abandonedAtMin ?? null,
         rating: book.rating ?? null,
         audioLengthMin: book.audioLengthMin ?? null,
         pageCount: book.pageCount ?? null,
@@ -101,7 +112,7 @@ export const booksRouter = createTRPCRouter({
         notionUrl: book.notionUrl,
         notes: book.notes ?? "",
         readNumber,
-        totalReads: allReadings.length,
+        totalReads: completedReadings.length,
         otherReadings: allReadings,
       };
 
@@ -137,10 +148,12 @@ export const booksRouter = createTRPCRouter({
    */
   getReadingAnalytics: publicProcedure.query(async () => {
     const rows = await db.query.books.findMany({
-      where: isNotNull(books.finished),
+      where: or(isNotNull(books.finished), isNotNull(books.abandoned)),
       columns: {
         started: true,
         finished: true,
+        abandoned: true,
+        abandonedAtMin: true,
         audioLengthMin: true,
         pageCount: true,
       },
@@ -157,10 +170,12 @@ export const booksRouter = createTRPCRouter({
     .input(z.object({ year: z.number().int().min(2000).max(2100) }))
     .query(async ({ input }) => {
       const rows = await db.query.books.findMany({
-        where: isNotNull(books.finished),
+        where: or(isNotNull(books.finished), isNotNull(books.abandoned)),
         columns: {
           started: true,
           finished: true,
+          abandoned: true,
+          abandonedAtMin: true,
           audioLengthMin: true,
           pageCount: true,
         },

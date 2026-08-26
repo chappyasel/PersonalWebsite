@@ -340,6 +340,55 @@ const notionPageToUrl: Record<string, string> = {
   "253c5ab0d88d80888643c64e7dbe5d0c": "https://chappyasel.com/manual",
 };
 
+/**
+ * Collect the IDs (dashes stripped, as they appear in URL fragments) of a
+ * block and all of its fetched descendants.
+ */
+export function collectBlockIds(block: any): string[] {
+  const ids: string[] = [];
+  const stack: any[] = [block];
+  while (stack.length > 0) {
+    const b = stack.pop();
+    if (typeof b?.id === "string") ids.push(b.id.replace(/-/g, ""));
+    if (Array.isArray(b?._children)) stack.push(...b._children);
+  }
+  return ids;
+}
+
+/**
+ * Rewrite links pointing at the page itself to local section anchors.
+ * anchorMap keys are Notion block IDs without dashes (as found in URL
+ * fragments); values are anchors like "#caffeine". Runs before
+ * rewriteNotionPageLinks so self-links with a known fragment stay on-page.
+ */
+export function rewriteNotionSelfLinks(
+  obj: any,
+  pageId: string,
+  anchorMap: Record<string, string>,
+): any {
+  // www.notion.so/<id> is the legacy format, app.notion.com/p/<id> the current one
+  const selfPagePattern = new RegExp(
+    `https://(?:www\\.notion\\.so/|app\\.notion\\.com/p/)${pageId}#([a-f0-9]+)`,
+  );
+  const rewrite = (value: any): any => {
+    if (Array.isArray(value)) return value.map(rewrite);
+    if (value && typeof value === "object") {
+      const result: any = {};
+      for (const [key, v] of Object.entries(value)) {
+        if (key === "link" && typeof v === "string") {
+          const match = selfPagePattern.exec(v);
+          result[key] = (match?.[1] && anchorMap[match[1]]) || v;
+        } else {
+          result[key] = rewrite(v);
+        }
+      }
+      return result;
+    }
+    return value;
+  };
+  return rewrite(obj);
+}
+
 export function rewriteNotionPageLinks(obj: any): any {
   if (typeof obj === "string") return obj;
   if (Array.isArray(obj)) return obj.map(rewriteNotionPageLinks);
@@ -347,10 +396,11 @@ export function rewriteNotionPageLinks(obj: any): any {
     const result: any = {};
     for (const [key, value] of Object.entries(obj)) {
       if (key === "link" && typeof value === "string") {
-        const match = (value as string).match(
-          /https:\/\/www\.notion\.so\/([a-f0-9]+)/,
-        );
-        if (match && match[1] && notionPageToUrl[match[1]]) {
+        // Notion links arrive as www.notion.so/<slug>-<id> or app.notion.com/p/<id>
+        const isNotionLink =
+          /https:\/\/(www\.notion\.so|app\.notion\.com)\//.test(value);
+        const match = isNotionLink ? /([a-f0-9]{32})/.exec(value) : null;
+        if (match?.[1] && notionPageToUrl[match[1]]) {
           result[key] = notionPageToUrl[match[1]];
         } else {
           result[key] = value;
