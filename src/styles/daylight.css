@@ -290,29 +290,29 @@
     animation-delay: -1.2s;
   }
   .dl-wing-l {
-    animation: dl-flap-l 4.4s ease-in-out infinite;
+    animation: dl-flap-l 2.94s ease-in-out infinite;
   }
   .dl-wing-r {
-    animation: dl-flap-r 4.4s ease-in-out infinite;
+    animation: dl-flap-r 2.94s ease-in-out infinite;
   }
   /* Tips run the same cycle a sixth of a beat late (negative delay = pure
      phase shift, no startup hold). */
   .dl-tip-l {
-    animation: dl-tip-flap-l 4.4s ease-in-out infinite;
-    animation-delay: -4.28s;
+    animation: dl-tip-flap-l 2.94s ease-in-out infinite;
+    animation-delay: -2.82s;
   }
   .dl-tip-r {
-    animation: dl-tip-flap-r 4.4s ease-in-out infinite;
-    animation-delay: -4.28s;
+    animation: dl-tip-flap-r 2.94s ease-in-out infinite;
+    animation-delay: -2.82s;
   }
   /* The second bird beats on its own clock. */
   .dl-bird-b .dl-wing-l,
   .dl-bird-b .dl-wing-r {
-    animation-delay: -1.7s;
+    animation-delay: -1.1s;
   }
   .dl-bird-b .dl-tip-l,
   .dl-bird-b .dl-tip-r {
-    animation-delay: -1.58s;
+    animation-delay: -0.98s;
   }
   .dl-screen .dl-skyline {
     animation: dl-skyline-pan 200s ease-in-out infinite alternate;
@@ -382,115 +382,125 @@
     transform: translateY(3px);
   }
 }
-/* Three beats, then a glide: a gull crosses a bay in bursts, not a metronome.
-   Left wing up is a positive rotation in SVG screen coordinates; the right
-   wing mirrors it. */
+/* The shader's wingbeat is a continuous sine whose AMPLITUDE swells and
+   softens (amp = 0.30 + 0.70·smoothstep of a slow sine) — the bird never
+   freezes mid-air. Four beats per cycle here: two full, one soft, one
+   recovering, looping without a hold. Left wing up is a positive rotation
+   in SVG screen coordinates; the right wing mirrors it. */
 @keyframes dl-flap-l {
   0% {
-    transform: rotate(9deg);
+    transform: rotate(28deg);
   }
-  7% {
+  12.5% {
     transform: rotate(-26deg);
   }
-  15% {
+  25% {
     transform: rotate(30deg);
   }
-  23% {
+  37.5% {
     transform: rotate(-26deg);
   }
-  31% {
-    transform: rotate(30deg);
-  }
-  39% {
-    transform: rotate(-26deg);
-  }
-  47% {
+  50% {
     transform: rotate(26deg);
   }
-  58%,
+  62.5% {
+    transform: rotate(-13deg);
+  }
+  75% {
+    transform: rotate(16deg);
+  }
+  87.5% {
+    transform: rotate(-21deg);
+  }
   100% {
-    transform: rotate(9deg);
+    transform: rotate(28deg);
   }
 }
 @keyframes dl-flap-r {
   0% {
-    transform: rotate(-9deg);
+    transform: rotate(-28deg);
   }
-  7% {
+  12.5% {
     transform: rotate(26deg);
   }
-  15% {
+  25% {
     transform: rotate(-30deg);
   }
-  23% {
+  37.5% {
     transform: rotate(26deg);
   }
-  31% {
-    transform: rotate(-30deg);
-  }
-  39% {
-    transform: rotate(26deg);
-  }
-  47% {
+  50% {
     transform: rotate(-26deg);
   }
-  58%,
+  62.5% {
+    transform: rotate(13deg);
+  }
+  75% {
+    transform: rotate(-16deg);
+  }
+  87.5% {
+    transform: rotate(21deg);
+  }
   100% {
-    transform: rotate(-9deg);
+    transform: rotate(-28deg);
   }
 }
 @keyframes dl-tip-flap-l {
   0% {
-    transform: rotate(4deg);
+    transform: rotate(20deg);
   }
-  7% {
+  12.5% {
     transform: rotate(-19deg);
   }
-  15% {
+  25% {
     transform: rotate(21deg);
   }
-  23% {
+  37.5% {
     transform: rotate(-19deg);
   }
-  31% {
-    transform: rotate(21deg);
+  50% {
+    transform: rotate(19deg);
   }
-  39% {
-    transform: rotate(-19deg);
+  62.5% {
+    transform: rotate(-9deg);
   }
-  47% {
-    transform: rotate(18deg);
+  75% {
+    transform: rotate(11deg);
   }
-  58%,
+  87.5% {
+    transform: rotate(-15deg);
+  }
   100% {
-    transform: rotate(4deg);
+    transform: rotate(20deg);
   }
 }
 @keyframes dl-tip-flap-r {
   0% {
-    transform: rotate(-4deg);
+    transform: rotate(-20deg);
   }
-  7% {
+  12.5% {
     transform: rotate(19deg);
   }
-  15% {
+  25% {
     transform: rotate(-21deg);
   }
-  23% {
+  37.5% {
     transform: rotate(19deg);
   }
-  31% {
-    transform: rotate(-21deg);
+  50% {
+    transform: rotate(-19deg);
   }
-  39% {
-    transform: rotate(19deg);
+  62.5% {
+    transform: rotate(9deg);
   }
-  47% {
-    transform: rotate(-18deg);
+  75% {
+    transform: rotate(-11deg);
   }
-  58%,
+  87.5% {
+    transform: rotate(15deg);
+  }
   100% {
-    transform: rotate(-4deg);
+    transform: rotate(-20deg);
   }
 }
 /* The 404's oversized skyline pans its overhang back and forth. */
