@@ -1,9 +1,10 @@
 "use client";
 
+import AnchorLink from "~/components/daylight/AnchorLink";
 import { SectionIcon } from "~/components/daylight/sectionIcons";
 
 import type { BookLookup, TimelineEntry as TimelineEntryType } from "../types";
-import { AnchorLink, useHashTarget } from "./sectionLink";
+import { useHashTarget } from "./sectionLink";
 import TimelineEntry from "./TimelineEntry";
 
 function TimelineSection({

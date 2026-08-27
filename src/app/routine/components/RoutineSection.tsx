@@ -4,12 +4,13 @@ import { useState } from "react";
 
 import { CaretRightIcon } from "@phosphor-icons/react";
 
+import AnchorLink from "~/components/daylight/AnchorLink";
 import { SectionIcon } from "~/components/daylight/sectionIcons";
 import { NotionBlockRenderer } from "~/components/notion";
 import type { BookLookup } from "~/components/notion/types";
 
 import type { RoutineSection as RoutineSectionType } from "../types";
-import { AnchorLink, releaseHash, useHashTarget } from "./sectionLink";
+import { releaseHash, useHashTarget } from "./sectionLink";
 
 export default function RoutineSection({
   section,
