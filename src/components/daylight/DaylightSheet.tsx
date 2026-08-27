@@ -1,61 +1,152 @@
 "use client";
 
-import { XIcon } from "@phosphor-icons/react";
+import { ArrowsOutSimpleIcon, XIcon } from "@phosphor-icons/react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "~/components/ui/tooltip";
 
 /**
- * A document page presented over the page that launched it. Client-side
- * navigations to /routine and /manual are intercepted into this sheet so the
- * launching page — including a booted 3D world — stays alive underneath. The
- * URL still reads /routine, deep links and refreshes still resolve to the
- * full page, and Esc, the backdrop, or the close control pop history back to
- * the untouched scene.
+ * A document page presented over the page that launched it, in the book-notes
+ * modal's own dress: centered card, the same shadow and enter/exit motion,
+ * and the same corner cluster — expand (a hard <a>, the books app's trick
+ * for stepping out of an intercepted route into the real full page) and
+ * close. The launching page — including a booted 3D world — stays alive
+ * underneath; the URL still reads /routine, and Esc, the backdrop, or the X
+ * pop history back to the untouched scene. The page's own theme toggle is
+ * hidden in here (daylight.css) — the corner belongs to this cluster and the
+ * theme follows the scene beneath.
  */
 export default function DaylightSheet({
   label,
+  expandHref,
   children,
 }: {
   label: string;
+  expandHref: string;
   children: ReactNode;
 }) {
   const router = useRouter();
+  const reduceMotion = useReducedMotion();
+  const [open, setOpen] = useState(true);
+  const shellRef = useRef<HTMLDivElement>(null);
+
+  const close = () => setOpen(false);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") router.back();
+      if (event.key === "Escape") setOpen(false);
     };
     window.addEventListener("keydown", onKey);
     // The page underneath keeps its scroll position; only the sheet scrolls.
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    const frame = requestAnimationFrame(() => shellRef.current?.focus());
     return () => {
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = previous;
+      cancelAnimationFrame(frame);
     };
-  }, [router]);
+  }, []);
 
   return (
-    <div className="dl-sheet" role="dialog" aria-modal="true" aria-label={label}>
-      <button
-        type="button"
-        aria-label="Close"
-        className="dl-sheet-backdrop"
-        onClick={() => router.back()}
-      />
-      <div className="dl-sheet-panel bg-background">
-        <div className="dl-sheet-closebar">
-          <button
-            type="button"
-            aria-label={`Close ${label}`}
-            className="dl-sheet-close"
-            onClick={() => router.back()}
+    <AnimatePresence onExitComplete={() => router.back()}>
+      {open && (
+        <div className="dl-sheet fixed inset-0 z-50">
+          <motion.div
+            className="absolute inset-0 bg-stone-900/60 backdrop-blur-sm dark:bg-black/60"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: reduceMotion ? 0 : 0.28 }}
+            onClick={close}
+          />
+          <div
+            className="absolute inset-0 flex items-center justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pt-[max(1.25rem,env(safe-area-inset-top))]"
+            onClick={close}
           >
-            <XIcon weight="bold" className="size-4" />
-          </button>
+            <motion.div
+              ref={shellRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label={label}
+              tabIndex={-1}
+              className="relative h-full w-full max-w-5xl overflow-hidden rounded-2xl bg-background shadow-[0px_10px_50px_10px_rgba(0,0,0,0.25)] outline-none"
+              onClick={(event) => event.stopPropagation()}
+              initial={
+                reduceMotion
+                  ? { opacity: 1, scale: 1, y: 0 }
+                  : { opacity: 0, scale: 0.965, y: 14 }
+              }
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={
+                reduceMotion
+                  ? { opacity: 0 }
+                  : { opacity: 0, scale: 0.982, y: 8 }
+              }
+              transition={
+                reduceMotion
+                  ? { duration: 0 }
+                  : { duration: 0.34, ease: [0.16, 1, 0.3, 1] }
+              }
+            >
+              <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
+                <TooltipProvider>
+                  <Tooltip delayDuration={200}>
+                    <TooltipTrigger asChild>
+                      {/* A hard <a>, not Link: the full-page render must step
+                          out of this intercepted route. */}
+                      <a
+                        href={expandHref}
+                        className="flex size-10 items-center justify-center rounded-full bg-muted shadow-sm backdrop-blur-sm transition-all duration-200 ease-in-out hover:bg-primary/20"
+                        aria-label="Open full page"
+                      >
+                        <ArrowsOutSimpleIcon
+                          size={20}
+                          weight="bold"
+                          className="text-primary"
+                        />
+                      </a>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Open full page</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip delayDuration={200}>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={close}
+                        className="flex size-10 items-center justify-center rounded-full bg-muted shadow-sm backdrop-blur-sm transition-all duration-200 ease-in-out hover:bg-primary/20"
+                        aria-label="Close"
+                      >
+                        <XIcon size={20} weight="bold" className="text-primary" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Close</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              <div
+                data-dl-scroller
+                className="h-full overflow-y-auto overscroll-contain"
+              >
+                {children}
+              </div>
+            </motion.div>
+          </div>
         </div>
-        {children}
-      </div>
-    </div>
+      )}
+    </AnimatePresence>
   );
 }

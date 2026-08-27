@@ -9,7 +9,7 @@ import {
   DaylightTOCSidebar,
   DaylightTOCSpacer,
 } from "~/components/daylight/DaylightTOC";
-import HorizonFooter from "~/components/daylight/HorizonFooter";
+import SkyFooter from "~/components/daylight/SkyFooter";
 import RoutineHero from "./components/RoutineHero";
 import RoutineSection from "./components/RoutineSection";
 import RoutineTimeline from "./components/RoutineTimeline";
@@ -143,7 +143,7 @@ export default async function RoutinePage() {
         </div>
         {/* The page traces the day; it ends where the day does — at night,
             in both themes. */}
-        <HorizonFooter variant="night" />
+        <SkyFooter night />
       </main>
     </div>
   );

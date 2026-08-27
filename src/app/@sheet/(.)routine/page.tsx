@@ -8,7 +8,7 @@ import "~/styles/daylight.css";
 // through /routine's own layout.
 export default function InterceptedRoutinePage() {
   return (
-    <DaylightSheet label="Core Daily Routine">
+    <DaylightSheet label="Core Daily Routine" expandHref="/routine">
       <RoutinePage />
     </DaylightSheet>
   );

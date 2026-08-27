@@ -6,7 +6,7 @@ import "~/styles/daylight.css";
 // The full manual page, presented in a sheet over whatever launched it.
 export default function InterceptedManualPage() {
   return (
-    <DaylightSheet label="Personal Operating Manual">
+    <DaylightSheet label="Personal Operating Manual" expandHref="/manual">
       <ManualPage />
     </DaylightSheet>
   );
