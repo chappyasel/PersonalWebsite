@@ -68,6 +68,7 @@ export default function DaylightSky() {
       <div className="dl-stars" />
       <div className="dl-stars-b" />
       <div className="dl-shooting-star" />
+      <div className="dl-satellite" />
       {/* The cloud layer is pure CSS — a repeat-x background on ::before —
           so there is no image element to lazy-load or run out of. */}
       <div className="dl-clouds" />

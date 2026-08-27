@@ -49,6 +49,16 @@ function hash1(n: number): number {
   n *= n + n;
   return fract(n);
 }
+function hash2(x: number, y: number): number {
+  let px_ = fract(x * 0.1031);
+  let py = fract(y * 0.1031);
+  let pz = fract(x * 0.1031);
+  const d = px_ * (py + 33.33) + py * (pz + 33.33) + pz * (px_ + 33.33);
+  px_ += d;
+  py += d;
+  pz += d;
+  return fract((px_ + py) * pz);
+}
 function smoothstep(e0: number, e1: number, x: number): number {
   const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
   return t * t * (3 - 2 * t);
@@ -378,6 +388,210 @@ for (let i = ggbFrom; i < shapes.length; i++) shapes[i]!.tone = "ggb";
   });
 }
 
+// ============ The night layer, ported from the shader's own rules ============
+//
+// Every value here is deterministic: the shader's fixed per-cell window hash
+// crossing its dark-theme threshold (uTime never re-deals a window), the Bay
+// Lights' authored dot positions and phase warp, the Golden Gate's deck lamps
+// and aviation beacons, Salesforce's Day-for-Night crown band, and the moon
+// at its authored azimuth. Windows whose hash sits inside the slow-turnover
+// band (the shader's ±0.006 drifting term) are tagged "window-slow" with the
+// hash as phase, so CSS can turn them over on their own clocks.
+type NightShape =
+  | {
+      kind: "rect";
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+      tone: "window" | "window-slow" | "crown";
+      phase?: number;
+    }
+  | {
+      kind: "dot";
+      x: number;
+      y: number;
+      r: number;
+      tone: "baylight" | "beacon";
+      phase?: number;
+    }
+  | { kind: "stroke"; d: string; width: number; tone: "lamps" };
+
+const night: NightShape[] = [];
+const THRESH = 0.05; // windowLit's dark/rest threshold at uDawn = 0
+const SLOW = 0.006; // the slow per-window drift amplitude
+
+function pushWindow(
+  aC: number,
+  eC: number,
+  w: number,
+  h: number,
+  hash: number,
+  thresh: number,
+) {
+  if (hash >= thresh + SLOW) return;
+  const slow = hash > thresh - SLOW;
+  night.push({
+    kind: "rect",
+    x: X(aC - w / 2),
+    y: Y(eC + h / 2),
+    w: +px(w).toFixed(2),
+    h: +px(h).toFixed(2),
+    tone: slow ? "window-slow" : "window",
+    ...(slow ? { phase: +hash.toFixed(4) } : {}),
+  });
+}
+
+// ---- Residential carpet: wc = (a*420, e*300), box 0.44 x 0.56 of the cell,
+// clear of the named towers' footprints (they light their own facades).
+{
+  const named: Array<[number, number]> = [
+    [-1.62, TR_HW],
+    [-1.28, SF_HW],
+    [JASPER_AZ, JASPER_HW],
+  ];
+  for (let ci = Math.floor(A0 * 420); ci <= Math.floor(A1 * 420); ci++) {
+    const aC = (ci + 0.5) / 420;
+    if (aC < A0 || aC > A1) continue;
+    if (named.some(([az, hw]) => Math.abs(aC - az) < hw + 0.001)) continue;
+    const roofE = roof(aC);
+    for (let cj = 0; cj <= Math.ceil(roofE * 300); cj++) {
+      const eC = (cj + 0.45) / 300;
+      const eLo = eC - 0.28 / 300;
+      const eHi = eC + 0.28 / 300;
+      if (eLo < 0.004 || eHi > roofE - 0.005) continue;
+      pushWindow(aC, eC, 0.44 / 420, 0.56 / 300, hash2(ci, cj), THRESH);
+    }
+  }
+}
+
+// ---- Transamerica: narrow vertical bands in true azimuth columns, cut off
+// by the sloping faces; the spire and wings stay dark.
+{
+  const AZ = -1.62;
+  for (let xi = -5; xi <= 4; xi++) {
+    const dC = (xi + 0.5) / 470;
+    const wHalf = 0.3 / 470;
+    for (let yj = 0; yj <= Math.ceil(TR_WING_T * 260); yj++) {
+      const eC = (yj + 0.45) / 260;
+      const eHi = eC + 0.34 / 260;
+      if (eC - 0.34 / 260 < 0.002 || eHi > TR_WING_T) continue;
+      const hwT = TR_HW * (1 - eHi / TR_TOP);
+      if (Math.abs(dC) + wHalf > hwT) continue;
+      pushWindow(AZ + dC, eC, 0.6 / 470, 0.68 / 260, hash2(xi, yj), THRESH * 2);
+    }
+  }
+}
+
+// ---- Salesforce: the grid is normalised to the shaft's own width, so the
+// columns converge with the eased taper; held clear of the crown band.
+{
+  const AZ = -1.28;
+  const hwSf = (e: number) => {
+    const st = Math.min(Math.max(e / SF_TOP, 0), 1);
+    return SF_HW * (1 - SF_TAPER * st * (0.32 + 0.68 * st));
+  };
+  for (let yj = 1; yj <= Math.floor(0.08 * 336); yj++) {
+    const eC = (yj + 0.45) / 336;
+    if (eC + 0.32 / 336 > 0.08 || eC - 0.32 / 336 < 0.004) continue;
+    const hw = hwSf(eC);
+    for (let xi = -4; xi <= 3; xi++) {
+      const dC = (((xi + 0.5) / 3.6) * hw) / 1;
+      const w = (0.6 / 3.6) * hw;
+      if (Math.abs(dC) + w / 2 > hw) continue;
+      pushWindow(AZ + dC, eC, w, 0.64 / 336, hash2(xi, yj), THRESH * 1.2);
+    }
+  }
+  // Day for Night: the lit band across the top of the crown (crownT 0.85+),
+  // washed and slowly shimmering in CSS.
+  const bandLo = 0.085;
+  const bandHi = SF_TOP - 0.0005;
+  const hwBand = hwSf((bandLo + bandHi) / 2);
+  night.push({
+    kind: "rect",
+    x: X(AZ - hwBand),
+    y: Y(bandHi),
+    w: +px(hwBand * 2).toFixed(2),
+    h: +px(bandHi - bandLo).toFixed(2),
+    tone: "crown",
+  });
+}
+
+// ---- Bay Lights: 24 dots strung on the parabola cable, each on the
+// shader's own nested-sin phase warp (ported at its uTime scale).
+{
+  const AZ = -1.09;
+  const SPREAD = 0.055;
+  for (let k = 0; k < 24; k++) {
+    const bx = (k + 0.5) / 12 - 1;
+    const e = 0.009 + 0.021 * bx * bx;
+    const phase =
+      (((k * 1.7 + Math.sin(k * 0.37)) / (2 * Math.PI)) % 1 + 1) % 1;
+    night.push({
+      kind: "dot",
+      x: X(AZ + bx * SPREAD),
+      y: Y(e),
+      r: +px(0.0013).toFixed(2),
+      tone: "baylight",
+      phase: +phase.toFixed(3),
+    });
+  }
+}
+
+// ---- Golden Gate at night: the deck's continuous lamp line (beaded by CSS
+// dasharray the way the shader beads it with sin(gx*116)), and the four red
+// aviation beacons on the tower tops flashing at the authored 0.43 Hz.
+{
+  const AZ = -2.04;
+  const SPREAD = 0.055;
+  const aOf = (gx: number) => AZ + gx * SPREAD;
+  const deckY = (gx: number) => 0.038 + 0.0022 * (1 - gx * gx);
+  let run: [number, number][] = [];
+  const runs: [number, number][][] = [];
+  for (let i = 0; i <= 160; i++) {
+    const gx = -1.53 + (3.06 * i) / 160;
+    const a = aOf(gx);
+    const e = deckY(gx) + 0.0012;
+    if (e > occlusion(a)) run.push([a, e]);
+    else if (run.length > 1) {
+      runs.push(run);
+      run = [];
+    } else run = [];
+  }
+  if (run.length > 1) runs.push(run);
+  for (const r of runs) {
+    const d =
+      `M${X(r[0]![0])} ${Y(r[0]![1])} ` +
+      r
+        .slice(1)
+        .map(([a, e]) => `L${X(a)} ${Y(e)}`)
+        .join(" ");
+    night.push({ kind: "stroke", d, width: px(0.0021), tone: "lamps" });
+  }
+  for (const [t, topE] of [
+    [-1, 0.0732],
+    [1, 0.0667],
+  ] as const) {
+    for (const off of [-0.00215, 0.00215]) {
+      night.push({
+        kind: "dot",
+        x: X(aOf(t) + off),
+        y: Y(topE),
+        r: +px(0.0011).toFixed(2),
+        tone: "beacon",
+      });
+    }
+  }
+}
+
+// ---- The moon, at its authored azimuth (-1.55), mid-arc elevation, painted
+// behind the skyline so every silhouette occludes it naturally.
+const MOON = {
+  x: X(-1.55),
+  y: Y(0.1),
+  r: +px(0.0125).toFixed(2),
+};
+
 // ---- Emit
 const header = `/**
  * GENERATED by scripts/generate/skyline-silhouette.ts — do not hand-edit.
@@ -404,6 +618,23 @@ export type SkylineShape = { tone?: "ggb" } & (
 );
 
 export const SKYLINE_SHAPES: SkylineShape[] = ${JSON.stringify(shapes, null, 2)};
+
+/**
+ * The night layer: the shader's fixed-hash windows (tone "window", plus
+ * "window-slow" for cells inside the turnover band, phase = their hash), the
+ * Salesforce Day-for-Night crown band, the Bay Lights dots (phase = the
+ * shader's sequencing warp), the Golden Gate deck-lamp line, and the four
+ * red aviation beacons. Colors and animation live in daylight.css.
+ */
+export type SkylineNightShape =
+  | { kind: "rect"; x: number; y: number; w: number; h: number; tone: "window" | "window-slow" | "crown"; phase?: number }
+  | { kind: "dot"; x: number; y: number; r: number; tone: "baylight" | "beacon"; phase?: number }
+  | { kind: "stroke"; d: string; width: number; tone: "lamps" };
+
+export const SKYLINE_NIGHT: SkylineNightShape[] = ${JSON.stringify(night, null, 2)};
+
+/** The moon's disc, behind the skyline at the shader's own azimuth. */
+export const MOON = ${JSON.stringify(MOON)};
 `;
 
 writeFileSync(OUT, header);

@@ -24,6 +24,10 @@
      (International Orange in linear light), mixed toward the skyline hex at
      the shader's own goldenGateDayPaintMix and converted to sRGB. */
   --dl-ggb: 8 36% 42%;
+  /* Window glints — theme.ts L50 skyWindow #ffca8a at the shader's light
+     mix strength (a city at 3:45 has a few lights on even before dark). */
+  --dl-window: 34 100% 77%;
+  --dl-window-op: 0.45;
   --dl-star-op: 0;
 
   /* Day accents: ochre for the morning arm, dusk slate for the evening arm,
@@ -69,9 +73,12 @@
   --dl-sky-glow: 23 72% 56%;
   --dl-sky-ink: 220 25% 90%;
   --dl-sil: 222 37% 12%;
-  /* At night the dome drops the paint mix to 0.14 and lets the lights lead;
-     the strip has no lights, so the paint stays legible but deepens. */
+  /* At night the dome drops the paint mix to 0.14 and lets the lights lead —
+     and now the strip HAS the lights. */
   --dl-ggb: 10 34% 32%;
+  /* theme.ts L98 skyWindow #ffbe73 at the shader's dark mix strength. */
+  --dl-window: 33 100% 73%;
+  --dl-window-op: 0.8;
   --dl-star-op: 0.9;
 
   --dl-am: 38 48% 66%;
@@ -317,6 +324,25 @@
   .dl-screen .dl-skyline {
     animation: dl-skyline-pan 200s ease-in-out infinite alternate;
   }
+  /* Night life: slow window turnover (the shader's 2-minute drift), the Bay
+     Lights' sequencing (per-dot delays carry the authored phase warp), the
+     beacons' 0.43 Hz flash, the crown's slow breath, the satellite. */
+  .dl-w-slow {
+    animation: dl-window-turn 126s linear infinite;
+  }
+  .dark .dl-bay {
+    animation: dl-baylight 12.6s ease-in-out infinite;
+  }
+  .dark .dl-beacon {
+    animation: dl-beacon-flash 2.31s steps(1) infinite;
+  }
+  .dark .dl-crown {
+    animation: dl-crown-breathe 11s ease-in-out infinite;
+  }
+  .dl-satellite {
+    animation: dl-satellite 92s linear infinite;
+    animation-delay: 8s;
+  }
 }
 @keyframes dl-twinkle {
   0%,
@@ -512,6 +538,70 @@
     transform: translateX(calc(100vw - 100%));
   }
 }
+/* A window turns over: lit for a stretch, dark for a stretch, never two
+   windows on the same clock (delays come from each cell's own hash). */
+@keyframes dl-window-turn {
+  0%,
+  38% {
+    opacity: var(--dl-window-op);
+  }
+  46%,
+  88% {
+    opacity: 0;
+  }
+  96%,
+  100% {
+    opacity: var(--dl-window-op);
+  }
+}
+@keyframes dl-baylight {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+@keyframes dl-beacon-flash {
+  0%,
+  12.9% {
+    opacity: 1;
+  }
+  13%,
+  100% {
+    opacity: 0.27;
+  }
+}
+@keyframes dl-crown-breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.36;
+  }
+}
+@keyframes dl-satellite {
+  0% {
+    transform: translate(-4vw, 0);
+    opacity: 0;
+  }
+  0.4% {
+    opacity: 0.55;
+  }
+  6.1% {
+    opacity: 0.55;
+  }
+  6.5% {
+    transform: translate(104vw, 14px);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(104vw, 14px);
+    opacity: 0;
+  }
+}
 /* Shader-generated thin daylight clouds (scripts/generate/sky-clouds.ts),
    bottom-anchored to the horizon like the skyline. The dome gates its clouds
    to the light theme (`day`); dark keeps the stars instead.
@@ -565,6 +655,71 @@
 .dl-skyline svg {
   width: 100%;
   height: auto;
+  display: block;
+  /* The moon's halo rides above the strip's viewBox; without this the
+     gradient clips to a hard square edge at the strip top. */
+  overflow: visible;
+}
+/* ---- The skyline's night layer (generated with the geometry). Windows
+   glint in both themes — the shader's own 3:45 rule — while the moon, Bay
+   Lights, Golden Gate lamps/beacons, and the Salesforce crown belong to the
+   dark theme, exactly as the dome gates them on `night`. */
+.dl-night-back {
+  display: none;
+}
+.dark .dl-night-back {
+  display: block;
+}
+.dl-w {
+  fill: hsl(var(--dl-window));
+  opacity: var(--dl-window-op);
+}
+.dl-bay,
+.dl-lamps,
+.dl-beacon,
+.dl-crown {
+  display: none;
+}
+.dark .dl-bay {
+  display: block;
+  fill: hsl(var(--dl-window));
+}
+/* Deck lamps: one continuous line, beaded by the dasharray the way the
+   shader beads it with sin(gx*116) — hps (1.0, 0.62, 0.24). */
+.dark .dl-lamps {
+  display: block;
+  stroke: #ff9e3d;
+  stroke-dasharray: 2 1.6;
+  opacity: 0.55;
+}
+/* Aviation red, avRed (0.90, 0.12, 0.10); resting glow between flashes. */
+.dark .dl-beacon {
+  display: block;
+  fill: #e61f1a;
+  opacity: 0.27;
+}
+/* Day for Night: a soft diffuse band, never visible pixels. */
+.dark .dl-crown {
+  display: block;
+  fill: #c7b39e;
+  opacity: 0.5;
+  filter: blur(1.1px) drop-shadow(0 0 5px rgba(199, 179, 158, 0.55));
+}
+/* The satellite — dark only, one dim constant-velocity crossing every 92s
+   (Starlink-era truthful; the sophisticated cousin of the shooting star),
+   kept under the brightness of a mid star. */
+.dl-satellite {
+  display: none;
+  position: absolute;
+  top: 12%;
+  left: 0;
+  width: 26px;
+  height: 1.5px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(207, 217, 242, 0.8));
+  opacity: 0;
+}
+.dark .dl-satellite {
   display: block;
 }
 /* The dome hazes its skyline toward the horizon at its base (hazeAmt in
