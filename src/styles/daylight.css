@@ -1259,6 +1259,9 @@ body:has(.daylight-root) {
 @media (prefers-reduced-motion: no-preference) and (max-width: 700px) {
   .dl-horizon-strip {
     animation: dl-skyline-pan 200s ease-in-out infinite alternate;
+    /* Half a cycle out of phase with the hero's pan, so the two horizons
+       show different stretches of the city instead of tracking in lockstep. */
+    animation-delay: -100s;
   }
 }
 

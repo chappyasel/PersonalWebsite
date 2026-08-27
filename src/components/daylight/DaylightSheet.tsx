@@ -12,6 +12,8 @@ import {
   TooltipTrigger,
 } from "~/components/ui/tooltip";
 
+import { useStacks } from "~/app/components/stacks/store";
+
 /**
  * A document page presented over the page that launched it, in the book-notes
  * modal's own dress: centered card, the same shadow and enter/exit motion,
@@ -47,10 +49,16 @@ export default function DaylightSheet({
     // The page underneath keeps its scroll position; only the sheet scrolls.
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    // The 3D world's scroll rig listens at the window and would keep flying
+    // the camera under the sheet. modalOpen is the book modal's own stand-down
+    // signal (ScrollBridges bails on it); on non-world pages nothing
+    // subscribes and the flag is inert.
+    useStacks.getState().setModalOpen(true);
     const frame = requestAnimationFrame(() => shellRef.current?.focus());
     return () => {
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = previous;
+      useStacks.getState().setModalOpen(false);
       cancelAnimationFrame(frame);
     };
   }, []);
