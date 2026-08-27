@@ -56,33 +56,40 @@ const iconByEmoji: Record<string, Icon> = {
 };
 
 /**
- * Every glyph carries its arm of the day: routine's day-side sections take
- * the ochre, its night-side sections the dusk slate, and the manual (which
- * has no time story) reads uniformly in slate. This is the same two-accent
- * budget the rest of the daylight system spends — not a per-section palette.
+ * Every glyph carries a family from the fixed daylight palette. The timeline
+ * arms keep their axis colors (ochre morning, dusk-slate evening); the other
+ * sections each take one of the muted families defined in daylight.css by
+ * topic. The palette is closed — a new section picks from these seven, it
+ * does not invent an eighth.
  */
-const accentById: Record<string, "am" | "pm"> = {
-  // routine, day side
-  "why-early": "am",
-  morning: "am",
-  "supp-stacks": "am",
-  "sinusoidal-vs-square-wave-alertness": "am",
-  caffeine: "am",
-  // routine, night side
-  evening: "pm",
-  "sleep-duration": "pm",
-  "getting-back-on-track": "pm",
+type Accent = "am" | "pm" | "moss" | "coral" | "coffee" | "indigo" | "plum";
+
+const accentById: Record<string, Accent> = {
+  // routine
+  "why-early": "am", // dawn
+  morning: "am", // the axis's own ochre
+  evening: "pm", // the axis's own dusk slate
+  "supp-stacks": "moss",
+  "sinusoidal-vs-square-wave-alertness": "coral", // pulse
+  caffeine: "coffee",
+  "sleep-duration": "indigo",
+  "getting-back-on-track": "plum",
   // manual
-  "personality-strengths-blind-spots": "pm",
-  "how-we-collaborate": "pm",
+  "personality-strengths-blind-spots": "plum",
+  "how-we-collaborate": "am",
   communication: "pm",
-  feedback: "pm",
-  hobbies: "pm",
+  feedback: "moss",
+  hobbies: "coral",
 };
 
-const accentClass: Record<"am" | "pm", string> = {
+const accentClass: Record<Accent, string> = {
   am: "text-[hsl(var(--dl-am))]",
   pm: "text-[hsl(var(--dl-pm))]",
+  moss: "text-[hsl(var(--dl-ic-moss))]",
+  coral: "text-[hsl(var(--dl-ic-coral))]",
+  coffee: "text-[hsl(var(--dl-ic-coffee))]",
+  indigo: "text-[hsl(var(--dl-ic-indigo))]",
+  plum: "text-[hsl(var(--dl-plum))]",
 };
 
 export function sectionIcon(id: string, emoji?: string): Icon | null {

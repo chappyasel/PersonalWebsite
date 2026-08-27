@@ -32,6 +32,14 @@
   --dl-pm-chip: 228 35% 58%;
   --dl-plum: 288 16% 46%;
 
+  /* Section glyph palette: the two day arms plus four more families in the
+     same muted band, one per topic. All accents on these pages come from
+     this fixed set — never per-element inventions. */
+  --dl-ic-moss: 150 26% 34%;
+  --dl-ic-coral: 10 46% 46%;
+  --dl-ic-coffee: 24 44% 32%;
+  --dl-ic-indigo: 256 24% 50%;
+
   /* One step firmer than the site --border, for the TOC rail. */
   --dl-border-strong: 20 6% 76%;
 
@@ -62,6 +70,11 @@
   --dl-pm-line: 228 22% 48%;
   --dl-pm-chip: 228 35% 60%;
   --dl-plum: 288 20% 68%;
+
+  --dl-ic-moss: 150 22% 62%;
+  --dl-ic-coral: 10 52% 70%;
+  --dl-ic-coffee: 26 36% 64%;
+  --dl-ic-indigo: 256 30% 74%;
 
   --dl-border-strong: 12 6% 26%;
 
@@ -142,6 +155,18 @@
     ),
     radial-gradient(1px 1px at 94% 34%, hsl(0 0% 100% / 0.55), transparent 55%),
     radial-gradient(1px 1px at 22% 40%, hsl(0 0% 100% / 0.5), transparent 55%);
+}
+/* Shader-generated thin daylight clouds (scripts/generate/sky-clouds.ts),
+   bottom-anchored to the horizon like the skyline. The dome gates its clouds
+   to the light theme (`day`); dark keeps the stars instead. */
+.dl-clouds {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+}
+.dark .dl-clouds {
+  display: none;
 }
 .dl-sky-fade {
   position: absolute;
