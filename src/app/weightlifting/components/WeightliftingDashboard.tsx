@@ -147,7 +147,7 @@ export function WeightliftingDashboard() {
       </div>
 
       {/* Story */}
-      <p className="-mt-4 max-w-2xl text-sm leading-relaxed text-neutral-500 dark:text-neutral-400">
+      <p className="-mt-4 text-sm leading-relaxed text-neutral-500 dark:text-neutral-400">
         Every workout and every set since 2017 &ndash; all logged in{" "}
         <a
           href="https://apps.apple.com/us/app/id1266077653"

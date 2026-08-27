@@ -268,6 +268,87 @@ export const weightliftingRouter = createTRPCRouter({
     return getCachedPersonalRecords();
   }),
 
+  /** One day's workouts with exercises, sets, superset groups, and page
+   *  slugs — feeds the workout preview overlay (opened from an exercise
+   *  page's instance rows or a calendar day). Looked up by workout id or by
+   *  UTC date; a date can hold several workouts, so this returns a list. */
+  getWorkoutPreview: publicProcedure
+    .input(
+      z.union([
+        z.strictObject({ workoutUuid: z.string().min(1).max(255) }),
+        z.strictObject({
+          date: z
+            .string()
+            .regex(/^\d{4}-\d{2}-\d{2}$/)
+            // ISO parsing rejects impossible dates like 2026-02-31
+            .refine((d) => !Number.isNaN(Date.parse(`${d}T00:00:00Z`))),
+        }),
+      ]),
+    )
+    .query(async ({ input }) => {
+      const where =
+        "workoutUuid" in input
+          ? eq(wlWorkouts.uuid, input.workoutUuid)
+          : and(
+              gte(wlWorkouts.date, new Date(`${input.date}T00:00:00Z`)),
+              lte(wlWorkouts.date, new Date(`${input.date}T23:59:59.999Z`)),
+            );
+
+      const workouts = await db.query.wlWorkouts.findMany({
+        where,
+        with: {
+          exercises: {
+            orderBy: asc(wlExercises.exerciseOrder),
+            with: { sets: { orderBy: asc(wlSets.setOrder) } },
+          },
+        },
+        orderBy: asc(wlWorkouts.date),
+      });
+
+      // Exercise-page links; an index failure only drops the links
+      let slugByName = new Map<string, string>();
+      try {
+        const index = await getCachedExerciseIndex();
+        slugByName = new Map(index.map((e) => [e.displayName, e.slug]));
+      } catch {}
+
+      return workouts.map((w) => ({
+        id: w.id,
+        name: w.name,
+        /** UTC — matches every other weightlifting date on the site */
+        ts: w.date.toISOString().slice(0, 16),
+        durationSeconds: w.durationSeconds,
+        /** Space-separated exerciseOrder groups, e.g. ["0 1", "2"] */
+        supersets: w.supersets.map((group) =>
+          group
+            .split(" ")
+            .filter((token) => token !== "")
+            .map((token) => Number(token))
+            .filter((n) => Number.isInteger(n) && n >= 0),
+        ),
+        exercises: w.exercises.map((e) => {
+          const displayName = e.iteration ? `${e.iteration} ${e.name}` : e.name;
+          return {
+            order: e.exerciseOrder,
+            displayName,
+            category: e.category,
+            style: e.style,
+            slug: slugByName.get(displayName) ?? null,
+            sets: e.sets.map((s) => ({
+              reps: s.reps,
+              weight: s.weight,
+              oneRM: s.oneRM,
+              volume: s.volume,
+              durationSeconds: s.durationSeconds,
+              distance: s.distance,
+              calories: s.calories,
+              custom: s.custom,
+            })),
+          };
+        }),
+      }));
+    }),
+
   /** Calendar heatmap data: categories per day for a given year */
   getCalendarData: publicProcedure
     .input(z.object({ year: z.number() }))

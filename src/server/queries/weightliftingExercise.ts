@@ -2,16 +2,17 @@ import { sql } from "drizzle-orm";
 import { unstable_cache } from "next/cache";
 import "server-only";
 
-import { buildSlugMap } from "~/app/weightlifting/lib/exerciseSlug";
 import {
   WEIGHTLIFTING_REVALIDATE,
   WEIGHTLIFTING_TAG,
 } from "~/lib/weightlifting/cache";
 import { db } from "~/server/db";
+
 import {
   getChartSelectableExercises,
   loadChartSelectableExercises,
 } from "./weightliftingExercises";
+import { buildSlugMap } from "~/app/weightlifting/lib/exerciseSlug";
 
 /** The display-name derivation every weightlifting query shares. */
 const DISPLAY_NAME_SQL = sql`
@@ -39,7 +40,9 @@ export type ExerciseIndexEntry = {
  * sets; the detail page's totalSets is the true count.)
  */
 async function buildExerciseIndex(
-  load: (minSets: number) => Promise<
+  load: (
+    minSets: number,
+  ) => Promise<
     Awaited<ReturnType<typeof getChartSelectableExercises>>
   > = getChartSelectableExercises,
 ): Promise<ExerciseIndexEntry[]> {
@@ -104,10 +107,14 @@ export type ExerciseSet = {
 export type ExerciseInstance = {
   /** YYYY-MM-DD, UTC */
   date: string;
-  /** Full workout start "YYYY-MM-DDTHH:MM", UTC — orders same-day sessions */
+  /** Full workout start "YYYY-MM-DDTHH:MI", UTC — orders same-day sessions */
   ts: string;
   /** The containing workout's name, e.g. "Morning Workout" */
   workoutName: string;
+  /** The containing workout's app-side uuid — opens the workout preview
+   *  overlay. Serial ids are reassigned on every sync (full replace), so
+   *  a cached payload must never carry them; the uuid is stable. */
+  workoutUuid: string;
   sets: ExerciseSet[];
 };
 
@@ -176,6 +183,7 @@ const loadExerciseDetail = async (
           date: string;
           ts: string;
           workout_name: string | null;
+          workout_uuid: string;
           reps: number | null;
           weight: number | null;
           one_rm: number | null;
@@ -187,6 +195,7 @@ const loadExerciseDetail = async (
             TO_CHAR(w.date AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS date,
             TO_CHAR(w.date AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI') AS ts,
             w.name AS workout_name,
+            w.uuid AS workout_uuid,
             s.reps, s.weight, s.one_rm, s.volume
           FROM wl_exercises e
           INNER JOIN wl_workouts w ON e.workout_id = w.id
@@ -210,6 +219,7 @@ const loadExerciseDetail = async (
         date: row.date,
         ts: row.ts,
         workoutName: row.workout_name ?? "",
+        workoutUuid: row.workout_uuid,
         sets: [],
       });
     }

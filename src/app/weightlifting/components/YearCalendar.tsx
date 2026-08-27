@@ -70,11 +70,10 @@ function DayCell({
 
   const handleMouseEnter = () => {
     if (!hasWorkout || !dateStr) return;
-    void utils.weightlifting.getWorkouts.prefetch({
-      startDate: new Date(`${dateStr}T00:00:00Z`).toISOString(),
-      endDate: new Date(`${dateStr}T23:59:59Z`).toISOString(),
-      limit: 10,
-    });
+    void utils.weightlifting.getWorkoutPreview.prefetch(
+      { date: dateStr },
+      { staleTime: QUERY_STALE_TIME },
+    );
   };
   const sorted = hasWorkout
     ? Object.entries(categories).sort(([a], [b]) => a.localeCompare(b))
@@ -295,7 +294,7 @@ export function YearCalendar() {
       )}
 
       <WorkoutDetailModal
-        selectedDate={selectedDate}
+        target={selectedDate ? { date: selectedDate } : null}
         onClose={() => setSelectedDate(null)}
       />
     </div>

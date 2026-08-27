@@ -18,7 +18,10 @@ export type ChartSelectableExercise = {
 
 export const loadChartSelectableExercises = async (minSets: number) => {
   const rows = await db.transaction(async (transaction) => {
-    await transaction.execute(sql`SET LOCAL statement_timeout = '1200ms'`);
+    // The aggregate scans all 48k sets and measures ~1.2s on Neon, so a
+    // 1200ms cap was a coin flip that intermittently 404'd every exercise
+    // page. Results are cached for 6h; a rare slow read beats an empty index.
+    await transaction.execute(sql`SET LOCAL statement_timeout = '8000ms'`);
     return transaction.execute<{
       display_name: string;
       name: string;

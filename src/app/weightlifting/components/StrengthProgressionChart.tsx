@@ -919,7 +919,7 @@ export function StrengthProgressionChart({
 
       {/* Aggregate mode explainer */}
       {chartMode === "aggregate" && trendline && (
-        <p className="max-w-3xl text-xs leading-relaxed text-neutral-400 dark:text-neutral-500">
+        <p className="text-xs leading-relaxed text-neutral-400 dark:text-neutral-500">
           To track overall progress, I&apos;ve selected PRs across{" "}
           {selectedExercises.length} featured lift
           {selectedExercises.length === 1 ? "" : "s"} spanning every muscle
