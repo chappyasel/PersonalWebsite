@@ -31,8 +31,8 @@ const SIZE = 256;
  * louder than black speckle on paper.
  */
 const VARIANTS = [
-  { file: "daylight-grain.png", amplitude: 0.14 },
-  { file: "daylight-grain-dark.png", amplitude: 0.055 },
+  { file: "daylight-grain.png", amplitude: 0.045 },
+  { file: "daylight-grain-dark.png", amplitude: 0.018 },
 ] as const;
 
 // Hoskins hash, as the dome shader uses (hash2 in SceneEnvironment.tsx).

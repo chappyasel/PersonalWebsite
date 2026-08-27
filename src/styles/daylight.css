@@ -151,42 +151,160 @@
       hsl(var(--dl-sky-low))
     );
 }
-.dl-stars {
+/* Two star layers twinkling out of phase, so the field shimmers instead of
+   pulsing in unison. Both ride --dl-star-op, which is 0 in the light theme. */
+.dl-stars,
+.dl-stars-b {
   position: absolute;
   inset: 0 0 30% 0;
   opacity: var(--dl-star-op);
+}
+.dl-stars {
   background-image:
     radial-gradient(
       1.5px 1.5px at 12% 22%,
       hsl(0 0% 100% / 0.95),
       transparent 55%
     ),
-    radial-gradient(1.5px 1.5px at 31% 12%, hsl(0 0% 100% / 0.8), transparent 55%),
     radial-gradient(2px 2px at 47% 30%, hsl(0 0% 100% / 0.9), transparent 55%),
-    radial-gradient(1.5px 1.5px at 63% 15%, hsl(0 0% 100% / 0.7), transparent 55%),
     radial-gradient(
       1.5px 1.5px at 76% 26%,
       hsl(0 0% 100% / 0.9),
       transparent 55%
     ),
-    radial-gradient(2px 2px at 88% 10%, hsl(0 0% 100% / 0.8), transparent 55%),
     radial-gradient(1.5px 1.5px at 94% 34%, hsl(0 0% 100% / 0.65), transparent 55%),
-    radial-gradient(1.5px 1.5px at 22% 40%, hsl(0 0% 100% / 0.6), transparent 55%),
     radial-gradient(1.5px 1.5px at 7% 8%, hsl(0 0% 100% / 0.7), transparent 55%),
-    radial-gradient(2px 2px at 40% 7%, hsl(0 0% 100% / 0.75), transparent 55%),
     radial-gradient(1.5px 1.5px at 55% 42%, hsl(0 0% 100% / 0.6), transparent 55%),
     radial-gradient(1.5px 1.5px at 70% 6%, hsl(0 0% 100% / 0.85), transparent 55%),
-    radial-gradient(1.5px 1.5px at 83% 44%, hsl(0 0% 100% / 0.55), transparent 55%),
     radial-gradient(2px 2px at 97% 18%, hsl(0 0% 100% / 0.7), transparent 55%);
+}
+.dl-stars-b {
+  background-image:
+    radial-gradient(1.5px 1.5px at 31% 12%, hsl(0 0% 100% / 0.8), transparent 55%),
+    radial-gradient(1.5px 1.5px at 63% 15%, hsl(0 0% 100% / 0.7), transparent 55%),
+    radial-gradient(2px 2px at 88% 10%, hsl(0 0% 100% / 0.8), transparent 55%),
+    radial-gradient(1.5px 1.5px at 22% 40%, hsl(0 0% 100% / 0.6), transparent 55%),
+    radial-gradient(2px 2px at 40% 7%, hsl(0 0% 100% / 0.75), transparent 55%),
+    radial-gradient(1.5px 1.5px at 83% 44%, hsl(0 0% 100% / 0.55), transparent 55%);
+}
+/* One shooting star every ~70s, dark theme only. A single authored
+   trajectory: brief, high, gone before it draws attention to itself. */
+.dl-shooting-star {
+  display: none;
+  position: absolute;
+  top: 16%;
+  left: 14%;
+  width: 74px;
+  height: 1.5px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, hsl(0 0% 100% / 0.9));
+  opacity: 0;
+}
+.dark .dl-shooting-star {
+  display: block;
+}
+/* The dome's lone gliding bird, light theme only: crosses the sky once every
+   90 seconds, at the skyline's own atmospheric color. */
+.dl-bird {
+  position: absolute;
+  top: 26%;
+  left: 0;
+  color: hsl(var(--dl-sil) / 0.75);
+  opacity: 0;
+}
+.dark .dl-bird {
+  display: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dl-stars {
+    animation: dl-twinkle 5.2s ease-in-out infinite;
+  }
+  .dl-stars-b {
+    animation: dl-twinkle 8.6s ease-in-out infinite;
+    animation-delay: -2.9s;
+  }
+  .dl-shooting-star {
+    animation: dl-shooting-star 72s linear infinite;
+    animation-delay: 9s;
+  }
+  .dl-clouds img {
+    animation: dl-cloud-drift 240s ease-in-out infinite alternate;
+  }
+  .dl-bird {
+    animation: dl-bird 90s linear infinite;
+    animation-delay: 14s;
+  }
+}
+@keyframes dl-twinkle {
+  0%,
+  100% {
+    opacity: var(--dl-star-op);
+  }
+  50% {
+    opacity: calc(var(--dl-star-op) * 0.45);
+  }
+}
+@keyframes dl-shooting-star {
+  0% {
+    transform: rotate(18deg) translateX(0);
+    opacity: 0;
+  }
+  0.5% {
+    opacity: 0.85;
+  }
+  2% {
+    transform: rotate(18deg) translateX(300px);
+    opacity: 0;
+  }
+  100% {
+    transform: rotate(18deg) translateX(300px);
+    opacity: 0;
+  }
+}
+@keyframes dl-cloud-drift {
+  from {
+    transform: translateX(-0.9%);
+  }
+  to {
+    transform: translateX(0.9%);
+  }
+}
+@keyframes dl-bird {
+  0% {
+    transform: translate(-4vw, 10px);
+    opacity: 0;
+  }
+  2% {
+    opacity: 0.75;
+  }
+  9% {
+    transform: translate(46vw, -6px);
+  }
+  17% {
+    opacity: 0.75;
+  }
+  19% {
+    transform: translate(104vw, -16px);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(104vw, -16px);
+    opacity: 0;
+  }
 }
 /* Shader-generated thin daylight clouds (scripts/generate/sky-clouds.ts),
    bottom-anchored to the horizon like the skyline. The dome gates its clouds
-   to the light theme (`day`); dark keeps the stars instead. */
+   to the light theme (`day`); dark keeps the stars instead. The image is
+   slightly oversized so its slow drift never exposes an edge. */
 .dl-clouds {
   position: absolute;
   left: 0;
   right: 0;
   bottom: -1px;
+}
+.dl-clouds img {
+  width: 104%;
+  margin-left: -2%;
 }
 .dark .dl-clouds {
   display: none;
@@ -213,6 +331,18 @@
   width: 100%;
   height: auto;
   display: block;
+}
+/* The dome hazes its skyline toward the horizon at its base (hazeAmt in
+   SceneEnvironment.tsx); this layer is that move for the strip — the
+   buildings' feet dissolve into the ground instead of ending on a hard
+   baseline. Painted over the skyline, under nothing. */
+.dl-ground-blend {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 3.5rem;
+  background: linear-gradient(180deg, transparent, hsl(var(--dl-arc0)) 92%);
 }
 .dl-hero-inner {
   position: relative;
@@ -241,6 +371,29 @@
 .dl-hero-inner [data-theme-toggle]:hover {
   background: hsl(var(--dl-sky-ink) / 0.12);
   color: hsl(var(--dl-sky-ink));
+}
+
+/* ============ Full-viewport sky screen (404, error) ============ */
+
+/* The hero grown to a whole screen: DaylightSky fills it, content floats in
+   the sky, and the skyline holds the bottom edge. */
+.dl-screen {
+  position: relative;
+  min-height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem 1.5rem calc(11vw + 5rem);
+  color: hsl(var(--dl-sky-ink) / 0.95);
+  text-shadow: 0 1px 14px hsl(var(--dl-sky-top) / 0.55);
+}
+/* Lift the content above the absolutely-positioned sky — which must itself
+   stay exempt, or this rule would flatten it. */
+.dl-screen > :not(.dl-sky) {
+  position: relative;
 }
 
 /* ============ Section headers ============ */

@@ -38,8 +38,9 @@ export const DAYLIGHT = {
   skyLow: "#6a9aba",
   skyEmber: "#f5c78d",
   silhouette: "#5b7288",
-  arc0: "hsl(26, 18%, 94%)",
-  arc1: "hsl(46, 24%, 96%)",
+  arc0: "hsl(26, 24%, 93%)",
+  arc0Clear: "hsla(26, 24%, 93%, 0)",
+  arc1: "hsl(46, 30%, 95.5%)",
   arc2: "hsl(60, 9%, 98%)",
   am: "hsl(35, 48%, 38%)",
   pm: "hsl(228, 20%, 44%)",
@@ -125,5 +126,17 @@ export function skyBand(width: number, height: number) {
       style: { position: "absolute" as const, bottom: -1, left: 0 },
     }),
     skyline(width),
+    // The same base haze the pages use: the buildings' feet dissolve into
+    // the ground instead of ending on a hard baseline
+    React.createElement("div", {
+      style: {
+        position: "absolute" as const,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        height: 44,
+        background: `linear-gradient(180deg, ${DAYLIGHT.arc0Clear}, ${DAYLIGHT.arc0} 92%)`,
+      },
+    }),
   );
 }
