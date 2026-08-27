@@ -72,7 +72,10 @@ export default function DaylightSky() {
       <div className="dl-shooting-star" />
       <div className="dl-clouds">
         {/* Two copies of the seamless tile; the strip translates by one tile
-            and snaps back invisibly. */}
+            and snaps back invisibly. The second copy starts a full viewport
+            off-screen to the right — past Chrome's lazy-load distance on any
+            reasonably wide window — so it MUST be eager, or it never loads
+            and the drift slowly reveals a blank tile. */}
         <div className="dl-cloud-strip">
           <Image
             src="/images/daylight-clouds.png"
@@ -86,6 +89,7 @@ export default function DaylightSky() {
             alt=""
             width={1600}
             height={342}
+            loading="eager"
           />
         </div>
       </div>
