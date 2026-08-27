@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { CaretRightIcon } from "@phosphor-icons/react";
 
+import { SectionIcon } from "~/components/daylight/sectionIcons";
 import { NotionBlockRenderer } from "~/components/notion";
 import type { BookLookup } from "~/components/notion/types";
 
@@ -40,12 +41,15 @@ export default function RoutineSection({
             toggle();
           }
         }}
-        className="group/sec flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"
+        className="group/sec flex w-full cursor-pointer items-center gap-2.5 border-b border-border/80 pb-2 text-left"
       >
-        <span className="text-2xl">{section.icon}</span>
-        <h2 className="text-xl font-semibold tracking-tight text-foreground">
-          {section.title}
-        </h2>
+        <SectionIcon
+          id={section.id}
+          emoji={section.icon}
+          size={18}
+          className="shrink-0 text-muted-foreground/85"
+        />
+        <h2 className="dl-h2">{section.title}</h2>
         <AnchorLink id={section.id} />
         <CaretRightIcon
           data-routine-caret
@@ -60,7 +64,7 @@ export default function RoutineSection({
         className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-300 ease-in-out data-[open=true]:grid-rows-[1fr]"
       >
         <div className="overflow-hidden">
-          <div className="space-y-3 px-4 pb-4 pt-2 text-muted-foreground">
+          <div className="space-y-3 pb-4 pt-3.5 text-[0.9375rem] text-muted-foreground">
             {section.blocks.map((block, i) => (
               <NotionBlockRenderer
                 key={i}

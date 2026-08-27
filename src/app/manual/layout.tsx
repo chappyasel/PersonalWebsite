@@ -1,6 +1,8 @@
 import { type Metadata } from "next";
 import { devSubdomainUrl } from "~/lib/util";
 
+import "~/styles/daylight.css";
+
 export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NODE_ENV === "production"

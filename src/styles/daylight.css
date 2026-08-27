@@ -1,0 +1,418 @@
+/*
+ * Daylight identity shared by /routine and /manual: the sky-band hero, the
+ * surveyed skyline silhouette, the continuous time axis, and the day-arc
+ * ground. Everything is scoped under .daylight-root so nothing leaks into the
+ * rest of the site. Dark mode follows next-themes' class strategy (`.dark` on
+ * <html>).
+ *
+ * The sky is not invented: every value is the main 3D site's authored color
+ * from src/app/components/stacks/theme.ts, converted to an HSL triplet so it
+ * can carry an alpha. Each block pins its hexes to their source lines; if
+ * theme.ts moves, these comments are how the drift gets caught.
+ */
+
+.daylight-root {
+  /* Sky, light — theme.ts L36 skyTop #126bb0, L37 skyHorizon #4f8ab3,
+     L38 skyShadow #6a9aba, L39 skyEmber #f5c78d, L49 skyline #5b7288 */
+  --dl-sky-top: 206 81% 38%;
+  --dl-sky-mid: 205 40% 51%;
+  --dl-sky-low: 204 37% 57%;
+  --dl-sky-glow: 33 84% 76%;
+  --dl-sky-ink: 40 30% 96%;
+  --dl-sil: 209 20% 45%;
+  --dl-star-op: 0;
+
+  /* Day accents: ochre for the morning arm, dusk slate for the evening arm,
+     warm plum for callouts. */
+  --dl-am: 35 48% 38%;
+  --dl-am-line: 36 40% 62%;
+  --dl-am-chip: 38 50% 55%;
+  --dl-pm: 228 20% 44%;
+  --dl-pm-line: 228 20% 64%;
+  --dl-pm-chip: 228 35% 58%;
+  --dl-plum: 288 16% 46%;
+
+  /* One step firmer than the site --border, for the TOC rail. */
+  --dl-border-strong: 20 6% 76%;
+
+  /* Ground arc: hue-biased neutrals tracing dawn -> noon -> dusk. arc2 is the
+     site background verbatim so the plateau disappears into the page. */
+  --dl-arc0: 26 18% 94%;
+  --dl-arc1: 46 24% 96%;
+  --dl-arc2: 60 9% 98%;
+  --dl-arc3: 228 10% 96%;
+  --dl-arc4: 240 9% 94%;
+}
+
+.dark .daylight-root {
+  /* Sky, dark — theme.ts L89 skyTop #1e2842, L90 skyHorizon #3a4762,
+     L91 skyShadow #1b2233, L92 skyEmber #e07c3e, L97 skyline #141b2b */
+  --dl-sky-top: 223 38% 19%;
+  --dl-sky-mid: 220 26% 31%;
+  --dl-sky-low: 222 31% 15%;
+  --dl-sky-glow: 23 72% 56%;
+  --dl-sky-ink: 220 25% 90%;
+  --dl-sil: 222 37% 12%;
+  --dl-star-op: 0.6;
+
+  --dl-am: 38 48% 66%;
+  --dl-am-line: 36 35% 45%;
+  --dl-am-chip: 38 45% 55%;
+  --dl-pm: 228 30% 74%;
+  --dl-pm-line: 228 22% 48%;
+  --dl-pm-chip: 228 35% 60%;
+  --dl-plum: 288 20% 68%;
+
+  --dl-border-strong: 12 6% 26%;
+
+  --dl-arc0: 18 16% 7%;
+  --dl-arc1: 30 12% 7%;
+  --dl-arc2: 24 10% 6%;
+  --dl-arc3: 232 12% 7%;
+  --dl-arc4: 244 14% 7%;
+}
+
+/*
+ * Ground. The arc gradient is the routine page's time-of-day spine; the
+ * manual has no time story, so it gets the quiet warm wash that settles into
+ * the plain page background instead.
+ */
+.dl-ground-arc {
+  background-image: linear-gradient(
+    180deg,
+    hsl(var(--dl-arc0)) 0%,
+    hsl(var(--dl-arc1)) 15%,
+    hsl(var(--dl-arc2)) 38%,
+    hsl(var(--dl-arc2)) 54%,
+    hsl(var(--dl-arc3)) 78%,
+    hsl(var(--dl-arc4)) 100%
+  );
+}
+.dl-ground-wash {
+  background-image: linear-gradient(
+    180deg,
+    hsl(var(--dl-arc0)) 0%,
+    hsl(var(--dl-arc1)) 20%,
+    hsl(var(--dl-arc2)) 50%
+  );
+}
+
+/* ============ Sky-band hero ============ */
+
+.dl-hero {
+  position: relative;
+  overflow: hidden;
+}
+.dl-sky {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      44rem 13rem at 76% 100%,
+      hsl(var(--dl-sky-glow) / 0.85),
+      transparent 70%
+    ),
+    linear-gradient(
+      180deg,
+      hsl(var(--dl-sky-top)),
+      hsl(var(--dl-sky-mid)) 62%,
+      hsl(var(--dl-sky-low))
+    );
+}
+.dl-stars {
+  position: absolute;
+  inset: 0 0 30% 0;
+  opacity: var(--dl-star-op);
+  background-image:
+    radial-gradient(1px 1px at 12% 22%, hsl(0 0% 100% / 0.9), transparent 55%),
+    radial-gradient(1px 1px at 31% 12%, hsl(0 0% 100% / 0.7), transparent 55%),
+    radial-gradient(
+      1.5px 1.5px at 47% 30%,
+      hsl(0 0% 100% / 0.8),
+      transparent 55%
+    ),
+    radial-gradient(1px 1px at 63% 15%, hsl(0 0% 100% / 0.6), transparent 55%),
+    radial-gradient(1px 1px at 76% 26%, hsl(0 0% 100% / 0.85), transparent 55%),
+    radial-gradient(
+      1.5px 1.5px at 88% 10%,
+      hsl(0 0% 100% / 0.7),
+      transparent 55%
+    ),
+    radial-gradient(1px 1px at 94% 34%, hsl(0 0% 100% / 0.55), transparent 55%),
+    radial-gradient(1px 1px at 22% 40%, hsl(0 0% 100% / 0.5), transparent 55%);
+}
+.dl-sky-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4rem;
+  background: linear-gradient(180deg, transparent, hsl(var(--dl-arc0)));
+}
+.dl-skyline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 3.25rem;
+  color: hsl(var(--dl-sil));
+}
+.dl-skyline svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.dl-hero-inner {
+  position: relative;
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 4.25rem 1rem 6.5rem;
+  color: hsl(var(--dl-sky-ink) / 0.95);
+  text-shadow: 0 1px 14px hsl(var(--dl-sky-top) / 0.55);
+}
+.dl-hero-title {
+  color: hsl(var(--dl-sky-ink));
+  font-size: clamp(1.8rem, 5vw, 2.4rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+/* The shared ThemeToggle sits on the sky here; retint it without forking the
+   component. */
+.dl-hero-inner [data-theme-toggle] {
+  color: hsl(var(--dl-sky-ink) / 0.85);
+}
+.dl-hero-inner [data-theme-toggle]:hover {
+  background: hsl(var(--dl-sky-ink) / 0.12);
+  color: hsl(var(--dl-sky-ink));
+}
+
+/* ============ Section headers ============ */
+
+.dl-h2 {
+  font-size: 1.3125rem;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  color: hsl(var(--foreground));
+}
+
+/* ============ Continuous time axis ============ */
+
+/*
+ * Geometry: each entry row is a grid of
+ * [4.25rem time][1.3rem dot][0.9rem caret][title], so the axis runs through
+ * the dot column's center at 4.9rem and entry bodies indent to the title
+ * column at 6.45rem. Section headers indent to 6rem and hang their icon node
+ * back onto the axis.
+ */
+.dl-tl {
+  position: relative;
+}
+.dl-tl::before {
+  content: "";
+  position: absolute;
+  left: calc(4.9rem - 1px);
+  top: 0.5rem;
+  bottom: 0;
+  width: 2px;
+  border-radius: 2px;
+}
+.dl-tl[data-arc="am"]::before {
+  background: linear-gradient(
+    180deg,
+    hsl(var(--dl-am-line) / 0.25),
+    hsl(var(--dl-am-line)) 18%,
+    hsl(var(--dl-am-line) / 0.45)
+  );
+}
+.dl-tl[data-arc="pm"]::before {
+  background: linear-gradient(
+    180deg,
+    hsl(var(--dl-pm-line) / 0.35),
+    hsl(var(--dl-pm-line)) 30%,
+    hsl(var(--dl-pm-line) / 0.4)
+  );
+}
+.dl-tl-h {
+  position: relative;
+  margin-left: 6rem;
+}
+.dl-tl-node {
+  position: absolute;
+  left: -2.125rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.3rem;
+  border-radius: 999px;
+  /* Opaque base masks the axis line passing behind the node; the tint rides
+     on top of it. */
+  background-color: hsl(var(--background));
+  z-index: 1;
+}
+.dl-tl[data-arc="am"] .dl-tl-node {
+  color: hsl(var(--dl-am));
+  background-image: linear-gradient(
+    hsl(var(--dl-am-chip) / 0.16),
+    hsl(var(--dl-am-chip) / 0.16)
+  );
+}
+.dl-tl[data-arc="pm"] .dl-tl-node {
+  color: hsl(var(--dl-pm));
+  background-image: linear-gradient(
+    hsl(var(--dl-pm-chip) / 0.16),
+    hsl(var(--dl-pm-chip) / 0.16)
+  );
+}
+.dl-entry-head {
+  display: grid;
+  grid-template-columns: 4.25rem 1.3rem 0.9rem minmax(0, 1fr);
+  align-items: center;
+  width: 100%;
+  padding: 0.55rem 0;
+  text-align: left;
+}
+.dl-entry-time {
+  justify-self: end;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+}
+.dl-tl[data-arc="am"] .dl-entry-time {
+  color: hsl(var(--dl-am));
+}
+.dl-tl[data-arc="pm"] .dl-entry-time {
+  color: hsl(var(--dl-pm));
+}
+.dl-entry-dot {
+  justify-self: center;
+  position: relative;
+  z-index: 1;
+  width: 0.5625rem;
+  height: 0.5625rem;
+  border-radius: 999px;
+}
+.dl-tl[data-arc="am"] .dl-entry-dot {
+  background: hsl(var(--dl-am-chip));
+  box-shadow: 0 0 0 3px hsl(var(--dl-am-chip) / 0.25);
+}
+.dl-tl[data-arc="pm"] .dl-entry-dot {
+  background: hsl(var(--dl-pm-chip));
+  box-shadow: 0 0 0 3px hsl(var(--dl-pm-chip) / 0.25);
+}
+.dl-entry-title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+}
+.dl-entry-body {
+  padding: 0.25rem 0 1rem 6.45rem;
+  font-size: 0.9063rem;
+}
+@media (max-width: 559.98px) {
+  .dl-entry-head {
+    grid-template-columns: 3.7rem 1.2rem 0.9rem minmax(0, 1fr);
+  }
+  .dl-tl::before {
+    left: calc(4.3rem - 1px);
+  }
+  .dl-tl-h {
+    margin-left: 5.35rem;
+  }
+  .dl-entry-body {
+    padding-left: 1.25rem;
+  }
+}
+
+/* ============ TOC ============ */
+
+/* Desktop rail: hairline with a node dot per section. */
+.dl-toc {
+  padding-left: 0.875rem;
+  position: relative;
+}
+.dl-toc::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 1.6rem;
+  bottom: 0.4rem;
+  width: 1px;
+  background: hsl(var(--dl-border-strong) / 0.8);
+}
+.dl-toc-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.3rem 0;
+  font-size: 0.8125rem;
+  text-align: left;
+  color: hsl(var(--muted-foreground));
+}
+.dl-toc-link::before {
+  content: "";
+  position: absolute;
+  left: calc(-0.875rem - 2px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: hsl(var(--muted-foreground) / 0.45);
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.dl-toc-link[data-active="true"] {
+  color: hsl(var(--foreground));
+  font-weight: 600;
+}
+.dl-toc-link[data-active="true"]::before {
+  background: hsl(var(--foreground));
+  box-shadow: 0 0 0 3px hsl(var(--foreground) / 0.18);
+}
+.dl-toc-link:hover {
+  color: hsl(var(--foreground));
+}
+
+/* Mobile row: underline indicator, no pills. */
+.dl-mtoc {
+  scrollbar-width: none;
+}
+.dl-mtoc::-webkit-scrollbar {
+  display: none;
+}
+.dl-mtoc-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: hsl(var(--muted-foreground));
+  padding: 0.3rem 0.25rem;
+  border-bottom: 2px solid transparent;
+}
+.dl-mtoc-link[data-active="true"] {
+  color: hsl(var(--foreground));
+  font-weight: 600;
+  border-bottom-color: hsl(var(--foreground));
+}
+
+/* ============ Notion callout, daylight treatment ============ */
+
+/*
+ * The tinted panel becomes a warm plum rule with a faint fade. Scoped here so
+ * every other NotionCallout consumer keeps the hairline box.
+ */
+.daylight-root [data-notion-callout] {
+  border: 0;
+  border-left: 2px solid hsl(var(--dl-plum) / 0.75);
+  border-radius: 0;
+  background: linear-gradient(90deg, hsl(var(--dl-plum) / 0.06), transparent 80%);
+  padding: 0.25rem 0 0.25rem 1rem;
+}

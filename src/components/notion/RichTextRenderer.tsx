@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import React from "react";
 
+import { sectionIcon } from "~/components/daylight/sectionIcons";
 import type { BookLookup, RichText } from "~/components/notion/types";
 import {
   Tooltip,
@@ -170,6 +171,15 @@ export default function RichTextRenderer({
           return <React.Fragment key={i}>{mbtiRendered}</React.Fragment>;
         }
 
+        // Same-page section references ("See ☕ Caffeine") swap their leading
+        // emoji for the section's Phosphor glyph at render time.
+        const XrefIcon = rt.link?.startsWith("#")
+          ? sectionIcon(rt.link.slice(1))
+          : null;
+        const displayText = XrefIcon
+          ? rt.text.replace(/^\p{Extended_Pictographic}️?\s*/u, "")
+          : rt.text;
+
         // Replace raw book URLs with readable titles + cover images
         const slug = extractBookSlug(rt.text);
         const bookData = slug ? bookLookup?.[slug] : null;
@@ -188,7 +198,7 @@ export default function RichTextRenderer({
             <em>{bookTitle}</em>
           </span>
         ) : (
-          rt.text
+          displayText
         );
 
         if (rt.bold) el = <strong className="font-semibold">{el}</strong>;
@@ -216,7 +226,21 @@ export default function RichTextRenderer({
         if (rt.link) {
           const isExternal =
             rt.link.startsWith("http") || rt.link.startsWith("//");
-          el = (
+          // Section references get a dotted underline so they read as
+          // wayfinding rather than citations.
+          el = XrefIcon ? (
+            <Link
+              href={rt.link}
+              className="whitespace-nowrap underline decoration-dotted decoration-muted-foreground/40 underline-offset-2 transition-colors hover:decoration-muted-foreground/70"
+            >
+              <XrefIcon
+                size={13}
+                weight="duotone"
+                className="mr-1 inline-block -translate-y-px opacity-80"
+              />
+              {el}
+            </Link>
+          ) : (
             <Link
               href={rt.link}
               target={isExternal ? "_blank" : undefined}

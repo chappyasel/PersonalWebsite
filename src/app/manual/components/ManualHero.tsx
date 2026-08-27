@@ -5,9 +5,21 @@ import {
 import Link from "next/link";
 import React from "react";
 
+import SkyHero from "~/components/daylight/SkyHero";
 import { ThemeToggle } from "~/components/ui/theme-toggle";
 
 import type { ManualData } from "../types";
+
+function HeroPanel({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border border-border p-6">
+      <h3 className="mb-3 font-sans text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </h3>
+      {children}
+    </div>
+  );
+}
 
 export default function ManualHero({
   hero,
@@ -17,78 +29,91 @@ export default function ManualHero({
   lastUpdated: string;
 }) {
   return (
-    <div className="space-y-8">
-      {/* Title — left aligned */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-3">
-          <BookOpenTextIcon
-            size={28}
-            weight="duotone"
-            className="text-foreground"
-          />
-          <h1 className="flex-1 text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
-            <span className="sm:hidden">Chappy&apos;s POM</span>
-            <span className="hidden sm:inline">
-              Chappy&apos;s Personal Operating Manual
-            </span>
-          </h1>
-          <ThemeToggle />
-        </div>
-        <p className="text-sm text-muted-foreground">
-          A guide to how I work, communicate, and collaborate
-        </p>
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <Link
-            href="https://www.chappyasel.com"
-            className="flex items-center gap-1.5 transition-colors hover:text-muted-foreground"
-          >
-            <ArrowLeftIcon size={12} weight="bold" />
-            chappyasel.com
-          </Link>
-          <span>·</span>
-          <span>
-            Last updated{" "}
-            {new Date(lastUpdated).toLocaleDateString("en-US", {
-              month: "long",
-              year: "numeric",
-            })}
-          </span>
-        </div>
-      </div>
-
-      {hero.intro.length > 0 && (
-        <div className="rounded-2xl border border-foreground/[0.06] bg-muted/40 p-6 shadow-sm">
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            My 30-Second Introduction
-          </h3>
-          <div className="space-y-2">
-            {hero.intro.map((line, i) => (
-              <p key={i} className="leading-relaxed">
-                {line}
-              </p>
-            ))}
+    <>
+      <SkyHero>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <BookOpenTextIcon
+              size={28}
+              weight="duotone"
+              className="text-[hsl(var(--dl-sky-ink))]"
+            />
+            <h1 className="dl-hero-title flex-1">
+              <span className="sm:hidden">Chappy&apos;s POM</span>
+              <span className="hidden sm:inline">
+                Chappy&apos;s Personal Operating Manual
+              </span>
+            </h1>
+            <ThemeToggle />
           </div>
-        </div>
-      )}
 
-      {hero.missionStatement && (
-        <div className="rounded-2xl border border-foreground/[0.06] bg-muted/40 p-6 shadow-sm">
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            My Personal Mission Statement
-          </h3>
-          <p className="leading-relaxed italic">{hero.missionStatement}</p>
-        </div>
-      )}
+          <p className="max-w-[34rem] text-[0.9375rem]">
+            A guide to how I work, communicate, and collaborate
+          </p>
 
-      {hero.goldenRule && (
-        <div className="rounded-2xl border border-foreground/[0.06] bg-muted/40 p-6 shadow-sm">
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            The Golden Rule of Working With Me
-          </h3>
-          <p className="leading-relaxed">{hero.goldenRule}</p>
-        </div>
-      )}
+          <div className="flex items-center gap-3 font-sans text-xs text-[hsl(var(--dl-sky-ink)/0.8)]">
+            <Link
+              href="https://www.chappyasel.com"
+              className="flex items-center gap-1.5 transition-colors hover:text-[hsl(var(--dl-sky-ink))]"
+            >
+              <ArrowLeftIcon size={12} weight="bold" />
+              chappyasel.com
+            </Link>
+            <span aria-hidden>·</span>
+            <span>
+              Last updated{" "}
+              {new Date(lastUpdated).toLocaleDateString("en-US", {
+                month: "long",
+                year: "numeric",
+              })}
+            </span>
+          </div>
 
-    </div>
+          {hero.quickLinks.length > 0 && (
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-sans text-xs text-[hsl(var(--dl-sky-ink)/0.75)]">
+              {hero.quickLinks.map((link, i) => (
+                <React.Fragment key={link.url}>
+                  {i > 0 && <span aria-hidden>·</span>}
+                  <Link
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="transition-colors hover:text-[hsl(var(--dl-sky-ink))] hover:underline"
+                  >
+                    {link.label}
+                  </Link>
+                </React.Fragment>
+              ))}
+            </div>
+          )}
+        </div>
+      </SkyHero>
+
+      <div className="mx-auto mt-10 max-w-2xl space-y-6 px-4">
+        {hero.intro.length > 0 && (
+          <HeroPanel label="My 30-Second Introduction">
+            <div className="space-y-2">
+              {hero.intro.map((line, i) => (
+                <p key={i} className="leading-relaxed">
+                  {line}
+                </p>
+              ))}
+            </div>
+          </HeroPanel>
+        )}
+
+        {hero.missionStatement && (
+          <HeroPanel label="My Personal Mission Statement">
+            <p className="leading-relaxed italic">{hero.missionStatement}</p>
+          </HeroPanel>
+        )}
+
+        {hero.goldenRule && (
+          <HeroPanel label="The Golden Rule of Working With Me">
+            <p className="leading-relaxed">{hero.goldenRule}</p>
+          </HeroPanel>
+        )}
+      </div>
+    </>
   );
 }

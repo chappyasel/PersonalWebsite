@@ -4,7 +4,7 @@ test.use({
   baseURL: process.env.ROUTINE_TEST_BASE_URL ?? "http://localhost:3111",
 });
 
-test("renders the clipboard shelf without changing the routine content", async ({
+test("renders the sky-band hero without changing the routine content", async ({
   browser,
 }) => {
   const context = await browser.newContext({
@@ -17,56 +17,56 @@ test("renders the clipboard shelf without changing the routine content", async (
   await expect(
     page.getByRole("heading", { name: "Chappy's Core Daily Routine" }),
   ).toBeVisible();
-  await expect(page.locator("[data-routine-vignette]")).toBeVisible();
-  await expect(page.locator("[data-routine-schedule-row]")).toHaveCount(11);
 
-  const compactGeometry = await page.evaluate(() => {
-    const hero = document.querySelector("[data-routine-hero]");
-    const vignette = document.querySelector("[data-routine-vignette]");
-
-    return {
-      heroHeight: hero?.getBoundingClientRect().height ?? 0,
-      vignetteWidth: vignette?.getBoundingClientRect().width ?? 0,
-    };
-  });
-  expect(compactGeometry.heroHeight).toBeLessThan(180);
-  expect(compactGeometry.vignetteWidth).toBeLessThan(110);
+  // The hero is the daylight sky band with the skyline silhouette.
+  const hero = page.locator("[data-daylight-hero]");
+  await expect(hero).toBeVisible();
+  await expect(hero.locator(".dl-skyline svg")).toHaveCount(1);
 
   const content = page.locator("[data-routine-content]");
   await expect(content.getByText("3:45am", { exact: true })).toBeVisible();
   await expect(content.getByText("6:00am", { exact: true })).toBeVisible();
   await expect(content.getByText("9:15pm", { exact: true })).toBeVisible();
 
-  const vignetteImages = page.locator("[data-routine-vignette] img");
-  await expect(vignetteImages).toHaveCount(3);
-  await expect
-    .poll(() =>
-      vignetteImages.evaluateAll((images) =>
-        images.every(
-          (image) =>
-            (image as HTMLImageElement).complete &&
-            (image as HTMLImageElement).naturalWidth > 0,
-        ),
-      ),
-    )
-    .toBe(true);
-
-  const imageGeometry = await vignetteImages.evaluateAll((images) =>
-    images.map((image) => ({
-      height: image.getBoundingClientRect().height,
-      width: image.getBoundingClientRect().width,
-    })),
-  );
-  expect(imageGeometry).toHaveLength(3);
-  for (const image of imageGeometry) {
-    expect(image.width).toBeGreaterThan(0);
-    expect(image.height).toBeGreaterThan(0);
-  }
+  // The desktop TOC is an in-flow column, so it must never extend past the
+  // viewport's left edge (the old zero-width overlay clipped at 1024-1150px).
+  const tocBox = await page
+    .locator("nav[aria-label='Sections']")
+    .first()
+    .boundingBox();
+  expect(tocBox).not.toBeNull();
+  expect(tocBox!.x).toBeGreaterThanOrEqual(0);
 
   await context.close();
 });
 
-test("keeps the original mobile layout contained", async ({ browser }) => {
+test("keeps the desktop TOC on-screen at the 1100px squeeze", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 1100, height: 900 },
+  });
+  const page = await context.newPage();
+  await page.goto("/routine");
+
+  const toc = page.locator("nav[aria-label='Sections']").first();
+  await expect(toc).toBeVisible();
+  const tocBox = await toc.boundingBox();
+  expect(tocBox).not.toBeNull();
+  expect(tocBox!.x).toBeGreaterThanOrEqual(0);
+
+  const geometry = await page.evaluate(() => ({
+    documentClientWidth: document.documentElement.clientWidth,
+    documentScrollWidth: document.documentElement.scrollWidth,
+  }));
+  expect(geometry.documentScrollWidth).toBeLessThanOrEqual(
+    geometry.documentClientWidth,
+  );
+
+  await context.close();
+});
+
+test("keeps the mobile layout contained", async ({ browser }) => {
   const context = await browser.newContext({
     viewport: { width: 390, height: 844 },
   });
@@ -103,9 +103,7 @@ test("preserves section navigation, keyboard expansion, and deep links", async (
   await expect.poll(() => page.evaluate(() => location.hash)).toBe("#caffeine");
 });
 
-test("supports dark theme and suppresses new motion when requested", async ({
-  browser,
-}) => {
+test("supports dark theme", async ({ browser }) => {
   const context = await browser.newContext({
     colorScheme: "dark",
     reducedMotion: "reduce",
@@ -115,12 +113,7 @@ test("supports dark theme and suppresses new motion when requested", async ({
   await page.goto("/routine");
 
   await expect(page.locator("html")).toHaveClass(/dark/);
-  const vignette = page.locator("[data-routine-vignette]");
-  await expect(vignette).toBeVisible();
-  const animationCount = await vignette.evaluate(
-    (element) => element.getAnimations({ subtree: true }).length,
-  );
-  expect(animationCount).toBe(0);
+  await expect(page.locator("[data-daylight-hero]")).toBeVisible();
 
   await page.locator("[data-theme-toggle]").click();
   await expect(page.locator("html")).not.toHaveClass(/dark/);

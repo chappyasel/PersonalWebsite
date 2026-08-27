@@ -13,25 +13,81 @@ import satori from "satori";
 import { Resvg } from "@resvg/resvg-js";
 import React from "react";
 
+import { DAYLIGHT, skyBand } from "./og-daylight";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const ROOT = join(__dirname, "../..");
 const OUTPUT = join(ROOT, "public/images/routine-og.png");
 const FONT_PATH = join(ROOT, "public/fonts/GeorgiaPro-Bold.ttf");
+const DATA_PATH = join(ROOT, "public/data/routine.json");
 
 const WIDTH = 1200;
 const HEIGHT = 630;
+const SKY_HEIGHT = 232;
+
+/**
+ * The label row mirrors the live page's TOC exactly: the fixed sections, then
+ * the rants in synced order under the same short labels page.tsx uses.
+ */
+const rantLabels: Record<string, string> = {
+  "sinusoidal-vs-square-wave-alertness": "Alertness",
+  caffeine: "Caffeine",
+  "sleep-duration": "Sleep",
+  "getting-back-on-track": "Recovery",
+};
+
+const data = JSON.parse(readFileSync(DATA_PATH, "utf-8")) as {
+  rants: { id: string; title: string }[];
+};
 
 const sections = [
-  "Morning Routine",
-  "Evening Routine",
-  "Supplements",
-  "Sleep",
-  "Caffeine",
+  "Why So Early?",
+  "Morning",
+  "Evening",
+  "Supp Stacks",
+  ...data.rants
+    .filter((r) => r.id !== "supp-stacks")
+    .map((r) => rantLabels[r.id] ?? r.title),
 ];
 
-const LABEL_COLOR = "hsl(25, 5%, 50%)";
+function joinWithDots(
+  items: { text: string; color?: string }[],
+  fontSize: number,
+) {
+  const children: React.ReactNode[] = [];
+  items.forEach((item, i) => {
+    if (i > 0) {
+      children.push(
+        React.createElement(
+          "span",
+          { key: `dot-${i}`, style: { color: "hsl(25, 5%, 65%)" } },
+          "·",
+        ),
+      );
+    }
+    children.push(
+      React.createElement(
+        "span",
+        { key: item.text, style: { color: item.color ?? DAYLIGHT.label } },
+        item.text,
+      ),
+    );
+  });
+  return React.createElement(
+    "div",
+    {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: "14px",
+        fontSize: `${fontSize}px`,
+      },
+    },
+    ...children,
+  );
+}
 
 function OGImage() {
   return React.createElement(
@@ -39,55 +95,48 @@ function OGImage() {
     {
       style: {
         display: "flex",
+        flexDirection: "column",
         width: "100%",
         height: "100%",
-        backgroundColor: "hsl(60, 9%, 98%)",
-        position: "relative",
-        overflow: "hidden",
-        alignItems: "center",
-        justifyContent: "center",
+        background: `linear-gradient(180deg, ${DAYLIGHT.arc0} 0%, ${DAYLIGHT.arc1} 45%, ${DAYLIGHT.arc2} 100%)`,
+        fontFamily: "Georgia Pro",
       },
     },
-    // Main content - single centered column
+    skyBand(WIDTH, SKY_HEIGHT),
+    // Ground content
     React.createElement(
       "div",
       {
         style: {
           display: "flex",
+          flex: 1,
           flexDirection: "column",
           alignItems: "center",
-          gap: "28px",
+          justifyContent: "center",
+          gap: "26px",
         },
       },
-      // Sun icon + label
+      // Sun icon + small-caps label
       React.createElement(
         "div",
-        {
-          style: {
-            display: "flex",
-            alignItems: "center",
-            gap: "14px",
-          },
-        },
-        // Sun/sunrise SVG icon (Phosphor sun icon style)
+        { style: { display: "flex", alignItems: "center", gap: "14px" } },
         React.createElement(
           "svg",
-          { width: "30", height: "30", viewBox: "0 0 256 256", fill: "none" },
+          { width: "28", height: "28", viewBox: "0 0 256 256", fill: "none" },
           React.createElement("path", {
             d: "M128,40a12,12,0,0,1,12-12h0a12,12,0,0,1,12,12V52a12,12,0,0,1-12,12h0A12,12,0,0,1,128,52ZM60,128a68,68,0,1,0,68-68A68.07,68.07,0,0,0,60,128Zm24,0a44,44,0,1,1,44,44A44.05,44.05,0,0,1,84,128ZM40,116H28a12,12,0,0,0,0,24H40a12,12,0,0,0,0-24Zm88,88a12,12,0,0,0-12,12v12a12,12,0,0,0,24,0V216A12,12,0,0,0,128,204Zm88-88H204a12,12,0,0,0,0,24h12a12,12,0,0,0,0-24ZM59.76,68.24a12,12,0,1,0,17-17l-8.48-8.48a12,12,0,0,0-17,17Zm0,119.52-8.48,8.48a12,12,0,0,0,17,17l8.48-8.48a12,12,0,1,0-17-17Zm136.48,0a12,12,0,0,0-17,17l8.48,8.48a12,12,0,0,0,17-17Zm0-119.52,8.48-8.48a12,12,0,0,0-17-17l-8.48,8.48a12,12,0,0,0,17,17Z",
-            fill: LABEL_COLOR,
+            fill: DAYLIGHT.am,
           }),
         ),
         React.createElement(
           "span",
           {
             style: {
-              fontSize: "26px",
+              fontSize: "25px",
               fontWeight: 700,
-              color: LABEL_COLOR,
+              color: DAYLIGHT.label,
               letterSpacing: "0.08em",
               textTransform: "uppercase" as const,
-              fontFamily: "Georgia Pro",
             },
           },
           "Core Daily Routine",
@@ -98,73 +147,30 @@ function OGImage() {
         "div",
         {
           style: {
-            fontSize: "120px",
+            fontSize: "112px",
             fontWeight: 700,
-            color: "hsl(25, 5%, 38%)",
+            color: DAYLIGHT.fg,
             letterSpacing: "-0.02em",
             lineHeight: 1,
-            fontFamily: "Georgia Pro",
           },
         },
         "Chappy Asel",
       ),
-      // Subtitle
-      React.createElement(
-        "div",
-        {
-          style: {
-            fontSize: "34px",
-            color: "hsl(25, 5%, 55%)",
-            lineHeight: 1.4,
-            fontFamily: "Georgia Pro",
-          },
-        },
-        "3:45am wake \u00b7 6:00am lift \u00b7 9:15pm sleep",
+      // Schedule beats, tinted by arm of the day
+      joinWithDots(
+        [
+          { text: "3:45am wake", color: DAYLIGHT.am },
+          { text: "6:00am lift", color: DAYLIGHT.am },
+          { text: "9:15pm sleep", color: DAYLIGHT.pm },
+        ],
+        31,
       ),
-      // Section pills
-      React.createElement(
-        "div",
-        {
-          style: {
-            display: "flex",
-            flexWrap: "wrap" as const,
-            justifyContent: "center",
-            gap: "12px",
-            marginTop: "8px",
-          },
-        },
-        ...sections.map((s) =>
-          React.createElement(
-            "div",
-            {
-              key: s,
-              style: {
-                fontSize: "22px",
-                color: LABEL_COLOR,
-                backgroundColor: "rgba(92, 87, 84, 0.08)",
-                padding: "10px 24px",
-                borderRadius: "24px",
-                fontFamily: "Georgia Pro",
-              },
-            },
-            s,
-          ),
-        ),
+      // Section labels from the synced data
+      joinWithDots(
+        sections.map((s) => ({ text: s })),
+        22,
       ),
     ),
-    // Bottom border accent
-    React.createElement("div", {
-      style: {
-        position: "absolute",
-        bottom: 0,
-        left: 0,
-        width: "100%",
-        height: "4px",
-        display: "flex",
-        background:
-          "linear-gradient(90deg, hsl(25, 5%, 75%), hsl(25, 5%, 45%), hsl(25, 5%, 75%))",
-      },
-    }),
   );
 }
 

@@ -12,6 +12,10 @@ import NotionBlockRenderer from "./NotionBlockRenderer";
  * Notion's per-block color survives only as a low-opacity border tint, which
  * is enough to separate a warning from an aside without turning the page into
  * a set of highlighter blocks.
+ *
+ * The daylight pages (/routine, /manual) restyle this into a warm plum rule
+ * via the `data-notion-callout` hook in src/styles/daylight.css; every other
+ * consumer keeps the hairline box below.
  */
 const calloutColorMap: Record<string, string> = {
   blue: "border-blue-500/30",
@@ -48,6 +52,7 @@ export default function NotionCallout({
 
   return (
     <div
+      data-notion-callout
       className={`flex gap-3 rounded-lg border ${borderColor} bg-muted/40 px-4 py-3.5`}
     >
       <span className="mt-0.5 shrink-0 text-base leading-none">{icon}</span>

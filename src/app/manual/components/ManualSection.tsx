@@ -4,6 +4,7 @@ import { CheckCircleIcon, LinkIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useState } from "react";
 
+import { SectionIcon } from "~/components/daylight/sectionIcons";
 import { NotionBlockRenderer } from "~/components/notion";
 
 import type { BookLookup, ManualSection as ManualSectionType } from "../types";
@@ -28,15 +29,18 @@ export default function ManualSection({
   return (
     <section id={section.id} className="scroll-mt-24">
       <div
-        className="flex cursor-pointer items-center gap-3 px-4 py-3"
+        className="flex cursor-pointer items-center gap-2.5 border-b border-border/80 pb-2"
         onClick={copyLink}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        <span className="text-2xl">{section.icon}</span>
-        <h2 className="text-xl font-semibold tracking-tight text-foreground">
-          {section.title}
-        </h2>
+        <SectionIcon
+          id={section.id}
+          emoji={section.icon}
+          size={18}
+          className="shrink-0 text-muted-foreground/85"
+        />
+        <h2 className="dl-h2">{section.title}</h2>
         <div className="relative h-4 w-4">
           <motion.div
             className="absolute inset-0"
@@ -54,13 +58,17 @@ export default function ManualSection({
                 exit={{ opacity: 0, scale: 0.5 }}
                 transition={{ duration: 0.2 }}
               >
-                <CheckCircleIcon size={16} weight="fill" className="text-emerald-500" />
+                <CheckCircleIcon
+                  size={16}
+                  weight="fill"
+                  className="text-emerald-500"
+                />
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       </div>
-      <div className="space-y-3 px-4 pt-2 text-muted-foreground">
+      <div className="space-y-3 pt-3.5 text-[0.9375rem] text-muted-foreground">
         {section.blocks.map((block, i) => (
           <NotionBlockRenderer key={i} block={block} bookLookup={bookLookup} />
         ))}

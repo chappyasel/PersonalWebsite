@@ -1,12 +1,12 @@
 "use client";
 
-import { motion, useInView } from "framer-motion";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useState } from "react";
 
 import {
   CaretRightIcon,
   MoonStarsIcon,
+  PillIcon,
   SunIcon,
 } from "@phosphor-icons/react";
 
@@ -18,57 +18,37 @@ import { AnchorLink, releaseHash, useHashTarget } from "./sectionLink";
 
 function SupplementCard({
   supplement,
-  index,
-  isInView,
-  accentColor,
+  arc,
 }: {
   supplement: Supplement;
-  index: number;
-  isInView: boolean;
-  accentColor: "amber" | "indigo";
+  arc: "am" | "pm";
 }) {
-  const borderColor =
-    accentColor === "amber"
-      ? "border-amber-200 dark:border-amber-800/50"
-      : "border-indigo-200 dark:border-indigo-800/50";
-
-  const badgeColor =
-    accentColor === "amber"
-      ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
-      : "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300";
+  const doseColor =
+    arc === "am" ? "text-[hsl(var(--dl-am))]" : "text-[hsl(var(--dl-pm))]";
 
   const content = (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={isInView ? { opacity: 1, y: 0 } : {}}
-      transition={{ delay: index * 0.05, duration: 0.3 }}
-      className={`rounded-xl border ${borderColor} bg-background/60 p-4 shadow-sm transition-colors hover:bg-muted/40`}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <h4 className="text-sm font-semibold text-foreground">
-          {supplement.name}
-        </h4>
+    <div className="flex h-full flex-col gap-1 rounded-[0.625rem] border border-border px-3.5 py-3 transition-colors group-hover:bg-secondary/70">
+      <h4 className="font-sans text-sm font-semibold text-foreground">
+        {supplement.name}
+      </h4>
+      <div className="flex flex-wrap gap-x-2.5 font-mono text-[0.6875rem] tabular-nums">
+        {supplement.dosage && (
+          <span className={`font-semibold ${doseColor}`}>
+            {supplement.dosage}
+          </span>
+        )}
         {supplement.costPerDay && (
-          <span className="shrink-0 text-xs text-muted-foreground">
+          <span className="text-muted-foreground/70">
             {supplement.costPerDay}/day
           </span>
         )}
       </div>
-      <div className="mt-2 flex flex-wrap gap-1.5">
-        {supplement.dosage && (
-          <span
-            className={`rounded-full px-2 py-0.5 text-xs font-medium ${badgeColor}`}
-          >
-            {supplement.dosage}
-          </span>
-        )}
-        {supplement.benefits && (
-          <span className="rounded-full bg-muted/60 px-2 py-0.5 text-xs text-muted-foreground">
-            {supplement.benefits}
-          </span>
-        )}
-      </div>
-    </motion.div>
+      {supplement.benefits && (
+        <span className="font-sans text-xs text-muted-foreground/85">
+          {supplement.benefits}
+        </span>
+      )}
+    </div>
   );
 
   if (supplement.link) {
@@ -77,7 +57,7 @@ function SupplementCard({
         href={supplement.link}
         target="_blank"
         rel="noopener noreferrer"
-        className="block"
+        className="group block h-full"
       >
         {content}
       </Link>
@@ -91,16 +71,13 @@ function SupplementSubSection({
   label,
   icon,
   supplements,
-  accentColor,
+  arc,
 }: {
   label: string;
   icon: React.ReactNode;
   supplements: Supplement[];
-  accentColor: "amber" | "indigo";
+  arc: "am" | "pm";
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-50px" });
-
   if (supplements.length === 0) return null;
 
   const totalCost = supplements.reduce((sum, s) => {
@@ -109,27 +86,19 @@ function SupplementSubSection({
   }, 0);
 
   return (
-    <div ref={ref}>
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {icon}
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            {label}
-          </h3>
-        </div>
-        <span className="text-xs text-muted-foreground">
+    <div>
+      <div className="mb-2.5 flex items-center gap-2">
+        {icon}
+        <h3 className="font-sans text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+          {label}
+        </h3>
+        <span className="ml-auto font-mono text-[0.6875rem] tabular-nums text-muted-foreground/80">
           ${totalCost.toFixed(2)}/day total
         </span>
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
         {supplements.map((supp, i) => (
-          <SupplementCard
-            key={i}
-            supplement={supp}
-            index={i}
-            isInView={isInView}
-            accentColor={accentColor}
-          />
+          <SupplementCard key={i} supplement={supp} arc={arc} />
         ))}
       </div>
     </div>
@@ -173,12 +142,14 @@ export default function SupplementCardsSection({
             toggle();
           }
         }}
-        className="group/sec flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/40"
+        className="group/sec flex w-full cursor-pointer items-center gap-2.5 border-b border-border/80 pb-2 text-left"
       >
-        <span className="text-2xl">💊</span>
-        <h2 className="text-xl font-semibold tracking-tight text-foreground">
-          Supp Stacks
-        </h2>
+        <PillIcon
+          size={18}
+          weight="duotone"
+          className="shrink-0 text-muted-foreground/85"
+        />
+        <h2 className="dl-h2">Supp Stacks</h2>
         <AnchorLink id="supp-stacks" />
         <CaretRightIcon
           data-routine-caret
@@ -193,10 +164,10 @@ export default function SupplementCardsSection({
         className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-300 ease-in-out data-[open=true]:grid-rows-[1fr]"
       >
         <div className="overflow-hidden">
-          <div className="space-y-6 px-4 pb-4 pt-2">
+          <div className="space-y-6 pb-4 pt-3.5">
             {/* Explanatory content from the rant */}
             {explanatoryBlocks.length > 0 && (
-              <div className="space-y-3 text-muted-foreground">
+              <div className="space-y-3 text-[0.9375rem] text-muted-foreground">
                 {explanatoryBlocks.map((block, i) => (
                   <NotionBlockRenderer
                     key={i}
@@ -212,22 +183,26 @@ export default function SupplementCardsSection({
               <SupplementSubSection
                 label="Morning Stack"
                 icon={
-                  <SunIcon size={16} weight="bold" className="text-amber-500" />
+                  <SunIcon
+                    size={15}
+                    weight="bold"
+                    className="text-[hsl(var(--dl-am))]"
+                  />
                 }
                 supplements={am}
-                accentColor="amber"
+                arc="am"
               />
               <SupplementSubSection
                 label="Evening Stack"
                 icon={
                   <MoonStarsIcon
-                    size={16}
+                    size={15}
                     weight="bold"
-                    className="text-indigo-400"
+                    className="text-[hsl(var(--dl-pm))]"
                   />
                 }
                 supplements={pm}
-                accentColor="indigo"
+                arc="pm"
               />
             </div>
           </div>

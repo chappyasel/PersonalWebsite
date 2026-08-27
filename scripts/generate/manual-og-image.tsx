@@ -13,25 +13,68 @@ import satori from "satori";
 import { Resvg } from "@resvg/resvg-js";
 import React from "react";
 
+import { DAYLIGHT, skyBand } from "./og-daylight";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const ROOT = join(__dirname, "../..");
 const OUTPUT = join(ROOT, "public/images/manual-og.png");
 const FONT_PATH = join(ROOT, "public/fonts/GeorgiaPro-Bold.ttf");
+const DATA_PATH = join(ROOT, "public/data/manual.json");
 
 const WIDTH = 1200;
 const HEIGHT = 630;
+const SKY_HEIGHT = 232;
 
-const sections = [
-  "Personality & Strengths",
-  "Collaboration",
-  "Communication",
-  "Feedback",
-  "Hobbies",
-];
+/**
+ * Section labels come from the synced data so they can never drift from the
+ * live page. The one long personality title gets the same kind of compression
+ * the reader does when scanning the page.
+ */
+const shortTitles: Record<string, string> = {
+  "personality-strengths-blind-spots": "Personality & Strengths",
+};
 
-const LABEL_COLOR = "hsl(25, 5%, 50%)";
+const data = JSON.parse(readFileSync(DATA_PATH, "utf-8")) as {
+  sections: { id: string; title: string }[];
+};
+
+const sections = data.sections.map((s) => shortTitles[s.id] ?? s.title);
+
+function joinWithDots(items: string[], fontSize: number) {
+  const children: React.ReactNode[] = [];
+  items.forEach((text, i) => {
+    if (i > 0) {
+      children.push(
+        React.createElement(
+          "span",
+          { key: `dot-${i}`, style: { color: "hsl(25, 5%, 65%)" } },
+          "·",
+        ),
+      );
+    }
+    children.push(
+      React.createElement(
+        "span",
+        { key: text, style: { color: DAYLIGHT.label } },
+        text,
+      ),
+    );
+  });
+  return React.createElement(
+    "div",
+    {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: "14px",
+        fontSize: `${fontSize}px`,
+      },
+    },
+    ...children,
+  );
+}
 
 function OGImage() {
   return React.createElement(
@@ -39,54 +82,48 @@ function OGImage() {
     {
       style: {
         display: "flex",
+        flexDirection: "column",
         width: "100%",
         height: "100%",
-        backgroundColor: "hsl(60, 9%, 98%)",
-        position: "relative",
-        overflow: "hidden",
-        alignItems: "center",
-        justifyContent: "center",
+        background: `linear-gradient(180deg, ${DAYLIGHT.arc0} 0%, ${DAYLIGHT.arc1} 45%, ${DAYLIGHT.arc2} 100%)`,
+        fontFamily: "Georgia Pro",
       },
     },
-    // Main content - single centered column
+    skyBand(WIDTH, SKY_HEIGHT),
+    // Ground content
     React.createElement(
       "div",
       {
         style: {
           display: "flex",
+          flex: 1,
           flexDirection: "column",
           alignItems: "center",
-          gap: "28px",
+          justifyContent: "center",
+          gap: "26px",
         },
       },
-      // Book icon + label
+      // Book icon + small-caps label
       React.createElement(
         "div",
-        {
-          style: {
-            display: "flex",
-            alignItems: "center",
-            gap: "14px",
-          },
-        },
+        { style: { display: "flex", alignItems: "center", gap: "14px" } },
         React.createElement(
           "svg",
-          { width: "30", height: "30", viewBox: "0 0 256 256", fill: "none" },
+          { width: "28", height: "28", viewBox: "0 0 256 256", fill: "none" },
           React.createElement("path", {
             d: "M228,48H164a44.06,44.06,0,0,0-36,18.77A44.06,44.06,0,0,0,92,48H32A20,20,0,0,0,12,68V192a20,20,0,0,0,20,20H96a20,20,0,0,1,20,20,12,12,0,0,0,24,0,20,20,0,0,1,20-20h68a20,20,0,0,0,20-20V68A20,20,0,0,0,228,48ZM92,188H36V72H92a20,20,0,0,1,20,20V192.81A43.79,43.79,0,0,0,92,188Zm128,0H164a43.79,43.79,0,0,0-20,4.81V92a20,20,0,0,1,20-20h56Z",
-            fill: LABEL_COLOR,
+            fill: DAYLIGHT.pm,
           }),
         ),
         React.createElement(
           "span",
           {
             style: {
-              fontSize: "26px",
+              fontSize: "25px",
               fontWeight: 700,
-              color: LABEL_COLOR,
+              color: DAYLIGHT.label,
               letterSpacing: "0.08em",
               textTransform: "uppercase" as const,
-              fontFamily: "Georgia Pro",
             },
           },
           "Personal Operating Manual",
@@ -97,12 +134,11 @@ function OGImage() {
         "div",
         {
           style: {
-            fontSize: "120px",
+            fontSize: "112px",
             fontWeight: 700,
-            color: "hsl(25, 5%, 38%)",
+            color: DAYLIGHT.fg,
             letterSpacing: "-0.02em",
             lineHeight: 1,
-            fontFamily: "Georgia Pro",
           },
         },
         "Chappy Asel",
@@ -112,58 +148,16 @@ function OGImage() {
         "div",
         {
           style: {
-            fontSize: "34px",
-            color: "hsl(25, 5%, 55%)",
+            fontSize: "31px",
+            color: DAYLIGHT.subtitle,
             lineHeight: 1.4,
-            fontFamily: "Georgia Pro",
           },
         },
         "How I work, communicate, and collaborate",
       ),
-      // Section pills
-      React.createElement(
-        "div",
-        {
-          style: {
-            display: "flex",
-            flexWrap: "wrap" as const,
-            justifyContent: "center",
-            gap: "12px",
-            marginTop: "8px",
-          },
-        },
-        ...sections.map((s) =>
-          React.createElement(
-            "div",
-            {
-              key: s,
-              style: {
-                fontSize: "22px",
-                color: LABEL_COLOR,
-                backgroundColor: "rgba(92, 87, 84, 0.08)",
-                padding: "10px 24px",
-                borderRadius: "24px",
-                fontFamily: "Georgia Pro",
-              },
-            },
-            s,
-          ),
-        ),
-      ),
+      // Section labels from the synced data
+      joinWithDots(sections, 22),
     ),
-    // Bottom border accent
-    React.createElement("div", {
-      style: {
-        position: "absolute",
-        bottom: 0,
-        left: 0,
-        width: "100%",
-        height: "4px",
-        display: "flex",
-        background:
-          "linear-gradient(90deg, hsl(25, 5%, 75%), hsl(25, 5%, 45%), hsl(25, 5%, 75%))",
-      },
-    }),
   );
 }
 
