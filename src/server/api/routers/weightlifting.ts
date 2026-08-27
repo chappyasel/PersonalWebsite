@@ -2,10 +2,7 @@ import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { revalidatePath, revalidateTag, unstable_cache } from "next/cache";
 import { z } from "zod";
 
-import {
-  computeDailyTraining,
-  computeTrainingAnalytics,
-} from "~/lib/weightlifting/analytics";
+import { computeTrainingAnalytics } from "~/lib/weightlifting/analytics";
 import {
   WEIGHTLIFTING_ACTIVITY_TAG,
   WEIGHTLIFTING_REVALIDATE,
@@ -496,17 +493,6 @@ export const weightliftingRouter = createTRPCRouter({
       rows.map((r) => ({ ...r, date: new Date(r.date) })),
     );
   }),
-
-  /** Per-day training volume for one year (stats popover heatmap) */
-  getDailyTraining: publicProcedure
-    .input(z.object({ year: z.number().int().min(2000).max(2100) }))
-    .query(async ({ input }) => {
-      const rows = await getCachedTrainingRows();
-      return computeDailyTraining(
-        rows.map((r) => ({ ...r, date: new Date(r.date) })),
-        input.year,
-      );
-    }),
 
   /** Manual sync trigger */
   triggerSync: protectedProcedure.mutation(async () => {

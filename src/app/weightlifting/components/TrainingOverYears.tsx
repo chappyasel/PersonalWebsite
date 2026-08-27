@@ -14,7 +14,6 @@ import {
   ChartTooltip,
 } from "~/components/ui/chart";
 import { Skeleton } from "~/components/ui/skeleton";
-import { YearHeatmap } from "~/components/ui/year-heatmap";
 
 /**
  * The headline training-history section: one bar per year (or per month
@@ -134,49 +133,6 @@ function formatAxisTick(value: number): string {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
   return String(value);
-}
-
-/** Sequential opacity steps for daily training volume (single-hue ramp) */
-function volumeToOpacity(volume: number): number {
-  if (volume < 5_000) return 0.25; // includes cardio-only days
-  if (volume < 10_000) return 0.45;
-  if (volume < 17_500) return 0.65;
-  if (volume < 25_000) return 0.82;
-  return 1;
-}
-
-/** Noon anchor keeps the UTC day from shifting in local time */
-function formatHeatmapDate(date: string): string {
-  return new Date(`${date}T12:00:00`).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-/** Daily training heatmap for one year */
-function TrainingHeatmap({ year }: { year: string }) {
-  const { data: daily } = api.weightlifting.getDailyTraining.useQuery(
-    { year: Number(year) },
-    { staleTime: 5 * 60 * 1000 },
-  );
-
-  return (
-    <YearHeatmap
-      year={year}
-      days={daily}
-      getOpacity={(entry) => volumeToOpacity(entry.volume)}
-      renderTooltip={(date, entry) => (
-        <p>
-          {formatHeatmapDate(date)}
-          {entry &&
-            `: ${entry.volume.toLocaleString()} lbs · ${entry.workouts} workout${
-              entry.workouts > 1 ? "s" : ""
-            }`}
-        </p>
-      )}
-    />
-  );
 }
 
 type ChartPoint = {
@@ -732,8 +688,6 @@ export function TrainingOverYears() {
           ))}
         </div>
       )}
-
-      {scope !== "all" && <TrainingHeatmap year={scope} />}
     </div>
   );
 }
