@@ -12,7 +12,7 @@ import type { ManualData } from "../types";
 
 function HeroPanel({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-border p-6">
+    <div className="rounded-lg border border-[hsl(var(--dl-border-strong))] bg-foreground/[0.03] p-6">
       <h3 className="mb-3 font-sans text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
       </h3>

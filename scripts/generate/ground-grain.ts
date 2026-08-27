@@ -24,15 +24,21 @@ import sharp from "sharp";
 const __filename = fileURLToPath(import.meta.url);
 const OUT_DIR = join(dirname(__filename), "../../public/images");
 
-const SIZE = 256;
+/**
+ * Rendered at 2x the 256px CSS display size: a 1x tile upscales 2-3x on
+ * retina displays, which blew each speckle up into a visible blob — the
+ * grain read far louder on phones than on the desktop it was tuned on.
+ */
+const SIZE = 512;
+const RASTER_SCALE = 2; // raster px per CSS px at the 256px background-size
 /**
  * Peak alpha of a single grain; average sits near a third of this. The dark
  * ground needs far less — white speckle on near-black reads several times
  * louder than black speckle on paper.
  */
 const VARIANTS = [
-  { file: "daylight-grain.png", amplitude: 0.045 },
-  { file: "daylight-grain-dark.png", amplitude: 0.018 },
+  { file: "daylight-grain.png", amplitude: 0.03 },
+  { file: "daylight-grain-dark.png", amplitude: 0.013 },
 ] as const;
 
 // Hoskins hash, as the dome shader uses (hash2 in SceneEnvironment.tsx).
@@ -68,7 +74,7 @@ function periodicVnoise(x: number, y: number, period: number): number {
 }
 
 async function main() {
-  const CLUMP_SCALE = 8; // px per lattice cell
+  const CLUMP_SCALE = 8 * RASTER_SCALE; // raster px per lattice cell (8 CSS px)
   const PERIOD = SIZE / CLUMP_SCALE;
   for (const { file, amplitude } of VARIANTS) {
     const rgba = Buffer.alloc(SIZE * SIZE * 4);

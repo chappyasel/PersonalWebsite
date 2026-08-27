@@ -773,6 +773,37 @@
   line-height: 1.2;
   text-wrap: balance;
 }
+/* Phones: the aspect-true strip shrinks below legibility (~46px at 390 wide)
+   and the fixed-height fog buries what is left. The hero borrows the 404's
+   treatment — a min-width skyline slowly panning its overhang — and the fog
+   thins to match; window lights and the moon come back with the size. */
+@media (max-width: 700px) {
+  .dl-hero .dl-skyline {
+    right: auto;
+    width: max(150vw, 900px);
+  }
+  .dl-hero .dl-sky-fade {
+    height: 2.5rem;
+  }
+  .dl-hero .dl-ground-blend {
+    height: 2.25rem;
+  }
+  .dl-hero-inner {
+    padding-top: 1.75rem;
+    padding-bottom: 10rem;
+  }
+  /* The pan carries the bridge away from a fixed tap zone; the easter egg
+     stays a desktop handshake. */
+  .dl-ggb-tap {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: no-preference) and (max-width: 700px) {
+  .dl-hero .dl-skyline {
+    animation: dl-skyline-pan 200s ease-in-out infinite alternate;
+  }
+}
+
 /* The shared ThemeToggle sits on the sky here; retint it without forking the
    component. */
 .dl-hero-inner [data-theme-toggle] {
