@@ -18,6 +18,8 @@
   --dl-sky-mid: 205 40% 51%;
   --dl-sky-low: 204 37% 57%;
   --dl-sky-glow: 33 84% 76%;
+  --dl-ember-size: 52% 24%;
+  --dl-ember-a: 0.8;
   --dl-sky-ink: 40 30% 96%;
   --dl-sil: 209 20% 45%;
   /* Golden Gate paint: daylightRendering.ts L23 goldenGatePaintLinear
@@ -78,11 +80,16 @@
   --dl-sky-mid: 220 26% 31%;
   --dl-sky-low: 222 31% 15%;
   --dl-sky-glow: 23 72% 56%;
+  --dl-ember-size: 40% 15%;
+  --dl-ember-a: 0.45;
   --dl-sky-ink: 220 25% 90%;
   --dl-sil: 222 37% 12%;
-  /* At night the dome drops the paint mix to 0.14 and lets the lights lead —
-     and now the strip HAS the lights. */
-  --dl-ggb: 10 34% 32%;
+  /* At night the dome drops the paint mix to 0.14 and lets the lights lead.
+     Computed as the shader computes it: mix(skyline #141b2b, the
+     goldenGatePaintLinear, 0.14) in linear light, then ggbNightHaze (~0.29
+     at deck elevation) toward the night haze base — a silhouette with a
+     whisper of warmth, backlit by the ember, its lamps carrying it. */
+  --dl-ggb: 343 17% 18%;
   /* theme.ts L98 skyWindow #ffbe73 at the shader's dark mix strength. */
   --dl-window: 33 100% 73%;
   --dl-window-op: 0.8;
@@ -163,12 +170,20 @@
 .dl-sky {
   position: absolute;
   inset: 0;
-  /* Ember at 90%: the dome anchors its glow at azimuth -1.15, which lands
-     90% of the way across the strip's [-2.24, -1.025] window. */
+  /* Ember at 91%: the dome anchors its glow at azimuth -1.15, 91% across
+     the strip's [-2.24, -1.025] window. Sized in PERCENTAGES of the sky
+     box, never rems — a fixed-rem ellipse spanned the whole viewport on a
+     phone and flooded the Golden Gate's end of the sky with orange. The
+     per-theme size/alpha mirror the shader: the light glow is broad and
+     soft (azFall sigma 0.42 rad ≈ 35% of the window, emberW 0.055); the
+     night glow is a narrower, thinner horizon band at a fraction of the
+     energy (sigma 0.28 rad ≈ 23%, emberW 0.020, amp 0.30·uDawn — drawn
+     here at the mid-traverse moment, the same authored-instant choice as
+     the cloud slice and the moon). */
   background:
     radial-gradient(
-      44rem 13rem at 90% 100%,
-      hsl(var(--dl-sky-glow) / 0.85),
+      var(--dl-ember-size) at 91% 100%,
+      hsl(var(--dl-sky-glow) / var(--dl-ember-a)),
       transparent 70%
     ),
     linear-gradient(
@@ -845,6 +860,24 @@
 }
 .dl-screen .dl-ground-blend {
   height: 5rem;
+}
+/* Night fog, both hero and screen. The dome's night haze caps at 0.35 at
+   the waterline (hazeAmt: mix(skylineHaze 0.18, 0.35, uDark)) and fades out
+   by e = 0.055 — nothing like the light theme's Karl. It also hazes toward
+   the authored dark fog color (theme.ts dark fog #253045), not toward
+   black; only the final pixels reach arc0 for the page handoff. These sit
+   last so they win over the hero, mobile, and screen variants. */
+.dark .dl-sky-fade {
+  height: 2.25rem;
+}
+.dark .dl-ground-blend {
+  height: 2.25rem;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    hsl(219 30% 21% / 0.5) 62%,
+    hsl(var(--dl-arc0)) 100%
+  );
 }
 
 /* ============ Golden Gate fireworks (the scene's easter egg) ============ */

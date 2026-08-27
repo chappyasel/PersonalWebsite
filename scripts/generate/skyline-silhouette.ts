@@ -601,8 +601,9 @@ const MOON = {
 // animations, needs no hydration, and costs the bundle nothing.
 function horizonSvg(theme: "light" | "dark"): string {
   const sil = theme === "light" ? "#5b7288" : "#141b2b";
-  // --dl-ggb, converted to hex per theme
-  const ggbHex = theme === "light" ? "#924f45" : "#6d3f36";
+  // --dl-ggb, converted to hex per theme (dark = the shader's night mix:
+  // 0.14 paint over the skyline hex, hazed — lights lead, paint whispers)
+  const ggbHex = theme === "light" ? "#924f45" : "#36262b";
   const win = theme === "light" ? "#ffca8a" : "#ffbe73";
   const winOp = theme === "light" ? 0.45 : 0.8;
   const silOp = theme === "light" ? 0.55 : 1;

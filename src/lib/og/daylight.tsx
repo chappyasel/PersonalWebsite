@@ -100,7 +100,9 @@ export const NIGHT = {
   ember: "#e07c3e",
   silhouette: "#141b2b",
   window: "#ffbe73",
-  ggb: "#6d3f36",
+  // The shader's night bridge: mix(skyline, paint, 0.14), hazed — a
+  // silhouette with a whisper of warmth whose lamps carry it.
+  ggb: "#36262b",
   lamp: "#ff9e3d",
   beacon: "#e61f1a",
   crown: "#c7b39e",
