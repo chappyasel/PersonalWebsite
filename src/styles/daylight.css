@@ -40,6 +40,10 @@
   --dl-ic-coffee: 24 44% 32%;
   --dl-ic-indigo: 256 24% 50%;
 
+  /* Ground grain (scripts/generate/ground-grain.ts); the dark ground takes
+     a much quieter variant. */
+  --dl-grain: url("/images/daylight-grain.png");
+
   /* One step firmer than the site --border, for the TOC rail. */
   --dl-border-strong: 20 6% 76%;
 
@@ -76,6 +80,8 @@
   --dl-ic-coffee: 26 36% 64%;
   --dl-ic-indigo: 256 30% 74%;
 
+  --dl-grain: url("/images/daylight-grain-dark.png");
+
   --dl-border-strong: 12 6% 26%;
 
   --dl-arc0: 18 20% 8%;
@@ -90,24 +96,35 @@
  * manual has no time story, so it gets the quiet warm wash that settles into
  * the plain page background instead.
  */
+/* Both grounds carry the generated paper grain
+   (scripts/generate/ground-grain.ts) over their gradient — the grainient's
+   tooth, held still. */
 .dl-ground-arc {
-  background-image: linear-gradient(
-    180deg,
-    hsl(var(--dl-arc0)) 0%,
-    hsl(var(--dl-arc1)) 14%,
-    hsl(var(--dl-arc2)) 40%,
-    hsl(var(--dl-arc2)) 48%,
-    hsl(var(--dl-arc3)) 76%,
-    hsl(var(--dl-arc4)) 100%
-  );
+  background-image:
+    var(--dl-grain),
+    linear-gradient(
+      180deg,
+      hsl(var(--dl-arc0)) 0%,
+      hsl(var(--dl-arc1)) 14%,
+      hsl(var(--dl-arc2)) 40%,
+      hsl(var(--dl-arc2)) 48%,
+      hsl(var(--dl-arc3)) 76%,
+      hsl(var(--dl-arc4)) 100%
+    );
+  background-repeat: repeat, no-repeat;
+  background-size: 256px 256px, auto;
 }
 .dl-ground-wash {
-  background-image: linear-gradient(
-    180deg,
-    hsl(var(--dl-arc0)) 0%,
-    hsl(var(--dl-arc1)) 20%,
-    hsl(var(--dl-arc2)) 50%
-  );
+  background-image:
+    var(--dl-grain),
+    linear-gradient(
+      180deg,
+      hsl(var(--dl-arc0)) 0%,
+      hsl(var(--dl-arc1)) 20%,
+      hsl(var(--dl-arc2)) 50%
+    );
+  background-repeat: repeat, no-repeat;
+  background-size: 256px 256px, auto;
 }
 
 /* ============ Sky-band hero ============ */
