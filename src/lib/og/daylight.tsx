@@ -94,15 +94,17 @@ export function skyline(width: number) {
  * L98 skyWindow #ffbe73 — plus the night-layer paints the pages use.
  */
 export const NIGHT = {
-  skyTop: "#1e2842",
-  skyMid: "#3a4762",
-  skyLow: "#1b2233",
+  // Measured from the rendered scene (post-ACES, post-grade), not from
+  // theme.ts inputs — see the .dark .daylight-root notes in daylight.css.
+  skyTop: "#1c284d",
+  skyMid: "#2e3e67",
+  skyLow: "#2b3050",
   ember: "#e07c3e",
-  silhouette: "#141b2b",
+  silhouette: "#191a2c",
   window: "#ffbe73",
-  // The shader's night bridge: mix(skyline, paint, 0.14), hazed — a
-  // silhouette with a whisper of warmth whose lamps carry it.
-  ggb: "#36262b",
+  // The bridge as the scene renders it at night: vivid rose-red
+  // (measured #b33b4a at the towers).
+  ggb: "#a63a46",
   lamp: "#ff9e3d",
   beacon: "#e61f1a",
   crown: "#c7b39e",

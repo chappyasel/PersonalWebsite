@@ -74,22 +74,27 @@
 }
 
 .dark .daylight-root {
-  /* Sky, dark — theme.ts L89 skyTop #1e2842, L90 skyHorizon #3a4762,
-     L91 skyShadow #1b2233, L92 skyEmber #e07c3e, L97 skyline #141b2b */
-  --dl-sky-top: 223 38% 19%;
-  --dl-sky-mid: 220 26% 31%;
-  --dl-sky-low: 222 31% 15%;
+  /* Sky, dark — MEASURED from the rendered scene, not from theme.ts: the
+     dome runs its authored hexes through ACES tone mapping and a color
+     grade, and the render comes out lighter and bluer than the inputs
+     (headless capture scene-dark-west, dark theme at rest: sky top
+     #1c284d, mid #2e3e67, and the band behind the skyline #2b3050 — the
+     authored skyShadow #1b2233 sits BELOW the visible horizon). Using the
+     raw hexes put the darkest sky exactly where the silhouette stands,
+     which is why the skyline kept vanishing at night. */
+  --dl-sky-top: 225 47% 21%;
+  --dl-sky-mid: 223 38% 29%;
+  --dl-sky-low: 230 30% 24%;
   --dl-sky-glow: 23 72% 56%;
   --dl-ember-size: 40% 15%;
   --dl-ember-a: 0.45;
   --dl-sky-ink: 220 25% 90%;
-  --dl-sil: 222 37% 12%;
-  /* At night the dome drops the paint mix to 0.14 and lets the lights lead.
-     Computed as the shader computes it: mix(skyline #141b2b, the
-     goldenGatePaintLinear, 0.14) in linear light, then ggbNightHaze (~0.29
-     at deck elevation) toward the night haze base — a silhouette with a
-     whisper of warmth, backlit by the ember, its lamps carrying it. */
-  --dl-ggb: 343 17% 18%;
+  /* Measured ridge/building silhouette: #1a192a. */
+  --dl-sil: 240 25% 13%;
+  /* The bridge as the scene actually renders it at night: the paint plus
+     the beacon/lamp wash through ACES reads as a vivid rose-red — measured
+     #b33b4a at the towers, ~#94383f across the blurred structure. */
+  --dl-ggb: 352 48% 44%;
   /* theme.ts L98 skyWindow #ffbe73 at the shader's dark mix strength. */
   --dl-window: 33 100% 73%;
   --dl-window-op: 0.8;

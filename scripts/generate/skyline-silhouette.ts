@@ -603,7 +603,9 @@ function horizonSvg(theme: "light" | "dark"): string {
   const sil = theme === "light" ? "#5b7288" : "#141b2b";
   // --dl-ggb, converted to hex per theme (dark = the shader's night mix:
   // 0.14 paint over the skyline hex, hazed — lights lead, paint whispers)
-  const ggbHex = theme === "light" ? "#924f45" : "#36262b";
+  // Dark = the bridge as the scene renders it at night (measured #b33b4a
+  // at the beacon-lit towers; see daylight.css --dl-ggb notes).
+  const ggbHex = theme === "light" ? "#924f45" : "#a63a46";
   const win = theme === "light" ? "#ffca8a" : "#ffbe73";
   const winOp = theme === "light" ? 0.45 : 0.8;
   const silOp = theme === "light" ? 0.55 : 1;
