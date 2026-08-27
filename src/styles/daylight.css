@@ -56,9 +56,11 @@
   --dl-border-strong: 20 6% 76%;
 
   /* Framed prints: the scene hangs its images in weathered frames with
-     mats; the pages hang theirs the same way. */
-  --dl-mat: 40 28% 97%;
-  --dl-frame: 28 12% 52%;
+     mats; the pages hang theirs the same way. Frame is the wood, lip is the
+     lit inner edge where frame meets mat. */
+  --dl-mat: 40 30% 96%;
+  --dl-frame: 28 12% 46%;
+  --dl-frame-lip: 40 35% 88%;
 
   /* Ground arc: hue-biased neutrals tracing dawn -> noon -> dusk. arc2 is the
      site background verbatim so the noon plateau disappears into the page. */
@@ -103,9 +105,11 @@
 
   --dl-border-strong: 12 6% 26%;
 
-  /* A print on a dark wall keeps its light mat, dimmed to lamplight. */
-  --dl-mat: 39 14% 84%;
-  --dl-frame: 24 10% 30%;
+  /* A print on a dark wall keeps its light mat, dimmed to lamplight; the
+     frame goes to dark walnut and the lip catches what light there is. */
+  --dl-mat: 40 10% 78%;
+  --dl-frame: 25 12% 23%;
+  --dl-frame-lip: 35 10% 42%;
 
   --dl-arc0: 18 20% 8%;
   --dl-arc1: 30 15% 7.5%;
@@ -888,47 +892,36 @@
   }
 }
 
-/* ============ Horizon footer (flat home) ============ */
-
-/* The skyline as a page-closing horizon on the flat home: quieter than on
-   the sky (it sits on paper, not atmosphere); dark lets the night layer's
-   own lights carry it. */
-.dl-horizon {
-  color: hsl(var(--dl-sil) / 0.55);
-  line-height: 0;
-}
-.dark .dl-horizon {
-  color: hsl(var(--dl-sil));
-}
-.dl-horizon svg {
-  width: 100%;
-  height: auto;
-  display: block;
-  overflow: visible;
-}
-
 /* ============ Framed prints ============ */
 
-/* Content images hang the way the scene hangs its previews: a mat, a
-   hairline frame, a soft cast shadow. Square corners — prints, not chips. */
+/* Content images hang the way the scene hangs its previews: a real frame
+   (wood-weight border with a lit inner lip), a mat, a bevel line at the
+   mat's opening, and a soft cast shadow. Corners barely eased — a frame,
+   not a chip. */
 .dl-print {
   display: inline-block;
-  padding: 0.55rem;
+  padding: 0.6rem;
   background: hsl(var(--dl-mat));
-  border: 1px solid hsl(var(--dl-frame) / 0.5);
+  border: 3px solid hsl(var(--dl-frame));
+  border-radius: 3px;
   box-shadow:
-    0 1px 2px rgb(0 0 0 / 0.1),
-    0 8px 20px -10px rgb(0 0 0 / 0.22);
+    inset 0 0 0 1px hsl(var(--dl-frame-lip) / 0.7),
+    0 1px 2px rgb(0 0 0 / 0.12),
+    0 10px 26px -12px rgb(0 0 0 / 0.3);
 }
 .dl-print img {
   display: block;
+  border-radius: 1px;
+  /* The mat's bevel: a crisp line where the opening is cut. */
+  box-shadow: 0 0 0 1px hsl(var(--dl-frame) / 0.28);
 }
 /* Inline book covers get the same treatment at reading-line scale. */
 .dl-cover {
   padding: 1.5px;
   background: hsl(var(--dl-mat));
-  border: 1px solid hsl(var(--dl-frame) / 0.45);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.16);
+  border: 1px solid hsl(var(--dl-frame) / 0.8);
+  border-radius: 1px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.18);
 }
 
 /* ============ Section headers ============ */

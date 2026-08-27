@@ -13,7 +13,7 @@ import satori from "satori";
 import { Resvg } from "@resvg/resvg-js";
 import React from "react";
 
-import { DAYLIGHT, skyBand } from "./og-daylight";
+import { NIGHT, nightSky } from "../../src/lib/og/daylight";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -25,7 +25,6 @@ const DATA_PATH = join(ROOT, "public/data/routine.json");
 
 const WIDTH = 1200;
 const HEIGHT = 630;
-const SKY_HEIGHT = 232;
 
 /**
  * The label row mirrors the live page's TOC exactly: the fixed sections, then
@@ -62,7 +61,7 @@ function joinWithDots(
       children.push(
         React.createElement(
           "span",
-          { key: `dot-${i}`, style: { color: "hsl(25, 5%, 65%)" } },
+          { key: `dot-${i}`, style: { color: NIGHT.inkFaint } },
           "·",
         ),
       );
@@ -70,7 +69,7 @@ function joinWithDots(
     children.push(
       React.createElement(
         "span",
-        { key: item.text, style: { color: item.color ?? DAYLIGHT.label } },
+        { key: item.text, style: { color: item.color ?? NIGHT.inkFaint } },
         item.text,
       ),
     );
@@ -98,77 +97,73 @@ function OGImage() {
         flexDirection: "column",
         width: "100%",
         height: "100%",
-        background: `linear-gradient(180deg, ${DAYLIGHT.arc0} 0%, ${DAYLIGHT.arc1} 45%, ${DAYLIGHT.arc2} 100%)`,
         fontFamily: "Georgia Pro",
       },
     },
-    skyBand(WIDTH, SKY_HEIGHT),
-    // Ground content
+    nightSky(WIDTH, HEIGHT),
+    // Content rides high in the sky; the skyline keeps the bottom.
     React.createElement(
       "div",
       {
         style: {
           display: "flex",
-          flex: 1,
           flexDirection: "column",
           alignItems: "center",
-          justifyContent: "center",
-          gap: "26px",
+          paddingTop: "92px",
+          gap: "24px",
         },
       },
-      // Sun icon + small-caps label
-      React.createElement(
-        "div",
-        { style: { display: "flex", alignItems: "center", gap: "14px" } },
-        React.createElement(
-          "svg",
-          { width: "28", height: "28", viewBox: "0 0 256 256", fill: "none" },
-          React.createElement("path", {
-            d: "M128,40a12,12,0,0,1,12-12h0a12,12,0,0,1,12,12V52a12,12,0,0,1-12,12h0A12,12,0,0,1,128,52ZM60,128a68,68,0,1,0,68-68A68.07,68.07,0,0,0,60,128Zm24,0a44,44,0,1,1,44,44A44.05,44.05,0,0,1,84,128ZM40,116H28a12,12,0,0,0,0,24H40a12,12,0,0,0,0-24Zm88,88a12,12,0,0,0-12,12v12a12,12,0,0,0,24,0V216A12,12,0,0,0,128,204Zm88-88H204a12,12,0,0,0,0,24h12a12,12,0,0,0,0-24ZM59.76,68.24a12,12,0,1,0,17-17l-8.48-8.48a12,12,0,0,0-17,17Zm0,119.52-8.48,8.48a12,12,0,0,0,17,17l8.48-8.48a12,12,0,1,0-17-17Zm136.48,0a12,12,0,0,0-17,17l8.48,8.48a12,12,0,0,0,17-17Zm0-119.52,8.48-8.48a12,12,0,0,0-17-17l-8.48,8.48a12,12,0,0,0,17,17Z",
-            fill: DAYLIGHT.am,
-          }),
-        ),
-        React.createElement(
-          "span",
-          {
-            style: {
-              fontSize: "25px",
-              fontWeight: 700,
-              color: DAYLIGHT.label,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase" as const,
-            },
-          },
-          "Core Daily Routine",
-        ),
-      ),
-      // Name
       React.createElement(
         "div",
         {
           style: {
-            fontSize: "112px",
+            fontSize: "23px",
             fontWeight: 700,
-            color: DAYLIGHT.fg,
-            letterSpacing: "-0.02em",
-            lineHeight: 1,
+            color: NIGHT.inkMuted,
+            letterSpacing: "0.34em",
+            textTransform: "uppercase" as const,
           },
         },
         "Chappy Asel",
       ),
+      React.createElement(
+        "div",
+        {
+          style: {
+            fontSize: "84px",
+            fontWeight: 700,
+            color: NIGHT.ink,
+            letterSpacing: "-0.015em",
+            lineHeight: 1,
+          },
+        },
+        "Core Daily Routine",
+      ),
+      // A short ember rule instead of a tilde
+      React.createElement("div", {
+        style: {
+          width: "68px",
+          height: "3px",
+          borderRadius: "2px",
+          backgroundColor: NIGHT.ember,
+          opacity: 0.75,
+          marginTop: "6px",
+          marginBottom: "8px",
+        },
+      }),
       // Schedule beats, tinted by arm of the day
       joinWithDots(
         [
-          { text: "3:45am wake", color: DAYLIGHT.am },
-          { text: "6:00am lift", color: DAYLIGHT.am },
-          { text: "9:15pm sleep", color: DAYLIGHT.pm },
+          { text: "3:45am wake", color: NIGHT.am },
+          { text: "6:00am lift", color: NIGHT.am },
+          { text: "9:15pm sleep", color: NIGHT.pm },
         ],
-        31,
+        30,
       ),
       // Section labels from the synced data
       joinWithDots(
         sections.map((s) => ({ text: s })),
-        22,
+        21,
       ),
     ),
   );

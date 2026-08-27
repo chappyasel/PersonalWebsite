@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { ImageResponse } from "next/og";
 
 import { loadGeorgiaProBold } from "~/app/books/[bookId]/fonts";
-import { DAYLIGHT, skyBand } from "~/lib/og/daylight";
+import { NIGHT, nightSky } from "~/lib/og/daylight";
 import { db } from "~/server/db";
 import { wlSets, wlWorkouts } from "~/server/db/schema";
 
@@ -119,26 +119,54 @@ export default async function Image() {
             flexDirection: "column",
             width: "100%",
             height: "100%",
-            background: `linear-gradient(180deg, ${DAYLIGHT.arc0} 0%, ${DAYLIGHT.arc1} 55%, ${DAYLIGHT.arc2} 100%)`,
             fontFamily: '"Georgia Pro"',
-            color: DAYLIGHT.fg,
+            color: NIGHT.ink,
           }}
         >
-          {skyBand(1200, 196)}
-          {/* Title */}
+          {nightSky(1200, 630)}
+          {/* Kicker / title / ember rule */}
           <div
             style={{
               display: "flex",
-              justifyContent: "center",
-              fontSize: "60px",
-              fontWeight: 700,
-              color: DAYLIGHT.fg,
-              letterSpacing: "-0.02em",
-              marginTop: "26px",
+              flexDirection: "column",
+              alignItems: "center",
+              paddingTop: "64px",
               marginBottom: "40px",
             }}
           >
-            Weightlifting ~ Chappy Asel
+            <div
+              style={{
+                fontSize: "23px",
+                fontWeight: 700,
+                color: NIGHT.inkMuted,
+                letterSpacing: "0.34em",
+                textTransform: "uppercase",
+              }}
+            >
+              Chappy Asel
+            </div>
+            <div
+              style={{
+                fontSize: "76px",
+                fontWeight: 700,
+                color: NIGHT.ink,
+                letterSpacing: "-0.015em",
+                lineHeight: 1,
+                marginTop: "22px",
+              }}
+            >
+              Weightlifting
+            </div>
+            <div
+              style={{
+                width: "68px",
+                height: "3px",
+                borderRadius: "2px",
+                backgroundColor: NIGHT.ember,
+                opacity: 0.75,
+                marginTop: "26px",
+              }}
+            />
           </div>
 
           {/* Stats Row */}
@@ -164,7 +192,7 @@ export default async function Image() {
                   style={{
                     fontSize: "50px",
                     fontWeight: 700,
-                    color: DAYLIGHT.fg,
+                    color: NIGHT.ink,
                   }}
                 >
                   {stat.value}
@@ -172,7 +200,7 @@ export default async function Image() {
                 <div
                   style={{
                     fontSize: "21px",
-                    color: DAYLIGHT.label,
+                    color: NIGHT.inkFaint,
                     textTransform: "uppercase",
                     letterSpacing: "0.08em",
                   }}
@@ -190,7 +218,7 @@ export default async function Image() {
                 display: "flex",
                 justifyContent: "center",
                 gap: "80px",
-                borderTop: "1px solid hsl(20, 6%, 82%)",
+                borderTop: "1px solid rgba(222, 227, 239, 0.22)",
                 margin: "0 80px",
                 paddingTop: "32px",
               }}
@@ -208,7 +236,7 @@ export default async function Image() {
                   <div
                     style={{
                       fontSize: "21px",
-                      color: DAYLIGHT.label,
+                      color: NIGHT.inkFaint,
                       textTransform: "uppercase",
                       letterSpacing: "0.06em",
                     }}
@@ -219,12 +247,12 @@ export default async function Image() {
                     style={{
                       fontSize: "42px",
                       fontWeight: 700,
-                      color: DAYLIGHT.am,
+                      color: NIGHT.am,
                     }}
                   >
                     {`${pr.oneRM} lbs`}
                   </div>
-                  <div style={{ display: "flex", fontSize: "20px", color: DAYLIGHT.subtitle }}>
+                  <div style={{ display: "flex", fontSize: "20px", color: NIGHT.inkMuted }}>
                     {`${pr.weight} x ${pr.reps} est. 1RM`}
                   </div>
                 </div>
@@ -254,13 +282,13 @@ export default async function Image() {
             display: "flex",
             width: "100%",
             height: "100%",
-            backgroundColor: "hsl(46, 30%, 95.5%)",
+            backgroundColor: "#1e2842",
             alignItems: "center",
             justifyContent: "center",
             fontFamily: "Georgia, serif",
             fontSize: "64px",
             fontWeight: 700,
-            color: "hsl(25, 6%, 32%)",
+            color: "hsl(220, 25%, 92%)",
           }}
         >
           Weightlifting ~ Chappy Asel

@@ -13,7 +13,7 @@ import satori from "satori";
 import { Resvg } from "@resvg/resvg-js";
 import React from "react";
 
-import { DAYLIGHT, skyBand } from "./og-daylight";
+import { NIGHT, nightSky } from "../../src/lib/og/daylight";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -25,7 +25,6 @@ const DATA_PATH = join(ROOT, "public/data/manual.json");
 
 const WIDTH = 1200;
 const HEIGHT = 630;
-const SKY_HEIGHT = 232;
 
 /**
  * Section labels come from the synced data so they can never drift from the
@@ -49,7 +48,7 @@ function joinWithDots(items: string[], fontSize: number) {
       children.push(
         React.createElement(
           "span",
-          { key: `dot-${i}`, style: { color: "hsl(25, 5%, 65%)" } },
+          { key: `dot-${i}`, style: { color: NIGHT.inkFaint } },
           "·",
         ),
       );
@@ -57,7 +56,7 @@ function joinWithDots(items: string[], fontSize: number) {
     children.push(
       React.createElement(
         "span",
-        { key: text, style: { color: DAYLIGHT.label } },
+        { key: text, style: { color: NIGHT.inkFaint } },
         text,
       ),
     );
@@ -85,78 +84,73 @@ function OGImage() {
         flexDirection: "column",
         width: "100%",
         height: "100%",
-        background: `linear-gradient(180deg, ${DAYLIGHT.arc0} 0%, ${DAYLIGHT.arc1} 45%, ${DAYLIGHT.arc2} 100%)`,
         fontFamily: "Georgia Pro",
       },
     },
-    skyBand(WIDTH, SKY_HEIGHT),
-    // Ground content
+    nightSky(WIDTH, HEIGHT),
+    // Content rides high in the sky; the skyline keeps the bottom.
     React.createElement(
       "div",
       {
         style: {
           display: "flex",
-          flex: 1,
           flexDirection: "column",
           alignItems: "center",
-          justifyContent: "center",
-          gap: "26px",
+          paddingTop: "92px",
+          gap: "24px",
         },
       },
-      // Book icon + small-caps label
-      React.createElement(
-        "div",
-        { style: { display: "flex", alignItems: "center", gap: "14px" } },
-        React.createElement(
-          "svg",
-          { width: "28", height: "28", viewBox: "0 0 256 256", fill: "none" },
-          React.createElement("path", {
-            d: "M228,48H164a44.06,44.06,0,0,0-36,18.77A44.06,44.06,0,0,0,92,48H32A20,20,0,0,0,12,68V192a20,20,0,0,0,20,20H96a20,20,0,0,1,20,20,12,12,0,0,0,24,0,20,20,0,0,1,20-20h68a20,20,0,0,0,20-20V68A20,20,0,0,0,228,48ZM92,188H36V72H92a20,20,0,0,1,20,20V192.81A43.79,43.79,0,0,0,92,188Zm128,0H164a43.79,43.79,0,0,0-20,4.81V92a20,20,0,0,1,20-20h56Z",
-            fill: DAYLIGHT.pm,
-          }),
-        ),
-        React.createElement(
-          "span",
-          {
-            style: {
-              fontSize: "25px",
-              fontWeight: 700,
-              color: DAYLIGHT.label,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase" as const,
-            },
-          },
-          "Personal Operating Manual",
-        ),
-      ),
-      // Name
       React.createElement(
         "div",
         {
           style: {
-            fontSize: "112px",
+            fontSize: "23px",
             fontWeight: 700,
-            color: DAYLIGHT.fg,
-            letterSpacing: "-0.02em",
-            lineHeight: 1,
+            color: NIGHT.inkMuted,
+            letterSpacing: "0.34em",
+            textTransform: "uppercase" as const,
           },
         },
         "Chappy Asel",
       ),
-      // Subtitle
       React.createElement(
         "div",
         {
           style: {
-            fontSize: "31px",
-            color: DAYLIGHT.subtitle,
+            fontSize: "76px",
+            fontWeight: 700,
+            color: NIGHT.ink,
+            letterSpacing: "-0.015em",
+            lineHeight: 1,
+          },
+        },
+        "Personal Operating Manual",
+      ),
+      // A short ember rule instead of a tilde
+      React.createElement("div", {
+        style: {
+          width: "68px",
+          height: "3px",
+          borderRadius: "2px",
+          backgroundColor: NIGHT.ember,
+          opacity: 0.75,
+          marginTop: "6px",
+          marginBottom: "8px",
+        },
+      }),
+      React.createElement(
+        "div",
+        {
+          style: {
+            fontSize: "29px",
+            color: NIGHT.inkMuted,
             lineHeight: 1.4,
           },
         },
         "How I work, communicate, and collaborate",
       ),
       // Section labels from the synced data
-      joinWithDots(sections, 22),
+      joinWithDots(sections, 21),
     ),
   );
 }
