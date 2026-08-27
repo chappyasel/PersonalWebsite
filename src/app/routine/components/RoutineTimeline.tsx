@@ -23,17 +23,23 @@ function TimelineSection({
 
   return (
     <section id={id} data-arc={arc} className="dl-tl scroll-mt-24">
-      {/* Section header, indented to the title column with its icon node
-          hanging back on the axis */}
-      <div className="dl-tl-h group/sec flex items-center gap-2.5">
-        <span className="dl-tl-node">
-          <SectionIcon id={id} size={22} />
-        </span>
+      {/* Same flush header as every other section; the arm's tint lives on
+          the icon and the axis is the entries' spine below. */}
+      <div className="group/sec flex items-center gap-2.5 border-b border-border/80 pb-2">
+        <SectionIcon
+          id={id}
+          size={18}
+          className={`shrink-0 ${
+            arc === "am"
+              ? "text-[hsl(var(--dl-am))]"
+              : "text-[hsl(var(--dl-pm))]"
+          }`}
+        />
         <h2 className="dl-h2">{label}</h2>
         <AnchorLink id={id} />
       </div>
 
-      <div className="mt-4">
+      <div className="dl-tl-body mt-2">
         {entries.map((entry, i) => (
           <TimelineEntry
             key={i}

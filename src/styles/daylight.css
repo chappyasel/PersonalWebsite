@@ -203,13 +203,13 @@
  * Geometry: each entry row is a grid of
  * [4.25rem time][1.3rem dot][0.9rem caret][title], so the axis runs through
  * the dot column's center at 4.9rem and entry bodies indent to the title
- * column at 6.45rem. Section headers indent to 6rem and hang their icon node
- * back onto the axis.
+ * column at 6.45rem. Section headers sit flush left like every other
+ * section's; the axis is the entries' spine below them.
  */
-.dl-tl {
+.dl-tl-body {
   position: relative;
 }
-.dl-tl::before {
+.dl-tl-body::before {
   content: "";
   position: absolute;
   left: calc(4.9rem - 1px);
@@ -218,7 +218,7 @@
   width: 2px;
   border-radius: 2px;
 }
-.dl-tl[data-arc="am"]::before {
+.dl-tl[data-arc="am"] .dl-tl-body::before {
   background: linear-gradient(
     180deg,
     hsl(var(--dl-am-line) / 0.25),
@@ -226,45 +226,12 @@
     hsl(var(--dl-am-line) / 0.45)
   );
 }
-.dl-tl[data-arc="pm"]::before {
+.dl-tl[data-arc="pm"] .dl-tl-body::before {
   background: linear-gradient(
     180deg,
     hsl(var(--dl-pm-line) / 0.35),
     hsl(var(--dl-pm-line)) 30%,
     hsl(var(--dl-pm-line) / 0.4)
-  );
-}
-.dl-tl-h {
-  position: relative;
-  margin-left: 6rem;
-}
-.dl-tl-node {
-  position: absolute;
-  left: -2.125rem;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.3rem;
-  border-radius: 999px;
-  /* Opaque base masks the axis line passing behind the node; the tint rides
-     on top of it. */
-  background-color: hsl(var(--background));
-  z-index: 1;
-}
-.dl-tl[data-arc="am"] .dl-tl-node {
-  color: hsl(var(--dl-am));
-  background-image: linear-gradient(
-    hsl(var(--dl-am-chip) / 0.16),
-    hsl(var(--dl-am-chip) / 0.16)
-  );
-}
-.dl-tl[data-arc="pm"] .dl-tl-node {
-  color: hsl(var(--dl-pm));
-  background-image: linear-gradient(
-    hsl(var(--dl-pm-chip) / 0.16),
-    hsl(var(--dl-pm-chip) / 0.16)
   );
 }
 .dl-entry-head {
@@ -315,11 +282,8 @@
   .dl-entry-head {
     grid-template-columns: 3.7rem 1.2rem 0.9rem minmax(0, 1fr);
   }
-  .dl-tl::before {
+  .dl-tl-body::before {
     left: calc(4.3rem - 1px);
-  }
-  .dl-tl-h {
-    margin-left: 5.35rem;
   }
   .dl-entry-body {
     padding-left: 1.25rem;
