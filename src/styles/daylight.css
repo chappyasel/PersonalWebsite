@@ -194,18 +194,19 @@
     radial-gradient(2.5px 2.5px at 51% 24%, hsl(0 0% 100% / 0.75), transparent 60%),
     radial-gradient(2px 2px at 67% 36%, hsl(0 0% 100% / 0.7), transparent 60%);
 }
-/* One shooting star every ~30s, dark theme only. A single authored
-   trajectory: brief, high, gone in under a second. */
+/* One shooting star every ~26s, dark theme only. A single authored
+   trajectory across the open upper-left sky — clear of the title column —
+   brief and gone in under a second. */
 .dl-shooting-star {
   display: none;
   position: absolute;
-  top: 14%;
-  left: 12%;
-  width: 92px;
+  top: 8%;
+  left: 5%;
+  width: 110px;
   height: 2px;
   border-radius: 999px;
-  background: linear-gradient(90deg, transparent, hsl(0 0% 100% / 0.95));
-  box-shadow: 0 0 6px hsl(0 0% 100% / 0.4);
+  background: linear-gradient(90deg, transparent, hsl(0 0% 100%));
+  box-shadow: 0 0 7px hsl(0 0% 100% / 0.5);
   opacity: 0;
 }
 .dark .dl-shooting-star {
@@ -221,7 +222,9 @@
   position: absolute;
   top: 22%;
   left: 0;
-  color: hsl(var(--dl-sil) / 0.85);
+  /* The shader draws the bird by multiplying the sky to 30% of itself —
+     a true silhouette, not a tint. This is that same rule. */
+  color: color-mix(in srgb, hsl(var(--dl-sky-mid)), black 70%);
   opacity: 0;
 }
 .dark .dl-birds {
@@ -264,17 +267,20 @@
     animation-delay: -2.9s;
   }
   .dl-shooting-star {
-    animation: dl-shooting-star 31s linear infinite;
-    animation-delay: 5s;
+    animation: dl-shooting-star 26s linear infinite;
+    animation-delay: 3s;
   }
   /* One tile per 234s is the dome's own drift: its clouds advance at 0.0052
      rad/s across the 1.215 rad window. */
-  .dl-cloud-strip {
+  .dl-clouds::before {
     animation: dl-cloud-drift 234s linear infinite;
   }
+  /* The dome flies its pair every 74s — a cadence for a scene you inhabit
+     for minutes. The hero gets seconds of attention, so here they come
+     every 32, first crossing moments after load. */
   .dl-birds {
-    animation: dl-birds-cross 74s linear infinite;
-    animation-delay: 4s;
+    animation: dl-birds-cross 32s linear infinite;
+    animation-delay: 1.5s;
   }
   .dl-bird svg {
     animation: dl-bob 3.4s ease-in-out infinite alternate;
@@ -323,18 +329,18 @@
 }
 @keyframes dl-shooting-star {
   0% {
-    transform: rotate(16deg) translateX(0);
+    transform: rotate(14deg) translateX(0);
     opacity: 0;
   }
   0.6% {
-    opacity: 0.9;
+    opacity: 0.95;
   }
   2.4% {
-    transform: rotate(16deg) translateX(420px);
+    transform: rotate(14deg) translateX(440px);
     opacity: 0;
   }
   100% {
-    transform: rotate(16deg) translateX(420px);
+    transform: rotate(14deg) translateX(440px);
     opacity: 0;
   }
 }
@@ -343,23 +349,23 @@
     transform: translateX(0);
   }
   to {
-    transform: translateX(-50%);
+    transform: translateX(-100vw);
   }
 }
-/* The pair crosses in eleven seconds of the 74s cycle (11/74 = 14.9%),
+/* The pair crosses in eleven seconds of the 32s cycle (11/32 = 34.4%),
    fading at the ends so nothing pops — the shader's own gates. */
 @keyframes dl-birds-cross {
   0% {
     transform: translateX(-8vw);
     opacity: 0;
   }
-  1.6% {
+  3.4% {
     opacity: 1;
   }
-  13.3% {
+  30.9% {
     opacity: 1;
   }
-  14.9% {
+  34.4% {
     transform: translateX(102vw);
     opacity: 0;
   }
@@ -498,24 +504,32 @@
 }
 /* Shader-generated thin daylight clouds (scripts/generate/sky-clouds.ts),
    bottom-anchored to the horizon like the skyline. The dome gates its clouds
-   to the light theme (`day`); dark keeps the stars instead. The tile is
-   horizontally seamless, so the strip holds two copies and translates by one
-   tile — an endless loop with no exposed edge at any width. */
+   to the light theme (`day`); dark keeps the stars instead.
+
+   Drawn as a repeat-x BACKGROUND, not as <img> elements: the browser tiles
+   the seamless PNG infinitely in both directions, so no edge can exist at
+   any width, zoom, or point in the drift — and there is no image element to
+   lazy-load, size, or duplicate. The tile is one viewport wide
+   (background-size 100vw), so translating the layer by exactly -100vw per
+   cycle lands on an identical phase and the loop never shows a seam. */
 .dl-clouds {
   position: absolute;
   left: 0;
   right: 0;
   bottom: -1px;
+  /* 342/1600 of the 100vw tile */
+  height: 21.375vw;
   overflow: hidden;
 }
-.dl-cloud-strip {
-  display: flex;
-  width: 200%;
-}
-.dl-cloud-strip img {
-  display: block;
-  width: 50%;
-  height: auto;
+.dl-clouds::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: calc(100% + 100vw);
+  background: url("/images/daylight-clouds.png") left bottom repeat-x;
+  background-size: 100vw auto;
 }
 .dark .dl-clouds {
   display: none;

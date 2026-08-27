@@ -1,5 +1,3 @@
-import Image from "next/image";
-
 import Skyline from "./Skyline";
 
 /**
@@ -70,29 +68,9 @@ export default function DaylightSky() {
       <div className="dl-stars" />
       <div className="dl-stars-b" />
       <div className="dl-shooting-star" />
-      <div className="dl-clouds">
-        {/* Two copies of the seamless tile; the strip translates by one tile
-            and snaps back invisibly. The second copy starts a full viewport
-            off-screen to the right — past Chrome's lazy-load distance on any
-            reasonably wide window — so it MUST be eager, or it never loads
-            and the drift slowly reveals a blank tile. */}
-        <div className="dl-cloud-strip">
-          <Image
-            src="/images/daylight-clouds.png"
-            alt=""
-            width={1600}
-            height={342}
-            priority
-          />
-          <Image
-            src="/images/daylight-clouds.png"
-            alt=""
-            width={1600}
-            height={342}
-            loading="eager"
-          />
-        </div>
-      </div>
+      {/* The cloud layer is pure CSS — a repeat-x background on ::before —
+          so there is no image element to lazy-load or run out of. */}
+      <div className="dl-clouds" />
       <div className="dl-birds">
         <div className="dl-bird dl-bird-a">
           <Bird />

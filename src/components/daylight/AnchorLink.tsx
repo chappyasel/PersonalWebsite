@@ -56,7 +56,7 @@ export default function AnchorLink({
             type="button"
             onClick={copy}
             aria-label="Copy link to this section"
-            className={`shrink-0 rounded-md p-1 text-muted-foreground/30 opacity-0 transition-all hover:bg-muted/60 hover:text-foreground focus-visible:opacity-100 group-hover/sec:opacity-100 ${className}`}
+            className={`shrink-0 -translate-x-0.5 rounded-md p-1 text-muted-foreground/30 opacity-0 transition-all duration-200 hover:bg-muted/60 hover:text-foreground focus-visible:opacity-100 active:scale-[0.82] group-hover/sec:translate-x-0 group-hover/sec:opacity-100 ${className}`}
           >
             <span className="relative block h-[15px] w-[15px]">
               <AnimatePresence initial={false}>
@@ -64,10 +64,14 @@ export default function AnchorLink({
                   <motion.span
                     key="check"
                     className="absolute inset-0"
-                    initial={{ opacity: 0, scale: 0.5 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.5 }}
-                    transition={{ duration: 0.2 }}
+                    initial={{ opacity: 0, scale: 0.3, rotate: -50 }}
+                    animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                    exit={{
+                      opacity: 0,
+                      scale: 0.5,
+                      transition: { duration: 0.14, ease: "easeIn" },
+                    }}
+                    transition={{ type: "spring", stiffness: 520, damping: 21 }}
                   >
                     <CheckIcon
                       size={15}
@@ -79,10 +83,14 @@ export default function AnchorLink({
                   <motion.span
                     key="link"
                     className="absolute inset-0"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
+                    initial={{ opacity: 0, scale: 0.6 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{
+                      opacity: 0,
+                      scale: 0.6,
+                      transition: { duration: 0.1, ease: "easeIn" },
+                    }}
+                    transition={{ type: "spring", stiffness: 420, damping: 28 }}
                   >
                     <LinkIcon size={15} weight="bold" />
                   </motion.span>
