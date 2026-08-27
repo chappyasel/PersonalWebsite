@@ -55,6 +55,11 @@
   /* One step firmer than the site --border, for the TOC rail. */
   --dl-border-strong: 20 6% 76%;
 
+  /* Framed prints: the scene hangs its images in weathered frames with
+     mats; the pages hang theirs the same way. */
+  --dl-mat: 40 28% 97%;
+  --dl-frame: 28 12% 52%;
+
   /* Ground arc: hue-biased neutrals tracing dawn -> noon -> dusk. arc2 is the
      site background verbatim so the noon plateau disappears into the page. */
   --dl-arc0: 26 24% 93%;
@@ -97,6 +102,10 @@
   --dl-grain: url("/images/daylight-grain-dark.png");
 
   --dl-border-strong: 12 6% 26%;
+
+  /* A print on a dark wall keeps its light mat, dimmed to lamplight. */
+  --dl-mat: 39 14% 84%;
+  --dl-frame: 24 10% 30%;
 
   --dl-arc0: 18 20% 8%;
   --dl-arc1: 30 15% 7.5%;
@@ -794,6 +803,30 @@
 }
 .dl-screen .dl-ground-blend {
   height: 5rem;
+}
+
+/* ============ Framed prints ============ */
+
+/* Content images hang the way the scene hangs its previews: a mat, a
+   hairline frame, a soft cast shadow. Square corners — prints, not chips. */
+.dl-print {
+  display: inline-block;
+  padding: 0.55rem;
+  background: hsl(var(--dl-mat));
+  border: 1px solid hsl(var(--dl-frame) / 0.5);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.1),
+    0 8px 20px -10px rgb(0 0 0 / 0.22);
+}
+.dl-print img {
+  display: block;
+}
+/* Inline book covers get the same treatment at reading-line scale. */
+.dl-cover {
+  padding: 1.5px;
+  background: hsl(var(--dl-mat));
+  border: 1px solid hsl(var(--dl-frame) / 0.45);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.16);
 }
 
 /* ============ Section headers ============ */

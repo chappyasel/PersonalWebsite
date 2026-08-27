@@ -104,16 +104,20 @@ export default function NotionBlockRenderer({
       );
 
     case "image":
+      // The scene hangs its images as framed prints; the pages do the same —
+      // mat, hairline frame, soft shadow (styles in daylight.css).
       return (
-        <div className="my-4 flex justify-center">
-          <Image
-            src={block.src}
-            alt={block.alt}
-            width={400}
-            height={300}
-            className="max-h-72 w-auto rounded-lg"
-          />
-        </div>
+        <figure className="my-5 flex justify-center">
+          <span className="dl-print">
+            <Image
+              src={block.src}
+              alt={block.alt}
+              width={400}
+              height={300}
+              className="max-h-72 w-auto"
+            />
+          </span>
+        </figure>
       );
 
     case "divider":

@@ -195,7 +195,7 @@ export default function RichTextRenderer({
                 alt={bookTitle}
                 width={16}
                 height={24}
-                className="mb-[-2px] inline-block h-4 w-auto translate-y-[2px] rounded-[2px] shadow-sm"
+                className="dl-cover mb-[-2px] inline-block h-[1.2rem] w-auto translate-y-[2px]"
               />
             )}
             <em>{bookTitle}</em>
