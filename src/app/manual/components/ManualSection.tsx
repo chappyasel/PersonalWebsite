@@ -38,7 +38,7 @@ export default function ManualSection({
           id={section.id}
           emoji={section.icon}
           size={18}
-          className="shrink-0 text-muted-foreground/85"
+          className="shrink-0"
         />
         <h2 className="dl-h2">{section.title}</h2>
         <div className="relative h-4 w-4">

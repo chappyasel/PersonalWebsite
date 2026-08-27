@@ -55,8 +55,43 @@ const iconByEmoji: Record<string, Icon> = {
   "💪": BarbellIcon,
 };
 
+/**
+ * Every glyph carries its arm of the day: routine's day-side sections take
+ * the ochre, its night-side sections the dusk slate, and the manual (which
+ * has no time story) reads uniformly in slate. This is the same two-accent
+ * budget the rest of the daylight system spends — not a per-section palette.
+ */
+const accentById: Record<string, "am" | "pm"> = {
+  // routine, day side
+  "why-early": "am",
+  morning: "am",
+  "supp-stacks": "am",
+  "sinusoidal-vs-square-wave-alertness": "am",
+  caffeine: "am",
+  // routine, night side
+  evening: "pm",
+  "sleep-duration": "pm",
+  "getting-back-on-track": "pm",
+  // manual
+  "personality-strengths-blind-spots": "pm",
+  "how-we-collaborate": "pm",
+  communication: "pm",
+  feedback: "pm",
+  hobbies: "pm",
+};
+
+const accentClass: Record<"am" | "pm", string> = {
+  am: "text-[hsl(var(--dl-am))]",
+  pm: "text-[hsl(var(--dl-pm))]",
+};
+
 export function sectionIcon(id: string, emoji?: string): Icon | null {
   return iconById[id] ?? (emoji ? (iconByEmoji[emoji] ?? null) : null);
+}
+
+export function sectionAccentClass(id: string): string | null {
+  const accent = accentById[id];
+  return accent ? accentClass[accent] : null;
 }
 
 export function SectionIcon({
@@ -74,5 +109,12 @@ export function SectionIcon({
   if (!Glyph) {
     return emoji ? <span className={className}>{emoji}</span> : null;
   }
-  return <Glyph size={size} weight="duotone" className={className} />;
+  const color = sectionAccentClass(id) ?? "text-muted-foreground/85";
+  return (
+    <Glyph
+      size={size}
+      weight="duotone"
+      className={`${color} ${className ?? ""}`}
+    />
+  );
 }

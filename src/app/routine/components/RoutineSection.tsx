@@ -47,7 +47,7 @@ export default function RoutineSection({
           id={section.id}
           emoji={section.icon}
           size={18}
-          className="shrink-0 text-muted-foreground/85"
+          className="shrink-0"
         />
         <h2 className="dl-h2">{section.title}</h2>
         <AnchorLink id={section.id} />

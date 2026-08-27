@@ -149,6 +149,8 @@
   height: 4rem;
   background: linear-gradient(180deg, transparent, hsl(var(--dl-arc0)));
 }
+/* Height matches the 1440x52 geometry so a full-width desktop hero draws it
+   1:1; smaller viewports only ever compress it. */
 .dl-skyline {
   position: absolute;
   left: 0;
@@ -292,10 +294,11 @@
 
 /* ============ TOC ============ */
 
-/* Desktop rail: hairline with a node dot per section. */
+/* Desktop rail: hairline with a node dot per section. No `position` here —
+   the nav is `sticky` (a positioned element already), and a `relative` in
+   this file loads after the utilities and would silently un-stick it. */
 .dl-toc {
   padding-left: 0.875rem;
-  position: relative;
 }
 .dl-toc::before {
   content: "";

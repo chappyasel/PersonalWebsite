@@ -6,10 +6,10 @@ import { useState } from "react";
 import {
   CaretRightIcon,
   MoonStarsIcon,
-  PillIcon,
   SunIcon,
 } from "@phosphor-icons/react";
 
+import { SectionIcon } from "~/components/daylight/sectionIcons";
 import { NotionBlockRenderer } from "~/components/notion";
 import type { BookLookup, NotionBlock } from "~/components/notion/types";
 
@@ -144,11 +144,7 @@ export default function SupplementCardsSection({
         }}
         className="group/sec flex w-full cursor-pointer items-center gap-2.5 border-b border-border/80 pb-2 text-left"
       >
-        <PillIcon
-          size={18}
-          weight="duotone"
-          className="shrink-0 text-muted-foreground/85"
-        />
+        <SectionIcon id="supp-stacks" size={18} className="shrink-0" />
         <h2 className="dl-h2">Supp Stacks</h2>
         <AnchorLink id="supp-stacks" />
         <CaretRightIcon

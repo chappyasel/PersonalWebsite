@@ -2,7 +2,10 @@ import Image from "next/image";
 import Link from "next/link";
 import React from "react";
 
-import { sectionIcon } from "~/components/daylight/sectionIcons";
+import {
+  sectionAccentClass,
+  sectionIcon,
+} from "~/components/daylight/sectionIcons";
 import type { BookLookup, RichText } from "~/components/notion/types";
 import {
   Tooltip,
@@ -236,7 +239,7 @@ export default function RichTextRenderer({
               <XrefIcon
                 size={13}
                 weight="duotone"
-                className="mr-1 inline-block -translate-y-px opacity-80"
+                className={`mr-1 inline-block -translate-y-px opacity-80 ${sectionAccentClass(rt.link.slice(1)) ?? ""}`}
               />
               {el}
             </Link>
