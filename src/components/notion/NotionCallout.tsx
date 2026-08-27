@@ -1,3 +1,10 @@
+import type { Icon } from "@phosphor-icons/react";
+import {
+  InfoIcon,
+  LightbulbIcon,
+  PushPinIcon,
+  WarningIcon,
+} from "@phosphor-icons/react/dist/ssr";
 import React from "react";
 
 import type { BookLookup, NotionBlock } from "~/components/notion/types";
@@ -33,6 +40,20 @@ const calloutColorMap: Record<string, string> = {
   default: "border-border",
 };
 
+/**
+ * Notion's emoji icons become Phosphor duotone glyphs in the daylight
+ * families, matching the section headers; an unmapped emoji renders as
+ * itself. The raw emoji (a red ‼️ against the muted palette) was the loudest
+ * thing on the page.
+ */
+const calloutIconMap: Record<string, { glyph: Icon; className: string }> = {
+  "‼️": { glyph: WarningIcon, className: "text-[hsl(var(--dl-ic-coral))]" },
+  "⚠️": { glyph: WarningIcon, className: "text-[hsl(var(--dl-ic-coral))]" },
+  "📌": { glyph: PushPinIcon, className: "text-[hsl(var(--dl-ic-coral))]" },
+  "💡": { glyph: LightbulbIcon, className: "text-[hsl(var(--dl-am))]" },
+  "ℹ️": { glyph: InfoIcon, className: "text-[hsl(var(--dl-pm))]" },
+};
+
 export default function NotionCallout({
   icon,
   color,
@@ -45,12 +66,21 @@ export default function NotionCallout({
   bookLookup?: BookLookup;
 }) {
   const borderColor = calloutColorMap[color] ?? calloutColorMap.default!;
+  const mapped = calloutIconMap[icon.trim()];
 
   return (
     <div
       className={`flex gap-3 rounded-lg border ${borderColor} bg-muted/40 px-4 py-3.5`}
     >
-      <span className="mt-0.5 shrink-0 text-base leading-none">{icon}</span>
+      {mapped ? (
+        <mapped.glyph
+          size={18}
+          weight="duotone"
+          className={`mt-0.5 shrink-0 ${mapped.className}`}
+        />
+      ) : (
+        <span className="mt-0.5 shrink-0 text-base leading-none">{icon}</span>
+      )}
       <div className="min-w-0 flex-1 space-y-2">
         {content.map((block, i) => (
           <NotionBlockRenderer key={i} block={block} bookLookup={bookLookup} />

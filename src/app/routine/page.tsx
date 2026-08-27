@@ -5,15 +5,18 @@ import { db } from "~/server/db";
 import { orEmpty } from "~/server/queries/degrade";
 import { books } from "~/server/db/schema";
 
+import {
+  DaylightTOCSidebar,
+  DaylightTOCSpacer,
+} from "~/components/daylight/DaylightTOC";
 import RoutineHero from "./components/RoutineHero";
 import RoutineSection from "./components/RoutineSection";
-import { RoutineTOCMobile, RoutineTOCSidebar } from "./components/RoutineTOC";
 import RoutineTimeline from "./components/RoutineTimeline";
 import SupplementCardsSection from "./components/SupplementCards";
 import { HashScrollSpacer } from "./components/sectionLink";
-import { GrainientBackground } from "~/components/ui/grainient-background";
 
-import type { BookLookup, RoutineData } from "./types";
+import type { RoutineData } from "./types";
+import type { BookLookup } from "./types";
 
 const data = rawData as unknown as RoutineData;
 
@@ -71,38 +74,27 @@ export default async function RoutinePage() {
 
   // Build TOC items
   const tocItems = [
-    { id: "why-early", label: "Why So Early?", icon: "⏰" },
-    { id: "morning", label: "Morning", icon: "🌅" },
-    { id: "evening", label: "Evening", icon: "🌆" },
-    { id: "supp-stacks", label: "Supp Stacks", icon: "💊" },
+    { id: "why-early", label: "Why So Early?" },
+    { id: "morning", label: "Morning" },
+    { id: "evening", label: "Evening" },
+    { id: "supp-stacks", label: "Supp Stacks" },
     ...otherRants.map((r) => ({
       id: r.id,
       label: rantLabels[r.id] ?? r.title,
-      icon: r.icon,
+      emoji: r.icon,
     })),
   ];
-  const timelineEntries = [...data.timeline.am, ...data.timeline.pm];
 
   return (
-    <GrainientBackground className="min-h-screen bg-background font-serif text-muted-foreground">
+    <div className="daylight-root dl-ground-arc min-h-screen bg-background text-muted-foreground">
       <main className="relative">
-        <div className="mx-auto max-w-5xl px-4 py-12">
-          {/* Hero */}
-          <div className="mx-auto max-w-2xl">
-            <RoutineHero
-              intro={data.intro}
-              lastUpdated={data.lastUpdated}
-              entries={timelineEntries}
-            />
-          </div>
+        <RoutineHero intro={data.intro} lastUpdated={data.lastUpdated} />
 
-          {/* Content with TOC */}
-          <div className="mt-16 flex justify-center">
-            <RoutineTOCSidebar items={tocItems} />
-            <div className="w-full max-w-2xl space-y-8" data-routine-content>
-              {/* Mobile sticky TOC */}
-              <RoutineTOCMobile items={tocItems} />
-
+        {/* Content with TOC */}
+        <div className="mx-auto max-w-5xl px-4 pb-12">
+          <div className="mt-11 flex justify-center">
+            <DaylightTOCSidebar items={tocItems} />
+            <div className="w-full max-w-[45rem] space-y-12" data-routine-content>
               {/* Why So Early - collapsible preface */}
               {data.whyEarly.length > 0 && (
                 <RoutineSection
@@ -145,9 +137,10 @@ export default async function RoutinePage() {
 
               <HashScrollSpacer />
             </div>
+            <DaylightTOCSpacer />
           </div>
         </div>
       </main>
-    </GrainientBackground>
+    </div>
   );
 }

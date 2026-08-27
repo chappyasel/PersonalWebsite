@@ -1,14 +1,16 @@
 import { inArray } from "drizzle-orm";
 import React from "react";
 
-import { GrainientBackground } from "~/components/ui/grainient-background";
+import {
+  DaylightTOCSidebar,
+  DaylightTOCSpacer,
+} from "~/components/daylight/DaylightTOC";
 import { db } from "~/server/db";
 import { orEmpty } from "~/server/queries/degrade";
 import { books } from "~/server/db/schema";
 
 import ManualHero from "./components/ManualHero";
 import ManualSection from "./components/ManualSection";
-import { ManualTOCMobile, ManualTOCSidebar } from "./components/ManualTOC";
 import type { BookLookup, ManualData } from "./types";
 
 import rawData from "../../../public/data/manual.json";
@@ -55,22 +57,22 @@ export default async function ManualPage() {
     bookLookup[b.id] = { title: b.title, coverUrl: b.coverUrl };
   }
 
+  const tocItems = data.sections.map((section) => ({
+    id: section.id,
+    label: section.title,
+    emoji: section.icon,
+  }));
+
   return (
-    <GrainientBackground className="min-h-screen bg-background font-serif text-muted-foreground">
+    <div className="daylight-root dl-ground-wash min-h-screen bg-background text-muted-foreground">
       <main className="relative">
-        <div className="mx-auto max-w-5xl px-4 py-12">
-          {/* Hero */}
-          <div className="mx-auto max-w-2xl">
-            <ManualHero hero={data.hero} lastUpdated={data.lastUpdated} />
-          </div>
+        <ManualHero hero={data.hero} lastUpdated={data.lastUpdated} />
 
-          {/* Content with TOC */}
-          <div className="mt-16 flex justify-center">
-            <ManualTOCSidebar sections={data.sections} />
-            <div className="w-full max-w-2xl space-y-4">
-              {/* Mobile sticky TOC */}
-              <ManualTOCMobile sections={data.sections} />
-
+        {/* Content with TOC */}
+        <div className="mx-auto max-w-5xl px-4 pb-12">
+          <div className="mt-11 flex justify-center">
+            <DaylightTOCSidebar items={tocItems} />
+            <div className="w-full max-w-[45rem] space-y-12">
               {data.sections.map((section) => (
                 <ManualSection
                   key={section.id}
@@ -79,9 +81,10 @@ export default async function ManualPage() {
                 />
               ))}
             </div>
+            <DaylightTOCSpacer />
           </div>
         </div>
       </main>
-    </GrainientBackground>
+    </div>
   );
 }

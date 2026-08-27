@@ -93,6 +93,26 @@ export default function FlatHome({
           ),
         )}
       </main>
+      {/* The 3D world's own surveyed horizon closes the flat page — the same
+          generated strip the daylight pages wear, windows and all. Shipped as
+          self-contained SVG files (animations embedded) so the boot-critical
+          homepage bundle pays nothing for it. */}
+      <footer aria-hidden className="w-full">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/horizon-light.svg"
+          alt=""
+          loading="lazy"
+          className="block w-full dark:hidden"
+        />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/horizon-dark.svg"
+          alt=""
+          loading="lazy"
+          className="hidden w-full dark:block"
+        />
+      </footer>
     </GrainientBackground>
   );
 }

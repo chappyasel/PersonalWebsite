@@ -1,0 +1,1176 @@
+/*
+ * Daylight identity shared by /routine and /manual: the sky-band hero, the
+ * surveyed skyline silhouette, the continuous time axis, and the day-arc
+ * ground. Everything is scoped under .daylight-root so nothing leaks into the
+ * rest of the site. Dark mode follows next-themes' class strategy (`.dark` on
+ * <html>).
+ *
+ * The sky is not invented: every value is the main 3D site's authored color
+ * from src/app/components/stacks/theme.ts, converted to an HSL triplet so it
+ * can carry an alpha. Each block pins its hexes to their source lines; if
+ * theme.ts moves, these comments are how the drift gets caught.
+ */
+
+.daylight-root {
+  /* Sky, light — theme.ts L36 skyTop #126bb0, L37 skyHorizon #4f8ab3,
+     L38 skyShadow #6a9aba, L39 skyEmber #f5c78d, L49 skyline #5b7288 */
+  --dl-sky-top: 206 81% 38%;
+  --dl-sky-mid: 205 40% 51%;
+  --dl-sky-low: 204 37% 57%;
+  --dl-sky-glow: 33 84% 76%;
+  --dl-ember-size: 52% 24%;
+  --dl-ember-a: 0.8;
+  --dl-sky-ink: 40 30% 96%;
+  --dl-sil: 209 20% 45%;
+  /* Golden Gate paint: daylightRendering.ts L23 goldenGatePaintLinear
+     (International Orange in linear light), mixed toward the skyline hex at
+     the shader's own goldenGateDayPaintMix and converted to sRGB. */
+  --dl-ggb: 8 36% 42%;
+  /* Window glints — theme.ts L50 skyWindow #ffca8a at the shader's light
+     mix strength (a city at 3:45 has a few lights on even before dark). */
+  --dl-window: 34 100% 77%;
+  --dl-window-op: 0.45;
+  --dl-star-op: 0;
+
+  /* Day accents: ochre for the morning arm, dusk slate for the evening arm,
+     warm plum for callouts. */
+  --dl-am: 35 48% 38%;
+  --dl-am-line: 36 40% 62%;
+  --dl-am-chip: 38 50% 55%;
+  --dl-pm: 228 20% 44%;
+  --dl-pm-line: 228 20% 64%;
+  --dl-pm-chip: 228 35% 58%;
+  --dl-plum: 288 16% 46%;
+
+  /* Section glyph palette: the two day arms plus four more families in the
+     same muted band, one per topic. All accents on these pages come from
+     this fixed set — never per-element inventions. */
+  --dl-ic-moss: 150 26% 34%;
+  --dl-ic-coral: 10 46% 46%;
+  --dl-ic-coffee: 24 44% 32%;
+  --dl-ic-indigo: 256 24% 50%;
+
+  /* Ground grain (scripts/generate/ground-grain.ts); the dark ground takes
+     a much quieter variant. */
+  --dl-grain: url("/images/daylight-grain.png");
+
+  /* One step firmer than the site --border, for the TOC rail. */
+  --dl-border-strong: 20 6% 76%;
+
+  /* Framed prints: the scene hangs its images in weathered frames with
+     mats; the pages hang theirs the same way. Frame is the wood, lip is the
+     lit inner edge where frame meets mat. */
+  --dl-mat: 40 30% 96%;
+  --dl-frame: 28 12% 46%;
+  --dl-frame-lip: 40 35% 88%;
+
+  /* Ground arc: hue-biased neutrals tracing dawn -> noon -> dusk. arc2 is the
+     site background verbatim so the noon plateau disappears into the page. */
+  --dl-arc0: 26 24% 93%;
+  --dl-arc1: 46 30% 95.5%;
+  --dl-arc2: 60 9% 98%;
+  --dl-arc3: 228 14% 95.5%;
+  --dl-arc4: 240 13% 92.5%;
+}
+
+.dark .daylight-root {
+  /* Sky, dark — MEASURED from the rendered scene, not from theme.ts: the
+     dome runs its authored hexes through ACES tone mapping and a color
+     grade, and the render comes out lighter and bluer than the inputs
+     (headless capture scene-dark-west, dark theme at rest: sky top
+     #1c284d, mid #2e3e67, and the band behind the skyline #2b3050 — the
+     authored skyShadow #1b2233 sits BELOW the visible horizon). Using the
+     raw hexes put the darkest sky exactly where the silhouette stands,
+     which is why the skyline kept vanishing at night. */
+  --dl-sky-top: 225 47% 21%;
+  --dl-sky-mid: 223 38% 29%;
+  --dl-sky-low: 230 30% 24%;
+  --dl-sky-glow: 23 72% 56%;
+  --dl-ember-size: 40% 15%;
+  --dl-ember-a: 0.45;
+  --dl-sky-ink: 220 25% 90%;
+  /* Measured ridge/building silhouette: #1a192a. */
+  --dl-sil: 240 25% 13%;
+  /* The bridge as the scene actually renders it at night: the paint plus
+     the beacon/lamp wash through ACES reads as a vivid rose-red — measured
+     #b33b4a at the towers, ~#94383f across the blurred structure. */
+  --dl-ggb: 352 48% 44%;
+  /* theme.ts L98 skyWindow #ffbe73 at the shader's dark mix strength. */
+  --dl-window: 33 100% 73%;
+  --dl-window-op: 0.8;
+  --dl-star-op: 0.9;
+
+  --dl-am: 38 48% 66%;
+  --dl-am-line: 36 35% 45%;
+  --dl-am-chip: 38 45% 55%;
+  --dl-pm: 228 30% 74%;
+  --dl-pm-line: 228 22% 48%;
+  --dl-pm-chip: 228 35% 60%;
+  --dl-plum: 288 20% 68%;
+
+  --dl-ic-moss: 150 22% 62%;
+  --dl-ic-coral: 10 52% 70%;
+  --dl-ic-coffee: 26 36% 64%;
+  --dl-ic-indigo: 256 30% 74%;
+
+  --dl-grain: url("/images/daylight-grain-dark.png");
+
+  --dl-border-strong: 12 6% 26%;
+
+  /* A print on a dark wall keeps its light mat, dimmed to lamplight; the
+     frame goes to dark walnut and the lip catches what light there is. */
+  --dl-mat: 40 10% 78%;
+  --dl-frame: 25 12% 23%;
+  --dl-frame-lip: 35 10% 42%;
+
+  --dl-arc0: 18 20% 8%;
+  --dl-arc1: 30 15% 7.5%;
+  --dl-arc2: 24 10% 6%;
+  --dl-arc3: 232 16% 7.5%;
+  --dl-arc4: 244 18% 8.5%;
+}
+
+/*
+ * Ground. The arc gradient is the routine page's time-of-day spine; the
+ * manual has no time story, so it gets the quiet warm wash that settles into
+ * the plain page background instead.
+ */
+/* Both grounds carry the generated paper grain
+   (scripts/generate/ground-grain.ts) over their gradient — the grainient's
+   tooth, held still. */
+.dl-ground-arc {
+  background-image:
+    var(--dl-grain),
+    linear-gradient(
+      180deg,
+      hsl(var(--dl-arc0)) 0%,
+      hsl(var(--dl-arc1)) 14%,
+      hsl(var(--dl-arc2)) 40%,
+      hsl(var(--dl-arc2)) 48%,
+      hsl(var(--dl-arc3)) 76%,
+      hsl(var(--dl-arc4)) 100%
+    );
+  background-repeat: repeat, no-repeat;
+  background-size: 256px 256px, auto;
+}
+.dl-ground-wash {
+  background-image:
+    var(--dl-grain),
+    linear-gradient(
+      180deg,
+      hsl(var(--dl-arc0)) 0%,
+      hsl(var(--dl-arc1)) 20%,
+      hsl(var(--dl-arc2)) 50%
+    );
+  background-repeat: repeat, no-repeat;
+  background-size: 256px 256px, auto;
+}
+
+/* ============ Sky-band hero ============ */
+
+.dl-hero {
+  position: relative;
+  overflow: hidden;
+}
+.dl-sky {
+  position: absolute;
+  inset: 0;
+  /* Ember at 91%: the dome anchors its glow at azimuth -1.15, 91% across
+     the strip's [-2.24, -1.025] window. Sized in PERCENTAGES of the sky
+     box, never rems — a fixed-rem ellipse spanned the whole viewport on a
+     phone and flooded the Golden Gate's end of the sky with orange. The
+     per-theme size/alpha mirror the shader: the light glow is broad and
+     soft (azFall sigma 0.42 rad ≈ 35% of the window, emberW 0.055); the
+     night glow is a narrower, thinner horizon band at a fraction of the
+     energy (sigma 0.28 rad ≈ 23%, emberW 0.020, amp 0.30·uDawn — drawn
+     here at the mid-traverse moment, the same authored-instant choice as
+     the cloud slice and the moon). */
+  background:
+    radial-gradient(
+      var(--dl-ember-size) at 91% 100%,
+      hsl(var(--dl-sky-glow) / var(--dl-ember-a)),
+      transparent 70%
+    ),
+    linear-gradient(
+      180deg,
+      hsl(var(--dl-sky-top)),
+      hsl(var(--dl-sky-mid)) 62%,
+      hsl(var(--dl-sky-low))
+    );
+}
+/* Two star layers twinkling out of phase, so the field shimmers instead of
+   pulsing in unison. Both ride --dl-star-op, which is 0 in the light theme. */
+.dl-stars,
+.dl-stars-b {
+  position: absolute;
+  inset: 0 0 30% 0;
+  opacity: var(--dl-star-op);
+}
+.dl-stars {
+  background-image:
+    radial-gradient(3px 3px at 12% 22%, hsl(0 0% 100%), transparent 60%),
+    radial-gradient(3.5px 3.5px at 47% 30%, hsl(0 0% 100%), transparent 60%),
+    radial-gradient(3px 3px at 76% 26%, hsl(0 0% 100% / 0.95), transparent 60%),
+    radial-gradient(2.5px 2.5px at 94% 34%, hsl(0 0% 100% / 0.8), transparent 60%),
+    radial-gradient(2.5px 2.5px at 7% 8%, hsl(0 0% 100% / 0.85), transparent 60%),
+    radial-gradient(2px 2px at 55% 42%, hsl(0 0% 100% / 0.75), transparent 60%),
+    radial-gradient(3px 3px at 70% 6%, hsl(0 0% 100% / 0.95), transparent 60%),
+    radial-gradient(3.5px 3.5px at 97% 18%, hsl(0 0% 100% / 0.85), transparent 60%),
+    radial-gradient(2px 2px at 18% 47%, hsl(0 0% 100% / 0.7), transparent 60%),
+    radial-gradient(2.5px 2.5px at 36% 19%, hsl(0 0% 100% / 0.8), transparent 60%),
+    radial-gradient(2px 2px at 59% 9%, hsl(0 0% 100% / 0.75), transparent 60%),
+    radial-gradient(3px 3px at 86% 38%, hsl(0 0% 100% / 0.85), transparent 60%);
+}
+.dl-stars-b {
+  background-image:
+    radial-gradient(3px 3px at 31% 12%, hsl(0 0% 100% / 0.95), transparent 60%),
+    radial-gradient(2.5px 2.5px at 63% 15%, hsl(0 0% 100% / 0.85), transparent 60%),
+    radial-gradient(3.5px 3.5px at 88% 10%, hsl(0 0% 100% / 0.95), transparent 60%),
+    radial-gradient(2.5px 2.5px at 22% 40%, hsl(0 0% 100% / 0.75), transparent 60%),
+    radial-gradient(3.5px 3.5px at 40% 7%, hsl(0 0% 100% / 0.9), transparent 60%),
+    radial-gradient(2.5px 2.5px at 83% 44%, hsl(0 0% 100% / 0.7), transparent 60%),
+    radial-gradient(2px 2px at 4% 30%, hsl(0 0% 100% / 0.7), transparent 60%),
+    radial-gradient(3px 3px at 27% 27%, hsl(0 0% 100% / 0.85), transparent 60%),
+    radial-gradient(2.5px 2.5px at 51% 24%, hsl(0 0% 100% / 0.75), transparent 60%),
+    radial-gradient(2px 2px at 67% 36%, hsl(0 0% 100% / 0.7), transparent 60%);
+}
+/* One shooting star every ~26s, dark theme only. A single authored
+   trajectory across the open upper-left sky — clear of the title column —
+   brief and gone in under a second. */
+.dl-shooting-star {
+  display: none;
+  position: absolute;
+  top: 8%;
+  left: 5%;
+  width: 110px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, hsl(0 0% 100%));
+  box-shadow: 0 0 7px hsl(0 0% 100% / 0.5);
+  opacity: 0;
+}
+.dark .dl-shooting-star {
+  display: block;
+}
+/* The dome's birds, light theme only: a pair crossing every 74 seconds, gone
+   in eleven, exactly the shader's cadence (one bird reads as a bug on the
+   screen; two read as birds). Silhouettes darker than the sky, never
+   brighter. The wings beat in bursts with glides between, and the wingtips
+   lag the elbows — the shader's travelling wave down the wing, done here as
+   a delayed rotation at the elbow joint. */
+.dl-birds {
+  position: absolute;
+  top: 22%;
+  left: 0;
+  /* The shader draws the bird by multiplying the sky to 30% of itself —
+     a true silhouette, not a tint. This is that same rule. */
+  color: color-mix(in srgb, hsl(var(--dl-sky-mid)), black 70%);
+  opacity: 0;
+}
+.dark .dl-birds {
+  display: none;
+}
+.dl-bird {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.dl-bird-b {
+  left: 46px;
+  top: 20px;
+  transform: scale(0.85);
+}
+.dl-bird-glyph {
+  display: block;
+  overflow: visible;
+}
+.dl-bird-glyph .dl-wing,
+.dl-bird-glyph .dl-tip {
+  transform-box: view-box;
+}
+.dl-wing-l,
+.dl-wing-r {
+  transform-origin: 12px 9px;
+}
+.dl-tip-l {
+  transform-origin: 7.1px 8.2px;
+}
+.dl-tip-r {
+  transform-origin: 16.9px 8.2px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dl-stars {
+    animation: dl-twinkle 5.2s ease-in-out infinite;
+  }
+  .dl-stars-b {
+    animation: dl-twinkle 8.6s ease-in-out infinite;
+    animation-delay: -2.9s;
+  }
+  .dl-shooting-star {
+    animation: dl-shooting-star 26s linear infinite;
+    animation-delay: 3s;
+  }
+  /* One tile per 234s is the dome's own drift: its clouds advance at 0.0052
+     rad/s across the 1.215 rad window. */
+  .dl-clouds::before {
+    animation: dl-cloud-drift 234s linear infinite;
+  }
+  /* The dome flies its pair every 74s — a cadence for a scene you inhabit
+     for minutes. The hero gets seconds of attention, so here they come
+     every 32, first crossing moments after load. */
+  .dl-birds {
+    animation: dl-birds-cross 32s linear infinite;
+    animation-delay: 1.5s;
+  }
+  .dl-bird svg {
+    animation: dl-bob 3.4s ease-in-out infinite alternate;
+  }
+  .dl-bird-b svg {
+    animation-duration: 2.9s;
+    animation-delay: -1.2s;
+  }
+  .dl-wing-l {
+    animation: dl-flap-l 2.94s ease-in-out infinite;
+  }
+  .dl-wing-r {
+    animation: dl-flap-r 2.94s ease-in-out infinite;
+  }
+  /* Tips run the same cycle a sixth of a beat late (negative delay = pure
+     phase shift, no startup hold). */
+  .dl-tip-l {
+    animation: dl-tip-flap-l 2.94s ease-in-out infinite;
+    animation-delay: -2.82s;
+  }
+  .dl-tip-r {
+    animation: dl-tip-flap-r 2.94s ease-in-out infinite;
+    animation-delay: -2.82s;
+  }
+  /* The second bird beats on its own clock. */
+  .dl-bird-b .dl-wing-l,
+  .dl-bird-b .dl-wing-r {
+    animation-delay: -1.1s;
+  }
+  .dl-bird-b .dl-tip-l,
+  .dl-bird-b .dl-tip-r {
+    animation-delay: -0.98s;
+  }
+  .dl-screen .dl-skyline {
+    animation: dl-skyline-pan 200s ease-in-out infinite alternate;
+  }
+  /* Night life: slow window turnover (the shader's 2-minute drift), the Bay
+     Lights' sequencing (per-dot delays carry the authored phase warp), the
+     beacons' 0.43 Hz flash, the crown's slow breath, the satellite. */
+  .dl-w-slow {
+    animation: dl-window-turn 126s linear infinite;
+  }
+  .dark .dl-bay {
+    animation: dl-baylight 12.6s ease-in-out infinite;
+  }
+  .dark .dl-beacon {
+    animation: dl-beacon-flash 2.31s steps(1) infinite;
+  }
+  .dark .dl-crown {
+    animation: dl-crown-breathe 11s ease-in-out infinite;
+  }
+  .dl-satellite {
+    animation: dl-satellite 92s linear infinite;
+    animation-delay: 8s;
+  }
+}
+@keyframes dl-twinkle {
+  0%,
+  100% {
+    opacity: var(--dl-star-op);
+  }
+  50% {
+    opacity: calc(var(--dl-star-op) * 0.45);
+  }
+}
+@keyframes dl-shooting-star {
+  0% {
+    transform: rotate(14deg) translateX(0);
+    opacity: 0;
+  }
+  0.6% {
+    opacity: 0.95;
+  }
+  2.4% {
+    transform: rotate(14deg) translateX(440px);
+    opacity: 0;
+  }
+  100% {
+    transform: rotate(14deg) translateX(440px);
+    opacity: 0;
+  }
+}
+@keyframes dl-cloud-drift {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100vw);
+  }
+}
+/* The pair crosses in eleven seconds of the 32s cycle (11/32 = 34.4%),
+   fading at the ends so nothing pops — the shader's own gates. */
+@keyframes dl-birds-cross {
+  0% {
+    transform: translateX(-8vw);
+    opacity: 0;
+  }
+  3.4% {
+    opacity: 1;
+  }
+  30.9% {
+    opacity: 1;
+  }
+  34.4% {
+    transform: translateX(102vw);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(102vw);
+    opacity: 0;
+  }
+}
+@keyframes dl-bob {
+  from {
+    transform: translateY(-3px);
+  }
+  to {
+    transform: translateY(3px);
+  }
+}
+/* The shader's wingbeat is a continuous sine whose AMPLITUDE swells and
+   softens (amp = 0.30 + 0.70·smoothstep of a slow sine) — the bird never
+   freezes mid-air. Four beats per cycle here: two full, one soft, one
+   recovering, looping without a hold. Left wing up is a positive rotation
+   in SVG screen coordinates; the right wing mirrors it. */
+@keyframes dl-flap-l {
+  0% {
+    transform: rotate(28deg);
+  }
+  12.5% {
+    transform: rotate(-26deg);
+  }
+  25% {
+    transform: rotate(30deg);
+  }
+  37.5% {
+    transform: rotate(-26deg);
+  }
+  50% {
+    transform: rotate(26deg);
+  }
+  62.5% {
+    transform: rotate(-13deg);
+  }
+  75% {
+    transform: rotate(16deg);
+  }
+  87.5% {
+    transform: rotate(-21deg);
+  }
+  100% {
+    transform: rotate(28deg);
+  }
+}
+@keyframes dl-flap-r {
+  0% {
+    transform: rotate(-28deg);
+  }
+  12.5% {
+    transform: rotate(26deg);
+  }
+  25% {
+    transform: rotate(-30deg);
+  }
+  37.5% {
+    transform: rotate(26deg);
+  }
+  50% {
+    transform: rotate(-26deg);
+  }
+  62.5% {
+    transform: rotate(13deg);
+  }
+  75% {
+    transform: rotate(-16deg);
+  }
+  87.5% {
+    transform: rotate(21deg);
+  }
+  100% {
+    transform: rotate(-28deg);
+  }
+}
+@keyframes dl-tip-flap-l {
+  0% {
+    transform: rotate(20deg);
+  }
+  12.5% {
+    transform: rotate(-19deg);
+  }
+  25% {
+    transform: rotate(21deg);
+  }
+  37.5% {
+    transform: rotate(-19deg);
+  }
+  50% {
+    transform: rotate(19deg);
+  }
+  62.5% {
+    transform: rotate(-9deg);
+  }
+  75% {
+    transform: rotate(11deg);
+  }
+  87.5% {
+    transform: rotate(-15deg);
+  }
+  100% {
+    transform: rotate(20deg);
+  }
+}
+@keyframes dl-tip-flap-r {
+  0% {
+    transform: rotate(-20deg);
+  }
+  12.5% {
+    transform: rotate(19deg);
+  }
+  25% {
+    transform: rotate(-21deg);
+  }
+  37.5% {
+    transform: rotate(19deg);
+  }
+  50% {
+    transform: rotate(-19deg);
+  }
+  62.5% {
+    transform: rotate(9deg);
+  }
+  75% {
+    transform: rotate(-11deg);
+  }
+  87.5% {
+    transform: rotate(15deg);
+  }
+  100% {
+    transform: rotate(-20deg);
+  }
+}
+/* The 404's oversized skyline pans its overhang back and forth. */
+@keyframes dl-skyline-pan {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(100vw - 100%));
+  }
+}
+/* A window turns over: lit for a stretch, dark for a stretch, never two
+   windows on the same clock (delays come from each cell's own hash). */
+@keyframes dl-window-turn {
+  0%,
+  38% {
+    opacity: var(--dl-window-op);
+  }
+  46%,
+  88% {
+    opacity: 0;
+  }
+  96%,
+  100% {
+    opacity: var(--dl-window-op);
+  }
+}
+@keyframes dl-baylight {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+@keyframes dl-beacon-flash {
+  0%,
+  12.9% {
+    opacity: 1;
+  }
+  13%,
+  100% {
+    opacity: 0.27;
+  }
+}
+@keyframes dl-crown-breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.36;
+  }
+}
+@keyframes dl-satellite {
+  0% {
+    transform: translate(-4vw, 0);
+    opacity: 0;
+  }
+  0.4% {
+    opacity: 0.55;
+  }
+  6.1% {
+    opacity: 0.55;
+  }
+  6.5% {
+    transform: translate(104vw, 14px);
+    opacity: 0;
+  }
+  100% {
+    transform: translate(104vw, 14px);
+    opacity: 0;
+  }
+}
+/* Shader-generated thin daylight clouds (scripts/generate/sky-clouds.ts),
+   bottom-anchored to the horizon like the skyline. The dome gates its clouds
+   to the light theme (`day`); dark keeps the stars instead.
+
+   Drawn as a repeat-x BACKGROUND, not as <img> elements: the browser tiles
+   the seamless PNG infinitely in both directions, so no edge can exist at
+   any width, zoom, or point in the drift — and there is no image element to
+   lazy-load, size, or duplicate. The tile is one viewport wide
+   (background-size 100vw), so translating the layer by exactly -100vw per
+   cycle lands on an identical phase and the loop never shows a seam. */
+.dl-clouds {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  /* 342/1600 of the 100vw tile */
+  height: 21.375vw;
+  overflow: hidden;
+}
+.dl-clouds::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: calc(100% + 100vw);
+  background: url("/images/daylight-clouds.png") left bottom repeat-x;
+  background-size: 100vw auto;
+}
+.dark .dl-clouds {
+  display: none;
+}
+.dl-sky-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4rem;
+  background: linear-gradient(180deg, transparent, hsl(var(--dl-arc0)));
+}
+/* The strip is the dome shader's own traverse projected aspect-true
+   (see skylineGeometry.ts) — height follows width from the viewBox, so the
+   silhouette is never stretched or squashed at any viewport. */
+.dl-skyline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  color: hsl(var(--dl-sil));
+}
+.dl-skyline svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  /* The moon's halo rides above the strip's viewBox; without this the
+     gradient clips to a hard square edge at the strip top. */
+  overflow: visible;
+}
+/* ---- The skyline's night layer (generated with the geometry). Windows
+   glint in both themes — the shader's own 3:45 rule — while the moon, Bay
+   Lights, Golden Gate lamps/beacons, and the Salesforce crown belong to the
+   dark theme, exactly as the dome gates them on `night`. */
+.dl-night-back {
+  display: none;
+}
+.dark .dl-night-back {
+  display: block;
+}
+.dl-w {
+  fill: hsl(var(--dl-window));
+  opacity: var(--dl-window-op);
+}
+.dl-bay,
+.dl-lamps,
+.dl-beacon,
+.dl-crown {
+  display: none;
+}
+.dark .dl-bay {
+  display: block;
+  fill: hsl(var(--dl-window));
+}
+/* Deck lamps: one continuous line, beaded by the dasharray the way the
+   shader beads it with sin(gx*116) — hps (1.0, 0.62, 0.24). */
+.dark .dl-lamps {
+  display: block;
+  stroke: #ff9e3d;
+  stroke-dasharray: 2 1.6;
+  opacity: 0.55;
+}
+/* Aviation red, avRed (0.90, 0.12, 0.10); resting glow between flashes. */
+.dark .dl-beacon {
+  display: block;
+  fill: #e61f1a;
+  opacity: 0.27;
+}
+/* Day for Night: a soft diffuse band, never visible pixels. */
+.dark .dl-crown {
+  display: block;
+  fill: #c7b39e;
+  opacity: 0.5;
+  filter: blur(1.1px) drop-shadow(0 0 5px rgba(199, 179, 158, 0.55));
+}
+/* The satellite — dark only, one dim constant-velocity crossing every 92s
+   (Starlink-era truthful; the sophisticated cousin of the shooting star),
+   kept under the brightness of a mid star. */
+.dl-satellite {
+  display: none;
+  position: absolute;
+  top: 12%;
+  left: 0;
+  width: 26px;
+  height: 1.5px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(207, 217, 242, 0.8));
+  opacity: 0;
+}
+.dark .dl-satellite {
+  display: block;
+}
+/* The dome hazes its skyline toward the horizon at its base (hazeAmt in
+   SceneEnvironment.tsx); this layer is that move for the strip — the
+   buildings' feet dissolve into the ground instead of ending on a hard
+   baseline. Painted over the skyline, under nothing. */
+.dl-ground-blend {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 3.5rem;
+  background: linear-gradient(180deg, transparent, hsl(var(--dl-arc0)) 92%);
+}
+.dl-hero-inner {
+  position: relative;
+  max-width: 45rem;
+  margin: 0 auto;
+  /* Bottom padding tracks the aspect-true skyline (~11vw tall) plus the fade. */
+  padding: 3.5rem 1rem clamp(6rem, 15vw, 14rem);
+  color: hsl(var(--dl-sky-ink) / 0.95);
+  text-shadow: 0 1px 14px hsl(var(--dl-sky-top) / 0.55);
+  /* Let clicks fall through the column's empty padding to the sky beneath
+     (the bridge's tap target lives there); real controls re-enable. */
+  pointer-events: none;
+}
+.dl-hero-inner a,
+.dl-hero-inner button {
+  pointer-events: auto;
+}
+.dl-hero-title {
+  color: hsl(var(--dl-sky-ink));
+  /* 2.125rem is the largest size that keeps "Chappy's Personal Operating
+     Manual" on one line in the 45rem column (measured 34.5px max). */
+  font-size: clamp(1.7rem, 4.5vw, 2.125rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+/* Phones: the aspect-true strip shrinks below legibility (~46px at 390 wide)
+   and the fixed-height fog buries what is left. The hero borrows the 404's
+   treatment — a min-width skyline slowly panning its overhang — and the fog
+   thins to match; window lights and the moon come back with the size. */
+@media (max-width: 700px) {
+  .dl-hero .dl-skyline {
+    right: auto;
+    width: max(150vw, 900px);
+  }
+  .dl-hero .dl-sky-fade {
+    height: 2.5rem;
+  }
+  .dl-hero .dl-ground-blend {
+    height: 2.25rem;
+  }
+  .dl-hero-inner {
+    padding-top: 1.75rem;
+    padding-bottom: 10rem;
+  }
+  /* The pan carries the bridge away from a fixed tap zone; the easter egg
+     stays a desktop handshake. */
+  .dl-ggb-tap {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: no-preference) and (max-width: 700px) {
+  .dl-hero .dl-skyline {
+    animation: dl-skyline-pan 200s ease-in-out infinite alternate;
+  }
+}
+
+/* The shared ThemeToggle sits on the sky here; retint it without forking the
+   component. */
+.dl-hero-inner [data-theme-toggle] {
+  color: hsl(var(--dl-sky-ink) / 0.85);
+}
+.dl-hero-inner [data-theme-toggle]:hover {
+  background: hsl(var(--dl-sky-ink) / 0.12);
+  color: hsl(var(--dl-sky-ink));
+}
+
+/* ============ Full-viewport sky screen (404, error) ============ */
+
+/* The hero grown to a whole screen: DaylightSky fills it, content floats in
+   the sky, and the skyline holds the bottom edge. */
+.dl-screen {
+  position: relative;
+  min-height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem 1.5rem calc(max(16vw, 7rem) + 3rem);
+  color: hsl(var(--dl-sky-ink) / 0.95);
+  text-shadow: 0 1px 14px hsl(var(--dl-sky-top) / 0.55);
+}
+/* Lift the content above the absolutely-positioned sky — which must itself
+   stay exempt, or this rule would flatten it. */
+.dl-screen > :not(.dl-sky) {
+  position: relative;
+}
+/* On the full screen the skyline grows past the viewport — never smaller
+   than ~150vw or 900px tall-enough on a phone — and slowly pans its overhang
+   back and forth. The screen's own overflow clips it. */
+.dl-screen .dl-skyline {
+  right: auto;
+  width: max(150vw, 900px);
+}
+.dl-screen .dl-ground-blend {
+  height: 5rem;
+}
+/* Night fog, both hero and screen. The dome's night haze caps at 0.35 at
+   the waterline (hazeAmt: mix(skylineHaze 0.18, 0.35, uDark)) and fades out
+   by e = 0.055 — nothing like the light theme's Karl. It also hazes toward
+   the authored dark fog color (theme.ts dark fog #253045), not toward
+   black; only the final pixels reach arc0 for the page handoff. These sit
+   last so they win over the hero, mobile, and screen variants. */
+.dark .dl-sky-fade {
+  height: 2.25rem;
+}
+.dark .dl-ground-blend {
+  height: 2.25rem;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    hsl(219 30% 21% / 0.5) 62%,
+    hsl(var(--dl-arc0)) 100%
+  );
+}
+
+/* ============ Golden Gate fireworks (the scene's easter egg) ============ */
+
+/* Invisible tap target over the bridge span (azimuth -2.04 lands its towers
+   at 8-24% of the strip). Clicking the bridge in the 3D scene fires
+   fireworks; the strip answers the same way. */
+.dl-ggb-tap {
+  position: absolute;
+  left: 7.5%;
+  bottom: 0;
+  width: 17.5%;
+  height: 9vw;
+  cursor: pointer;
+}
+.dl-fw {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+.dl-fw-flash {
+  position: absolute;
+  left: -5px;
+  top: -5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: hsl(40 100% 88%);
+  opacity: 0;
+}
+.dl-fw i:not(.dl-fw-flash) {
+  position: absolute;
+  left: -1px;
+  top: -4px;
+  width: 2px;
+  height: 8px;
+  border-radius: 2px;
+  background: linear-gradient(
+    180deg,
+    hsl(var(--fw-h) 95% 82%),
+    hsl(var(--fw-h) 85% 58%)
+  );
+  transform: rotate(var(--fw-a));
+  opacity: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dl-fw-flash {
+    animation: dl-fw-flash 0.45s ease-out forwards;
+  }
+  .dl-fw i:not(.dl-fw-flash) {
+    animation: dl-fw-spark 1.45s cubic-bezier(0.13, 0.62, 0.24, 1) forwards;
+  }
+}
+@keyframes dl-fw-flash {
+  0% {
+    opacity: 0.95;
+    transform: scale(0.4);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
+@keyframes dl-fw-spark {
+  0% {
+    transform: rotate(var(--fw-a)) translateY(-2px) scaleY(1);
+    opacity: 1;
+  }
+  55% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: rotate(var(--fw-a)) translateY(calc(-52px * var(--fw-d)))
+      scaleY(0.45);
+    opacity: 0;
+  }
+}
+
+/* ============ Framed prints ============ */
+
+/* Content images hang the way the scene hangs its previews: a real frame
+   (wood-weight border with a lit inner lip), a mat, a bevel line at the
+   mat's opening, and a soft cast shadow. Corners barely eased — a frame,
+   not a chip. */
+.dl-print {
+  display: inline-block;
+  padding: 0.6rem;
+  background: hsl(var(--dl-mat));
+  border: 3px solid hsl(var(--dl-frame));
+  border-radius: 3px;
+  box-shadow:
+    inset 0 0 0 1px hsl(var(--dl-frame-lip) / 0.7),
+    0 1px 2px rgb(0 0 0 / 0.12),
+    0 10px 26px -12px rgb(0 0 0 / 0.3);
+}
+.dl-print img {
+  display: block;
+  border-radius: 1px;
+  /* The mat's bevel: a crisp line where the opening is cut. */
+  box-shadow: 0 0 0 1px hsl(var(--dl-frame) / 0.28);
+}
+/* Inline book covers get the same treatment at reading-line scale. */
+.dl-cover {
+  padding: 1.5px;
+  background: hsl(var(--dl-mat));
+  border: 1px solid hsl(var(--dl-frame) / 0.8);
+  border-radius: 1px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.18);
+}
+
+/* ============ Section headers ============ */
+
+.dl-h2 {
+  font-size: 1.3125rem;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  color: hsl(var(--foreground));
+}
+
+/* ============ Continuous time axis ============ */
+
+/*
+ * Geometry: each entry row is a grid of
+ * [4.25rem time][1.3rem dot][0.9rem caret][title], so the axis runs through
+ * the dot column's center at 4.9rem and entry bodies indent to the title
+ * column at 6.45rem. Section headers sit flush left like every other
+ * section's; the axis is the entries' spine below them.
+ */
+.dl-tl-body {
+  position: relative;
+}
+.dl-tl-body::before {
+  content: "";
+  position: absolute;
+  left: calc(4.9rem - 1px);
+  top: 0.5rem;
+  bottom: 0;
+  width: 2px;
+  border-radius: 2px;
+}
+.dl-tl[data-arc="am"] .dl-tl-body::before {
+  background: linear-gradient(
+    180deg,
+    hsl(var(--dl-am-line) / 0.25),
+    hsl(var(--dl-am-line)) 18%,
+    hsl(var(--dl-am-line) / 0.45)
+  );
+}
+.dl-tl[data-arc="pm"] .dl-tl-body::before {
+  background: linear-gradient(
+    180deg,
+    hsl(var(--dl-pm-line) / 0.35),
+    hsl(var(--dl-pm-line)) 30%,
+    hsl(var(--dl-pm-line) / 0.4)
+  );
+}
+.dl-entry-head {
+  display: grid;
+  grid-template-columns: 4.25rem 1.3rem 0.9rem minmax(0, 1fr);
+  align-items: center;
+  width: 100%;
+  padding: 0.55rem 0;
+  text-align: left;
+}
+.dl-entry-time {
+  justify-self: end;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.75rem;
+}
+.dl-tl[data-arc="am"] .dl-entry-time {
+  color: hsl(var(--dl-am));
+}
+.dl-tl[data-arc="pm"] .dl-entry-time {
+  color: hsl(var(--dl-pm));
+}
+.dl-entry-dot {
+  justify-self: center;
+  position: relative;
+  z-index: 1;
+  width: 0.5625rem;
+  height: 0.5625rem;
+  border-radius: 999px;
+}
+.dl-tl[data-arc="am"] .dl-entry-dot {
+  background: hsl(var(--dl-am-chip));
+  box-shadow: 0 0 0 3px hsl(var(--dl-am-chip) / 0.25);
+}
+.dl-tl[data-arc="pm"] .dl-entry-dot {
+  background: hsl(var(--dl-pm-chip));
+  box-shadow: 0 0 0 3px hsl(var(--dl-pm-chip) / 0.25);
+}
+.dl-entry-title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+}
+.dl-entry-body {
+  padding: 0.25rem 0 1rem 6.45rem;
+  font-size: 0.9063rem;
+}
+@media (max-width: 559.98px) {
+  .dl-entry-head {
+    grid-template-columns: 3.7rem 1.2rem 0.9rem minmax(0, 1fr);
+  }
+  /* Expanded bodies sit nearly full-width on a phone, which would run the
+     continuous axis straight through their text. The axis becomes per-row
+     segments instead: unbroken while entries are collapsed, and it steps
+     politely around an open body. */
+  .dl-tl-body::before {
+    display: none;
+  }
+  .dl-entry-head {
+    position: relative;
+  }
+  .dl-entry-head::before {
+    content: "";
+    position: absolute;
+    left: calc(4.3rem - 1px);
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    border-radius: 2px;
+  }
+  .dl-tl[data-arc="am"] .dl-entry-head::before {
+    background: hsl(var(--dl-am-line) / 0.8);
+  }
+  .dl-tl[data-arc="pm"] .dl-entry-head::before {
+    background: hsl(var(--dl-pm-line) / 0.8);
+  }
+  .dl-entry-body {
+    padding-left: 1.25rem;
+  }
+}
+
+/* ============ TOC ============ */
+
+/* Desktop rail: hairline with a node dot per section. No `position` here —
+   the nav is `sticky` (a positioned element already), and a `relative` in
+   this file loads after the utilities and would silently un-stick it. */
+.dl-toc {
+  padding-left: 0.875rem;
+}
+.dl-toc::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 1.6rem;
+  bottom: 0.4rem;
+  width: 1px;
+  background: hsl(var(--dl-border-strong) / 0.8);
+}
+.dl-toc-link {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.3rem 0;
+  font-size: 0.8125rem;
+  text-align: left;
+  color: hsl(var(--muted-foreground));
+}
+/* Dot geometry: the rail is 1px wide at the nav's left edge (center 0.5px);
+   a 7px dot whose left edge sits 3px past the 0.875rem padding centers on
+   exactly that half-pixel — integer edges, no half-off straddle. */
+.dl-toc-link::before {
+  content: "";
+  position: absolute;
+  left: calc(-0.875rem - 3px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: hsl(var(--muted-foreground) / 0.45);
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.dl-toc-link[data-active="true"] {
+  color: hsl(var(--foreground));
+  font-weight: 600;
+}
+.dl-toc-link[data-active="true"]::before {
+  background: hsl(var(--foreground));
+  box-shadow: 0 0 0 3px hsl(var(--foreground) / 0.18);
+}
+.dl-toc-link:hover {
+  color: hsl(var(--foreground));
+}
+
