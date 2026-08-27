@@ -187,6 +187,36 @@ const getCachedPhoneSyncedAt = unstable_cache(
 // One row per workout with volume/set aggregates. Cached as ISO strings
 // (unstable_cache JSON-serializes, so Dates would flap between types);
 // consumers convert with `new Date()` after retrieval.
+/** Volume per UTC month per category — the stacked composition of the
+ *  Over the Years chart. Yearly buckets derive client-side. */
+const getCachedCategoryVolume = unstable_cache(
+  async () => {
+    const rows = await db.execute<{
+      period: string;
+      category: string;
+      volume: number | string;
+    }>(sql`
+      SELECT
+        TO_CHAR(w.date AT TIME ZONE 'UTC', 'YYYY-MM') AS period,
+        e.category,
+        SUM(s.volume) AS volume
+      FROM wl_sets s
+      INNER JOIN wl_exercises e ON s.exercise_id = e.id
+      INNER JOIN wl_workouts w ON e.workout_id = w.id
+      WHERE s.volume IS NOT NULL AND s.volume > 0
+      GROUP BY period, e.category
+      ORDER BY period
+    `);
+    return rows.map((r) => ({
+      period: r.period,
+      category: r.category,
+      volume: Math.round(Number(r.volume)),
+    }));
+  },
+  ["wl-category-volume"],
+  { revalidate: WEIGHTLIFTING_REVALIDATE, tags: [WEIGHTLIFTING_TAG] },
+);
+
 const getCachedTrainingRows = unstable_cache(
   async () => {
     const rows = await db.execute<{
@@ -390,6 +420,11 @@ export const weightliftingRouter = createTRPCRouter({
     }),
 
   /** Weekly/monthly/yearly training buckets + lifetime totals */
+  /** Monthly volume split by category for the Over the Years stacks */
+  getCategoryVolume: publicProcedure.query(async () => {
+    return getCachedCategoryVolume();
+  }),
+
   getTrainingAnalytics: publicProcedure.query(async () => {
     const rows = await getCachedTrainingRows();
     return computeTrainingAnalytics(

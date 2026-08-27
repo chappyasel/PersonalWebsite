@@ -1,5 +1,6 @@
 "use client";
 
+import { wlSearchParams } from "../lib/searchParams";
 import {
   CalendarDotsIcon,
   CaretDownIcon,
@@ -15,12 +16,12 @@ import { useQueryState } from "nuqs";
 import { type ReactNode, useId, useState } from "react";
 
 import { devBaseUrl } from "~/lib/util";
-import { wlSearchParams } from "../lib/searchParams";
+
 import { PersonalRecords } from "./PersonalRecords";
 import { StatsCards } from "./StatsCards";
 import { StrengthProgressionChart } from "./StrengthProgressionChart";
 import { SyncStatusIndicator } from "./SyncStatusIndicator";
-import { TrainingStatsPopover } from "./TrainingStatsPopover";
+import { TrainingOverYears } from "./TrainingOverYears";
 import { YearCalendar } from "./YearCalendar";
 
 function CollapsibleSection({
@@ -84,66 +85,59 @@ export function WeightliftingDashboard() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex flex-col gap-1">
-        <Link
-          href={
-            process.env.NODE_ENV === "production"
-              ? "https://www.chappyasel.com"
-              : devBaseUrl()
-          }
-          className="group inline-flex items-center gap-2 text-2xl font-semibold text-foreground transition-opacity hover:opacity-80 md:text-4xl"
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-        >
-          <span className="relative inline-flex h-7 w-7 items-center justify-center md:h-9 md:w-9">
-            <AnimatePresence mode="wait" initial={false}>
-              {isHovered ? (
-                <motion.div
-                  key="house-icon"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <HouseLineIcon
-                    className="h-7 w-7 md:h-9 md:w-9"
-                    weight="bold"
-                  />
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="app-icon"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <Image
-                    src="/images/manual/weightlifting-app.png"
-                    alt="Weightlifting App"
-                    width={36}
-                    height={36}
-                    className="h-7 w-7 rounded-lg md:h-9 md:w-9"
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </span>
-          <span className="line-clamp-1 font-rounded">
-            Chappy&apos;s Weightlifting
-          </span>
-        </Link>
+          <Link
+            href={
+              process.env.NODE_ENV === "production"
+                ? "https://www.chappyasel.com"
+                : devBaseUrl()
+            }
+            className="group inline-flex items-center gap-2 text-2xl font-semibold text-foreground transition-opacity hover:opacity-80 md:text-4xl"
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+          >
+            <span className="relative inline-flex h-7 w-7 items-center justify-center md:h-9 md:w-9">
+              <AnimatePresence mode="wait" initial={false}>
+                {isHovered ? (
+                  <motion.div
+                    key="house-icon"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <HouseLineIcon
+                      className="h-7 w-7 md:h-9 md:w-9"
+                      weight="bold"
+                    />
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="app-icon"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Image
+                      src="/images/manual/weightlifting-app.png"
+                      alt="Weightlifting App"
+                      width={36}
+                      height={36}
+                      className="h-7 w-7 rounded-lg md:h-9 md:w-9"
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </span>
+            <span className="line-clamp-1 font-rounded">
+              Chappy&apos;s Weightlifting
+            </span>
+          </Link>
           {/* Align with the title text (icon width + gap) */}
           <div className="pl-9 md:pl-11">
             <SyncStatusIndicator />
           </div>
         </div>
-        <TrainingStatsPopover
-          scope="all"
-          align="end"
-          triggerClassName="flex size-9 items-center justify-center rounded-lg text-neutral-500 transition-colors hover:bg-neutral-200/60 hover:text-neutral-700 dark:text-neutral-400 dark:hover:bg-neutral-700/60 dark:hover:text-neutral-200"
-        >
-          <ChartBarIcon className="size-4" weight="bold" />
-        </TrainingStatsPopover>
       </div>
 
       {/* Story */}
@@ -167,6 +161,22 @@ export function WeightliftingDashboard() {
         <StatsCards />
       </section>
 
+      {/* Over the Years — headline training history */}
+      <CollapsibleSection
+        icon={<ChartBarIcon className="h-5 w-5" weight="bold" />}
+        title="Over the Years"
+      >
+        <TrainingOverYears />
+      </CollapsibleSection>
+
+      {/* Featured Lifts PRs */}
+      <CollapsibleSection
+        icon={<TrophyIcon className="h-5 w-5" weight="bold" />}
+        title="Featured Lifts"
+      >
+        <PersonalRecords selectedExercises={selectedExercises} />
+      </CollapsibleSection>
+
       {/* Strength Progression */}
       <CollapsibleSection
         icon={<ChartLineUpIcon className="h-5 w-5" weight="bold" />}
@@ -176,14 +186,6 @@ export function WeightliftingDashboard() {
           selectedExercises={selectedExercises}
           setSelectedExercises={setSelectedExercises}
         />
-      </CollapsibleSection>
-
-      {/* Featured Lifts PRs */}
-      <CollapsibleSection
-        icon={<TrophyIcon className="h-5 w-5" weight="bold" />}
-        title="Featured Lifts"
-      >
-        <PersonalRecords selectedExercises={selectedExercises} />
       </CollapsibleSection>
 
       {/* All Workouts Calendar */}

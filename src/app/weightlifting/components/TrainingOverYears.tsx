@@ -1,26 +1,30 @@
 "use client";
 
+import { categoryColor } from "../lib/utils";
 import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 import { Bar, BarChart, Rectangle, XAxis, YAxis } from "recharts";
 
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  type ChartConfig,
-} from "~/components/ui/chart";
-import { Skeleton } from "~/components/ui/skeleton";
-import { StatsPopover } from "~/components/ui/stats-popover";
-import { YearHeatmap } from "~/components/ui/year-heatmap";
 import { computeYearOverYearDelta, effectiveDaysInYear } from "~/lib/stats/yoy";
 import { api } from "~/trpc/react";
 
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+} from "~/components/ui/chart";
+import { Skeleton } from "~/components/ui/skeleton";
+import { YearHeatmap } from "~/components/ui/year-heatmap";
+
+/**
+ * The headline training-history section: one bar per year (or per month
+ * when a year is stepped into), with volume bars stacked by muscle-group
+ * category in the app's colors so the composition of training is visible,
+ * not just its size. Grew out of the old header stats popover.
+ */
+
 const chartConfig = {
-  value: {
-    label: "Value",
-    color: "hsl(var(--foreground))",
-  },
+  value: { label: "Value", color: "hsl(var(--foreground))" },
 } satisfies ChartConfig;
 
 /** "all" for lifetime stats (chart = one bar per year), or a "YYYY" year */
@@ -29,12 +33,6 @@ type Metric = "volume" | "hours" | "workouts";
 type Mode = "total" | "week" | "day";
 
 const METRIC_LABELS: Record<Metric, string> = {
-  volume: "Volume",
-  hours: "Hours",
-  workouts: "Workouts",
-};
-
-const STAT_LABELS: Record<Metric, string> = {
   volume: "Volume",
   hours: "Hours",
   workouts: "Workouts",
@@ -69,7 +67,7 @@ const MONTH_LABELS = [
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-/** Toggle choices persist across popover opens (and reloads) */
+/** Toggle choices persist across visits */
 function readStoredChoice<T extends string>(
   key: string,
   valid: readonly T[],
@@ -96,14 +94,14 @@ function formatNumber(value: number): string {
 }
 
 /** Compact volume: 56.2M, 120k, 850 */
-function formatVolume(value: number): string {
+function formatVolumeShort(value: number): string {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1_000) return `${Math.round(value / 1_000)}k`;
   return formatNumber(value);
 }
 
 function formatMetricValue(metric: Metric, mode: Mode, value: number): string {
-  if (metric === "volume") return formatVolume(value);
+  if (metric === "volume") return formatVolumeShort(value);
   if (metric === "hours") return `${formatNumber(value)}h`;
   return mode === "total"
     ? Math.round(value).toLocaleString()
@@ -134,7 +132,7 @@ function formatHeatmapDate(date: string): string {
   });
 }
 
-/** Daily training heatmap for one year — data + ramp stay training-specific */
+/** Daily training heatmap for one year */
 function TrainingHeatmap({ year }: { year: string }) {
   const { data: daily } = api.weightlifting.getDailyTraining.useQuery(
     { year: Number(year) },
@@ -159,8 +157,85 @@ function TrainingHeatmap({ year }: { year: string }) {
   );
 }
 
-function TrainingStats({ initialScope }: { initialScope: Scope }) {
-  const [scope, setScope] = useState<Scope>(initialScope);
+type ChartPoint = {
+  label: string;
+  value: number;
+  projected: number;
+} & Record<string, number | string>;
+
+function StackTooltip({
+  active,
+  payload,
+  metric,
+  mode,
+  categories,
+}: {
+  active?: boolean;
+  payload?: { payload: ChartPoint }[];
+  metric: Metric;
+  mode: Mode;
+  categories: string[];
+}) {
+  if (!active || !payload?.length) return null;
+  const data = payload[0]!.payload;
+  const rows =
+    metric === "volume"
+      ? categories
+          .map((cat) => ({ cat, value: Number(data[cat] ?? 0) }))
+          .filter((r) => r.value > 0)
+          .sort((a, b) => b.value - a.value)
+      : [];
+
+  return (
+    <div className="min-w-36 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
+      <p className="mb-1 font-semibold text-neutral-700 dark:text-neutral-200">
+        {data.label}
+      </p>
+      {rows.map((row) => (
+        <div key={row.cat} className="flex items-center justify-between gap-4">
+          <span className="flex items-center gap-1.5 text-neutral-500 dark:text-neutral-400">
+            <span
+              className="h-2 w-2 rounded-full"
+              style={{ backgroundColor: categoryColor(row.cat) }}
+            />
+            {row.cat}
+          </span>
+          <span className="tabular-nums text-neutral-700 dark:text-neutral-200">
+            {formatMetricValue(metric, mode, row.value)}
+          </span>
+        </div>
+      ))}
+      <div
+        className={`flex items-center justify-between gap-4 ${
+          rows.length > 0
+            ? "mt-1 border-t border-neutral-100 pt-1 dark:border-neutral-700/60"
+            : ""
+        }`}
+      >
+        <span className="text-neutral-500 dark:text-neutral-400">
+          {METRIC_LABELS[metric]}
+          {MODE_SUFFIX[mode]}
+        </span>
+        <span className="font-semibold tabular-nums text-neutral-700 dark:text-neutral-200">
+          {formatMetricValue(metric, mode, data.value)}
+        </span>
+      </div>
+      {data.projected > 0 && (
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-neutral-400 dark:text-neutral-500">
+            Projected
+          </span>
+          <span className="tabular-nums text-neutral-500 dark:text-neutral-400">
+            {formatMetricValue(metric, mode, data.value + data.projected)}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function TrainingOverYears() {
+  const [scope, setScope] = useState<Scope>("all");
   const [metric, setMetric] = useState<Metric>(() =>
     readStoredChoice("metric", ["volume", "hours", "workouts"], "volume"),
   );
@@ -181,6 +256,35 @@ function TrainingStats({ initialScope }: { initialScope: Scope }) {
     undefined,
     { staleTime: 5 * 60 * 1000 },
   );
+  const { data: categoryVolume } = api.weightlifting.getCategoryVolume.useQuery(
+    undefined,
+    {
+      staleTime: 5 * 60 * 1000,
+    },
+  );
+
+  // Alphabetical stacking order, the app's canonical category order
+  const categories = useMemo(
+    () =>
+      [...new Set((categoryVolume ?? []).map((r) => r.category))].sort((a, b) =>
+        a.localeCompare(b),
+      ),
+    [categoryVolume],
+  );
+
+  /** period ("2023" or "2023-04") → category → volume */
+  const catByPeriod = useMemo(() => {
+    const map = new Map<string, Map<string, number>>();
+    for (const row of categoryVolume ?? []) {
+      // Index every month under both its own key and its year's key
+      for (const period of [row.period, row.period.slice(0, 4)]) {
+        const inner = map.get(period) ?? new Map<string, number>();
+        inner.set(row.category, (inner.get(row.category) ?? 0) + row.volume);
+        map.set(period, inner);
+      }
+    }
+    return map;
+  }, [categoryVolume]);
 
   const stats = useMemo(() => {
     if (!analytics) return null;
@@ -197,6 +301,7 @@ function TrainingStats({ initialScope }: { initialScope: Scope }) {
         const elapsedDays = effectiveDaysInYear(bucket.period, now);
         return {
           label: bucket.period,
+          period: bucket.period,
           volume: bucket.volume,
           hours: Math.round(bucket.hours * 10) / 10,
           workouts: bucket.workouts,
@@ -219,9 +324,8 @@ function TrainingStats({ initialScope }: { initialScope: Scope }) {
     const isCurrentYear = Number(scope) === now.getUTCFullYear();
     const yearBucket = analytics.yearly.find((b) => b.period === scope);
     const points = MONTH_LABELS.map((month, i) => {
-      const bucket = analytics.monthly.find(
-        (b) => b.period === `${scope}-${String(i + 1).padStart(2, "0")}`,
-      );
+      const period = `${scope}-${String(i + 1).padStart(2, "0")}`;
+      const bucket = analytics.monthly.find((b) => b.period === period);
       // Per-week rates divide by elapsed days for the in-progress month so a
       // month that just started isn't shown as artificially slow
       const daysInMonth = new Date(
@@ -231,6 +335,7 @@ function TrainingStats({ initialScope }: { initialScope: Scope }) {
       const effectiveDays = isCurrentMonth ? now.getUTCDate() : daysInMonth;
       return {
         label: month,
+        period,
         volume: bucket?.volume ?? 0,
         hours: bucket ? Math.round(bucket.hours * 10) / 10 : 0,
         workouts: bucket?.workouts ?? 0,
@@ -266,7 +371,7 @@ function TrainingStats({ initialScope }: { initialScope: Scope }) {
     };
   }, [analytics, scope]);
 
-  const chartData = useMemo(
+  const chartData: ChartPoint[] = useMemo(
     () =>
       stats?.points.map((p) => {
         const divisor =
@@ -278,17 +383,39 @@ function TrainingStats({ initialScope }: { initialScope: Scope }) {
           mode === "total" && p.fraction < 1 && value > 0
             ? (value * (1 - p.fraction)) / p.fraction
             : 0;
-        return { label: p.label, value, projected };
+        const point: ChartPoint = { label: p.label, value, projected };
+        if (metric === "volume") {
+          const cats = catByPeriod.get(p.period);
+          for (const cat of categories) {
+            point[cat] = (cats?.get(cat) ?? 0) / divisor;
+          }
+        }
+        return point;
       }) ?? [],
-    [stats, metric, mode],
+    [stats, metric, mode, categories, catByPeriod],
   );
+
+  // Legend keeps only categories that meaningfully shape the current scope
+  const legendCategories = useMemo(() => {
+    if (metric !== "volume") return [];
+    const totals = new Map<string, number>();
+    let sum = 0;
+    for (const point of chartData) {
+      for (const cat of categories) {
+        const v = Number(point[cat] ?? 0);
+        totals.set(cat, (totals.get(cat) ?? 0) + v);
+        sum += v;
+      }
+    }
+    return categories.filter((cat) => (totals.get(cat) ?? 0) / sum >= 0.02);
+  }, [chartData, categories, metric]);
 
   if (!stats) {
     return (
-      <div className="flex flex-col gap-3">
-        <Skeleton className="h-5 w-24" />
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-24 w-full" />
+      <div className="flex flex-col gap-4">
+        <Skeleton className="h-6 w-32" />
+        <Skeleton className="h-14 w-full" />
+        <Skeleton className="h-60 w-full" />
       </div>
     );
   }
@@ -318,10 +445,19 @@ function TrainingStats({ initialScope }: { initialScope: Scope }) {
   };
 
   const stepperButtonClass =
-    "flex size-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30";
+    "flex size-7 items-center justify-center rounded-md text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700 disabled:pointer-events-none disabled:opacity-30 dark:hover:bg-neutral-700/60 dark:hover:text-neutral-200";
+
+  // The topmost visible stack segment gets the rounded cap
+  const topCategoryOf = (point: ChartPoint): string | null => {
+    if (point.projected > 0) return null;
+    for (let i = categories.length - 1; i >= 0; i--) {
+      if (Number(point[categories[i]!] ?? 0) > 0) return categories[i]!;
+    }
+    return null;
+  };
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1">
           <button
@@ -331,9 +467,9 @@ function TrainingStats({ initialScope }: { initialScope: Scope }) {
             disabled={!canStepBack}
             aria-label="Previous year"
           >
-            <CaretLeftIcon className="size-3" weight="bold" />
+            <CaretLeftIcon className="size-3.5" weight="bold" />
           </button>
-          <span className="min-w-14 text-center text-sm font-semibold text-foreground">
+          <span className="min-w-24 text-center font-rounded text-lg font-semibold text-neutral-800 dark:text-neutral-100">
             {scope === "all" ? "All Time" : scope}
           </span>
           <button
@@ -345,14 +481,14 @@ function TrainingStats({ initialScope }: { initialScope: Scope }) {
               yearIndex === stats.years.length - 1 ? "All time" : "Next year"
             }
           >
-            <CaretRightIcon className="size-3" weight="bold" />
+            <CaretRightIcon className="size-3.5" weight="bold" />
           </button>
         </div>
         {stats.delta && (
           <button
             type="button"
             onClick={() => setScope(stats.delta!.prevYear)}
-            className={`rounded px-1 text-xs font-medium transition-colors hover:bg-muted ${
+            className={`rounded px-1.5 py-0.5 text-xs font-medium transition-colors hover:bg-neutral-100 dark:hover:bg-neutral-700/60 ${
               stats.delta.pct >= 0
                 ? "text-green-600 dark:text-green-400"
                 : "text-red-600 dark:text-red-400"
@@ -368,14 +504,18 @@ function TrainingStats({ initialScope }: { initialScope: Scope }) {
       <div className="flex justify-around gap-2">
         {(["workouts", "volume", "hours"] as const).map((m) => {
           const divisor =
-            mode === "total" ? 1 : mode === "week" ? stats.days / 7 : stats.days;
+            mode === "total"
+              ? 1
+              : mode === "week"
+                ? stats.days / 7
+                : stats.days;
           return (
             <div key={m} className="flex flex-col items-center gap-0.5">
-              <span className="text-xl font-semibold text-foreground">
+              <span className="font-rounded text-2xl font-bold text-neutral-800 dark:text-neutral-100 md:text-3xl">
                 {formatMetricValue(m, mode, stats[m] / Math.max(divisor, 1))}
               </span>
-              <span className="text-xs text-muted-foreground">
-                {STAT_LABELS[m]}
+              <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                {METRIC_LABELS[m]}
                 {MODE_SUFFIX[mode]}
               </span>
             </div>
@@ -384,7 +524,7 @@ function TrainingStats({ initialScope }: { initialScope: Scope }) {
       </div>
 
       {stats.pace && (
-        <p className="-mt-1 text-center text-xs text-muted-foreground">
+        <p className="-mt-2 text-center text-xs text-neutral-500 dark:text-neutral-400">
           On pace for ~{stats.pace.workouts} workouts · ~
           {(stats.pace.volume / 1_000_000).toFixed(1)}M lbs
         </p>
@@ -397,10 +537,10 @@ function TrainingStats({ initialScope }: { initialScope: Scope }) {
               key={m}
               type="button"
               onClick={() => updateMode(m)}
-              className={`rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors ${
+              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                 mode === m
-                  ? "bg-foreground/90 text-background"
-                  : "text-muted-foreground hover:bg-muted"
+                  ? "bg-neutral-800 text-white dark:bg-neutral-200 dark:text-neutral-900"
+                  : "text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-700/60"
               }`}
             >
               {MODE_LABELS[m]}
@@ -413,10 +553,10 @@ function TrainingStats({ initialScope }: { initialScope: Scope }) {
               key={m}
               type="button"
               onClick={() => updateMetric(m)}
-              className={`rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors ${
+              className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                 metric === m
-                  ? "bg-foreground/90 text-background"
-                  : "text-muted-foreground hover:bg-muted"
+                  ? "bg-neutral-800 text-white dark:bg-neutral-200 dark:text-neutral-900"
+                  : "text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-700/60"
               }`}
             >
               {METRIC_LABELS[m]}
@@ -425,18 +565,18 @@ function TrainingStats({ initialScope }: { initialScope: Scope }) {
         </div>
       </div>
 
-      <ChartContainer config={chartConfig} className="aspect-auto h-24 w-full">
+      <ChartContainer config={chartConfig} className="aspect-auto h-64 w-full">
         <BarChart
           data={chartData}
-          margin={{ top: 2, right: 0, bottom: 0, left: 0 }}
-          barCategoryGap="20%"
+          margin={{ top: 4, right: 0, bottom: 0, left: 0 }}
+          barCategoryGap="18%"
         >
           <XAxis
             dataKey="label"
             tickLine={false}
             axisLine={false}
             interval={0}
-            tick={{ fontSize: 9 }}
+            tick={{ fontSize: 11 }}
             tickFormatter={(v: string) =>
               scope === "all" ? `'${v.slice(2)}` : (v[0] ?? "")
             }
@@ -444,69 +584,68 @@ function TrainingStats({ initialScope }: { initialScope: Scope }) {
           <YAxis
             tickLine={false}
             axisLine={false}
-            tick={{ fontSize: 9 }}
-            tickCount={3}
+            tick={{ fontSize: 10 }}
+            tickCount={4}
             allowDecimals={false}
-            width={30}
+            width={38}
             tickFormatter={formatAxisTick}
           />
           <ChartTooltip
+            cursor={{ fill: "hsl(var(--foreground))", fillOpacity: 0.05 }}
             content={
-              <ChartTooltipContent
-                hideIndicator
-                formatter={(value, name, item) => {
-                  if (name === "projected") {
-                    if (!value) return null;
-                    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-                    const actual = (item?.payload?.value ?? 0) as number;
-                    return (
-                      <div className="flex flex-1 justify-between gap-3 leading-none">
-                        <span className="text-muted-foreground">Projected</span>
-                        <span className="font-mono font-bold tabular-nums text-foreground">
-                          {formatMetricValue(
-                            metric,
-                            mode,
-                            actual + (value as number),
-                          )}
-                        </span>
-                      </div>
-                    );
-                  }
-                  return (
-                    <div className="flex flex-1 justify-between gap-3 leading-none">
-                      <span className="text-muted-foreground">
-                        {METRIC_LABELS[metric]}
-                        {MODE_SUFFIX[mode]}
-                      </span>
-                      <span className="font-mono font-bold tabular-nums text-foreground">
-                        {formatMetricValue(metric, mode, value as number)}
-                      </span>
-                    </div>
-                  );
-                }}
+              <StackTooltip
+                metric={metric}
+                mode={mode}
+                categories={categories}
               />
             }
           />
-          <Bar
-            dataKey="value"
-            stackId="a"
-            fill="hsl(var(--foreground))"
-            fillOpacity={0.85}
-            isAnimationActive={false}
-            // Square top corners when a projected segment stacks above, so
-            // the solid bar meets the ghost flush
-            shape={(props: unknown) => {
-              const shapeProps = props as React.ComponentProps<
-                typeof Rectangle
-              > & { payload?: { projected?: number } };
-              return (
-                <Rectangle
-                  {...shapeProps}
-                  radius={shapeProps.payload?.projected ? 0 : [3, 3, 0, 0]}
-                />
-              );
-            }}
-          />
+          {metric === "volume" ? (
+            categories.map((cat) => (
+              <Bar
+                key={cat}
+                dataKey={cat}
+                stackId="a"
+                fill={categoryColor(cat)}
+                isAnimationActive={false}
+                shape={(props: unknown) => {
+                  const shapeProps = props as React.ComponentProps<
+                    typeof Rectangle
+                  > & { payload?: ChartPoint };
+                  const isTop =
+                    shapeProps.payload &&
+                    topCategoryOf(shapeProps.payload) === cat;
+                  return (
+                    <Rectangle
+                      {...shapeProps}
+                      radius={isTop ? [3, 3, 0, 0] : 0}
+                    />
+                  );
+                }}
+              />
+            ))
+          ) : (
+            <Bar
+              dataKey="value"
+              stackId="a"
+              fill="hsl(var(--foreground))"
+              fillOpacity={0.85}
+              isAnimationActive={false}
+              // Square top corners when a projected segment stacks above, so
+              // the solid bar meets the ghost flush
+              shape={(props: unknown) => {
+                const shapeProps = props as React.ComponentProps<
+                  typeof Rectangle
+                > & { payload?: { projected?: number } };
+                return (
+                  <Rectangle
+                    {...shapeProps}
+                    radius={shapeProps.payload?.projected ? 0 : [3, 3, 0, 0]}
+                  />
+                );
+              }}
+            />
+          )}
           {/* Projected remainder for in-progress periods — dashed ghost segment */}
           <Bar
             dataKey="projected"
@@ -522,32 +661,24 @@ function TrainingStats({ initialScope }: { initialScope: Scope }) {
         </BarChart>
       </ChartContainer>
 
+      {legendCategories.length > 0 && (
+        <div className="-mt-1 flex flex-wrap justify-center gap-x-3 gap-y-1">
+          {legendCategories.map((cat) => (
+            <span
+              key={cat}
+              className="flex items-center gap-1.5 text-[11px] text-neutral-500 dark:text-neutral-400"
+            >
+              <span
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: categoryColor(cat) }}
+              />
+              {cat}
+            </span>
+          ))}
+        </div>
+      )}
+
       {scope !== "all" && <TrainingHeatmap year={scope} />}
     </div>
-  );
-}
-
-type TrainingStatsPopoverProps = {
-  scope: Scope;
-  children: React.ReactNode;
-  /** Fully replaces the default dotted-underline trigger styling */
-  triggerClassName?: string;
-  align?: "start" | "center" | "end";
-};
-
-export function TrainingStatsPopover({
-  scope,
-  children,
-  triggerClassName,
-  align = "start",
-}: TrainingStatsPopoverProps) {
-  return (
-    <StatsPopover
-      content={<TrainingStats initialScope={scope} />}
-      triggerClassName={triggerClassName}
-      align={align}
-    >
-      {children}
-    </StatsPopover>
   );
 }
