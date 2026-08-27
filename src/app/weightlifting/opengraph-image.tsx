@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { ImageResponse } from "next/og";
 
 import { loadGeorgiaProBold } from "~/app/books/[bookId]/fonts";
+import { DAYLIGHT, skyBand } from "~/lib/og/daylight";
 import { db } from "~/server/db";
 import { wlSets, wlWorkouts } from "~/server/db/schema";
 
@@ -118,23 +119,23 @@ export default async function Image() {
             flexDirection: "column",
             width: "100%",
             height: "100%",
-            backgroundColor: "#1a1a1a",
-            justifyContent: "center",
-            padding: "50px 80px",
+            background: `linear-gradient(180deg, ${DAYLIGHT.arc0} 0%, ${DAYLIGHT.arc1} 55%, ${DAYLIGHT.arc2} 100%)`,
             fontFamily: '"Georgia Pro"',
-            color: "#e5e5e5",
+            color: DAYLIGHT.fg,
           }}
         >
+          {skyBand(1200, 196)}
           {/* Title */}
           <div
             style={{
               display: "flex",
               justifyContent: "center",
-              fontSize: "66px",
+              fontSize: "60px",
               fontWeight: 700,
-              color: "#ffffff",
+              color: DAYLIGHT.fg,
               letterSpacing: "-0.02em",
-              marginBottom: "48px",
+              marginTop: "26px",
+              marginBottom: "40px",
             }}
           >
             Weightlifting ~ Chappy Asel
@@ -146,7 +147,7 @@ export default async function Image() {
               display: "flex",
               justifyContent: "center",
               gap: "64px",
-              marginBottom: "56px",
+              marginBottom: "40px",
             }}
           >
             {statItems.map((stat) => (
@@ -161,17 +162,17 @@ export default async function Image() {
               >
                 <div
                   style={{
-                    fontSize: "52px",
+                    fontSize: "50px",
                     fontWeight: 700,
-                    color: "#ffffff",
+                    color: DAYLIGHT.fg,
                   }}
                 >
                   {stat.value}
                 </div>
                 <div
                   style={{
-                    fontSize: "22px",
-                    color: "#888888",
+                    fontSize: "21px",
+                    color: DAYLIGHT.label,
                     textTransform: "uppercase",
                     letterSpacing: "0.08em",
                   }}
@@ -189,8 +190,9 @@ export default async function Image() {
                 display: "flex",
                 justifyContent: "center",
                 gap: "80px",
-                borderTop: "1px solid #333333",
-                paddingTop: "40px",
+                borderTop: "1px solid hsl(20, 6%, 82%)",
+                margin: "0 80px",
+                paddingTop: "32px",
               }}
             >
               {prs.map((pr) => (
@@ -205,8 +207,8 @@ export default async function Image() {
                 >
                   <div
                     style={{
-                      fontSize: "22px",
-                      color: "#888888",
+                      fontSize: "21px",
+                      color: DAYLIGHT.label,
                       textTransform: "uppercase",
                       letterSpacing: "0.06em",
                     }}
@@ -215,14 +217,14 @@ export default async function Image() {
                   </div>
                   <div
                     style={{
-                      fontSize: "44px",
+                      fontSize: "42px",
                       fontWeight: 700,
-                      color: "#ffffff",
+                      color: DAYLIGHT.am,
                     }}
                   >
                     {`${pr.oneRM} lbs`}
                   </div>
-                  <div style={{ display: "flex", fontSize: "20px", color: "#666666" }}>
+                  <div style={{ display: "flex", fontSize: "20px", color: DAYLIGHT.subtitle }}>
                     {`${pr.weight} x ${pr.reps} est. 1RM`}
                   </div>
                 </div>
@@ -252,13 +254,13 @@ export default async function Image() {
             display: "flex",
             width: "100%",
             height: "100%",
-            backgroundColor: "#1a1a1a",
+            backgroundColor: "hsl(46, 30%, 95.5%)",
             alignItems: "center",
             justifyContent: "center",
-            fontFamily: "system-ui, -apple-system, sans-serif",
+            fontFamily: "Georgia, serif",
             fontSize: "64px",
             fontWeight: 700,
-            color: "#ffffff",
+            color: "hsl(25, 6%, 32%)",
           }}
         >
           Weightlifting ~ Chappy Asel

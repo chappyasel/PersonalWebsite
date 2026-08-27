@@ -1,13 +1,8 @@
 /**
- * Shared daylight-identity pieces for the routine and manual OG cards.
- *
- * The sky hexes are the main 3D site's authored values from
- * src/app/components/stacks/theme.ts (light set: L36 skyTop #126bb0,
- * L37 skyHorizon #4f8ab3, L38 skyShadow #6a9aba, L39 skyEmber #f5c78d,
- * L49 skyline #5b7288); the ground and accents mirror the tokens in
- * src/styles/daylight.css, and the skyline renders the same surveyed
- * geometry the pages use (src/components/daylight/skylineGeometry.ts).
- * OG cards are single static images, so they render the light theme only.
+ * Shared daylight-identity pieces for the hand-run routine and manual OG
+ * cards. The palette and skyline are single-sourced from
+ * src/lib/og/daylight.tsx (the runtime OG kit); this file adds the baked
+ * cloud tile, which only the build-time cards can afford to embed.
  */
 import { readFileSync } from "fs";
 import { join, dirname } from "path";
@@ -15,12 +10,9 @@ import { fileURLToPath } from "url";
 
 import React from "react";
 
-import {
-  SKYLINE_HEIGHT,
-  SKYLINE_SHAPES,
-  SKYLINE_VIEWBOX,
-  SKYLINE_WIDTH,
-} from "../../src/components/daylight/skylineGeometry";
+import { DAYLIGHT, skyline } from "../../src/lib/og/daylight";
+
+export { DAYLIGHT, skyline };
 
 const CLOUDS_PATH = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -32,71 +24,7 @@ const CLOUDS_BUF = readFileSync(CLOUDS_PATH);
 const CLOUDS_URI = `data:image/png;base64,${CLOUDS_BUF.toString("base64")}`;
 const CLOUDS_ASPECT = CLOUDS_BUF.readUInt32BE(20) / CLOUDS_BUF.readUInt32BE(16);
 
-export const DAYLIGHT = {
-  skyTop: "#126bb0",
-  skyMid: "#4f8ab3",
-  skyLow: "#6a9aba",
-  skyEmber: "#f5c78d",
-  silhouette: "#5b7288",
-  // Golden Gate paint — daylightRendering.ts goldenGatePaintLinear mixed at
-  // the shader's day ratio; same value as --dl-ggb in daylight.css (light).
-  ggb: "hsl(8, 36%, 42%)",
-  arc0: "hsl(26, 24%, 93%)",
-  arc0Clear: "hsla(26, 24%, 93%, 0)",
-  arc1: "hsl(46, 30%, 95.5%)",
-  arc2: "hsl(60, 9%, 98%)",
-  am: "hsl(35, 48%, 38%)",
-  pm: "hsl(228, 20%, 44%)",
-  fg: "hsl(25, 6%, 32%)",
-  label: "hsl(25, 5%, 50%)",
-  subtitle: "hsl(25, 5%, 45%)",
-} as const;
-
-/** The dome's surveyed skyline, aspect-true across the card width. */
-export function skyline(width: number) {
-  const height = Math.round((width * SKYLINE_HEIGHT) / SKYLINE_WIDTH);
-  return React.createElement(
-    "svg",
-    {
-      width,
-      height,
-      viewBox: SKYLINE_VIEWBOX,
-      style: { position: "absolute" as const, bottom: -1, left: 0 },
-    },
-    ...SKYLINE_SHAPES.map((shape, i) => {
-      const fill = shape.tone === "ggb" ? DAYLIGHT.ggb : DAYLIGHT.silhouette;
-      if (shape.kind === "rect") {
-        return React.createElement("rect", {
-          key: i,
-          fill,
-          fillOpacity: shape.opacity,
-          x: shape.x,
-          y: shape.y,
-          width: shape.w,
-          height: shape.h,
-        });
-      }
-      if (shape.kind === "stroke") {
-        return React.createElement("path", {
-          key: i,
-          d: shape.d,
-          fill: "none",
-          stroke: fill,
-          strokeWidth: shape.width,
-          strokeOpacity: shape.opacity,
-        });
-      }
-      return React.createElement("path", {
-        key: i,
-        fill,
-        fillOpacity: shape.opacity,
-        d: shape.d,
-      });
-    }),
-  );
-}
-
-/** Sky band with the ember glow and skyline, spanning the card width. */
+/** Sky band with the ember glow, clouds, and skyline, spanning the card. */
 export function skyBand(width: number, height: number) {
   return React.createElement(
     "div",
