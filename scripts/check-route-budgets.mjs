@@ -28,7 +28,15 @@ export const routes = [
     // 2,100-line development prototype and production album are lazy chunks;
     // the event reducer and call sites account for the measured increase from
     // 282.7 KB on main to 289.6 KB on this branch.
-    budget: 292 * 1024,
+    // The @sheet parallel slot (intercepted /routine and /manual sheets) puts
+    // its router machinery in every page's client graph: this branch measures
+    // 291.3 KB without the slot and 292.7 KB with it, and none of the 1.4 KB
+    // is the sheet UI itself — DaylightSheet lives in the interceptors' lazy
+    // chunks, and the homepage manifest carries no dl-sheet reference.
+    // Re-baselined 292 -> 294 for the prototype; whether 1.4 KB of
+    // always-loaded plumbing buys enough UX to keep is the owner's call at
+    // ship time.
+    budget: 294 * 1024,
   },
   {
     name: "books",
