@@ -27,9 +27,10 @@ const OUT = join(
   "../../src/components/daylight/skylineGeometry.ts",
 );
 
-// ---- Azimuth window and projection. The SF traverse runs from the west
-// ridge's foot to the Bay Bridge's east end.
-const A0 = -2.47;
+// ---- Azimuth window and projection. The SF traverse opens just west of
+// Sutro Tower (owner call: nothing to its left but the ridge running off the
+// edge) and closes at the Bay Bridge's east end.
+const A0 = -2.24;
 const A1 = -1.025;
 const WIDTH = 1440;
 const PPR = WIDTH / (A1 - A0); // one scale for both axes: aspect-true
@@ -261,12 +262,18 @@ function polyToBaseline(pts: [number, number][], opacity?: number): Shape {
 }
 
 // ============ Sutro Tower on its hill (tip e = 0.118) ============
+// The shader runs the legs down to e = 0.010 and hides the cut inside its
+// opaque hill; our hill is a translucent haze, so the legs instead PLANT at
+// the ridge line — same silhouette the dome shows, without the floating cut.
+// The whole tower carries the ridge's own haze (it stands at that distance).
 {
   const AZ = -2.2;
+  const OP_SUTRO = 0.8;
   const spread = (eh: number) => mix(0.011, 0.0035, clamp01(eh / 0.05));
   for (const s of [-1, 1]) {
-    // Leg band |{|dSut|} - spread| <= 0.0016, eh in (-0.02, 0.055]
-    const ehs = [-0.02, 0, 0.05, 0.055];
+    // Leg band |{|dSut|} - spread| <= 0.0016, clipped at the local ridge
+    const ehRidge = hillH(AZ + s * 0.009) - 0.03;
+    const ehs = [ehRidge, 0.05, 0.055];
     const outer = ehs.map((eh) => [AZ + s * (spread(eh) + 0.0016), eh + 0.03]);
     const inner = ehs
       .slice()
@@ -278,13 +285,13 @@ function polyToBaseline(pts: [number, number][], opacity?: number): Shape {
         .map(([a, e]) => `L${X(a!)} ${Y(e!)}`)
         .join(" ") +
       " Z";
-    shapes.push({ kind: "fill", d });
+    shapes.push({ kind: "fill", d, opacity: OP_SUTRO });
   }
-  // Waist bar, then the three prongs (centre one to the 0.118 tip)
-  shapes.push(rectAE(AZ - 0.009, AZ + 0.009, 0.0804, 0.0836));
-  shapes.push(rectAE(AZ - 0.0014, AZ + 0.0014, 0.06, 0.118));
-  shapes.push(rectAE(AZ - 0.0088, AZ - 0.0062, 0.06, 0.118));
-  shapes.push(rectAE(AZ + 0.0062, AZ + 0.0088, 0.06, 0.118));
+  // Waist bar, then the three prongs (all to the 0.118 tip, as authored)
+  shapes.push(rectAE(AZ - 0.009, AZ + 0.009, 0.0804, 0.0836, OP_SUTRO));
+  shapes.push(rectAE(AZ - 0.0014, AZ + 0.0014, 0.06, 0.118, OP_SUTRO));
+  shapes.push(rectAE(AZ - 0.0088, AZ - 0.0062, 0.06, 0.118, OP_SUTRO));
+  shapes.push(rectAE(AZ + 0.0062, AZ + 0.0088, 0.06, 0.118, OP_SUTRO));
 }
 
 // ============ Transamerica Pyramid with wings (a = -1.62) ============

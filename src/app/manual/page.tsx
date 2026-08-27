@@ -73,7 +73,7 @@ export default async function ManualPage() {
         <div className="mx-auto max-w-5xl px-4 pb-12">
           <div className="mt-11 flex justify-center">
             <DaylightTOCSidebar items={tocItems} />
-            <div className="w-full max-w-2xl space-y-12">
+            <div className="w-full max-w-[45rem] space-y-12">
               {/* Mobile sticky TOC */}
               <DaylightTOCMobile items={tocItems} />
 

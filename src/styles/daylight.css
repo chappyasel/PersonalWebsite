@@ -44,12 +44,12 @@
   --dl-border-strong: 20 6% 76%;
 
   /* Ground arc: hue-biased neutrals tracing dawn -> noon -> dusk. arc2 is the
-     site background verbatim so the plateau disappears into the page. */
-  --dl-arc0: 26 18% 94%;
-  --dl-arc1: 46 24% 96%;
+     site background verbatim so the noon plateau disappears into the page. */
+  --dl-arc0: 26 24% 93%;
+  --dl-arc1: 46 30% 95.5%;
   --dl-arc2: 60 9% 98%;
-  --dl-arc3: 228 10% 96%;
-  --dl-arc4: 240 9% 94%;
+  --dl-arc3: 228 14% 95.5%;
+  --dl-arc4: 240 13% 92.5%;
 }
 
 .dark .daylight-root {
@@ -61,7 +61,7 @@
   --dl-sky-glow: 23 72% 56%;
   --dl-sky-ink: 220 25% 90%;
   --dl-sil: 222 37% 12%;
-  --dl-star-op: 0.6;
+  --dl-star-op: 0.9;
 
   --dl-am: 38 48% 66%;
   --dl-am-line: 36 35% 45%;
@@ -78,11 +78,11 @@
 
   --dl-border-strong: 12 6% 26%;
 
-  --dl-arc0: 18 16% 7%;
-  --dl-arc1: 30 12% 7%;
+  --dl-arc0: 18 20% 8%;
+  --dl-arc1: 30 15% 7.5%;
   --dl-arc2: 24 10% 6%;
-  --dl-arc3: 232 12% 7%;
-  --dl-arc4: 244 14% 7%;
+  --dl-arc3: 232 16% 7.5%;
+  --dl-arc4: 244 18% 8.5%;
 }
 
 /*
@@ -94,10 +94,10 @@
   background-image: linear-gradient(
     180deg,
     hsl(var(--dl-arc0)) 0%,
-    hsl(var(--dl-arc1)) 15%,
-    hsl(var(--dl-arc2)) 38%,
-    hsl(var(--dl-arc2)) 54%,
-    hsl(var(--dl-arc3)) 78%,
+    hsl(var(--dl-arc1)) 14%,
+    hsl(var(--dl-arc2)) 40%,
+    hsl(var(--dl-arc2)) 48%,
+    hsl(var(--dl-arc3)) 76%,
     hsl(var(--dl-arc4)) 100%
   );
 }
@@ -119,11 +119,11 @@
 .dl-sky {
   position: absolute;
   inset: 0;
-  /* Ember at 91%: the dome anchors its glow at azimuth -1.15, which lands
-     91% of the way across the strip's [-2.47, -1.025] window. */
+  /* Ember at 90%: the dome anchors its glow at azimuth -1.15, which lands
+     90% of the way across the strip's [-2.24, -1.025] window. */
   background:
     radial-gradient(
-      44rem 13rem at 91% 100%,
+      44rem 13rem at 90% 100%,
       hsl(var(--dl-sky-glow) / 0.85),
       transparent 70%
     ),
@@ -139,22 +139,28 @@
   inset: 0 0 30% 0;
   opacity: var(--dl-star-op);
   background-image:
-    radial-gradient(1px 1px at 12% 22%, hsl(0 0% 100% / 0.9), transparent 55%),
-    radial-gradient(1px 1px at 31% 12%, hsl(0 0% 100% / 0.7), transparent 55%),
     radial-gradient(
-      1.5px 1.5px at 47% 30%,
-      hsl(0 0% 100% / 0.8),
+      1.5px 1.5px at 12% 22%,
+      hsl(0 0% 100% / 0.95),
       transparent 55%
     ),
-    radial-gradient(1px 1px at 63% 15%, hsl(0 0% 100% / 0.6), transparent 55%),
-    radial-gradient(1px 1px at 76% 26%, hsl(0 0% 100% / 0.85), transparent 55%),
+    radial-gradient(1.5px 1.5px at 31% 12%, hsl(0 0% 100% / 0.8), transparent 55%),
+    radial-gradient(2px 2px at 47% 30%, hsl(0 0% 100% / 0.9), transparent 55%),
+    radial-gradient(1.5px 1.5px at 63% 15%, hsl(0 0% 100% / 0.7), transparent 55%),
     radial-gradient(
-      1.5px 1.5px at 88% 10%,
-      hsl(0 0% 100% / 0.7),
+      1.5px 1.5px at 76% 26%,
+      hsl(0 0% 100% / 0.9),
       transparent 55%
     ),
-    radial-gradient(1px 1px at 94% 34%, hsl(0 0% 100% / 0.55), transparent 55%),
-    radial-gradient(1px 1px at 22% 40%, hsl(0 0% 100% / 0.5), transparent 55%);
+    radial-gradient(2px 2px at 88% 10%, hsl(0 0% 100% / 0.8), transparent 55%),
+    radial-gradient(1.5px 1.5px at 94% 34%, hsl(0 0% 100% / 0.65), transparent 55%),
+    radial-gradient(1.5px 1.5px at 22% 40%, hsl(0 0% 100% / 0.6), transparent 55%),
+    radial-gradient(1.5px 1.5px at 7% 8%, hsl(0 0% 100% / 0.7), transparent 55%),
+    radial-gradient(2px 2px at 40% 7%, hsl(0 0% 100% / 0.75), transparent 55%),
+    radial-gradient(1.5px 1.5px at 55% 42%, hsl(0 0% 100% / 0.6), transparent 55%),
+    radial-gradient(1.5px 1.5px at 70% 6%, hsl(0 0% 100% / 0.85), transparent 55%),
+    radial-gradient(1.5px 1.5px at 83% 44%, hsl(0 0% 100% / 0.55), transparent 55%),
+    radial-gradient(2px 2px at 97% 18%, hsl(0 0% 100% / 0.7), transparent 55%);
 }
 /* Shader-generated thin daylight clouds (scripts/generate/sky-clouds.ts),
    bottom-anchored to the horizon like the skyline. The dome gates its clouds
@@ -193,16 +199,18 @@
 }
 .dl-hero-inner {
   position: relative;
-  max-width: 42rem;
+  max-width: 45rem;
   margin: 0 auto;
-  /* Bottom padding tracks the aspect-true skyline (~9vw tall) plus the fade. */
-  padding: 4.25rem 1rem clamp(6rem, 13vw, 12.5rem);
+  /* Bottom padding tracks the aspect-true skyline (~11vw tall) plus the fade. */
+  padding: 3.5rem 1rem clamp(6rem, 15vw, 14rem);
   color: hsl(var(--dl-sky-ink) / 0.95);
   text-shadow: 0 1px 14px hsl(var(--dl-sky-top) / 0.55);
 }
 .dl-hero-title {
   color: hsl(var(--dl-sky-ink));
-  font-size: clamp(1.8rem, 5vw, 2.4rem);
+  /* 2.125rem is the largest size that keeps "Chappy's Personal Operating
+     Manual" on one line in the 45rem column (measured 34.5px max). */
+  font-size: clamp(1.7rem, 4.5vw, 2.125rem);
   font-weight: 700;
   letter-spacing: -0.01em;
   line-height: 1.2;
@@ -312,8 +320,30 @@
   .dl-entry-head {
     grid-template-columns: 3.7rem 1.2rem 0.9rem minmax(0, 1fr);
   }
+  /* Expanded bodies sit nearly full-width on a phone, which would run the
+     continuous axis straight through their text. The axis becomes per-row
+     segments instead: unbroken while entries are collapsed, and it steps
+     politely around an open body. */
   .dl-tl-body::before {
+    display: none;
+  }
+  .dl-entry-head {
+    position: relative;
+  }
+  .dl-entry-head::before {
+    content: "";
+    position: absolute;
     left: calc(4.3rem - 1px);
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    border-radius: 2px;
+  }
+  .dl-tl[data-arc="am"] .dl-entry-head::before {
+    background: hsl(var(--dl-am-line) / 0.8);
+  }
+  .dl-tl[data-arc="pm"] .dl-entry-head::before {
+    background: hsl(var(--dl-pm-line) / 0.8);
   }
   .dl-entry-body {
     padding-left: 1.25rem;
@@ -398,16 +428,3 @@
   border-bottom-color: hsl(var(--foreground));
 }
 
-/* ============ Notion callout, daylight treatment ============ */
-
-/*
- * The tinted panel becomes a warm plum rule with a faint fade. Scoped here so
- * every other NotionCallout consumer keeps the hairline box.
- */
-.daylight-root [data-notion-callout] {
-  border: 0;
-  border-left: 2px solid hsl(var(--dl-plum) / 0.75);
-  border-radius: 0;
-  background: linear-gradient(90deg, hsl(var(--dl-plum) / 0.06), transparent 80%);
-  padding: 0.25rem 0 0.25rem 1rem;
-}

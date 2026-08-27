@@ -71,28 +71,10 @@ export default function ManualHero({
           <p className="max-w-[34rem] text-[0.9375rem]">
             A guide to how I work, communicate, and collaborate
           </p>
-
-          {hero.quickLinks.length > 0 && (
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 font-sans text-xs text-[hsl(var(--dl-sky-ink)/0.75)]">
-              {hero.quickLinks.map((link, i) => (
-                <React.Fragment key={link.url}>
-                  {i > 0 && <span aria-hidden>·</span>}
-                  <Link
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="transition-colors hover:text-[hsl(var(--dl-sky-ink))] hover:underline"
-                  >
-                    {link.label}
-                  </Link>
-                </React.Fragment>
-              ))}
-            </div>
-          )}
         </div>
       </SkyHero>
 
-      <div className="mx-auto mt-10 max-w-2xl space-y-6 px-4">
+      <div className="mx-auto mt-10 max-w-[45rem] space-y-6 px-4">
         {hero.intro.length > 0 && (
           <HeroPanel label="My 30-Second Introduction">
             <div className="space-y-2">
