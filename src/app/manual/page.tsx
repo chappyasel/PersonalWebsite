@@ -5,6 +5,7 @@ import {
   DaylightTOCSidebar,
   DaylightTOCSpacer,
 } from "~/components/daylight/DaylightTOC";
+import HorizonFooter from "~/components/daylight/HorizonFooter";
 import { db } from "~/server/db";
 import { orEmpty } from "~/server/queries/degrade";
 import { books } from "~/server/db/schema";
@@ -83,6 +84,11 @@ export default async function ManualPage() {
             </div>
             <DaylightTOCSpacer />
           </div>
+        </div>
+        {/* The manual has no time story; its horizon follows the theme the
+            way the homepage footer does. */}
+        <div className="mt-16">
+          <HorizonFooter />
         </div>
       </main>
     </div>

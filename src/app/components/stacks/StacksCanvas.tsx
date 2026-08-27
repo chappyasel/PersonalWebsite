@@ -12,6 +12,7 @@ import {
 } from "@react-three/fiber";
 import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import {
   Component,
   type ErrorInfo,
@@ -1857,9 +1858,21 @@ export default function StacksCanvas({
   const onOpenBookId = useCallback((id: string) => {
     useStacks.getState().setPendingBookId(id);
   }, []);
-  const onOpenUrl = useCallback((url: string) => {
-    window.open(url, "_blank", "noopener,noreferrer");
-  }, []);
+  const router = useRouter();
+  const onOpenUrl = useCallback(
+    (url: string) => {
+      // The two document pages open as intercepted sheets over the live
+      // world (src/app/@sheet) — the scene stays booted underneath and the
+      // back gesture lands right back in it. Everything else keeps the
+      // new-tab behavior.
+      if (url === "/routine" || url === "/manual") {
+        router.push(url);
+        return;
+      }
+      window.open(url, "_blank", "noopener,noreferrer");
+    },
+    [router],
+  );
 
   const pointerEvents = useMemo(
     () => scenePointerEvents(coarseTouch),

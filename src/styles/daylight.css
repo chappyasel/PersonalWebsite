@@ -71,6 +71,11 @@
   --dl-arc2: 60 9% 98%;
   --dl-arc3: 228 14% 95.5%;
   --dl-arc4: 240 13% 92.5%;
+
+  /* Dusk ramp for the closing horizon: the arc's last stop falling through
+     the evening slate family into the measured night band. */
+  --dl-dusk1: 231 18% 74%;
+  --dl-dusk2: 228 24% 48%;
 }
 
 .dark .daylight-root {
@@ -128,6 +133,11 @@
   --dl-arc2: 24 10% 6%;
   --dl-arc3: 232 16% 7.5%;
   --dl-arc4: 244 18% 8.5%;
+
+  /* At night the ramp runs the other way: the ground's near-black lifts
+     toward the city-glow band the skyline stands against. */
+  --dl-dusk1: 243 19% 11%;
+  --dl-dusk2: 227 30% 19%;
 }
 
 /*
@@ -1174,3 +1184,198 @@
   color: hsl(var(--foreground));
 }
 
+
+/* ============ Hero depth (scroll parallax) ============ */
+
+/* Scrolling past the hero, the layers part by distance: the star field and
+   the moon hold the sky longest, the cloud band lingers behind them, and the
+   skyline leaves with the page — the dome's depth, driven here by the scroll
+   axis instead of the camera. Scroll-driven animations only where the engine
+   has them (@supports); everywhere else the hero scrolls away in one piece,
+   exactly as before. The gradient and its ember stay put on purpose: the
+   glow is anchored to the bridge's end of the sky and must not detach. */
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .dl-hero .dl-stars {
+      animation:
+        dl-twinkle 5.2s ease-in-out infinite,
+        dl-parallax linear both;
+      animation-timeline: auto, scroll(root);
+      animation-range: normal, 0px 100vh;
+      --dl-plx: 0px 58%;
+    }
+    .dl-hero .dl-stars-b {
+      animation:
+        dl-twinkle 8.6s ease-in-out infinite,
+        dl-parallax linear both;
+      animation-delay: -2.9s, 0s;
+      animation-timeline: auto, scroll(root);
+      animation-range: normal, 0px 100vh;
+      --dl-plx: 0px 58%;
+    }
+    /* Translating the container leaves the ::before drift loop untouched. */
+    .dl-hero .dl-clouds {
+      animation: dl-parallax linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0px 100vh;
+      --dl-plx: 0px 30%;
+    }
+    /* The moon sets behind the buildings it already stands behind. px on an
+       SVG group is user units (viewBox 1440x214), so 22 is a tenth of the
+       strip's height. */
+    .dl-hero .dl-night-back {
+      animation: dl-parallax linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0px 100vh;
+      --dl-plx: 0px 22px;
+    }
+  }
+}
+@keyframes dl-parallax {
+  to {
+    translate: var(--dl-plx);
+  }
+}
+
+/* Rubber-banding past either end of a daylight page used to reveal bare
+   paper. The document canvas now continues the scene both ways: sky above
+   the fold, the page's own closing ground below it. Fixed attachment pins
+   the halves to the viewport, so only overscroll ever shows them. Hexes are
+   the page tokens restated (body sits outside .daylight-root): sky-top and
+   arc4/arc2 per theme; the routine's bottom half is the measured night band
+   its horizon footer ends on. */
+body:has(.dl-ground-arc) {
+  background: linear-gradient(
+      180deg,
+      hsl(206 81% 38%) 0%,
+      hsl(206 81% 38%) 50%,
+      hsl(223 38% 29%) 50%
+    )
+    fixed;
+}
+.dark body:has(.dl-ground-arc) {
+  background: linear-gradient(
+      180deg,
+      hsl(225 47% 21%) 0%,
+      hsl(225 47% 21%) 50%,
+      hsl(223 38% 29%) 50%
+    )
+    fixed;
+}
+body:has(.dl-ground-wash) {
+  background: linear-gradient(
+      180deg,
+      hsl(206 81% 38%) 0%,
+      hsl(206 81% 38%) 50%,
+      hsl(60 9% 98%) 50%
+    )
+    fixed;
+}
+.dark body:has(.dl-ground-wash) {
+  background: linear-gradient(
+      180deg,
+      hsl(225 47% 21%) 0%,
+      hsl(225 47% 21%) 50%,
+      hsl(24 10% 6%) 50%
+    )
+    fixed;
+}
+
+/* ============ Closing horizon (page footer) ============ */
+
+/* The same self-contained horizon strips the flat homepage wears, standing
+   at the very bottom of a daylight page. The night variant ends the page
+   the way the routine's day ends — at 9:15pm: dusk falls out of the ground
+   arc's last stop through the evening slates into the measured band the
+   night skyline actually stands against (#2e3e67 — the render, not the
+   authored hex), windows lit, beacons going, in both themes. */
+.dl-horizon-night {
+  margin-top: 5rem;
+  padding-top: clamp(5rem, 12vw, 10rem);
+  background: linear-gradient(
+    180deg,
+    hsl(var(--dl-arc4)) 0%,
+    hsl(var(--dl-dusk1)) 42%,
+    hsl(var(--dl-dusk2)) 76%,
+    hsl(223 38% 29%) 100%
+  );
+}
+.dl-horizon-night img {
+  display: block;
+  width: 100%;
+}
+
+/* ============ Intercepted-route sheet ============ */
+
+/* The document page as a sheet over the page that launched it. A sliver of
+   the scene stays visible at the top so leaving is one obvious gesture. */
+.dl-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+}
+.dl-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: hsl(225 30% 8% / 0.45);
+  backdrop-filter: blur(2px);
+}
+.dl-sheet-panel {
+  position: absolute;
+  inset: 1.5rem 0 0;
+  width: 100%;
+  max-width: 72rem;
+  margin: 0 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: 1rem 1rem 0 0;
+  box-shadow: 0 -14px 48px rgb(0 0 0 / 0.4);
+}
+/* A zero-height sticky rail keeps the close control in the corner at every
+   scroll position without pushing the page down. */
+.dl-sheet-closebar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  height: 0;
+  display: flex;
+  justify-content: flex-end;
+}
+.dl-sheet-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  margin: 0.9rem;
+  border-radius: 999px;
+  color: hsl(40 30% 96% / 0.9);
+  background: hsl(225 30% 12% / 0.35);
+  backdrop-filter: blur(6px);
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+.dl-sheet-close:hover {
+  background: hsl(225 30% 12% / 0.55);
+  color: hsl(40 30% 96%);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dl-sheet-panel {
+    animation: dl-sheet-up 0.42s cubic-bezier(0.32, 0.72, 0.25, 1);
+  }
+  .dl-sheet-backdrop {
+    animation: dl-fade-in 0.3s ease;
+  }
+}
+@keyframes dl-sheet-up {
+  from {
+    transform: translateY(3rem);
+    opacity: 0.4;
+  }
+}
+@keyframes dl-fade-in {
+  from {
+    opacity: 0;
+  }
+}
