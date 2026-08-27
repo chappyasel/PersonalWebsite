@@ -67,6 +67,28 @@ const MONTH_LABELS = [
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
+// Hours stack by day of week: an ordered light-to-dark ramp, Mon -> Sun
+const DOW_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+function dowColor(index: number): string {
+  return `hsl(210, 55%, ${78 - index * 8}%)`;
+}
+
+// Workouts stack by time of day, read from the app's default workout
+// names; the amber ramp darkens as the day fades. Renamed workouts are
+// "Other".
+const TOD_LABELS = [
+  "Morning",
+  "Mid-Day",
+  "Afternoon",
+  "Evening",
+  "Dusk",
+  "Other",
+];
+function todColor(index: number): string {
+  if (index === 5) return "hsl(220, 5%, 62%)";
+  return `hsl(35, 85%, ${75 - index * 10}%)`;
+}
+
 /** Toggle choices persist across visits */
 function readStoredChoice<T extends string>(
   key: string,
@@ -168,23 +190,24 @@ function StackTooltip({
   payload,
   metric,
   mode,
-  categories,
+  keys,
+  colorFor,
 }: {
   active?: boolean;
   payload?: { payload: ChartPoint }[];
   metric: Metric;
   mode: Mode;
-  categories: string[];
+  keys: string[];
+  colorFor: (key: string) => string;
 }) {
   if (!active || !payload?.length) return null;
   const data = payload[0]!.payload;
-  const rows =
-    metric === "volume"
-      ? categories
-          .map((cat) => ({ cat, value: Number(data[cat] ?? 0) }))
-          .filter((r) => r.value > 0)
-          .sort((a, b) => b.value - a.value)
-      : [];
+  // Volume sorts by size; the weekday and time-of-day splits keep their
+  // natural order
+  const rows = keys
+    .map((cat) => ({ cat, value: Number(data[cat] ?? 0) }))
+    .filter((r) => r.value > 0)
+    .sort((a, b) => (metric === "volume" ? b.value - a.value : 0));
 
   return (
     <div className="min-w-36 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
@@ -196,7 +219,7 @@ function StackTooltip({
           <span className="flex items-center gap-1.5 text-neutral-500 dark:text-neutral-400">
             <span
               className="h-2 w-2 rounded-full"
-              style={{ backgroundColor: categoryColor(row.cat) }}
+              style={{ backgroundColor: colorFor(row.cat) }}
             />
             {row.cat}
           </span>
@@ -262,6 +285,10 @@ export function TrainingOverYears() {
       staleTime: 5 * 60 * 1000,
     },
   );
+  const { data: splits } = api.weightlifting.getTrainingSplits.useQuery(
+    undefined,
+    { staleTime: 5 * 60 * 1000 },
+  );
 
   // Alphabetical stacking order, the app's canonical category order
   const categories = useMemo(
@@ -285,6 +312,31 @@ export function TrainingOverYears() {
     }
     return map;
   }, [categoryVolume]);
+
+  const dowByPeriod = useMemo(() => {
+    const map = new Map<string, Map<string, number>>();
+    for (const row of splits?.hoursByDow ?? []) {
+      const label = DOW_LABELS[row.dow - 1]!;
+      for (const period of [row.period, row.period.slice(0, 4)]) {
+        const inner = map.get(period) ?? new Map<string, number>();
+        inner.set(label, (inner.get(label) ?? 0) + row.hours);
+        map.set(period, inner);
+      }
+    }
+    return map;
+  }, [splits]);
+
+  const todByPeriod = useMemo(() => {
+    const map = new Map<string, Map<string, number>>();
+    for (const row of splits?.workoutsByTime ?? []) {
+      for (const period of [row.period, row.period.slice(0, 4)]) {
+        const inner = map.get(period) ?? new Map<string, number>();
+        inner.set(row.bucket, (inner.get(row.bucket) ?? 0) + row.workouts);
+        map.set(period, inner);
+      }
+    }
+    return map;
+  }, [splits]);
 
   const stats = useMemo(() => {
     if (!analytics) return null;
@@ -371,44 +423,70 @@ export function TrainingOverYears() {
     };
   }, [analytics, scope]);
 
+  // Which composition the active metric stacks by
+  const activeKeys: string[] =
+    metric === "volume"
+      ? categories
+      : metric === "hours"
+        ? DOW_LABELS
+        : TOD_LABELS;
+  const splitByPeriod =
+    metric === "volume"
+      ? catByPeriod
+      : metric === "hours"
+        ? dowByPeriod
+        : todByPeriod;
+  const colorFor = (key: string) =>
+    metric === "volume"
+      ? categoryColor(key)
+      : metric === "hours"
+        ? dowColor(DOW_LABELS.indexOf(key))
+        : todColor(TOD_LABELS.indexOf(key));
+
   const chartData: ChartPoint[] = useMemo(
     () =>
       stats?.points.map((p) => {
         const divisor =
           mode === "total" ? 1 : mode === "week" ? p.days / 7 : p.days;
-        const value = p[metric] / divisor;
+        const point: ChartPoint = { label: p.label, value: 0, projected: 0 };
+        const segments = splitByPeriod.get(p.period);
+        let segmentSum = 0;
+        for (const key of activeKeys) {
+          const v = (segments?.get(key) ?? 0) / divisor;
+          point[key] = v;
+          segmentSum += v;
+        }
+        // Volume totals come from the workout-grain analytics (UTC months);
+        // the hour/workout splits bucket by local time, so their totals must
+        // be the segment sums or the stack height would contradict the label
+        point.value = metric === "volume" ? p[metric] / divisor : segmentSum;
         // Linear extrapolation for in-progress periods (total mode only —
         // per-week/day rates are already normalized)
-        const projected =
-          mode === "total" && p.fraction < 1 && value > 0
-            ? (value * (1 - p.fraction)) / p.fraction
+        point.projected =
+          mode === "total" && p.fraction < 1 && point.value > 0
+            ? (point.value * (1 - p.fraction)) / p.fraction
             : 0;
-        const point: ChartPoint = { label: p.label, value, projected };
-        if (metric === "volume") {
-          const cats = catByPeriod.get(p.period);
-          for (const cat of categories) {
-            point[cat] = (cats?.get(cat) ?? 0) / divisor;
-          }
-        }
         return point;
       }) ?? [],
-    [stats, metric, mode, categories, catByPeriod],
+    [stats, metric, mode, activeKeys, splitByPeriod],
   );
 
-  // Legend keeps only categories that meaningfully shape the current scope
-  const legendCategories = useMemo(() => {
-    if (metric !== "volume") return [];
+  // Legend keeps only segments that actually appear; volume additionally
+  // drops categories under 2% so rare ones live in the tooltip alone
+  const legendKeys = useMemo<string[]>(() => {
     const totals = new Map<string, number>();
     let sum = 0;
     for (const point of chartData) {
-      for (const cat of categories) {
-        const v = Number(point[cat] ?? 0);
-        totals.set(cat, (totals.get(cat) ?? 0) + v);
+      for (const key of activeKeys) {
+        const v = Number(point[key] ?? 0);
+        totals.set(key, (totals.get(key) ?? 0) + v);
         sum += v;
       }
     }
-    return categories.filter((cat) => (totals.get(cat) ?? 0) / sum >= 0.02);
-  }, [chartData, categories, metric]);
+    if (sum === 0) return [];
+    const floor = metric === "volume" ? 0.02 : 0;
+    return activeKeys.filter((key) => (totals.get(key) ?? 0) / sum > floor);
+  }, [chartData, activeKeys, metric]);
 
   if (!stats) {
     return (
@@ -448,10 +526,10 @@ export function TrainingOverYears() {
     "flex size-7 items-center justify-center rounded-md text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700 disabled:pointer-events-none disabled:opacity-30 dark:hover:bg-neutral-700/60 dark:hover:text-neutral-200";
 
   // The topmost visible stack segment gets the rounded cap
-  const topCategoryOf = (point: ChartPoint): string | null => {
+  const topKeyOf = (point: ChartPoint): string | null => {
     if (point.projected > 0) return null;
-    for (let i = categories.length - 1; i >= 0; i--) {
-      if (Number(point[categories[i]!] ?? 0) > 0) return categories[i]!;
+    for (let i = activeKeys.length - 1; i >= 0; i--) {
+      if (Number(point[activeKeys[i]!] ?? 0) > 0) return activeKeys[i]!;
     }
     return null;
   };
@@ -596,56 +674,33 @@ export function TrainingOverYears() {
               <StackTooltip
                 metric={metric}
                 mode={mode}
-                categories={categories}
+                keys={activeKeys}
+                colorFor={colorFor}
               />
             }
           />
-          {metric === "volume" ? (
-            categories.map((cat) => (
-              <Bar
-                key={cat}
-                dataKey={cat}
-                stackId="a"
-                fill={categoryColor(cat)}
-                isAnimationActive={false}
-                shape={(props: unknown) => {
-                  const shapeProps = props as React.ComponentProps<
-                    typeof Rectangle
-                  > & { payload?: ChartPoint };
-                  const isTop =
-                    shapeProps.payload &&
-                    topCategoryOf(shapeProps.payload) === cat;
-                  return (
-                    <Rectangle
-                      {...shapeProps}
-                      radius={isTop ? [3, 3, 0, 0] : 0}
-                    />
-                  );
-                }}
-              />
-            ))
-          ) : (
+          {activeKeys.map((key) => (
             <Bar
-              dataKey="value"
+              key={key}
+              dataKey={key}
               stackId="a"
-              fill="hsl(var(--foreground))"
-              fillOpacity={0.85}
+              fill={colorFor(key)}
               isAnimationActive={false}
-              // Square top corners when a projected segment stacks above, so
-              // the solid bar meets the ghost flush
               shape={(props: unknown) => {
                 const shapeProps = props as React.ComponentProps<
                   typeof Rectangle
-                > & { payload?: { projected?: number } };
+                > & { payload?: ChartPoint };
+                const isTop =
+                  shapeProps.payload && topKeyOf(shapeProps.payload) === key;
                 return (
                   <Rectangle
                     {...shapeProps}
-                    radius={shapeProps.payload?.projected ? 0 : [3, 3, 0, 0]}
+                    radius={isTop ? [3, 3, 0, 0] : 0}
                   />
                 );
               }}
             />
-          )}
+          ))}
           {/* Projected remainder for in-progress periods — dashed ghost segment */}
           <Bar
             dataKey="projected"
@@ -661,16 +716,16 @@ export function TrainingOverYears() {
         </BarChart>
       </ChartContainer>
 
-      {legendCategories.length > 0 && (
+      {legendKeys.length > 0 && (
         <div className="-mt-1 flex flex-wrap justify-center gap-x-3 gap-y-1">
-          {legendCategories.map((cat) => (
+          {legendKeys.map((cat) => (
             <span
               key={cat}
               className="flex items-center gap-1.5 text-[11px] text-neutral-500 dark:text-neutral-400"
             >
               <span
                 className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: categoryColor(cat) }}
+                style={{ backgroundColor: colorFor(cat) }}
               />
               {cat}
             </span>

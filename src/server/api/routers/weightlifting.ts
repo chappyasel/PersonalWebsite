@@ -184,9 +184,6 @@ const getCachedPhoneSyncedAt = unstable_cache(
   { revalidate: WEIGHTLIFTING_REVALIDATE, tags: [WEIGHTLIFTING_TAG] },
 );
 
-// One row per workout with volume/set aggregates. Cached as ISO strings
-// (unstable_cache JSON-serializes, so Dates would flap between types);
-// consumers convert with `new Date()` after retrieval.
 /** Volume per UTC month per category — the stacked composition of the
  *  Over the Years chart. Yearly buckets derive client-side. */
 const getCachedCategoryVolume = unstable_cache(
@@ -217,6 +214,69 @@ const getCachedCategoryVolume = unstable_cache(
   { revalidate: WEIGHTLIFTING_REVALIDATE, tags: [WEIGHTLIFTING_TAG] },
 );
 
+/**
+ * Composition splits for the Over the Years stacks: training hours per
+ * month per day-of-week, and workout counts per month per time-of-day.
+ *
+ * Day-of-week uses Pacific time — the week being described is Chappy's
+ * local one, and UTC would shift an evening workout onto the next day.
+ * Time-of-day comes from the app's own default workout names ("Morning
+ * Workout", …), which recorded the local hour at creation; renamed
+ * workouts land in "Other".
+ */
+const getCachedTrainingSplits = unstable_cache(
+  async () => {
+    const [dowRows, todRows] = await Promise.all([
+      db.execute<{ period: string; dow: number; hours: number | string }>(sql`
+        SELECT
+          TO_CHAR(w.date AT TIME ZONE 'America/Los_Angeles', 'YYYY-MM') AS period,
+          EXTRACT(ISODOW FROM w.date AT TIME ZONE 'America/Los_Angeles')::int AS dow,
+          SUM(w.duration_seconds) / 3600.0 AS hours
+        FROM wl_workouts w
+        GROUP BY period, dow
+        ORDER BY period
+      `),
+      db.execute<{
+        period: string;
+        bucket: string;
+        workouts: number | string;
+      }>(sql`
+        SELECT
+          TO_CHAR(w.date AT TIME ZONE 'America/Los_Angeles', 'YYYY-MM') AS period,
+          CASE
+            WHEN w.name LIKE 'Morning%' THEN 'Morning'
+            WHEN w.name LIKE 'Mid-Day%' THEN 'Mid-Day'
+            WHEN w.name LIKE 'Afternoon%' THEN 'Afternoon'
+            WHEN w.name LIKE 'Evening%' THEN 'Evening'
+            WHEN w.name LIKE 'Dusk%' THEN 'Dusk'
+            ELSE 'Other'
+          END AS bucket,
+          COUNT(*)::int AS workouts
+        FROM wl_workouts w
+        GROUP BY period, bucket
+        ORDER BY period
+      `),
+    ]);
+    return {
+      hoursByDow: dowRows.map((r) => ({
+        period: r.period,
+        dow: Number(r.dow),
+        hours: Math.round(Number(r.hours) * 100) / 100,
+      })),
+      workoutsByTime: todRows.map((r) => ({
+        period: r.period,
+        bucket: r.bucket,
+        workouts: Number(r.workouts),
+      })),
+    };
+  },
+  ["wl-training-splits"],
+  { revalidate: WEIGHTLIFTING_REVALIDATE, tags: [WEIGHTLIFTING_TAG] },
+);
+
+// One row per workout with volume/set aggregates. Cached as ISO strings
+// (unstable_cache JSON-serializes, so Dates would flap between types);
+// consumers convert with `new Date()` after retrieval.
 const getCachedTrainingRows = unstable_cache(
   async () => {
     const rows = await db.execute<{
@@ -423,6 +483,11 @@ export const weightliftingRouter = createTRPCRouter({
   /** Monthly volume split by category for the Over the Years stacks */
   getCategoryVolume: publicProcedure.query(async () => {
     return getCachedCategoryVolume();
+  }),
+
+  /** Monthly hours-by-weekday and workouts-by-time-of-day splits */
+  getTrainingSplits: publicProcedure.query(async () => {
+    return getCachedTrainingSplits();
   }),
 
   getTrainingAnalytics: publicProcedure.query(async () => {
