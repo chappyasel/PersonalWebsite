@@ -1,3 +1,4 @@
+import GgbFireworks from "./GgbFireworks";
 import Skyline from "./Skyline";
 
 /**
@@ -85,6 +86,7 @@ export default function DaylightSky() {
         <Skyline />
       </div>
       <div className="dl-ground-blend" />
+      <GgbFireworks />
     </div>
   );
 }

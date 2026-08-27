@@ -751,6 +751,13 @@
   padding: 3.5rem 1rem clamp(6rem, 15vw, 14rem);
   color: hsl(var(--dl-sky-ink) / 0.95);
   text-shadow: 0 1px 14px hsl(var(--dl-sky-top) / 0.55);
+  /* Let clicks fall through the column's empty padding to the sky beneath
+     (the bridge's tap target lives there); real controls re-enable. */
+  pointer-events: none;
+}
+.dl-hero-inner a,
+.dl-hero-inner button {
+  pointer-events: auto;
 }
 .dl-hero-title {
   color: hsl(var(--dl-sky-ink));
@@ -803,6 +810,82 @@
 }
 .dl-screen .dl-ground-blend {
   height: 5rem;
+}
+
+/* ============ Golden Gate fireworks (the scene's easter egg) ============ */
+
+/* Invisible tap target over the bridge span (azimuth -2.04 lands its towers
+   at 8-24% of the strip). Clicking the bridge in the 3D scene fires
+   fireworks; the strip answers the same way. */
+.dl-ggb-tap {
+  position: absolute;
+  left: 7.5%;
+  bottom: 0;
+  width: 17.5%;
+  height: 9vw;
+  cursor: pointer;
+}
+.dl-fw {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+.dl-fw-flash {
+  position: absolute;
+  left: -5px;
+  top: -5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: hsl(40 100% 88%);
+  opacity: 0;
+}
+.dl-fw i:not(.dl-fw-flash) {
+  position: absolute;
+  left: -1px;
+  top: -4px;
+  width: 2px;
+  height: 8px;
+  border-radius: 2px;
+  background: linear-gradient(
+    180deg,
+    hsl(var(--fw-h) 95% 82%),
+    hsl(var(--fw-h) 85% 58%)
+  );
+  transform: rotate(var(--fw-a));
+  opacity: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .dl-fw-flash {
+    animation: dl-fw-flash 0.45s ease-out forwards;
+  }
+  .dl-fw i:not(.dl-fw-flash) {
+    animation: dl-fw-spark 1.45s cubic-bezier(0.13, 0.62, 0.24, 1) forwards;
+  }
+}
+@keyframes dl-fw-flash {
+  0% {
+    opacity: 0.95;
+    transform: scale(0.4);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
+@keyframes dl-fw-spark {
+  0% {
+    transform: rotate(var(--fw-a)) translateY(-2px) scaleY(1);
+    opacity: 1;
+  }
+  55% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: rotate(var(--fw-a)) translateY(calc(-52px * var(--fw-d)))
+      scaleY(0.45);
+    opacity: 0;
+  }
 }
 
 /* ============ Horizon footer (flat home) ============ */
