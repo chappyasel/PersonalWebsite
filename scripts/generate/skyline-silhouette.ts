@@ -1,0 +1,396 @@
+/**
+ * Generate the daylight skyline strip FROM the dome shader's own math.
+ *
+ * Usage: npx tsx scripts/generate/skyline-silhouette.ts
+ * Writes: src/components/daylight/skylineGeometry.ts
+ *
+ * Every formula and constant below is ported verbatim from the SF traverse in
+ * src/app/components/stacks/scene/SceneEnvironment.tsx (the dome shader), so
+ * the 2D strip is the same silhouette the 3D site renders — the hash-stepped
+ * residential carpet, the hump ridges, Sutro's legs/waist/prongs, the Golden
+ * Gate through the ridge notch (occluded by the same masks the shader uses),
+ * Transamerica with its wings, Salesforce's eased taper, Jasper's recessed
+ * crown, and the Bay Bridge's parabola cable. If the dome changes, re-run
+ * this script; never hand-edit the generated file.
+ *
+ * The strip preserves the dome's angular aspect: x and y share one
+ * px-per-radian scale, so nothing is stretched or squashed relative to the
+ * main site.
+ */
+import { writeFileSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const OUT = join(
+  dirname(__filename),
+  "../../src/components/daylight/skylineGeometry.ts",
+);
+
+// ---- Azimuth window and projection. The SF traverse runs from the west
+// ridge's foot to the Bay Bridge's east end.
+const A0 = -2.47;
+const A1 = -1.025;
+const WIDTH = 1440;
+const PPR = WIDTH / (A1 - A0); // one scale for both axes: aspect-true
+const E_TOP = 0.13; // clears Sutro's 0.118 tip
+const HEIGHT = +(E_TOP * PPR).toFixed(1);
+
+const X = (a: number) => +((a - A0) * PPR).toFixed(2);
+const Y = (e: number) => +((E_TOP - e) * PPR).toFixed(2);
+const px = (rad: number) => +(rad * PPR).toFixed(2);
+
+// ---- GLSL helpers, ported exactly.
+const fract = (x: number) => x - Math.floor(x);
+function hash1(n: number): number {
+  n = fract(n * 0.1031);
+  n *= n + 33.33;
+  n *= n + n;
+  return fract(n);
+}
+function smoothstep(e0: number, e1: number, x: number): number {
+  const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
+  return t * t * (3 - 2 * t);
+}
+function hump(a: number, c: number, w: number): number {
+  const q = (a - c) / w;
+  const m = Math.max(1 - q * q, 0);
+  return m * m;
+}
+const mix = (a: number, b: number, t: number) => a + (b - a) * t;
+const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
+
+// ---- Shader constants (SceneEnvironment.tsx defines).
+const TR_TOP = 0.082;
+const TR_HW = 0.0102;
+const TR_WING_B = 0.0372;
+const TR_WING_T = 0.0617;
+const SF_TOP = 0.1;
+const SF_HW = 0.01;
+const SF_TAPER = 0.44;
+const JASPER_AZ = -1.19;
+const JASPER_TOP = 0.0515;
+const JASPER_HW = 0.0068;
+
+// ---- Profiles, ported exactly.
+// Twin Peaks / Mt Davidson + Telegraph Hill
+function hillH(a: number): number {
+  return Math.max(
+    0.05 * hump(a, -2.16, 0.3),
+    0.038 * hump(a, -1.98, 0.24),
+    0.022 * hump(a, -1.9, 0.07),
+  );
+}
+// Residential carpet roofline: fixed per-cell hash, downtown widens the range
+function dtown(a: number): number {
+  return smoothstep(0.42, 0.1, Math.abs(a + 1.35));
+}
+function roof(a: number): number {
+  const colId = Math.floor(a * 64);
+  return 0.012 + hash1(colId) * (0.016 + 0.042 * dtown(a));
+}
+// What occludes the Golden Gate: the shader multiplies ggb by
+// (1 - hillMask) * (1 - city).
+function occlusion(a: number): number {
+  const h = hillH(a);
+  return Math.max(h >= 0.002 ? h : 0, roof(a));
+}
+
+type Shape =
+  | { kind: "fill"; d: string; opacity?: number }
+  | { kind: "rect"; x: number; y: number; w: number; h: number; opacity?: number }
+  | { kind: "stroke"; d: string; width: number; opacity?: number };
+
+const shapes: Shape[] = [];
+const OP_HILL = 0.55;
+const OP_CARPET = 0.8;
+const OP_GGB = 0.85;
+
+const rectAE = (
+  a0: number,
+  a1: number,
+  eLo: number,
+  eHi: number,
+  opacity?: number,
+): Shape => ({
+  kind: "rect",
+  x: X(a0),
+  y: Y(eHi),
+  w: +(px(a1 - a0)).toFixed(2),
+  h: +(px(eHi - eLo)).toFixed(2),
+  opacity,
+});
+
+function polyToBaseline(pts: [number, number][], opacity?: number): Shape {
+  // pts are (a, e) along the top profile, left to right; fill runs to the
+  // strip's bottom edge.
+  const path =
+    `M${X(pts[0]![0])} ${HEIGHT} ` +
+    pts.map(([a, e]) => `L${X(a)} ${Y(e)}`).join(" ") +
+    ` L${X(pts[pts.length - 1]![0])} ${HEIGHT} Z`;
+  return { kind: "fill", d: path, opacity };
+}
+
+// ============ Golden Gate Bridge, northwest at a = -2.04 ============
+// Drawn first in source order but pre-clipped against the same ridge/carpet
+// occlusion the shader applies, so layering cannot leak it through the hills.
+{
+  const AZ = -2.04;
+  const SPREAD = 0.055;
+  const aOf = (gx: number) => AZ + gx * SPREAD;
+  const deckY = (gx: number) => 0.038 + 0.0022 * (1 - gx * gx);
+  const cableY = (gx: number) => deckY(gx) + 0.0308 * gx * gx - 0.00325 * gx;
+  const towerTop = (gx: number) => (gx < 0 ? 0.072 : 0.0655);
+
+  // Towers: two plumb legs, two portal beams, a flat cap. Legs sit at
+  // |dTw - 0.00245| <= 0.00074 with dTw measured from each tower centre.
+  for (const t of [-1, 1]) {
+    const aT = aOf(t);
+    const top = towerTop(t);
+    const dY = deckY(t);
+    const cut = occlusion(aT);
+    const legLo = Math.max(0.0245, cut);
+    const inner = 0.00245 - 0.00074;
+    const outer = 0.00245 + 0.00074;
+    shapes.push(
+      rectAE(aT - outer, aT - inner, legLo, top, OP_GGB),
+      rectAE(aT + inner, aT + outer, legLo, top, OP_GGB),
+    );
+    const lowerBeam = mix(dY, top, 0.34);
+    const upperBeam = mix(dY, top, 0.68);
+    shapes.push(
+      rectAE(aT - 0.00345, aT + 0.00345, lowerBeam - 0.00095, lowerBeam + 0.00095, OP_GGB),
+      rectAE(aT - 0.00345, aT + 0.00345, upperBeam - 0.00085, upperBeam + 0.00085, OP_GGB),
+      rectAE(aT - 0.00375, aT + 0.00375, top - 0.00105, top + 0.00105, OP_GGB),
+    );
+  }
+
+  // Curves clipped to the visible notch: sample, keep runs above occlusion,
+  // emit each run as a stroked polyline.
+  function clippedCurve(
+    gx0: number,
+    gx1: number,
+    f: (gx: number) => number,
+    width: number,
+  ) {
+    const runs: [number, number][][] = [];
+    let run: [number, number][] = [];
+    const steps = 160;
+    for (let i = 0; i <= steps; i++) {
+      const gx = gx0 + ((gx1 - gx0) * i) / steps;
+      const a = aOf(gx);
+      const e = f(gx);
+      if (e > occlusion(a)) {
+        run.push([a, e]);
+      } else if (run.length > 1) {
+        runs.push(run);
+        run = [];
+      } else {
+        run = [];
+      }
+    }
+    if (run.length > 1) runs.push(run);
+    for (const r of runs) {
+      const d =
+        `M${X(r[0]![0])} ${Y(r[0]![1])} ` +
+        r
+          .slice(1)
+          .map(([a, e]) => `L${X(a)} ${Y(e)}`)
+          .join(" ");
+      shapes.push({ kind: "stroke", d, width: px(width), opacity: OP_GGB });
+    }
+  }
+
+  clippedCurve(-1, 1, cableY, 0.00144); // main cable
+  clippedCurve(-1.55, -1, (gx) => mix(towerTop(-1), deckY(gx) + 0.0018, (Math.abs(gx) - 1) / 0.55), 0.00144);
+  clippedCurve(1, 1.55, (gx) => mix(towerTop(1), deckY(gx) + 0.0018, (Math.abs(gx) - 1) / 0.55), 0.00144);
+  clippedCurve(-1.55, 1.55, deckY, 0.0023); // roadway
+  clippedCurve(-1.53, 1.53, (gx) => deckY(gx) - 0.0028, 0.00144); // truss chord
+
+  // Suspender ropes: main span at fract(gx * 9), outer spans at 14 per unit.
+  for (let k = -9; k <= 8; k++) {
+    const gx = (k + 0.5) / 9;
+    if (Math.abs(gx) > 0.98) continue;
+    const a = aOf(gx);
+    const lo = Math.max(deckY(gx), occlusion(a));
+    const hi = cableY(gx);
+    if (hi - lo > 0.0015)
+      shapes.push(rectAE(a - 0.00033, a + 0.00033, lo, hi, OP_GGB));
+  }
+  for (const side of [-1, 1]) {
+    for (let k = 0; k <= 7; k++) {
+      const off = 1 + (k + 0.5) / 14;
+      if (off > 1.52) continue;
+      const gx = side * off;
+      const a = aOf(gx);
+      const lo = Math.max(deckY(gx), occlusion(a));
+      const hi = mix(towerTop(side), deckY(gx) + 0.0018, (off - 1) / 0.55);
+      if (hi - lo > 0.0015)
+        shapes.push(rectAE(a - 0.00033, a + 0.00033, lo, hi, OP_GGB));
+    }
+  }
+}
+
+// ============ Twin Peaks / Mt Davidson / Telegraph Hill ridge ============
+{
+  const pts: [number, number][] = [];
+  for (let a = A0; a <= -1.7; a += 0.0015) {
+    const h = hillH(a);
+    if (h < 0.002 && pts.length === 0) continue;
+    if (h < 0.002 && pts.length > 0) {
+      pts.push([a, 0]);
+      break;
+    }
+    pts.push([a, h]);
+  }
+  shapes.push(polyToBaseline(pts, OP_HILL));
+}
+
+// ============ Residential carpet, hash-stepped, downtown bulge ============
+{
+  const pts: [number, number][] = [];
+  const k0 = Math.floor(A0 * 64);
+  const k1 = Math.floor(A1 * 64);
+  for (let k = k0; k <= k1; k++) {
+    const aS = Math.max(k / 64, A0);
+    const aE = Math.min((k + 1) / 64, A1);
+    if (aE <= aS) continue;
+    pts.push([aS, roof(aS + 1e-6)], [aE, roof(aE - 1e-6)]);
+  }
+  shapes.push(polyToBaseline(pts, OP_CARPET));
+}
+
+// ============ Sutro Tower on its hill (tip e = 0.118) ============
+{
+  const AZ = -2.2;
+  const spread = (eh: number) => mix(0.011, 0.0035, clamp01(eh / 0.05));
+  for (const s of [-1, 1]) {
+    // Leg band |{|dSut|} - spread| <= 0.0016, eh in (-0.02, 0.055]
+    const ehs = [-0.02, 0, 0.05, 0.055];
+    const outer = ehs.map((eh) => [AZ + s * (spread(eh) + 0.0016), eh + 0.03]);
+    const inner = ehs
+      .slice()
+      .reverse()
+      .map((eh) => [AZ + s * (spread(eh) - 0.0016), eh + 0.03]);
+    const d =
+      `M${X(outer[0]![0]!)} ${Y(outer[0]![1]!)} ` +
+      [...outer.slice(1), ...inner]
+        .map(([a, e]) => `L${X(a!)} ${Y(e!)}`)
+        .join(" ") +
+      " Z";
+    shapes.push({ kind: "fill", d });
+  }
+  // Waist bar, then the three prongs (centre one to the 0.118 tip)
+  shapes.push(rectAE(AZ - 0.009, AZ + 0.009, 0.0804, 0.0836));
+  shapes.push(rectAE(AZ - 0.0014, AZ + 0.0014, 0.06, 0.118));
+  shapes.push(rectAE(AZ - 0.0088, AZ - 0.0062, 0.06, 0.118));
+  shapes.push(rectAE(AZ + 0.0062, AZ + 0.0088, 0.06, 0.118));
+}
+
+// ============ Transamerica Pyramid with wings (a = -1.62) ============
+{
+  const AZ = -1.62;
+  // hw(e) = TR_HW * (1 - e/TR_TOP), floored at 0.0008 (the spire)
+  const eKnee = TR_TOP * (1 - 0.0008 / TR_HW);
+  const pts: [number, number][] = [
+    [AZ - TR_HW, 0],
+    [AZ - 0.0008, eKnee],
+    [AZ - 0.0008, TR_TOP],
+    [AZ + 0.0008, TR_TOP],
+    [AZ + 0.0008, eKnee],
+    [AZ + TR_HW, 0],
+  ];
+  const d =
+    `M${X(pts[0]![0])} ${HEIGHT} ` +
+    pts.map(([a, e]) => `L${X(a)} ${Y(e)}`).join(" ") +
+    ` L${X(pts[pts.length - 1]![0])} ${HEIGHT} Z`;
+  shapes.push({ kind: "fill", d });
+  // Wings: plumb shafts at the pyramid's 29th-floor half-width
+  const wingHW = TR_HW * (1 - TR_WING_B / TR_TOP);
+  shapes.push(rectAE(AZ - wingHW, AZ + wingHW, TR_WING_B, TR_WING_T));
+}
+
+// ============ Salesforce Tower, eased taper to the flat crown ============
+{
+  const AZ = -1.28;
+  const left: [number, number][] = [];
+  const right: [number, number][] = [];
+  for (let i = 0; i <= 20; i++) {
+    const st = i / 20;
+    const hw = SF_HW * (1 - SF_TAPER * st * (0.32 + 0.68 * st));
+    left.push([AZ - hw, st * SF_TOP]);
+    right.unshift([AZ + hw, st * SF_TOP]);
+  }
+  const pts = [...left, ...right];
+  const d =
+    `M${X(pts[0]![0])} ${HEIGHT} ` +
+    pts.map(([a, e]) => `L${X(a)} ${Y(e)}`).join(" ") +
+    ` L${X(pts[pts.length - 1]![0])} ${HEIGHT} Z`;
+  shapes.push({ kind: "fill", d });
+}
+
+// ============ Jasper, 45 Lansing: quiet slab, recessed crown ============
+{
+  shapes.push(rectAE(JASPER_AZ - JASPER_HW, JASPER_AZ + JASPER_HW, 0, JASPER_TOP - 0.0025));
+  shapes.push(
+    rectAE(
+      JASPER_AZ - JASPER_HW * 0.82,
+      JASPER_AZ + JASPER_HW * 0.82,
+      0,
+      JASPER_TOP,
+    ),
+  );
+}
+
+// ============ Bay Bridge west span (a = -1.09) ============
+{
+  const AZ = -1.09;
+  const SPREAD = 0.055;
+  const aOf = (bx: number) => AZ + bx * SPREAD;
+  // Two towers drawn to legibility as the shader draws them
+  for (const t of [-1, 1]) {
+    shapes.push(rectAE(aOf(t) - 0.05 * SPREAD, aOf(t) + 0.05 * SPREAD, 0.002, 0.03));
+  }
+  // Deck
+  shapes.push(rectAE(aOf(-1.06), aOf(1.06), 0.0075 - 0.0018, 0.0075 + 0.0018));
+  // Parabola cable dipping to the deck at midspan — exact as a quadratic
+  // Bezier (control y = 2*f(mid) - (y0+y1)/2).
+  const y0 = 0.009 + 0.021;
+  const yc = 2 * 0.009 - y0;
+  shapes.push({
+    kind: "stroke",
+    d: `M${X(aOf(-1))} ${Y(y0)} Q${X(aOf(0))} ${Y(yc)} ${X(aOf(1))} ${Y(y0)}`,
+    width: px(0.0024),
+  });
+}
+
+// ---- Emit
+const header = `/**
+ * GENERATED by scripts/generate/skyline-silhouette.ts — do not hand-edit.
+ * Regenerate with: npx tsx scripts/generate/skyline-silhouette.ts
+ *
+ * This is the dome shader's own SF traverse (SceneEnvironment.tsx), evaluated
+ * over a ∈ [${A0}, ${A1}] and projected aspect-true at ${PPR.toFixed(1)} px/rad:
+ * the hash-stepped residential carpet, the hump ridges, Sutro on its hill,
+ * the Golden Gate through the ridge notch (pre-clipped by the shader's own
+ * occlusion masks), Transamerica with its wings, Salesforce's eased taper,
+ * Jasper, and the Bay Bridge's parabola cable. The ember belongs at
+ * a = -1.15 → ${(((-1.15 - A0) / (A1 - A0)) * 100).toFixed(0)}% of the strip width.
+ */
+
+export const SKYLINE_VIEWBOX = "0 0 ${WIDTH} ${HEIGHT}";
+export const SKYLINE_WIDTH = ${WIDTH};
+export const SKYLINE_HEIGHT = ${HEIGHT};
+
+export type SkylineShape =
+  | { kind: "fill"; d: string; opacity?: number }
+  | { kind: "rect"; x: number; y: number; w: number; h: number; opacity?: number }
+  | { kind: "stroke"; d: string; width: number; opacity?: number };
+
+export const SKYLINE_SHAPES: SkylineShape[] = ${JSON.stringify(shapes, null, 2)};
+`;
+
+writeFileSync(OUT, header);
+console.log(
+  `Wrote ${OUT}: ${shapes.length} shapes, viewBox 0 0 ${WIDTH} ${HEIGHT}`,
+);

@@ -1,19 +1,14 @@
 import { SKYLINE_SHAPES, SKYLINE_VIEWBOX } from "./skylineGeometry";
 
 /**
- * The surveyed east-facing traverse, drawn from the shared geometry in
- * skylineGeometry.ts (which documents the survey and the 1:1 desktop scale).
- * `preserveAspectRatio="none"` lets narrower viewports compress the drawing
- * into a finer distant city; color comes from the parent via currentColor.
+ * The dome shader's own SF traverse, generated into skylineGeometry.ts by
+ * scripts/generate/skyline-silhouette.ts. The viewBox keeps the dome's
+ * angular aspect, so the drawing scales uniformly with the hero width; color
+ * comes from the parent via currentColor.
  */
 export default function Skyline() {
   return (
-    <svg
-      viewBox={SKYLINE_VIEWBOX}
-      preserveAspectRatio="none"
-      fill="currentColor"
-      aria-hidden
-    >
+    <svg viewBox={SKYLINE_VIEWBOX} fill="currentColor" aria-hidden>
       {SKYLINE_SHAPES.map((shape, i) => {
         if (shape.kind === "rect") {
           return (

@@ -12,8 +12,10 @@
 import React from "react";
 
 import {
+  SKYLINE_HEIGHT,
   SKYLINE_SHAPES,
   SKYLINE_VIEWBOX,
+  SKYLINE_WIDTH,
 } from "../../src/components/daylight/skylineGeometry";
 
 export const DAYLIGHT = {
@@ -32,16 +34,16 @@ export const DAYLIGHT = {
   subtitle: "hsl(25, 5%, 45%)",
 } as const;
 
-/** The surveyed skyline, stretched across the card width. */
-export function skyline(width: number, height: number) {
+/** The dome's surveyed skyline, aspect-true across the card width. */
+export function skyline(width: number) {
   const fill = DAYLIGHT.silhouette;
+  const height = Math.round((width * SKYLINE_HEIGHT) / SKYLINE_WIDTH);
   return React.createElement(
     "svg",
     {
       width,
       height,
       viewBox: SKYLINE_VIEWBOX,
-      preserveAspectRatio: "none",
       style: { position: "absolute" as const, bottom: -1, left: 0 },
     },
     ...SKYLINE_SHAPES.map((shape, i) => {
@@ -89,7 +91,8 @@ export function skyBand(width: number, height: number) {
         background: `linear-gradient(180deg, ${DAYLIGHT.skyTop} 0%, ${DAYLIGHT.skyMid} 62%, ${DAYLIGHT.skyLow} 100%)`,
       },
     },
-    // Ember glow between Salesforce and the bridge
+    // Ember at 91%: the dome anchors its glow at azimuth -1.15, 91% across
+    // the strip's window
     React.createElement("div", {
       style: {
         position: "absolute" as const,
@@ -97,10 +100,9 @@ export function skyBand(width: number, height: number) {
         right: 0,
         bottom: 0,
         height: "100%",
-        background: `radial-gradient(55% 65% at 76% 100%, ${DAYLIGHT.skyEmber}d9, ${DAYLIGHT.skyEmber}00 70%)`,
+        background: `radial-gradient(55% 65% at 91% 100%, ${DAYLIGHT.skyEmber}d9, ${DAYLIGHT.skyEmber}00 70%)`,
       },
     }),
-    // 52 * (1200/1440) keeps the geometry at true proportions on the card
-    skyline(width, 44),
+    skyline(width),
   );
 }

@@ -106,9 +106,11 @@
 .dl-sky {
   position: absolute;
   inset: 0;
+  /* Ember at 91%: the dome anchors its glow at azimuth -1.15, which lands
+     91% of the way across the strip's [-2.47, -1.025] window. */
   background:
     radial-gradient(
-      44rem 13rem at 76% 100%,
+      44rem 13rem at 91% 100%,
       hsl(var(--dl-sky-glow) / 0.85),
       transparent 70%
     ),
@@ -149,26 +151,27 @@
   height: 4rem;
   background: linear-gradient(180deg, transparent, hsl(var(--dl-arc0)));
 }
-/* Height matches the 1440x52 geometry so a full-width desktop hero draws it
-   1:1; smaller viewports only ever compress it. */
+/* The strip is the dome shader's own traverse projected aspect-true
+   (see skylineGeometry.ts) — height follows width from the viewBox, so the
+   silhouette is never stretched or squashed at any viewport. */
 .dl-skyline {
   position: absolute;
   left: 0;
   right: 0;
   bottom: -1px;
-  height: 3.25rem;
   color: hsl(var(--dl-sil));
 }
 .dl-skyline svg {
   width: 100%;
-  height: 100%;
+  height: auto;
   display: block;
 }
 .dl-hero-inner {
   position: relative;
   max-width: 42rem;
   margin: 0 auto;
-  padding: 4.25rem 1rem 6.5rem;
+  /* Bottom padding tracks the aspect-true skyline (~9vw tall) plus the fade. */
+  padding: 4.25rem 1rem clamp(6rem, 13vw, 12.5rem);
   color: hsl(var(--dl-sky-ink) / 0.95);
   text-shadow: 0 1px 14px hsl(var(--dl-sky-top) / 0.55);
 }
