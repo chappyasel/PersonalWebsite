@@ -34,21 +34,11 @@ export type TrainingAnalytics = {
   };
 };
 
-export type DailyTrainingDay = {
-  date: string;
-  volume: number;
-  workouts: number;
-};
-
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /** Truncate a date to its UTC day start */
 function utcDay(date: Date): number {
-  return Date.UTC(
-    date.getUTCFullYear(),
-    date.getUTCMonth(),
-    date.getUTCDate(),
-  );
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
 
 /** ISO week bucket key: the Monday of the day's week, as YYYY-MM-DD */
@@ -133,33 +123,4 @@ export function computeTrainingAnalytics(
       sets: totals.sets,
     },
   };
-}
-
-/**
- * Per-day training volume for one year (heatmap data). Days with no
- * workouts are omitted.
- */
-export function computeDailyTraining(
-  rows: TrainingRow[],
-  year: number,
-): DailyTrainingDay[] {
-  const yearStart = Date.UTC(year, 0, 1);
-  const yearEnd = Date.UTC(year + 1, 0, 1); // exclusive
-
-  const days = new Map<string, DailyTrainingDay>();
-
-  for (const row of rows) {
-    const day = utcDay(row.date);
-    if (day < yearStart || day >= yearEnd) continue;
-
-    const key = new Date(day).toISOString().slice(0, 10);
-    const bucket = days.get(key) ?? { date: key, volume: 0, workouts: 0 };
-    bucket.volume += row.volume;
-    bucket.workouts += 1;
-    days.set(key, bucket);
-  }
-
-  return [...days.values()]
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .map((d) => ({ ...d, volume: Math.round(d.volume) }));
 }

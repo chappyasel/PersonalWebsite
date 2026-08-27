@@ -72,7 +72,7 @@ describe("weightlifting search", () => {
       "utf8",
     );
 
-    expect(querySource).toContain("SET LOCAL statement_timeout = '1200ms'");
+    expect(querySource).toContain("SET LOCAL statement_timeout = '8000ms'");
     expect(querySource).toContain("s.one_rm > 0");
     expect(querySource).toContain("e.style = 'reps_weight'");
     expect(querySource).toContain("HAVING COUNT(s.id) >= ${minSets}");

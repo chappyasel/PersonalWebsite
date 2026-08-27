@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  computeDailyTraining,
-  computeTrainingAnalytics,
-  type TrainingRow,
-} from "./analytics";
+import { type TrainingRow, computeTrainingAnalytics } from "./analytics";
 
 const row = (
   iso: string,
@@ -122,40 +118,5 @@ describe("computeTrainingAnalytics", () => {
     ]);
     const weeks = result.weekly.map((b) => b.period);
     expect(weeks).toEqual([...weeks].sort());
-  });
-});
-
-describe("computeDailyTraining", () => {
-  it("clips rows to the requested year", () => {
-    const result = computeDailyTraining(
-      [
-        row("2025-12-31T10:00:00Z"),
-        row("2026-01-01T10:00:00Z"),
-        row("2027-01-01T10:00:00Z"),
-      ],
-      2026,
-    );
-    expect(result).toHaveLength(1);
-    expect(result[0]!.date).toBe("2026-01-01");
-  });
-
-  it("accumulates same-day workouts and sorts output", () => {
-    const result = computeDailyTraining(
-      [
-        row("2026-02-10T08:00:00Z", { volume: 4_000 }),
-        row("2026-02-10T18:00:00Z", { volume: 6_000 }),
-        row("2026-01-05T10:00:00Z", { volume: 3_000 }),
-      ],
-      2026,
-    );
-    expect(result.map((d) => d.date)).toEqual(["2026-01-05", "2026-02-10"]);
-    expect(result[1]!.volume).toBe(10_000);
-    expect(result[1]!.workouts).toBe(2);
-  });
-
-  it("returns an empty array when the year has no workouts", () => {
-    expect(computeDailyTraining([row("2025-06-01T10:00:00Z")], 2026)).toEqual(
-      [],
-    );
   });
 });

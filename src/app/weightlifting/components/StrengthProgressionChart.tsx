@@ -917,6 +917,17 @@ export function StrengthProgressionChart({
         </div>
       )}
 
+      {/* Aggregate mode explainer */}
+      {chartMode === "aggregate" && trendline && (
+        <p className="text-xs leading-relaxed text-neutral-400 dark:text-neutral-500">
+          To track overall progress, I&apos;ve selected PRs across{" "}
+          {selectedExercises.length} featured lift
+          {selectedExercises.length === 1 ? "" : "s"} spanning every muscle
+          group, sum each lift&apos;s top 1RM equivalent, and fit an asymptotic
+          curve to see where I&apos;m converging!
+        </p>
+      )}
+
       {/* Chart */}
       {selectedExercises.length === 0 ? (
         <div className="flex h-[350px] items-center justify-center rounded-xl border border-dashed border-neutral-200 dark:border-neutral-700">
@@ -963,7 +974,9 @@ export function StrengthProgressionChart({
                 strokeDasharray="4 4"
                 strokeWidth={1}
                 label={{
-                  value: new Date(ts).getFullYear().toString(),
+                  // Jan-1 timestamps are UTC midnight; local getFullYear
+                  // would label them with the prior year west of UTC
+                  value: new Date(ts).getUTCFullYear().toString(),
                   position: "top",
                   fill: "hsl(var(--muted-foreground) / 0.4)",
                   fontSize: 9,
