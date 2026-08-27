@@ -12,7 +12,6 @@ export default function WeightliftingLoading() {
           </div>
           <Skeleton className="ml-9 h-4 w-24 md:ml-11" />
         </div>
-        <Skeleton className="size-9 rounded-lg" />
       </div>
 
       {/* Stats cards */}

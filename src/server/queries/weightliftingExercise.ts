@@ -150,7 +150,8 @@ const loadExerciseDetail = async (
           last_performed: string;
         }>(sql`
           SELECT
-            MIN(e.category) AS category,
+            -- most-frequent category, matching the index's drift handling
+            MODE() WITHIN GROUP (ORDER BY e.category) AS category,
             COUNT(DISTINCT e.id) AS instance_count,
             COUNT(s.id) AS total_sets,
             COALESCE(SUM(s.volume), 0) AS total_volume,

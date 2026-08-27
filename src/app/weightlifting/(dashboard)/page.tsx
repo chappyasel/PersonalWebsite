@@ -1,8 +1,8 @@
-import { type SearchParams } from "nuqs/server";
-
-import { api, HydrateClient } from "~/trpc/server";
 import { WeightliftingDashboard } from "../components/WeightliftingDashboard";
 import { wlSearchParamsCache } from "../lib/searchParams";
+import { type SearchParams } from "nuqs/server";
+
+import { HydrateClient, api } from "~/trpc/server";
 
 export default async function WeightliftingPage({
   searchParams,
@@ -14,6 +14,9 @@ export default async function WeightliftingPage({
   // Fire-and-forget: pending queries stream into the client-side cache via
   // HydrateClient, so the dashboard's first render needs no client fetches
   void api.weightlifting.getStats.prefetch();
+  void api.weightlifting.getTrainingAnalytics.prefetch();
+  void api.weightlifting.getCategoryVolume.prefetch();
+  void api.weightlifting.getTrainingSplits.prefetch();
   void api.weightlifting.getTopExercises.prefetch({ minSets: 10 });
   void api.weightlifting.getPersonalRecords.prefetch();
   void api.weightlifting.getSyncStatus.prefetch();

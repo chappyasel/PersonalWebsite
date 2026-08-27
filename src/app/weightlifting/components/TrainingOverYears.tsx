@@ -15,6 +15,8 @@ import {
 } from "~/components/ui/chart";
 import { Skeleton } from "~/components/ui/skeleton";
 
+import { QueryErrorFallback } from "./QueryErrorFallback";
+
 /**
  * The headline training-history section: one bar per year (or per month
  * when a year is stepped into), with volume bars stacked by muscle-group
@@ -95,8 +97,12 @@ function readStoredChoice<T extends string>(
   fallback: T,
 ): T {
   if (typeof window === "undefined") return fallback;
-  const stored = window.localStorage.getItem(`weightlifting-stats-${key}`);
-  return valid.includes(stored as T) ? (stored as T) : fallback;
+  try {
+    const stored = window.localStorage.getItem(`weightlifting-stats-${key}`);
+    return valid.includes(stored as T) ? (stored as T) : fallback;
+  } catch {
+    return fallback; // storage denied (embedded context, blocked site data)
+  }
 }
 
 function storeChoice(key: string, value: string) {
@@ -231,20 +237,26 @@ export function TrainingOverYears() {
     storeChoice("mode", m);
   };
 
-  const { data: analytics } = api.weightlifting.getTrainingAnalytics.useQuery(
+  const analyticsQuery = api.weightlifting.getTrainingAnalytics.useQuery(
     undefined,
     { staleTime: 5 * 60 * 1000 },
   );
-  const { data: categoryVolume } = api.weightlifting.getCategoryVolume.useQuery(
-    undefined,
-    {
-      staleTime: 5 * 60 * 1000,
-    },
-  );
-  const { data: splits } = api.weightlifting.getTrainingSplits.useQuery(
+  const categoryQuery = api.weightlifting.getCategoryVolume.useQuery(
     undefined,
     { staleTime: 5 * 60 * 1000 },
   );
+  const splitsQuery = api.weightlifting.getTrainingSplits.useQuery(undefined, {
+    staleTime: 5 * 60 * 1000,
+  });
+  const analytics = analyticsQuery.data;
+  const categoryVolume = categoryQuery.data;
+  const splits = splitsQuery.data;
+  const isError =
+    analyticsQuery.isError || categoryQuery.isError || splitsQuery.isError;
+  // The stacks come from the split queries; rendering before they settle
+  // would show empty bars as if the data were zero
+  const isSettling =
+    !analytics || categoryQuery.isPending || splitsQuery.isPending;
 
   // Alphabetical stacking order, the app's canonical category order
   const categories = useMemo(
@@ -317,12 +329,25 @@ export function TrainingOverYears() {
           fraction: elapsedDays / totalDays,
         };
       });
+      // Elapsed days anchor at the first training week, not January of the
+      // first year — summing whole calendar years would dilute the /wk and
+      // /day rates and contradict the stat cards next door
+      const firstWeek = analytics.weekly[0]?.period;
+      const elapsedDays = firstWeek
+        ? Math.max(
+            1,
+            Math.floor(
+              (now.getTime() - new Date(`${firstWeek}T00:00:00Z`).getTime()) /
+                MS_PER_DAY,
+            ) + 1,
+          )
+        : points.reduce((sum, p) => sum + p.days, 0);
       return {
         years,
         workouts: analytics.totals.workouts,
         volume: analytics.totals.volume,
         hours: analytics.totals.hours,
-        days: points.reduce((sum, p) => sum + p.days, 0),
+        days: elapsedDays,
         points,
         delta: null,
         pace: null,
@@ -444,7 +469,20 @@ export function TrainingOverYears() {
     return activeKeys.filter((key) => (totals.get(key) ?? 0) / sum > floor);
   }, [chartData, activeKeys, metric]);
 
-  if (!stats) {
+  if (isError) {
+    return (
+      <QueryErrorFallback
+        label="training history"
+        onRetry={() => {
+          void analyticsQuery.refetch();
+          void categoryQuery.refetch();
+          void splitsQuery.refetch();
+        }}
+      />
+    );
+  }
+
+  if (!stats || isSettling) {
     return (
       <div className="flex flex-col gap-4">
         <Skeleton className="h-6 w-32" />
@@ -537,16 +575,15 @@ export function TrainingOverYears() {
 
       <div className="flex justify-around gap-2">
         {(["workouts", "volume", "hours"] as const).map((m) => {
+          // Same fractional-week divisor the bars use — clamping to a whole
+          // week here would contradict the chart every early January
+          const days = Math.max(stats.days, 1);
           const divisor =
-            mode === "total"
-              ? 1
-              : mode === "week"
-                ? stats.days / 7
-                : stats.days;
+            mode === "total" ? 1 : mode === "week" ? days / 7 : days;
           return (
             <div key={m} className="flex flex-col items-center gap-0.5">
               <span className="font-rounded text-2xl font-bold text-neutral-800 dark:text-neutral-100 md:text-3xl">
-                {formatMetricValue(m, mode, stats[m] / Math.max(divisor, 1))}
+                {formatMetricValue(m, mode, stats[m] / divisor)}
               </span>
               <span className="text-xs text-neutral-500 dark:text-neutral-400">
                 {METRIC_LABELS[m]}
@@ -564,7 +601,7 @@ export function TrainingOverYears() {
         </p>
       )}
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-1">
           {(["total", "week", "day"] as const).map((m) => (
             <button

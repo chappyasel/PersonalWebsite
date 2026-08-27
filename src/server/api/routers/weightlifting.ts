@@ -215,19 +215,21 @@ const getCachedCategoryVolume = unstable_cache(
  * Composition splits for the Over the Years stacks: training hours per
  * month per day-of-week, and workout counts per month per time-of-day.
  *
- * Day-of-week uses Pacific time — the week being described is Chappy's
- * local one, and UTC would shift an evening workout onto the next day.
- * Time-of-day comes from the app's own default workout names ("Morning
- * Workout", …), which recorded the local hour at creation; renamed
- * workouts land in "Other".
+ * Workout timestamps are the phone's LOCAL wall time stored as UTC
+ * (verified empirically: the raw hour matches the default workout name's
+ * time-of-day bucket 91% of the time; converting to America/Los_Angeles
+ * matches 0.2%). So reading them AT TIME ZONE 'UTC' already yields the
+ * local day and week. Time-of-day comes from the app's default workout
+ * names, which recorded the local hour at creation; anything renamed
+ * lands in "Other".
  */
 const getCachedTrainingSplits = unstable_cache(
   async () => {
     const [dowRows, todRows] = await Promise.all([
       db.execute<{ period: string; dow: number; hours: number | string }>(sql`
         SELECT
-          TO_CHAR(w.date AT TIME ZONE 'America/Los_Angeles', 'YYYY-MM') AS period,
-          EXTRACT(ISODOW FROM w.date AT TIME ZONE 'America/Los_Angeles')::int AS dow,
+          TO_CHAR(w.date AT TIME ZONE 'UTC', 'YYYY-MM') AS period,
+          EXTRACT(ISODOW FROM w.date AT TIME ZONE 'UTC')::int AS dow,
           SUM(w.duration_seconds) / 3600.0 AS hours
         FROM wl_workouts w
         GROUP BY period, dow
@@ -239,13 +241,13 @@ const getCachedTrainingSplits = unstable_cache(
         workouts: number | string;
       }>(sql`
         SELECT
-          TO_CHAR(w.date AT TIME ZONE 'America/Los_Angeles', 'YYYY-MM') AS period,
-          CASE
-            WHEN w.name LIKE 'Morning%' THEN 'Morning'
-            WHEN w.name LIKE 'Mid-Day%' THEN 'Mid-Day'
-            WHEN w.name LIKE 'Afternoon%' THEN 'Afternoon'
-            WHEN w.name LIKE 'Evening%' THEN 'Evening'
-            WHEN w.name LIKE 'Dusk%' THEN 'Dusk'
+          TO_CHAR(w.date AT TIME ZONE 'UTC', 'YYYY-MM') AS period,
+          CASE w.name
+            WHEN 'Morning Workout' THEN 'Morning'
+            WHEN 'Mid-Day Workout' THEN 'Mid-Day'
+            WHEN 'Afternoon Workout' THEN 'Afternoon'
+            WHEN 'Evening Workout' THEN 'Evening'
+            WHEN 'Dusk Workout' THEN 'Dusk'
             ELSE 'Other'
           END AS bucket,
           COUNT(*)::int AS workouts
