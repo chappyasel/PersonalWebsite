@@ -1211,94 +1211,53 @@
    the page tokens restated (body sits outside .daylight-root): sky-top and
    arc4/arc2 per theme; the routine's bottom half is the measured night band
    its horizon footer ends on. */
-body:has(.dl-ground-arc) {
+body:has(.daylight-root) {
   background: linear-gradient(
       180deg,
       hsl(206 81% 38%) 0%,
       hsl(206 81% 38%) 50%,
-      hsl(18 20% 8%) 50%
+      hsl(209 20% 45%) 50%
     )
     fixed;
 }
-.dark body:has(.dl-ground-arc) {
+.dark body:has(.daylight-root) {
   background: linear-gradient(
       180deg,
       hsl(225 47% 21%) 0%,
       hsl(225 47% 21%) 50%,
-      hsl(18 20% 8%) 50%
-    )
-    fixed;
-}
-body:has(.dl-ground-wash) {
-  background: linear-gradient(
-      180deg,
-      hsl(206 81% 38%) 0%,
-      hsl(206 81% 38%) 50%,
-      hsl(26 24% 93%) 50%
-    )
-    fixed;
-}
-.dark body:has(.dl-ground-wash) {
-  background: linear-gradient(
-      180deg,
-      hsl(225 47% 21%) 0%,
-      hsl(225 47% 21%) 50%,
-      hsl(18 20% 8%) 50%
+      hsl(240 25% 13%) 50%
     )
     fixed;
 }
 
-/* ============ Closing sky band (page footer) ============ */
+/* ============ Quiet horizon (page footer) ============ */
 
-/* The hero's own sky closing the page instead of opening it: the same
-   DaylightSky — gradient, ember, stars, clouds, birds, skyline, fog — in a
-   fixed-height band at the very bottom, so the two horizons share geometry,
-   palette, and (on phones) the same overgrown panning strip. SkyFooter's
-   `night` variant wraps the band in a local `.dark` scope: the routine ends
-   at 9:15pm in both themes, and every night gate in this file (windows, Bay
-   Lights, lamps, beacons, crown, moon, satellite, shooting star) fires off
-   the ancestor class exactly as it does off the html one. No dusk gradient —
-   a long luminance ramp bands on phone screens; the band opens with the sky
-   behind the skyline and hands off to the page through a short feather. */
-.dl-band {
-  position: relative;
+/* The silhouette standing directly on the page's own ground — the flat
+   homepage's closing move, not a second hero. No sky, no band, no backdrop:
+   in light the fog-washed city and the red bridge sit on the paper; in dark
+   the buildings all but dissolve into the ground and the window lights,
+   lamps, beacons, and moon carry it. The strip is in-flow (height follows
+   width from the viewBox), and on phones it keeps the hero's min-width
+   overhang and slow pan so the city stays legible. */
+.dl-horizon {
   overflow: hidden;
-  height: clamp(15rem, 28vw, 24rem);
-  margin-top: 4rem;
+  margin-top: 5rem;
+  color: hsl(var(--dl-sil));
 }
-/* The page's own ground breathes into the top of the band — the feather
-   lives OUTSIDE the band's theme scope in SkyFooter, so a night band on the
-   light page feathers from the light arc, not from the forced-dark one. */
-.dl-band-feather {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3rem;
-  background: linear-gradient(180deg, hsl(var(--dl-arc4)), transparent);
-}
-.dl-ground-wash .dl-band-feather {
-  background: linear-gradient(180deg, hsl(var(--dl-arc2)), transparent);
+.dl-horizon-strip svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* The moon's halo rides above the strip's viewBox, same as the hero. */
+  overflow: visible;
 }
 @media (max-width: 700px) {
-  .dl-band {
-    height: 15rem;
-  }
-  /* The hero's phone treatment, verbatim: the aspect-true strip shrinks
-     below legibility, so the band wears the same min-width overhang. */
-  .dl-band .dl-skyline {
-    right: auto;
+  .dl-horizon-strip {
     width: max(150vw, 900px);
-  }
-  .dl-band .dl-sky-fade {
-    height: 2.5rem;
-  }
-  .dl-band .dl-ground-blend {
-    height: 2.25rem;
   }
 }
 @media (prefers-reduced-motion: no-preference) and (max-width: 700px) {
-  .dl-band .dl-skyline {
+  .dl-horizon-strip {
     animation: dl-skyline-pan 200s ease-in-out infinite alternate;
   }
 }

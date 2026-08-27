@@ -141,9 +141,7 @@ export default async function RoutinePage() {
             <DaylightTOCSpacer />
           </div>
         </div>
-        {/* The page traces the day; it ends where the day does — at night,
-            in both themes. */}
-        <SkyFooter night />
+        <SkyFooter />
       </main>
     </div>
   );

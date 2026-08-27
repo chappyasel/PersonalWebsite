@@ -85,8 +85,6 @@ export default async function ManualPage() {
             <DaylightTOCSpacer />
           </div>
         </div>
-        {/* The manual has no time story; its horizon follows the theme the
-            way the hero above it does. */}
         <SkyFooter />
       </main>
     </div>
