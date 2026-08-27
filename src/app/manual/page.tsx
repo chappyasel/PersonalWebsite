@@ -2,7 +2,6 @@ import { inArray } from "drizzle-orm";
 import React from "react";
 
 import {
-  DaylightTOCMobile,
   DaylightTOCSidebar,
   DaylightTOCSpacer,
 } from "~/components/daylight/DaylightTOC";
@@ -74,9 +73,6 @@ export default async function ManualPage() {
           <div className="mt-11 flex justify-center">
             <DaylightTOCSidebar items={tocItems} />
             <div className="w-full max-w-[45rem] space-y-12">
-              {/* Mobile sticky TOC */}
-              <DaylightTOCMobile items={tocItems} />
-
               {data.sections.map((section) => (
                 <ManualSection
                   key={section.id}

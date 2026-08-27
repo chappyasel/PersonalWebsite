@@ -38,6 +38,9 @@ export const DAYLIGHT = {
   skyLow: "#6a9aba",
   skyEmber: "#f5c78d",
   silhouette: "#5b7288",
+  // Golden Gate paint — daylightRendering.ts goldenGatePaintLinear mixed at
+  // the shader's day ratio; same value as --dl-ggb in daylight.css (light).
+  ggb: "hsl(8, 36%, 42%)",
   arc0: "hsl(26, 24%, 93%)",
   arc0Clear: "hsla(26, 24%, 93%, 0)",
   arc1: "hsl(46, 30%, 95.5%)",
@@ -51,7 +54,6 @@ export const DAYLIGHT = {
 
 /** The dome's surveyed skyline, aspect-true across the card width. */
 export function skyline(width: number) {
-  const fill = DAYLIGHT.silhouette;
   const height = Math.round((width * SKYLINE_HEIGHT) / SKYLINE_WIDTH);
   return React.createElement(
     "svg",
@@ -62,6 +64,7 @@ export function skyline(width: number) {
       style: { position: "absolute" as const, bottom: -1, left: 0 },
     },
     ...SKYLINE_SHAPES.map((shape, i) => {
+      const fill = shape.tone === "ggb" ? DAYLIGHT.ggb : DAYLIGHT.silhouette;
       if (shape.kind === "rect") {
         return React.createElement("rect", {
           key: i,

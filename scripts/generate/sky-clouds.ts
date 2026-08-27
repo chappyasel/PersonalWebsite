@@ -16,6 +16,12 @@
  * shader's composite col*(1-c) + c*body + rim is refactored into a single
  * (color, alpha) pair over the known backdrop gradient, so layering the PNG
  * on the CSS sky reproduces the shader's mix.
+ *
+ * The tile is horizontally seamless: over the last WRAP_PX columns the field
+ * is cross-blended (premultiplied) with the same field sampled one window
+ * width to the left, so column WIDTH would equal column 0 exactly. That lets
+ * the page drift the layer on an endless loop — two copies side by side,
+ * translated by one tile — at the dome's own drift rate.
  */
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -143,6 +149,52 @@ function cloudField(a: number, e: number): number {
   return Math.max(cf, coverage * AT.cloudCoverageScale);
 }
 
+// One pixel of the layer at azimuth a, screen row py: the shader's composite
+// refactored into a straight-alpha (B, A) pair over the CSS backdrop.
+function samplePixel(
+  a: number,
+  e: number,
+  deck: number,
+  py: number,
+): { B: RGB; A: number } | null {
+  const cf = cloudField(a, e);
+  const cloud =
+    smoothstep(AT.cloudDensityGate[0], AT.cloudDensityGate[1], cf) * deck;
+  const core = smoothstep(0.64, 0.82, cf);
+  const rim = smoothstep(0.5, 0.6, cf) - smoothstep(0.69, 0.8, cf);
+  const qa = (a + 1.15) / 0.42;
+  const azFall = Math.exp(-qa * qa);
+
+  const col = backdrop(HEIGHT - (py + 0.5));
+  let cloudLight = mix3(col, [0.95, 0.97, 1.0], AT.cloudBodyLightMix);
+  cloudLight = mix3(cloudLight, [1.0, 0.96, 0.88], azFall * 0.07);
+  const underside = mix3(
+    [0, 0, 0],
+    col,
+    mix(AT.cloudBodyShade[0], AT.cloudBodyShade[1], azFall),
+  );
+  let body = mix3(cloudLight, underside, core * 0.3);
+  const luma = 0.299 * body[0] + 0.587 * body[1] + 0.114 * body[2];
+  body = mix3(body, [luma * 0.96, luma, luma * 1.04], AT.cloudBodyDesaturation);
+
+  const ca = cloud * AT.cloudBodyOpacity;
+  const rimW = rim * deck * (AT.cloudRimBase + AT.cloudRimSun * azFall);
+  const rimC = mix3([1.0, 0.93, 0.82], EMBER, clamp01(azFall * 0.85));
+
+  // Refactor col*(1-ca) + ca*body + rimC*rimW into (B, A) over col.
+  const A = Math.min(1, ca + rimW);
+  if (A <= 0.004) return null;
+  const B: RGB = [0, 0, 0];
+  for (let c = 0; c < 3; c++) {
+    B[c] = clamp01((ca * body[c]! + rimC[c]! * rimW + (A - ca) * col[c]!) / A);
+  }
+  return { B, A };
+}
+
+// Wrap-blend zone: the last WRAP_PX columns ease into what column 0 shows.
+const WRAP_PX = 260;
+const WINDOW = A1 - A0;
+
 async function main() {
   const rgba = Buffer.alloc(WIDTH * HEIGHT * 4);
   for (let py = 0; py < HEIGHT; py++) {
@@ -154,47 +206,29 @@ async function main() {
       const o = (py * WIDTH + pxi) * 4;
       if (deck <= 0.001) continue;
       const a = A0 + (pxi + 0.5) / PPR;
-      const cf = cloudField(a, e);
-      const cloud =
-        smoothstep(AT.cloudDensityGate[0], AT.cloudDensityGate[1], cf) * deck;
-      const core = smoothstep(0.64, 0.82, cf);
-      const rim = smoothstep(0.5, 0.6, cf) - smoothstep(0.69, 0.8, cf);
-      const qa = (a + 1.15) / 0.42;
-      const azFall = Math.exp(-qa * qa);
-
-      const col = backdrop(HEIGHT - (py + 0.5));
-      let cloudLight = mix3(col, [0.95, 0.97, 1.0], AT.cloudBodyLightMix);
-      cloudLight = mix3(cloudLight, [1.0, 0.96, 0.88], azFall * 0.07);
-      const underside = mix3(
-        [0, 0, 0],
-        col,
-        mix(AT.cloudBodyShade[0], AT.cloudBodyShade[1], azFall),
-      );
-      let body = mix3(cloudLight, underside, core * 0.3);
-      const luma = 0.299 * body[0] + 0.587 * body[1] + 0.114 * body[2];
-      body = mix3(
-        body,
-        [luma * 0.96, luma, luma * 1.04],
-        AT.cloudBodyDesaturation,
-      );
-
-      const ca = cloud * AT.cloudBodyOpacity;
-      const rimW = rim * deck * (AT.cloudRimBase + AT.cloudRimSun * azFall);
-      const rimC = mix3([1.0, 0.93, 0.82], EMBER, clamp01(azFall * 0.85));
-
-      // Refactor col*(1-ca) + ca*body + rimC*rimW into (B, A) over col.
-      const A = Math.min(1, ca + rimW);
-      if (A <= 0.004) continue;
-      const B: RGB = [0, 0, 0];
-      for (let c = 0; c < 3; c++) {
-        B[c] = clamp01(
-          (ca * body[c]! + rimC[c]! * rimW + (A - ca) * col[c]!) / A,
-        );
+      let s = samplePixel(a, e, deck, py);
+      const wrapT = (pxi + 1 - (WIDTH - WRAP_PX)) / WRAP_PX;
+      if (wrapT > 0) {
+        // Blend premultiplied toward the field one window west, which is
+        // exactly what the tile's first columns sample — at pxi = WIDTH the
+        // mix would be 100% column 0.
+        const w = samplePixel(a - WINDOW, e, deck, py);
+        const t = smoothstep(0, 1, wrapT);
+        const A = mix(s?.A ?? 0, w?.A ?? 0, t);
+        if (A <= 0.004) continue;
+        const B: RGB = [0, 0, 0];
+        for (let c = 0; c < 3; c++) {
+          const p0 = (s?.B[c] ?? 0) * (s?.A ?? 0);
+          const p1 = (w?.B[c] ?? 0) * (w?.A ?? 0);
+          B[c] = clamp01(mix(p0, p1, t) / A);
+        }
+        s = { B, A };
       }
-      rgba[o] = Math.round(B[0] * 255);
-      rgba[o + 1] = Math.round(B[1] * 255);
-      rgba[o + 2] = Math.round(B[2] * 255);
-      rgba[o + 3] = Math.round(A * 255);
+      if (!s) continue;
+      rgba[o] = Math.round(s.B[0] * 255);
+      rgba[o + 1] = Math.round(s.B[1] * 255);
+      rgba[o + 2] = Math.round(s.B[2] * 255);
+      rgba[o + 3] = Math.round(s.A * 255);
     }
   }
 

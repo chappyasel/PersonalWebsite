@@ -81,8 +81,9 @@ test("keeps the mobile layout contained", async ({ browser }) => {
     geometry.documentClientWidth,
   );
 
-  const toc = page.locator("[data-routine-mobile-toc]");
-  await expect(toc).toBeVisible();
+  // The mobile topbar is gone by owner call (2026-08-27) — phones just
+  // scroll. Guard against it creeping back.
+  await expect(page.locator("[data-routine-mobile-toc]")).toHaveCount(0);
 
   await context.close();
 });

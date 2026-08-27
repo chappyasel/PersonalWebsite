@@ -20,6 +20,10 @@
   --dl-sky-glow: 33 84% 76%;
   --dl-sky-ink: 40 30% 96%;
   --dl-sil: 209 20% 45%;
+  /* Golden Gate paint: daylightRendering.ts L23 goldenGatePaintLinear
+     (International Orange in linear light), mixed toward the skyline hex at
+     the shader's own goldenGateDayPaintMix and converted to sRGB. */
+  --dl-ggb: 8 36% 42%;
   --dl-star-op: 0;
 
   /* Day accents: ochre for the morning arm, dusk slate for the evening arm,
@@ -65,6 +69,9 @@
   --dl-sky-glow: 23 72% 56%;
   --dl-sky-ink: 220 25% 90%;
   --dl-sil: 222 37% 12%;
+  /* At night the dome drops the paint mix to 0.14 and lets the lights lead;
+     the strip has no lights, so the paint stays legible but deepens. */
+  --dl-ggb: 10 34% 32%;
   --dl-star-op: 0.9;
 
   --dl-am: 38 48% 66%;
@@ -161,59 +168,92 @@
 }
 .dl-stars {
   background-image:
-    radial-gradient(
-      1.5px 1.5px at 12% 22%,
-      hsl(0 0% 100% / 0.95),
-      transparent 55%
-    ),
-    radial-gradient(2px 2px at 47% 30%, hsl(0 0% 100% / 0.9), transparent 55%),
-    radial-gradient(
-      1.5px 1.5px at 76% 26%,
-      hsl(0 0% 100% / 0.9),
-      transparent 55%
-    ),
-    radial-gradient(1.5px 1.5px at 94% 34%, hsl(0 0% 100% / 0.65), transparent 55%),
-    radial-gradient(1.5px 1.5px at 7% 8%, hsl(0 0% 100% / 0.7), transparent 55%),
-    radial-gradient(1.5px 1.5px at 55% 42%, hsl(0 0% 100% / 0.6), transparent 55%),
-    radial-gradient(1.5px 1.5px at 70% 6%, hsl(0 0% 100% / 0.85), transparent 55%),
-    radial-gradient(2px 2px at 97% 18%, hsl(0 0% 100% / 0.7), transparent 55%);
+    radial-gradient(3px 3px at 12% 22%, hsl(0 0% 100%), transparent 60%),
+    radial-gradient(3.5px 3.5px at 47% 30%, hsl(0 0% 100%), transparent 60%),
+    radial-gradient(3px 3px at 76% 26%, hsl(0 0% 100% / 0.95), transparent 60%),
+    radial-gradient(2.5px 2.5px at 94% 34%, hsl(0 0% 100% / 0.8), transparent 60%),
+    radial-gradient(2.5px 2.5px at 7% 8%, hsl(0 0% 100% / 0.85), transparent 60%),
+    radial-gradient(2px 2px at 55% 42%, hsl(0 0% 100% / 0.75), transparent 60%),
+    radial-gradient(3px 3px at 70% 6%, hsl(0 0% 100% / 0.95), transparent 60%),
+    radial-gradient(3.5px 3.5px at 97% 18%, hsl(0 0% 100% / 0.85), transparent 60%),
+    radial-gradient(2px 2px at 18% 47%, hsl(0 0% 100% / 0.7), transparent 60%),
+    radial-gradient(2.5px 2.5px at 36% 19%, hsl(0 0% 100% / 0.8), transparent 60%),
+    radial-gradient(2px 2px at 59% 9%, hsl(0 0% 100% / 0.75), transparent 60%),
+    radial-gradient(3px 3px at 86% 38%, hsl(0 0% 100% / 0.85), transparent 60%);
 }
 .dl-stars-b {
   background-image:
-    radial-gradient(1.5px 1.5px at 31% 12%, hsl(0 0% 100% / 0.8), transparent 55%),
-    radial-gradient(1.5px 1.5px at 63% 15%, hsl(0 0% 100% / 0.7), transparent 55%),
-    radial-gradient(2px 2px at 88% 10%, hsl(0 0% 100% / 0.8), transparent 55%),
-    radial-gradient(1.5px 1.5px at 22% 40%, hsl(0 0% 100% / 0.6), transparent 55%),
-    radial-gradient(2px 2px at 40% 7%, hsl(0 0% 100% / 0.75), transparent 55%),
-    radial-gradient(1.5px 1.5px at 83% 44%, hsl(0 0% 100% / 0.55), transparent 55%);
+    radial-gradient(3px 3px at 31% 12%, hsl(0 0% 100% / 0.95), transparent 60%),
+    radial-gradient(2.5px 2.5px at 63% 15%, hsl(0 0% 100% / 0.85), transparent 60%),
+    radial-gradient(3.5px 3.5px at 88% 10%, hsl(0 0% 100% / 0.95), transparent 60%),
+    radial-gradient(2.5px 2.5px at 22% 40%, hsl(0 0% 100% / 0.75), transparent 60%),
+    radial-gradient(3.5px 3.5px at 40% 7%, hsl(0 0% 100% / 0.9), transparent 60%),
+    radial-gradient(2.5px 2.5px at 83% 44%, hsl(0 0% 100% / 0.7), transparent 60%),
+    radial-gradient(2px 2px at 4% 30%, hsl(0 0% 100% / 0.7), transparent 60%),
+    radial-gradient(3px 3px at 27% 27%, hsl(0 0% 100% / 0.85), transparent 60%),
+    radial-gradient(2.5px 2.5px at 51% 24%, hsl(0 0% 100% / 0.75), transparent 60%),
+    radial-gradient(2px 2px at 67% 36%, hsl(0 0% 100% / 0.7), transparent 60%);
 }
-/* One shooting star every ~70s, dark theme only. A single authored
-   trajectory: brief, high, gone before it draws attention to itself. */
+/* One shooting star every ~30s, dark theme only. A single authored
+   trajectory: brief, high, gone in under a second. */
 .dl-shooting-star {
   display: none;
   position: absolute;
-  top: 16%;
-  left: 14%;
-  width: 74px;
-  height: 1.5px;
+  top: 14%;
+  left: 12%;
+  width: 92px;
+  height: 2px;
   border-radius: 999px;
-  background: linear-gradient(90deg, transparent, hsl(0 0% 100% / 0.9));
+  background: linear-gradient(90deg, transparent, hsl(0 0% 100% / 0.95));
+  box-shadow: 0 0 6px hsl(0 0% 100% / 0.4);
   opacity: 0;
 }
 .dark .dl-shooting-star {
   display: block;
 }
-/* The dome's lone gliding bird, light theme only: crosses the sky once every
-   90 seconds, at the skyline's own atmospheric color. */
-.dl-bird {
+/* The dome's birds, light theme only: a pair crossing every 74 seconds, gone
+   in eleven, exactly the shader's cadence (one bird reads as a bug on the
+   screen; two read as birds). Silhouettes darker than the sky, never
+   brighter. The wings beat in bursts with glides between, and the wingtips
+   lag the elbows — the shader's travelling wave down the wing, done here as
+   a delayed rotation at the elbow joint. */
+.dl-birds {
   position: absolute;
-  top: 26%;
+  top: 22%;
   left: 0;
-  color: hsl(var(--dl-sil) / 0.75);
+  color: hsl(var(--dl-sil) / 0.85);
   opacity: 0;
 }
-.dark .dl-bird {
+.dark .dl-birds {
   display: none;
+}
+.dl-bird {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+.dl-bird-b {
+  left: 46px;
+  top: 20px;
+  transform: scale(0.85);
+}
+.dl-bird-glyph {
+  display: block;
+  overflow: visible;
+}
+.dl-bird-glyph .dl-wing,
+.dl-bird-glyph .dl-tip {
+  transform-box: view-box;
+}
+.dl-wing-l,
+.dl-wing-r {
+  transform-origin: 12px 9px;
+}
+.dl-tip-l {
+  transform-origin: 7.1px 8.2px;
+}
+.dl-tip-r {
+  transform-origin: 16.9px 8.2px;
 }
 @media (prefers-reduced-motion: no-preference) {
   .dl-stars {
@@ -224,15 +264,52 @@
     animation-delay: -2.9s;
   }
   .dl-shooting-star {
-    animation: dl-shooting-star 72s linear infinite;
-    animation-delay: 9s;
+    animation: dl-shooting-star 31s linear infinite;
+    animation-delay: 5s;
   }
-  .dl-clouds img {
-    animation: dl-cloud-drift 240s ease-in-out infinite alternate;
+  /* One tile per 234s is the dome's own drift: its clouds advance at 0.0052
+     rad/s across the 1.215 rad window. */
+  .dl-cloud-strip {
+    animation: dl-cloud-drift 234s linear infinite;
   }
-  .dl-bird {
-    animation: dl-bird 90s linear infinite;
-    animation-delay: 14s;
+  .dl-birds {
+    animation: dl-birds-cross 74s linear infinite;
+    animation-delay: 4s;
+  }
+  .dl-bird svg {
+    animation: dl-bob 3.4s ease-in-out infinite alternate;
+  }
+  .dl-bird-b svg {
+    animation-duration: 2.9s;
+    animation-delay: -1.2s;
+  }
+  .dl-wing-l {
+    animation: dl-flap-l 4.4s ease-in-out infinite;
+  }
+  .dl-wing-r {
+    animation: dl-flap-r 4.4s ease-in-out infinite;
+  }
+  /* Tips run the same cycle a sixth of a beat late (negative delay = pure
+     phase shift, no startup hold). */
+  .dl-tip-l {
+    animation: dl-tip-flap-l 4.4s ease-in-out infinite;
+    animation-delay: -4.28s;
+  }
+  .dl-tip-r {
+    animation: dl-tip-flap-r 4.4s ease-in-out infinite;
+    animation-delay: -4.28s;
+  }
+  /* The second bird beats on its own clock. */
+  .dl-bird-b .dl-wing-l,
+  .dl-bird-b .dl-wing-r {
+    animation-delay: -1.7s;
+  }
+  .dl-bird-b .dl-tip-l,
+  .dl-bird-b .dl-tip-r {
+    animation-delay: -1.58s;
+  }
+  .dl-screen .dl-skyline {
+    animation: dl-skyline-pan 200s ease-in-out infinite alternate;
   }
 }
 @keyframes dl-twinkle {
@@ -246,65 +323,199 @@
 }
 @keyframes dl-shooting-star {
   0% {
-    transform: rotate(18deg) translateX(0);
+    transform: rotate(16deg) translateX(0);
     opacity: 0;
   }
-  0.5% {
-    opacity: 0.85;
+  0.6% {
+    opacity: 0.9;
   }
-  2% {
-    transform: rotate(18deg) translateX(300px);
+  2.4% {
+    transform: rotate(16deg) translateX(420px);
     opacity: 0;
   }
   100% {
-    transform: rotate(18deg) translateX(300px);
+    transform: rotate(16deg) translateX(420px);
     opacity: 0;
   }
 }
 @keyframes dl-cloud-drift {
   from {
-    transform: translateX(-0.9%);
+    transform: translateX(0);
   }
   to {
-    transform: translateX(0.9%);
+    transform: translateX(-50%);
   }
 }
-@keyframes dl-bird {
+/* The pair crosses in eleven seconds of the 74s cycle (11/74 = 14.9%),
+   fading at the ends so nothing pops — the shader's own gates. */
+@keyframes dl-birds-cross {
   0% {
-    transform: translate(-4vw, 10px);
+    transform: translateX(-8vw);
     opacity: 0;
   }
-  2% {
-    opacity: 0.75;
+  1.6% {
+    opacity: 1;
   }
-  9% {
-    transform: translate(46vw, -6px);
+  13.3% {
+    opacity: 1;
   }
-  17% {
-    opacity: 0.75;
-  }
-  19% {
-    transform: translate(104vw, -16px);
+  14.9% {
+    transform: translateX(102vw);
     opacity: 0;
   }
   100% {
-    transform: translate(104vw, -16px);
+    transform: translateX(102vw);
     opacity: 0;
+  }
+}
+@keyframes dl-bob {
+  from {
+    transform: translateY(-3px);
+  }
+  to {
+    transform: translateY(3px);
+  }
+}
+/* Three beats, then a glide: a gull crosses a bay in bursts, not a metronome.
+   Left wing up is a positive rotation in SVG screen coordinates; the right
+   wing mirrors it. */
+@keyframes dl-flap-l {
+  0% {
+    transform: rotate(9deg);
+  }
+  7% {
+    transform: rotate(-26deg);
+  }
+  15% {
+    transform: rotate(30deg);
+  }
+  23% {
+    transform: rotate(-26deg);
+  }
+  31% {
+    transform: rotate(30deg);
+  }
+  39% {
+    transform: rotate(-26deg);
+  }
+  47% {
+    transform: rotate(26deg);
+  }
+  58%,
+  100% {
+    transform: rotate(9deg);
+  }
+}
+@keyframes dl-flap-r {
+  0% {
+    transform: rotate(-9deg);
+  }
+  7% {
+    transform: rotate(26deg);
+  }
+  15% {
+    transform: rotate(-30deg);
+  }
+  23% {
+    transform: rotate(26deg);
+  }
+  31% {
+    transform: rotate(-30deg);
+  }
+  39% {
+    transform: rotate(26deg);
+  }
+  47% {
+    transform: rotate(-26deg);
+  }
+  58%,
+  100% {
+    transform: rotate(-9deg);
+  }
+}
+@keyframes dl-tip-flap-l {
+  0% {
+    transform: rotate(4deg);
+  }
+  7% {
+    transform: rotate(-19deg);
+  }
+  15% {
+    transform: rotate(21deg);
+  }
+  23% {
+    transform: rotate(-19deg);
+  }
+  31% {
+    transform: rotate(21deg);
+  }
+  39% {
+    transform: rotate(-19deg);
+  }
+  47% {
+    transform: rotate(18deg);
+  }
+  58%,
+  100% {
+    transform: rotate(4deg);
+  }
+}
+@keyframes dl-tip-flap-r {
+  0% {
+    transform: rotate(-4deg);
+  }
+  7% {
+    transform: rotate(19deg);
+  }
+  15% {
+    transform: rotate(-21deg);
+  }
+  23% {
+    transform: rotate(19deg);
+  }
+  31% {
+    transform: rotate(-21deg);
+  }
+  39% {
+    transform: rotate(19deg);
+  }
+  47% {
+    transform: rotate(-18deg);
+  }
+  58%,
+  100% {
+    transform: rotate(-4deg);
+  }
+}
+/* The 404's oversized skyline pans its overhang back and forth. */
+@keyframes dl-skyline-pan {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(100vw - 100%));
   }
 }
 /* Shader-generated thin daylight clouds (scripts/generate/sky-clouds.ts),
    bottom-anchored to the horizon like the skyline. The dome gates its clouds
-   to the light theme (`day`); dark keeps the stars instead. The image is
-   slightly oversized so its slow drift never exposes an edge. */
+   to the light theme (`day`); dark keeps the stars instead. The tile is
+   horizontally seamless, so the strip holds two copies and translates by one
+   tile — an endless loop with no exposed edge at any width. */
 .dl-clouds {
   position: absolute;
   left: 0;
   right: 0;
   bottom: -1px;
+  overflow: hidden;
 }
-.dl-clouds img {
-  width: 104%;
-  margin-left: -2%;
+.dl-cloud-strip {
+  display: flex;
+  width: 200%;
+}
+.dl-cloud-strip img {
+  display: block;
+  width: 50%;
+  height: auto;
 }
 .dark .dl-clouds {
   display: none;
@@ -386,7 +597,7 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 2rem 1.5rem calc(11vw + 5rem);
+  padding: 2rem 1.5rem calc(max(16vw, 7rem) + 3rem);
   color: hsl(var(--dl-sky-ink) / 0.95);
   text-shadow: 0 1px 14px hsl(var(--dl-sky-top) / 0.55);
 }
@@ -394,6 +605,16 @@
    stay exempt, or this rule would flatten it. */
 .dl-screen > :not(.dl-sky) {
   position: relative;
+}
+/* On the full screen the skyline grows past the viewport — never smaller
+   than ~150vw or 900px tall-enough on a phone — and slowly pans its overhang
+   back and forth. The screen's own overflow clips it. */
+.dl-screen .dl-skyline {
+  right: auto;
+  width: max(150vw, 900px);
+}
+.dl-screen .dl-ground-blend {
+  height: 5rem;
 }
 
 /* ============ Section headers ============ */
@@ -548,14 +769,17 @@
   text-align: left;
   color: hsl(var(--muted-foreground));
 }
+/* Dot geometry: the rail is 1px wide at the nav's left edge (center 0.5px);
+   a 7px dot whose left edge sits 3px past the 0.875rem padding centers on
+   exactly that half-pixel — integer edges, no half-off straddle. */
 .dl-toc-link::before {
   content: "";
   position: absolute;
-  left: calc(-0.875rem - 2px);
+  left: calc(-0.875rem - 3px);
   top: 50%;
   transform: translateY(-50%);
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 999px;
   background: hsl(var(--muted-foreground) / 0.45);
   transition:
@@ -572,29 +796,5 @@
 }
 .dl-toc-link:hover {
   color: hsl(var(--foreground));
-}
-
-/* Mobile row: underline indicator, no pills. */
-.dl-mtoc {
-  scrollbar-width: none;
-}
-.dl-mtoc::-webkit-scrollbar {
-  display: none;
-}
-.dl-mtoc-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  white-space: nowrap;
-  flex-shrink: 0;
-  font-size: 0.75rem;
-  color: hsl(var(--muted-foreground));
-  padding: 0.3rem 0.25rem;
-  border-bottom: 2px solid transparent;
-}
-.dl-mtoc-link[data-active="true"] {
-  color: hsl(var(--foreground));
-  font-weight: 600;
-  border-bottom-color: hsl(var(--foreground));
 }
 

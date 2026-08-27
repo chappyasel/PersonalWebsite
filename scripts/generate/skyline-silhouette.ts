@@ -97,10 +97,11 @@ function occlusion(a: number): number {
   return Math.max(h >= 0.002 ? h : 0, roof(a));
 }
 
-type Shape =
+type Shape = { tone?: "ggb" } & (
   | { kind: "fill"; d: string; opacity?: number }
   | { kind: "rect"; x: number; y: number; w: number; h: number; opacity?: number }
-  | { kind: "stroke"; d: string; width: number; opacity?: number };
+  | { kind: "stroke"; d: string; width: number; opacity?: number }
+);
 
 const shapes: Shape[] = [];
 const OP_HILL = 0.55;
@@ -135,6 +136,11 @@ function polyToBaseline(pts: [number, number][], opacity?: number): Shape {
 // ============ Golden Gate Bridge, northwest at a = -2.04 ============
 // Drawn first in source order but pre-clipped against the same ridge/carpet
 // occlusion the shader applies, so layering cannot leak it through the hills.
+// Every shape in this block is tagged tone "ggb": the dome paints the bridge
+// International Orange (daylightRendering.ts goldenGatePaintLinear, mixed
+// 0.64 into the city color in daylight), and the strip keys that paint off
+// the tag.
+const ggbFrom = shapes.length;
 {
   const AZ = -2.04;
   const SPREAD = 0.055;
@@ -231,6 +237,7 @@ function polyToBaseline(pts: [number, number][], opacity?: number): Shape {
     }
   }
 }
+for (let i = ggbFrom; i < shapes.length; i++) shapes[i]!.tone = "ggb";
 
 // ============ Twin Peaks / Mt Davidson / Telegraph Hill ridge ============
 {
@@ -389,10 +396,12 @@ export const SKYLINE_VIEWBOX = "0 0 ${WIDTH} ${HEIGHT}";
 export const SKYLINE_WIDTH = ${WIDTH};
 export const SKYLINE_HEIGHT = ${HEIGHT};
 
-export type SkylineShape =
+/** tone "ggb" marks the Golden Gate, which carries its own paint color. */
+export type SkylineShape = { tone?: "ggb" } & (
   | { kind: "fill"; d: string; opacity?: number }
   | { kind: "rect"; x: number; y: number; w: number; h: number; opacity?: number }
-  | { kind: "stroke"; d: string; width: number; opacity?: number };
+  | { kind: "stroke"; d: string; width: number; opacity?: number }
+);
 
 export const SKYLINE_SHAPES: SkylineShape[] = ${JSON.stringify(shapes, null, 2)};
 `;

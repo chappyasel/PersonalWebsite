@@ -6,7 +6,6 @@ import { orEmpty } from "~/server/queries/degrade";
 import { books } from "~/server/db/schema";
 
 import {
-  DaylightTOCMobile,
   DaylightTOCSidebar,
   DaylightTOCSpacer,
 } from "~/components/daylight/DaylightTOC";
@@ -96,9 +95,6 @@ export default async function RoutinePage() {
           <div className="mt-11 flex justify-center">
             <DaylightTOCSidebar items={tocItems} />
             <div className="w-full max-w-[45rem] space-y-12" data-routine-content>
-              {/* Mobile sticky TOC */}
-              <DaylightTOCMobile items={tocItems} />
-
               {/* Why So Early - collapsible preface */}
               {data.whyEarly.length > 0 && (
                 <RoutineSection

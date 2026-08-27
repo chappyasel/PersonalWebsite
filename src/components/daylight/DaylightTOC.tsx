@@ -92,31 +92,3 @@ export function DaylightTOCSpacer() {
   );
 }
 
-export function DaylightTOCMobile({ items }: { items: TOCItem[] }) {
-  const { activeId, scrollTo } = useActiveSection(items);
-
-  return (
-    <nav
-      className="dl-mtoc sticky top-0 z-30 -mx-4 flex gap-1.5 overflow-x-auto border-b border-border/70 bg-background/65 px-4 py-2 font-sans backdrop-blur-md lg:hidden"
-      aria-label="Sections"
-      data-routine-mobile-toc
-    >
-      {items.map((item) => (
-        <button
-          key={item.id}
-          onClick={() => scrollTo(item.id)}
-          data-active={activeId === item.id}
-          className="dl-mtoc-link transition-colors"
-        >
-          <SectionIcon
-            id={item.id}
-            emoji={item.emoji}
-            size={13}
-            className="opacity-75"
-          />
-          <span>{item.label}</span>
-        </button>
-      ))}
-    </nav>
-  );
-}
