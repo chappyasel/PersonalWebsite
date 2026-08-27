@@ -805,6 +805,25 @@
   height: 5rem;
 }
 
+/* ============ Horizon footer (flat home) ============ */
+
+/* The skyline as a page-closing horizon on the flat home: quieter than on
+   the sky (it sits on paper, not atmosphere); dark lets the night layer's
+   own lights carry it. */
+.dl-horizon {
+  color: hsl(var(--dl-sil) / 0.55);
+  line-height: 0;
+}
+.dark .dl-horizon {
+  color: hsl(var(--dl-sil));
+}
+.dl-horizon svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
 /* ============ Framed prints ============ */
 
 /* Content images hang the way the scene hangs its previews: a mat, a

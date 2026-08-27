@@ -7,9 +7,12 @@ import { Fragment, type ReactNode, useEffect, useRef } from "react";
 
 import { captureOnce } from "~/lib/analytics";
 
+import Skyline from "~/components/daylight/Skyline";
 import { GrainientBackground } from "~/components/ui/grainient-background";
 
 import { type StacksSlots, UNITS, type UnitSlug } from "./data";
+
+import "~/styles/daylight.css";
 
 const FLAT_ORDER: ReadonlyArray<UnitSlug | "quotes"> = [
   ...UNITS.map((unit) => unit.slug),
@@ -93,6 +96,11 @@ export default function FlatHome({
           ),
         )}
       </main>
+      {/* The 3D world's own surveyed horizon closes the flat page — the same
+          generated strip the daylight pages wear, windows and all. */}
+      <footer aria-hidden className="daylight-root dl-horizon w-full">
+        <Skyline />
+      </footer>
     </GrainientBackground>
   );
 }
