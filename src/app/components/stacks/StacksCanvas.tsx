@@ -1873,19 +1873,34 @@ export default function StacksCanvas({
     transitionReason,
   ]);
 
+  // A cover or spine is a mesh with no DOM box; the book modal pops from a
+  // small rect at the pointer instead, the sheet's own compromise.
+  const recordBookOrigin = useCallback(() => {
+    const { x, y } = lastPointer.current;
+    if (x || y) {
+      recordSheetOrigin({ left: x - 45, top: y - 65, width: 90, height: 130 });
+    }
+  }, []);
   const onOpenBook = useCallback(
     (id: string) => {
       const book = data.shelfBooks.find((b) => b.id === id);
-      if (book) useStacks.getState().setPendingBook(book);
+      if (book) {
+        recordBookOrigin();
+        useStacks.getState().setPendingBook(book);
+      }
     },
-    [data.shelfBooks],
+    [data.shelfBooks, recordBookOrigin],
   );
   // A packed spine is a real read that the homepage deliberately does not
   // carry a whole `Book` for — only its title, author and length. The modal
   // resolves it by id, the same fetch a #book- deep link performs.
-  const onOpenBookId = useCallback((id: string) => {
-    useStacks.getState().setPendingBookId(id);
-  }, []);
+  const onOpenBookId = useCallback(
+    (id: string) => {
+      recordBookOrigin();
+      useStacks.getState().setPendingBookId(id);
+    },
+    [recordBookOrigin],
+  );
   const router = useRouter();
   // A door is shader geometry with no DOM box, so the sheet's origin pop
   // grows from a small rect around the last pointer-down instead — the same

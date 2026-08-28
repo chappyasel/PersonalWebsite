@@ -2,7 +2,12 @@
 
 import { useModalActions, useModalState } from "../contexts/BookPreviewContext";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+
+import {
+  takeSheetOrigin,
+  type SheetOrigin,
+} from "~/components/daylight/sheetOrigin";
 
 import { getBookPath, getBookShareUrl } from "~/lib/books/paths";
 import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
@@ -45,6 +50,12 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
   const isClosingRef = useRef(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+  // A 3D cover/spine click records a small rect at the pointer (a mesh has
+  // no DOM box); the shell flies from and back to it, the same origin pop
+  // the daylight sheet does. Absent on the standalone books site, where the
+  // cover's layoutId morph already owns the entrance.
+  const stacksOriginRef = useRef<SheetOrigin | null>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const reduceMotion = useReducedMotion();
   const fromStacks = presentation?.source === "stacks";
@@ -74,6 +85,41 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
     isClosingRef.current = true;
     // Blur active element to prevent focus ring on book card
     (document.activeElement as HTMLElement)?.blur();
+    // Stacks origin pop, reversed: the shell flies back to the clicked
+    // cover's rect before the modal state tears down.
+    const origin = stacksOriginRef.current;
+    const shell = shellRef.current;
+    if (origin && shell && !reduceMotion) {
+      stacksOriginRef.current = null;
+      const final = shell.getBoundingClientRect();
+      const scale = Math.max(origin.w / final.width, 0.08);
+      const dx = origin.l + origin.w / 2 - (final.left + final.width / 2);
+      const dy = origin.t + origin.h / 2 - (final.top + final.height / 2);
+      backdropRef.current?.animate([{ opacity: 1 }, { opacity: 0 }], {
+        duration: 300,
+        easing: "ease",
+        fill: "forwards",
+      });
+      const flight = shell.animate(
+        [
+          { transform: "none", opacity: 1 },
+          {
+            transform: `translate(${dx}px, ${dy}px) scale(${scale})`,
+            opacity: 0.2,
+          },
+        ],
+        {
+          duration: 340,
+          easing: "cubic-bezier(0.7, 0, 0.84, 0)",
+          fill: "forwards",
+        },
+      );
+      flight.onfinish = () => {
+        closeModal();
+        window.history.back();
+      };
+      return;
+    }
     closeModal();
     // Navigate back to remove the bookId from URL
     window.history.back();
@@ -85,6 +131,35 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
       isClosingRef.current = false;
     }
   }, [isModalOpen]);
+
+  // Stacks origin pop: overlay a WAAPI flight from the clicked cover's rect
+  // on top of the shell transition (WAAPI owns transform/opacity while it
+  // runs, and both land on identity, so the two never fight). Before paint,
+  // so the shell never flashes at rest first.
+  useLayoutEffect(() => {
+    if (!isModalOpen || !fromStacks) return;
+    const origin = takeSheetOrigin();
+    if (!origin) return;
+    stacksOriginRef.current = origin;
+    const shell = shellRef.current;
+    if (!shell || reduceMotion) return;
+    const final = shell.getBoundingClientRect();
+    if (final.width === 0) return;
+    const scale = Math.max(origin.w / final.width, 0.08);
+    const dx = origin.l + origin.w / 2 - (final.left + final.width / 2);
+    const dy = origin.t + origin.h / 2 - (final.top + final.height / 2);
+    shell.animate(
+      [
+        {
+          transform: `translate(${dx}px, ${dy}px) scale(${scale})`,
+          opacity: 0.3,
+        },
+        { transform: "none", opacity: 1 },
+      ],
+      { duration: 460, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModalOpen, fromStacks]);
 
   // Canvas books have no DOM cover to receive focus, while books opened on
   // the dedicated site do. In either case the dialog itself becomes the
@@ -204,6 +279,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
         <>
           {/* Backdrop */}
           <motion.div
+            ref={backdropRef}
             className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm dark:bg-black/60"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

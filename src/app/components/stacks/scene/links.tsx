@@ -29,6 +29,8 @@ import {
   HOMEPAGE_PORTAL_ACTIVATED_EVENT,
   capture,
 } from "../../../../lib/analytics";
+import { recordSheetOrigin } from "~/components/daylight/sheetOrigin";
+
 import { UNITS } from "../data";
 import { recordFieldNoteEvent } from "../fieldNotes/progress";
 import { useStacks } from "../store";
@@ -138,7 +140,17 @@ export function useOpenTarget(): (
         window.open(href, "_blank", "noopener,noreferrer");
       } else {
         // Same-tab navigation, exactly what the placard's <Link> does (the app
-        // router hands a cross-origin href to the browser itself).
+        // router hands a cross-origin href to the browser itself). The
+        // intercepted sheet pops from its source: a prop is shader geometry
+        // with no DOM box, so the gesture's own pointer-down stands in.
+        if (down.ok || down.x || down.y) {
+          recordSheetOrigin({
+            left: down.x - 70,
+            top: down.y - 90,
+            width: 140,
+            height: 180,
+          });
+        }
         router.push(href);
       }
     },
