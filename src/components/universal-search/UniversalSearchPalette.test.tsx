@@ -122,6 +122,26 @@ describe("UniversalSearchPalette", () => {
     }
   });
 
+  it("returns focus to the input when palette chrome takes it", async () => {
+    render(
+      <UniversalSearchPaletteContent
+        open
+        onOpenChange={vi.fn()}
+        dependencies={dependencies()}
+      />,
+    );
+    const input = screen.getByRole("combobox", { name: "Universal Search" });
+    await waitFor(() => expect(document.activeElement).toBe(input));
+
+    // A click on a list gap or group heading focuses cmdk's tabindex="-1"
+    // list; Radix allows internal focus moves, so the palette itself must
+    // hand focus back or typing dies on a div.
+    const list = document.querySelector<HTMLElement>("[cmdk-list]");
+    act(() => list?.focus());
+
+    await waitFor(() => expect(document.activeElement).toBe(input));
+  });
+
   it("pulls focus back into the dialog when the scene grabs it, without closing", async () => {
     const onOpenChange = vi.fn();
     const view = render(

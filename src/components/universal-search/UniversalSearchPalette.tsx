@@ -375,10 +375,12 @@ function ResultGroup({
 export function UniversalSearchPaletteContent({
   open,
   onOpenChange,
+  onCloseAutoFocus,
   dependencies,
 }: UniversalSearchPaletteProps & {
   dependencies: UniversalSearchPaletteDependencies;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [recents, setRecents] = useState<RecentResult[]>(() =>
     readRecentResults(dependencies.storage),
@@ -590,9 +592,29 @@ export function UniversalSearchPaletteContent({
           data-universal-search-material=""
           aria-describedby={undefined}
           onCloseAutoFocus={(event) => {
-            // The controller restores focus to the element that was focused
-            // before the palette opened; Radix would otherwise focus body.
+            // Radix's modal default would focus a Dialog.Trigger we don't
+            // have, stranding focus on body. The controller restores the
+            // pre-open element instead — here, after the trap tears down;
+            // restoring any earlier bounces off the still-active trap.
             event.preventDefault();
+            onCloseAutoFocus?.();
+          }}
+          onFocusCapture={(event) => {
+            // Radix only stops focus from LEAVING the dialog. cmdk's root
+            // and list are tabindex="-1", so a click on a list gap, group
+            // heading, or the footer silently moves focus onto a div and
+            // typing dies. Only real controls may hold focus.
+            const target = event.target;
+            if (target === inputRef.current) return;
+            if (
+              target instanceof HTMLElement &&
+              target.closest(
+                "input, textarea, select, button, a[href], [contenteditable]:not([contenteditable='false'])",
+              )
+            ) {
+              return;
+            }
+            inputRef.current?.focus();
           }}
           className={cn(
             // Top-anchored like the AIC palettes: the input and the top of
@@ -626,6 +648,7 @@ export function UniversalSearchPaletteContent({
                   focus itself, or it never records a last-focused element and
                   its trap cannot reclaim focus from the scene later. */}
               <Command.Input
+                ref={inputRef}
                 value={query}
                 onValueChange={setQuery}
                 autoComplete="off"

@@ -301,24 +301,43 @@ describe("UniversalSearchController", () => {
   });
 
   it("closes with Escape and restores the element focused before opening", async () => {
-    render(
+    // The real Radix palette must run here: focus restoration belongs to
+    // its FocusScope teardown, and a controller-side restore would bounce
+    // off the still-active trap and strand focus on body. A fake palette
+    // without the trap cannot catch that regression.
+    class TestResizeObserver implements ResizeObserver {
+      disconnect = vi.fn();
+      observe = vi.fn();
+      unobserve = vi.fn();
+    }
+    vi.stubGlobal("ResizeObserver", TestResizeObserver);
+    Element.prototype.scrollIntoView = vi.fn();
+    const view = render(
       <>
         <button>Previous focus</button>
         <UniversalSearchController
-          loadPalette={async () => ({ UniversalSearchPalette: FakePalette })}
+          loadPalette={async () => ({
+            UniversalSearchPalette: IntegratedPalette,
+          })}
           schedulePreload={() => () => undefined}
         />
       </>,
     );
-    const previous = screen.getByRole("button", { name: "Previous focus" });
+    const previous = view.container.querySelector("button")!;
     previous.focus();
 
     fireEvent.keyDown(document, { key: "k", metaKey: true });
     await act(async () => Promise.resolve());
+    const input = await screen.findByRole("combobox", {
+      name: "Universal Search",
+    });
+    await waitFor(() => expect(document.activeElement).toBe(input));
+
     fireEvent.keyDown(document, { key: "Escape" });
+    await act(async () => Promise.resolve());
 
     expect(screen.queryByRole("dialog")).toBeNull();
-    expect(document.activeElement).toBe(previous);
+    await waitFor(() => expect(document.activeElement).toBe(previous));
   });
 
   it("lets idle preload reuse the same module load as first open", async () => {

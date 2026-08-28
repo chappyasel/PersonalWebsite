@@ -15,6 +15,11 @@ export const OPEN_UNIVERSAL_SEARCH_EVENT = "chappy:universal-search:open";
 export type UniversalSearchPaletteProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Fired at Radix's close-auto-focus moment — after the focus trap tears
+   * down, which is the only safe time to restore focus. The palette calls
+   * preventDefault on Radix's default (which would try to focus a
+   * nonexistent Dialog.Trigger) and then invokes this. */
+  onCloseAutoFocus?: () => void;
 };
 
 export type UniversalSearchPaletteComponent =
@@ -152,6 +157,12 @@ export function UniversalSearchController({
   const closePalette = useCallback(() => {
     setOpen(false);
     document.documentElement.removeAttribute(UNIVERSAL_SEARCH_OPEN_ATTRIBUTE);
+    // Focus restoration happens in restoreFocusAfterClose, which the
+    // palette fires once Radix's focus trap has torn down. Restoring here
+    // would bounce off the still-active trap and strand focus on body.
+  }, []);
+
+  const restoreFocusAfterClose = useCallback(() => {
     restoreFocusRef.current?.focus();
     restoreFocusRef.current = null;
   }, []);
@@ -213,6 +224,7 @@ export function UniversalSearchController({
     <Palette
       open={open}
       onOpenChange={(next) => (next ? showPalette() : closePalette())}
+      onCloseAutoFocus={restoreFocusAfterClose}
     />
   );
 }
