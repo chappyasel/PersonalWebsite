@@ -46,6 +46,8 @@ export default function DaylightSheet({
   const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(true);
   const shellRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const isClosingRef = useRef(false);
   // Where the click came from, when the launcher recorded it. Intercepted
   // routes only ever mount on client navigations, so reading storage in the
   // initializer is safe.
@@ -53,7 +55,48 @@ export default function DaylightSheet({
     typeof window === "undefined" ? null : takeSheetOrigin(),
   );
 
-  const close = () => setOpen(false);
+  const close = () => {
+    if (isClosingRef.current) return;
+    isClosingRef.current = true;
+    // Placards un-suspend NOW, so the source card is already back on the
+    // page while the sheet flies home onto it instead of popping in after.
+    useStacks.getState().setModalOpen(false);
+    const shell = shellRef.current;
+    const reduced = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    if (origin && shell && !reduced) {
+      // Reverse of the entrance FLIP: the card returns to its source rect.
+      const final = shell.getBoundingClientRect();
+      const scale = Math.max(origin.w / final.width, 0.1);
+      const dx = origin.l + origin.w / 2 - (final.left + final.width / 2);
+      const dy = origin.t + origin.h / 2 - (final.top + final.height / 2);
+      backdropRef.current?.animate([{ opacity: 1 }, { opacity: 0 }], {
+        duration: 300,
+        easing: "ease",
+        fill: "forwards",
+      });
+      const flight = shell.animate(
+        [
+          { transform: "none", opacity: 1 },
+          {
+            transform: `translate(${dx}px, ${dy}px) scale(${scale})`,
+            opacity: 0.25,
+          },
+        ],
+        {
+          duration: 340,
+          easing: "cubic-bezier(0.7, 0, 0.84, 0)",
+          fill: "forwards",
+        },
+      );
+      flight.onfinish = () => router.back();
+      return;
+    }
+    setOpen(false);
+  };
+  const closeRef = useRef(close);
+  closeRef.current = close;
 
   // Book-notes-style origin pop: the card starts as the source rect and
   // grows into place. WAAPI instead of framer for the entrance so the final
@@ -82,21 +125,28 @@ export default function DaylightSheet({
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") closeRef.current();
     };
     window.addEventListener("keydown", onKey);
     // The page underneath keeps its scroll position; only the sheet scrolls.
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     // The 3D world's scroll rig listens at the window and would keep flying
-    // the camera under the sheet. modalOpen is the book modal's own stand-down
-    // signal (ScrollBridges bails on it); on non-world pages nothing
-    // subscribes and the flag is inert.
-    useStacks.getState().setModalOpen(true);
+    // the camera under the sheet. modalOpen is the book modal's own
+    // stand-down signal (ScrollBridges bails on it); on non-world pages
+    // nothing subscribes and the flag is inert. Raised AFTER the entrance:
+    // the world's placards suspend themselves on it (PlacardLayer), and the
+    // source card must stay put under the growing sheet — half a second of
+    // live scroll rig is harmless.
+    const raise = window.setTimeout(
+      () => useStacks.getState().setModalOpen(true),
+      540,
+    );
     const frame = requestAnimationFrame(() => shellRef.current?.focus());
     return () => {
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = previous;
+      window.clearTimeout(raise);
       useStacks.getState().setModalOpen(false);
       cancelAnimationFrame(frame);
     };
@@ -111,6 +161,7 @@ export default function DaylightSheet({
               card went soft), and no layer pinning reliably kept the card
               out of that pass. */}
           <motion.div
+            ref={backdropRef}
             className="absolute inset-0 bg-stone-900/70 dark:bg-black/70"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
