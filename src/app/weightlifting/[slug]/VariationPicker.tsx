@@ -92,8 +92,13 @@ export function VariationPicker({
                     const Nav = inSheet ? Link : "a";
                     return (
                       <li key={variant.slug}>
+                        {/* replace, not push: a variation swap is the same
+                            sheet showing a sibling, and close() pops ONE
+                            history entry — stacked pushes would make it
+                            step back through every variation visited. */}
                         <Nav
                           href={wlPath(`/${variant.slug}`)}
+                          {...(inSheet ? { replace: true } : {})}
                           onClick={() => setOpen(false)}
                           className={`block px-4 py-2.5 text-sm transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-700/60 ${
                             isCurrent

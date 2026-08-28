@@ -93,6 +93,10 @@ export default function ModalSheet({
   const router = useRouter();
   const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(true);
+  // Expanded = the sheet has taken over the viewport and IS the page now:
+  // same URL, no navigation. The sheet attribute and caller class come off
+  // so in-sheet-hidden chrome (back links, theme toggles) returns.
+  const [expanded, setExpanded] = useState(false);
   const shellRef = useRef<HTMLDivElement>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
   const isClosingRef = useRef(false);
@@ -108,13 +112,13 @@ export default function ModalSheet({
 
   // The iOS-pop expand: the card's real box springs out to the viewport —
   // content reflowing live, so by the end the card IS the full page's
-  // layout — and only then does the hard navigation fire. The browser
-  // paint-holds the old document until the new one is ready, so the swap
-  // lands on a nearly identical frame. Mid-flight the sheet stops being a
-  // sheet (attribute and caller class stripped), so chrome that hides
-  // itself in-sheet — back links, theme toggles — is already back while
-  // the card grows. Modified clicks and reduced motion fall through to the
-  // plain <a>.
+  // layout — and then it simply STAYS. No navigation: the URL already reads
+  // the destination, so the takeover is purely presentational, and back (or
+  // Esc, or the content's own back link) still pops to the launcher. The
+  // sheet stops being a sheet at flight start, so chrome that hides itself
+  // in-sheet — back links, theme toggles — returns while the card grows.
+  // Modified clicks and reduced motion fall through to the plain <a>, the
+  // real full-page load.
   const expand = (event: ReactMouseEvent<HTMLAnchorElement>) => {
     if (
       event.metaKey ||
@@ -128,24 +132,20 @@ export default function ModalSheet({
     if (!shell) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     event.preventDefault();
-    if (isClosingRef.current) return;
+    if (isClosingRef.current || expanded) return;
+    // Block close attempts only while the flight runs.
     isClosingRef.current = true;
-    presenceRef.current?.(false);
-    const root = shell.closest("[data-modal-sheet]");
-    if (root instanceof HTMLElement) {
-      root.removeAttribute("data-modal-sheet");
-      if (className)
-        root.classList.remove(...className.split(" ").filter(Boolean));
-    }
-    shell
-      .querySelector("[data-sheet-cluster]")
-      ?.animate([{ opacity: 1 }, { opacity: 0 }], {
-        duration: 160,
-        fill: "forwards",
-      });
+    setExpanded(true);
+    backdropRef.current?.animate([{ opacity: 1 }, { opacity: 0 }], {
+      duration: 420,
+      easing: "ease",
+      fill: "forwards",
+    });
     const rect = shell.getBoundingClientRect();
     // Pin the shell where it stands, then fly the box itself — a transform
     // would stretch the rendered pixels; animating the box reflows them.
+    // vw/dvh land as the resting inline styles so later viewport resizes
+    // keep the takeover full-bleed.
     Object.assign(shell.style, {
       position: "fixed",
       top: `${rect.top}px`,
@@ -173,9 +173,18 @@ export default function ModalSheet({
           borderRadius: "0rem",
         },
       ],
-      { duration: 420, easing: "cubic-bezier(0.16, 1, 0.3, 1)", fill: "forwards" },
+      { duration: 420, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
     );
-    flight.onfinish = () => window.location.assign(expandHref);
+    flight.onfinish = () => {
+      Object.assign(shell.style, {
+        top: "0px",
+        left: "0px",
+        width: "100vw",
+        height: "100dvh",
+        borderRadius: "0",
+      });
+      isClosingRef.current = false;
+    };
   };
 
   const close = () => {
@@ -286,8 +295,8 @@ export default function ModalSheet({
     <AnimatePresence onExitComplete={() => router.back()}>
       {open && (
         <div
-          data-modal-sheet
-          className={cn("fixed inset-0 z-50", className)}
+          data-modal-sheet={expanded ? undefined : ""}
+          className={cn("fixed inset-0 z-50", !expanded && className)}
         >
           {/* Dim only, no backdrop-filter: Chromium smears a backdrop blur
               across overlapping siblings after viewport resizes (the whole
@@ -295,7 +304,10 @@ export default function ModalSheet({
               out of that pass. */}
           <motion.div
             ref={backdropRef}
-            className="absolute inset-0 bg-stone-900/70 dark:bg-black/70"
+            className={cn(
+              "absolute inset-0 bg-stone-900/70 dark:bg-black/70",
+              expanded && "pointer-events-none",
+            )}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -336,6 +348,7 @@ export default function ModalSheet({
                   : { duration: 0.34, ease: [0.16, 1, 0.3, 1] }
               }
             >
+              {!expanded && (
               <div
                 data-sheet-cluster
                 className={cn(
@@ -397,6 +410,7 @@ export default function ModalSheet({
                   </Tooltip>
                 </TooltipProvider>
               </div>
+              )}
               <div
                 data-modal-scroller
                 className={cn(
