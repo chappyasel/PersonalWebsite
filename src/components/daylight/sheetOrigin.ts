@@ -7,6 +7,34 @@
 const KEY = "dl-sheet-origin";
 const FRESH_MS = 3000;
 
+// The module tracks the pointer itself: callers live in gesture systems with
+// their own private state (links.tsx's `down`, Grabbable's `gesture`), and
+// borrowing any one of them silently fails for the others. One capture-phase
+// listener, installed when this module first loads on the client.
+const pointer = { x: 0, y: 0 };
+if (typeof window !== "undefined") {
+  window.addEventListener(
+    "pointerdown",
+    (event: PointerEvent) => {
+      pointer.x = event.clientX;
+      pointer.y = event.clientY;
+    },
+    { capture: true, passive: true },
+  );
+}
+
+/** Record a source rect centered on the last pointer-down — the stand-in for
+ * launchers with no DOM box (3D props, doors, covers). */
+export function recordSheetOriginAtPointer(width = 140, height = 180) {
+  if (!pointer.x && !pointer.y) return;
+  recordSheetOrigin({
+    left: pointer.x - width / 2,
+    top: pointer.y - height / 2,
+    width,
+    height,
+  });
+}
+
 export type SheetOrigin = { l: number; t: number; w: number; h: number };
 
 export function recordSheetOrigin(rect: {

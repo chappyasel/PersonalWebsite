@@ -29,7 +29,7 @@ import {
   HOMEPAGE_PORTAL_ACTIVATED_EVENT,
   capture,
 } from "../../../../lib/analytics";
-import { recordSheetOrigin } from "~/components/daylight/sheetOrigin";
+import { recordSheetOriginAtPointer } from "~/components/daylight/sheetOrigin";
 
 import { UNITS } from "../data";
 import { recordFieldNoteEvent } from "../fieldNotes/progress";
@@ -142,15 +142,11 @@ export function useOpenTarget(): (
         // Same-tab navigation, exactly what the placard's <Link> does (the app
         // router hands a cross-origin href to the browser itself). The
         // intercepted sheet pops from its source: a prop is shader geometry
-        // with no DOM box, so the gesture's own pointer-down stands in.
-        if (down.ok || down.x || down.y) {
-          recordSheetOrigin({
-            left: down.x - 70,
-            top: down.y - 90,
-            width: 140,
-            height: 180,
-          });
-        }
+        // with no DOM box, so the last pointer-down stands in — tracked by
+        // the origin module itself, because this open() is reached from
+        // several gesture systems (the shared window listeners, Grabbable's
+        // private gesture, the tap router) with no one pointer state.
+        recordSheetOriginAtPointer();
         router.push(href);
       }
     },

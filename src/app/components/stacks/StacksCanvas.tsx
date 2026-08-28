@@ -26,7 +26,7 @@ import {
 } from "react";
 import type * as THREE from "three";
 
-import { recordSheetOrigin } from "~/components/daylight/sheetOrigin";
+import { recordSheetOriginAtPointer } from "~/components/daylight/sheetOrigin";
 import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
 
 import { sceneAudio } from "./audio/sceneAudio";
@@ -1873,61 +1873,35 @@ export default function StacksCanvas({
     transitionReason,
   ]);
 
-  // A cover or spine is a mesh with no DOM box; the book modal pops from a
-  // small rect at the pointer instead, the sheet's own compromise.
-  const recordBookOrigin = useCallback(() => {
-    const { x, y } = lastPointer.current;
-    if (x || y) {
-      recordSheetOrigin({ left: x - 45, top: y - 65, width: 90, height: 130 });
-    }
-  }, []);
   const onOpenBook = useCallback(
     (id: string) => {
       const book = data.shelfBooks.find((b) => b.id === id);
       if (book) {
-        recordBookOrigin();
+        // A cover is a mesh with no DOM box; the modal pops from a small
+        // rect at the pointer instead, the sheet's own compromise.
+        recordSheetOriginAtPointer(90, 130);
         useStacks.getState().setPendingBook(book);
       }
     },
-    [data.shelfBooks, recordBookOrigin],
+    [data.shelfBooks],
   );
   // A packed spine is a real read that the homepage deliberately does not
   // carry a whole `Book` for — only its title, author and length. The modal
   // resolves it by id, the same fetch a #book- deep link performs.
-  const onOpenBookId = useCallback(
-    (id: string) => {
-      recordBookOrigin();
-      useStacks.getState().setPendingBookId(id);
-    },
-    [recordBookOrigin],
-  );
-  const router = useRouter();
-  // A door is shader geometry with no DOM box, so the sheet's origin pop
-  // grows from a small rect around the last pointer-down instead — the same
-  // compromise the stacks book modal makes for meshes.
-  const lastPointer = useRef({ x: 0, y: 0 });
-  useEffect(() => {
-    const track = (event: PointerEvent) => {
-      lastPointer.current = { x: event.clientX, y: event.clientY };
-    };
-    window.addEventListener("pointerdown", track, {
-      capture: true,
-      passive: true,
-    });
-    return () =>
-      window.removeEventListener("pointerdown", track, { capture: true });
+  const onOpenBookId = useCallback((id: string) => {
+    recordSheetOriginAtPointer(90, 130);
+    useStacks.getState().setPendingBookId(id);
   }, []);
+  const router = useRouter();
   const onOpenUrl = useCallback(
     (url: string) => {
       // The two document pages open as intercepted sheets over the live
       // world (src/app/@sheet) — the scene stays booted underneath and the
       // back gesture lands right back in it. Everything else keeps the
-      // new-tab behavior.
+      // new-tab behavior. The sheet pops from a small rect at the pointer
+      // (a door is shader geometry with no DOM box).
       if (url === "/routine" || url === "/manual") {
-        const { x, y } = lastPointer.current;
-        if (x || y) {
-          recordSheetOrigin({ left: x - 70, top: y - 90, width: 140, height: 180 });
-        }
+        recordSheetOriginAtPointer();
         router.push(url);
         return;
       }
