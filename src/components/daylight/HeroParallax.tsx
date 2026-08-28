@@ -17,7 +17,7 @@ export default function HeroParallax() {
     const hero = ref.current?.closest<HTMLElement>(".dl-hero");
     if (!hero) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const scroller = hero.closest<HTMLElement>("[data-dl-scroller]");
+    const scroller = hero.closest<HTMLElement>("[data-modal-scroller]");
     let raf = 0;
     const apply = () => {
       raf = 0;

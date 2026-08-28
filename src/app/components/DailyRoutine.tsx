@@ -3,7 +3,7 @@
 import { ArrowRightIcon, SunHorizonIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 
-import { recordSheetOrigin } from "~/components/daylight/sheetOrigin";
+import { recordModalOrigin } from "~/lib/originFlight";
 
 import TiltCard from "./TiltCard";
 
@@ -34,7 +34,7 @@ export default function DailyRoutine() {
         data-placard-link=""
         className="group relative block w-full p-5 [transform-style:preserve-3d] sm:p-6"
         onClick={(event) =>
-          recordSheetOrigin(event.currentTarget.getBoundingClientRect())
+          recordModalOrigin(event.currentTarget.getBoundingClientRect())
         }
       >
         <div

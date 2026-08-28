@@ -29,7 +29,7 @@ import {
   HOMEPAGE_PORTAL_ACTIVATED_EVENT,
   capture,
 } from "../../../../lib/analytics";
-import { recordSheetOriginAtPointer } from "~/components/daylight/sheetOrigin";
+import { recordModalOriginAtPointer } from "~/lib/originFlight";
 
 import { UNITS } from "../data";
 import { recordFieldNoteEvent } from "../fieldNotes/progress";
@@ -146,7 +146,7 @@ export function useOpenTarget(): (
         // the origin module itself, because this open() is reached from
         // several gesture systems (the shared window listeners, Grabbable's
         // private gesture, the tap router) with no one pointer state.
-        recordSheetOriginAtPointer();
+        recordModalOriginAtPointer();
         router.push(href);
       }
     },

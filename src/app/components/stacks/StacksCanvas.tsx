@@ -26,7 +26,7 @@ import {
 } from "react";
 import type * as THREE from "three";
 
-import { recordSheetOriginAtPointer } from "~/components/daylight/sheetOrigin";
+import { recordModalOriginAtPointer } from "~/lib/originFlight";
 import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
 
 import { sceneAudio } from "./audio/sceneAudio";
@@ -1879,7 +1879,7 @@ export default function StacksCanvas({
       if (book) {
         // A cover is a mesh with no DOM box; the modal pops from a small
         // rect at the pointer instead, the sheet's own compromise.
-        recordSheetOriginAtPointer(90, 130);
+        recordModalOriginAtPointer(90, 130);
         useStacks.getState().setPendingBook(book);
       }
     },
@@ -1889,7 +1889,7 @@ export default function StacksCanvas({
   // carry a whole `Book` for — only its title, author and length. The modal
   // resolves it by id, the same fetch a #book- deep link performs.
   const onOpenBookId = useCallback((id: string) => {
-    recordSheetOriginAtPointer(90, 130);
+    recordModalOriginAtPointer(90, 130);
     useStacks.getState().setPendingBookId(id);
   }, []);
   const router = useRouter();
@@ -1901,7 +1901,7 @@ export default function StacksCanvas({
       // new-tab behavior. The sheet pops from a small rect at the pointer
       // (a door is shader geometry with no DOM box).
       if (url === "/routine" || url === "/manual") {
-        recordSheetOriginAtPointer();
+        recordModalOriginAtPointer();
         router.push(url);
         return;
       }
