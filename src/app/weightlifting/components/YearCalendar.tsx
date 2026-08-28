@@ -6,6 +6,8 @@ import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react/dist/ssr";
 import { useRouter } from "next/navigation";
 import { useQueryState } from "nuqs";
 
+import { useWlPath } from "../lib/paths";
+
 import { recordModalOrigin } from "~/lib/originFlight";
 import { api } from "~/trpc/react";
 
@@ -65,6 +67,7 @@ function DayCell({
   onDayClick: (dateStr: string, rect: DOMRect) => void;
 }) {
   const router = useRouter();
+  const wlPath = useWlPath();
   const utils = api.useUtils();
   const hasWorkout = categories && Object.keys(categories).length > 0;
 
@@ -74,7 +77,7 @@ function DayCell({
       { date: dateStr },
       { staleTime: QUERY_STALE_TIME },
     );
-    router.prefetch(`/weightlifting/workout/${dateStr}`);
+    router.prefetch(wlPath(`/workout/${dateStr}`));
   };
   const sorted = hasWorkout
     ? Object.entries(categories).sort(([a], [b]) => a.localeCompare(b))
@@ -221,6 +224,7 @@ function MonthMiniCalendar({
 
 export function YearCalendar() {
   const router = useRouter();
+  const wlPath = useWlPath();
   const { data: stats } = api.weightlifting.getStats.useQuery(undefined, {
     staleTime: QUERY_STALE_TIME,
   });
@@ -230,7 +234,7 @@ export function YearCalendar() {
   // over the calendar, popping from the clicked cell.
   const openDay = (dateStr: string, rect: DOMRect) => {
     recordModalOrigin(rect);
-    router.push(`/weightlifting/workout/${dateStr}`);
+    router.push(wlPath(`/workout/${dateStr}`));
   };
 
   const {

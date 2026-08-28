@@ -1,4 +1,4 @@
-import ModalSheet from "~/components/modal-sheet/ModalSheet";
+import { WeightliftingSheet } from "../../WeightliftingSheet";
 
 // The workout preview intercepted over its launcher — the calendar's day
 // cell or an exercise page's instance row — as a content-hugging card.
@@ -11,12 +11,12 @@ export default async function InterceptedWorkoutLayout({
 }) {
   const { key } = await params;
   return (
-    <ModalSheet
+    <WeightliftingSheet
       label="Workout details"
       variant="card"
-      expandHref={`/weightlifting/workout/${key}`}
+      expandSubpath={`/workout/${key}`}
     >
       {children}
-    </ModalSheet>
+    </WeightliftingSheet>
   );
 }

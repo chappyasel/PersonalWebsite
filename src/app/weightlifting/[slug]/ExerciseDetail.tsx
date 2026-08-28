@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import {
@@ -7,9 +6,8 @@ import {
   getFreshExerciseIndex,
 } from "~/server/queries/weightliftingExercise";
 import { categoryColor } from "../lib/utils";
-import { ordinalDate } from "../lib/wlaFormat";
 import { ExerciseExplorer } from "./ExerciseExplorer";
-import { VariationPicker } from "./VariationPicker";
+import { ExerciseHeader } from "./ExerciseHeader";
 
 export async function resolveExercise(slug: string) {
   const index = await getCachedExerciseIndex();
@@ -46,43 +44,21 @@ export async function ExerciseDetail({ slug }: { slug: string }) {
 
   return (
     <div className="mx-auto max-w-4xl space-y-10 font-sans">
-      {/* Header */}
-      <div className="flex flex-col gap-3">
-        {/* Redundant inside the sheet — the sheet's own X already goes back
-            to the dashboard — so it hides itself there. */}
-        <Link
-          href="/weightlifting"
-          className="text-sm text-neutral-500 transition-colors hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200 [[data-modal-sheet]_&]:hidden"
-        >
-          ← Chappy&apos;s Weightlifting
-        </Link>
-        {/* In the sheet the corner cluster (expand + close) occupies the top
-            right; the title row pads past it so the variation button stays
-            clear. */}
-        <div className="flex items-start justify-between gap-3 [[data-modal-sheet]_&]:pr-24">
-          <h1 className="flex items-center gap-3 font-rounded text-2xl font-semibold text-foreground md:text-4xl">
-            <span
-              className="h-3.5 w-3.5 shrink-0 rounded-full"
-              style={{ backgroundColor: color }}
-            />
-            {detail.displayName}
-          </h1>
-          {variants.length > 1 && (
-            <VariationPicker
-              variants={variants}
-              currentSlug={slug}
-              baseName={entry.name}
-              color={color}
-            />
-          )}
-        </div>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">
-          {detail.category} · {ordinalDate(detail.firstPerformed)} –{" "}
-          {ordinalDate(detail.lastPerformed)} ·{" "}
-          {detail.instanceCount.toLocaleString()} instances ·{" "}
-          {detail.totalSets.toLocaleString()} sets
-        </p>
-      </div>
+      <ExerciseHeader
+        displayName={detail.displayName}
+        category={detail.category}
+        color={color}
+        firstPerformed={detail.firstPerformed}
+        lastPerformed={detail.lastPerformed}
+        instanceCount={detail.instanceCount}
+        totalSets={detail.totalSets}
+        variants={variants.map((v) => ({
+          slug: v.slug,
+          displayName: v.displayName,
+        }))}
+        currentSlug={slug}
+        baseName={entry.name}
+      />
 
       {/* App-parity explorer: sort picker, podium, graph, show more, instances */}
       <ExerciseExplorer instances={detail.instances} color={color} />

@@ -1,4 +1,4 @@
-import ModalSheet from "~/components/modal-sheet/ModalSheet";
+import { WeightliftingSheet } from "../WeightliftingSheet";
 
 // The sheet chrome lives in the segment LAYOUT so it mounts the instant the
 // navigation starts — loading.tsx streams a skeleton inside it while the
@@ -13,8 +13,8 @@ export default async function InterceptedExerciseLayout({
 }) {
   const { slug } = await params;
   return (
-    <ModalSheet label="Exercise detail" expandHref={`/weightlifting/${slug}`}>
+    <WeightliftingSheet label="Exercise detail" expandSubpath={`/${slug}`}>
       {children}
-    </ModalSheet>
+    </WeightliftingSheet>
   );
 }

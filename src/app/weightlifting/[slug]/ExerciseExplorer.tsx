@@ -25,6 +25,8 @@ import {
   YAxis,
 } from "recharts";
 
+import { useWlPath } from "../lib/paths";
+
 import { recordModalOrigin } from "~/lib/originFlight";
 import type { ExerciseInstance } from "~/server/queries/weightliftingExercise";
 
@@ -291,6 +293,7 @@ export function ExerciseExplorer({
   color: string;
 }) {
   const router = useRouter();
+  const wlPath = useWlPath();
   const [metricKey, setMetricKey] = useState<MetricKey>("oneRM");
   const [queryType, setQueryType] = useState<QueryType>("recent");
   const [timeSpan, setTimeSpan] = useState<TimeSpanKey>("all");
@@ -890,9 +893,7 @@ export function ExerciseExplorer({
                       recordModalOrigin(
                         e.currentTarget.getBoundingClientRect(),
                       );
-                      router.push(
-                        `/weightlifting/workout/${instance.workoutUuid}`,
-                      );
+                      router.push(wlPath(`/workout/${instance.workoutUuid}`));
                     }}
                     className="w-full px-3.5 py-2 text-left transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-neutral-400 dark:hover:bg-neutral-700/40 dark:focus-visible:ring-neutral-500"
                   >

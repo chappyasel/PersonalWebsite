@@ -4,6 +4,8 @@ import Link from "next/link";
 
 import { recordModalOrigin } from "~/lib/originFlight";
 
+import { useWlPath } from "../lib/paths";
+
 import { Skeleton } from "~/components/ui/skeleton";
 import { api } from "~/trpc/react";
 import { categoryColor, QUERY_STALE_TIME } from "../lib/utils";
@@ -14,6 +16,7 @@ interface PersonalRecordsProps {
 }
 
 export function PersonalRecords({ selectedExercises }: PersonalRecordsProps) {
+  const wlPath = useWlPath();
   const {
     data: records,
     isLoading,
@@ -69,7 +72,7 @@ export function PersonalRecords({ selectedExercises }: PersonalRecordsProps) {
               <td className="py-2 pr-4">
                 {record.slug ? (
                   <Link
-                    href={`/weightlifting/${record.slug}`}
+                    href={wlPath(`/${record.slug}`)}
                     onClick={(event) =>
                       recordModalOrigin(
                         event.currentTarget.getBoundingClientRect(),

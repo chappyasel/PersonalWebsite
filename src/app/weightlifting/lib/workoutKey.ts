@@ -10,6 +10,6 @@ export function workoutPreviewTarget(key: string): WorkoutPreviewTarget {
   return DATE_KEY.test(key) ? { date: key } : { workoutUuid: key };
 }
 
-export function workoutPreviewPath(target: WorkoutPreviewTarget) {
-  return `/weightlifting/workout/${"date" in target ? target.date : target.workoutUuid}`;
-}
+// No path builder here on purpose: hrefs into the weightlifting app must go
+// through useWlPath (lib/paths.ts) — a fixed /weightlifting prefix becomes a
+// redirect round-trip on the subdomain.

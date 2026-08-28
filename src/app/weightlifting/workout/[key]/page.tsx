@@ -1,8 +1,8 @@
 import { type Metadata } from "next";
-import Link from "next/link";
 
 import { ordinalDate } from "../../lib/wlaFormat";
 import { workoutPreviewTarget } from "../../lib/workoutKey";
+import { WlBackLink } from "../../components/WlBackLink";
 import { WorkoutPreview } from "../../components/WorkoutPreview";
 
 export async function generateMetadata({
@@ -34,12 +34,7 @@ export default async function WorkoutPage({
   const { key } = await params;
   return (
     <div className="mx-auto max-w-[27.5rem] space-y-3 font-sans">
-      <Link
-        href="/weightlifting"
-        className="text-sm text-neutral-500 transition-colors hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
-      >
-        ← Chappy&apos;s Weightlifting
-      </Link>
+      <WlBackLink />
       <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white dark:border-neutral-700 dark:bg-neutral-900">
         <WorkoutPreview target={workoutPreviewTarget(key)} />
       </div>

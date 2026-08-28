@@ -14,6 +14,8 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 
+import { useWlPath } from "../lib/paths";
+
 import { recordModalOrigin } from "~/lib/originFlight";
 import { type RouterOutputs, api } from "~/trpc/react";
 
@@ -59,12 +61,13 @@ function partitionSupersets(workout: WorkoutPreviewData) {
  * ONE card with these rows stacked, the color blocks tiling down the edge.
  */
 function ExerciseRow({ exercise }: { exercise: Exercise }) {
+  const wlPath = useWlPath();
   return (
     <div className="flex items-stretch">
       <div className="min-w-0 flex-1 py-2 pl-3 pr-2.5">
         {exercise.slug ? (
           <Link
-            href={`/weightlifting/${exercise.slug}`}
+            href={wlPath(`/${exercise.slug}`)}
             onClick={(event) =>
               recordModalOrigin(event.currentTarget.getBoundingClientRect())
             }
