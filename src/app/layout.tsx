@@ -115,7 +115,7 @@ export default function RootLayout({
       <body>
         <ThemeProvider>
           <FontProvider>
-            <UniversalSearchController enabled={false} />
+            <UniversalSearchController />
             <AnalyticsRouteTracker />
             {children}
             {sheet}

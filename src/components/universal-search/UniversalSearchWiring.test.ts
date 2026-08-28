@@ -7,13 +7,13 @@ function source(path: string) {
 }
 
 describe("universal search shell wiring", () => {
-  it("keeps the controller mounted but explicitly disabled", () => {
+  it("keeps the controller mounted and enabled", () => {
     const layout = source("src/app/layout.tsx");
 
     expect(layout).toContain(
       'import { UniversalSearchController } from "~/components/universal-search/UniversalSearchController"',
     );
-    expect(layout).toContain("<UniversalSearchController enabled={false} />");
+    expect(layout).toContain("<UniversalSearchController />");
   });
 
   it("keeps the palette behind a dynamic import", () => {

@@ -2,33 +2,23 @@
 
 import {
   type ComponentType,
-  type ForwardedRef,
-  type RefAttributes,
   useCallback,
   useEffect,
   useRef,
   useState,
 } from "react";
 
-import {
-  UNIVERSAL_SEARCH_OPEN_ATTRIBUTE,
-  universalSearchFocusIntent,
-} from "~/lib/universal-search/overlay";
+import { UNIVERSAL_SEARCH_OPEN_ATTRIBUTE } from "~/lib/universal-search/overlay";
 
 export const OPEN_UNIVERSAL_SEARCH_EVENT = "chappy:universal-search:open";
-
-export type UniversalSearchPaletteHandle = {
-  focusInput: () => void;
-};
 
 export type UniversalSearchPaletteProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
 
-export type UniversalSearchPaletteComponent = ComponentType<
-  UniversalSearchPaletteProps & RefAttributes<UniversalSearchPaletteHandle>
->;
+export type UniversalSearchPaletteComponent =
+  ComponentType<UniversalSearchPaletteProps>;
 
 export type UniversalSearchPaletteModule = {
   UniversalSearchPalette: UniversalSearchPaletteComponent;
@@ -134,7 +124,6 @@ export function UniversalSearchController({
     useState<UniversalSearchPaletteComponent | null>(null);
   const palettePromiseRef =
     useRef<Promise<UniversalSearchPaletteModule> | null>(null);
-  const paletteRef = useRef<UniversalSearchPaletteHandle>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
 
   const ensurePalette = useCallback(() => {
@@ -212,53 +201,6 @@ export function UniversalSearchController({
     };
   }, [closePalette, enabled, open, showPalette]);
 
-  useEffect(() => {
-    if (!enabled || !open || !Palette) return;
-    let reclaimFrame: number | null = null;
-    const focusInput = () => paletteRef.current?.focusInput();
-    const reclaimFocus = () => {
-      reclaimFrame = null;
-      if (
-        !document.documentElement.hasAttribute(
-          UNIVERSAL_SEARCH_OPEN_ATTRIBUTE,
-        ) ||
-        universalSearchFocusIntent(document.activeElement) === "keep"
-      )
-        return;
-      focusInput();
-    };
-    const scheduleReclaim = () => {
-      if (reclaimFrame !== null) cancelAnimationFrame(reclaimFrame);
-      reclaimFrame = requestAnimationFrame(reclaimFocus);
-    };
-    const onFocusIn = (event: FocusEvent) => {
-      if (universalSearchFocusIntent(event.target) === "keep") return;
-      // Two ways focus leaves the search input while the palette is up, and
-      // both end with keystrokes landing somewhere that cannot accept text:
-      // scene controls that focus themselves once their animation or travel
-      // settles, and clicks on the palette's own `tabindex="-1"` chrome. While
-      // search is open, the input owns keyboard focus.
-      focusInput();
-    };
-    const onVisibilityChange = () => {
-      if (!document.hidden) scheduleReclaim();
-    };
-
-    focusInput();
-    scheduleReclaim();
-    window.addEventListener("focusin", onFocusIn, true);
-    window.addEventListener("focusout", scheduleReclaim, true);
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    window.addEventListener("focus", scheduleReclaim);
-    return () => {
-      if (reclaimFrame !== null) cancelAnimationFrame(reclaimFrame);
-      window.removeEventListener("focusin", onFocusIn, true);
-      window.removeEventListener("focusout", scheduleReclaim, true);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      window.removeEventListener("focus", scheduleReclaim);
-    };
-  }, [enabled, open, Palette]);
-
   useEffect(
     () => () => {
       document.documentElement.removeAttribute(UNIVERSAL_SEARCH_OPEN_ATTRIBUTE);
@@ -269,7 +211,6 @@ export function UniversalSearchController({
   if (!enabled || !Palette) return null;
   return (
     <Palette
-      ref={paletteRef as ForwardedRef<UniversalSearchPaletteHandle>}
       open={open}
       onOpenChange={(next) => (next ? showPalette() : closePalette())}
     />

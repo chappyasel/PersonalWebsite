@@ -8,13 +8,11 @@ import {
   waitFor,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { forwardRef, useImperativeHandle, useRef } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   OPEN_UNIVERSAL_SEARCH_EVENT,
   UniversalSearchController,
-  type UniversalSearchPaletteHandle,
   type UniversalSearchPaletteProps,
   scheduleIdlePalettePreload,
 } from "./UniversalSearchController";
@@ -28,62 +26,21 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const FakePalette = forwardRef<
-  UniversalSearchPaletteHandle,
-  UniversalSearchPaletteProps
->(function FakePalette({ open, onOpenChange }, ref) {
-  useImperativeHandle(ref, () => ({ focusInput: vi.fn() }), []);
+function FakePalette({ open, onOpenChange }: UniversalSearchPaletteProps) {
   if (!open) return null;
   return (
     <div role="dialog" aria-label="Universal Search">
       <button onClick={() => onOpenChange(false)}>Close</button>
     </div>
   );
-});
+}
 
-const FocusableFakePalette = forwardRef<
-  UniversalSearchPaletteHandle,
-  UniversalSearchPaletteProps
->(function FocusableFakePalette({ open }, ref) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  useImperativeHandle(ref, () => ({
-    focusInput: () => inputRef.current?.focus(),
-  }));
+function FocusableFakePalette({ open }: UniversalSearchPaletteProps) {
   if (!open) return null;
   return (
-    <input
-      ref={inputRef}
-      aria-label="Universal Search"
-      data-universal-search-material=""
-    />
+    <input aria-label="Universal Search" data-universal-search-material="" />
   );
-});
-
-/** Shaped like the real palette: the panel, cmdk's root and cmdk's list all
- * carry `tabindex="-1"`, so a click anywhere but the input focuses a div. */
-const ChromedFakePalette = forwardRef<
-  UniversalSearchPaletteHandle,
-  UniversalSearchPaletteProps
->(function ChromedFakePalette({ open }, ref) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  useImperativeHandle(ref, () => ({
-    focusInput: () => inputRef.current?.focus(),
-  }));
-  if (!open) return null;
-  return (
-    <div data-universal-search-material="" tabIndex={-1}>
-      <div data-testid="cmdk-root" tabIndex={-1}>
-        <input ref={inputRef} aria-label="Universal Search" />
-        <div data-testid="cmdk-list" tabIndex={-1}>
-          <div data-testid="row" role="option" aria-selected={false}>
-            Books
-          </div>
-        </div>
-        <button>Clear recents</button>
-      </div>
-    </div>
-  );
-});
+}
 
 const integrationDependencies: UniversalSearchPaletteDependencies = {
   storage: window.localStorage,
@@ -106,18 +63,14 @@ const integrationDependencies: UniversalSearchPaletteDependencies = {
   })),
 };
 
-const IntegratedPalette = forwardRef<
-  UniversalSearchPaletteHandle,
-  UniversalSearchPaletteProps
->(function IntegratedPalette(props, ref) {
+function IntegratedPalette(props: UniversalSearchPaletteProps) {
   return (
     <UniversalSearchPaletteContent
       {...props}
-      ref={ref}
       dependencies={integrationDependencies}
     />
   );
-});
+}
 
 function deferredPalette() {
   let resolve!: (module: {
@@ -286,138 +239,6 @@ describe("UniversalSearchController", () => {
     fireEvent.keyDown(document, { key: "k", metaKey: true, repeat: true });
 
     expect(screen.getByRole("dialog")).toBeTruthy();
-  });
-
-  it("reclaims input focus after a deferred scene focus job", async () => {
-    const frames: FrameRequestCallback[] = [];
-    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
-      frames.push(callback);
-      return frames.length;
-    });
-    vi.stubGlobal("cancelAnimationFrame", vi.fn());
-    render(
-      <>
-        <button>Scene control</button>
-        <UniversalSearchController
-          loadPalette={async () => ({
-            UniversalSearchPalette: FocusableFakePalette,
-          })}
-          schedulePreload={() => () => undefined}
-        />
-      </>,
-    );
-    const sceneControl = screen.getByRole("button", { name: "Scene control" });
-    requestAnimationFrame(() => sceneControl.focus());
-
-    fireEvent.keyDown(document, { key: "k", metaKey: true });
-    await act(async () => Promise.resolve());
-    const input = screen.getByRole("textbox", { name: "Universal Search" });
-    expect(document.activeElement).toBe(input);
-
-    act(() => {
-      for (const callback of frames.splice(0)) callback(0);
-    });
-
-    expect(document.activeElement).toBe(input);
-  });
-
-  it("reclaims input focus when a scene control focuses itself later", async () => {
-    render(
-      <>
-        <button>Scene control</button>
-        <UniversalSearchController
-          loadPalette={async () => ({
-            UniversalSearchPalette: FocusableFakePalette,
-          })}
-          schedulePreload={() => () => undefined}
-        />
-      </>,
-    );
-
-    fireEvent.keyDown(document, { key: "k", metaKey: true });
-    await act(async () => Promise.resolve());
-    const input = screen.getByRole("textbox", { name: "Universal Search" });
-    const sceneControl = screen.getByRole("button", { name: "Scene control" });
-    expect(document.activeElement).toBe(input);
-
-    sceneControl.focus();
-    await act(async () => Promise.resolve());
-
-    expect(document.activeElement).toBe(input);
-  });
-
-  it("reclaims focus before a page focus trap can swallow focusin", async () => {
-    const pageFocusTrap = (event: FocusEvent) => {
-      if ((event.target as Element | null)?.matches("button")) {
-        event.stopImmediatePropagation();
-      }
-    };
-    document.addEventListener("focusin", pageFocusTrap, true);
-
-    render(
-      <>
-        <button>Scene control</button>
-        <UniversalSearchController
-          loadPalette={async () => ({
-            UniversalSearchPalette: FocusableFakePalette,
-          })}
-          schedulePreload={() => () => undefined}
-        />
-      </>,
-    );
-
-    fireEvent.keyDown(document, { key: "k", metaKey: true });
-    await act(async () => Promise.resolve());
-    const input = screen.getByRole("textbox", { name: "Universal Search" });
-
-    screen.getByRole("button", { name: "Scene control" }).focus();
-    document.removeEventListener("focusin", pageFocusTrap, true);
-
-    expect(document.activeElement).toBe(input);
-  });
-
-  it("returns focus to the input when a click lands on palette chrome", async () => {
-    render(
-      <UniversalSearchController
-        loadPalette={async () => ({
-          UniversalSearchPalette: ChromedFakePalette,
-        })}
-        schedulePreload={() => () => undefined}
-      />,
-    );
-
-    fireEvent.keyDown(document, { key: "k", metaKey: true });
-    await act(async () => Promise.resolve());
-    const input = screen.getByRole("textbox", { name: "Universal Search" });
-    expect(document.activeElement).toBe(input);
-
-    // A click on the magnifier, a group heading, the ESC chip, the footer hint
-    // or any gap between rows lands on one of these wrappers.
-    for (const testId of ["cmdk-root", "cmdk-list"]) {
-      act(() => screen.getByTestId(testId).focus());
-      await act(async () => Promise.resolve());
-      expect(document.activeElement).toBe(input);
-    }
-  });
-
-  it("leaves focus on a real control the visitor moved to inside the palette", async () => {
-    render(
-      <UniversalSearchController
-        loadPalette={async () => ({
-          UniversalSearchPalette: ChromedFakePalette,
-        })}
-        schedulePreload={() => () => undefined}
-      />,
-    );
-
-    fireEvent.keyDown(document, { key: "k", metaKey: true });
-    await act(async () => Promise.resolve());
-    const button = screen.getByRole("button", { name: "Clear recents" });
-
-    act(() => button.focus());
-    await act(async () => Promise.resolve());
-
-    expect(document.activeElement).toBe(button);
   });
 
   it("lets focused-input keystrokes complete native propagation", async () => {

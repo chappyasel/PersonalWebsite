@@ -70,6 +70,11 @@ function parseTarget(value: unknown): PublicSearchTarget {
   };
 }
 
+function isValidDocumentImage(value: string) {
+  if (value.startsWith("/") && !value.startsWith("//")) return true;
+  return value.startsWith("https://") && !isYouTubeUrl(value);
+}
+
 function parseDocument(value: unknown): PublicSearchDocument {
   if (
     !isObject(value) ||
@@ -79,7 +84,9 @@ function parseDocument(value: unknown): PublicSearchDocument {
     typeof value.label !== "string" ||
     !value.label ||
     !isStringArray(value.metadata) ||
-    typeof value.body !== "string"
+    typeof value.body !== "string" ||
+    (value.image !== undefined &&
+      (typeof value.image !== "string" || !isValidDocumentImage(value.image)))
   ) {
     throw new Error("Public search asset contains an invalid document");
   }
@@ -90,6 +97,7 @@ function parseDocument(value: unknown): PublicSearchDocument {
     target: parseTarget(value.target),
     metadata: value.metadata,
     body: value.body,
+    ...(typeof value.image === "string" ? { image: value.image } : {}),
   };
 }
 
@@ -216,6 +224,7 @@ export function searchLoadedPublicIndex(
       label: document.label,
       href: resolveTarget(document.target, location),
       description: SOURCE_LABELS[document.source],
+      ...(document.image ? { imageUrl: document.image } : {}),
       ...(document.matchKind === "body"
         ? { excerpt: createPlainTextExcerpt(document.body, rawQuery) }
         : {}),

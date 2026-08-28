@@ -231,6 +231,7 @@ function blogDocuments(root: JsonObject): PublicSearchDocument[] {
     const label = cleanPlainText(stringValue(post.title));
     const target = destinationTarget(post.link);
     if (!label || !target) return [];
+    const thumbnail = stringValue(post.thumbnail);
     return [
       {
         id: `public:musing:${slug(label)}`,
@@ -239,6 +240,9 @@ function blogDocuments(root: JsonObject): PublicSearchDocument[] {
         target,
         metadata: ["Medium"],
         body: cleanPlainText(stringValue(post.description)),
+        ...(thumbnail?.startsWith("https://") && !isYouTubeUrl(thumbnail)
+          ? { image: thumbnail }
+          : {}),
       },
     ];
   });
@@ -249,6 +253,7 @@ function projectDocuments(root: JsonObject): PublicSearchDocument[] {
     const label = cleanPlainText(stringValue(project.name));
     const target = destinationTarget(project.link);
     if (!label || !target) return [];
+    const imageFile = cleanPlainText(stringValue(project.image));
     return [
       {
         id: `public:project:${slug(label)}`,
@@ -257,6 +262,9 @@ function projectDocuments(root: JsonObject): PublicSearchDocument[] {
         target,
         metadata: stringArray(project.languages).map(cleanPlainText),
         body: cleanPlainText(stringValue(project.description)),
+        ...(imageFile && !imageFile.includes("/")
+          ? { image: `/images/projects/${imageFile}` }
+          : {}),
       },
     ];
   });

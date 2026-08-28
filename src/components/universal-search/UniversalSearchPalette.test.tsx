@@ -8,17 +8,14 @@ import {
   waitFor,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createRef } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { recordRecentResult } from "~/lib/universal-search/recents";
 import type { SearchResult } from "~/lib/universal-search/types";
 import { universalSearchVisualEffects } from "~/lib/universal-search/visualEffects";
 
-import type { UniversalSearchPaletteHandle } from "./UniversalSearchController";
 import {
   UniversalSearchPaletteContent,
-  applyBrowserTextEdit,
   type UniversalSearchPaletteDependencies,
 } from "./UniversalSearchPalette";
 
@@ -63,45 +60,11 @@ function dependencies(
   };
 }
 
-describe("applyBrowserTextEdit", () => {
-  it("keeps characters in order when a post-event rerender resets the caret", async () => {
-    const input = document.createElement("input");
-    document.body.append(input);
-    input.focus();
-
-    for (const key of "Chappy") {
-      applyBrowserTextEdit(input, key);
-      input.setSelectionRange(0, 0);
-      await Promise.resolve();
-    }
-
-    expect(input.value).toBe("Chappy");
-    expect(input.selectionStart).toBe(6);
-    input.remove();
-  });
-
-  it("replaces the browser's current text selection", () => {
-    const input = document.createElement("input");
-    input.value = "epople";
-    document.body.append(input);
-    input.focus();
-    input.setSelectionRange(1, 4);
-
-    applyBrowserTextEdit(input, "X");
-
-    expect(input.value).toBe("eXle");
-    expect(input.selectionStart).toBe(2);
-    input.remove();
-  });
-});
-
 describe("UniversalSearchPalette", () => {
-  it("keeps keyboard focus in the search input while results rerender", async () => {
+  it("autofocuses a native input and accepts ordinary typing", async () => {
     const user = userEvent.setup();
-    const ref = createRef<UniversalSearchPaletteHandle>();
     render(
       <UniversalSearchPaletteContent
-        ref={ref}
         open
         onOpenChange={vi.fn()}
         dependencies={dependencies()}
@@ -110,11 +73,18 @@ describe("UniversalSearchPalette", () => {
 
     const dialog = screen.getByRole("dialog", { name: "Universal Search" });
     expect(dialog).toBeTruthy();
-    expect(dialog.className).toContain("top-1/2");
-    expect(dialog.className).toContain("[translate:-50%_-50%]");
-    expect(dialog.className).toContain("blur(80px)");
-    expect(dialog.className).toContain("rgb(235_232_225_/_0.28)");
-    expect(dialog.className).not.toContain("-translate-x-1/2");
+    // Top-anchored: the input and results top hold a fixed Y while the
+    // panel grows downward through loading states.
+    expect(dialog.className).toContain("sm:top-[16vh]");
+    expect(dialog.className).toContain("[translate:-50%_0]");
+    expect(dialog.className).not.toContain("top-1/2");
+    // No data-world marker in jsdom, so this is the flat-page surface:
+    // plain frosted, not the scene's heavy placard glass.
+    expect(dialog.className).toContain("blur(24px)");
+    expect(dialog.className).not.toContain("blur(80px)");
+    // Closing must animate out, not vanish: Radix waits for the
+    // data-state=closed animation before unmounting.
+    expect(dialog.className).toContain("data-[state=closed]:animate-out");
     const input = screen.getByRole("combobox", { name: "Universal Search" });
     expect(
       document.querySelector("[cmdk-list][data-stacks-scrollable]"),
@@ -125,41 +95,9 @@ describe("UniversalSearchPalette", () => {
 
     expect(input).toHaveProperty("value", "dice");
     expect(document.activeElement).toBe(input);
-    act(() => ref.current?.focusInput());
-    expect(document.activeElement).toBe(input);
   });
 
-  it("keeps slow typing ordered across delayed provider rerenders", async () => {
-    vi.useFakeTimers();
-    try {
-      render(
-        <UniversalSearchPaletteContent
-          open
-          onOpenChange={vi.fn()}
-          dependencies={dependencies()}
-        />,
-      );
-      const input = screen.getByRole("combobox", {
-        name: "Universal Search",
-      });
-
-      for (const character of "Chappy") {
-        fireEvent.keyDown(input, { key: character });
-        await act(async () => {
-          vi.advanceTimersByTime(140);
-          await Promise.resolve();
-        });
-      }
-
-      expect(input).toHaveProperty("value", "Chappy");
-      expect(input).toHaveProperty("selectionStart", 6);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("removes backdrop sampling when Scene Diagnostics disables blur", () => {
-    universalSearchVisualEffects.setBackdropBlur(false);
+  it("never intercepts the browser's own text editing keys", async () => {
     render(
       <UniversalSearchPaletteContent
         open
@@ -167,17 +105,26 @@ describe("UniversalSearchPalette", () => {
         dependencies={dependencies()}
       />,
     );
+    const input = screen.getByRole("combobox", { name: "Universal Search" });
+    await waitFor(() => expect(document.activeElement).toBe(input));
 
-    const dialog = screen.getByRole("dialog", { name: "Universal Search" });
-    const overlay = document.querySelector("[data-universal-search-overlay]");
-    expect(dialog.className).toContain("bg-background");
-    expect(dialog.className).not.toContain("backdrop-filter");
-    expect(overlay?.className).not.toContain("backdrop-blur");
+    // The previous palette preventDefault-ed every printable key, Backspace,
+    // and Delete, then re-implemented the edit by hand — which is exactly what
+    // corrupted typing in real browsers. Text keys must reach the browser.
+    for (const key of ["a", "Z", "1", " ", "Backspace", "Delete"]) {
+      const event = new KeyboardEvent("keydown", {
+        key,
+        bubbles: true,
+        cancelable: true,
+      });
+      input.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(false);
+    }
   });
 
-  it("does not dismiss itself when another component requests focus", async () => {
+  it("pulls focus back into the dialog when the scene grabs it, without closing", async () => {
     const onOpenChange = vi.fn();
-    render(
+    const view = render(
       <>
         <button>Scene control</button>
         <UniversalSearchPaletteContent
@@ -190,13 +137,52 @@ describe("UniversalSearchPalette", () => {
     const input = screen.getByRole("combobox", { name: "Universal Search" });
     await waitFor(() => expect(document.activeElement).toBe(input));
 
-    const sceneControl = Array.from(document.querySelectorAll("button")).find(
-      (button) => button.textContent === "Scene control",
-    );
-    sceneControl?.focus();
+    const sceneControl = view.container.querySelector("button");
+    act(() => sceneControl?.focus());
 
-    expect(document.activeElement).toBe(sceneControl);
+    await waitFor(() => expect(document.activeElement).toBe(input));
     expect(onOpenChange).not.toHaveBeenCalledWith(false);
+  });
+
+  it("uses the placard glass only over the 3D world", () => {
+    document.documentElement.setAttribute("data-world", "ready");
+    try {
+      render(
+        <UniversalSearchPaletteContent
+          open
+          onOpenChange={vi.fn()}
+          dependencies={dependencies()}
+        />,
+      );
+      const dialog = screen.getByRole("dialog", { name: "Universal Search" });
+      const overlay = document.querySelector("[data-universal-search-overlay]");
+      expect(dialog.className).toContain("blur(80px)");
+      expect(overlay?.className).toContain("backdrop-blur-[10px]");
+    } finally {
+      document.documentElement.removeAttribute("data-world");
+    }
+  });
+
+  it("removes backdrop sampling when Scene Diagnostics disables blur", () => {
+    document.documentElement.setAttribute("data-world", "ready");
+    universalSearchVisualEffects.setBackdropBlur(false);
+    try {
+      render(
+        <UniversalSearchPaletteContent
+          open
+          onOpenChange={vi.fn()}
+          dependencies={dependencies()}
+        />,
+      );
+
+      const dialog = screen.getByRole("dialog", { name: "Universal Search" });
+      const overlay = document.querySelector("[data-universal-search-overlay]");
+      expect(dialog.className).toContain("bg-background");
+      expect(dialog.className).not.toContain("backdrop-filter");
+      expect(overlay?.className).not.toContain("backdrop-blur-[10px]");
+    } finally {
+      document.documentElement.removeAttribute("data-world");
+    }
   });
 
   it("shows Recent results, promoted destinations, and actions when empty", () => {
@@ -287,6 +273,31 @@ describe("UniversalSearchPalette", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
+  it("opens the keyboard-selected result with Enter", async () => {
+    const navigate = vi.fn();
+    const onOpenChange = vi.fn();
+    render(
+      <UniversalSearchPaletteContent
+        open
+        onOpenChange={onOpenChange}
+        dependencies={dependencies({ navigate })}
+      />,
+    );
+    const input = screen.getByRole("combobox", { name: "Universal Search" });
+    await waitFor(() => expect(document.activeElement).toBe(input));
+
+    fireEvent.change(input, { target: { value: "manual" } });
+    await waitFor(() =>
+      expect(
+        document.querySelector('[cmdk-item][data-selected="true"]'),
+      ).toBeTruthy(),
+    );
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(navigate).toHaveBeenCalledWith("https://manual.chappyasel.com/");
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
   it("records destination selection, navigates, and clears query on close", async () => {
     const user = userEvent.setup();
     const navigate = vi.fn();
@@ -368,16 +379,29 @@ describe("UniversalSearchPalette", () => {
       expect(screen.getByText("Book Notes")).toBeTruthy();
       expect(screen.queryByText("Async Book")).toBeNull();
       expect(searchServer).not.toHaveBeenCalled();
+      expect(document.querySelector("[data-search-skeleton]")).toBeNull();
 
       act(() => {
         vi.advanceTimersByTime(140);
       });
+      // Providers are in flight: one anonymous skeleton group, no
+      // provider headings for groups that have nothing to show yet.
+      expect(document.querySelector("[data-search-skeleton]")).toBeTruthy();
+      expect(screen.queryByText("Weightlifting")).toBeNull();
       await act(async () => Promise.resolve());
 
-      expect(screen.getByText("Async Book")).toBeTruthy();
+      // The label renders through the match highlighter, so its text is
+      // split across elements; match on the option's accessible name.
+      expect(screen.getByRole("option", { name: /Async Book/ })).toBeTruthy();
       expect(screen.getByRole("status").textContent).toBe(
         "1 search result loaded",
       );
+      // Settled: the skeleton is gone, groups that ended empty render no
+      // heading, and the group with rows keeps its heading.
+      expect(document.querySelector("[data-search-skeleton]")).toBeNull();
+      expect(screen.getByText("Books")).toBeTruthy();
+      expect(screen.queryByText("Weightlifting")).toBeNull();
+      expect(screen.queryByText("Public writing")).toBeNull();
       expect(searchPublic).toHaveBeenCalledOnce();
       expect(searchServer).toHaveBeenCalledOnce();
     } finally {
@@ -409,6 +433,10 @@ describe("UniversalSearchPalette", () => {
       expect(analytics).toHaveBeenCalledWith("universal_search_zero_results", {
         eligible_provider_count: 3,
       });
+      expect(screen.getByText("No results for “zzzzzz”")).toBeTruthy();
+      expect(document.querySelector("[data-search-skeleton]")).toBeNull();
+      expect(screen.queryByText("Books")).toBeNull();
+      expect(screen.queryByText("Weightlifting")).toBeNull();
     } finally {
       vi.useRealTimers();
     }

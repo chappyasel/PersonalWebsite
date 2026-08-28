@@ -27,6 +27,8 @@ export type PublicSearchDocument = {
   target: PublicSearchTarget;
   metadata: string[];
   body: string;
+  /** Root-relative path or https URL of a small result thumbnail. */
+  image?: string;
 };
 
 export type PublicSearchIndex = {
