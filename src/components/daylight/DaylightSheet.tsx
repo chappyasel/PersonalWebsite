@@ -3,7 +3,13 @@
 import { ArrowsOutSimpleIcon, XIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import {
   Tooltip,
@@ -13,6 +19,8 @@ import {
 } from "~/components/ui/tooltip";
 
 import { useStacks } from "~/app/components/stacks/store";
+
+import { takeSheetOrigin } from "./sheetOrigin";
 
 /**
  * A document page presented over the page that launched it, in the book-notes
@@ -38,8 +46,39 @@ export default function DaylightSheet({
   const reduceMotion = useReducedMotion();
   const [open, setOpen] = useState(true);
   const shellRef = useRef<HTMLDivElement>(null);
+  // Where the click came from, when the launcher recorded it. Intercepted
+  // routes only ever mount on client navigations, so reading storage in the
+  // initializer is safe.
+  const [origin] = useState(() =>
+    typeof window === "undefined" ? null : takeSheetOrigin(),
+  );
 
   const close = () => setOpen(false);
+
+  // Book-notes-style origin pop: the card starts as the source rect and
+  // grows into place. WAAPI instead of framer for the entrance so the final
+  // rect can be measured untransformed; framer still owns the exit.
+  useLayoutEffect(() => {
+    const shell = shellRef.current;
+    if (!shell || !origin) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const final = shell.getBoundingClientRect();
+    if (final.width === 0) return;
+    const scale = Math.max(origin.w / final.width, 0.1);
+    const dx = origin.l + origin.w / 2 - (final.left + final.width / 2);
+    const dy = origin.t + origin.h / 2 - (final.top + final.height / 2);
+    shell.animate(
+      [
+        {
+          transform: `translate(${dx}px, ${dy}px) scale(${scale})`,
+          opacity: 0.35,
+        },
+        { transform: "none", opacity: 1 },
+      ],
+      { duration: 460, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -92,8 +131,8 @@ export default function DaylightSheet({
               className="relative h-full w-full max-w-5xl overflow-hidden rounded-2xl bg-background shadow-[0px_10px_50px_10px_rgba(0,0,0,0.25)] outline-none"
               onClick={(event) => event.stopPropagation()}
               initial={
-                reduceMotion
-                  ? { opacity: 1, scale: 1, y: 0 }
+                origin || reduceMotion
+                  ? false
                   : { opacity: 0, scale: 0.965, y: 14 }
               }
               animate={{ opacity: 1, scale: 1, y: 0 }}

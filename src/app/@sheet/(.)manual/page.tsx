@@ -1,13 +1,6 @@
-import DaylightSheet from "~/components/daylight/DaylightSheet";
 import ManualPage from "~/app/manual/page";
 
-import "~/styles/daylight.css";
-
-// The full manual page, presented in a sheet over whatever launched it.
+// The full manual page, presented in the sheet the segment layout owns.
 export default function InterceptedManualPage() {
-  return (
-    <DaylightSheet label="Personal Operating Manual" expandHref="/manual">
-      <ManualPage />
-    </DaylightSheet>
-  );
+  return <ManualPage />;
 }

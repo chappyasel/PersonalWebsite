@@ -3,6 +3,8 @@
 import { ArrowRightIcon, BookOpenTextIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 
+import { recordSheetOrigin } from "~/components/daylight/sheetOrigin";
+
 import TiltCard from "./TiltCard";
 
 const manualSections = [
@@ -23,6 +25,9 @@ export default function PersonalManual() {
         href="/manual"
         data-placard-link=""
         className="group relative block w-full p-5 [transform-style:preserve-3d] sm:p-6"
+        onClick={(event) =>
+          recordSheetOrigin(event.currentTarget.getBoundingClientRect())
+        }
       >
         <div
           data-placard-background=""

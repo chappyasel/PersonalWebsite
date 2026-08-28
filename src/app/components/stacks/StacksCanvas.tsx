@@ -26,6 +26,7 @@ import {
 } from "react";
 import type * as THREE from "three";
 
+import { recordSheetOrigin } from "~/components/daylight/sheetOrigin";
 import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
 
 import { sceneAudio } from "./audio/sceneAudio";
@@ -1886,6 +1887,21 @@ export default function StacksCanvas({
     useStacks.getState().setPendingBookId(id);
   }, []);
   const router = useRouter();
+  // A door is shader geometry with no DOM box, so the sheet's origin pop
+  // grows from a small rect around the last pointer-down instead — the same
+  // compromise the stacks book modal makes for meshes.
+  const lastPointer = useRef({ x: 0, y: 0 });
+  useEffect(() => {
+    const track = (event: PointerEvent) => {
+      lastPointer.current = { x: event.clientX, y: event.clientY };
+    };
+    window.addEventListener("pointerdown", track, {
+      capture: true,
+      passive: true,
+    });
+    return () =>
+      window.removeEventListener("pointerdown", track, { capture: true });
+  }, []);
   const onOpenUrl = useCallback(
     (url: string) => {
       // The two document pages open as intercepted sheets over the live
@@ -1893,6 +1909,10 @@ export default function StacksCanvas({
       // back gesture lands right back in it. Everything else keeps the
       // new-tab behavior.
       if (url === "/routine" || url === "/manual") {
+        const { x, y } = lastPointer.current;
+        if (x || y) {
+          recordSheetOrigin({ left: x - 70, top: y - 90, width: 140, height: 180 });
+        }
         router.push(url);
         return;
       }
