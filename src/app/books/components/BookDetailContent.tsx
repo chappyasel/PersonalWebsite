@@ -17,7 +17,9 @@ import {
   XIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import {
+  type MotionValue,
   motion,
+  useMotionTemplate,
   useMotionValue,
   useReducedMotion,
   useSpring,
@@ -75,6 +77,91 @@ const SPRING_CONFIG = {
   stiffness: 200,
   damping: 50,
 };
+
+// One backdrop-filter cannot vary its radius across the element, so the
+// graduated edge comes from stacking these layers: each is masked to a band
+// that overlaps the next, radii halving downward, and each layer re-blurs the
+// composite behind it so the seams between bands disappear. Percentages are of
+// the backdrop container (header plus a 3rem overhang past its bottom edge).
+// The whole gradient hugs the collapsed header's text: full blur behind the
+// title line, falling to zero at the author line's bottom (~half), so content
+// any lower is covered by the wash alone and reads crisp the moment it clears
+// the header instead of smearing through the overhang. A breadcrumb row above
+// the title (the full-page view, and the modal over the 3D homepage) pushes
+// the title/author band down, so every stop shifts with it.
+function glassLayers(shift: number) {
+  return [
+    {
+      radius: 12,
+      mask: `linear-gradient(to bottom, black 0%, black ${35 + shift}%, transparent ${49 + shift}%)`,
+    },
+    {
+      radius: 6,
+      mask: `linear-gradient(to bottom, transparent ${33 + shift}%, black ${39 + shift}%, black ${45 + shift}%, transparent ${53 + shift}%)`,
+    },
+    {
+      radius: 2.5,
+      mask: `linear-gradient(to bottom, transparent ${43 + shift}%, black ${49 + shift}%, black ${51 + shift}%, transparent ${59 + shift}%)`,
+    },
+  ] as const;
+}
+
+function HeaderGlassBackdrop({
+  progress,
+  isModal,
+  hasBreadcrumb,
+}: {
+  progress: MotionValue<number>;
+  isModal?: boolean;
+  hasBreadcrumb?: boolean;
+}) {
+  const shift = hasBreadcrumb ? 12 : 0;
+  const GLASS_LAYERS = glassLayers(shift);
+  // The radii animate up from zero (rather than fading a parent's opacity,
+  // which would form a backdrop root and stop the layers sampling the page)
+  // so the overhang leaves resting content crisp until it actually scrolls.
+  const reveal = useTransform(progress, [0.05, 0.35], [0, 1]);
+  const radius0 = useTransform(reveal, (v) => v * GLASS_LAYERS[0].radius);
+  const radius1 = useTransform(reveal, (v) => v * GLASS_LAYERS[1].radius);
+  const radius2 = useTransform(reveal, (v) => v * GLASS_LAYERS[2].radius);
+  const filter0 = useMotionTemplate`blur(${radius0}px)`;
+  const filter1 = useMotionTemplate`blur(${radius1}px)`;
+  const filter2 = useMotionTemplate`blur(${radius2}px)`;
+  const layers = [
+    { ...GLASS_LAYERS[0], filter: filter0 },
+    { ...GLASS_LAYERS[1], filter: filter1 },
+    { ...GLASS_LAYERS[2], filter: filter2 },
+  ];
+
+  return (
+    <div
+      aria-hidden
+      className={cn(
+        "pointer-events-none absolute inset-x-0 -bottom-12 top-0 [--glass:var(--background)]",
+        isModal && "dark:[--glass:var(--muted)]",
+      )}
+    >
+      {layers.map((layer) => (
+        <motion.div
+          key={layer.radius}
+          className="absolute inset-0"
+          style={{
+            backdropFilter: layer.filter,
+            maskImage: layer.mask,
+            WebkitMaskImage: layer.mask,
+          }}
+        />
+      ))}
+      <motion.div
+        className="absolute inset-0"
+        style={{
+          opacity: reveal,
+          background: `linear-gradient(to bottom, hsl(var(--glass) / 0.85) 0%, hsl(var(--glass) / 0.8) ${39 + shift}%, hsl(var(--glass) / 0.45) ${53 + shift}%, transparent ${71 + shift}%)`,
+        }}
+      />
+    </div>
+  );
+}
 
 /**
  * Process details/summary blocks to ensure markdown inside is rendered
@@ -418,12 +505,6 @@ export function BookDetailContent({
     isLargeScreen ? [1, 0] : [1, 1],
   );
 
-  const borderOpacity = useTransform(
-    smoothProgress,
-    [0.1, 0.3],
-    ["rgba(115, 115, 115, 0)", "rgba(115, 115, 115, 0.1)"],
-  );
-
   // Track scroll for sticky headers
   useEffect(() => {
     const handleScroll = () => {
@@ -447,18 +528,17 @@ export function BookDetailContent({
     >
       {/* Unified Sticky Header */}
       <motion.div
-        className={cn(
-          "sticky top-0 z-20 bg-background/80 backdrop-blur-md",
-          isModal && "dark:bg-muted/80",
-        )}
+        className="sticky top-0 z-20"
         style={{
           paddingTop: headerPadding,
           paddingBottom: headerBottomPadding,
-          borderBottomWidth: "1px",
-          borderBottomStyle: "solid",
-          borderBottomColor: borderOpacity,
         }}
       >
+        <HeaderGlassBackdrop
+          progress={smoothProgress}
+          isModal={isModal}
+          hasBreadcrumb={!isModal || Boolean(modalBreadcrumbHref)}
+        />
         {/* Container for content with max-w-3xl */}
         <div className="relative mx-auto w-full max-w-3xl">
           {/* Standalone pages keep their library-count breadcrumb. A modal
