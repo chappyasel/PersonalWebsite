@@ -101,6 +101,21 @@ projects render landscape captures (40×26). The committed index asset was
 regenerated (58 documents, 16 with images) and stays covered by
 `pnpm check:search-index`.
 
+### 2026-08-28 Codex review
+
+An independent Codex review found four real issues across two passes, all
+fixed: [P1] clicks on cmdk's `tabindex="-1"` chrome moved focus onto a div
+and killed typing (scoped `onFocusCapture` reclaim on the Content); [P2]
+close-time focus restoration bounced off the still-active Radix trap while
+Radix's modal default tried to focus a nonexistent `Dialog.Trigger`,
+stranding focus on body (the controller now restores inside the palette's
+`onCloseAutoFocus`, and the Escape test runs against the real Radix
+palette); [P2] a transport-level search failure rendered a "Dad
+unavailable" row to anonymous visitors (Dad never gets an error row); [P2]
+closing before the lazy chunk resolved left a stale `restoreFocusRef`
+(the no-dialog close path restores and clears directly). Second review
+pass: no critical findings.
+
 ### Verification
 
 - `pnpm verify` green end to end (2,500+ unit tests, types, lint, fresh

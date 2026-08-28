@@ -429,6 +429,40 @@ describe("UniversalSearchPalette", () => {
     }
   });
 
+  it("never names the Dad group when the whole search transport fails", async () => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <UniversalSearchPaletteContent
+          open
+          onOpenChange={vi.fn()}
+          dependencies={dependencies({
+            searchPublic: vi.fn(async () => []),
+            searchServer: vi.fn(async () => {
+              throw new Error("network down");
+            }),
+          })}
+        />,
+      );
+      fireEvent.change(
+        screen.getByRole("combobox", { name: "Universal Search" }),
+        { target: { value: "anything" } },
+      );
+      await act(async () => {
+        vi.advanceTimersByTime(140);
+        await Promise.resolve();
+      });
+
+      // A transport failure marks every group "error" before the server
+      // can report Dad as "skipped" — the public groups may say so, but
+      // the private provider's existence must stay concealed.
+      expect(screen.getByText("Books search unavailable")).toBeTruthy();
+      expect(screen.queryByText(/dad/i)).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("reports the actual eligible-provider count for settled zero results", async () => {
     vi.useFakeTimers();
     const analytics = vi.fn();

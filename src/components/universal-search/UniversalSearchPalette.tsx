@@ -694,8 +694,15 @@ export function UniversalSearchPaletteContent({
                 // A group earns its heading only with rows to show, or with
                 // an error worth reporting. Settled-empty and still-loading
                 // groups render nothing here; the shared skeleton below
-                // stands in for everything still searching.
-                if (state.results.length === 0 && state.status !== "error") {
+                // stands in for everything still searching. Dad never gets
+                // an error row: a transport failure marks every group
+                // "error" before the server can say "skipped", and an
+                // unavailable-row would advertise the private provider to
+                // visitors who were never authorized to know it exists.
+                if (
+                  state.results.length === 0 &&
+                  (state.status !== "error" || group === "dad")
+                ) {
                   return null;
                 }
                 return (

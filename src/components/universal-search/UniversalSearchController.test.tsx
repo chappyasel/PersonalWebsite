@@ -340,6 +340,59 @@ describe("UniversalSearchController", () => {
     await waitFor(() => expect(document.activeElement).toBe(previous));
   });
 
+  it("does not keep a stale restore target when closed before the palette loads", async () => {
+    class TestResizeObserver implements ResizeObserver {
+      disconnect = vi.fn();
+      observe = vi.fn();
+      unobserve = vi.fn();
+    }
+    vi.stubGlobal("ResizeObserver", TestResizeObserver);
+    Element.prototype.scrollIntoView = vi.fn();
+    const palette = deferredPalette();
+    const view = render(
+      <>
+        <button>First opener</button>
+        <button>Second opener</button>
+        <UniversalSearchController
+          loadPalette={
+            palette.load as unknown as () => Promise<{
+              UniversalSearchPalette: typeof IntegratedPalette;
+            }>
+          }
+          schedulePreload={() => () => undefined}
+        />
+      </>,
+    );
+    const [first, second] = Array.from(
+      view.container.querySelectorAll("button"),
+    );
+    first!.focus();
+
+    // Open and close again before the lazy chunk resolves: no dialog ever
+    // mounted, so the controller must settle focus state itself.
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+    expect(document.activeElement).toBe(first);
+
+    await act(async () =>
+      palette.resolve({
+        UniversalSearchPalette: IntegratedPalette as never,
+      }),
+    );
+
+    // A later session must restore to its own opener, not the stale one.
+    second!.focus();
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+    await act(async () => Promise.resolve());
+    const input = await screen.findByRole("combobox", {
+      name: "Universal Search",
+    });
+    await waitFor(() => expect(document.activeElement).toBe(input));
+    fireEvent.keyDown(document, { key: "Escape" });
+    await act(async () => Promise.resolve());
+    await waitFor(() => expect(document.activeElement).toBe(second));
+  });
+
   it("lets idle preload reuse the same module load as first open", async () => {
     const palette = deferredPalette();
     let preload: (() => void) | undefined;

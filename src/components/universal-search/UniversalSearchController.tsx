@@ -157,10 +157,17 @@ export function UniversalSearchController({
   const closePalette = useCallback(() => {
     setOpen(false);
     document.documentElement.removeAttribute(UNIVERSAL_SEARCH_OPEN_ATTRIBUTE);
-    // Focus restoration happens in restoreFocusAfterClose, which the
-    // palette fires once Radix's focus trap has torn down. Restoring here
-    // would bounce off the still-active trap and strand focus on body.
-  }, []);
+    // With a mounted dialog, restoration happens in restoreFocusAfterClose
+    // once Radix's focus trap tears down — restoring here would bounce off
+    // the still-active trap and strand focus on body. When the palette
+    // chunk never resolved, no dialog mounted and no close-auto-focus will
+    // ever fire, so restore and clear directly or the ref would go stale
+    // and a later close would focus a long-detached element.
+    if (!Palette) {
+      restoreFocusRef.current?.focus();
+      restoreFocusRef.current = null;
+    }
+  }, [Palette]);
 
   const restoreFocusAfterClose = useCallback(() => {
     restoreFocusRef.current?.focus();
