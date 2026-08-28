@@ -63,10 +63,10 @@ function focusableChildren(root: HTMLElement): HTMLElement[] {
  * The chrome for an intercepted route presented over the page that launched
  * it, in the book-notes modal's dress: centered card, the same shadow and
  * enter/exit motion (the origin pop when the launcher recorded a source
- * rect), and the same corner cluster — expand (a hard <a>, the books app's
- * trick for stepping out of an intercepted route into the real full page)
- * and close. The launching page stays alive underneath; the URL reads the
- * destination's, and Esc, the backdrop, or the X pop history back.
+ * rect), and the same corner cluster — expand (the zero-navigation takeover;
+ * the hard <a> underneath is only the modified-click/reduced-motion
+ * fallback) and close. The launching page stays alive underneath; the URL
+ * reads the destination's, and Esc, the backdrop, or the X pop history back.
  *
  * `variant="document"` is a full-height reading surface (routine, manual, an
  * exercise page); `variant="card"` hugs its content (the workout preview).
@@ -156,35 +156,6 @@ export default function ModalSheet({
       maxHeight: "none",
       margin: "0",
     });
-    if (variant === "card") {
-      // A card's full page is not full-bleed — it's the same card centered
-      // near the top of a scrollable page — so the card flies to that exact
-      // spot and then hands off to the real page. Same host, so the
-      // browser's paint hold lands the swap on a matching frame.
-      const pad = window.innerWidth >= 768 ? 32 : 24;
-      const width = Math.min(440, window.innerWidth - pad * 2);
-      const flight = shell.animate(
-        [
-          {
-            top: `${rect.top}px`,
-            left: `${rect.left}px`,
-            width: `${rect.width}px`,
-          },
-          {
-            top: `${pad + 32}px`,
-            left: `${(window.innerWidth - width) / 2}px`,
-            width: `${width}px`,
-          },
-        ],
-        {
-          duration: 420,
-          easing: "cubic-bezier(0.16, 1, 0.3, 1)",
-          fill: "forwards",
-        },
-      );
-      flight.onfinish = () => window.location.assign(expandHref);
-      return;
-    }
     const flight = shell.animate(
       [
         {
@@ -389,10 +360,9 @@ export default function ModalSheet({
                   <Tooltip delayDuration={200}>
                     <TooltipTrigger asChild>
                       {/* A hard <a>, not Link, as the fallback: the full-page
-                          render must step out of this intercepted route. The
-                          document variant springs to the viewport and stays;
-                          the card flies to its full page's card position and
-                          hands off. */}
+                          render must step out of this intercepted route. Both
+                          variants spring to the viewport and stay — the card's
+                          content reflows into its page layout mid-flight. */}
                       <a
                         href={expandHref}
                         onClick={expand}
