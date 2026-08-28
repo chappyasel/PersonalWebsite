@@ -67,8 +67,12 @@ export default function DaylightSheet({
     <AnimatePresence onExitComplete={() => router.back()}>
       {open && (
         <div className="dl-sheet fixed inset-0 z-50">
+          {/* Dim only, no backdrop-filter: Chromium smears a backdrop blur
+              across overlapping siblings after viewport resizes (the whole
+              card went soft), and no layer pinning reliably kept the card
+              out of that pass. */}
           <motion.div
-            className="absolute inset-0 bg-stone-900/60 backdrop-blur-sm dark:bg-black/60"
+            className="absolute inset-0 bg-stone-900/70 dark:bg-black/70"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -112,7 +116,7 @@ export default function DaylightSheet({
                           out of this intercepted route. */}
                       <a
                         href={expandHref}
-                        className="flex size-10 items-center justify-center rounded-full bg-muted shadow-sm backdrop-blur-sm transition-all duration-200 ease-in-out hover:bg-primary/20"
+                        className="flex size-10 items-center justify-center rounded-full bg-muted shadow-sm transition-all duration-200 ease-in-out hover:bg-primary/20"
                         aria-label="Open full page"
                       >
                         <ArrowsOutSimpleIcon
@@ -133,7 +137,7 @@ export default function DaylightSheet({
                       <button
                         type="button"
                         onClick={close}
-                        className="flex size-10 items-center justify-center rounded-full bg-muted shadow-sm backdrop-blur-sm transition-all duration-200 ease-in-out hover:bg-primary/20"
+                        className="flex size-10 items-center justify-center rounded-full bg-muted shadow-sm transition-all duration-200 ease-in-out hover:bg-primary/20"
                         aria-label="Close"
                       >
                         <XIcon size={20} weight="bold" className="text-primary" />
@@ -145,13 +149,9 @@ export default function DaylightSheet({
                   </Tooltip>
                 </TooltipProvider>
               </div>
-              {/* Own compositor layer: Chromium can transiently rasterize the
-                  backdrop-filter's blur over overlapping siblings after a
-                  viewport resize; a pinned layer keeps the card out of that
-                  pass. */}
               <div
                 data-dl-scroller
-                className="h-full overflow-y-auto overscroll-contain [transform:translateZ(0)]"
+                className="h-full overflow-y-auto overscroll-contain"
               >
                 {children}
               </div>

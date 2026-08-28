@@ -175,6 +175,8 @@
 .dl-sky {
   position: absolute;
   inset: 0;
+  /* Stacking context: the fireworks canvas rides at z -1 inside. */
+  z-index: 0;
   /* Ember at 91%: the dome anchors its glow at azimuth -1.15, 91% across
      the strip's [-2.24, -1.025] window. Sized in PERCENTAGES of the sky
      box, never rems — a fixed-rem ellipse spanned the whole viewport on a
@@ -898,67 +900,21 @@
   height: 9vw;
   cursor: pointer;
 }
-.dl-fw {
+/* The burst canvas: the shader draws the shells into the sky AFTER the
+   stars and BEFORE the city, so the ridge and the towers paint over them —
+   depth is write order. z -1 inside the sky's stacking context puts the
+   canvas above the sky gradient and behind every other layer, the same
+   order. */
+.dl-fw-layer {
   position: absolute;
-  width: 0;
-  height: 0;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
 }
-.dl-fw-flash {
-  position: absolute;
-  left: -5px;
-  top: -5px;
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: hsl(40 100% 88%);
-  opacity: 0;
-}
-.dl-fw i:not(.dl-fw-flash) {
-  position: absolute;
-  left: -1px;
-  top: -4px;
-  width: 2px;
-  height: 8px;
-  border-radius: 2px;
-  background: linear-gradient(
-    180deg,
-    hsl(var(--fw-h) 95% 82%),
-    hsl(var(--fw-h) 85% 58%)
-  );
-  transform: rotate(var(--fw-a));
-  opacity: 0;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .dl-fw-flash {
-    animation: dl-fw-flash 0.45s ease-out forwards;
-  }
-  .dl-fw i:not(.dl-fw-flash) {
-    animation: dl-fw-spark 1.45s cubic-bezier(0.13, 0.62, 0.24, 1) forwards;
-  }
-}
-@keyframes dl-fw-flash {
-  0% {
-    opacity: 0.95;
-    transform: scale(0.4);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(2.4);
-  }
-}
-@keyframes dl-fw-spark {
-  0% {
-    transform: rotate(var(--fw-a)) translateY(-2px) scaleY(1);
-    opacity: 1;
-  }
-  55% {
-    opacity: 0.9;
-  }
-  100% {
-    transform: rotate(var(--fw-a)) translateY(calc(-52px * var(--fw-d)))
-      scaleY(0.45);
-    opacity: 0;
-  }
+.dl-fw-layer canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 /* ============ Framed prints ============ */
@@ -1241,12 +1197,14 @@ body:has(.daylight-root) {
    overhang and slow pan so the city stays legible. */
 .dl-horizon {
   position: relative;
+  /* Stacking context: the fireworks canvas rides at z -1 inside. */
+  z-index: 0;
   overflow: hidden;
   margin-top: 5rem;
   /* Headroom for the raised moon's halo, which rides above the strip's
      viewBox — without it the container clips the glow on a straight line
      at the strip top. ~43 user units; a unit is 1/1440 of the strip. */
-  padding-top: max(3vw, 2rem);
+  padding-top: max(4.5vw, 3rem);
   color: hsl(var(--dl-sil));
 }
 /* The hero keeps the dome's authored moon altitude (its fog owns the
