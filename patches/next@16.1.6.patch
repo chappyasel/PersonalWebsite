@@ -1,0 +1,34 @@
+diff --git a/dist/esm/server/lib/router-utils/setup-dev-bundler.js b/dist/esm/server/lib/router-utils/setup-dev-bundler.js
+index dfec7eaae296e8668c345f1bdf59469e2b2d9aeb..ddd542a496a8c4e9eb2299e5a2b5c8e2338496cd 100644
+--- a/dist/esm/server/lib/router-utils/setup-dev-bundler.js
++++ b/dist/esm/server/lib/router-utils/setup-dev-bundler.js
+@@ -640,6 +640,12 @@ async function startWatcher(opts) {
+             serverFields.hasAppNotFound = hasRootAppNotFound;
+             opts.fsChecker.middlewareMatcher = ((_serverFields_middleware = serverFields.middleware) == null ? void 0 : _serverFields_middleware.matchers) ? getMiddlewareRouteMatcher((_serverFields_middleware1 = serverFields.middleware) == null ? void 0 : _serverFields_middleware1.matchers) : undefined;
+             const interceptionRoutes = generateInterceptionRoutesRewrites(Object.keys(appPaths), opts.nextConfig.basePath).map((item)=>buildCustomRoute('before_files_rewrite', item, opts.nextConfig.basePath, opts.nextConfig.experimental.caseSensitiveRoutes));
++            // PATCH(vercel/next.js#91265): this block reruns on every HMR update
++            // and re-pushed the interception rewrites without clearing the prior
++            // set, so each save stacked another "(.)" onto matched paths until
++            // routing 500s. Interception rewrites are the only ones keyed on the
++            // next-url header; drop the stale set before pushing the fresh one.
++            opts.fsChecker.rewrites.beforeFiles = opts.fsChecker.rewrites.beforeFiles.filter((route)=>!(Array.isArray(route.has) && route.has.some((condition)=>condition.type === 'header' && condition.key === 'next-url')));
+             opts.fsChecker.rewrites.beforeFiles.push(...interceptionRoutes);
+             const exportPathMap = typeof nextConfig.exportPathMap === 'function' && await (nextConfig.exportPathMap == null ? void 0 : nextConfig.exportPathMap.call(nextConfig, {}, {
+                 dev: true,
+diff --git a/dist/server/lib/router-utils/setup-dev-bundler.js b/dist/server/lib/router-utils/setup-dev-bundler.js
+index c8a4f9493aabfb4855a6cd7503bdf81d1363fb85..2b5f7411ae9ac1ad5a9d6b3c40e79b6072048e53 100644
+--- a/dist/server/lib/router-utils/setup-dev-bundler.js
++++ b/dist/server/lib/router-utils/setup-dev-bundler.js
+@@ -708,6 +708,12 @@ async function startWatcher(opts) {
+             serverFields.hasAppNotFound = hasRootAppNotFound;
+             opts.fsChecker.middlewareMatcher = ((_serverFields_middleware = serverFields.middleware) == null ? void 0 : _serverFields_middleware.matchers) ? (0, _middlewareroutematcher.getMiddlewareRouteMatcher)((_serverFields_middleware1 = serverFields.middleware) == null ? void 0 : _serverFields_middleware1.matchers) : undefined;
+             const interceptionRoutes = (0, _generateinterceptionroutesrewrites.generateInterceptionRoutesRewrites)(Object.keys(appPaths), opts.nextConfig.basePath).map((item)=>(0, _filesystem.buildCustomRoute)('before_files_rewrite', item, opts.nextConfig.basePath, opts.nextConfig.experimental.caseSensitiveRoutes));
++            // PATCH(vercel/next.js#91265): this block reruns on every HMR update
++            // and re-pushed the interception rewrites without clearing the prior
++            // set, so each save stacked another "(.)" onto matched paths until
++            // routing 500s. Interception rewrites are the only ones keyed on the
++            // next-url header; drop the stale set before pushing the fresh one.
++            opts.fsChecker.rewrites.beforeFiles = opts.fsChecker.rewrites.beforeFiles.filter((route)=>!(Array.isArray(route.has) && route.has.some((condition)=>condition.type === 'header' && condition.key === 'next-url')));
+             opts.fsChecker.rewrites.beforeFiles.push(...interceptionRoutes);
+             const exportPathMap = typeof nextConfig.exportPathMap === 'function' && await (nextConfig.exportPathMap == null ? void 0 : nextConfig.exportPathMap.call(nextConfig, {}, {
+                 dev: true,

@@ -25,3 +25,5 @@ overrides:
   "@typescript-eslint/visitor-keys": 8.52.0
   typescript-eslint: 8.52.0
   vite: 8.1.4
+patchedDependencies:
+  next@16.1.6: patches/next@16.1.6.patch
