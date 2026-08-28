@@ -22,6 +22,7 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import { Command } from "cmdk";
 import { useTheme } from "next-themes";
+import { useRouter } from "next/navigation";
 import {
   forwardRef,
   useCallback,
@@ -795,11 +796,19 @@ export const UniversalSearchPalette = forwardRef<
 >(function UniversalSearchPalette(props, ref) {
   const { setTheme } = useTheme();
   const { setFont } = useFont();
+  const router = useRouter();
   const dependencies = useMemo<UniversalSearchPaletteDependencies>(
     () => ({
       storage: window.localStorage,
       location: window.location,
-      navigate: navigateUniversalSearchResult,
+      navigate: (href) =>
+        navigateUniversalSearchResult(href, {
+          location: window.location,
+          notifySameDocument: () =>
+            window.dispatchEvent(new PopStateEvent("popstate")),
+          // Same-origin jumps on interceptor-free hosts stay in-app.
+          softNavigate: (path) => router.push(path),
+        }),
       setTheme: (theme) => setTheme(theme),
       setFont,
       capture,
@@ -810,7 +819,7 @@ export const UniversalSearchPalette = forwardRef<
         }),
       searchServer: queryServerSearch,
     }),
-    [setFont, setTheme],
+    [router, setFont, setTheme],
   );
 
   return (
