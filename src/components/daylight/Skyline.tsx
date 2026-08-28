@@ -32,9 +32,40 @@ export default function Skyline() {
           <stop offset="55%" stopColor="#6b80a8" stopOpacity="0.1" />
           <stop offset="100%" stopColor="#6b80a8" stopOpacity="0" />
         </radialGradient>
+        {/* The halo's lower half dies out before the roofline: the opaque
+            building/ground fill would otherwise cut the radial glow on a
+            hard straight edge (the hero's fog hides that seam; the quiet
+            footer has no fog to hide it behind). */}
+        <linearGradient
+          id="dl-moon-halo-fade"
+          gradientUnits="userSpaceOnUse"
+          x1="0"
+          y1={MOON.y}
+          x2="0"
+          y2={MOON.y + MOON.r * 3.6}
+        >
+          <stop offset="0%" stopColor="#fff" />
+          <stop offset="60%" stopColor="#999" />
+          <stop offset="100%" stopColor="#000" />
+        </linearGradient>
+        <mask id="dl-moon-halo-m">
+          <rect
+            x={MOON.x - MOON.r * 3.8}
+            y={MOON.y - MOON.r * 3.8}
+            width={MOON.r * 7.6}
+            height={MOON.r * 7.6}
+            fill="url(#dl-moon-halo-fade)"
+          />
+        </mask>
       </defs>
       <g className="dl-night-back">
-        <circle cx={MOON.x} cy={MOON.y} r={MOON.r * 3.8} fill="url(#dl-moon-halo-g)" />
+        <circle
+          cx={MOON.x}
+          cy={MOON.y}
+          r={MOON.r * 3.8}
+          fill="url(#dl-moon-halo-g)"
+          mask="url(#dl-moon-halo-m)"
+        />
         <circle cx={MOON.x} cy={MOON.y} r={MOON.r} fill="url(#dl-moon-disc-g)" />
       </g>
       {SKYLINE_SHAPES.map((shape, i) => {

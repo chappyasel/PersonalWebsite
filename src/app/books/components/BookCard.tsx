@@ -27,6 +27,8 @@ import { memo, useEffect, useRef, useState } from "react";
 import { capture } from "~/lib/analytics";
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import { getBookPath } from "~/lib/books/paths";
+
+import { BOOK_MODAL_HISTORY_STATE } from "./modalHistory";
 import {
   abandonedPercent,
   isCurrentlyReading,
@@ -261,7 +263,7 @@ export const BookCard = memo(function BookCard({
     // Open modal instantly via state (XS maps to S for modal)
     openModal(book, size === "XS" ? "S" : size);
     // Update URL without triggering Next.js navigation
-    window.history.pushState(null, "", bookUrl);
+    window.history.pushState(BOOK_MODAL_HISTORY_STATE, "", bookUrl);
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLButtonElement>) => {

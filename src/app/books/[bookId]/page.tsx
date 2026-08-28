@@ -1,5 +1,6 @@
 import { type Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { Suspense } from "react";
 
 import {
   getBookForOG,
@@ -10,6 +11,7 @@ import {
 import { isNotionId } from "~/lib/books/slugify";
 import { db } from "~/server/db";
 
+import { BookDetailSkeleton } from "./BookDetailSkeleton";
 import { BookPage } from "./BookPage";
 
 // Revalidate every 24 hours
@@ -77,7 +79,18 @@ export async function generateMetadata({
 
 export default async function Page({ params }: PageProps) {
   const { bookId } = await params;
+  // The data fetch lives behind the page's own Suspense boundary so the
+  // page shell streams immediately. Without this, the pending boundary
+  // during the fetch is the books segment's — whose fallback is the GRID
+  // skeleton — and a book URL briefly renders as the bookshelf.
+  return (
+    <Suspense fallback={<BookDetailSkeleton />}>
+      <BookLoader bookId={bookId} />
+    </Suspense>
+  );
+}
 
+async function BookLoader({ bookId }: { bookId: string }) {
   // If the bookId looks like a Notion UUID, try to redirect to the slug-based URL
   if (isNotionId(bookId)) {
     const slug = await getSlugByNotionId(bookId);

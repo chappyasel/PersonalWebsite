@@ -12,6 +12,7 @@ import {
 } from "@react-three/fiber";
 import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import {
   Component,
   type ErrorInfo,
@@ -25,6 +26,7 @@ import {
 } from "react";
 import type * as THREE from "three";
 
+import { recordModalOriginAtPointer } from "~/lib/originFlight";
 import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
 
 import { sceneAudio } from "./audio/sceneAudio";
@@ -182,6 +184,33 @@ function scenePointerEvents(coarseTouch: boolean) {
 /** Drei's overflow element is natively keyboard-focusable, so leaving it
  * unnamed makes the first Tab stop a full-viewport anonymous div. Name the
  * region without replacing the rail's explicit section controls. */
+/**
+ * A frozen room (frameloop "never" while a modal or the daylight sheet is
+ * up) ignores window resizes, so the canvas stretches its last frame into
+ * the new box — which reads as the whole world going blurry the moment the
+ * viewport changes. When r3f applies a new size while frozen, paint exactly
+ * one frame at it.
+ */
+function FrozenResizeRepaint({ frozen }: { frozen: boolean }) {
+  const size = useThree((s) => s.size);
+  const advance = useThree((s) => s.advance);
+  const first = useRef(true);
+  useEffect(() => {
+    if (!frozen) {
+      first.current = true;
+      return;
+    }
+    // Skip the freeze-entry run; only size CHANGES while frozen need paint.
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    const frame = requestAnimationFrame(() => advance(performance.now()));
+    return () => cancelAnimationFrame(frame);
+  }, [frozen, size, advance]);
+  return null;
+}
+
 function ScrollRegionA11y() {
   const { el } = useScroll();
   useEffect(() => {
@@ -1847,7 +1876,12 @@ export default function StacksCanvas({
   const onOpenBook = useCallback(
     (id: string) => {
       const book = data.shelfBooks.find((b) => b.id === id);
-      if (book) useStacks.getState().setPendingBook(book);
+      if (book) {
+        // A cover is a mesh with no DOM box; the modal pops from a small
+        // rect at the pointer instead, the sheet's own compromise.
+        recordModalOriginAtPointer(90, 130);
+        useStacks.getState().setPendingBook(book);
+      }
     },
     [data.shelfBooks],
   );
@@ -1855,11 +1889,26 @@ export default function StacksCanvas({
   // carry a whole `Book` for — only its title, author and length. The modal
   // resolves it by id, the same fetch a #book- deep link performs.
   const onOpenBookId = useCallback((id: string) => {
+    recordModalOriginAtPointer(90, 130);
     useStacks.getState().setPendingBookId(id);
   }, []);
-  const onOpenUrl = useCallback((url: string) => {
-    window.open(url, "_blank", "noopener,noreferrer");
-  }, []);
+  const router = useRouter();
+  const onOpenUrl = useCallback(
+    (url: string) => {
+      // The two document pages open as intercepted sheets over the live
+      // world (src/app/@sheet) — the scene stays booted underneath and the
+      // back gesture lands right back in it. Everything else keeps the
+      // new-tab behavior. The sheet pops from a small rect at the pointer
+      // (a door is shader geometry with no DOM box).
+      if (url === "/routine" || url === "/manual") {
+        recordModalOriginAtPointer();
+        router.push(url);
+        return;
+      }
+      window.open(url, "_blank", "noopener,noreferrer");
+    },
+    [router],
+  );
 
   const pointerEvents = useMemo(
     () => scenePointerEvents(coarseTouch),
@@ -2010,6 +2059,7 @@ export default function StacksCanvas({
         <PhysicsPrewarm />
         <MovementProbe onChange={onMovementChange} />
         <SceneLightShapePadding />
+        <FrozenResizeRepaint frozen={freezeRoom} />
         <ShaderPrewarm
           variant={`${dark ? "dark" : "light"}-${plan.profile}-${postfxQuality}-${plan.environment.farGrassShader}-${plan.environment.grassDeformation}-${performanceSettings.activeNeighborhoodLights ? "near-lights" : "all-lights"}-${performanceSettings.activeNeighborhoodLights && performanceSettings.stableNeighborhoodLightShape ? "stable-light-shape" : "variable-light-shape"}`}
           resourceVariant={

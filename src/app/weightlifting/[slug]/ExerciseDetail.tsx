@@ -1,0 +1,67 @@
+import { notFound } from "next/navigation";
+
+import {
+  getCachedExerciseDetail,
+  getCachedExerciseIndex,
+  getFreshExerciseIndex,
+} from "~/server/queries/weightliftingExercise";
+import { categoryColor } from "../lib/utils";
+import { ExerciseExplorer } from "./ExerciseExplorer";
+import { ExerciseHeader } from "./ExerciseHeader";
+
+export async function resolveExercise(slug: string) {
+  const index = await getCachedExerciseIndex();
+  const entry = index.find((e) => e.slug === slug);
+  if (entry) return { entry, index };
+  // A stale-while-revalidate read right after a sync can miss a newly
+  // eligible exercise; check the database directly before 404ing
+  try {
+    const fresh = await getFreshExerciseIndex();
+    const freshEntry = fresh.find((e) => e.slug === slug);
+    if (freshEntry) return { entry: freshEntry, index: fresh };
+  } catch {
+    // fall through to the 404
+  }
+  return null;
+}
+
+/** The exercise page's whole body, shared by the full page and the
+ * intercepted sheet over the dashboard. */
+export async function ExerciseDetail({ slug }: { slug: string }) {
+  const resolved = await resolveExercise(slug);
+  if (!resolved) notFound();
+  const { entry, index } = resolved;
+
+  const detail = await getCachedExerciseDetail(entry.displayName);
+  if (!detail) notFound();
+
+  // Iterations of the same exercise type (the app's pencil-menu switcher)
+  const variants = index
+    .filter((e) => e.name === entry.name)
+    .sort((a, b) => b.setCount - a.setCount);
+
+  const color = categoryColor(detail.category);
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-10 font-sans">
+      <ExerciseHeader
+        displayName={detail.displayName}
+        category={detail.category}
+        color={color}
+        firstPerformed={detail.firstPerformed}
+        lastPerformed={detail.lastPerformed}
+        instanceCount={detail.instanceCount}
+        totalSets={detail.totalSets}
+        variants={variants.map((v) => ({
+          slug: v.slug,
+          displayName: v.displayName,
+        }))}
+        currentSlug={slug}
+        baseName={entry.name}
+      />
+
+      {/* App-parity explorer: sort picker, podium, graph, show more, instances */}
+      <ExerciseExplorer instances={detail.instances} color={color} />
+    </div>
+  );
+}

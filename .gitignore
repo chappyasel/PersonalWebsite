@@ -46,8 +46,10 @@ npm-debug.log*
 # claude local settings
 .claude/settings.local.json
 
-# dad journal content (fetched from GCS at build time)
-/content/dad/
+# dad journal content (fetched from GCS at build time). No trailing slash on
+# /content/dad: worktrees carry it as a symlink to the main checkout's copy,
+# and a slash-suffixed pattern matches only real directories.
+/content/dad
 /content/dad-search-index.json
 
 # youtube takeout data

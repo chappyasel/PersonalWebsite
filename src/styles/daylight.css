@@ -175,6 +175,8 @@
 .dl-sky {
   position: absolute;
   inset: 0;
+  /* Stacking context: the fireworks canvas rides at z -1 inside. */
+  z-index: 0;
   /* Ember at 91%: the dome anchors its glow at azimuth -1.15, 91% across
      the strip's [-2.24, -1.025] window. Sized in PERCENTAGES of the sky
      box, never rems — a fixed-rem ellipse spanned the whole viewport on a
@@ -812,10 +814,31 @@
     padding-top: 1.75rem;
     padding-bottom: 10rem;
   }
-  /* The pan carries the bridge away from a fixed tap zone; the easter egg
-     stays a desktop handshake. */
+  /* The strip pans on phones, so the tap target wears the SAME pan and
+     strip-relative geometry — the zone rides the bridge instead of being
+     left behind by it. Its keyframe is its own: the strip's translation is
+     element-relative, and the two elements differ in width. */
   .dl-ggb-tap {
-    display: none;
+    left: calc(max(150vw, 900px) * 0.075);
+    width: calc(max(150vw, 900px) * 0.175);
+    height: calc(max(150vw, 900px) * 0.06);
+  }
+}
+@media (prefers-reduced-motion: no-preference) and (max-width: 700px) {
+  .dl-ggb-tap {
+    animation: dl-ggb-tap-pan 200s ease-in-out infinite alternate;
+  }
+  /* Half a cycle out, matching the footer strip's own pan phase. */
+  .dl-horizon .dl-ggb-tap {
+    animation-delay: -100s;
+  }
+}
+@keyframes dl-ggb-tap-pan {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(100vw - max(150vw, 900px)));
   }
 }
 @media (prefers-reduced-motion: no-preference) and (max-width: 700px) {
@@ -898,67 +921,31 @@
   height: 9vw;
   cursor: pointer;
 }
-.dl-fw {
+/* The burst canvas: the shader draws the shells into the sky AFTER the
+   stars and BEFORE the city, so the ridge and the towers paint over them —
+   depth is write order. z -1 inside the sky's stacking context puts the
+   canvas above the sky gradient and behind every other layer, the same
+   order. */
+.dl-fw-layer {
   position: absolute;
-  width: 0;
-  height: 0;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
 }
-.dl-fw-flash {
+.dl-fw-layer canvas {
   position: absolute;
-  left: -5px;
-  top: -5px;
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: hsl(40 100% 88%);
-  opacity: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
-.dl-fw i:not(.dl-fw-flash) {
-  position: absolute;
-  left: -1px;
-  top: -4px;
-  width: 2px;
-  height: 8px;
-  border-radius: 2px;
-  background: linear-gradient(
-    180deg,
-    hsl(var(--fw-h) 95% 82%),
-    hsl(var(--fw-h) 85% 58%)
-  );
-  transform: rotate(var(--fw-a));
-  opacity: 0;
+/* The composer's softness, as two blit passes of one half-resolution
+   render: a wide bloom under a barely-softened core. */
+.dl-fw-bloom {
+  filter: blur(4px);
+  opacity: 0.85;
 }
-@media (prefers-reduced-motion: no-preference) {
-  .dl-fw-flash {
-    animation: dl-fw-flash 0.45s ease-out forwards;
-  }
-  .dl-fw i:not(.dl-fw-flash) {
-    animation: dl-fw-spark 1.45s cubic-bezier(0.13, 0.62, 0.24, 1) forwards;
-  }
-}
-@keyframes dl-fw-flash {
-  0% {
-    opacity: 0.95;
-    transform: scale(0.4);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(2.4);
-  }
-}
-@keyframes dl-fw-spark {
-  0% {
-    transform: rotate(var(--fw-a)) translateY(-2px) scaleY(1);
-    opacity: 1;
-  }
-  55% {
-    opacity: 0.9;
-  }
-  100% {
-    transform: rotate(var(--fw-a)) translateY(calc(-52px * var(--fw-d)))
-      scaleY(0.45);
-    opacity: 0;
-  }
+.dl-fw-core {
+  filter: blur(0.5px);
 }
 
 /* ============ Framed prints ============ */
@@ -1174,3 +1161,141 @@
   color: hsl(var(--foreground));
 }
 
+
+/* ============ Hero depth (scroll parallax) ============ */
+
+/* Scrolling past the hero, the layers part by distance: the star field holds
+   the sky longest, the cloud band and birds linger behind it, the moon sets
+   behind the buildings it already stands behind, and the skyline leaves with
+   the page — the dome's depth, driven by the scroll axis instead of the
+   camera. HeroParallax writes --dl-plxy (the page scroll in px, clamped to
+   the hero's height) onto .dl-hero; each layer rides it at its own depth via
+   the `translate` property, which composes with the layers' own transform
+   animations. Scroll-driven CSS timelines looked right but iOS dropped them
+   silently, so the driver is a ten-line rAF loop instead. The gradient and
+   its ember stay put on purpose: the glow is anchored to the bridge's end of
+   the sky and must not detach. */
+@media (prefers-reduced-motion: no-preference) {
+  .dl-hero .dl-stars,
+  .dl-hero .dl-stars-b {
+    translate: 0 calc(var(--dl-plxy, 0px) * 0.45);
+  }
+  /* Translating the containers leaves the drift/crossing loops untouched. */
+  .dl-hero .dl-clouds,
+  .dl-hero .dl-birds {
+    translate: 0 calc(var(--dl-plxy, 0px) * 0.24);
+  }
+  /* px on an SVG group is user units (viewBox 1440x214). */
+  .dl-hero .dl-night-back {
+    translate: 0 calc(var(--dl-plxy, 0px) * 0.12);
+  }
+}
+
+/* Rubber-banding past either end of a daylight page used to reveal bare
+   paper. The document canvas now continues the scene both ways: sky above
+   the fold, the page's own closing ground below it. Fixed attachment pins
+   the halves to the viewport, so only overscroll ever shows them. Hexes are
+   the page tokens restated (body sits outside .daylight-root): sky-top and
+   arc4/arc2 per theme; the routine's bottom half is the measured night band
+   its horizon footer ends on. */
+body:has(.daylight-root) {
+  background: linear-gradient(
+      180deg,
+      hsl(206 81% 38%) 0%,
+      hsl(206 81% 38%) 50%,
+      hsl(209 20% 45%) 50%
+    )
+    fixed;
+}
+.dark body:has(.daylight-root) {
+  background: linear-gradient(
+      180deg,
+      hsl(225 47% 21%) 0%,
+      hsl(225 47% 21%) 50%,
+      hsl(240 25% 13%) 50%
+    )
+    fixed;
+}
+
+/* ============ Quiet horizon (page footer) ============ */
+
+/* The silhouette standing directly on the page's own ground — the flat
+   homepage's closing move, not a second hero. No sky, no band, no backdrop:
+   in light the fog-washed city and the red bridge sit on the paper; in dark
+   the buildings all but dissolve into the ground and the window lights,
+   lamps, beacons, and moon carry it. The strip is in-flow (height follows
+   width from the viewBox), and on phones it keeps the hero's min-width
+   overhang and slow pan so the city stays legible. */
+.dl-horizon {
+  position: relative;
+  /* Stacking context: the fireworks canvas rides at z -1 inside. */
+  z-index: 0;
+  overflow: hidden;
+  margin-top: 5rem;
+  /* Headroom for the raised moon's halo, which rides above the strip's
+     viewBox — without it the container clips the glow on a straight line
+     at the strip top. ~43 user units; a unit is 1/1440 of the strip. */
+  padding-top: max(4.5vw, 3rem);
+  color: hsl(var(--dl-sil));
+}
+/* The hero keeps the dome's authored moon altitude (its fog owns the
+   waterline there); the footer has no fog, so the moon lifts clear of the
+   flat roofline that was cutting its glow. px on an SVG group is user
+   units (viewBox 1440x154). */
+.dl-horizon .dl-night-back {
+  translate: 0 -22px;
+}
+.dl-horizon-strip svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* The moon's halo rides above the strip's viewBox, same as the hero. */
+  overflow: visible;
+}
+@media (max-width: 700px) {
+  .dl-horizon-strip {
+    width: max(150vw, 900px);
+  }
+}
+@media (prefers-reduced-motion: no-preference) and (max-width: 700px) {
+  .dl-horizon-strip {
+    animation: dl-skyline-pan 200s ease-in-out infinite alternate;
+    /* Half a cycle out of phase with the hero's pan, so the two horizons
+       show different stretches of the city instead of tracking in lockstep. */
+    animation-delay: -100s;
+  }
+}
+
+/* ============ Intercepted-route sheet ============ */
+
+/* The sheet card is Tailwind-built in DaylightSheet, book-modal style; the
+   one thing the stylesheet owns is that the page's own theme toggle stays
+   home — inside the sheet the corner belongs to the open/close cluster, and
+   the theme follows the scene underneath. */
+.dl-sheet [data-theme-toggle] {
+  display: none;
+}
+
+/* ============ Sheet loading skeleton ============ */
+
+/* Streams inside the sheet while the intercepted page resolves: the sky
+   band holds the hero's space, the spinner sits where content lands. */
+.dl-sheet-loading {
+  min-height: 100%;
+  background: hsl(var(--dl-arc2));
+}
+.dl-sheet-loading-sky {
+  height: clamp(14rem, 32vh, 20rem);
+  background: linear-gradient(
+    180deg,
+    hsl(var(--dl-sky-top)),
+    hsl(var(--dl-sky-mid)) 62%,
+    hsl(var(--dl-sky-low))
+  );
+}
+.dl-sheet-loading-body {
+  display: flex;
+  justify-content: center;
+  padding: 5rem 0;
+  color: hsl(var(--muted-foreground));
+}

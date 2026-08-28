@@ -2,7 +2,21 @@
 
 import { useModalActions, useModalState } from "../contexts/BookPreviewContext";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
+
+import {
+  originEntrance,
+  originExit,
+  takeModalOrigin,
+  type ModalOrigin,
+} from "~/lib/originFlight";
 
 import { getBookPath, getBookShareUrl } from "~/lib/books/paths";
 import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
@@ -12,6 +26,7 @@ import { Spinner } from "~/components/ui/spinner";
 
 import { BookDetailContent } from "./BookDetailContent";
 import type { ModalPresentation } from "./ModalHost";
+import { bookIdFromPathname, isBookModalHistoryState } from "./modalHistory";
 import { shouldUseModalEnterShortcut } from "./modalKeyboard";
 
 const FOCUSABLE_SELECTOR = [
@@ -40,11 +55,24 @@ function focusableChildren(root: HTMLElement): HTMLElement[] {
 
 export function Modal({ presentation }: { presentation?: ModalPresentation }) {
   const { selectedBook, selectedBookId, isModalOpen } = useModalState();
-  const { closeModal } = useModalActions();
+  const { closeModal, openModalById } = useModalActions();
+  const pathname = usePathname();
   const [copied, setCopied] = useState(false);
+  // Expanded = the shell has grown to the viewport and stays there — a
+  // purely presentational takeover, like the modal-sheet expand. The ref
+  // mirrors the state for the long-lived keydown listener, whose closure
+  // would otherwise hold a stale value.
+  const [expanded, setExpanded] = useState(false);
+  const expandedRef = useRef(false);
   const isClosingRef = useRef(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
+  const backdropRef = useRef<HTMLDivElement>(null);
+  // A 3D cover/spine click records a small rect at the pointer (a mesh has
+  // no DOM box); the shell flies from and back to it, the same origin pop
+  // the daylight sheet does. Absent on the standalone books site, where the
+  // cover's layoutId morph already owns the entrance.
+  const stacksOriginRef = useRef<ModalOrigin | null>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const reduceMotion = useReducedMotion();
   const fromStacks = presentation?.source === "stacks";
@@ -74,17 +102,178 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
     isClosingRef.current = true;
     // Blur active element to prevent focus ring on book card
     (document.activeElement as HTMLElement)?.blur();
+    // Stacks origin pop, reversed: the shell flies back to the clicked
+    // cover's rect before the modal state tears down.
+    const origin = stacksOriginRef.current;
+    const shell = shellRef.current;
+    if (origin && shell) {
+      stacksOriginRef.current = null;
+      const flying = originExit(shell, origin, backdropRef.current, () => {
+        closeModal();
+        window.history.back();
+      });
+      if (flying) return;
+    }
     closeModal();
     // Navigate back to remove the bookId from URL
     window.history.back();
   };
 
-  // Reset isClosing when modal reopens
+  // Reset isClosing and any prior takeover when modal reopens
   useEffect(() => {
     if (isModalOpen) {
       isClosingRef.current = false;
+      expandedRef.current = false;
+      setExpanded(false);
     }
   }, [isModalOpen]);
+
+  // Browser back/forward. The pop has already moved history, so unlike the
+  // X this close must not call history.back() again — but it plays the same
+  // origin exit flight when one is owed. Forward onto an entry that names a
+  // book reopens it, so the URL and the page never disagree.
+  useEffect(() => {
+    const onPopState = (event: PopStateEvent) => {
+      const id = bookIdFromPathname(window.location.pathname, fromStacks);
+      if (id) {
+        if (!isModalOpen && isBookModalHistoryState(event.state)) {
+          openModalById(id);
+        }
+        return;
+      }
+      if (!isModalOpen || isClosingRef.current) return;
+      isClosingRef.current = true;
+      (document.activeElement as HTMLElement)?.blur();
+      const origin = stacksOriginRef.current;
+      const shell = shellRef.current;
+      if (origin && shell) {
+        stacksOriginRef.current = null;
+        if (originExit(shell, origin, backdropRef.current, closeModal)) return;
+      }
+      closeModal();
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [isModalOpen, fromStacks, closeModal, openModalById]);
+
+  // A soft navigation while the modal is open (Universal Search on the books
+  // site, say) replaces the page underneath; the modal must not linger over
+  // it. Native pushState syncs into usePathname, so the open modal normally
+  // sees its own book's path — the ref records that sighting, and only a
+  // pathname that stops matching after it closes the modal. If the sync
+  // never happens, nothing here ever fires.
+  const sawOwnPathRef = useRef(false);
+  useEffect(() => {
+    if (!isModalOpen) {
+      sawOwnPathRef.current = false;
+      return;
+    }
+    if (bookIdFromPathname(pathname, fromStacks) === bookId) {
+      sawOwnPathRef.current = true;
+      return;
+    }
+    if (!sawOwnPathRef.current || isClosingRef.current) return;
+    isClosingRef.current = true;
+    closeModal();
+  }, [pathname, isModalOpen, bookId, fromStacks, closeModal]);
+
+  const expandHref =
+    fromStacks && presentation
+      ? `${presentation.booksHref}/${bookId}`
+      : getBookPath(bookId);
+
+  // The iOS-pop expand, ported from the modal sheet: the shell's real box
+  // flies out to the viewport with content reflowing live, then simply
+  // stays — the modal already renders the book's full content, so there is
+  // nothing to navigate to. Back/Esc/X still pop to the launcher (the grid,
+  // or the 3D world), and the share button already hands out the canonical
+  // books-site URL. Modified clicks and reduced motion fall through to the
+  // plain <a> — the real cross-host page. Returns false when the caller
+  // should hard-navigate instead.
+  const beginExpand = () => {
+    if (reduceMotion) return false;
+    if (isClosingRef.current || expandedRef.current) return false;
+    const shell = shellRef.current;
+    if (!shell) return false;
+    isClosingRef.current = true;
+    expandedRef.current = true;
+    const rect = shell.getBoundingClientRect();
+    Object.assign(shell.style, {
+      position: "fixed",
+      top: `${rect.top}px`,
+      left: `${rect.left}px`,
+      width: `${rect.width}px`,
+      height: `${rect.height}px`,
+      maxWidth: "none",
+      maxHeight: "none",
+      margin: "0",
+    });
+    backdropRef.current?.animate([{ opacity: 1 }, { opacity: 0 }], {
+      duration: 420,
+      easing: "ease",
+      fill: "forwards",
+    });
+    // The shell has no paint of its own — the rounded corners live on its
+    // two child layers (background + content), so they unround themselves.
+    for (const layer of shell.querySelectorAll<HTMLElement>(":scope > div")) {
+      layer.animate([{ borderRadius: "1rem" }, { borderRadius: "0rem" }], {
+        duration: 420,
+        easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+        fill: "forwards",
+      });
+    }
+    const flight = shell.animate(
+      [
+        {
+          top: `${rect.top}px`,
+          left: `${rect.left}px`,
+          width: `${rect.width}px`,
+          height: `${rect.height}px`,
+        },
+        { top: "0px", left: "0px", width: "100vw", height: "100dvh" },
+      ],
+      { duration: 420, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
+    );
+    setExpanded(true);
+    flight.onfinish = () => {
+      Object.assign(shell.style, {
+        top: "0px",
+        left: "0px",
+        width: "100vw",
+        height: "100dvh",
+      });
+      isClosingRef.current = false;
+    };
+    return true;
+  };
+
+  const handleExpand = (event: ReactMouseEvent<HTMLAnchorElement>) => {
+    if (
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey ||
+      event.button !== 0
+    )
+      return;
+    if (reduceMotion) return;
+    event.preventDefault();
+    beginExpand();
+  };
+
+  // Stacks origin pop: overlay a WAAPI flight from the clicked cover's rect
+  // on top of the shell transition (WAAPI owns transform/opacity while it
+  // runs, and both land on identity, so the two never fight). Before paint,
+  // so the shell never flashes at rest first.
+  useLayoutEffect(() => {
+    if (!isModalOpen || !fromStacks) return;
+    const origin = takeModalOrigin();
+    if (!origin) return;
+    stacksOriginRef.current = origin;
+    const shell = shellRef.current;
+    if (shell) originEntrance(shell, origin);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModalOpen, fromStacks]);
 
   // Canvas books have no DOM cover to receive focus, while books opened on
   // the dedicated site do. In either case the dialog itself becomes the
@@ -175,9 +364,12 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
       if (e.key === "Escape" && !photoViewOpen) {
         handleClose();
       } else if (shouldUseModalEnterShortcut(e) && !photoViewOpen && bookId) {
-        // Navigate to full page view
+        // Full page view: the animated takeover when motion is allowed,
+        // otherwise the real page — expandHref, not getBookPath, which on
+        // the homepage host pointed at a route that only exists on the
+        // books subdomain.
         e.preventDefault();
-        window.location.href = getBookPath(bookId);
+        if (!beginExpand()) window.location.href = expandHref;
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -204,7 +396,8 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
         <>
           {/* Backdrop */}
           <motion.div
-            className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm dark:bg-black/60"
+            ref={backdropRef}
+            className={`fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm dark:bg-black/60 ${expanded ? "pointer-events-none" : ""}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -256,14 +449,14 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                     Framer to morph from a source that does not exist. */}
                 <motion.div
                   layoutId={fromStacks ? undefined : `book-cover-${bookId}`}
-                  className={`absolute inset-0 rounded-2xl bg-background shadow-[0px_10px_50px_10px_rgba(0,0,0,0.1)] dark:bg-muted ${book?.hasNotes ? "h-full" : "max-h-[85dvh]"}`}
+                  className={`absolute inset-0 rounded-2xl bg-background shadow-[0px_10px_50px_10px_rgba(0,0,0,0.1)] dark:bg-muted ${expanded ? "h-full max-h-none" : book?.hasNotes ? "h-full" : "max-h-[85dvh]"}`}
                   transition={{
                     layout: { type: "spring", stiffness: 300, damping: 30 },
                   }}
                 />
                 {/* Actual content - fades in on top */}
                 <motion.div
-                  className={`relative overflow-hidden rounded-2xl bg-background dark:bg-muted ${book?.hasNotes ? "h-full" : "max-h-[85dvh]"}`}
+                  className={`relative overflow-hidden rounded-2xl bg-background dark:bg-muted ${expanded ? "h-full max-h-none" : book?.hasNotes ? "h-full" : "max-h-[85dvh]"}`}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
@@ -296,6 +489,8 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                       bookId={bookId}
                       isModal={true}
                       onClose={handleClose}
+                      onExpand={handleExpand}
+                      expanded={expanded}
                       modalBreadcrumbHref={
                         fromStacks ? presentation.booksHref : undefined
                       }

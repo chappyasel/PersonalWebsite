@@ -1,41 +1,56 @@
 "use client";
 
-import { type CSSProperties, useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
+
+import type { FireworksEngine } from "./fireworksEngine";
 
 /**
- * The scene's easter egg, in 2D: clicking the Golden Gate fires a small
- * burst over the bridge. An invisible tap target sits on the strip's bridge
- * span; each click launches a shell at a slightly different spot, sparks
- * radiating as short warm streaks (styles + animation in daylight.css,
- * behind prefers-reduced-motion like everything else in this sky).
+ * The tap target and canvases for the bridge's fireworks; the firing script
+ * itself (fireworksEngine.ts — the dome shader's own, ported) loads on the
+ * first click. The canvases ride at z -1 inside the sky's stacking context,
+ * so every shell bursts BEHIND the bridge, the buildings, and the hills —
+ * depth is paint order, the shader block's own opening lesson.
  */
-
-const SPARKS = 14;
-
-type Burst = { id: number; left: number; bottom: number; hue: number };
-
 export default function GgbFireworks() {
-  const [bursts, setBursts] = useState<Burst[]>([]);
-  const nextId = useRef(0);
+  const layerRef = useRef<HTMLDivElement>(null);
+  const bloomRef = useRef<HTMLCanvasElement>(null);
+  const coreRef = useRef<HTMLCanvasElement>(null);
+  const engine = useRef<FireworksEngine | null>(null);
+  const loading = useRef(false);
+  const pending = useRef(0);
 
   const fire = useCallback(() => {
-    const id = nextId.current++;
-    const burst: Burst = {
-      id,
-      // Over the span: the bridge sits at 8–24% of the strip's width.
-      left: 10 + Math.random() * 13,
-      bottom: 12 + Math.random() * 5,
-      hue: Math.random() < 0.34 ? 6 : 33,
-    };
-    setBursts((b) => [...b.slice(-3), burst]);
-    window.setTimeout(
-      () => setBursts((b) => b.filter((x) => x.id !== id)),
-      1700,
-    );
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (engine.current) {
+      engine.current.fire();
+      return;
+    }
+    pending.current += 1;
+    if (loading.current) return;
+    loading.current = true;
+    void import("./fireworksEngine").then((m) => {
+      const layer = layerRef.current;
+      const bloom = bloomRef.current;
+      const core = coreRef.current;
+      if (!layer || !bloom || !core) return;
+      engine.current = m.createFireworksEngine(layer, bloom, core);
+      // The clicks that landed while the module was in flight all fire.
+      const queued = Math.min(pending.current, 4);
+      pending.current = 0;
+      for (let i = 0; i < queued; i++) engine.current.fire();
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => engine.current?.dispose();
   }, []);
 
   return (
     <>
+      <div ref={layerRef} className="dl-fw-layer" aria-hidden>
+        <canvas ref={bloomRef} className="dl-fw-bloom" />
+        <canvas ref={coreRef} className="dl-fw-core" />
+      </div>
       {/* The sky is aria-hidden decoration, so the tap target stays out of
           the tab order — a hidden handshake, not a control. */}
       <button
@@ -45,32 +60,6 @@ export default function GgbFireworks() {
         tabIndex={-1}
         onClick={fire}
       />
-      {bursts.map((b) => (
-        <span
-          key={b.id}
-          className="dl-fw"
-          style={
-            {
-              left: `${b.left}%`,
-              bottom: `${b.bottom}vw`,
-              "--fw-h": b.hue,
-            } as CSSProperties
-          }
-        >
-          <i className="dl-fw-flash" />
-          {Array.from({ length: SPARKS }, (_, i) => (
-            <i
-              key={i}
-              style={
-                {
-                  "--fw-a": `${(i * 360) / SPARKS + (i % 2) * 9}deg`,
-                  "--fw-d": `${0.62 + ((i * 7) % 5) / 9}`,
-                } as CSSProperties
-              }
-            />
-          ))}
-        </span>
-      ))}
     </>
   );
 }

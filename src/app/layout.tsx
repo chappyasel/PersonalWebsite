@@ -84,7 +84,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{ children: React.ReactNode }>) {
+  sheet,
+}: Readonly<{ children: React.ReactNode; sheet: React.ReactNode }>) {
   return (
     <html
       lang="en"
@@ -117,6 +118,7 @@ export default function RootLayout({
             <UniversalSearchController enabled={false} />
             <AnalyticsRouteTracker />
             {children}
+            {sheet}
           </FontProvider>
         </ThemeProvider>
       </body>

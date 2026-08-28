@@ -5,6 +5,7 @@ import {
   DaylightTOCSidebar,
   DaylightTOCSpacer,
 } from "~/components/daylight/DaylightTOC";
+import SkyFooter from "~/components/daylight/SkyFooter";
 import { db } from "~/server/db";
 import { orEmpty } from "~/server/queries/degrade";
 import { books } from "~/server/db/schema";
@@ -84,6 +85,7 @@ export default async function ManualPage() {
             <DaylightTOCSpacer />
           </div>
         </div>
+        <SkyFooter />
       </main>
     </div>
   );

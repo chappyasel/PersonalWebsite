@@ -1,7 +1,7 @@
 {
   "version": 2,
   "algorithm": "sha256",
-  "digest": "811b619c465fd6a06ddad7806b76e787c2a581b06dd6cea7d907952a8d88bc71",
+  "digest": "09eb9e2c4925ec7b79ba182a32b5487bf2e0265fc967753acd2815dd8bdb69a5",
   "files": [
     "public/images/about/profile.jpg",
     "public/images/stacks/grass-tuft-alpha.webp",
@@ -285,6 +285,7 @@
     "src/components/ui/theme-toggle.tsx",
     "src/components/ui/tooltip.tsx",
     "src/components/ui/year-heatmap.tsx",
+    "src/styles/daylight.css",
     "src/styles/globals.css"
   ],
   "fileDigests": {
@@ -309,7 +310,7 @@
     "public/models/succulent-pot.glb": "67c82ffa80fb09e4",
     "scripts/generate/home-og-scene-config.mjs": "5e1ed6c6d4bc3e81",
     "scripts/generate/home-og-scene.mjs": "1f6371d522058090",
-    "src/app/components/stacks/StacksCanvas.tsx": "892fe834dff19f51",
+    "src/app/components/stacks/StacksCanvas.tsx": "c3e2c0f8b5c97f43",
     "src/app/components/stacks/StacksHome.tsx": "3893435b5feb197c",
     "src/app/components/stacks/audio/sceneAudio.ts": "1f9b202d40309592",
     "src/app/components/stacks/boot/useWorldBoot.ts": "32b41c094f5be972",
@@ -357,13 +358,13 @@
     "src/app/components/stacks/mobile/travel.ts": "b5596db428b286dc",
     "src/app/components/stacks/modal/ModelArtifactStage.tsx": "6f5a32479b93d7b1",
     "src/app/components/stacks/modal/SceneArtifactInspector.tsx": "9622a2e39c9384a1",
-    "src/app/components/stacks/modal/StacksBookModal.tsx": "5226a2cb874b9f7f",
+    "src/app/components/stacks/modal/StacksBookModal.tsx": "7b402d921cd8ef41",
     "src/app/components/stacks/modal/artifactPreviewFit.ts": "99abf26a18ef3f14",
     "src/app/components/stacks/modal/artifactPreviewFrame.ts": "b10acb02be49f11a",
     "src/app/components/stacks/modal/artifactPreviewMotion.ts": "e76f49ff2bd2e55b",
     "src/app/components/stacks/modal/artifactPreviewPose.ts": "df133bd97e7d940b",
     "src/app/components/stacks/modal/artifactPreviewShading.ts": "80ab632f8269ac60",
-    "src/app/components/stacks/modal/bookModalSync.ts": "144ff6dbb8649a6b",
+    "src/app/components/stacks/modal/bookModalSync.ts": "2e67044f446c7cbb",
     "src/app/components/stacks/modal/modelArtifactHandoff.ts": "28317f0b354fa2c0",
     "src/app/components/stacks/photoSources.ts": "7e538a88af97c370",
     "src/app/components/stacks/scene/ArrivalBeats.tsx": "a1d6e4058bf86c30",
@@ -467,7 +468,7 @@
     "src/app/components/stacks/scene/layeredEffects.ts": "f7314c6fd12cb66d",
     "src/app/components/stacks/scene/leanClearance.ts": "c900af06d8e1ed62",
     "src/app/components/stacks/scene/lensGeometry.ts": "55d23493b57d93b4",
-    "src/app/components/stacks/scene/links.tsx": "849725554cc395bc",
+    "src/app/components/stacks/scene/links.tsx": "f4915e957097761b",
     "src/app/components/stacks/scene/litImageDetail.ts": "4869cb2bb6899071",
     "src/app/components/stacks/scene/meadowDeformation.ts": "98df681c7495dc4f",
     "src/app/components/stacks/scene/meadowDiagnostics.ts": "868e53f513534fbe",
@@ -546,7 +547,7 @@
     "src/app/components/stacks/store.ts": "26b7bc2e47f170f6",
     "src/app/components/stacks/theme.ts": "a82bcf45786bcfae",
     "src/app/components/stacks/webglProbe.ts": "22429698219a939d",
-    "src/app/layout.tsx": "7c19e9b3643a982b",
+    "src/app/layout.tsx": "24a3c0e8e2460b65",
     "src/app/page.tsx": "ad4365f8093d4119",
     "src/components/ui/accordion.tsx": "ccdbe7f1d38f6b07",
     "src/components/ui/badge.tsx": "2fde384c4dfb932a",
@@ -570,11 +571,12 @@
     "src/components/ui/theme-toggle.tsx": "0c3b29b6a2c8e2b7",
     "src/components/ui/tooltip.tsx": "8006efc63e9a87c6",
     "src/components/ui/year-heatmap.tsx": "6a03375088ac5b5e",
+    "src/styles/daylight.css": "cc6f4cb0bb02417e",
     "src/styles/globals.css": "1e575bc182d24b62"
   },
   "image": {
     "path": "public/images/stacks/home-og-scene.jpg",
-    "digest": "38b8c9ccd18056debf153d2f445b721ad568b1bdea1e957a2414ae3cbc800df5",
-    "inputDigest": "811b619c465fd6a06ddad7806b76e787c2a581b06dd6cea7d907952a8d88bc71"
+    "digest": "c6e8d9ebd49c64b2e39352c2d099c73c05d485c4db48a2152496483bcb6bdc25",
+    "inputDigest": "09eb9e2c4925ec7b79ba182a32b5487bf2e0265fc967753acd2815dd8bdb69a5"
   }
 }

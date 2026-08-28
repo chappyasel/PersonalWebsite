@@ -9,6 +9,7 @@ import {
   DaylightTOCSidebar,
   DaylightTOCSpacer,
 } from "~/components/daylight/DaylightTOC";
+import SkyFooter from "~/components/daylight/SkyFooter";
 import RoutineHero from "./components/RoutineHero";
 import RoutineSection from "./components/RoutineSection";
 import RoutineTimeline from "./components/RoutineTimeline";
@@ -140,6 +141,7 @@ export default async function RoutinePage() {
             <DaylightTOCSpacer />
           </div>
         </div>
+        <SkyFooter />
       </main>
     </div>
   );

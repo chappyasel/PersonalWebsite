@@ -25,3 +25,9 @@ overrides:
   "@typescript-eslint/visitor-keys": 8.52.0
   typescript-eslint: 8.52.0
   vite: 8.1.4
+# Dev-only fix for vercel/next.js#91265 (HMR stacks interception rewrites
+# until routing 500s). The upstream fix is PR vercel/next.js#91364 — the same
+# filter-before-push — so on a Next bump check whether that PR landed and
+# retire the patch instead of re-cutting it.
+patchedDependencies:
+  next@16.1.6: patches/next@16.1.6.patch

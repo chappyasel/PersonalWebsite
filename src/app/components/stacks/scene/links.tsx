@@ -29,6 +29,8 @@ import {
   HOMEPAGE_PORTAL_ACTIVATED_EVENT,
   capture,
 } from "../../../../lib/analytics";
+import { recordModalOriginAtPointer } from "~/lib/originFlight";
+
 import { UNITS } from "../data";
 import { recordFieldNoteEvent } from "../fieldNotes/progress";
 import { useStacks } from "../store";
@@ -138,7 +140,13 @@ export function useOpenTarget(): (
         window.open(href, "_blank", "noopener,noreferrer");
       } else {
         // Same-tab navigation, exactly what the placard's <Link> does (the app
-        // router hands a cross-origin href to the browser itself).
+        // router hands a cross-origin href to the browser itself). The
+        // intercepted sheet pops from its source: a prop is shader geometry
+        // with no DOM box, so the last pointer-down stands in — tracked by
+        // the origin module itself, because this open() is reached from
+        // several gesture systems (the shared window listeners, Grabbable's
+        // private gesture, the tap router) with no one pointer state.
+        recordModalOriginAtPointer();
         router.push(href);
       }
     },

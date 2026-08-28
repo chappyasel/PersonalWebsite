@@ -3,6 +3,8 @@
 import { ArrowRightIcon, SunHorizonIcon } from "@phosphor-icons/react";
 import Link from "next/link";
 
+import { recordModalOrigin } from "~/lib/originFlight";
+
 import TiltCard from "./TiltCard";
 
 const timelineMarkers = [
@@ -31,6 +33,9 @@ export default function DailyRoutine() {
         href="/routine"
         data-placard-link=""
         className="group relative block w-full p-5 [transform-style:preserve-3d] sm:p-6"
+        onClick={(event) =>
+          recordModalOrigin(event.currentTarget.getBoundingClientRect())
+        }
       >
         <div
           data-placard-background=""
