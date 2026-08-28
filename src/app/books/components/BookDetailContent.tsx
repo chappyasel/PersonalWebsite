@@ -27,6 +27,7 @@ import Link from "next/link";
 import {
   Children,
   type ComponentPropsWithoutRef,
+  type MouseEvent,
   type RefObject,
   isValidElement,
   useEffect,
@@ -255,6 +256,10 @@ type BookDetailContentProps = {
   modalBookHref?: string;
   /** Books-host count mirrored into the external modal breadcrumb. */
   modalBookCount?: number;
+  /** Animated takeover for the expand control; the <a> stays the fallback. */
+  onExpand?: (event: MouseEvent<HTMLAnchorElement>) => void;
+  /** The modal has grown into the page — the expand control retires. */
+  expanded?: boolean;
 };
 
 export function BookDetailContent({
@@ -271,6 +276,8 @@ export function BookDetailContent({
   modalBreadcrumbHref,
   modalBookHref,
   modalBookCount,
+  onExpand,
+  expanded = false,
 }: BookDetailContentProps) {
   const coverUrl = enhanceCoverUrl(book.coverUrl);
   const notice = selectBookNotice(book);
@@ -540,27 +547,32 @@ export function BookDetailContent({
           {/* Modal-only action buttons */}
           {isModal && (
             <div className="absolute right-6 top-0.5 z-10 flex items-center gap-2 xs:right-14 sm:top-2 lg:top-[10px]">
-              <TooltipProvider>
-                <Tooltip delayDuration={200}>
-                  <TooltipTrigger asChild>
-                    {/* Use <a> instead of Link to force hard navigation out of intercepted route */}
-                    <a
-                      href={modalBookHref ?? getBookPath(bookId)}
-                      className="flex size-10 items-center justify-center rounded-full bg-muted shadow-sm backdrop-blur-sm transition-all duration-200 ease-in-out hover:bg-primary/20"
-                      aria-label="Open full page"
-                    >
-                      <ArrowsOutSimpleIcon
-                        size={20}
-                        weight="bold"
-                        className="text-primary"
-                      />
-                    </a>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Open full page</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              {!expanded && (
+                <TooltipProvider>
+                  <Tooltip delayDuration={200}>
+                    <TooltipTrigger asChild>
+                      {/* The <a> stays a hard-navigation fallback out of the
+                          intercepted route; onExpand animates the takeover on
+                          plain clicks. */}
+                      <a
+                        href={modalBookHref ?? getBookPath(bookId)}
+                        onClick={onExpand}
+                        className="flex size-10 items-center justify-center rounded-full bg-muted shadow-sm backdrop-blur-sm transition-all duration-200 ease-in-out hover:bg-primary/20"
+                        aria-label="Open full page"
+                      >
+                        <ArrowsOutSimpleIcon
+                          size={20}
+                          weight="bold"
+                          className="text-primary"
+                        />
+                      </a>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Open full page</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
               {onClose && (
                 <TooltipProvider>
                   <Tooltip delayDuration={200}>

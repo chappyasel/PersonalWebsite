@@ -2,7 +2,13 @@
 
 import { useModalActions, useModalState } from "../contexts/BookPreviewContext";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 
 import {
   originEntrance,
@@ -49,6 +55,10 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
   const { selectedBook, selectedBookId, isModalOpen } = useModalState();
   const { closeModal } = useModalActions();
   const [copied, setCopied] = useState(false);
+  // Expanded = the shell has grown to the viewport and stays there: on the
+  // books site the URL already reads /<bookId>, so the takeover is purely
+  // presentational, like the modal-sheet expand.
+  const [expanded, setExpanded] = useState(false);
   const isClosingRef = useRef(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
@@ -104,12 +114,98 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
     window.history.back();
   };
 
-  // Reset isClosing when modal reopens
+  // Reset isClosing and any prior takeover when modal reopens
   useEffect(() => {
     if (isModalOpen) {
       isClosingRef.current = false;
+      setExpanded(false);
     }
   }, [isModalOpen]);
+
+  const expandHref =
+    fromStacks && presentation
+      ? `${presentation.booksHref}/${bookId}`
+      : getBookPath(bookId);
+
+  // The iOS-pop expand, ported from the modal sheet: the shell's real box
+  // flies out to the viewport with content reflowing live. On the books
+  // site it then simply stays — no navigation, back/Esc/X still pop to the
+  // grid. Over the 3D world the real book page lives on the books
+  // subdomain — a different app on a different host — so the takeover
+  // can't stay: it hands off after the grow, and the browser's paint hold
+  // keeps the grown card up until the destination paints. Modified clicks
+  // and reduced motion fall through to the plain <a>.
+  const handleExpand = (event: ReactMouseEvent<HTMLAnchorElement>) => {
+    if (
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey ||
+      event.button !== 0
+    )
+      return;
+    if (reduceMotion) return;
+    event.preventDefault();
+    if (isClosingRef.current || expanded) return;
+    const shell = shellRef.current;
+    if (!shell) return;
+    isClosingRef.current = true;
+    const rect = shell.getBoundingClientRect();
+    Object.assign(shell.style, {
+      position: "fixed",
+      top: `${rect.top}px`,
+      left: `${rect.left}px`,
+      width: `${rect.width}px`,
+      height: `${rect.height}px`,
+      maxWidth: "none",
+      maxHeight: "none",
+      margin: "0",
+    });
+    backdropRef.current?.animate([{ opacity: 1 }, { opacity: 0 }], {
+      duration: 420,
+      easing: "ease",
+      fill: "forwards",
+    });
+    // The shell has no paint of its own — the rounded corners live on its
+    // two child layers (background + content), so they unround themselves.
+    for (const layer of shell.querySelectorAll<HTMLElement>(":scope > div")) {
+      layer.animate([{ borderRadius: "1rem" }, { borderRadius: "0rem" }], {
+        duration: 420,
+        easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+        fill: "forwards",
+      });
+    }
+    const flight = shell.animate(
+      [
+        {
+          top: `${rect.top}px`,
+          left: `${rect.left}px`,
+          width: `${rect.width}px`,
+          height: `${rect.height}px`,
+        },
+        { top: "0px", left: "0px", width: "100vw", height: "100dvh" },
+      ],
+      {
+        duration: 420,
+        easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+        ...(fromStacks ? { fill: "forwards" as const } : {}),
+      },
+    );
+    if (fromStacks) {
+      flight.onfinish = () => window.location.assign(expandHref);
+      return;
+    }
+    setExpanded(true);
+    flight.onfinish = () => {
+      Object.assign(shell.style, {
+        top: "0px",
+        left: "0px",
+        width: "100vw",
+        height: "100dvh",
+      });
+      isClosingRef.current = false;
+    };
+  };
 
   // Stacks origin pop: overlay a WAAPI flight from the clicked cover's rect
   // on top of the shell transition (WAAPI owns transform/opacity while it
@@ -244,7 +340,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
           {/* Backdrop */}
           <motion.div
             ref={backdropRef}
-            className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm dark:bg-black/60"
+            className={`fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-sm dark:bg-black/60 ${expanded ? "pointer-events-none" : ""}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -296,14 +392,14 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                     Framer to morph from a source that does not exist. */}
                 <motion.div
                   layoutId={fromStacks ? undefined : `book-cover-${bookId}`}
-                  className={`absolute inset-0 rounded-2xl bg-background shadow-[0px_10px_50px_10px_rgba(0,0,0,0.1)] dark:bg-muted ${book?.hasNotes ? "h-full" : "max-h-[85dvh]"}`}
+                  className={`absolute inset-0 rounded-2xl bg-background shadow-[0px_10px_50px_10px_rgba(0,0,0,0.1)] dark:bg-muted ${expanded ? "h-full max-h-none" : book?.hasNotes ? "h-full" : "max-h-[85dvh]"}`}
                   transition={{
                     layout: { type: "spring", stiffness: 300, damping: 30 },
                   }}
                 />
                 {/* Actual content - fades in on top */}
                 <motion.div
-                  className={`relative overflow-hidden rounded-2xl bg-background dark:bg-muted ${book?.hasNotes ? "h-full" : "max-h-[85dvh]"}`}
+                  className={`relative overflow-hidden rounded-2xl bg-background dark:bg-muted ${expanded ? "h-full max-h-none" : book?.hasNotes ? "h-full" : "max-h-[85dvh]"}`}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
@@ -336,6 +432,8 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                       bookId={bookId}
                       isModal={true}
                       onClose={handleClose}
+                      onExpand={handleExpand}
+                      expanded={expanded}
                       modalBreadcrumbHref={
                         fromStacks ? presentation.booksHref : undefined
                       }
