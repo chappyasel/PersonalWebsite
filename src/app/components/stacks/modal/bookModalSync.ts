@@ -3,14 +3,18 @@ type JumpTo = (unit: number) => void;
 type BookHashLocation = Pick<Location, "hash" | "pathname" | "search">;
 type BookHashHistory = Pick<History, "pushState" | "replaceState">;
 
-/** Give a direct book hash its own history entry so modal close stays onsite. */
-export function ownDirectBookHashHistory(
+/** Give a directly-arrived-at book its own history entry — the current entry
+ * becomes the bare scene URL, the book path stacks on top — so modal close
+ * (history.back) stays onsite. Also upgrades legacy #book- hash links to the
+ * real path in the address bar. */
+export function ownDirectBookHistory(
   history: BookHashHistory,
   location: BookHashLocation,
+  bookPath: string,
 ) {
   const baseUrl = `${location.pathname}${location.search}`;
   history.replaceState(null, "", baseUrl);
-  history.pushState({ stacksBook: true }, "", `${baseUrl}${location.hash}`);
+  history.pushState({ stacksBook: true }, "", bookPath);
 }
 
 type JumpState = {
