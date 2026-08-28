@@ -9,6 +9,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from "react";
 
@@ -104,6 +105,78 @@ export default function ModalSheet({
   const [origin] = useState(() =>
     typeof window === "undefined" ? null : takeModalOrigin(),
   );
+
+  // The iOS-pop expand: the card's real box springs out to the viewport —
+  // content reflowing live, so by the end the card IS the full page's
+  // layout — and only then does the hard navigation fire. The browser
+  // paint-holds the old document until the new one is ready, so the swap
+  // lands on a nearly identical frame. Mid-flight the sheet stops being a
+  // sheet (attribute and caller class stripped), so chrome that hides
+  // itself in-sheet — back links, theme toggles — is already back while
+  // the card grows. Modified clicks and reduced motion fall through to the
+  // plain <a>.
+  const expand = (event: ReactMouseEvent<HTMLAnchorElement>) => {
+    if (
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey ||
+      event.button !== 0
+    )
+      return;
+    const shell = shellRef.current;
+    if (!shell) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    event.preventDefault();
+    if (isClosingRef.current) return;
+    isClosingRef.current = true;
+    presenceRef.current?.(false);
+    const root = shell.closest("[data-modal-sheet]");
+    if (root instanceof HTMLElement) {
+      root.removeAttribute("data-modal-sheet");
+      if (className)
+        root.classList.remove(...className.split(" ").filter(Boolean));
+    }
+    shell
+      .querySelector("[data-sheet-cluster]")
+      ?.animate([{ opacity: 1 }, { opacity: 0 }], {
+        duration: 160,
+        fill: "forwards",
+      });
+    const rect = shell.getBoundingClientRect();
+    // Pin the shell where it stands, then fly the box itself — a transform
+    // would stretch the rendered pixels; animating the box reflows them.
+    Object.assign(shell.style, {
+      position: "fixed",
+      top: `${rect.top}px`,
+      left: `${rect.left}px`,
+      width: `${rect.width}px`,
+      height: `${rect.height}px`,
+      maxWidth: "none",
+      maxHeight: "none",
+      margin: "0",
+    });
+    const flight = shell.animate(
+      [
+        {
+          top: `${rect.top}px`,
+          left: `${rect.left}px`,
+          width: `${rect.width}px`,
+          height: `${rect.height}px`,
+          borderRadius: "1rem",
+        },
+        {
+          top: "0px",
+          left: "0px",
+          width: "100vw",
+          height: "100dvh",
+          borderRadius: "0rem",
+        },
+      ],
+      { duration: 420, easing: "cubic-bezier(0.16, 1, 0.3, 1)", fill: "forwards" },
+    );
+    flight.onfinish = () => window.location.assign(expandHref);
+  };
 
   const close = () => {
     if (isClosingRef.current) return;
@@ -264,6 +337,7 @@ export default function ModalSheet({
               }
             >
               <div
+                data-sheet-cluster
                 className={cn(
                   "absolute z-10 flex items-center gap-2",
                   isCard ? "right-3 top-3" : "right-4 top-4",
@@ -273,9 +347,13 @@ export default function ModalSheet({
                   <Tooltip delayDuration={200}>
                     <TooltipTrigger asChild>
                       {/* A hard <a>, not Link: the full-page render must step
-                          out of this intercepted route. */}
+                          out of this intercepted route. The document variant
+                          springs to the viewport first; the card's full page
+                          is a narrow centered layout a fullscreen grow would
+                          mismatch, so it navigates plainly. */}
                       <a
                         href={expandHref}
+                        onClick={isCard ? undefined : expand}
                         className={cn(
                           "flex items-center justify-center rounded-full bg-muted shadow-sm transition-all duration-200 ease-in-out hover:bg-primary/20",
                           isCard ? "size-8" : "size-10",

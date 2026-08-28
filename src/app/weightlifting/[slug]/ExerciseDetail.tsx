@@ -56,7 +56,10 @@ export async function ExerciseDetail({ slug }: { slug: string }) {
         >
           ← Chappy&apos;s Weightlifting
         </Link>
-        <div className="flex items-start justify-between gap-3">
+        {/* In the sheet the corner cluster (expand + close) occupies the top
+            right; the title row pads past it so the variation button stays
+            clear. */}
+        <div className="flex items-start justify-between gap-3 [[data-modal-sheet]_&]:pr-24">
           <h1 className="flex items-center gap-3 font-rounded text-2xl font-semibold text-foreground md:text-4xl">
             <span
               className="h-3.5 w-3.5 shrink-0 rounded-full"
