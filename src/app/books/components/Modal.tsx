@@ -55,10 +55,12 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
   const { selectedBook, selectedBookId, isModalOpen } = useModalState();
   const { closeModal } = useModalActions();
   const [copied, setCopied] = useState(false);
-  // Expanded = the shell has grown to the viewport and stays there: on the
-  // books site the URL already reads /<bookId>, so the takeover is purely
-  // presentational, like the modal-sheet expand.
+  // Expanded = the shell has grown to the viewport and stays there — a
+  // purely presentational takeover, like the modal-sheet expand. The ref
+  // mirrors the state for the long-lived keydown listener, whose closure
+  // would otherwise hold a stale value.
   const [expanded, setExpanded] = useState(false);
+  const expandedRef = useRef(false);
   const isClosingRef = useRef(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
@@ -118,6 +120,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
   useEffect(() => {
     if (isModalOpen) {
       isClosingRef.current = false;
+      expandedRef.current = false;
       setExpanded(false);
     }
   }, [isModalOpen]);
@@ -128,28 +131,20 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
       : getBookPath(bookId);
 
   // The iOS-pop expand, ported from the modal sheet: the shell's real box
-  // flies out to the viewport with content reflowing live. On the books
-  // site it then simply stays — no navigation, back/Esc/X still pop to the
-  // grid. Over the 3D world the real book page lives on the books
-  // subdomain — a different app on a different host — so the takeover
-  // can't stay: it hands off after the grow, and the browser's paint hold
-  // keeps the grown card up until the destination paints. Modified clicks
-  // and reduced motion fall through to the plain <a>.
-  const handleExpand = (event: ReactMouseEvent<HTMLAnchorElement>) => {
-    if (
-      event.metaKey ||
-      event.ctrlKey ||
-      event.shiftKey ||
-      event.altKey ||
-      event.button !== 0
-    )
-      return;
-    if (reduceMotion) return;
-    event.preventDefault();
-    if (isClosingRef.current || expanded) return;
+  // flies out to the viewport with content reflowing live, then simply
+  // stays — the modal already renders the book's full content, so there is
+  // nothing to navigate to. Back/Esc/X still pop to the launcher (the grid,
+  // or the 3D world), and the share button already hands out the canonical
+  // books-site URL. Modified clicks and reduced motion fall through to the
+  // plain <a> — the real cross-host page. Returns false when the caller
+  // should hard-navigate instead.
+  const beginExpand = () => {
+    if (reduceMotion) return false;
+    if (isClosingRef.current || expandedRef.current) return false;
     const shell = shellRef.current;
-    if (!shell) return;
+    if (!shell) return false;
     isClosingRef.current = true;
+    expandedRef.current = true;
     const rect = shell.getBoundingClientRect();
     Object.assign(shell.style, {
       position: "fixed",
@@ -185,19 +180,8 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
         },
         { top: "0px", left: "0px", width: "100vw", height: "100dvh" },
       ],
-      {
-        duration: 420,
-        easing: "cubic-bezier(0.16, 1, 0.3, 1)",
-        ...(fromStacks ? { fill: "forwards" as const } : {}),
-      },
+      { duration: 420, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
     );
-    if (fromStacks) {
-      // replace, not assign: the modal's own history entry is the scene URL
-      // plus a #book- hash, and leaving it in the stack means back from the
-      // books site re-opens the modal instead of landing on the clean scene.
-      flight.onfinish = () => window.location.replace(expandHref);
-      return;
-    }
     setExpanded(true);
     flight.onfinish = () => {
       Object.assign(shell.style, {
@@ -208,6 +192,21 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
       });
       isClosingRef.current = false;
     };
+    return true;
+  };
+
+  const handleExpand = (event: ReactMouseEvent<HTMLAnchorElement>) => {
+    if (
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey ||
+      event.button !== 0
+    )
+      return;
+    if (reduceMotion) return;
+    event.preventDefault();
+    beginExpand();
   };
 
   // Stacks origin pop: overlay a WAAPI flight from the clicked cover's rect
@@ -313,9 +312,12 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
       if (e.key === "Escape" && !photoViewOpen) {
         handleClose();
       } else if (shouldUseModalEnterShortcut(e) && !photoViewOpen && bookId) {
-        // Navigate to full page view
+        // Full page view: the animated takeover when motion is allowed,
+        // otherwise the real page — expandHref, not getBookPath, which on
+        // the homepage host pointed at a route that only exists on the
+        // books subdomain.
         e.preventDefault();
-        window.location.href = getBookPath(bookId);
+        if (!beginExpand()) window.location.href = expandHref;
       }
     };
     window.addEventListener("keydown", handleKeyDown);
