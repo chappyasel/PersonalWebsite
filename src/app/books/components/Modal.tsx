@@ -229,7 +229,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                 }
                 tabIndex={-1}
                 data-book-modal-shell={fromStacks ? "stacks" : undefined}
-                className={`relative w-full max-w-4xl outline-none ${book?.hasNotes ? "h-full max-h-[max(85dvh,1000px)]" : ""}`}
+                className={`relative w-full max-w-4xl outline-none ${book?.hasNotes ? "h-full" : ""}`}
                 onClick={(e) => e.stopPropagation()}
                 initial={
                   fromStacks && !reduceMotion
