@@ -183,6 +183,33 @@ function scenePointerEvents(coarseTouch: boolean) {
 /** Drei's overflow element is natively keyboard-focusable, so leaving it
  * unnamed makes the first Tab stop a full-viewport anonymous div. Name the
  * region without replacing the rail's explicit section controls. */
+/**
+ * A frozen room (frameloop "never" while a modal or the daylight sheet is
+ * up) ignores window resizes, so the canvas stretches its last frame into
+ * the new box — which reads as the whole world going blurry the moment the
+ * viewport changes. When r3f applies a new size while frozen, paint exactly
+ * one frame at it.
+ */
+function FrozenResizeRepaint({ frozen }: { frozen: boolean }) {
+  const size = useThree((s) => s.size);
+  const advance = useThree((s) => s.advance);
+  const first = useRef(true);
+  useEffect(() => {
+    if (!frozen) {
+      first.current = true;
+      return;
+    }
+    // Skip the freeze-entry run; only size CHANGES while frozen need paint.
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    const frame = requestAnimationFrame(() => advance(performance.now()));
+    return () => cancelAnimationFrame(frame);
+  }, [frozen, size, advance]);
+  return null;
+}
+
 function ScrollRegionA11y() {
   const { el } = useScroll();
   useEffect(() => {
@@ -2023,6 +2050,7 @@ export default function StacksCanvas({
         <PhysicsPrewarm />
         <MovementProbe onChange={onMovementChange} />
         <SceneLightShapePadding />
+        <FrozenResizeRepaint frozen={freezeRoom} />
         <ShaderPrewarm
           variant={`${dark ? "dark" : "light"}-${plan.profile}-${postfxQuality}-${plan.environment.farGrassShader}-${plan.environment.grassDeformation}-${performanceSettings.activeNeighborhoodLights ? "near-lights" : "all-lights"}-${performanceSettings.activeNeighborhoodLights && performanceSettings.stableNeighborhoodLightShape ? "stable-light-shape" : "variable-light-shape"}`}
           resourceVariant={

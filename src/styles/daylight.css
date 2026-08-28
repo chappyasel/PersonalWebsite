@@ -814,10 +814,31 @@
     padding-top: 1.75rem;
     padding-bottom: 10rem;
   }
-  /* The pan carries the bridge away from a fixed tap zone; the easter egg
-     stays a desktop handshake. */
+  /* The strip pans on phones, so the tap target wears the SAME pan and
+     strip-relative geometry — the zone rides the bridge instead of being
+     left behind by it. Its keyframe is its own: the strip's translation is
+     element-relative, and the two elements differ in width. */
   .dl-ggb-tap {
-    display: none;
+    left: calc(max(150vw, 900px) * 0.075);
+    width: calc(max(150vw, 900px) * 0.175);
+    height: calc(max(150vw, 900px) * 0.06);
+  }
+}
+@media (prefers-reduced-motion: no-preference) and (max-width: 700px) {
+  .dl-ggb-tap {
+    animation: dl-ggb-tap-pan 200s ease-in-out infinite alternate;
+  }
+  /* Half a cycle out, matching the footer strip's own pan phase. */
+  .dl-horizon .dl-ggb-tap {
+    animation-delay: -100s;
+  }
+}
+@keyframes dl-ggb-tap-pan {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(100vw - max(150vw, 900px)));
   }
 }
 @media (prefers-reduced-motion: no-preference) and (max-width: 700px) {
@@ -912,9 +933,19 @@
   pointer-events: none;
 }
 .dl-fw-layer canvas {
-  display: block;
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
+}
+/* The composer's softness, as two blit passes of one half-resolution
+   render: a wide bloom under a barely-softened core. */
+.dl-fw-bloom {
+  filter: blur(4px);
+  opacity: 0.85;
+}
+.dl-fw-core {
+  filter: blur(0.5px);
 }
 
 /* ============ Framed prints ============ */
