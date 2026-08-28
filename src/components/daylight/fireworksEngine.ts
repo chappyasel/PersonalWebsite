@@ -17,9 +17,52 @@
 // this module out of the static graph also keeps it out of the homepage's
 // budgeted chunks (a shared-chunk merge once dragged it in).
 
+import { SKYLINE_SHAPES, SKYLINE_VIEWBOX } from "./skylineGeometry";
+
 const FIRE_WINDOW = 7.8;
 const AZ_LEFT = -2.24;
 const AZ_SPAN = 1.215;
+
+const VB = SKYLINE_VIEWBOX.split(" ").map(Number);
+const VB_W = VB[2]!;
+const VB_H = VB[3]!;
+
+// The strip's whole silhouette as an opaque stencil. The svg draws its
+// distant shapes with translucent fills — baked haze — so a shell behind
+// the bridge, Sutro, or a hill showed THROUGH them while the near-opaque
+// downtown occluded properly. Solid objects occlude at full strength no
+// matter how hazed they are painted, so the shells get erased wherever the
+// geometry stands (destination-out): the shader's write order, restated.
+// Theme-independent (only alpha matters) and rebuilt only when the strip's
+// width changes; half resolution to match the render it erases from.
+let maskCanvas: HTMLCanvasElement | null = null;
+let maskWidth = 0;
+function occluderMask(stripCssWidth: number): HTMLCanvasElement | null {
+  const w = Math.ceil(stripCssWidth / 2);
+  if (maskCanvas && maskWidth === w) return maskCanvas;
+  maskCanvas ??= document.createElement("canvas");
+  maskWidth = w;
+  maskCanvas.width = w;
+  maskCanvas.height = Math.ceil((stripCssWidth * (VB_H / VB_W)) / 2);
+  const m = maskCanvas.getContext("2d");
+  if (!m) return null;
+  const s = w / VB_W;
+  m.setTransform(s, 0, 0, s, 0, 0);
+  m.clearRect(0, 0, VB_W, VB_H);
+  m.fillStyle = "#000";
+  m.strokeStyle = "#000";
+  for (const shape of SKYLINE_SHAPES) {
+    if (shape.kind === "rect") {
+      m.fillRect(shape.x, shape.y, shape.w, shape.h);
+    } else if (shape.kind === "stroke") {
+      m.lineWidth = shape.width;
+      m.stroke(new Path2D(shape.d));
+    } else {
+      m.fill(new Path2D(shape.d));
+    }
+  }
+  return maskCanvas;
+}
 
 // The shader's own hash1.
 function hash1(n: number): number {
@@ -278,6 +321,21 @@ export function createFireworksEngine(
         ox: sRect.left - cRect.left,
         oy: sRect.bottom - cRect.top,
       });
+      // Erase the shells wherever the strip's geometry stands — bridge,
+      // Sutro, hills, city — pan and all (the mask rides the strip's rect).
+      const mask = occluderMask(sRect.width);
+      if (mask) {
+        const stripH = sRect.width * (VB_H / VB_W);
+        g.globalCompositeOperation = "destination-out";
+        g.drawImage(
+          mask,
+          sRect.left - cRect.left,
+          sRect.bottom - cRect.top - stripH,
+          sRect.width,
+          stripH,
+        );
+        g.globalCompositeOperation = "source-over";
+      }
     }
 
     // Blit the render through the two display canvases: wide bloom under a

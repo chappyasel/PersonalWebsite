@@ -30,6 +30,7 @@
     "verify:artifacts": "pnpm check:home-og && pnpm check:about-boot && pnpm check:search-index",
     "start": "next start",
     "check:budgets": "node scripts/check-route-budgets.mjs",
+    "budgets:accept": "node scripts/check-route-budgets.mjs --accept",
     "check:node-version": "node scripts/check-node-version.mjs",
     "report:test-source-reads": "node scripts/test-source-reads.mjs",
     "check:meadow": "tsx ./scripts/stacks-meadow-check.ts",

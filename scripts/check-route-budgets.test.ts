@@ -59,7 +59,7 @@ describe("route budget checks", () => {
     });
 
     const output = formatRouteBudget(
-      { name: "test", manifest: "unused", budget: 0 },
+      { name: "test" },
       result,
     );
     const reported = output
