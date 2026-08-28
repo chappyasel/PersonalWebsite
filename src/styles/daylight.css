@@ -1240,9 +1240,21 @@ body:has(.daylight-root) {
    width from the viewBox), and on phones it keeps the hero's min-width
    overhang and slow pan so the city stays legible. */
 .dl-horizon {
+  position: relative;
   overflow: hidden;
   margin-top: 5rem;
+  /* Headroom for the raised moon's halo, which rides above the strip's
+     viewBox — without it the container clips the glow on a straight line
+     at the strip top. ~43 user units; a unit is 1/1440 of the strip. */
+  padding-top: max(3vw, 2rem);
   color: hsl(var(--dl-sil));
+}
+/* The hero keeps the dome's authored moon altitude (its fog owns the
+   waterline there); the footer has no fog, so the moon lifts clear of the
+   flat roofline that was cutting its glow. px on an SVG group is user
+   units (viewBox 1440x154). */
+.dl-horizon .dl-night-back {
+  translate: 0 -22px;
 }
 .dl-horizon-strip svg {
   display: block;

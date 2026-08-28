@@ -1,3 +1,4 @@
+import GgbFireworks from "./GgbFireworks";
 import Skyline from "./Skyline";
 
 /**
@@ -15,6 +16,8 @@ export default function SkyFooter() {
       <div className="dl-horizon-strip">
         <Skyline />
       </div>
+      {/* The bridge answers here the way it does in the hero and the scene. */}
+      <GgbFireworks />
     </footer>
   );
 }

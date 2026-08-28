@@ -42,9 +42,10 @@ export default function Skyline() {
           x1="0"
           y1={MOON.y}
           x2="0"
-          y2={MOON.y + MOON.r * 2.9}
+          y2={MOON.y + MOON.r * 3.6}
         >
           <stop offset="0%" stopColor="#fff" />
+          <stop offset="60%" stopColor="#999" />
           <stop offset="100%" stopColor="#000" />
         </linearGradient>
         <mask id="dl-moon-halo-m">

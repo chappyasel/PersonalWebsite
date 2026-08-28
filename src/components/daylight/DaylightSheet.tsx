@@ -145,9 +145,13 @@ export default function DaylightSheet({
                   </Tooltip>
                 </TooltipProvider>
               </div>
+              {/* Own compositor layer: Chromium can transiently rasterize the
+                  backdrop-filter's blur over overlapping siblings after a
+                  viewport resize; a pinned layer keeps the card out of that
+                  pass. */}
               <div
                 data-dl-scroller
-                className="h-full overflow-y-auto overscroll-contain"
+                className="h-full overflow-y-auto overscroll-contain [transform:translateZ(0)]"
               >
                 {children}
               </div>
