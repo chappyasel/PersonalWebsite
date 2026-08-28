@@ -2,6 +2,7 @@
 
 import { useModalActions, useModalState } from "../contexts/BookPreviewContext";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { usePathname } from "next/navigation";
 import {
   useEffect,
   useLayoutEffect,
@@ -25,6 +26,7 @@ import { Spinner } from "~/components/ui/spinner";
 
 import { BookDetailContent } from "./BookDetailContent";
 import type { ModalPresentation } from "./ModalHost";
+import { bookIdFromPathname, isBookModalHistoryState } from "./modalHistory";
 import { shouldUseModalEnterShortcut } from "./modalKeyboard";
 
 const FOCUSABLE_SELECTOR = [
@@ -53,7 +55,8 @@ function focusableChildren(root: HTMLElement): HTMLElement[] {
 
 export function Modal({ presentation }: { presentation?: ModalPresentation }) {
   const { selectedBook, selectedBookId, isModalOpen } = useModalState();
-  const { closeModal } = useModalActions();
+  const { closeModal, openModalById } = useModalActions();
+  const pathname = usePathname();
   const [copied, setCopied] = useState(false);
   // Expanded = the shell has grown to the viewport and stays there — a
   // purely presentational takeover, like the modal-sheet expand. The ref
@@ -124,6 +127,55 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
       setExpanded(false);
     }
   }, [isModalOpen]);
+
+  // Browser back/forward. The pop has already moved history, so unlike the
+  // X this close must not call history.back() again — but it plays the same
+  // origin exit flight when one is owed. Forward onto an entry that names a
+  // book reopens it, so the URL and the page never disagree.
+  useEffect(() => {
+    const onPopState = (event: PopStateEvent) => {
+      const id = bookIdFromPathname(window.location.pathname, fromStacks);
+      if (id) {
+        if (!isModalOpen && isBookModalHistoryState(event.state)) {
+          openModalById(id);
+        }
+        return;
+      }
+      if (!isModalOpen || isClosingRef.current) return;
+      isClosingRef.current = true;
+      (document.activeElement as HTMLElement)?.blur();
+      const origin = stacksOriginRef.current;
+      const shell = shellRef.current;
+      if (origin && shell) {
+        stacksOriginRef.current = null;
+        if (originExit(shell, origin, backdropRef.current, closeModal)) return;
+      }
+      closeModal();
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [isModalOpen, fromStacks, closeModal, openModalById]);
+
+  // A soft navigation while the modal is open (Universal Search on the books
+  // site, say) replaces the page underneath; the modal must not linger over
+  // it. Native pushState syncs into usePathname, so the open modal normally
+  // sees its own book's path — the ref records that sighting, and only a
+  // pathname that stops matching after it closes the modal. If the sync
+  // never happens, nothing here ever fires.
+  const sawOwnPathRef = useRef(false);
+  useEffect(() => {
+    if (!isModalOpen) {
+      sawOwnPathRef.current = false;
+      return;
+    }
+    if (bookIdFromPathname(pathname, fromStacks) === bookId) {
+      sawOwnPathRef.current = true;
+      return;
+    }
+    if (!sawOwnPathRef.current || isClosingRef.current) return;
+    isClosingRef.current = true;
+    closeModal();
+  }, [pathname, isModalOpen, bookId, fromStacks, closeModal]);
 
   const expandHref =
     fromStacks && presentation

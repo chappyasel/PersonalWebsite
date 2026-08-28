@@ -1,3 +1,5 @@
+import { BOOK_MODAL_HISTORY_STATE } from "~/app/books/components/modalHistory";
+
 type JumpTo = (unit: number) => void;
 
 type BookHashLocation = Pick<Location, "hash" | "pathname" | "search">;
@@ -14,7 +16,7 @@ export function ownDirectBookHistory(
 ) {
   const baseUrl = `${location.pathname}${location.search}`;
   history.replaceState(null, "", baseUrl);
-  history.pushState({ stacksBook: true }, "", bookPath);
+  history.pushState(BOOK_MODAL_HISTORY_STATE, "", bookPath);
 }
 
 type JumpState = {

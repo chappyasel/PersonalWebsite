@@ -23,6 +23,7 @@ import { useEffect } from "react";
 import { devSubdomainUrl } from "~/lib/util";
 import { BooksTRPCProvider } from "~/trpc/books-provider";
 
+import { BOOK_MODAL_HISTORY_STATE } from "../../../books/components/modalHistory";
 import { jumpToUnitWhenReady, ownDirectBookHistory } from "./bookModalSync";
 
 const BOOK_HASH = /^#book-(.+)$/;
@@ -46,7 +47,11 @@ function ModalBridge() {
   // 3D cover click → pushState + instant open (the books-app pattern).
   useEffect(() => {
     if (!pendingBook) return;
-    window.history.pushState(null, "", `/books/${pendingBook.id}`);
+    window.history.pushState(
+      BOOK_MODAL_HISTORY_STATE,
+      "",
+      `/books/${pendingBook.id}`,
+    );
     openModal(pendingBook);
     setPendingBook(null);
   }, [pendingBook, openModal, setPendingBook]);
@@ -56,7 +61,11 @@ function ModalBridge() {
   // warm, no full Book on the payload), so the books app fetches this one.
   useEffect(() => {
     if (!pendingBookId) return;
-    window.history.pushState(null, "", `/books/${pendingBookId}`);
+    window.history.pushState(
+      BOOK_MODAL_HISTORY_STATE,
+      "",
+      `/books/${pendingBookId}`,
+    );
     openModalById(pendingBookId);
     setPendingBookId(null);
   }, [pendingBookId, openModalById, setPendingBookId]);

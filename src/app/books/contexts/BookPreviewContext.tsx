@@ -6,7 +6,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -93,19 +92,9 @@ export function BookPreviewProvider({ children }: { children: ReactNode }) {
     setKeyboardFocusedBookId(null);
   }, []);
 
-  // Handle browser back/forward navigation
-  useEffect(() => {
-    const handlePopState = () => {
-      const pathname = window.location.pathname;
-      const isBookPage = pathname !== "/" && pathname.length > 1;
-      if (!isBookPage) {
-        setIsModalOpen(false);
-      }
-    };
-
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
+  // Browser back/forward is handled by the Modal itself, which can play its
+  // exit flight on a pop and reopen on a forward — see Modal's popstate
+  // effect. The Modal is always mounted while open, so nothing is missed.
 
   // Memoize actions - these never change
   const actions = useMemo(
