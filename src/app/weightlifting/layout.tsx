@@ -36,13 +36,20 @@ export const metadata: Metadata = {
 
 export default function WeightliftingLayout({
   children,
+  sheet,
 }: {
   children: React.ReactNode;
+  sheet: React.ReactNode;
 }) {
+  // `sheet` is the intercepted-route slot: an exercise page opened from
+  // inside the app renders as a modal sheet over the launcher instead of
+  // replacing it. Hard loads fall through to the slot's default (null) and
+  // the real full page.
   return (
     <TRPCReactProvider>
       <NuqsAdapter>
         <main className="p-6 md:p-8">{children}</main>
+        {sheet}
       </NuqsAdapter>
     </TRPCReactProvider>
   );

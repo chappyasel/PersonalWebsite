@@ -1,6 +1,5 @@
 "use client";
 
-import { WorkoutDetailModal } from "../components/WorkoutDetailModal";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import {
   formatValueUnit,
@@ -11,6 +10,7 @@ import {
   toTextColor,
 } from "../lib/wlaFormat";
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { useId, useMemo, useState } from "react";
 import {
   Area,
@@ -25,6 +25,7 @@ import {
   YAxis,
 } from "recharts";
 
+import { recordModalOrigin } from "~/lib/originFlight";
 import type { ExerciseInstance } from "~/server/queries/weightliftingExercise";
 
 import {
@@ -289,11 +290,11 @@ export function ExerciseExplorer({
   instances: ExerciseInstance[];
   color: string;
 }) {
+  const router = useRouter();
   const [metricKey, setMetricKey] = useState<MetricKey>("oneRM");
   const [queryType, setQueryType] = useState<QueryType>("recent");
   const [timeSpan, setTimeSpan] = useState<TimeSpanKey>("all");
   const [moreExpanded, setMoreExpanded] = useState(false);
-  const [previewWorkout, setPreviewWorkout] = useState<string | null>(null);
   const reduceMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const gradientId = useId();
   const metric = METRICS.find((m) => m.key === metricKey)!;
@@ -883,7 +884,16 @@ export function ExerciseExplorer({
               {listed.map((instance, i) => (
                 <li key={`${instance.ts}-${i}`}>
                   <button
-                    onClick={() => setPreviewWorkout(instance.workoutUuid)}
+                    onClick={(e) => {
+                      // The workout preview route, intercepted into a card
+                      // sheet popping from this row.
+                      recordModalOrigin(
+                        e.currentTarget.getBoundingClientRect(),
+                      );
+                      router.push(
+                        `/weightlifting/workout/${instance.workoutUuid}`,
+                      );
+                    }}
                     className="w-full px-3.5 py-2 text-left transition-colors hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-neutral-400 dark:hover:bg-neutral-700/40 dark:focus-visible:ring-neutral-500"
                   >
                     <div className="flex items-baseline justify-between gap-3">
@@ -920,12 +930,6 @@ export function ExerciseExplorer({
           )}
         </section>
 
-        <WorkoutDetailModal
-          target={
-            previewWorkout !== null ? { workoutUuid: previewWorkout } : null
-          }
-          onClose={() => setPreviewWorkout(null)}
-        />
       </div>
     </MotionConfig>
   );

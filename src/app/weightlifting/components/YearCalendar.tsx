@@ -3,10 +3,10 @@
 import { wlSearchParams } from "../lib/searchParams";
 import { QUERY_STALE_TIME, categoryColor } from "../lib/utils";
 import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react/dist/ssr";
-import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { useQueryState } from "nuqs";
-import { useState } from "react";
 
+import { recordModalOrigin } from "~/lib/originFlight";
 import { api } from "~/trpc/react";
 
 import { Skeleton } from "~/components/ui/skeleton";
@@ -18,7 +18,6 @@ import {
 } from "~/components/ui/tooltip";
 
 import { QueryErrorFallback } from "./QueryErrorFallback";
-import { WorkoutDetailModal } from "./WorkoutDetailModal";
 
 const MONTH_NAMES = [
   "Jan",
@@ -63,8 +62,9 @@ function DayCell({
   categories: Record<string, number> | undefined;
   isToday: boolean;
   isCurrentMonth: boolean;
-  onDayClick: (dateStr: string) => void;
+  onDayClick: (dateStr: string, rect: DOMRect) => void;
 }) {
+  const router = useRouter();
   const utils = api.useUtils();
   const hasWorkout = categories && Object.keys(categories).length > 0;
 
@@ -74,6 +74,7 @@ function DayCell({
       { date: dateStr },
       { staleTime: QUERY_STALE_TIME },
     );
+    router.prefetch(`/weightlifting/workout/${dateStr}`);
   };
   const sorted = hasWorkout
     ? Object.entries(categories).sort(([a], [b]) => a.localeCompare(b))
@@ -88,21 +89,25 @@ function DayCell({
     : undefined;
 
   const cell = (
-    <motion.div
-      layoutId={hasWorkout ? `day-${dateStr}` : undefined}
+    <div
       role={hasWorkout ? "button" : undefined}
       tabIndex={hasWorkout ? 0 : undefined}
       aria-label={ariaLabel}
       className={`flex h-8 flex-col items-center justify-center ${
         !isCurrentMonth ? "opacity-0" : ""
       } ${hasWorkout ? "cursor-pointer rounded-md transition-colors hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 dark:hover:bg-neutral-700 dark:focus-visible:ring-neutral-500" : ""}`}
-      onClick={hasWorkout ? () => onDayClick(dateStr) : undefined}
+      onClick={
+        hasWorkout
+          ? (e) =>
+              onDayClick(dateStr, e.currentTarget.getBoundingClientRect())
+          : undefined
+      }
       onKeyDown={
         hasWorkout
           ? (e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
-                onDayClick(dateStr);
+                onDayClick(dateStr, e.currentTarget.getBoundingClientRect());
               }
             }
           : undefined
@@ -134,7 +139,7 @@ function DayCell({
       ) : (
         <div className="mt-0.5 h-1.5" />
       )}
-    </motion.div>
+    </div>
   );
 
   if (!hasWorkout) return cell;
@@ -162,7 +167,7 @@ function MonthMiniCalendar({
   year: number;
   month: number;
   dayMap: Record<string, Record<string, number>>;
-  onDayClick: (dateStr: string) => void;
+  onDayClick: (dateStr: string, rect: DOMRect) => void;
 }) {
   const today = new Date();
   const todayStr =
@@ -215,13 +220,18 @@ function MonthMiniCalendar({
 }
 
 export function YearCalendar() {
+  const router = useRouter();
   const { data: stats } = api.weightlifting.getStats.useQuery(undefined, {
     staleTime: QUERY_STALE_TIME,
   });
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useQueryState("year", wlSearchParams.year);
-  // Stays local: layoutId animation source + no history spam
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  // A day opens the workout preview route — intercepted into a card sheet
+  // over the calendar, popping from the clicked cell.
+  const openDay = (dateStr: string, rect: DOMRect) => {
+    recordModalOrigin(rect);
+    router.push(`/weightlifting/workout/${dateStr}`);
+  };
 
   const {
     data: calendarData,
@@ -286,17 +296,13 @@ export function YearCalendar() {
                 year={year}
                 month={month}
                 dayMap={dayMap}
-                onDayClick={setSelectedDate}
+                onDayClick={openDay}
               />
             ))}
           </div>
         </TooltipProvider>
       )}
 
-      <WorkoutDetailModal
-        target={selectedDate ? { date: selectedDate } : null}
-        onClose={() => setSelectedDate(null)}
-      />
     </div>
   );
 }

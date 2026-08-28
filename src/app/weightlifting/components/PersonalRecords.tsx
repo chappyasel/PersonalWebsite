@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 
+import { recordModalOrigin } from "~/lib/originFlight";
+
 import { Skeleton } from "~/components/ui/skeleton";
 import { api } from "~/trpc/react";
 import { categoryColor, QUERY_STALE_TIME } from "../lib/utils";
@@ -68,6 +70,11 @@ export function PersonalRecords({ selectedExercises }: PersonalRecordsProps) {
                 {record.slug ? (
                   <Link
                     href={`/weightlifting/${record.slug}`}
+                    onClick={(event) =>
+                      recordModalOrigin(
+                        event.currentTarget.getBoundingClientRect(),
+                      )
+                    }
                     className="group flex items-center gap-2 text-neutral-800 dark:text-neutral-100"
                   >
                     <span

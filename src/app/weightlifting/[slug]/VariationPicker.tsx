@@ -3,7 +3,9 @@
 import { CaretDownIcon } from "@phosphor-icons/react/dist/ssr";
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import Link from "next/link";
-import { useState } from "react";
+import { useContext, useState } from "react";
+
+import { InModalSheetContext } from "~/components/modal-sheet/ModalSheet";
 
 /**
  * The app's iteration picker (IterationSelectionViewController): a card with
@@ -24,6 +26,10 @@ export function VariationPicker({
   color: string;
 }) {
   const [open, setOpen] = useState(false);
+  // In the intercepted sheet a soft nav swaps the exercise inside the same
+  // sheet; on the full page a soft nav would be INTERCEPTED into a sheet
+  // over this full page, so it hard-navigates instead.
+  const inSheet = useContext(InModalSheetContext);
 
   return (
     <MotionConfig reducedMotion="user">
@@ -71,9 +77,10 @@ export function VariationPicker({
                           .trim()
                       : "";
                     const isCurrent = variant.slug === currentSlug;
+                    const Nav = inSheet ? Link : "a";
                     return (
                       <li key={variant.slug}>
-                        <Link
+                        <Nav
                           href={`/weightlifting/${variant.slug}`}
                           onClick={() => setOpen(false)}
                           className={`block px-4 py-2.5 text-sm transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-700/60 ${
@@ -99,7 +106,7 @@ export function VariationPicker({
                               </span>
                             </span>
                           )}
-                        </Link>
+                        </Nav>
                       </li>
                     );
                   })}

@@ -46,7 +46,9 @@ describe("universal search shell wiring", () => {
   it.each([
     "src/app/books/components/Modal.tsx",
     "src/app/books/[bookId]/BookPage.tsx",
-    "src/app/weightlifting/components/WorkoutDetailModal.tsx",
+    // The workout preview (and every other intercepted route) closes and
+    // traps focus through the shared sheet chrome now.
+    "src/components/modal-sheet/ModalSheet.tsx",
   ])("makes %s yield while universal search owns focus", (path) => {
     const contents = source(path);
 
