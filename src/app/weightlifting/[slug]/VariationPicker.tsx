@@ -41,10 +41,13 @@ export function VariationPicker({
     <MotionConfig reducedMotion="user">
       <div className="relative">
         <h1 className="font-rounded text-2xl font-semibold text-foreground md:text-4xl">
+          {/* The pencil brightening toward the text color is the whole hover
+              affordance — dimming the title too moved the two in opposite
+              directions in dark mode. */}
           <button
             onClick={() => setOpen(!open)}
             aria-expanded={open}
-            className="group inline-flex items-center gap-2.5 text-left transition-opacity hover:opacity-80"
+            className="group inline-flex items-center gap-2.5 text-left"
           >
             {title}
             <PencilSimpleIcon
