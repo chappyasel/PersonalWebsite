@@ -1,3 +1,5 @@
+import { BookDetailSkeleton } from "./BookDetailSkeleton";
+
 export default function BookLoading() {
-  return null;
+  return <BookDetailSkeleton />;
 }

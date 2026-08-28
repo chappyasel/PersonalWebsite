@@ -192,7 +192,10 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
       },
     );
     if (fromStacks) {
-      flight.onfinish = () => window.location.assign(expandHref);
+      // replace, not assign: the modal's own history entry is the scene URL
+      // plus a #book- hash, and leaving it in the stack means back from the
+      // books site re-opens the modal instead of landing on the clean scene.
+      flight.onfinish = () => window.location.replace(expandHref);
       return;
     }
     setExpanded(true);
