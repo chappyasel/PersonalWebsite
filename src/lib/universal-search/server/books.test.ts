@@ -17,6 +17,7 @@ describe("searchBooks", () => {
         author: "Author",
         tags: [],
         notes: "The durable decision appears here.",
+        cover_url: null,
       },
       {
         id: "decision-book",
@@ -24,6 +25,7 @@ describe("searchBooks", () => {
         author: "Another Author",
         tags: [],
         notes: null,
+        cover_url: null,
       },
       {
         id: "tag-book",
@@ -31,6 +33,7 @@ describe("searchBooks", () => {
         author: "Writer",
         tags: ["Decision science"],
         notes: null,
+        cover_url: null,
       },
     ];
     const load = vi.fn(async () => rows);
@@ -68,6 +71,7 @@ describe("searchBooks", () => {
           author: "Author",
           tags: [],
           notes: "A chapter about how people run organizations.",
+          cover_url: null,
         },
       ],
       location: new URL("https://www.chappyasel.com"),
@@ -90,6 +94,7 @@ describe("searchBooks", () => {
             author: "Author",
             tags: ["Stats & data"],
             notes: null,
+            cover_url: null,
           },
         ];
       },
@@ -111,6 +116,7 @@ describe("searchBooks", () => {
           author: "Author",
           tags: [],
           notes: null,
+          cover_url: null,
         },
       ],
       location: new URL("https://personal-website.vercel.app"),

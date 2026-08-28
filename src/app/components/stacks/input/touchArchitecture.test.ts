@@ -204,6 +204,11 @@ describe("coarse-pointer ownership", () => {
     expect(globals).not.toContain("html[data-world] body *");
     expect(home).toContain("selectionAllowedForGesture");
     expect(home).toContain("selectableElementFor(selection.anchorNode)");
+    // Chrome hides an input's caret from window.getSelection(), so the node
+    // checks alone would let clearSelection collapse a focused text field's
+    // caret to 0 between keystrokes — the bug that corrupted Universal
+    // Search typing. The clearer must also yield to a focused editable.
+    expect(home).toContain("selectableElementFor(document.activeElement)");
     expect(home).toContain("[data-book-modal-shell]");
     expect(home).toContain(
       'document.addEventListener("selectionchange", clearSelection)',

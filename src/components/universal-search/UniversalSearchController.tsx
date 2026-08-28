@@ -2,33 +2,28 @@
 
 import {
   type ComponentType,
-  type ForwardedRef,
-  type RefAttributes,
   useCallback,
   useEffect,
   useRef,
   useState,
 } from "react";
 
-import {
-  UNIVERSAL_SEARCH_OPEN_ATTRIBUTE,
-  universalSearchFocusIntent,
-} from "~/lib/universal-search/overlay";
+import { UNIVERSAL_SEARCH_OPEN_ATTRIBUTE } from "~/lib/universal-search/overlay";
 
 export const OPEN_UNIVERSAL_SEARCH_EVENT = "chappy:universal-search:open";
-
-export type UniversalSearchPaletteHandle = {
-  focusInput: () => void;
-};
 
 export type UniversalSearchPaletteProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Fired at Radix's close-auto-focus moment — after the focus trap tears
+   * down, which is the only safe time to restore focus. The palette calls
+   * preventDefault on Radix's default (which would try to focus a
+   * nonexistent Dialog.Trigger) and then invokes this. */
+  onCloseAutoFocus?: () => void;
 };
 
-export type UniversalSearchPaletteComponent = ComponentType<
-  UniversalSearchPaletteProps & RefAttributes<UniversalSearchPaletteHandle>
->;
+export type UniversalSearchPaletteComponent =
+  ComponentType<UniversalSearchPaletteProps>;
 
 export type UniversalSearchPaletteModule = {
   UniversalSearchPalette: UniversalSearchPaletteComponent;
@@ -134,7 +129,6 @@ export function UniversalSearchController({
     useState<UniversalSearchPaletteComponent | null>(null);
   const palettePromiseRef =
     useRef<Promise<UniversalSearchPaletteModule> | null>(null);
-  const paletteRef = useRef<UniversalSearchPaletteHandle>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
 
   const ensurePalette = useCallback(() => {
@@ -163,6 +157,19 @@ export function UniversalSearchController({
   const closePalette = useCallback(() => {
     setOpen(false);
     document.documentElement.removeAttribute(UNIVERSAL_SEARCH_OPEN_ATTRIBUTE);
+    // With a mounted dialog, restoration happens in restoreFocusAfterClose
+    // once Radix's focus trap tears down — restoring here would bounce off
+    // the still-active trap and strand focus on body. When the palette
+    // chunk never resolved, no dialog mounted and no close-auto-focus will
+    // ever fire, so restore and clear directly or the ref would go stale
+    // and a later close would focus a long-detached element.
+    if (!Palette) {
+      restoreFocusRef.current?.focus();
+      restoreFocusRef.current = null;
+    }
+  }, [Palette]);
+
+  const restoreFocusAfterClose = useCallback(() => {
     restoreFocusRef.current?.focus();
     restoreFocusRef.current = null;
   }, []);
@@ -212,53 +219,6 @@ export function UniversalSearchController({
     };
   }, [closePalette, enabled, open, showPalette]);
 
-  useEffect(() => {
-    if (!enabled || !open || !Palette) return;
-    let reclaimFrame: number | null = null;
-    const focusInput = () => paletteRef.current?.focusInput();
-    const reclaimFocus = () => {
-      reclaimFrame = null;
-      if (
-        !document.documentElement.hasAttribute(
-          UNIVERSAL_SEARCH_OPEN_ATTRIBUTE,
-        ) ||
-        universalSearchFocusIntent(document.activeElement) === "keep"
-      )
-        return;
-      focusInput();
-    };
-    const scheduleReclaim = () => {
-      if (reclaimFrame !== null) cancelAnimationFrame(reclaimFrame);
-      reclaimFrame = requestAnimationFrame(reclaimFocus);
-    };
-    const onFocusIn = (event: FocusEvent) => {
-      if (universalSearchFocusIntent(event.target) === "keep") return;
-      // Two ways focus leaves the search input while the palette is up, and
-      // both end with keystrokes landing somewhere that cannot accept text:
-      // scene controls that focus themselves once their animation or travel
-      // settles, and clicks on the palette's own `tabindex="-1"` chrome. While
-      // search is open, the input owns keyboard focus.
-      focusInput();
-    };
-    const onVisibilityChange = () => {
-      if (!document.hidden) scheduleReclaim();
-    };
-
-    focusInput();
-    scheduleReclaim();
-    window.addEventListener("focusin", onFocusIn, true);
-    window.addEventListener("focusout", scheduleReclaim, true);
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    window.addEventListener("focus", scheduleReclaim);
-    return () => {
-      if (reclaimFrame !== null) cancelAnimationFrame(reclaimFrame);
-      window.removeEventListener("focusin", onFocusIn, true);
-      window.removeEventListener("focusout", scheduleReclaim, true);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      window.removeEventListener("focus", scheduleReclaim);
-    };
-  }, [enabled, open, Palette]);
-
   useEffect(
     () => () => {
       document.documentElement.removeAttribute(UNIVERSAL_SEARCH_OPEN_ATTRIBUTE);
@@ -269,9 +229,9 @@ export function UniversalSearchController({
   if (!enabled || !Palette) return null;
   return (
     <Palette
-      ref={paletteRef as ForwardedRef<UniversalSearchPaletteHandle>}
       open={open}
       onOpenChange={(next) => (next ? showPalette() : closePalette())}
+      onCloseAutoFocus={restoreFocusAfterClose}
     />
   );
 }

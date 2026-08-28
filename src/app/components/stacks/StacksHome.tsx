@@ -225,8 +225,13 @@ export default function StacksHome({
     const clearSelection = () => {
       const selection = window.getSelection();
       if (!selection?.rangeCount) return;
+      // Chrome hides a text field's caret from window.getSelection(): the
+      // anchor lands on an ancestor of the input, so the node checks below
+      // never match and removeAllRanges() would collapse the field's caret
+      // to 0 between keystrokes. A focused editable owns the selection.
       if (
         selectionAllowedForGesture ||
+        selectableElementFor(document.activeElement) ||
         selectableElementFor(selection.anchorNode) ||
         selectableElementFor(selection.focusNode)
       )

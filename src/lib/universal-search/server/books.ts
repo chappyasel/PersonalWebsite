@@ -14,12 +14,20 @@ import { createServerExcerpt } from "./excerpt";
 // expression must match the deployed index character-for-character.
 export const BOOK_SEARCH_VECTOR_SQL = String.raw`setweight(to_tsvector('english', coalesce(title, '')), 'A') || setweight(to_tsvector('english', coalesce(author, '')), 'B') || setweight(to_tsvector('english', left(regexp_replace(coalesce(notes, ''), 'data:[^\s)]+', ' ', 'g'), 500000)), 'D')`;
 
+// Ranking recomputes its vector per matching row — the GIN index only answers
+// the @@ match. Common tokens ("12") match a hundred-plus books, and rebuilding
+// the full 500KB note vector for each blew past the provider deadline. Rank
+// over the first 50KB of stripped notes instead: cheap per row, and the A/B
+// title and author weights still dominate ts_rank_cd ordering.
+export const BOOK_SEARCH_RANK_SQL = String.raw`setweight(to_tsvector('english', coalesce(title, '')), 'A') || setweight(to_tsvector('english', coalesce(author, '')), 'B') || setweight(to_tsvector('english', left(regexp_replace(left(coalesce(notes, ''), 120000), 'data:[^\s)]+', ' ', 'g'), 50000)), 'D')`;
+
 export type BookSearchRow = {
   id: string;
   title: string;
   author: string;
   tags: string[];
   notes: string | null;
+  cover_url: string | null;
 };
 
 export type BookSearchLoader = (
@@ -28,6 +36,7 @@ export type BookSearchLoader = (
 ) => Promise<BookSearchRow[]>;
 
 const bookSearchVector = sql.raw(BOOK_SEARCH_VECTOR_SQL);
+const bookSearchRank = sql.raw(BOOK_SEARCH_RANK_SQL);
 const normalizedTitle = sql.raw(
   "trim(regexp_replace(lower(coalesce(title, '')), '[^a-z0-9]+', ' ', 'g'))",
 );
@@ -43,7 +52,7 @@ export async function loadBookSearchRows(
   const { db } = await import("~/server/db");
 
   const rows = await db.transaction(async (transaction) => {
-    await transaction.execute(sql`SET LOCAL statement_timeout = '1200ms'`);
+    await transaction.execute(sql`SET LOCAL statement_timeout = '2000ms'`);
     return transaction.execute<BookSearchRow>(sql`
       WITH identity_matches AS (
         SELECT
@@ -51,6 +60,7 @@ export async function loadBookSearchRows(
           title,
           author,
           notes,
+          cover_url,
           ARRAY(
             SELECT bt.tag_name
             FROM book_tags bt
@@ -95,6 +105,7 @@ export async function loadBookSearchRows(
           title,
           author,
           notes,
+          cover_url,
           ARRAY(
             SELECT bt.tag_name
             FROM book_tags bt
@@ -103,7 +114,7 @@ export async function loadBookSearchRows(
           ) AS tags,
           5 AS match_priority,
           ts_rank_cd(
-            ${bookSearchVector},
+            ${bookSearchRank},
             plainto_tsquery('english', ${query})
           ) AS text_rank
         FROM books
@@ -119,11 +130,11 @@ export async function loadBookSearchRows(
       ),
       deduplicated AS (
         SELECT DISTINCT ON (id)
-          id, title, author, tags, notes, match_priority, text_rank
+          id, title, author, tags, notes, cover_url, match_priority, text_rank
         FROM candidates
         ORDER BY id, match_priority, text_rank DESC
       )
-      SELECT id, title, author, tags, notes
+      SELECT id, title, author, tags, notes, cover_url
       FROM deduplicated
       ORDER BY match_priority, text_rank DESC, title
       LIMIT 24
@@ -169,6 +180,7 @@ export async function searchBooks(
     group: "books",
     label: row.title,
     description: row.author,
+    ...(row.cover_url ? { imageUrl: row.cover_url } : {}),
     href: resolveDestinationTarget(
       {
         kind: "site",

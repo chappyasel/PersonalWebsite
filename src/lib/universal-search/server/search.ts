@@ -5,7 +5,9 @@ import { createServerExcerpt } from "./excerpt";
 
 export const MAX_PROVIDER_RESULTS = 6;
 export const MAX_SEARCH_QUERY_LENGTH = 80;
-export const DEFAULT_SEARCH_TIMEOUT_MS = 1_500;
+// Wide enough that a cold Neon connection plus the ranked note query fits;
+// common-token queries ("12") were brushing the old 1.5s ceiling in dev.
+export const DEFAULT_SEARCH_TIMEOUT_MS = 2_500;
 
 export type ServerSearchGroup = "books" | "weightlifting" | "dad";
 export type ServerProviderStatus = "success" | "error" | "skipped";
@@ -87,6 +89,9 @@ function sanitizeResults(
         : {}),
       ...(result.excerpt
         ? { excerpt: createServerExcerpt(result.excerpt, "") }
+        : {}),
+      ...(result.imageUrl && /^https?:\/\//.test(result.imageUrl)
+        ? { imageUrl: clip(result.imageUrl, 2_048) }
         : {}),
       matchKind: result.matchKind,
       score: Number.isFinite(result.score) ? result.score : 0,

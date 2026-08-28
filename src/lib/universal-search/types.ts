@@ -27,6 +27,7 @@ export type SearchResult = {
   actionId?: CommandActionId;
   description?: string;
   excerpt?: string;
+  imageUrl?: string;
   matchKind: SearchMatchKind;
   score: number;
 };

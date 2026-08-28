@@ -5,11 +5,131 @@ This log records implementation shortcuts, issues, ambiguities, judgment calls, 
 ## Status
 
 - Started: August 22, 2026
-- Parked: August 23, 2026
-- Current phase: implementation retained but disabled at the root layout
-- Completion standard: not met in Arc; the search input still corrupts or drops typed text despite passing automated browser and component tests
+- Parked: August 23, 2026 (input corruption unexplained)
+- Root cause found and shell rewritten: August 28, 2026
+- Current phase: enabled at the root layout; awaiting the owner's manual Arc typing pass before merge
 
-The root layout passes `enabled={false}` to `UniversalSearchController`. Disabled mode does not preload the palette, register Command-K, respond to the custom open event, or render search UI. Do not enable it until a test in the user's actual Arc browser proves ordinary native input behavior, including insertion order, selection, deletion, caret movement, paste, and composition.
+## 2026-08-28: The real root cause, and the rewrite
+
+The typing corruption never came from the palette. `StacksHome` registers a
+document-level `selectionchange` listener that calls
+`window.getSelection().removeAllRanges()` to stop WebKit from selecting scene
+text. Its allowlist checks the selection's `anchorNode`/`focusNode`, but
+Chrome hides a text field's caret from `window.getSelection()` — the anchor
+reports an ancestor of the input — so the allowlist never matched and the
+clearer collapsed the search input's caret to 0 whenever typing paused long
+enough for the coalesced `selectionchange` task to run (~30 ms). That one
+listener produced every reported symptom: characters prepended out of order
+at human typing speed, drag selections destroyed on release, Backspace
+deleting nothing at caret 0. Fast synthetic typing outpaced the coalesced
+event, which is why every automated browser test passed while real typing in
+Arc failed. The fix adds `selectableElementFor(document.activeElement)` to
+the clearer's bail conditions; `touchArchitecture.test.ts` pins it.
+
+The palette's original hand-rolled shell — `preventDefault` on every
+printable key, manual `setRangeText` editing, synthetic `InputEvent`
+dispatch, three competing caret restorers, and a window-level
+`focusin`/`focusout` reclaim loop — was fighting that clearer and losing,
+and was itself capable of reordering keystrokes. It is gone. The palette now
+uses the composition the AIC and OpenLattice palettes use: Radix Dialog owns
+the portal, focus trap, Escape, and outside dismiss; cmdk owns the input,
+arrow selection, and Enter; the input is a plain controlled `Command.Input`.
+The controller keeps the shortcut, lazy load, idle preload, scene marker,
+pointer-lock release, and focus restore, and loses all focus-reclaim
+machinery. `overlay.ts` shrinks to the open marker; the focus-intent helpers
+are deleted. One found-in-passing bug: an `autoFocus` attribute on the input
+defeats Radix's trap bookkeeping (the FocusScope skips its mount focus and
+never records a last-focused element, so later reclaims focus nothing), so
+Radix performs the initial focus itself.
+
+The same session reworked presentation to match the AIC palettes: the panel
+is top-anchored (`top-4 sm:top-[16vh]`) so the input and the top of results
+hold a fixed Y through every loading state; async groups render headings
+only with rows or a reportable error (settled-empty groups render nothing);
+one anonymous pulsing skeleton group stands in for providers still searching
+(anonymous so the private Dad group is not advertised); and settled-zero
+shows a centered magnifier with `No results for "query"`.
+
+### 2026-08-28 round two: owner presentation feedback
+
+Ten owner notes, all applied. Keycaps (`Keycap`/`KeycapSequence`) replace the
+text ESC chip and footer hints. The panel material is now per-surface: the
+placard glass renders only over the 3D world (`html[data-world]`); flat
+pages get a plain frosted `bg-background/85` + 24px blur, and the overlay
+blur is world-only. Exit animation works via `data-[state=closed]:animate-out`
+(Radix waits for the CSS animation before unmounting; the old mount-only
+`animate-in` classes never ran on close). Vertical padding tightened one
+step across input, rows, headings, and footer. Width dropped 42rem → 30rem.
+The glass got less gray (light `brightness(1.34)`, dark `bg-black/32` +
+`brightness(0.52)`). Selection is a warm translucent tint with an inset ring
+(AIC's accent-plus-ring treatment) instead of flat `bg-secondary`. Book
+results show their covers (`cover_url` threaded through the provider,
+`imageUrl` on `SearchResult`, sanitized to http(s), rendered via
+`next/image`). Note-text matches carry an "In notes" provenance label and
+all result text highlights query matches with `<mark>` (AIC platform's
+highlighter, reimplemented with odd-index split matching).
+
+The "12 → Books search unavailable" report was a provider deadline miss,
+not a query bug: `ts_rank_cd` recomputed the full 500KB note vector per
+matching row, and common tokens match 100+ books. The `EXPLAIN` the first
+implementation left unproven now exists: the GIN expression index IS used
+for `@@`; only ranking was expensive. Ranking now uses a bounded
+`BOOK_SEARCH_RANK_SQL` (first 50KB of stripped notes; A/B title/author
+weights dominate ordering anyway) while matching keeps the indexed
+expression. The provider deadline widened 1.5s → 2.5s and the books
+statement timeout 1.2s → 2s, which also absorbs cold Neon connections in
+dev.
+
+### 2026-08-28 round three: surface-consistent chrome
+
+Light-mode glass over the world brightened again (white tint to 0.5 alpha,
+`brightness(1.5)`); dark stays as tuned. The `Keycap` component is now
+context-aware through pure CSS: flat bordered caps by default, upgraded to
+the physical gradient cap only under `html[data-world]` via arbitrary
+variants — so the palette, the theme/font tooltips, and all scene chrome
+pick the right look with no per-callsite wiring and no hydration risk.
+Selection tint rebuilt on the `primary` token (`bg-primary/10` +
+`ring-primary/15`) so it carries the site's own neutral warmth in both
+themes instead of a browner one-off hsl. Width 30rem → 36rem.
+
+Public-writing results now carry thumbnails: `PublicSearchDocument` gained
+an optional validated `image` (root-relative or https, never YouTube), the
+generator emits Medium `thumbnail` URLs for musings and
+`/images/projects/<file>` for linked projects, and the runtime maps it to
+`SearchResult.imageUrl`. Books render portrait covers (26×39), articles and
+projects render landscape captures (40×26). The committed index asset was
+regenerated (58 documents, 16 with images) and stays covered by
+`pnpm check:search-index`.
+
+### 2026-08-28 Codex review
+
+An independent Codex review found four real issues across two passes, all
+fixed: [P1] clicks on cmdk's `tabindex="-1"` chrome moved focus onto a div
+and killed typing (scoped `onFocusCapture` reclaim on the Content); [P2]
+close-time focus restoration bounced off the still-active Radix trap while
+Radix's modal default tried to focus a nonexistent `Dialog.Trigger`,
+stranding focus on body (the controller now restores inside the palette's
+`onCloseAutoFocus`, and the Escape test runs against the real Radix
+palette); [P2] a transport-level search failure rendered a "Dad
+unavailable" row to anonymous visitors (Dad never gets an error row); [P2]
+closing before the lazy chunk resolved left a stale `restoreFocusRef`
+(the no-dialog close path restores and clears directly). Second review
+pass: no critical findings.
+
+### Verification
+
+- `pnpm verify` green end to end (2,500+ unit tests, types, lint, fresh
+  search index, meadow).
+- `node scripts/search-input-stress.mjs` against a dev server drives real
+  Chromium over the live 3D scene: 26 checks covering fast bursts, typing
+  across provider arrivals, mid-string insertion after idle pauses,
+  keyboard and mouse selection, double-click word selection, copy/paste,
+  slow human-cadence typing (the shape that reproduced the original bug),
+  scene focus steals, fixed input Y through loading, list navigation,
+  Escape/reopen, and Enter activation. All pass.
+- Still required before merge: the owner typing in actual Arc over the 3D
+  scene — insertion order, selection, deletion, caret movement, paste, and
+  composition (IME) input, which no automated pass here exercises.
 
 ## TDD slices
 
