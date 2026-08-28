@@ -298,10 +298,14 @@ export default function PortalLabel() {
         onClick={() => {
           if (focused === shown.id) runSceneInteractionActivation(shown.id);
         }}
-        className={`flex max-w-[240px] items-center justify-center border-0 bg-transparent p-0 text-left text-[13px] leading-[1.25] ${
-          focused ? "min-h-12 min-w-12" : "min-h-0"
+        className={`relative flex min-h-0 max-w-[240px] items-center justify-center border-0 bg-transparent p-0 text-left text-[13px] leading-[1.25] ${
+          focused
+            ? "after:absolute after:left-1/2 after:top-1/2 after:h-12 after:w-full after:min-w-12 after:-translate-x-1/2 after:-translate-y-1/2 after:content-['']"
+            : ""
         }`}
       >
+        {/* Keep the focused label's hit area at least 48px tall without making
+            the visible glass inherit that height. */}
         {/* Title line, then one line per detail, then the verb line of a
             local action. A Portal's title names where it goes, so its icon sits
             on that line (square-out off-site, arrows-out on-site) and is the

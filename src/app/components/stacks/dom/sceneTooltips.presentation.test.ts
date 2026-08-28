@@ -81,6 +81,13 @@ describe("tooltip presentation", () => {
     expect(objects).toContain("text-[13px] leading-[1.25]");
   });
 
+  it("sizes focused one-line portal labels to their content", () => {
+    expect(objects).toContain("min-h-0");
+    expect(objects).not.toContain('focused ? "min-h-12 min-w-12" : "min-h-0"');
+    expect(objects).toContain("after:h-12");
+    expect(objects).toContain("after:min-w-12");
+  });
+
   it("uses the proven Tailwind backdrop pipeline on every tooltip surface", () => {
     const backdropUtilities = "backdrop-blur-xl backdrop-saturate-150";
 
