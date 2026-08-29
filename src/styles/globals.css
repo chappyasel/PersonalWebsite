@@ -50,13 +50,27 @@
   backdrop-filter: blur(80px) saturate(0.22) brightness(0.6);
 }
 
-/* Every tooltip uses the original Field Notes launcher glass in both themes.
+/* Tooltips are dual-material like the Keycap: flat pages (Books,
+   Weightlifting, Manual, Routine) get an opaque popover card in theme
+   tokens, and the homepage's 3D world — marked by data-world on the root —
+   upgrades the same class to the original Field Notes launcher glass.
    Typography stays local to each caller, so handwritten, serif, sans, and
    object labels keep their current type. */
 .field-notes-glass-tooltip {
+  border-color: hsl(var(--border));
+  background-color: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+  box-shadow: 0 4px 12px -4px rgb(0 0 0 / 0.18);
+}
+
+/* The glass needs its blur here rather than in caller utilities so flat
+   pages never pay for a backdrop-filter they can't see. Do not add a manual
+   -webkit copy (see .stacks-glass-tooltip above). */
+html[data-world] .field-notes-glass-tooltip {
   border-color: rgb(255 255 255 / 0.24);
   background-color: rgb(24 32 36 / 0.38);
   color: rgb(255 255 255 / 0.96);
+  backdrop-filter: blur(24px) saturate(1.5);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.16),
     inset 0 -1px 0 rgb(255 255 255 / 0.05),

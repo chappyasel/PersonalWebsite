@@ -86,8 +86,10 @@ const TooltipTrigger = React.forwardRef<
 });
 TooltipTrigger.displayName = TooltipPrimitive.Trigger.displayName;
 
+// Material (flat card vs. world glass, including the glass blur) lives on
+// .field-notes-glass-tooltip in globals.css, switched by html[data-world].
 export const tooltipSurfaceClassName =
-  "field-notes-glass-tooltip rounded-md border px-3 py-1.5 font-serif text-xs backdrop-blur-xl backdrop-saturate-150";
+  "field-notes-glass-tooltip rounded-md border px-3 py-1.5 font-serif text-xs";
 
 const TooltipContent = React.forwardRef<
   React.ElementRef<typeof TooltipPrimitive.Content>,

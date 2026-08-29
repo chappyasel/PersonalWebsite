@@ -93,6 +93,9 @@ function sanitizeResults(
       ...(result.imageUrl && /^https?:\/\//.test(result.imageUrl)
         ? { imageUrl: clip(result.imageUrl, 2_048) }
         : {}),
+      ...(result.accentColor && /^#[0-9a-f]{6}$/i.test(result.accentColor)
+        ? { accentColor: result.accentColor }
+        : {}),
       matchKind: result.matchKind,
       score: Number.isFinite(result.score) ? result.score : 0,
     }),

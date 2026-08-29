@@ -2,9 +2,10 @@ import { normalizeSearchText, rankSearchCandidates } from "../ranking";
 import type { SearchResult } from "../types";
 import { resolveDestinationTarget } from "../urls";
 
-import { wlSearchParamsSerializer } from "~/app/weightlifting/lib/searchParams";
+import { categoryColor } from "~/app/weightlifting/lib/utils";
 
 export type WeightliftingExerciseRow = {
+  slug: string;
   displayName: string;
   name: string;
   category: string;
@@ -13,30 +14,20 @@ export type WeightliftingExerciseRow = {
 };
 
 export type WeightliftingExerciseLoader = (
-  minSets: number,
   signal: AbortSignal,
 ) => Promise<WeightliftingExerciseRow[]>;
 
-async function defaultExerciseLoader(minSets: number, signal: AbortSignal) {
+// The exercise index is the same universe the dashboard picker shows, plus
+// the slug each exercise's own page lives at — search must land on
+// /back-squats, not a ?exercises= chart preselection.
+async function defaultExerciseLoader(signal: AbortSignal) {
   if (signal.aborted) throw new Error("search_aborted");
-  const { getChartSelectableExercises } = await import(
-    "~/server/queries/weightliftingExercises"
+  const { getCachedExerciseIndex } = await import(
+    "~/server/queries/weightliftingExercise"
   );
-  const rows = await getChartSelectableExercises(minSets);
+  const rows = await getCachedExerciseIndex();
   if (signal.aborted) throw new Error("search_aborted");
   return rows;
-}
-
-export function serializeExerciseDestination(exercise: string, location: URL) {
-  return wlSearchParamsSerializer(
-    new URL(
-      resolveDestinationTarget(
-        { kind: "site", site: "weightlifting" },
-        location,
-      ),
-    ),
-    { exercises: [exercise] },
-  );
 }
 
 export async function searchWeightliftingExercises(
@@ -49,7 +40,7 @@ export async function searchWeightliftingExercises(
 ): Promise<SearchResult[]> {
   const signal = options.signal ?? new AbortController().signal;
   const normalizedQuery = normalizeSearchText(query);
-  const rows = await (options.load ?? defaultExerciseLoader)(10, signal);
+  const rows = await (options.load ?? defaultExerciseLoader)(signal);
   const ranked = rankSearchCandidates(
     normalizedQuery,
     rows.map((row) => ({
@@ -66,8 +57,12 @@ export async function searchWeightliftingExercises(
     kind: "content",
     group: "weightlifting",
     label: row.displayName,
-    description: row.category,
-    href: serializeExerciseDestination(row.displayName, options.location),
+    description: `${row.category} · ${Math.round(row.bestOneRM)} lbs est. 1RM`,
+    accentColor: categoryColor(row.category),
+    href: resolveDestinationTarget(
+      { kind: "site", site: "weightlifting", path: `/${row.slug}` },
+      options.location,
+    ),
     matchKind: row.matchKind,
     score: row.score,
   }));

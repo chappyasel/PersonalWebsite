@@ -37,6 +37,16 @@ export type BookSearchLoader = (
 
 const bookSearchVector = sql.raw(BOOK_SEARCH_VECTOR_SQL);
 const bookSearchRank = sql.raw(BOOK_SEARCH_RANK_SQL);
+// Never ship raw notes: the same data: URIs that broke the tsvector cap make
+// result rows enormous — "12" matched 24 books carrying 7.2MB of embedded
+// images, and moving that from Neon alone blew the provider timeout while the
+// query itself took 270ms. Regexp-stripping is bounded to the first 400KB raw
+// per row because the regexp itself costs ~40ms/MB/row; past that cut, prose
+// in image-heavy books loses excerpt coverage, not search coverage (matching
+// still runs on the full indexed vector). The outer 100KB is a defensive cap.
+const strippedNotes = sql.raw(
+  String.raw`left(regexp_replace(left(coalesce(notes, ''), 400000), 'data:[^\s)]+', ' ', 'g'), 100000)`,
+);
 const normalizedTitle = sql.raw(
   "trim(regexp_replace(lower(coalesce(title, '')), '[^a-z0-9]+', ' ', 'g'))",
 );
@@ -51,22 +61,19 @@ export async function loadBookSearchRows(
   if (signal.aborted) throw new Error("search_aborted");
   const { db } = await import("~/server/db");
 
-  const rows = await db.transaction(async (transaction) => {
-    await transaction.execute(sql`SET LOCAL statement_timeout = '2000ms'`);
-    return transaction.execute<BookSearchRow>(sql`
+  // One statement, no transaction: the old SET LOCAL statement_timeout wrapper
+  // cost four extra Neon round trips (~500ms at ~90ms RTT) — more than the
+  // query itself. The provider deadline in search.ts is the timeout now; the
+  // query is GIN-index-bounded at ~200ms server-side even for common tokens.
+  //
+  // The match arms return only ids and ordering keys: anything heavier in
+  // their target lists (the tags subquery, and especially stripped notes)
+  // gets computed for every matching row before the sort — a hundred-plus
+  // rows for a common token — instead of the 24 survivors joined below.
+  const rows = await db.execute<BookSearchRow>(sql`
       WITH identity_matches AS (
         SELECT
           id,
-          title,
-          author,
-          notes,
-          cover_url,
-          ARRAY(
-            SELECT bt.tag_name
-            FROM book_tags bt
-            WHERE bt.book_id = books.id
-            ORDER BY bt.tag_name
-          ) AS tags,
           CASE
             WHEN ${normalizedTitle} = ${query} THEN 0
             WHEN ${normalizedTitle} LIKE ${`${query}%`} THEN 1
@@ -102,16 +109,6 @@ export async function loadBookSearchRows(
       full_text_matches AS (
         SELECT
           id,
-          title,
-          author,
-          notes,
-          cover_url,
-          ARRAY(
-            SELECT bt.tag_name
-            FROM book_tags bt
-            WHERE bt.book_id = books.id
-            ORDER BY bt.tag_name
-          ) AS tags,
           5 AS match_priority,
           ts_rank_cd(
             ${bookSearchRank},
@@ -129,17 +126,27 @@ export async function loadBookSearchRows(
         SELECT * FROM full_text_matches
       ),
       deduplicated AS (
-        SELECT DISTINCT ON (id)
-          id, title, author, tags, notes, cover_url, match_priority, text_rank
+        SELECT DISTINCT ON (id) id, match_priority, text_rank
         FROM candidates
         ORDER BY id, match_priority, text_rank DESC
       )
-      SELECT id, title, author, tags, notes, cover_url
-      FROM deduplicated
-      ORDER BY match_priority, text_rank DESC, title
+      SELECT
+        b.id,
+        b.title,
+        b.author,
+        ARRAY(
+          SELECT bt.tag_name
+          FROM book_tags bt
+          WHERE bt.book_id = b.id
+          ORDER BY bt.tag_name
+        ) AS tags,
+        ${strippedNotes} AS notes,
+        b.cover_url
+      FROM deduplicated d
+      JOIN books b ON b.id = d.id
+      ORDER BY d.match_priority, d.text_rank DESC, b.title
       LIMIT 24
     `);
-  });
 
   if (signal.aborted) throw new Error("search_aborted");
   return [...rows];

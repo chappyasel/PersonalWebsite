@@ -14,6 +14,12 @@ import {
   ChartTooltip,
 } from "~/components/ui/chart";
 import { Skeleton } from "~/components/ui/skeleton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "~/components/ui/tooltip";
 
 import { QueryErrorFallback } from "./QueryErrorFallback";
 
@@ -74,20 +80,24 @@ function dowColor(index: number): string {
   return `hsl(210, 55%, ${78 - index * 8}%)`;
 }
 
-// Workouts stack by time of day, read from the app's default workout
-// names; the amber ramp darkens as the day fades. Renamed workouts are
-// "Other".
-const TOD_LABELS = [
-  "Morning",
-  "Mid-Day",
-  "Afternoon",
-  "Evening",
-  "Dusk",
-  "Other",
-];
+// Workouts stack by time of day, bucketed by each workout's start hour in
+// the local time where it was logged. Three hue families read as one day
+// arc — night/sky blues for the mornings, honey gold for mid-day, sunset
+// coral into dusk plum for the evenings. Adjacent-pair CVD and
+// normal-vision separation validated on the light card surface; the gold
+// deliberately sits above the usual lightness band (a darker gold read as
+// mustard), the same brightness class as the Legs category yellow.
+const TOD_LABELS = ["Early Morning", "Morning", "Mid-Day", "Evening", "Dusk"];
+const TOD_COLORS = ["#4c5d9e", "#5994cf", "#f2c14e", "#e8703d", "#8e3f5c"];
+const TOD_RANGES: Record<string, string> = {
+  "Early Morning": "1 – 7 AM",
+  Morning: "7 – 11 AM",
+  "Mid-Day": "11 AM – 4 PM",
+  Evening: "4 – 8 PM",
+  Dusk: "8 PM – 1 AM",
+};
 function todColor(index: number): string {
-  if (index === 5) return "hsl(220, 5%, 62%)";
-  return `hsl(35, 85%, ${75 - index * 10}%)`;
+  return TOD_COLORS[index] ?? TOD_COLORS[0]!;
 }
 
 /** Toggle choices persist across visits */
@@ -154,6 +164,7 @@ function StackTooltip({
   mode,
   keys,
   colorFor,
+  sublabelFor,
 }: {
   active?: boolean;
   payload?: { payload: ChartPoint }[];
@@ -161,6 +172,7 @@ function StackTooltip({
   mode: Mode;
   keys: string[];
   colorFor: (key: string) => string;
+  sublabelFor?: (key: string) => string | undefined;
 }) {
   if (!active || !payload?.length) return null;
   const data = payload[0]!.payload;
@@ -184,6 +196,11 @@ function StackTooltip({
               style={{ backgroundColor: colorFor(row.cat) }}
             />
             {row.cat}
+            {sublabelFor?.(row.cat) && (
+              <span className="text-[10px] text-neutral-400 dark:text-neutral-500">
+                {sublabelFor(row.cat)}
+              </span>
+            )}
           </span>
           <span className="tabular-nums text-neutral-700 dark:text-neutral-200">
             {formatMetricValue(metric, mode, row.value)}
@@ -221,6 +238,9 @@ function StackTooltip({
 
 export function TrainingOverYears() {
   const [scope, setScope] = useState<Scope>("all");
+  // Legend chip under the pointer: its segments light up in the chart and
+  // the chip shows that slice's number for the current scope
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
   const [metric, setMetric] = useState<Metric>(() =>
     readStoredChoice("metric", ["volume", "hours", "workouts"], "volume"),
   );
@@ -453,21 +473,30 @@ export function TrainingOverYears() {
   );
 
   // Legend keeps only segments that actually appear; volume additionally
-  // drops categories under 2% so rare ones live in the tooltip alone
-  const legendKeys = useMemo<string[]>(() => {
+  // drops categories under 2% so rare ones live in the tooltip alone.
+  // Totals are RAW segment sums for the visible scope — the hover number
+  // divides them by the scope-wide rate divisor, the way the header stats
+  // do, because summing per-month rates would not be a rate.
+  const { legendKeys, legendTotals } = useMemo(() => {
     const totals = new Map<string, number>();
     let sum = 0;
-    for (const point of chartData) {
+    for (const p of stats?.points ?? []) {
+      const segments = splitByPeriod.get(p.period);
       for (const key of activeKeys) {
-        const v = Number(point[key] ?? 0);
+        const v = segments?.get(key) ?? 0;
         totals.set(key, (totals.get(key) ?? 0) + v);
         sum += v;
       }
     }
-    if (sum === 0) return [];
+    if (sum === 0) return { legendKeys: [] as string[], legendTotals: totals };
     const floor = metric === "volume" ? 0.02 : 0;
-    return activeKeys.filter((key) => (totals.get(key) ?? 0) / sum > floor);
-  }, [chartData, activeKeys, metric]);
+    return {
+      legendKeys: activeKeys.filter(
+        (key) => (totals.get(key) ?? 0) / sum > floor,
+      ),
+      legendTotals: totals,
+    };
+  }, [stats, splitByPeriod, activeKeys, metric]);
 
   if (isError) {
     return (
@@ -669,6 +698,11 @@ export function TrainingOverYears() {
                 mode={mode}
                 keys={activeKeys}
                 colorFor={colorFor}
+                sublabelFor={
+                  metric === "workouts"
+                    ? (key) => TOD_RANGES[key]
+                    : undefined
+                }
               />
             }
           />
@@ -678,6 +712,7 @@ export function TrainingOverYears() {
               dataKey={key}
               stackId="a"
               fill={colorFor(key)}
+              fillOpacity={hoveredKey && hoveredKey !== key ? 0.25 : 1}
               isAnimationActive={false}
               shape={(props: unknown) => {
                 const shapeProps = props as React.ComponentProps<
@@ -710,20 +745,62 @@ export function TrainingOverYears() {
       </ChartContainer>
 
       {legendKeys.length > 0 && (
-        <div className="-mt-1 flex flex-wrap justify-center gap-x-3 gap-y-1">
-          {legendKeys.map((cat) => (
-            <span
-              key={cat}
-              className="flex items-center gap-1.5 text-[11px] text-neutral-500 dark:text-neutral-400"
-            >
-              <span
-                className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: colorFor(cat) }}
-              />
-              {cat}
-            </span>
-          ))}
-        </div>
+        <TooltipProvider delayDuration={200}>
+          <div className="-mt-1 flex flex-wrap justify-center gap-x-1 gap-y-0.5">
+            {legendKeys.map((cat) => {
+              // Same aggregate divisor the header stats use for rate modes
+              const days = Math.max(stats.days, 1);
+              const divisor =
+                mode === "total" ? 1 : mode === "week" ? days / 7 : days;
+              const isHovered = hoveredKey === cat;
+              const range = metric === "workouts" ? TOD_RANGES[cat] : undefined;
+              const chip = (
+                <button
+                  key={cat}
+                  type="button"
+                  onMouseEnter={() => setHoveredKey(cat)}
+                  onMouseLeave={() => setHoveredKey(null)}
+                  onFocus={() => setHoveredKey(cat)}
+                  onBlur={() => setHoveredKey(null)}
+                  className={`flex cursor-default items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[11px] transition-colors ${
+                    isHovered
+                      ? "bg-neutral-100 text-neutral-700 dark:bg-neutral-700/60 dark:text-neutral-200"
+                      : "text-neutral-500 dark:text-neutral-400"
+                  }`}
+                >
+                  <span
+                    className="h-2 w-2 rounded-full"
+                    style={{ backgroundColor: colorFor(cat) }}
+                  />
+                  {cat}
+                  {isHovered && (
+                    <span className="font-medium tabular-nums">
+                      {formatMetricValue(
+                        metric,
+                        mode,
+                        (legendTotals.get(cat) ?? 0) / divisor,
+                      )}
+                    </span>
+                  )}
+                </button>
+              );
+              if (!range) return chip;
+              return (
+                <Tooltip key={cat}>
+                  <TooltipTrigger asChild>{chip}</TooltipTrigger>
+                  <TooltipContent side="top" className="font-sans">
+                    {range}
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })}
+          </div>
+        </TooltipProvider>
+      )}
+      {metric === "workouts" && (
+        <p className="-mt-2 text-center text-[11px] text-neutral-400 dark:text-neutral-500">
+          Bucketed by start time, local to wherever each workout was logged.
+        </p>
       )}
     </div>
   );

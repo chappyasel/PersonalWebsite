@@ -230,11 +230,51 @@ const ASYNC_GROUP_PRESENTATION: Record<
   AsyncSearchGroup,
   { heading: string; icon: Icon }
 > = {
-  books: { heading: "Books", icon: BooksIcon },
-  "public-writing": { heading: "Public writing", icon: PenNibIcon },
+  books: { heading: "Book Notes", icon: BooksIcon },
+  "public-writing": { heading: "Site", icon: PenNibIcon },
   weightlifting: { heading: "Weightlifting", icon: BarbellIcon },
-  dad: { heading: "Dad", icon: UserIcon },
+  dad: { heading: "Dad's Journal", icon: UserIcon },
 };
+
+/** Public-writing results split under the site's own section names, keyed by
+ * the stable document-id prefixes the index generator assigns. The grouped
+ * "Site" heading survives only as the provider-error label. */
+const PUBLIC_SOURCE_PRESENTATION = [
+  { prefix: "public:manual:", heading: "Manual", icon: BookOpenTextIcon },
+  { prefix: "public:routine:", heading: "Routine", icon: ClockIcon },
+  { prefix: "public:musing:", heading: "Musings", icon: PenNibIcon },
+  { prefix: "public:project:", heading: "Projects", icon: CodeIcon },
+] as const;
+
+function resultIcon(result: SearchResult): Icon {
+  if (result.group === "public-writing") {
+    const source = PUBLIC_SOURCE_PRESENTATION.find((candidate) =>
+      result.id.startsWith(candidate.prefix),
+    );
+    if (source) return source.icon;
+  }
+  return ASYNC_GROUP_PRESENTATION[result.group as AsyncSearchGroup].icon;
+}
+
+/** Split public-writing results into per-section groups, keeping each
+ * result's provider-wide rank for selection analytics. */
+function publicWritingSubgroups(results: SearchResult[]) {
+  const subgroups = PUBLIC_SOURCE_PRESENTATION.map((source) => ({
+    heading: source.heading,
+    entries: [] as { result: SearchResult; rank: number }[],
+  }));
+  const other = {
+    heading: ASYNC_GROUP_PRESENTATION["public-writing"].heading,
+    entries: [] as { result: SearchResult; rank: number }[],
+  };
+  results.forEach((result, rank) => {
+    const index = PUBLIC_SOURCE_PRESENTATION.findIndex((source) =>
+      result.id.startsWith(source.prefix),
+    );
+    (index === -1 ? other : subgroups[index]!).entries.push({ result, rank });
+  });
+  return [...subgroups, other].filter((group) => group.entries.length > 0);
+}
 
 function SearchResultRow({
   result,
@@ -245,8 +285,7 @@ function SearchResultRow({
   query: string;
   onSelect: () => void;
 }) {
-  const IconComponent =
-    ASYNC_GROUP_PRESENTATION[result.group as AsyncSearchGroup].icon;
+  const IconComponent = resultIcon(result);
   const isNoteMatch = result.group === "books" && result.matchKind === "body";
   return (
     <Command.Item
@@ -290,8 +329,17 @@ function SearchResultRow({
           <HighlightedText text={result.label} query={query} />
         </span>
         {result.description && (
-          <span className="mt-0.5 block truncate text-xs leading-relaxed text-muted-foreground">
-            <HighlightedText text={result.description} query={query} />
+          <span className="mt-0.5 flex items-center gap-1.5 text-xs leading-relaxed text-muted-foreground">
+            {result.accentColor && (
+              <span
+                aria-hidden
+                className="size-2 shrink-0 rounded-full"
+                style={{ backgroundColor: result.accentColor }}
+              />
+            )}
+            <span className="min-w-0 truncate">
+              <HighlightedText text={result.description} query={query} />
+            </span>
           </span>
         )}
         {result.excerpt && (
@@ -704,6 +752,25 @@ export function UniversalSearchPaletteContent({
                   (state.status !== "error" || group === "dad")
                 ) {
                   return null;
+                }
+                if (group === "public-writing" && state.results.length > 0) {
+                  return publicWritingSubgroups(state.results).map(
+                    (subgroup) => (
+                      <ResultGroup
+                        key={`${group}:${subgroup.heading}`}
+                        heading={subgroup.heading}
+                      >
+                        {subgroup.entries.map(({ result, rank }) => (
+                          <SearchResultRow
+                            key={result.id}
+                            result={result}
+                            query={normalizedQuery}
+                            onSelect={() => selectSearchResult(result, rank)}
+                          />
+                        ))}
+                      </ResultGroup>
+                    ),
+                  );
                 }
                 return (
                   <ResultGroup
