@@ -28,6 +28,9 @@ export type SearchResult = {
   description?: string;
   excerpt?: string;
   imageUrl?: string;
+  /** Hex swatch rendered beside the description, e.g. a weightlifting
+   *  category color. Server results are sanitized to #rrggbb. */
+  accentColor?: string;
   matchKind: SearchMatchKind;
   score: number;
 };

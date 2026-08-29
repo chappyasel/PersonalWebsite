@@ -47,6 +47,27 @@ function renderCurrentBook(isModal: boolean) {
 }
 
 describe("BookDetailContent note availability", () => {
+  it("uses the wider content rail for the header, metadata, and notes", () => {
+    const markup = renderCurrentBook(true);
+
+    expect(markup.match(/max-w-4xl/g)).toHaveLength(3);
+    expect(markup).not.toContain("max-w-3xl");
+  });
+
+  it.each([
+    ["full page", false],
+    ["modal", true],
+  ])(
+    "shows Copy link before View in Notion in the %s",
+    (_presentation, isModal) => {
+      const markup = renderCurrentBook(isModal);
+
+      expect(markup.indexOf("Copy link")).toBeLessThan(
+        markup.indexOf("View in Notion"),
+      );
+    },
+  );
+
   it.each([
     ["full page", false],
     ["modal", true],

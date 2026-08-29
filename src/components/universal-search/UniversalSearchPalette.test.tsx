@@ -419,9 +419,9 @@ describe("UniversalSearchPalette", () => {
       // Settled: the skeleton is gone, groups that ended empty render no
       // heading, and the group with rows keeps its heading.
       expect(document.querySelector("[data-search-skeleton]")).toBeNull();
-      expect(screen.getByText("Books")).toBeTruthy();
+      expect(screen.getAllByText("Book Notes").length).toBeGreaterThan(0);
       expect(screen.queryByText("Weightlifting")).toBeNull();
-      expect(screen.queryByText("Public writing")).toBeNull();
+      expect(screen.queryByText("Site")).toBeNull();
       expect(searchPublic).toHaveBeenCalledOnce();
       expect(searchServer).toHaveBeenCalledOnce();
     } finally {
@@ -456,7 +456,7 @@ describe("UniversalSearchPalette", () => {
       // A transport failure marks every group "error" before the server
       // can report Dad as "skipped" — the public groups may say so, but
       // the private provider's existence must stay concealed.
-      expect(screen.getByText("Books search unavailable")).toBeTruthy();
+      expect(screen.getByText("Book Notes search unavailable")).toBeTruthy();
       expect(screen.queryByText(/dad/i)).toBeNull();
     } finally {
       vi.useRealTimers();

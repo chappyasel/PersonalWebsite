@@ -219,9 +219,13 @@ const getCachedCategoryVolume = unstable_cache(
  * (verified empirically: the raw hour matches the default workout name's
  * time-of-day bucket 91% of the time; converting to America/Los_Angeles
  * matches 0.2%). So reading them AT TIME ZONE 'UTC' already yields the
- * local day and week. Time-of-day comes from the app's default workout
- * names, which recorded the local hour at creation; anything renamed
- * lands in "Other".
+ * local day, week, and hour — no ET/PT correction is needed or possible;
+ * each workout carries the wall clock of wherever it was logged.
+ *
+ * Time-of-day buckets come from the workout's START hour, not the app's
+ * default workout names — renamed workouts used to fall into "Other".
+ * Bucket edges are the owner's: Early Morning 1–7, Morning 7–11,
+ * Mid-Day 11–16, Evening 16–20, Dusk 20–1.
  */
 const getCachedTrainingSplits = unstable_cache(
   async () => {
@@ -242,13 +246,16 @@ const getCachedTrainingSplits = unstable_cache(
       }>(sql`
         SELECT
           TO_CHAR(w.date AT TIME ZONE 'UTC', 'YYYY-MM') AS period,
-          CASE w.name
-            WHEN 'Morning Workout' THEN 'Morning'
-            WHEN 'Mid-Day Workout' THEN 'Mid-Day'
-            WHEN 'Afternoon Workout' THEN 'Afternoon'
-            WHEN 'Evening Workout' THEN 'Evening'
-            WHEN 'Dusk Workout' THEN 'Dusk'
-            ELSE 'Other'
+          CASE
+            WHEN EXTRACT(HOUR FROM w.date AT TIME ZONE 'UTC') BETWEEN 1 AND 6
+              THEN 'Early Morning'
+            WHEN EXTRACT(HOUR FROM w.date AT TIME ZONE 'UTC') BETWEEN 7 AND 10
+              THEN 'Morning'
+            WHEN EXTRACT(HOUR FROM w.date AT TIME ZONE 'UTC') BETWEEN 11 AND 15
+              THEN 'Mid-Day'
+            WHEN EXTRACT(HOUR FROM w.date AT TIME ZONE 'UTC') BETWEEN 16 AND 19
+              THEN 'Evening'
+            ELSE 'Dusk'
           END AS bucket,
           COUNT(*)::int AS workouts
         FROM wl_workouts w
@@ -269,7 +276,9 @@ const getCachedTrainingSplits = unstable_cache(
       })),
     };
   },
-  ["wl-training-splits"],
+  // v2: time-of-day buckets moved from workout names to start hours; the
+  // bumped key keeps the old cached shape from serving under the new labels
+  ["wl-training-splits-v2"],
   { revalidate: WEIGHTLIFTING_REVALIDATE, tags: [WEIGHTLIFTING_TAG] },
 );
 

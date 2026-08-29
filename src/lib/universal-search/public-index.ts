@@ -195,13 +195,6 @@ function resolveTarget(target: PublicSearchTarget, location: SearchLocation) {
   );
 }
 
-const SOURCE_LABELS: Record<PublicSearchDocument["source"], string> = {
-  manual: "Manual",
-  routine: "Routine",
-  musing: "Musing",
-  project: "Project",
-};
-
 export function searchLoadedPublicIndex(
   index: PublicSearchIndex,
   rawQuery: string,
@@ -223,7 +216,11 @@ export function searchLoadedPublicIndex(
       group: "public-writing",
       label: document.label,
       href: resolveTarget(document.target, location),
-      description: SOURCE_LABELS[document.source],
+      // The palette headings already name the section (Manual, Routine,
+      // Musings, Projects); the row's own line carries the metadata that
+      // differs per document — a routine slot's time, a project's languages,
+      // a musing's host.
+      description: document.metadata.filter(Boolean).join(" · "),
       ...(document.image ? { imageUrl: document.image } : {}),
       ...(document.matchKind === "body"
         ? { excerpt: createPlainTextExcerpt(document.body, rawQuery) }

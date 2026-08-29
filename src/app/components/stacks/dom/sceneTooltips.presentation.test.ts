@@ -15,18 +15,28 @@ const home = read("../StacksHome.tsx");
 const capability = read("../../../../lib/useTapFirstCapability.ts");
 
 describe("tooltip presentation", () => {
-  it("uses the Field Notes glass as the global tooltip surface", () => {
+  it("keeps tooltips dual-material: flat card by default, glass in the world", () => {
     const surface = styles.slice(
       styles.indexOf(".field-notes-glass-tooltip {"),
       styles.indexOf("@font-face"),
     );
 
+    // Flat pages (Books, Weightlifting, Manual, Routine) read the theme's
+    // opaque popover card…
+    expect(surface).toContain("background-color: hsl(var(--popover))");
+    expect(surface).toContain("color: hsl(var(--popover-foreground))");
+    // …and only the 3D world's root marker upgrades the surface to glass.
+    expect(surface).toContain("html[data-world] .field-notes-glass-tooltip");
     expect(surface).toContain("background-color: rgb(24 32 36 / 0.38)");
     expect(surface).toContain("color: rgb(255 255 255 / 0.96)");
-    expect(surface).not.toContain("backdrop-filter:");
+    expect(surface).toContain("backdrop-filter: blur(24px) saturate(1.5)");
+    // Authored unprefixed only: a manual -webkit copy makes Next's CSS
+    // transform collapse the pair to the prefixed declaration and Chrome
+    // loses the blur.
+    expect(surface).not.toContain("-webkit-backdrop-filter");
     expect(surface).toContain("0 8px 24px rgb(0 0 0 / 0.2)");
     expect(primitive).toContain(
-      '"field-notes-glass-tooltip rounded-md border px-3 py-1.5 font-serif text-xs backdrop-blur-xl backdrop-saturate-150"',
+      '"field-notes-glass-tooltip rounded-md border px-3 py-1.5 font-serif text-xs"',
     );
     expect(fieldNotes).toContain(
       'className="field-notes-glass-tooltip field-notes-trigger-tooltip z-[2200]',
@@ -88,10 +98,13 @@ describe("tooltip presentation", () => {
     expect(objects).toContain("after:min-w-12");
   });
 
-  it("uses the proven Tailwind backdrop pipeline on every tooltip surface", () => {
+  it("keeps backdrop blur off the shared primitive and on world-only surfaces", () => {
     const backdropUtilities = "backdrop-blur-xl backdrop-saturate-150";
 
-    expect(primitive).toContain(backdropUtilities);
+    // The shared primitive renders on flat pages too, where the opaque card
+    // must not pay for an invisible backdrop-filter; its world blur lives on
+    // the html[data-world] rule in globals.css instead.
+    expect(primitive).not.toContain(backdropUtilities);
     expect(details).toContain(backdropUtilities);
     expect(objects).toContain(backdropUtilities);
   });

@@ -443,7 +443,7 @@ export function BookDetailContent({
     smoothProgress,
     [0, 1],
     isLargeScreen
-      ? ["40px", isModal ? "16px" : "12px"]
+      ? ["56px", isModal ? "16px" : "12px"]
       : ["24px", isModal ? "16px" : "12px"],
   );
   const headerBottomPadding = useTransform(
@@ -546,8 +546,8 @@ export function BookDetailContent({
           isModal={isModal}
           hasBreadcrumb={!isModal || Boolean(modalBreadcrumbHref)}
         />
-        {/* Container for content with max-w-3xl */}
-        <div className="relative mx-auto w-full max-w-3xl">
+        {/* Keep the side inset close to the header's vertical inset. */}
+        <div className="relative mx-auto w-full max-w-4xl">
           {/* Standalone pages keep their library-count breadcrumb. A modal
               opened over the 3D homepage gets a single outbound link to the
               dedicated Books site — no back arrow, since inside a modal that
@@ -966,16 +966,9 @@ export function BookDetailContent({
                       className="-ml-3 mt-2 flex flex-wrap items-center gap-0"
                       style={{ opacity: actionsOpacity }}
                     >
-                      <Button variant="ghost" size="sm" asChild>
-                        <a
-                          href={book.notionUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={handleNotionClick}
-                        >
-                          <ArrowSquareOutIcon size={12} weight="bold" />
-                          View in Notion
-                        </a>
+                      <Button variant="ghost" size="sm" onClick={handleShare}>
+                        <LinkIcon size={12} weight="bold" />
+                        {copied ? "Copied!" : "Copy link"}
                       </Button>
 
                       {book.audibleUrl && (
@@ -992,9 +985,16 @@ export function BookDetailContent({
                         </Button>
                       )}
 
-                      <Button variant="ghost" size="sm" onClick={handleShare}>
-                        <LinkIcon size={12} weight="bold" />
-                        {copied ? "Copied!" : "Copy link"}
+                      <Button variant="ghost" size="sm" asChild>
+                        <a
+                          href={book.notionUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={handleNotionClick}
+                        >
+                          <ArrowSquareOutIcon size={12} weight="bold" />
+                          View in Notion
+                        </a>
                       </Button>
                     </motion.div>
                   </motion.div>
@@ -1028,7 +1028,7 @@ export function BookDetailContent({
       {!isLargeScreen && (
         <motion.div
           style={{ opacity: fullMetadataOpacity }}
-          className="mx-auto w-full max-w-3xl px-6 pb-6 pt-2 xs:px-14"
+          className="mx-auto w-full max-w-4xl px-6 pb-6 pt-2 xs:px-14"
         >
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-0.5">
@@ -1226,16 +1226,9 @@ export function BookDetailContent({
 
             {/* Actions */}
             <div className="flex -translate-x-3 flex-wrap gap-0">
-              <Button variant="ghost" size="sm" asChild>
-                <a
-                  href={book.notionUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={handleNotionClick}
-                >
-                  <ArrowSquareOutIcon size={12} weight="bold" />
-                  View in Notion
-                </a>
+              <Button variant="ghost" size="sm" onClick={handleShare}>
+                <LinkIcon size={12} weight="bold" />
+                {copied ? "Copied!" : "Copy link"}
               </Button>
 
               {book.audibleUrl && (
@@ -1252,9 +1245,16 @@ export function BookDetailContent({
                 </Button>
               )}
 
-              <Button variant="ghost" size="sm" onClick={handleShare}>
-                <LinkIcon size={12} weight="bold" />
-                {copied ? "Copied!" : "Copy link"}
+              <Button variant="ghost" size="sm" asChild>
+                <a
+                  href={book.notionUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={handleNotionClick}
+                >
+                  <ArrowSquareOutIcon size={12} weight="bold" />
+                  View in Notion
+                </a>
               </Button>
             </div>
           </div>
@@ -1264,7 +1264,7 @@ export function BookDetailContent({
       {/* Main content */}
       <div
         className={cn(
-          "mx-auto w-full max-w-3xl px-6 pt-0 xs:px-14 md:pt-6",
+          "mx-auto w-full max-w-4xl px-6 pt-0 xs:px-14 md:pt-6",
           !book.hasNotes && "lg:pb-0",
         )}
       >

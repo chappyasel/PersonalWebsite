@@ -1,32 +1,32 @@
 import { readFile } from "node:fs/promises";
-import { createLoader } from "nuqs/server";
 import { describe, expect, it, vi } from "vitest";
 
 import {
   type WeightliftingExerciseRow,
   searchWeightliftingExercises,
-  serializeExerciseDestination,
 } from "./weightlifting";
-import { wlSearchParams } from "~/app/weightlifting/lib/searchParams";
+
+const rows: WeightliftingExerciseRow[] = [
+  {
+    slug: "incline-barbell-bench-press",
+    displayName: "Incline Barbell Bench Press",
+    name: "Barbell Bench Press",
+    category: "Chest",
+    setCount: 40,
+    bestOneRM: 225,
+  },
+  {
+    slug: "back-squats",
+    displayName: "Back Squats",
+    name: "Squats",
+    category: "Legs",
+    setCount: 50,
+    bestOneRM: 350,
+  },
+];
 
 describe("weightlifting search", () => {
-  it("uses the chart-selectable corpus and caps ranked destinations", async () => {
-    const rows: WeightliftingExerciseRow[] = [
-      {
-        displayName: "Incline Barbell Bench Press",
-        name: "Barbell Bench Press",
-        category: "Chest",
-        setCount: 40,
-        bestOneRM: 225,
-      },
-      {
-        displayName: "Back Squats",
-        name: "Squats",
-        category: "Legs",
-        setCount: 50,
-        bestOneRM: 350,
-      },
-    ];
+  it("links ranked exercises to their own pages with category details", async () => {
     const load = vi.fn(async () => rows);
 
     const results = await searchWeightliftingExercises("bench", {
@@ -34,32 +34,38 @@ describe("weightlifting search", () => {
       location: new URL("https://www.chappyasel.com"),
     });
 
-    expect(load).toHaveBeenCalledWith(10, expect.any(AbortSignal));
+    expect(load).toHaveBeenCalledWith(expect.any(AbortSignal));
     expect(results).toHaveLength(1);
-    expect(results[0]?.href).toContain("https://weightlifting.chappyasel.com/");
-  });
-
-  it("round-trips exercise names through the shared nuqs parser", () => {
-    const href = serializeExerciseDestination(
-      "Incline Bench, Paused",
-      new URL("http://books.localhost:4310"),
+    expect(results[0]?.href).toBe(
+      "https://weightlifting.chappyasel.com/incline-barbell-bench-press",
     );
-    const parsed = createLoader(wlSearchParams)(href);
-
-    expect(href).toMatch(/^http:\/\/weightlifting\.localhost:4310\//);
-    expect(parsed.exercises).toEqual(["Incline Bench, Paused"]);
+    expect(results[0]?.description).toBe("Chest · 225 lbs est. 1RM");
+    expect(results[0]?.accentColor).toBe("#039BE5");
   });
 
-  it("keeps exercise destinations inside a preview deployment", () => {
-    expect(
-      serializeExerciseDestination(
-        "Bench Press",
-        new URL("https://personal-website.vercel.app"),
-      ),
-    ).toMatch(/^https:\/\/personal-website\.vercel\.app\/weightlifting\//);
+  it("keeps exercise destinations inside a preview deployment", async () => {
+    const results = await searchWeightliftingExercises("squat", {
+      load: async () => rows,
+      location: new URL("https://personal-website.vercel.app"),
+    });
+
+    expect(results[0]?.href).toBe(
+      "https://personal-website.vercel.app/weightlifting/back-squats",
+    );
   });
 
-  it("shares the chart corpus and its bounded database query", async () => {
+  it("maps subdomain-local development hosts onto the weightlifting host", async () => {
+    const results = await searchWeightliftingExercises("squat", {
+      load: async () => rows,
+      location: new URL("http://books.localhost:4310"),
+    });
+
+    expect(results[0]?.href).toBe(
+      "http://weightlifting.localhost:4310/back-squats",
+    );
+  });
+
+  it("shares the exercise-page index and its bounded database query", async () => {
     const querySource = await readFile(
       new URL(
         "../../../server/queries/weightliftingExercises.ts",
@@ -67,8 +73,11 @@ describe("weightlifting search", () => {
       ),
       "utf8",
     );
-    const routerSource = await readFile(
-      new URL("../../../server/api/routers/weightlifting.ts", import.meta.url),
+    const indexSource = await readFile(
+      new URL(
+        "../../../server/queries/weightliftingExercise.ts",
+        import.meta.url,
+      ),
       "utf8",
     );
 
@@ -76,8 +85,6 @@ describe("weightlifting search", () => {
     expect(querySource).toContain("s.one_rm > 0");
     expect(querySource).toContain("e.style = 'reps_weight'");
     expect(querySource).toContain("HAVING COUNT(s.id) >= ${minSets}");
-    expect(routerSource).toContain(
-      "getChartSelectableExercises(input.minSets)",
-    );
+    expect(indexSource).toContain("buildSlugMap");
   });
 });
