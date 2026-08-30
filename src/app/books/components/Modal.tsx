@@ -4,27 +4,33 @@ import { useModalActions, useModalState } from "../contexts/BookPreviewContext";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { usePathname } from "next/navigation";
 import {
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
   useEffect,
   useLayoutEffect,
   useRef,
   useState,
-  type MouseEvent as ReactMouseEvent,
 } from "react";
 
+import { getBookPath, getBookShareUrl } from "~/lib/books/paths";
 import {
+  type ModalOrigin,
   originEntrance,
   originExit,
   takeModalOrigin,
-  type ModalOrigin,
 } from "~/lib/originFlight";
-
-import { getBookPath, getBookShareUrl } from "~/lib/books/paths";
+import { closeOverlayChrome, openOverlayChrome } from "~/lib/overlayChrome";
 import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
 import { api } from "~/trpc/react";
 
-import { Spinner } from "~/components/ui/spinner";
+import {
+  SheetCloseControl,
+  SheetControlCluster,
+  SheetExpandControl,
+} from "~/components/modal-sheet/SheetControls";
 
 import { BookDetailContent } from "./BookDetailContent";
+import { BookDetailLoadingSkeleton } from "./BookDetailLoadingSkeleton";
 import type { ModalPresentation } from "./ModalHost";
 import { bookIdFromPathname, isBookModalHistoryState } from "./modalHistory";
 import { shouldUseModalEnterShortcut } from "./modalKeyboard";
@@ -93,13 +99,35 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
   );
 
   // Use preview data immediately, fall back to fetched data
-  const book = selectedBook ?? fullBook;
-  const isLoadingNotes = isLoadingFull && !fullBook;
+  const fetchedBook = fullBook?.id === bookId ? fullBook : undefined;
+  const book = selectedBook?.id === bookId ? selectedBook : fetchedBook;
+  const isLoadingNotes = isLoadingFull && !fetchedBook;
+  const fullHeight = !book || book.hasNotes;
+
+  // The 3D world's chrome stands down for as long as this modal owns the
+  // screen (see lib/overlayChrome and the recede rules in StacksHome), and
+  // comes back the moment a close begins, so it is already returning while
+  // the shell flies home to its cover. Idempotent, because a close can also
+  // arrive as a history pop that never runs through `handleClose`.
+  const overlayHeldRef = useRef(false);
+  const releaseOverlayChrome = () => {
+    if (!overlayHeldRef.current) return;
+    overlayHeldRef.current = false;
+    closeOverlayChrome();
+  };
+  useEffect(() => {
+    if (!isModalOpen) return;
+    overlayHeldRef.current = true;
+    openOverlayChrome();
+    return releaseOverlayChrome;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModalOpen]);
 
   const handleClose = () => {
     // Prevent double-close during exit animation (ref updates synchronously)
     if (isClosingRef.current) return;
     isClosingRef.current = true;
+    releaseOverlayChrome();
     // Blur active element to prevent focus ring on book card
     (document.activeElement as HTMLElement)?.blur();
     // Stacks origin pop, reversed: the shell flies back to the clicked
@@ -377,6 +405,28 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isModalOpen, bookId]);
 
+  // Dismissing on a backdrop click is anchored to where the press STARTED —
+  // same rule as the sheet (components/modal-sheet/ModalSheet). A click is
+  // routed to the nearest common ancestor of press and release, so anything
+  // inside the modal that unmounts under the pointer, or a text selection
+  // that drifts off the card, would otherwise reach these handlers and take
+  // the modal down.
+  const dismissArmedRef = useRef(false);
+  const armDismiss = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const target = event.target;
+    dismissArmedRef.current = !(
+      target instanceof Node && shellRef.current?.contains(target)
+    );
+  };
+  const dismissIfArmed = (event: ReactMouseEvent<HTMLDivElement>) => {
+    const armed = dismissArmedRef.current;
+    dismissArmedRef.current = false;
+    const target = event.target;
+    if (!armed) return;
+    if (target instanceof Node && shellRef.current?.contains(target)) return;
+    handleClose();
+  };
+
   // Handle share button click
   const handleShare = async () => {
     if (!bookId) return;
@@ -404,13 +454,15 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
             transition={{
               duration: reduceMotion ? 0 : fromStacks ? 0.28 : 0.2,
             }}
-            onClick={handleClose}
+            onPointerDown={armDismiss}
+            onClick={dismissIfArmed}
           />
 
           {/* Modal */}
           <div
             className="fixed inset-0 z-50 overflow-y-auto overscroll-contain"
-            onClick={handleClose}
+            onPointerDown={armDismiss}
+            onClick={dismissIfArmed}
           >
             <div className="flex h-[100dvh] min-h-[320px] items-center justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))]">
               <motion.div
@@ -422,7 +474,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                 }
                 tabIndex={-1}
                 data-book-modal-shell={fromStacks ? "stacks" : undefined}
-                className={`relative w-full max-w-4xl outline-none ${book?.hasNotes ? "h-full" : ""}`}
+                className={`relative w-full max-w-4xl outline-none ${fullHeight ? "h-full" : ""}`}
                 onClick={(e) => e.stopPropagation()}
                 initial={
                   fromStacks && !reduceMotion
@@ -449,14 +501,14 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                     Framer to morph from a source that does not exist. */}
                 <motion.div
                   layoutId={fromStacks ? undefined : `book-cover-${bookId}`}
-                  className={`absolute inset-0 rounded-2xl bg-background shadow-[0px_10px_50px_10px_rgba(0,0,0,0.1)] dark:bg-muted ${expanded ? "h-full max-h-none" : book?.hasNotes ? "h-full" : "max-h-[85dvh]"}`}
+                  className={`absolute inset-0 rounded-2xl bg-background shadow-[0px_10px_50px_10px_rgba(0,0,0,0.1)] dark:bg-muted ${expanded ? "h-full max-h-none" : fullHeight ? "h-full" : "max-h-[85dvh]"}`}
                   transition={{
                     layout: { type: "spring", stiffness: 300, damping: 30 },
                   }}
                 />
                 {/* Actual content - fades in on top */}
                 <motion.div
-                  className={`relative overflow-hidden rounded-2xl bg-background dark:bg-muted ${expanded ? "h-full max-h-none" : book?.hasNotes ? "h-full" : "max-h-[85dvh]"}`}
+                  className={`relative overflow-hidden rounded-2xl bg-background dark:bg-muted ${expanded ? "h-full max-h-none" : fullHeight ? "h-full" : "max-h-[85dvh]"}`}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
@@ -481,7 +533,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                   ) : book ? (
                     <BookDetailContent
                       book={book}
-                      fullBook={fullBook}
+                      fullBook={fetchedBook}
                       isLoadingNotes={isLoadingNotes}
                       contentRef={contentRef}
                       onShare={handleShare}
@@ -504,13 +556,17 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                       }
                     />
                   ) : (
-                    <div className="flex h-full items-center justify-center p-8">
-                      <div className="flex flex-col items-center gap-3">
-                        <Spinner className="size-8" />
-                        <p className="text-sm text-muted-foreground">
-                          Loading book details...
-                        </p>
-                      </div>
+                    <div className="relative h-full">
+                      <SheetControlCluster className="absolute right-6 top-6 z-10 xs:right-14">
+                        {!expanded && (
+                          <SheetExpandControl
+                            href={expandHref}
+                            onClick={handleExpand}
+                          />
+                        )}
+                        <SheetCloseControl onClick={handleClose} />
+                      </SheetControlCluster>
+                      <BookDetailLoadingSkeleton />
                     </div>
                   )}
                 </motion.div>

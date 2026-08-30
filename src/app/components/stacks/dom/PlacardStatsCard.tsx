@@ -45,7 +45,7 @@ export function PlacardLinkCard({
       >
         <div
           data-placard-surface=""
-          className="rounded-3xl border border-foreground/[0.06] bg-muted/40 p-5 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-[24px] min-[1200px]:p-6"
+          className="rounded-3xl border border-foreground/[0.06] bg-muted/90 p-5 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-[24px] min-[1200px]:p-6"
         >
           {children}
         </div>
@@ -103,7 +103,7 @@ export function PlacardNestedLinkCard({
       >
         <div
           data-placard-surface=""
-          className="rounded-3xl border border-foreground/[0.06] bg-muted/40 p-5 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-[24px] min-[1200px]:p-6"
+          className="rounded-3xl border border-foreground/[0.06] bg-muted/90 p-5 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-[24px] min-[1200px]:p-6"
         >
           {children}
         </div>

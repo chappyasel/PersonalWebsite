@@ -32,8 +32,12 @@ export type PillBottleSize =
  * It is a LONG object — seven times its own height — and that is the whole
  * reason the arrangement below looks the way it does. Two of these will not
  * stand side by side anywhere on this plank: the notebook's right edge is at
- * x 0.311 and the desk lamp's left edge at 0.948 (both measured off the
- * scene, not guessed), so the bay is 0.636 wide and two cases need 0.92.
+ * x 0.281 and the practical at the end of the plank reaches back to 0.900
+ * (both measured off the scene, not guessed), so the bay is 0.619 wide and
+ * two cases need 0.92. Both numbers moved on 2026-08-29 — the notebook went
+ * 0.030 left with the spacing pass and the desk lamp became a sunlamp, whose
+ * panel is wider than the lamp's stalk — and the bay shrank by 0.017, which
+ * changes nothing here because it was never close to fitting.
  */
 const CASE_INCH = 0.0254 * 2;
 export const PILL_CASE_TRAY_H = 1.26 * CASE_INCH * 0.8;
@@ -90,10 +94,12 @@ export function pillBottleHeight(size: PillBottleSize) {
  * offset along its own length.
  *
  * At the real 0.450 length they cannot be four abreast, or even two abreast:
- * the bay between the notebook (right edge x 0.311) and the desk lamp (left
- * edge 0.948) measures 0.636, and two cases end to end need 0.92. So the
- * pairs are separated in DEPTH and slid along x, which leaves about 0.18 of
- * each pair's length sticking out past the other. That exposed end is the
+ * the bay between the notebook and the sunlamp is around 0.6 wide and two
+ * cases end to end need 0.92. So the pairs are separated in DEPTH and slid
+ * along x, which leaves about 0.18 of each pair's length sticking out past
+ * the other. The owner moved all four on 2026-08-30 — the back pair forward
+ * about 0.08, the front pair right about 0.12 — and those positions are his;
+ * only the offset between each pair's two cases was restored (see back-upper). That exposed end is the
  * whole reason the arrangement works — where the pairs overlap in x, the
  * front one hides the back one completely, because at two degrees above the
  * shelf line depth buys almost no vertical separation.
@@ -103,8 +109,10 @@ export function pillBottleHeight(size: PillBottleSize) {
  * takes its day letters with it.
  *
  * The front pair is built dark-on-the-bottom and the back pair light. The
- * desk lamp aims down this row and its spill is additive, so whatever sits
- * on top at the lamp end washes out — a black case there came out khaki. The
+ * practical at the end of the plank aims down this row and its spill is
+ * additive, so whatever sits on top at the lamp end washes out — a black case
+ * there came out khaki. That was the desk lamp's warm cone; the sunlamp that
+ * replaced it on 2026-08-29 washes cooler and less, and the finding holds. The
  * pairs therefore show opposite faces: one dark top with light letters, one
  * light top with dark ones.
  */
@@ -127,37 +135,42 @@ export const PILL_ORGANIZER_ROW: Array<{
   {
     id: "back-lower",
     variant: "white",
-    x: 0.53,
+    x: 0.5536,
     y: 0,
-    z: -0.19,
+    z: -0.1076,
     yaw: 0.42,
     shade: 0.34,
   },
   {
     id: "back-upper",
     variant: "smoke",
-    x: 0.62,
+    // 0.09 along its own length off the case below, restored. The editor left
+    // this pair 0.0425 apart and the front pair 0.0113, which squares a top
+    // case over the lid it is meant to leave showing — a drag artefact, not a
+    // decision: 0.09 is the authored offset both pairs had, and the exposed
+    // end is the entire reason two cases stack rather than sit side by side.
+    x: 0.6436,
     y: PILL_ORGANIZER.height,
-    z: -0.202,
+    z: -0.1287,
     yaw: 0.3,
     shade: 0.16,
   },
   {
     id: "front-lower",
     variant: "smoke",
-    x: 0.63,
+    x: 0.7504,
     y: 0,
-    z: 0.09,
+    z: 0.0866,
     yaw: 0.3,
     shade: 0.34,
   },
   {
     id: "front-upper",
     variant: "white",
-    x: 0.72,
+    x: 0.8404,
     y: PILL_ORGANIZER.height,
-    z: 0.078,
-    yaw: 0.2,
+    z: 0.0772,
+    yaw: 0.0128,
     shade: 0.16,
   },
 ];

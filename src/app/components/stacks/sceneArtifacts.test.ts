@@ -134,7 +134,7 @@ describe("Scene artifact inspector", () => {
   });
 
   it("catalogs every presented photograph in a room-local collection", () => {
-    expect(SCENE_PHOTOS).toHaveLength(29);
+    expect(SCENE_PHOTOS).toHaveLength(30);
     expect(
       Object.fromEntries(
         [
@@ -151,7 +151,7 @@ describe("Scene artifact inspector", () => {
       ),
     ).toEqual({
       "about-photos": 6,
-      "training-photos": 9,
+      "training-photos": 10,
       "projects-photos": 3,
       "talks-photos": 5,
       "systems-photos": 6,
@@ -288,7 +288,7 @@ describe("Scene artifact inspector", () => {
   });
 
   it("defines Lift Table as a directly inspectable singleton image", () => {
-    expect(SCENE_ARTIFACTS).toHaveLength(34);
+    expect(SCENE_ARTIFACTS).toHaveLength(35);
     expect(sceneArtifactById("lift-table")).toMatchObject({
       kind: "image",
       title: "Lift Table",

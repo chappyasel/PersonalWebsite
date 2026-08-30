@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="736" viewBox="0 0 512 736">
+  <!--
+    Beta alanine pouch for the Systems shelf (scene/FrozenBag.tsx), the third
+    of the three supplement powders. Same 512 x 736 portrait as creatine.svg,
+    projected onto the standing bag's front face by scene/bagLabelUvs.ts: u
+    across the face, v up it, side columns sampling plain pouch white and the
+    bottom row sampling the band.
+
+    Same in-the-know rule as the chicken bag and the other two pouches: no
+    logotype and no photograph. The orange figure, the two-line ingredient
+    name and the orange strip of serving numbers are what identify it across
+    a room, so those are drawn and the brand's wordmark is not. "BETA
+    ALANINE" is real text because it names an ingredient.
+
+    The name is short, so both lines take 62 px rather than the creatine
+    pouch's 54: ALANINE at that size ends at x 345, which is where CREATINE
+    ends, so all three bags fill the same column of face. Set at 54 to match
+    the numbers instead, a four-letter first line left the pouch looking
+    half-printed. Numbers off the 1 kg bag: 3 g a serving, 333 servings.
+  -->
+  <rect width="512" height="736" fill="#f8f6f1"/>
+  <!-- crimp along the top fold -->
+  <rect x="0" y="0" width="512" height="40" fill="#ebe8e1"/>
+  <g fill="#d6d1c6">
+    <rect x="14" y="8" width="3" height="24"/><rect x="40" y="8" width="3" height="24"/><rect x="66" y="8" width="3" height="24"/>
+    <rect x="92" y="8" width="3" height="24"/><rect x="118" y="8" width="3" height="24"/><rect x="144" y="8" width="3" height="24"/>
+    <rect x="170" y="8" width="3" height="24"/><rect x="196" y="8" width="3" height="24"/><rect x="222" y="8" width="3" height="24"/>
+    <rect x="248" y="8" width="3" height="24"/><rect x="274" y="8" width="3" height="24"/><rect x="300" y="8" width="3" height="24"/>
+    <rect x="326" y="8" width="3" height="24"/><rect x="352" y="8" width="3" height="24"/><rect x="378" y="8" width="3" height="24"/>
+    <rect x="404" y="8" width="3" height="24"/><rect x="430" y="8" width="3" height="24"/><rect x="456" y="8" width="3" height="24"/>
+    <rect x="482" y="8" width="3" height="24"/>
+  </g>
+
+  <!-- The figure: one arm raised, head clear of it, a long stride. Drawn as
+       body + separate head so the head reads as a disc at any blur. -->
+  <g fill="#f07d1a">
+    <circle cx="408" cy="222" r="42"/>
+    <path d="M352 284
+             q34 -18 66 -14
+             q30 4 44 26
+             l10 -118
+             q3 -30 26 -28
+             q22 2 20 32
+             l-14 152
+             q-4 34 -34 44
+             l-46 16
+             l30 130
+             q6 26 -16 34
+             q-22 8 -32 -18
+             l-32 -96
+             l-38 96
+             q-10 26 -32 18
+             q-22 -8 -16 -34z"/>
+  </g>
+
+  <!-- Ingredient name, two lines, in the room's ink grey. -->
+  <g fill="#4a4a4a" font-family="Arial Black, Arial, Helvetica, sans-serif" font-weight="900">
+    <text x="46" y="366" font-size="62" letter-spacing="-1">BETA</text>
+    <text x="46" y="432" font-size="62" letter-spacing="-1">ALANINE</text>
+  </g>
+  <text x="46" y="472" fill="#7a7a7a" font-family="Arial, Helvetica, sans-serif"
+        font-size="24" letter-spacing="1">POWDER</text>
+
+  <!-- Serving strip: orange rounded bar, two dividers, three number groups. -->
+  <g transform="translate(46 596)">
+    <rect width="420" height="98" rx="49" fill="#f07d1a" stroke="#4a4a4a" stroke-width="7"/>
+    <g stroke="#4a4a4a" stroke-width="6" stroke-linecap="round">
+      <line x1="140" y1="20" x2="140" y2="78"/>
+      <line x1="280" y1="20" x2="280" y2="78"/>
+    </g>
+    <g fill="#ffffff" font-family="Arial Black, Arial, Helvetica, sans-serif" font-weight="900" text-anchor="middle">
+      <text x="70" y="58" font-size="46">3g</text>
+      <text x="210" y="58" font-size="46">1kg</text>
+      <text x="350" y="58" font-size="46">333</text>
+    </g>
+    <g fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="17" text-anchor="middle" letter-spacing="1">
+      <text x="70" y="80">PER SERVING</text>
+      <text x="210" y="80">WEIGHT</text>
+      <text x="350" y="80">SERVINGS</text>
+    </g>
+  </g>
+</svg>

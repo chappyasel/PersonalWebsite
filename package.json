@@ -52,6 +52,7 @@
     "generate:stacks-labels": "node ./scripts/stacks-labels.mjs",
     "generate:manual": "tsx ./scripts/generate/manual.ts",
     "generate:routine": "tsx ./scripts/generate/routine.ts",
+    "generate:scene-objects": "tsx ./scripts/generate/scene-object-notes.ts",
     "add-book-covers": "tsx ./scripts/add-book-covers.ts",
     "add-book-covers:dry-run": "tsx ./scripts/add-book-covers.ts --dry-run",
     "backfill:book-flags": "dotenv -e .env -- tsx ./scripts/backfill-book-flags.ts",

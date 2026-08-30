@@ -49,6 +49,8 @@ import {
   useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
+
+import { useObjectNote } from "../objectNotes";
 import { PhotoSlider } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
 import type {
@@ -109,6 +111,11 @@ function PreviewChrome({
   onClose,
 }: PreviewChromeProps) {
   const model = artifact.kind === "model";
+  // Captions live in content/stacks/objects.md, fetched on first need rather
+  // than bundled (see ../objectNotes). An artifact's own `caption` still wins
+  // where one is set in the catalog, so nothing already authored moves.
+  const note = useObjectNote(artifact.id);
+  const caption = artifact.kind === "image" ? (artifact.caption ?? note?.body) : undefined;
 
   return (
     <div
@@ -167,13 +174,13 @@ function PreviewChrome({
             </div>
           )}
 
-          {artifact.kind === "image" && artifact.caption && (
+          {artifact.kind === "image" && caption && (
             <p
               data-artifact-preview-caption
               className="min-w-0 flex-1 text-center text-sm sm:text-left"
             >
               <span className="inline-block max-w-2xl rounded-xl border border-[#725536]/20 bg-[#f2e7cf]/85 px-4 py-2 text-[#493721]/80 shadow-[0_8px_24px_rgba(22,14,8,0.14)] backdrop-blur-[2px]">
-                {artifact.caption}
+                {caption}
               </span>
             </p>
           )}

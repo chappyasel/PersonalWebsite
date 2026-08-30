@@ -1,6 +1,5 @@
 "use client";
 
-import { ArrowsOutSimpleIcon, XIcon } from "@phosphor-icons/react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import {
@@ -10,9 +9,14 @@ import {
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
 
+import {
+  closeOverlayChrome,
+  openOverlayChrome,
+} from "~/lib/overlayChrome";
 import {
   originEntrance,
   originExit,
@@ -22,11 +26,10 @@ import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
 import { cn } from "~/lib/utils";
 
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "~/components/ui/tooltip";
+  SheetCloseControl,
+  SheetControlCluster,
+  SheetExpandControl,
+} from "./SheetControls";
 
 /** True inside a mounted sheet. Content shared between a full page and its
  * intercepted presentation reads this to pick navigation style — e.g. the
@@ -187,9 +190,21 @@ export default function ModalSheet({
     };
   };
 
+  // The world's chrome is held down for as long as the sheet owns the screen,
+  // and released the moment a close begins so it is already returning while
+  // the card flies home. Idempotent: the unmount path releases it too, for the
+  // closes that never run through `close` (a back button, a hard navigation).
+  const overlayHeldRef = useRef(false);
+  const releaseOverlayChrome = () => {
+    if (!overlayHeldRef.current) return;
+    overlayHeldRef.current = false;
+    closeOverlayChrome();
+  };
+
   const close = () => {
     if (isClosingRef.current) return;
     isClosingRef.current = true;
+    releaseOverlayChrome();
     // The launcher un-suspends NOW, so the source card is already back on
     // the page while the sheet flies home onto it instead of popping in
     // after.
@@ -206,6 +221,30 @@ export default function ModalSheet({
   };
   const closeRef = useRef(close);
   closeRef.current = close;
+
+  // Dismissing on a backdrop click is anchored to where the press STARTED.
+  // A bare `onClick={close}` on the backdrop closes the sheet for any click
+  // React routes there, and a click is routed to the nearest common ancestor
+  // of the press and the release — so a press on something inside the sheet
+  // that unmounts under the pointer (a section collapsing, a toggle's exit
+  // animation) or a text selection that drifts past the card's edge both
+  // land on the backdrop and take the sheet down with them. Arming on
+  // pointerdown means only a press that began on the backdrop can dismiss.
+  const dismissArmedRef = useRef(false);
+  const armDismiss = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const target = event.target;
+    dismissArmedRef.current = !(
+      target instanceof Node && shellRef.current?.contains(target)
+    );
+  };
+  const dismissIfArmed = (event: ReactMouseEvent<HTMLDivElement>) => {
+    const armed = dismissArmedRef.current;
+    dismissArmedRef.current = false;
+    const target = event.target;
+    if (!armed) return;
+    if (target instanceof Node && shellRef.current?.contains(target)) return;
+    close();
+  };
 
   // Book-notes-style origin pop: the card starts as the source rect and
   // grows into place. WAAPI instead of framer for the entrance so the final
@@ -226,6 +265,12 @@ export default function ModalSheet({
     // The page underneath keeps its scroll position; only the sheet scrolls.
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    // Raised at mount, not with presence: the chrome has to be on its way out
+    // while the card grows, or it snaps off half a second late. The placard
+    // dock is the one piece that waits, and it waits in CSS (StacksHome), so
+    // the card still has a live source card to grow out of.
+    overlayHeldRef.current = true;
+    openOverlayChrome();
     // Presence is raised AFTER the entrance: on the homepage the world's
     // placards suspend themselves on it, and the source card must stay put
     // under the growing sheet — half a second of live launcher is harmless.
@@ -239,6 +284,7 @@ export default function ModalSheet({
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = previous;
       window.clearTimeout(raise);
+      releaseOverlayChrome();
       presenceRef.current?.(false);
       cancelAnimationFrame(frame);
       const target = returnFocusRef.current;
@@ -312,11 +358,13 @@ export default function ModalSheet({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: reduceMotion ? 0 : 0.28 }}
-            onClick={close}
+            onPointerDown={armDismiss}
+            onClick={dismissIfArmed}
           />
           <div
             className="absolute inset-0 flex items-center justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 sm:pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pt-[max(1.25rem,env(safe-area-inset-top))]"
-            onClick={close}
+            onPointerDown={armDismiss}
+            onClick={dismissIfArmed}
           >
             <motion.div
               ref={shellRef}
@@ -349,66 +397,22 @@ export default function ModalSheet({
               }
             >
               {!expanded && (
-              <div
-                data-sheet-cluster
-                className={cn(
-                  "absolute z-10 flex items-center gap-2",
-                  isCard ? "right-3 top-3" : "right-4 top-4",
-                )}
-              >
-                <TooltipProvider>
-                  <Tooltip delayDuration={200}>
-                    <TooltipTrigger asChild>
-                      {/* A hard <a>, not Link, as the fallback: the full-page
-                          render must step out of this intercepted route. Both
-                          variants spring to the viewport and stay — the card's
-                          content reflows into its page layout mid-flight. */}
-                      <a
-                        href={expandHref}
-                        onClick={expand}
-                        className={cn(
-                          "flex items-center justify-center rounded-full bg-muted shadow-sm transition-all duration-200 ease-in-out hover:bg-primary/20",
-                          isCard ? "size-8" : "size-10",
-                        )}
-                        aria-label="Open full page"
-                      >
-                        <ArrowsOutSimpleIcon
-                          size={isCard ? 16 : 20}
-                          weight="bold"
-                          className="text-primary"
-                        />
-                      </a>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Open full page</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider>
-                  <Tooltip delayDuration={200}>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        onClick={close}
-                        className={cn(
-                          "flex items-center justify-center rounded-full bg-muted shadow-sm transition-all duration-200 ease-in-out hover:bg-primary/20",
-                          isCard ? "size-8" : "size-10",
-                        )}
-                        aria-label="Close"
-                      >
-                        <XIcon
-                          size={isCard ? 16 : 20}
-                          weight="bold"
-                          className="text-primary"
-                        />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Close</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
+                <SheetControlCluster
+                  className={cn(
+                    "absolute z-10",
+                    isCard ? "right-3 top-3" : "right-4 top-4",
+                  )}
+                >
+                  <SheetExpandControl
+                    href={expandHref}
+                    onClick={expand}
+                    size={isCard ? "compact" : "regular"}
+                  />
+                  <SheetCloseControl
+                    onClick={close}
+                    size={isCard ? "compact" : "regular"}
+                  />
+                </SheetControlCluster>
               )}
               <div
                 data-modal-scroller

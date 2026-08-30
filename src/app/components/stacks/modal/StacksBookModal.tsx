@@ -11,19 +11,21 @@
 // scene. Legacy #book-<id> hash links still open the modal and get their URL
 // upgraded to the path form.
 import { ModalHost } from "../../../books/components/ModalHost";
+import { BOOK_MODAL_HISTORY_STATE } from "../../../books/components/modalHistory";
 import {
   BookPreviewProvider,
   useModalActions,
   useModalState,
 } from "../../../books/contexts/BookPreviewContext";
+import { subscribeBookPrefetch } from "../bookPrefetch";
 import { UNITS } from "../data";
 import { useStacks } from "../store";
 import { useEffect } from "react";
 
 import { devSubdomainUrl } from "~/lib/util";
 import { BooksTRPCProvider } from "~/trpc/books-provider";
+import { api } from "~/trpc/react";
 
-import { BOOK_MODAL_HISTORY_STATE } from "../../../books/components/modalHistory";
 import { jumpToUnitWhenReady, ownDirectBookHistory } from "./bookModalSync";
 
 const BOOK_HASH = /^#book-(.+)$/;
@@ -36,6 +38,7 @@ function booksBaseUrl(): string {
 }
 
 function ModalBridge() {
+  const utils = api.useUtils();
   const pendingBook = useStacks((s) => s.pendingBook);
   const setPendingBook = useStacks((s) => s.setPendingBook);
   const pendingBookId = useStacks((s) => s.pendingBookId);
@@ -43,6 +46,14 @@ function ModalBridge() {
   const setModalOpen = useStacks((s) => s.setModalOpen);
   const { openModal, openModalById } = useModalActions();
   const { isModalOpen } = useModalState();
+
+  useEffect(
+    () =>
+      subscribeBookPrefetch((bookId) => {
+        void utils.books.getById.prefetch({ bookId });
+      }),
+    [utils],
+  );
 
   // 3D cover click → pushState + instant open (the books-app pattern).
   useEffect(() => {

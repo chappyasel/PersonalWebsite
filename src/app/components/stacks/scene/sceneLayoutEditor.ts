@@ -36,6 +36,18 @@ type SceneLayoutRecord = Readonly<{
   changed: boolean;
 }>;
 
+/**
+ * A prop's editor-set resting pose, readable whether or not the editor is
+ * currently enabled. `positionFor`/`rotationFor`/`scaleFor` answer the
+ * narrower question "is the editor driving this prop right now"; this one
+ * answers "where does this prop live for the rest of the page session".
+ */
+export type SceneLayoutOverride = Readonly<{
+  position: SceneLayoutPosition;
+  rotation: SceneLayoutPosition;
+  scale: number;
+}>;
+
 export type SceneLayoutSnapshot = Readonly<{
   enabled: boolean;
   selectedId: string | null;
@@ -148,18 +160,6 @@ const applyRootTransform = (record: MutableRecord) => {
   record.root.updateMatrix();
 };
 
-const applyAuthoredRootTransform = (record: MutableRecord) => {
-  if (!record.root) return;
-  record.root.position.fromArray(record.authored);
-  record.root.rotation.set(
-    record.authoredRotation[0],
-    record.authoredRotation[1],
-    record.authoredRotation[2],
-  );
-  record.root.scale.fromArray(record.authoredScale);
-  record.root.updateMatrix();
-};
-
 const applyHistory = (state: HistoryState) => {
   for (const record of records.values()) {
     const value = state.get(record.id);
@@ -199,6 +199,43 @@ const publicRecord = (record: MutableRecord): SceneLayoutRecord => {
   });
 };
 
+/**
+ * Kept as one frozen object per prop, replaced only when a component actually
+ * changes, because `Grabbable` reads this through `useSyncExternalStore`. A
+ * fresh object per publish would re-render every edited prop on every frame of
+ * a gizmo drag.
+ */
+const overrides = new Map<string, SceneLayoutOverride | null>();
+
+const overrideValue = (record: MutableRecord): SceneLayoutOverride | null =>
+  record.preview === null &&
+  record.previewRotation === null &&
+  record.previewScale === null
+    ? null
+    : Object.freeze({
+        position: record.preview ?? record.authored,
+        rotation: record.previewRotation ?? record.authoredRotation,
+        scale: record.previewScale ?? 1,
+      });
+
+const sameOverride = (
+  a: SceneLayoutOverride | null,
+  b: SceneLayoutOverride | null,
+) =>
+  a === null || b === null
+    ? a === b
+    : samePosition(a.position, b.position) &&
+      samePosition(a.rotation, b.rotation) &&
+      a.scale === b.scale;
+
+const refreshOverrides = () => {
+  for (const record of records.values()) {
+    const next = overrideValue(record);
+    if (!sameOverride(overrides.get(record.id) ?? null, next))
+      overrides.set(record.id, next);
+  }
+};
+
 const snapshot = (): SceneLayoutSnapshot =>
   Object.freeze({
     enabled,
@@ -216,6 +253,7 @@ const snapshot = (): SceneLayoutSnapshot =>
 let currentSnapshot = snapshot();
 
 const publish = () => {
+  refreshOverrides();
   currentSnapshot = snapshot();
   for (const listener of listeners) listener();
 };
@@ -275,20 +313,30 @@ export const sceneLayoutEditorController = {
     };
   },
 
+  /**
+   * Leaving the editor releases the SELECTION and the gizmo, not the layout.
+   *
+   * It used to snap every edited prop back to its authored spot, which made
+   * the one thing the tool is for impossible: move things in free roam, drop
+   * back to the docked view, and look at the new arrangement the way a
+   * visitor would. The poses now stay until a reload or an explicit reset, so
+   * `Grabbable` treats an override as that prop's resting pose and hands it
+   * back to ordinary hover, carry, and physics from there.
+   *
+   * The undo stack stays with them. Edits that survive the toggle and a
+   * history that does not is a trap: ⌘Z after re-entering would silently mean
+   * something else.
+   */
   setEnabled(next: boolean) {
     if (enabled === next) return;
     if (!next) {
-      for (const record of records.values()) applyAuthoredRootTransform(record);
       selectedId = null;
       gestureActive = false;
       gestureBaseline = null;
-      undoStates.length = 0;
-      redoStates.length = 0;
       restoreScrollInput();
     }
     enabled = next;
-    if (next)
-      for (const record of records.values()) applyRootTransform(record);
+    for (const record of records.values()) applyRootTransform(record);
     publish();
   },
 
@@ -503,6 +551,11 @@ export const sceneLayoutEditorController = {
     return record.previewScale ?? 1;
   },
 
+  /** The persisted pose, editor enabled or not. Null once reset. */
+  overrideFor(id: string): SceneLayoutOverride | null {
+    return overrides.get(id) ?? null;
+  },
+
   selectedRoot() {
     return selectedId ? (records.get(selectedId)?.root ?? null) : null;
   },
@@ -548,6 +601,7 @@ export const sceneLayoutEditorController = {
 
   resetForTests() {
     records.clear();
+    overrides.clear();
     enabled = false;
     selectedId = null;
     gestureActive = false;

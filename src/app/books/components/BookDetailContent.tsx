@@ -7,14 +7,12 @@ import {
   ArrowSquareOutIcon,
   ArrowUpRightIcon,
   ArrowsClockwiseIcon,
-  ArrowsOutSimpleIcon,
   BookmarkSimpleIcon,
   BooksIcon,
   CalendarIcon,
   HeadphonesIcon,
   LinkIcon,
   StarIcon,
-  XIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import {
   type MotionValue,
@@ -54,8 +52,12 @@ import type { BaseBook, Book, BookReading } from "~/lib/books/types";
 import { abandonedPercent } from "~/lib/books/types";
 import { cn } from "~/lib/util";
 
+import {
+  SheetCloseControl,
+  SheetControlCluster,
+  SheetExpandControl,
+} from "~/components/modal-sheet/SheetControls";
 import { Button } from "~/components/ui/button";
-import { Spinner } from "~/components/ui/spinner";
 import {
   Tooltip,
   TooltipContent,
@@ -63,6 +65,7 @@ import {
   TooltipTrigger,
 } from "~/components/ui/tooltip";
 
+import { BookNotesLoadingSkeleton } from "./BookDetailLoadingSkeleton";
 import {
   AbandonedNotice,
   AutomatedNotice,
@@ -71,6 +74,93 @@ import {
 } from "./BookNotices";
 import { InlineMarkdown } from "./InlineMarkdown";
 import { TagBadge } from "./TagBadge";
+
+/**
+ * Where you are, and the way back. Standalone pages keep the library-count
+ * breadcrumb; a modal opened over the 3D homepage gets a single outbound link
+ * to the dedicated Books site — no back arrow, since inside a modal that reads
+ * as dismiss; modals already on Books get neither, so the same navigation is
+ * never repeated in its own app.
+ *
+ * The wide layout renders this inside the title column rather than across the
+ * top of the card, so the line that says where you are sits over the thing it
+ * names instead of over the cover.
+ */
+function BookBreadcrumb({
+  modalBreadcrumbHref,
+  modalBookCount,
+  bookshelfBookCount,
+  marginBottom,
+  className,
+}: {
+  modalBreadcrumbHref?: string;
+  modalBookCount?: number;
+  bookshelfBookCount?: number;
+  marginBottom: MotionValue<string>;
+  className?: string;
+}) {
+  return (
+    <motion.nav
+      aria-label={modalBreadcrumbHref ? "Chappy's Book Notes" : "Breadcrumb"}
+      data-stacks-book-breadcrumb={modalBreadcrumbHref ? "external" : undefined}
+      className={cn("text-sm text-muted-foreground", className)}
+      style={{ marginBottom }}
+    >
+      {modalBreadcrumbHref ? (
+        <a
+          href={modalBreadcrumbHref}
+          className="inline-flex min-w-0 items-center gap-1.5 font-medium transition-colors hover:text-foreground"
+        >
+          <BooksIcon
+            aria-hidden
+            size={16}
+            weight="duotone"
+            className="shrink-0"
+          />
+          <span className="xs:hidden">Book Notes</span>
+          <span className="hidden xs:inline">Chappy&apos;s Book Notes</span>
+          <span aria-hidden="true" className="text-border">
+            ·
+          </span>
+          <span className="shrink-0 tabular-nums">
+            {modalBookCount?.toLocaleString() ?? "All"}
+            <span className="hidden xs:inline"> books</span>
+          </span>
+          <ArrowUpRightIcon
+            aria-hidden
+            size={14}
+            weight="bold"
+            className="shrink-0"
+          />
+        </a>
+      ) : (
+        <ol className="flex min-w-0 items-center gap-2">
+          <li className="shrink-0">
+            <Link
+              href={getBooksPath()}
+              className="inline-flex items-center gap-1.5 font-medium transition-colors hover:text-foreground"
+            >
+              <ArrowLeftIcon size={16} weight="bold" />
+              <span>Chappy&apos;s Book Notes</span>
+            </Link>
+          </li>
+          <li aria-hidden="true" className="text-border">
+            /
+          </li>
+          <li className="shrink-0 tabular-nums">
+            <Link
+              href={getBooksPath()}
+              className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground"
+            >
+              <BooksIcon size={16} weight="duotone" />
+              {bookshelfBookCount?.toLocaleString() ?? "All"} books
+            </Link>
+          </li>
+        </ol>
+      )}
+    </motion.nav>
+  );
+}
 
 // Animation configuration - overdamped to prevent oscillation
 const SPRING_CONFIG = {
@@ -410,6 +500,8 @@ export function BookDetailContent({
   // Responsive breakpoint detection
   const [isLargeScreen, setIsLargeScreen] = useState(false);
 
+  const showBreadcrumb = !isModal || Boolean(modalBreadcrumbHref);
+
   useEffect(() => {
     const mediaQuery = window.matchMedia("(min-width: 768px)");
     setIsLargeScreen(mediaQuery.matches);
@@ -419,11 +511,20 @@ export function BookDetailContent({
     return () => mediaQuery.removeEventListener("change", handler);
   }, []);
 
-  // Cover sizing
+
+  // Cover sizing. The collapsed height matches the text stack beside it, and
+  // that stack is two lines or three depending on whether this view carries a
+  // breadcrumb — which is why 55px was right when the crumb ran across the top
+  // of the card and left the spine floating once it moved into the column.
+  // Measured collapsed, wide layout: title + author is 56px, and the crumb
+  // adds 26px on top of it. The narrow layout never puts the crumb in the
+  // column, so 42px stands either way.
   const coverHeight = useTransform(
     smoothProgress,
     [0, 1],
-    isLargeScreen ? ["300px", "55px"] : ["220px", "42px"],
+    isLargeScreen
+      ? ["300px", showBreadcrumb ? "82px" : "56px"]
+      : ["220px", "42px"],
   );
   const coverBorderRadius = useTransform(
     smoothProgress,
@@ -451,10 +552,12 @@ export function BookDetailContent({
     [0, 1],
     isModal ? ["16px", "16px"] : ["16px", "10px"],
   );
-  const breadcrumbMarginBottom = useTransform(
+  // The crumb is a caption over the title now, not a row of its own across the
+  // top of the card, so it sits much closer than the 20px it used to.
+  const columnBreadcrumbMarginBottom = useTransform(
     smoothProgress,
     [0, 1],
-    ["20px", "10px"],
+    ["8px", "4px"],
   );
 
   // Text sizing
@@ -544,138 +647,22 @@ export function BookDetailContent({
         <HeaderGlassBackdrop
           progress={smoothProgress}
           isModal={isModal}
-          hasBreadcrumb={!isModal || Boolean(modalBreadcrumbHref)}
+          hasBreadcrumb={isLargeScreen && showBreadcrumb}
         />
         {/* Keep the side inset close to the header's vertical inset. */}
         <div className="relative mx-auto w-full max-w-4xl">
-          {/* Standalone pages keep their library-count breadcrumb. A modal
-              opened over the 3D homepage gets a single outbound link to the
-              dedicated Books site — no back arrow, since inside a modal that
-              reads as dismiss; modals already on Books get neither, so the
-              same navigation is never repeated in its own app. */}
-          {(!isModal || modalBreadcrumbHref) && (
-            <motion.nav
-              aria-label={
-                modalBreadcrumbHref ? "Chappy's Book Notes" : "Breadcrumb"
-              }
-              data-stacks-book-breadcrumb={
-                modalBreadcrumbHref ? "external" : undefined
-              }
-              className={cn(
-                "px-6 text-sm text-muted-foreground xs:px-14",
-                modalBreadcrumbHref && "pr-28 xs:pr-32",
-              )}
-              style={{ marginBottom: breadcrumbMarginBottom }}
-            >
-              {modalBreadcrumbHref ? (
-                <a
-                  href={modalBreadcrumbHref}
-                  className="inline-flex min-w-0 items-center gap-1.5 font-medium transition-colors hover:text-foreground"
-                >
-                  <BooksIcon
-                    aria-hidden
-                    size={16}
-                    weight="duotone"
-                    className="shrink-0"
-                  />
-                  <span className="xs:hidden">Book Notes</span>
-                  <span className="hidden xs:inline">
-                    Chappy&apos;s Book Notes
-                  </span>
-                  <span aria-hidden="true" className="text-border">
-                    ·
-                  </span>
-                  <span className="shrink-0 tabular-nums">
-                    {modalBookCount?.toLocaleString() ?? "All"}
-                    <span className="hidden xs:inline"> books</span>
-                  </span>
-                  <ArrowUpRightIcon
-                    aria-hidden
-                    size={14}
-                    weight="bold"
-                    className="shrink-0"
-                  />
-                </a>
-              ) : (
-                <ol className="flex min-w-0 items-center gap-2">
-                  <li className="shrink-0">
-                    <Link
-                      href={getBooksPath()}
-                      className="inline-flex items-center gap-1.5 font-medium transition-colors hover:text-foreground"
-                    >
-                      <ArrowLeftIcon size={16} weight="bold" />
-                      <span>Chappy&apos;s Book Notes</span>
-                    </Link>
-                  </li>
-                  <li aria-hidden="true" className="text-border">
-                    /
-                  </li>
-                  <li className="shrink-0 tabular-nums">
-                    <Link
-                      href={getBooksPath()}
-                      className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground"
-                    >
-                      <BooksIcon size={16} weight="duotone" />
-                      {bookshelfBookCount?.toLocaleString() ?? "All"} books
-                    </Link>
-                  </li>
-                </ol>
-              )}
-            </motion.nav>
-          )}
-
-          {/* Modal-only action buttons */}
+          {/* Modal-only action buttons — the same cluster, in the same
+              material, as every other presented document (SheetControls). */}
           {isModal && (
-            <div className="absolute right-6 top-0.5 z-10 flex items-center gap-2 xs:right-14 sm:top-2 lg:top-[10px]">
+            <SheetControlCluster className="absolute right-6 top-0.5 z-10 xs:right-14 sm:top-2 lg:top-[10px]">
               {!expanded && (
-                <TooltipProvider>
-                  <Tooltip delayDuration={200}>
-                    <TooltipTrigger asChild>
-                      {/* The <a> stays a hard-navigation fallback out of the
-                          intercepted route; onExpand animates the takeover on
-                          plain clicks. */}
-                      <a
-                        href={modalBookHref ?? getBookPath(bookId)}
-                        onClick={onExpand}
-                        className="flex size-10 items-center justify-center rounded-full bg-muted shadow-sm backdrop-blur-sm transition-all duration-200 ease-in-out hover:bg-primary/20"
-                        aria-label="Open full page"
-                      >
-                        <ArrowsOutSimpleIcon
-                          size={20}
-                          weight="bold"
-                          className="text-primary"
-                        />
-                      </a>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Open full page</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <SheetExpandControl
+                  href={modalBookHref ?? getBookPath(bookId)}
+                  onClick={onExpand}
+                />
               )}
-              {onClose && (
-                <TooltipProvider>
-                  <Tooltip delayDuration={200}>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={onClose}
-                        className="flex size-10 items-center justify-center rounded-full bg-muted shadow-sm backdrop-blur-sm transition-all duration-200 ease-in-out hover:bg-primary/20"
-                        aria-label="Close"
-                      >
-                        <XIcon
-                          size={20}
-                          weight="bold"
-                          className="text-primary"
-                        />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Close</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-            </div>
+              {onClose && <SheetCloseControl onClick={onClose} />}
+            </SheetControlCluster>
           )}
 
           {/* Main Row: Cover + Title/Author (Compact) */}
@@ -721,6 +708,14 @@ export function BookDetailContent({
                 className="relative min-w-0 flex-1 overflow-visible pr-12"
               >
                 <div className="relative">
+                  {showBreadcrumb && (
+                    <BookBreadcrumb
+                      modalBreadcrumbHref={modalBreadcrumbHref}
+                      modalBookCount={modalBookCount}
+                      bookshelfBookCount={bookshelfBookCount}
+                      marginBottom={columnBreadcrumbMarginBottom}
+                    />
+                  )}
                   <motion.h2
                     initial={{ opacity: 1 }}
                     animate={{ opacity: 1 }}
@@ -751,12 +746,15 @@ export function BookDetailContent({
                     {book.author}
                   </motion.p>
 
-                  {/* Metadata - Desktop only */}
+                  {/* Metadata - Desktop only.
+                      Width was a hand-solved `calc(min(100vw, 768px) - ...)`
+                      pinned to a 3xl card. The card is max-w-4xl now, so that
+                      literal was holding the tag row ~130px narrower than the
+                      column it lives in and wrapping four tags onto two lines
+                      for no reason. It tracks the column now, so the metadata
+                      and the title share one right edge at every width. */}
                   <motion.div
-                    className="absolute left-0 top-full pt-2"
-                    style={{
-                      width: "calc(min(100vw, 768px) - 80px - 194px - 70px)",
-                    }}
+                    className="absolute left-0 top-full w-full pt-2"
                   >
                     {book.rating && (
                       <motion.div
@@ -813,8 +811,7 @@ export function BookDetailContent({
                               <TooltipTrigger asChild>
                                 <div className="flex cursor-default items-center gap-1">
                                   <div className="flex items-center gap-1 font-medium">
-                                    {reading.abandoned &&
-                                    !reading.finished ? (
+                                    {reading.abandoned && !reading.finished ? (
                                       <BookmarkSimpleIcon
                                         size={12}
                                         weight="bold"
@@ -839,8 +836,7 @@ export function BookDetailContent({
                                     (reading.finished ?? reading.abandoned)
                                       ? formatReadDates(
                                           reading.started,
-                                          reading.finished ??
-                                            reading.abandoned,
+                                          reading.finished ?? reading.abandoned,
                                         )
                                       : reading.started
                                         ? (() => {
@@ -903,10 +899,7 @@ export function BookDetailContent({
                             <TooltipTrigger asChild>
                               <div className="flex cursor-default items-center gap-1">
                                 <div className="flex items-center gap-1 font-medium">
-                                  <BookmarkSimpleIcon
-                                    size={12}
-                                    weight="bold"
-                                  />
+                                  <BookmarkSimpleIcon size={12} weight="bold" />
                                   <span>Abandoned:</span>
                                 </div>
                                 <span className="font-semibold">
@@ -1032,6 +1025,19 @@ export function BookDetailContent({
         >
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-0.5">
+              {/* The crumb sits over the title here too. On this layout the
+                  title lives below the header rather than in it, so the crumb
+                  comes down with it and rides the same resting-metadata fade
+                  as the rating, dates and tags; the compact sticky header
+                  takes over from there. */}
+              {showBreadcrumb && (
+                <BookBreadcrumb
+                  modalBreadcrumbHref={modalBreadcrumbHref}
+                  modalBookCount={modalBookCount}
+                  bookshelfBookCount={bookshelfBookCount}
+                  marginBottom={columnBreadcrumbMarginBottom}
+                />
+              )}
               {/* Title */}
               <h2 className="text-2xl font-semibold leading-tight text-foreground">
                 {book.title}
@@ -1282,14 +1288,7 @@ export function BookDetailContent({
         {book.hasNotes ? (
           <div className="pb-[min(25vh,300px)]">
             {isLoadingNotes ? (
-              <div className="flex min-h-[50vh] items-center justify-center py-8">
-                <div className="flex flex-col items-center gap-3">
-                  <Spinner className="size-6" />
-                  <p className="text-sm text-muted-foreground">
-                    Loading book details...
-                  </p>
-                </div>
-              </div>
+              <BookNotesLoadingSkeleton />
             ) : fullBook?.notes ? (
               <>
                 {notice === "automated" && <AutomatedNotice />}

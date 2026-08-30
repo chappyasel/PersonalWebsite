@@ -148,6 +148,84 @@ html[data-world] .field-notes-glass-tooltip {
   font-display: block;
 }
 
+/* ============ Sheet corner controls ============ */
+
+/* "Open full page" and "Close" wear ONE material wherever a document is
+   presented over something else — the book note modal, the routine and
+   manual sheets, the weightlifting sheets. They used to be a flat
+   `bg-muted` disc, which reads as a solid chip on the books header and
+   disappears entirely against the routine hero's sky, so the pair looked
+   like two different controls depending on where you met them.
+
+   Same dual-material rule as the tooltips: flat hosts (Books,
+   Weightlifting) get a light frosted disc in theme tokens, and the 3D
+   homepage — marked by data-world on the root — gets more edge, because
+   there the corner sits on a saturated rendered sky rather than paper.
+   Do not add a manual -webkit-backdrop-filter copy; Next's CSS transform
+   collapses an authored pair to the prefixed declaration alone and Chrome
+   loses the blur. */
+.sheet-control {
+  border-color: rgb(87 83 78 / 0.2);
+  background-color: rgb(250 249 246 / 0.72);
+  color: hsl(var(--primary));
+  backdrop-filter: blur(20px) saturate(1.7);
+  /* On paper there is nothing behind the disc to blur, so the edge has to do
+     the work: a bright top lip, a hairline contact shadow, and one soft drop
+     to lift it off the sheet. */
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.9),
+    inset 0 -1px 0 rgb(255 255 255 / 0.16),
+    0 1px 2px rgb(28 25 23 / 0.1),
+    0 8px 18px -8px rgb(28 25 23 / 0.35);
+}
+.sheet-control:hover {
+  border-color: rgb(87 83 78 / 0.28);
+  background-color: rgb(255 255 255 / 0.86);
+}
+/* Dark hosts lift the disc with white rather than sinking it with black: a
+   dark fill on a dark card is a hole, and the rim alone was a ghost. */
+.dark .sheet-control {
+  border-color: rgb(255 255 255 / 0.18);
+  background-color: rgb(255 255 255 / 0.09);
+  color: rgb(255 255 255 / 0.92);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.16),
+    inset 0 -1px 0 rgb(255 255 255 / 0.05),
+    0 8px 20px -10px rgb(0 0 0 / 0.7);
+}
+.dark .sheet-control:hover {
+  border-color: rgb(255 255 255 / 0.28);
+  background-color: rgb(255 255 255 / 0.16);
+}
+html[data-world] .sheet-control {
+  border-color: rgb(255 255 255 / 0.36);
+  background-color: rgb(252 251 249 / 0.5);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.65),
+    inset 0 -1px 0 rgb(255 255 255 / 0.14),
+    0 8px 22px -10px rgb(20 26 32 / 0.55);
+}
+html[data-world] .sheet-control:hover {
+  background-color: rgb(255 255 255 / 0.7);
+}
+/* The dark room is the one host where this disc can go wrong in the bright
+   direction: the light-world rule above outranks `.dark .sheet-control`
+   (attribute + class beats class), so without an explicit shadow here the
+   night version inherited an 0.85 white top lip and read as a chrome ring.
+   Everything is restated, at about half the light room's strength. */
+html[data-world].dark .sheet-control {
+  border-color: rgb(255 255 255 / 0.12);
+  background-color: rgb(255 255 255 / 0.06);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.1),
+    inset 0 -1px 0 rgb(255 255 255 / 0.03),
+    0 8px 20px -10px rgb(0 0 0 / 0.7);
+}
+html[data-world].dark .sheet-control:hover {
+  border-color: rgb(255 255 255 / 0.2);
+  background-color: rgb(255 255 255 / 0.12);
+}
+
 @layer base {
   :root {
     --font-selected: "Georgia Pro";

@@ -8,6 +8,7 @@
 // nothing on it). The active document mounts immediately; after the world is
 // revealed, the remaining documents become resident one at a time during
 // idle windows so travel never has to reconstruct them.
+import { requestBookPrefetch } from "../bookPrefetch";
 import {
   type StacksData,
   type StacksSlots,
@@ -71,6 +72,7 @@ import type {
   HomepageBookPlacard,
   HomepageBookPreview,
 } from "~/lib/books/types";
+import { recordModalOrigin } from "~/lib/originFlight";
 import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
 import { devSubdomainUrl } from "~/lib/util";
 
@@ -626,7 +628,7 @@ function BookSubjectLandscape({
               aria-label={`Browse ${subject.name} books`}
               className={`${SUBJECT_PLACEMENTS[index] ?? "book-subject-standard"} flex min-w-0 overflow-hidden rounded-xl border text-left transition-[transform,box-shadow] duration-200 hover:scale-[1.015] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45 ${compact ? "p-2" : "p-3"}`}
               style={{
-                backgroundColor: `color-mix(in srgb, ${colors.fg} 14%, transparent)`,
+                backgroundColor: `color-mix(in srgb, hsl(var(--card)) 86%, ${colors.fg} 14%)`,
                 borderColor: `color-mix(in srgb, ${colors.fg} 32%, transparent)`,
                 boxShadow: `inset 0 1px 0 rgb(255 255 255 / 0.38), inset 0 -1px 0 color-mix(in srgb, ${colors.fg} 10%, transparent), 0 7px 16px -12px rgb(0 0 0 / 0.34)`,
                 backdropFilter: "blur(18px) saturate(1.25)",
@@ -644,10 +646,7 @@ function BookSubjectLandscape({
                   <span className="line-clamp-2 font-serif text-xs font-medium leading-[1.15]">
                     {subject.name}
                   </span>
-                  <span
-                    className="mt-1 block text-[9px] font-medium uppercase leading-none tracking-[0.08em] opacity-60"
-                    style={{ color: colors.fg }}
-                  >
+                  <span className="mt-1 block text-[9px] font-medium uppercase leading-none tracking-[0.08em] text-muted-foreground">
                     {subject.count} books
                   </span>
                 </div>
@@ -681,14 +680,20 @@ function BookPreviewRow({ book }: { book: HomepageBookPreview }) {
       : null;
   const length = formatLength(book.audioLengthMin, book.pageCount);
   return (
-    <Link
-      href={bookNotesHref(book.id)}
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label={`Read notes for ${book.title} by ${book.author}`}
-      className="book-preview-row grid grid-cols-[76px_1fr] gap-4 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent"
-    >
-      <div className="book-preview-cover relative aspect-[2/3] overflow-hidden rounded-[4px] bg-foreground/5">
+    <div className="book-preview-row grid grid-cols-[76px_1fr] gap-4 rounded-lg">
+      <button
+        type="button"
+        aria-label={`Preview notes for ${book.title} by ${book.author}`}
+        onMouseEnter={() => requestBookPrefetch(book.id)}
+        onFocus={() => requestBookPrefetch(book.id)}
+        onPointerDown={() => requestBookPrefetch(book.id)}
+        onClick={(event) => {
+          requestBookPrefetch(book.id);
+          recordModalOrigin(event.currentTarget.getBoundingClientRect());
+          useStacks.getState().setPendingBookId(book.id);
+        }}
+        className="book-preview-cover relative aspect-[2/3] overflow-hidden rounded-[4px] bg-foreground/5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent"
+      >
         {coverUrl ? (
           <Image
             src={coverUrl}
@@ -704,8 +709,14 @@ function BookPreviewRow({ book }: { book: HomepageBookPreview }) {
             </span>
           </div>
         )}
-      </div>
-      <div className="min-w-0 self-center">
+      </button>
+      <Link
+        href={bookNotesHref(book.id)}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={`Read notes for ${book.title} by ${book.author}`}
+        className="min-w-0 self-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent"
+      >
         <p className="book-preview-title line-clamp-1 font-serif text-[17px] font-medium leading-[1.2] text-foreground">
           {book.title}
         </p>
@@ -718,17 +729,17 @@ function BookPreviewRow({ book }: { book: HomepageBookPreview }) {
           </div>
         ) : null}
         {length ? (
-          <p className="mt-1 text-[11px] leading-tight text-muted-foreground/70">
+          <p className="mt-1 text-[11px] leading-tight text-muted-foreground">
             {length}
           </p>
         ) : null}
         {dates ? (
-          <p className="mt-1 line-clamp-2 text-[11px] leading-tight text-muted-foreground/50">
+          <p className="mt-1 line-clamp-2 text-[11px] leading-tight text-muted-foreground">
             {dates}
           </p>
         ) : null}
-      </div>
-    </Link>
+      </Link>
+    </div>
   );
 }
 
@@ -795,14 +806,8 @@ function BooksPlacard({ data }: { data: StacksData }) {
         )}
         <BookLedger books={bookPlacard.recent} recent />
       </PlacardNestedLinkCard>
-      <PlacardNestedLinkCard
-        href={href}
-        label="Browse the Book Notes subject library"
-        newTab
-      >
-        <PlacardCardHeading icon={TagIcon}>
-          Library by subject
-        </PlacardCardHeading>
+      <PlacardNestedLinkCard href={href} label="Browse books by subject" newTab>
+        <PlacardCardHeading icon={TagIcon}>Books by subject</PlacardCardHeading>
         <BookSubjectLandscape subjects={bookPlacard.subjects} />
       </PlacardNestedLinkCard>
     </div>
@@ -2138,7 +2143,7 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
                 // Expanded content scrolls natively until a downward pull
                 // begins at scrollTop 0. The gesture arbiter then hands that
                 // boundary pull to the sheet so it can collapse toward peek.
-                className={`stacks-scroll placard-scroll h-full px-5 pb-6 pt-0 font-serif text-muted-foreground ${
+                className={`stacks-scroll placard-scroll h-full px-5 pb-6 pt-0 font-serif text-foreground ${
                   expanded ? "overflow-y-auto" : "overflow-hidden"
                 }`}
                 style={
@@ -2414,7 +2419,7 @@ export default function PlacardLayer({
 
   return (
     <div
-      className="stacks-placard-layer font-serif text-muted-foreground"
+      className="stacks-placard-layer font-serif text-foreground"
       data-stacks-glass-mode={glassMode}
       data-stacks-glass-preference={performanceSettings.placardGlassMode}
       data-stacks-glass-status={glassMode}

@@ -1,11 +1,19 @@
 "use client";
 
 import { Line, PivotControls, ScreenSizer } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import * as THREE from "three";
 
 import { sceneLayoutEditorController } from "./sceneLayoutEditor";
+import { promoteGizmoIntersections } from "./sceneLayoutGizmoPriority";
 
 const GIZMO_SIZE = 108;
 const GIZMO_OPACITY = 0.4;
@@ -221,13 +229,55 @@ export default function SceneLayoutEditorGizmo() {
   const scale = useMemo(() => new THREE.Vector3(), []);
   const guideMatrix = useMemo(() => new THREE.Matrix4(), []);
   const directionControls = useRef<THREE.Group>(null);
+  const propParentFrame = useRef<THREE.Group>(null);
   const hoveredControlRef = useRef<HoveredControl | null>(null);
   const [activeHoverGuide, setActiveHoverGuide] =
     useState<HoveredControl | null>(null);
 
+  /* Put the whole gizmo in the SELECTED PROP'S PARENT SPACE. See the note on
+   * `propParentFrame` below; without this the gizmo is drawn at the prop's
+   * local translation read as a world position. Seeded in a layout effect so
+   * the first frame after a selection is already in the right place — drei
+   * sizes `fixed` handles off the gizmo's world position, and a frame spent
+   * at the origin is a frame of wrong scale. */
+  useLayoutEffect(() => {
+    const frame = propParentFrame.current;
+    const parent = root?.parent;
+    if (!frame || !parent) return;
+    parent.updateWorldMatrix(true, false);
+    frame.matrix.copy(parent.matrixWorld);
+  });
+
+  /* Make the handles win the hit test against anything standing in front of
+   * them. See sceneLayoutGizmoPriority.ts — the gizmo already draws on top, so
+   * ordering the intersections by distance was the last thing keeping an
+   * occluding prop able to swallow a press aimed at an arrow.
+   *
+   * Installed once and left in place: with no selection the component renders
+   * null, `propParentFrame` is empty, and the filter returns the list it was
+   * given. r3f applies this after its own distance sort. */
+  const setEvents = useThree((state) => state.setEvents);
+  useEffect(() => {
+    setEvents({
+      filter: (items) =>
+        promoteGizmoIntersections(items, propParentFrame.current) as typeof items,
+    });
+    return () => setEvents({ filter: undefined });
+  }, [setEvents]);
+
   useFrame(() => {
+    const frame = propParentFrame.current;
+    const parent = sceneLayoutEditorController.selectedRoot()?.parent;
+    // Per frame, not once: the prop's unit is static but a carried prop is
+    // reparented and a travelling shelf is not, and a gizmo that lags its
+    // own prop by a frame is worse than one that costs a matrix copy.
+    if (frame && parent) {
+      parent.updateWorldMatrix(true, false);
+      frame.matrix.copy(parent.matrixWorld);
+    }
     const nextHoveredControl = hoveredControl(directionControls.current);
-    if (sameHoveredControl(nextHoveredControl, hoveredControlRef.current)) return;
+    if (sameHoveredControl(nextHoveredControl, hoveredControlRef.current))
+      return;
     hoveredControlRef.current = nextHoveredControl;
     setActiveHoverGuide(nextHoveredControl);
   });
@@ -256,7 +306,34 @@ export default function SceneLayoutEditorGizmo() {
   };
 
   return (
-    <>
+    /* WHY THIS GROUP EXISTS.
+     *
+     * `SceneLayoutEditorGizmo` is mounted at the Canvas root, outside
+     * `ScrollControls` (StacksCanvas). The props it edits are not: every one
+     * hangs under its unit's group, and the units are laid out across the
+     * world — Systems sits at world x 13.2. `PivotControls` is handed
+     * `root.matrix`, which is the prop's LOCAL matrix, and with nothing
+     * between it and the scene that local translation was being read as a
+     * world position.
+     *
+     * Measured on the running page: selecting the Systems chicken bag put the
+     * prop at world [12.373, -0.843, -0.831] and its gizmo at
+     * [-0.855, 0, -0.18] — its own unit-local seat, 13 units away, inside the
+     * About shelf. The gizmo was fully built and visible the whole time (21
+     * meshes, 15 visible, sane screen-space scale); it was simply never in
+     * frame. From the owner's seat that is indistinguishable from clicking
+     * doing nothing, and a drag genuinely could not work, because the handles
+     * were off-camera. Unit 0 is the one place it would have looked fine:
+     * its origin IS the world origin.
+     *
+     * The fix is a frame, not a conversion. Carrying the prop's PARENT world
+     * matrix here leaves every matrix below in the parent's space, which is
+     * the space `updateTransform` writes back to — drei hands `onDrag` a
+     * matrix relative to its own outer group, so wrapping that group is
+     * exactly the change that makes both directions agree. Feeding
+     * `root.matrixWorld` instead would have placed the gizmo correctly and
+     * then written world coordinates into a local `position`. */
+    <group ref={propParentFrame} matrixAutoUpdate={false}>
       <PivotControls
         ref={directionControls}
         key={`${snapshot.selectedId}:direction`}
@@ -338,15 +415,11 @@ export default function SceneLayoutEditorGizmo() {
         disableRotations
         activeAxes={[true, false, false]}
         axisColors={["#f8fafc", "#f8fafc", "#f8fafc"]}
-        scaleLimits={[
-          [0.05, 10],
-          undefined,
-          undefined,
-        ]}
+        scaleLimits={[[0.05, 10], undefined, undefined]}
         onDragStart={() => sceneLayoutEditorController.setGestureActive(true)}
         onDrag={updateUniformScale}
         onDragEnd={() => sceneLayoutEditorController.setGestureActive(false)}
       />
-    </>
+    </group>
   );
 }

@@ -1,13 +1,13 @@
 "use client";
 
-// One frozen chicken bag for the Systems shelf: Kenney's standing bag
-// (public/models/bag.glb, CC0) wearing an owner-drawn label. The GLB's
-// palette UVs are replaced at load by a chart over the printed face
-// (./bagLabelUvs); the label itself is baked from
-// scripts/stacks-labels/realgood.svg by scripts/stacks-labels.mjs. Nothing
+// One standing pouch for the Systems shelf: Kenney's bag (public/models/bag.glb,
+// CC0) wearing an owner-drawn label. The GLB's palette UVs are replaced at load
+// by a chart over the printed face (./bagLabelUvs); the labels themselves are
+// baked from scripts/stacks-labels/*.svg by scripts/stacks-labels.mjs. Nothing
 // here is a photograph: flat colour and word-shapes, recognisable to anyone
-// who buys the bag and a nice bag of frozen something to anyone else. The
-// unit places three of these, each its own Grabbable.
+// who buys the bag and a nice bag of something to anyone else. The unit places
+// four of these — one frozen chicken, three supplement powders — each its own
+// Grabbable at its own scale.
 import { useGLTF, useTexture } from "@react-three/drei";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
@@ -17,11 +17,13 @@ import { projectStandingBagUvs } from "./bagLabelUvs";
 export const BAG_MODEL_URL = "/models/bag.glb";
 
 /** The pouches this shape wears. One mesh, one projection, one label each:
- * the frozen chicken the food system runs on, and the creatine that starts
- * the supplement stack. Both are baked from scripts/stacks-labels. */
+ * the frozen chicken the food system runs on, and the three powders of the
+ * supplement stack. All four are baked from scripts/stacks-labels. */
 export const BAG_LABEL_URLS = {
   realgood: "/images/stacks/labels/realgood.webp",
   creatine: "/images/stacks/labels/creatine.webp",
+  collagen: "/images/stacks/labels/collagen.webp",
+  betaAlanine: "/images/stacks/labels/beta-alanine.webp",
 } as const;
 
 export type BagLabel = keyof typeof BAG_LABEL_URLS;

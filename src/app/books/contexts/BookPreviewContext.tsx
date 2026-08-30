@@ -71,7 +71,9 @@ export function BookPreviewProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const openModalById = useCallback((bookId: string) => {
+    setSelectedBookState(null);
     setSelectedBookId(bookId);
+    setSelectedSize(null);
     setIsModalOpen(true);
   }, []);
 

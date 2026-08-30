@@ -30,6 +30,7 @@ import { recordModalOriginAtPointer } from "~/lib/originFlight";
 import { useTapFirstCapability } from "~/lib/useTapFirstCapability";
 
 import { sceneAudio } from "./audio/sceneAudio";
+import { requestBookPrefetch } from "./bookPrefetch";
 import { useWorldBootScope } from "./boot/useWorldBoot";
 import { assetLoadComplete } from "./boot/worldBootMachine";
 import { isWorldRevealed, worldBoot } from "./boot/worldBootSession";
@@ -1877,6 +1878,7 @@ export default function StacksCanvas({
     (id: string) => {
       const book = data.shelfBooks.find((b) => b.id === id);
       if (book) {
+        requestBookPrefetch(id);
         // A cover is a mesh with no DOM box; the modal pops from a small
         // rect at the pointer instead, the sheet's own compromise.
         recordModalOriginAtPointer(90, 130);
@@ -1889,6 +1891,7 @@ export default function StacksCanvas({
   // carry a whole `Book` for — only its title, author and length. The modal
   // resolves it by id, the same fetch a #book- deep link performs.
   const onOpenBookId = useCallback((id: string) => {
+    requestBookPrefetch(id);
     recordModalOriginAtPointer(90, 130);
     useStacks.getState().setPendingBookId(id);
   }, []);
