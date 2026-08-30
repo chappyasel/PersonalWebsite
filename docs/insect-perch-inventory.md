@@ -102,8 +102,8 @@ sign-off is recorded separately rather than invented by a headless test.
 | `training:dumbbell-left-plate`  | Left dumbbell crown           | `[0.2501, -0.5961, -0.1887]`  | `[0, 1, 0]`                 | `id: grab:dumbbell:training:left`      | —       |    `0.12` |
 | `training:navy-shaker-rim`      | Navy shaker lid ring          | `[1.1213, 0.4120, -0.0459]`  | `[0, 1, 0]`                 | `id: grab:shaker:training-navy`        | —       |    `0.02` |
 | `training:dumbbell-right-plate` | Right dumbbell inner plate    | `[-1.1645, 0.2608, 0.3314]`  | `[0, 1, 0]`                 | `id: grab:dumbbell:training:right`     | —       |    `0.12` |
+| `training:pickleball-frame-top` | Pickleball frame top edge     | `[-0.1217, -0.5186, 0.0512]` | `[0.0102, 0.9954, -0.0951]` | `id: grab:photo:training-pickleball-group-v8` | — |    `0.12` |
 | `training:golf-flag-frame-top`  | Golf-flag frame top edge      | `[-0.6876, -0.4764, 0.1023]` | `[0.0198, 0.9945, -0.1026]` | `id: grab:photo:training-golf-flag-v8` | —       |    `0.12` |
-| `training:sunkist-lid`          | Sunkist can lid (pyramid top) | `[-0.0880, -0.3827, 0.0800]` | `[0.0184, 0.9929, 0.1179]`  | `id: grab:can:sunkist-zero`            | —       |    `0.12` |
 
 ## Systems — unit 3
 
@@ -113,7 +113,7 @@ sign-off is recorded separately rather than invented by a headless test.
 | `systems:supplements-frame`     | Supplements photo top     | `[0.3610, 0.3275, 0.1311]`   | `[0, 1, 0]`           | `id: grab:photo:systems-supplements-v8`     | —             |    `0.12` |
 | `systems:sf-dusk-frame`         | SF dusk photo top         | `[-0.6385, -0.5095, 0.1211]` | `[0, 1, 0]`           | `id: grab:photo:systems-sf-dusk-v8`         | —             |    `0.12` |
 | `systems:lake-frame`            | Lake photo top            | `[-0.1909, -0.5095, 0.1210]` | `[0, 1, 0]`           | `id: grab:photo:systems-lake-v8`            | —             |    `0.12` |
-| `systems:lamp-shade`            | Sloped desk-lamp shade    | `[1.02, -0.39, 0.08]`        | `[-0.35, 0.90, 0.22]` | `id: egg:lamp:3`                            | `desk-lamp-3` |    `0.12` |
+| `systems:lamp-crown`            | Sunlamp panel top edge    | `[1.0789, -0.3316, -0.239]`  | `[-0.02, 1.00, 0.05]` | `id: egg:lamp:3`                            | `desk-lamp-3` |    `0.12` |
 | `systems:alarm-clock-crown`     | Alarm clock crown         | `[-0.6600, 0.3040, 0.2500]`  | `[0, 1, 0]`           | `id: egg:clock:alarm`                       | —             |    `0.12` |
 | `systems:lighthouse-frame`      | Lighthouse photo top      | `[0.2218, -0.4569, 0.1312]`  | `[0, 1, 0]`           | `id: grab:photo:systems-lighthouse-v8`      | —             |    `0.12` |
 

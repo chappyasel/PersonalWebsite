@@ -494,6 +494,14 @@ WASD moves along the room's axes whichever way the camera faces, so a key
 means the same direction as the gizmo's arrows and the keyboard nudges. The
 policy lives in `scene/freeRoamMotion.ts`; `CameraRig` only wires it.
 
+The gizmo's handles win the hit test outright. They are drawn over everything
+(`depthTest={false}`) and their intersections are promoted to the front of
+r3f's distance-sorted list, because r3f stops at the first handler that calls
+`stopPropagation` and both the handles and prop selection do. Without that, a
+prop standing between the camera and an arrow quietly took every press aimed at
+the arrow, which reads as a gizmo that has stopped working. Ordinary picking
+away from the handles is untouched.
+
 Entering free roam hides the DOM interface and suppresses prop hover reactions
 so selection and transform work stay visually stable. Escape or H reveals the
 interface without leaving free roam. Every `Grabbable` registers with the
@@ -508,6 +516,12 @@ stay visible together at 60% opacity. One neutral handle applies uniform scale
 to the whole prop. The draft is a handoff artifact only. It must never restore
 debug overrides when the page reloads.
 
-Leaving free roam disables the layout editor. That releases editor-owned props
-back to their authored transforms and normal physics; the autosaved draft keeps
-the proposed layout changes for later source edits.
+Leaving free roam disables the layout editor. That releases the selection and
+the gizmo, and hands every prop back to normal hover, carry, and physics, but
+it does NOT move anything: a prop's edited pose becomes its resting pose for
+the rest of the page session, so the new arrangement can be judged from the
+ordinary docked view. Reloading is what returns the room to its authored
+layout; "Reset all" in the diagnostics panel does the same without a reload,
+and works whether or not the editor is enabled. The undo stack survives the
+toggle along with the poses. The autosaved draft is still the only thing that
+outlives a reload, and still the handoff for later source edits.

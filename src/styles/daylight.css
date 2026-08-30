@@ -319,9 +319,16 @@
   }
   /* The dome flies its pair every 74s — a cadence for a scene you inhabit
      for minutes. The hero gets seconds of attention, so here they come
-     every 32, first crossing moments after load. */
+     every 46, first crossing moments after load.
+     The crossing itself takes 22s, not the 11s it shipped with: 110vw in 11s
+     is 10% of the screen per second, and the dome's pair — the birds these
+     are drawn from — cross 0.62 rad of a 1.215 rad window in the same 11s,
+     which is 4.5%. Halving the hero's travel puts the two flocks at the same
+     apparent speed. Only the travel changed; the wingbeat and the bob keep
+     their own clocks below, because a gull that slows down does not also
+     flap slower. */
   .dl-birds {
-    animation: dl-birds-cross 32s linear infinite;
+    animation: dl-birds-cross 46s linear infinite;
     animation-delay: 1.5s;
   }
   .dl-bird svg {
@@ -415,18 +422,20 @@
 }
 /* The pair crosses in eleven seconds of the 32s cycle (11/32 = 34.4%),
    fading at the ends so nothing pops — the shader's own gates. */
+/* Stops are the same absolute moments as before, doubled and re-expressed
+   against the longer cycle: fade in by 2.2s, hold to 19.8s, gone at 22s. */
 @keyframes dl-birds-cross {
   0% {
     transform: translateX(-8vw);
     opacity: 0;
   }
-  3.4% {
+  4.8% {
     opacity: 1;
   }
-  30.9% {
+  43% {
     opacity: 1;
   }
-  34.4% {
+  47.8% {
     transform: translateX(102vw);
     opacity: 0;
   }
@@ -1273,6 +1282,13 @@ body:has(.daylight-root) {
    home — inside the sheet the corner belongs to the open/close cluster, and
    the theme follows the scene underneath. */
 .dl-sheet [data-theme-toggle] {
+  display: none;
+}
+
+/* Same reasoning for the wayfinding line under the hero's description: a
+   modal opened FROM the site does not need a link back to it, and the date
+   is page furniture the presented view has no room for. */
+.dl-sheet [data-daylight-hero-meta] {
   display: none;
 }
 

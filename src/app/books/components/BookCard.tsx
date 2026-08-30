@@ -27,8 +27,6 @@ import { memo, useEffect, useRef, useState } from "react";
 import { capture } from "~/lib/analytics";
 import { enhanceCoverUrl } from "~/lib/books/coverUtils";
 import { getBookPath } from "~/lib/books/paths";
-
-import { BOOK_MODAL_HISTORY_STATE } from "./modalHistory";
 import {
   abandonedPercent,
   isCurrentlyReading,
@@ -40,6 +38,7 @@ import { api } from "~/trpc/react";
 import { Badge } from "~/components/ui/badge";
 import { useIntersectionMotion } from "~/components/ui/intersection-motion";
 
+import { BOOK_MODAL_HISTORY_STATE } from "./modalHistory";
 import { cn } from "@/src/lib/util";
 
 type BookCardProps = {
@@ -314,7 +313,7 @@ export const BookCard = memo(function BookCard({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       className={cn(
-        `group relative block w-full cursor-pointer text-left outline-none ring-0 hover:z-20 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 intersect:motion-scale-in-90 intersect:motion-opacity-in-50`,
+        `intersect-once group relative block w-full cursor-pointer text-left outline-none ring-0 hover:z-20 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 intersect:motion-scale-in-90 intersect:motion-opacity-in-50`,
         sizeRadius[size],
         // Only enable 3D perspective on non-touch devices
         !isTouchDevice && "[perspective:1000px]",

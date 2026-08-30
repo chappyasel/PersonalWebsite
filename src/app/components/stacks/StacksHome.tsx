@@ -415,6 +415,7 @@ export default function StacksHome({
               transition: opacity 220ms ease-out 20ms;
             }
             html[data-field-notes-open] .stacks-wordmark,
+            html[data-overlay-open] .stacks-wordmark,
             html:has(.PhotoView-Portal) .stacks-wordmark {
               opacity: 0;
               translate: 0 -12px;
@@ -424,6 +425,7 @@ export default function StacksHome({
               transition-timing-function: ease-in, cubic-bezier(0.4, 0, 1, 1), ease-in;
             }
             html[data-field-notes-open] .stacks-theme-toggle,
+            html[data-overlay-open] .stacks-theme-toggle,
             html:has(.PhotoView-Portal) .stacks-theme-toggle {
               opacity: 0;
               translate: 8px -10px;
@@ -433,6 +435,7 @@ export default function StacksHome({
               transition-timing-function: ease-in, cubic-bezier(0.4, 0, 1, 1), ease-in;
             }
             html[data-field-notes-open] .stacks-unit-rail-desktop,
+            html[data-overlay-open] .stacks-unit-rail-desktop,
             html:has(.PhotoView-Portal) .stacks-unit-rail-desktop {
               opacity: 0;
               translate: -22px 0;
@@ -442,6 +445,7 @@ export default function StacksHome({
               transition-timing-function: ease-in, cubic-bezier(0.4, 0, 1, 1), ease-in;
             }
             html[data-field-notes-open] .stacks-unit-rail-mobile,
+            html[data-overlay-open] .stacks-unit-rail-mobile,
             html:has(.PhotoView-Portal) .stacks-unit-rail-mobile {
               opacity: 0;
               translate: 0 -14px;
@@ -452,6 +456,8 @@ export default function StacksHome({
             }
             html[data-field-notes-open] [data-stacks-desktop-dock],
             html[data-field-notes-open] [data-stacks-details-toggle-shell],
+            html[data-overlay-open] [data-stacks-desktop-dock],
+            html[data-overlay-open] [data-stacks-details-toggle-shell],
             html:has(.PhotoView-Portal) [data-stacks-desktop-dock],
             html:has(.PhotoView-Portal) [data-stacks-details-toggle-shell] {
               opacity: 0;
@@ -462,6 +468,8 @@ export default function StacksHome({
             }
             html[data-field-notes-open] [data-stacks-sheet-material],
             html[data-field-notes-open] [data-stacks-mobile-panel],
+            html[data-overlay-open] [data-stacks-sheet-material],
+            html[data-overlay-open] [data-stacks-mobile-panel],
             html:has(.PhotoView-Portal) [data-stacks-sheet-material],
             html:has(.PhotoView-Portal) [data-stacks-mobile-panel] {
               opacity: 0 !important;
@@ -471,12 +479,14 @@ export default function StacksHome({
               transition-timing-function: ease-in, cubic-bezier(0.4, 0, 1, 1);
             }
             html[data-field-notes-open] [data-stacks-mobile-panel-dim],
+            html[data-overlay-open] [data-stacks-mobile-panel-dim],
             html:has(.PhotoView-Portal) [data-stacks-mobile-panel-dim] {
               opacity: 0 !important;
               transition-delay: 0ms;
               transition-duration: 160ms;
             }
             html[data-field-notes-open] [data-stacks-portal-label],
+            html[data-overlay-open] [data-stacks-portal-label],
             html:has(.PhotoView-Portal) [data-stacks-portal-label] {
               opacity: 0;
               translate: 0 8px;
@@ -485,6 +495,7 @@ export default function StacksHome({
               transition-timing-function: ease-in, cubic-bezier(0.4, 0, 1, 1);
             }
             html[data-field-notes-open] .stacks-chrome-vignette,
+            html[data-overlay-open] .stacks-chrome-vignette,
             html:has(.PhotoView-Portal) .stacks-chrome-vignette {
               opacity: 0;
               transition-delay: 0ms;
@@ -492,6 +503,8 @@ export default function StacksHome({
             }
             html[data-field-notes-open] .stacks-og-ui,
             html[data-field-notes-open] .stacks-og-ui *,
+            html[data-overlay-open] .stacks-og-ui,
+            html[data-overlay-open] .stacks-og-ui *,
             html:has(.PhotoView-Portal) .stacks-og-ui,
             html:has(.PhotoView-Portal) .stacks-og-ui * { pointer-events: none !important; }
             @media (width < 768px) {
@@ -526,6 +539,7 @@ export default function StacksHome({
             }
             @media (width >= 1200px) {
               html[data-field-notes-open] .stacks-theme-toggle,
+              html[data-overlay-open] .stacks-theme-toggle,
               html:has(.PhotoView-Portal) .stacks-theme-toggle {
                 translate: -10px 10px;
               }
@@ -554,6 +568,15 @@ export default function StacksHome({
               html[data-field-notes-open] [data-stacks-sheet-material],
               html[data-field-notes-open] [data-stacks-mobile-panel],
               html[data-field-notes-open] [data-stacks-portal-label],
+              html[data-overlay-open] .stacks-wordmark,
+              html[data-overlay-open] .stacks-theme-toggle,
+              html[data-overlay-open] .stacks-unit-rail-desktop,
+              html[data-overlay-open] .stacks-unit-rail-mobile,
+              html[data-overlay-open] [data-stacks-desktop-dock],
+              html[data-overlay-open] [data-stacks-details-toggle-shell],
+              html[data-overlay-open] [data-stacks-sheet-material],
+              html[data-overlay-open] [data-stacks-mobile-panel],
+              html[data-overlay-open] [data-stacks-portal-label],
               html:has(.PhotoView-Portal) .stacks-wordmark,
               html:has(.PhotoView-Portal) .stacks-theme-toggle,
               html:has(.PhotoView-Portal) .stacks-unit-rail-desktop,

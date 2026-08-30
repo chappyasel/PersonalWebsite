@@ -218,6 +218,14 @@ export const SCENE_PHOTOS = [
     height: 768,
   }),
   photoArtifact({
+    id: "training-pickleball-group-v8",
+    collection: "training-photos",
+    title: "Pickleball group",
+    image: "/images/stacks/v8/training-pickleball-group.webp",
+    width: 1024,
+    height: 768,
+  }),
+  photoArtifact({
     id: "training-golf-flag-v8",
     collection: "training-photos",
     title: "On the green",

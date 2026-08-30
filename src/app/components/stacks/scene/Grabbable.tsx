@@ -52,7 +52,13 @@ import { openSceneArtifact } from "../sceneArtifactState";
 import { type SceneArtifactId, sceneArtifactById } from "../sceneArtifacts";
 import { useStacks } from "../store";
 import { type ThreeEvent, useThree } from "@react-three/fiber";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useSyncExternalStore,
+} from "react";
 import * as THREE from "three";
 
 import { poolTexture } from "./GroundPool";
@@ -122,7 +128,10 @@ import {
   sceneImpulseKick,
   stepSceneImpulseMotion,
 } from "./sceneImpulse";
-import { sceneLayoutEditorController } from "./sceneLayoutEditor";
+import {
+  type SceneLayoutOverride,
+  sceneLayoutEditorController,
+} from "./sceneLayoutEditor";
 import {
   scenePerformanceController,
   shouldSuspendSettledPropFrame,
@@ -145,6 +154,18 @@ const ARTIFACT_CROSSFADE_TRAVEL = 0.68;
 /** Matches ContactShade's default so a grabbable prop grounds exactly like
  * its neighbours until the moment it is picked up. */
 const SHADE_OPACITY = 0.12;
+/** How much the layout editor's selected prop darkens and widens its own
+ * contact shadow — the whole of its "this one" state.
+ *
+ * Both are set off the render, not derived. 3x was legible on the light plank
+ * and nearly gone on the dark one, where the shadow is a dark tint on dark
+ * wood; 4x carries both and is still a shadow rather than a stain. The width
+ * does the other half of the work: opacity alone on a narrow footprint reads
+ * as the prop sitting in a slightly darker patch, where a footprint that also
+ * grows reads as deliberate. Checked at both extremes on this shelf — a
+ * 0.30-wide bag and a 0.13-wide MiO bottle. */
+const SELECTED_SHADE_OPACITY = 4;
+const SELECTED_SHADE_WIDTH = 1.18;
 /** Pointer travel, in screen pixels, above which a press is a CARRY rather
  * than a click. The same 6 that r3f's own `event.delta` gate uses, so a prop
  * that is both a handle and a portal answers a tap exactly as its neighbours do. */
@@ -604,7 +625,7 @@ export default function Grabbable({
   unitIndex,
   hoverKey,
   layoutLabel,
-  base,
+  base: authoredBase,
   physicsDetachOffset,
   shadeWidth = 0.5,
   shadeColor,
@@ -632,6 +653,7 @@ export default function Grabbable({
   activateOnFirstTouch = false,
   external = true,
   onTap,
+  onHoverIntent,
   hittable,
   onDragIntent,
   sceneImpulseReaction = "nudge",
@@ -746,6 +768,8 @@ export default function Grabbable({
   /** Local action for a press that never became a carry. Stateful objects
    * such as featured covers use this instead of pretending to be a route. */
   onTap?: () => void;
+  /** Start optional data work when a fine pointer expresses intent. */
+  onHoverIntent?: () => void;
   /** A ball the golf club can strike once it is carried into the bay and
    * left still. The radius is the ball's, in world units; the carrier origin
    * is its bottom. A tap on the ball asks the bay first and falls through to
@@ -780,9 +804,37 @@ export default function Grabbable({
   const detachX = physicsDetachOffset?.[0] ?? 0;
   const detachY = physicsDetachOffset?.[1] ?? 0;
   const detachZ = physicsDetachOffset?.[2] ?? 0;
-  const layoutBaseX = base[0];
-  const layoutBaseY = base[1];
-  const layoutBaseZ = base[2];
+  // Registration always reports the AUTHORED numbers, so the editor's
+  // deltas stay measured against the source no matter how many times a prop
+  // has been moved this session.
+  const layoutBaseX = authoredBase[0];
+  const layoutBaseY = authoredBase[1];
+  const layoutBaseZ = authoredBase[2];
+  // ...while everything below reads the resting pose the layout editor left
+  // behind, which OUTLIVES free roam. Leaving the editor used to snap every
+  // moved prop back to its authored spot, so the one thing the tool is for --
+  // looking at a new arrangement in the ordinary docked view -- was the one
+  // thing it could not do. A reload still clears the override; the authored
+  // source is still the only layout that survives one.
+  const layoutOverride = useSceneLayoutOverride(hoverKey);
+  // Memoised only so the conditional cannot widen what the callbacks below
+  // depend on. The identity still changes exactly as often as it did when
+  // this was the raw prop, since most callers pass an array literal.
+  const base = useMemo<[number, number, number]>(
+    () =>
+      layoutOverride
+        ? [
+            layoutOverride.position[0],
+            layoutOverride.position[1],
+            layoutOverride.position[2],
+          ]
+        : authoredBase,
+    [authoredBase, layoutOverride],
+  );
+  const restRotationX = layoutOverride?.rotation[0] ?? 0;
+  const restRotationY = layoutOverride?.rotation[1] ?? 0;
+  const restRotationZ = layoutOverride?.rotation[2] ?? 0;
+  const restScale = layoutOverride?.scale ?? 1;
   const physicsScene = usePhysicsScene();
   const hittableRadius = hittable?.radius;
   const hittableContactHeight = hittable?.contactHeight ?? hittableRadius;
@@ -1700,16 +1752,16 @@ export default function Grabbable({
     if (entry) entry.base.set(base[0], base[1], base[2]);
     const layoutPosition =
       process.env.NODE_ENV === "development"
-      ? sceneLayoutEditorController.positionFor(hoverKey)
-      : null;
+        ? sceneLayoutEditorController.positionFor(hoverKey)
+        : null;
     const layoutRotation =
       process.env.NODE_ENV === "development"
-      ? sceneLayoutEditorController.rotationFor(hoverKey)
-      : null;
+        ? sceneLayoutEditorController.rotationFor(hoverKey)
+        : null;
     const layoutScale =
       process.env.NODE_ENV === "development"
-      ? sceneLayoutEditorController.scaleFor(hoverKey)
-      : null;
+        ? sceneLayoutEditorController.scaleFor(hoverKey)
+        : null;
     if (layoutPosition) {
       if (entry?.world) entry.world.drop(entry);
       simulated.current = false;
@@ -1735,9 +1787,35 @@ export default function Grabbable({
         const lift = Math.max(0, g.position.y - base[1]);
         const spreadT = Math.min(1, lift / 0.45);
         s.position.set(g.position.x, base[1] + 0.02, g.position.z + 0.02);
-        const width = shadeWidth * (1 + spreadT * 0.7);
+        // The selection's "this one" cue, and it lives HERE for two reasons.
+        //
+        // It has to be in this branch: `owns()` is true the moment a prop is
+        // selected, so a selected prop takes this branch and RETURNS before
+        // any reaction code runs. Routing the cue through `hovered` or
+        // `focusedInteraction` shows nothing, because by the time either could
+        // matter the callback has already left — measured on the page, after
+        // selecting a prop `propReactionIsEngaged` was never called for it
+        // again. Free roam suppressing reactions wholesale is a second wall
+        // behind that one, and this placement clears both.
+        //
+        // And it is the SHADE rather than the prop, which is the whole point:
+        // this tool edits position, rotation and scale, so a cue written into
+        // any of the three is a value that disagrees with the gizmo and with
+        // the exported record. A footprint is the one channel it does not
+        // edit. Brightness only, never a tint — the sprite takes `shadeColor`
+        // from the unit palette, and a selection that shifts hue would put a
+        // colour in the room that the room does not have.
+        const selected =
+          sceneLayoutEditorController.getSnapshot().selectedId === hoverKey;
+        const width =
+          shadeWidth *
+          (1 + spreadT * 0.7) *
+          (selected ? SELECTED_SHADE_WIDTH : 1);
         s.scale.set(width, width * 0.32, 1);
-        s.material.opacity = SHADE_OPACITY * (1 - 0.65 * spreadT);
+        s.material.opacity =
+          SHADE_OPACITY *
+          (selected ? SELECTED_SHADE_OPACITY : 1) *
+          (1 - 0.65 * spreadT);
       }
       g.updateWorldMatrix(true, true);
       return;
@@ -1751,9 +1829,9 @@ export default function Grabbable({
       Math.abs(g.position.x - base[0]) +
         Math.abs(g.position.y - base[1]) +
         Math.abs(g.position.z - base[2]) +
-        Math.abs(g.rotation.x) +
-        Math.abs(g.rotation.y) +
-        Math.abs(g.rotation.z) <
+        Math.abs(g.rotation.x - restRotationX) +
+        Math.abs(g.rotation.y - restRotationY) +
+        Math.abs(g.rotation.z - restRotationZ) <
       1e-4;
     const stacksState = useStacks.getState();
     const artifactHandoff =
@@ -2276,7 +2354,7 @@ export default function Grabbable({
           authoredOffscreenFor.current = 0;
         } else if (surfaceY - base[1] < 1e-3) {
           g.position.y = base[1];
-          g.quaternion.identity();
+          g.rotation.set(restRotationX, restRotationY, restRotationZ);
           phase.current = "rest";
           authoredParked.current = true;
           authoredOffscreenFor.current = 0;
@@ -2307,7 +2385,7 @@ export default function Grabbable({
           : authoredOffscreenFor.current + delta;
         if (authoredOffscreenFor.current >= 1) {
           p.set(base[0], base[1], base[2]);
-          g.quaternion.identity();
+          g.rotation.set(restRotationX, restRotationY, restRotationZ);
           authoredParked.current = false;
           authoredOffscreenFor.current = 0;
         }
@@ -2317,7 +2395,7 @@ export default function Grabbable({
         const settled = atAuthoredPose;
         if (settled) {
           p.set(base[0], base[1], base[2]);
-          g.rotation.set(0, 0, 0);
+          g.rotation.set(restRotationX, restRotationY, restRotationZ);
           if (entry && shelf && !entry.parked) shelf.park(entry);
         } else {
           p.x = THREE.MathUtils.damp(p.x, base[0], HOME_LAMBDA, delta);
@@ -2325,19 +2403,19 @@ export default function Grabbable({
           p.z = THREE.MathUtils.damp(p.z, base[2], HOME_LAMBDA, delta);
           g.rotation.x = THREE.MathUtils.damp(
             g.rotation.x,
-            0,
+            restRotationX,
             HOME_LAMBDA,
             delta,
           );
           g.rotation.y = THREE.MathUtils.damp(
             g.rotation.y,
-            0,
+            restRotationY,
             HOME_LAMBDA,
             delta,
           );
           g.rotation.z = THREE.MathUtils.damp(
             g.rotation.z,
-            0,
+            restRotationZ,
             HOME_LAMBDA,
             delta,
           );
@@ -2553,7 +2631,15 @@ export default function Grabbable({
 
   return (
     <>
-      <sprite ref={shade} position={[base[0], base[1] + 0.02, base[2] + 0.02]}>
+      {/* Named for the same reason the nod group below is: the contact
+          shadow now carries the layout editor's selection cue, and a sprite's
+          opacity is not something a screenshot can be asked about — the gizmo
+          is drawn over the very plank the shade falls on. */}
+      <sprite
+        ref={shade}
+        name={`shade:${hoverKey}`}
+        position={[base[0], base[1] + 0.02, base[2] + 0.02]}
+      >
         <spriteMaterial
           map={poolTexture()}
           color={shadeColor}
@@ -2566,6 +2652,11 @@ export default function Grabbable({
       <group
         ref={group}
         position={base}
+        // Uniform, and the only scale React writes here: the artifact handoff
+        // animates `g.scale` from whatever it finds and restores that same
+        // value, so an overridden prop keeps its size through a fullscreen
+        // preview.
+        scale={restScale}
         // Tap/drag arbitration happens on the native window gesture above.
         // Consume Three's later synthetic click so the same ray cannot also
         // activate a link or unit plane sitting behind this carried object.
@@ -2581,6 +2672,7 @@ export default function Grabbable({
           e.stopPropagation();
           if (sceneLayoutEditorController.owns(hoverKey)) return;
           useStacks.getState().setHovered(hoverKey);
+          onHoverIntent?.();
           // The one honest moment to start the download: a pointer resting on
           // something you can pick up, several hundred milliseconds before the
           // press. Idempotent, and a no-op on touch or a degraded machine.
@@ -2607,6 +2699,29 @@ export default function Grabbable({
         </group>
       </group>
     </>
+  );
+}
+
+const DEV = process.env.NODE_ENV === "development";
+const noSceneLayoutOverride = () => null;
+const noSceneLayoutSubscription = () => () => undefined;
+
+/**
+ * The pose the development layout editor left on this prop, or null.
+ *
+ * `useSyncExternalStore` rather than a frame-loop read because the override
+ * feeds React-owned transforms (`position`, `scale`) as well as the physics
+ * path, and those two disagreeing for a frame is a visible jump. The
+ * controller hands back the same frozen object until a component actually
+ * changes, so a gizmo drag does not re-render the prop every frame.
+ */
+function useSceneLayoutOverride(hoverKey: string): SceneLayoutOverride | null {
+  return useSyncExternalStore(
+    DEV ? sceneLayoutEditorController.subscribe : noSceneLayoutSubscription,
+    DEV
+      ? () => sceneLayoutEditorController.overrideFor(hoverKey)
+      : noSceneLayoutOverride,
+    noSceneLayoutOverride,
   );
 }
 

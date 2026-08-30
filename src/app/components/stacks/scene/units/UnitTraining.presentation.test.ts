@@ -101,10 +101,12 @@ describe("Training shelf prop destinations", () => {
     // The basketball inline, the baseball and tennis ball through LooseBall,
     // the two golf balls through GolfBallProp. A ball without `hittable` is
     // one the club will never swing at.
-    // Plus the three cans, which tumble where a ball rolls.
-    expect(source.match(/hittable=\{\{/g)).toHaveLength(3);
-    expect(source).toContain("radius: SODA_CAN_RADIUS");
-    expect(source).toContain("contactHeight: SODA_CAN_HEIGHT / 2");
+    //
+    // Two, not three: the soda cans were the third and they left for the
+    // Systems shelf on 2026-08-29. `hittable` did not go with them — Systems
+    // has no golf bay, so the registration would have had no reader.
+    expect(source.match(/hittable=\{\{/g)).toHaveLength(2);
+    expect(source).not.toContain("SODA_CAN");
     expect(source).toContain('hoverKey="grab:basketball"');
     expect(source).toContain("grab:ball:");
     expect(source.match(/id: "tennis", kind: "tennis"/g)).toHaveLength(1);
@@ -114,18 +116,22 @@ describe("Training shelf prop destinations", () => {
     expect(source).toContain("<GolfBallProp");
   });
 
-  it("splits the shelves: tubs up with one dumbbell, cans and the other dumbbell down", () => {
+  it("splits the shelves: tubs up with one dumbbell, prints and the other dumbbell down", () => {
     const lowerStart = source.indexOf("lower={");
     const lowerEnd = source.indexOf("<group position={[-0.3,", lowerStart);
     const lower = source.slice(lowerStart, lowerEnd);
     const top = source.slice(lowerEnd);
     expect(lower).toContain('hoverKey="grab:dumbbell:training:left"');
-    expect(lower).toContain("TRAINING_CAN_PYRAMID.map");
+    // The three prints hold the lower plank now. The pickleball group took
+    // the can pyramid's slot when it went to Systems on 2026-08-29, so the
+    // split this guards is prints-and-a-dumbbell down, tubs-and-a-dumbbell up.
+    expect(lower).toContain("training-pickleball-group-v8");
+    expect(lower).toContain("training-golf-group-v8");
     expect(lower).not.toContain("<ProteinTub");
     expect(lower).not.toContain("<GorillaModeTub");
     expect(top).toContain('hoverKey="grab:dumbbell:training:right"');
     expect(top).toContain("<ProteinTub");
     expect(top).toContain("<GorillaModeTub");
-    expect(top).not.toContain("TRAINING_CAN_PYRAMID.map");
+    expect(top).not.toContain("training-pickleball-group-v8");
   });
 });

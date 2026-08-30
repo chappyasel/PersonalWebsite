@@ -1,6 +1,6 @@
-import { ArrowLeftIcon, SunHorizonIcon } from "@phosphor-icons/react/dist/ssr";
-import Link from "next/link";
+import { SunHorizonIcon } from "@phosphor-icons/react/dist/ssr";
 
+import DaylightHeroMeta from "~/components/daylight/HeroMeta";
 import SkyHero from "~/components/daylight/SkyHero";
 import { ThemeToggle } from "~/components/ui/theme-toggle";
 
@@ -14,25 +14,9 @@ export default function RoutineHero({
   return (
     <SkyHero>
       <div className="space-y-3">
-        {/* Breadcrumb row: wayfinding left, theme toggle right */}
-        <div className="flex items-center justify-between gap-3 font-sans text-xs text-[hsl(var(--dl-sky-ink)/0.8)]">
-          <div className="flex items-center gap-3">
-            <Link
-              href="https://www.chappyasel.com"
-              className="flex items-center gap-1.5 transition-colors hover:text-[hsl(var(--dl-sky-ink))]"
-            >
-              <ArrowLeftIcon size={12} weight="bold" />
-              chappyasel.com
-            </Link>
-            <span aria-hidden>·</span>
-            <span>
-              Last updated{" "}
-              {new Date(lastUpdated).toLocaleDateString("en-US", {
-                month: "long",
-                year: "numeric",
-              })}
-            </span>
-          </div>
+        {/* The toggle keeps the corner it has always had; the wayfinding line
+            that used to share this row now sits under the description. */}
+        <div className="flex justify-end">
           <ThemeToggle />
         </div>
 
@@ -51,6 +35,8 @@ export default function RoutineHero({
         </div>
 
         <p className="max-w-[34rem] text-[0.9375rem]">{intro}</p>
+
+        <DaylightHeroMeta lastUpdated={lastUpdated} />
       </div>
     </SkyHero>
   );

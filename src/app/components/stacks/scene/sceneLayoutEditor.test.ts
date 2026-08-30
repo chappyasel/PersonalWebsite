@@ -60,14 +60,48 @@ describe("scene layout editor", () => {
     ]);
     expect(second.root.position.toArray()).toEqual([0.1235, 0, 0.35]);
 
+    // Leaving the editor drops the selection and stops DRIVING the prop, but
+    // the pose it left behind is the point of the tool: the arrangement has
+    // to survive into the ordinary docked view to be worth looking at.
     editor.setEnabled(false);
     expect(editor.export()).toHaveLength(1);
     expect(editor.positionFor("b")).toBeNull();
     expect(editor.getSnapshot().selectedId).toBeNull();
-    expect(second.root.position.toArray()).toEqual([0.1, 0, 0.2]);
+    expect(second.root.position.toArray()).toEqual([0.1235, 0, 0.35]);
+    expect(editor.overrideFor("b")).toEqual({
+      position: [0.1235, 0, 0.35],
+      rotation: [0, 0, 0],
+      scale: 1,
+    });
+    expect(editor.overrideFor("a")).toBeNull();
 
     editor.setEnabled(true);
     expect(second.root.position.toArray()).toEqual([0.1235, 0, 0.35]);
+  });
+
+  it("hands back one stable override object until a component changes", () => {
+    // Grabbable reads this through useSyncExternalStore, so a fresh object per
+    // publish would re-render every edited prop on every frame of a drag.
+    const target = register("photo", [0, 0, 0]);
+    editor.setEnabled(true);
+    editor.select("photo");
+    editor.update("photo", [0.2, 0, 0]);
+
+    const first = editor.overrideFor("photo");
+    editor.update("photo", [0.2, 0, 0]);
+    expect(editor.overrideFor("photo")).toBe(first);
+    editor.setEnabled(false);
+    expect(editor.overrideFor("photo")).toBe(first);
+
+    editor.update("photo", [0.3, 0, 0]);
+    expect(editor.overrideFor("photo")).toBe(first);
+    editor.setEnabled(true);
+    editor.update("photo", [0.3, 0, 0]);
+    expect(editor.overrideFor("photo")).not.toBe(first);
+
+    editor.reset("photo");
+    expect(editor.overrideFor("photo")).toBeNull();
+    expect(target.root.position.toArray()).toEqual([0, 0, 0]);
   });
 
   it("retains an unavailable edited record until reset", () => {
@@ -133,7 +167,7 @@ describe("scene layout editor", () => {
     expect(target.root.position.toArray()).toEqual([0.2, 0, 0.3]);
   });
 
-  it("scales a prop, exports the scale ratio, and restores its authored scale", () => {
+  it("scales a prop, exports the ratio, and keeps the scale after exit", () => {
     const target = register("photo");
     editor.setEnabled(true);
     editor.select("photo");
@@ -147,10 +181,12 @@ describe("scene layout editor", () => {
     });
 
     editor.setEnabled(false);
+    expect(target.root.scale.toArray()).toEqual([1.25, 1.25, 1.25]);
+    editor.reset("photo");
     expect(target.root.scale.toArray()).toEqual([1, 1, 1]);
   });
 
-  it("releases edited props back to physics when free roam exits", () => {
+  it("releases edited props back to physics at their edited pose", () => {
     const target = register("photo");
     const freeRoam = createFreeRoamDiagnosticsController();
     connectFreeRoamEntryObserver({
@@ -164,9 +200,26 @@ describe("scene layout editor", () => {
     editor.update("photo", [0.2, 0, 0]);
     expect(editor.positionFor("photo")).toEqual([0.2, 0, 0]);
 
+    // positionFor going null is what hands the prop back to the ordinary
+    // hover/carry/physics path. Where it lands is the override, not [0, 0, 0].
     freeRoam.setEnabled(false);
     expect(editor.positionFor("photo")).toBeNull();
+    expect(editor.overrideFor("photo")?.position).toEqual([0.2, 0, 0]);
+    expect(target.root.position.toArray()).toEqual([0.2, 0, 0]);
+  });
+
+  it("keeps the undo stack across a free roam exit", () => {
+    const target = register("photo", [0, 0, 0]);
+    editor.setEnabled(true);
+    editor.select("photo");
+    editor.update("photo", [0.2, 0, 0]);
+
+    editor.setEnabled(false);
+    expect(editor.getSnapshot().canUndo).toBe(true);
+    editor.setEnabled(true);
+    expect(editor.undo()).toBe(true);
     expect(target.root.position.toArray()).toEqual([0, 0, 0]);
+    expect(editor.overrideFor("photo")).toBeNull();
   });
 
   it("coalesces a gizmo drag into one undo step", () => {

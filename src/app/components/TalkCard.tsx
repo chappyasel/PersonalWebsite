@@ -129,7 +129,7 @@ export default function TalkCard({ talk }: { talk: Talk }) {
               <ClockIcon weight="bold" className="size-4" />
               {talk.duration}
             </span>
-            <span className="ml-auto flex items-center gap-1.5 text-foreground opacity-70 transition-opacity duration-300 group-hover:opacity-100">
+            <span className="ml-auto flex items-center gap-1.5 text-foreground">
               Watch
               <ArrowUpRightIcon weight="bold" className="size-4" />
             </span>

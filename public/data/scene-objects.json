@@ -1,0 +1,1340 @@
+[
+  {
+    "id": "focus:monstera:about-books",
+    "title": "Monstera",
+    "status": "written",
+    "links": [],
+    "body": "The big plant on the floor seam between the About desk and the library. It\nbelongs to the room instead of to either shelf, and it is the one thing in here\nthat does not answer a pointer at all: at 2.71 units it is the largest object on\nscreen, and a tree brightening because a cursor crossed it reads as a bug."
+  },
+  {
+    "id": "sky:goldengate",
+    "title": "Golden Gate Bridge",
+    "status": "written",
+    "links": [],
+    "body": "Click the bridge in the skyline and the sky sets off fireworks over it. The\nlongest launch is seven shells across about eight seconds. The hit area is\nderived from the same constants the shader draws the bridge with, so it cannot\ndrift away from the thing you are aiming at."
+  },
+  {
+    "id": "sky:salesforce",
+    "title": "Salesforce Tower",
+    "status": "written",
+    "links": [],
+    "body": "Click the crown and it puts on a light show. The target is a box around the lit\nband the shader already draws across the top of the tower."
+  },
+  {
+    "id": "sky:jasper",
+    "title": "Jasper",
+    "status": "written",
+    "links": [],
+    "body": "Jasper, at 45 Lansing, in the same skyline material as the bridge and the tower.\nThe hit area covers the whole building, but the response is confined to one\nwindow on floor 33."
+  },
+  {
+    "id": "shelf:*:top",
+    "title": "Top Shelf Plank",
+    "status": "written",
+    "links": [],
+    "body": "The physical plank. It carries no interaction of its own and never competes with\na prop for focus; it is addressable only so the insects have the real shelf\nsurface to land on. One per unit, `shelf:<unit>:top`."
+  },
+  {
+    "id": "shelf:*:lower",
+    "title": "Lower Shelf Plank",
+    "status": "written",
+    "links": [],
+    "body": "The lower plank, addressable on the same terms as the top one and for the same\nreason. `shelf:<unit>:lower`."
+  },
+  {
+    "id": "shimmer:apple",
+    "title": "Apple Mark",
+    "status": "written",
+    "links": [
+      {
+        "label": "Apple",
+        "href": "https://www.apple.com/"
+      }
+    ],
+    "body": "An extruded Apple mark on a bead-blasted billet. Click it and a band of light\nruns across the face. It sits square to the plank on purpose: this face is the\none near-mirror in the room, and turned off square it swings out of the lit half\nof the environment probe and goes black. I worked there as an AR/VR software\nengineer, on the teams that launched Vision Pro and the early Apple Intelligence\nprototypes."
+  },
+  {
+    "id": "link:about:role:madrona",
+    "title": "Madrona",
+    "status": "written",
+    "links": [
+      {
+        "label": "Madrona",
+        "href": "https://www.madrona.com/"
+      }
+    ],
+    "body": "One of four role tiles stacked two by two beside the Apple mark. I am a venture\nscout at Madrona."
+  },
+  {
+    "id": "link:about:role:roam",
+    "title": "Roam",
+    "status": "written",
+    "links": [
+      {
+        "label": "Roam",
+        "href": "https://ro.am/"
+      }
+    ],
+    "body": "Advisor to the CEO at Roam."
+  },
+  {
+    "id": "link:about:role:susa",
+    "title": "Susa Ventures",
+    "status": "written",
+    "links": [
+      {
+        "label": "Susa Ventures",
+        "href": "https://susaventures.com/"
+      }
+    ],
+    "body": "Venture fellow at Susa Ventures. The tile carries their own sage accent, the one\nfrom under the gorilla in their paper."
+  },
+  {
+    "id": "link:about:role:weightlifting",
+    "title": "Weightlifting App",
+    "status": "written",
+    "links": [
+      {
+        "label": "App Store",
+        "href": "https://apps.apple.com/us/app/id1266077653"
+      }
+    ],
+    "body": "The app I founded, on a tile the size of a die. The Projects shelf shows the\nsame icon artwork at twice this size."
+  },
+  {
+    "id": "grab:ai-collective-mark",
+    "title": "The AI Collective",
+    "status": "written",
+    "links": [
+      {
+        "label": "The AI Collective",
+        "href": "https://aicollective.com/"
+      }
+    ],
+    "body": "The Collective's mark, extruded straight out of the brand SVG so the open C,\nboth squared arrow tips and the inner negative space are the real paths. I\nco-founded it as a weekly meetup with friends when ChatGPT launched. It is now a\nnonprofit with more than 250,000 members and 200 chapters."
+  },
+  {
+    "id": "grab:coordination-research:about",
+    "title": "Coordination Research",
+    "status": "written",
+    "links": [
+      {
+        "label": "Coordination Research",
+        "href": "https://coordination.sh/"
+      }
+    ],
+    "body": "A small black hole on a black hexagonal plinth with a live network of sixty\nnodes turning inside it. Green nodes are people, blue nodes are agents. Hover it\nand one improbably long chord grows across the sphere; drag it and the shockwave\nruns out through the rest of the room."
+  },
+  {
+    "id": "grab:reading:*",
+    "title": "Currently Reading",
+    "status": "written",
+    "links": [
+      {
+        "label": "Book Notes",
+        "href": "https://books.chappyasel.com"
+      }
+    ],
+    "body": "The top three books I am reading right now, jackets fanned on the desk. They\ncome from the live library, so they change as it does, and each carries its real\ncover. Tapping one previews its notes without leaving the room. The three books\npeel into their own lanes on hover instead of taking the shared nod, which swung\nthem through each other. Ids are `grab:reading:<bookId>`."
+  },
+  {
+    "id": "grab:tj-medallion:about",
+    "title": "TJHSST Medallion",
+    "status": "written",
+    "links": [
+      {
+        "label": "TJHSST",
+        "href": "https://tjhsst.fcps.edu/"
+      }
+    ],
+    "body": "My high school medallion, class of 2017. I am an alumni director on the TJ\nPartnership Fund board. The shape is authored geometry with the real artwork on\nits face, and it is turned to catch the desk lamp beside it."
+  },
+  {
+    "id": "egg:lamp:0",
+    "title": "About Desk Lamp",
+    "status": "written",
+    "links": [],
+    "body": "The warm practical from the original desk composition. Click it and it goes out;\nclick again and it comes back. Nothing is saved, so a reload lights it. It does\nnot move, because fixed task lighting is architecture and not a prop to throw."
+  },
+  {
+    "id": "egg:globe",
+    "title": "Globe",
+    "status": "written",
+    "links": [],
+    "body": "Click it and it adds a lap. At rest it drifts at 0.11 rad/s, slow enough that\nyou notice it the second time you look. On hover it runs about nine times that,\na lap every six and a half seconds, which is a globe someone has just spun. Only\nthe ball turns; the stand stays put."
+  },
+  {
+    "id": "grab:plant:about-cactus",
+    "title": "Cactus",
+    "status": "written",
+    "links": [],
+    "body": "A cactus on the top shelf, opposite the succulent."
+  },
+  {
+    "id": "grab:plant:about-succulent",
+    "title": "Succulent",
+    "status": "written",
+    "links": [],
+    "body": "A succulent in a pot, near the middle of the top shelf."
+  },
+  {
+    "id": "grab:plant:about-large",
+    "title": "Potted Plant",
+    "status": "written",
+    "links": [],
+    "body": "The tall potted plant at the right end of the top shelf."
+  },
+  {
+    "id": "portrait",
+    "title": "Chappy Asel",
+    "status": "written",
+    "links": [
+      {
+        "label": "LinkedIn",
+        "href": "https://www.linkedin.com/in/chappyasel/"
+      }
+    ],
+    "body": "The framed portrait on the desk. It is the same photograph the About page uses,\nturned a little toward the lamp side."
+  },
+  {
+    "id": "about-collective-group-v8",
+    "title": "AI Collective",
+    "status": "written",
+    "links": [
+      {
+        "label": "The AI Collective",
+        "href": "https://aicollective.com/"
+      }
+    ],
+    "body": "A group photograph from the AI Collective, lying flat on the top shelf between\nthe globe and the portrait."
+  },
+  {
+    "id": "about-family-v8",
+    "title": "Family Portrait",
+    "status": "needs-owner",
+    "links": [],
+    "body": "",
+    "needs": "who is in this photograph, roughly where and when it was taken, and what you want the caption to say about it."
+  },
+  {
+    "id": "about-speaking-candid-v8",
+    "title": "Speaking Candid",
+    "status": "needs-owner",
+    "links": [],
+    "body": "",
+    "needs": "which talk or event this candid is from and the year."
+  },
+  {
+    "id": "about-delicate-arch-v8",
+    "title": "Delicate Arch",
+    "status": "needs-owner",
+    "links": [],
+    "body": "",
+    "needs": "when you were at Delicate Arch and who with, and whether the caption should be about the trip or the hike."
+  },
+  {
+    "id": "about-profile-full-v8",
+    "title": "Portrait",
+    "status": "needs-owner",
+    "links": [],
+    "body": "",
+    "needs": "what this full-length portrait was shot for and when. The tap already opens Instagram."
+  },
+  {
+    "id": "grab:dumbbell:about",
+    "title": "Dumbbell",
+    "status": "written",
+    "links": [
+      {
+        "label": "Weightlifting",
+        "href": "https://weightlifting.chappyasel.com"
+      }
+    ],
+    "body": "A 10 kg dumbbell standing on the floor beside the About shelf. It opens the\nweightlifting site."
+  },
+  {
+    "id": "egg:chair",
+    "title": "Reading Chair",
+    "status": "written",
+    "links": [],
+    "body": "Click the chair and you sit down in it, and the Washington skyline comes up\nbehind you. The view on the other side is the sky shader that is already\nrunning, so sitting down costs no download. Three files own the mechanic and\nnone of them imports another: the chair owns the click and the ways out, the\ncamera rig owns the easing. The seat pose is measured off whatever model is\nactually in the chair slot, because it was hard-coded once and went silently\nwrong the moment the couch replaced the old chair."
+  },
+  {
+    "id": "book:*",
+    "title": "Featured Books",
+    "status": "written",
+    "links": [
+      {
+        "label": "Book Notes",
+        "href": "https://books.chappyasel.com"
+      }
+    ],
+    "body": "The books I have ticked as featured, standing cover-out in front of the packed\nrow instead of in it. A bookshelf already has a physical vocabulary for \"this\none matters\" and that is it. Each carries its real jacket and previews its own\nnotes. Matching is by book id and not by title, because the library holds two\nreads of 7 Habits of Highly Effective People and only the 2023 one is ticked.\nIds are `book:<bookId>`."
+  },
+  {
+    "id": "link:riser:1:*",
+    "title": "Riser Books",
+    "status": "written",
+    "links": [
+      {
+        "label": "Book Notes",
+        "href": "https://books.chappyasel.com"
+      }
+    ],
+    "body": "The flat book a featured cover stands on. It is a real volume, outside the\ncover's carry group, and its exposed fore-edge is its own way into the library.\nIt pulls toward the viewer only, so it never steals the cover standing on it.\nIds are `link:riser:1:<bookId>`."
+  },
+  {
+    "id": "link:row:1:15:*",
+    "title": "Top Packed Row",
+    "status": "written",
+    "links": [
+      {
+        "label": "Book Notes",
+        "href": "https://books.chappyasel.com"
+      }
+    ],
+    "body": "The top packed row: real finished reads, newest first, every spine sized from\nits own page count. No covers here, because a second face-out book competes with\nthe featured ones standing in front of it. Each volume opens its own notes."
+  },
+  {
+    "id": "link:row:1:40:*",
+    "title": "Lower Packed Row",
+    "status": "written",
+    "links": [
+      {
+        "label": "Book Notes",
+        "href": "https://books.chappyasel.com"
+      }
+    ],
+    "body": "The lower row picks up where the top row stopped, so the shelf reads newest at\nthe top instead of restarting halfway down."
+  },
+  {
+    "id": "link:row:1:*:*:*",
+    "title": "Flat Book Stacks",
+    "status": "written",
+    "links": [
+      {
+        "label": "Book Notes",
+        "href": "https://books.chappyasel.com"
+      }
+    ],
+    "body": "The horizontal piles the phone and the headphones lie on. Each takes the\nshortest books left rather than the next ones in shelf order, so no long read\ngets buried face down, and each pile sits thickest first the way a real one\ndoes. Their x is authored: left to the roll, both stacks landed directly behind\na featured cover and everything resting on them disappeared. Source template:\n`link:row:1:<salt>:<i>:<j>`."
+  },
+  {
+    "id": "bookend:books:lower",
+    "title": "Lower Bookend",
+    "status": "written",
+    "links": [],
+    "body": "An L-steel bookend holding the loose start of the short row. It stands 2.6° off\nplumb, because a bookend takes the row's lean, and the pointer eases it upright\nas if you had just straightened the shelf. It has to be at least as deep as the\nbooks it holds or the row leans over the top of it."
+  },
+  {
+    "id": "bookend:books:top",
+    "title": "Top Bookend",
+    "status": "written",
+    "links": [],
+    "body": "Its twin, leaning the other way against the packed spines on the top row."
+  },
+  {
+    "id": "grab:phone:books",
+    "title": "Phone",
+    "status": "written",
+    "links": [],
+    "body": "Face down on the flat stack, the way a phone gets put down mid-chapter. It goes\nnowhere on purpose: the headphones already carry the library, and two names for\none place is one too many. It is still a real prop, so you can pick it up and\nthrow it."
+  },
+  {
+    "id": "grab:headphones:books",
+    "title": "Headphones",
+    "status": "written",
+    "links": [
+      {
+        "label": "Book Notes",
+        "href": "https://books.chappyasel.com"
+      }
+    ],
+    "body": "Left on top of the flat stack, and the only way into the library index from this\nunit. Every packed volume behind it opens its own notes now, so nothing else\nhere needs to open the index."
+  },
+  {
+    "id": "training-golf-group-v8",
+    "title": "Golf Group",
+    "status": "needs-owner",
+    "links": [],
+    "body": "",
+    "needs": "who is in the group and which course or outing this was."
+  },
+  {
+    "id": "training-pickleball-group-v8",
+    "title": "Pickleball Group",
+    "status": "needs-owner",
+    "links": [],
+    "body": "",
+    "needs": "who is in this photo, which court, and roughly when. Six of you at the net with paddles."
+  },
+  {
+    "id": "training-golf-flag-v8",
+    "title": "On the Green",
+    "status": "needs-owner",
+    "links": [],
+    "body": "",
+    "needs": "which course this is and roughly when."
+  },
+  {
+    "id": "grab:golf-tee:shelf-left",
+    "title": "Loose Tee",
+    "status": "written",
+    "links": [],
+    "body": "One of three tees lying loose at the foot of the golf prints, as if tipped out\nof a pocket. Three yaws, not a row. This is the left one."
+  },
+  {
+    "id": "grab:golf-tee:shelf-middle",
+    "title": "Loose Tee",
+    "status": "written",
+    "links": [],
+    "body": "The middle tee of the three at the foot of the golf prints."
+  },
+  {
+    "id": "grab:golf-tee:shelf-right",
+    "title": "Loose Tee",
+    "status": "written",
+    "links": [],
+    "body": "The right tee of the three at the foot of the golf prints."
+  },
+  {
+    "id": "grab:ball:tennis",
+    "title": "Tennis Ball",
+    "status": "written",
+    "links": [],
+    "body": "A 6.7 cm tennis ball, in front of the flag print rather than behind it, where\nthe print hid all but its crown. Like every ball on this shelf it can be carried\ninto the golf bay and struck."
+  },
+  {
+    "id": "grab:ball:baseball",
+    "title": "Baseball",
+    "status": "written",
+    "links": [],
+    "body": "A 7.4 cm baseball, in front of the basketball. Carry it to the golf bay, leave\nit still, and the club will swing at it."
+  },
+  {
+    "id": "golf-ball:shelf-a",
+    "title": "Golf Ball",
+    "status": "written",
+    "links": [],
+    "body": "One of two golf balls at the foot of the golf prints. Same prop as the four in\nthe bay, so carry it over and the club will play it."
+  },
+  {
+    "id": "golf-ball:shelf-b",
+    "title": "Golf Ball",
+    "status": "written",
+    "links": [],
+    "body": "The second of the two golf balls at the foot of the golf prints."
+  },
+  {
+    "id": "grab:can:diet-dr-pepper",
+    "title": "Diet Dr Pepper",
+    "status": "written",
+    "links": [],
+    "body": "One of two 330 ml cans standing a few millimetres apart on the wood. Carried\ninto the golf bay it can be struck too, and a can tumbles where a ball rolls."
+  },
+  {
+    "id": "grab:can:mtn-dew-zero",
+    "title": "Mtn Dew Zero",
+    "status": "written",
+    "links": [],
+    "body": "The other can on the wood, with the Sunkist resting across its rim."
+  },
+  {
+    "id": "grab:can:sunkist-zero",
+    "title": "Sunkist Zero",
+    "status": "written",
+    "links": [],
+    "body": "Stacked on the rims of the other two."
+  },
+  {
+    "id": "grab:dumbbell:training:left",
+    "title": "Heavy Dumbbell",
+    "status": "written",
+    "links": [
+      {
+        "label": "Weightlifting",
+        "href": "https://weightlifting.chappyasel.com"
+      }
+    ],
+    "body": "12 kg, lying across the back of the lower shelf at an angle, one plate toward\nthe cans and the other toward the front. Set down, not squared up."
+  },
+  {
+    "id": "grab:basketball",
+    "title": "Basketball",
+    "status": "written",
+    "links": [],
+    "body": "A 24 cm basketball. It is the only sphere in the room, so it rolls on hover\ninstead of taking the tilt every other prop takes; a ball has no support edge to\ntip about."
+  },
+  {
+    "id": "training-trophy-side-v8",
+    "title": "Boys with Gains Trophy",
+    "status": "needs-owner",
+    "links": [],
+    "body": "",
+    "needs": "which show and year this trophy is from, what you placed, and whether Boys with Gains is your own account or the promoter's."
+  },
+  {
+    "id": "training-stage-kneeling-v8",
+    "title": "Boys with Gains Stage Portrait",
+    "status": "needs-owner",
+    "links": [],
+    "body": "",
+    "needs": "which show and year this stage portrait is from."
+  },
+  {
+    "id": "training-stage-side-v8",
+    "title": "Boys with Gains on Stage",
+    "status": "needs-owner",
+    "links": [],
+    "body": "",
+    "needs": "which show and year, and whether this is the same day as the other stage shot."
+  },
+  {
+    "id": "training-trophy-front-v8",
+    "title": "Boys with Gains Trophy Portrait",
+    "status": "needs-owner",
+    "links": [],
+    "body": "",
+    "needs": "whether this is the same show as the other trophy shot, and what the trophy was for."
+  },
+  {
+    "id": "aggregate-strength",
+    "title": "Aggregate One Rep Max Trend",
+    "status": "written",
+    "links": [
+      {
+        "label": "Analyze data",
+        "href": "https://github.com/WeightliftingApp/WeightliftingApp-AnalyzeData"
+      },
+      {
+        "label": "Weightlifting",
+        "href": "https://weightlifting.chappyasel.com"
+      }
+    ],
+    "body": "Aggregate one rep max across every lift, plotted from my Weightlifting App data.\nThe code that draws it is in the AnalyzeData repo."
+  },
+  {
+    "id": "big-three",
+    "title": "Big 3 Progression",
+    "status": "written",
+    "links": [
+      {
+        "label": "Analyze data",
+        "href": "https://github.com/WeightliftingApp/WeightliftingApp-AnalyzeData"
+      },
+      {
+        "label": "Weightlifting",
+        "href": "https://weightlifting.chappyasel.com"
+      }
+    ],
+    "body": "The big three over time, from the same export."
+  },
+  {
+    "id": "dexa-history",
+    "title": "DEXA Lean Mass vs Bodyweight",
+    "status": "written",
+    "links": [
+      {
+        "label": "Analyze data",
+        "href": "https://github.com/WeightliftingApp/WeightliftingApp-AnalyzeData"
+      },
+      {
+        "label": "Weightlifting",
+        "href": "https://weightlifting.chappyasel.com"
+      }
+    ],
+    "body": "Lean mass against bodyweight across my DEXA scans."
+  },
+  {
+    "id": "training-gym-pose-v8",
+    "title": "Gym Portrait",
+    "status": "needs-owner",
+    "links": [],
+    "body": "",
+    "needs": "when this was taken and whether it belongs to a particular prep."
+  },
+  {
+    "id": "training-deadlift-v8",
+    "title": "Deadlift",
+    "status": "needs-owner",
+    "links": [],
+    "body": "",
+    "needs": "the weight on the bar and roughly when."
+  },
+  {
+    "id": "training-bench-v8",
+    "title": "Bench Press",
+    "status": "needs-owner",
+    "links": [],
+    "body": "",
+    "needs": "the weight on the bar and roughly when."
+  },
+  {
+    "id": "lift-table",
+    "title": "Lift Table",
+    "status": "written",
+    "links": [
+      {
+        "label": "PDF",
+        "href": "https://www.chappyasel.com/documents/lift-table.pdf"
+      }
+    ],
+    "body": "The first lifting chart I put together. It is a letter page, lying flat in a row\nwith the three photographs beside it."
+  },
+  {
+    "id": "grab:dumbbell:training:right",
+    "title": "Light Dumbbell",
+    "status": "written",
+    "links": [
+      {
+        "label": "Weightlifting",
+        "href": "https://weightlifting.chappyasel.com"
+      }
+    ],
+    "body": "10 kg, standing front to back at the left end of the top shelf. Two dumbbells\nset down at different moments, not a pair on display."
+  },
+  {
+    "id": "grab:protein",
+    "title": "Whey Protein",
+    "status": "written",
+    "links": [
+      {
+        "label": "Routine",
+        "href": "https://www.chappyasel.com/routine"
+      }
+    ],
+    "body": "The 5 lb whey tub, about 18 cm across and 23 cm tall, the tallest of the three\nand the only one with a wide blue lid. A scoop of it, 30 g of protein, is the\nbase of the morning shake. It stands in the back row with the PRE-X."
+  },
+  {
+    "id": "grab:gorilla-mode",
+    "title": "Gorilla Mode",
+    "status": "written",
+    "links": [
+      {
+        "label": "Routine",
+        "href": "https://www.chappyasel.com/routine"
+      }
+    ],
+    "body": "The pre-workout. It ships in a squat 800 g tub, but standing beside the 5 lb\nwhey at true size it read as a mini, so it is a touch bigger than life. It stands\nin front of the other two with the shakers, because it is the one taken first:\n400 mg of it goes into each of the two pre-workout bottles I fill the morning\nbefore and leave on the bedside stand."
+  },
+  {
+    "id": "grab:pre-x",
+    "title": "Nutricost PRE-X",
+    "status": "written",
+    "links": [],
+    "body": "The 996 g tub, 17.5 cm tall, with a shoulder that narrows into a tall black lid.\nBack row, beside the whey."
+  },
+  {
+    "id": "grab:shaker:training",
+    "title": "Shaker Bottle",
+    "status": "written",
+    "links": [],
+    "body": "The front shaker, tucked in ahead of the PRE-X tub. Hover it and what is inside\nmoves: two slow sinusoids a fifth apart, which is what liquid finding its level\nlooks like."
+  },
+  {
+    "id": "grab:shaker:training-navy",
+    "title": "Navy Shaker",
+    "status": "written",
+    "links": [],
+    "body": "The navy one. The three shakers fan in depth instead of standing in a rank."
+  },
+  {
+    "id": "grab:shaker:training-amber",
+    "title": "Amber Shaker",
+    "status": "written",
+    "links": [],
+    "body": "The amber one, at the back of the fan."
+  },
+  {
+    "id": "grab:barbell",
+    "title": "Loaded Barbell",
+    "status": "written",
+    "links": [
+      {
+        "label": "Weightlifting",
+        "href": "https://weightlifting.chappyasel.com"
+      }
+    ],
+    "body": "The single loaded bar, 60 kg, in the rear exercise bay. Two loose bumper stacks\nused to sit behind the unit; they repeated this bar's plates and read as\nunrelated weights, so they are gone."
+  },
+  {
+    "id": "golf-club:strike",
+    "title": "Golf Club",
+    "status": "written",
+    "links": [],
+    "body": "The iron at rest in the aisle. Tap it and it swings at whatever is sitting in\nthe bay: a golf ball, or the basketball, or a soda can if you carried one over."
+  },
+  {
+    "id": "golf-ball:one",
+    "title": "Teed Ball",
+    "status": "written",
+    "links": [],
+    "body": "The ball on the planted tee. Pull the tee and it settles to the ground beside\nit."
+  },
+  {
+    "id": "golf-ball:two",
+    "title": "Bay Golf Ball",
+    "status": "written",
+    "links": [],
+    "body": "One of the four balls in the hitting bay. They are kept at least 28 cm apart so\ntheir targets and their colliders never start out overlapped."
+  },
+  {
+    "id": "golf-ball:three",
+    "title": "Bay Golf Ball",
+    "status": "written",
+    "links": [],
+    "body": "One of the four balls in the hitting bay."
+  },
+  {
+    "id": "golf-ball:four",
+    "title": "Bay Golf Ball",
+    "status": "written",
+    "links": [],
+    "body": "One of the four balls in the hitting bay."
+  },
+  {
+    "id": "grab:golf-tee:stand",
+    "title": "Planted Tee",
+    "status": "written",
+    "links": [],
+    "body": "The tee holding the first ball up. It is the reason that ball is elevated."
+  },
+  {
+    "id": "grab:golf-tee:near-spare",
+    "title": "Spare Tee",
+    "status": "written",
+    "links": [],
+    "body": "A loose spare in the grass, within reach and not lined up with anything."
+  },
+  {
+    "id": "grab:golf-tee:white-spare",
+    "title": "Spare Tee",
+    "status": "written",
+    "links": [],
+    "body": "The other loose spare in the grass."
+  },
+  {
+    "id": "grab:plant:sansevieria",
+    "title": "Sansevieria",
+    "status": "written",
+    "links": [],
+    "body": "A snake plant in a soil disc at the left end of the lower shelf."
+  },
+  {
+    "id": "grab:bag:realgood",
+    "title": "Frozen Chicken",
+    "status": "written",
+    "links": [],
+    "body": "A 3 lb bag of frozen Real Good chicken, back against the plank so it stands in\nthe plank's shadow like stock on a shelf. There were three in an arc until they\ncrowded the whole left half of the plank; one says the daily food system as\nplainly as three did. Nothing on the label is a photograph. It is flat colour\nand word shapes, drawn for the scene."
+  },
+  {
+    "id": "grab:bag:creatine",
+    "title": "Creatine",
+    "status": "written",
+    "links": [
+      {
+        "label": "Routine",
+        "href": "https://www.chappyasel.com/routine"
+      }
+    ],
+    "body": "A 1 kg pouch of creatine monohydrate on the same bag, wearing a label I drew. It\nis the largest of the three powders and sits at the back edge of the plank. 10\nto 15 g in the morning stack, and the same again in each pre-workout bottle."
+  },
+  {
+    "id": "grab:bag:betaalanine",
+    "title": "Beta Alanine",
+    "status": "written",
+    "links": [
+      {
+        "label": "Routine",
+        "href": "https://www.chappyasel.com/routine"
+      }
+    ],
+    "body": "A 1 kg pouch of beta alanine, the smallest of the three, tucked in beside the\ncreatine. 10 g goes into each pre-workout bottle."
+  },
+  {
+    "id": "grab:bag:collagen",
+    "title": "Collagen Peptides",
+    "status": "written",
+    "links": [
+      {
+        "label": "Routine",
+        "href": "https://www.chappyasel.com/routine"
+      }
+    ],
+    "body": "A 1 kg pouch of collagen peptides, stepped forward from the other two and turned\nthe other way so three near-identical white pouches at one depth do not read as\none wide object. 20 g a day, for tendons and skin."
+  },
+  {
+    "id": "grab:mio:hydrate:*",
+    "title": "MiO Hydrate",
+    "status": "written",
+    "links": [
+      {
+        "label": "Routine",
+        "href": "https://www.chappyasel.com/routine"
+      }
+    ],
+    "body": "Two bottles of MiO Hydrate, Berry Blast, in the 1.62 oz size. It goes into the\nblender bottle with water, lemon juice and a little caffeine, as a home-brewed\nlow-calorie substitute for Gatorade. The bottles stand the way they land when\nyou put them down, gaps uneven, one forward and one back, each turned its own\nway. There were six on this plank until six read as a case bought that week;\nthree reads as the ones that are open. There is no model behind any of them: the\nwhole skin is one drawn label wrapped on a lathed egg."
+  },
+  {
+    "id": "grab:mio:lemonade:*",
+    "title": "MiO Lemonade",
+    "status": "written",
+    "links": [
+      {
+        "label": "Routine",
+        "href": "https://www.chappyasel.com/routine"
+      }
+    ],
+    "body": "The Lemonade, in the 3.24 oz \"2X\" bottle, standing with the two Hydrate in front\nof the chicken bag. Same construction: a drawn label wrapped on a lathed egg,\nwith no model underneath it."
+  },
+  {
+    "id": "grab:notebook:systems",
+    "title": "Notebook",
+    "status": "written",
+    "links": [],
+    "body": "The notebook, over from Projects. A system is something you write down, so it\nbelongs beside the routine board more than it did beside the Mac. Its dark-theme\ntint is lighter here than it was there: on Projects it sat in the desk lamp's\nspill beside a beige Mac, and here it stands between near-white bags and a lit\nprint, where the old slate read as a hole in the light."
+  },
+  {
+    "id": "systems-supplements-v8",
+    "title": "Daily Supplements",
+    "status": "written",
+    "links": [
+      {
+        "label": "Routine",
+        "href": "https://www.chappyasel.com/routine"
+      }
+    ],
+    "body": "The daily supplements laid out. The print stands right back against the plank's\nrear edge, directly behind the two physical pill cases it shows. The full list,\ntwelve in the morning and eight at night with doses and what each one is for, is\non the routine page."
+  },
+  {
+    "id": "grab:pills:organizer:back-lower",
+    "title": "Pill Case",
+    "status": "written",
+    "links": [],
+    "body": "One of four seven-day cases, 8.86 by 1.34 by 1.26 inches each. This is the\nfrosted white one at the bottom of the back pair. Two cases end to end need more\nlength than the bay has, so they stack in pairs instead."
+  },
+  {
+    "id": "grab:pills:organizer:back-upper",
+    "title": "Pill Case",
+    "status": "written",
+    "links": [],
+    "body": "The smoke-black case on top of the back pair. Each pair shows opposite faces,\nbecause the desk lamp aims down this row and its spill is additive: a black case\non top at the lamp end came out khaki."
+  },
+  {
+    "id": "grab:pills:organizer:front-lower",
+    "title": "Pill Case",
+    "status": "written",
+    "links": [],
+    "body": "The smoke-black case at the bottom of the front pair, standing in front of the\nsupplements print."
+  },
+  {
+    "id": "grab:pills:organizer:front-upper",
+    "title": "Pill Case",
+    "status": "written",
+    "links": [],
+    "body": "The frosted white case on top of the front pair."
+  },
+  {
+    "id": "grab:pills:bottle:*",
+    "title": "Supplement Bottles",
+    "status": "written",
+    "links": [
+      {
+        "label": "Routine",
+        "href": "https://www.chappyasel.com/routine"
+      }
+    ],
+    "body": "Fifteen bottles in three loose rows, packed either side of the supplements print\nwherever the cases are not. Six size and proportion families in three tones,\nbecause one cylinder at three scales read as a matching set instead of a shelf\nthat filled up one purchase at a time. No black bottle: the cases carry the black\nand white in this corner. Nothing is written on the labels, because at about five\nreal centimetres a plain cream band reads as a label and any text would be a\nsmear. Ids are `grab:pills:bottle:<column>-<level>`."
+  },
+  {
+    "id": "egg:lamp:3",
+    "title": "Systems Desk Lamp",
+    "status": "written",
+    "links": [],
+    "body": "Aimed straight down the pill-case row. Click it off and on."
+  },
+  {
+    "id": "link:row:3:68:*",
+    "title": "Manual Row",
+    "status": "written",
+    "links": [
+      {
+        "label": "Personal Manual",
+        "href": "https://www.chappyasel.com/manual"
+      }
+    ],
+    "body": "Six volumes on the top shelf. Every other book row in the room points at the\nlibrary; this one points at the personal manual."
+  },
+  {
+    "id": "egg:clock:alarm",
+    "title": "Alarm Clock",
+    "status": "written",
+    "links": [
+      {
+        "label": "Routine",
+        "href": "https://www.chappyasel.com/routine"
+      }
+    ],
+    "body": "At rest it shows your own local time. Click it and the hands wind clockwise to\n3:45, which is when I get up, hold a beat, then wind on around to your time\nagain. That contrast is the whole joke. On hover it shivers, about a degree and\na half of roll and 2.6 mm of travel, which is what a bell housing on a hard\nsurface actually does."
+  },
+  {
+    "id": "systems-working-session-v8",
+    "title": "Working Session",
+    "status": "needs-owner",
+    "links": [],
+    "body": "",
+    "needs": "whose session, where, and roughly when."
+  },
+  {
+    "id": "systems-home-office-v8",
+    "title": "Home Office",
+    "status": "needs-owner",
+    "links": [],
+    "body": "",
+    "needs": "which home office this is and when, and whether the caption should say anything about the setup."
+  },
+  {
+    "id": "systems-sf-dusk-v8",
+    "title": "San Francisco at Dusk",
+    "status": "needs-owner",
+    "links": [],
+    "body": "",
+    "needs": "where this was shot from and when, and whether it should say anything about living there."
+  },
+  {
+    "id": "systems-lake-v8",
+    "title": "At the Lake",
+    "status": "needs-owner",
+    "links": [],
+    "body": "",
+    "needs": "where this lake is and when you were there. The print is in the artifact catalog but is not mounted on any shelf right now; it is waiting for a slot the way the lighthouse print did."
+  },
+  {
+    "id": "link:routineboard",
+    "title": "Routine Board",
+    "status": "written",
+    "links": [
+      {
+        "label": "Routine",
+        "href": "https://www.chappyasel.com/routine"
+      }
+    ],
+    "body": "A clipboard with the daily checklist and three boxes struck through. There is no\nmodel behind it: the prop library has no clipboard, notebook, planner or desk\ntray of any kind, and four boxes and a canvas is cheaper than the wrong model.\nThe sheet is deliberately unreadable, using the same title marks the book spines\nuse, because at the size it covers on screen real words would be a smear and\nfake words would be a lie."
+  },
+  {
+    "id": "egg:clock:floor",
+    "title": "Grandfather Clock Face",
+    "status": "written",
+    "links": [],
+    "body": "The live dial on the floor clock, on the seam between Systems and Projects, and\nturned so the face reads from both bays. Click it and the hands wind to 3:45 the\nway the alarm clock's do."
+  },
+  {
+    "id": "egg:clock:case",
+    "title": "Grandfather Clock Case",
+    "status": "written",
+    "links": [],
+    "body": "The timber case and the pendulum. Click it and the whole clock shoves into a\ndamped rock. Face and case keep separate clicks but share one transform now;\nbefore that the timber moved while the live dial floated in place."
+  },
+  {
+    "id": "grab:trophy",
+    "title": "Trophy",
+    "status": "written",
+    "links": [],
+    "body": "A hollow metal trophy, the one prop in the room with a real metal finish. It\ngoes nowhere: you pick it up, and its restrained glint on hover is the whole\nreaction. It keeps the shared nod as well, because a prop whose only answer is\nreflectance has nothing to say in silhouette. It stands under the Homework icon\nbecause the acquisition earned it."
+  },
+  {
+    "id": "projects-coding-couch-v8",
+    "title": "Coding on the Couch",
+    "status": "needs-owner",
+    "links": [],
+    "body": "",
+    "needs": "when and where this was, and whether it is worth saying what you were building."
+  },
+  {
+    "id": "grab:phone:projects",
+    "title": "Phone",
+    "status": "written",
+    "links": [],
+    "body": "Lying face up on the lower shelf. It slid left into the notebook's old place\nwhen the notebook went to Systems, so the two circuit boards could stand between\nit and the Mac."
+  },
+  {
+    "id": "egg:pixel:arduino",
+    "title": "Arduino Uno",
+    "status": "written",
+    "links": [],
+    "body": "An Arduino lying flat at the plank lip. Tap it and the whole room redraws in\neight levels a channel; tap the lit board again and the finish comes off. Its\nATmega is an 8-bit part, so the look goes by \"8-bit\". It is a name, not a claim\nabout colour depth. Otherwise it is an ordinary prop you can pick up."
+  },
+  {
+    "id": "egg:pixel:card",
+    "title": "Circuit Board",
+    "status": "written",
+    "links": [],
+    "body": "A green expansion card standing upright behind the Arduino, gold fingers down,\nleaning back a hair so the face catches the lamp. Tap it and the room redraws in\na 32-colour palette."
+  },
+  {
+    "id": "projects-facebook-v8",
+    "title": "At Facebook",
+    "status": "needs-owner",
+    "links": [],
+    "body": "",
+    "needs": "what you were at Facebook for and when."
+  },
+  {
+    "id": "link:projects:mac",
+    "title": "Macintosh",
+    "status": "written",
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/chappyasel"
+      }
+    ],
+    "body": "A compact Macintosh with a live pixel Happy Mac face that tracks the pointer and\nblinks, and the way to my GitHub. It is a compact Mac and not a laptop for a\nplain reason: at the twenty-odd pixels this covers on screen a MacBook is a grey\nwedge, while the beige box with the recessed screen, the floppy slot and the\nchin is unmistakable from across the room."
+  },
+  {
+    "id": "egg:lamp:4",
+    "title": "Projects Desk Lamp",
+    "status": "written",
+    "links": [],
+    "body": "The visible practical at the left end of the top shelf. It supplies the warm\nreflection that travels across the two polished icon faces. Click it off and on."
+  },
+  {
+    "id": "link:projects:weightlifting-icon",
+    "title": "Weightlifting App Icon",
+    "status": "written",
+    "links": [
+      {
+        "label": "App Store",
+        "href": "https://apps.apple.com/us/app/id1266077653"
+      }
+    ],
+    "body": "The app's own icon on a shelf billet: the real artwork, not a screenshot mounted\nas wall art."
+  },
+  {
+    "id": "link:projects:dice:bottom-left",
+    "title": "Die",
+    "status": "written",
+    "links": [
+      {
+        "label": "Liar's Dice",
+        "href": "https://www.chappyasel.com/liarsdice"
+      }
+    ],
+    "body": "One of six dice in a three-two-one pyramid, for Liar's Dice. They are six\nseparate props and not one sculpture, so the stack can collapse; the shared\nedges mean moving a supporting die wakes the ones resting on it."
+  },
+  {
+    "id": "link:projects:dice:bottom-center",
+    "title": "Die",
+    "status": "written",
+    "links": [
+      {
+        "label": "Liar's Dice",
+        "href": "https://www.chappyasel.com/liarsdice"
+      }
+    ],
+    "body": "The middle die of the bottom row of the pyramid."
+  },
+  {
+    "id": "link:projects:dice:bottom-right",
+    "title": "Die",
+    "status": "written",
+    "links": [
+      {
+        "label": "Liar's Dice",
+        "href": "https://www.chappyasel.com/liarsdice"
+      }
+    ],
+    "body": "The right die of the bottom row of the pyramid."
+  },
+  {
+    "id": "link:projects:dice:middle-left",
+    "title": "Die",
+    "status": "written",
+    "links": [
+      {
+        "label": "Liar's Dice",
+        "href": "https://www.chappyasel.com/liarsdice"
+      }
+    ],
+    "body": "The left die of the middle row, resting on the two below it."
+  },
+  {
+    "id": "link:projects:dice:middle-right",
+    "title": "Die",
+    "status": "written",
+    "links": [
+      {
+        "label": "Liar's Dice",
+        "href": "https://www.chappyasel.com/liarsdice"
+      }
+    ],
+    "body": "The right die of the middle row."
+  },
+  {
+    "id": "link:projects:dice:top",
+    "title": "Die",
+    "status": "written",
+    "links": [
+      {
+        "label": "Liar's Dice",
+        "href": "https://www.chappyasel.com/liarsdice"
+      }
+    ],
+    "body": "The die on top of the pyramid. Restacking all six into a tower is one of the\nfield notes."
+  },
+  {
+    "id": "homework-app",
+    "title": "Homework App",
+    "status": "written",
+    "links": [],
+    "body": "The icon of the app I built in high school for organizing, tracking and\nreminding people about upcoming homework assignments. It became the number one\nhomework app in the world, and Haystack AI acquired it in 2019 while I was still\nin college: 338k installs, 63k monthly actives, a 4.7 rating and a top-60\nProductivity app at the time. The lift-and-orbit preview behind this icon is\nswitched off for now, so on the shelf it is a plain grabbable."
+  },
+  {
+    "id": "projects-wwdc-v8",
+    "title": "WWDC",
+    "status": "needs-owner",
+    "links": [],
+    "body": "",
+    "needs": "which WWDC year this is and what you were there for."
+  },
+  {
+    "id": "grab:plant:projects-small",
+    "title": "Small Potted Plant",
+    "status": "written",
+    "links": [],
+    "body": "A potted plant at the end of the Projects top shelf."
+  },
+  {
+    "id": "grab:plant:projects-yucca",
+    "title": "Yucca",
+    "status": "written",
+    "links": [],
+    "body": "A yucca standing on the floor at the seam after Projects. It fills the empty\ntransition without taking shelf space from the Mac and the gallery."
+  },
+  {
+    "id": "grab:mug",
+    "title": "Mug",
+    "status": "written",
+    "links": [],
+    "body": "A mug on the Musings top shelf, near the kettle."
+  },
+  {
+    "id": "grab:paper:5",
+    "title": "GPT-3 Paper",
+    "status": "written",
+    "links": [
+      {
+        "label": "Medium",
+        "href": "https://medium.com/@chappyasel"
+      }
+    ],
+    "body": "Five real pages of the paper I wrote in 2021, loose on the shelf with a pen on\ntop of them. It was my final paper in college, on the technological singularity,\nwritten right after GPT-3 came out, and that research is what pointed me at\ncommunity. The pages open my writing."
+  },
+  {
+    "id": "grab:pen:5",
+    "title": "Pen",
+    "status": "written",
+    "links": [],
+    "body": "The pen lying on the stack of pages. It is its own prop; only the paper is a\nportal."
+  },
+  {
+    "id": "grab:trust-essay:musings",
+    "title": "Trust in the Age of Acceleration",
+    "status": "written",
+    "links": [
+      {
+        "label": "Read the essay",
+        "href": "https://www.aicollective.com/trust"
+      }
+    ],
+    "body": "The essay printed and stab-sewn into a booklet on a small wooden reading stand.\nIts own line is that trust is the invisible thread that holds the world\ntogether, so the binding thread is the one detail here that is not plain\nstationery. The cover is page one of the real PDF, the beam artwork and the\ntitle block, rasterised at twice letter resolution so the type survives being\ncarried up close. Nothing is redrawn and no mark is invented."
+  },
+  {
+    "id": "grab:vineyard-sign",
+    "title": "Vineyard Signpost",
+    "status": "written",
+    "links": [],
+    "body": "A Martha's Vineyard town-mileage post, 11 cm of souvenir. Oak Bluffs 3 and\nEdgartown 8 one way; West Tisbury 8, Chilmark 11 and Aquinnah 18 the other, with\na grapes medallion on top. The face is a print die-cut off its mat, with a\nmirrored copy behind it so the text still reads the right way round when you\ncarry it and turn it over."
+  },
+  {
+    "id": "grab:vineyard-cutout",
+    "title": "Martha's Vineyard Cutout",
+    "status": "written",
+    "links": [],
+    "body": "The island cut out of wood and standing in a slotted base, its coastline\nextruded from a silhouette, the grain sun-bleached. It stands up instead of\nlying flat because the camera sits only about eleven degrees above this shelf,\nand a flat piece would foreshorten to five centimetres of nothing. The pin marks\nthe Katama house. It is a marker only; the Maps link that used to open the\naddress is gone."
+  },
+  {
+    "id": "systems-lighthouse-v8",
+    "title": "Lighthouse",
+    "status": "written",
+    "links": [],
+    "body": "Gay Head Light, photographed on the island. The print stands between the wooden\ncutout of the island it was taken on and the souvenir of the light it shows."
+  },
+  {
+    "id": "grab:lighthouse:musings",
+    "title": "Gay Head Light",
+    "status": "written",
+    "links": [],
+    "body": "A 32 cm resin souvenir of Gay Head Light in Aquinnah, standing in a tray of\nsand: weathered red brick gone salmon in the sun, a greyed brownstone band under\nthe gallery, black iron above that, and a lantern that turns on a seven and a\nhalf second period. The beam is four crossed sheets per direction with a soft\nanalytic cone, because a flat glowing rectangle looks like a rotating prop\ninstead of light in the air. Three tries at the sand ended with the tray:\nstrewn grains broke physics and strewn decals read as paint. Tower, rim and sand\nmove as one souvenir."
+  },
+  {
+    "id": "grab:sticker:vineyard-vines",
+    "title": "Vineyard Vines Sticker",
+    "status": "written",
+    "links": [],
+    "body": "A thin die-cut decal left flat on the wood in front of the lighthouse."
+  },
+  {
+    "id": "grab:plant:musings",
+    "title": "Succulent Bowl",
+    "status": "written",
+    "links": [],
+    "body": "A succulent bowl, front left on the top shelf, standing in front of the lamp's\nfoot where the head does not reach. It came up from the lower plank to make room\nfor the lighthouse print."
+  },
+  {
+    "id": "egg:lamp:5",
+    "title": "Musings Desk Lamp",
+    "status": "written",
+    "links": [],
+    "body": "The shared measured angle-poise rig. Shade glow, hot mouth, spot and local spill\nall switch together when you click it."
+  },
+  {
+    "id": "grab:headphones",
+    "title": "Headphones",
+    "status": "written",
+    "links": [
+      {
+        "label": "SoundCloud",
+        "href": "https://soundcloud.com/chappyasel"
+      }
+    ],
+    "body": "Beats red shell, neutral rails, near-black cushions. They open my SoundCloud,\nwhere the RAGE and HARDcore playlists are what I lift to."
+  },
+  {
+    "id": "grab:kettle",
+    "title": "Kettle",
+    "status": "written",
+    "links": [],
+    "body": "A kettle on the top shelf, next to the tea."
+  },
+  {
+    "id": "egg:tea",
+    "title": "Cup of Tea",
+    "status": "written",
+    "links": [],
+    "body": "It steams all the time, because a hot drink that only steams when clicked is a\nbutton. The click is still there as a stronger puff. The cup keeps its nod on\nhover too, since the steam is already moving and the nod is what tells you which\nprop is answering."
+  },
+  {
+    "id": "grab:openbook",
+    "title": "Open Book",
+    "status": "written",
+    "links": [
+      {
+        "label": "Book Notes",
+        "href": "https://books.chappyasel.com"
+      }
+    ],
+    "body": "An open book left on the top shelf. It opens the library."
+  },
+  {
+    "id": "link:row:5:75:*",
+    "title": "Musings Book Row",
+    "status": "written",
+    "links": [
+      {
+        "label": "Book Notes",
+        "href": "https://books.chappyasel.com"
+      }
+    ],
+    "body": "Eight volumes standing upright on the top shelf. They are scenery rather than\nparticular books, so they all open the library."
+  },
+  {
+    "id": "talk-demo-night-v8",
+    "title": "Demo Night",
+    "status": "needs-owner",
+    "links": [],
+    "body": "",
+    "needs": "which demo night, where, and when."
+  },
+  {
+    "id": "talk-consensus-phone-v8",
+    "title": "Consensus",
+    "status": "needs-owner",
+    "links": [],
+    "body": "",
+    "needs": "confirm this is Consensus 2026 in Miami, the one talk on the Talks page from that stage, and say what is on the phone."
+  },
+  {
+    "id": "grab:sticker-camera:talks-a",
+    "title": "Sticker Camera",
+    "status": "written",
+    "links": [],
+    "body": "One of two small brushed-aluminium box cameras that print dithered\nblack-and-white stickers, standing on the wood under the hung board. This is the\none shelf in the room where a camera is not decoration. The body is built rather\nthan downloaded, because the shape is simple and the room already owns its\naluminium and its pixel font, and it is built at the real size: 2.90 inches wide\nby 3.64 tall by 1.35 deep."
+  },
+  {
+    "id": "grab:sticker-camera:talks-b",
+    "title": "Sticker Camera",
+    "status": "written",
+    "links": [],
+    "body": "The second camera. The two are turned differently so the pair does not read as\none object copied."
+  },
+  {
+    "id": "grab:microphone",
+    "title": "Microphone",
+    "status": "written",
+    "links": [],
+    "body": "A microphone lying on the lower plank. It was on the top shelf until the\nharmonica took that spot."
+  },
+  {
+    "id": "grab:plant:talks-pothos",
+    "title": "Pothos",
+    "status": "written",
+    "links": [],
+    "body": "A pothos on the Talks lower shelf."
+  },
+  {
+    "id": "talk-ann-interview-v8",
+    "title": "Interview with Ann",
+    "status": "needs-owner",
+    "links": [],
+    "body": "",
+    "needs": "who Ann is, what show or outlet the interview was for, and when."
+  },
+  {
+    "id": "talk-dc-policy-v8",
+    "title": "DC Policy Talk",
+    "status": "needs-owner",
+    "links": [],
+    "body": "",
+    "needs": "which DC event this was, the year, and what the talk was about."
+  },
+  {
+    "id": "talk-panel-v8",
+    "title": "Panel Discussion",
+    "status": "needs-owner",
+    "links": [],
+    "body": "",
+    "needs": "which panel, where, and who else was on it."
+  },
+  {
+    "id": "grab:harmonica:talks",
+    "title": "Harmonica",
+    "status": "written",
+    "links": [],
+    "body": "A harmonica on the top shelf, in the microphone's old spot."
+  },
+  {
+    "id": "grab:plant:talks-top",
+    "title": "Potted Plant",
+    "status": "written",
+    "links": [],
+    "body": "A potted plant at the end of the Talks top shelf."
+  },
+  {
+    "id": "egg:lamp:floor:6",
+    "title": "Floor Lamp",
+    "status": "written",
+    "links": [],
+    "body": "The floor lamp standing in the grass between Musings and Talks. Its local x is\nhalf the pitch between the two units, so it belongs to neither while warming\nboth. Click it off and back on, like the two desk lamps. The trigger wraps the\npole and the shade only: the glow sprite is a metre-wide transparent quad, and\ninside the trigger it would become an invisible hit box over half the unit."
+  }
+]

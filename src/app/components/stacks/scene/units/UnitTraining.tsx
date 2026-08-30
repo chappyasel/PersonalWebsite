@@ -23,7 +23,6 @@ import {
   GOLF_TEE_SCALE,
 } from "../golf/golfLayout";
 import { meadowHeight } from "../meadowField";
-import { SODA_CAN_HEIGHT, SodaCan } from "../objects";
 import { DeskFrame, FlatPrint, deskFrameHeight } from "../photos";
 import { ShelfUnit, WoodMaterial } from "../primitives";
 import { useUnitLod } from "../useUnitLod";
@@ -103,13 +102,22 @@ function TrainingPhoto({
   );
 }
 
-/** The two golf prints on the lower shelf. Sized with the other shelves'
- * desk frames in mind (Talks runs 0.53 to 0.72 wide, About's portraits are
- * 0.18 to 0.2 by 0.24 to 0.26): a third bigger than the v8 placement, so
- * they read as photographs rather than thumbnails next to the cans. */
+/** The three prints on the lower shelf. Sized with the other shelves' desk
+ * frames in mind (Talks runs 0.53 to 0.72 wide, About's portraits are 0.18 to
+ * 0.2 by 0.24 to 0.26): a third bigger than the v8 placement, so they read as
+ * photographs rather than thumbnails.
+ *
+ * The pickleball group joined them on 2026-08-29, in the slot the soda-can
+ * pyramid left when it went over to Systems. It takes the golf group's
+ * treatment verbatim — same 4:3 source, same 0.36 width, same seat and lean —
+ * because a second court-sport group shot beside the first should read as one
+ * pair of photographs, not as two different framing decisions. Its yaw turns
+ * the other way, which is the only thing that keeps them from being a
+ * repeated element: the row now fans out from the middle of the plank. */
 const TRAINING_GOLF_PRINTS = {
   group: { base: [-1.1, 0, 0.1], width: 0.36, height: 0.27 },
   flag: { base: [-0.69, 0, 0.13], width: 0.24, height: 0.32 },
+  pickleball: { base: [-0.12, 0, 0.06], width: 0.36, height: 0.27 },
 } as const;
 
 /** Three tees lying loose at the foot of the golf prints, as if tipped out
@@ -120,21 +128,6 @@ const TRAINING_SHELF_TEES = [
   { id: "shelf-middle", x: -0.93, z: 0.18, yaw: 0.5, tint: "#e8d7a8" },
   { id: "shelf-right", x: -0.66, z: 0.18, yaw: -0.16, tint: "#f2ede2" },
 ] as const;
-
-/** Two cans on the wood a few millimetres apart, Sunkist resting on both of
- * their rims. The top can's base is exactly one can height up. They stand on
- * the lower shelf between the golf balls and the dumbbell. Carried into the
- * golf bay they can be struck too; a can tumbles where a ball rolls. */
-const TRAINING_CAN_PYRAMID = [
-  { id: "diet-dr-pepper", x: -0.16, y: 0, yaw: 0.18, shade: 0.18 },
-  { id: "mtn-dew-zero", x: -0.016, y: 0, yaw: -0.22, shade: 0.18 },
-  // The shade is a sprite at the base; keep it narrower than the can so it
-  // stays hidden inside the body rather than smudging the cans below.
-  { id: "sunkist-zero", x: -0.088, y: SODA_CAN_HEIGHT, yaw: 0.06, shade: 0.12 },
-] as const;
-const TRAINING_CAN_Z = 0.08;
-/** 6.114 model units across at the can's 0.02287 scale. */
-const SODA_CAN_RADIUS = 0.07;
 
 /** Real sizes at the shelves' 2.00 world units per metre: a 24 cm
  * basketball, a 7.4 cm baseball, 6.7 cm tennis balls. Every GLB stands
@@ -522,6 +515,23 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
                 height={TRAINING_GOLF_PRINTS.flag.height}
               />
             </TrainingPhoto>
+            <TrainingPhoto
+              unitIndex={index}
+              palette={palette}
+              id="training-pickleball-group-v8"
+              base={[...TRAINING_GOLF_PRINTS.pickleball.base]}
+              seat={deskFrameHeight(TRAINING_GOLF_PRINTS.pickleball.height) / 2}
+              rotation={[-0.09, 0.19, -0.02]}
+              width={TRAINING_GOLF_PRINTS.pickleball.width}
+            >
+              <DeskFrame
+                src="/images/stacks/v8/training-pickleball-group.webp"
+                palette={palette}
+                textured={textured}
+                width={TRAINING_GOLF_PRINTS.pickleball.width}
+                height={TRAINING_GOLF_PRINTS.pickleball.height}
+              />
+            </TrainingPhoto>
             {TRAINING_SHELF_TEES.map((tee) => (
               <Grabbable
                 key={`golf-tee:${tee.id}`}
@@ -572,28 +582,6 @@ export default function UnitTraining({ palette, dark, index }: UnitProps) {
                 base={[ball.x, 0, ball.z]}
                 yaw={ball.yaw}
               />
-            ))}
-            {TRAINING_CAN_PYRAMID.map((can) => (
-              <Grabbable
-                key={can.id}
-                unitIndex={index}
-                hoverKey={`grab:can:${can.id}`}
-                base={[can.x, can.y, TRAINING_CAN_Z]}
-                shadeColor={palette.shadow}
-                shadeWidth={can.shade}
-                shape="box"
-                massKg={0.36}
-                hittable={{
-                  radius: SODA_CAN_RADIUS,
-                  contactHeight: SODA_CAN_HEIGHT / 2,
-                }}
-              >
-                <SodaCan
-                  dark={dark}
-                  brand={can.id}
-                  rotation={[0, can.yaw, 0]}
-                />
-              </Grabbable>
             ))}
             {/* The heavier dumbbell lies across the back of the lower shelf
                 at an angle, one plate toward the cans and the other toward

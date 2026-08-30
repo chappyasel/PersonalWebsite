@@ -893,22 +893,23 @@ const UNIT_PERCHES: readonly (readonly PerchDefinition[])[] = [
       ownerId: "grab:dumbbell:training:right",
     },
     {
+      // The seventh Perch on this unit, and it exists because the catalogue
+      // holds every unit to exactly seven: the Sunkist lid left with the can
+      // pyramid on 2026-08-29, and the pickleball print took both its slot on
+      // the plank and its place here. A frame top is the same flat contact
+      // every other print on this shelf offers.
+      id: "training:pickleball-frame-top",
+      position: [-0.1217, -0.5186, 0.0512],
+      normal: [0.0102, 0.9954, -0.0951],
+      tangent: [0.982, 0, -0.189],
+      ownerId: "grab:photo:training-pickleball-group-v8",
+    },
+    {
       id: "training:golf-flag-frame-top",
       position: [-0.6876, -0.4764, 0.1023],
       normal: [0.0198, 0.9945, -0.1026],
       tangent: [0.9998, -0.0197, 0.002],
       ownerId: "grab:photo:training-golf-flag-v8",
-    },
-    {
-      // The cans stack two-and-one now, Sunkist on top, so its lid is the
-      // one can top with open air above it; the two below are half covered.
-      // The pyramid stands on the lower shelf between the golf balls and the
-      // dumbbell.
-      id: "training:sunkist-lid",
-      position: [-0.088, -0.3827, 0.08],
-      normal: [0.0184, 0.9929, 0.1179],
-      tangent: [0.9998, -0.0183, -0.0022],
-      ownerId: "grab:can:sunkist-zero",
     },
   ],
   [
@@ -949,20 +950,26 @@ const UNIT_PERCHES: readonly (readonly PerchDefinition[])[] = [
       ownerId: "grab:photo:systems-home-office-v8",
     },
     {
-      id: "systems:lamp-shade",
+      id: "systems:lamp-crown",
       // Anchor and normal are the MEASURED contact, read back off the resolver
-      // rather than guessed from the shade's bounding box. A shade is a cone:
-      // its triangles run from nearly flat at the crown to nearly vertical down
-      // the side, so an authored normal that is even slightly idealised lands
-      // outside any sane tolerance. The previous [-0.35, 0.9, 0.22] was 25° off
-      // vertical against a real facet at 57°, and every frame reported
-      // `contact-normal-mismatch`.
-      position: [1.02, -0.3166, 0.08],
-      normal: [-0.525, 0.5503, 0.6492],
+      // rather than guessed from a bounding box. That method has not changed
+      // since the desk lamp stood here; what changed is the fixture. The
+      // sunlamp is a flat panel leaning back on a kickstand, so there is no
+      // cone to land on and the only up-facing surface is the rounded top
+      // edge — a ridge about a centimetre across, which is why the anchor is
+      // read off a 41-step probe rather than a 9-step one.
+      position: [1.0789, -0.3316, -0.239],
+      normal: [-0.0241, 0.9985, 0.0487],
+      // Along the ridge, not across it. The panel is yawed -0.34 in the unit,
+      // so its width runs [cos, 0, -sin] of that; a moth landed square to the
+      // edge would be standing on a knife.
+      tangent: [0.943, 0, 0.334],
       ownerId: "egg:lamp:3",
       lampId: "desk-lamp-3",
-      // ~26° around the measured facet: enough for the shade to swing a little
-      // without the contact sliding onto a differently-angled triangle.
+      // The round-over is bevelled in four segments, so consecutive facets on
+      // the crown differ by up to 25°. 0.9 accepts all of them and still
+      // rejects the shoulder facets, where a resident would be standing on the
+      // side of the panel.
       normalTolerance: 0.9,
     },
     {
@@ -1194,10 +1201,13 @@ const UNIT_PERCHES: readonly (readonly PerchDefinition[])[] = [
       // surface that was simply unmeasurable before, 20 cm below the old rim.
       //
       // It is also where the light is. A moth on the lid of a lampshade is
-      // sitting on the one part of it that is dark. The three desk lamps needed
-      // no such move: their shades are tilted, so `musings:lamp-shade` already
-      // resolves 81° off vertical and `systems:lamp-shade` 56°. This one aimed
-      // straight down and was the only Perch in the room dead on top of a lamp.
+      // sitting on the one part of it that is dark. The remaining desk lamps
+      // needed no such move: their shades are tilted, so `musings:lamp-shade`
+      // already resolves 81° off vertical. (`systems:lamp-shade` was the third
+      // such case at 56°; the sunlamp that replaced that fixture has no shade
+      // at all, and `systems:lamp-crown` sits on its top edge, which is a lit
+      // surface for the same reason this flank is.) This one aimed straight
+      // down and was the only Perch in the room dead on top of a lamp.
       id: "talks:floor-lamp-flank",
       position: [-2.1379, 1.1318, 0.2382],
       normal: [0.027, 0.122, 0.992],

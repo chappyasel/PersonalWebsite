@@ -71,7 +71,7 @@ function BlogPostItem({ post }: { post: BlogPost }) {
           style={{ transform: "translateZ(20px)" }}
         >
           <h3 className="text-lg font-semibold md:text-xl">{post.title}</h3>
-          <p className="text-xs font-semibold opacity-80">
+          <p className="text-xs font-semibold text-muted-foreground">
             {getTimeAgo(post.pubDate)}
           </p>
           <p className="mt-1 line-clamp-4 text-sm">{post.description}</p>

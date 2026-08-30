@@ -4,6 +4,7 @@
 // packed book rows, piles, lamp + glow, frames, and training props.
 // Box props use RoundedBox — edge highlights are the cheapest "crafted vs
 // primitive" signal; perfect 90° corners are the strongest primitive tell.
+import { requestBookPrefetch } from "../bookPrefetch";
 import { useStacks } from "../store";
 import { PALETTES, type Palette, rand } from "../theme";
 import React, { useEffect, useMemo, useRef } from "react";
@@ -664,6 +665,9 @@ function ShelfBook({
   const openOwnNotes = React.useCallback(() => {
     if (bookId) onOpenBookId?.(bookId);
   }, [bookId, onOpenBookId]);
+  const prefetchOwnNotes = React.useCallback(() => {
+    if (bookId) requestBookPrefetch(bookId);
+  }, [bookId]);
   const portalDetail = useMemo(
     () => (bookAuthor ? [bookAuthor] : undefined),
     [bookAuthor],
@@ -687,6 +691,7 @@ function ShelfBook({
         shadeWidth={0}
         shape="box"
         massKg={0.65}
+        onHoverIntent={prefetchOwnNotes}
         {...(opensOwnNotes
           ? {
               onTap: openOwnNotes,
@@ -1030,6 +1035,10 @@ function FeaturedCover({
    * itself when you point at it walks its head through that neighbour. */
   const pose: [number, number, number] = [0, item.yaw ?? 0, lean];
   const hoverKey = `book:${item.key}`;
+  const prefetchOwnNotes = React.useCallback(
+    () => requestBookPrefetch(item.key),
+    [item.key],
+  );
   const riserHoverKey = featuredRiserHoverKey(linkUnit, item.key);
   const riserPose: [number, number, number] = [
     0,
@@ -1072,6 +1081,7 @@ function FeaturedCover({
                     : (e) => {
                         e.stopPropagation();
                         setHovered(hoverKey);
+                        prefetchOwnNotes();
                       }
                 }
                 onPointerOut={
@@ -1152,6 +1162,7 @@ function FeaturedCover({
           shape="box"
           massKg={0.65}
           tiltWhileHeld={false}
+          onHoverIntent={prefetchOwnNotes}
           onTap={onCoverClick ? () => onCoverClick(item.key) : undefined}
           // Title, author, then the verb. "Preview", because the tap opens
           // the in-room book modal, not the full notes page; a cover with no
