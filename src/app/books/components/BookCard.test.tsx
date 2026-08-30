@@ -60,3 +60,13 @@ describe("BookCard badges", () => {
     expect(markup).toContain(">No Notes<");
   });
 });
+
+describe("BookCard entrance motion", () => {
+  it("runs the viewport entrance animation only once per mount", () => {
+    const markup = renderToStaticMarkup(
+      <BookCard book={CURRENT_BOOK_WITHOUT_NOTES} size="M" />,
+    );
+
+    expect(markup).toContain("intersect-once");
+  });
+});
