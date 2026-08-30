@@ -48,8 +48,6 @@ function parseSection(id: string, lines: string[]): ObjectNote | null {
   let inBody = false;
 
   for (const line of lines) {
-    // HTML comments are the file's unit separators and its coverage note.
-    if (line.startsWith("<!--")) continue;
     // Checked before the field parse, not after: `NEEDS:` is shaped exactly
     // like a field and would otherwise be swallowed as an unknown one.
     if (line.startsWith("NEEDS:")) {
@@ -102,6 +100,7 @@ export function parseObjectNotes(markdown: string): ObjectNote[] {
   const notes: ObjectNote[] = [];
   let id: string | null = null;
   let lines: string[] = [];
+  let inComment = false;
 
   const flush = () => {
     if (!id) return;
@@ -112,6 +111,21 @@ export function parseObjectNotes(markdown: string): ObjectNote[] {
   };
 
   for (const line of markdown.split("\n")) {
+    // Comments are stripped HERE, across their whole span, and before the
+    // heading scan. Skipping only the line that OPENS one left the other 51
+    // lines of the file's coverage note sitting in the section above it, which
+    // is how `egg:lamp:floor:6` shipped a caption with an id-migration list
+    // glued to the end and a literal `-->` for a last word. Stripping ahead of
+    // the `##` scan also stops a heading inside a comment opening a phantom
+    // section.
+    if (inComment) {
+      if (line.includes("-->")) inComment = false;
+      continue;
+    }
+    if (line.trimStart().startsWith("<!--")) {
+      if (!line.includes("-->")) inComment = true;
+      continue;
+    }
     const heading = SECTION.exec(line);
     if (heading) {
       flush();

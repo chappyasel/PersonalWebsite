@@ -67,6 +67,47 @@ describe("parseObjectNotes", () => {
     expect(note?.status).toBe("needs-owner");
   });
 
+  it("strips a multi-line HTML comment out of the section above it", () => {
+    // The real file's coverage note is 52 lines. Skipping only the line that
+    // OPENS a comment left the rest in the preceding section's prose, and
+    // `egg:lamp:floor:6` shipped a caption ending in a literal `-->` with an
+    // id-migration list glued to it. A heading inside a comment must not open
+    // a section either.
+    const notes = parseObjectNotes(
+      [
+        "## a:thing",
+        "Title: A Thing",
+        "",
+        "The prose that belongs to it.",
+        "",
+        "<!-- coverage, as of today:",
+        "## not:a:section",
+        "- one line",
+        "- another line",
+        "-->",
+        "",
+        "## b:thing",
+        "Title: B Thing",
+        "",
+        "Its own prose.",
+      ].join("\n"),
+    );
+
+    expect(notes.map((note) => note.id)).toEqual(["a:thing", "b:thing"]);
+    expect(notes[0]!.body).toBe("The prose that belongs to it.");
+    expect(notes[0]!.body).not.toContain("-->");
+    expect(notes[1]!.body).toBe("Its own prose.");
+  });
+
+  it("still drops a comment that opens and closes on one line", () => {
+    const notes = parseObjectNotes(
+      ["## a:thing", "Title: A Thing", "", "<!-- unit break -->", "Prose."].join(
+        "\n",
+      ),
+    );
+    expect(notes[0]!.body).toBe("Prose.");
+  });
+
   it("skips a malformed section instead of failing the file", () => {
     const parsed = parseObjectNotes(
       ["## a:b", "Status: written", "", "## c:d", "Title: C", "", "note"].join(

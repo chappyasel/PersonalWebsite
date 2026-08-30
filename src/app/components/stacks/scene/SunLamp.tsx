@@ -70,7 +70,12 @@ const PANEL_D = 0.042;
 const SHELL_W = PANEL_W;
 const SHELL_H = PANEL_H;
 const SHELL_D = PANEL_D * 0.24;
-const SHELL_R = 0.008;
+/** Bounded by the housing's own depth, not chosen for looks. `RoundedBox`
+ * extrudes `dimension - 2 * radius`, so at the 0.008 this started as it was
+ * building a box 0.00592 DEEP IN THE NEGATIVE: inside-out bevel geometry on
+ * the one face that carries the panel's outline. The depth is 0.01008, so the
+ * ceiling is 0.00504 and this leaves a little under it. */
+const SHELL_R = 0.004;
 const BEZEL_W = PANEL_W - 0.008;
 const BEZEL_H = PANEL_H - 0.008;
 const BEZEL_D = PANEL_D - SHELL_D;

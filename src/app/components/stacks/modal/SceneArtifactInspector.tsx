@@ -114,8 +114,14 @@ function PreviewChrome({
   // Captions live in content/stacks/objects.md, fetched on first need rather
   // than bundled (see ../objectNotes). An artifact's own `caption` still wins
   // where one is set in the catalog, so nothing already authored moves.
-  const note = useObjectNote(artifact.id);
-  const caption = artifact.kind === "image" ? (artifact.caption ?? note?.body) : undefined;
+  // Null for anything that cannot show one: the hook fetches the whole notes
+  // JSON on first non-null id, and a model or an already-captioned image was
+  // paying for a document it discards on the next line.
+  const note = useObjectNote(
+    artifact.kind === "image" && !artifact.caption ? artifact.id : null,
+  );
+  const caption =
+    artifact.kind === "image" ? (artifact.caption ?? note?.body) : undefined;
 
   return (
     <div
