@@ -13,6 +13,7 @@ import {
 } from "react";
 
 import { getBookPath, getBookShareUrl } from "~/lib/books/paths";
+import { copyTextToClipboard } from "~/lib/clipboard";
 import {
   type ModalOrigin,
   originEntrance,
@@ -441,13 +442,10 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
   const handleShare = async () => {
     if (!bookId) return;
     const shareUrl = getBookShareUrl(bookId);
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      console.error("Failed to copy");
-    }
+    const didCopy = await copyTextToClipboard(shareUrl);
+    if (!didCopy) return;
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   // A recorded 3D-origin flight has already animated both layers completely

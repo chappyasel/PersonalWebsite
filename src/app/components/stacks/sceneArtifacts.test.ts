@@ -295,16 +295,29 @@ describe("Scene artifact inspector", () => {
     expect(inspector).toContain('data-artifact-preview-control="close"');
     expect(inspector).toContain('data-artifact-preview-control="navigation"');
     expect(inspector).toContain('data-artifact-preview-control="actions"');
+    expect(inspector).toContain("order-2 flex self-center");
+    expect(inspector).toContain("order-1 flex w-fit max-w-full");
+    expect(inspector.match(/sm:order-none/g)).toHaveLength(2);
     expect(inspector).toContain("data-artifact-preview-scrim");
-    expect(inspector).toContain("data-artifact-preview-caption");
+    expect(inspector).toContain("data-artifact-preview-description");
+    expect(inspector).not.toContain("data-artifact-preview-caption");
+    expect(inspector).not.toContain("useObjectNote");
     expect(inspector).not.toContain("bg-gradient-to-t");
-    expect(inspector).toContain("bg-[#f2e7cf]/85");
+    expect(inspector).not.toContain("bg-[#f2e7cf]/85");
     expect(inspector).toContain("ArrowUpRightIcon");
     expect(inspector).not.toContain("ArrowSquareOutIcon");
     expect(inspector).toContain(
-      'className="pointer-events-auto flex w-fit max-w-full',
+      'className="pointer-events-auto order-1 flex w-fit max-w-full',
     );
     expect(inspector).not.toContain("min-h-11 flex-1 items-center");
+    expect(inspector).toContain('className="absolute max-w-none"');
+    expect(inspector).not.toContain(
+      'className="pointer-events-none absolute max-w-none select-none"',
+    );
+    expect(globalStyles).toContain(
+      ".stacks-artifact-preview [data-scene-artifact-preview-photo]",
+    );
+    expect(globalStyles).toContain("-webkit-touch-callout: inherit");
   });
 
   it("defines Lift Table as a directly inspectable singleton image", () => {

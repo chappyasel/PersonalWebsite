@@ -631,6 +631,13 @@ html[data-font="literata"] {
   opacity: 1;
 }
 
+/* Keep the photograph itself as the touch target so Safari can offer its
+ * native image actions on a long press. Gestures still bubble to the viewer. */
+.stacks-artifact-preview [data-scene-artifact-preview-photo] {
+  pointer-events: auto;
+  -webkit-touch-callout: inherit;
+}
+
 @keyframes stacks-artifact-preview-mask-in {
   from,
   28% {
@@ -699,17 +706,16 @@ html[data-font="literata"] {
   opacity: 1 !important;
 }
 
-/* The photo viewer keeps its own image morph and backdrop fade. The bottom
- * dock is transparent; only its caption and controls carry local surfaces.
- * Preview chrome leaves before the reverse morph and returns once the enlarged
- * image has settled. */
+/* The photo viewer keeps its own image morph and backdrop fade. Preview chrome
+ * leaves before the reverse morph and returns once the enlarged image has
+ * settled. */
 [data-scene-artifact-inspector] [data-artifact-preview-scrim] {
   opacity: 0;
   transition: opacity 160ms ease-out;
 }
 
 [data-scene-artifact-inspector] [data-artifact-preview-control],
-[data-scene-artifact-inspector] [data-artifact-preview-caption] {
+[data-scene-artifact-inspector] [data-artifact-preview-description] {
   opacity: 0;
   transform: translate3d(0, 7px, 0) scale(0.97);
   transition:
@@ -737,7 +743,7 @@ html[data-font="literata"] {
 [data-scene-artifact-inspector][data-preview-chrome-visible]
   [data-artifact-preview-control],
 [data-scene-artifact-inspector][data-preview-chrome-visible]
-  [data-artifact-preview-caption] {
+  [data-artifact-preview-description] {
   opacity: 1;
   transform: translate3d(0, 0, 0) scale(1);
   transition-duration: 260ms;
@@ -810,7 +816,7 @@ html[data-font="literata"] {
 
   [data-scene-artifact-inspector] [data-artifact-preview-scrim],
   [data-scene-artifact-inspector] [data-artifact-preview-control],
-  [data-scene-artifact-inspector] [data-artifact-preview-caption] {
+  [data-scene-artifact-inspector] [data-artifact-preview-description] {
     transform: none;
     transition-duration: 0ms;
     transition-delay: 0ms;

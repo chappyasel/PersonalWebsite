@@ -53,6 +53,24 @@ function renderCurrentBook(isModal: boolean, copied = false) {
 }
 
 describe("BookDetailContent note availability", () => {
+  it("reserves the internal scroll container for modal presentation", () => {
+    expect(renderCurrentBook(false)).toContain(
+      "relative min-h-[100dvh] overflow-x-clip",
+    );
+    expect(renderCurrentBook(true)).toContain(
+      "relative h-full overflow-y-auto overflow-x-hidden",
+    );
+  });
+
+  it("uses the compact cover and spacing on standalone mobile pages", () => {
+    expect(detailSource).toContain(
+      ': [isModal ? "220px" : "200px", "42px"]',
+    );
+    expect(detailSource).toContain(
+      ': [isModal ? "24px" : "16px", isModal ? "16px" : "12px"]',
+    );
+  });
+
   it("keeps the standalone breadcrumb in the same visual order as the external one", () => {
     const markup = renderToStaticMarkup(
       <BookDetailContent
@@ -107,7 +125,10 @@ describe("BookDetailContent note availability", () => {
     );
     expect(markup).not.toContain("Published:");
     expect(markup).toContain('aria-label="Book actions"');
-    expect(markup).toContain("grid-cols-[1.125rem_5rem_minmax(0,1fr)]");
+    expect(markup).toContain(
+      "grid-cols-[1rem_4.25rem_minmax(0,1fr)]",
+    );
+    expect(markup).toContain("text-xs");
     expect(markup).toContain("w-fit min-w-0 max-w-full justify-self-start");
     expect(markup).not.toContain("md:grid-cols-3");
     expect(ratedMarkup.indexOf("data-book-facts")).toBeLessThan(
@@ -125,6 +146,34 @@ describe("BookDetailContent note availability", () => {
     expect(
       detailSource.indexOf("style={{ opacity: factsOpacity }}"),
     ).toBeLessThan(detailSource.indexOf("style={{ opacity: ratingOpacity }}"));
+  });
+
+  it("collapses mobile metadata in separate bottom-up stages", () => {
+    expect(detailSource).not.toContain("fullMetadataOpacity");
+    expect(detailSource).toMatch(
+      /data-mobile-book-segment="identity"[\s\S]*?style=\{\{ opacity: mobileIdentityOpacity \}\}/,
+    );
+    expect(detailSource).toMatch(
+      /data-mobile-book-segment="facts"[\s\S]*?style=\{\{ opacity: mobileFactsOpacity \}\}/,
+    );
+    expect(detailSource).toMatch(
+      /data-mobile-book-segment="rating"[\s\S]*?style=\{\{ opacity: mobileRatingOpacity \}\}/,
+    );
+    expect(detailSource).toMatch(
+      /data-mobile-book-segment="tags"[\s\S]*?style=\{\{ opacity: mobileTagsOpacity \}\}/,
+    );
+    expect(detailSource).toMatch(
+      /data-mobile-book-segment="actions"[\s\S]*?style=\{\{ opacity: mobileActionsOpacity \}\}/,
+    );
+  });
+
+  it("hands the mobile identity to the sticky header without a readable overlap", () => {
+    expect(detailSource).toMatch(
+      /const compactHeaderOpacity = useTransform\([\s\S]*?\[0\.3, 0\.52\]/,
+    );
+    expect(detailSource).toMatch(
+      /const mobileIdentityOpacity = useTransform\([\s\S]*?\[0\.12, 0\.34\]/,
+    );
   });
 
   it.each([
@@ -146,9 +195,32 @@ describe("BookDetailContent note availability", () => {
 
     expect(markup).toContain('aria-label="Link copied"');
     expect(markup).toContain("bg-emerald-500/10");
-    expect(markup).toContain("min-w-[4.25rem]");
+    expect(markup).toContain("sm:min-w-[4.25rem]");
     expect(markup).toContain(">Copied</span>");
     expect(detailSource).toContain('<CheckIcon size={14} weight="bold" />');
+  });
+
+  it("keeps all mobile actions on one compact row", () => {
+    const markup = renderToStaticMarkup(
+      <BookDetailContent
+        book={{
+          ...CURRENT_BOOK_WITHOUT_NOTES,
+          audibleUrl: "https://www.audible.com/example",
+        }}
+        isLoadingNotes={false}
+        onShare={vi.fn()}
+        copied={false}
+        bookId={CURRENT_BOOK_WITHOUT_NOTES.id}
+      />,
+    );
+
+    expect(markup).toContain("flex-nowrap");
+    expect(markup).toContain('<span class="sm:hidden">Audible</span>');
+    expect(markup).toContain(
+      '<span class="hidden sm:inline">Listen on Audible</span>',
+    );
+    expect(markup).toContain("px-2");
+    expect(markup).toContain("sm:px-3");
   });
 
   it.each([

@@ -1,6 +1,5 @@
 "use client";
 
-import { useObjectNote } from "../objectNotes";
 import { useArtifactPreviewFrames } from "../scene/artifactPreviewFrames";
 import { artifactPreviewVisualEffects } from "../scene/artifactPreviewVisualEffects";
 import { destinationFor } from "../scene/interactionRegistry";
@@ -114,17 +113,6 @@ function PreviewChrome({
   onClose,
 }: PreviewChromeProps) {
   const model = artifact.kind === "model";
-  // Captions live in content/stacks/objects.md, fetched on first need rather
-  // than bundled (see ../objectNotes). An artifact's own `caption` still wins
-  // where one is set in the catalog, so nothing already authored moves.
-  // Null for anything that cannot show one: the hook fetches the whole notes
-  // JSON on first non-null id, and a model or an already-captioned image was
-  // paying for a document it discards on the next line.
-  const note = useObjectNote(
-    artifact.kind === "image" && !artifact.caption ? artifact.id : null,
-  );
-  const caption =
-    artifact.kind === "image" ? (artifact.caption ?? note?.body) : undefined;
 
   return (
     <div
@@ -154,7 +142,7 @@ function PreviewChrome({
           {total > 1 && (
             <div
               data-artifact-preview-control="navigation"
-              className={`pointer-events-auto flex self-center rounded-full ${glassControl} sm:self-auto`}
+              className={`pointer-events-auto order-2 flex self-center rounded-full ${glassControl} sm:order-none sm:self-auto`}
             >
               <button
                 type="button"
@@ -183,21 +171,10 @@ function PreviewChrome({
             </div>
           )}
 
-          {artifact.kind === "image" && caption && (
-            <p
-              data-artifact-preview-caption
-              className="min-w-0 flex-1 text-center text-sm sm:text-left"
-            >
-              <span className="inline-block max-w-2xl rounded-xl border border-[#725536]/20 bg-[#f2e7cf]/85 px-4 py-2 text-[#493721]/80 shadow-[0_8px_24px_rgba(22,14,8,0.14)] backdrop-blur-[2px]">
-                {caption}
-              </span>
-            </p>
-          )}
-
           {artifact.kind === "model" && (
             <section
               id={`artifact-description-${artifact.id}`}
-              data-artifact-preview-caption
+              data-artifact-preview-description
               className="mx-auto w-full max-w-[720px] self-center text-left"
             >
               <h2 className="font-serif text-lg leading-tight text-white sm:text-xl">
@@ -214,7 +191,7 @@ function PreviewChrome({
           {artifact.actions.length > 0 && (
             <div
               data-artifact-preview-control="actions"
-              className="pointer-events-auto flex w-fit max-w-full items-center justify-center gap-2 self-center sm:ml-auto sm:self-auto"
+              className="pointer-events-auto order-1 flex w-fit max-w-full items-center justify-center gap-2 self-center sm:order-none sm:ml-auto sm:self-auto"
             >
               {artifact.actions.map((action) => {
                 const target =
@@ -556,7 +533,7 @@ function PreviewPrint({
         detailSrc={src}
         opening={opening}
         dismissing={closing}
-        className="pointer-events-none absolute max-w-none select-none"
+        className="absolute max-w-none"
         style={{
           left: layout.imageInset,
           top: layout.imageInset,

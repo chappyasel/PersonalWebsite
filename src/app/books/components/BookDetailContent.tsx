@@ -440,7 +440,7 @@ function BookFact({
   tooltip?: ReactNode;
 }) {
   const valueElement = (
-    <dd className="w-fit min-w-0 max-w-full justify-self-start text-sm font-medium tabular-nums leading-5 text-foreground/80">
+    <dd className="w-fit min-w-0 max-w-full justify-self-start text-xs font-medium tabular-nums leading-4 text-foreground/80 sm:text-sm sm:leading-5">
       {value}
     </dd>
   );
@@ -448,15 +448,15 @@ function BookFact({
   return (
     <div
       data-book-fact={label.toLowerCase()}
-      className="grid min-w-0 cursor-default grid-cols-[1.125rem_5rem_minmax(0,1fr)] items-start gap-x-1.5"
+      className="grid min-w-0 cursor-default grid-cols-[1rem_4.25rem_minmax(0,1fr)] items-start gap-x-1.5 sm:grid-cols-[1.125rem_5rem_minmax(0,1fr)]"
     >
       <span
         aria-hidden="true"
-        className="inline-flex h-5 items-center justify-center text-muted-foreground/60"
+        className="inline-flex h-4 items-center justify-center text-muted-foreground/60 sm:h-5"
       >
         {icon}
       </span>
-      <dt className="text-sm font-medium leading-5 text-muted-foreground/70">
+      <dt className="text-xs font-medium leading-4 text-muted-foreground/70 sm:text-sm sm:leading-5">
         {label}
       </dt>
       {tooltip ? (
@@ -588,7 +588,7 @@ function BookFacts({ book }: { book: BookDetailBook }) {
 
   if (facts.length === 0) return null;
   return (
-    <dl data-book-facts className="flex min-w-0 flex-col gap-2">
+    <dl data-book-facts className="flex min-w-0 flex-col gap-1.5 sm:gap-2">
       {facts}
     </dl>
   );
@@ -606,7 +606,7 @@ function CopyLinkButton({
       variant="ghost"
       size="sm"
       className={cn(
-        "transition-colors duration-200",
+        "gap-1.5 px-2 transition-colors duration-200 sm:gap-2 sm:px-3",
         copied
           ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-400"
           : "text-muted-foreground hover:text-foreground",
@@ -634,7 +634,7 @@ function CopyLinkButton({
       </span>
       <span
         aria-live="polite"
-        className="inline-block min-w-[4.25rem] text-left"
+        className="inline-block text-left sm:min-w-[4.25rem]"
       >
         {copied ? "Copied" : "Copy link"}
       </span>
@@ -754,7 +754,7 @@ export function BookDetailContent({
     [0, 1],
     isLargeScreen
       ? ["300px", showBreadcrumb ? "78px" : "56px"]
-      : ["220px", "42px"],
+      : [isModal ? "220px" : "200px", "42px"],
   );
   const coverBorderRadius = useTransform(
     smoothProgress,
@@ -775,7 +775,7 @@ export function BookDetailContent({
     [0, 1],
     isLargeScreen
       ? ["56px", isModal ? "16px" : "12px"]
-      : ["24px", isModal ? "16px" : "12px"],
+      : [isModal ? "24px" : "16px", isModal ? "16px" : "12px"],
   );
   const headerBottomPadding = useTransform(
     smoothProgress,
@@ -812,15 +812,37 @@ export function BookDetailContent({
   // Compact header text opacity - mobile only, fades in as user scrolls
   const compactHeaderOpacity = useTransform(
     smoothProgress,
-    [0.1, 0.8],
+    [0.3, 0.52],
     isLargeScreen ? [0, 0] : [0, 1],
   );
 
-  // Full metadata section opacity - mobile only, fades out as user scrolls
-  const fullMetadataOpacity = useTransform(
+  // Mobile metadata exits as an overlapping bottom-up wave. The compact
+  // sticky identity arrives while the resting identity is the final segment
+  // to leave, so there is no frame with neither title visible.
+  const mobileActionsOpacity = useTransform(
     smoothProgress,
-    [0.1, 0.8],
-    isLargeScreen ? [0, 0] : [1, 0],
+    [0, 0.28],
+    [1, 0],
+  );
+  const mobileTagsOpacity = useTransform(
+    smoothProgress,
+    [0.12, 0.4],
+    [1, 0],
+  );
+  const mobileRatingOpacity = useTransform(
+    smoothProgress,
+    [0.26, 0.54],
+    [1, 0],
+  );
+  const mobileFactsOpacity = useTransform(
+    smoothProgress,
+    [0.4, 0.68],
+    [1, 0],
+  );
+  const mobileIdentityOpacity = useTransform(
+    smoothProgress,
+    [0.12, 0.34],
+    [1, 0],
   );
 
   // Collapse from the bottom upward so the remaining content never appears
@@ -850,24 +872,33 @@ export function BookDetailContent({
 
   // Track scroll for sticky headers
   useEffect(() => {
-    const handleScroll = () => {
-      if (contentRef?.current) {
-        const progress = Math.min(contentRef.current.scrollTop / 100, 1);
-        scrollProgress.set(progress);
-      }
-    };
+    if (!isModal) {
+      const handleWindowScroll = () => {
+        scrollProgress.set(Math.min(window.scrollY / 100, 1));
+      };
+      handleWindowScroll();
+      window.addEventListener("scroll", handleWindowScroll, { passive: true });
+      return () => window.removeEventListener("scroll", handleWindowScroll);
+    }
 
     const contentEl = contentRef?.current;
-    if (contentEl) {
-      contentEl.addEventListener("scroll", handleScroll);
-      return () => contentEl.removeEventListener("scroll", handleScroll);
-    }
-  }, [contentRef, scrollProgress]);
+    if (!contentEl) return;
+    const handleContentScroll = () => {
+      scrollProgress.set(Math.min(contentEl.scrollTop / 100, 1));
+    };
+    contentEl.addEventListener("scroll", handleContentScroll, { passive: true });
+    return () => contentEl.removeEventListener("scroll", handleContentScroll);
+  }, [contentRef, isModal, scrollProgress]);
 
   return (
     <div
       ref={contentRef}
-      className={`relative h-full overflow-y-auto overflow-x-hidden`}
+      className={cn(
+        "relative",
+        isModal
+          ? "h-full overflow-y-auto overflow-x-hidden"
+          : "min-h-[100dvh] overflow-x-clip",
+      )}
     >
       {/* Unified Sticky Header */}
       <motion.div
@@ -1104,12 +1135,13 @@ export function BookDetailContent({
 
       {/* Full Metadata Section - Mobile Only (fades out as user scrolls) */}
       {!isLargeScreen && (
-        <motion.div
-          style={{ opacity: fullMetadataOpacity }}
-          className="mx-auto w-full max-w-4xl px-6 pb-6 pt-2 xs:px-14"
-        >
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-0.5">
+        <div className="mx-auto w-full max-w-4xl px-6 pb-4 pt-1 xs:px-14">
+          <div className="flex flex-col gap-3 sm:gap-4">
+            <motion.div
+              data-mobile-book-segment="identity"
+              style={{ opacity: mobileIdentityOpacity }}
+              className="flex flex-col gap-0.5"
+            >
               {/* The crumb sits over the title here too. On this layout the
                   title lives below the header rather than in it, so the crumb
                   comes down with it and rides the same resting-metadata fade
@@ -1130,14 +1162,20 @@ export function BookDetailContent({
 
               {/* Author */}
               <p className="text-base text-muted-foreground">{book.author}</p>
-            </div>
-            <div className="-mt-2">
+            </motion.div>
+            <motion.div
+              data-mobile-book-segment="facts"
+              style={{ opacity: mobileFactsOpacity }}
+              className="-mt-2"
+            >
               <BookFacts book={book} />
-            </div>
+            </motion.div>
 
             {/* Rating follows the reading facts as their visual conclusion. */}
             {book.rating && (
-              <div
+              <motion.div
+                data-mobile-book-segment="rating"
+                style={{ opacity: mobileRatingOpacity }}
                 role="img"
                 aria-label={`${book.rating} out of 5 stars`}
                 className="flex gap-1"
@@ -1154,24 +1192,31 @@ export function BookDetailContent({
                     }
                   />
                 ))}
-              </div>
+              </motion.div>
             )}
 
             {/* Tags */}
             {book.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2">
+              <motion.div
+                data-mobile-book-segment="tags"
+                style={{ opacity: mobileTagsOpacity }}
+                className="flex flex-wrap gap-1.5 sm:gap-2"
+              >
                 {book.tags.map((tag) => (
                   <TagBadge key={tag} tag={tag} />
                 ))}
-              </div>
+              </motion.div>
             )}
 
             {/* Actions */}
-            <div>
+            <motion.div
+              data-mobile-book-segment="actions"
+              style={{ opacity: mobileActionsOpacity }}
+            >
               <div
                 role="group"
                 aria-label="Book actions"
-                className="-ml-3 flex flex-wrap gap-0"
+                className="-ml-2 flex flex-nowrap gap-0"
               >
                 <CopyLinkButton copied={copied} onClick={handleShare} />
 
@@ -1179,7 +1224,7 @@ export function BookDetailContent({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-muted-foreground hover:text-foreground"
+                    className="gap-1.5 px-2 text-muted-foreground hover:text-foreground sm:gap-2 sm:px-3"
                     asChild
                   >
                     <a
@@ -1189,7 +1234,8 @@ export function BookDetailContent({
                       onClick={handleAudibleClick}
                     >
                       <HeadphonesIcon size={14} weight="bold" />
-                      Listen on Audible
+                      <span className="sm:hidden">Audible</span>
+                      <span className="hidden sm:inline">Listen on Audible</span>
                     </a>
                   </Button>
                 )}
@@ -1197,7 +1243,7 @@ export function BookDetailContent({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-muted-foreground hover:text-foreground"
+                  className="gap-1.5 px-2 text-muted-foreground hover:text-foreground sm:gap-2 sm:px-3"
                   asChild
                 >
                   <a
@@ -1211,9 +1257,9 @@ export function BookDetailContent({
                   </a>
                 </Button>
               </div>
-            </div>
+            </motion.div>
           </div>
-        </motion.div>
+        </div>
       )}
 
       {/* Main content */}

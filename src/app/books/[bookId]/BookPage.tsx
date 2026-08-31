@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { getBookShareUrl } from "~/lib/books/paths";
 import type { BaseBook } from "~/lib/books/types";
+import { copyTextToClipboard } from "~/lib/clipboard";
 import { isUniversalSearchOpen } from "~/lib/universal-search/overlay";
 
 type BookPageProps = {
@@ -36,25 +37,22 @@ export function BookPage({ bookId, book, bookshelfBookCount }: BookPageProps) {
   // Handle share button click
   const handleShare = async () => {
     const shareUrl = getBookShareUrl(bookId);
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      console.error("Failed to copy");
-    }
+    const didCopy = await copyTextToClipboard(shareUrl);
+    if (!didCopy) return;
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <div className="fixed inset-0 bg-background">
+    <div className="-m-6 min-h-[100dvh] bg-background md:-m-8">
       <motion.div
-        className="flex h-full flex-col"
+        className="flex min-h-[100dvh] flex-col"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
         {/* Content Container */}
-        <div className="flex h-full flex-col overflow-hidden bg-background">
+        <div className="flex min-h-[100dvh] flex-col bg-background">
           <BookDetailContent
             book={book}
             fullBook={book}
