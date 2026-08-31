@@ -122,7 +122,6 @@ import {
   BOOT_WAIT_NOTES,
   BOOT_WAIT_NOTE_INTERVAL_MS,
   BOOT_WAIT_NOTE_LINES,
-  BOOT_WAVE_INTRO_SECONDS,
   type BootFramePhoto,
   SCENE_TO_BOOT_SVG,
   bootCadence,
@@ -200,15 +199,13 @@ const getServerWaitStage = () => SERVER_WORLD_BOOT_VIEW.waitStage;
 const getBootRevealed = () => worldBoot.getView().revealed;
 const getServerBootRevealed = () => SERVER_WORLD_BOOT_VIEW.revealed;
 
-/** The delayed wait strip's second line. Its own component so that a stage
+/** The wait strip's supporting line. Its own component so that a stage
  * change re-renders one span and not the whole vignette: the reveal animations
  * are adopted compositor timelines held by ref, and there is no reason to walk
  * two thousand nodes of SVG to swap five words.
  *
- * No live region, deliberately. The whole boot screen is `aria-hidden`, and
- * the flat document underneath it is the homepage as far as assistive tech is
- * concerned. Narrating a loading screen over content that is already readable
- * would be an interruption, not a service. */
+ * The supporting notes stay outside the live region. They rotate often enough
+ * to reassure a sighted visitor, but announcing each turn would become noise. */
 function BootWaitNotes() {
   const stage = useSyncExternalStore(
     subscribeWorldBoot,
@@ -1275,7 +1272,6 @@ export default function BootScreen({
       <script dangerouslySetInnerHTML={{ __html: ABOUT_BOOT_STAGE_SCRIPT }} />
       <div
         className="stacks-boot"
-        aria-hidden
         style={
           {
             ...paletteVariables(),
@@ -1295,11 +1291,10 @@ export default function BootScreen({
                 style={
                   {
                     "--stacks-boot-reveal-duration": `${cadence.revealDuration.toFixed(2)}s`,
-                    "--stacks-boot-wave-intro-duration": `${BOOT_WAVE_INTRO_SECONDS.toFixed(2)}s`,
-                    "--stacks-boot-wave-duration": `${cadence.waveDuration.toFixed(2)}s`,
                   } as BootStyle
                 }
                 viewBox="-150 -108 300 230"
+                aria-hidden
                 role="presentation"
               >
                 <g className="stacks-boot-supports">
@@ -1351,7 +1346,7 @@ export default function BootScreen({
                         <g
                           className="stacks-boot-item-motion"
                           style={{
-                            animationName: `stacks-boot-reveal-${cadenceSlot}, stacks-boot-wave-intro-${cadenceSlot}, stacks-boot-wave-${cadenceSlot}`,
+                            animationName: `stacks-boot-reveal-${cadenceSlot}`,
                           }}
                         >
                           <LandmarkGlyph
@@ -1421,11 +1416,17 @@ export default function BootScreen({
           </div>
           {/* A sibling of the entry, not a child: the entry carries the glide's
               scale and the name must not grow with the bookcase. */}
-          <p className="stacks-boot-wordmark">Chappy Asel</p>
+          <p aria-hidden className="stacks-boot-wordmark">
+            Chappy Asel
+          </p>
         </div>
         <div className="stacks-boot-wait" data-boot-wait="">
-          <p className="stacks-boot-wait-label">
-            Loading
+          <p
+            className="stacks-boot-wait-label"
+            role="status"
+            aria-live="polite"
+          >
+            Loading the 3D room
             <span className="stacks-boot-wait-dots" aria-hidden>
               {[0, 1, 2].map((dot) => (
                 <span
@@ -1442,7 +1443,9 @@ export default function BootScreen({
               ))}
             </span>
           </p>
-          <BootWaitNotes />
+          <div aria-hidden>
+            <BootWaitNotes />
+          </div>
         </div>
       </div>
     </>

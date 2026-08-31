@@ -20,7 +20,7 @@ import {
 import { subscribeBookPrefetch } from "../bookPrefetch";
 import { UNITS } from "../data";
 import { useStacks } from "../store";
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 
 import { devSubdomainUrl } from "~/lib/util";
 import { BooksTRPCProvider } from "~/trpc/books-provider";
@@ -110,6 +110,12 @@ function ModalBridge() {
 }
 
 export default function StacksBookModal({ bookCount }: { bookCount: number }) {
+  const setBookModalReturning = useStacks((s) => s.setBookModalReturning);
+  const beginBookModalReturn = useCallback(
+    () => setBookModalReturning(true),
+    [setBookModalReturning],
+  );
+
   return (
     <BooksTRPCProvider>
       <BookPreviewProvider>
@@ -119,6 +125,7 @@ export default function StacksBookModal({ bookCount }: { bookCount: number }) {
             source: "stacks",
             booksHref: booksBaseUrl(),
             bookCount,
+            onCloseStart: beginBookModalReturn,
           }}
         />
       </BookPreviewProvider>

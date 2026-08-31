@@ -51,6 +51,9 @@ export type ArtifactPreviewFrame = Readonly<{
   image: ArtifactPreviewSize;
   layers: readonly ArtifactPreviewFrameLayer[];
   accents?: readonly ArtifactPreviewFrameAccent[];
+  /** Exact role-sized URL painted on the scene plane. It stays under the
+   * fullscreen master so decode timing cannot alter the geometry handoff. */
+  previewSrc?: string;
 }>;
 
 /** No edges: the preview is the bare image. Used when a photo has not

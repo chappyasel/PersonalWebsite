@@ -24,6 +24,11 @@ export type ArtifactPreviewBox = Readonly<{
   height: number;
 }>;
 
+export type ArtifactPreviewPoseKeyframe = Readonly<{
+  offset: number;
+  transform: string;
+}>;
+
 /** Row-major 3x3 homogeneous matrix. */
 type Homography = [
   [number, number, number],
@@ -32,6 +37,8 @@ type Homography = [
 ];
 
 const EPSILON = 1e-9;
+const IDENTITY_MATRIX_3D =
+  "matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)";
 
 function cross(
   a: ProjectedScreenPoint,
@@ -48,11 +55,8 @@ function cross(
 export function artifactPreviewQuadUsable(quad: ArtifactPreviewQuad) {
   for (let index = 0; index < 4; index += 1) {
     if (
-      cross(
-        quad[index]!,
-        quad[(index + 1) % 4]!,
-        quad[(index + 2) % 4]!,
-      ) <= EPSILON
+      cross(quad[index]!, quad[(index + 1) % 4]!, quad[(index + 2) % 4]!) <=
+      EPSILON
     )
       return false;
   }
@@ -84,10 +88,11 @@ function unitSquareToQuad(quad: ArtifactPreviewQuad): Homography | null {
  * whose viewer starts it in the axis-aligned `box`, over a print rendered at
  * `quad`. Returns a `matrix3d(...)` value for transform-origin `0 0`, or
  * null when the quad is degenerate or the correction is a no-op. */
-export function artifactPreviewPoseTransform(
+function artifactPreviewPoseMatrix(
   element: ArtifactPreviewSize,
   box: ArtifactPreviewBox,
   quad: ArtifactPreviewQuad,
+  omitNearIdentity: boolean,
 ): string | null {
   if (
     element.width <= 0 ||
@@ -133,9 +138,61 @@ export function artifactPreviewPoseTransform(
     Math.abs(g!) * element.width,
     Math.abs(h!) * element.height,
   );
-  if (deviation < 0.002) return null;
+  if (omitNearIdentity && deviation < 0.002) return null;
 
   const n = (value: number) =>
     Math.abs(value) < 1e-10 ? "0" : value.toPrecision(12);
   return `matrix3d(${n(a!)}, ${n(d!)}, 0, ${n(g!)}, ${n(b!)}, ${n(e!)}, 0, ${n(h!)}, 0, 0, 1, 0, ${n(c!)}, ${n(f!)}, 0, 1)`;
+}
+
+export function artifactPreviewPoseTransform(
+  element: ArtifactPreviewSize,
+  box: ArtifactPreviewBox,
+  quad: ArtifactPreviewQuad,
+): string | null {
+  return artifactPreviewPoseMatrix(element, box, quad, true);
+}
+
+/**
+ * A projective matrix cannot be interpolated component-by-component without
+ * changing the plane it represents. Build dense keyframes by interpolating
+ * the four projected corners instead, then solve a fresh homography at each
+ * stop. This keeps roll, yaw, and perspective camera-relative throughout the
+ * morph; the browser only interpolates across the small gaps between stops.
+ */
+export function artifactPreviewPoseKeyframes(
+  element: ArtifactPreviewSize,
+  box: ArtifactPreviewBox,
+  quad: ArtifactPreviewQuad,
+  samples = 24,
+): readonly ArtifactPreviewPoseKeyframe[] | null {
+  const pose = artifactPreviewPoseTransform(element, box, quad);
+  if (!pose) return null;
+
+  const target: ArtifactPreviewQuad = [
+    [box.left, box.top],
+    [box.left + box.width, box.top],
+    [box.left + box.width, box.top + box.height],
+    [box.left, box.top + box.height],
+  ];
+  const count = Math.max(2, Math.round(samples));
+
+  return Array.from({ length: count + 1 }, (_, index) => {
+    const offset = index / count;
+    const projected = quad.map(([x, y], corner) => {
+      const [targetX, targetY] = target[corner]!;
+      return [
+        x + (targetX - x) * offset,
+        y + (targetY - y) * offset,
+      ] as ProjectedScreenPoint;
+    }) as unknown as ArtifactPreviewQuad;
+    return {
+      offset,
+      transform:
+        index === count
+          ? IDENTITY_MATRIX_3D
+          : (artifactPreviewPoseMatrix(element, box, projected, false) ??
+            IDENTITY_MATRIX_3D),
+    };
+  });
 }

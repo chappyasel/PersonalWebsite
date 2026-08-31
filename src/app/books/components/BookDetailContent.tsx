@@ -3,18 +3,21 @@
 import { formatLength, formatReadDates, getOrdinalSuffix } from "../lib/format";
 import { PlayIcon } from "@phosphor-icons/react";
 import {
-  ArrowLeftIcon,
   ArrowSquareOutIcon,
   ArrowUpRightIcon,
   ArrowsClockwiseIcon,
   BookmarkSimpleIcon,
   BooksIcon,
+  CalendarBlankIcon,
   CalendarIcon,
+  CheckIcon,
+  ClockIcon,
   HeadphonesIcon,
   LinkIcon,
   StarIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import {
+  AnimatePresence,
   type MotionValue,
   motion,
   useMotionTemplate,
@@ -28,6 +31,7 @@ import {
   Children,
   type ComponentPropsWithoutRef,
   type MouseEvent,
+  type ReactNode,
   type RefObject,
   isValidElement,
   useEffect,
@@ -103,13 +107,13 @@ function BookBreadcrumb({
     <motion.nav
       aria-label={modalBreadcrumbHref ? "Chappy's Book Notes" : "Breadcrumb"}
       data-stacks-book-breadcrumb={modalBreadcrumbHref ? "external" : undefined}
-      className={cn("text-sm text-muted-foreground", className)}
+      className={cn("text-sm text-muted-foreground/70", className)}
       style={{ marginBottom }}
     >
       {modalBreadcrumbHref ? (
         <a
           href={modalBreadcrumbHref}
-          className="inline-flex min-w-0 items-center gap-1.5 font-medium transition-colors hover:text-foreground"
+          className="inline-flex min-w-0 items-center gap-1.5 transition-colors hover:text-muted-foreground"
         >
           <BooksIcon
             aria-hidden
@@ -119,7 +123,7 @@ function BookBreadcrumb({
           />
           <span className="xs:hidden">Book Notes</span>
           <span className="hidden xs:inline">Chappy&apos;s Book Notes</span>
-          <span aria-hidden="true" className="text-border">
+          <span aria-hidden="true" className="text-muted-foreground/40">
             ·
           </span>
           <span className="shrink-0 tabular-nums">
@@ -134,26 +138,31 @@ function BookBreadcrumb({
           />
         </a>
       ) : (
-        <ol className="flex min-w-0 items-center gap-2">
-          <li className="shrink-0">
+        <ol className="flex min-w-0 items-center">
+          <li className="min-w-0">
             <Link
               href={getBooksPath()}
-              className="inline-flex items-center gap-1.5 font-medium transition-colors hover:text-foreground"
+              className="inline-flex min-w-0 items-center gap-1.5 transition-colors hover:text-muted-foreground"
             >
-              <ArrowLeftIcon size={16} weight="bold" />
+              <BooksIcon
+                aria-hidden
+                size={16}
+                weight="duotone"
+                className="shrink-0"
+              />
               <span>Chappy&apos;s Book Notes</span>
-            </Link>
-          </li>
-          <li aria-hidden="true" className="text-border">
-            /
-          </li>
-          <li className="shrink-0 tabular-nums">
-            <Link
-              href={getBooksPath()}
-              className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground"
-            >
-              <BooksIcon size={16} weight="duotone" />
-              {bookshelfBookCount?.toLocaleString() ?? "All"} books
+              <span aria-hidden="true" className="text-muted-foreground/40">
+                ·
+              </span>
+              <span className="shrink-0 tabular-nums">
+                {bookshelfBookCount?.toLocaleString() ?? "All"} books
+              </span>
+              <ArrowUpRightIcon
+                aria-hidden
+                size={14}
+                weight="bold"
+                className="shrink-0"
+              />
             </Link>
           </li>
         </ol>
@@ -411,6 +420,228 @@ function getReadingDays(
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 }
 
+function formatStartedDate(started: string): string {
+  const date = new Date(started);
+  const month = date.toLocaleDateString("en-US", { month: "long" });
+  const day = date.getDate();
+  const year = date.toLocaleDateString("en-US", { year: "2-digit" });
+  return `${month} ${day}${getOrdinalSuffix(day)} '${year}`;
+}
+
+function BookFact({
+  icon,
+  label,
+  value,
+  tooltip,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: ReactNode;
+  tooltip?: ReactNode;
+}) {
+  const valueElement = (
+    <dd className="w-fit min-w-0 max-w-full justify-self-start text-sm font-medium tabular-nums leading-5 text-foreground/80">
+      {value}
+    </dd>
+  );
+
+  return (
+    <div
+      data-book-fact={label.toLowerCase()}
+      className="grid min-w-0 cursor-default grid-cols-[1.125rem_5rem_minmax(0,1fr)] items-start gap-x-1.5"
+    >
+      <span
+        aria-hidden="true"
+        className="inline-flex h-5 items-center justify-center text-muted-foreground/60"
+      >
+        {icon}
+      </span>
+      <dt className="text-sm font-medium leading-5 text-muted-foreground/70">
+        {label}
+      </dt>
+      {tooltip ? (
+        <TooltipProvider>
+          <Tooltip delayDuration={200}>
+            <TooltipTrigger asChild>{valueElement}</TooltipTrigger>
+            <TooltipContent>
+              <p>{tooltip}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ) : (
+        valueElement
+      )}
+    </div>
+  );
+}
+
+function BookFacts({ book }: { book: BookDetailBook }) {
+  const facts: ReactNode[] = [];
+
+  if (book.publicationYear) {
+    facts.push(
+      <BookFact
+        key="published"
+        icon={<CalendarBlankIcon size={14} weight="bold" />}
+        label="Published"
+        value={book.publicationYear}
+      />,
+    );
+  }
+
+  if (book.audioLengthMin != null || book.pageCount != null) {
+    const formattedLength =
+      formatLength(book.audioLengthMin, book.pageCount) ?? "";
+    const [audioLength, pageLength] = formattedLength.split(" · ");
+    facts.push(
+      <BookFact
+        key="length"
+        icon={<HeadphonesIcon size={14} weight="bold" />}
+        label="Length"
+        value={
+          pageLength ? (
+            <>
+              {audioLength}{" "}
+              <span aria-hidden="true" className="text-muted-foreground/40">
+                ·
+              </span>{" "}
+              {pageLength}
+            </>
+          ) : (
+            formattedLength
+          )
+        }
+      />,
+    );
+  }
+
+  if ((book.otherReadings ?? []).length > 1) {
+    for (const [index, reading] of (book.otherReadings ?? []).entries()) {
+      const end = reading.finished ?? reading.abandoned;
+      const days = getReadingDays(reading.started, end);
+      facts.push(
+        <BookFact
+          key={`reading-${index}`}
+          icon={
+            reading.abandoned && !reading.finished ? (
+              <BookmarkSimpleIcon size={14} weight="bold" />
+            ) : index > 0 ? (
+              <ArrowsClockwiseIcon size={14} weight="bold" />
+            ) : (
+              <ClockIcon size={14} weight="bold" />
+            )
+          }
+          label={readingLabel(book.otherReadings ?? [], index).replace(
+            /:$/,
+            "",
+          )}
+          value={
+            reading.started && end
+              ? formatReadDates(reading.started, end)
+              : reading.started
+                ? formatStartedDate(reading.started)
+                : "Unknown"
+          }
+          tooltip={days != null ? `${days} days` : undefined}
+        />,
+      );
+    }
+  } else if (book.started && book.finished) {
+    const days = getReadingDays(book.started, book.finished);
+    facts.push(
+      <BookFact
+        key="read"
+        icon={<ClockIcon size={14} weight="bold" />}
+        label="Read"
+        value={formatReadDates(book.started, book.finished)}
+        tooltip={days != null ? `${days} days` : undefined}
+      />,
+    );
+  } else if (book.abandoned) {
+    const days = getReadingDays(book.started, book.abandoned);
+    const percent = abandonedPercent(book);
+    facts.push(
+      <BookFact
+        key="abandoned"
+        icon={<BookmarkSimpleIcon size={14} weight="bold" />}
+        label="Abandoned"
+        value={formatReadDates(book.started, book.abandoned)}
+        tooltip={
+          days != null ? (
+            <>
+              {days} days{percent != null ? ` · stopped ${percent}% in` : ""}
+            </>
+          ) : undefined
+        }
+      />,
+    );
+  } else if (book.started) {
+    facts.push(
+      <BookFact
+        key="started"
+        icon={<CalendarIcon size={14} weight="bold" />}
+        label="Started"
+        value={formatStartedDate(book.started)}
+      />,
+    );
+  }
+
+  if (facts.length === 0) return null;
+  return (
+    <dl data-book-facts className="flex min-w-0 flex-col gap-2">
+      {facts}
+    </dl>
+  );
+}
+
+function CopyLinkButton({
+  copied,
+  onClick,
+}: {
+  copied: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className={cn(
+        "transition-colors duration-200",
+        copied
+          ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-600 dark:text-emerald-400 dark:hover:text-emerald-400"
+          : "text-muted-foreground hover:text-foreground",
+      )}
+      aria-label={copied ? "Link copied" : "Copy link"}
+      onClick={onClick}
+    >
+      <span aria-hidden="true" className="relative size-3.5 shrink-0">
+        <AnimatePresence initial={false} mode="wait">
+          <motion.span
+            key={copied ? "check" : "link"}
+            className="absolute inset-0 flex items-center justify-center"
+            initial={{ opacity: 0, scale: 0.55, rotate: -14 }}
+            animate={{ opacity: 1, scale: 1, rotate: 0 }}
+            exit={{ opacity: 0, scale: 0.7, rotate: 10 }}
+            transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+          >
+            {copied ? (
+              <CheckIcon size={14} weight="bold" />
+            ) : (
+              <LinkIcon size={14} weight="bold" />
+            )}
+          </motion.span>
+        </AnimatePresence>
+      </span>
+      <span
+        aria-live="polite"
+        className="inline-block min-w-[4.25rem] text-left"
+      >
+        {copied ? "Copied" : "Copy link"}
+      </span>
+    </Button>
+  );
+}
+
 type BookDetailBook = BaseBook &
   Partial<Pick<Book, "readNumber" | "totalReads" | "otherReadings">> & {
     notes?: string;
@@ -511,19 +742,18 @@ export function BookDetailContent({
     return () => mediaQuery.removeEventListener("change", handler);
   }, []);
 
-
   // Cover sizing. The collapsed height matches the text stack beside it, and
   // that stack is two lines or three depending on whether this view carries a
   // breadcrumb — which is why 55px was right when the crumb ran across the top
   // of the card and left the spine floating once it moved into the column.
-  // Measured collapsed, wide layout: title + author is 56px, and the crumb
-  // adds 26px on top of it. The narrow layout never puts the crumb in the
+  // Measured collapsed, wide layout: title + author is 56px, and the subdued
+  // crumb adds 22px on top of it. The narrow layout never puts the crumb in the
   // column, so 42px stands either way.
   const coverHeight = useTransform(
     smoothProgress,
     [0, 1],
     isLargeScreen
-      ? ["300px", showBreadcrumb ? "82px" : "56px"]
+      ? ["300px", showBreadcrumb ? "78px" : "56px"]
       : ["220px", "42px"],
   );
   const coverBorderRadius = useTransform(
@@ -557,7 +787,7 @@ export function BookDetailContent({
   const columnBreadcrumbMarginBottom = useTransform(
     smoothProgress,
     [0, 1],
-    ["8px", "4px"],
+    ["4px", "2px"],
   );
 
   // Text sizing
@@ -593,25 +823,28 @@ export function BookDetailContent({
     isLargeScreen ? [0, 0] : [1, 0],
   );
 
-  // Progressive metadata collapse - opacity fades for each section (desktop only)
-  const ratingOpacity = useTransform(
+  // Collapse from the bottom upward so the remaining content never appears
+  // to jump over something that has already vanished: actions, tags, rating,
+  // then facts. The rating used to sit above the facts, so those final two
+  // stages must follow their new visual order.
+  const factsOpacity = useTransform(
     smoothProgress,
-    [0.6, 0.8],
+    [0.34, 0.54],
     isLargeScreen ? [1, 0] : [1, 1],
   );
-  const datesOpacity = useTransform(
+  const ratingOpacity = useTransform(
     smoothProgress,
-    [0.4, 0.6],
+    [0.22, 0.4],
     isLargeScreen ? [1, 0] : [1, 1],
   );
   const tagsOpacity = useTransform(
     smoothProgress,
-    [0.2, 0.4],
+    [0.1, 0.26],
     isLargeScreen ? [1, 0] : [1, 1],
   );
   const actionsOpacity = useTransform(
     smoothProgress,
-    [0, 0.2],
+    [0, 0.12],
     isLargeScreen ? [1, 0] : [1, 1],
   );
 
@@ -752,12 +985,19 @@ export function BookDetailContent({
                       literal was holding the tag row ~130px narrower than the
                       column it lives in and wrapping four tags onto two lines
                       for no reason. It tracks the column now, so the metadata
-                      and the title share one right edge at every width. */}
-                  <motion.div
-                    className="absolute left-0 top-full w-full pt-2"
-                  >
+                  and the title share one right edge at every width. */}
+                  <motion.div className="absolute left-0 top-full w-full pt-2">
+                    <motion.div
+                      className="mt-2"
+                      style={{ opacity: factsOpacity }}
+                    >
+                      <BookFacts book={book} />
+                    </motion.div>
+
                     {book.rating && (
                       <motion.div
+                        role="img"
+                        aria-label={`${book.rating} out of 5 stars`}
                         className="mt-3 flex gap-1"
                         style={{ opacity: ratingOpacity }}
                       >
@@ -769,184 +1009,16 @@ export function BookDetailContent({
                             className={
                               i < book.rating!
                                 ? "text-yellow-400"
-                                : "text-body/20 opacity-50"
+                                : "text-muted-foreground/25"
                             }
                           />
                         ))}
                       </motion.div>
                     )}
 
-                    <motion.div
-                      className="mt-3 flex flex-col gap-1 text-sm text-muted-foreground"
-                      style={{ opacity: datesOpacity }}
-                    >
-                      {book.publicationYear && (
-                        <div className="flex items-center gap-1">
-                          <div className="flex items-center gap-1 font-medium">
-                            <CalendarIcon size={12} weight="bold" />
-                            <span>Published:</span>
-                          </div>
-                          <span className="font-semibold">
-                            {book.publicationYear}
-                          </span>
-                        </div>
-                      )}
-                      {(book.audioLengthMin != null ||
-                        book.pageCount != null) && (
-                        <div className="flex items-center gap-1">
-                          <div className="flex items-center gap-1 font-medium">
-                            <HeadphonesIcon size={12} weight="bold" />
-                            <span>Length:</span>
-                          </div>
-                          <span className="font-semibold">
-                            {formatLength(book.audioLengthMin, book.pageCount)}
-                          </span>
-                        </div>
-                      )}
-                      {(book.otherReadings ?? []).length > 1 ? (
-                        /* Multiple readings (abandoned attempts included) */
-                        (book.otherReadings ?? []).map((reading, i) => (
-                          <TooltipProvider key={i}>
-                            <Tooltip delayDuration={200}>
-                              <TooltipTrigger asChild>
-                                <div className="flex cursor-default items-center gap-1">
-                                  <div className="flex items-center gap-1 font-medium">
-                                    {reading.abandoned && !reading.finished ? (
-                                      <BookmarkSimpleIcon
-                                        size={12}
-                                        weight="bold"
-                                      />
-                                    ) : i > 0 ? (
-                                      <ArrowsClockwiseIcon
-                                        size={12}
-                                        weight="bold"
-                                      />
-                                    ) : (
-                                      <CalendarIcon size={12} weight="bold" />
-                                    )}
-                                    <span>
-                                      {readingLabel(
-                                        book.otherReadings ?? [],
-                                        i,
-                                      )}
-                                    </span>
-                                  </div>
-                                  <span className="font-semibold">
-                                    {reading.started &&
-                                    (reading.finished ?? reading.abandoned)
-                                      ? formatReadDates(
-                                          reading.started,
-                                          reading.finished ?? reading.abandoned,
-                                        )
-                                      : reading.started
-                                        ? (() => {
-                                            const d = new Date(reading.started);
-                                            const month = d.toLocaleDateString(
-                                              "en-US",
-                                              { month: "long" },
-                                            );
-                                            const day = d.getDate();
-                                            const year = d.toLocaleDateString(
-                                              "en-US",
-                                              { year: "2-digit" },
-                                            );
-                                            return `${month} ${day}${getOrdinalSuffix(day)} '${year}`;
-                                          })()
-                                        : "Unknown"}
-                                  </span>
-                                </div>
-                              </TooltipTrigger>
-                              {reading.started &&
-                                (reading.finished ?? reading.abandoned) && (
-                                  <TooltipContent>
-                                    <p>
-                                      {getReadingDays(
-                                        reading.started,
-                                        reading.finished ?? reading.abandoned,
-                                      )}{" "}
-                                      days
-                                    </p>
-                                  </TooltipContent>
-                                )}
-                            </Tooltip>
-                          </TooltipProvider>
-                        ))
-                      ) : book.started && book.finished ? (
-                        <TooltipProvider>
-                          <Tooltip delayDuration={200}>
-                            <TooltipTrigger asChild>
-                              <div className="flex cursor-default items-center gap-1">
-                                <div className="flex items-center gap-1 font-medium">
-                                  <CalendarIcon size={12} weight="bold" />
-                                  <span>Read:</span>
-                                </div>
-                                <span className="font-semibold">
-                                  {formatReadDates(book.started, book.finished)}
-                                </span>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>
-                                {getReadingDays(book.started, book.finished)}{" "}
-                                days
-                              </p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      ) : book.abandoned ? (
-                        <TooltipProvider>
-                          <Tooltip delayDuration={200}>
-                            <TooltipTrigger asChild>
-                              <div className="flex cursor-default items-center gap-1">
-                                <div className="flex items-center gap-1 font-medium">
-                                  <BookmarkSimpleIcon size={12} weight="bold" />
-                                  <span>Abandoned:</span>
-                                </div>
-                                <span className="font-semibold">
-                                  {formatReadDates(
-                                    book.started,
-                                    book.abandoned,
-                                  )}
-                                </span>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>
-                                {getReadingDays(book.started, book.abandoned)}{" "}
-                                days
-                                {abandonedPercent(book) != null
-                                  ? ` · stopped ${abandonedPercent(book)}% in`
-                                  : ""}
-                              </p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      ) : book.started ? (
-                        <div className="flex items-center gap-1">
-                          <div className="flex items-center gap-1 font-medium">
-                            <CalendarIcon size={12} weight="bold" />
-                            <span>Started:</span>
-                          </div>
-                          <span className="font-semibold">
-                            {(() => {
-                              const d = new Date(book.started);
-                              const month = d.toLocaleDateString("en-US", {
-                                month: "long",
-                              });
-                              const day = d.getDate();
-                              const year = d.toLocaleDateString("en-US", {
-                                year: "2-digit",
-                              });
-                              return `${month} ${day}${getOrdinalSuffix(day)} '${year}`;
-                            })()}
-                          </span>
-                        </div>
-                      ) : null}
-                    </motion.div>
-
                     {book.tags.length > 0 && (
                       <motion.div
-                        className="mt-3 flex flex-wrap gap-2"
+                        className="mt-4 flex flex-wrap gap-2"
                         style={{ opacity: tagsOpacity }}
                       >
                         {book.tags.map((tag) => (
@@ -956,39 +1028,52 @@ export function BookDetailContent({
                     )}
 
                     <motion.div
-                      className="-ml-3 mt-2 flex flex-wrap items-center gap-0"
+                      className="mt-3"
                       style={{ opacity: actionsOpacity }}
                     >
-                      <Button variant="ghost" size="sm" onClick={handleShare}>
-                        <LinkIcon size={12} weight="bold" />
-                        {copied ? "Copied!" : "Copy link"}
-                      </Button>
+                      <div
+                        role="group"
+                        aria-label="Book actions"
+                        className="-ml-3 flex flex-wrap items-center gap-0"
+                      >
+                        <CopyLinkButton copied={copied} onClick={handleShare} />
 
-                      {book.audibleUrl && (
-                        <Button variant="ghost" size="sm" asChild>
+                        {book.audibleUrl && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-muted-foreground hover:text-foreground"
+                            asChild
+                          >
+                            <a
+                              href={book.audibleUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={handleAudibleClick}
+                            >
+                              <HeadphonesIcon size={14} weight="bold" />
+                              Listen on Audible
+                            </a>
+                          </Button>
+                        )}
+
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-muted-foreground hover:text-foreground"
+                          asChild
+                        >
                           <a
-                            href={book.audibleUrl}
+                            href={book.notionUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            onClick={handleAudibleClick}
+                            onClick={handleNotionClick}
                           >
-                            <HeadphonesIcon size={12} weight="bold" />
-                            Listen on Audible
+                            <ArrowSquareOutIcon size={14} weight="bold" />
+                            View in Notion
                           </a>
                         </Button>
-                      )}
-
-                      <Button variant="ghost" size="sm" asChild>
-                        <a
-                          href={book.notionUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={handleNotionClick}
-                        >
-                          <ArrowSquareOutIcon size={12} weight="bold" />
-                          View in Notion
-                        </a>
-                      </Button>
+                      </div>
                     </motion.div>
                   </motion.div>
                 </div>
@@ -1046,9 +1131,17 @@ export function BookDetailContent({
               {/* Author */}
               <p className="text-base text-muted-foreground">{book.author}</p>
             </div>
-            {/* Rating */}
+            <div className="-mt-2">
+              <BookFacts book={book} />
+            </div>
+
+            {/* Rating follows the reading facts as their visual conclusion. */}
             {book.rating && (
-              <div className="flex gap-1">
+              <div
+                role="img"
+                aria-label={`${book.rating} out of 5 stars`}
+                className="flex gap-1"
+              >
                 {Array.from({ length: 5 }).map((_, i) => (
                   <StarIcon
                     key={i}
@@ -1057,167 +1150,10 @@ export function BookDetailContent({
                     className={
                       i < book.rating!
                         ? "text-yellow-400"
-                        : "text-body/20 opacity-50"
+                        : "text-muted-foreground/25"
                     }
                   />
                 ))}
-              </div>
-            )}
-
-            {/* Dates */}
-            {(book.publicationYear ??
-              book.started ??
-              book.finished ??
-              book.audioLengthMin ??
-              book.pageCount) != null && (
-              <div className="flex flex-col gap-1 text-sm text-muted-foreground">
-                {book.publicationYear && (
-                  <div className="flex items-center gap-1">
-                    <div className="flex items-center gap-1 font-medium">
-                      <CalendarIcon size={12} weight="bold" />
-                      <span>Published:</span>
-                    </div>
-                    <span className="font-semibold">
-                      {book.publicationYear}
-                    </span>
-                  </div>
-                )}
-                {(book.audioLengthMin != null || book.pageCount != null) && (
-                  <div className="flex items-center gap-1">
-                    <div className="flex items-center gap-1 font-medium">
-                      <HeadphonesIcon size={12} weight="bold" />
-                      <span>Length:</span>
-                    </div>
-                    <span className="font-semibold">
-                      {formatLength(book.audioLengthMin, book.pageCount)}
-                    </span>
-                  </div>
-                )}
-                {(book.otherReadings ?? []).length > 1 ? (
-                  /* Multiple readings (abandoned attempts included) */
-                  (book.otherReadings ?? []).map((reading, i) => (
-                    <TooltipProvider key={i}>
-                      <Tooltip delayDuration={200}>
-                        <TooltipTrigger asChild>
-                          <div className="flex cursor-default items-center gap-1">
-                            <div className="flex items-center gap-1 font-medium">
-                              {reading.abandoned && !reading.finished ? (
-                                <BookmarkSimpleIcon size={12} weight="bold" />
-                              ) : i > 0 ? (
-                                <ArrowsClockwiseIcon size={12} weight="bold" />
-                              ) : (
-                                <CalendarIcon size={12} weight="bold" />
-                              )}
-                              <span>
-                                {readingLabel(book.otherReadings ?? [], i)}
-                              </span>
-                            </div>
-                            <span className="font-semibold">
-                              {reading.started &&
-                              (reading.finished ?? reading.abandoned)
-                                ? formatReadDates(
-                                    reading.started,
-                                    reading.finished ?? reading.abandoned,
-                                  )
-                                : reading.started
-                                  ? (() => {
-                                      const d = new Date(reading.started);
-                                      const month = d.toLocaleDateString(
-                                        "en-US",
-                                        { month: "long" },
-                                      );
-                                      const day = d.getDate();
-                                      const year = d.toLocaleDateString(
-                                        "en-US",
-                                        { year: "2-digit" },
-                                      );
-                                      return `${month} ${day}${getOrdinalSuffix(day)} '${year}`;
-                                    })()
-                                  : "Unknown"}
-                            </span>
-                          </div>
-                        </TooltipTrigger>
-                        {reading.started &&
-                          (reading.finished ?? reading.abandoned) && (
-                            <TooltipContent>
-                              <p>
-                                {getReadingDays(
-                                  reading.started,
-                                  reading.finished ?? reading.abandoned,
-                                )}{" "}
-                                days
-                              </p>
-                            </TooltipContent>
-                          )}
-                      </Tooltip>
-                    </TooltipProvider>
-                  ))
-                ) : book.started && book.finished ? (
-                  <TooltipProvider>
-                    <Tooltip delayDuration={200}>
-                      <TooltipTrigger asChild>
-                        <div className="flex cursor-default items-center gap-1">
-                          <div className="flex items-center gap-1 font-medium">
-                            <CalendarIcon size={12} weight="bold" />
-                            <span>Read:</span>
-                          </div>
-                          <span className="font-semibold">
-                            {formatReadDates(book.started, book.finished)}
-                          </span>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>
-                          {getReadingDays(book.started, book.finished)} days
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                ) : book.abandoned ? (
-                  <TooltipProvider>
-                    <Tooltip delayDuration={200}>
-                      <TooltipTrigger asChild>
-                        <div className="flex cursor-default items-center gap-1">
-                          <div className="flex items-center gap-1 font-medium">
-                            <BookmarkSimpleIcon size={12} weight="bold" />
-                            <span>Abandoned:</span>
-                          </div>
-                          <span className="font-semibold">
-                            {formatReadDates(book.started, book.abandoned)}
-                          </span>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>
-                          {getReadingDays(book.started, book.abandoned)} days
-                          {abandonedPercent(book) != null
-                            ? ` · stopped ${abandonedPercent(book)}% in`
-                            : ""}
-                        </p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                ) : book.started ? (
-                  <div className="flex items-center gap-1">
-                    <div className="flex items-center gap-1 font-medium">
-                      <CalendarIcon size={12} weight="bold" />
-                      <span>Started:</span>
-                    </div>
-                    <span className="font-semibold">
-                      {(() => {
-                        const d = new Date(book.started);
-                        const month = d.toLocaleDateString("en-US", {
-                          month: "long",
-                        });
-                        const day = d.getDate();
-                        const year = d.toLocaleDateString("en-US", {
-                          year: "2-digit",
-                        });
-                        return `${month} ${day}${getOrdinalSuffix(day)} '${year}`;
-                      })()}
-                    </span>
-                  </div>
-                ) : null}
               </div>
             )}
 
@@ -1231,37 +1167,50 @@ export function BookDetailContent({
             )}
 
             {/* Actions */}
-            <div className="flex -translate-x-3 flex-wrap gap-0">
-              <Button variant="ghost" size="sm" onClick={handleShare}>
-                <LinkIcon size={12} weight="bold" />
-                {copied ? "Copied!" : "Copy link"}
-              </Button>
+            <div>
+              <div
+                role="group"
+                aria-label="Book actions"
+                className="-ml-3 flex flex-wrap gap-0"
+              >
+                <CopyLinkButton copied={copied} onClick={handleShare} />
 
-              {book.audibleUrl && (
-                <Button variant="ghost" size="sm" asChild>
+                {book.audibleUrl && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground hover:text-foreground"
+                    asChild
+                  >
+                    <a
+                      href={book.audibleUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={handleAudibleClick}
+                    >
+                      <HeadphonesIcon size={14} weight="bold" />
+                      Listen on Audible
+                    </a>
+                  </Button>
+                )}
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground hover:text-foreground"
+                  asChild
+                >
                   <a
-                    href={book.audibleUrl}
+                    href={book.notionUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    onClick={handleAudibleClick}
+                    onClick={handleNotionClick}
                   >
-                    <HeadphonesIcon size={12} weight="bold" />
-                    Listen on Audible
+                    <ArrowSquareOutIcon size={14} weight="bold" />
+                    View in Notion
                   </a>
                 </Button>
-              )}
-
-              <Button variant="ghost" size="sm" asChild>
-                <a
-                  href={book.notionUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={handleNotionClick}
-                >
-                  <ArrowSquareOutIcon size={12} weight="bold" />
-                  View in Notion
-                </a>
-              </Button>
+              </div>
             </div>
           </div>
         </motion.div>

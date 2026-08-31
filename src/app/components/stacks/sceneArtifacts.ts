@@ -45,6 +45,8 @@ type SceneImageArtifactShape = SceneArtifactBase &
     kind: "image";
     mode?: "aggregate" | "big-three" | "dexa";
     image: string;
+    /** The scene-sized file already loaded beneath the fullscreen master. */
+    previewImage?: string;
     width: number;
     height: number;
   }>;
@@ -105,6 +107,7 @@ function photoArtifact<
   collection: Collection;
   title: string;
   image: string;
+  previewImage?: string;
   width: number;
   height: number;
   actions?: readonly ArtifactAction[];
@@ -116,6 +119,7 @@ function photoArtifact<
     collection: input.collection,
     title: input.title,
     image: input.image,
+    previewImage: input.previewImage,
     width: input.width,
     height: input.height,
     actions: input.actions ?? NO_ACTIONS,
@@ -169,6 +173,7 @@ export const SCENE_PHOTOS = [
     collection: "about-photos",
     title: "Portrait",
     image: "/images/stacks/v8/about-profile-full.webp",
+    previewImage: "/images/stacks/v8/512/about-profile-full.webp",
     width: 600,
     height: 800,
     actions: INSTAGRAM_ACTIONS,

@@ -140,12 +140,12 @@ describe("boot presentation", () => {
     expect(dither).toContain("shape-rendering: crispEdges");
   });
 
-  it("waits three seconds, then fades the loading copy in over two", () => {
+  it("shows the loading copy from first paint", () => {
     const wait = rule(".stacks-boot-wait {");
 
-    expect(wait).toContain("opacity: 0");
-    expect(wait).toContain("stacks-boot-wait-arrive 2s");
-    expect(wait).toContain("3s");
+    expect(wait).toContain("opacity: 1");
+    expect(wait).not.toContain("animation:");
+    expect(css).not.toContain("@keyframes stacks-boot-wait-arrive");
     // The notes cross-fade between machine states. Nothing about them runs on
     // a timer, so there is no carousel keyframe and no cycle variable: a
     // twenty-second loop is what made them fiction in the first place.
@@ -166,9 +166,10 @@ describe("boot presentation", () => {
     );
   });
 
-  it("gives Loading more weight than the supporting notes", () => {
+  it("gives the 3D loading label more weight than the supporting notes", () => {
     const label = rule(".stacks-boot-wait-label {");
 
+    expect(component).toContain("Loading the 3D room");
     expect(label).toContain("font-size: clamp(15px, 1.35vw, 17px)");
     expect(label).toContain("font-weight: 500");
     expect(css).toContain("@keyframes stacks-boot-wait-dot");
@@ -198,10 +199,8 @@ describe("boot presentation", () => {
     expect(component).toContain("replace(replacementIndex)");
   });
 
-  it("reduces the delayed state to static Loading copy", () => {
-    expect(css).toMatch(
-      /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.stacks-boot-wait \{[\s\S]*stacks-boot-wait-reduced 1ms step-end 3s forwards/,
-    );
+  it("keeps the immediate loading copy static under reduced motion", () => {
+    expect(css).not.toContain("stacks-boot-wait-reduced");
     expect(css).toMatch(
       /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.stacks-boot-wait-notes,[\s\S]*\.stacks-boot-motes \{[\s\S]*display: none/,
     );

@@ -69,6 +69,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
   // mirrors the state for the long-lived keydown listener, whose closure
   // would otherwise hold a stale value.
   const [expanded, setExpanded] = useState(false);
+  const [originExitRunning, setOriginExitRunning] = useState(false);
   const expandedRef = useRef(false);
   const isClosingRef = useRef(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -82,6 +83,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const reduceMotion = useReducedMotion();
   const fromStacks = presentation?.source === "stacks";
+  const onCloseStart = presentation?.onCloseStart;
 
   const bookId = selectedBookId ?? "";
 
@@ -127,6 +129,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
     // Prevent double-close during exit animation (ref updates synchronously)
     if (isClosingRef.current) return;
     isClosingRef.current = true;
+    onCloseStart?.();
     releaseOverlayChrome();
     // Blur active element to prevent focus ring on book card
     (document.activeElement as HTMLElement)?.blur();
@@ -136,11 +139,13 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
     const shell = shellRef.current;
     if (origin && shell) {
       stacksOriginRef.current = null;
+      setOriginExitRunning(true);
       const flying = originExit(shell, origin, backdropRef.current, () => {
         closeModal();
         window.history.back();
       });
       if (flying) return;
+      setOriginExitRunning(false);
     }
     closeModal();
     // Navigate back to remove the bookId from URL
@@ -153,6 +158,7 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
       isClosingRef.current = false;
       expandedRef.current = false;
       setExpanded(false);
+      setOriginExitRunning(false);
     }
   }, [isModalOpen]);
 
@@ -171,18 +177,21 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
       }
       if (!isModalOpen || isClosingRef.current) return;
       isClosingRef.current = true;
+      onCloseStart?.();
       (document.activeElement as HTMLElement)?.blur();
       const origin = stacksOriginRef.current;
       const shell = shellRef.current;
       if (origin && shell) {
         stacksOriginRef.current = null;
+        setOriginExitRunning(true);
         if (originExit(shell, origin, backdropRef.current, closeModal)) return;
+        setOriginExitRunning(false);
       }
       closeModal();
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-  }, [isModalOpen, fromStacks, closeModal, openModalById]);
+  }, [isModalOpen, fromStacks, closeModal, onCloseStart, openModalById]);
 
   // A soft navigation while the modal is open (Universal Search on the books
   // site, say) replaces the page underneath; the modal must not linger over
@@ -202,8 +211,9 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
     }
     if (!sawOwnPathRef.current || isClosingRef.current) return;
     isClosingRef.current = true;
+    onCloseStart?.();
     closeModal();
-  }, [pathname, isModalOpen, bookId, fromStacks, closeModal]);
+  }, [pathname, isModalOpen, bookId, fromStacks, closeModal, onCloseStart]);
 
   const expandHref =
     fromStacks && presentation
@@ -440,6 +450,12 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
     }
   };
 
+  // A recorded 3D-origin flight has already animated both layers completely
+  // to zero before modal state is released. Framer's ordinary exit must be
+  // instantaneous in that case: its internal motion values still say 1, so
+  // replaying the fallback fade would make the invisible layers flash back.
+  const originOwnsExit = fromStacks && originExitRunning;
+
   return (
     <AnimatePresence>
       {isModalOpen && bookId && (
@@ -452,7 +468,8 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{
-              duration: reduceMotion ? 0 : fromStacks ? 0.28 : 0.2,
+              duration:
+                reduceMotion || originOwnsExit ? 0 : fromStacks ? 0.28 : 0.2,
             }}
             onPointerDown={armDismiss}
             onClick={dismissIfArmed}
@@ -483,12 +500,14 @@ export function Modal({ presentation }: { presentation?: ModalPresentation }) {
                 }
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={
-                  fromStacks && !reduceMotion
-                    ? { opacity: 0, scale: 0.982, y: 8 }
-                    : { opacity: 0 }
+                  originOwnsExit
+                    ? { opacity: 0, scale: 1, y: 0 }
+                    : fromStacks && !reduceMotion
+                      ? { opacity: 0, scale: 0.982, y: 8 }
+                      : { opacity: 0 }
                 }
                 transition={
-                  reduceMotion
+                  reduceMotion || originOwnsExit
                     ? { duration: 0 }
                     : fromStacks
                       ? { duration: 0.34, ease: [0.16, 1, 0.3, 1] }

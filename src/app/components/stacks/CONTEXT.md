@@ -41,7 +41,9 @@ _Avoid_: Mobile mode, desktop mode, user-agent class
 performance and device constraints, independently of Presentation and
 Interaction Profiles. It preserves Identity Props, composition, and immediate
 feedback while progressively reducing scalable effects such as shadow detail,
-reflections, particles, and offscreen wildlife to protect frame pacing.
+reflections, particles, and offscreen wildlife to protect frame pacing. The
+resolved profile remains visually stable through World Boot and the first
+resting view; entry never reveals a temporary profile that upgrades in place.
 _Avoid_: Mobile quality, coarse-pointer quality, visual identity downgrade
 
 **World Boot** — the whole path from a document load to the world owning the
@@ -169,6 +171,12 @@ _Avoid_: Hover loop, idle animation (an idle runs whether or not you are there)
 **Traverse** — the full journey from the first Unit to the last. Desktop
 scrolling and mobile World Swipes advance it; the Traverse also advances the
 morning (see Sky).
+
+**Arrival Gate** — the requirement that a destination Unit's visible
+composition be complete before the camera settles there. Travel responds
+immediately and may begin before the gate passes; an unfinished Unit may not
+become the resting view.
+_Avoid_: Travel lock, navigation gate, preload gate
 
 **World Swipe** — mobile's direct horizontal gesture for advancing or
 reversing the Traverse through the exposed World. Vertical gestures belong to

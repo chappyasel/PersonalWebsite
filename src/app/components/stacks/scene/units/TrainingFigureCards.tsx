@@ -34,7 +34,13 @@ function FigureCardStock({
   height: number;
   roll: number;
 }) {
-  useRegisterArtifactPreviewFrame(width, height, CARD_PREVIEW_LAYERS);
+  useRegisterArtifactPreviewFrame(
+    width,
+    height,
+    CARD_PREVIEW_LAYERS,
+    undefined,
+    figure.image,
+  );
   return (
     <group rotation={[0, 0, roll]}>
       <RoundedBox

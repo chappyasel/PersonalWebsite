@@ -19,8 +19,8 @@ import {
   reduceModelArtifactHandoff,
 } from "./modal/modelArtifactHandoff";
 import { type PixelLook, pixelLookFromSearch } from "./scene/pixelArt";
-import { type SceneArtifactId, sceneArtifactById } from "./sceneArtifacts";
 import { propReactionsSuppressed } from "./scene/reactionEngagement";
+import { type SceneArtifactId, sceneArtifactById } from "./sceneArtifacts";
 
 function recordArtifactFieldNote(id: SceneArtifactId) {
   const artifact = sceneArtifactById(id);
@@ -83,6 +83,10 @@ type StacksState = {
   golfFocused: boolean;
   scrollEl: HTMLDivElement | null;
   modalOpen: boolean;
+  /** The book modal is still covering the screen, but its exit flight has
+   * begun. Mobile sheets use this interval to return behind the modal before
+   * the frozen camera resumes. */
+  bookModalReturning: boolean;
   inspectedArtifact: SceneArtifactId | null;
   modelArtifactHandoff: ModelArtifactHandoffState | null;
   panelState: PanelState;
@@ -150,6 +154,7 @@ type StacksState = {
   setGolfFocused: (golfFocused: boolean) => void;
   setScrollEl: (scrollEl: HTMLDivElement | null) => void;
   setModalOpen: (modalOpen: boolean) => void;
+  setBookModalReturning: (bookModalReturning: boolean) => void;
   openSceneArtifact: (id: SceneArtifactId, reducedMotion?: boolean) => void;
   openModelSceneArtifact: (id: SceneArtifactId, reducedMotion: boolean) => void;
   selectImageSceneArtifact: (id: SceneArtifactId) => void;
@@ -177,6 +182,7 @@ export const useStacks = create<StacksState>((set) => ({
   golfFocused: false,
   scrollEl: null,
   modalOpen: false,
+  bookModalReturning: false,
   inspectedArtifact: null,
   modelArtifactHandoff: null,
   panelState: "closed",
@@ -215,9 +221,15 @@ export const useStacks = create<StacksState>((set) => ({
   setModalOpen: (modalOpen) =>
     set(
       modalOpen
-        ? { modalOpen, focusedInteraction: null, pressedInteraction: null }
-        : { modalOpen },
+        ? {
+            modalOpen,
+            bookModalReturning: false,
+            focusedInteraction: null,
+            pressedInteraction: null,
+          }
+        : { modalOpen, bookModalReturning: false },
     ),
+  setBookModalReturning: (bookModalReturning) => set({ bookModalReturning }),
   openSceneArtifact: (inspectedArtifact, reducedMotion = false) => {
     recordArtifactFieldNote(inspectedArtifact);
     set((state) => ({

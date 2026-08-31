@@ -23,6 +23,7 @@ import {
   GOLF_TEE_SCALE,
 } from "../golf/golfLayout";
 import { meadowHeight } from "../meadowField";
+import { scenePhotoUrl } from "../photoTextures";
 import { DeskFrame, FlatPrint, deskFrameHeight } from "../photos";
 import { ShelfUnit, WoodMaterial } from "../primitives";
 import { useUnitLod } from "../useUnitLod";
@@ -235,7 +236,13 @@ function PinnedPrint({
   textured: boolean;
 }) {
   const height = pin.height;
-  useRegisterArtifactPreviewFrame(pin.width, height, PIN_PREVIEW_LAYERS);
+  useRegisterArtifactPreviewFrame(
+    pin.width,
+    height,
+    PIN_PREVIEW_LAYERS,
+    undefined,
+    scenePhotoUrl(pin.src, "support"),
+  );
   return (
     <group rotation={[0, 0, pin.roll]}>
       <RoundedBox

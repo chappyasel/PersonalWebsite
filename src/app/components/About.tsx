@@ -8,6 +8,7 @@ import { IntersectionMotion } from "~/components/ui/intersection-motion";
 import { ThemeToggle } from "~/components/ui/theme-toggle";
 
 import ContactButtons from "./ContactButtons";
+import { StacksSectionLink } from "./stacks/dom/StacksSectionLink";
 
 function Greeting() {
   return (
@@ -25,81 +26,115 @@ function Greeting() {
 function Bio({ className }: { className: string }) {
   return (
     <p className={className}>
-      <br />
-      I taught myself to code at 12 and got completely hooked.{" "}
+      <br />I taught myself to code at 12, got completely hooked, and spent much
+      of my teens cranking out iOS apps.{" "}
       <span data-nosnippet="">
-        I spent much of my teens cranking out iOS apps, and with a lot of
-        obsession and some incredible luck, one I built in high school became
-        the #1 homework planner in the world and got acquired while I was still
-        in college.
+        With a lot of tinkering and some incredible luck, one I built in high
+        school became the #1 homework planner in the world and was acquired
+        during college.
       </span>
       <br />
       <br />
-      That drive to build at a bigger scale led me to my dream job at{" "}
-      <Link href="https://www.apple.com" target="_blank">
+      That early success led me to my dream job at{" "}
+      <Link
+        href="https://www.apple.com"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
         Apple
-      </Link>
-      , where I worked on the top-secret teams that launched the Vision Pro and
-      the early prototypes of Apple Intelligence &ndash; presenting multimodal
-      AI agent demos to execs right below Tim Cook.
-      <br />
-      <br />
-      But here&apos;s what changed everything. My senior year of college, I
-      wrote my final paper on the technological singularity &ndash; right when
-      GPT-3 had just dropped. That research rewired my brain. It helped me
-      realize four things: that AGI is probably the most significant advancement
-      in the history of the universe. That my technical skills weren&apos;t
-      durable &ndash; AI would be better at coding than me within the decade,
-      and what actually matters is EQ and relationships. That society isn&apos;t
-      remotely ready, and we as technologists have a responsibility to be
-      stewards of that transition. And that AI itself is both the threat and the
-      tool we need to solve it. All of that pointed me in one direction:
-      community.
-      <br />
-      <br />
-      When ChatGPT launched, I started building again &ndash; this time a weekly
-      meetup with friends we called{" "}
-      <Link href="https://aicollective.com" target="_blank">
-        The AI Collective
-      </Link>
-      . I also left Apple to co-found Cofactory with a couple of brilliant
-      Stanford PhDs, a venture-backed AI startup (we were Mercor and
-      Cognition&apos;s first customers &ndash; both now multibillion-dollar
-      companies). But the Collective was where the real conversations were
-      happening &ndash; not just about what to build, but about what all of this
-      means. I chose the mission.
-      <br />
-      <br />
-      The first nine months were brutal &ndash; texting dozens of people a day,
-      flying to three cities in a week, no salary, trying to convince people to
-      open chapters. It felt like building a house of cards. Then we hit an
-      inflection point with our global launch, and suddenly the flywheel had its
-      own momentum.
-      <br />
-      <br />
-      Today,{" "}
-      <Link href="https://aicollective.com" target="_blank">
-        The AI Collective
       </Link>{" "}
-      is 250,000+ members strong with 600+ volunteers running 200+ chapters
-      across 50+ countries &ndash; a non-profit building the social
-      infrastructure for AGI. After leading it for over three years, I&apos;ve
-      since shifted my focus to what&apos;s next: tools for relationship
-      intelligence in a world where trust, taste, judgment, and the ability to
-      mobilize the right people matter more than ever.
+      and put me at the frontier of what technology could do, first in AI/ML
+      R&amp;D and then on the teams building Vision Pro and the earliest
+      prototypes of what became Apple Intelligence. The work was exhilarating.
+      For a while, it felt like the center of the universe.
       <br />
       <br />
-      Outside of this, I&apos;m a competitive natural bodybuilder (INBF/WNBF)
-      &mdash; the discipline keeps me grounded and it&apos;s become a whole
-      second identity at this point. I also read 50-100 books a year (
-      <Link href="https://books.chappyasel.com" target="_blank">
-        books.chappyasel.com
+      At the same time, a question from my senior year of college was becoming
+      an obsession. My final paper on GPTs and the technological singularity
+      convinced me that the widening gap between the pace of technology and
+      society&apos;s capacity to adapt would be the defining challenge of my
+      lifetime. If ASI could be humanity&apos;s final invention, I wanted to
+      dedicate my career to helping us build it wisely and turn its power into
+      broadly shared human flourishing.
+      <br />
+      <br />
+      When ChatGPT launched, it felt like the timeline had collapsed overnight.
+      I started inviting friends into my living room each week, and that
+      gathering eventually became{" "}
+      <Link
+        href="https://aicollective.com"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        The AI Collective
       </Link>
-      ).
+      . Through the community, I met two brilliant Stanford PhDs and left Apple
+      to co-found Cofactory, a venture-backed AI agent startup. For a while, I
+      was building both the company and the community. As AIC grew, it became
+      increasingly clear that this was where I could make the most distinctive
+      contribution, so I eventually chose to focus on it full-time.
       <br />
       <br />
-      The future will be shaped by people building with taste, trust, and agency
-      at the center. Onwards and Upwards!
+      Over the next three years, we grew AIC into a global nonprofit with over a
+      quarter-million members and hundreds of chapters around the world. Today I
+      serve as chairman and AIC remains central to my life. An exceptional
+      leadership team now runs the organization day to day, bringing more people
+      into the mission and allowing us to accomplish far more together.
+      <br />
+      <br />
+      I am now returning to the kind of work that has always energized me most:
+      starting from zero, learning at full speed, and working with exceptional
+      people on a problem that matters. I am searching for the idea and team I
+      want to commit the next decade to, with the ambition to build something at
+      the frontier of AI that can reach enormous scale.
+      <br />
+      <br />
+      Alongside my own building, I serve on the board of the{" "}
+      <Link
+        href="https://tjpartnershipfund.org/"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Thomas Jefferson Partnership Fund
+      </Link>{" "}
+      and selectively invest in and advise early-stage founders.
+      <br />
+      <br />
+      The rest of my life is similarly nerdy. I&apos;m an incurable{" "}
+      <Link
+        href="https://books.chappyasel.com"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        bookworm
+      </Link>{" "}
+      and lifelong autodidact, compete in{" "}
+      <Link
+        href="https://weightlifting.chappyasel.com"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        natural bodybuilding
+      </Link>{" "}
+      (
+      <Link
+        href="https://worldnaturalbb.com/"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        INBF/WNBF
+      </Link>
+      ), and spend an unreasonable amount of time designing{" "}
+      <StacksSectionLink unit="systems">personal systems</StacksSectionLink> for
+      how I learn, work, and live. I occasionally{" "}
+      <StacksSectionLink unit="blog">write</StacksSectionLink> and{" "}
+      <StacksSectionLink unit="talks">speak</StacksSectionLink> about what I am
+      learning along the way.
+      <br />
+      <br />
+      If you are working on an important problem, want to build something
+      unusually ambitious, or simply think we would have a fascinating
+      conversation, I would love to hear from you.
     </p>
   );
 }

@@ -39,12 +39,17 @@ all, it has gone complete, a frame has painted, the meadow has filled. The
 first one still open is the `waitStage`, and it decides which lines the boot
 screen is allowed to show.
 
+The primary label, "Loading the 3D room", is visible from the first paint and
+exposed as a polite status to assistive technology. Gate-specific notes remain
+visual supporting copy so their rotation does not produce repeated
+announcements.
+
 All ten authored lines survive, grouped under the gate each is true of. Within
 a gate they take turns on a 2.4s interval, and they should: a compile that
 takes eleven seconds really is warming the room, lighting the little lamp, and
 turning on the lighthouse, so rotating those three is both livelier than one
 frozen line and true the whole time. The distinction that matters is what the
-timer is allowed to move. The old carousel advanced through the *stages* on a
+timer is allowed to move. The old carousel advanced through the _stages_ on a
 timer, which is how the room came to announce a meadow nobody was growing.
 Taking turns inside one stage claims nothing the boot is not doing, and the
 rotation resets whenever the gate changes, so a stage always opens on its first
@@ -101,10 +106,10 @@ timeline. `BootWaitNotes` subscribes on its own so a stage change re-renders
 five words instead of walking two thousand nodes of SVG, and the server
 snapshot is `starting`, which is what the server can honestly say.
 
-Nothing was added to the accessibility tree. The boot screen is `aria-hidden`
-and the flat document underneath is the homepage as far as assistive tech is
-concerned; narrating a loading screen over content that is already readable
-would be an interruption, not a service.
+The primary loading label is the boot screen's only live status. The decorative
+bookcase, wordmark, and rotating gate notes remain hidden from assistive
+technology, which communicates the wait without repeatedly interrupting the
+readable document underneath it.
 
 Two of the three fixes are only reachable through a real browser. The ceiling
 and the visibility freeze are covered at the machine's interface with fake

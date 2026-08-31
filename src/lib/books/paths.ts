@@ -11,10 +11,10 @@ export function getBookPath(bookId: string, queryParams?: string): string {
 
 /**
  * Generate the path for the books grid page
- * @returns The path ("/")
+ * @returns A directory-relative path that works on both /books/:id and /:id
  */
 export function getBooksPath(): string {
-  return "/";
+  return ".";
 }
 
 /**

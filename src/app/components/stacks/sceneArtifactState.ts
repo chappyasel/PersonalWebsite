@@ -29,10 +29,17 @@ export type SceneArtifactPreviewOriginSession = Readonly<{
   collection: SceneArtifact["collection"];
   viewport: SceneArtifactPreviewViewport;
   origins: ReadonlyMap<SceneArtifactId, ProjectedSceneInteractionRect>;
+  /** Settled shelf destinations for the reverse morph. The selected print can
+   * be hover-lifted when `origins` is captured, so close cannot reuse it. */
+  returnOrigins: ReadonlyMap<SceneArtifactId, ProjectedSceneInteractionRect>;
 }>;
 
 let sceneArtifactPreviewOriginSession: SceneArtifactPreviewOriginSession | null =
   null;
+const stagedReturnOrigins = new Map<
+  SceneArtifactId,
+  ProjectedSceneInteractionRect
+>();
 
 function currentPreviewViewport(): SceneArtifactPreviewViewport {
   return typeof window === "undefined"
@@ -92,20 +99,56 @@ function projectSceneArtifactPreviewOrigin(id: SceneArtifactId) {
   return imageRatioPreviewOrigin(origin, framed.width, framed.height);
 }
 
+function imageRatioOriginForArtifact(
+  id: SceneArtifactId,
+  origin: ProjectedSceneInteractionRect,
+) {
+  const artifact = sceneArtifactById(id);
+  if (!artifact || artifact.kind !== "image") return null;
+  const framed = framedArtifactPreviewSize(
+    artifactPreviewFrameFor(id) ?? BARE_ARTIFACT_PREVIEW_FRAME,
+    artifact,
+  );
+  return imageRatioPreviewOrigin(origin, framed.width, framed.height);
+}
+
+/** Stages the selected print's authored/resting projection immediately before
+ * the live hover projection opens. Consumed by the next preview session. */
+export function stageSceneArtifactPreviewReturnOrigin(
+  id: SceneArtifactId,
+  origin: ProjectedSceneInteractionRect,
+) {
+  stagedReturnOrigins.set(id, origin);
+}
+
 export function beginSceneArtifactPreviewOriginSession(id: SceneArtifactId) {
   const artifact = sceneArtifactById(id);
   const origins = new Map<SceneArtifactId, ProjectedSceneInteractionRect>();
+  const returnOrigins = new Map<
+    SceneArtifactId,
+    ProjectedSceneInteractionRect
+  >();
   if (artifact) {
     for (const entry of sceneArtifactCollection(artifact.id)) {
       const origin = projectSceneArtifactPreviewOrigin(entry.id);
-      if (origin) origins.set(entry.id, origin);
+      if (origin) {
+        origins.set(entry.id, origin);
+        returnOrigins.set(entry.id, origin);
+      }
+      const staged = stagedReturnOrigins.get(entry.id);
+      if (staged) {
+        const settled = imageRatioOriginForArtifact(entry.id, staged);
+        if (settled) returnOrigins.set(entry.id, settled);
+      }
     }
   }
+  stagedReturnOrigins.delete(id);
   sceneArtifactPreviewOriginSession = artifact
     ? {
         collection: artifact.collection,
         viewport: currentPreviewViewport(),
         origins,
+        returnOrigins,
       }
     : null;
 }
@@ -124,7 +167,9 @@ export function ensureSceneArtifactPreviewOrigin(id: SceneArtifactId) {
   if (!origin) return;
   const origins = new Map(session.origins);
   origins.set(id, origin);
-  sceneArtifactPreviewOriginSession = { ...session, origins };
+  const returnOrigins = new Map(session.returnOrigins);
+  returnOrigins.set(id, origin);
+  sceneArtifactPreviewOriginSession = { ...session, origins, returnOrigins };
 }
 
 function currentHistoryState(): Record<string, unknown> {

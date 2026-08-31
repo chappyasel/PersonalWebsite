@@ -63,9 +63,6 @@ import {
   bootItemKeyframes,
   bootItemPose,
   bootRevealComplete,
-  bootWaveIntroKeyframes,
-  bootWaveKeyframes,
-  bootWaveWindow,
   createBootDustDrift,
   projectSceneY,
 } from "./bootVignette";
@@ -683,7 +680,7 @@ describe("Homepage entrance", () => {
     }
   });
 
-  it("contains no legacy placeholder rows, books, or progress copy", () => {
+  it("contains no legacy placeholder rows, books, or fake progress copy", () => {
     const markup = renderBoot();
 
     expect(markup).toContain("Chappy Asel");
@@ -691,10 +688,10 @@ describe("Homepage entrance", () => {
     expect(markup).not.toContain("stacks-boot-bookcase");
     expect(markup).not.toContain("stacks-boot-shelf");
     expect(markup).not.toContain("stacks-boot-ground");
-    expect(markup).not.toMatch(/progress|status/i);
+    expect(markup).not.toMatch(/progress/i);
   });
 
-  it("renders one restrained delayed wait message with authored room copy", () => {
+  it("renders one restrained immediate wait message with authored room copy", () => {
     const markup = renderBoot();
 
     // The gates, in the order they are passed.
@@ -727,7 +724,7 @@ describe("Homepage entrance", () => {
     expect(markup).not.toContain("--stacks-boot-wait-cycle");
     expect(markup).not.toContain("--stacks-boot-wait-delay");
     expect(markup.match(/data-boot-wait=""/g)).toHaveLength(1);
-    expect(markup).toContain("Loading");
+    expect(markup).toContain("Loading the 3D room");
     expect(markup.match(/class="stacks-boot-wait-dot"/g)).toHaveLength(3);
     for (const line of BOOT_WAIT_NOTE_LINES)
       expect(markup).toContain(line.text);
@@ -802,7 +799,7 @@ describe("Homepage entrance", () => {
     },
   );
 
-  it("assigns unique deterministic cadence slots and derives the loop", () => {
+  it("assigns unique deterministic cadence slots for the one-shot reveal", () => {
     const first = renderBoot(3);
     const second = renderBoot(3);
     const landmarks = renderedLandmarks(first);
@@ -820,11 +817,9 @@ describe("Homepage entrance", () => {
     );
     cadence.delays.forEach((_, index) => {
       expect(first).toContain(`@keyframes stacks-boot-reveal-${index}`);
-      expect(first).toContain(`@keyframes stacks-boot-wave-intro-${index}`);
-      expect(first).toContain(`@keyframes stacks-boot-wave-${index}`);
-      expect(first).toContain(
-        `animation-name:stacks-boot-reveal-${index}, stacks-boot-wave-intro-${index}, stacks-boot-wave-${index}`,
-      );
+      expect(first).not.toContain(`@keyframes stacks-boot-wave-intro-${index}`);
+      expect(first).not.toContain(`@keyframes stacks-boot-wave-${index}`);
+      expect(first).toContain(`animation-name:stacks-boot-reveal-${index}`);
     });
   });
 
@@ -895,38 +890,13 @@ describe("Homepage entrance", () => {
     );
   });
 
-  it("moves one contiguous quarter-width window through the declared order", () => {
-    const count = ABOUT_BOOT_VISIBLE_COMPOSITION.length;
-    const waves = Array.from({ length: count }, (_, index) =>
-      bootWaveKeyframes(index, count),
+  it("leaves every landmark fully visible after its one-shot reveal", () => {
+    const css = bootCssKeyframes(
+      ABOUT_BOOT_VISIBLE_COMPOSITION.length,
+      bootCadence(ABOUT_BOOT_VISIBLE_COMPOSITION.length),
     );
-
-    // A quarter of fourteen landmarks rounds up to a four-wide window.
-    expect(bootWaveWindow(0, count)).toEqual([0, 1, 2, 3]);
-    expect(bootWaveWindow(1, count)).toEqual([1, 2, 3, 4]);
-    expect(bootWaveWindow(5, count)).toEqual([5, 6, 7, 8]);
-    expect(bootWaveWindow(12, count)).toEqual([12, 13, 0, 1]);
-    for (let step = 0; step <= count; step += 1) {
-      const dimmed = waves.flatMap((frames, index) =>
-        Number(frames[step]?.opacity) === 0.18 ? [index] : [],
-      );
-      expect(dimmed).toEqual(
-        [...bootWaveWindow(step, count)].sort((a, b) => a - b),
-      );
-    }
-
-    expect(bootWaveIntroKeyframes(0, count)).toEqual([
-      { opacity: 1, offset: 0 },
-      { opacity: 0.18, offset: 1 },
-    ]);
-    // Index 4 is the first landmark outside the four-wide opening window.
-    expect(bootWaveIntroKeyframes(3, count).at(-1)).toMatchObject({
-      opacity: 0.18,
-    });
-    expect(bootWaveIntroKeyframes(4, count).at(-1)).toMatchObject({
-      opacity: 1,
-    });
-
+    expect(css).not.toContain("stacks-boot-wave");
+    expect(css).not.toContain("opacity:0.18");
     const top = ABOUT_BOOT_COMPOSITION.filter(({ shelf }) => shelf === "top");
     const lower = ABOUT_BOOT_COMPOSITION.filter(
       ({ shelf }) => shelf === "lower",
@@ -959,9 +929,10 @@ describe("Homepage entrance", () => {
   it("is deterministic, decorative SSR markup with both scene palettes", () => {
     const markup = renderBoot(3);
 
-    expect(markup).toContain('class="stacks-boot" aria-hidden="true"');
+    expect(markup).toContain('class="stacks-boot"');
     expect(markup).toContain('role="presentation"');
-    expect(markup).not.toContain("aria-live");
+    expect(markup).toContain('role="status"');
+    expect(markup).toContain('aria-live="polite"');
     expect(markup).not.toContain('role="progressbar"');
     expect(markup).toContain(`--stacks-boot-wood-light:${PALETTES.light.wood}`);
     expect(markup).toContain(`--stacks-boot-wood-dark:${PALETTES.dark.wood}`);

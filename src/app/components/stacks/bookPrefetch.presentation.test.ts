@@ -29,4 +29,11 @@ describe("Stacks book prefetch", () => {
     expect(primitives).toContain("onHoverIntent={prefetchOwnNotes}");
     expect(canvas).toContain("requestBookPrefetch(id);");
   });
+
+  it("returns the mobile sheet behind the book's exit flight", () => {
+    expect(modal).toContain("onCloseStart: beginBookModalReturn");
+    expect(placard).toContain("bookModalReturning");
+    expect(placard).toContain("artifactReturning || bookModalReturning");
+    expect(placard).toContain("expanded && (!modalOpen || overlayReturning)");
+  });
 });

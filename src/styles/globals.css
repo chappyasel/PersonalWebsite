@@ -165,65 +165,79 @@ html[data-world] .field-notes-glass-tooltip {
    collapses an authored pair to the prefixed declaration alone and Chrome
    loses the blur. */
 .sheet-control {
-  border-color: rgb(87 83 78 / 0.2);
-  background-color: rgb(250 249 246 / 0.72);
-  color: hsl(var(--primary));
-  backdrop-filter: blur(20px) saturate(1.7);
-  /* On paper there is nothing behind the disc to blur, so the edge has to do
-     the work: a bright top lip, a hairline contact shadow, and one soft drop
-     to lift it off the sheet. */
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.9),
-    inset 0 -1px 0 rgb(255 255 255 / 0.16),
-    0 1px 2px rgb(28 25 23 / 0.1),
-    0 8px 18px -8px rgb(28 25 23 / 0.35);
+  border-color: rgb(87 83 78 / 0.1);
+  background-color: rgb(250 249 246 / 0.46);
+  color: hsl(var(--primary) / 0.82);
+  backdrop-filter: blur(12px) saturate(1.2);
+  box-shadow: 0 2px 8px -6px rgb(28 25 23 / 0.28);
 }
 .sheet-control:hover {
-  border-color: rgb(87 83 78 / 0.28);
-  background-color: rgb(255 255 255 / 0.86);
+  border-color: rgb(87 83 78 / 0.18);
+  background-color: rgb(255 255 255 / 0.66);
+  color: hsl(var(--primary));
 }
-/* Dark hosts lift the disc with white rather than sinking it with black: a
-   dark fill on a dark card is a hole, and the rim alone was a ghost. */
 .dark .sheet-control {
-  border-color: rgb(255 255 255 / 0.18);
-  background-color: rgb(255 255 255 / 0.09);
-  color: rgb(255 255 255 / 0.92);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.16),
-    inset 0 -1px 0 rgb(255 255 255 / 0.05),
-    0 8px 20px -10px rgb(0 0 0 / 0.7);
+  border-color: rgb(255 255 255 / 0.065);
+  background-color: rgb(255 255 255 / 0.025);
+  color: rgb(255 255 255 / 0.76);
+  box-shadow: 0 2px 8px -6px rgb(0 0 0 / 0.45);
 }
 .dark .sheet-control:hover {
-  border-color: rgb(255 255 255 / 0.28);
-  background-color: rgb(255 255 255 / 0.16);
+  border-color: rgb(255 255 255 / 0.13);
+  background-color: rgb(255 255 255 / 0.075);
+  color: rgb(255 255 255 / 0.92);
+}
+/* Scene controls share one small-scale glass recipe. The artifact inspector
+   opts in directly; sheet controls use it only while the 3D world is present.
+   Large placards use more blur, but the same pale, desaturated transmission
+   and edge lighting. */
+.world-glass-control,
+html[data-world] .sheet-control {
+  --world-control-border: rgb(255 255 255 / 0.22);
+  --world-control-fill: rgb(255 255 255 / 0.18);
+  --world-control-edge-top: rgb(255 255 255 / 0.28);
+  --world-control-edge-bottom: rgb(255 255 255 / 0.06);
+  border-color: var(--world-control-border);
+  background-color: var(--world-control-fill);
+  backdrop-filter: blur(30px) saturate(0.42) brightness(1.22);
+  box-shadow:
+    inset 0 1px 0 var(--world-control-edge-top),
+    inset 0 -1px 0 var(--world-control-edge-bottom),
+    0 5px 14px -11px rgb(28 25 23 / 0.42);
+}
+.world-glass-control {
+  color: rgb(255 255 255 / 0.86);
 }
 html[data-world] .sheet-control {
-  border-color: rgb(255 255 255 / 0.36);
-  background-color: rgb(252 251 249 / 0.5);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.65),
-    inset 0 -1px 0 rgb(255 255 255 / 0.14),
-    0 8px 22px -10px rgb(20 26 32 / 0.55);
+  color: hsl(var(--primary) / 0.84);
 }
+.world-glass-control:hover,
 html[data-world] .sheet-control:hover {
-  background-color: rgb(255 255 255 / 0.7);
+  --world-control-border: rgb(255 255 255 / 0.3);
+  --world-control-fill: rgb(255 255 255 / 0.23);
+  --world-control-edge-top: rgb(255 255 255 / 0.36);
 }
-/* The dark room is the one host where this disc can go wrong in the bright
-   direction: the light-world rule above outranks `.dark .sheet-control`
-   (attribute + class beats class), so without an explicit shadow here the
-   night version inherited an 0.85 white top lip and read as a chrome ring.
-   Everything is restated, at about half the light room's strength. */
+/* Dark glass absorbs the room like the placards do. Its border carries the
+   shape instead of a pale fill across the whole control. */
+.dark .world-glass-control,
 html[data-world].dark .sheet-control {
-  border-color: rgb(255 255 255 / 0.12);
-  background-color: rgb(255 255 255 / 0.06);
+  --world-control-border: rgb(255 255 255 / 0.18);
+  --world-control-fill: rgb(0 0 0 / 0.06);
+  --world-control-edge-top: rgb(255 255 255 / 0.16);
+  --world-control-edge-bottom: rgb(255 255 255 / 0.035);
+  color: rgb(255 255 255 / 0.78);
+  backdrop-filter: blur(32px) saturate(0.42) brightness(0.82);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.1),
-    inset 0 -1px 0 rgb(255 255 255 / 0.03),
-    0 8px 20px -10px rgb(0 0 0 / 0.7);
+    inset 0 1px 0 var(--world-control-edge-top),
+    inset 0 -1px 0 var(--world-control-edge-bottom),
+    0 6px 16px -12px rgb(0 0 0 / 0.72);
 }
+.dark .world-glass-control:hover,
 html[data-world].dark .sheet-control:hover {
-  border-color: rgb(255 255 255 / 0.2);
-  background-color: rgb(255 255 255 / 0.12);
+  --world-control-border: rgb(255 255 255 / 0.26);
+  --world-control-fill: rgb(0 0 0 / 0.02);
+  --world-control-edge-top: rgb(255 255 255 / 0.24);
+  color: rgb(255 255 255 / 0.88);
 }
 
 @layer base {
@@ -601,133 +615,28 @@ html[data-font="literata"] {
     inset 0 0 0 1px rgb(0 0 0 / 0.22);
 }
 
-/* The DOM print's half of the staggered handoff (artifactPreviewMotion.ts):
- * on open it becomes solid at 62% BEFORE the physical print starts leaving
- * at 68-86%, and on close it stays solid until 38-52% while the physical
- * print has already returned under it. One of the two layers is fully
- * opaque at every frame, so the swap never dims. These percentages mirror
- * ARTIFACT_PREVIEW_DOM_IN_START/END; a test holds them together. */
-@keyframes stacks-artifact-preview-fade-in {
-  from,
-  48% {
-    opacity: 0;
-  }
-  62%,
-  to {
-    opacity: 1;
-  }
-}
+/* The DOM print owns the entire visible opening flight. It is opaque on its
+ * first paint, while the physical print retires underneath it near the source.
+ * One geometry and one opacity owner means neither clock skew nor a small size
+ * disagreement can expose the room through the photograph. */
 
-@keyframes stacks-artifact-preview-fade-out {
-  from,
-  10% {
-    opacity: 1;
-  }
-  24%,
-  to {
-    opacity: 0;
-  }
-}
-
-/* The lighting shade over the preview photo, released INSIDE the morph.
- *
- * It used to hold at full strength for the whole open and then ease off in a
- * separate 240ms beat once the `opening` attribute dropped — which is after
- * the physical print has gone, i.e. after the image has already settled. On a
- * photograph that reads as a gentle warm-up. On a near-white subject (the
- * DEXA chart is rgb(230,228,222)) it is a full-size pink page that then turns
- * white, and it looks like a bug because it is one: nothing should still be
- * changing colour once the motion has stopped.
- *
- * So the release rides the same 360ms clock as everything else. It holds
- * through 40%, covering the 48-62% swap where matching the lit print is what
- * the shade is FOR, and reaches true colour at 80% — before `opening` drops,
- * so the attribute leaving cannot snap it. The last fifth of the morph
- * settles in the photo's own colour. */
-@keyframes stacks-artifact-preview-shade-out {
-  from,
-  40% {
-    opacity: 1;
-  }
-  80%,
-  to {
-    opacity: 0;
-  }
-}
-
-/* Closing re-acquires the room's light before the clone dissolves at 10-24%,
- * so the chart does not flash white over a warm-lit print on the way out. */
-@keyframes stacks-artifact-preview-shade-in {
-  from {
-    opacity: 0;
-  }
-  8%,
-  to {
-    opacity: 1;
-  }
-}
-
-[data-scene-artifact-preview-shade] {
+/* The scene-sized image remains opaque beneath the fullscreen master. Once
+ * decode completes, the master fades over it without exposing the backdrop. */
+.stacks-artifact-preview-detail {
   opacity: 0;
+  transition: opacity 120ms ease-out;
 }
 
-[data-scene-artifact-preview-image][data-scene-artifact-preview-opening]
-  [data-scene-artifact-preview-shade] {
-  animation: stacks-artifact-preview-shade-out 360ms linear both;
-}
-
-[data-scene-artifact-preview-image][data-scene-artifact-preview-closing]
-  [data-scene-artifact-preview-shade] {
-  animation: stacks-artifact-preview-shade-in 360ms linear both;
-}
-
-/* The other half of the same correction, on the same beats. A multiply layer
- * can only darken, and the room renders several prints BRIGHTER than their
- * file, so the scalar and the saturation ACES pulled ride a filter instead.
- * The function list is identical in both states so the release interpolates
- * rather than snapping. The custom property is set per print by the
- * inspector, from the probe's measurement. */
-@keyframes stacks-artifact-preview-photo-shade-out {
-  from,
-  40% {
-    filter: var(--stacks-preview-shade-filter, brightness(1));
-  }
-  80%,
-  to {
-    filter: brightness(1);
-  }
-}
-
-@keyframes stacks-artifact-preview-photo-shade-in {
-  from {
-    filter: brightness(1);
-  }
-  8%,
-  to {
-    filter: var(--stacks-preview-shade-filter, brightness(1));
-  }
-}
-
-[data-scene-artifact-preview-photo] {
-  filter: brightness(1);
-}
-
-[data-scene-artifact-preview-image][data-scene-artifact-preview-opening]
-  [data-scene-artifact-preview-photo] {
-  animation: stacks-artifact-preview-photo-shade-out 360ms linear both;
-}
-
-[data-scene-artifact-preview-image][data-scene-artifact-preview-closing]
-  [data-scene-artifact-preview-photo] {
-  animation: stacks-artifact-preview-photo-shade-in 360ms linear both;
+.stacks-artifact-preview-detail[data-scene-artifact-preview-photo-detail-visible] {
+  opacity: 1;
 }
 
 @keyframes stacks-artifact-preview-mask-in {
   from,
-  30% {
+  28% {
     opacity: 0;
   }
-  70%,
+  50%,
   to {
     opacity: 1;
   }
@@ -735,7 +644,37 @@ html[data-font="literata"] {
 
 @keyframes stacks-artifact-preview-mask-out {
   from,
+  28% {
+    opacity: 1;
+  }
+  50%,
+  to {
+    opacity: 0;
+  }
+}
+
+.stacks-artifact-preview-mask.PhotoView-Slider__fadeIn {
+  animation: stacks-artifact-preview-mask-in 420ms linear both;
+}
+
+.stacks-artifact-preview-mask.PhotoView-Slider__fadeOut {
+  animation: stacks-artifact-preview-mask-out 420ms linear both;
+}
+
+@keyframes stacks-artifact-preview-cover-in {
+  from,
   30% {
+    opacity: 0;
+  }
+  46%,
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes stacks-artifact-preview-cover-out {
+  from,
+  54% {
     opacity: 1;
   }
   70%,
@@ -744,20 +683,12 @@ html[data-font="literata"] {
   }
 }
 
-.stacks-artifact-preview-mask.PhotoView-Slider__fadeIn {
-  animation: stacks-artifact-preview-mask-in 360ms linear both;
-}
-
-.stacks-artifact-preview-mask.PhotoView-Slider__fadeOut {
-  animation: stacks-artifact-preview-mask-out 360ms linear both;
-}
-
 [data-scene-artifact-preview-image][data-scene-artifact-preview-opening] {
-  animation: stacks-artifact-preview-fade-in 360ms linear both;
+  animation: stacks-artifact-preview-cover-in 420ms linear both;
 }
 
 [data-scene-artifact-preview-image][data-scene-artifact-preview-closing] {
-  animation: stacks-artifact-preview-fade-out 360ms linear both;
+  animation: stacks-artifact-preview-cover-out 420ms linear both;
 }
 
 /* Index changes are a plain directional slide. Once the origin handoff has
@@ -873,10 +804,8 @@ html[data-font="literata"] {
     opacity: 0 !important;
   }
 
-  /* No brighten beat under reduced motion: the shade snaps with the rest. */
-  [data-scene-artifact-preview-shade],
-  [data-scene-artifact-preview-photo] {
-    animation: none;
+  .stacks-artifact-preview-detail {
+    transition: none;
   }
 
   [data-scene-artifact-inspector] [data-artifact-preview-scrim],
@@ -1145,10 +1074,8 @@ html[data-boot-stage="start"] .stacks-boot-wordmark {
   transition: none;
 }
 
-/* Three seconds is long enough that a fast boot never advertises itself.
-   After that, the room names the gate it is actually still waiting on. The
-   line comes from the boot machine's latched wait stage, so it changes when
-   the boot changes and holds still when the boot is genuinely stuck. */
+/* Name the screen from first paint. A fast boot can be brief without being
+   ambiguous, while a slow boot never spends five seconds looking frozen. */
 .stacks-boot-wait {
   position: absolute;
   z-index: 2;
@@ -1159,9 +1086,7 @@ html[data-boot-stage="start"] .stacks-boot-wordmark {
   color: hsl(var(--foreground) / 0.66);
   pointer-events: none;
   text-align: center;
-  opacity: 0;
-  animation: stacks-boot-wait-arrive 2s cubic-bezier(0.22, 1, 0.36, 1) 3s
-    forwards;
+  opacity: 1;
 }
 
 .stacks-boot-wait-label {
@@ -1291,17 +1216,6 @@ html[data-boot-stage="start"] .stacks-boot-wordmark {
   );
 }
 
-@keyframes stacks-boot-wait-arrive {
-  from {
-    opacity: 0;
-    transform: translateY(3px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 @keyframes stacks-boot-wait-dot {
   0%,
   60%,
@@ -1427,25 +1341,17 @@ html[data-world="ready"][data-boot-stage] .stacks-boot-threshold {
   transform-box: fill-box;
   transform-origin: center bottom;
   will-change: opacity, transform;
-  animation-duration: var(--stacks-boot-reveal-duration),
-    var(--stacks-boot-wave-intro-duration), var(--stacks-boot-wave-duration);
-  animation-delay: 0s, var(--stacks-boot-reveal-duration),
-    calc(
-      var(--stacks-boot-reveal-duration) +
-        var(--stacks-boot-wave-intro-duration)
-    );
-  animation-timing-function: linear, cubic-bezier(0.45, 0, 0.55, 1), linear;
-  animation-iteration-count: 1, 1, infinite;
-  animation-fill-mode: forwards, forwards, none;
+  animation-duration: var(--stacks-boot-reveal-duration);
+  animation-timing-function: linear;
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
 }
 
 /* The per-item keyframes are server-rendered with the SVG, so this compositor
    sequence starts before hydration and stays smooth independently of WebGL.
-   Each item reveals once; after the complete shelf is present, the second
-   timeline establishes a three-item window and the third slides that window
-   left→right across the top shelf, then left→right across the lower shelf.
-   Once mounted, JavaScript only observes the timelines to coordinate the
-   handoff; it never paints a frame, replaces the animation, or changes speed. */
+   Each item reveals once and then remains fully visible. JavaScript only
+   observes the timelines to coordinate the handoff; it never paints a frame,
+   replaces the animation, or changes speed. */
 
 .stacks-boot-frame {
   fill: var(--stacks-boot-frame);
@@ -1783,10 +1689,6 @@ html[data-world] [contenteditable="true"] {
     will-change: auto;
   }
 
-  .stacks-boot-wait {
-    animation: stacks-boot-wait-reduced 1ms step-end 3s forwards;
-  }
-
   .stacks-boot-wait-notes,
   .stacks-boot-motes {
     display: none;
@@ -1794,13 +1696,6 @@ html[data-world] [contenteditable="true"] {
 
   .stacks-boot-wait-dot {
     animation: none;
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes stacks-boot-wait-reduced {
-  to {
     opacity: 1;
     transform: none;
   }

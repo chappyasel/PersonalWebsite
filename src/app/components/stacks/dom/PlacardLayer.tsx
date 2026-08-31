@@ -979,6 +979,7 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
   setDismissed: (dismissed: boolean) => void;
 }) {
   const modalOpen = useStacks((s) => s.modalOpen);
+  const bookModalReturning = useStacks((s) => s.bookModalReturning);
   const artifactHandoffPhase = useStacks(
     (s) => s.modelArtifactHandoff?.phase ?? null,
   );
@@ -1149,10 +1150,12 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
   const artifactReturning =
     artifactHandoffPhase === "crossfading-out" ||
     artifactHandoffPhase === "returning";
+  const artifactPreviewOpen = artifactHandoffPhase !== null;
+  const overlayReturning = artifactReturning || bookModalReturning;
   const hidden = mobileSheetHidden({
     dismissed,
     modalOpen,
-    artifactReturning,
+    artifactReturning: overlayReturning,
   });
   // The sheet may be visible behind the outgoing viewer, but the modal keeps
   // ownership of input until its return animation has fully completed.
@@ -1225,7 +1228,12 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
       travel.stop();
     };
   }, [active, chipActive, chipOpacity, chipVisibility, chipY, reduceMotion]);
-  const pose = expanded && !modalOpen ? "expanded" : hidden ? "hidden" : "peek";
+  const pose =
+    expanded && (!modalOpen || overlayReturning)
+      ? "expanded"
+      : hidden
+        ? "hidden"
+        : "peek";
   const restY = mobileSheetRestY(pose, renderedHeight, peek);
   const restRef = useRef(restY);
   restRef.current = restY;
@@ -1247,9 +1255,11 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
       parkSheet(false);
       if (pose === "hidden") {
         const travel = animate(y, restRef.current, SHEET_SPRING);
-        if (modalOpen) {
+        if (modalOpen && !artifactPreviewOpen) {
           // The modal owns the whole viewport. There is no sheet-to-chip
-          // handoff to show, so retire the sheet immediately behind it.
+          // handoff to show, so retire the sheet immediately behind it. An
+          // artifact preview keeps its handoff phase and uses the animated
+          // branch below so the visible sheet does not blink away on tap.
           sheetOpacity.set(0);
           parkSheet(true);
           return () => travel.stop();
@@ -1281,6 +1291,7 @@ const MobileUnitPanel = memo(function MobileUnitPanel({
     }
   }, [
     metrics,
+    artifactPreviewOpen,
     modalOpen,
     parkSheet,
     pose,

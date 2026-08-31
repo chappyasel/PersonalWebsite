@@ -30,16 +30,10 @@ function sizing(size: SheetControlSize) {
 }
 
 function iconSize(size: SheetControlSize) {
-  return size === "compact" ? 16 : 20;
+  return size === "compact" ? 15 : 18;
 }
 
-function Labelled({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
+function Labelled({ label, children }: { label: string; children: ReactNode }) {
   return (
     <TooltipProvider>
       <Tooltip delayDuration={200}>

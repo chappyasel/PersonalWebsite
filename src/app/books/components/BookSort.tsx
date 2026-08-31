@@ -8,7 +8,7 @@ import {
 } from "../lib/sort";
 import {
   BookOpenTextIcon,
-  CalendarIcon,
+  CalendarBlankIcon,
   ClockIcon,
   HeadphonesIcon,
   SortAscendingIcon,
@@ -39,7 +39,7 @@ const SORT_OPTIONS: {
   { field: "finished", label: "Read Date", icon: ClockIcon },
   { field: "title", label: "Title", icon: TextAaIcon },
   { field: "rating", label: "Rating", icon: StarIcon },
-  { field: "publicationYear", label: "Published", icon: CalendarIcon },
+  { field: "publicationYear", label: "Published", icon: CalendarBlankIcon },
   { field: "runtime", label: "Runtime", icon: HeadphonesIcon },
   { field: "pageCount", label: "Pages", icon: BookOpenTextIcon },
 ];

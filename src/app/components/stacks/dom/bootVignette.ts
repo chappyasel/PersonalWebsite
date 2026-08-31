@@ -14,9 +14,6 @@ import { proxied } from "../theme";
 export const SCENE_TO_BOOT_SVG = 100;
 export const BOOT_CADENCE_STEP_SECONDS = 0.12;
 export const BOOT_CADENCE_SETTLE_SECONDS = 0.32;
-export const BOOT_WAVE_INTRO_SECONDS = 0.36;
-export const BOOT_WAVE_DURATION_SECONDS = 3.6;
-const BOOT_WAVE_MIN_OPACITY = 0.18;
 
 export function projectSceneY(sceneY: number) {
   return -sceneY * SCENE_TO_BOOT_SVG;
@@ -32,7 +29,6 @@ export function bootCadence(itemCount: number) {
       (_, index) => index * BOOT_CADENCE_STEP_SECONDS,
     ),
     revealDuration,
-    waveDuration: BOOT_WAVE_DURATION_SECONDS,
   };
 }
 
@@ -196,47 +192,6 @@ export function bootItemKeyframes(
   ];
 }
 
-/** The exact contiguous window at a wave step. The visible composition is
- * authored top-shelf left→right, then lower-shelf left→right, so incrementing
- * the step produces that same visible route. */
-export function bootWaveWindow(step: number, itemCount: number): number[] {
-  if (itemCount <= 0) return [];
-  const width = Math.max(1, Math.round(itemCount / 4));
-  const start = ((step % itemCount) + itemCount) % itemCount;
-  return Array.from(
-    { length: width },
-    (_, offset) => (start + offset) % itemCount,
-  );
-}
-
-/** Smoothly establishes the first window after every object has appeared. */
-export function bootWaveIntroKeyframes(
-  index: number,
-  itemCount: number,
-): Keyframe[] {
-  const dimmed = bootWaveWindow(0, itemCount).includes(index);
-  return [
-    { opacity: 1, offset: 0 },
-    { opacity: dimmed ? BOOT_WAVE_MIN_OPACITY : 1, offset: 1 },
-  ];
-}
-
-/** After the one-shot reveal and intro, a fixed-width window advances one
- * landmark per step. CSS interpolates between steps, fading the outgoing
- * landmark in while the next one fades out. */
-export function bootWaveKeyframes(
-  index: number,
-  itemCount: number,
-): Keyframe[] {
-  if (itemCount <= 0) return [];
-  return Array.from({ length: itemCount + 1 }, (_, step) => ({
-    opacity: bootWaveWindow(step, itemCount).includes(index)
-      ? BOOT_WAVE_MIN_OPACITY
-      : 1,
-    offset: step / itemCount,
-  }));
-}
-
 function cssKeyframes(name: string, frames: Keyframe[]) {
   const body = frames
     .map(({ offset, opacity, transform, easing }) => {
@@ -258,20 +213,10 @@ export function bootCssKeyframes(
   cadence: ReturnType<typeof bootCadence>,
 ) {
   return Array.from({ length: itemCount }, (_, index) => {
-    return [
-      cssKeyframes(
-        `stacks-boot-reveal-${index}`,
-        bootItemKeyframes(index, cadence),
-      ),
-      cssKeyframes(
-        `stacks-boot-wave-intro-${index}`,
-        bootWaveIntroKeyframes(index, itemCount),
-      ),
-      cssKeyframes(
-        `stacks-boot-wave-${index}`,
-        bootWaveKeyframes(index, itemCount),
-      ),
-    ].join("");
+    return cssKeyframes(
+      `stacks-boot-reveal-${index}`,
+      bootItemKeyframes(index, cadence),
+    );
   }).join("");
 }
 

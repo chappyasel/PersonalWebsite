@@ -19,6 +19,10 @@ const inspector = fs.readFileSync(
   new URL("./modal/SceneArtifactInspector.tsx", import.meta.url),
   "utf8",
 );
+const progressivePreviewImage = fs.readFileSync(
+  new URL("./modal/ProgressivePreviewImage.tsx", import.meta.url),
+  "utf8",
+);
 const cards = fs.readFileSync(
   new URL("./scene/units/TrainingFigureCards.tsx", import.meta.url),
   "utf8",
@@ -133,6 +137,15 @@ describe("Scene artifact inspector", () => {
     ).toBe(true);
   });
 
+  it("keeps the decoded shelf portrait under its master during preview", () => {
+    expect(sceneArtifactById("about-profile-full-v8")).toMatchObject({
+      image: "/images/stacks/v8/about-profile-full.webp",
+      previewImage: "/images/stacks/v8/512/about-profile-full.webp",
+    });
+    expect(inspector).toContain("<ProgressivePreviewImage");
+    expect(inspector).toContain("frame.previewSrc ?? entry.previewImage");
+  });
+
   it("catalogs every presented photograph in a room-local collection", () => {
     expect(SCENE_PHOTOS).toHaveLength(30);
     expect(
@@ -199,9 +212,15 @@ describe("Scene artifact inspector", () => {
     expect(inspector).toContain("render: ({ attrs }) => (");
     expect(inspector).toContain("<PreviewPrint");
     // The open starts from the print's rendered pose (roll, yaw,
-    // perspective), eased back to identity on the viewer's own clock.
+    // perspective), with projected-corner keyframes preserving its plane.
     expect(inspector).toContain("artifactPreviewPoseTransform(fitted, origin,");
-    expect(inspector).toContain("node.style.transform = pose");
+    expect(inspector).toContain("artifactPreviewPoseKeyframes(fitted, origin,");
+    expect(inspector).toContain("previewOriginSession?.returnOrigins.get(");
+    expect(inspector).toContain("closingPoseKeyframes={closingPoseKeyframes}");
+    expect(inspector).toContain("node.animate([...frames]");
+    expect(inspector).toMatch(
+      /node\.style\.transform = "";\s*animation\.cancel\(\);/m,
+    );
     expect(globalStyles).toContain("[data-scene-artifact-preview-edge]");
     expect(globalStyles).toContain(
       '[data-scene-artifact-preview-edge-finish="gilt"]',
@@ -210,32 +229,28 @@ describe("Scene artifact inspector", () => {
       '[data-scene-artifact-preview-accent="eyelet"]',
     );
     expect(globalStyles).toContain("feTurbulence");
-    // The room's lighting rides the preview: solid through the swap, then
-    // eased off to the true photo. Measured per print — one constant per
-    // theme pointed the wrong way for prints the room renders BRIGHTER than
-    // their file — so the tint is a multiply layer and the scalar, which can
-    // exceed 1, is a filter the CSS custom property carries.
-    expect(inspector).toContain("useArtifactShadeSamples");
-    expect(inspector).toContain("artifactPreviewShade(shadeSamples.get(");
-    expect(inspector).toContain("--stacks-preview-shade-filter");
-    expect(inspector).toContain("data-scene-artifact-preview-shade");
-    expect(inspector).toContain("data-scene-artifact-preview-photo");
-    expect(inspector).toContain('mixBlendMode: "multiply"');
-    expect(inspector).toContain('isolation: "isolate"');
-    expect(globalStyles).toContain("[data-scene-artifact-preview-shade]");
-    expect(inspector).toContain('loading="eager"');
-    expect(inspector).toContain('decoding="sync"');
-    expect(inspector).toContain("@next/next/no-img-element");
+    // The moving DOM photo remains in its source color. A covered opacity
+    // handoff replaces the live WebGL-to-CSS tint estimate, which could
+    // publish a different grade one frame after the preview mounted.
+    expect(inspector).not.toContain("useArtifactShadeSamples");
+    expect(inspector).not.toContain("artifactPreviewShade(");
+    expect(inspector).not.toContain("--stacks-preview-shade-filter");
+    expect(inspector).not.toContain("data-scene-artifact-preview-shade");
+    expect(progressivePreviewImage).toContain(
+      "data-scene-artifact-preview-photo",
+    );
+    expect(inspector).not.toContain('mixBlendMode: "multiply"');
+    expect(progressivePreviewImage).toContain('loading="eager"');
+    expect(progressivePreviewImage).toContain('decoding="sync"');
+    expect(progressivePreviewImage).toContain("@next/next/no-img-element");
     expect(inspector).toContain("data-scene-artifact-preview-closing");
     expect(inspector).toContain("data-scene-artifact-preview-opening");
-    expect(globalStyles).toContain(
-      "@keyframes stacks-artifact-preview-fade-in",
-    );
-    expect(globalStyles).toContain(
+    expect(inspector).toContain("imagePreviewClosing = !selectedId");
+    expect(inspector).toContain("closing={imagePreviewClosing}");
+    expect(globalStyles).toContain("stacks-artifact-preview-cover-in");
+    expect(globalStyles).toContain("stacks-artifact-preview-cover-out");
+    expect(globalStyles).not.toContain(
       "@keyframes stacks-artifact-preview-fade-out",
-    );
-    expect(globalStyles).toContain(
-      "animation: stacks-artifact-preview-fade-out 360ms linear both",
     );
     expect(globalStyles).toContain(
       "@keyframes stacks-artifact-preview-mask-in",
@@ -251,8 +266,8 @@ describe("Scene artifact inspector", () => {
     expect(globalStyles).toContain("backdrop-filter: blur(1px)");
     expect(globalStyles).toContain(".stacks-artifact-preview-print {");
     expect(globalStyles).toContain("box-shadow:");
-    expect(globalStyles).toContain("30% {");
-    expect(globalStyles).toContain("70%,");
+    expect(globalStyles).toContain("28% {");
+    expect(globalStyles).toContain("50%,");
     expect(globalStyles).toContain("[data-scene-artifact-preview-opening]");
     expect(globalStyles).toContain("opacity: 1 !important");
     expect(inspector).toContain("data-scene-artifact-preview-origin");
@@ -264,9 +279,14 @@ describe("Scene artifact inspector", () => {
     expect(inspector).toContain("{index + 1} / {total}");
     expect(inspector).toContain("selectSceneArtifact(next.id)");
     expect(inspector).toContain("photoClosable={false}");
+    expect(inspector).toContain("<ImagePreviewOverlay");
+    expect(inspector).toContain("artifactPreviewShouldDismissOnRelease");
+    expect(inspector).toContain(
+      'window.addEventListener("pointerup", finishPointer, true)',
+    );
     expect(inspector).toContain("maskOpacity={null}");
     expect(inspector).toContain("stacks-photo-preview-mask--blurred");
-    expect(inspector).toContain("backdrop-blur-xl");
+    expect(inspector).toContain("world-glass-control");
     expect(inspector).not.toContain("bg-black/50");
     expect(inspector.match(/sm:size-10/g)).toHaveLength(3);
     expect(inspector).toContain("min-h-11");
@@ -375,11 +395,15 @@ describe("Scene artifact inspector", () => {
     expect(inspector).toContain('"stacks-artifact-preview",');
     expect(globalStyles).not.toContain("animation: none !important");
     expect(grabbable).toContain("target.sourceBounds ? 0");
-    // The image handoff is a stagger, not a crossfade: the physical print
-    // leaves only through its own late window, under an already-solid DOM.
+    // The image handoff is covered: the DOM fades over a solid physical print,
+    // which leaves only after the DOM has reached full opacity.
     expect(grabbable).toContain("artifactPreviewRamp");
     expect(grabbable).toContain("ARTIFACT_PREVIEW_SOURCE_OUT_START");
+    expect(grabbable).toContain("ARTIFACT_PREVIEW_SOURCE_IN_START");
     expect(grabbable).toContain("ARTIFACT_PREVIEW_CROSSFADE_START");
+    expect(grabbable).toContain("stageSceneArtifactPreviewReturnOrigin");
+    expect(grabbable).toContain("n.quaternion.identity()");
+    expect(grabbable).toContain("nextArtifactPreviewTargetCorrection");
     expect(grabbable).toContain("artifactHandoffTravelElapsed.current /");
     expect(grabbable).not.toContain(
       'const modelHandoff =\n      artifactEntry?.kind === "model"',

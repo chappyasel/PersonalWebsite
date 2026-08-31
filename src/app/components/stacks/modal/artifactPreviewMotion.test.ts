@@ -6,6 +6,8 @@ import {
   ARTIFACT_CAROUSEL_EASING,
   ARTIFACT_PREVIEW_CROSSFADE_END,
   ARTIFACT_PREVIEW_CROSSFADE_START,
+  ARTIFACT_PREVIEW_DETAIL_IN_START,
+  ARTIFACT_PREVIEW_DETAIL_OUT_START,
   ARTIFACT_PREVIEW_DOM_IN_END,
   ARTIFACT_PREVIEW_DOM_IN_START,
   ARTIFACT_PREVIEW_DOM_OUT_END,
@@ -13,23 +15,30 @@ import {
   ARTIFACT_PREVIEW_DURATION_MS,
   ARTIFACT_PREVIEW_EASING,
   ARTIFACT_PREVIEW_SOURCE_IN_END,
+  ARTIFACT_PREVIEW_SOURCE_IN_START,
   ARTIFACT_PREVIEW_SOURCE_OUT_END,
   ARTIFACT_PREVIEW_SOURCE_OUT_START,
   artifactPreviewCrossfade,
   artifactPreviewDuration,
   artifactPreviewEase,
   artifactPreviewEasing,
+  artifactPreviewPhysicalTravel,
   artifactPreviewRamp,
 } from "./artifactPreviewMotion";
 
 describe("artifact preview motion", () => {
   it("uses one timing contract for the DOM and physical handoffs", () => {
-    expect(ARTIFACT_PREVIEW_DURATION_MS).toBe(360);
-    expect(ARTIFACT_PREVIEW_EASING).toBe("cubic-bezier(0.16, 1, 0.3, 1)");
+    expect(ARTIFACT_PREVIEW_DURATION_MS).toBe(420);
+    expect(ARTIFACT_PREVIEW_EASING).toBe("cubic-bezier(0.4, 0, 0.2, 1)");
     expect(artifactPreviewEase(0)).toBe(0);
     expect(artifactPreviewEase(1)).toBe(1);
-    expect(artifactPreviewEase(0.25)).toBeCloseTo(0.826, 3);
-    expect(artifactPreviewEase(0.5)).toBeCloseTo(0.972, 3);
+    expect(artifactPreviewEase(0.25)).toBeCloseTo(0.237, 3);
+    expect(artifactPreviewEase(0.5)).toBeCloseTo(0.776, 3);
+    // At 30 fps the first captured interval must not consume a visible chunk
+    // of the flight. The old ease-out covered 55% here and looked like a cut.
+    expect(
+      artifactPreviewEase(1000 / 30 / ARTIFACT_PREVIEW_DURATION_MS),
+    ).toBeLessThan(0.05);
   });
 
   it("gives arrow navigation a visible horizontal transition", () => {
@@ -41,10 +50,10 @@ describe("artifact preview motion", () => {
     expect(artifactPreviewEasing(2)).toBe(ARTIFACT_PREVIEW_EASING);
   });
 
-  it("keeps both ends solid and crossfades only from 30 to 70 percent", () => {
-    expect(ARTIFACT_PREVIEW_CROSSFADE_START).toBe(0.3);
-    expect(ARTIFACT_PREVIEW_CROSSFADE_END).toBe(0.7);
-    const samples = [0, 0.29, 0.3, 0.5, 0.7, 0.71, 1].map(
+  it("hands the visible flight to the DOM near the captured origin", () => {
+    expect(ARTIFACT_PREVIEW_CROSSFADE_START).toBe(0.02);
+    expect(ARTIFACT_PREVIEW_CROSSFADE_END).toBe(0.12);
+    const samples = [0, 0.01, 0.02, 0.07, 0.12, 0.13, 1].map(
       artifactPreviewCrossfade,
     );
     [0, 0, 0, 0.5, 1, 1, 1].forEach((expected, index) =>
@@ -52,60 +61,50 @@ describe("artifact preview motion", () => {
     );
   });
 
-  it("staggers the image handoff so one layer is always fully opaque", () => {
-    // The DOM print must be solid before the physical print starts to leave;
-    // otherwise the swap dips below full coverage and reads as a flicker.
-    expect(ARTIFACT_PREVIEW_DOM_IN_START).toBeLessThan(
-      ARTIFACT_PREVIEW_DOM_IN_END,
-    );
-    expect(ARTIFACT_PREVIEW_DOM_IN_END).toBeLessThanOrEqual(
-      ARTIFACT_PREVIEW_SOURCE_OUT_START,
-    );
+  it("retires the physical source only after the DOM copy covers it", () => {
+    expect(ARTIFACT_PREVIEW_DOM_IN_START).toBe(0.3);
+    expect(ARTIFACT_PREVIEW_DOM_IN_END).toBe(0.46);
+    expect(ARTIFACT_PREVIEW_SOURCE_OUT_START).toBe(ARTIFACT_PREVIEW_DOM_IN_END);
     expect(ARTIFACT_PREVIEW_SOURCE_OUT_START).toBeLessThan(
       ARTIFACT_PREVIEW_SOURCE_OUT_END,
     );
-    expect(ARTIFACT_PREVIEW_SOURCE_OUT_END).toBeLessThanOrEqual(1);
+    expect(ARTIFACT_PREVIEW_SOURCE_OUT_END).toBe(0.58);
 
     expect(artifactPreviewRamp(0.5, 0.3, 0.7)).toBeCloseTo(0.5);
     expect(artifactPreviewRamp(-1, 0.3, 0.7)).toBe(0);
     expect(artifactPreviewRamp(2, 0.3, 0.7)).toBe(1);
   });
 
-  it("mirrors the CSS keyframes onto the stagger windows", () => {
-    // globals.css writes the DOM windows as keyframe percentages; they must
-    // track these constants or the two layers drift apart.
+  it("crossfades over an opaque physical source without a transparent gap", () => {
     const styles = fs.readFileSync(
       new URL("../../../../styles/globals.css", import.meta.url),
       "utf8",
     );
-    const fadeIn =
-      /@keyframes stacks-artifact-preview-fade-in\s*\{\s*from,\s*(\d+)%\s*\{\s*opacity: 0;\s*\}\s*(\d+)%,/m.exec(
-        styles,
-      );
-    expect(fadeIn?.[1]).toBe(String(ARTIFACT_PREVIEW_DOM_IN_START * 100));
-    expect(fadeIn?.[2]).toBe(String(ARTIFACT_PREVIEW_DOM_IN_END * 100));
-    // The close is NOT the open mirrored. Only the physical print can
-    // rotate; the clone can only scale, so the clone leaves early and the
-    // room plays the rest.
-    const fadeOut =
-      /@keyframes stacks-artifact-preview-fade-out\s*\{\s*from,\s*(\d+)%\s*\{\s*opacity: 1;\s*\}\s*(\d+)%,/m.exec(
-        styles,
-      );
-    expect(fadeOut?.[1]).toBe(String(ARTIFACT_PREVIEW_DOM_OUT_START * 100));
-    expect(fadeOut?.[2]).toBe(String(ARTIFACT_PREVIEW_DOM_OUT_END * 100));
+    expect(styles).toContain("@keyframes stacks-artifact-preview-cover-in");
+    expect(styles).toContain("30% {");
+    expect(styles).toContain("46%,");
+    expect(ARTIFACT_PREVIEW_SOURCE_IN_START).toBe(0.42);
+    expect(ARTIFACT_PREVIEW_SOURCE_IN_END).toBe(0.54);
+    expect(ARTIFACT_PREVIEW_DOM_OUT_START).toBe(ARTIFACT_PREVIEW_SOURCE_IN_END);
+    expect(ARTIFACT_PREVIEW_DOM_OUT_END).toBe(0.7);
+    expect(styles).toContain("@keyframes stacks-artifact-preview-cover-out");
+    expect(styles).toContain("54% {");
+    expect(styles).toContain("70%,");
   });
 
-  it("gives the close back to the room before the clone leaves", () => {
-    // The physical print must be solid BEFORE the clone starts fading, or the
-    // swap dips through a gap; and the clone must be gone early enough that
-    // the visitor watches the real print rotate rather than a flat scale.
-    expect(ARTIFACT_PREVIEW_SOURCE_IN_END).toBeLessThan(
-      ARTIFACT_PREVIEW_DOM_OUT_START,
-    );
-    expect(ARTIFACT_PREVIEW_DOM_OUT_START).toBeLessThan(
-      ARTIFACT_PREVIEW_DOM_OUT_END,
-    );
-    // Most of the close belongs to the room.
-    expect(ARTIFACT_PREVIEW_DOM_OUT_END).toBeLessThan(0.35);
+  it("keeps both geometry solvers on the same motion clock", () => {
+    expect(artifactPreviewPhysicalTravel(0, false)).toBe(0);
+    expect(artifactPreviewPhysicalTravel(0.5, false)).toBe(0.5);
+    expect(artifactPreviewPhysicalTravel(1, false)).toBe(1);
+    expect(artifactPreviewPhysicalTravel(0.5, true)).toBe(0.5);
+  });
+
+  it("places the resolution swap in the middle of each flight", () => {
+    expect(ARTIFACT_PREVIEW_DETAIL_IN_START).toBe(0.42);
+    expect(ARTIFACT_PREVIEW_DETAIL_OUT_START).toBe(0.32);
+    expect(ARTIFACT_PREVIEW_DETAIL_IN_START).toBeGreaterThan(0.3);
+    expect(ARTIFACT_PREVIEW_DETAIL_IN_START).toBeLessThan(0.6);
+    expect(ARTIFACT_PREVIEW_DETAIL_OUT_START).toBeGreaterThan(0.2);
+    expect(ARTIFACT_PREVIEW_DETAIL_OUT_START).toBeLessThan(0.5);
   });
 });

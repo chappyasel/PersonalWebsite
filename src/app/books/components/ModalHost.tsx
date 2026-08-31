@@ -15,6 +15,8 @@ export type ModalPresentation = {
   booksHref: string;
   /** Same source-of-truth count shown by the standalone detail breadcrumb. */
   bookCount: number;
+  /** Lets the 3D homepage prepare its frozen room before modal teardown. */
+  onCloseStart?: () => void;
 };
 
 export function ModalHost({

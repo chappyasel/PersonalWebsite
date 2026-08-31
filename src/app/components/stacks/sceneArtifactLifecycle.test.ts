@@ -23,6 +23,7 @@ import {
   sceneArtifactFromHistoryState,
   sceneArtifactPreviewOriginSessionMatchesViewport,
   selectSceneArtifact,
+  stageSceneArtifactPreviewReturnOrigin,
 } from "./sceneArtifactState";
 import { MODEL_ARTIFACT_PREVIEWS_ENABLED } from "./sceneArtifacts";
 import { useStacks } from "./store";
@@ -211,6 +212,41 @@ describe("scene artifact lifecycle", () => {
     releaseFamily();
     beginSceneArtifactPreviewOriginSession("portrait");
     expect(readSceneArtifactPreviewOriginSession()?.origins.size).toBe(0);
+  });
+
+  it("keeps a settled shelf destination separate from the hover-lifted origin", () => {
+    stubWindow();
+    const camera = new PerspectiveCamera(50, 1, 0.1, 100);
+    camera.position.z = 5;
+    camera.lookAt(0, 0, 0);
+    camera.updateMatrixWorld(true);
+    setInteractionProjectionContext(camera, {
+      getBoundingClientRect: () => viewport,
+    } as HTMLElement);
+    const release = registerSceneInteraction({
+      id: "grab:photo:portrait",
+      root: photoRoot(-1),
+      activeUnits: [0],
+    });
+    const settled = {
+      left: 62,
+      top: 64,
+      width: 18,
+      height: 18,
+      quad: [
+        [62, 64],
+        [80, 64],
+        [80, 82],
+        [62, 82],
+      ],
+    } as const;
+    stageSceneArtifactPreviewReturnOrigin("portrait", settled);
+
+    beginSceneArtifactPreviewOriginSession("portrait");
+    const session = readSceneArtifactPreviewOriginSession();
+    expect(session?.origins.get("portrait")?.left).not.toBe(settled.left);
+    expect(session?.returnOrigins.get("portrait")).toMatchObject(settled);
+    release();
   });
 
   it("keeps the board origin after the live photo moves into preview", () => {

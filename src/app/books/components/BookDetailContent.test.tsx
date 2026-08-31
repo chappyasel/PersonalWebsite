@@ -1,9 +1,15 @@
+import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import type { BaseBook } from "~/lib/books/types";
 
 import { BookDetailContent } from "./BookDetailContent";
+
+const detailSource = readFileSync(
+  new URL("./BookDetailContent.tsx", import.meta.url),
+  "utf8",
+);
 
 vi.mock("~/lib/analytics", () => ({
   capture: vi.fn(),
@@ -33,13 +39,13 @@ const CURRENT_BOOK_WITHOUT_NOTES: BaseBook = {
   notionUrl: "https://www.notion.so/children-of-time",
 };
 
-function renderCurrentBook(isModal: boolean) {
+function renderCurrentBook(isModal: boolean, copied = false) {
   return renderToStaticMarkup(
     <BookDetailContent
       book={CURRENT_BOOK_WITHOUT_NOTES}
       isLoadingNotes={false}
       onShare={vi.fn()}
-      copied={false}
+      copied={copied}
       bookId={CURRENT_BOOK_WITHOUT_NOTES.id}
       isModal={isModal}
     />,
@@ -47,11 +53,78 @@ function renderCurrentBook(isModal: boolean) {
 }
 
 describe("BookDetailContent note availability", () => {
+  it("keeps the standalone breadcrumb in the same visual order as the external one", () => {
+    const markup = renderToStaticMarkup(
+      <BookDetailContent
+        book={CURRENT_BOOK_WITHOUT_NOTES}
+        isLoadingNotes={false}
+        onShare={vi.fn()}
+        copied={false}
+        bookId={CURRENT_BOOK_WITHOUT_NOTES.id}
+        bookshelfBookCount={322}
+      />,
+    );
+
+    expect(markup).toMatch(
+      /aria-label="Breadcrumb"[\s\S]*?<a[^>]*><svg[\s\S]*?Chappy&#x27;s Book Notes[\s\S]*?·[\s\S]*?322 books[\s\S]*?<svg/,
+    );
+    expect(markup).not.toContain('class="text-border">/</li>');
+    expect(markup).toContain("text-muted-foreground/70");
+  });
+
+  it("uses an up-right arrow for both breadcrumb destinations", () => {
+    expect(detailSource).not.toContain("ArrowLeftIcon");
+    expect(detailSource.match(/<ArrowUpRightIcon/g)).toHaveLength(2);
+  });
+
   it("uses the wider content rail for the header, metadata, and notes", () => {
     const markup = renderCurrentBook(true);
 
     expect(markup.match(/max-w-4xl/g)).toHaveLength(3);
     expect(markup).not.toContain("max-w-3xl");
+  });
+
+  it("separates quiet fact labels from readable values in both layouts", () => {
+    const markup = renderCurrentBook(false);
+    const ratedMarkup = renderToStaticMarkup(
+      <BookDetailContent
+        book={{ ...CURRENT_BOOK_WITHOUT_NOTES, rating: 4 }}
+        isLoadingNotes={false}
+        onShare={vi.fn()}
+        copied={false}
+        bookId={CURRENT_BOOK_WITHOUT_NOTES.id}
+      />,
+    );
+
+    expect(detailSource.match(/<BookFacts book=\{book\} \/>/g)).toHaveLength(2);
+    expect(markup).toContain("data-book-facts");
+    expect(markup).toContain('data-book-fact="published"');
+    expect(markup).toMatch(
+      /data-book-fact="length"[\s\S]*?aria-hidden="true" class="text-muted-foreground\/40">·<\/span>/,
+    );
+    expect(markup).toMatch(
+      /<dt[^>]*>Published<\/dt>[\s\S]*?<dd[^>]*>2015<\/dd>/,
+    );
+    expect(markup).not.toContain("Published:");
+    expect(markup).toContain('aria-label="Book actions"');
+    expect(markup).toContain("grid-cols-[1.125rem_5rem_minmax(0,1fr)]");
+    expect(markup).toContain("w-fit min-w-0 max-w-full justify-self-start");
+    expect(markup).not.toContain("md:grid-cols-3");
+    expect(ratedMarkup.indexOf("data-book-facts")).toBeLessThan(
+      ratedMarkup.indexOf("out of 5 stars"),
+    );
+  });
+
+  it("collapses desktop metadata from the bottom upward", () => {
+    expect(detailSource).toMatch(
+      /const factsOpacity = useTransform\([\s\S]*?\[0\.34, 0\.54\]/,
+    );
+    expect(detailSource).toMatch(
+      /const ratingOpacity = useTransform\([\s\S]*?\[0\.22, 0\.4\]/,
+    );
+    expect(
+      detailSource.indexOf("style={{ opacity: factsOpacity }}"),
+    ).toBeLessThan(detailSource.indexOf("style={{ opacity: ratingOpacity }}"));
   });
 
   it.each([
@@ -67,6 +140,16 @@ describe("BookDetailContent note availability", () => {
       );
     },
   );
+
+  it("confirms a copied link with the Books green check treatment", () => {
+    const markup = renderCurrentBook(false, true);
+
+    expect(markup).toContain('aria-label="Link copied"');
+    expect(markup).toContain("bg-emerald-500/10");
+    expect(markup).toContain("min-w-[4.25rem]");
+    expect(markup).toContain(">Copied</span>");
+    expect(detailSource).toContain('<CheckIcon size={14} weight="bold" />');
+  });
 
   it.each([
     ["full page", false],

@@ -15,6 +15,7 @@ export type SceneDiagnosticsReloadSeed = Partial<
     | "colorGrade"
     | "meadow"
     | "highResolutionPhotos"
+    | "prewarmAllUnitVisuals"
     | "skipDepthOfField"
   >
 > &
@@ -31,6 +32,9 @@ export function diagnosticReloadSeedFromSearch(
     ...(params.has("nograde") ? { colorGrade: false } : {}),
     ...(params.has("nomeadow") ? { meadow: false } : {}),
     ...(params.get("hdPhotos") === "0" ? { highResolutionPhotos: false } : {}),
+    ...(params.get("prewarmAll") === "0"
+      ? { prewarmAllUnitVisuals: false }
+      : {}),
     ...(params.has("nodof") ? { skipDepthOfField: true } : {}),
     ...(params.get("grassDeformation") === "off"
       ? { grassDeformation: false }

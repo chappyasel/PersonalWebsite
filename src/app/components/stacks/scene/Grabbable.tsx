@@ -43,12 +43,22 @@ import {
   ARTIFACT_PREVIEW_CROSSFADE_START,
   ARTIFACT_PREVIEW_DURATION_MS,
   ARTIFACT_PREVIEW_SOURCE_IN_END,
+  ARTIFACT_PREVIEW_SOURCE_IN_START,
   ARTIFACT_PREVIEW_SOURCE_OUT_END,
   ARTIFACT_PREVIEW_SOURCE_OUT_START,
   artifactPreviewEase,
+  artifactPreviewPhysicalTravel,
   artifactPreviewRamp,
 } from "../modal/artifactPreviewMotion";
-import { openSceneArtifact } from "../sceneArtifactState";
+import {
+  type ArtifactPreviewTargetCorrection,
+  IDENTITY_ARTIFACT_PREVIEW_TARGET_CORRECTION,
+  nextArtifactPreviewTargetCorrection,
+} from "../modal/artifactPreviewTargetCorrection";
+import {
+  openSceneArtifact,
+  stageSceneArtifactPreviewReturnOrigin,
+} from "../sceneArtifactState";
 import { type SceneArtifactId, sceneArtifactById } from "../sceneArtifacts";
 import { useStacks } from "../store";
 import { type ThreeEvent, useThree } from "@react-three/fiber";
@@ -69,8 +79,6 @@ import {
 } from "./PhysicsSceneProvider";
 import { artifactFaceCameraFrame } from "./artifactFacePose";
 import { SceneArtifactIdContext } from "./artifactPreviewFrames";
-import { probeArtifactShade } from "./artifactShadeProbe";
-import { publishArtifactShadeSample } from "./artifactShadeSamples";
 import { registerHittableBall, tapHittableBall } from "./golf/hittableBalls";
 import { grabbablePhysicsEnabled } from "./grabbablePhysics";
 import {
@@ -848,7 +856,9 @@ export default function Grabbable({
   const artifactHandoffTravelStart = useRef(0);
   const artifactHandoffTravelElapsed = useRef(0);
   const artifactHandoffOpacity = useRef(1);
-  const artifactHandoffScaleCorrection = useRef(1);
+  const artifactTargetCorrection = useRef<ArtifactPreviewTargetCorrection>(
+    IDENTITY_ARTIFACT_PREVIEW_TARGET_CORRECTION,
+  );
   const artifactHandoffStartPosition = useMemo(() => new THREE.Vector3(), []);
   const artifactHandoffStartQuaternion = useMemo(
     () => new THREE.Quaternion(),
@@ -870,6 +880,7 @@ export default function Grabbable({
   const artifactCameraPosition = useMemo(() => new THREE.Vector3(), []);
   const artifactCameraDirection = useMemo(() => new THREE.Vector3(), []);
   const artifactCameraUp = useMemo(() => new THREE.Vector3(), []);
+  const artifactCameraRight = useMemo(() => new THREE.Vector3(), []);
   const artifactTargetWorldPosition = useMemo(() => new THREE.Vector3(), []);
   const artifactTargetLocalPosition = useMemo(() => new THREE.Vector3(), []);
   const artifactCenterOffset = useMemo(() => new THREE.Vector3(), []);
@@ -990,7 +1001,6 @@ export default function Grabbable({
   const raycaster = useThree((s) => s.raycaster);
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
-  const scene = useThree((s) => s.scene);
   const pointerId = useRef<number | null>(null);
   const pickupY = useRef(base[1]);
   /** Distance the prop has actually moved during the current hold. Long Haul
@@ -1466,8 +1476,32 @@ export default function Grabbable({
   const runStationaryActivation = useCallback(() => {
     if (sceneLayoutEditorController.owns(hoverKey)) return;
     if (hittableRadius !== undefined && tapHittableBall(hoverKey)) return;
-    if (artifact) openSceneArtifact(artifact);
-    else if (onTapRef.current) onTapRef.current();
+    if (artifact) {
+      // A flat print can be substantially lifted by its hover spring when the
+      // click origin is captured. Closing should land on the shelf, not return
+      // to that transient hover pose and then perform a second drop. Project
+      // the same subtree once with only the visual nod reset; restore it before
+      // this event returns, so no rendered frame sees the temporary pose.
+      const n = nod.current;
+      if (n) {
+        const position = n.position.clone();
+        const quaternion = n.quaternion.clone();
+        const scale = n.scale.clone();
+        n.position.set(0, 0, 0);
+        n.quaternion.identity();
+        n.scale.setScalar(1);
+        n.updateWorldMatrix(true, true);
+        const settled = projectSceneInteractionRect(
+          artifactEntry?.interactionId ?? hoverKey,
+        );
+        if (settled) stageSceneArtifactPreviewReturnOrigin(artifact, settled);
+        n.position.copy(position);
+        n.quaternion.copy(quaternion);
+        n.scale.copy(scale);
+        n.updateWorldMatrix(true, true);
+      }
+      openSceneArtifact(artifact);
+    } else if (onTapRef.current) onTapRef.current();
     else if (to !== undefined) open({ to }, { portalId: hoverKey, unitIndex });
     else if (href !== undefined)
       open(
@@ -1476,6 +1510,7 @@ export default function Grabbable({
       );
   }, [
     artifact,
+    artifactEntry,
     portalLabel,
     external,
     hittableRadius,
@@ -1864,7 +1899,8 @@ export default function Grabbable({
         artifactHandoffTravelStart.current = 0;
         artifactHandoffTravelElapsed.current = 0;
         artifactHandoffOpacity.current = 1;
-        artifactHandoffScaleCorrection.current = 1;
+        artifactTargetCorrection.current =
+          IDENTITY_ARTIFACT_PREVIEW_TARGET_CORRECTION;
         artifactHandoffStartPosition.copy(g.position);
         artifactHandoffStartQuaternion.copy(g.quaternion);
         artifactHandoffStartScale.copy(g.scale);
@@ -1895,29 +1931,6 @@ export default function Grabbable({
           if (artifactHandoffWorldSize.lengthSq() > 0)
             artifactHandoffWorldSize.multiply(artifactHandoffWorldScale);
           else artifactHandoffBounds.getSize(artifactHandoffWorldSize);
-        }
-        // Measure the room's effect on THIS print before its materials are
-        // touched, while it still stands in the pose the click found it in.
-        // The preview holds the answer through the swap (see
-        // artifactShadeProbe.ts).
-        if (
-          artifactEntry &&
-          (camera as THREE.PerspectiveCamera).isPerspectiveCamera
-        ) {
-          const live = projectSceneInteractionRect(artifactEntry.interactionId);
-          publishArtifactShadeSample(
-            artifact,
-            live
-              ? probeArtifactShade({
-                  gl,
-                  scene,
-                  camera: camera as THREE.PerspectiveCamera,
-                  root: g,
-                  rect: live,
-                  viewport: gl.domElement.getBoundingClientRect(),
-                })
-              : null,
-          );
         }
         artifactHandoffMaterials.current = captureArtifactMaterials(g);
       }
@@ -1969,11 +1982,11 @@ export default function Grabbable({
           requestedDistance > 0
             ? requestedScaleFactor * (distance / requestedDistance)
             : requestedScaleFactor;
+        const correctedTargetScale =
+          targetScaleFactor * artifactTargetCorrection.current.scale;
         artifactTargetLocalScale
           .copy(artifactHandoffStartScale)
-          .multiplyScalar(
-            targetScaleFactor * artifactHandoffScaleCorrection.current,
-          );
+          .multiplyScalar(correctedTargetScale);
         artifactTargetNdc
           .set(
             ((target.bounds.left + target.bounds.width / 2 - viewport.left) /
@@ -2041,17 +2054,29 @@ export default function Grabbable({
         artifactCenterOffset
           .copy(artifactHandoffLocalCenter)
           .multiply(artifactHandoffWorldScale)
-          .multiplyScalar(
-            targetScaleFactor * artifactHandoffScaleCorrection.current,
-          )
+          .multiplyScalar(correctedTargetScale)
           .applyQuaternion(artifactTargetWorldQuaternion);
+        artifactCameraUp.set(0, 1, 0).applyQuaternion(artifactCameraQuaternion);
+        artifactCameraRight
+          .set(1, 0, 0)
+          .applyQuaternion(artifactCameraQuaternion);
+        const correctionWorldUnitsPerPixel = distance / focalPixels;
         artifactTargetWorldPosition
           .copy(artifactCameraPosition)
           .addScaledVector(artifactCameraDirection, distance)
-          .sub(artifactCenterOffset);
+          .sub(artifactCenterOffset)
+          .addScaledVector(
+            artifactCameraRight,
+            artifactTargetCorrection.current.offsetX *
+              correctionWorldUnitsPerPixel,
+          )
+          .addScaledVector(
+            artifactCameraUp,
+            -artifactTargetCorrection.current.offsetY *
+              correctionWorldUnitsPerPixel,
+          );
         artifactTargetLocalPosition.copy(artifactTargetWorldPosition);
         artifactTargetLocalQuaternion.copy(artifactTargetWorldQuaternion);
-        artifactCameraUp.set(0, 1, 0).applyQuaternion(artifactCameraQuaternion);
         artifactArcLocal.copy(artifactCameraUp);
         if (g.parent) {
           g.parent.worldToLocal(artifactTargetLocalPosition);
@@ -2071,9 +2096,8 @@ export default function Grabbable({
       if (artifactHandoff.reducedMotion) {
         artifactHandoffTravel.current = travelGoal;
       } else if (target?.sourceBounds) {
-        // The DOM image uses the same 360ms ease-out duration. Driving the
-        // physical transform from elapsed time keeps its scale and position
-        // alongside that morph instead of letting a spring lag behind it.
+        // Both paths share the balanced 420ms clock. Opacity changes only in
+        // the middle, after their motion is underway and before either lands.
         if (artifactHandoffTravelGoal.current !== travelGoal) {
           artifactHandoffTravelGoal.current = travelGoal;
           artifactHandoffTravelStart.current = artifactHandoffTravel.current;
@@ -2087,7 +2111,12 @@ export default function Grabbable({
           1,
         );
         artifactHandoffTimelineProgress = linear;
-        const eased = artifactPreviewEase(linear);
+        const eased = artifactPreviewEase(
+          artifactPreviewPhysicalTravel(
+            linear,
+            artifactHandoff.phase === "returning",
+          ),
+        );
         artifactHandoffTravel.current = THREE.MathUtils.lerp(
           artifactHandoffTravelStart.current,
           travelGoal,
@@ -2123,34 +2152,23 @@ export default function Grabbable({
           artifactTargetLocalScale,
           travel,
         );
-        // Closed-loop size match. The solve above models the print's face
-        // from a pose captured at click, and live inner poses (hover tilt
-        // easing off mid-flight) leave a few percent of error no model
-        // catches. So once the flight is mostly done, measure the print as
-        // RENDERED and damp a multiplicative correction toward the preview
-        // box; it converges while the print is still covered by the solid
-        // DOM clone, and the returning leg reuses the settled value.
-        if (
-          target.sourceBounds &&
-          artifactHandoff.phase !== "returning" &&
-          travel > 0.6 &&
-          artifactEntry
-        ) {
-          const live = projectSceneInteractionRect(artifactEntry.interactionId);
-          if (live && live.width > 1) {
-            const ratio = THREE.MathUtils.clamp(
-              target.bounds.width / live.width,
-              0.8,
-              1.25,
+      }
+
+      if (
+        target?.sourceBounds &&
+        artifactEntry &&
+        artifactHandoff.phase !== "returning" &&
+        travel > 0.995
+      ) {
+        g.updateWorldMatrix(true, true);
+        const live = projectSceneInteractionRect(artifactEntry.interactionId);
+        if (live)
+          artifactTargetCorrection.current =
+            nextArtifactPreviewTargetCorrection(
+              artifactTargetCorrection.current,
+              target.bounds,
+              live,
             );
-            artifactHandoffScaleCorrection.current = THREE.MathUtils.clamp(
-              artifactHandoffScaleCorrection.current *
-                Math.pow(ratio, Math.min(1, delta * 12)),
-              0.8,
-              1.25,
-            );
-          }
-        }
       }
 
       const opacityGoal =
@@ -2161,16 +2179,12 @@ export default function Grabbable({
       if (artifactHandoff.reducedMotion) {
         artifactHandoffOpacity.current = opacityGoal;
       } else if (target?.sourceBounds) {
-        // Staggered with the DOM print's own windows so one of the two is
-        // fully opaque at every frame (see artifactPreviewMotion.ts). The
-        // close mirrors the open's windows around the timeline's middle.
+        // Covered two-stage handoff: the arriving owner becomes fully opaque
+        // before the departing owner fades, so no frame exposes the room.
         if (artifactHandoff.phase === "returning")
-          // Straight back up, not the mirror of the open. The DOM clone
-          // cannot rotate convincingly, so the room takes the close back
-          // immediately and the visitor watches the real print turn home.
           artifactHandoffOpacity.current = artifactPreviewRamp(
             artifactHandoffTimelineProgress,
-            0,
+            ARTIFACT_PREVIEW_SOURCE_IN_START,
             ARTIFACT_PREVIEW_SOURCE_IN_END,
           );
         else if (artifactHandoff.phase === "crossfading-in")

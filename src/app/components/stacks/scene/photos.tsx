@@ -22,6 +22,7 @@ import {
   deskFrameHeight,
   deskFrameWidth,
 } from "./photoGeometry";
+import { scenePhotoUrl } from "./photoTextures";
 
 export { deskFrameHeight, deskFrameWidth } from "./photoGeometry";
 
@@ -65,7 +66,13 @@ export function DeskFrame({
 }) {
   const w = deskFrameWidth(width);
   const h = deskFrameHeight(height);
-  useRegisterArtifactPreviewFrame(width, height, DESK_FRAME_PREVIEW_LAYERS);
+  useRegisterArtifactPreviewFrame(
+    width,
+    height,
+    DESK_FRAME_PREVIEW_LAYERS,
+    undefined,
+    scenePhotoUrl(src, "feature"),
+  );
   return (
     <group>
       <RoundedBox
@@ -124,7 +131,13 @@ export function FlatPrint({
   height?: number;
 }) {
   const border = FLAT_PRINT_BORDER;
-  useRegisterArtifactPreviewFrame(width, height, FLAT_PRINT_PREVIEW_LAYERS);
+  useRegisterArtifactPreviewFrame(
+    width,
+    height,
+    FLAT_PRINT_PREVIEW_LAYERS,
+    undefined,
+    scenePhotoUrl(src, "support"),
+  );
   return (
     <group rotation={[-Math.PI / 2, 0, 0]}>
       <RoundedBox

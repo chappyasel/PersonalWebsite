@@ -1,6 +1,6 @@
+import type { ArtifactPreviewFrame } from "../modal/artifactPreviewFrame";
 import { afterEach, describe, expect, it } from "vitest";
 
-import type { ArtifactPreviewFrame } from "../modal/artifactPreviewFrame";
 import {
   ARTIFACT_PLANE_ASPECT_TOLERANCE,
   artifactPlaneAspectMismatch,
@@ -28,6 +28,17 @@ describe("artifact preview frame registry", () => {
     );
     release();
     expect(artifactPreviewFrameFor("about-collective-group-v8")).toBeNull();
+  });
+
+  it("carries the exact scene texture into the fullscreen handoff", () => {
+    const withPreview: ArtifactPreviewFrame = {
+      ...FLAT_PRINT,
+      previewSrc: "/images/stacks/v8/512/about-collective-group.webp",
+    };
+    registerArtifactPreviewFrame("about-collective-group-v8", withPreview);
+    expect(
+      artifactPreviewFrameFor("about-collective-group-v8")?.previewSrc,
+    ).toBe("/images/stacks/v8/512/about-collective-group.webp");
   });
 
   it("replaces the snapshot map on change so subscribers can compare by identity", () => {

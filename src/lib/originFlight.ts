@@ -8,15 +8,18 @@
 const KEY = "modal-flight-origin";
 const FRESH_MS = 3000;
 
-// One flight tune for every modal. Entrance/exit pair: a springy grow-in, a
-// quicker accelerating return.
+// One flight tune for every modal. The large shell gets a longer entrance,
+// then returns on the same balanced 420ms cadence as scene artifacts. A
+// return should leave cleanly and keep its geometry legible all the way into
+// the recorded origin.
 const SCALE_FLOOR = 0.08;
 const ENTRANCE_MS = 460;
 const ENTRANCE_EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
 const ENTRANCE_FROM_OPACITY = 0.3;
-const EXIT_MS = 340;
-const EXIT_EASE = "cubic-bezier(0.7, 0, 0.84, 0)";
-const EXIT_TO_OPACITY = 0.2;
+const EXIT_MS = 420;
+const EXIT_EASE = "cubic-bezier(0.4, 0, 0.2, 1)";
+const EXIT_FADE_START = 0.42;
+const EXIT_FADE_END = 0.82;
 const BACKDROP_FADE_MS = 300;
 
 // The module tracks the pointer itself: callers live in gesture systems with
@@ -142,19 +145,34 @@ export function originExit(
   if (!delta) return false;
   backdrop?.animate([{ opacity: 1 }, { opacity: 0 }], {
     duration: BACKDROP_FADE_MS,
-    easing: "ease",
+    easing: "linear",
     fill: "forwards",
   });
-  const flight = shell.animate(
+  shell.animate(
     [
-      { transform: "none", opacity: 1 },
+      { transform: "none" },
       {
         transform: `translate(${delta.dx}px, ${delta.dy}px) scale(${delta.scale})`,
-        opacity: EXIT_TO_OPACITY,
       },
     ],
     { duration: EXIT_MS, easing: EXIT_EASE, fill: "forwards" },
   );
-  flight.onfinish = onFinish;
+  // Spatial motion uses the scene's quick-settling curve, but applying that
+  // same curve to opacity makes the modal disappear before its return can be
+  // read. Hold the shell solid through the first part of the flight, then
+  // fade it linearly to zero so no translucent clone lingers over the source.
+  const fade = shell.animate(
+    [
+      { offset: 0, opacity: 1 },
+      { offset: EXIT_FADE_START, opacity: 1 },
+      { offset: EXIT_FADE_END, opacity: 0 },
+      { offset: 1, opacity: 0 },
+    ],
+    { duration: EXIT_MS, easing: "linear", fill: "forwards" },
+  );
+  // The opacity animation is created after the spatial one. Teardown from
+  // its finish event so the shell cannot lose its filled zero-opacity frame
+  // while the final transform animation is settling in the same tick.
+  fade.onfinish = onFinish;
   return true;
 }

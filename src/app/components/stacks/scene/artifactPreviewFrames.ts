@@ -124,6 +124,7 @@ export function useRegisterArtifactPreviewFrame(
   imageHeight: number,
   layers: readonly ArtifactPreviewFrameLayer[],
   accents?: readonly ArtifactPreviewFrameAccent[],
+  previewSrc?: string,
 ) {
   const id = useContext(SceneArtifactIdContext);
   useEffect(() => {
@@ -132,8 +133,9 @@ export function useRegisterArtifactPreviewFrame(
       image: { width: imageWidth, height: imageHeight },
       layers,
       accents,
+      previewSrc,
     });
-  }, [id, imageWidth, imageHeight, layers, accents]);
+  }, [id, imageWidth, imageHeight, layers, accents, previewSrc]);
 }
 
 /** Test seam. */

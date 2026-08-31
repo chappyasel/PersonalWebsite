@@ -1,8 +1,8 @@
 "use client";
 
+import { useObjectNote } from "../objectNotes";
 import { useArtifactPreviewFrames } from "../scene/artifactPreviewFrames";
 import { artifactPreviewVisualEffects } from "../scene/artifactPreviewVisualEffects";
-import { useArtifactShadeSamples } from "../scene/artifactShadeSamples";
 import { destinationFor } from "../scene/interactionRegistry";
 import { useModelArtifactRendererEnabled } from "../scene/modelArtifactDiagnostics";
 import {
@@ -49,15 +49,19 @@ import {
   useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
-
-import { useObjectNote } from "../objectNotes";
 import { PhotoSlider } from "react-photo-view";
 import "react-photo-view/dist/react-photo-view.css";
 import type {
+  OverlayRenderProps,
   PhotoRenderParams,
   DataType as PhotoSliderItem,
 } from "react-photo-view/dist/types";
 
+import { ProgressivePreviewImage } from "./ProgressivePreviewImage";
+import {
+  type ArtifactPreviewDismissPoint,
+  artifactPreviewShouldDismissOnRelease,
+} from "./artifactPreviewDismissGesture";
 import { fitArtifactPreviewToViewport } from "./artifactPreviewFit";
 import {
   type ArtifactPreviewFrame,
@@ -73,12 +77,11 @@ import {
   artifactPreviewDuration,
   artifactPreviewEasing,
 } from "./artifactPreviewMotion";
-import { artifactPreviewPoseTransform } from "./artifactPreviewPose";
 import {
-  type ArtifactPreviewShade,
-  artifactPreviewShade,
-  artifactPreviewShadeFilter,
-} from "./artifactPreviewShading";
+  type ArtifactPreviewPoseKeyframe,
+  artifactPreviewPoseKeyframes,
+  artifactPreviewPoseTransform,
+} from "./artifactPreviewPose";
 import {
   type ModelArtifactCameraTarget,
   modelArtifactPreviewVisible,
@@ -90,7 +93,7 @@ const ModelArtifactStage = dynamic(() => import("./ModelArtifactStage"), {
 });
 
 const glassControl =
-  "border border-white/20 bg-white/[0.12] text-white/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.24),0_8px_24px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-[background-color,border-color,color,transform] hover:border-white/30 hover:bg-white/[0.18] hover:text-white active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none";
+  "world-glass-control border transition-[background-color,border-color,color,transform] active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none";
 const ignoreIndexChange = () => undefined;
 
 type PreviewChromeProps = Readonly<{
@@ -241,6 +244,89 @@ function PreviewChrome({
   );
 }
 
+function ImagePreviewOverlay({
+  artifact,
+  total,
+  preview,
+}: {
+  artifact: SceneArtifact;
+  total: number;
+  preview: OverlayRenderProps;
+}) {
+  const gesture = useRef<{
+    pointerId: number;
+    points: ArtifactPreviewDismissPoint[];
+  } | null>(null);
+  const scale = useRef(preview.scale);
+  const close = useRef(preview.onClose);
+  scale.current = preview.scale;
+  close.current = preview.onClose;
+
+  useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      if (
+        !event.isPrimary ||
+        event.button !== 0 ||
+        !(event.target instanceof Element) ||
+        !event.target.closest("[data-scene-artifact-preview-image]")
+      ) {
+        gesture.current = null;
+        return;
+      }
+      gesture.current = {
+        pointerId: event.pointerId,
+        points: [{ x: event.clientX, y: event.clientY, time: event.timeStamp }],
+      };
+    };
+    const onPointerMove = (event: PointerEvent) => {
+      const current = gesture.current;
+      if (current?.pointerId !== event.pointerId) return;
+      current.points.push({
+        x: event.clientX,
+        y: event.clientY,
+        time: event.timeStamp,
+      });
+    };
+    const finishPointer = (event: PointerEvent) => {
+      const current = gesture.current;
+      gesture.current = null;
+      if (current?.pointerId !== event.pointerId) return;
+      current.points.push({
+        x: event.clientX,
+        y: event.clientY,
+        time: event.timeStamp,
+      });
+      if (artifactPreviewShouldDismissOnRelease(current.points, scale.current))
+        close.current();
+    };
+    const cancelPointer = () => {
+      gesture.current = null;
+    };
+
+    window.addEventListener("pointerdown", onPointerDown, true);
+    window.addEventListener("pointermove", onPointerMove, true);
+    window.addEventListener("pointerup", finishPointer, true);
+    window.addEventListener("pointercancel", cancelPointer, true);
+    return () => {
+      window.removeEventListener("pointerdown", onPointerDown, true);
+      window.removeEventListener("pointermove", onPointerMove, true);
+      window.removeEventListener("pointerup", finishPointer, true);
+      window.removeEventListener("pointercancel", cancelPointer, true);
+    };
+  }, []);
+
+  return (
+    <PreviewChrome
+      artifact={artifact}
+      total={total}
+      index={preview.index}
+      visible={preview.overlayVisible}
+      onIndexChange={preview.onIndexChange}
+      onClose={preview.onClose}
+    />
+  );
+}
+
 function pixelLength(value: CSSProperties["width"]) {
   if (typeof value === "number") return value;
   if (typeof value === "string") {
@@ -255,15 +341,17 @@ type PreviewPrintProps = Readonly<{
   frame: ArtifactPreviewFrame;
   palette: Palette;
   src: string;
+  previewSrc: string;
   visible: boolean;
   opening: boolean;
   closing: boolean;
   /** matrix3d putting this element over the print's rendered pose while the
    * viewer sits in its start box; null when no pose was captured. */
-  pose: string | null;
-  /** How the room renders this print, measured on the print itself, so the
-   * handoff swaps between two identically-graded layers. */
-  shade: ArtifactPreviewShade;
+  openingPose: string | null;
+  closingPose: string | null;
+  /** Projected-corner homographies from the captured camera pose to flat. */
+  openingPoseKeyframes: readonly ArtifactPreviewPoseKeyframe[] | null;
+  closingPoseKeyframes: readonly ArtifactPreviewPoseKeyframe[] | null;
 }>;
 
 function reducedMotionPreferred() {
@@ -342,11 +430,14 @@ function PreviewPrint({
   frame,
   palette,
   src,
+  previewSrc,
   visible,
   opening,
   closing,
-  pose,
-  shade,
+  openingPose,
+  closingPose,
+  openingPoseKeyframes,
+  closingPoseKeyframes,
 }: PreviewPrintProps) {
   const element = useRef<HTMLDivElement>(null);
   const style = attrs.style ?? {};
@@ -361,10 +452,33 @@ function PreviewPrint({
   // painted frame.
   useLayoutEffect(() => {
     const node = element.current;
+    const pose = closing ? closingPose : openingPose;
+    const poseKeyframes = closing ? closingPoseKeyframes : openingPoseKeyframes;
     if (!node || !pose || reducedMotionPreferred()) return;
     if (!opening && !closing) return;
     node.style.transformOrigin = "0 0";
+    let animation: Animation | null = null;
+    const animatePose = (frames: readonly ArtifactPreviewPoseKeyframe[]) => {
+      if (typeof node.animate !== "function") return false;
+      animation = node.animate([...frames], {
+        duration: ARTIFACT_PREVIEW_DURATION_MS,
+        easing: ARTIFACT_PREVIEW_EASING,
+        fill: "forwards",
+      });
+      return true;
+    };
     if (closing) {
+      node.style.transition = "none";
+      node.style.transform = "";
+      if (poseKeyframes) {
+        const reversed = [...poseKeyframes]
+          .reverse()
+          .map((frame, index, frames) => ({
+            transform: frame.transform,
+            offset: index / (frames.length - 1),
+          }));
+        if (animatePose(reversed)) return () => animation?.cancel();
+      }
       node.style.transition = `transform ${ARTIFACT_PREVIEW_DURATION_MS}ms ${ARTIFACT_PREVIEW_EASING}`;
       node.style.transform = pose;
       return;
@@ -374,6 +488,7 @@ function PreviewPrint({
     let release = 0;
     const settle = requestAnimationFrame(() => {
       release = requestAnimationFrame(() => {
+        if (poseKeyframes && animatePose(poseKeyframes)) return;
         node.style.transition = `transform ${ARTIFACT_PREVIEW_DURATION_MS}ms ${ARTIFACT_PREVIEW_EASING}`;
         node.style.transform = "";
       });
@@ -381,8 +496,22 @@ function PreviewPrint({
     return () => {
       cancelAnimationFrame(settle);
       cancelAnimationFrame(release);
+      if (animation) {
+        // WAAPI sits above the inline start pose while it runs. Commit the
+        // flush endpoint before canceling it, or removing the finished
+        // animation exposes `pose` again for one settled frame.
+        node.style.transform = "";
+        animation.cancel();
+      }
     };
-  }, [closing, opening, pose]);
+  }, [
+    closing,
+    closingPose,
+    closingPoseKeyframes,
+    opening,
+    openingPose,
+    openingPoseKeyframes,
+  ]);
 
   return (
     <div
@@ -398,16 +527,8 @@ function PreviewPrint({
       style={{
         ...style,
         position: "relative",
-        // Contain the shade's multiply blend to this print's own layers.
-        isolation: "isolate",
         borderRadius: layout.radius,
         opacity: visible ? style.opacity : 0,
-        // The half of the correction a multiply layer cannot carry: the room
-        // renders some prints BRIGHTER than their file, and ACES pulls
-        // saturation on all of them. globals.css releases it on the same beat
-        // as the tint.
-        ["--stacks-preview-shade-filter" as string]:
-          artifactPreviewShadeFilter(shade),
       }}
       data-scene-artifact-preview-image
       data-scene-artifact-preview-opening={opening ? "" : undefined}
@@ -430,16 +551,11 @@ function PreviewPrint({
           }}
         />
       ))}
-      {/* This must reuse the exact URL already decoded for the Three.js
-          texture. Next/Image would introduce a second lazy optimized URL,
-          making the pixels arrive after the morph instead of during it. */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={src}
-        alt=""
-        draggable={false}
-        loading="eager"
-        decoding="sync"
+      <ProgressivePreviewImage
+        previewSrc={previewSrc}
+        detailSrc={src}
+        opening={opening}
+        dismissing={closing}
         className="pointer-events-none absolute max-w-none select-none"
         style={{
           left: layout.imageInset,
@@ -447,21 +563,6 @@ function PreviewPrint({
           width: imageSize,
           height: imageSize,
           objectFit: "contain",
-        }}
-        data-scene-artifact-preview-photo
-      />
-      {/* The room's lighting, as one multiply layer: held solid while the
-          physical and DOM prints swap, then eased away to the true photo.
-          Its opacity choreography lives with the fade keyframes in
-          globals.css. */}
-      <div
-        aria-hidden
-        data-scene-artifact-preview-shade
-        className="pointer-events-none absolute"
-        style={{
-          inset: layout.imageInset,
-          backgroundColor: shade.tint,
-          mixBlendMode: "multiply",
         }}
       />
       {layout.layers.length > 0 && (
@@ -706,21 +807,25 @@ export default function SceneArtifactInspector() {
     ? imageCollection.findIndex((entry) => entry.id === artifact.id)
     : -1;
   const imagePreviewVisible =
+    Boolean(selectedId) ||
     artifactHandoffPhase === null ||
     modelArtifactPreviewVisible(artifactHandoffPhase);
   const imagePreviewOpening = Boolean(
     selectedId && artifactHandoffPhase && artifactHandoffPhase !== "inspecting",
   );
+  const imagePreviewClosing = !selectedId;
   // Each photo's physical form registers its edges from the scene.
   const frames = useArtifactPreviewFrames();
   const { resolvedTheme } = useTheme();
   const dark = resolvedTheme === "dark";
   const palette = PALETTES[dark ? "dark" : "light"];
-  const shadeSamples = useArtifactShadeSamples();
   const images = useMemo<PhotoSliderItem[]>(
     () =>
       imageCollection.map((entry) => {
         const origin = projectedOrigins.get(entry.id);
+        const returnOrigin = previewOriginsValid
+          ? previewOriginSession?.returnOrigins.get(entry.id)
+          : undefined;
         const originElement = origin ? originElements.get(entry.id) : undefined;
         const frame = frames.get(entry.id) ?? BARE_ARTIFACT_PREVIEW_FRAME;
         const framed = framedArtifactPreviewSize(frame, entry);
@@ -730,11 +835,26 @@ export default function SceneArtifactInspector() {
             ? previewViewport
             : { width: framed.width + 48, height: framed.height + 144 },
         );
-        const pose = origin?.quad
+        const openingPose = origin?.quad
           ? artifactPreviewPoseTransform(fitted, origin, origin.quad)
           : null;
-        // Per print, not per theme: the probe measured this one.
-        const shade = artifactPreviewShade(shadeSamples.get(entry.id), dark);
+        const openingPoseKeyframes = origin?.quad
+          ? artifactPreviewPoseKeyframes(fitted, origin, origin.quad)
+          : null;
+        const closingPose = origin?.quad
+          ? artifactPreviewPoseTransform(
+              fitted,
+              origin,
+              returnOrigin?.quad ?? origin.quad,
+            )
+          : null;
+        const closingPoseKeyframes = origin?.quad
+          ? artifactPreviewPoseKeyframes(
+              fitted,
+              origin,
+              returnOrigin?.quad ?? origin.quad,
+            )
+          : null;
         return {
           key: `${entry.id}:${previewViewport.width}x${previewViewport.height}`,
           ...fitted,
@@ -748,11 +868,14 @@ export default function SceneArtifactInspector() {
               frame={frame}
               palette={palette}
               src={entry.image}
+              previewSrc={frame.previewSrc ?? entry.previewImage ?? entry.image}
               visible={imagePreviewVisible}
               opening={imagePreviewOpening}
-              closing={!selectedId}
-              pose={pose}
-              shade={shade}
+              closing={imagePreviewClosing}
+              openingPose={openingPose}
+              closingPose={closingPose}
+              openingPoseKeyframes={openingPoseKeyframes}
+              closingPoseKeyframes={closingPoseKeyframes}
             />
           ),
         };
@@ -761,14 +884,14 @@ export default function SceneArtifactInspector() {
       frames,
       imageCollection,
       imagePreviewOpening,
+      imagePreviewClosing,
       imagePreviewVisible,
       originElements,
       palette,
       previewViewport,
+      previewOriginSession,
+      previewOriginsValid,
       projectedOrigins,
-      selectedId,
-      shadeSamples,
-      dark,
     ],
   );
 
@@ -894,13 +1017,10 @@ export default function SceneArtifactInspector() {
               : ""
           }`}
           overlayRender={(props) => (
-            <PreviewChrome
+            <ImagePreviewOverlay
               artifact={artifact}
               total={imageCollection.length}
-              index={props.index}
-              visible={props.overlayVisible}
-              onIndexChange={props.onIndexChange}
-              onClose={props.onClose}
+              preview={props}
             />
           )}
         />

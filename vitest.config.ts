@@ -8,6 +8,7 @@ export default defineConfig({
   resolve: {
     alias: [
       { find: /^~~\//, replacement: `${fromRoot("./public")}/` },
+      { find: /^public\//, replacement: `${fromRoot("./public")}/` },
       { find: /^~\//, replacement: `${fromRoot("./src")}/` },
       { find: /^@\//, replacement: `${fromRoot("./")}/` },
     ],

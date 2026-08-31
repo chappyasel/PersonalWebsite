@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   type ArtifactPreviewBox,
   type ArtifactPreviewQuad,
+  artifactPreviewPoseKeyframes,
   artifactPreviewPoseTransform,
   artifactPreviewQuadUsable,
 } from "./artifactPreviewPose";
@@ -32,10 +33,7 @@ function rotatedBoxQuad(angle: number): ArtifactPreviewQuad {
  * viewer's own start-box transform (translate + uniform scale about the
  * top-left corner) — the exact composition the browser performs. */
 function throughViewer(transform: string, x: number, y: number) {
-  const values = transform
-    .slice("matrix3d(".length, -1)
-    .split(",")
-    .map(Number);
+  const values = transform.slice("matrix3d(".length, -1).split(",").map(Number);
   const [a, d, , g, b, e, , h, , , , , c, f, , i] = values;
   const w = g! * x + h! * y + i!;
   const localX = (a! * x + b! * y + c!) / w;
@@ -91,6 +89,56 @@ describe("artifact preview pose", () => {
     const [screenX, screenY] = throughViewer(transform!, 0, 0);
     expect(screenX).toBeCloseTo(40, 6);
     expect(screenY).toBeCloseTo(24, 6);
+  });
+
+  it("keeps the projected corners on the camera-relative plane mid-flight", () => {
+    const quad: ArtifactPreviewQuad = [
+      [42, 22],
+      [178, 31],
+      [207, 181],
+      [8, 170],
+    ];
+    const frames = artifactPreviewPoseKeyframes(ELEMENT, BOX, quad, 4);
+    expect(frames).toHaveLength(5);
+
+    const middle = frames![2]!;
+    expect(middle.offset).toBe(0.5);
+    const corners = [
+      [0, 0],
+      [ELEMENT.width, 0],
+      [ELEMENT.width, ELEMENT.height],
+      [0, ELEMENT.height],
+    ] as const;
+    const target = boxQuad();
+    corners.forEach(([x, y], index) => {
+      const [screenX, screenY] = throughViewer(middle.transform, x, y);
+      expect(screenX).toBeCloseTo((quad[index]![0] + target[index]![0]) / 2, 6);
+      expect(screenY).toBeCloseTo((quad[index]![1] + target[index]![1]) / 2, 6);
+    });
+  });
+
+  it("returns exact inverse endpoints for the closing flight", () => {
+    const quad = rotatedBoxQuad(0.1);
+    const frames = artifactPreviewPoseKeyframes(ELEMENT, BOX, quad, 6)!;
+    expect(frames[0]!.transform).toBe(
+      artifactPreviewPoseTransform(ELEMENT, BOX, quad),
+    );
+    expect(frames.at(-1)!.transform).toBe(
+      "matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)",
+    );
+    expect([...frames].reverse().map(({ transform }) => transform)).toEqual(
+      frames.map(({ transform }) => transform).reverse(),
+    );
+  });
+
+  it("keeps subtle tilt until the true identity endpoint", () => {
+    const frames = artifactPreviewPoseKeyframes(
+      ELEMENT,
+      BOX,
+      rotatedBoxQuad(0.003),
+      24,
+    )!;
+    expect(frames.at(-2)!.transform).not.toBe(frames.at(-1)!.transform);
   });
 
   it("refuses degenerate and flipped quads", () => {

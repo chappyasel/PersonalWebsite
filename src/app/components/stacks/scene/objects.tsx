@@ -125,6 +125,8 @@ export function PortraitFrame({
     PORTRAIT_IMAGE.width,
     PORTRAIT_IMAGE.height,
     PORTRAIT_PREVIEW_LAYERS,
+    undefined,
+    src,
   );
   return (
     <group

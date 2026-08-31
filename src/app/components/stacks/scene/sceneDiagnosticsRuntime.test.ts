@@ -51,10 +51,10 @@ function runtimeHarness() {
 }
 
 describe("Scene Diagnostics runtime seeds", () => {
-  it("parses the six optional-render switches and grass rollback", () => {
+  it("parses optional-render switches, boot residency, and grass rollback", () => {
     expect(
       diagnosticReloadSeedFromSearch(
-        "?nopostfx&nodof&notiltshift&nograde&nomeadow&hdPhotos=0&grassDeformation=off",
+        "?nopostfx&nodof&notiltshift&nograde&nomeadow&hdPhotos=0&prewarmAll=0&grassDeformation=off",
       ),
     ).toEqual({
       postprocessing: false,
@@ -63,6 +63,7 @@ describe("Scene Diagnostics runtime seeds", () => {
       colorGrade: false,
       meadow: false,
       highResolutionPhotos: false,
+      prewarmAllUnitVisuals: false,
       grassDeformation: false,
     });
     expect(diagnosticReloadSeedFromSearch("?hdPhotos=1")).toEqual({});

@@ -19,6 +19,7 @@ import { type Palette } from "../../theme";
 import LitImage from "../LitImage";
 import { RoundedBox } from "../RoundedBox";
 import { useRegisterArtifactPreviewFrame } from "../artifactPreviewFrames";
+import { scenePhotoUrl } from "../photoTextures";
 import { WoodMaterial } from "../primitives";
 import React from "react";
 
@@ -47,12 +48,13 @@ import {
   talkSeat,
 } from "./talkGalleryLayout";
 
-function useTalkPreviewFrame(setup: TalkSetup) {
+function useTalkPreviewFrame(setup: TalkSetup, src: string) {
   useRegisterArtifactPreviewFrame(
     setup.image.width,
     setup.image.height,
     setup.layers,
     setup.previewAccents,
+    scenePhotoUrl(src, "feature"),
   );
 }
 
@@ -164,7 +166,7 @@ export function TalkGiltFrame({
   const framed = talkFramedSize(setup);
   const molding = setup.layers[1]!.inset;
   const liner = setup.layers[0]!.inset;
-  useTalkPreviewFrame(setup);
+  useTalkPreviewFrame(setup, src);
   return (
     <group>
       {/* Backing panel: the flat the photo and its liner are mounted on. */}
@@ -257,7 +259,7 @@ export function TalkEaselFrame({
   const framed = talkFramedSize(setup);
   const fillet = setup.layers[0]!.inset;
   const mat = setup.layers[1]!.inset;
-  useTalkPreviewFrame(setup);
+  useTalkPreviewFrame(setup, src);
   return (
     <group>
       <RoundedBox
@@ -317,7 +319,7 @@ export function TalkBezelPanel({
 }) {
   const setup = TALK_SETUPS["talk-ann-interview-v8"];
   const framed = talkFramedSize(setup);
-  useTalkPreviewFrame(setup);
+  useTalkPreviewFrame(setup, src);
   return (
     <group>
       <RoundedBox
@@ -351,7 +353,7 @@ export function TalkHungBoard({
 }) {
   const setup = TALK_SETUPS["talk-consensus-phone-v8"];
   const framed = talkFramedSize(setup);
-  useTalkPreviewFrame(setup);
+  useTalkPreviewFrame(setup, src);
   return (
     <group>
       <RoundedBox
@@ -401,7 +403,7 @@ export function TalkDeckledPrint({
 }) {
   const setup = TALK_SETUPS["talk-panel-v8"];
   const framed = talkFramedSize(setup);
-  useTalkPreviewFrame(setup);
+  useTalkPreviewFrame(setup, src);
   return (
     <group>
       <RoundedBox
