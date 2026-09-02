@@ -18,8 +18,6 @@ export type GitHubPlacardRepo = {
   language: string | null;
   pushedAt: string;
   createdAt: string;
-  /** Commits this year; only set on the active list. */
-  commits?: number;
 };
 
 export type GitHubPlacardYear = {
@@ -46,28 +44,73 @@ export type GitHubPlacard = {
     privateShare: number;
     activeDays: number;
     longestStreak: number;
-    /** The trailing `MOSAIC_DAYS` days, oldest first, for the banded mosaic. */
+    /** Every day GitHub returned for the year, oldest first: whole weeks,
+     * Sunday to Saturday, the way its own graph lays them out. */
     days: GitHubContributionDay[];
     from: string;
     to: string;
   };
   publicRepoCount: number;
-  /** Public repositories, own or organization, that received commits this year. */
-  active: GitHubPlacardRepo[];
-  /** Older public repositories under the account that no card already shows. */
-  more: GitHubPlacardRepo[];
+  /** Public repositories with a description, own or organization ones he
+   * committed to this year, newest push first, minus those with a card. */
+  repos: GitHubPlacardRepo[];
 };
 
-export const GITHUB_ACTIVE_LIMIT = 5;
-export const GITHUB_MORE_LIMIT = 6;
-/** Same 364-day window as the Weightlifting mosaic's four 13-week bands. */
-export const GITHUB_MOSAIC_DAYS = 364;
+export const GITHUB_REPOS_LIMIT = 8;
 
-function placardRepo(
-  repo: GitHubRepo,
-  login: string,
-  commits?: number,
-): GitHubPlacardRepo {
+function weekday(date: string) {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Date(Date.UTC(year!, month! - 1, day)).getUTCDay();
+}
+
+/**
+ * GitHub's graph is columns of weeks, Sunday at the top. The snapshot stores
+ * days flat, so rebuild the columns from the first day's weekday and pad the
+ * partial first and last weeks with nulls instead of shifting them.
+ */
+export function contributionWeeks(days: readonly GitHubContributionDay[]) {
+  if (days.length === 0) return [] as (GitHubContributionDay | null)[][];
+  const offset = weekday(days[0]!.date);
+  const columns = Math.ceil((offset + days.length) / 7);
+  const weeks: (GitHubContributionDay | null)[][] = Array.from(
+    { length: columns },
+    () => Array.from({ length: 7 }, () => null),
+  );
+  days.forEach((day, index) => {
+    const slot = offset + index;
+    weeks[Math.floor(slot / 7)]![slot % 7] = day;
+  });
+  return weeks;
+}
+
+/**
+ * Which columns get a month label, GitHub's way: the first column whose first
+ * day falls in a new month. A label that would sit on top of the next one
+ * (a partial first week, mostly) is dropped rather than crowded.
+ */
+export function monthLabelColumns(
+  weeks: readonly (readonly (GitHubContributionDay | null)[])[],
+  minimumGap = 3,
+) {
+  const labels: { column: number; month: number }[] = [];
+  let previousMonth: number | null = null;
+  weeks.forEach((week, column) => {
+    const first = week.find((day) => day !== null);
+    if (!first) return;
+    const month = Number(first.date.slice(5, 7));
+    if (previousMonth !== null && month !== previousMonth) {
+      labels.push({ column, month });
+    }
+    previousMonth = month;
+  });
+  return labels.filter(
+    (label, index) =>
+      index === labels.length - 1 ||
+      labels[index + 1]!.column - label.column >= minimumGap,
+  );
+}
+
+function placardRepo(repo: GitHubRepo, login: string): GitHubPlacardRepo {
   return {
     nameWithOwner: repo.nameWithOwner,
     name: repo.name,
@@ -77,7 +120,6 @@ function placardRepo(
     language: repo.language,
     pushedAt: repo.pushedAt,
     createdAt: repo.createdAt,
-    ...(commits === undefined ? {} : { commits }),
   };
 }
 
@@ -125,9 +167,9 @@ export function yearBars(
  * Shape the fetched activity into what the Projects placard shows.
  *
  * `featuredRepos` names the repositories that already have a curated project
- * card, so the "more" list does not repeat them. The active list keeps them:
- * that list is a record of where this year's commits went, and hiding the
- * site's own repository from it would misstate the year.
+ * card, so the repository list does not repeat them. The list itself is his
+ * own public repositories plus the organization ones he committed to this
+ * year, one list by last push, the way the repositories tab sorts.
  */
 export function buildGitHubPlacard(
   activity: GitHubActivity,
@@ -137,32 +179,24 @@ export function buildGitHubPlacard(
   }: { featuredRepos?: readonly string[]; now?: Date } = {},
 ): GitHubPlacard {
   const featured = new Set(featuredRepos.map((name) => name.toLowerCase()));
-  const active = activity.activeRepos
-    .slice()
-    .sort(
-      (a, b) =>
-        b.commits - a.commits || a.nameWithOwner.localeCompare(b.nameWithOwner),
-    )
-    .slice(0, GITHUB_ACTIVE_LIMIT)
-    .map((repo) => placardRepo(repo, activity.login, repo.commits));
-  const shown = new Set([
-    ...featured,
-    ...active.map((repo) => repo.nameWithOwner.toLowerCase()),
-  ]);
-  const more = activity.repos
-    .filter(
-      (repo) =>
+  const seen = new Set<string>();
+  const repos = [...activity.repos, ...activity.activeRepos]
+    .filter((repo) => {
+      const key = repo.nameWithOwner.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return (
         !repo.isFork &&
         !repo.isArchived &&
         repo.description !== null &&
-        !shown.has(repo.nameWithOwner.toLowerCase()),
-    )
+        !featured.has(key)
+      );
+    })
     .sort((a, b) => b.pushedAt.localeCompare(a.pushedAt))
-    .slice(0, GITHUB_MORE_LIMIT)
+    .slice(0, GITHUB_REPOS_LIMIT)
     .map((repo) => placardRepo(repo, activity.login));
 
-  const allDays = activity.contributions.days;
-  const days = allDays.slice(-GITHUB_MOSAIC_DAYS);
+  const days = activity.contributions.days;
   const years = yearBars(activity.years, now);
   const { total, restricted } = activity.contributions;
   return {
@@ -177,14 +211,13 @@ export function buildGitHubPlacard(
       total,
       restricted,
       privateShare: total > 0 ? Math.round((restricted / total) * 100) : 0,
-      activeDays: allDays.filter((day) => day.count > 0).length,
-      longestStreak: longestStreak(allDays),
+      activeDays: days.filter((day) => day.count > 0).length,
+      longestStreak: longestStreak(days),
       days,
       from: days[0]?.date ?? activity.contributions.from.slice(0, 10),
       to: days[days.length - 1]?.date ?? activity.contributions.to.slice(0, 10),
     },
     publicRepoCount: activity.publicRepoCount,
-    active,
-    more,
+    repos,
   };
 }

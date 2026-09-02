@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  GITHUB_ACTIVE_LIMIT,
-  GITHUB_MORE_LIMIT,
-  GITHUB_MOSAIC_DAYS,
+  GITHUB_REPOS_LIMIT,
   buildGitHubPlacard,
+  contributionWeeks,
   longestStreak,
+  monthLabelColumns,
   yearBars,
 } from "./placard";
 import {
@@ -62,6 +62,60 @@ function activity(overrides: Partial<GitHubActivity> = {}): GitHubActivity {
     ...overrides,
   };
 }
+
+describe("contributionWeeks", () => {
+  it("lays days out in Sunday-first columns and pads partial weeks", () => {
+    const weeks = contributionWeeks([
+      day("2026-08-31", 0), // Monday
+      day("2026-09-01", 3),
+      day("2026-09-02", 1),
+    ]);
+    expect(weeks).toHaveLength(1);
+    expect(weeks[0]!.map((entry) => entry?.date ?? null)).toEqual([
+      null,
+      "2026-08-31",
+      "2026-09-01",
+      "2026-09-02",
+      null,
+      null,
+      null,
+    ]);
+  });
+
+  it("starts a new column at each Sunday", () => {
+    const days = Array.from({ length: 10 }, (_, index) =>
+      day(`2026-09-${String(5 + index).padStart(2, "0")}`, index), // Sat 5 Sep
+    );
+    const weeks = contributionWeeks(days);
+    expect(weeks).toHaveLength(3);
+    expect(weeks[0]![6]?.date).toBe("2026-09-05");
+    expect(weeks[1]![0]?.date).toBe("2026-09-06");
+    expect(weeks[2]![1]?.date).toBe("2026-09-14");
+    expect(weeks[2]![2]).toBeNull();
+  });
+
+  it("returns no columns for no days", () => {
+    expect(contributionWeeks([])).toEqual([]);
+  });
+});
+
+describe("monthLabelColumns", () => {
+  it("labels the first column of each new month and drops crowded ones", () => {
+    // Sun 2026-08-30 through Sat 2026-10-10: six columns.
+    const days = Array.from({ length: 42 }, (_, index) => {
+      const date = new Date(Date.UTC(2026, 7, 30 + index));
+      return day(date.toISOString().slice(0, 10), 1);
+    });
+    const weeks = contributionWeeks(days);
+    // Column 1 starts Sep 6 (new month vs Aug 30); column 5 starts Oct 4.
+    expect(monthLabelColumns(weeks)).toEqual([
+      { column: 1, month: 9 },
+      { column: 5, month: 10 },
+    ]);
+    // With a wide minimum gap the September label yields to October's.
+    expect(monthLabelColumns(weeks, 5)).toEqual([{ column: 5, month: 10 }]);
+  });
+});
 
 describe("longestStreak", () => {
   it("counts the longest run of days with any contribution", () => {
@@ -121,9 +175,9 @@ describe("buildGitHubPlacard", () => {
     expect(placard.profileUrl).toBe("https://github.com/chappyasel");
   });
 
-  it("keeps only the trailing mosaic window of days", () => {
-    const days = Array.from({ length: GITHUB_MOSAIC_DAYS + 5 }, (_, index) =>
-      day(`d${index}`, index),
+  it("hands the whole returned year to the calendar", () => {
+    const days = Array.from({ length: 371 }, (_, index) =>
+      day(`d${index}`, index % 3),
     );
     const placard = buildGitHubPlacard(
       activity({
@@ -131,78 +185,67 @@ describe("buildGitHubPlacard", () => {
       }),
       { now: NOW },
     );
-    expect(placard.lastYear.days).toHaveLength(GITHUB_MOSAIC_DAYS);
-    expect(placard.lastYear.days[0]!.date).toBe("d5");
-    // Active days and the streak still read the whole year GitHub returned.
-    expect(placard.lastYear.activeDays).toBe(GITHUB_MOSAIC_DAYS + 4);
+    expect(placard.lastYear.days).toHaveLength(371);
+    expect(placard.lastYear.activeDays).toBe(247);
   });
 
-  it("orders the active list by commits, marks organization owners, and caps it", () => {
-    const placard = buildGitHubPlacard(
-      activity({
-        activeRepos: [
-          { ...repo({ name: "site" }), commits: 40 },
-          { ...repo({ name: "lattice", owner: "caikdev" }), commits: 90 },
-          { ...repo({ name: "a" }), commits: 1 },
-          { ...repo({ name: "b" }), commits: 2 },
-          { ...repo({ name: "c" }), commits: 3 },
-          { ...repo({ name: "d" }), commits: 4 },
-        ],
-      }),
-      { now: NOW },
-    );
-    expect(placard.active).toHaveLength(GITHUB_ACTIVE_LIMIT);
-    expect(placard.active.map((r) => r.name)).toEqual([
-      "lattice",
-      "site",
-      "d",
-      "c",
-      "b",
-    ]);
-    expect(placard.active[0]!.organization).toBe("caikdev");
-    expect(placard.active[1]!.organization).toBeNull();
-    expect(placard.active[0]!.commits).toBe(90);
-  });
-
-  it("keeps featured repositories on the active list but off the more list", () => {
-    const placard = buildGitHubPlacard(
-      activity({
-        repos: [repo({ name: "PersonalWebsite" }), repo({ name: "old" })],
-        activeRepos: [{ ...repo({ name: "PersonalWebsite" }), commits: 5 }],
-      }),
-      { featuredRepos: ["chappyasel/personalwebsite"], now: NOW },
-    );
-    expect(placard.active.map((r) => r.name)).toEqual(["PersonalWebsite"]);
-    expect(placard.more.map((r) => r.name)).toEqual(["old"]);
-  });
-
-  it("drops forks, archived, undescribed, and already-active repositories from more", () => {
+  it("lists own and organization repositories together by last push", () => {
     const placard = buildGitHubPlacard(
       activity({
         repos: [
-          repo({ name: "fork", isFork: true }),
-          repo({ name: "archived", isArchived: true }),
-          repo({ name: "blank", description: null }),
-          repo({ name: "active" }),
-          repo({ name: "kept" }),
+          repo({ name: "older", pushedAt: "2024-01-01T00:00:00Z" }),
+          repo({ name: "newest", pushedAt: "2026-06-01T00:00:00Z" }),
         ],
-        activeRepos: [{ ...repo({ name: "active" }), commits: 2 }],
+        activeRepos: [
+          {
+            ...repo({
+              name: "lattice",
+              owner: "caikdev",
+              pushedAt: "2026-03-01T00:00:00Z",
+            }),
+            commits: 90,
+          },
+          // Already in `repos`; must not appear twice.
+          { ...repo({ name: "newest", pushedAt: "2026-06-01T00:00:00Z" }), commits: 5 },
+        ],
       }),
       { now: NOW },
     );
-    expect(placard.more.map((r) => r.name)).toEqual(["kept"]);
-    expect(placard.more[0]).not.toHaveProperty("commits");
+    expect(placard.repos.map((r) => r.nameWithOwner)).toEqual([
+      "chappyasel/newest",
+      "caikdev/lattice",
+      "chappyasel/older",
+    ]);
+    expect(placard.repos[1]!.organization).toBe("caikdev");
+    expect(placard.repos[0]!.organization).toBeNull();
+    expect(placard.repos[0]).not.toHaveProperty("commits");
   });
 
-  it("orders more by last push and caps it", () => {
-    const repos = Array.from({ length: GITHUB_MORE_LIMIT + 2 }, (_, index) =>
+  it("leaves out featured, forked, archived, and undescribed repositories", () => {
+    const placard = buildGitHubPlacard(
+      activity({
+        repos: [
+          repo({ name: "PersonalWebsite" }),
+          repo({ name: "fork", isFork: true }),
+          repo({ name: "archived", isArchived: true }),
+          repo({ name: "blank", description: null }),
+          repo({ name: "kept" }),
+        ],
+      }),
+      { featuredRepos: ["chappyasel/personalwebsite"], now: NOW },
+    );
+    expect(placard.repos.map((r) => r.name)).toEqual(["kept"]);
+  });
+
+  it("caps the list", () => {
+    const repos = Array.from({ length: GITHUB_REPOS_LIMIT + 2 }, (_, index) =>
       repo({
         name: `r${index}`,
         pushedAt: `2020-01-${String(index + 1).padStart(2, "0")}T00:00:00Z`,
       }),
     );
     const placard = buildGitHubPlacard(activity({ repos }), { now: NOW });
-    expect(placard.more).toHaveLength(GITHUB_MORE_LIMIT);
-    expect(placard.more[0]!.name).toBe(`r${GITHUB_MORE_LIMIT + 1}`);
+    expect(placard.repos).toHaveLength(GITHUB_REPOS_LIMIT);
+    expect(placard.repos[0]!.name).toBe(`r${GITHUB_REPOS_LIMIT + 1}`);
   });
 });
