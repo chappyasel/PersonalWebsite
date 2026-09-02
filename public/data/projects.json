@@ -3,50 +3,43 @@
     {
       "name": "Weightlifting App",
       "link": "https://apps.apple.com/us/app/id1266077653",
-      "image": "weightlifting.jpg",
-      "languages": ["Swift", "SwiftUI", "Objective C"],
-      "description": "A gamified iOS app to tracks and analyze user workouts complete with intelligent feedback, online leaderboards. Contains multiple heuristic algorithms to gamify user progress via achievements and milestones."
+      "image": "/images/stacks/v8/512/projects-weightlifting-icon.webp",
+      "meta": "iOS · on the App Store since 2017",
+      "languages": ["Swift", "SwiftUI", "Objective-C"],
+      "description": "The workout log I have kept on the App Store since 2017 and still use for every session. It tracks sets, estimates one-rep maxes, and turns progress into levels, achievements, and a leaderboard. Every number in the Weightlifting section of this site comes out of it."
+    },
+    {
+      "name": "Homework App",
+      "image": "/images/stacks/v8/512/projects-homework-icon.webp",
+      "meta": "iOS · acquired by Haystack AI in 2019",
+      "languages": ["Objective-C"],
+      "description": "Built in high school to keep track of my own assignments. It grew into the #1 homework app on the App Store, with 338k installs and 63k monthly users, and Haystack AI acquired it in 2019."
+    },
+    {
+      "name": "meta-kb",
+      "link": "https://github.com/chappyasel/meta-kb",
+      "image": "/images/projects/meta-kb.webp",
+      "meta": "Open source · 2026",
+      "repo": "chappyasel/meta-kb",
+      "languages": ["TypeScript", "Bun"],
+      "description": "A wiki about LLM agent infrastructure that an LLM compiles from 126 raw sources and then audits against them. Each pass extracts atomic claims, checks every one against its cited source, and rewrites its own prompts from what failed. Three rounds took claim accuracy from 64% to 80%. Fork it and point it at any topic."
+    },
+    {
+      "name": "This website",
+      "link": "https://github.com/chappyasel/PersonalWebsite",
+      "image": "/images/stacks/home-og-scene.jpg",
+      "meta": "Web · open source",
+      "repo": "chappyasel/PersonalWebsite",
+      "languages": ["TypeScript", "Next.js", "tRPC", "three.js"],
+      "description": "The site you are reading, as a public repo. Next.js and tRPC over Postgres, with a three.js room for a homepage. Book notes sync from Notion, training data from Weightlifting App, and the YouTube diet from Takeout exports. Most other sections are JSON files."
     },
     {
       "name": "Liar's Dice",
       "link": "/liarsdice",
-      "image": "liars-dice.png",
+      "image": "/images/projects/liars-dice.png",
+      "meta": "Web · on this site",
       "languages": ["React", "TypeScript"],
-      "description": "Liar's Dice is a dice game that combines luck and skill as one must weigh probabilities with the game theory involved in predicting the decisions of other intellegent actors. I developed a simple tool to assist in deriving probabilities for each hand to aid in decision-making. This is exposed both as a simple React webpage as well as an API accessible by posting a POST request /api/v1/liarsdice/play."
-    },
-    {
-      "name": "Homework App (Acquired)",
-      "image": "homework.jpg",
-      "languages": ["Objective C"],
-      "description": "An iOS app I built back in high school for organizing and keeping track of my homework assignments. Ended up becoming the #1 homework app on the App Store and got acquired by Haystack AI!"
-    },
-    {
-      "name": "Web Experiments",
-      "link": "https://github.com/chappyasel/WebExperiments_Backend",
-      "image": "web-exp.jpg",
-      "languages": ["React", "TypeScript"],
-      "description": "Web Experiments backend is a monorepo for my AWS EB-hosted online portfolio website along with Node / Express / PHP / MySQL backends for various other personal projects including Weightlifting App and ESPN Fantasy Football stats."
-    },
-    {
-      "name": "Fantasy Basketball",
-      "link": "https://github.com/chappyasel/FantasyBasketball_iOS",
-      "image": "fantasy.jpg",
-      "languages": ["Objective C"],
-      "description": "This app accesses basketball player data from a variety of online sources including espn.com, rotoworld.com, nba.com, and more for the purpose of tracking and evaluating NBA player performance. This app has almost all of the features of the official ESPN fantasy app and also includes additinal player discoery / insight features such as advanced player news and metrics."
-    },
-    {
-      "name": "Weightlifting App ML",
-      "link": "https://github.com/chappyasel/WeightliftingAppML_Python",
-      "image": "weightlifting-ml.jpg",
-      "languages": ["Python", "Keras"],
-      "description": "A series of programs written in Python using Weightling App data to train a Keras deep learning model for the purpose of workout type prediction based on the exercises performed."
-    },
-    {
-      "name": "Rotoworld ML",
-      "link": "https://github.com/chappyasel/RotoworldML_Python",
-      "image": "rotoworld-ml.jpg",
-      "languages": ["Python", "Keras"],
-      "description": "A series of programs written in Python using the Rotoworld mobile API to train a Keras deep learning model for the purpose of evaluating NBA players based on tokenized news articles."
+      "description": "A calculator for Liar's Dice. Enter your hand, the dice on the table, and the current bid, and it gives the probability of every possible call so you can decide whether to raise or challenge. The odds are exact. Reading the other players is still on you."
     }
   ]
 }

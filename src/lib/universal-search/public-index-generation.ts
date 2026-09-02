@@ -248,6 +248,19 @@ function blogDocuments(root: JsonObject): PublicSearchDocument[] {
   });
 }
 
+/** A site-absolute path is used as is; a bare filename is one of the old
+ * `public/images/projects` captures. Anything else cannot be trusted as a
+ * same-origin image and is dropped. */
+function projectImage(imageFile: string) {
+  if (imageFile.startsWith("/") && !imageFile.startsWith("//")) {
+    return { image: imageFile };
+  }
+  if (imageFile && !imageFile.includes("/")) {
+    return { image: `/images/projects/${imageFile}` };
+  }
+  return {};
+}
+
 function projectDocuments(root: JsonObject): PublicSearchDocument[] {
   return objectArray(root.projects).flatMap((project) => {
     const label = cleanPlainText(stringValue(project.name));
@@ -262,9 +275,7 @@ function projectDocuments(root: JsonObject): PublicSearchDocument[] {
         target,
         metadata: stringArray(project.languages).map(cleanPlainText),
         body: cleanPlainText(stringValue(project.description)),
-        ...(imageFile && !imageFile.includes("/")
-          ? { image: `/images/projects/${imageFile}` }
-          : {}),
+        ...projectImage(imageFile),
       },
     ];
   });

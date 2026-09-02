@@ -31,6 +31,10 @@ export const env = createEnv({
     AWS_KEY_NAME: z.string(),
     YOUTUBE_API_KEY: z.string(),
     DAD_CONTENT_PASSWORD: z.string(),
+    /** Optional. Without it the Projects placard shows the committed GitHub
+     * snapshot instead of live activity. Needs no scopes for public data;
+     * the owner's own token also counts private contributions. */
+    GITHUB_TOKEN: z.string().optional(),
   },
 
   /**
@@ -63,6 +67,7 @@ export const env = createEnv({
     AWS_KEY_NAME: process.env.AWS_KEY_NAME,
     YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY,
     DAD_CONTENT_PASSWORD: process.env.DAD_CONTENT_PASSWORD,
+    GITHUB_TOKEN: process.env.GITHUB_TOKEN,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
