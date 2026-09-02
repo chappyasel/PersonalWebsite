@@ -19,7 +19,7 @@ import {
   buildGitHubPlacard,
 } from "~/lib/github/placard";
 import { type GitHubActivity } from "~/lib/github/types";
-import { getTimeAgo } from "~/lib/util";
+import { cn, getTimeAgo } from "~/lib/util";
 
 import GitHubActivityCard from "./GitHubActivityCard";
 import TiltCard from "./TiltCard";
@@ -151,51 +151,69 @@ function ProjectItem({ project }: { project: Project }) {
   );
 }
 
-function RepoRow({
-  repo,
-  detail,
-}: {
-  repo: GitHubPlacardRepo;
-  detail: string;
-}) {
+/**
+ * One repository the way GitHub draws a pinned one: name, description, the
+ * language with its swatch, and when it last moved where GitHub would put
+ * the star and fork counts. A repository with no description shows its
+ * latest commit headline instead, so nothing is a blank tile.
+ */
+function RepoTile({ repo }: { repo: GitHubPlacardRepo }) {
+  const blurb = repo.description ?? repo.lastCommit?.headline ?? null;
   return (
-    <li>
+    <li className="min-w-0">
       <Link
         href={repo.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="-mx-2 block rounded-xl px-2 py-2 transition-colors hover:bg-foreground/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45"
+        className="flex h-full flex-col gap-1.5 rounded-2xl border border-foreground/10 p-3.5 transition-colors hover:bg-foreground/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45"
       >
-        <div className="flex items-baseline justify-between gap-3">
-          <span className="min-w-0 truncate text-sm font-semibold text-foreground">
-            {repo.organization ? (
-              <span className="font-normal text-muted-foreground">
-                {repo.organization}/
-              </span>
-            ) : null}
-            {repo.name}
-          </span>
-          <span className="shrink-0 text-xs text-muted-foreground">
-            {detail}
-          </span>
-        </div>
-        {repo.description ? (
-          <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
-            {repo.description}
+        <span className="truncate text-sm font-semibold text-foreground">
+          {repo.organization ? (
+            <span className="font-normal text-muted-foreground">
+              {repo.organization}/
+            </span>
+          ) : null}
+          {repo.name}
+        </span>
+        {blurb ? (
+          <p className="line-clamp-2 text-xs leading-snug text-muted-foreground">
+            {blurb}
           </p>
         ) : null}
+        <span className="mt-auto flex items-center justify-between gap-3 pt-1 text-xs text-muted-foreground">
+          {repo.language ? (
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span
+                aria-hidden
+                className={cn(
+                  "size-2.5 shrink-0 rounded-full",
+                  !repo.languageColor && "bg-foreground/30",
+                )}
+                style={
+                  repo.languageColor
+                    ? { backgroundColor: repo.languageColor }
+                    : undefined
+                }
+              />
+              <span className="truncate">{repo.language}</span>
+            </span>
+          ) : (
+            <span />
+          )}
+          <span className="shrink-0">Updated {getTimeAgo(repo.pushedAt)}</span>
+        </span>
       </Link>
     </li>
   );
 }
 
 /**
- * The individual repositories, after the projects: public ones, his own and
- * the organization ones he committed to this year, newest push first, the
- * way the repositories tab sorts. The old cards were screenshots of these
- * repositories' file listings; a line with the repository's own description
- * is more honest about what they are, and a repository without one stays
- * off the list until it gets one.
+ * The individual repositories, after the projects, in GitHub's pinned
+ * layout: two columns of tiles. What fills them is decided in
+ * `buildGitHubPlacard`: the repositories pinned on the profile first, so
+ * re-pinning on GitHub re-curates this card, then the newest pushes among
+ * his own public repositories and the organization ones he committed to
+ * this year. The old cards were screenshots of file listings from 2017.
  */
 function RepositoriesCard({ placard }: { placard: GitHubPlacard }) {
   return (
@@ -225,15 +243,9 @@ function RepositoriesCard({ placard }: { placard: GitHubPlacard }) {
               <ArrowUpRightIcon weight="bold" className="size-3.5" />
             </Link>
           </div>
-          <ul className="mt-3 divide-y divide-foreground/10">
+          <ul className="mt-4 grid gap-2.5 sm:grid-cols-2">
             {placard.repos.map((repo) => (
-              <RepoRow
-                key={repo.nameWithOwner}
-                repo={repo}
-                detail={[repo.language, getTimeAgo(repo.pushedAt)]
-                  .filter(Boolean)
-                  .join(" · ")}
-              />
+              <RepoTile key={repo.nameWithOwner} repo={repo} />
             ))}
           </ul>
         </div>

@@ -37,10 +37,16 @@ export const repoSchema = z.object({
   url: z.string().url(),
   homepageUrl: z.string().nullable(),
   language: z.string().nullable(),
+  /** GitHub's swatch for that language, the color its language bar uses. */
+  languageColor: z.string().nullable(),
   pushedAt: z.string(),
   createdAt: z.string(),
   isFork: z.boolean(),
   isArchived: z.boolean(),
+  /** Newest commit on the default branch; null for an empty repository. */
+  lastCommit: z
+    .object({ headline: z.string(), date: z.string() })
+    .nullable(),
 });
 
 export const activeRepoSchema = repoSchema.extend({
@@ -74,6 +80,9 @@ export const gitHubActivitySchema = z.object({
   publicRepoCount: z.number().int().nonnegative(),
   /** Those repositories, most recently pushed first. */
   repos: z.array(repoSchema),
+  /** Public repositories pinned on the profile, in the order he pinned them:
+   * the one curation he can do without a deploy. */
+  pinnedRepos: z.array(repoSchema),
   /** Public repositories, own or not, that received commits this year. */
   activeRepos: z.array(activeRepoSchema),
 });

@@ -16,6 +16,11 @@ export type GitHubPlacardRepo = {
   description: string | null;
   url: string;
   language: string | null;
+  /** GitHub's swatch for the language, for the dot beside its name. */
+  languageColor: string | null;
+  /** Newest commit on the default branch; stands in for a missing
+   * description on the tile. */
+  lastCommit: { headline: string; date: string } | null;
   pushedAt: string;
   createdAt: string;
 };
@@ -51,12 +56,25 @@ export type GitHubPlacard = {
     to: string;
   };
   publicRepoCount: number;
-  /** Public repositories with a description, own or organization ones he
-   * committed to this year, newest push first, minus those with a card. */
+  /** The tiles under the projects: pinned repositories first, in pinned
+   * order, then the rest by last push, minus those that have a card. */
   repos: GitHubPlacardRepo[];
 };
 
-export const GITHUB_REPOS_LIMIT = 8;
+/** Six tiles, two columns of three: GitHub's own pinned layout. */
+export const GITHUB_REPOS_LIMIT = 6;
+
+/**
+ * Weeks of the contribution graph the card draws. The graph shares the
+ * year-bar column, about 260px on desktop, so a full year leaves 4px
+ * squares; half a year leaves them near the size GitHub draws its own.
+ */
+export const GITHUB_CALENDAR_WEEKS = 26;
+
+/** GitHub's profile overview filtered to one day's contribution activity. */
+export function contributionDayUrl(login: string, date: string) {
+  return `https://github.com/${login}?tab=overview&from=${date}&to=${date}`;
+}
 
 function weekday(date: string) {
   const [year, month, day] = date.split("-").map(Number);
@@ -81,6 +99,14 @@ export function contributionWeeks(days: readonly GitHubContributionDay[]) {
     weeks[Math.floor(slot / 7)]![slot % 7] = day;
   });
   return weeks;
+}
+
+/** The newest `weeks` columns of the graph, the current partial week last. */
+export function recentWeeks(
+  days: readonly GitHubContributionDay[],
+  weeks = GITHUB_CALENDAR_WEEKS,
+) {
+  return contributionWeeks(days).slice(-weeks);
 }
 
 /**
@@ -118,6 +144,8 @@ function placardRepo(repo: GitHubRepo, login: string): GitHubPlacardRepo {
     description: repo.description,
     url: repo.url,
     language: repo.language,
+    languageColor: repo.languageColor,
+    lastCommit: repo.lastCommit,
     pushedAt: repo.pushedAt,
     createdAt: repo.createdAt,
   };
@@ -167,9 +195,11 @@ export function yearBars(
  * Shape the fetched activity into what the Projects placard shows.
  *
  * `featuredRepos` names the repositories that already have a curated project
- * card, so the repository list does not repeat them. The list itself is his
- * own public repositories plus the organization ones he committed to this
- * year, one list by last push, the way the repositories tab sorts.
+ * card, so the tiles do not repeat them. Pinned repositories lead, in the
+ * order he pinned them on GitHub, whatever their age: pinning is the one
+ * way to curate this list without a deploy. The remaining tiles go to his
+ * own public repositories and the organization ones he committed to this
+ * year, newest push first, skipping forks and archived repositories.
  */
 export function buildGitHubPlacard(
   activity: GitHubActivity,
@@ -180,19 +210,17 @@ export function buildGitHubPlacard(
 ): GitHubPlacard {
   const featured = new Set(featuredRepos.map((name) => name.toLowerCase()));
   const seen = new Set<string>();
-  const repos = [...activity.repos, ...activity.activeRepos]
-    .filter((repo) => {
-      const key = repo.nameWithOwner.toLowerCase();
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return (
-        !repo.isFork &&
-        !repo.isArchived &&
-        repo.description !== null &&
-        !featured.has(key)
-      );
-    })
-    .sort((a, b) => b.pushedAt.localeCompare(a.pushedAt))
+  const unseen = (repo: GitHubRepo) => {
+    const key = repo.nameWithOwner.toLowerCase();
+    if (seen.has(key) || featured.has(key)) return false;
+    seen.add(key);
+    return true;
+  };
+  const pinned = activity.pinnedRepos.filter(unseen);
+  const recent = [...activity.repos, ...activity.activeRepos]
+    .filter((repo) => !repo.isFork && !repo.isArchived && unseen(repo))
+    .sort((a, b) => b.pushedAt.localeCompare(a.pushedAt));
+  const repos = [...pinned, ...recent]
     .slice(0, GITHUB_REPOS_LIMIT)
     .map((repo) => placardRepo(repo, activity.login));
 

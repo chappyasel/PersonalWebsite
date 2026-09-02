@@ -27,7 +27,9 @@ export function getTimeAgo(pubDate: string) {
     (now.getTime() - postDate.getTime()) / (1000 * 60 * 60 * 24),
   );
 
-  if (diffInDays >= 365) {
+  if (diffInDays <= 0) {
+    return "today";
+  } else if (diffInDays >= 365) {
     const years = Math.floor(diffInDays / 365);
     return `${years} year${years > 1 ? "s" : ""} ago`;
   } else if (diffInDays >= 30) {

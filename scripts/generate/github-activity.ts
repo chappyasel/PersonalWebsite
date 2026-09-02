@@ -36,7 +36,7 @@ try {
   });
   writeFileSync(OUTPUT_PATH, `${JSON.stringify(activity, null, 2)}\n`);
   console.log(
-    `Wrote public/data/github.json: ${activity.contributions.total} contributions, ${activity.repos.length} public repos, ${activity.activeRepos.length} active.`,
+    `Wrote public/data/github.json: ${activity.contributions.total} contributions, ${activity.repos.length} public repos, ${activity.pinnedRepos.length} pinned, ${activity.activeRepos.length} active.`,
   );
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));

@@ -1,6 +1,6 @@
 {
   "login": "chappyasel",
-  "fetchedAt": "2026-09-02T12:50:25.975Z",
+  "fetchedAt": "2026-09-02T17:48:48.142Z",
   "contributions": {
     "from": "2025-08-31T07:00:00Z",
     "to": "2026-09-03T06:59:59Z",
@@ -1905,14 +1905,19 @@
       "nameWithOwner": "chappyasel/PersonalWebsite",
       "name": "PersonalWebsite",
       "owner": "chappyasel",
-      "description": null,
+      "description": "Source for chappyasel.com: portfolio, book library, weightlifting stats, and blog on Next.js and tRPC",
       "url": "https://github.com/chappyasel/PersonalWebsite",
       "homepageUrl": "https://chappyasel.com/",
       "language": "TypeScript",
-      "pushedAt": "2026-09-02T12:30:26Z",
+      "languageColor": "#3178c6",
+      "pushedAt": "2026-09-02T13:58:47Z",
       "createdAt": "2024-08-15T15:56:19Z",
       "isFork": false,
-      "isArchived": false
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "Rebuild the Projects placard around live GitHub activity",
+        "date": "2026-09-02T12:22:56Z"
+      }
     },
     {
       "nameWithOwner": "chappyasel/meta-kb",
@@ -1922,10 +1927,15 @@
       "url": "https://github.com/chappyasel/meta-kb",
       "homepageUrl": null,
       "language": "TypeScript",
+      "languageColor": "#3178c6",
       "pushedAt": "2026-04-09T23:13:45Z",
       "createdAt": "2026-04-04T19:18:26Z",
       "isFork": false,
-      "isArchived": false
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "feat: ingest arscontexta ecosystem — 48 sources on agentic knowledge …",
+        "date": "2026-04-09T23:13:45Z"
+      }
     },
     {
       "nameWithOwner": "chappyasel/react-confetti",
@@ -1935,10 +1945,15 @@
       "url": "https://github.com/chappyasel/react-confetti",
       "homepageUrl": "http://alampros.github.io/react-confetti/",
       "language": "TypeScript",
+      "languageColor": "#3178c6",
       "pushedAt": "2025-01-26T17:32:51Z",
       "createdAt": "2024-05-05T11:37:49Z",
       "isFork": true,
-      "isArchived": false
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "Bump version, update build",
+        "date": "2025-01-26T17:32:47Z"
+      }
     },
     {
       "nameWithOwner": "chappyasel/WebExperiments_Backend",
@@ -1948,23 +1963,33 @@
       "url": "https://github.com/chappyasel/WebExperiments_Backend",
       "homepageUrl": "http://www.chappyasel.com",
       "language": "TypeScript",
+      "languageColor": "#3178c6",
       "pushedAt": "2024-08-15T00:03:34Z",
       "createdAt": "2018-06-07T04:41:14Z",
       "isFork": false,
-      "isArchived": false
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "Updated website content",
+        "date": "2022-11-07T01:17:35Z"
+      }
     },
     {
       "nameWithOwner": "chappyasel/LinkedInScraper",
       "name": "LinkedInScraper",
       "owner": "chappyasel",
-      "description": null,
+      "description": "Enriches an event guest list CSV with LinkedIn about, education, and experience via Selenium",
       "url": "https://github.com/chappyasel/LinkedInScraper",
       "homepageUrl": null,
       "language": "Python",
+      "languageColor": "#3572A5",
       "pushedAt": "2023-03-20T00:38:20Z",
       "createdAt": "2023-03-20T00:38:18Z",
       "isFork": false,
-      "isArchived": false
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "Basic scraping",
+        "date": "2023-03-20T00:38:09Z"
+      }
     },
     {
       "nameWithOwner": "chappyasel/RedditGPT",
@@ -1974,10 +1999,15 @@
       "url": "https://github.com/chappyasel/RedditGPT",
       "homepageUrl": null,
       "language": "HTML",
+      "languageColor": "#e34c26",
       "pushedAt": "2023-02-11T01:11:04Z",
       "createdAt": "2023-02-11T01:00:29Z",
       "isFork": false,
-      "isArchived": false
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "Added project, README",
+        "date": "2023-02-11T01:10:59Z"
+      }
     },
     {
       "nameWithOwner": "chappyasel/Vita",
@@ -1987,10 +2017,15 @@
       "url": "https://github.com/chappyasel/Vita",
       "homepageUrl": null,
       "language": "Swift",
+      "languageColor": "#F05138",
       "pushedAt": "2023-01-18T04:44:44Z",
       "createdAt": "2021-06-07T07:11:04Z",
       "isFork": false,
-      "isArchived": false
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "Random",
+        "date": "2023-01-18T04:44:41Z"
+      }
     },
     {
       "nameWithOwner": "chappyasel/CocoaMarkdown",
@@ -2000,23 +2035,33 @@
       "url": "https://github.com/chappyasel/CocoaMarkdown",
       "homepageUrl": null,
       "language": "Objective-C",
+      "languageColor": "#438eff",
       "pushedAt": "2019-12-13T20:01:41Z",
       "createdAt": "2020-03-24T17:10:19Z",
       "isFork": true,
-      "isArchived": false
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "Merge pull request #57 from jlj/master",
+        "date": "2019-12-13T20:01:39Z"
+      }
     },
     {
       "nameWithOwner": "chappyasel/FantasyNews_iOS",
       "name": "FantasyNews_iOS",
       "owner": "chappyasel",
-      "description": null,
+      "description": "iOS app pairing Rotoworld NBA player news with your ESPN fantasy roster",
       "url": "https://github.com/chappyasel/FantasyNews_iOS",
       "homepageUrl": null,
       "language": "Objective-C",
+      "languageColor": "#438eff",
       "pushedAt": "2018-12-13T22:39:33Z",
       "createdAt": "2018-11-29T00:12:16Z",
       "isFork": false,
-      "isArchived": false
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "Basic player search implementation",
+        "date": "2018-12-13T22:39:26Z"
+      }
     },
     {
       "nameWithOwner": "chappyasel/RotoworldML_Python",
@@ -2026,10 +2071,15 @@
       "url": "https://github.com/chappyasel/RotoworldML_Python",
       "homepageUrl": null,
       "language": "Python",
+      "languageColor": "#3572A5",
       "pushedAt": "2018-11-28T23:58:39Z",
       "createdAt": "2018-10-29T22:59:59Z",
       "isFork": false,
-      "isArchived": false
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "More work",
+        "date": "2018-11-28T23:58:28Z"
+      }
     },
     {
       "nameWithOwner": "chappyasel/OrangeTwist_Web",
@@ -2039,10 +2089,15 @@
       "url": "https://github.com/chappyasel/OrangeTwist_Web",
       "homepageUrl": "http://myorangetwist.com",
       "language": "CSS",
+      "languageColor": "#663399",
       "pushedAt": "2018-06-06T21:39:06Z",
       "createdAt": "2018-05-23T22:27:46Z",
       "isFork": false,
-      "isArchived": false
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "Added Google analytics",
+        "date": "2018-06-06T21:39:00Z"
+      }
     },
     {
       "nameWithOwner": "chappyasel/FantasyBasketball_iOS",
@@ -2052,10 +2107,15 @@
       "url": "https://github.com/chappyasel/FantasyBasketball_iOS",
       "homepageUrl": null,
       "language": "Objective-C",
+      "languageColor": "#438eff",
       "pushedAt": "2017-12-11T22:58:34Z",
       "createdAt": "2015-07-15T16:28:15Z",
       "isFork": false,
-      "isArchived": false
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "0.6.7: UI Adjustments, win prob fix attempts",
+        "date": "2017-12-11T22:58:28Z"
+      }
     },
     {
       "nameWithOwner": "chappyasel/BaseballGame_iOS",
@@ -2065,10 +2125,15 @@
       "url": "https://github.com/chappyasel/BaseballGame_iOS",
       "homepageUrl": null,
       "language": "Objective-C",
+      "languageColor": "#438eff",
       "pushedAt": "2017-06-28T08:46:30Z",
       "createdAt": "2015-08-14T17:39:51Z",
       "isFork": false,
-      "isArchived": false
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "Update README.md",
+        "date": "2017-06-28T08:46:30Z"
+      }
     },
     {
       "nameWithOwner": "chappyasel/DungeonMaster_iOS",
@@ -2078,10 +2143,15 @@
       "url": "https://github.com/chappyasel/DungeonMaster_iOS",
       "homepageUrl": null,
       "language": "Objective-C",
+      "languageColor": "#438eff",
       "pushedAt": "2017-06-28T08:38:10Z",
       "createdAt": "2015-07-15T16:32:40Z",
       "isFork": false,
-      "isArchived": false
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "Update README.md",
+        "date": "2017-06-28T08:38:09Z"
+      }
     },
     {
       "nameWithOwner": "chappyasel/RemoteNotifications_MacOS",
@@ -2091,10 +2161,15 @@
       "url": "https://github.com/chappyasel/RemoteNotifications_MacOS",
       "homepageUrl": null,
       "language": "Objective-C",
+      "languageColor": "#438eff",
       "pushedAt": "2017-06-28T08:03:41Z",
       "createdAt": "2017-06-25T05:49:08Z",
       "isFork": false,
-      "isArchived": false
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "Screenshot update",
+        "date": "2017-06-28T08:03:41Z"
+      }
     },
     {
       "nameWithOwner": "chappyasel/RemoteNotifications_iOS",
@@ -2104,10 +2179,15 @@
       "url": "https://github.com/chappyasel/RemoteNotifications_iOS",
       "homepageUrl": null,
       "language": "Objective-C",
+      "languageColor": "#438eff",
       "pushedAt": "2017-06-28T08:00:23Z",
       "createdAt": "2017-06-25T01:30:57Z",
       "isFork": false,
-      "isArchived": false
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "Screenshot update",
+        "date": "2017-06-28T08:00:19Z"
+      }
     },
     {
       "nameWithOwner": "chappyasel/thePlug_iOS",
@@ -2117,10 +2197,15 @@
       "url": "https://github.com/chappyasel/thePlug_iOS",
       "homepageUrl": null,
       "language": "Objective-C",
+      "languageColor": "#438eff",
       "pushedAt": "2017-06-27T07:48:11Z",
       "createdAt": "2015-10-01T22:50:51Z",
       "isFork": false,
-      "isArchived": false
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "Updated autoresizing constraints",
+        "date": "2017-06-27T07:48:07Z"
+      }
     },
     {
       "nameWithOwner": "chappyasel/iAgar_iOS",
@@ -2130,10 +2215,15 @@
       "url": "https://github.com/chappyasel/iAgar_iOS",
       "homepageUrl": null,
       "language": "Objective-C",
+      "languageColor": "#438eff",
       "pushedAt": "2017-06-26T21:06:40Z",
       "createdAt": "2015-07-15T16:14:11Z",
       "isFork": false,
-      "isArchived": false
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "Update README.md",
+        "date": "2017-06-26T21:06:40Z"
+      }
     },
     {
       "nameWithOwner": "chappyasel/MessageBoard_iOS",
@@ -2143,10 +2233,15 @@
       "url": "https://github.com/chappyasel/MessageBoard_iOS",
       "homepageUrl": null,
       "language": "Objective-C",
+      "languageColor": "#438eff",
       "pushedAt": "2017-06-26T20:48:07Z",
       "createdAt": "2015-07-15T17:16:29Z",
       "isFork": false,
-      "isArchived": false
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "Update README.md",
+        "date": "2017-06-26T20:48:06Z"
+      }
     },
     {
       "nameWithOwner": "chappyasel/2048_iOS",
@@ -2156,10 +2251,15 @@
       "url": "https://github.com/chappyasel/2048_iOS",
       "homepageUrl": null,
       "language": "Objective-C",
+      "languageColor": "#438eff",
       "pushedAt": "2017-06-26T20:44:30Z",
       "createdAt": "2015-07-15T16:36:16Z",
       "isFork": false,
-      "isArchived": false
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "Update README.md",
+        "date": "2017-06-26T20:44:30Z"
+      }
     },
     {
       "nameWithOwner": "chappyasel/ROACHMobile",
@@ -2169,10 +2269,15 @@
       "url": "https://github.com/chappyasel/ROACHMobile",
       "homepageUrl": null,
       "language": "Arduino",
+      "languageColor": null,
       "pushedAt": "2017-06-05T14:12:42Z",
       "createdAt": "2017-03-28T16:06:42Z",
       "isFork": false,
-      "isArchived": false
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "Aduino library adjustments, GPS test, BLE code changes",
+        "date": "2017-06-05T14:12:27Z"
+      }
     },
     {
       "nameWithOwner": "chappyasel/gigwalk-node",
@@ -2182,10 +2287,15 @@
       "url": "https://github.com/chappyasel/gigwalk-node",
       "homepageUrl": null,
       "language": "JavaScript",
+      "languageColor": "#f1e05a",
       "pushedAt": "2016-08-19T23:00:23Z",
       "createdAt": "2016-07-27T17:58:22Z",
       "isFork": true,
-      "isArchived": false
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "Update: Small changes to API descriptions",
+        "date": "2016-08-19T23:00:17Z"
+      }
     },
     {
       "nameWithOwner": "chappyasel/thePlug_Backend",
@@ -2195,10 +2305,125 @@
       "url": "https://github.com/chappyasel/thePlug_Backend",
       "homepageUrl": null,
       "language": "HTML",
+      "languageColor": "#e34c26",
       "pushedAt": "2015-10-12T20:43:12Z",
       "createdAt": "2015-10-09T18:40:31Z",
       "isFork": false,
-      "isArchived": false
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "First non-verified login attempt, CSS change",
+        "date": "2015-10-12T20:43:01Z"
+      }
+    }
+  ],
+  "pinnedRepos": [
+    {
+      "nameWithOwner": "chappyasel/WebExperiments_Backend",
+      "name": "WebExperiments_Backend",
+      "owner": "chappyasel",
+      "description": "A monorepo for my AWS EB-hosted online portfolio website along with MySQL / PHP / Node.js backends for various other personal projects including Weightlifting App and ESPN Fantasy Football",
+      "url": "https://github.com/chappyasel/WebExperiments_Backend",
+      "homepageUrl": "http://www.chappyasel.com",
+      "language": "TypeScript",
+      "languageColor": "#3178c6",
+      "pushedAt": "2024-08-15T00:03:34Z",
+      "createdAt": "2018-06-07T04:41:14Z",
+      "isFork": false,
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "Updated website content",
+        "date": "2022-11-07T01:17:35Z"
+      }
+    },
+    {
+      "nameWithOwner": "WeightliftingApp/WeightliftingApp-GPT",
+      "name": "WeightliftingApp-GPT",
+      "owner": "WeightliftingApp",
+      "description": "Per-exercise leaderboards computed from Weightlifting App data exports, plus an unfinished OpenAI experiment",
+      "url": "https://github.com/WeightliftingApp/WeightliftingApp-GPT",
+      "homepageUrl": null,
+      "language": "Python",
+      "languageColor": "#3572A5",
+      "pushedAt": "2023-03-06T04:41:01Z",
+      "createdAt": "2023-03-05T23:42:48Z",
+      "isFork": false,
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "Added lbs/kg conversion, flexible metric",
+        "date": "2023-03-06T04:40:59Z"
+      }
+    },
+    {
+      "nameWithOwner": "chappyasel/RedditGPT",
+      "name": "RedditGPT",
+      "owner": "chappyasel",
+      "description": "A Reddit client created entirely with ChatGPT",
+      "url": "https://github.com/chappyasel/RedditGPT",
+      "homepageUrl": null,
+      "language": "HTML",
+      "languageColor": "#e34c26",
+      "pushedAt": "2023-02-11T01:11:04Z",
+      "createdAt": "2023-02-11T01:00:29Z",
+      "isFork": false,
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "Added project, README",
+        "date": "2023-02-11T01:10:59Z"
+      }
+    },
+    {
+      "nameWithOwner": "WeightliftingApp/WeightliftingApp-ML",
+      "name": "WeightliftingApp-ML",
+      "owner": "WeightliftingApp",
+      "description": "A series of programs written in Python using Weightling App data to train a Keras deep learning model exported to CoreML for the purpose of workout type prediction based on the exercises performed",
+      "url": "https://github.com/WeightliftingApp/WeightliftingApp-ML",
+      "homepageUrl": null,
+      "language": "Python",
+      "languageColor": "#3572A5",
+      "pushedAt": "2018-01-30T07:48:35Z",
+      "createdAt": "2018-01-29T05:27:53Z",
+      "isFork": false,
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "Update README.md",
+        "date": "2018-01-30T07:48:34Z"
+      }
+    },
+    {
+      "nameWithOwner": "chappyasel/RotoworldML_Python",
+      "name": "RotoworldML_Python",
+      "owner": "chappyasel",
+      "description": "A series of programs written in Python using the Rotoworld mobile API to train a Keras deep learning model for the purpose of evaluating NBA players based on tokenized news articles",
+      "url": "https://github.com/chappyasel/RotoworldML_Python",
+      "homepageUrl": null,
+      "language": "Python",
+      "languageColor": "#3572A5",
+      "pushedAt": "2018-11-28T23:58:39Z",
+      "createdAt": "2018-10-29T22:59:59Z",
+      "isFork": false,
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "More work",
+        "date": "2018-11-28T23:58:28Z"
+      }
+    },
+    {
+      "nameWithOwner": "chappyasel/FantasyBasketball_iOS",
+      "name": "FantasyBasketball_iOS",
+      "owner": "chappyasel",
+      "description": "Accesses player data from espn.com, rotoworld.com, nba.com, and more for the purpose of tracking and evaluating NBA player performance as well as calculating various fantasy basketball-related metrics",
+      "url": "https://github.com/chappyasel/FantasyBasketball_iOS",
+      "homepageUrl": null,
+      "language": "Objective-C",
+      "languageColor": "#438eff",
+      "pushedAt": "2017-12-11T22:58:34Z",
+      "createdAt": "2015-07-15T16:28:15Z",
+      "isFork": false,
+      "isArchived": false,
+      "lastCommit": {
+        "headline": "0.6.7: UI Adjustments, win prob fix attempts",
+        "date": "2017-12-11T22:58:28Z"
+      }
     }
   ],
   "activeRepos": [
@@ -2206,14 +2431,19 @@
       "nameWithOwner": "chappyasel/PersonalWebsite",
       "name": "PersonalWebsite",
       "owner": "chappyasel",
-      "description": null,
+      "description": "Source for chappyasel.com: portfolio, book library, weightlifting stats, and blog on Next.js and tRPC",
       "url": "https://github.com/chappyasel/PersonalWebsite",
       "homepageUrl": "https://chappyasel.com/",
       "language": "TypeScript",
-      "pushedAt": "2026-09-02T12:30:26Z",
+      "languageColor": "#3178c6",
+      "pushedAt": "2026-09-02T13:58:47Z",
       "createdAt": "2024-08-15T15:56:19Z",
       "isFork": false,
       "isArchived": false,
+      "lastCommit": {
+        "headline": "Rebuild the Projects placard around live GitHub activity",
+        "date": "2026-09-02T12:22:56Z"
+      },
       "commits": 333
     },
     {
@@ -2224,24 +2454,34 @@
       "url": "https://github.com/caikdev/OpenLattice",
       "homepageUrl": "https://open-lattice.vercel.app",
       "language": "TypeScript",
+      "languageColor": "#3178c6",
       "pushedAt": "2026-03-13T12:58:15Z",
       "createdAt": "2026-03-05T21:18:41Z",
       "isFork": false,
       "isArchived": false,
+      "lastCommit": {
+        "headline": "feat: playbook-first homepage redesign (#51)",
+        "date": "2026-03-13T12:58:12Z"
+      },
       "commits": 87
     },
     {
       "nameWithOwner": "WeightliftingApp/WeightliftingApp-AnalyzeData",
       "name": "WeightliftingApp-AnalyzeData",
       "owner": "WeightliftingApp",
-      "description": null,
+      "description": "Python notebooks and scripts for analyzing a Weightlifting App data export",
       "url": "https://github.com/WeightliftingApp/WeightliftingApp-AnalyzeData",
       "homepageUrl": null,
       "language": "Jupyter Notebook",
+      "languageColor": "#DA5B0B",
       "pushedAt": "2026-08-23T11:00:35Z",
       "createdAt": "2024-12-25T23:57:15Z",
       "isFork": false,
       "isArchived": false,
+      "lastCommit": {
+        "headline": "Merge pull request #2 from WeightliftingApp/codex/session-closeout",
+        "date": "2026-08-23T11:00:32Z"
+      },
       "commits": 49
     },
     {
@@ -2252,24 +2492,34 @@
       "url": "https://github.com/chappyasel/meta-kb",
       "homepageUrl": null,
       "language": "TypeScript",
+      "languageColor": "#3178c6",
       "pushedAt": "2026-04-09T23:13:45Z",
       "createdAt": "2026-04-04T19:18:26Z",
       "isFork": false,
       "isArchived": false,
+      "lastCommit": {
+        "headline": "feat: ingest arscontexta ecosystem — 48 sources on agentic knowledge …",
+        "date": "2026-04-09T23:13:45Z"
+      },
       "commits": 25
     },
     {
       "nameWithOwner": "the-ai-collective/demo-night-app",
       "name": "demo-night-app",
       "owner": "the-ai-collective",
-      "description": null,
+      "description": "The open-source app that runs The AI Collective's Demo Night events",
       "url": "https://github.com/the-ai-collective/demo-night-app",
       "homepageUrl": "https://demos.aicollective.com",
       "language": "TypeScript",
+      "languageColor": "#3178c6",
       "pushedAt": "2026-07-28T22:45:59Z",
       "createdAt": "2024-04-28T02:45:06Z",
       "isFork": false,
       "isArchived": false,
+      "lastCommit": {
+        "headline": "Merge pull request #54 from the-ai-collective/billy/submission-form-o…",
+        "date": "2026-07-28T22:45:59Z"
+      },
       "commits": 12
     },
     {
@@ -2280,10 +2530,15 @@
       "url": "https://github.com/caikdev/plugins",
       "homepageUrl": null,
       "language": "JavaScript",
+      "languageColor": "#f1e05a",
       "pushedAt": "2026-03-30T03:50:58Z",
       "createdAt": "2026-03-25T02:14:40Z",
       "isFork": false,
       "isArchived": false,
+      "lastCommit": {
+        "headline": "sync from monorepo (846292b)",
+        "date": "2026-03-30T03:50:58Z"
+      },
       "commits": 2
     }
   ]

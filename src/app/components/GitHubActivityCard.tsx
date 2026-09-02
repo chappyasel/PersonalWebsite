@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  CalendarDotsIcon,
+  ClockCounterClockwiseIcon,
   FireIcon,
   GithubLogoIcon,
   SunIcon,
@@ -9,8 +9,9 @@ import {
 
 import {
   type GitHubPlacard,
-  contributionWeeks,
+  contributionDayUrl,
   monthLabelColumns,
+  recentWeeks,
 } from "~/lib/github/placard";
 import { type GitHubContributionDay } from "~/lib/github/types";
 import { cn } from "~/lib/util";
@@ -22,7 +23,10 @@ import {
   TooltipTrigger,
 } from "~/components/ui/tooltip";
 
-import { PlacardLinkCard, PlacardStatsCard } from "./stacks/dom/PlacardStatsCard";
+import {
+  PlacardNestedLinkCard,
+  PlacardStatsCard,
+} from "./stacks/dom/PlacardStatsCard";
 
 function count(value: number) {
   return value.toLocaleString("en-US");
@@ -72,24 +76,35 @@ function dayCaption(day: GitHubContributionDay) {
  * The contribution graph as GitHub lays it out, in the slot the Weightlifting
  * card gives its year bars: one column per week, Sunday at the top, square
  * cells, a month name under the first week of each month where the bars
- * carry their year labels. The year always fits the column, so the squares
- * are small; the month row hides on narrow screens where it would overlap.
+ * carry their year labels. Half a year, so the squares stay legible in that
+ * column. Each square is a link to that day's activity on GitHub; the
+ * squares stay out of the tab order because the card itself is the link
+ * keyboard users get, and 180 stops in a row would be a wall. The month row
+ * hides on narrow screens where it would overlap.
  */
 function ContributionCalendar({
+  login,
   days,
-  label,
 }: {
+  login: string;
   days: GitHubContributionDay[];
-  label: string;
 }) {
-  const weeks = contributionWeeks(days);
+  const weeks = recentWeeks(days);
   const labels = monthLabelColumns(weeks);
   const columns = `repeat(${weeks.length}, minmax(0, 1fr))`;
+  const shown = weeks
+    .flat()
+    .filter((day): day is GitHubContributionDay => day !== null);
+  const total = shown.reduce((sum, day) => sum + day.count, 0);
+  const active = shown.filter((day) => day.count > 0).length;
   return (
-    <div role="img" aria-label={label}>
+    <div
+      role="group"
+      aria-label={`${count(total)} contributions on ${count(active)} days in the last ${weeks.length} weeks`}
+    >
       <TooltipProvider delayDuration={100}>
         <div
-          className="grid gap-px"
+          className="grid gap-0.5"
           style={{
             gridTemplateColumns: columns,
             gridTemplateRows: "repeat(7, minmax(0, 1fr))",
@@ -101,9 +116,14 @@ function ContributionCalendar({
               day ? (
                 <Tooltip key={day.date}>
                   <TooltipTrigger asChild>
-                    <div
+                    <a
+                      href={contributionDayUrl(login, day.date)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      tabIndex={-1}
+                      aria-label={`${dateLabel(day.date)}: ${dayCaption(day)}`}
                       className={cn(
-                        "aspect-square w-full rounded-[1px]",
+                        "block aspect-square w-full rounded-[1px]",
                         LEVEL_CLASS[day.level],
                         day.count > 0 &&
                           "transition-transform duration-150 hover:scale-150",
@@ -148,10 +168,12 @@ function ContributionCalendar({
 /**
  * The live half of the Projects placard, in the Weightlifting stats card's
  * exact shape: the headline, GitHub's contribution graph where that card
- * keeps its year bars, three figures past the divider. The repositories tab
- * on GitHub is mostly student work from 2015 to 2018 and says nothing about
- * the last year, most of which happened in private repositories; this card
- * is what that tab cannot show.
+ * keeps its year bars, three figures past the divider. The headline is the
+ * number GitHub prints above its own graph, the last year, because that is
+ * the year the graph and the figures describe; the lifetime total sits with
+ * the figures. The repositories tab on GitHub is mostly student work from
+ * 2015 to 2018 and says nothing about the last year, most of which happened
+ * in private repositories; this card is what that tab cannot show.
  */
 export default function GitHubActivityCard({
   placard,
@@ -160,28 +182,25 @@ export default function GitHubActivityCard({
 }) {
   const { lastYear } = placard;
   return (
-    <PlacardLinkCard
+    <PlacardNestedLinkCard
       href={placard.profileUrl}
       label="Open Chappy's GitHub profile"
       newTab
       mobileCompact
     >
       <PlacardStatsCard
-        headline={count(placard.allTime)}
+        headline={count(lastYear.total)}
         headlineIcon={GithubLogoIcon}
-        headlineLabel={`Contributions since ${placard.since}`}
+        headlineLabel="Contributions in the last year"
         compactMobile
         chart={
-          <ContributionCalendar
-            days={lastYear.days}
-            label={`${count(lastYear.total)} GitHub contributions on ${count(lastYear.activeDays)} days in the last 12 months`}
-          />
+          <ContributionCalendar login={placard.login} days={lastYear.days} />
         }
         stats={[
           {
-            icon: CalendarDotsIcon,
-            label: "Last 12 months",
-            value: count(lastYear.total),
+            icon: ClockCounterClockwiseIcon,
+            label: `Since ${placard.since}`,
+            value: count(placard.allTime),
           },
           {
             icon: SunIcon,
@@ -195,6 +214,6 @@ export default function GitHubActivityCard({
           },
         ]}
       />
-    </PlacardLinkCard>
+    </PlacardNestedLinkCard>
   );
 }

@@ -61,11 +61,13 @@ export function PlacardNestedLinkCard({
   href,
   label,
   newTab = false,
+  mobileCompact = false,
   children,
 }: {
   href: string;
   label: string;
   newTab?: boolean;
+  mobileCompact?: boolean;
   children: React.ReactNode;
 }) {
   const open = () => {
@@ -84,6 +86,7 @@ export function PlacardNestedLinkCard({
         role="link"
         tabIndex={0}
         aria-label={label}
+        data-mobile-compact-card={mobileCompact ? "" : undefined}
         onClick={(event) => {
           const target = event.target;
           if (

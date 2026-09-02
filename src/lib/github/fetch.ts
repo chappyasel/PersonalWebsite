@@ -17,9 +17,9 @@ const GRAPHQL_ENDPOINT = "https://api.github.com/graphql";
  *
  * With the owner's own token, `totalContributions` and
  * `restrictedContributionsCount` include private work and
- * `commitContributionsByRepository` lists private repositories. Any other
- * token sees public activity only. Either way every repository is filtered
- * on `isPrivate` below before it is kept.
+ * `commitContributionsByRepository` lists private repositories, and so can
+ * `pinnedItems`. Any other token sees public activity only. Either way every
+ * repository is filtered on `isPrivate` below before it is kept.
  */
 const ACTIVITY_QUERY = /* GraphQL */ `
   query GitHubActivity($login: String!) {
@@ -59,6 +59,13 @@ const ACTIVITY_QUERY = /* GraphQL */ `
           ...RepoFields
         }
       }
+      pinnedItems(first: 6, types: REPOSITORY) {
+        nodes {
+          ... on Repository {
+            ...RepoFields
+          }
+        }
+      }
     }
   }
   fragment RepoFields on Repository {
@@ -72,12 +79,25 @@ const ACTIVITY_QUERY = /* GraphQL */ `
     homepageUrl
     primaryLanguage {
       name
+      color
     }
     pushedAt
     createdAt
     isFork
     isArchived
     isPrivate
+    defaultBranchRef {
+      target {
+        ... on Commit {
+          history(first: 1) {
+            nodes {
+              messageHeadline
+              committedDate
+            }
+          }
+        }
+      }
+    }
   }
 `;
 
@@ -88,12 +108,35 @@ const rawRepoSchema = z.object({
   description: z.string().nullable(),
   url: z.string().url(),
   homepageUrl: z.string().nullable(),
-  primaryLanguage: z.object({ name: z.string() }).nullable(),
+  primaryLanguage: z
+    .object({ name: z.string(), color: z.string().nullable() })
+    .nullable(),
   pushedAt: z.string(),
   createdAt: z.string(),
   isFork: z.boolean(),
   isArchived: z.boolean(),
   isPrivate: z.boolean(),
+  // The inline fragment leaves `history` out when the ref points at
+  // something other than a commit, and the ref itself is null for an empty
+  // repository.
+  defaultBranchRef: z
+    .object({
+      target: z
+        .object({
+          history: z
+            .object({
+              nodes: z.array(
+                z.object({
+                  messageHeadline: z.string(),
+                  committedDate: z.string(),
+                }),
+              ),
+            })
+            .optional(),
+        })
+        .nullable(),
+    })
+    .nullable(),
 });
 
 const rawResponseSchema = z.object({
@@ -135,6 +178,7 @@ const rawResponseSchema = z.object({
         totalCount: z.number().int(),
         nodes: z.array(rawRepoSchema),
       }),
+      pinnedItems: z.object({ nodes: z.array(rawRepoSchema) }),
     }),
   }),
 });
@@ -206,6 +250,13 @@ function text(value: string | null) {
   return trimmed === "" ? null : trimmed;
 }
 
+function lastCommit(raw: RawRepo) {
+  const commit = raw.defaultBranchRef?.target?.history?.nodes[0];
+  return commit
+    ? { headline: commit.messageHeadline, date: commit.committedDate }
+    : null;
+}
+
 function publicRepo(raw: RawRepo): GitHubRepo | null {
   if (raw.isPrivate) return null;
   return {
@@ -216,11 +267,19 @@ function publicRepo(raw: RawRepo): GitHubRepo | null {
     url: raw.url,
     homepageUrl: text(raw.homepageUrl),
     language: raw.primaryLanguage?.name ?? null,
+    languageColor: raw.primaryLanguage?.color ?? null,
     pushedAt: raw.pushedAt,
     createdAt: raw.createdAt,
     isFork: raw.isFork,
     isArchived: raw.isArchived,
+    lastCommit: lastCommit(raw),
   };
+}
+
+function publicRepos(raws: readonly RawRepo[]) {
+  return raws
+    .map(publicRepo)
+    .filter((repo): repo is GitHubRepo => repo !== null);
 }
 
 export async function fetchGitHubActivity({
@@ -277,9 +336,8 @@ export async function fetchGitHubActivity({
     },
     years,
     publicRepoCount: user.repositories.totalCount,
-    repos: user.repositories.nodes
-      .map(publicRepo)
-      .filter((repo): repo is GitHubRepo => repo !== null),
+    repos: publicRepos(user.repositories.nodes),
+    pinnedRepos: publicRepos(user.pinnedItems.nodes),
     activeRepos,
   });
 }

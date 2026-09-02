@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  GITHUB_CALENDAR_WEEKS,
   GITHUB_REPOS_LIMIT,
   buildGitHubPlacard,
+  contributionDayUrl,
   contributionWeeks,
   longestStreak,
   monthLabelColumns,
+  recentWeeks,
   yearBars,
 } from "./placard";
 import {
@@ -25,10 +28,12 @@ function repo(overrides: Partial<GitHubRepo> & { name: string }): GitHubRepo {
     url: `https://github.com/${owner}/${overrides.name}`,
     homepageUrl: null,
     language: "TypeScript",
+    languageColor: "#3178c6",
     pushedAt: "2026-01-01T00:00:00Z",
     createdAt: "2025-01-01T00:00:00Z",
     isFork: false,
     isArchived: false,
+    lastCommit: { headline: "Initial commit", date: "2026-01-01T00:00:00Z" },
     ...overrides,
   };
 }
@@ -58,9 +63,19 @@ function activity(overrides: Partial<GitHubActivity> = {}): GitHubActivity {
     ],
     publicRepoCount: 3,
     repos: [],
+    pinnedRepos: [],
     activeRepos: [],
     ...overrides,
   };
+}
+
+/** `count` consecutive days starting at `start` (UTC), all contributed to. */
+function consecutiveDays(start: string, count: number) {
+  const [year, month, dayOfMonth] = start.split("-").map(Number);
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date(Date.UTC(year!, month! - 1, dayOfMonth! + index));
+    return day(date.toISOString().slice(0, 10), 1);
+  });
 }
 
 describe("contributionWeeks", () => {
@@ -99,14 +114,34 @@ describe("contributionWeeks", () => {
   });
 });
 
+describe("recentWeeks", () => {
+  it("keeps the newest columns, the partial current week included", () => {
+    // Sun 2025-08-31 through Wed 2026-09-02: 53 columns, the last partial.
+    const days = consecutiveDays("2025-08-31", 368);
+    const weeks = recentWeeks(days);
+    expect(weeks).toHaveLength(GITHUB_CALENDAR_WEEKS);
+    expect(weeks.at(-1)![3]?.date).toBe("2026-09-02");
+    expect(weeks.at(-1)![4]).toBeNull();
+    expect(weeks[0]![0]?.date).toBe("2026-03-08");
+  });
+
+  it("hands back everything when there is less than the window", () => {
+    expect(recentWeeks(consecutiveDays("2026-08-30", 14))).toHaveLength(2);
+  });
+});
+
+describe("contributionDayUrl", () => {
+  it("filters the profile overview to the one day", () => {
+    expect(contributionDayUrl("chappyasel", "2026-07-24")).toBe(
+      "https://github.com/chappyasel?tab=overview&from=2026-07-24&to=2026-07-24",
+    );
+  });
+});
+
 describe("monthLabelColumns", () => {
   it("labels the first column of each new month and drops crowded ones", () => {
     // Sun 2026-08-30 through Sat 2026-10-10: six columns.
-    const days = Array.from({ length: 42 }, (_, index) => {
-      const date = new Date(Date.UTC(2026, 7, 30 + index));
-      return day(date.toISOString().slice(0, 10), 1);
-    });
-    const weeks = contributionWeeks(days);
+    const weeks = contributionWeeks(consecutiveDays("2026-08-30", 42));
     // Column 1 starts Sep 6 (new month vs Aug 30); column 5 starts Oct 4.
     expect(monthLabelColumns(weeks)).toEqual([
       { column: 1, month: 9 },
@@ -219,9 +254,35 @@ describe("buildGitHubPlacard", () => {
     expect(placard.repos[1]!.organization).toBe("caikdev");
     expect(placard.repos[0]!.organization).toBeNull();
     expect(placard.repos[0]).not.toHaveProperty("commits");
+    expect(placard.repos[0]!.languageColor).toBe("#3178c6");
+    expect(placard.repos[0]!.lastCommit?.headline).toBe("Initial commit");
   });
 
-  it("leaves out featured, forked, archived, and undescribed repositories", () => {
+  it("puts pinned repositories first, in pinned order, then fills by push", () => {
+    const placard = buildGitHubPlacard(
+      activity({
+        pinnedRepos: [
+          repo({ name: "pinned-old", pushedAt: "2018-01-01T00:00:00Z" }),
+          // Pinned but featured: the project card already covers it.
+          repo({ name: "PersonalWebsite", pushedAt: "2026-07-01T00:00:00Z" }),
+          repo({ name: "pinned-fork", isFork: true }),
+        ],
+        repos: [
+          repo({ name: "recent", pushedAt: "2026-06-01T00:00:00Z" }),
+          // Also pinned; keeps its pinned slot rather than repeating.
+          repo({ name: "pinned-old", pushedAt: "2018-01-01T00:00:00Z" }),
+        ],
+      }),
+      { featuredRepos: ["chappyasel/PersonalWebsite"], now: NOW },
+    );
+    expect(placard.repos.map((r) => r.name)).toEqual([
+      "pinned-old",
+      "pinned-fork",
+      "recent",
+    ]);
+  });
+
+  it("leaves out featured, forked, and archived repositories, described or not", () => {
     const placard = buildGitHubPlacard(
       activity({
         repos: [
@@ -234,7 +295,7 @@ describe("buildGitHubPlacard", () => {
       }),
       { featuredRepos: ["chappyasel/personalwebsite"], now: NOW },
     );
-    expect(placard.repos.map((r) => r.name)).toEqual(["kept"]);
+    expect(placard.repos.map((r) => r.name)).toEqual(["blank", "kept"]);
   });
 
   it("caps the list", () => {
