@@ -369,4 +369,29 @@ describe("Vision ride integration", () => {
     expect(registry).toContain('label: "Vision Ride retro finish"');
     expect(registry).toContain("setRetroFxEnabled");
   });
+  it("keeps three out of the ride modules the homepage loads up front", () => {
+    // The placard's entry link, the store and the chrome import these in
+    // the initial client graph. A value import of three in any of them
+    // ships the 98 KB core with the first route load; the 3D scene loads
+    // it lazily. PR #45's production deploy failed the route budget on the
+    // runtime's import, so this pins every module on that path.
+    for (const relative of [
+      "./visionRideEntry.ts",
+      "./visionRideRuntime.ts",
+      "./visionRideProfiles.ts",
+      "./visionRideState.ts",
+      "./visionRideDiagnostics.ts",
+      "./visionRideTransitionTimeline.ts",
+      "../dom/VisionRideControls.tsx",
+      "../scene/visionProDisplayDiagnostics.ts",
+      "../scene/visionProGeometry.ts",
+    ]) {
+      const source = read(relative);
+      expect(source, relative).not.toMatch(
+        /^import (?!type )[^;]*from "three["/]/m,
+      );
+      expect(source, relative).not.toMatch(/^import \* as THREE from "three"/m);
+    }
+  });
+
 });

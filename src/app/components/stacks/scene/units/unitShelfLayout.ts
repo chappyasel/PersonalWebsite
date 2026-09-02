@@ -2,8 +2,11 @@ import {
   ABOUT_APPLE_BASE_DEPTH,
   ABOUT_APPLE_BASE_WIDTH,
 } from "../aboutAwardGeometry";
-import { ABOUT_LOWER_AWARD_SCALE } from "../aboutLampPose";
-import { ABOUT_APPLE_MARK_YAW, ABOUT_APPLE_ROOT_YAW } from "../aboutScenePose";
+import {
+  ABOUT_APPLE_MARK_YAW,
+  ABOUT_APPLE_ROOT_YAW,
+  ABOUT_LOWER_AWARD_SCALE,
+} from "../aboutScenePose";
 import { deskFrameWidth } from "../photoGeometry";
 import { SHELF_GEOMETRY } from "../shelfGeometry";
 

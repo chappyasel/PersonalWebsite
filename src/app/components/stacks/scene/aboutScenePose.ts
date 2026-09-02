@@ -22,6 +22,11 @@ export type AboutModelPose = Readonly<{
 }>;
 
 export const ABOUT_AWARD_SIZE_INCREASE = 1.1;
+/** Scale of the lower shelf's awards. Kept here, three-free, because the
+ * boot screen's shelf layout derives its award footprint from it: taking it
+ * from the lamp pose module dragged three into the homepage's first route
+ * load and failed the route budget on PR #45's deploy. */
+export const ABOUT_LOWER_AWARD_SCALE = 1.32 * ABOUT_AWARD_SIZE_INCREASE;
 export const ABOUT_AIC_ORB_SIZE_INCREASE = 1.2;
 export const ABOUT_CACTUS_SIZE_REDUCTION = 0.7;
 
