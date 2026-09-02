@@ -1,4 +1,29 @@
 {
+  "stacksAttributionRequired": [
+    {
+      "files": ["/audio/stacks/coordination-boom.ogg"],
+      "title": "BASS_BOOM_002.wav",
+      "author": "JoelAudio",
+      "license": "CC BY 4.0",
+      "source": "https://freesound.org/people/JoelAudio/sounds/86264/",
+      "download": "https://cdn.freesound.org/previews/86/86264_1206321-hq.mp3",
+      "modifications": "Converted from the stereo MP3 preview to mono 48 kHz Ogg/Opus at 48 kbps.",
+      "sha256": "b626d442b41c9b2d6f9af5693d1dd5aa29c3c127f071b968dfb0ac9ea3d81054"
+    },
+    {
+      "files": [
+        "/audio/stacks/golf-strike.ogg",
+        "/audio/stacks/golf-strike-b.ogg",
+        "/audio/stacks/golf-strike-c.ogg",
+        "/audio/stacks/golf-strike-d.ogg"
+      ],
+      "title": "Golf.wav",
+      "author": "CGEffex",
+      "license": "CC BY 4.0",
+      "source": "https://freesound.org/people/CGEffex/sounds/98334/",
+      "modifications": "Trimmed into four mono Ogg/Opus strike variants."
+    }
+  ],
   "visionRide": [
     {
       "file": "/audio/vision-ride/synthwave-loop.ogg",

@@ -17,7 +17,6 @@ import {
   lensCurtain,
   returningPresentation,
   roomEffectsActive,
-  VISION_RIDE_TIMELINE,
 } from "./visionRideTransitionTimeline";
 
 /** Iris scale at full coverage: the disc's soft rim clears the frame
@@ -251,7 +250,7 @@ export default function VisionRideTransition({ dark }: { dark: boolean }) {
       staticAmount = beat.staticAmount;
       if (
         !entryAudioFinished.current &&
-        elapsed >= VISION_RIDE_TIMELINE.entry.flickerSeconds
+        beat.complete
       ) {
         entryAudioFinished.current = true;
         sceneAudio.finishVisionRideEntry();

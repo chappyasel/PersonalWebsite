@@ -1,5 +1,6 @@
 "use client";
 
+import { sceneAudio } from "../audio/sceneAudio";
 import { isWorldRevealed } from "../boot/worldBootSession";
 import { recordFieldNoteEvent } from "../fieldNotes/progress";
 import { useStacks } from "../store";
@@ -896,6 +897,15 @@ export function CoordinationGlobe({
       if (now - lastShockwaveAt.current < 900) return;
       lastShockwaveAt.current = now;
       triggerCoordinationBurst(burstSignal.current);
+      sceneAudio.play(
+        "coordination-boom",
+        {
+          x: origin.x,
+          y: origin.y + COORDINATION_CORE_CENTER_Y * scale,
+          z: origin.z,
+        },
+        0.75,
+      );
       publishSceneImpulse({
         sourceId: COORDINATION_GLOBE_INTERACTION_ID,
         x: origin.x,

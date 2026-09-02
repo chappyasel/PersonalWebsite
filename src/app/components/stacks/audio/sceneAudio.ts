@@ -1,6 +1,8 @@
 import type { GolfVec3 } from "../scene/golf/golfTypes";
+import { VISION_RIDE_TIMELINE } from "../visionRide/visionRideTransitionTimeline";
 
 export type SceneSoundEvent =
+  | "coordination-boom"
   | "golf-strike"
   | "golf-turf"
   | "golf-cup"
@@ -36,6 +38,7 @@ export function windGainForMotion(motion: number) {
   return eased * SCENE_AUDIO_MIX.windMotionRange;
 }
 const EVENT_COOLDOWN_MS: Partial<Record<SceneSoundEvent, number>> = {
+  "coordination-boom": 900,
   "golf-turf": 80,
   flagstick: 100,
 };
@@ -44,6 +47,7 @@ const FILES = {
   windA: "/audio/stacks/wind-meadow-a.ogg",
   windB: "/audio/stacks/wind-meadow-b.ogg",
   meadow: "/audio/stacks/spring-birds-meadow.ogg",
+  "coordination-boom": "/audio/stacks/coordination-boom.ogg",
   "golf-strike": "/audio/stacks/golf-strike.ogg",
   golfStrikeB: "/audio/stacks/golf-strike-b.ogg",
   golfStrikeC: "/audio/stacks/golf-strike-c.ogg",
@@ -65,9 +69,13 @@ type PendingPlay = {
 type Subscriber = (state: SceneAudioState) => void;
 
 const FIRST_STRIKE: SoundName = "golf-strike";
+const COORDINATION_BOOM: SoundName = "coordination-boom";
 const CORE_AMBIENCE: SoundName[] = ["windA", "windB", "meadow"];
 const DEFERRED_SOUNDS = (Object.keys(FILES) as SoundName[]).filter(
-  (name) => name !== FIRST_STRIKE && !CORE_AMBIENCE.includes(name),
+  (name) =>
+    name !== FIRST_STRIKE &&
+    name !== COORDINATION_BOOM &&
+    !CORE_AMBIENCE.includes(name),
 );
 const MAX_PENDING_PLAY_MS = 600;
 export const VISION_RIDE_SOUNDTRACK =
@@ -83,13 +91,20 @@ export const VISION_RIDE_ENTRY_WHOOSH_SECONDS = 1.5;
 export const VISION_RIDE_EXIT_WHOOSH_SECONDS = 1.4;
 export const VISION_RIDE_WHOOSH_ATTACK_SECONDS = 0.12;
 // Broadcast static hiss under the set switching on and off. Entry begins only
-// after the headset is seated and spans the full-frame flicker. Exit spans the
-// removal whoosh. Both are band-passed noise at a low level.
-// Ends before the CRT aperture reveals the moving road: hiss belongs to the
-// switch-on, never to the actual drive.
-export const VISION_RIDE_ENTRY_STATIC_SECONDS = 0.5;
-export const VISION_RIDE_EXIT_STATIC_SECONDS = VISION_RIDE_EXIT_WHOOSH_SECONDS;
-export const VISION_RIDE_STATIC_PEAK = 0.018;
+// after the headset is seated and follows the visible snow through the CRT
+// aperture opening. Exit spans the removal whoosh. Both are band-passed noise
+// that ends when the matching picture noise disappears.
+export const VISION_RIDE_ENTRY_STATIC_SECONDS =
+  VISION_RIDE_TIMELINE.entry.flickerSeconds +
+  VISION_RIDE_TIMELINE.entry.apertureSeconds;
+export const VISION_RIDE_EXIT_STATIC_SECONDS =
+  VISION_RIDE_TIMELINE.exit.flickerSeconds +
+  VISION_RIDE_TIMELINE.exit.collapseSeconds +
+  VISION_RIDE_TIMELINE.exit.lineHoldSeconds +
+  VISION_RIDE_TIMELINE.exit.dotSeconds;
+export const VISION_RIDE_SOUNDTRACK_GAIN = 0.22;
+export const VISION_RIDE_STATIC_PEAK = 0.07;
+const VISION_RIDE_STATIC_ATTACK_SECONDS = 0.015;
 
 export function spatialGain(distance: number, maxDistance = 42) {
   if (distance <= 1) return 1;
@@ -241,7 +256,10 @@ export class SceneAudioRuntime {
       !this.rideEntryEffectsAllowed
     )
       return;
-    this.startVisionRideStatic(VISION_RIDE_ENTRY_STATIC_SECONDS, 0.25);
+    this.startVisionRideStatic(
+      VISION_RIDE_ENTRY_STATIC_SECONDS,
+      VISION_RIDE_TIMELINE.entry.apertureSeconds,
+    );
   };
 
   /** End the one-shot switch-on noise independently of the continuous
@@ -284,7 +302,10 @@ export class SceneAudioRuntime {
     oscillator.stop(now + VISION_RIDE_EXIT_WHOOSH_SECONDS + 0.01);
     this.rideOscillators.push(oscillator);
     if (!this.rideReducedMotion)
-      this.startVisionRideStatic(VISION_RIDE_EXIT_STATIC_SECONDS, 0.22);
+      this.startVisionRideStatic(
+        VISION_RIDE_EXIT_STATIC_SECONDS,
+        VISION_RIDE_TIMELINE.exit.dotSeconds,
+      );
     // The soundtrack sinks under the static and the collapse; the last of
     // it goes with the curtain in stopVisionRide.
     this.fadeRide(0.3, VISION_RIDE_EXIT_WHOOSH_SECONDS);
@@ -454,10 +475,11 @@ export class SceneAudioRuntime {
   };
 
   private async loadBuffers() {
-    // The interaction-critical 3.7 KB strike wins the decode queue. Core
-    // ambience follows and may start immediately; effect variants never
-    // hold either path hostage.
+    // The interaction-critical strike wins the decode queue. The orb boom is
+    // next so a first visit to About does not wait behind the ambient beds;
+    // effect variants never hold either path hostage.
     await this.loadBuffer(FIRST_STRIKE);
+    await this.loadBuffer(COORDINATION_BOOM);
     await Promise.all(CORE_AMBIENCE.map((name) => this.loadBuffer(name)));
     if (this.state.ambienceRequested) this.ensureAmbience();
     await Promise.all(DEFERRED_SOUNDS.map((name) => this.loadBuffer(name)));
@@ -492,7 +514,7 @@ export class SceneAudioRuntime {
       bus.gain.value = 0.0001;
       bus.connect(master);
       this.rideBus = bus;
-      this.startVisionRideSynthesis();
+      this.startVisionRideEntryWhoosh();
       this.fadeRide(1, 0.7);
     }
     if (this.rideSoundtrack) {
@@ -537,32 +559,18 @@ export class SceneAudioRuntime {
     source.loop = true;
     const now = this.context.currentTime;
     gain.gain.value = 0.0001;
-    gain.gain.exponentialRampToValueAtTime(0.22, now + 0.85);
+    gain.gain.exponentialRampToValueAtTime(
+      VISION_RIDE_SOUNDTRACK_GAIN,
+      now + 0.85,
+    );
     source.connect(gain).connect(this.rideBus);
     source.start();
     this.rideSoundtrackSource = source;
     this.state.rideStatus = "playing";
   }
 
-  private startVisionRideSynthesis() {
+  private startVisionRideEntryWhoosh() {
     if (!this.context || !this.rideBus || this.rideOscillators.length) return;
-    const makeOscillator = (
-      frequency: number,
-      gainValue: number,
-      type: OscillatorType,
-    ) => {
-      const oscillator = this.context!.createOscillator();
-      const gain = this.context!.createGain();
-      oscillator.type = type;
-      oscillator.frequency.value = frequency;
-      gain.gain.value = gainValue;
-      oscillator.connect(gain).connect(this.rideBus!);
-      oscillator.start();
-      this.rideOscillators.push(oscillator);
-    };
-    makeOscillator(47, 0.025, "sawtooth");
-    makeOscillator(94, 0.011, "triangle");
-    if (!this.rideReducedMotion) makeOscillator(176, 0.006, "sine");
     if (this.rideEntryEffectsAllowed) {
       const whoosh = this.context.createOscillator();
       const whooshGain = this.context.createGain();
@@ -590,12 +598,12 @@ export class SceneAudioRuntime {
   }
 
   /**
-   * Band-passed noise with a slow attack to `attackFraction` of the length,
-   * then a release to silence. Lives on the ride bus so mute and the ride
-   * fades govern it. Noise buffers and filters are optional on the audio
+   * Broadband noise with a near-instant gate, a steady hold, then a release
+   * that follows the visual aperture or dot. Lives on the ride bus so mute and
+   * ride fades govern it. Noise buffers and filters are optional on the audio
    * context this runtime is handed; without them the hiss is skipped.
    */
-  private startVisionRideStatic(seconds: number, attackFraction: number) {
+  private startVisionRideStatic(seconds: number, releaseSeconds: number) {
     const context = this.context;
     if (
       !context ||
@@ -615,19 +623,32 @@ export class SceneAudioRuntime {
     const source = context.createBufferSource();
     source.buffer = buffer;
     source.loop = true;
-    const filter = context.createBiquadFilter();
-    filter.type = "bandpass";
-    filter.frequency.value = 1_900;
-    filter.Q.value = 0.6;
+    const highpass = context.createBiquadFilter();
+    highpass.type = "highpass";
+    highpass.frequency.value = 320;
+    highpass.Q.value = 0.55;
+    const lowpass = context.createBiquadFilter();
+    lowpass.type = "lowpass";
+    lowpass.frequency.value = 10_500;
+    lowpass.Q.value = 0.4;
     const gain = context.createGain();
     const now = context.currentTime;
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(
-      VISION_RIDE_STATIC_PEAK,
-      now + seconds * attackFraction,
+    const holdUntil = Math.max(
+      VISION_RIDE_STATIC_ATTACK_SECONDS,
+      seconds - releaseSeconds,
     );
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(
+      VISION_RIDE_STATIC_PEAK,
+      now + VISION_RIDE_STATIC_ATTACK_SECONDS,
+    );
+    gain.gain.setValueAtTime(VISION_RIDE_STATIC_PEAK, now + holdUntil);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + seconds);
-    source.connect(filter).connect(gain).connect(this.rideBus);
+    source
+      .connect(highpass)
+      .connect(lowpass)
+      .connect(gain)
+      .connect(this.rideBus);
     source.start();
     source.stop(now + seconds + 0.02);
     this.rideStaticSources.push(source);

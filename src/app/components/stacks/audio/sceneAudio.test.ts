@@ -5,6 +5,8 @@ import {
   SceneAudioRuntime,
   VISION_RIDE_ENTRY_WHOOSH_SECONDS,
   VISION_RIDE_EXIT_WHOOSH_SECONDS,
+  VISION_RIDE_SOUNDTRACK_GAIN,
+  VISION_RIDE_STATIC_PEAK,
   VISION_RIDE_WHOOSH_ATTACK_SECONDS,
   spatialGain,
   windGainForMotion,
@@ -83,6 +85,7 @@ class FakeAudioContext {
   destination = {};
   sources: FakeSource[] = [];
   oscillators: FakeOscillator[] = [];
+  filters: FakeFilter[] = [];
   listener = {
     positionX: new FakeParam(),
     positionY: new FakeParam(),
@@ -134,7 +137,9 @@ class FakeAudioContext {
     };
   }
   createBiquadFilter() {
-    return new FakeFilter();
+    const filter = new FakeFilter();
+    this.filters.push(filter);
+    return filter;
   }
   createOscillator() {
     const oscillator = new FakeOscillator();
@@ -331,7 +336,7 @@ describe("scene audio policy", () => {
     runtime.teardown();
   });
 
-  it("crossfades the ride bus, softens reduced-motion synthesis, and tears down", async () => {
+  it("crossfades the ride bus, softens reduced-motion transitions, and tears down", async () => {
     vi.useFakeTimers();
     installAudioBrowser();
     const runtime = new SceneAudioRuntime();
@@ -341,10 +346,10 @@ describe("scene audio policy", () => {
     runtime.startVisionRide(true);
     await vi.advanceTimersByTimeAsync(1);
     expect(runtime.snapshot().rideRequested).toBe(true);
-    expect(FakeAudioContext.latest?.oscillators).toHaveLength(3);
+    expect(FakeAudioContext.latest?.oscillators).toHaveLength(1);
 
     runtime.beginVisionRideExit();
-    expect(FakeAudioContext.latest?.oscillators).toHaveLength(4);
+    expect(FakeAudioContext.latest?.oscillators).toHaveLength(2);
     runtime.stopVisionRide();
     // The ride bus fades over 0.5 s under the return curtain; sources stop
     // once the fade has landed.
@@ -355,6 +360,62 @@ describe("scene audio policy", () => {
         (oscillator) => oscillator.stop.mock.calls.length > 0,
       ),
     ).toBe(true);
+    runtime.teardown();
+  });
+
+  it("does not leave synthesized engine noise running under the drive", async () => {
+    vi.useFakeTimers();
+    installAudioBrowser();
+    const runtime = new SceneAudioRuntime();
+    runtime.unlock();
+    await vi.advanceTimersByTimeAsync(1);
+    runtime.startVisionRide(false);
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(
+      FakeAudioContext.latest!.oscillators.filter(
+        (oscillator) => oscillator.stop.mock.calls.length === 0,
+      ),
+    ).toHaveLength(0);
+    runtime.teardown();
+  });
+
+  it("keeps transition static audible over the soundtrack without overpowering it", () => {
+    expect(VISION_RIDE_STATIC_PEAK).toBeGreaterThanOrEqual(
+      VISION_RIDE_SOUNDTRACK_GAIN * 0.25,
+    );
+    expect(VISION_RIDE_STATIC_PEAK).toBeLessThan(
+      VISION_RIDE_SOUNDTRACK_GAIN * 0.5,
+    );
+  });
+
+  it("gates broadband television static instead of swelling like a puff", async () => {
+    vi.useFakeTimers();
+    installAudioBrowser();
+    const runtime = new SceneAudioRuntime();
+    runtime.unlock();
+    await vi.advanceTimersByTimeAsync(1);
+    runtime.startVisionRide(false);
+    await vi.advanceTimersByTimeAsync(1);
+    runtime.beginVisionRideSwitchOn();
+
+    expect(FakeAudioContext.latest!.filters.map((filter) => filter.type)).toEqual([
+      "highpass",
+      "lowpass",
+    ]);
+    const staticEnvelope = FakeAudioContext.latest!.gains
+      .map((node) => node.gain.schedule)
+      .find((schedule) =>
+        schedule.some((event) => event.value === VISION_RIDE_STATIC_PEAK),
+      );
+    expect(staticEnvelope).toBeDefined();
+    expect(staticEnvelope![1]!.time).toBeLessThanOrEqual(0.02);
+    expect(staticEnvelope).toHaveLength(4);
+    expect(staticEnvelope![2]).toMatchObject({
+      method: "set",
+      value: VISION_RIDE_STATIC_PEAK,
+    });
+    expect(staticEnvelope![2]!.time).toBeCloseTo(0.5, 5);
     runtime.teardown();
   });
 

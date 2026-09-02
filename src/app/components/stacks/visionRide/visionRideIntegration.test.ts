@@ -339,15 +339,16 @@ describe("Vision ride integration", () => {
     expect(audio).toContain("const CORE_AMBIENCE");
   });
 
-  it("stops entry static before the road and blocks late-unlock replay", () => {
+  it("stops entry static with the visual snow and blocks late-unlock replay", () => {
     const experience = read("./VisionRideExperience.tsx");
     const transition = read("./VisionRideTransition.tsx");
     const audio = read("../audio/sceneAudio.ts");
     expect(experience).toContain('phase === "cruising"');
     expect(experience).toContain("sceneAudio.beginVisionRideSwitchOn()");
-    expect(transition).toContain(
+    expect(transition).not.toContain(
       "elapsed >= VISION_RIDE_TIMELINE.entry.flickerSeconds",
     );
+    expect(transition).toContain("beat.complete");
     expect(transition).toContain("sceneAudio.finishVisionRideEntry()");
     expect(audio).not.toContain("rideEntryStopTimer");
     expect(audio).toContain("this.rideEntryEffectsAllowed = false");

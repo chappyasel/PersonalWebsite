@@ -399,10 +399,10 @@ describe("Vision ride audio sync", () => {
   });
 
   it("runs the static hiss under the visible static on both ends", () => {
-    // Entry hiss starts after the headset is seated and ends with the
-    // full-frame flicker, before the aperture reveals the moving road.
+    // Entry hiss starts after the headset is seated and follows the visible
+    // static until the aperture has fully opened onto the road.
     expect(VISION_RIDE_ENTRY_STATIC_SECONDS).toBeCloseTo(
-      entry.flickerSeconds,
+      entry.flickerSeconds + entry.apertureSeconds,
       5,
     );
     // Exit: dies with the dot, before the black hold.
