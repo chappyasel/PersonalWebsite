@@ -134,6 +134,9 @@ export const MODEL_URLS = [
   // interaction gap, same argument as the couch.
   "/models/arduino.glb",
   "/models/circuit-board.glb",
+  // Owner-supplied realistic Apple Vision Pro, used by VisionProProp rather
+  // than ModelProp so its original glass, metal, and fabric survive intact.
+  "/models/vision-pro.glb",
 ];
 
 /** Isa Lousberg's tiny-treats props are a second atlas set: every prop in it

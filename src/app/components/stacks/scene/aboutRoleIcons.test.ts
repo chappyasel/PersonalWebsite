@@ -7,7 +7,9 @@ import {
   ABOUT_ROLE_ICON_GAP,
   ABOUT_ROLE_ICON_SIZE,
   ABOUT_ROLE_STACK_HEIGHT,
+  ABOUT_ROLE_STACK_PROFILE_WIDTH,
   ABOUT_ROLE_STACK_WIDTH,
+  ABOUT_ROLE_STACK_YAW,
   aboutRoleIconOffset,
 } from "./aboutRoleIcons";
 import { projectIconBody } from "./projectIconGeometry";
@@ -40,19 +42,32 @@ describe("About Role Icons", () => {
     expect(cells.sort()).toEqual(["0,0", "0,1", "1,0", "1,1"]);
 
     for (const role of ABOUT_ROLES) {
-      const [dx, dy] = aboutRoleIconOffset(role);
-      expect(Math.abs(dx)).toBeCloseTo(
+      const [dx, dy, dz] = aboutRoleIconOffset(role);
+      expect(Math.hypot(dx, dz)).toBeCloseTo(
         (ABOUT_ROLE_ICON_SIZE + ABOUT_ROLE_ICON_GAP) / 2,
         10,
       );
       // A top tile sits exactly on the tile below: same column, one edge up.
       expect(dy).toBeCloseTo(role.row * ABOUT_ROLE_ICON_SIZE, 10);
+      expect(role.yaw).toBe(ABOUT_ROLE_STACK_YAW);
     }
     expect(ABOUT_ROLE_STACK_WIDTH).toBeCloseTo(
       ABOUT_ROLE_ICON_SIZE * 2 + ABOUT_ROLE_ICON_GAP,
       10,
     );
     expect(ABOUT_ROLE_STACK_HEIGHT).toBeCloseTo(ABOUT_ROLE_ICON_SIZE * 2, 10);
+
+    for (const column of [0, 1] as const) {
+      const bottom = ABOUT_ROLES.find(
+        (role) => role.column === column && role.row === 0,
+      )!;
+      const top = ABOUT_ROLES.find(
+        (role) => role.column === column && role.row === 1,
+      )!;
+      const [bottomX, , bottomZ] = aboutRoleIconOffset(bottom);
+      const [topX, , topZ] = aboutRoleIconOffset(top);
+      expect([topX, topZ]).toEqual([bottomX, bottomZ]);
+    }
   });
 
   it("is the Projects die's edge and half the Project Icon's", () => {
@@ -69,14 +84,17 @@ describe("About Role Icons", () => {
     );
   });
 
-  it("fits between the Apple mark and the reading fan with honest air", () => {
+  it("fits between Vision Pro and the reading fan with honest air", () => {
     const intervals = aboutShelfIntervals("lower");
-    const apple = intervals.find(({ id }) => id === "apple")!;
+    const visionPro = intervals.find(({ id }) => id === "vision-pro")!;
     const icons = intervals.find(({ id }) => id === "role-icons")!;
     const reading = intervals.find(({ id }) => id === "reading-stack")!;
 
-    expect(icons.right - icons.left).toBeCloseTo(ABOUT_ROLE_STACK_WIDTH, 10);
-    expect(icons.left - apple.right).toBeGreaterThan(0.04);
+    expect(icons.right - icons.left).toBeCloseTo(
+      ABOUT_ROLE_STACK_PROFILE_WIDTH,
+      10,
+    );
+    expect(icons.left - visionPro.right).toBeGreaterThan(0);
     expect(reading.left - icons.right).toBeGreaterThan(0.04);
     expect(ABOUT_ROLE_STACK_HEIGHT).toBeLessThan(LOWER_SHELF_HEADROOM);
     // The billets sit on the awards' own depth line, inside the plank.

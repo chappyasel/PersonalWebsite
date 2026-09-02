@@ -2,9 +2,12 @@ import { deskFrameWidth } from "../photoGeometry";
 import { describe, expect, it } from "vitest";
 
 import {
+  PROJECT_APPLE_MARK_POSE,
+  PROJECT_APPLE_PHOTO_POSE,
   PROJECT_ARTIFACT_DIMENSIONS,
   PROJECT_DICE_LAYOUT,
   PROJECT_PHOTO_DIMENSIONS,
+  PROJECT_SMALL_PLANT_POSE,
   REVIEWED_SHELF_LAYOUT,
   reviewedShelfLayoutSnapshot,
 } from "./unitShelfLayout";
@@ -33,37 +36,36 @@ describe("reviewed authored shelf rows", () => {
     );
   });
 
-  it("evenly justifies the six upper Projects clusters", () => {
+  it("persists the owner-reviewed upper Projects composition", () => {
     const snapshot = reviewedShelfLayoutSnapshot();
     expect(snapshot.projectsTopOrder).toEqual(
       [...snapshot.projectsTopOrder].sort((a, b) => a - b),
     );
-    expect(snapshot.projectsLampIconGap).toBeGreaterThanOrEqual(0.05);
-    expect(snapshot.projectsWeightliftingDiceGap).toBeGreaterThanOrEqual(0.05);
-    expect(snapshot.projectsDiceHomeworkGap).toBeGreaterThanOrEqual(0.05);
-    expect(snapshot.projectsHomeworkPhotoGap).toBeGreaterThanOrEqual(0.05);
-    expect(snapshot.projectsPhotoPlantGap).toBeGreaterThanOrEqual(0.05);
+    expect(REVIEWED_SHELF_LAYOUT.projects.topApplePhotoX).toBe(0.6252);
+    expect(REVIEWED_SHELF_LAYOUT.projects.topAppleMarkX).toBe(0.9342);
+    expect(REVIEWED_SHELF_LAYOUT.projects.topPlantX).toBe(1.2101);
+    expect(PROJECT_APPLE_PHOTO_POSE).toEqual({
+      baseZ: 0.0503,
+      rotation: [
+        -0.06006882511488772, 0.11082233295654853, 0.012648384603073642,
+      ],
+    });
+    expect(PROJECT_APPLE_MARK_POSE).toEqual({
+      baseZ: 0.0445,
+      rotationY: -0.1532,
+      scaleRatio: 0.9233,
+    });
+    expect(PROJECT_SMALL_PLANT_POSE.baseZ).toBe(-0.2044);
+    expect(snapshot.projectsPhotoAppleGap).toBeGreaterThan(0);
+    expect(snapshot.projectsApplePlantGap).toBeGreaterThan(0);
     expect(PROJECT_ARTIFACT_DIMENSIONS.applePhotoHalfX).toBe(
       deskFrameWidth(PROJECT_PHOTO_DIMENSIONS.apple.width) / 2,
     );
     expect(REVIEWED_SHELF_LAYOUT.projects.topLampX).toBeGreaterThanOrEqual(
       -1.32 + PROJECT_ARTIFACT_DIMENSIONS.lampHalfX,
     );
-    expect(REVIEWED_SHELF_LAYOUT.projects.topPlantX).toBeLessThanOrEqual(
-      1.32 - PROJECT_ARTIFACT_DIMENSIONS.plantHalfX,
-    );
-    const gaps = [
-      snapshot.projectsTopLeftMargin,
-      snapshot.projectsLampIconGap,
-      snapshot.projectsWeightliftingDiceGap,
-      snapshot.projectsDiceHomeworkGap,
-      snapshot.projectsHomeworkPhotoGap,
-      snapshot.projectsPhotoPlantGap,
-      snapshot.projectsTopRightMargin,
-    ];
-    gaps.forEach((gap) =>
-      expect(gap).toBeCloseTo(PROJECT_ARTIFACT_DIMENSIONS.topRowGap),
-    );
+    // The foliage may cross the plank edge, but its planter remains seated.
+    expect(REVIEWED_SHELF_LAYOUT.projects.topPlantX).toBeLessThan(1.32);
   });
 
   it("authors six unique dice in a three-two-one pyramid", () => {

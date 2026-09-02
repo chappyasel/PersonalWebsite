@@ -201,6 +201,13 @@ Unit's Identity Props, creatures, or motivated light; revisits use the normal
 camera settle.
 _Avoid_: Generic page transition, every-visit spectacle, random flourish
 
+**Vision Ride** — the optional first-person vignette entered through the Apple
+Vision Pro on the About shelf. It owns the whole viewport during an authored
+cinematic journey, settles into a seamless retrowave loop, and returns the
+visitor to the same place in the Homepage scene; it is not a driving game or a
+second navigable world.
+_Avoid_: Vision Pro world, driving mode, minigame
+
 **Sky** — the world's backdrop, always set in Chappy's morning hours. Dark
 theme depicts 3:45am: full night, stars out, the city mostly asleep, dawn not
 yet arrived. Light theme depicts just after first light: a genuinely light,
@@ -498,9 +505,10 @@ book, last lift, local time). Every value on it must be real.
 
 Free roam is how the owner reaches props, and it never captures the mouse:
 the right button looks, the left button selects a prop and drags its gizmo.
-WASD moves along the room's axes whichever way the camera faces, so a key
-means the same direction as the gizmo's arrows and the keyboard nudges. The
-policy lives in `scene/freeRoamMotion.ts`; `CameraRig` only wires it.
+WASD follows the camera's heading on the world XZ plane, so W always moves
+toward the viewed horizontal direction even while the camera looks up or down.
+Q/E moves on world Y. The policy lives in `scene/freeRoamMotion.ts`;
+`CameraRig` only wires it.
 
 The gizmo's handles win the hit test outright. They are drawn over everything
 (`depthTest={false}`) and their intersections are promoted to the front of

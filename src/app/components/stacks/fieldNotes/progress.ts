@@ -59,6 +59,10 @@ export type FieldNoteEvent =
   | Readonly<{ type: "session-started"; day: string }>
   | Readonly<{ type: "prop-carried-far"; propId: string }>
   | Readonly<{ type: "dice-stacked" }>
+  | Readonly<{
+      type: "vision-ride-entered";
+      pixelLook: "off" | "levels" | "palette";
+    }>
   | Readonly<{ type: "stamp-placed"; noteId: string }>;
 
 /** Distinct portal destinations behind Open House. The room holds roughly
@@ -276,6 +280,11 @@ export function reduceFieldNotesProgress(
     case "dice-stacked":
       award(earned, awarded, "full-stack", now);
       break;
+    case "vision-ride-entered":
+      award(earned, awarded, "future-perfect", now);
+      if (event.pixelLook !== "off")
+        award(earned, awarded, "reality-distortion-field", now);
+      break;
     case "stamp-placed":
       if (FIELD_NOTE_BY_ID.has(event.noteId as FieldNoteId))
         placedStamps = unique(placedStamps, event.noteId);
@@ -361,6 +370,13 @@ export function parseFieldNotesProgress(raw: string | null) {
       )
         earned[id as FieldNoteId] = at;
     }
+    if (
+      !FIELD_NOTES.every(
+        (note) =>
+          note.id === "full-journal" || earned[note.id] !== undefined,
+      )
+    )
+      delete earned["full-journal"];
     const carriedInput =
       value.carriedProps && typeof value.carriedProps === "object"
         ? (value.carriedProps as Record<string, unknown>)

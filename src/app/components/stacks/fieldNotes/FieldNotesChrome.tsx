@@ -215,6 +215,8 @@ const STAMP_DESIGNS = {
   calendar: { palette: 4, frame: 2, layout: 5, pattern: 7 },
   dice: { palette: 0, frame: 1, layout: 3, pattern: 8 },
   stamp: { palette: 7, frame: 1, layout: 2, pattern: 3 },
+  vision: { palette: 10, frame: 3, layout: 5, pattern: 8 },
+  "retro-vision": { palette: 7, frame: 2, layout: 4, pattern: 9 },
   journal: { palette: 5, frame: 0, layout: 2, pattern: 10 },
 } as const satisfies Record<FieldNoteArtwork, StampDesign>;
 
@@ -431,6 +433,18 @@ const STAMP_LETTERING = {
     secondary: "Album issue",
     denomination: "5¢",
   },
+  vision: {
+    style: "micro",
+    primary: "Spatial computing",
+    secondary: "Retrowave issue",
+    denomination: null,
+  },
+  "retro-vision": {
+    style: "micro",
+    primary: "Reality distorted",
+    secondary: "8-bit / 16-bit",
+    denomination: null,
+  },
   journal: {
     style: "seal",
     primary: "Every page",
@@ -539,6 +553,22 @@ const STAMP_ICON_TREATMENTS = {
     x: 3,
     y: 4,
     rotate: -6,
+    echo: false,
+  },
+  vision: {
+    weight: "fill",
+    scale: 1,
+    x: 0,
+    y: 0,
+    rotate: 0,
+    echo: false,
+  },
+  "retro-vision": {
+    weight: "bold",
+    scale: 1,
+    x: 0,
+    y: 0,
+    rotate: 0,
     echo: false,
   },
   journal: {
@@ -3423,6 +3453,52 @@ export default function FieldNotesChrome() {
           border: 2px solid var(--stamp-second);
           background: color-mix(in srgb, var(--stamp-label) 28%, transparent);
           transform: skewX(-8deg);
+        }
+        .field-notes-stamp-art[data-artwork="vision"],
+        .field-notes-stamp-art[data-artwork="retro-vision"] {
+          background:
+            linear-gradient(180deg, color-mix(in srgb, var(--stamp-paper) 88%, #111b38 12%), var(--stamp-paper));
+        }
+        .field-notes-stamp-art[data-artwork="vision"] .field-notes-stamp-pattern,
+        .field-notes-stamp-art[data-artwork="retro-vision"] .field-notes-stamp-pattern {
+          inset: 0;
+          background:
+            radial-gradient(circle at 76% 25%, var(--stamp-second) 0 10%, transparent 10.8%),
+            linear-gradient(180deg, transparent 0 62%, color-mix(in srgb, var(--stamp-accent) 30%, transparent) 62% 64%, transparent 64%);
+          opacity: .58;
+          transform: none;
+        }
+        .field-notes-stamp-art[data-artwork="retro-vision"] .field-notes-stamp-pattern {
+          background:
+            linear-gradient(135deg, color-mix(in srgb, var(--stamp-accent) 20%, transparent), transparent 44%),
+            repeating-linear-gradient(180deg, transparent 0 4px, color-mix(in srgb, var(--stamp-ink) 14%, transparent) 4px 5px);
+          opacity: .64;
+        }
+        .field-notes-stamp-art[data-artwork="vision"] .field-notes-stamp-icon-frame,
+        .field-notes-stamp-art[data-artwork="retro-vision"] .field-notes-stamp-icon-frame {
+          width: min(78%, 3.75rem);
+          aspect-ratio: 1;
+          color: var(--stamp-ink);
+          margin-top: 2px;
+          transform: none;
+        }
+        .field-notes-stamp-art[data-artwork="vision"] .field-notes-stamp-icon-frame::before,
+        .field-notes-stamp-art[data-artwork="retro-vision"] .field-notes-stamp-icon-frame::before {
+          display: none;
+        }
+        .field-notes-stamp-art[data-artwork="vision"] .field-notes-stamp-icon-frame svg,
+        .field-notes-stamp-art[data-artwork="retro-vision"] .field-notes-stamp-icon-frame svg {
+          width: 100%;
+          height: 100%;
+        }
+        .field-notes-stamp-art[data-artwork="vision"] .field-notes-stamp-primary,
+        .field-notes-stamp-art[data-artwork="retro-vision"] .field-notes-stamp-primary {
+          color: var(--stamp-label);
+        }
+        .field-notes-stamp-art[data-artwork="vision"] .field-notes-stamp-secondary,
+        .field-notes-stamp-art[data-artwork="retro-vision"] .field-notes-stamp-secondary {
+          color: var(--stamp-label);
+          opacity: .78;
         }
         .field-notes-cancellation {
           right: var(--cancel-right);

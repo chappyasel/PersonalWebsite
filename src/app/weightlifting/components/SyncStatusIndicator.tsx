@@ -1,13 +1,16 @@
 "use client";
 
+import { QUERY_STALE_TIME } from "../lib/utils";
+
+import { formatRelativeTime } from "~/lib/util";
+import { api } from "~/trpc/react";
+
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "~/components/ui/tooltip";
-import { api } from "~/trpc/react";
-import { formatRelativeTime, QUERY_STALE_TIME } from "../lib/utils";
 
 export function SyncStatusIndicator() {
   const { data } = api.weightlifting.getSyncStatus.useQuery(undefined, {

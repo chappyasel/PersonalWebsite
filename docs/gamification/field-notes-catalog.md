@@ -331,7 +331,23 @@ the completed state until the visitor finds the new entry.
     - First hint: Even these stamps aren't glued down.
     - Notes:
 
-32. [ ] **Full Journal** `◇`
+32. [x] **Future Perfect** `◇`
+
+    - Rarity: Common.
+    - Earned by: Put on Apple Vision Pro and successfully enter the retrowave
+      ride.
+    - First hint: The headset on About is more than a keepsake.
+    - Notes:
+
+33. [x] **Reality Distortion Field** `?`
+
+    - Rarity: Rare. Hidden until found.
+    - Earned by: Enter the Vision Pro ride while either the 8-bit or 16-bit
+      Projects finish is active.
+    - First hint: None before discovery.
+    - Notes:
+
+34. [ ] **Full Journal** `◇`
     - Rarity: Legendary.
     - Earned by: Earn every other Field Note. Awarded in the same moment as
       the final other discovery.

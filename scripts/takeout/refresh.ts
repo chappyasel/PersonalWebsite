@@ -11,8 +11,9 @@
  *                             headed approval window (approve.ts) for a one-tap
  *                             human approval and emit `request_needs_passkey`.
  *                 • exit 1  → session expired → emit `requested_auth_failure`.
- *   requested — try download.ts (Drive API). On success run sync + classify →
- *               mark idle. "Not ready" → wait. Stuck > GIVE_UP_DAYS → give up.
+ *   requested — try download.ts (Drive API). On success run sync + classify +
+ *               score top-up → mark idle. "Not ready" → wait. Stuck >
+ *               GIVE_UP_DAYS → give up.
  *
  * A staleness watchdog runs on every tick regardless of state: if the data is
  * older than STALE_ALERT_DAYS it emits `data_stale` (throttled to once/24h) so
@@ -219,6 +220,25 @@ async function main() {
     const msg = err instanceof Error ? err.message : String(err);
     // Classify failure is non-fatal — ingest already happened.
     emit("classify_failed", { error: msg.slice(-500) });
+  }
+
+  // Learning Value and Positivity read yt_classifications, which the step above
+  // does not write; without this the dashboard's score coverage decays a little
+  // more with every ingest. --top-up appends the few hundred videos this export
+  // brought to the live run rather than rescoring the whole library, so a week's
+  // catch-up costs cents and a couple of minutes.
+  emit("running_score");
+  try {
+    const scoreOut = execSync(
+      "npx tsx scripts/score-youtube.ts --scope all --top-up --execute --activate",
+      { cwd: REPO_ROOT, encoding: "utf8", stdio: "pipe" },
+    );
+    emit("score_ok", { tail: scoreOut.slice(-500) });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // Also non-fatal: stale scores are better than a failed refresh, and the
+    // next tick tops up whatever this one missed.
+    emit("score_failed", { error: msg.slice(-500) });
   }
 
   writeState({

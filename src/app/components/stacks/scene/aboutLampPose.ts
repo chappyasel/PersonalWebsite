@@ -3,6 +3,7 @@ import {
   ABOUT_APPLE_ROOT_YAW,
   ABOUT_AWARD_SIZE_INCREASE,
   ABOUT_LANDMARK_X,
+  ABOUT_LOWER_LANDMARK_Z,
   ABOUT_MODEL_POSES,
 } from "./aboutScenePose";
 import {
@@ -24,7 +25,7 @@ export const ABOUT_LAMP_ROOT_SCALE = ABOUT_MODEL_POSES["desk-lamp"].scale;
 export const ABOUT_LAMP_ROOT_POSITION = [
   ABOUT_LANDMARK_X["desk-lamp"],
   SHELF_SURFACE.lower,
-  -0.06,
+  ABOUT_LOWER_LANDMARK_Z["desk-lamp"],
 ] as const;
 
 export const ABOUT_COORDINATION_TARGET_X =
@@ -35,7 +36,9 @@ export const ABOUT_LAMP_CAMERA_REVEAL = 0.145;
 export const ABOUT_LAMP_HEAD_TARGET = [
   ABOUT_COORDINATION_TARGET_X - ABOUT_LANDMARK_X["desk-lamp"],
   0.125,
-  SHELF_GEOMETRY.lower.centerZ - -0.06 + ABOUT_LAMP_CAMERA_REVEAL,
+  SHELF_GEOMETRY.lower.centerZ -
+    ABOUT_LOWER_LANDMARK_Z["desk-lamp"] +
+    ABOUT_LAMP_CAMERA_REVEAL,
 ] as const;
 
 export const ABOUT_LAMP_HEAD_QUATERNION: QuaternionTuple =
@@ -45,11 +48,13 @@ export const ABOUT_LAMP_HEAD_QUATERNION: QuaternionTuple =
     rootScale: ABOUT_LAMP_ROOT_SCALE,
   });
 
-export const ABOUT_OG_LAMP_CAMERA_REVEAL = 0.056;
+export const ABOUT_OG_LAMP_CAMERA_REVEAL = 0.057;
 export const ABOUT_OG_LAMP_HEAD_TARGET = [
   ABOUT_COORDINATION_TARGET_X - ABOUT_LANDMARK_X["desk-lamp"],
   0.09,
-  SHELF_GEOMETRY.lower.centerZ - -0.06 + ABOUT_OG_LAMP_CAMERA_REVEAL,
+  SHELF_GEOMETRY.lower.centerZ -
+    ABOUT_LOWER_LANDMARK_Z["desk-lamp"] +
+    ABOUT_OG_LAMP_CAMERA_REVEAL,
 ] as const;
 export const ABOUT_OG_LAMP_HEAD_QUATERNION: QuaternionTuple =
   deskLampHeadQuaternionForTarget({

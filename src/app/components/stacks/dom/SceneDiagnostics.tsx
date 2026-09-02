@@ -1339,8 +1339,8 @@ export default function SceneDiagnostics({
           >
             <p className="stacks-diagnostics-note">
               Free roam never captures the mouse. Hold the right button and drag
-              to look. WASD moves along the room&apos;s axes whichever way you
-              face, Q/E moves down/up, and hold Shift for one-third speed. R
+              to look. WASD follows the camera on a level plane, Q/E moves
+              down/up, and hold Shift for one-third speed. R
               resumes or exits free roam, Shift+R starts from the current view,
               and ` opens debug. Left click selects an editable prop. The same
               gizmo moves, rotates, and scales it; ⌘Z undoes. Arrows move on

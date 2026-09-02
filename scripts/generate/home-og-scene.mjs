@@ -272,7 +272,17 @@ const startingInputs = await homeOgInputManifest({ root: ROOT });
 
 const browser = await chromium.launch({
   headless: true,
-  args: ["--enable-webgl", "--ignore-gpu-blocklist"],
+  args: [
+    "--enable-webgl",
+    "--ignore-gpu-blocklist",
+    // Headless Chromium falls back to SwiftShader, which takes over a minute
+    // to bring the cinematic profile to its first real frame on an M-series
+    // Mac. Metal brings that to seconds. Linux CI has no Metal and keeps the
+    // software path.
+    ...(process.platform === "darwin"
+      ? ["--enable-gpu", "--use-angle=metal"]
+      : []),
+  ],
 });
 
 try {
@@ -319,6 +329,15 @@ try {
       timeout: 120_000,
     },
   );
+  // The first painted frame is the backdrop alone: textures and the meadow
+  // are still loading, and two identical black samples count as settled.
+  // The world flag flips once the scene has painted real frames, and it does
+  // so in capture mode too. Under software WebGL that can take well over a
+  // minute, hence the long ceiling.
+  await page.waitForSelector('html[data-world="ready"]', {
+    state: "attached",
+    timeout: 300_000,
+  });
   // `.stacks-og-ui` uses `display: contents`, so hiding only that wrapper is
   // not enough in Chromium. Hide its descendants directly while retaining
   // their layout measurements for the scene's authored camera composition.

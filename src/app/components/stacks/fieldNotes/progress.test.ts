@@ -135,6 +135,7 @@ describe("Field Notes progress", () => {
     ["wrong-sport", { type: "golf-prop-struck" }],
     ["long-haul", { type: "prop-carried-far", propId: "grab:mug" }],
     ["full-stack", { type: "dice-stacked" }],
+    ["future-perfect", { type: "vision-ride-entered", pixelLook: "off" }],
   ] satisfies readonly (readonly [string, FieldNoteEvent])[])(
     "earns %s from its semantic event",
     (id, event) => {
@@ -216,6 +217,24 @@ describe("Field Notes progress", () => {
     expect(progress.earned["another-resolution"]).toBeDefined();
   });
 
+  it.each(["levels", "palette"] as const)(
+    "earns the hidden Vision Pro combination with the %s pixel look",
+    (pixelLook) => {
+      const result = reduceFieldNotesProgress(
+        EMPTY_FIELD_NOTES_PROGRESS,
+        { type: "vision-ride-entered", pixelLook },
+        2_000,
+      );
+
+      expect(result.awarded).toEqual([
+        "future-perfect",
+        "reality-distortion-field",
+      ]);
+      expect(result.progress.earned["future-perfect"]).toBe(2_000);
+      expect(result.progress.earned["reality-distortion-field"]).toBe(2_000);
+    },
+  );
+
   it("counts portal destinations, not portal props, toward the open house", () => {
     const sameDestination = apply(
       Array.from({ length: 9 }, (_, index) => ({
@@ -280,6 +299,23 @@ describe("Field Notes progress", () => {
     );
 
     expect(progress.placedStamps).toEqual(["beacon"]);
+  });
+
+  it("revokes a persisted full journal when the catalog gains discoveries", () => {
+    const progress = parseFieldNotesProgress(
+      JSON.stringify({
+        version: 1,
+        earned: Object.fromEntries(
+          FIELD_NOTES.filter(
+            (note) => note.id !== "reality-distortion-field",
+          ).map((note) => [note.id, 1_000]),
+        ),
+      }),
+    );
+
+    expect(progress.earned["future-perfect"]).toBe(1_000);
+    expect(progress.earned["reality-distortion-field"]).toBeUndefined();
+    expect(progress.earned["full-journal"]).toBeUndefined();
   });
 
   it("earns the regular on a later local day, never the first", () => {

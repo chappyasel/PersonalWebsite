@@ -156,6 +156,9 @@ import { CAMERA, STACKS_DESKTOP_MIN_WIDTH } from "./scene/worldLayout";
 import { sceneArtifactById } from "./sceneArtifacts";
 import { progressRef, useStacks } from "./store";
 import { PALETTES } from "./theme";
+import VisionRideExperience from "./visionRide/VisionRideExperience";
+import { visionRideDiagnosticsController } from "./visionRide/visionRideDiagnostics";
+import { visionRideRoomMounted } from "./visionRide/visionRideState";
 import { isWebGLContextUsable } from "./webglProbe";
 import { scenePointerMoveWithoutCoarseHover } from "~/app/components/stacks/input/scenePointerEvents";
 
@@ -217,9 +220,16 @@ function ScrollRegionA11y() {
   useEffect(() => {
     el.setAttribute("role", "region");
     el.setAttribute("aria-label", "Horizontal scene navigation");
+    // Chrome treats scrollable containers as keyboard-focusable, and the
+    // ride hands focus back here on exit. After any keypress the browser is
+    // in keyboard modality, so its default :focus-visible ring drew a blue
+    // box around the whole viewport. The region stays focusable for arrow
+    // scrolling; it just never paints the ring.
+    el.style.outline = "none";
     return () => {
       el.removeAttribute("role");
       el.removeAttribute("aria-label");
+      el.style.outline = "";
     };
   }, [el]);
   return null;
@@ -418,6 +428,9 @@ function installDevHooks() {
         focusedInteraction,
         dragging,
         travelTo,
+        visionRidePhase,
+        visionRideReady,
+        visionRideModelStatus,
       } = useStacks.getState();
       return {
         offset: progressRef.current,
@@ -496,6 +509,13 @@ function installDevHooks() {
         programs: glRef?.info.programs?.length ?? null,
         quality: { ...qualitySnapshot },
         audio: sceneAudio.snapshot(),
+        visionRide: {
+          phase: visionRidePhase,
+          ready: visionRideReady,
+          enabled: visionRideDiagnosticsController.getSnapshot().enabled,
+          modelStatus: visionRideModelStatus,
+          soundtrackStatus: sceneAudio.snapshot().rideStatus,
+        },
         measurement: performanceSampler.summary(),
       };
     },
@@ -1152,6 +1172,8 @@ export default function StacksCanvas({
   // alive behind the same translucent treatment as Field Notes.
   const panelState = useStacks((s) => s.panelState);
   const modalOpen = useStacks((s) => s.modalOpen);
+  const visionRidePhase = useStacks((s) => s.visionRidePhase);
+  const roomMounted = visionRideRoomMounted(visionRidePhase);
   const artifactHandoff = useStacks((s) => s.modelArtifactHandoff);
   const modelArtifactPhase = artifactHandoff?.phase ?? null;
   const inspectedArtifact = sceneArtifactById(
@@ -2085,25 +2107,35 @@ export default function StacksCanvas({
           // caller-inline `tints`/`atlasOverride` literals, each of those
           // re-renders clones a fresh material per tinted mesh and strands
           // the old one on the GPU.
-          enabled={panelState === "closed" && !modalOpen}
+          enabled={
+            panelState === "closed" && !modalOpen && visionRidePhase === "idle"
+          }
           style={{ scrollbarWidth: "none", touchAction: "pan-x" }}
         >
           <ScrollRegionA11y />
-          <Scene
-            data={data}
-            palette={palette}
-            dark={dark}
-            coverWidth={bookCoverWidthForNeed(
-              Math.min(viewport.width * 0.5, viewport.height * 0.35),
-              plan.profile,
-            )}
-            quality={plan}
-            diagnosticsRequested={diagnosticsRequested}
-            onOpenBook={onOpenBook}
-            onOpenBookId={onOpenBookId}
-            onOpenUrl={onOpenUrl}
-          />
+          {roomMounted ? (
+            <Scene
+              data={data}
+              palette={palette}
+              dark={dark}
+              coverWidth={bookCoverWidthForNeed(
+                Math.min(viewport.width * 0.5, viewport.height * 0.35),
+                plan.profile,
+              )}
+              quality={plan}
+              diagnosticsRequested={diagnosticsRequested}
+              onOpenBook={onOpenBook}
+              onOpenBookId={onOpenBookId}
+              onOpenUrl={onOpenUrl}
+            />
+          ) : null}
         </ScrollControls>
+        {visionRidePhase !== "idle" ? (
+          <VisionRideExperience
+            dark={dark}
+            tier={plan.environment.contentTier}
+          />
+        ) : null}
         {process.env.NODE_ENV === "development" ? (
           <SceneLayoutEditorGizmo />
         ) : null}

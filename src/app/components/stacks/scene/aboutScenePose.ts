@@ -4,12 +4,19 @@
 // values into SVG. A pose edit therefore has one author and one freshness
 // check instead of a JSX literal plus a hand-maintained loading approximation.
 import { SHELF_GEOMETRY } from "./shelfGeometry";
+import {
+  VISION_PRO_MODEL_SCALE,
+  VISION_PRO_MODEL_URL,
+  VISION_PRO_POSE,
+} from "./visionProGeometry";
 
 export type AboutEuler = readonly [number, number, number];
 
 export type AboutModelPose = Readonly<{
   source: `/models/${string}.glb`;
   base?: readonly [number, number, number];
+  /** Translation inside the landmark carrier, after scale and rotation. */
+  localPosition?: readonly [number, number, number];
   rotation: AboutEuler;
   scale: number;
 }>;
@@ -27,13 +34,26 @@ export const ABOUT_LANDMARK_X = {
   "collective-frame": 0.785,
   "profile-frame": 1.032,
   "large-plant": 1.18,
-  "desk-lamp": -1.16,
-  "ai-collective": -0.82,
-  "coordination-globe": -0.429,
-  "tj-medallion": -0.107,
-  apple: 0.134,
-  "role-icons": 0.439,
-  "reading-stack": 0.985,
+  "desk-lamp": -1.186,
+  "ai-collective": -0.8708,
+  "coordination-globe": -0.507,
+  "tj-medallion": -0.1962,
+  "vision-pro": 0.1527,
+  "role-icons": 0.5233,
+  "reading-stack": 1.0005,
+} as const;
+
+/** Owner-authored lower-shelf depth, recovered from the layout-editor draft.
+ * X remains in ABOUT_LANDMARK_X because the boot elevation and spacing audit
+ * share it. Depth only affects the live scene. */
+export const ABOUT_LOWER_LANDMARK_Z = {
+  "desk-lamp": -0.06,
+  "ai-collective": -0.0268,
+  "coordination-globe": -0.036,
+  "tj-medallion": -0.0099,
+  "vision-pro": -0.0659,
+  "role-icons": -0.0283,
+  "reading-stack": -0.0231,
 } as const;
 
 export const ABOUT_MODEL_POSES = {
@@ -61,6 +81,12 @@ export const ABOUT_MODEL_POSES = {
     source: "/models/desk-lamp.glb",
     rotation: [0, 0.78, 0],
     scale: 1.5,
+  },
+  "vision-pro": {
+    source: VISION_PRO_MODEL_URL,
+    localPosition: [0, VISION_PRO_POSE.seat, 0],
+    rotation: VISION_PRO_POSE.rotation,
+    scale: VISION_PRO_MODEL_SCALE,
   },
   dumbbell: {
     source: "/models/dumbbell.glb",
@@ -105,7 +131,9 @@ export const ABOUT_TOP_LANDMARK_Z = {
   "large-plant": -0.23,
 } as const;
 
-export const ABOUT_AIC_ROOT_YAW = -0.16;
+// The editor's +0.0038 outer yaw is folded into the mark's existing root yaw.
+// One rotation now drives its mesh, boot projection, collider, and highlight.
+export const ABOUT_AIC_ROOT_YAW = -0.1562;
 export const ABOUT_AIC_MARK_YAW = 0.04;
 export const ABOUT_APPLE_ROOT_YAW = -0.34;
 export const ABOUT_APPLE_MARK_YAW = 0.04;
@@ -113,16 +141,15 @@ export const ABOUT_APPLE_MARK_YAW = 0.04;
 /** Canonical input to generated-projection freshness checks. */
 export function aboutScenePoseSignature(): string {
   return JSON.stringify({
-    version: 1,
+    version: 2,
     models: ABOUT_MODEL_POSES,
     landmarkX: ABOUT_LANDMARK_X,
+    lowerLandmarkZ: ABOUT_LOWER_LANDMARK_Z,
     photos: ABOUT_PHOTO_POSES,
     topLandmarkZ: ABOUT_TOP_LANDMARK_Z,
     awards: {
       aicRootYaw: ABOUT_AIC_ROOT_YAW,
       aicMarkYaw: ABOUT_AIC_MARK_YAW,
-      appleRootYaw: ABOUT_APPLE_ROOT_YAW,
-      appleMarkYaw: ABOUT_APPLE_MARK_YAW,
     },
   });
 }

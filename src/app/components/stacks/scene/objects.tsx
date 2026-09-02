@@ -571,8 +571,8 @@ export function useMetalShimmer({
 }
 
 /** The mark standing in a milled billet — a desk object, the kind of thing
- * you leave a job with. Deliberately paperweight-sized: it is a footnote to
- * a line in the placard, not a logo placement.
+ * you leave a job with. Deliberately paperweight-sized: it sits beside the
+ * Apple photograph without turning the shelf into a logo wall.
  *
  * Metal exception, same reason the trophy needed one: the shared prop atlas
  * forces metalness 0, so anything that has to look like metal has to opt out

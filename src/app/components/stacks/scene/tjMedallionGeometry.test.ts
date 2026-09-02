@@ -161,7 +161,9 @@ describe("TJ medallion geometry specification", () => {
   // The scale is still the award group's, just held in one place. If the group
   // is resized, this fails and the medallion has to be retraced with it.
   it("keeps the medallion sized with the other lower-shelf awards", () => {
-    expect(TJ_MEDALLION_POSE.scale).toBe(0.66 * ABOUT_AWARD_SIZE_INCREASE);
+    expect(TJ_MEDALLION_POSE.scale).toBe(
+      0.66 * ABOUT_AWARD_SIZE_INCREASE * 1.0569,
+    );
   });
 
   // Yaw is the half that reaches the outline, which is why tying it matters.

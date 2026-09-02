@@ -44,14 +44,21 @@ const MODELS = Object.fromEntries(
 const AI_MARK_SOURCE = "public/images/stacks/v8/ai-collective-mark.svg";
 const TJ_SPEC_SOURCE = "src/app/components/stacks/scene/tjMedallionGeometry.js";
 
-function triangles(scene, rotation) {
+function triangles(
+  scene,
+  rotation,
+  localPosition = [0, 0, 0],
+  include = () => true,
+) {
   scene.updateWorldMatrix(true, true);
-  const pose = new THREE.Matrix4().makeRotationFromEuler(
-    new THREE.Euler(...rotation),
+  const pose = new THREE.Matrix4().compose(
+    new THREE.Vector3(...localPosition),
+    new THREE.Quaternion().setFromEuler(new THREE.Euler(...rotation)),
+    new THREE.Vector3(1, 1, 1),
   );
   const output = [];
   scene.traverse((object) => {
-    if (!object.isMesh) return;
+    if (!object.isMesh || !include(object)) return;
     const position = object.geometry.getAttribute("position");
     const index = object.geometry.index;
     const matrix = pose.clone().multiply(object.matrixWorld);
@@ -92,16 +99,22 @@ function pointInTriangle(px, py, [a, b, c]) {
   return s >= 0 && t >= 0 && s + t <= 1;
 }
 
-function rasterize(sourceTriangles) {
+function rasterize(sourceTriangles, frame) {
   const points = sourceTriangles.flat();
-  const minX = Math.min(...points.map(([x]) => x));
-  const maxX = Math.max(...points.map(([x]) => x));
-  const minY = Math.min(...points.map(([, y]) => y));
-  const maxY = Math.max(...points.map(([, y]) => y));
-  const sourceWidth = maxX - minX;
-  const sourceHeight = maxY - minY;
-  const scale = MAX_EDGE / Math.max(sourceWidth, sourceHeight);
-  const [, , width, height] = viewBoxFor(sourceWidth, sourceHeight);
+  const minX = frame?.minX ?? Math.min(...points.map(([x]) => x));
+  const maxX = frame?.maxX ?? Math.max(...points.map(([x]) => x));
+  const minY = frame?.minY ?? Math.min(...points.map(([, y]) => y));
+  const maxY = frame?.maxY ?? Math.max(...points.map(([, y]) => y));
+  const sourceWidth = frame?.sourceWidth ?? maxX - minX;
+  const sourceHeight = frame?.sourceHeight ?? maxY - minY;
+  const scale =
+    frame?.rasterScale ?? MAX_EDGE / Math.max(sourceWidth, sourceHeight);
+  const [, , defaultWidth, defaultHeight] = viewBoxFor(
+    sourceWidth,
+    sourceHeight,
+  );
+  const width = frame?.width ?? defaultWidth;
+  const height = frame?.height ?? defaultHeight;
   const mask = new Uint8Array(width * height);
   const projected = sourceTriangles.map((triangle) =>
     triangle.map(([x, y]) => [1 + (x - minX) * scale, 1 + (maxY - y) * scale]),
@@ -141,6 +154,8 @@ function rasterize(sourceTriangles) {
     height,
     mask,
     minX,
+    maxX,
+    minY,
     maxY,
     sourceWidth,
     sourceHeight,
@@ -244,7 +259,108 @@ function simplifyLoop(points) {
   return [...a.slice(0, -1), ...b.slice(0, -1)];
 }
 
-function trace({ width, height, mask }) {
+function formatPoint([x, y]) {
+  return `${Number(x.toFixed(1))} ${Number(y.toFixed(1))}`;
+}
+
+function smoothLoopPath(loop) {
+  const originalMinX = Math.min(...loop.map(([x]) => x));
+  const originalMaxX = Math.max(...loop.map(([x]) => x));
+  const originalMinY = Math.min(...loop.map(([, y]) => y));
+  const originalMaxY = Math.max(...loop.map(([, y]) => y));
+  let softened = loop.map((point) => [...point]);
+  for (let pass = 0; pass < 3; pass += 1) {
+    softened = softened.map((current, index) => {
+      const previous =
+        softened[(index - 1 + softened.length) % softened.length];
+      const next = softened[(index + 1) % softened.length];
+      return [
+        previous[0] * 0.22 + current[0] * 0.56 + next[0] * 0.22,
+        previous[1] * 0.22 + current[1] * 0.56 + next[1] * 0.22,
+      ];
+    });
+  }
+  const softenedMinX = Math.min(...softened.map(([x]) => x));
+  const softenedMaxX = Math.max(...softened.map(([x]) => x));
+  const softenedMinY = Math.min(...softened.map(([, y]) => y));
+  const softenedMaxY = Math.max(...softened.map(([, y]) => y));
+  const points = softened.map(([x, y]) => [
+    originalMinX +
+      ((x - softenedMinX) / (softenedMaxX - softenedMinX)) *
+        (originalMaxX - originalMinX),
+    originalMinY +
+      ((y - softenedMinY) / (softenedMaxY - softenedMinY)) *
+        (originalMaxY - originalMinY),
+  ]);
+  const tension = 0.72;
+  const clampControl = (value, from, to) =>
+    Math.max(
+      Math.min(from, to) - 0.5,
+      Math.min(Math.max(from, to) + 0.5, value),
+    );
+  const controls = [];
+  for (let index = 0; index < points.length; index += 1) {
+    const previous = points[(index - 1 + points.length) % points.length];
+    const current = points[index];
+    const next = points[(index + 1) % points.length];
+    const following = points[(index + 2) % points.length];
+    const first = [
+      clampControl(
+        current[0] + ((next[0] - previous[0]) * tension) / 6,
+        current[0],
+        next[0],
+      ),
+      clampControl(
+        current[1] + ((next[1] - previous[1]) * tension) / 6,
+        current[1],
+        next[1],
+      ),
+    ];
+    const second = [
+      clampControl(
+        next[0] - ((following[0] - current[0]) * tension) / 6,
+        current[0],
+        next[0],
+      ),
+      clampControl(
+        next[1] - ((following[1] - current[1]) * tension) / 6,
+        current[1],
+        next[1],
+      ),
+    ];
+    controls.push(
+      `C${formatPoint(first)} ${formatPoint(second)} ${formatPoint(next)}`,
+    );
+  }
+  return `M${formatPoint(points[0])}${controls.join("")}Z`;
+}
+
+function expandRaster(raster, radiusX, radiusY) {
+  const mask = new Uint8Array(raster.mask.length);
+  for (let y = 0; y < raster.height; y += 1) {
+    for (let x = 0; x < raster.width; x += 1) {
+      if (!raster.mask[y * raster.width + x]) continue;
+      for (let dy = -radiusY; dy <= radiusY; dy += 1) {
+        for (let dx = -radiusX; dx <= radiusX; dx += 1) {
+          if ((dx / radiusX) ** 2 + (dy / radiusY) ** 2 > 1) continue;
+          const expandedX = x + dx;
+          const expandedY = y + dy;
+          if (
+            expandedX >= 0 &&
+            expandedY >= 0 &&
+            expandedX < raster.width &&
+            expandedY < raster.height
+          ) {
+            mask[expandedY * raster.width + expandedX] = 1;
+          }
+        }
+      }
+    }
+  }
+  return { ...raster, mask };
+}
+
+function trace({ width, height, mask }, { smooth = false } = {}) {
   const filled = (x, y) =>
     x >= 0 && y >= 0 && x < width && y < height
       ? mask[y * width + x] === 1
@@ -286,17 +402,39 @@ function trace({ width, height, mask }) {
   }
   return loops
     .filter((loop) => loop.length >= 3)
-    .map(
-      (loop) =>
-        `M${loop
-          .map(([x, y]) => `${Number(x.toFixed(1))} ${Number(y.toFixed(1))}`)
-          .join("L")}Z`,
+    .map((loop) =>
+      smooth ? smoothLoopPath(loop) : `M${loop.map(formatPoint).join("L")}Z`,
     )
     .join("");
 }
 
 const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 const generated = {};
+const VISION_PRO_PARTS = {
+  band: (object) => /bandeau|beandeau|orange_bar|NurbsPath/.test(object.name),
+  enclosure: (object) =>
+    [
+      "front",
+      "inside_front",
+      "protection",
+      "protection_front",
+      "protection001",
+      "Plane002",
+      "Plane023_1",
+      "metal",
+      "metal_plastic",
+      "plastic001",
+      "plastic002",
+      "Cube007",
+      "Cube007_1",
+    ].includes(object.name),
+  glass: (object) => {
+    const materials = Array.isArray(object.material)
+      ? object.material
+      : [object.material];
+    return materials.some((material) => material?.name === "Front Glass");
+  },
+};
 for (const [id, model] of Object.entries(MODELS)) {
   const sourceFile = `public/models/${model.file}`;
   const sourcePath = path.join(ROOT, sourceFile);
@@ -313,13 +451,34 @@ for (const [id, model] of Object.entries(MODELS)) {
   if (headQuaternion && !articulateDeskLampHead(gltf.scene, headQuaternion)) {
     throw new Error("Could not articulate the About desk-lamp head");
   }
-  const raster = rasterize(triangles(gltf.scene, model.pose.rotation));
+  const modelTriangles = triangles(
+    gltf.scene,
+    model.pose.rotation,
+    model.pose.localPosition,
+  );
+  const raster = rasterize(modelTriangles);
   const poseSignature = JSON.stringify({
     version: 1,
     pose: model.pose,
     headQuaternion,
   });
   const sceneUnitsPerPixel = model.pose.scale / raster.rasterScale;
+  const isVisionPro = id === "vision-pro";
+  const parts = isVisionPro
+    ? Object.fromEntries(
+        Object.entries(VISION_PRO_PARTS).map(([part, include]) => {
+          const partTriangles = triangles(
+            gltf.scene,
+            model.pose.rotation,
+            model.pose.localPosition,
+            include,
+          );
+          let partRaster = rasterize(partTriangles, raster);
+          if (part === "glass") partRaster = expandRaster(partRaster, 6, 3);
+          return [part, trace(partRaster, { smooth: true })];
+        }),
+      )
+    : undefined;
   generated[id] = {
     source: `/models/${model.file}`,
     sourceKind: "file",
@@ -339,7 +498,8 @@ for (const [id, model] of Object.entries(MODELS)) {
       -raster.maxY * model.pose.scale - sceneUnitsPerPixel,
     ],
     viewBox: [0, 0, raster.width, raster.height],
-    path: trace(raster),
+    path: trace(raster, { smooth: isVisionPro }),
+    ...(parts ? { parts } : {}),
   };
 }
 

@@ -1496,20 +1496,40 @@ html[data-world="ready"][data-boot-stage] .stacks-boot-threshold {
   fill: #4d9eff;
 }
 
-.stacks-boot-apple {
-  fill: url("#stacks-boot-apple-shine");
-  stroke: color-mix(in srgb, var(--stacks-boot-object) 72%, white);
-  stroke-width: 0.6;
-  stroke-linecap: round;
+.stacks-boot-vision-band {
+  fill: #8c9499;
+  stroke: #626a70;
+  stroke-width: 0.4;
   stroke-linejoin: round;
 }
 
-.stacks-boot-item[data-landmark-id="apple"] .stacks-boot-metal-fill {
-  fill: #5e6368;
+.dark .stacks-boot-vision-band {
+  fill: #434a50;
 }
 
-.dark .stacks-boot-item[data-landmark-id="apple"] .stacks-boot-metal-fill {
-  fill: #444a4f;
+.stacks-boot-vision-silhouette {
+  fill: #25272a;
+  stroke: color-mix(in srgb, var(--stacks-boot-object) 58%, #22282d);
+  stroke-width: 0.55;
+  stroke-linejoin: round;
+}
+
+.stacks-boot-vision-enclosure {
+  fill: #929ba1;
+  stroke: color-mix(in srgb, var(--stacks-boot-object) 74%, white);
+  stroke-width: 0.45;
+  stroke-linejoin: round;
+}
+
+.dark .stacks-boot-vision-enclosure {
+  fill: #60686e;
+}
+
+.stacks-boot-vision-glass {
+  fill: #000;
+  stroke: color-mix(in srgb, var(--stacks-boot-object) 68%, #d8ecff);
+  stroke-width: 0.45;
+  stroke-linejoin: round;
 }
 
 .stacks-boot-leaf {

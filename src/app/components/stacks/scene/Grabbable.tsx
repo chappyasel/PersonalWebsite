@@ -1261,6 +1261,7 @@ export default function Grabbable({
         !!g && entry?.physicsActivation === "detach" && !entry.physicsActivated;
 
       const store = useStacks.getState();
+      if (store.visionRidePhase !== "idle") return;
       authoredParked.current = false;
       authoredOffscreenFor.current = 0;
       velocity.set(0, 0, 0);
@@ -1429,6 +1430,7 @@ export default function Grabbable({
       // starts a carry, and a second pointer's release ends someone else's.
       if (!event.isPrimary || event.button !== 0) return false;
       const store = useStacks.getState();
+      if (store.visionRidePhase !== "idle") return false;
       // `isPrimary` is per pointer TYPE, so a primary pen and a primary mouse
       // are both primary at once. One prop in hand at a time, always.
       if (store.dragging) return false;

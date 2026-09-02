@@ -14,6 +14,11 @@
  *
  * Args: --requested-at <ISO>
  */
+import {
+  type TakeoutSidecar,
+  parseTakeoutTimestamp,
+  sidecarPathFor,
+} from "../../src/lib/youtube/coverage";
 import { execSync } from "child_process";
 import * as fs from "fs";
 import * as os from "os";
@@ -96,6 +101,7 @@ async function main() {
 
   let zipPath: string | null = null;
   let extractDir: string | null = null;
+  let chosen: (typeof fresh)[number] | null = null;
 
   for (const candidate of fresh) {
     console.log(
@@ -135,6 +141,7 @@ async function main() {
       );
       zipPath = candidateZipPath;
       extractDir = candidateExtractDir;
+      chosen = candidate;
       break;
     } catch {
       fs.rmSync(candidateExtractDir, { recursive: true, force: true });
@@ -158,6 +165,27 @@ async function main() {
   fs.mkdirSync(path.dirname(FINAL_PATH), { recursive: true });
   fs.copyFileSync(extracted, FINAL_PATH);
   console.log(`Placed → ${FINAL_PATH}`);
+
+  // Record when Google built this archive. The watch history alone cannot say
+  // whether a quiet stretch at its end is a week of not watching or a week
+  // that was never exported; the build time draws that line, and the sync
+  // stores it so the dashboard can plot the quiet days as zeros.
+  const sourceFile = chosen?.name ?? path.basename(zipPath);
+  const exportCreatedAt =
+    chosen?.createdTime ??
+    parseTakeoutTimestamp(sourceFile)?.toISOString() ??
+    new Date().toISOString();
+  const sidecar: TakeoutSidecar = {
+    exportCreatedAt,
+    sourceFile,
+    driveFileId: chosen?.id ?? undefined,
+    downloadedAt: new Date().toISOString(),
+  };
+  fs.writeFileSync(
+    sidecarPathFor(FINAL_PATH),
+    JSON.stringify(sidecar, null, 2),
+  );
+  console.log(`Archive built ${exportCreatedAt} (${sourceFile})`);
 
   fs.rmSync(extractDir, { recursive: true, force: true });
   process.exit(0);

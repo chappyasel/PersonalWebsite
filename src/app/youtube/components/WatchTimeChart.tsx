@@ -13,6 +13,8 @@ import {
 } from "recharts";
 
 import {
+  describePercentile,
+  percentileOfLatest,
   scoreTextClass,
   smoothInformationDietTrend,
 } from "~/lib/youtube/dashboard";
@@ -133,6 +135,61 @@ function TrendTooltip({
   );
 }
 
+const RANGE_NOUNS: Record<TimeRange, string> = {
+  "30d": "the last 30 days",
+  "90d": "the last 90 days",
+  "1y": "the last year",
+  "3y": "the last 3 years",
+  all: "all time",
+};
+
+/** Where the newest point sits in the series on screen. Deliberately scoped to
+ *  what is plotted rather than to all history: the reader can see the spread
+ *  being compared against, and changing the range changes the question to
+ *  another one they can see. */
+function LatestReading({
+  values,
+  smoothingWindow,
+  timeRange,
+  format,
+  swatch,
+  name,
+}: {
+  values: (number | null)[];
+  smoothingWindow: number;
+  timeRange: TimeRange;
+  format: (value: number) => string;
+  swatch?: string;
+  name?: string;
+}) {
+  // Leading points were averaged over a partial window, so they are not the
+  // same measure as the rest of the line and do not belong in the population.
+  const reading = percentileOfLatest(values, {
+    skip: Math.max(0, smoothingWindow - 1),
+  });
+  if (!reading) return null;
+  const rank = describePercentile(reading.percentile, RANGE_NOUNS[timeRange], {
+    isHighest: reading.isHighest,
+    isLowest: reading.isLowest,
+  });
+
+  return (
+    <span className="flex items-center gap-1.5 whitespace-nowrap text-xs font-normal text-neutral-400 dark:text-neutral-500">
+      {swatch && (
+        <span
+          className="h-2 w-2 shrink-0 rounded-full"
+          style={{ backgroundColor: swatch }}
+        />
+      )}
+      {name && <span>{name}</span>}
+      <span className="tabular-nums text-neutral-600 dark:text-neutral-300">
+        {format(reading.latest)}
+      </span>
+      {rank && <span>· {rank}</span>}
+    </span>
+  );
+}
+
 export function WatchTimeChart() {
   const [groupBy, setGroupBy] = useState<GroupBy>("day");
   const [timeRange, setTimeRange] = useState<TimeRange>("1y");
@@ -218,9 +275,18 @@ export function WatchTimeChart() {
         </div>
       </div>
 
-      <p className="mb-1 text-xs font-medium text-neutral-500">
-        Estimated Watch Time
-      </p>
+      <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+        <p className="text-xs font-medium text-neutral-500">
+          Estimated Watch Time
+        </p>
+        <LatestReading
+          values={chartData.map((row) => row.estimatedExposureHoursSmoothed)}
+          smoothingWindow={smoothingWindow}
+          timeRange={timeRange}
+          format={(value) => `${value.toFixed(1)}h`}
+          name="latest"
+        />
+      </div>
       <ChartContainer
         config={{
           estimatedExposureHours: {
@@ -273,6 +339,15 @@ export function WatchTimeChart() {
               strokeOpacity={0.45}
             />
           )}
+          {activeRow?.estimatedExposureHoursSmoothed !== undefined && (
+            <ReferenceLine
+              y={activeRow.estimatedExposureHoursSmoothed}
+              stroke="hsl(0 72% 38%)"
+              strokeDasharray="5 3"
+              strokeWidth={2}
+              strokeOpacity={0.8}
+            />
+          )}
           <Bar
             dataKey="estimatedExposureHours"
             fill="hsl(0 72% 51%)"
@@ -291,9 +366,29 @@ export function WatchTimeChart() {
         </ComposedChart>
       </ChartContainer>
 
-      <p className="mb-1 mt-4 text-xs font-medium text-neutral-500">
-        Learning Value + Positivity
-      </p>
+      <div className="mb-1 mt-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5">
+        <p className="text-xs font-medium text-neutral-500">
+          Learning Value + Positivity
+        </p>
+        <span className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5">
+          <LatestReading
+            values={chartData.map((row) => row.learningValueSmoothed)}
+            smoothingWindow={smoothingWindow}
+            timeRange={timeRange}
+            format={(value) => value.toFixed(1)}
+            swatch="hsl(217 91% 55%)"
+            name="learning"
+          />
+          <LatestReading
+            values={chartData.map((row) => row.positivitySmoothed)}
+            smoothingWindow={smoothingWindow}
+            timeRange={timeRange}
+            format={(value) => value.toFixed(1)}
+            swatch="hsl(142 65% 40%)"
+            name="positivity"
+          />
+        </span>
+      </div>
       <ChartContainer
         config={{
           learningValue: { label: "Learning Value", color: "hsl(217 91% 55%)" },
@@ -350,8 +445,9 @@ export function WatchTimeChart() {
               <ReferenceLine
                 y={activeRow.learningValueSmoothed}
                 stroke="hsl(217 91% 55%)"
-                strokeDasharray="3 3"
-                strokeOpacity={0.55}
+                strokeDasharray="5 3"
+                strokeWidth={2}
+                strokeOpacity={0.8}
               />
             )}
           {activeRow?.positivitySmoothed !== null &&
@@ -359,8 +455,9 @@ export function WatchTimeChart() {
               <ReferenceLine
                 y={activeRow.positivitySmoothed}
                 stroke="hsl(142 65% 40%)"
-                strokeDasharray="3 3"
-                strokeOpacity={0.55}
+                strokeDasharray="5 3"
+                strokeWidth={2}
+                strokeOpacity={0.8}
               />
             )}
           <Line

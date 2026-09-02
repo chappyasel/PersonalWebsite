@@ -90,7 +90,12 @@ function onUnitTap(index: number, e: ThreeEvent<MouseEvent>) {
   if ((e.delta ?? 0) > 6) return; // swipe, not a tap
   e.stopPropagation();
   const state = useStacks.getState();
-  if (state.panelState !== "closed" || state.modalOpen) return;
+  if (
+    state.panelState !== "closed" ||
+    state.modalOpen ||
+    state.visionRidePhase !== "idle"
+  )
+    return;
   // Golf occupies the physical gap between Books and Weightlifting, directly
   // over both units' invisible travel planes. A near-miss on the club or a
   // ball must stay in Golf instead of activating whichever plane is behind it.

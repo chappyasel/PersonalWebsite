@@ -18,6 +18,18 @@ not change the resolved production quality policy. Experimental effects remain
 default-off until explicitly approved. Their off path must avoid render-target
 allocation, texture sampling, and per-frame effect work.
 
+## Field Notes
+
+When adding or materially expanding a visitor-facing Action, Portal, Artifact,
+Easter egg, route, or authored scene experience, evaluate it against the
+[achievement quality bar](docs/research/2026-08-24-achievement-exploration-system.md#achievement-quality-bar).
+If it passes every test, add the discovery in the same change, including
+meaningful combinations with existing modes. Follow the
+[catalog](docs/gamification/field-notes-catalog.md) and the implementation in
+`src/app/components/stacks/fieldNotes/`. Award semantic success, never a raw
+click, failed attempt, or analytics event. In the final handoff, name the added
+ID or the quality-bar test that ruled it out.
+
 ## Book Notes skill
 
 The repository-owned interface for Chappy's book library lives at `.agents/skills/book-notes/SKILL.md`.

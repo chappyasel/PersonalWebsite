@@ -34,6 +34,10 @@ import {
   useStacks,
 } from "../store";
 import {
+  APPLE_VISION_PRO_URL,
+  activateVisionRide,
+} from "../visionRide/visionRideEntry";
+import {
   BookOpenIcon,
   BookOpenTextIcon,
   BooksIcon,
@@ -2336,6 +2340,18 @@ export default function PlacardLayer({
           </div>
           <div className="flex flex-col items-center gap-2 pt-4">
             {slots.contact}
+          </div>
+          <div className="sr-only">
+            <button type="button" onClick={() => void activateVisionRide()}>
+              Put on Apple Vision Pro
+            </button>
+            <a
+              href={APPLE_VISION_PRO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Apple Vision Pro product page
+            </a>
           </div>
           {/* Known photo-source links are mirrored into the DOM because canvas
             raycast targets have no focus order or accessible name. */}

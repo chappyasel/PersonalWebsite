@@ -14,6 +14,8 @@ export type SceneAudioState = {
   muted: boolean;
   voices: number;
   windLevel: number;
+  rideRequested: boolean;
+  rideStatus: "idle" | "loading" | "ready" | "playing" | "failed";
 };
 
 const VOICE_CAP = 12;
@@ -68,6 +70,26 @@ const DEFERRED_SOUNDS = (Object.keys(FILES) as SoundName[]).filter(
   (name) => name !== FIRST_STRIKE && !CORE_AMBIENCE.includes(name),
 );
 const MAX_PENDING_PLAY_MS = 600;
+export const VISION_RIDE_SOUNDTRACK =
+  "/audio/vision-ride/synthwave-loop.ogg" as const;
+
+// Whoosh envelope lengths, exported so the transition timeline test can pin
+// the audio/visual sync: the donning whoosh resolves as the headset seats,
+// while the removal whoosh spans the CRT flicker + collapse.
+// Each whoosh opens with a short attack from silence to peak rather than
+// slamming in at full gain, then releases over the remainder.
+export const VISION_RIDE_ENTRY_WHOOSH_SECONDS = 1.5;
+/** Flicker + vertical collapse + line hold + dot shrink of the exit. */
+export const VISION_RIDE_EXIT_WHOOSH_SECONDS = 1.4;
+export const VISION_RIDE_WHOOSH_ATTACK_SECONDS = 0.12;
+// Broadcast static hiss under the set switching on and off. Entry begins only
+// after the headset is seated and spans the full-frame flicker. Exit spans the
+// removal whoosh. Both are band-passed noise at a low level.
+// Ends before the CRT aperture reveals the moving road: hiss belongs to the
+// switch-on, never to the actual drive.
+export const VISION_RIDE_ENTRY_STATIC_SECONDS = 0.5;
+export const VISION_RIDE_EXIT_STATIC_SECONDS = VISION_RIDE_EXIT_WHOOSH_SECONDS;
+export const VISION_RIDE_STATIC_PEAK = 0.018;
 
 export function spatialGain(distance: number, maxDistance = 42) {
   if (distance <= 1) return 1;
@@ -81,6 +103,16 @@ export class SceneAudioRuntime {
   private master: GainNode | null = null;
   private limiter: DynamicsCompressorNode | null = null;
   private ambienceBus: GainNode | null = null;
+  private rideBus: GainNode | null = null;
+  private rideSoundtrack: AudioBuffer | null = null;
+  private rideSoundtrackSource: AudioBufferSourceNode | null = null;
+  private rideOscillators: OscillatorNode[] = [];
+  private rideStaticSources: AudioBufferSourceNode[] = [];
+  private rideLoad: Promise<void> | null = null;
+  private rideStopTimer = 0;
+  private rideEntryEffectsAllowed = false;
+  private rideReducedMotion = false;
+  private rideExitSoundPlayed = false;
   private buffers = new Map<SoundName, AudioBuffer>();
   private loading: Promise<void> | null = null;
   private loadComplete = false;
@@ -106,6 +138,8 @@ export class SceneAudioRuntime {
     muted: false,
     voices: 0,
     windLevel: 0.56,
+    rideRequested: false,
+    rideStatus: "idle",
   };
 
   snapshot = () => ({ ...this.state });
@@ -147,6 +181,8 @@ export class SceneAudioRuntime {
     this.publish();
     this.loadComplete = false;
     this.loading = this.loadBuffers();
+    if (this.state.rideRequested && !this.state.muted)
+      this.ensureVisionRideAudio();
     void this.loading.finally(() => {
       this.loadComplete = true;
       this.pendingPlays = [];
@@ -179,6 +215,93 @@ export class SceneAudioRuntime {
     if (this.context?.state === "suspended" && !muted)
       void this.context.resume();
     this.fadeMaster(muted ? 0 : 1, muted ? 0.08 : 0.25);
+    if (!muted && this.state.rideRequested) this.ensureVisionRideAudio();
+    this.publish();
+  };
+
+  startVisionRide = (reducedMotion = false) => {
+    this.state.rideRequested = true;
+    this.rideReducedMotion = reducedMotion;
+    this.rideExitSoundPlayed = false;
+    this.rideEntryEffectsAllowed = true;
+    this.fadeAmbience(0.0001, 0.5);
+    if (!this.state.muted) this.ensureVisionRideAudio();
+    this.publish();
+  };
+
+  /** Start the television hiss when the black visor switches on. Keeping this
+   * separate from startVisionRide prevents static from playing while the
+   * physical headset is still flying in from the shelf. */
+  beginVisionRideSwitchOn = () => {
+    if (
+      !this.context ||
+      !this.rideBus ||
+      this.state.muted ||
+      this.rideReducedMotion ||
+      !this.rideEntryEffectsAllowed
+    )
+      return;
+    this.startVisionRideStatic(VISION_RIDE_ENTRY_STATIC_SECONDS, 0.25);
+  };
+
+  /** End the one-shot switch-on noise independently of the continuous
+   * soundtrack and engine layers. The gate also prevents a delayed sound
+   * unlock from replaying entry static after the road is already visible. */
+  finishVisionRideEntry = () => {
+    this.rideEntryEffectsAllowed = false;
+    this.stopVisionRideStaticSources();
+  };
+
+  beginVisionRideExit = () => {
+    if (
+      !this.context ||
+      !this.rideBus ||
+      this.state.muted ||
+      this.rideExitSoundPlayed
+    )
+      return;
+    this.rideExitSoundPlayed = true;
+    const oscillator = this.context.createOscillator();
+    const gain = this.context.createGain();
+    const now = this.context.currentTime;
+    oscillator.type = "sawtooth";
+    oscillator.frequency.setValueAtTime(520, now);
+    oscillator.frequency.exponentialRampToValueAtTime(
+      58,
+      now + VISION_RIDE_EXIT_WHOOSH_SECONDS * 0.94,
+    );
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(
+      this.rideReducedMotion ? 0.004 : 0.022,
+      now + VISION_RIDE_WHOOSH_ATTACK_SECONDS,
+    );
+    gain.gain.exponentialRampToValueAtTime(
+      0.0001,
+      now + VISION_RIDE_EXIT_WHOOSH_SECONDS,
+    );
+    oscillator.connect(gain).connect(this.rideBus);
+    oscillator.start();
+    oscillator.stop(now + VISION_RIDE_EXIT_WHOOSH_SECONDS + 0.01);
+    this.rideOscillators.push(oscillator);
+    if (!this.rideReducedMotion)
+      this.startVisionRideStatic(VISION_RIDE_EXIT_STATIC_SECONDS, 0.22);
+    // The soundtrack sinks under the static and the collapse; the last of
+    // it goes with the curtain in stopVisionRide.
+    this.fadeRide(0.3, VISION_RIDE_EXIT_WHOOSH_SECONDS);
+  };
+
+  stopVisionRide = () => {
+    if (!this.state.rideRequested && !this.rideBus) return;
+    this.state.rideRequested = false;
+    this.rideEntryEffectsAllowed = false;
+    this.fadeRide(0.0001, 0.5);
+    this.fadeAmbience(1, 0.9);
+    window.clearTimeout(this.rideStopTimer);
+    this.rideStopTimer = window.setTimeout(() => {
+      this.stopVisionRideSources();
+      this.state.rideStatus = this.rideSoundtrack ? "ready" : "idle";
+      this.publish();
+    }, 520);
     this.publish();
   };
 
@@ -294,6 +417,8 @@ export class SceneAudioRuntime {
 
   teardown = () => {
     window.clearTimeout(this.suspendTimer);
+    window.clearTimeout(this.rideStopTimer);
+    this.stopVisionRideSources();
     this.stopAmbientSources();
     for (const voice of this.voices) {
       try {
@@ -306,6 +431,11 @@ export class SceneAudioRuntime {
     this.master = null;
     this.limiter = null;
     this.ambienceBus = null;
+    this.rideBus = null;
+    this.rideSoundtrack = null;
+    this.rideLoad = null;
+    this.rideExitSoundPlayed = false;
+    this.rideEntryEffectsAllowed = false;
     this.buffers.clear();
     this.loading = null;
     this.loadComplete = false;
@@ -316,6 +446,8 @@ export class SceneAudioRuntime {
       ambienceRequested: false,
       suspended: false,
       voices: 0,
+      rideRequested: false,
+      rideStatus: "idle",
     };
     if (context) void context.close();
     this.publish();
@@ -347,6 +479,200 @@ export class SceneAudioRuntime {
       // Audio is enhancement-only; a missing codec or asset never affects the
       // scene or interactions.
     }
+  }
+
+  private ensureVisionRideAudio() {
+    const context = this.context;
+    const master = this.master;
+    if (!context || !master || this.state.muted || !this.state.rideRequested)
+      return;
+    window.clearTimeout(this.rideStopTimer);
+    if (!this.rideBus) {
+      const bus = context.createGain();
+      bus.gain.value = 0.0001;
+      bus.connect(master);
+      this.rideBus = bus;
+      this.startVisionRideSynthesis();
+      this.fadeRide(1, 0.7);
+    }
+    if (this.rideSoundtrack) {
+      this.startVisionRideSoundtrack();
+      return;
+    }
+    if (this.rideLoad) return;
+    this.state.rideStatus = "loading";
+    this.publish();
+    this.rideLoad = fetch(VISION_RIDE_SOUNDTRACK)
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const buffer = await context.decodeAudioData(
+          await response.arrayBuffer(),
+        );
+        if (this.context !== context) return;
+        this.rideSoundtrack = buffer;
+        this.state.rideStatus = "ready";
+        if (this.state.rideRequested && !this.state.muted)
+          this.startVisionRideSoundtrack();
+      })
+      .catch(() => {
+        if (this.context === context) this.state.rideStatus = "failed";
+      })
+      .finally(() => {
+        this.rideLoad = null;
+        this.publish();
+      });
+  }
+
+  private startVisionRideSoundtrack() {
+    if (
+      !this.context ||
+      !this.rideBus ||
+      !this.rideSoundtrack ||
+      this.rideSoundtrackSource
+    )
+      return;
+    const source = this.context.createBufferSource();
+    const gain = this.context.createGain();
+    source.buffer = this.rideSoundtrack;
+    source.loop = true;
+    const now = this.context.currentTime;
+    gain.gain.value = 0.0001;
+    gain.gain.exponentialRampToValueAtTime(0.22, now + 0.85);
+    source.connect(gain).connect(this.rideBus);
+    source.start();
+    this.rideSoundtrackSource = source;
+    this.state.rideStatus = "playing";
+  }
+
+  private startVisionRideSynthesis() {
+    if (!this.context || !this.rideBus || this.rideOscillators.length) return;
+    const makeOscillator = (
+      frequency: number,
+      gainValue: number,
+      type: OscillatorType,
+    ) => {
+      const oscillator = this.context!.createOscillator();
+      const gain = this.context!.createGain();
+      oscillator.type = type;
+      oscillator.frequency.value = frequency;
+      gain.gain.value = gainValue;
+      oscillator.connect(gain).connect(this.rideBus!);
+      oscillator.start();
+      this.rideOscillators.push(oscillator);
+    };
+    makeOscillator(47, 0.025, "sawtooth");
+    makeOscillator(94, 0.011, "triangle");
+    if (!this.rideReducedMotion) makeOscillator(176, 0.006, "sine");
+    if (this.rideEntryEffectsAllowed) {
+      const whoosh = this.context.createOscillator();
+      const whooshGain = this.context.createGain();
+      const now = this.context.currentTime;
+      whoosh.type = "sine";
+      whoosh.frequency.setValueAtTime(90, now);
+      whoosh.frequency.exponentialRampToValueAtTime(
+        440,
+        now + VISION_RIDE_ENTRY_WHOOSH_SECONDS * 0.93,
+      );
+      whooshGain.gain.setValueAtTime(0.0001, now);
+      whooshGain.gain.exponentialRampToValueAtTime(
+        this.rideReducedMotion ? 0.004 : 0.018,
+        now + VISION_RIDE_WHOOSH_ATTACK_SECONDS,
+      );
+      whooshGain.gain.exponentialRampToValueAtTime(
+        0.0001,
+        now + VISION_RIDE_ENTRY_WHOOSH_SECONDS,
+      );
+      whoosh.connect(whooshGain).connect(this.rideBus);
+      whoosh.start();
+      whoosh.stop(now + VISION_RIDE_ENTRY_WHOOSH_SECONDS + 0.01);
+      this.rideOscillators.push(whoosh);
+    }
+  }
+
+  /**
+   * Band-passed noise with a slow attack to `attackFraction` of the length,
+   * then a release to silence. Lives on the ride bus so mute and the ride
+   * fades govern it. Noise buffers and filters are optional on the audio
+   * context this runtime is handed; without them the hiss is skipped.
+   */
+  private startVisionRideStatic(seconds: number, attackFraction: number) {
+    const context = this.context;
+    if (
+      !context ||
+      !this.rideBus ||
+      typeof context.createBuffer !== "function" ||
+      typeof context.createBiquadFilter !== "function"
+    )
+      return;
+    const length = Math.max(1, Math.floor(context.sampleRate * 0.5));
+    const buffer = context.createBuffer(1, length, context.sampleRate);
+    const data = buffer.getChannelData(0);
+    let seed = 0x2545f491;
+    for (let index = 0; index < length; index += 1) {
+      seed = (seed * 1_664_525 + 1_013_904_223) >>> 0;
+      data[index] = seed / 0x8000_0000 - 1;
+    }
+    const source = context.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    const filter = context.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = 1_900;
+    filter.Q.value = 0.6;
+    const gain = context.createGain();
+    const now = context.currentTime;
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(
+      VISION_RIDE_STATIC_PEAK,
+      now + seconds * attackFraction,
+    );
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + seconds);
+    source.connect(filter).connect(gain).connect(this.rideBus);
+    source.start();
+    source.stop(now + seconds + 0.02);
+    this.rideStaticSources.push(source);
+  }
+
+  private stopVisionRideSources() {
+    try {
+      this.rideSoundtrackSource?.stop();
+    } catch {}
+    this.rideSoundtrackSource = null;
+    this.stopVisionRideStaticSources();
+    for (const oscillator of this.rideOscillators) {
+      try {
+        oscillator.stop();
+      } catch {}
+    }
+    this.rideOscillators = [];
+    this.rideBus = null;
+  }
+
+  private stopVisionRideStaticSources() {
+    for (const source of this.rideStaticSources) {
+      try {
+        source.stop();
+      } catch {}
+    }
+    this.rideStaticSources = [];
+  }
+
+  private fadeAmbience(target: number, seconds: number) {
+    if (!this.context || !this.ambienceBus) return;
+    const gain = this.ambienceBus.gain;
+    const now = this.context.currentTime;
+    gain.cancelScheduledValues(now);
+    gain.setValueAtTime(Math.max(0.0001, gain.value), now);
+    gain.exponentialRampToValueAtTime(Math.max(0.0001, target), now + seconds);
+  }
+
+  private fadeRide(target: number, seconds: number) {
+    if (!this.context || !this.rideBus) return;
+    const gain = this.rideBus.gain;
+    const now = this.context.currentTime;
+    gain.cancelScheduledValues(now);
+    gain.setValueAtTime(Math.max(0.0001, gain.value), now);
+    gain.exponentialRampToValueAtTime(Math.max(0.0001, target), now + seconds);
   }
 
   private flushPending(name: SoundName) {

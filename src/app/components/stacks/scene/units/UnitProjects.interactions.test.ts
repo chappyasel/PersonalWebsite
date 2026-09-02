@@ -16,6 +16,7 @@ describe("Projects shelf movable props", () => {
       "<DicePyramid",
       "topHomeworkIconX",
       "topApplePhotoX",
+      "topAppleMarkX",
       "topPlantX",
     ].map((token) => source.indexOf(token));
 
@@ -68,6 +69,10 @@ describe("Projects shelf movable props", () => {
     expect(upper).toBeGreaterThan(topArtifacts);
     expect(lower).toBeLessThan(topArtifacts);
     expect(source).toContain('src="/images/stacks/v8/projects-facebook.webp"');
+    expect(source).toContain('hoverKey="shimmer:apple"');
+    expect(source.indexOf('id="projects-wwdc-v8"')).toBeLessThan(
+      source.indexOf('hoverKey="shimmer:apple"'),
+    );
   });
 
   it("sizes the Facebook frame to the other lower-shelf photograph", () => {

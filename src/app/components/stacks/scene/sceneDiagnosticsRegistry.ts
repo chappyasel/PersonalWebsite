@@ -1,3 +1,5 @@
+import { visionRideDiagnosticsController } from "../visionRide/visionRideDiagnostics";
+
 import { universalSearchVisualEffects } from "~/lib/universal-search/visualEffects";
 
 import { artifactPreviewVisualEffects } from "./artifactPreviewVisualEffects";
@@ -264,6 +266,52 @@ const RESOLUTION_CEILING_VALUES = Object.freeze({
 });
 
 const descriptors: readonly MutableDescriptor[] = Object.freeze([
+  booleanDescriptor({
+    id: "render.vision-ride",
+    panel: "render",
+    group: "render.optional",
+    label: "Vision Ride",
+    help: "Enable the Apple Vision Pro retrowave ride for this page load.",
+    defaultValue: true,
+    experimental: false,
+    reloadInput: "novisionride",
+    store: visionRideDiagnosticsController,
+    read: () => visionRideDiagnosticsController.getSnapshot().enabled,
+    update: (value) =>
+      visionRideDiagnosticsController.setEnabled(Boolean(value)),
+    productionCost: {
+      activeValues: [true],
+      enabled: "Lazy ride world, car, and soundtrack",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+  }),
+  booleanDescriptor({
+    id: "render.vision-ride-retro-fx",
+    panel: "render",
+    group: "render.optional",
+    label: "Vision Ride retro finish",
+    help: "Add the ride-only CRT texture, vignette, and stronger neon bloom.",
+    defaultValue: true,
+    experimental: false,
+    store: visionRideDiagnosticsController,
+    read: () =>
+      visionRideDiagnosticsController.getSnapshot().retroFxEnabled,
+    update: (value) =>
+      visionRideDiagnosticsController.setRetroFxEnabled(Boolean(value)),
+    productionCost: {
+      activeValues: [true],
+      enabled: "One translucent screen shader and stronger existing bloom",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+  }),
   booleanDescriptor({
     id: "camera.authored-depth",
     panel: "simulate",

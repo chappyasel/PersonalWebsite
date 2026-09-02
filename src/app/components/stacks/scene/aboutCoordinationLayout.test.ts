@@ -4,8 +4,6 @@ import { describe, expect, it } from "vitest";
 import {
   ABOUT_AIC_BASE_DEPTH,
   ABOUT_AIC_BASE_WIDTH,
-  ABOUT_APPLE_BASE_DEPTH,
-  ABOUT_APPLE_BASE_WIDTH,
 } from "./aboutAwardGeometry";
 import {
   ABOUT_BOOT_LANDMARKS,
@@ -13,7 +11,6 @@ import {
 } from "./aboutBootComposition";
 import {
   ABOUT_AIC_SCALE,
-  ABOUT_APPLE_LIGHT_YAW,
   ABOUT_COORDINATION_GLOBE_SCALE,
   ABOUT_COORDINATION_TARGET_X,
   ABOUT_LAMP_CAMERA_REVEAL,
@@ -22,7 +19,6 @@ import {
   ABOUT_LAMP_ROOT_POSITION,
   ABOUT_LAMP_ROOT_SCALE,
   ABOUT_LAMP_ROOT_YAW,
-  ABOUT_LOWER_AWARD_SCALE,
   ABOUT_OG_LAMP_CAMERA_REVEAL,
   ABOUT_OG_LAMP_HEAD_QUATERNION,
   ABOUT_OG_LAMP_HEAD_TARGET,
@@ -32,8 +28,8 @@ import {
 } from "./aboutCoordinationLayout";
 import {
   ABOUT_AIC_ROOT_YAW,
-  ABOUT_APPLE_MARK_YAW,
-  ABOUT_APPLE_ROOT_YAW,
+  ABOUT_LANDMARK_X,
+  ABOUT_LOWER_LANDMARK_Z,
 } from "./aboutScenePose";
 import {
   DESK_LAMP_HEAD_AXIS,
@@ -42,6 +38,14 @@ import {
   articulatedDeskLampPoint,
 } from "./deskLampHead";
 import { SHELF_GEOMETRY } from "./shelfGeometry";
+import {
+  SHELF_PROP_UNITS_PER_METRE,
+  VISION_PRO_DISPLAY_WIDTH,
+  VISION_PRO_MODEL_SCALE,
+  VISION_PRO_MODEL_WIDTH,
+  VISION_PRO_PROFILE,
+  VISION_PRO_REAL_WIDTH_METRES,
+} from "./visionProGeometry";
 import { CAMERA } from "./worldLayout";
 
 function expectGap(shelf: "top" | "lower", leftId: string, rightId: string) {
@@ -68,14 +72,14 @@ describe("About Coordination composition", () => {
     expectGap("lower", "desk-lamp", "ai-collective");
     expectGap("lower", "ai-collective", "coordination-globe");
     expectGap("lower", "coordination-globe", "tj-medallion");
-    expectGap("lower", "tj-medallion", "apple");
-    expectGap("lower", "apple", "role-icons");
+    expectGap("lower", "tj-medallion", "vision-pro");
+    expectGap("lower", "vision-pro", "role-icons");
     expectGap("lower", "role-icons", "reading-stack");
 
     expect(ABOUT_BOOT_LANDMARKS["collective-frame"].shelf).toBe("top");
     expect(ABOUT_BOOT_LANDMARKS["collective-frame"].x).toBe(0.785);
     expect(ABOUT_BOOT_LANDMARKS["role-icons"].x).toBeGreaterThan(
-      ABOUT_BOOT_LANDMARKS.apple.x,
+      ABOUT_BOOT_LANDMARKS["vision-pro"].x,
     );
     expect(ABOUT_BOOT_LANDMARKS["reading-stack"].x).toBeGreaterThan(
       ABOUT_BOOT_LANDMARKS["role-icons"].x,
@@ -89,7 +93,7 @@ describe("About Coordination composition", () => {
     expect(gap("top", "succulent", "portrait")).toBeGreaterThan(0.04);
   });
 
-  it("keeps the lower row inside the plank after shifting it left", () => {
+  it("keeps the owner-reviewed lower row inside the plank", () => {
     const lamp = aboutShelfIntervals("lower").find(
       ({ id }) => id === "desk-lamp",
     )!;
@@ -100,37 +104,45 @@ describe("About Coordination composition", () => {
     expect(reading.right).toBeLessThan(SHELF_GEOMETRY.width / 2);
   });
 
-  it("preserves clearance after tightening the AIC and Apple bases", () => {
+  it("persists the owner's lower-shelf centers and AIC light angle", () => {
+    expect(ABOUT_LANDMARK_X).toMatchObject({
+      "ai-collective": -0.8708,
+      "coordination-globe": -0.507,
+      "tj-medallion": -0.1962,
+      "vision-pro": 0.1527,
+      "role-icons": 0.5233,
+      "reading-stack": 1.0005,
+    });
+    expect(ABOUT_LOWER_LANDMARK_Z).toMatchObject({
+      "ai-collective": -0.0268,
+      "coordination-globe": -0.036,
+      "tj-medallion": -0.0099,
+      "vision-pro": -0.0659,
+      "role-icons": -0.0283,
+      "reading-stack": -0.0231,
+    });
+    expect(ABOUT_AIC_ROOT_YAW).toBe(-0.1562);
+  });
+
+  it("preserves clearance around the lower keepsakes", () => {
     expect(gap("lower", "ai-collective", "coordination-globe")).toBeGreaterThan(
-      0.06,
+      0.03,
     );
-    expect(gap("lower", "coordination-globe", "tj-medallion")).toBeCloseTo(
-      0.02,
-      2,
+    expect(gap("lower", "coordination-globe", "tj-medallion")).toBeGreaterThan(
+      0,
     );
-    // The rotated Apple billet exposes a little of its depth. Its old
-    // axis-aligned width overstated this gap by several millimetres.
-    expect(gap("lower", "tj-medallion", "apple")).toBeGreaterThan(0.03);
-    expect(gap("lower", "apple", "role-icons")).toBeGreaterThan(0.04);
+    expect(gap("lower", "tj-medallion", "vision-pro")).toBeGreaterThan(0.008);
+    expect(gap("lower", "vision-pro", "role-icons")).toBeGreaterThan(0);
     expect(gap("lower", "role-icons", "reading-stack")).toBeGreaterThan(0.04);
   });
 
-  it("keeps TJ and Apple at their requested ten-percent increase", () => {
-    expect(ABOUT_LOWER_AWARD_SCALE).toBeCloseTo(1.1 * 1.2 * 1.1, 10);
+  it("keeps TJ at the owner's additional small scale increase", () => {
     expect(ABOUT_BOOT_LANDMARKS["tj-medallion"].sceneScale).toBeCloseTo(
-      0.55 * 1.2 * 1.1,
+      0.55 * 1.2 * 1.1 * 1.0569,
       10,
     );
-    expect(ABOUT_BOOT_LANDMARKS.apple.profile.width).toBeCloseTo(
-      aboutProjectedBoxWidth(
-        ABOUT_APPLE_BASE_WIDTH,
-        ABOUT_APPLE_BASE_DEPTH,
-        ABOUT_APPLE_ROOT_YAW + ABOUT_APPLE_MARK_YAW,
-      ) *
-        1.1 *
-        1.2 *
-        1.1,
-      10,
+    expect(ABOUT_BOOT_LANDMARKS["vision-pro"].profile).toEqual(
+      VISION_PRO_PROFILE,
     );
     expect(ABOUT_BOOT_LANDMARKS["ai-collective"].profile.width).toBeCloseTo(
       aboutProjectedBoxWidth(
@@ -144,6 +156,19 @@ describe("About Coordination composition", () => {
         1.2,
       10,
     );
+  });
+
+  it("renders Vision Pro at Apple's published cover width", () => {
+    expect(VISION_PRO_REAL_WIDTH_METRES).toBe(0.18536);
+    expect(VISION_PRO_DISPLAY_WIDTH).toBeCloseTo(
+      VISION_PRO_REAL_WIDTH_METRES * SHELF_PROP_UNITS_PER_METRE,
+      10,
+    );
+    expect(VISION_PRO_MODEL_WIDTH * VISION_PRO_MODEL_SCALE).toBeCloseTo(
+      VISION_PRO_DISPLAY_WIDTH,
+      10,
+    );
+    expect(VISION_PRO_PROFILE.width).toBeGreaterThan(VISION_PRO_DISPLAY_WIDTH);
   });
 
   it("enlarges AIC and the orb by another twenty percent", () => {
@@ -222,17 +247,15 @@ describe("About Coordination composition", () => {
     );
 
     expect(actual.dot(target.sub(mouth).normalize())).toBeCloseTo(1, 10);
-    expect(ABOUT_OG_LAMP_CAMERA_REVEAL).toBe(0.056);
+    expect(ABOUT_OG_LAMP_CAMERA_REVEAL).toBe(0.057);
     expect(cameraFacing).toBeGreaterThan(0.07);
     expect(cameraFacing).toBeLessThan(0.09);
     expect(aboutLampHeadQuaternion(true)).toBe(ABOUT_OG_LAMP_HEAD_QUATERNION);
     expect(aboutLampHeadQuaternion(false)).toBe(ABOUT_LAMP_HEAD_QUATERNION);
   });
 
-  it("turns the TJ and Apple metal faces modestly toward the lamp", () => {
+  it("turns the TJ metal face modestly toward the lamp", () => {
     expect(ABOUT_TJ_LIGHT_YAW).toBeLessThan(-0.16);
-    expect(ABOUT_APPLE_LIGHT_YAW).toBeLessThan(ABOUT_TJ_LIGHT_YAW);
     expect(ABOUT_TJ_LIGHT_YAW).toBeGreaterThan(-0.4);
-    expect(ABOUT_APPLE_LIGHT_YAW).toBeGreaterThan(-0.4);
   });
 });

@@ -40,6 +40,7 @@ import { useContext, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { MathUtils, Uniform, Vector2, Vector3, Vector4 } from "three";
 
 import { useCinematicSun } from "./cinematicSun";
+import { useVisionRideRetroFxEnabled } from "../visionRide/visionRideDiagnostics";
 import { captureLensCenterFromSearch, sideLensPlan } from "./lensGeometry";
 import {
   DB32_PALETTE,
@@ -620,6 +621,14 @@ export default function Effects({
   const activeUnit = useStacks((state) => state.activeUnit);
   const golfFocused = useStacks((state) => state.golfFocused);
   const seated = useStacks((state) => state.seated);
+  // Keyed to the curtain, not the ride phase: the room keeps its bokeh,
+  // occlusion, tilt shift and god rays through the visible half of the
+  // donning flight, loses them only once the static curtain is opaque, and
+  // has them back under the opaque return hold before the shelf shows.
+  const visionRideRoomHidden = useStacks(
+    (state) => state.visionRideRoomHidden,
+  );
+  const visionRideRetroFxEnabled = useVisionRideRetroFxEnabled();
   const captureLensCenter = useMemo(
     () =>
       typeof window === "undefined"
@@ -644,13 +653,14 @@ export default function Effects({
       tiltShiftEnabled(
         plan.composer === "direct" ? "off" : plan.composer,
         plan.depthOfField,
-        !performanceSettings.sideTiltShift || pixelBlurOff,
+        !performanceSettings.sideTiltShift || pixelBlurOff || visionRideRoomHidden,
       ),
     [
       performanceSettings.sideTiltShift,
       pixelBlurOff,
       plan.composer,
       plan.depthOfField,
+      visionRideRoomHidden,
     ],
   );
   const {
@@ -669,7 +679,10 @@ export default function Effects({
         activeUnit,
         golfFocused,
         seated,
-        isolated: performanceSettings.skipDepthOfField || pixelBlurOff,
+        isolated:
+          performanceSettings.skipDepthOfField ||
+          pixelBlurOff ||
+          visionRideRoomHidden,
       }),
     [
       activeUnit,
@@ -680,11 +693,12 @@ export default function Effects({
       pixelBlurOff,
       planDepthOfField,
       seated,
+      visionRideRoomHidden,
     ],
   );
   return (
     <EffectComposer multisampling={plan.multisampling} stencilBuffer>
-      {plan.ambientOcclusion && (
+      {plan.ambientOcclusion && !visionRideRoomHidden && (
         <N8AO
           halfRes={plan.ambientOcclusionHalfRes}
           quality={plan.ambientOcclusionQuality}
@@ -704,13 +718,29 @@ export default function Effects({
           levels={plan.bloomLevels}
           resolutionScale={plan.bloomResolutionScale}
           luminanceThreshold={
-            dark
+            visionRideRoomHidden
+              ? visionRideRetroFxEnabled
+                ? 0.82
+                : 1.08
+              : dark
               ? plan.bloomLuminanceThreshold.dark
               : plan.bloomLuminanceThreshold.light
           }
-          luminanceSmoothing={plan.bloomLuminanceSmoothing}
+          luminanceSmoothing={
+            visionRideRoomHidden
+              ? visionRideRetroFxEnabled
+                ? Math.max(0.24, plan.bloomLuminanceSmoothing)
+                : Math.max(0.12, plan.bloomLuminanceSmoothing)
+              : plan.bloomLuminanceSmoothing
+          }
           intensity={
-            dark ? plan.bloomIntensity.dark : plan.bloomIntensity.light
+            visionRideRoomHidden
+              ? visionRideRetroFxEnabled
+                ? Math.max(1.9, plan.bloomIntensity.dark)
+                : Math.max(1.05, plan.bloomIntensity.dark)
+              : dark
+                ? plan.bloomIntensity.dark
+                : plan.bloomIntensity.light
           }
         />
       )}
@@ -731,7 +761,7 @@ export default function Effects({
           so shelf edges and props cut visible shafts through it. Keeping the
           component itself behind Cinematic+ avoids all three of its render
           targets, texture samples, and per-frame work on every other mode. */}
-      {cinematicPlus && !dark && sun && (
+      {cinematicPlus && !visionRideRoomHidden && !dark && sun && (
         <GodRays
           sun={sun}
           samples={60}
@@ -749,7 +779,13 @@ export default function Effects({
       <Vignette
         eskil={false}
         offset={0.34}
-        darkness={dark ? colorGrade.dark.vignette : colorGrade.light.vignette}
+        darkness={
+          visionRideRoomHidden && visionRideRetroFxEnabled
+            ? 0.62
+            : dark
+              ? colorGrade.dark.vignette
+              : colorGrade.light.vignette
+        }
       />
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
       {performanceSettings.colorGrade && (

@@ -129,21 +129,26 @@ export function freeRoamStepSeconds(delta: number): number {
 /**
  * The per-frame translation, in world space, for the keys currently held.
  *
- * The axes are the room's, not the camera's: W/S run along world Z, A/D
- * along world X, Q/E along world Y, whichever way the camera is looking. The
- * shelves stand on those axes and the layout editor's gizmo and arrow nudges
- * move props along them, so a key means the same direction in the room as it
- * does on the prop being placed, and turning to look at something never
- * changes what D does. The combined direction is normalised before the speed
- * is applied, so moving diagonally is not faster than moving straight.
+ * WASD rotates with the camera's yaw, so W follows the viewed heading while
+ * remaining on the world XZ plane. Pitch never contributes to translation;
+ * looking up or down cannot make W climb or descend. Q/E remain on world Y.
+ * The combined direction is normalised before the speed is applied, so moving
+ * diagonally is not faster than moving straight.
  */
 export function freeRoamTranslation(
   held: ReadonlySet<string>,
+  yaw: number,
   delta: number,
   target = new THREE.Vector3(),
 ): THREE.Vector3 {
   const axes = freeRoamAxes(held);
-  target.set(axes.right, axes.vertical, -axes.forward);
+  const sinYaw = Math.sin(yaw);
+  const cosYaw = Math.cos(yaw);
+  target.set(
+    axes.right * cosYaw - axes.forward * sinYaw,
+    axes.vertical,
+    -axes.right * sinYaw - axes.forward * cosYaw,
+  );
   if (target.lengthSq() === 0) return target;
   return target
     .normalize()

@@ -79,24 +79,30 @@ describe("boot presentation", () => {
     );
   });
 
-  it("keeps the Apple edge subordinate to the filled mark", () => {
-    const apple = rule(".stacks-boot-apple {");
+  it("keeps the Vision Pro glass edge subordinate to its face", () => {
+    const glass = rule(".stacks-boot-vision-glass {");
 
-    expect(apple).toContain("stroke-width: 0.6");
-    expect(apple).toContain(
-      "stroke: color-mix(in srgb, var(--stacks-boot-object) 72%, white)",
+    expect(glass).toContain("stroke-width: 0.45");
+    expect(glass).toContain(
+      "stroke: color-mix(in srgb, var(--stacks-boot-object) 68%, #d8ecff)",
     );
   });
 
-  it("paints directional highlights across the AIC and Apple marks", () => {
+  it("uses theme-specific tones for the Vision Pro strap and enclosure", () => {
+    expect(rule(".stacks-boot-vision-band {")).toContain("fill: #8c9499");
+    expect(rule(".dark .stacks-boot-vision-band {")).toContain("fill: #434a50");
+    expect(rule(".stacks-boot-vision-enclosure {")).toContain("fill: #929ba1");
+    expect(rule(".dark .stacks-boot-vision-enclosure {")).toContain(
+      "fill: #60686e",
+    );
+  });
+
+  it("paints a directional highlight across the AIC mark", () => {
     expect(
       rule(
         '.stacks-boot-model-silhouette[data-model-silhouette="ai-collective"] {',
       ),
     ).toContain('fill: url("#stacks-boot-aic-shine")');
-    expect(rule(".stacks-boot-apple {")).toContain(
-      'fill: url("#stacks-boot-apple-shine")',
-    );
     expect(rule(".stacks-boot-shine-highlight {")).toContain(
       "var(--stacks-boot-object) 38%, white",
     );

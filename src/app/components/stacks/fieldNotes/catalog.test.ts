@@ -12,9 +12,9 @@ describe("Field Notes catalog", () => {
     );
 
     expect(counts).toEqual({
-      Common: 12,
+      Common: 13,
       Uncommon: 10,
-      Rare: 6,
+      Rare: 7,
       Legendary: 4,
     });
   });
@@ -42,6 +42,34 @@ describe("Field Notes catalog", () => {
 
   it("keeps the capstone as the final catalog entry", () => {
     expect(FIELD_NOTES.at(-1)?.id).toBe("full-journal");
+  });
+
+  it("pairs the visible Vision Pro ride with its hidden pixel combination", () => {
+    expect(
+      FIELD_NOTES.filter((note) =>
+        ["future-perfect", "reality-distortion-field"].includes(note.id),
+      ),
+    ).toEqual([
+      {
+        id: "future-perfect",
+        title: "Future Perfect",
+        rarity: "Common",
+        artwork: "vision",
+        hidden: false,
+        hint: "The headset on About is more than a keepsake.",
+        foundCopy: "Put on Apple Vision Pro and entered the retrowave ride.",
+      },
+      {
+        id: "reality-distortion-field",
+        title: "Reality Distortion Field",
+        rarity: "Rare",
+        artwork: "retro-vision",
+        hidden: true,
+        hint: null,
+        foundCopy:
+          "Entered the Vision Pro ride with an 8-bit or 16-bit finish active.",
+      },
+    ]);
   });
 
   it("keeps unusual one-off interactions below the completion tier", () => {

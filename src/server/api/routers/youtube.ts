@@ -1,8 +1,11 @@
 import { TRPCError } from "@trpc/server";
-import { desc, sql } from "drizzle-orm";
+import { type SQL, desc, eq, sql } from "drizzle-orm";
+import { unstable_cache } from "next/cache";
 import { z } from "zod";
 
 import { CATEGORY_VALUES } from "~/lib/youtube/categories";
+import { smoothInformationDietTrend } from "~/lib/youtube/dashboard";
+import { type SeriesGroupBy, seriesPeriods } from "~/lib/youtube/series";
 import { syncYouTube } from "~/lib/youtube/sync";
 import {
   cookieProtectedProcedure,
@@ -51,33 +54,91 @@ const timeRangeSchema = z
   .enum(["30d", "90d", "1y", "3y", "all"])
   .default("all");
 
-function timeRangeWhere(range: z.infer<typeof timeRangeSchema>) {
-  if (range === "all") return sql`TRUE`;
-  const days =
-    range === "30d" ? 30 : range === "90d" ? 90 : range === "1y" ? 365 : 1095;
-  return sql`${ytWatchHistory.watchedAt} >= NOW() - INTERVAL '${sql.raw(String(days))} days'`;
+type TimeRange = z.infer<typeof timeRangeSchema>;
+
+/** Length of a bounded range in days; null for the full history. */
+function rangeDays(range: TimeRange): number | null {
+  if (range === "all") return null;
+  return range === "30d"
+    ? 30
+    : range === "90d"
+      ? 90
+      : range === "1y"
+        ? 365
+        : 1095;
 }
 
-/** Enumerate period-start keys (YYYY-MM-DD, UTC) from start to end inclusive,
- *  stepping by the group size — used to fill zero-watch gaps in time series so
- *  days with no watching graph as 0 rather than being skipped. */
-function enumeratePeriods(
-  start: string,
-  end: string,
-  groupBy: "day" | "week" | "month" | "quarter",
-): string[] {
-  const out: string[] = [];
-  const d = new Date(start + "T00:00:00Z");
-  const endDate = new Date(end + "T00:00:00Z");
-  let guard = 0;
-  while (d <= endDate && guard++ < 20000) {
-    out.push(d.toISOString().slice(0, 10));
-    if (groupBy === "day") d.setUTCDate(d.getUTCDate() + 1);
-    else if (groupBy === "week") d.setUTCDate(d.getUTCDate() + 7);
-    else if (groupBy === "month") d.setUTCMonth(d.getUTCMonth() + 1);
-    else d.setUTCMonth(d.getUTCMonth() + 3);
-  }
-  return out;
+function timeRangeWhere(range: TimeRange) {
+  const days = rangeDays(range);
+  if (days === null) return sql`TRUE`;
+  return sql`${ytWatchHistory.watchedAt} >= ${rangeStartInstant(days)}`;
+}
+
+/** Coverage Through: the instant the ingested history is complete to, which is
+ *  when Google built the newest archive we have successfully ingested. A day
+ *  between the last watch event and this instant was genuinely checked and
+ *  found empty; a day after it simply has not been exported yet. Clamped up to
+ *  the newest watch event, because an older archive cannot un-know a watch,
+ *  and down to now. NULL until a sync has recorded an export time, in which
+ *  case callers fall back to the last watch event. */
+const coverageThroughExpr = sql`(
+  SELECT CASE WHEN bound.through IS NULL THEN NULL ELSE LEAST(NOW(), bound.through) END
+  FROM (
+    SELECT GREATEST(
+      (SELECT MAX(${ytSyncMetadata.exportCreatedAt}) FROM yt_sync_metadata WHERE status = 'success'),
+      (SELECT MAX(watched_at) FROM yt_watch_events)
+    ) AS through
+  ) bound
+)`;
+
+/** Every bounded time range ends at Coverage Through rather than at now, so
+ *  "last 30 days" means the last 30 days the data actually covers. Windows
+ *  that ended at now would quietly shrink as the export aged: the header would
+ *  compare 25 days of watching against a full prior 30, and the comparison
+ *  would drift with the export schedule instead of with what Chappy watched. */
+const coverageAnchor = sql`COALESCE(${coverageThroughExpr}, NOW())`;
+
+/** Local watch-day frame for an instant: wall-clock time in the display zone,
+ *  shifted back past the 4am boundary. */
+function watchDayFrame(instant: SQL) {
+  return sql`((${instant} AT TIME ZONE ${sql.raw(`'${DISPLAY_TIME_ZONE}'`)}) - INTERVAL '${sql.raw(String(DAY_BOUNDARY_HOUR))} hours')`;
+}
+
+/** Start of a window spanning `days` whole watch-days and ending on the
+ *  Coverage Through day. Counting whole days rather than raw hours back from
+ *  an instant is what makes "last 30 days" exactly thirty buckets on a chart,
+ *  instead of thirty-one with a sliver of a day at the open end. */
+function rangeStartInstant(days: number): SQL {
+  return sql`((DATE_TRUNC('day', ${watchDayFrame(coverageAnchor)})
+    - INTERVAL '${sql.raw(String(days - 1))} days'
+    + INTERVAL '${sql.raw(String(DAY_BOUNDARY_HOUR))} hours')
+    AT TIME ZONE ${sql.raw(`'${DISPLAY_TIME_ZONE}'`)})`;
+}
+
+/** Bucket an instant into a watch-day period key, using the same expression
+ *  the aggregates group on so the keys line up exactly. */
+function periodKeyExpr(instant: SQL, groupBy: SeriesGroupBy) {
+  return sql`TO_CHAR(DATE_TRUNC(${sql.raw(`'${groupBy}'`)}, ${watchDayFrame(instant)}), 'YYYY-MM-DD')`;
+}
+
+/** Window a chart should span: where the selected range opens, and the last
+ *  period the data can speak for. Either may be null (full history, or nothing
+ *  ingested yet), in which case the series falls back to its own extent. */
+async function seriesBounds(
+  groupBy: SeriesGroupBy,
+  days: number | null,
+): Promise<{ rangeStartKey: string | null; coverageKey: string | null }> {
+  const rangeStart =
+    days === null ? sql`NULL::timestamptz` : rangeStartInstant(days);
+  const rows = await db.execute(sql`
+    SELECT ${periodKeyExpr(rangeStart, groupBy)} AS range_start_key,
+           ${periodKeyExpr(coverageThroughExpr, groupBy)} AS coverage_key
+  `);
+  const row = rows[0];
+  return {
+    rangeStartKey: dbNullableString(row?.range_start_key),
+    coverageKey: dbNullableString(row?.coverage_key),
+  };
 }
 
 /** SQL CASE for computing weighted productive seconds from categoryId */
@@ -91,6 +152,44 @@ const heuristicWeightCase = sql`CASE ${ytWatchHistory.categoryId} ${sql.join(
 
 /** Quality score: prefer LLM score, fall back to heuristic */
 const qualityScoreExpr = sql`COALESCE(${ytWatchHistory.llmQualityScore}, ${heuristicWeightCase})`;
+
+/** The runs whose judgments the dashboard shows. */
+const activeRunsCte = sql`
+  SELECT
+    MAX(id) FILTER (WHERE dimension = 'learning_value') AS learning_run_id,
+    MAX(id) FILTER (WHERE dimension = 'positivity') AS positivity_run_id
+  FROM yt_classifier_runs
+  WHERE status = 'active'
+`;
+
+/** Every join needed to hang a video's accepted scores off a watch event.
+ *  Shared by the summary, the trend, and the percentiles so all three read the
+ *  same numbers; a divergence here surfaces as a headline that contradicts the
+ *  chart underneath it. Expects an `active_runs` CTE in scope and exposes the
+ *  aliases `event`, `video`, `learning`, `positivity`, and the two overrides. */
+const scoredEventJoins = sql`
+  FROM yt_watch_events event
+  JOIN yt_videos video ON video.video_id = event.video_id
+  CROSS JOIN active_runs
+  LEFT JOIN yt_classifications learning
+    ON learning.video_id = video.video_id
+    AND learning.run_id = active_runs.learning_run_id
+    AND learning.status = 'scored'
+  LEFT JOIN yt_classifications positivity
+    ON positivity.video_id = video.video_id
+    AND positivity.run_id = active_runs.positivity_run_id
+    AND positivity.status = 'scored'
+  LEFT JOIN yt_manual_overrides learning_override
+    ON learning_override.video_id = video.video_id
+    AND learning_override.dimension = 'learning_value'
+  LEFT JOIN yt_manual_overrides positivity_override
+    ON positivity_override.video_id = video.video_id
+    AND positivity_override.dimension = 'positivity'
+`;
+
+const eventExposure = sql`GREATEST(COALESCE(video.duration_seconds, 0), 0)::double precision / ${PLAYBACK_SPEED}`;
+const eventLearningScore = sql`COALESCE(learning_override.score, learning.score)`;
+const eventPositivityScore = sql`COALESCE(positivity_override.score, positivity.score)`;
 
 function dbNullableString(value: unknown): string | null {
   if (value == null) return null;
@@ -112,6 +211,214 @@ function assertDevelopmentOnly(): void {
   }
 }
 
+/** The window every header tile speaks for: the headline numbers, the
+ *  sparklines, and the stretches the percentiles compare against are all this
+ *  many days, so the three readings on a tile describe one period. */
+const DIET_WINDOW_DAYS = 30;
+/** Smoothing on the score sparklines, which also sets how much lead-in the
+ *  series query needs so the leftmost point is a real seven-day average rather
+ *  than a single day pretending to be one. */
+const DIET_SMOOTHING_DAYS = 7;
+
+export type DietSparklinePoint = {
+  date: string;
+  /** Watch hours on that day. Zero is a reading, not a gap. */
+  hours: number;
+  /** Trailing seven-day scores. Null while nothing scored falls in the window. */
+  learningValue: number | null;
+  positivity: number | null;
+};
+
+/**
+ * The header's three sparklines. Watch hours are per day; the two scores are
+ * trailing seven-day averages, because a daily score is undefined on every day
+ * with no watching and a line full of holes reads as broken rather than quiet.
+ * The query reaches back an extra six days so the leftmost smoothed point has a
+ * full window behind it, then drops that lead-in.
+ */
+async function dailyDietSeries(): Promise<DietSparklinePoint[]> {
+  const days = DIET_WINDOW_DAYS + DIET_SMOOTHING_DAYS - 1;
+  const rows = await db.execute(sql`
+    WITH active_runs AS (${activeRunsCte}), scored_events AS (
+      SELECT
+        DATE_TRUNC('day', ${watchDayFrame(sql`event.watched_at`)}) AS period,
+        ${eventExposure} AS exposure,
+        ${eventLearningScore} AS learning_score,
+        ${eventPositivityScore} AS positivity_score
+      ${scoredEventJoins}
+      WHERE event.watched_at >= ${rangeStartInstant(days)}
+    )
+    SELECT
+      TO_CHAR(period, 'YYYY-MM-DD') AS period,
+      SUM(exposure) / 3600 AS hours,
+      SUM(exposure * learning_score) FILTER (WHERE learning_score IS NOT NULL)
+        / NULLIF(SUM(exposure) FILTER (WHERE learning_score IS NOT NULL), 0) AS learning_value,
+      SUM(exposure) FILTER (WHERE learning_score IS NOT NULL)
+        / NULLIF(SUM(exposure), 0) AS learning_coverage,
+      SUM(exposure * positivity_score) FILTER (WHERE positivity_score IS NOT NULL)
+        / NULLIF(SUM(exposure) FILTER (WHERE positivity_score IS NOT NULL), 0) AS positivity,
+      SUM(exposure) FILTER (WHERE positivity_score IS NOT NULL)
+        / NULLIF(SUM(exposure), 0) AS positivity_coverage
+    FROM scored_events
+    GROUP BY period
+    ORDER BY period
+  `);
+
+  const byPeriod = new Map(rows.map((row) => [String(row.period), row]));
+  const { rangeStartKey, coverageKey } = await seriesBounds("day", days);
+  const periods = seriesPeriods({
+    dataPeriods: rows.map((row) => String(row.period)),
+    groupBy: "day",
+    rangeStartKey,
+    coverageKey,
+  }).map((date) => {
+    const row = byPeriod.get(date);
+    return {
+      date,
+      estimatedExposureHours: Number(row?.hours ?? 0),
+      learningValue:
+        row?.learning_value == null ? null : Number(row.learning_value),
+      learningCoverage:
+        row?.learning_coverage == null ? null : Number(row.learning_coverage),
+      positivity: row?.positivity == null ? null : Number(row.positivity),
+      positivityCoverage:
+        row?.positivity_coverage == null
+          ? null
+          : Number(row.positivity_coverage),
+    };
+  });
+
+  const smoothed = smoothInformationDietTrend(periods, DIET_SMOOTHING_DAYS);
+  return periods.slice(-DIET_WINDOW_DAYS).map((period, index) => {
+    const smooth = smoothed[smoothed.length - DIET_WINDOW_DAYS + index];
+    return {
+      date: period.date,
+      hours: period.estimatedExposureHours,
+      learningValue: smooth?.learningValueSmoothed ?? null,
+      positivity: smooth?.positivitySmoothed ?? null,
+    };
+  });
+}
+
+export type DietPercentiles = {
+  /** Share of complete 30-day stretches in the whole history at or below the
+   *  current one. Null when there is not enough history to compare against. */
+  watchHours: number | null;
+  learningValue: number | null;
+  positivity: number | null;
+  /** How many complete 30-day stretches the comparison drew on. */
+  sampleSize: number;
+};
+
+/**
+ * Where the current 30 days sit against every other 30-day stretch Chappy has
+ * on record. The comparison rolls day by day, so consecutive stretches overlap
+ * by 29 days and are heavily correlated; read a percentile as "this stretch
+ * against all the others", not as a draw from independent samples.
+ *
+ * Cached because it walks the full daily history on every call, and the answer
+ * can only move when a sync lands.
+ */
+export async function computeDietPercentiles(): Promise<DietPercentiles> {
+  const rows = await db.execute(sql`
+      WITH active_runs AS (${activeRunsCte}), scored_events AS (
+        SELECT
+          DATE_TRUNC('day', ${watchDayFrame(sql`event.watched_at`)}) AS day,
+          ${eventExposure} AS exposure,
+          ${eventLearningScore} AS learning_score,
+          ${eventPositivityScore} AS positivity_score
+        ${scoredEventJoins}
+      ), daily AS (
+        SELECT
+          day,
+          SUM(exposure) AS exposure,
+          SUM(exposure) FILTER (WHERE learning_score IS NOT NULL) AS learning_exposure,
+          SUM(exposure * learning_score) FILTER (WHERE learning_score IS NOT NULL) AS learning_weighted,
+          SUM(exposure) FILTER (WHERE positivity_score IS NOT NULL) AS positivity_exposure,
+          SUM(exposure * positivity_score) FILTER (WHERE positivity_score IS NOT NULL) AS positivity_weighted
+        FROM scored_events
+        GROUP BY day
+      ), bounds AS (
+        SELECT
+          MIN(day) AS first_day,
+          DATE_TRUNC('day', ${watchDayFrame(coverageAnchor)}) AS last_day
+        FROM daily
+      ), calendar AS (
+        -- Dense days, so a rolling window spans 30 dates rather than 30 rows
+        -- that happen to have watching in them.
+        SELECT generate_series(first_day, last_day, INTERVAL '1 day') AS day
+        FROM bounds
+      ), dense AS (
+        SELECT
+          calendar.day,
+          COALESCE(daily.exposure, 0) AS exposure,
+          COALESCE(daily.learning_exposure, 0) AS learning_exposure,
+          COALESCE(daily.learning_weighted, 0) AS learning_weighted,
+          COALESCE(daily.positivity_exposure, 0) AS positivity_exposure,
+          COALESCE(daily.positivity_weighted, 0) AS positivity_weighted
+        FROM calendar
+        LEFT JOIN daily ON daily.day = calendar.day
+      ), rolling AS (
+        SELECT
+          day,
+          ROW_NUMBER() OVER (ORDER BY day) AS n,
+          SUM(exposure) OVER w / 3600 AS hours,
+          SUM(learning_weighted) OVER w / NULLIF(SUM(learning_exposure) OVER w, 0) AS learning_value,
+          SUM(positivity_weighted) OVER w / NULLIF(SUM(positivity_exposure) OVER w, 0) AS positivity
+        FROM dense
+        WINDOW w AS (ORDER BY day ROWS BETWEEN ${sql.raw(String(DIET_WINDOW_DAYS - 1))} PRECEDING AND CURRENT ROW)
+      ), windows AS (
+        SELECT * FROM rolling WHERE n >= ${DIET_WINDOW_DAYS}
+      ), current AS (
+        SELECT * FROM windows ORDER BY day DESC LIMIT 1
+      )
+      SELECT
+        (SELECT COUNT(*) FROM windows) AS sample_size,
+        (SELECT AVG((w.hours <= c.hours)::int)::double precision
+           FROM windows w, current c) AS watch_hours,
+        (SELECT AVG((w.learning_value <= c.learning_value)::int)::double precision
+           FROM windows w, current c
+          WHERE w.learning_value IS NOT NULL AND c.learning_value IS NOT NULL) AS learning_value,
+        (SELECT AVG((w.positivity <= c.positivity)::int)::double precision
+           FROM windows w, current c
+          WHERE w.positivity IS NOT NULL AND c.positivity IS NOT NULL) AS positivity
+    `);
+  const row = rows[0];
+  const asPercentile = (value: unknown) =>
+    value == null ? null : Number(value);
+  return {
+    watchHours: asPercentile(row?.watch_hours),
+    learningValue: asPercentile(row?.learning_value),
+    positivity: asPercentile(row?.positivity),
+    sampleSize: Number(row?.sample_size ?? 0),
+  };
+}
+
+const getCachedDietPercentiles = unstable_cache(
+  computeDietPercentiles,
+  ["yt-diet-percentiles"],
+  { revalidate: 900 },
+);
+
+/** Percentiles are context on a tile, never the tile itself. Outside a Next
+ *  request there is no incremental cache to read, so fall through to the query;
+ *  if that fails too the header renders without them rather than 500ing. */
+async function dietPercentiles(): Promise<DietPercentiles> {
+  for (const source of [getCachedDietPercentiles, computeDietPercentiles]) {
+    try {
+      return await source();
+    } catch (error) {
+      console.error("Diet percentiles unavailable, falling back:", error);
+    }
+  }
+  return {
+    watchHours: null,
+    learningValue: null,
+    positivity: null,
+    sampleSize: 0,
+  };
+}
+
 export const youtubeRouter = createTRPCRouter({
   /** Verify content password */
   verifyPassword: publicProcedure
@@ -124,37 +431,15 @@ export const youtubeRouter = createTRPCRouter({
   /** Canonical 30-day information-diet scores and independent coverage. */
   getInformationDietSummary: cookieProtectedProcedure.query(async () => {
     const rows = await db.execute(sql`
-      WITH active_runs AS (
+      WITH active_runs AS (${activeRunsCte}), scored_events AS (
         SELECT
-          MAX(id) FILTER (WHERE dimension = 'learning_value') AS learning_run_id,
-          MAX(id) FILTER (WHERE dimension = 'positivity') AS positivity_run_id
-        FROM yt_classifier_runs
-        WHERE status = 'active'
-      ), scored_events AS (
-        SELECT
-          CASE WHEN event.watched_at >= NOW() - INTERVAL '30 days'
+          CASE WHEN event.watched_at >= ${rangeStartInstant(30)}
             THEN 'current' ELSE 'prior' END AS period,
-          GREATEST(COALESCE(video.duration_seconds, 0), 0)::double precision / ${PLAYBACK_SPEED} AS exposure,
-          COALESCE(learning_override.score, learning.score) AS learning_score,
-          COALESCE(positivity_override.score, positivity.score) AS positivity_score
-        FROM yt_watch_events event
-        JOIN yt_videos video ON video.video_id = event.video_id
-        CROSS JOIN active_runs
-        LEFT JOIN yt_classifications learning
-          ON learning.video_id = video.video_id
-          AND learning.run_id = active_runs.learning_run_id
-          AND learning.status = 'scored'
-        LEFT JOIN yt_classifications positivity
-          ON positivity.video_id = video.video_id
-          AND positivity.run_id = active_runs.positivity_run_id
-          AND positivity.status = 'scored'
-        LEFT JOIN yt_manual_overrides learning_override
-          ON learning_override.video_id = video.video_id
-          AND learning_override.dimension = 'learning_value'
-        LEFT JOIN yt_manual_overrides positivity_override
-          ON positivity_override.video_id = video.video_id
-          AND positivity_override.dimension = 'positivity'
-        WHERE event.watched_at >= NOW() - INTERVAL '60 days'
+          ${eventExposure} AS exposure,
+          ${eventLearningScore} AS learning_score,
+          ${eventPositivityScore} AS positivity_score
+        ${scoredEventJoins}
+        WHERE event.watched_at >= ${rangeStartInstant(60)}
       )
       SELECT
         period,
@@ -201,8 +486,15 @@ export const youtubeRouter = createTRPCRouter({
             : Number(row.positivity_coverage),
       };
     }
+    const [daily, percentiles] = await Promise.all([
+      dailyDietSeries(),
+      dietPercentiles(),
+    ]);
+
     return {
       ...result,
+      daily,
+      percentiles,
       learningDelta:
         result.current.learningValue !== null &&
         result.prior.learningValue !== null
@@ -235,48 +527,15 @@ export const youtubeRouter = createTRPCRouter({
       const where =
         input.timeRange === "all"
           ? sql`TRUE`
-          : sql`event.watched_at >= NOW() - INTERVAL '${sql.raw(
-              String(
-                input.timeRange === "30d"
-                  ? 30
-                  : input.timeRange === "90d"
-                    ? 90
-                    : input.timeRange === "1y"
-                      ? 365
-                      : 1095,
-              ),
-            )} days'`;
+          : sql`event.watched_at >= ${rangeStartInstant(rangeDays(input.timeRange)!)}`;
       const rows = await db.execute(sql`
-        WITH active_runs AS (
+        WITH active_runs AS (${activeRunsCte}), scored_events AS (
           SELECT
-            MAX(id) FILTER (WHERE dimension = 'learning_value') AS learning_run_id,
-            MAX(id) FILTER (WHERE dimension = 'positivity') AS positivity_run_id
-          FROM yt_classifier_runs WHERE status = 'active'
-        ), scored_events AS (
-          SELECT
-            DATE_TRUNC(${sql.raw(`'${period}'`)},
-              ((event.watched_at AT TIME ZONE 'America/Los_Angeles') - INTERVAL '4 hours')
-            ) AS period,
-            GREATEST(COALESCE(video.duration_seconds, 0), 0)::double precision / ${PLAYBACK_SPEED} AS exposure,
-            COALESCE(learning_override.score, learning.score) AS learning_score,
-            COALESCE(positivity_override.score, positivity.score) AS positivity_score
-          FROM yt_watch_events event
-          JOIN yt_videos video ON video.video_id = event.video_id
-          CROSS JOIN active_runs
-          LEFT JOIN yt_classifications learning
-            ON learning.video_id = video.video_id
-            AND learning.run_id = active_runs.learning_run_id
-            AND learning.status = 'scored'
-          LEFT JOIN yt_classifications positivity
-            ON positivity.video_id = video.video_id
-            AND positivity.run_id = active_runs.positivity_run_id
-            AND positivity.status = 'scored'
-          LEFT JOIN yt_manual_overrides learning_override
-            ON learning_override.video_id = video.video_id
-            AND learning_override.dimension = 'learning_value'
-          LEFT JOIN yt_manual_overrides positivity_override
-            ON positivity_override.video_id = video.video_id
-            AND positivity_override.dimension = 'positivity'
+            DATE_TRUNC(${sql.raw(`'${period}'`)}, ${watchDayFrame(sql`event.watched_at`)}) AS period,
+            ${eventExposure} AS exposure,
+            ${eventLearningScore} AS learning_score,
+            ${eventPositivityScore} AS positivity_score
+          ${scoredEventJoins}
           WHERE ${where}
         )
         SELECT
@@ -310,14 +569,17 @@ export const youtubeRouter = createTRPCRouter({
             : Number(row.positivity_coverage),
       }));
 
-      if (trend.length === 0) return [];
-
-      const byPeriod = new Map(trend.map((row) => [row.period, row]));
-      return enumeratePeriods(
-        trend[0]!.period,
-        trend[trend.length - 1]!.period,
+      const { rangeStartKey, coverageKey } = await seriesBounds(
         input.groupBy,
-      ).map(
+        rangeDays(input.timeRange),
+      );
+      const byPeriod = new Map(trend.map((row) => [row.period, row]));
+      return seriesPeriods({
+        dataPeriods: trend.map((row) => row.period),
+        groupBy: input.groupBy,
+        rangeStartKey,
+        coverageKey,
+      }).map(
         (period) =>
           byPeriod.get(period) ?? {
             period,
@@ -780,8 +1042,6 @@ export const youtubeRouter = createTRPCRouter({
         .groupBy(sql`${truncExpr}`)
         .orderBy(sql`${truncExpr}`);
 
-      if (rows.length === 0) return [];
-
       const daysIn = (period: string): number => {
         const periodStart = new Date(period + "T00:00:00Z");
         if (input.groupBy === "day") return 1;
@@ -803,16 +1063,21 @@ export const youtubeRouter = createTRPCRouter({
         );
       };
 
-      // Zero-fill every period between the first and last watched period so
-      // empty stretches graph as 0 instead of the line jumping across them.
-      // Quality % is left null on no-watch days (it's undefined when nothing
-      // was watched) and the line connects across those gaps.
-      const byPeriod = new Map(rows.map((r) => [r.period, r]));
-      const periods = enumeratePeriods(
-        rows[0]!.period,
-        rows[rows.length - 1]!.period,
+      // Zero-fill every period in the window so empty stretches graph as 0
+      // instead of the line jumping across them. Quality % is left null on
+      // no-watch days (it's undefined when nothing was watched) and the line
+      // connects across those gaps.
+      const { rangeStartKey, coverageKey } = await seriesBounds(
         input.groupBy,
+        rangeDays(input.timeRange),
       );
+      const byPeriod = new Map(rows.map((r) => [r.period, r]));
+      const periods = seriesPeriods({
+        dataPeriods: rows.map((r) => r.period),
+        groupBy: input.groupBy,
+        rangeStartKey,
+        coverageKey,
+      });
 
       return periods.map((period) => {
         const r = byPeriod.get(period);
@@ -950,7 +1215,25 @@ export const youtubeRouter = createTRPCRouter({
         else entry.brainRot += hrs;
       }
 
-      return [...periodMap.entries()].map(([period, d]) => {
+      const { rangeStartKey, coverageKey } = await seriesBounds(
+        input.groupBy,
+        rangeDays(input.timeRange),
+      );
+      const emptyTiers: SubTiers = {
+        deepLearning: 0,
+        education: 0,
+        growth: 0,
+        informational: 0,
+        lowValue: 0,
+        brainRot: 0,
+      };
+      return seriesPeriods({
+        dataPeriods: [...periodMap.keys()],
+        groupBy: input.groupBy,
+        rangeStartKey,
+        coverageKey,
+      }).map((period) => {
+        const d = periodMap.get(period) ?? emptyTiers;
         const periodStart = new Date(period + "T00:00:00Z");
         let daysInPeriod: number;
         if (input.groupBy === "day") {
@@ -992,7 +1275,9 @@ export const youtubeRouter = createTRPCRouter({
       });
     }),
 
-  /** Calendar heatmap data: watch hours per day for a given year */
+  /** Calendar heatmap data: watch hours per day for a given year, plus the
+   *  day the ingested history runs out — past it a blank cell means "not
+   *  exported yet", not "watched nothing". */
   getCalendarData: cookieProtectedProcedure
     .input(z.object({ year: z.number() }))
     .query(async ({ input }) => {
@@ -1007,11 +1292,15 @@ export const youtubeRouter = createTRPCRouter({
         .groupBy(sql`TO_CHAR(${watchDayLocal}, 'YYYY-MM-DD')`)
         .orderBy(sql`TO_CHAR(${watchDayLocal}, 'YYYY-MM-DD')`);
 
-      return rows.map((r) => ({
-        date: r.date,
-        totalHours: Number(r.totalSeconds) / 3600 / PLAYBACK_SPEED,
-        videoCount: Number(r.videoCount),
-      }));
+      const { coverageKey } = await seriesBounds("day", null);
+      return {
+        days: rows.map((r) => ({
+          date: r.date,
+          totalHours: Number(r.totalSeconds) / 3600 / PLAYBACK_SPEED,
+          videoCount: Number(r.videoCount),
+        })),
+        coveredThrough: coverageKey,
+      };
     }),
 
   /** Manual sync trigger — pass path to watch-history.json */
@@ -1022,10 +1311,38 @@ export const youtubeRouter = createTRPCRouter({
       return result;
     }),
 
-  /** Last sync status */
+  /** Freshness: the most recent sync attempt, the most recent success, and
+   *  how far the ingested history actually reaches. */
   getSyncStatus: cookieProtectedProcedure.query(async () => {
-    return db.query.ytSyncMetadata.findFirst({
+    const latest = await db.query.ytSyncMetadata.findFirst({
       orderBy: desc(ytSyncMetadata.syncStartedAt),
     });
+    const lastSuccess =
+      latest?.status === "success"
+        ? latest
+        : ((await db.query.ytSyncMetadata.findFirst({
+            where: eq(ytSyncMetadata.status, "success"),
+            orderBy: desc(ytSyncMetadata.syncStartedAt),
+          })) ?? null);
+
+    // Read the boundary straight from the data rather than from the last
+    // success, so a later sync of an older archive cannot walk it backwards.
+    // ISO-formatted in SQL so new Date() parses it in every browser.
+    const rows = await db.execute(sql`
+      SELECT
+        TO_CHAR(${coverageThroughExpr} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS covered_through,
+        TO_CHAR(MAX(watched_at) AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS latest_watch
+      FROM yt_watch_events
+    `);
+
+    return {
+      latest: latest ?? null,
+      lastSuccess,
+      ingestedAt: lastSuccess?.syncCompletedAt ?? null,
+      exportCreatedAt: lastSuccess?.exportCreatedAt ?? null,
+      sourceFile: lastSuccess?.sourceFile ?? null,
+      coveredThrough: dbNullableString(rows[0]?.covered_through),
+      latestWatchAt: dbNullableString(rows[0]?.latest_watch),
+    };
   }),
 });

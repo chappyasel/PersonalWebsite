@@ -539,6 +539,11 @@ export default function CameraRig() {
     );
     artifactCameraLock.current = lockFrame.nextState;
     if (lockFrame.locked) return;
+    // The room camera keeps breathing through the visible part of the
+    // headset flight; the wearing pose is re-derived from the camera every
+    // frame, so the clone rides along. It only freezes once the static
+    // curtain is opaque, and the return starts under an opaque hold.
+    if (useStacks.getState().visionRideRoomHidden) return;
 
     if (freeRoamEnabled) {
       if (!wasFreeRoaming.current) {
@@ -574,7 +579,12 @@ export default function CameraRig() {
       freeRoamEuler.current.y = look.yaw;
       camera.rotation.set(look.pitch, look.yaw, 0, "YXZ");
       camera.position.add(
-        freeRoamTranslation(freeRoamKeys.current, dt, freeRoamMove.current),
+        freeRoamTranslation(
+          freeRoamKeys.current,
+          look.yaw,
+          dt,
+          freeRoamMove.current,
+        ),
       );
       if (
         shouldWriteFreeRoamPose(

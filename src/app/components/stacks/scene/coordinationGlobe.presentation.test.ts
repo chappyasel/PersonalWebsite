@@ -488,9 +488,6 @@ describe("Coordination globe presentation contract", () => {
     expect(bootSource).toContain(
       "Math.abs(Math.sin(ABOUT_AIC_ROOT_YAW)) * ABOUT_AIC_BASE_DEPTH",
     );
-    expect(bootSource).toContain(
-      "Math.abs(Math.sin(appleYaw)) * ABOUT_APPLE_BASE_DEPTH",
-    );
   });
 
   it("exposes a live diagnostics switch without touching quality policy", () => {

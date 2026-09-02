@@ -25,7 +25,11 @@ function source(path: string) {
  */
 describe("metal shimmer band", () => {
   const SHIMMER_PROPS: Array<[string, string, string]> = [
-    ["about apple mark", "./units/UnitAbout.tsx", 'hoverKey="shimmer:apple"'],
+    [
+      "projects apple mark",
+      "./units/UnitProjects.tsx",
+      'hoverKey="shimmer:apple"',
+    ],
     [
       "ai collective mark",
       "./units/UnitAbout.tsx",

@@ -110,11 +110,11 @@ describe("free-roam wiring", () => {
   it("damps the look and translates the camera from the same clamped step", () => {
     expect(cameraRig).toContain("const dt = freeRoamStepSeconds(delta);");
     expect(cameraRig).toContain("dampFreeRoamLook(");
-    // Held keys, the clamped step and the scratch vector, and nothing else:
-    // no camera orientation reaches the policy, so WASD cannot follow the
-    // view. The scratch vector means the frame loop allocates none.
+    // The damped yaw makes WASD follow the visible heading. Passing yaw rather
+    // than the full camera rotation keeps pitch out of horizontal movement.
+    // The scratch vector means the frame loop allocates none.
     expect(cameraRig).toMatch(
-      /freeRoamTranslation\(\s*freeRoamKeys\.current,\s*dt,\s*freeRoamMove\.current,?\s*\)/,
+      /freeRoamTranslation\(\s*freeRoamKeys\.current,\s*look\.yaw,\s*dt,\s*freeRoamMove\.current,?\s*\)/,
     );
     expect(cameraRig).not.toContain("Math.min(delta, 0.05)");
   });

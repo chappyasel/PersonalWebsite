@@ -99,12 +99,13 @@ export const TJ_MEDALLION_FACES = Object.freeze([
  * changed on one side without the freshness check noticing.
  *
  * 0.66 is the medallion's own size against the other lower-shelf awards; 1.1 is
- * `ABOUT_AWARD_SIZE_INCREASE`, which sizes that whole group together.
+ * `ABOUT_AWARD_SIZE_INCREASE`, which sizes that whole group together. The
+ * final 1.0569 is the owner's small scale-up from the 2026-09-01 layout pass.
  * `tjMedallionGeometry.test.ts` pins the product to the live constant, so
  * resizing the award group fails there and forces a retrace. */
 export const TJ_MEDALLION_POSE = Object.freeze({
   yaw: -0.28,
-  scale: 0.66 * 1.1,
+  scale: 0.66 * 1.1 * 1.0569,
 });
 
 /** Canonical text for the whole specification. The silhouette generator hashes

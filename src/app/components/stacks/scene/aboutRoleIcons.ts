@@ -1,8 +1,9 @@
 // The Role Icons: four app-icon billets on the About lower shelf, one per
 // organization Chappy currently works with, stacked two by two beside the
-// Apple mark the way the Projects dice pile beside the Project Icons. Each is
+// Vision Pro the way the Projects dice pile beside the Project Icons. Each is
 // a Portal to that organization. Client-safe, dependency-free: the boot SVG,
 // the live unit, and the layout tests all read this one list.
+import { projectIconBody } from "./projectIconGeometry";
 
 /** Same edge as a Projects die, so the two stacks rhyme across the room. */
 export const ABOUT_ROLE_ICON_SIZE = 0.16;
@@ -12,11 +13,10 @@ export const ABOUT_ROLE_ICON_SIZE = 0.16;
  * supporting tile wakes the one above it once the solver is warm. Flush
  * neighbours must share a yaw within a row, or their corners intersect. */
 export const ABOUT_ROLE_ICON_GAP = 0;
-/** One casual yaw per row, not per tile, because the columns touch. The top
- * row is turned a hair more than the bottom so the block still reads as
- * stacked by hand rather than machined. */
-const BOTTOM_ROW_YAW = 0.02;
-const TOP_ROW_YAW = 0.04;
+/** The editor draft turned the four carriers by slightly different amounts,
+ * which broke the shared edges. A least-squares fit through those four centers
+ * resolves to one -0.14 radian yaw for the complete rectangle. */
+export const ABOUT_ROLE_STACK_YAW = -0.14;
 
 export type AboutRole = {
   id: "madrona" | "roam" | "susa" | "weightlifting";
@@ -36,7 +36,7 @@ export type AboutRole = {
   column: 0 | 1;
   /** 0 = on the shelf, 1 = resting on the tile below. */
   row: 0 | 1;
-  /** Casual authored yaw, shared across a row (see the gap note above). */
+  /** Shared authored yaw. Equal values keep all four touching faces coplanar. */
   yaw: number;
 };
 
@@ -57,7 +57,7 @@ export const ABOUT_ROLES: readonly AboutRole[] = [
     bootColor: { light: "#004a37", dark: "#0b3b2e" },
     column: 0,
     row: 1,
-    yaw: TOP_ROW_YAW,
+    yaw: ABOUT_ROLE_STACK_YAW,
   },
   {
     id: "roam",
@@ -70,7 +70,7 @@ export const ABOUT_ROLES: readonly AboutRole[] = [
     bootColor: { light: "#1a1a1e", dark: "#0c0c0e" },
     column: 1,
     row: 1,
-    yaw: TOP_ROW_YAW,
+    yaw: ABOUT_ROLE_STACK_YAW,
   },
   {
     id: "susa",
@@ -84,7 +84,7 @@ export const ABOUT_ROLES: readonly AboutRole[] = [
     bootColor: { light: "#607771", dark: "#3f524c" },
     column: 0,
     row: 0,
-    yaw: BOTTOM_ROW_YAW,
+    yaw: ABOUT_ROLE_STACK_YAW,
   },
   {
     id: "weightlifting",
@@ -98,21 +98,27 @@ export const ABOUT_ROLES: readonly AboutRole[] = [
     bootColor: { light: "#6961d8", dark: "#4d47a8" },
     column: 1,
     row: 0,
-    yaw: BOTTOM_ROW_YAW,
+    yaw: ABOUT_ROLE_STACK_YAW,
   },
 ];
 
 export const ABOUT_ROLE_STACK_WIDTH =
   ABOUT_ROLE_ICON_SIZE * 2 + ABOUT_ROLE_ICON_GAP;
 export const ABOUT_ROLE_STACK_HEIGHT = ABOUT_ROLE_ICON_SIZE * 2;
+const ABOUT_ROLE_BODY_DEPTH = projectIconBody(ABOUT_ROLE_ICON_SIZE).depth;
+export const ABOUT_ROLE_STACK_PROFILE_WIDTH =
+  Math.abs(Math.cos(ABOUT_ROLE_STACK_YAW)) * ABOUT_ROLE_STACK_WIDTH +
+  Math.abs(Math.sin(ABOUT_ROLE_STACK_YAW)) * ABOUT_ROLE_BODY_DEPTH;
 
 /** Unit-local offset of one tile from the stack's shelf mark: x is the tile
  * centre, y is its bottom contact. Shared by the live shelf and the boot SVG
  * so neither can drift from the other. */
-export function aboutRoleIconOffset(role: AboutRole): [number, number] {
+export function aboutRoleIconOffset(role: AboutRole): [number, number, number] {
   const column = role.column === 0 ? -1 : 1;
+  const localX = (column * (ABOUT_ROLE_ICON_SIZE + ABOUT_ROLE_ICON_GAP)) / 2;
   return [
-    (column * (ABOUT_ROLE_ICON_SIZE + ABOUT_ROLE_ICON_GAP)) / 2,
+    Math.cos(ABOUT_ROLE_STACK_YAW) * localX,
     role.row * ABOUT_ROLE_ICON_SIZE,
+    -Math.sin(ABOUT_ROLE_STACK_YAW) * localX,
   ];
 }
