@@ -192,12 +192,14 @@ describe("Vision ride exit performance", () => {
     expect(done.complete).toBe(true);
   });
 
-  it("authors the switch-off at least as fully as the switch-on", () => {
+  it("keeps every switch-off beat while reaching removal sooner", () => {
     // Set-on: flicker, then one aperture ramp. Set-off: flicker, collapse,
-    // line hold, dot shrink, afterglow. More beats, and more time in them.
+    // line hold, dot shrink, afterglow. The exit keeps all five poses in a
+    // shorter response because it follows a direct visitor action.
     const switchOn = entry.flickerSeconds + entry.apertureSeconds;
     const switchOff = exitDotEnd + exit.blackHoldSeconds;
-    expect(switchOff).toBeGreaterThanOrEqual(switchOn);
+    expect(switchOff).toBeLessThan(switchOn);
+    expect(switchOff).toBeLessThanOrEqual(1.05);
     const stages = [
       doffingPresentation(exit.flickerSeconds * 0.5, false),
       doffingPresentation(
@@ -217,13 +219,13 @@ describe("Vision ride exit performance", () => {
 
   it("gives both directions a deliberate full-frame static beat", () => {
     expect(entry.flickerSeconds).toBeGreaterThanOrEqual(0.45);
-    expect(exit.flickerSeconds).toBeGreaterThanOrEqual(0.4);
+    expect(exit.flickerSeconds).toBeGreaterThanOrEqual(0.28);
     expect(
       cruisingPresentation(entry.flickerSeconds * 0.5, false).staticAmount,
     ).toBeGreaterThanOrEqual(0.7);
-    expect(
-      doffingPresentation(exit.flickerSeconds * 0.5, false).staticAmount,
-    ).toBeGreaterThanOrEqual(0.65);
+    expect(doffingPresentation(0, false).staticAmount).toBeGreaterThanOrEqual(
+      0.88,
+    );
   });
 
   it("reveals from the face as soon as the black headset starts retreating", () => {
@@ -243,7 +245,9 @@ describe("Vision ride exit performance", () => {
     );
     expect(revealed.curtainAmount).toBe(0);
     expect(revealed.staticAmount).toBe(0);
-    expect(revealed.progress).toBeLessThan(0.25);
+    // Keep the front-glass silhouette on screen through the first third of
+    // the pull-away so the shape reads as part of the physical headset.
+    expect(revealed.progress).toBeLessThan(0.4);
     expect(revealed.complete).toBe(false);
     expect(revealStart + exit.curtainRevealSeconds).toBeLessThan(
       exit.returnHoldSeconds + exit.returnFlightSeconds,

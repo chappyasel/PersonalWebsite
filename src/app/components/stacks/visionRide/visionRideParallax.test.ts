@@ -15,8 +15,17 @@ import {
 } from "./visionRideParallax";
 import { VISION_RIDE_ROAD_HALF_WIDTH } from "./visionRideTerrain";
 
-const { maxX, maxY, convexZ, portraitScale, swayX, swayY, aimShare } =
-  VISION_RIDE_PARALLAX;
+const {
+  maxX,
+  maxY,
+  convexZ,
+  portraitInputScale,
+  portraitSwayScale,
+  portraitSwayTimeScale,
+  swayX,
+  swayY,
+  aimShare,
+} = VISION_RIDE_PARALLAX;
 
 describe("Vision ride parallax", () => {
   it("is exactly neutral at a centered pointer", () => {
@@ -124,24 +133,47 @@ describe("Vision ride parallax", () => {
     expect(moved).toBe(true);
   });
 
-  it("scales portrait shallower without changing the shape", () => {
+  it("keeps portrait steering controlled while giving idle sway more life", () => {
+    const time = 12.3;
     const landscape = parallaxTarget({
       pointerX: 0.8,
       pointerY: -0.6,
-      time: 12.3,
+      time,
       portrait: false,
       reducedMotion: false,
     });
     const portrait = parallaxTarget({
       pointerX: 0.8,
       pointerY: -0.6,
-      time: 12.3,
+      time,
       portrait: true,
       reducedMotion: false,
     });
-    expect(portrait.x).toBeCloseTo(landscape.x * portraitScale, 6);
-    expect(portrait.y).toBeCloseTo(landscape.y * portraitScale, 6);
-    expect(portrait.z).toBeCloseTo(landscape.z * portraitScale, 6);
+    const pointer = pointerParallax(0.8, -0.6);
+    const portraitSway = ambientSway(time * portraitSwayTimeScale);
+    expect(portrait.x).toBeCloseTo(
+      pointer.x * portraitInputScale + portraitSway.x * portraitSwayScale,
+      6,
+    );
+    expect(portrait.y).toBeCloseTo(
+      pointer.y * portraitInputScale + portraitSway.y * portraitSwayScale,
+      6,
+    );
+    expect(portrait.z).toBeCloseTo(pointer.z * portraitInputScale, 6);
+    expect(Math.abs(portrait.x - landscape.x)).toBeGreaterThan(0.01);
+
+    let portraitIdlePeak = 0;
+    for (let t = 0; t < 20; t += 0.25) {
+      const idle = parallaxTarget({
+        pointerX: 0,
+        pointerY: 0,
+        time: t,
+        portrait: true,
+        reducedMotion: false,
+      });
+      portraitIdlePeak = Math.max(portraitIdlePeak, Math.abs(idle.x));
+    }
+    expect(portraitIdlePeak).toBeGreaterThan(swayX);
   });
 
   it("is identically zero under reduced motion", () => {

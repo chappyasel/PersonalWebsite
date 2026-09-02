@@ -44,8 +44,8 @@ export function createVisionProDisplayDiagnosticsController() {
 }
 
 /** Session-only display state. Authored triggers choose the artwork while the
- * shelf interaction owns its dim hover wake; enabled means the display has
- * been latched fully on by activation or the Render diagnostic. */
+ * shelf interaction owns its dim hover wake; enabled means completed donning
+ * or the Render diagnostic has latched the display fully on. */
 export const visionProDisplayDiagnosticsController =
   createVisionProDisplayDiagnosticsController();
 

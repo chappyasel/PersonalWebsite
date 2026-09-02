@@ -38,6 +38,33 @@ describe("Vision ride state machine", () => {
     expect(useStacks.getState().visionRidePhase).toBe("cruising");
   });
 
+  it("latches the front display only after the headset has been put on", () => {
+    const state = useStacks.getState();
+
+    expect(
+      visionProDisplayDiagnosticsController.getSnapshot().enabled,
+    ).toBe(false);
+    state.beginVisionRide();
+    expect(useStacks.getState().visionRidePhase).toBe("donning");
+    expect(
+      visionProDisplayDiagnosticsController.getSnapshot().enabled,
+    ).toBe(false);
+
+    state.markVisionRideReady();
+    state.startVisionRide();
+    expect(useStacks.getState().visionRidePhase).toBe("cruising");
+    expect(
+      visionProDisplayDiagnosticsController.getSnapshot().enabled,
+    ).toBe(true);
+
+    state.requestVisionRideExit("button");
+    state.showVisionRideReturn();
+    state.finishVisionRide();
+    expect(
+      visionProDisplayDiagnosticsController.getSnapshot().enabled,
+    ).toBe(true);
+  });
+
   it("handles early Escape and idempotent exit", () => {
     const state = useStacks.getState();
     state.beginVisionRide();
@@ -110,7 +137,7 @@ describe("Vision ride state machine", () => {
       pixelLook: "palette",
     });
     expect(visionProDisplayDiagnosticsController.getSnapshot()).toMatchObject({
-      enabled: true,
+      enabled: false,
       variant: "golf",
     });
   });

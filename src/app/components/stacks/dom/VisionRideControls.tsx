@@ -3,6 +3,10 @@
 import { sceneAudio } from "../audio/sceneAudio";
 import { recordFieldNoteEvent } from "../fieldNotes/progress";
 import { useStacks } from "../store";
+import {
+  VISION_RIDE_TOUCH,
+  visionRideTouchRuntime,
+} from "../visionRide/visionRideTouch";
 import { useEffect, useRef } from "react";
 
 import { capture } from "~/lib/analytics";
@@ -19,6 +23,8 @@ export default function VisionRideControls() {
   const lastStartedAt = useRef(startedAt);
   const failureReported = useRef(false);
   const enteredFrame = useRef<number | null>(null);
+  const touchPointerId = useRef<number | null>(null);
+  const suppressClickUntil = useRef(0);
 
   useEffect(() => {
     if (exitMethod) lastExitMethod.current = exitMethod;
@@ -29,6 +35,10 @@ export default function VisionRideControls() {
     const active = phase !== "idle";
     if (active) document.documentElement.dataset.visionRide = phase;
     else delete document.documentElement.dataset.visionRide;
+    if (phase !== "cruising") {
+      touchPointerId.current = null;
+      visionRideTouchRuntime.reset();
+    }
 
     if (phase === "cruising" && previousPhase.current !== "cruising") {
       enteredFrame.current = requestAnimationFrame(() => {
@@ -102,6 +112,7 @@ export default function VisionRideControls() {
       delete document.documentElement.dataset.visionRide;
       if (enteredFrame.current !== null)
         cancelAnimationFrame(enteredFrame.current);
+      visionRideTouchRuntime.reset();
       sceneAudio.stopVisionRide();
       useStacks.getState().resetVisionRide();
     },
@@ -122,7 +133,65 @@ export default function VisionRideControls() {
         type="button"
         aria-label="Remove Vision Pro"
         className="pointer-events-auto fixed inset-0 cursor-default bg-transparent outline-none"
-        onClick={() => useStacks.getState().requestVisionRideExit("button")}
+        style={{ touchAction: "none" }}
+        onPointerDown={(event) => {
+          const reducedMotion = window.matchMedia(
+            "(prefers-reduced-motion: reduce)",
+          ).matches;
+          if (event.pointerType !== "touch" || reducedMotion) {
+            useStacks.getState().requestVisionRideExit("button");
+            return;
+          }
+          if (phase !== "cruising") return;
+          touchPointerId.current = event.pointerId;
+          visionRideTouchRuntime.begin(event.clientX, event.clientY);
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }}
+        onPointerMove={(event) => {
+          if (
+            event.pointerType !== "touch" ||
+            touchPointerId.current !== event.pointerId
+          )
+            return;
+          visionRideTouchRuntime.move(
+            event.clientX,
+            event.clientY,
+            window.innerWidth,
+            window.innerHeight,
+          );
+        }}
+        onPointerUp={(event) => {
+          if (
+            event.pointerType !== "touch" ||
+            touchPointerId.current !== event.pointerId
+          )
+            return;
+          touchPointerId.current = null;
+          const dragged = visionRideTouchRuntime.end();
+          suppressClickUntil.current =
+            performance.now() + VISION_RIDE_TOUCH.suppressClickMs;
+          if (!dragged) useStacks.getState().requestVisionRideExit("button");
+          event.preventDefault();
+          if (event.currentTarget.hasPointerCapture(event.pointerId))
+            event.currentTarget.releasePointerCapture(event.pointerId);
+        }}
+        onPointerCancel={(event) => {
+          if (touchPointerId.current !== event.pointerId) return;
+          touchPointerId.current = null;
+          visionRideTouchRuntime.end();
+        }}
+        onClick={(event) => {
+          // Keyboard activation has detail 0 and must never inherit a touch
+          // drag's suppression window.
+          if (
+            event.detail !== 0 &&
+            performance.now() < suppressClickUntil.current
+          ) {
+            event.preventDefault();
+            return;
+          }
+          useStacks.getState().requestVisionRideExit("button");
+        }}
       >
         <span className="sr-only">Remove Vision Pro</span>
       </button>

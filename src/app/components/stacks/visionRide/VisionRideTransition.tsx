@@ -75,6 +75,18 @@ const CURTAIN_FRAGMENT = `
     return color * scan;
   }
 
+  // A wide, rounded front-glass profile with the small lower nose relief
+  // that distinguishes a headset from a generic oval vignette.
+  float visionProProfile(vec2 p) {
+    float lowerHalf = 1.0 - smoothstep(-0.34, 0.04, p.y);
+    float noseRelief = exp(-p.x * p.x * 34.0) * 0.16 * lowerHalf;
+    vec2 sculpted = vec2(
+      p.x / 1.12,
+      (p.y + p.x * p.x * 0.055 - noseRelief) / 0.64
+    );
+    return pow(abs(sculpted.x), 3.6) + pow(abs(sculpted.y), 3.6);
+  }
+
   void main() {
     vec2 screenPosition = vUv * 2.0 - 1.0;
     vec2 center = uCrtMode < 0.5 ? uCenter : vec2(0.0);
@@ -84,14 +96,14 @@ const CURTAIN_FRAGMENT = `
     vec3 ink = vec3(0.003, 0.003, 0.010);
 
     if (uCrtMode < 0.5) {
-      // Lens fill / lift: a centred disc that grows past the frame, dark
-      // glass with the snow rising inside it. uScale is coverage, uOpacity
-      // is the alpha inside the disc; under normal motion the latter is 1,
-      // so the room is covered, never veiled.
-      // A wide visor mask follows the projected headset instead of growing
-      // as an unrelated circle from the middle of the viewport.
-      float edge = smoothstep(1.15, 0.68, length(p * vec2(0.72, 1.0)));
+      // The projected front glass grows across the view while putting the
+      // headset on, then contracts with the model while taking it off.
+      float profile = visionProProfile(p);
+      float edge = 1.0 - smoothstep(0.82, 1.04, profile);
+      float rim = smoothstep(0.58, 0.88, profile) *
+        (1.0 - smoothstep(0.88, 1.08, profile));
       vec3 color = mix(ink, grain, amount);
+      color = mix(color, vec3(0.018, 0.022, 0.052), rim * 0.75);
       gl_FragColor = vec4(color, uOpacity * edge);
       return;
     }
@@ -101,7 +113,13 @@ const CURTAIN_FRAGMENT = `
     float curvedY = abs(p.y) + p.x * p.x * 0.1;
     float visibleY = 1.0 - smoothstep(halfHeight - 0.025, halfHeight + 0.025, curvedY);
     float visibleX = 1.0 - smoothstep(halfWidth - 0.025, halfWidth + 0.025, abs(p.x));
-    float visible = visibleX * visibleY;
+    // The minimum dimensions above give the beam enough area to draw a clean
+    // line and dot. They are not a picture aperture. Once height reaches
+    // zero, close the ride image completely and draw those phosphor shapes
+    // over black; otherwise the car leaks through as a tiny red shard during
+    // the first switch-on frames and the final switch-off hold.
+    float pictureGate = step(0.001, uApertureH);
+    float visible = visibleX * visibleY * pictureGate;
     float alpha = 1.0 - visible;
 
     // The bright line rides the aperture edge with a soft halo, and a dot
@@ -248,10 +266,7 @@ export default function VisionRideTransition({ dark }: { dark: boolean }) {
       apertureHeight = beat.apertureHeight;
       beam = beat.beam;
       staticAmount = beat.staticAmount;
-      if (
-        !entryAudioFinished.current &&
-        beat.complete
-      ) {
+      if (!entryAudioFinished.current && beat.complete) {
         entryAudioFinished.current = true;
         sceneAudio.finishVisionRideEntry();
       }

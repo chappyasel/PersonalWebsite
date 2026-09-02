@@ -456,7 +456,6 @@ export const useStacks = create<StacksState>((set) => ({
       )
         return state;
       selectVisionRidePreview(state.visionRideModifiers);
-      visionProDisplayDiagnosticsController.setEnabled(true);
       return {
         visionRidePhase: "donning",
         visionRideReady: false,
@@ -483,15 +482,19 @@ export const useStacks = create<StacksState>((set) => ({
         : state,
     ),
   startVisionRide: () =>
-    set((state) =>
-      state.visionRidePhase === "donning" && state.visionRideReady
-        ? {
-            visionRidePhase: "cruising",
-            visionRideStartedAt: performance.now(),
-            visionRideAnnouncement: "Apple Vision Pro ride started.",
-          }
-        : state,
-    ),
+    set((state) => {
+      if (state.visionRidePhase !== "donning" || !state.visionRideReady)
+        return state;
+      // The shelf display stays at its dim interaction preview throughout the
+      // visible flight. Latch it only once the headset reaches the wearing
+      // pose, then keep it lit when the return flight reveals the front again.
+      visionProDisplayDiagnosticsController.setEnabled(true);
+      return {
+        visionRidePhase: "cruising",
+        visionRideStartedAt: performance.now(),
+        visionRideAnnouncement: "Apple Vision Pro ride started.",
+      };
+    }),
   requestVisionRideExit: (visionRideExitMethod) =>
     set((state) =>
       state.visionRidePhase === "idle" ||

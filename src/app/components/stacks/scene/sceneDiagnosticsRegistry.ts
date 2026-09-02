@@ -351,13 +351,58 @@ const descriptors: readonly MutableDescriptor[] = Object.freeze([
     defaultValue: true,
     experimental: false,
     store: visionRideDiagnosticsController,
-    read: () =>
-      visionRideDiagnosticsController.getSnapshot().retroFxEnabled,
+    read: () => visionRideDiagnosticsController.getSnapshot().retroFxEnabled,
     update: (value) =>
       visionRideDiagnosticsController.setRetroFxEnabled(Boolean(value)),
     productionCost: {
       activeValues: [true],
       enabled: "One translucent screen shader and stronger existing bloom",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+  }),
+  booleanDescriptor({
+    id: "render.vision-ride-mile-markers",
+    panel: "render",
+    group: "render.optional",
+    label: "Vision Ride mile markers",
+    help: "Pass one numbered digital roadside pylon every 30 seconds.",
+    defaultValue: false,
+    experimental: false,
+    store: visionRideDiagnosticsController,
+    read: () =>
+      visionRideDiagnosticsController.getSnapshot().mileMarkersEnabled,
+    update: (value) =>
+      visionRideDiagnosticsController.setMileMarkersEnabled(Boolean(value)),
+    productionCost: {
+      activeValues: [true],
+      enabled: "One instanced line pylon and one position update per frame",
+      offPath: {
+        renderTargetAllocations: 0,
+        textureSamples: 0,
+        perFrameWork: false,
+      },
+    },
+  }),
+  booleanDescriptor({
+    id: "render.vision-ride-light-trails",
+    panel: "render",
+    group: "render.optional",
+    label: "Vision Ride light trails",
+    help: "Stream soft glowing particles from the car's real rear-lamp centers.",
+    defaultValue: false,
+    experimental: false,
+    store: visionRideDiagnosticsController,
+    read: () =>
+      visionRideDiagnosticsController.getSnapshot().lightTrailsEnabled,
+    update: (value) =>
+      visionRideDiagnosticsController.setLightTrailsEnabled(Boolean(value)),
+    productionCost: {
+      activeValues: [true],
+      enabled: "One native Points draw with 112 procedural particles",
       offPath: {
         renderTargetAllocations: 0,
         textureSamples: 0,

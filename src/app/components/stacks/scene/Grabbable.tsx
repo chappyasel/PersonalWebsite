@@ -73,6 +73,7 @@ import * as THREE from "three";
 
 import { poolTexture } from "./GroundPool";
 import { LIFT_LAMBDA, hingeShift } from "./Lift";
+import { pointerOutLeavesInteraction } from "./hoverOwnership";
 import {
   type PhysicsSceneScope,
   usePhysicsScene,
@@ -2704,7 +2705,14 @@ export default function Grabbable({
           if (artifactEntry?.kind === "model")
             prewarmModelArtifactPreview(artifactEntry.fallbackImage);
         }}
-        onPointerOut={() => {
+        onPointerOut={(event) => {
+          if (
+            !pointerOutLeavesInteraction(
+              event.eventObject,
+              event.intersections,
+            )
+          )
+            return;
           if (useStacks.getState().hovered === hoverKey)
             useStacks.getState().setHovered(null);
         }}

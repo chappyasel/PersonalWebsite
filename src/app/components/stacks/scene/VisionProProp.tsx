@@ -1,10 +1,11 @@
 "use client";
 
 import { useGLTF } from "@react-three/drei";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 
 import { useStacks } from "../store";
+import type { VisionRidePhase } from "../visionRide/visionRideState";
 import {
   type ActiveVisionProDisplayVariant,
   type VisionProDisplayVariant,
@@ -56,6 +57,24 @@ type VisionProMaterialOptions = Readonly<{
 
 const VISION_PRO_INTERACTION_ID = "action:about:vision-ride";
 const VISION_PRO_HOVER_BRIGHTNESS = 0.3;
+
+type VisionProDisplayInteractionState = Readonly<{
+  hovered: string | null;
+  focusedInteraction: string | null;
+  pressedInteraction: string | null;
+  visionRidePhase: VisionRidePhase;
+}>;
+
+export function visionProDisplayPreviewRequested(
+  state: VisionProDisplayInteractionState,
+) {
+  return (
+    state.visionRidePhase === "donning" ||
+    state.hovered === VISION_PRO_INTERACTION_ID ||
+    state.focusedInteraction === VISION_PRO_INTERACTION_ID ||
+    state.pressedInteraction === VISION_PRO_INTERACTION_ID
+  );
+}
 
 export function visionProDisplayWakeBrightness(
   enabled: boolean,
@@ -126,15 +145,10 @@ export function tuneVisionProMaterial(
 export function VisionProProp({ dark }: { dark: boolean }) {
   const { scene } = useGLTF(VISION_PRO_MODEL_URL, false);
   const displaySnapshot = useVisionProDisplaySnapshot();
-  const engaged = useStacks(
-    (state) =>
-      state.hovered === VISION_PRO_INTERACTION_ID ||
-      state.focusedInteraction === VISION_PRO_INTERACTION_ID ||
-      state.pressedInteraction === VISION_PRO_INTERACTION_ID,
-  );
+  const previewRequested = useStacks(visionProDisplayPreviewRequested);
   const targetBrightness = visionProDisplayWakeBrightness(
     displaySnapshot.enabled,
-    engaged,
+    previewRequested,
   );
   const brightnessRef = useRef(displaySnapshot.enabled ? 1 : 0);
   const [renderedVariant, setRenderedVariant] =
@@ -165,13 +179,24 @@ export function VisionProProp({ dark }: { dark: boolean }) {
       const materials = Array.isArray(mesh.material)
         ? mesh.material
         : [mesh.material];
-      if (
-        displayTexture &&
-        materials.some((material) => material.name === "1708700653640")
-      ) {
+      if (materials.some((material) => material.name === "1708700653640")) {
         mesh.geometry = createVisionProDisplayGeometry(mesh.geometry);
         mesh.userData.ownsVisionProDisplayGeometry = true;
       }
+    });
+    return clone;
+  }, [scene]);
+
+  // Keep the primitive and all of its raycast meshes mounted. The first
+  // display wake used to rebuild this clone after creating its texture, which
+  // removed the hovered mesh and made the headset flicker out and back in.
+  useLayoutEffect(() => {
+    model.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      const mesh = object as VisionProMesh;
+      const materials = Array.isArray(mesh.material)
+        ? mesh.material
+        : [mesh.material];
       for (const material of materials) {
         tuneVisionProMaterial(material, {
           dark,
@@ -181,8 +206,7 @@ export function VisionProProp({ dark }: { dark: boolean }) {
         });
       }
     });
-    return clone;
-  }, [dark, displayTexture, renderedVariant, scene]);
+  }, [dark, displayTexture, model, renderedVariant]);
 
   useEffect(() => {
     if (!displayTexture) return;
