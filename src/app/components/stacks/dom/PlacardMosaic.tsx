@@ -56,10 +56,14 @@ export function mosaicDateLabel(key: string) {
 export function PlacardMosaic({
   cells,
   label,
+  heightClassName = "h-[300px] sm:h-[340px]",
 }: {
   /** Exactly the trailing MOSAIC_DAYS days, oldest first. */
   cells: MosaicCell[];
   label: string;
+  /** The Weightlifting card gives the grid a card of its own; a grid that
+   * shares a card with other figures asks for less. */
+  heightClassName?: string;
 }) {
   // Derived from MOSAIC_BLOCKS rather than listed, so changing the block
   // count is one constant and not three places that can disagree.
@@ -70,7 +74,7 @@ export function PlacardMosaic({
   );
 
   return (
-    <div className="h-[300px] sm:h-[340px]" role="img" aria-label={label}>
+    <div className={heightClassName} role="img" aria-label={label}>
       <TooltipProvider delayDuration={150}>
         <div
           className="grid h-full gap-3"

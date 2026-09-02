@@ -21,7 +21,7 @@ import {
 import { type GitHubActivity } from "~/lib/github/types";
 import { getTimeAgo } from "~/lib/util";
 
-import GitHubActivityCards from "./GitHubActivityCards";
+import GitHubActivityCard from "./GitHubActivityCard";
 import TiltCard from "./TiltCard";
 
 type Project = {
@@ -71,7 +71,7 @@ export default function Projects({
         <CodeIcon weight="regular" className="size-7 shrink-0 md:size-8" />
         Projects
       </h1>
-      {placard ? <GitHubActivityCards placard={placard} /> : null}
+      {placard ? <GitHubActivityCard placard={placard} /> : null}
       {PROJECTS.map((project) => (
         <ProjectItem key={project.name} project={project} />
       ))}
