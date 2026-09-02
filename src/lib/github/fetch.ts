@@ -17,9 +17,9 @@ const GRAPHQL_ENDPOINT = "https://api.github.com/graphql";
  *
  * With the owner's own token, `totalContributions` and
  * `restrictedContributionsCount` include private work and
- * `commitContributionsByRepository` lists private repositories, and so can
- * `pinnedItems`. Any other token sees public activity only. Either way every
- * repository is filtered on `isPrivate` below before it is kept.
+ * `commitContributionsByRepository` lists private repositories. Any other
+ * token sees public activity only. Either way every repository is filtered
+ * on `isPrivate` below before it is kept.
  */
 const ACTIVITY_QUERY = /* GraphQL */ `
   query GitHubActivity($login: String!) {
@@ -57,13 +57,6 @@ const ACTIVITY_QUERY = /* GraphQL */ `
         totalCount
         nodes {
           ...RepoFields
-        }
-      }
-      pinnedItems(first: 6, types: REPOSITORY) {
-        nodes {
-          ... on Repository {
-            ...RepoFields
-          }
         }
       }
     }
@@ -178,7 +171,6 @@ const rawResponseSchema = z.object({
         totalCount: z.number().int(),
         nodes: z.array(rawRepoSchema),
       }),
-      pinnedItems: z.object({ nodes: z.array(rawRepoSchema) }),
     }),
   }),
 });
@@ -337,7 +329,6 @@ export async function fetchGitHubActivity({
     years,
     publicRepoCount: user.repositories.totalCount,
     repos: publicRepos(user.repositories.nodes),
-    pinnedRepos: publicRepos(user.pinnedItems.nodes),
     activeRepos,
   });
 }

@@ -1,6 +1,7 @@
 import {
   ArrowUpRightIcon,
   CodeIcon,
+  GitForkIcon,
   GithubLogoIcon,
 } from "@phosphor-icons/react/dist/ssr";
 import Image, { type StaticImageData } from "next/image";
@@ -52,19 +53,13 @@ const PROJECT_TILES: Record<string, StaticImageData> = {
   "/images/projects/liars-dice-tile.webp": liarsDiceTile,
 };
 
-const FEATURED_REPOS = PROJECTS.flatMap((project) =>
-  project.repo ? [project.repo] : [],
-);
-
 export default function Projects({
   github,
 }: {
   /** Null when neither the live fetch nor the snapshot could be read. */
   github: GitHubActivity | null;
 }) {
-  const placard = github
-    ? buildGitHubPlacard(github, { featuredRepos: FEATURED_REPOS })
-    : null;
+  const placard = github ? buildGitHubPlacard(github) : null;
   return (
     <section className="flex w-full flex-wrap items-center justify-around gap-4">
       <h1 className="flex w-full items-center gap-2 text-2xl font-semibold text-foreground md:gap-3 md:text-3xl">
@@ -84,10 +79,6 @@ export default function Projects({
 
 const CARD_SURFACE =
   "absolute inset-0 rounded-3xl border border-foreground/[0.06] bg-muted/40 shadow-[0px_4px_15px_1px_rgba(0,0,0,0.07)] backdrop-blur-lg transition-shadow duration-500 ease-out group-hover:shadow-[0px_8px_24px_0px_rgba(0,0,0,0.1)]";
-
-function count(value: number) {
-  return value.toLocaleString("en-US");
-}
 
 function ProjectItem({ project }: { project: Project }) {
   const tile = PROJECT_TILES[project.image];
@@ -155,7 +146,8 @@ function ProjectItem({ project }: { project: Project }) {
  * One repository the way GitHub draws a pinned one: name, description, the
  * language with its swatch, and when it last moved where GitHub would put
  * the star and fork counts. A repository with no description shows its
- * latest commit headline instead, so nothing is a blank tile.
+ * latest commit headline instead, so nothing is a blank tile. A fork gets
+ * the fork glyph GitHub gives it, since its description is the upstream's.
  */
 function RepoTile({ repo }: { repo: GitHubPlacardRepo }) {
   const blurb = repo.description ?? repo.lastCommit?.headline ?? null;
@@ -165,15 +157,25 @@ function RepoTile({ repo }: { repo: GitHubPlacardRepo }) {
         href={repo.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex h-full flex-col gap-1.5 rounded-2xl border border-foreground/10 p-3.5 transition-colors hover:bg-foreground/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45"
+        className="flex h-full flex-col gap-1.5 rounded-2xl border border-foreground/10 p-3 transition-colors hover:bg-foreground/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45"
       >
-        <span className="truncate text-sm font-semibold text-foreground">
-          {repo.organization ? (
-            <span className="font-normal text-muted-foreground">
-              {repo.organization}/
-            </span>
+        <span className="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-foreground">
+          {repo.isFork ? (
+            <GitForkIcon
+              role="img"
+              aria-label="Fork"
+              weight="bold"
+              className="size-3.5 shrink-0 text-muted-foreground"
+            />
           ) : null}
-          {repo.name}
+          <span className="truncate">
+            {repo.organization ? (
+              <span className="font-normal text-muted-foreground">
+                {repo.organization}/
+              </span>
+            ) : null}
+            {repo.name}
+          </span>
         </span>
         {blurb ? (
           <p className="line-clamp-2 text-xs leading-snug text-muted-foreground">
@@ -208,12 +210,10 @@ function RepoTile({ repo }: { repo: GitHubPlacardRepo }) {
 }
 
 /**
- * The individual repositories, after the projects, in GitHub's pinned
- * layout: two columns of tiles. What fills them is decided in
- * `buildGitHubPlacard`: the repositories pinned on the profile first, so
- * re-pinning on GitHub re-curates this card, then the newest pushes among
- * his own public repositories and the organization ones he committed to
- * this year. The old cards were screenshots of file listings from 2017.
+ * Every repository, after the projects, as two columns of tiles in GitHub's
+ * pinned style: all of his public ones plus the organization ones he
+ * committed to this year, newest push first (see `buildGitHubPlacard`).
+ * The old cards were screenshots of file listings from 2017.
  */
 function RepositoriesCard({ placard }: { placard: GitHubPlacard }) {
   return (
@@ -230,7 +230,7 @@ function RepositoriesCard({ placard }: { placard: GitHubPlacard }) {
         >
           <div className="flex items-center justify-between gap-3">
             <h3 className="flex items-center gap-2 text-lg font-semibold md:text-xl">
-              <GithubLogoIcon weight="fill" className="size-5 shrink-0" />
+              <GithubLogoIcon weight="duotone" className="size-5 shrink-0" />
               Repositories
             </h3>
             <Link
@@ -239,11 +239,11 @@ function RepositoriesCard({ placard }: { placard: GitHubPlacard }) {
               rel="noopener noreferrer"
               className="flex shrink-0 items-center gap-0.5 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/45"
             >
-              All {count(placard.publicRepoCount)} public repos
+              github.com/{placard.login}
               <ArrowUpRightIcon weight="bold" className="size-3.5" />
             </Link>
           </div>
-          <ul className="mt-4 grid gap-2.5 sm:grid-cols-2">
+          <ul className="mt-4 grid gap-2 sm:grid-cols-2">
             {placard.repos.map((repo) => (
               <RepoTile key={repo.nameWithOwner} repo={repo} />
             ))}

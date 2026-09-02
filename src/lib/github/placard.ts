@@ -21,6 +21,7 @@ export type GitHubPlacardRepo = {
   /** Newest commit on the default branch; stands in for a missing
    * description on the tile. */
   lastCommit: { headline: string; date: string } | null;
+  isFork: boolean;
   pushedAt: string;
   createdAt: string;
 };
@@ -56,20 +57,19 @@ export type GitHubPlacard = {
     to: string;
   };
   publicRepoCount: number;
-  /** The tiles under the projects: pinned repositories first, in pinned
-   * order, then the rest by last push, minus those that have a card. */
+  /** Every public repository, his own and the organization ones he
+   * committed to this year, newest push first. */
   repos: GitHubPlacardRepo[];
 };
 
-/** Six tiles, two columns of three: GitHub's own pinned layout. */
-export const GITHUB_REPOS_LIMIT = 6;
-
 /**
- * Weeks of the contribution graph the card draws. The graph shares the
- * year-bar column, about 260px on desktop, so a full year leaves 4px
- * squares; half a year leaves them near the size GitHub draws its own.
+ * Weeks of the contribution graph the card draws: GitHub's own 53 columns,
+ * a year plus the partial weeks at either end. The graph shares the year-bar
+ * column, about 260px on desktop, so the squares land at 4px; half a year
+ * would double them, but the headline says "in the last year" and a graph
+ * that stops in spring reads as cut off.
  */
-export const GITHUB_CALENDAR_WEEKS = 26;
+export const GITHUB_CALENDAR_WEEKS = 53;
 
 /** GitHub's profile overview filtered to one day's contribution activity. */
 export function contributionDayUrl(login: string, date: string) {
@@ -146,6 +146,7 @@ function placardRepo(repo: GitHubRepo, login: string): GitHubPlacardRepo {
     language: repo.language,
     languageColor: repo.languageColor,
     lastCommit: repo.lastCommit,
+    isFork: repo.isFork,
     pushedAt: repo.pushedAt,
     createdAt: repo.createdAt,
   };
@@ -194,34 +195,26 @@ export function yearBars(
 /**
  * Shape the fetched activity into what the Projects placard shows.
  *
- * `featuredRepos` names the repositories that already have a curated project
- * card, so the tiles do not repeat them. Pinned repositories lead, in the
- * order he pinned them on GitHub, whatever their age: pinning is the one
- * way to curate this list without a deploy. The remaining tiles go to his
- * own public repositories and the organization ones he committed to this
- * year, newest push first, skipping forks and archived repositories.
+ * The repository list is the whole of what GitHub shows for him: every
+ * public repository under the account, forks included, the way the
+ * repositories tab lists them, plus the organization repositories he
+ * committed to this year, which that tab leaves out. Newest push first, so
+ * what he is working on now is at the top, and the projects that have
+ * their own card above still appear here, because this is the index.
  */
 export function buildGitHubPlacard(
   activity: GitHubActivity,
-  {
-    featuredRepos = [],
-    now = new Date(),
-  }: { featuredRepos?: readonly string[]; now?: Date } = {},
+  { now = new Date() }: { now?: Date } = {},
 ): GitHubPlacard {
-  const featured = new Set(featuredRepos.map((name) => name.toLowerCase()));
   const seen = new Set<string>();
-  const unseen = (repo: GitHubRepo) => {
-    const key = repo.nameWithOwner.toLowerCase();
-    if (seen.has(key) || featured.has(key)) return false;
-    seen.add(key);
-    return true;
-  };
-  const pinned = activity.pinnedRepos.filter(unseen);
-  const recent = [...activity.repos, ...activity.activeRepos]
-    .filter((repo) => !repo.isFork && !repo.isArchived && unseen(repo))
-    .sort((a, b) => b.pushedAt.localeCompare(a.pushedAt));
-  const repos = [...pinned, ...recent]
-    .slice(0, GITHUB_REPOS_LIMIT)
+  const repos = [...activity.repos, ...activity.activeRepos]
+    .filter((repo) => {
+      const key = repo.nameWithOwner.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => b.pushedAt.localeCompare(a.pushedAt))
     .map((repo) => placardRepo(repo, activity.login));
 
   const days = activity.contributions.days;

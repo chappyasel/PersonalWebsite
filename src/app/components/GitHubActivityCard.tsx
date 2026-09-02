@@ -76,8 +76,8 @@ function dayCaption(day: GitHubContributionDay) {
  * The contribution graph as GitHub lays it out, in the slot the Weightlifting
  * card gives its year bars: one column per week, Sunday at the top, square
  * cells, a month name under the first week of each month where the bars
- * carry their year labels. Half a year, so the squares stay legible in that
- * column. Each square is a link to that day's activity on GitHub; the
+ * carry their year labels. The year always fits the column, so the squares
+ * are small. Each square is a link to that day's activity on GitHub; the
  * squares stay out of the tab order because the card itself is the link
  * keyboard users get, and 180 stops in a row would be a wall. The month row
  * hides on narrow screens where it would overlap.
@@ -104,7 +104,7 @@ function ContributionCalendar({
     >
       <TooltipProvider delayDuration={100}>
         <div
-          className="grid gap-0.5"
+          className="grid gap-px"
           style={{
             gridTemplateColumns: columns,
             gridTemplateRows: "repeat(7, minmax(0, 1fr))",

@@ -1,6 +1,6 @@
 {
   "login": "chappyasel",
-  "fetchedAt": "2026-09-02T17:48:48.142Z",
+  "fetchedAt": "2026-09-02T17:58:13.953Z",
   "contributions": {
     "from": "2025-08-31T07:00:00Z",
     "to": "2026-09-03T06:59:59Z",
@@ -2313,116 +2313,6 @@
       "lastCommit": {
         "headline": "First non-verified login attempt, CSS change",
         "date": "2015-10-12T20:43:01Z"
-      }
-    }
-  ],
-  "pinnedRepos": [
-    {
-      "nameWithOwner": "chappyasel/WebExperiments_Backend",
-      "name": "WebExperiments_Backend",
-      "owner": "chappyasel",
-      "description": "A monorepo for my AWS EB-hosted online portfolio website along with MySQL / PHP / Node.js backends for various other personal projects including Weightlifting App and ESPN Fantasy Football",
-      "url": "https://github.com/chappyasel/WebExperiments_Backend",
-      "homepageUrl": "http://www.chappyasel.com",
-      "language": "TypeScript",
-      "languageColor": "#3178c6",
-      "pushedAt": "2024-08-15T00:03:34Z",
-      "createdAt": "2018-06-07T04:41:14Z",
-      "isFork": false,
-      "isArchived": false,
-      "lastCommit": {
-        "headline": "Updated website content",
-        "date": "2022-11-07T01:17:35Z"
-      }
-    },
-    {
-      "nameWithOwner": "WeightliftingApp/WeightliftingApp-GPT",
-      "name": "WeightliftingApp-GPT",
-      "owner": "WeightliftingApp",
-      "description": "Per-exercise leaderboards computed from Weightlifting App data exports, plus an unfinished OpenAI experiment",
-      "url": "https://github.com/WeightliftingApp/WeightliftingApp-GPT",
-      "homepageUrl": null,
-      "language": "Python",
-      "languageColor": "#3572A5",
-      "pushedAt": "2023-03-06T04:41:01Z",
-      "createdAt": "2023-03-05T23:42:48Z",
-      "isFork": false,
-      "isArchived": false,
-      "lastCommit": {
-        "headline": "Added lbs/kg conversion, flexible metric",
-        "date": "2023-03-06T04:40:59Z"
-      }
-    },
-    {
-      "nameWithOwner": "chappyasel/RedditGPT",
-      "name": "RedditGPT",
-      "owner": "chappyasel",
-      "description": "A Reddit client created entirely with ChatGPT",
-      "url": "https://github.com/chappyasel/RedditGPT",
-      "homepageUrl": null,
-      "language": "HTML",
-      "languageColor": "#e34c26",
-      "pushedAt": "2023-02-11T01:11:04Z",
-      "createdAt": "2023-02-11T01:00:29Z",
-      "isFork": false,
-      "isArchived": false,
-      "lastCommit": {
-        "headline": "Added project, README",
-        "date": "2023-02-11T01:10:59Z"
-      }
-    },
-    {
-      "nameWithOwner": "WeightliftingApp/WeightliftingApp-ML",
-      "name": "WeightliftingApp-ML",
-      "owner": "WeightliftingApp",
-      "description": "A series of programs written in Python using Weightling App data to train a Keras deep learning model exported to CoreML for the purpose of workout type prediction based on the exercises performed",
-      "url": "https://github.com/WeightliftingApp/WeightliftingApp-ML",
-      "homepageUrl": null,
-      "language": "Python",
-      "languageColor": "#3572A5",
-      "pushedAt": "2018-01-30T07:48:35Z",
-      "createdAt": "2018-01-29T05:27:53Z",
-      "isFork": false,
-      "isArchived": false,
-      "lastCommit": {
-        "headline": "Update README.md",
-        "date": "2018-01-30T07:48:34Z"
-      }
-    },
-    {
-      "nameWithOwner": "chappyasel/RotoworldML_Python",
-      "name": "RotoworldML_Python",
-      "owner": "chappyasel",
-      "description": "A series of programs written in Python using the Rotoworld mobile API to train a Keras deep learning model for the purpose of evaluating NBA players based on tokenized news articles",
-      "url": "https://github.com/chappyasel/RotoworldML_Python",
-      "homepageUrl": null,
-      "language": "Python",
-      "languageColor": "#3572A5",
-      "pushedAt": "2018-11-28T23:58:39Z",
-      "createdAt": "2018-10-29T22:59:59Z",
-      "isFork": false,
-      "isArchived": false,
-      "lastCommit": {
-        "headline": "More work",
-        "date": "2018-11-28T23:58:28Z"
-      }
-    },
-    {
-      "nameWithOwner": "chappyasel/FantasyBasketball_iOS",
-      "name": "FantasyBasketball_iOS",
-      "owner": "chappyasel",
-      "description": "Accesses player data from espn.com, rotoworld.com, nba.com, and more for the purpose of tracking and evaluating NBA player performance as well as calculating various fantasy basketball-related metrics",
-      "url": "https://github.com/chappyasel/FantasyBasketball_iOS",
-      "homepageUrl": null,
-      "language": "Objective-C",
-      "languageColor": "#438eff",
-      "pushedAt": "2017-12-11T22:58:34Z",
-      "createdAt": "2015-07-15T16:28:15Z",
-      "isFork": false,
-      "isArchived": false,
-      "lastCommit": {
-        "headline": "0.6.7: UI Adjustments, win prob fix attempts",
-        "date": "2017-12-11T22:58:28Z"
       }
     }
   ],

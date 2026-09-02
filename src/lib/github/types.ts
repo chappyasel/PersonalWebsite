@@ -80,9 +80,6 @@ export const gitHubActivitySchema = z.object({
   publicRepoCount: z.number().int().nonnegative(),
   /** Those repositories, most recently pushed first. */
   repos: z.array(repoSchema),
-  /** Public repositories pinned on the profile, in the order he pinned them:
-   * the one curation he can do without a deploy. */
-  pinnedRepos: z.array(repoSchema),
   /** Public repositories, own or not, that received commits this year. */
   activeRepos: z.array(activeRepoSchema),
 });

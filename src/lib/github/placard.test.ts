@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   GITHUB_CALENDAR_WEEKS,
-  GITHUB_REPOS_LIMIT,
   buildGitHubPlacard,
   contributionDayUrl,
   contributionWeeks,
@@ -63,7 +62,6 @@ function activity(overrides: Partial<GitHubActivity> = {}): GitHubActivity {
     ],
     publicRepoCount: 3,
     repos: [],
-    pinnedRepos: [],
     activeRepos: [],
     ...overrides,
   };
@@ -116,13 +114,18 @@ describe("contributionWeeks", () => {
 
 describe("recentWeeks", () => {
   it("keeps the newest columns, the partial current week included", () => {
-    // Sun 2025-08-31 through Wed 2026-09-02: 53 columns, the last partial.
+    // Sun 2025-08-31 through Wed 2026-09-02: 53 columns, the last partial,
+    // exactly GitHub's own graph.
     const days = consecutiveDays("2025-08-31", 368);
     const weeks = recentWeeks(days);
     expect(weeks).toHaveLength(GITHUB_CALENDAR_WEEKS);
     expect(weeks.at(-1)![3]?.date).toBe("2026-09-02");
     expect(weeks.at(-1)![4]).toBeNull();
-    expect(weeks[0]![0]?.date).toBe("2026-03-08");
+    expect(weeks[0]![0]?.date).toBe("2025-08-31");
+    // Starting mid-week adds a 54th, partial column at the old end; it goes.
+    expect(recentWeeks(consecutiveDays("2025-08-27", 372))[0]![0]?.date).toBe(
+      "2025-08-31",
+    );
   });
 
   it("hands back everything when there is less than the window", () => {
@@ -258,31 +261,7 @@ describe("buildGitHubPlacard", () => {
     expect(placard.repos[0]!.lastCommit?.headline).toBe("Initial commit");
   });
 
-  it("puts pinned repositories first, in pinned order, then fills by push", () => {
-    const placard = buildGitHubPlacard(
-      activity({
-        pinnedRepos: [
-          repo({ name: "pinned-old", pushedAt: "2018-01-01T00:00:00Z" }),
-          // Pinned but featured: the project card already covers it.
-          repo({ name: "PersonalWebsite", pushedAt: "2026-07-01T00:00:00Z" }),
-          repo({ name: "pinned-fork", isFork: true }),
-        ],
-        repos: [
-          repo({ name: "recent", pushedAt: "2026-06-01T00:00:00Z" }),
-          // Also pinned; keeps its pinned slot rather than repeating.
-          repo({ name: "pinned-old", pushedAt: "2018-01-01T00:00:00Z" }),
-        ],
-      }),
-      { featuredRepos: ["chappyasel/PersonalWebsite"], now: NOW },
-    );
-    expect(placard.repos.map((r) => r.name)).toEqual([
-      "pinned-old",
-      "pinned-fork",
-      "recent",
-    ]);
-  });
-
-  it("leaves out featured, forked, and archived repositories, described or not", () => {
+  it("keeps forks, archived, undescribed, and carded repositories, flagging forks", () => {
     const placard = buildGitHubPlacard(
       activity({
         repos: [
@@ -290,23 +269,22 @@ describe("buildGitHubPlacard", () => {
           repo({ name: "fork", isFork: true }),
           repo({ name: "archived", isArchived: true }),
           repo({ name: "blank", description: null }),
-          repo({ name: "kept" }),
         ],
       }),
-      { featuredRepos: ["chappyasel/personalwebsite"], now: NOW },
+      { now: NOW },
     );
-    expect(placard.repos.map((r) => r.name)).toEqual(["blank", "kept"]);
-  });
-
-  it("caps the list", () => {
-    const repos = Array.from({ length: GITHUB_REPOS_LIMIT + 2 }, (_, index) =>
-      repo({
-        name: `r${index}`,
-        pushedAt: `2020-01-${String(index + 1).padStart(2, "0")}T00:00:00Z`,
-      }),
-    );
-    const placard = buildGitHubPlacard(activity({ repos }), { now: NOW });
-    expect(placard.repos).toHaveLength(GITHUB_REPOS_LIMIT);
-    expect(placard.repos[0]!.name).toBe(`r${GITHUB_REPOS_LIMIT + 1}`);
+    // Same push instant throughout, so the order is the tab's own.
+    expect(placard.repos.map((r) => r.name)).toEqual([
+      "PersonalWebsite",
+      "fork",
+      "archived",
+      "blank",
+    ]);
+    expect(placard.repos.map((r) => r.isFork)).toEqual([
+      false,
+      true,
+      false,
+      false,
+    ]);
   });
 });
